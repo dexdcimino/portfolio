@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/icons/brand-mark.svg" type="image/svg+xml" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=66" />
+  <link rel="stylesheet" href="styles.css?v=68" />
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascot_limegreen-900.avif"
         imagesrcset="assets/derived/mascot_limegreen-400.avif 400w,
@@ -112,18 +112,19 @@
       <a class="contact-mini" href="mailto:dexdcimino@gmail.com"><span class="icon nav-icon" data-icon="contact" aria-hidden="true"></span><span class="nav-text">CONTACT</span></a>
 
       <div class="profile-mini">
-        <div class="profile-row">
-          <picture>
-            <source type="image/avif" srcset="assets/derived/profile-200.avif 200w,
-                                      assets/derived/profile-84.avif 84w"
-                    sizes="42px">
-            <source type="image/webp" srcset="assets/derived/profile-200.webp 200w,
-                                      assets/derived/profile-84.webp 84w"
-                    sizes="42px">
-            <img class="profile-photo" src="assets/images/profile.jpg" alt="Dex Cimino" width="932" height="1014" loading="lazy" decoding="async">
-          </picture>
-          <div class="profile-copy"><strong>DEX CIMINO</strong><small>3D + AI + GAMES</small></div>
-        </div>
+        <picture class="profile-frame">
+          <source type="image/avif" srcset="assets/derived/profile-84.avif 84w,
+                                            assets/derived/profile-200.avif 200w,
+                                            assets/derived/profile-420.avif 420w"
+                  sizes="200px">
+          <source type="image/webp" srcset="assets/derived/profile-84.webp 84w,
+                                            assets/derived/profile-200.webp 200w,
+                                            assets/derived/profile-420.webp 420w"
+                  sizes="200px">
+          <img class="profile-photo" src="assets/images/profile.jpg" alt="Dex Cimino"
+               width="932" height="1014" loading="lazy" decoding="async" />
+        </picture>
+        <div class="profile-copy"><strong>DEX CIMINO</strong><small>3D + AI + GAMES</small></div>
 
         <!-- Replace the "#" hrefs with your real profile URLs. -->
         <div class="social-mini" aria-label="Social links">
@@ -154,9 +155,9 @@
           </span>
         </h1>
 
-        <p class="roles">2D / 3D DESIGN <b>•</b> CREATIVE TECHNOLOGIST<br/>AI-ASSISTED BUILDER</p>
+        <p class="roles">2D / 3D Artist, Creative Technologist, and AI-Assisted Builder.</p>
         <div class="hero-divider" aria-hidden="true"></div>
-        <p class="intro">I build digital assets, game experiences, and AI-assisted products — from concept to something people can actually use.</p>
+        <p class="intro">I combine art, technology, and AI to build games, digital experiences, and creative tools.</p>
 
         <div class="hero-actions">
           <a class="button primary" href="#work"><span>VIEW WORK</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
@@ -370,6 +371,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=66"></script>
+  <script src="script.js?v=68"></script>
 </body>
 </html>
