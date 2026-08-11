@@ -391,6 +391,10 @@ footer strong{color:var(--accent);transition:color var(--accent-ease)}
 footer small{margin-left:auto}
 
 .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s cubic-bezier(.22,.61,.36,1)}
+/* The hero mascot is the LCP element. Chrome will not consider an element
+   with opacity:0 as an LCP candidate at all, so fading it in cancels out the
+   preload and fetchpriority=high. Keep the slide, drop the fade. */
+.hero-art.reveal{opacity:1}
 .reveal.in{opacity:1;transform:none}
 
 /* ==========================================================================

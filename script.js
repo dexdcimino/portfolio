@@ -72,14 +72,50 @@ const roundedRimPath = roundedPolygonPath(hexPoints(38, 38, RIM_R), 5 * RIM_R / 
 
 /* ---------- theming ------------------------------------------------------ */
 
-function swapMascots(theme) {
-  const next = `assets/mascots/mascot_${theme.mascot}.png`;
-  const targets = [heroMascot, ...document.querySelectorAll('[data-theme-mascot]')].filter(Boolean);
-  // Decode first so the swap never shows a half-painted frame.
-  const preload = new Image();
-  preload.onload = () => targets.forEach(img => { img.src = next; });
-  preload.src = next;
+// Each mascot <img> sits inside a <picture>, so changing img.src alone does
+// nothing — the browser keeps serving whatever the <source> srcset resolved to.
+// Rewriting the stem in place preserves each slot's own width list (the hero
+// carries 900/600/400, the card only 600/400) instead of hard-coding them here.
+function retint(el, attr, mascot) {
+  const value = el.getAttribute(attr);
+  if (value) el.setAttribute(attr, value.replace(/mascot_[a-z]+/g, `mascot_${mascot}`));
 }
+
+// Bumped per swap. Decodes finish out of order when someone clicks through the
+// colours quickly, and without this an earlier, slower decode lands last and
+// leaves the previous mascot on screen.
+let swapToken = 0;
+
+function swapMascots(theme) {
+  const token = ++swapToken;
+  const targets = [heroMascot, ...document.querySelectorAll('[data-theme-mascot]')].filter(Boolean);
+
+  const apply = () => token === swapToken && targets.forEach(img => {
+    img.closest('picture')?.querySelectorAll('source')
+      .forEach(source => retint(source, 'srcset', theme.mascot));
+    retint(img, 'src', theme.mascot);        // keep the master fallback in step
+  });
+
+  // Decode the widest derivative first so the swap never shows a half-painted
+  // frame. decode() rejects on formats the browser can't take — apply anyway,
+  // the <picture> negotiation will fall through to WebP or the PNG.
+  const warm = new Image();
+  warm.src = `assets/derived/mascot_${theme.mascot}-900.avif`;
+  if (warm.decode) warm.decode().then(apply, apply);
+  else warm.onload = warm.onerror = apply;
+}
+
+// Once the page has painted, pull the other six in during idle time at 600w
+// only — enough that a colour click feels instant without competing with LCP.
+function warmOtherMascots() {
+  const load = () => ACCENTS
+    .filter(theme => theme.name !== currentTheme)
+    .forEach(theme => { new Image().src = `assets/derived/mascot_${theme.mascot}-600.avif`; });
+  // Safari has no requestIdleCallback.
+  if ('requestIdleCallback' in window) requestIdleCallback(load, { timeout: 4000 });
+  else setTimeout(load, 2000);
+}
+window.addEventListener('load', warmOtherMascots);
 
 function paintSwatches() {
   // The active hex reads as a hollow ring; the rest are solid.

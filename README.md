@@ -66,3 +66,40 @@ Keep these filenames stable so theme switching requires no code changes.
 ## Social links
 The four social buttons (YouTube, Instagram, LinkedIn, GitHub) live at the bottom of
 the sidebar in `index.html` — replace the `#` hrefs with real profile URLs.
+
+## Image pipeline
+
+`assets/` holds **masters** — hand-authored art, the only copy of some of it.
+`assets/derived/` holds **generated output**; `tools/bake_images.py` is the only
+thing that writes there. Delete the folder and one run rebuilds it exactly.
+
+Any new image must be run through the baker before it ships:
+
+```
+python tools/bake_images.py
+```
+
+It emits AVIF (`quality=58`) and WebP (`quality=76, method=6`) at the widths
+declared in `SOURCES`, skipping anything already newer than its master. Those
+settings were validated against the source art at 100% crop — they are visually
+lossless on this material, so don't raise them.
+
+Rules:
+
+- Raw PNG/JPG is **never referenced directly** except as the final `<picture>`
+  fallback. Every raster image on the page is a `<picture>` with AVIF, then
+  WebP, then the master.
+- Every raster `<img>` carries intrinsic `width`/`height` (source pixel
+  dimensions, not CSS size) so the layout never shifts as images arrive.
+- The hero mascot is `fetchpriority="high"`, is preloaded in `<head>`, and must
+  **never** be lazy-loaded — it is the largest contentful paint.
+- Everything below the fold keeps `loading="lazy"` and `decoding="async"`.
+- Get `sizes` right per slot. A wrong `sizes` makes the browser pick a width far
+  larger than it renders, which throws away the whole exercise.
+- **Budget: no single image over 150 KB on the wire**, hero LCP under 1.2 s on a
+  cold 4G load.
+- Video is **not** self-hosted — it goes to an external streaming host.
+
+`assets/derived/` is served with `Cache-Control: immutable` for a year
+(`vercel.json`). Derivatives are content-addressed by width and never mutate in
+place, so a changed image means a new filename, not a new body at the same URL.

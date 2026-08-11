@@ -9,7 +9,13 @@
   <link rel="icon" href="assets/icons/brand-mark.svg" type="image/svg+xml" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=61" />
+  <link rel="stylesheet" href="styles.css?v=62" />
+  <link rel="preload" as="image" fetchpriority="high"
+        href="assets/derived/mascot_limegreen-900.avif"
+        imagesrcset="assets/derived/mascot_limegreen-400.avif 400w,
+                     assets/derived/mascot_limegreen-600.avif 600w,
+                     assets/derived/mascot_limegreen-900.avif 900w"
+        imagesizes="(max-width:1100px) 78vw, (max-width:1250px) 58vw, min(47vw, 800px)">
 </head>
 <body>
   <a class="skip-link" href="#home">Skip to content</a>
@@ -107,7 +113,15 @@
 
       <div class="profile-mini">
         <div class="profile-row">
-          <img class="profile-photo" src="assets/images/profile.jpg" alt="Dex Cimino" width="42" height="42" />
+          <picture>
+            <source type="image/avif" srcset="assets/derived/profile-200.avif 200w,
+                                      assets/derived/profile-84.avif 84w"
+                    sizes="42px">
+            <source type="image/webp" srcset="assets/derived/profile-200.webp 200w,
+                                      assets/derived/profile-84.webp 84w"
+                    sizes="42px">
+            <img class="profile-photo" src="assets/images/profile.jpg" alt="Dex Cimino" width="932" height="1014" loading="lazy" decoding="async">
+          </picture>
           <div class="profile-copy"><strong>DEX CIMINO</strong><small>3D + AI + GAMES</small></div>
         </div>
 
@@ -152,15 +166,39 @@
       </div>
 
       <div class="hero-art reveal">
-        <img id="heroMascot" src="assets/mascots/mascot_limegreen.png" alt="Clayweld mascot artwork by Dex Cimino" />
+        <picture>
+          <source type="image/avif" srcset="assets/derived/mascot_limegreen-900.avif 900w,
+                                      assets/derived/mascot_limegreen-600.avif 600w,
+                                      assets/derived/mascot_limegreen-400.avif 400w"
+                  sizes="(max-width:1100px) 78vw, (max-width:1250px) 58vw, min(47vw, 800px)">
+          <source type="image/webp" srcset="assets/derived/mascot_limegreen-900.webp 900w,
+                                      assets/derived/mascot_limegreen-600.webp 600w,
+                                      assets/derived/mascot_limegreen-400.webp 400w"
+                  sizes="(max-width:1100px) 78vw, (max-width:1250px) 58vw, min(47vw, 800px)">
+          <img id="heroMascot" src="assets/mascots/mascot_limegreen.png" alt="Clayweld mascot artwork by Dex Cimino" width="1303" height="1193" fetchpriority="high" decoding="async">
+        </picture>
       </div>
 
       <div class="hero-goblin reveal" aria-hidden="true">
-        <img src="assets/mascots/lava_goblin.png" alt="" draggable="false" />
+        <picture>
+          <source type="image/avif" srcset="assets/derived/lava_goblin-600.avif 600w,
+                                      assets/derived/lava_goblin-400.avif 400w"
+                  sizes="min(50vw, 624px)">
+          <source type="image/webp" srcset="assets/derived/lava_goblin-600.webp 600w,
+                                      assets/derived/lava_goblin-400.webp 400w"
+                  sizes="min(50vw, 624px)">
+          <img src="assets/mascots/lava_goblin.png" alt="" draggable="false" width="909" height="772" loading="lazy" decoding="async">
+        </picture>
       </div>
 
       <div class="hero-archer reveal" aria-hidden="true">
-        <img src="assets/mascots/bone_archer.png" alt="" draggable="false" />
+        <picture>
+          <source type="image/avif" srcset="assets/derived/bone_archer-400.avif 400w"
+                  sizes="min(26vw, 340px)">
+          <source type="image/webp" srcset="assets/derived/bone_archer-400.webp 400w"
+                  sizes="min(26vw, 340px)">
+          <img src="assets/mascots/bone_archer.png" alt="" draggable="false" width="451" height="574" loading="lazy" decoding="async">
+        </picture>
       </div>
 
       <!-- assets/logos/not_ai.svg, outlined. Three groups: notai + lines take the
@@ -198,19 +236,43 @@
       <!-- Card images are placeholders — swap each <img> (and title) for the real piece. -->
       <div class="work-grid">
         <article class="work-card reveal">
-          <img src="assets/images/featured-bishop-lava.png" alt="Environment artwork" loading="lazy" />
+          <picture>
+            <source type="image/avif" srcset="assets/derived/featured-bishop-lava-800.avif 800w,
+                                      assets/derived/featured-bishop-lava-500.avif 500w"
+                    sizes="(max-width:760px) 90vw, (max-width:1100px) 44vw, 23vw">
+            <source type="image/webp" srcset="assets/derived/featured-bishop-lava-800.webp 800w,
+                                      assets/derived/featured-bishop-lava-500.webp 500w"
+                    sizes="(max-width:760px) 90vw, (max-width:1100px) 44vw, 23vw">
+            <img src="assets/images/featured-bishop-lava.png" alt="Environment artwork" width="1672" height="941" loading="lazy" decoding="async">
+          </picture>
           <div class="card-shade"></div>
           <div class="card-meta"><small>ENVIRONMENT</small><h3>Valley Outpost</h3></div>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
         </article>
         <article class="work-card reveal">
-          <img src="assets/images/featured-bishop.png" alt="Prop design artwork" loading="lazy" />
+          <picture>
+            <source type="image/avif" srcset="assets/derived/featured-bishop-800.avif 800w,
+                                      assets/derived/featured-bishop-500.avif 500w"
+                    sizes="(max-width:760px) 90vw, (max-width:1100px) 44vw, 23vw">
+            <source type="image/webp" srcset="assets/derived/featured-bishop-800.webp 800w,
+                                      assets/derived/featured-bishop-500.webp 500w"
+                    sizes="(max-width:760px) 90vw, (max-width:1100px) 44vw, 23vw">
+            <img src="assets/images/featured-bishop.png" alt="Prop design artwork" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
           <div class="card-shade"></div>
           <div class="card-meta"><small>PROP / DESIGN</small><h3>Grimshot Rifle</h3></div>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
         </article>
         <article class="work-card brand-card reveal">
-          <img data-theme-mascot src="assets/mascots/mascot_limegreen.png" alt="Character artwork" loading="lazy" />
+          <picture>
+            <source type="image/avif" srcset="assets/derived/mascot_limegreen-600.avif 600w,
+                                      assets/derived/mascot_limegreen-400.avif 400w"
+                    sizes="(max-width:760px) 90vw, (max-width:1100px) 44vw, 23vw">
+            <source type="image/webp" srcset="assets/derived/mascot_limegreen-600.webp 600w,
+                                      assets/derived/mascot_limegreen-400.webp 400w"
+                    sizes="(max-width:760px) 90vw, (max-width:1100px) 44vw, 23vw">
+            <img data-theme-mascot src="assets/mascots/mascot_limegreen.png" alt="Character artwork" width="1303" height="1193" loading="lazy" decoding="async">
+          </picture>
           <div class="card-shade"></div>
           <div class="card-meta"><small>CHARACTER</small><h3>Clayweld</h3></div>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
@@ -243,7 +305,19 @@
     </section>
 
     <section class="about" id="about">
-      <div class="about-photo reveal"><img src="assets/images/profile.jpg" alt="Dex Cimino" loading="lazy" /></div>
+      <div class="about-photo reveal">
+        <picture>
+          <source type="image/avif" srcset="assets/derived/profile-840.avif 840w,
+                                      assets/derived/profile-420.avif 420w,
+                                      assets/derived/profile-200.avif 200w"
+                  sizes="(max-width:760px) min(90vw, 330px), min(32vw, 420px)">
+          <source type="image/webp" srcset="assets/derived/profile-840.webp 840w,
+                                      assets/derived/profile-420.webp 420w,
+                                      assets/derived/profile-200.webp 200w"
+                  sizes="(max-width:760px) min(90vw, 330px), min(32vw, 420px)">
+          <img src="assets/images/profile.jpg" alt="Dex Cimino" width="932" height="1014" loading="lazy" decoding="async">
+        </picture>
+      </div>
       <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH + SHIPPING</h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p><div class="chips"><span>Maya</span><span>ZBrush</span><span>Substance</span><span>Photoshop</span><span>Illustrator</span><span>Unreal</span><span>Unity</span><span>Roblox</span><span>AI Tools</span></div></div>
     </section>
 
@@ -295,6 +369,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=61"></script>
+  <script src="script.js?v=62"></script>
 </body>
 </html>
