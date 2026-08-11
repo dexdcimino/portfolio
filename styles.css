@@ -21,10 +21,11 @@
   /* Growing the window pushes RESUME/CONTACT up, which is intended — but it must
      never push them off the rail. 640px is the fixed chrome above the footer plus
      the name and social rows below it, so this is the room actually available.
-     Width follows height at 4:5 so the window stays a portrait on short screens
-     instead of flattening into a landscape box; 210px is the rail's content width. */
-  --avatar-expanded-h:max(var(--avatar-collapsed),min(262px,calc(100vh - 640px)));
-  --avatar-expanded-w:min(210px,calc(var(--avatar-expanded-h) * .8));
+     Width follows height at --avatar-ratio so the window keeps its shape on short
+     screens instead of flattening out; 210px is the rail's content width. */
+  --avatar-ratio:.93;   /* window w/h expanded — near square, still slightly portrait */
+  --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - 640px)));
+  --avatar-expanded-w:min(210px,calc(var(--avatar-expanded-h) * var(--avatar-ratio)));
   --icon-idle:#8d959c;
   --text:#f1f3f4;
   --gutter:clamp(92px,11.2vw,190px); /* hero copy's left edge; every section below aligns to it */
@@ -177,17 +178,24 @@ img{max-width:100%}
 }
 .profile-frame .profile-photo{
   display:block;width:100%;height:100%;object-fit:cover;
-  object-position:50% 42%;
-  transform:scale(1.75);
-  transform-origin:50% 22%;
+  object-position:50% 45%;
+  /* Collapsed: zoomed to fill the square with the head, origin placed so the
+     face lands dead centre rather than drifting high. */
+  transform:scale(1.5);
+  transform-origin:50% 11%;
   transition:transform var(--sidebar-transition-duration) var(--sidebar-transition-ease),
+             transform-origin var(--sidebar-transition-duration) var(--sidebar-transition-ease),
              object-position var(--sidebar-transition-duration) var(--sidebar-transition-ease);
 }
 .sidebar:is(:hover,:has(:focus-visible)) .profile-frame{
   width:var(--avatar-expanded-w);height:var(--avatar-expanded-h);border-radius:14px;
 }
+/* Expanded: a shade over 1 so the frame trims headroom off the top and stops
+   just under the shirt collar at the bottom, instead of showing the whole plate.
+   Origin moves with the scale — both interpolate, so the face travels smoothly
+   from centred-in-the-square to its natural upper-third position. */
 .sidebar:is(:hover,:has(:focus-visible)) .profile-frame .profile-photo{
-  transform:scale(1);object-position:50% 50%;
+  transform:scale(1.15);transform-origin:50% 34.6%;object-position:50% 50%;
 }
 .profile-mini strong{font-size:14px;letter-spacing:.025em;color:var(--accent);transition:color var(--accent-ease)}
 .profile-mini small{font-size:12px;letter-spacing:.025em;color:var(--muted)}
