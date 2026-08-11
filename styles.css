@@ -107,7 +107,16 @@ img{max-width:100%}
    color transition instead of four separate rules.
    ========================================================================== */
 .sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidebar);z-index:30;background:var(--sidebar-bg);border-right:1px solid color-mix(in srgb,var(--accent) 62%,transparent);transition:width .24s cubic-bezier(.22,.61,.36,1),border-color var(--accent-ease);overflow:hidden;display:flex;flex-direction:column}
-.sidebar:hover,.sidebar:focus-within{width:var(--sidebar-open)}
+/* Expansion trigger. Hover, plus real keyboard focus — tabbing through the nav
+   has to open the rail or the labels are unreachable. It is deliberately
+   :has(:focus-visible) rather than plain focus-within: <dialog> restores focus
+   to whatever opened it on close, and the CONTACT link lives in this rail, so
+   the old rule popped the sidebar open every time the contact modal closed.
+   focus-visible is false for that programmatic restore after a mouse-opened
+   dialog, and true when the user actually tabbed there.
+   :is() is forgiving — where :has() is unsupported the argument is dropped and
+   hover still works, rather than the whole rule being thrown away. */
+.sidebar:is(:hover,:has(:focus-visible)){width:var(--sidebar-open)}
 
 .brand{height:86px;display:grid;place-items:center;border-bottom:1px solid var(--line);color:var(--accent);transition:color var(--accent-ease)}
 .brand-mark{width:38px;height:38px}
@@ -122,8 +131,8 @@ img{max-width:100%}
 .nav-icon{width:24px;height:24px}
 .nav-trail{width:15px;height:15px;margin-left:auto;opacity:0;transform:translateX(-6px)}
 .nav-text{opacity:0;transform:translateX(-8px);transition:opacity .2s ease,transform .2s ease;text-transform:uppercase;letter-spacing:.06em;font-weight:750;font-size:14px;color:#c3cad0}
-.sidebar:hover .nav-text,.sidebar:focus-within .nav-text{opacity:1;transform:none}
-.sidebar:hover .nav-trail,.sidebar:focus-within .nav-trail{opacity:.75;transform:none}
+.sidebar:is(:hover,:has(:focus-visible)) .nav-text{opacity:1;transform:none}
+.sidebar:is(:hover,:has(:focus-visible)) .nav-trail{opacity:.75;transform:none}
 
 .nav-link:hover,.nav-link.active,
 .resume-mini:hover,.resume-mini.active,
@@ -144,10 +153,10 @@ img{max-width:100%}
 .profile-mini small{font-size:12px;letter-spacing:.025em;color:var(--muted)}
 .profile-row{display:flex;align-items:center;gap:14px}
 .profile-copy{display:grid;gap:4px;opacity:0;transform:translateX(-7px);transition:opacity .2s ease,transform .2s ease}
-.sidebar:hover .profile-copy,.sidebar:focus-within .profile-copy{opacity:1;transform:none}
+.sidebar:is(:hover,:has(:focus-visible)) .profile-copy{opacity:1;transform:none}
 
 .social-mini{width:100%;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity .2s ease,transform .2s ease;pointer-events:none}
-.sidebar:hover .social-mini,.sidebar:focus-within .social-mini{opacity:1;transform:none;pointer-events:auto}
+.sidebar:is(:hover,:has(:focus-visible)) .social-mini{opacity:1;transform:none;pointer-events:auto}
 .social-mini a{height:30px;display:grid;place-items:center;border-radius:8px;color:var(--icon-idle);transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease}
 .social-mini a:hover{background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);transform:translateY(-2px)}
 .social-mini .icon{width:17px;height:17px}
@@ -518,7 +527,7 @@ body.modal-open{overflow:hidden}
 }
 @media(max-width:760px){
   :root{--sidebar:58px;--copy-size:16px;--swatch:28px;--swatch-step:34px}
-  .sidebar:hover,.sidebar:focus-within{width:188px}
+  .sidebar:is(:hover,:has(:focus-visible)){width:188px}
   .site-shell{margin-left:var(--sidebar)}
   .brand-mark{width:34px;height:34px}
   .nav-link,.resume-mini,.contact-mini{padding:0 17px;gap:14px}
