@@ -374,8 +374,8 @@ updateMotion();
    ========================================================================== */
 
 const CONTACT = {
-  endpoint: '',
-  accessKey: '',
+  endpoint: 'https://api.web3forms.com/submit',
+  accessKey: 'b3cdb4e6-bcdf-41d0-96d3-b208fa714191',
   to: 'dexdcimino@gmail.com',
   maxSends: 2,
   windowMs: 10 * 60 * 1000
@@ -410,10 +410,19 @@ function cooldownMinutes() {
 
 /* ---------- open / close ------------------------------------------------- */
 
-function setStatus(message, kind = '') {
+// `lead` renders as a bolded phrase in front of the message, so a success reads
+// as a state first and a sentence second. Built from nodes rather than innerHTML
+// so interpolated values can never become markup.
+function setStatus(message, kind = '', lead = '') {
   if (!statusEl) return;
-  statusEl.textContent = message;
   statusEl.className = `contact-status${kind ? ' ' + kind : ''}`;
+  if (!lead) {
+    statusEl.textContent = message;
+    return;
+  }
+  const strong = document.createElement('strong');
+  strong.textContent = lead;
+  statusEl.replaceChildren(strong, ` ${message}`);
 }
 
 function openContact() {
@@ -517,9 +526,12 @@ contactForm?.addEventListener('submit', async event => {
 
     recordSend();
     contactForm.reset();
-    setStatus('Sent — thanks. I will get back to you soon.', 'ok');
-    if (recentSends().length >= CONTACT.maxSends) setStatus(`Sent — thanks. That is ${CONTACT.maxSends} for now; the form reopens in about ${cooldownMinutes()} minutes.`, 'ok');
-    else sendBtn.disabled = false;
+    if (recentSends().length >= CONTACT.maxSends) {
+      setStatus(`That is ${CONTACT.maxSends} for now — the form reopens in about ${cooldownMinutes()} minutes.`, 'ok', '✓ Message sent.');
+    } else {
+      setStatus("I'll get back to you soon.", 'ok', '✓ Message sent.');
+      sendBtn.disabled = false;
+    }
   } catch {
     sendBtn.disabled = false;
     setStatus(`Could not send. Email me directly at ${CONTACT.to}.`, 'error');

@@ -458,8 +458,13 @@ footer small{margin-left:auto}
 .contact-trap{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 
 .contact-status{margin:0;min-height:20px;font-size:14px;line-height:1.45;color:#a4adb5}
-.contact-status.error{color:#f08a72}
-.contact-status.ok{color:var(--accent)}
+/* Success and error are semantic states, not brand surfaces — they must never
+   take var(--accent). Under the red accent a green-meaning "sent" message would
+   render red and read as a failure. Fixed hues, both weighted so they register
+   as state rather than body copy. #4ade80 is 9.8:1 on the panel, #f08a72 7.0:1. */
+.contact-status.ok{color:#4ade80;font-weight:600}
+.contact-status.error{color:#f08a72;font-weight:600}
+.contact-status strong{font-weight:800}
 
 .contact-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:2px}
 .contact-actions .button{flex:0 0 auto}
