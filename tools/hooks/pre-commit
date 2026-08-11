@@ -1,0 +1,37 @@
+#!/bin/sh
+# Bake image derivatives for any raster master in this commit, and stage them
+# alongside it — so the derived files can never lag behind the art.
+#
+# Lives here (versioned, reviewable) rather than in .git/hooks, which git does
+# not track. Install with:
+#
+#     python tools/bake_images.py --install-hooks
+#
+# POSIX sh on purpose: this has to run under Git Bash on Windows.
+
+set -e
+
+# Staged paths only — added/copied/modified/renamed, ignoring deletions.
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Nothing under assets/ that is a raster master? Then this hook is a no-op and
+# must stay completely silent (a CSS-only commit should not notice it exists).
+if ! printf '%s\n' "$staged" | grep -Eiq '^assets/.+\.(png|jpe?g)$'; then
+    exit 0
+fi
+
+PY=python
+command -v python >/dev/null 2>&1 || PY=python3
+
+if ! out=$($PY tools/bake_images.py 2>&1); then
+    printf 'pre-commit: image bake FAILED, commit blocked\n' >&2
+    printf '%s\n' "$out" >&2
+    exit 1
+fi
+
+git add assets/derived/
+
+# Pull the count straight out of the bake summary rather than recounting.
+written=$(printf '%s\n' "$out" | sed -n 's/.*[[:space:]]\([0-9][0-9]*\) written.*/\1/p' | tail -1)
+[ -n "$written" ] || written=0
+printf 'pre-commit: baked images — %s derivative(s) written, assets/derived/ staged\n' "$written"

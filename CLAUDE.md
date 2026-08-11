@@ -1,3 +1,12 @@
+## Git workflow
+
+- After completing any MD or task that changes files, commit and push
+  automatically. Do not wait to be asked.
+- Commit message: short imperative summary of what changed.
+- Never commit if verification steps failed — report the failure instead.
+- Never use `--no-verify`, and never force-push.
+- If the working tree has unrelated changes the user made by hand, mention them
+  rather than sweeping them into the commit.
 
 ## Image pipeline (do not regress)
 
@@ -16,5 +25,11 @@
 - Budget: no single image over 150 KB on the wire; hero LCP < 1.2 s on cold 4G.
 - Video is not self-hosted — external streaming host only.
 - `assets/derived/` is served `immutable` for a year via `vercel.json`.
+- **Any session touching images must run `python tools/bake_images.py --check`
+  before declaring work complete. A non-zero exit is a blocking failure.**
+- New masters: commit normally, the pre-commit hook bakes and stages derivatives.
+  New machine needs `python tools/bake_images.py --install-hooks` once.
+  The hook is convenience (skippable via `--no-verify`, absent on fresh clones);
+  `--check` is the actual guarantee.
 - Accent swaps retint the `<source>` srcsets, not just `img.src` — changing
   `src` alone does nothing inside a `<picture>`.

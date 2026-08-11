@@ -100,6 +100,29 @@ Rules:
   cold 4G load.
 - Video is **not** self-hosted — it goes to an external streaming host.
 
+### Adding new art
+
+Drop masters into `assets/` and commit normally — the pre-commit hook bakes the
+derivatives and stages them into the same commit as the art that produced them.
+It stays silent on commits that touch no raster masters.
+
+One-time setup on a new machine (`.git/hooks/` is not tracked by git):
+
+```
+python tools/bake_images.py --install-hooks
+```
+
+To verify by hand at any point:
+
+```
+python tools/bake_images.py --check      # exit 0 = current, exit 1 = stale/missing
+```
+
+The hook is convenience, not a guarantee — it can be skipped with `--no-verify`
+and a fresh clone has none until installed. `--check` is the guarantee; treat a
+non-zero exit as a blocking failure. Budget is unchanged: **no image over
+150 KB on the wire**.
+
 `assets/derived/` is served with `Cache-Control: immutable` for a year
 (`vercel.json`). Derivatives are content-addressed by width and never mutate in
 place, so a changed image means a new filename, not a new body at the same URL.

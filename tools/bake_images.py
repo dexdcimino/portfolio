@@ -14,12 +14,19 @@ SOURCES below if it needs a width set of its own, then run
 and reference the results from a <picture> in index.html. The masters stay in
 the markup as the final <img> fallback, never as the served image.
 
+Flags:
+    (none)           bake anything stale or missing
+    --check          report staleness and exit 1; writes nothing
+    --install-hooks  copy tools/hooks/pre-commit into .git/hooks/
+
 Encoder settings were validated against the source art at 100% crop. They are
 already visually lossless on this material — raising them "to be safe" only
 inflates the payload, so don't.
 """
 
 from pathlib import Path
+import shutil
+import stat
 import sys
 
 try:
@@ -60,6 +67,21 @@ def collect() -> list[tuple[Path, tuple[int, ...]]]:
     return sorted(found.items())
 
 
+def expected(src: Path, widths: tuple[int, ...]):
+    """Yield every (width, ext, output path) this master should produce.
+
+    Single source of truth for the naming scheme so --check can never disagree
+    with what a bake would actually write.
+    """
+    with Image.open(src) as im:
+        source_width = im.width
+    for width in widths:
+        if width > source_width:      # never upscale — the master is the ceiling
+            continue
+        for ext in ("avif", "webp"):
+            yield width, ext, DERIVED / f"{src.stem}-{width}.{ext}"
+
+
 def is_stale(src: Path, out: Path) -> bool:
     """Skip work when the derivative is already newer than its master."""
     return not out.exists() or out.stat().st_mtime <= src.stat().st_mtime
@@ -71,33 +93,76 @@ def bake(src: Path, widths: tuple[int, ...]) -> tuple[int, int, int]:
         # Alpha is load-bearing on the mascots; only flatten mode P/LA oddities
         # up into something both encoders accept losslessly.
         im = im.convert("RGBA" if "A" in im.getbands() or im.mode == "P" else "RGB")
-        source_width = im.width
         written = files = skipped = 0
+        opts_for = {"avif": AVIF_OPTS, "webp": WEBP_OPTS}
+        resized_at: dict[int, Image.Image] = {}
 
-        for width in widths:
-            if width > source_width:      # never upscale — the master is the ceiling
-                continue
-            height = round(im.height * width / source_width)
-            resized = im.resize((width, height), Image.LANCZOS)
-
-            for ext, opts in (("avif", AVIF_OPTS), ("webp", WEBP_OPTS)):
-                out = DERIVED / f"{src.stem}-{width}.{ext}"
-                if not is_stale(src, out):
-                    skipped += 1
-                    written += out.stat().st_size
-                    continue
-                resized.save(out, **opts)
+        for width, ext, out in expected(src, widths):
+            if not is_stale(src, out):
+                skipped += 1
                 written += out.stat().st_size
-                files += 1
+                continue
+            if width not in resized_at:
+                height = round(im.height * width / im.width)
+                resized_at[width] = im.resize((width, height), Image.LANCZOS)
+            resized_at[width].save(out, **opts_for[ext])
+            written += out.stat().st_size
+            files += 1
 
         return written, files, skipped
 
 
+def check() -> int:
+    """Report missing/stale derivatives without writing anything."""
+    stale = []
+    for src, widths in collect():
+        for _width, _ext, out in expected(src, widths):
+            if not out.exists():
+                stale.append((out, "missing"))
+            elif out.stat().st_mtime <= src.stat().st_mtime:
+                stale.append((out, "older than master"))
+
+    if not stale:
+        print("bake_images --check: all derivatives present and current")
+        return 0
+
+    print(f"bake_images --check: {len(stale)} derivative(s) stale or missing")
+    for out, why in stale:
+        print(f"  {out.relative_to(ROOT).as_posix():52s} {why}")
+    print("Run: python tools/bake_images.py")
+    return 1
+
+
+def install_hooks() -> int:
+    """Copy the versioned hook into .git/hooks/ and mark it executable."""
+    src = ROOT / "tools" / "hooks" / "pre-commit"
+    hooks = ROOT / ".git" / "hooks"
+    if not src.exists():
+        print(f"ERROR: {src.relative_to(ROOT).as_posix()} not found", file=sys.stderr)
+        return 1
+    if not hooks.is_dir():
+        print("ERROR: .git/hooks not found — run this from inside the repo", file=sys.stderr)
+        return 1
+
+    dest = hooks / "pre-commit"
+    shutil.copyfile(src, dest)
+    dest.chmod(dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    print(f"installed {src.relative_to(ROOT).as_posix()} -> .git/hooks/pre-commit (executable)")
+    print("A fresh clone needs this once: python tools/bake_images.py --install-hooks")
+    return 0
+
+
 def main() -> int:
+    if "--install-hooks" in sys.argv[1:]:
+        return install_hooks()
+
     if not features.check("avif"):
         print("ERROR: this Pillow has no AVIF encoder. Upgrade: "
               "python -m pip install 'pillow>=11.3'", file=sys.stderr)
         return 1
+
+    if "--check" in sys.argv[1:]:
+        return check()
 
     DERIVED.mkdir(parents=True, exist_ok=True)
     masters = collect()
