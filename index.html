@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Dex Cimino — 2D / 3D Design, Creative Technologist, AI-Assisted Builder" />
+  <meta name="theme-color" content="#0b0d12" />
+  <title>Dex Cimino — Portfolio</title>
+  <link rel="icon" href="assets/icons/brand-mark.svg" type="image/svg+xml" />
+  <link rel="preload" as="image" href="assets/logos/DEX.svg" />
+  <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
+  <link rel="stylesheet" href="styles.css?v=61" />
+</head>
+<body>
+  <a class="skip-link" href="#home">Skip to content</a>
+
+  <!-- Background diagonals: geometry lifted verbatim from the source artwork
+       (_resources/Asset 6.svg), re-expressed in a 1920x1080 viewBox. The lime
+       shapes take their color from `.accent-stop` so the theme still drives
+       every tinted pixel. .bg and .bg-front share the same box and viewBox, so
+       the front wedge stays perfectly colinear with the back one at any size. -->
+  <div class="bg" aria-hidden="true">
+    <svg class="bg-art" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+      <defs>
+        <radialGradient id="bgBase" cx="1035.5" cy="54.9" r="540.8" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#1d2128"/><stop offset=".297" stop-color="#181c22"/><stop offset="1" stop-color="#0b0d12"/>
+        </radialGradient>
+        <linearGradient id="bgSlab" x1="967.2" y1="857.5" x2="1347.6" y2="-192.9" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#0e1217"/><stop offset=".6315" stop-color="#25303d"/><stop offset=".8611" stop-color="#232d39"/><stop offset="1" stop-color="#1f2833"/>
+        </linearGradient>
+        <linearGradient id="bgSheen" x1="1460" y1="748.7" x2="1929.1" y2="24.6" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#0e1217" stop-opacity="0"/><stop offset=".6315" stop-color="#25303d"/><stop offset=".8611" stop-color="#232d39"/><stop offset="1" stop-color="#1f2833"/>
+        </linearGradient>
+        <!-- back wedge: transparent below the cut line, solid accent above it -->
+        <linearGradient id="bgWedge" x1="1231.5" y1="1374.1" x2="1631.3" y2="-42.1" gradientUnits="userSpaceOnUse">
+          <stop class="accent-stop" offset=".5528" stop-opacity="0"/>
+          <stop class="accent-stop" offset=".5659" stop-opacity=".0121"/>
+          <stop class="accent-stop" offset=".5736" stop-opacity=".0526"/>
+          <stop class="accent-stop" offset=".5798" stop-opacity=".1219"/>
+          <stop class="accent-stop" offset=".5853" stop-opacity=".2201"/>
+          <stop class="accent-stop" offset=".5903" stop-opacity=".3473"/>
+          <stop class="accent-stop" offset=".5949" stop-opacity=".5039"/>
+          <stop class="accent-stop" offset=".5993" stop-opacity=".6901"/>
+          <stop class="accent-stop" offset=".6034" stop-opacity=".8998"/>
+          <stop class="accent-stop" offset=".6051" stop-opacity="1"/>
+        </linearGradient>
+        <linearGradient id="bgCorner" x1="-9.7" y1="171.2" x2="491.2" y2="-158.4" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#0e1217"/><stop offset=".8112" stop-color="#25303d"/>
+        </linearGradient>
+        <linearGradient id="bgCornerSheen" x1="60.1" y1="277.3" x2="561" y2="-52.3" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#0e1217" stop-opacity="0"/><stop offset=".6315" stop-color="#25303d"/><stop offset=".8611" stop-color="#232d39"/><stop offset="1" stop-color="#1f2833"/>
+        </linearGradient>
+        <linearGradient id="bgFoot" x1="1700.3" y1="1106.9" x2="1634.1" y2="780.4" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#0e1217"/><stop offset=".8112" stop-color="#25303d"/>
+        </linearGradient>
+      </defs>
+      <rect width="1920" height="1080" fill="url(#bgBase)"/>
+      <polygon points="982.4,1080 -362.1,1080 1182,0 2526.4,0" fill="url(#bgSlab)"/>
+      <polygon points="1017.8,1080 -326.7,1080 1695,0 3039.5,0" fill="url(#bgSheen)" opacity=".3" style="mix-blend-mode:screen"/>
+      <polygon class="bg-wedge" points="1933.9,0 1034.4,540 262.4,1080 695,1080 1127.5,1080 1899.5,540 2671.5,0 2239,0" fill="url(#bgWedge)"/>
+      <polygon points="0,0 0,304 500.9,0" fill="url(#bgCorner)" opacity=".75"/>
+      <polygon points="485.8,0 0,304 500.9,0" fill="url(#bgCornerSheen)" opacity=".25" style="mix-blend-mode:screen"/>
+      <polygon points="1920,1080 1920,813.4 1415.6,1080" fill="url(#bgFoot)"/>
+    </svg>
+    <div class="grain"></div>
+  </div>
+
+  <!-- Front wedge: the only layer that sits OVER the mascot, exactly as in the
+       source art. Its alpha ramps 0 -> 1 up the page, so the mascot's legs read
+       through the translucent lower half and the top-right stays solid. -->
+  <div class="bg-front" aria-hidden="true">
+    <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="bgFront" x1="1361.7" y1="1355.8" x2="1752.8" y2="-29.3" gradientUnits="userSpaceOnUse">
+          <stop class="accent-stop" offset=".0942" stop-opacity="0"/>
+          <stop class="accent-stop" offset=".1736" stop-opacity=".0155"/>
+          <stop class="accent-stop" offset=".2365" stop-opacity=".0641"/>
+          <stop class="accent-stop" offset=".2937" stop-opacity=".1462"/>
+          <stop class="accent-stop" offset=".3476" stop-opacity=".262"/>
+          <stop class="accent-stop" offset=".3992" stop-opacity=".4116"/>
+          <stop class="accent-stop" offset=".449" stop-opacity=".5952"/>
+          <stop class="accent-stop" offset=".4965" stop-opacity=".8086"/>
+          <stop class="accent-stop" offset=".5331" stop-opacity="1"/>
+          <stop class="accent-stop" offset="1" stop-opacity="1"/>
+        </linearGradient>
+      </defs>
+      <polygon points="2244,0 211.9,1080 1288.1,1080 2972.1,0" fill="url(#bgFront)"/>
+    </svg>
+  </div>
+
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#home" aria-label="Back to top">
+      <span class="icon brand-mark" data-icon="brand" aria-hidden="true"></span>
+    </a>
+
+    <nav class="nav" aria-label="Primary">
+      <a class="nav-link active" href="#home"><span class="icon nav-icon" data-icon="home" aria-hidden="true"></span><span class="nav-text">HOME</span></a>
+      <a class="nav-link" href="#work"><span class="icon nav-icon" data-icon="work" aria-hidden="true"></span><span class="nav-text">WORK</span></a>
+      <a class="nav-link" href="#games"><span class="icon nav-icon" data-icon="games" aria-hidden="true"></span><span class="nav-text">GAMES</span></a>
+      <a class="nav-link" href="#ai"><span class="icon nav-icon" data-icon="ai" aria-hidden="true"></span><span class="nav-text">AI</span></a>
+      <a class="nav-link" href="#about"><span class="icon nav-icon" data-icon="about" aria-hidden="true"></span><span class="nav-text">ABOUT</span></a>
+    </nav>
+
+    <div class="side-bottom">
+      <a class="resume-mini" href="#resume"><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="download" aria-hidden="true"></span></a>
+      <a class="contact-mini" href="mailto:dexdcimino@gmail.com"><span class="icon nav-icon" data-icon="contact" aria-hidden="true"></span><span class="nav-text">CONTACT</span></a>
+
+      <div class="profile-mini">
+        <div class="profile-row">
+          <img class="profile-photo" src="assets/images/profile.jpg" alt="Dex Cimino" width="42" height="42" />
+          <div class="profile-copy"><strong>DEX CIMINO</strong><small>3D + AI + GAMES</small></div>
+        </div>
+
+        <!-- Replace the "#" hrefs with your real profile URLs. -->
+        <div class="social-mini" aria-label="Social links">
+          <a href="#" aria-label="YouTube" rel="noreferrer"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+          <a href="#" aria-label="Instagram" rel="noreferrer"><span class="icon" data-icon="instagram" aria-hidden="true"></span></a>
+          <a href="#" aria-label="LinkedIn" rel="noreferrer"><span class="icon" data-icon="linkedin" aria-hidden="true"></span></a>
+          <a href="#" aria-label="GitHub" rel="noreferrer"><span class="icon" data-icon="github" aria-hidden="true"></span></a>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="site-shell">
+    <header class="topbar">
+      <div class="accent-picker" id="accentPicker">
+        <span class="accent-label">ACCENT</span>
+        <div class="accent-swatches" id="accentSwatches" role="group" aria-label="Choose accent color"></div>
+      </div>
+    </header>
+
+    <section class="hero" id="home">
+      <div class="hero-copy reveal">
+        <h1 class="hero-name" aria-label="Dex Cimino">
+          <img class="dex-wordmark" src="assets/logos/DEX.svg" alt="" aria-hidden="true" draggable="false" />
+          <span class="cimino-wordmark-shell" aria-hidden="true">
+            <img class="cimino-sizer" src="assets/logos/CIMINO.svg" alt="" draggable="false" />
+            <span class="cimino-fill"></span>
+          </span>
+        </h1>
+
+        <p class="roles">2D / 3D DESIGN <b>•</b> CREATIVE TECHNOLOGIST<br/>AI-ASSISTED BUILDER</p>
+        <div class="hero-divider" aria-hidden="true"></div>
+        <p class="intro">I build digital assets, game experiences, and AI-assisted products — from concept to something people can actually use.</p>
+
+        <div class="hero-actions">
+          <a class="button primary" href="#work"><span>VIEW WORK</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
+          <a class="button" href="#ai"><span>AI PROJECTS</span></a>
+          <a class="button ghost" href="#resume"><span>RESUME</span><span class="icon btn-icon btn-icon-down" data-icon="download" aria-hidden="true"></span></a>
+        </div>
+      </div>
+
+      <div class="hero-art reveal">
+        <img id="heroMascot" src="assets/mascots/mascot_limegreen.png" alt="Clayweld mascot artwork by Dex Cimino" />
+      </div>
+
+      <div class="hero-goblin reveal" aria-hidden="true">
+        <img src="assets/mascots/lava_goblin.png" alt="" draggable="false" />
+      </div>
+
+      <div class="hero-archer reveal" aria-hidden="true">
+        <img src="assets/mascots/bone_archer.png" alt="" draggable="false" />
+      </div>
+
+      <!-- assets/logos/not_ai.svg, outlined. Three groups: notai + lines take the
+           static gray ink; face takes the accent so it retints with the theme. -->
+      <div class="hero-note reveal" aria-hidden="true">
+        <svg viewBox="0 0 137.6 100">
+          <g class="note-ink">
+            <path d="M2.4,49.7c21.8.9,44.5-4.1,62.4-16.8,1.2-1,4.1-3.3,5.4-4.3.7-.6,2,0,1.9.9,0,6.8-.9,13.3-2.5,19.7-4.3,17.6-13.7,34-26.4,46.9l-3.5,3.5c-.5.5-1.3.5-1.8,0-.5-.5-.5-1.4,0-1.9l3.4-3.4c16.9-17,28.1-40.6,28.3-64.7,0,0,2,.8,2,.8-1.3,1.1-4.2,3.6-5.4,4.6-8.2,6-17.4,10.8-27.1,13.7-12,3.7-24.5,5.6-37.1,5.3-2.9-.2-2.7-4.5.3-4.3h0Z"/>
+            <path d="M79.8,28c6,18.7,19.1,35.7,36.8,44.7,5.9,2.9,12.4,4.7,18.9,5.2,1.2,0,2.1,1.1,2,2.3,0,1.3-1.4,2.3-2.7,1.9-13.5-3.1-26.3-9.2-36.5-18.7-10.1-9.5-17.8-21.2-22.8-34.2-.9-2.8,3.3-4.2,4.1-1.3h0Z"/>
+            <g>
+            <path d="M56.2,16.9c-.1-1.1.2-2.4-.5-3.4-.6-.8-1.1-1.6-1.6-2.4-.8-1.2-1.5-2.5-2.4-3.6,0,0-.2-.2-.3-.2-.1,0-.2.2-.2.3-.2,1.8-.2,3.6-.5,5.4,0,.7-.6.9-1.3.9-.5,0-1.4-.4-1.3-1.1,0-.4.2-.8.2-1.2.2-.8.3-1.6.4-2.4.1-1,.7-6.1,0-6.8-.2-.2-.3-.4-.2-.7,0-.7,1-1.8,1.8-1.7.3,0,.5.2.6.6.7,1.7,1.6,3.2,2.5,4.8.8,1.3,1.6,2.6,2.3,4,.2.5.3.7.4.7,0,0,.1-.1.2-.5.1-.7.2-1.7.3-1.9.2-1.8.2-3.1-.2-4.8,0-.2,0-.3,0-.4,0-.6.6-1.1,1.3-1,.4,0,.8.3,1,.5,1,.9.7,3.5.5,4.9v.4c-.2,1.1-.4,2.2-.5,3.3-.1,1.2-.5,3.7-.2,4.8,0,.5.3,1,.3,1.5-.1.8-.8,1-1.6,1-.5,0-1.1-.3-1.1-.9h0Z"/>
+            <path d="M65.5,16.7c-2.3-.3-4.3-2.7-4-5,.3-2,1.5-3.2,3.3-4.1.8-.4,1.6-.8,2.4-1.3.5-.4,1-.6,1.6-.5.7,0,1.2.6,1.4,1.2.4,1.4,1.1,3.1.9,4.5,0,.3-.1.7-.2,1-.8,2.2-2.8,4.5-5.4,4.2ZM68.6,9.9c-.2.2-.6.3-.8.2-.6,0-.9-.7-1.2-.7-.3,0-.6.2-.9.3-.9.5-1.3,1-1.5,2-.2,1.4.4,2.4,1.9,2.5,1.4.2,2.7-1.2,2.9-2.5,0-.4,0-1.2-.2-1.7,0-.1-.1-.2-.3,0h0Z"/>
+            <path d="M78.8,12.4c-.6,0-1.1-.2-1.7-.3-.2,0-.5,0-.5.3-.1.9,0,2.4.2,3.3.1.5.4,1.2.4,1.7,0,.7-.9,1.1-1.5,1-2-.3-1.4-3.8-1.3-5.2,0-.5,0-1.1-.2-1.6-.2-.7-2.1-.8-1.9-2.3.1-.9.7-1.2,1.6-1.1.2,0,.4.1.6.1.3,0,.4,0,.4-.2,0-1.7-.4-3.3-.2-5,0-.7.6-.9,1.2-.8.9.1,2,.9,1.9,1.9,0,.1,0,.2,0,.3-.3.6-.5,1.3-.5,2,0,.7-.1,1.6,0,2.3,0,.3.2.4.4.5.6.1,1.3.2,1.9.3.6,0,1.8.2,2.4,0,.3-.1.6-.4,1-.3.5,0,.8.7.7,1.2,0,.4-.2.7-.5,1-1.1.9-2.7,1-4.1.8h0Z"/>
+            <path d="M99,21.9c-.2-1.5.2-3,0-4.5,0-.2,0-.4-.3-.4l-2.7-.3c-.7,0-1.4.1-1.7.9-.7,2-.7,2.7-2.1,4.5-.4.5-1,.9-1.7.8-.8-.1-1.2-.8-1.1-1.6.2-1.4,2-3.7,2.1-4.3,0-.5-.7-.8-.6-1.7,0-.7.8-1.4,1.6-1.4.6,0,.7,0,1-.5.6-.9,1-1.9,1.5-2.8.8-1.8,1.5-3.5,2.5-5.1.3-.6.9-1.1,1.6-1,.8,0,1.3.9,1.5,1.6.6,2.4.6,4.9.6,7.4,0,2.9,0,5.5.4,8.4,0,.2,0,.3,0,.5,0,.6-.6,1.1-1.2,1-.7,0-1.2-.7-1.3-1.3h0ZM98.7,9.1c-.3,0-.5.2-.5.4-.7,1.4-1.2,2.8-2,4.2-.2.3.8.4,1.1.5.3,0,.7.1,1,.2.4,0,.7,0,.7-.2,0-1.5,0-3,0-4.5,0-.2-.1-.5-.4-.5h0Z"/>
+            <path d="M103.8,19.9c0-.7.5-2.1,1.5-2,.4,0,.7.4.9.7.4.5,1.1,1,1,1.6-.1.9-1.9,1.6-2.6,1.5-.8-.1-.8-1.2-.7-1.8h0ZM106.9,14.6c0,.4-.1.8-.2,1.2,0,.5-.5.9-1,.8s-.9-.6-.9-1.1v-.4c.2-1.5.3-3.1.3-4.6,0-1.6.1-3.3.3-4.9v-.3c.2-.7.8-.9,1.4-.8s1.3.5,1.2,1.2c0,.8-.2,1.5-.3,2.3-.2,1.9-.4,3.7-.7,5.6v1.1Z"/>
+            </g>
+          </g>
+          <g class="note-face">
+            <path d="M115.7,14.7c.8-.7,1.7-.5,2.4.2.7.9.7,2.3-.2,3-.7.6-1.8,0-2.3-.6-.8-1-1-1.8,0-2.7h0ZM119.9,13.6c0,0-.1-.2-.2-.3-.4-1-.4-2.1.5-2.9.7-.6,1.5-.4,2,.2.3.3.4.7.5,1.1.1.5.5,1.5,0,1.9-.3.3-.9.2-1.3.3-.5,0-1.2.2-1.5-.3h0Z"/>
+            <path d="M124.7,19.1c-.3-.4-.4-.4-.6-.2-.9.8-1.5,1.9-2.5,2.7-.9.7-2.1,1.3-3.2.8-.2,0-.4-.2-.5-.3-.2-.2-.2-.5,0-.7l.7-.8,2-2c2.4-2.5,5-4.8,7.7-7,1.1-.9,3-.3,3.9.7,0,0,.1.2.2.3,1.2,1.9,1.4,4.3.7,6.4-.2.6-.5,1.1-1,1.5-.6.5-1.5.8-2.3.9-2.1.1-3.8-.5-5.2-2.1h0ZM128.9,13.9c-.5.5.2,1.3-.7,2-.5.4-1.1.3-1.4.3-.1,0-.2.2-.2.3-.1.6,0,1.1.3,1.6.7.9,2.6,1.5,3.5.7,1-.8.6-3.7-.2-4.6-.3-.4-1-.5-1.3-.2h0Z"/>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section class="section home-featured" id="work">
+      <div class="section-head reveal">
+        <h2 class="featured-title"><span class="icon featured-mark" data-icon="tick" aria-hidden="true"></span><span>FEATURED WORK</span></h2>
+        <a class="view-all" href="#all-work"><span>VIEW ALL WORK</span><span class="icon view-all-arrow" data-icon="play" aria-hidden="true"></span></a>
+      </div>
+
+
+
+
+      <!-- Card images are placeholders — swap each <img> (and title) for the real piece. -->
+      <div class="work-grid">
+        <article class="work-card reveal">
+          <img src="assets/images/featured-bishop-lava.png" alt="Environment artwork" loading="lazy" />
+          <div class="card-shade"></div>
+          <div class="card-meta"><small>ENVIRONMENT</small><h3>Valley Outpost</h3></div>
+          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+        </article>
+        <article class="work-card reveal">
+          <img src="assets/images/featured-bishop.png" alt="Prop design artwork" loading="lazy" />
+          <div class="card-shade"></div>
+          <div class="card-meta"><small>PROP / DESIGN</small><h3>Grimshot Rifle</h3></div>
+          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+        </article>
+        <article class="work-card brand-card reveal">
+          <img data-theme-mascot src="assets/mascots/mascot_limegreen.png" alt="Character artwork" loading="lazy" />
+          <div class="card-shade"></div>
+          <div class="card-meta"><small>CHARACTER</small><h3>Clayweld</h3></div>
+          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+        </article>
+        <article class="work-card concept-card reveal">
+          <span class="icon concept-mark" data-icon="brand" aria-hidden="true"></span>
+          <div class="card-shade"></div>
+          <div class="card-meta"><small>CONCEPT / BRAINSTORM</small><h3>Circuit Siege</h3></div>
+          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+        </article>
+      </div>
+    </section>
+
+    <section class="split-section" id="games">
+      <div class="statement reveal"><p class="eyebrow">PLAYABLE</p><h2>GAMES</h2><p>Small games, prototypes, and experiments built to ship instead of sit in a folder.</p></div>
+      <div class="stack reveal">
+        <a class="stack-row" href="#"><span>01</span><strong>Cupcake Gobbler</strong><small>Browser Game</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
+        <a class="stack-row" href="#"><span>02</span><strong>Stick It</strong><small>Prototype</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
+        <a class="stack-row" href="#"><span>03</span><strong>Arena1</strong><small>Prototype</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
+      </div>
+    </section>
+
+    <section class="split-section alt" id="ai">
+      <div class="statement reveal"><p class="eyebrow">BUILDING WITH AI</p><h2>AI PROJECTS</h2><p>Apps, visual experiments, videos, charts, and tools built with Claude, Gemini, GPT, and creative software.</p></div>
+      <div class="ai-grid reveal">
+        <a class="ai-card" href="https://dexnote.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>DexNote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+        <a class="ai-card" href="https://nodeblast.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>NodeBlast.dev</strong><span>Creator / gaming platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+        <a class="ai-card" href="#"><small>LAB</small><strong>AI Experiments</strong><span>Images · video · charts · prototypes<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+      </div>
+    </section>
+
+    <section class="about" id="about">
+      <div class="about-photo reveal"><img src="assets/images/profile.jpg" alt="Dex Cimino" loading="lazy" /></div>
+      <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH + SHIPPING</h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p><div class="chips"><span>Maya</span><span>ZBrush</span><span>Substance</span><span>Photoshop</span><span>Illustrator</span><span>Unreal</span><span>Unity</span><span>Roblox</span><span>AI Tools</span></div></div>
+    </section>
+
+    <section class="resume-strip" id="resume">
+      <div><p class="eyebrow">EXPERIENCE</p><h2>WANT THE SHORT VERSION?</h2></div>
+      <div class="resume-actions">
+        <a class="button primary" href="https://dexddc.com" target="_blank" rel="noreferrer"><span>CURRENT SITE</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
+        <a class="button" href="mailto:dexdcimino@gmail.com"><span>EMAIL ME</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
+      </div>
+    </section>
+
+    <footer><strong>DEX CIMINO</strong><span>2D / 3D DESIGN · CREATIVE TECHNOLOGIST</span><small>© 2026</small></footer>
+  </main>
+
+  <!-- Contact modal. <dialog>.showModal() gives focus trapping and Esc-to-close
+       for free; the backdrop click is wired in script.js. -->
+  <dialog class="contact-modal" id="contactModal" aria-labelledby="contactTitle">
+    <form class="contact-panel" id="contactForm" novalidate>
+      <button class="contact-close" type="button" id="contactClose" aria-label="Close contact form">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+
+      <p class="eyebrow">GET IN TOUCH</p>
+      <h2 id="contactTitle">SEND A MESSAGE</h2>
+      <p class="contact-intro">Tell me about the project, the role, or just say hi. I read everything.</p>
+
+      <label class="contact-field">
+        <span>NAME</span>
+        <input id="cfName" name="name" type="text" autocomplete="name" maxlength="80" placeholder="Your name" />
+      </label>
+      <label class="contact-field">
+        <span>EMAIL <b>*</b></span>
+        <input id="cfEmail" name="email" type="email" autocomplete="email" maxlength="120" required placeholder="you@studio.com" />
+      </label>
+      <label class="contact-field">
+        <span>MESSAGE <b>*</b></span>
+        <textarea id="cfMessage" name="message" rows="5" maxlength="4000" required placeholder="What are you building?"></textarea>
+      </label>
+
+      <!-- Honeypot: real people never fill this, bots usually do. -->
+      <input class="contact-trap" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
+
+      <p class="contact-status" id="contactStatus" role="status" aria-live="polite"></p>
+
+      <div class="contact-actions">
+        <button class="button primary" type="submit" id="contactSend"><span>SEND MESSAGE</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></button>
+        <button class="button ghost" type="button" id="contactCancel"><span>CANCEL</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="script.js?v=61"></script>
+</body>
+</html>

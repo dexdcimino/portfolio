@@ -1,0 +1,6 @@
+_resources/
+*.psd
+*.ai
+*.tmp
+.DS_Store
+Thumbs.db
