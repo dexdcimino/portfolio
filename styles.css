@@ -12,6 +12,7 @@
   --panel:#151a1f;
   --line:rgba(255,255,255,.11);
   --muted:#aeb6bd;
+  --label-ink:#aab1b7;   /* ACCENT label text; the hand-drawn note matches it */
   --icon-idle:#8d959c;
   --text:#f1f3f4;
   --gutter:clamp(92px,11.2vw,190px); /* hero copy's left edge; every section below aligns to it */
@@ -174,7 +175,7 @@ img{max-width:100%}
    hex is the toggle; the rest cascade out of it, offset by --row.
    ========================================================================== */
 .accent-picker{position:relative;display:flex;align-items:center;gap:12px;transform:translate(-18px,13px);z-index:60}
-.accent-label{font-size:12px;color:#aab1b7;letter-spacing:.13em;white-space:nowrap;transition:opacity .18s ease}
+.accent-label{font-size:12px;color:var(--label-ink);letter-spacing:.13em;white-space:nowrap;transition:opacity .18s ease}
 .accent-swatches{display:flex;align-items:center;gap:6px}
 
 .swatch{
@@ -318,7 +319,11 @@ img{max-width:100%}
   width:calc(var(--mascot-w) * .195);
 }
 .hero-note svg{display:block;width:100%;height:auto;overflow:visible}
-.note-ink{fill:var(--icon-idle);opacity:.5}  /* static gray, knocked back; the face stays full-strength accent */
+.note-ink{fill:var(--label-ink);opacity:.6}  /* matches the ACCENT label; the face stays full-strength accent */
+/* The third arm pointed at the lava goblin, which is AI-generated — so the
+   "Not AI!" note must not claim it. Delete this rule to bring it back once
+   the goblin is replaced with hand-made art. */
+.note-line-right{display:none}
 .note-face{fill:var(--accent);transition:fill var(--accent-ease)}
 
 .hero-archer{
