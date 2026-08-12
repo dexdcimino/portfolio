@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=91" />
+  <link rel="stylesheet" href="styles.css?v=92" />
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
         imagesrcset="assets/derived/mascots/mascot_limegreen-400.avif 400w,
@@ -65,10 +65,10 @@
       </defs>
       <rect width="1920" height="1080" fill="url(#bgBase)"/>
       <polygon points="982.4,1080 -362.1,1080 1182,0 2526.4,0" fill="url(#bgSlab)"/>
-      <polygon points="1017.8,1080 -326.7,1080 1695,0 3039.5,0" fill="url(#bgSheen)" opacity=".3" style="mix-blend-mode:screen"/>
+      <polygon class="bg-sheen" points="1017.8,1080 -326.7,1080 1695,0 3039.5,0" fill="url(#bgSheen)" opacity=".3"/>
       <polygon class="bg-wedge" points="1933.9,0 1034.4,540 262.4,1080 695,1080 1127.5,1080 1899.5,540 2671.5,0 2239,0" fill="url(#bgWedge)"/>
       <polygon points="0,0 0,304 500.9,0" fill="url(#bgCorner)" opacity=".75"/>
-      <polygon points="485.8,0 0,304 500.9,0" fill="url(#bgCornerSheen)" opacity=".25" style="mix-blend-mode:screen"/>
+      <polygon class="bg-sheen" points="485.8,0 0,304 500.9,0" fill="url(#bgCornerSheen)" opacity=".25"/>
       <polygon points="1920,1080 1920,813.4 1415.6,1080" fill="url(#bgFoot)"/>
     </svg>
     <div class="grain"></div>
@@ -530,8 +530,13 @@
         <textarea id="cfMessage" name="message" rows="5" maxlength="4000" required placeholder="What are you building?"></textarea>
       </label>
 
-      <!-- Honeypot: real people never fill this, bots usually do. -->
+      <!-- Honeypots: real people never fill these, bots usually do. Web3Forms
+           drops a submission server-side when `botcheck` comes back truthy.
+           Hidden by class, not style="display:none" — an inline style attribute
+           is blocked under style-src 'self', which would leave the trap visible
+           to real visitors and useless against bots. -->
       <input class="contact-trap" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <input class="contact-trap" type="checkbox" name="botcheck" id="cfBotcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
 
       <p class="contact-status" id="contactStatus" role="status" aria-live="polite"></p>
 
@@ -542,6 +547,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=91"></script>
+  <script src="script.js?v=92"></script>
 </body>
 </html>

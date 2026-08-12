@@ -641,6 +641,10 @@ contactForm?.addEventListener('submit', async event => {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         ...(CONTACT.accessKey ? { access_key: CONTACT.accessKey } : {}),
+        // Checked only by a bot that filled every field it found. Web3Forms
+        // drops the submission server-side; a honeypot that is never sent is
+        // just decoration, which is what _gotcha had been.
+        botcheck: Boolean(document.getElementById('cfBotcheck')?.checked),
         name: from,
         email: email.value.trim(),
         message: message.value.trim(),

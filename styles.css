@@ -121,6 +121,10 @@ img{max-width:100%}
 /* Every lime stop in both layers. One declaration = one crossfade, same as the
    mask-and-background-color trick used everywhere else. */
 .accent-stop{stop-color:var(--accent);transition:stop-color var(--accent-ease)}
+/* Was a style="mix-blend-mode:screen" attribute on both sheen polygons. Inline
+   style attributes are blocked under style-src 'self', so the declaration lives
+   here instead — the alternative was weakening the policy for two polygons. */
+.bg-sheen{mix-blend-mode:screen}
 .grain{position:absolute;inset:0;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E");background-size:180px 180px}
 
 /* ==========================================================================
