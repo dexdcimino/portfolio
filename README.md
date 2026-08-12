@@ -73,6 +73,18 @@ the sidebar in `index.html` — replace the `#` hrefs with real profile URLs.
 `assets/derived/` holds **generated output**; `tools/bake_images.py` is the only
 thing that writes there. Delete the folder and one run rebuilds it exactly.
 
+Derived output **mirrors the master's own subfolder**, so a filename only has to
+be unique within its folder rather than across the whole project:
+
+```
+assets/mascots/mascot_red.png  ->  assets/derived/mascots/mascot_red-900.avif
+assets/images/profile.jpg      ->  assets/derived/images/profile-420.avif
+```
+
+That is what makes per-project media folders safe to add: two `cover.png` files
+in different folders bake to different derivatives instead of one silently
+overwriting the other.
+
 Any new image must be run through the baker before it ships:
 
 ```

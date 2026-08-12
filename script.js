@@ -100,7 +100,7 @@ function swapMascots(theme) {
   // frame. decode() rejects on formats the browser can't take — apply anyway,
   // the <picture> negotiation will fall through to WebP or the PNG.
   const warm = new Image();
-  warm.src = `assets/derived/mascot_${theme.mascot}-900.avif`;
+  warm.src = `assets/derived/mascots/mascot_${theme.mascot}-900.avif`;
   if (warm.decode) warm.decode().then(apply, apply);
   else warm.onload = warm.onerror = apply;
 }
@@ -110,7 +110,7 @@ function swapMascots(theme) {
 function warmOtherMascots() {
   const load = () => ACCENTS
     .filter(theme => theme.name !== currentTheme)
-    .forEach(theme => { new Image().src = `assets/derived/mascot_${theme.mascot}-600.avif`; });
+    .forEach(theme => { new Image().src = `assets/derived/mascots/mascot_${theme.mascot}-600.avif`; });
   // Safari has no requestIdleCallback.
   if ('requestIdleCallback' in window) requestIdleCallback(load, { timeout: 4000 });
   else setTimeout(load, 2000);

@@ -6,6 +6,14 @@ authored and never generated. `assets/derived/` holds GENERATED OUTPUT and this
 script is the only thing that should ever write there. Nothing else reads or
 writes that folder; delete it and a single run rebuilds it exactly.
 
+Derived output mirrors the master's own subfolder, so filenames only have to be
+unique within a folder rather than across the whole project:
+
+    assets/mascots/mascot_red.png -> assets/derived/mascots/mascot_red-900.avif
+    assets/images/profile.jpg     -> assets/derived/images/profile-420.avif
+
+That is what makes per-project media folders safe to add later.
+
 Workflow: drop a new master into assets/mascots/ or assets/images/, add it to
 SOURCES below if it needs a width set of its own, then run
 
@@ -75,11 +83,15 @@ def expected(src: Path, widths: tuple[int, ...]):
     """
     with Image.open(src) as im:
         source_width = im.width
+    # Mirror the master's folder. A flat namespace collides the moment two
+    # masters share a stem — assets/a/cover.png and assets/b/cover.png would
+    # both bake to cover-800.avif and one would silently win.
+    rel = src.relative_to(ROOT / "assets").parent
     for width in widths:
         if width > source_width:      # never upscale — the master is the ceiling
             continue
         for ext in ("avif", "webp"):
-            yield width, ext, DERIVED / f"{src.stem}-{width}.{ext}"
+            yield width, ext, DERIVED / rel / f"{src.stem}-{width}.{ext}"
 
 
 def is_stale(src: Path, out: Path) -> bool:
@@ -105,6 +117,7 @@ def bake(src: Path, widths: tuple[int, ...]) -> tuple[int, int, int]:
             if width not in resized_at:
                 height = round(im.height * width / im.width)
                 resized_at[width] = im.resize((width, height), Image.LANCZOS)
+            out.parent.mkdir(parents=True, exist_ok=True)
             resized_at[width].save(out, **opts_for[ext])
             written += out.stat().st_size
             files += 1

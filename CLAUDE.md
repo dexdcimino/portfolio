@@ -12,6 +12,10 @@
 
 - `assets/` = masters (only copy of some art). `assets/derived/` = generated;
   `tools/bake_images.py` is the sole writer. Never hand-edit `assets/derived/`.
+- Derived output **mirrors the master's subfolder** (`assets/mascots/x.png` ->
+  `assets/derived/mascots/x-900.avif`), so stems only need to be unique within a
+  folder. This is what keeps per-project media folders collision-free — do not
+  flatten it back.
 - New image? Run `python tools/bake_images.py` before shipping. AVIF q=58,
   WebP q=76/method=6 — validated at 100% crop, do not raise "to be safe".
 - Raw PNG/JPG is only ever the final `<picture>` fallback, never the served image.
