@@ -31,9 +31,10 @@
   --rail-footer-lift:26px;
   /* Collapsed counterpart: how far the footer block drops so it sits near the
      bottom of the rail instead of above the space the faded-out caption and
-     social row still occupy. 109px is that reserved run; 90 leaves a 19px
-     margin under the avatar, near the 14px the block is padded with. */
-  --rail-footer-drop:90px;
+     social row still occupy. 109px is that reserved run, so this is how much
+     of it is reclaimed — 72 leaves a 37px margin under the avatar, close enough
+     to the bottom to look deliberate without crowding the edge. */
+  --rail-footer-drop:72px;
   --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - 720px - var(--rail-footer-lift))));
   --avatar-expanded-w:min(var(--rail-content),calc(var(--avatar-expanded-h) * var(--avatar-ratio)));
   --icon-idle:#8d959c;
