@@ -37,6 +37,13 @@
   --rail-footer-drop:72px;
   --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - 720px - var(--rail-footer-lift))));
   --avatar-expanded-w:min(var(--rail-content),calc(var(--avatar-expanded-h) * var(--avatar-ratio)));
+  /* Brand mark: how far it grows as the rail opens, and the extra bump when the
+     mark itself is hovered. The open value rides the rail's own duration and
+     easing, so the helmet swells while the horns are unfolding rather than
+     after them. Hover multiplies the open value instead of replacing it, so
+     the two states can never fight over one number. */
+  --brand-open:1.2;
+  --brand-hover-bump:1.08;
   --icon-idle:#8d959c;
   --text:#f1f3f4;
   --gutter:clamp(92px,11.2vw,190px); /* hero copy's left edge; every section below aligns to it */
@@ -169,12 +176,14 @@ img{max-width:100%}
    states multiply through a single custom property rather than stacking rules,
    so hovering the brand while the rail is open is one motion, not two fighting.
    Same duration and easing tokens as the rail width, so they land together. */
-.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .brand-logo{--brand-scale:1.15}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .brand-logo{--brand-scale:var(--brand-open)}
 /* Hovering the brand necessarily hovers the rail, so this is always the
    compound state — and it has to be spelled out, because the expansion selector
    above outranks a bare `.brand:hover` (0,4,0 beats 0,3,0) and would otherwise
    pin the logo at 1.15 with the hover bump never landing. */
-.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .brand:hover .brand-logo{--brand-scale:1.24}   /* 1.15 x the 1.08 hover bump */
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .brand:hover .brand-logo{
+  --brand-scale:calc(var(--brand-open) * var(--brand-hover-bump));
+}
 
 .brand-logo :is(.logo-side-horns,.logo-top-horns){
   transform-box:fill-box;
