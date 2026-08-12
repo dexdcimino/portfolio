@@ -281,7 +281,7 @@ button.button{cursor:pointer;font:inherit}
    vertical disclosure once that row scrolls away. In docked mode the active
    hex is the toggle; the rest cascade out of it, offset by --row.
    ========================================================================== */
-.accent-picker{position:relative;display:flex;align-items:center;gap:12px;transform:translate(-18px,13px);z-index:60}
+.accent-picker{position:relative;display:flex;align-items:center;gap:12px;transform:translate(-18px,9px);z-index:60}
 .accent-label{font-size:12px;color:var(--label-ink);letter-spacing:.13em;white-space:nowrap;transition:opacity .18s ease}
 .accent-swatches{display:flex;align-items:center;gap:6px}
 
@@ -379,10 +379,16 @@ button.button{cursor:pointer;font:inherit}
 .button:hover{border-color:var(--accent);transform:translateY(-2px)}
 .button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink,#080a0b);box-shadow:0 12px 32px color-mix(in srgb,var(--accent) 22%,transparent)}
 .button.ghost{background:transparent}
-.btn-icon{width:16px;height:16px}
+.btn-icon{width:16px;height:16px;transition:transform .2s ease}
 /* Arrows kick up-and-right; the download glyph gets no transform of its own so
    it simply rides the button's -2px lift instead of cancelling it out. */
-.button:hover .btn-icon:not(.btn-icon-down){transform:translate(2px,-2px)}
+/* Only the up-right arrow gets its own travel — the motion is the affordance,
+   it reinforces "this goes somewhere". Every other icon (the eye, the download
+   arrow) has to ride the button's own translateY and nothing else, or it reads
+   as a loose part sliding around inside its own border. Scoped by icon rather
+   than by an opt-out class: the previous :not(.btn-icon-down) named a class no
+   markup ever carried, so it excluded nothing. */
+.button:hover .btn-icon[data-icon="arrow-ne"]{transform:translate(2px,-2px)}
 
 /* Decorative hero layers sit on NEGATIVE z so they paint below every in-flow
    section. `.hero` is position:relative with z-index:auto (no stacking context),
