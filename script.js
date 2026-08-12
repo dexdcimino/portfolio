@@ -605,21 +605,25 @@ contactForm?.addEventListener('submit', async event => {
    ========================================================================== */
 
 const PAGE_W = 816;                       // US Letter at 96dpi, matches the CSS
-const ZOOM_MIN = 0.7, ZOOM_MAX = 1.6, ZOOM_STEP = 0.1;
+const ZOOM_MIN = 0.7, ZOOM_MAX = 2.5, ZOOM_STEP = 0.1;
+const ZOOM_COMFORT = 0.8;                 // leave a margin rather than filling edge to edge
 const resumeModal = document.getElementById('resumeModal');
 const resumeScroll = document.getElementById('resumeScroll');
-const resumePage = document.getElementById('resumePage');
+const resumePages = [...document.querySelectorAll('.resume-page')];
+const resumeTabs = [...document.querySelectorAll('.resume-tab')];
+const pdfLink = document.querySelector('.resume-pdf');
+const DOCS = {
+  'tab-resume': { file: 'Dex_Cimino_Resume.pdf', label: 'Download Dex Cimino resume as PDF' },
+  'tab-cover':  { file: 'Dex_Cimino_Cover.pdf',  label: 'Download Dex Cimino cover letter as PDF' },
+};
 const zoomLevelEl = document.getElementById('zoomLevel');
 const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
 
-// Desktop opens at a readable 110%; narrow screens start fitted near the
-// viewport width. Read from CSS so the two defaults live in one place — the
-// inline zoom has to be cleared first or we would just read back the last value
-// the user set and reopen at that instead of the default.
-function startZoom() {
-  resumePage.style.zoom = '';
-  return parseFloat(getComputedStyle(resumePage).getPropertyValue('zoom')) || 1.1;
+// Derived from the available width rather than hardcoded, so a wide desktop
+// opens genuinely readable (~130-150%) and a phone opens fitted, from one rule.
+function defaultZoom() {
+  return Math.round(fitZoom() * ZOOM_COMFORT * 10) / 10;
 }
 
 // The zoom at which the page exactly fills the viewer's width.
@@ -642,7 +646,9 @@ let resumeOpener = null;
 function applyZoom(next, anchorRatio) {
   const floor = minZoom();
   resumeZoom = Math.min(ZOOM_MAX, Math.max(floor, Math.round(next * 100) / 100));
-  resumePage.style.zoom = resumeZoom;
+  // Zoom is a viewing preference, not a property of either document — both
+  // panels carry it so switching tabs keeps the level.
+  resumePages.forEach(page => { page.style.zoom = resumeZoom; });
   const pct = `${Math.round(resumeZoom * 100)}%`;
   if (zoomLevelEl) zoomLevelEl.textContent = pct;
   // Zoom is on the button's accessible description, not just a live region, so
@@ -667,10 +673,11 @@ function openResume(trigger) {
   if (!resumeModal) return;
   resumeOpener = trigger || document.activeElement;
   openModal(resumeModal, document.querySelector('.resume-shell'), () => {
+    selectTab('tab-resume');            // every trigger lands on the resume
     resumeScroll.scrollTop = 0;
     // Never open wider than the viewer: horizontal scroll should be something
     // the reader opts into by zooming, not the state they land in.
-    applyZoom(Math.min(startZoom(), fitZoom()));
+    applyZoom(Math.min(defaultZoom(), fitZoom()));
     resumeScroll.focus();
   });
   // pushState so the back button closes the overlay and /#resume is linkable —
@@ -678,6 +685,23 @@ function openResume(trigger) {
   if (location.hash !== '#resume') {
     try { history.pushState({ resume: true }, '', '#resume'); } catch { /* file:// */ }
   }
+}
+
+function selectTab(id) {
+  resumeTabs.forEach(tab => {
+    const on = tab.id === id;
+    tab.setAttribute('aria-selected', String(on));
+    tab.tabIndex = on ? 0 : -1;                    // roving tabindex
+    document.getElementById(tab.getAttribute('aria-controls')).hidden = !on;
+  });
+  const doc = DOCS[id];
+  if (doc && pdfLink) {
+    pdfLink.href = `assets/about/${doc.file}`;
+    pdfLink.setAttribute('download', doc.file);
+    pdfLink.setAttribute('aria-label', doc.label);
+  }
+  resumeScroll.scrollTop = 0;                      // different document, start at the top
+  resumeScroll.scrollLeft = 0;
 }
 
 function closeResume() { closeModal(resumeModal); }
@@ -694,6 +718,21 @@ if (resumeModal) {
   });
 
   document.getElementById('resumeClose')?.addEventListener('click', () => closeResume());
+  resumeTabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => { selectTab(tab.id); tab.focus(); });
+    tab.addEventListener('keydown', event => {
+      const move = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+      let next = null;
+      if (move != null) next = resumeTabs[(index + move + resumeTabs.length) % resumeTabs.length];
+      else if (event.key === 'Home') next = resumeTabs[0];
+      else if (event.key === 'End') next = resumeTabs[resumeTabs.length - 1];
+      if (!next) return;
+      event.preventDefault();
+      selectTab(next.id);
+      next.focus();
+    });
+  });
+
   zoomInBtn?.addEventListener('click', () => nudgeZoom(ZOOM_STEP));
   zoomOutBtn?.addEventListener('click', () => nudgeZoom(-ZOOM_STEP));
 

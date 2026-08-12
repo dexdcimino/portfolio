@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/icons/brand-mark.svg" type="image/svg+xml" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=82" />
+  <link rel="stylesheet" href="styles.css?v=85" />
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
         imagesrcset="assets/derived/mascots/mascot_limegreen-400.avif 400w,
@@ -124,7 +124,7 @@
     </nav>
 
     <div class="side-bottom">
-      <button class="resume-mini" type="button" data-resume-open><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="arrow-ne" aria-hidden="true"></span></button>
+      <button class="resume-mini" type="button" data-resume-open><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="preview" aria-hidden="true"></span></button>
       <a class="contact-mini" href="mailto:dexdcimino@gmail.com"><span class="icon nav-icon" data-icon="contact" aria-hidden="true"></span><span class="nav-text">CONTACT</span></a>
 
       <div class="profile-mini">
@@ -188,7 +188,7 @@
         <div class="hero-actions">
           <a class="button primary" href="#work"><span>VIEW WORK</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
           <a class="button" href="#ai"><span>AI PROJECTS</span></a>
-          <button class="button ghost" type="button" data-resume-open><span>RESUME</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></button>
+          <button class="button ghost" type="button" data-resume-open><span>RESUME</span><span class="icon btn-icon" data-icon="preview" aria-hidden="true"></span></button>
         </div>
       </div>
 
@@ -356,7 +356,7 @@
     <section class="resume-strip" id="contact-cta">
       <div><p class="eyebrow">EXPERIENCE</p><h2>WANT THE SHORT VERSION?</h2></div>
       <div class="resume-actions">
-        <button class="button primary" type="button" data-resume-open><span>VIEW RESUME</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></button>
+        <button class="button primary" type="button" data-resume-open><span>VIEW RESUME</span><span class="icon btn-icon" data-icon="preview" aria-hidden="true"></span></button>
         <a class="button" href="mailto:dexdcimino@gmail.com"><span>EMAIL ME</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
       </div>
     </section>
@@ -373,10 +373,20 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
 
+      <div class="resume-head">
+        <h2 class="sr-only" id="resume-dialog-title">Dex Cimino — documents</h2>
+        <div class="resume-tabs" role="tablist" aria-label="Documents">
+          <button class="resume-tab" type="button" role="tab" id="tab-resume"
+                  aria-controls="panel-resume" aria-selected="true" tabindex="0">RESUME</button>
+          <button class="resume-tab" type="button" role="tab" id="tab-cover"
+                  aria-controls="panel-cover" aria-selected="false" tabindex="-1">COVER LETTER</button>
+        </div>
+      </div>
+
       <div class="resume-scroll" id="resumeScroll" tabindex="0">
-        <article class="resume-page" id="resumePage">
+        <article class="resume-page" id="panel-resume" role="tabpanel" aria-labelledby="tab-resume">
           <header class="cv-head">
-            <h2 class="cv-name" id="resume-dialog-title">DEX CIMINO</h2>
+            <h2 class="cv-name">DEX CIMINO</h2>
             <p class="cv-role">3D ARTIST / CREATIVE TECHNOLOGIST / AI-ASSISTED BUILDER</p>
             <p class="cv-contact">
               <a href="https://dexcimino.com" target="_blank" rel="noreferrer">dexcimino.com</a>
@@ -438,6 +448,34 @@
             </dl>
           </section>
         </article>
+
+        <article class="resume-page" id="panel-cover" role="tabpanel" aria-labelledby="tab-cover" hidden>
+          <header class="cv-head">
+            <h2 class="cv-name">DEX CIMINO</h2>
+            <p class="cv-role">3D ARTIST / CREATIVE TECHNOLOGIST / AI-ASSISTED BUILDER</p>
+            <p class="cv-contact">
+              <a href="https://dexcimino.com" target="_blank" rel="noreferrer">dexcimino.com</a>
+              <span aria-hidden="true">·</span>
+              <a href="mailto:dexdcimino@gmail.com">dexdcimino@gmail.com</a>
+              <span aria-hidden="true">·</span>
+              <span>Colorado, USA</span>
+            </p>
+          </header>
+
+          <section class="cv-block">
+            <h3>COVER LETTER</h3>
+            <p>Hello,</p>
+            <p>I'm Dex Cimino, a multidisciplinary 3D artist and creative technologist who works comfortably across visual production, game development, and AI-assisted building. I do my best work where strong creative judgment, technical curiosity, and the ability to turn an idea into something real all matter.</p>
+            <p>My professional background spans 3D characters, props, creatures, environments, texturing, rigging, animation, optimization, and graphic design. I have created production assets for Roblox adaptations of major film properties, supported independent game and Minecraft projects, and led art production across a team of eight artists. That range taught me how to adapt quickly, communicate clearly, and deliver within real technical and visual constraints.</p>
+            <p>I have also pushed beyond a traditional art role. I integrated AI into Roblox Studio production work and independently built <a href="https://dexnote.dev" target="_blank" rel="noreferrer">DexNote</a> and <a href="https://nodeblast.dev" target="_blank" rel="noreferrer">NodeBlast</a> using Claude Code. I use AI as a practical extension of the creative process: to prototype faster, explore options, solve unfamiliar problems, automate repetitive work, and move projects toward a finished result.</p>
+            <p>What I bring is a broad but connected skill set: visual judgment, hands-on production experience, independent ownership, and a habit of learning whatever the work requires. Whether the immediate need is creating assets, evaluating visual output, improving a workflow, prototyping a tool, or helping a team solve an unusual problem, I can contribute quickly and keep moving without losing sight of quality.</p>
+            <p>I would welcome the opportunity to bring that mix of creativity, adaptability, and execution to your team. Thank you for your time and consideration.</p>
+            <p>Best,</p>
+            <p class="cv-signoff"><strong>DEX CIMINO</strong></p>
+          </section>
+
+          <p class="cv-footer"><span>ART + TECHNOLOGY + EXECUTION</span><span>DEXCIMINO.COM / 2026</span></p>
+        </article>
       </div>
 
       <div class="resume-toolbar">
@@ -495,6 +533,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=82"></script>
+  <script src="script.js?v=85"></script>
 </body>
 </html>

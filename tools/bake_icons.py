@@ -37,6 +37,7 @@ MANIFEST = {
     '[data-icon="resume"]':      ("--icon", "assets/icons/resume.svg"),
     '[data-icon="contact"]':     ("--icon", "assets/icons/contact.svg"),
     '[data-icon="download"]':    ("--icon", "assets/icons/download.svg"),
+    '[data-icon="preview"]':     ("--icon", "assets/icons/preview.svg"),
     '[data-icon="zoom-in"]':     ("--icon", "assets/icons/zoom-in.svg"),
     '[data-icon="zoom-out"]':    ("--icon", "assets/icons/zoom-out.svg"),
     '[data-icon="arrow-ne"]':    ("--icon", "assets/icons/arrow-ne.svg"),
