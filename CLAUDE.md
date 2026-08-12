@@ -8,6 +8,23 @@
 - If the working tree has unrelated changes the user made by hand, mention them
   rather than sweeping them into the commit.
 
+## Work overlay is a MOCKUP (do not mistake it for finished)
+
+- The Work overlay ships with **generated filler images**, not artwork: SVG data
+  URIs built in the `TEMPORARY MOCKUP DATA` block at the bottom of `script.js`.
+  There is no `work.json`, nothing in `assets/media/`, and no real asset was
+  added for it. The `FILLER — NOT REAL WORK` stamp on each image is deliberate.
+- The categories, titles, tool/year lines and counts are placeholders, **not a
+  settled taxonomy**. Do not build on them as if they were.
+- Everything after that block is data-shape-agnostic: it renders a list of
+  `{title, desc, src, w, h}` and does not care where the list came from. The
+  real build replaces one block with `work.json` plus baked derivatives — the
+  tab row, filmstrip, hero and caption need no changes.
+- The hero is a **fixed 3:2 box** (the frame itself on phones) and images
+  letterbox into it with `object-fit:contain`. Do not make the box track each
+  image's aspect ratio: that is what makes the caption and filmstrip jump on
+  every arrow press.
+
 ## Image pipeline (do not regress)
 
 - `assets/` = masters (only copy of some art). `assets/derived/` = generated;

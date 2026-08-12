@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=92" />
+  <link rel="stylesheet" href="styles.css?v=93" />
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
         imagesrcset="assets/derived/mascots/mascot_limegreen-400.avif 400w,
@@ -258,15 +258,16 @@
     <section class="section home-featured" id="work">
       <div class="section-head reveal">
         <h2 class="featured-title"><span class="icon featured-mark" data-icon="tick" aria-hidden="true"></span><span>FEATURED WORK</span></h2>
-        <a class="view-all" href="#work"><span>VIEW ALL WORK</span><span class="icon view-all-arrow" data-icon="play" aria-hidden="true"></span></a>
+        <button class="view-all" type="button" id="viewAllWork"><span>VIEW ALL WORK</span><span class="icon view-all-arrow" data-icon="play" aria-hidden="true"></span></button>
       </div>
 
-
-
-
-      <!-- Card images are placeholders — swap each <img> (and title) for the real piece. -->
+      <!-- Cards are <button>, not <a>: they open the work overlay, and an href
+           would scroll the page before the dialog ever showed. data-work-cat /
+           data-work-index say which tab and which image each one opens on, so a
+           card lands on its own piece instead of the top of the list. -->
       <div class="work-grid">
-        <article class="work-card reveal">
+        <button class="work-card reveal" type="button" data-work-cat="environment" data-work-index="0"
+                aria-label="Valley Outpost — open in the Environment gallery">
           <picture>
             <source type="image/avif" srcset="assets/derived/images/featured-bishop-lava-900.avif 900w,
                                       assets/derived/images/featured-bishop-lava-600.avif 600w,
@@ -278,11 +279,12 @@
                     sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw">
             <img src="assets/images/featured-bishop-lava.png" alt="Environment artwork" width="1672" height="941" loading="lazy" decoding="async">
           </picture>
-          <div class="card-shade"></div>
-          <div class="card-meta"><small>ENVIRONMENT</small><h3>Valley Outpost</h3></div>
+          <span class="card-shade"></span>
+          <span class="card-meta"><small>ENVIRONMENT</small><strong>Valley Outpost</strong></span>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </article>
-        <article class="work-card reveal">
+        </button>
+        <button class="work-card reveal" type="button" data-work-cat="prop" data-work-index="2"
+                aria-label="Grimshot Rifle — open in the Prop / Design gallery">
           <picture>
             <source type="image/avif" srcset="assets/derived/images/featured-bishop-900.avif 900w,
                                       assets/derived/images/featured-bishop-600.avif 600w,
@@ -294,11 +296,12 @@
                     sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw">
             <img src="assets/images/featured-bishop.png" alt="Prop design artwork" width="1920" height="1080" loading="lazy" decoding="async">
           </picture>
-          <div class="card-shade"></div>
-          <div class="card-meta"><small>PROP / DESIGN</small><h3>Grimshot Rifle</h3></div>
+          <span class="card-shade"></span>
+          <span class="card-meta"><small>PROP / DESIGN</small><strong>Grimshot Rifle</strong></span>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </article>
-        <article class="work-card brand-card reveal">
+        </button>
+        <button class="work-card brand-card reveal" type="button" data-work-cat="character" data-work-index="4"
+                aria-label="Clayweld — open in the Character gallery">
           <picture>
             <source type="image/avif" srcset="assets/derived/mascots/mascot_limegreen-600.avif 600w,
                                       assets/derived/mascots/mascot_limegreen-400.avif 400w"
@@ -308,16 +311,17 @@
                     sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw">
             <img data-theme-mascot src="assets/mascots/mascot_limegreen.png" alt="Character artwork" width="1303" height="1193" loading="lazy" decoding="async">
           </picture>
-          <div class="card-shade"></div>
-          <div class="card-meta"><small>CHARACTER</small><h3>Clayweld</h3></div>
+          <span class="card-shade"></span>
+          <span class="card-meta"><small>CHARACTER</small><strong>Clayweld</strong></span>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </article>
-        <article class="work-card concept-card reveal">
+        </button>
+        <button class="work-card concept-card reveal" type="button" data-work-cat="concept" data-work-index="3"
+                aria-label="Circuit Siege — open in the Concept gallery">
           <span class="icon concept-mark" data-icon="brand" aria-hidden="true"></span>
-          <div class="card-shade"></div>
-          <div class="card-meta"><small>CONCEPT / BRAINSTORM</small><h3>Circuit Siege</h3></div>
+          <span class="card-shade"></span>
+          <span class="card-meta"><small>CONCEPT / BRAINSTORM</small><strong>Circuit Siege</strong></span>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </article>
+        </button>
       </div>
     </section>
 
@@ -366,6 +370,50 @@
 
     <footer><strong>DEX CIMINO</strong><span>2D / 3D DESIGN · CREATIVE TECHNOLOGIST</span><small>© 2026</small></footer>
   </main>
+
+  <!-- Work overlay — MOCKUP. Every image inside it is generated in script.js as
+       an SVG data URI (see the TEMPORARY MOCKUP DATA block); there are no real
+       work assets, no work.json and nothing in assets/media/. The tab row, the
+       filmstrip and the hero are all built by JS, so this is only the shell. -->
+  <dialog class="work-modal" id="workModal" aria-labelledby="work-dialog-title">
+    <div class="work-shell">
+      <h2 class="sr-only" id="work-dialog-title">Selected work</h2>
+
+      <div class="work-head">
+        <div class="work-tabs" id="workTabs" role="tablist" aria-label="Work categories"></div>
+        <button class="contact-close work-close" type="button" id="workClose" aria-label="Close work">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <!-- One panel serves all five tabs, so every tab aria-controls it and its
+           label follows whichever tab is selected. -->
+      <div class="work-stage" id="workPanel" role="tabpanel" tabindex="0">
+        <div class="work-frame">
+          <div class="work-hero" id="workHero">
+            <img class="work-hero-img" id="workHeroImg" src="" alt="" width="16" height="9" decoding="async">
+            <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
+              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+            </button>
+            <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
+              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+
+        <p class="work-cap" aria-live="polite">
+          <span class="work-cap-title" id="workCapTitle"></span>
+          <span class="work-cap-desc" id="workCapDesc"></span>
+          <span class="work-cap-index" id="workCapIndex"></span>
+        </p>
+      </div>
+
+      <div class="work-strip-wrap">
+        <div class="work-strip" id="workStrip" role="group" aria-label="Thumbnails"></div>
+        <p class="work-hint" aria-hidden="true"><b>&#8592; &#8594;</b> BROWSE &nbsp;·&nbsp; <b>ESC</b> CLOSE</p>
+      </div>
+    </div>
+  </dialog>
 
   <!-- Resume overlay. Live HTML, not the PDF: an embedded PDF cannot inherit
        --accent. The PDF is the download artifact only. -->
@@ -547,6 +595,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=92"></script>
+  <script src="script.js?v=93"></script>
 </body>
 </html>

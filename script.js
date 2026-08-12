@@ -822,3 +822,340 @@ if (resumeModal) {
     window.addEventListener('load', () => openResume(null), { once: true });
   }
 }
+
+/* ==========================================================================
+   WORK OVERLAY
+   A category gallery in a <dialog>, opened by the four featured cards and by
+   VIEW ALL WORK. Everything a modal needs — scroll lock, focus trap, focus
+   restoration, "never two overlays at once" — comes from openModal/bindModal
+   above; nothing here reimplements it.
+
+   MOCKUP STATUS: the images are generated filler, not artwork. The block
+   marked TEMPORARY MOCKUP DATA is the only part that knows that. Everything
+   after it renders a plain list of { title, desc, src, w, h } and does not
+   care where the list came from, so the real build swaps one block for
+   work.json plus the derivatives bake_images.py already writes.
+   ========================================================================== */
+
+/* >>> TEMPORARY MOCKUP DATA — filler only, delete this whole block >>>
+   No files are involved and none should be added: each placeholder is an SVG
+   data URI generated at a real pixel size, which the shipped CSP already
+   allows (img-src 'self' data:, needed by the favicon and the icon masks).
+   The ten shapes are deliberately mixed — landscape, portrait, square and
+   ultrawide — because uniform placeholders hide exactly the layout problems
+   the fixed hero box exists to solve.
+   Replaced by: work.json + a manifest from tools/bake_images.py. */
+
+const MOCK_SHAPES = [
+  [1600, 900], [900, 1600], [1200, 1200], [2000, 850], [1400, 1050],
+  [1080, 1350], [1600, 1000], [1000, 1000], [1500, 844], [1200, 1600]
+];
+
+const MOCK_CATS = [
+  { id:'environment', label:'ENVIRONMENT', hue:96,
+    tools:['Maya · Substance', 'Blender · Painter', 'Unreal · Substance'],
+    titles:['Valley Outpost','Ashfall Ridge','Sunken Depot','Kiln District','Frostgate Pass',
+            'Rust Chapel','Terrace Ruins','Dead Signal Bay','Quarry Nine','Verdant Spire'] },
+  { id:'character', label:'CHARACTER', hue:280,
+    tools:['ZBrush · Painter', 'Maya · ZBrush', 'Blender · Painter'],
+    titles:['Bone Archer','Lava Goblin','Slag Runner','Wickerling','Clayweld',
+            'Marrow Knight','Dust Pilgrim','Cinder Twin','Vault Warden','Hex Catalyst'] },
+  { id:'prop', label:'PROP / DESIGN', hue:200,
+    tools:['Maya · Substance', 'ZBrush · Painter', 'Blender · Painter'],
+    titles:['Ember Lantern','Cargo Rig','Grimshot Rifle','Trench Kit','Signal Beacon',
+            'Anvil Drone','Field Radio','Bolt Charm','Salvage Crate','Ration Pack'] },
+  { id:'concept', label:'CONCEPT', hue:22,
+    tools:['Photoshop · Concept', 'Procreate · Photoshop', 'Illustrator · Photoshop'],
+    titles:['Wire Bloom','Nightfall Market','Paper Titan','Circuit Siege','Glass Orchard',
+            'Static Choir','Iron Tide','Low Orbit Diner','Hollow Parade','Nine Lanterns'] },
+  { id:'projects', label:'PROJECTS / GAMES', hue:330,
+    tools:['Unity · Blender', 'Web · Claude Code', 'Roblox Studio'],
+    titles:['Cupcake Gobbler','Stick It','Arena1','DexNote','NodeBlast',
+            'Tilt Tactics','Grid Runner','Pocket Forge','Loop Lander','Sprite Foundry'] }
+];
+
+// A placeholder that shows its own geometry: the frame and centre ticks make
+// the letterboxing obvious, and the printed w×h means a wrong crop is visible
+// at a glance instead of having to be measured. `&#215;` rather than a literal
+// ×, so the data URI stays pure ASCII and needs no charset declaration.
+function mockImage(width, height, label, hue) {
+  const min = Math.min(width, height);
+  const pad = Math.round(min * .035);
+  const tick = Math.round(min * .09);
+  const r = value => Math.round(value * 10) / 10;   // keep 1600*.66 out of the markup
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`
+    + `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">`
+    + `<stop offset="0" stop-color="hsl(${hue},24%,23%)"/><stop offset="1" stop-color="hsl(${hue + 26},32%,9%)"/>`
+    + `</linearGradient></defs>`
+    + `<rect width="${width}" height="${height}" fill="url(#g)"/>`
+    // The diagonal echoes the page background, so a filler still reads as this site.
+    + `<path d="M${r(width * .66)} 0H${width}L${r(width * .34)} ${height}H0Z" fill="hsl(${hue},46%,58%)" fill-opacity=".07"/>`
+    + `<g fill="none" stroke="hsl(${hue},48%,62%)" stroke-opacity=".3" stroke-width="${r(Math.max(2, min * .006))}">`
+    + `<rect x="${pad}" y="${pad}" width="${width - pad * 2}" height="${height - pad * 2}"/>`
+    + `<path d="M${pad} ${r(height / 2)}h${tick}M${width - pad} ${r(height / 2)}h-${tick}`
+    + `M${r(width / 2)} ${pad}v${tick}M${r(width / 2)} ${height - pad}v-${tick}"/></g>`
+    + `<g font-family="ui-monospace,monospace" text-anchor="middle" fill="#fff">`
+    + `<text x="50%" y="47%" font-size="${r(Math.max(17, min * .082))}" fill-opacity=".84">${label}</text>`
+    + `<text x="50%" y="58%" font-size="${r(Math.max(13, min * .052))}" fill-opacity=".44">${width} &#215; ${height}</text>`
+    + `<text x="50%" y="${r(height - pad * 2.2)}" font-size="${r(Math.max(10, min * .026))}" fill-opacity=".3" letter-spacing="${r(Math.max(1, min * .004))}">FILLER — NOT REAL WORK</text>`
+    + `</g></svg>`;
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
+function buildMockWork() {
+  return MOCK_CATS.map((cat, catIndex) => ({
+    id: cat.id,
+    label: cat.label,
+    items: cat.titles.map((title, i) => {
+      // Rotated per category, so every tab carries the same ten aspect ratios
+      // in a different order and no tab can accidentally look uniform.
+      const [w, h] = MOCK_SHAPES[(i + catIndex * 3) % MOCK_SHAPES.length];
+      return {
+        title,
+        desc: `${cat.tools[i % cat.tools.length]} · ${2022 + (i % 4)}`,
+        src: mockImage(w, h, `${cat.label.split(' ')[0]} ${String(i + 1).padStart(2, '0')}`, cat.hue + i * 5),
+        w, h
+      };
+    })
+  }));
+}
+
+// Built on first open, not at load: fifty generated SVGs are cheap but there is
+// no reason for them to compete with the hero image for the first paint.
+let workCategoriesCache = null;
+function workCategories() {
+  return (workCategoriesCache ||= buildMockWork());
+}
+/* <<< TEMPORARY MOCKUP DATA <<< */
+
+const workModal = document.getElementById('workModal');
+const workTabsEl = document.getElementById('workTabs');
+const workStripEl = document.getElementById('workStrip');
+const workPanel = document.getElementById('workPanel');
+const workHero = document.getElementById('workHero');
+const workHeroImg = document.getElementById('workHeroImg');
+const workCapTitle = document.getElementById('workCapTitle');
+const workCapDesc = document.getElementById('workCapDesc');
+const workCapIndex = document.getElementById('workCapIndex');
+const workPrevBtn = document.getElementById('workPrev');
+const workNextBtn = document.getElementById('workNext');
+
+let workTabButtons = [];
+let workCat = 0;      // index into workCategories()
+let workIdx = 0;      // index into the active category's items
+let workHeroToken = 0;
+
+const pad2 = value => String(value).padStart(2, '0');
+const workItems = () => workCategories()[workCat].items;
+
+/* ---------- tabs --------------------------------------------------------- */
+
+function buildWorkTabs() {
+  const frag = document.createDocumentFragment();
+  workCategories().forEach((cat, index) => {
+    const tab = document.createElement('button');
+    tab.className = 'work-tab';
+    tab.type = 'button';
+    tab.id = `work-tab-${cat.id}`;
+    tab.dataset.index = String(index);
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-controls', 'workPanel');   // one panel serves all five
+    tab.setAttribute('aria-selected', 'false');
+    tab.tabIndex = -1;                                // roving tabindex
+
+    const label = document.createElement('span');
+    label.textContent = cat.label;
+    const count = document.createElement('span');
+    count.className = 'work-tab-count';
+    count.textContent = String(cat.items.length);
+    tab.append(label, count);
+
+    tab.addEventListener('click', () => selectWorkCategory(index));
+    frag.appendChild(tab);
+  });
+  workTabsEl.replaceChildren(frag);
+  workTabButtons = [...workTabsEl.querySelectorAll('.work-tab')];
+}
+
+// Switching category always resets to the first image and rebuilds the strip;
+// only the openers pass an index, so a featured card can land on its own piece.
+function selectWorkCategory(index, itemIndex = 0) {
+  const cats = workCategories();
+  workCat = Math.max(0, Math.min(cats.length - 1, index));
+
+  workTabButtons.forEach((tab, i) => {
+    const on = i === workCat;
+    tab.setAttribute('aria-selected', String(on));
+    tab.tabIndex = on ? 0 : -1;
+  });
+  workPanel.setAttribute('aria-labelledby', workTabButtons[workCat].id);
+  workTabButtons[workCat].scrollIntoView({ inline: 'nearest', block: 'nearest' });
+
+  buildWorkStrip(cats[workCat].items);
+  showWorkItem(itemIndex);
+}
+
+/* ---------- filmstrip ---------------------------------------------------- */
+
+// Takes a list, not a category: the only thing it needs is { title, src, w, h }.
+function buildWorkStrip(items) {
+  const frag = document.createDocumentFragment();
+  items.forEach((item, i) => {
+    const thumb = document.createElement('button');
+    thumb.className = 'work-thumb';
+    thumb.type = 'button';
+    thumb.setAttribute('aria-label', `${i + 1}. ${item.title}`);
+    thumb.setAttribute('aria-current', 'false');
+
+    const img = document.createElement('img');
+    img.src = item.src;
+    img.alt = '';
+    img.width = item.w;          // intrinsic size as attributes, never as style
+    img.height = item.h;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    thumb.appendChild(img);
+
+    thumb.addEventListener('click', () => showWorkItem(i));
+    frag.appendChild(thumb);
+  });
+  workStripEl.replaceChildren(frag);
+}
+
+/* ---------- hero --------------------------------------------------------- */
+
+// Decode before swapping so a half-painted frame can never land in the hero,
+// and token the swap the way swapMascots does: click through the strip quickly
+// and an earlier, slower decode must not finish last and win.
+function paintWorkHero(item) {
+  const token = ++workHeroToken;
+  workHeroImg.classList.add('is-fading');
+
+  const warm = new Image();
+  warm.src = item.src;
+  const show = () => {
+    if (token !== workHeroToken) return;
+    workHeroImg.src = item.src;
+    workHeroImg.width = item.w;
+    workHeroImg.height = item.h;
+    workHeroImg.alt = item.title;
+    // Two frames: the first commits the faded state with the new image in it,
+    // the second starts the fade back in. One frame and the browser coalesces
+    // both into a single style recalc, so the transition never plays.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (token === workHeroToken) workHeroImg.classList.remove('is-fading');
+    }));
+  };
+  if (warm.decode) warm.decode().then(show, show);
+  else warm.onload = warm.onerror = show;
+}
+
+// Free for data URIs, but this is the shape the real gallery needs: the next
+// image is already decoded by the time the arrow key is pressed.
+function preloadWorkNeighbours(items, index) {
+  [index - 1, index + 1].forEach(i => {
+    if (items[i]) new Image().src = items[i].src;
+  });
+}
+
+function showWorkItem(index) {
+  const items = workItems();
+  if (!items.length) return;
+  workIdx = Math.max(0, Math.min(items.length - 1, index));
+  const item = items[workIdx];
+
+  paintWorkHero(item);
+  workCapTitle.textContent = item.title;
+  workCapDesc.textContent = item.desc;
+  // Built from nodes, not innerHTML — same rule as setStatus.
+  const position = document.createElement('b');
+  position.textContent = pad2(workIdx + 1);
+  workCapIndex.replaceChildren(position, ` / ${pad2(items.length)}`);
+
+  workPrevBtn.disabled = workIdx === 0;
+  workNextBtn.disabled = workIdx === items.length - 1;
+  // Reaching an end must not strand focus on a button that just went disabled.
+  if (document.activeElement === workNextBtn && workNextBtn.disabled) workPrevBtn.focus();
+  else if (document.activeElement === workPrevBtn && workPrevBtn.disabled) workNextBtn.focus();
+
+  [...workStripEl.children].forEach((thumb, i) => thumb.setAttribute('aria-current', String(i === workIdx)));
+  // behavior:'auto' defers to the strip's CSS scroll-behavior, which the
+  // reduced-motion block already flattens — same trick as scrollToY.
+  workStripEl.children[workIdx]?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  preloadWorkNeighbours(items, workIdx);
+}
+
+/* ---------- open / close ------------------------------------------------- */
+
+function openWork(catId, index, trigger) {
+  if (!workModal) return;
+  if (!workTabButtons.length) buildWorkTabs();
+  const cats = workCategories();
+  const catIndex = Math.max(0, cats.findIndex(cat => cat.id === catId));   // unknown id -> first tab
+  openModal(workModal, null, () => {
+    selectWorkCategory(catIndex, index);
+    // The panel, not a control: it is the thing that just appeared, and it
+    // leaves Left/Right free to browse images instead of switching tabs.
+    workPanel.focus({ preventScroll: true });
+  }, trigger);
+}
+
+if (workModal) {
+  bindModal(workModal);
+  document.getElementById('workClose')?.addEventListener('click', () => closeModal(workModal));
+  workPrevBtn.addEventListener('click', () => showWorkItem(workIdx - 1));
+  workNextBtn.addEventListener('click', () => showWorkItem(workIdx + 1));
+
+  // Triggers: the four featured cards land on their own piece, VIEW ALL WORK
+  // opens on the first tab.
+  document.querySelectorAll('[data-work-cat]').forEach(card => {
+    card.addEventListener('click', () => {
+      openWork(card.dataset.workCat, Number(card.dataset.workIndex) || 0, card);
+    });
+  });
+  document.getElementById('viewAllWork')?.addEventListener('click', event => {
+    openWork(null, 0, event.currentTarget);
+  });
+
+  // Left/Right inside the tab row belong to the tablist; that handler runs
+  // first (the tablist is inside the dialog, this listener is on window) and
+  // calls preventDefault, so the same keys mean "walk the tabs" there and
+  // "walk the images" everywhere else in the dialog.
+  workTabsEl.addEventListener('keydown', event => {
+    const tab = event.target.closest?.('.work-tab');
+    if (!tab) return;
+    const index = workTabButtons.indexOf(tab);
+    const move = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+    let next = null;
+    if (move != null) next = workTabButtons[(index + move + workTabButtons.length) % workTabButtons.length];
+    else if (event.key === 'Home') next = workTabButtons[0];
+    else if (event.key === 'End') next = workTabButtons.at(-1);
+    if (!next) return;
+    event.preventDefault();
+    selectWorkCategory(Number(next.dataset.index));
+    next.focus();
+  });
+
+  window.addEventListener('keydown', event => {
+    if (!workModal.open || event.defaultPrevented) return;
+    if (event.altKey || event.ctrlKey || event.metaKey) return;   // browser shortcuts stay the browser's
+    const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+    if (step != null) { event.preventDefault(); showWorkItem(workIdx + step); }
+    else if (event.key === 'Home') { event.preventDefault(); showWorkItem(0); }
+    else if (event.key === 'End') { event.preventDefault(); showWorkItem(workItems().length - 1); }
+  });
+
+  // Swipe the hero on touch. Mice are excluded on purpose — a drag on a desktop
+  // means "select this", not "next image".
+  let swipeFrom = null;
+  workHero.addEventListener('pointerdown', event => {
+    swipeFrom = event.pointerType === 'mouse' ? null : event.clientX;
+  });
+  workHero.addEventListener('pointerup', event => {
+    if (swipeFrom == null) return;
+    const dx = event.clientX - swipeFrom;
+    swipeFrom = null;
+    if (Math.abs(dx) > 45) showWorkItem(workIdx + (dx < 0 ? 1 : -1));
+  });
+  workHero.addEventListener('pointercancel', () => { swipeFrom = null; });
+}

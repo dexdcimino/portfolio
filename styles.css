@@ -470,12 +470,18 @@ button.button{cursor:pointer;font:inherit}
 /* .section-head scope needed to outrank the big `.section-head h2` heading rule */
 .section-head .featured-title{display:flex;align-items:center;gap:9px;margin:0;font-size:clamp(20px,1.5vw,23px);font-weight:700;letter-spacing:.02em;line-height:1}
 .featured-mark{width:13px;height:17px;color:var(--accent);transition:color var(--accent-ease)}
-.view-all{display:inline-flex;align-items:center;gap:9px;font-size:14px;color:var(--accent);font-weight:900;letter-spacing:.08em;transition:color var(--accent-ease)}
+/* A <button>, not an anchor: it opens the work overlay, and an href would jump
+   the page before the dialog ever showed. Same for every .work-card below. */
+.view-all{display:inline-flex;align-items:center;gap:9px;font:inherit;font-size:14px;color:var(--accent);font-weight:900;letter-spacing:.08em;padding:6px 2px;border:0;background:none;cursor:pointer;transition:color var(--accent-ease)}
 .view-all-arrow{width:14px;height:14px}
 .view-all:hover .view-all-arrow{transform:translateX(4px)}
 
 .work-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.work-card{height:clamp(200px,24vh,258px);position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.13);background:#11161a;isolation:isolate}
+.work-card{display:block;width:100%;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;height:clamp(200px,24vh,258px);position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.13);background:#11161a;isolation:isolate;transition:border-color var(--accent-ease),transform .25s ease}
+.work-card:hover{border-color:color-mix(in srgb,var(--accent) 55%,transparent);transform:translateY(-3px)}
+/* The global :focus-visible rule rounds to 6px, which cuts the corners off a
+   14px card — restore the card's own radius for the ring only. */
+.work-card:focus-visible{border-radius:14px}
 .work-card img{width:100%;height:100%;object-fit:cover;transition:transform .55s cubic-bezier(.22,.61,.36,1)}
 .work-card:hover img{transform:scale(1.045)}
 .brand-card img{object-fit:contain;padding:22px;background:linear-gradient(140deg,#11161a,#20272d)}
@@ -484,8 +490,9 @@ button.button{cursor:pointer;font:inherit}
 .concept-card:hover .concept-mark{transform:scale(1.08)}
 .card-shade{position:absolute;inset:42% 0 0;background:linear-gradient(transparent,rgba(2,3,4,.94))}
 .card-meta{position:absolute;left:16px;right:40px;bottom:14px}
-.card-meta small{color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
-.card-meta h3{font-size:19px;margin:5px 0 0;letter-spacing:.01em}
+.card-meta small{display:block;color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
+/* <strong>, not <h3>: a button may only contain phrasing content. */
+.card-meta strong{display:block;font-size:19px;font-weight:700;margin:5px 0 0;letter-spacing:.01em}
 .card-go{position:absolute;right:14px;bottom:15px;width:14px;height:14px;color:var(--text);opacity:.75}
 .work-card:hover .card-go{opacity:1;transform:translate(2px,-2px)}
 
@@ -773,6 +780,198 @@ body.modal-open{overflow:hidden}
   .cv-head{margin:-40px -34px 22px;padding:28px 34px 22px}
   .cv-skills{margin:0 -34px -46px;padding:20px 34px 28px}
   .resume-scroll{padding:10px}
+}
+
+/* ==========================================================================
+   WORK OVERLAY  —  MOCKUP (filler images, see script.js)
+   Shell geometry, backdrop wash, blur, curve and accent left rule are the
+   resume overlay's, so the two read as one component family.
+   The one genuinely new idea is the stage: a FIXED 3:2 matte that every image
+   letterboxes into. A hero box that tracked each image's aspect ratio would
+   shove the caption and filmstrip up and down on every arrow press, which is
+   the single worst thing about naive gallery layouts.
+   ========================================================================== */
+.work-modal{
+  border:0;padding:0;background:transparent;color:var(--text);
+  width:min(96vw,1500px);max-width:none;
+  height:min(94vh,1180px);margin:auto;overflow:visible;
+}
+.work-modal::backdrop{
+  background:rgba(9,13,24,.86);
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+}
+.work-modal[open]{animation:contactIn .24s cubic-bezier(.22,.61,.36,1)}
+
+.work-shell{
+  position:relative;display:flex;flex-direction:column;height:100%;
+  border-radius:18px;overflow:hidden;
+  background:linear-gradient(160deg,#161c24,#0e1319);
+  border:1px solid var(--line);border-left:3px solid var(--accent);
+  box-shadow:0 30px 90px rgba(0,0,0,.6);
+  transition:border-color var(--accent-ease);
+}
+
+/* --- tab row ------------------------------------------------------------- */
+/* The X lives outside the scroller so it stays pinned at the end while the
+   tabs scroll under it on a narrow screen. */
+.work-head{
+  flex:none;display:flex;align-items:stretch;gap:8px;
+  padding-left:clamp(10px,1.6vw,18px);padding-right:10px;
+  border-bottom:1px solid var(--line);background:rgba(10,13,17,.72);
+}
+.work-tabs{
+  flex:0 1 auto;min-width:0;display:flex;align-items:stretch;gap:2px;
+  overflow-x:auto;overscroll-behavior-x:contain;scroll-behavior:smooth;
+  scrollbar-width:none;-ms-overflow-style:none;
+}
+.work-tabs::-webkit-scrollbar{display:none}
+.work-tab{
+  flex:0 0 auto;min-height:58px;padding:0 14px;cursor:pointer;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:7px;
+  border:0;border-bottom:2px solid transparent;background:none;
+  color:var(--icon-idle);font:inherit;font-size:12px;font-weight:900;letter-spacing:.12em;
+  user-select:none;-webkit-user-select:none;
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
+}
+.work-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.work-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:0}
+.work-tab[aria-selected="true"]{
+  color:var(--accent);border-bottom-color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 9%,transparent);
+}
+.work-tab-count{font-size:11px;font-weight:700;letter-spacing:.06em;opacity:.5;font-variant-numeric:tabular-nums}
+/* Reuses .contact-close for colour, size and hover; only the anchoring changes. */
+.work-close{position:static;flex:0 0 auto;align-self:center;margin-left:auto}
+
+/* --- stage --------------------------------------------------------------- */
+.work-stage{
+  flex:1 1 auto;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;
+  gap:clamp(9px,1.5vh,15px);padding:clamp(11px,1.9vh,20px) clamp(12px,2vw,24px);
+}
+.work-stage:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:12px}
+
+/* .work-frame is whatever vertical space the panel has left over; .work-hero is
+   the fixed 3:2 box centred inside it. Sized in container-query units so both
+   axes are stated explicitly — an `aspect-ratio` box with max-width/max-height
+   is over-constrained and silently stops being 3:2 at some sizes.
+   A browser without container queries drops the two min() declarations, the
+   hero falls back to inset:0 and simply fills the frame: still a fixed box,
+   just not exactly 3:2. */
+.work-frame{position:relative;min-height:0;container-type:size}
+.work-hero{
+  --hero-ar:1.5;
+  position:absolute;inset:0;margin:auto;
+  width:min(100cqw,calc(100cqh * var(--hero-ar)));
+  height:min(100cqh,calc(100cqw / var(--hero-ar)));
+  overflow:hidden;
+  border:1px solid var(--line);border-radius:12px;
+  /* The visible cost of a fixed box is empty space around tall images. A very
+     low contrast accent hatch makes it read as an intentional matte rather than
+     an image that has not finished loading — 3% is the ceiling here, above that
+     it stops being a surface and starts competing with the artwork. */
+  background:
+    radial-gradient(120% 100% at 50% 42%,rgba(255,255,255,.026),transparent 72%),
+    repeating-linear-gradient(45deg,
+      color-mix(in srgb,var(--accent) 3%,transparent) 0 12px,
+      transparent 12px 24px),
+    linear-gradient(160deg,#12171d,#0a0d11);
+  transition:background var(--accent-ease),border-color var(--accent-ease);
+}
+/* Absolutely positioned and centred with auto margins, NOT a centred grid item:
+   a grid row sizes itself to the image's intrinsic height, which leaves
+   max-height:100% resolving against an indefinite area, so a 900x1600 portrait
+   renders at 1600px tall and hangs straight out of the matte. Against an
+   absolutely positioned box the percentages resolve against the hero itself,
+   which is definite by construction. */
+.work-hero-img{
+  position:absolute;inset:0;margin:auto;
+  max-width:100%;max-height:100%;width:auto;height:auto;
+  object-fit:contain;display:block;
+  filter:drop-shadow(0 16px 38px rgba(0,0,0,.45));
+  transition:opacity .16s ease;
+}
+/* Fade the swap in rather than cutting: at .25 it registers as a change without
+   strobing when the arrow key is held down. */
+.work-hero-img.is-fading{opacity:.25}
+
+.work-nav{
+  position:absolute;top:50%;translate:0 -50%;z-index:2;
+  width:46px;height:46px;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:1px solid var(--line);border-radius:50%;
+  background:rgba(8,11,15,.74);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  color:var(--text);
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease,transform .2s ease,opacity .2s ease;
+}
+.work-nav .icon{width:19px;height:19px}
+.work-nav.prev{left:14px}
+.work-nav.next{right:14px}
+/* One arrow mask, mirrored — no second icon to bake. */
+.work-nav.prev .icon{transform:scaleX(-1)}
+.work-nav:hover:not(:disabled){color:var(--accent);border-color:var(--accent);background:rgba(8,11,15,.92)}
+.work-nav.prev:hover:not(:disabled){transform:translateX(-2px)}
+.work-nav.next:hover:not(:disabled){transform:translateX(2px)}
+.work-nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.work-nav:disabled{opacity:.2;cursor:default}
+
+/* --- caption ------------------------------------------------------------- */
+.work-cap{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;min-height:24px}
+.work-cap-title{font-size:16px;font-weight:800;letter-spacing:.01em}
+.work-cap-desc{color:var(--muted);font-size:12px;letter-spacing:.06em}
+/* Tabular figures so 09/10 -> 10/10 does not shuffle the whole line. */
+.work-cap-index{
+  margin-left:auto;color:var(--icon-idle);font-size:11px;font-weight:800;
+  letter-spacing:.14em;font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.work-cap-index b{color:var(--accent);font-weight:800;transition:color var(--accent-ease)}
+
+/* --- filmstrip ----------------------------------------------------------- */
+/* Thumbnails crop (object-fit:cover); only the hero letterboxes. A strip of
+   letterboxed thumbs at ten different aspect ratios is unreadable. */
+.work-strip-wrap{
+  flex:none;display:flex;align-items:center;gap:18px;
+  border-top:1px solid var(--line);background:rgba(10,13,17,.72);
+  padding:11px clamp(12px,2vw,24px);
+  padding-bottom:calc(11px + env(safe-area-inset-bottom,0px));
+}
+.work-strip{
+  flex:1 1 auto;min-width:0;display:flex;gap:10px;
+  overflow-x:auto;overscroll-behavior-x:contain;scroll-behavior:smooth;
+  padding:4px 2px 8px;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;
+}
+.work-thumb{
+  flex:0 0 auto;width:96px;height:64px;padding:0;cursor:pointer;position:relative;
+  border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#0e1217;
+  transition:border-color var(--accent-ease),transform .18s ease,box-shadow var(--accent-ease);
+}
+.work-thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.55;transition:opacity .18s ease}
+.work-thumb:hover{transform:translateY(-2px)}
+.work-thumb:hover img{opacity:.9}
+.work-thumb[aria-current="true"]{
+  border-color:var(--accent);transform:translateY(-2px);
+  box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 24%,transparent);
+}
+.work-thumb[aria-current="true"] img{opacity:1}
+.work-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.work-hint{flex:0 0 auto;margin:0;color:var(--icon-idle);font-size:10px;font-weight:800;letter-spacing:.16em;opacity:.65;white-space:nowrap}
+.work-hint b{color:var(--muted);font-weight:800}
+
+@media(max-width:900px){ .work-hint{display:none} }
+@media(max-width:760px){
+  .work-modal{width:100vw;height:100dvh;max-height:none}
+  .work-shell{border-radius:0;border-left-width:3px}
+  .work-tab{min-height:52px;padding:0 12px;font-size:11px;letter-spacing:.1em}
+  /* A phone's stage is tall and narrow, so a 3:2 box would leave a third of it
+     empty above and below the matte. Here the frame IS the box — still one
+     fixed size per viewport, which is the property that keeps the caption and
+     filmstrip still, just without the wasted band. */
+  .work-hero{width:100%;height:100%}
+  .work-cap-title{font-size:14px}
+  .work-nav{width:38px;height:38px}
+  .work-nav .icon{width:16px;height:16px}
+  .work-nav.prev{left:8px}
+  .work-nav.next{right:8px}
+  .work-thumb{width:74px;height:52px}
 }
 
 /* ==========================================================================
