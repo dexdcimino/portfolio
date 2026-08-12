@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/icons/brand-mark.svg" type="image/svg+xml" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=77" />
+  <link rel="stylesheet" href="styles.css?v=82" />
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
         imagesrcset="assets/derived/mascots/mascot_limegreen-400.avif 400w,
@@ -124,20 +124,20 @@
     </nav>
 
     <div class="side-bottom">
-      <a class="resume-mini" href="#resume"><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="download" aria-hidden="true"></span></a>
+      <button class="resume-mini" type="button" data-resume-open><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="arrow-ne" aria-hidden="true"></span></button>
       <a class="contact-mini" href="mailto:dexdcimino@gmail.com"><span class="icon nav-icon" data-icon="contact" aria-hidden="true"></span><span class="nav-text">CONTACT</span></a>
 
       <div class="profile-mini">
         <picture class="profile-frame">
-          <source type="image/avif" srcset="assets/derived/images/profile-84.avif 84w,
-                                            assets/derived/images/profile-200.avif 200w,
-                                            assets/derived/images/profile-420.avif 420w"
+          <source type="image/avif" srcset="assets/derived/about/profile-84.avif 84w,
+                                            assets/derived/about/profile-200.avif 200w,
+                                            assets/derived/about/profile-420.avif 420w"
                   sizes="200px">
-          <source type="image/webp" srcset="assets/derived/images/profile-84.webp 84w,
-                                            assets/derived/images/profile-200.webp 200w,
-                                            assets/derived/images/profile-420.webp 420w"
+          <source type="image/webp" srcset="assets/derived/about/profile-84.webp 84w,
+                                            assets/derived/about/profile-200.webp 200w,
+                                            assets/derived/about/profile-420.webp 420w"
                   sizes="200px">
-          <img class="profile-photo" src="assets/images/profile.jpg" alt="Dex Cimino"
+          <img class="profile-photo" src="assets/about/profile.jpg" alt="Dex Cimino"
                width="932" height="1014" loading="lazy" decoding="async" />
         </picture>
         <div class="profile-copy">
@@ -188,7 +188,7 @@
         <div class="hero-actions">
           <a class="button primary" href="#work"><span>VIEW WORK</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
           <a class="button" href="#ai"><span>AI PROJECTS</span></a>
-          <a class="button ghost" href="#resume"><span>RESUME</span><span class="icon btn-icon btn-icon-down" data-icon="download" aria-hidden="true"></span></a>
+          <button class="button ghost" type="button" data-resume-open><span>RESUME</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></button>
         </div>
       </div>
 
@@ -339,30 +339,124 @@
     <section class="about" id="about">
       <div class="about-photo reveal">
         <picture>
-          <source type="image/avif" srcset="assets/derived/images/profile-840.avif 840w,
-                                      assets/derived/images/profile-420.avif 420w,
-                                      assets/derived/images/profile-200.avif 200w"
+          <source type="image/avif" srcset="assets/derived/about/profile-840.avif 840w,
+                                      assets/derived/about/profile-420.avif 420w,
+                                      assets/derived/about/profile-200.avif 200w"
                   sizes="(max-width:760px) min(90vw, 330px), min(32vw, 420px)">
-          <source type="image/webp" srcset="assets/derived/images/profile-840.webp 840w,
-                                      assets/derived/images/profile-420.webp 420w,
-                                      assets/derived/images/profile-200.webp 200w"
+          <source type="image/webp" srcset="assets/derived/about/profile-840.webp 840w,
+                                      assets/derived/about/profile-420.webp 420w,
+                                      assets/derived/about/profile-200.webp 200w"
                   sizes="(max-width:760px) min(90vw, 330px), min(32vw, 420px)">
-          <img src="assets/images/profile.jpg" alt="Dex Cimino" width="932" height="1014" loading="lazy" decoding="async">
+          <img src="assets/about/profile.jpg" alt="Dex Cimino" width="932" height="1014" loading="lazy" decoding="async">
         </picture>
       </div>
       <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH + SHIPPING</h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p><div class="chips"><span>Maya</span><span>ZBrush</span><span>Substance</span><span>Photoshop</span><span>Illustrator</span><span>Unreal</span><span>Unity</span><span>Roblox</span><span>AI Tools</span></div></div>
     </section>
 
-    <section class="resume-strip" id="resume">
+    <section class="resume-strip" id="contact-cta">
       <div><p class="eyebrow">EXPERIENCE</p><h2>WANT THE SHORT VERSION?</h2></div>
       <div class="resume-actions">
-        <a class="button primary" href="https://dexddc.com" target="_blank" rel="noreferrer"><span>CURRENT SITE</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
+        <button class="button primary" type="button" data-resume-open><span>VIEW RESUME</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></button>
         <a class="button" href="mailto:dexdcimino@gmail.com"><span>EMAIL ME</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
       </div>
     </section>
 
     <footer><strong>DEX CIMINO</strong><span>2D / 3D DESIGN · CREATIVE TECHNOLOGIST</span><small>© 2026</small></footer>
   </main>
+
+  <!-- Resume overlay. Live HTML, not the PDF: an embedded PDF cannot inherit
+       --accent. The PDF is the download artifact only. -->
+  <dialog class="resume-modal" id="resumeModal" role="dialog" aria-modal="true"
+          aria-labelledby="resume-dialog-title">
+    <div class="resume-shell">
+      <button class="contact-close resume-close" type="button" id="resumeClose" aria-label="Close resume">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+
+      <div class="resume-scroll" id="resumeScroll" tabindex="0">
+        <article class="resume-page" id="resumePage">
+          <header class="cv-head">
+            <h2 class="cv-name" id="resume-dialog-title">DEX CIMINO</h2>
+            <p class="cv-role">3D ARTIST / CREATIVE TECHNOLOGIST / AI-ASSISTED BUILDER</p>
+            <p class="cv-contact">
+              <a href="https://dexcimino.com" target="_blank" rel="noreferrer">dexcimino.com</a>
+              <span aria-hidden="true">·</span>
+              <a href="mailto:dexdcimino@gmail.com">dexdcimino@gmail.com</a>
+              <span aria-hidden="true">·</span>
+              <span>Colorado, USA</span>
+            </p>
+          </header>
+
+          <section class="cv-block">
+            <h3>PROFILE</h3>
+            <p>Multidisciplinary 3D artist and creative technologist combining game art, real-time production, graphic design, and AI-assisted development. Builds production-ready assets, prototypes, web tools, and digital experiences from concept through delivery.</p>
+          </section>
+
+          <section class="cv-block">
+            <h3>AI + CREATIVE PROJECTS</h3>
+            <ul class="cv-list">
+              <li><strong><a href="https://dexnote.dev" target="_blank" rel="noreferrer">DEXNOTE.DEV</a></strong>
+                  <span>Built an AI-assisted notes platform with Claude Code, authentication, and real-time note functionality.</span></li>
+              <li><strong><a href="https://nodeblast.dev" target="_blank" rel="noreferrer">NODEBLAST.DEV</a></strong>
+                  <span>Built an AI-assisted creator and gaming platform through rapid independent prototyping.</span></li>
+              <li><strong>ROBLOX / ROVIO</strong>
+                  <span>Integrated AI tools into Roblox Studio production workflows; apply generative AI across art, games, research, evaluation, and web tooling.</span></li>
+            </ul>
+          </section>
+
+          <section class="cv-block">
+            <h3>PROFESSIONAL EXPERIENCE</h3>
+            <ul class="cv-list">
+              <li><strong>EMBODY GAMES — 3D ARTIST</strong> <em>2025 – PRESENT</em>
+                  <span>Create low-poly models and optimized low-resolution textures for indie games, Minecraft mods, and add-ons; support rigging and animation.</span></li>
+              <li><strong>SUPERLEAGUE INC. — 3D ARTIST</strong> <em>2024 – 2025</em>
+                  <span>Built optimized 3D characters from Despicable Me 4, The Wild Robot, and Sonic 3 for Roblox Studio adaptations.</span></li>
+              <li><strong>KNIGHTS OF EDENGALE — 3D GENERALIST</strong> <em>2023 – 2024</em>
+                  <span>Created concepts, models, textures, and animations for characters, weapons, creatures, and environments.</span></li>
+              <li><strong>PYXELCHAIN TECHNOLOGY — 3D ART LEAD</strong> <em>2021 – 2023</em>
+                  <span>Created and reviewed game-ready assets, coordinated production tasks across eight artists, and maintained visual quality.</span></li>
+            </ul>
+          </section>
+
+          <section class="cv-block">
+            <h3>EARLIER EXPERIENCE</h3>
+            <ul class="cv-list cv-list-plain">
+              <li><span>Produced graphic design for digital advertising, signage, branded merchandise, and client production at Black &amp; Red Inc., FASTSIGNS, and Quality Lapel Pins.</span></li>
+              <li><span>Created 2D assets and animation for BittyPets.com; contributed to independent game projects since 2012.</span></li>
+            </ul>
+          </section>
+
+          <section class="cv-block cv-skills">
+            <h3>SKILLS + EDUCATION</h3>
+            <dl>
+              <dt>3D + REAL-TIME</dt>
+              <dd>Maya, ZBrush, Substance 3D Painter, Roblox Studio, Unreal Engine, Unity; modeling, texturing, rigging, animation, optimization</dd>
+              <dt>2D + AI</dt>
+              <dd>Photoshop, Illustrator, graphic design, Claude Code, generative AI workflows, AI-assisted prototyping, AI output evaluation</dd>
+              <dt>EDUCATION</dt>
+              <dd>CU Denver: 3D Modeling, 2D Design, HTML / Red Rocks CC: Associate of Arts / Full Sail: Game Theory &amp; Design, Unity</dd>
+            </dl>
+          </section>
+        </article>
+      </div>
+
+      <div class="resume-toolbar">
+        <div class="resume-zoom">
+          <button class="resume-tool" type="button" id="zoomOut" aria-label="Zoom out">
+            <span class="icon" data-icon="zoom-out" aria-hidden="true"></span>
+          </button>
+          <button class="resume-tool" type="button" id="zoomIn" aria-label="Zoom in">
+            <span class="icon" data-icon="zoom-in" aria-hidden="true"></span>
+          </button>
+          <output class="resume-zoom-level" id="zoomLevel" aria-live="polite">110%</output>
+        </div>
+        <a class="button primary resume-pdf" href="assets/about/Dex_Cimino_Resume.pdf"
+           download="Dex_Cimino_Resume.pdf" aria-label="Download Dex Cimino resume as PDF">
+          <span>PDF</span><span class="icon btn-icon" data-icon="download" aria-hidden="true"></span>
+        </a>
+      </div>
+    </div>
+  </dialog>
 
   <!-- Contact modal. <dialog>.showModal() gives focus trapping and Esc-to-close
        for free; the backdrop click is wired in script.js. -->
@@ -401,6 +495,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=77"></script>
+  <script src="script.js?v=82"></script>
 </body>
 </html>

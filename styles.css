@@ -85,6 +85,8 @@ img{max-width:100%}
 [data-icon="resume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linejoin='round' d='M6 2h8l4 4v16H6zm8 0v5h4M9 11h6M9 15h6M9 19h4'/%3E%3C/svg%3E")} /* src: assets/icons/resume.svg */
 [data-icon="contact"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M4 5h16v11H8l-4 3V5Zm3 4h10M7 12h7'/%3E%3C/svg%3E")} /* src: assets/icons/contact.svg */
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
+[data-icon="zoom-in"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.4 12.9L21 21M10.5 7.5v6m-3-3h6'/%3E%3C/svg%3E")} /* src: assets/icons/zoom-in.svg */
+[data-icon="zoom-out"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.4 12.9L21 21M7.5 10.5h6'/%3E%3C/svg%3E")} /* src: assets/icons/zoom-out.svg */
 [data-icon="arrow-ne"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M7 17 17 7M9 7h8v8'/%3E%3C/svg%3E")} /* src: assets/icons/arrow-ne.svg */
 [data-icon="arrow-right"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M4 12h15M13 6l6 6-6 6'/%3E%3C/svg%3E")} /* src: assets/icons/arrow-right.svg */
 [data-icon="tick"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15.3841 18.1113'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M7.1872,18.1113H0v-6.3529L11.7584,0h3.6257v7.3476s-5.9188,5.7103-7.2664,7.2664-.9305,3.4973-.9305,3.4973Z' fill='%23fff'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tick_mark.svg */
@@ -179,6 +181,11 @@ img{max-width:100%}
 .nav-link.active::after,.resume-mini.active::after{content:"";position:absolute;right:0;top:8px;bottom:8px;width:3px;background:var(--accent);transition:background-color var(--accent-ease)}
 
 .side-bottom{margin-top:auto;border-top:1px solid var(--line)}
+/* .resume-mini and two .button triggers are <button> now (they open an overlay,
+   they do not navigate) — clear the UA chrome so they still read as the links
+   they replaced. */
+.resume-mini{background:none;border:0;width:100%;text-align:left;cursor:pointer;font:inherit}
+button.button{cursor:pointer;font:inherit}
 .contact-mini{border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
 .profile-mini{min-height:136px;padding:14px 14px 13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 
@@ -566,6 +573,117 @@ footer small{margin-left:auto}
 body.modal-open{overflow:hidden}
 
 /* ==========================================================================
+   RESUME OVERLAY
+   Live HTML rather than the PDF, because an embedded PDF cannot inherit
+   --accent. Shares the contact modal's backdrop, animation and close button.
+   ========================================================================== */
+.resume-modal{
+  border:0;padding:0;background:transparent;color:var(--text);
+  width:min(980px,calc(100vw - 24px));max-width:none;
+  height:min(94vh,1000px);margin:auto;overflow:visible;
+}
+.resume-modal::backdrop{
+  background:rgba(9,13,24,.86);
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+}
+.resume-modal[open]{animation:contactIn .24s cubic-bezier(.22,.61,.36,1)}
+
+.resume-shell{
+  position:relative;display:flex;flex-direction:column;height:100%;
+  border-radius:18px;overflow:hidden;
+  background:linear-gradient(160deg,#161c24,#0e1319);
+  border:1px solid var(--line);border-left:3px solid var(--accent);
+  box-shadow:0 30px 90px rgba(0,0,0,.6);
+  transition:border-color var(--accent-ease);
+}
+.resume-close{z-index:3}
+
+/* The toolbar is a flex sibling, not an overlay, so it can never cover the last
+   line of the resume — no bottom-padding guesswork needed. */
+.resume-scroll{
+  flex:1 1 auto;overflow:auto;overscroll-behavior:contain;
+  padding:clamp(14px,2.2vw,30px);
+  display:flex;justify-content:center;align-items:flex-start;
+}
+.resume-scroll:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+
+/* US Letter at 96dpi. `zoom` (not transform:scale) so the scroll container's
+   layout box reflects the zoomed size and scroll bounds stay correct for free. */
+.resume-page{
+  zoom:var(--resume-zoom,1.1);
+  width:816px;min-height:1056px;flex:none;
+  padding:52px 56px 60px;box-sizing:border-box;
+  background:#1b1f24;color:#a8b0b8;
+  font-size:14px;line-height:1.55;
+  border-radius:4px;box-shadow:0 8px 40px rgba(0,0,0,.5);
+  user-select:text;
+}
+
+.cv-head{
+  position:relative;background:#23282f;margin:-52px -56px 26px;padding:34px 56px 26px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+.cv-head::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--accent)}
+.cv-name{margin:0;font-size:38px;line-height:1;letter-spacing:.02em;color:#fff;font-weight:800}
+.cv-role{margin:10px 0 0;font-size:12.5px;letter-spacing:.15em;color:var(--accent);font-weight:700}
+.cv-contact{margin:14px 0 0;font-size:12.5px;letter-spacing:.03em;color:#98a1a9;display:flex;flex-wrap:wrap;gap:9px}
+.cv-contact a{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+.cv-contact a:hover,.cv-contact a:focus-visible{border-bottom-color:var(--accent)}
+
+.cv-block{margin:0 0 22px}
+.cv-block h3{
+  margin:0 0 10px;font-size:12px;letter-spacing:.18em;color:var(--accent);font-weight:800;
+  padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--accent) 30%,rgba(255,255,255,.10));
+}
+.cv-block p{margin:0}
+
+.cv-list{list-style:none;margin:0;padding:0;display:grid;gap:13px}
+.cv-list li{position:relative;padding-left:16px}
+.cv-list li::before{content:"";position:absolute;left:0;top:.55em;width:6px;height:6px;background:var(--accent)}
+.cv-list-plain li{padding-left:16px}
+.cv-list strong{display:inline;color:#fff;font-size:13.5px;letter-spacing:.04em}
+.cv-list strong a{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+.cv-list strong a:hover,.cv-list strong a:focus-visible{border-bottom-color:var(--accent)}
+.cv-list em{font-style:normal;color:#8e969e;font-size:12px;letter-spacing:.06em;margin-left:8px}
+.cv-list span{display:block;margin-top:3px}
+
+.cv-skills{background:#23282f;margin:0 -56px -60px;padding:24px 56px 34px;border-top:1px solid rgba(255,255,255,.10)}
+.cv-skills dl{margin:0;display:grid;gap:11px}
+.cv-skills dt{font-size:11.5px;letter-spacing:.16em;color:var(--accent);font-weight:800}
+.cv-skills dd{margin:3px 0 0}
+
+.resume-toolbar{
+  flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px clamp(12px,2vw,20px);
+  padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));
+  border-top:1px solid var(--line);background:rgba(10,13,17,.72);
+}
+.resume-zoom{display:flex;align-items:center;gap:8px}
+.resume-tool{
+  width:44px;height:44px;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.04);
+  color:var(--icon-idle);user-select:none;-webkit-user-select:none;
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
+}
+.resume-tool .icon{width:19px;height:19px}
+.resume-tool:hover:not(:disabled){color:var(--accent);border-color:var(--accent);background:rgba(255,255,255,.07)}
+.resume-tool:active:not(:disabled){transform:translateY(1px)}
+.resume-tool:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.resume-tool:disabled{opacity:.35;cursor:default}
+.resume-zoom-level{font-size:12px;letter-spacing:.08em;color:var(--muted);min-width:44px;user-select:none}
+.resume-pdf{min-height:44px;text-decoration:none}
+
+@media(max-width:760px){
+  .resume-modal{width:100vw;height:100dvh;max-height:none}
+  .resume-shell{border-radius:0;border-left-width:3px}
+  /* Start fitted near the viewport rather than at desktop reading zoom. */
+  .resume-page{zoom:var(--resume-zoom,.42);padding:40px 34px 46px}
+  .cv-head{margin:-40px -34px 22px;padding:28px 34px 22px}
+  .cv-skills{margin:0 -34px -46px;padding:20px 34px 28px}
+  .resume-scroll{padding:10px}
+}
+
+/* ==========================================================================
    RESPONSIVE
    ========================================================================== */
 /* ==========================================================================
@@ -649,4 +767,5 @@ body.modal-open{overflow:hidden}
   /* Flattening the transition alone would leave the horns hidden while collapsed;
      show the logo complete in both states instead. */
   .brand-logo :is(.logo-side-horns,.logo-top-horns){transform:none!important}
+  .resume-modal[open]{animation:none}
 }

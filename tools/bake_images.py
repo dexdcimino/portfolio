@@ -10,7 +10,7 @@ Derived output mirrors the master's own subfolder, so filenames only have to be
 unique within a folder rather than across the whole project:
 
     assets/mascots/mascot_red.png -> assets/derived/mascots/mascot_red-900.avif
-    assets/images/profile.jpg     -> assets/derived/images/profile-420.avif
+    assets/about/profile.jpg     -> assets/derived/about/profile-420.avif
 
 That is what makes per-project media folders safe to add later.
 
@@ -66,7 +66,7 @@ SKIP_DIRS = {"derived", "_resources", "games", ".git", "node_modules", ".vercel"
 # matching path wins, so a specific file beats the folder it sits in. Only add
 # an entry when a default width is demonstrably wrong for a slot.
 WIDTH_OVERRIDES = {
-    "assets/images/profile.jpg": (840, 420, 200, 84),   # 84px sidebar avatar
+    "assets/about/profile.jpg": (840, 420, 200, 84),   # 84px sidebar avatar
 }
 
 

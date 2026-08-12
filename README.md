@@ -78,7 +78,7 @@ be unique within its folder rather than across the whole project:
 
 ```
 assets/mascots/mascot_red.png  ->  assets/derived/mascots/mascot_red-900.avif
-assets/images/profile.jpg      ->  assets/derived/images/profile-420.avif
+assets/about/profile.jpg      ->  assets/derived/about/profile-420.avif
 ```
 
 That is what makes per-project media folders safe to add: two `cover.png` files

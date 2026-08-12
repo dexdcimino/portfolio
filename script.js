@@ -299,7 +299,9 @@ reveals.forEach(el => revealObserver.observe(el));
 
 /* ---------- scroll spy --------------------------------------------------- */
 
-const sections = ['home', 'work', 'games', 'ai', 'about', 'resume']
+// 'resume' is deliberately absent: the overlay owns #resume now, and the strip
+// it used to point at is a contact CTA (id="contact-cta").
+const sections = ['home', 'work', 'games', 'ai', 'about']
   .map(id => document.getElementById(id))
   .filter(Boolean);
 
@@ -307,12 +309,14 @@ const sections = ['home', 'work', 'games', 'ai', 'about', 'resume']
 // copied link matches what the visitor is actually looking at. replaceState, not
 // pushState — pushState would add an entry per section crossed and the back
 // button would walk the page instead of leaving the site.
-let lastHash = '';
-
 function syncHash(id) {
+  // The resume overlay pushes #resume, so a cached "last written" value goes
+  // stale and the spy then refuses to correct the URL. Compare against the real
+  // location instead — same dedup (updateMotion runs every rAF and Safari rate-
+  // limits replaceState) without a cache that can drift.
+  if (document.body.classList.contains('modal-open')) return;   // overlay owns the hash
   const hash = id === 'home' ? '' : `#${id}`;
-  if (hash === lastHash) return;      // updateMotion runs every rAF — Safari
-  lastHash = hash;                    // rate-limits replaceState, so gate hard
+  if (hash === location.hash) return;
   try {
     history.replaceState(null, '', hash || location.pathname + location.search);
   } catch { /* file:// throws in some browsers; scrolling still works */ }
@@ -456,25 +460,62 @@ function setStatus(message, kind = '', lead = '') {
   statusEl.replaceChildren(strong, ` ${message}`);
 }
 
+/* ---------- shared modal plumbing ---------------------------------------- */
+
+// Both overlays are <dialog>, so focus trapping, inertness and Esc come from the
+// platform. What has to be shared by hand: the scroll lock, the backdrop-click
+// test (a modal <dialog>'s own box fills the viewport, so event.target is
+// useless — compare the pointer against the visible panel), and making sure the
+// two can never be open at once.
+const openDialogs = new Set();
+
+function closeModal(dialog) {
+  if (!dialog?.open) return;
+  dialog.close();                       // the 'close' listener clears the lock
+}
+
+function openModal(dialog, panel, onOpen) {
+  if (!dialog) return;
+  openDialogs.forEach(closeModal);      // never two overlays at once
+  document.body.classList.add('modal-open');
+  dialog.showModal();
+  onOpen?.();
+}
+
+// Wire a dialog once: scroll-lock teardown plus backdrop-click-to-close.
+function bindModal(dialog, onClose) {
+  if (!dialog) return;
+  openDialogs.add(dialog);
+  dialog.addEventListener('close', () => {
+    if (![...openDialogs].some(d => d.open)) document.body.classList.remove('modal-open');
+    onClose?.();
+  });
+  // A click on a <dialog>'s ::backdrop reports the dialog itself as the target;
+  // a click on anything inside reports that element. Comparing targets is both
+  // simpler and correct where a coordinate test is not: keyboard activation of
+  // an in-dialog button fires a click with clientX/clientY = 0, which any
+  // rect-based test reads as "outside" and closes the dialog under the user.
+  dialog.addEventListener('click', event => {
+    if (event.target === dialog) closeModal(dialog);
+  });
+}
+
+/* ---------- contact modal ------------------------------------------------ */
+
 function openContact() {
   if (!modal) return;
   setStatus('');
   contactForm?.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
-  document.body.classList.add('modal-open');
-  modal.showModal();
+  openModal(modal, contactForm, () => document.getElementById('cfName')?.focus());
   if (recentSends().length >= CONTACT.maxSends) {
     setStatus(`You have already sent ${CONTACT.maxSends} messages. Try again in about ${cooldownMinutes()} minutes.`, 'error');
     if (sendBtn) sendBtn.disabled = true;
   } else if (sendBtn) {
     sendBtn.disabled = false;
   }
-  document.getElementById('cfName')?.focus();
 }
 
-function closeContact() {
-  document.body.classList.remove('modal-open');
-  modal?.close();
-}
+function closeContact() { closeModal(modal); }
 
 if (modal) {
   // Any mailto link becomes the trigger; the href stays as the no-JS fallback.
@@ -484,17 +525,7 @@ if (modal) {
 
   document.getElementById('contactClose')?.addEventListener('click', closeContact);
   document.getElementById('contactCancel')?.addEventListener('click', closeContact);
-  // Esc is handled by <dialog>; this keeps body scroll-lock in sync.
-  modal.addEventListener('close', () => document.body.classList.remove('modal-open'));
-  // Clicking the backdrop: the dialog box fills the whole viewport, so compare
-  // the pointer against the panel's own rect rather than the event target.
-  modal.addEventListener('click', event => {
-    const panel = contactForm?.getBoundingClientRect();
-    if (!panel) return;
-    const outside = event.clientX < panel.left || event.clientX > panel.right ||
-                    event.clientY < panel.top  || event.clientY > panel.bottom;
-    if (outside) closeContact();
-  });
+  bindModal(modal);
 }
 
 /* ---------- submit ------------------------------------------------------- */
@@ -568,3 +599,123 @@ contactForm?.addEventListener('submit', async event => {
     setStatus(`Could not send. Email me directly at ${CONTACT.to}.`, 'error');
   }
 });
+
+/* ==========================================================================
+   RESUME OVERLAY
+   ========================================================================== */
+
+const PAGE_W = 816;                       // US Letter at 96dpi, matches the CSS
+const ZOOM_MIN = 0.7, ZOOM_MAX = 1.6, ZOOM_STEP = 0.1;
+const resumeModal = document.getElementById('resumeModal');
+const resumeScroll = document.getElementById('resumeScroll');
+const resumePage = document.getElementById('resumePage');
+const zoomLevelEl = document.getElementById('zoomLevel');
+const zoomInBtn = document.getElementById('zoomIn');
+const zoomOutBtn = document.getElementById('zoomOut');
+
+// Desktop opens at a readable 110%; narrow screens start fitted near the
+// viewport width. Read from CSS so the two defaults live in one place — the
+// inline zoom has to be cleared first or we would just read back the last value
+// the user set and reopen at that instead of the default.
+function startZoom() {
+  resumePage.style.zoom = '';
+  return parseFloat(getComputedStyle(resumePage).getPropertyValue('zoom')) || 1.1;
+}
+
+// The zoom at which the page exactly fills the viewer's width.
+function fitZoom() {
+  // clientWidth includes padding, and .resume-scroll's padding is fluid — a flat
+  // guess leaves the page overflowing its own gutters at some widths.
+  const cs = getComputedStyle(resumeScroll);
+  const avail = resumeScroll.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 1;
+  return Math.max(0.3, avail / PAGE_W);
+}
+
+// A flat 70% floor cannot fit an 816px page into a 390px phone, which would put
+// the viewer in horizontal scroll the moment it opens. Let the floor drop to
+// whatever fits when the viewport is narrower than the desktop minimum.
+const minZoom = () => Math.min(ZOOM_MIN, fitZoom());
+
+let resumeZoom = 1.1;
+let resumeOpener = null;
+
+function applyZoom(next, anchorRatio) {
+  const floor = minZoom();
+  resumeZoom = Math.min(ZOOM_MAX, Math.max(floor, Math.round(next * 100) / 100));
+  resumePage.style.zoom = resumeZoom;
+  const pct = `${Math.round(resumeZoom * 100)}%`;
+  if (zoomLevelEl) zoomLevelEl.textContent = pct;
+  // Zoom is on the button's accessible description, not just a live region, so
+  // it is available on focus rather than only when it changes.
+  zoomInBtn?.setAttribute('aria-label', `Zoom in, currently ${pct}`);
+  zoomOutBtn?.setAttribute('aria-label', `Zoom out, currently ${pct}`);
+  if (zoomInBtn) zoomInBtn.disabled = resumeZoom >= ZOOM_MAX - 0.001;
+  if (zoomOutBtn) zoomOutBtn.disabled = resumeZoom <= floor + 0.001;
+  // Keep roughly the same line under the reader instead of snapping to the top.
+  if (anchorRatio != null) {
+    resumeScroll.scrollTop = anchorRatio * (resumeScroll.scrollHeight - resumeScroll.clientHeight);
+  }
+}
+
+function nudgeZoom(delta) {
+  const range = resumeScroll.scrollHeight - resumeScroll.clientHeight;
+  const anchor = range > 0 ? resumeScroll.scrollTop / range : 0;
+  applyZoom(resumeZoom + delta, anchor);
+}
+
+function openResume(trigger) {
+  if (!resumeModal) return;
+  resumeOpener = trigger || document.activeElement;
+  openModal(resumeModal, document.querySelector('.resume-shell'), () => {
+    resumeScroll.scrollTop = 0;
+    // Never open wider than the viewer: horizontal scroll should be something
+    // the reader opts into by zooming, not the state they land in.
+    applyZoom(Math.min(startZoom(), fitZoom()));
+    resumeScroll.focus();
+  });
+  // pushState so the back button closes the overlay and /#resume is linkable —
+  // the one place pushState is right, because it is a real navigation.
+  if (location.hash !== '#resume') {
+    try { history.pushState({ resume: true }, '', '#resume'); } catch { /* file:// */ }
+  }
+}
+
+function closeResume() { closeModal(resumeModal); }
+
+if (resumeModal) {
+  // Everything that can close the dialog — button, Esc, backdrop, or being
+  // displaced by the contact modal — lands here, so the hash is tidied once.
+  bindModal(resumeModal, () => {
+    resumeOpener?.focus();          // restore focus to the exact trigger
+    resumeOpener = null;
+    if (location.hash === '#resume') {
+      try { history.back(); } catch { /* file:// */ }
+    }
+  });
+
+  document.getElementById('resumeClose')?.addEventListener('click', () => closeResume());
+  zoomInBtn?.addEventListener('click', () => nudgeZoom(ZOOM_STEP));
+  zoomOutBtn?.addEventListener('click', () => nudgeZoom(-ZOOM_STEP));
+
+  // Every resume control opens the overlay.
+  document.querySelectorAll('[data-resume-open]').forEach(control => {
+    control.addEventListener('click', event => { event.preventDefault(); openResume(control); });
+  });
+
+  // Ctrl/Cmd +/- zooms the resume only while the overlay is open; otherwise the
+  // browser keeps its own zoom.
+  window.addEventListener('keydown', event => {
+    if (!resumeModal.open || !(event.ctrlKey || event.metaKey)) return;
+    if (event.key === '+' || event.key === '=') { event.preventDefault(); nudgeZoom(ZOOM_STEP); }
+    else if (event.key === '-') { event.preventDefault(); nudgeZoom(-ZOOM_STEP); }
+  });
+
+  // Back button closes it; a direct load of /#resume opens it.
+  window.addEventListener('popstate', () => {
+    if (location.hash === '#resume') openResume(null);
+    else closeResume();
+  });
+  if (location.hash === '#resume') {
+    window.addEventListener('load', () => openResume(null), { once: true });
+  }
+}
