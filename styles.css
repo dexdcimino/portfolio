@@ -18,14 +18,15 @@
   --sidebar-transition-duration:.24s;
   --sidebar-transition-ease:cubic-bezier(.22,.61,.36,1);
   --avatar-collapsed:44px;
+  --rail-content:210px;   /* --sidebar-open minus .profile-mini padding */
   /* Growing the window pushes RESUME/CONTACT up, which is intended — but it must
      never push them off the rail. 640px is the fixed chrome above the footer plus
-     the name and social rows below it, so this is the room actually available.
+     the name, caption and social rows below it, so this is the room available.
      Width follows height at --avatar-ratio so the window keeps its shape on short
      screens instead of flattening out; 210px is the rail's content width. */
   --avatar-ratio:.93;   /* window w/h expanded — near square, still slightly portrait */
-  --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - 640px)));
-  --avatar-expanded-w:min(210px,calc(var(--avatar-expanded-h) * var(--avatar-ratio)));
+  --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - 720px)));
+  --avatar-expanded-w:min(var(--rail-content),calc(var(--avatar-expanded-h) * var(--avatar-ratio)));
   --icon-idle:#8d959c;
   --text:#f1f3f4;
   --gutter:clamp(92px,11.2vw,190px); /* hero copy's left edge; every section below aligns to it */
@@ -161,7 +162,7 @@ img{max-width:100%}
 
 .side-bottom{margin-top:auto;border-top:1px solid var(--line)}
 .contact-mini{border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
-.profile-mini{min-height:136px;padding:14px 14px 13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;white-space:nowrap}
+.profile-mini{min-height:136px;padding:14px 14px 13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 
 /* Masked window onto a single portrait. The frame animates its box; the image
    inside counter-scales so the same source reads as a tight face crop when the
@@ -199,7 +200,22 @@ img{max-width:100%}
 }
 .profile-mini strong{font-size:14px;letter-spacing:.025em;color:var(--accent);transition:color var(--accent-ease)}
 .profile-mini small{font-size:12px;letter-spacing:.025em;color:var(--muted)}
-.profile-copy{display:grid;gap:4px;width:100%;opacity:0;transform:translateX(-7px);transition:opacity .2s ease,transform .2s ease}
+/* Pinned to the expanded content width so the caption always wraps identically —
+   left to follow the rail it would rewrap to ~20 lines in the 44px collapsed box.
+   min-height holds the collapsed footer at the height it had when this was just
+   name + tagline (39px), so collapsing the caption does not shift RESUME/CONTACT. */
+.profile-copy{display:grid;gap:4px;width:var(--rail-content);min-height:39px;opacity:0;transform:translateX(-7px);transition:opacity .2s ease,transform .2s ease}
+/* 0fr -> 1fr animates to the exact auto height, on the shared sidebar curve. */
+.profile-extra{display:grid;grid-template-rows:0fr;overflow:hidden;
+  transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
+.profile-extra>*{min-height:0}
+.sidebar:is(:hover,:has(:focus-visible)) .profile-extra{grid-template-rows:1fr}
+.profile-role{display:block;margin:0 0 6px}
+.profile-bio{margin:0;font-size:11px;line-height:1.55;letter-spacing:.015em;color:#8f979e;white-space:normal}
+/* Below this the rail simply has no room: fixed chrome (516) + the footer at its
+   floor + a ~112px caption exceeds the viewport, and the sidebar would clip its
+   own bottom. The avatar and name still work; only the caption drops out. */
+@media(max-height:840px){ .profile-extra{display:none} }
 .sidebar:is(:hover,:has(:focus-visible)) .profile-copy{opacity:1;transform:none}
 
 .social-mini{width:100%;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity .2s ease,transform .2s ease;pointer-events:none}
@@ -308,10 +324,8 @@ img{max-width:100%}
   transition:background-color var(--accent-ease);
 }
 
-/* Role line is its own element, not part of the body paragraph — it carries
-   tighter tracking and more weight now that it is sentence case rather than
-   the old all-caps string. */
-.roles{margin:28px 0 0;color:#c3cbd1;font-size:clamp(14px,1.08vw,17px);letter-spacing:.01em;font-weight:600;line-height:1.5}
+.roles{margin:28px 0 0;color:#b8c0c6;font-size:clamp(13px,1.02vw,16px);letter-spacing:.07em;line-height:1.5}
+.roles b{color:#9ea7ae;padding:0 6px}
 .hero-divider{width:86px;height:5px;margin:24px 0;border-radius:999px;background:linear-gradient(90deg,var(--accent) 0%,color-mix(in srgb,var(--accent) 55%,transparent) 52%,transparent 100%);transition:background var(--accent-ease)}
 .intro{max-width:540px;color:#b8c0c6;line-height:1.68;font-size:clamp(16px,1.08vw,18px)}
 .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:27px}
@@ -585,7 +599,7 @@ body.modal-open{overflow:hidden}
   .brand-mark{width:34px;height:34px}
   .nav-link,.resume-mini,.contact-mini{padding:0 17px;gap:14px}
   .nav-text{font-size:13px}
-  :root{--avatar-collapsed:38px;--avatar-expanded-w:min(168px,calc(var(--avatar-expanded-h) * .8))}
+  :root{--avatar-collapsed:38px;--rail-content:168px}
   .profile-mini{padding:10px;min-height:120px}
   .social-mini .icon{width:16px;height:16px}
   .topbar{padding:0 12px}

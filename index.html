@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/icons/brand-mark.svg" type="image/svg+xml" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=70" />
+  <link rel="stylesheet" href="styles.css?v=73" />
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascot_limegreen-900.avif"
         imagesrcset="assets/derived/mascot_limegreen-400.avif 400w,
@@ -124,7 +124,17 @@
           <img class="profile-photo" src="assets/images/profile.jpg" alt="Dex Cimino"
                width="932" height="1014" loading="lazy" decoding="async" />
         </picture>
-        <div class="profile-copy"><strong>DEX CIMINO</strong><small>3D + AI + GAMES</small></div>
+        <div class="profile-copy">
+          <strong>DEX CIMINO</strong>
+          <!-- Collapses to zero height on the narrow rail so it never reserves
+               space for text nobody can see. -->
+          <div class="profile-extra">
+            <div>
+              <small class="profile-role">2D / 3D Artist, Creative Technologist, and AI-Assisted Builder.</small>
+              <p class="profile-bio">I combine art, technology, and AI to build games, digital experiences, and creative tools.</p>
+            </div>
+          </div>
+        </div>
 
         <!-- Replace the "#" hrefs with your real profile URLs. -->
         <div class="social-mini" aria-label="Social links">
@@ -155,9 +165,9 @@
           </span>
         </h1>
 
-        <p class="roles">2D / 3D Artist, Creative Technologist, and AI-Assisted Builder.</p>
+        <p class="roles">2D / 3D DESIGN <b>•</b> CREATIVE TECHNOLOGIST<br/>AI-ASSISTED BUILDER</p>
         <div class="hero-divider" aria-hidden="true"></div>
-        <p class="intro">I combine art, technology, and AI to build games, digital experiences, and creative tools.</p>
+        <p class="intro">I build digital assets, game experiences, and AI-assisted products — from concept to something people can actually use.</p>
 
         <div class="hero-actions">
           <a class="button primary" href="#work"><span>VIEW WORK</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
@@ -371,6 +381,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=70"></script>
+  <script src="script.js?v=73"></script>
 </body>
 </html>
