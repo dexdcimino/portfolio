@@ -14,8 +14,7 @@ unique within a folder rather than across the whole project:
 
 That is what makes per-project media folders safe to add later.
 
-Workflow: drop a new master into assets/mascots/ or assets/images/, add it to
-SOURCES below if it needs a width set of its own, then run
+Workflow: drop a raster file anywhere in the repo, then run
 
     python tools/bake_images.py
 
@@ -49,29 +48,49 @@ DERIVED = ROOT / "assets" / "derived"
 AVIF_OPTS = {"quality": 58}
 WEBP_OPTS = {"quality": 76, "method": 6}
 
-# glob (relative to assets/) -> widths, widest first
-SOURCES = {
-    "mascots/mascot_*.png":      (900, 600, 400),
-    "mascots/lava_goblin.png":   (600, 400),
-    "mascots/bone_archer.png":   (600, 400),
-    "images/featured-*.png":     (800, 500),
-    # profile.jpg fills two very different slots: the 42px sidebar avatar and
-    # the ~420px About portrait. 200/84 cover the avatar; without 840/420 the
-    # About photo would be upscaled from 200w and visibly soft even at 1x.
-    "images/profile.jpg":        (840, 420, 200, 84),
+# Everything raster, anywhere in the repo, gets baked at DEFAULT_WIDTHS. The
+# baker cannot know what slot an image fills, so it makes a standard ladder and
+# lets the browser's `sizes` pick. Extra widths cost disk, not bandwidth — the
+# browser downloads exactly one entry from a srcset.
+DEFAULT_WIDTHS = (1600, 1200, 900, 600, 400, 200)
+
+RASTER_EXTS = {".png", ".jpg", ".jpeg"}
+
+# derived/ holds this script's own output — walking it would bake the bakes.
+# _resources/ is .ai/.psd working files. The rest is self-evident.
+SKIP_DIRS = {"derived", "_resources", ".git", "node_modules", ".vercel"}
+
+# Escape hatch: a folder or exact file that needs a different ladder. Longest
+# matching path wins, so a specific file beats the folder it sits in. Only add
+# an entry when a default width is demonstrably wrong for a slot.
+WIDTH_OVERRIDES = {
+    "assets/images/profile.jpg": (840, 420, 200, 84),   # 84px sidebar avatar
 }
 
 
 def collect() -> list[tuple[Path, tuple[int, ...]]]:
-    """Resolve globs to concrete masters. Later patterns win, so a specific
-    filename can override a wildcard that would otherwise also match it."""
+    """Every raster master in the repo, with the widths it should bake at."""
     found: dict[Path, tuple[int, ...]] = {}
-    for pattern, widths in SOURCES.items():
-        matches = sorted((ROOT / "assets").glob(pattern))
-        if not matches:
-            print(f"  warning: no master matched assets/{pattern}", file=sys.stderr)
-        for path in matches:
-            found[path] = widths
+
+    for path in sorted(ROOT.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in RASTER_EXTS:
+            continue
+        rel = path.relative_to(ROOT)
+        if SKIP_DIRS & set(rel.parts):
+            continue
+
+        key = rel.as_posix()
+        # Longest match wins: exact file, else deepest parent folder listed.
+        match = max(
+            (k for k in WIDTH_OVERRIDES if key == k or key.startswith(k.rstrip("/") + "/")),
+            key=len,
+            default=None,
+        )
+        found[path] = WIDTH_OVERRIDES[match] if match else DEFAULT_WIDTHS
+
+    if not found:
+        print("  warning: walk found no raster masters at all", file=sys.stderr)
+
     return sorted(found.items())
 
 

@@ -91,10 +91,22 @@ Any new image must be run through the baker before it ships:
 python tools/bake_images.py
 ```
 
-It emits AVIF (`quality=58`) and WebP (`quality=76, method=6`) at the widths
-declared in `SOURCES`, skipping anything already newer than its master. Those
-settings were validated against the source art at 100% crop — they are visually
-lossless on this material, so don't raise them.
+The baker **walks the whole repo** — drop a raster anywhere (`assets/media/work/`,
+`content/ai/`, a folder invented next year) and it gets compressed. There is no
+manifest to maintain. It skips `derived/`, `_resources/`, `.git/`,
+`node_modules/` and `.vercel/`.
+
+Every master bakes at a standard ladder (1600/1200/900/600/400/200), minus any
+width larger than the source — the baker cannot know what slot an image fills, so
+it makes the ladder and lets the browser's `sizes` choose. `WIDTH_OVERRIDES` in
+the script is the escape hatch; it should stay near-empty. Add an entry only when
+a slot demonstrably needs a ladder the default does not cover (currently just
+`profile.jpg`, which needs an 84px sidebar avatar).
+
+It emits AVIF (`quality=58`) and WebP (`quality=76, method=6`), skipping anything
+already newer than its master. Those settings were validated against the source
+art at 100% crop — they are visually lossless on this material, so don't raise
+them.
 
 Rules:
 
@@ -114,9 +126,10 @@ Rules:
 
 ### Adding new art
 
-Drop masters into `assets/` and commit normally — the pre-commit hook bakes the
-derivatives and stages them into the same commit as the art that produced them.
-It stays silent on commits that touch no raster masters.
+Drop a raster file anywhere in the repo and commit normally — the pre-commit hook
+bakes the derivatives and stages them into the same commit as the art that
+produced them. No manifest edit, no folder rules. It stays silent on commits that
+touch no rasters.
 
 One-time setup on a new machine (`.git/hooks/` is not tracked by git):
 

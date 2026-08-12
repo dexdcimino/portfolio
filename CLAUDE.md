@@ -31,8 +31,13 @@
 - `assets/derived/` is served `immutable` for a year via `vercel.json`.
 - **Any session touching images must run `python tools/bake_images.py --check`
   before declaring work complete. A non-zero exit is a blocking failure.**
-- New masters: commit normally, the pre-commit hook bakes and stages derivatives.
-  New machine needs `python tools/bake_images.py --install-hooks` once.
+- Discovery is **repo-wide**: the baker walks everything and compresses any
+  `.png/.jpg/.jpeg` outside `derived/`, `_resources/`, `.git/`, `node_modules/`,
+  `.vercel/`. There is no `SOURCES` manifest — do not reintroduce one.
+- Standard ladder 1600/1200/900/600/400/200, minus widths above the source.
+  `WIDTH_OVERRIDES` is the escape hatch and should stay near-empty.
+- New masters: drop the file anywhere and commit; the hook bakes and stages
+  derivatives. New machine needs `python tools/bake_images.py --install-hooks` once.
   The hook is convenience (skippable via `--no-verify`, absent on fresh clones);
   `--check` is the actual guarantee.
 - Accent swaps retint the `<source>` srcsets, not just `img.src` — changing

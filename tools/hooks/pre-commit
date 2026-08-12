@@ -14,9 +14,13 @@ set -e
 # Staged paths only — added/copied/modified/renamed, ignoring deletions.
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
-# Nothing under assets/ that is a raster master? Then this hook is a no-op and
-# must stay completely silent (a CSS-only commit should not notice it exists).
-if ! printf '%s\n' "$staged" | grep -Eiq '^assets/.+\.(png|jpe?g)$'; then
+# Discovery is repo-wide now, so the trigger cannot be scoped to assets/: any
+# raster anywhere counts, except the folders the baker itself skips. No match
+# means this hook is a no-op and must stay completely silent (a CSS-only commit
+# should not notice it exists).
+if ! printf '%s\n' "$staged" \
+     | grep -Eiv '(^|/)(derived|_resources|node_modules|\.vercel)/' \
+     | grep -Eiq '\.(png|jpe?g)$'; then
     exit 0
 fi
 
