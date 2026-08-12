@@ -32,8 +32,13 @@
 - **Any session touching images must run `python tools/bake_images.py --check`
   before declaring work complete. A non-zero exit is a blocking failure.**
 - Discovery is **repo-wide**: the baker walks everything and compresses any
-  `.png/.jpg/.jpeg` outside `derived/`, `_resources/`, `.git/`, `node_modules/`,
-  `.vercel/`. There is no `SOURCES` manifest — do not reintroduce one.
+  `.png/.jpg/.jpeg` outside `derived/`, `_resources/`, `games/`, `.git/`,
+  `node_modules/`, `.vercel/`. There is no `SOURCES` manifest — do not
+  reintroduce one.
+- `games/` is skipped **on purpose**: playable builds ship their own optimised
+  textures, and baking them would write six widths of derivatives nothing
+  references. Do not remove it from `SKIP_DIRS` — see `games/README.md` for the
+  full folder contract.
 - Standard ladder 1600/1200/900/600/400/200, minus widths above the source.
   `WIDTH_OVERRIDES` is the escape hatch and should stay near-empty.
 - New masters: drop the file anywhere and commit; the hook bakes and stages

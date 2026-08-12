@@ -57,8 +57,10 @@ DEFAULT_WIDTHS = (1600, 1200, 900, 600, 400, 200)
 RASTER_EXTS = {".png", ".jpg", ".jpeg"}
 
 # derived/ holds this script's own output — walking it would bake the bakes.
-# _resources/ is .ai/.psd working files. The rest is self-evident.
-SKIP_DIRS = {"derived", "_resources", ".git", "node_modules", ".vercel"}
+# _resources/ is .ai/.psd working files.
+# games/ ships self-contained builds whose textures are already optimised — see
+# games/README.md. The rest is self-evident.
+SKIP_DIRS = {"derived", "_resources", "games", ".git", "node_modules", ".vercel"}
 
 # Escape hatch: a folder or exact file that needs a different ladder. Longest
 # matching path wins, so a specific file beats the folder it sits in. Only add
