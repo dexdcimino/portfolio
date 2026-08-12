@@ -25,7 +25,11 @@
      Width follows height at --avatar-ratio so the window keeps its shape on short
      screens instead of flattening out; 210px is the rail's content width. */
   --avatar-ratio:.93;   /* window w/h expanded — near square, still slightly portrait */
-  --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - 720px)));
+  /* Expanded only, the footer stack lifts clear of the browser's link-hover
+     status bubble, which sits bottom-left and covered the social row. Collapsed
+     there is nothing under it to protect, so the rail keeps its full height. */
+  --rail-footer-lift:26px;
+  --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - 720px - var(--rail-footer-lift))));
   --avatar-expanded-w:min(var(--rail-content),calc(var(--avatar-expanded-h) * var(--avatar-ratio)));
   --icon-idle:#8d959c;
   --text:#f1f3f4;
@@ -198,7 +202,12 @@ img{max-width:100%}
 .resume-mini:hover .nav-trail{opacity:1;transform:translateY(2px)}
 .nav-link.active::after,.resume-mini.active::after{content:"";position:absolute;right:0;top:8px;bottom:8px;width:3px;background:var(--accent);transition:background-color var(--accent-ease)}
 
-.side-bottom{margin-top:auto;border-top:1px solid var(--line)}
+.side-bottom{margin-top:auto;border-top:1px solid var(--line);
+  transition:margin-bottom var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
+/* Lifts RESUME/CONTACT, the avatar, the caption and the social row as one block,
+   since they all ride this wrapper. The lift is subtracted from the avatar clamp
+   above, so the space comes out of the photo rather than off the bottom of the rail. */
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .side-bottom{margin-bottom:var(--rail-footer-lift)}
 /* .resume-mini and two .button triggers are <button> now (they open an overlay,
    they do not navigate) — clear the UA chrome so they still read as the links
    they replaced. */
