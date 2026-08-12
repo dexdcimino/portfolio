@@ -303,8 +303,31 @@ const sections = ['home', 'work', 'games', 'ai', 'about', 'resume']
   .map(id => document.getElementById(id))
   .filter(Boolean);
 
+// The scroll spy already knows the active section; mirror it into the URL so a
+// copied link matches what the visitor is actually looking at. replaceState, not
+// pushState — pushState would add an entry per section crossed and the back
+// button would walk the page instead of leaving the site.
+let lastHash = '';
+
+function syncHash(id) {
+  const hash = id === 'home' ? '' : `#${id}`;
+  if (hash === lastHash) return;      // updateMotion runs every rAF — Safari
+  lastHash = hash;                    // rate-limits replaceState, so gate hard
+  try {
+    history.replaceState(null, '', hash || location.pathname + location.search);
+  } catch { /* file:// throws in some browsers; scrolling still works */ }
+}
+
+// behavior:'auto' defers to CSS scroll-behavior, and the reduced-motion block in
+// styles.css already forces that to `auto` — so this jumps instantly for anyone
+// who asked for reduced motion, without duplicating the media query in JS.
+function scrollToY(top) {
+  window.scrollTo({ top, behavior: 'auto' });
+}
+
 function setActiveSection(id) {
   navLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${id}`));
+  syncHash(id);
 }
 
 function updateScrollSpy() {
@@ -325,13 +348,21 @@ homeLinks.forEach(link => link.addEventListener('click', event => {
   event.preventDefault();
   // replaceState can throw on file:// in some browsers — scrolling still works.
   try { history.replaceState(null, '', location.pathname + location.search); } catch { /* noop */ }
-  window.scrollTo({ top:0, behavior:'smooth' });
+  scrollToY(0);
   setActiveSection('home');
 }));
 
-navLinks.forEach(link => link.addEventListener('click', () => {
+// Intercept rather than letting the anchor navigate: a native anchor click
+// pushes a real history entry that syncHash then overwrites, which strands the
+// back button on a stale hash. Same shape as the homeLinks handler above.
+navLinks.forEach(link => link.addEventListener('click', event => {
   const id = link.getAttribute('href')?.slice(1);
-  if (id && id !== 'home') setActiveSection(id);
+  if (!id || id === 'home') return;            // homeLinks owns #home
+  const target = document.getElementById(id);
+  if (!target) return;                         // unknown target: let it navigate
+  event.preventDefault();
+  scrollToY(target.offsetTop);                 // same metric the spy measures by
+  setActiveSection(id);
 }));
 
 /* ---------- parallax ----------------------------------------------------- */
