@@ -126,7 +126,12 @@ img{max-width:100%}
    ========================================================================== */
 .sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidebar);z-index:30;background:var(--sidebar-bg);border-right:1px solid color-mix(in srgb,var(--accent) 62%,transparent);transition:width var(--sidebar-transition-duration) var(--sidebar-transition-ease),border-color var(--accent-ease);overflow:hidden;display:flex;flex-direction:column}
 /* Expansion trigger. Hover, plus real keyboard focus — tabbing through the nav
-   has to open the rail or the labels are unreachable. It is deliberately
+   has to open the rail or the labels are unreachable.
+   Hover and focus are separate branches so the focus one can be suppressed on
+   its own: <dialog> restores focus to whatever opened it, those triggers live in
+   this rail, and the restored focus counts as :focus-visible — which popped the
+   rail open every time a modal closed. Hover always wins, so a pointer genuinely
+   over the rail still holds it open. It is deliberately
    :has(:focus-visible) rather than plain focus-within: <dialog> restores focus
    to whatever opened it on close, and the CONTACT link lives in this rail, so
    the old rule popped the sidebar open every time the contact modal closed.
@@ -134,7 +139,7 @@ img{max-width:100%}
    dialog, and true when the user actually tabbed there.
    :is() is forgiving — where :has() is unsupported the argument is dropped and
    hover still works, rather than the whole rule being thrown away. */
-.sidebar:is(:hover,:has(:focus-visible)){width:var(--sidebar-open)}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)){width:var(--sidebar-open)}
 
 .brand{height:86px;display:grid;place-items:center;border-bottom:1px solid var(--line);color:var(--accent);transition:color var(--accent-ease)}
 /* Sidebar logo. Three groups: the head is static, the horns scale in and out
@@ -151,12 +156,12 @@ img{max-width:100%}
   transform:scale(0);
   transition:transform var(--sidebar-transition-duration) var(--sidebar-transition-ease);
 }
-.sidebar:is(:hover,:has(:focus-visible)) .brand-logo :is(.logo-side-horns,.logo-top-horns){
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .brand-logo :is(.logo-side-horns,.logo-top-horns){
   transform:scale(1);
 }
 /* Stagger only on the way in, so collapsing stays snappy. */
-.sidebar:is(:hover,:has(:focus-visible)) .brand-logo .logo-side-horns{transition-delay:.04s}
-.sidebar:is(:hover,:has(:focus-visible)) .brand-logo .logo-top-horns{transition-delay:.10s}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .brand-logo .logo-side-horns{transition-delay:.04s}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .brand-logo .logo-top-horns{transition-delay:.10s}
 
 .nav{padding:18px 0;display:grid;gap:4px}
 .nav-link,.resume-mini,.contact-mini{
@@ -167,8 +172,8 @@ img{max-width:100%}
 .nav-icon{width:24px;height:24px}
 .nav-trail{width:15px;height:15px;margin-left:auto;opacity:0;transform:translateX(-6px)}
 .nav-text{opacity:0;transform:translateX(-8px);transition:opacity .2s ease,transform .2s ease;text-transform:uppercase;letter-spacing:.06em;font-weight:750;font-size:14px;color:#c3cad0}
-.sidebar:is(:hover,:has(:focus-visible)) .nav-text{opacity:1;transform:none}
-.sidebar:is(:hover,:has(:focus-visible)) .nav-trail{opacity:.75;transform:none}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .nav-text{opacity:1;transform:none}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .nav-trail{opacity:.75;transform:none}
 
 .nav-link:hover,.nav-link.active,
 .resume-mini:hover,.resume-mini.active,
@@ -214,14 +219,14 @@ button.button{cursor:pointer;font:inherit}
              transform-origin var(--sidebar-transition-duration) var(--sidebar-transition-ease),
              object-position var(--sidebar-transition-duration) var(--sidebar-transition-ease);
 }
-.sidebar:is(:hover,:has(:focus-visible)) .profile-frame{
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-frame{
   width:var(--avatar-expanded-w);height:var(--avatar-expanded-h);border-radius:14px;
 }
 /* Expanded: a shade over 1 so the frame trims headroom off the top and stops
    just under the shirt collar at the bottom, instead of showing the whole plate.
    Origin moves with the scale — both interpolate, so the face travels smoothly
    from centred-in-the-square to its natural upper-third position. */
-.sidebar:is(:hover,:has(:focus-visible)) .profile-frame .profile-photo{
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-frame .profile-photo{
   transform:scale(1.15);transform-origin:50% 34.6%;object-position:50% 50%;
 }
 .profile-mini strong{font-size:14px;letter-spacing:.025em;color:var(--accent);transition:color var(--accent-ease)}
@@ -235,17 +240,17 @@ button.button{cursor:pointer;font:inherit}
 .profile-extra{display:grid;grid-template-rows:0fr;overflow:hidden;
   transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 .profile-extra>*{min-height:0}
-.sidebar:is(:hover,:has(:focus-visible)) .profile-extra{grid-template-rows:1fr}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-extra{grid-template-rows:1fr}
 .profile-role{display:block;margin:0 0 6px}
 .profile-bio{margin:0;font-size:11px;line-height:1.55;letter-spacing:.015em;color:#8f979e;white-space:normal}
 /* Below this the rail simply has no room: fixed chrome (516) + the footer at its
    floor + a ~112px caption exceeds the viewport, and the sidebar would clip its
    own bottom. The avatar and name still work; only the caption drops out. */
 @media(max-height:840px){ .profile-extra{display:none} }
-.sidebar:is(:hover,:has(:focus-visible)) .profile-copy{opacity:1;transform:none}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-copy{opacity:1;transform:none}
 
 .social-mini{width:100%;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity .2s ease,transform .2s ease;pointer-events:none}
-.sidebar:is(:hover,:has(:focus-visible)) .social-mini{opacity:1;transform:none;pointer-events:auto}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .social-mini{opacity:1;transform:none;pointer-events:auto}
 .social-mini a{height:30px;display:grid;place-items:center;border-radius:8px;color:var(--icon-idle);transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease}
 .social-mini a:hover{background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);transform:translateY(-2px)}
 .social-mini .icon{width:17px;height:17px}
@@ -648,7 +653,12 @@ body.modal-open{overflow:hidden}
 .cv-list li::before{content:"";position:absolute;left:0;top:.55em;width:6px;height:6px;background:var(--accent)}
 .cv-list-plain li{padding-left:16px}
 .cv-list strong{display:inline;color:#fff;font-size:13.5px;letter-spacing:.04em}
-.cv-list strong a{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+/* Accent belongs to the project-name role, not to the anchor — ROBLOX / ROVIO
+   has nothing to link to and was rendering white next to two accent siblings.
+   The underline stays on the anchors as the affordance that they are links. */
+.cv-list .cv-project{color:var(--accent);transition:color var(--accent-ease)}
+.cv-list .cv-project a{color:inherit}
+.cv-list strong a{color:inherit;text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
 .cv-list strong a:hover,.cv-list strong a:focus-visible{border-bottom-color:var(--accent)}
 .cv-list em{font-style:normal;color:#8e969e;font-size:12px;letter-spacing:.06em;margin-left:8px}
 .cv-list span{display:block;margin-top:3px}
@@ -668,9 +678,15 @@ body.modal-open{overflow:hidden}
 }
 .cv-footer span:first-child{color:var(--accent);font-weight:800;transition:color var(--accent-ease)}
 .cv-skills{background:#23282f;margin:0 -56px -60px;padding:24px 56px 34px;border-top:1px solid rgba(255,255,255,.10)}
-.cv-skills dl{margin:0;display:grid;gap:11px}
-.cv-skills dt{font-size:11.5px;letter-spacing:.16em;color:var(--accent);font-weight:800}
-.cv-skills dd{margin:3px 0 0}
+/* Three columns, as in the PDF. The page is a fixed 816px canvas regardless of
+   viewport — zoom scales it — so the columns always fit and never need to stack.
+   Spacing hierarchy is the point: .35em inside a block, 2.2em between them, so
+   a label reads as attached to its own text. Default dt/dd margins are zeroed
+   rather than overridden, since they were the source of the uniform rhythm. */
+.cv-skills dl{margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2.2em}
+.cv-skills dl>div{display:grid;gap:.35em;align-content:start}
+.cv-skills dt{margin:0;font-size:11.5px;letter-spacing:.16em;color:var(--accent);font-weight:800}
+.cv-skills dd{margin:0;font-size:12.5px;line-height:1.5}
 
 /* Tab bar. Same accent language as the rest of the overlay. */
 .resume-head{
@@ -773,7 +789,7 @@ body.modal-open{overflow:hidden}
 }
 @media(max-width:760px){
   :root{--sidebar:58px;--copy-size:16px;--swatch:28px;--swatch-step:34px}
-  .sidebar:is(:hover,:has(:focus-visible)){width:188px}
+  .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)){width:188px}
   .site-shell{margin-left:var(--sidebar)}
   :root{--brand-w:52px}
   .nav-link,.resume-mini,.contact-mini{padding:0 17px;gap:14px}

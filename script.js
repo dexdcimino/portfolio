@@ -468,15 +468,45 @@ function setStatus(message, kind = '', lead = '') {
 // useless — compare the pointer against the visible panel), and making sure the
 // two can never be open at once.
 const openDialogs = new Set();
+const openerFor = new WeakMap();
+const sidebar = document.getElementById('sidebar');
+
+// A modal's trigger lives in the sidebar, and <dialog> restores focus to it on
+// close — natively, even with no code of ours. That restored focus counts as
+// :focus-visible, which would pop the rail open under the pointer's nose.
+// Suppress only the focus branch, and only until the next genuine interaction:
+// Tab straight after closing must still expand it, and so must moving the mouse
+// onto it. Restoration itself is never skipped — dropping focus to <body> would
+// strand keyboard users at the top of the document.
+function suppressFocusExpand(el) {
+  if (el && sidebar?.contains(el)) sidebar.classList.add('no-focus-expand');
+}
+
+function restoreFocusQuietly(el) {
+  if (!el) return;
+  const inSidebar = sidebar?.contains(el);
+  if (inSidebar) sidebar.classList.add('no-focus-expand');
+  el.focus({ preventScroll: true });
+  if (!inSidebar) return;
+
+  const clear = () => sidebar.classList.remove('no-focus-expand');
+  sidebar.addEventListener('pointerenter', clear, { once: true });
+  window.addEventListener('keydown', clear, { once: true });
+}
 
 function closeModal(dialog) {
   if (!dialog?.open) return;
-  dialog.close();                       // the 'close' listener clears the lock
+  suppressFocusExpand(openerFor.get(dialog));   // in place before focus returns
+  dialog.close();                               // the 'close' listener clears the lock
 }
 
-function openModal(dialog, panel, onOpen) {
+function openModal(dialog, panel, onOpen, opener) {
   if (!dialog) return;
+  // Read the trigger before closing anything: closing a dialog synchronously
+  // hands focus back to *its* opener, so activeElement would name the wrong one.
+  const trigger = opener || document.activeElement;
   openDialogs.forEach(closeModal);      // never two overlays at once
+  openerFor.set(dialog, trigger);
   document.body.classList.add('modal-open');
   dialog.showModal();
   onOpen?.();
@@ -486,8 +516,22 @@ function openModal(dialog, panel, onOpen) {
 function bindModal(dialog, onClose) {
   if (!dialog) return;
   openDialogs.add(dialog);
+  // Escape closes natively without passing through closeModal, so the
+  // suppression has to be armed here too — before the close steps restore focus.
+  dialog.addEventListener('cancel', () => suppressFocusExpand(openerFor.get(dialog)));
   dialog.addEventListener('close', () => {
-    if (![...openDialogs].some(d => d.open)) document.body.classList.remove('modal-open');
+    // The close event is queued, not synchronous, so by the time it runs another
+    // overlay may already have taken this one's place: openModal closes whatever
+    // is open before it shows, so re-triggering RESUME while the overlay is up
+    // lands here with the replacement already on screen. Treat that as a
+    // hand-off, not an ending — restoring focus would yank it straight back out
+    // of the overlay the user is now looking at, and the URL cleanup would undo
+    // state the replacement just set.
+    const opener = openerFor.get(dialog);
+    openerFor.delete(dialog);
+    if ([...openDialogs].some(d => d.open)) return;
+    document.body.classList.remove('modal-open');
+    restoreFocusQuietly(opener);
     onClose?.();
   });
   // A click on a <dialog>'s ::backdrop reports the dialog itself as the target;
@@ -641,7 +685,6 @@ function fitZoom() {
 const minZoom = () => Math.min(ZOOM_MIN, fitZoom());
 
 let resumeZoom = 1.1;
-let resumeOpener = null;
 
 function applyZoom(next, anchorRatio) {
   const floor = minZoom();
@@ -671,7 +714,6 @@ function nudgeZoom(delta) {
 
 function openResume(trigger) {
   if (!resumeModal) return;
-  resumeOpener = trigger || document.activeElement;
   openModal(resumeModal, document.querySelector('.resume-shell'), () => {
     selectTab('tab-resume');            // every trigger lands on the resume
     resumeScroll.scrollTop = 0;
@@ -679,7 +721,7 @@ function openResume(trigger) {
     // the reader opts into by zooming, not the state they land in.
     applyZoom(Math.min(defaultZoom(), fitZoom()));
     resumeScroll.focus();
-  });
+  }, trigger);
   // pushState so the back button closes the overlay and /#resume is linkable —
   // the one place pushState is right, because it is a real navigation.
   if (location.hash !== '#resume') {
@@ -710,8 +752,6 @@ if (resumeModal) {
   // Everything that can close the dialog — button, Esc, backdrop, or being
   // displaced by the contact modal — lands here, so the hash is tidied once.
   bindModal(resumeModal, () => {
-    resumeOpener?.focus();          // restore focus to the exact trigger
-    resumeOpener = null;
     if (location.hash === '#resume') {
       try { history.back(); } catch { /* file:// */ }
     }
