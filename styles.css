@@ -29,6 +29,11 @@
      status bubble, which sits bottom-left and covered the social row. Collapsed
      there is nothing under it to protect, so the rail keeps its full height. */
   --rail-footer-lift:26px;
+  /* Collapsed counterpart: how far the footer block drops so it sits near the
+     bottom of the rail instead of above the space the faded-out caption and
+     social row still occupy. 109px is that reserved run; 90 leaves a 19px
+     margin under the avatar, near the 14px the block is padded with. */
+  --rail-footer-drop:90px;
   --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - 720px - var(--rail-footer-lift))));
   --avatar-expanded-w:min(var(--rail-content),calc(var(--avatar-expanded-h) * var(--avatar-ratio)));
   --icon-idle:#8d959c;
@@ -206,7 +211,18 @@ img{max-width:100%}
 .resume-mini:hover .nav-trail{opacity:1;transform:translateY(2px)}
 .nav-link.active::after,.resume-mini.active::after{content:"";position:absolute;right:0;top:8px;bottom:8px;width:3px;background:var(--accent);transition:background-color var(--accent-ease)}
 
+/* Collapsed, the caption and the social row are still in flow (they only fade
+   out), so they reserve ~109px of blank rail under the avatar and leave the
+   whole footer floating well clear of the bottom edge. Dropping the block by
+   --rail-footer-drop slides RESUME, CONTACT and the avatar down to sit ~19px
+   off the bottom and lets the reserved-but-invisible rows fall past the rail's
+   own overflow:hidden. Nothing interactive is hidden: the social links are
+   pointer-events:none while collapsed, and tabbing to one expands the rail,
+   which lifts them straight back into view.
+   The expanded rule below overrides this on the same property, so the two
+   states cross-fade on one margin transition instead of two mechanisms. */
 .side-bottom{margin-top:auto;border-top:1px solid var(--line);
+  margin-bottom:calc(-1 * var(--rail-footer-drop));
   transition:margin-bottom var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 /* Lifts RESUME/CONTACT, the avatar, the caption and the social row as one block,
    since they all ride this wrapper. The lift is subtracted from the avatar clamp
@@ -236,10 +252,12 @@ button.button{cursor:pointer;font:inherit}
 .profile-frame .profile-photo{
   display:block;width:100%;height:100%;object-fit:cover;
   object-position:50% 45%;
-  /* Collapsed: zoomed to fill the square with the head, origin placed so the
-     face lands dead centre rather than drifting high. */
-  transform:scale(1.5);
-  transform-origin:50% 11%;
+  /* Collapsed: enough zoom to read as a face at 44px, but not so much that the
+     chin is cropped and the head is jammed against the top edge. The origin
+     sits below the face, so scaling pulls the head up and leaves headroom —
+     lower the origin and the face drifts down the box. */
+  transform:scale(1.15);
+  transform-origin:50% 40%;
   transition:transform var(--sidebar-transition-duration) var(--sidebar-transition-ease),
              transform-origin var(--sidebar-transition-duration) var(--sidebar-transition-ease),
              object-position var(--sidebar-transition-duration) var(--sidebar-transition-ease);
