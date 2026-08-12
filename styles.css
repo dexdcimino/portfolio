@@ -134,8 +134,26 @@ img{max-width:100%}
 .sidebar:is(:hover,:has(:focus-visible)){width:var(--sidebar-open)}
 
 .brand{height:86px;display:grid;place-items:center;border-bottom:1px solid var(--line);color:var(--accent);transition:color var(--accent-ease)}
-.brand-mark{width:38px;height:38px}
-.brand:hover .brand-mark{transform:scale(1.08)}
+/* Sidebar logo. Three groups: the head is static, the horns scale in and out
+   with the rail. transform-box:fill-box is what makes transform-origin resolve
+   against each group's own bbox instead of the SVG viewport — without it,
+   `center` means the centre of the whole 107x57 canvas and the horns fly in
+   from the wrong place. */
+.brand-logo{width:var(--brand-w,64px);height:auto;color:var(--accent)}
+.brand:hover .brand-logo{transform:scale(1.08)}
+
+.brand-logo :is(.logo-side-horns,.logo-top-horns){
+  transform-box:fill-box;
+  transform-origin:center;
+  transform:scale(0);
+  transition:transform var(--sidebar-transition-duration) var(--sidebar-transition-ease);
+}
+.sidebar:is(:hover,:has(:focus-visible)) .brand-logo :is(.logo-side-horns,.logo-top-horns){
+  transform:scale(1);
+}
+/* Stagger only on the way in, so collapsing stays snappy. */
+.sidebar:is(:hover,:has(:focus-visible)) .brand-logo .logo-side-horns{transition-delay:.04s}
+.sidebar:is(:hover,:has(:focus-visible)) .brand-logo .logo-top-horns{transition-delay:.10s}
 
 .nav{padding:18px 0;display:grid;gap:4px}
 .nav-link,.resume-mini,.contact-mini{
@@ -596,7 +614,7 @@ body.modal-open{overflow:hidden}
   :root{--sidebar:58px;--copy-size:16px;--swatch:28px;--swatch-step:34px}
   .sidebar:is(:hover,:has(:focus-visible)){width:188px}
   .site-shell{margin-left:var(--sidebar)}
-  .brand-mark{width:34px;height:34px}
+  :root{--brand-w:52px}
   .nav-link,.resume-mini,.contact-mini{padding:0 17px;gap:14px}
   .nav-text{font-size:13px}
   :root{--avatar-collapsed:38px;--rail-content:168px}
@@ -628,4 +646,7 @@ body.modal-open{overflow:hidden}
 @media(prefers-reduced-motion:reduce){
   *{scroll-behavior:auto!important;animation:none!important;transition-duration:.01ms!important}
   .reveal{opacity:1;transform:none}
+  /* Flattening the transition alone would leave the horns hidden while collapsed;
+     show the logo complete in both states instead. */
+  .brand-logo :is(.logo-side-horns,.logo-top-horns){transform:none!important}
 }
