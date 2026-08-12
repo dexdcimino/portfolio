@@ -290,7 +290,7 @@ button.button{cursor:pointer;font:inherit}
    vertical disclosure once that row scrolls away. In docked mode the active
    hex is the toggle; the rest cascade out of it, offset by --row.
    ========================================================================== */
-.accent-picker{position:relative;display:flex;align-items:center;gap:12px;transform:translate(-18px,9px);z-index:60}
+.accent-picker{position:relative;display:flex;align-items:center;gap:12px;transform:translate(-18px,-3px);z-index:60}
 .accent-label{font-size:12px;color:var(--label-ink);letter-spacing:.13em;white-space:nowrap;transition:opacity .18s ease}
 .accent-swatches{display:flex;align-items:center;gap:6px}
 
