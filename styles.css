@@ -147,8 +147,20 @@ img{max-width:100%}
    against each group's own bbox instead of the SVG viewport — without it,
    `center` means the centre of the whole 107x57 canvas and the horns fly in
    from the wrong place. */
-.brand-logo{width:var(--brand-w,64px);height:auto;color:var(--accent)}
-.brand:hover .brand-logo{transform:scale(1.08)}
+.brand-logo{width:var(--brand-w,64px);height:auto;color:var(--accent);
+  scale:var(--brand-scale,1);
+  transition:scale var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
+/* Size lives in `scale`, not `transform`, because the horn groups inside this
+   SVG already own `transform` — one property, one owner, no clobbering. The two
+   states multiply through a single custom property rather than stacking rules,
+   so hovering the brand while the rail is open is one motion, not two fighting.
+   Same duration and easing tokens as the rail width, so they land together. */
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .brand-logo{--brand-scale:1.15}
+/* Hovering the brand necessarily hovers the rail, so this is always the
+   compound state — and it has to be spelled out, because the expansion selector
+   above outranks a bare `.brand:hover` (0,4,0 beats 0,3,0) and would otherwise
+   pin the logo at 1.15 with the hover bump never landing. */
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .brand:hover .brand-logo{--brand-scale:1.24}   /* 1.15 x the 1.08 hover bump */
 
 .brand-logo :is(.logo-side-horns,.logo-top-horns){
   transform-box:fill-box;
@@ -229,20 +241,22 @@ button.button{cursor:pointer;font:inherit}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-frame .profile-photo{
   transform:scale(1.15);transform-origin:50% 34.6%;object-position:50% 50%;
 }
-.profile-mini strong{font-size:14px;letter-spacing:.025em;color:var(--accent);transition:color var(--accent-ease)}
-.profile-mini small{font-size:12px;letter-spacing:.025em;color:var(--muted)}
+.profile-mini strong{font-size:16px;letter-spacing:.025em;color:var(--accent);transition:color var(--accent-ease)}
+.profile-mini small{font-size:14px;letter-spacing:.025em;color:var(--muted)}
 /* Pinned to the expanded content width so the caption always wraps identically —
    left to follow the rail it would rewrap to ~20 lines in the 44px collapsed box.
    min-height holds the collapsed footer at the height it had when this was just
-   name + tagline (39px), so collapsing the caption does not shift RESUME/CONTACT. */
-.profile-copy{display:grid;gap:4px;width:var(--rail-content);min-height:39px;opacity:0;transform:translateX(-7px);transition:opacity .2s ease,transform .2s ease}
+   name + tagline, so collapsing the caption does not shift RESUME/CONTACT. It
+   tracks the name's own line box — raising the name 14px -> 16px raised this
+   with it, or the floor would sit under the text it exists to reserve. */
+.profile-copy{display:grid;gap:4px;width:var(--rail-content);min-height:42px;opacity:0;transform:translateX(-7px);transition:opacity .2s ease,transform .2s ease}
 /* 0fr -> 1fr animates to the exact auto height, on the shared sidebar curve. */
 .profile-extra{display:grid;grid-template-rows:0fr;overflow:hidden;
   transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 .profile-extra>*{min-height:0}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-extra{grid-template-rows:1fr}
 .profile-role{display:block;margin:0 0 6px}
-.profile-bio{margin:0;font-size:11px;line-height:1.55;letter-spacing:.015em;color:#8f979e;white-space:normal}
+.profile-bio{margin:0;font-size:13px;line-height:1.55;letter-spacing:.015em;color:#8f979e;white-space:normal}
 /* Below this the rail simply has no room: fixed chrome (516) + the footer at its
    floor + a ~112px caption exceeds the viewport, and the sidebar would clip its
    own bottom. The avatar and name still work; only the caption drops out. */

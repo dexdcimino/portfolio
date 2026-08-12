@@ -6,10 +6,13 @@
   <meta name="description" content="Dex Cimino — 2D / 3D Design, Creative Technologist, AI-Assisted Builder" />
   <meta name="theme-color" content="#0b0d12" />
   <title>Dex Cimino — Portfolio</title>
-  <link rel="icon" href="assets/icons/brand-mark.svg" type="image/svg+xml" />
+  <!-- Browsers take the last supported rel="icon", so the static .ico is
+       declared first and the live, accent-driven SVG second. -->
+  <link rel="icon" href="favicon.ico" sizes="32x32" />
+  <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=86" />
+  <link rel="stylesheet" href="styles.css?v=87" />
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
         imagesrcset="assets/derived/mascots/mascot_limegreen-400.avif 400w,
@@ -539,6 +542,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=86"></script>
+  <script src="script.js?v=87"></script>
 </body>
 </html>
