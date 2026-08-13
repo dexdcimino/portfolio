@@ -46,9 +46,11 @@
   --brand-hover-bump:1.08;
   /* One stroke weight for everything interactive — buttons, cards, thumbnails,
      the round controls in the overlays — so they read as one family instead of
-     each carrying its own hairline. Hover trades up to the heavier weight. */
+     each carrying its own hairline. Hover adds --stroke-ring OUTSIDE that
+     border as a painted ring (2 + 1 reads as a 3px stroke) rather than growing
+     border-width, which would resize the box mid-transition. */
   --stroke:2px;
-  --stroke-hover:3px;
+  --stroke-ring:1px;
   --icon-idle:#8d959c;
   --text:#f1f3f4;
   --gutter:clamp(92px,11.2vw,190px); /* hero copy's left edge; every section below aligns to it */
@@ -431,10 +433,14 @@ button.button{cursor:pointer;font:inherit}
 .intro{max-width:540px;color:#b8c0c6;line-height:1.68;font-size:clamp(16px,1.08vw,18px)}
 .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:27px}
 
-/* Height is set by min-height and the label is centred, so the heavier hover
-   stroke eats into the padding rather than moving anything. */
-.button{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:50px;padding:0 22px;border:var(--stroke) solid rgba(255,255,255,.34);border-radius:8px;background:rgba(13,16,19,.72);font-size:14px;font-weight:900;letter-spacing:.04em;transition:border-color var(--accent-ease),border-width .18s ease,transform .2s ease,box-shadow var(--accent-ease),background var(--accent-ease)}
-.button:hover{border-color:var(--accent);border-width:var(--stroke-hover);transform:translateY(-2px)}
+.button{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:50px;padding:0 22px;border:var(--stroke) solid rgba(255,255,255,.34);border-radius:8px;background:rgba(13,16,19,.72);font-size:14px;font-weight:900;letter-spacing:.04em;transition:border-color var(--accent-ease),transform .2s ease,box-shadow var(--accent-ease),background var(--accent-ease)}
+/* The extra hover weight is a ring painted OUTSIDE the border, never a change
+   of border-width. These buttons are auto-width, so a fatter border makes the
+   whole box 2px wider and taller: the label creeps, the neighbouring button
+   gets shoved sideways, and every frame of the transition is a fresh layout —
+   which is what read as jitter and a snap at the end. box-shadow paints on top
+   of the existing layout and costs nothing to animate. */
+.button:hover{border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent);transform:translateY(-2px)}
 .button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink,#080a0b);box-shadow:0 12px 32px color-mix(in srgb,var(--accent) 22%,transparent)}
 .button.ghost{background:transparent}
 .btn-icon{width:16px;height:16px;transition:transform .2s ease}
@@ -522,8 +528,11 @@ button.button{cursor:pointer;font:inherit}
 .view-all:hover .view-all-arrow{transform:translateX(4px)}
 
 .work-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.work-card{display:block;width:100%;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;height:clamp(200px,24vh,258px);position:relative;border-radius:14px;overflow:hidden;border:var(--stroke) solid rgba(255,255,255,.18);background:#11161a;isolation:isolate;transition:border-color var(--accent-ease),border-width .18s ease,transform .25s ease}
-.work-card:hover{border-color:var(--accent);border-width:var(--stroke-hover);transform:translateY(-3px)}
+.work-card{display:block;width:100%;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;height:clamp(200px,24vh,258px);position:relative;border-radius:14px;overflow:hidden;border:var(--stroke) solid rgba(255,255,255,.18);background:#11161a;isolation:isolate;transition:border-color var(--accent-ease),box-shadow var(--accent-ease),transform .25s ease}
+/* Ring, not a thicker border — see the note on .button:hover. On a card the
+   cost would be worse: the border box is what the image fills, so animating it
+   rescales the artwork on every frame. */
+.work-card:hover{border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent);transform:translateY(-3px)}
 /* The global :focus-visible rule rounds to 6px, which cuts the corners off a
    14px card — restore the card's own radius for the ring only. */
 .work-card:focus-visible{border-radius:14px}
@@ -560,9 +569,9 @@ button.button{cursor:pointer;font:inherit}
 .stack-row:hover .row-arrow{transform:translate(2px,-2px)}
 
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease),border-width .18s ease}
+.ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
 .ai-card:before{content:"";position:absolute;right:-18%;top:-44%;width:70%;aspect-ratio:1;background:var(--accent);filter:blur(70px);opacity:.08;transition:background-color var(--accent-ease)}
-.ai-card:hover{transform:translateY(-4px);border-color:var(--accent);border-width:var(--stroke-hover)}
+.ai-card:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
 .ai-card small{color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
 .ai-card strong{font-size:25px;margin:8px 0}
 .ai-card>span{color:#9da5ab;font-size:12px;display:inline-flex;align-items:center;gap:6px}
