@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex" />
   <title>Stickland — Dex Cimino</title>
-  <link rel="icon" href="../favicon.ico" sizes="32x32" />
-  <link rel="stylesheet" href="stickland.css" />
+  <!-- Root-absolute, not relative: Vercel serves this page at BOTH /stickland
+       and /stickland/ and does not redirect between them. From the bare form a
+       relative "stickland.css" resolves to /stickland.css and 404s, which loads
+       the page unstyled — 304px iframe, exit button unpinned. Measured, not
+       assumed; see the MD notes. -->
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="stylesheet" href="/stickland/stickland.css" />
 </head>
 <body>
   <a class="stickland-exit" href="/" aria-label="Exit to dexcimino.com">
@@ -21,6 +26,6 @@
     allow="fullscreen; autoplay; gamepad; pointer-lock"
     allowfullscreen>
   </iframe>
-  <script src="stickland.js"></script>
+  <script src="/stickland/stickland.js"></script>
 </body>
 </html>
