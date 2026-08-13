@@ -330,9 +330,14 @@ button.button{cursor:pointer;font:inherit}
 @media(max-height:840px){ .profile-extra{display:none} }
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-copy{opacity:1;transform:none}
 
-/* One column per link, counted from the markup — a hard-coded track count
-   would push the fifth icon onto a second row and grow the rail footer. */
-.social-mini{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(22px,1fr));align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity .2s ease,transform .2s ease;pointer-events:none}
+/* One track per link, and the count MUST be fixed rather than auto-fit: this
+   row still exists (faded, but occupying height) while the rail is collapsed to
+   72px, where there is ~44px of content width. auto-fit resolves that to a
+   single column, restacks the five links into five rows, and the 144px of extra
+   reserved height shoves RESUME, CONTACT and the avatar back up the rail.
+   A fixed count just makes the tracks narrow instead. Adding a sixth link means
+   editing this number. */
+.social-mini{width:100%;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity .2s ease,transform .2s ease;pointer-events:none}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .social-mini{opacity:1;transform:none;pointer-events:auto}
 .social-mini a{height:30px;display:grid;place-items:center;border-radius:8px;color:var(--icon-idle);transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease}
 .social-mini a:hover{background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);transform:translateY(-2px)}
