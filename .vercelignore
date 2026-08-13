@@ -1,0 +1,16 @@
+# Files excluded from the deployment (not from git). Same syntax as
+# .gitignore — anything matched here is never uploaded, so it 404s rather
+# than being served.
+#
+# A game folder holds its dev source next to its shipped builds (see
+# games/README.md). Only the version folders are the deliverable; the source
+# beside them has no business being fetchable. Patterned on games/*/ rather
+# than named after one game, so every future game folder inherits it.
+#
+# Deliberately NOT excluded: games/*/v1/ and any later version folder — those
+# are the playable builds the site serves.
+games/*/src/
+games/*/build.mjs
+games/*/package.json
+games/*/_reference/
+games/*/BUILD.md
