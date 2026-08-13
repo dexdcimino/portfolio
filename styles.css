@@ -590,6 +590,16 @@ button.button{cursor:pointer;font:inherit}
 .ai-card:hover .inline-arrow{transform:translate(2px,-2px)}
 
 .about{padding:110px var(--gutter);display:grid;grid-template-columns:minmax(260px,420px) minmax(300px,700px);align-items:center;gap:clamp(40px,7vw,110px);background:#0b0e11}
+/* ART + TECH + EXECUTION is one line, always. The shared heading clamp sizes
+   from the viewport (4vw), but this heading lives in a column that is a good
+   deal narrower than the viewport — 481px against a 1400px window — so 56px
+   needed 699px and broke before the accent tail.
+   The string measures 12.49x its own font-size, so 100/12.49 = 8.0cqi exactly
+   fills the column; 7.8 leaves a hair of margin. Taking the min with the
+   original clamp means it never grows beyond the other section headings, it
+   only shrinks when the column would otherwise force a break. */
+.about-copy{container-type:inline-size}
+.about-copy h2{white-space:nowrap;font-size:min(clamp(32px,4vw,64px),7.8cqi)}
 .about-photo{aspect-ratio:1;border-radius:28px;overflow:hidden;position:relative;border:1px solid var(--line)}
 .about-photo:after{content:"";position:absolute;inset:auto 0 0;height:7px;background:var(--accent);transition:background-color var(--accent-ease)}
 .about-photo img{width:100%;height:100%;object-fit:cover}
