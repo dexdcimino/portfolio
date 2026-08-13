@@ -5,7 +5,8 @@ Why: CSS mask-image is fetched with CORS enforced. When the site is opened via
 file:// (double-clicking index.html), external mask URLs are silently blocked
 and every masked icon disappears. Data URIs load on any protocol.
 
-Workflow: edit/replace any SVG listed in MANIFEST below, then run
+Workflow: drop an SVG anywhere under assets/icons/ (subfolders are fine and
+purely for humans — the data-icon key is the filename), then run
 
     python tools/bake_icons.py
 
@@ -25,31 +26,40 @@ CSS = ROOT / "styles.css"
 BEGIN = "/* >>> GENERATED ICONS"
 END = "/* <<< GENERATED ICONS <<< */"
 
-# selector -> (custom property, source file)
-MANIFEST = {
-    ":root":                     ("--cimino-mask", "assets/logos/CIMINO.svg"),
-    '[data-icon="brand"]':       ("--icon", "assets/icons/brand-mark.svg"),
-    '[data-icon="home"]':        ("--icon", "assets/icons/home.svg"),
-    '[data-icon="work"]':        ("--icon", "assets/icons/work.svg"),
-    '[data-icon="games"]':       ("--icon", "assets/icons/games.svg"),
-    '[data-icon="ai"]':          ("--icon", "assets/icons/ai.svg"),
-    '[data-icon="about"]':       ("--icon", "assets/icons/about.svg"),
-    '[data-icon="resume"]':      ("--icon", "assets/icons/resume.svg"),
-    '[data-icon="contact"]':     ("--icon", "assets/icons/contact.svg"),
-    '[data-icon="download"]':    ("--icon", "assets/icons/download.svg"),
-    '[data-icon="preview"]':     ("--icon", "assets/icons/preview.svg"),
-    '[data-icon="zoom-in"]':     ("--icon", "assets/icons/zoom-in.svg"),
-    '[data-icon="zoom-out"]':    ("--icon", "assets/icons/zoom-out.svg"),
-    '[data-icon="arrow-ne"]':    ("--icon", "assets/icons/arrow-ne.svg"),
-    '[data-icon="arrow-right"]': ("--icon", "assets/icons/arrow-right.svg"),
-    '[data-icon="tick"]':        ("--icon", "assets/icons/tick_mark.svg"),
-    '[data-icon="play"]':        ("--icon", "assets/icons/play.svg"),
-    '[data-icon="youtube"]':     ("--icon", "assets/icons/social/youtube.svg"),
-    '[data-icon="instagram"]':   ("--icon", "assets/icons/social/instagram.svg"),
-    '[data-icon="linkedin"]':    ("--icon", "assets/icons/social/linkedin.svg"),
-    '[data-icon="github"]':      ("--icon", "assets/icons/social/github.svg"),
-    '[data-icon="discord"]':     ("--icon", "assets/icons/social/discord.svg"),
-}
+ICONS_DIR = ROOT / "assets" / "icons"
+
+# The one mask that is not an icon: the CIMINO wordmark, which lives with the
+# logos and carries its own custom property.
+EXTRA = {":root": ("--cimino-mask", "assets/logos/CIMINO.svg")}
+
+# data-icon key != filename in a couple of historical cases. Keeping the keys
+# stable matters more than renaming the files — the markup uses them.
+ALIASES = {"brand-mark": "brand", "tick_mark": "tick"}
+
+# Owned by bake_favicon.py, which has its own <head> pipeline.
+NOT_AN_ICON = {"favicon"}
+
+
+def manifest() -> dict[str, tuple[str, str]]:
+    """selector -> (custom property, source file), discovered from disk.
+
+    Every SVG under assets/icons/ becomes `[data-icon="<stem>"]`, subfolders
+    included — they are only for humans, the key is the filename. Dropping a
+    new icon in is the whole job; there is no list to remember to update, which
+    is what a 46-entry hand-written table was heading for.
+    """
+    found = dict(EXTRA)
+    for svg in sorted(ICONS_DIR.rglob("*.svg"), key=lambda p: p.relative_to(ICONS_DIR).as_posix()):
+        stem = svg.stem
+        if stem in NOT_AN_ICON:
+            continue
+        key = ALIASES.get(stem, stem)
+        selector = f'[data-icon="{key}"]'
+        if selector in found:
+            raise SystemExit(f"ERROR: two icons claim {key!r}: "
+                             f"{found[selector][1]} and {svg.relative_to(ROOT).as_posix()}")
+        found[selector] = ("--icon", svg.relative_to(ROOT).as_posix())
+    return found
 
 
 def svg_data_uri(path: Path) -> str:
@@ -62,9 +72,10 @@ def svg_data_uri(path: Path) -> str:
 
 
 def main() -> int:
+    icons = manifest()
     lines = [f"{BEGIN} — do not edit by hand.",
              "   Source SVGs listed per line; regenerate with: python tools/bake_icons.py >>> */"]
-    for selector, (prop, rel) in MANIFEST.items():
+    for selector, (prop, rel) in icons.items():
         src = ROOT / rel
         if not src.exists():
             print(f"ERROR: missing {rel}", file=sys.stderr)
@@ -80,7 +91,7 @@ def main() -> int:
         return 1
     css = css[:start] + block + css[stop + len(END):]
     CSS.write_text(css, encoding="utf-8")
-    print(f"Baked {len(MANIFEST)} icons into styles.css")
+    print(f"Baked {len(icons)} icons into styles.css")
     return 0
 
 

@@ -1227,3 +1227,52 @@ if (workModal) {
   });
   workHero.addEventListener('pointercancel', () => { swipeFrom = null; });
 }
+
+/* ==========================================================================
+   TABBED SECTIONS  (Toolkit, Top Picks)
+   One helper rather than a fourth hand-rolled tablist. It owns the parts that
+   are identical everywhere and easy to get subtly wrong — roving tabindex,
+   Left/Right wrapping, Home/End — and knows nothing about what a panel holds.
+   ========================================================================== */
+
+// tablist -> panels by aria-controls. Returns a select(index) if a caller ever
+// needs to drive it; the sections here are content-only and just let it run.
+function initTabs(tablist, onSelect) {
+  if (!tablist) return null;
+  const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+  if (!tabs.length) return null;
+  const panelFor = tab => document.getElementById(tab.getAttribute('aria-controls'));
+
+  function select(index, focus = false) {
+    const next = Math.max(0, Math.min(tabs.length - 1, index));
+    tabs.forEach((tab, i) => {
+      const on = i === next;
+      tab.setAttribute('aria-selected', String(on));
+      tab.tabIndex = on ? 0 : -1;              // roving: one stop for the whole row
+      const panel = panelFor(tab);
+      if (panel) panel.hidden = !on;           // hidden, not display:none — it is
+    });                                        // the panel's own semantic state
+    if (focus) tabs[next].focus();
+    onSelect?.(next, tabs[next]);
+  }
+
+  tabs.forEach((tab, i) => tab.addEventListener('click', () => select(i)));
+
+  tablist.addEventListener('keydown', event => {
+    const current = tabs.indexOf(event.target.closest('[role="tab"]'));
+    if (current === -1) return;
+    const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+    let next = null;
+    if (step != null) next = (current + step + tabs.length) % tabs.length;   // wraps
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    if (next == null) return;
+    event.preventDefault();
+    select(next, true);
+  });
+
+  return select;
+}
+
+initTabs(document.querySelector('.tk-tabs'));
+initTabs(document.querySelector('.pk-tabs'));

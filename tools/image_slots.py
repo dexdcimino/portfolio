@@ -27,6 +27,11 @@ LADDERS = {
     "accent": (400,),                 # small fixed-position flourishes
     "photo":  (840, 420, 200),        # the About portrait
     "avatar": (420, 200, 84),         # the sidebar avatar, down to 84px collapsed
+    # Top Picks cover art. Five across, so these are small: 282px at a 1920
+    # viewport, 297px three-up on a tablet, ~224px two-up on a phone. 600 is
+    # 2x the widest case and 3x the phone case; the `card` ladder's 900 could
+    # never be selected here and would bake 30 files nothing serves.
+    "cover":  (600, 400, 200),
     # Full-size viewing: an image that fills a lightbox rather than a grid cell.
     # Nothing uses this yet — it is here because the work overlay's hero is the
     # next thing to get real art, and a 19vw thumbnail ladder would visibly
@@ -68,6 +73,13 @@ SLOTS = {
     "rail-avatar": dict(
         ladder="avatar",
         sizes="200px",
+    ),
+    # Every Top Picks cover — games, movies and songs share one 2:3 grid, so
+    # they share one slot. Declared a touch wider than measured at each
+    # breakpoint, which is the safe direction to round `sizes`.
+    "pick-cover": dict(
+        ladder="cover",
+        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw",
     ),
 }
 

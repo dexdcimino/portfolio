@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=106" />
+  <link rel="stylesheet" href="styles.css?v=107" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -375,7 +375,473 @@
         </picture>
         <!-- /img -->
       </div>
-      <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH <span class="title-accent">+&nbsp;EXECUTION</span></h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p><div class="chips"><span>Maya</span><span>ZBrush</span><span>Substance</span><span>Photoshop</span><span>Illustrator</span><span>Unreal</span><span>Unity</span><span>Roblox</span><span>AI Tools</span></div></div>
+      <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH <span class="title-accent">+&nbsp;EXECUTION</span></h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p></div>
+    </section>
+
+    <section class="section toolkit" id="toolkit" aria-labelledby="toolkit-title">
+      <div class="section-head reveal">
+        <h2 class="featured-title" id="toolkit-title"><span class="icon featured-mark" data-icon="tick" aria-hidden="true"></span><span>TOOLKIT</span></h2>
+      </div>
+      <div class="tk-tabs" role="tablist" aria-label="Toolkit categories">
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-3d" aria-controls="tk-panel-3d" aria-selected="true" tabindex="0">3D</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-adobe" aria-controls="tk-panel-adobe" aria-selected="false" tabindex="-1">Adobe</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-engines" aria-controls="tk-panel-engines" aria-selected="false" tabindex="-1">Engines</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-ai" aria-controls="tk-panel-ai" aria-selected="false" tabindex="-1">AI</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-devstack" aria-controls="tk-panel-devstack" aria-selected="false" tabindex="-1">Dev Stack</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-collab" aria-controls="tk-panel-collab" aria-selected="false" tabindex="-1">Collaboration</button>
+      </div>
+      <div class="tk-panel" id="tk-panel-3d" role="tabpanel" aria-labelledby="tk-tab-3d">
+        <ul class="tk-list tk-list-gauged">
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="maya" aria-hidden="true"></span>
+              <span class="tk-name">Maya</span>
+              <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="zbrush" aria-hidden="true"></span>
+              <span class="tk-name">ZBrush</span>
+              <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="substance" aria-hidden="true"></span>
+              <span class="tk-name">Substance Painter</span>
+              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="3d-coat" aria-hidden="true"></span>
+              <span class="tk-name">3D Coat</span>
+              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="blender" aria-hidden="true"></span>
+              <span class="tk-name">Blender</span>
+              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="blockbench" aria-hidden="true"></span>
+              <span class="tk-name">Blockbench</span>
+              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="spline" aria-hidden="true"></span>
+              <span class="tk-name">Spline</span>
+              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+        </ul>
+      </div>
+      <div class="tk-panel" id="tk-panel-adobe" role="tabpanel" aria-labelledby="tk-tab-adobe" hidden>
+        <ul class="tk-list tk-list-gauged">
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="photoshop" aria-hidden="true"></span>
+              <span class="tk-name">Photoshop</span>
+              <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="illustrator" aria-hidden="true"></span>
+              <span class="tk-name">Illustrator</span>
+              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="animate" aria-hidden="true"></span>
+              <span class="tk-name">Animate</span>
+              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="after-effects" aria-hidden="true"></span>
+              <span class="tk-name">After Effects</span>
+              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+        </ul>
+      </div>
+      <div class="tk-panel" id="tk-panel-engines" role="tabpanel" aria-labelledby="tk-tab-engines" hidden>
+        <ul class="tk-list tk-list-gauged">
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="unreal" aria-hidden="true"></span>
+              <span class="tk-name">Unreal</span>
+              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="unity" aria-hidden="true"></span>
+              <span class="tk-name">Unity</span>
+              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="godot" aria-hidden="true"></span>
+              <span class="tk-name">Godot</span>
+              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="roblox" aria-hidden="true"></span>
+              <span class="tk-name">Roblox</span>
+              <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
+            </li>
+        </ul>
+      </div>
+      <div class="tk-panel" id="tk-panel-ai" role="tabpanel" aria-labelledby="tk-tab-ai" hidden>
+        <ul class="tk-list">
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="ai" aria-hidden="true"></span>
+              <span class="tk-name">AI Tools</span>
+              
+            </li>
+        </ul>
+      </div>
+      <div class="tk-panel" id="tk-panel-devstack" role="tabpanel" aria-labelledby="tk-tab-devstack" hidden>
+        <ul class="tk-list">
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="babylonjs" aria-hidden="true"></span>
+              <span class="tk-name">babylon.js</span>
+              
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="firebase" aria-hidden="true"></span>
+              <span class="tk-name">Firebase</span>
+              
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="photon" aria-hidden="true"></span>
+              <span class="tk-name">Photon</span>
+              
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="hathora" aria-hidden="true"></span>
+              <span class="tk-name">Hathora</span>
+              
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="vercel" aria-hidden="true"></span>
+              <span class="tk-name">Vercel</span>
+              
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="flyio" aria-hidden="true"></span>
+              <span class="tk-name">fly.io</span>
+              
+            </li>
+        </ul>
+      </div>
+      <div class="tk-panel" id="tk-panel-collab" role="tabpanel" aria-labelledby="tk-tab-collab" hidden>
+        <ul class="tk-list">
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="figma" aria-hidden="true"></span>
+              <span class="tk-name">Figma</span>
+              
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="discord" aria-hidden="true"></span>
+              <span class="tk-name">Discord</span>
+              
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="github" aria-hidden="true"></span>
+              <span class="tk-name">GitHub</span>
+              
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="clickup" aria-hidden="true"></span>
+              <span class="tk-name">ClickUp</span>
+              
+            </li>
+            <li class="tk-item">
+              <span class="icon tk-icon" data-icon="slack" aria-hidden="true"></span>
+              <span class="tk-name">Slack</span>
+              
+            </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section picks" id="picks" aria-labelledby="picks-title">
+      <div class="section-head reveal">
+        <h2 class="featured-title" id="picks-title"><span class="icon featured-mark" data-icon="tick" aria-hidden="true"></span><span>TOP PICKS</span></h2>
+      </div>
+      <div class="pk-tabs" role="tablist" aria-label="Top picks categories">
+        <button class="pk-tab" type="button" role="tab" id="pk-tab-games" aria-controls="pk-panel-games" aria-selected="true" tabindex="0">Games</button>
+        <button class="pk-tab" type="button" role="tab" id="pk-tab-movies" aria-controls="pk-panel-movies" aria-selected="false" tabindex="-1">Movies</button>
+        <button class="pk-tab" type="button" role="tab" id="pk-tab-songs" aria-controls="pk-panel-songs" aria-selected="false" tabindex="-1">Songs</button>
+        <button class="pk-tab" type="button" role="tab" id="pk-tab-quotes" aria-controls="pk-panel-quotes" aria-selected="false" tabindex="-1">Quotes</button>
+      </div>
+      <div class="pk-panel" id="pk-panel-games" role="tabpanel" aria-labelledby="pk-tab-games">
+        <ul class="pk-grid">
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/game-covers/game-01.png" slot="pick-cover" alt="Game 01 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/game-covers/game-01-600.avif 600w,
+                                                  assets/derived/about/game-covers/game-01-400.avif 400w,
+                                                  assets/derived/about/game-covers/game-01-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/game-covers/game-01-600.webp 600w,
+                                                  assets/derived/about/game-covers/game-01-400.webp 400w,
+                                                  assets/derived/about/game-covers/game-01-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/game-covers/game-01.png" alt="Game 01 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/game-covers/game-02.png" slot="pick-cover" alt="Game 02 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/game-covers/game-02-600.avif 600w,
+                                                  assets/derived/about/game-covers/game-02-400.avif 400w,
+                                                  assets/derived/about/game-covers/game-02-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/game-covers/game-02-600.webp 600w,
+                                                  assets/derived/about/game-covers/game-02-400.webp 400w,
+                                                  assets/derived/about/game-covers/game-02-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/game-covers/game-02.png" alt="Game 02 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/game-covers/game-03.png" slot="pick-cover" alt="Game 03 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/game-covers/game-03-600.avif 600w,
+                                                  assets/derived/about/game-covers/game-03-400.avif 400w,
+                                                  assets/derived/about/game-covers/game-03-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/game-covers/game-03-600.webp 600w,
+                                                  assets/derived/about/game-covers/game-03-400.webp 400w,
+                                                  assets/derived/about/game-covers/game-03-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/game-covers/game-03.png" alt="Game 03 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/game-covers/game-04.png" slot="pick-cover" alt="Game 04 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/game-covers/game-04-600.avif 600w,
+                                                  assets/derived/about/game-covers/game-04-400.avif 400w,
+                                                  assets/derived/about/game-covers/game-04-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/game-covers/game-04-600.webp 600w,
+                                                  assets/derived/about/game-covers/game-04-400.webp 400w,
+                                                  assets/derived/about/game-covers/game-04-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/game-covers/game-04.png" alt="Game 04 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/game-covers/game-05.png" slot="pick-cover" alt="Game 05 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/game-covers/game-05-600.avif 600w,
+                                                  assets/derived/about/game-covers/game-05-400.avif 400w,
+                                                  assets/derived/about/game-covers/game-05-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/game-covers/game-05-600.webp 600w,
+                                                  assets/derived/about/game-covers/game-05-400.webp 400w,
+                                                  assets/derived/about/game-covers/game-05-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/game-covers/game-05.png" alt="Game 05 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="pk-panel" id="pk-panel-movies" role="tabpanel" aria-labelledby="pk-tab-movies" hidden>
+        <ul class="pk-grid">
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/movie-covers/movie-01.png" slot="pick-cover" alt="Movie 01 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/movie-covers/movie-01-600.avif 600w,
+                                                  assets/derived/about/movie-covers/movie-01-400.avif 400w,
+                                                  assets/derived/about/movie-covers/movie-01-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/movie-covers/movie-01-600.webp 600w,
+                                                  assets/derived/about/movie-covers/movie-01-400.webp 400w,
+                                                  assets/derived/about/movie-covers/movie-01-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/movie-covers/movie-01.png" alt="Movie 01 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/movie-covers/movie-02.png" slot="pick-cover" alt="Movie 02 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/movie-covers/movie-02-600.avif 600w,
+                                                  assets/derived/about/movie-covers/movie-02-400.avif 400w,
+                                                  assets/derived/about/movie-covers/movie-02-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/movie-covers/movie-02-600.webp 600w,
+                                                  assets/derived/about/movie-covers/movie-02-400.webp 400w,
+                                                  assets/derived/about/movie-covers/movie-02-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/movie-covers/movie-02.png" alt="Movie 02 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/movie-covers/movie-03.png" slot="pick-cover" alt="Movie 03 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/movie-covers/movie-03-600.avif 600w,
+                                                  assets/derived/about/movie-covers/movie-03-400.avif 400w,
+                                                  assets/derived/about/movie-covers/movie-03-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/movie-covers/movie-03-600.webp 600w,
+                                                  assets/derived/about/movie-covers/movie-03-400.webp 400w,
+                                                  assets/derived/about/movie-covers/movie-03-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/movie-covers/movie-03.png" alt="Movie 03 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/movie-covers/movie-04.png" slot="pick-cover" alt="Movie 04 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/movie-covers/movie-04-600.avif 600w,
+                                                  assets/derived/about/movie-covers/movie-04-400.avif 400w,
+                                                  assets/derived/about/movie-covers/movie-04-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/movie-covers/movie-04-600.webp 600w,
+                                                  assets/derived/about/movie-covers/movie-04-400.webp 400w,
+                                                  assets/derived/about/movie-covers/movie-04-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/movie-covers/movie-04.png" alt="Movie 04 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/movie-covers/movie-05.png" slot="pick-cover" alt="Movie 05 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/movie-covers/movie-05-600.avif 600w,
+                                                  assets/derived/about/movie-covers/movie-05-400.avif 400w,
+                                                  assets/derived/about/movie-covers/movie-05-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/movie-covers/movie-05-600.webp 600w,
+                                                  assets/derived/about/movie-covers/movie-05-400.webp 400w,
+                                                  assets/derived/about/movie-covers/movie-05-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/movie-covers/movie-05.png" alt="Movie 05 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="pk-panel" id="pk-panel-songs" role="tabpanel" aria-labelledby="pk-tab-songs" hidden>
+        <ul class="pk-grid">
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/song-covers/song-01.png" slot="pick-cover" alt="Song 01 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/song-covers/song-01-600.avif 600w,
+                                                  assets/derived/about/song-covers/song-01-400.avif 400w,
+                                                  assets/derived/about/song-covers/song-01-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/song-covers/song-01-600.webp 600w,
+                                                  assets/derived/about/song-covers/song-01-400.webp 400w,
+                                                  assets/derived/about/song-covers/song-01-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/song-covers/song-01.png" alt="Song 01 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+              <span class="pk-meta"><strong>Placeholder Track 01</strong><small>Placeholder Artist 01</small></span>
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/song-covers/song-02.png" slot="pick-cover" alt="Song 02 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/song-covers/song-02-600.avif 600w,
+                                                  assets/derived/about/song-covers/song-02-400.avif 400w,
+                                                  assets/derived/about/song-covers/song-02-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/song-covers/song-02-600.webp 600w,
+                                                  assets/derived/about/song-covers/song-02-400.webp 400w,
+                                                  assets/derived/about/song-covers/song-02-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/song-covers/song-02.png" alt="Song 02 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+              <span class="pk-meta"><strong>Placeholder Track 02</strong><small>Placeholder Artist 02</small></span>
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/song-covers/song-03.png" slot="pick-cover" alt="Song 03 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/song-covers/song-03-600.avif 600w,
+                                                  assets/derived/about/song-covers/song-03-400.avif 400w,
+                                                  assets/derived/about/song-covers/song-03-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/song-covers/song-03-600.webp 600w,
+                                                  assets/derived/about/song-covers/song-03-400.webp 400w,
+                                                  assets/derived/about/song-covers/song-03-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/song-covers/song-03.png" alt="Song 03 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+              <span class="pk-meta"><strong>Placeholder Track 03</strong><small>Placeholder Artist 03</small></span>
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/song-covers/song-04.png" slot="pick-cover" alt="Song 04 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/song-covers/song-04-600.avif 600w,
+                                                  assets/derived/about/song-covers/song-04-400.avif 400w,
+                                                  assets/derived/about/song-covers/song-04-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/song-covers/song-04-600.webp 600w,
+                                                  assets/derived/about/song-covers/song-04-400.webp 400w,
+                                                  assets/derived/about/song-covers/song-04-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/song-covers/song-04.png" alt="Song 04 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+              <span class="pk-meta"><strong>Placeholder Track 04</strong><small>Placeholder Artist 04</small></span>
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="#">
+              <!-- img src="assets/about/song-covers/song-05.png" slot="pick-cover" alt="Song 05 placeholder cover" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/song-covers/song-05-600.avif 600w,
+                                                  assets/derived/about/song-covers/song-05-400.avif 400w,
+                                                  assets/derived/about/song-covers/song-05-200.avif 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/song-covers/song-05-600.webp 600w,
+                                                  assets/derived/about/song-covers/song-05-400.webp 400w,
+                                                  assets/derived/about/song-covers/song-05-200.webp 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/song-covers/song-05.png" alt="Song 05 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+              <span class="pk-meta"><strong>Placeholder Track 05</strong><small>Placeholder Artist 05</small></span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="pk-panel" id="pk-panel-quotes" role="tabpanel" aria-labelledby="pk-tab-quotes" hidden>
+        <ul class="pk-grid pk-grid-quotes">
+          <li class="pk-quote"><blockquote>Placeholder quote text goes here, one or two lines long.</blockquote><cite>Placeholder Source</cite></li>
+          <li class="pk-quote"><blockquote>Another placeholder line standing in for a real quote.</blockquote><cite>Placeholder Source</cite></li>
+          <li class="pk-quote"><blockquote>Short placeholder quote.</blockquote><cite>Placeholder Source</cite></li>
+          <li class="pk-quote"><blockquote>A slightly longer placeholder quote to prove the card wraps cleanly at any width.</blockquote><cite>Placeholder Source</cite></li>
+          <li class="pk-quote"><blockquote>Final placeholder quote in the set.</blockquote><cite>Placeholder Source</cite></li>
+        </ul>
+      </div>
     </section>
 
     <section class="resume-strip" id="contact-cta">
@@ -613,6 +1079,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=106"></script>
+  <script src="script.js?v=107"></script>
 </body>
 </html>
