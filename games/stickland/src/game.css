@@ -1,0 +1,716 @@
+/* ── Character Avatar ── */
+#char-overlay{position:fixed;inset:0;pointer-events:none;z-index:150;overflow:visible;}
+.char-remote{position:absolute;pointer-events:none;z-index:49;}
+.char-nametag{position:absolute;left:50%;transform:translateX(-50%);top:-16px;font-size:11px;white-space:nowrap;opacity:0.8;pointer-events:none;font-family:var(--fn);}
+.char-entity{position:absolute;transform:translateX(-50%);transition:none;pointer-events:auto;cursor:grab;}
+.char-shadow{position:absolute;width:26px;height:6px;border-radius:50%;pointer-events:none;z-index:-1;background:rgba(0,0,0,0.35);}
+[data-theme="light"] .char-shadow{background:rgba(0,0,0,0.2);}
+[data-theme="light"] .char-entity svg g{stroke:var(--char-clr,var(--clr-adj)) !important;}
+.char-entity:active{cursor:grabbing;}
+body.playroom-active .char-entity{cursor:default;}
+body.playroom-active .char-entity:active{cursor:default;}
+.char-entity svg{display:block;overflow:visible;}
+.char-remote{transition:left .1s linear,top .1s linear;}
+.char-nametag{display:block;text-align:center;font-size:14px;font-family:var(--fn);color:var(--char-clr,var(--clr-adj));opacity:.7;white-space:nowrap;margin-bottom:4px;letter-spacing:.3px;}
+.char-charge-bar-wrap{width:28px;height:3px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden;margin:2px auto 0;opacity:0;transition:opacity .15s;}
+.char-charge-bar-wrap.visible{opacity:1;}
+.char-charge-bar{height:100%;width:0%;border-radius:2px;background:var(--char-clr,var(--clr-adj,var(--accent)));transition:width .05s linear;}
+/* Character cosmetics panel */
+/* Unified dropdown sections */
+.acct-dropdown-section{padding:0 8px;margin-bottom:4px;border-radius:8px;border:3px solid transparent;transition:border-color var(--ease),margin var(--ease),padding var(--ease);}
+.acct-dropdown-section.open{border-color:color-mix(in srgb, var(--clr-adj) 50%, transparent);margin-left:8px;margin-right:8px;padding:0;}
+[data-theme="light"] .acct-dropdown-section.open{border-color:color-mix(in srgb, var(--clr-adj) 50%, transparent);}
+.acct-dropdown-toggle{
+  width:100%;text-align:left;background:var(--bg3);border:1.5px solid var(--bdr);border-radius:6px;
+  color:var(--tx);font-size:inherit;font-weight:500;cursor:pointer;padding:7px 12px;font-family:var(--fn);
+  transition:border-color var(--ease),background var(--ease),outline-color var(--ease);
+  letter-spacing:.3px;display:flex;align-items:center;justify-content:flex-start;gap:8px;
+  outline:1.5px solid transparent;outline-offset:-1px;
+}
+.acct-dropdown-section.open .acct-dropdown-toggle{border-color:transparent;background:var(--bg3);outline-color:transparent;border-radius:8px 8px 0 0;}
+.acct-dropdown-toggle:hover{border-color:var(--clr-adj);background:var(--bg4);outline-color:var(--clr-adj);}
+.acct-dropdown-section.open .acct-dropdown-toggle:hover{border-color:transparent;background:var(--bg4);outline-color:transparent;}
+[data-theme="light"] .acct-dropdown-toggle{background:rgba(255,255,255,.45);border-color:rgba(255,255,255,.35);}
+[data-theme="light"] .acct-dropdown-section.open .acct-dropdown-toggle{background:#DCE0E3;}
+[data-theme="light"] .acct-dropdown-toggle:hover{background:rgba(255,255,255,.6);border-color:var(--clr-adj);}
+[data-theme="light"] .acct-dropdown-section.open .acct-dropdown-toggle:hover{background:#DCE0E3;}
+.acct-dropdown-toggle .acct-coming-soon{font-size:0.75em;opacity:.5;font-weight:400;}
+.acct-drop-icon{display:flex;align-items:center;justify-content:center;width:22px;flex-shrink:0;color:var(--tx2);opacity:0.75;transition:color var(--ease),opacity var(--ease);}
+#acct-session-row .acct-drop-icon{color:var(--tx2);opacity:0.75;}
+#acct-session-row .acct-drop-icon .icon-top,#acct-session-row .acct-drop-icon .icon-bot{fill:currentColor!important;}
+#acct-session-section.open #acct-session-row .acct-drop-icon{color:var(--clr-adj);opacity:1;}
+.acct-dropdown-toggle:hover .acct-drop-icon{opacity:1;}
+.acct-dropdown-section.open .acct-drop-icon{color:var(--clr-adj);opacity:1;}
+[data-theme="light"] .acct-dropdown-section.open .acct-drop-icon{color:var(--clr-adj);}
+.acct-dropdown-body{padding:8px 4px 4px;}
+#acct-char-section{}
+#acct-char-panel{padding:12px 8px 4px;}
+.loot-stat{display:inline-flex;align-items:center;gap:4px;color:var(--tx3);font-size:13px;font-family:var(--fn);}
+.loot-count{font-weight:700;color:var(--tx2);min-width:16px;}
+/* === DXAV (Avatar Redesign) === */
+#acct-char-panel button,#acct-char-panel [role="button"]{appearance:none;-webkit-appearance:none;-moz-appearance:none;border:none;outline:none;background:none;padding:0;margin:0;font:inherit;color:inherit;}
+/* MD 10 (issue 7): cosmetics-only panel chrome — big title, live subtext. */
+.dxav-heading{padding:6px 4px 0;text-align:center;font-size:21px;color:var(--clr-adj);font-weight:700;font-family:var(--fn);letter-spacing:.3px;}
+.dxav-sub{padding:2px 4px 10px;text-align:center;font-size:13px;color:var(--tx3);font-weight:500;font-family:var(--fn);}
+.dxav-sub .dxav-name{color:var(--clr-adj);font-weight:700;}
+.dxav-content{display:flex;flex-direction:column;gap:6px;padding:0 4px;}
+.dxav-row{display:flex;align-items:stretch;border:2.5px solid var(--bdr);border-radius:14px;overflow:hidden;background:transparent;}
+.dxav-row.dxav-row-cosmetic{height:76px;}
+.dxav-row.dxav-row-equip{min-height:60px;}
+[data-theme="light"] .dxav-row{background:rgba(255,255,255,.45);}
+[data-theme="light"] .acct-bp-slot{background:rgba(255,255,255,.45);}
+.dxav-arrow{flex:0 0 22px;cursor:pointer;color:var(--clr-adj);display:flex;align-items:center;justify-content:center;transition:background var(--ease),color var(--ease);user-select:none;}
+.dxav-arrow:hover:not(.dxav-arrow-disabled){background:color-mix(in srgb,var(--clr-adj) 12%,transparent);}
+.dxav-arrow-disabled{color:var(--tx3);cursor:not-allowed;pointer-events:none;opacity:.4;}
+.dxav-grid{flex:1;min-width:0;display:grid;grid-template-columns:repeat(4,1fr);}
+.dxav-chip{width:100%;height:100%;cursor:pointer;color:var(--tx3);display:flex;align-items:center;justify-content:center;transition:background var(--ease),color var(--ease);overflow:hidden;position:relative;user-select:none;}
+.dxav-chip:hover{background:rgba(255,255,255,.04);color:var(--tx2);}
+.dxav-chip.dxav-chip-active:hover{color:var(--clr-adj);background:color-mix(in srgb,var(--clr-adj) 8%,transparent);}
+.dxav-chip-active{color:var(--clr-adj);background:transparent;box-shadow:inset 0 0 0 1.5px var(--clr-adj);border-radius:8px;}
+.dxav-chip svg{display:block;width:55%;height:55%;}
+.dxav-chip-empty{width:100%;height:100%;}
+.dxav-eq-cell{width:100%;aspect-ratio:1;cursor:pointer;color:var(--tx3);transition:background var(--ease),color var(--ease);position:relative;display:flex;align-items:center;justify-content:center;user-select:none;}
+.dxav-eq-cell:hover{background:rgba(255,255,255,.04);color:var(--tx2);}
+.dxav-eq-cell.dxav-equipped:hover{color:var(--clr-adj);background:color-mix(in srgb,var(--clr-adj) 8%,transparent);}
+.dxav-eq-cell.dxav-equipped{color:var(--clr-adj);background:transparent;box-shadow:inset 0 0 0 1.5px var(--clr-adj);border-radius:8px;}
+.dxav-eq-cell.dxav-eq-dim{opacity:.35;}
+.dxav-eq-cell.dxav-eq-locked{opacity:.3;cursor:default;}
+.dxav-eq-cell svg{display:block;width:60%;height:60%;margin:auto;}
+.dxav-eq-num{position:absolute;top:4px;left:6px;font-size:13px;font-weight:700;line-height:1;color:inherit;opacity:.75;pointer-events:none;font-family:var(--fn);}
+.dxav-bars{display:flex;justify-content:center;gap:4px;padding:4px 0;}
+.dxav-bar{cursor:pointer;padding:5px 0;display:flex;align-items:center;justify-content:center;}
+.dxav-bar-pill{width:18px;height:4px;background:var(--bdr);border-radius:2px;transition:background var(--ease);pointer-events:none;}
+.dxav-bar:hover:not(.dxav-bar-active) .dxav-bar-pill{background:var(--tx3);}
+.dxav-bar-active .dxav-bar-pill{background:var(--clr-adj);}
+.dxav-hotbar-row{display:flex;align-items:stretch;padding:6px 4px 0;}
+.acct-backpack-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;flex:1;min-width:0;}
+.acct-bp-slot{aspect-ratio:1;height:auto;}
+.acct-bp-slot{border-radius:8px;border:1.5px solid var(--bdr);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--tx3);transition:all var(--ease);position:relative;}
+.acct-bp-slot:hover{background:var(--bg3);border-color:var(--tx3);}
+.acct-bp-slot.has-item{border-color:color-mix(in srgb,var(--clr-adj) 40%,var(--bdr));color:var(--clr-adj);}
+[data-theme="light"] .acct-bp-slot.has-item{background:rgba(255,255,255,.45);}
+.acct-bp-slot .bp-slot-num{position:absolute;top:4px;left:6px;font-size:13px;font-family:var(--fn);font-weight:700;color:var(--tx3);opacity:0.75;line-height:1;}
+.acct-bp-slot .bp-slot-icon{display:flex;align-items:center;justify-content:center;width:100%;height:100%;}
+/* MD#ICON-OVERHAUL: tight chipVB lets the icon fill more of the cell. */
+.acct-bp-slot .bp-slot-icon svg{width:70%;height:70%;max-width:none;max-height:none;}
+.acct-bp-slot.has-item:hover{border-color:var(--clr-adj);}
+.acct-bp-slot.drag-over{border-color:var(--clr-adj);background:color-mix(in srgb,var(--clr-adj) 10%,transparent);transform:scale(1.05);}
+.acct-bp-slot.dragging{opacity:0.4;}
+.impact-ring{width:4px;height:4px;border-radius:50%;border:1.5px solid var(--clr-adj);opacity:.8;animation:impactExpand .5s ease-out forwards;}
+.impact-ring.severity-2{border-color:var(--clr-adj);}
+.impact-ring.severity-3{border-color:#e05c5c;}
+@keyframes impactExpand{0%{transform:translate(-50%,-50%) scale(1);opacity:.8;}100%{transform:translate(-50%,-50%) scale(8);opacity:0;}}
+/* Play Mode */
+.play-mode-hidden{display:none !important;}
+/* Header in play mode: transparent, float above world canvas, only right section */
+#avatar-enable-toggle{border:none;border-radius:0;padding:0;margin-left:auto;}
+#avatar-enable-toggle .settings-switch-track{width:32px;height:18px;border-radius:10px;border:1.5px solid var(--tx2);background:transparent;}
+#avatar-enable-toggle .settings-switch-thumb{width:12px;height:12px;top:2px;left:2px;background:var(--tx2);}
+#avatar-enable-toggle input:checked+.settings-switch-track{border-color:var(--clr-adj);background:var(--clr-adj);}
+#avatar-enable-toggle input:checked+.settings-switch-track .settings-switch-thumb{transform:translateX(14px);background:var(--bg2);}
+body.playroom-active #avatar-enable-toggle{opacity:0.3;pointer-events:none;}
+/* Avatar disabled — hide all sessions mode game assets (does NOT affect play mode) */
+body.avatar-disabled #char-overlay,
+body.avatar-disabled .char-shadow,
+body.avatar-disabled .gun-pickup,
+body.avatar-disabled .gun-prompt,
+body.avatar-disabled .dex-blood,
+body.avatar-disabled .impact-ring{display:none!important;}
+#hdr.play-mode{background:transparent !important;border-bottom:none !important;box-shadow:none !important;z-index:160 !important;}
+#hdr.play-mode > *{visibility:hidden;}
+#hdr.play-mode #hdr-right{visibility:visible;background:var(--bg2);border-radius:999px;padding:4px 10px;width:fit-content;margin-left:auto;transition:none;}
+#hdr.play-mode #hdr-right > *{visibility:visible;}
+#hdr.play-mode #hdr-left,#hdr.play-mode #hdr-mid{visibility:hidden;}
+/* Hide game canvases + HUD when the community hub is open in play mode.
+   The game loop keeps ticking underneath; these elements are visually
+   suppressed so the hub can render cleanly over the top. */
+body.community-hub-open.playroom-active #world-canvas,
+body.community-hub-open.playroom-active #world-front-canvas,
+body.community-hub-open.playroom-active #game-hud,
+body.community-hub-open.playroom-active #play-mode-ui,
+body.community-hub-open.playroom-active #play-connection-hud,
+body.community-hub-open.playroom-active #hud-health-wrap,
+body.community-hub-open.playroom-active #hud-stamina-wrap,
+body.community-hub-open.playroom-active #hud-charge-wrap,
+body.community-hub-open.playroom-active #item-bar,
+body.community-hub-open.playroom-active .char-entity{visibility:hidden!important;}
+/* Play mode UI overlay */
+#play-mode-ui{position:fixed;top:12px;left:60px;z-index:206;font-size:11px;color:var(--tx2);font-family:var(--fn);pointer-events:auto;display:none;}
+#play-mode-ui.visible{display:block;}
+#play-mode-coords{opacity:.5;}
+/* Session grid play button */
+.sess-play-cell{margin-left:12px;}
+.sess-play-btn{display:flex;align-items:center;justify-content:center;}
+[data-theme="light"] .sess-play-icon path{stroke:var(--clr-adj) !important;fill:var(--clr-adj) !important;}
+.sess-play-icon{width:18px;height:18px;}
+/* Playroom scroll lock */
+body.playroom-active{overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;}
+body.playroom-active #sess-grid-popup{z-index:9050 !important;}
+/* Game HUD — bottom center stack */
+#game-hud{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) scale(1.5);transform-origin:bottom center;z-index:206;pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:4px;}
+#game-hud.hud-entering{transform:translateX(-50%) translateY(120%) scale(1.5);opacity:0;pointer-events:none;}
+#game-hud.hud-visible{transform:translateX(-50%) translateY(0) scale(1.5);opacity:1;transition:transform 0.4s cubic-bezier(0.16,1,0.3,1),opacity 0.3s ease;}
+#game-hud.hud-exiting{transform:translateX(-50%) translateY(120%) scale(1.5);opacity:0;transition:transform 0.35s cubic-bezier(0.4,0,1,1),opacity 0.25s ease;pointer-events:none;}
+/* Platformer stats line (MD 07) — quiet, tabular, part of the HUD stack */
+/* Platformer stats readout (MD11) — top-center, larger, own layer so it's
+   never scaled/faded by #game-hud's transform group. */
+#plat-stats{
+  position:fixed; top:calc(env(safe-area-inset-top, 0px) + 18px);
+  left:50%; transform:translateX(-50%);
+  font-family:var(--fn); font-size:22px; font-weight:600;
+  font-variant-numeric:tabular-nums; letter-spacing:0.02em;
+  color:var(--tx); text-shadow:0 2px 6px rgba(0,0,0,0.55);
+  text-align:center; white-space:nowrap;
+  pointer-events:none; z-index:207;
+}
+/* Tank stamina/boost bar — same size as health bar */
+#hud-stamina-wrap{width:220px;height:8px;background:rgba(0,0,0,0.4);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);margin-bottom:4px;display:none;}
+[data-theme="light"] #hud-stamina-wrap{background:rgba(0,0,0,0.12);border-color:rgba(0,0,0,0.15);}
+#hud-stamina-bar{width:100%;height:100%;background:var(--accent);border-radius:4px;transition:width 0.1s linear;}
+/* Health bar */
+#hud-health-wrap{width:220px;height:8px;background:rgba(0,0,0,0.4);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);}
+[data-theme="light"] #hud-health-wrap{background:rgba(0,0,0,0.12);border-color:rgba(0,0,0,0.15);}
+#hud-health-bar{width:100%;height:100%;background:#4ade80;border-radius:4px;transition:width 0.3s ease;}
+/* Charge bar */
+#hud-charge-wrap{width:220px;height:5px;background:rgba(0,0,0,0.3);border-radius:3px;overflow:hidden;opacity:0;transition:opacity 0.15s;}
+#hud-charge-wrap.visible{opacity:1;}
+[data-theme="light"] #hud-charge-wrap{background:rgba(0,0,0,0.1);}
+#hud-charge-bar{width:0%;height:100%;background:var(--clr-adj,var(--accent));border-radius:3px;transition:none;}
+/* Item bar */
+/* MD#1: position:relative so the inventory slot (5) can be absolutely
+   pulled out of flow. With slot 5 removed from the row, the flowed width
+   is exactly the 4 weapon slots (52×4 + 6×3 = 226px) — matching #inv2's
+   width — so both center on screen-center and columns land above slots. */
+#item-bar{display:flex;gap:6px;align-items:center;position:relative;}
+/* MD#2: solid backgrounds — slots no longer show world through them.
+   Uses --bg2 (matches sidebar/cards) so it adapts to dark/light themes. */
+.item-slot{width:52px;height:52px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.15);background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:border-color .15s,background .15s;}
+[data-theme="light"] .item-slot{background:var(--bg2);border-color:rgba(0,0,0,0.18);}
+/* MD#2: hover lightens by one bg step rather than fading toward black. */
+.item-slot:hover{border-color:var(--clr-adj,var(--accent));background:var(--bg3);}
+.item-slot.active{border-color:var(--clr-adj,var(--accent));box-shadow:0 0 0 1px var(--clr-adj,var(--accent));}
+.item-slot-num{position:absolute;top:3px;left:5px;font-size:10px;font-family:var(--fn,sans-serif);color:var(--clr-adj,var(--accent));opacity:.7;line-height:1;}
+.item-slot-icon{display:flex;align-items:center;justify-content:center;color:var(--clr-adj,var(--accent));opacity:.6;width:100%;height:100%;}
+/* MD#ICON-OVERHAUL: tight chipVB lets the icon fill more of the play hotbar slot. */
+.item-slot-icon svg{width:80%;height:80%;max-width:none;max-height:none;}
+/* MD#10: slot-5 backpack icon was too big + too heavy. Scope to the
+   inventory slot only so weapon icons (slots 1–4) keep 80%/1.8. ~60% is
+   roughly 20–25% smaller than 80%; stroke 0.9 is ~1px thinner than 1.8.
+   CSS width/stroke-width override the inline SVG attrs (22/22, 1.8). */
+.item-slot-inventory .item-slot-icon svg{width:60%;height:60%;stroke-width:0.9;}
+/* MD#1: slot 5 is a circle and sits absolutely just right of slot 4 so it
+   does NOT push the 1–4 group off-center. left:100% puts its left edge at
+   the right edge of the flow row; margin-left adds the gap. top:50%/translateY
+   keeps it vertically centered on the row. border-radius:50% = circle. */
+.item-slot-inventory{
+  position:absolute;
+  left:100%;
+  top:50%;
+  transform:translateY(-50%);
+  margin-left:14px;
+  border-style:dashed;
+  border-radius:50%;
+}
+.item-slot.has-bow .item-slot-icon::after{content:'';display:block;width:14px;height:20px;border:1.8px solid var(--clr-adj,var(--accent));border-right:none;border-radius:8px 0 0 8px;opacity:.8;}
+/* .holstered used to apply opacity:.4 but it made items look disabled; equipped
+   state is now signaled purely via the .active border stroke. */
+/* Inventory grid */
+#inventory-grid{display:none;grid-template-columns:repeat(3, 64px);gap:6px;width:fit-content;height:fit-content;position:fixed;background:rgba(0,0,0,0.72);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:10px;backdrop-filter:blur(10px);z-index:207;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+[data-theme="light"] #inventory-grid{background:rgba(255,255,255,0.82);border-color:rgba(0,0,0,0.15);}
+.inv-slot{width:64px;height:64px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.3);cursor:pointer;transition:border-color .15s,background .15s;display:flex;align-items:center;justify-content:center;position:relative;user-select:none;}
+.inv-slot:hover{border-color:var(--clr-adj,var(--accent));background:rgba(0,0,0,0.5);}
+.inv-slot-locked{opacity:0.45;cursor:default;}
+.inv-slot-locked:hover{border-color:rgba(255,255,255,0.12);background:rgba(0,0,0,0.3);}
+.inv-slot-level-locked{opacity:0.55;}
+.inv-slot-level-locked .inv-slot-lock{color:var(--clr-adj);opacity:0.9;}
+.inv-slot-icon{display:flex;align-items:center;justify-content:center;color:var(--clr-adj,var(--accent));opacity:0.9;width:100%;height:100%;pointer-events:none;}
+.inv-slot-icon svg{width:70%;height:70%;max-width:40px;max-height:40px;display:block;overflow:visible;}
+.inv-slot-lock{position:absolute;top:4px;right:4px;color:rgba(255,255,255,0.3);display:flex;}
+.inv-slot-hotbar-badge{position:absolute;bottom:3px;right:4px;font-size:9px;font-family:var(--fn);font-weight:700;color:var(--clr-adj,var(--accent));opacity:0.8;line-height:1;}
+.inv-slot-dragging{opacity:0.4;border-color:var(--clr-adj,var(--accent)) !important;}
+.item-slot-drag-over{border-color:var(--clr-adj,var(--accent)) !important;background:rgba(0,0,0,0.6) !important;box-shadow:0 0 0 2px var(--clr-adj,var(--accent));}
+[data-theme="light"] .inv-slot{background:rgba(255,255,255,0.3);border-color:rgba(0,0,0,0.12);}
+/* inv-slot-label light override removed — base uses --clr-adj */
+/* InfoChip :// command picker */
+#ic-cmd-pick{display:none;position:fixed;z-index:9500;background:var(--bg2);border:1px solid var(--bdr);border-radius:9px;padding:4px;box-shadow:0 8px 28px rgba(0,0,0,.5);font-family:var(--fn);}
+#ic-cmd-pick.open{display:block;}
+.ic-cmd-item{display:flex;align-items:center;gap:8px;padding:6px 12px;border:none;background:none;color:var(--tx2);font-size:13px;font-family:var(--fn);cursor:pointer;border-radius:6px;width:100%;text-align:left;transition:background .1s ease;}
+.ic-cmd-item:hover,.ic-cmd-item.active{background:var(--bg4);color:var(--tx);}
+.ic-cmd-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ic-cmd-dot[data-node="link"]{background:var(--node-link);}
+.ic-cmd-dot[data-node="markdown"]{background:var(--node-markdown);}
+.ic-cmd-dot[data-node="image"]{background:var(--node-image);}
+.ic-cmd-dot[data-node="audio"]{background:var(--node-audio);}
+.ic-cmd-dot[data-node="file"]{background:var(--node-file);}
+.ic-cmd-dot[data-node="calendar"]{background:var(--node-calendar);}
+.ic-cmd-dash{width:8px;flex-shrink:0;text-align:center;color:rgba(255,255,255,0.3);font-weight:700;font-size:12px;line-height:1;}
+.ic-cmd-icon{flex-shrink:0;vertical-align:middle;}
+[data-theme="light"] .ic-cmd-dash{color:rgba(0,0,0,0.25);}
+.font-pick-wrap{position:relative;display:inline-flex;}
+.font-pick-trigger{background:var(--bg3);border:1px solid var(--bdr);border-radius:7px;color:var(--tx);font-family:var(--fn);font-size:13px;padding:5px 22px 5px 8px;outline:none;cursor:pointer;white-space:nowrap;position:relative;transition:border-color var(--ease);}
+.font-pick-trigger::after{content:'';position:absolute;right:7px;top:50%;transform:translateY(-50%);border:4px solid transparent;border-top:5px solid currentColor;opacity:.55;}
+.font-pick-trigger:hover,.font-pick-wrap.open .font-pick-trigger{border-color:var(--clr-adj);}
+.font-pick-dropdown{position:absolute;top:100%;left:0;margin-top:4px;min-width:160px;background:var(--bg2);border:1px solid var(--bdr);border-radius:9px;box-shadow:0 8px 28px rgba(0,0,0,.4);overflow:hidden;z-index:1000;transform-origin:top center;transform:scaleY(0);opacity:0;transition:transform .2s cubic-bezier(.4,0,.2,1),opacity .15s ease;pointer-events:none;}
+.font-pick-wrap.open .font-pick-dropdown{transform:scaleY(1);opacity:1;pointer-events:auto;}
+.font-pick-item{display:block;width:100%;padding:8px 14px;border:none;background:none;color:var(--tx2);font-size:13px;cursor:pointer;text-align:left;transition:background .1s ease,color .1s ease;}
+.font-pick-item:hover{background:var(--bg4);color:var(--tx);}
+.font-pick-item.active{color:var(--clr-adj);font-weight:600;}
+.fs-pick-wrap{position:relative;display:inline-flex;}
+.fs-pick-trigger{background:var(--bg3);border:1px solid var(--bdr);border-radius:7px;color:var(--tx);font-family:var(--fn);font-size:13px;padding:5px 20px 5px 8px;outline:none;cursor:pointer;white-space:nowrap;position:relative;transition:border-color var(--ease);min-width:42px;text-align:left;}
+.fs-pick-trigger::after{content:'';position:absolute;right:6px;top:50%;transform:translateY(-50%);border:3.5px solid transparent;border-top:4px solid currentColor;opacity:.55;}
+.fs-pick-trigger:hover,.fs-pick-wrap.open .fs-pick-trigger{border-color:var(--clr-adj);}
+.fs-pick-dropdown{position:absolute;top:100%;left:0;margin-top:4px;min-width:52px;background:var(--bg2);border:1px solid var(--bdr);border-radius:9px;box-shadow:0 8px 28px rgba(0,0,0,.4);overflow:hidden;z-index:1000;transform-origin:top center;transform:scaleY(0);opacity:0;transition:transform .2s cubic-bezier(.4,0,.2,1),opacity .15s ease;pointer-events:none;}
+.fs-pick-wrap.open .fs-pick-dropdown{transform:scaleY(1);opacity:1;pointer-events:auto;}
+.fs-pick-item{display:block;width:100%;padding:6px 14px;border:none;background:none;color:var(--tx2);font-size:13px;cursor:pointer;text-align:left;transition:background .1s ease,color .1s ease;font-family:var(--fn);}
+.fs-pick-item:hover{background:var(--bg4);color:var(--tx);}
+.fs-pick-item.active{color:var(--clr-adj);font-weight:600;}
+.hdr-sep{width:1px;height:22px;background:var(--bdr);margin:0 4px;flex-shrink:0;}
+.fmt-btn,.alg-btn,.icon-btn{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:var(--tx2);border-radius:7px;font-size:14px;font-weight:700;transition:all var(--ease);outline:none;}
+.fmt-btn:focus-visible,.alg-btn:focus-visible,.icon-btn:focus-visible{outline:none;}
+#help-btn:focus{outline:none;}
+/* Notes-app UI removed: theme-toggle arc animation, .hdr-collapse-* header
+   dropdown, and the note-editor spelling/highlight rules. */
+/* ─────────────────────────────────────────────────────────────
+   MD#9: Inventory v2 — four columns, one per hotbar slot.
+   Container is fixed-positioned at the bottom of the screen and
+   horizontally aligned so each column sits exactly above its
+   corresponding .item-slot. Columns are 52px wide (matching slot
+   width). Gaps match #item-bar's 6px gap.
+   ───────────────────────────────────────────────────────────── */
+#inv2 {
+  position: fixed;
+  bottom: calc(28px + 52px * 1.5 + 8px); /* item-bar bottom + slot height (×1.5 scale) + spacing */
+  left: 50%;
+  /* MD#11: closed state translates the panel down by 100% of its own
+     height + the hotbar height + a touch extra so it's fully off-screen
+     before slide-in starts. The horizontal centering and 1.5× scale are
+     preserved so the open position lines up with the hotbar exactly. */
+  transform: translateX(-50%) translateY(calc(100% + 80px)) scale(1.5);
+  transform-origin: bottom center;
+  z-index: 205; /* MD#1/MD07: one below #game-hud (206) so columns slide up from BEHIND the hotbar; whole GUI band sits above #world-front-canvas (200) */
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  /* Slide + fade. transform uses a snappy upward easing on open (matches
+     #game-hud.hud-visible), fade is shorter so it doesn't trail. visibility
+     transitions are stepwise — 0s on open (immediately visible during slide),
+     and delayed-to-end on close so the panel can finish sliding before it's
+     hidden. */
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.25s ease,
+    visibility 0s linear 0.4s;
+}
+#inv2.is-open {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0) scale(1.5);
+  /* On open the visibility flip is immediate (0s delay) so the slide is seen. */
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.18s ease,
+    visibility 0s linear 0s;
+}
+/* MD#11: per-column stagger for a subtle ripple — leftmost column lands
+   first, rightmost last. Total stagger ~80ms across all four. transition
+   inherits from the container; we just delay the columns individually. */
+#inv2 .inv2-col {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#inv2:not(.is-open) .inv2-col[data-slot="1"] { transition-delay: 60ms; }
+#inv2:not(.is-open) .inv2-col[data-slot="2"] { transition-delay: 40ms; }
+#inv2:not(.is-open) .inv2-col[data-slot="3"] { transition-delay: 20ms; }
+#inv2:not(.is-open) .inv2-col[data-slot="4"] { transition-delay: 0ms; }
+#inv2.is-open .inv2-col[data-slot="1"] { transition-delay: 0ms; }
+#inv2.is-open .inv2-col[data-slot="2"] { transition-delay: 20ms; }
+#inv2.is-open .inv2-col[data-slot="3"] { transition-delay: 40ms; }
+#inv2.is-open .inv2-col[data-slot="4"] { transition-delay: 60ms; }
+#inv2 .inv2-col {
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+/* Chips wrapper — fixed-height window showing up to 4 chips at a time.
+   Chip height matches .item-slot (52px) so the column reads as "stack
+   of slots" and the visual rhythm matches the hotbar below. */
+#inv2 .inv2-chips {
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* 4 chips * 52px + 3 gaps * 4px = 220px max window. Overflow hidden so
+     paged chips outside the window don't bleed in during slide-in. */
+  max-height: calc(52px * 4 + 4px * 3);
+  overflow: hidden;
+  /* MD#9: chips populated by MD#10. Empty placeholder for now. */
+}
+/* Up/Down chevrons — dxav style. Kept narrow so they don't widen the
+   column past 52px. */
+#inv2 .inv2-chev {
+  width: 52px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--clr-adj, var(--accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+#inv2 .inv2-chev:hover { opacity: 1; transform: scale(1.1); }
+#inv2 .inv2-chev:active { transform: scale(0.95); }
+#inv2 .inv2-chev.inv2-chev-disabled {
+  opacity: 0.2; cursor: default; pointer-events: none;
+}
+#inv2 .inv2-chev svg { width: 16px; height: 16px; }
+/* Page progress bar — thin bar under the column showing current page
+   position. Mirrors the avatar dropdown's progress indicator. */
+#inv2 .inv2-pgbar {
+  width: 52px;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+[data-theme="light"] #inv2 .inv2-pgbar { background: rgba(0,0,0,0.1); }
+#inv2 .inv2-pgbar-fill {
+  height: 100%;
+  background: var(--clr-adj, var(--accent));
+  border-radius: 2px;
+  width: 25%; /* default — overridden inline by JS in MD#10 */
+  transition: width 0.18s ease;
+}
+/* Single-page columns hide the chevrons + progress bar entirely. */
+#inv2 .inv2-col.inv2-col-single .inv2-chev,
+#inv2 .inv2-col.inv2-col-single .inv2-pgbar { visibility: hidden; }
+
+/* Chip styling — same shape/border-radius as .item-slot for consistency.
+   Active (currently equipped) chip uses the accent border. Locked chips
+   dim. MD#10 will populate the chip HTML; these rules apply when present. */
+#inv2 .inv2-chip {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  background: var(--bg2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  color: var(--clr-adj, var(--accent));
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+[data-theme="light"] #inv2 .inv2-chip {
+  border-color: rgba(0,0,0,0.18);
+}
+#inv2 .inv2-chip:hover { border-color: var(--clr-adj, var(--accent)); background: var(--bg3); }
+#inv2 .inv2-chip:active { transform: scale(0.96); }
+#inv2 .inv2-chip.inv2-chip-equipped { border-color: var(--clr-adj, var(--accent)); box-shadow: 0 0 0 1px var(--clr-adj, var(--accent)); }
+#inv2 .inv2-chip.inv2-chip-locked { opacity: 0.4; cursor: default; }
+#inv2 .inv2-chip.inv2-chip-locked:hover { border-color: rgba(255,255,255,0.15); background: var(--bg2); }
+#inv2 .inv2-chip svg { width: 70%; height: 70%; max-width: 40px; max-height: 40px; pointer-events: none; }
+#inv2 .inv2-chip-empty {
+  width: 52px; height: 52px; flex-shrink: 0;
+  /* invisible spacer so partial pages still align top of column */
+  visibility: hidden;
+}
+
+
+/* ─────────────────────────────
+   Standalone build
+   ───────────────────────────── */
+
+/* The floating button stack (chat toggle) crowds the hotbar on phones. */
+@media (max-width:768px){ #play-btn-stack{display:none !important} }
+
+/* ─────────────────────────────
+   Emoji autocomplete (":" in chat)
+   The picker markup is built by src/chat-picker.js into #emoji-pick.
+   These styles lived in the notes app's stylesheet and are re-created here.
+   ───────────────────────────── */
+#emoji-pick{
+  display:none; position:fixed; z-index:9500;
+  background:var(--bg2); border:1px solid var(--bdr); border-radius:10px;
+  padding:6px; box-shadow:0 8px 28px rgba(0,0,0,.5);
+  font-family:var(--fn);
+}
+#emoji-pick.open{display:block;}
+.emoji-grid{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:2px;
+}
+.emoji-cell{
+  width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  position:relative; font-size:20px; line-height:1;
+  background:none; border:none; border-radius:8px; cursor:pointer;
+  padding:0; transition:background var(--ease);
+}
+.emoji-cell:hover:not(:disabled){background:var(--bg4);}
+.emoji-cell.active{background:var(--bg4); box-shadow:inset 0 0 0 1.5px var(--accent);}
+/* Separator spans the full grid width, between results and most-used */
+.emoji-freq-sep{
+  grid-column:1 / -1; height:1px; background:var(--bdr); margin:4px 2px;
+}
+.emoji-freq-empty{opacity:.25; cursor:default;}
+/* The little x that forgets a most-used emoji */
+.emoji-freq-x{
+  position:absolute; top:-1px; right:1px;
+  font-size:11px; line-height:1; color:var(--tx3);
+  opacity:0; transition:opacity var(--ease);
+}
+.emoji-freq-cell:hover .emoji-freq-x{opacity:1;}
+.emoji-freq-x:hover{color:var(--tx);}
+
+/* ─────────────────────────────
+   Cosmetics customizer (DXAV) — anchored to the hotbar (MD 05)
+   Lives next to the inventory backpack: its button is the hotbar's sixth
+   cell, and the panel expands upward from it the way #inv2's columns do.
+   The .dxav-* internals above are untouched — container only.
+   ───────────────────────────── */
+#dxav-panel{
+  position:fixed; z-index:9601;
+  /* left/bottom set by JS: centered horizontally, floated above the hotbar */
+  right:auto; left:50%; bottom:96px;
+  transform-origin:bottom center;
+  transform:translateY(10px) scale(.96);
+  width:min(400px, calc(100vw - 16px));
+  max-height:calc(100vh - 140px);
+  overflow-y:auto; overscroll-behavior:contain;
+  padding:14px 10px 12px;
+  background:var(--bg2);
+  border:1px solid var(--bdr);
+  border-radius:16px;
+  box-shadow:0 18px 48px rgba(0,0,0,.55);
+  font-family:var(--fn);
+  opacity:0; pointer-events:none;
+  transition:opacity .18s ease, transform .22s cubic-bezier(0.16,1,0.3,1);
+}
+#dxav-panel.open{
+  opacity:1; pointer-events:auto;
+  transform:translateY(0) scale(1);
+}
+#dxav-panel::-webkit-scrollbar{width:8px;}
+#dxav-panel::-webkit-scrollbar-thumb{background:var(--bg4); border-radius:4px;}
+/* The panel is its own surface now, so the inner rows shouldn't repaint one */
+#dxav-panel .dxav-hotbar-row{margin-top:10px;}
+
+/* Cosmetics — slot 6 (MD 07). Built exactly like the backpack: a circular
+   dashed .item-slot pulled out of the flex row with absolute positioning,
+   one slot further right (backpack margin 14 + slot 52 + gap 14 = 80).
+   Hover/active/accent behaviour comes from the .item-slot base. Icon sizing
+   matches the backpack's 60% / 0.9-stroke treatment so the pair reads as
+   one system. */
+.item-slot-cosmetics{
+  position:absolute;
+  left:100%;
+  top:50%;
+  transform:translateY(-50%);
+  margin-left:80px;
+  border-style:dashed;
+  border-radius:50%;
+}
+.item-slot-cosmetics .item-slot-icon svg{width:60%;height:60%;stroke-width:0.9;}
+
+/* ─────────────────────────────
+   ESC pause menu (src/pausemenu.js)
+   Same object as the cosmetics panel: --bg surface ladder, 16px radius,
+   accent via --clr-adj, the HUD's spring curve for enter/exit.
+   ───────────────────────────── */
+#pmenu-backdrop{
+  position:fixed; inset:0; z-index:9550;
+  background:rgba(0,0,0,.55);
+  backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+  opacity:0; transition:opacity .22s ease;
+}
+#pmenu-backdrop.open{opacity:1;}
+
+#pmenu{
+  position:fixed; z-index:9551;
+  left:50%; top:50%;
+  transform:translate(-50%,-50%) scale(.96) translateY(10px);
+  width:min(460px, calc(100vw - 32px));
+  max-height:min(600px, calc(100vh - 48px));
+  display:flex; flex-direction:column;
+  padding:16px 16px 12px;
+  background:var(--bg2);
+  border:1px solid var(--bdr);
+  border-radius:16px;
+  box-shadow:0 24px 60px rgba(0,0,0,.6);
+  font-family:var(--fn); color:var(--tx);
+  opacity:0; pointer-events:none;
+  transition:opacity .22s ease, transform .32s cubic-bezier(0.16,1,0.3,1);
+}
+#pmenu.open{
+  opacity:1; pointer-events:auto;
+  transform:translate(-50%,-50%) scale(1) translateY(0);
+}
+
+.pmenu-title{
+  font-size:17px; font-weight:700; letter-spacing:.02em;
+  margin:0 2px 10px;
+}
+.pmenu-tabs{display:flex; gap:6px; margin-bottom:12px;}
+.pmenu-tab{
+  flex:1; padding:7px 0; font-family:var(--fn); font-size:13px; font-weight:600;
+  color:var(--tx2); background:var(--bg3); border:none; border-radius:9px;
+  cursor:pointer; transition:background var(--ease), color var(--ease), box-shadow var(--ease);
+}
+.pmenu-tab:hover{background:var(--bg4);}
+.pmenu-tab.active{
+  color:var(--tx); background:var(--bg4);
+  box-shadow:inset 0 0 0 1.5px var(--clr-adj, var(--accent));
+}
+
+.pmenu-content{
+  flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+  padding:2px;
+}
+.pmenu-content::-webkit-scrollbar{width:8px;}
+.pmenu-content::-webkit-scrollbar-thumb{background:var(--bg4); border-radius:4px;}
+
+.pmenu-row{
+  display:flex; align-items:center; gap:10px;
+  padding:5px 4px; border-radius:8px;
+}
+.pmenu-controls .pmenu-row:hover{background:var(--bg3);}
+.pmenu-keys{display:flex; gap:4px; flex-wrap:wrap; min-width:118px; justify-content:flex-start;}
+.pmenu-key{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:24px; height:22px; padding:0 7px;
+  font-size:11px; font-weight:600; letter-spacing:.02em;
+  color:var(--tx2); background:var(--bg3);
+  border:1px solid var(--bdr); border-radius:6px;
+  white-space:nowrap;
+}
+.pmenu-key-bind{
+  color:var(--clr-adj, var(--accent)); cursor:pointer; font-family:var(--fn);
+  transition:box-shadow var(--ease), background var(--ease);
+}
+.pmenu-key-bind:hover{background:var(--bg4); box-shadow:inset 0 0 0 1.5px var(--clr-adj, var(--accent));}
+.pmenu-key-bind.listening{
+  background:var(--bg4);
+  box-shadow:inset 0 0 0 1.5px var(--clr-adj, var(--accent));
+  animation:pmenu-pulse 1s ease-in-out infinite;
+}
+@keyframes pmenu-pulse{0%,100%{opacity:1;}50%{opacity:.45;}}
+.pmenu-label{font-size:12.5px; color:var(--tx2); flex:1;}
+.pmenu-note{
+  margin-top:10px; padding:0 4px;
+  font-size:11px; color:var(--tx3);
+}
+
+/* Audio tab */
+.pmenu-slider-row .pmenu-label{flex:0 0 76px;}
+.pmenu-range{
+  flex:1; appearance:none; -webkit-appearance:none;
+  height:4px; border-radius:2px; background:var(--bg4);
+  outline:none; cursor:pointer;
+}
+.pmenu-range::-webkit-slider-thumb{
+  appearance:none; -webkit-appearance:none;
+  width:14px; height:14px; border-radius:50%;
+  background:var(--clr-adj, var(--accent));
+  border:none; cursor:pointer;
+  transition:transform .1s ease;
+}
+.pmenu-range::-webkit-slider-thumb:hover{transform:scale(1.15);}
+.pmenu-range::-moz-range-thumb{
+  width:14px; height:14px; border-radius:50%;
+  background:var(--clr-adj, var(--accent));
+  border:none; cursor:pointer;
+}
+.pmenu-range-val{
+  flex:0 0 30px; text-align:right;
+  font-size:11px; font-variant-numeric:tabular-nums; color:var(--tx3);
+}
+.pmenu-sep{height:1px; background:var(--bdr); margin:8px 4px;}
+.pmenu-mute{min-width:96px;}
+.pmenu-mute.active{
+  background:var(--bg4);
+  box-shadow:inset 0 0 0 1.5px var(--clr-adj, var(--accent));
+  color:var(--tx);
+}
+
+/* Theme tab — hexagon swatches */
+.pmenu-hexrow{
+  display:flex; gap:8px; flex-wrap:wrap;
+  padding:8px 4px 12px; justify-content:center;
+}
+.pmenu-hexwrap{
+  width:44px; height:40px; padding:0; border:none; background:transparent;
+  clip-path:polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%);
+  cursor:pointer; position:relative;
+  transition:transform .12s ease;
+}
+.pmenu-hexwrap:hover{transform:scale(1.1);}
+.pmenu-hexwrap.active{background:var(--tx);}
+.pmenu-hex{
+  position:absolute; inset:2.5px;
+  clip-path:polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%);
+  display:block;
+}
+.pmenu-hexinput-row{gap:6px;}
+.pmenu-hexhash{color:var(--tx3); font-size:14px; font-weight:600; padding-left:4px;}
+.pmenu-hexinput{
+  flex:1; min-width:0; padding:7px 10px;
+  font-family:var(--fn); font-size:13px; letter-spacing:.06em;
+  color:var(--tx); background:var(--bg3);
+  border:1px solid var(--bdr); border-radius:8px; outline:none;
+  transition:border-color var(--ease), box-shadow var(--ease);
+}
+.pmenu-hexinput:focus{border-color:var(--clr-adj, var(--accent));}
+.pmenu-hexinput.invalid{animation:pmenu-shake .3s ease;}
+@keyframes pmenu-shake{
+  0%,100%{transform:translateX(0);}
+  25%{transform:translateX(-4px);}
+  75%{transform:translateX(4px);}
+}
+
+/* Footer + shared buttons */
+.pmenu-footer{
+  display:flex; gap:8px; margin-top:12px;
+}
+.pmenu-btn{
+  flex:1; padding:9px 10px;
+  font-family:var(--fn); font-size:13px; font-weight:600;
+  color:var(--tx2); background:var(--bg3);
+  border:1px solid var(--bdr); border-radius:9px;
+  cursor:pointer; white-space:nowrap;
+  transition:background var(--ease), color var(--ease), transform .1s ease;
+}
+.pmenu-btn:hover{background:var(--bg4); color:var(--tx);}
+.pmenu-btn:active{transform:scale(.97);}
+.pmenu-btn-accent{
+  background:var(--clr-adj, var(--accent)); color:var(--bg);
+  border-color:transparent;
+}
+.pmenu-btn-accent:hover{background:var(--clr-adj, var(--accent)); color:var(--bg); opacity:.88;}
+.pmenu-hexapply{flex:0 0 auto; padding:7px 14px;}
+.pmenu-hint{
+  margin-top:8px; text-align:center;
+  font-size:10.5px; color:var(--tx3);
+}
+
+/* End card — shown when window.close() is blocked */
+#pmenu-endcard{
+  position:fixed; inset:0; z-index:9560;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; background:var(--bg);
+  font-family:var(--fn);
+  opacity:0; transition:opacity .3s ease;
+}
+#pmenu-endcard.open{opacity:1;}
+.pmenu-endcard-title{font-size:20px; font-weight:700; color:var(--tx);}
+.pmenu-endcard-sub{font-size:13px; color:var(--tx3); margin-bottom:6px;}
+#pmenu-endcard .pmenu-btn{flex:0 0 auto; padding:10px 22px;}

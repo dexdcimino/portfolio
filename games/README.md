@@ -35,6 +35,16 @@ The slug carries the version: `cupcake-gobbler-v3`, not `cupcake-gobbler`. A new
 build gets a **new folder**, so URLs already handed out keep working. Never
 overwrite a shipped version in place.
 
+## Dev source can live here too
+
+A game's source may sit beside its builds as `games/<name>/`, with each shipped
+version nested under it — `games/<name>/v1/`, `games/<name>/v2/`. Stickland is
+the first: `games/stickland/` holds `src/` and `build.mjs`, and
+`games/stickland/v1/index.html` is the playable build. Only the version folder
+is the deliverable, and the folder contract above applies to it unchanged —
+self-contained, relative paths, no external calls. The source beside it is not
+served and does not have to satisfy any of that.
+
 ## The image baker skips this folder — by design
 
 `tools/bake_images.py` auto-discovers every raster in the repo. Without an
