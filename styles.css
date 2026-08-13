@@ -44,6 +44,11 @@
      the two states can never fight over one number. */
   --brand-open:1.2;
   --brand-hover-bump:1.08;
+  /* One stroke weight for everything interactive — buttons, cards, thumbnails,
+     the round controls in the overlays — so they read as one family instead of
+     each carrying its own hairline. Hover trades up to the heavier weight. */
+  --stroke:2px;
+  --stroke-hover:3px;
   --icon-idle:#8d959c;
   --text:#f1f3f4;
   --gutter:clamp(92px,11.2vw,190px); /* hero copy's left edge; every section below aligns to it */
@@ -66,6 +71,16 @@ button{font:inherit}
 img{max-width:100%}
 ::selection{background:rgba(255,255,255,.18);color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+/* Set by quietFocus() on whatever an overlay hands focus to — the button that
+   opened it on the way out, the panel itself on the way in. The focus is real
+   and stays real; this only stops the element looking selected when the visitor
+   never selected it. Dropped on blur, so a genuine tab or click to it rings
+   normally.
+   The class is doubled for specificity: every other focus rule here is a single
+   class plus :focus-visible (0,2,0), and several of them — .work-stage,
+   .resume-scroll — sit further down the file and would otherwise win on order.
+   0,3,0 outranks all of them wherever they are written. */
+.focus-quiet.focus-quiet:focus-visible{outline:none}
 .skip-link{position:fixed;top:-60px;left:12px;z-index:200;padding:10px 16px;border-radius:8px;background:var(--accent);color:var(--accent-ink,#080a0b);font-size:12px;font-weight:900;letter-spacing:.06em;transition:top .2s ease}
 .skip-link:focus{top:12px}
 
@@ -416,8 +431,10 @@ button.button{cursor:pointer;font:inherit}
 .intro{max-width:540px;color:#b8c0c6;line-height:1.68;font-size:clamp(16px,1.08vw,18px)}
 .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:27px}
 
-.button{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:50px;padding:0 22px;border:1px solid rgba(255,255,255,.28);border-radius:8px;background:rgba(13,16,19,.72);font-size:14px;font-weight:900;letter-spacing:.04em;transition:border-color var(--accent-ease),transform .2s ease,box-shadow var(--accent-ease),background var(--accent-ease)}
-.button:hover{border-color:var(--accent);transform:translateY(-2px)}
+/* Height is set by min-height and the label is centred, so the heavier hover
+   stroke eats into the padding rather than moving anything. */
+.button{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:50px;padding:0 22px;border:var(--stroke) solid rgba(255,255,255,.34);border-radius:8px;background:rgba(13,16,19,.72);font-size:14px;font-weight:900;letter-spacing:.04em;transition:border-color var(--accent-ease),border-width .18s ease,transform .2s ease,box-shadow var(--accent-ease),background var(--accent-ease)}
+.button:hover{border-color:var(--accent);border-width:var(--stroke-hover);transform:translateY(-2px)}
 .button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink,#080a0b);box-shadow:0 12px 32px color-mix(in srgb,var(--accent) 22%,transparent)}
 .button.ghost{background:transparent}
 .btn-icon{width:16px;height:16px;transition:transform .2s ease}
@@ -505,8 +522,8 @@ button.button{cursor:pointer;font:inherit}
 .view-all:hover .view-all-arrow{transform:translateX(4px)}
 
 .work-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.work-card{display:block;width:100%;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;height:clamp(200px,24vh,258px);position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.13);background:#11161a;isolation:isolate;transition:border-color var(--accent-ease),transform .25s ease}
-.work-card:hover{border-color:color-mix(in srgb,var(--accent) 55%,transparent);transform:translateY(-3px)}
+.work-card{display:block;width:100%;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;height:clamp(200px,24vh,258px);position:relative;border-radius:14px;overflow:hidden;border:var(--stroke) solid rgba(255,255,255,.18);background:#11161a;isolation:isolate;transition:border-color var(--accent-ease),border-width .18s ease,transform .25s ease}
+.work-card:hover{border-color:var(--accent);border-width:var(--stroke-hover);transform:translateY(-3px)}
 /* The global :focus-visible rule rounds to 6px, which cuts the corners off a
    14px card — restore the card's own radius for the ring only. */
 .work-card:focus-visible{border-radius:14px}
@@ -543,9 +560,9 @@ button.button{cursor:pointer;font:inherit}
 .stack-row:hover .row-arrow{transform:translate(2px,-2px)}
 
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.ai-card{min-height:190px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease)}
+.ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease),border-width .18s ease}
 .ai-card:before{content:"";position:absolute;right:-18%;top:-44%;width:70%;aspect-ratio:1;background:var(--accent);filter:blur(70px);opacity:.08;transition:background-color var(--accent-ease)}
-.ai-card:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
+.ai-card:hover{transform:translateY(-4px);border-color:var(--accent);border-width:var(--stroke-hover)}
 .ai-card small{color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
 .ai-card strong{font-size:25px;margin:8px 0}
 .ai-card>span{color:#9da5ab;font-size:12px;display:inline-flex;align-items:center;gap:6px}
@@ -606,7 +623,7 @@ footer small{margin-left:auto}
 .contact-close{
   position:absolute;top:14px;right:14px;width:36px;height:36px;
   display:grid;place-items:center;padding:0;cursor:pointer;
-  border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.04);
+  border:var(--stroke) solid var(--line);border-radius:10px;background:rgba(255,255,255,.04);
   color:var(--icon-idle);transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
 }
 .contact-close svg{width:17px;height:17px}
@@ -618,7 +635,7 @@ footer small{margin-left:auto}
 .contact-field input,.contact-field textarea{
   font:inherit;font-size:15px;color:var(--text);
   padding:13px 14px;border-radius:10px;
-  border:1px solid var(--line);background:rgba(255,255,255,.035);
+  border:var(--stroke) solid var(--line);background:rgba(255,255,255,.035);
   transition:border-color .18s ease,background .18s ease,box-shadow .18s ease;
 }
 .contact-field textarea{resize:vertical;min-height:120px;line-height:1.55}
@@ -765,7 +782,7 @@ body.modal-open{overflow:hidden}
 .resume-tabs{display:flex;gap:6px}
 .resume-tab{
   min-height:44px;padding:0 18px;cursor:pointer;
-  border:1px solid transparent;border-radius:10px;background:none;
+  border:var(--stroke) solid transparent;border-radius:10px;background:none;
   color:var(--icon-idle);font:inherit;font-size:12px;font-weight:900;letter-spacing:.12em;
   user-select:none;-webkit-user-select:none;
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
@@ -788,7 +805,7 @@ body.modal-open{overflow:hidden}
 .resume-zoom{display:flex;align-items:center;gap:8px}
 .resume-tool{
   width:44px;height:44px;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.04);
+  border:var(--stroke) solid var(--line);border-radius:10px;background:rgba(255,255,255,.04);
   color:var(--icon-idle);user-select:none;-webkit-user-select:none;
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
 }
@@ -925,7 +942,7 @@ body.modal-open{overflow:hidden}
 .work-nav{
   position:absolute;top:50%;translate:0 -50%;z-index:2;
   width:46px;height:46px;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:1px solid var(--line);border-radius:50%;
+  border:var(--stroke) solid var(--line);border-radius:50%;
   background:rgba(8,11,15,.74);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
   color:var(--text);
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease,transform .2s ease,opacity .2s ease;
@@ -969,7 +986,7 @@ body.modal-open{overflow:hidden}
 }
 .work-thumb{
   flex:0 0 auto;width:96px;height:64px;padding:0;cursor:pointer;position:relative;
-  border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#0e1217;
+  border:var(--stroke) solid var(--line);border-radius:9px;overflow:hidden;background:#0e1217;
   transition:border-color var(--accent-ease),transform .18s ease,box-shadow var(--accent-ease);
 }
 .work-thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.55;transition:opacity .18s ease}

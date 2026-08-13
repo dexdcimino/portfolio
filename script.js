@@ -545,7 +545,22 @@ const sidebar = document.getElementById('sidebar');
 // Tab straight after closing must still expand it, and so must moving the mouse
 // onto it. Restoration itself is never skipped — dropping focus to <body> would
 // strand keyboard users at the top of the document.
+// The same restored focus also paints a ring. Closing a modal with Escape (or
+// the X, or the backdrop) leaves the button that opened it wearing the accent
+// outline as though it were still selected — every trigger, every exit path.
+// The focus itself has to stay, so mute the ring instead and let the element
+// earn it back the next time focus genuinely lands on it. Cleared on blur: by
+// then focus has moved on and there is nothing left to mislabel.
+function quietFocus(el) {
+  if (!el || el === document.body || el.classList.contains('focus-quiet')) return;
+  el.classList.add('focus-quiet');
+  el.addEventListener('blur', () => el.classList.remove('focus-quiet'), { once: true });
+}
+
+// Armed before the dialog closes, so neither the rail nor the ring can flash in
+// the frame between the platform restoring focus and our close handler running.
 function suppressFocusExpand(el) {
+  quietFocus(el);
   if (el && sidebar?.contains(el)) sidebar.classList.add('no-focus-expand');
 }
 
@@ -553,6 +568,7 @@ function restoreFocusQuietly(el) {
   if (!el) return;
   const inSidebar = sidebar?.contains(el);
   if (inSidebar) sidebar.classList.add('no-focus-expand');
+  quietFocus(el);                 // also covers openers that never went through closeModal
   el.focus({ preventScroll: true });
   if (!inSidebar) return;
 
@@ -791,6 +807,7 @@ function openResume(trigger) {
     // Never open wider than the viewer: horizontal scroll should be something
     // the reader opts into by zooming, not the state they land in.
     applyZoom(Math.min(defaultZoom(), fitZoom()));
+    quietFocus(resumeScroll);        // same reason as the work stage
     resumeScroll.focus();
   }, trigger);
   // pushState so the back button closes the overlay and /#resume is linkable —
@@ -1143,6 +1160,10 @@ function openWork(catId, index, trigger) {
     selectWorkCategory(catIndex, index);
     // The panel, not a control: it is the thing that just appeared, and it
     // leaves Left/Right free to browse images instead of switching tabs.
+    // Muted, because a ring drawn around the whole stage the instant the
+    // overlay appears marks something the visitor never selected. Tab back to
+    // it later and it rings normally.
+    quietFocus(workPanel);
     workPanel.focus({ preventScroll: true });
   }, trigger);
 }
