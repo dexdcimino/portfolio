@@ -48,6 +48,7 @@ MANIFEST = {
     '[data-icon="instagram"]':   ("--icon", "assets/icons/social/instagram.svg"),
     '[data-icon="linkedin"]':    ("--icon", "assets/icons/social/linkedin.svg"),
     '[data-icon="github"]':      ("--icon", "assets/icons/social/github.svg"),
+    '[data-icon="discord"]':     ("--icon", "assets/icons/social/discord.svg"),
 }
 
 
