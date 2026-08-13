@@ -7,3 +7,6 @@ Thumbs.db
 desktop.ini
 __pycache__/
 *.pyc
+
+# stray output from local headless-browser testing
+*.log

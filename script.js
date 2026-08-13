@@ -5,6 +5,34 @@
    sync and no wrong-color flash between themes.
    ========================================================================== */
 
+/* ---------- refresh starts at the top ------------------------------------ */
+
+// A reload restores the old scroll position by default, so refreshing looks
+// like nothing happened. Two things have to give way for it to land at the top,
+// and both are scoped to reloads only:
+//   1. the browser's own scroll restoration, and
+//   2. the fragment, because the scroll spy mirrors the current section into
+//      the URL — reloading at #work would scroll straight back to #work even
+//      with restoration off.
+// Deliberately NOT touched: a fresh visit to a shared /#work link still lands
+// on that section (type 'navigate'), and back/forward keeps its remembered
+// position (type 'back_forward'), which is what those gestures are for.
+if (performance.getEntriesByType('navigation')[0]?.type === 'reload') {
+  history.scrollRestoration = 'manual';
+  // #resume survives: the overlay reopens from it, and there is no element
+  // with that id to scroll to, so it cannot drag the page back down.
+  if (location.hash && location.hash !== '#resume') {
+    try {
+      history.replaceState(null, '', location.pathname + location.search);
+    } catch { /* file:// throws in some browsers */ }
+  }
+  // 'instant', not 'auto': html has scroll-behavior:smooth, and a refresh
+  // should arrive at the top rather than animate its way there.
+  const toTop = () => window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  toTop();
+  window.addEventListener('load', toTop, { once: true });
+}
+
 const root = document.documentElement;
 const picker = document.getElementById('accentPicker');
 const accentHost = document.getElementById('accentSwatches');
@@ -329,7 +357,17 @@ const sections = ['home', 'work', 'games', 'ai', 'about']
 // copied link matches what the visitor is actually looking at. replaceState, not
 // pushState — pushState would add an entry per section crossed and the back
 // button would walk the page instead of leaving the site.
+// The spy's first run happens at parse time, before the browser has scrolled to
+// whatever fragment the visitor arrived with — so it measured scrollY 0, called
+// this "home" and erased the fragment. That silently broke every shared deep
+// link: /#about landed at the top of the page, and /#resume never opened the
+// overlay, because the check for it further down runs after this and found the
+// hash already gone. Hold the URL until load; by then the fragment scroll has
+// happened and the spy is reporting where the reader actually is.
+let hashSyncReady = false;
+
 function syncHash(id) {
+  if (!hashSyncReady) return;                                   // let the arrival fragment stand
   // The resume overlay pushes #resume, so a cached "last written" value goes
   // stale and the spy then refuses to correct the URL. Compare against the real
   // location instead — same dedup (updateMotion runs every rAF and Safari rate-
@@ -418,6 +456,15 @@ window.addEventListener('resize', () => {
 }, { passive:true });
 
 updateMotion();
+
+// Order matters: re-measure first, so the nav's active state catches up with a
+// fragment scroll that may not have fired a scroll event, and only then hand
+// the URL over to the spy. Flipping the flag first would let this very call
+// overwrite the fragment it is meant to be reading.
+window.addEventListener('load', () => {
+  updateMotion();
+  hashSyncReady = true;
+});
 
 /* ==========================================================================
    CONTACT MODAL
