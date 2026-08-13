@@ -14,16 +14,21 @@ unique within a folder rather than across the whole project:
 
 That is what makes per-project media folders safe to add later.
 
-Workflow: drop a raster file anywhere in the repo, then run
+Workflow: drop a raster file anywhere in the repo, point one <!-- img --> line
+at it, then run
 
-    python tools/bake_images.py
+    python tools/bake_images.py && python tools/bake_markup.py
 
-and reference the results from a <picture> in index.html. The masters stay in
-the markup as the final <img> fallback, never as the served image.
+(or just commit, and the pre-commit hook runs both). The masters stay in the
+markup as the final <img> fallback, never as the served image.
+
+Which widths a master bakes at is decided by the slots it occupies — see
+tools/image_slots.py — not by a table in this file.
 
 Flags:
     (none)           bake anything stale or missing
     --check          report staleness and exit 1; writes nothing
+    --prune          delete derivatives no ladder produces any more
     --install-hooks  copy tools/hooks/pre-commit into .git/hooks/
 
 Encoder settings were validated against the source art at 100% crop. They are
@@ -42,16 +47,20 @@ except ImportError:
     print("ERROR: Pillow is required — python -m pip install 'pillow>=11.3'", file=sys.stderr)
     raise SystemExit(1)
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from bake_markup import used_by                       # noqa: E402
+from image_slots import widths_for                    # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 DERIVED = ROOT / "assets" / "derived"
 
 AVIF_OPTS = {"quality": 58}
 WEBP_OPTS = {"quality": 76, "method": 6}
 
-# Everything raster, anywhere in the repo, gets baked at DEFAULT_WIDTHS. The
-# baker cannot know what slot an image fills, so it makes a standard ladder and
-# lets the browser's `sizes` pick. Extra widths cost disk, not bandwidth — the
-# browser downloads exactly one entry from a srcset.
+# Fallback ladder for a master that no slot in index.html claims — a file
+# dropped in ahead of the markup that will use it, or art referenced only from
+# somewhere this script cannot see. Anything the page does place gets exactly
+# the widths its slot asks for instead; see tools/image_slots.py.
 DEFAULT_WIDTHS = (1600, 1200, 900, 600, 400, 200)
 
 RASTER_EXTS = {".png", ".jpg", ".jpeg"}
@@ -62,16 +71,19 @@ RASTER_EXTS = {".png", ".jpg", ".jpeg"}
 # games/README.md. The rest is self-evident.
 SKIP_DIRS = {"derived", "_resources", "games", ".git", "node_modules", ".vercel"}
 
-# Escape hatch: a folder or exact file that needs a different ladder. Longest
-# matching path wins, so a specific file beats the folder it sits in. Only add
-# an entry when a default width is demonstrably wrong for a slot.
-WIDTH_OVERRIDES = {
-    "assets/about/profile.jpg": (840, 420, 200, 84),   # 84px sidebar avatar
-}
-
 
 def collect() -> list[tuple[Path, tuple[int, ...]]]:
-    """Every raster master in the repo, with the widths it should bake at."""
+    """Every raster master in the repo, with the widths it should bake at.
+
+    The per-file ladder is no longer a table maintained here. It comes from the
+    slots the image actually occupies in index.html (see image_slots.py), so
+    the encode list follows the page. There is nothing to keep in sync: put an
+    image in a slot that wants an 84px avatar and the 84px derivative appears.
+    Masters the markup never names — the six accent mascots the theme picker
+    swaps in at runtime, say — inherit a sibling's ladder, or fall back to the
+    standard one.
+    """
+    used = used_by()
     found: dict[Path, tuple[int, ...]] = {}
 
     for path in sorted(ROOT.rglob("*")):
@@ -80,15 +92,7 @@ def collect() -> list[tuple[Path, tuple[int, ...]]]:
         rel = path.relative_to(ROOT)
         if SKIP_DIRS & set(rel.parts):
             continue
-
-        key = rel.as_posix()
-        # Longest match wins: exact file, else deepest parent folder listed.
-        match = max(
-            (k for k in WIDTH_OVERRIDES if key == k or key.startswith(k.rstrip("/") + "/")),
-            key=len,
-            default=None,
-        )
-        found[path] = WIDTH_OVERRIDES[match] if match else DEFAULT_WIDTHS
+        found[path] = widths_for(rel.as_posix(), used, DEFAULT_WIDTHS)
 
     if not found:
         print("  warning: walk found no raster masters at all", file=sys.stderr)
@@ -146,6 +150,17 @@ def bake(src: Path, widths: tuple[int, ...]) -> tuple[int, int, int]:
         return written, files, skipped
 
 
+def orphans() -> list[Path]:
+    """Derivatives on disk that no master's ladder produces any more.
+
+    Harmless to serve but not to keep: they are invisible dead weight in the
+    repo, and they multiply every time a ladder narrows. `--prune` clears them.
+    """
+    wanted = {out for src, widths in collect() for _w, _e, out in expected(src, widths)}
+    found = {p for p in DERIVED.rglob("*") if p.suffix.lower() in {".avif", ".webp"}}
+    return sorted(found - wanted)
+
+
 def check() -> int:
     """Report missing/stale derivatives without writing anything."""
     stale = []
@@ -155,6 +170,13 @@ def check() -> int:
                 stale.append((out, "missing"))
             elif out.stat().st_mtime <= src.stat().st_mtime:
                 stale.append((out, "older than master"))
+
+    # Orphans do not break the site, so they are a note rather than a failure —
+    # --check's exit code should mean "the page will render", nothing else.
+    extra = orphans()
+    if extra:
+        print(f"bake_images --check: note — {len(extra)} orphaned derivative(s) "
+              f"no ladder produces; clear with: python tools/bake_images.py --prune")
 
     if not stale:
         print("bake_images --check: all derivatives present and current")
@@ -186,9 +208,27 @@ def install_hooks() -> int:
     return 0
 
 
+def prune() -> int:
+    """Delete derivatives no ladder produces any more."""
+    extra = orphans()
+    if not extra:
+        print("bake_images --prune: nothing to remove")
+        return 0
+    freed = sum(p.stat().st_size for p in extra)
+    for p in extra:
+        p.unlink()
+    for d in sorted(DERIVED.rglob("*"), reverse=True):    # tidy up emptied folders
+        if d.is_dir() and not any(d.iterdir()):
+            d.rmdir()
+    print(f"bake_images --prune: removed {len(extra)} orphaned derivative(s), {freed/1024:.0f}K freed")
+    return 0
+
+
 def main() -> int:
     if "--install-hooks" in sys.argv[1:]:
         return install_hooks()
+    if "--prune" in sys.argv[1:]:
+        return prune()
 
     if not features.check("avif"):
         print("ERROR: this Pillow has no AVIF encoder. Upgrade: "

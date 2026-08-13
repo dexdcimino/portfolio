@@ -1,6 +1,7 @@
 #!/bin/sh
-# Bake image derivatives for any raster master in this commit, and stage them
-# alongside it — so the derived files can never lag behind the art.
+# Keep the image pipeline's generated output in step with the commit: bake
+# derivatives for any raster in it, rewrite the <picture> markup that points at
+# them, and stage both alongside.
 #
 # Lives here (versioned, reviewable) rather than in .git/hooks, which git does
 # not track. Install with:
@@ -15,27 +16,54 @@ set -e
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
 # Discovery is repo-wide now, so the trigger cannot be scoped to assets/: any
-# raster anywhere counts, except the folders the baker itself skips. No match
-# means this hook is a no-op and must stay completely silent (a CSS-only commit
-# should not notice it exists).
-if ! printf '%s\n' "$staged" \
-     | grep -Eiv '(^|/)(derived|_resources|node_modules|\.vercel)/' \
-     | grep -Eiq '\.(png|jpe?g)$'; then
+# raster anywhere counts, except the folders the baker itself skips. The markup
+# generator also has to run when the page or the slot table changes, since both
+# decide what the generated blocks say. No match means this hook is a no-op and
+# must stay completely silent (a CSS-only commit should not notice it exists).
+rasters=$(printf '%s\n' "$staged" \
+          | grep -Eiv '(^|/)(derived|_resources|node_modules|\.vercel)/' \
+          | grep -Ei '\.(png|jpe?g)$' || true)
+markup=$(printf '%s\n' "$staged" \
+         | grep -E '^(index\.html|tools/image_slots\.py|tools/bake_markup\.py)$' || true)
+
+if [ -z "$rasters" ] && [ -z "$markup" ]; then
     exit 0
 fi
 
 PY=python
 command -v python >/dev/null 2>&1 || PY=python3
 
-if ! out=$($PY tools/bake_images.py 2>&1); then
-    printf 'pre-commit: image bake FAILED, commit blocked\n' >&2
+if [ -n "$rasters" ]; then
+    if ! out=$($PY tools/bake_images.py 2>&1); then
+        printf 'pre-commit: image bake FAILED, commit blocked\n' >&2
+        printf '%s\n' "$out" >&2
+        exit 1
+    fi
+    git add assets/derived/
+    # Pull the count straight out of the bake summary rather than recounting.
+    written=$(printf '%s\n' "$out" | sed -n 's/.*[[:space:]]\([0-9][0-9]*\) written.*/\1/p' | tail -1)
+    [ -n "$written" ] || written=0
+    printf 'pre-commit: baked images — %s derivative(s) written, assets/derived/ staged\n' "$written"
+fi
+
+# Markup is generated from the masters, so it has to be rewritten whenever
+# either side moved. Note this stages index.html whole — if you deliberately
+# staged only part of it, commit the image change separately.
+if ! out=$($PY tools/bake_markup.py 2>&1); then
+    printf 'pre-commit: markup bake FAILED, commit blocked\n' >&2
     printf '%s\n' "$out" >&2
     exit 1
 fi
+if ! printf '%s\n' "$out" | grep -q 'already current'; then
+    git add index.html
+    printf 'pre-commit: %s\n' "$out"
+fi
 
-git add assets/derived/
-
-# Pull the count straight out of the bake summary rather than recounting.
-written=$(printf '%s\n' "$out" | sed -n 's/.*[[:space:]]\([0-9][0-9]*\) written.*/\1/p' | tail -1)
-[ -n "$written" ] || written=0
-printf 'pre-commit: baked images — %s derivative(s) written, assets/derived/ staged\n' "$written"
+# Belt and braces: the bakes above make this pass by construction, so a failure
+# here means something the generators cannot fix by themselves — a master that
+# does not exist, or a slot name nothing defines.
+if ! out=$($PY tools/bake_markup.py --check 2>&1); then
+    printf 'pre-commit: image markup check FAILED, commit blocked\n' >&2
+    printf '%s\n' "$out" >&2
+    exit 1
+fi
