@@ -225,6 +225,14 @@ img{max-width:100%}
 .nav-trail{width:15px;height:15px;margin-left:auto;opacity:0;transform:translateX(-6px)}
 .nav-text{opacity:0;transform:translateX(-8px);transition:opacity .2s ease,transform .2s ease;text-transform:uppercase;letter-spacing:.06em;font-weight:750;font-size:14px;color:#c3cad0}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .nav-text{opacity:1;transform:none}
+/* Expanded only: the label slides a few px right under the pointer, and under
+   keyboard focus so it is not a mouse-only flourish. The icon stays put — it
+   already has its own 1.06 scale, and moving both would read as the whole row
+   drifting rather than the word leaning into the cursor.
+   The selector has to outrank the rule above (0,4,0) or `transform:none` wins,
+   which is why the states are spelled out as :is() pairs. */
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
+  :is(.nav-link,.resume-mini,.contact-mini):is(:hover,:focus-visible) .nav-text{transform:translateX(5px)}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .nav-trail{opacity:.75;transform:none}
 
 .nav-link:hover,.nav-link.active,
@@ -554,6 +562,9 @@ button.button{cursor:pointer;font:inherit}
    LOWER SECTIONS
    ========================================================================== */
 .eyebrow{color:var(--accent);font-size:15px;font-weight:900;letter-spacing:.2em;margin:0 0 12px;text-transform:uppercase;transition:color var(--accent-ease)}
+/* Accent tail on a section heading — the payoff word takes the theme colour.
+   Inline, so it wraps with the rest of the line rather than forcing a break. */
+.title-accent{color:var(--accent);transition:color var(--accent-ease)}
 .section-head h2,.statement h2,.about h2,.resume-strip h2{font-size:clamp(32px,4vw,64px);line-height:.95;margin:0;letter-spacing:-.045em}
 .split-section{padding:110px var(--gutter);display:grid;grid-template-columns:.72fr 1.28fr;gap:clamp(40px,8vw,130px);background:rgba(14,17,20,.91);border-top:1px solid var(--line)}
 .split-section.alt{background:rgba(8,10,12,.96)}
