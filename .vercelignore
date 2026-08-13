@@ -14,3 +14,10 @@ games/*/build.mjs
 games/*/package.json
 games/*/_reference/
 games/*/BUILD.md
+games/*/CLAUDE.md
+games/*/README.md
+# The Photon SDK is dev-side too: the built game resolves it relative to
+# itself (games/<name>/v1/public/...), so this copy was never the one a
+# shipped build would load. If multiplayer is ever switched on, build.mjs
+# has to place it inside the version folder — not un-ignore it here.
+games/*/public/
