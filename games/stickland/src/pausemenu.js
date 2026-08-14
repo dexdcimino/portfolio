@@ -51,7 +51,7 @@ const SITE_ACCENT_KEY = 'dex-accent-name';
 // everything else is a hardcoded comparison and shows as fixed.
 const CONTROL_GROUPS = [
   { title: 'Move',  rows: [ { keys: ['W','A','S','D'] }, { keys: ['\u2190','\u2191','\u2193','\u2192'] } ] },
-  { title: 'Jump',  rows: [ { keys: ['Space'], note: 'tap, hold to charge, again mid-air' } ] },
+  { title: 'Jump', inline: true, rows: [ { keys: ['Space'], note: 'tap, hold to charge, again mid-air' } ] },
   // Inline: the title is the label and the cap sits beside it, so Sprint lines
   // up under Move and Crouch under Jump.
   { title: 'Sprint', inline: true, rows: [ { keys: ['Shift'] } ] },
@@ -125,7 +125,10 @@ function _applyFx() {
 export function initPauseMenu(hooks) {
   _hooks = Object.assign(_hooks, hooks || {});
   const saved = _normalizeHex(safeStorage.getItem(ACCENT_LS_KEY));
-  if (saved) _applyAccent(saved, false);
+  // Fall back to the site's default rather than the old built-in green: the
+  // picker only offers the site's seven, so a stock accent outside that set
+  // would leave every swatch looking unselected on a first visit.
+  _applyAccent(saved || SITE_ACCENTS[2].hex, false);
   window._dexShakeScale = _fxSettings.shake;
   window._dexBloodEnabled = _fxSettings.blood;
 }
@@ -315,20 +318,20 @@ function _renderGeneral(root) {
 
   const cur = _currentAccent().toLowerCase();
   const row = document.createElement('div');
-  row.className = 'pmenu-hexrow';
-  const HEX_D = 'M13,0.6 L25.4,7.8 L25.4,22.2 L13,29.4 L0.6,22.2 L0.6,7.8 Z';
+  row.className = 'pmenu-swatches';
   for (const a of SITE_ACCENTS) {
     const cell = document.createElement('button');
     cell.type = 'button';
-    cell.className = 'pmenu-hexwrap' + (a.hex.toLowerCase() === cur ? ' active' : '');
+    const on = a.hex.toLowerCase() === cur;
+    cell.className = 'pmenu-swatch' + (on ? ' active' : '');
+    cell.style.setProperty('--c', a.hex);
+    // The rim contrasts with its own swatch, or white-on-white and
+    // black-on-black leave the selected one looking unselected.
+    cell.style.setProperty('--rim', _knobFor(a.hex));
     cell.setAttribute('aria-label', a.name);
+    cell.setAttribute('aria-pressed', String(on));
     cell.dataset.tip = a.name;
-    // Two stacked hexagons: the fill, and a ring scaled inside it. Selecting
-    // thickens the ring and grows the swatch, matching the site's picker —
-    // no washed-out plate behind the colour.
-    cell.innerHTML = '<svg class="pmenu-hexsvg" viewBox="0 0 26 30" aria-hidden="true">'
-      + '<path class="pmenu-hexfill" d="' + HEX_D + '" fill="' + a.hex + '"/>'
-      + '<path class="pmenu-hexring" d="' + HEX_D + '"/></svg>';
+    cell.innerHTML = '<i></i>';
     cell.addEventListener('click', () => {
       _applyAccent(a.hex, true);
       // Carry the choice back to the portfolio. Same-origin, so this writes the
@@ -447,7 +450,7 @@ function _finishRebind(e) {
 /* DexNote's channel row: pill toggle on the left, label, slider, then the
    percentage hard right. The toggle mutes the channel by parking its level at
    zero and restoring the previous one, so it needs no extra persisted state. */
-function _channel(label, get, set, isOn, setOn) {
+function _channel(label, get, set, isOn, setOn, sync) {
   const row = document.createElement('div');
   row.className = 'pmenu-chan';
   let last = get() > 0 ? get() : 0.6;
@@ -464,12 +467,15 @@ function _channel(label, get, set, isOn, setOn) {
     input.value = String(Math.round(v * 100));
     val.textContent = Math.round(v * 100) + '%';
     input.style.setProperty('--fill', Math.round(v * 100) + '%');
+    const on = isOn();
+    sw.classList.toggle('on', on);
+    sw.setAttribute('aria-checked', String(on));
   };
 
   const sw = _toggle(isOn(), on => {
-    if (on) { setOn(true); set(last || 0.6); }
-    else { last = get() || last; setOn(false); set(0); }
-    paint();
+    if (!on) last = get() || last;
+    setOn(on);
+    if (sync) sync(); else paint();
   });
 
   const lab = document.createElement('span');
@@ -479,10 +485,9 @@ function _channel(label, get, set, isOn, setOn) {
   // 'input', not 'change' — applies live while dragging; you tune by ear.
   input.addEventListener('input', () => {
     const v = input.value / 100;
-    if (v > 0) { last = v; if (!isOn()) setOn(true); sw.classList.add('on'); sw.setAttribute('aria-checked', 'true'); }
-    else { sw.classList.remove('on'); sw.setAttribute('aria-checked', 'false'); }
+    if (v > 0) last = v;
     set(v);
-    paint();
+    if (sync) sync(); else paint();
   });
 
   // Centre tick sits over the track's midpoint, matching the DexNote slider.
@@ -498,22 +503,74 @@ function _channel(label, get, set, isOn, setOn) {
   row.appendChild(wrap);
   row.appendChild(val);
   paint();
-  return row;
+  return { el: row, paint };
 }
 
 function _renderAudio(root) {
   const wrap = document.createElement('div');
   wrap.className = 'pmenu-audio';
-  wrap.appendChild(_channel('Master', getVolume, setVolume,
-    () => !isMuted() && getVolume() > 0, on => setMuted(!on)));
+
+  /* The three channels are ganged the way a mixer behaves: master is the sum,
+     so silencing it silences the children, and bringing any child back up has
+     to bring the master with it or the child would still be inaudible.
+     `sync` is handed to each row so a change in one repaints the others
+     without a full re-render (which would drop the slider mid-drag). */
+  const rows = [];
+  const sync = () => rows.forEach(r => r.paint());
+
+  // Silencing the children lives in one helper so the switch and the slider
+  // cannot drift apart — dragging master to zero has to behave like muting it.
+  const silenceChildren = () => { setBusVolume('amb', 0); setBusVolume('sfx', 0); setBusVolume('ui', 0); };
+  const restoreChildren = () => {
+    if (getBusVolume('amb') === 0 && getBusVolume('sfx') === 0) {
+      setBusVolume('amb', 0.6); setBusVolume('sfx', 0.6); setBusVolume('ui', 0.6);
+    }
+  };
+
+  const master = _channel('Master',
+    getVolume,
+    (v) => {
+      setVolume(v);
+      if (v === 0) { setMuted(true); silenceChildren(); }
+      else { if (isMuted()) setMuted(false); restoreChildren(); }
+    },
+    () => !isMuted() && getVolume() > 0,
+    (on) => {
+      setMuted(!on);
+      if (!on) silenceChildren();
+      else { if (getVolume() === 0) setVolume(0.8); restoreChildren(); }
+    }, sync);
+
+  const child = (label, bus, extra) => _channel(label,
+    () => getBusVolume(bus),
+    (v) => {
+      setBusVolume(bus, v);
+      if (extra) setBusVolume(extra, v);
+      // Any child coming off zero un-mutes the master, or it stays silent.
+      if (v > 0 && (isMuted() || getVolume() === 0)) {
+        setMuted(false);
+        if (getVolume() === 0) setVolume(0.8);
+      }
+    },
+    () => getBusVolume(bus) > 0,
+    (on) => {
+      const v = on ? 0.6 : 0;
+      setBusVolume(bus, v);
+      if (extra) setBusVolume(extra, v);
+      if (on && (isMuted() || getVolume() === 0)) {
+        setMuted(false);
+        if (getVolume() === 0) setVolume(0.8);
+      }
+      // Both children off is the same as muting the sum.
+      if (!on && getBusVolume('amb') === 0 && getBusVolume('sfx') === 0) setMuted(true);
+    }, sync);
+
   // Music rides the ambience bus — the game's only continuous background
   // channel. FX drives sfx and ui together so retiring the Interface slider
   // does not leave UI sound with no control at all.
-  wrap.appendChild(_channel('Music', () => getBusVolume('amb'), v => setBusVolume('amb', v),
-    () => getBusVolume('amb') > 0, () => {}));
-  wrap.appendChild(_channel('FX', () => getBusVolume('sfx'),
-    v => { setBusVolume('sfx', v); setBusVolume('ui', v); },
-    () => getBusVolume('sfx') > 0, () => {}));
+  rows.push(master, child('Music', 'amb', null), child('FX', 'sfx', 'ui'));
+  rows.forEach(r => wrap.appendChild(r.el));
+  sync();
   root.appendChild(wrap);
 }
 

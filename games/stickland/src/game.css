@@ -572,8 +572,8 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
   display:inline-flex; align-items:center; justify-content:center;
   min-width:24px; height:22px; padding:0 7px;
   font-size:11px; font-weight:600; letter-spacing:.02em;
-  color:var(--tx2); background:var(--bg3);
-  border:1px solid var(--bdr); border-radius:6px;
+  color:var(--tx); background:var(--bg3);
+  border:2px solid var(--bdr2, #3a4450); border-radius:6px;
   white-space:nowrap;
 }
 .pmenu-key-bind{
@@ -634,38 +634,7 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
   background:var(--bg4);
   box-shadow:inset 0 0 0 1.5px var(--clr-adj, var(--accent));
   color:var(--tx);
-}
-
-/* Theme tab — hexagon swatches */
-.pmenu-hexrow{
-  display:flex; gap:8px; flex-wrap:wrap;
-  padding:8px 4px 12px; justify-content:center;
-}
-.pmenu-hexwrap{
-  width:44px; height:40px; padding:0; border:none; background:transparent;
-  clip-path:polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%);
-  cursor:pointer; position:relative;
-  transition:transform .12s ease;
-}
-.pmenu-hexwrap:hover{transform:scale(1.1);}
-.pmenu-hexwrap.active{background:var(--tx);}
-.pmenu-hex{
-  position:absolute; inset:2.5px;
-  clip-path:polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%);
-  display:block;
-}
-.pmenu-hexinput-row{gap:6px;}
-.pmenu-hexhash{color:var(--tx3); font-size:14px; font-weight:600; padding-left:4px;}
-.pmenu-hexinput{
-  flex:1; min-width:0; padding:7px 10px;
-  font-family:var(--fn); font-size:13px; letter-spacing:.06em;
-  color:var(--tx); background:var(--bg3);
-  border:1px solid var(--bdr); border-radius:8px; outline:none;
-  transition:border-color var(--ease), box-shadow var(--ease);
-}
-.pmenu-hexinput:focus{border-color:var(--clr-adj, var(--accent));}
-.pmenu-hexinput.invalid{animation:pmenu-shake .3s ease;}
-@keyframes pmenu-shake{
+}@keyframes pmenu-shake{
   0%,100%{transform:translateX(0);}
   25%{transform:translateX(-4px);}
   75%{transform:translateX(4px);}
@@ -689,9 +658,7 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
   background:var(--clr-adj, var(--accent)); color:var(--bg);
   border-color:transparent;
 }
-.pmenu-btn-accent:hover{background:var(--clr-adj, var(--accent)); color:var(--bg); opacity:.88;}
-.pmenu-hexapply{flex:0 0 auto; padding:7px 14px;}
-.pmenu-hint{
+.pmenu-btn-accent:hover{background:var(--clr-adj, var(--accent)); color:var(--bg); opacity:.88;}.pmenu-hint{
   margin-top:8px; text-align:center;
   font-size:10.5px; color:var(--tx3);
 }
@@ -729,7 +696,7 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 .pmenu-scroll::-webkit-scrollbar-thumb{background:var(--bg4); border-radius:4px;}
 
 .pmenu-sec{
-  border:1px solid transparent; border-radius:12px;
+  border:2px solid transparent; border-radius:12px;
   background:var(--bg3);
   transition:border-color var(--ease), background var(--ease);
 }
@@ -795,26 +762,7 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 .pmenu-chan .pmenu-range-val{
   flex:0 0 34px; text-align:right; font-size:12px; color:var(--tx2);
   font-variant-numeric:tabular-nums;
-}
-
-/* Smaller hexagons than before, and only the site's seven. */
-.pmenu-hexrow{display:flex; flex-wrap:wrap; gap:8px; padding:2px 0;}
-.pmenu-hexwrap{
-  width:26px; height:30px; padding:0; border:0; background:none; cursor:pointer;
-  display:grid; place-items:center; position:relative;
-}
-.pmenu-hex{
-  width:22px; height:25px; display:block;
-  clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  transition:transform .16s ease;
-}
-.pmenu-hexwrap:hover .pmenu-hex{transform:scale(1.12);}
-.pmenu-hexwrap.active::after{
-  content:""; position:absolute; inset:-3px;
-  border:2px solid var(--clr-adj, var(--accent)); border-radius:7px;
-}
-
-/* Controls: two-column card of labelled key-cap clusters. */
+}/* Controls: two-column card of labelled key-cap clusters. */
 .pmenu-ctlcard{
   display:grid; grid-template-columns:1fr 1fr; gap:14px 16px;
   padding:12px; border:1px solid var(--bdr); border-radius:10px;
@@ -839,31 +787,47 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 .pmenu-trackwrap .pmenu-tick{left:50%; transform:translateX(-50%);}
 
 /* Resume is the primary action, so it carries the weight. */
-.pmenu-footer .pmenu-btn-accent{font-weight:800;}
-
-/* Swatch: hexagon plus a ring scaled inside it. Selected thickens the ring and
-   grows the cell — the site's treatment, with no plate behind the colour. */
-.pmenu-hexrow{gap:10px;}
-.pmenu-hexwrap{
-  width:30px; height:34px;
-  transition:transform .16s cubic-bezier(.22,.61,.36,1);
-}
-.pmenu-hexsvg{width:100%; height:100%; display:block; overflow:visible;}
-.pmenu-hexring{
-  fill:none; stroke:var(--bg3); stroke-width:0;
-  transform:scale(.7); transform-origin:50% 50%;
-  transition:stroke-width .16s ease;
-}
-.pmenu-hexwrap:hover{transform:scale(1.12);}
-.pmenu-hexwrap.active{transform:scale(1.18);}
-.pmenu-hexwrap.active .pmenu-hexring{stroke-width:5;}
-.pmenu-hexwrap:focus-visible{outline:2px solid var(--tx); outline-offset:2px; border-radius:6px;}
-
-/* Knob colour follows the track's luminance so it is never light-on-light
+.pmenu-footer .pmenu-btn-accent{font-weight:800;}/* Knob colour follows the track's luminance so it is never light-on-light
    (lime, yellow, white) or dark-on-dark. Set from _applyAccent. */
 .pmenu-sw.on .pmenu-sw-knob{background:var(--sw-knob, #e8ecef);}
 
 /* Inline control groups — bold label left, cap right, on one line. */
-.pmenu-ctlgrp.inline{display:flex; align-items:center; gap:10px;}
+/* Title and cap share row one; any note spans row two. display:contents lifts
+   the line's children into this grid so the note can drop below without
+   dragging the cap down with it. */
+.pmenu-ctlgrp.inline{
+  display:grid; grid-template-columns:auto auto; justify-content:start;
+  align-items:center; column-gap:9px; row-gap:3px;
+}
 .pmenu-ctlgrp.inline .pmenu-ctltitle{margin-bottom:0;}
-.pmenu-ctlgrp.inline .pmenu-ctlline{margin-bottom:0; margin-left:auto;}
+.pmenu-ctlgrp.inline .pmenu-ctlline{display:contents;}
+.pmenu-ctlgrp.inline .pmenu-ctlnote{grid-column:1 / -1; margin-left:0;}
+
+/* Jump's note drops under the inline row rather than trailing off the line. */
+
+/* Accent swatches — one hexagon per accent, flat colour, uniform size. The
+   selected one sits on a slightly larger hexagon in the panel's text colour,
+   so it reads as a crisp rim around the shape. No plate behind it, nothing
+   painted over the top of it. */
+.pmenu-swatches{display:flex; flex-wrap:wrap; gap:11px; padding:4px 0 2px;}
+.pmenu-swatch{
+  position:relative; width:30px; height:34px; padding:0;
+  border:0; background:none; cursor:pointer;
+  display:grid; place-items:center;
+}
+.pmenu-swatch i{
+  position:relative; z-index:1;
+  width:26px; height:30px; display:block; background:var(--c);
+  clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  transition:transform .16s cubic-bezier(.22,.61,.36,1);
+}
+.pmenu-swatch::before{
+  content:""; position:absolute; width:30px; height:34px;
+  background:var(--rim, var(--tx));
+  clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  opacity:0; transform:scale(.86);
+  transition:opacity .16s ease, transform .16s cubic-bezier(.22,.61,.36,1);
+}
+.pmenu-swatch:hover i{transform:scale(1.1);}
+.pmenu-swatch.active::before{opacity:1; transform:scale(1);}
+.pmenu-swatch:focus-visible{outline:2px solid var(--tx); outline-offset:2px; border-radius:6px;}
