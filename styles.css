@@ -708,6 +708,35 @@ button.button{cursor:pointer;font:inherit}
   .tk-tab,.pk-tab{padding:11px 13px;font-size:13px}
 }
 
+/* --- toolkit tab row + hover description --------------------------------- */
+/* The description shares the tab row: tabs left, description hard right. The
+   border and the bottom margin move up to the wrapper so the description sits
+   on the line rather than under it. */
+.tk-tabrow{
+  display:flex;align-items:flex-end;gap:24px;
+  margin-bottom:26px;border-bottom:1px solid var(--line);
+}
+.tk-tabrow .tk-tabs{margin-bottom:0;border-bottom:0;flex:none}
+/* Right-aligned and single-line. Tabs are laid out first and the description
+   takes the remaining space, so its text changing length moves nothing — and
+   nowrap plus ellipsis means a long line can never wrap the row taller. */
+.tk-desc{
+  margin:0 0 0 auto;padding:0 2px 12px;
+  flex:1 1 auto;min-width:0;text-align:right;
+  font-size:13.5px;line-height:1.3;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  opacity:0;transition:opacity .16s ease;
+}
+.tk-desc.is-on{opacity:1}
+/* Touch has no hover, so the row could never populate — take the space back
+   rather than leaving a permanently empty column. */
+@media(hover:none){ .tk-desc{display:none} }
+@media(max-width:860px){ .tk-desc{display:none} .tk-tabrow{gap:0} }
+
+/* Tiles are focusable now, so give them a visible focus ring. */
+.tk-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+.tk-item:focus{outline:none}
+
 /* --- toolkit grid -------------------------------------------------------- */
 /* A fixed eight-column track, not auto-fill. The Software tab is two lists
    stacked — 3D above, Adobe + engines below — and they only read as one grid if

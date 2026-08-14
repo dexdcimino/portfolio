@@ -1489,3 +1489,39 @@ const LOOP_MODES = ['off', 'all', 'one'];
   applyVolume(start, false);
   paint();
 })();
+
+
+/* --- toolkit hover descriptions ------------------------------------------- */
+/* Fills the right-hand slot of the tab row with the hovered or focused tile's
+   description, and clears it when nothing is targeted. Screen readers do not
+   depend on this: each tile carries the same sentence as sr-only text, so the
+   visual row is aria-hidden and purely an echo. */
+(function initToolkitDescriptions() {
+  const row = document.querySelector('.tk-tabrow');
+  const out = document.getElementById('tkDesc');
+  if (!row || !out) return;
+
+  const show = text => {
+    out.textContent = text || '';
+    out.classList.toggle('is-on', !!text);
+  };
+  const from = el => {
+    const tile = el && el.closest ? el.closest('.tk-item') : null;
+    return tile ? tile.dataset.desc : null;
+  };
+
+  const panels = out.closest('section') || document;
+  // Delegated, so tiles added later (the tabs Dex has not written copy for yet)
+  // need no extra wiring.
+  panels.addEventListener('pointerover', e => { const d = from(e.target); if (d) show(d); });
+  panels.addEventListener('pointerout', e => {
+    if (!e.relatedTarget || !from(e.relatedTarget)) show(null);
+  });
+  // Keyboard parity: focus drives the same slot as hover.
+  panels.addEventListener('focusin', e => show(from(e.target)));
+  panels.addEventListener('focusout', e => {
+    if (!e.relatedTarget || !from(e.relatedTarget)) show(null);
+  });
+  // Switching tab wipes whatever the last tab left behind.
+  document.querySelectorAll('.tk-tab').forEach(t => t.addEventListener('click', () => show(null)));
+})();

@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=114" />
+  <link rel="stylesheet" href="styles.css?v=115" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -411,63 +411,69 @@
       <div class="section-head reveal">
         <h2 class="featured-title" id="toolkit-title"><span class="icon featured-mark" data-icon="tick" aria-hidden="true"></span><span>TOOLKIT</span></h2>
       </div>
+      <div class="tk-tabrow">
       <div class="tk-tabs" role="tablist" aria-label="Toolkit categories">
         <button class="tk-tab" type="button" role="tab" id="tk-tab-software" aria-controls="tk-panel-software" aria-selected="true" tabindex="0">Software</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-devstack" aria-controls="tk-panel-devstack" aria-selected="false" tabindex="-1">Dev Stack</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-collab" aria-controls="tk-panel-collab" aria-selected="false" tabindex="-1">Collaboration</button>
       </div>
+      <!-- Visual echo of the hovered/focused tile. aria-hidden because each
+           tile already carries the same sentence as sr-only text, so exposing
+           this too would announce every description twice. -->
+      <p class="tk-desc" id="tkDesc" aria-hidden="true"></p>
+      </div>
       <div class="tk-panel" id="tk-panel-software" role="tabpanel" aria-labelledby="tk-tab-software">
         <ul class="tk-list tk-list-gauged" aria-label="3D">
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/maya.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
                 <span class="tk-name">Maya</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/zbrush.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
                 <span class="tk-name">ZBrush</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/substance.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">Substance Painter</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/3d-coat.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">3D Coat</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/blender.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">Blender</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/blockbench.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">Blockbench</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/spline.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">Spline</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/marmoset.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
@@ -476,56 +482,56 @@
             </li>
         </ul>
         <ul class="tk-list tk-list-gauged" aria-label="Adobe and game engines">
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/photoshop.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
                 <span class="tk-name">Photoshop</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/illustrator.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">Illustrator</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/animate.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">Animate</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/after-effects.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">After Effects</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/unreal.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">Unreal</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/unity.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">Unity</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/godot.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
                 <span class="tk-name">Godot</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/roblox.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
@@ -536,83 +542,91 @@
       </div>
       <div class="tk-panel" id="tk-panel-devstack" role="tabpanel" aria-labelledby="tk-tab-devstack" hidden>
         <ul class="tk-list">
-            <li class="tk-item">
-              <img class="tk-icon" src="assets/icons/software/babylonjs.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">babylon.js</span>
-              </span>
-            </li>
-            <li class="tk-item">
-              <img class="tk-icon" src="assets/icons/software/firebase.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Firebase</span>
-              </span>
-            </li>
-            <li class="tk-item">
-              <img class="tk-icon" src="assets/icons/software/photon.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Photon</span>
-              </span>
-            </li>
-            <li class="tk-item">
-              <img class="tk-icon" src="assets/icons/software/edgegap.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Edgegap</span>
-              </span>
-            </li>
-            <li class="tk-item">
-              <img class="tk-icon" src="assets/icons/software/vercel.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Vercel</span>
-              </span>
-            </li>
-            <li class="tk-item">
-              <img class="tk-icon" src="assets/icons/software/flyio.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">fly.io</span>
-              </span>
-            </li>
-            <li class="tk-item">
-              <img class="tk-icon" src="assets/icons/software/claude-code.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Claude Code</span>
-              </span>
-            </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0" data-desc="Where the code gets written">
               <img class="tk-icon" src="assets/icons/software/vscode.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-name">VS Code</span>
               </span>
+              <span class="sr-only">Where the code gets written</span>
+            </li>
+            <li class="tk-item" tabindex="0" data-desc="AI agent that writes and ships code">
+              <img class="tk-icon" src="assets/icons/software/claude-code.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Claude Code</span>
+              </span>
+              <span class="sr-only">AI agent that writes and ships code</span>
+            </li>
+            <li class="tk-item" tabindex="0" data-desc="3D engine that runs games in-browser">
+              <img class="tk-icon" src="assets/icons/software/babylonjs.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">babylon.js</span>
+              </span>
+              <span class="sr-only">3D engine that runs games in-browser</span>
+            </li>
+            <li class="tk-item" tabindex="0" data-desc="Stores accounts, saves, and everything users create">
+              <img class="tk-icon" src="assets/icons/software/firebase.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Firebase</span>
+              </span>
+              <span class="sr-only">Stores accounts, saves, and everything users create</span>
+            </li>
+            <li class="tk-item" tabindex="0" data-desc="Puts the website online">
+              <img class="tk-icon" src="assets/icons/software/vercel.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Vercel</span>
+              </span>
+              <span class="sr-only">Puts the website online</span>
+            </li>
+            <li class="tk-item" tabindex="0" data-desc="Lets players see and interact with each other live">
+              <img class="tk-icon" src="assets/icons/software/photon.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Photon</span>
+              </span>
+              <span class="sr-only">Lets players see and interact with each other live</span>
+            </li>
+            <li class="tk-item" tabindex="0" data-desc="Runs the always-on servers behind the apps">
+              <img class="tk-icon" src="assets/icons/software/flyio.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">fly.io</span>
+              </span>
+              <span class="sr-only">Runs the always-on servers behind the apps</span>
+            </li>
+            <li class="tk-item" tabindex="0" data-desc="Runs game servers close to players so there's no lag">
+              <img class="tk-icon" src="assets/icons/software/edgegap.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Edgegap</span>
+              </span>
+              <span class="sr-only">Runs game servers close to players so there's no lag</span>
             </li>
         </ul>
       </div>
       <div class="tk-panel" id="tk-panel-collab" role="tabpanel" aria-labelledby="tk-tab-collab" hidden>
         <ul class="tk-list">
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/figma.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-name">Figma</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/discord.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-name">Discord</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/github.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-name">GitHub</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/clickup.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-name">ClickUp</span>
               </span>
             </li>
-            <li class="tk-item">
+            <li class="tk-item" tabindex="0">
               <img class="tk-icon" src="assets/icons/software/slack.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
                 <span class="tk-name">Slack</span>
@@ -1237,6 +1251,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=114"></script>
+  <script src="script.js?v=115"></script>
 </body>
 </html>
