@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=109" />
+  <link rel="stylesheet" href="styles.css?v=110" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -384,14 +384,12 @@
         <h2 class="featured-title" id="toolkit-title"><span class="icon featured-mark" data-icon="tick" aria-hidden="true"></span><span>TOOLKIT</span></h2>
       </div>
       <div class="tk-tabs" role="tablist" aria-label="Toolkit categories">
-        <button class="tk-tab" type="button" role="tab" id="tk-tab-3d" aria-controls="tk-panel-3d" aria-selected="true" tabindex="0">3D</button>
-        <button class="tk-tab" type="button" role="tab" id="tk-tab-adobe" aria-controls="tk-panel-adobe" aria-selected="false" tabindex="-1">Adobe</button>
-        <button class="tk-tab" type="button" role="tab" id="tk-tab-engines" aria-controls="tk-panel-engines" aria-selected="false" tabindex="-1">Engines</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-software" aria-controls="tk-panel-software" aria-selected="true" tabindex="0">Software</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-devstack" aria-controls="tk-panel-devstack" aria-selected="false" tabindex="-1">Dev Stack</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-collab" aria-controls="tk-panel-collab" aria-selected="false" tabindex="-1">Collaboration</button>
       </div>
-      <div class="tk-panel" id="tk-panel-3d" role="tabpanel" aria-labelledby="tk-tab-3d">
-        <ul class="tk-list tk-list-gauged">
+      <div class="tk-panel" id="tk-panel-software" role="tabpanel" aria-labelledby="tk-tab-software">
+        <ul class="tk-list tk-list-gauged" aria-label="3D">
             <li class="tk-item">
               <img class="tk-icon" src="assets/icons/software/maya.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
@@ -449,9 +447,7 @@
               </span>
             </li>
         </ul>
-      </div>
-      <div class="tk-panel" id="tk-panel-adobe" role="tabpanel" aria-labelledby="tk-tab-adobe" hidden>
-        <ul class="tk-list tk-list-gauged">
+        <ul class="tk-list tk-list-gauged" aria-label="Adobe and game engines">
             <li class="tk-item">
               <img class="tk-icon" src="assets/icons/software/photoshop.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
@@ -480,10 +476,6 @@
                 <span class="tk-name">After Effects</span>
               </span>
             </li>
-        </ul>
-      </div>
-      <div class="tk-panel" id="tk-panel-engines" role="tabpanel" aria-labelledby="tk-tab-engines" hidden>
-        <ul class="tk-list tk-list-gauged">
             <li class="tk-item">
               <img class="tk-icon" src="assets/icons/software/unreal.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
               <span class="tk-meta">
@@ -1131,6 +1123,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=109"></script>
+  <script src="script.js?v=110"></script>
 </body>
 </html>

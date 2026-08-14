@@ -600,17 +600,26 @@ button.button{cursor:pointer;font:inherit}
 }
 
 /* --- toolkit grid -------------------------------------------------------- */
+/* A fixed eight-column track, not auto-fill. The Software tab is two lists
+   stacked — 3D above, Adobe + engines below — and they only read as one grid if
+   both resolve to the same columns. auto-fill derives its count from the
+   available width, so a four-item row would spread to four fat tracks and stop
+   lining up with the eight above it. */
 .tk-list{
   list-style:none;margin:0;padding:0;
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:26px 12px;
+  display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:26px 12px;
 }
+/* Gap between the Software tab's two rows. Scoped to :not([hidden]) because a
+   bare display:grid outranks the hidden attribute's UA display:none and would
+   show every panel at once. */
+.tk-panel:not([hidden]){display:grid;gap:30px}
 /* No card: the logo sits straight on the About ground. The tile is two rows —
    the icon, and one shared slot below it that holds EITHER the gauge or the
    name, never both. Stacking them in a single grid cell is what removes the
    old two-line reservation problem: there is only one box to size, so a
    two-word name cannot push its own gauge out of line with its neighbours'. */
 .tk-item{
-  display:grid;justify-items:center;align-content:start;gap:12px;
+  display:grid;justify-items:center;align-content:start;gap:26px;
   padding:4px 6px;
 }
 
@@ -619,8 +628,12 @@ button.button{cursor:pointer;font:inherit}
    blue square and Unreal into a black circle. The trade is that these do not
    retint with the accent, which is correct: a third-party mark should not wear
    someone else's brand colour. */
+/* Every icon gets an identical square box, whatever the artwork's own aspect —
+   object-fit letterboxes into it. height:auto + aspect-ratio rather than a
+   matching fixed height so that if a narrow track ever clamps the width via
+   max-width, the height follows and the box stays square instead of squashing. */
 .tk-icon{
-  width:var(--tk-icon,86px);height:var(--tk-icon,86px);
+  width:var(--tk-icon,86px);height:auto;aspect-ratio:1/1;
   object-fit:contain;display:block;
   opacity:.86;
   transition:transform .22s cubic-bezier(.22,.61,.36,1),opacity .2s ease;
@@ -634,21 +647,24 @@ button.button{cursor:pointer;font:inherit}
    gauge keeps one baseline across the row however long a name runs. */
 .tk-meta{display:grid;justify-items:center;align-items:start;min-height:16px}
 .tk-meta>*{grid-area:1/1}
-.tk-gauge{display:flex;gap:5px;align-items:center;padding-top:5px;
+.tk-gauge{display:flex;gap:7px;align-items:center;padding-top:4px;
   opacity:1;transition:opacity .18s ease}
 .tk-gauge .dot{
-  width:6px;height:6px;border-radius:50%;
+  width:9px;height:9px;border-radius:50%;
   background:rgba(255,255,255,.18);
   transition:background var(--accent-ease);
 }
 .tk-gauge .dot.is-on{background:var(--accent)}
 .tk-name{
-  font-size:12px;font-weight:800;letter-spacing:.05em;color:var(--text);text-align:center;line-height:1.25;
+  font-size:15px;font-weight:800;letter-spacing:.03em;color:var(--text);text-align:center;line-height:1.25;
   opacity:0;transition:opacity .18s ease;
 }
 /* The swap: name in, dots out, same slot. */
 .tk-item:hover .tk-name,.tk-item:focus-within .tk-name{opacity:1}
 .tk-item:hover .tk-gauge,.tk-item:focus-within .tk-gauge{opacity:0}
+/* Ungauged tiles (Dev Stack, Collaboration) have nothing to swap with, so the
+   name is simply always on rather than only appearing under the pointer. */
+.tk-list:not(.tk-list-gauged) .tk-name{opacity:1}
 
 
 /* --- top picks grid ------------------------------------------------------ */
@@ -690,10 +706,21 @@ button.button{cursor:pointer;font:inherit}
 .pk-quote cite{font-style:normal;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
 
 @media(max-width:1100px){ .pk-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+/* Hold the eight columns as far down as they fit by shrinking the icon rather
+   than reflowing — the row structure is the point of the Software tab. Below
+   that, four columns is the only count that still splits every row evenly. */
+@media(max-width:1280px){ .tk-item{--tk-icon:72px} }
+@media(max-width:1080px){ .tk-item{--tk-icon:60px} .tk-name{font-size:13px} }
+@media(max-width:860px){
+  .tk-list{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 10px}
+  .tk-item{--tk-icon:68px}
+}
 @media(max-width:560px){
   .pk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-  .tk-list{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:20px 8px}
-  .tk-item{--tk-icon:62px}
+  .tk-list{gap:20px 8px}
+  /* Narrow side padding here, or the item's content box drops under --tk-icon
+     and max-width clamps the icon smaller than the size asked for. */
+  .tk-item{--tk-icon:56px;gap:16px;padding:4px 2px}
 }
 /* Touch: there is no hover, so the name is simply always on. */
 @media(hover:none){
