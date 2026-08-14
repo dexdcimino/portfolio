@@ -20,6 +20,20 @@ from urllib.parse import quote
 import re
 import sys
 
+
+def write_preserving_eol(path, text):
+    """Write text back without touching the file's existing line endings.
+
+    Path.write_text() opens in text mode with newline=None, which translates
+    every "
+" to os.linesep -- on Windows that silently rewrites the whole
+    file to CRLF and turns a three-line markup regeneration into a
+    thousand-line diff. newline="" writes the string through verbatim, so the
+    file keeps whatever convention it already had.
+    """
+    path.write_text(text, encoding="utf-8", newline="")
+
+
 ROOT = Path(__file__).resolve().parent.parent
 CSS = ROOT / "styles.css"
 
@@ -97,7 +111,7 @@ def main() -> int:
         print("ERROR: GENERATED ICONS markers not found in styles.css", file=sys.stderr)
         return 1
     css = css[:start] + block + css[stop + len(END):]
-    CSS.write_text(css, encoding="utf-8")
+    write_preserving_eol(CSS, css)
     print(f"Baked {len(icons)} icons into styles.css")
     return 0
 

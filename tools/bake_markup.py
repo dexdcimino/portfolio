@@ -37,6 +37,20 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from image_slots import SLOTS, slot_widths            # noqa: E402
 
+
+def write_preserving_eol(path, text):
+    """Write text back without touching the file's existing line endings.
+
+    Path.write_text() opens in text mode with newline=None, which translates
+    every "
+" to os.linesep -- on Windows that silently rewrites the whole
+    file to CRLF and turns a three-line markup regeneration into a
+    thousand-line diff. newline="" writes the string through verbatim, so the
+    file keeps whatever convention it already had.
+    """
+    path.write_text(text, encoding="utf-8", newline="")
+
+
 ROOT = Path(__file__).resolve().parent.parent
 HTML = ROOT / "index.html"
 DERIVED_URL = "assets/derived"
@@ -297,7 +311,7 @@ def main() -> int:
         print(f"bake_markup: {len(pairs)} image block(s) already current")
         return 0
 
-    HTML.write_text(rebuilt, encoding="utf-8")
+    write_preserving_eol(HTML, rebuilt)
     print(f"bake_markup: rewrote {len(pairs)} image block(s) in index.html "
           f"({len(set(urls))} derivatives referenced)")
     return 0
