@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=115" />
+  <link rel="stylesheet" href="styles.css?v=116" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -415,7 +415,7 @@
       <div class="tk-tabs" role="tablist" aria-label="Toolkit categories">
         <button class="tk-tab" type="button" role="tab" id="tk-tab-software" aria-controls="tk-panel-software" aria-selected="true" tabindex="0">Software</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-devstack" aria-controls="tk-panel-devstack" aria-selected="false" tabindex="-1">Dev Stack</button>
-        <button class="tk-tab" type="button" role="tab" id="tk-tab-collab" aria-controls="tk-panel-collab" aria-selected="false" tabindex="-1">Collaboration</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-team" aria-controls="tk-panel-team" aria-selected="false" tabindex="-1">Team Tools</button>
       </div>
       <!-- Visual echo of the hovered/focused tile. aria-hidden because each
            tile already carries the same sentence as sr-only text, so exposing
@@ -424,213 +424,287 @@
       </div>
       <div class="tk-panel" id="tk-panel-software" role="tabpanel" aria-labelledby="tk-tab-software">
         <ul class="tk-list tk-list-gauged" aria-label="3D">
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/maya.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
-                <span class="tk-name">Maya</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.autodesk.com/products/maya/overview" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/maya.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
+                  <span class="tk-name">Maya</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/zbrush.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
-                <span class="tk-name">ZBrush</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.maxon.net/en/zbrush" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/zbrush.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
+                  <span class="tk-name">ZBrush</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/substance.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Substance Painter</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.adobe.com/products/substance3d/apps/painter.html" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/substance.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Substance Painter</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/3d-coat.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">3D Coat</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://3dcoat.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/3d-coat.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">3D Coat</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/blender.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Blender</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.blender.org/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/blender.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Blender</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/blockbench.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Blockbench</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.blockbench.net/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/blockbench.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Blockbench</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/spline.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Spline</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://spline.design/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/spline.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Spline</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/marmoset.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Marmoset</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://marmoset.co/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/marmoset.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Marmoset</span>
+                </span>
+              </a>
             </li>
         </ul>
         <ul class="tk-list tk-list-gauged" aria-label="Adobe and game engines">
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/photoshop.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
-                <span class="tk-name">Photoshop</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.adobe.com/products/photoshop.html" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/photoshop.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
+                  <span class="tk-name">Photoshop</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/illustrator.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Illustrator</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.adobe.com/products/illustrator.html" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/illustrator.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Illustrator</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/animate.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Animate</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.adobe.com/products/animate.html" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/animate.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Animate</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/after-effects.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">After Effects</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.adobe.com/products/aftereffects.html" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/after-effects.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">After Effects</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/unreal.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Unreal</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.unrealengine.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/unreal.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Unreal</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/unity.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Unity</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://unity.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/unity.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Unity</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/godot.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
-                <span class="tk-name">Godot</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://godotengine.org/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/godot.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Godot</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/roblox.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
-                <span class="tk-name">Roblox</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://create.roblox.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/roblox.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
+                  <span class="tk-name">Roblox</span>
+                </span>
+              </a>
             </li>
         </ul>
       </div>
       <div class="tk-panel" id="tk-panel-devstack" role="tabpanel" aria-labelledby="tk-tab-devstack" hidden>
         <ul class="tk-list">
-            <li class="tk-item" tabindex="0" data-desc="Where the code gets written">
-              <img class="tk-icon" src="assets/icons/software/vscode.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">VS Code</span>
-              </span>
-              <span class="sr-only">Where the code gets written</span>
+<li class="tk-item" data-desc="Where the code gets written">
+              <a class="tk-link" href="https://code.visualstudio.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/vscode.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">VS Code</span>
+                </span>
+                <span class="sr-only">Where the code gets written</span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0" data-desc="AI agent that writes and ships code">
-              <img class="tk-icon" src="assets/icons/software/claude-code.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Claude Code</span>
-              </span>
-              <span class="sr-only">AI agent that writes and ships code</span>
+<li class="tk-item" data-desc="AI agent that writes and ships code">
+              <a class="tk-link" href="https://claude.com/product/claude-code" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/claude-code.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Claude Code</span>
+                </span>
+                <span class="sr-only">AI agent that writes and ships code</span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0" data-desc="3D engine that runs games in-browser">
-              <img class="tk-icon" src="assets/icons/software/babylonjs.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">babylon.js</span>
-              </span>
-              <span class="sr-only">3D engine that runs games in-browser</span>
+<li class="tk-item" data-desc="3D engine that runs games in-browser">
+              <a class="tk-link" href="https://www.babylonjs.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/babylonjs.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">babylon.js</span>
+                </span>
+                <span class="sr-only">3D engine that runs games in-browser</span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0" data-desc="Stores accounts, saves, and everything users create">
-              <img class="tk-icon" src="assets/icons/software/firebase.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Firebase</span>
-              </span>
-              <span class="sr-only">Stores accounts, saves, and everything users create</span>
+<li class="tk-item" data-desc="Stores accounts, saves, and everything users create">
+              <a class="tk-link" href="https://firebase.google.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/firebase.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Firebase</span>
+                </span>
+                <span class="sr-only">Stores accounts, saves, and everything users create</span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0" data-desc="Puts the website online">
-              <img class="tk-icon" src="assets/icons/software/vercel.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Vercel</span>
-              </span>
-              <span class="sr-only">Puts the website online</span>
+<li class="tk-item" data-desc="Puts the website online">
+              <a class="tk-link" href="https://vercel.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/vercel.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Vercel</span>
+                </span>
+                <span class="sr-only">Puts the website online</span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0" data-desc="Lets players see and interact with each other live">
-              <img class="tk-icon" src="assets/icons/software/photon.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Photon</span>
-              </span>
-              <span class="sr-only">Lets players see and interact with each other live</span>
+<li class="tk-item" data-desc="Lets players see and interact with each other live">
+              <a class="tk-link" href="https://www.photonengine.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/photon.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Photon</span>
+                </span>
+                <span class="sr-only">Lets players see and interact with each other live</span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0" data-desc="Runs the always-on servers behind the apps">
-              <img class="tk-icon" src="assets/icons/software/flyio.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">fly.io</span>
-              </span>
-              <span class="sr-only">Runs the always-on servers behind the apps</span>
+<li class="tk-item" data-desc="Runs the always-on servers behind the apps">
+              <a class="tk-link" href="https://fly.io/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/flyio.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">fly.io</span>
+                </span>
+                <span class="sr-only">Runs the always-on servers behind the apps</span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0" data-desc="Runs game servers close to players so there's no lag">
-              <img class="tk-icon" src="assets/icons/software/edgegap.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Edgegap</span>
-              </span>
-              <span class="sr-only">Runs game servers close to players so there's no lag</span>
+<li class="tk-item" data-desc="Runs game servers close to players so there's no lag">
+              <a class="tk-link" href="https://edgegap.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/edgegap.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Edgegap</span>
+                </span>
+                <span class="sr-only">Runs game servers close to players so there's no lag</span>
+              </a>
             </li>
         </ul>
       </div>
-      <div class="tk-panel" id="tk-panel-collab" role="tabpanel" aria-labelledby="tk-tab-collab" hidden>
+      <div class="tk-panel" id="tk-panel-team" role="tabpanel" aria-labelledby="tk-tab-team" hidden>
         <ul class="tk-list">
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/figma.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Figma</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.figma.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/figma.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Figma</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/discord.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Discord</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://discord.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/discord.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Discord</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/github.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">GitHub</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://github.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/github.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">GitHub</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/clickup.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">ClickUp</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://clickup.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/clickup.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">ClickUp</span>
+                </span>
+              </a>
             </li>
-            <li class="tk-item" tabindex="0">
-              <img class="tk-icon" src="assets/icons/software/slack.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-              <span class="tk-meta">
-                <span class="tk-name">Slack</span>
-              </span>
+<li class="tk-item">
+              <a class="tk-link" href="https://slack.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/slack.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Slack</span>
+                </span>
+              </a>
+            </li>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.microsoft.com/en-us/microsoft-teams/group-chat-software" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/teams.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Teams</span>
+                </span>
+              </a>
+            </li>
+<li class="tk-item">
+              <a class="tk-link" href="https://www.atlassian.com/software/jira" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/jira.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Jira</span>
+                </span>
+              </a>
             </li>
         </ul>
       </div>
@@ -649,7 +723,7 @@
       <div class="pk-panel" id="pk-panel-games" role="tabpanel" aria-labelledby="pk-tab-games">
         <ul class="pk-grid">
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://www.rockstargames.com/VI" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/game-covers/gta-6.png" slot="pick-cover" alt="Grand Theft Auto 6 cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/game-covers/gta-6-600.avif 600w,
@@ -666,7 +740,7 @@
             </a>
           </li>
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://arcraiders.com/" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/game-covers/arc-raiders.png" slot="pick-cover" alt="Arc Raiders cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/game-covers/arc-raiders-600.avif 600w,
@@ -683,7 +757,7 @@
             </a>
           </li>
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://www.leagueoflegends.com/" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/game-covers/league-of-legends.png" slot="pick-cover" alt="League of Legends cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/game-covers/league-of-legends-600.avif 600w,
@@ -700,7 +774,7 @@
             </a>
           </li>
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://www.yachtclubgames.com/games/shovel-knight-treasure-trove/" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/game-covers/shovel-knight.png" slot="pick-cover" alt="Shovel Knight cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/game-covers/shovel-knight-600.avif 600w,
@@ -717,7 +791,7 @@
             </a>
           </li>
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://store.steampowered.com/app/620/Portal_2/" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/game-covers/portal-2.png" slot="pick-cover" alt="Portal 2 cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/game-covers/portal-2-600.avif 600w,
@@ -738,7 +812,7 @@
       <div class="pk-panel" id="pk-panel-movies" role="tabpanel" aria-labelledby="pk-tab-movies" hidden>
         <ul class="pk-grid">
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://www.google.com/search?q=Ex+Machina+2014" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/movie-covers/ex-machina.png" slot="pick-cover" alt="Ex Machina cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/movie-covers/ex-machina-600.avif 600w,
@@ -755,7 +829,7 @@
             </a>
           </li>
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://www.google.com/search?q=The+Hitchhiker%27s+Guide+to+the+Galaxy+2005" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/movie-covers/hitchhikers-guide-to-the-galaxy.png" slot="pick-cover" alt="The Hitchhiker's Guide to the Galaxy cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/movie-covers/hitchhikers-guide-to-the-galaxy-600.avif 600w,
@@ -772,7 +846,7 @@
             </a>
           </li>
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://www.google.com/search?q=Tropic+Thunder+2008" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/movie-covers/tropic-thunder.png" slot="pick-cover" alt="Tropic Thunder cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/movie-covers/tropic-thunder-600.avif 600w,
@@ -789,7 +863,7 @@
             </a>
           </li>
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://www.google.com/search?q=Mad+Max+Fury+Road+2015" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/movie-covers/mad-max-fury-road.png" slot="pick-cover" alt="Mad Max: Fury Road cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/movie-covers/mad-max-fury-road-600.avif 600w,
@@ -806,7 +880,7 @@
             </a>
           </li>
           <li class="pk-card">
-            <a class="pk-link" href="#">
+            <a class="pk-link" href="https://www.google.com/search?q=The+Island+2005" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/movie-covers/the-island.png" slot="pick-cover" alt="The Island cover art" class="pk-cover" -->
               <picture>
                 <source type="image/avif" srcset="assets/derived/about/movie-covers/the-island-600.avif 600w,
@@ -1251,6 +1325,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=115"></script>
+  <script src="script.js?v=116"></script>
 </body>
 </html>
