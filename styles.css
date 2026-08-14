@@ -272,6 +272,11 @@ img{max-width:100%}
    since they all ride this wrapper. The lift is subtracted from the avatar clamp
    above, so the space comes out of the photo rather than off the bottom of the rail. */
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .side-bottom{margin-bottom:var(--rail-footer-lift)}
+/* The drop above exists to take up the blank rail the caption and social row
+   reserve under the avatar. Collapse the profile and that block is gone, so the
+   same -72px has nothing to absorb it and walks CONTACT off the bottom edge.
+   Collapsed, the footer sits on the lift in both sidebar states. */
+.side-bottom.is-profile-collapsed{margin-bottom:var(--rail-footer-lift)}
 /* .resume-mini and two .button triggers are <button> now (they open an overlay,
    they do not navigate) — clear the UA chrome so they still read as the links
    they replaced. */
@@ -321,19 +326,23 @@ button.button{cursor:pointer;font:inherit}
 .profile-compact{
   display:flex;align-items:center;gap:8px;padding:0 22px;
   height:0;overflow:hidden;white-space:nowrap;
-  opacity:0;transform:translateX(-8px);
-  transition:opacity .2s ease,transform .2s ease;
+  opacity:0;
 }
 .profile-compact-frame{display:block;flex:none;width:34px;height:34px;
   border-radius:9px;overflow:hidden;border:1px solid var(--line)}
 .profile-compact-photo{display:block;width:100%;height:100%;object-fit:cover;
   object-position:50% 45%;transform:scale(1.15);transform-origin:50% 40%}
+/* The name follows the nav labels exactly — hidden on the rail, sliding in as
+   the sidebar opens — so the mini profile reads as one more row of the nav. */
 .profile-compact-name{font-size:14px;font-weight:750;letter-spacing:.025em;
-  color:var(--accent);transition:color var(--accent-ease)}
-.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
-  .side-bottom.is-profile-collapsed .profile-compact{
-  height:52px;opacity:1;transform:none;
-}
+  color:var(--accent);
+  opacity:0;transform:translateX(-8px);
+  transition:color var(--accent-ease),opacity .2s ease,transform .2s ease}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-compact-name{
+  opacity:1;transform:none}
+/* Presence depends on the collapsed state ALONE, never on hover — see the note
+   on .profile-wrap below. */
+.side-bottom.is-profile-collapsed .profile-compact{height:52px;opacity:1}
 
 .profile-wrap{display:grid;grid-template-rows:1fr}
 .profile-wrap>.profile-mini{overflow:hidden}
@@ -345,8 +354,19 @@ button.button{cursor:pointer;font:inherit}
    and only a real toggle animates. */
 .side-bottom.is-toggling .profile-wrap{
   transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
-.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
-  .side-bottom.is-profile-collapsed .profile-wrap{grid-template-rows:0fr}
+
+/* The collapsed state is deliberately NOT scoped to the expanded sidebar.
+   Scoping it there meant the rule stopped matching the instant hover ended, so
+   the wrapper snapped 0 -> 383px and reflowed down to 167px while the sidebar
+   was still narrowing — the block visibly popped open on the way out. Gating
+   the transition cannot fix that, because the state itself was changing. Tying
+   it to the class alone means nothing about the collapse moves when the
+   sidebar does, in either direction.
+   The rail's own avatar lives inside this wrapper, so while collapsed the rail
+   shows the mini profile's crop instead — which is why .profile-compact is
+   visible in both sidebar states and only its name waits for the expand. */
+.side-bottom.is-profile-collapsed .profile-wrap{grid-template-rows:0fr}
+.side-bottom.is-profile-collapsed .profile-mini{min-height:0;padding-block:0}
 /* min-height would hold the track open at 136px and stop it reaching 0fr, and
    the block's own padding survives a zero-height track — overflow:hidden clips
    the content but padding is still box height, which floors the collapse at
@@ -354,8 +374,6 @@ button.button{cursor:pointer;font:inherit}
    ahead of the rest of the block. */
 .side-bottom.is-toggling .profile-mini{
   transition:padding var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
-.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
-  .side-bottom.is-profile-collapsed .profile-mini{min-height:0;padding-block:0}
 
 /* Masked window onto a single portrait. The frame animates its box; the image
    inside counter-scales so the same source reads as a tight face crop when the
