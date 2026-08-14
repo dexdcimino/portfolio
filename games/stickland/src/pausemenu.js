@@ -28,33 +28,43 @@ const ACCENT_LS_KEY = 'sfg-accent';           // sfg- prefix like world/cosmetic
 const KEYBINDS_LS_KEY = 'dexnote-keybinds';   // existing key — extend, don't fork
 const FX_LS_KEY = 'sfg-fx';                   // {shake: 0..1} — playmode reads window._dexShakeScale
 
-// Accent presets — hexagon swatch row. Default green first.
-const ACCENT_PRESETS = ['#68d121', '#2fd4b2', '#4da3ff', '#b76bff', '#f051c7', '#ff5f7a', '#ff9636', '#ffd23e'];
+// The portfolio's seven accents, names included. Restricted to these on
+// purpose: picking one writes the SITE's key so the choice carries back to
+// dexcimino.com, which is only meaningful for colours the site can name.
+// Kept byte-identical to ACCENTS in the site's script.js.
+const SITE_ACCENTS = [
+  { name: 'red',    hex: '#D94727' },
+  { name: 'yellow', hex: '#FAAA1E' },
+  { name: 'lime',   hex: '#9EE02B' },
+  { name: 'cyan',   hex: '#2CC7F6' },
+  { name: 'blue',   hex: '#335DF3' },
+  { name: 'purple', hex: '#A85CF5' },
+  { name: 'white',  hex: '#E9EBEC' },
+];
+// The site's own key. Same-origin (the wrapper loads the game from
+// /games/stickland/v1/, a root-relative path), so one localStorage is shared
+// and no postMessage bridge is needed.
+const SITE_ACCENT_KEY = 'dex-accent-name';
 
-// The real control list, verified against character.js/playmode.js.
-// (Mid-air jump added in MD 03 — one per airtime, resets on landing.)
-// `bind` marks the entries that live in playmode's _keybinds map and can be
-// rebound; everything else is a hardcoded comparison and shows as fixed.
-const CONTROLS = [
-  { keys: ['W A S D', '← ↑ ↓ →'], label: 'Move' },
-  { keys: ['Space'], label: 'Jump — tap to hop, hold to charge, tap again mid-air' },
-  { keys: ['Shift'], label: 'Sprint' },
-  { keys: ['C'], label: 'Crouch' },
-  { keys: ['H'], label: 'Holster / unholster' },
-  { keys: ['E'], label: 'Interact — hold near tank, home, flag' },
-  { keys: ['1', '2', '3', '4'], label: 'Equip hotbar slot' },
-  { keys: ['5', 'B', 'I'], label: 'Inventory' },
-  { keys: ['6', 'G'], label: 'Cosmetics' },
-  { keys: ['T', 'Enter'], label: 'Chat — / commands, : emoji' },
-  { bind: 'lock-camera', label: 'Camera lock' },
-  { keys: ['Wheel'], label: 'Zoom (1.0 – 1.5×)' },
-  { keys: ['Esc'], label: 'Pause menu' },
+// Grouped key-cap clusters rather than a long list — six labelled groups read
+// as a reference card. `bind` marks the one rebindable action (camera lock);
+// everything else is a hardcoded comparison and shows as fixed.
+const CONTROL_GROUPS = [
+  { title: 'Move',  rows: [ { keys: ['W','A','S','D'] }, { keys: ['\u2190','\u2191','\u2193','\u2192'] },
+                            { keys: ['Shift'], note: 'sprint' }, { keys: ['C'], note: 'crouch' } ] },
+  { title: 'Jump',  rows: [ { keys: ['Space'], note: 'tap, hold to charge, again mid-air' } ] },
+  { title: 'Equip', rows: [ { keys: ['1','2','3','4'], note: 'slots' },
+                            { keys: ['H'], note: 'holster' }, { keys: ['E'], note: 'interact' } ] },
+  { title: 'Menus', rows: [ { keys: ['B'], note: 'bag' }, { keys: ['G'], note: 'cosmetics' },
+                            { keys: ['T'], note: 'chat' } ] },
+  { title: 'View',  rows: [ { keys: ['Wheel'], note: 'zoom' }, { bind: 'lock-camera', note: 'camera lock' } ] },
+  { title: 'Game',  rows: [ { keys: ['Esc'], note: 'settings' } ] },
 ];
 
 let _hooks = { exitWorld: null, getKeybind: null, setKeybind: null };
 let _open = false;
 let _menuEl = null, _backdropEl = null, _endcardEl = null;
-let _activeTab = 'controls';
+let _openSection = 'general';   // General is expanded on open
 let _rebindArmed = null;   // action name while listening for a new key
 
 export function isPauseMenuOpen() { return _open; }
@@ -74,7 +84,8 @@ function _applyAccent(hex, persist) {
   if (persist) safeStorage.setItem(ACCENT_LS_KEY, hex);
 }
 function _currentAccent() {
-  return _normalizeHex(getComputedStyle(document.documentElement).getPropertyValue('--accent')) || ACCENT_PRESETS[0];
+  // Falls back to lime — the site's DEFAULT_ACCENT.
+  return _normalizeHex(getComputedStyle(document.documentElement).getPropertyValue('--accent')) || SITE_ACCENTS[2].hex;
 }
 
 // ── Persisted FX settings ───────────────────────────────
@@ -151,12 +162,6 @@ function _captureKey(e) {
   if (_menuEl.contains(e.target)) return;
   if (e.type === 'keydown') {
     if (_rebindArmed) { _finishRebind(e); e.preventDefault(); e.stopPropagation(); return; }
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      const tabs = ['controls', 'audio', 'fx', 'theme'];
-      const i = tabs.indexOf(_activeTab);
-      _setTab(tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]);
-      e.preventDefault();
-    }
   }
   e.stopPropagation();
 }
@@ -173,139 +178,225 @@ function _ensureDom() {
   _menuEl = document.createElement('div');
   _menuEl.id = 'pmenu';
   _menuEl.addEventListener('mousedown', (e) => e.stopPropagation());
+  const _sec = (id, label) => `
+    <section class="pmenu-sec" data-sec="${id}">
+      <button class="pmenu-sec-head" type="button" data-toggle="${id}" aria-expanded="false">
+        <span class="pmenu-sec-label">${label}</span>
+        <span class="pmenu-chev" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+               stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
+        </span>
+      </button>
+      <div class="pmenu-sec-body"></div>
+    </section>`;
   _menuEl.innerHTML = `
-    <div class="pmenu-title">Paused</div>
-    <div class="pmenu-tabs" role="tablist">
-      <button class="pmenu-tab" data-tab="controls" type="button">Controls</button>
-      <button class="pmenu-tab" data-tab="audio" type="button">Audio</button>
-      <button class="pmenu-tab" data-tab="fx" type="button">FX</button>
-      <button class="pmenu-tab" data-tab="theme" type="button">Theme</button>
+    <div class="pmenu-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3.2"/>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6h.09A1.7 1.7 0 0 0 10 3v-.09a2 2 0 1 1 4 0V3a1.7 1.7 0 0 0 1 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.56 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/>
+      </svg>
+      <span>Settings</span>
     </div>
-    <div class="pmenu-content"></div>
+    <div class="pmenu-scroll">
+      ${_sec('general', 'General')}
+      ${_sec('audio', 'Audio')}
+      ${_sec('controls', 'Controls')}
+    </div>
     <div class="pmenu-footer">
       <button class="pmenu-btn pmenu-btn-accent" data-act="resume" type="button">Resume</button>
-      <button class="pmenu-btn" data-act="hub" type="button">Return to hub</button>
       <button class="pmenu-btn" data-act="exit" type="button">Exit game</button>
-    </div>
-    <div class="pmenu-hint">Esc resumes · ←/→ switch tabs</div>`;
+    </div>`;
   document.body.appendChild(_menuEl);
 
-  _menuEl.querySelectorAll('.pmenu-tab').forEach(btn => {
-    btn.addEventListener('click', () => _setTab(btn.dataset.tab));
+  _menuEl.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => _toggleSection(btn.dataset.toggle));
   });
   _menuEl.querySelector('[data-act="resume"]').addEventListener('click', closePauseMenu);
-  _menuEl.querySelector('[data-act="hub"]').addEventListener('click', () => {
-    closePauseMenu();
-    _hooks.exitWorld?.();
-  });
   _menuEl.querySelector('[data-act="exit"]').addEventListener('click', _exitGame);
 }
 
-function _setTab(tab) {
-  if (tab === _activeTab) return;
-  _activeTab = tab;
+function _toggleSection(id) {
+  // One open at a time, and never zero: re-clicking the open one keeps it open
+  // rather than leaving the panel empty inside a fixed frame.
+  if (_openSection === id) return;
+  _openSection = id;
   _rebindArmed = null;
   sfx('ui.slot');
   _renderTab();
 }
 
+/* The frame is a fixed size, so sections expand and collapse INSIDE it and the
+   scroll container absorbs the difference. Nothing here changes the outer box. */
 function _renderTab() {
-  _menuEl.querySelectorAll('.pmenu-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === _activeTab);
-  });
-  const c = _menuEl.querySelector('.pmenu-content');
-  c.innerHTML = '';
-  if (_activeTab === 'controls') _renderControls(c);
-  else if (_activeTab === 'audio') _renderAudio(c);
-  else if (_activeTab === 'fx') _renderFx(c);
-  else _renderTheme(c);
+  for (const sec of _menuEl.querySelectorAll('.pmenu-sec')) {
+    const id = sec.dataset.sec;
+    const on = id === _openSection;
+    sec.classList.toggle('open', on);
+    sec.querySelector('.pmenu-sec-head').setAttribute('aria-expanded', String(on));
+    const body = sec.querySelector('.pmenu-sec-body');
+    body.innerHTML = '';
+    if (!on) continue;
+    if (id === 'general') _renderGeneral(body);
+    else if (id === 'audio') _renderAudio(body);
+    else _renderControls(body);
+  }
 }
 
-// ── FX tab ──────────────────────────────────────────────
-function _renderFx(root) {
-  const wrap = document.createElement('div');
-  wrap.className = 'pmenu-audio';   // same slider layout as the audio tab
-  wrap.appendChild(_slider('Screen shake', _fxSettings.shake, v => {
-    _fxSettings.shake = v;
-    _applyFx();
-  }));
-  const note = document.createElement('div');
-  note.className = 'pmenu-note';
-  note.textContent = 'Shake scales with impact and falls off with distance. 0 turns it off entirely.';
-  wrap.appendChild(note);
-
-  // Blood toggle (MD 10) — off by default: gore keeps its shapes and motion
-  // but renders in the accent color, and the gore sound stays silent.
-  const bloodRow = document.createElement('div');
-  bloodRow.className = 'pmenu-row';
-  const bloodLabel = document.createElement('span');
-  bloodLabel.textContent = 'Blood';
-  const bloodBtn = document.createElement('button');
-  bloodBtn.type = 'button';
-  bloodBtn.className = 'pmenu-key pmenu-key-bind';
-  const syncBloodBtn = () => {
-    bloodBtn.textContent = _fxSettings.blood ? 'ON' : 'OFF';
-    bloodBtn.style.opacity = _fxSettings.blood ? '' : '0.65';
-  };
-  syncBloodBtn();
-  bloodBtn.addEventListener('click', () => {
-    _fxSettings.blood = !_fxSettings.blood;
-    _applyFx();
-    syncBloodBtn();
+/* ── shared DexNote-style controls ─────────────────────── */
+function _toggle(on, onchange) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'pmenu-sw' + (on ? ' on' : '');
+  b.setAttribute('role', 'switch');
+  b.setAttribute('aria-checked', String(!!on));
+  b.innerHTML = '<span class="pmenu-sw-knob"></span>';
+  b.addEventListener('click', () => {
+    const next = !b.classList.contains('on');
+    b.classList.toggle('on', next);
+    b.setAttribute('aria-checked', String(next));
+    onchange(next);
     sfx('ui.open');
   });
-  bloodRow.appendChild(bloodLabel);
-  bloodRow.appendChild(bloodBtn);
-  wrap.appendChild(bloodRow);
-  const bloodNote = document.createElement('div');
-  bloodNote.className = 'pmenu-note';
-  bloodNote.textContent = 'Off renders hits in your accent color instead of red.';
-  wrap.appendChild(bloodNote);
-  root.appendChild(wrap);
+  return b;
 }
 
-// ── Controls tab ────────────────────────────────────────
-function _renderControls(root) {
-  const list = document.createElement('div');
-  list.className = 'pmenu-controls';
-  for (const ctl of CONTROLS) {
-    const row = document.createElement('div');
-    row.className = 'pmenu-row';
-    const keys = document.createElement('div');
-    keys.className = 'pmenu-keys';
-    if (ctl.bind) {
-      // Rebindable — lives in playmode's _keybinds map.
-      const cur = (_hooks.getKeybind?.(ctl.bind) || 'Y').toUpperCase();
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'pmenu-key pmenu-key-bind';
-      btn.textContent = cur;
-      btn.dataset.tip = 'Click, then press a key';
-      btn.addEventListener('click', () => {
-        _rebindArmed = ctl.bind;
-        btn.textContent = '…';
-        btn.classList.add('listening');
-      });
-      keys.appendChild(btn);
-    } else {
-      for (const k of ctl.keys) {
-        const chip = document.createElement('span');
-        chip.className = 'pmenu-key';
-        chip.textContent = k;
-        keys.appendChild(chip);
-      }
-    }
-    const label = document.createElement('div');
-    label.className = 'pmenu-label';
-    label.textContent = ctl.label;
-    row.appendChild(keys);
-    row.appendChild(label);
-    list.appendChild(row);
+function _switchRow(label, on, onchange, iconPath) {
+  const row = document.createElement('div');
+  row.className = 'pmenu-swrow';
+  const ic = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  ic.setAttribute('viewBox', '0 0 24 24');
+  ic.setAttribute('class', 'pmenu-swicon');
+  ic.setAttribute('fill', 'none');
+  ic.setAttribute('stroke', 'currentColor');
+  ic.setAttribute('stroke-width', '1.8');
+  ic.setAttribute('stroke-linecap', 'round');
+  ic.setAttribute('stroke-linejoin', 'round');
+  ic.innerHTML = iconPath;
+  const lab = document.createElement('span');
+  lab.className = 'pmenu-swlabel';
+  lab.textContent = label;
+  row.appendChild(ic);
+  row.appendChild(lab);
+  row.appendChild(_toggle(on, onchange));
+  return row;
+}
+
+/* ── General ──────────────────────────────────────────── */
+function _renderGeneral(root) {
+  // Quiet framing, not a warning: muted, secondary to the controls under it.
+  const note = document.createElement('p');
+  note.className = 'pmenu-proto';
+  note.innerHTML = '<strong>Prototype</strong> \u2014 Stickland is an open sandbox for now. '
+    + 'No objectives, no win condition \u2014 just a world to move around in while the systems get built out.';
+  root.appendChild(note);
+
+  const accentLabel = document.createElement('div');
+  accentLabel.className = 'pmenu-sublabel';
+  accentLabel.textContent = 'Accent';
+  root.appendChild(accentLabel);
+
+  const cur = _currentAccent().toLowerCase();
+  const row = document.createElement('div');
+  row.className = 'pmenu-hexrow';
+  for (const a of SITE_ACCENTS) {
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'pmenu-hexwrap' + (a.hex.toLowerCase() === cur ? ' active' : '');
+    cell.setAttribute('aria-label', a.name);
+    cell.dataset.tip = a.name;
+    const inner = document.createElement('span');
+    inner.className = 'pmenu-hex';
+    inner.style.background = a.hex;
+    cell.appendChild(inner);
+    cell.addEventListener('click', () => {
+      _applyAccent(a.hex, true);
+      // Carry the choice back to the portfolio. Same-origin, so this writes the
+      // site's own key directly; the site reads names, not hexes.
+      try { safeStorage.setItem(SITE_ACCENT_KEY, a.name); } catch (e) {}
+      sfx('ui.equip');
+      _renderTab();
+    });
+    row.appendChild(cell);
   }
+  root.appendChild(row);
+
+  const fxLabel = document.createElement('div');
+  fxLabel.className = 'pmenu-sublabel';
+  fxLabel.textContent = 'Effects';
+  root.appendChild(fxLabel);
+
+  root.appendChild(_switchRow('Screen shake', _fxSettings.shake > 0, on => {
+    _fxSettings.shake = on ? 1 : 0;
+    _applyFx();
+  }, '<path d="M3 12h3l2-5 4 10 3-7 2 2h4"/>'));
+
+  root.appendChild(_switchRow('Blood', _fxSettings.blood, on => {
+    _fxSettings.blood = on;
+    _applyFx();
+  }, '<path d="M12 3s5 6 5 9a5 5 0 0 1-10 0c0-3 5-9 5-9z"/>'));
+
+  const fxNote = document.createElement('div');
+  fxNote.className = 'pmenu-note';
+  fxNote.textContent = 'Blood off renders hits in your accent colour instead of red.';
+  root.appendChild(fxNote);
+}
+
+/* ── Controls ─────────────────────────────────────────── */
+function _keycap(text) {
+  const el = document.createElement('span');
+  el.className = 'pmenu-key';
+  el.textContent = text;
+  return el;
+}
+
+function _renderControls(root) {
+  const card = document.createElement('div');
+  card.className = 'pmenu-ctlcard';
+  for (const grp of CONTROL_GROUPS) {
+    const box = document.createElement('div');
+    box.className = 'pmenu-ctlgrp';
+    const title = document.createElement('div');
+    title.className = 'pmenu-ctltitle';
+    title.textContent = grp.title;
+    box.appendChild(title);
+    for (const r of grp.rows) {
+      const line = document.createElement('div');
+      line.className = 'pmenu-ctlline';
+      const keys = document.createElement('div');
+      keys.className = 'pmenu-ctlkeys';
+      if (r.bind) {
+        // The one rebindable action — click, then press a key.
+        const cur = (_hooks.getKeybind?.(r.bind) || 'Y').toUpperCase();
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pmenu-key pmenu-key-bind';
+        btn.textContent = cur;
+        btn.dataset.tip = 'Click, then press a key';
+        btn.addEventListener('click', () => {
+          _rebindArmed = r.bind;
+          btn.textContent = '\u2026';
+          btn.classList.add('listening');
+        });
+        keys.appendChild(btn);
+      } else {
+        for (const k of r.keys) keys.appendChild(_keycap(k));
+      }
+      line.appendChild(keys);
+      if (r.note) {
+        const n = document.createElement('span');
+        n.className = 'pmenu-ctlnote';
+        n.textContent = r.note;
+        line.appendChild(n);
+      }
+      box.appendChild(line);
+    }
+    card.appendChild(box);
+  }
+  root.appendChild(card);
   const note = document.createElement('div');
   note.className = 'pmenu-note';
-  note.textContent = 'Camera lock is rebindable — click its key. The rest are fixed.';
-  root.appendChild(list);
+  note.textContent = 'Camera lock is rebindable \u2014 click its key. The rest are fixed.';
   root.appendChild(note);
 }
 
@@ -328,133 +419,78 @@ function _finishRebind(e) {
   _renderTab();
 }
 
-// ── Audio tab ───────────────────────────────────────────
-function _slider(label, value, oninput) {
+/* ── Audio ────────────────────────────────────────────── */
+/* DexNote's channel row: pill toggle on the left, label, slider, then the
+   percentage hard right. The toggle mutes the channel by parking its level at
+   zero and restoring the previous one, so it needs no extra persisted state. */
+function _channel(label, get, set, isOn, setOn) {
   const row = document.createElement('div');
-  row.className = 'pmenu-row pmenu-slider-row';
-  const lab = document.createElement('div');
-  lab.className = 'pmenu-label';
-  lab.textContent = label;
+  row.className = 'pmenu-chan';
+  let last = get() > 0 ? get() : 0.6;
+
   const input = document.createElement('input');
   input.type = 'range';
-  input.min = '0'; input.max = '100'; input.value = String(Math.round(value * 100));
+  input.min = '0'; input.max = '100';
   input.className = 'pmenu-range';
   const val = document.createElement('span');
   val.className = 'pmenu-range-val';
-  val.textContent = String(Math.round(value * 100));
+
+  const paint = () => {
+    const v = get();
+    input.value = String(Math.round(v * 100));
+    val.textContent = Math.round(v * 100) + '%';
+    input.style.setProperty('--fill', Math.round(v * 100) + '%');
+  };
+
+  const sw = _toggle(isOn(), on => {
+    if (on) { setOn(true); set(last || 0.6); }
+    else { last = get() || last; setOn(false); set(0); }
+    paint();
+  });
+
+  const lab = document.createElement('span');
+  lab.className = 'pmenu-chanlabel';
+  lab.textContent = label;
+
   // 'input', not 'change' — applies live while dragging; you tune by ear.
   input.addEventListener('input', () => {
-    val.textContent = input.value;
-    oninput(input.value / 100);
+    const v = input.value / 100;
+    if (v > 0) { last = v; if (!isOn()) setOn(true); sw.classList.add('on'); sw.setAttribute('aria-checked', 'true'); }
+    else { sw.classList.remove('on'); sw.setAttribute('aria-checked', 'false'); }
+    set(v);
+    paint();
   });
+
+  // Centre tick sits over the track's midpoint, matching the DexNote slider.
+  const wrap = document.createElement('span');
+  wrap.className = 'pmenu-trackwrap';
+  const tick = document.createElement('span');
+  tick.className = 'pmenu-tick';
+  wrap.appendChild(input);
+  wrap.appendChild(tick);
+
+  row.appendChild(sw);
   row.appendChild(lab);
-  row.appendChild(input);
+  row.appendChild(wrap);
   row.appendChild(val);
+  paint();
   return row;
 }
 
 function _renderAudio(root) {
   const wrap = document.createElement('div');
   wrap.className = 'pmenu-audio';
-
-  wrap.appendChild(_slider('Master', getVolume(), v => setVolume(v)));
-
-  const muteRow = document.createElement('div');
-  muteRow.className = 'pmenu-row';
-  const muteBtn = document.createElement('button');
-  muteBtn.type = 'button';
-  muteBtn.className = 'pmenu-btn pmenu-mute' + (isMuted() ? ' active' : '');
-  muteBtn.textContent = isMuted() ? 'Unmute' : 'Mute';
-  muteBtn.addEventListener('click', () => {
-    setMuted(!isMuted());
-    muteBtn.textContent = isMuted() ? 'Unmute' : 'Mute';
-    muteBtn.classList.toggle('active', isMuted());
-    sfx('ui.slot');   // audible confirmation on unmute; silent when muting
-  });
-  muteRow.appendChild(muteBtn);
-  wrap.appendChild(muteRow);
-
-  const sep = document.createElement('div');
-  sep.className = 'pmenu-sep';
-  wrap.appendChild(sep);
-
-  wrap.appendChild(_slider('Effects', getBusVolume('sfx'), v => setBusVolume('sfx', v)));
-  wrap.appendChild(_slider('Ambience', getBusVolume('amb'), v => setBusVolume('amb', v)));
-  wrap.appendChild(_slider('Interface', getBusVolume('ui'), v => setBusVolume('ui', v)));
-
+  wrap.appendChild(_channel('Master', getVolume, setVolume,
+    () => !isMuted() && getVolume() > 0, on => setMuted(!on)));
+  wrap.appendChild(_channel('Effects', () => getBusVolume('sfx'), v => setBusVolume('sfx', v),
+    () => getBusVolume('sfx') > 0, () => {}));
+  wrap.appendChild(_channel('Ambience', () => getBusVolume('amb'), v => setBusVolume('amb', v),
+    () => getBusVolume('amb') > 0, () => {}));
+  wrap.appendChild(_channel('Interface', () => getBusVolume('ui'), v => setBusVolume('ui', v),
+    () => getBusVolume('ui') > 0, () => {}));
   root.appendChild(wrap);
 }
 
-// ── Theme tab ───────────────────────────────────────────
-function _renderTheme(root) {
-  const wrap = document.createElement('div');
-  wrap.className = 'pmenu-theme';
-
-  const cur = _currentAccent();
-  const row = document.createElement('div');
-  row.className = 'pmenu-hexrow';
-  for (const hex of ACCENT_PRESETS) {
-    const cell = document.createElement('button');
-    cell.type = 'button';
-    cell.className = 'pmenu-hexwrap' + (hex === cur ? ' active' : '');
-    cell.setAttribute('aria-label', hex);
-    const inner = document.createElement('span');
-    inner.className = 'pmenu-hex';
-    inner.style.background = hex;
-    cell.appendChild(inner);
-    cell.addEventListener('click', () => {
-      _applyAccent(hex, true);
-      sfx('ui.equip');
-      _renderTab();   // refresh active ring + hex field
-    });
-    row.appendChild(cell);
-  }
-  wrap.appendChild(row);
-
-  // Free-form hex — applies on valid input, shakes off malformed entries.
-  const hexRow = document.createElement('div');
-  hexRow.className = 'pmenu-row pmenu-hexinput-row';
-  const hash = document.createElement('span');
-  hash.className = 'pmenu-hexhash';
-  hash.textContent = '#';
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.maxLength = 6;
-  input.className = 'pmenu-hexinput';
-  input.value = cur.slice(1);
-  input.spellcheck = false;
-  const apply = document.createElement('button');
-  apply.type = 'button';
-  apply.className = 'pmenu-btn pmenu-hexapply';
-  apply.textContent = 'Apply';
-  const doApply = () => {
-    const hex = _normalizeHex(input.value);
-    if (hex) {
-      _applyAccent(hex, true);
-      sfx('ui.equip');
-      _renderTab();
-    } else {
-      input.classList.remove('invalid');
-      void input.offsetWidth;   // restart the shake animation
-      input.classList.add('invalid');
-    }
-  };
-  apply.addEventListener('click', doApply);
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doApply(); });
-  hexRow.appendChild(hash);
-  hexRow.appendChild(input);
-  hexRow.appendChild(apply);
-  wrap.appendChild(hexRow);
-
-  const note = document.createElement('div');
-  note.className = 'pmenu-note';
-  note.textContent = 'Colors the HUD, bars and chrome. Your character’s own colors live in Cosmetics (6/G).';
-  wrap.appendChild(note);
-
-  root.appendChild(wrap);
-}
-
-// ── Exit ────────────────────────────────────────────────
 function _exitGame() {
   // MD 14: navigate the TOP window — inside the portfolio's /stickland
   // iframe, bare `location` is the frame, and navigating it to '/' hits

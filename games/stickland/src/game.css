@@ -539,8 +539,10 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
   position:fixed; z-index:9551;
   left:50%; top:50%;
   transform:translate(-50%,-50%) scale(.96) translateY(10px);
+  /* FIXED, not max-height: the box must be identical whatever section is open,
+     so the height is pinned and .pmenu-scroll takes up the slack. */
   width:min(460px, calc(100vw - 32px));
-  max-height:min(600px, calc(100vh - 48px));
+  height:min(620px, calc(100vh - 48px));
   display:flex; flex-direction:column;
   padding:16px 16px 12px;
   background:var(--bg2);
@@ -560,25 +562,6 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
   font-size:17px; font-weight:700; letter-spacing:.02em;
   margin:0 2px 10px;
 }
-.pmenu-tabs{display:flex; gap:6px; margin-bottom:12px;}
-.pmenu-tab{
-  flex:1; padding:7px 0; font-family:var(--fn); font-size:13px; font-weight:600;
-  color:var(--tx2); background:var(--bg3); border:none; border-radius:9px;
-  cursor:pointer; transition:background var(--ease), color var(--ease), box-shadow var(--ease);
-}
-.pmenu-tab:hover{background:var(--bg4);}
-.pmenu-tab.active{
-  color:var(--tx); background:var(--bg4);
-  box-shadow:inset 0 0 0 1.5px var(--clr-adj, var(--accent));
-}
-
-.pmenu-content{
-  flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
-  padding:2px;
-}
-.pmenu-content::-webkit-scrollbar{width:8px;}
-.pmenu-content::-webkit-scrollbar-thumb{background:var(--bg4); border-radius:4px;}
-
 .pmenu-row{
   display:flex; align-items:center; gap:10px;
   padding:5px 4px; border-radius:8px;
@@ -614,8 +597,19 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 .pmenu-slider-row .pmenu-label{flex:0 0 76px;}
 .pmenu-range{
   flex:1; appearance:none; -webkit-appearance:none;
-  height:4px; border-radius:2px; background:var(--bg4);
+  height:4px; border-radius:2px;
+  /* Filled track: accent up to the knob, muted after it. --fill is set from
+     the channel's paint() so the fill follows the value while dragging. */
+  background:linear-gradient(to right,
+    var(--clr-adj, var(--accent)) var(--fill, 0%), var(--bg4) var(--fill, 0%));
   outline:none; cursor:pointer;
+  position:relative;
+}
+/* Centre tick, as in the DexNote panel. */
+.pmenu-chan{position:relative;}
+.pmenu-tick{
+  position:absolute; top:50%; width:2px; height:9px; margin-top:-4.5px;
+  background:var(--bdr); border-radius:1px; pointer-events:none;
 }
 .pmenu-range::-webkit-slider-thumb{
   appearance:none; -webkit-appearance:none;
@@ -714,3 +708,132 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 .pmenu-endcard-title{font-size:20px; font-weight:700; color:var(--tx);}
 .pmenu-endcard-sub{font-size:13px; color:var(--tx3); margin-bottom:6px;}
 #pmenu-endcard .pmenu-btn{flex:0 0 auto; padding:10px 22px;}
+
+
+/* ── Settings panel (DexNote-style accordion) ─────────────────────────────
+   The frame is a FIXED box. Sections expand and collapse inside it and
+   .pmenu-scroll absorbs the difference, so switching or expanding a section
+   never changes the outer dimensions. */
+.pmenu-title{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  font-size:16px; font-weight:700; letter-spacing:.01em;
+  color:var(--tx); margin:0 0 12px;
+}
+.pmenu-title svg{width:16px; height:16px; opacity:.75;}
+
+.pmenu-scroll{
+  flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+  display:flex; flex-direction:column; gap:8px; padding:2px;
+}
+.pmenu-scroll::-webkit-scrollbar{width:8px;}
+.pmenu-scroll::-webkit-scrollbar-thumb{background:var(--bg4); border-radius:4px;}
+
+.pmenu-sec{
+  border:1px solid transparent; border-radius:12px;
+  background:var(--bg3);
+  transition:border-color var(--ease), background var(--ease);
+}
+/* Expanded: accent hairline around the whole section, DexNote's treatment. */
+.pmenu-sec.open{
+  border-color:var(--clr-adj, var(--accent));
+  background:var(--bg3);
+}
+.pmenu-sec-head{
+  width:100%; display:flex; align-items:center; gap:10px;
+  padding:12px 14px; background:none; border:0; cursor:pointer;
+  font-family:var(--fn); color:var(--tx); text-align:left;
+  border-radius:12px;
+}
+.pmenu-sec-head:hover{background:var(--bg4);}
+.pmenu-sec.open .pmenu-sec-head{border-radius:11px 11px 0 0;}
+.pmenu-sec-label{flex:1; font-size:15px; font-weight:700; letter-spacing:.01em;}
+.pmenu-chev{display:flex; width:16px; height:16px; color:var(--tx2);
+  transform:rotate(180deg); transition:transform .2s ease;}
+.pmenu-sec.open .pmenu-chev{transform:rotate(0deg); color:var(--clr-adj, var(--accent));}
+.pmenu-chev svg{width:100%; height:100%;}
+.pmenu-sec-body{padding:0 14px 14px;}
+.pmenu-sec:not(.open) .pmenu-sec-body{display:none;}
+
+/* Prototype notice — quiet framing, secondary to the controls under it. */
+.pmenu-proto{
+  margin:2px 0 14px; padding:10px 12px;
+  font-size:12.5px; line-height:1.5; color:var(--tx2);
+  background:var(--bg2); border-radius:9px;
+  border-left:2px solid var(--bdr);
+}
+.pmenu-proto strong{color:var(--tx); font-weight:700;}
+
+.pmenu-sublabel{
+  font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--tx2); margin:14px 0 8px;
+}
+.pmenu-sec-body > .pmenu-sublabel:first-child{margin-top:2px;}
+
+/* Pill switch — filled when on, matching the DexNote toggle. */
+.pmenu-sw{
+  flex:0 0 auto; width:38px; height:21px; padding:0; cursor:pointer;
+  border:0; border-radius:999px; background:var(--bg4);
+  position:relative; transition:background var(--ease);
+}
+.pmenu-sw.on{background:var(--clr-adj, var(--accent));}
+.pmenu-sw-knob{
+  position:absolute; top:3px; left:3px; width:15px; height:15px;
+  border-radius:50%; background:#e8ecef;
+  transition:transform .18s cubic-bezier(.22,.61,.36,1);
+}
+.pmenu-sw.on .pmenu-sw-knob{transform:translateX(17px);}
+.pmenu-sw:focus-visible{outline:2px solid var(--clr-adj, var(--accent)); outline-offset:2px;}
+
+.pmenu-swrow{display:flex; align-items:center; gap:10px; padding:7px 2px;}
+.pmenu-swicon{width:17px; height:17px; flex:0 0 auto; color:var(--tx2);}
+.pmenu-swlabel{flex:1; font-size:13.5px; font-weight:600; color:var(--tx);}
+
+/* Audio channel: toggle | label | slider | percent, hard right. */
+.pmenu-chan{display:flex; align-items:center; gap:10px; padding:7px 2px;}
+.pmenu-chanlabel{flex:0 0 62px; font-size:13.5px; font-weight:600; color:var(--tx);}
+.pmenu-chan .pmenu-range{flex:1 1 auto; min-width:0;}
+.pmenu-chan .pmenu-range-val{
+  flex:0 0 34px; text-align:right; font-size:12px; color:var(--tx2);
+  font-variant-numeric:tabular-nums;
+}
+
+/* Smaller hexagons than before, and only the site's seven. */
+.pmenu-hexrow{display:flex; flex-wrap:wrap; gap:8px; padding:2px 0;}
+.pmenu-hexwrap{
+  width:26px; height:30px; padding:0; border:0; background:none; cursor:pointer;
+  display:grid; place-items:center; position:relative;
+}
+.pmenu-hex{
+  width:22px; height:25px; display:block;
+  clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  transition:transform .16s ease;
+}
+.pmenu-hexwrap:hover .pmenu-hex{transform:scale(1.12);}
+.pmenu-hexwrap.active::after{
+  content:""; position:absolute; inset:-3px;
+  border:2px solid var(--clr-adj, var(--accent)); border-radius:7px;
+}
+
+/* Controls: two-column card of labelled key-cap clusters. */
+.pmenu-ctlcard{
+  display:grid; grid-template-columns:1fr 1fr; gap:14px 16px;
+  padding:12px; border:1px solid var(--bdr); border-radius:10px;
+}
+.pmenu-ctltitle{
+  font-size:13px; font-weight:800; letter-spacing:.03em; color:var(--tx);
+  margin-bottom:7px;
+}
+.pmenu-ctlline{display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-bottom:5px;}
+.pmenu-ctlkeys{display:flex; gap:4px; flex-wrap:wrap;}
+.pmenu-ctlnote{font-size:12px; color:var(--tx2); margin-left:2px;}
+/* Larger than the old dense list — these were 11px. */
+.pmenu-ctlcard .pmenu-key{
+  min-width:26px; height:25px; padding:0 8px; font-size:12.5px; color:var(--tx);
+}
+
+@media (max-width:420px){
+  .pmenu-ctlcard{grid-template-columns:1fr;}
+}
+
+.pmenu-trackwrap{position:relative; flex:1 1 auto; min-width:0; display:flex; align-items:center;}
+.pmenu-trackwrap .pmenu-tick{left:50%; transform:translateX(-50%);}
