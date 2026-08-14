@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=118" />
+  <link rel="stylesheet" href="styles.css?v=119" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -129,12 +129,6 @@
     </nav>
 
     <div class="side-bottom">
-      <!-- Collapses the profile block below. Only reachable on the expanded
-           sidebar; the rail hides it, so nothing here can be tabbed to blind. -->
-      <button class="profile-toggle" type="button" id="profileToggle"
-              aria-expanded="true" aria-controls="profileMini" aria-label="Hide profile">
-        <span class="icon nav-icon" data-icon="chevron" aria-hidden="true"></span>
-      </button>
       <button class="resume-mini" type="button" data-resume-open><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="preview" aria-hidden="true"></span></button>
       <a class="contact-mini" href="mailto:dexdcimino@gmail.com"><span class="icon nav-icon" data-icon="contact" aria-hidden="true"></span><span class="nav-text">CONTACT</span></a>
 
@@ -174,7 +168,14 @@
         </picture>
         <!-- /img -->
         <div class="profile-copy">
-          <strong>DEX CIMINO</strong>
+          <div class="profile-nameline"><strong>DEX CIMINO</strong>
+            <!-- One button, relocated between the two name rows by the script:
+                 two copies would mean two identical controls in the tab order.
+                 Hidden on the rail, where there is no room for it. -->
+            <button class="profile-toggle" type="button" id="profileToggle"
+                    aria-expanded="true" aria-controls="profileMini" aria-label="Hide profile">
+              <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+            </button></div>
           <!-- Collapses to zero height on the narrow rail so it never reserves
                space for text nobody can see. -->
           <div class="profile-extra">
@@ -1340,6 +1341,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=118"></script>
+  <script src="script.js?v=119"></script>
 </body>
 </html>

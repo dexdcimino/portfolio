@@ -831,3 +831,9 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 .pmenu-swatch:hover i{transform:scale(1.1);}
 .pmenu-swatch.active::before{opacity:1; transform:scale(1);}
 .pmenu-swatch:focus-visible{outline:2px solid var(--tx); outline-offset:2px; border-radius:6px;}
+
+/* Resume is filled with the accent, so its label flips dark or light with it
+   — white on lime or yellow was barely readable. */
+.pmenu-footer .pmenu-btn-accent{color:var(--on-accent, #12161b)}
+/* Accent row centred in the panel. */
+.pmenu-swatches{justify-content:center}

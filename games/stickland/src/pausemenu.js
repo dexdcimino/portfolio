@@ -98,6 +98,9 @@ function _knobFor(hex) {
 function _applyAccent(hex, persist) {
   document.documentElement.style.setProperty('--accent', hex);
   document.documentElement.style.setProperty('--sw-knob', _knobFor(hex));
+  // Resume is filled with the accent, so its label needs the same treatment as
+  // the switch knobs: dark on light accents, light on dark ones.
+  document.documentElement.style.setProperty('--on-accent', _knobFor(hex));
   if (persist) safeStorage.setItem(ACCENT_LS_KEY, hex);
 }
 function _currentAccent() {
@@ -232,8 +235,8 @@ function _ensureDom() {
       ${_sec('controls', 'Controls')}
     </div>
     <div class="pmenu-footer">
-      <button class="pmenu-btn pmenu-btn-accent" data-act="resume" type="button">Resume</button>
       <button class="pmenu-btn" data-act="exit" type="button">Exit game</button>
+      <button class="pmenu-btn pmenu-btn-accent" data-act="resume" type="button">Resume</button>
     </div>`;
   document.body.appendChild(_menuEl);
 
@@ -528,6 +531,7 @@ function _renderAudio(root) {
 
   // Silencing the children lives in one helper so the switch and the slider
   // cannot drift apart — dragging master to zero has to behave like muting it.
+  let lastMaster = getVolume() || 0.8;
   const silenceChildren = () => { setBusVolume('amb', 0); setBusVolume('sfx', 0); setBusVolume('ui', 0); };
   const restoreChildren = () => {
     if (getBusVolume('amb') === 0 && getBusVolume('sfx') === 0) {
@@ -545,8 +549,16 @@ function _renderAudio(root) {
     () => !isMuted() && getVolume() > 0,
     (on) => {
       setMuted(!on);
-      if (!on) silenceChildren();
-      else { if (getVolume() === 0) setVolume(0.8); restoreChildren(); }
+      if (!on) {
+        // Muting has to move the master fader itself: leaving it at 80% while
+        // the switch reads off is the slider disagreeing with the state.
+        lastMaster = getVolume() || lastMaster;
+        setVolume(0);
+        silenceChildren();
+      } else {
+        setVolume(lastMaster || 0.8);
+        restoreChildren();
+      }
     }, sync);
 
   const child = (label, bus, extra) => _channel(label,

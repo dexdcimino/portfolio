@@ -1303,6 +1303,13 @@ const PROFILE_KEY = 'dex-profile-collapsed';
       armed = setTimeout(() => footer.classList.remove('is-toggling'), ms + 60);
     }
     footer.classList.toggle('is-profile-collapsed', collapsed);
+    // One button, two homes: the collapsed mini row and the expanded name line.
+    // Moving it beats rendering two, which would put two identical controls in
+    // the tab order and make the accessible name ambiguous.
+    const home = collapsed
+      ? document.querySelector('.profile-compact')
+      : document.querySelector('.profile-nameline');
+    if (home && toggle.parentElement !== home) home.appendChild(toggle);
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute('aria-label', collapsed ? 'Show profile' : 'Hide profile');
     // Zero-height content is still tabbable without this — inert takes the
@@ -1660,18 +1667,35 @@ const LOOP_MODES = ['off', 'all', 'one'];
   let token = 0;
   async function show(slug) {
     const mine = ++token;
-    if (!await has(slug)) { if (mine === token) hide(); return; }
+    // A game with no artwork leaves whatever is on screen alone rather than
+    // blanking the column — the preview is always showing something.
+    if (!await has(slug)) return;
     if (mine !== token) return;                 // a later row won the race
     art.style.setProperty('--art', `url("${urlFor(slug)}")`);
     art.classList.add('is-on');
   }
-  function hide() { token++; art.classList.remove('is-on'); }
 
   for (const row of rows) {
     const slug = row.dataset.game;
     row.addEventListener('pointerenter', () => show(slug));
     row.addEventListener('focus', () => show(slug));
-    row.addEventListener('pointerleave', () => hide());
-    row.addEventListener('blur', () => hide());
+  }
+
+  // Whichever game has art first is what the section rests on. Deferred until
+  // the section is actually approaching the viewport, so the artwork still
+  // costs nothing to anyone who never scrolls this far.
+  const seed = async () => {
+    for (const row of rows) {
+      if (await has(row.dataset.game)) { show(row.dataset.game); return; }
+    }
+  };
+  const section = document.getElementById('games');
+  if (section && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); seed(); }
+    }, { rootMargin: '200px' });
+    io.observe(section);
+  } else {
+    seed();
   }
 })();
