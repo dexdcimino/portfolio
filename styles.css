@@ -598,9 +598,7 @@ button.button{cursor:pointer;font:inherit}
    these are dense grids, and the loose rhythm that suits a headline plus a
    paragraph leaves them floating.
    ========================================================================== */
-.toolkit,.picks{padding:72px var(--gutter);background:linear-gradient(180deg,rgba(8,10,12,.84),rgba(8,10,12,.96))}
-.picks{background:rgba(11,14,17,.94)}
-.toolkit .section-head,.picks .section-head{margin-bottom:22px}
+
 
 /* --- shared tab row ------------------------------------------------------ */
 .tk-tabs,.pk-tabs{
@@ -610,7 +608,7 @@ button.button{cursor:pointer;font:inherit}
 .tk-tab,.pk-tab{
   appearance:none;border:0;background:none;cursor:pointer;font:inherit;
   padding:11px 16px;margin-bottom:-1px;
-  color:var(--icon-idle);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--icon-idle);font-size:14px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;
   border-bottom:var(--stroke) solid transparent;white-space:nowrap;
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
 }
@@ -622,34 +620,38 @@ button.button{cursor:pointer;font:inherit}
 @media(max-width:760px){
   .tk-tabs,.pk-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
   .tk-tabs::-webkit-scrollbar,.pk-tabs::-webkit-scrollbar{display:none}
-  .tk-tab,.pk-tab{padding:11px 13px;font-size:11px}
+  .tk-tab,.pk-tab{padding:11px 13px;font-size:13px}
 }
 
 /* --- toolkit grid -------------------------------------------------------- */
 .tk-list{
   list-style:none;margin:0;padding:0;
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:18px 10px;
 }
+/* No card: the icon sits straight on the About ground. Only the reserved
+   name/gauge rows below it give the item its height, so the row stays even
+   whether or not a tool is hovered. */
 .tk-item{
-  display:grid;justify-items:center;align-content:start;gap:9px;
-  padding:20px 10px 16px;min-height:118px;
-  border:var(--stroke) solid rgba(255,255,255,.08);border-radius:14px;
-  background:linear-gradient(150deg,rgba(32,38,44,.5),rgba(12,15,18,.5));
-  transition:border-color var(--accent-ease),background .25s ease;
+  display:grid;justify-items:center;align-content:start;gap:10px;
+  padding:6px 6px 4px;min-height:104px;
 }
-/* Gauged tabs reserve the dot row on every tile so a 5/5 and a 2/5 line up. */
-.tk-list-gauged .tk-item{min-height:132px}
-.tk-item:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:linear-gradient(150deg,rgba(38,46,54,.6),rgba(14,18,22,.6))}
+/* Gauged tabs reserve the dot row on every item so a 5/5 and a 2/5 line up. */
+.tk-list-gauged .tk-item{min-height:120px}
 
 /* The icon shrinks and lifts, the name fades up into the space it leaves.
    Both are transforms and opacity — nothing here reflows the tile. */
 .tk-icon{
-  width:38px;height:38px;color:var(--icon-idle);
+  width:62px;height:62px;color:var(--icon-idle);
   transition:transform .22s cubic-bezier(.22,.61,.36,1),color var(--accent-ease);
 }
-.tk-item:hover .tk-icon{transform:translateY(-4px) scale(.86);color:var(--accent)}
+.tk-item:hover .tk-icon{transform:translateY(-6px) scale(.86);color:var(--accent)}
 .tk-name{
-  font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--muted);text-align:center;line-height:1.25;
+  /* Two lines are always reserved. The name is invisible at rest but still
+     occupies its row, so a wrapping label ("Substance Painter") would push its
+     own gauge a line lower than every neighbour's — the dots have to sit on one
+     baseline across the row whether a name is one word or two. */
+  font-size:12px;font-weight:800;letter-spacing:.05em;color:var(--muted);text-align:center;line-height:1.25;
+  min-height:30px;display:flex;align-items:flex-start;justify-content:center;
   opacity:0;transform:translateY(4px);
   transition:opacity .2s ease,transform .22s cubic-bezier(.22,.61,.36,1);
 }
@@ -705,9 +707,8 @@ button.button{cursor:pointer;font:inherit}
 @media(max-width:1100px){ .pk-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
 @media(max-width:560px){
   .pk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-  .toolkit,.picks{padding:56px var(--gutter)}
-  .tk-list{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
-  .tk-icon{width:32px;height:32px}
+  .tk-list{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:16px 8px}
+  .tk-icon{width:48px;height:48px}
 }
 /* Touch: there is no hover, so the name is simply always on. */
 @media(hover:none){
@@ -746,7 +747,13 @@ button.button{cursor:pointer;font:inherit}
 .inline-arrow{width:13px;height:13px}
 .ai-card:hover .inline-arrow{transform:translate(2px,-2px)}
 
-.about{padding:110px var(--gutter);display:grid;grid-template-columns:minmax(260px,420px) minmax(300px,700px);align-items:center;gap:clamp(40px,7vw,110px);background:#0b0e11}
+.about{padding:110px var(--gutter) 96px;background:#0b0e11}
+.about-hero{display:grid;grid-template-columns:minmax(260px,420px) minmax(300px,700px);align-items:center;gap:clamp(40px,7vw,110px)}
+/* Toolkit and Top Picks are subsections OF About, not sections in their own
+   right: no ground of their own, no full-bleed padding, and a gap sized to
+   read as "next part of this block" rather than "next section of the page". */
+.about-sub{margin-top:54px}
+.about-sub .section-head{margin-bottom:18px}
 /* ART + TECH + EXECUTION is one line, always. The shared heading clamp sizes
    from the viewport (4vw), but this heading lives in a column that is a good
    deal narrower than the viewport — 481px against a 1400px window — so 56px
@@ -1247,7 +1254,7 @@ body.modal-open{overflow:hidden}
   .home-featured{padding-top:28px}
   .work-grid{grid-template-columns:1fr 1fr}
   .split-section{grid-template-columns:1fr}
-  .about{grid-template-columns:320px 1fr}
+  .about-hero{grid-template-columns:320px 1fr}
 }
 @media(max-width:760px){
   :root{--sidebar:58px;--copy-size:16px;--swatch:28px;--swatch-step:34px}
@@ -1271,9 +1278,11 @@ body.modal-open{overflow:hidden}
   .home-featured .work-grid{grid-template-columns:1fr}
   .home-featured .work-card{height:300px}
   :root{--gutter:20px}
-  .split-section,.section,.about{padding:72px var(--gutter)}
+  .split-section,.section{padding:72px var(--gutter)}
+  .about{padding:72px var(--gutter) 64px}
+  .about-sub{margin-top:42px}
   .ai-grid{grid-template-columns:1fr}
-  .about{grid-template-columns:1fr}
+  .about-hero{grid-template-columns:1fr}
   .about-photo{max-width:330px}
   .contact-panel{padding:24px 20px}
   .resume-strip{padding:60px var(--gutter);align-items:flex-start;flex-direction:column}

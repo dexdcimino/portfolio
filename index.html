@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=107" />
+  <link rel="stylesheet" href="styles.css?v=108" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -360,25 +360,26 @@
     </section>
 
     <section class="about" id="about">
-      <div class="about-photo reveal">
-        <!-- img src="assets/about/profile.jpg" slot="about-photo" alt="Dex Cimino" -->
-        <picture>
-          <source type="image/avif" srcset="assets/derived/about/profile-840.avif 840w,
-                                            assets/derived/about/profile-420.avif 420w,
-                                            assets/derived/about/profile-200.avif 200w"
-                  sizes="(max-width:760px) min(90vw, 330px), min(32vw, 420px)">
-          <source type="image/webp" srcset="assets/derived/about/profile-840.webp 840w,
-                                            assets/derived/about/profile-420.webp 420w,
-                                            assets/derived/about/profile-200.webp 200w"
-                  sizes="(max-width:760px) min(90vw, 330px), min(32vw, 420px)">
-          <img src="assets/about/profile.jpg" alt="Dex Cimino" width="932" height="1014" loading="lazy" decoding="async">
-        </picture>
-        <!-- /img -->
+      <div class="about-hero">
+        <div class="about-photo reveal">
+          <!-- img src="assets/about/profile.jpg" slot="about-photo" alt="Dex Cimino" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/about/profile-840.avif 840w,
+                                              assets/derived/about/profile-420.avif 420w,
+                                              assets/derived/about/profile-200.avif 200w"
+                    sizes="(max-width:760px) min(90vw, 330px), min(32vw, 420px)">
+            <source type="image/webp" srcset="assets/derived/about/profile-840.webp 840w,
+                                              assets/derived/about/profile-420.webp 420w,
+                                              assets/derived/about/profile-200.webp 200w"
+                    sizes="(max-width:760px) min(90vw, 330px), min(32vw, 420px)">
+            <img src="assets/about/profile.jpg" alt="Dex Cimino" width="932" height="1014" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </div>
+        <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH <span class="title-accent">+&nbsp;EXECUTION</span></h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p></div>
       </div>
-      <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH <span class="title-accent">+&nbsp;EXECUTION</span></h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p></div>
-    </section>
 
-    <section class="section toolkit" id="toolkit" aria-labelledby="toolkit-title">
+    <section class="about-sub toolkit" id="toolkit" aria-labelledby="toolkit-title">
       <div class="section-head reveal">
         <h2 class="featured-title" id="toolkit-title"><span class="icon featured-mark" data-icon="tick" aria-hidden="true"></span><span>TOOLKIT</span></h2>
       </div>
@@ -551,7 +552,7 @@
       </div>
     </section>
 
-    <section class="section picks" id="picks" aria-labelledby="picks-title">
+    <section class="about-sub picks" id="picks" aria-labelledby="picks-title">
       <div class="section-head reveal">
         <h2 class="featured-title" id="picks-title"><span class="icon featured-mark" data-icon="tick" aria-hidden="true"></span><span>TOP PICKS</span></h2>
       </div>
@@ -843,6 +844,7 @@
         </ul>
       </div>
     </section>
+    </section>
 
     <section class="resume-strip" id="contact-cta">
       <div><p class="eyebrow">EXPERIENCE</p><h2>WANT THE SHORT VERSION?</h2></div>
@@ -1079,6 +1081,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=107"></script>
+  <script src="script.js?v=108"></script>
 </body>
 </html>
