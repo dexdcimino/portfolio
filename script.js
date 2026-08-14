@@ -1546,9 +1546,8 @@ const LOOP_MODES = ['off', 'all', 'one'];
 (function initResumeCopy() {
   const btn = document.getElementById('resumeCopy');
   if (!btn) return;
-  const label = btn.querySelector('.resume-copy-label');
   const icon = btn.querySelector('.btn-icon');
-  const restore = { text: label.textContent, icon: icon.dataset.icon };
+  const restore = { icon: icon.dataset.icon, label: btn.getAttribute('aria-label') };
   let revert = null;
 
   const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1595,13 +1594,14 @@ const LOOP_MODES = ['off', 'all', 'one'];
 
   function flash(ok, msg) {
     clearTimeout(revert);
-    label.textContent = msg;
     icon.dataset.icon = ok ? 'tick-check' : 'copy';
     btn.classList.toggle('is-done', ok);
     btn.classList.toggle('is-failed', !ok);
+    // Icon-only, so the outcome has to reach screen readers through the name.
+    btn.setAttribute('aria-label', msg);
     revert = setTimeout(() => {
-      label.textContent = restore.text;
       icon.dataset.icon = restore.icon;
+      btn.setAttribute('aria-label', restore.label);
       btn.classList.remove('is-done', 'is-failed');
     }, 2200);
   }
@@ -1616,15 +1616,15 @@ const LOOP_MODES = ['off', 'all', 'one'];
         'text/plain': new Blob([text], { type: 'text/plain' }),
         'text/html': new Blob([html], { type: 'text/html' }),
       })]);
-      flash(true, 'COPIED');
+      flash(true, 'Copied to the clipboard');
       return;
     } catch (e) { /* fall through to plain text */ }
     try {
       await navigator.clipboard.writeText(text);
-      flash(true, 'COPIED');
+      flash(true, 'Copied to the clipboard');
     } catch (e) {
       // Both refused — say so on the button rather than appearing to do nothing.
-      flash(false, 'FAILED');
+      flash(false, 'Copy failed');
     }
   });
 
@@ -1632,7 +1632,10 @@ const LOOP_MODES = ['off', 'all', 'one'];
   const sync = () => {
     const page = activePage();
     const what = page && page.id === 'panel-cover' ? 'cover letter' : 'resume';
-    btn.setAttribute('aria-label', `Copy Dex Cimino ${what} to the clipboard`);
+    restore.label = `Copy Dex Cimino ${what} to the clipboard`;
+    if (!btn.classList.contains('is-done') && !btn.classList.contains('is-failed')) {
+      btn.setAttribute('aria-label', restore.label);
+    }
   };
   document.querySelectorAll('.resume-tab').forEach(t => t.addEventListener('click', () => setTimeout(sync, 0)));
   sync();

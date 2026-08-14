@@ -1328,7 +1328,14 @@ body.modal-open{overflow:hidden}
 .resume-pdf{min-height:44px;text-decoration:none}
 /* Copy is the PDF button's pair, so it takes the same box: the ghost
    variant renders a size larger by default, which read as mismatched. */
-.resume-copy{min-height:44px;font-size:14px}
+/* Square, icon only, hard against the PDF button. Same height and radius as
+   its pair; the label is gone so the icon carries it and can run larger. */
+.resume-actions{display:flex;align-items:center;gap:8px}
+.resume-copy{
+  min-height:44px;height:44px;width:44px;
+  padding:0;flex:0 0 auto;gap:0;
+}
+.resume-copy .btn-icon{width:20px;height:20px}
 
 @media(max-width:760px){
   .resume-modal{width:100vw;height:100dvh;max-height:none}
@@ -1620,11 +1627,8 @@ body.modal-open{overflow:hidden}
   .resume-modal[open]{animation:none}
 }
 
-/* Copy sits beside Download PDF and reads as its pair — same height and
-   padding, quieter fill because downloading is the primary action. */
-.resume-copy{display:inline-flex;align-items:center;gap:9px;cursor:pointer}
-.resume-copy .btn-icon{width:15px;height:15px}
-.resume-copy-label{font-variant-numeric:tabular-nums}
+.resume-copy{display:inline-flex;align-items:center;cursor:pointer}
+
 /* Confirmation lives on the button itself — no toast, no alert. */
 .resume-copy.is-done{color:var(--accent);border-color:var(--accent)}
 .resume-copy.is-failed{color:#ff8080;border-color:#ff8080}

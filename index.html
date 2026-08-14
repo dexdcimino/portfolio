@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=119" />
+  <link rel="stylesheet" href="styles.css?v=120" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -1286,15 +1286,18 @@
           </button>
           <output class="resume-zoom-level" id="zoomLevel" aria-live="polite">110%</output>
         </div>
-        <button class="button ghost resume-copy" type="button" id="resumeCopy"
-                aria-label="Copy Dex Cimino resume to the clipboard">
-          <span class="resume-copy-label">COPY</span>
-          <span class="icon btn-icon" data-icon="copy" aria-hidden="true"></span>
-        </button>
-        <a class="button primary resume-pdf" href="assets/about/Dex_Cimino_Resume.pdf"
-           download="Dex_Cimino_Resume.pdf" aria-label="Download Dex Cimino resume as PDF">
-          <span>PDF</span><span class="icon btn-icon" data-icon="download" aria-hidden="true"></span>
-        </a>
+        <!-- Grouped so the toolbar's space-between cannot strand Copy in the
+             middle: the pair sits together at the right edge. -->
+        <div class="resume-actions">
+          <button class="button ghost resume-copy" type="button" id="resumeCopy"
+                  aria-label="Copy Dex Cimino resume to the clipboard">
+            <span class="icon btn-icon" data-icon="copy" aria-hidden="true"></span>
+          </button>
+          <a class="button primary resume-pdf" href="assets/about/Dex_Cimino_Resume.pdf"
+             download="Dex_Cimino_Resume.pdf" aria-label="Download Dex Cimino resume as PDF">
+            <span>PDF</span><span class="icon btn-icon" data-icon="download" aria-hidden="true"></span>
+          </a>
+        </div>
       </div>
     </div>
   </dialog>
@@ -1341,6 +1344,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=119"></script>
+  <script src="script.js?v=120"></script>
 </body>
 </html>

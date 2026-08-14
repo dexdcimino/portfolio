@@ -2170,11 +2170,13 @@ const GUN_TYPES = {
   rifle:    { label:'Rifle',    fireRate: 30, speed: 20, spread: 0, pellets: 1, barrelLen: 22, autoFire: false, gripUp: 6,
               bulletW: 5, bulletH: 3, trailLen: 30,
               svg:'<line x1="0" y1="5" x2="26" y2="5" stroke-width="2"/><line x1="18" y1="5" x2="18" y2="10" stroke-width="1.8"/><circle cx="3" cy="3" r="2" fill="none" stroke-width="1.2"/>' },
-  // Sword (replaces the never-shipped hammer): melee, aims at the cursor,
-  // alternates a jab (long thrust) with a swipe (arc sweep). bladeLen is
-  // the visual reach; the hit tests sample along it so range matches look.
-  sword:    { label:'Sword',  fireRate: 45, speed: 0, spread: 0, pellets: 0, barrelLen: 20, autoFire: false, gripUp: 6, melee: true, isSword: true,
-              svg:'<line x1="2" y1="7" x2="17" y2="7" stroke-width="2"/><line x1="17" y1="3.5" x2="17" y2="10.5" stroke-width="1.8"/><line x1="17" y1="7" x2="23" y2="7" stroke-width="2.4"/><circle cx="24.5" cy="7" r="1.2" fill="currentColor" stroke="none"/>' },
+  // Sword (replaces the never-shipped hammer): melee, aims at the cursor.
+  // MD 11 rework: longer blade (barrelLen is the visual reach — hit tests
+  // sample along it so range matches look), random jab/swipe per click
+  // with a short wind-up, and a fireRate quick enough to spam (14 ≈ 233ms
+  // between clicks; both swings finish inside that).
+  sword:    { label:'Sword',  fireRate: 14, speed: 0, spread: 0, pellets: 0, barrelLen: 34, autoFire: false, gripUp: 6, melee: true, isSword: true,
+              svg:'<circle cx="1.4" cy="7" r="1.2" fill="currentColor" stroke="none"/><line x1="2.4" y1="7" x2="5.2" y2="7" stroke-width="2.4"/><path d="M6.2,3.6 Q8.2,7 6.2,10.4" stroke-width="1.6" fill="none"/><path d="M7,5.4 L20,6.1 L27.5,7 L20,7.9 L7,8.6 Z" fill="currentColor" fill-opacity="0.3" stroke-width="1"/><line x1="8.5" y1="7" x2="22" y2="7" stroke-width="0.7" opacity="0.45"/>' },
   rocket:   { label:'Rocket',  fireRate: 90, speed: 8, spread: 0, pellets: 1, barrelLen: 20, autoFire: false, gripUp: 6, isRocket: true,
               svg:'<line x1="0" y1="6" x2="18" y2="6" stroke-width="3"/><path d="M18,3 L24,6 L18,9 Z" stroke-width="1.2" fill="none"/><line x1="6" y1="6" x2="6" y2="12" stroke-width="2"/>' },
   laser:    { label:'Gamma Laser', fireRate: 0, speed: 0, spread: 0, pellets: 0, barrelLen: 18, autoFire: false, gripUp: 8, isLaser: true,
@@ -2206,9 +2208,10 @@ const INVENTORY_ITEMS = [
   { id:'rocket',   label:'Rocket',   functional:true,  unlockLevel:8,  tilt:-35, svg:GUN_TYPES.rocket.svg,   viewBox:'-1 2 27 12', chipVB:'-2 1 28 12' },
   { id:'smg',      label:'SMG',      functional:true,  unlockLevel:6,  tilt:-35, svg:GUN_TYPES.smg.svg,      viewBox:'-1 2 21 13', chipVB:'-2 1 22 13' },
   // Hammer removed (owner's call) — its inventory cell simply stays blank.
-  // MD 05: sword icon — tapered blade with a faint fill, crossguard, grip,
-  // pommel. Functional now: melee jab/swipe (see GUN_TYPES.sword).
-  { id:'sword',    label:'Sword',    functional:true,  unlockLevel:1,  tilt:0,   svg:'<path d="M14,0 L15.3,2 L15.3,9 L12.7,9 L12.7,2 Z" fill="currentColor" fill-opacity="0.25" stroke-width="1.1" stroke-linejoin="round"/><line x1="10.5" y1="9" x2="17.5" y2="9" stroke-width="1.6"/><line x1="14" y1="9" x2="14" y2="13" stroke-width="1.7"/><circle cx="14" cy="13.8" r="1" fill="currentColor" stroke="none"/>', viewBox:'8 -1 12 16', chipVB:'9 -1 10 16' },
+  // MD 11: sword icon redrawn to match the reworked in-hand blade — longer
+  // tapered blade with a belly, fuller down the middle, swept crossguard,
+  // grip, pommel. Melee jab/swipe (see GUN_TYPES.sword).
+  { id:'sword',    label:'Sword',    functional:true,  unlockLevel:1,  tilt:0,   svg:'<path d="M14,-2.5 L15.4,1.5 L15.1,10.5 L12.9,10.5 L12.6,1.5 Z" fill="currentColor" fill-opacity="0.28" stroke-width="1.1" stroke-linejoin="round"/><line x1="14" y1="0.5" x2="14" y2="9.5" stroke-width="0.6" opacity="0.5"/><path d="M10.6,10.5 Q14,12.4 17.4,10.5" stroke-width="1.5" fill="none"/><line x1="14" y1="11.6" x2="14" y2="15" stroke-width="1.7"/><circle cx="14" cy="15.9" r="1.1" fill="currentColor" stroke="none"/>', viewBox:'7.5 -3.5 13 21.5', chipVB:'8.5 -3.5 11 21.5' },
   { id:'laser',    label:'Gamma Laser', functional:true, unlockLevel:9, tilt:-35, svg:GUN_TYPES.laser.svg, viewBox:'-1 2 32 8', chipVB:'-2 3 32 6' },
   { id:'pufferLauncher', label:'Puffer Launcher', functional:true, unlockLevel:8, tilt:-35, svg:GUN_TYPES.pufferLauncher.svg, viewBox:'-1 1 26 13', chipVB:'-2 1 26 12' },
   { id:'spellbook', label:'Spellbook', functional:true, unlockLevel:7, tilt:-30, svg:GUN_TYPES.spellbook.svg, viewBox:'2 -1 22 16', chipVB:'1 0 16 14' },
@@ -2265,9 +2268,11 @@ const _gun = {
   _gripSvgX: 18, _gripSvgY: 20, _muzzleSvgX: 36, _muzzleSvgY: 20,
   _dirX: 1, _dirY: 0,
   _kickback: 0,
-  _swordAnim: null,         // { kind:'jab'|'swipe', t, dur } while swinging
-  _swordNext: 'jab',        // attacks alternate jab → swipe → jab
-  _swordGuard: null,        // crossguard SVG line, created on pickup
+  _swordAnim: null,         // { kind:'jab'|'swipe', t, windup, dur, struck } while swinging
+  _swordLast: null,         // last attack kind — clicks pick randomly, biased to switch
+  _swordEl: null,           // full sword art <g>, created lazily on first sword frame
+  _swordTrail: null,        // swipe motion-trail <path>, created lazily
+  _swordTrailT: 0,          // trail fade countdown after a swipe ends
 };
 const _pickups = [];       // array of { type, x, y, el, promptEl }
 const _projectiles = [];
@@ -2772,15 +2777,21 @@ function _dropGun() {
   if (!_gun.held) return;
   _stopLaser();
   _gun.held = false;
-  if (_gun._swordGuard) { _gun._swordGuard.remove(); _gun._swordGuard = null; }
+  if (_gun._swordEl) { _gun._swordEl.remove(); _gun._swordEl = null; }
+  if (_gun._swordTrail) { _gun._swordTrail.remove(); _gun._swordTrail = null; }
   _gun._swordAnim = null;
+  _gun._swordTrailT = 0;
   if (_gun.svgLine) { _gun.svgLine.remove(); _gun.svgLine = null; }
   // Weapon returns to inventory (no visible drop on canvas)
   _gun.type = null;
   _gun._pickup = null;
 }
 
-function _updateGunAim(mouseX, mouseY) {
+// `advance` is true only from the frame loops — mousemove also calls this
+// to re-aim, and must not advance swing animation time (pre-MD 11 the
+// sword clock ticked on every mousemove, so waving the cursor fast-
+// forwarded the swing).
+function _updateGunAim(mouseX, mouseY, advance) {
   if (!_gun.held || !_gun.svgLine) return;
   const torso = _el('torso');
   const sY = torso ? parseFloat(torso.getAttribute('y1')) : 14;
@@ -2798,47 +2809,7 @@ function _updateGunAim(mouseX, mouseY) {
   _gun.angle = Math.atan2(dy, dx);
 
   if (cfg && cfg.melee) {
-    // SWORD — blade held toward the cursor; attacks animate the blade
-    // itself: a jab thrusts it out along the aim, a swipe sweeps it
-    // through a ±0.9rad arc around the aim.
-    let effAngle = _gun.angle, ext = 0;
-    const anim = _gun._swordAnim;
-    if (anim) {
-      const t = Math.min(anim.t / anim.dur, 1);
-      if (anim.kind === 'jab') {
-        ext = Math.sin(t * Math.PI) * 9;           // out and back
-      } else {
-        effAngle = _gun.angle + (-0.9 + t * 1.8);  // sweep across the aim
-        ext = Math.sin(t * Math.PI) * 3;
-      }
-      anim.t += _dt;
-      if (anim.t >= anim.dur) _gun._swordAnim = null;
-    }
-    const cosS = Math.cos(effAngle), sinS = Math.sin(effAngle);
-    const sdirX = flipX ? -cosS : cosS;
-    const sdirY = sinS;
-    const bladeLen = (cfg.barrelLen || 20) + ext;
-    const x1 = 18, y1 = gripY;
-    const x2 = x1 + sdirX * bladeLen;
-    const y2 = y1 + sdirY * bladeLen;
-    _gun.svgLine.setAttribute('x1', x1); _gun.svgLine.setAttribute('y1', y1);
-    _gun.svgLine.setAttribute('x2', x2); _gun.svgLine.setAttribute('y2', y2);
-    // Crossguard — short perpendicular line just above the grip.
-    let guard = _gun._swordGuard;
-    if (!guard) {
-      guard = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      guard.setAttribute('stroke', 'var(--char-clr,var(--clr-adj,#7B8A9C))');
-      guard.setAttribute('stroke-width', '2');
-      guard.setAttribute('stroke-linecap', 'round');
-      _gun.svgLine.parentNode?.appendChild(guard);
-      _gun._swordGuard = guard;
-    }
-    const gx2 = x1 + sdirX * 5, gy2 = y1 + sdirY * 5;   // guard sits 5 up the blade
-    guard.setAttribute('x1', gx2 - sdirY * 3.5); guard.setAttribute('y1', gy2 + sdirX * 3.5);
-    guard.setAttribute('x2', gx2 + sdirY * 3.5); guard.setAttribute('y2', gy2 - sdirX * 3.5);
-    _gun._gripSvgX = x1; _gun._gripSvgY = y1;
-    _gun._muzzleSvgX = x2; _gun._muzzleSvgY = y2;
-    _gun._dirX = sdirX; _gun._dirY = sdirY;
+    _updateSword(cfg, gripY, advance);
     return;
   }
 
@@ -2861,6 +2832,173 @@ function _updateGunAim(mouseX, mouseY) {
   _gun._gripSvgX = x1; _gun._gripSvgY = y1;
   _gun._muzzleSvgX = x2; _gun._muzzleSvgY = y2;
   _gun._dirX = dirX; _gun._dirY = dirY;
+}
+
+// ── SWORD (MD 11 rework) ─────────────────────────────────
+// The sword is a small SVG group (tapered blade, fuller, swept guard,
+// grip, pommel) authored along +x with the hand at the origin and the
+// tip at x = barrelLen; each frame only its transform changes. Attacks
+// are a tiny state machine on _gun._swordAnim: a wind-up (anticipation —
+// the blade pulls back / cocks past the arc start), a strike frame where
+// the hit test fires, then follow-through. Both attacks aim at the live
+// cursor angle; a swipe leaves an accent-colored arc trail.
+const SWORD_JAB_WINDUP = 8,    SWORD_JAB_DUR = 30;   // 240Hz-reference frames
+const SWORD_SWIPE_WINDUP = 11, SWORD_SWIPE_DUR = 46;
+const SWORD_SWIPE_ARC = 1.15;  // swipe sweeps ±this around the aim (rad)
+const SWORD_JAB_LUNGE = 14;    // px the blade thrusts past rest reach
+const SWORD_TRAIL_FADE = 12;   // frames the swipe trail lingers
+
+function _ensureSwordEls() {
+  if (_gun._swordEl) return;
+  const ns = 'http://www.w3.org/2000/svg';
+  const clr = 'var(--char-clr,var(--clr-adj,#7B8A9C))';
+  // Trail is appended first so the blade draws over it.
+  const trail = document.createElementNS(ns, 'path');
+  trail.setAttribute('stroke', 'var(--accent, #68d121)');
+  trail.setAttribute('stroke-width', '4.5');
+  trail.setAttribute('stroke-linecap', 'round');
+  trail.setAttribute('fill', 'none');
+  trail.setAttribute('opacity', '0');
+  const g = document.createElementNS(ns, 'g');
+  g.setAttribute('stroke', clr);
+  g.setAttribute('stroke-linecap', 'round');
+  g.setAttribute('stroke-linejoin', 'round');
+  g.setAttribute('fill', 'none');
+  g.innerHTML =
+    `<circle cx="-4.6" cy="0" r="1.6" fill="${clr}" stroke="none"/>` +
+    `<line x1="-3.2" y1="0" x2="0.6" y2="0" stroke-width="3"/>` +
+    `<path d="M1.6,-4.6 Q4.2,0 1.6,4.6" stroke-width="2"/>` +
+    `<path d="M3,-2.4 L23,-1.6 L34,0 L23,1.6 L3,2.4 Z" stroke-width="1.1" fill="${clr}" fill-opacity="0.3"/>` +
+    `<line x1="5" y1="0" x2="26" y2="0" stroke-width="0.8" opacity="0.45"/>`;
+  const parent = _gun.svgLine?.parentNode;
+  if (parent) { parent.appendChild(trail); parent.appendChild(g); }
+  _gun._swordEl = g;
+  _gun._swordTrail = trail;
+  // The generic gun line stays as the drop-cleanup anchor but never shows.
+  _gun.svgLine?.setAttribute('display', 'none');
+}
+
+function _swordArcPath(cx, cy, r, a0, a1) {
+  const n = 12; let d = '';
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + (a1 - a0) * i / n;
+    d += (i ? 'L' : 'M') + (cx + Math.cos(a) * r).toFixed(1) + ' ' + (cy + Math.sin(a) * r).toFixed(1);
+  }
+  return d;
+}
+
+function _updateSword(cfg, gripY, advance) {
+  _ensureSwordEls();
+  const bladeLen = cfg.barrelLen || 34;
+  let effAngle = _gun.angle, ext = 0;
+  const anim = _gun._swordAnim;
+  if (anim) {
+    if (anim.kind === 'jab') {
+      if (anim.t < anim.windup) {
+        // Anticipation: pull the blade back before the thrust.
+        ext = -4 * Math.sin((anim.t / anim.windup) * Math.PI / 2);
+      } else {
+        const t = Math.min((anim.t - anim.windup) / (anim.dur - anim.windup), 1);
+        ext = Math.sin(t * Math.PI) * SWORD_JAB_LUNGE;
+      }
+    } else {
+      if (anim.t < anim.windup) {
+        // Cock back slightly past the arc start.
+        const w = anim.t / anim.windup;
+        effAngle = _gun.angle - SWORD_SWIPE_ARC * 1.2 * w * (2 - w);
+      } else {
+        const t = Math.min((anim.t - anim.windup) / (anim.dur - anim.windup), 1);
+        const e = 1 - Math.pow(1 - t, 3);          // fast strike, slow follow-through
+        effAngle = _gun.angle + SWORD_SWIPE_ARC * (-1.2 + 2.2 * e);
+        ext = Math.sin(t * Math.PI) * 4;
+      }
+    }
+  }
+  const cosS = Math.cos(effAngle), sinS = Math.sin(effAngle);
+  const sdirX = flipX ? -cosS : cosS;
+  const sdirY = sinS;
+  const gx = 18 + sdirX * ext, gy = gripY + sdirY * ext;   // a lunge moves the whole sword
+  const deg = Math.atan2(sdirY, sdirX) * 180 / Math.PI;
+  _gun._swordEl.setAttribute('transform', `translate(${gx.toFixed(2)},${gy.toFixed(2)}) rotate(${deg.toFixed(2)})`);
+  _gun._gripSvgX = gx; _gun._gripSvgY = gy;
+  _gun._muzzleSvgX = gx + sdirX * bladeLen; _gun._muzzleSvgY = gy + sdirY * bladeLen;
+  _gun._dirX = sdirX; _gun._dirY = sdirY;
+
+  // Swipe trail — an arc at blade-tip radius from the strike's start
+  // angle to the blade's current angle, fading once the swing ends.
+  const trail = _gun._swordTrail;
+  const striking = anim && anim.kind === 'swipe' && anim.t >= anim.windup;
+  if (striking) {
+    const locA = Math.atan2(sdirY, sdirX);
+    if (anim._a0 == null) anim._a0 = locA;
+    trail.setAttribute('d', _swordArcPath(18, gripY, bladeLen * 0.94, anim._a0, locA));
+    trail.setAttribute('opacity', '0.5');
+    _gun._swordTrailT = SWORD_TRAIL_FADE;
+  } else if (_gun._swordTrailT > 0) {
+    trail.setAttribute('opacity', (0.5 * _gun._swordTrailT / SWORD_TRAIL_FADE).toFixed(3));
+    if (advance) _gun._swordTrailT = Math.max(0, _gun._swordTrailT - _dt);
+    if (_gun._swordTrailT <= 0) trail.setAttribute('opacity', '0');
+  }
+
+  if (anim && advance) {
+    anim.t += _dt;
+    // The strike lands when the wind-up ends — hit test + FX fire once.
+    if (!anim.struck && anim.t >= anim.windup) { anim.struck = true; _swordStrike(anim.kind); }
+    if (anim.t >= anim.dur) _gun._swordAnim = null;
+  }
+}
+
+// One sword strike — fired from the animation at the end of the wind-up,
+// so damage lands when the blade visually arrives, not on mousedown. Aim
+// is read live (_gun.angle), so the strike tracks the cursor through the
+// wind-up. hitTestCreatures / _hitCreature apply their own impact FX; a
+// connect adds a small hit-stop on top.
+function _swordStrike(kind) {
+  const cfg = GUN_TYPES[_gun.type] || GUN_TYPES.sword;
+  const bladeLen = cfg.barrelLen || 34;
+  const gripScreenY = P.y - CHAR_H + (_gun._gripSvgY || 26);
+  const baseAngle = _gun.angle;
+  const reach = bladeLen + (kind === 'jab' ? SWORD_JAB_LUNGE + 4 : 6);
+  // Sample points along the attack: the jab tests three depths on the aim
+  // line, the swipe fans across its arc (outer sweep + an inner ring so
+  // point-blank targets aren't stepped over). First hit wins so one swing
+  // can't multi-hit a creature.
+  const pts = [];
+  if (kind === 'jab') {
+    for (const d of [1, 0.62, 0.3]) {
+      pts.push([P.x + Math.cos(baseAngle) * reach * d, gripScreenY + Math.sin(baseAngle) * reach * d]);
+    }
+  } else {
+    for (const off of [-0.95, -0.55, -0.18, 0.18, 0.55, 0.95]) {
+      pts.push([P.x + Math.cos(baseAngle + off) * reach, gripScreenY + Math.sin(baseAngle + off) * reach]);
+    }
+    for (const off of [-0.5, 0, 0.5]) {
+      pts.push([P.x + Math.cos(baseAngle + off) * reach * 0.55, gripScreenY + Math.sin(baseAngle + off) * reach * 0.55]);
+    }
+  }
+  const inPM = _isPlayModeFn && _isPlayModeFn();
+  let hit = null;
+  for (const [hx, hy] of pts) {
+    if (inPM && _hitPlayCreaturesFn) {
+      hit = _hitPlayCreaturesFn(hx, hy, false, Math.cos(baseAngle) * 2, Math.sin(baseAngle) * 2, true);
+    } else {
+      hit = _hitCreature(hx, hy, true, false);
+    }
+    if (hit) break;
+  }
+  // Feel: small hit-stop on connect (kills/headshots add a bigger one in
+  // the hit FX — _dexHitStop keeps whichever is larger).
+  if (hit) window._dexHitStop?.(kind === 'jab' ? 5 : 4, 0.3);
+  // Strike FX along the swing — jab gets a tight forward snap, swipe a
+  // wide glint fan (cases in playmode's _dexMuzzleFX).
+  const fxX = P.x + Math.cos(baseAngle) * reach * 0.7;
+  const fxY = gripScreenY + Math.sin(baseAngle) * reach * 0.7;
+  if (window._dexMuzzleFX && inPM && _screenToWorldFn) {
+    const w = _screenToWorldFn(fxX, fxY);
+    window._dexMuzzleFX(w.wx, w.wy, baseAngle, kind === 'jab' ? 'swordJab' : 'sword');
+  } else if (window._dexPlatFX) {
+    window._dexPlatFX('muzzle', fxX, fxY, baseAngle, 'sword');
+  }
 }
 
 // Override arms to hold the gun — called after pose each frame
@@ -3190,49 +3328,19 @@ function _shootGun() {
 
   _trackAction();
 
-  // SWORD — melee, alternating jab and swipe (MD 10 follow-up)
+  // SWORD (MD 11) — each click randomly picks jab or swipe, biased 60/40
+  // toward switching so repeats happen but neither attack dominates. The
+  // whoosh plays on click; the hit test fires when the wind-up ends (see
+  // _updateSword → _swordStrike), so damage lands with the blade.
   if (cfg.melee) {
     if (_gun._swordAnim) return;   // still mid-swing
-    const kind = _gun._swordNext === 'swipe' ? 'swipe' : 'jab';
-    _gun._swordNext = kind === 'jab' ? 'swipe' : 'jab';
-    // Durations are 240Hz-reference units (_dt-scaled): ~70ms jab, ~115ms swipe.
-    _gun._swordAnim = { kind, t: 0, dur: kind === 'jab' ? 17 : 28 };
+    const last = _gun._swordLast;
+    const kind = (!last || Math.random() < 0.6) ? (last === 'jab' ? 'swipe' : 'jab') : last;
+    _gun._swordLast = kind;
+    _gun._swordAnim = kind === 'jab'
+      ? { kind, t: 0, windup: SWORD_JAB_WINDUP, dur: SWORD_JAB_DUR, struck: false }
+      : { kind, t: 0, windup: SWORD_SWIPE_WINDUP, dur: SWORD_SWIPE_DUR, struck: false, _a0: null };
     sfx('melee.sword', { jab: kind === 'jab' });
-    // Range matches the visual blade: grip + blade (+ jab extension).
-    const gripScreenY = P.y - CHAR_H + gripSvgY;
-    const baseAngle = _gun.angle;
-    const reach = (cfg.barrelLen || 20) + (kind === 'jab' ? 16 : 8);
-    // Sample points along the attack: the jab tests two depths on the aim
-    // line, the swipe fans across the arc it sweeps. First hit wins so a
-    // swipe can't multi-hit one creature.
-    const pts = [];
-    if (kind === 'jab') {
-      pts.push([P.x + Math.cos(baseAngle) * reach, gripScreenY + Math.sin(baseAngle) * reach]);
-      pts.push([P.x + Math.cos(baseAngle) * reach * 0.55, gripScreenY + Math.sin(baseAngle) * reach * 0.55]);
-    } else {
-      for (const off of [-0.7, -0.23, 0.23, 0.7]) {
-        pts.push([P.x + Math.cos(baseAngle + off) * reach, gripScreenY + Math.sin(baseAngle + off) * reach]);
-      }
-    }
-    const inPM = _isPlayModeFn && _isPlayModeFn();
-    for (const [hx, hy] of pts) {
-      let hit = null;
-      if (inPM && _hitPlayCreaturesFn) {
-        hit = _hitPlayCreaturesFn(hx, hy, false, Math.cos(baseAngle) * 2, Math.sin(baseAngle) * 2, true);
-      } else {
-        hit = _hitCreature(hx, hy, true, false);
-      }
-      if (hit) break;
-    }
-    // Slash FX at mid-reach, along the swing.
-    const fxX = P.x + Math.cos(baseAngle) * reach * 0.7;
-    const fxY = gripScreenY + Math.sin(baseAngle) * reach * 0.7;
-    if (window._dexMuzzleFX && inPM && _screenToWorldFn) {
-      const w = _screenToWorldFn(fxX, fxY);
-      window._dexMuzzleFX(w.wx, w.wy, baseAngle, 'sword');
-    } else if (window._dexPlatFX) {
-      window._dexPlatFX('muzzle', fxX, fxY, baseAngle, 'sword');
-    }
     return;
   }
 
@@ -6591,7 +6699,7 @@ function _frame() {
     else if (_topDownDir === 'down' || _topDownDir === 'down-right' || _topDownDir === 'down-left') { poseWalkToward(runPhase); }
 
     // Gun aiming still works
-    if (_gun.held) { _updateGunAim(_lastMouseX, _lastMouseY); _syncArmsToGun(); }
+    if (_gun.held) { _updateGunAim(_lastMouseX, _lastMouseY, true); _syncArmsToGun(); }
     if (_mouseHeld && _gun.held && _gun.type) {
       const cfg = GUN_TYPES[_gun.type];
       if (cfg.autoFire) { _fireTimer += _dt; if (_fireTimer >= cfg.fireRate) { _fireTimer = 0; _shootGun(); } }
@@ -6976,7 +7084,7 @@ function _frame() {
 
   // ── Gun: override arms to hold weapon, auto-fire ──
   if (_gun.held) {
-    _updateGunAim(_lastMouseX, _lastMouseY);
+    _updateGunAim(_lastMouseX, _lastMouseY, true);
     _syncArmsToGun();
     if (_mouseHeld && _gun.type) {
       const cfg = GUN_TYPES[_gun.type];
