@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=110" />
+  <link rel="stylesheet" href="styles.css?v=111" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -129,9 +129,16 @@
     </nav>
 
     <div class="side-bottom">
+      <!-- Collapses the profile block below. Only reachable on the expanded
+           sidebar; the rail hides it, so nothing here can be tabbed to blind. -->
+      <button class="profile-toggle" type="button" id="profileToggle"
+              aria-expanded="true" aria-controls="profileMini" aria-label="Hide profile">
+        <span class="icon nav-icon" data-icon="chevron" aria-hidden="true"></span>
+      </button>
       <button class="resume-mini" type="button" data-resume-open><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="preview" aria-hidden="true"></span></button>
       <a class="contact-mini" href="mailto:dexdcimino@gmail.com"><span class="icon nav-icon" data-icon="contact" aria-hidden="true"></span><span class="nav-text">CONTACT</span></a>
 
+      <div class="profile-wrap" id="profileMini">
       <div class="profile-mini">
         <!-- img src="assets/about/profile.jpg" slot="rail-avatar" alt="Dex Cimino" class="profile-photo" picture-class="profile-frame" -->
         <picture class="profile-frame">
@@ -166,6 +173,7 @@
           <a href="https://github.com/dexdcimino" aria-label="Dex Cimino on GitHub." target="_blank" rel="noopener noreferrer"><span class="icon" data-icon="github" aria-hidden="true"></span></a>
           <a href="https://discord.gg/8SkP5ZzWh" aria-label="Discord" target="_blank" rel="noopener noreferrer"><span class="icon" data-icon="discord" aria-hidden="true"></span></a>
         </div>
+      </div>
       </div>
     </div>
   </aside>
@@ -608,85 +616,85 @@
         <ul class="pk-grid">
           <li class="pk-card">
             <a class="pk-link" href="#">
-              <!-- img src="assets/about/game-covers/game-01.png" slot="pick-cover" alt="Game 01 placeholder cover" class="pk-cover" -->
+              <!-- img src="assets/about/game-covers/gta-6.png" slot="pick-cover" alt="Grand Theft Auto 6 cover art" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/game-covers/game-01-600.avif 600w,
-                                                  assets/derived/about/game-covers/game-01-400.avif 400w,
-                                                  assets/derived/about/game-covers/game-01-200.avif 200w"
+                <source type="image/avif" srcset="assets/derived/about/game-covers/gta-6-600.avif 600w,
+                                                  assets/derived/about/game-covers/gta-6-400.avif 400w,
+                                                  assets/derived/about/game-covers/gta-6-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/game-covers/game-01-600.webp 600w,
-                                                  assets/derived/about/game-covers/game-01-400.webp 400w,
-                                                  assets/derived/about/game-covers/game-01-200.webp 200w"
+                <source type="image/webp" srcset="assets/derived/about/game-covers/gta-6-600.webp 600w,
+                                                  assets/derived/about/game-covers/gta-6-400.webp 400w,
+                                                  assets/derived/about/game-covers/gta-6-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/game-covers/game-01.png" alt="Game 01 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/game-covers/gta-6.png" alt="Grand Theft Auto 6 cover art" width="800" height="1200" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
             </a>
           </li>
           <li class="pk-card">
             <a class="pk-link" href="#">
-              <!-- img src="assets/about/game-covers/game-02.png" slot="pick-cover" alt="Game 02 placeholder cover" class="pk-cover" -->
+              <!-- img src="assets/about/game-covers/arc-raiders.png" slot="pick-cover" alt="Arc Raiders cover art" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/game-covers/game-02-600.avif 600w,
-                                                  assets/derived/about/game-covers/game-02-400.avif 400w,
-                                                  assets/derived/about/game-covers/game-02-200.avif 200w"
+                <source type="image/avif" srcset="assets/derived/about/game-covers/arc-raiders-600.avif 600w,
+                                                  assets/derived/about/game-covers/arc-raiders-400.avif 400w,
+                                                  assets/derived/about/game-covers/arc-raiders-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/game-covers/game-02-600.webp 600w,
-                                                  assets/derived/about/game-covers/game-02-400.webp 400w,
-                                                  assets/derived/about/game-covers/game-02-200.webp 200w"
+                <source type="image/webp" srcset="assets/derived/about/game-covers/arc-raiders-600.webp 600w,
+                                                  assets/derived/about/game-covers/arc-raiders-400.webp 400w,
+                                                  assets/derived/about/game-covers/arc-raiders-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/game-covers/game-02.png" alt="Game 02 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/game-covers/arc-raiders.png" alt="Arc Raiders cover art" width="800" height="1200" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
             </a>
           </li>
           <li class="pk-card">
             <a class="pk-link" href="#">
-              <!-- img src="assets/about/game-covers/game-03.png" slot="pick-cover" alt="Game 03 placeholder cover" class="pk-cover" -->
+              <!-- img src="assets/about/game-covers/league-of-legends.png" slot="pick-cover" alt="League of Legends cover art" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/game-covers/game-03-600.avif 600w,
-                                                  assets/derived/about/game-covers/game-03-400.avif 400w,
-                                                  assets/derived/about/game-covers/game-03-200.avif 200w"
+                <source type="image/avif" srcset="assets/derived/about/game-covers/league-of-legends-600.avif 600w,
+                                                  assets/derived/about/game-covers/league-of-legends-400.avif 400w,
+                                                  assets/derived/about/game-covers/league-of-legends-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/game-covers/game-03-600.webp 600w,
-                                                  assets/derived/about/game-covers/game-03-400.webp 400w,
-                                                  assets/derived/about/game-covers/game-03-200.webp 200w"
+                <source type="image/webp" srcset="assets/derived/about/game-covers/league-of-legends-600.webp 600w,
+                                                  assets/derived/about/game-covers/league-of-legends-400.webp 400w,
+                                                  assets/derived/about/game-covers/league-of-legends-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/game-covers/game-03.png" alt="Game 03 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/game-covers/league-of-legends.png" alt="League of Legends cover art" width="800" height="1200" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
             </a>
           </li>
           <li class="pk-card">
             <a class="pk-link" href="#">
-              <!-- img src="assets/about/game-covers/game-04.png" slot="pick-cover" alt="Game 04 placeholder cover" class="pk-cover" -->
+              <!-- img src="assets/about/game-covers/shovel-knight.png" slot="pick-cover" alt="Shovel Knight cover art" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/game-covers/game-04-600.avif 600w,
-                                                  assets/derived/about/game-covers/game-04-400.avif 400w,
-                                                  assets/derived/about/game-covers/game-04-200.avif 200w"
+                <source type="image/avif" srcset="assets/derived/about/game-covers/shovel-knight-600.avif 600w,
+                                                  assets/derived/about/game-covers/shovel-knight-400.avif 400w,
+                                                  assets/derived/about/game-covers/shovel-knight-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/game-covers/game-04-600.webp 600w,
-                                                  assets/derived/about/game-covers/game-04-400.webp 400w,
-                                                  assets/derived/about/game-covers/game-04-200.webp 200w"
+                <source type="image/webp" srcset="assets/derived/about/game-covers/shovel-knight-600.webp 600w,
+                                                  assets/derived/about/game-covers/shovel-knight-400.webp 400w,
+                                                  assets/derived/about/game-covers/shovel-knight-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/game-covers/game-04.png" alt="Game 04 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/game-covers/shovel-knight.png" alt="Shovel Knight cover art" width="800" height="1200" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
             </a>
           </li>
           <li class="pk-card">
             <a class="pk-link" href="#">
-              <!-- img src="assets/about/game-covers/game-05.png" slot="pick-cover" alt="Game 05 placeholder cover" class="pk-cover" -->
+              <!-- img src="assets/about/game-covers/portal-2.png" slot="pick-cover" alt="Portal 2 cover art" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/game-covers/game-05-600.avif 600w,
-                                                  assets/derived/about/game-covers/game-05-400.avif 400w,
-                                                  assets/derived/about/game-covers/game-05-200.avif 200w"
+                <source type="image/avif" srcset="assets/derived/about/game-covers/portal-2-600.avif 600w,
+                                                  assets/derived/about/game-covers/portal-2-400.avif 400w,
+                                                  assets/derived/about/game-covers/portal-2-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/game-covers/game-05-600.webp 600w,
-                                                  assets/derived/about/game-covers/game-05-400.webp 400w,
-                                                  assets/derived/about/game-covers/game-05-200.webp 200w"
+                <source type="image/webp" srcset="assets/derived/about/game-covers/portal-2-600.webp 600w,
+                                                  assets/derived/about/game-covers/portal-2-400.webp 400w,
+                                                  assets/derived/about/game-covers/portal-2-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/game-covers/game-05.png" alt="Game 05 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/game-covers/portal-2.png" alt="Portal 2 cover art" width="800" height="1200" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
             </a>
@@ -1123,6 +1131,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=110"></script>
+  <script src="script.js?v=111"></script>
 </body>
 </html>

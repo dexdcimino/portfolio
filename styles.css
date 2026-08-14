@@ -57,6 +57,13 @@
   --sidebar:72px;
   --sidebar-open:238px;
   --radius:18px;
+  /* Artwork corners. The About hero photo is the reference: one fixed 28px, not
+     a percentage — its own width ranges 277-420px, so its radius reads as
+     6.7-10% depending on breakpoint. Covers take the same optical roundness at
+     their desktop size (~6.7% of a 279px cover = 19px) rounded to 20, and hold
+     it fixed the way the hero does rather than tracking each cover's width. */
+  --radius-art:28px;
+  --radius-cover:20px;
   --copy-size:18px;
   --accent-ease:.26s cubic-bezier(.22,.61,.36,1);
   --swatch:34px;
@@ -115,6 +122,7 @@ img{max-width:100%}
 [data-icon="arrow-ne"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M7 17 17 7M9 7h8v8'/%3E%3C/svg%3E")} /* src: assets/icons/arrow-ne.svg */
 [data-icon="arrow-right"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M4 12h15M13 6l6 6-6 6'/%3E%3C/svg%3E")} /* src: assets/icons/arrow-right.svg */
 [data-icon="brand"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23fff' d='M15 7h27l15 25-15 25H15L4 45l9-7 8 9h15l9-15-9-15H21l-8 9-9-7Z'/%3E%3C/svg%3E")} /* src: assets/icons/brand-mark.svg */
+[data-icon="chevron"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E")} /* src: assets/icons/chevron.svg */
 [data-icon="contact"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M4 5h16v11H8l-4 3V5Zm3 4h10M7 12h7'/%3E%3C/svg%3E")} /* src: assets/icons/contact.svg */
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
 [data-icon="games"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M8.55 6.4h6.9a6.75 6.75 0 0 1 6.62 5.45l.66 3.36a3.2 3.2 0 0 1-5.72 2.5l-1.4-1.86H8.39l-1.4 1.86a3.2 3.2 0 0 1-5.72-2.5l.66-3.36A6.75 6.75 0 0 1 8.55 6.4Zm-1.4 3.15v1.6h-1.6v1.9h1.6v1.6h1.9v-1.6h1.6v-1.9h-1.6v-1.6h-1.9Zm9.1.3a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Zm2.6 2.75a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Z'/%3E%3C/svg%3E")} /* src: assets/icons/games.svg */
@@ -268,9 +276,54 @@ img{max-width:100%}
    they do not navigate) — clear the UA chrome so they still read as the links
    they replaced. */
 .resume-mini{background:none;border:0;width:100%;text-align:left;cursor:pointer;font:inherit}
+
+/* Collapse toggle. Shares the nav row metrics so the chevron lands in the same
+   icon column as RESUME and CONTACT, but shorter — it is a control for the
+   block below, not a fourth destination. Accent at rest is the one deliberate
+   break from the nav icons, so it reads as an affordance rather than a link. */
+.profile-toggle{
+  height:34px;display:flex;align-items:center;padding:0 22px;
+  background:none;border:0;width:100%;cursor:pointer;font:inherit;
+  color:var(--accent);
+  transition:color var(--accent-ease),background var(--accent-ease),
+             opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease);
+}
+.profile-toggle:hover{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.profile-toggle .nav-icon{
+  transition:transform var(--sidebar-transition-duration) var(--sidebar-transition-ease);
+}
+.profile-toggle:hover .nav-icon{transform:scale(1.06)}
+/* Collapsed: chevron points up. The rotation rides the same duration as the
+   block it controls, so the icon and the collapse land together. */
+.profile-toggle[aria-expanded="false"] .nav-icon{transform:rotate(180deg)}
+.profile-toggle[aria-expanded="false"]:hover .nav-icon{transform:rotate(180deg) scale(1.06)}
+.profile-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+/* The rail has no room for it and the MD scopes the control to the expanded
+   sidebar — hidden rather than transparent so it leaves the tab order too. */
+.profile-toggle{visibility:hidden;opacity:0}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-toggle{visibility:visible;opacity:1}
 button.button{cursor:pointer;font:inherit}
 .contact-mini{border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
 .profile-mini{min-height:136px;padding:14px 14px 13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+
+/* Collapse wrapper. 1fr -> 0fr animates to the block's real height, so nothing
+   here needs a magic max-height that would either clip the block or spend the
+   first third of the transition travelling through empty space.
+   Scoped to the expanded sidebar per the MD: the rail keeps its avatar, and the
+   footer-drop geometry that positions it stays exactly as it was. */
+.profile-wrap{display:grid;grid-template-rows:1fr;
+  transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
+.profile-wrap>.profile-mini{overflow:hidden}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
+  .side-bottom.is-profile-collapsed .profile-wrap{grid-template-rows:0fr}
+/* min-height would hold the track open at 136px and stop it reaching 0fr, and
+   the block's own padding survives a zero-height track — overflow:hidden clips
+   the content but padding is still box height, which floors the collapse at
+   27px. Both have to go, and the padding animates so it does not snap shut
+   ahead of the rest of the block. */
+.profile-mini{transition:padding var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
+  .side-bottom.is-profile-collapsed .profile-mini{min-height:0;padding-block:0}
 
 /* Masked window onto a single portrait. The frame animates its box; the image
    inside counter-scales so the same source reads as a tight face crop when the
@@ -682,14 +735,14 @@ button.button{cursor:pointer;font:inherit}
      presentational hint — with a specified height AND width the aspect-ratio
      below is ignored, and the cover renders full 1200px tall. */
   width:100%;height:auto;aspect-ratio:2/3;object-fit:cover;display:block;
-  border:var(--stroke) solid rgba(255,255,255,.1);border-radius:12px;background:#0e1217;
+  border:var(--stroke) solid rgba(255,255,255,.1);border-radius:var(--radius-cover);background:#0e1217;
   transition:border-color var(--accent-ease),transform .25s ease,box-shadow var(--accent-ease);
 }
 .pk-link:hover .pk-cover{
   border-color:var(--accent);transform:translateY(-4px);
   box-shadow:0 10px 26px color-mix(in srgb,var(--accent) 22%,transparent);
 }
-.pk-link:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:14px}
+.pk-link:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:calc(var(--radius-cover) + 4px)}
 .pk-meta{display:grid;gap:2px;min-width:0}
 .pk-meta strong{font-size:13px;font-weight:800;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pk-meta small{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -779,7 +832,7 @@ button.button{cursor:pointer;font:inherit}
    only shrinks when the column would otherwise force a break. */
 .about-copy{container-type:inline-size}
 .about-copy h2{white-space:nowrap;font-size:min(clamp(32px,4vw,64px),7.8cqi)}
-.about-photo{aspect-ratio:1;border-radius:28px;overflow:hidden;position:relative;border:1px solid var(--line)}
+.about-photo{aspect-ratio:1;border-radius:var(--radius-art);overflow:hidden;position:relative;border:1px solid var(--line)}
 .about-photo:after{content:"";position:absolute;inset:auto 0 0;height:7px;background:var(--accent);transition:background-color var(--accent-ease)}
 .about-photo img{width:100%;height:100%;object-fit:cover}
 

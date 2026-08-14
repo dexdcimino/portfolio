@@ -1276,3 +1276,40 @@ function initTabs(tablist, onSelect) {
 
 initTabs(document.querySelector('.tk-tabs'));
 initTabs(document.querySelector('.pk-tabs'));
+
+/* --- sidebar profile collapse -------------------------------------------- */
+/* Hides the profile photo, bio and social row, leaving the toggle plus RESUME
+   and CONTACT. The toggle only renders on the expanded sidebar, so the state is
+   restored before first paint rather than on load — otherwise a collapsed
+   profile would flash open on every navigation. */
+const PROFILE_KEY = 'dex-profile-collapsed';
+
+(function initProfileCollapse() {
+  const toggle = document.getElementById('profileToggle');
+  const block = document.getElementById('profileMini');
+  const footer = toggle?.closest('.side-bottom');
+  if (!toggle || !block || !footer) return;
+
+  const apply = (collapsed, animate) => {
+    // The wrapper animates grid-template-rows; suppress it for the initial
+    // restore so a stored collapse is simply the starting state.
+    if (!animate) block.style.transition = 'none';
+    footer.classList.toggle('is-profile-collapsed', collapsed);
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.setAttribute('aria-label', collapsed ? 'Show profile' : 'Hide profile');
+    // Zero-height content is still tabbable without this — inert takes the
+    // whole block, social links included, out of the tab order and the a11y tree.
+    block.inert = collapsed;
+    if (!animate) { void block.offsetHeight; block.style.transition = ''; }
+  };
+
+  let stored = null;
+  try { stored = localStorage.getItem(PROFILE_KEY); } catch { /* private mode */ }
+  apply(stored === '1', false);
+
+  toggle.addEventListener('click', () => {
+    const collapsed = toggle.getAttribute('aria-expanded') === 'true';
+    apply(collapsed, true);
+    try { localStorage.setItem(PROFILE_KEY, collapsed ? '1' : '0'); } catch { /* private mode */ }
+  });
+})();
