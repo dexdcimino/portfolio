@@ -124,6 +124,7 @@ img{max-width:100%}
 [data-icon="brand"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23fff' d='M15 7h27l15 25-15 25H15L4 45l9-7 8 9h15l9-15-9-15H21l-8 9-9-7Z'/%3E%3C/svg%3E")} /* src: assets/icons/brand-mark.svg */
 [data-icon="chevron"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E")} /* src: assets/icons/chevron.svg */
 [data-icon="contact"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M4 5h16v11H8l-4 3V5Zm3 4h10M7 12h7'/%3E%3C/svg%3E")} /* src: assets/icons/contact.svg */
+[data-icon="copy"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M9 9h10v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2'/%3E%3C/svg%3E")} /* src: assets/icons/copy.svg */
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
 [data-icon="games"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M8.55 6.4h6.9a6.75 6.75 0 0 1 6.62 5.45l.66 3.36a3.2 3.2 0 0 1-5.72 2.5l-1.4-1.86H8.39l-1.4 1.86a3.2 3.2 0 0 1-5.72-2.5l.66-3.36A6.75 6.75 0 0 1 8.55 6.4Zm-1.4 3.15v1.6h-1.6v1.9h1.6v1.6h1.9v-1.6h1.6v-1.9h-1.6v-1.6h-1.9Zm9.1.3a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Zm2.6 2.75a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Z'/%3E%3C/svg%3E")} /* src: assets/icons/games.svg */
 [data-icon="home"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M3 10.5 12 3l9 7.5v10a.5.5 0 0 1-.5.5H15v-7H9v7H3.5a.5.5 0 0 1-.5-.5z'/%3E%3C/svg%3E")} /* src: assets/icons/home.svg */
@@ -139,6 +140,7 @@ img{max-width:100%}
 [data-icon="instagram"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16ZM12 0C8.74 0 8.33.01 7.05.07c-1.28.06-2.15.26-2.91.56-.79.3-1.46.72-2.13 1.38C1.35 2.68.93 3.35.63 4.14c-.3.76-.5 1.63-.56 2.91C.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.28.26 2.15.56 2.91.3.79.72 1.46 1.38 2.13.67.67 1.34 1.08 2.13 1.38.76.3 1.63.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.28-.06 2.15-.26 2.91-.56.79-.3 1.46-.71 2.13-1.38.67-.67 1.08-1.34 1.38-2.13.3-.76.5-1.63.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.28-.26-2.15-.56-2.91-.3-.79-.71-1.46-1.38-2.13C21.32 1.35 20.65.93 19.86.63c-.76-.3-1.63-.5-2.91-.56C15.67.01 15.26 0 12 0Zm0 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm7.85-10.41a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/instagram.svg */
 [data-icon="linkedin"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M22.23 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.73V1.73C24 .77 23.21 0 22.23 0ZM7.12 20.45H3.56V9h3.56v11.45ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13Zm15.11 13.02h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.47-.9 1.63-1.85 3.37-1.85 3.6 0 4.26 2.37 4.26 5.46v6.28Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/linkedin.svg */
 [data-icon="youtube"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.54 12 3.54 12 3.54s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/youtube.svg */
+[data-icon="tick-check"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='m5 12.5 4.5 4.5L19 7'/%3E%3C/svg%3E")} /* src: assets/icons/tick-check.svg */
 [data-icon="tick"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15.3841 18.1113'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M7.1872,18.1113H0v-6.3529L11.7584,0h3.6257v7.3476s-5.9188,5.7103-7.2664,7.2664-.9305,3.4973-.9305,3.4973Z' fill='%23fff'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tick_mark.svg */
 [data-icon="volume-mute"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='m16 9.5 5 5m0-5-5 5'/%3E%3C/svg%3E")} /* src: assets/icons/volume-mute.svg */
 [data-icon="volume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='M15.4 9.2a4 4 0 0 1 0 5.6M18 6.6a7.6 7.6 0 0 1 0 10.8'/%3E%3C/svg%3E")} /* src: assets/icons/volume.svg */
@@ -1320,6 +1322,9 @@ body.modal-open{overflow:hidden}
 .resume-tool:disabled{opacity:.35;cursor:default}
 .resume-zoom-level{font-size:12px;letter-spacing:.08em;color:var(--muted);min-width:44px;user-select:none}
 .resume-pdf{min-height:44px;text-decoration:none}
+/* Copy is the PDF button's pair, so it takes the same box: the ghost
+   variant renders a size larger by default, which read as mismatched. */
+.resume-copy{min-height:44px;font-size:14px}
 
 @media(max-width:760px){
   .resume-modal{width:100vw;height:100dvh;max-height:none}
@@ -1610,3 +1615,12 @@ body.modal-open{overflow:hidden}
   .brand-logo :is(.logo-side-horns,.logo-top-horns){transform:none!important}
   .resume-modal[open]{animation:none}
 }
+
+/* Copy sits beside Download PDF and reads as its pair — same height and
+   padding, quieter fill because downloading is the primary action. */
+.resume-copy{display:inline-flex;align-items:center;gap:9px;cursor:pointer}
+.resume-copy .btn-icon{width:15px;height:15px}
+.resume-copy-label{font-variant-numeric:tabular-nums}
+/* Confirmation lives on the button itself — no toast, no alert. */
+.resume-copy.is-done{color:var(--accent);border-color:var(--accent)}
+.resume-copy.is-failed{color:#ff8080;border-color:#ff8080}

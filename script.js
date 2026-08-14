@@ -1525,3 +1525,108 @@ const LOOP_MODES = ['off', 'all', 'one'];
   // Switching tab wipes whatever the last tab left behind.
   document.querySelectorAll('.tk-tab').forEach(t => t.addEventListener('click', () => show(null)));
 })();
+
+
+/* --- copy the open document to the clipboard ------------------------------ */
+/* Two flavours in one write: the paste target picks what it understands, so a
+   plain-text field gets plain text and Word/Docs/Gmail get real paragraphs and
+   anchors. No mode toggle, no dropdown.
+
+   The HTML flavour deliberately carries NO colour, background, font-family or
+   font-size. This page is light text on a dark ground; copying that styling
+   into a white Word document pastes white-on-white and reads as nothing at all.
+   Structure travels, typography stays behind. */
+(function initResumeCopy() {
+  const btn = document.getElementById('resumeCopy');
+  if (!btn) return;
+  const label = btn.querySelector('.resume-copy-label');
+  const icon = btn.querySelector('.btn-icon');
+  const restore = { text: label.textContent, icon: icon.dataset.icon };
+  let revert = null;
+
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  /** The document the viewer is currently showing. */
+  const activePage = () => document.querySelector('.resume-page:not([hidden])');
+
+  /* Walk the rendered page rather than a duplicate copy of the words, so the
+     clipboard can never drift from what is on screen. */
+  function build(page) {
+    const lines = [];
+    const html = [];
+    for (const el of page.querySelectorAll('h2, h3, p, li')) {
+      // Plain text: links become bare URLs, since text/plain cannot carry them.
+      const plain = [...el.childNodes].map(n => {
+        if (n.nodeType === 3) return n.textContent;
+        if (n.nodeName === 'A') {
+          const href = n.getAttribute('href') || '';
+          const shown = n.textContent.trim();
+          const url = href.replace(/^mailto:/, '');
+          return url && url !== shown ? `${shown} (${url})` : shown;
+        }
+        return n.textContent;
+      }).join('').replace(/\s+/g, ' ').trim();
+      if (!plain) continue;
+      lines.push(plain);
+
+      const inner = [...el.childNodes].map(n => {
+        if (n.nodeType === 3) return esc(n.textContent);
+        if (n.nodeName === 'A') return `<a href="${esc(n.getAttribute('href') || '')}">${esc(n.textContent)}</a>`;
+        if (n.nodeName === 'STRONG' || n.nodeName === 'B') return `<strong>${esc(n.textContent)}</strong>`;
+        return esc(n.textContent);
+      }).join('').replace(/\s+/g, ' ').trim();
+      const tag = /^H\d$/.test(el.nodeName) ? 'p' : (el.nodeName === 'LI' ? 'li' : 'p');
+      const bold = /^H\d$/.test(el.nodeName) || el.classList.contains('cv-signoff');
+      html.push(`<${tag}>${bold && !inner.includes('<strong>') ? `<strong>${inner}</strong>` : inner}</${tag}>`);
+    }
+    return {
+      // Blank line between paragraphs.
+      text: lines.join('\n\n'),
+      html: `<div>${html.join('')}</div>`,
+    };
+  }
+
+  function flash(ok, msg) {
+    clearTimeout(revert);
+    label.textContent = msg;
+    icon.dataset.icon = ok ? 'tick-check' : 'copy';
+    btn.classList.toggle('is-done', ok);
+    btn.classList.toggle('is-failed', !ok);
+    revert = setTimeout(() => {
+      label.textContent = restore.text;
+      icon.dataset.icon = restore.icon;
+      btn.classList.remove('is-done', 'is-failed');
+    }, 2200);
+  }
+
+  btn.addEventListener('click', async () => {
+    const page = activePage();
+    if (!page) return;
+    const { text, html } = build(page);
+    // Rich write first; it needs a secure context and can reject outright.
+    try {
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' }),
+      })]);
+      flash(true, 'COPIED');
+      return;
+    } catch (e) { /* fall through to plain text */ }
+    try {
+      await navigator.clipboard.writeText(text);
+      flash(true, 'COPIED');
+    } catch (e) {
+      // Both refused — say so on the button rather than appearing to do nothing.
+      flash(false, 'FAILED');
+    }
+  });
+
+  // The button follows whichever document is open.
+  const sync = () => {
+    const page = activePage();
+    const what = page && page.id === 'panel-cover' ? 'cover letter' : 'resume';
+    btn.setAttribute('aria-label', `Copy Dex Cimino ${what} to the clipboard`);
+  };
+  document.querySelectorAll('.resume-tab').forEach(t => t.addEventListener('click', () => setTimeout(sync, 0)));
+  sync();
+})();
