@@ -676,8 +676,8 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
   display:flex; gap:8px; margin-top:12px;
 }
 .pmenu-btn{
-  flex:1; padding:9px 10px;
-  font-family:var(--fn); font-size:13px; font-weight:600;
+  flex:1; padding:10px 12px;
+  font-family:var(--fn); font-size:17px; font-weight:600;
   color:var(--tx2); background:var(--bg3);
   border:1px solid var(--bdr); border-radius:9px;
   cursor:pointer; white-space:nowrap;
@@ -837,3 +837,33 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 
 .pmenu-trackwrap{position:relative; flex:1 1 auto; min-width:0; display:flex; align-items:center;}
 .pmenu-trackwrap .pmenu-tick{left:50%; transform:translateX(-50%);}
+
+/* Resume is the primary action, so it carries the weight. */
+.pmenu-footer .pmenu-btn-accent{font-weight:800;}
+
+/* Swatch: hexagon plus a ring scaled inside it. Selected thickens the ring and
+   grows the cell — the site's treatment, with no plate behind the colour. */
+.pmenu-hexrow{gap:10px;}
+.pmenu-hexwrap{
+  width:30px; height:34px;
+  transition:transform .16s cubic-bezier(.22,.61,.36,1);
+}
+.pmenu-hexsvg{width:100%; height:100%; display:block; overflow:visible;}
+.pmenu-hexring{
+  fill:none; stroke:var(--bg3); stroke-width:0;
+  transform:scale(.7); transform-origin:50% 50%;
+  transition:stroke-width .16s ease;
+}
+.pmenu-hexwrap:hover{transform:scale(1.12);}
+.pmenu-hexwrap.active{transform:scale(1.18);}
+.pmenu-hexwrap.active .pmenu-hexring{stroke-width:5;}
+.pmenu-hexwrap:focus-visible{outline:2px solid var(--tx); outline-offset:2px; border-radius:6px;}
+
+/* Knob colour follows the track's luminance so it is never light-on-light
+   (lime, yellow, white) or dark-on-dark. Set from _applyAccent. */
+.pmenu-sw.on .pmenu-sw-knob{background:var(--sw-knob, #e8ecef);}
+
+/* Inline control groups — bold label left, cap right, on one line. */
+.pmenu-ctlgrp.inline{display:flex; align-items:center; gap:10px;}
+.pmenu-ctlgrp.inline .pmenu-ctltitle{margin-bottom:0;}
+.pmenu-ctlgrp.inline .pmenu-ctlline{margin-bottom:0; margin-left:auto;}

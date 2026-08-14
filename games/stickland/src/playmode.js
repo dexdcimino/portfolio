@@ -443,6 +443,13 @@ function generateWorld() {
 }
 
 function _preventScroll(e) {
+  // The pause menu is an overlay like the rest: let the wheel scroll it, and
+  // never let a wheel event reach the zoom while the game is paused.
+  if (isPauseMenuOpen()) {
+    if (e.target && e.target.closest('#pmenu')) return;   // scroll the panel
+    e.preventDefault();                                    // and nothing else
+    return;
+  }
   // Allow scrolling inside UI overlays (profile menu, settings, community feed, etc.)
   if (e.target && e.target.closest('#acct-menu, #community-feed, #help-panel, #settings-panel, #inventory-grid')) {
     // Shift+wheel converts to horizontal scroll in browsers — force vertical for scrollable panels
@@ -6441,6 +6448,13 @@ export function initPlayMode() {
     exitWorld: exitPlayMode,
     getKeybind: (action) => _keybinds[action],
     setKeybind,
+    // Camera lock is a switch in the menu now as well as a key.
+    getCameraLock: () => _playCameraMode === 'follow',
+    setCameraLock: (on) => {
+      _playCameraMode = on ? 'follow' : 'deadzone';
+      _cameraSmoothT = 0;
+      try { safeStorage.setItem('dexnote-play-camera', _playCameraMode); } catch (e) {}
+    },
   });
   window.addEventListener('resize', () => {
     if (!_active || !_worldCanvas) return;

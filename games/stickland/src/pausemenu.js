@@ -50,18 +50,21 @@ const SITE_ACCENT_KEY = 'dex-accent-name';
 // as a reference card. `bind` marks the one rebindable action (camera lock);
 // everything else is a hardcoded comparison and shows as fixed.
 const CONTROL_GROUPS = [
-  { title: 'Move',  rows: [ { keys: ['W','A','S','D'] }, { keys: ['\u2190','\u2191','\u2193','\u2192'] },
-                            { keys: ['Shift'], note: 'sprint' }, { keys: ['C'], note: 'crouch' } ] },
+  { title: 'Move',  rows: [ { keys: ['W','A','S','D'] }, { keys: ['\u2190','\u2191','\u2193','\u2192'] } ] },
   { title: 'Jump',  rows: [ { keys: ['Space'], note: 'tap, hold to charge, again mid-air' } ] },
+  // Inline: the title is the label and the cap sits beside it, so Sprint lines
+  // up under Move and Crouch under Jump.
+  { title: 'Sprint', inline: true, rows: [ { keys: ['Shift'] } ] },
+  { title: 'Crouch', inline: true, rows: [ { keys: ['C'] } ] },
   { title: 'Equip', rows: [ { keys: ['1','2','3','4'], note: 'slots' },
                             { keys: ['H'], note: 'holster' }, { keys: ['E'], note: 'interact' } ] },
   { title: 'Menus', rows: [ { keys: ['B'], note: 'bag' }, { keys: ['G'], note: 'cosmetics' },
                             { keys: ['T'], note: 'chat' } ] },
-  { title: 'View',  rows: [ { keys: ['Wheel'], note: 'zoom' }, { bind: 'lock-camera', note: 'camera lock' } ] },
+  { title: 'View',  rows: [ { keys: ['Scroll Wheel'], note: 'zoom' } ] },
   { title: 'Game',  rows: [ { keys: ['Esc'], note: 'settings' } ] },
 ];
 
-let _hooks = { exitWorld: null, getKeybind: null, setKeybind: null };
+let _hooks = { exitWorld: null, getKeybind: null, setKeybind: null, getCameraLock: null, setCameraLock: null };
 let _open = false;
 let _menuEl = null, _backdropEl = null, _endcardEl = null;
 let _openSection = 'general';   // General is expanded on open
@@ -79,8 +82,22 @@ function _normalizeHex(v) {
   if (/^[0-9a-fA-F]{3}$/.test(s)) s = s.split('').map(c => c + c).join('');
   return /^[0-9a-fA-F]{6}$/.test(s) ? '#' + s.toLowerCase() : null;
 }
+/* Relative luminance, sRGB. Above ~0.5 the track is a light colour and the
+   knob has to go dark; below it, the reverse. Recomputed on every accent
+   change so the switches stay legible across the whole palette. */
+function _knobFor(hex) {
+  const h = String(hex).replace('#', '');
+  if (h.length !== 6) return '#e8ecef';
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * lin(parseInt(h.slice(0, 2), 16))
+          + 0.7152 * lin(parseInt(h.slice(2, 4), 16))
+          + 0.0722 * lin(parseInt(h.slice(4, 6), 16));
+  return L > 0.42 ? '#12161b' : '#e8ecef';
+}
+
 function _applyAccent(hex, persist) {
   document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--sw-knob', _knobFor(hex));
   if (persist) safeStorage.setItem(ACCENT_LS_KEY, hex);
 }
 function _currentAccent() {
@@ -299,16 +316,19 @@ function _renderGeneral(root) {
   const cur = _currentAccent().toLowerCase();
   const row = document.createElement('div');
   row.className = 'pmenu-hexrow';
+  const HEX_D = 'M13,0.6 L25.4,7.8 L25.4,22.2 L13,29.4 L0.6,22.2 L0.6,7.8 Z';
   for (const a of SITE_ACCENTS) {
     const cell = document.createElement('button');
     cell.type = 'button';
     cell.className = 'pmenu-hexwrap' + (a.hex.toLowerCase() === cur ? ' active' : '');
     cell.setAttribute('aria-label', a.name);
     cell.dataset.tip = a.name;
-    const inner = document.createElement('span');
-    inner.className = 'pmenu-hex';
-    inner.style.background = a.hex;
-    cell.appendChild(inner);
+    // Two stacked hexagons: the fill, and a ring scaled inside it. Selecting
+    // thickens the ring and grows the swatch, matching the site's picker —
+    // no washed-out plate behind the colour.
+    cell.innerHTML = '<svg class="pmenu-hexsvg" viewBox="0 0 26 30" aria-hidden="true">'
+      + '<path class="pmenu-hexfill" d="' + HEX_D + '" fill="' + a.hex + '"/>'
+      + '<path class="pmenu-hexring" d="' + HEX_D + '"/></svg>';
     cell.addEventListener('click', () => {
       _applyAccent(a.hex, true);
       // Carry the choice back to the portfolio. Same-origin, so this writes the
@@ -325,6 +345,10 @@ function _renderGeneral(root) {
   fxLabel.className = 'pmenu-sublabel';
   fxLabel.textContent = 'Effects';
   root.appendChild(fxLabel);
+
+  root.appendChild(_switchRow('Camera lock', !!_hooks.getCameraLock?.(), on => {
+    _hooks.setCameraLock?.(on);
+  }, '<rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/>'));
 
   root.appendChild(_switchRow('Screen shake', _fxSettings.shake > 0, on => {
     _fxSettings.shake = on ? 1 : 0;
@@ -355,7 +379,7 @@ function _renderControls(root) {
   card.className = 'pmenu-ctlcard';
   for (const grp of CONTROL_GROUPS) {
     const box = document.createElement('div');
-    box.className = 'pmenu-ctlgrp';
+    box.className = 'pmenu-ctlgrp' + (grp.inline ? ' inline' : '');
     const title = document.createElement('div');
     title.className = 'pmenu-ctltitle';
     title.textContent = grp.title;
@@ -482,12 +506,14 @@ function _renderAudio(root) {
   wrap.className = 'pmenu-audio';
   wrap.appendChild(_channel('Master', getVolume, setVolume,
     () => !isMuted() && getVolume() > 0, on => setMuted(!on)));
-  wrap.appendChild(_channel('Effects', () => getBusVolume('sfx'), v => setBusVolume('sfx', v),
-    () => getBusVolume('sfx') > 0, () => {}));
-  wrap.appendChild(_channel('Ambience', () => getBusVolume('amb'), v => setBusVolume('amb', v),
+  // Music rides the ambience bus — the game's only continuous background
+  // channel. FX drives sfx and ui together so retiring the Interface slider
+  // does not leave UI sound with no control at all.
+  wrap.appendChild(_channel('Music', () => getBusVolume('amb'), v => setBusVolume('amb', v),
     () => getBusVolume('amb') > 0, () => {}));
-  wrap.appendChild(_channel('Interface', () => getBusVolume('ui'), v => setBusVolume('ui', v),
-    () => getBusVolume('ui') > 0, () => {}));
+  wrap.appendChild(_channel('FX', () => getBusVolume('sfx'),
+    v => { setBusVolume('sfx', v); setBusVolume('ui', v); },
+    () => getBusVolume('sfx') > 0, () => {}));
   root.appendChild(wrap);
 }
 
