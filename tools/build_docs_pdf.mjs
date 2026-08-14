@@ -19,7 +19,8 @@
  * at baseUrl. Verify afterwards with --check, which fails if a PDF is missing
  * or older than index.html.
  */
-import { writeFileSync, statSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { argv, exit } from 'node:process';
 
 const BASE = argv.find(a => a.startsWith('http')) || 'http://127.0.0.1:8784';
@@ -30,16 +31,37 @@ const DOCS = [
   { tab: 'tab-resume', panel: 'panel-resume', out: 'assets/about/Dex_Cimino_Resume.pdf' },
 ];
 
+/* Staleness is judged on the SOURCE MARKUP, not file times. Chrome stamps a
+   creation date into every PDF, so the bytes differ on each run even when the
+   words do not — an mtime check would demand a regeneration, and therefore a
+   100KB binary diff, for any unrelated edit elsewhere in index.html. */
+const STAMP = 'tools/.docs-source-hash';
+
+function sourceHash() {
+  const html = readFileSync('index.html', 'utf8');
+  // Plain slicing rather than a regex: the panel ids are unique and the
+  // closing tag is literal, so there is nothing here to escape.
+  const parts = DOCS.map(d => {
+    const i = html.indexOf('id="' + d.panel + '"');
+    if (i === -1) throw new Error('could not find ' + d.panel + ' in index.html');
+    const j = html.indexOf('</article>', i);
+    if (j === -1) throw new Error('unterminated ' + d.panel + ' panel');
+    return html.slice(i, j);
+  });
+  return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
+}
+
 if (CHECK) {
-  const src = statSync('index.html').mtimeMs;
-  const stale = DOCS.filter(d => !existsSync(d.out) || statSync(d.out).mtimeMs < src);
-  if (stale.length) {
-    console.log('build_docs_pdf --check: ' + stale.length + ' PDF(s) missing or older than index.html');
-    for (const d of stale) console.log('  ' + d.out);
+  const want = sourceHash();
+  const have = existsSync(STAMP) ? readFileSync(STAMP, 'utf8').trim() : '(none)';
+  const missing = DOCS.filter(d => !existsSync(d.out)).map(d => d.out);
+  if (missing.length || want !== have) {
+    if (missing.length) console.log('build_docs_pdf --check: missing ' + missing.join(', '));
+    if (want !== have) console.log(`build_docs_pdf --check: letter markup changed (${have} -> ${want})`);
     console.log('Run: node tools/build_docs_pdf.mjs');
     exit(1);
   }
-  console.log('build_docs_pdf --check: both PDFs present and newer than index.html');
+  console.log('build_docs_pdf --check: PDFs present and current with the markup');
   exit(0);
 }
 
@@ -147,4 +169,5 @@ for (const doc of DOCS) {
 }
 
 page.close();
+writeFileSync(STAMP, sourceHash() + String.fromCharCode(10));
 console.log('build_docs_pdf: done — PDFs regenerated from index.html');

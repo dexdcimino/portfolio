@@ -1630,3 +1630,48 @@ const LOOP_MODES = ['off', 'all', 'one'];
   document.querySelectorAll('.resume-tab').forEach(t => t.addEventListener('click', () => setTimeout(sync, 0)));
   sync();
 })();
+
+
+/* --- games list artwork preview ------------------------------------------- */
+/* Hovering or focusing a row paints that game's art into the empty half of the
+   left column. The row's data-game names the file, so adding a preview later is
+   dropping assets/thumbnails/<slug>.svg and nothing else — no code change, no
+   per-game branch here.
+
+   Games with no artwork simply show nothing: each slug is probed once and the
+   answer cached, so a missing file costs one 404 and never a broken frame. */
+(function initGameArt() {
+  const art = document.getElementById('gameArt');
+  const rows = [...document.querySelectorAll('.stack-row[data-game]')];
+  if (!art || !rows.length) return;
+
+  const probed = new Map();
+  const urlFor = slug => `assets/thumbnails/${slug}.svg`;
+
+  function has(slug) {
+    if (!probed.has(slug)) {
+      probed.set(slug, fetch(urlFor(slug), { method: 'HEAD' })
+        .then(r => r.ok)
+        .catch(() => false));
+    }
+    return probed.get(slug);
+  }
+
+  let token = 0;
+  async function show(slug) {
+    const mine = ++token;
+    if (!await has(slug)) { if (mine === token) hide(); return; }
+    if (mine !== token) return;                 // a later row won the race
+    art.style.setProperty('--art', `url("${urlFor(slug)}")`);
+    art.classList.add('is-on');
+  }
+  function hide() { token++; art.classList.remove('is-on'); }
+
+  for (const row of rows) {
+    const slug = row.dataset.game;
+    row.addEventListener('pointerenter', () => show(slug));
+    row.addEventListener('focus', () => show(slug));
+    row.addEventListener('pointerleave', () => hide());
+    row.addEventListener('blur', () => hide());
+  }
+})();

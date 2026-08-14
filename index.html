@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=117" />
+  <link rel="stylesheet" href="styles.css?v=118" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -370,11 +370,17 @@
     </section>
 
     <section class="split-section" id="games">
-      <div class="statement reveal"><p class="eyebrow">PLAYABLE</p><h2>GAMES</h2><p>Small games, prototypes, and experiments built to ship instead of sit in a folder.</p></div>
+      <div class="statement reveal"><p class="eyebrow">PLAYABLE</p><h2>GAMES</h2><p>Small games, prototypes, and experiments built to ship instead of sit in a folder.</p>
+        <!-- Fills the empty half of this column on hover/focus. Decorative: the
+             row already names the game, so this is aria-hidden rather than
+             repeating it. Art is keyed off each row's data-game, so a new
+             preview is a file drop, not a code change. -->
+        <div class="game-art" id="gameArt" aria-hidden="true"></div>
+      </div>
       <div class="stack reveal">
-        <a class="stack-row" href="/stickland"><span>01</span><strong>STICKLAND</strong><small>Browser Game</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
-        <a class="stack-row" href="#"><span>02</span><strong>Cupcake Gobbler</strong><small>Browser Game</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
-        <a class="stack-row" href="#"><span>03</span><strong>Arena1</strong><small>Prototype</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
+        <a class="stack-row" href="/stickland" data-game="stickland"><span>01</span><strong>STICKLAND</strong><small>Browser Game</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
+        <a class="stack-row" href="#" data-game="cupcake-gobbler"><span>02</span><strong>Cupcake Gobbler</strong><small>Browser Game</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
+        <a class="stack-row" href="#" data-game="arena1"><span>03</span><strong>Arena1</strong><small>Prototype</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
       </div>
     </section>
 
@@ -1334,6 +1340,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=117"></script>
+  <script src="script.js?v=118"></script>
 </body>
 </html>

@@ -1624,3 +1624,26 @@ body.modal-open{overflow:hidden}
 /* Confirmation lives on the button itself — no toast, no alert. */
 .resume-copy.is-done{color:var(--accent);border-color:var(--accent)}
 .resume-copy.is-failed{color:#ff8080;border-color:#ff8080}
+
+/* --- games preview -------------------------------------------------------
+   Single-colour line art on transparency, so a CSS mask reads its alpha for
+   the shape and background-color supplies the colour — the accent picker
+   retints it for free. Referenced as an EXTERNAL url, deliberately not baked
+   into this stylesheet: at ~15KB gzipped it is roughly 50x a typical icon,
+   and every page would carry it for art that appears in one section.
+   The box is always laid out; only opacity changes, so nothing shifts when a
+   preview appears or swaps. */
+.game-art{
+  margin-top:34px; width:100%; max-width:520px; aspect-ratio:16/9;
+  background-color:var(--accent);
+  -webkit-mask:var(--art, none) center/contain no-repeat;
+          mask:var(--art, none) center/contain no-repeat;
+  opacity:0; transition:opacity .22s ease, background-color var(--accent-ease);
+  pointer-events:none;
+}
+.game-art.is-on{opacity:1}
+@media(prefers-reduced-motion:reduce){ .game-art{transition:none} }
+/* Touch has no hover, so the box could never populate — take the space back
+   rather than reserving a permanently empty half-column. */
+@media(hover:none){ .game-art{display:none} }
+@media(max-width:900px){ .game-art{display:none} }
