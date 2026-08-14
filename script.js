@@ -1320,3 +1320,172 @@ const PROFILE_KEY = 'dex-profile-collapsed';
     try { localStorage.setItem(PROFILE_KEY, collapsed ? '1' : '0'); } catch { /* private mode */ }
   });
 })();
+
+
+/* --- songs player --------------------------------------------------------- */
+/* One <audio> shared by every track. Switching songs swaps .src, which stops
+   whatever was playing — "no overlap, no resume where you left off" is then a
+   property of the markup rather than something the script has to police. */
+const VOLUME_KEY = 'dex-song-volume';
+const LOOP_MODES = ['off', 'all', 'one'];
+
+(function initSongPlayer() {
+  const audio = document.getElementById('songAudio');
+  const bar = document.getElementById('player');
+  if (!audio || !bar) return;
+
+  // Only cards that actually carry a track. The four placeholders are skipped,
+  // so skip/next walks real songs and picks the rest up when they land.
+  const cards = [...document.querySelectorAll('.pk-song')]
+    .filter(c => c.querySelector('.pk-play[data-audio]'));
+  if (!cards.length) return;
+
+  const $ = id => document.getElementById(id);
+  const art = $('playerArt'), title = $('playerTitle'), artist = $('playerArtist');
+  const toggle = $('playerToggle'), prev = $('playerPrev'), next = $('playerNext');
+  const loopBtn = $('playerLoop'), scrub = $('playerScrub'), vol = $('playerVol');
+  const elapsed = $('playerElapsed'), total = $('playerDuration');
+  const muteBtn = $('playerMute'), stopBtn = $('playerStop');
+
+  let index = -1, loop = 'off', scrubbing = false, lastVolume = 0.4;
+
+  const mmss = t => Number.isFinite(t)
+    ? Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') : '--:--';
+  const setFill = (el, pct) => el.style.setProperty('--fill', pct + '%');
+  const icon = (btn, name) => { const i = btn.querySelector('.icon'); if (i) i.setAttribute('data-icon', name); };
+
+  function paint() {
+    const playing = !audio.paused && index >= 0;
+    cards.forEach((c, i) => {
+      c.classList.toggle('is-playing', i === index);
+      const b = c.querySelector('.pk-play');
+      const on = i === index && playing;
+      const ic = b.querySelector('.pk-play-icon');
+      if (ic) ic.setAttribute('data-icon', on ? 'pause' : 'play');
+      if (b.hasAttribute('data-audio')) {
+        b.setAttribute('aria-label', (on ? 'Pause ' : 'Play ') + c.dataset.title + ' by ' + c.dataset.artist);
+      }
+    });
+    icon(toggle, playing ? 'pause' : 'play');
+    toggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  }
+
+  function load(i, play) {
+    const card = cards[i];
+    if (!card) return;
+    index = i;
+    audio.src = card.querySelector('.pk-play').getAttribute('data-audio');
+    // The bar's thumbnail reuses whatever the grid already decoded, so showing
+    // it costs no extra request.
+    const img = card.querySelector('.pk-cover');
+    art.src = (img && (img.currentSrc || img.src)) || '';
+    art.alt = '';
+    title.textContent = card.dataset.title;
+    artist.textContent = card.dataset.artist;
+    total.textContent = '--:--';
+    elapsed.textContent = '0:00';
+    scrub.value = 0; setFill(scrub, 0);
+    reveal();
+    if (play) audio.play().catch(paint);
+    paint();
+  }
+
+  function reveal() {
+    if (!bar.hidden) return;
+    bar.hidden = false;
+    // One frame at translateY(100%) before the class lands, or the bar is
+    // already in place by the time the transition is asked to run.
+    requestAnimationFrame(() => requestAnimationFrame(() => bar.classList.add('is-up')));
+  }
+
+  function step(delta, auto) {
+    if (loop === 'one' && auto) { audio.currentTime = 0; audio.play(); return; }
+    const at = index + delta;
+    if (at >= cards.length) {
+      if (auto && loop === 'off') { audio.pause(); paint(); return; }
+      load(0, true); return;
+    }
+    if (at < 0) { load(cards.length - 1, true); return; }
+    load(at, true);
+  }
+
+  document.querySelectorAll('.pk-play[data-audio]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = cards.indexOf(btn.closest('.pk-song'));
+      if (i === index && audio.src) { audio.paused ? audio.play() : audio.pause(); return; }
+      load(i, true);
+    });
+  });
+
+  toggle.addEventListener('click', () => { audio.paused ? audio.play() : audio.pause(); });
+  prev.addEventListener('click', () => step(-1, false));
+  next.addEventListener('click', () => step(1, false));
+
+  loopBtn.addEventListener('click', () => {
+    loop = LOOP_MODES[(LOOP_MODES.indexOf(loop) + 1) % LOOP_MODES.length];
+    loopBtn.dataset.loop = loop;
+    loopBtn.setAttribute('aria-label',
+      loop === 'off' ? 'Loop off' : loop === 'all' ? 'Loop all tracks' : 'Loop this track');
+  });
+
+  stopBtn.addEventListener('click', () => {
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    index = -1;
+    bar.classList.remove('is-up');
+    const done = () => { bar.hidden = true; bar.removeEventListener('transitionend', done); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
+    else bar.addEventListener('transitionend', done);
+    paint();
+  });
+
+  audio.addEventListener('play', paint);
+  audio.addEventListener('pause', paint);
+  audio.addEventListener('ended', () => step(1, true));
+  audio.addEventListener('loadedmetadata', () => { total.textContent = mmss(audio.duration); });
+  audio.addEventListener('timeupdate', () => {
+    if (scrubbing || !Number.isFinite(audio.duration)) return;
+    const pct = (audio.currentTime / audio.duration) * 100;
+    scrub.value = Math.round(pct * 10);
+    setFill(scrub, pct);
+    elapsed.textContent = mmss(audio.currentTime);
+  });
+
+  scrub.addEventListener('pointerdown', () => { scrubbing = true; });
+  const commit = () => {
+    scrubbing = false;
+    if (Number.isFinite(audio.duration)) audio.currentTime = (scrub.value / 1000) * audio.duration;
+  };
+  scrub.addEventListener('pointerup', commit);
+  scrub.addEventListener('change', commit);
+  scrub.addEventListener('input', () => {
+    setFill(scrub, scrub.value / 10);
+    if (Number.isFinite(audio.duration)) elapsed.textContent = mmss((scrub.value / 1000) * audio.duration);
+  });
+
+  function applyVolume(v, persist) {
+    audio.volume = v;
+    vol.value = Math.round(v * 100);
+    setFill(vol, v * 100);
+    icon(muteBtn, v === 0 ? 'volume-mute' : 'volume');
+    muteBtn.setAttribute('aria-label', v === 0 ? 'Unmute' : 'Mute');
+    if (persist) { try { localStorage.setItem(VOLUME_KEY, String(v)); } catch { /* private mode */ } }
+  }
+  vol.addEventListener('input', () => {
+    const v = vol.value / 100;
+    if (v > 0) lastVolume = v;
+    applyVolume(v, true);
+  });
+  muteBtn.addEventListener('click', () => {
+    applyVolume(audio.volume === 0 ? (lastVolume || 0.4) : 0, true);
+  });
+
+  let stored = null;
+  try { stored = localStorage.getItem(VOLUME_KEY); } catch { /* private mode */ }
+  const parsed = stored === null ? 0.4 : parseFloat(stored);
+  const start = Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : 0.4;
+  lastVolume = start || 0.4;
+  applyVolume(start, false);
+  paint();
+})();

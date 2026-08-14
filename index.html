@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=113" />
+  <link rel="stylesheet" href="styles.css?v=114" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -812,94 +812,135 @@
       </div>
       <div class="pk-panel" id="pk-panel-songs" role="tabpanel" aria-labelledby="pk-tab-songs" hidden>
         <ul class="pk-grid">
-          <li class="pk-card">
-            <a class="pk-link" href="#">
-              <!-- img src="assets/about/song-covers/song-01.png" slot="pick-cover" alt="Song 01 placeholder cover" class="pk-cover" -->
+          <li class="pk-card pk-song" data-stem="gabry-ponte-thunder"
+              data-artist="Gabry Ponte x LUM!X x Prezioso" data-title="Thunder">
+            <button class="pk-play" type="button"
+                    data-audio="assets/about/song-audio/gabry-ponte-thunder.mp3"
+                    aria-label="Play Thunder by Gabry Ponte x LUM!X x Prezioso">
+              <!-- img src="assets/about/song-covers/gabry-ponte-thunder.png" slot="song-cover" alt="Thunder by Gabry Ponte x LUM!X x Prezioso — album art" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/song-covers/song-01-600.avif 600w,
-                                                  assets/derived/about/song-covers/song-01-400.avif 400w,
-                                                  assets/derived/about/song-covers/song-01-200.avif 200w"
+                <source type="image/avif" srcset="assets/derived/about/song-covers/gabry-ponte-thunder-800.avif 800w,
+                                                  assets/derived/about/song-covers/gabry-ponte-thunder-600.avif 600w,
+                                                  assets/derived/about/song-covers/gabry-ponte-thunder-400.avif 400w,
+                                                  assets/derived/about/song-covers/gabry-ponte-thunder-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/song-covers/song-01-600.webp 600w,
-                                                  assets/derived/about/song-covers/song-01-400.webp 400w,
-                                                  assets/derived/about/song-covers/song-01-200.webp 200w"
+                <source type="image/webp" srcset="assets/derived/about/song-covers/gabry-ponte-thunder-800.webp 800w,
+                                                  assets/derived/about/song-covers/gabry-ponte-thunder-600.webp 600w,
+                                                  assets/derived/about/song-covers/gabry-ponte-thunder-400.webp 400w,
+                                                  assets/derived/about/song-covers/gabry-ponte-thunder-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/song-covers/song-01.png" alt="Song 01 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/song-covers/gabry-ponte-thunder.png" alt="Thunder by Gabry Ponte x LUM!X x Prezioso — album art" width="800" height="800" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
-              <span class="pk-meta"><strong>Placeholder Track 01</strong><small>Placeholder Artist 01</small></span>
+              <span class="pk-play-veil" aria-hidden="true"><span class="icon pk-play-icon" data-icon="play"></span></span>
+            </button>
+            <a class="pk-song-link" href="https://youtu.be/yCTxqM-aLtE" target="_blank" rel="noopener noreferrer">
+              <strong class="pk-artist">Gabry Ponte x LUM!X x Prezioso</strong>
+              <span class="pk-title">Thunder</span>
             </a>
           </li>
-          <li class="pk-card">
-            <a class="pk-link" href="#">
-              <!-- img src="assets/about/song-covers/song-02.png" slot="pick-cover" alt="Song 02 placeholder cover" class="pk-cover" -->
+          <li class="pk-card pk-song" data-stem="song-02"
+              data-artist="Placeholder Artist 02" data-title="Placeholder Track 02">
+            <button class="pk-play" type="button" disabled
+                    aria-label="Placeholder Track 02 — audio not available yet">
+              <!-- img src="assets/about/song-covers/song-02.png" slot="song-cover" alt="Placeholder Track 02 placeholder cover" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/song-covers/song-02-600.avif 600w,
+                <source type="image/avif" srcset="assets/derived/about/song-covers/song-02-800.avif 800w,
+                                                  assets/derived/about/song-covers/song-02-600.avif 600w,
                                                   assets/derived/about/song-covers/song-02-400.avif 400w,
                                                   assets/derived/about/song-covers/song-02-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/song-covers/song-02-600.webp 600w,
+                <source type="image/webp" srcset="assets/derived/about/song-covers/song-02-800.webp 800w,
+                                                  assets/derived/about/song-covers/song-02-600.webp 600w,
                                                   assets/derived/about/song-covers/song-02-400.webp 400w,
                                                   assets/derived/about/song-covers/song-02-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/song-covers/song-02.png" alt="Song 02 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/song-covers/song-02.png" alt="Placeholder Track 02 placeholder cover" width="800" height="800" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
-              <span class="pk-meta"><strong>Placeholder Track 02</strong><small>Placeholder Artist 02</small></span>
+              <span class="pk-play-veil" aria-hidden="true"><span class="icon pk-play-icon" data-icon="play"></span></span>
+            </button>
+            <a class="pk-song-link" href="#">
+              <strong class="pk-artist">Placeholder Artist 02</strong>
+              <span class="pk-title">Placeholder Track 02</span>
             </a>
           </li>
-          <li class="pk-card">
-            <a class="pk-link" href="#">
-              <!-- img src="assets/about/song-covers/song-03.png" slot="pick-cover" alt="Song 03 placeholder cover" class="pk-cover" -->
+          <li class="pk-card pk-song" data-stem="song-03"
+              data-artist="Placeholder Artist 03" data-title="Placeholder Track 03">
+            <button class="pk-play" type="button" disabled
+                    aria-label="Placeholder Track 03 — audio not available yet">
+              <!-- img src="assets/about/song-covers/song-03.png" slot="song-cover" alt="Placeholder Track 03 placeholder cover" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/song-covers/song-03-600.avif 600w,
+                <source type="image/avif" srcset="assets/derived/about/song-covers/song-03-800.avif 800w,
+                                                  assets/derived/about/song-covers/song-03-600.avif 600w,
                                                   assets/derived/about/song-covers/song-03-400.avif 400w,
                                                   assets/derived/about/song-covers/song-03-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/song-covers/song-03-600.webp 600w,
+                <source type="image/webp" srcset="assets/derived/about/song-covers/song-03-800.webp 800w,
+                                                  assets/derived/about/song-covers/song-03-600.webp 600w,
                                                   assets/derived/about/song-covers/song-03-400.webp 400w,
                                                   assets/derived/about/song-covers/song-03-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/song-covers/song-03.png" alt="Song 03 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/song-covers/song-03.png" alt="Placeholder Track 03 placeholder cover" width="800" height="800" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
-              <span class="pk-meta"><strong>Placeholder Track 03</strong><small>Placeholder Artist 03</small></span>
+              <span class="pk-play-veil" aria-hidden="true"><span class="icon pk-play-icon" data-icon="play"></span></span>
+            </button>
+            <a class="pk-song-link" href="#">
+              <strong class="pk-artist">Placeholder Artist 03</strong>
+              <span class="pk-title">Placeholder Track 03</span>
             </a>
           </li>
-          <li class="pk-card">
-            <a class="pk-link" href="#">
-              <!-- img src="assets/about/song-covers/song-04.png" slot="pick-cover" alt="Song 04 placeholder cover" class="pk-cover" -->
+          <li class="pk-card pk-song" data-stem="song-04"
+              data-artist="Placeholder Artist 04" data-title="Placeholder Track 04">
+            <button class="pk-play" type="button" disabled
+                    aria-label="Placeholder Track 04 — audio not available yet">
+              <!-- img src="assets/about/song-covers/song-04.png" slot="song-cover" alt="Placeholder Track 04 placeholder cover" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/song-covers/song-04-600.avif 600w,
+                <source type="image/avif" srcset="assets/derived/about/song-covers/song-04-800.avif 800w,
+                                                  assets/derived/about/song-covers/song-04-600.avif 600w,
                                                   assets/derived/about/song-covers/song-04-400.avif 400w,
                                                   assets/derived/about/song-covers/song-04-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/song-covers/song-04-600.webp 600w,
+                <source type="image/webp" srcset="assets/derived/about/song-covers/song-04-800.webp 800w,
+                                                  assets/derived/about/song-covers/song-04-600.webp 600w,
                                                   assets/derived/about/song-covers/song-04-400.webp 400w,
                                                   assets/derived/about/song-covers/song-04-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/song-covers/song-04.png" alt="Song 04 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/song-covers/song-04.png" alt="Placeholder Track 04 placeholder cover" width="800" height="800" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
-              <span class="pk-meta"><strong>Placeholder Track 04</strong><small>Placeholder Artist 04</small></span>
+              <span class="pk-play-veil" aria-hidden="true"><span class="icon pk-play-icon" data-icon="play"></span></span>
+            </button>
+            <a class="pk-song-link" href="#">
+              <strong class="pk-artist">Placeholder Artist 04</strong>
+              <span class="pk-title">Placeholder Track 04</span>
             </a>
           </li>
-          <li class="pk-card">
-            <a class="pk-link" href="#">
-              <!-- img src="assets/about/song-covers/song-05.png" slot="pick-cover" alt="Song 05 placeholder cover" class="pk-cover" -->
+          <li class="pk-card pk-song" data-stem="song-05"
+              data-artist="Placeholder Artist 05" data-title="Placeholder Track 05">
+            <button class="pk-play" type="button" disabled
+                    aria-label="Placeholder Track 05 — audio not available yet">
+              <!-- img src="assets/about/song-covers/song-05.png" slot="song-cover" alt="Placeholder Track 05 placeholder cover" class="pk-cover" -->
               <picture>
-                <source type="image/avif" srcset="assets/derived/about/song-covers/song-05-600.avif 600w,
+                <source type="image/avif" srcset="assets/derived/about/song-covers/song-05-800.avif 800w,
+                                                  assets/derived/about/song-covers/song-05-600.avif 600w,
                                                   assets/derived/about/song-covers/song-05-400.avif 400w,
                                                   assets/derived/about/song-covers/song-05-200.avif 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/song-covers/song-05-600.webp 600w,
+                <source type="image/webp" srcset="assets/derived/about/song-covers/song-05-800.webp 800w,
+                                                  assets/derived/about/song-covers/song-05-600.webp 600w,
                                                   assets/derived/about/song-covers/song-05-400.webp 400w,
                                                   assets/derived/about/song-covers/song-05-200.webp 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/song-covers/song-05.png" alt="Song 05 placeholder cover" width="800" height="1200" loading="lazy" decoding="async">
+                <img class="pk-cover" src="assets/about/song-covers/song-05.png" alt="Placeholder Track 05 placeholder cover" width="800" height="800" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
-              <span class="pk-meta"><strong>Placeholder Track 05</strong><small>Placeholder Artist 05</small></span>
+              <span class="pk-play-veil" aria-hidden="true"><span class="icon pk-play-icon" data-icon="play"></span></span>
+            </button>
+            <a class="pk-song-link" href="#">
+              <strong class="pk-artist">Placeholder Artist 05</strong>
+              <span class="pk-title">Placeholder Track 05</span>
             </a>
           </li>
         </ul>
@@ -926,6 +967,51 @@
 
     <footer><strong>DEX CIMINO</strong><span>2D / 3D DESIGN · CREATIVE TECHNOLOGIST</span><small>© 2026</small></footer>
   </main>
+
+  <!-- Songs player. One <audio> for the whole list: only one track may play at
+       a time, so a single element makes overlap structurally impossible rather
+       than something the script has to police. preload="none" — five full
+       tracks eagerly fetched would outweigh the entire rest of the site. -->
+  <audio id="songAudio" preload="none"></audio>
+  <div class="player" id="player" role="region" aria-label="Song player" hidden>
+    <div class="player-now">
+      <img class="player-art" id="playerArt" src="" alt="" width="48" height="48" decoding="async">
+      <span class="player-meta">
+        <strong class="player-title" id="playerTitle"></strong>
+        <span class="player-artist" id="playerArtist"></span>
+      </span>
+    </div>
+
+    <div class="player-transport">
+      <button class="player-btn" type="button" id="playerPrev" aria-label="Previous track">
+        <span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
+      <button class="player-btn is-primary" type="button" id="playerToggle" aria-label="Pause">
+        <span class="icon" data-icon="pause" aria-hidden="true"></span></button>
+      <button class="player-btn" type="button" id="playerNext" aria-label="Next track">
+        <span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
+      <button class="player-btn player-loop" type="button" id="playerLoop"
+              aria-label="Loop off" data-loop="off">
+        <span class="icon" data-icon="loop" aria-hidden="true"></span>
+        <span class="player-loop-one" aria-hidden="true">1</span></button>
+    </div>
+
+    <div class="player-seek">
+      <span class="player-time" id="playerElapsed">0:00</span>
+      <input class="player-range player-scrub" id="playerScrub" type="range"
+             min="0" max="1000" value="0" step="1" aria-label="Seek">
+      <span class="player-time" id="playerDuration">--:--</span>
+    </div>
+
+    <div class="player-volume">
+      <button class="player-btn player-volbtn" type="button" id="playerMute" aria-label="Mute">
+        <span class="icon" data-icon="volume" aria-hidden="true"></span></button>
+      <input class="player-range player-vol" id="playerVol" type="range"
+             min="0" max="100" value="40" step="1" aria-label="Volume">
+    </div>
+
+    <button class="player-btn player-close" type="button" id="playerStop" aria-label="Stop and close player">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+  </div>
 
   <!-- Work overlay — MOCKUP. Every image inside it is generated in script.js as
        an SVG data URI (see the TEMPORARY MOCKUP DATA block); there are no real
@@ -1151,6 +1237,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=113"></script>
+  <script src="script.js?v=114"></script>
 </body>
 </html>

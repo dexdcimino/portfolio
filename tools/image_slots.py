@@ -32,6 +32,14 @@ LADDERS = {
     # 2x the widest case and 3x the phone case; the `card` ladder's 900 could
     # never be selected here and would bake 30 files nothing serves.
     "cover":  (600, 400, 200),
+    # Square album art. Same grid as `cover`, so the CSS widths are identical --
+    # but measuring what the browser can actually select turns up a case the
+    # cover ladder does not serve: at a 560px viewport the grid is 2-up at
+    # 225px, and a 3x screen there asks for 675px. 600 would upscale. 800 is
+    # both the fix and the master's native size, so it costs nothing to reach.
+    # Kept separate rather than widening `cover`: adding 800 there would re-bake
+    # every 2:3 game and movie cover at full width for a case they never hit.
+    "song":   (800, 600, 400, 200),
     # Full-size viewing: an image that fills a lightbox rather than a grid cell.
     # Nothing uses this yet — it is here because the work overlay's hero is the
     # next thing to get real art, and a 19vw thumbnail ladder would visibly
@@ -79,6 +87,13 @@ SLOTS = {
     # breakpoint, which is the safe direction to round `sizes`.
     "pick-cover": dict(
         ladder="cover",
+        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw",
+    ),
+    # Songs are 1:1, not 2:3 -- album art is natively square and cropping it to
+    # the portrait cell would be wrong. Same grid cell, so the same `sizes`;
+    # different ladder, per the note above.
+    "song-cover": dict(
+        ladder="song",
         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw",
     ),
 }

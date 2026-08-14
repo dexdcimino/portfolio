@@ -127,15 +127,21 @@ img{max-width:100%}
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
 [data-icon="games"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M8.55 6.4h6.9a6.75 6.75 0 0 1 6.62 5.45l.66 3.36a3.2 3.2 0 0 1-5.72 2.5l-1.4-1.86H8.39l-1.4 1.86a3.2 3.2 0 0 1-5.72-2.5l.66-3.36A6.75 6.75 0 0 1 8.55 6.4Zm-1.4 3.15v1.6h-1.6v1.9h1.6v1.6h1.9v-1.6h1.6v-1.9h-1.6v-1.6h-1.9Zm9.1.3a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Zm2.6 2.75a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Z'/%3E%3C/svg%3E")} /* src: assets/icons/games.svg */
 [data-icon="home"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M3 10.5 12 3l9 7.5v10a.5.5 0 0 1-.5.5H15v-7H9v7H3.5a.5.5 0 0 1-.5-.5z'/%3E%3C/svg%3E")} /* src: assets/icons/home.svg */
+[data-icon="loop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M6.5 8.5h11a2.5 2.5 0 0 1 2.5 2.5v2M17.5 15.5h-11A2.5 2.5 0 0 1 4 13v-2'/%3E%3Cpath fill='%23fff' d='m8.6 5.4-3 3.1 3 3.1zm6.8 13.2 3-3.1-3-3.1z'/%3E%3C/svg%3E")} /* src: assets/icons/loop.svg */
+[data-icon="pause"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M8 5h3v14H8zm5 0h3v14h-3z'/%3E%3C/svg%3E")} /* src: assets/icons/pause.svg */
 [data-icon="play"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23fff' stroke-width='3.4' stroke-linejoin='round' d='M8.4 5.9v12.2L18.2 12Z'/%3E%3C/svg%3E")} /* src: assets/icons/play.svg */
 [data-icon="preview"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.2 12c2.6-3.9 5.8-5.8 9.8-5.8s7.2 1.9 9.8 5.8c-2.6 3.9-5.8 5.8-9.8 5.8S4.8 15.9 2.2 12Z M12 14.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z'/%3E%3C/svg%3E")} /* src: assets/icons/preview.svg */
 [data-icon="resume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linejoin='round' d='M6 2h8l4 4v16H6zm8 0v5h4M9 11h6M9 15h6M9 19h4'/%3E%3C/svg%3E")} /* src: assets/icons/resume.svg */
+[data-icon="skip-back"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M7 5h2.4v14H7zm12 .8v12.4L10.4 12z'/%3E%3C/svg%3E")} /* src: assets/icons/skip-back.svg */
+[data-icon="skip-forward"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M14.6 5H17v14h-2.4zM5 5.8 13.6 12 5 18.2z'/%3E%3C/svg%3E")} /* src: assets/icons/skip-forward.svg */
 [data-icon="discord"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.198.3728.2924a.077.077 0 0 1-.0066.1276 12.2986 12.2986 0 0 1-1.873.8914.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z'/%3E%3C/svg%3E")} /* src: assets/icons/social/discord.svg */
 [data-icon="github"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 .3a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58l-.02-2.04c-3.34.73-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.08-.75.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.28-1.23 3.28-1.23.65 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.81 5.62-5.48 5.92.43.36.81 1.1.81 2.22l-.01 3.29c0 .31.21.69.82.57A12 12 0 0 0 12 .3Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/github.svg */
 [data-icon="instagram"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16ZM12 0C8.74 0 8.33.01 7.05.07c-1.28.06-2.15.26-2.91.56-.79.3-1.46.72-2.13 1.38C1.35 2.68.93 3.35.63 4.14c-.3.76-.5 1.63-.56 2.91C.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.28.26 2.15.56 2.91.3.79.72 1.46 1.38 2.13.67.67 1.34 1.08 2.13 1.38.76.3 1.63.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.28-.06 2.15-.26 2.91-.56.79-.3 1.46-.71 2.13-1.38.67-.67 1.08-1.34 1.38-2.13.3-.76.5-1.63.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.28-.26-2.15-.56-2.91-.3-.79-.71-1.46-1.38-2.13C21.32 1.35 20.65.93 19.86.63c-.76-.3-1.63-.5-2.91-.56C15.67.01 15.26 0 12 0Zm0 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm7.85-10.41a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/instagram.svg */
 [data-icon="linkedin"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M22.23 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.73V1.73C24 .77 23.21 0 22.23 0ZM7.12 20.45H3.56V9h3.56v11.45ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13Zm15.11 13.02h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.47-.9 1.63-1.85 3.37-1.85 3.6 0 4.26 2.37 4.26 5.46v6.28Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/linkedin.svg */
 [data-icon="youtube"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.54 12 3.54 12 3.54s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/youtube.svg */
 [data-icon="tick"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15.3841 18.1113'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M7.1872,18.1113H0v-6.3529L11.7584,0h3.6257v7.3476s-5.9188,5.7103-7.2664,7.2664-.9305,3.4973-.9305,3.4973Z' fill='%23fff'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tick_mark.svg */
+[data-icon="volume-mute"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='m16 9.5 5 5m0-5-5 5'/%3E%3C/svg%3E")} /* src: assets/icons/volume-mute.svg */
+[data-icon="volume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='M15.4 9.2a4 4 0 0 1 0 5.6M18 6.6a7.6 7.6 0 0 1 0 10.8'/%3E%3C/svg%3E")} /* src: assets/icons/volume.svg */
 [data-icon="work"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z'/%3E%3C/svg%3E")} /* src: assets/icons/work.svg */
 [data-icon="zoom-in"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.4 12.9L21 21M10.5 7.5v6m-3-3h6'/%3E%3C/svg%3E")} /* src: assets/icons/zoom-in.svg */
 [data-icon="zoom-out"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.4 12.9L21 21M7.5 10.5h6'/%3E%3C/svg%3E")} /* src: assets/icons/zoom-out.svg */
@@ -796,6 +802,146 @@ button.button{cursor:pointer;font:inherit}
 .pk-meta{display:grid;gap:2px;min-width:0}
 .pk-meta strong{font-size:13px;font-weight:800;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pk-meta small{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* --- songs: square art, play overlay, caption link ----------------------- */
+/* Album art is natively 1:1, so these opt out of the 2:3 cell the games and
+   movies covers share. Everything else — radius, border, hover lift — stays. */
+.pk-song .pk-cover{aspect-ratio:1}
+
+/* The cover is a button, the caption is a link. Two targets, never nested. */
+.pk-play{
+  display:block;position:relative;width:100%;padding:0;border:0;background:none;
+  cursor:pointer;border-radius:var(--radius-cover);
+}
+.pk-play[disabled]{cursor:default}
+.pk-play-veil{
+  position:absolute;inset:0;display:grid;place-items:center;
+  border-radius:var(--radius-cover);
+  background:rgba(6,9,12,.46);
+  opacity:0;transition:opacity .18s ease;
+}
+.pk-play-icon{width:44px;height:44px;color:#fff;
+  transition:transform .18s cubic-bezier(.22,.61,.36,1),color var(--accent-ease)}
+.pk-play:hover .pk-play-veil,.pk-play:focus-visible .pk-play-veil{opacity:1}
+.pk-play:hover .pk-play-icon{transform:scale(1.08);color:var(--accent)}
+.pk-play[disabled] .pk-play-veil{background:rgba(6,9,12,.62)}
+.pk-play[disabled] .pk-play-icon{opacity:.35}
+.pk-play:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+
+/* The playing track keeps its veil and outline whatever tab is on screen, so it
+   stays findable after switching to Games or Quotes and back. */
+.pk-song.is-playing .pk-cover{border-color:var(--accent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 55%,transparent)}
+.pk-song.is-playing .pk-play-veil{opacity:1;background:rgba(6,9,12,.34)}
+.pk-song.is-playing .pk-play-icon{color:var(--accent)}
+
+/* Artist reads at body size, not caption size; title sits under it unbolded. */
+.pk-song-link{display:grid;gap:1px;margin-top:10px;color:inherit;text-decoration:none;min-width:0}
+.pk-artist{font-size:15px;font-weight:800;letter-spacing:.01em;color:var(--text);
+  line-height:1.25;transition:color var(--accent-ease)}
+.pk-title{font-size:14px;font-weight:400;color:var(--muted);line-height:1.3}
+.pk-song-link:hover .pk-artist{color:var(--accent)}
+.pk-song-link:hover .pk-title{color:var(--text)}
+.pk-song-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+
+/* --- player bar ---------------------------------------------------------- */
+/* Left edge clears the rail rather than sitting under it, so the bar never
+   covers the sidebar and the collapse behaviour is untouched. */
+.player{
+  position:fixed;z-index:40;left:var(--sidebar);right:0;bottom:0;
+  display:grid;align-items:center;gap:18px;
+  grid-template-columns:minmax(0,1.15fr) auto minmax(220px,2fr) auto auto;
+  padding:12px 22px;
+  background:color-mix(in srgb,var(--sidebar-bg) 94%,black);
+  border-top:1px solid color-mix(in srgb,var(--accent) 42%,transparent);
+  box-shadow:0 -12px 30px rgba(0,0,0,.42);
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.22,.61,.36,1);
+}
+.player.is-up{transform:none}
+.player[hidden]{display:none}
+@media(prefers-reduced-motion:reduce){ .player{transition:none} }
+
+.player-now{display:flex;align-items:center;gap:11px;min-width:0}
+.player-art{width:48px;height:48px;flex:none;border-radius:9px;object-fit:cover;
+  border:1px solid var(--line);background:#0e1217}
+.player-meta{display:grid;gap:1px;min-width:0}
+.player-title{font-size:14px;font-weight:800;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player-artist{font-size:12px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.player-transport{display:flex;align-items:center;gap:4px}
+.player-btn{
+  display:grid;place-items:center;width:38px;height:38px;flex:none;
+  background:none;border:0;border-radius:10px;cursor:pointer;
+  color:var(--icon-idle);
+  transition:color var(--accent-ease),background var(--accent-ease);
+}
+.player-btn .icon{width:20px;height:20px}
+.player-btn svg{width:18px;height:18px}
+.player-btn:hover{color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.player-btn:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.player-btn.is-primary{color:var(--text)}
+.player-btn.is-primary .icon{width:24px;height:24px}
+.player-btn:disabled{opacity:.35;cursor:default}
+.player-btn:disabled:hover{color:var(--icon-idle);background:none}
+
+/* One button, three states: off (muted), loop-all (accent), loop-one (accent
+   plus the 1 badge) — the standard media-player cycle. */
+.player-loop{position:relative}
+.player-loop[data-loop="all"],.player-loop[data-loop="one"]{color:var(--accent)}
+.player-loop-one{
+  position:absolute;right:5px;bottom:4px;
+  font-size:9px;font-weight:800;line-height:1;color:var(--accent);
+  opacity:0;transition:opacity .15s ease;
+}
+.player-loop[data-loop="one"] .player-loop-one{opacity:1}
+
+.player-seek{display:flex;align-items:center;gap:10px;min-width:0}
+.player-time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;
+  flex:none;min-width:38px}
+.player-time:last-child{text-align:right}
+
+/* Range inputs are real <input type=range>, so keyboard seek and volume come
+   for free. --fill is set from script and drives the accent portion. */
+.player-range{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:16px;background:none;cursor:pointer;margin:0;
+}
+.player-range::-webkit-slider-runnable-track{
+  height:4px;border-radius:3px;
+  background:linear-gradient(to right,var(--accent) var(--fill,0%),
+                             rgba(255,255,255,.16) var(--fill,0%));
+}
+.player-range::-moz-range-track{height:4px;border-radius:3px;background:rgba(255,255,255,.16)}
+.player-range::-moz-range-progress{height:4px;border-radius:3px;background:var(--accent)}
+/* Dark knob riding on top of the accent fill. */
+.player-range::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:13px;height:13px;margin-top:-4.5px;border-radius:50%;
+  background:#20262e;border:2px solid #0b0e12;
+  box-shadow:0 1px 3px rgba(0,0,0,.6);
+}
+.player-range::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;
+  background:#20262e;border:2px solid #0b0e12;
+}
+.player-range:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+
+.player-volume{display:flex;align-items:center;gap:8px}
+.player-vol{width:104px}
+
+@media(max-width:1100px){
+  .player{grid-template-columns:minmax(0,1fr) auto auto;gap:12px;padding:10px 14px}
+  .player-seek{grid-column:1/-1;order:4}
+  .player-volume{order:3}
+}
+@media(max-width:700px){
+  .player{left:0;grid-template-columns:minmax(0,1fr) auto;padding:9px 12px}
+  .player-volume{display:none}
+  .player-close{order:3}
+}
 
 /* Quotes carry no image, so the card itself has to hold the shape. */
 .pk-quote{
