@@ -124,11 +124,19 @@ function _applyFx() {
 /** Called once from initPlayMode. Applies the persisted accent + FX at boot. */
 export function initPauseMenu(hooks) {
   _hooks = Object.assign(_hooks, hooks || {});
-  const saved = _normalizeHex(safeStorage.getItem(ACCENT_LS_KEY));
-  // Fall back to the site's default rather than the old built-in green: the
-  // picker only offers the site's seven, so a stock accent outside that set
-  // would leave every swatch looking unselected on a first visit.
-  _applyAccent(saved || SITE_ACCENTS[2].hex, false);
+  // The site's key wins at boot. Reading only the game's own key meant a
+  // change made on dexcimino.com never reached the game — the accent carried
+  // out but not back in. Picking in-game writes both, so this stays correct in
+  // that direction too. Falls back to the site's default rather than the old
+  // built-in green, which sat outside the seven the picker offers.
+  let boot = null;
+  try {
+    const name = safeStorage.getItem(SITE_ACCENT_KEY);
+    const hit = SITE_ACCENTS.find(a => a.name === name);
+    if (hit) boot = hit.hex;
+  } catch (e) {}
+  if (!boot) boot = _normalizeHex(safeStorage.getItem(ACCENT_LS_KEY));
+  _applyAccent(boot || SITE_ACCENTS[2].hex, false);
   window._dexShakeScale = _fxSettings.shake;
   window._dexBloodEnabled = _fxSettings.blood;
 }
