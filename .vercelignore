@@ -21,3 +21,8 @@ games/*/README.md
 # shipped build would load. If multiplayer is ever switched on, build.mjs
 # has to place it inside the version folder — not un-ignore it here.
 games/*/public/
+
+# Songs Dex may swap back in later. Kept in the repo, never shipped — there
+# is no reason to upload MP3s the site does not reference. Matches the
+# leading-underscore convention bake_images.py already skips.
+assets/about/songs/_archive/

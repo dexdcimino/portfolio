@@ -66,10 +66,12 @@ DEFAULT_WIDTHS = (1600, 1200, 900, 600, 400, 200)
 RASTER_EXTS = {".png", ".jpg", ".jpeg"}
 
 # derived/ holds this script's own output — walking it would bake the bakes.
-# _resources/ is .ai/.psd working files.
+# _resources/ is .ai/.psd working files. _archive/ is songs kept in the repo
+# but not on the site — same leading-underscore convention, same mechanism,
+# so an archived cover never gets derivatives built for it.
 # games/ ships self-contained builds whose textures are already optimised — see
 # games/README.md. The rest is self-evident.
-SKIP_DIRS = {"derived", "_resources", "games", ".git", "node_modules", ".vercel"}
+SKIP_DIRS = {"derived", "_resources", "_archive", "games", ".git", "node_modules", ".vercel"}
 
 
 def collect() -> list[tuple[Path, tuple[int, ...]]]:
