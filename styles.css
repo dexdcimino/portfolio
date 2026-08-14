@@ -692,26 +692,26 @@ button.button{cursor:pointer;font:inherit}
 
 
 /* --- shared tab row ------------------------------------------------------ */
-.tk-tabs,.pk-tabs{
+.tk-tabs,.pk-tabs,.ai-tabs{
   display:flex;gap:2px;flex-wrap:wrap;margin-bottom:26px;
   border-bottom:1px solid var(--line);
 }
-.tk-tab,.pk-tab{
+.tk-tab,.pk-tab,.ai-tab{
   appearance:none;border:0;background:none;cursor:pointer;font:inherit;
   padding:11px 16px;margin-bottom:-1px;
   color:var(--icon-idle);font-size:14px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;
   border-bottom:var(--stroke) solid transparent;white-space:nowrap;
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
 }
-.tk-tab:hover,.pk-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
-.tk-tab:focus-visible,.pk-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
-.tk-tab[aria-selected="true"],.pk-tab[aria-selected="true"]{
+.tk-tab:hover,.pk-tab:hover,.ai-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.tk-tab:focus-visible,.pk-tab:focus-visible,.ai-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+.tk-tab[aria-selected="true"],.pk-tab[aria-selected="true"],.ai-tab[aria-selected="true"]{
   color:var(--accent);border-bottom-color:var(--accent);
 }
 @media(max-width:760px){
-  .tk-tabs,.pk-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
-  .tk-tabs::-webkit-scrollbar,.pk-tabs::-webkit-scrollbar{display:none}
-  .tk-tab,.pk-tab{padding:11px 13px;font-size:13px}
+  .tk-tabs,.pk-tabs,.ai-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .tk-tabs::-webkit-scrollbar,.pk-tabs::-webkit-scrollbar,.ai-tabs::-webkit-scrollbar{display:none}
+  .tk-tab,.pk-tab,.ai-tab{padding:11px 13px;font-size:13px}
 }
 
 /* --- toolkit tab row + hover description --------------------------------- */
@@ -1655,3 +1655,8 @@ body.modal-open{overflow:hidden}
    rather than reserving a permanently empty half-column. */
 @media(hover:none){ .game-art{display:none} }
 @media(max-width:900px){ .game-art{display:none} }
+
+/* AI Projects tabs. The row sits at the head of the content column so it
+   stays with the panels it filters; the section keeps its split layout. */
+.ai-panel[hidden]{display:none}
+.ai-soon{margin:0;padding:26px 2px;color:var(--muted);font-size:15px;line-height:1.6;max-width:52ch}

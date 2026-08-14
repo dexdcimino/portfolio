@@ -1276,6 +1276,7 @@ function initTabs(tablist, onSelect) {
 
 initTabs(document.querySelector('.tk-tabs'));
 initTabs(document.querySelector('.pk-tabs'));
+initTabs(document.querySelector('.ai-tabs'));
 
 /* --- sidebar profile collapse -------------------------------------------- */
 /* Hides the profile photo, bio and social row, leaving the toggle plus RESUME

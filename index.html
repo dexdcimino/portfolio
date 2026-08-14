@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=120" />
+  <link rel="stylesheet" href="styles.css?v=121" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -387,10 +387,37 @@
 
     <section class="split-section alt" id="ai">
       <div class="statement reveal"><p class="eyebrow">BUILDING WITH AI</p><h2>AI PROJECTS</h2><p>Apps, visual experiments, videos, charts, and tools built with Claude, Gemini, GPT, and creative software.</p></div>
-      <div class="ai-grid reveal">
-        <a class="ai-card" href="https://dexnote.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>DexNote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
-        <a class="ai-card" href="https://nodeblast.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>NodeBlast.dev</strong><span>Creator / gaming platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
-        <a class="ai-card" href="#"><small>LAB</small><strong>AI Experiments</strong><span>Images · video · charts · prototypes<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+      <div class="ai-wrap reveal">
+        <!-- Fourth tablist on the site; wired through the same initTabs() as the
+             Toolkit and Top Picks rows, so roving tabindex, arrows and Home/End
+             are the one implementation. -->
+        <div class="ai-tabs" role="tablist" aria-label="AI project categories">
+          <button class="ai-tab" type="button" role="tab" id="ai-tab-apps" aria-controls="ai-panel-apps" aria-selected="true" tabindex="0">Apps</button>
+          <button class="ai-tab" type="button" role="tab" id="ai-tab-images" aria-controls="ai-panel-images" aria-selected="false" tabindex="-1">Images</button>
+          <button class="ai-tab" type="button" role="tab" id="ai-tab-videos" aria-controls="ai-panel-videos" aria-selected="false" tabindex="-1">Videos</button>
+          <button class="ai-tab" type="button" role="tab" id="ai-tab-madlabs" aria-controls="ai-panel-madlabs" aria-selected="false" tabindex="-1">MadLabs</button>
+        </div>
+
+        <div class="ai-panel" id="ai-panel-apps" role="tabpanel" aria-labelledby="ai-tab-apps">
+          <div class="ai-grid">
+            <a class="ai-card" href="https://dexnote.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>DexNote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <a class="ai-card" href="https://nodeblast.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>NodeBlast.dev</strong><span>Creator / gaming platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <a class="ai-card" href="https://dexddc.com" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>dexddc.com</strong><span>Original portfolio site<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+          </div>
+        </div>
+
+        <!-- Images, Videos and MadLabs land with their content. They share one
+             tile + overlay component rather than three layouts, so these three
+             panels stay structurally identical until then. -->
+        <div class="ai-panel" id="ai-panel-images" role="tabpanel" aria-labelledby="ai-tab-images" hidden>
+          <p class="ai-soon">Image work is being collected — this tab fills in shortly.</p>
+        </div>
+        <div class="ai-panel" id="ai-panel-videos" role="tabpanel" aria-labelledby="ai-tab-videos" hidden>
+          <p class="ai-soon">Video work is being collected — this tab fills in shortly.</p>
+        </div>
+        <div class="ai-panel" id="ai-panel-madlabs" role="tabpanel" aria-labelledby="ai-tab-madlabs" hidden>
+          <p class="ai-soon">MadLabs is where the odd experiments land — images, video, simulations, whatever does not fit the other three.</p>
+        </div>
       </div>
     </section>
 
@@ -1344,6 +1371,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=120"></script>
+  <script src="script.js?v=121"></script>
 </body>
 </html>
