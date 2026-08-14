@@ -39,6 +39,13 @@ ALIASES = {"brand-mark": "brand", "tick_mark": "tick"}
 # Owned by bake_favicon.py, which has its own <head> pipeline.
 NOT_AN_ICON = {"favicon"}
 
+# Folders whose SVGs are NOT masks. Third-party brand logos are full colour and
+# define their mark by contrast inside a solid shape — Photoshop's "Ps" is light
+# on dark, Unreal's "U" is white in a black circle. A mask paints every filled
+# region one colour, so those flatten to featureless blobs. They ship as real
+# <img> instead, in their own colours, and never enter this block.
+NOT_MASKS = {"software"}
+
 
 def manifest() -> dict[str, tuple[str, str]]:
     """selector -> (custom property, source file), discovered from disk.
@@ -51,7 +58,7 @@ def manifest() -> dict[str, tuple[str, str]]:
     found = dict(EXTRA)
     for svg in sorted(ICONS_DIR.rglob("*.svg"), key=lambda p: p.relative_to(ICONS_DIR).as_posix()):
         stem = svg.stem
-        if stem in NOT_AN_ICON:
+        if stem in NOT_AN_ICON or NOT_MASKS & set(svg.relative_to(ICONS_DIR).parts):
             continue
         key = ALIASES.get(stem, stem)
         selector = f'[data-icon="{key}"]'

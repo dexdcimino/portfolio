@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <rect width="64" height="64" rx="20" ry="20" fill="#fff"/>
+      <g>
+        <circle cx="40" cy="31.9999" r="8" fill="#1abcfe"/>
+        <path d="M24,24c-4.4183,0-8,3.5818-8,8s3.5817,8,8,8h8v-16h-8Z" fill="#a259ff"/>
+        <path d="M24,40c-4.4183,0-8,3.5818-8,8s3.5817,8,8,8,8-3.5818,8-8v-8h-8Z" fill="#0acf83"/>
+        <path d="M24,8c-4.4183,0-8,3.5818-8,8s3.5817,8,8,8h8V8h-8Z" fill="#f24e1e"/>
+        <path d="M40,24c4.4183,0,8-3.5818,8-8s-3.5817-8-8-8h-8v16h8Z" fill="#ff7262"/>
+      </g>
+    </g>
+  </g>
+</svg>

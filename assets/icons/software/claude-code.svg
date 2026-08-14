@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 39.1387">
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <g>
+        <rect x="8.1687" width="47.6626" height="30.7569" fill="#e06138"/>
+        <rect y="14.9523" width="64" height="8.1332" fill="#e06138"/>
+        <g>
+          <rect x="19.8729" y="18.788" width="3.9933" height="20.3507" fill="#e06138"/>
+          <rect x="11.7558" y="18.788" width="3.9933" height="20.3507" fill="#e06138"/>
+          <rect x="48.2509" y="18.788" width="3.9933" height="20.3507" fill="#e06138"/>
+          <rect x="40.1338" y="18.788" width="3.9933" height="20.3507" fill="#e06138"/>
+        </g>
+      </g>
+      <rect x="16.1421" y="7.1743" width="4.475" height="8.5239"/>
+      <rect x="44.3241" y="7.1743" width="4.475" height="8.5239"/>
+    </g>
+  </g>
+</svg>

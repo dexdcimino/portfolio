@@ -115,16 +115,7 @@ img{max-width:100%}
 [data-icon="arrow-ne"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M7 17 17 7M9 7h8v8'/%3E%3C/svg%3E")} /* src: assets/icons/arrow-ne.svg */
 [data-icon="arrow-right"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M4 12h15M13 6l6 6-6 6'/%3E%3C/svg%3E")} /* src: assets/icons/arrow-right.svg */
 [data-icon="brand"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23fff' d='M15 7h27l15 25-15 25H15L4 45l9-7 8 9h15l9-15-9-15H21l-8 9-9-7Z'/%3E%3C/svg%3E")} /* src: assets/icons/brand-mark.svg */
-[data-icon="clickup"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3ECU%3C/text%3E%3C/svg%3E")} /* src: assets/icons/collaboration/clickup.svg */
-[data-icon="figma"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EFG%3C/text%3E%3C/svg%3E")} /* src: assets/icons/collaboration/figma.svg */
-[data-icon="slack"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3ESK%3C/text%3E%3C/svg%3E")} /* src: assets/icons/collaboration/slack.svg */
 [data-icon="contact"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M4 5h16v11H8l-4 3V5Zm3 4h10M7 12h7'/%3E%3C/svg%3E")} /* src: assets/icons/contact.svg */
-[data-icon="babylonjs"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EBJ%3C/text%3E%3C/svg%3E")} /* src: assets/icons/devstack/babylonjs.svg */
-[data-icon="firebase"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EFB%3C/text%3E%3C/svg%3E")} /* src: assets/icons/devstack/firebase.svg */
-[data-icon="flyio"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EFL%3C/text%3E%3C/svg%3E")} /* src: assets/icons/devstack/flyio.svg */
-[data-icon="hathora"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EHA%3C/text%3E%3C/svg%3E")} /* src: assets/icons/devstack/hathora.svg */
-[data-icon="photon"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EPH%3C/text%3E%3C/svg%3E")} /* src: assets/icons/devstack/photon.svg */
-[data-icon="vercel"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EVC%3C/text%3E%3C/svg%3E")} /* src: assets/icons/devstack/vercel.svg */
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
 [data-icon="games"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M8.55 6.4h6.9a6.75 6.75 0 0 1 6.62 5.45l.66 3.36a3.2 3.2 0 0 1-5.72 2.5l-1.4-1.86H8.39l-1.4 1.86a3.2 3.2 0 0 1-5.72-2.5l.66-3.36A6.75 6.75 0 0 1 8.55 6.4Zm-1.4 3.15v1.6h-1.6v1.9h1.6v1.6h1.9v-1.6h1.6v-1.9h-1.6v-1.6h-1.9Zm9.1.3a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Zm2.6 2.75a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Z'/%3E%3C/svg%3E")} /* src: assets/icons/games.svg */
 [data-icon="home"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M3 10.5 12 3l9 7.5v10a.5.5 0 0 1-.5.5H15v-7H9v7H3.5a.5.5 0 0 1-.5-.5z'/%3E%3C/svg%3E")} /* src: assets/icons/home.svg */
@@ -136,21 +127,6 @@ img{max-width:100%}
 [data-icon="instagram"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16ZM12 0C8.74 0 8.33.01 7.05.07c-1.28.06-2.15.26-2.91.56-.79.3-1.46.72-2.13 1.38C1.35 2.68.93 3.35.63 4.14c-.3.76-.5 1.63-.56 2.91C.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.28.26 2.15.56 2.91.3.79.72 1.46 1.38 2.13.67.67 1.34 1.08 2.13 1.38.76.3 1.63.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.28-.06 2.15-.26 2.91-.56.79-.3 1.46-.71 2.13-1.38.67-.67 1.08-1.34 1.38-2.13.3-.76.5-1.63.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.28-.26-2.15-.56-2.91-.3-.79-.71-1.46-1.38-2.13C21.32 1.35 20.65.93 19.86.63c-.76-.3-1.63-.5-2.91-.56C15.67.01 15.26 0 12 0Zm0 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm7.85-10.41a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/instagram.svg */
 [data-icon="linkedin"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M22.23 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.73V1.73C24 .77 23.21 0 22.23 0ZM7.12 20.45H3.56V9h3.56v11.45ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13Zm15.11 13.02h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.47-.9 1.63-1.85 3.37-1.85 3.6 0 4.26 2.37 4.26 5.46v6.28Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/linkedin.svg */
 [data-icon="youtube"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.54 12 3.54 12 3.54s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/youtube.svg */
-[data-icon="3d-coat"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3E3C%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/3d-coat.svg */
-[data-icon="after-effects"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EAE%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/after-effects.svg */
-[data-icon="animate"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EAN%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/animate.svg */
-[data-icon="blender"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EBL%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/blender.svg */
-[data-icon="blockbench"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EBB%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/blockbench.svg */
-[data-icon="godot"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EGO%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/godot.svg */
-[data-icon="illustrator"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EIL%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/illustrator.svg */
-[data-icon="maya"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EMA%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/maya.svg */
-[data-icon="photoshop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EPS%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/photoshop.svg */
-[data-icon="roblox"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3ERB%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/roblox.svg */
-[data-icon="spline"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3ESL%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/spline.svg */
-[data-icon="substance"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3ESP%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/substance.svg */
-[data-icon="unity"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EUN%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/unity.svg */
-[data-icon="unreal"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EUE%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/unreal.svg */
-[data-icon="zbrush"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='4.5' fill='none' stroke='%23fff' stroke-width='1.5'/%3E%3Ctext x='12' y='15.5' text-anchor='middle' font-family='sans-serif' font-size='8.4' font-weight='700' letter-spacing='-0.3' fill='%23fff'%3EZB%3C/text%3E%3C/svg%3E")} /* src: assets/icons/software/zbrush.svg */
 [data-icon="tick"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15.3841 18.1113'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M7.1872,18.1113H0v-6.3529L11.7584,0h3.6257v7.3476s-5.9188,5.7103-7.2664,7.2664-.9305,3.4973-.9305,3.4973Z' fill='%23fff'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tick_mark.svg */
 [data-icon="work"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z'/%3E%3C/svg%3E")} /* src: assets/icons/work.svg */
 [data-icon="zoom-in"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.4 12.9L21 21M10.5 7.5v6m-3-3h6'/%3E%3C/svg%3E")} /* src: assets/icons/zoom-in.svg */
@@ -626,45 +602,54 @@ button.button{cursor:pointer;font:inherit}
 /* --- toolkit grid -------------------------------------------------------- */
 .tk-list{
   list-style:none;margin:0;padding:0;
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:18px 10px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:26px 12px;
 }
-/* No card: the icon sits straight on the About ground. Only the reserved
-   name/gauge rows below it give the item its height, so the row stays even
-   whether or not a tool is hovered. */
+/* No card: the logo sits straight on the About ground. The tile is two rows —
+   the icon, and one shared slot below it that holds EITHER the gauge or the
+   name, never both. Stacking them in a single grid cell is what removes the
+   old two-line reservation problem: there is only one box to size, so a
+   two-word name cannot push its own gauge out of line with its neighbours'. */
 .tk-item{
-  display:grid;justify-items:center;align-content:start;gap:10px;
-  padding:6px 6px 4px;min-height:104px;
+  display:grid;justify-items:center;align-content:start;gap:12px;
+  padding:4px 6px;
 }
-/* Gauged tabs reserve the dot row on every item so a 5/5 and a 2/5 line up. */
-.tk-list-gauged .tk-item{min-height:120px}
 
-/* The icon shrinks and lifts, the name fades up into the space it leaves.
-   Both are transforms and opacity — nothing here reflows the tile. */
+/* Brand logos render in their own colours as real images — they are NOT masks.
+   A mask paints every filled region one colour, which turns Photoshop into a
+   blue square and Unreal into a black circle. The trade is that these do not
+   retint with the accent, which is correct: a third-party mark should not wear
+   someone else's brand colour. */
 .tk-icon{
-  width:62px;height:62px;color:var(--icon-idle);
-  transition:transform .22s cubic-bezier(.22,.61,.36,1),color var(--accent-ease);
+  width:var(--tk-icon,86px);height:var(--tk-icon,86px);
+  object-fit:contain;display:block;
+  opacity:.86;
+  transition:transform .22s cubic-bezier(.22,.61,.36,1),opacity .2s ease;
 }
-.tk-item:hover .tk-icon{transform:translateY(-6px) scale(.86);color:var(--accent)}
-.tk-name{
-  /* Two lines are always reserved. The name is invisible at rest but still
-     occupies its row, so a wrapping label ("Substance Painter") would push its
-     own gauge a line lower than every neighbour's — the dots have to sit on one
-     baseline across the row whether a name is one word or two. */
-  font-size:12px;font-weight:800;letter-spacing:.05em;color:var(--muted);text-align:center;line-height:1.25;
-  min-height:30px;display:flex;align-items:flex-start;justify-content:center;
-  opacity:0;transform:translateY(4px);
-  transition:opacity .2s ease,transform .22s cubic-bezier(.22,.61,.36,1);
+.tk-item:hover .tk-icon,.tk-item:focus-within .tk-icon{
+  transform:translateY(-5px);      /* lift only — nothing needs the room now */
+  opacity:1;                       /* brighten, rather than tint it green */
 }
-.tk-item:hover .tk-name,.tk-item:focus-within .tk-name{opacity:1;transform:none}
 
-/* --- proficiency gauge --------------------------------------------------- */
-.tk-gauge{display:flex;gap:4px;align-items:center}
+/* The shared slot. Both children sit in the same cell, top-aligned, so the
+   gauge keeps one baseline across the row however long a name runs. */
+.tk-meta{display:grid;justify-items:center;align-items:start;min-height:16px}
+.tk-meta>*{grid-area:1/1}
+.tk-gauge{display:flex;gap:5px;align-items:center;padding-top:5px;
+  opacity:1;transition:opacity .18s ease}
 .tk-gauge .dot{
   width:6px;height:6px;border-radius:50%;
-  background:rgba(255,255,255,.16);
+  background:rgba(255,255,255,.18);
   transition:background var(--accent-ease);
 }
 .tk-gauge .dot.is-on{background:var(--accent)}
+.tk-name{
+  font-size:12px;font-weight:800;letter-spacing:.05em;color:var(--text);text-align:center;line-height:1.25;
+  opacity:0;transition:opacity .18s ease;
+}
+/* The swap: name in, dots out, same slot. */
+.tk-item:hover .tk-name,.tk-item:focus-within .tk-name{opacity:1}
+.tk-item:hover .tk-gauge,.tk-item:focus-within .tk-gauge{opacity:0}
+
 
 /* --- top picks grid ------------------------------------------------------ */
 .pk-grid{
@@ -707,13 +692,16 @@ button.button{cursor:pointer;font:inherit}
 @media(max-width:1100px){ .pk-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
 @media(max-width:560px){
   .pk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-  .tk-list{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:16px 8px}
-  .tk-icon{width:48px;height:48px}
+  .tk-list{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:20px 8px}
+  .tk-item{--tk-icon:62px}
 }
 /* Touch: there is no hover, so the name is simply always on. */
 @media(hover:none){
-  .tk-name{opacity:1;transform:none}
-  .tk-icon{transform:translateY(-2px) scale(.92)}
+  /* No hover on touch, so the swap can never fire — give the name its own row
+     under the gauge rather than leaving every tile unlabelled. */
+  .tk-meta{grid-template-rows:auto auto;row-gap:6px}
+  .tk-meta>*{grid-area:auto}
+  .tk-name{opacity:1}
 }
 
 /* ==========================================================================

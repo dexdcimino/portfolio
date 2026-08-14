@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="2.5" y="2.5" width="19" height="19" rx="4.5" fill="none" stroke="#fff" stroke-width="1.5"/><text x="12" y="15.5" text-anchor="middle" font-family="sans-serif" font-size="8.4" font-weight="700" letter-spacing="-0.3" fill="#fff">SP</text></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <circle cx="32" cy="32" r="32" fill="#e1262f"/>
+      <polygon points="32.021 56.804 10.4316 44.3696 10.4256 33.1813 20.3757 36.3275 20.4194 38.6831 32.016 45.3572 40.691 40.3165 10.44 30.7841 10.4254 19.5866 31.991 7.196 53.5708 19.5794 53.5746 30.767 43.6299 27.6333 43.5874 25.2797 32.0024 18.6395 23.4298 23.5488 53.5725 33.1734 53.573 44.3636 32.021 56.804" fill="#fff"/>
+    </g>
+  </g>
+</svg>

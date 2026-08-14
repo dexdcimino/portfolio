@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=108" />
+  <link rel="stylesheet" href="styles.css?v=109" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -387,166 +387,216 @@
         <button class="tk-tab" type="button" role="tab" id="tk-tab-3d" aria-controls="tk-panel-3d" aria-selected="true" tabindex="0">3D</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-adobe" aria-controls="tk-panel-adobe" aria-selected="false" tabindex="-1">Adobe</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-engines" aria-controls="tk-panel-engines" aria-selected="false" tabindex="-1">Engines</button>
-        <button class="tk-tab" type="button" role="tab" id="tk-tab-ai" aria-controls="tk-panel-ai" aria-selected="false" tabindex="-1">AI</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-devstack" aria-controls="tk-panel-devstack" aria-selected="false" tabindex="-1">Dev Stack</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-collab" aria-controls="tk-panel-collab" aria-selected="false" tabindex="-1">Collaboration</button>
       </div>
       <div class="tk-panel" id="tk-panel-3d" role="tabpanel" aria-labelledby="tk-tab-3d">
         <ul class="tk-list tk-list-gauged">
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="maya" aria-hidden="true"></span>
-              <span class="tk-name">Maya</span>
-              <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/maya.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
+                <span class="tk-name">Maya</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="zbrush" aria-hidden="true"></span>
-              <span class="tk-name">ZBrush</span>
-              <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
+              <img class="tk-icon" src="assets/icons/software/zbrush.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
+                <span class="tk-name">ZBrush</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="substance" aria-hidden="true"></span>
-              <span class="tk-name">Substance Painter</span>
-              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/substance.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Substance Painter</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="3d-coat" aria-hidden="true"></span>
-              <span class="tk-name">3D Coat</span>
-              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/3d-coat.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">3D Coat</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="blender" aria-hidden="true"></span>
-              <span class="tk-name">Blender</span>
-              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/blender.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Blender</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="blockbench" aria-hidden="true"></span>
-              <span class="tk-name">Blockbench</span>
-              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/blockbench.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Blockbench</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="spline" aria-hidden="true"></span>
-              <span class="tk-name">Spline</span>
-              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/spline.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Spline</span>
+              </span>
+            </li>
+            <li class="tk-item">
+              <img class="tk-icon" src="assets/icons/software/marmoset.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Marmoset</span>
+              </span>
             </li>
         </ul>
       </div>
       <div class="tk-panel" id="tk-panel-adobe" role="tabpanel" aria-labelledby="tk-tab-adobe" hidden>
         <ul class="tk-list tk-list-gauged">
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="photoshop" aria-hidden="true"></span>
-              <span class="tk-name">Photoshop</span>
-              <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/photoshop.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="4 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span>
+                <span class="tk-name">Photoshop</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="illustrator" aria-hidden="true"></span>
-              <span class="tk-name">Illustrator</span>
-              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/illustrator.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Illustrator</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="animate" aria-hidden="true"></span>
-              <span class="tk-name">Animate</span>
-              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/animate.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Animate</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="after-effects" aria-hidden="true"></span>
-              <span class="tk-name">After Effects</span>
-              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/after-effects.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">After Effects</span>
+              </span>
             </li>
         </ul>
       </div>
       <div class="tk-panel" id="tk-panel-engines" role="tabpanel" aria-labelledby="tk-tab-engines" hidden>
         <ul class="tk-list tk-list-gauged">
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="unreal" aria-hidden="true"></span>
-              <span class="tk-name">Unreal</span>
-              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/unreal.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Unreal</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="unity" aria-hidden="true"></span>
-              <span class="tk-name">Unity</span>
-              <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/unity.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="3 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Unity</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="godot" aria-hidden="true"></span>
-              <span class="tk-name">Godot</span>
-              <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+              <img class="tk-icon" src="assets/icons/software/godot.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                <span class="tk-name">Godot</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="roblox" aria-hidden="true"></span>
-              <span class="tk-name">Roblox</span>
-              <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
-            </li>
-        </ul>
-      </div>
-      <div class="tk-panel" id="tk-panel-ai" role="tabpanel" aria-labelledby="tk-tab-ai" hidden>
-        <ul class="tk-list">
-            <li class="tk-item">
-              <span class="icon tk-icon" data-icon="ai" aria-hidden="true"></span>
-              <span class="tk-name">AI Tools</span>
-              
+              <img class="tk-icon" src="assets/icons/software/roblox.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-gauge" role="img" aria-label="5 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span>
+                <span class="tk-name">Roblox</span>
+              </span>
             </li>
         </ul>
       </div>
       <div class="tk-panel" id="tk-panel-devstack" role="tabpanel" aria-labelledby="tk-tab-devstack" hidden>
         <ul class="tk-list">
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="babylonjs" aria-hidden="true"></span>
-              <span class="tk-name">babylon.js</span>
-              
+              <img class="tk-icon" src="assets/icons/software/babylonjs.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">babylon.js</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="firebase" aria-hidden="true"></span>
-              <span class="tk-name">Firebase</span>
-              
+              <img class="tk-icon" src="assets/icons/software/firebase.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Firebase</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="photon" aria-hidden="true"></span>
-              <span class="tk-name">Photon</span>
-              
+              <img class="tk-icon" src="assets/icons/software/photon.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Photon</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="hathora" aria-hidden="true"></span>
-              <span class="tk-name">Hathora</span>
-              
+              <img class="tk-icon" src="assets/icons/software/edgegap.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Edgegap</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="vercel" aria-hidden="true"></span>
-              <span class="tk-name">Vercel</span>
-              
+              <img class="tk-icon" src="assets/icons/software/vercel.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Vercel</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="flyio" aria-hidden="true"></span>
-              <span class="tk-name">fly.io</span>
-              
+              <img class="tk-icon" src="assets/icons/software/flyio.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">fly.io</span>
+              </span>
+            </li>
+            <li class="tk-item">
+              <img class="tk-icon" src="assets/icons/software/claude-code.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Claude Code</span>
+              </span>
+            </li>
+            <li class="tk-item">
+              <img class="tk-icon" src="assets/icons/software/vscode.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">VS Code</span>
+              </span>
             </li>
         </ul>
       </div>
       <div class="tk-panel" id="tk-panel-collab" role="tabpanel" aria-labelledby="tk-tab-collab" hidden>
         <ul class="tk-list">
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="figma" aria-hidden="true"></span>
-              <span class="tk-name">Figma</span>
-              
+              <img class="tk-icon" src="assets/icons/software/figma.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Figma</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="discord" aria-hidden="true"></span>
-              <span class="tk-name">Discord</span>
-              
+              <img class="tk-icon" src="assets/icons/software/discord.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Discord</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="github" aria-hidden="true"></span>
-              <span class="tk-name">GitHub</span>
-              
+              <img class="tk-icon" src="assets/icons/software/github.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">GitHub</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="clickup" aria-hidden="true"></span>
-              <span class="tk-name">ClickUp</span>
-              
+              <img class="tk-icon" src="assets/icons/software/clickup.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">ClickUp</span>
+              </span>
             </li>
             <li class="tk-item">
-              <span class="icon tk-icon" data-icon="slack" aria-hidden="true"></span>
-              <span class="tk-name">Slack</span>
-              
+              <img class="tk-icon" src="assets/icons/software/slack.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+              <span class="tk-meta">
+                <span class="tk-name">Slack</span>
+              </span>
             </li>
         </ul>
       </div>
@@ -1081,6 +1131,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=108"></script>
+  <script src="script.js?v=109"></script>
 </body>
 </html>
