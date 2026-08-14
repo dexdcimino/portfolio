@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=111" />
+  <link rel="stylesheet" href="styles.css?v=112" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -137,6 +137,26 @@
       </button>
       <button class="resume-mini" type="button" data-resume-open><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="preview" aria-hidden="true"></span></button>
       <a class="contact-mini" href="mailto:dexdcimino@gmail.com"><span class="icon nav-icon" data-icon="contact" aria-hidden="true"></span><span class="nav-text">CONTACT</span></a>
+
+      <!-- Stands in for the full profile block while it is collapsed. Purely
+           informational — the chevron above is the control, so there is nothing
+           here to focus and nothing enters the tab order. -->
+      <div class="profile-compact">
+        <!-- img src="assets/about/profile.jpg" slot="rail-avatar" alt="" class="profile-compact-photo" picture-class="profile-compact-frame" -->
+        <picture class="profile-compact-frame">
+          <source type="image/avif" srcset="assets/derived/about/profile-420.avif 420w,
+                                            assets/derived/about/profile-200.avif 200w,
+                                            assets/derived/about/profile-84.avif 84w"
+                  sizes="200px">
+          <source type="image/webp" srcset="assets/derived/about/profile-420.webp 420w,
+                                            assets/derived/about/profile-200.webp 200w,
+                                            assets/derived/about/profile-84.webp 84w"
+                  sizes="200px">
+          <img class="profile-compact-photo" src="assets/about/profile.jpg" alt="" width="932" height="1014" loading="lazy" decoding="async">
+        </picture>
+        <!-- /img -->
+        <span class="profile-compact-name">DEX CIMINO</span>
+      </div>
 
       <div class="profile-wrap" id="profileMini">
       <div class="profile-mini">
@@ -1131,6 +1151,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=111"></script>
+  <script src="script.js?v=112"></script>
 </body>
 </html>

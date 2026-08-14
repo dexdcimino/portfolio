@@ -105,7 +105,7 @@ def main() -> int:
     lines.append(END)
     block = "\n".join(lines)
 
-    css = CSS.read_text(encoding="utf-8")
+    css = CSS.read_text(encoding="utf-8", newline="")
     start, stop = css.find(BEGIN), css.find(END)
     if start == -1 or stop == -1:
         print("ERROR: GENERATED ICONS markers not found in styles.css", file=sys.stderr)

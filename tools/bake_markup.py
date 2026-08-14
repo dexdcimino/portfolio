@@ -188,7 +188,7 @@ def used_by() -> dict[str, set[str]]:
     bake_images.py imports this so the encode list follows the page instead of
     being maintained alongside it.
     """
-    html = HTML.read_text(encoding="utf-8")
+    html = HTML.read_text(encoding="utf-8", newline="")
     out: dict[str, set[str]] = {}
     for pattern in (IMG_BLOCK, PRELOAD_BLOCK):
         for match in pattern.finditer(html):
@@ -241,7 +241,7 @@ def check_runtime_refs() -> list[str]:
 
 
 def check() -> int:
-    html = HTML.read_text(encoding="utf-8")
+    html = HTML.read_text(encoding="utf-8", newline="")
     try:
         rebuilt, urls, pairs = rebuild(html)
     except (FileNotFoundError, KeyError, ValueError) as exc:
@@ -300,7 +300,7 @@ def main() -> int:
     if "--check" in sys.argv[1:]:
         return check()
 
-    html = HTML.read_text(encoding="utf-8")
+    html = HTML.read_text(encoding="utf-8", newline="")
     try:
         rebuilt, urls, pairs = rebuild(html)
     except (FileNotFoundError, KeyError, ValueError) as exc:

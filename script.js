@@ -1290,17 +1290,24 @@ const PROFILE_KEY = 'dex-profile-collapsed';
   const footer = toggle?.closest('.side-bottom');
   if (!toggle || !block || !footer) return;
 
+  let armed = null;
   const apply = (collapsed, animate) => {
-    // The wrapper animates grid-template-rows; suppress it for the initial
-    // restore so a stored collapse is simply the starting state.
-    if (!animate) block.style.transition = 'none';
+    // Transitions are opt-in via .is-toggling. Without that, the collapse rule
+    // is scoped to the expanded sidebar, so simply expanding the rail re-ran
+    // the animation and the block appeared to grow open before snapping shut.
+    clearTimeout(armed);
+    footer.classList.toggle('is-toggling', animate);
+    if (animate) {
+      const ms = parseFloat(getComputedStyle(document.documentElement)
+        .getPropertyValue('--sidebar-transition-duration')) * 1000 || 240;
+      armed = setTimeout(() => footer.classList.remove('is-toggling'), ms + 60);
+    }
     footer.classList.toggle('is-profile-collapsed', collapsed);
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute('aria-label', collapsed ? 'Show profile' : 'Hide profile');
     // Zero-height content is still tabbable without this — inert takes the
     // whole block, social links included, out of the tab order and the a11y tree.
     block.inert = collapsed;
-    if (!animate) { void block.offsetHeight; block.style.transition = ''; }
   };
 
   let stored = null;

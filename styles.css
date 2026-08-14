@@ -311,9 +311,40 @@ button.button{cursor:pointer;font:inherit}
    first third of the transition travelling through empty space.
    Scoped to the expanded sidebar per the MD: the rail keeps its avatar, and the
    footer-drop geometry that positions it stays exactly as it was. */
-.profile-wrap{display:grid;grid-template-rows:1fr;
-  transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
+/* Mini profile — the collapsed stand-in, recovered from the pre-expansion build
+   (8fb40c6's .profile-row): small square crop with the name beside it.
+   34px photo + 8px gap puts the name at 64px, which is exactly where RESUME and
+   CONTACT put their labels (22px padding + 24px icon + 18px gap), so the pair
+   sits on the nav's icon/label rhythm rather than near it.
+   Height collapses rather than display:none, so the fade still runs; the height
+   itself is deliberately not transitioned, so this never animates open either. */
+.profile-compact{
+  display:flex;align-items:center;gap:8px;padding:0 22px;
+  height:0;overflow:hidden;white-space:nowrap;
+  opacity:0;transform:translateX(-8px);
+  transition:opacity .2s ease,transform .2s ease;
+}
+.profile-compact-frame{display:block;flex:none;width:34px;height:34px;
+  border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+.profile-compact-photo{display:block;width:100%;height:100%;object-fit:cover;
+  object-position:50% 45%;transform:scale(1.15);transform-origin:50% 40%}
+.profile-compact-name{font-size:14px;font-weight:750;letter-spacing:.025em;
+  color:var(--accent);transition:color var(--accent-ease)}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
+  .side-bottom.is-profile-collapsed .profile-compact{
+  height:52px;opacity:1;transform:none;
+}
+
+.profile-wrap{display:grid;grid-template-rows:1fr}
 .profile-wrap>.profile-mini{overflow:hidden}
+/* The transition is opt-in, and only a chevron press opts in. The collapse
+   itself is scoped to the expanded sidebar, so leaving the transition always-on
+   meant *expanding the rail* re-triggered it: the wrapper sat at its full
+   height in the rail, then animated 167px -> 0 as the sidebar widened, which
+   reads as the block growing open and snapping shut. Now that flip is instant
+   and only a real toggle animates. */
+.side-bottom.is-toggling .profile-wrap{
+  transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
   .side-bottom.is-profile-collapsed .profile-wrap{grid-template-rows:0fr}
 /* min-height would hold the track open at 136px and stop it reaching 0fr, and
@@ -321,7 +352,8 @@ button.button{cursor:pointer;font:inherit}
    the content but padding is still box height, which floors the collapse at
    27px. Both have to go, and the padding animates so it does not snap shut
    ahead of the rest of the block. */
-.profile-mini{transition:padding var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
+.side-bottom.is-toggling .profile-mini{
+  transition:padding var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
   .side-bottom.is-profile-collapsed .profile-mini{min-height:0;padding-block:0}
 
