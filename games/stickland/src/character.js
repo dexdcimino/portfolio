@@ -1530,7 +1530,7 @@ function applyHat(uid, hat) {
     g.appendChild(_mkSvg('path', { d:'M18,-8 Q22,-10 24,-7', stroke:clr, 'stroke-width':'1.2', fill:'none', 'stroke-linecap':'round' }));
   } else if (hat === 'crown') {
     // MD 05: three-point crown, filled for weight like the viking horns
-    g.appendChild(_mkSvg('path', { d:'M12,5 L12,-1 L15,2 L18,-2.5 L21,2 L24,-1 L24,5 Z', stroke:clr, 'stroke-width':'1.4', fill:'currentColor', 'fill-opacity':'0.85', 'stroke-linejoin':'round' }));
+    g.appendChild(_mkSvg('path', { d:'M12,5 L12,-1 L15,2 L18,-2.5 L21,2 L24,-1 L24,5 Z', stroke:clr, 'stroke-width':'1.4', fill:'var(--char-clr,var(--clr-adj,#7B8A9C))', 'fill-opacity':'0.85', 'stroke-linejoin':'round' }));
   } else if (hat === 'halo') {
     // MD 05: a ring floating above the head — bobbed gently by _syncCosmeticsToHead's
     // existing head tracking (it rides the hat group, no extra animation needed).
@@ -1538,8 +1538,8 @@ function applyHat(uid, hat) {
   } else if (hat === 'headphones') {
     // MD 05: band over the crown + two filled ear cups
     g.appendChild(_mkSvg('path', { d:'M10,7 Q18,-4 26,7', stroke:clr, 'stroke-width':'1.6', fill:'none' }));
-    g.appendChild(_mkSvg('rect', { x:8.6, y:5, width:3.2, height:6.5, rx:1.6, stroke:clr, 'stroke-width':'1.3', fill:'currentColor', 'fill-opacity':'0.85' }));
-    g.appendChild(_mkSvg('rect', { x:24.2, y:5, width:3.2, height:6.5, rx:1.6, stroke:clr, 'stroke-width':'1.3', fill:'currentColor', 'fill-opacity':'0.85' }));
+    g.appendChild(_mkSvg('rect', { x:8.6, y:5, width:3.2, height:6.5, rx:1.6, stroke:clr, 'stroke-width':'1.3', fill:'var(--char-clr,var(--clr-adj,#7B8A9C))', 'fill-opacity':'0.85' }));
+    g.appendChild(_mkSvg('rect', { x:24.2, y:5, width:3.2, height:6.5, rx:1.6, stroke:clr, 'stroke-width':'1.3', fill:'var(--char-clr,var(--clr-adj,#7B8A9C))', 'fill-opacity':'0.85' }));
   }
 }
 
@@ -1886,6 +1886,36 @@ function _initCosmeticsUI() {
   }
   function _dxavPageCount(n) { return Math.max(1, Math.ceil(n / PAGE_SIZE)); }
 
+  // Which list and which cosmetic slot each row drives. The "selection" is
+  // simply the equipped item — the chip already renders it as dxav-chip-active.
+  const _DXAV_ROWS = {
+    body: { list: () => _dxavBodies, prop: 'torso' },
+    hair: { list: () => _dxavHairs,  prop: 'hair'  },
+    hat:  { list: () => _dxavHats,   prop: 'hat'   },
+  };
+  function _dxavIndex(key) {
+    const row = _DXAV_ROWS[key];
+    if (!row) return -1;
+    return Math.max(0, row.list().findIndex(o => o.id === _cosmetics[row.prop]));
+  }
+  /* Move the selection one item. Landing on the far-left cell of the next page
+     is not special-cased: stepping off the end of a page lands on the next
+     index, and that index IS the first cell of the following page. */
+  function _dxavStep(key, dir) {
+    const row = _DXAV_ROWS[key];
+    if (!row) return false;
+    const list = row.list();
+    const next = _dxavIndex(key) + dir;
+    if (next < 0 || next >= list.length) return false;
+    _cosmetics[row.prop] = list[next].id;
+    _dxav.focus = key;
+    _dxav.pages[key] = Math.floor(next / PAGE_SIZE);
+    applyCosmetics(_uid, _cosmetics);
+    _saveCosmetics();
+    if (window._dexHathoraSendAppearance) window._dexHathoraSendAppearance(window._dexGetAppearance());
+    return true;
+  }
+
   function _dxavRenderRow(items, focusKey, renderCell) {
     const numPages = _dxavPageCount(items.length);
     const curPage = Math.min(_dxav.pages[focusKey], numPages - 1);
@@ -1893,10 +1923,11 @@ function _initCosmeticsUI() {
     const slice = items.slice(start, start + PAGE_SIZE);
     let cellsHtml = '';
     for (let i = 0; i < PAGE_SIZE; i++) cellsHtml += slice[i] ? renderCell(slice[i]) : `<div class="dxav-chip-empty"></div>`;
+    const sel = _dxavIndex(focusKey);
     return `<div class="dxav-row dxav-row-cosmetic" data-focus="${focusKey}">`
-      + `<div class="dxav-arrow ${curPage === 0 ? 'dxav-arrow-disabled' : ''}" data-page="${focusKey}" data-dir="-1" data-pages="${numPages}">${_dxavChev('left')}</div>`
+      + `<div class="dxav-arrow ${sel <= 0 ? 'dxav-arrow-disabled' : ''}" data-page="${focusKey}" data-dir="-1" data-pages="${numPages}">${_dxavChev('left')}</div>`
       + `<div class="dxav-grid">${cellsHtml}</div>`
-      + `<div class="dxav-arrow ${curPage === numPages - 1 ? 'dxav-arrow-disabled' : ''}" data-page="${focusKey}" data-dir="1" data-pages="${numPages}">${_dxavChev('right')}</div>`
+      + `<div class="dxav-arrow ${sel >= items.length - 1 ? 'dxav-arrow-disabled' : ''}" data-page="${focusKey}" data-dir="1" data-pages="${numPages}">${_dxavChev('right')}</div>`
       + `</div>`;
   }
 
@@ -1928,10 +1959,7 @@ function _initCosmeticsUI() {
   function _dxavStartHold(key, dir, numPages) {
     _dxavHoldTimer = setTimeout(() => {
       _dxavHoldInterval = setInterval(() => {
-        const cur = _dxav.pages[key];
-        const next = Math.max(0, Math.min(numPages - 1, cur + dir));
-        if (next === cur) { _dxavStopHold(); return; }
-        _dxav.pages[key] = next;
+        if (!_dxavStep(key, dir)) { _dxavStopHold(); return; }
         window._dxavRender();
       }, 200);
     }, 350);
@@ -1996,8 +2024,7 @@ function _initCosmeticsUI() {
       a.onclick = e => {
         e.stopPropagation();
         if (_dxavHoldInterval) return; // suppress click after a hold
-        _dxav.pages[key] = Math.max(0, Math.min(numPages - 1, _dxav.pages[key] + dir));
-        _dxavRender();
+        if (_dxavStep(key, dir)) _dxavRender();
       };
       a.addEventListener('mousedown', e => { e.stopPropagation(); _dxavStartHold(key, dir, numPages); });
       a.addEventListener('mouseup', _dxavStopHold);
