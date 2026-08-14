@@ -961,7 +961,7 @@ function _drawRemotePlayers(ctx) {
       if(wt==='bow'){wEl.innerHTML=`<svg width="14" height="20" viewBox="0 0 14 20"><path d="M4,2 Q1,10 4,18" fill="none" stroke="${clr}" stroke-width="1.5"/><line x1="4" y1="2" x2="4" y2="18" stroke="${clr}" stroke-width="0.8"/></svg>`;wEl.style.right=p.flipX?'auto':'-8px';wEl.style.left=p.flipX?'-8px':'auto';}
       else if(wt==='gun'||wt==='pistol'){wEl.innerHTML=`<svg width="16" height="10" viewBox="0 0 16 10"><rect x="0" y="2" width="12" height="4" rx="1" fill="${clr}"/><rect x="8" y="4" width="4" height="6" rx="1" fill="${clr}"/></svg>`;wEl.style.right=p.flipX?'auto':'-10px';wEl.style.left=p.flipX?'-10px':'auto';}
       else if(wt==='rocket'){wEl.innerHTML=`<svg width="20" height="8" viewBox="0 0 20 8"><rect x="0" y="1" width="16" height="5" rx="2" fill="${clr}"/><rect x="14" y="0" width="6" height="7" rx="1" fill="${clr}" opacity="0.6"/></svg>`;wEl.style.right=p.flipX?'auto':'-12px';wEl.style.left=p.flipX?'-12px':'auto';}
-      else if(wt==='sword'){wEl.innerHTML=`<svg width="7" height="30" viewBox="0 0 7 30"><polygon points="3.5,0 5,4 4.6,22 2.4,22 2,4" fill="${clr}"/><rect x="0" y="22" width="7" height="2" rx="1" fill="${clr}"/><rect x="2.3" y="24" width="2.4" height="5" rx="1" fill="${clr}" opacity="0.7"/></svg>`;wEl.style.right=p.flipX?'auto':'-4px';wEl.style.left=p.flipX?'-4px':'auto';}
+      else if(wt==='sword'){wEl.innerHTML=`<svg width="6" height="24" viewBox="0 0 6 24"><rect x="2" y="0" width="2" height="18" fill="${clr}"/><rect x="0" y="16" width="6" height="2" rx="1" fill="${clr}"/><rect x="1.5" y="18" width="3" height="5" rx="1" fill="${clr}" opacity="0.7"/></svg>`;wEl.style.right=p.flipX?'auto':'-4px';wEl.style.left=p.flipX?'-4px':'auto';}
       if(wEl.innerHTML)entry.wrapper.appendChild(wEl);
       entry._lastWeapon=wt;
     } else if(wt==='none'&&wEl){wEl.remove();entry._lastWeapon='none';}
@@ -2851,8 +2851,7 @@ window._dexMuzzleFX = function (wx, wy, angle, gunType) {
   };
 
   switch (gunType) {
-    case 'sword':    sparks(6, 1.6, 2.4, 10); break;               // swipe — wide glint fan, no flash/shell
-    case 'swordJab': flash(3); sparks(4, 0.28, 3.2, 8); break;     // jab — tight forward snap
+    case 'sword':   sparks(4, 1.3, 2.0, 9); break;   // slash glint, no flash/shell
     case 'pistol':  flash(3); sparks(3, 0.5, 1.6, 10); shells(1); break;
     case 'smg':     flash(2); sparks(2, 0.7, 1.4, 8);  shells(1); break;
     case 'shotgun': flash(6); sparks(9, 1.0, 2.0, 12); smoke(3); shells(2); break;
