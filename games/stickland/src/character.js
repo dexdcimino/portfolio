@@ -3383,18 +3383,18 @@ function _tickLaser() {
     setTimeout(() => spark.remove(), dur * 1000 + 50);
   }
 
-  // Damage tick — only when the beam has fully reached the target. Play
-  // mode routes through _dexLaserDamage (playmode.js): hp whittles down to
-  // 1, then the creature bloats and bursts — never an instant kill.
-  // Sessions mode keeps its fire-and-kill flow.
+  // Contact — only when the beam has fully reached the target. Play mode
+  // (MD 17b): the gamma is a charge weapon — every contact frame inflates
+  // the creature a little more (playmode pops it at full charge; losing
+  // the beam holds, then deflates). No hp ticks. Sessions mode keeps its
+  // fire-and-kill flow; the interval timer stays for the burn FX.
   if (hitCreature && _laserExtend >= 0.95) {
+    if (_inPM) window._dexLaserCharge?.(hitCreature);
     _laser.dmgTimer += _dt;
     if (_laser.dmgTimer >= LASER_DMG_INTERVAL) {
       _laser.dmgTimer = 0;
       _spawnFireEffect(endX, endY);
-      if (_inPM) {
-        window._dexLaserDamage?.(hitCreature, endX, endY, baseAngle);
-      } else {
+      if (!_inPM) {
         hitCreature.hp -= LASER_DPS;
         // Set creature on fire immediately on first hit
         if (!hitCreature._onFire) {

@@ -3291,64 +3291,87 @@ window._dexProbeCreature = function (px, py) {
   return null;
 };
 
-// Timed laser damage. Whittles hp down to 1, then starts an OVERLOAD: the
-// creature bloats and pulses for half a second and bursts — rocket-grade
-// gore, shockwave ring, shake, hit-stop. No instant kills: the burst is
-// always the finisher. Puffers skip the overload and pop their own way.
-const LASER_OVERLOAD_DUR = 150;   // swell time before the pop (~0.6s)
+// MD 17b: the gamma is a CHARGE weapon now — no hp ticks at all. Every
+// frame the beam touches a creature it inflates a little more; that
+// inflation is the kill progress. Lose the beam and the size HOLDS for a
+// grace window (sweep back on and it continues where it left off), then
+// deflates back to normal. Full charge = the pop. Mammoths take twice
+// the contact time; puffers pop their own way at full charge.
+const GAMMA_POP_T = 300;      // frames of beam contact to pop (~1.25s at 240Hz ref)
+const GAMMA_HOLD_T = 320;     // grace after losing the beam (~1.3s) before deflating
+const GAMMA_DECAY = 1.6;      // deflate speed relative to inflate
 const BOOM_WORDS = ['POP!', 'BOOM!', 'SPLAT!', 'KABLAM!', 'BLORP!'];
-window._dexLaserDamage = function (c, sx, sy, angle) {
-  if (!c || c.dead || c._overloadT != null) return;
-  const { wx, wy } = screenToWorld(sx, sy);
-  if (c.kind === 'puffer') {
-    c.hp -= 1;
-    if (c.hp <= 0) { _explodePuffer(c, false); }
-    else if (!c.aggro) { c.aggro = true; c.aggroTimer = 0; }
-    return;
-  }
-  if (c.hp > 1) {
-    c.hp -= 1;
-    _hitFX(wx, wy, Math.cos(angle) * 2, Math.sin(angle) * 2, 'hit');
-    _spawnHitBlood(wx, wy, c);
-    c._woundCount = (c._woundCount || 0) + 1;
-    c._trailTimer = 0;
+window._dexLaserCharge = function (c) {
+  if (!c || c.dead) return;
+  if (c._gammaT == null) {
+    c._gammaT = 0;
+    c._gammaBase = c.scale || 1;
+    c._gammaPopT = GAMMA_POP_T * (c.kind === 'mammoth' ? 2 : 1);
     if (!c.aggro) { c.aggro = true; c.aggroTimer = 0; }
-  } else {
-    c._overloadT = 0;
-    c._overloadBase = c.scale || 1;
-    c._overloadAngle = angle;
   }
+  c._gammaT = Math.min(c._gammaT + _dt, c._gammaPopT);
+  c._gammaHold = GAMMA_HOLD_T;
 };
 
 function _tickLaserOverloads() {
   for (const c of _liveCreatures) {
-    if (c._overloadT == null || c.dead) continue;
-    c._overloadT += _dt;
-    const p = Math.min(c._overloadT / LASER_OVERLOAD_DUR, 1);
-    // MD 17: inflate ABSURDLY — a balloon at its limit. Quadratic swell to
-    // ~2.1×, wobble that speeds up as it tightens, fizzing sparks and a
-    // rising squeak. Held in place the whole time.
-    const wob = Math.sin(c._overloadT * (0.25 + p * 0.9)) * 0.1 * p;
-    c.scale = c._overloadBase * (1 + 1.1 * p * p + wob);
-    c.vx = 0; c.vy = 0;
-    if ((c._overloadFizz = (c._overloadFizz || 0) - _dt) <= 0) {
-      c._overloadFizz = 9;
-      const a = Math.random() * Math.PI * 2;
-      _pAddParticle(c.x + Math.cos(a) * 16 * c.scale, c.y - 8 + Math.sin(a) * 10 * c.scale,
-        Math.cos(a) * 0.7, Math.sin(a) * 0.7 - 0.35, 10, 255, 255, 255, 0.8, 'spark');
+    if (c._gammaT == null) continue;
+    if (c.dead) { c._gammaT = null; continue; }
+    const popT = c._gammaPopT || GAMMA_POP_T;
+    // Off the beam: hold the size through the grace window, then deflate.
+    if ((c._gammaHold = (c._gammaHold || 0) - _dt) <= 0) {
+      c._gammaT -= GAMMA_DECAY * _dt;
+      if (c._gammaT <= 0) {
+        c.scale = c._gammaBase;
+        c._gammaT = null;
+        continue;
+      }
     }
-    if ((c._overloadSq = (c._overloadSq || 0) - _dt) <= 0) {
-      c._overloadSq = 26;
-      sfx('laser.swell', { p, at: { x: c.x, y: c.y } });
+    const p = Math.min(c._gammaT / popT, 1);
+    // Balloon physics: quadratic swell to ~2.1×, wobble that speeds up as
+    // it tightens, fizz + rising squeak once it's meaningfully swollen.
+    c._gammaWob = (c._gammaWob || 0) + _dt * (0.15 + p * 0.9);
+    const wob = p > 0.3 ? Math.sin(c._gammaWob) * 0.09 * p : 0;
+    c.scale = c._gammaBase * (1 + 1.1 * p * p + wob);
+    if (p > 0.35) {
+      if ((c._overloadFizz = (c._overloadFizz || 0) - _dt) <= 0) {
+        c._overloadFizz = 22 - p * 14;   // fizzes faster the tighter it gets
+        const a = Math.random() * Math.PI * 2;
+        _pAddParticle(c.x + Math.cos(a) * 16 * c.scale, c.y - 8 + Math.sin(a) * 10 * c.scale,
+          Math.cos(a) * 0.7, Math.sin(a) * 0.7 - 0.35, 10, 255, 255, 255, 0.8, 'spark');
+      }
+      if ((c._overloadSq = (c._overloadSq || 0) - _dt) <= 0) {
+        c._overloadSq = 40 - p * 18;
+        sfx('laser.swell', { p, at: { x: c.x, y: c.y } });
+      }
     }
+    // Staggering under the pressure — frozen only near the end.
+    if (p >= 0.85) { c.vx = 0; c.vy = 0; }
     if (p < 1) continue;
 
     // ── THE POP (MD 17) — deliberately ridiculous ──
-    const sc = c._overloadBase;
+    const sc = c._gammaBase;
     c.scale = sc;
-    c._overloadT = null;
+    c._gammaT = null;
+    if (c.kind === 'puffer') {
+      // Puffers explode their own way — just add the comedy on top.
+      _explodePuffer(c, false);
+      const puffHex = (_cachedClr || '#7B8A9C').replace('#', '');
+      const plr = Math.min(255, parseInt(puffHex.slice(0, 2), 16) + 120);
+      const plg = Math.min(255, parseInt(puffHex.slice(2, 4), 16) + 120);
+      const plb = Math.min(255, parseInt(puffHex.slice(4, 6), 16) + 120);
+      _pPush({ wx: c.x, wy: c.y - 34, vx: 0, vy: -0.22, life: 55, maxLife: 55,
+        r: plr, g: plg, b: plb, size: 0, type: 'boomtext',
+        text: BOOM_WORDS[Math.floor(Math.random() * BOOM_WORDS.length)],
+        rot: (Math.random() - 0.5) * 0.45 });
+      _addShake(7);
+      sfx('laser.pop', { at: { x: c.x, y: c.y } });
+      continue;
+    }
     c.dead = true; c.deadT = 0; c.hp = 0;
-    const ang = c._overloadAngle || 0;
+    // No beam angle recorded any more — the pop is omnidirectional anyway;
+    // give the base gore layer a random bias.
+    const ang = Math.random() * Math.PI * 2;
     const groundWY = c.kind === 'bird' ? c.y + 150 + Math.random() * 250 : c.y;
     if (c.kind === 'bird') {
       c._falling = true; c._fallWorldY = c.y;
@@ -4042,14 +4065,14 @@ function _tickOneWraith(w, wi) {
   else if (w.phase === 'seeking' || w.phase === 'orbiting') {
     // Find target — prefer creatures no packmate is already on, so a pack
     // of wraiths spreads out instead of dogpiling one yak.
-    if (!w.target || w.target.dead || w.target._overloadT != null) {
+    if (!w.target || w.target.dead || (w.target._gammaT != null && w.target._gammaT >= (w.target._gammaPopT || 1) * 0.85)) {
       w.target = null;
       const taken = new Set();
       for (const o of _activeWraiths) { if (o !== w && o.target) taken.add(o.target); }
       let bestDist = WRAITH_SEEK_RANGE, bestTakenDist = WRAITH_SEEK_RANGE;
       let bestTaken = null;
       for (const c of _liveCreatures) {
-        if (c.dead || c._overloadT != null) continue;
+        if (c.dead || (c._gammaT != null && c._gammaT >= (c._gammaPopT || 1) * 0.85)) continue;
         const d = Math.hypot(c.x - w.wx, c.y - w.wy);
         if (taken.has(c)) {
           if (d < bestTakenDist) { bestTakenDist = d; bestTaken = c; }
