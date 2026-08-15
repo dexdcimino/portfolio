@@ -1650,6 +1650,7 @@ body.modal-open{overflow:hidden}
    separates the art from a ground that is dark but not black. */
 .game-art.is-on{
   border:var(--stroke) solid rgba(255,255,255,.1);
+  background:#0e1217;                 /* the covers' plate, for the moment before the image paints */
   box-shadow:12px 12px 0 -1px rgba(0,0,0,.55);
   transition:border-color var(--accent-ease),transform .25s ease,box-shadow var(--accent-ease);
 }

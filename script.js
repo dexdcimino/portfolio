@@ -1725,4 +1725,16 @@ const LOOP_MODES = ['off', 'all', 'one'];
     row.addEventListener('pointerenter', () => show(row));
     row.addEventListener('focus', () => show(row));
   }
+
+  /* The section RESTS on the first game that has artwork. It is not a hover
+     reward — the picture is what the left column is for, so leaving it blank
+     until a pointer happens to land on a row means scrolling past a hole where
+     the artwork goes and reading it as a broken or still-loading image.
+
+     Seeded here rather than on the observer that warms the bytes: this is a
+     class and a hidden flag, it costs no network of its own, and the download
+     stays governed by warm() and by lazy loading either way. Deferring it just
+     reintroduced a window where the column is empty. */
+  const first = rows.find(r => r.dataset.art && shots.some(s => s.dataset.art === r.dataset.art));
+  if (first) show(first);
 })();
