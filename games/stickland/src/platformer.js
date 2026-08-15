@@ -724,9 +724,9 @@ function _draw(sw, sh, nearHome) {
       ctx.stroke();
       ctx.setLineDash([]);
     } else if (p.blink) {
-      // Segmented deck — hairline gaps make it read breakable while solid.
+      // Segmented deck — visible gaps make it read breakable while solid.
       const segs = Math.max(3, Math.round(p.w / 26));
-      const gap = 3, segW = (p.w - gap * (segs - 1)) / segs;
+      const gap = 5, segW = (p.w - gap * (segs - 1)) / segs;
       ctx.beginPath();
       for (let k = 0; k < segs; k++) {
         const x0 = s.sx + k * (segW + gap);
@@ -741,19 +741,23 @@ function _draw(sw, sh, nearHome) {
     if (p.rest) ctx.lineWidth = 2;
     if (ghost) { ctx.globalAlpha = 1; continue; }   // nothing else while out
     if (p.mover) {
-      // Carriage dots — the deck visibly rides its rail.
-      ctx.globalAlpha = blinkAlpha * 0.55;
+      // Carriage dots — the deck visibly rides its rail. (MD 16: bigger
+      // and brighter; the first pass was too subtle to register.)
+      ctx.globalAlpha = blinkAlpha * 0.8;
       ctx.fillStyle = clr;
       ctx.beginPath();
-      ctx.arc(s.sx + 8, s.sy + 3, 1.6, 0, Math.PI * 2);
-      ctx.arc(s.sx + p.w - 8, s.sy + 3, 1.6, 0, Math.PI * 2);
+      ctx.arc(s.sx + 8, s.sy + 3.2, 2.2, 0, Math.PI * 2);
+      ctx.arc(s.sx + p.w - 8, s.sy + 3.2, 2.2, 0, Math.PI * 2);
       ctx.fill();
     } else if (!p.blink) {
-      // Solid slab: dim inset front-face line + support ticks.
-      ctx.globalAlpha = blinkAlpha * 0.28;
-      ctx.lineWidth = p.rest ? 2 : 1.6;
+      // Solid slab: inset front-face line closed with end caps so the
+      // thickness actually reads (MD 16: was a lone faint line).
+      ctx.globalAlpha = blinkAlpha * 0.45;
+      ctx.lineWidth = p.rest ? 2.2 : 2;
       ctx.beginPath();
-      ctx.moveTo(s.sx + 2, s.sy + 3); ctx.lineTo(s.sx + p.w - 2, s.sy + 3);
+      ctx.moveTo(s.sx + 2, s.sy + 3.5); ctx.lineTo(s.sx + p.w - 2, s.sy + 3.5);
+      ctx.moveTo(s.sx + 1, s.sy + 0.5); ctx.lineTo(s.sx + 2, s.sy + 3.5);
+      ctx.moveTo(s.sx + p.w - 1, s.sy + 0.5); ctx.lineTo(s.sx + p.w - 2, s.sy + 3.5);
       ctx.stroke();
       ctx.lineWidth = 1.1;
       ctx.globalAlpha = 0.5;
