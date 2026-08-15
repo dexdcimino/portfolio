@@ -1345,6 +1345,41 @@ const tkSelect = initTabs(document.querySelector('.tk-tabs'));
   document.querySelector('.tk-arrow-next')?.addEventListener('click', () => step(1));
 })();
 initTabs(document.querySelector('.pk-tabs'));
+
+/* --- quote renditions ----------------------------------------------------- */
+/* Each card holds both versions in data-* and swaps text in place, so a quote
+   and its cite can never drift apart. Cards with no rendition have no button —
+   the has-rendition class gates it in CSS — so there is nothing to guard here.
+   Hover previews; click pins, because hover alone is dead on touch and the
+   Quotes tab is reachable on a phone. aria-pressed carries the state, which is
+   why this is a real <button>. */
+(function initQuoteRenditions() {
+  for (const card of document.querySelectorAll('.pk-quote')) {
+    const text = card.querySelector('.pk-quote-text');
+    const cite = card.querySelector('.pk-quote-cite');
+    if (!text || !cite) continue;
+
+    const paint = (mode) => {
+      text.textContent = text.dataset[mode] || text.dataset.original || '';
+      cite.textContent = cite.dataset[mode] || cite.dataset.original || '';
+    };
+    paint('original');
+
+    const btn = card.querySelector('.pk-quote-toggle');
+    if (!btn) continue;                      // no rendition: original is final
+
+    let pinned = false;
+    const set = (on) => {
+      paint(on ? 'rendition' : 'original');
+      btn.setAttribute('aria-pressed', String(on));
+    };
+    btn.addEventListener('pointerenter', () => { if (!pinned) set(true); });
+    btn.addEventListener('pointerleave', () => { if (!pinned) set(false); });
+    btn.addEventListener('focus', () => { if (!pinned) set(true); });
+    btn.addEventListener('blur', () => { if (!pinned) set(false); });
+    btn.addEventListener('click', () => { pinned = !pinned; set(pinned); });
+  }
+})();
 initTabs(document.querySelector('.ai-tabs'));
 
 /* --- sidebar profile collapse -------------------------------------------- */

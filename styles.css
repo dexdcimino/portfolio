@@ -1019,15 +1019,43 @@ button.button{cursor:pointer;font:inherit}
 }
 
 /* Quotes carry no image, so the card itself has to hold the shape. */
+/* Quotes get three columns where covers get five: text needs a readable
+   measure, and at cover width the longest quote runs 2-3x taller than any
+   cover at every font size — the height ceiling below is only achievable at
+   this width. align-items:start stops the grid stretching every card to the
+   tallest row, so short quotes keep their natural height. */
+.pk-grid-quotes{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}
+/* Narrow desktop: covers shrink toward 225px while three quote columns push
+   the longest card near 300 — two wider columns bring it back under. */
+@media(max-width:1300px){ .pk-grid-quotes{grid-template-columns:repeat(2,minmax(0,1fr))} }
+/* Doubled class beats the later .pk-grid two-column phone rule on specificity;
+   two 160px quote columns on a phone is how cards end up clipping. */
+@media(max-width:560px){ .pk-grid.pk-grid-quotes{grid-template-columns:1fr} }
 .pk-quote{
   display:grid;gap:12px;align-content:space-between;
-  padding:20px 18px;min-height:180px;
+  padding:20px 18px;min-height:200px;
+  /* Ceiling: a quote card must never out-grow a cover in the same grid —
+     306px is a .pk-cover's rendered height at a 1500px desktop, and covers
+     only get taller at the 3-column breakpoint below 1100. */
+  max-height:306px;
   border:var(--stroke) solid rgba(255,255,255,.09);border-radius:14px;
   border-left:3px solid var(--accent);
   background:linear-gradient(150deg,rgba(32,38,44,.5),rgba(12,15,18,.5));
   transition:border-color var(--accent-ease)}
-.pk-quote blockquote{margin:0;font-size:18px;line-height:1.55;color:var(--text)}
+.pk-quote blockquote{margin:0;font-size:18px;line-height:1.55;color:var(--text);font-style:italic}
+/* Generated marks, not characters in the data attributes — they wrap whichever
+   version is showing and can never double up or stray on a swap. */
+.pk-quote blockquote::before{content:"\201C"}
+.pk-quote blockquote::after{content:"\201D"}
 .pk-quote cite{font-style:normal;font-size:15px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.pk-quote-foot{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pk-quote-toggle{
+  appearance:none;background:none;border:0;padding:0;cursor:pointer;min-height:0;
+  font:inherit;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);transition:color var(--accent-ease)}
+.pk-quote-toggle:hover,.pk-quote-toggle:focus-visible,.pk-quote-toggle[aria-pressed="true"]{color:var(--accent)}
+.pk-quote-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.pk-quote:not(.has-rendition) .pk-quote-toggle{display:none}
 
 @media(max-width:1100px){ .pk-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
 /* Hold the eight columns as far down as they fit by shrinking the icon rather

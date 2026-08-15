@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=145" />
+  <link rel="stylesheet" href="styles.css?v=146" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -1186,12 +1186,49 @@
         </ul>
       </div>
       <div class="pk-panel" id="pk-panel-quotes" role="tabpanel" aria-labelledby="pk-tab-quotes" hidden>
+        <!-- Adding a rendition to a card later: add data-rendition to its
+             blockquote and cite, plus class="has-rendition" and the toggle
+             button on the <li> — no JS or CSS change needed. -->
         <ul class="pk-grid pk-grid-quotes">
-          <li class="pk-quote"><blockquote>Placeholder quote text goes here, one or two lines long.</blockquote><cite>Placeholder Source</cite></li>
-          <li class="pk-quote"><blockquote>Another placeholder line standing in for a real quote.</blockquote><cite>Placeholder Source</cite></li>
-          <li class="pk-quote"><blockquote>Short placeholder quote.</blockquote><cite>Placeholder Source</cite></li>
-          <li class="pk-quote"><blockquote>A slightly longer placeholder quote to prove the card wraps cleanly at any width.</blockquote><cite>Placeholder Source</cite></li>
-          <li class="pk-quote"><blockquote>Final placeholder quote in the set.</blockquote><cite>Placeholder Source</cite></li>
+          <li class="pk-quote has-rendition">
+            <blockquote class="pk-quote-text"
+              data-original="The meaning of life is just to be alive. It is so plain and so obvious and so simple. And yet, everybody rushes around in a great panic as if it were necessary to achieve something beyond themselves."
+              data-rendition="The purpose of life is simply to experience existence. Feel free to burden it with whatever expectations you like."></blockquote>
+            <div class="pk-quote-foot">
+              <cite class="pk-quote-cite" data-original="Alan Watts" data-rendition="Dex — after Alan Watts"></cite>
+              <button class="pk-quote-toggle" type="button" aria-pressed="false">Dex's take</button>
+            </div>
+          </li>
+          <li class="pk-quote">
+            <blockquote class="pk-quote-text"
+              data-original="I do not know with what weapons World War III will be fought, but World War IV will be fought with sticks and stones."></blockquote>
+            <div class="pk-quote-foot">
+              <cite class="pk-quote-cite" data-original="Albert Einstein"></cite>
+            </div>
+          </li>
+          <li class="pk-quote">
+            <blockquote class="pk-quote-text"
+              data-original="Hard times create strong men. Strong men create good times. Good times create weak men. And weak men create hard times."></blockquote>
+            <div class="pk-quote-foot">
+              <cite class="pk-quote-cite" data-original="G. Michael Hopf"></cite>
+            </div>
+          </li>
+          <li class="pk-quote">
+            <!-- Commonly misattributed to Edmund Burke; that attribution is
+                 false, and citing it as unknown is deliberate. -->
+            <blockquote class="pk-quote-text"
+              data-original="The only thing necessary for the triumph of evil is that good men do nothing."></blockquote>
+            <div class="pk-quote-foot">
+              <cite class="pk-quote-cite" data-original="Author unknown"></cite>
+            </div>
+          </li>
+          <li class="pk-quote">
+            <blockquote class="pk-quote-text"
+              data-original="Experience is the name everyone gives to their mistakes."></blockquote>
+            <div class="pk-quote-foot">
+              <cite class="pk-quote-cite" data-original="Oscar Wilde"></cite>
+            </div>
+          </li>
         </ul>
       </div>
     </section>
@@ -1485,6 +1522,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=145"></script>
+  <script src="script.js?v=146"></script>
 </body>
 </html>
