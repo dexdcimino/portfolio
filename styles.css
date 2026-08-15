@@ -1053,12 +1053,30 @@ button.button{cursor:pointer;font:inherit}
 .stack-row span{color:var(--accent);font-size:13px;transition:color var(--accent-ease)}
 .stack-row strong{font-size:25px}
 .stack-row small{color:#959ea5;font-size:15px}
-.row-arrow{width:21px;height:21px;color:var(--accent);transition:color var(--accent-ease),transform .2s ease}
+/* Both glyphs share one cell and cross-fade, so the row's geometry does not
+   move when the icon changes. Sized to the old .row-arrow box exactly. */
+.row-go{position:relative;width:21px;height:21px}
+.row-go .icon{position:absolute;inset:0;width:21px;height:21px;color:var(--accent);
+  transition:opacity .18s ease,transform .2s ease,color var(--accent-ease)}
+.row-play{opacity:0}
+/* is-current marks the row whose artwork and description are showing —
+   persistent, unlike the transient artwork-hover is-linked below. */
+.stack-row.is-current .row-arrow{opacity:0}
+.stack-row.is-current .row-play{opacity:1}
 /* .is-linked is the preview reaching back: hovering the artwork lights up the
    row it stands for. Same declarations as :hover rather than a lookalike, so
    the two can never drift into two different highlights. */
 .stack-row:hover,.stack-row.is-linked{background:rgba(255,255,255,.04);padding-left:20px}
+/* The diagonal nudge is the arrow miming its own direction of travel — on the
+   play triangle it reads as a mistake, so that one grows instead. */
 .stack-row:hover .row-arrow,.stack-row.is-linked .row-arrow{transform:translate(2px,-2px)}
+.stack-row:hover .row-play,.stack-row.is-linked .row-play{transform:scale(1.12)}
+
+/* Two-part description: bold lead, gap, body. Sits under the rows inside
+   .stack; the rows' border-bottoms and the section grid are unchanged. */
+.game-desc{padding:22px 12px 0;max-width:650px}
+.game-desc-lead{display:block;font-size:17px;line-height:1.45;color:var(--text)}
+.game-desc-body{margin:14px 0 0;color:#adb5bb;line-height:1.72;font-size:var(--copy-size)}
 
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}

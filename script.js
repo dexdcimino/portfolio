@@ -1762,7 +1762,31 @@ const LOOP_MODES = ['off', 'all', 'one'];
   art.addEventListener('focus', () => linkRow(true));
   art.addEventListener('blur', () => linkRow(false));
 
-  function show(row) {
+  /* Row-level state, split from the artwork on purpose: showArt() bails early
+     for rows with no artwork (correct — it leaves the last picture up rather
+     than blanking the frame), so anything set after that bail would never swap
+     for Cupcake Gobbler or Arena1. select() runs for EVERY row: description,
+     the persistent is-current that drives the play glyph, then artwork.
+     is-current is not is-linked — is-linked is the transient artwork-hover
+     highlight; folding them together would flicker the glyph on artwork hover. */
+  const desc = document.getElementById('gameDesc');
+  const descLead = desc && desc.querySelector('.game-desc-lead');
+  const descBody = desc && desc.querySelector('.game-desc-body');
+
+  let current = null;
+  function select(row) {
+    if (current === row) return;
+    if (current) current.classList.remove('is-current');
+    current = row;
+    row.classList.add('is-current');
+
+    if (descLead) descLead.textContent = row.dataset.descLead || '';
+    if (descBody) descBody.textContent = row.dataset.descBody || '';
+
+    showArt(row);
+  }
+
+  function showArt(row) {
     const key = row.dataset.art;
     const shot = key && shots.find(s => s.dataset.art === key);
     if (!shot) return;                       // no artwork: leave what is there
@@ -1792,8 +1816,8 @@ const LOOP_MODES = ['off', 'all', 'one'];
   }
 
   for (const row of rows) {
-    row.addEventListener('pointerenter', () => show(row));
-    row.addEventListener('focus', () => show(row));
+    row.addEventListener('pointerenter', () => select(row));
+    row.addEventListener('focus', () => select(row));
   }
 
   /* The section RESTS on the first game that has artwork. It is not a hover
@@ -1806,7 +1830,7 @@ const LOOP_MODES = ['off', 'all', 'one'];
      stays governed by warm() and by lazy loading either way. Deferring it just
      reintroduced a window where the column is empty. */
   const first = rows.find(r => r.dataset.art && shots.some(s => s.dataset.art === r.dataset.art));
-  if (first) show(first);
+  if (first) select(first);
 })();
 
 /* ==========================================================================

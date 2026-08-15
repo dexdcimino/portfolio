@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=141" />
+  <link rel="stylesheet" href="styles.css?v=142" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -453,9 +453,19 @@
         </a>
       </div>
       <div class="stack reveal">
-        <a class="stack-row" href="/stickland" data-game="stickland" data-art="stickland-art"><span>01</span><strong>STICKLAND</strong><small>Browser Game</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
-        <a class="stack-row" href="#" data-game="cupcake-gobbler"><span>02</span><strong>Cupcake Gobbler</strong><small>Browser Game</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
-        <a class="stack-row" href="#" data-game="arena1"><span>03</span><strong>Arena1</strong><small>Prototype</small><span class="icon row-arrow" data-icon="arrow-ne" aria-hidden="true"></span></a>
+        <a class="stack-row" href="/stickland" data-game="stickland" data-art="stickland-art"
+           data-desc-lead="A free-roaming stick-figure world built for exploring, fighting, experimenting, and making your own fun."
+           data-desc-body="Roam a procedural landscape, customize your character, battle creatures, experiment with a varied arsenal, and travel by hoverboard, jetpack, or tank before taking on a separate vertical platforming world. Nearly everything you see and hear is generated at runtime using JavaScript, SVG, Canvas 2D, and synthesized audio — all delivered through one self-contained HTML file."><span>01</span><strong>STICKLAND</strong><small>Browser Game</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
+        <a class="stack-row" href="#" data-game="cupcake-gobbler"
+           data-desc-lead="A fast, greedy arcade chase about eating everything before it eats you."
+           data-desc-body="In progress — placeholder copy. Artwork and a playable build are on the way; the finished description lands with them."><span>02</span><strong>Cupcake Gobbler</strong><small>Browser Game</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
+        <a class="stack-row" href="#" data-game="arena1"
+           data-desc-lead="A top-down arena combat prototype exploring movement and weapon feel."
+           data-desc-body="In progress — placeholder copy. Artwork and a playable build are on the way; the finished description lands with them."><span>03</span><strong>Arena1</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
+        <div class="game-desc" id="gameDesc">
+          <strong class="game-desc-lead"></strong>
+          <p class="game-desc-body"></p>
+        </div>
       </div>
     </section>
 
@@ -1454,6 +1464,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=141"></script>
+  <script src="script.js?v=142"></script>
 </body>
 </html>
