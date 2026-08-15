@@ -305,14 +305,24 @@ const SOUNDS = {
   }},
   // Sword (MD 10 follow-up, replaces melee.hammer): the jab is a short
   // bright lunge, the swipe a longer falling whoosh with a light ring.
+  // o.power (0..1, charged release) turns the swipe into a deeper, louder
+  // sweep with a low body under it.
   'melee.sword':   { cd: 90, fn: (o) => {
-    if (o.jab) {
+    if (o.power) {
+      const p = Math.min(1, o.power);
+      _whoosh({ from: 1200 - 500 * p, to: 300, dur: 0.2 + 0.08 * p, gain: 0.24 + 0.14 * p, pan: o.pan });
+      _blip({ type: 'sawtooth', freq: _vary(220 + 120 * p, 0.06), endFreq: 90, dur: 0.14, gain: 0.1 + 0.08 * p, delay: 0.02, pan: o.pan });
+    } else if (o.jab) {
       _whoosh({ from: 1400, to: 2200, dur: 0.07, gain: 0.14, pan: o.pan });
       _blip({ type: 'triangle', freq: _vary(1500, 0.06), endFreq: 2100, dur: 0.05, gain: 0.07, pan: o.pan });
     } else {
       _whoosh({ from: 1800, to: 500, dur: 0.15, gain: 0.18, pan: o.pan });
       _blip({ type: 'sine', freq: _vary(2400, 0.05), endFreq: 1700, dur: 0.09, gain: 0.05, delay: 0.03, pan: o.pan });
     }
+  }},
+  // Full-charge cue for the sword's held power swipe — one soft rising tick.
+  'melee.swordReady': { cd: 250, fn: (o) => {
+    _blip({ type: 'triangle', freq: 880, endFreq: 1320, dur: 0.07, gain: 0.09, pan: o.pan });
   }},
   'shoot.bow':     { cd: 80, fn: (o) => {
     const p = Math.min(1, Math.max(0, o.power == null ? 0.5 : o.power));
