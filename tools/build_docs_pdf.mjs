@@ -136,25 +136,38 @@ for (const accent of accentNames()) {
       const el = document.getElementById(p);
       const root = document.documentElement;
       const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      // The print sheet couples the page's layout width to 1/fit, so any fit
+      // fills the sheet edge to edge; the only question is the LARGEST fit
+      // whose reflowed content still fits one sheet tall. Shrinking the fit
+      // widens the measure and shortens the content, so fitness is monotonic
+      // and the answer is found by bisection against the real rendered box —
+      // the box is re-measured every probe precisely because content height
+      // changes under both the zoom and the width it is laid out at.
+      const fits = async f => {
+        root.style.setProperty('--print-fit', String(f));
+        await settle();
+        return el.getBoundingClientRect().height <= sheet + 0.01;
+      };
       root.style.setProperty('--print-fit', '1');
       await settle();
       const h = el.scrollHeight;
-      let f = Math.min(1, Math.floor((sheet / h) * 1e4) / 1e4);
-      for (let i = 0; i < 6; i++) {
-        root.style.setProperty('--print-fit', String(f));
-        await settle();
-        const box = el.getBoundingClientRect().height;
-        if (box <= sheet + 0.01 || f === 1) return { h, f, box: +box.toFixed(1), passes: i + 1 };
-        f = Math.floor(f * (sheet / box) * 1e4) / 1e4;
+      if (h <= sheet) return { h, f: 1, box: +el.getBoundingClientRect().height.toFixed(1) };
+      let lo = Math.floor((sheet / h) * 1e4) / 1e4;   // fits: narrower measure already did
+      let hi = 1;                                     // does not fit
+      for (let i = 0; i < 10; i++) {
+        const mid = Math.floor(((lo + hi) / 2) * 1e4) / 1e4;
+        if (mid === lo || mid === hi) break;
+        if (await fits(mid)) lo = mid; else hi = mid;
       }
-      return { h, f, box: -1, passes: 6 };
+      if (!(await fits(lo))) return { h, f: lo, box: -1 };
+      return { h, f: lo, box: +el.getBoundingClientRect().height.toFixed(1) };
     }, doc.panel, SHEET_PX);
     if (fit.box === -1) throw new Error(`${doc.panel}: fit did not converge`);
 
     const out = `${OUT_DIR}/${doc.stem}-${accent}.pdf`;
     await page.pdf({ path: out, printBackground: true, preferCSSPageSize: true });
     await page.emulateMediaType('screen');
-    const note = fit.f < 1 ? `${fit.h}px fitted at ${(fit.f * 100).toFixed(1)}% in ${fit.passes} pass(es), box ${fit.box}` : 'fits at 100%';
+    const note = fit.f < 1 ? `${fit.h}px fitted at ${(fit.f * 100).toFixed(1)}%, box ${fit.box}` : 'fits at 100%';
     console.log(`  ${out}  (${note})`);
 
     // Close so the next document goes through the real open path too.
