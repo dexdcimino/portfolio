@@ -1773,7 +1773,7 @@ body.modal-open{overflow:hidden}
    and never eats the click — the whole frame is already the link. */
 .game-art-play{
   position:absolute; left:50%; top:50%;
-  width:clamp(68px,31%,132px); aspect-ratio:1; pointer-events:none;
+  width:clamp(78px,36%,152px); aspect-ratio:1; pointer-events:none;
   opacity:0; transform:translate(-50%,-50%) scale(.84);
   /* Hard shadow, same language as the frame's — a blurred one would read as a
      different component sitting on top rather than part of the same set. */
@@ -1784,7 +1784,7 @@ body.modal-open{overflow:hidden}
 /* Fixed dark blue, deliberately NOT mixed with the accent. Mixing read as dark
    green under the lime accent and shifted hue with every other one — the edge
    has to stay blue to stay the same component across all seven. */
-.ga-play-edge{fill:none; stroke:#0b1e33; stroke-width:11; stroke-linejoin:round}
+.ga-play-edge{fill:none; stroke:#0b1e33; stroke-width:8; stroke-linejoin:round}
 .ga-play-spec{fill:#fff; opacity:.55}
 .game-art.is-on:hover .game-art-play,
 .game-art.is-on:focus-visible .game-art-play{opacity:1; transform:translate(-50%,-50%) scale(1)}
