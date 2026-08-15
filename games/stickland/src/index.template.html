@@ -55,8 +55,10 @@
   <div id="hud-health-wrap">
     <div id="hud-health-bar"></div>
   </div>
-  <!-- Equip slots -->
+  <!-- Equip slots. #item-bar-name (MD 14): weapon name, fades in above the
+       bar on slot hover or on 1-4 equip; character.js drives it. -->
   <div id="item-bar">
+    <div id="item-bar-name" aria-hidden="true"></div>
     <div class="item-slot active" data-slot="1" data-tip="Slot 1">
       <span class="item-slot-num">1</span>
       <div class="item-slot-icon"></div>

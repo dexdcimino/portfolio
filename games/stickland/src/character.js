@@ -5870,7 +5870,42 @@ function _renderHotbarSlot(slotNum) {
     slotEl.dataset.tip = `Slot ${slotNum}`;
   }
 }
-function _renderAllHotbarSlots() { [1,2,3,4].forEach(_renderHotbarSlot); }
+function _renderAllHotbarSlots() { [1,2,3,4].forEach(_renderHotbarSlot); _initItemBarNameHover(); }
+
+// ── Hotbar weapon-name label (MD 14) ──
+// #item-bar-name fades in centered above the bar: on slot hover (steady) and
+// on 1-4 equip (auto-fades after ~1s). Mirrors the bag's #inv-hover-name
+// pattern from the source spec. Suppressed while the bag panel is open —
+// its columns float in the same space.
+let _itemBarNameTimer = null;
+function _showItemBarName(text, autoFade) {
+  const el = document.getElementById('item-bar-name');
+  if (!el) return;
+  const inv2El = document.getElementById('inv2');
+  if (inv2El && inv2El.classList.contains('is-open')) { el.style.opacity = '0'; return; }
+  clearTimeout(_itemBarNameTimer);
+  if (!text) { el.style.opacity = '0'; return; }
+  el.textContent = text;
+  el.style.opacity = '1';
+  if (autoFade) _itemBarNameTimer = setTimeout(() => { el.style.opacity = '0'; }, 1000);
+}
+function _initItemBarNameHover() {
+  const bar = document.getElementById('item-bar');
+  if (!bar || bar._nameWired) return;
+  bar._nameWired = true;
+  bar.addEventListener('mouseover', (e) => {
+    const slot = e.target.closest('.item-slot[data-slot]');
+    if (!slot || !/^[1-4]$/.test(slot.dataset.slot || '')) return;
+    const n = parseInt(slot.dataset.slot);
+    const item = _hotbar[n] && INVENTORY_ITEMS.find(it => it.id === _hotbar[n]);
+    _showItemBarName(item ? item.label : `Slot ${n}`, false);
+  });
+  bar.addEventListener('mouseout', (e) => {
+    const slot = e.target.closest('.item-slot[data-slot]');
+    if (!slot || !/^[1-4]$/.test(slot.dataset.slot || '')) return;
+    _showItemBarName(null);
+  });
+}
 
 // ── Hotbar visual state (MD 10, issues 2+3) ──
 // 'active' and 'holstered' used to be set at interaction time and drifted
@@ -6300,6 +6335,7 @@ function _onKeyDown(e) {
       if (!(item && item.isMountSlot)) { if (_gun.held) _dropGun(); _bow.holstered = true; }
       _activeHotbarSlot = slotNum;
       _syncHotbarVisuals();
+      _showItemBarName(`Slot ${slotNum}`, true);
       return;
     }
     if (itemId === 'hoverboard' || itemId === 'jetpack') {
@@ -6308,6 +6344,7 @@ function _onKeyDown(e) {
       if (itemId === 'hoverboard') _toggleHoverboard();
       else _toggleJetpack();
       _syncHotbarVisuals();
+      _showItemBarName(item.label, true);
       return; // don't change _activeHotbarSlot — keep current weapon selected
     }
     if (itemId === 'bow') {
@@ -6327,6 +6364,7 @@ function _onKeyDown(e) {
     }
     _activeHotbarSlot = slotNum;
     _syncHotbarVisuals();
+    _showItemBarName(item.label, true);
   }
 }
 function _onKeyUp(e) {
