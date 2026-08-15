@@ -6379,9 +6379,12 @@ function _onWRelease() { _onJumpRelease(); }
 function _onJumpRelease() {
   if (P.stunned || currentState === 'splat' || currentState === 'get-up') return;
   if (_drag.active) return;
-  // Jetpack throttle owns Space outside play mode (MD 07) — releasing the
-  // throttle is not a jump, and none of the assist windows apply.
-  if (_jetpack.active && !(_isPlayModeFn && _isPlayModeFn())) return;
+  // Jetpack throttle owns Space while the pack is worn — releasing the
+  // throttle is not a jump, and none of the assist windows apply. MD 13:
+  // this used to exempt play mode, where the release fell through to
+  // _doTapJump — the "lands, then hops into the air again" glitch after
+  // every flight.
+  if (_jetpack.active) return;
 
   if (!P.grounded) {
     if (_coyoteTimer > 0 && !_jumpedThisAir) {
@@ -6683,8 +6686,15 @@ function _frame() {
         _jetpack.thrusting = false;
         if (prevLift < 0) {
           P._jumpVisualY = Math.min(0, prevLift + JET_PM_SETTLE * _dt);
-          // Touchdown puff when a real hover settles out.
-          if (P._jumpVisualY >= -0.5 && prevLift < -25) window._dexLandFX?.(0.35, false);
+          // Touchdown from a real hover: dust puff plus a soft squash
+          // (MD 13) — absorb the landing, no bounce.
+          if (P._jumpVisualY >= -0.5 && prevLift < -25) {
+            window._dexLandFX?.(0.35, false);
+            landImpact = 3;
+            absorbDur = 10;
+            currentState = 'land-absorb';
+            landAbsorbT = 0;
+          }
         }
       }
       _jetpack._pmVY = ((P._jumpVisualY || 0) - prevLift) / (_dt || 1);
