@@ -190,15 +190,19 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 #item-bar{display:flex;gap:6px;align-items:center;position:relative;}
 /* Weapon name (MD 14) — fades in centered above the hotbar on slot hover or
    on a 1-4 equip, then fades back out. Suppressed while the bag is open
-   (character.js checks #inv2 before showing it). */
+   (character.js checks #inv2 before showing it).
+   MD 19: margin clears the ENTIRE bar stack above the item bar (charge +
+   health, plus stamina/fuel when that bar is up) — it used to print right
+   on top of the bars. */
 #item-bar-name{
   position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
-  margin-bottom:8px; font-size:13px; font-weight:600;
+  margin-bottom:30px; font-size:13px; font-weight:600;
   font-family:var(--fn); color:var(--tx);
   opacity:0; transition:opacity .15s ease;
   pointer-events:none; white-space:nowrap;
   text-shadow:0 1px 4px rgba(0,0,0,.55);
 }
+body:has(#hud-stamina-wrap[style*="block"]) #item-bar-name{ margin-bottom:48px; }
 /* MD#2: solid backgrounds — slots no longer show world through them.
    Uses --bg2 (matches sidebar/cards) so it adapts to dark/light themes. */
 .item-slot{width:52px;height:52px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.15);background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:border-color .15s,background .15s;}
