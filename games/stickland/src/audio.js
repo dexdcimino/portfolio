@@ -359,6 +359,13 @@ const SOUNDS = {
              dur: big ? 0.55 : 0.3, gain: (big ? 0.45 : 0.3) * (o.gain || 1), pan: o.pan });
     if (big) _noise({ filter: 'highpass', freq: 1800, dur: 0.08, gain: 0.14 * (o.gain || 1), pan: o.pan });
   }},
+  // MD 18: afterburner ignition — a kick and a rising whoosh. The spool-up
+  // while held is the 'tankboost' hold voice below.
+  'tank.boost':    { cd: 300, fn: (o) => {
+    _thud({ freq: 90, endFreq: 50, dur: 0.18, gain: 0.4, pan: o.pan });
+    _whoosh({ from: 180, to: 950, dur: 0.4, gain: 0.3, attack: 0.02, pan: o.pan });
+    _noise({ filter: 'highpass', freq: 1200, dur: 0.1, gain: 0.12, pan: o.pan });
+  }},
   'tank.fire':     { cd: 120, fn: (o) => {
     _noise({ filter: 'highpass', freq: 1400, dur: 0.06, gain: 0.3 * (o.gain || 1), pan: o.pan });
     _thud({ freq: _vary(85, 0.08), endFreq: 34, dur: 0.4, gain: 0.55 * (o.gain || 1), pan: o.pan });
@@ -510,6 +517,27 @@ const HOLDS = {
       src.connect(f); f.connect(g);
       src.start(0, Math.random() * 0.5); lfo.start();
       return { nodes: [src, lfo], set() {} };
+    },
+  },
+  tankboost: {  // MD 18: afterburner spool — pitch and filter climb while held
+    attack: 0.06, release: 0.25, gain: 0.2,
+    build(g) {
+      const o1 = _ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 70;
+      const o2 = _ctx.createOscillator(); o2.type = 'sawtooth'; o2.frequency.value = 105;
+      const f = _ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500; f.Q.value = 6;
+      const src = _ctx.createBufferSource(); src.buffer = _noiseBuf; src.loop = true;
+      const nf = _ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 900; nf.Q.value = 0.8;
+      const ng = _ctx.createGain(); ng.gain.value = 0.5;
+      o1.connect(f); o2.connect(f); f.connect(g);
+      src.connect(nf); nf.connect(ng); ng.connect(g);
+      o1.start(); o2.start(); src.start(0, Math.random() * 0.5);
+      return { nodes: [o1, o2, src], set(p) {
+        const t = Math.min(1, Math.max(0, (p && p.t) || 0));
+        o1.frequency.setTargetAtTime(70 + t * 90, _ctx.currentTime, 0.1);
+        o2.frequency.setTargetAtTime(105 + t * 135, _ctx.currentTime, 0.1);
+        f.frequency.setTargetAtTime(500 + t * 1400, _ctx.currentTime, 0.1);
+        nf.frequency.setTargetAtTime(900 + t * 1200, _ctx.currentTime, 0.1);
+      } };
     },
   },
   board: {  // hoverboard hum; brightens and swells on boost

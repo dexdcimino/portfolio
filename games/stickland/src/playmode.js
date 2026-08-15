@@ -6444,7 +6444,12 @@ function _tickTank(keys) {
   // Acceleration + boost
   const shiftHeld = window._dexTankKeys?.shift || false;
   if (shiftHeld && wU && _tankBoostFuel > 0 && _tankBoostCooldown <= 0 && !_tankBoostDepleted) {
+    // MD 18: afterburner audio — ignition kick on engage, spooling hold
+    // voice while burning (pitch rises as the fuel drains; the hold
+    // auto-releases when the calls stop).
+    if (!_tankBoosting) sfx('tank.boost', { at: { x: tank.x, y: tank.y } });
     _tankBoosting = true;
+    sfxHold('tankboost', { t: 1 - _tankBoostFuel / TANK_BOOST_DURATION });
     _tankBoostFuel = Math.max(0, _tankBoostFuel - _dt);
     tank.speed = Math.min(TANK_BOOST_MAX, tank.speed + TANK_BOOST_ACCEL * _dt);
     // Auto-deactivate when fuel runs out
