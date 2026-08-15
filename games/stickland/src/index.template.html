@@ -121,50 +121,20 @@
   <div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div>
 </div>
 
-<!-- Inventory v2 — four vertical columns, one per hotbar slot (1-4).
-     Each column floats above its corresponding .item-slot.
-     Hidden by default; #inv2.is-open activates the slide-in. -->
+<!-- The Backpack (MD 16) — the inventory as one solid panel in the
+     cosmetics customizer's styling. A vertical strip of three item cells
+     with full-width up/down chevron strips (press-and-hold repeats);
+     character.js renders the cells and drives the title. Keeps the #inv2
+     id so the toggle/open wiring is unchanged. -->
 <div id="inv2" aria-hidden="true">
-  <div class="inv2-col" data-slot="1">
-    <button class="inv2-chev inv2-chev-up" type="button" aria-label="Scroll up" data-dir="-1">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
-    </button>
-    <div class="inv2-chips" data-slot="1"></div>
-    <button class="inv2-chev inv2-chev-down" type="button" aria-label="Scroll down" data-dir="1">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
-    </button>
-    <div class="inv2-pgbar"><div class="inv2-pgbar-fill"></div></div>
-  </div>
-  <div class="inv2-col" data-slot="2">
-    <button class="inv2-chev inv2-chev-up" type="button" aria-label="Scroll up" data-dir="-1">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
-    </button>
-    <div class="inv2-chips" data-slot="2"></div>
-    <button class="inv2-chev inv2-chev-down" type="button" aria-label="Scroll down" data-dir="1">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
-    </button>
-    <div class="inv2-pgbar"><div class="inv2-pgbar-fill"></div></div>
-  </div>
-  <div class="inv2-col" data-slot="3">
-    <button class="inv2-chev inv2-chev-up" type="button" aria-label="Scroll up" data-dir="-1">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
-    </button>
-    <div class="inv2-chips" data-slot="3"></div>
-    <button class="inv2-chev inv2-chev-down" type="button" aria-label="Scroll down" data-dir="1">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
-    </button>
-    <div class="inv2-pgbar"><div class="inv2-pgbar-fill"></div></div>
-  </div>
-  <div class="inv2-col" data-slot="4">
-    <button class="inv2-chev inv2-chev-up" type="button" aria-label="Scroll up" data-dir="-1">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
-    </button>
-    <div class="inv2-chips" data-slot="4"></div>
-    <button class="inv2-chev inv2-chev-down" type="button" aria-label="Scroll down" data-dir="1">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
-    </button>
-    <div class="inv2-pgbar"><div class="inv2-pgbar-fill"></div></div>
-  </div>
+  <div id="bp-title">Backpack</div>
+  <button id="bp-chev-up" class="bp-chev" type="button" aria-label="Previous item" data-dir="-1">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
+  </button>
+  <div id="bp-list"></div>
+  <button id="bp-chev-down" class="bp-chev" type="button" aria-label="Next item" data-dir="1">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
+  </button>
 </div>
 
 <div id="play-mode-ui">

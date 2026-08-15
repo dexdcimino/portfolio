@@ -282,161 +282,96 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 /* Notes-app UI removed: theme-toggle arc animation, .hdr-collapse-* header
    dropdown, and the note-editor spelling/highlight rules. */
 /* ─────────────────────────────────────────────────────────────
-   MD#9: Inventory v2 — four columns, one per hotbar slot.
-   Container is fixed-positioned at the bottom of the screen and
-   horizontally aligned so each column sits exactly above its
-   corresponding .item-slot. Columns are 52px wide (matching slot
-   width). Gaps match #item-bar's 6px gap.
+   MD 16: the Backpack — the inventory is a solid panel in the
+   cosmetics customizer's styling (#dxav-panel surface, .dxav-chip
+   cells, .dxav-arrow interaction): one vertical strip of three item
+   cells with full-width up/down chevron strips that step the
+   equipped item, and the focused item's name in the title.
+   Replaces the four floating per-slot columns (MD#9-#12).
    ───────────────────────────────────────────────────────────── */
 #inv2 {
   position: fixed;
   bottom: calc(28px + 52px * 1.5 + 8px); /* item-bar bottom + slot height (×1.5 scale) + spacing */
   left: 50%;
-  /* MD#11: closed state translates the panel down by 100% of its own
-     height + the hotbar height + a touch extra so it's fully off-screen
-     before slide-in starts. The horizontal centering and 1.5× scale are
-     preserved so the open position lines up with the hotbar exactly. */
-  transform: translateX(-50%) translateY(calc(100% + 80px)) scale(1.5);
+  transform: translateX(-50%) translateY(16px);
   transform-origin: bottom center;
-  z-index: 205; /* MD#1/MD07: one below #game-hud (206) so columns slide up from BEHIND the hotbar; whole GUI band sits above #world-front-canvas (200) */
+  z-index: 205; /* one below #game-hud (206); above #world-front-canvas (200) */
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 6px;
-  align-items: flex-end;
+  width: 172px;
+  padding: 10px 10px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--bdr);
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(0,0,0,.55);
+  font-family: var(--fn);
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  /* Slide + fade. transform uses a snappy upward easing on open (matches
-     #game-hud.hud-visible), fade is shorter so it doesn't trail. visibility
-     transitions are stepwise — 0s on open (immediately visible during slide),
-     and delayed-to-end on close so the panel can finish sliding before it's
-     hidden. */
   transition:
-    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.25s ease,
-    visibility 0s linear 0.4s;
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.18s ease,
+    visibility 0s linear 0.3s;
 }
 #inv2.is-open {
   pointer-events: auto;
   opacity: 1;
   visibility: visible;
-  transform: translateX(-50%) translateY(0) scale(1.5);
-  /* On open the visibility flip is immediate (0s delay) so the slide is seen. */
+  transform: translateX(-50%) translateY(0);
   transition:
-    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.18s ease,
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.15s ease,
     visibility 0s linear 0s;
 }
-/* MD#11: per-column stagger for a subtle ripple — leftmost column lands
-   first, rightmost last. Total stagger ~80ms across all four. transition
-   inherits from the container; we just delay the columns individually. */
-#inv2 .inv2-col {
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-#inv2:not(.is-open) .inv2-col[data-slot="1"] { transition-delay: 60ms; }
-#inv2:not(.is-open) .inv2-col[data-slot="2"] { transition-delay: 40ms; }
-#inv2:not(.is-open) .inv2-col[data-slot="3"] { transition-delay: 20ms; }
-#inv2:not(.is-open) .inv2-col[data-slot="4"] { transition-delay: 0ms; }
-#inv2.is-open .inv2-col[data-slot="1"] { transition-delay: 0ms; }
-#inv2.is-open .inv2-col[data-slot="2"] { transition-delay: 20ms; }
-#inv2.is-open .inv2-col[data-slot="3"] { transition-delay: 40ms; }
-#inv2.is-open .inv2-col[data-slot="4"] { transition-delay: 60ms; }
-#inv2 .inv2-col {
-  width: 52px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-/* Chips wrapper — fixed-height window showing up to 4 chips at a time.
-   Chip height matches .item-slot (52px) so the column reads as "stack
-   of slots" and the visual rhythm matches the hotbar below. */
-#inv2 .inv2-chips {
-  width: 52px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  /* 4 chips * 52px + 3 gaps * 4px = 220px max window. Overflow hidden so
-     paged chips outside the window don't bleed in during slide-in. */
-  max-height: calc(52px * 4 + 4px * 3);
+#bp-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tx2);
+  min-height: 18px;
+  text-align: center;
+  white-space: nowrap;
   overflow: hidden;
-  /* MD#9: chips populated by MD#10. Empty placeholder for now. */
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
-/* Up/Down chevrons — dxav style. Kept narrow so they don't widen the
-   column past 52px. */
-#inv2 .inv2-chev {
-  width: 52px;
-  height: 18px;
+#bp-title .dxav-name { color: var(--clr-adj, var(--accent)); font-weight: 600; margin-left: 4px; }
+/* Chevron strips — the dxav-arrow interaction, laid flat: the entire
+   strip is the button, hover fills with the accent wash. Disabled uses
+   the shared .dxav-arrow-disabled class. */
+.bp-chev {
+  width: 100%;
+  height: 26px;
   background: transparent;
-  border: none;
+  border: 0;
   padding: 0;
   cursor: pointer;
   color: var(--clr-adj, var(--accent));
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.85;
-  transition: opacity 0.15s ease, transform 0.1s ease;
-}
-#inv2 .inv2-chev:hover { opacity: 1; transform: scale(1.1); }
-#inv2 .inv2-chev:active { transform: scale(0.95); }
-#inv2 .inv2-chev.inv2-chev-disabled {
-  opacity: 0.2; cursor: default; pointer-events: none;
-}
-#inv2 .inv2-chev svg { width: 16px; height: 16px; }
-/* Page progress bar — thin bar under the column showing current page
-   position. Mirrors the avatar dropdown's progress indicator. */
-#inv2 .inv2-pgbar {
-  width: 52px;
-  height: 3px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-top: 2px;
-}
-[data-theme="light"] #inv2 .inv2-pgbar { background: rgba(0,0,0,0.1); }
-#inv2 .inv2-pgbar-fill {
-  height: 100%;
-  background: var(--clr-adj, var(--accent));
-  border-radius: 2px;
-  width: 25%; /* default — overridden inline by JS in MD#10 */
-  transition: width 0.18s ease;
-}
-/* Single-page columns hide the chevrons + progress bar entirely. */
-#inv2 .inv2-col.inv2-col-single .inv2-chev,
-#inv2 .inv2-col.inv2-col-single .inv2-pgbar { visibility: hidden; }
-
-/* Chip styling — same shape/border-radius as .item-slot for consistency.
-   Active (currently equipped) chip uses the accent border. Locked chips
-   dim. MD#10 will populate the chip HTML; these rules apply when present. */
-#inv2 .inv2-chip {
-  width: 52px;
-  height: 52px;
   border-radius: 8px;
-  border: 1.5px solid rgba(255,255,255,0.15);
-  background: var(--bg2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  position: relative;
-  flex-shrink: 0;
-  color: var(--clr-adj, var(--accent));
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  transition: background var(--ease), color var(--ease), opacity 0.15s ease;
 }
-[data-theme="light"] #inv2 .inv2-chip {
-  border-color: rgba(0,0,0,0.18);
+.bp-chev:hover:not(.dxav-arrow-disabled) { background: color-mix(in srgb, var(--clr-adj, var(--accent)) 12%, transparent); }
+.bp-chev.dxav-arrow-disabled { color: var(--tx3); opacity: 0.35; cursor: default; pointer-events: none; }
+.bp-chev svg { width: 18px; height: 18px; }
+#bp-list { display: flex; flex-direction: column; gap: 6px; }
+/* Cells are .dxav-chip (hover wash, equipped outline via
+   .dxav-chip-active) at hotbar-slot proportions. */
+#bp-list .bp-cell { width: 64px; height: 64px; border-radius: 10px; }
+.bp-cell .bp-slotnum {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--tx3);
+  pointer-events: none;
 }
-#inv2 .inv2-chip:hover { border-color: var(--clr-adj, var(--accent)); background: var(--bg3); }
-#inv2 .inv2-chip:active { transform: scale(0.96); }
-#inv2 .inv2-chip.inv2-chip-equipped { border-color: var(--clr-adj, var(--accent)); box-shadow: 0 0 0 1px var(--clr-adj, var(--accent)); }
-#inv2 .inv2-chip.inv2-chip-locked { opacity: 0.4; cursor: default; }
-#inv2 .inv2-chip.inv2-chip-locked:hover { border-color: rgba(255,255,255,0.15); background: var(--bg2); }
-#inv2 .inv2-chip svg { width: 70%; height: 70%; max-width: 40px; max-height: 40px; pointer-events: none; }
-#inv2 .inv2-chip-empty {
-  width: 52px; height: 52px; flex-shrink: 0;
-  /* invisible spacer so partial pages still align top of column */
-  visibility: hidden;
-}
+.bp-cell.bp-locked { opacity: 0.35; cursor: default; }
+.bp-cell.bp-sel { background: rgba(255,255,255,.05); }
 
 
 /* ─────────────────────────────

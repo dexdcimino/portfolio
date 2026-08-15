@@ -1747,87 +1747,97 @@ function _initCosmeticsUI() {
   })();
 
   // ─────────────────────────────────────────────────────────────
-  // MD#10: Inventory v2 — chip rendering + paging per column.
-  // Uses the same _dxavSlotItems map as the avatar Equip tab so
-  // both UIs stay in sync about what's equipable per slot. PAGE_SIZE
-  // and _dxavPageCount are reused (see lines ~1616 and ~1711).
+  // MD 16: the Backpack — the inventory as one solid panel in the
+  // cosmetics customizer's styling, replacing the four per-slot
+  // columns (MD#10-#12). One flat item list in slot-family order
+  // (no synthetic "none" — holstering is the 1-4 keys' job), three
+  // cells visible, and up/down chevrons that STEP THE EQUIPPED ITEM
+  // exactly the way the cosmetics arrows step a cosmetic: each step
+  // equips the next item into that item's own hotbar slot. The
+  // focused (selected or hovered) item's name lives in the title.
   // ─────────────────────────────────────────────────────────────
-  const _inv2 = {
-    pages: { 1: 0, 2: 0, 3: 0, 4: 0 }
-  };
-  function _inv2RenderColumn(slotNum) {
-    const colEl = document.querySelector(`#inv2 .inv2-col[data-slot="${slotNum}"]`);
-    if (!colEl) return;
-    const chipsEl = colEl.querySelector('.inv2-chips');
-    const upBtn = colEl.querySelector('.inv2-chev-up');
-    const dnBtn = colEl.querySelector('.inv2-chev-down');
-    const pgFill = colEl.querySelector('.inv2-pgbar-fill');
-
-    const slotItems = _dxavGetSlotItems(slotNum); // includes synthetic "none"
-    const numPages = _dxavPageCount(slotItems.length);
-    // Clamp page index in case the user trimmed an item set.
-    if (_inv2.pages[slotNum] >= numPages) _inv2.pages[slotNum] = numPages - 1;
-    if (_inv2.pages[slotNum] < 0) _inv2.pages[slotNum] = 0;
-    const curPage = _inv2.pages[slotNum];
-
-    const start = curPage * PAGE_SIZE;
-    const slice = slotItems.slice(start, start + PAGE_SIZE);
-    const equippedId = _hotbar[slotNum] || 'none';
-    const userLvl = (window._dexUserLevel && window._dexUserLevel()) || 1;
-
-    let html = '';
-    for (let i = 0; i < PAGE_SIZE; i++) {
-      const it = slice[i];
-      if (!it) {
-        html += `<div class="inv2-chip-empty"></div>`;
-        continue;
+  const BP_VISIBLE = 3;
+  const _bp = { sel: 0 };
+  function _bpItems() {
+    const seen = new Set(), out = [];
+    for (let s = 1; s <= 4; s++) {
+      for (const it of _dxavGetSlotItems(s)) {
+        if (it.id === 'none' || seen.has(it.id)) continue;
+        seen.add(it.id);
+        out.push({ item: it, slot: s });
       }
-      const byFunctional = (it.functional === false);
-      const byLevel = !byFunctional && (it.unlockLevel || 1) > userLvl;
-      const locked = byFunctional || byLevel;
-      const isEquipped = (equippedId === it.id);
+    }
+    return out;
+  }
+  function _bpLocked(it, userLvl) {
+    return it.functional === false || (it.unlockLevel || 1) > userLvl;
+  }
+  function _bpSetTitle(label) {
+    const t = document.getElementById('bp-title');
+    if (t) t.innerHTML = `Backpack <span class="dxav-name">${label || ''}</span>`;
+  }
+  function _bpRender() {
+    const listEl = document.getElementById('bp-list');
+    if (!listEl) return;
+    const items = _bpItems();
+    if (_bp.sel > items.length - 1) _bp.sel = items.length - 1;
+    if (_bp.sel < 0) _bp.sel = 0;
+    // Window: keep the selection visible with one row of context above.
+    const start = Math.min(Math.max(_bp.sel - 1, 0), Math.max(items.length - BP_VISIBLE, 0));
+    const userLvl = (window._dexUserLevel && window._dexUserLevel()) || 1;
+    const equipped = new Set(Object.values(_hotbar).filter(Boolean));
+    let html = '';
+    for (let i = start; i < Math.min(start + BP_VISIBLE, items.length); i++) {
+      const { item: it, slot } = items[i];
+      const locked = _bpLocked(it, userLvl);
       const tip = it.label
-        + (byFunctional ? ' (Coming Soon)'
-           : byLevel ? ' (Unlocks at Level ' + it.unlockLevel + ')'
-           : '');
-      const cls = 'inv2-chip'
-        + (isEquipped ? ' inv2-chip-equipped' : '')
-        + (locked ? ' inv2-chip-locked' : '');
-      html += `<div class="${cls}" data-slot="${slotNum}" data-val="${it.id}" data-tip="${tip}">${_dxavEquipSvg(it)}</div>`;
+        + (it.functional === false ? ' (Coming Soon)'
+           : locked ? ' (Unlocks at Level ' + it.unlockLevel + ')' : '');
+      const cls = 'dxav-chip bp-cell'
+        + (equipped.has(it.id) ? ' dxav-chip-active' : '')
+        + (i === _bp.sel ? ' bp-sel' : '')
+        + (locked ? ' bp-locked' : '');
+      html += `<div class="${cls}" data-idx="${i}" data-val="${it.id}" data-slotnum="${slot}" data-label="${it.label}" data-tip="${tip}">${_dxavEquipSvg(it)}<span class="bp-slotnum">${slot}</span></div>`;
     }
-    chipsEl.innerHTML = html;
-
-    // Chevron disabled state
-    upBtn.classList.toggle('inv2-chev-disabled', curPage <= 0);
-    dnBtn.classList.toggle('inv2-chev-disabled', curPage >= numPages - 1);
-
-    // Page progress bar
-    if (pgFill) {
-      const pct = numPages <= 1 ? 100 : Math.round(((curPage + 1) / numPages) * 100);
-      pgFill.style.width = pct + '%';
-    }
-
-    // Single-page mode: hide chevrons + bar via class
-    colEl.classList.toggle('inv2-col-single', numPages <= 1);
+    listEl.innerHTML = html;
+    const up = document.getElementById('bp-chev-up');
+    const dn = document.getElementById('bp-chev-down');
+    if (up) up.classList.toggle('dxav-arrow-disabled', _bp.sel <= 0);
+    if (dn) dn.classList.toggle('dxav-arrow-disabled', _bp.sel >= items.length - 1);
+    const selEntry = items[_bp.sel];
+    _bpSetTitle(selEntry ? selEntry.item.label : '');
   }
-  function _inv2RenderAll() {
-    for (let s = 1; s <= 4; s++) _inv2RenderColumn(s);
-  }
-  function _inv2PageStep(slotNum, dir) {
-    const slotItems = _dxavGetSlotItems(slotNum);
-    const numPages = _dxavPageCount(slotItems.length);
-    let next = (_inv2.pages[slotNum] || 0) + dir;
-    if (next < 0) next = 0;
-    if (next > numPages - 1) next = numPages - 1;
-    if (next === _inv2.pages[slotNum]) return false;
-    _inv2.pages[slotNum] = next;
-    _inv2RenderColumn(slotNum);
+  // Step = move the selection AND equip it (cosmetics-arrow behavior).
+  // Locked items are stepped over.
+  function _bpStep(dir) {
+    const items = _bpItems();
+    const userLvl = (window._dexUserLevel && window._dexUserLevel()) || 1;
+    let next = _bp.sel + dir;
+    while (next >= 0 && next < items.length && _bpLocked(items[next].item, userLvl)) next += dir;
+    if (next < 0 || next > items.length - 1 || next === _bp.sel) return false;
+    _bp.sel = next;
+    _inv2EquipToSlot(items[next].slot, items[next].item.id);
+    _bpRender();
     return true;
   }
-  // Expose for MD#12 wiring + dev console testing.
-  window._inv2Render = _inv2RenderAll;
-  window._inv2RenderColumn = _inv2RenderColumn;
-  window._inv2PageStep = _inv2PageStep;
+  function _bpFocusEquipped() {
+    const items = _bpItems();
+    const idx = items.findIndex(e => e.item.id === _hotbar[_activeHotbarSlot]);
+    _bp.sel = idx >= 0 ? idx : 0;
+  }
+  // Old global names kept — the toggle and equip paths call these.
+  window._inv2Render = function () { _bpFocusEquipped(); _bpRender(); };
+  window._inv2RenderColumn = function () { _bpRender(); };
+  window._inv2PageStep = function (_slot, dir) { return _bpStep(dir); };
+  window._bpStep = _bpStep;
+  window._bpSelect = function (idx) { _bp.sel = idx; };
+  // Title tracks hover; null falls back to the selected item ("last
+  // selected or hovered" — the name is always present while open).
+  window._bpTitle = function (label) {
+    if (label != null) { _bpSetTitle(label); return; }
+    const e = _bpItems()[_bp.sel];
+    _bpSetTitle(e ? e.item.label : '');
+  };
 
   // Body chip SVGs — full character mini (head + torso). Mirrors the four torso configs from old code.
   const _dxavBodies = [
@@ -5587,26 +5597,62 @@ function _inv2WireOnce() {
   const inv2El = document.getElementById('inv2');
   if (!inv2El) return;
 
-  // Chip click → equip the item into the chip's column slot.
+  // MD 16 Backpack wiring. Chevrons: click steps once, press-and-hold
+  // repeats (same 350ms/200ms cadence as the cosmetics arrows). Cells:
+  // click selects + equips into the item's own slot. Hover puts the
+  // hovered name in the title; leaving falls back to the selected one.
+  let _bpHoldT = null, _bpHoldI = null, _bpHeld = false;
+  const _bpStopHold = () => {
+    if (_bpHoldT) { clearTimeout(_bpHoldT); _bpHoldT = null; }
+    if (_bpHoldI) { clearInterval(_bpHoldI); _bpHoldI = null; }
+  };
+  const _bpStartHold = (dir) => {
+    _bpHeld = false;
+    _bpHoldT = setTimeout(() => {
+      _bpHoldI = setInterval(() => {
+        _bpHeld = true;
+        if (!window._bpStep || !window._bpStep(dir)) _bpStopHold();
+      }, 200);
+    }, 350);
+  };
+  inv2El.addEventListener('mousedown', e => {
+    const chev = e.target.closest('.bp-chev');
+    if (chev && !chev.classList.contains('dxav-arrow-disabled')) {
+      _bpStartHold(parseInt(chev.dataset.dir, 10));
+    }
+  });
+  inv2El.addEventListener('mouseup', _bpStopHold);
+  inv2El.addEventListener('mouseleave', _bpStopHold);
+  inv2El.addEventListener('touchstart', e => {
+    const chev = e.target.closest('.bp-chev');
+    if (chev && !chev.classList.contains('dxav-arrow-disabled')) {
+      _bpStartHold(parseInt(chev.dataset.dir, 10));
+    }
+  }, { passive: true });
+  inv2El.addEventListener('touchend', _bpStopHold);
   inv2El.addEventListener('click', e => {
-    const chip = e.target.closest('.inv2-chip');
-    const chev = e.target.closest('.inv2-chev');
+    const chev = e.target.closest('.bp-chev');
     if (chev) {
-      if (chev.classList.contains('inv2-chev-disabled')) return;
-      const col = chev.closest('.inv2-col');
-      const slotNum = parseInt(col?.dataset.slot, 10);
-      const dir = parseInt(chev.dataset.dir, 10);
-      if (slotNum && dir && typeof window._inv2PageStep === 'function') {
-        window._inv2PageStep(slotNum, dir);
-      }
+      if (chev.classList.contains('dxav-arrow-disabled')) return;
+      if (_bpHeld) { _bpHeld = false; return; }   // a hold already stepped
+      window._bpStep?.(parseInt(chev.dataset.dir, 10));
       return;
     }
-    if (!chip) return;
-    if (chip.classList.contains('inv2-chip-locked')) return;
-    const slotNum = parseInt(chip.dataset.slot, 10);
-    const itemId = chip.dataset.val;
+    const cell = e.target.closest('.bp-cell');
+    if (!cell || cell.classList.contains('bp-locked')) return;
+    const idx = parseInt(cell.dataset.idx, 10);
+    const slotNum = parseInt(cell.dataset.slotnum, 10);
+    const itemId = cell.dataset.val;
     if (!slotNum || !itemId) return;
+    if (!isNaN(idx)) window._bpSelect?.(idx);
     _inv2EquipToSlot(slotNum, itemId);
+  });
+  inv2El.addEventListener('mouseover', e => {
+    const cell = e.target.closest('.bp-cell');
+    if (cell) window._bpTitle?.(cell.dataset.label);
+  });
+  inv2El.addEventListener('mouseout', e => {
+    if (e.target.closest('.bp-cell')) window._bpTitle?.(null);
   });
 
   // Click outside #inv2 closes the panel. Slot 5 (toggle) and any
