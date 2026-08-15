@@ -1019,37 +1019,27 @@ button.button{cursor:pointer;font:inherit}
 }
 
 /* Quotes carry no image, so the card itself has to hold the shape. */
-/* Quotes get three columns where covers get five: text needs a readable
-   measure, and at cover width the longest quote runs 2-3x taller than any
-   cover at every font size — the height ceiling below is only achievable at
-   this width. align-items:start stops the grid stretching every card to the
-   tallest row, so short quotes keep their natural height. */
-.pk-grid-quotes{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}
-/* Narrow desktop: covers shrink toward 225px while three quote columns push
-   the longest card near 300 — two wider columns bring it back under. */
-@media(max-width:1300px){ .pk-grid-quotes{grid-template-columns:repeat(2,minmax(0,1fr))} }
-/* Doubled class beats the later .pk-grid two-column phone rule on specificity;
-   two 160px quote columns on a phone is how cards end up clipping. */
-@media(max-width:560px){ .pk-grid.pk-grid-quotes{grid-template-columns:1fr} }
+/* Quote cards ARE cover-shaped: same grid, same columns, same 2/3 aspect, so
+   they sit in the row exactly like a movie or game cover does. The type is
+   sized by container query — a fraction of the card's own width — which is how
+   the text scales with the card the same way a cover's artwork does, instead
+   of one font size fitting at 1600px and clipping at 1280. */
 .pk-quote{
-  display:grid;gap:12px;align-content:space-between;
-  padding:20px 18px;min-height:200px;
-  /* Ceiling: a quote card must never out-grow a cover in the same grid —
-     306px is a .pk-cover's rendered height at a 1500px desktop, and covers
-     only get taller at the 3-column breakpoint below 1100. */
-  max-height:306px;
+  display:grid;gap:10px;align-content:space-between;
+  padding:16px 15px;aspect-ratio:2/3;min-height:0;
+  container-type:inline-size;overflow:hidden;
   border:var(--stroke) solid rgba(255,255,255,.09);border-radius:14px;
   border-left:3px solid var(--accent);
   background:linear-gradient(150deg,rgba(32,38,44,.5),rgba(12,15,18,.5));
   transition:border-color var(--accent-ease)}
-.pk-quote blockquote{margin:0;font-size:18px;line-height:1.55;color:var(--text);font-style:italic}
+.pk-quote blockquote{margin:0;font-size:clamp(9px,7.6cqw,17px);line-height:1.5;color:var(--text);font-style:italic}
 /* Generated marks, not characters in the data attributes — they wrap whichever
    version is showing and can never double up or stray on a swap. */
 .pk-quote blockquote::before{content:"\201C"}
 .pk-quote blockquote::after{content:"\201D"}
-.pk-quote cite{font-style:normal;font-size:15px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.pk-quote cite{font-style:normal;font-size:clamp(9px,6cqw,13px);font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
 .pk-quote-foot{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.pk-quote-toggle{
+.pk-quote-toggle{font-size:clamp(9px,5cqw,11px);
   appearance:none;background:none;border:0;padding:0;cursor:pointer;min-height:0;
   font:inherit;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
   color:var(--muted);transition:color var(--accent-ease)}

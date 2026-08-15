@@ -1881,6 +1881,36 @@ const LOOP_MODES = ['off', 'all', 'one'];
      reintroduced a window where the column is empty. */
   const first = rows.find(r => r.dataset.art && shots.some(s => s.dataset.art === r.dataset.art));
   if (first) select(first);
+
+  /* The description box is sized ONCE to the tallest copy any row carries, so
+     hovering down the list never pushes the page taller and shorter — that
+     reflow read as the section jumping under the pointer. Measured with a
+     hidden clone at the real rendered width (the body's own margins and fonts
+     apply to it, so the numbers are the truth, not an estimate), and
+     re-measured on resize because line wrapping moves the answer. */
+  function lockDescHeight() {
+    if (!desc || !descLead || !descBody) return;
+    const ghost = desc.cloneNode(true);
+    ghost.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;'
+      + 'width:' + desc.getBoundingClientRect().width + 'px;min-height:0';
+    const gLead = ghost.querySelector('.game-desc-lead');
+    const gBody = ghost.querySelector('.game-desc-body');
+    desc.parentElement.appendChild(ghost);
+    let max = 0;
+    for (const row of rows) {
+      gLead.textContent = row.dataset.descLead || '';
+      gBody.textContent = row.dataset.descBody || '';
+      max = Math.max(max, ghost.getBoundingClientRect().height);
+    }
+    ghost.remove();
+    desc.style.minHeight = Math.ceil(max) + 'px';
+  }
+  lockDescHeight();
+  let descResize;
+  window.addEventListener('resize', () => {
+    clearTimeout(descResize);
+    descResize = setTimeout(lockDescHeight, 150);
+  });
 })();
 
 /* ==========================================================================
