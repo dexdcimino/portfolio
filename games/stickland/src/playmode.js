@@ -2963,45 +2963,43 @@ window._dexJumpFX = function (power, visualYOff) {
 
 // Hoverboard exhaust — fed per frame from character.js while riding;
 // throttled here so ride cost stays a couple of particles every few frames.
-// MD 13: the old single emitter dropped one particle dead on the motion
-// axis, which read as a straight line tail. Now the emitter alternates
-// sides of the axis (a braided wake), pushes particles slightly outward,
-// and mixes in bright ember sparks — plus thrust-pulse flashes on boost.
+// MD 18: back to the ORIGINAL single on-axis wake (the MD 13 two-sided
+// braid read as two weird lines — owner's call). Boost is where the show
+// happens now: long bright speed streaks ripping backward off-axis plus
+// thrust-pulse flashes at the tail.
 let _boardFxCd = 0;
-let _boardFxSide = 1;
 window._dexBoardFX = function (vx, vy, boosting) {
   if (!_active) return;
   _boardFxCd -= _dt;
   if (_boardFxCd > 0) return;
   const speed = Math.hypot(vx || 0, vy || 0);
   if (speed < 0.15 && !boosting) return;
-  _boardFxCd = boosting ? 2 : 5;
+  _boardFxCd = boosting ? 2.5 : 6;
   const clrHex = (_cachedClr || '#7B8A9C').replace('#', '');
   const cr = parseInt(clrHex.slice(0, 2), 16), cg = parseInt(clrHex.slice(2, 4), 16), cb = parseInt(clrHex.slice(4, 6), 16);
-  const br = Math.min(255, cr + 110), bg = Math.min(255, cg + 110), bb = Math.min(255, cb + 110);
   const inv = speed > 0.01 ? 1 / speed : 0;
   const bx = -(vx || 0) * inv, by = -(vy || 0) * inv;   // behind the board
-  const px = -by, py = bx;                              // perpendicular to travel
-  _boardFxSide = -_boardFxSide;
-  const side = _boardFxSide * (1.5 + Math.random() * 2.5);
-  const ex = _charWorldX + bx * 10 + px * side;
-  const ey = _charWorldY + by * 10 + py * side + 2;
-  const kick = (0.35 + (boosting ? 0.55 : 0.15)) * (0.75 + Math.min(speed, 3) * 0.12);
-  // Wake puff — drifts backward and slightly outward from its side.
-  _pAddParticle(ex, ey,
-    bx * kick + px * side * 0.06 + (Math.random() - 0.5) * 0.15,
-    by * kick + py * side * 0.06 + (Math.random() - 0.5) * 0.15 - 0.05,
-    boosting ? 16 : 13, cr, cg, cb, boosting ? 1.7 : 1.2, 'smoke');
-  // Bright ember riding the wake.
-  if (Math.random() < (boosting ? 0.5 : 0.25)) {
-    _pAddParticle(ex, ey,
-      bx * (kick + 0.6) + (Math.random() - 0.5) * 0.5,
-      by * (kick + 0.6) + (Math.random() - 0.5) * 0.5 - 0.1,
-      8 + Math.floor(Math.random() * 6), br, bg, bb, 0.7 + Math.random() * 0.7, 'spark');
-  }
-  // Boost: occasional thrust-pulse flash right at the tail.
-  if (boosting && Math.random() < 0.2) {
-    _pPush({ wx: ex, wy: ey, vx: 0, vy: 0, life: 5, maxLife: 5, r: br, g: bg, b: bb, size: 2, type: 'muzzle' });
+  _pAddParticle(
+    _charWorldX + bx * 10 + (Math.random() - 0.5) * 4,
+    _charWorldY + by * 10 + 2,
+    bx * (0.3 + (boosting ? 0.5 : 0.15)) + (Math.random() - 0.5) * 0.2,
+    by * (0.3 + (boosting ? 0.5 : 0.15)) + (Math.random() - 0.5) * 0.2 - 0.05,
+    boosting ? 16 : 14, cr, cg, cb, boosting ? 1.5 : 1.1, 'smoke');
+  if (boosting) {
+    const br = Math.min(255, cr + 110), bg = Math.min(255, cg + 110), bb = Math.min(255, cb + 110);
+    const px = -by, py = bx;                            // perpendicular to travel
+    for (let i = 0; i < 2; i++) {
+      const off = (Math.random() - 0.5) * 9;
+      _pAddParticle(
+        _charWorldX + bx * (6 + Math.random() * 8) + px * off,
+        _charWorldY + by * (6 + Math.random() * 8) + py * off + 2,
+        bx * (2.2 + Math.random() * 1.6), by * (2.2 + Math.random() * 1.6),
+        7 + Math.floor(Math.random() * 5), br, bg, bb, 0.6 + Math.random() * 0.5, 'spark');
+    }
+    if (Math.random() < 0.25) {
+      _pPush({ wx: _charWorldX + bx * 12, wy: _charWorldY + by * 12 + 2, vx: 0, vy: 0,
+        life: 5, maxLife: 5, r: br, g: bg, b: bb, size: 2.5, type: 'muzzle' });
+    }
   }
 };
 
