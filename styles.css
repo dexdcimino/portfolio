@@ -1150,7 +1150,11 @@ button.button{cursor:pointer;font:inherit}
 .ai-card:hover .inline-arrow{transform:translate(2px,-2px)}
 
 .about{padding:110px var(--gutter) 96px;background:#0b0e11}
-.about-hero{display:grid;grid-template-columns:minmax(260px,420px) minmax(300px,700px);align-items:center;gap:clamp(40px,7vw,110px)}
+/* Top-aligned, not centred: with the second bio paragraph the copy wants to
+   start level with the portrait's top and run down inside its height, rather
+   than balloon out both ends of a centred block. */
+.about-hero{display:grid;grid-template-columns:minmax(260px,420px) minmax(300px,700px);align-items:start;gap:clamp(40px,7vw,110px)}
+.about-copy>p:not(.eyebrow)+p{margin-top:18px}
 /* Toolkit and Top Picks are subsections OF About, not sections in their own
    right: no ground of their own, no full-bleed padding, and a gap sized to
    read as "next part of this block" rather than "next section of the page". */

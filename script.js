@@ -206,12 +206,6 @@ function applyAccent(name, persist = true) {
 
   swapMascots(theme);
   paintSwatches();
-  // The PDFs are per-accent artifacts, so a new accent re-aims the download.
-  // The overlay block below declares what this needs; at boot applyAccent runs
-  // first, so that call lands in the TDZ and is swallowed — harmless, because
-  // the overlay block aims the link itself once it evaluates.
-  try { refreshPdfLink(); } catch { /* boot ordering; aimed at declaration */ }
-
   if (persist) {
     try { localStorage.setItem(STORAGE_KEY, theme.name); } catch { /* private mode */ }
   }
@@ -844,7 +838,7 @@ function refreshPdfLink(id) {
   const active = id || resumeTabs.find(t => t.getAttribute('aria-selected') === 'true')?.id;
   const doc = DOCS[active];
   if (!doc || !pdfLink) return;
-  pdfLink.href = `assets/about/pdf/${doc.file.replace('.pdf', '')}-${currentTheme}.pdf`;
+  pdfLink.href = `assets/about/${doc.file}`;
   pdfLink.setAttribute('download', doc.file);
   pdfLink.setAttribute('aria-label', doc.label);
 }

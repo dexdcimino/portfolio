@@ -13,14 +13,11 @@
  * gets the same document, and any future style change flows through with no
  * work here.
  *
- * ACCENT
- * The accent is per-visitor state (localStorage 'dex-accent-name'), so one
- * static PDF cannot match everyone. Every accent is rendered — 2 documents x
- * every entry in script.js's ACCENTS — and script.js aims the download link at
- * the visitor's own variant. The accent list is read out of script.js rather
- * than restated here, so adding an accent adds its PDFs on the next build.
- * The two legacy paths (assets/about/Dex_Cimino_*.pdf) stay as copies of the
- * default-accent files so existing external links keep resolving.
+ * TWO FILES, DEFAULT ACCENT — the per-accent variants (14 files under
+ * assets/about/pdf/) were rolled back by MD: the artifacts are exactly
+ * Dex_Cimino_Resume.pdf and Dex_Cimino_Cover.pdf, printed in the site's
+ * default accent. The overlay-print machinery is unchanged, so restoring
+ * variants later is re-adding the accent loop, nothing more.
  *
  * FIT
  * .resume-page is 816x1056 CSS px — exactly US Letter at 96dpi — so @page
@@ -36,7 +33,7 @@
  * --check, which fails if any variant is missing or the panel markup changed
  * since the last build.
  */
-import { writeFileSync, readFileSync, existsSync, mkdirSync, copyFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { argv, exit } from 'node:process';
 import puppeteer from 'puppeteer-core';
@@ -44,22 +41,11 @@ import puppeteer from 'puppeteer-core';
 const BASE = argv.find(a => a.startsWith('http')) || 'http://127.0.0.1:8784';
 const CHECK = argv.includes('--check');
 const SHEET_PX = 1056;              // 11in at 96dpi — .resume-page's own height
-const OUT_DIR = 'assets/about/pdf';
 
 const DOCS = [
-  { tab: 'tab-resume', panel: 'panel-resume', stem: 'Dex_Cimino_Resume', legacy: 'assets/about/Dex_Cimino_Resume.pdf' },
-  { tab: 'tab-cover', panel: 'panel-cover', stem: 'Dex_Cimino_Cover', legacy: 'assets/about/Dex_Cimino_Cover.pdf' },
+  { tab: 'tab-resume', panel: 'panel-resume', out: 'assets/about/Dex_Cimino_Resume.pdf' },
+  { tab: 'tab-cover', panel: 'panel-cover', out: 'assets/about/Dex_Cimino_Cover.pdf' },
 ];
-
-/* One source of truth for the accent list: the site's own ACCENTS table. */
-function accentNames() {
-  const js = readFileSync('script.js', 'utf8');
-  const block = js.slice(js.indexOf('const ACCENTS = ['), js.indexOf('];', js.indexOf('const ACCENTS = [')));
-  const names = [...block.matchAll(/name:\s*'([a-z]+)'/g)].map(m => m[1]);
-  if (names.length < 2) throw new Error('could not read ACCENTS out of script.js');
-  return names;
-}
-const DEFAULT_ACCENT = 'lime';
 
 /* Staleness is judged on the SOURCE MARKUP, not file times — Chrome stamps a
    creation date into every PDF, so bytes differ on identical content. */
@@ -77,30 +63,24 @@ function sourceHash() {
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
-const variants = () => DOCS.flatMap(d => accentNames().map(a => `${OUT_DIR}/${d.stem}-${a}.pdf`));
-
 if (CHECK) {
   const want = sourceHash();
   const have = existsSync(STAMP) ? readFileSync(STAMP, 'utf8').trim() : '(none)';
-  const missing = [...variants(), ...DOCS.map(d => d.legacy)].filter(f => !existsSync(f));
+  const missing = DOCS.map(d => d.out).filter(f => !existsSync(f));
   if (missing.length || want !== have) {
     if (missing.length) console.log('build_docs_pdf --check: missing ' + missing.join(', '));
     if (want !== have) console.log(`build_docs_pdf --check: letter markup changed (${have} -> ${want})`);
     console.log('Run: node tools/build_docs_pdf.mjs');
     exit(1);
   }
-  console.log(`build_docs_pdf --check: ${variants().length + DOCS.length} PDFs present and current with the markup`);
+  console.log(`build_docs_pdf --check: ${DOCS.length} PDFs present and current with the markup`);
   exit(0);
 }
 
-mkdirSync(OUT_DIR, { recursive: true });
 const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9333', defaultViewport: { width: 1600, height: 1000 } });
 
-for (const accent of accentNames()) {
+{
   const page = await browser.newPage();
-  // The accent has to be in place before the site's boot script reads it —
-  // this is exactly the state a returning visitor's browser is in.
-  await page.evaluateOnNewDocument(a => localStorage.setItem('dex-accent-name', a), accent);
   await page.goto(`${BASE}/?pdf=${Date.now()}`, { waitUntil: 'load' });
 
   for (const doc of DOCS) {
@@ -164,7 +144,7 @@ for (const accent of accentNames()) {
     }, doc.panel, SHEET_PX);
     if (fit.box === -1) throw new Error(`${doc.panel}: fit did not converge`);
 
-    const out = `${OUT_DIR}/${doc.stem}-${accent}.pdf`;
+    const out = doc.out;
     await page.pdf({ path: out, printBackground: true, preferCSSPageSize: true });
     await page.emulateMediaType('screen');
     const note = fit.f < 1 ? `${fit.h}px fitted at ${(fit.f * 100).toFixed(1)}%, box ${fit.box}` : 'fits at 100%';
@@ -176,9 +156,6 @@ for (const accent of accentNames()) {
   }
   await page.close();
 }
-
-for (const doc of DOCS) copyFileSync(`${OUT_DIR}/${doc.stem}-${DEFAULT_ACCENT}.pdf`, doc.legacy);
-console.log(`  legacy paths refreshed from the ${DEFAULT_ACCENT} variants`);
 
 await browser.disconnect();
 writeFileSync(STAMP, sourceHash() + String.fromCharCode(10));
