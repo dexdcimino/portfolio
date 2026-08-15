@@ -1328,7 +1328,48 @@ function initTabs(tablist, onSelect) {
   return select;
 }
 
-const tkSelect = initTabs(document.querySelector('.tk-tabs'));
+/* Toolkit tab changes ANIMATE: the incoming panel slides in from the side the
+   navigation is travelling — and only the target panel, never the tabs in
+   between, so jumping Software -> Team Tools shows one movement, not a blur of
+   skipped icons. Direction comes from index order for tab clicks and is forced
+   by the arrows so a wrap still reads as continuing forward or back. */
+let tkPrev = 0;
+let tkForcedDir = null;
+const tkSelect = initTabs(document.querySelector('.tk-tabs'), (next, tab) => {
+  const panel = document.getElementById(tab.getAttribute('aria-controls'));
+  const dir = tkForcedDir !== null ? tkForcedDir : Math.sign(next - tkPrev);
+  tkForcedDir = null;
+  if (panel && panel.animate && next !== tkPrev && dir !== 0
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    panel.animate(
+      [{ opacity: 0, transform: `translateX(${dir * 44}px)` }, { opacity: 1, transform: 'none' }],
+      { duration: 280, easing: 'cubic-bezier(.22,.61,.36,1)' });
+  }
+  tkPrev = next;
+});
+
+/* The blank-slots-then-pop problem: hidden panels hold loading="lazy" images,
+   and a lazy image in a display:none panel is never fetched — so the first
+   visit to a tab used to start its downloads. Same lesson as the games
+   artwork. Warm every toolkit icon (small SVGs) as the section approaches:
+   eager starts the fetch even while hidden, decode() takes the decode off the
+   click path, and by the time anything slides in it is already painted. */
+(function warmToolkitIcons() {
+  const section = document.getElementById('toolkit');
+  if (!section) return;
+  const warm = () => {
+    for (const img of section.querySelectorAll('img.tk-icon')) {
+      img.loading = 'eager';
+      if (img.decode) img.decode().catch(() => {});
+    }
+  };
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); warm(); }
+    }, { rootMargin: '600px 0px' });
+    io.observe(section);
+  } else warm();
+})();
 
 /* Toolkit carousel arrows. They drive the same select() the tabs use, so the
    roving tabindex, panel hidden flags and aria-selected all stay right, and
@@ -1339,6 +1380,7 @@ const tkSelect = initTabs(document.querySelector('.tk-tabs'));
   const tabs = [...document.querySelectorAll('.tk-tabs [role="tab"]')];
   const step = delta => {
     const i = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
+    tkForcedDir = delta;                    // a wrap still slides the way you pressed
     tkSelect((i + delta + tabs.length) % tabs.length);
   };
   document.querySelector('.tk-arrow-prev')?.addEventListener('click', () => step(-1));

@@ -1029,25 +1029,25 @@ button.button{cursor:pointer;font:inherit}
 }
 
 /* Quotes carry no image, so the card itself has to hold the shape. */
-/* Quotes are a vertical LIST of full-width rows — 1, 2, 3 down the page — not
-   columns. Each row runs the panel's whole width, holds its natural height,
-   and is capped at cover height (306px, a .pk-cover at a 1500px desktop) so no
-   quote can ever out-grow the covers this tab row shares. The doubled class
-   outruns the .pk-grid column media rules on specificity. */
-.pk-grid.pk-grid-quotes{grid-template-columns:1fr}
+/* Quote cards ARE cover-shaped: same grid, same columns, same 2/3 aspect, so
+   they sit in the row exactly like a movie or game cover does. The type is
+   sized by container query — a fraction of the card's own width — which is how
+   the text scales with the card the same way cover art does, instead of one
+   font size fitting at 1600px and clipping at 1280. */
 .pk-quote{
-  display:grid;gap:12px;align-content:space-between;
-  padding:18px 22px;min-height:0;max-height:306px;
+  display:grid;gap:10px;align-content:space-between;
+  padding:16px 15px;aspect-ratio:2/3;min-height:0;
+  container-type:inline-size;overflow:hidden;
   border:var(--stroke) solid rgba(255,255,255,.09);border-radius:14px;
   border-left:3px solid var(--accent);
   background:linear-gradient(150deg,rgba(32,38,44,.5),rgba(12,15,18,.5));
   transition:border-color var(--accent-ease)}
-.pk-quote blockquote{margin:0;font-size:18px;line-height:1.55;color:var(--text);font-style:italic}
+.pk-quote blockquote{margin:0;font-size:clamp(9px,7.6cqw,17px);line-height:1.5;color:var(--text);font-style:italic}
 /* Generated marks, not characters in the data attributes — they wrap whichever
    version is showing and can never double up or stray on a swap. */
 .pk-quote blockquote::before{content:"\201C"}
 .pk-quote blockquote::after{content:"\201D"}
-.pk-quote cite{font-style:normal;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.pk-quote cite{font-style:normal;font-size:clamp(9px,6cqw,13px);font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
 /* nowrap + ellipsis: the rendition cite is longer than the original, and if
    its growth rewraps the foot the toggle moves out from under the pointer —
    leave fires, the text reverts, the button comes back, and the card sits
@@ -1055,7 +1055,7 @@ button.button{cursor:pointer;font:inherit}
 .pk-quote-foot{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:nowrap}
 .pk-quote-cite{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pk-quote-toggle{flex:0 0 auto}
-.pk-quote-toggle{font-size:11px;
+.pk-quote-toggle{font-size:clamp(9px,5cqw,11px);
   appearance:none;background:none;border:0;padding:0;cursor:pointer;min-height:0;
   font:inherit;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
   color:var(--muted);transition:color var(--accent-ease)}
