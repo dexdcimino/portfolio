@@ -337,6 +337,20 @@ const SOUNDS = {
     _blip({ type: 'triangle', freq: _vary(240 + p * 480, 0.04), endFreq: 180 + p * 220, dur: 0.09, gain: 0.14 + p * 0.16, pan: o.pan });
     _whoosh({ from: 500, to: 700 + p * 1800, dur: 0.10 + p * 0.12, gain: 0.05 + p * 0.13, pan: o.pan });
   }},
+  // — gamma laser overload (MD 17) —
+  // The swell squeak rises with inflation progress (o.p 0..1); the pop is
+  // a slide-whistle up into a big wet boom. Comedy is the point.
+  'laser.swell': { cd: 90, fn: (o) => {
+    const p = Math.min(1, o.p || 0);
+    _blip({ type: 'sine', freq: 260 + p * 900, endFreq: 340 + p * 1150, dur: 0.08, gain: 0.07 + p * 0.1, pan: o.pan });
+  }},
+  'laser.pop': { cd: 200, fn: (o) => {
+    _blip({ type: 'sine', freq: 350, endFreq: 1500, glide: 0.2, dur: 0.22, gain: 0.2, pan: o.pan });
+    _thud({ freq: 100, endFreq: 36, dur: 0.42, gain: 0.5, delay: 0.2, pan: o.pan });
+    _noise({ filter: 'lowpass', freq: 700, sweepTo: 110, dur: 0.45, gain: 0.4, delay: 0.2, pan: o.pan });
+    _noise({ filter: 'lowpass', freq: 480, sweepTo: 130, dur: 0.12, gain: 0.2, delay: 0.22, pan: o.pan });
+    _blip({ type: 'sine', freq: 170, endFreq: 60, dur: 0.1, gain: 0.12, delay: 0.24, pan: o.pan });
+  }},
   'explosion':     { cd: 80, fn: (o) => {
     const big = !!o.big;
     _thud({ freq: big ? _vary(95, 0.1) : _vary(140, 0.1), endFreq: big ? 32 : 48,

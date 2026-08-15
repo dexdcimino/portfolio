@@ -3295,7 +3295,8 @@ window._dexProbeCreature = function (px, py) {
 // creature bloats and pulses for half a second and bursts — rocket-grade
 // gore, shockwave ring, shake, hit-stop. No instant kills: the burst is
 // always the finisher. Puffers skip the overload and pop their own way.
-const LASER_OVERLOAD_DUR = 120;   // swell time before the burst (~0.5s)
+const LASER_OVERLOAD_DUR = 150;   // swell time before the pop (~0.6s)
+const BOOM_WORDS = ['POP!', 'BOOM!', 'SPLAT!', 'KABLAM!', 'BLORP!'];
 window._dexLaserDamage = function (c, sx, sy, angle) {
   if (!c || c.dead || c._overloadT != null) return;
   const { wx, wy } = screenToWorld(sx, sy);
@@ -3324,19 +3325,34 @@ function _tickLaserOverloads() {
     if (c._overloadT == null || c.dead) continue;
     c._overloadT += _dt;
     const p = Math.min(c._overloadT / LASER_OVERLOAD_DUR, 1);
-    // Swell with a quickening pulse; hold the creature in place.
-    c.scale = c._overloadBase * (1 + 0.8 * p + Math.sin(c._overloadT * (0.2 + p * 0.5)) * 0.07 * p);
+    // MD 17: inflate ABSURDLY — a balloon at its limit. Quadratic swell to
+    // ~2.1×, wobble that speeds up as it tightens, fizzing sparks and a
+    // rising squeak. Held in place the whole time.
+    const wob = Math.sin(c._overloadT * (0.25 + p * 0.9)) * 0.1 * p;
+    c.scale = c._overloadBase * (1 + 1.1 * p * p + wob);
     c.vx = 0; c.vy = 0;
+    if ((c._overloadFizz = (c._overloadFizz || 0) - _dt) <= 0) {
+      c._overloadFizz = 9;
+      const a = Math.random() * Math.PI * 2;
+      _pAddParticle(c.x + Math.cos(a) * 16 * c.scale, c.y - 8 + Math.sin(a) * 10 * c.scale,
+        Math.cos(a) * 0.7, Math.sin(a) * 0.7 - 0.35, 10, 255, 255, 255, 0.8, 'spark');
+    }
+    if ((c._overloadSq = (c._overloadSq || 0) - _dt) <= 0) {
+      c._overloadSq = 26;
+      sfx('laser.swell', { p, at: { x: c.x, y: c.y } });
+    }
     if (p < 1) continue;
-    // Burst
+
+    // ── THE POP (MD 17) — deliberately ridiculous ──
     const sc = c._overloadBase;
     c.scale = sc;
     c._overloadT = null;
     c.dead = true; c.deadT = 0; c.hp = 0;
     const ang = c._overloadAngle || 0;
+    const groundWY = c.kind === 'bird' ? c.y + 150 + Math.random() * 250 : c.y;
     if (c.kind === 'bird') {
       c._falling = true; c._fallWorldY = c.y;
-      c._fallTargetWorldY = c.y + 150 + Math.random() * 250;
+      c._fallTargetWorldY = groundWY;
       c._fallVY = 0;
       _spawnWorldFeathers(c.x, c.y, c._fallTargetWorldY);
     } else {
@@ -3344,16 +3360,69 @@ function _tickLaserOverloads() {
       c._splatSeeds = Array.from({ length: 5 }, () => Math.random());
     }
     c._rocketDeath = true;
-    _spawnRocketGore(c.x, c.y, sc * 1.3, c.kind === 'bird',
-      c.kind === 'bird' ? c._fallTargetWorldY : undefined, Math.cos(ang) * 4, Math.sin(ang) * 4);
+    // Base gore layer (bigger than a rocket kill)...
+    _spawnRocketGore(c.x, c.y, sc * 1.6, c.kind === 'bird',
+      c.kind === 'bird' ? c._fallTargetWorldY : undefined, Math.cos(ang) * 5, Math.sin(ang) * 5);
+    // ...plus the debris cannon: the stock gore pools right under the
+    // corpse (its landing spots hug the origin), so launch extra blobs
+    // and body parts with real hang time and landing points scattered
+    // across half a screen — stuff flies EVERYWHERE and rains down.
+    for (let i = 0; i < 24; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const spd = 1 + Math.random() * 3.2;
+      const pt = _goreAdd(c.x, c.y - 10, Math.cos(a) * spd, -(1.5 + Math.random() * 3.5),
+        1400 + Math.floor(Math.random() * 400), 'blood', (2 + Math.random() * 5) * sc);
+      pt.fallTargetWY = groundWY + (Math.random() - 0.35) * 110;
+      pt.falling = true;
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const spd = 1.2 + Math.random() * 2.6;
+      const pt = _goreAdd(c.x, c.y - 12, Math.cos(a) * spd, -(2 + Math.random() * 3.2),
+        1500 + Math.floor(Math.random() * 300), 'part', 0, {
+          partW: (2 + Math.random() * 9) * sc, partH: (3 + Math.random() * 6) * sc,
+          partRound: Math.random() < 0.3,
+          partRot: Math.random() * Math.PI * 2, partRotV: (Math.random() - 0.5) * 0.5,
+        });
+      pt.fallTargetWY = groundWY + (Math.random() - 0.35) * 120;
+      pt.falling = true;
+    }
     const clrHex = (_cachedClr || '#7B8A9C').replace('#', '');
-    const lr = Math.min(255, parseInt(clrHex.slice(0, 2), 16) + 120);
-    const lg = Math.min(255, parseInt(clrHex.slice(2, 4), 16) + 120);
-    const lb = Math.min(255, parseInt(clrHex.slice(4, 6), 16) + 120);
-    _pPush({ wx: c.x, wy: c.y, vx: 0, vy: 0, life: 26, maxLife: 26, r: lr, g: lg, b: lb, size: 0, type: 'aoe_ring' });
-    _addShake(5);
-    sfx('explosion', { at: { x: c.x, y: c.y } });
-    window._dexHitStop?.(10, 0.2);
+    const cr = parseInt(clrHex.slice(0, 2), 16), cg = parseInt(clrHex.slice(2, 4), 16), cb = parseInt(clrHex.slice(4, 6), 16);
+    const lr = Math.min(255, cr + 120), lg = Math.min(255, cg + 120), lb = Math.min(255, cb + 120);
+    // Triple shockwave + flash + spark storm + confetti + mushroom puff.
+    _pPush({ wx: c.x, wy: c.y, vx: 0, vy: 0, life: 24, maxLife: 24, r: lr, g: lg, b: lb, size: 0, type: 'aoe_ring' });
+    _pPush({ wx: c.x, wy: c.y, vx: 0, vy: 0, life: 32, maxLife: 32, r: cr, g: cg, b: cb, size: 0, type: 'aoe_ring' });
+    _pPush({ wx: c.x, wy: c.y, vx: 0, vy: 0, life: 40, maxLife: 40, r: lr, g: lg, b: lb, size: 0, type: 'aoe_ring' });
+    _pPush({ wx: c.x, wy: c.y - 6, vx: 0, vy: 0, life: 14, maxLife: 14, r: 255, g: 255, b: 255, size: 8, type: 'flash' });
+    for (let i = 0; i < 34; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 1.2 + Math.random() * 3.4;
+      _pAddParticle(c.x, c.y - 8, Math.cos(a) * s, Math.sin(a) * s - 0.4,
+        14 + Math.floor(Math.random() * 14), lr, lg, lb, 0.8 + Math.random() * 1.3, 'spark');
+    }
+    for (let i = 0; i < 8; i++) {
+      _pPush({ wx: c.x, wy: c.y - 10,
+        vx: (Math.random() - 0.5) * 2.4, vy: -1.4 - Math.random() * 1.6,
+        life: 40 + Math.floor(Math.random() * 20), maxLife: 60,
+        r: lr, g: lg, b: lb, size: 0, type: 'shell',
+        rot: Math.random() * Math.PI, rotV: (Math.random() - 0.5) * 0.6 });
+    }
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+      const s = 0.4 + Math.random() * 0.7;
+      _pAddParticle(c.x + (Math.random() - 0.5) * 14, c.y - 10,
+        Math.cos(a) * s, Math.sin(a) * s,
+        30 + Math.floor(Math.random() * 20), cr, cg, cb, 1.6 + Math.random() * 2, 'smoke');
+    }
+    // The comic word. Of course there's a comic word.
+    _pPush({ wx: c.x, wy: c.y - 34, vx: 0, vy: -0.22, life: 55, maxLife: 55,
+      r: lr, g: lg, b: lb, size: 0, type: 'boomtext',
+      text: BOOM_WORDS[Math.floor(Math.random() * BOOM_WORDS.length)],
+      rot: (Math.random() - 0.5) * 0.45 });
+    _addShake(9);
+    sfx('laser.pop', { at: { x: c.x, y: c.y } });
+    window._dexHitStop?.(14, 0.12);
   }
 }
 
@@ -4640,6 +4709,33 @@ export function tickPlayMode(vx, vy, dt) {
       ctx.strokeStyle = `rgb(${pt.r},${pt.g},${pt.b})`;
       ctx.lineWidth = Math.max(0.5, 2 * (1 - prog));
       ctx.beginPath(); ctx.arc(hsx, hsy, 3 + prog * 13, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+      continue;
+    }
+    if (pt.type === 'boomtext') {
+      // Comic burst word (MD 17) — pops in with overshoot, drifts up,
+      // fades out. Dark outline under an accent fill so it reads on
+      // anything.
+      pt.wy += (pt.vy || 0) * _dt;
+      const { sx: bx, sy: by } = worldToScreen(pt.wx, pt.wy);
+      const prog = 1 - pt.life / pt.maxLife;
+      const grow = Math.min(1, prog * 3.2);
+      const overshoot = 1 + 0.35 * Math.sin(grow * Math.PI);
+      const px = Math.max(6, 30 * grow * overshoot);
+      const frac = pt.life / pt.maxLife;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(pt.rot || 0);
+      ctx.globalAlpha = frac < 0.4 ? frac / 0.4 : 1;
+      ctx.font = '900 ' + px.toFixed(0) + 'px system-ui,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = Math.max(2, px * 0.16);
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.strokeText(pt.text || 'POP!', 0, 0);
+      ctx.fillStyle = `rgb(${pt.r},${pt.g},${pt.b})`;
+      ctx.fillText(pt.text || 'POP!', 0, 0);
+      ctx.restore();
       ctx.globalAlpha = 1;
       continue;
     }
