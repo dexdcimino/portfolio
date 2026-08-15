@@ -2183,14 +2183,13 @@ const GUN_TYPES = {
               svg:'<line x1="0" y1="6" x2="20" y2="6" stroke-width="2.5"/><circle cx="22" cy="6" r="2.5" fill="currentColor" stroke="none"/><line x1="22" y1="6" x2="28" y2="6" stroke-width="1.2" stroke-dasharray="2,2" opacity="0.7"/>' },
   pufferLauncher: { label:'Puffer Launcher', fireRate: 60, speed: 0, spread: 0, pellets: 0, barrelLen: 20, autoFire: false, gripUp: 6, isPufferLauncher: true,
               svg:'<line x1="0" y1="6" x2="16" y2="6" stroke-width="3"/><circle cx="19" cy="6" r="3.5" stroke-width="1.5" fill="none"/><line x1="6" y1="6" x2="6" y2="12" stroke-width="2"/><line x1="19" y1="2.5" x2="19" y2="9.5" stroke-width="0.8" opacity="0.5"/><line x1="15.5" y1="6" x2="22.5" y2="6" stroke-width="0.8" opacity="0.5"/>' },
-  spellbook: { label:'Spellbook', fireRate: 180, speed: 0, spread: 0, pellets: 0, barrelLen: 0, autoFire: false, gripUp: 8, isSpellbook: true,
-              // MD#SPELLBOOK-V2: closed leather-bound book front-view.
-              // Cover = filled rect with subtle background, thick spine
-              // line on the left, three small horizontal "page edge" lines
-              // along the right edge, and a small spiral as the arcane
-              // sigil centered on the cover (reads cleaner than a star at
-              // small render sizes).
-              svg:'<rect x="2" y="1" width="14" height="12" rx="1" stroke-width="1.5" fill="currentColor" fill-opacity="0.1"/><rect x="2" y="1" width="14" height="12" rx="1" stroke-width="1.5" fill="none"/><line x1="2" y1="1" x2="2" y2="13" stroke-width="2.5" stroke-linecap="round"/><line x1="14.5" y1="3" x2="14.5" y2="11" stroke-width="0.5" opacity="0.5"/><line x1="15" y1="3" x2="15" y2="11" stroke-width="0.5" opacity="0.5"/><path d="M9,4.5 C11,4.5 11.5,6 11,7 C10.5,8 8,8 7.5,7 C7,5.5 8.5,4 10,4.5 C11.5,5 12,7.5 10.5,8.5 C9,9.5 7,8.5 7,7" stroke-width="0.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' },
+  spellbook: { label:'Spellbook', fireRate: 120, speed: 0, spread: 0, pellets: 0, barrelLen: 0, autoFire: false, gripUp: 8, isSpellbook: true,
+              // MD 12: closed tome drawn at a 3/4 orthographic angle — front
+              // cover leaning back as a parallelogram, visible page block on
+              // the right with page-edge lines, top pages face, thick spine
+              // on the left edge, spiral sigil on the cover. fireRate 120
+              // (was 180) so stacking the 4-wraith pack is practical.
+              svg:'<path d="M4,5 L16,2.5 L18.5,3.7 L6.5,6.2 Z" fill="currentColor" fill-opacity="0.25" stroke-width="1" stroke-linejoin="round"/><path d="M16,2.5 L18.5,3.7 L18.5,13.7 L16,12.5 Z" fill="currentColor" fill-opacity="0.12" stroke-width="1" stroke-linejoin="round"/><line x1="16.8" y1="3.6" x2="16.8" y2="12.9" stroke-width="0.45" opacity="0.55"/><line x1="17.6" y1="4" x2="17.6" y2="13.3" stroke-width="0.45" opacity="0.55"/><path d="M4,5 L16,2.5 L16,12.5 L4,15 Z" fill="currentColor" fill-opacity="0.1" stroke-width="1.4" stroke-linejoin="round"/><line x1="4" y1="5" x2="4" y2="15" stroke-width="2.4" stroke-linecap="round"/><path d="M10,7.5 C12,7.5 12.5,9 12,10 C11.5,11 9,11 8.5,10 C8,8.5 9.5,7 11,7.5 C12.5,8 13,10.5 11.5,11.5 C10,12.5 8,11.5 8,10" stroke-width="0.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' },
 };
 // MD#ICON-OVERHAUL: chipVB = tight viewBox enclosing only visible content.
 // Used by chip render paths (avatar dropdown rows, bottom hotbar slots, play
@@ -2214,7 +2213,7 @@ const INVENTORY_ITEMS = [
   { id:'sword',    label:'Sword',    functional:true,  unlockLevel:1,  tilt:0,   svg:'<path d="M14,-2.5 L15.4,1.5 L15.1,10.5 L12.9,10.5 L12.6,1.5 Z" fill="currentColor" fill-opacity="0.28" stroke-width="1.1" stroke-linejoin="round"/><line x1="14" y1="0.5" x2="14" y2="9.5" stroke-width="0.6" opacity="0.5"/><path d="M10.6,10.5 Q14,12.4 17.4,10.5" stroke-width="1.5" fill="none"/><line x1="14" y1="11.6" x2="14" y2="15" stroke-width="1.7"/><circle cx="14" cy="15.9" r="1.1" fill="currentColor" stroke="none"/>', viewBox:'7.5 -3.5 13 21.5', chipVB:'8.5 -3.5 11 21.5' },
   { id:'laser',    label:'Gamma Laser', functional:true, unlockLevel:9, tilt:-35, svg:GUN_TYPES.laser.svg, viewBox:'-1 2 32 8', chipVB:'-2 3 32 6' },
   { id:'pufferLauncher', label:'Puffer Launcher', functional:true, unlockLevel:8, tilt:-35, svg:GUN_TYPES.pufferLauncher.svg, viewBox:'-1 1 26 13', chipVB:'-2 1 26 12' },
-  { id:'spellbook', label:'Spellbook', functional:true, unlockLevel:7, tilt:-30, svg:GUN_TYPES.spellbook.svg, viewBox:'2 -1 22 16', chipVB:'1 0 16 14' },
+  { id:'spellbook', label:'Spellbook', functional:true, unlockLevel:7, tilt:-30, svg:GUN_TYPES.spellbook.svg, viewBox:'2 0.5 19 16', chipVB:'3 1.5 16.5 14.5' },
   { id:'checkpointFlag', label:'Flag', functional:true, unlockLevel:4, isFlag:true, tilt:0, svg:'<line x1="10" y1="4" x2="10" y2="22" stroke-width="2" stroke-linecap="round"/><polygon points="10,4 22,9 10,14" fill="currentColor" fill-opacity="0.5" stroke="currentColor" stroke-width="1"/><ellipse cx="10" cy="22" rx="4" ry="2" fill="currentColor" fill-opacity="0.3" stroke="none"/>', viewBox:'4 0 22 24', chipVB:'5 2 18 22' },
   { id:'hoverboard', label:'Hoverboard', functional:true, unlockLevel:10, isMountSlot:true, tilt:0, svg:'<rect x="2" y="5" width="20" height="3" rx="1.5" stroke-width="1.8"/><line x1="6" y1="9" x2="8" y2="11" stroke-width="1.2" opacity="0.5"/><line x1="16" y1="9" x2="14" y2="11" stroke-width="1.2" opacity="0.5"/><ellipse cx="12" cy="12" rx="4" ry="1" fill="currentColor" opacity="0.15" stroke="none"/>', viewBox:'0 2 24 12', chipVB:'0 3 24 10' },
   // MD 07: jetpack — the other slot-4 mount. Two tanks, strap, nozzle
@@ -2284,14 +2283,19 @@ const _projectiles = [];
 // ── Laser beam state ──
 const _laser = {
   active: false,       // beam currently firing
+  retracting: false,   // beam animating back into the muzzle after release (MD 12)
   beamEl: null,        // DOM element for the beam line
   glowEl: null,        // DOM element for the beam glow
   hitX: 0, hitY: 0,    // where the beam terminates
   dmgTimer: 0,         // damage tick accumulator
+  lastMX: 0, lastMY: 0, lastCos: 1, lastSin: 0, lastDist: 0,  // last geometry, for retraction after the gun is gone
 };
 const LASER_RANGE = 600;       // max beam length in px
-const LASER_DMG_INTERVAL = 144; // frames between damage ticks (~0.6s at 240Hz)
-const LASER_DPS = 1;            // 1 damage per tick — yak (5-7hp) dies in ~3-4s
+// MD 12: 66 ≈ 0.28s between ticks — a yak (5-7hp) burns down in ~1.5-2s,
+// and the finisher is always the overload burst, never an instant kill
+// (play-mode damage goes through window._dexLaserDamage in playmode.js).
+const LASER_DMG_INTERVAL = 66;
+const LASER_DPS = 1;            // sessions-mode damage per tick
 
 // ── Hoverboard ──
 const _hoverboard = { active: false, el: null, bobT: 0, bob: 0, boosting: false, tilt: 0, jumpLag: 0, transition: '', transT: 0 };
@@ -3117,8 +3121,10 @@ function _startLaser() {
   if (_laser.active) return;
   _laser.active = true;
   _laser.dmgTimer = 0;
-  _laserExtend = 0; // start from zero — beam grows out
-  _laserPhase = 0;
+  // Re-engaging mid-retract resumes from the current length — feels like
+  // catching the beam on its way back in. Otherwise grow from zero.
+  if (!_laser.retracting) { _laserExtend = 0; _laserPhase = 0; }
+  _laser.retracting = false;
   // Create SVG beam element
   if (!_laser.beamEl) {
     const ns = 'http://www.w3.org/2000/svg';
@@ -3142,8 +3148,16 @@ function _startLaser() {
     outer.id = 'laser-outer';
     outer.setAttribute('fill', 'none');
     outer.setAttribute('stroke-linecap', 'round');
-    outer.setAttribute('opacity', '0.3');
+    outer.setAttribute('opacity', '0.22');
     svg.appendChild(outer);
+    // Helix partner strand (MD 12) — same wave mirrored, so the two cores
+    // cross over each other down the beam.
+    const helix = document.createElementNS(ns, 'path');
+    helix.id = 'laser-helix';
+    helix.setAttribute('fill', 'none');
+    helix.setAttribute('stroke-linecap', 'round');
+    helix.setAttribute('opacity', '0.55');
+    svg.appendChild(helix);
     _laser.beamEl = svg;
     document.body.appendChild(svg);
   }
@@ -3159,22 +3173,89 @@ function _startLaser() {
 function _stopLaser() {
   if (!_laser.active) return;
   _laser.active = false;
-  _laserExtend = 0;
   sfxHoldStop('laser');
-  if (_laser.beamEl) _laser.beamEl.style.display = 'none';
+  // MD 12: the beam retracts back into the muzzle instead of vanishing —
+  // _tickLaser keeps animating while `retracting` is set. The impact glow
+  // dies immediately (nothing is being hit any more).
+  _laser.retracting = _laserExtend > 0;
   if (_laser.glowEl) _laser.glowEl.style.display = 'none';
+  if (!_laser.retracting && _laser.beamEl) _laser.beamEl.style.display = 'none';
+}
+
+// The beam geometry drawn as three strands: two sine cores that mirror
+// each other (crossing over like a helix) and a wide soft outer glow
+// following the centerline. Shared by the live beam and the retract
+// animation.
+function _drawLaserBeam(muzzleX, muzzleY, cosA, sinA, dist) {
+  if (!_laser.beamEl) return;
+  const core = _laser.beamEl.querySelector('#laser-core');
+  const helix = _laser.beamEl.querySelector('#laser-helix');
+  const outer = _laser.beamEl.querySelector('#laser-outer');
+  if (!core || !outer) return;
+  const clr = getAccent();
+  const perpX = -sinA, perpY = cosA;
+  const segs = Math.max(10, Math.round(dist / 10));
+  let d1 = `M${muzzleX.toFixed(1)},${muzzleY.toFixed(1)}`;
+  let d2 = d1, d0 = d1;
+  for (let i = 1; i <= segs; i++) {
+    const t = i / segs;
+    const baseX = muzzleX + cosA * dist * t;
+    const baseY = muzzleY + sinA * dist * t;
+    // Amplitude swells from ~2px at the muzzle to ~9px downrange, and
+    // breathes with the phase; the wave itself crawls along the beam.
+    const amp = (2 + t * 7) * (0.75 + Math.sin(_laserPhase * 2 + t * 4) * 0.25);
+    const wave = Math.sin(_laserPhase * 7 + t * 16) * amp;
+    d1 += ` L${(baseX + perpX * wave).toFixed(1)},${(baseY + perpY * wave).toFixed(1)}`;
+    d2 += ` L${(baseX - perpX * wave).toFixed(1)},${(baseY - perpY * wave).toFixed(1)}`;
+    d0 += ` L${baseX.toFixed(1)},${baseY.toFixed(1)}`;
+  }
+  const flicker = 0.75 + Math.random() * 0.25;
+  core.setAttribute('d', d1);
+  core.setAttribute('stroke', clr);
+  core.setAttribute('stroke-width', String(2.2 + Math.sin(_laserPhase * 3) * 0.5));
+  core.setAttribute('opacity', String(flicker));
+  if (helix) {
+    helix.setAttribute('d', d2);
+    helix.setAttribute('stroke', clr);
+    helix.setAttribute('stroke-width', '1.6');
+  }
+  outer.setAttribute('d', d0);
+  outer.setAttribute('stroke', clr);
+  outer.setAttribute('stroke-width', '10');
 }
 
 function _tickLaser() {
-  if (!_laser.active || !_gun.held || !GUN_TYPES[_gun.type]?.isLaser) { _stopLaser(); return; }
+  if (_laser.active && (!_gun.held || !GUN_TYPES[_gun.type]?.isLaser)) _stopLaser();
+  if (!_laser.active) {
+    // Retract animation — the beam pulls back into the muzzle (from the
+    // live muzzle while the gun is still out, else from where it last was).
+    if (_laser.retracting) {
+      _laserExtend = Math.max(_laserExtend - 0.035 * _dt, 0);
+      _laserPhase += 0.12 * _dt;
+      if (_laserExtend <= 0) {
+        _laser.retracting = false;
+        if (_laser.beamEl) _laser.beamEl.style.display = 'none';
+      } else {
+        let mx = _laser.lastMX, my = _laser.lastMY, cA = _laser.lastCos, sA = _laser.lastSin;
+        if (_gun.held && GUN_TYPES[_gun.type]?.isLaser) {
+          cA = Math.cos(_gun.angle); sA = Math.sin(_gun.angle);
+          mx = P.x + cA * 22;
+          my = (P.y - CHAR_H + (GUN_TYPES[_gun.type].gripUp || 8) + 14) + sA * 22;
+        }
+        _drawLaserBeam(mx, my, cA, sA, _laser.lastDist * _laserExtend);
+      }
+    }
+    return;
+  }
 
   // Sustained hum with attack/release — fed every frame; audio.js releases
   // it when the calls stop (or _stopLaser cuts it explicitly).
   sfxHold('laser');
 
-  // Grow-out: beam extends rapidly from muzzle
-  _laserExtend = Math.min(_laserExtend + 0.06 * _dt, 1);
-  _laserPhase += 0.12 * _dt;
+  // Grow-out: the beam extends deliberately, not instantly (MD 12: ~0.35s
+  // to full range at the 240Hz reference).
+  _laserExtend = Math.min(_laserExtend + 0.012 * _dt, 1);
+  _laserPhase += 0.14 * _dt;
 
   const gripSvgY = GUN_TYPES[_gun.type].gripUp || 8;
   const baseAngle = _gun.angle;
@@ -3207,10 +3288,13 @@ function _tickLaser() {
         }
       }
     }
-    if (_inPM && _hitPlayCreaturesFn) {
-      if (_hitPlayCreaturesFn(checkX, checkY, false, cosA, sinA)) {
+    if (_inPM && window._dexProbeCreature) {
+      // Side-effect-free probe (MD 12) — the old code called the damaging
+      // hit test here every frame, which made the laser an insta-kill.
+      const c = window._dexProbeCreature(checkX, checkY);
+      if (c) {
         hitDist = LASER_RANGE * t;
-        hitCreature = { kind: 'pm' };
+        hitCreature = c;
         break;
       }
     }
@@ -3223,40 +3307,13 @@ function _tickLaser() {
   const endX = muzzleX + cosA * effectiveDist;
   const endY = muzzleY + sinA * effectiveDist;
   _laser.hitX = endX; _laser.hitY = endY;
+  // Remember geometry so the retract animation can play after release.
+  _laser.lastMX = muzzleX; _laser.lastMY = muzzleY;
+  _laser.lastCos = cosA; _laser.lastSin = sinA;
+  _laser.lastDist = hitDist;
 
-  // Get accent color for beam
   const clr = getAccent();
-
-  // Build sine-wave SVG path
-  if (_laser.beamEl) {
-    const core = _laser.beamEl.querySelector('#laser-core');
-    const outer = _laser.beamEl.querySelector('#laser-outer');
-    if (core && outer) {
-      // Perpendicular direction for sine wave offset
-      const perpX = -sinA, perpY = cosA;
-      const segs = Math.max(8, Math.round(effectiveDist / 12));
-      let d = `M${muzzleX.toFixed(1)},${muzzleY.toFixed(1)}`;
-      for (let i = 1; i <= segs; i++) {
-        const t = i / segs;
-        const baseX = muzzleX + cosA * effectiveDist * t;
-        const baseY = muzzleY + sinA * effectiveDist * t;
-        // Sine wave amplitude grows from 0 at muzzle to 3 at end, with phase animation
-        const amp = t * 3 * (0.6 + Math.sin(_laserPhase * 2 + t * 4) * 0.4);
-        const wave = Math.sin(_laserPhase * 6 + t * 14) * amp;
-        const px = baseX + perpX * wave;
-        const py = baseY + perpY * wave;
-        d += ` L${px.toFixed(1)},${py.toFixed(1)}`;
-      }
-      const flicker = 0.75 + Math.random() * 0.25;
-      core.setAttribute('d', d);
-      core.setAttribute('stroke', clr);
-      core.setAttribute('stroke-width', String(2 + Math.sin(_laserPhase * 3) * 0.5));
-      core.setAttribute('opacity', String(flicker));
-      outer.setAttribute('d', d);
-      outer.setAttribute('stroke', clr);
-      outer.setAttribute('stroke-width', '8');
-    }
-  }
+  _drawLaserBeam(muzzleX, muzzleY, cosA, sinA, effectiveDist);
 
   // Impact glow — big bright circle at hit point
   if (_laser.glowEl && _laserExtend > 0.3) {
@@ -3282,31 +3339,40 @@ function _tickLaser() {
     setTimeout(() => spark.remove(), dur * 1000 + 50);
   }
 
-  // Damage tick — only when beam is fully extended to target
-  if (hitCreature && hitCreature.kind !== 'pm' && _laserExtend >= 0.95) {
+  // Damage tick — only when the beam has fully reached the target. Play
+  // mode routes through _dexLaserDamage (playmode.js): hp whittles down to
+  // 1, then the creature bloats and bursts — never an instant kill.
+  // Sessions mode keeps its fire-and-kill flow.
+  if (hitCreature && _laserExtend >= 0.95) {
     _laser.dmgTimer += _dt;
     if (_laser.dmgTimer >= LASER_DMG_INTERVAL) {
       _laser.dmgTimer = 0;
-      hitCreature.hp -= LASER_DPS;
       _spawnFireEffect(endX, endY);
-      // Set creature on fire immediately on first hit
-      if (!hitCreature._onFire) {
-        hitCreature._onFire = true;
-        hitCreature._fireTimer = 0;
-        hitCreature._fireTotalTime = 0;
-      }
-      if (hitCreature.hp <= 0 && !hitCreature.dead) {
-        hitCreature.dead = true;
-        hitCreature._onFire = false;
-        if (hitCreature.kind === 'bird') {
-          _spawnFeathers(hitCreature.x + 10, hitCreature.y + 6, 8);
-          hitCreature.falling = true; hitCreature.vy = 0;
-          hitCreature.fallVx = hitCreature.vx * 0.3; hitCreature.vx = 0;
-        } else {
-          _killSessionCreature(hitCreature, 28, 20, false);
+      if (_inPM) {
+        window._dexLaserDamage?.(hitCreature, endX, endY, baseAngle);
+      } else {
+        hitCreature.hp -= LASER_DPS;
+        // Set creature on fire immediately on first hit
+        if (!hitCreature._onFire) {
+          hitCreature._onFire = true;
+          hitCreature._fireTimer = 0;
+          hitCreature._fireTotalTime = 0;
+        }
+        if (hitCreature.hp <= 0 && !hitCreature.dead) {
+          hitCreature.dead = true;
+          hitCreature._onFire = false;
+          if (hitCreature.kind === 'bird') {
+            _spawnFeathers(hitCreature.x + 10, hitCreature.y + 6, 8);
+            hitCreature.falling = true; hitCreature.vy = 0;
+            hitCreature.fallVx = hitCreature.vx * 0.3; hitCreature.vx = 0;
+          } else {
+            _killSessionCreature(hitCreature, 28, 20, false);
+          }
         }
       }
     }
+  } else if (!hitCreature) {
+    _laser.dmgTimer = 0;
   }
 }
 

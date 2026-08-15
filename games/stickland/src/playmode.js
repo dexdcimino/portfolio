@@ -3184,6 +3184,93 @@ export function hitTestCreatures(px, py, isRocket, pvx, pvy, isArrow, dmgOverrid
   return false;
 }
 
+// ── Gamma laser support (MD 12) ─────────────────────────
+// The laser needs to know what its beam touches every frame WITHOUT
+// damaging it (hitTestCreatures damages on contact — calling it per frame
+// made the laser an accidental insta-kill). Same hitboxes, no side effects.
+window._dexProbeCreature = function (px, py) {
+  const { wx, wy } = screenToWorld(px, py);
+  for (const c of _liveCreatures) {
+    if (c.dead) continue;
+    const sc = c.scale || 1;
+    if (c.kind === 'puffer') {
+      if (Math.hypot(wx - c.x, wy - c.y) < PUFFER_IDLE_RADIUS * sc + 8) return c;
+      continue;
+    }
+    const hitW = c.kind === 'bird' ? 30 : c.kind === 'mammoth' ? 40 : 28;
+    const bodyY = c.kind === 'bird' ? c.y : c.y - sc * (c.kind === 'mammoth' ? 14 : 8);
+    const hitH = c.kind === 'bird' ? 22 : c.kind === 'mammoth' ? 24 : 18;
+    if (Math.abs(wx - c.x) < hitW && Math.abs(wy - bodyY) < hitH) return c;
+  }
+  return null;
+};
+
+// Timed laser damage. Whittles hp down to 1, then starts an OVERLOAD: the
+// creature bloats and pulses for half a second and bursts — rocket-grade
+// gore, shockwave ring, shake, hit-stop. No instant kills: the burst is
+// always the finisher. Puffers skip the overload and pop their own way.
+const LASER_OVERLOAD_DUR = 120;   // swell time before the burst (~0.5s)
+window._dexLaserDamage = function (c, sx, sy, angle) {
+  if (!c || c.dead || c._overloadT != null) return;
+  const { wx, wy } = screenToWorld(sx, sy);
+  if (c.kind === 'puffer') {
+    c.hp -= 1;
+    if (c.hp <= 0) { _explodePuffer(c, false); }
+    else if (!c.aggro) { c.aggro = true; c.aggroTimer = 0; }
+    return;
+  }
+  if (c.hp > 1) {
+    c.hp -= 1;
+    _hitFX(wx, wy, Math.cos(angle) * 2, Math.sin(angle) * 2, 'hit');
+    _spawnHitBlood(wx, wy, c);
+    c._woundCount = (c._woundCount || 0) + 1;
+    c._trailTimer = 0;
+    if (!c.aggro) { c.aggro = true; c.aggroTimer = 0; }
+  } else {
+    c._overloadT = 0;
+    c._overloadBase = c.scale || 1;
+    c._overloadAngle = angle;
+  }
+};
+
+function _tickLaserOverloads() {
+  for (const c of _liveCreatures) {
+    if (c._overloadT == null || c.dead) continue;
+    c._overloadT += _dt;
+    const p = Math.min(c._overloadT / LASER_OVERLOAD_DUR, 1);
+    // Swell with a quickening pulse; hold the creature in place.
+    c.scale = c._overloadBase * (1 + 0.8 * p + Math.sin(c._overloadT * (0.2 + p * 0.5)) * 0.07 * p);
+    c.vx = 0; c.vy = 0;
+    if (p < 1) continue;
+    // Burst
+    const sc = c._overloadBase;
+    c.scale = sc;
+    c._overloadT = null;
+    c.dead = true; c.deadT = 0; c.hp = 0;
+    const ang = c._overloadAngle || 0;
+    if (c.kind === 'bird') {
+      c._falling = true; c._fallWorldY = c.y;
+      c._fallTargetWorldY = c.y + 150 + Math.random() * 250;
+      c._fallVY = 0;
+      _spawnWorldFeathers(c.x, c.y, c._fallTargetWorldY);
+    } else {
+      c._bloodSeed = Math.random();
+      c._splatSeeds = Array.from({ length: 5 }, () => Math.random());
+    }
+    c._rocketDeath = true;
+    _spawnRocketGore(c.x, c.y, sc * 1.3, c.kind === 'bird',
+      c.kind === 'bird' ? c._fallTargetWorldY : undefined, Math.cos(ang) * 4, Math.sin(ang) * 4);
+    const clrHex = (_cachedClr || '#7B8A9C').replace('#', '');
+    const lr = Math.min(255, parseInt(clrHex.slice(0, 2), 16) + 120);
+    const lg = Math.min(255, parseInt(clrHex.slice(2, 4), 16) + 120);
+    const lb = Math.min(255, parseInt(clrHex.slice(4, 6), 16) + 120);
+    _pPush({ wx: c.x, wy: c.y, vx: 0, vy: 0, life: 26, maxLife: 26, r: lr, g: lg, b: lb, size: 0, type: 'aoe_ring' });
+    _addShake(5);
+    sfx('explosion', { at: { x: c.x, y: c.y } });
+    window._dexHitStop?.(10, 0.2);
+  }
+}
+
 function _spawnWorldFeathers(wx, wy, fallTargetWY) {
   // DOM feather poof — instant burst like sessions mode
   const { sx, sy } = worldToScreen(wx, wy);
@@ -3673,8 +3760,11 @@ function _explodePufferProjectile(p) {
 // ═══════════════════════════════════
 
 const _summonPortals = [];
-let _activeWraith = null;
-const WRAITH_MAX_AGE = 900;        // 15 seconds
+// MD 12: wraiths are a pack now — up to WRAITH_MAX at once, each with its
+// own portal/lifetime. Summoning past the cap fades the oldest one out.
+const _activeWraiths = [];
+const WRAITH_MAX = 4;
+const WRAITH_MAX_AGE = 2880;       // ~12 seconds at the 240Hz reference
 const WRAITH_SEEK_RANGE = 300;
 const WRAITH_ATTACK_RANGE = 30;
 const WRAITH_ATTACK_COOLDOWN = 90; // 1.5 seconds
@@ -3685,9 +3775,12 @@ const PORTAL_SUMMON_DELAY = 60;    // 1 second before wraith rises
 const PORTAL_FADE_DUR = 30;
 
 window._dexSpawnWraith = function(wx, wy) {
-  // Kill existing wraith
-  if (_activeWraith) { _activeWraith.phase = 'fading'; _activeWraith.opacity = 0.5; }
-  _activeWraith = null;
+  // Over the cap (counting portals about to produce one) — retire the oldest.
+  const pending = _summonPortals.filter(p => p.phase === 'opening').length;
+  if (_activeWraiths.length + pending >= WRAITH_MAX) {
+    const oldest = _activeWraiths.find(w => w.phase !== 'fading');
+    if (oldest) { oldest.phase = 'fading'; oldest.opacity = Math.min(oldest.opacity, 0.5); }
+  }
   _summonPortals.push({ wx, wy, age: 0, phase: 'opening', spinAngle: 0 });
 };
 
@@ -3700,7 +3793,7 @@ function _tickSummonPortals() {
     if (p.phase === 'opening' && p.age >= PORTAL_SUMMON_DELAY) {
       p.phase = 'summoning';
       // Spawn the wraith
-      _activeWraith = {
+      _activeWraiths.push({
         wx: p.wx, wy: p.wy,
         target: null,
         age: 0, maxAge: WRAITH_MAX_AGE,
@@ -3714,7 +3807,7 @@ function _tickSummonPortals() {
         eyeFlicker: false,
         facingLeft: false,
         opacity: 1,
-      };
+      });
     }
     if (p.phase === 'summoning' && p.age >= PORTAL_SUMMON_DELAY + WRAITH_RISE_DUR + PORTAL_FADE_DUR) {
       p.phase = 'fading';
@@ -3762,8 +3855,13 @@ function _drawSummonPortal(ctx, sx, sy, p) {
 }
 
 function _tickWraith() {
-  if (!_activeWraith) return;
-  const w = _activeWraith;
+  for (let wi = _activeWraiths.length - 1; wi >= 0; wi--) {
+    const w = _activeWraiths[wi];
+    _tickOneWraith(w, wi);
+  }
+}
+
+function _tickOneWraith(w, wi) {
   w.age += _dt;
   w.bobT += 0.03 * _dt;
   w.armSwayL += 0.025 * _dt;
@@ -3787,15 +3885,22 @@ function _tickWraith() {
   }
 
   else if (w.phase === 'seeking' || w.phase === 'orbiting') {
-    // Find target
-    if (!w.target || w.target.dead) {
+    // Find target — prefer creatures no packmate is already on, so a pack
+    // of wraiths spreads out instead of dogpiling one yak.
+    if (!w.target || w.target.dead || w.target._overloadT != null) {
       w.target = null;
-      let bestDist = WRAITH_SEEK_RANGE;
+      const taken = new Set();
+      for (const o of _activeWraiths) { if (o !== w && o.target) taken.add(o.target); }
+      let bestDist = WRAITH_SEEK_RANGE, bestTakenDist = WRAITH_SEEK_RANGE;
+      let bestTaken = null;
       for (const c of _liveCreatures) {
-        if (c.dead) continue;
+        if (c.dead || c._overloadT != null) continue;
         const d = Math.hypot(c.x - w.wx, c.y - w.wy);
-        if (d < bestDist) { bestDist = d; w.target = c; }
+        if (taken.has(c)) {
+          if (d < bestTakenDist) { bestTakenDist = d; bestTaken = c; }
+        } else if (d < bestDist) { bestDist = d; w.target = c; }
       }
+      if (!w.target) w.target = bestTaken;   // everyone's taken — pile on
     }
     if (w.target && !w.target.dead) {
       w.phase = 'seeking';
@@ -3853,7 +3958,7 @@ function _tickWraith() {
 
   else if (w.phase === 'fading') {
     w.opacity -= 0.015 * _dt;
-    if (w.opacity <= 0) { _activeWraith = null; }
+    if (w.opacity <= 0) { _activeWraiths.splice(wi, 1); }
   }
 }
 
@@ -4299,16 +4404,17 @@ export function tickPlayMode(vx, vy, dt) {
   // ── Summon portals + wraith ──
   _tickSummonPortals();
   _tickWraith();
+  _tickLaserOverloads();
   _summonPortals.forEach(p => {
     const { sx: psx, sy: psy } = worldToScreen(p.wx, p.wy);
     if (psx > -visBuf && psx < sw + visBuf && psy > -visBuf && psy < sh + visBuf) {
       _drawSummonPortal(ctx, psx, psy, p);
     }
   });
-  if (_activeWraith) {
-    const { sx: wsx, sy: wsy } = worldToScreen(_activeWraith.wx, _activeWraith.wy);
+  for (const w of _activeWraiths) {
+    const { sx: wsx, sy: wsy } = worldToScreen(w.wx, w.wy);
     if (wsx > -visBuf && wsx < sw + visBuf && wsy > -visBuf && wsy < sh + visBuf) {
-      _drawWraith(ctx, wsx, wsy, _activeWraith);
+      _drawWraith(ctx, wsx, wsy, w);
     }
   }
 
@@ -6309,7 +6415,7 @@ export function exitPlayMode() {
   _goreParticles.length = 0;
   _pufferProjectiles.length = 0;
   _summonPortals.length = 0;
-  _activeWraith = null;
+  _activeWraiths.length = 0;
   // Exit tank if in one
   if (_inTank) { _inTank = false; const t = _getTankObj(); if (t) t.occupied = false; }
   // Hide death screen
