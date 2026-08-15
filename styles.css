@@ -1074,13 +1074,15 @@ button.button{cursor:pointer;font:inherit}
 
 /* Two-part description: bold lead, gap, body. Sits under the rows inside
    .stack; the rows' border-bottoms and the section grid are unchanged. */
-/* Runs the full row width, stopping just short of the glyph column above
-   (30px track + the row's 12px side padding), rather than the site's usual
-   650px measure — the body is one paragraph under a list, and the narrow
-   measure stacked it chunky. */
+/* Two measures on purpose. The bold lead keeps the site's original 650px
+   reading measure (626px once the old container's side padding is taken off) —
+   it is a one-liner and wants to read like one. The body runs wide so the
+   paragraph is not chunky: out toward the glyph column above (42px inset =
+   30px track + the rows' 12px side padding), then pulled back 10% of the
+   width, which full-to-the-column overshot. */
 .game-desc{padding:22px 42px 0 12px}
-.game-desc-lead{display:block;font-size:17px;line-height:1.45;color:var(--text)}
-.game-desc-body{margin:14px 0 0;color:#adb5bb;line-height:1.72;font-size:var(--copy-size)}
+.game-desc-lead{display:block;font-size:17px;line-height:1.45;color:var(--text);max-width:626px}
+.game-desc-body{margin:14px 10% 0 0;color:#adb5bb;line-height:1.72;font-size:var(--copy-size)}
 
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
