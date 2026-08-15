@@ -10,6 +10,17 @@
        the page unstyled — 304px iframe, exit button unpinned. Measured, not
        assumed; see the MD notes. -->
   <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <script>
+    // Refreshing the game page (Ctrl+R / Ctrl+Shift+R / F5) leaves the game:
+    // a reload navigation bounces to the portfolio home instead of restarting
+    // the world. First-time navigations (links from the site) are unaffected.
+    (function () {
+      try {
+        var nav = performance.getEntriesByType('navigation')[0];
+        if (nav && nav.type === 'reload') location.replace('/');
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="/stickland/stickland.css" />
 </head>
 <body>
