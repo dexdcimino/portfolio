@@ -109,6 +109,12 @@ SLOTS = {
         ladder="thumb",
         sizes="(max-width:1100px) 520px, min(520px, 26vw)",
     ),
+    # Gallery overlay hero: near-full-bleed inside the modal. The gallery
+    # ladder has been reserved for exactly this since it was defined.
+    "game-shot": dict(
+        ladder="gallery",
+        sizes="(max-width:1100px) 92vw, min(1200px, 78vw)",
+    ),
 }
 
 

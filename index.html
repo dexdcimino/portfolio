@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=150" />
+  <link rel="stylesheet" href="styles.css?v=151" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -451,6 +451,20 @@
                                           L40 37.43 A9 9 0 0 1 53.85 29.85 Z" />
           </svg>
         </a>
+        <!-- Under the thumbnail: movement keys on the left, gallery on the
+             right. Keycaps follow the aesthetic of Stickland's own controls
+             settings; the gallery button is the hero's VIEW WORK button
+             pointed at the game gallery overlay. Hidden with the thumbnail on
+             touch/narrow layouts — it belongs to the preview column. -->
+        <div class="game-extras" aria-hidden="false">
+          <div class="game-keys" role="img" aria-label="Movement keys: W A S D">
+            <span class="game-keys-row"><kbd class="game-key">W</kbd></span>
+            <span class="game-keys-row"><kbd class="game-key">A</kbd><kbd class="game-key">S</kbd><kbd class="game-key">D</kbd></span>
+          </div>
+          <button class="button primary game-gallery-open" type="button" id="galleryOpen">
+            <span>GALLERY</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span>
+          </button>
+        </div>
       </div>
       <div class="stack reveal">
         <a class="stack-row" href="/stickland" data-game="stickland" data-art="stickland-art"
@@ -1303,6 +1317,87 @@
        an SVG data URI (see the TEMPORARY MOCKUP DATA block); there are no real
        work assets, no work.json and nothing in assets/media/. The tab row, the
        filmstrip and the hero are all built by JS, so this is only the shell. -->
+  <!-- Game gallery — real screenshots captured from the live Stickland build,
+       served through the image pipeline. The overlay renders whatever
+       .gal-item pictures exist here; adding a shot is one img directive. -->
+  <dialog class="gal-modal" id="galleryModal" aria-labelledby="gal-dialog-title">
+    <div class="gal-shell">
+      <button class="contact-close gal-close" type="button" id="galleryClose" aria-label="Close gallery">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <h2 class="sr-only" id="gal-dialog-title">Stickland gallery</h2>
+      <div class="gal-hero">
+        <button class="gal-arrow gal-prev" type="button" aria-label="Previous screenshot"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+        <div class="gal-stage" id="galStage"></div>
+        <button class="gal-arrow gal-next" type="button" aria-label="Next screenshot"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+      </div>
+      <p class="gal-cap"><span class="gal-cap-title" id="galCapTitle"></span><span class="gal-cap-index" id="galCapIndex"></span></p>
+      <div class="gal-film" id="galFilm" role="listbox" aria-label="Screenshots"></div>
+      <div class="gal-data" hidden>
+        <figure class="gal-item" data-title="Spawn — home plateau">
+          <!-- img src="assets/gallery/stickland-spawn.png" slot="game-shot" alt="Stickland spawn area with the home cabin" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/stickland-spawn-1200.avif 1200w,
+                                              assets/derived/gallery/stickland-spawn-900.avif 900w,
+                                              assets/derived/gallery/stickland-spawn-600.avif 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/stickland-spawn-1200.webp 1200w,
+                                              assets/derived/gallery/stickland-spawn-900.webp 900w,
+                                              assets/derived/gallery/stickland-spawn-600.webp 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/stickland-spawn.png" alt="Stickland spawn area with the home cabin" width="1440" height="690" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-title="The village strip">
+          <!-- img src="assets/gallery/stickland-village.png" slot="game-shot" alt="Stickland village with Co-op treehouse, PvP castle, shop and jail" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/stickland-village-1200.avif 1200w,
+                                              assets/derived/gallery/stickland-village-900.avif 900w,
+                                              assets/derived/gallery/stickland-village-600.avif 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/stickland-village-1200.webp 1200w,
+                                              assets/derived/gallery/stickland-village-900.webp 900w,
+                                              assets/derived/gallery/stickland-village-600.webp 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/stickland-village.png" alt="Stickland village with Co-op treehouse, PvP castle, shop and jail" width="1440" height="690" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-title="Bow drawn, arrow away">
+          <!-- img src="assets/gallery/stickland-bow.png" slot="game-shot" alt="Firing the bow across the village" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/stickland-bow-1200.avif 1200w,
+                                              assets/derived/gallery/stickland-bow-900.avif 900w,
+                                              assets/derived/gallery/stickland-bow-600.avif 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/stickland-bow-1200.webp 1200w,
+                                              assets/derived/gallery/stickland-bow-900.webp 900w,
+                                              assets/derived/gallery/stickland-bow-600.webp 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/stickland-bow.png" alt="Firing the bow across the village" width="1440" height="690" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-title="Out in the fields">
+          <!-- img src="assets/gallery/stickland-fields.png" slot="game-shot" alt="Fields west of the village with a tank and creatures" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/stickland-fields-1200.avif 1200w,
+                                              assets/derived/gallery/stickland-fields-900.avif 900w,
+                                              assets/derived/gallery/stickland-fields-600.avif 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/stickland-fields-1200.webp 1200w,
+                                              assets/derived/gallery/stickland-fields-900.webp 900w,
+                                              assets/derived/gallery/stickland-fields-600.webp 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/stickland-fields.png" alt="Fields west of the village with a tank and creatures" width="1440" height="690" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+      </div>
+    </div>
+  </dialog>
+
   <dialog class="work-modal" id="workModal" aria-labelledby="work-dialog-title">
     <div class="work-shell">
       <h2 class="sr-only" id="work-dialog-title">Selected work</h2>
@@ -1531,6 +1626,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=150"></script>
+  <script src="script.js?v=151"></script>
 </body>
 </html>

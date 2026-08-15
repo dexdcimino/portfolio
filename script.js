@@ -2061,3 +2061,70 @@ const PORTRAIT_LABEL = {
     });
   }
 })();
+
+/* ==========================================================================
+   GAME GALLERY — real screenshots from the live Stickland build.
+   The overlay renders whatever .gal-item pictures the data block holds: the
+   hero swaps the SELECTED picture in (moved, not cloned, so the browser never
+   holds two copies), the filmstrip is built once from cloned thumbs. Modal
+   behaviour (focus, Esc, backdrop, scroll lock) rides the shared helpers.
+   ========================================================================== */
+(function initGameGallery() {
+  const dialog = document.getElementById('galleryModal');
+  const openBtn = document.getElementById('galleryOpen');
+  if (!dialog || !openBtn) return;
+
+  const stage = document.getElementById('galStage');
+  const film = document.getElementById('galFilm');
+  const capTitle = document.getElementById('galCapTitle');
+  const capIndex = document.getElementById('galCapIndex');
+  const items = [...dialog.querySelectorAll('.gal-item')];
+  if (!items.length) return;
+
+  // Filmstrip: one button per item, thumb = cloned picture.
+  const thumbs = items.map((item, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'gal-thumb';
+    b.setAttribute('role', 'option');
+    b.setAttribute('aria-selected', 'false');
+    b.setAttribute('aria-label', item.dataset.title || `Screenshot ${i + 1}`);
+    b.appendChild(item.querySelector('picture').cloneNode(true));
+    b.addEventListener('click', () => select(i));
+    film.appendChild(b);
+    return b;
+  });
+
+  let index = 0;
+  function select(i) {
+    index = (i + items.length) % items.length;
+    const item = items[index];
+    stage.replaceChildren(item.querySelector('picture'));
+    // The picture moved out of the hidden data block, so its lazy images can
+    // load now; decode() keeps the swap paint-clean.
+    const img = stage.querySelector('img');
+    if (img) { img.loading = 'eager'; if (img.decode) img.decode().catch(() => {}); }
+    capTitle.textContent = item.dataset.title || '';
+    capIndex.textContent = `${index + 1} / ${items.length}`;
+    thumbs.forEach((t, n) => t.setAttribute('aria-selected', String(n === index)));
+  }
+  // Hero pictures go back to their data block on close, so reopening always
+  // finds every picture where select() expects it.
+  function stow() {
+    const pic = stage.querySelector('picture');
+    if (pic) items[index].appendChild(pic);
+  }
+
+  dialog.querySelector('.gal-prev').addEventListener('click', () => { stow(); select(index - 1); });
+  dialog.querySelector('.gal-next').addEventListener('click', () => { stow(); select(index + 1); });
+  dialog.addEventListener('keydown', event => {
+    if (event.key === 'ArrowLeft') { event.preventDefault(); stow(); select(index - 1); }
+    if (event.key === 'ArrowRight') { event.preventDefault(); stow(); select(index + 1); }
+  });
+
+  openBtn.addEventListener('click', () => {
+    openModal(dialog, dialog.querySelector('.gal-shell'), () => select(index), openBtn);
+  });
+  document.getElementById('galleryClose').addEventListener('click', () => closeModal(dialog));
+  bindModal(dialog, stow);
+})();
