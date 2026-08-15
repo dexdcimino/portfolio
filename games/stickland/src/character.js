@@ -2229,7 +2229,7 @@ const INVENTORY_ITEMS = [
   { id:'laser',    label:'Gamma Laser', functional:true, unlockLevel:9, tilt:-35, svg:GUN_TYPES.laser.svg, viewBox:'-1 2 32 8', chipVB:'-2 3 32 6' },
   { id:'pufferLauncher', label:'Puffer Launcher', functional:true, unlockLevel:8, tilt:-35, svg:GUN_TYPES.pufferLauncher.svg, viewBox:'-1 1 26 13', chipVB:'-2 1 26 12' },
   { id:'spellbook', label:'Spellbook', functional:true, unlockLevel:7, tilt:-30, svg:GUN_TYPES.spellbook.svg, viewBox:'2 0.5 19 16', chipVB:'3 1.5 16.5 14.5' },
-  { id:'checkpointFlag', label:'Flag', functional:true, unlockLevel:4, isFlag:true, tilt:0, svg:'<line x1="10" y1="4" x2="10" y2="22" stroke-width="2" stroke-linecap="round"/><polygon points="10,4 22,9 10,14" fill="currentColor" fill-opacity="0.5" stroke="currentColor" stroke-width="1"/><ellipse cx="10" cy="22" rx="4" ry="2" fill="currentColor" fill-opacity="0.3" stroke="none"/>', viewBox:'4 0 22 24', chipVB:'5 2 18 22' },
+  { id:'checkpointFlag', label:'Respawn Flag', functional:true, unlockLevel:4, isFlag:true, tilt:0, svg:'<line x1="10" y1="4" x2="10" y2="22" stroke-width="2" stroke-linecap="round"/><polygon points="10,4 22,9 10,14" fill="currentColor" fill-opacity="0.5" stroke="currentColor" stroke-width="1"/><ellipse cx="10" cy="22" rx="4" ry="2" fill="currentColor" fill-opacity="0.3" stroke="none"/>', viewBox:'4 0 22 24', chipVB:'5 2 18 22' },
   { id:'hoverboard', label:'Hoverboard', functional:true, unlockLevel:10, isMountSlot:true, tilt:0, svg:'<rect x="2" y="5" width="20" height="3" rx="1.5" stroke-width="1.8"/><line x1="6" y1="9" x2="8" y2="11" stroke-width="1.2" opacity="0.5"/><line x1="16" y1="9" x2="14" y2="11" stroke-width="1.2" opacity="0.5"/><ellipse cx="12" cy="12" rx="4" ry="1" fill="currentColor" opacity="0.15" stroke="none"/>', viewBox:'0 2 24 12', chipVB:'0 3 24 10' },
   // MD 07: jetpack — the other slot-4 mount. Two tanks, strap, nozzle
   // flames. Chip-only art; the worn pack is rig-drawn.
@@ -5977,6 +5977,9 @@ function _syncHotbarVisuals() {
     if (itemId === 'hoverboard') isOn = _hoverboard.active || !!_hoverboard.transition;
     else if (itemId === 'jetpack') isOn = _jetpack.active;
     else if (itemId === 'bow') isOn = s === _activeHotbarSlot && !_bow.holstered && !_gun.held;
+    // MD 17: the flag is never "in hand" like a gun — selected IS its
+    // active state (the next click plants it), so highlight on selection.
+    else if (itemId === 'checkpointFlag') isOn = s === _activeHotbarSlot;
     else if (itemId) isOn = _gun.held && _gun.type === itemId;
     el.classList.toggle('active', isOn);
     el.classList.toggle('holstered', !!itemId && !isOn);
