@@ -1664,6 +1664,40 @@ const LOOP_MODES = ['off', 'all', 'one'];
   const shots = [...art.querySelectorAll('.game-art-shot')];
   if (!shots.length) return;
 
+  /* The shots live in a display:none subtree until one is picked, and a lazy
+     image inside display:none is never fetched — lazy loading watches for the
+     element's box to approach the viewport, and there is no box. So without
+     this the first hover is also the first request and the frame sits empty
+     for a whole round trip, which is exactly as bad as it sounds.
+
+     Warm them as the section comes into range instead: eager starts the fetch,
+     decode() does the decode off the hover path too, so the pointer landing
+     only has to unhide a picture the browser is already holding.
+
+     The display check is not belt and braces. Phones hide the preview outright,
+     and an EAGER image in display:none downloads anyway — only the lazy ones
+     are skipped — so without it this would pull artwork that device can never
+     show. Warming stays off until something could actually display it. */
+  function warm() {
+    if (getComputedStyle(art).display === 'none') return false;
+    for (const img of art.querySelectorAll('.game-art-img')) {
+      img.loading = 'eager';
+      img.fetchPriority = 'low';           // never ahead of the hero, which is the LCP
+      if (img.decode) img.decode().catch(() => {});
+    }
+    return true;
+  }
+  const section = art.closest('section') || art;
+  if ('IntersectionObserver' in window) {
+    // A screen of runway. The section is only one screen down to begin with, so
+    // on a desktop this lands at load — which is the right time for something
+    // that close to the fold, at low priority.
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting) && warm()) io.disconnect();
+    }, { rootMargin: '600px 0px' });
+    io.observe(section);
+  } else warm();
+
   function show(row) {
     const key = row.dataset.art;
     const shot = key && shots.find(s => s.dataset.art === key);
