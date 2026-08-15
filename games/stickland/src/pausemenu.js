@@ -364,7 +364,7 @@ function _renderGeneral(root) {
   fxLabel.textContent = 'Effects';
   root.appendChild(fxLabel);
 
-  root.appendChild(_switchRow('Camera lock', !!_hooks.getCameraLock?.(), on => {
+  root.appendChild(_switchRow('Camera lock (Y)', !!_hooks.getCameraLock?.(), on => {
     _hooks.setCameraLock?.(on);
   }, '<rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3z"/>'));
 
