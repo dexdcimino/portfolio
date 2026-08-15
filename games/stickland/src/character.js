@@ -6335,8 +6335,10 @@ function _onKeyDown(e) {
     // Don't drop gun when interacting with tank/home
     if (_gun.held && !(_isInTankFn && _isInTankFn())) _dropGun();
   }
-  // Inventory toggle (Tab, I, B, 5) — play mode only
-  if (_isPlayModeFn && _isPlayModeFn()) {
+  // Inventory toggle (Tab, I, B, 5) — any game mode. MD 18: this was
+  // play-mode-gated, which made the backpack look broken in the
+  // platformer (keys dead; only the slot-5 click worked).
+  if ((_isPlayModeFn && _isPlayModeFn()) || window._dexPlatActive) {
     if (e.key === 'Tab' || nk.toLowerCase() === 'i' || nk.toLowerCase() === 'b' || e.code === 'Digit5') {
       e.preventDefault();
       _toggleInventory();
@@ -6348,7 +6350,8 @@ function _onKeyDown(e) {
   // too, matching the slot-6 badge (the way 5 toggles the inventory).
   if ((nk.toLowerCase() === 'g' || e.code === 'Digit6') && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const _chatBlock = _isChatOpenFn && _isChatOpenFn();
-    if (!_chatBlock && _isPlayModeFn && _isPlayModeFn()) {
+    // MD 18: platformer too — same gate fix as the inventory keys above.
+    if (!_chatBlock && ((_isPlayModeFn && _isPlayModeFn()) || window._dexPlatActive)) {
       e.preventDefault();
       toggleCosmeticsPanel();
     }
