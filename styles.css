@@ -1644,6 +1644,20 @@ body.modal-open{overflow:hidden}
   position:relative; border-radius:var(--radius-cover); overflow:hidden;
 }
 .game-art[aria-hidden="true"]{cursor:default}
+/* Chrome only once there is art to frame — a bordered, shadowed empty box would
+   read as a broken frame while the section is at rest. Border matches the Top
+   Picks covers; the shadow is hard-edged rather than blurred, which is what
+   separates the art from a ground that is dark but not black. */
+.game-art.is-on{
+  border:var(--stroke) solid rgba(255,255,255,.1);
+  box-shadow:12px 12px 0 -1px rgba(0,0,0,.55);
+  transition:border-color var(--accent-ease),transform .25s ease,box-shadow var(--accent-ease);
+}
+.game-art.is-on:hover,.game-art.is-on:focus-visible{
+  border-color:var(--accent);
+  transform:translateY(-3px);
+  box-shadow:12px 15px 0 -1px color-mix(in srgb,var(--accent) 32%,transparent);
+}
 .game-art-shot{position:absolute; inset:0; display:block}
 .game-art-shot[hidden]{display:none}
 .game-art-img{
@@ -1654,7 +1668,11 @@ body.modal-open{overflow:hidden}
 .game-art.is-on .game-art-img{opacity:1}
 /* It is a link once it is showing something, so it needs a focus ring. */
 .game-art:focus-visible{outline:2px solid var(--accent); outline-offset:4px}
-@media(prefers-reduced-motion:reduce){ .game-art-img{transition:none} }
+@media(prefers-reduced-motion:reduce){
+  .game-art-img{transition:none}
+  .game-art.is-on{transition:none}
+  .game-art.is-on:hover,.game-art.is-on:focus-visible{transform:none}
+}
 /* Touch has no hover, so the box could never populate — take the space back
    rather than reserving a permanently empty half-column. */
 @media(hover:none){ .game-art{display:none} }
