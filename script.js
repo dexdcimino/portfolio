@@ -1788,8 +1788,27 @@ const PORTRAIT_LABEL = {
 
   const apply = state => {
     const root = document.documentElement;
+    const wasOn = root.classList.contains('ink-on');
     root.classList.toggle('ink-on', state !== 'photo');
-    root.classList.toggle('ink-gray', state === 'gray');
+    // Leaving for the photo deliberately does NOT clear ink-gray. Clearing both
+    // at once drops the drawing back to the accent rule underneath, so it
+    // recoloured green over 260ms while it was still fading out over 340 — a
+    // bright flash at ~50% opacity on its way to nothing. Holding the colour
+    // until something asks for a different one means the drawing always fades
+    // out in the colour it was, and the stale class matches nothing in the
+    // photo state anyway: every gray rule needs .ink-on alongside it.
+    if (state !== 'photo') {
+      // Coming back from the photo, the drawing is still wearing whatever
+      // colour it faded out in, and easing that to the new one across the
+      // fade-in tints the first ~100ms. Recolour with the transition suppressed
+      // instead: the overlay is at opacity 0 at this instant, so the swap is
+      // free, and only the fade is left to animate. The reflow is what commits
+      // the colour before transitions come back.
+      const hidden = !wasOn;
+      if (hidden) root.classList.add('ink-recolor');
+      root.classList.toggle('ink-gray', state === 'gray');
+      if (hidden) { void root.offsetWidth; root.classList.remove('ink-recolor'); }
+    }
     // Every control, every time. One button left reading the old state is the
     // whole bug this loop exists to prevent.
     for (const button of buttons) {

@@ -1170,9 +1170,20 @@ html.ink-on .profile-compact-frame{border-color:var(--accent)}
 /* State three rides on top of state two: same mask, same fades, same geometry —
    only the colour changes, drawing and frame together, so the two line-art
    states can never diverge into two different components. */
-html.ink-on.ink-gray .about-photo::before,
-html.ink-on.ink-gray .profile-frame::after,
-html.ink-on.ink-gray .profile-compact-frame::after{background:var(--portrait-gray)}
+/* Colour keyed on .ink-gray ALONE, not on .ink-on beside it. The script leaves
+   ink-gray set while the drawing fades out, and if this needed ink-on too it
+   would stop matching the instant the fade began — dropping to the accent rule
+   above and repainting the drawing green at ~50% opacity on its way out. In the
+   photo state the overlay is at opacity 0, so its colour costs nothing. */
+html.ink-gray .about-photo::before,
+html.ink-gray .profile-frame::after,
+html.ink-gray .profile-compact-frame::after{background:var(--portrait-gray)}
+/* Applied for a single committed frame while the drawing is invisible, so it
+   can be recoloured without easing. Drops background-color from the list and
+   keeps opacity, or the fade-in would be suppressed along with it. */
+html.ink-recolor .about-photo::before,
+html.ink-recolor .profile-frame::after,
+html.ink-recolor .profile-compact-frame::after{transition:opacity var(--ink-fade)}
 html.ink-on.ink-gray .about-photo{
   border-color:var(--portrait-gray);box-shadow:inset 0 0 0 1px var(--portrait-gray)}
 html.ink-on.ink-gray .profile-frame,
