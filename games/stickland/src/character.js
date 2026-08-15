@@ -2194,8 +2194,13 @@ const GUN_TYPES = {
               svg:'<circle cx="1.4" cy="7" r="1.2" fill="currentColor" stroke="none"/><line x1="2.4" y1="7" x2="5.2" y2="7" stroke-width="2.4"/><path d="M6.2,3.6 Q8.2,7 6.2,10.4" stroke-width="1.6" fill="none"/><path d="M7,5.4 L20,6.1 L27.5,7 L20,7.9 L7,8.6 Z" fill="currentColor" fill-opacity="0.3" stroke-width="1"/><line x1="8.5" y1="7" x2="22" y2="7" stroke-width="0.7" opacity="0.45"/>' },
   rocket:   { label:'Rocket',  fireRate: 90, speed: 8, spread: 0, pellets: 1, barrelLen: 20, autoFire: false, gripUp: 6, isRocket: true,
               svg:'<line x1="0" y1="6" x2="18" y2="6" stroke-width="3"/><path d="M18,3 L24,6 L18,9 Z" stroke-width="1.2" fill="none"/><line x1="6" y1="6" x2="6" y2="12" stroke-width="2"/>' },
+  // MD 19: gamma laser art rework — the old icon was a line with a dot.
+  // Now: rear energy housing with a grip, tapered accelerator barrel with
+  // three coil rings, a filled focusing orb in a halo ring, and a wavy
+  // gamma beam coming off it. The in-hand cannon is a matching SVG group
+  // drawn in _updateGunAim (orb pulses while the beam is on).
   laser:    { label:'Gamma Laser', fireRate: 0, speed: 0, spread: 0, pellets: 0, barrelLen: 18, autoFire: false, gripUp: 8, isLaser: true,
-              svg:'<line x1="0" y1="6" x2="20" y2="6" stroke-width="2.5"/><circle cx="22" cy="6" r="2.5" fill="currentColor" stroke="none"/><line x1="22" y1="6" x2="28" y2="6" stroke-width="1.2" stroke-dasharray="2,2" opacity="0.7"/>' },
+              svg:'<rect x="0" y="4.6" width="6.5" height="4.8" rx="1.6" fill="currentColor" fill-opacity="0.3" stroke-width="1.2"/><line x1="3" y1="9.4" x2="2.2" y2="12.5" stroke-width="1.6"/><path d="M6.5,5.2 L16,5.7 L16,8.3 L6.5,8.8 Z" fill="currentColor" fill-opacity="0.2" stroke-width="1"/><line x1="9" y1="4.4" x2="9" y2="9.6" stroke-width="1"/><line x1="11.8" y1="4.4" x2="11.8" y2="9.6" stroke-width="1"/><line x1="14.6" y1="4.4" x2="14.6" y2="9.6" stroke-width="1"/><circle cx="19" cy="7" r="2.6" fill="currentColor" stroke="none"/><circle cx="19" cy="7" r="4.2" fill="none" stroke-width="0.9" opacity="0.4"/><path d="M23,7 Q24.5,4.8 26,7 Q27.5,9.2 29,7" fill="none" stroke-width="1.4" stroke-linecap="round"/><path d="M23.5,7 Q25,9 26.5,7" fill="none" stroke-width="0.8" opacity="0.5"/>' },
   pufferLauncher: { label:'Puffer Launcher', fireRate: 60, speed: 0, spread: 0, pellets: 0, barrelLen: 20, autoFire: false, gripUp: 6, isPufferLauncher: true,
               svg:'<line x1="0" y1="6" x2="16" y2="6" stroke-width="3"/><circle cx="19" cy="6" r="3.5" stroke-width="1.5" fill="none"/><line x1="6" y1="6" x2="6" y2="12" stroke-width="2"/><line x1="19" y1="2.5" x2="19" y2="9.5" stroke-width="0.8" opacity="0.5"/><line x1="15.5" y1="6" x2="22.5" y2="6" stroke-width="0.8" opacity="0.5"/>' },
   spellbook: { label:'Spellbook', fireRate: 120, speed: 0, spread: 0, pellets: 0, barrelLen: 0, autoFire: false, gripUp: 8, isSpellbook: true,
@@ -2226,7 +2231,7 @@ const INVENTORY_ITEMS = [
   // tapered blade with a belly, fuller down the middle, swept crossguard,
   // grip, pommel. Melee jab/swipe (see GUN_TYPES.sword).
   { id:'sword',    label:'Sword',    functional:true,  unlockLevel:1,  tilt:0,   svg:'<path d="M14,-2.5 L15.4,1.5 L15.1,10.5 L12.9,10.5 L12.6,1.5 Z" fill="currentColor" fill-opacity="0.28" stroke-width="1.1" stroke-linejoin="round"/><line x1="14" y1="0.5" x2="14" y2="9.5" stroke-width="0.6" opacity="0.5"/><path d="M10.6,10.5 Q14,12.4 17.4,10.5" stroke-width="1.5" fill="none"/><line x1="14" y1="11.6" x2="14" y2="15" stroke-width="1.7"/><circle cx="14" cy="15.9" r="1.1" fill="currentColor" stroke="none"/>', viewBox:'7.5 -3.5 13 21.5', chipVB:'8.5 -3.5 11 21.5' },
-  { id:'laser',    label:'Gamma Laser', functional:true, unlockLevel:9, tilt:-35, svg:GUN_TYPES.laser.svg, viewBox:'-1 2 32 8', chipVB:'-2 3 32 6' },
+  { id:'laser',    label:'Gamma Laser', functional:true, unlockLevel:9, tilt:-35, svg:GUN_TYPES.laser.svg, viewBox:'-1 1.5 32 12', chipVB:'-1.5 2 32 11' },
   { id:'pufferLauncher', label:'Puffer Launcher', functional:true, unlockLevel:8, tilt:-35, svg:GUN_TYPES.pufferLauncher.svg, viewBox:'-1 1 26 13', chipVB:'-2 1 26 12' },
   { id:'spellbook', label:'Spellbook', functional:true, unlockLevel:7, tilt:-30, svg:GUN_TYPES.spellbook.svg, viewBox:'2 0.5 19 16', chipVB:'3 1.5 16.5 14.5' },
   { id:'checkpointFlag', label:'Respawn Flag', functional:true, unlockLevel:4, isFlag:true, tilt:0, svg:'<line x1="10" y1="4" x2="10" y2="22" stroke-width="2" stroke-linecap="round"/><polygon points="10,4 22,9 10,14" fill="currentColor" fill-opacity="0.5" stroke="currentColor" stroke-width="1"/><ellipse cx="10" cy="22" rx="4" ry="2" fill="currentColor" fill-opacity="0.3" stroke="none"/>', viewBox:'4 0 22 24', chipVB:'5 2 18 22' },
@@ -2804,6 +2809,7 @@ function _dropGun() {
   if (_gun._swordTrail) { _gun._swordTrail.remove(); _gun._swordTrail = null; }
   if (_gun._pumpEl) { _gun._pumpEl.remove(); _gun._pumpEl = null; }
   _gun._pumpT = 0;
+  if (_gun._laserEl) { _gun._laserEl.remove(); _gun._laserEl = null; }
   _gun._swordAnim = null;
   _gun._swordTrailT = 0;
   _gun._swordChargeT = 0;
@@ -2854,6 +2860,48 @@ function _updateGunAim(mouseX, mouseY, advance) {
   _gun.svgLine.setAttribute('x1', x1); _gun.svgLine.setAttribute('y1', y1);
   _gun.svgLine.setAttribute('x2', x2); _gun.svgLine.setAttribute('y2', y2);
   if (_gun._kickback > 0) _gun._kickback -= _dt;
+
+  // GAMMA LASER (MD 19) — the in-hand cannon is a real silhouette instead
+  // of the generic gun line: rear housing, tapered coil barrel, focusing
+  // orb + halo that pulse while the beam is firing. Drawn along +x with
+  // the grip at the origin and posed with a single transform, sword-style.
+  if (_gun.type === 'laser') {
+    let lg = _gun._laserEl;
+    if (!lg) {
+      const lns = 'http://www.w3.org/2000/svg';
+      const lclr = 'var(--char-clr,var(--clr-adj,#7B8A9C))';
+      lg = document.createElementNS(lns, 'g');
+      lg.setAttribute('stroke', lclr);
+      lg.setAttribute('stroke-linecap', 'round');
+      lg.setAttribute('stroke-linejoin', 'round');
+      lg.setAttribute('fill', 'none');
+      lg.innerHTML =
+        `<rect x="-2.5" y="-2.4" width="7" height="4.8" rx="1.5" fill="${lclr}" fill-opacity="0.28" stroke-width="1.2"/>` +
+        `<path d="M4.5,-1.9 L13.5,-1.3 L13.5,1.3 L4.5,1.9 Z" fill="${lclr}" fill-opacity="0.18" stroke-width="1"/>` +
+        `<line x1="6.5" y1="-2.5" x2="6.5" y2="2.5" stroke-width="0.9"/>` +
+        `<line x1="9" y1="-2.5" x2="9" y2="2.5" stroke-width="0.9"/>` +
+        `<line x1="11.5" y1="-2.5" x2="11.5" y2="2.5" stroke-width="0.9"/>` +
+        `<circle class="lz-orb" cx="16.5" cy="0" r="2.4" fill="${lclr}" stroke="none"/>` +
+        `<circle class="lz-halo" cx="16.5" cy="0" r="3.9" stroke-width="0.9" opacity="0.35"/>`;
+      _gun.svgLine.parentNode?.appendChild(lg);
+      _gun._laserEl = lg;
+      _gun.svgLine.setAttribute('display', 'none');
+    }
+    const ldeg = Math.atan2(dirY, dirX) * 180 / Math.PI;
+    lg.setAttribute('transform', `translate(${x1.toFixed(1)},${y1.toFixed(1)}) rotate(${ldeg.toFixed(1)})`);
+    // Orb pulse — idle breathing, hard throb while the beam is on.
+    const orb = lg.querySelector('.lz-orb');
+    const halo = lg.querySelector('.lz-halo');
+    if (orb && halo) {
+      const on = _laser.active ? 1 : 0;
+      // _laserPhase only advances while the beam runs — idle breathing
+      // rides the wall clock instead so it never freezes.
+      const pulse = Math.sin(on ? _laserPhase * 6 : performance.now() * 0.004);
+      orb.setAttribute('r', (2.4 + pulse * (0.3 + on * 0.6)).toFixed(2));
+      halo.setAttribute('r', (3.9 + pulse * (0.3 + on * 1.1)).toFixed(2));
+      halo.setAttribute('opacity', (0.35 + on * 0.35 + pulse * 0.1 * on).toFixed(2));
+    }
+  }
 
   // SHOTGUN pump-rack (MD 14) — a foregrip tick riding under the barrel
   // that racks back and returns after each shot, with the chk-chk at the
