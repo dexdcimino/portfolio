@@ -1074,7 +1074,11 @@ button.button{cursor:pointer;font:inherit}
 
 /* Two-part description: bold lead, gap, body. Sits under the rows inside
    .stack; the rows' border-bottoms and the section grid are unchanged. */
-.game-desc{padding:22px 12px 0;max-width:650px}
+/* Runs the full row width, stopping just short of the glyph column above
+   (30px track + the row's 12px side padding), rather than the site's usual
+   650px measure — the body is one paragraph under a list, and the narrow
+   measure stacked it chunky. */
+.game-desc{padding:22px 42px 0 12px}
 .game-desc-lead{display:block;font-size:17px;line-height:1.45;color:var(--text)}
 .game-desc-body{margin:14px 0 0;color:#adb5bb;line-height:1.72;font-size:var(--copy-size)}
 
