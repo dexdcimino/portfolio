@@ -1108,10 +1108,10 @@ button.button{cursor:pointer;font:inherit}
 :root{
   --portrait-ink:url("assets/about/dex-portrait-lineart.svg");
   --ink-fade:.34s ease;
-  /* Third state: the same drawing, off the accent entirely. Light enough to
-     hold up as the subject on a near-black ground, cool enough to sit with the
-     site's neutrals rather than read as a washed-out accent. */
-  --portrait-gray:#b3bbc1;
+  /* Third state: the same drawing, off the accent entirely. Aliased to the nav
+     icons' own token rather than a matched hex, so the portrait and the rail
+     stay the same gray if that token ever moves. */
+  --portrait-gray:var(--icon-idle);
 }
 .about-photo::before,
 .profile-frame::after,
@@ -1177,6 +1177,10 @@ html.ink-on.ink-gray .about-photo{
   border-color:var(--portrait-gray);box-shadow:inset 0 0 0 1px var(--portrait-gray)}
 html.ink-on.ink-gray .profile-frame,
 html.ink-on.ink-gray .profile-compact-frame{border-color:var(--portrait-gray)}
+/* The underline goes with it — an accent bar under a gray portrait is the one
+   piece still arguing with the state. Only in gray: the photo and accent states
+   keep the accent bar they have always had. */
+html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
 
 /* The chip. Sized 34px but hit-tested at 44 via the inset pseudo, so it stays
    a comfortable target without a 44px plate sitting on Dex's face. */
