@@ -805,30 +805,41 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 
 /* Jump's note drops under the inline row rather than trailing off the line. */
 
-/* Accent swatches — one hexagon per accent, flat colour, uniform size. The
-   selected one sits on a slightly larger hexagon in the panel's text colour,
-   so it reads as a crisp rim around the shape. No plate behind it, nothing
-   painted over the top of it. */
-.pmenu-swatches{display:flex; flex-wrap:wrap; gap:11px; padding:4px 0 2px;}
+/* Accent swatches — one flat hexagon per accent. The selected one wears a
+   hexagonal RING drawn outside the swatch with a panel-coloured gap between
+   them. The ring is the panel's text colour, so it contrasts with the panel
+   on every accent — the old rim used the swatch's own contrast colour, and
+   dark rims vanished against the dark panel (only red/blue/purple ever
+   looked selected). Layers: ::before ring (z0) → ::after gap (z1) → i swatch
+   (z2), all the same hex clip. */
+.pmenu-swatches{display:flex; flex-wrap:wrap; gap:10px; padding:4px 0 2px;}
 .pmenu-swatch{
-  position:relative; width:30px; height:34px; padding:0;
+  position:relative; width:34px; height:38px; padding:0;
   border:0; background:none; cursor:pointer;
   display:grid; place-items:center;
 }
-.pmenu-swatch i{
-  position:relative; z-index:1;
-  width:26px; height:30px; display:block; background:var(--c);
+.pmenu-swatch i,
+.pmenu-swatch::before,
+.pmenu-swatch::after{
   clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  transition:transform .16s cubic-bezier(.22,.61,.36,1);
+}
+.pmenu-swatch i{
+  position:relative; z-index:2;
+  width:24px; height:28px; display:block; background:var(--c);
+  transition:transform .12s cubic-bezier(.22,.61,.36,1);
 }
 .pmenu-swatch::before{
-  content:""; position:absolute; width:30px; height:34px;
-  background:var(--rim, var(--tx));
-  clip-path:polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  opacity:0; transform:scale(.86);
-  transition:opacity .16s ease, transform .16s cubic-bezier(.22,.61,.36,1);
+  content:""; position:absolute; z-index:0; width:34px; height:38px;
+  background:var(--tx);
+  opacity:0; transform:scale(.82);
+  transition:opacity .12s ease, transform .14s cubic-bezier(.22,.61,.36,1);
 }
-.pmenu-swatch:hover i{transform:scale(1.1);}
+.pmenu-swatch::after{
+  content:""; position:absolute; z-index:1; width:29px; height:33px;
+  background:var(--bg2);
+}
+.pmenu-swatch:hover i{transform:scale(1.09);}
+.pmenu-swatch.active i{transform:scale(1);}
 .pmenu-swatch.active::before{opacity:1; transform:scale(1);}
 .pmenu-swatch:focus-visible{outline:2px solid var(--tx); outline-offset:2px; border-radius:6px;}
 

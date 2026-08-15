@@ -336,9 +336,6 @@ function _renderGeneral(root) {
     const on = a.hex.toLowerCase() === cur;
     cell.className = 'pmenu-swatch' + (on ? ' active' : '');
     cell.style.setProperty('--c', a.hex);
-    // The rim contrasts with its own swatch, or white-on-white and
-    // black-on-black leave the selected one looking unselected.
-    cell.style.setProperty('--rim', _knobFor(a.hex));
     cell.setAttribute('aria-label', a.name);
     cell.setAttribute('aria-pressed', String(on));
     cell.dataset.tip = a.name;
@@ -349,7 +346,14 @@ function _renderGeneral(root) {
       // site's own key directly; the site reads names, not hexes.
       try { safeStorage.setItem(SITE_ACCENT_KEY, a.name); } catch (e) {}
       sfx('ui.equip');
-      _renderTab();
+      // MD 13: update the selection in place. The old _renderTab() here
+      // rebuilt the whole tab on every click — the rebuild is what made
+      // picking a colour feel laggy.
+      row.querySelectorAll('.pmenu-swatch').forEach(b => {
+        const isOn = b === cell;
+        b.classList.toggle('active', isOn);
+        b.setAttribute('aria-pressed', String(isOn));
+      });
     });
     row.appendChild(cell);
   }
