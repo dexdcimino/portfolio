@@ -741,29 +741,33 @@ function _draw(sw, sh, nearHome) {
     if (p.rest) ctx.lineWidth = 2;
     if (ghost) { ctx.globalAlpha = 1; continue; }   // nothing else while out
     if (p.mover) {
-      // Carriage dots — the deck visibly rides its rail. (MD 16: bigger
-      // and brighter; the first pass was too subtle to register.)
-      ctx.globalAlpha = blinkAlpha * 0.8;
+      // Carriage dots — the deck visibly rides its rail. (MD 16b: sized
+      // to survive gameplay camera distance, like everything below —
+      // the hairline pass looked identical to the old flat lines.)
+      ctx.globalAlpha = blinkAlpha * 0.85;
       ctx.fillStyle = clr;
       ctx.beginPath();
-      ctx.arc(s.sx + 8, s.sy + 3.2, 2.2, 0, Math.PI * 2);
-      ctx.arc(s.sx + p.w - 8, s.sy + 3.2, 2.2, 0, Math.PI * 2);
+      ctx.arc(s.sx + 8, s.sy + 3.5, 2.6, 0, Math.PI * 2);
+      ctx.arc(s.sx + p.w - 8, s.sy + 3.5, 2.6, 0, Math.PI * 2);
       ctx.fill();
     } else if (!p.blink) {
-      // Solid slab: inset front-face line closed with end caps so the
-      // thickness actually reads (MD 16: was a lone faint line).
-      ctx.globalAlpha = blinkAlpha * 0.45;
-      ctx.lineWidth = p.rest ? 2.2 : 2;
+      // Solid slab — an actual translucent body under the deck, not a
+      // hairline: reads as a physical block at any zoom. Blink platforms
+      // deliberately get NO body (hollow + segmented = fragile).
+      const depth = p.rest ? 7 : 5;
+      ctx.globalAlpha = blinkAlpha * 0.18;
+      ctx.fillStyle = clr;
+      ctx.fillRect(s.sx + 1, s.sy + 1, p.w - 2, depth);
+      ctx.globalAlpha = blinkAlpha * 0.55;
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.moveTo(s.sx + 2, s.sy + 3.5); ctx.lineTo(s.sx + p.w - 2, s.sy + 3.5);
-      ctx.moveTo(s.sx + 1, s.sy + 0.5); ctx.lineTo(s.sx + 2, s.sy + 3.5);
-      ctx.moveTo(s.sx + p.w - 1, s.sy + 0.5); ctx.lineTo(s.sx + p.w - 2, s.sy + 3.5);
+      ctx.moveTo(s.sx + 1, s.sy + 1 + depth); ctx.lineTo(s.sx + p.w - 1, s.sy + 1 + depth);
       ctx.stroke();
       ctx.lineWidth = 1.1;
       ctx.globalAlpha = 0.5;
       ctx.beginPath();
-      ctx.moveTo(s.sx + 7, s.sy); ctx.lineTo(s.sx + 11, s.sy + 6);
-      ctx.moveTo(s.sx + p.w - 7, s.sy); ctx.lineTo(s.sx + p.w - 11, s.sy + 6);
+      ctx.moveTo(s.sx + 7, s.sy + depth); ctx.lineTo(s.sx + 11, s.sy + depth + 6);
+      ctx.moveTo(s.sx + p.w - 7, s.sy + depth); ctx.lineTo(s.sx + p.w - 11, s.sy + depth + 6);
       ctx.stroke();
       ctx.lineWidth = 2;
     }
