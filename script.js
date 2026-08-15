@@ -1328,7 +1328,22 @@ function initTabs(tablist, onSelect) {
   return select;
 }
 
-initTabs(document.querySelector('.tk-tabs'));
+const tkSelect = initTabs(document.querySelector('.tk-tabs'));
+
+/* Toolkit carousel arrows. They drive the same select() the tabs use, so the
+   roving tabindex, panel hidden flags and aria-selected all stay right, and
+   the index wraps — with a cycle there is no end to grey out, which is why
+   both arrows are always present. */
+(function initTkArrows() {
+  if (!tkSelect) return;
+  const tabs = [...document.querySelectorAll('.tk-tabs [role="tab"]')];
+  const step = delta => {
+    const i = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
+    tkSelect((i + delta + tabs.length) % tabs.length);
+  };
+  document.querySelector('.tk-arrow-prev')?.addEventListener('click', () => step(-1));
+  document.querySelector('.tk-arrow-next')?.addEventListener('click', () => step(1));
+})();
 initTabs(document.querySelector('.pk-tabs'));
 initTabs(document.querySelector('.ai-tabs'));
 

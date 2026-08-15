@@ -757,6 +757,27 @@ button.button{cursor:pointer;font:inherit}
    bare display:grid outranks the hidden attribute's UA display:none and would
    show every panel at once. */
 .tk-panel:not([hidden]){display:grid;gap:30px}
+
+/* Carousel around the panels: two full-height side lanes that cycle the tabs.
+   The LANE is the button — grid stretch makes it as tall as whatever panel is
+   showing — so the click target is the whole strip beside the icons, not a
+   22px glyph. Always present in both directions: the cycle wraps, so neither
+   arrow is ever a dead end worth hiding. */
+.tk-stage{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:stretch}
+.tk-arrow{
+  width:46px;min-height:0;padding:0;border:0;background:none;cursor:pointer;
+  display:grid;place-items:center;color:var(--icon-idle);border-radius:12px;
+  transition:color var(--accent-ease),background var(--accent-ease);
+}
+.tk-arrow:hover,.tk-arrow:focus-visible{color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.tk-arrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tk-arrow-glyph{width:24px;height:24px}
+.tk-arrow-prev .tk-arrow-glyph{transform:rotate(90deg)}
+.tk-arrow-next .tk-arrow-glyph{transform:rotate(-90deg)}
+/* Phones: the lanes cost 76px of a ~292px column — the icons were overflowing
+   48px tracks — and the tabs are right there as the affordance. Arrows are a
+   desktop nicety, not the only door. */
+@media(max-width:760px){ .tk-arrow{display:none} .tk-stage{display:block} }
 /* No card: the logo sits straight on the About ground. The tile is two rows —
    the icon, and one shared slot below it that holds EITHER the gauge or the
    name, never both. Stacking them in a single grid cell is what removes the

@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=144" />
+  <link rel="stylesheet" href="styles.css?v=145" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -541,6 +541,8 @@
       <div class="tk-tabrow">
       <div class="tk-tabs" role="tablist" aria-label="Toolkit categories">
         <button class="tk-tab" type="button" role="tab" id="tk-tab-software" aria-controls="tk-panel-software" aria-selected="true" tabindex="0">Software</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-2d" aria-controls="tk-panel-2d" aria-selected="false" tabindex="-1">2D</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-engines" aria-controls="tk-panel-engines" aria-selected="false" tabindex="-1">Engines</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-devstack" aria-controls="tk-panel-devstack" aria-selected="false" tabindex="-1">Dev Stack</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-team" aria-controls="tk-panel-team" aria-selected="false" tabindex="-1">Team Tools</button>
       </div>
@@ -549,7 +551,15 @@
            this too would announce every description twice. -->
       <p class="tk-desc" id="tkDesc" aria-hidden="true"></p>
       </div>
-      <div class="tk-panel" id="tk-panel-software" role="tabpanel" aria-labelledby="tk-tab-software">
+      <div class="tk-stage">
+      <!-- Carousel arrows: the whole side lane is the target, full panel
+           height, not just the glyph — and they are always present because
+           the cycle wraps, so neither direction is ever a dead end. -->
+      <button class="tk-arrow tk-arrow-prev" type="button" aria-label="Previous toolkit category">
+        <span class="icon tk-arrow-glyph" data-icon="chevron" aria-hidden="true"></span>
+      </button>
+      <div class="tk-panels">
+<div class="tk-panel" id="tk-panel-software" role="tabpanel" aria-labelledby="tk-tab-software">
         <ul class="tk-list tk-list-gauged" aria-label="3D">
             <li class="tk-item">
               <a class="tk-link" href="https://www.autodesk.com/products/maya/overview" target="_blank" rel="noopener noreferrer">
@@ -597,15 +607,6 @@
               </a>
             </li>
             <li class="tk-item">
-              <a class="tk-link" href="https://spline.design/" target="_blank" rel="noopener noreferrer">
-                <img class="tk-icon" src="assets/icons/software/spline.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
-                <span class="tk-meta">
-                  <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
-                  <span class="tk-name">Spline</span>
-                </span>
-              </a>
-            </li>
-            <li class="tk-item">
               <a class="tk-link" href="https://marmoset.co/" target="_blank" rel="noopener noreferrer">
                 <img class="tk-icon" src="assets/icons/software/marmoset.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
                 <span class="tk-meta">
@@ -624,7 +625,9 @@
               </a>
             </li>
         </ul>
-        <ul class="tk-list tk-list-gauged" aria-label="Adobe and game engines">
+      </div>
+      <div class="tk-panel" id="tk-panel-2d" role="tabpanel" aria-labelledby="tk-tab-2d" hidden>
+        <ul class="tk-list tk-list-gauged" aria-label="2D">
             <li class="tk-item">
               <a class="tk-link" href="https://www.adobe.com/products/photoshop.html" target="_blank" rel="noopener noreferrer">
                 <img class="tk-icon" src="assets/icons/software/photoshop.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
@@ -661,6 +664,19 @@
                 </span>
               </a>
             </li>
+            <li class="tk-item">
+              <a class="tk-link" href="https://spline.design/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="assets/icons/software/spline.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-gauge" role="img" aria-label="2 out of 5"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+                  <span class="tk-name">Spline</span>
+                </span>
+              </a>
+            </li>
+        </ul>
+      </div>
+      <div class="tk-panel" id="tk-panel-engines" role="tabpanel" aria-labelledby="tk-tab-engines" hidden>
+        <ul class="tk-list tk-list-gauged" aria-label="Game engines">
             <li class="tk-item">
               <a class="tk-link" href="https://www.unrealengine.com/" target="_blank" rel="noopener noreferrer">
                 <img class="tk-icon" src="assets/icons/software/unreal.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
@@ -834,6 +850,11 @@
               </a>
             </li>
         </ul>
+      </div>
+      </div>
+      <button class="tk-arrow tk-arrow-next" type="button" aria-label="Next toolkit category">
+        <span class="icon tk-arrow-glyph" data-icon="chevron" aria-hidden="true"></span>
+      </button>
       </div>
     </section>
 
@@ -1464,6 +1485,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=144"></script>
+  <script src="script.js?v=145"></script>
 </body>
 </html>
