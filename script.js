@@ -1698,10 +1698,26 @@ const LOOP_MODES = ['off', 'all', 'one'];
     io.observe(section);
   } else warm();
 
+  /* Hovering the artwork should feel like hovering the row it stands for, so
+     the row it is showing lights up with it. One class, styled by the same
+     rule as :hover, rather than a second highlight that looks nearly right. */
+  let showing = null;
+  const linkRow = on => { if (showing) showing.classList.toggle('is-linked', on); };
+  art.addEventListener('pointerenter', () => linkRow(true));
+  art.addEventListener('pointerleave', () => linkRow(false));
+  art.addEventListener('focus', () => linkRow(true));
+  art.addEventListener('blur', () => linkRow(false));
+
   function show(row) {
     const key = row.dataset.art;
     const shot = key && shots.find(s => s.dataset.art === key);
     if (!shot) return;                       // no artwork: leave what is there
+
+    // Hand the highlight over cleanly, and keep it lit if the pointer is on the
+    // artwork right now — a row can still win via keyboard focus while it is.
+    if (showing && showing !== row) showing.classList.remove('is-linked');
+    showing = row;
+    linkRow(art.matches(':hover'));
 
     shots.forEach(s => { s.hidden = s !== shot; });
     art.classList.add('is-on');

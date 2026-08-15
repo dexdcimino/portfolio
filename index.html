@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=125" />
+  <link rel="stylesheet" href="styles.css?v=127" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -397,6 +397,47 @@
             </picture>
             <!-- /img -->
           </span>
+          <!-- Hover affordance. Inline rather than a data-icon mask because a
+               mask is one colour by construction and this needs a face, an edge
+               and a highlight. Painted in three passes so the edge stays crisp:
+               flat accent face, shading clipped inside it, then the stroke on
+               top. -->
+          <!-- Corners are arcs in the path, not stroke-linejoin doing it by
+               accident: a joined corner rounds by half the stroke width, which
+               at this size is barely a corner at all. Triangle sits 2 units
+               right of centre so it reads centred — a play glyph's mass is at
+               the back edge, not at its centroid. -->
+          <svg class="game-art-play" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+            <defs>
+              <clipPath id="gaPlayClip">
+                <path d="M53.85 29.85 L89.14 52.42 A9 9 0 0 1 89.14 67.58
+                         L53.85 90.15 A9 9 0 0 1 40 82.57
+                         L40 37.43 A9 9 0 0 1 53.85 29.85 Z" />
+              </clipPath>
+              <linearGradient id="gaPlayLit" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#fff" stop-opacity=".4" />
+                <stop offset=".5" stop-color="#fff" stop-opacity="0" />
+              </linearGradient>
+              <linearGradient id="gaPlayShade" x1="0" y1="0" x2="0" y2="1">
+                <stop offset=".5" stop-color="#04101d" stop-opacity="0" />
+                <stop offset="1" stop-color="#04101d" stop-opacity=".36" />
+              </linearGradient>
+            </defs>
+            <path class="ga-play-face" d="M53.85 29.85 L89.14 52.42 A9 9 0 0 1 89.14 67.58
+                                          L53.85 90.15 A9 9 0 0 1 40 82.57
+                                          L40 37.43 A9 9 0 0 1 53.85 29.85 Z" />
+            <g clip-path="url(#gaPlayClip)">
+              <rect x="0" y="0" width="120" height="120" fill="url(#gaPlayLit)" />
+              <rect x="0" y="0" width="120" height="120" fill="url(#gaPlayShade)" />
+              <!-- Laid along the top edge, angled to it, so it reads as light
+                   catching that bevel rather than a smudge on the face. -->
+              <ellipse class="ga-play-spec" cx="53.7" cy="39.2" rx="17" ry="5"
+                       transform="rotate(33 53.7 39.2)" />
+            </g>
+            <path class="ga-play-edge" d="M53.85 29.85 L89.14 52.42 A9 9 0 0 1 89.14 67.58
+                                          L53.85 90.15 A9 9 0 0 1 40 82.57
+                                          L40 37.43 A9 9 0 0 1 53.85 29.85 Z" />
+          </svg>
         </a>
       </div>
       <div class="stack reveal">
@@ -1392,6 +1433,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=125"></script>
+  <script src="script.js?v=127"></script>
 </body>
 </html>

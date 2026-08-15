@@ -1052,8 +1052,11 @@ button.button{cursor:pointer;font:inherit}
 .stack-row strong{font-size:25px}
 .stack-row small{color:#959ea5;font-size:15px}
 .row-arrow{width:21px;height:21px;color:var(--accent);transition:color var(--accent-ease),transform .2s ease}
-.stack-row:hover{background:rgba(255,255,255,.04);padding-left:20px}
-.stack-row:hover .row-arrow{transform:translate(2px,-2px)}
+/* .is-linked is the preview reaching back: hovering the artwork lights up the
+   row it stands for. Same declarations as :hover rather than a lookalike, so
+   the two can never drift into two different highlights. */
+.stack-row:hover,.stack-row.is-linked{background:rgba(255,255,255,.04);padding-left:20px}
+.stack-row:hover .row-arrow,.stack-row.is-linked .row-arrow{transform:translate(2px,-2px)}
 
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
@@ -1659,6 +1662,26 @@ body.modal-open{overflow:hidden}
   transform:translateY(-3px);
   box-shadow:12px 15px 0 -1px color-mix(in srgb,var(--accent) 32%,transparent);
 }
+/* The play button. Fades in over whatever is showing; never over an empty box,
+   and never eats the click — the whole frame is already the link. */
+.game-art-play{
+  position:absolute; left:50%; top:50%;
+  width:clamp(68px,31%,132px); aspect-ratio:1; pointer-events:none;
+  opacity:0; transform:translate(-50%,-50%) scale(.84);
+  /* Hard shadow, same language as the frame's — a blurred one would read as a
+     different component sitting on top rather than part of the same set. */
+  filter:drop-shadow(5px 6px 0 rgba(3,9,16,.5));
+  transition:opacity .17s ease,transform .24s cubic-bezier(.2,.9,.3,1.25);
+}
+.ga-play-face{fill:var(--accent); transition:fill var(--accent-ease)}
+/* Fixed dark blue, deliberately NOT mixed with the accent. Mixing read as dark
+   green under the lime accent and shifted hue with every other one — the edge
+   has to stay blue to stay the same component across all seven. */
+.ga-play-edge{fill:none; stroke:#0b1e33; stroke-width:11; stroke-linejoin:round}
+.ga-play-spec{fill:#fff; opacity:.55}
+.game-art.is-on:hover .game-art-play,
+.game-art.is-on:focus-visible .game-art-play{opacity:1; transform:translate(-50%,-50%) scale(1)}
+
 .game-art-shot{position:absolute; inset:0; display:block}
 .game-art-shot[hidden]{display:none}
 .game-art-img{
@@ -1673,6 +1696,11 @@ body.modal-open{overflow:hidden}
   .game-art-img{transition:none}
   .game-art.is-on{transition:none}
   .game-art.is-on:hover,.game-art.is-on:focus-visible{transform:none}
+  /* The button still appears — it is the affordance — it just stops growing
+     into place. Kept at full size in both states so nothing moves. */
+  .game-art-play{transform:translate(-50%,-50%); transition:opacity .17s ease}
+  .game-art.is-on:hover .game-art-play,
+  .game-art.is-on:focus-visible .game-art-play{transform:translate(-50%,-50%)}
 }
 /* Touch has no hover, so the box could never populate — take the space back
    rather than reserving a permanently empty half-column. */
