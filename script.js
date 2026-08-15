@@ -206,6 +206,11 @@ function applyAccent(name, persist = true) {
 
   swapMascots(theme);
   paintSwatches();
+  // The PDFs are per-accent artifacts, so a new accent re-aims the download.
+  // The overlay block below declares what this needs; at boot applyAccent runs
+  // first, so that call lands in the TDZ and is swallowed — harmless, because
+  // the overlay block aims the link itself once it evaluates.
+  try { refreshPdfLink(); } catch { /* boot ordering; aimed at declaration */ }
 
   if (persist) {
     try { localStorage.setItem(STORAGE_KEY, theme.name); } catch { /* private mode */ }
@@ -824,15 +829,47 @@ function selectTab(id) {
     tab.tabIndex = on ? 0 : -1;                    // roving tabindex
     document.getElementById(tab.getAttribute('aria-controls')).hidden = !on;
   });
-  const doc = DOCS[id];
-  if (doc && pdfLink) {
-    pdfLink.href = `assets/about/${doc.file}`;
-    pdfLink.setAttribute('download', doc.file);
-    pdfLink.setAttribute('aria-label', doc.label);
-  }
+  refreshPdfLink(id);
   resumeScroll.scrollTop = 0;                      // different document, start at the top
   resumeScroll.scrollLeft = 0;
 }
+
+/* The download must match what this visitor is looking at, and the accent is
+   part of that — the PDFs are pre-rendered per accent (tools/build_docs_pdf),
+   so the link points at THEIR colour's file, not always the default. The
+   download attribute keeps the saved filename clean regardless of variant.
+   Called from selectTab and from applyAccent, so switching either the document
+   or the colour re-aims the link. */
+function refreshPdfLink(id) {
+  const active = id || resumeTabs.find(t => t.getAttribute('aria-selected') === 'true')?.id;
+  const doc = DOCS[active];
+  if (!doc || !pdfLink) return;
+  pdfLink.href = `assets/about/pdf/${doc.file.replace('.pdf', '')}-${currentTheme}.pdf`;
+  pdfLink.setAttribute('download', doc.file);
+  pdfLink.setAttribute('aria-label', doc.label);
+}
+// Aim it now: the boot-time applyAccent ran before this block existed, so this
+// is the call that makes a returning visitor's stored accent stick from the
+// first open rather than after their first tab switch.
+refreshPdfLink();
+
+/* A visitor printing the open overlay themselves (Ctrl+P) goes through the
+   same @media print sheet as the generated PDFs. The fit factor cannot be
+   computed in CSS, so it is set here from the same formula the generator
+   uses: content taller than one Letter sheet shrinks onto it uniformly. */
+window.addEventListener('beforeprint', () => {
+  const page = resumePages.find(p => !p.hidden);
+  if (!page) return;
+  const inline = page.style.zoom;
+  page.style.zoom = '1';
+  const h = page.scrollHeight;
+  page.style.zoom = inline;
+  // Fitted against 4px less than the true sheet: beforeprint measures in
+  // screen media, and print reflows the panel a few px taller — a factor that
+  // is exact on screen can be one line over on paper, which paginates. The
+  // generated PDFs measure under print media itself and use the full sheet.
+  document.documentElement.style.setProperty('--print-fit', String(Math.min(1, (1056 - 4) / h)));
+});
 
 function closeResume() { closeModal(resumeModal); }
 

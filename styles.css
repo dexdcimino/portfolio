@@ -1858,3 +1858,50 @@ body.modal-open{overflow:hidden}
    stays with the panels it filters; the section keeps its split layout. */
 .ai-panel[hidden]{display:none}
 .ai-soon{margin:0;padding:26px 2px;color:var(--muted);font-size:15px;line-height:1.6;max-width:52ch}
+
+/* ==========================================================================
+   PRINT — the resume/cover download IS this, not a reconstruction of it.
+   With the documents overlay open, printing the page yields exactly the
+   active panel on a Letter sheet: same stylesheet, same fonts, same accent
+   (whatever --accent is live for this visitor, picker included). The PDF
+   generator (tools/build_docs_pdf.mjs) drives this same path headlessly —
+   there is no second copy of the document design anywhere.
+   Scoped to the open dialog: printing the site without the overlay is not a
+   designed flow and keeps its default rendering.
+   ========================================================================== */
+@media print{
+  @page{size:Letter;margin:0}
+  html:has(#resumeModal[open]), html:has(#resumeModal[open]) body{
+    margin:0;height:auto;overflow:visible;background:#1b1f24;
+  }
+  /* Everything except the overlay leaves entirely. */
+  html:has(#resumeModal[open]) body>*:not(#resumeModal){display:none !important}
+  /* The overlay's own chrome — tabs, close, toolbar — is for the screen. */
+  html:has(#resumeModal[open]) :is(.resume-head,.resume-close,.resume-toolbar){display:none !important}
+  /* Collapse the shell so no fixed positioning, flex sizing or overflow:auto
+     ancestor is left to clip the page to one screenful. display:contents
+     removes the boxes; the panel becomes the document. */
+  /* !important throughout: the dialog's screen rules (fixed, centred, sized to
+     the viewport) and the UA's own dialog positioning are not in a media query,
+     so they apply in print too and were offsetting the page down the sheet —
+     content that fit one page printed onto two. The dialog must be an inert
+     block at 0,0 here. */
+  html:has(#resumeModal[open]) #resumeModal{
+    display:block !important;position:static !important;inset:auto !important;
+    transform:none !important;margin:0 !important;padding:0 !important;border:0 !important;
+    max-width:none !important;max-height:none !important;width:auto !important;height:auto !important;
+    background:#1b1f24 !important;overflow:visible !important;box-shadow:none !important;
+  }
+  html:has(#resumeModal[open]) :is(.resume-shell,.resume-scroll){display:contents}
+  /* The sheet mapping. 816px IS 8.5in at CSS 96dpi, so zero margins put the
+     page edge on the paper edge. zoom is !important because the viewer sets
+     its screen zoom as an inline style, and --print-fit lets content taller
+     than one sheet (the resume, currently) shrink uniformly onto it instead
+     of paginating. Screen chrome off: radius and shadow mark a floating
+     panel, not a document. */
+  html:has(#resumeModal[open]) .resume-page{
+    zoom:var(--print-fit,1) !important;
+    margin:0 auto;border-radius:0;box-shadow:none;min-height:1056px;
+  }
+  html:has(#resumeModal[open]) *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

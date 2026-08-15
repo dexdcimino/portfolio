@@ -1,46 +1,72 @@
 /**
- * Generate the downloadable PDFs from the letter/resume markup in index.html.
+ * Generate the downloadable PDFs by printing the REAL documents overlay.
  *
- * WHY THIS EXISTS
- * The PDFs used to be a separate artefact — produced once by ReportLab, with
- * the generator never committed. That left two copies of the same words with
- * nothing keeping them in step, and no way to regenerate the file after an
- * edit. index.html is the single source now: this reads the rendered panel and
- * prints it, so the download can only ever say what the site says.
+ * WHY THIS SHAPE
+ * Two generations of this tool extracted the panel markup and rebuilt it
+ * against a template — first its own white "document" sheet (shipped as a
+ * two-page black-and-white file), then an inlined copy of styles.css (dark,
+ * but still a reconstruction that could drift). Per MD, reconstruction is
+ * retired entirely: this drives the site's actual overlay — the same route,
+ * DOM state, stylesheet, fonts and accent a visitor sees — and calls the
+ * browser's native PDF export on it. The print mapping itself lives in
+ * styles.css (@media print), so a visitor hitting Ctrl+P on the open overlay
+ * gets the same document, and any future style change flows through with no
+ * work here.
  *
- * The site is light text on a dark ground. A document is the opposite, so the
- * print sheet below restates colour and typography from scratch rather than
- * inheriting styles.css — the same reason the copy button's HTML flavour
- * carries no colour.
+ * ACCENT
+ * The accent is per-visitor state (localStorage 'dex-accent-name'), so one
+ * static PDF cannot match everyone. Every accent is rendered — 2 documents x
+ * every entry in script.js's ACCENTS — and script.js aims the download link at
+ * the visitor's own variant. The accent list is read out of script.js rather
+ * than restated here, so adding an accent adds its PDFs on the next build.
+ * The two legacy paths (assets/about/Dex_Cimino_*.pdf) stay as copies of the
+ * default-accent files so existing external links keep resolving.
+ *
+ * FIT
+ * .resume-page is 816x1056 CSS px — exactly US Letter at 96dpi — so @page
+ * Letter with zero margins maps it 1:1. Content taller than one sheet (the
+ * resume, currently) is shrunk uniformly via --print-fit rather than
+ * paginated, and the shrink is reported: past a point that is a
+ * content-length problem, not a rendering one.
  *
  *   node tools/build_docs_pdf.mjs [baseUrl]      default http://127.0.0.1:8784
  *
- * Needs Chrome listening on --remote-debugging-port=9333 and the site served
- * at baseUrl. Verify afterwards with --check, which fails if a PDF is missing
- * or older than index.html.
+ * Needs Chrome listening on --remote-debugging-port=9333 (the same instance
+ * the rest of the tooling uses) and the site served at baseUrl. Verify with
+ * --check, which fails if any variant is missing or the panel markup changed
+ * since the last build.
  */
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync, copyFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { argv, exit } from 'node:process';
+import puppeteer from 'puppeteer-core';
 
 const BASE = argv.find(a => a.startsWith('http')) || 'http://127.0.0.1:8784';
 const CHECK = argv.includes('--check');
+const SHEET_PX = 1056;              // 11in at 96dpi — .resume-page's own height
+const OUT_DIR = 'assets/about/pdf';
 
 const DOCS = [
-  { tab: 'tab-cover', panel: 'panel-cover', out: 'assets/about/Dex_Cimino_Cover.pdf' },
-  { tab: 'tab-resume', panel: 'panel-resume', out: 'assets/about/Dex_Cimino_Resume.pdf' },
+  { tab: 'tab-resume', panel: 'panel-resume', stem: 'Dex_Cimino_Resume', legacy: 'assets/about/Dex_Cimino_Resume.pdf' },
+  { tab: 'tab-cover', panel: 'panel-cover', stem: 'Dex_Cimino_Cover', legacy: 'assets/about/Dex_Cimino_Cover.pdf' },
 ];
 
-/* Staleness is judged on the SOURCE MARKUP, not file times. Chrome stamps a
-   creation date into every PDF, so the bytes differ on each run even when the
-   words do not — an mtime check would demand a regeneration, and therefore a
-   100KB binary diff, for any unrelated edit elsewhere in index.html. */
+/* One source of truth for the accent list: the site's own ACCENTS table. */
+function accentNames() {
+  const js = readFileSync('script.js', 'utf8');
+  const block = js.slice(js.indexOf('const ACCENTS = ['), js.indexOf('];', js.indexOf('const ACCENTS = [')));
+  const names = [...block.matchAll(/name:\s*'([a-z]+)'/g)].map(m => m[1]);
+  if (names.length < 2) throw new Error('could not read ACCENTS out of script.js');
+  return names;
+}
+const DEFAULT_ACCENT = 'lime';
+
+/* Staleness is judged on the SOURCE MARKUP, not file times — Chrome stamps a
+   creation date into every PDF, so bytes differ on identical content. */
 const STAMP = 'tools/.docs-source-hash';
 
 function sourceHash() {
   const html = readFileSync('index.html', 'utf8');
-  // Plain slicing rather than a regex: the panel ids are unique and the
-  // closing tag is literal, so there is nothing here to escape.
   const parts = DOCS.map(d => {
     const i = html.indexOf('id="' + d.panel + '"');
     if (i === -1) throw new Error('could not find ' + d.panel + ' in index.html');
@@ -51,123 +77,82 @@ function sourceHash() {
   return createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 16);
 }
 
+const variants = () => DOCS.flatMap(d => accentNames().map(a => `${OUT_DIR}/${d.stem}-${a}.pdf`));
+
 if (CHECK) {
   const want = sourceHash();
   const have = existsSync(STAMP) ? readFileSync(STAMP, 'utf8').trim() : '(none)';
-  const missing = DOCS.filter(d => !existsSync(d.out)).map(d => d.out);
+  const missing = [...variants(), ...DOCS.map(d => d.legacy)].filter(f => !existsSync(f));
   if (missing.length || want !== have) {
     if (missing.length) console.log('build_docs_pdf --check: missing ' + missing.join(', '));
     if (want !== have) console.log(`build_docs_pdf --check: letter markup changed (${have} -> ${want})`);
     console.log('Run: node tools/build_docs_pdf.mjs');
     exit(1);
   }
-  console.log('build_docs_pdf --check: PDFs present and current with the markup');
+  console.log(`build_docs_pdf --check: ${variants().length + DOCS.length} PDFs present and current with the markup`);
   exit(0);
 }
 
-/* Document typography, stated outright. Nothing here comes from styles.css. */
-const SHEET = `
-  @page { size: Letter; margin: 0.9in 0.85in; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:#fff; color:#14181d;
-         font-family: Georgia, 'Times New Roman', serif; font-size:10.5pt; line-height:1.55; }
-  .cv-head { border-bottom:1.5pt solid #14181d; padding-bottom:10pt; margin-bottom:16pt; }
-  .cv-name { margin:0; font-family: Helvetica, Arial, sans-serif;
-             font-size:21pt; letter-spacing:.06em; font-weight:700; }
-  .cv-role { margin:4pt 0 0; font-family: Helvetica, Arial, sans-serif;
-             font-size:8.5pt; letter-spacing:.13em; color:#4a5560; text-transform:uppercase; }
-  .cv-contact { margin:7pt 0 0; font-family: Helvetica, Arial, sans-serif;
-                font-size:9pt; color:#33404c; }
-  .cv-contact a { color:#33404c; text-decoration:none; }
-  .cv-contact span { margin:0 5pt; color:#8a97a3; }
-  .cv-block h3 { font-family: Helvetica, Arial, sans-serif; font-size:9pt;
-                 letter-spacing:.16em; color:#4a5560; margin:0 0 10pt; font-weight:700; }
-  .cv-block p { margin:0 0 9pt; }
-  .cv-block a { color:#14181d; }
-  .cv-signoff { margin-top:2pt; }
-  .cv-signoff strong { font-family: Helvetica, Arial, sans-serif; letter-spacing:.05em; }
-  .cv-footer { margin-top:22pt; padding-top:9pt; border-top:.75pt solid #c9d2da;
-               font-family: Helvetica, Arial, sans-serif; font-size:8pt;
-               letter-spacing:.11em; color:#6b7885; }
-  .cv-list { margin:0 0 9pt; padding-left:15pt; }
-  .cv-list li { margin:0 0 4pt; }
-  .cv-row { display:flex; justify-content:space-between; gap:12pt; }
-  .cv-row span:last-child { color:#4a5560; white-space:nowrap; }
-`;
+mkdirSync(OUT_DIR, { recursive: true });
+const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9333', defaultViewport: { width: 1600, height: 1000 } });
 
-/* --- minimal CDP client (same shape as the test harness) ------------------ */
-async function connect(port) {
-  let targets = [];
-  for (let i = 0; i < 40; i++) {
-    try {
-      targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-      if (targets.some(t => t.type === 'page' && t.webSocketDebuggerUrl)) break;
-    } catch { /* not up yet */ }
-    await new Promise(r => setTimeout(r, 250));
+for (const accent of accentNames()) {
+  const page = await browser.newPage();
+  // The accent has to be in place before the site's boot script reads it —
+  // this is exactly the state a returning visitor's browser is in.
+  await page.evaluateOnNewDocument(a => localStorage.setItem('dex-accent-name', a), accent);
+  await page.goto(`${BASE}/?pdf=${Date.now()}`, { waitUntil: 'load' });
+
+  for (const doc of DOCS) {
+    // The real open path, then the app's own readiness signals: the dialog's
+    // open state is the overlay's "rendered" flag (there is no later event to
+    // wait for — the panels are static text), fonts.ready covers type, and
+    // two rAFs let layout commit. No fixed timeouts.
+    await page.click('[data-resume-open]');
+    await page.waitForFunction(() => document.getElementById('resumeModal').open);
+    await page.click(`#${doc.tab}`);
+    await page.waitForFunction(
+      t => document.getElementById(t).getAttribute('aria-selected') === 'true', {}, doc.tab);
+    await page.waitForFunction(p => {
+      const el = document.getElementById(p);
+      return !el.hidden && el.offsetHeight > 0;
+    }, {}, doc.panel);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    });
+
+    // Fit factor, measured UNDER PRINT MEDIA. Screen and print reflow the
+    // panel a few px differently (1237 vs 1241 on the current resume), and a
+    // factor computed from the screen height came out 3px long — which in
+    // print is not "3px long" but a second page. Measure in the same media
+    // the PDF renders in and the factor is exact by construction.
+    await page.emulateMediaType('print');
+    const fit = await page.evaluate((p, sheet) => {
+      document.documentElement.style.setProperty('--print-fit', '1');
+      const el = document.getElementById(p);
+      const h = el.scrollHeight;                       // print zoom is 1 now
+      const f = Math.min(1, Math.floor((sheet / h) * 1e4) / 1e4);
+      document.documentElement.style.setProperty('--print-fit', String(f));
+      return { h, f };
+    }, doc.panel, SHEET_PX);
+
+    const out = `${OUT_DIR}/${doc.stem}-${accent}.pdf`;
+    await page.pdf({ path: out, printBackground: true, preferCSSPageSize: true });
+    await page.emulateMediaType('screen');
+    const note = fit.f < 1 ? `${fit.h}px fitted at ${(fit.f * 100).toFixed(1)}%` : 'fits at 100%';
+    console.log(`  ${out}  (${note})`);
+
+    // Close so the next document goes through the real open path too.
+    await page.evaluate(() => document.getElementById('resumeClose').click());
+    await page.waitForFunction(() => !document.getElementById('resumeModal').open);
   }
-  const target = targets.find(t => t.type === 'page' && t.webSocketDebuggerUrl);
-  if (!target) throw new Error('no Chrome page target on ' + port);
-  const ws = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((ok, bad) => { ws.onopen = ok; ws.onerror = bad; });
-  let id = 0; const pending = new Map(); const listeners = [];
-  ws.onmessage = ev => {
-    const m = JSON.parse(ev.data);
-    if (m.id != null) {
-      const p = pending.get(m.id); pending.delete(m.id);
-      m.error ? p.bad(new Error(JSON.stringify(m.error))) : p.ok(m.result);
-    } else listeners.forEach(f => f(m));
-  };
-  const send = (method, params = {}) => new Promise((ok, bad) => {
-    const n = ++id; pending.set(n, { ok, bad });
-    ws.send(JSON.stringify({ id: n, method, params }));
-  });
-  return {
-    send, on: f => listeners.push(f), close: () => ws.close(),
-    async eval(expr) {
-      const r = await send('Runtime.evaluate', {
-        expression: `(async () => { const wait = ms => new Promise(r => setTimeout(r, ms)); ${expr} })()`,
-        returnByValue: true, awaitPromise: true,
-      });
-      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || 'eval failed');
-      return r.result.value;
-    },
-  };
+  await page.close();
 }
 
-const page = await connect(9333);
-await page.send('Runtime.enable');
-await page.send('Page.enable');
-await page.send('Network.enable');
-await page.send('Network.setCacheDisabled', { cacheDisabled: true });
+for (const doc of DOCS) copyFileSync(`${OUT_DIR}/${doc.stem}-${DEFAULT_ACCENT}.pdf`, doc.legacy);
+console.log(`  legacy paths refreshed from the ${DEFAULT_ACCENT} variants`);
 
-for (const doc of DOCS) {
-  // Pull the panel's markup straight out of the live page.
-  const loaded = new Promise(r => page.on(m => { if (m.method === 'Page.loadEventFired') r(); }));
-  await page.send('Page.navigate', { url: `${BASE}/?pdf=${Date.now()}` });
-  await loaded;
-  await new Promise(r => setTimeout(r, 1200));
-  const markup = await page.eval(`
-    document.querySelector('[data-resume-open]').click(); await wait(600);
-    document.getElementById('${doc.tab}').click(); await wait(400);
-    const p = document.getElementById('${doc.panel}');
-    return p.innerHTML;`);
-
-  // Render it standalone against the print sheet, then print that.
-  const html = '<!doctype html><meta charset="utf-8"><title>Dex Cimino</title>'
-    + '<style>' + SHEET + '</style>' + markup;
-  const l2 = new Promise(r => page.on(m => { if (m.method === 'Page.loadEventFired') r(); }));
-  await page.send('Page.navigate', { url: 'data:text/html;charset=utf-8,' + encodeURIComponent(html) });
-  await l2;
-  await new Promise(r => setTimeout(r, 500));
-
-  const { data } = await page.send('Page.printToPDF', {
-    printBackground: true, preferCSSPageSize: true, marginTop: 0, marginBottom: 0,
-  });
-  writeFileSync(doc.out, Buffer.from(data, 'base64'));
-  const kb = (Buffer.from(data, 'base64').length / 1024).toFixed(0);
-  console.log(`  wrote ${doc.out}  ${kb} KB`);
-}
-
-page.close();
+await browser.disconnect();
 writeFileSync(STAMP, sourceHash() + String.fromCharCode(10));
-console.log('build_docs_pdf: done — PDFs regenerated from index.html');
+console.log('build_docs_pdf: done — the downloads are prints of the live overlay');

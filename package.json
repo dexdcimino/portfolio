@@ -1,0 +1,24 @@
+{
+  "name": "portfolio-site",
+  "version": "1.0.0",
+  "description": "Clean, static HTML/CSS/JS portfolio. No dependencies.",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dexdcimino/portfolio.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/dexdcimino/portfolio/issues"
+  },
+  "homepage": "https://github.com/dexdcimino/portfolio#readme",
+  "devDependencies": {
+    "puppeteer-core": "^25.7.0"
+  }
+}
