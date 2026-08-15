@@ -1756,42 +1756,61 @@ const LOOP_MODES = ['off', 'all', 'one'];
 })();
 
 /* ==========================================================================
-   PORTRAIT TOGGLE  (photo <-> accent line art)
+   PORTRAIT TOGGLE  (photo -> accent line art -> gray line art -> photo)
    Two controls, one state. Either button drives every portrait on the page —
    the About hero, the sidebar profile, and the compact avatar the rail shows
    while the profile is collapsed. That third one is easy to miss: leave it out
    and the two portraits disagree the moment somebody hits the chevron.
 
-   State is a class on <html> and nothing else, so the CSS owns every visual
-   consequence and this stays a three-line toggle. Applied synchronously, like
-   the collapse state, so a returning visitor's choice is up before first paint
-   rather than swapping in after it.
+   No aria-pressed. It is a two-state attribute, and with three states both
+   line-art variants would report pressed=true — so stepping from accent to gray
+   would be silent to a screen reader while the page visibly changed. A cycling
+   control has to speak through its name instead, which is why the label states
+   what is showing AND what pressing next will do.
+
+   State is two classes on <html> and nothing else, so the CSS owns every visual
+   consequence. ink-on means "a drawing rather than the photo"; ink-gray only
+   recolours it, so the two line-art states cannot drift apart. Applied
+   synchronously, like the collapse state, so a returning visitor's choice is up
+   before first paint rather than swapping in after it.
    ========================================================================== */
 const PORTRAIT_KEY = 'dex-portrait-ink';
+const PORTRAIT_CYCLE = ['photo', 'ink', 'gray'];
+const PORTRAIT_LABEL = {
+  photo: 'Portrait: photo. Switch to accent line art.',
+  ink: 'Portrait: accent line art. Switch to gray line art.',
+  gray: 'Portrait: gray line art. Switch back to the photo.'
+};
 
 (function initPortraitInk() {
   const buttons = [...document.querySelectorAll('[data-ink-toggle]')];
   if (!buttons.length) return;
 
-  const apply = on => {
-    document.documentElement.classList.toggle('ink-on', on);
+  const apply = state => {
+    const root = document.documentElement;
+    root.classList.toggle('ink-on', state !== 'photo');
+    root.classList.toggle('ink-gray', state === 'gray');
     // Every control, every time. One button left reading the old state is the
     // whole bug this loop exists to prevent.
     for (const button of buttons) {
-      button.setAttribute('aria-pressed', String(on));
-      button.setAttribute('aria-label', on ? 'Show the photo portrait' : 'Show the line-art portrait');
+      button.dataset.portrait = state;
+      button.setAttribute('aria-label', PORTRAIT_LABEL[state]);
     }
   };
 
-  let on = false;
-  try { on = localStorage.getItem(PORTRAIT_KEY) === 'ink'; } catch (err) { /* private mode */ }
-  apply(on);
+  let state = 'photo';
+  try {
+    const saved = localStorage.getItem(PORTRAIT_KEY);
+    // 'ink' predates the third state, so an existing choice still restores.
+    if (PORTRAIT_CYCLE.includes(saved)) state = saved;
+  } catch (err) { /* private mode */ }
+  apply(state);
 
   for (const button of buttons) {
     button.addEventListener('click', () => {
-      on = !on;
-      apply(on);
-      try { localStorage.setItem(PORTRAIT_KEY, on ? 'ink' : 'photo'); } catch (err) { /* private mode */ }
+      state = PORTRAIT_CYCLE[(PORTRAIT_CYCLE.indexOf(state) + 1) % PORTRAIT_CYCLE.length];
+      apply(state);
+      try { localStorage.setItem(PORTRAIT_KEY, state); } catch (err) { /* private mode */ }
     });
   }
 })();

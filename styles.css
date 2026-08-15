@@ -1108,6 +1108,10 @@ button.button{cursor:pointer;font:inherit}
 :root{
   --portrait-ink:url("assets/about/dex-portrait-lineart.svg");
   --ink-fade:.34s ease;
+  /* Third state: the same drawing, off the accent entirely. Light enough to
+     hold up as the subject on a near-black ground, cool enough to sit with the
+     site's neutrals rather than read as a washed-out accent. */
+  --portrait-gray:#b3bbc1;
 }
 .about-photo::before,
 .profile-frame::after,
@@ -1163,6 +1167,17 @@ html.ink-on .about-photo{border-color:var(--accent);box-shadow:inset 0 0 0 1px v
 html.ink-on .profile-frame,
 html.ink-on .profile-compact-frame{border-color:var(--accent)}
 
+/* State three rides on top of state two: same mask, same fades, same geometry —
+   only the colour changes, drawing and frame together, so the two line-art
+   states can never diverge into two different components. */
+html.ink-on.ink-gray .about-photo::before,
+html.ink-on.ink-gray .profile-frame::after,
+html.ink-on.ink-gray .profile-compact-frame::after{background:var(--portrait-gray)}
+html.ink-on.ink-gray .about-photo{
+  border-color:var(--portrait-gray);box-shadow:inset 0 0 0 1px var(--portrait-gray)}
+html.ink-on.ink-gray .profile-frame,
+html.ink-on.ink-gray .profile-compact-frame{border-color:var(--portrait-gray)}
+
 /* The chip. Sized 34px but hit-tested at 44 via the inset pseudo, so it stays
    a comfortable target without a 44px plate sitting on Dex's face. */
 .portrait-slot{position:relative;display:flex;flex:none}
@@ -1183,9 +1198,10 @@ html.ink-on .profile-compact-frame{border-color:var(--accent)}
   background:var(--accent);border-color:var(--accent);color:#0b1216;transform:translateY(-1px);
 }
 .ink-chip:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-/* Pressed state is the accent plate, so the control reads as on at a glance
-   rather than only through aria-pressed. */
-.ink-chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#0b1216}
+/* The plate wears the colour of the portrait currently showing, so a three-way
+   control still reads at a glance: dark for the photo, accent, then gray. */
+.ink-chip[data-portrait="ink"]{background:var(--accent);border-color:var(--accent);color:#0b1216}
+.ink-chip[data-portrait="gray"]{background:var(--portrait-gray);border-color:var(--portrait-gray);color:#0b1216}
 .ink-chip-rail{top:8px;right:8px;width:30px;height:30px;border-radius:9px}
 .ink-chip-rail .ink-chip-glyph{width:17px;height:17px}
 /* No room for it on the 44px rail, exactly as the collapse chevron does. */
