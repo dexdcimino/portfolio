@@ -1644,62 +1644,51 @@ const LOOP_MODES = ['off', 'all', 'one'];
 
 
 /* --- games list artwork preview ------------------------------------------- */
-/* Hovering or focusing a row paints that game's art into the empty half of the
-   left column. The row's data-game names the file, so adding a preview later is
-   dropping assets/thumbnails/<slug>.svg and nothing else — no code change, no
-   per-game branch here.
+/* Hovering or focusing a row shows that game's artwork in the empty half of the
+   left column, and it STAYS — moving off a row changes nothing, so the last one
+   looked at remains for the rest of the session. Session-scoped by construction:
+   nothing is written anywhere, so a reload starts empty again.
 
-   Games with no artwork simply show nothing: each slug is probed once and the
-   answer cached, so a missing file costs one 404 and never a broken frame. */
+   The preview is a link to whatever it is currently showing. href, the
+   accessible name and the visible artwork are set from the same row in one
+   place, so the name cannot go stale against the picture.
+
+   Artwork is named for what it depicts rather than for the game, so a row
+   points at its file through data-art. Rows without one leave the preview
+   alone — better than blanking the column for a game that has no art. */
 (function initGameArt() {
   const art = document.getElementById('gameArt');
   const rows = [...document.querySelectorAll('.stack-row[data-game]')];
   if (!art || !rows.length) return;
 
-  const probed = new Map();
-  const urlFor = slug => `assets/thumbnails/${slug}.svg`;
+  const shots = [...art.querySelectorAll('.game-art-shot')];
+  if (!shots.length) return;
 
-  function has(slug) {
-    if (!probed.has(slug)) {
-      probed.set(slug, fetch(urlFor(slug), { method: 'HEAD' })
-        .then(r => r.ok)
-        .catch(() => false));
-    }
-    return probed.get(slug);
-  }
+  function show(row) {
+    const key = row.dataset.art;
+    const shot = key && shots.find(s => s.dataset.art === key);
+    if (!shot) return;                       // no artwork: leave what is there
 
-  let token = 0;
-  async function show(slug) {
-    const mine = ++token;
-    // A game with no artwork leaves whatever is on screen alone rather than
-    // blanking the column — the preview is always showing something.
-    if (!await has(slug)) return;
-    if (mine !== token) return;                 // a later row won the race
-    art.style.setProperty('--art', `url("${urlFor(slug)}")`);
+    shots.forEach(s => { s.hidden = s !== shot; });
     art.classList.add('is-on');
+
+    // Follow the row exactly: same destination, and the same target behaviour,
+    // so the two never disagree about where the game opens.
+    const href = row.getAttribute('href');
+    if (href && href !== '#') art.setAttribute('href', href);
+    else art.removeAttribute('href');
+    const target = row.getAttribute('target');
+    if (target) art.setAttribute('target', target); else art.removeAttribute('target');
+    const rel = row.getAttribute('rel');
+    if (rel) art.setAttribute('rel', rel); else art.removeAttribute('rel');
+
+    const name = (row.querySelector('strong') || {}).textContent || 'this game';
+    art.setAttribute('aria-label', `Open ${name}`);
+    art.removeAttribute('aria-hidden');
   }
 
   for (const row of rows) {
-    const slug = row.dataset.game;
-    row.addEventListener('pointerenter', () => show(slug));
-    row.addEventListener('focus', () => show(slug));
-  }
-
-  // Whichever game has art first is what the section rests on. Deferred until
-  // the section is actually approaching the viewport, so the artwork still
-  // costs nothing to anyone who never scrolls this far.
-  const seed = async () => {
-    for (const row of rows) {
-      if (await has(row.dataset.game)) { show(row.dataset.game); return; }
-    }
-  };
-  const section = document.getElementById('games');
-  if (section && 'IntersectionObserver' in window) {
-    const io = new IntersectionObserver(entries => {
-      if (entries.some(e => e.isIntersecting)) { io.disconnect(); seed(); }
-    }, { rootMargin: '200px' });
-    io.observe(section);
-  } else {
-    seed();
+    row.addEventListener('pointerenter', () => show(row));
+    row.addEventListener('focus', () => show(row));
   }
 })();

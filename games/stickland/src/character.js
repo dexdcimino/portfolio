@@ -2268,11 +2268,15 @@ const _gun = {
   _gripSvgX: 18, _gripSvgY: 20, _muzzleSvgX: 36, _muzzleSvgY: 20,
   _dirX: 1, _dirY: 0,
   _kickback: 0,
-  _swordAnim: null,         // { kind:'jab'|'swipe', t, windup, dur, struck } while swinging
+  _swordAnim: null,         // { kind:'jab'|'swipe', t, windup, dur, struck, a0, a1, power } while swinging
   _swordLast: null,         // last attack kind — clicks pick randomly, biased to switch
   _swordEl: null,           // full sword art <g>, created lazily on first sword frame
   _swordTrail: null,        // swipe motion-trail <path>, created lazily
   _swordTrailT: 0,          // trail fade countdown after a swipe ends
+  _swordTrailMax: 0,        // fade duration of the current trail (power trails linger)
+  _swordTrailPeak: 0.5,     // peak opacity of the current trail
+  _swordChargeT: 0,         // frames the click has been held past the swing — power charge
+  _swordChargeCued: false,  // full-charge audio cue fired for this hold
 };
 const _pickups = [];       // array of { type, x, y, el, promptEl }
 const _projectiles = [];
@@ -2781,6 +2785,8 @@ function _dropGun() {
   if (_gun._swordTrail) { _gun._swordTrail.remove(); _gun._swordTrail = null; }
   _gun._swordAnim = null;
   _gun._swordTrailT = 0;
+  _gun._swordChargeT = 0;
+  _gun._swordChargeCued = false;
   if (_gun.svgLine) { _gun.svgLine.remove(); _gun.svgLine = null; }
   // Weapon returns to inventory (no visible drop on canvas)
   _gun.type = null;
@@ -2847,6 +2853,15 @@ const SWORD_SWIPE_WINDUP = 11, SWORD_SWIPE_DUR = 46;
 const SWORD_SWIPE_ARC = 1.15;  // swipe sweeps ±this around the aim (rad)
 const SWORD_JAB_LUNGE = 14;    // px the blade thrusts past rest reach
 const SWORD_TRAIL_FADE = 12;   // frames the swipe trail lingers
+// Charged power swipe: hold the click and the blade slowly winds backwards,
+// opposite the cursor; release sweeps it through a wider, longer-reaching
+// arc with extra damage and knockback. The delay keeps spam clicks from
+// ever showing a charge.
+const SWORD_CHARGE_DELAY = 30;  // held frames (~125ms) before charging begins
+const SWORD_CHARGE_DUR = 130;   // frames from charge start to full power (~0.55s)
+const SWORD_CHARGE_MIN = 0.22;  // release below this fraction → no power swipe
+const SWORD_POWER_BACK = 2.2;   // full-charge wind-back angle (rad)
+const SWORD_POWER_DUR = 54;     // power swipe swing duration
 
 function _ensureSwordEls() {
   if (_gun._swordEl) return;
@@ -2902,16 +2917,28 @@ function _updateSword(cfg, gripY, advance) {
         ext = Math.sin(t * Math.PI) * SWORD_JAB_LUNGE;
       }
     } else {
+      // Swipe sweeps from aim+a0 to aim+a1 (a normal swipe cocks back to
+      // a0 during the wind-up; a power swipe starts already wound back).
       if (anim.t < anim.windup) {
-        // Cock back slightly past the arc start.
         const w = anim.t / anim.windup;
-        effAngle = _gun.angle - SWORD_SWIPE_ARC * 1.2 * w * (2 - w);
+        effAngle = _gun.angle + anim.a0 * w * (2 - w);
       } else {
         const t = Math.min((anim.t - anim.windup) / (anim.dur - anim.windup), 1);
         const e = 1 - Math.pow(1 - t, 3);          // fast strike, slow follow-through
-        effAngle = _gun.angle + SWORD_SWIPE_ARC * (-1.2 + 2.2 * e);
-        ext = Math.sin(t * Math.PI) * 4;
+        effAngle = _gun.angle + anim.a0 + (anim.a1 - anim.a0) * e;
+        ext = Math.sin(t * Math.PI) * (anim.power ? 6 : 4);
       }
+    }
+  } else if (_mouseHeld && _gun._swordChargeT > SWORD_CHARGE_DELAY) {
+    // CHARGING — the click is being held: the blade slowly winds backwards,
+    // opposite the cursor. Release fires the power swipe (mouseup handler →
+    // _swordPowerRelease). Trembles once fully charged.
+    const cf = Math.min((_gun._swordChargeT - SWORD_CHARGE_DELAY) / SWORD_CHARGE_DUR, 1);
+    effAngle = _gun.angle - SWORD_POWER_BACK * cf * (2 - cf);
+    ext = -3 * cf;
+    if (cf >= 1) {
+      effAngle += Math.sin(_gun._swordChargeT * 0.45) * 0.045;
+      if (!_gun._swordChargeCued) { _gun._swordChargeCued = true; sfx('melee.swordReady'); }
     }
   }
   const cosS = Math.cos(effAngle), sinS = Math.sin(effAngle);
@@ -2931,21 +2958,52 @@ function _updateSword(cfg, gripY, advance) {
   if (striking) {
     const locA = Math.atan2(sdirY, sdirX);
     if (anim._a0 == null) anim._a0 = locA;
-    trail.setAttribute('d', _swordArcPath(18, gripY, bladeLen * 0.94, anim._a0, locA));
-    trail.setAttribute('opacity', '0.5');
-    _gun._swordTrailT = SWORD_TRAIL_FADE;
+    // A power swipe cuts a thicker, brighter, longer-lingering trail.
+    trail.setAttribute('stroke-width', anim.power ? '7' : '4.5');
+    trail.setAttribute('d', _swordArcPath(18, gripY, bladeLen * (anim.power ? 1.05 : 0.94), anim._a0, locA));
+    _gun._swordTrailPeak = anim.power ? 0.65 : 0.5;
+    _gun._swordTrailMax = SWORD_TRAIL_FADE + (anim.power ? 8 : 0);
+    _gun._swordTrailT = _gun._swordTrailMax;
+    trail.setAttribute('opacity', String(_gun._swordTrailPeak));
   } else if (_gun._swordTrailT > 0) {
-    trail.setAttribute('opacity', (0.5 * _gun._swordTrailT / SWORD_TRAIL_FADE).toFixed(3));
+    const fmax = _gun._swordTrailMax || SWORD_TRAIL_FADE;
+    trail.setAttribute('opacity', (_gun._swordTrailPeak * _gun._swordTrailT / fmax).toFixed(3));
     if (advance) _gun._swordTrailT = Math.max(0, _gun._swordTrailT - _dt);
     if (_gun._swordTrailT <= 0) trail.setAttribute('opacity', '0');
   }
 
-  if (anim && advance) {
-    anim.t += _dt;
-    // The strike lands when the wind-up ends — hit test + FX fire once.
-    if (!anim.struck && anim.t >= anim.windup) { anim.struck = true; _swordStrike(anim.kind); }
-    if (anim.t >= anim.dur) _gun._swordAnim = null;
+  if (advance) {
+    if (anim) {
+      anim.t += _dt;
+      // The strike lands when the wind-up ends — hit test + FX fire once.
+      if (!anim.struck && anim.t >= anim.windup) { anim.struck = true; _swordStrike(anim.kind, anim.power); }
+      if (anim.t >= anim.dur) _gun._swordAnim = null;
+    } else if (_mouseHeld) {
+      // Held past the swing — accumulate power charge.
+      _gun._swordChargeT += _dt;
+    }
   }
+}
+
+// Power swipe — fired from the mouseup handler when a held charge is
+// released. The blade is already wound back (the charge pose), so the
+// wind-up is token; the sweep runs from the wound-back angle through a
+// wider-than-normal arc. Everything scales with charge fraction.
+function _swordPowerRelease() {
+  const cfg = _gun.type && GUN_TYPES[_gun.type];
+  const chargeT = _gun._swordChargeT;
+  _gun._swordChargeT = 0;
+  _gun._swordChargeCued = false;
+  if (!_gun.held || !cfg || !cfg.melee || _gun._swordAnim) return;
+  const cf = Math.min((chargeT - SWORD_CHARGE_DELAY) / SWORD_CHARGE_DUR, 1);
+  if (cf < SWORD_CHARGE_MIN) return;   // just a long-ish click — the mousedown swing already happened
+  if (_isPlayerStunnedFn && _isPlayerStunnedFn()) return;
+  if (_isChatOpenFn && _isChatOpenFn()) return;
+  _trackAction();
+  _gun._swordLast = 'swipe';
+  _gun._swordAnim = { kind: 'swipe', t: 0, windup: 2, dur: SWORD_POWER_DUR, struck: false,
+                      power: cf, a0: -SWORD_POWER_BACK * cf * (2 - cf), a1: 1.35 + 0.45 * cf, _a0: null };
+  sfx('melee.sword', { jab: false, power: cf });
 }
 
 // One sword strike — fired from the animation at the end of the wind-up,
@@ -2953,49 +3011,65 @@ function _updateSword(cfg, gripY, advance) {
 // is read live (_gun.angle), so the strike tracks the cursor through the
 // wind-up. hitTestCreatures / _hitCreature apply their own impact FX; a
 // connect adds a small hit-stop on top.
-function _swordStrike(kind) {
+function _swordStrike(kind, power) {
   const cfg = GUN_TYPES[_gun.type] || GUN_TYPES.sword;
   const bladeLen = cfg.barrelLen || 34;
   const gripScreenY = P.y - CHAR_H + (_gun._gripSvgY || 26);
   const baseAngle = _gun.angle;
-  const reach = bladeLen + (kind === 'jab' ? SWORD_JAB_LUNGE + 4 : 6);
+  const reach = bladeLen + (kind === 'jab' ? SWORD_JAB_LUNGE + 4 : 6 + (power ? 18 * power : 0));
   // Sample points along the attack: the jab tests three depths on the aim
   // line, the swipe fans across its arc (outer sweep + an inner ring so
-  // point-blank targets aren't stepped over). First hit wins so one swing
-  // can't multi-hit a creature.
+  // point-blank targets aren't stepped over; the power swipe fans wider to
+  // match its bigger arc). First hit wins so one swing can't multi-hit a
+  // creature.
   const pts = [];
   if (kind === 'jab') {
     for (const d of [1, 0.62, 0.3]) {
       pts.push([P.x + Math.cos(baseAngle) * reach * d, gripScreenY + Math.sin(baseAngle) * reach * d]);
     }
   } else {
-    for (const off of [-0.95, -0.55, -0.18, 0.18, 0.55, 0.95]) {
+    const outer = power ? [-1.35, -0.9, -0.5, -0.15, 0.15, 0.5, 0.9, 1.35] : [-0.95, -0.55, -0.18, 0.18, 0.55, 0.95];
+    const inner = power ? [-0.7, 0, 0.7] : [-0.5, 0, 0.5];
+    for (const off of outer) {
       pts.push([P.x + Math.cos(baseAngle + off) * reach, gripScreenY + Math.sin(baseAngle + off) * reach]);
     }
-    for (const off of [-0.5, 0, 0.5]) {
+    for (const off of inner) {
       pts.push([P.x + Math.cos(baseAngle + off) * reach * 0.55, gripScreenY + Math.sin(baseAngle + off) * reach * 0.55]);
     }
   }
   const inPM = _isPlayModeFn && _isPlayModeFn();
+  // Power swipes hit harder: 2 (normal sword/arrow damage) up to 5 at full
+  // charge, via hitTestCreatures' damage override.
+  const dmgOv = power ? Math.round(2 + 3 * power) : undefined;
   let hit = null;
   for (const [hx, hy] of pts) {
     if (inPM && _hitPlayCreaturesFn) {
-      hit = _hitPlayCreaturesFn(hx, hy, false, Math.cos(baseAngle) * 2, Math.sin(baseAngle) * 2, true);
+      hit = _hitPlayCreaturesFn(hx, hy, false, Math.cos(baseAngle) * 2, Math.sin(baseAngle) * 2, true, dmgOv);
     } else {
       hit = _hitCreature(hx, hy, true, false);
     }
     if (hit) break;
   }
-  // Feel: small hit-stop on connect (kills/headshots add a bigger one in
-  // the hit FX — _dexHitStop keeps whichever is larger).
-  if (hit) window._dexHitStop?.(kind === 'jab' ? 5 : 4, 0.3);
+  // Power swipe knockback — same per-kind multipliers as the puffer AOE
+  // (mammoths barely budge, birds/puffers are exempt), carried along the
+  // swing direction with a touch of pop-up.
+  if (hit && power && inPM && typeof hit === 'object' && !hit.dead) {
+    const kbMult = hit.kind === 'mammoth' ? 0.2 : (hit.kind === 'bird' || hit.kind === 'puffer') ? 0 : 1;
+    const kb = (3 + 5 * power) * kbMult;
+    hit.vx += Math.cos(baseAngle) * kb;
+    hit.vy += Math.sin(baseAngle) * kb * 0.5 - kb * 0.35;
+  }
+  // Feel: hit-stop on connect scaled to the attack (kills/headshots add a
+  // bigger one in the hit FX — _dexHitStop keeps whichever is larger).
+  if (hit) window._dexHitStop?.(power ? 9 : kind === 'jab' ? 5 : 4, power ? 0.22 : 0.3);
   // Strike FX along the swing — jab gets a tight forward snap, swipe a
-  // wide glint fan (cases in playmode's _dexMuzzleFX).
+  // wide glint fan, power swipe a bigger fan plus screen shake (cases in
+  // playmode's _dexMuzzleFX).
   const fxX = P.x + Math.cos(baseAngle) * reach * 0.7;
   const fxY = gripScreenY + Math.sin(baseAngle) * reach * 0.7;
   if (window._dexMuzzleFX && inPM && _screenToWorldFn) {
     const w = _screenToWorldFn(fxX, fxY);
-    window._dexMuzzleFX(w.wx, w.wy, baseAngle, kind === 'jab' ? 'swordJab' : 'sword');
+    window._dexMuzzleFX(w.wx, w.wy, baseAngle, power ? 'swordPower' : kind === 'jab' ? 'swordJab' : 'sword');
   } else if (window._dexPlatFX) {
     window._dexPlatFX('muzzle', fxX, fxY, baseAngle, 'sword');
   }
@@ -3339,7 +3413,9 @@ function _shootGun() {
     _gun._swordLast = kind;
     _gun._swordAnim = kind === 'jab'
       ? { kind, t: 0, windup: SWORD_JAB_WINDUP, dur: SWORD_JAB_DUR, struck: false }
-      : { kind, t: 0, windup: SWORD_SWIPE_WINDUP, dur: SWORD_SWIPE_DUR, struck: false, _a0: null };
+      : { kind, t: 0, windup: SWORD_SWIPE_WINDUP, dur: SWORD_SWIPE_DUR, struck: false,
+          a0: -SWORD_SWIPE_ARC * 1.2, a1: SWORD_SWIPE_ARC, _a0: null };
+    _gun._swordChargeT = 0; _gun._swordChargeCued = false;
     sfx('melee.sword', { jab: kind === 'jab' });
     return;
   }
@@ -7573,6 +7649,9 @@ export async function initCharacter() {
       if (_carriedCreature && _carryThrowCharging) { _throwCarriedCreature(); return; }
       _mouseHeld = false; _fireTimer = 0;
       _stopLaser();
+      // Sword power swipe — releasing a held charge fires it (the function
+      // no-ops and resets if the hold was too short to charge).
+      if (_gun._swordChargeT > 0) _swordPowerRelease();
       if (_bow.drawing) { _bow.drawing = false; _fireBowArrow(); _bow.chargeT = 0; _bow.shaking = false; }
     }
   });

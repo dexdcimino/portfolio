@@ -40,6 +40,12 @@ LADDERS = {
     # Kept separate rather than widening `cover`: adding 800 there would re-bake
     # every 2:3 game and movie cover at full width for a case they never hit.
     "song":   (800, 600, 400, 200),
+    # Games section thumbnail. Measured, not inherited: the preview is 476px at
+    # a 1920 desktop but jumps to its 520px cap below 1100, where the split
+    # collapses to one column and the left half goes full width. That 520 at 2x
+    # is 1040 device px — the widest ask on the page for this slot, and none of
+    # the existing ladders reach it.
+    "thumb":  (1200, 900, 600, 400),
     # Full-size viewing: an image that fills a lightbox rather than a grid cell.
     # Nothing uses this yet — it is here because the work overlay's hero is the
     # next thing to get real art, and a 19vw thumbnail ladder would visibly
@@ -95,6 +101,13 @@ SLOTS = {
     "song-cover": dict(
         ladder="song",
         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw",
+    ),
+    # The preview is capped at 520px and otherwise tracks its column, so `sizes`
+    # is the cap below the one-column breakpoint and a slightly generous vw
+    # above it — rounding up is the safe direction.
+    "game-art": dict(
+        ladder="thumb",
+        sizes="(max-width:1100px) 520px, min(520px, 26vw)",
     ),
 }
 
