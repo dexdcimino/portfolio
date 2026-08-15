@@ -2856,7 +2856,7 @@ window._dexMuzzleFX = function (wx, wy, angle, gunType) {
     case 'swordPower': flash(5); sparks(12, 2.6, 3.2, 13); smoke(2, true); _addShake(2.6); break; // charged swipe
     case 'pistol':  flash(3); sparks(3, 0.5, 1.6, 10); shells(1); break;
     case 'smg':     flash(2); sparks(2, 0.7, 1.4, 8);  shells(1); break;
-    case 'shotgun': flash(6); sparks(9, 1.0, 2.0, 12); smoke(3); shells(2); break;
+    case 'shotgun': flash(6); sparks(9, 1.0, 2.0, 12); smoke(3); shells(2); _addShake(1.3); break;
     case 'rifle':   flash(3); sparks(4, 0.12, 3.4, 14); smoke(1); shells(1); break;
     case 'rocket':  flash(5); smoke(6, true); _addShake(1.6); break;   // backblast
     case 'pufferLauncher': smoke(3); sparks(2, 0.8, 0.8, 12); break;   // soft pop

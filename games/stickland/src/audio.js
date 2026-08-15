@@ -280,6 +280,13 @@ const SOUNDS = {
     _noise({ filter: 'lowpass', freq: _vary(950, 0.1), sweepTo: 220, dur: 0.22, gain: _vary(0.4, 0.08), pan: o.pan });
     _noise({ filter: 'highpass', freq: 2500, dur: 0.04, gain: 0.12, pan: o.pan });
   }},
+  // MD 14: the pump-rack chk-chk, fired from the foregrip animation's
+  // turnaround (~75ms after the blast), not from the shot itself.
+  'shotgun.pump': { cd: 150, fn: (o) => {
+    _noise({ filter: 'bandpass', freq: 1800, dur: 0.03, gain: 0.12, pan: o.pan });
+    _noise({ filter: 'bandpass', freq: 1300, dur: 0.035, gain: 0.14, delay: 0.07, pan: o.pan });
+    _blip({ type: 'square', freq: 320, endFreq: 250, dur: 0.03, gain: 0.05, delay: 0.07, pan: o.pan });
+  }},
   'shoot.smg':     { cd: 40, fn: (o) => {
     _blip({ type: 'square', freq: _vary(360, 0.08), endFreq: 140, dur: 0.055, gain: _vary(0.14, 0.12), pan: o.pan });
     _noise({ filter: 'highpass', freq: 2200, dur: 0.03, gain: 0.06, pan: o.pan });

@@ -2162,8 +2162,13 @@ const GUN_TYPES = {
               // from barrelLen/gripUp and is unaffected. Authored in a 0 0 28 18
               // box (see chipVB/viewBox below) so it sits centered.
               svg:'<path d="M4,6 L20,6 L20,10 L12,10 L10,16 L7,16 L8,10 L4,10 Z" fill="currentColor" stroke="currentColor" stroke-width="0.6" stroke-linejoin="round"/><rect x="20" y="6.6" width="3" height="2.6" fill="currentColor" stroke="currentColor" stroke-width="0.3"/>' },
-  shotgun:  { label:'Shotgun',  fireRate: 60, speed: 10, spread: 8, pellets: 6, barrelLen: 20, autoFire: false, gripUp: 4,
-              svg:'<line x1="0" y1="5" x2="22" y2="5" stroke-width="3"/><line x1="15" y1="5" x2="15" y2="11" stroke-width="2"/><line x1="0" y1="3" x2="0" y2="7" stroke-width="2.5"/>' },
+  // MD 14 shotgun pass: fireRate 60→48 (1000ms → 800ms — pump-gun cadence,
+  // less sluggish), kick 14 (heavier recoil than the default 8), and a
+  // pump-rack animation on the in-hand gun (see _updateGunAim). Icon redrawn
+  // as a filled silhouette (stock, receiver+barrel, pump grip, muzzle notch)
+  // in the pistol's MD#12 style.
+  shotgun:  { label:'Shotgun',  fireRate: 48, speed: 10, spread: 8, pellets: 6, barrelLen: 20, autoFire: false, gripUp: 4, kick: 14,
+              svg:'<path d="M0,9.5 L2.6,4 L6,4 L6,9 L1.8,9.5 Z" fill="currentColor" stroke="currentColor" stroke-width="0.6" stroke-linejoin="round"/><path d="M5,4 L26.5,4 L26.5,6.1 L5,6.8 Z" fill="currentColor" stroke="currentColor" stroke-width="0.5" stroke-linejoin="round"/><rect x="12" y="6.7" width="6" height="2.6" rx="1.2" fill="currentColor" stroke="none"/><rect x="26.5" y="3.6" width="1.4" height="2" fill="currentColor" stroke="none"/>' },
   smg:      { label:'SMG',      fireRate: 20, speed: 14, spread: 3, pellets: 1, barrelLen: 16, autoFire: true, gripUp: 8,
               bulletW: 6, bulletH: 4, trailLen: 14,
               svg:'<line x1="0" y1="5" x2="18" y2="5" stroke-width="2"/><rect x="4" y="3" width="8" height="5" rx="1" fill="none" stroke-width="1.5"/><line x1="8" y1="8" x2="8" y2="13" stroke-width="1.8"/>' },
@@ -2202,7 +2207,7 @@ const INVENTORY_ITEMS = [
   // coordinate box is unchanged and viewBox stays untouched.
   { id:'bow',      label:'Bow',      functional:true,  unlockLevel:1,  tilt:0,   svg:'<path d="M5,1 Q12,7 5,13" stroke-width="1.7" fill="none"/><line x1="5" y1="1" x2="5" y2="13" stroke-width="0.8" opacity="0.7"/><line x1="2.5" y1="7" x2="14.5" y2="7" stroke-width="1.3"/><path d="M14.5,7 L11.8,5.4 M14.5,7 L11.8,8.6" stroke-width="1.2" fill="none"/><path d="M4,7 L2.5,5.8 M4,7 L2.5,8.2" stroke-width="1" fill="none" opacity="0.8"/>', viewBox:'0 0 18 14', chipVB:'0.5 0 16 14' },
   { id:'pistol',   label:'Pistol',   functional:true,  unlockLevel:2,  tilt:-35, svg:GUN_TYPES.pistol.svg,   viewBox:'0 0 28 18', chipVB:'0 0 28 18' },
-  { id:'shotgun',  label:'Shotgun',  functional:true,  unlockLevel:5,  tilt:-35, svg:GUN_TYPES.shotgun.svg,  viewBox:'-1 2 25 11', chipVB:'-2 1 26 12' },
+  { id:'shotgun',  label:'Shotgun',  functional:true,  unlockLevel:5,  tilt:-35, svg:GUN_TYPES.shotgun.svg,  viewBox:'-1 2 30 10', chipVB:'-1.5 2.5 31 9' },
   { id:'rifle',    label:'Sniper',   functional:true,  unlockLevel:7,  tilt:-35, svg:GUN_TYPES.rifle.svg,    viewBox:'-1 0 29 12', chipVB:'-1 0 28 12' },
   { id:'rocket',   label:'Rocket',   functional:true,  unlockLevel:8,  tilt:-35, svg:GUN_TYPES.rocket.svg,   viewBox:'-1 2 27 12', chipVB:'-2 1 28 12' },
   { id:'smg',      label:'SMG',      functional:true,  unlockLevel:6,  tilt:-35, svg:GUN_TYPES.smg.svg,      viewBox:'-1 2 21 13', chipVB:'-2 1 22 13' },
@@ -2787,6 +2792,8 @@ function _dropGun() {
   _gun.held = false;
   if (_gun._swordEl) { _gun._swordEl.remove(); _gun._swordEl = null; }
   if (_gun._swordTrail) { _gun._swordTrail.remove(); _gun._swordTrail = null; }
+  if (_gun._pumpEl) { _gun._pumpEl.remove(); _gun._pumpEl = null; }
+  _gun._pumpT = 0;
   _gun._swordAnim = null;
   _gun._swordTrailT = 0;
   _gun._swordChargeT = 0;
@@ -2837,6 +2844,33 @@ function _updateGunAim(mouseX, mouseY, advance) {
   _gun.svgLine.setAttribute('x1', x1); _gun.svgLine.setAttribute('y1', y1);
   _gun.svgLine.setAttribute('x2', x2); _gun.svgLine.setAttribute('y2', y2);
   if (_gun._kickback > 0) _gun._kickback -= _dt;
+
+  // SHOTGUN pump-rack (MD 14) — a foregrip tick riding under the barrel
+  // that racks back and returns after each shot, with the chk-chk at the
+  // turnaround. Purely visual; created lazily like the sword's extras.
+  if (_gun.type === 'shotgun') {
+    let pump = _gun._pumpEl;
+    if (!pump) {
+      pump = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      pump.setAttribute('stroke', 'var(--char-clr,var(--clr-adj,#7B8A9C))');
+      pump.setAttribute('stroke-width', '2.6');
+      pump.setAttribute('stroke-linecap', 'round');
+      _gun.svgLine.parentNode?.appendChild(pump);
+      _gun._pumpEl = pump;
+    }
+    let slide = 0;
+    if (_gun._pumpT > 0) {
+      const t = 1 - _gun._pumpT / 36;
+      slide = Math.sin(t * Math.PI) * 5;            // back, then forward
+      if (!_gun._pumpSfx && t >= 0.5) { _gun._pumpSfx = true; sfx('shotgun.pump'); }
+      _gun._pumpT -= _dt;
+    }
+    const pd = 12 - slide, off = 2.6;               // along-barrel position, below-barrel offset
+    pump.setAttribute('x1', (x1 + dirX * pd - dirY * off).toFixed(1));
+    pump.setAttribute('y1', (y1 + dirY * pd + dirX * off).toFixed(1));
+    pump.setAttribute('x2', (x1 + dirX * (pd + 4.5) - dirY * off).toFixed(1));
+    pump.setAttribute('y2', (y1 + dirY * (pd + 4.5) + dirX * off).toFixed(1));
+  }
 
   // Store grip and muzzle positions for arm override
   _gun._gripSvgX = x1; _gun._gripSvgY = y1;
@@ -3488,8 +3522,11 @@ function _shootGun() {
 
   const baseAngle = _gun.angle;
 
-  // Kickback recoil
-  _gun._kickback = 8;
+  // Kickback recoil — per-gun weight (MD 14: shotgun kicks harder).
+  _gun._kickback = cfg.kick || 8;
+  // Shotgun pump-rack: foregrip slides back and returns after the blast
+  // (animated in _updateGunAim, chk-chk sound at the turnaround).
+  if (_gun.type === 'shotgun') { _gun._pumpT = 36; _gun._pumpSfx = false; }
 
   // One blast per trigger pull — the pellet loop below is a single event.
   // Per-sound retrigger cooldowns in audio.js keep autofire from stacking.
