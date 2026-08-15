@@ -204,7 +204,9 @@ function seededRand(seed) {
 // generateWorld()'s output — the persisted world is a cache of this
 // function, and without a version bump every existing player keeps the old
 // cached world while fresh profiles get the new one.
-const WORLD_GEN_VERSION = 7;
+// v8 (MD 15): dead-zone fix — best-candidate cluster centers + a coverage
+// floor pass, after the player found screen-sized areas with nothing at all.
+const WORLD_GEN_VERSION = 8;
 
 // ── MD 08 (cleaned up in MD 08b): the world is a place ──
 // One seeded stream (42), consumed in a fixed pass order, so the same world
@@ -390,9 +392,22 @@ function generateWorld() {
     { reg:'heart',       n:  6, min: 2, max: 4, spread: 210, x0: 2750, x1: 4250, y0: 1200, y1: 2950 },
   ];
   for (const plan of clusterPlans) {
+    // MD 15: best-candidate center placement. Uniform-random centers clump,
+    // which starves the rest of the region — the source of the map's dead
+    // zones. Each center now draws 3 candidates and keeps the one farthest
+    // from centers already chosen for this plan, spreading clusters across
+    // the whole region box while staying fully deterministic.
+    const centers = [];
     for (let c = 0; c < plan.n; c++) {
-      const cx = plan.x0 + rand() * (plan.x1 - plan.x0);
-      const cy = plan.y0 + rand() * (plan.y1 - plan.y0);
+      let cx = 0, cy = 0, bestD = -1;
+      for (let k = 0; k < 3; k++) {
+        const x = plan.x0 + rand() * (plan.x1 - plan.x0);
+        const y = plan.y0 + rand() * (plan.y1 - plan.y0);
+        let dMin = Infinity;
+        for (const q of centers) dMin = Math.min(dMin, Math.hypot(q[0] - x, q[1] - y));
+        if (dMin > bestD) { bestD = dMin; cx = x; cy = y; }
+      }
+      centers.push([cx, cy]);
       const members = plan.min + Math.floor(rand() * (plan.max - plan.min + 1));
       const placed = [];
       for (let m = 0; m < members; m++) {
@@ -436,6 +451,55 @@ function generateWorld() {
       if (t === 'tree' && treeCrowded(x, y)) continue;
       push(t, x, y, {});
       if (t === 'tree') treePts.push([x, y]);
+    }
+  }
+
+  // ── Coverage floor (MD 15) ──────────────────────────
+  // Pure chance leaves real dead zones: at 26% per 480px lattice cell,
+  // several adjacent cells all rolling empty is common, and the player hit
+  // screen-sized areas with nothing in them at all. Guarantee a floor:
+  // check every 600px cell; any cell that ended up with zero objects gets
+  // one region-typical object (a few jittered tries, skip-on-reject like
+  // everything else), and sometimes a small companion so the fill doesn't
+  // read as one accidental lonely dot. This adds only as many objects as
+  // there are holes, so the parkland look and the deliberately sparse
+  // regions survive — "sparse" now means a few things, never nothing.
+  {
+    const CELL = 600;
+    const cols = Math.ceil(WORLD_W / CELL), rows = Math.ceil(WORLD_H / CELL);
+    const occupied = new Uint8Array(cols * rows);
+    for (const o of objects) {
+      if (o.type === 'pond') continue;   // a pond is deliberate open water
+      const ci = Math.min(cols - 1, Math.floor(o.x / CELL));
+      const cj = Math.min(rows - 1, Math.floor(o.y / CELL));
+      occupied[cj * cols + ci] = 1;
+    }
+    for (let cj = 0; cj < rows; cj++) {
+      for (let ci = 0; ci < cols; ci++) {
+        if (occupied[cj * cols + ci]) continue;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          // Clamped into the world margin — edge cells (the map height is
+          // 7.5 cells, so the bottom row is a 300px sliver) would otherwise
+          // jitter out of bounds and stay empty.
+          const x = Math.min(WORLD_W - 70, Math.max(70, ci * CELL + (0.15 + rand() * 0.7) * CELL));
+          const y = Math.min(WORLD_H - 70, Math.max(70, cj * CELL + (0.15 + rand() * 0.7) * CELL));
+          const t = pickType(region(x, y), rand());
+          if (!canPlace(x, y)) continue;
+          if (t === 'tree' && treeCrowded(x, y)) continue;
+          push(t, x, y, {});
+          if (t === 'tree') treePts.push([x, y]);
+          if (rand() < 0.35) {
+            const a = rand() * Math.PI * 2, d = 40 + rand() * 50;
+            const x2 = x + Math.cos(a) * d, y2 = y + Math.sin(a) * d;
+            const t2 = pickType(region(x2, y2), rand());
+            if (canPlace(x2, y2) && !(t2 === 'tree' && treeCrowded(x2, y2))) {
+              push(t2, x2, y2, {});
+              if (t2 === 'tree') treePts.push([x2, y2]);
+            }
+          }
+          break;
+        }
+      }
     }
   }
 
