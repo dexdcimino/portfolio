@@ -676,20 +676,35 @@ function _draw(sw, sh, nearHome) {
   }
   ctx.globalAlpha = 1;
 
-  // Platforms — a clean line with two small support ticks; movers get a
-  // faint rail marking their travel.
+  // Platforms (MD 13) — each type wears its own quiet identity so they can
+  // be told apart at a glance without adding visual mass:
+  //  · solid — deck line + a dimmer inset "front face" line just below
+  //            (reads as a slab, faintly 3D) + the two support ticks
+  //  · mover — deck riding a travel rail with end-stops, two carriage dots
+  //            under the deck sitting on the rail; no slab (it floats)
+  //  · blink — deck drawn as segments with hairline gaps (reads fragile /
+  //            breakable), flicker before vanishing, dashed ghost while out
   ctx.lineWidth = 2;
   for (const p of _visPlats) {
     const ox = moverOffset(p, _platTime);
     const s = worldToScreen(p.wx + ox, p.wy);
     if (s.sx + p.w < -40 || s.sx > sw + 40 || s.sy < -40 || s.sy > sh + 40) continue;
     if (p.mover) {
+      // Travel rail with end-stops — the range reads at a glance.
+      const rail = worldToScreen(p.wx - p.amp, p.wy);
+      const railW = p.w + p.amp * 2;
       ctx.globalAlpha = 0.18;
       ctx.beginPath();
-      const rail = worldToScreen(p.wx - p.amp, p.wy);
       ctx.moveTo(rail.sx, rail.sy + 3);
-      ctx.lineTo(rail.sx + p.w + p.amp * 2, rail.sy + 3);
+      ctx.lineTo(rail.sx + railW, rail.sy + 3);
       ctx.stroke();
+      ctx.globalAlpha = 0.3;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(rail.sx, rail.sy); ctx.lineTo(rail.sx, rail.sy + 6);
+      ctx.moveTo(rail.sx + railW, rail.sy); ctx.lineTo(rail.sx + railW, rail.sy + 6);
+      ctx.stroke();
+      ctx.lineWidth = 2;
       ctx.globalAlpha = 1;
     }
     // Blink platforms: flicker in the last stretch before vanishing, ghost
@@ -701,24 +716,54 @@ function _draw(sw, sh, nearHome) {
       else if (ph > p.blink.on - 0.12) blinkAlpha = 0.35 + 0.5 * Math.abs(Math.sin(_platTime * 0.12));
     }
     ctx.globalAlpha = blinkAlpha;
-    if (ghost) ctx.setLineDash([5, 6]);
     if (p.rest) ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(s.sx, s.sy);
-    ctx.lineTo(s.sx + p.w, s.sy);
-    ctx.stroke();
-    if (ghost) ctx.setLineDash([]);
+    if (ghost) {
+      ctx.setLineDash([5, 6]);
+      ctx.beginPath();
+      ctx.moveTo(s.sx, s.sy); ctx.lineTo(s.sx + p.w, s.sy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (p.blink) {
+      // Segmented deck — hairline gaps make it read breakable while solid.
+      const segs = Math.max(3, Math.round(p.w / 26));
+      const gap = 3, segW = (p.w - gap * (segs - 1)) / segs;
+      ctx.beginPath();
+      for (let k = 0; k < segs; k++) {
+        const x0 = s.sx + k * (segW + gap);
+        ctx.moveTo(x0, s.sy); ctx.lineTo(x0 + segW, s.sy);
+      }
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(s.sx, s.sy); ctx.lineTo(s.sx + p.w, s.sy);
+      ctx.stroke();
+    }
     if (p.rest) ctx.lineWidth = 2;
+    if (ghost) { ctx.globalAlpha = 1; continue; }   // nothing else while out
+    if (p.mover) {
+      // Carriage dots — the deck visibly rides its rail.
+      ctx.globalAlpha = blinkAlpha * 0.55;
+      ctx.fillStyle = clr;
+      ctx.beginPath();
+      ctx.arc(s.sx + 8, s.sy + 3, 1.6, 0, Math.PI * 2);
+      ctx.arc(s.sx + p.w - 8, s.sy + 3, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (!p.blink) {
+      // Solid slab: dim inset front-face line + support ticks.
+      ctx.globalAlpha = blinkAlpha * 0.28;
+      ctx.lineWidth = p.rest ? 2 : 1.6;
+      ctx.beginPath();
+      ctx.moveTo(s.sx + 2, s.sy + 3); ctx.lineTo(s.sx + p.w - 2, s.sy + 3);
+      ctx.stroke();
+      ctx.lineWidth = 1.1;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(s.sx + 7, s.sy); ctx.lineTo(s.sx + 11, s.sy + 6);
+      ctx.moveTo(s.sx + p.w - 7, s.sy); ctx.lineTo(s.sx + p.w - 11, s.sy + 6);
+      ctx.stroke();
+      ctx.lineWidth = 2;
+    }
     ctx.globalAlpha = 1;
-    if (ghost) continue;   // no support ticks while out
-    ctx.lineWidth = 1.1;
-    ctx.globalAlpha = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(s.sx + 7, s.sy); ctx.lineTo(s.sx + 11, s.sy + 6);
-    ctx.moveTo(s.sx + p.w - 7, s.sy); ctx.lineTo(s.sx + p.w - 11, s.sy + 6);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    ctx.lineWidth = 2;
   }
 
   // Collectible sparks — four-point twinkles, phase from the cell id.
