@@ -1901,7 +1901,14 @@ body.modal-open{overflow:hidden}
      panel, not a document. */
   html:has(#resumeModal[open]) .resume-page{
     zoom:var(--print-fit,1) !important;
-    margin:0 auto;border-radius:0;box-shadow:none;min-height:1056px;
+    /* Centring a zoom-fitted page cannot use margin:auto: auto resolves against
+       the UNZOOMED box — 816 in an 816 sheet, so zero — and the zoom then
+       shrinks the box anchored left, dumping the whole difference into a band
+       on the right. The margin is written in pre-zoom units instead (it scales
+       with the box): half the sheet times (1/fit - 1) splits the leftover
+       evenly. At fit 1 it collapses to zero, so an unfitted page is untouched. */
+    margin:0;margin-left:calc(408px / var(--print-fit,1) - 408px);
+    border-radius:0;box-shadow:none;min-height:1056px;
   }
   html:has(#resumeModal[open]) *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }

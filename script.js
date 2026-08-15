@@ -857,18 +857,35 @@ refreshPdfLink();
    same @media print sheet as the generated PDFs. The fit factor cannot be
    computed in CSS, so it is set here from the same formula the generator
    uses: content taller than one Letter sheet shrinks onto it uniformly. */
+let printFitMine = false;
 window.addEventListener('beforeprint', () => {
+  // beforeprint fires for the PDF generator's page.pdf() as well, and the
+  // generator has already measured the fit UNDER PRINT MEDIA and set the
+  // property — more exactly than this handler can from screen media. First
+  // time round this stomped that value: the cover shrank from its exact 1.0
+  // to 0.9962 and printed with a 3px band down the right edge and 4px along
+  // the bottom. If a fit is already set, it wins; this handler only serves a
+  // visitor's own Ctrl+P, where nothing has set one.
+  if (document.documentElement.style.getPropertyValue('--print-fit') !== '') return;
   const page = resumePages.find(p => !p.hidden);
   if (!page) return;
   const inline = page.style.zoom;
   page.style.zoom = '1';
   const h = page.scrollHeight;
   page.style.zoom = inline;
-  // Fitted against 4px less than the true sheet: beforeprint measures in
-  // screen media, and print reflows the panel a few px taller — a factor that
-  // is exact on screen can be one line over on paper, which paginates. The
-  // generated PDFs measure under print media itself and use the full sheet.
+  // 4px under the true sheet: this measures in screen media and print reflows
+  // a few px taller — exact-on-screen can be one line over on paper, which
+  // paginates. The generated PDFs measure in print media and use the full sheet.
   document.documentElement.style.setProperty('--print-fit', String(Math.min(1, (1056 - 4) / h)));
+  printFitMine = true;
+});
+window.addEventListener('afterprint', () => {
+  // Clear only what this handler set, so the next print remeasures the panel
+  // that is showing THEN — otherwise a resume fit sticks to a later cover
+  // print. The generator's own value is never touched.
+  if (!printFitMine) return;
+  printFitMine = false;
+  document.documentElement.style.removeProperty('--print-fit');
 });
 
 function closeResume() { closeModal(resumeModal); }

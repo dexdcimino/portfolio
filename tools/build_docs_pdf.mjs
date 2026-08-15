@@ -122,25 +122,39 @@ for (const accent of accentNames()) {
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     });
 
-    // Fit factor, measured UNDER PRINT MEDIA. Screen and print reflow the
-    // panel a few px differently (1237 vs 1241 on the current resume), and a
-    // factor computed from the screen height came out 3px long — which in
-    // print is not "3px long" but a second page. Measure in the same media
-    // the PDF renders in and the factor is exact by construction.
+    // Fit factor, measured UNDER PRINT MEDIA and converged, not computed once.
+    // Two lessons are baked in here. Screen and print reflow the panel a few
+    // px differently, so the measurement must happen in the media the PDF
+    // renders in. And the content's height CHANGES with the zoom it is
+    // measured under — 1237px at zoom 1 became 1241px at zoom 0.8536 from
+    // line-box rounding, and a factor derived from the zoom-1 height left the
+    // page 3px long, which in print is not 3px long but a second page. So:
+    // apply the factor, re-measure the actual zoomed box, tighten, repeat
+    // until the box genuinely fits the sheet.
     await page.emulateMediaType('print');
-    const fit = await page.evaluate((p, sheet) => {
-      document.documentElement.style.setProperty('--print-fit', '1');
+    const fit = await page.evaluate(async (p, sheet) => {
       const el = document.getElementById(p);
-      const h = el.scrollHeight;                       // print zoom is 1 now
-      const f = Math.min(1, Math.floor((sheet / h) * 1e4) / 1e4);
-      document.documentElement.style.setProperty('--print-fit', String(f));
-      return { h, f };
+      const root = document.documentElement;
+      const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      root.style.setProperty('--print-fit', '1');
+      await settle();
+      const h = el.scrollHeight;
+      let f = Math.min(1, Math.floor((sheet / h) * 1e4) / 1e4);
+      for (let i = 0; i < 6; i++) {
+        root.style.setProperty('--print-fit', String(f));
+        await settle();
+        const box = el.getBoundingClientRect().height;
+        if (box <= sheet + 0.01 || f === 1) return { h, f, box: +box.toFixed(1), passes: i + 1 };
+        f = Math.floor(f * (sheet / box) * 1e4) / 1e4;
+      }
+      return { h, f, box: -1, passes: 6 };
     }, doc.panel, SHEET_PX);
+    if (fit.box === -1) throw new Error(`${doc.panel}: fit did not converge`);
 
     const out = `${OUT_DIR}/${doc.stem}-${accent}.pdf`;
     await page.pdf({ path: out, printBackground: true, preferCSSPageSize: true });
     await page.emulateMediaType('screen');
-    const note = fit.f < 1 ? `${fit.h}px fitted at ${(fit.f * 100).toFixed(1)}%` : 'fits at 100%';
+    const note = fit.f < 1 ? `${fit.h}px fitted at ${(fit.f * 100).toFixed(1)}% in ${fit.passes} pass(es), box ${fit.box}` : 'fits at 100%';
     console.log(`  ${out}  (${note})`);
 
     // Close so the next document goes through the real open path too.
