@@ -5735,16 +5735,24 @@ function _inv2EquipToSlot(slotNum, itemId) {
     if (typeof window._inv2RenderColumn === 'function') window._inv2RenderColumn(slotNum);
     return;
   }
-  // Live equip ONLY when this column matches the active hotbar slot;
-  // otherwise just assign + persist + re-render (same pattern the
-  // avatar dropdown's Equip tab uses to swap items into non-active slots).
-  if (slotNum === _activeHotbarSlot) {
-    if (item.isMountSlot) {
-      // Mount items (hoverboard): just assign; toggle on slot-key press.
-    } else if (item.id === 'bow') {
+  // MD 20: clicking an item IS choosing it — equip live and make its slot
+  // the active one. Mounts stay slot-neutral like the digit keys: they
+  // mount on immediately but keep the current weapon selected.
+  _hotbar[slotNum] = item.id;
+  if (item.isMountSlot) {
+    if (item.id === 'hoverboard' && !_hoverboard.active) _toggleHoverboard();
+    else if (item.id === 'jetpack' && !_jetpack.active) _toggleJetpack();
+  } else {
+    _activeHotbarSlot = slotNum;
+    if (item.id === 'bow') {
       _bow.holstered = false;
       if (_gun.held) _dropGun();
+    } else if (item.isFlag) {
+      // Flag: selection is its armed state — nothing to draw.
+      _bow.holstered = true;
+      if (_gun.held) _dropGun();
     } else if (item.functional) {
+      _bow.holstered = true;
       const pickup = _pickups.find(p => p.type === item.id);
       if (pickup) {
         if (_gun.held) _dropGun();
@@ -5753,9 +5761,9 @@ function _inv2EquipToSlot(slotNum, itemId) {
       }
     }
   }
-  _hotbar[slotNum] = item.id;
   _saveHotbar();
   _renderHotbarSlot(slotNum);
+  _syncHotbarVisuals();
   if (typeof window._inv2RenderColumn === 'function') window._inv2RenderColumn(slotNum);
   if (window._dexUnlockAch) window._dexUnlockAch('hotbar_equip');
 }
@@ -5999,6 +6007,12 @@ function _initItemBarNameHover() {
     const slot = e.target.closest('.item-slot[data-slot]');
     if (!slot || !/^[1-4]$/.test(slot.dataset.slot || '')) return;
     _showItemBarName(null);
+  });
+  // MD 20: clicking a slot selects/equips it, exactly like its digit key.
+  bar.addEventListener('click', (e) => {
+    const slot = e.target.closest('.item-slot[data-slot]');
+    if (!slot || !/^[1-4]$/.test(slot.dataset.slot || '')) return;
+    _activateHotbarSlot(parseInt(slot.dataset.slot, 10));
   });
 }
 
@@ -6422,51 +6436,52 @@ function _onKeyDown(e) {
   // Use e.code for slot keys so Shift (sprint) doesn't block weapon switching
   const _slotCode = e.code;
   const _slotMatch = _slotCode === 'Digit1' ? '1' : _slotCode === 'Digit2' ? '2' : _slotCode === 'Digit3' ? '3' : _slotCode === 'Digit4' ? '4' : null;
-  if (_slotMatch) {
-    // MD 10 (issues 2+3): this handler only mutates STATE — the 'active' /
-    // 'holstered' classes are re-derived from that state by
-    // _syncHotbarVisuals() every frame, so the highlight always tells the
-    // truth (mounts glow while mounted, holstered weapons don't glow).
-    const slotNum = parseInt(_slotMatch);
-    const itemId = _hotbar[slotNum];
-    const item = itemId ? INVENTORY_ITEMS.find(it => it.id === itemId) : null;
-    sfx('ui.slot');
-    if (!item || !item.functional) {
-      // Non-functional or empty — only clear weapon if not hoverboard
-      if (!(item && item.isMountSlot)) { if (_gun.held) _dropGun(); _bow.holstered = true; }
-      _activeHotbarSlot = slotNum;
-      _syncHotbarVisuals();
-      _showItemBarName(`Slot ${slotNum}`, true);
-      return;
-    }
-    if (itemId === 'hoverboard' || itemId === 'jetpack') {
-      // Mounts: toggle on/off, don't change active weapon (MD 07: jetpack
-      // follows the hoverboard's slot behaviour exactly).
-      if (itemId === 'hoverboard') _toggleHoverboard();
-      else _toggleJetpack();
-      _syncHotbarVisuals();
-      _showItemBarName(item.label, true);
-      return; // don't change _activeHotbarSlot — keep current weapon selected
-    }
-    if (itemId === 'bow') {
-      if (slotNum === _activeHotbarSlot) { _bow.holstered = !_bow.holstered; if (_bow.holstered && _bow.drawing) { _bow.drawing = false; _bow.chargeT = 0; _bow.shaking = false; } }
-      else { _bow.holstered = false; if (_gun.held) _dropGun(); }
-    } else {
-      _bow.holstered = true;
-      if (_gun.held && _gun.type === itemId && slotNum === _activeHotbarSlot) {
-        // Same slot pressed again — holster (drop) the gun
-        _dropGun();
-      } else if (!(_gun.held && _gun.type === itemId)) {
-        // Different slot or no gun — equip this weapon
-        if (_gun.held) _dropGun();
-        const pickup = _pickups.find(p => p.type === itemId);
-        if (pickup) { pickup.x = P.x; pickup.y = P.y; _pickupGun(pickup); }
-      }
-    }
+  if (_slotMatch) _activateHotbarSlot(parseInt(_slotMatch));
+}
+
+// Select/equip a hotbar slot — the digit keys' behavior, extracted (MD 20)
+// so clicking a slot does exactly the same thing. This only mutates STATE —
+// the 'active' / 'holstered' classes are re-derived from it every frame by
+// _syncHotbarVisuals(), so the highlight always tells the truth.
+function _activateHotbarSlot(slotNum) {
+  const itemId = _hotbar[slotNum];
+  const item = itemId ? INVENTORY_ITEMS.find(it => it.id === itemId) : null;
+  sfx('ui.slot');
+  if (!item || !item.functional) {
+    // Non-functional or empty — only clear weapon if not hoverboard
+    if (!(item && item.isMountSlot)) { if (_gun.held) _dropGun(); _bow.holstered = true; }
     _activeHotbarSlot = slotNum;
     _syncHotbarVisuals();
-    _showItemBarName(item.label, true);
+    _showItemBarName(`Slot ${slotNum}`, true);
+    return;
   }
+  if (itemId === 'hoverboard' || itemId === 'jetpack') {
+    // Mounts: toggle on/off, don't change active weapon (MD 07: jetpack
+    // follows the hoverboard's slot behaviour exactly).
+    if (itemId === 'hoverboard') _toggleHoverboard();
+    else _toggleJetpack();
+    _syncHotbarVisuals();
+    _showItemBarName(item.label, true);
+    return; // don't change _activeHotbarSlot — keep current weapon selected
+  }
+  if (itemId === 'bow') {
+    if (slotNum === _activeHotbarSlot) { _bow.holstered = !_bow.holstered; if (_bow.holstered && _bow.drawing) { _bow.drawing = false; _bow.chargeT = 0; _bow.shaking = false; } }
+    else { _bow.holstered = false; if (_gun.held) _dropGun(); }
+  } else {
+    _bow.holstered = true;
+    if (_gun.held && _gun.type === itemId && slotNum === _activeHotbarSlot) {
+      // Same slot pressed again — holster (drop) the gun
+      _dropGun();
+    } else if (!(_gun.held && _gun.type === itemId)) {
+      // Different slot or no gun — equip this weapon
+      if (_gun.held) _dropGun();
+      const pickup = _pickups.find(p => p.type === itemId);
+      if (pickup) { pickup.x = P.x; pickup.y = P.y; _pickupGun(pickup); }
+    }
+  }
+  _activeHotbarSlot = slotNum;
+  _syncHotbarVisuals();
+  _showItemBarName(item.label, true);
 }
 function _onKeyUp(e) {
   const nk = _normalizeKey(e.key);
