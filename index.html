@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=127" />
+  <link rel="stylesheet" href="styles.css?v=129" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif"
@@ -154,6 +154,10 @@
 
       <div class="profile-wrap" id="profileMini">
       <div class="profile-mini">
+        <!-- Shrink-wraps the avatar so the chip can be pinned to its corner
+             without positioning against a box that animates. The frame keeps
+             its own width/height transition untouched. -->
+        <div class="portrait-slot">
         <!-- img src="assets/about/profile.jpg" slot="rail-avatar" alt="Dex Cimino" class="profile-photo" picture-class="profile-frame" -->
         <picture class="profile-frame">
           <source type="image/avif" srcset="assets/derived/about/profile-420.avif 420w,
@@ -167,6 +171,14 @@
           <img class="profile-photo" src="assets/about/profile.jpg" alt="Dex Cimino" width="932" height="1014" loading="lazy" decoding="async">
         </picture>
         <!-- /img -->
+          <button class="ink-chip ink-chip-rail" type="button" data-ink-toggle aria-pressed="false"
+                  aria-label="Show the line-art portrait">
+            <svg class="ink-chip-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path class="ink-chip-solid" d="M12 5.8a3.4 3.4 0 0 0 0 6.8ZM12 14.1c-3.8 0-6.5 2.1-6.5 4.8H12Z" />
+              <path class="ink-chip-line" d="M12 5.8a3.4 3.4 0 1 1 0 6.8 3.4 3.4 0 0 1 0-6.8ZM12 14.1c3.8 0 6.5 2.1 6.5 4.8H5.5c0-2.7 2.7-4.8 6.5-4.8Z" />
+            </svg>
+          </button>
+        </div>
         <div class="profile-copy">
           <div class="profile-nameline"><strong>DEX CIMINO</strong>
             <!-- One button, relocated between the two name rows by the script:
@@ -499,6 +511,15 @@
             <img src="assets/about/profile.jpg" alt="Dex Cimino" width="932" height="1014" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
+          <!-- Top right rather than bottom right: the accent underline lives
+               along the bottom edge and the chip would crowd it. -->
+          <button class="ink-chip" type="button" data-ink-toggle aria-pressed="false"
+                  aria-label="Show the line-art portrait">
+            <svg class="ink-chip-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path class="ink-chip-solid" d="M12 5.8a3.4 3.4 0 0 0 0 6.8ZM12 14.1c-3.8 0-6.5 2.1-6.5 4.8H12Z" />
+              <path class="ink-chip-line" d="M12 5.8a3.4 3.4 0 1 1 0 6.8 3.4 3.4 0 0 1 0-6.8ZM12 14.1c3.8 0 6.5 2.1 6.5 4.8H5.5c0-2.7 2.7-4.8 6.5-4.8Z" />
+            </svg>
+          </button>
         </div>
         <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH <span class="title-accent">+&nbsp;EXECUTION</span></h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p></div>
       </div>
@@ -1433,6 +1454,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=127"></script>
+  <script src="script.js?v=129"></script>
 </body>
 </html>

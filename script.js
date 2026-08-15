@@ -1754,3 +1754,44 @@ const LOOP_MODES = ['off', 'all', 'one'];
   const first = rows.find(r => r.dataset.art && shots.some(s => s.dataset.art === r.dataset.art));
   if (first) show(first);
 })();
+
+/* ==========================================================================
+   PORTRAIT TOGGLE  (photo <-> accent line art)
+   Two controls, one state. Either button drives every portrait on the page —
+   the About hero, the sidebar profile, and the compact avatar the rail shows
+   while the profile is collapsed. That third one is easy to miss: leave it out
+   and the two portraits disagree the moment somebody hits the chevron.
+
+   State is a class on <html> and nothing else, so the CSS owns every visual
+   consequence and this stays a three-line toggle. Applied synchronously, like
+   the collapse state, so a returning visitor's choice is up before first paint
+   rather than swapping in after it.
+   ========================================================================== */
+const PORTRAIT_KEY = 'dex-portrait-ink';
+
+(function initPortraitInk() {
+  const buttons = [...document.querySelectorAll('[data-ink-toggle]')];
+  if (!buttons.length) return;
+
+  const apply = on => {
+    document.documentElement.classList.toggle('ink-on', on);
+    // Every control, every time. One button left reading the old state is the
+    // whole bug this loop exists to prevent.
+    for (const button of buttons) {
+      button.setAttribute('aria-pressed', String(on));
+      button.setAttribute('aria-label', on ? 'Show the photo portrait' : 'Show the line-art portrait');
+    }
+  };
+
+  let on = false;
+  try { on = localStorage.getItem(PORTRAIT_KEY) === 'ink'; } catch (err) { /* private mode */ }
+  apply(on);
+
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      on = !on;
+      apply(on);
+      try { localStorage.setItem(PORTRAIT_KEY, on ? 'ink' : 'photo'); } catch (err) { /* private mode */ }
+    });
+  }
+})();

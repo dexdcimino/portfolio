@@ -343,7 +343,8 @@ button.button{cursor:pointer;font:inherit}
 .profile-compact-frame{display:block;flex:none;width:34px;height:34px;
   border-radius:9px;overflow:hidden;border:1px solid var(--line)}
 .profile-compact-photo{display:block;width:100%;height:100%;object-fit:cover;
-  object-position:50% 45%;transform:scale(1.15);transform-origin:50% 40%}
+  object-position:50% 45%;transform:scale(1.15);transform-origin:50% 40%;
+  transition:opacity var(--ink-fade)}
 /* The name follows the nav labels exactly — hidden on the rail, sliding in as
    the sidebar opens — so the mini profile reads as one more row of the nav. */
 .profile-compact-name{font-size:14px;font-weight:750;letter-spacing:.025em;
@@ -411,7 +412,8 @@ button.button{cursor:pointer;font:inherit}
   transform-origin:50% 40%;
   transition:transform var(--sidebar-transition-duration) var(--sidebar-transition-ease),
              transform-origin var(--sidebar-transition-duration) var(--sidebar-transition-ease),
-             object-position var(--sidebar-transition-duration) var(--sidebar-transition-ease);
+             object-position var(--sidebar-transition-duration) var(--sidebar-transition-ease),
+             opacity var(--ink-fade);
 }
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-frame{
   width:var(--avatar-expanded-w);height:var(--avatar-expanded-h);border-radius:14px;
@@ -1085,9 +1087,114 @@ button.button{cursor:pointer;font:inherit}
    only shrinks when the column would otherwise force a break. */
 .about-copy{container-type:inline-size}
 .about-copy h2{white-space:nowrap;font-size:min(clamp(32px,4vw,64px),7.8cqi)}
-.about-photo{aspect-ratio:1;border-radius:var(--radius-art);overflow:hidden;position:relative;border:1px solid var(--line)}
-.about-photo:after{content:"";position:absolute;inset:auto 0 0;height:7px;background:var(--accent);transition:background-color var(--accent-ease)}
-.about-photo img{width:100%;height:100%;object-fit:cover}
+.about-photo{aspect-ratio:1;border-radius:var(--radius-art);overflow:hidden;position:relative;border:1px solid var(--line);transition:border-color var(--accent-ease),box-shadow var(--accent-ease)}
+.about-photo:after{content:"";position:absolute;inset:auto 0 0;height:7px;background:var(--accent);transition:background-color var(--accent-ease);z-index:2}
+.about-photo img{width:100%;height:100%;object-fit:cover;transition:opacity var(--ink-fade)}
+
+/* ==========================================================================
+   PORTRAIT TOGGLE — photo <-> accent line art
+   The line art is a CSS mask, so it takes the accent like every other mark on
+   the site. Referenced as an external URL rather than baked into this file by
+   bake_icons: the encoded SVG is ~9.5KB gzipped, which would grow this
+   render-blocking stylesheet by 28% for a state that is OFF by default, and a
+   mask nobody switches on is a mask the browser never fetches. Cost is paid by
+   the people who use it, not by everyone. (Trade: external masks are
+   CORS-blocked under file://, so this one state will not paint there. The
+   always-on icon set stays inlined and is unaffected.)
+
+   The overlays are pseudo-elements on the existing frames, so none of this
+   reaches inside a generated <!-- img --> block.
+   ========================================================================== */
+:root{
+  --portrait-ink:url("assets/about/dex-portrait-lineart.svg");
+  --ink-fade:.34s ease;
+}
+.about-photo::before,
+.profile-frame::after,
+.profile-compact-frame::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:var(--accent);
+  /* Geometry only. mask-image is deliberately NOT set here: opacity:0 does not
+     stop a mask being fetched, so declaring it up front downloaded the drawing
+     for every visitor and threw away the whole reason for keeping it external.
+     It is set in the .ink-on rule below, which is the first moment anyone has
+     asked for it. Line art and photo are the same 932x1014 source, so cover
+     plus the frame's own object-position lands the drawing exactly on the face
+     it was traced from. */
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  -webkit-mask-size:cover;mask-size:cover;
+  opacity:0;transition:opacity var(--ink-fade),background-color var(--accent-ease);
+}
+.about-photo::before{-webkit-mask-position:50% 50%;mask-position:50% 50%}
+/* The two sidebar frames scale and offset their photo; the overlay has to take
+   the identical transform or the drawing sits off the face. */
+.profile-frame::after,.profile-compact-frame::after{
+  -webkit-mask-position:50% 45%;mask-position:50% 45%;
+  transform:scale(1.15);transform-origin:50% 40%;
+}
+.profile-frame::after{
+  transition:opacity var(--ink-fade),background-color var(--accent-ease),
+             transform var(--sidebar-transition-duration) var(--sidebar-transition-ease),
+             transform-origin var(--sidebar-transition-duration) var(--sidebar-transition-ease);
+}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-frame::after{
+  transform:scale(1.15);transform-origin:50% 34.6%;
+}
+/* Positioning context for the overlays. Both are <picture> elements that were
+   already overflow:hidden; this only gives their pseudo-element something to
+   resolve inset:0 against. */
+.profile-frame,.profile-compact-frame{position:relative}
+
+html.ink-on .about-photo::before,
+html.ink-on .profile-frame::after,
+html.ink-on .profile-compact-frame::after{
+  -webkit-mask-image:var(--portrait-ink);mask-image:var(--portrait-ink);
+  opacity:1;
+}
+/* The line art is mostly transparent, so the photo has to leave rather than sit
+   behind it showing through every gap. */
+html.ink-on .about-photo img,
+html.ink-on .profile-photo,
+html.ink-on .profile-compact-photo{opacity:0}
+/* Accent stroke on the frame while the drawing is up. The inset ring doubles
+   the weight without touching border-width, which would resize the content box
+   and nudge the accent underline. */
+html.ink-on .about-photo{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+html.ink-on .profile-frame,
+html.ink-on .profile-compact-frame{border-color:var(--accent)}
+
+/* The chip. Sized 34px but hit-tested at 44 via the inset pseudo, so it stays
+   a comfortable target without a 44px plate sitting on Dex's face. */
+.portrait-slot{position:relative;display:flex;flex:none}
+.ink-chip{
+  position:absolute;top:10px;right:10px;z-index:3;
+  width:34px;height:34px;min-height:0;padding:0;border-radius:10px;
+  display:grid;place-items:center;cursor:pointer;
+  color:#e9ebec;background:rgba(8,11,14,.62);
+  border:var(--stroke) solid rgba(255,255,255,.14);
+  transition:background-color var(--accent-ease),border-color var(--accent-ease),
+             color var(--accent-ease),opacity .2s ease,transform .2s ease;
+}
+.ink-chip::before{content:"";position:absolute;inset:-5px}
+.ink-chip-glyph{width:19px;height:19px;display:block}
+.ink-chip-solid{fill:currentColor}
+.ink-chip-line{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round}
+.ink-chip:hover,.ink-chip:focus-visible{
+  background:var(--accent);border-color:var(--accent);color:#0b1216;transform:translateY(-1px);
+}
+.ink-chip:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+/* Pressed state is the accent plate, so the control reads as on at a glance
+   rather than only through aria-pressed. */
+.ink-chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#0b1216}
+.ink-chip-rail{top:8px;right:8px;width:30px;height:30px;border-radius:9px}
+.ink-chip-rail .ink-chip-glyph{width:17px;height:17px}
+/* No room for it on the 44px rail, exactly as the collapse chevron does. */
+.sidebar:not(:hover):not(:has(:focus-visible)) .ink-chip-rail{opacity:0;pointer-events:none}
+@media(prefers-reduced-motion:reduce){
+  :root{--ink-fade:0s}
+  .ink-chip{transition:background-color var(--accent-ease),border-color var(--accent-ease),color var(--accent-ease)}
+  .ink-chip:hover,.ink-chip:focus-visible{transform:none}
+}
 
 .resume-strip{padding:85px var(--gutter);display:flex;align-items:center;justify-content:space-between;gap:30px;background:linear-gradient(125deg,#1c2227,#0d1013);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .resume-actions{display:flex;gap:10px;flex-wrap:wrap}
