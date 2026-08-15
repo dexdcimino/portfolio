@@ -302,7 +302,11 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
    ───────────────────────────────────────────────────────────── */
 #inv2 {
   position: fixed;
-  bottom: calc(28px + 52px * 1.5 + 8px); /* item-bar bottom + slot height (×1.5 scale) + spacing */
+  /* Above the item bar AND the health bar band (item-bar bottom 28 +
+     slot 78 + spacing 8 + health bar ~15 + gap ~12). The HUD draws over
+     the panel (z 206 vs 205), so the panel must clear the bars, not
+     slide under them. */
+  bottom: calc(28px + 78px + 8px + 27px);
   left: 50%;
   transform: translateX(-50%) translateY(16px);
   transform-origin: bottom center;
@@ -335,22 +339,42 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
     opacity 0.15s ease,
     visibility 0s linear 0s;
 }
+/* Stamina/jet-fuel bar showing (tank or jetpack sets inline display:block
+   on the wrap) — lift the panel over the second bar too. */
+body:has(#hud-stamina-wrap[style*="block"]) #inv2 {
+  bottom: calc(28px + 78px + 8px + 54px);
+}
 /* Heading + name line come straight from the cosmetics panel classes
    (.dxav-heading / .dxav-sub) — #bp-title only pins a height so the
    panel doesn't jump when the name changes. */
 #bp-title { min-height: 18px; }
-#bp-row { display: flex; gap: 9px; align-items: flex-end; }
+/* Columns wear the cosmetics rows' outline (border/radius from
+   .dxav-row) and all TOP-align: the cells area is a fixed-height
+   window, so both chevron strips line up across columns no matter
+   how many items a slot has. Outer width 81px + 6px gap = the
+   hotbar's rendered 87px pitch, keeping columns over their slots. */
+#bp-row { display: flex; gap: 6px; align-items: flex-start; }
 .bp-col {
-  width: 78px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 5px;
+  padding: 2px;
+  border: 2.5px solid var(--bdr);
+  border-radius: 14px;
+  background: transparent;
 }
-.bp-cells { display: flex; flex-direction: column; gap: 5px; }
+[data-theme="light"] .bp-col { background: rgba(255,255,255,.45); }
+.bp-cells {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 5px;
+  height: calc(72px * 3 + 5px * 2);
+}
 /* Cells are .dxav-chip (hover wash, equipped outline via
-   .dxav-chip-active) at the hotbar's rendered cell size. */
-.bp-cells .bp-cell { width: 78px; height: 78px; border-radius: 12px; }
+   .dxav-chip-active). */
+.bp-cells .bp-cell { width: 72px; height: 72px; border-radius: 11px; }
 .bp-cell.bp-locked { opacity: 0.35; cursor: default; }
 /* Chevron strips — the dxav-arrow interaction laid flat: the whole
    width of the column is the button. */

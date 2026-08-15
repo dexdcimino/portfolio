@@ -1791,23 +1791,29 @@ function _initCosmeticsUI() {
       html += `<div class="${cls}" data-slotnum="${slotNum}" data-val="${it.id}" data-label="${it.label}" data-tip="${tip}">${_dxavEquipSvg(it)}</div>`;
     }
     cellsEl.innerHTML = html;
-    // Chevrons step the equipped item — disabled at the list's ends
-    // (an empty slot can step "down" into its first item).
+    // Chevrons step the equipped item and WRAP at the ends (MD 16c), so
+    // they only disable when there's nothing to cycle to: fewer than two
+    // unlocked items (one unlocked item still enables from an empty slot).
+    const unlocked = items.filter(it => !_bpLocked(it, userLvl)).length;
+    const canCycle = unlocked > 1 || (unlocked === 1 && eqIdx === -1);
     const up = colEl.querySelector('.bp-chev-up');
     const dn = colEl.querySelector('.bp-chev-down');
-    if (up) up.classList.toggle('dxav-arrow-disabled', eqIdx <= 0 && eqIdx !== -1);
-    if (dn) dn.classList.toggle('dxav-arrow-disabled', eqIdx >= items.length - 1);
+    if (up) up.classList.toggle('dxav-arrow-disabled', !canCycle);
+    if (dn) dn.classList.toggle('dxav-arrow-disabled', !canCycle);
   }
   // Step = equip the next/prev item of this slot (cosmetics-arrow
-  // behavior). Locked items are stepped over.
+  // behavior), WRAPPING at the ends (MD 16c) — keep hitting one arrow
+  // and the cycle starts over. Locked items are stepped over.
   function _bpStep(slotNum, dir) {
     const items = _bpSlotList(slotNum);
-    if (!items.length) return false;
+    const n = items.length;
+    if (!n) return false;
     const userLvl = (window._dexUserLevel && window._dexUserLevel()) || 1;
     const cur = items.findIndex(it => it.id === _hotbar[slotNum]);
-    let next = cur < 0 ? (dir > 0 ? 0 : items.length - 1) : cur + dir;
-    while (next >= 0 && next < items.length && _bpLocked(items[next], userLvl)) next += dir;
-    if (next < 0 || next >= items.length || next === cur) return false;
+    let next = (((cur < 0 ? (dir > 0 ? -1 : 0) : cur) + dir) % n + n) % n;
+    let tries = 0;
+    while (tries < n && _bpLocked(items[next], userLvl)) { next = ((next + dir) % n + n) % n; tries++; }
+    if (tries >= n || next === cur) return false;
     _inv2EquipToSlot(slotNum, items[next].id);
     _bp.last = { slot: slotNum, label: items[next].label };
     _bpTitleHtml(slotNum, items[next].label);
