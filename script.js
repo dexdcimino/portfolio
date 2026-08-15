@@ -1373,6 +1373,35 @@ initTabs(document.querySelector('.pk-tabs'));
       paint(on ? 'rendition' : 'original');
       btn.setAttribute('aria-pressed', String(on));
     };
+
+    /* The two versions are different lengths, so swapping changed the card's
+       height and moved the foot — and the button — out from under the pointer,
+       which fired pointerleave, reverted the text, moved the button back, and
+       sat there flickering. The card is locked to its taller version's height,
+       measured only once the panel is actually visible (a hidden tab measures
+       zero), and re-measured on resize because wrapping moves the answer. */
+    const lockHeight = () => {
+      if (!card.offsetHeight) return;
+      const was = btn.getAttribute('aria-pressed') === 'true' ? 'rendition' : 'original';
+      card.style.minHeight = '';
+      paint('original');
+      const a = card.offsetHeight;
+      paint('rendition');
+      const b = card.offsetHeight;
+      card.style.minHeight = Math.max(a, b) + 'px';
+      paint(was);
+    };
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting)) { io.disconnect(); lockHeight(); }
+      });
+      io.observe(card);
+    } else lockHeight();
+    let relock;
+    window.addEventListener('resize', () => {
+      clearTimeout(relock);
+      relock = setTimeout(lockHeight, 150);
+    });
     btn.addEventListener('pointerenter', () => { if (!pinned) set(true); });
     btn.addEventListener('pointerleave', () => { if (!pinned) set(false); });
     btn.addEventListener('focus', () => { if (!pinned) set(true); });
