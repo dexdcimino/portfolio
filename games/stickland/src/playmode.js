@@ -2853,7 +2853,6 @@ window._dexMuzzleFX = function (wx, wy, angle, gunType) {
   switch (gunType) {
     case 'sword':    sparks(6, 1.6, 2.4, 10); break;               // swipe — wide glint fan, no flash/shell
     case 'swordJab': flash(3); sparks(4, 0.28, 3.2, 8); break;     // jab — tight forward snap
-    case 'swordPower': flash(5); sparks(12, 2.6, 3.2, 13); smoke(2, true); _addShake(2.6); break; // charged swipe
     case 'pistol':  flash(3); sparks(3, 0.5, 1.6, 10); shells(1); break;
     case 'smg':     flash(2); sparks(2, 0.7, 1.4, 8);  shells(1); break;
     case 'shotgun': flash(6); sparks(9, 1.0, 2.0, 12); smoke(3); shells(2); break;
@@ -3096,9 +3095,7 @@ function _pSpawnRocketExplosion(wx, wy) {
 }
 
 // Check if a projectile hits a live creature (called from character.js projectile tick)
-// dmgOverride (optional) replaces the base body-hit damage — used by the
-// sword's charged power swipe. Rocket and headshot damage keep priority.
-export function hitTestCreatures(px, py, isRocket, pvx, pvy, isArrow, dmgOverride) {
+export function hitTestCreatures(px, py, isRocket, pvx, pvy, isArrow) {
   // Convert screen to world
   const { wx, wy } = screenToWorld(px, py);
   for (const c of _liveCreatures) {
@@ -3109,7 +3106,7 @@ export function hitTestCreatures(px, py, isRocket, pvx, pvy, isArrow, dmgOverrid
     if (c.kind === 'puffer') {
       const pufferR = PUFFER_IDLE_RADIUS * sc + 8; // generous
       if (Math.hypot(wx - c.x, wy - c.y) < pufferR) {
-        const dmg = isRocket ? c.hp : dmgOverride != null ? dmgOverride : isArrow ? 2 : 1;
+        const dmg = isRocket ? c.hp : isArrow ? 2 : 1;
         c.hp -= dmg;
         _hitFX(wx, wy, pvx, pvy, c.hp <= 0 ? 'kill' : 'hit');
         if (!isRocket) _spawnHitBlood(wx, wy, c);
@@ -3145,7 +3142,7 @@ export function hitTestCreatures(px, py, isRocket, pvx, pvy, isArrow, dmgOverrid
       let dmg;
       if (isRocket) { dmg = c.kind === 'mammoth' ? 4 : c.hp; }
       else if (headshot) { dmg = isArrow ? c.hp : 4; }
-      else { dmg = dmgOverride != null ? dmgOverride : isArrow ? 2 : 1; }
+      else { dmg = isArrow ? 2 : 1; }
       c.hp -= dmg;
       _hitFX(wx, wy, pvx, pvy, c.hp <= 0 ? 'kill' : headshot ? 'headshot' : 'hit');
       // Hit blood burst at impact point (canvas — world coords)
