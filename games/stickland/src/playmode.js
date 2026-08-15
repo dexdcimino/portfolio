@@ -1302,13 +1302,26 @@ function _drawTank(ctx, sx, sy, tank) {
 }
 
 // Universal interact prompt — used for tank, home, flag, and any future interactions
+// MD 20: canvas font strings cannot contain var() — the assignment was
+// silently IGNORED, so the prompt rendered in whatever font the canvas
+// happened to have last used. Fine by accident in the open world (labels
+// set a real font first), visibly wrong in the platformer. Resolve --fn
+// once and build a valid font string.
+let _promptFontFamily = null;
+function _promptFont(px, weight) {
+  if (!_promptFontFamily) {
+    _promptFontFamily = (getComputedStyle(document.documentElement).getPropertyValue('--fn') || '').trim()
+      || 'system-ui, sans-serif';
+  }
+  return `${weight || 'bold'} ${px}px ${_promptFontFamily}`;
+}
 function _drawInteractPrompt(ctx, sx, sy, label, progress, yOffset) {
   const py = sy - (yOffset || 48);
   const bgColor = _currentBg || '#13141a';
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
   const fs = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 16;
 
-  ctx.font = `bold ${fs}px var(--fn, sans-serif)`;
+  ctx.font = _promptFont(fs);
   const labelW = ctx.measureText(label).width;
   const btnSize = 35, btnR = 8, gap = 10;
   const totalW = btnSize + gap + labelW;
@@ -1344,14 +1357,14 @@ function _drawInteractPrompt(ctx, sx, sy, label, progress, yOffset) {
   // E letter — large, white for visibility
   ctx.fillStyle = isLight ? '#1C1F24' : '#ffffff';
   ctx.globalAlpha = progress > 0 ? 1 : 0.9;
-  ctx.font = `bold ${Math.round(fs * 1.3)}px var(--fn, sans-serif)`;
+  ctx.font = _promptFont(Math.round(fs * 1.3));
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('E', bx + btnSize / 2, py + 1);
   ctx.globalAlpha = 1;
 
   // Label text — uses session font size
   ctx.fillStyle = _cachedClr;
-  ctx.font = `bold ${fs}px var(--fn, sans-serif)`;
+  ctx.font = _promptFont(fs);
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(label, bx + btnSize + gap, py);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
