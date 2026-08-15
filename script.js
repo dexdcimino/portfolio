@@ -1789,6 +1789,11 @@ const PORTRAIT_LABEL = {
   const apply = state => {
     const root = document.documentElement;
     const wasOn = root.classList.contains('ink-on');
+    // One-way: the mask keys on this so it survives the fade-out. Clearing it
+    // with the state is the bug it exists to fix — the mask snaps to none while
+    // opacity is still easing, and a solid rectangle fades out instead of the
+    // drawing.
+    if (state !== 'photo') root.classList.add('ink-ready');
     root.classList.toggle('ink-on', state !== 'photo');
     // Leaving for the photo deliberately does NOT clear ink-gray. Clearing both
     // at once drops the drawing back to the accent rule underneath, so it

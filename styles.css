@@ -1149,12 +1149,21 @@ button.button{cursor:pointer;font:inherit}
    resolve inset:0 against. */
 .profile-frame,.profile-compact-frame{position:relative}
 
+/* The mask keys on ink-ready — set the first time the drawing is shown and
+   never removed — NOT on ink-on. Masks do not animate: keyed on ink-on, the
+   mask snapped to none the instant the state cleared, so the whole 340ms
+   fade-out ran unmasked — a solid accent (later gray) RECTANGLE over the
+   portrait on every return to the photo. The fetch-on-demand behaviour this
+   scoping exists for is preserved: ink-ready first appears on the same click
+   that first needs the file. */
+html.ink-ready .about-photo::before,
+html.ink-ready .profile-frame::after,
+html.ink-ready .profile-compact-frame::after{
+  -webkit-mask-image:var(--portrait-ink);mask-image:var(--portrait-ink);
+}
 html.ink-on .about-photo::before,
 html.ink-on .profile-frame::after,
-html.ink-on .profile-compact-frame::after{
-  -webkit-mask-image:var(--portrait-ink);mask-image:var(--portrait-ink);
-  opacity:1;
-}
+html.ink-on .profile-compact-frame::after{opacity:1}
 /* The line art is mostly transparent, so the photo has to leave rather than sit
    behind it showing through every gap. */
 html.ink-on .about-photo img,
