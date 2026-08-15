@@ -121,20 +121,52 @@
   <div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div><div class="inv-slot"></div>
 </div>
 
-<!-- The Backpack (MD 16) — the inventory as one solid panel in the
-     cosmetics customizer's styling. A vertical strip of three item cells
-     with full-width up/down chevron strips (press-and-hold repeats);
-     character.js renders the cells and drives the title. Keeps the #inv2
-     id so the toggle/open wiring is unchanged. -->
+<!-- The Backpack (MD 16b) — one solid panel in the cosmetics customizer's
+     styling, four columns above their hotbar slots (1-4). Heading and
+     name line reuse the cosmetics classes so the type matches exactly.
+     character.js renders the cells and drives the title; the #inv2 id
+     keeps the toggle/open wiring unchanged. -->
 <div id="inv2" aria-hidden="true">
-  <div id="bp-title">Backpack</div>
-  <button id="bp-chev-up" class="bp-chev" type="button" aria-label="Previous item" data-dir="-1">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
-  </button>
-  <div id="bp-list"></div>
-  <button id="bp-chev-down" class="bp-chev" type="button" aria-label="Next item" data-dir="1">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
-  </button>
+  <div class="dxav-heading">Backpack</div>
+  <div class="dxav-sub" id="bp-title"></div>
+  <div id="bp-row">
+    <div class="bp-col" data-slot="1">
+      <button class="bp-chev bp-chev-up" type="button" aria-label="Previous item" data-dir="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
+      </button>
+      <div class="bp-cells"></div>
+      <button class="bp-chev bp-chev-down" type="button" aria-label="Next item" data-dir="1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
+      </button>
+    </div>
+    <div class="bp-col" data-slot="2">
+      <button class="bp-chev bp-chev-up" type="button" aria-label="Previous item" data-dir="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
+      </button>
+      <div class="bp-cells"></div>
+      <button class="bp-chev bp-chev-down" type="button" aria-label="Next item" data-dir="1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
+      </button>
+    </div>
+    <div class="bp-col" data-slot="3">
+      <button class="bp-chev bp-chev-up" type="button" aria-label="Previous item" data-dir="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
+      </button>
+      <div class="bp-cells"></div>
+      <button class="bp-chev bp-chev-down" type="button" aria-label="Next item" data-dir="1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
+      </button>
+    </div>
+    <div class="bp-col" data-slot="4">
+      <button class="bp-chev bp-chev-up" type="button" aria-label="Previous item" data-dir="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,15 12,9 18,15"/></svg>
+      </button>
+      <div class="bp-cells"></div>
+      <button class="bp-chev bp-chev-down" type="button" aria-label="Next item" data-dir="1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
+      </button>
+    </div>
+  </div>
 </div>
 
 <div id="play-mode-ui">

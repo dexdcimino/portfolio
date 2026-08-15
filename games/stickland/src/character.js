@@ -1747,96 +1747,90 @@ function _initCosmeticsUI() {
   })();
 
   // ─────────────────────────────────────────────────────────────
-  // MD 16: the Backpack — the inventory as one solid panel in the
-  // cosmetics customizer's styling, replacing the four per-slot
-  // columns (MD#10-#12). One flat item list in slot-family order
-  // (no synthetic "none" — holstering is the 1-4 keys' job), three
-  // cells visible, and up/down chevrons that STEP THE EQUIPPED ITEM
-  // exactly the way the cosmetics arrows step a cosmetic: each step
-  // equips the next item into that item's own hotbar slot. The
-  // focused (selected or hovered) item's name lives in the title.
+  // MD 16b: the Backpack — one solid panel in the cosmetics
+  // customizer's styling, FOUR columns above their hotbar slots
+  // (16a collapsed them to one strip — misread; the layout is the
+  // MD#9 one, restyled). Per column: up/down chevron strips that
+  // STEP THE EQUIPPED ITEM the way the cosmetics arrows step a
+  // cosmetic (press-and-hold repeats), up to three cells visible,
+  // no synthetic "none" (holstering is the 1-4 keys' job). The
+  // title line is the cosmetics panel's own type: "Slot N" plus
+  // the item name, tracking the last selected or hovered item.
   // ─────────────────────────────────────────────────────────────
   const BP_VISIBLE = 3;
-  const _bp = { sel: 0 };
-  function _bpItems() {
-    const seen = new Set(), out = [];
-    for (let s = 1; s <= 4; s++) {
-      for (const it of _dxavGetSlotItems(s)) {
-        if (it.id === 'none' || seen.has(it.id)) continue;
-        seen.add(it.id);
-        out.push({ item: it, slot: s });
-      }
-    }
-    return out;
+  const _bp = { last: null };   // { slot, label } — what the title shows at rest
+  function _bpSlotList(slotNum) {
+    return _dxavGetSlotItems(slotNum).filter(it => it.id !== 'none');
   }
   function _bpLocked(it, userLvl) {
     return it.functional === false || (it.unlockLevel || 1) > userLvl;
   }
-  function _bpSetTitle(label) {
+  function _bpTitleHtml(slotNum, label) {
     const t = document.getElementById('bp-title');
-    if (t) t.innerHTML = `Backpack <span class="dxav-name">${label || ''}</span>`;
+    if (t) t.innerHTML = label ? `Slot ${slotNum} <span class="dxav-name">${label}</span>` : '&nbsp;';
   }
-  function _bpRender() {
-    const listEl = document.getElementById('bp-list');
-    if (!listEl) return;
-    const items = _bpItems();
-    if (_bp.sel > items.length - 1) _bp.sel = items.length - 1;
-    if (_bp.sel < 0) _bp.sel = 0;
-    // Window: keep the selection visible with one row of context above.
-    const start = Math.min(Math.max(_bp.sel - 1, 0), Math.max(items.length - BP_VISIBLE, 0));
+  function _bpRenderCol(slotNum) {
+    const colEl = document.querySelector(`#inv2 .bp-col[data-slot="${slotNum}"]`);
+    if (!colEl) return;
+    const cellsEl = colEl.querySelector('.bp-cells');
+    const items = _bpSlotList(slotNum);
     const userLvl = (window._dexUserLevel && window._dexUserLevel()) || 1;
-    const equipped = new Set(Object.values(_hotbar).filter(Boolean));
+    const eqIdx = items.findIndex(it => it.id === _hotbar[slotNum]);
+    // Window: keep the equipped item visible with a row of context.
+    const start = Math.min(Math.max((eqIdx < 0 ? 0 : eqIdx) - 1, 0), Math.max(items.length - BP_VISIBLE, 0));
     let html = '';
     for (let i = start; i < Math.min(start + BP_VISIBLE, items.length); i++) {
-      const { item: it, slot } = items[i];
+      const it = items[i];
       const locked = _bpLocked(it, userLvl);
       const tip = it.label
         + (it.functional === false ? ' (Coming Soon)'
            : locked ? ' (Unlocks at Level ' + it.unlockLevel + ')' : '');
       const cls = 'dxav-chip bp-cell'
-        + (equipped.has(it.id) ? ' dxav-chip-active' : '')
-        + (i === _bp.sel ? ' bp-sel' : '')
+        + (i === eqIdx ? ' dxav-chip-active' : '')
         + (locked ? ' bp-locked' : '');
-      html += `<div class="${cls}" data-idx="${i}" data-val="${it.id}" data-slotnum="${slot}" data-label="${it.label}" data-tip="${tip}">${_dxavEquipSvg(it)}<span class="bp-slotnum">${slot}</span></div>`;
+      html += `<div class="${cls}" data-slotnum="${slotNum}" data-val="${it.id}" data-label="${it.label}" data-tip="${tip}">${_dxavEquipSvg(it)}</div>`;
     }
-    listEl.innerHTML = html;
-    const up = document.getElementById('bp-chev-up');
-    const dn = document.getElementById('bp-chev-down');
-    if (up) up.classList.toggle('dxav-arrow-disabled', _bp.sel <= 0);
-    if (dn) dn.classList.toggle('dxav-arrow-disabled', _bp.sel >= items.length - 1);
-    const selEntry = items[_bp.sel];
-    _bpSetTitle(selEntry ? selEntry.item.label : '');
+    cellsEl.innerHTML = html;
+    // Chevrons step the equipped item — disabled at the list's ends
+    // (an empty slot can step "down" into its first item).
+    const up = colEl.querySelector('.bp-chev-up');
+    const dn = colEl.querySelector('.bp-chev-down');
+    if (up) up.classList.toggle('dxav-arrow-disabled', eqIdx <= 0 && eqIdx !== -1);
+    if (dn) dn.classList.toggle('dxav-arrow-disabled', eqIdx >= items.length - 1);
   }
-  // Step = move the selection AND equip it (cosmetics-arrow behavior).
-  // Locked items are stepped over.
-  function _bpStep(dir) {
-    const items = _bpItems();
+  // Step = equip the next/prev item of this slot (cosmetics-arrow
+  // behavior). Locked items are stepped over.
+  function _bpStep(slotNum, dir) {
+    const items = _bpSlotList(slotNum);
+    if (!items.length) return false;
     const userLvl = (window._dexUserLevel && window._dexUserLevel()) || 1;
-    let next = _bp.sel + dir;
-    while (next >= 0 && next < items.length && _bpLocked(items[next].item, userLvl)) next += dir;
-    if (next < 0 || next > items.length - 1 || next === _bp.sel) return false;
-    _bp.sel = next;
-    _inv2EquipToSlot(items[next].slot, items[next].item.id);
-    _bpRender();
+    const cur = items.findIndex(it => it.id === _hotbar[slotNum]);
+    let next = cur < 0 ? (dir > 0 ? 0 : items.length - 1) : cur + dir;
+    while (next >= 0 && next < items.length && _bpLocked(items[next], userLvl)) next += dir;
+    if (next < 0 || next >= items.length || next === cur) return false;
+    _inv2EquipToSlot(slotNum, items[next].id);
+    _bp.last = { slot: slotNum, label: items[next].label };
+    _bpTitleHtml(slotNum, items[next].label);
     return true;
   }
-  function _bpFocusEquipped() {
-    const items = _bpItems();
-    const idx = items.findIndex(e => e.item.id === _hotbar[_activeHotbarSlot]);
-    _bp.sel = idx >= 0 ? idx : 0;
+  function _bpTitleFromEquipped() {
+    const id = _hotbar[_activeHotbarSlot];
+    const it = id && INVENTORY_ITEMS.find(x => x.id === id);
+    _bp.last = it ? { slot: _activeHotbarSlot, label: it.label } : null;
+    _bpTitleHtml(_activeHotbarSlot, it ? it.label : null);
   }
   // Old global names kept — the toggle and equip paths call these.
-  window._inv2Render = function () { _bpFocusEquipped(); _bpRender(); };
-  window._inv2RenderColumn = function () { _bpRender(); };
-  window._inv2PageStep = function (_slot, dir) { return _bpStep(dir); };
+  window._inv2Render = function () { for (let s = 1; s <= 4; s++) _bpRenderCol(s); _bpTitleFromEquipped(); };
+  window._inv2RenderColumn = _bpRenderCol;
+  window._inv2PageStep = _bpStep;
   window._bpStep = _bpStep;
-  window._bpSelect = function (idx) { _bp.sel = idx; };
-  // Title tracks hover; null falls back to the selected item ("last
-  // selected or hovered" — the name is always present while open).
-  window._bpTitle = function (label) {
-    if (label != null) { _bpSetTitle(label); return; }
-    const e = _bpItems()[_bp.sel];
-    _bpSetTitle(e ? e.item.label : '');
+  // Title: hover shows transiently; leaving restores the last
+  // selected item; a click remembers (the "last selected or hovered").
+  window._bpTitleHover = function (slotNum, label) { _bpTitleHtml(slotNum, label); };
+  window._bpTitleRemember = function (slotNum, label) { _bp.last = { slot: slotNum, label }; _bpTitleHtml(slotNum, label); };
+  window._bpTitleRestore = function () {
+    if (_bp.last) _bpTitleHtml(_bp.last.slot, _bp.last.label);
+    else _bpTitleHtml(1, null);
   };
 
   // Body chip SVGs — full character mini (head + torso). Mirrors the four torso configs from old code.
@@ -5597,28 +5591,30 @@ function _inv2WireOnce() {
   const inv2El = document.getElementById('inv2');
   if (!inv2El) return;
 
-  // MD 16 Backpack wiring. Chevrons: click steps once, press-and-hold
-  // repeats (same 350ms/200ms cadence as the cosmetics arrows). Cells:
-  // click selects + equips into the item's own slot. Hover puts the
-  // hovered name in the title; leaving falls back to the selected one.
+  // MD 16b Backpack wiring. Chevrons carry their column's slot: click
+  // steps that slot's equipped item once, press-and-hold repeats (same
+  // 350ms/200ms cadence as the cosmetics arrows). Cells: click equips
+  // into the cell's slot. Hover shows the name in the title line;
+  // leaving restores the last selected one.
+  const _bpChevSlot = (chev) => parseInt(chev.closest('.bp-col')?.dataset.slot, 10);
   let _bpHoldT = null, _bpHoldI = null, _bpHeld = false;
   const _bpStopHold = () => {
     if (_bpHoldT) { clearTimeout(_bpHoldT); _bpHoldT = null; }
     if (_bpHoldI) { clearInterval(_bpHoldI); _bpHoldI = null; }
   };
-  const _bpStartHold = (dir) => {
+  const _bpStartHold = (slotNum, dir) => {
     _bpHeld = false;
     _bpHoldT = setTimeout(() => {
       _bpHoldI = setInterval(() => {
         _bpHeld = true;
-        if (!window._bpStep || !window._bpStep(dir)) _bpStopHold();
+        if (!window._bpStep || !window._bpStep(slotNum, dir)) _bpStopHold();
       }, 200);
     }, 350);
   };
   inv2El.addEventListener('mousedown', e => {
     const chev = e.target.closest('.bp-chev');
     if (chev && !chev.classList.contains('dxav-arrow-disabled')) {
-      _bpStartHold(parseInt(chev.dataset.dir, 10));
+      _bpStartHold(_bpChevSlot(chev), parseInt(chev.dataset.dir, 10));
     }
   });
   inv2El.addEventListener('mouseup', _bpStopHold);
@@ -5626,7 +5622,7 @@ function _inv2WireOnce() {
   inv2El.addEventListener('touchstart', e => {
     const chev = e.target.closest('.bp-chev');
     if (chev && !chev.classList.contains('dxav-arrow-disabled')) {
-      _bpStartHold(parseInt(chev.dataset.dir, 10));
+      _bpStartHold(_bpChevSlot(chev), parseInt(chev.dataset.dir, 10));
     }
   }, { passive: true });
   inv2El.addEventListener('touchend', _bpStopHold);
@@ -5635,24 +5631,23 @@ function _inv2WireOnce() {
     if (chev) {
       if (chev.classList.contains('dxav-arrow-disabled')) return;
       if (_bpHeld) { _bpHeld = false; return; }   // a hold already stepped
-      window._bpStep?.(parseInt(chev.dataset.dir, 10));
+      window._bpStep?.(_bpChevSlot(chev), parseInt(chev.dataset.dir, 10));
       return;
     }
     const cell = e.target.closest('.bp-cell');
     if (!cell || cell.classList.contains('bp-locked')) return;
-    const idx = parseInt(cell.dataset.idx, 10);
     const slotNum = parseInt(cell.dataset.slotnum, 10);
     const itemId = cell.dataset.val;
     if (!slotNum || !itemId) return;
-    if (!isNaN(idx)) window._bpSelect?.(idx);
     _inv2EquipToSlot(slotNum, itemId);
+    window._bpTitleRemember?.(slotNum, cell.dataset.label);
   });
   inv2El.addEventListener('mouseover', e => {
     const cell = e.target.closest('.bp-cell');
-    if (cell) window._bpTitle?.(cell.dataset.label);
+    if (cell) window._bpTitleHover?.(parseInt(cell.dataset.slotnum, 10), cell.dataset.label);
   });
   inv2El.addEventListener('mouseout', e => {
-    if (e.target.closest('.bp-cell')) window._bpTitle?.(null);
+    if (e.target.closest('.bp-cell')) window._bpTitleRestore?.();
   });
 
   // Click outside #inv2 closes the panel. Slot 5 (toggle) and any

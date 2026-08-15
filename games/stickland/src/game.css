@@ -172,6 +172,12 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 [data-theme="light"] #hud-health-wrap{background:rgba(0,0,0,0.12);border-color:rgba(0,0,0,0.15);}
 #hud-health-bar{width:100%;height:100%;background:#4ade80;border-radius:4px;transition:width 0.3s ease;}
 /* Charge bar */
+/* MD 16b: #game-hud (z 206) sits ABOVE the Backpack panel (z 205), and
+   its container box + indicator bars were swallowing clicks meant for
+   the panel's lower chevrons. The HUD itself is not a click target —
+   only the item bar inside it is. Let everything else pass through. */
+#game-hud{pointer-events:none;}
+#game-hud #item-bar{pointer-events:auto;}
 #hud-charge-wrap{width:220px;height:5px;background:rgba(0,0,0,0.3);border-radius:3px;overflow:hidden;opacity:0;transition:opacity 0.15s;}
 #hud-charge-wrap.visible{opacity:1;}
 [data-theme="light"] #hud-charge-wrap{background:rgba(0,0,0,0.1);}
@@ -282,12 +288,17 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 /* Notes-app UI removed: theme-toggle arc animation, .hdr-collapse-* header
    dropdown, and the note-editor spelling/highlight rules. */
 /* ─────────────────────────────────────────────────────────────
-   MD 16: the Backpack — the inventory is a solid panel in the
-   cosmetics customizer's styling (#dxav-panel surface, .dxav-chip
-   cells, .dxav-arrow interaction): one vertical strip of three item
-   cells with full-width up/down chevron strips that step the
-   equipped item, and the focused item's name in the title.
-   Replaces the four floating per-slot columns (MD#9-#12).
+   MD 16b: the Backpack — one solid panel in the cosmetics
+   customizer's styling, containing FOUR columns that sit above
+   their hotbar slots (the MD#9 layout, restyled — losing the
+   columns in 16a was a misread). Typography is the cosmetics
+   panel's own: .dxav-heading "Backpack" + .dxav-sub item name.
+   Columns: full-width up/down chevron strips that STEP THE
+   EQUIPPED ITEM (press-and-hold repeats), up to three cells
+   visible, no synthetic "none" cell (holstering is the 1-4 keys).
+   Sized at final pixels (no scale transform): cells 78px and
+   9px gaps = the hotbar's rendered 87px pitch, so each column
+   tracks its slot.
    ───────────────────────────────────────────────────────────── */
 #inv2 {
   position: fixed;
@@ -299,9 +310,8 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 172px;
-  padding: 10px 10px 12px;
+  gap: 2px;
+  padding: 8px 10px 12px;
   background: var(--bg2);
   border: 1px solid var(--bdr);
   border-radius: 16px;
@@ -325,24 +335,28 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
     opacity 0.15s ease,
     visibility 0s linear 0s;
 }
-#bp-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--tx2);
-  min-height: 18px;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+/* Heading + name line come straight from the cosmetics panel classes
+   (.dxav-heading / .dxav-sub) — #bp-title only pins a height so the
+   panel doesn't jump when the name changes. */
+#bp-title { min-height: 18px; }
+#bp-row { display: flex; gap: 9px; align-items: flex-end; }
+.bp-col {
+  width: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
 }
-#bp-title .dxav-name { color: var(--clr-adj, var(--accent)); font-weight: 600; margin-left: 4px; }
-/* Chevron strips — the dxav-arrow interaction, laid flat: the entire
-   strip is the button, hover fills with the accent wash. Disabled uses
-   the shared .dxav-arrow-disabled class. */
+.bp-cells { display: flex; flex-direction: column; gap: 5px; }
+/* Cells are .dxav-chip (hover wash, equipped outline via
+   .dxav-chip-active) at the hotbar's rendered cell size. */
+.bp-cells .bp-cell { width: 78px; height: 78px; border-radius: 12px; }
+.bp-cell.bp-locked { opacity: 0.35; cursor: default; }
+/* Chevron strips — the dxav-arrow interaction laid flat: the whole
+   width of the column is the button. */
 .bp-chev {
   width: 100%;
-  height: 26px;
+  height: 22px;
   background: transparent;
   border: 0;
   padding: 0;
@@ -357,21 +371,6 @@ body.playroom-active #sess-grid-popup{z-index:9050 !important;}
 .bp-chev:hover:not(.dxav-arrow-disabled) { background: color-mix(in srgb, var(--clr-adj, var(--accent)) 12%, transparent); }
 .bp-chev.dxav-arrow-disabled { color: var(--tx3); opacity: 0.35; cursor: default; pointer-events: none; }
 .bp-chev svg { width: 18px; height: 18px; }
-#bp-list { display: flex; flex-direction: column; gap: 6px; }
-/* Cells are .dxav-chip (hover wash, equipped outline via
-   .dxav-chip-active) at hotbar-slot proportions. */
-#bp-list .bp-cell { width: 64px; height: 64px; border-radius: 10px; }
-.bp-cell .bp-slotnum {
-  position: absolute;
-  top: 3px;
-  left: 6px;
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--tx3);
-  pointer-events: none;
-}
-.bp-cell.bp-locked { opacity: 0.35; cursor: default; }
-.bp-cell.bp-sel { background: rgba(255,255,255,.05); }
 
 
 /* ─────────────────────────────
