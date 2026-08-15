@@ -319,7 +319,7 @@ img{max-width:100%}
 /* The expanded name and its chevron share one line. */
 .profile-nameline{display:flex;align-items:center;gap:10px;width:100%}
 .profile-nameline strong{flex:0 1 auto}
-button.button{cursor:pointer;font:inherit}
+button.button{cursor:pointer;font-family:inherit}
 .contact-mini{border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
 .profile-mini{min-height:136px;padding:14px 14px 13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 
@@ -1904,10 +1904,10 @@ body.modal-open{overflow:hidden}
   transition:opacity .17s ease,transform .24s cubic-bezier(.2,.9,.3,1.25);
 }
 .ga-play-face{fill:var(--accent); transition:fill var(--accent-ease)}
-/* Fixed dark blue, deliberately NOT mixed with the accent. Mixing read as dark
-   green under the lime accent and shifted hue with every other one — the edge
-   has to stay blue to stay the same component across all seven. */
-.ga-play-edge{fill:none; stroke:#0b1e33; stroke-width:8; stroke-linejoin:round}
+/* The site's own page-dark, so the edge reads as the ground showing through
+   rather than a colour of its own. (An earlier accent-mixed edge shifted hue
+   per accent; a later fixed blue read as a third colour. Fixed and neutral.) */
+.ga-play-edge{fill:none; stroke:var(--page-bg); stroke-width:6; stroke-linejoin:round}
 .ga-play-spec{fill:#fff; opacity:.55}
 .game-art.is-on:hover .game-art-play,
 .game-art.is-on:focus-visible .game-art-play{opacity:1; transform:translate(-50%,-50%) scale(1)}

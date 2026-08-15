@@ -2045,10 +2045,11 @@ const PORTRAIT_LABEL = {
     }
   };
 
-  let state = 'photo';
+  // The accent line art is the DEFAULT face of the site now; the photo is one
+  // click away and a stored choice still wins.
+  let state = 'ink';
   try {
     const saved = localStorage.getItem(PORTRAIT_KEY);
-    // 'ink' predates the third state, so an existing choice still restores.
     if (PORTRAIT_CYCLE.includes(saved)) state = saved;
   } catch (err) { /* private mode */ }
   apply(state);
