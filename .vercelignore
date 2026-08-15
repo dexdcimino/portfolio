@@ -22,7 +22,8 @@ games/*/README.md
 # has to place it inside the version folder — not un-ignore it here.
 games/*/public/
 
-# Songs Dex may swap back in later. Kept in the repo, never shipped — there
-# is no reason to upload MP3s the site does not reference. Matches the
-# leading-underscore convention bake_images.py already skips.
-assets/about/songs/_archive/
+# Anything parked for possible reuse: songs swapped out of Top Picks, retired
+# artwork, and so on. Kept in the repo, never shipped — there is no reason to
+# upload assets the site does not reference. One rule rather than one per
+# folder, matching the leading-underscore convention bake_images.py skips.
+**/_archive/
