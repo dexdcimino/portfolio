@@ -1460,6 +1460,17 @@ body.modal-open{overflow:hidden}
   --cv-dim:#8b939b;         /* dates, footer, contact line */
   --cv-card:#23282f;        /* header + skills cards */
   --cv-rule:rgba(255,255,255,.13);
+  /* The document's own accent. These two surfaces are the lightest the accent
+     ever has to sit on, and they carry the SMALLEST accent text on the site —
+     the 10-13px mono labels below, which at --resume-zoom land around 11-14px
+     and so get no large-text exemption. Four of the seven accents clear 4.5:1
+     on #23282f untouched and are passed straight through; the three dark ones
+     are mixed toward white by the minimum that clears it (see the override
+     below). A visitor only ever sees one accent, so the uneven treatment is
+     invisible — what would be visible is washing out lime or white to fix a
+     problem they do not have. Scoped to .resume-page on purpose: the overlay
+     chrome outside it (tabs, PDF button) keeps the true accent. */
+  --cv-accent:var(--accent);
   --cv-gut:24px;
   --cv-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
   zoom:var(--resume-zoom,1.1);
@@ -1481,6 +1492,19 @@ body.modal-open{overflow:hidden}
    itself to the foot of the sheet. */
 .resume-page[hidden]{display:none}
 
+/* Red 3.45:1, purple 3.89:1 and blue 2.83:1 against --cv-card — blue under even
+   the 3.0 large-text floor. Each percentage is the least white that clears
+   4.5:1 there, plus a point of margin, so the shift is the smallest one that
+   works rather than a flat mix: red 4.63, blue 4.61, purple 4.62. The palette
+   itself is NOT touched — ACCENTS is byte-duplicated into every game's pause
+   menu (tools/check_accents.py enforces that), and the swatch, favicon, mascot
+   pairing and button fill all keep the exact picked colour. Written as
+   color-mix on var(--accent) rather than three literals so the numbers stay
+   derived from the palette instead of drifting from it. */
+:root[data-accent="red"]    .resume-page{--cv-accent:color-mix(in srgb,var(--accent) 79%,#fff)}
+:root[data-accent="blue"]   .resume-page{--cv-accent:color-mix(in srgb,var(--accent) 73%,#fff)}
+:root[data-accent="purple"] .resume-page{--cv-accent:color-mix(in srgb,var(--accent) 88%,#fff)}
+
 /* Header card. The accent bar is inset from the card's top and bottom by more
    than the corner radius, so it never has to fight the rounded corner it would
    otherwise overlap. */
@@ -1491,12 +1515,12 @@ body.modal-open{overflow:hidden}
 }
 .cv-head::before{
   content:"";position:absolute;left:0;top:14px;bottom:14px;width:5px;
-  border-radius:3px;background:var(--accent);transition:background var(--accent-ease);
+  border-radius:3px;background:var(--cv-accent);transition:background var(--accent-ease);
 }
 .cv-name{margin:0;font-size:32px;line-height:1.05;letter-spacing:.01em;color:#fff;font-weight:800}
 .cv-role{
   margin:9px 0 0;font-family:var(--cv-mono);font-size:11px;letter-spacing:.14em;
-  color:var(--accent);font-weight:700;transition:color var(--accent-ease);
+  color:var(--cv-accent);font-weight:700;transition:color var(--accent-ease);
 }
 .cv-contact{
   margin:12px 0 0;font-size:11px;letter-spacing:.02em;color:var(--cv-dim);
@@ -1506,9 +1530,9 @@ body.modal-open{overflow:hidden}
    original — so the line reads as one run rather than three coloured chips.
    The links keep their affordance on hover/focus rather than a resting
    underline, which is what lets them sit in the grey run at all. */
-.cv-contact span[aria-hidden]{color:var(--accent);transition:color var(--accent-ease)}
+.cv-contact span[aria-hidden]{color:var(--cv-accent);transition:color var(--accent-ease)}
 .cv-contact a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
-.cv-contact a:hover,.cv-contact a:focus-visible{border-bottom-color:var(--accent)}
+.cv-contact a:hover,.cv-contact a:focus-visible{border-bottom-color:var(--cv-accent)}
 
 .cv-block{margin:0 0 15px;padding:0 var(--cv-gut)}
 /* Small mono label, then a hairline that BEGINS after it and runs to the right
@@ -1517,10 +1541,10 @@ body.modal-open{overflow:hidden}
 .cv-block h3{
   display:flex;align-items:center;gap:10px;
   margin:0 0 8px;font-family:var(--cv-mono);font-size:10px;letter-spacing:.14em;
-  /* 800 rather than 700: it matches the original's weight, and it is the one
-     lever that buys the low-contrast accents (blue especially) some legibility
-     at this size without touching the palette. */
-  color:var(--accent);font-weight:800;transition:color var(--accent-ease);
+  /* 800 rather than 700 to match the original's weight. It used to be carrying
+     the low-contrast accents at this size as well; --cv-accent does that job
+     properly now, so this is back to being a typographic choice. */
+  color:var(--cv-accent);font-weight:800;transition:color var(--accent-ease);
 }
 .cv-block h3::after{content:"";flex:1 1 auto;height:1px;background:var(--cv-rule)}
 .cv-block p{margin:0}
@@ -1537,11 +1561,11 @@ body.modal-open{overflow:hidden}
 .cv-projects li{display:flex;gap:8px;align-items:baseline}
 .cv-projects li>span{font-size:13.1px}
 .cv-projects .cv-project{
-  flex:none;color:var(--accent);font-weight:800;font-size:12.8px;letter-spacing:.04em;
+  flex:none;color:var(--cv-accent);font-weight:800;font-size:12.8px;letter-spacing:.04em;
   transition:color var(--accent-ease);
 }
 .cv-projects .cv-project a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
-.cv-projects .cv-project a:hover,.cv-projects .cv-project a:focus-visible{border-bottom-color:var(--accent)}
+.cv-projects .cv-project a:hover,.cv-projects .cv-project a:focus-visible{border-bottom-color:var(--cv-accent)}
 
 /* Jobs — company/role/date on one wrapping flex row, description forced onto
    its own row by a 100% basis. Keeps <strong>/<em> as direct children of the
@@ -1550,7 +1574,7 @@ body.modal-open{overflow:hidden}
 .cv-jobs li{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 9px}
 .cv-jobs strong{color:#fff;font-size:13px;font-weight:800;letter-spacing:.02em}
 .cv-jobrole{
-  color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.05em;
+  color:var(--cv-accent);font-size:11px;font-weight:800;letter-spacing:.05em;
   transition:color var(--accent-ease);
 }
 .cv-jobs em{
@@ -1566,16 +1590,16 @@ body.modal-open{overflow:hidden}
 .cv-jobdesc,.cv-bullets li{position:relative;padding-left:18px;font-size:12.4px}
 .cv-jobdesc::before,.cv-bullets li::before{
   content:"";position:absolute;left:6px;top:.6em;width:4px;height:4px;
-  border-radius:50%;background:var(--accent);transition:background var(--accent-ease);
+  border-radius:50%;background:var(--cv-accent);transition:background var(--accent-ease);
 }
 .cv-bullets{gap:6px}
 
 /* Inline links in body copy (the cover letter's DexNote/NodeBlast) — without
    this they inherit the global a{color:inherit} and read as plain text. */
-.cv-block p a{color:var(--accent);text-decoration:none;
-  border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent);
+.cv-block p a{color:var(--cv-accent);text-decoration:none;
+  border-bottom:1px solid color-mix(in srgb,var(--cv-accent) 45%,transparent);
   transition:color var(--accent-ease),border-color var(--accent-ease)}
-.cv-block p a:hover,.cv-block p a:focus-visible{border-bottom-color:var(--accent)}
+.cv-block p a:hover,.cv-block p a:focus-visible{border-bottom-color:var(--cv-accent)}
 
 /* Skills — its own rounded card, so it overrides .cv-block's text gutter with
    the card's own padding. Written with both classes to win on specificity
@@ -1606,7 +1630,7 @@ body.modal-open{overflow:hidden}
   background:var(--cv-card);border-radius:12px;
   margin:auto 0 0;padding:15px var(--cv-gut);text-align:left;
 }
-.cv-foot-tag{color:var(--accent);font-weight:700;transition:color var(--accent-ease)}
+.cv-foot-tag{color:var(--cv-accent);font-weight:700;transition:color var(--accent-ease)}
 
 /* Cover letter — not compactness-limited. It is set a clear step larger than
    the resume and on a wider gutter, so the measure is a letter's rather than a
@@ -1617,7 +1641,7 @@ body.modal-open{overflow:hidden}
 .cv-letter .cv-foot-card{margin:auto 24px 0;padding:15px 20px;font-size:10px}
 .cv-letter .cv-block p + p{margin-top:13px}
 .cv-greeting{font-size:17px;font-weight:800;color:#fff;letter-spacing:.01em;margin-bottom:4px}
-.cv-signoff strong{color:var(--accent);font-weight:800;letter-spacing:.05em;transition:color var(--accent-ease)}
+.cv-signoff strong{color:var(--cv-accent);font-weight:800;letter-spacing:.05em;transition:color var(--accent-ease)}
 
 /* Tab bar. Same accent language as the rest of the overlay. */
 .resume-head{
