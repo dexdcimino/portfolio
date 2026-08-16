@@ -42,7 +42,9 @@ current; keep it short by keeping the edits few.
 6. `js/main.js` (beyond the embed MD's edits)
    - `chomp-accent` listener: `playerVisual.dispose()` -> `flushPlayerPools()`
      -> `mountPlayerVisual()` — order matters, the live visual must be pooled
-     BEFORE the flush or mount pops it back out.
+     BEFORE the flush or mount pops it back out — then places and scales the
+     fresh visual immediately: the update loop is not running while paused,
+     so an unplaced mount sits at the world origin until resume.
 
 7. `js/systems/camera.js` (beyond note 3)
    - Scroll-wheel zoom (persists `chomp-zoom`, emits `chomp-zoom-sync` for the

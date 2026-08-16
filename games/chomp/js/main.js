@@ -114,6 +114,12 @@ window.addEventListener('chomp-accent', () => {
   playerVisual?.dispose();
   factory.flushPlayerPools();
   mountPlayerVisual();
+  // The accent change happens from the PAUSE menu, and the update loop that
+  // normally places the visual every frame is not running while paused — so
+  // the fresh mount sat at the world origin (reading as "shot off to the
+  // corner") until resume snapped it back. Place and scale it here, now.
+  playerVisual.root.position.set(player.x, world.floorHeight(player.x, player.z), player.z);
+  playerVisual.root.scaling.setAll(growthScale(player));
 });
 
 on('player:bonk', () => morphOnBonk(morph));
