@@ -1125,20 +1125,23 @@ button.button{cursor:pointer;font-family:inherit}
 }
 
 /* Quotes carry no image, so the card itself has to hold the shape. */
-/* Quote cards ARE cover-shaped: same grid, same columns, same 2/3 aspect, so
-   they sit in the row exactly like a movie or game cover does. The type is
-   sized by container query — a fraction of the card's own width — which is how
-   the text scales with the card the same way cover art does, instead of one
-   font size fitting at 1600px and clipping at 1280. */
+/* Quote cards keep the grid and the columns of a cover row, but NOT its 2:3
+   box — nothing else shares the Quotes tab, so there is no cover to line up
+   with and a cover-tall card is mostly empty space under three lines of text.
+   10/9 is 2/3 with 40% of the height taken out. The type is sized by container
+   query — a fraction of the card's own width — which is how the text scales
+   with the card the same way cover art does, instead of one font size fitting
+   at 1600px and clipping at 1280. The ramp is tuned to the SHORTER box: the
+   longest quote here has to land inside it at every column count. */
 .pk-quote{
   display:grid;gap:10px;align-content:space-between;
-  padding:16px 15px;aspect-ratio:2/3;min-height:0;
+  padding:14px 15px;aspect-ratio:10/9;min-height:0;
   container-type:inline-size;overflow:hidden;
   border:var(--stroke) solid rgba(255,255,255,.09);border-radius:14px;
   border-left:3px solid var(--accent);
   background:linear-gradient(150deg,rgba(32,38,44,.5),rgba(12,15,18,.5));
   transition:border-color var(--accent-ease)}
-.pk-quote blockquote{margin:0;font-size:clamp(9px,7.6cqw,17px);line-height:1.5;color:var(--text);font-style:italic}
+.pk-quote blockquote{margin:0;font-size:clamp(9px,6.9cqw,15px);line-height:1.45;color:var(--text);font-style:italic}
 /* Generated marks, not characters in the data attributes — they wrap whichever
    version is showing and can never double up or stray on a swap. */
 .pk-quote blockquote::before{content:"\201C"}

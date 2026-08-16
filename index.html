@@ -1278,6 +1278,10 @@
         <!-- Adding a rendition to a card later: add data-rendition to its
              blockquote and cite, plus class="has-rendition" and the toggle
              button on the <li> — no JS or CSS change needed. -->
+        <!-- Ordered left to right by how a first-time reader is likely to take
+             them: the two that land on their own (Sagan, Watts) open, the two
+             that need a beat to sit with follow, and the one whose cite is
+             "Author unknown" closes rather than interrupts. -->
         <ul class="pk-grid pk-grid-quotes">
           <li class="pk-quote">
             <blockquote class="pk-quote-text"
@@ -1288,9 +1292,9 @@
           </li>
           <li class="pk-quote">
             <blockquote class="pk-quote-text"
-              data-original="I do not know with what weapons World War III will be fought, but World War IV will be fought with sticks and stones."></blockquote>
+              data-original="Man suffers only because he takes seriously what the gods made for fun."></blockquote>
             <div class="pk-quote-foot">
-              <cite class="pk-quote-cite" data-original="Albert Einstein"></cite>
+              <cite class="pk-quote-cite" data-original="Alan Watts"></cite>
             </div>
           </li>
           <li class="pk-quote">
@@ -1301,19 +1305,19 @@
             </div>
           </li>
           <li class="pk-quote">
+            <blockquote class="pk-quote-text"
+              data-original="I do not know with what weapons World War III will be fought, but World War IV will be fought with sticks and stones."></blockquote>
+            <div class="pk-quote-foot">
+              <cite class="pk-quote-cite" data-original="Albert Einstein"></cite>
+            </div>
+          </li>
+          <li class="pk-quote">
             <!-- Commonly misattributed to Edmund Burke; that attribution is
                  false, and citing it as unknown is deliberate. -->
             <blockquote class="pk-quote-text"
               data-original="The only thing necessary for the triumph of evil is that good men do nothing."></blockquote>
             <div class="pk-quote-foot">
               <cite class="pk-quote-cite" data-original="Author unknown"></cite>
-            </div>
-          </li>
-          <li class="pk-quote">
-            <blockquote class="pk-quote-text"
-              data-original="Man suffers only because he takes seriously what the gods made for fun."></blockquote>
-            <div class="pk-quote-foot">
-              <cite class="pk-quote-cite" data-original="Alan Watts"></cite>
             </div>
           </li>
         </ul>
