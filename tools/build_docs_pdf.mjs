@@ -26,12 +26,15 @@
  * paginated, and the shrink is reported: past a point that is a
  * content-length problem, not a rendering one.
  *
- *   node tools/build_docs_pdf.mjs [baseUrl]      default http://127.0.0.1:8784
+ *   node tools/build_docs_pdf.mjs [baseUrl] [--cdp=http://host:port]
+ *                                 defaults http://127.0.0.1:8784 and :9333
  *
  * Needs Chrome listening on --remote-debugging-port=9333 (the same instance
- * the rest of the tooling uses) and the site served at baseUrl. Verify with
- * --check, which fails if any variant is missing or the panel markup changed
- * since the last build.
+ * the rest of the tooling uses) and the site served at baseUrl. --cdp points
+ * it at a different Chrome, which is what lets a second session build against
+ * its own browser and server instead of borrowing whichever one is already
+ * running. Verify with --check, which fails if any variant is missing or the
+ * panel markup changed since the last build.
  */
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -39,6 +42,7 @@ import { argv, exit } from 'node:process';
 import puppeteer from 'puppeteer-core';
 
 const BASE = argv.find(a => a.startsWith('http')) || 'http://127.0.0.1:8784';
+const CDP = (argv.find(a => a.startsWith('--cdp=')) || '').slice(6) || 'http://127.0.0.1:9333';
 const CHECK = argv.includes('--check');
 const SHEET_PX = 1056;              // 11in at 96dpi — .resume-page's own height
 
@@ -77,11 +81,19 @@ if (CHECK) {
   exit(0);
 }
 
-const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9333', defaultViewport: { width: 1600, height: 1000 } });
+const browser = await puppeteer.connect({ browserURL: CDP, defaultViewport: { width: 1600, height: 1000 } });
 
 {
   const page = await browser.newPage();
   await page.goto(`${BASE}/?pdf=${Date.now()}`, { waitUntil: 'load' });
+
+  /* The accent is persisted in localStorage, so the artifacts would otherwise
+     come out in whatever colour this browser profile last had clicked — a
+     build machine that once picked purple would ship purple PDFs. Clear the key
+     and reload so "the site's default accent" is actually what gets printed,
+     whatever state the profile is in. */
+  await page.evaluate(() => localStorage.removeItem('dex-accent-name'));
+  await page.reload({ waitUntil: 'load' });
 
   for (const doc of DOCS) {
     // The real open path, then the app's own readiness signals: the dialog's

@@ -1446,75 +1446,178 @@ body.modal-open{overflow:hidden}
 .resume-scroll:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
 
 /* US Letter at 96dpi. `zoom` (not transform:scale) so the scroll container's
-   layout box reflects the zoomed size and scroll bounds stay correct for free. */
+   layout box reflects the zoomed size and scroll bounds stay correct for free.
+
+   GEOMETRY. The page's own padding is the CARD GUTTER — the header and skills
+   cards sit flush to it — and running text indents a further --cv-gut so the
+   cards read as wider than the measure. That is the whole trick behind the
+   original's proportions; the previous full-bleed bands were the same elements
+   with the gutter set to zero and negative margins pulling them to the edge.
+   Column layout so a footer with margin-top:auto lands on the foot of the
+   sheet whatever the content height. */
 .resume-page{
+  --cv-ink:#a9b1b9;         /* body copy */
+  --cv-dim:#8b939b;         /* dates, footer, contact line */
+  --cv-card:#23282f;        /* header + skills cards */
+  --cv-rule:rgba(255,255,255,.13);
+  --cv-gut:24px;
+  --cv-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
   zoom:var(--resume-zoom,1.1);
   width:816px;min-height:1056px;flex:none;
   margin:auto;                 /* centres while there is room, collapses when there is not */
-  padding:52px 56px 60px;box-sizing:border-box;
-  background:#1b1f24;color:#a8b0b8;
-  font-size:14px;line-height:1.55;
+  padding:30px 32px 24px;box-sizing:border-box;
+  display:flex;flex-direction:column;
+  background:#1b1f24;color:var(--cv-ink);
+  font-size:13.6px;line-height:1.48;
   border-radius:4px;box-shadow:0 8px 40px rgba(0,0,0,.5);
   user-select:text;
 }
+/* The display:flex above is an AUTHOR declaration, so it beats the UA
+   stylesheet's [hidden]{display:none} no matter the specificity — without this
+   the inactive document stays laid out beneath the active one. On screen that
+   is two stacked sheets in the overlay; in print it is a second page, which is
+   exactly what the fit machinery exists to prevent. Restated here rather than
+   reverting the page to a block: the flex column is what lets the footer pin
+   itself to the foot of the sheet. */
+.resume-page[hidden]{display:none}
 
+/* Header card. The accent bar is inset from the card's top and bottom by more
+   than the corner radius, so it never has to fight the rounded corner it would
+   otherwise overlap. */
 .cv-head{
-  position:relative;background:#23282f;margin:-52px -56px 26px;padding:34px 56px 26px;
-  border-bottom:1px solid rgba(255,255,255,.10);
+  position:relative;flex:none;
+  background:var(--cv-card);border-radius:12px;
+  margin:0 0 18px;padding:22px var(--cv-gut) 20px;
 }
-.cv-head::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--accent)}
-.cv-name{margin:0;font-size:38px;line-height:1;letter-spacing:.02em;color:#fff;font-weight:800}
-.cv-role{margin:10px 0 0;font-size:12.5px;letter-spacing:.15em;color:var(--accent);font-weight:700}
-.cv-contact{margin:14px 0 0;font-size:12.5px;letter-spacing:.03em;color:#98a1a9;display:flex;flex-wrap:wrap;gap:9px}
-.cv-contact a{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+.cv-head::before{
+  content:"";position:absolute;left:0;top:14px;bottom:14px;width:5px;
+  border-radius:3px;background:var(--accent);transition:background var(--accent-ease);
+}
+.cv-name{margin:0;font-size:32px;line-height:1.05;letter-spacing:.01em;color:#fff;font-weight:800}
+.cv-role{
+  margin:9px 0 0;font-family:var(--cv-mono);font-size:11px;letter-spacing:.14em;
+  color:var(--accent);font-weight:700;transition:color var(--accent-ease);
+}
+.cv-contact{
+  margin:12px 0 0;font-size:11px;letter-spacing:.02em;color:var(--cv-dim);
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+}
+/* The separators carry the accent and the details stay grey, as in the
+   original — so the line reads as one run rather than three coloured chips.
+   The links keep their affordance on hover/focus rather than a resting
+   underline, which is what lets them sit in the grey run at all. */
+.cv-contact span[aria-hidden]{color:var(--accent);transition:color var(--accent-ease)}
+.cv-contact a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
 .cv-contact a:hover,.cv-contact a:focus-visible{border-bottom-color:var(--accent)}
 
-.cv-block{margin:0 0 22px}
+.cv-block{margin:0 0 15px;padding:0 var(--cv-gut)}
+/* Small mono label, then a hairline that BEGINS after it and runs to the right
+   margin — a flex row where the rule is the growing item. A neutral rule, not
+   an accent-tinted one: it has to sit quietly under seven different hues. */
 .cv-block h3{
-  margin:0 0 10px;font-size:12px;letter-spacing:.18em;color:var(--accent);font-weight:800;
-  padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--accent) 30%,rgba(255,255,255,.10));
+  display:flex;align-items:center;gap:10px;
+  margin:0 0 8px;font-family:var(--cv-mono);font-size:10px;letter-spacing:.14em;
+  /* 800 rather than 700: it matches the original's weight, and it is the one
+     lever that buys the low-contrast accents (blue especially) some legibility
+     at this size without touching the palette. */
+  color:var(--accent);font-weight:800;transition:color var(--accent-ease);
 }
+.cv-block h3::after{content:"";flex:1 1 auto;height:1px;background:var(--cv-rule)}
 .cv-block p{margin:0}
+.cv-block p + p{margin-top:9px}
 
-.cv-list{list-style:none;margin:0;padding:0;display:grid;gap:13px}
-.cv-list li{position:relative;padding-left:16px}
-.cv-list li::before{content:"";position:absolute;left:0;top:.55em;width:6px;height:6px;background:var(--accent)}
-.cv-list-plain li{padding-left:16px}
-.cv-list strong{display:inline;color:#fff;font-size:13.5px;letter-spacing:.04em}
-/* Accent belongs to the project-name role, not to the anchor — ROBLOX / ROVIO
-   has nothing to link to and was rendering white next to two accent siblings.
-   The underline stays on the anchors as the affordance that they are links. */
-.cv-list .cv-project{color:var(--accent);transition:color var(--accent-ease)}
-.cv-list .cv-project a{color:inherit}
-.cv-list strong a{color:inherit;text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
-.cv-list strong a:hover,.cv-list strong a:focus-visible{border-bottom-color:var(--accent)}
-.cv-list em{font-style:normal;color:#8e969e;font-size:12px;letter-spacing:.06em;margin-left:8px}
-.cv-list span{display:block;margin-top:3px}
+.cv-list{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.cv-list li{padding:0}
 
-.cv-block p + p{margin-top:11px}
+/* Projects — name and description on ONE line. The entry text runs a shade
+   under the paragraph copy above it, which is what keeps DexNote and NodeBlast
+   to one line each and breaks Roblox/Rovio after "art, games," exactly as the
+   original does. Paragraph copy, project entries and job descriptions are three
+   deliberate steps down, not drift: each one is pinned by a line break. */
+.cv-projects li{display:flex;gap:8px;align-items:baseline}
+.cv-projects li>span{font-size:13.1px}
+.cv-projects .cv-project{
+  flex:none;color:var(--accent);font-weight:800;font-size:12.8px;letter-spacing:.04em;
+  transition:color var(--accent-ease);
+}
+.cv-projects .cv-project a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
+.cv-projects .cv-project a:hover,.cv-projects .cv-project a:focus-visible{border-bottom-color:var(--accent)}
+
+/* Jobs — company/role/date on one wrapping flex row, description forced onto
+   its own row by a 100% basis. Keeps <strong>/<em> as direct children of the
+   <li>, which the clipboard builder depends on. */
+.cv-jobs{gap:10px}
+.cv-jobs li{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 9px}
+.cv-jobs strong{color:#fff;font-size:13px;font-weight:800;letter-spacing:.02em}
+.cv-jobrole{
+  color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.05em;
+  transition:color var(--accent-ease);
+}
+.cv-jobs em{
+  margin-left:auto;font-style:normal;font-family:var(--cv-mono);
+  font-size:10px;letter-spacing:.06em;color:var(--cv-dim);white-space:nowrap;
+}
+.cv-jobdesc{flex:0 0 100%;margin-top:2px}
+
+/* Small accent dots, tight indent — the job descriptions and the earlier-
+   experience items. These run a step smaller than the paragraph copy, as in the
+   original: it is what keeps every job description to a single line except
+   Embody's, and the line breaks are the check that the size is right. */
+.cv-jobdesc,.cv-bullets li{position:relative;padding-left:18px;font-size:12.4px}
+.cv-jobdesc::before,.cv-bullets li::before{
+  content:"";position:absolute;left:6px;top:.6em;width:4px;height:4px;
+  border-radius:50%;background:var(--accent);transition:background var(--accent-ease);
+}
+.cv-bullets{gap:6px}
+
 /* Inline links in body copy (the cover letter's DexNote/NodeBlast) — without
    this they inherit the global a{color:inherit} and read as plain text. */
 .cv-block p a{color:var(--accent);text-decoration:none;
   border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent);
   transition:color var(--accent-ease),border-color var(--accent-ease)}
 .cv-block p a:hover,.cv-block p a:focus-visible{border-bottom-color:var(--accent)}
-.cv-signoff strong{color:var(--accent);letter-spacing:.06em;transition:color var(--accent-ease)}
-.cv-footer{
-  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
-  margin:26px 0 0;padding-top:14px;font-size:11px;letter-spacing:.14em;color:#8e969e;
-  border-top:1px solid color-mix(in srgb,var(--accent) 30%,rgba(255,255,255,.10));
+
+/* Skills — its own rounded card, so it overrides .cv-block's text gutter with
+   the card's own padding. Written with both classes to win on specificity
+   rather than on source order. */
+.cv-block.cv-skills{
+  background:var(--cv-card);border-radius:12px;
+  margin:2px 0 0;padding:16px var(--cv-gut) 18px;
 }
-.cv-footer span:first-child{color:var(--accent);font-weight:800;transition:color var(--accent-ease)}
-.cv-skills{background:#23282f;margin:0 -56px -60px;padding:24px 56px 34px;border-top:1px solid rgba(255,255,255,.10)}
-/* Three columns, as in the PDF. The page is a fixed 816px canvas regardless of
-   viewport — zoom scales it — so the columns always fit and never need to stack.
-   Spacing hierarchy is the point: .35em inside a block, 2.2em between them, so
-   a label reads as attached to its own text. Default dt/dd margins are zeroed
-   rather than overridden, since they were the source of the uniform rhythm. */
-.cv-skills dl{margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2.2em}
+/* Three columns, as in the original. The page is a fixed 816px canvas
+   regardless of viewport — zoom scales it — so the columns always fit and never
+   need to stack. Spacing hierarchy is the point: .35em inside a block, 1.8em
+   between them, so a label reads as attached to its own text. Headings are
+   white here: the accent is already carrying the section label directly above,
+   and repeating it flattened the two levels into one. */
+.cv-skills dl{margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.8em}
 .cv-skills dl>div{display:grid;gap:.35em;align-content:start}
-.cv-skills dt{margin:0;font-size:11.5px;letter-spacing:.16em;color:var(--accent);font-weight:800}
-.cv-skills dd{margin:0;font-size:12.5px;line-height:1.5}
+.cv-skills dt{margin:0;font-size:11.5px;letter-spacing:.03em;color:#fff;font-weight:800}
+.cv-skills dd{margin:0;font-size:11.5px;line-height:1.5;color:var(--cv-ink)}
+
+/* Footers. margin-top:auto is what pins them to the foot of the sheet — the
+   page is a flex column, so whatever slack is left collects above them. */
+.cv-foot{
+  margin:auto 0 0;padding:16px var(--cv-gut) 0;text-align:right;
+  font-family:var(--cv-mono);font-size:10px;letter-spacing:.11em;color:var(--cv-dim);
+}
+.cv-foot-card{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  background:var(--cv-card);border-radius:12px;
+  margin:auto 0 0;padding:15px var(--cv-gut);text-align:left;
+}
+.cv-foot-tag{color:var(--accent);font-weight:700;transition:color var(--accent-ease)}
+
+/* Cover letter — not compactness-limited. It is set a clear step larger than
+   the resume and on a wider gutter, so the measure is a letter's rather than a
+   CV's. The footer card sits on that same wider gutter (the header card does
+   not: it stays at the page gutter, as in the original). */
+.cv-letter{font-size:15.4px;line-height:1.7;--cv-gut:44px}
+.cv-letter .cv-head{padding-left:24px;padding-right:24px}
+.cv-letter .cv-foot-card{margin:auto 24px 0;padding:15px 20px;font-size:10px}
+.cv-letter .cv-block p + p{margin-top:13px}
+.cv-greeting{font-size:17px;font-weight:800;color:#fff;letter-spacing:.01em;margin-bottom:4px}
+.cv-signoff strong{color:var(--accent);font-weight:800;letter-spacing:.05em;transition:color var(--accent-ease)}
 
 /* Tab bar. Same accent language as the rest of the overlay. */
 .resume-head{
@@ -1573,10 +1676,10 @@ body.modal-open{overflow:hidden}
 @media(max-width:760px){
   .resume-modal{width:100vw;height:100dvh;max-height:none}
   .resume-shell{border-radius:0;border-left-width:3px}
-  /* Start fitted near the viewport rather than at desktop reading zoom. */
-  .resume-page{zoom:var(--resume-zoom,.45);padding:40px 34px 46px}
-  .cv-head{margin:-40px -34px 22px;padding:28px 34px 22px}
-  .cv-skills{margin:0 -34px -46px;padding:20px 34px 28px}
+  /* Start fitted near the viewport rather than at desktop reading zoom. The
+     page keeps its 816px canvas, so only the outer gutter tightens — the cards
+     stay cards and the layout is the desktop one, scaled. */
+  .resume-page{zoom:var(--resume-zoom,.45);padding:24px 22px 20px;--cv-gut:20px}
   .resume-scroll{padding:10px}
 }
 

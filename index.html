@@ -1496,9 +1496,9 @@
             <p class="cv-role">3D ARTIST / CREATIVE TECHNOLOGIST / AI-ASSISTED BUILDER</p>
             <p class="cv-contact">
               <a href="https://dexcimino.com" target="_blank" rel="noreferrer">dexcimino.com</a>
-              <span aria-hidden="true">·</span>
+              <span aria-hidden="true">•</span>
               <a href="mailto:dexdcimino@gmail.com">dexdcimino@gmail.com</a>
-              <span aria-hidden="true">·</span>
+              <span aria-hidden="true">•</span>
               <span>Colorado, USA</span>
             </p>
           </header>
@@ -1508,37 +1508,41 @@
             <p>Multidisciplinary 3D artist and creative technologist combining game art, real-time production, graphic design, and AI-assisted development. Builds production-ready assets, prototypes, web tools, and digital experiences from concept through delivery.</p>
           </section>
 
+          <!-- One line per project: the name is a flex item and the description
+               is the next, so the description starts right after its own name
+               and its wrapped lines hang under itself rather than resetting to
+               the margin. A fixed name column would align all three instead,
+               which the original does not do. -->
           <section class="cv-block">
             <h3>AI + CREATIVE PROJECTS</h3>
-            <ul class="cv-list">
-              <li><strong class="cv-project"><a href="https://dexnote.dev" target="_blank" rel="noreferrer">DEXNOTE.DEV</a></strong>
-                  <span>Built an AI-assisted notes platform with Claude Code, authentication, and real-time note functionality.</span></li>
-              <li><strong class="cv-project"><a href="https://nodeblast.dev" target="_blank" rel="noreferrer">NODEBLAST.DEV</a></strong>
-                  <span>Built an AI-assisted creator and gaming platform through rapid independent prototyping.</span></li>
-              <li><strong class="cv-project">ROBLOX / ROVIO</strong>
-                  <span>Integrated AI tools into Roblox Studio production workflows; apply generative AI across art, games, research, evaluation, and web tooling.</span></li>
+            <ul class="cv-list cv-projects">
+              <li><strong class="cv-project"><a href="https://dexnote.dev" target="_blank" rel="noreferrer">DEXNOTE.DEV</a></strong><span>Built an AI-assisted notes platform with Claude Code, authentication, and real-time note functionality.</span></li>
+              <li><strong class="cv-project"><a href="https://nodeblast.dev" target="_blank" rel="noreferrer">NODEBLAST.DEV</a></strong><span>Built an AI-assisted creator and gaming platform through rapid independent prototyping.</span></li>
+              <li><strong class="cv-project">ROBLOX / ROVIO</strong><span>Integrated AI tools into Roblox Studio production workflows; apply generative AI across art, games, research, evaluation, and web tooling.</span></li>
             </ul>
           </section>
 
+          <!-- Company, role and dates are DIRECT children of the <li> on
+               purpose: the clipboard builder (script.js) only unwraps <strong>
+               and <a> at that level, so wrapping the header line in a div would
+               silently strip the bold from every pasted company name. The
+               one-line header is a wrapping flex row instead — the date pushes
+               right with margin-left:auto, the description forces its own row. -->
           <section class="cv-block">
             <h3>PROFESSIONAL EXPERIENCE</h3>
-            <ul class="cv-list">
-              <li><strong>EMBODY GAMES — 3D ARTIST</strong> <em>2025 – PRESENT</em>
-                  <span>Create low-poly models and optimized low-resolution textures for indie games, Minecraft mods, and add-ons; support rigging and animation.</span></li>
-              <li><strong>SUPERLEAGUE INC. — 3D ARTIST</strong> <em>2024 – 2025</em>
-                  <span>Built optimized 3D characters from Despicable Me 4, The Wild Robot, and Sonic 3 for Roblox Studio adaptations.</span></li>
-              <li><strong>KNIGHTS OF EDENGALE — 3D GENERALIST</strong> <em>2023 – 2024</em>
-                  <span>Created concepts, models, textures, and animations for characters, weapons, creatures, and environments.</span></li>
-              <li><strong>PYXELCHAIN TECHNOLOGY — 3D ART LEAD</strong> <em>2021 – 2023</em>
-                  <span>Created and reviewed game-ready assets, coordinated production tasks across eight artists, and maintained visual quality.</span></li>
+            <ul class="cv-list cv-jobs">
+              <li><strong>EMBODY GAMES</strong><span class="cv-jobrole">3D ARTIST</span><em>2025 - Present</em><span class="cv-jobdesc">Create low-poly models and optimized low-resolution textures for indie games, Minecraft mods, and add-ons; support rigging and animation.</span></li>
+              <li><strong>SUPERLEAGUE INC.</strong><span class="cv-jobrole">3D ARTIST</span><em>2024 - 2025</em><span class="cv-jobdesc">Built optimized 3D characters from Despicable Me 4, The Wild Robot, and Sonic 3 for Roblox Studio adaptations.</span></li>
+              <li><strong>KNIGHTS OF EDENGALE</strong><span class="cv-jobrole">3D GENERALIST</span><em>2023 - 2024</em><span class="cv-jobdesc">Created concepts, models, textures, and animations for characters, weapons, creatures, and environments.</span></li>
+              <li><strong>PYXELCHAIN TECHNOLOGY</strong><span class="cv-jobrole">3D ART LEAD</span><em>2021 - 2023</em><span class="cv-jobdesc">Created and reviewed game-ready assets, coordinated production tasks across eight artists, and maintained visual quality.</span></li>
             </ul>
           </section>
 
           <section class="cv-block">
             <h3>EARLIER EXPERIENCE</h3>
-            <ul class="cv-list cv-list-plain">
-              <li><span>Produced graphic design for digital advertising, signage, branded merchandise, and client production at Black &amp; Red Inc., FASTSIGNS, and Quality Lapel Pins.</span></li>
-              <li><span>Created 2D assets and animation for BittyPets.com; contributed to independent game projects since 2012.</span></li>
+            <ul class="cv-list cv-bullets">
+              <li>Produced graphic design for digital advertising, signage, branded merchandise, and client production at Black &amp; Red Inc., FASTSIGNS, and Quality Lapel Pins.</li>
+              <li>Created 2D assets and animation for BittyPets.com; contributed to independent game projects since 2012.</li>
             </ul>
           </section>
 
@@ -1559,24 +1563,29 @@
               </div>
             </dl>
           </section>
+
+          <!-- Page furniture, not content: a <div>/<span> rather than a <p> so
+               the clipboard walker (h2,h3,p,li) leaves it out of a pasted
+               document. Pinned to the foot of the sheet by margin-top:auto. -->
+          <div class="cv-foot"><span>DEXCIMINO.COM / 2026</span></div>
         </article>
 
-        <article class="resume-page" id="panel-cover" role="tabpanel" aria-labelledby="tab-cover" hidden>
+        <article class="resume-page cv-letter" id="panel-cover" role="tabpanel" aria-labelledby="tab-cover" hidden>
           <header class="cv-head">
             <h2 class="cv-name">DEX CIMINO</h2>
             <p class="cv-role">3D ARTIST / CREATIVE TECHNOLOGIST / AI-ASSISTED BUILDER</p>
             <p class="cv-contact">
               <a href="https://dexcimino.com" target="_blank" rel="noreferrer">dexcimino.com</a>
-              <span aria-hidden="true">·</span>
+              <span aria-hidden="true">•</span>
               <a href="mailto:dexdcimino@gmail.com">dexdcimino@gmail.com</a>
-              <span aria-hidden="true">·</span>
+              <span aria-hidden="true">•</span>
               <span>Colorado, USA</span>
             </p>
           </header>
 
           <section class="cv-block">
             <h3>COVER LETTER</h3>
-            <p>Hello,</p>
+            <p class="cv-greeting">Hello,</p>
             <p>I'm Dex Cimino, a multidisciplinary 3D artist and creative technologist who works comfortably across visual production, game development, and AI-assisted building. I began my education in engineering before shifting toward the arts, a path that continues to shape how I approach creative and technical work. I do my best work where strong creative judgment, technical curiosity, and the ability to turn an idea into something real all matter.</p>
             <p>My professional background spans 3D characters, props, creatures, environments, texturing, rigging, animation, optimization, and graphic design. I have created production assets for Roblox adaptations of major film properties, supported independent game and Minecraft projects, and led art production across a team of eight artists. That range taught me how to adapt quickly, communicate clearly, and deliver within real technical and visual constraints.</p>
             <p>I have also pushed beyond a traditional art role. I integrated AI into Roblox Studio production work and independently built <a href="https://dexnote.dev" target="_blank" rel="noreferrer">DexNote</a> and <a href="https://nodeblast.dev" target="_blank" rel="noreferrer">NodeBlast</a> using Claude Code. I use AI as a practical extension of the creative process: to prototype faster, explore options, solve unfamiliar problems, automate repetitive work, and move projects toward a finished result.</p>
@@ -1586,7 +1595,12 @@
             <p class="cv-signoff"><strong>DEX CIMINO</strong></p>
           </section>
 
-          <p class="cv-footer"><span>DEXCIMINO.COM / 2026</span></p>
+          <!-- The original's footer CARD, not a rule. Same non-<p> reasoning as
+               the resume's footer: furniture stays out of the clipboard. -->
+          <div class="cv-foot cv-foot-card">
+            <span class="cv-foot-tag">ART + TECHNOLOGY + EXECUTION</span>
+            <span>DEXCIMINO.COM / 2026</span>
+          </div>
         </article>
       </div>
 
