@@ -14,7 +14,7 @@ import { buildLevel, tickPlatforms } from './level.js';
 import { createPlayerState, stepPlayer, playerFlags, BTN, FLAG } from './movement.js';
 import { initEnemies, stepEnemies } from './enemies.js';
 import { stepCombat, stepRockets } from './combat.js';
-import { stepSerpents, stepBolts, spawnSerpent } from './serpent.js';
+import { stepSerpents, stepBolts, spawnSerpent, TIER_NAMES, segMaxHp } from './serpent.js';
 
 export { BTN, FLAG }; // wire-format constants live with the movement port
 
@@ -27,7 +27,12 @@ export { BTN, FLAG }; // wire-format constants live with the movement port
 // with everything authoritative-only switched off — no cells (pickups are
 // never predicted), no enemies, no combat (damage/kills are never predicted).
 // Platforms still tick: movers and collapse timing shape movement.
-export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly = false } = {}) {
+export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly = false,
+  // Debug only (?serpent=low): drops every tier into one low band so all
+  // three can be looked at from the floor. Host-authoritative like any
+  // other spawn parameter — the orbit rides the wire, so a client without
+  // the flag still reconstructs whatever the host chose.
+  serpentLow = false } = {}) {
   const ents = createEntities();
   const world = createWorld();
   const level = buildLevel(world, rngFor(seed, 'level'));
@@ -43,11 +48,15 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
     }
     if (enemies) {
       initEnemies(ents, level, seed);
-      // One serpent, spawned through the same gate as every other enemy so a
-      // test asking for enemies:false still gets a clean sim. Its own rng
-      // stream, so adding it does not shift any other enemy's draws.
-      const sid = ents.allocWorldId();
-      spawnSerpent(ents, level, rngFor(seed, 'serpent', sid), sid);
+      /* MD 19: three tiers, always patrolling. Each gets its own rng stream
+         and its own world id, so the count never touches the shared counter
+         that player ids come from. `world` is handed in so spawnSerpent can
+         SAMPLE for clear air rather than assume a radius is empty. */
+      for (const tier of TIER_NAMES) {
+        const sid = ents.allocWorldId();
+        spawnSerpent(ents, level, rngFor(seed, 'serpent', sid), sid,
+          { tier, world, lowDebug: serpentLow });
+      }
     }
   }
 
@@ -96,7 +105,7 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
     // commandsByPlayer: Map<playerId, command|undefined> for THIS tick.
     step(commandsByPlayer) {
       const events = [];
-      const ctx = { world, level, tick, events, ents, pvp };
+      const ctx = { world, level, tick, events, ents, pvp, seed };
       // Platforms first (prototype order), so ground carry uses fresh deltas
       // and a collapser sees who stood on it at the end of last tick.
       const standing = new Set();
@@ -194,7 +203,7 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
           let mask = 0;
           for (let i = 0; i < s.len; i++) if (tick < s.armourUntil[i]) mask |= (1 << i);
           return {
-            id: s.id, len: s.len, armour: mask,
+            id: s.id, tier: s.tier, segs: s.segs, scale: s.scale, len: s.len, armour: mask,
             aimYaw: Math.round(s.aimYaw * 1e4) / 1e4,
             aimPitch: Math.round(s.aimPitch * 1e4) / 1e4,
             hp0: s.hp[0],

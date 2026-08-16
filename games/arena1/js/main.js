@@ -18,10 +18,14 @@ import { createRenderScene } from './render/scene.js';
 import { buildLevelMeshes } from './render/level.js';
 import { createActors } from './render/actors.js';
 import { createFx } from './render/fx.js';
+import { createSerpentView } from './render/serpent.js';
 import { AudioFX } from './systems/audio.js';
 
 const canvas = document.getElementById('game');
 const params = new URLSearchParams(location.search);
+// ?serpent=low — debug: drop all three serpent tiers into one low band so
+// they can be inspected from the floor. Nothing else changes.
+const serpentLow = params.get('serpent') === 'low';
 const seed = (() => {
   const q = params.get('seed');
   return q ? Number(q) >>> 0 : 1;
@@ -213,6 +217,7 @@ function startSession(transport) {
   const levelView = buildLevelMeshes(R, level, transport.seed ?? seed);
   const actors = createActors(R);
   const fx = createFx(R, world);
+  const serpents = createSerpentView(R);
 
   const sess = {
     transport, localId, level, world, R, levelView, actors, fx,
@@ -494,6 +499,9 @@ function startSession(transport) {
         }
 
         actors.sync(sess.prevSnap, sess.lastSnap, alpha, localId, { x: px, y: py, z: pz }, now, dt);
+        // Serpent bodies are rebuilt locally from the snapshot's path
+        // parameters — no segment positions come over the wire.
+        serpents.sync(sess.lastSnap?.serpents, sess.lastSnap?.tick ?? 0, now);
         fx.update(dt, grounded, sess.bob);
         paintHud(me);
       }
@@ -550,7 +558,7 @@ async function netAttempt(mode, { joinedNotice } = {}) {
 function endedFor(t) {
   if (!S || S.transport !== t) return; // stale callback from a replaced session
   feed('HOST LEFT — REJOINING');
-  startSession(createLoopbackTransport(seed, { pvp }));
+  startSession(createLoopbackTransport(seed, { pvp, serpentLow }));
   netAttempt({ kind: 'public' }, { joinedNotice: 'REJOINED — NEW MATCH' });
 }
 
@@ -576,7 +584,7 @@ window.addEventListener('arena1-go-public', () => {
 // Loopback world immediately — playable before the first network packet —
 // then hand off to the match when it is ready. ?room= keeps its meaning
 // (same mechanism as private codes); default is the public pool.
-startSession(createLoopbackTransport(seed, { pvp }));
+startSession(createLoopbackTransport(seed, { pvp, serpentLow }));
 netAttempt(roomParam ? { kind: 'named', room: roomParam } : { kind: 'public' });
 
 // Embed hooks (contract #3) — exact names, wired to the state machine.

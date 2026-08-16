@@ -26,18 +26,35 @@
 import { SIM_DT } from '../config.js';
 import { hurtPlayer } from './movement.js';
 import { raySphere, rayVCapsule, CAPSULE_R, CAPSULE_HALF_H } from './world.js';
+import { rngFor } from '../core/rng.js';
 
-// ── shape ───────────────────────────────────────────────────────────────────
-export const SEG_COUNT = 12;          // inside the MD's 10–14 band
+// ── tiers (MD 19) ───────────────────────────────────────────────────────────
+/* Three serpents at three heights, so the climb means something. Every tier
+   keeps ALL of MD 18's mechanics — armour quarters, sever-everything-behind,
+   hp rising toward the head, death at the last few segments, contact damage,
+   swept bolts — and differs only in scale. The hpScale multiplies the whole
+   curve rather than reshaping it, which is what keeps the head-ward slope (and
+   therefore the burst-vs-attrition choice) intact at every tier. */
+export const TIERS = {
+  low:  { segs: 7,  scale: 0.80, hpScale: 0.55, boltDmg: 7,  boltCd: 120, boltSpeed: 15,
+          respawnTicks: 600,  band: { yMin: 34,  yMax: 74 } },
+  mid:  { segs: 10, scale: 1.00, hpScale: 1.00, boltDmg: 12, boltCd: 84,  boltSpeed: 18,
+          respawnTicks: 1200, band: { yMin: 96,  yMax: 150 } },
+  boss: { segs: 14, scale: 1.35, hpScale: 1.90, boltDmg: 18, boltCd: 54,  boltSpeed: 22,
+          respawnTicks: 2400, band: { yMin: 206, yMax: 236 } },
+};
+export const TIER_NAMES = ['low', 'mid', 'boss'];
+
+export const SEG_COUNT = 14;          // the largest any tier gets (buffer sizing)
 export const SEG_LAG = 5;             // ticks of delay between neighbours
-export const HEAD_R = 1.15;           // the head is unmistakably the biggest
+export const HEAD_R = 1.15;           // mid-tier head; scaled per tier
 const SEG_R0 = 0.78;                  // first body segment
 const SEG_TAPER_R = 0.955;            // each one a little smaller toward the tail
 export const DEATH_LEN = 3;           // at or below this many segments it dies
 
-// Radius of segment i (0 = head).
-export function segRadius(i) {
-  return i === 0 ? HEAD_R : SEG_R0 * Math.pow(SEG_TAPER_R, i - 1);
+// Radius of segment i (0 = head), scaled by the tier.
+export function segRadius(i, scale = 1) {
+  return scale * (i === 0 ? HEAD_R : SEG_R0 * Math.pow(SEG_TAPER_R, i - 1));
 }
 
 // ── hp curve ────────────────────────────────────────────────────────────────
@@ -48,8 +65,8 @@ export function segRadius(i) {
 // the MD 18 report for the full ladder and the two strategies it produces.
 const HEAD_HP = 90;
 const HP_TAPER = 0.74;
-export function segMaxHp(i) {
-  return Math.max(3, Math.round(HEAD_HP * Math.pow(HP_TAPER, i)));
+export function segMaxHp(i, hpScale = 1) {
+  return Math.max(3, Math.round(HEAD_HP * Math.pow(HP_TAPER, i) * hpScale));
 }
 
 // ── armour ──────────────────────────────────────────────────────────────────
@@ -90,30 +107,123 @@ export function segAt(s, tick, i) {
   return headAt(s, tick - i * SEG_LAG);
 }
 
-export function spawnSerpent(ents, level, rng, id) {
-  // Orbit ABOVE the summit: the closed-form path cannot dodge geometry, so it
-  // is given air with nothing in it. tests/serpent.mjs proves the clearance.
-  const summit = level?.summitY ?? 190;
-  const s = {
-    id, kind: 'serpent',
-    cx: 0, cy: summit + 16 + rng() * 10, cz: 0,
-    R: 24 + rng() * 10,
-    amp: 4 + rng() * 3,
-    lat: 2.5 + rng() * 1.5,
-    w: (0.42 + rng() * 0.16) * (rng() > 0.5 ? 1 : -1),
-    vw: 1.05 + rng() * 0.5,
+/* MD 19. The path has NO collision awareness — that is the whole reason segment
+   positions are derivable and the wire is cheap — so a lower tier is made safe
+   by being PUT somewhere empty, and "empty" is measured rather than assumed.
+
+   orbitClear walks a candidate orbit over a full horizontal period, at every
+   segment, and asks the world whether anything is there. findClearOrbit scans
+   candidates deterministically (outermost radius first, then rising through the
+   altitude band) and returns the first that comes back clean. Outermost first
+   because the platform spiral is clamped to 0.86*apothem, so the ring between
+   the outer platforms and the rim wall is the widest genuinely empty air at low
+   altitude — but the scan proves that per seed instead of trusting it.
+
+   If a band has no clear orbit the caller raises the tier and reports it. An
+   orbit slightly higher than intended is a much smaller problem than one that
+   passes through a platform. */
+const ORBIT_SAMPLES = 96;
+function orbitClear(world, cand, segs, scale) {
+  const period = Math.abs(2 * Math.PI / cand.w) / SIM_DT;   // ticks for one lap
+  for (let n = 0; n < ORBIT_SAMPLES; n++) {
+    const tick = (n / ORBIT_SAMPLES) * period;
+    for (let i = 0; i < segs; i++) {
+      const c = segAt(cand, tick, i);
+      // margin so a near-miss still reads as clear
+      const r = segRadius(i, scale) + 0.75;
+      if (world.overlapCapsule(c, r, r).length) return false;
+    }
+  }
+  return true;
+}
+
+function findClearOrbit(world, base, band, segs, scale, pick = 0) {
+  /* Candidate radii outermost-first, but ROTATED by a seeded offset. Without
+     the rotation every tier takes the first radius that works and all three end
+     up stacked on the same ring — clear, but visibly uniform. The rotation only
+     changes the ORDER candidates are tried in, so the result is still whatever
+     is genuinely empty, and it stays deterministic because `pick` comes from
+     the serpent's own rng. */
+  const radii = [];
+  for (let R = 80; R >= 12; R -= 4) radii.push(R);
+  const off = Math.abs(Math.floor(pick * radii.length)) % radii.length;
+  let tried = 0;
+  for (let alt = band.yMin; alt <= band.yMax; alt += 5) {
+    for (let n = 0; n < radii.length; n++) {
+      const R = radii[(n + off) % radii.length];
+      const cand = { ...base, cy: alt, R };
+      tried++;
+      if (orbitClear(world, cand, segs, scale)) return { cy: alt, R, tried };
+    }
+  }
+  return null;
+}
+
+export function spawnSerpent(ents, level, rng, id, opts = {}) {
+  const tierName = opts.tier || 'mid';
+  const T = TIERS[tierName];
+  const base = {
+    cx: 0, cz: 0,
+    amp: (3 + rng() * 3) * T.scale,
+    lat: (2 + rng() * 1.5) * T.scale,
+    w: (0.38 + rng() * 0.18) * (rng() > 0.5 ? 1 : -1),
+    vw: 1.0 + rng() * 0.5,
     phase: rng() * 6.28,
     vphase: rng() * 6.28,
-    len: SEG_COUNT,                       // alive segments, ALWAYS a prefix
+  };
+
+  /* ?serpent=low drops every tier into one low band so all three can be
+     inspected from the floor. Debug only — it changes where they fly and
+     nothing else, and because the orbit parameters ride the wire in `path`, a
+     client still reconstructs whatever the host chose. */
+  const band = opts.lowDebug ? { yMin: 18, yMax: 46 } : T.band;
+
+  const pick = rng();
+  const found = opts.world ? findClearOrbit(opts.world, base, band, T.segs, T.scale, pick) : null;
+  // No clear orbit anywhere in the band: go above it rather than through
+  // anything. The caller reports this; tests assert it never happens.
+  const cy = found ? found.cy : band.yMax + 24;
+  const R = found ? found.R : 26;
+
+  const s = {
+    id, kind: 'serpent', tier: tierName,
+    ...base, cy, R,
+    segs: T.segs, scale: T.scale, hpScale: T.hpScale,
+    boltDmg: T.boltDmg, boltCd: T.boltCd, boltSpeed: T.boltSpeed,
+    respawnTicks: T.respawnTicks,
+    len: T.segs,                          // alive segments, ALWAYS a prefix
     hp: [], armourUntil: [],              // per segment, index 0 = head
     aimYaw: 0, aimPitch: 0,
-    fireCd: TURRET_CD_TICKS,
+    fireCd: T.boltCd,
     contactCd: 0,
     alive: true,
+    respawnAt: -1,
+    placedClear: !!found,
   };
-  for (let i = 0; i < SEG_COUNT; i++) { s.hp.push(segMaxHp(i)); s.armourUntil.push(-1); }
+  for (let i = 0; i < T.segs; i++) { s.hp.push(segMaxHp(i, T.hpScale)); s.armourUntil.push(-1); }
   ents.serpents.set(id, s);
   return s;
+}
+
+/* Respawn: the record stays in the map while dead so the tier, the id and the
+   orbit survive, and it simply reappears at its band after the delay. It does
+   NOT fade or drop in — it is a patrol that comes back round, and at these
+   altitudes a player is rarely watching the exact spot. Everything is tick
+   math and rng, so both peers respawn on the same tick. */
+export function respawnSerpent(s, tick, rng, world) {
+  const T = TIERS[s.tier];
+  s.phase = rng() * 6.28;
+  s.vphase = rng() * 6.28;
+  s.w = (0.38 + rng() * 0.18) * (rng() > 0.5 ? 1 : -1);
+  const found = world ? findClearOrbit(world, s, s.debugBand || T.band, T.segs, T.scale, rng()) : null;
+  if (found) { s.cy = found.cy; s.R = found.R; }
+  s.len = T.segs;
+  s.hp = []; s.armourUntil = [];
+  for (let i = 0; i < T.segs; i++) { s.hp.push(segMaxHp(i, T.hpScale)); s.armourUntil.push(-1); }
+  s.alive = true;
+  s.respawnAt = -1;
+  s.fireCd = T.boltCd;
+  s.contactCd = 0;
 }
 
 // Which quarter-band an hp value sits in; crossing a band edge raises armour.
@@ -131,7 +241,7 @@ export function hitSegment(ctx, s, i, dmg, shooterId) {
     ctx.events.push({ type: 'serpent_blocked', serpentId: s.id, seg: i, shooter: shooterId });
     return false;
   }
-  const max = segMaxHp(i);
+  const max = segMaxHp(i, s.hpScale);
   const before = band(s.hp[i], max);
   s.hp[i] -= dmg;
   const after = band(s.hp[i], max);
@@ -159,7 +269,11 @@ function severTail(ctx, s, i, shooterId) {
   s.len = from;
   if (s.len <= DEATH_LEN) {
     s.alive = false;
-    ctx.events.push({ type: 'serpent_death', serpentId: s.id, by: shooterId, point: headAt(s, ctx.tick) });
+    s.respawnAt = ctx.tick + s.respawnTicks;
+    ctx.events.push({
+      type: 'serpent_death', serpentId: s.id, tier: s.tier, by: shooterId,
+      point: headAt(s, ctx.tick), respawnAt: s.respawnAt,
+    });
   }
 }
 
@@ -178,7 +292,15 @@ export function stepSerpents(ctx) {
   // Mechanic-only harnesses build ents by hand; movement.js tolerates the same.
   if (!ctx.ents?.serpents) return;
   for (const s of ctx.ents.serpents.values()) {
-    if (!s.alive) { ctx.ents.serpents.delete(s.id); continue; }
+    if (!s.alive) {
+      // Dead but not gone: the record holds the tier, id and orbit so the
+      // respawn is the SAME serpent coming back round rather than a new one.
+      if (s.respawnAt >= 0 && ctx.tick >= s.respawnAt) {
+        respawnSerpent(s, ctx.tick, rngFor(ctx.seed ?? 'serp', 'serpent', s.id * 1000 + ctx.tick), ctx.world);
+        ctx.events.push({ type: 'serpent_respawn', serpentId: s.id, tier: s.tier, point: headAt(s, ctx.tick) });
+      }
+      continue;
+    }
     const head = headAt(s, ctx.tick);
     const target = nearestPlayer(ctx.ents.players, head);
 
@@ -199,14 +321,15 @@ export function stepSerpents(ctx) {
       // ---- fire when the turret is actually pointing near the target ----
       s.fireCd--;
       if (s.fireCd <= 0 && Math.abs(dyaw) < 0.25) {
-        s.fireCd = TURRET_CD_TICKS;
+        s.fireCd = s.boltCd;
         const cp = Math.cos(s.aimPitch);
         const dir = { x: Math.sin(s.aimYaw) * cp, y: -Math.sin(s.aimPitch), z: Math.cos(s.aimYaw) * cp };
         const bid = ctx.ents.allocWorldId();
         ctx.ents.bolts.set(bid, {
           id: bid, serpentId: s.id, born: ctx.tick,
           pos: { x: head.x + dir.x * HEAD_R * 1.4, y: head.y + dir.y * HEAD_R * 1.4, z: head.z + dir.z * HEAD_R * 1.4 },
-          vel: { x: dir.x * BOLT_SPEED, y: dir.y * BOLT_SPEED, z: dir.z * BOLT_SPEED },
+          vel: { x: dir.x * s.boltSpeed, y: dir.y * s.boltSpeed, z: dir.z * s.boltSpeed },
+          dmg: s.boltDmg,
         });
         ctx.events.push({ type: 'serpent_fire', serpentId: s.id, boltId: bid, origin: head, dir });
       }
@@ -217,7 +340,7 @@ export function stepSerpents(ctx) {
     if (s.contactCd <= 0 && target) {
       for (let i = 0; i < s.len; i++) {
         const c = segAt(s, ctx.tick, i);
-        const r = segRadius(i) + CAPSULE_R;
+        const r = segRadius(i, s.scale) + CAPSULE_R;
         const dx = target.p.pos.x - c.x, dy = target.p.pos.y - c.y, dz = target.p.pos.z - c.z;
         if (dx * dx + dy * dy + dz * dz <= r * r) {
           s.contactCd = CONTACT_CD_TICKS;
@@ -259,8 +382,9 @@ export function stepBolts(ctx) {
       // No splash, deliberately: splash would punish a moving player, and the
       // whole point of a slow bolt is that moving is the answer to it.
       if (hitPlayer) {
-        ctx.events.push({ type: 'hit', shooter: null, target: hitPlayer.id, point, dmg: BOLT_DMG });
-        hurtPlayer(hitPlayer, BOLT_DMG, ctx.events, point, null);
+        const dmg = b.dmg ?? BOLT_DMG;
+        ctx.events.push({ type: 'hit', shooter: null, target: hitPlayer.id, point, dmg });
+        hurtPlayer(hitPlayer, dmg, ctx.events, point, null);
       }
       ctx.events.push({ type: 'bolt_impact', boltId: b.id, point, hit: hitPlayer ? hitPlayer.id : null });
     } else {
@@ -284,7 +408,7 @@ export function raySerpents(ctx, origin, dir, maxT) {
       const shielded = ctx.tick < s.armourUntil[i];
       // The armour sphere is bigger than the segment, so a shielded segment is
       // an easier thing to hit — you cannot avoid the shield by aiming finer.
-      const r = segRadius(i) + (shielded ? 0.45 : 0);
+      const r = segRadius(i, s.scale) + (shielded ? 0.45 : 0);
       const t = raySphere(origin, dir, c, r, bestT);
       if (t !== null) { bestT = t; best = { s, seg: i, t }; }
     }

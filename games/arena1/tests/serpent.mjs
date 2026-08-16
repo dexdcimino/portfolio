@@ -7,7 +7,7 @@ import { createEntities } from '../js/sim/entities.js';
 import { createPlayerState } from '../js/sim/movement.js';
 import {
   spawnSerpent, stepSerpents, stepBolts, hitSegment, headAt, segAt, segRadius,
-  segMaxHp, SEG_COUNT, SEG_LAG, HEAD_R, DEATH_LEN,
+  segMaxHp, SEG_COUNT, SEG_LAG, HEAD_R, DEATH_LEN, TIERS, TIER_NAMES,
 } from '../js/sim/serpent.js';
 import { rngFor } from '../js/core/rng.js';
 import { SIM_DT } from '../js/config.js';
@@ -19,32 +19,36 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   const world = createWorld();
   const level = buildLevel(world, rngFor('serp', 'level'));
   const ents = createEntities();
-  const id = ents.allocId();
-  const s = spawnSerpent(ents, level, rngFor('serp', 'serpent', id), id);
+  const id = ents.allocWorldId();
+  const s = spawnSerpent(ents, level, rngFor('serp', 'serpent', id), id,
+    { tier: 'mid', world });
   if (withPlayer) {
     const p = createPlayerState(1, playerAt || { x: 0, y: level.summitY + 20, z: 0 });
     ents.players.set(1, p);
   }
-  const ctx = (tick) => ({ world, level, tick, events: [], ents, pvp: true });
-  return { world, level, ents, s, ctx };
+  const ctx = (tick) => ({ world, level, tick, events: [], ents, pvp: true, seed: 'serp' });
+  // N = this serpent's REAL segment count. SEG_COUNT is now only the buffer
+  // size for the largest tier, so tests must read the tier, not the constant.
+  return { world, level, ents, s, ctx, N: s.segs };
 }
 
 // ── 1. shape: head is unmistakable, segments taper ─────────────────────────
 {
-  const radii = Array.from({ length: SEG_COUNT }, (_, i) => segRadius(i));
+  const N = TIERS.mid.segs;
+  const radii = Array.from({ length: N }, (_, i) => segRadius(i));
   assert.equal(radii[0], HEAD_R);
   assert.ok(radii[0] > radii[1] * 1.35,
     `head only ${(radii[0] / radii[1]).toFixed(2)}x the first body segment — not unmistakable`);
-  for (let i = 2; i < SEG_COUNT; i++) {
+  for (let i = 2; i < N; i++) {
     assert.ok(radii[i] < radii[i - 1], `segment ${i} is not smaller than ${i - 1}`);
   }
   ok('head unmistakable + taper', `head r ${radii[0]} = ${(radii[0] / radii[1]).toFixed(2)}x seg1; `
-    + `tail r ${radii[SEG_COUNT - 1].toFixed(3)}, monotonic over ${SEG_COUNT} segments`);
+    + `tail r ${radii[N - 1].toFixed(3)}, monotonic over ${N} segments`);
 }
 
 // ── 2. body undulates and trails the head's real path ──────────────────────
 {
-  const { s } = rig();
+  const { s, N } = rig();
   // Segment i now must equal the head SEG_LAG*i ticks ago — that is what makes
   // it a trail rather than a rigid queue.
   for (const tick of [0, 137, 601]) {
@@ -63,7 +67,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   assert.ok(yAmp > 3, `vertical undulation only ${yAmp.toFixed(2)}m`);
   assert.ok(xAmp > 20, `horizontal circuit only ${xAmp.toFixed(2)}m`);
   // body length: head to tail should be a real span, not a clump
-  const span = (() => { const a = segAt(s, 300, 0), b = segAt(s, 300, SEG_COUNT - 1);
+  const span = (() => { const a = segAt(s, 300, 0), b = segAt(s, 300, N - 1);
     return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z); })();
   ok('body trails the head and undulates', `vertical ${yAmp.toFixed(1)}m, circuit ${xAmp.toFixed(1)}m, `
     + `head-to-tail span ${span.toFixed(1)}m at tick 300`);
@@ -71,15 +75,15 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
 
 // ── 3. severing: kills the segment and everything behind it ────────────────
 {
-  const { s, ctx } = rig();
+  const { s, ctx, N } = rig();
   const c = ctx(100);
   s.armourUntil.fill(-1);
   hitSegment(c, s, 7, 9999, 1);
   assert.equal(s.len, 7, `expected len 7 after severing at 7, got ${s.len}`);
   const severs = c.events.filter((e) => e.type === 'serpent_sever');
-  assert.equal(severs.length, SEG_COUNT - 7, `severed ${severs.length} segments, expected ${SEG_COUNT - 7}`);
+  assert.equal(severs.length, N - 7, `severed ${severs.length} segments, expected ${N - 7}`);
   assert.ok(severs.every((e) => e.point && Number.isFinite(e.point.y)), 'sever events carry no drop point');
-  ok('severing detaches the whole tail', `cut at 7 → len ${SEG_COUNT}→${s.len}, `
+  ok('severing detaches the whole tail', `cut at 7 → len ${N}→${s.len}, `
     + `${severs.length} sever events each with a drop point`);
 }
 
@@ -105,8 +109,9 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
 
 // ── 5. hp curve: neck expensive, tail cheap, both viable ───────────────────
 {
-  const hp = Array.from({ length: SEG_COUNT }, (_, i) => segMaxHp(i));
-  for (let i = 1; i < SEG_COUNT; i++) {
+  const N = TIERS.mid.segs;
+  const hp = Array.from({ length: N }, (_, i) => segMaxHp(i));
+  for (let i = 1; i < N; i++) {
     assert.ok(hp[i] < hp[i - 1], `hp not decreasing toward the tail at ${i}`);
   }
   // cheapest instant kill: the frontmost segment whose removal drops len to DEATH_LEN
@@ -114,7 +119,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   const burst = hp[killSeg];
   // attrition: chip from the tail inward down to the same cut
   let chip = 0;
-  for (let i = SEG_COUNT - 1; i > killSeg; i--) chip += hp[i];
+  for (let i = N - 1; i > killSeg; i--) chip += hp[i];
   chip += hp[killSeg];
   assert.ok(burst < chip, 'a neck kill is not cheaper in raw damage than chipping — no trade');
   assert.ok(chip / burst > 1.8, `chipping is only ${(chip / burst).toFixed(1)}x the burst — too close to matter`);
@@ -136,10 +141,12 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
 
 // ── 7. turret: dodgeable, no tunnelling, despawns on a miss ────────────────
 {
-  const { s, ents, ctx, level } = rig({ playerAt: { x: 20, y: 0, z: 0 } });
-  // park the player inside turret range, below the orbit
+  const { s, ents, ctx } = rig({ playerAt: { x: 20, y: 0, z: 0 } });
+  // Park the player right beside the orbit. The old fixed summit+14 assumed the
+  // MD 18 altitude; tiers put the orbit wherever the clear-air scan found room,
+  // so this reads it off the serpent instead.
   const p = ents.players.get(1);
-  p.pos = { x: 0, y: level.summitY + 14, z: 0 };
+  p.pos = { x: s.R, y: s.cy, z: 0 };
   let fired = 0, tick = 0;
   for (; tick < 600 && fired === 0; tick++) {
     const c = ctx(tick);
@@ -204,49 +211,46 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
 
 // ── 10. the closed form is what a remote client would reconstruct ──────────
 {
-  const { s } = rig();
+  const { s, N } = rig();
   // A client holding only `path` + tick must land on the same segment positions
   // the host computed — this is the claim the whole wire design rests on.
   const wire = { cx: s.cx, cy: s.cy, cz: s.cz, R: s.R, amp: s.amp, lat: s.lat,
     w: s.w, vw: s.vw, phase: s.phase, vphase: s.vphase };
   let worst = 0;
   for (const tick of [0, 91, 455, 1200]) {
-    for (let i = 0; i < SEG_COUNT; i++) {
+    for (let i = 0; i < N; i++) {
       const host = segAt(s, tick, i);
       const client = segAt(wire, tick, i);
       worst = Math.max(worst, Math.hypot(host.x - client.x, host.y - client.y, host.z - client.z));
     }
   }
   assert.ok(worst < 1e-9, `client reconstruction drifted ${worst}m from the host`);
-  ok('client reconstructs the body from path + tick', `max divergence ${worst.toExponential(1)}m over 4 ticks x ${SEG_COUNT} segments`);
+  ok('client reconstructs the body from path + tick', `max divergence ${worst.toExponential(1)}m over 4 ticks x ${N} segments`);
 }
 
 // ── 11. the orbit is clear of all level geometry ───────────────────────────
 // The closed-form path cannot dodge anything, so this is the assertion that
 // makes that safe rather than lucky.
 {
-  let minClear = Infinity, worstSeed = null;
+  let bossClear = Infinity, overlaps = 0, worstSeed = null;
   for (const seed of ['serp', 'p2-1', 'p2-2', 'p2-3', 12345, 999]) {
-    const world = createWorld();
-    const level = buildLevel(world, rngFor(seed, 'level'));
-    const ents = createEntities();
-    const id = ents.allocId();
-    const s = spawnSerpent(ents, level, rngFor(seed, 'serpent', id), id);
+    const sim = createSim(seed, { pvp: true });
+    const boss = [...sim.ents.serpents.values()].find((x) => x.tier === 'boss');
     for (let t = 0; t < 900; t += 3) {
-      for (let i = 0; i < SEG_COUNT; i++) {
-        const c = segAt(s, t, i);
-        const hits = world.overlapCapsule(c, segRadius(i) + 0.6, segRadius(i) + 0.6);
-        if (hits.length) { minClear = -1; worstSeed = seed; }
+      for (let i = 0; i < boss.segs; i++) {
+        const c = segAt(boss, t, i);
+        const r = segRadius(i, boss.scale) + 0.6;
+        if (sim.world.overlapCapsule(c, r, r).length) { overlaps++; worstSeed = seed; }
       }
     }
-    // and how much air is under the lowest point of the path
     let lowest = Infinity;
-    for (let t = 0; t < 900; t++) lowest = Math.min(lowest, headAt(s, t).y);
-    minClear = Math.min(minClear, lowest - level.summitY);
+    for (let t = 0; t < 900; t++) lowest = Math.min(lowest, headAt(boss, t).y);
+    bossClear = Math.min(bossClear, lowest - sim.level.summitY);
   }
-  assert.ok(minClear > 0, `serpent path intersects level geometry (seed ${worstSeed})`);
-  ok('orbit is clear of the level on every seed',
-    `lowest point sits ${minClear.toFixed(1)}m above the summit; 6 seeds x 300 samples x ${SEG_COUNT} segments, zero overlaps`);
+  assert.equal(overlaps, 0, `boss path intersects level geometry (seed ${worstSeed})`);
+  assert.ok(bossClear > 0, `boss orbit dips ${bossClear.toFixed(1)}m below the summit`);
+  ok('boss orbit clear and above the summit',
+    `lowest point ${bossClear.toFixed(1)}m above the summit; 6 seeds x 300 samples, zero overlaps`);
 }
 
 // ── 12. a client sees the same serpent THROUGH severing (item 9) ───────────
@@ -302,6 +306,127 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   assert.ok(worstPos < 1e-9, `client body drifted ${worstPos}m from the host`);
   ok('client agrees through severing', `${ticksChecked} ticks, lengths ${[...lenSeen].sort((a, b) => b - a).join('→')}, `
     + `${severed} segments severed, ${armourTicks} ticks with armour up, max drift ${worstPos.toExponential(1)}m`);
+}
+
+// ── 13. MD 19: three tiers, distinct, all in clear air on every seed ───────
+{
+  const seeds = ['serp', 'p2-1', 'p2-2', 'p2-3', 'hex-a', 12345, 999];
+  let samples = 0, overlaps = 0;
+  const shapes = new Map();
+  for (const seed of seeds) {
+    const sim = createSim(seed, { pvp: true });
+    const list = [...sim.ents.serpents.values()];
+    assert.equal(list.length, 3, `seed ${seed}: expected 3 serpents, got ${list.length}`);
+    const tiers = list.map((x) => x.tier).sort();
+    assert.deepEqual(tiers, ['boss', 'low', 'mid'], `seed ${seed}: tiers ${tiers}`);
+    // distinct altitudes, low < mid < boss
+    const byTier = Object.fromEntries(list.map((x) => [x.tier, x]));
+    assert.ok(byTier.low.cy < byTier.mid.cy && byTier.mid.cy < byTier.boss.cy,
+      `seed ${seed}: altitudes not ordered (${byTier.low.cy}/${byTier.mid.cy}/${byTier.boss.cy})`);
+    for (const x of list) {
+      assert.ok(x.placedClear, `seed ${seed}: ${x.tier} fell back to the raised orbit — no clear air found`);
+      shapes.set(x.tier, { segs: x.segs, scale: x.scale, headHp: x.hp[0], boltDmg: x.boltDmg, cd: x.boltCd });
+      // SAMPLE the orbit against real geometry, the MD 18 way — do not trust
+      // the placement search, re-prove it here at a finer step.
+      const period = Math.abs(2 * Math.PI / x.w) / SIM_DT;
+      for (let n = 0; n < 160; n++) {
+        const tick = (n / 160) * period;
+        for (let k = 0; k < x.segs; k++) {
+          const c = segAt(x, tick, k);
+          const r = segRadius(k, x.scale);
+          samples++;
+          if (sim.world.overlapCapsule(c, r, r).length) overlaps++;
+        }
+      }
+    }
+  }
+  assert.equal(overlaps, 0, `${overlaps} of ${samples} orbit samples intersect geometry`);
+  // visibly different at a glance
+  assert.ok(shapes.get('boss').segs > shapes.get('mid').segs && shapes.get('mid').segs > shapes.get('low').segs);
+  assert.ok(shapes.get('boss').scale > shapes.get('low').scale);
+  ok('three tiers, all in clear air', `${seeds.length} seeds x 3 tiers x 160 samples = ${samples} segment probes, `
+    + `zero overlaps; low ${shapes.get('low').segs}seg/x${shapes.get('low').scale} hp${shapes.get('low').headHp}, `
+    + `mid ${shapes.get('mid').segs}/x${shapes.get('mid').scale} hp${shapes.get('mid').headHp}, `
+    + `boss ${shapes.get('boss').segs}/x${shapes.get('boss').scale} hp${shapes.get('boss').headHp}`);
+}
+
+// ── 14. burst vs attrition still a real choice at EVERY tier ───────────────
+{
+  const rows = [];
+  for (const tier of ['low', 'mid', 'boss']) {
+    const T = TIERS[tier];
+    const hp = Array.from({ length: T.segs }, (_, i) => segMaxHp(i, T.hpScale));
+    for (let i = 1; i < T.segs; i++) {
+      assert.ok(hp[i] < hp[i - 1], `${tier}: hp not rising toward the head at ${i}`);
+    }
+    const burst = hp[DEATH_LEN];
+    let chip = hp[DEATH_LEN];
+    for (let i = T.segs - 1; i > DEATH_LEN; i--) chip += hp[i];
+    assert.ok(chip / burst > 1.5, `${tier}: attrition only ${(chip / burst).toFixed(1)}x burst — not a choice`);
+    rows.push(`${tier} ${hp.join('/')} → burst ${burst}, attrition ${chip} (${(chip / burst).toFixed(1)}x)`);
+  }
+  ok('burst vs attrition holds at every tier', rows.join('  |  '));
+}
+
+// ── 15. each tier respawns after its own delay, deterministically ──────────
+{
+  const runOnce = () => {
+    const sim = createSim('serp-respawn', { pvp: true });
+    const pid = sim.addPlayer();
+    const log = [];
+    const target = [...sim.ents.serpents.values()].find((x) => x.tier === 'low');
+    // kill it outright at tick 10
+    for (let t = 0; t < target.respawnTicks + 200; t++) {
+      if (t === 10) {
+        const c = { world: sim.world, level: null, tick: t, events: [], ents: sim.ents, pvp: true, seed: 'serp-respawn' };
+        hitSegment(c, target, DEATH_LEN, 99999, pid);
+      }
+      sim.step(new Map([[pid, { tick: t, playerId: pid, move: { x: 0, z: 0 }, yaw: 0, pitch: 0, buttons: 0 }]]));
+      for (const e of sim.snapshot().events) {
+        if (e.type === 'serpent_respawn' || e.type === 'serpent_death') log.push(`${t}:${e.type}:${e.tier}`);
+      }
+    }
+    return log;
+  };
+  const a = runOnce(), b = runOnce();
+  assert.deepEqual(a, b, 'respawn timing is not deterministic');
+  assert.ok(a.some((x) => x.includes('serpent_respawn')), `no respawn happened: ${a.join(',')}`);
+  const delay = Number(a.find((x) => x.includes('respawn')).split(':')[0]) - 10;
+  assert.ok(Math.abs(delay - TIERS.low.respawnTicks) <= 2,
+    `low tier respawned after ${delay} ticks, expected ${TIERS.low.respawnTicks}`);
+  ok('tiers respawn on their own delay', `low died t10, back at t${10 + delay} (${delay} ticks = ${(delay / 60).toFixed(0)}s); identical across two runs`);
+}
+
+// ── 16. player identity is independent of serpents (MD 18 fix, re-proved) ──
+/* The claim is that serpent and bolt ids come from a SEPARATE counter, so no
+   number of them can renumber a player and move its rngFor(seed,'spawn',id)
+   position. Comparing against enemies:false would not test that — it removes
+   the enemies too, and the enemies are what actually move the id (39 vs 18).
+   So this tests the invariant directly instead. */
+{
+  const sim = createSim('idcheck', { pvp: true });
+  const a = sim.addPlayer();
+  const pa = sim.getPlayer(a);
+
+  // every serpent id sits in the world range, none in the shared one
+  for (const x of sim.ents.serpents.values()) {
+    assert.ok(x.id >= 100000, `serpent id ${x.id} came from the shared counter`);
+  }
+  // 900 ticks of three turrets firing allocates a lot of bolts
+  for (let t = 0; t < 900; t++) {
+    sim.step(new Map([[a, { tick: t, playerId: a, move: { x: 0, z: 0 }, yaw: 0, pitch: 0, buttons: 0 }]]));
+  }
+  let bolts = 0;
+  for (const b of sim.ents.bolts.values()) { bolts++; assert.ok(b.id >= 100000, `bolt id ${b.id} came from the shared counter`); }
+
+  // the next player id must be exactly one past the first, unchanged by any of it
+  const b2 = sim.addPlayer();
+  assert.equal(b2, a + 1, `next player id ${b2} is not ${a + 1} — world ids leaked into the shared counter`);
+  // and the first player's spawn never moved
+  const after = sim.getPlayer(a);
+  assert.deepEqual(after.spawn, pa.spawn, 'player spawn moved during the run');
+  ok('player identity independent of serpents', `3 serpents + ${bolts} live bolts, all ids >= 100000; `
+    + `player id ${a} → next ${b2}; spawn (${pa.spawn.x.toFixed(2)}, ${pa.spawn.z.toFixed(2)}) unchanged`);
 }
 
 console.log(`\nserpent.mjs: ${passed}/${passed} passed`);

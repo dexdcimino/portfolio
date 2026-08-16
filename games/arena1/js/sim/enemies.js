@@ -13,6 +13,9 @@ import { rngFor } from '../core/rng.js';
 
 import { hurtPlayer, ENEMY_R } from './movement.js';
 
+// The blob's collision radius — the same 0.65 the old downward-ray snap added.
+const BLOB_R = 0.65;
+
 const DOWN = { x: 0, y: -1, z: 0 };
 const KILL_Y = -25;
 
@@ -127,22 +130,31 @@ export function stepEnemies(ctx) {
     const P = nearestPlayer(ctx.ents.players, e.pos);
 
     if (e.kind === 'blob') {
-      const gHit = ctx.world.raycast({ x: e.pos.x, y: e.pos.y + 0.3, z: e.pos.z }, DOWN, 50);
-      const gy = gHit ? gHit.point.y + 0.65 : -999;
+      /* MD 19: blobs used a DOWNWARD RAY for landing and nothing at all
+         horizontally, so a hop toward the player went straight through walls —
+         measured, not suspected. The whole move now goes through moveCapsule at
+         the blob's own radius, which gives horizontal sliding and landing from
+         the same solver. Radius 0.65 both ways is not arbitrary: it is exactly
+         the +0.65 the old ray snap added, so a blob still rests at the same
+         height it always did and the hop cadence is unchanged. res.grounded
+         replaces the ray comparison outright. */
       let tx = 0, tz = 0;
       if (P) {
         tx = P.p.pos.x - e.pos.x; tz = P.p.pos.z - e.pos.z;
         const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
       }
       e.vy += TUNE.G * 0.55 * dt;
-      e.pos.y += e.vy * dt;
-      e.pos.x += e.vx * dt; e.pos.z += e.vz * dt;
+      const bFrom = { x: e.pos.x, y: e.pos.y, z: e.pos.z };
+      const bRes = ctx.world.moveCapsule(bFrom, { x: e.vx, y: e.vy, z: e.vz },
+        { x: e.vx * dt, y: e.vy * dt, z: e.vz * dt }, BLOB_R, BLOB_R);
+      e.pos.x = bRes.pos.x; e.pos.y = bRes.pos.y; e.pos.z = bRes.pos.z;
+      e.vx = bRes.vel.x; e.vy = bRes.vel.y; e.vz = bRes.vel.z;
       if (e.yanked <= 0) {
         const f = Math.max(0, 1 - 2 * dt);
         e.vx *= f; e.vz *= f;
       }
-      if (e.pos.y <= gy && e.vy <= 0) {
-        e.pos.y = gy; e.vy = 0;
+      if (bRes.grounded) {
+        e.vy = 0;
         e.hop -= dt;
         if (e.hop <= 0 && P && P.dist < 45) {
           e.hop = 0.55 + e.rng() * 0.5;
@@ -229,7 +241,19 @@ export function stepEnemies(ctx) {
       if (e.pos.y < KILL_Y) { e.alive = false; e.respawnT = 3; releaseYankers(ctx, e); continue; }
     } else { // spike — patrols its platform; grapple-yanking one is on you
       if (e.yanked > 0) {
-        e.pos.x += e.vx * dt; e.pos.y += e.vy * dt; e.pos.z += e.vz * dt;
+        /* MD 19: only the YANKED path is resolved. That is the one that
+           actually clipped — a spike flung at 60 m/s went clean through a 1m
+           wall — while the patrol below is a lerp toward a point on the
+           spike's OWN platform, bounded by that platform's radius, so it
+           cannot reach geometry in the first place (measured: r=3 patrol never
+           crossed, r=14 did, and the level never issues r=14). Resolving the
+           patrol too would fight its 0.55m hover against a capsule the same
+           size as the gap, which buys nothing and risks a standing push-up. */
+        const sFrom = { x: e.pos.x, y: e.pos.y, z: e.pos.z };
+        const sRes = ctx.world.moveCapsule(sFrom, { x: e.vx, y: e.vy, z: e.vz },
+          { x: e.vx * dt, y: e.vy * dt, z: e.vz * dt }, ENEMY_R.spike, ENEMY_R.spike);
+        e.pos.x = sRes.pos.x; e.pos.y = sRes.pos.y; e.pos.z = sRes.pos.z;
+        e.vx = sRes.vel.x; e.vy = sRes.vel.y; e.vz = sRes.vel.z;
       } else {
         e.t += dt * e.spd;
         const off = Math.sin(e.t) * e.r;
