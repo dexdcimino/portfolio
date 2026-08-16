@@ -500,20 +500,6 @@
                                           L40 37.43 A9 9 0 0 1 53.85 29.85 Z" />
           </svg>
         </a>
-        <!-- Three fixed tag slots for whichever game is previewed above, filled
-             by the same select() that swaps the artwork and the copy — never a
-             separate update that could leave a stale genre against a new
-             picture. The VALUES are constrained in script.js (GAME_TAGS), not
-             here: free text produced "Survival" / "survival horror" / "Wave
-             Survival" the last time this was open vocabulary, and this column
-             is too narrow to absorb the difference.
-             Hidden with the thumbnail on touch/narrow layouts, as the keycaps
-             and gallery button were — this belongs to the preview column. -->
-        <ul class="game-tags" id="gameTags">
-          <li class="game-tag" data-slot="genre"></li>
-          <li class="game-tag" data-slot="dim"></li>
-          <li class="game-tag" data-slot="players"></li>
-        </ul>
       </div>
       <div class="stack reveal">
         <a class="stack-row" href="/stickland" data-game="stickland" data-art="stickland-art"
@@ -532,12 +518,26 @@
           <strong class="game-desc-lead"></strong>
           <p class="game-desc-body"></p>
         </div>
-        <!-- Under the description, not under the thumbnail: the right column
-             reads as one text spine, so this shares the copy's left edge (both
-             sit on the rows' 12px inset). Label carries the live item count,
-             counted off the .gal-item set in script.js rather than typed here —
-             a hand-written number goes stale the first time a shot is added. -->
+        <!-- One row under the description: tags left, gallery right, both on the
+             copy's left edge (the rows' 12px inset) so the right column reads as
+             one spine. BOTH live in this column on purpose — they used to sit
+             under the thumbnail, which hides at 900px and on touch, so on a
+             phone the tags vanished with it. Nothing here is tied to the
+             preview, so nothing here has to disappear with it.
+             The three tag slots are filled by the same select() that swaps the
+             artwork and the copy — never a separate update that could leave a
+             stale genre against a new picture. Their VALUES are constrained in
+             script.js (GAME_TAGS), not here: free text produced "Survival" /
+             "survival horror" / "Wave Survival" the last time this was open
+             vocabulary. The gallery label carries the live item count, counted
+             off the .gal-item set rather than typed here — a hand-written
+             number goes stale the first time a shot is added. -->
         <div class="game-actions">
+          <ul class="game-tags" id="gameTags">
+            <li class="game-tag" data-slot="genre"></li>
+            <li class="game-tag" data-slot="dim"></li>
+            <li class="game-tag" data-slot="players"></li>
+          </ul>
           <button class="button primary game-gallery-open" type="button" id="galleryOpen">
             <span class="game-gallery-label">GALLERY</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span>
           </button>

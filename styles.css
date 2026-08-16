@@ -2127,34 +2127,48 @@ body.modal-open{overflow:hidden}
 }
 
 /* ==========================================================================
-   GAME TAGS — genre / dimension / players, one line under the thumbnail.
-   ONE LINE IS THE CONSTRAINT, and it is why the vocabulary in script.js is
-   short words rather than SINGLEPLAYER and MULTIPLAYER. The column is
-   min(520px, 26vw) and narrows again at 1100px, so the fix for a wrap is a
-   shorter word, never a smaller type size — nowrap here makes a too-long value
-   overflow visibly instead of quietly reflowing to two lines and pushing the
-   layout around. Hidden wherever the thumbnail is: these describe the preview.
+   GAME ACTIONS — tag pills left, gallery button right, one row under the copy.
+   Both live in the RIGHT column. They were under the thumbnail, which hides at
+   900px and on touch, so on a phone the tags went with it — and nothing here
+   depends on the preview being on screen, so nothing here should. padding-left
+   matches .game-desc's 12px, putting the pills' left edge on the copy's left
+   edge; the two are the same spine, not two things that happen to look close.
+   Wraps rather than overflows: on a narrow phone the button drops below the
+   pills instead of pushing the page sideways.
    ========================================================================== */
+.game-actions{
+  padding:20px 42px 0 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:14px 20px;flex-wrap:wrap;
+}
 .game-tags{
-  max-width:520px;margin:14px 0 0;padding:0;list-style:none;
-  display:flex;align-items:center;gap:9px;
+  margin:0;padding:0;list-style:none;
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
 }
+/* Chips, not a caption: a plate and a hairline give them weight next to the
+   50px button without competing with it. Still nowrap per pill and still a
+   closed vocabulary (GAME_TAGS) — a long value now breaks the row rather than
+   the layout, and the fix is a shorter word, never a smaller type size.
+   #c3cad0 on the plate is 10:1; the border is decorative, and deliberately
+   quiet, since the text is what carries the meaning. */
 .game-tag{
-  font-size:11px;font-weight:800;letter-spacing:.14em;
-  color:#9aa3ab;white-space:nowrap;
+  display:inline-flex;align-items:center;height:36px;padding:0 13px;
+  font-size:13px;font-weight:800;letter-spacing:.1em;
+  color:#c3cad0;white-space:nowrap;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;
 }
+/* An empty slot vanishes completely rather than leaving a bare outline. */
 .game-tag:empty{display:none}
-/* Separator on the item rather than between spans: three <li> and no extra
-   nodes, and it disappears with :empty above if a slot is ever blank. */
-.game-tag + .game-tag::before{content:"·";margin-right:9px;color:#5c666f}
-@media(hover:none){ .game-tags{display:none} }
-@media(max-width:900px){ .game-tags{display:none} }
-
-/* Gallery button, right column. padding-left matches .game-desc's 12px so the
-   button's left edge sits on the copy's left edge — the two are the same spine,
-   not two things that happen to look close. */
-.game-actions{padding:20px 42px 0 12px}
 .game-gallery-open{flex:0 0 auto}
+/* No accent drop-glow on this one. .button.primary carries `box-shadow:0 12px
+   32px accent/22%` for the hero's VIEW WORK, where it is the page's main call
+   to action with air around it; sitting inline next to the tag pills the same
+   halo pooled light under them and read as a smudge rather than a lift. Needs
+   both classes to outrank .button.primary. The hover translateY still comes
+   from .button:hover, so the affordance survives losing the shadow. */
+.button.primary.game-gallery-open{box-shadow:none}
 /* Empty state: greyed, but NOT disabled — every game gets a gallery shortly and
    a control that becomes enabled tomorrow is worse than a live one that is
    briefly empty, so it still opens, focuses, and says "No shots yet."
