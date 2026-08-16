@@ -503,6 +503,10 @@ window.addEventListener('arena1-new-private', () => {
   feed('NEW PRIVATE LOBBY…');
   netAttempt({ kind: 'create' });
 });
+window.addEventListener('arena1-go-public', () => {
+  feed('JOINING PUBLIC LOBBY…');
+  netAttempt({ kind: 'public' });
+});
 
 // ── boot ────────────────────────────────────────────────────────────────────
 // Loopback world immediately — playable before the first network packet —
@@ -534,6 +538,7 @@ window.Arena1 = {
       code: ni?.room ?? null,
       players: ni?.players ?? 1,
       isHost: ni ? ni.isHost : true,
+      isPublic: ni?.isPublic ?? null, // null = not in a Photon room (solo)
       netState,
     };
   },

@@ -41,20 +41,8 @@ const APP_VERSION = 'arena1-v1'; // partitions arena traffic from Stickland's
 const MAX_PLAYERS = 6;           // MD 9 cap; a full room routes arrivals to a fresh one
 const JOIN_TIMEOUT_MS = 10000;   // past this the attempt fails and solo keeps playing
 
-// Room codes: the random alphanumerics remain for PUB- room suffixes (never
-// typed by a human). Math.random is fine here: js/net is not the sim, and
-// codes are not state.
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-export function genRoomCode(len = 5) {
-  let s = '';
-  for (let i = 0; i < len; i++) s += CODE_ALPHABET[(Math.random() * CODE_ALPHABET.length) | 0];
-  return s;
-}
-export function normalizeRoomCode(v) {
-  return String(v || '').toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 24);
-}
-
-// Lobby words (MD 10): private lobby codes are single curated words — four to
+// Lobby words (MD 10, universal since MD 12): EVERY lobby ID — public and
+// private alike — is a single curated word — four to
 // six letters, easy to say aloud and spell. ~300 is plenty at current scale;
 // creation rerolls on a name collision (GameIdAlreadyExists), so list size
 // never actually matters. Entry is case-insensitive (everything uppercases).
@@ -92,14 +80,16 @@ const TAG_MAX = 12;
 // An unedited default tag ("Player1"–"Player99") — the only kind the join
 // dedupe may reroll; a tag someone actually typed is theirs, collisions and
 // all.
-export const DEFAULT_TAG_RE = /^Player([1-9][0-9]?)$/;
+export const DEFAULT_TAG_RE = /^PLAYER([1-9][0-9]?)$/i; // case-insensitive: legacy mixed-case defaults count
 export function genDefaultTag() {
-  return 'Player' + (1 + ((Math.random() * 99) | 0));
+  return 'PLAYER' + (1 + ((Math.random() * 99) | 0));
 }
+// Uppercase at the source (MD 12): the stored value, the wire value, and the
+// billboard label are the SAME string — no display transform over mixed case.
 function readTag() {
   try {
     if (typeof localStorage === 'undefined') return '';
-    return (localStorage.getItem('arena1-tag') || '').slice(0, TAG_MAX);
+    return (localStorage.getItem('arena1-tag') || '').slice(0, TAG_MAX).toUpperCase();
   } catch { return ''; }
 }
 export const TICKS_PER_NET = Math.max(1, Math.round(1 / (SNAPSHOT_RATE_NET * SIM_DT))); // 3
@@ -143,7 +133,7 @@ export function createHostCore(seed, { pvp = PVP_DEFAULT, enemies = true } = {},
 
   tags.set(localId, readTag());
   if (typeof window !== 'undefined') {
-    window.addEventListener('arena1-tag', (e) => tags.set(localId, String(e.detail ?? '').slice(0, TAG_MAX)));
+    window.addEventListener('arena1-tag', (e) => tags.set(localId, String(e.detail ?? '').slice(0, TAG_MAX).toUpperCase()));
   }
   const withTags = (players) => players.map((p) => (tags.get(p.id) ? { ...p, tag: tags.get(p.id) } : p));
 
@@ -167,7 +157,7 @@ export function createHostCore(seed, { pvp = PVP_DEFAULT, enemies = true } = {},
   net.onEvent((code, data, actorNr) => {
     if (code === EV.TAG) {
       const id = actorToPlayer.get(actorNr);
-      if (id != null) tags.set(id, String(data.tag ?? '').slice(0, TAG_MAX));
+      if (id != null) tags.set(id, String(data.tag ?? '').slice(0, TAG_MAX).toUpperCase());
       return;
     }
     if (code !== EV.COMMANDS) return;
@@ -242,7 +232,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
   // Tag changes from the pause menu re-announce (host stores per player).
   if (typeof window !== 'undefined') {
     window.addEventListener('arena1-tag', (e) => {
-      if (welcomed) net.send(EV.TAG, { tag: String(e.detail ?? '').slice(0, TAG_MAX) });
+      if (welcomed) net.send(EV.TAG, { tag: String(e.detail ?? '').slice(0, TAG_MAX).toUpperCase() });
     });
   }
 
@@ -352,8 +342,8 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       if (!dedupeChecked) {
         dedupeChecked = true;
         const mine = readTag();
-        const others = new Set(data.players.filter((q) => q.id !== localId).map((q) => q.tag).filter(Boolean));
-        if (DEFAULT_TAG_RE.test(mine) && others.has(mine) && typeof window !== 'undefined') {
+        const others = new Set(data.players.filter((q) => q.id !== localId).map((q) => (q.tag || '').toUpperCase()).filter(Boolean));
+        if (DEFAULT_TAG_RE.test(mine) && others.has(mine.toUpperCase()) && typeof window !== 'undefined') {
           let fresh = mine;
           for (let i = 0; i < 30 && (fresh === mine || others.has(fresh)); i++) fresh = genDefaultTag();
           try { localStorage.setItem('arena1-tag', fresh); } catch { /* private mode */ }
@@ -540,7 +530,7 @@ function loadSdk() {
 // never the live public pool).
 export function createPhotonTransport({ mode, seedWanted = 1, pvp = PVP_DEFAULT, onEnded, onStatus, verSuffix = '' } = {}) {
   let core = null;
-  let client = null;
+  let client = null; // the live SDK client; netInfo reads room visibility off it
   let disposed = false;
   const pendingSubs = [];
   let roomName = mode.kind === 'named' ? mode.room : null; // public: known at join
@@ -574,20 +564,25 @@ export function createPhotonTransport({ mode, seedWanted = 1, pvp = PVP_DEFAULT,
     client.onEvent = (code, content, actorNr) => { for (const cb of eventCbs) cb(code, content, actorNr); };
     client.onActorJoin = (actor) => { for (const cb of joinCbs) cb(actor.actorNr); };
     client.onActorLeave = (actor) => { for (const cb of leaveCbs) cb(actor.actorNr); };
+    let createRerolls = 0;
+    const createLobby = (visible) => {
+      roomName = genLobbyWord();
+      status(`creating ${roomName}…`);
+      client.createRoom(roomName, { maxPlayers: MAX_PLAYERS, isVisible: visible });
+    };
     client.onStateChange = (state) => {
       const name = P.LoadBalancing.LoadBalancingClient.StateToName(state);
       if (name === 'JoinedLobby') {
         if (mode.kind === 'public') {
-          // One op: seat into any visible room with space, or create a fresh
-          // public room and host it. Multiple public lobbies can coexist —
-          // the correct trade (nobody blocked); friends use a lobby code.
-          roomName = 'PUB-' + genRoomCode(4);
+          // Try any visible room with space; if none, CREATE a fresh public
+          // one under a lobby word (plain create + reroll — NOT
+          // CreateIfNotExists, which would join an existing PRIVATE room
+          // whose word happens to collide). Public vs private is carried by
+          // room VISIBILITY only; the ID format means nothing (MD 12).
           status('finding a match…');
-          client.joinRandomOrCreateRoom({}, roomName, { maxPlayers: MAX_PLAYERS, isVisible: true });
+          client.joinRandomRoom();
         } else if (mode.kind === 'create') {
-          roomName = genLobbyWord();
-          status(`creating ${roomName}…`);
-          client.createRoom(roomName, { maxPlayers: MAX_PLAYERS, isVisible: false });
+          createLobby(false);
         } else {
           status(`joining ${roomName}…`);
           client.joinRoom(roomName);
@@ -612,20 +607,22 @@ export function createPhotonTransport({ mode, seedWanted = 1, pvp = PVP_DEFAULT,
         status('offline');
       }
     };
-    let createRerolls = 0;
     client.onOperationResponse = (errorCode, errorMsg, operationCode) => {
       if (operationCode === 226 && errorCode && mode.kind === 'named') {
         // named room does not exist yet — first one in creates it and hosts.
-        // isVisible:false keeps random matchmaking OUT of named/private rooms.
+        // isVisible:false keeps random matchmaking OUT of code-joined rooms.
         client.createRoom(roomName, { maxPlayers: MAX_PLAYERS, isVisible: false });
       }
-      if (operationCode === 227 && errorCode && mode.kind === 'create') {
+      if (operationCode === 225 && errorCode && mode.kind === 'public') {
+        // no visible room with space — found a fresh public lobby instead
+        createLobby(true);
+      }
+      if (operationCode === 227 && errorCode && (mode.kind === 'create' || mode.kind === 'public')) {
         // lobby word already in use — reroll (the collision check the word
-        // list relies on). A handful of attempts covers any realistic load.
+        // list relies on, for BOTH paths). A handful of attempts covers any
+        // realistic load.
         if (++createRerolls > 8) { fail(new Error('no free lobby word')); return; }
-        roomName = genLobbyWord();
-        status(`creating ${roomName}…`);
-        client.createRoom(roomName, { maxPlayers: MAX_PLAYERS, isVisible: false });
+        createLobby(mode.kind === 'public');
       }
     };
     status('connecting…');
@@ -646,7 +643,15 @@ export function createPhotonTransport({ mode, seedWanted = 1, pvp = PVP_DEFAULT,
     get seed() { return core?.seed ?? null; },
     get level() { return core?.level ?? null; },
     get world() { return core?.world ?? null; },
-    get netInfo() { return core ? { room: roomName, isHost: core.isHost, players: core.playerCount } : { room: roomName, isHost: false, players: 0 }; },
+    get netInfo() {
+      // isPublic = the room's Photon visibility (synced to joiners too) —
+      // the ID format carries no meaning about public vs private (MD 12).
+      let isPublic = null;
+      try { isPublic = !!client?.myRoom()?.isVisible; } catch { /* not in a room */ }
+      return core
+        ? { room: roomName, isHost: core.isHost, players: core.playerCount, isPublic }
+        : { room: roomName, isHost: false, players: 0, isPublic };
+    },
     get prediction() { return core?.prediction ?? null; },
     // Leaving for another room (menu join / rejoin) or shutting down: the
     // socket closes; a not-yet-ready attempt rejects its `ready`.
