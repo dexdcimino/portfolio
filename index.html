@@ -538,8 +538,12 @@
             <li class="game-tag" data-slot="dim"></li>
             <li class="game-tag" data-slot="players"></li>
           </ul>
-          <button class="button primary game-gallery-open" type="button" id="galleryOpen">
-            <span class="game-gallery-label">GALLERY</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span>
+          <!-- No arrow. The diagonal conventionally means "this leaves the
+               page", and the gallery opens a dialog in place — it was telling
+               the visitor something untrue. Nothing replaces it: with the arrow
+               gone there is nothing pulling the label off centre. -->
+          <button class="button game-gallery-open" type="button" id="galleryOpen">
+            <span class="game-gallery-label">GALLERY</span>
           </button>
         </div>
       </div>
@@ -1333,28 +1337,18 @@
        than something the script has to police. preload="none" — five full
        tracks eagerly fetched would outweigh the entire rest of the site. -->
   <audio id="songAudio" preload="none"></audio>
+  <!-- TWO ROWS, and the split is the whole point. Five groups on one line gave
+       the scrub the same width as the volume slider — about 50px for a
+       three-minute track — which is not a sizing bug to patch but a layout that
+       cannot give the scrubber room. It gets its own row and the full width of
+       the bar; the controls get the row below with space to group properly.
+       Grouping follows what each control IS: prev/play/next are TRANSPORT and
+       sit centred, the way every player from Spotify to Tidal places them. Loop
+       and mute are MODES — they change how playback behaves rather than driving
+       it — so loop moves out of the transport cluster and in with volume, which
+       is what made that group read slightly wrong. Close is the least important
+       control in the bar and now looks like it, behind a divider. -->
   <div class="player" id="player" role="region" aria-label="Song player" hidden>
-    <div class="player-now">
-      <img class="player-art" id="playerArt" src="" alt="" width="48" height="48" decoding="async">
-      <span class="player-meta">
-        <strong class="player-title" id="playerTitle"></strong>
-        <span class="player-artist" id="playerArtist"></span>
-      </span>
-    </div>
-
-    <div class="player-transport">
-      <button class="player-btn" type="button" id="playerPrev" aria-label="Previous track">
-        <span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
-      <button class="player-btn is-primary" type="button" id="playerToggle" aria-label="Pause">
-        <span class="icon" data-icon="pause" aria-hidden="true"></span></button>
-      <button class="player-btn" type="button" id="playerNext" aria-label="Next track">
-        <span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
-      <button class="player-btn player-loop" type="button" id="playerLoop"
-              aria-label="Loop off" data-loop="off">
-        <span class="icon" data-icon="loop" aria-hidden="true"></span>
-        <span class="player-loop-one" aria-hidden="true">1</span></button>
-    </div>
-
     <div class="player-seek">
       <span class="player-time" id="playerElapsed">0:00</span>
       <input class="player-range player-scrub" id="playerScrub" type="range"
@@ -1362,15 +1356,40 @@
       <span class="player-time" id="playerDuration">--:--</span>
     </div>
 
-    <div class="player-volume">
-      <button class="player-btn player-volbtn" type="button" id="playerMute" aria-label="Mute">
-        <span class="icon" data-icon="volume" aria-hidden="true"></span></button>
-      <input class="player-range player-vol" id="playerVol" type="range"
-             min="0" max="100" value="40" step="1" aria-label="Volume">
-    </div>
+    <div class="player-controls">
+      <div class="player-now">
+        <img class="player-art" id="playerArt" src="" alt="" width="48" height="48" decoding="async">
+        <span class="player-meta">
+          <strong class="player-title" id="playerTitle"></strong>
+          <span class="player-artist" id="playerArtist"></span>
+        </span>
+      </div>
 
-    <button class="player-btn player-close" type="button" id="playerStop" aria-label="Stop and close player">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+      <div class="player-transport">
+        <button class="player-btn" type="button" id="playerPrev" aria-label="Previous track">
+          <span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
+        <button class="player-btn is-primary" type="button" id="playerToggle" aria-label="Pause">
+          <span class="icon" data-icon="pause" aria-hidden="true"></span></button>
+        <button class="player-btn" type="button" id="playerNext" aria-label="Next track">
+          <span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
+      </div>
+
+      <div class="player-modes">
+        <button class="player-btn player-loop" type="button" id="playerLoop"
+                aria-label="Loop off" data-loop="off">
+          <span class="icon" data-icon="loop" aria-hidden="true"></span>
+          <span class="player-loop-one" aria-hidden="true">1</span></button>
+        <div class="player-volume">
+          <button class="player-btn player-volbtn" type="button" id="playerMute" aria-label="Mute">
+            <span class="icon" data-icon="volume" aria-hidden="true"></span></button>
+          <input class="player-range player-vol" id="playerVol" type="range"
+                 min="0" max="100" value="40" step="1" aria-label="Volume">
+        </div>
+        <span class="player-div" aria-hidden="true"></span>
+        <button class="player-btn player-close" type="button" id="playerStop" aria-label="Stop and close player">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+      </div>
+    </div>
   </div>
 
   <!-- Work overlay — MOCKUP. Every image inside it is generated in script.js as
