@@ -75,7 +75,11 @@ const CONTROLS = [
 ];
 
 const CSS = `
-#paused.overlay{display:flex;align-items:center;justify-content:center;padding:18px}
+/* pointer-events: the game's #hud is pointer-events:none so the canvas gets
+   clicks — which meant every click on this menu fell THROUGH to the canvas,
+   whose paused-state handler resumed the game. The overlay reclaims events
+   for itself and everything in it. */
+#paused.overlay{display:flex;align-items:center;justify-content:center;padding:18px;pointer-events:auto}
 #paused.hidden{display:none}
 .cmenu{
   width:min(460px,92vw);max-height:min(86vh,640px);overflow:auto;
@@ -206,6 +210,12 @@ function build() {
   });
   menu.querySelector('.cmenu-exit').addEventListener('click', () => {
     window.location.href = '/';
+  });
+  // Clicking the dimmed area OUTSIDE the panel resumes — the same contract as
+  // the site's dialogs (backdrop click closes). Clicks inside the panel stay
+  // inside the panel.
+  host.addEventListener('click', (e) => {
+    if (e.target === host && window.Chomp && window.Chomp.resume) window.Chomp.resume();
   });
 }
 

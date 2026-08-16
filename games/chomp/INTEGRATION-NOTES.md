@@ -19,8 +19,13 @@ current; keep it short by keeping the edits few.
 
 3. `js/systems/camera.js`
    - `zoomMult` boots from localStorage `chomp-zoom` (clamped 0.5–2),
-     defaulting to **2.0 — full zoom-out — per Dex**, and listens for the
-     `chomp-zoom` window event the pause menu dispatches.
+     defaulting to **2.0 — full zoom-out — per Dex**, listens for the
+     `chomp-zoom` window event the pause menu dispatches, and calls
+     `retarget()` + snaps `cam.radius` at creation — without that the boot
+     multiplier never reached the camera (retarget only ran on stage change).
+     The pause menu overlay also sets `pointer-events:auto` on `#paused`
+     (the game's `#hud` is `pointer-events:none`, which was letting menu
+     clicks fall through to the canvas and resume the game).
 
 4. `js/visuals/proc/chomp.js`
    - `CHOMP_PALETTES`: the player's body/eyes/horns/tufts colours are keyed by

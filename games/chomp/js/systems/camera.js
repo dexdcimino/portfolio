@@ -39,6 +39,14 @@ export function createCameraRig(scene) {
     punchT = 0;
   });
 
+  // Apply the boot zoom NOW. retarget() otherwise first runs on a stage
+  // change, so the camera sat at the x1 distance (radius 5.5) no matter what
+  // zoomMult booted to — the default-zoom fix without this line was a no-op.
+  retarget();
+  // Snap, not lerp: the player should spawn at the framing, not watch the
+  // camera pull out to it over a second.
+  cam.radius = targetDist;
+
   // The pause menu lives in another module with no handle on this rig; it
   // dispatches chomp-zoom on window and the rig applies it here.
   window.addEventListener('chomp-zoom', (e) => {
