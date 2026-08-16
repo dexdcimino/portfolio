@@ -217,7 +217,10 @@ function build() {
     if (window.Chomp && window.Chomp.resume) window.Chomp.resume();
   });
   menu.querySelector('.cmenu-exit').addEventListener('click', () => {
-    window.location.href = '/';
+    // Navigate the PARENT, not the iframe: the game runs framed and the
+    // site's frame-ancestors header refuses to load the site inside a frame.
+    // Same-origin, so window.top is reachable; standalone it's a no-op alias.
+    (window.top || window).location.href = '/';
   });
   // Clicking the dimmed area OUTSIDE the panel resumes — the same contract as
   // the site's dialogs (backdrop click closes). Clicks inside the panel stay
