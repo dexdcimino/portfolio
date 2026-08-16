@@ -22,9 +22,11 @@ export function createLoopbackTransport(seed, opts) {
     // moment it exists, and the local identity is known synchronously.
     ready: Promise.resolve(),
     isHost: true,
+    get seed() { return seed; },
     get localId() { return localId; },
     get netInfo() { return null; },    // solo — nothing to show
     get prediction() { return null; }, // solo — zero latency, nothing to reconcile
+    dispose() { /* nothing to close */ },
     addLocalPlayer() { localId = sim.addPlayer(); return localId; },
     sendCommand(cmd) { pending.set(cmd.playerId, cmd); },
     onSnapshot(cb) { subscribers.push(cb); },

@@ -38,7 +38,20 @@ const HIST_CAP = 300; // ~5s of unacked commands; beyond that something is wrong
 
 const APP_ID = 'ff6d154a-33f9-480a-bb99-eeccfde3b012'; // the site's Photon app (Stickland's)
 const APP_VERSION = 'arena1-v1'; // partitions arena traffic from Stickland's
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 6;           // MD 9 cap; a full room routes arrivals to a fresh one
+const JOIN_TIMEOUT_MS = 10000;   // past this the attempt fails and solo keeps playing
+
+// Room codes (MD 9): short, speakable, generated — 5 chars, no O/0/I/1.
+// Math.random is fine here: js/net is not the sim, and codes are not state.
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export function genRoomCode(len = 5) {
+  let s = '';
+  for (let i = 0; i < len; i++) s += CODE_ALPHABET[(Math.random() * CODE_ALPHABET.length) | 0];
+  return s;
+}
+export function normalizeRoomCode(v) {
+  return String(v || '').toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 24);
+}
 
 export const EV = { WELCOME: 11, COMMANDS: 12, SNAPSHOT: 13, TAG: 14 };
 
@@ -162,6 +175,7 @@ export function createHostCore(seed, { pvp = PVP_DEFAULT, enemies = true } = {},
       return snap;
     },
     get tickCount() { return sim.tick; },
+    get seed() { return seed; },
     get level() { return sim.level; },
     get world() { return sim.world; },
     get playerCount() { return actorToPlayer.size + 1; },
@@ -406,6 +420,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       emitSynth();
     },
     get tickCount() { return localTick; },
+    get seed() { return seed; },
     get level() { return level; },
     get world() { return world; },
     get playerCount() { return buffer.length ? buffer[buffer.length - 1].snap.players.length : 0; },
@@ -433,17 +448,41 @@ function loadSdk() {
   });
 }
 
-export function createPhotonTransport({ room, seedWanted = 1, pvp = PVP_DEFAULT, onEnded, onStatus } = {}) {
+// mode (MD 9):
+//   { kind: 'public' }              — join any visible room with space, else
+//                                     create a fresh visible one (the pool)
+//   { kind: 'named', room: <code> } — join/create that room by name. Created
+//                                     rooms are INVISIBLE to random matchmaking
+//                                     (private codes and ?room= both use this;
+//                                     joining by name ignores visibility).
+// `ready` now REJECTS — SDK load failure, connection error before a join, or
+// JOIN_TIMEOUT_MS elapsing — so the caller can keep the solo world playing.
+// verSuffix partitions the matchmaking pool (tests join 'arena1-v1<suffix>',
+// never the live public pool).
+export function createPhotonTransport({ mode, seedWanted = 1, pvp = PVP_DEFAULT, onEnded, onStatus, verSuffix = '' } = {}) {
   let core = null;
+  let client = null;
+  let disposed = false;
   const pendingSubs = [];
-  let coreResolve;
-  const coreReady = new Promise((res) => { coreResolve = res; });
+  let roomName = mode.kind === 'named' ? mode.room : null; // public: known at join
+  let coreResolve, coreReject;
+  const coreReady = new Promise((res, rej) => { coreResolve = res; coreReject = rej; });
+  coreReady.catch(() => { /* callers may race dispose(); never an unhandled rejection */ });
   const status = (msg) => onStatus?.(msg);
+  const failTimer = setTimeout(() => fail(new Error('join timeout')), JOIN_TIMEOUT_MS);
+  function fail(err) {
+    if (core || disposed) return;
+    disposed = true;
+    clearTimeout(failTimer);
+    try { client?.disconnect(); } catch { /* already down */ }
+    coreReject(err);
+  }
 
   (async () => {
     await loadSdk();
+    if (disposed) return;
     const P = window.Photon;
-    const client = new P.LoadBalancing.LoadBalancingClient(P.ConnectionProtocol.Wss, APP_ID, APP_VERSION);
+    client = new P.LoadBalancing.LoadBalancingClient(P.ConnectionProtocol.Wss, APP_ID, APP_VERSION + verSuffix);
     const eventCbs = [], joinCbs = [], leaveCbs = [];
     const adapter = {
       myActorNr: () => client.myActor().actorNr,
@@ -458,30 +497,48 @@ export function createPhotonTransport({ room, seedWanted = 1, pvp = PVP_DEFAULT,
     client.onActorLeave = (actor) => { for (const cb of leaveCbs) cb(actor.actorNr); };
     client.onStateChange = (state) => {
       const name = P.LoadBalancing.LoadBalancingClient.StateToName(state);
-      if (name === 'JoinedLobby') { status(`joining ${room}…`); client.joinRoom(room); }
+      if (name === 'JoinedLobby') {
+        if (mode.kind === 'public') {
+          // One op: seat into any visible room with space, or create a fresh
+          // public room and host it. Multiple public lobbies can coexist —
+          // the correct trade (nobody blocked); friends use a private code.
+          roomName = 'PUB-' + genRoomCode(4);
+          status('finding a match…');
+          client.joinRandomOrCreateRoom({}, roomName, { maxPlayers: MAX_PLAYERS, isVisible: true });
+        } else {
+          status(`joining ${roomName}…`);
+          client.joinRoom(roomName);
+        }
+      }
       if (name === 'Joined' && !core) {
+        clearTimeout(failTimer);
+        // Random-join landed in an existing room: adopt its real name so the
+        // pause menu shows a code others could join directly.
+        try { roomName = client.myRoom()?.name || roomName; } catch { /* keep ours */ }
         const isHost = client.myRoomMasterActorNr() === client.myActor().actorNr;
         core = isHost
           ? createHostCore(seedWanted, { pvp }, adapter)
           : createClientCore(adapter, { onEnded });
         for (const cb of pendingSubs) core.onSnapshot(cb);
-        status(isHost ? `hosting ${room}` : `joined ${room}`);
+        status(isHost ? `hosting ${roomName}` : `joined ${roomName}`);
         core.ready.then(coreResolve);
       }
       if (name === 'Error' || name === 'Disconnected') {
-        if (core && !core.isHost) onEnded?.(); // connection died mid-match
+        if (core) { if (!core.isHost) onEnded?.(); } // died mid-match
+        else fail(new Error('connection failed'));   // died before joining
         status('offline');
       }
     };
     client.onOperationResponse = (errorCode, errorMsg, operationCode) => {
-      if (operationCode === 226 && errorCode) {
-        // room does not exist yet — first one in creates it and hosts
-        client.createRoom(room, { maxPlayers: MAX_PLAYERS });
+      if (operationCode === 226 && errorCode && mode.kind === 'named') {
+        // named room does not exist yet — first one in creates it and hosts.
+        // isVisible:false keeps random matchmaking OUT of named/private rooms.
+        client.createRoom(roomName, { maxPlayers: MAX_PLAYERS, isVisible: false });
       }
     };
     status('connecting…');
     client.connectToRegionMaster('us');
-  })();
+  })().catch(fail);
 
   // The facade delegates to whichever core the join produced. `ready` gates
   // main.js, so nothing touches level/world/localId before they exist.
@@ -494,9 +551,18 @@ export function createPhotonTransport({ room, seedWanted = 1, pvp = PVP_DEFAULT,
     onSnapshot(cb) { if (core) core.onSnapshot(cb); else pendingSubs.push(cb); },
     tick() { core?.tick(); },
     get tickCount() { return core?.tickCount ?? 0; },
+    get seed() { return core?.seed ?? null; },
     get level() { return core?.level ?? null; },
     get world() { return core?.world ?? null; },
-    get netInfo() { return core ? { room, isHost: core.isHost, players: core.playerCount } : { room, isHost: false, players: 0 }; },
+    get netInfo() { return core ? { room: roomName, isHost: core.isHost, players: core.playerCount } : { room: roomName, isHost: false, players: 0 }; },
     get prediction() { return core?.prediction ?? null; },
+    // Leaving for another room (menu join / rejoin) or shutting down: the
+    // socket closes; a not-yet-ready attempt rejects its `ready`.
+    dispose() {
+      disposed = true;
+      clearTimeout(failTimer);
+      try { client?.disconnect(); } catch { /* already down */ }
+      if (!core) coreReject(new Error('disposed'));
+    },
   };
 }

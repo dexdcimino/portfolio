@@ -96,6 +96,22 @@ const CSS = `
   font-size:13px;letter-spacing:.08em;color:#F2D6A2;background:#2b1b45;
   border:2px solid #4A2B63;outline:none}
 .cmenu-tag:focus{border-color:var(--cmenu-accent,#9EE02B)}
+.cmenu-roomrow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.cmenu-roomlab{font-size:10px;font-weight:800;letter-spacing:.18em;color:#a8916b;min-width:64px}
+.cmenu-roomcode{flex:1;font-size:15px;letter-spacing:.18em;color:#F2D6A2;background:#2b1b45;
+  border:2px solid #4A2B63;border-radius:8px;padding:5px 10px;font-family:inherit}
+.cmenu-copy,.cmenu-join{min-width:64px;height:32px;border-radius:8px;cursor:pointer;font-size:11px;
+  font-weight:800;letter-spacing:.08em;border:2px solid #4A2B63;background:#2b1b45;color:#F2D6A2;
+  font-family:inherit;transition:border-color .15s ease}
+.cmenu-copy:hover,.cmenu-join:hover{border-color:var(--cmenu-accent,#9EE02B)}
+.cmenu-joincode{flex:1;height:32px;padding:0 10px;border-radius:8px;font-family:inherit;
+  font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#F2D6A2;background:#2b1b45;
+  border:2px solid #4A2B63;outline:none}
+.cmenu-joincode:focus{border-color:var(--cmenu-accent,#9EE02B)}
+.cmenu-newprv{width:100%;height:34px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:800;
+  letter-spacing:.12em;border:2px solid #4A2B63;background:#2b1b45;color:#F2D6A2;
+  font-family:inherit;transition:border-color .15s ease}
+.cmenu-newprv:hover{border-color:var(--cmenu-accent,#9EE02B)}
 .cmenu-rows{display:grid;gap:8px}
 .cmenu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
 .cmenu-keys{display:flex;gap:4px;align-items:center}
@@ -142,6 +158,19 @@ function build() {
     <h2>Player Tag</h2>
     <input class="cmenu-tag" type="text" maxlength="16" spellcheck="false"
            placeholder="shown above you in multiplayer" aria-label="Player tag">
+    <h2>Room</h2>
+    <div class="cmenu-roomrow">
+      <span class="cmenu-roomlab">CURRENT</span>
+      <code class="cmenu-roomcode">SOLO</code>
+      <button class="cmenu-copy" type="button" aria-label="Copy room code">COPY</button>
+    </div>
+    <div class="cmenu-roomrow">
+      <input class="cmenu-joincode" type="text" maxlength="24" spellcheck="false"
+             placeholder="enter a code" aria-label="Room code to join">
+      <button class="cmenu-join" type="button">JOIN</button>
+    </div>
+    <button class="cmenu-newprv" type="button">NEW PRIVATE ROOM</button>
+    <div class="cmenu-note cmenu-roomnote">public matchmaking is automatic — codes are for playing with specific people</div>
     <h2>Controls</h2>
     <div class="cmenu-rows"></div>
     <h2>Quality</h2>
@@ -193,6 +222,50 @@ function build() {
   });
   tagInput.addEventListener('keydown', (e) => e.stopPropagation());
   tagInput.addEventListener('keyup', (e) => e.stopPropagation());
+
+  // Room (MD 9): current code + copy, join-by-code, new private room. main.js
+  // owns the transports; this UI reads window.Arena1.room() and dispatches
+  // the join events. Painted on a slow interval — cheap, and always fresh
+  // when the menu is actually open.
+  const roomCode = menu.querySelector('.cmenu-roomcode');
+  const copyBtn = menu.querySelector('.cmenu-copy');
+  const joinInput = menu.querySelector('.cmenu-joincode');
+  const joinBtn = menu.querySelector('.cmenu-join');
+  const newPrvBtn = menu.querySelector('.cmenu-newprv');
+  const paintRoom = () => {
+    const r = window.Arena1?.room?.();
+    if (!r) return;
+    roomCode.textContent = r.code
+      ? `${r.code} · ${r.players}P`
+      : (r.netState === 'connecting' ? 'CONNECTING…' : r.netState === 'offline' ? 'SOLO · OFFLINE' : 'SOLO');
+    copyBtn.disabled = !r.code;
+  };
+  setInterval(paintRoom, 1000);
+  paintRoom();
+  copyBtn.addEventListener('click', () => {
+    const r = window.Arena1?.room?.();
+    if (!r?.code) return;
+    try { navigator.clipboard?.writeText(r.code); } catch { /* clipboard denied */ }
+    copyBtn.textContent = 'COPIED';
+    setTimeout(() => { copyBtn.textContent = 'COPY'; }, 1200);
+  });
+  const doJoin = () => {
+    const code = joinInput.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    if (!code) return;
+    joinInput.value = '';
+    window.dispatchEvent(new CustomEvent('arena1-join-room', { detail: code }));
+    window.Arena1?.resume?.();
+  };
+  joinBtn.addEventListener('click', doJoin);
+  joinInput.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') doJoin();
+  });
+  joinInput.addEventListener('keyup', (e) => e.stopPropagation());
+  newPrvBtn.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('arena1-new-private'));
+    window.Arena1?.resume?.();
+  });
 
   const rows = menu.querySelector('.cmenu-rows');
   for (const [label, keyList, alt] of CONTROLS) {
