@@ -57,6 +57,9 @@ function applyAccent(a, persist = true) {
   document.documentElement.style.setProperty('--cmenu-accent', a.hex);
   document.documentElement.style.setProperty('--cmenu-ink', inkFor(a.hex));
   if (persist) store.set(SITE_ACCENT_KEY, a.name);
+  // The character wears the accent too — visuals/proc/chomp.js listens and
+  // retints the live materials.
+  window.dispatchEvent(new CustomEvent('chomp-accent', { detail: a.name }));
   for (const b of document.querySelectorAll('.cmenu-swatch')) {
     b.classList.toggle('is-on', b.dataset.name === a.name);
   }
@@ -98,6 +101,7 @@ const CSS = `
 .cmenu-alt{color:#8d959c;font-size:12px;margin-left:6px}
 .cmenu-audio{display:flex;align-items:center;gap:12px}
 .cmenu-audio input[type=range]{flex:1;accent-color:var(--cmenu-accent,#9EE02B)}
+.cmenu-zoomlab{font-size:11px;font-weight:800;letter-spacing:.08em;color:#8d959c;min-width:64px}
 .cmenu-mute{min-width:64px;height:28px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:800;
   letter-spacing:.08em;border:2px solid #3a4450;background:#232830;color:#f1f3f4;
   transition:background .15s ease,color .15s ease,border-color .15s ease}
@@ -129,6 +133,11 @@ function build() {
     <div class="cmenu-swatches"></div>
     <h2>Controls</h2>
     <div class="cmenu-rows"></div>
+    <h2>Camera</h2>
+    <div class="cmenu-audio cmenu-zoom-row">
+      <span class="cmenu-zoomlab">ZOOM OUT</span>
+      <input class="cmenu-zoom" type="range" min="0.5" max="2" step="0.05" aria-label="Camera zoom out">
+    </div>
     <h2>Audio</h2>
     <div class="cmenu-audio">
       <button class="cmenu-mute" type="button"></button>
@@ -161,6 +170,16 @@ function build() {
     row.innerHTML = `<span>${label}</span><span class="cmenu-keys">${keySpans}${alt ? `<span class="cmenu-alt">${alt}</span>` : ''}</span>`;
     rows.appendChild(row);
   }
+
+  // Camera zoom: 2.0 (full zoom-out) is the shipped default; the choice
+  // persists as chomp-zoom and systems/camera.js applies the event live.
+  const zoom = menu.querySelector('.cmenu-zoom');
+  const storedZoom = parseFloat(store.get('chomp-zoom'));
+  zoom.value = Number.isFinite(storedZoom) ? Math.min(2, Math.max(0.5, storedZoom)) : 2;
+  zoom.addEventListener('input', () => {
+    store.set('chomp-zoom', zoom.value);
+    window.dispatchEvent(new CustomEvent('chomp-zoom', { detail: parseFloat(zoom.value) }));
+  });
 
   const vol = menu.querySelector('.cmenu-vol');
   const mute = menu.querySelector('.cmenu-mute');

@@ -19,7 +19,15 @@ export function createCameraRig(scene) {
   const baseFov = cam.fov;
   const look = { x: 0, z: 0 };
   let stageIdx = 0;
-  let zoomMult = 1; // debug slider multiplier (MD-04b)
+  // Default is FULL zoom-out (2.0, the slider's max) per Dex — the game reads
+  // better wide. chomp-zoom persists the settings-menu choice; the debug
+  // slider still drives the same multiplier.
+  let zoomMult = (() => {
+    try {
+      const v = parseFloat(localStorage.getItem('chomp-zoom'));
+      return Number.isFinite(v) ? Math.min(2, Math.max(0.5, v)) : 2;
+    } catch { return 2; }
+  })();
   let targetDist = C.camDistByStage[0];
   let punchT = Infinity;
 
@@ -29,6 +37,13 @@ export function createCameraRig(scene) {
 
   on('player:chomp', () => {
     punchT = 0;
+  });
+
+  // The pause menu lives in another module with no handle on this rig; it
+  // dispatches chomp-zoom on window and the rig applies it here.
+  window.addEventListener('chomp-zoom', (e) => {
+    zoomMult = Math.min(2, Math.max(0.5, Number(e.detail) || 2));
+    retarget();
   });
 
   return {
