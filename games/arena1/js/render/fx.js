@@ -21,6 +21,28 @@ export function createFx({ scene, cam, mat, V3 }, world) {
   muzzle.material = mat('#FFE7B0', 1); muzzle.isPickable = false; muzzle.scaling.setAll(0.01);
   let gunKick = 0, muzzleT = 0;
 
+  // Rocket launcher viewmodel (MD 11): a fat tube on the same mount; the
+  // selected weapon field drives which set is visible. The remote-visuals MD
+  // reads the same snapshot field for other players' pills.
+  const tubeBody = BABYLON.MeshBuilder.CreateBox('rlB', { width: 0.16, height: 0.18, depth: 0.34 }, scene);
+  tubeBody.parent = gunRoot; tubeBody.material = mat('#372052'); tubeBody.isPickable = false;
+  const tube = BABYLON.MeshBuilder.CreateCylinder('rlT', { height: 0.52, diameter: 0.15, tessellation: 10 }, scene);
+  tube.parent = gunRoot; tube.rotation.x = Math.PI / 2; tube.position = V3(0, 0.04, 0.3);
+  tube.material = mat('#B84D8F'); tube.isPickable = false;
+  const tubeRim = BABYLON.MeshBuilder.CreateCylinder('rlR', { height: 0.06, diameter: 0.19, tessellation: 10 }, scene);
+  tubeRim.parent = gunRoot; tubeRim.rotation.x = Math.PI / 2; tubeRim.position = V3(0, 0.04, 0.55);
+  tubeRim.material = mat('#FF7A59'); tubeRim.isPickable = false;
+  const zapParts = [gunBody, gunBarrel, gunFin];
+  const rocketParts = [tubeBody, tube, tubeRim];
+  let shownWeapon = -1;
+  function setWeapon(w) {
+    if (w === shownWeapon) return;
+    shownWeapon = w;
+    for (const m of zapParts) m.setEnabled(w === 0);
+    for (const m of rocketParts) m.setEnabled(w === 1);
+  }
+  setWeapon(0);
+
   // ---- grapple rope + hook tip ----
   const rope = BABYLON.MeshBuilder.CreateBox('rope', { width: 0.05, height: 0.05, depth: 1 }, scene);
   rope.material = mat('#FF3D81', 0.7); rope.isVisible = false; rope.isPickable = false;
@@ -178,7 +200,7 @@ export function createFx({ scene, cam, mat, V3 }, world) {
   }
 
   return {
-    fire, spawnTracer, burst, jetPuff, dmgNum,
+    fire, spawnTracer, burst, jetPuff, dmgNum, setWeapon,
     ropeTo, ropeOff, placeShadow, hideShadow,
     hitmarkFlash, hurtFlash, vig, update,
     muzzleWorld: () => muzzle.getAbsolutePosition(),

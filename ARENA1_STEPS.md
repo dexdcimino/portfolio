@@ -43,7 +43,9 @@ Two conventions with no exceptions:
 { tick, playerId,
   move: {x, z},          // wish axes, -1..1, already normalized
   yaw, pitch,            // radians, applied locally to camera same frame
-  buttons }              // bitfield
+  buttons,               // bitfield
+  weapon }               // MD 11: 0 = zap (hitscan), 1 = rocket; sim action,
+                         // the host must know which weapon fired
 // buttons: JUMP=1, DASH=2, SLIDE=4, FIRE=8, GRAPPLE=16, JET=32
 ```
 The sim keeps `prevButtons` per player; `pressed = buttons & ~prevButtons`.
@@ -52,10 +54,16 @@ Jump buffer = 7 ticks, coyote = 6 ticks, computed **in the sim** from edges.
 ### Snapshot (sim → render/peers), emitted every tick
 ```js
 { tick, seed, pvp,
-  players: [{id, pos, vel, yaw, pitch, hp, fuel, fuelMax, dashCharges, flags}],
+  players: [{id, pos, vel, yaw, pitch, hp, fuel, fuelMax, dashCharges,
+             weapon, flags}],                       // weapon: MD 11 (0 zap, 1 rocket)
   enemies: [{id, kind, pos, hp, aiState, flags}],   // kind: 0 blob, 1 wraith, 2 spike
   cells:   [{id, taken}],
-  events:  [],             // cleared each tick, see Phase 5
+  rockets: [{id, pos, vel, ownerId}],  // MD 11: live projectiles, authoritative
+                                       // and NEVER predicted — a client renders
+                                       // them when the snapshot says so
+  events:  [],             // cleared each tick, see Phase 5; MD 11 adds
+                           // explode {point, ownerId} and death gains `by`
+                           // (self-kill attribution)
   acks: {playerId: tick} } // WIRE broadcasts only (MD 8): per-client highest
                            // command tick the host has CONSUMED — never a held
                            // repeat. Drives prediction reconciliation; absent

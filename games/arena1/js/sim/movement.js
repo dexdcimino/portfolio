@@ -53,6 +53,7 @@ export function createPlayerState(id, pos) {
     fuel: 100, fuelMax: 100,
     dashCharges: 2, dashCd: 0, dashT: 0, dashDir: { x: 0, z: 1 },
     sliding: false, jetting: false, wallsliding: false, fireCd: 0,
+    weapon: 0, // 0 = zap (hitscan), 1 = rocket (MD 11); survives respawn, resets with the match
     grapple: null,               // { mode:'pull'|'yank'|'cell', ... } while latched
     grounded: false, groundPlatformId: null, wallN: null,
     summitDone: false, deaths: 0, kills: 0, cellsGot: 0,
@@ -62,9 +63,11 @@ export function createPlayerState(id, pos) {
   };
 }
 
-// Exported for enemies.js (touch damage) and combat.js (pvp shots). `from`
-// applies the prototype's knockback: shoved away horizontally, popped up.
-export function hurtPlayer(p, amount, events, from = null) {
+// Exported for enemies.js (touch damage) and combat.js (shots + splash).
+// `from` applies the prototype's knockback: shoved away horizontally, popped
+// up. `by` attributes a resulting death (MD 11: a self-kill must read as a
+// self-kill in the feed, not as an enemy kill) — null means environment/PvE.
+export function hurtPlayer(p, amount, events, from = null, by = null) {
   p.hp -= amount;
   p.hurtT = 0;
   if (from) {
@@ -81,7 +84,7 @@ export function hurtPlayer(p, amount, events, from = null) {
     p.pos = { ...p.spawn };
     p.vel = { x: 0, y: 0, z: 0 };
     p.grapple = null;
-    events.push({ type: 'death', playerId: p.id });
+    events.push({ type: 'death', playerId: p.id, by });
   }
 }
 
@@ -104,6 +107,9 @@ export function stepPlayer(ctx, p, cmd) {
   const released = ~buttons & p.prevButtons;
   p.prevButtons = buttons;
   if (cmd) { p.yaw = cmd.yaw; p.pitch = cmd.pitch; }
+  // Weapon select rides the command (MD 11) — a sim action, not a display
+  // toggle: the host must know which weapon fired.
+  if (cmd && cmd.weapon !== undefined) p.weapon = cmd.weapon === 1 ? 1 : 0;
 
   // --- input wish direction (prototype lines 1008–1013)
   const sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);

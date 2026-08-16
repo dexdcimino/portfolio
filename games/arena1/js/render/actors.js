@@ -78,6 +78,19 @@ export function createActors({ scene, mat, V3 }) {
     return { root: body, matRef: m, t: Math.random() * 6 };
   }
 
+  function makeRocket() {
+    const body = BABYLON.MeshBuilder.CreateCylinder('rocket', { height: 0.5, diameterTop: 0.06, diameterBottom: 0.13, tessellation: 8 }, scene);
+    const m = new BABYLON.StandardMaterial('rocketm', scene);
+    m.diffuseColor = BABYLON.Color3.FromHexString('#FF7A59');
+    m.emissiveColor = BABYLON.Color3.FromHexString('#FF7A59').scale(0.6); // reads in flight
+    m.specularColor = BABYLON.Color3.Black();
+    body.material = m;
+    body.rotation.x = Math.PI / 2; // cylinder axis → z, oriented by lookAt below
+    const holder = new BABYLON.TransformNode('rocketH', scene);
+    body.parent = holder;
+    return { root: holder, matRef: m, body };
+  }
+
   function makeCell() {
     const body = BABYLON.MeshBuilder.CreateCylinder('cell', { height: 0.75, diameter: 0.4, tessellation: 8 }, scene);
     const m = new BABYLON.StandardMaterial('cellm', scene);
@@ -129,7 +142,8 @@ export function createActors({ scene, mat, V3 }) {
         : kind === 'wraith' ? makeWraith()
           : kind === 'spike' ? makeSpike()
             : kind === 'cell' ? makeCell()
-              : makeRemotePlayer();
+              : kind === 'rocket' ? makeRocket()
+                : makeRemotePlayer();
       a = { kind, view, wasVisible: false };
       pool.set(id, a);
     }
@@ -173,6 +187,18 @@ export function createActors({ scene, mat, V3 }) {
       }
       const until = flashUntil.get(e.id) || 0;
       a.view.matRef.emissiveColor = (now < until) ? BABYLON.Color3.White() : BABYLON.Color3.Black();
+    }
+    const prevRockets = new Map((prev?.rockets || []).map((r) => [r.id, r]));
+    for (const r of (last.rockets || [])) {
+      const key = 'r:' + r.id;
+      seen.add(key);
+      const a = get(key, 'rocket');
+      const pr = prevRockets.get(r.id) || r;
+      a.view.root.setEnabled(true);
+      a.wasVisible = true;
+      const x = lerp(pr.pos.x, r.pos.x, alpha), y = lerp(pr.pos.y, r.pos.y, alpha), z = lerp(pr.pos.z, r.pos.z, alpha);
+      a.view.root.position.set(x, y, z);
+      a.view.root.lookAt(new BABYLON.Vector3(x + r.vel.x, y + r.vel.y, z + r.vel.z)); // nose along flight
     }
     const prevCells = new Map((prev?.cells || []).map((c) => [c.id, c]));
     for (const c of last.cells) {

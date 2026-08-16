@@ -9,6 +9,7 @@ import { createWorld } from '../js/sim/world.js';
 import { buildLevel } from '../js/sim/level.js';
 import { createPlayerState, stepPlayer, BTN } from '../js/sim/movement.js';
 import { stepEnemies } from '../js/sim/enemies.js';
+import { stepCombat, stepRockets } from '../js/sim/combat.js';
 import { createSim } from '../js/sim/sim.js';
 import { rngFor } from '../js/core/rng.js';
 
@@ -103,7 +104,8 @@ function flatUnit() {
   const world = createWorld();
   world.addAabb({ x: -60, y: -1, z: -60 }, { x: 60, y: 0, z: 60 });
   const level = { platforms: [], pads: [], rings: [], platSpawnPoints: [], spikeSpots: [], cellSpots: [] };
-  const ents = { players: new Map(), enemies: new Map(), cells: new Map() };
+  let nextId = 1000;
+  const ents = { players: new Map(), enemies: new Map(), cells: new Map(), rockets: new Map(), allocId: () => nextId++ };
   return { world, level, ents, tick: 0 };
 }
 function unitStep(u, p, c) {
@@ -226,4 +228,189 @@ const mkBlob = (id, pos) => ({
     + `(target strafed ${maxOsc.toFixed(1)}m under its own input), released clean`);
 }
 
-console.log(`\ncombat.mjs: ${passed}/6 passed`);
+// ═══ MD 11 — rocket launcher ═══════════════════════════════════════════════
+const aim = (from, to) => {
+  const dx = to.x - from.x, dy = to.y - (from.y + 0.55), dz = to.z - from.z;
+  return { yaw: Math.atan2(dx, dz), pitch: -Math.atan2(dy, Math.hypot(dx, dz)) };
+};
+const idleAt = (a, w = 1) => ({ move: { x: 0, z: 0 }, yaw: a.yaw, pitch: a.pitch, buttons: 0, weapon: w });
+
+// ── 7. rocket determinism: 600 ticks of fire/splash/self-damage ────────────
+{
+  const run = () => {
+    const sim = createSim('rocket-det');
+    const id = sim.addPlayer();
+    const snaps = [];
+    for (let t = 0; t < 600; t++) {
+      const weapon = t > 80 ? 1 : 0; // switch mid-run
+      const pitch = t % 200 < 100 ? 0.9 : -0.3; // alternate feet blasts and lobs
+      sim.step(new Map([[id, {
+        tick: t, playerId: id, move: { x: 0, z: t % 3 ? 1 : 0 },
+        yaw: Math.PI + t * 0.01, pitch, buttons: BTN.FIRE, weapon,
+      }]]));
+      snaps.push(JSON.stringify(sim.snapshot()));
+    }
+    return snaps.join('\n');
+  };
+  const a = run(), b = run();
+  assert.equal(a, b, 'rocket runs diverged');
+  assert.ok(a.includes('"rockets":[{'), 'no rocket ever appeared in a snapshot');
+  assert.ok(a.includes('"type":"explode"'), 'no explosion ever happened');
+  ok('rocket determinism', '600 ticks with switching, feet blasts and lobs — byte-identical');
+}
+
+// ── 8. no tunneling: point-blank wall at full rocket speed ─────────────────
+{
+  const sim = createSim('rocket-wall', { enemies: false });
+  const id = sim.addPlayer();
+  const p = sim.getPlayer(id);
+  p.pos = { x: 0, y: 0.92, z: 63.0 }; p.spawn = { ...p.pos }; // 1.5m from the south wall face (z=64.5)
+  const a = { yaw: 0, pitch: 0 }; // straight at the wall
+  let exploded = null;
+  for (let t = 0; t < 10 && !exploded; t++) {
+    sim.step(new Map([[id, { tick: t, playerId: id, ...idleAt(a), buttons: t === 0 ? BTN.FIRE : 0 }]]));
+    const s = sim.snapshot();
+    exploded = s.events.find((e) => e.type === 'explode') || null;
+    for (const r of s.rockets) {
+      assert.ok(r.pos.z < 64.5 + 0.01, `rocket tunneled to z=${r.pos.z}`);
+    }
+  }
+  assert.ok(exploded, 'never exploded on the wall');
+  assert.ok(Math.abs(exploded.point.z - 64.5) < 0.3, `impact at z=${exploded.point.z.toFixed(2)} (wall 64.5)`);
+  ok('no tunneling at point blank', `impact z ${exploded.point.z.toFixed(2)} on the 64.5 wall face, swept every tick`);
+}
+
+// ── 9. splash: damages at radius edge, not beyond ──────────────────────────
+{
+  const u = flatUnit();
+  u.world.addAabb({ x: -20, y: 0, z: 10, }, { x: 20, y: 12, z: 12 }); // impact wall at z=10
+  const p = createPlayerState(1, { x: 0, y: 0.92, z: 0 });
+  p.weapon = 1;
+  u.ents.players.set(1, p);
+  const mkB = (bid, pos) => ({
+    id: bid, kind: 'blob', rng: rngFor('unit', 'enemy', bid),
+    pos, vx: 0, vy: 0, vz: 0, hp: 3, alive: true, respawnT: 0, yanked: 0, hitCd: 0, hop: 9,
+  });
+  // impact lands at ≈(0, 1.47, 10); distances measured from there
+  const inside = mkB(901, { x: 4.0, y: 1.4, z: 9.6 });   // ≈4.0m — inside the 4.5 radius
+  const outside = mkB(902, { x: 5.6, y: 1.4, z: 9.6 });  // ≈5.6m — beyond it
+  u.ents.enemies.set(901, inside);
+  u.ents.enemies.set(902, outside);
+  const ctx = () => ({ world: u.world, level: u.level, tick: u.tick, events: [], ents: u.ents, pvp: true });
+  const c0 = ctx();
+  stepCombat(c0, p, BTN.FIRE); // fires the rocket (weapon 1)
+  assert.equal(u.ents.rockets.size, 1, 'rocket did not spawn');
+  let exploded = false;
+  for (let t = 0; t < 30 && !exploded; t++) {
+    const c = ctx();
+    stepRockets(c);
+    u.tick++;
+    exploded = c.events.some((e) => e.type === 'explode');
+  }
+  assert.ok(exploded, 'rocket never exploded on the wall');
+  assert.ok(inside.hp < 3, `edge enemy untouched (hp ${inside.hp})`);
+  assert.equal(outside.hp, 3, `beyond-radius enemy damaged (hp ${outside.hp})`);
+  ok('splash radius edge', `≈4.0m enemy hp 3→${inside.hp}, ≈5.6m enemy untouched (radius 4.5)`);
+}
+
+// ── 10. pvp branch on splash + self-damage in BOTH modes ───────────────────
+{
+  const splashDuel = (pvp) => {
+    const sim = createSim('rocket-pvp', { pvp, enemies: false });
+    const a = sim.addPlayer(), b = sim.addPlayer();
+    const pa = sim.getPlayer(a), pb = sim.getPlayer(b);
+    pa.pos = { x: 0, y: 0.92, z: 50 }; pa.spawn = { ...pa.pos };
+    pb.pos = { x: 1.5, y: 0.92, z: 62.5 }; pb.spawn = { ...pb.pos }; // near the wall impact
+    const am = { yaw: 0, pitch: 0 };
+    let hitEvents = [];
+    for (let t = 0; t < 40; t++) {
+      sim.step(new Map([[a, { tick: t, playerId: a, ...idleAt(am), buttons: t === 0 ? BTN.FIRE : 0 }]]));
+      hitEvents.push(...sim.snapshot().events.filter((e) => e.type === 'hit' && e.target === b));
+    }
+    return { otherHp: pb.hp, hitEvents };
+  };
+  const on = splashDuel(true);
+  assert.ok(on.otherHp < 100, `pvp on: splash did not damage the other player (hp ${on.otherHp})`);
+  const off = splashDuel(false);
+  assert.equal(off.otherHp, 100, `pvp off: splash leaked damage (hp ${off.otherHp})`);
+  assert.ok(off.hitEvents.length >= 1 && off.hitEvents.every((e) => e.dmg === 0),
+    'pvp off: hit event should exist with dmg 0');
+
+  // self-damage applies in BOTH modes (never pvp-gated — rocket jumping in co-op)
+  const selfBlast = (pvp) => {
+    const sim = createSim('rocket-self', { pvp, enemies: false });
+    const id = sim.addPlayer();
+    const p = sim.getPlayer(id);
+    p.pos = { x: 0, y: 0.92, z: 50 }; p.spawn = { ...p.pos };
+    for (let t = 0; t < 20; t++) {
+      sim.step(new Map([[id, {
+        tick: t, playerId: id, move: { x: 0, z: 0 }, yaw: 0, pitch: 1.2, // at own feet
+        buttons: t === 0 ? BTN.FIRE : 0, weapon: 1,
+      }]]));
+    }
+    return p.hp;
+  };
+  const s1 = selfBlast(true), s0 = selfBlast(false);
+  assert.ok(s1 < 100 && s0 < 100 && s1 === s0, `self-damage gated by pvp?! on=${s1}, off=${s0}`);
+  assert.ok(100 - s1 >= 15 && 100 - s1 <= 35, `self-damage ${100 - s1} outside the third-to-quarter shape`);
+  ok('pvp splash branch + ungated self-damage',
+    `pvp on: other ${on.otherHp}hp; off: 100hp with dmg-0 events; self-blast costs ${100 - s1}hp in both modes`);
+}
+
+// ── 11. self-knockback launches, at full AND at low hp ─────────────────────
+{
+  const jump = (startHp) => {
+    const sim = createSim('rocket-knock', { enemies: false });
+    const id = sim.addPlayer();
+    const p = sim.getPlayer(id);
+    p.pos = { x: 0, y: 0.92, z: 50 }; p.spawn = { ...p.pos };
+    p.hp = startHp;
+    let maxVy = 0, death = null;
+    for (let t = 0; t < 30; t++) {
+      sim.step(new Map([[id, {
+        tick: t, playerId: id, move: { x: 0, z: 0 }, yaw: 0, pitch: 1.2,
+        buttons: t === 0 ? BTN.FIRE : 0, weapon: 1,
+      }]]));
+      maxVy = Math.max(maxVy, p.vel.y);
+      death = death || sim.snapshot().events.find((e) => e.type === 'death');
+    }
+    return { maxVy, death };
+  };
+  const full = jump(100);
+  assert.ok(full.maxVy > 8, `full-hp launch too weak (vy ${full.maxVy.toFixed(1)})`);
+  // low but SURVIVABLE hp: the launch must still work (never damage-gated)
+  const low = jump(30);
+  assert.ok(low.maxVy > 8, `low-hp launch failed (vy ${low.maxVy.toFixed(1)}) — knockback must not be damage-gated`);
+  assert.ok(!low.death, 'a 30hp jump should be survivable at ~23 self-damage');
+  // lethal case: the death is attributed to YOURSELF, never read as an enemy
+  // kill (respawn zeroing velocity is correct — dead players do not launch)
+  const lethal = jump(10);
+  assert.ok(lethal.death && lethal.death.by === lethal.death.playerId, 'self-kill not attributed to self');
+  ok('self-knockback at any hp', `launch vy ${full.maxVy.toFixed(1)} at 100hp, ${low.maxVy.toFixed(1)} at 30hp; 10hp blast dies attributed SELF`);
+}
+
+// ── 12. sky rocket despawns; weapon round-trips ────────────────────────────
+{
+  const sim = createSim('rocket-sky', { enemies: false });
+  const id = sim.addPlayer();
+  let sawRocket = false;
+  for (let t = 0; t < 300; t++) {
+    sim.step(new Map([[id, {
+      tick: t, playerId: id, move: { x: 0, z: 0 }, yaw: 0, pitch: -1.4, // straight up
+      buttons: t === 0 ? BTN.FIRE : 0, weapon: 1,
+    }]]));
+    if (sim.snapshot().rockets.length) sawRocket = true;
+  }
+  const s = sim.snapshot();
+  assert.ok(sawRocket, 'sky rocket never existed');
+  assert.equal(s.rockets.length, 0, `sky rocket leaked (${s.rockets.length} alive after 5s)`);
+  assert.equal(s.players[0].weapon, 1, 'weapon did not round-trip through the snapshot');
+  // respawn persistence: kill-floor the player, weapon stays 1
+  const p = sim.getPlayer(id);
+  p.hp = 10; p.pos = { x: 0, y: -30, z: 0 };
+  sim.step(new Map([[id, { tick: 301, playerId: id, move: { x: 0, z: 0 }, yaw: 0, pitch: 0, buttons: 0, weapon: 1 }]]));
+  assert.equal(sim.snapshot().players[0].weapon, 1, 'weapon lost across respawn');
+  ok('sky despawn + weapon round-trip', 'lifetime 4s enforced; weapon survives respawn in-snapshot');
+}
+
+console.log(`\ncombat.mjs: ${passed}/12 passed`);

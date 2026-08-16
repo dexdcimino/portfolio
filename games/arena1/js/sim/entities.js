@@ -8,8 +8,9 @@ export function createEntities() {
   const players = new Map();  // id → player state
   const enemies = new Map();  // Phase 5
   const cells = new Map();    // Phase 5
+  const rockets = new Map();  // MD 11 — projectiles that live across ticks
   return {
     allocId() { return nextId++; },
-    players, enemies, cells,
+    players, enemies, cells, rockets,
   };
 }

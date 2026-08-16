@@ -83,6 +83,7 @@ let jumpEdge = false, dashEdge = false;
 let coyoteT = 0;                   // client-side mirror for the Space policy
 let lastFlags = 0;
 let ixNow = 0;                     // strafe input, for camera roll
+let weaponSel = 0;                 // MD 11: 0 zap, 1 rocket — rides every command
 
 // requestPointerLock returns a Promise in current Chrome and rejects without
 // a user gesture and during the ~1.25s cooldown after an Escape-triggered
@@ -154,22 +155,19 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.code === 'ShiftLeft') dashEdge = true;
   if (e.code === 'KeyL') S?.levelView.setLodDebug(!S.levelView.lodDebug);
-  if (e.code === 'Digit1') applyQuality(0);
-  if (e.code === 'Digit2') applyQuality(1);
-  if (e.code === 'Digit3') applyQuality(2);
+  // MD 11: 1/2 select weapons. The quality hotkeys they displace retire —
+  // quality lives in the pause menu (still synced both ways there).
+  if (e.code === 'Digit1') weaponSel = 0;
+  if (e.code === 'Digit2') weaponSel = 1;
 });
 document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
   if (e.code === 'Space') jetLatch = false;
 });
 
-// Quality: persisted; the menu hands changes over by event, the 1/2/3 keys
-// write the same key and sync the menu back. Re-applied per session build.
-function applyQuality(i) {
-  S?.R.setQuality(i);
-  try { localStorage.setItem('arena1-quality', String(i)); } catch { /* private mode */ }
-  window.dispatchEvent(new CustomEvent('arena1-quality-sync'));
-}
+// Quality: persisted; the pause menu owns it now (MD 11 gave the 1/2 keys to
+// weapon selection). The menu hands changes over by event; re-applied per
+// session build.
 window.addEventListener('arena1-quality', (e) => S?.R.setQuality(e.detail));
 
 // ── background pump heartbeat ───────────────────────────────────────────────
@@ -195,6 +193,7 @@ function startSession(transport) {
     try { old.transport.dispose?.(); } catch { /* already closed */ }
   }
 
+  weaponSel = 0; // a new match starts on zap (MD 11)
   transport.addLocalPlayer();
   const localId = transport.localId;
   const level = transport.level;
@@ -224,7 +223,7 @@ function startSession(transport) {
     // While paused in a NET session the sim must keep running for everyone
     // else — send honest idle instead of freezing or leaking menu keystrokes.
     if (state === 'paused') {
-      return { tick, playerId: localId, move: { x: 0, z: 0 }, yaw, pitch, buttons: 0 };
+      return { tick, playerId: localId, move: { x: 0, z: 0 }, yaw, pitch, buttons: 0, weapon: weaponSel };
     }
     let ix = 0, iz = 0;
     if (keys.KeyW || keys.ArrowUp) iz += 1;
@@ -241,7 +240,7 @@ function startSession(transport) {
       | (grappling ? BTN.GRAPPLE : 0)
       | (jetLatch ? BTN.JET : 0);
     jumpEdge = false; dashEdge = false;
-    return { tick, playerId: localId, move: { x: ix, z: iz }, yaw, pitch, buttons };
+    return { tick, playerId: localId, move: { x: ix, z: iz }, yaw, pitch, buttons, weapon: weaponSel };
   }
 
   function pump() {
@@ -297,7 +296,11 @@ function startSession(transport) {
       if (ev.type === 'pad' && mine) { sess.fovT = 1.20; feed('LAUNCH'); AudioFX.pad(); }
       else if (ev.type === 'ring' && mine) { sess.fovT = 1.26; feed('RING'); AudioFX.ring(); }
       else if (ev.type === 'summit' && mine) { feed('☀ SUMMIT REACHED ☀'); AudioFX.cell(); setTimeout(AudioFX.ring, 200); }
-      else if (ev.type === 'death' && mine) { feed('REBOOTED'); AudioFX.hurt(); }
+      else if (ev.type === 'death' && mine) {
+        // MD 11: a self-kill reads as one — never as an enemy kill
+        feed(ev.by === localId ? 'SELF-DESTRUCT' : 'REBOOTED');
+        AudioFX.hurt();
+      }
       else if (ev.type === 'pickup' && mine) {
         feed('CELL · TANK +20'); AudioFX.cell();
         if (ev.point) fx.burst(ev.point, '#FFB13D', 8, 4);
@@ -309,6 +312,12 @@ function startSession(transport) {
         if (pos) fx.burst(pos, ENEMY_HEX[ev.kind] || '#7BE3B0', 10, 7);
         if (ev.by === localId) feed('POP!');
         AudioFX.pop();
+      } else if (ev.type === 'explode') {
+        if (ev.point) {
+          fx.burst(ev.point, '#FF7A59', 14, 10);
+          fx.burst(ev.point, '#FFE7B0', 8, 6);
+        }
+        AudioFX.boom();
       } else if (ev.type === 'platform_trigger') {
         AudioFX.crack();
       }
@@ -378,21 +387,31 @@ function startSession(transport) {
         sess.fovT += (fovTarget - sess.fovT) * Math.min(1, 4 * dt);
         cam.fov += (sess.fovT - cam.fov) * Math.min(1, 10 * dt);
 
-        // fire cosmetics: kick/muzzle/recoil/tracer — damage is the sim's
+        // fire cosmetics: kick/muzzle/recoil — damage is the sim's. The
+        // viewmodel and cadence follow the PREDICTED weapon (same-frame).
+        fx.setWeapon(me.weapon ?? 0);
         sess.fireCd -= dt;
         if (firing && locked && state === 'playing' && sess.fireCd <= 0) {
-          sess.fireCd = 0.11;
-          fx.fire();
-          AudioFX.fire();
-          pitch -= 0.004;
-          const dir = new BABYLON.Vector3(Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
-          const origin = { x: cam.position.x, y: cam.position.y, z: cam.position.z };
-          const hit = world.raycast(origin, { x: dir.x, y: dir.y, z: dir.z }, 250);
-          const end = hit
-            ? new BABYLON.Vector3(hit.point.x, hit.point.y, hit.point.z)
-            : cam.position.add(dir.scale(250));
-          fx.spawnTracer(fx.muzzleWorld(), end);
-          if (hit && !sess.lastSnap.enemies.length) fx.burst(hit.point, '#FFE7B0', 4, 3);
+          if ((me.weapon ?? 0) === 1) {
+            // the rocket itself is authoritative — it appears via snapshots
+            sess.fireCd = 0.8;
+            fx.fire();
+            AudioFX.launch();
+            pitch -= 0.008;
+          } else {
+            sess.fireCd = 0.11;
+            fx.fire();
+            AudioFX.fire();
+            pitch -= 0.004;
+            const dir = new BABYLON.Vector3(Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+            const origin = { x: cam.position.x, y: cam.position.y, z: cam.position.z };
+            const hit = world.raycast(origin, { x: dir.x, y: dir.y, z: dir.z }, 250);
+            const end = hit
+              ? new BABYLON.Vector3(hit.point.x, hit.point.y, hit.point.z)
+              : cam.position.add(dir.scale(250));
+            fx.spawnTracer(fx.muzzleWorld(), end);
+            if (hit && !sess.lastSnap.enemies.length) fx.burst(hit.point, '#FFE7B0', 4, 3);
+          }
         }
 
         fx.vig.jet.style.opacity = jetting ? 1 : 0;

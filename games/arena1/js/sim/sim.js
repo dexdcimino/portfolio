@@ -13,7 +13,7 @@ import { createWorld } from './world.js';
 import { buildLevel, tickPlatforms } from './level.js';
 import { createPlayerState, stepPlayer, playerFlags, BTN, FLAG } from './movement.js';
 import { initEnemies, stepEnemies } from './enemies.js';
-import { stepCombat } from './combat.js';
+import { stepCombat, stepRockets } from './combat.js';
 
 export { BTN, FLAG }; // wire-format constants live with the movement port
 
@@ -112,7 +112,10 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
         stepPlayer(ctx, p, cmd);
         if (!predictOnly) stepCombat(ctx, p, cmd ? cmd.buttons : 0);
       }
-      if (!predictOnly) stepEnemies(ctx);
+      if (!predictOnly) {
+        stepEnemies(ctx);
+        stepRockets(ctx); // after enemies: a rocket sweeps against this tick's poses
+      }
       lastEvents = events;
       tick++;
     },
@@ -143,6 +146,7 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
           id: p.id, pos: round(p.pos), vel: round(p.vel),
           yaw: p.yaw, pitch: p.pitch,
           hp: p.hp, fuel: p.fuel, fuelMax: p.fuelMax, dashCharges: p.dashCharges,
+          weapon: p.weapon,
           summitDone: p.summitDone, deaths: p.deaths, kills: p.kills, cellsGot: p.cellsGot,
           grapple: ropeEnd(p),
           flags: playerFlags(p),
@@ -152,6 +156,9 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
         })),
         cells: [...ents.cells.values()].filter((c) => !c.taken).map((c) => ({
           id: c.id, pos: round(c.pos),
+        })),
+        rockets: [...ents.rockets.values()].map((r) => ({
+          id: r.id, pos: round(r.pos), vel: round(r.vel), ownerId: r.ownerId,
         })),
         events: lastEvents,
       };

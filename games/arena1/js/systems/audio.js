@@ -122,4 +122,7 @@ export const AudioFX = {
   ring: () => whoosh(0.4, 1400, 500, 0.11),
   crack: () => noise(0.15, 0.10, 300),
   screech: () => { tone(1300, 260, 0.28, 'sawtooth', 0.07); tone(1700, 400, 0.2, 'square', 0.03); },
+  // MD 11 — new cues built from the same primitives, same master bus:
+  launch: () => { noise(0.12, 0.09, 700); tone(220, 90, 0.18, 'square', 0.08); },
+  boom: () => { tone(180, 40, 0.35, 'sawtooth', 0.16); noise(0.28, 0.12, 150); },
 };

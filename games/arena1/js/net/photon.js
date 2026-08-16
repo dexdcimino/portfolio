@@ -119,6 +119,7 @@ function roundWire(snap) {
     })),
     enemies: snap.enemies.map((e) => ({ ...e, pos: roundVec(e.pos) })),
     cells: snap.cells.map((c) => ({ ...c, pos: roundVec(c.pos) })),
+    rockets: (snap.rockets || []).map((r) => ({ ...r, pos: roundVec(r.pos), vel: roundVec(r.vel) })),
   };
 }
 
@@ -435,6 +436,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       players: interpList(a.snap.players, b.snap.players, t),
       enemies: interpList(a.snap.enemies, b.snap.enemies, t),
       cells: interpList(a.snap.cells, b.snap.cells, t),
+      rockets: interpList(a.snap.rockets || [], b.snap.rockets || [], t),
       events: pendingEvents.splice(0),
     };
     // Local player entry: PREDICTED state (MD 8) — pos/vel/flags/grapple
