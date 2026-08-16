@@ -1413,7 +1413,140 @@ const tkSelect = initTabs(document.querySelector('.tk-tabs'), (next, tab) => {
   document.querySelector('.tk-arrow-prev')?.addEventListener('click', () => step(-1));
   document.querySelector('.tk-arrow-next')?.addEventListener('click', () => step(1));
 })();
-initTabs(document.querySelector('.pk-tabs'));
+/* Top Picks carousel — the Toolkit one, with the image problem solved properly.
+   Same arrows, same wrap, same slide. What differs is the payload: Toolkit
+   panels hold 2 KB SVG icons, these hold cover ART, and warming every one of
+   them the moment the section nears (the Toolkit strategy) is the wrong trade
+   for ~300 KB of AVIF. Three things happen instead:
+
+     1. WARM BY DISTANCE. On approach, the panels one arrow press away go first,
+        the rest follow in a second idle pass. The next click is always the one
+        already paid for, and fetchPriority='low' keeps all of it behind
+        anything the visible panel still wants.
+     2. GATE THE SWAP ON DECODE. A fetched image is not a painted one — decode
+        happens on the frame it first renders, which is exactly the frame the
+        slide starts, and that is what makes covers hatch in mid-animation. The
+        incoming panel is held at opacity 0 until decode() resolves, so the
+        slide begins with the art already rasterised. Warm panels resolve in a
+        microtask, so the common case is not delayed at all.
+     3. NEVER STALL ON THE NETWORK. The hold races a 180 ms timeout: on a cold
+        cache the panel slides in and paints progressively, which is the normal
+        web, rather than sitting blank waiting on a promise.
+
+   Save-Data turns off 1 entirely — on a metered connection, panels load when
+   asked for and not a byte sooner. */
+(function initPkCarousel() {
+  const tablist = document.querySelector('.pk-tabs');
+  if (!tablist) return;
+  const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+  if (!tabs.length) return;
+  const panels = tabs.map(tab => document.getElementById(tab.getAttribute('aria-controls')));
+
+  const idle = fn => ('requestIdleCallback' in window)
+    ? requestIdleCallback(fn, { timeout: 2000 })
+    : setTimeout(fn, 400);
+
+  /* One decode promise per panel, memoised — so a second visit costs nothing
+     and the gate below resolves immediately. eager is what actually starts the
+     fetch: a loading="lazy" image inside a [hidden] panel is never fetched at
+     all, which is the blank-slots-then-pop bug in its original form. */
+  const decoded = new WeakMap();
+  function warm(panel, priority) {
+    if (!panel) return Promise.resolve();
+    const done = decoded.get(panel);
+    if (done) return done;
+    const imgs = [...panel.querySelectorAll('img')];
+    const all = Promise.all(imgs.map(img => {
+      img.loading = 'eager';
+      if ('fetchPriority' in img) img.fetchPriority = priority;
+      // A decode that rejects (format the browser won't take) still counts as
+      // settled — <picture> falls through on its own and the gate must open.
+      return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+    })).then(() => {});
+    decoded.set(panel, all);
+    return all;
+  }
+  const warmNeighbours = i => {
+    warm(panels[(i + 1) % panels.length], 'low');
+    warm(panels[(i - 1 + panels.length) % panels.length], 'low');
+  };
+
+  /* The cold path, where the 180 ms timeout opened the gate with art still in
+     flight. Those covers fade in as they land instead of snapping from empty
+     box to full-bleed image — the same thing the gate prevents, just handled
+     after the fact. Already-painted images are skipped, so on the warm path
+     this loop does nothing. */
+  function hatch(panel) {
+    for (const img of panel.querySelectorAll('img')) {
+      if (img.complete && img.naturalWidth > 0) continue;
+      img.classList.add('is-hatching');
+      const reveal = () => {
+        img.classList.remove('is-hatching');
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease' });
+        }
+      };
+      img.addEventListener('load', reveal, { once: true });
+      img.addEventListener('error', reveal, { once: true });
+    }
+  }
+
+  let current = 0;
+  let forcedDir = null;
+  let token = 0;                 // a second press must cancel the first's gate
+
+  const select = initTabs(tablist, (next, tab) => {
+    const panel = document.getElementById(tab.getAttribute('aria-controls'));
+    const dir = forcedDir !== null ? forcedDir : Math.sign(next - current);
+    forcedDir = null;
+    const moved = next !== current && dir !== 0;
+    current = next;
+    if (!panel) return;
+
+    const mine = ++token;
+    panels.forEach(p => p && p.classList.remove('is-decoding'));
+    const ready = warm(panel, 'high');
+    idle(() => warmNeighbours(next));
+
+    // Reduced motion has no slide to protect, so showing the panel at once
+    // beats holding it blank while art decodes.
+    if (!moved || !panel.animate
+        || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    panel.classList.add('is-decoding');
+    Promise.race([ready, new Promise(done => setTimeout(done, 180))]).then(() => {
+      if (mine !== token) return;                 // superseded by a later press
+      hatch(panel);                               // no-op unless the timeout won
+      panel.classList.remove('is-decoding');
+      panel.animate(
+        [{ opacity: 0, transform: `translateX(${dir * 44}px)` }, { opacity: 1, transform: 'none' }],
+        { duration: 280, easing: 'cubic-bezier(.22,.61,.36,1)' });
+    });
+  });
+
+  if (select) {
+    const step = delta => {
+      const i = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
+      forcedDir = delta;                  // a wrap still slides the way you pressed
+      select((i + delta + tabs.length) % tabs.length);
+    };
+    document.querySelector('.pk-arrow-prev')?.addEventListener('click', () => step(-1));
+    document.querySelector('.pk-arrow-next')?.addEventListener('click', () => step(1));
+  }
+
+  const section = document.getElementById('picks');
+  if (!section || navigator.connection?.saveData) return;
+  const prewarm = () => idle(() => {
+    warmNeighbours(current);                            // one press away first
+    idle(() => panels.forEach(p => warm(p, 'low')));    // then the far side
+  });
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); prewarm(); }
+    }, { rootMargin: '600px 0px' });
+    io.observe(section);
+  } else prewarm();
+})();
 
 /* --- quote renditions ----------------------------------------------------- */
 /* Each card holds both versions in data-* and swaps text in place, so a quote

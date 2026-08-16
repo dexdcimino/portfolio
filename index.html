@@ -957,6 +957,15 @@
         <button class="pk-tab" type="button" role="tab" id="pk-tab-songs" aria-controls="pk-panel-songs" aria-selected="false" tabindex="-1">Songs</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-quotes" aria-controls="pk-panel-quotes" aria-selected="false" tabindex="-1">Quotes</button>
       </div>
+      <div class="pk-stage">
+      <!-- Same carousel as Toolkit: the whole side lane is the target, full
+           panel height, and both directions are always live because the cycle
+           wraps. Unlike Toolkit these panels hold real cover art, so the swap
+           is gated on decode — see initPkCarousel in script.js. -->
+      <button class="pk-arrow pk-arrow-prev" type="button" aria-label="Previous top picks category">
+        <span class="icon pk-arrow-glyph" data-icon="chevron" aria-hidden="true"></span>
+      </button>
+      <div class="pk-panels">
       <div class="pk-panel" id="pk-panel-games" role="tabpanel" aria-labelledby="pk-tab-games">
         <ul class="pk-grid">
           <li class="pk-card">
@@ -1321,6 +1330,11 @@
             </div>
           </li>
         </ul>
+      </div>
+      </div>
+      <button class="pk-arrow pk-arrow-next" type="button" aria-label="Next top picks category">
+        <span class="icon pk-arrow-glyph" data-icon="chevron" aria-hidden="true"></span>
+      </button>
       </div>
     </section>
     </section>

@@ -765,8 +765,10 @@ button.button{cursor:pointer;font-family:inherit}
    fits): in-flow lanes were stealing ~110px from the panels and squeezing the
    icon grid out of alignment with every other section. Always present in both
    directions on desktop: the cycle wraps, so neither arrow is a dead end. */
-.tk-stage{position:relative}
-.tk-arrow{
+/* Top Picks runs the same carousel, so it shares these rules outright rather
+   than copying them — one lane geometry, two sections. */
+.tk-stage,.pk-stage{position:relative}
+.tk-arrow,.pk-arrow{
   position:absolute;top:0;bottom:0;width:46px;
   min-height:0;padding:0;border:0;background:none;cursor:pointer;
   display:grid;place-items:center;color:var(--icon-idle);border-radius:12px;
@@ -776,18 +778,30 @@ button.button{cursor:pointer;font-family:inherit}
    desktop but clamp(28px,5vw,60px) once the layout narrows, where a fixed
    -60px offset ran the lane off-screen. The lane takes the gutter minus a
    margin, capped at 46px, and never leaves the viewport. */
-.tk-arrow{width:min(46px,calc(var(--gutter) - 12px))}
-.tk-arrow-prev{left:max(-60px,calc(6px - var(--gutter)))}
-.tk-arrow-next{right:max(-60px,calc(6px - var(--gutter)))}
-.tk-arrow:hover,.tk-arrow:focus-visible{color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
-.tk-arrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.tk-arrow-glyph{width:24px;height:24px}
-.tk-arrow-prev .tk-arrow-glyph{transform:rotate(90deg)}
-.tk-arrow-next .tk-arrow-glyph{transform:rotate(-90deg)}
+.tk-arrow,.pk-arrow{width:min(46px,calc(var(--gutter) - 12px))}
+.tk-arrow-prev,.pk-arrow-prev{left:max(-60px,calc(6px - var(--gutter)))}
+.tk-arrow-next,.pk-arrow-next{right:max(-60px,calc(6px - var(--gutter)))}
+.tk-arrow:hover,.tk-arrow:focus-visible,
+.pk-arrow:hover,.pk-arrow:focus-visible{color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.tk-arrow:focus-visible,.pk-arrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tk-arrow-glyph,.pk-arrow-glyph{width:24px;height:24px}
+.tk-arrow-prev .tk-arrow-glyph,.pk-arrow-prev .pk-arrow-glyph{transform:rotate(90deg)}
+.tk-arrow-next .tk-arrow-glyph,.pk-arrow-next .pk-arrow-glyph{transform:rotate(-90deg)}
+
+/* The panel is held invisible only while its covers decode, and only when they
+   are not already decoded — see the carousel in script.js. No transition on the
+   way out: the slide-in animation owns the fade, and a second one here would
+   double it. */
+.pk-panel.is-decoding{opacity:0}
+/* Cold-cache only: a cover that had not landed when the gate timed out waits
+   here rather than snapping in. Its fade is a WAAPI animation, not a
+   transition, because .pk-cover already owns the transition shorthand for
+   hover and a second declaration here would blow the hover away. */
+.pk-panel img.is-hatching{opacity:0}
 /* Phones: the lanes cost 76px of a ~292px column — the icons were overflowing
    48px tracks — and the tabs are right there as the affordance. Arrows are a
    desktop nicety, not the only door. */
-@media(max-width:760px){ .tk-arrow{display:none} }
+@media(max-width:760px){ .tk-arrow,.pk-arrow{display:none} }
 /* No card: the logo sits straight on the About ground. The tile is two rows —
    the icon, and one shared slot below it that holds EITHER the gauge or the
    name, never both. Stacking them in a single grid cell is what removes the
