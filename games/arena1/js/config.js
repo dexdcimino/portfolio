@@ -9,6 +9,13 @@ export const TUNE = {
   JUMP: 11.5, DASH: 19, DASH_T: 0.5, DASH_CD: 2.6, SLIDE_MAX: 15.5, SLIDE_FRICTION: 0.85,
   WALLJUMP_UP: 10, WALLJUMP_OUT: 8.5, SENS: 0.0022,
   JET_ACCEL: 52, JET_VMAX: 14.5, JET_BURN: 26, FUEL_REGEN: 16,
+  // Air regen is its own rate, deliberately well under FUEL_REGEN. MD 15 made
+  // regen ungated at the ground rate, which put the sustainable jet duty cycle
+  // at 16/26 = 62% — high enough that staying airborne was free and the ground
+  // game became optional. At 7 the break-even is 7/26 = 27%: topping up
+  // between bursts still works, holding the jet still drains, and continuous
+  // flight is 5.3s on a full tank instead of 10s.
+  AIR_REGEN: 7,
   GRAPPLE_RANGE: 75, GRAPPLE_PULL: 24, GRAPPLE_ACCEL: 14,
 };
 

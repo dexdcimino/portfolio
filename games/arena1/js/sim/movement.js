@@ -45,6 +45,22 @@ export const COYOTE_TICKS = 6;      // ≈ the prototype's 0.1s coyote
 const EYE_H = 0.55;      // camera height above capsule center (prototype camH)
 const KILL_Y = -25;
 const RING_CD_TICKS = 72; // 1.2s, per-ring (global, like the prototype's r.cd)
+
+/* MD 16 item 1 — grapple ARRIVAL. Pulling to the anchor and stopping left you
+   hugging the face of whatever you grabbed, which made the grapple useless for
+   reaching the thing you grappled. Arrival now overshoots (no damping — the
+   whole movement system is built on carrying momentum) and adds an upward
+   redirect DERIVED from the real lip height rather than a flat pop, which
+   would sail over short ledges and fail to clear tall ones.
+   All four numbers are metres/(m/s) and all of it goes through world.raycast,
+   so it is deterministic and predicted on the client like any other movement. */
+const LEDGE_PROBE = 1.5;    // how far above the anchor a walkable top may sit
+const LEDGE_INSET = 0.35;   // step INTO the face before probing down, or the
+                            // ray grazes the wall it is standing on instead of
+                            // finding the surface above it
+const LEDGE_MARGIN = 0.6;   // clear the lip by this much, so you land ON it
+const LEDGE_WALKABLE_NY = 0.6;  // normal.y at or above this counts as a top
+const NO_LEDGE_REDIRECT = 7;    // m/s, scaled by how vertical the face is
 const RING_RADIUS = 2.4;
 
 // One player's full movement state; sim.addPlayer uses this so the tests can
@@ -202,16 +218,15 @@ export function stepPlayer(ctx, p, cmd) {
     p.vel.y = Math.min(TUNE.JET_VMAX, p.vel.y + TUNE.JET_ACCEL * dt);
     p.fuel = Math.max(0, p.fuel - TUNE.JET_BURN * dt);
   }
-  // MD 15 item 2: regen is no longer gated on being grounded — same rate in the
-  // air as on the ground, and it runs on the SAME tick as the burn above rather
-  // than instead of it. Holding jet therefore nets BURN-REGEN = 26-16 = 10/s,
-  // so a 100 tank is 10s of continuous flight instead of 3.8s. The real change
-  // is tap-jetting: any duty cycle under REGEN/BURN (62%) never runs dry, which
-  // is unlimited airtime by construction. That is the asked-for behaviour, not
-  // an oversight — if it swallows the ground game the lever is a separate,
-  // lower AIR_REGEN constant here, not putting the gate back.
+  /* Regen runs everywhere (MD 15 item 2 removed the grounded gate) but NOT at
+     one rate: MD 16 splits the air off onto its own lower AIR_REGEN. At the
+     shared 16/s the sustainable duty cycle was 62% and staying up was free,
+     which is exactly the outcome MD 15 flagged and this is the lever it named.
+     Ground keeps FUEL_REGEN, so landing is still the fast way to refill —
+     which is the whole point of making flight cost something. */
+  const regen = p.grounded ? TUNE.FUEL_REGEN : TUNE.AIR_REGEN;
   if (p.fuel < p.fuelMax) {
-    p.fuel = Math.min(p.fuelMax, p.fuel + TUNE.FUEL_REGEN * dt);
+    p.fuel = Math.min(p.fuelMax, p.fuel + regen * dt);
   }
 
   // --- grapple (588–618, 1104–1141): pull self toward world, yank enemies,
@@ -264,7 +279,11 @@ export function stepPlayer(ctx, p, cmd) {
           z: hit.point.z - (pl.base.z + pl.offset.z),
         };
       }
-      p.grapple = { mode: 'pull', anchor: { ...hit.point }, platformId, local };
+      // The face normal is kept for the arrival redirect below. Movers only
+      // translate, so a normal captured at fire time is still correct on
+      // arrival. Not snapshotted — sim.snapshot serialises only the rope
+      // endpoint — so this costs nothing on the wire.
+      p.grapple = { mode: 'pull', anchor: { ...hit.point }, platformId, local, n: { ...hit.n } };
     } else {
       p.grapple = null;
     }
@@ -283,8 +302,34 @@ export function stepPlayer(ctx, p, cmd) {
     const tx = g.anchor.x - p.pos.x, ty = g.anchor.y - p.pos.y, tz = g.anchor.z - p.pos.z;
     const dist = Math.hypot(tx, ty, tz);
     if (dist < 2.2) {
+      /* ARRIVAL. Note g.anchor was recomputed from the platform's CURRENT
+         offset a few lines up, so on a mover this probes where the platform is
+         now, not where it was when the hook left. */
       p.grapple = null;
-      p.vel.x *= 0.85; p.vel.y *= 0.85; p.vel.z *= 0.85;
+      // (a) Overshoot: velocity is deliberately NOT damped any more. You carry
+      //     the pull through the anchor instead of arriving dead.
+
+      // (b) Ledge-aware redirect. Probe from inside the face, straight down,
+      //     for a walkable top within LEDGE_PROBE above the anchor.
+      const gn = g.n || { x: 0, y: 0, z: 0 };
+      const probe = {
+        x: g.anchor.x - gn.x * LEDGE_INSET,
+        y: g.anchor.y + LEDGE_PROBE,
+        z: g.anchor.z - gn.z * LEDGE_INSET,
+      };
+      const lip = world.raycast(probe, { x: 0, y: -1, z: 0 }, LEDGE_PROBE + LEDGE_INSET);
+      if (lip && lip.n.y >= LEDGE_WALKABLE_NY && lip.point.y > p.pos.y) {
+        // Exactly the launch that reaches the lip plus the margin: v = sqrt(2gh).
+        // Derived, so a 0.4m kerb gets a hop and a 1.4m lip gets a real boost.
+        const need = (lip.point.y + LEDGE_MARGIN) - p.pos.y;
+        p.vel.y = Math.max(p.vel.y, Math.sqrt(2 * Math.abs(TUNE.G) * need));
+      } else {
+        // Nothing to land on. Scale the default by how vertical the face is —
+        // full on a sheer wall, ~nothing on a floor or a ceiling — so grappling
+        // the underside of a slab does not fire you into it.
+        const verticality = 1 - Math.min(1, Math.abs(gn.y));
+        p.vel.y = Math.max(p.vel.y, NO_LEDGE_REDIRECT * verticality);
+      }
     } else {
       const k = Math.min(1, TUNE.GRAPPLE_ACCEL * dt);
       p.vel.x += (tx / dist * TUNE.GRAPPLE_PULL - p.vel.x) * k;

@@ -143,7 +143,8 @@ function step(ctx, p, c) {
   ok('walljump + cling', `cling vy floor ${minVy.toFixed(2)} (limit -3.5), kick vy ${jumped.vy.toFixed(2)} (UP ${TUNE.WALLJUMP_UP}), out vx ${jumped.vx.toFixed(2)} (OUT ${TUNE.WALLJUMP_OUT} - steer 3)`);
 }
 
-// ── 5. jetpack: vy cap, NET burn, regen in air and on ground (MD 15 item 2) ─
+// ── 5. jetpack: vy cap, NET burn, and the TWO regen rates (MD 15 item 2 as
+//       revised by MD 16 — air regen is its own, lower constant) ────────────
 {
   const ctx = flatCtx();
   const p = createPlayerState(1, { x: 0, y: 0.92, z: 0 });
@@ -153,23 +154,22 @@ function step(ctx, p, c) {
     step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, BTN.JET));
     if (p.jetting) { jetTicks++; maxVy = Math.max(maxVy, p.vel.y); }
   }
-  // MD 15 item 2: regen is no longer ground-gated, and it runs on the same tick
-  // as the burn — so holding jet costs the NET rate, not the full burn. This is
-  // the assertion that pins the change: it fails if regen ever goes back to
-  // ground-only (fuel would come out lower) or if the rates drift apart.
-  const net = TUNE.JET_BURN - TUNE.FUEL_REGEN;
+  // Regen is not ground-gated (MD 15) but the air rate is its own constant
+  // (MD 16), so holding jet costs BURN - AIR_REGEN. Pinning it against
+  // TUNE.AIR_REGEN rather than a literal means the test follows a retune
+  // instead of having to be rewritten for one.
+  const net = TUNE.JET_BURN - TUNE.AIR_REGEN;
   const expectFuel = 100 - net * jetTicks * SIM_DT;
   assert.ok(maxVy <= TUNE.JET_VMAX + 1e-9, `jet vy ${maxVy.toFixed(2)} above JET_VMAX`);
   assert.ok(Math.abs(p.fuel - expectFuel) < 0.5,
     `fuel ${p.fuel.toFixed(1)} vs expected ${expectFuel.toFixed(1)} (net ${net}/s)`);
-  // AIR regen, measured while provably not grounded — the half of item 2 that
-  // did not exist before. Coasting (no JET) for 30 ticks must gain exactly
-  // FUEL_REGEN * 0.5s, the same rate the ground gets below.
+  // AIR regen, measured while provably not grounded. Coasting (no JET) for 30
+  // ticks must gain exactly AIR_REGEN over that window.
   const airBefore = p.fuel;
   let airTicks = 0;
   for (let t = 0; t < 30 && !p.grounded; t++) { step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0)); airTicks++; }
   assert.ok(!p.grounded, 'fell to the ground before the air-regen window finished');
-  const expectAir = Math.min(p.fuelMax, airBefore + TUNE.FUEL_REGEN * airTicks * SIM_DT);
+  const expectAir = Math.min(p.fuelMax, airBefore + TUNE.AIR_REGEN * airTicks * SIM_DT);
   assert.ok(Math.abs(p.fuel - expectAir) < 0.5,
     `air regen ${airBefore.toFixed(1)} → ${p.fuel.toFixed(1)}, expected ${expectAir.toFixed(1)}`);
   const airGain = p.fuel - airBefore;
@@ -187,11 +187,14 @@ function step(ctx, p, c) {
   for (let t = 0; t < airTicks; t++) step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0));
   const groundGain = p.fuel - groundBefore;
   assert.ok(p.fuel > fuelBefore + 5, `regen: ${fuelBefore.toFixed(1)} → ${p.fuel.toFixed(1)}`);
-  // "at the same rate as on the ground" is the literal requirement, so compare
-  // the two gains directly rather than trusting one constant feeds both.
-  assert.ok(Math.abs(airGain - groundGain) < 0.5,
-    `air regen ${airGain.toFixed(2)} != ground regen ${groundGain.toFixed(2)}`);
-  ok('jetpack', `vy cap ${maxVy.toFixed(2)} (JET_VMAX ${TUNE.JET_VMAX}), net burn ${net}/s over ${jetTicks} ticks → fuel ${expectFuel.toFixed(1)}, air regen ${airGain.toFixed(2)} == ground regen ${groundGain.toFixed(2)}`);
+  // The two rates must now DIFFER, and in the right direction — the whole
+  // point of MD 16's split is that landing refills faster than loitering.
+  const expectGround = TUNE.FUEL_REGEN * airTicks * SIM_DT;
+  assert.ok(Math.abs(groundGain - expectGround) < 0.5,
+    `ground regen ${groundGain.toFixed(2)} vs expected ${expectGround.toFixed(2)}`);
+  assert.ok(groundGain > airGain + 0.5,
+    `ground regen ${groundGain.toFixed(2)} must exceed air regen ${airGain.toFixed(2)}`);
+  ok('jetpack', `vy cap ${maxVy.toFixed(2)} (JET_VMAX ${TUNE.JET_VMAX}), net burn ${net}/s over ${jetTicks} ticks → fuel ${expectFuel.toFixed(1)}, air regen ${airGain.toFixed(2)} < ground regen ${groundGain.toFixed(2)}`);
 }
 
 // ── 6. grapple: latch, pull, momentum release, auto-release (feel item 5) ──

@@ -244,4 +244,43 @@ function me(P) {
     `pulled across ${startDist.toFixed(1)}m; latched on host AND in prediction; 0 corrections; end Δ ${d.toFixed(4)}m`);
 }
 
-console.log(`\nprediction.mjs: ${passed}/5 passed`);
+// MD 16 item 1: the grapple ARRIVAL redirect runs inside stepPlayer, so it has
+// to be PREDICTED, not corrected in — a boost the client only learns about from
+// the next snapshot would read as a hitch at the exact moment you are trying to
+// land on something. Aims at real level geometry, rides the pull all the way in,
+// and demands host and client agree with zero corrections through arrival.
+{
+  const P = await makePair('pred-arrival');
+  run(P, 120, idle);
+  const me = () => P.lastSynth.players.find((q) => q.id === P.client.localId);
+  let latched = false, aim = null;
+  for (const pitch of [-0.5, -0.35, -0.2, -0.05, 0.1, 0.25]) {
+    for (const yaw of [0, 1.2, 2.4, 3.6, 4.8]) {
+      step(P, cmd({ x: 0, z: 0 }, yaw, pitch, BTN.GRAPPLE));
+      if (me()?.grapple) { latched = true; aim = { yaw, pitch }; break; }
+      step(P, idle());
+    }
+    if (latched) break;
+  }
+  assert.ok(latched, 'never latched world geometry from spawn in any direction');
+  let sawRelease = false;
+  for (let t = 0; t < 200; t++) {
+    step(P, cmd({ x: 0, z: 0 }, aim.yaw, aim.pitch, BTN.GRAPPLE));
+    if (!me()?.grapple && t > 2) { sawRelease = true; break; }
+  }
+  // Coast long enough for the boost to play out AND for both sims to settle:
+  // sampled mid-flight the two agree to ~9cm simply because they are falling,
+  // which says nothing about whether the arrival itself diverged.
+  for (let t = 0; t < 300; t++) step(P, cmd({ x: 0, z: 0 }, aim.yaw, aim.pitch, 0));
+  const pr = P.client.prediction;
+  assert.ok(sawRelease, 'grapple never arrived/released');
+  assert.equal(pr.corrections, 0,
+    `grapple arrival diverged: ${pr.corrections} corrections (max ${pr.maxCorrection?.toFixed(2)}m)`);
+  const d = dist(P.lastSynth.players.find((q) => q.id === P.client.localId),
+    P.lastHost.players.find((q) => q.id === P.client.localId));
+  assert.ok(d < EPS + 0.05, `arrival end-state disagreement ${d.toFixed(3)}m`);
+  ok('grapple ARRIVAL redirect is predicted',
+    `latched world geometry, rode to arrival, 0 corrections; end Δ ${d.toFixed(4)}m`);
+}
+
+console.log(`\nprediction.mjs: ${passed}/6 passed`);

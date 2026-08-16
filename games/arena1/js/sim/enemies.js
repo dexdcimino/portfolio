@@ -10,7 +10,8 @@
 
 import { TUNE, SIM_DT } from '../config.js';
 import { rngFor } from '../core/rng.js';
-import { hurtPlayer } from './movement.js';
+
+import { hurtPlayer, ENEMY_R } from './movement.js';
 
 const DOWN = { x: 0, y: -1, z: 0 };
 const KILL_Y = -25;
@@ -21,7 +22,7 @@ export function initEnemies(ents, level, seed) {
     const e = {
       id, kind, rng: rngFor(seed, 'enemy', id),
       pos: { x: 0, y: 0, z: 0 }, vx: 0, vy: 0, vz: 0,
-      hp: 1, alive: true, respawnT: 0, yanked: 0, hitCd: 0,
+      hp: 1, alive: true, respawnT: 0, yanked: 0, hitCd: 0, blockT: 0,
       ...extra,
     };
     ents.enemies.set(id, e);
@@ -146,6 +147,18 @@ export function stepEnemies(ctx) {
         hurtPlayer(P.p, 20, ctx.events, e.pos);
       }
     } else if (e.kind === 'wraith') {
+      /* MD 16 item 2. Every wraith state below writes e.pos DIRECTLY — orbit,
+         swoop and climb all did free 3D movement with no shape test at all,
+         which is why they flew through platforms. Rather than teach each state
+         about collision, the states still propose a position and the move is
+         RESOLVED once, here, against the world.
+         Resolved with moveCapsule, not a bare raycast: it substeps at 0.25m
+         (a swoop covers 0.23m/tick, so nothing thin can be tunnelled) and it
+         SLIDES along contacts instead of stopping at them, which is the
+         difference between an agile flier and one that snags on every corner.
+         Radius = its own hit radius, half-height the same, so it resolves as a
+         sphere — it is not a ground unit and gets no step-up. */
+      const from = { x: e.pos.x, y: e.pos.y, z: e.pos.z };
       if (e.yanked > 0) {
         e.pos.x += e.vx * dt; e.pos.y += e.vy * dt; e.pos.z += e.vz * dt;
       } else if (e.state === 'orbit') {
@@ -182,6 +195,28 @@ export function stepEnemies(ctx) {
           e.orbR = Math.min(44, Math.max(14, Math.hypot(e.pos.x, e.pos.z)));
           e.orbH = Math.min(115, Math.max(16, e.pos.y));
         }
+      }
+      const disp = { x: e.pos.x - from.x, y: e.pos.y - from.y, z: e.pos.z - from.z };
+      const res = ctx.world.moveCapsule(from, { x: e.vx, y: e.vy, z: e.vz }, disp,
+        ENEMY_R.wraith, ENEMY_R.wraith);
+      e.pos.x = res.pos.x; e.pos.y = res.pos.y; e.pos.z = res.pos.z;
+      // A yanked wraith is ballistic, so its velocity has to be slid too or it
+      // keeps driving into the surface it already hit. The AI states steer by
+      // position and never read vx/vz, so their velocity is left alone.
+      if (e.yanked > 0) { e.vx = res.vel.x; e.vy = res.vel.y; e.vz = res.vel.z; }
+
+      /* AI deadlock guard. A swoop at a player behind a wall would otherwise
+         press into it, slide, and keep pressing for the full 3s timer. wallN
+         is moveCapsule's own "I am against something" report, so this needs no
+         second query: half a second of being blocked ends the swoop early and
+         sends it into climb, which lifts it over the obstruction and re-orbits
+         from wherever it gets to. Orbit itself cannot deadlock — its target is
+         an angle that keeps advancing whether or not the body follows. */
+      if (res.wallN && e.state === 'swoop') {
+        e.blockT += dt;
+        if (e.blockT > 0.5) { e.state = 'climb'; e.stT = 1.2; e.blockT = 0; }
+      } else if (e.blockT > 0) {
+        e.blockT = Math.max(0, e.blockT - dt);
       }
       if (e.pos.y < KILL_Y) { e.alive = false; e.respawnT = 3; releaseYankers(ctx, e); continue; }
     } else { // spike — patrols its platform; grapple-yanking one is on you
