@@ -73,6 +73,15 @@ RASTER_EXTS = {".png", ".jpg", ".jpeg"}
 # games/README.md. The rest is self-evident.
 SKIP_DIRS = {"derived", "_resources", "_archive", "games", ".git", "node_modules", ".vercel"}
 
+# Discovery is by extension and repo-wide, so the favicon rasters at the web root
+# would otherwise be treated as masters and blown up into six widths of AVIF/WebP
+# that nothing references. They are already the exact sizes they ship at, are
+# written by tools/bake_favicon.py, and are fetched by crawlers at fixed URLs
+# rather than through a <picture>. Skipped by name, not by folder, because the
+# whole point is that they sit at the root. Keep in step with PNG_OUTPUTS there.
+FAVICON_OUTPUTS = {"favicon-96.png", "favicon-192.png", "favicon-512.png",
+                   "apple-touch-icon.png"}
+
 
 def collect() -> list[tuple[Path, tuple[int, ...]]]:
     """Every raster master in the repo, with the widths it should bake at.
@@ -93,6 +102,8 @@ def collect() -> list[tuple[Path, tuple[int, ...]]]:
             continue
         rel = path.relative_to(ROOT)
         if SKIP_DIRS & set(rel.parts):
+            continue
+        if len(rel.parts) == 1 and rel.name in FAVICON_OUTPUTS:
             continue
         found[path] = widths_for(rel.as_posix(), used, DEFAULT_WIDTHS)
 
