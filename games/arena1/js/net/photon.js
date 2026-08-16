@@ -41,8 +41,9 @@ const APP_VERSION = 'arena1-v1'; // partitions arena traffic from Stickland's
 const MAX_PLAYERS = 6;           // MD 9 cap; a full room routes arrivals to a fresh one
 const JOIN_TIMEOUT_MS = 10000;   // past this the attempt fails and solo keeps playing
 
-// Room codes (MD 9): short, speakable, generated — 5 chars, no O/0/I/1.
-// Math.random is fine here: js/net is not the sim, and codes are not state.
+// Room codes: the random alphanumerics remain for PUB- room suffixes (never
+// typed by a human). Math.random is fine here: js/net is not the sim, and
+// codes are not state.
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export function genRoomCode(len = 5) {
   let s = '';
@@ -53,12 +54,48 @@ export function normalizeRoomCode(v) {
   return String(v || '').toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 24);
 }
 
+// Lobby words (MD 10): private lobby codes are single curated words — four to
+// six letters, easy to say aloud and spell. ~300 is plenty at current scale;
+// creation rerolls on a name collision (GameIdAlreadyExists), so list size
+// never actually matters. Entry is case-insensitive (everything uppercases).
+//
+// Note for later, do not build now: if traffic ever makes single words feel
+// tight, two-word pairs ("RUST-COMET") give thousands of combinations from
+// this same list with no new content needed.
+const LOBBY_WORDS = ('ACORN ALPINE AMBER ANCHOR ANTLER APPLE ARROW ASPEN ATLAS AZURE BADGE BAMBOO BANJO BARON BASIL BEACH BEACON ' +
+  'BERRY BIRCH BISON BLAZE BLOOM BOLT BONGO BOOTH BRAVE BREEZE BRICK BROOK BRUSH BUTTON CABIN CACTUS CAMEL ' +
+  'CANDLE CANOE CANYON CARGO CASTLE CEDAR CELLO CHALK CHARM CHESS CHIME CIDER CIRCUS CLAMP CLIFF CLOUD CLOVER ' +
+  'COAST COBALT COCOA COMET COPPER CORAL COTTON COYOTE CRANE CREEK CROWN CURVE DAWN DELTA DENIM DIVER DOMINO ' +
+  'DONUT DRIFT DRUM DUNE DUSK EAGLE ECHO EMBER EMBERS FABLE FALCON FERN FIELD FJORD FLAME FLARE FLINT FLUTE ' +
+  'FOREST FOSSIL FROST GALA GARDEN GARNET GECKO GINGER GLADE GLOBE GRAPE GRAVEL GROVE GUITAR GUST HAMMER ' +
+  'HARBOR HAWK HAZEL HEDGE HERON HILL HONEY IGLOO INLET IRIS ISLAND IVORY JADE JAGUAR JASPER JETTY JUNGLE ' +
+  'KAYAK KELP KITE KIWI KOALA LADDER LAGOON LARK LAVA LEDGE LEMON LILAC LINEN LLAMA LOTUS LUNAR MAGNET MANGO ' +
+  'MAPLE MARBLE MARLIN MARSH MEADOW MELON MESA METEOR MINT MIRROR MOOSE MOSS MOTH MURAL NECTAR NICKEL NIMBUS ' +
+  'NOODLE NORTH NOVA NUTMEG OASIS OCEAN OLIVE ONYX OPAL ORANGE ORBIT ORCHID OTTER PADDLE PALM PANDA PAPER ' +
+  'PARROT PEACH PEARL PEBBLE PECAN PENNY PEONY PETAL PIANO PILOT PINE PLANET PLAZA PLUM POLAR POND POPPY ' +
+  'PRISM PUMA QUARTZ QUILL QUILT RADIO RAFT RAVEN REEF RIDGE RIPPLE RIVER ROBIN ROCKET ROOST RUBY RUST SABLE ' +
+  'SADDLE SAFARI SAGE SALMON SAND SATIN SEDAN SHELL SIERRA SILK SLATE SLOPE SNOW SOLAR SONIC SPARK SPICE ' +
+  'SPIRE SPRUCE SQUID STEAM STONE STORK STORM SUMMIT SWAN TABLET TANGO TEAK TEMPO THORN TIDE TIGER TIMBER ' +
+  'TOPAZ TORCH TOUCAN TRAIL TROUT TULIP TUNDRA TURNIP UMBER VALLEY VELVET VIOLET VISTA VORTEX VOYAGE WAGON ' +
+  'WALNUT WAVE WHALE WHEAT WICKER WILLOW WINTER WOLF WREN YACHT ZEBRA ZEPHYR ZINC').split(/\s+/);
+export function genLobbyWord() {
+  return LOBBY_WORDS[(Math.random() * LOBBY_WORDS.length) | 0];
+}
+
 export const EV = { WELCOME: 11, COMMANDS: 12, SNAPSHOT: 13, TAG: 14 };
 
 // Player tag: presentation metadata, not sim state — it rides the transport
 // (localStorage arena1-tag, the pause menu edits it) and is injected into
 // snapshot player entries by the host. Guarded: the cores also run in Node.
-const TAG_MAX = 16;
+// 12 chars (MD 10): longer is unreadable on the billboard at distance.
+const TAG_MAX = 12;
+// An unedited default tag ("Player1"–"Player99") — the only kind the join
+// dedupe may reroll; a tag someone actually typed is theirs, collisions and
+// all.
+export const DEFAULT_TAG_RE = /^Player([1-9][0-9]?)$/;
+export function genDefaultTag() {
+  return 'Player' + (1 + ((Math.random() * 99) | 0));
+}
 function readTag() {
   try {
     if (typeof localStorage === 'undefined') return '';
@@ -198,6 +235,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
   let batch = [];
   let localTick = 0;
   let platformTick = 0;
+  let dedupeChecked = false;
   const hostActor = net.masterActorNr();
 
   // Tag changes from the pause menu re-announce (host stores per player).
@@ -305,6 +343,24 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       const cutoff = now() - 2000;
       while (buffer.length > 2 && buffer[0].at < cutoff) buffer.shift();
       pendingEvents.push(...data.events);
+      // Dedupe on join (MD 10): if OUR tag is an unedited default and someone
+      // in the room already wears it, reroll ours (avoiding every tag in
+      // sight) and re-announce. A typed tag is never touched — if two people
+      // both choose "Dex", that is their business. Runs once, at the first
+      // sight of the roster.
+      if (!dedupeChecked) {
+        dedupeChecked = true;
+        const mine = readTag();
+        const others = new Set(data.players.filter((q) => q.id !== localId).map((q) => q.tag).filter(Boolean));
+        if (DEFAULT_TAG_RE.test(mine) && others.has(mine) && typeof window !== 'undefined') {
+          let fresh = mine;
+          for (let i = 0; i < 30 && (fresh === mine || others.has(fresh)); i++) fresh = genDefaultTag();
+          try { localStorage.setItem('arena1-tag', fresh); } catch { /* private mode */ }
+          // one event serves everyone: this core's own listener re-announces
+          // to the host, and the pause menu repaints its field
+          window.dispatchEvent(new CustomEvent('arena1-tag', { detail: fresh }));
+        }
+      }
       // Ghost mirrors: remote players exist in the predict sim as kinematic
       // capsules (ghost: true — never stepped, filtered from its snapshots)
       // so a locally-predicted grapple resolves the same player latch the
@@ -465,13 +521,17 @@ function loadSdk() {
   });
 }
 
-// mode (MD 9):
+// mode (MD 9/10):
 //   { kind: 'public' }              — join any visible room with space, else
 //                                     create a fresh visible one (the pool)
 //   { kind: 'named', room: <code> } — join/create that room by name. Created
 //                                     rooms are INVISIBLE to random matchmaking
-//                                     (private codes and ?room= both use this;
+//                                     (lobby codes and ?room= both use this;
 //                                     joining by name ignores visibility).
+//   { kind: 'create' }              — a FRESH private lobby: creates under a
+//                                     generated lobby word, rerolling on
+//                                     GameIdAlreadyExists so the word list's
+//                                     size never matters.
 // `ready` now REJECTS — SDK load failure, connection error before a join, or
 // JOIN_TIMEOUT_MS elapsing — so the caller can keep the solo world playing.
 // verSuffix partitions the matchmaking pool (tests join 'arena1-v1<suffix>',
@@ -518,10 +578,14 @@ export function createPhotonTransport({ mode, seedWanted = 1, pvp = PVP_DEFAULT,
         if (mode.kind === 'public') {
           // One op: seat into any visible room with space, or create a fresh
           // public room and host it. Multiple public lobbies can coexist —
-          // the correct trade (nobody blocked); friends use a private code.
+          // the correct trade (nobody blocked); friends use a lobby code.
           roomName = 'PUB-' + genRoomCode(4);
           status('finding a match…');
           client.joinRandomOrCreateRoom({}, roomName, { maxPlayers: MAX_PLAYERS, isVisible: true });
+        } else if (mode.kind === 'create') {
+          roomName = genLobbyWord();
+          status(`creating ${roomName}…`);
+          client.createRoom(roomName, { maxPlayers: MAX_PLAYERS, isVisible: false });
         } else {
           status(`joining ${roomName}…`);
           client.joinRoom(roomName);
@@ -546,10 +610,19 @@ export function createPhotonTransport({ mode, seedWanted = 1, pvp = PVP_DEFAULT,
         status('offline');
       }
     };
+    let createRerolls = 0;
     client.onOperationResponse = (errorCode, errorMsg, operationCode) => {
       if (operationCode === 226 && errorCode && mode.kind === 'named') {
         // named room does not exist yet — first one in creates it and hosts.
         // isVisible:false keeps random matchmaking OUT of named/private rooms.
+        client.createRoom(roomName, { maxPlayers: MAX_PLAYERS, isVisible: false });
+      }
+      if (operationCode === 227 && errorCode && mode.kind === 'create') {
+        // lobby word already in use — reroll (the collision check the word
+        // list relies on). A handful of attempts covers any realistic load.
+        if (++createRerolls > 8) { fail(new Error('no free lobby word')); return; }
+        roomName = genLobbyWord();
+        status(`creating ${roomName}…`);
         client.createRoom(roomName, { maxPlayers: MAX_PLAYERS, isVisible: false });
       }
     };

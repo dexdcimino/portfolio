@@ -478,11 +478,11 @@ window.addEventListener('arena1-join-room', (e) => {
   feed(`JOINING ${code}…`);
   netAttempt({ kind: 'named', room: code }, { joinedNotice: `JOINED ${code}` });
 });
-window.addEventListener('arena1-new-private', async () => {
-  const { genRoomCode } = await import('./net/photon.js');
-  const code = genRoomCode();
-  feed(`PRIVATE ROOM ${code}…`);
-  netAttempt({ kind: 'named', room: code }, { joinedNotice: `PRIVATE ROOM ${code}` });
+window.addEventListener('arena1-new-private', () => {
+  // The transport picks the lobby word (and rerolls on collision) — the
+  // joined notice carries whatever word it landed on.
+  feed('NEW PRIVATE LOBBY…');
+  netAttempt({ kind: 'create' });
 });
 
 // ── boot ────────────────────────────────────────────────────────────────────

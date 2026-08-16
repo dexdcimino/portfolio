@@ -200,7 +200,7 @@ export function createActors({ scene, mat, V3 }) {
       a.wasVisible = true;
       a.view.root.position.set(lerp(pp.pos.x, p.pos.x, alpha), lerp(pp.pos.y, p.pos.y, alpha), lerp(pp.pos.z, p.pos.z, alpha));
       a.view.root.rotation.y = p.yaw;
-      const tag = (p.tag || '').slice(0, 16);
+      const tag = (p.tag || '').slice(0, 12);
       if (tag !== a.view.tagText) {
         a.view.tagText = tag;
         const ctx2 = a.view.tagTex.getContext();

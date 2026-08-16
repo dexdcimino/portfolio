@@ -92,10 +92,17 @@ const CSS = `
   border:2px solid rgba(255,255,255,.18);transition:transform .15s ease,border-color .15s ease}
 .cmenu-swatch:hover{transform:scale(1.12)}
 .cmenu-swatch.is-on{border-color:#fff;box-shadow:0 0 0 2px var(--cmenu-accent,#9EE02B)}
-.cmenu-tag{width:100%;height:34px;padding:0 10px;border-radius:8px;font-family:inherit;
-  font-size:13px;letter-spacing:.08em;color:#F2D6A2;background:#2b1b45;
-  border:2px solid #4A2B63;outline:none}
+/* the player's identity — the prominent control of the section, not another
+   settings row: bigger, bold, ~60% width, never empty (defaults to PlayerN) */
+.cmenu-tag{width:60%;height:42px;padding:0 12px;border-radius:8px;font-family:inherit;
+  font-size:18px;font-weight:800;letter-spacing:.08em;color:#F2D6A2;background:#2b1b45;
+  border:2px solid #4A2B63;outline:none;margin-bottom:10px;display:block}
 .cmenu-tag:focus{border-color:var(--cmenu-accent,#9EE02B)}
+.cmenu-newprv,.cmenu-pvptoggle{flex:1;height:34px;border-radius:8px;cursor:pointer;font-size:11px;
+  font-weight:800;letter-spacing:.1em;border:2px solid #4A2B63;background:#2b1b45;color:#F2D6A2;
+  font-family:inherit;transition:border-color .15s ease,background .15s ease,color .15s ease}
+.cmenu-newprv:hover,.cmenu-pvptoggle:hover{border-color:var(--cmenu-accent,#9EE02B)}
+.cmenu-pvptoggle.is-on{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
 .cmenu-roomrow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .cmenu-roomlab{font-size:10px;font-weight:800;letter-spacing:.18em;color:#a8916b;min-width:64px}
 .cmenu-roomcode{flex:1;font-size:15px;letter-spacing:.18em;color:#F2D6A2;background:#2b1b45;
@@ -108,10 +115,6 @@ const CSS = `
   font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#F2D6A2;background:#2b1b45;
   border:2px solid #4A2B63;outline:none}
 .cmenu-joincode:focus{border-color:var(--cmenu-accent,#9EE02B)}
-.cmenu-newprv{width:100%;height:34px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:800;
-  letter-spacing:.12em;border:2px solid #4A2B63;background:#2b1b45;color:#F2D6A2;
-  font-family:inherit;transition:border-color .15s ease}
-.cmenu-newprv:hover{border-color:var(--cmenu-accent,#9EE02B)}
 .cmenu-rows{display:grid;gap:8px}
 .cmenu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
 .cmenu-keys{display:flex;gap:4px;align-items:center}
@@ -155,22 +158,23 @@ function build() {
     <h1>PAUSED</h1>
     <h2>Accent</h2>
     <div class="cmenu-swatches"></div>
-    <h2>Player Tag</h2>
-    <input class="cmenu-tag" type="text" maxlength="16" spellcheck="false"
-           placeholder="shown above you in multiplayer" aria-label="Player tag">
-    <h2>Room</h2>
+    <h2>Lobby</h2>
+    <input class="cmenu-tag" type="text" maxlength="12" spellcheck="false" aria-label="Player tag">
     <div class="cmenu-roomrow">
       <span class="cmenu-roomlab">CURRENT</span>
       <code class="cmenu-roomcode">SOLO</code>
-      <button class="cmenu-copy" type="button" aria-label="Copy room code">COPY</button>
+      <button class="cmenu-copy" type="button" aria-label="Copy lobby code">COPY</button>
     </div>
     <div class="cmenu-roomrow">
       <input class="cmenu-joincode" type="text" maxlength="24" spellcheck="false"
-             placeholder="enter a code" aria-label="Room code to join">
+             placeholder="enter a lobby word" aria-label="Lobby code to join">
       <button class="cmenu-join" type="button">JOIN</button>
     </div>
-    <button class="cmenu-newprv" type="button">NEW PRIVATE ROOM</button>
-    <div class="cmenu-note cmenu-roomnote">public matchmaking is automatic — codes are for playing with specific people</div>
+    <div class="cmenu-roomrow">
+      <button class="cmenu-newprv" type="button">NEW PRIVATE LOBBY</button>
+      <button class="cmenu-pvptoggle" type="button" aria-live="polite"></button>
+    </div>
+    <div class="cmenu-note cmenu-roomnote">pvp applies when the next match starts · matchmaking is automatic — lobby words are for playing with specific people</div>
     <h2>Controls</h2>
     <div class="cmenu-rows"></div>
     <h2>Quality</h2>
@@ -179,12 +183,6 @@ function build() {
       <button type="button" data-q="1">MED</button>
       <button type="button" data-q="2">HIGH</button>
     </div>
-    <h2>Versus</h2>
-    <div class="cmenu-seg cmenu-pvp">
-      <button type="button" data-pvp="1">PVP ON</button>
-      <button type="button" data-pvp="0">PVP OFF</button>
-    </div>
-    <div class="cmenu-note">applies when the next match starts — never mid-match</div>
     <h2>Audio</h2>
     <div class="cmenu-audio">
       <button class="cmenu-mute" type="button"></button>
@@ -209,16 +207,37 @@ function build() {
   }
   applyAccent(currentAccent(), false);
 
-  // Player tag: persisted under arena1-tag; the transport listens for the
-  // event and announces the change to the room. Typing must not leak into the
-  // game's global key handlers (WASD state, Escape-resume) — stop keys at
-  // the input.
+  // Player tag (MD 10): persisted under arena1-tag; the transport listens for
+  // the event and announces changes to the room. Never empty — a random
+  // Player1–Player99 default fills it on first load and again if the field is
+  // cleared. Focus selects everything, so typing replaces. Typing must not
+  // leak into the game's global key handlers (WASD state, Escape-resume) —
+  // stop keys at the input.
+  const genDefaultTag = () => 'Player' + (1 + ((Math.random() * 99) | 0));
   const tagInput = menu.querySelector('.cmenu-tag');
-  tagInput.value = store.get('arena1-tag') || '';
-  tagInput.addEventListener('input', () => {
-    const v = tagInput.value.slice(0, 16);
+  const setTag = (v) => {
+    tagInput.value = v;
     store.set('arena1-tag', v);
     window.dispatchEvent(new CustomEvent('arena1-tag', { detail: v }));
+  };
+  {
+    const stored = store.get('arena1-tag');
+    if (stored && stored.trim()) tagInput.value = stored.slice(0, 12);
+    else setTag(genDefaultTag());
+  }
+  tagInput.addEventListener('focus', () => tagInput.select());
+  tagInput.addEventListener('input', () => {
+    const v = tagInput.value.slice(0, 12);
+    store.set('arena1-tag', v);
+    window.dispatchEvent(new CustomEvent('arena1-tag', { detail: v }));
+  });
+  tagInput.addEventListener('blur', () => {
+    if (!tagInput.value.trim()) setTag(genDefaultTag()); // never a nameless pill
+  });
+  // the join dedupe can reroll a default remotely (transport dispatches the
+  // same event) — keep the field honest when that happens
+  window.addEventListener('arena1-tag', (e) => {
+    if (document.activeElement !== tagInput && tagInput.value !== e.detail) tagInput.value = e.detail;
   });
   tagInput.addEventListener('keydown', (e) => e.stopPropagation());
   tagInput.addEventListener('keyup', (e) => e.stopPropagation());
@@ -292,16 +311,22 @@ function build() {
   window.addEventListener('arena1-quality-sync', paintQual); // 1/2/3 keys mirror back
   paintQual();
 
-  // PvP: writes the flag the NEXT createSim reads (match start), never the
-  // live sim — the spec's "not mid-match" rule made structural.
-  const pvpBtns = [...menu.querySelectorAll('.cmenu-pvp button')];
+  // PvP (moved into the lobby section, MD 10): a property of the match you
+  // are in. Writes the flag the NEXT createSim reads (match start), never the
+  // live sim — the "not mid-match" rule is structural; do not "improve" it
+  // into something immediate. The note under the row spells out the timing.
+  const pvpToggle = menu.querySelector('.cmenu-pvptoggle');
   const paintPvp = () => {
-    const v = store.get('arena1-pvp') ?? '1'; // PVP_DEFAULT: true
-    pvpBtns.forEach((b) => b.classList.toggle('is-on', b.dataset.pvp === v));
+    const on = (store.get('arena1-pvp') ?? '1') === '1'; // PVP_DEFAULT: true
+    pvpToggle.textContent = on ? 'PVP ON' : 'PVP OFF';
+    pvpToggle.classList.toggle('is-on', on);
+    pvpToggle.setAttribute('aria-pressed', String(on));
   };
-  for (const b of pvpBtns) {
-    b.addEventListener('click', () => { store.set('arena1-pvp', b.dataset.pvp); paintPvp(); });
-  }
+  pvpToggle.addEventListener('click', () => {
+    const on = (store.get('arena1-pvp') ?? '1') === '1';
+    store.set('arena1-pvp', on ? '0' : '1');
+    paintPvp();
+  });
   paintPvp();
 
   const vol = menu.querySelector('.cmenu-vol');
