@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ARENA 1 — Dex Cimino</title>
+  <!-- Root-absolute, not relative: Vercel serves this page at BOTH /arena1
+       and /arena1/ and does not redirect between them. From the bare form a
+       relative "arena1.css" resolves to /arena1.css and 404s, which loads
+       the page unstyled — 304px iframe, exit button unpinned. Measured on
+       the Chomp/Stickland wrappers, not assumed. -->
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <!-- Root-absolute like the stylesheet (the /arena1 vs /arena1/ dual
+       serve). External file, not inline: the site CSP is script-src 'self'
+       and an inline script here gets blocked (seen live on Chomp), so the
+       redirect never ran. Do not inline this again without adding a hash to
+       the CSP. -->
+  <script src="/arena1/refresh-home.js"></script>
+  <link rel="stylesheet" href="/arena1/arena1.css" />
+</head>
+<body>
+  <a class="arena1-exit" href="/" aria-label="Exit to dexcimino.com">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>
+  </a>
+  <iframe
+    class="arena1-frame"
+    src="/games/arena1/index.html"
+    title="ARENA 1"
+    allow="fullscreen; autoplay; gamepad; pointer-lock"
+    allowfullscreen>
+  </iframe>
+  <script src="/arena1/arena1.js"></script>
+</body>
+</html>

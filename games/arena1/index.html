@@ -54,6 +54,10 @@
       <p class="go">▸ CLICK TO DEPLOY ◂</p>
     </div>
   </div>
+  <!-- Pause overlay: main.js's setState('paused') shows it, pausemenu.js
+       fills it. Starts hidden; the menu binds no keys (main owns Escape). -->
+  <div id="paused" class="hidden"></div>
   <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/pausemenu.js"></script>
 </body>
 </html>

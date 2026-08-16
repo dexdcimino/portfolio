@@ -11,13 +11,22 @@ import { createRenderScene } from './render/scene.js';
 import { buildLevelMeshes } from './render/level.js';
 import { createActors } from './render/actors.js';
 import { createFx } from './render/fx.js';
+import { AudioFX } from './systems/audio.js';
 
 const canvas = document.getElementById('game');
 const seed = (() => {
   const q = new URLSearchParams(location.search).get('seed');
   return q ? Number(q) >>> 0 : 1;
 })();
-const transport = createLoopbackTransport(seed, { pvp: PVP_DEFAULT });
+// PvP is a MATCH-START flag (spec): the pause menu writes arena1-pvp, and the
+// next createSim — this one — reads it. Never toggled mid-match.
+const pvp = (() => {
+  try {
+    const v = localStorage.getItem('arena1-pvp');
+    return v === null ? PVP_DEFAULT : v === '1';
+  } catch { return PVP_DEFAULT; }
+})();
+const transport = createLoopbackTransport(seed, { pvp });
 const localId = transport.addLocalPlayer();
 const level = transport.level;
 const world = transport.world;
@@ -27,6 +36,36 @@ const { engine, scene, cam } = R;
 const levelView = buildLevelMeshes(R, level, seed);
 const actors = createActors(R);
 const fx = createFx(R, world);
+
+// Quality: boot from the persisted choice; the menu hands changes over by
+// event, the 1/2/3 keys write the same key and sync the menu back.
+function applyQuality(i) {
+  R.setQuality(i);
+  try { localStorage.setItem('arena1-quality', String(i)); } catch { /* private mode */ }
+  window.dispatchEvent(new CustomEvent('arena1-quality-sync'));
+}
+window.addEventListener('arena1-quality', (e) => R.setQuality(e.detail));
+try {
+  const q = localStorage.getItem('arena1-quality');
+  if (q !== null) R.setQuality(Number(q));
+} catch { /* default MED stands */ }
+
+// ── state machine: boot → playing ⇄ paused ──────────────────────────────────
+// The game owns Escape. In pointer lock the browser reserves Escape to exit
+// the lock, so "Escape pauses" arrives as a pointerlockchange; while paused,
+// the keydown below resumes. The pause menu itself binds NO keys (spec).
+const pausedEl = document.getElementById('paused');
+const start = document.getElementById('start');
+let state = 'boot'; // boot: deploy overlay; sim ticks in boot + playing, freezes in paused
+let acc = 0;
+let lastTime = performance.now(); // render-side clock; the sim only sees ticks
+function setState(s) {
+  state = s;
+  pausedEl.classList.toggle('hidden', s !== 'paused');
+  start.style.display = s === 'boot' ? 'flex' : 'none';
+  if (s !== 'playing') AudioFX.jetStop();
+  acc = 0; lastTime = performance.now(); // no catch-up burst on resume
+}
 
 // ── input ───────────────────────────────────────────────────────────────────
 let yaw = Math.PI, pitch = 0;      // local, render-rate; written into commands
@@ -39,12 +78,26 @@ let coyoteT = 0;                   // client-side mirror for the Space policy
 let lastFlags = 0;
 let ixNow = 0;                     // strafe input, for camera roll
 
-const start = document.getElementById('start');
-start.addEventListener('click', () => canvas.requestPointerLock());
+// requestPointerLock returns a Promise in current Chrome and rejects without
+// a user gesture and during the ~1s cooldown after an Escape exit — swallow
+// it or every denied request is an unhandled-rejection console error.
+function requestLock() {
+  try { canvas.requestPointerLock()?.catch?.(() => { /* denied — play unlocked */ }); }
+  catch { /* older engines throw synchronously instead */ }
+}
+start.addEventListener('click', () => { AudioFX.ensure(); requestLock(); });
+canvas.addEventListener('click', () => {
+  // resumed without lock (e.g. wrapper resume) — clicking the world re-locks
+  if (state === 'playing' && !locked) requestLock();
+});
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
-  start.style.display = locked ? 'none' : 'flex';
-  if (!locked) { firing = false; grappling = false; jetLatch = false; }
+  if (locked) {
+    if (state !== 'playing') setState('playing');
+  } else {
+    firing = false; grappling = false; jetLatch = false;
+    if (state === 'playing') setState('paused'); // Escape (or focus loss) pauses
+  }
 });
 document.addEventListener('mousemove', (e) => {
   if (!locked) return;
@@ -54,7 +107,7 @@ document.addEventListener('mousemove', (e) => {
 document.addEventListener('mousedown', (e) => {
   if (!locked) return;
   if (e.button === 0) firing = true;
-  if (e.button === 2) grappling = true;
+  if (e.button === 2) { grappling = true; AudioFX.thwip(); }
 });
 document.addEventListener('mouseup', (e) => {
   if (e.button === 0) firing = false;
@@ -65,6 +118,9 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') e.preventDefault();
   if (e.repeat) { keys[e.code] = true; return; }
   keys[e.code] = true;
+  // Escape while paused resumes (keydown is a user gesture, so the pointer
+  // lock request is allowed to succeed here).
+  if (e.code === 'Escape' && state === 'paused') { window.Arena1.resume(); return; }
   if (!locked) return;
   if (e.code === 'Space') {
     // The prototype's policy: mid-air Space with no coyote and no wall = jet
@@ -75,9 +131,9 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.code === 'ShiftLeft') dashEdge = true;
   if (e.code === 'KeyL') levelView.setLodDebug(!levelView.lodDebug);
-  if (e.code === 'Digit1') R.setQuality(0);
-  if (e.code === 'Digit2') R.setQuality(1);
-  if (e.code === 'Digit3') R.setQuality(2);
+  if (e.code === 'Digit1') applyQuality(0);
+  if (e.code === 'Digit2') applyQuality(1);
+  if (e.code === 'Digit3') applyQuality(2);
 });
 document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
@@ -121,33 +177,52 @@ transport.onSnapshot((s) => {
   const me = s.players.find((p) => p.id === localId);
   const prevMe = prevSnap?.players.find((p) => p.id === localId);
   if (me) {
-    // hp drop → hurt vignette (renderer never mutates hp — it just watches it)
-    if (prevMe && me.hp < prevMe.hp) fx.hurtFlash();
+    // hp drop → hurt vignette + sound (renderer never mutates hp — it watches)
+    if (prevMe && me.hp < prevMe.hp) { fx.hurtFlash(); AudioFX.hurt(); }
     // dash kick on the DASHING rising edge
-    if (prevMe && !(prevMe.flags & FLAG.DASHING) && (me.flags & FLAG.DASHING)) { fovT = 1.24; feed('DASH'); }
+    if (prevMe && !(prevMe.flags & FLAG.DASHING) && (me.flags & FLAG.DASHING)) {
+      fovT = 1.24; feed('DASH'); AudioFX.dash();
+    }
+    if (prevMe && !(prevMe.flags & FLAG.SLIDING) && (me.flags & FLAG.SLIDING)) AudioFX.slide();
+    // jump: airborne with vy at JUMP minus one gravity tick (≈11.0)
+    if (prevMe && !(me.flags & FLAG.GROUNDED)
+      && prevMe.vel.y < 10.7 && me.vel.y >= 10.7 && me.vel.y <= TUNE.JUMP + 0.01) {
+      AudioFX.jump();
+    }
     // walljump: airborne vy snapped up to ≈WALLJUMP_UP while a wall was near
     if (prevMe && !(me.flags & FLAG.GROUNDED) && (prevMe.flags & FLAG.WALLNEAR)
       && prevMe.vel.y < 9 && me.vel.y >= 9.4 && me.vel.y <= TUNE.WALLJUMP_UP + 0.01) {
-      fovT = 1.16; feed('WALLKICK');
+      fovT = 1.16; feed('WALLKICK'); AudioFX.wall();
+    }
+    // jet loop + grapple latch/snap from flag transitions
+    if (prevMe) {
+      const was = prevMe.flags, is = me.flags;
+      if (!(was & FLAG.JETTING) && (is & FLAG.JETTING)) AudioFX.jetStart();
+      if ((was & FLAG.JETTING) && !(is & FLAG.JETTING)) AudioFX.jetStop();
+      if (!(was & FLAG.GRAPPLING) && (is & FLAG.GRAPPLING)) AudioFX.latch();
+      if ((was & FLAG.GRAPPLING) && !(is & FLAG.GRAPPLING)) AudioFX.snap();
     }
     lastFlags = me.flags;
   }
   for (const ev of s.events) {
     const mine = ev.playerId === undefined || ev.playerId === localId;
-    if (ev.type === 'pad' && mine) { fovT = 1.20; feed('LAUNCH'); }
-    else if (ev.type === 'ring' && mine) { fovT = 1.26; feed('RING'); }
-    else if (ev.type === 'summit' && mine) feed('☀ SUMMIT REACHED ☀');
-    else if (ev.type === 'death' && mine) feed('REBOOTED');
+    if (ev.type === 'pad' && mine) { fovT = 1.20; feed('LAUNCH'); AudioFX.pad(); }
+    else if (ev.type === 'ring' && mine) { fovT = 1.26; feed('RING'); AudioFX.ring(); }
+    else if (ev.type === 'summit' && mine) { feed('☀ SUMMIT REACHED ☀'); AudioFX.cell(); setTimeout(AudioFX.ring, 200); }
+    else if (ev.type === 'death' && mine) { feed('REBOOTED'); AudioFX.hurt(); }
     else if (ev.type === 'pickup' && mine) {
-      feed('CELL · TANK +20');
+      feed('CELL · TANK +20'); AudioFX.cell();
       if (ev.point) fx.burst(ev.point, '#FFB13D', 8, 4);
     } else if (ev.type === 'hit') {
-      if (ev.shooter === localId) { fx.hitmarkFlash(); fx.dmgNum(ev.point, String(ev.dmg), '#FF3D81'); }
+      if (ev.shooter === localId) { fx.hitmarkFlash(); fx.dmgNum(ev.point, String(ev.dmg), '#FF3D81'); AudioFX.hit(); }
       actors.flash(ev.target);
     } else if (ev.type === 'kill') {
       const pos = actors.positionOf(ev.target) || null;
       if (pos) fx.burst(pos, ENEMY_HEX[ev.kind] || '#7BE3B0', 10, 7);
       if (ev.by === localId) feed('POP!');
+      AudioFX.pop();
+    } else if (ev.type === 'platform_trigger') {
+      AudioFX.crack();
     }
   }
 });
@@ -185,19 +260,19 @@ let camH = 0.55, roll = 0, bob = 0;
 let fireCd = 0, jetPuffT = 0;
 
 // ── accumulator + render loop ───────────────────────────────────────────────
-let acc = 0;
-let lastTime = performance.now(); // render-side clock; the sim only sees ticks
 let fpsAcc = 0;
 engine.runRenderLoop(() => {
   const nowMs = performance.now();
   const dt = Math.min(0.25, (nowMs - lastTime) / 1000);
   const now = nowMs / 1000;
-  acc += dt;
   lastTime = nowMs;
-  while (acc >= SIM_DT) {
-    transport.sendCommand(commandForTick(transport.tickCount));
-    transport.tick();
-    acc -= SIM_DT;
+  if (state !== 'paused') { // paused freezes the sim; render keeps painting
+    acc += dt;
+    while (acc >= SIM_DT) {
+      transport.sendCommand(commandForTick(transport.tickCount));
+      transport.tick();
+      acc -= SIM_DT;
+    }
   }
   coyoteT = (lastFlags & FLAG.GROUNDED) ? 0.1 : Math.max(0, coyoteT - dt);
 
@@ -216,7 +291,7 @@ engine.runRenderLoop(() => {
     const hSpeed = Math.hypot(me.vel.x, me.vel.z);
 
     // camera block, ported (prototype 1213–1225)
-    if (pv && pv.vel.y < -14 && grounded && !(pv.flags & FLAG.GROUNDED)) camH = 0.40; // hard-landing dip
+    if (pv && pv.vel.y < -14 && grounded && !(pv.flags & FLAG.GROUNDED)) { camH = 0.40; AudioFX.land(); } // hard landing
     const targetH = sliding ? 0.15 : 0.55;
     camH += (targetH - camH) * Math.min(1, 12 * dt);
     const targetRoll = ((me.flags & FLAG.WALLNEAR) && !grounded) ? 0.06 : (-ixNow * 0.018);
@@ -235,6 +310,7 @@ engine.runRenderLoop(() => {
     if (firing && locked && fireCd <= 0) {
       fireCd = 0.11;
       fx.fire();
+      AudioFX.fire();
       pitch -= 0.004;
       const dir = new BABYLON.Vector3(Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
       const origin = { x: cam.position.x, y: cam.position.y, z: cam.position.z };
@@ -279,11 +355,20 @@ engine.runRenderLoop(() => {
 });
 window.addEventListener('resize', () => engine.resize());
 
-// Embed hooks (contract #3) — exact shape; wired to the state machine in
-// Phase 6. Declared from Phase 0 so the wrapper contract is never retrofitted.
+// Embed hooks (contract #3) — exact names, wired to the state machine.
 window.Arena1 = {
-  pause() { /* state machine lands with the game states */ },
-  resume() { /* state machine lands with the game states */ },
+  pause() {
+    if (state !== 'playing') return;
+    try { document.exitPointerLock?.(); } catch { /* not locked */ }
+    setState('paused');
+  },
+  resume() {
+    if (state !== 'paused') return;
+    setState('playing');
+    // Valid when called from a click/keydown gesture; otherwise the request
+    // is denied and play continues unlocked — clicking the world re-locks.
+    requestLock();
+  },
   setSafeTop(px) {
     document.documentElement.style.setProperty('--safe-top', `${px}px`);
   },
