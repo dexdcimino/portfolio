@@ -87,22 +87,27 @@ html, body {
 /* MD 13 weapon HUD. No transitions on the highlight — the active state must
    flip on the SAME frame as the 1/2 press, not ease toward it. */
 #weapons { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px; }
+/* Slot and glyph both scale — bumping only the slot leaves the icon a small
+   mark in a bigger box. 76px at 74% puts the glyph at ~56px against the old
+   ~35px, so the shapes are readable at a glance instead of squinted at. */
 .wslot {
-  position: relative; width: 58px; height: 58px; border-radius: 14px;
+  position: relative; width: 76px; height: 76px; border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
   background: rgba(23, 13, 43, .5); border: 2px solid rgba(242, 214, 162, .22);
   color: var(--sand); opacity: .42;
 }
-.wslot svg { width: 60%; height: 60%; }
+.wslot svg { width: 74%; height: 74%; }
 .wslot.on {
   opacity: 1; background: rgba(23, 13, 43, .85);
   border-color: #FFE7B0;
   box-shadow: 0 0 16px rgba(255, 231, 176, .35);
 }
-.wkey { position: absolute; top: 3px; right: 6px; font-size: 9px; opacity: .6; letter-spacing: 0; }
+.wkey { position: absolute; top: 4px; right: 8px; font-size: 12px; opacity: .65; letter-spacing: 0; }
 /* grapple: a state readout, not a slot — smaller, and the extra margin pushes
    the selectable pair to sit centred while the hook hangs off to the left */
-.wslot.grap { width: 40px; height: 40px; border-radius: 10px; margin-right: 14px; }
+/* Still smaller than the pair — it is a state readout, not a selectable slot —
+   but scaled with them so the relationship holds rather than shrinking away. */
+.wslot.grap { width: 56px; height: 56px; border-radius: 13px; margin-right: 16px; }
 .wslot.grap.on {
   border-color: var(--cmenu-accent, #9EE02B);
   box-shadow: 0 0 14px var(--cmenu-accent, #9EE02B);
