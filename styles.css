@@ -1141,7 +1141,11 @@ button.button{cursor:pointer;font-family:inherit}
   border-left:3px solid var(--accent);
   background:linear-gradient(150deg,rgba(32,38,44,.5),rgba(12,15,18,.5));
   transition:border-color var(--accent-ease)}
-.pk-quote blockquote{margin:0;font-size:clamp(9px,6.9cqw,15px);line-height:1.45;color:var(--text);font-style:italic}
+/* 8.7cqw/19px, measured: every quote here clears the 10/9 box at 420–1600px
+   with room to spare, so the shorter card cost no type size. The 9px floor is
+   a clip guard for the narrowest cards, not a size anyone reads at — it does
+   not bind at any width the grid actually produces. */
+.pk-quote blockquote{margin:0;font-size:clamp(9px,8.7cqw,19px);line-height:1.45;color:var(--text);font-style:italic}
 /* Generated marks, not characters in the data attributes — they wrap whichever
    version is showing and can never double up or stray on a swap. */
 .pk-quote blockquote::before{content:"\201C"}
@@ -1174,6 +1178,12 @@ button.button{cursor:pointer;font-family:inherit}
 }
 @media(max-width:560px){
   .pk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  /* Two columns on a 360px phone leaves a ~125px card, where the type is
+     already down on its 9px floor and cannot shrink to meet a fixed ratio —
+     the longest quote overflowed the 10/9 box by 19px. Drop the ratio here and
+     let height follow the text; grid stretch still squares the cards off
+     against the tallest in the row, so the shape stays regular. */
+  .pk-quote{aspect-ratio:auto}
   .tk-list{gap:20px 8px}
   /* Narrow side padding here, or the tile's content box drops under --tk-icon
      and max-width clamps the icon smaller than the size asked for. Padding and
