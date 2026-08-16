@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>CHOMP!</title>
+  <link rel="icon" href="data:,"><!-- no favicon request → no 404 -->
+  <link rel="stylesheet" href="css/game.css">
+  <!-- Babylon.js VENDORED (v9.21.2, see vendor/VERSION.txt) — the portfolio
+       site CSP is script-src self, so no CDN origins allowed -->
+  <script src="vendor/babylon.js"></script>
+  <script src="vendor/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div id="vignette"></div>
+    <!-- Filled by js/pausemenu.js (accent picker, controls, volume). The
+         overlay's show/hide stays main.js's setState/syncHud, untouched. -->
+    <div id="paused" class="overlay hidden"></div>
+    <div id="dead" class="overlay hidden">
+      <h1 id="dead-title">YOU WERE EATEN</h1>
+      <p id="dead-cause"></p>
+      <p class="hint">ANY KEY OR CLICK TO RESPAWN</p>
+    </div>
+    <div id="debug" class="hidden"></div>
+  </div>
+  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/pausemenu.js"></script>
+</body>
+</html>
