@@ -1921,6 +1921,38 @@ const LOOP_MODES = ['off', 'all', 'one'];
   const descLead = desc && desc.querySelector('.game-desc-lead');
   const descBody = desc && desc.querySelector('.game-desc-body');
 
+  /* The tag vocabulary, in ONE place and deliberately tiny. Left open, this
+     turns into "Survival", "survival horror" and "Wave Survival" across three
+     games inside a month, and the preview column — min(520px, 26vw), narrower
+     again under 1100px — has no room to absorb the difference. Players is a
+     pattern rather than a list because a range is the honest answer for a game
+     that is both solo and multi, and "1-6P" says it in fewer characters than
+     either label alone.
+     A value outside this is rendered anyway (a slightly-off word beats a hole
+     in the row) but shouted about, so it is caught in the session that
+     introduced it rather than three games later. */
+  const GAME_TAGS = {
+    genre:   v => ['SURVIVAL', 'SANDBOX', 'SHOOTER', 'PLATFORMER', 'PUZZLE'].includes(v),
+    dim:     v => ['2D', '3D'].includes(v),
+    players: v => v === 'SOLO' || /^\d+-\d+P$/.test(v),
+  };
+  const tagSlots = [...document.querySelectorAll('#gameTags .game-tag')];
+
+  // The row's own <strong> is the one name on the page for that game, so the
+  // artwork's label and the gallery's label cannot drift apart from it.
+  const gameName = row => (row.querySelector('strong') || {}).textContent || 'this game';
+
+  function showTags(row) {
+    for (const slot of tagSlots) {
+      const key = slot.dataset.slot;
+      const value = (row.dataset[key] || '').trim();
+      if (value && GAME_TAGS[key] && !GAME_TAGS[key](value)) {
+        console.warn(`game tag: "${value}" is not an allowed ${key} — see GAME_TAGS in script.js`);
+      }
+      slot.textContent = value;
+    }
+  }
+
   let current = null;
   function select(row) {
     if (current === row) return;
@@ -1931,7 +1963,17 @@ const LOOP_MODES = ['off', 'all', 'one'];
     if (descLead) descLead.textContent = row.dataset.descLead || '';
     if (descBody) descBody.textContent = row.dataset.descBody || '';
 
+    showTags(row);
     showArt(row);
+
+    /* The gallery lives in its own IIFE below and owns the button's label and
+       count, so tell it rather than reach into it. An event also means the
+       seeding select() further down cannot race it: that fires before the
+       gallery exists, and the gallery catches up by reading .is-current at its
+       own init. Both paths, one source of truth — the selected row. */
+    document.dispatchEvent(new CustomEvent('game:select', {
+      detail: { game: row.dataset.game || null, name: gameName(row) },
+    }));
   }
 
   function showArt(row) {
@@ -1958,8 +2000,7 @@ const LOOP_MODES = ['off', 'all', 'one'];
     const rel = row.getAttribute('rel');
     if (rel) art.setAttribute('rel', rel); else art.removeAttribute('rel');
 
-    const name = (row.querySelector('strong') || {}).textContent || 'this game';
-    art.setAttribute('aria-label', `Open ${name}`);
+    art.setAttribute('aria-label', `Open ${gameName(row)}`);
     art.removeAttribute('aria-hidden');
   }
 
@@ -2097,11 +2138,22 @@ const PORTRAIT_LABEL = {
 })();
 
 /* ==========================================================================
-   GAME GALLERY — real screenshots from the live Stickland build.
-   The overlay renders whatever .gal-item pictures the data block holds: the
-   hero swaps the SELECTED picture in (moved, not cloned, so the browser never
-   holds two copies), the filmstrip is built once from cloned thumbs. Modal
-   behaviour (focus, Esc, backdrop, scroll lock) rides the shared helpers.
+   GAME GALLERY — per game, one overlay.
+   The .gal-item pictures in the data block carry data-game; this groups them
+   by it and shows only the set belonging to whichever row the games section
+   currently has selected. The hero swaps the SELECTED picture in (moved, not
+   cloned, so the browser never holds two copies), the filmstrip is rebuilt
+   whenever the game changes. Modal behaviour (focus, Esc, backdrop, scroll
+   lock) rides the shared helpers.
+
+   This is the overlay the games section already had — it is NOT the work
+   overlay above, which has its own shell and its own mockup data. Nothing here
+   touches that one.
+
+   A game with no shots is a real state, not an error: the button greys but
+   stays live, and opening lands on an honest empty caption. Every game gets a
+   gallery shortly, and a disabled control that quietly becomes enabled is
+   worse than a live one that is briefly empty.
    ========================================================================== */
 (function initGameGallery() {
   const dialog = document.getElementById('galleryModal');
@@ -2112,28 +2164,102 @@ const PORTRAIT_LABEL = {
   const film = document.getElementById('galFilm');
   const capTitle = document.getElementById('galCapTitle');
   const capIndex = document.getElementById('galCapIndex');
-  const items = [...dialog.querySelectorAll('.gal-item')];
-  if (!items.length) return;
+  const title = document.getElementById('gal-dialog-title');
+  const label = openBtn.querySelector('.game-gallery-label') || openBtn.querySelector('span');
 
-  // Filmstrip: one button per item, thumb = cloned picture.
-  const thumbs = items.map((item, i) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'gal-thumb';
-    b.setAttribute('role', 'option');
-    b.setAttribute('aria-selected', 'false');
-    b.setAttribute('aria-label', item.dataset.title || `Screenshot ${i + 1}`);
-    b.appendChild(item.querySelector('picture').cloneNode(true));
-    b.addEventListener('click', () => select(i));
-    film.appendChild(b);
-    return b;
-  });
+  /* Counted off the DOM, never off an attribute. A hand-typed count is wrong
+     the first time a shot is added and nobody notices for weeks; this cannot
+     disagree with the pictures because it IS the pictures. */
+  const byGame = new Map();
+  for (const item of dialog.querySelectorAll('.gal-item')) {
+    const key = item.dataset.game || '';
+    if (!byGame.has(key)) byGame.set(key, []);
+    byGame.get(key).push(item);
+  }
 
+  let items = [];        // the current game's set
+  let thumbs = [];
   let index = 0;
+  let gameKey;           // undefined until the first setGame, so null still sets
+  let gameLabel = 'this game';
+  /* Which figure the hero picture was borrowed FROM. Tracked rather than
+     recomputed as items[index]: switching games repoints items, and stowing
+     into the new set would file a Stickland shot under Chomp and lose it. */
+  let heroItem = null;
+
+  function stow() {
+    const pic = stage.querySelector('picture');
+    if (pic && heroItem) heroItem.appendChild(pic);
+    heroItem = null;
+  }
+
+  function buildFilm() {
+    film.replaceChildren();
+    thumbs = items.map((item, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gal-thumb';
+      b.setAttribute('role', 'option');
+      b.setAttribute('aria-selected', 'false');
+      b.setAttribute('aria-label', item.dataset.title || `Screenshot ${i + 1}`);
+      const pic = item.querySelector('picture');
+      if (pic) b.appendChild(pic.cloneNode(true));
+      b.addEventListener('click', () => select(i));
+      film.appendChild(b);
+      return b;
+    });
+  }
+
+  function setGame(key, name) {
+    if (key === gameKey) return;
+    stow();                       // hand the hero picture back BEFORE items moves
+    gameKey = key;
+    gameLabel = name || 'this game';
+    items = byGame.get(key) || [];
+    index = 0;
+
+    buildFilm();
+    label.textContent = `GALLERY (${items.length})`;
+    openBtn.classList.toggle('is-empty', items.length === 0);
+    openBtn.setAttribute('aria-label', items.length
+      ? `Open the ${gameLabel} gallery, ${items.length} screenshot${items.length === 1 ? '' : 's'}`
+      : `Open the ${gameLabel} gallery — no screenshots yet`);
+    if (title) title.textContent = `${gameLabel} gallery`;
+    // The filmstrip is only a listbox when it has options in it, and arrows
+    // that step through nothing are worse than no arrows.
+    film.hidden = items.length === 0;
+    dialog.classList.toggle('is-empty', items.length === 0);
+  }
+
   function select(i) {
+    /* Hand the previous hero back BEFORE borrowing the next, here rather than
+       at each call site. The close event that used to be trusted to do it is
+       QUEUED, not synchronous (see bindModal), so reopening fast enough got
+       here with the picture still in the stage: the item no longer held one,
+       replaceChildren(null) wiped the stage, and that shot was gone from the
+       page until reload. Stowing first makes select() idempotent no matter
+       when the queued close actually lands. */
+    stow();
+    if (!items.length) {
+      // In the stage rather than the caption: the caption is a thin line under
+      // a big empty frame, and the frame is what the eye lands on.
+      const note = document.createElement('p');
+      note.className = 'gal-empty';
+      note.textContent = 'No shots yet.';
+      stage.replaceChildren(note);
+      capTitle.textContent = '';
+      capIndex.textContent = '';
+      return;
+    }
     index = (i + items.length) % items.length;
     const item = items[index];
-    stage.replaceChildren(item.querySelector('picture'));
+    const pic = item.querySelector('picture');
+    // Guarded: replaceChildren(null) inserts the STRING "null" and drops the
+    // real picture on the floor, which is a silent corruption rather than a
+    // visible failure. stow() above should make this unreachable.
+    if (!pic) return;
+    heroItem = item;
+    stage.replaceChildren(pic);
     // The picture moved out of the hidden data block, so its lazy images can
     // load now; decode() keeps the swap paint-clean.
     const img = stage.querySelector('img');
@@ -2142,18 +2268,13 @@ const PORTRAIT_LABEL = {
     capIndex.textContent = `${index + 1} / ${items.length}`;
     thumbs.forEach((t, n) => t.setAttribute('aria-selected', String(n === index)));
   }
-  // Hero pictures go back to their data block on close, so reopening always
-  // finds every picture where select() expects it.
-  function stow() {
-    const pic = stage.querySelector('picture');
-    if (pic) items[index].appendChild(pic);
-  }
 
-  dialog.querySelector('.gal-prev').addEventListener('click', () => { stow(); select(index - 1); });
-  dialog.querySelector('.gal-next').addEventListener('click', () => { stow(); select(index + 1); });
+  const step = delta => { if (items.length) select(index + delta); };
+  dialog.querySelector('.gal-prev').addEventListener('click', () => step(-1));
+  dialog.querySelector('.gal-next').addEventListener('click', () => step(1));
   dialog.addEventListener('keydown', event => {
-    if (event.key === 'ArrowLeft') { event.preventDefault(); stow(); select(index - 1); }
-    if (event.key === 'ArrowRight') { event.preventDefault(); stow(); select(index + 1); }
+    if (event.key === 'ArrowLeft') { event.preventDefault(); step(-1); }
+    if (event.key === 'ArrowRight') { event.preventDefault(); step(1); }
   });
 
   openBtn.addEventListener('click', () => {
@@ -2161,4 +2282,12 @@ const PORTRAIT_LABEL = {
   });
   document.getElementById('galleryClose').addEventListener('click', () => closeModal(dialog));
   bindModal(dialog, stow);
+
+  // Follow the games section. The seeding select() up there has already fired
+  // by the time this runs, so read the row it settled on rather than waiting
+  // for an event that is never coming again.
+  document.addEventListener('game:select', e => setGame(e.detail.game, e.detail.name));
+  const seeded = document.querySelector('.stack-row.is-current');
+  setGame(seeded ? seeded.dataset.game || null : null,
+          seeded ? (seeded.querySelector('strong') || {}).textContent : null);
 })();

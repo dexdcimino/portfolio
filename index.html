@@ -500,34 +500,47 @@
                                           L40 37.43 A9 9 0 0 1 53.85 29.85 Z" />
           </svg>
         </a>
-        <!-- Under the thumbnail: movement keys on the left, gallery on the
-             right. Keycaps follow the aesthetic of Stickland's own controls
-             settings; the gallery button is the hero's VIEW WORK button
-             pointed at the game gallery overlay. Hidden with the thumbnail on
-             touch/narrow layouts — it belongs to the preview column. -->
-        <div class="game-extras" aria-hidden="false">
-          <div class="game-keys" role="img" aria-label="Movement keys: W A S D">
-            <span class="game-keys-row"><kbd class="game-key">W</kbd></span>
-            <span class="game-keys-row"><kbd class="game-key">A</kbd><kbd class="game-key">S</kbd><kbd class="game-key">D</kbd></span>
-          </div>
-          <button class="button primary game-gallery-open" type="button" id="galleryOpen">
-            <span>GALLERY</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span>
-          </button>
-        </div>
+        <!-- Three fixed tag slots for whichever game is previewed above, filled
+             by the same select() that swaps the artwork and the copy — never a
+             separate update that could leave a stale genre against a new
+             picture. The VALUES are constrained in script.js (GAME_TAGS), not
+             here: free text produced "Survival" / "survival horror" / "Wave
+             Survival" the last time this was open vocabulary, and this column
+             is too narrow to absorb the difference.
+             Hidden with the thumbnail on touch/narrow layouts, as the keycaps
+             and gallery button were — this belongs to the preview column. -->
+        <ul class="game-tags" id="gameTags">
+          <li class="game-tag" data-slot="genre"></li>
+          <li class="game-tag" data-slot="dim"></li>
+          <li class="game-tag" data-slot="players"></li>
+        </ul>
       </div>
       <div class="stack reveal">
         <a class="stack-row" href="/stickland" data-game="stickland" data-art="stickland-art"
-           data-desc-lead="STICKLAND is a free-roaming stick-figure sandbox built for exploring, fighting, experimenting, and making your own fun."
-           data-desc-body="Roam a procedural landscape, customize your character, battle strange creatures, experiment with a varied arsenal, and travel by hoverboard, jetpack, or tank. When you want a different challenge, jump into a separate vertical-platforming minigame. Nearly everything you see and hear is generated at runtime using JavaScript, SVG, Canvas 2D, and synthesized audio—all contained within a single HTML file."><span>01</span><strong>STICKLAND</strong><small>Browser Game</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
+           data-genre="SANDBOX" data-dim="2D" data-players="SOLO"
+           data-desc-lead="A free-roaming stick-figure sandbox built for exploration, combat, and experimentation."
+           data-desc-body="Explore a procedural world, battle strange creatures, customize your character, and travel by hoverboard, jetpack, or tank. Built in a single HTML file using JavaScript, SVG, Canvas 2D, and synthesized audio."><span>01</span><strong>STICKLAND</strong><small>Browser Game</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
         <a class="stack-row" href="/chomp" data-game="chomp" data-art="chomp-art"
+           data-genre="SURVIVAL" data-dim="3D" data-players="SOLO"
            data-desc-lead="A hovering cave alien that eats its way up the food chain."
            data-desc-body="Roam an infinite procedural cave, eat anything smaller than you, avoid anything bigger, and grow through five evolutions before something eats you first. Built in Babylon.js with procedurally generated creatures and terrain."><span>02</span><strong>CHOMP!</strong><small>Browser Game</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
         <a class="stack-row" href="/arena1" data-game="arena1" data-art="arena1-art"
+           data-genre="SHOOTER" data-dim="3D" data-players="1-6P"
            data-desc-lead="A first-person movement shooter built around speed and verticality."
-           data-desc-body="Dash, slide, wall-jump, grapple, and jetpack your way up a procedural spire while wraiths swoop and spikeballs patrol the platforms. Built in Babylon.js on a deterministic, headless simulation — the same architecture that runs the multiplayer."><span>03</span><strong>Arena1</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
+           data-desc-body="Dash, slide, wall-jump, grapple, and jetpack your way up a procedural spire while wraiths swoop and spikeballs patrol the platforms. Built in Babylon.js on a deterministic, headless simulation — the same architecture that runs the multiplayer."><span>03</span><strong>ARENA1</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
         <div class="game-desc" id="gameDesc">
           <strong class="game-desc-lead"></strong>
           <p class="game-desc-body"></p>
+        </div>
+        <!-- Under the description, not under the thumbnail: the right column
+             reads as one text spine, so this shares the copy's left edge (both
+             sit on the rows' 12px inset). Label carries the live item count,
+             counted off the .gal-item set in script.js rather than typed here —
+             a hand-written number goes stale the first time a shot is added. -->
+        <div class="game-actions">
+          <button class="button primary game-gallery-open" type="button" id="galleryOpen">
+            <span class="game-gallery-label">GALLERY</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span>
+          </button>
         </div>
       </div>
     </section>
@@ -1381,7 +1394,7 @@
       <p class="gal-cap"><span class="gal-cap-title" id="galCapTitle"></span><span class="gal-cap-index" id="galCapIndex"></span></p>
       <div class="gal-film" id="galFilm" role="listbox" aria-label="Screenshots"></div>
       <div class="gal-data" hidden>
-        <figure class="gal-item" data-title="Spawn — home plateau">
+        <figure class="gal-item" data-game="stickland" data-title="Spawn — home plateau">
           <!-- img src="assets/gallery/stickland-spawn.png" slot="game-shot" alt="Stickland spawn area with the home cabin" -->
           <picture>
             <source type="image/avif" srcset="assets/derived/gallery/stickland-spawn-1200.avif 1200w,
@@ -1396,7 +1409,7 @@
           </picture>
           <!-- /img -->
         </figure>
-        <figure class="gal-item" data-title="The village strip">
+        <figure class="gal-item" data-game="stickland" data-title="The village strip">
           <!-- img src="assets/gallery/stickland-village.png" slot="game-shot" alt="Stickland village with Co-op treehouse, PvP castle, shop and jail" -->
           <picture>
             <source type="image/avif" srcset="assets/derived/gallery/stickland-village-1200.avif 1200w,
@@ -1411,7 +1424,7 @@
           </picture>
           <!-- /img -->
         </figure>
-        <figure class="gal-item" data-title="Bow drawn, arrow away">
+        <figure class="gal-item" data-game="stickland" data-title="Bow drawn, arrow away">
           <!-- img src="assets/gallery/stickland-bow.png" slot="game-shot" alt="Firing the bow across the village" -->
           <picture>
             <source type="image/avif" srcset="assets/derived/gallery/stickland-bow-1200.avif 1200w,
@@ -1426,7 +1439,7 @@
           </picture>
           <!-- /img -->
         </figure>
-        <figure class="gal-item" data-title="Out in the fields">
+        <figure class="gal-item" data-game="stickland" data-title="Out in the fields">
           <!-- img src="assets/gallery/stickland-fields.png" slot="game-shot" alt="Fields west of the village with a tank and creatures" -->
           <picture>
             <source type="image/avif" srcset="assets/derived/gallery/stickland-fields-1200.avif 1200w,

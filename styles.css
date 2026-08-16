@@ -2127,26 +2127,51 @@ body.modal-open{overflow:hidden}
 }
 
 /* ==========================================================================
-   GAMES EXTRAS — movement keys + gallery button under the thumbnail.
-   Keycaps follow Stickland's own controls-settings caps: dark plate, 2px grey
-   border, 6px radius, small bold glyph. Hidden wherever the thumbnail is.
+   GAME TAGS — genre / dimension / players, one line under the thumbnail.
+   ONE LINE IS THE CONSTRAINT, and it is why the vocabulary in script.js is
+   short words rather than SINGLEPLAYER and MULTIPLAYER. The column is
+   min(520px, 26vw) and narrows again at 1100px, so the fix for a wrap is a
+   shorter word, never a smaller type size — nowrap here makes a too-long value
+   overflow visibly instead of quietly reflowing to two lines and pushing the
+   layout around. Hidden wherever the thumbnail is: these describe the preview.
    ========================================================================== */
-.game-extras{
-  max-width:520px;margin-top:14px;
-  display:flex;align-items:center;justify-content:space-between;gap:16px;
+.game-tags{
+  max-width:520px;margin:14px 0 0;padding:0;list-style:none;
+  display:flex;align-items:center;gap:9px;
 }
-.game-keys{display:grid;gap:4px;justify-items:center}
-.game-keys-row{display:flex;gap:4px}
-.game-key{
-  display:inline-flex;align-items:center;justify-content:center;
-  min-width:30px;height:28px;padding:0 7px;
-  font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.02em;
-  color:#c3cad0;background:#23282f;
-  border:2px solid #3a4450;border-radius:6px;white-space:nowrap;
+.game-tag{
+  font-size:11px;font-weight:800;letter-spacing:.14em;
+  color:#9aa3ab;white-space:nowrap;
 }
+.game-tag:empty{display:none}
+/* Separator on the item rather than between spans: three <li> and no extra
+   nodes, and it disappears with :empty above if a slot is ever blank. */
+.game-tag + .game-tag::before{content:"·";margin-right:9px;color:#5c666f}
+@media(hover:none){ .game-tags{display:none} }
+@media(max-width:900px){ .game-tags{display:none} }
+
+/* Gallery button, right column. padding-left matches .game-desc's 12px so the
+   button's left edge sits on the copy's left edge — the two are the same spine,
+   not two things that happen to look close. */
+.game-actions{padding:20px 42px 0 12px}
 .game-gallery-open{flex:0 0 auto}
-@media(hover:none){ .game-extras{display:none} }
-@media(max-width:900px){ .game-extras{display:none} }
+/* Empty state: greyed, but NOT disabled — every game gets a gallery shortly and
+   a control that becomes enabled tomorrow is worse than a live one that is
+   briefly empty, so it still opens, focuses, and says "No shots yet."
+   This drops the accent fill back to the SAME plate and hairline .button
+   already uses unprimaried, rather than inventing a grey: a bespoke #333a42
+   plate measured only 1.65:1 against the section, too faint to read as a
+   control at all. The stock border is 3.09:1 there, past the 3.0 that 1.4.11
+   asks of a component boundary, and the label sits at 12.2:1 — "greyed" must
+   not mean "unreadable". */
+.game-gallery-open.is-empty{
+  background:rgba(13,16,19,.72);border-color:rgba(255,255,255,.34);
+  color:#c8d0d7;box-shadow:none;
+}
+.game-gallery-open.is-empty:hover,
+.game-gallery-open.is-empty:focus-visible{
+  border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent);
+}
 
 /* Gallery overlay. Same shell conventions as the other dialogs; the hero is a
    fixed-ratio box the shots letterbox into, so the caption and filmstrip never
@@ -2169,6 +2194,18 @@ body.modal-open{overflow:hidden}
   display:grid;place-items:center;
 }
 .gal-stage picture,.gal-stage img{width:100%;height:100%;object-fit:contain;display:block}
+/* Empty state. The stage already centres its child, so this is just the words.
+   #aeb6bd on the stage's #0b0f12 is 8.9:1 — the honest answer should be as
+   readable as a caption, not a whisper. */
+.gal-empty{margin:0;color:var(--muted);font-size:15px;letter-spacing:.04em}
+/* Arrows that step through nothing are worse than no arrows. Hiding them also
+   removes their grid tracks though, which drops the stage into the leading
+   `auto` column and collapses it to the width of its own sentence — and
+   aspect-ratio needs a definite width to draw a frame at all. So the empty
+   hero is explicitly one full-width column, and the frame stays the same size
+   it is with a picture in it. */
+.gal-modal.is-empty .gal-arrow{display:none}
+.gal-modal.is-empty .gal-hero{grid-template-columns:minmax(0,1fr)}
 .gal-arrow{
   width:40px;min-height:0;padding:0;border:0;background:none;cursor:pointer;
   display:grid;place-items:center;color:var(--icon-idle);border-radius:10px;
