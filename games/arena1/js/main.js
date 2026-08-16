@@ -50,22 +50,29 @@ try {
   if (q !== null) R.setQuality(Number(q));
 } catch { /* default MED stands */ }
 
-// ── state machine: boot → playing ⇄ paused ──────────────────────────────────
+// ── state machine: playing ⇄ paused ─────────────────────────────────────────
+// No title screen: the game boots straight into the running world with the
+// HUD live. Pointer lock still needs a user gesture, so the first click
+// anywhere grabs it — until then a small hint chip sits over the game.
 // The game owns Escape. In pointer lock the browser reserves Escape to exit
 // the lock, so "Escape pauses" arrives as a pointerlockchange; while paused,
 // the keydown below resumes. The pause menu itself binds NO keys (spec).
 const pausedEl = document.getElementById('paused');
-const start = document.getElementById('start');
-let state = 'boot'; // boot: deploy overlay; sim ticks in boot + playing, freezes in paused
+const hintEl = document.getElementById('lockHint');
+let state = 'playing';
 let acc = 0;
 let lastTime = performance.now(); // render-side clock; the sim only sees ticks
+function updateHint() {
+  hintEl.classList.toggle('on', state === 'playing' && document.pointerLockElement !== canvas);
+}
 function setState(s) {
   state = s;
   pausedEl.classList.toggle('hidden', s !== 'paused');
-  start.style.display = s === 'boot' ? 'flex' : 'none';
+  updateHint();
   if (s !== 'playing') AudioFX.jetStop();
   acc = 0; lastTime = performance.now(); // no catch-up burst on resume
 }
+updateHint();
 
 // ── input ───────────────────────────────────────────────────────────────────
 let yaw = Math.PI, pitch = 0;      // local, render-rate; written into commands
@@ -79,16 +86,32 @@ let lastFlags = 0;
 let ixNow = 0;                     // strafe input, for camera roll
 
 // requestPointerLock returns a Promise in current Chrome and rejects without
-// a user gesture and during the ~1s cooldown after an Escape exit — swallow
-// it or every denied request is an unhandled-rejection console error.
-function requestLock() {
-  try { canvas.requestPointerLock()?.catch?.(() => { /* denied — play unlocked */ }); }
-  catch { /* older engines throw synchronously instead */ }
+// a user gesture and during the ~1.25s cooldown after an Escape-triggered
+// exit. Resume paths pass retries: the request is re-attempted every 300ms
+// until it lands, the chain caps out, or the state changes — so resuming
+// puts you straight back in first-person control instead of leaving a
+// cursor. (Chrome permits gesture-less relock after a prior successful lock
+// once the cooldown expires; the first-ever lock still needs the click.)
+let lockRetry = null;
+function requestLock(retries = 0) {
+  clearTimeout(lockRetry);
+  const attempt = (left) => {
+    if (locked || state !== 'playing') return;
+    let p = null;
+    try { p = canvas.requestPointerLock(); } catch { /* older engines throw sync */ }
+    const again = () => {
+      if (left > 0 && !locked && state === 'playing') {
+        lockRetry = setTimeout(() => attempt(left - 1), 300);
+      }
+    };
+    if (p && typeof p.catch === 'function') p.catch(again);
+    else again(); // no promise: the `locked` guard stops the chain on success
+  };
+  attempt(retries);
 }
-start.addEventListener('click', () => { AudioFX.ensure(); requestLock(); });
 canvas.addEventListener('click', () => {
-  // resumed without lock (e.g. wrapper resume) — clicking the world re-locks
-  if (state === 'playing' && !locked) requestLock();
+  AudioFX.ensure(); // first gesture also unlocks the AudioContext
+  if (state === 'playing' && !locked) requestLock(2);
 });
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
@@ -98,6 +121,7 @@ document.addEventListener('pointerlockchange', () => {
     firing = false; grappling = false; jetLatch = false;
     if (state === 'playing') setState('paused'); // Escape (or focus loss) pauses
   }
+  updateHint();
 });
 document.addEventListener('mousemove', (e) => {
   if (!locked) return;
@@ -364,10 +388,11 @@ window.Arena1 = {
   },
   resume() {
     if (state !== 'paused') return;
+    AudioFX.ensure();
     setState('playing');
-    // Valid when called from a click/keydown gesture; otherwise the request
-    // is denied and play continues unlocked — clicking the world re-locks.
-    requestLock();
+    // Every resume path (Escape, the button, the backdrop) goes straight
+    // back to first-person control: retry past the post-Escape cooldown.
+    requestLock(8);
   },
   setSafeTop(px) {
     document.documentElement.style.setProperty('--safe-top', `${px}px`);

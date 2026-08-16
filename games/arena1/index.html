@@ -39,20 +39,10 @@
     </div>
     <div id="feed"></div>
     <div id="hud-boot">ARENA 1</div>
-  </div>
-  <div id="start">
-    <div>
-      <h1>ARENA <span>1</span></h1>
-      <div class="sub">THE ASCENT · SIM BUILD</div>
-      <div class="ctl">
-        <em>WASD</em> move &nbsp; <em>LMB</em> zap &nbsp; <em>RMB</em> grapple — hold to reel, pulls light things to you<br>
-        <em>SPACE</em> jump · press again mid-air &amp; <em>HOLD</em> = jetpack (burns tank)<br>
-        <em>SHIFT</em> dash ×2 &nbsp; <em>C</em> slide &nbsp; walljump near walls<br>
-        collect <em>fuel cells</em> to grow the tank · ride the rings · platforms move, blink &amp; crumble<br>
-        <em>1/2/3</em> quality &nbsp; <em>L</em> LOD debug
-      </div>
-      <p class="go">▸ CLICK TO DEPLOY ◂</p>
-    </div>
+    <!-- No title screen: the world boots live. Pointer lock still needs one
+         user gesture, so this small chip invites the click and vanishes the
+         moment the lock lands (full controls live in the pause menu). -->
+    <div id="lockHint" class="on">CLICK FOR MOUSE LOOK · ESC PAUSES</div>
   </div>
   <!-- Pause overlay: main.js's setState('paused') shows it, pausemenu.js
        fills it. Starts hidden; the menu binds no keys (main owns Escape). -->
