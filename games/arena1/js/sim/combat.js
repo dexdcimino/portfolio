@@ -60,6 +60,19 @@ export function stepCombat(ctx, p, buttons) {
   p.fireCd -= SIM_DT;
   if (!(buttons & BTN.FIRE) || p.fireCd > 0) return;
 
+  // MD 14: EVERY shot emits fire — hit or miss — because remote muzzle flash
+  // driven off `hit` alone would flash only on connects, and most shots miss.
+  // The renderer maps it to flash/tracer/sound on the shooter's pill; `hit`
+  // keeps doing impact effects. (Wire vocabulary: ARENA1_STEPS.md.)
+  {
+    const dir = viewDir(p);
+    ctx.events.push({
+      type: 'fire', playerId: p.id, weapon: p.weapon,
+      origin: { x: p.pos.x, y: p.pos.y + EYE_H, z: p.pos.z },
+      dir,
+    });
+  }
+
   if (p.weapon === 1) {
     p.fireCd = ROCKET_CD;
     const dir = viewDir(p);

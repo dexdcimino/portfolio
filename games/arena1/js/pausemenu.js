@@ -16,7 +16,9 @@ import { setVolume, getVolume, setMuted, isMuted } from './systems/audio.js';
    (verified against script.js:51-59 at build time). The duplication is
    deliberate and documented there: the game must not reach into the parent
    document, and the palette changes rarely. */
-const SITE_ACCENTS = [
+// Exported since MD 14: actors.js maps wire accent NAMES through this same
+// table for remote pills — one palette copy in the game, not two.
+export const SITE_ACCENTS = [
   { name: 'red',    hex: '#D94727' },
   { name: 'yellow', hex: '#FAAA1E' },
   { name: 'lime',   hex: '#9EE02B' },
@@ -58,9 +60,9 @@ function applyAccent(a, persist = true) {
   for (const b of document.querySelectorAll('.cmenu-swatch')) {
     b.classList.toggle('is-on', b.dataset.name === a.name);
   }
-  // MD 13: main retints the grapple rope from this (local presentation only —
-  // accent-on-the-wire belongs to the remote-visuals MD).
-  window.dispatchEvent(new CustomEvent('arena1-accent', { detail: a.hex }));
+  // MD 13/14: main retints the local grapple rope from hex; the transport
+  // announces the NAME to the host so other clients recolour this pill.
+  window.dispatchEvent(new CustomEvent('arena1-accent', { detail: { name: a.name, hex: a.hex } }));
 }
 
 const CONTROLS = [

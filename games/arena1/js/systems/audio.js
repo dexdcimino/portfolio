@@ -125,4 +125,15 @@ export const AudioFX = {
   // MD 11 — new cues built from the same primitives, same master bus:
   launch: () => { noise(0.12, 0.09, 700); tone(220, 90, 0.18, 'square', 0.08); },
   boom: () => { tone(180, 40, 0.35, 'sawtooth', 0.16); noise(0.28, 0.12, 150); },
+  // MD 14 — the same fire/launch cues heard from someone ELSE, scaled down
+  // with distance (no positional audio bus; a crude linear falloff reads
+  // fine at arena scale and keeps a full lobby from being a wall of zaps).
+  fireAt: (dist) => {
+    const k = Math.max(0.12, Math.min(1, 1 - dist / 70));
+    tone(760, 140, 0.09, 'square', 0.09 * k); noise(0.05, 0.05 * k, 2000);
+  },
+  launchAt: (dist) => {
+    const k = Math.max(0.12, Math.min(1, 1 - dist / 70));
+    noise(0.12, 0.09 * k, 700); tone(220, 90, 0.18, 'square', 0.08 * k);
+  },
 };

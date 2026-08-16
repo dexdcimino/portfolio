@@ -70,7 +70,7 @@ export function genLobbyWord() {
   return LOBBY_WORDS[(Math.random() * LOBBY_WORDS.length) | 0];
 }
 
-export const EV = { WELCOME: 11, COMMANDS: 12, SNAPSHOT: 13, TAG: 14 };
+export const EV = { WELCOME: 11, COMMANDS: 12, SNAPSHOT: 13, TAG: 14, ACCENT: 15 };
 
 // Player tag: presentation metadata, not sim state — it rides the transport
 // (localStorage arena1-tag, the pause menu edits it) and is injected into
@@ -90,6 +90,18 @@ function readTag() {
   try {
     if (typeof localStorage === 'undefined') return '';
     return (localStorage.getItem('arena1-tag') || '').slice(0, TAG_MAX).toUpperCase();
+  } catch { return ''; }
+}
+// Accent (MD 14): rides the same transport path as the tag — the site palette
+// NAME from dex-accent-name (shared with dexcimino.com), host stores per
+// player, injects into wire player entries. Renderers map name → hex and fall
+// back to the default coral on anything unknown; the value is never forced
+// unique — a duplicate accent is better than hijacking someone's choice.
+const ACCENT_MAX = 16;
+function readAccent() {
+  try {
+    if (typeof localStorage === 'undefined') return '';
+    return (localStorage.getItem('dex-accent-name') || '').slice(0, ACCENT_MAX);
   } catch { return ''; }
 }
 export const TICKS_PER_NET = Math.max(1, Math.round(1 / (SNAPSHOT_RATE_NET * SIM_DT))); // 3
@@ -127,15 +139,25 @@ export function createHostCore(seed, { pvp = PVP_DEFAULT, enemies = true } = {},
   const queues = new Map();        // playerId → { q: [], last: cmd|null }
   const acks = new Map();          // playerId → highest command tick CONSUMED (MD 8)
   const tags = new Map();          // playerId → display tag
+  const accents = new Map();       // playerId → accent name (MD 14)
   const subscribers = [];
   let pendingLocal = null;
   let eventAcc = [];
 
   tags.set(localId, readTag());
+  accents.set(localId, readAccent());
   if (typeof window !== 'undefined') {
     window.addEventListener('arena1-tag', (e) => tags.set(localId, String(e.detail ?? '').slice(0, TAG_MAX).toUpperCase()));
+    window.addEventListener('arena1-accent', (e) => accents.set(localId, String(e.detail?.name ?? '').slice(0, ACCENT_MAX)));
   }
-  const withTags = (players) => players.map((p) => (tags.get(p.id) ? { ...p, tag: tags.get(p.id) } : p));
+  const withTags = (players) => players.map((p) => {
+    const tag = tags.get(p.id), accent = accents.get(p.id);
+    if (!tag && !accent) return p;
+    const out = { ...p };
+    if (tag) out.tag = tag;
+    if (accent) out.accent = accent;
+    return out;
+  });
 
   const welcome = () => net.send(EV.WELCOME, {
     seed, pvp, players: Object.fromEntries(actorToPlayer),
@@ -158,6 +180,11 @@ export function createHostCore(seed, { pvp = PVP_DEFAULT, enemies = true } = {},
     if (code === EV.TAG) {
       const id = actorToPlayer.get(actorNr);
       if (id != null) tags.set(id, String(data.tag ?? '').slice(0, TAG_MAX).toUpperCase());
+      return;
+    }
+    if (code === EV.ACCENT) {
+      const id = actorToPlayer.get(actorNr);
+      if (id != null) accents.set(id, String(data.accent ?? '').slice(0, ACCENT_MAX));
       return;
     }
     if (code !== EV.COMMANDS) return;
@@ -229,10 +256,14 @@ export function createClientCore(net, hooks = {}, opts = {}) {
   let dedupeChecked = false;
   const hostActor = net.masterActorNr();
 
-  // Tag changes from the pause menu re-announce (host stores per player).
+  // Tag/accent changes from the pause menu re-announce (host stores per
+  // player) — same one path for both, no second transport (MD 14).
   if (typeof window !== 'undefined') {
     window.addEventListener('arena1-tag', (e) => {
       if (welcomed) net.send(EV.TAG, { tag: String(e.detail ?? '').slice(0, TAG_MAX).toUpperCase() });
+    });
+    window.addEventListener('arena1-accent', (e) => {
+      if (welcomed) net.send(EV.ACCENT, { accent: String(e.detail?.name ?? '').slice(0, ACCENT_MAX) });
     });
   }
 
@@ -328,6 +359,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       level = buildLevel(world, rngFor(seed, 'level'));
       welcomed = true;
       net.send(EV.TAG, { tag: readTag() }); // introduce ourselves by name
+      net.send(EV.ACCENT, { accent: readAccent() }); // …and by colour (MD 14)
       readyResolve();
     } else if (code === EV.SNAPSHOT && actorNr === hostActor && welcomed) {
       buffer.push({ at: now(), snap: data });
@@ -443,7 +475,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
         ...pe,
         hp: meNow.hp, deaths: meNow.deaths, kills: meNow.kills,
         cellsGot: meNow.cellsGot, summitDone: meNow.summitDone,
-        fuelMax: meNow.fuelMax, tag: meNow.tag,
+        fuelMax: meNow.fuelMax, tag: meNow.tag, accent: meNow.accent,
       } : pe;
     })();
     if (meEntry) {

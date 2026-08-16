@@ -56,6 +56,10 @@ Jump buffer = 7 ticks, coyote = 6 ticks, computed **in the sim** from edges.
 { tick, seed, pvp,
   players: [{id, pos, vel, yaw, pitch, hp, fuel, fuelMax, dashCharges,
              weapon, flags}],                       // weapon: MD 11 (0 zap, 1 rocket)
+  // On the WIRE (host broadcast, MD 12/14) player entries also carry `tag`
+  // and `accent` — presentation metadata injected at the transport, absent
+  // from the sim's own snapshots. Accent is the site palette NAME ('red'…
+  // 'white'); unknown/missing names render the default coral.
   enemies: [{id, kind, pos, hp, aiState, flags}],   // kind: 0 blob, 1 wraith, 2 spike
   cells:   [{id, taken}],
   rockets: [{id, pos, vel, ownerId}],  // MD 11: live projectiles, authoritative
@@ -63,7 +67,10 @@ Jump buffer = 7 ticks, coyote = 6 ticks, computed **in the sim** from edges.
                                        // them when the snapshot says so
   events:  [],             // cleared each tick, see Phase 5; MD 11 adds
                            // explode {point, ownerId} and death gains `by`
-                           // (self-kill attribution)
+                           // (self-kill attribution); MD 14 adds
+                           // fire {playerId, weapon, origin, dir} on EVERY
+                           // shot, hit or miss — remote muzzle flash/tracer/
+                           // sound must not depend on connecting
   acks: {playerId: tick} } // WIRE broadcasts only (MD 8): per-client highest
                            // command tick the host has CONSUMED — never a held
                            // repeat. Drives prediction reconciliation; absent
@@ -256,7 +263,8 @@ to compensate.
   `hit {shooter, target, point, dmg}` · `kill {target, by}` ·
   `death {playerId}` · `pickup {cellId, playerId}` · `ring {ringId, playerId}` ·
   `pad {padId, playerId}` · `summit {playerId}` ·
-  `platform_trigger {platformId, tick}`
+  `platform_trigger {platformId, tick}` ·
+  `fire {playerId, weapon, origin, dir}` (MD 14: every shot, hit or miss)
   Renderer maps events → hitmark, tracer endpoint, damage number, feed line,
   sound. The renderer never mutates hp, ever.
 - `js/sim/enemies.js`: port blob hop / wraith orbit-swoop-climb / spike patrol.

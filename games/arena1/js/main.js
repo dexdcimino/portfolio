@@ -170,7 +170,8 @@ document.addEventListener('keyup', (e) => {
 // session build.
 window.addEventListener('arena1-quality', (e) => S?.R.setQuality(e.detail));
 // Accent swatch clicked mid-match → the grapple rope retints live (MD 13).
-window.addEventListener('arena1-accent', (e) => S?.fx.setRopeColor(e.detail));
+// detail is {name, hex} since MD 14 — the transport's listener takes the name.
+window.addEventListener('arena1-accent', (e) => S?.fx.setRopeColor(e.detail.hex));
 
 // ── background pump heartbeat ───────────────────────────────────────────────
 // Chrome suspends rAF in hidden tabs, which froze a HOST's sim — and the
@@ -324,6 +325,27 @@ function startSession(transport) {
         if (pos) fx.burst(pos, ENEMY_HEX[ev.kind] || '#7BE3B0', 10, 7);
         if (ev.by === localId) feed('POP!');
         AudioFX.pop();
+      } else if (ev.type === 'fire') {
+        // MD 14: every shot travels, hit or miss — this is what makes remote
+        // weapons flash when they MISS. Own shots are skipped: the local
+        // viewmodel already flashed on the press, ahead of authority.
+        if (ev.playerId !== localId && ev.origin) {
+          const dist = me ? Math.hypot(ev.origin.x - me.pos.x, ev.origin.y - me.pos.y, ev.origin.z - me.pos.z) : 30;
+          if (ev.weapon === 1) {
+            // launcher: launch flash + thump — the rocket entity itself is
+            // already in the snapshot, so no tracer
+            fx.puff(ev.origin, 0.4, 1.2, 0.16, 0.9, 0, '#FFB13D');
+            AudioFX.launchAt(dist);
+          } else {
+            fx.puff(ev.origin, 0.22, 0.55, 0.1, 0.9, 0, '#FFE7B0');
+            const o = new BABYLON.Vector3(ev.origin.x, ev.origin.y, ev.origin.z);
+            const d = new BABYLON.Vector3(ev.dir.x, ev.dir.y, ev.dir.z);
+            const hit = world.raycast(ev.origin, ev.dir, 250);
+            const end = hit ? new BABYLON.Vector3(hit.point.x, hit.point.y, hit.point.z) : o.add(d.scale(250));
+            fx.spawnTracer(o.add(d.scale(0.7)), end);
+            AudioFX.fireAt(dist);
+          }
+        }
       } else if (ev.type === 'explode') {
         if (ev.point) {
           // MD 13 two-layer explosion: bright core bounded at the true splash

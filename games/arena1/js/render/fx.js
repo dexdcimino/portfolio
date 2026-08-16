@@ -7,44 +7,28 @@
 // from the true splash volume.
 
 import { SPLASH_RADIUS } from '../sim/combat.js';
+import { makeZap, makeLauncher } from './weapons.js';
 
 export function createFx({ scene, cam, mat, V3 }, world) {
   // ---- gun (parented to the camera, exactly the prototype's) ----
+  // Geometry comes from the SHARED factories (MD 14) — remote pills hold the
+  // same models, so the viewmodel and the pill weapon can never drift.
   const gunRoot = new BABYLON.TransformNode('gun', scene);
   gunRoot.parent = cam; gunRoot.position = V3(0.34, -0.30, 0.72);
-  const gunBody = BABYLON.MeshBuilder.CreateBox('gb', { width: 0.13, height: 0.16, depth: 0.42 }, scene);
-  gunBody.parent = gunRoot; gunBody.material = mat('#372052'); gunBody.isPickable = false;
-  const gunBarrel = BABYLON.MeshBuilder.CreateCylinder('gbar', { height: 0.34, diameter: 0.075, tessellation: 8 }, scene);
-  gunBarrel.parent = gunRoot; gunBarrel.rotation.x = Math.PI / 2; gunBarrel.position = V3(0, 0.03, 0.34);
-  gunBarrel.material = mat('#FF7A59'); gunBarrel.isPickable = false;
-  const gunFin = BABYLON.MeshBuilder.CreateBox('gf', { width: 0.03, height: 0.12, depth: 0.16 }, scene);
-  gunFin.parent = gunRoot; gunFin.position = V3(0, 0.12, 0.1); gunFin.material = mat('#3EC5B4'); gunFin.isPickable = false;
-  const hookEmit = BABYLON.MeshBuilder.CreateBox('he', { width: 0.08, height: 0.08, depth: 0.2 }, scene);
-  hookEmit.parent = gunRoot; hookEmit.position = V3(-0.09, -0.02, 0.3); hookEmit.material = mat('#FF3D81'); hookEmit.isPickable = false;
+  const zapView = makeZap({ mat, V3 }, scene, gunRoot);
+  const launcherView = makeLauncher({ mat, V3 }, scene, gunRoot);
+  const hookEmit = zapView.hookEmit;
   const muzzle = BABYLON.MeshBuilder.CreateIcoSphere('mz', { radius: 0.06, subdivisions: 1 }, scene);
   muzzle.parent = gunRoot; muzzle.position = V3(0, 0.03, 0.55);
   muzzle.material = mat('#FFE7B0', 1); muzzle.isPickable = false; muzzle.scaling.setAll(0.01);
   let gunKick = 0, muzzleT = 0;
 
-  // Rocket launcher viewmodel (MD 11): a fat tube on the same mount; the
-  // selected weapon field drives which set is visible. The remote-visuals MD
-  // reads the same snapshot field for other players' pills.
-  const tubeBody = BABYLON.MeshBuilder.CreateBox('rlB', { width: 0.16, height: 0.18, depth: 0.34 }, scene);
-  tubeBody.parent = gunRoot; tubeBody.material = mat('#372052'); tubeBody.isPickable = false;
-  const tube = BABYLON.MeshBuilder.CreateCylinder('rlT', { height: 0.52, diameter: 0.15, tessellation: 10 }, scene);
-  tube.parent = gunRoot; tube.rotation.x = Math.PI / 2; tube.position = V3(0, 0.04, 0.3);
-  tube.material = mat('#B84D8F'); tube.isPickable = false;
-  const tubeRim = BABYLON.MeshBuilder.CreateCylinder('rlR', { height: 0.06, diameter: 0.19, tessellation: 10 }, scene);
-  tubeRim.parent = gunRoot; tubeRim.rotation.x = Math.PI / 2; tubeRim.position = V3(0, 0.04, 0.55);
-  tubeRim.material = mat('#FF7A59'); tubeRim.isPickable = false;
-  const zapParts = [gunBody, gunBarrel, gunFin];
-  const rocketParts = [tubeBody, tube, tubeRim];
   let shownWeapon = -1;
   function setWeapon(w) {
     if (w === shownWeapon) return;
     shownWeapon = w;
-    for (const m of zapParts) m.setEnabled(w === 0);
-    for (const m of rocketParts) m.setEnabled(w === 1);
+    zapView.root.setEnabled(w === 0);
+    launcherView.root.setEnabled(w === 1);
   }
   setWeapon(0);
 
@@ -197,10 +181,13 @@ export function createFx({ scene, cam, mat, V3 }, world) {
       puffs.push({ mesh: s, life: 0, max: 1, s0: 1, s1: 1, a0: 0.3, rise: 1 });
     }
   }
-  function puff(pos, s0, s1, life, alpha, rise) {
+  function puff(pos, s0, s1, life, alpha, rise, hex) {
     const p = puffs.find((p) => p.life <= 0); if (!p) return;
     p.mesh.position.set(pos.x, pos.y, pos.z);
     p.s0 = s0; p.s1 = s1; p.max = life; p.life = life; p.a0 = alpha; p.rise = rise;
+    // per-instance material, so a tinted use (remote muzzle/launch flash,
+    // MD 14) never repaints the default smoke gray
+    p.mesh.material.emissiveColor = BABYLON.Color3.FromHexString(hex || '#C9BFD8');
     p.mesh.scaling.setAll(s0);
     p.mesh.isVisible = true;
   }
@@ -343,7 +330,7 @@ export function createFx({ scene, cam, mat, V3 }, world) {
 
   return {
     fire, spawnTracer, burst, jetPuff, dmgNum, setWeapon,
-    explosion, trailPuff, setRopeColor,
+    explosion, trailPuff, puff, setRopeColor,
     ropeTo, ropeOff, placeShadow, hideShadow,
     hitmarkFlash, hurtFlash, vig, update,
     muzzleWorld: () => muzzle.getAbsolutePosition(),
