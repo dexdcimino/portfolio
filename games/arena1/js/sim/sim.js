@@ -46,6 +46,13 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true } = {}) {
     return id;
   }
 
+  // Host-side departure (Phase 7): a peer left, its body leaves the match.
+  // Ids are never reused (allocId is monotonic), so a stale wire reference
+  // to a removed player simply resolves to nothing.
+  function removePlayer(id) {
+    ents.players.delete(id);
+  }
+
   return {
     get tick() { return tick; },
     get pvp() { return pvp; },
@@ -54,6 +61,7 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true } = {}) {
     get world() { return world; },
     get level() { return level; },
     addPlayer,
+    removePlayer,
     // commandsByPlayer: Map<playerId, command|undefined> for THIS tick.
     step(commandsByPlayer) {
       const events = [];

@@ -14,20 +14,40 @@ import { createFx } from './render/fx.js';
 import { AudioFX } from './systems/audio.js';
 
 const canvas = document.getElementById('game');
+const params = new URLSearchParams(location.search);
 const seed = (() => {
-  const q = new URLSearchParams(location.search).get('seed');
+  const q = params.get('seed');
   return q ? Number(q) >>> 0 : 1;
 })();
 // PvP is a MATCH-START flag (spec): the pause menu writes arena1-pvp, and the
-// next createSim — this one — reads it. Never toggled mid-match.
+// next createSim — this one — reads it. Never toggled mid-match. In a Photon
+// room, the HOST's flag decides; clients adopt it with the welcome.
 const pvp = (() => {
   try {
     const v = localStorage.getItem('arena1-pvp');
     return v === null ? PVP_DEFAULT : v === '1';
   } catch { return PVP_DEFAULT; }
 })();
-const transport = createLoopbackTransport(seed, { pvp });
-const localId = transport.addLocalPlayer();
+// ?room=<name> is the multiplayer boot flag (ARENA1_STEPS Phase 7): join
+// flow is the room name only. Loopback stays the solo path.
+const room = params.get('room');
+const transport = room
+  ? (await import('./net/photon.js')).createPhotonTransport({
+    room, seedWanted: seed, pvp,
+    onStatus: (msg) => { const el = document.getElementById('hud-boot'); if (el) el.textContent = `ARENA 1 · ${msg}`; },
+    onEnded: () => {
+      // The host left (or the connection died): the match ends CLEANLY —
+      // tell the player, then fall back to a fresh solo world.
+      feed('HOST LEFT — MATCH ENDED');
+      params.delete('room');
+      const solo = location.pathname + (params.toString() ? '?' + params.toString() : '');
+      setTimeout(() => location.replace(solo), 1800);
+    },
+  })
+  : createLoopbackTransport(seed, { pvp });
+await transport.ready; // instant for loopback; welcome-gated for a net client
+transport.addLocalPlayer();
+const localId = transport.localId;
 const level = transport.level;
 const world = transport.world;
 
@@ -283,12 +303,16 @@ function paintHud(me) {
 let camH = 0.55, roll = 0, bob = 0;
 let fireCd = 0, jetPuffT = 0;
 
-// ── accumulator + render loop ───────────────────────────────────────────────
-let fpsAcc = 0;
-engine.runRenderLoop(() => {
+// ── accumulator ─────────────────────────────────────────────────────────────
+// The pump is shared by the render loop AND a worker heartbeat: Chrome
+// suspends requestAnimationFrame in a hidden tab, which froze a HOST's sim —
+// and with it the whole match — the moment the host alt-tabbed (measured:
+// snapshot broadcasts stopped dead when a second window took focus). Worker
+// timers are exempt from background throttling, so the heartbeat keeps the
+// authoritative sim ticking; when the tab is visible it does nothing.
+function pump() {
   const nowMs = performance.now();
   const dt = Math.min(0.25, (nowMs - lastTime) / 1000);
-  const now = nowMs / 1000;
   lastTime = nowMs;
   if (state !== 'paused') { // paused freezes the sim; render keeps painting
     acc += dt;
@@ -298,6 +322,17 @@ engine.runRenderLoop(() => {
       acc -= SIM_DT;
     }
   }
+  return dt;
+}
+const pumpWorker = new Worker(URL.createObjectURL(new Blob(
+  ['setInterval(() => postMessage(0), 16);'], { type: 'text/javascript' })));
+pumpWorker.onmessage = () => { if (document.hidden) pump(); };
+
+// ── render loop ─────────────────────────────────────────────────────────────
+let fpsAcc = 0;
+engine.runRenderLoop(() => {
+  const dt = pump();
+  const now = performance.now() / 1000;
   coyoteT = (lastFlags & FLAG.GROUNDED) ? 0.1 : Math.max(0, coyoteT - dt);
 
   const alpha = acc / SIM_DT;
@@ -399,8 +434,13 @@ window.Arena1 = {
   },
 };
 
-// Dev readout: tick + seed prove the accumulator runs at sim rate.
+// Dev readout: tick + seed prove the accumulator runs at sim rate; the net
+// suffix shows room/role/headcount in multiplayer. Seed comes from the
+// snapshot — a net client adopts the HOST's seed, not its own URL.
 const boot = document.getElementById('hud-boot');
 setInterval(() => {
-  if (boot && lastSnap) boot.textContent = `ARENA 1 · seed ${seed} · tick ${lastSnap.tick}`;
+  if (!boot || !lastSnap) return;
+  const ni = transport.netInfo;
+  boot.textContent = `ARENA 1 · seed ${lastSnap.seed} · tick ${lastSnap.tick}`
+    + (ni ? ` · ${ni.room} · ${ni.isHost ? 'HOST' : 'CLIENT'} · ${ni.players}P` : '');
 }, 250);

@@ -15,9 +15,16 @@ export function createLoopbackTransport(seed, opts) {
   const sim = createSim(seed, opts);
   const subscribers = [];
   const pending = new Map(); // playerId → latest command for the coming tick
+  let localId = null;
 
   return {
-    addLocalPlayer() { return sim.addPlayer(); },
+    // Same readiness surface as the Photon transport: loopback is ready the
+    // moment it exists, and the local identity is known synchronously.
+    ready: Promise.resolve(),
+    isHost: true,
+    get localId() { return localId; },
+    get netInfo() { return null; }, // solo — nothing to show
+    addLocalPlayer() { localId = sim.addPlayer(); return localId; },
     sendCommand(cmd) { pending.set(cmd.playerId, cmd); },
     onSnapshot(cb) { subscribers.push(cb); },
     tick() {
