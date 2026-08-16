@@ -57,13 +57,15 @@ export function finishVisual(root, extraPose = null) {
    and remounts), which is what keeps the two-tone fur exact instead of
    approximated: tuft colours are vertex-baked and cannot be retinted. */
 const CHOMP_PALETTES = {
-  red:    { body: '#D94727', eyes: '#FFB021', horns: '#241A14', tuftBase: '#D94727', tuftTip: '#D94727' },
-  yellow: { body: '#FAAA1E', eyes: '#D94727', horns: '#241A14', tuftBase: '#FAAA1E', tuftTip: '#FAAA1E' },
-  lime:   { body: '#9EE02B', eyes: '#FAAA1E', horns: '#FAAA1E', tuftBase: '#FAAA1E', tuftTip: '#FAAA1E' },
+  // "black" throughout is the game's near-black (#101216 family), never
+  // #000000 — flat true black reads as a hole in this lighting.
+  red:    { body: '#D94727', eyes: '#FFB021', horns: '#241A14', tuftBase: '#D94727', tuftTip: '#FAAA1E' },
+  yellow: { body: '#FAAA1E', eyes: '#D94727', horns: '#241A14', tuftBase: '#FAAA1E', tuftTip: '#101216' },
+  lime:   { body: '#9EE02B', eyes: '#FAAA1E', horns: '#FAAA1E', tuftBase: '#9EE02B', tuftTip: '#D9F245' },
   cyan:   { body: '#0E1418', eyes: '#2CC7F6', horns: '#2CC7F6', tuftBase: '#0E1418', tuftTip: '#2CC7F6' },
   blue:   { body: '#335DF3', eyes: '#FF8A2B', horns: '#241A14', tuftBase: '#335DF3', tuftTip: '#335DF3' },
-  purple: { body: '#A85CF5', eyes: '#39FF14', horns: '#A85CF5', tuftBase: '#A85CF5', tuftTip: '#39FF14' },
-  white:  { body: '#E9EBEC', eyes: '#101216', horns: '#101216', tuftBase: '#E9EBEC', tuftTip: '#E9EBEC' },
+  purple: { body: '#A85CF5', eyes: '#39FF14', horns: '#321952', tuftBase: '#A85CF5', tuftTip: '#39FF14' },
+  white:  { body: '#E9EBEC', eyes: '#101216', horns: '#101216', tuftBase: '#E9EBEC', tuftTip: '#101216' },
 };
 function accentPalette() {
   try { return CHOMP_PALETTES[localStorage.getItem('dex-accent-name')] || CHOMP_PALETTES.lime; }
