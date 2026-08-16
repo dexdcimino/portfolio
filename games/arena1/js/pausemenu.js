@@ -425,7 +425,12 @@ function build() {
     window.Arena1?.resume?.();
   });
   menu.querySelector('.cmenu-exit').addEventListener('click', () => {
-    window.location.href = '/';
+    // Navigate the PARENT, not the iframe: the game runs framed by the
+    // wrapper, and the site's frame-ancestors header (correctly) refuses to
+    // load the site inside a frame. Same-origin, so window.top is reachable;
+    // standalone window.top === window and nothing changes. (Stickland's
+    // pattern, on record there since its extraction.)
+    (window.top || window).location.href = '/';
   });
   // Clicking the dimmed area OUTSIDE the panel resumes — the same contract as
   // the site's dialogs (backdrop click closes). Clicks inside stay inside.

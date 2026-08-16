@@ -15,6 +15,11 @@ export function createFx({ scene, cam, mat, V3 }, world) {
   // same models, so the viewmodel and the pill weapon can never drift.
   const gunRoot = new BABYLON.TransformNode('gun', scene);
   gunRoot.parent = cam; gunRoot.position = V3(0.34, -0.30, 0.72);
+  // Canted inward (the prototype held it dead straight): end-on you only saw
+  // the body's flat back face — a dark slab. A few degrees of yaw shows the
+  // side profile where the gun shape actually lives. The kick animation only
+  // writes rotation.x, so the cant persists.
+  gunRoot.rotation.y = -0.16;
   const zapView = makeZap({ mat, V3 }, scene, gunRoot);
   const launcherView = makeLauncher({ mat, V3 }, scene, gunRoot);
   const hookEmit = zapView.hookEmit;
