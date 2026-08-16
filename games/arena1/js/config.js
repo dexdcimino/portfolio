@@ -16,6 +16,16 @@ export const TUNE = {
   // between bursts still works, holding the jet still drains, and continuous
   // flight is 5.3s on a full tank instead of 10s.
   AIR_REGEN: 7,
+  /* MD 20: a DELAY before air regen starts, not another rate cut. Lowering the
+     rate only moves the break-even duty cycle (MD 16 put it at 7/26 = 27%);
+     it never removes it, because tapping under the threshold is always
+     available. The delay removes the strategy instead:
+       holding altitude needs a duty cycle of g/JET_ACCEL = 30/52 = 58%
+       earning any regen needs 2s with NO jet input
+     and those two cannot both be true. At 58% duty the timer never expires, so
+     regen never runs; to let it run you must fall for 2s (60m). Ground regen
+     deliberately does NOT wait — see movement.js. */
+  AIR_REGEN_DELAY_TICKS: 120,   // 2.0s
   GRAPPLE_RANGE: 75, GRAPPLE_PULL: 24, GRAPPLE_ACCEL: 14,
 };
 

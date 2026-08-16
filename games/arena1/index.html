@@ -70,6 +70,16 @@
          user gesture, so this small chip invites the click and vanishes the
          moment the lock lands (full controls live in the pause menu). -->
     <div id="lockHint" class="on">CLICK FOR MOUSE LOOK · ESC PAUSES</div>
+    <!-- MD 20 title state. Shown over the boot flyover and removed on the first
+         pointer lock. The prompt is deliberately "click to play", not "click to
+         dismiss": that click is the browser-required gesture, so it may as well
+         read as starting the game. -->
+    <div id="title">
+      <div id="titleName">ARENA<span>1</span></div>
+      <div id="titleSub">A FIRST-PERSON MOVEMENT SHOOTER</div>
+      <div id="titleGo">CLICK TO PLAY</div>
+      <div id="titleKeys">WASD MOVE · SPACE JUMP / JET · SHIFT DASH · RMB GRAPPLE · ESC PAUSE</div>
+    </div>
   </div>
   <!-- Pause overlay: main.js's setState('paused') shows it, pausemenu.js
        fills it. Starts hidden; the menu binds no keys (main owns Escape). -->

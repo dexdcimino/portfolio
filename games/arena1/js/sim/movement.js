@@ -75,6 +75,9 @@ export function createPlayerState(id, pos) {
     hp: 100, hurtT: 99,
     fuel: 100, fuelMax: 100,
     dashCharges: 2, dashCd: 0, dashT: 0, dashDir: { x: 0, z: 1 },
+    // Far in the past, so a player who never jets regenerates immediately and
+    // nothing about non-jetting play changes.
+    lastJetTick: -1e9,
     sliding: false, jetting: false, wallsliding: false, fireCd: 0,
     weapon: 0, // 0 = zap (hitscan), 1 = rocket (MD 11); survives respawn, resets with the match
     grapple: null,               // { mode:'pull'|'yank'|'cell', ... } while latched
@@ -218,14 +221,23 @@ export function stepPlayer(ctx, p, cmd) {
     p.vel.y = Math.min(TUNE.JET_VMAX, p.vel.y + TUNE.JET_ACCEL * dt);
     p.fuel = Math.max(0, p.fuel - TUNE.JET_BURN * dt);
   }
-  /* Regen runs everywhere (MD 15 item 2 removed the grounded gate) but NOT at
-     one rate: MD 16 splits the air off onto its own lower AIR_REGEN. At the
-     shared 16/s the sustainable duty cycle was 62% and staying up was free,
-     which is exactly the outcome MD 15 flagged and this is the lever it named.
-     Ground keeps FUEL_REGEN, so landing is still the fast way to refill —
-     which is the whole point of making flight cost something. */
-  const regen = p.grounded ? TUNE.FUEL_REGEN : TUNE.AIR_REGEN;
-  if (p.fuel < p.fuelMax) {
+  /* MD 20. Two rates and, in the air, a DELAY.
+
+     MD 15 ungated regen, MD 16 split the air onto a lower rate — and neither
+     killed tap-jetting, because a rate only sets a break-even duty cycle and
+     you can always tap under it. The delay attacks the strategy directly: air
+     regen does not begin until AIR_REGEN_DELAY_TICKS have passed with no jet
+     input, and ANY jet input resets it. Holding altitude costs g/JET_ACCEL =
+     58% duty, which never leaves a 2s gap, so a hovering player earns nothing.
+
+     GROUND regen ignores the delay entirely, and that is deliberate: the delay
+     exists to stop you loitering in the air, not to punish the thing we want
+     you doing. Land and you refill immediately at the faster rate, so touching
+     down stays unambiguously the efficient way to refuel. */
+  if (jetting) p.lastJetTick = tick;
+  const airReady = (tick - p.lastJetTick) >= TUNE.AIR_REGEN_DELAY_TICKS;
+  const regen = p.grounded ? TUNE.FUEL_REGEN : (airReady ? TUNE.AIR_REGEN : 0);
+  if (regen > 0 && p.fuel < p.fuelMax) {
     p.fuel = Math.min(p.fuelMax, p.fuel + regen * dt);
   }
 

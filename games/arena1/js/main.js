@@ -56,6 +56,20 @@ const pausedEl = document.getElementById('paused');
 const hintEl = document.getElementById('lockHint');
 const feedEl = document.getElementById('feed');
 let state = 'playing'; // playing ⇄ paused; no title screen
+
+/* MD 20 — BOOT STATE. Until the first pointer lock the player used to face a
+   flat purple wall with a crosshair on it, which reads as a broken build. This
+   is a CAMERA STATE, not a pause: the sim keeps stepping underneath exactly as
+   before, so a multiplayer match in progress is unaffected by someone sitting
+   at the title.
+   It costs nothing to build — the scene is already there and already running,
+   so the flyover is a camera transform and a title card, no asset and no
+   loading bar. It ends at the first lock, which is also the ONE gesture the
+   browser requires (see the note on requestLock below): the click that starts
+   the game is the click that locks the mouse. */
+let booted = false;          // becomes true on the first successful lock
+let bootT = 0;               // seconds spent in the boot orbit
+let handoff = 0;             // 1 → 0 blend out of the boot camera on lock
 let S = null;          // the active session (see startSession)
 
 function feed(msg) {
@@ -66,7 +80,13 @@ function feed(msg) {
   setTimeout(() => el.remove(), 1150);
 }
 function updateHint() {
-  hintEl.classList.toggle('on', state === 'playing' && document.pointerLockElement !== canvas);
+  // The old hint is the in-match "you lost lock" line. During boot the title
+  // card carries the prompt instead, so the two never show at once.
+  hintEl.classList.toggle('on', booted && state === 'playing' && document.pointerLockElement !== canvas);
+}
+function updateBootChrome() {
+  // The HUD belongs to the player, not to the flyover.
+  document.body.classList.toggle('booting', !booted);
 }
 function setState(s) {
   state = s;
@@ -76,6 +96,7 @@ function setState(s) {
   if (S) { S.acc = 0; S.lastTime = performance.now(); } // no catch-up burst
 }
 updateHint();
+updateBootChrome();
 
 // ── global input state ──────────────────────────────────────────────────────
 let yaw = Math.PI, pitch = 0;      // local, render-rate; persists across sessions
@@ -120,6 +141,12 @@ canvas.addEventListener('click', () => {
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
   if (locked) {
+    if (!booted) {
+      booted = true;
+      handoff = 1;            // blend the camera rather than cutting to it
+      updateBootChrome();
+      S?.fx?.setViewmodelVisible(true);
+    }
     if (state !== 'playing') setState('playing');
   } else {
     firing = false; grappling = false; jetLatch = false;
@@ -218,6 +245,7 @@ function startSession(transport) {
   const actors = createActors(R);
   const fx = createFx(R, world);
   const serpents = createSerpentView(R);
+  fx.setViewmodelVisible(booted);   // no gun during the title flyover
 
   const sess = {
     transport, localId, level, world, R, levelView, actors, fx,
@@ -433,8 +461,50 @@ function startSession(transport) {
         if (grounded && hSpeed > 1 && !sliding) sess.bob += dt * hSpeed * 1.4;
         const bobY = grounded && !sliding ? Math.sin(sess.bob) * 0.03 * Math.min(1, hSpeed / 9) : 0;
         const shake = jetting ? (Math.random() - 0.5) * 0.012 : 0;
-        cam.position.set(px + shake, py + sess.camH + bobY + shake, pz);
-        cam.rotation.set(pitch, yaw, sess.roll);
+        const camX = px + shake, camY = py + sess.camH + bobY + shake, camZ = pz;
+        if (!booted || handoff > 0) {
+          /* Slow orbit over the arena, framed to show the hexagon and the
+             spiral at once: high enough to see the rim, tilted down enough
+             that the ascent reads as a column rather than a horizon line.
+             0.06 rad/s is about 100s a lap — a drift, not a spinning demo. */
+          bootT += dt;
+          const a = bootT * 0.06 + 2.2;
+          /* High and well outside the rim, looking DOWN at the lower third of
+             the climb. Two reasons: from up here the hexagon reads as a
+             hexagon rather than a horizon line, and it drops the arena into
+             the bottom half of the frame so the title has clear sky behind it
+             instead of competing with the platform field. Orbiting at 250 also
+             keeps the camera clear of the corner markers at r=90, which were
+             swinging through the foreground at 235. */
+          const orbitR = 255, orbitY = 214;
+          const bx = Math.cos(a) * orbitR;
+          const bz = Math.sin(a) * orbitR;
+          const by = orbitY + Math.sin(bootT * 0.13) * 18;
+          const look = { x: 0, y: 46, z: 0 };
+          const dx = look.x - bx, dy = look.y - by, dz = look.z - bz;
+          const bYaw = Math.atan2(dx, dz);
+          const bPitch = -Math.atan2(dy, Math.hypot(dx, dz));
+          if (handoff > 0) {
+            // ease out of the flyover instead of cutting — handoff runs 1→0
+            handoff = Math.max(0, handoff - dt / 0.9);
+            const k = handoff * handoff * (3 - 2 * handoff);   // smoothstep
+            const lerp = (u, v) => v + (u - v) * k;
+            const angLerp = (u, v) => {
+              let d = u - v;
+              while (d > Math.PI) d -= Math.PI * 2;
+              while (d < -Math.PI) d += Math.PI * 2;
+              return v + d * k;
+            };
+            cam.position.set(lerp(bx, camX), lerp(by, camY), lerp(bz, camZ));
+            cam.rotation.set(angLerp(bPitch, pitch), angLerp(bYaw, yaw), sess.roll * (1 - k));
+          } else {
+            cam.position.set(bx, by, bz);
+            cam.rotation.set(bPitch, bYaw, 0);
+          }
+        } else {
+          cam.position.set(camX, camY, camZ);
+          cam.rotation.set(pitch, yaw, sess.roll);
+        }
         const fovTarget = sliding ? 1.12 : 1.05;
         sess.fovT += (fovTarget - sess.fovT) * Math.min(1, 4 * dt);
         cam.fov += (sess.fovT - cam.fov) * Math.min(1, 10 * dt);

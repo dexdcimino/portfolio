@@ -128,12 +128,13 @@ const CSS = `
   font-size:18px;font-weight:800;letter-spacing:.1em;color:#F2D6A2;background:#2b1b45;
   border:2px solid #4A2B63;outline:none;text-align:center;text-transform:uppercase}
 .cmenu-tag:focus{border-color:var(--cmenu-accent,#9EE02B)}
-.cmenu-pvptoggle{flex:1;height:34px;border-radius:8px;cursor:pointer;font-size:11px;
-  font-weight:800;letter-spacing:.1em;border:2px solid #4A2B63;background:#2b1b45;color:#F2D6A2;
+.cmenu-pvptoggle{height:32px;border-radius:8px;cursor:pointer;font-size:11px;
+  font-weight:800;letter-spacing:.08em;border:2px solid #4A2B63;background:#2b1b45;color:#F2D6A2;
   font-family:inherit;transition:border-color .15s ease,background .15s ease,color .15s ease}
 .cmenu-pvptoggle:hover{border-color:var(--cmenu-accent,#9EE02B)}
+/* On/off is carried by the FILL, not by the word — the label is just "PVP" so
+   it fits the 62px action column beside COPY and JOIN. */
 .cmenu-pvptoggle.is-on{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
-.cmenu-vis{flex:1.4}
 .cmenu-confirm{display:flex;align-items:center;gap:8px;margin:2px 0 8px;padding:8px 10px;
   background:#2b1b45;border:2px solid var(--cmenu-accent,#9EE02B);border-radius:8px}
 .cmenu-confirm[hidden]{display:none}
@@ -147,11 +148,25 @@ const CSS = `
    button — so the ID field and the join field are exactly the same width with
    their left and right borders on the same two lines. The join row carries an
    empty first cell rather than shrinking its field by eye. */
-.cmenu-lobbyrow{display:grid;grid-template-columns:64px minmax(0,1fr) 64px;
+/* MD 20 item 4. ONE grid for all three lobby rows — label / field / action —
+   so the ID field, the lobby-word field and the PUBLIC/PRIVATE control share
+   left and right edges exactly, and COPY, JOIN and PVP share theirs. The
+   vis/pvp row used to be two wide filled blocks laid out independently, which
+   is why it read as bolted on. */
+.cmenu-lobbyrow{display:grid;grid-template-columns:26px minmax(0,1fr) 62px;
   align-items:center;gap:8px;margin-bottom:8px}
 .cmenu-lobbyrow .cmenu-roomlab{min-width:0}
 .cmenu-lobbyrow .cmenu-roomcode,.cmenu-lobbyrow .cmenu-joincode{width:100%;box-sizing:border-box}
-.cmenu-lobbyrow .cmenu-copy,.cmenu-lobbyrow .cmenu-join{width:100%;min-width:0}
+.cmenu-lobbyrow .cmenu-copy,.cmenu-lobbyrow .cmenu-join,
+.cmenu-lobbyrow .cmenu-pvptoggle{width:100%;min-width:0;padding:0}
+/* The segmented control sits in the FIELD column and the pvp toggle in the
+   ACTION column, so both inherit the row's edges rather than setting their own.
+   border-box on the seg is load-bearing: without it its 2px borders sit OUTSIDE
+   the 100% and the control comes out 4px wider than the two fields above it,
+   which is exactly the misalignment this row is being rebuilt to remove. */
+.cmenu-lobbyrow .cmenu-seg{width:100%;min-width:0;box-sizing:border-box}
+.cmenu-lobbyrow .cmenu-copy,.cmenu-lobbyrow .cmenu-join,
+.cmenu-lobbyrow .cmenu-pvptoggle{box-sizing:border-box}
 .cmenu-roomlab{font-size:10px;font-weight:800;letter-spacing:.18em;color:#a8916b;min-width:64px}
 .cmenu-roomcode{flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;
   font-size:15px;letter-spacing:.18em;color:#F2D6A2;background:#2b1b45;
@@ -187,6 +202,9 @@ const CSS = `
    Public/Private was asked for. */
 .cmenu-seg{display:flex;gap:0;height:32px;padding:0;overflow:hidden;
   border:2px solid #4A2B63;border-radius:8px;background:#2b1b45}
+/* Only the ACTIVE half carries fill. Two large accent blocks side by side was
+   the other half of why this row felt heavy — the eye reads "two primary
+   actions" when there is really one state and one switch. */
 .cmenu-seg button{flex:1;height:100%;border:0;border-radius:0;cursor:pointer;
   font-size:11px;font-weight:800;letter-spacing:.1em;background:transparent;color:#F2D6A2;
   font-family:inherit;
@@ -250,7 +268,8 @@ function build() {
              placeholder="enter a lobby word" aria-label="Lobby code to join">
       <button class="cmenu-join" type="button">JOIN</button>
     </div>
-    <div class="cmenu-roomrow">
+    <div class="cmenu-roomrow cmenu-lobbyrow">
+      <span aria-hidden="true"></span>
       <div class="cmenu-seg cmenu-vis">
         <button type="button" data-vis="public">PUBLIC</button>
         <button type="button" data-vis="private">PRIVATE</button>
@@ -452,9 +471,14 @@ function build() {
   const pvpToggle = menu.querySelector('.cmenu-pvptoggle');
   const paintPvp = () => {
     const on = (store.get('arena1-pvp') ?? '1') === '1'; // PVP_DEFAULT: true
-    pvpToggle.textContent = on ? 'PVP ON' : 'PVP OFF';
+    // Label is always "PVP" so it fits the 62px action column beside COPY and
+    // JOIN; on/off is carried by the fill. The state still reaches a screen
+    // reader through aria-pressed and the aria-label, which do say the word.
+    pvpToggle.textContent = 'PVP';
     pvpToggle.classList.toggle('is-on', on);
     pvpToggle.setAttribute('aria-pressed', String(on));
+    pvpToggle.setAttribute('aria-label', on ? 'PvP on — click to turn off' : 'PvP off — click to turn on');
+    pvpToggle.title = on ? 'PvP ON (applies next match)' : 'PvP OFF (applies next match)';
   };
   pvpToggle.addEventListener('click', () => {
     const on = (store.get('arena1-pvp') ?? '1') === '1';

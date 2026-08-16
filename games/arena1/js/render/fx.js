@@ -353,6 +353,11 @@ export function createFx({ scene, cam, mat, V3 }, world) {
   return {
     fire, spawnTracer, burst, jetPuff, dmgNum, setWeapon,
     explosion, trailPuff, puff, setRopeColor,
+    /* MD 20: the viewmodel is parented to the CAMERA, so the boot flyover
+       carried the gun with it — a first-person weapon floating over an
+       establishing shot of the arena. Hidden for the duration of the title
+       state and restored on handoff. */
+    setViewmodelVisible(on) { gunRoot.setEnabled(!!on); },
     ropeTo, ropeOff, placeShadow, hideShadow,
     hitmarkFlash, hurtFlash, vig, update,
     muzzleWorld: () => muzzle.getAbsolutePosition(),

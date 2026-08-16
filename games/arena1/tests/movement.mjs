@@ -143,58 +143,98 @@ function step(ctx, p, c) {
   ok('walljump + cling', `cling vy floor ${minVy.toFixed(2)} (limit -3.5), kick vy ${jumped.vy.toFixed(2)} (UP ${TUNE.WALLJUMP_UP}), out vx ${jumped.vx.toFixed(2)} (OUT ${TUNE.WALLJUMP_OUT} - steer 3)`);
 }
 
-// ── 5. jetpack: vy cap, NET burn, and the TWO regen rates (MD 15 item 2 as
-//       revised by MD 16 — air regen is its own, lower constant) ────────────
+// ── 5. jetpack: full burn while jetting, DELAYED air regen, fast ground ────
+//       (MD 15 ungated regen, MD 16 split the rate, MD 20 added the delay —
+//        which is the part that actually kills tap-jetting.)
 {
   const ctx = flatCtx();
-  const p = createPlayerState(1, { x: 0, y: 0.92, z: 0 });
-  step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, BTN.JUMP));
+  // Start high: the delay is 2s and a jet burn from the floor only buys ~1.2s
+  // of hang time, so a ground start lands before the window can even be tested.
+  const p = createPlayerState(1, { x: 0, y: 400, z: 0 });
   let jetTicks = 0, maxVy = 0;
   for (let t = 0; t < 90; t++) {
     step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, BTN.JET));
     if (p.jetting) { jetTicks++; maxVy = Math.max(maxVy, p.vel.y); }
   }
-  // Regen is not ground-gated (MD 15) but the air rate is its own constant
-  // (MD 16), so holding jet costs BURN - AIR_REGEN. Pinning it against
-  // TUNE.AIR_REGEN rather than a literal means the test follows a retune
-  // instead of having to be rewritten for one.
-  const net = TUNE.JET_BURN - TUNE.AIR_REGEN;
-  const expectFuel = 100 - net * jetTicks * SIM_DT;
+  // Holding jet earns NOTHING: every tick resets the delay, so the cost is the
+  // full burn rather than burn-minus-regen.
+  const expectFuel = 100 - TUNE.JET_BURN * jetTicks * SIM_DT;
   assert.ok(maxVy <= TUNE.JET_VMAX + 1e-9, `jet vy ${maxVy.toFixed(2)} above JET_VMAX`);
   assert.ok(Math.abs(p.fuel - expectFuel) < 0.5,
-    `fuel ${p.fuel.toFixed(1)} vs expected ${expectFuel.toFixed(1)} (net ${net}/s)`);
-  // AIR regen, measured while provably not grounded. Coasting (no JET) for 30
-  // ticks must gain exactly AIR_REGEN over that window.
-  const airBefore = p.fuel;
+    `fuel ${p.fuel.toFixed(1)} vs expected ${expectFuel.toFixed(1)} (full burn ${TUNE.JET_BURN}/s while held)`);
+
+  // Air regen must NOT have started yet inside the delay window...
+  const beforeWait = p.fuel;
+  const shortWait = TUNE.AIR_REGEN_DELAY_TICKS - 10;
+  for (let t = 0; t < shortWait && !p.grounded; t++) step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0));
+  assert.ok(!p.grounded, 'landed before the delay window finished — test needs more altitude');
+  assert.ok(Math.abs(p.fuel - beforeWait) < 0.01,
+    `air regen ran inside the delay: ${beforeWait.toFixed(2)} → ${p.fuel.toFixed(2)}`);
+
+  // ...and must start once it expires.
+  for (let t = 0; t < 20 && !p.grounded; t++) step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0));
+  const airStart = p.fuel;
   let airTicks = 0;
   for (let t = 0; t < 30 && !p.grounded; t++) { step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0)); airTicks++; }
   assert.ok(!p.grounded, 'fell to the ground before the air-regen window finished');
-  const expectAir = Math.min(p.fuelMax, airBefore + TUNE.AIR_REGEN * airTicks * SIM_DT);
-  assert.ok(Math.abs(p.fuel - expectAir) < 0.5,
-    `air regen ${airBefore.toFixed(1)} → ${p.fuel.toFixed(1)}, expected ${expectAir.toFixed(1)}`);
-  const airGain = p.fuel - airBefore;
+  const airGain = p.fuel - airStart;
+  const expectAir = TUNE.AIR_REGEN * airTicks * SIM_DT;
+  assert.ok(Math.abs(airGain - expectAir) < 0.5,
+    `air regen ${airGain.toFixed(2)} vs expected ${expectAir.toFixed(2)} after the delay`);
 
-  // fall back to ground, then regen on the ground over the SAME window.
-  // Fuel is deliberately drained first: by the time the fall ends it has
-  // already refilled to fuelMax, and a capped tank regenerates 0 — which is
-  // what made the first version of this comparison read 8.00 vs 0.00.
+  // Ground regen ignores the delay AND is faster — landing stays the efficient
+  // refuel, which is the behaviour the delay is meant to encourage.
+  p.pos.y = 2; p.vel.y = 0;          // drop to the floor rather than fall 400m
   let t2 = 0;
-  while (!p.grounded && t2 < 400) { step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0)); t2++; }
-  assert.ok(p.grounded, 'never landed after jetting');
+  while (!p.grounded && t2 < 600) { step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0)); t2++; }
+  assert.ok(p.grounded, 'never landed');
   p.fuel = 50;
-  const fuelBefore = p.fuel;
-  const groundBefore = p.fuel;
+  p.lastJetTick = ctx.tick;            // pretend we JUST jetted: ground must not care
+  const gStart = p.fuel;
   for (let t = 0; t < airTicks; t++) step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0));
-  const groundGain = p.fuel - groundBefore;
-  assert.ok(p.fuel > fuelBefore + 5, `regen: ${fuelBefore.toFixed(1)} → ${p.fuel.toFixed(1)}`);
-  // The two rates must now DIFFER, and in the right direction — the whole
-  // point of MD 16's split is that landing refills faster than loitering.
-  const expectGround = TUNE.FUEL_REGEN * airTicks * SIM_DT;
-  assert.ok(Math.abs(groundGain - expectGround) < 0.5,
-    `ground regen ${groundGain.toFixed(2)} vs expected ${expectGround.toFixed(2)}`);
+  const groundGain = p.fuel - gStart;
+  assert.ok(Math.abs(groundGain - TUNE.FUEL_REGEN * airTicks * SIM_DT) < 0.5,
+    `ground regen ${groundGain.toFixed(2)} did not run at the full rate right after jetting`);
   assert.ok(groundGain > airGain + 0.5,
-    `ground regen ${groundGain.toFixed(2)} must exceed air regen ${airGain.toFixed(2)}`);
-  ok('jetpack', `vy cap ${maxVy.toFixed(2)} (JET_VMAX ${TUNE.JET_VMAX}), net burn ${net}/s over ${jetTicks} ticks → fuel ${expectFuel.toFixed(1)}, air regen ${airGain.toFixed(2)} < ground regen ${groundGain.toFixed(2)}`);
+    `ground regen ${groundGain.toFixed(2)} must beat air ${airGain.toFixed(2)}`);
+  ok('jetpack: delay kills the free ride', `held jet costs the full ${TUNE.JET_BURN}/s (no regen); `
+    + `air regen blocked for ${TUNE.AIR_REGEN_DELAY_TICKS} ticks then ${airGain.toFixed(2)} over ${airTicks}; `
+    + `ground ${groundGain.toFixed(2)} immediately even straight after a burn`);
+}
+
+// ── 5b. tap-jetting cannot sustain flight — the actual MD 20 claim ─────────
+// Sweeps duty cycles and asserts that every one either runs the tank dry or
+// loses altitude. This is the assertion that would fail if someone "fixed" the
+// delay by tuning the rate again.
+{
+  let sustained = null;
+  for (const onTicks of [2, 4, 6, 10, 20, 35]) {
+    for (const offTicks of [4, 10, 30, 60, 120, 150, 240]) {
+      const ctx = flatCtx();
+      const p = createPlayerState(1, { x: 0, y: 200, z: 0 });   // plenty of air
+      let t = 0;
+      const startY = p.pos.y;
+      for (; t < 3600; t++) {
+        const phase = t % (onTicks + offTicks);
+        const jet = phase < onTicks;
+        step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, jet ? BTN.JET : 0));
+        if (p.pos.y < startY - 40) break;      // lost altitude: not sustained
+        if (p.grounded) break;
+      }
+      // "sustained" = still up, still has fuel, after a full minute
+      if (t >= 3600 && p.pos.y > startY - 40 && p.fuel > 1) {
+        sustained = { onTicks, offTicks, duty: onTicks / (onTicks + offTicks), y: p.pos.y, fuel: p.fuel };
+      }
+    }
+  }
+  assert.equal(sustained, null,
+    `tap-jetting STILL sustains flight at ${sustained && (100 * sustained.duty).toFixed(0)}% duty `
+    + `(${sustained && sustained.onTicks}on/${sustained && sustained.offTicks}off, `
+    + `y ${sustained && sustained.y.toFixed(0)}, fuel ${sustained && sustained.fuel.toFixed(0)})`);
+  const hoverDuty = Math.abs(TUNE.G) / TUNE.JET_ACCEL;
+  ok('tap-jetting cannot sustain flight', `42 duty cycles swept over 60s each, none held altitude with fuel left; `
+    + `hovering needs ${(100 * hoverDuty).toFixed(0)}% duty, regen needs a `
+    + `${(TUNE.AIR_REGEN_DELAY_TICKS / 60).toFixed(1)}s idle gap — mutually exclusive`);
 }
 
 // ── 6. grapple: latch, pull, momentum release, auto-release (feel item 5) ──
@@ -316,4 +356,4 @@ function step(ctx, p, c) {
   ok('determinism with all mechanics', 'slide/dash/jet/grapple all exercised, 600 ticks byte-identical');
 }
 
-console.log(`\nmovement.mjs: ${passed}/10 passed`);
+console.log(`\nmovement.mjs: ${passed}/11 passed`);
