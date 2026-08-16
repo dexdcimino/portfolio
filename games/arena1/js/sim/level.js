@@ -1,0 +1,306 @@
+// sim/level.js — buildLevel(rng): the prototype's arena constants + Ascent
+// generator + pads/rings/cells/summit, emitting collision SHAPES plus plain
+// placement data. The render layer (Phase 4) builds the pretty meshes FROM
+// this data — the sim never sees a mesh, and the same rng stream reproduces
+// the same level on every peer.
+//
+// Prototype source of truth: games/arena1/reference/prototype.html lines
+// 259–535 (geometry) and 972–1035 (mover/blinker/collapser semantics). The
+// archetype → collision approximation table is ARENA1_STEPS Phase 2.
+//
+// rng draws happen in the same relative order as the prototype (crystals →
+// Ascent → rings) so layout statistics match; the prototype's pebbles are
+// render-only and draw from their own stream there (rngFor(seed,'pebbles')).
+
+import { TUNE, SIM_DT } from '../config.js';
+import { norm } from './vec.js';
+
+export const SUMMIT_Y = 128;
+const GOLD = 2.39996; // golden-angle spiral
+
+// Axes of a box rotated Babylon-style (rotation.y then rotation.x, roll 0):
+// R = Ry(ry)·Rx(rx). Columns are the images of the local basis — stored, not
+// re-derived per query (spec).
+function rotYX(rx, ry) {
+  const cx = Math.cos(rx), sx = Math.sin(rx);
+  const cy = Math.cos(ry), sy = Math.sin(ry);
+  return [
+    { x: cy, y: 0, z: -sy },
+    { x: sx * sy, y: cx, z: sx * cy },
+    { x: cx * sy, y: -sx, z: cx * cy },
+  ];
+}
+
+export function buildLevel(world, rng) {
+  const level = {
+    summitY: SUMMIT_Y,
+    blocks: [],   // plain arena boxes {name,w,h,d,x,y,z,hex} — render rebuilds from these
+    ramps: [],    // rotated boxes {name,w,h,d,x,y,z,rotX,rotY,hex}
+    platforms: [], // the Ascent — see the platform record below
+    pads: [],     // jump pads {x,z,power,r}
+    rings: [],    // boost rings {pos,dir}
+    crystals: [], // {x,y,z,s,sy,rotY,col} — collidable, arena + platform deco
+    cellSpots: [], platSpawnPoints: [], spikeSpots: [],
+  };
+
+  const box = (name, w, h, d, x, y, z, hex) => {
+    level.blocks.push({ name, w, h, d, x, y, z, hex });
+    world.addAabb(
+      { x: x - w / 2, y: y - h / 2, z: z - d / 2 },
+      { x: x + w / 2, y: y + h / 2, z: z + d / 2 });
+  };
+  const ramp = (name, w, h, d, x, y, z, rotX, rotY, hex) => {
+    level.ramps.push({ name, w, h, d, x, y, z, rotX, rotY, hex });
+    world.addObb({ x, y, z }, { x: w / 2, y: h / 2, z: d / 2 }, rotYX(rotX, rotY));
+  };
+
+  // ---- arena (prototype lines 272–306) ----
+  box('ground', 130, 2, 130, 0, -1, 0, '#E8C77E');
+  const RIM = '#4A2B63';
+  box('wN', 134, 9, 3, 0, 3.5, -66, RIM); box('wS', 134, 9, 3, 0, 3.5, 66, RIM);
+  box('wE', 3, 9, 134, 66, 3.5, 0, RIM); box('wW', 3, 9, 134, -66, 3.5, 0, RIM);
+  box('spire', 7, 18, 7, 0, 9, 0, '#372052');
+  box('spireCap', 9, 1, 9, 0, 18.5, 0, '#3EC5B4');
+  ramp('rampA', 5, 1, 20, 15, 2.5, 0, -0.26, Math.PI / 2, '#D9A85C');
+  ramp('rampB', 5, 1, 20, -15, 2.5, 8, 0.26, Math.PI / 2, '#D9A85C');
+  box('padPlatA', 9, 1, 9, 30, 5, 0, '#5A3B7A');
+  box('padPlatB', 9, 1, 9, -30, 6, 14, '#5A3B7A');
+  box('slab1', 2, 14, 16, 44, 7, -20, '#372052');
+  box('slab2', 2, 14, 16, 52, 7, -20, '#372052');
+  box('slab3', 16, 14, 2, -40, 7, 40, '#372052');
+  box('slab4', 16, 14, 2, -40, 7, 48, '#372052');
+  [[24, 28], [-28, -24], [36, 30], [-44, -6], [10, 44], [-8, -46]].forEach((p, i) =>
+    box('pil' + i, 3.2, 10 + ((i * 3) % 6), 3.2, p[0], 5 + ((i * 3) % 6) / 2, p[1], i % 2 ? '#4A2B63' : '#372052'));
+
+  // Jump pads: vcyl solid + trigger radius (movement consumes the trigger in
+  // Phase 3; power is the launch velocity, straight from the prototype).
+  const pad = (x, z, power) => {
+    level.pads.push({ x, z, power, r: 2.2 });
+    world.addVcyl({ x, y: 0.2, z }, 2.2, 0.2);
+  };
+  pad(30, 0, 17); pad(-30, 14, 18); pad(0, -34, 20); pad(48, -32, 22);
+
+  // Crystals collide in the prototype (checkCollisions on the LOD root), so
+  // they collide here: a slightly-inset vcyl under the faceted blob. Draw
+  // order inside matches the prototype's crystal() (height factor, then yaw).
+  const crystal = (x, y, z, s, col) => {
+    const sy = s * (1.6 + rng() * 1.4);
+    const rotY = rng() * Math.PI;
+    const cy = y + sy * 0.8;
+    level.crystals.push({ x, y: cy, z, s, sy, rotY, col });
+    world.addVcyl({ x, y: cy, z }, s * 0.9, sy);
+  };
+  for (let i = 0; i < 40; i++) {
+    const a = rng() * Math.PI * 2, r = 18 + rng() * 42;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (Math.abs(x) < 10 && Math.abs(z) < 10) continue;
+    crystal(x, 0, z, 0.7 + rng() * 1.6, rng() > 0.5 ? 'teal' : 'pink');
+  }
+
+  // ---- THE ASCENT (prototype lines 371–495) ----
+  // platMesh() port: same rolls, same dims, collision per the Phase 2 table.
+  function platShapes(x, y, z, platformId) {
+    const roll = rng();
+    const opts = { platformId };
+    const shapes = [];
+    const S = (sh) => { shapes.push(sh); return sh; };
+    const cbox = (cx, cy, cz, w, h, d) => S(world.addAabb(
+      { x: cx - w / 2, y: cy - h / 2, z: cz - d / 2 },
+      { x: cx + w / 2, y: cy + h / 2, z: cz + d / 2 }, opts));
+    if (roll < 0.28) { // slab — thickness varies wildly → aabb
+      const w = 4 + rng() * 9, d = 4 + rng() * 9, h = 0.5 + rng() * 4.5;
+      cbox(x, y, z, w, h, d);
+      return { archetype: 'slab', dims: { w, d, h }, approxR: Math.min(w, d) * 0.45, halfH: h / 2, spikeOk: true, shapes };
+    }
+    if (roll < 0.48) { // hex/oct pad (convex) → vcyl at ~the polygon's mean radius
+      const dia = 5 + rng() * 9, h = 0.6 + rng() * 3.4, tess = 6 + ((rng() * 3) | 0);
+      S(world.addVcyl({ x, y, z }, dia * 0.46, h / 2, opts));
+      return { archetype: 'pad', dims: { dia, h, tess }, approxR: dia * 0.42, halfH: h / 2, spikeOk: true, shapes };
+    }
+    if (roll < 0.62) { // rock chunk → vcyl (r = avg xz half-extent, halfH from bounds)
+      const sx = 3 + rng() * 4, sy = 1.0 + rng() * 1.8, sz = 3 + rng() * 4;
+      S(world.addVcyl({ x, y, z }, (sx + sz) / 2, sy, opts));
+      return { archetype: 'rock', dims: { sx, sy, sz }, approxR: 2.6, halfH: sy * 0.8, spikeOk: true, shapes };
+    }
+    if (roll < 0.76) { // cross (concave inner corners) → 2 aabbs
+      const h = 0.8 + rng() * 2.4, len = 6 + rng() * 7, wid = 2.6 + rng() * 2;
+      cbox(x, y, z, len, h, wid);
+      cbox(x, y, z, wid, h, len);
+      return { archetype: 'cross', dims: { h, len, wid }, approxR: len * 0.32, halfH: h / 2, spikeOk: true, shapes };
+    }
+    if (roll < 0.86) { // L (concave corner) → 2 aabbs, second arm offset
+      const h = 0.8 + rng() * 2.4, len = 6 + rng() * 6, wid = 3 + rng() * 1.6;
+      cbox(x, y, z, len, h, wid);
+      cbox(x + len / 2 - wid / 2, y, z + len / 2 - wid / 2, wid, h, len);
+      return { archetype: 'L', dims: { h, len, wid }, approxR: len * 0.3, halfH: h / 2, spikeOk: true, shapes };
+    }
+    if (roll < 0.94) { // ring — 8 obb segments around the annulus; the hole stays a hole
+      const D = 9 + rng() * 6, h = 0.9 + rng() * 1.4;
+      const rm = D * 0.36;                       // annulus centerline (outer 0.5D, inner 0.22D)
+      const radial = D * 0.14;                   // (0.5D − 0.22D) / 2
+      const tang = rm * Math.tan(Math.PI / 8) * 1.02; // slight overlap so seams can't catch
+      for (let k = 0; k < 8; k++) {
+        const th = (k + 0.5) * Math.PI / 4;
+        const ct = Math.cos(th), st = Math.sin(th);
+        S(world.addObb(
+          { x: x + ct * rm, y, z: z + st * rm },
+          { x: radial, y: h / 2, z: tang },
+          [{ x: ct, y: 0, z: st }, { x: 0, y: 1, z: 0 }, { x: -st, y: 0, z: ct }], opts));
+      }
+      return { archetype: 'ring', dims: { D, h }, approxR: D * 0.36, halfH: h / 2, spikeOk: false, shapes };
+    }
+    // dish — crater bowl → 10 rim obbs + one lowered floor vcyl (the bowl,
+    // flattened at roughly the carve's mean depth; spec blesses the approximation)
+    const D = 7 + rng() * 5, h = 2.6 + rng() * 1.6;
+    {
+      const rm = D * 0.45, radial = D * 0.07;
+      const tang = rm * Math.tan(Math.PI / 10) * 1.05;
+      for (let k = 0; k < 10; k++) {
+        const th = (k + 0.5) * Math.PI / 5;
+        const ct = Math.cos(th), st = Math.sin(th);
+        S(world.addObb(
+          { x: x + ct * rm, y, z: z + st * rm },
+          { x: radial, y: h / 2, z: tang },
+          [{ x: ct, y: 0, z: st }, { x: 0, y: 1, z: 0 }, { x: -st, y: 0, z: ct }], opts));
+      }
+      const floorTop = h / 2 - 0.165 * D, floorBot = -h / 2;
+      S(world.addVcyl(
+        { x, y: y + (floorTop + floorBot) / 2, z }, D * 0.25, (floorTop - floorBot) / 2, opts));
+    }
+    return { archetype: 'dish', dims: { D, h }, approxR: D * 0.34, halfH: h / 2, spikeOk: false, shapes };
+  }
+
+  (function genAscent() {
+    let a = rng() * 6.28, y = 12;
+    let prev = null;
+    let i = 0;
+    while (y < SUMMIT_Y - 6) {
+      a += GOLD + (rng() - 0.5) * 0.5;
+      const r = 16 + rng() * 26 + Math.sin(y * 0.08) * 6;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      const roll = rng();
+      let type = 'static', hex = '#5A3B7A';
+      if (roll > 0.87) { type = 'collapse'; hex = '#D9A85C'; }
+      else if (roll > 0.76) { type = 'blink'; hex = '#B84D8F'; }
+      else if (roll > 0.58) { type = 'mover'; hex = '#3E7FC5'; }
+      const platformId = level.platforms.length;
+      const info = platShapes(x, y, z, platformId);
+      const pl = {
+        id: platformId, type, hex, base: { x, y, z }, phase: rng() * 6.28,
+        amp: 0, speed: 0, axis: { x: 0, y: 0, z: 0 },
+        archetype: info.archetype, dims: info.dims,
+        approxR: info.approxR, halfH: info.halfH, spikeOk: info.spikeOk,
+        shapes: info.shapes,
+        // runtime (ticked in tickPlatforms; all tick-derived, no wall clock)
+        state: 'idle', timerTicks: 0, fallV: 0, fallY: 0, respawnTicks: 0,
+        active: true, offset: { x: 0, y: 0, z: 0 }, lastDelta: { x: 0, y: 0, z: 0 },
+      };
+      if (type === 'mover') {
+        const vert = rng() > 0.65;
+        pl.axis = vert ? { x: 0, y: 1, z: 0 } : (rng() > 0.5 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 0, z: 1 });
+        pl.amp = vert ? 2.2 + rng() * 2.5 : 3.5 + rng() * 4.5;
+        pl.speed = 0.25 + rng() * 0.4;
+      }
+      level.platforms.push(pl);
+
+      // decorations only on static platforms (prototype lines 460–485)
+      if (type === 'static') {
+        const top = y + info.halfH;
+        if (info.spikeOk) {
+          if (rng() < 0.28) crystal(x + (rng() - 0.5) * info.approxR, top, z + (rng() - 0.5) * info.approxR, 0.4 + rng() * 0.7, rng() > 0.5 ? 'teal' : 'pink');
+          if (rng() < 0.32 && level.cellSpots.length < 13) level.cellSpots.push({ x: x + (rng() - 0.5) * info.approxR * 0.8, y: top + 0.9, z: z + (rng() - 0.5) * info.approxR * 0.8 });
+          if (rng() < 0.26) level.platSpawnPoints.push({ x, y: top + 0.7, z });
+          if (rng() < 0.34 && level.spikeSpots.length < 8) level.spikeSpots.push({ pos: { x, y: top, z }, r: Math.max(1.4, info.approxR * 0.65) });
+        } else if (rng() < 0.55 && level.cellSpots.length < 13) {
+          level.cellSpots.push({ x, y: top + 1.1, z }); // hover bait over rings & craters
+        }
+        // occasional ramp down to the previous static platform
+        if (prev && rng() < 0.30) {
+          const dx = x - prev.x, dy = y - prev.y, dz = z - prev.z;
+          const hd = Math.hypot(dx, dz);
+          if (Math.abs(dy) < 4.5 && hd > 4 && hd < 16) {
+            const len = Math.hypot(hd, dy);
+            ramp('rmp' + i, 3, 0.6, len,
+              prev.x + dx / 2, prev.y + dy / 2 + 0.2, prev.z + dz / 2,
+              -Math.atan2(dy, hd), Math.atan2(dx, dz), '#D9A85C');
+          }
+        }
+        prev = { x, y, z };
+      }
+      y += 2.2 + rng() * 3.2;
+      i++;
+    }
+    // summit (the beacon is render-only: no collision in the prototype either)
+    box('summit', 15, 1.2, 15, 0, SUMMIT_Y, 0, '#3EC5B4');
+    level.cellSpots.push({ x: 3, y: SUMMIT_Y + 1.6, z: 3 });
+  })();
+
+  // ---- boost rings (prototype lines 497–516; non-solid, trigger-only) ----
+  for (let i = 0; i < 6; i++) {
+    const y = 24 + i * 16 + rng() * 6;
+    const a = rng() * 6.28, r = 20 + rng() * 18;
+    const pos = { x: Math.cos(a) * r, y, z: Math.sin(a) * r };
+    const dir = norm({ x: -Math.sin(a), y: 0.35 + rng() * 0.3, z: -Math.cos(a) }); // roughly inward+up
+    level.rings.push({ pos, dir });
+  }
+
+  // ---- fuel cell starters + spire cap (prototype line 520) ----
+  level.cellSpots.push({ x: 20, y: 1.4, z: 20 }, { x: -24, y: 1.4, z: -18 }, { x: 0, y: 19.6, z: 0 });
+
+  return level;
+}
+
+// Ticked by the sim BEFORE players move each tick (the prototype's order:
+// platforms first, so ground carry uses fresh deltas). standingIds is the set
+// of platform ids players stood on at the end of last tick; events collects
+// wire-format events for the snapshot.
+export function tickPlatforms(world, level, tick, standingIds, events) {
+  const t = tick * SIM_DT;
+  for (const pl of level.platforms) {
+    const px = pl.offset.x, py = pl.offset.y, pz = pl.offset.z;
+    if (pl.type === 'mover') {
+      // pos(tick) = base + axis · amp · sin(2π·speed·tick·SIM_DT + phase) — spec verbatim
+      const o = Math.sin(2 * Math.PI * pl.speed * t + pl.phase) * pl.amp;
+      pl.offset = { x: pl.axis.x * o, y: pl.axis.y * o, z: pl.axis.z * o };
+    } else if (pl.type === 'blink') {
+      const on = ((t + pl.phase) % 4.5) < 3.0;
+      if (on !== pl.active) {
+        pl.active = on;
+        for (const s of pl.shapes) world.setShapeActive(s, on);
+      }
+    } else if (pl.type === 'collapse') {
+      // FSM idle→shaking(0.8s)→falling→gone(4s)→idle, all in ticks. The shake
+      // jitter is cosmetic (render-side); sim shapes hold still until the fall.
+      if (pl.state === 'idle') {
+        if (standingIds && standingIds.has(pl.id)) {
+          pl.state = 'shaking';
+          pl.timerTicks = Math.round(0.8 / SIM_DT);
+          // The trigger tick is a wire event so late-joining peers can replay it.
+          events.push({ type: 'platform_trigger', platformId: pl.id, tick });
+        }
+      } else if (pl.state === 'shaking') {
+        if (--pl.timerTicks <= 0) { pl.state = 'falling'; pl.fallV = 0; }
+      } else if (pl.state === 'falling') {
+        pl.fallV += TUNE.G * 0.6 * SIM_DT;
+        pl.fallY += pl.fallV * SIM_DT;
+        if (pl.fallY < -45) {
+          pl.state = 'gone';
+          pl.respawnTicks = Math.round(4 / SIM_DT);
+          pl.active = false;
+          for (const s of pl.shapes) world.setShapeActive(s, false);
+        }
+      } else if (pl.state === 'gone') {
+        if (--pl.respawnTicks <= 0) {
+          pl.state = 'idle'; pl.fallV = 0; pl.fallY = 0;
+          pl.active = true;
+          for (const s of pl.shapes) world.setShapeActive(s, true);
+        }
+      }
+      pl.offset = { x: 0, y: pl.fallY, z: 0 };
+    }
+    pl.lastDelta = { x: pl.offset.x - px, y: pl.offset.y - py, z: pl.offset.z - pz };
+    if (pl.lastDelta.x !== 0 || pl.lastDelta.y !== 0 || pl.lastDelta.z !== 0) {
+      for (const s of pl.shapes) world.setShapeOffset(s, pl.offset);
+    }
+  }
+}

@@ -1,15 +1,18 @@
 // sim/sim.js — the headless, deterministic, fixed-step simulation.
-// Phase 1 scope: one hardcoded floor AABB, gravity, and enough movement for
-// the determinism harness (ground walk/friction, air accel, jump with the
-// wire-format buffer/coyote edges). The full movement port is Phase 3 and
-// replaces the mover here; the SHAPE of this file — createSim, step by
-// commands, snapshot out — is the contract that does not change.
+// Phase 2 scope: the real world — buildLevel's shapes, the substepped capsule
+// mover, platform ticking (movers/blinkers/collapsers) with ground carry, and
+// enough movement for the harnesses (ground walk/friction, air accel, jump
+// with the wire-format buffer/coyote edges). The full movement port is Phase 3
+// and replaces stepPlayer's middle; the SHAPE of this file — createSim, step
+// by commands, snapshot out — is the contract that does not change.
 //
 // Rules enforced by tests/guards.mjs: no Babylon, no Math.random, no wall
 // clock. All time is `tick`; all randomness is rngFor(seed, ...salts).
 import { TUNE, SIM_DT, PVP_DEFAULT } from '../config.js';
 import { rngFor } from '../core/rng.js';
 import { createEntities } from './entities.js';
+import { createWorld, CAPSULE_R, CAPSULE_HALF_H } from './world.js';
+import { buildLevel, tickPlatforms } from './level.js';
 
 // Button bitfield (ARENA1_STEPS "Wire formats")
 export const BTN = { JUMP: 1, DASH: 2, SLIDE: 4, FIRE: 8, GRAPPLE: 16, JET: 32 };
@@ -20,26 +23,27 @@ export const FLAG = { GROUNDED: 1, SLIDING: 2, DASHING: 4, JETTING: 8, GRAPPLING
 const JUMP_BUFFER_TICKS = 7;
 const COYOTE_TICKS = 6;
 
-// Phase 1 world: one floor slab. Replaced by sim/world.js in Phase 2.
-const FLOOR = { min: { x: -60, y: -1, z: -60 }, max: { x: 60, y: 0, z: 60 } };
-const CAPSULE_HALF_H = 0.9; // matches the prototype ellipsoid (r 0.4 in Phase 2)
-
 export function createSim(seed, { pvp = PVP_DEFAULT } = {}) {
   const ents = createEntities();
+  const world = createWorld();
+  const level = buildLevel(world, rngFor(seed, 'level'));
   let tick = 0;
+  let lastEvents = [];
 
   function addPlayer() {
     const id = ents.allocId();
-    // Seeded spawn scatter: the seed must shape the world from tick 0, so two
-    // different seeds produce genuinely different states, not just a header.
+    // Prototype spawn (0, 4, 26), with a seeded scatter so the seed shapes
+    // the state from tick 0 — two seeds differ in bodies, not just a header.
     const r = rngFor(seed, 'spawn', id);
     ents.players.set(id, {
       id,
-      pos: { x: (r() - 0.5) * 4, y: 6, z: (r() - 0.5) * 4 },
+      pos: { x: (r() - 0.5) * 4, y: 4, z: 26 + (r() - 0.5) * 4 },
       vel: { x: 0, y: 0, z: 0 },
       yaw: 0, pitch: 0,
       hp: 100, fuel: 100, fuelMax: 100, dashCharges: 1,
       grounded: false,
+      groundPlatformId: null,
+      wallN: null,
       prevButtons: 0,
       jumpBufferedAt: -Infinity,   // tick the last JUMP edge landed
       lastGroundedAt: -Infinity,   // tick we last stood on ground
@@ -88,34 +92,52 @@ export function createSim(seed, { pvp = PVP_DEFAULT } = {}) {
       p.lastGroundedAt = -Infinity;
     }
 
-    // Gravity + integrate
+    // Gravity, then the world's capsule mover does integrate + depenetrate +
+    // slide, and reports grounded / groundPlatformId / wallN back.
     p.vel.y += TUNE.G * SIM_DT;
-    p.pos.x += p.vel.x * SIM_DT;
-    p.pos.y += p.vel.y * SIM_DT;
-    p.pos.z += p.vel.z * SIM_DT;
-
-    // Phase 1 collision: rest on the floor slab (feet = pos.y - halfH).
-    const overFloor = p.pos.x >= FLOOR.min.x && p.pos.x <= FLOOR.max.x
-      && p.pos.z >= FLOOR.min.z && p.pos.z <= FLOOR.max.z;
-    const feet = p.pos.y - CAPSULE_HALF_H;
-    if (overFloor && feet <= FLOOR.max.y && p.vel.y <= 0) {
-      p.pos.y = FLOOR.max.y + CAPSULE_HALF_H;
-      p.vel.y = 0;
-      p.grounded = true;
-    } else {
-      p.grounded = false;
-    }
+    const res = world.moveCapsule(
+      p.pos, p.vel,
+      { x: p.vel.x * SIM_DT, y: p.vel.y * SIM_DT, z: p.vel.z * SIM_DT },
+      CAPSULE_R, CAPSULE_HALF_H);
+    p.pos = res.pos;
+    p.vel = res.vel;
+    p.grounded = res.grounded;
+    p.groundPlatformId = res.groundPlatformId;
+    p.wallN = res.wallN;
     if (p.grounded) p.lastGroundedAt = tick;
   }
 
   return {
     get tick() { return tick; },
+    // Read-only for the render layer (Phase 4): level data to build meshes
+    // from, world.raycast for blob shadows. One-directional reads only.
+    get world() { return world; },
+    get level() { return level; },
     addPlayer,
     // commandsByPlayer: Map<playerId, command|undefined> for THIS tick.
     step(commandsByPlayer) {
+      const events = [];
+      // Platforms first (prototype order), so ground carry uses fresh deltas
+      // and a collapser sees who stood on it at the end of last tick.
+      const standing = new Set();
       for (const p of ents.players.values()) {
+        if (p.groundPlatformId != null) standing.add(p.groundPlatformId);
+      }
+      tickPlatforms(world, level, tick, standing, events);
+      for (const p of ents.players.values()) {
+        // Ride movers / fall with collapsers: positional carry, like the
+        // prototype's groundMesh delta add.
+        if (p.groundPlatformId != null) {
+          const pl = level.platforms[p.groundPlatformId];
+          if (pl) {
+            p.pos.x += pl.lastDelta.x;
+            p.pos.y += pl.lastDelta.y;
+            p.pos.z += pl.lastDelta.z;
+          }
+        }
         stepPlayer(p, commandsByPlayer?.get?.(p.id));
       }
+      lastEvents = events;
       tick++;
     },
     snapshot() {
@@ -134,7 +156,7 @@ export function createSim(seed, { pvp = PVP_DEFAULT } = {}) {
         })),
         enemies: [],
         cells: [],
-        events: [],
+        events: lastEvents,
       };
     },
   };
