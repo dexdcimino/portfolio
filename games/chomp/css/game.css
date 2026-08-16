@@ -1,0 +1,305 @@
+/* CHOMP! — fullscreen canvas + DOM HUD overlay (TECH.md: HUD is DOM, not canvas) */
+
+:root {
+  --safe-top: 0px; /* set via window.Chomp.setSafeTop(px) for portfolio embeds */
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0A0E14; /* cave near-black blue (ART_BIBLE palette) */
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  outline: none;
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  padding-top: var(--safe-top);
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  color: #7FCFC0; /* fur teal rim */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Darkness placeholder (MD-02) — real per-stage light radius arrives MD-06 */
+#vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(4, 6, 10, 0.85) 100%);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.overlay h1 {
+  font-size: clamp(2.5rem, 10vw, 6rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #7FCFC0;
+  text-shadow: 0 0 24px rgba(77, 168, 154, 0.5);
+}
+
+#dead-cause {
+  font-size: 1.1rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: #FF7A30;
+}
+
+.overlay .hint {
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #4DA89A;
+  animation: hint-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+#debug {
+  position: absolute;
+  top: calc(var(--safe-top) + 8px);
+  left: 8px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #C8E84A; /* acid green */
+  white-space: pre;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Growth progress bar (bottom centre) */
+#growth {
+  position: absolute;
+  bottom: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(46%, 520px);
+  height: 18px;
+  background: rgba(10, 14, 20, 0.75);
+  border: 1px solid rgba(127, 207, 192, 0.4);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+#growth-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #2E7D74, #4DA89A, #C8E84A);
+  border-radius: 5px;
+  transition: width 120ms linear;
+}
+
+#growth-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  color: #EAF6F2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Sprint bar — thin strip above the growth bar */
+#sprint {
+  position: absolute;
+  bottom: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(26%, 280px);
+  height: 8px;
+  background: rgba(10, 14, 20, 0.75);
+  border: 1px solid rgba(255, 210, 63, 0.35);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#sprint-fill {
+  height: 100%;
+  width: 100%;
+  background: #FFD23F;
+  border-radius: 2px;
+}
+
+#sprint.low #sprint-fill {
+  background: #FF7A30;
+}
+
+/* HP bar — red, above the sprint bar */
+#hp {
+  position: absolute;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(26%, 280px);
+  height: 8px;
+  background: rgba(10, 14, 20, 0.75);
+  border: 1px solid rgba(255, 90, 60, 0.45);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#hp-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #C43A2E, #FF5A3C);
+  border-radius: 2px;
+  transition: width 200ms ease-out;
+}
+
+/* Gobble counter — top centre, LARGE bold */
+#gobble {
+  position: absolute;
+  top: calc(var(--safe-top) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 56px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #EAF6F2;
+  text-shadow: 0 0 18px rgba(200, 232, 74, 0.45), 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+#gobble.pop {
+  animation: gobble-pop 0.25s ease-out;
+}
+
+@keyframes gobble-pop {
+  0% { transform: translateX(-50%) scale(1.35); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+/* Evolve banner */
+#stage-banner {
+  position: absolute;
+  top: 30%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: clamp(1.6rem, 5vw, 3rem);
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: #C8E84A;
+  text-shadow: 0 0 24px rgba(200, 232, 74, 0.6);
+  opacity: 0;
+}
+
+#stage-banner.show {
+  animation: banner-pop 1.6s ease-out forwards;
+}
+
+@keyframes banner-pop {
+  0% { opacity: 0; transform: scale(0.7); }
+  12% { opacity: 1; transform: scale(1.08); }
+  22% { transform: scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Damage flash — red vignette pulse */
+#damage-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(255, 60, 40, 0.45) 100%);
+  opacity: 0;
+}
+
+#damage-flash.show {
+  animation: dmg-pulse 0.4s ease-out;
+}
+
+@keyframes dmg-pulse {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Debug GUI panels (?debug=1, MD-04b) — interactive islands in the HUD */
+.debug-panel {
+  position: absolute;
+  pointer-events: auto;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px;
+  background: rgba(10, 14, 20, 0.75);
+  border: 1px solid rgba(200, 232, 74, 0.25);
+  border-radius: 4px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  color: #C8E84A;
+}
+
+#debug-stages {
+  top: calc(var(--safe-top) + 20px);
+  right: 20px;
+  flex-direction: column;
+}
+
+#debug-stages button {
+  all: unset;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  color: #C8E84A;
+  font: inherit;
+  text-align: center;
+}
+
+#debug-stages button:hover {
+  background: rgba(200, 232, 74, 0.15);
+}
+
+#debug-stages button.active {
+  background: rgba(200, 232, 74, 0.3);
+  color: #0A0E14;
+  font-weight: 700;
+}
+
+#debug-zoom {
+  bottom: 24px;
+  right: 20px;
+}
+
+#debug-zoom input[type='range'] {
+  width: 120px;
+  accent-color: #C8E84A;
+}
+
+#debug-zoom span {
+  min-width: 3ch;
+}

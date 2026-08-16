@@ -1,0 +1,193 @@
+/* Pause menu — ported from Stickland's (games/stickland/src/pausemenu.js) per
+   MD. Ported: shell, backdrop, exit action, accent picker, controls reference,
+   volume + mute. Omitted on purpose: the keybind rebinder and the FX shake
+   slider — Chomp has neither a rebindable action nor a shake system, so they
+   are not stubbed and not rendered disabled.
+
+   Wiring contract (do not change): main.js owns the pause ladder. This module
+   binds NO Escape/P handler — it only fills the #paused overlay that
+   setState('paused') already shows and hides, and Resume goes through
+   window.Chomp.resume(). Space and click-resume also stay main.js's.
+
+   Self-contained: injects its own styles, edits nothing else, so the next
+   game drop re-applies by copying this file and adding one script tag
+   (see INTEGRATION-NOTES.md). */
+
+import { setVolume, getVolume, setMuted, isMuted } from './systems/audio.js';
+
+/* The site's seven accents, byte-identical to ACCENTS in the site's script.js.
+   The duplication is deliberate and documented there: the game must not reach
+   into the parent document, and the palette changes rarely. */
+const SITE_ACCENTS = [
+  { name: 'red',    hex: '#D94727' },
+  { name: 'yellow', hex: '#FAAA1E' },
+  { name: 'lime',   hex: '#9EE02B' },
+  { name: 'cyan',   hex: '#2CC7F6' },
+  { name: 'blue',   hex: '#335DF3' },
+  { name: 'purple', hex: '#A85CF5' },
+  { name: 'white',  hex: '#E9EBEC' },
+];
+// The site's own key. Same-origin (the wrapper loads the game from
+// /games/chomp/, a root-relative path), so one localStorage is shared and the
+// choice made here carries back to dexcimino.com with no postMessage bridge.
+const SITE_ACCENT_KEY = 'dex-accent-name';
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
+};
+
+/* Relative luminance, sRGB — same maths as Stickland's _knobFor. Above ~0.5
+   the accent is a light colour and dark ink reads on it; below, white. */
+function inkFor(hex) {
+  const n = hex.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map(i => {
+    const c = parseInt(n.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.5 ? '#0b0d12' : '#ffffff';
+}
+
+function currentAccent() {
+  const hit = SITE_ACCENTS.find(a => a.name === store.get(SITE_ACCENT_KEY));
+  return hit || SITE_ACCENTS[2]; // lime, the site default
+}
+
+function applyAccent(a, persist = true) {
+  document.documentElement.style.setProperty('--cmenu-accent', a.hex);
+  document.documentElement.style.setProperty('--cmenu-ink', inkFor(a.hex));
+  if (persist) store.set(SITE_ACCENT_KEY, a.name);
+  for (const b of document.querySelectorAll('.cmenu-swatch')) {
+    b.classList.toggle('is-on', b.dataset.name === a.name);
+  }
+}
+
+/* Chomp's real player controls, read from js/main.js. The ?debug=1 keys are
+   dev tools, not player controls, and are deliberately not listed. */
+const CONTROLS = [
+  ['Move', ['W', 'A', 'S', 'D'], 'or arrow keys'],
+  ['Sprint', ['Shift'], ''],
+  ['Chomp', ['Space'], 'or left click'],
+  ['Pause', ['Esc', 'P'], ''],
+];
+
+const CSS = `
+#paused.overlay{display:flex;align-items:center;justify-content:center;padding:18px}
+#paused.hidden{display:none}
+.cmenu{
+  width:min(460px,92vw);max-height:min(86vh,640px);overflow:auto;
+  background:rgba(13,17,22,.96);border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;padding:22px 22px 18px;
+  color:#f1f3f4;font-family:'Segoe UI',system-ui,sans-serif;text-align:left;
+  box-shadow:0 18px 60px rgba(0,0,0,.6);
+}
+.cmenu h1{margin:0 0 16px;font-size:26px;letter-spacing:.14em}
+.cmenu h2{margin:18px 0 10px;font-size:11px;font-weight:800;letter-spacing:.22em;
+  color:#8d959c;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:6px}
+.cmenu-swatches{display:flex;gap:10px;justify-content:center}
+.cmenu-swatch{width:30px;height:30px;border-radius:50%;cursor:pointer;padding:0;
+  border:2px solid rgba(255,255,255,.18);transition:transform .15s ease,border-color .15s ease}
+.cmenu-swatch:hover{transform:scale(1.12)}
+.cmenu-swatch.is-on{border-color:#fff;box-shadow:0 0 0 2px var(--cmenu-accent,#9EE02B)}
+.cmenu-rows{display:grid;gap:8px}
+.cmenu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
+.cmenu-keys{display:flex;gap:4px;align-items:center}
+.cmenu-key{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:22px;
+  padding:0 7px;font-size:11px;font-weight:600;color:#f1f3f4;background:#232830;
+  border:2px solid #3a4450;border-radius:6px;white-space:nowrap}
+.cmenu-alt{color:#8d959c;font-size:12px;margin-left:6px}
+.cmenu-audio{display:flex;align-items:center;gap:12px}
+.cmenu-audio input[type=range]{flex:1;accent-color:var(--cmenu-accent,#9EE02B)}
+.cmenu-mute{min-width:64px;height:28px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:800;
+  letter-spacing:.08em;border:2px solid #3a4450;background:#232830;color:#f1f3f4;
+  transition:background .15s ease,color .15s ease,border-color .15s ease}
+.cmenu-mute.is-muted{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
+.cmenu-foot{display:flex;justify-content:space-between;gap:12px;margin-top:20px}
+.cmenu-btn{min-height:42px;padding:0 20px;border-radius:10px;cursor:pointer;font-weight:800;
+  letter-spacing:.06em;font-size:13px;border:2px solid rgba(255,255,255,.22);background:transparent;color:#f1f3f4;
+  transition:border-color .15s ease,background .15s ease}
+.cmenu-btn:hover{border-color:rgba(255,255,255,.5)}
+/* Exit left, Resume right — the standing order from Stickland's menu. Resume
+   wears the accent, its ink flipped dark/light by the same luminance rule as
+   the mute pill, so white-on-lime never happens. */
+.cmenu-resume{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
+.cmenu-resume:hover{filter:brightness(1.08)}
+`;
+
+function build() {
+  const host = document.getElementById('paused');
+  if (!host) return;
+  const style = document.createElement('style');
+  style.textContent = CSS;
+  document.head.appendChild(style);
+
+  const menu = document.createElement('div');
+  menu.className = 'cmenu';
+  menu.innerHTML = `
+    <h1>PAUSED</h1>
+    <h2>Accent</h2>
+    <div class="cmenu-swatches"></div>
+    <h2>Controls</h2>
+    <div class="cmenu-rows"></div>
+    <h2>Audio</h2>
+    <div class="cmenu-audio">
+      <button class="cmenu-mute" type="button"></button>
+      <input class="cmenu-vol" type="range" min="0" max="1" step="0.01" aria-label="Master volume">
+    </div>
+    <div class="cmenu-foot">
+      <button class="cmenu-btn cmenu-exit" type="button">EXIT GAME</button>
+      <button class="cmenu-btn cmenu-resume" type="button">RESUME</button>
+    </div>`;
+  host.replaceChildren(menu);
+
+  const swatches = menu.querySelector('.cmenu-swatches');
+  for (const a of SITE_ACCENTS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cmenu-swatch';
+    b.dataset.name = a.name;
+    b.style.background = a.hex;
+    b.setAttribute('aria-label', `Accent ${a.name}`);
+    b.addEventListener('click', () => applyAccent(a));
+    swatches.appendChild(b);
+  }
+  applyAccent(currentAccent(), false);
+
+  const rows = menu.querySelector('.cmenu-rows');
+  for (const [label, keys, alt] of CONTROLS) {
+    const row = document.createElement('div');
+    row.className = 'cmenu-row';
+    const keySpans = keys.map(k => `<kbd class="cmenu-key">${k}</kbd>`).join('');
+    row.innerHTML = `<span>${label}</span><span class="cmenu-keys">${keySpans}${alt ? `<span class="cmenu-alt">${alt}</span>` : ''}</span>`;
+    rows.appendChild(row);
+  }
+
+  const vol = menu.querySelector('.cmenu-vol');
+  const mute = menu.querySelector('.cmenu-mute');
+  // audio.js persists chomp-volume / chomp-muted itself; this UI only reads
+  // and writes the live API. Muted shows the slider at 0 but the stored level
+  // survives underneath, so unmuting restores it rather than resetting.
+  const paint = () => {
+    const m = isMuted();
+    vol.value = m ? 0 : getVolume();
+    mute.textContent = m ? 'MUTED' : 'MUTE';
+    mute.classList.toggle('is-muted', m);
+    mute.setAttribute('aria-pressed', String(m));
+  };
+  vol.addEventListener('input', () => {
+    if (isMuted()) setMuted(false);         // touching the fader is intent to hear
+    setVolume(parseFloat(vol.value));
+    paint();
+  });
+  mute.addEventListener('click', () => { setMuted(!isMuted()); paint(); });
+  paint();
+
+  menu.querySelector('.cmenu-resume').addEventListener('click', () => {
+    if (window.Chomp && window.Chomp.resume) window.Chomp.resume();
+  });
+  menu.querySelector('.cmenu-exit').addEventListener('click', () => {
+    window.location.href = '/';
+  });
+}
+
+build();
