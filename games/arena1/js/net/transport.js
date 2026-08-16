@@ -23,7 +23,8 @@ export function createLoopbackTransport(seed, opts) {
     ready: Promise.resolve(),
     isHost: true,
     get localId() { return localId; },
-    get netInfo() { return null; }, // solo — nothing to show
+    get netInfo() { return null; },    // solo — nothing to show
+    get prediction() { return null; }, // solo — zero latency, nothing to reconcile
     addLocalPlayer() { localId = sim.addPlayer(); return localId; },
     sendCommand(cmd) { pending.set(cmd.playerId, cmd); },
     onSnapshot(cb) { subscribers.push(cb); },

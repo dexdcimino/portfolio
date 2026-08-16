@@ -20,7 +20,13 @@ export { BTN, FLAG }; // wire-format constants live with the movement port
 // opts.enemies=false is a TEST hook: mechanic/settling suites need a world
 // where nothing hops over and bounces the subject mid-assert. Gameplay and
 // the combat determinism suite run the default.
-export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true } = {}) {
+//
+// opts.predictOnly (ARENA1 MD 8) is the net client's local prediction sim:
+// one player stepped against the world through the UNMODIFIED movement port,
+// with everything authoritative-only switched off — no cells (pickups are
+// never predicted), no enemies, no combat (damage/kills are never predicted).
+// Platforms still tick: movers and collapse timing shape movement.
+export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly = false } = {}) {
   const ents = createEntities();
   const world = createWorld();
   const level = buildLevel(world, rngFor(seed, 'level'));
@@ -29,14 +35,19 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true } = {}) {
 
   // Cells first (level-derived, fixed count), then enemies — a fixed id
   // layout every peer reproduces from the seed.
-  for (const pos of level.cellSpots) {
-    const id = ents.allocId();
-    ents.cells.set(id, { id, pos: { ...pos }, base: { ...pos }, taken: false, pulled: false });
+  if (!predictOnly) {
+    for (const pos of level.cellSpots) {
+      const id = ents.allocId();
+      ents.cells.set(id, { id, pos: { ...pos }, base: { ...pos }, taken: false, pulled: false });
+    }
+    if (enemies) initEnemies(ents, level, seed);
   }
-  if (enemies) initEnemies(ents, level, seed);
 
-  function addPlayer() {
-    const id = ents.allocId();
+  // withId: the prediction sim mirrors a player the HOST allocated, and the
+  // seeded spawn scatter is keyed by id — the mirror must use the host's id
+  // or it spawns somewhere else and reconciliation starts life correcting.
+  function addPlayer(withId) {
+    const id = withId ?? ents.allocId();
     // Prototype spawn (0, 4, 26), with a seeded scatter so the seed shapes
     // the state from tick 0 — two seeds differ in bodies, not just a header.
     const r = rngFor(seed, 'spawn', id);
@@ -62,6 +73,14 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true } = {}) {
     get level() { return level; },
     addPlayer,
     removePlayer,
+    // Net-client alignment + reconciliation surface (MD 8). setTick aligns a
+    // prediction sim to the host's tick domain (platform state is a pure
+    // function of tick, so jumping the counter is exact, not a cheat);
+    // getPlayer exposes the live state object so reconciliation can snap and
+    // replay it. Neither is for gameplay code.
+    setTick(t) { tick = t; },
+    getPlayer(id) { return ents.players.get(id); },
+    setPlayer(id, state) { ents.players.set(id, state); },
     // commandsByPlayer: Map<playerId, command|undefined> for THIS tick.
     step(commandsByPlayer) {
       const events = [];
@@ -86,9 +105,9 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true } = {}) {
         }
         const cmd = commandsByPlayer?.get?.(p.id);
         stepPlayer(ctx, p, cmd);
-        stepCombat(ctx, p, cmd ? cmd.buttons : 0);
+        if (!predictOnly) stepCombat(ctx, p, cmd ? cmd.buttons : 0);
       }
-      stepEnemies(ctx);
+      if (!predictOnly) stepEnemies(ctx);
       lastEvents = events;
       tick++;
     },

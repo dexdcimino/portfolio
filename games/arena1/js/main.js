@@ -441,6 +441,8 @@ const boot = document.getElementById('hud-boot');
 setInterval(() => {
   if (!boot || !lastSnap) return;
   const ni = transport.netInfo;
+  const pr = transport.prediction; // MD 8 correction telemetry, client only
   boot.textContent = `ARENA 1 · seed ${lastSnap.seed} · tick ${lastSnap.tick}`
-    + (ni ? ` · ${ni.room} · ${ni.isHost ? 'HOST' : 'CLIENT'} · ${ni.players}P` : '');
+    + (ni ? ` · ${ni.room} · ${ni.isHost ? 'HOST' : 'CLIENT'} · ${ni.players}P` : '')
+    + (pr ? ` · corr ${pr.corrections} (max ${pr.maxCorrection.toFixed(2)}m)` : '');
 }, 250);

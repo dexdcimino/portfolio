@@ -178,6 +178,9 @@ function makeClock() {
   const client = createClientCore(room.adapterFor(2), {}, { now: clock.now });
   room.announceJoin(2);
   await client.ready;
+  // warmup: sending starts only once prediction has bootstrapped from the
+  // first snapshot (MD 8) — let that happen before counting batches
+  for (let t = 0; t < 6; t++) { host.tick(); client.tick(); clock.step(); }
   let batches = 0;
   room.adapterFor(98).onEvent((code) => { if (code === EV.COMMANDS) batches++; });
   // client walks for 60 ticks…

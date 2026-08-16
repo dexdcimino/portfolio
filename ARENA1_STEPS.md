@@ -55,7 +55,11 @@ Jump buffer = 7 ticks, coyote = 6 ticks, computed **in the sim** from edges.
   players: [{id, pos, vel, yaw, pitch, hp, fuel, fuelMax, dashCharges, flags}],
   enemies: [{id, kind, pos, hp, aiState, flags}],   // kind: 0 blob, 1 wraith, 2 spike
   cells:   [{id, taken}],
-  events:  [] }            // cleared each tick, see Phase 5
+  events:  [],             // cleared each tick, see Phase 5
+  acks: {playerId: tick} } // WIRE broadcasts only (MD 8): per-client highest
+                           // command tick the host has CONSUMED — never a held
+                           // repeat. Drives prediction reconciliation; absent
+                           // from the sim's local snapshots (net-agnostic).
 ```
 `flags` bitfields: grounded, sliding, dashing, jetting, grappling, wallsliding.
 **Platforms are absent on purpose** — mover/blinker/collapser state is a pure
