@@ -199,4 +199,49 @@ function me(P) {
     `corrections +${pr.corrections - before} (max ${pr.maxCorrection.toFixed(2)}m), final Δ ${d.toFixed(4)}m; 30-step replay ${ms.toFixed(2)}ms`);
 }
 
-console.log(`\nprediction.mjs: ${passed}/4 passed`);
+// ── 5. player-grapple consistency: client and host resolve the same latch ──
+// The client's predict sim mirrors remote players as kinematic ghosts, so a
+// grapple aimed at the host's player latches mode 'player' locally — the
+// same resolution the host computes — instead of anchoring on geometry
+// behind the target and correcting later.
+{
+  const P = await makePair('pred-pgrapple');
+  run(P, 150, idle); // both bodies settled at spawn
+  // the host walks away so the pull has real distance to cover
+  for (let t = 0; t < 120; t++) {
+    P.client.sendCommand(idle());
+    P.client.tick();
+    P.room.deliver();
+    P.host.sendCommand(cmd({ x: 0, z: 1 }, 0, 0, 0)); // walks +z, away from spawn
+    P.lastHost = P.host.tick();
+    P.room.deliver();
+    P.clock.step();
+  }
+  // aim from the client's predicted eye at the host player's authoritative pos
+  const hostP = P.lastHost.players.find((p) => p.id === P.host.localId);
+  const meP = P.lastSynth.players.find((p) => p.id === P.client.localId);
+  const dxA = hostP.pos.x - meP.pos.x, dyA = hostP.pos.y - (meP.pos.y + 0.55), dzA = hostP.pos.z - meP.pos.z;
+  const startDist = Math.hypot(dxA, dyA, dzA);
+  const a = { yaw: Math.atan2(dxA, dzA), pitch: -Math.atan2(dyA, Math.hypot(dxA, dzA)) };
+  let hostSawLatch = false, clientPredictedLatch = false;
+  for (let t = 0; t < 120; t++) {
+    step(P, cmd({ x: 0, z: 0 }, a.yaw, a.pitch, BTN.GRAPPLE));
+    const onHost = P.lastHost.players.find((p) => p.id === P.client.localId);
+    if (onHost?.grapple) hostSawLatch = true;
+    const predicted = P.lastSynth.players.find((p) => p.id === P.client.localId);
+    if (predicted?.grapple) clientPredictedLatch = true;
+  }
+  assert.ok(startDist > 10, `host never got far enough away (${startDist.toFixed(1)}m)`);
+  assert.ok(hostSawLatch, 'host never saw the latch');
+  assert.ok(clientPredictedLatch, 'client never PREDICTED the latch (ghosts missing)');
+  const pr = P.client.prediction;
+  // and the two sims agreed the whole way: no corrections at zero latency
+  assert.equal(pr.corrections, 0, `player-grapple diverged: ${pr.corrections} corrections (max ${pr.maxCorrection?.toFixed(2)}m)`);
+  const d = dist(P.lastSynth.players.find((p) => p.id === P.client.localId),
+    P.lastHost.players.find((p) => p.id === P.client.localId));
+  assert.ok(d < EPS + 0.05, `end-state disagreement ${d.toFixed(3)}m`);
+  ok('player-grapple predicts consistently',
+    `pulled across ${startDist.toFixed(1)}m; latched on host AND in prediction; 0 corrections; end Δ ${d.toFixed(4)}m`);
+}
+
+console.log(`\nprediction.mjs: ${passed}/5 passed`);

@@ -63,7 +63,12 @@ html, body {
 #score { left: 18px; top: 18px; font-size: 12px; letter-spacing: .08em; }
 #score b { color: var(--coral); font-size: 18px; }
 
-#perf { right: 18px; top: 18px; font-size: 11px; text-align: right; line-height: 1.6; letter-spacing: .05em; }
+/* --safe-right/--safe-top: insets the embed shell needs — the wrapper's exit
+   chip owns the top-right corner (48px at 14px insets → a 62px square), so
+   the perf panel shifts inward when framed. NOTE: #hud's padding does NOT
+   move these panels (absolute children position against the padding box
+   edge), which is why the insets live in the offsets themselves. */
+#perf { right: calc(18px + var(--safe-right, 0px)); top: calc(18px + var(--safe-top, 0px)); font-size: 11px; text-align: right; line-height: 1.6; letter-spacing: .05em; }
 #perf .dim { opacity: .55; }
 #perf .lod-on { color: var(--teal); }
 
@@ -85,6 +90,10 @@ html, body {
 #hud-boot {
   position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
   font-size: 10px; font-weight: 700; letter-spacing: .22em; opacity: .4;
+  /* the readout grows (room · role · corr …); never let it reach the corners
+     where the wrapper's exit chip lives */
+  max-width: calc(100% - 2 * (80px + var(--safe-right, 0px)));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* The one gesture pointer lock demands, invited by a chip instead of a title
    screen. Sits over the LIVE game; pointer-events stay off so the inviting

@@ -15,7 +15,7 @@
 // summit. FIRE is reserved; shooting lands in Phase 5's combat.js.
 
 import { TUNE, SIM_DT } from '../config.js';
-import { CAPSULE_R, CAPSULE_HALF_H, raySphere } from './world.js';
+import { CAPSULE_R, CAPSULE_HALF_H, raySphere, rayVCapsule } from './world.js';
 import { SUMMIT_Y } from './level.js';
 
 // Grapple/shoot hitspheres for enemies (Phase 5). Slightly over body radius,
@@ -178,7 +178,11 @@ export function stepPlayer(ctx, p, cmd) {
   }
 
   // --- grapple (588–618, 1104–1141): pull self toward world, yank enemies,
-  // reel in cells. Players are never grapple targets (decision on record).
+  // reel in cells — and pull self toward other PLAYERS. The original decision
+  // ("players are never grapple targets") is superseded on Dex's instruction:
+  // the beam used to pass through players and anchor on geometry behind them,
+  // which READ as player-grappling; now it is real, sim-resolved against the
+  // target's capsule. Players are pulled TOWARD, never yanked.
   const ents = ctx.ents; // absent in mechanic-only test harnesses
   if (pressed & BTN.GRAPPLE) {
     const eye = { x: p.pos.x, y: p.pos.y + EYE_H, z: p.pos.z };
@@ -198,9 +202,18 @@ export function stepPlayer(ctx, p, cmd) {
         const t = raySphere(eye, dir, c.pos, 0.5, best ? best.t : TUNE.GRAPPLE_RANGE);
         if (t !== null) { best = { t }; target = { mode: 'cell', id: c.id }; }
       }
+      for (const q of ents.players.values()) {
+        if (q.id === p.id) continue; // ghosts included: the client's predict
+        // sim mirrors remote players as kinematic ghosts so both sides
+        // resolve the same latch
+        const t = rayVCapsule(eye, dir, q.pos, CAPSULE_R, CAPSULE_HALF_H, best ? best.t : TUNE.GRAPPLE_RANGE);
+        if (t !== null) { best = { t }; target = { mode: 'player', id: q.id }; }
+      }
     }
     if (target) {
-      p.grapple = target.mode === 'yank' ? { mode: 'yank', enemyId: target.id } : { mode: 'cell', cellId: target.id };
+      p.grapple = target.mode === 'yank' ? { mode: 'yank', enemyId: target.id }
+        : target.mode === 'cell' ? { mode: 'cell', cellId: target.id }
+          : { mode: 'player', targetId: target.id };
     } else if (best && best.hit) {
       const hit = best.hit;
       const platformId = hit.shape.platformId;
@@ -267,8 +280,24 @@ export function stepPlayer(ctx, p, cmd) {
         c.pos.z += tz / dist * 30 * dt;
       }
     }
+  } else if (p.grapple && p.grapple.mode === 'player') {
+    // World-pull semantics with a MOVING anchor: the target player's capsule
+    // center. The target is never moved — pulled toward, never yanked.
+    const q = ents?.players.get(p.grapple.targetId);
+    const dist = q ? Math.hypot(q.pos.x - p.pos.x, q.pos.y - p.pos.y, q.pos.z - p.pos.z) : Infinity;
+    if (!q || dist > TUNE.GRAPPLE_RANGE * 1.25) {
+      p.grapple = null; // target left, died-and-respawned far away, or line broke
+    } else if (dist < 2.2) {
+      p.grapple = null;
+      p.vel.x *= 0.85; p.vel.y *= 0.85; p.vel.z *= 0.85;
+    } else {
+      const k = Math.min(1, TUNE.GRAPPLE_ACCEL * dt);
+      p.vel.x += ((q.pos.x - p.pos.x) / dist * TUNE.GRAPPLE_PULL - p.vel.x) * k;
+      p.vel.y += ((q.pos.y - p.pos.y) / dist * TUNE.GRAPPLE_PULL - p.vel.y) * k;
+      p.vel.z += ((q.pos.z - p.pos.z) / dist * TUNE.GRAPPLE_PULL - p.vel.z) * k;
+    }
   }
-  const pulling = p.grapple !== null && p.grapple.mode === 'pull';
+  const pulling = p.grapple !== null && (p.grapple.mode === 'pull' || p.grapple.mode === 'player');
 
   // --- accelerate — dash owns horizontal vel while active (1143–1168)
   if (p.dashT <= 0) {

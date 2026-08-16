@@ -189,6 +189,12 @@ regen, grapple (world pull with reduced gravity + momentum release; mover
 anchors ride via `platformId` + local offset), pads, rings, kill floor, summit.
 Grapple/shoot targets in this phase: world only (entities come in Phase 5).
 **Decision on record: players are never grapple targets in v1.**
+*Superseded post-MD 9 on Dex's instruction: the beam used to pass through
+players and anchor on geometry behind them, which read as player-grappling —
+now it resolves the target's capsule for real (`mode: 'player'`, world-pull
+semantics with a moving anchor; the target is pulled toward, never yanked).
+Client prediction mirrors remote players into the predict sim as kinematic
+ghosts so host and client resolve the same latch.*
 
 ### Feel-check protocol — this gate is manual, by Dex
 Build `dev/feelcheck.html`: prototype iframe left, new build right, same seed,

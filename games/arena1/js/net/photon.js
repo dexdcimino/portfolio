@@ -305,6 +305,23 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       const cutoff = now() - 2000;
       while (buffer.length > 2 && buffer[0].at < cutoff) buffer.shift();
       pendingEvents.push(...data.events);
+      // Ghost mirrors: remote players exist in the predict sim as kinematic
+      // capsules (ghost: true — never stepped, filtered from its snapshots)
+      // so a locally-predicted grapple resolves the same player latch the
+      // host resolves. Positions track the newest authority.
+      if (predictReady) {
+        const seen = new Set();
+        for (const q of data.players) {
+          if (q.id === localId) continue;
+          seen.add(q.id);
+          const g = predictSim.getPlayer(q.id);
+          if (g) { g.pos.x = q.pos.x; g.pos.y = q.pos.y; g.pos.z = q.pos.z; }
+          else predictSim.setPlayer(q.id, { id: q.id, ghost: true, pos: { ...q.pos } });
+        }
+        for (const gid of predictSim.playerIds()) {
+          if (gid !== localId && !seen.has(gid)) predictSim.removePlayer(gid);
+        }
+      }
       // Prediction bootstraps from the first authoritative sight of self —
       // and until the FIRST input exists it keeps re-snapping to the newest
       // authority (there is nothing predicted to preserve, and the host keeps

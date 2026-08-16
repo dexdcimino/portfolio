@@ -81,6 +81,7 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
     setTick(t) { tick = t; },
     getPlayer(id) { return ents.players.get(id); },
     setPlayer(id, state) { ents.players.set(id, state); },
+    playerIds() { return [...ents.players.keys()]; },
     // commandsByPlayer: Map<playerId, command|undefined> for THIS tick.
     step(commandsByPlayer) {
       const events = [];
@@ -93,6 +94,10 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
       }
       tickPlatforms(world, level, tick, standing, events);
       for (const p of ents.players.values()) {
+        // Ghosts are kinematic mirrors of remote players inside a net
+        // client's predictOnly sim — grapple targets, never simulated. The
+        // transport positions them from snapshots; nothing here steps them.
+        if (p.ghost) continue;
         // Ride movers / fall with collapsers: positional carry, like the
         // prototype's groundMesh delta add.
         if (p.groundPlatformId != null) {
@@ -125,12 +130,16 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
           const e = ents.enemies.get(p.grapple.enemyId);
           return e ? round(e.pos) : null;
         }
+        if (p.grapple.mode === 'player') {
+          const q = ents.players.get(p.grapple.targetId);
+          return q ? round(q.pos) : null;
+        }
         const c = ents.cells.get(p.grapple.cellId);
         return c ? round(c.pos) : null;
       };
       return {
         tick, seed, pvp,
-        players: [...ents.players.values()].map((p) => ({
+        players: [...ents.players.values()].filter((p) => !p.ghost).map((p) => ({
           id: p.id, pos: round(p.pos), vel: round(p.vel),
           yaw: p.yaw, pitch: p.pitch,
           hp: p.hp, fuel: p.fuel, fuelMax: p.fuelMax, dashCharges: p.dashCharges,

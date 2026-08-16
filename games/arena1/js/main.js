@@ -40,6 +40,13 @@ const roomParam = params.get('room');
 // windows never seat into (or fill up) the live public rooms.
 const verSuffix = params.get('photonver') || '';
 
+// Embedded in the /arena1 wrapper: its exit chip owns the top-right corner
+// (48px at 14px insets — a 62px square). The HUD lays out clear of it via
+// --safe-right; standalone tabs keep the full corner.
+if (window.self !== window.top) {
+  document.documentElement.style.setProperty('--safe-right', '64px');
+}
+
 // ── global UI state ─────────────────────────────────────────────────────────
 const pausedEl = document.getElementById('paused');
 const hintEl = document.getElementById('lockHint');

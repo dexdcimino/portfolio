@@ -187,4 +187,43 @@ const mkBlob = (id, pos) => ({
   ok('blob pop on touch', `hp 100→${p.hp}, knockback (${p.vel.x.toFixed(1)}, ${p.vel.y.toFixed(1)}, ${p.vel.z.toFixed(1)})`);
 }
 
-console.log(`\ncombat.mjs: ${passed}/5 passed`);
+// ── 6. player grapple: pull TOWARD a player, moving anchor, never a yank ───
+// (Supersedes "players are never grapple targets" — see ARENA1_STEPS Phase 3
+// note. The capsule is resolved for real now, not geometry behind the target.)
+{
+  const sim = createSim('pgrapple', { enemies: false });
+  const a = sim.addPlayer(), b = sim.addPlayer();
+  sim.getPlayer(a).pos = { x: 0, y: 0.92, z: 20 };
+  sim.getPlayer(b).pos = { x: 0, y: 0.92, z: 10 };
+  const aim = { yaw: Math.PI, pitch: 0.03 }; // straight down the z lane at B
+  const idle = { move: { x: 0, z: 0 }, yaw: aim.yaw, pitch: aim.pitch };
+  // B strafes (oscillating, so it stays on open ground) — the anchor must
+  // MOVE; A holds the grapple
+  let released = null, minDist = Infinity, bMoved = 0;
+  const b0 = { ...sim.getPlayer(b).pos };
+  let maxOsc = 0;
+  for (let t = 0; t < 240; t++) {
+    sim.step(new Map([
+      [a, { tick: t, playerId: a, ...idle, buttons: BTN.GRAPPLE }],
+      [b, { tick: t, playerId: b, move: { x: ((t / 30) | 0) % 2 ? 1 : -1, z: 0 }, yaw: Math.PI, pitch: 0, buttons: 0 }],
+    ]));
+    const pa = sim.getPlayer(a), pb = sim.getPlayer(b);
+    if (t === 0) {
+      assert.equal(pa.grapple?.mode, 'player', `latch mode ${pa.grapple?.mode}`);
+      assert.equal(pa.grapple?.targetId, b, 'latched the wrong body');
+    }
+    const d = Math.hypot(pb.pos.x - pa.pos.x, pb.pos.y - pa.pos.y, pb.pos.z - pa.pos.z);
+    minDist = Math.min(minDist, d);
+    bMoved = Math.hypot(pb.pos.x - b0.x, pb.pos.z - b0.z);
+    maxOsc = Math.max(maxOsc, bMoved);
+    if (released === null && !pa.grapple) released = { t, d };
+  }
+  assert.ok(released && released.d < 3, `never reeled in (min dist ${minDist.toFixed(2)})`);
+  assert.ok(maxOsc > 2, `target should keep its own agency (peak strafe ${maxOsc.toFixed(1)}m)`);
+  const pb = sim.getPlayer(b);
+  assert.ok(Math.abs(pb.vel.y) < 12 && pb.hp === 100, 'target must never be yanked or hurt by a grapple');
+  ok('player grapple', `latched mode=player, chased a strafing target to ${released.d.toFixed(2)}m `
+    + `(target strafed ${maxOsc.toFixed(1)}m under its own input), released clean`);
+}
+
+console.log(`\ncombat.mjs: ${passed}/6 passed`);
