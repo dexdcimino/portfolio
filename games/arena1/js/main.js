@@ -79,7 +79,7 @@ let locked = false;
 const keys = {};
 let firing = false, grappling = false;
 let jetLatch = false;              // Space pressed mid-air with no coyote/wall
-let jumpEdge = false, dashEdge = false;
+let jumpEdge = false, dashEdge = false, respawnEdge = false;
 let coyoteT = 0;                   // client-side mirror for the Space policy
 let lastFlags = 0;
 let ixNow = 0;                     // strafe input, for camera roll
@@ -251,8 +251,9 @@ function startSession(transport) {
       | (slide ? BTN.SLIDE : 0)
       | (firing ? BTN.FIRE : 0)
       | (grappling ? BTN.GRAPPLE : 0)
-      | (jetLatch ? BTN.JET : 0);
-    jumpEdge = false; dashEdge = false;
+      | (jetLatch ? BTN.JET : 0)
+      | (respawnEdge ? BTN.RESPAWN : 0);
+    jumpEdge = false; dashEdge = false; respawnEdge = false;
     return { tick, playerId: localId, move: { x: ix, z: iz }, yaw, pitch, buttons, weapon: weaponSel };
   }
 
@@ -590,6 +591,13 @@ window.Arena1 = {
     AudioFX.ensure();
     setState('playing');
     requestLock(8);
+  },
+  // Pause-menu respawn. Latches an input edge rather than moving the player:
+  // the sim applies BTN.RESPAWN on a tick every peer agrees about, so this can
+  // never desync a match. Consumed by the next command, then cleared.
+  respawn() {
+    if (state !== 'playing' && state !== 'paused') return;
+    respawnEdge = true;
   },
   setSafeTop(px) {
     document.documentElement.style.setProperty('--safe-top', `${px}px`);

@@ -6777,6 +6777,11 @@ export function initPlayMode() {
   // the same blob enterPlayMode already reads.
   initPauseMenu({
     exitWorld: exitPlayMode,
+    // Same function the death screen's OK button runs. Safe to call while
+    // alive: it resets HP, clears stun/knock/flash, grants the usual invuln
+    // window and moves the player to flag-or-home, none of which depends on
+    // having died first.
+    respawn: _respawnPlayer,
     getKeybind: (action) => _keybinds[action],
     setKeybind,
     // Camera lock is a switch in the menu now as well as a key.

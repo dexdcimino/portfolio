@@ -60,6 +60,13 @@ COPIES = [
     "games/stickland/v1/index.html",
 ]
 
+# games/stickland/index.html is GITIGNORED — the build writes it beside build.mjs
+# and it is then moved to v1/, which is the copy the site serves and the only one
+# committed. So it is absent on a fresh clone and present on a machine that has
+# built: check it when it is there, say nothing when it is not. Absent is not
+# drift, and failing on it would break the hook for anyone who has not built.
+OPTIONAL = {"games/stickland/index.html"}
+
 # Generated files, where patching the file is the wrong fix.
 BUILT = {
     "games/stickland/index.html": "node build.mjs (from games/stickland/)",
@@ -92,6 +99,8 @@ def extract(rel: str):
     """
     path = ROOT / rel
     if not path.exists():
+        if rel in OPTIONAL:
+            return "absent"
         fail(f"{rel}: missing — a palette copy was moved or deleted")
         return None
 
@@ -145,13 +154,21 @@ def main(argv) -> int:
             print(f"  [{i}] {name:<7} {hex_}")
         print(f"\n{len(COPIES)} copies checked:")
         for rel in COPIES:
-            tag = "  (generated)" if rel in BUILT else ""
-            print(f"  {rel}{tag}")
+            tags = []
+            if rel in BUILT:
+                tags.append("generated")
+            if rel in OPTIONAL:
+                tags.append("gitignored, checked only if built")
+            print(f"  {rel}" + (f"  ({'; '.join(tags)})" if tags else ""))
         return 0
 
     drift = 0
+    skipped = 0
     for rel in COPIES:
         got = extract(rel)
+        if got == "absent":
+            skipped += 1
+            continue
         if got is None:
             drift += 1
             continue
@@ -166,7 +183,9 @@ def main(argv) -> int:
         )
         return 1
 
-    print(f"accent palette: {len(COPIES)} copies match {SOURCE} ({len(want)} accents)")
+    note = f" ({skipped} not built, skipped)" if skipped else ""
+    print(f"accent palette: {len(COPIES) - skipped} copies match {SOURCE} "
+          f"({len(want)} accents){note}")
     return 0
 
 

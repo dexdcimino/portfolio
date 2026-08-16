@@ -23,7 +23,14 @@ import { SUMMIT_Y } from './level.js';
 export const ENEMY_R = { blob: 0.75, wraith: 0.7, spike: 0.62 };
 
 // Button bitfield (ARENA1_STEPS "Wire formats")
-export const BTN = { JUMP: 1, DASH: 2, SLIDE: 4, FIRE: 8, GRAPPLE: 16, JET: 32 };
+/* RESPAWN is a real input bit, not a client-side teleport, and it has to be.
+   The sim is deterministic and every peer replays the same commands, so a
+   player yanked back to spawn locally would desync against the host the moment
+   it happened. Riding the command means host and clients apply it on the same
+   tick, prediction reconciles it like any other input, and the transport does
+   not care — it ships the whole command object rather than a packed bitfield,
+   so widening this costs nothing on the wire. */
+export const BTN = { JUMP: 1, DASH: 2, SLIDE: 4, FIRE: 8, GRAPPLE: 16, JET: 32, RESPAWN: 64 };
 
 // Player state flags (snapshot `flags` bitfield). WALLNEAR extends the six
 // specced bits: the client's Space policy (prototype: mid-air Space = jet
@@ -117,6 +124,22 @@ export function stepPlayer(ctx, p, cmd) {
   let wz = -move.x * sy + move.z * cy;
   const wl = Math.hypot(wx, wz);
   if (wl > 0) { wx /= wl; wz /= wl; }
+
+  /* Respawn on the PRESS edge, before anything else this tick reads position:
+     a held button would re-spawn every tick at 60Hz and pin the player to the
+     pad. Not routed through hurtPlayer on purpose — this is a voluntary reset,
+     so it does not count a death or credit a killer, but it clears exactly what
+     dying clears so no stale grapple or fall velocity survives the trip. */
+  if (pressed & BTN.RESPAWN) {
+    p.pos = { ...p.spawn };
+    p.vel = { x: 0, y: 0, z: 0 };
+    p.grapple = null;
+    p.hp = 100;
+    p.fuel = p.fuelMax;
+    p.sliding = false;
+    p.dashT = 0;
+    events.push({ type: 'respawn', playerId: p.id });
+  }
 
   if (pressed & BTN.JUMP) p.jumpBufferedAt = tick;
 

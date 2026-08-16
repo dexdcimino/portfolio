@@ -125,6 +125,13 @@ const CSS = `
    the mute pill, so white-on-lime never happens. */
 .cmenu-resume{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
 .cmenu-resume:hover{filter:brightness(1.08)}
+/* Respawn: square, icon only, centred between EXIT and RESUME by the footer's
+   own space-between. aspect-ratio rather than a fixed width so it stays square
+   against whatever min-height the row settles at. Deliberately wears the same
+   neutral outline as EXIT rather than the accent — RESUME is the primary
+   action here and should stay the only filled control. */
+.cmenu-restart{flex:0 0 auto;aspect-ratio:1;padding:0;display:grid;place-items:center}
+.cmenu-restart svg{width:19px;height:19px;display:block}
 `;
 
 function build() {
@@ -154,6 +161,7 @@ function build() {
     </div>
     <div class="cmenu-foot">
       <button class="cmenu-btn cmenu-exit" type="button">EXIT GAME</button>
+      <button class="cmenu-btn cmenu-restart" type="button" aria-label="Respawn" title="Respawn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
       <button class="cmenu-btn cmenu-resume" type="button">RESUME</button>
     </div>`;
   host.replaceChildren(menu);
@@ -215,6 +223,13 @@ function build() {
 
   menu.querySelector('.cmenu-resume').addEventListener('click', () => {
     if (window.Chomp && window.Chomp.resume) window.Chomp.resume();
+  });
+  menu.querySelector('.cmenu-restart').addEventListener('click', () => {
+    // Chomp restarts by reloading — the same thing the death screen already
+    // does ("click respawns" in main.js). There is no partial-reset path to
+    // reuse: the cave, the creatures and the evolution chain are all seeded at
+    // boot, so a fresh run IS a fresh page.
+    location.reload();
   });
   menu.querySelector('.cmenu-exit').addEventListener('click', () => {
     // Navigate the PARENT, not the iframe: the game runs framed and the

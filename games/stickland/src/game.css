@@ -625,6 +625,17 @@ body:has(#hud-stamina-wrap[style*="block"]) #inv2 {
   cursor:pointer; white-space:nowrap;
   transition:background var(--ease), color var(--ease), transform .1s ease;
 }
+/* Square icon button — respawn. .pmenu-btn is flex:1, so this opts out of the
+   stretch first. Square is then built out of the SAME 10px vertical padding the
+   text buttons use, with a 22px icon standing in for their 22px line box: 22+20
+   is 42 each way before the shared 1px border, so it matches their height
+   without a hardcoded width to drift. aspect-ratio alone does NOT work here —
+   a flex item's stretched height is not definite enough for it to derive the
+   width from, and the button came out 22x44.
+   Wears the plain .pmenu-btn skin, not the accent: Resume is the primary action
+   in this row and should stay the only filled control. */
+.pmenu-btn-icon{flex:0 0 auto; padding:10px; display:grid; place-items:center;}
+.pmenu-btn-icon svg{width:22px; height:22px; display:block;}
 .pmenu-btn:hover{background:var(--bg4); color:var(--tx);}
 .pmenu-btn:active{transform:scale(.97);}
 .pmenu-btn-accent{

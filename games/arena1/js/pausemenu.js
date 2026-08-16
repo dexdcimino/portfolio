@@ -163,6 +163,13 @@ const CSS = `
    wears the accent, its ink flipped dark/light by the same luminance rule. */
 .cmenu-resume{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
 .cmenu-resume:hover{filter:brightness(1.08)}
+/* Respawn: square, icon only, centred between EXIT and RESUME by the footer's
+   own space-between. aspect-ratio rather than a fixed width so it stays square
+   against whatever min-height the row settles at. Deliberately wears the same
+   neutral outline as EXIT rather than the accent — RESUME is the primary
+   action here and should stay the only filled control. */
+.cmenu-restart{flex:0 0 auto;aspect-ratio:1;padding:0;display:grid;place-items:center}
+.cmenu-restart svg{width:19px;height:19px;display:block}
 `;
 
 function build() {
@@ -221,6 +228,7 @@ function build() {
     </div>
     <div class="cmenu-foot">
       <button class="cmenu-btn cmenu-exit" type="button">EXIT GAME</button>
+      <button class="cmenu-btn cmenu-restart" type="button" aria-label="Respawn" title="Respawn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
       <button class="cmenu-btn cmenu-resume" type="button">RESUME</button>
     </div>`;
   host.replaceChildren(menu);
@@ -422,6 +430,12 @@ function build() {
   paint();
 
   menu.querySelector('.cmenu-resume').addEventListener('click', () => {
+    window.Arena1?.resume?.();
+  });
+  menu.querySelector('.cmenu-restart').addEventListener('click', () => {
+    // The sim owns the reset (BTN.RESPAWN); this only asks for it, then hands
+    // the player straight back to the game rather than leaving the menu up.
+    window.Arena1?.respawn?.();
     window.Arena1?.resume?.();
   });
   menu.querySelector('.cmenu-exit').addEventListener('click', () => {

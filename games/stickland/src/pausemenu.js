@@ -64,7 +64,7 @@ const CONTROL_GROUPS = [
   { title: 'Game',  rows: [ { keys: ['Esc'], note: 'settings' } ] },
 ];
 
-let _hooks = { exitWorld: null, getKeybind: null, setKeybind: null, getCameraLock: null, setCameraLock: null };
+let _hooks = { exitWorld: null, respawn: null, getKeybind: null, setKeybind: null, getCameraLock: null, setCameraLock: null };
 let _open = false;
 let _menuEl = null, _backdropEl = null, _endcardEl = null;
 let _openSection = 'general';   // General is expanded on open
@@ -236,6 +236,8 @@ function _ensureDom() {
     </div>
     <div class="pmenu-footer">
       <button class="pmenu-btn" data-act="exit" type="button">Exit game</button>
+      <button class="pmenu-btn pmenu-btn-icon" data-act="respawn" type="button"
+              aria-label="Respawn" title="Respawn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
       <button class="pmenu-btn pmenu-btn-accent" data-act="resume" type="button">Resume</button>
     </div>`;
   document.body.appendChild(_menuEl);
@@ -245,6 +247,13 @@ function _ensureDom() {
   });
   _menuEl.querySelector('[data-act="resume"]').addEventListener('click', closePauseMenu);
   _menuEl.querySelector('[data-act="exit"]').addEventListener('click', _exitGame);
+  // Respawn belongs to playmode — it owns HP, the spawn point and the death
+  // screen — so this only calls the hook and gets out of the way. Closing after
+  // is the point: you press it to be back in the world, not to admire the menu.
+  _menuEl.querySelector('[data-act="respawn"]').addEventListener('click', () => {
+    _hooks.respawn?.();
+    closePauseMenu();
+  });
 }
 
 function _toggleSection(id) {
