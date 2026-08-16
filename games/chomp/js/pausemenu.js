@@ -84,7 +84,7 @@ const CSS = `
 .cmenu{
   width:min(460px,92vw);max-height:min(86vh,640px);overflow:auto;
   background:rgba(13,17,22,.96);border:1px solid rgba(255,255,255,.12);
-  border-radius:16px;padding:22px 22px 18px;
+  border-radius:16px;padding:22px 22px 0;
   color:#f1f3f4;font-family:'Segoe UI',system-ui,sans-serif;text-align:left;
   box-shadow:0 18px 60px rgba(0,0,0,.6);
 }
@@ -110,7 +110,12 @@ const CSS = `
   letter-spacing:.08em;border:2px solid #3a4450;background:#232830;color:#f1f3f4;
   transition:background .15s ease,color .15s ease,border-color .15s ease}
 .cmenu-mute.is-muted{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
-.cmenu-foot{display:flex;justify-content:space-between;gap:12px;margin-top:20px}
+/* Fixed action bar: EXIT/RESUME stay visible while the sections scroll behind.
+   Sticky and in-flow, so the scroll region's bottom padding is the bar itself
+   and the last section can always scroll clear of it. Opaque on purpose. */
+.cmenu-foot{display:flex;justify-content:space-between;gap:12px;
+  position:sticky;bottom:0;margin:20px -22px 0;padding:12px 22px 18px;
+  background:#151a21;border-top:1px solid rgba(255,255,255,.1)}
 .cmenu-btn{min-height:42px;padding:0 20px;border-radius:10px;cursor:pointer;font-weight:800;
   letter-spacing:.06em;font-size:13px;border:2px solid rgba(255,255,255,.22);background:transparent;color:#f1f3f4;
   transition:border-color .15s ease,background .15s ease}
