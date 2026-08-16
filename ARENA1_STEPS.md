@@ -265,6 +265,18 @@ to compensate.
   `pad {padId, playerId}` · `summit {playerId}` ·
   `platform_trigger {platformId, tick}` ·
   `fire {playerId, weapon, origin, dir}` (MD 14: every shot, hit or miss)
+  MD 18 — serpent:
+  `serpent_armour {serpentId, seg, untilTick}` (a shield inflated) ·
+  `serpent_blocked {serpentId, seg, shooter}` (a shot refused by armour —
+  the renderer shows "blocked", never a damage number) ·
+  `serpent_sever {serpentId, seg, point, by}` (one detached segment, emitted
+  per segment tail-first so each can drop and pop on its own) ·
+  `serpent_death {serpentId, by, point}` ·
+  `serpent_fire {serpentId, boltId, origin, dir}` ·
+  `serpent_contact {serpentId, seg, playerId}` (spike body touched a player) ·
+  `bolt_impact {boltId, point, hit}` · `bolt_expire {boltId, point}`
+  A serpent `hit` carries an extra `seg` so the renderer can place the mark on
+  the right segment.
   Renderer maps events → hitmark, tracer endpoint, damage number, feed line,
   sound. The renderer never mutates hp, ever.
 - `js/sim/enemies.js`: port blob hop / wraith orbit-swoop-climb / spike patrol.

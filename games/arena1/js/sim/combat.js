@@ -29,6 +29,7 @@ import { SIM_DT } from '../config.js';
 import { CAPSULE_R, CAPSULE_HALF_H, raySphere, rayVCapsule } from './world.js';
 import { BTN, ENEMY_R, hurtPlayer } from './movement.js';
 import { killEnemy } from './enemies.js';
+import { raySerpents, hitSegment, segAt, segRadius } from './serpent.js';
 
 const FIRE_CD = 0.11; // prototype cadence (zap)
 const RANGE = 250;
@@ -133,9 +134,21 @@ export function stepCombat(ctx, p, buttons) {
     const t = rayVCapsule(eye, dir, q.pos, CAPSULE_R, CAPSULE_HALF_H, bestT);
     if (t !== null) { bestT = t; best = { type: 'player', q }; }
   }
+  {
+    const hit = raySerpents(ctx, eye, dir, bestT);
+    if (hit) { bestT = hit.t; best = { type: 'serpent', hit }; }
+  }
   if (!best) return; // world impact FX is the renderer's own read
 
   const point = at(bestT);
+  if (best.type === 'serpent') {
+    const { s, seg } = best.hit;
+    // hitSegment returns false when armour ate it; the event it emits is what
+    // tells the renderer to show a blocked read instead of a damage number.
+    const landed = hitSegment(ctx, s, seg, 1, p.id);
+    if (landed) ctx.events.push({ type: 'hit', shooter: p.id, target: s.id, point, dmg: 1, seg });
+    return;
+  }
   if (best.type === 'enemy') {
     const e = best.e;
     e.hp--;
@@ -156,7 +169,16 @@ function explode(ctx, r, point, direct) {
   ctx.events.push({ type: 'explode', point: { ...point }, ownerId: r.ownerId });
 
   // direct hit first: full damage to whatever the sweep struck
-  if (direct?.type === 'enemy' && direct.e.alive) {
+  if (direct?.type === 'serpent') {
+    // A rocket direct is DIRECT_ENEMY (3 zap-hits' worth) into one segment.
+    // Splash deliberately does NOT spread down the chain: a blast that chewed
+    // several segments at once would collapse the whole hp curve into "aim
+    // anywhere near the neck", which is exactly the single correct answer the
+    // curve exists to prevent.
+    const { s: ser, seg } = direct.hit;
+    const landed = hitSegment(ctx, ser, seg, DIRECT_ENEMY, r.ownerId);
+    if (landed) ctx.events.push({ type: 'hit', shooter: r.ownerId, target: ser.id, point, dmg: DIRECT_ENEMY, seg });
+  } else if (direct?.type === 'enemy' && direct.e.alive) {
     const e = direct.e;
     e.hp -= DIRECT_ENEMY;
     ctx.events.push({ type: 'hit', shooter: r.ownerId, target: e.id, point, dmg: DIRECT_ENEMY });
@@ -238,6 +260,10 @@ export function stepRockets(ctx) {
       if (q.ghost || q.id === r.ownerId) continue; // never direct-hits its owner; splash reaches them
       const t = rayVCapsule(r.pos, dir, q.pos, CAPSULE_R + 0.15, CAPSULE_HALF_H + 0.15, Math.min(bestT, stepLen));
       if (t !== null) { bestT = t; direct = { type: 'player', q }; }
+    }
+    {
+      const sh = raySerpents(ctx, r.pos, dir, Math.min(bestT, stepLen));
+      if (sh) { bestT = sh.t; direct = { type: 'serpent', hit: sh }; }
     }
     if (bestT <= stepLen) {
       const point = { x: r.pos.x + dir.x * bestT, y: r.pos.y + dir.y * bestT, z: r.pos.z + dir.z * bestT };

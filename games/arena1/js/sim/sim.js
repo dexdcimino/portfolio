@@ -14,6 +14,7 @@ import { buildLevel, tickPlatforms } from './level.js';
 import { createPlayerState, stepPlayer, playerFlags, BTN, FLAG } from './movement.js';
 import { initEnemies, stepEnemies } from './enemies.js';
 import { stepCombat, stepRockets } from './combat.js';
+import { stepSerpents, stepBolts, spawnSerpent } from './serpent.js';
 
 export { BTN, FLAG }; // wire-format constants live with the movement port
 
@@ -40,7 +41,14 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
       const id = ents.allocId();
       ents.cells.set(id, { id, pos: { ...pos }, base: { ...pos }, taken: false, pulled: false });
     }
-    if (enemies) initEnemies(ents, level, seed);
+    if (enemies) {
+      initEnemies(ents, level, seed);
+      // One serpent, spawned through the same gate as every other enemy so a
+      // test asking for enemies:false still gets a clean sim. Its own rng
+      // stream, so adding it does not shift any other enemy's draws.
+      const sid = ents.allocWorldId();
+      spawnSerpent(ents, level, rngFor(seed, 'serpent', sid), sid);
+    }
   }
 
   // withId: the prediction sim mirrors a player the HOST allocated, and the
@@ -70,6 +78,9 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
     // Read-only for the render layer (Phase 4): level data to build meshes
     // from, world.raycast for blob shadows. One-directional reads only.
     get world() { return world; },
+    // Read-only handle for tests that need to compare wire state against
+    // authority (MD 18 item 9). Nothing in the game reads this.
+    get ents() { return ents; },
     get level() { return level; },
     addPlayer,
     removePlayer,
@@ -114,7 +125,9 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
       }
       if (!predictOnly) {
         stepEnemies(ctx);
+        stepSerpents(ctx);
         stepRockets(ctx); // after enemies: a rocket sweeps against this tick's poses
+        stepBolts(ctx);   // and bolts after those, same fixed-order discipline
       }
       lastEvents = events;
       tick++;
@@ -159,6 +172,40 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
         })),
         rockets: [...ents.rockets.values()].map((r) => ({
           id: r.id, pos: round(r.pos), vel: round(r.vel), ownerId: r.ownerId,
+        })),
+        /* MD 18. NO segment positions on the wire. The head path is a closed
+           form of the tick (serpent.js), so a client holding the parameters can
+           evaluate headAt() — and therefore every segment, which is just the
+           head SEG_LAG*i ticks ago — itself. Only what cannot be derived
+           travels:
+             len      alive segments. Destroying a segment always destroys
+                      everything behind it, so the alive set is always a prefix
+                      and fits in ONE integer, not a liveness array.
+             armour   a bitmask, one bit per segment — 12 segments in a single
+                      number. The inflate ANIMATION belongs to the renderer and
+                      is driven off the bit appearing, so no per-segment timer
+                      goes over the wire.
+             aim      two angles for the turret.
+             hp0      frontmost segment hp, for the health readout only.
+           `path` is static after spawn; a client caches it by id on first
+           sight. It is sent every frame here for simplicity and still costs
+           less than one segment position would. */
+        serpents: [...ents.serpents.values()].filter((s) => s.alive).map((s) => {
+          let mask = 0;
+          for (let i = 0; i < s.len; i++) if (tick < s.armourUntil[i]) mask |= (1 << i);
+          return {
+            id: s.id, len: s.len, armour: mask,
+            aimYaw: Math.round(s.aimYaw * 1e4) / 1e4,
+            aimPitch: Math.round(s.aimPitch * 1e4) / 1e4,
+            hp0: s.hp[0],
+            path: {
+              cx: s.cx, cy: s.cy, cz: s.cz, R: s.R, amp: s.amp, lat: s.lat,
+              w: s.w, vw: s.vw, phase: s.phase, vphase: s.vphase,
+            },
+          };
+        }),
+        bolts: [...ents.bolts.values()].map((b) => ({
+          id: b.id, pos: round(b.pos), vel: round(b.vel), serpentId: b.serpentId,
         })),
         events: lastEvents,
       };
