@@ -79,16 +79,46 @@ export function createActors({ scene, mat, V3 }) {
   }
 
   function makeRocket() {
-    const body = BABYLON.MeshBuilder.CreateCylinder('rocket', { height: 0.5, diameterTop: 0.06, diameterBottom: 0.13, tessellation: 8 }, scene);
-    const m = new BABYLON.StandardMaterial('rocketm', scene);
-    m.diffuseColor = BABYLON.Color3.FromHexString('#FF7A59');
-    m.emissiveColor = BABYLON.Color3.FromHexString('#FF7A59').scale(0.6); // reads in flight
-    m.specularColor = BABYLON.Color3.Black();
-    body.material = m;
-    body.rotation.x = Math.PI / 2; // cylinder axis → z, oriented by lookAt below
+    // MD 13: an actual rocket — body, bright nose, three tail fins, exhaust
+    // glow — built +z-forward inside a holder so sync()'s lookAt orients the
+    // whole thing along its velocity. Cheap flat-shaded prims; several fly at
+    // once and the smoke trail comes from the fx puff pool, not from here.
     const holder = new BABYLON.TransformNode('rocketH', scene);
-    body.parent = holder;
-    return { root: holder, matRef: m, body };
+    const bodyM = new BABYLON.StandardMaterial('rocketm', scene);
+    bodyM.diffuseColor = BABYLON.Color3.FromHexString('#FF7A59');
+    bodyM.emissiveColor = BABYLON.Color3.FromHexString('#FF7A59').scale(0.6); // reads in flight
+    bodyM.specularColor = BABYLON.Color3.Black();
+    const noseM = new BABYLON.StandardMaterial('rocketnm', scene);
+    noseM.emissiveColor = BABYLON.Color3.FromHexString('#FFE7B0');
+    noseM.diffuseColor = BABYLON.Color3.Black();
+    noseM.specularColor = BABYLON.Color3.Black();
+    const finM = new BABYLON.StandardMaterial('rocketfm', scene);
+    finM.diffuseColor = BABYLON.Color3.FromHexString('#3EC5B4');
+    finM.emissiveColor = BABYLON.Color3.FromHexString('#3EC5B4').scale(0.35);
+    finM.specularColor = BABYLON.Color3.Black();
+    const body = BABYLON.MeshBuilder.CreateCylinder('rocket', { height: 0.42, diameter: 0.13, tessellation: 8 }, scene);
+    body.rotation.x = Math.PI / 2; // cylinder +y → +z
+    body.material = bodyM; body.parent = holder;
+    const nose = BABYLON.MeshBuilder.CreateCylinder('rocketN', { height: 0.16, diameterTop: 0.015, diameterBottom: 0.13, tessellation: 8 }, scene);
+    nose.rotation.x = Math.PI / 2;
+    nose.position.z = 0.29; // ahead of the body
+    nose.material = noseM; nose.parent = holder;
+    for (let i = 0; i < 3; i++) {
+      const fin = BABYLON.MeshBuilder.CreateBox('rocketF' + i, { width: 0.02, height: 0.2, depth: 0.16 }, scene);
+      const a = i * (Math.PI * 2 / 3);
+      fin.position.set(Math.sin(a) * 0.1, Math.cos(a) * 0.1, -0.15);
+      fin.rotation.z = -a; // blade radiates outward
+      fin.material = finM; fin.parent = holder;
+    }
+    const flame = BABYLON.MeshBuilder.CreateSphere('rocketX', { diameter: 0.12, segments: 4 }, scene);
+    flame.position.z = -0.26;
+    const flameM = new BABYLON.StandardMaterial('rocketxm', scene);
+    flameM.emissiveColor = BABYLON.Color3.FromHexString('#FFB13D');
+    flameM.diffuseColor = BABYLON.Color3.Black();
+    flameM.specularColor = BABYLON.Color3.Black();
+    flame.material = flameM; flame.parent = holder;
+    for (const m of holder.getChildMeshes()) m.isPickable = false;
+    return { root: holder, matRef: bodyM };
   }
 
   function makeCell() {

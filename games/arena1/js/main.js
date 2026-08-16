@@ -169,6 +169,8 @@ document.addEventListener('keyup', (e) => {
 // weapon selection). The menu hands changes over by event; re-applied per
 // session build.
 window.addEventListener('arena1-quality', (e) => S?.R.setQuality(e.detail));
+// Accent swatch clicked mid-match → the grapple rope retints live (MD 13).
+window.addEventListener('arena1-accent', (e) => S?.fx.setRopeColor(e.detail));
 
 // ── background pump heartbeat ───────────────────────────────────────────────
 // Chrome suspends rAF in hidden tabs, which froze a HOST's sim — and the
@@ -215,9 +217,19 @@ function startSession(transport) {
     transport, localId, level, world, R, levelView, actors, fx,
     prevSnap: null, lastSnap: null,
     acc: 0, lastTime: performance.now(),
-    camH: 0.55, roll: 0, bob: 0, fovT: 1.05, fireCd: 0, jetPuffT: 0,
+    camH: 0.55, roll: 0, bob: 0, fovT: 1.05, fireCd: 0, jetPuffT: 0, trailT: 0,
     pump, dispose: null,
   };
+
+  // Rope accent (MD 13): local presentation only — the accent never rides the
+  // wire from here (the remote-visuals MD owns that transport). The CSS var is
+  // set by pausemenu at boot and on every swatch click; the arena1-accent
+  // event covers mid-match changes.
+  {
+    const hex = getComputedStyle(document.documentElement)
+      .getPropertyValue('--cmenu-accent').trim();
+    if (hex) fx.setRopeColor(hex);
+  }
 
   function buildCommand(tick) {
     // While paused in a NET session the sim must keep running for everyone
@@ -314,8 +326,11 @@ function startSession(transport) {
         AudioFX.pop();
       } else if (ev.type === 'explode') {
         if (ev.point) {
-          fx.burst(ev.point, '#FF7A59', 14, 10);
-          fx.burst(ev.point, '#FFE7B0', 8, 6);
+          // MD 13 two-layer explosion: bright core bounded at the true splash
+          // radius + big transparent falloff; debris bursts ride on top.
+          fx.explosion(ev.point);
+          fx.burst(ev.point, '#FF7A59', 14, 14);
+          fx.burst(ev.point, '#FFE7B0', 8, 9);
         }
         AudioFX.boom();
       } else if (ev.type === 'platform_trigger') {
@@ -332,6 +347,8 @@ function startSession(transport) {
     kills: document.getElementById('kills'), cells: document.getElementById('cells'),
     deaths: document.getElementById('deaths'),
     fps: document.getElementById('fps'), meshes: document.getElementById('meshes'),
+    wSlot0: document.getElementById('wSlot0'), wSlot1: document.getElementById('wSlot1'),
+    wGrap: document.getElementById('wGrap'),
   };
   function paintHud(me) {
     hud.hpFill.style.width = me.hp + '%';
@@ -349,6 +366,13 @@ function startSession(transport) {
     hud.kills.textContent = me.kills ?? 0;
     hud.cells.textContent = me.cellsGot ?? 0;
     hud.deaths.textContent = me.deaths ?? 0;
+    // MD 13 weapon HUD — me is the PREDICTED snapshot entry, so this flips on
+    // the same frame as the 1/2 press for host and net client alike (the
+    // command applies to the local predicted sim inside this frame's pump).
+    const w = me.weapon ?? 0;
+    hud.wSlot0.classList.toggle('on', w === 0);
+    hud.wSlot1.classList.toggle('on', w === 1);
+    hud.wGrap.classList.toggle('on', !!(me.flags & FLAG.GRAPPLING));
   }
 
   let fpsAcc = 0;
@@ -418,6 +442,23 @@ function startSession(transport) {
         if (jetting) {
           sess.jetPuffT -= dt;
           if (sess.jetPuffT <= 0) { sess.jetPuffT = 0.05; fx.jetPuff({ x: px, y: py, z: pz }); }
+        }
+
+        // Rocket exhaust trails (MD 13): a dotted smoke line behind every live
+        // rocket — local and remote read the same snapshot list, so both see
+        // where a rocket came from. Spawned behind the nose so the model stays
+        // clear of its own smoke.
+        sess.trailT -= dt;
+        if (sess.trailT <= 0 && sess.lastSnap.rockets?.length) {
+          sess.trailT = 0.035;
+          for (const r of sess.lastSnap.rockets) {
+            const sp = Math.max(1e-6, Math.hypot(r.vel.x, r.vel.y, r.vel.z));
+            fx.trailPuff({
+              x: r.pos.x - r.vel.x / sp * 0.4,
+              y: r.pos.y - r.vel.y / sp * 0.4,
+              z: r.pos.z - r.vel.z / sp * 0.4,
+            });
+          }
         }
 
         if ((me.flags & FLAG.GRAPPLING) && me.grapple) fx.ropeTo(me.grapple);

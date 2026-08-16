@@ -19,7 +19,11 @@
 //   speed 40 m/s · cooldown 0.8s · lifetime 4s · splash radius 4.5m
 //   players: 35 direct (pvp), splash 30 → 0 linear falloff, self included
 //   enemies: 3 direct; splash 2 inside half radius, 1 outside
-//   knockback: 18 · (1 − d/4.5) radial, min-clamped d ≥ 0.5
+//   knockback (MD 13): players 54 · (1 − d/4.5) radial, min-clamped d ≥ 0.5 —
+//   3× the MD 11 value, so a feet blast launches ~35 m/s vertical against an
+//   11.5 jump and reaches geometry jumping never can. Enemies keep the old 18:
+//   the raise is about the rocket JUMP, and 3× enemy fling would hurl patrol
+//   spikeballs off their platforms as a side effect nobody asked for.
 
 import { SIM_DT } from '../config.js';
 import { CAPSULE_R, CAPSULE_HALF_H, raySphere, rayVCapsule } from './world.js';
@@ -37,11 +41,15 @@ const ROCKET_SPEED = 40;
 const ROCKET_CD = 0.8;
 const ROCKET_LIFE_TICKS = 240;      // 4s — a rocket fired at the sky never leaks
 const ROCKET_MUZZLE = 0.8;          // spawn ahead of the eye
-const SPLASH_RADIUS = 4.5;
+// Exported for the render layer: the explosion's DAMAGE CORE visual scales
+// from this constant so the bright boundary can never drift from the real
+// splash volume. The spectacle falloff around it deliberately does not.
+export const SPLASH_RADIUS = 4.5;
 const DIRECT_PLAYER = 35;           // pvp-gated like every player hit
 const DIRECT_ENEMY = 3;             // a blob dies to a direct hit
 const SPLASH_PLAYER_MAX = 30;       // → ~22 self-damage from a feet blast (survivable ≥4×)
-const KNOCK = 18;                   // → ~14 vertical from a clean feet blast
+const KNOCK_PLAYER = 54;            // → ~35 vertical from a clean feet blast (MD 13 feel gate)
+const KNOCK_ENEMY = 18;             // unchanged from MD 11 — see header
 
 function viewDir(p) {
   const cp = Math.cos(p.pitch);
@@ -130,7 +138,7 @@ function explode(ctx, r, point, direct) {
     const dmg = d < SPLASH_RADIUS / 2 ? 2 : 1;
     e.hp -= dmg;
     ctx.events.push({ type: 'hit', shooter: r.ownerId, target: e.id, point, dmg });
-    const k = KNOCK * (1 - d / SPLASH_RADIUS);
+    const k = KNOCK_ENEMY * (1 - d / SPLASH_RADIUS);
     const dd = Math.max(0.5, d);
     e.vx += (e.pos.x - point.x) / dd * k * 0.8;
     e.vz += (e.pos.z - point.z) / dd * k * 0.8;
@@ -154,7 +162,7 @@ function explode(ctx, r, point, direct) {
     // give angled launches (the rocket-jump feel), scaled by proximity like
     // the enemy knockback.
     const dd = Math.max(0.5, d);
-    const k = KNOCK * (1 - d / SPLASH_RADIUS);
+    const k = KNOCK_PLAYER * (1 - d / SPLASH_RADIUS);
     q.vel.x += (q.pos.x - point.x) / dd * k;
     q.vel.y += (q.pos.y - point.y) / dd * k;
     q.vel.z += (q.pos.z - point.z) / dd * k;

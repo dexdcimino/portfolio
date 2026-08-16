@@ -1,7 +1,12 @@
 // render/fx.js — pooled cosmetics (ARENA1_STEPS Phase 4): gun + muzzle +
 // kick, tracers, debris bursts, jet puffs, damage numbers, blob shadows
-// (read-only world.raycast), grapple rope, hitmark, vignettes. Math.random is
-// legal here — render only, none of this feeds back into the sim.
+// (read-only world.raycast), grapple rope, hitmark, vignettes, and the MD 13
+// two-layer explosion. Math.random is legal here — render only, none of this
+// feeds back into the sim. SPLASH_RADIUS is a one-way constant read: the
+// damage-core visual derives from it so the bright boundary can never drift
+// from the true splash volume.
+
+import { SPLASH_RADIUS } from '../sim/combat.js';
 
 export function createFx({ scene, cam, mat, V3 }, world) {
   // ---- gun (parented to the camera, exactly the prototype's) ----
@@ -44,10 +49,25 @@ export function createFx({ scene, cam, mat, V3 }, world) {
   setWeapon(0);
 
   // ---- grapple rope + hook tip ----
+  // MD 13: the rope wears the player's ACCENT. Dedicated material — the mat()
+  // helper caches by hex, so retinting a shared entry would repaint every
+  // mesh using that colour. Remote ropes (when the remote-visuals MD draws
+  // them) use their own neutral default; the accent never rides the wire here.
+  const ropeMat = new BABYLON.StandardMaterial('ropem', scene);
+  ropeMat.specularColor = BABYLON.Color3.Black();
+  ropeMat.alpha = 0.85;
+  function setRopeColor(hex) {
+    try {
+      const c = BABYLON.Color3.FromHexString(hex);
+      ropeMat.diffuseColor = c;
+      ropeMat.emissiveColor = c.scale(0.55);
+    } catch { /* malformed hex: keep the last colour */ }
+  }
+  setRopeColor('#9EE02B'); // site default (lime) until main hands over the real one
   const rope = BABYLON.MeshBuilder.CreateBox('rope', { width: 0.05, height: 0.05, depth: 1 }, scene);
-  rope.material = mat('#FF3D81', 0.7); rope.isVisible = false; rope.isPickable = false;
+  rope.material = ropeMat; rope.isVisible = false; rope.isPickable = false;
   const hookTip = BABYLON.MeshBuilder.CreateIcoSphere('hook', { radius: 0.14, subdivisions: 1 }, scene);
-  hookTip.material = mat('#FF3D81', 1); hookTip.isVisible = false; hookTip.isPickable = false;
+  hookTip.material = ropeMat; hookTip.isVisible = false; hookTip.isPickable = false;
   function ropeTo(target) {
     const a = hookEmit.getAbsolutePosition();
     const t = new BABYLON.Vector3(target.x, target.y, target.z);
@@ -100,6 +120,93 @@ export function createFx({ scene, cam, mat, V3 }, world) {
     d.mesh.scaling.setAll(0.5 + Math.random() * 0.5);
     d.mesh.isVisible = true; d.life = 0.35;
   }
+
+  // ---- explosions (MD 13): two layers with deliberately different radii ----
+  // DAMAGE CORE — bright, near-opaque, bounded at exactly SPLASH_RADIUS (the
+  // scale is derived, never typed). It expands fast, HOLDS at the true splash
+  // boundary, then dies by fading in place — it never grows past the radius,
+  // so what players learn as "that hurt" is always the real volume.
+  // SPECTACLE FALLOFF — shockwave ring + light bloom + smoke reading ~12m.
+  // Fast and transparent on purpose: hand-tuned numbers, NOT derived from the
+  // splash constant, so spectacle can be art-directed without moving the
+  // damage read. Someone at 5.5m stands inside the bloom, outside the core.
+  const CORE_T = 0.5, RING_T = 0.45, BLOOM_T = 0.22;
+  const explosions = [];
+  {
+    const coreMatT = new BABYLON.StandardMaterial('exCore', scene);
+    coreMatT.emissiveColor = BABYLON.Color3.FromHexString('#FFE7B0');
+    coreMatT.diffuseColor = BABYLON.Color3.Black();
+    coreMatT.specularColor = BABYLON.Color3.Black();
+    coreMatT.disableLighting = true;
+    coreMatT.backFaceCulling = false; // rocket-jumpers are INSIDE the core
+    const ringMatT = new BABYLON.StandardMaterial('exRing', scene);
+    ringMatT.emissiveColor = BABYLON.Color3.FromHexString('#FF7A59');
+    ringMatT.diffuseColor = BABYLON.Color3.Black();
+    ringMatT.specularColor = BABYLON.Color3.Black();
+    ringMatT.disableLighting = true;
+    const bloomMatT = new BABYLON.StandardMaterial('exBloom', scene);
+    bloomMatT.emissiveColor = BABYLON.Color3.FromHexString('#FFB13D');
+    bloomMatT.diffuseColor = BABYLON.Color3.Black();
+    bloomMatT.specularColor = BABYLON.Color3.Black();
+    bloomMatT.disableLighting = true;
+    // backFaceCulling stays ON: standing inside the 13m bloom must not wash
+    // the whole screen — the falloff is for onlookers, and a wash would bury
+    // the core boundary the split exists to keep legible.
+    for (let i = 0; i < 4; i++) {
+      const core = BABYLON.MeshBuilder.CreateSphere('exc' + i, { diameter: 2, segments: 10 }, scene);
+      core.material = coreMatT.clone('exCore' + i);
+      const ring = BABYLON.MeshBuilder.CreateTorus('exr' + i, { diameter: 2, thickness: 0.22, tessellation: 28 }, scene);
+      ring.material = ringMatT.clone('exRing' + i);
+      const bloom = BABYLON.MeshBuilder.CreateSphere('exb' + i, { diameter: 2, segments: 8 }, scene);
+      bloom.material = bloomMatT.clone('exBloom' + i);
+      for (const m of [core, ring, bloom]) { m.isVisible = false; m.isPickable = false; }
+      explosions.push({ core, ring, bloom, t: -1 });
+    }
+  }
+  function explosion(pos) {
+    let e = explosions.find((e) => e.t < 0);
+    if (!e) { // all busy: steal the oldest so a barrage never goes silent
+      e = explosions.reduce((a, b) => (a.t > b.t ? a : b));
+    }
+    e.t = 0;
+    for (const m of [e.core, e.ring, e.bloom]) {
+      m.position.set(pos.x, pos.y, pos.z);
+      m.isVisible = true;
+    }
+    for (let i = 0; i < 7; i++) { // smoke drifting out of the core
+      puff({
+        x: pos.x + (Math.random() - 0.5) * SPLASH_RADIUS,
+        y: pos.y + Math.random() * 1.5,
+        z: pos.z + (Math.random() - 0.5) * SPLASH_RADIUS,
+      }, 0.8, 2.6, 0.9, 0.32, 2.2);
+    }
+  }
+
+  // ---- soft puffs: rocket exhaust trail + explosion smoke (one pool) ----
+  const puffs = [];
+  {
+    const pm = new BABYLON.StandardMaterial('puffm', scene);
+    pm.emissiveColor = BABYLON.Color3.FromHexString('#C9BFD8');
+    pm.diffuseColor = BABYLON.Color3.Black();
+    pm.specularColor = BABYLON.Color3.Black();
+    pm.disableLighting = true;
+    for (let i = 0; i < 28; i++) {
+      const s = BABYLON.MeshBuilder.CreateSphere('pf' + i, { diameter: 1, segments: 4 }, scene);
+      s.material = pm.clone('puffm' + i);
+      s.isVisible = false; s.isPickable = false;
+      puffs.push({ mesh: s, life: 0, max: 1, s0: 1, s1: 1, a0: 0.3, rise: 1 });
+    }
+  }
+  function puff(pos, s0, s1, life, alpha, rise) {
+    const p = puffs.find((p) => p.life <= 0); if (!p) return;
+    p.mesh.position.set(pos.x, pos.y, pos.z);
+    p.s0 = s0; p.s1 = s1; p.max = life; p.life = life; p.a0 = alpha; p.rise = rise;
+    p.mesh.scaling.setAll(s0);
+    p.mesh.isVisible = true;
+  }
+  // exhaust: small, quick, barely rising — reads as a dotted line behind the
+  // rocket that tells you where it came from
+  function trailPuff(pos) { puff(pos, 0.22, 0.7, 0.45, 0.4, 0.6); }
 
   // ---- damage numbers (HUD divs projected each frame) ----
   const dmgPool = [];
@@ -183,6 +290,41 @@ export function createFx({ scene, cam, mat, V3 }, world) {
         if (d.life <= 0) d.mesh.isVisible = false;
       }
     }
+    for (const e of explosions) {
+      if (e.t < 0) continue;
+      e.t += dt;
+      // core: fast expand to EXACTLY the splash radius, hold, fade in place
+      const ct = e.t;
+      if (ct < CORE_T) {
+        const grow = Math.min(1, ct / 0.1);
+        const s = SPLASH_RADIUS * (0.35 + 0.65 * (1 - (1 - grow) * (1 - grow))); // ease-out
+        e.core.scaling.setAll(s);
+        e.core.material.alpha = ct < 0.32 ? 0.92 : 0.92 * (1 - (ct - 0.32) / (CORE_T - 0.32));
+      } else e.core.isVisible = false;
+      // ring: races out to ~12m and thins — pure spectacle, hand-tuned
+      if (ct < RING_T) {
+        const rt = ct / RING_T;
+        e.ring.scaling.setAll(1 + 11 * (1 - (1 - rt) * (1 - rt)));
+        e.ring.material.alpha = 0.55 * (1 - rt);
+      } else e.ring.isVisible = false;
+      // bloom: a flash of light out to ~13m, gone in a quarter second
+      if (ct < BLOOM_T) {
+        const bt = ct / BLOOM_T;
+        e.bloom.scaling.setAll(3 + 10 * bt);
+        e.bloom.material.alpha = 0.3 * (1 - bt);
+      } else e.bloom.isVisible = false;
+      if (ct >= CORE_T && ct >= RING_T && ct >= BLOOM_T) e.t = -1;
+    }
+    for (const p of puffs) {
+      if (p.life > 0) {
+        p.life -= dt;
+        const k = 1 - p.life / p.max;
+        p.mesh.position.y += p.rise * dt;
+        p.mesh.scaling.setAll(p.s0 + (p.s1 - p.s0) * k);
+        p.mesh.material.alpha = p.a0 * (1 - k);
+        if (p.life <= 0) p.mesh.isVisible = false;
+      }
+    }
     const engine = scene.getEngine();
     const w = engine.getRenderWidth(), h = engine.getRenderHeight();
     for (const d of dmgPool) {
@@ -201,6 +343,7 @@ export function createFx({ scene, cam, mat, V3 }, world) {
 
   return {
     fire, spawnTracer, burst, jetPuff, dmgNum, setWeapon,
+    explosion, trailPuff, setRopeColor,
     ropeTo, ropeOff, placeShadow, hideShadow,
     hitmarkFlash, hurtFlash, vig, update,
     muzzleWorld: () => muzzle.getAbsolutePosition(),

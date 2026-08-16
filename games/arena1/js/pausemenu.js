@@ -58,15 +58,18 @@ function applyAccent(a, persist = true) {
   for (const b of document.querySelectorAll('.cmenu-swatch')) {
     b.classList.toggle('is-on', b.dataset.name === a.name);
   }
+  // MD 13: main retints the grapple rope from this (local presentation only —
+  // accent-on-the-wire belongs to the remote-visuals MD).
+  window.dispatchEvent(new CustomEvent('arena1-accent', { detail: a.hex }));
 }
 
 const CONTROLS = [
   ['Move', ['W', 'A', 'S', 'D'], ''],
+  ['Grapple', ['RMB'], 'hold to reel'], // MD 13: directly under Move
   ['Jump / mid-air jet', ['Space'], 'hold to burn'],
   ['Dash', ['Shift'], '×2 charges'],
   ['Slide', ['C', 'Ctrl'], ''],
   ['Zap', ['LMB'], ''],
-  ['Grapple', ['RMB'], 'hold to reel'],
   ['Pause', ['Esc'], ''],
 ];
 

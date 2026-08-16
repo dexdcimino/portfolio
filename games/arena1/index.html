@@ -38,6 +38,33 @@
       <div class="dim">LOD debug <span id="lodState">off</span> <span style="opacity:.6">[L]</span></div>
     </div>
     <div id="feed"></div>
+    <!-- MD 13 weapon HUD: two selectable slots bottom-centre, driven by the
+         PREDICTED weapon field (same-frame on 1/2, host and net client). The
+         smaller hook to the left is a grapple STATE readout, not a slot —
+         offset from centre on purpose. -->
+    <div id="weapons">
+      <div class="wslot grap" id="wGrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <path d="M13 3v9a4.5 4.5 0 0 1-9 0v-1.5"/>
+          <path d="M4 13.5l-2-2m2 2l2-2"/>
+          <path d="M13 3l4 2-4 2"/>
+        </svg>
+      </div>
+      <div class="wslot" id="wSlot0">
+        <span class="wkey">1</span>
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M13.5 2 5 13.5h4.5L9 22l8.5-11.5H13z"/>
+        </svg>
+      </div>
+      <div class="wslot" id="wSlot1">
+        <span class="wkey">2</span>
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2c1.8 1.6 2.8 4.6 2.8 8l-.1 2.7 2.3 3.3h-3.4L12 19l-1.6-3H7l2.3-3.3-.1-2.7c0-3.4 1-6.4 2.8-8z"/>
+          <circle cx="12" cy="9" r="1.3" fill="#170D2B"/>
+          <path d="M10.2 19.6 12 23l1.8-3.4z" opacity=".7"/>
+        </svg>
+      </div>
+    </div>
     <div id="hud-boot">ARENA 1</div>
     <!-- No title screen: the world boots live. Pointer lock still needs one
          user gesture, so this small chip invites the click and vanishes the
