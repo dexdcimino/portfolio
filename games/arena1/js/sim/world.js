@@ -38,6 +38,46 @@ const STEP_MIN_FWD = 0.5;   // must keep ≥ half the intended horizontal subste
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
+// ---- standalone ray helpers (combat + grapple target tests; Phase 5) ------
+// raySphere: nearest entry t in (0, maxT], or null.
+export function raySphere(o, d, c, r, maxT) {
+  const ox = o.x - c.x, oy = o.y - c.y, oz = o.z - c.z;
+  const b = 2 * (ox * d.x + oy * d.y + oz * d.z);
+  const cc = ox * ox + oy * oy + oz * oz - r * r;
+  const disc = b * b - 4 * cc; // a = 1 for unit dir
+  if (disc < 0) return null;
+  const t = (-b - Math.sqrt(disc)) / 2;
+  return (t > 1e-6 && t <= maxT) ? t : null;
+}
+
+// rayVCapsule: ray vs a vertical capsule (segment half length halfH - r swept
+// by r) — side cylinder + the two cap spheres. Spec: "segment vs
+// capsule/sphere" for shots at players.
+export function rayVCapsule(o, d, center, r, halfH, maxT) {
+  const segHalf = Math.max(0, halfH - r);
+  let best = null;
+  // side wall (infinite cylinder clipped to the segment span)
+  const a = d.x * d.x + d.z * d.z;
+  if (a > 1e-12) {
+    const ox = o.x - center.x, oz = o.z - center.z;
+    const b = 2 * (ox * d.x + oz * d.z);
+    const cc = ox * ox + oz * oz - r * r;
+    const disc = b * b - 4 * a * cc;
+    if (disc >= 0) {
+      const t = (-b - Math.sqrt(disc)) / (2 * a);
+      if (t > 1e-6 && t <= maxT) {
+        const y = o.y + d.y * t;
+        if (Math.abs(y - center.y) <= segHalf) best = t;
+      }
+    }
+  }
+  for (const capY of [center.y - segHalf, center.y + segHalf]) {
+    const t = raySphere(o, d, { x: center.x, y: capY, z: center.z }, r, best ?? maxT);
+    if (t !== null && (best === null || t < best)) best = t;
+  }
+  return best;
+}
+
 export function createWorld() {
   const shapes = [];
   let nextId = 1;

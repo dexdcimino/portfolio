@@ -15,8 +15,12 @@
 // summit. FIRE is reserved; shooting lands in Phase 5's combat.js.
 
 import { TUNE, SIM_DT } from '../config.js';
-import { CAPSULE_R, CAPSULE_HALF_H } from './world.js';
+import { CAPSULE_R, CAPSULE_HALF_H, raySphere } from './world.js';
 import { SUMMIT_Y } from './level.js';
+
+// Grapple/shoot hitspheres for enemies (Phase 5). Slightly over body radius,
+// like the prototype picking against whole child-mesh hierarchies.
+export const ENEMY_R = { blob: 0.75, wraith: 0.7, spike: 0.62 };
 
 // Button bitfield (ARENA1_STEPS "Wire formats")
 export const BTN = { JUMP: 1, DASH: 2, SLIDE: 4, FIRE: 8, GRAPPLE: 16, JET: 32 };
@@ -48,8 +52,8 @@ export function createPlayerState(id, pos) {
     hp: 100, hurtT: 99,
     fuel: 100, fuelMax: 100,
     dashCharges: 2, dashCd: 0, dashT: 0, dashDir: { x: 0, z: 1 },
-    sliding: false, jetting: false, wallsliding: false,
-    grapple: null,               // { anchor, platformId, local } while latched
+    sliding: false, jetting: false, wallsliding: false, fireCd: 0,
+    grapple: null,               // { mode:'pull'|'yank'|'cell', ... } while latched
     grounded: false, groundPlatformId: null, wallN: null,
     summitDone: false, deaths: 0, kills: 0, cellsGot: 0,
     prevButtons: 0,
@@ -58,9 +62,18 @@ export function createPlayerState(id, pos) {
   };
 }
 
-function hurt(p, amount, events) {
+// Exported for enemies.js (touch damage) and combat.js (pvp shots). `from`
+// applies the prototype's knockback: shoved away horizontally, popped up.
+export function hurtPlayer(p, amount, events, from = null) {
   p.hp -= amount;
   p.hurtT = 0;
+  if (from) {
+    let ax = p.pos.x - from.x, az = p.pos.z - from.z;
+    const al = Math.hypot(ax, az) || 1;
+    ax /= al; az /= al;
+    p.vel.x += ax * 9; p.vel.z += az * 9;
+    p.vel.y = Math.max(p.vel.y, 6);
+  }
   if (p.hp <= 0) {
     p.deaths++;
     p.hp = 100;
@@ -70,6 +83,15 @@ function hurt(p, amount, events) {
     p.grapple = null;
     events.push({ type: 'death', playerId: p.id });
   }
+}
+
+function collectCell(p, c, events) {
+  c.taken = true;
+  p.cellsGot++;
+  p.fuelMax = Math.min(280, p.fuelMax + 20);
+  p.fuel = p.fuelMax;
+  // point: FX anchor for the pickup burst (renderer-facing extension)
+  events.push({ type: 'pickup', cellId: c.id, playerId: p.id, point: { ...c.pos } });
 }
 
 // ctx: { world, level, tick, events }
@@ -155,13 +177,32 @@ export function stepPlayer(ctx, p, cmd) {
     p.fuel = Math.min(p.fuelMax, p.fuel + TUNE.FUEL_REGEN * dt);
   }
 
-  // --- grapple: world pull only in Phase 3 (588–618, 1104–1141)
+  // --- grapple (588–618, 1104–1141): pull self toward world, yank enemies,
+  // reel in cells. Players are never grapple targets (decision on record).
+  const ents = ctx.ents; // absent in mechanic-only test harnesses
   if (pressed & BTN.GRAPPLE) {
     const eye = { x: p.pos.x, y: p.pos.y + EYE_H, z: p.pos.z };
     const cp = Math.cos(p.pitch);
     const dir = { x: sy * cp, y: -Math.sin(p.pitch), z: cy * cp };
-    const hit = world.raycast(eye, dir, TUNE.GRAPPLE_RANGE);
-    if (hit) {
+    const wh = world.raycast(eye, dir, TUNE.GRAPPLE_RANGE);
+    let best = wh ? { t: wh.t, hit: wh } : null;
+    let target = null; // { mode, id }
+    if (ents) {
+      for (const e of ents.enemies.values()) {
+        if (!e.alive) continue;
+        const t = raySphere(eye, dir, e.pos, ENEMY_R[e.kind], best ? best.t : TUNE.GRAPPLE_RANGE);
+        if (t !== null) { best = { t }; target = { mode: 'yank', id: e.id }; }
+      }
+      for (const c of ents.cells.values()) {
+        if (c.taken) continue;
+        const t = raySphere(eye, dir, c.pos, 0.5, best ? best.t : TUNE.GRAPPLE_RANGE);
+        if (t !== null) { best = { t }; target = { mode: 'cell', id: c.id }; }
+      }
+    }
+    if (target) {
+      p.grapple = target.mode === 'yank' ? { mode: 'yank', enemyId: target.id } : { mode: 'cell', cellId: target.id };
+    } else if (best && best.hit) {
+      const hit = best.hit;
       const platformId = hit.shape.platformId;
       let local = null;
       if (platformId != null) {
@@ -173,13 +214,13 @@ export function stepPlayer(ctx, p, cmd) {
           z: hit.point.z - (pl.base.z + pl.offset.z),
         };
       }
-      p.grapple = { anchor: { ...hit.point }, platformId, local };
+      p.grapple = { mode: 'pull', anchor: { ...hit.point }, platformId, local };
     } else {
       p.grapple = null;
     }
   }
   if (released & BTN.GRAPPLE) p.grapple = null; // momentum release: vel untouched
-  if (p.grapple) {
+  if (p.grapple && p.grapple.mode === 'pull') {
     const g = p.grapple;
     if (g.platformId != null) {
       const pl = level.platforms[g.platformId];
@@ -200,8 +241,34 @@ export function stepPlayer(ctx, p, cmd) {
       p.vel.y += (ty / dist * TUNE.GRAPPLE_PULL - p.vel.y) * k;
       p.vel.z += (tz / dist * TUNE.GRAPPLE_PULL - p.vel.z) * k;
     }
+  } else if (p.grapple && p.grapple.mode === 'yank') {
+    const e = ents?.enemies.get(p.grapple.enemyId);
+    if (!e || !e.alive) p.grapple = null;
+    else {
+      const tx = p.pos.x - e.pos.x, ty = p.pos.y - e.pos.y, tz = p.pos.z - e.pos.z;
+      const dist = Math.hypot(tx, ty, tz);
+      if (dist < 2.2) { p.grapple = null; e.vy = Math.max(e.vy, 3); }
+      else {
+        e.vx = tx / dist * 22; e.vy = ty / dist * 22; e.vz = tz / dist * 22;
+        e.yanked = 0.2;
+      }
+    }
+  } else if (p.grapple && p.grapple.mode === 'cell') {
+    const c = ents?.cells.get(p.grapple.cellId);
+    if (!c || c.taken) p.grapple = null;
+    else {
+      const tx = p.pos.x - c.pos.x, ty = p.pos.y - c.pos.y, tz = p.pos.z - c.pos.z;
+      const dist = Math.hypot(tx, ty, tz);
+      if (dist < 1.6) { collectCell(p, c, events); p.grapple = null; }
+      else {
+        c.pulled = true;
+        c.pos.x += tx / dist * 30 * dt;
+        c.pos.y += ty / dist * 30 * dt;
+        c.pos.z += tz / dist * 30 * dt;
+      }
+    }
   }
-  const pulling = p.grapple !== null;
+  const pulling = p.grapple !== null && p.grapple.mode === 'pull';
 
   // --- accelerate — dash owns horizontal vel while active (1143–1168)
   if (p.dashT <= 0) {
@@ -284,7 +351,19 @@ export function stepPlayer(ctx, p, cmd) {
     p.pos = { x: p.spawn.x, y: 6, z: p.spawn.z };
     p.vel = { x: 0, y: 0, z: 0 };
     p.grapple = null;
-    hurt(p, 15, events);
+    hurtPlayer(p, 15, events);
+  }
+
+  // --- fuel cells: touch pickup (1241–1251); cells are sim citizens
+  if (ents) {
+    for (const c of ents.cells.values()) {
+      if (c.taken) continue;
+      const d = Math.hypot(c.pos.x - p.pos.x, c.pos.y - p.pos.y, c.pos.z - p.pos.z);
+      if (d < 1.7) {
+        collectCell(p, c, events);
+        if (p.grapple?.mode === 'cell' && p.grapple.cellId === c.id) p.grapple = null;
+      }
+    }
   }
 
   // --- summit (1206–1211)

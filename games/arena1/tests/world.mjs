@@ -242,7 +242,9 @@ console.log(`seed ${seed}: ${world.shapes.length} shapes, ${level.platforms.leng
 
 // ── 6. full-sim smoke: spawn through createSim onto the real level ─────────
 {
-  const sim = createSim('world-smoke');
+  // enemies:false — a blob bouncing the idle player mid-settle would fail the
+  // rest asserts; this test is about the world, combat.mjs owns the enemies.
+  const sim = createSim('world-smoke', { enemies: false });
   const id = sim.addPlayer();
   for (let t = 0; t < 300; t++) sim.step(new Map());
   const p = sim.snapshot().players.find((q) => q.id === id);
