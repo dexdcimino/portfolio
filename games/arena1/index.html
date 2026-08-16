@@ -13,29 +13,45 @@
 <body>
   <canvas id="game"></canvas>
   <div id="hud">
-    <!-- Phase 3 debug HUD: flow (the feel-gate meter), fuel, dash pips,
-         altimeter, feed. The full HUD port is Phase 4. -->
-    <div id="cross"></div>
+    <!-- Phase 4 HUD port (prototype layout: integrity, tank, flow, pips,
+         altimeter, score, perf, feed, hitmark, vignettes). -->
+    <div id="speedVig"></div><div id="hurtVig"></div><div id="jetVig"></div>
+    <div id="xh"><div class="gap"></div></div><div id="hitmark"></div>
+    <div class="panel" id="hpPanel">
+      <div class="lbl">INTEGRITY</div>
+      <div class="bar"><div id="hpFill"></div><div id="hpNum">100</div></div>
+      <div class="lbl" style="margin-top:8px">TANK <span style="opacity:.5">· jetpack fuel</span></div>
+      <div class="bar" id="fuelBar"><div id="fuelFill"></div><div id="fuelNum">100/100</div></div>
+    </div>
     <div class="panel" id="flowPanel">
       <div class="lbl">FLOW · m/s</div>
-      <div id="flowNum">0.0</div>
+      <div id="flowNum"><b>0.0</b></div>
       <div id="flowBar"><div id="flowFill"></div></div>
+      <div id="pips"><div class="pip full"></div><div class="pip full"></div></div>
+      <div id="alt">ALT 0m · SUMMIT 128m</div>
     </div>
-    <div class="panel" id="leftPanel">
-      <div class="lbl">TANK <span id="fuelNum">100/100</span></div>
-      <div id="fuelBar"><div id="fuelFill"></div></div>
-      <div id="pips"><span class="pip full"></span><span class="pip full"></span></div>
-      <div id="alt">ALT 0m</div>
+    <div class="panel" id="score">POPS <b id="kills">0</b>&nbsp;&nbsp;<span style="opacity:.6">CELLS</span> <span id="cells">0</span>&nbsp;&nbsp;<span style="opacity:.6">DOWNS</span> <span id="deaths">0</span></div>
+    <div class="panel" id="perf">
+      <div><span id="fps">0</span> <span class="dim">FPS</span></div>
+      <div class="dim"><span id="meshes">0</span> active meshes</div>
+      <div class="dim">quality <span id="qual">MED</span> <span style="opacity:.6">[1/2/3]</span></div>
+      <div class="dim">LOD debug <span id="lodState">off</span> <span style="opacity:.6">[L]</span></div>
     </div>
     <div id="feed"></div>
     <div id="hud-boot">ARENA 1</div>
   </div>
   <div id="start">
     <div>
-      <h1>ARENA 1 · movement build</h1>
-      <p>WASD move · SPACE jump / mid-air jet (hold) · SHIFT dash · C slide<br>
-         RIGHT MOUSE grapple (hold) · walls: jump while touching to kick off</p>
-      <p class="go">CLICK TO ENTER</p>
+      <h1>ARENA <span>1</span></h1>
+      <div class="sub">THE ASCENT · SIM BUILD</div>
+      <div class="ctl">
+        <em>WASD</em> move &nbsp; <em>LMB</em> zap &nbsp; <em>RMB</em> grapple — hold to reel, pulls light things to you<br>
+        <em>SPACE</em> jump · press again mid-air &amp; <em>HOLD</em> = jetpack (burns tank)<br>
+        <em>SHIFT</em> dash ×2 &nbsp; <em>C</em> slide &nbsp; walljump near walls<br>
+        collect <em>fuel cells</em> to grow the tank · ride the rings · platforms move, blink &amp; crumble<br>
+        <em>1/2/3</em> quality &nbsp; <em>L</em> LOD debug
+      </div>
+      <p class="go">▸ CLICK TO DEPLOY ◂</p>
     </div>
   </div>
   <script type="module" src="js/main.js"></script>

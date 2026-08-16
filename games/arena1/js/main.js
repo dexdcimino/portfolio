@@ -1,26 +1,18 @@
-// main.js — boot, input, the fixed-step accumulator, and a DEBUG render for
-// the Phase 3 feel gate. The debug render draws the sim's collision world
-// (flat-shaded primitives straight from level/world data) so movement can be
-// felt and compared against the prototype; the real render layer replaces it
-// wholesale in Phase 4. Everything sim-authoritative flows through the
-// transport; this file reads level/world one-directionally for meshes only.
-//
-// Camera rule (ARENA1_STEPS Phase 4, honored from day one): yaw/pitch are
-// applied LOCALLY every render frame from raw input — never routed through
-// snapshots — then written into the next command.
+// main.js — boot, input, the fixed-step accumulator, and the Phase 4 render
+// layer wiring (scene/level/actors/fx modules). The sim is authoritative for
+// everything that matters; this file renders snapshots, plays cosmetics, and
+// writes input into commands. Camera yaw/pitch are applied locally every
+// render frame from raw input — never routed through snapshots — then written
+// into the next command (ARENA1_STEPS Phase 4).
 import { TUNE, SIM_DT, PVP_DEFAULT } from './config.js';
 import { BTN, FLAG } from './sim/sim.js';
 import { createLoopbackTransport } from './net/transport.js';
+import { createRenderScene } from './render/scene.js';
+import { buildLevelMeshes } from './render/level.js';
+import { createActors } from './render/actors.js';
+import { createFx } from './render/fx.js';
 
 const canvas = document.getElementById('game');
-const engine = new BABYLON.Engine(canvas, true, { stencil: true });
-const scene = new BABYLON.Scene(engine);
-scene.clearColor = BABYLON.Color4.FromHexString('#2B1B45FF');
-scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
-scene.fogStart = 90; scene.fogEnd = 260;
-scene.fogColor = BABYLON.Color3.FromHexString('#2B1B45');
-
-// ── transport + local player ────────────────────────────────────────────────
 const seed = (() => {
   const q = new URLSearchParams(location.search).get('seed');
   return q ? Number(q) >>> 0 : 1;
@@ -30,109 +22,11 @@ const localId = transport.addLocalPlayer();
 const level = transport.level;
 const world = transport.world;
 
-// ── debug render: the collision world, honestly ─────────────────────────────
-new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0.2, 1, 0.1), scene).intensity = 0.85;
-const sun = new BABYLON.DirectionalLight('sun', new BABYLON.Vector3(-0.4, -1, -0.3), scene);
-sun.intensity = 0.5;
-
-const mats = new Map();
-function mat(hex, alpha = 1) {
-  const key = hex + alpha;
-  if (!mats.has(key)) {
-    const m = new BABYLON.StandardMaterial('m' + key, scene);
-    m.diffuseColor = BABYLON.Color3.FromHexString(hex);
-    m.specularColor = BABYLON.Color3.Black();
-    if (alpha < 1) m.alpha = alpha;
-    mats.set(key, m);
-  }
-  return mats.get(key);
-}
-
-// Static level pieces from level data (named, colored like the prototype).
-for (const b of level.blocks) {
-  const m = BABYLON.MeshBuilder.CreateBox(b.name, { width: b.w, height: b.h, depth: b.d }, scene);
-  m.position.set(b.x, b.y, b.z);
-  m.material = mat(b.hex);
-  m.freezeWorldMatrix();
-}
-for (const rp of level.ramps) {
-  const m = BABYLON.MeshBuilder.CreateBox(rp.name, { width: rp.w, height: rp.h, depth: rp.d }, scene);
-  m.position.set(rp.x, rp.y, rp.z);
-  m.rotation.set(rp.rotX, rp.rotY, 0);
-  m.material = mat(rp.hex);
-  m.freezeWorldMatrix();
-}
-for (const c of level.crystals) {
-  const m = BABYLON.MeshBuilder.CreateIcoSphere('crys', { radius: 1, subdivisions: 1 }, scene);
-  m.convertToFlatShadedMesh();
-  m.scaling.set(c.s, c.sy, c.s);
-  m.position.set(c.x, c.y, c.z);
-  m.rotation.y = c.rotY;
-  m.material = mat(c.col === 'teal' ? '#3EC5B4' : '#FF6FA5');
-  m.freezeWorldMatrix();
-}
-for (const p of level.pads) {
-  const m = BABYLON.MeshBuilder.CreateCylinder('pad', { height: 0.4, diameter: 4.4, tessellation: 10 }, scene);
-  m.position.set(p.x, 0.2, p.z);
-  m.material = mat('#FF3D81');
-  m.freezeWorldMatrix();
-}
-for (const r of level.rings) {
-  const m = BABYLON.MeshBuilder.CreateTorus('ring', { diameter: 4.6, thickness: 0.32, tessellation: 18 }, scene);
-  m.position.set(r.pos.x, r.pos.y, r.pos.z);
-  m.lookAt(new BABYLON.Vector3(r.pos.x + r.dir.x, r.pos.y + r.dir.y, r.pos.z + r.dir.z));
-  m.rotation.x += Math.PI / 2;
-  m.material = mat('#FF3D81');
-  m.freezeWorldMatrix();
-}
-{
-  const beacon = BABYLON.MeshBuilder.CreateBox('beacon', { width: 0.8, height: 26, depth: 0.8 }, scene);
-  beacon.position.set(0, level.summitY + 13, 0);
-  beacon.material = mat('#FFE7B0');
-  beacon.freezeWorldMatrix();
-}
-
-// Platform shapes: one mesh per collision shape, synced to the shape each
-// frame (movers/blinkers/collapsers reposition sim-side; render follows).
-const platMeshes = [];
-for (const pl of level.platforms) {
-  for (const s of pl.shapes) {
-    let m;
-    if (s.kind === 'aabb') {
-      m = BABYLON.MeshBuilder.CreateBox('pl' + pl.id, {
-        width: s.max.x - s.min.x, height: s.max.y - s.min.y, depth: s.max.z - s.min.z,
-      }, scene);
-    } else if (s.kind === 'vcyl') {
-      m = BABYLON.MeshBuilder.CreateCylinder('pl' + pl.id, {
-        diameter: s.r * 2, height: s.halfH * 2, tessellation: 12,
-      }, scene);
-    } else {
-      m = BABYLON.MeshBuilder.CreateBox('pl' + pl.id, {
-        width: s.half.x * 2, height: s.half.y * 2, depth: s.half.z * 2,
-      }, scene);
-      const [a0, a1, a2] = s.axes;
-      m.rotationQuaternion = BABYLON.Quaternion.FromRotationMatrix(BABYLON.Matrix.FromValues(
-        a0.x, a0.y, a0.z, 0, a1.x, a1.y, a1.z, 0, a2.x, a2.y, a2.z, 0, 0, 0, 0, 1));
-    }
-    m.material = mat(pl.hex);
-    platMeshes.push({ mesh: m, shape: s });
-  }
-}
-function syncPlatformMeshes() {
-  for (const { mesh, shape } of platMeshes) {
-    mesh.setEnabled(shape.active);
-    if (shape.kind === 'aabb') {
-      mesh.position.set((shape.min.x + shape.max.x) / 2, (shape.min.y + shape.max.y) / 2, (shape.min.z + shape.max.z) / 2);
-    } else {
-      mesh.position.set(shape.center.x, shape.center.y, shape.center.z);
-    }
-  }
-}
-
-// Grapple rope: a stretched box from the camera to the anchor while latched.
-const rope = BABYLON.MeshBuilder.CreateBox('rope', { width: 0.05, height: 0.05, depth: 1 }, scene);
-rope.material = mat('#FF3D81');
-rope.isVisible = false;
+const R = createRenderScene(canvas);
+const { engine, scene, cam } = R;
+const levelView = buildLevelMeshes(R, level, seed);
+const actors = createActors(R);
+const fx = createFx(R, world);
 
 // ── input ───────────────────────────────────────────────────────────────────
 let yaw = Math.PI, pitch = 0;      // local, render-rate; written into commands
@@ -140,10 +34,10 @@ let locked = false;
 const keys = {};
 let firing = false, grappling = false;
 let jetLatch = false;              // Space pressed mid-air with no coyote/wall
-let jumpEdge = false;              // one-shot: turned into a JUMP bit edge
-let dashEdge = false;
+let jumpEdge = false, dashEdge = false;
 let coyoteT = 0;                   // client-side mirror for the Space policy
 let lastFlags = 0;
+let ixNow = 0;                     // strafe input, for camera roll
 
 const start = document.getElementById('start');
 start.addEventListener('click', () => canvas.requestPointerLock());
@@ -174,13 +68,16 @@ document.addEventListener('keydown', (e) => {
   if (!locked) return;
   if (e.code === 'Space') {
     // The prototype's policy: mid-air Space with no coyote and no wall = jet
-    // (hold); otherwise it buffers a jump. Grounded/coyote/wall come from the
-    // latest snapshot (WALLNEAR flag exists for exactly this decision).
+    // (hold); otherwise it buffers a jump (WALLNEAR exists for this call).
     const grounded = !!(lastFlags & FLAG.GROUNDED);
     if (!grounded && coyoteT <= 0 && !(lastFlags & FLAG.WALLNEAR)) jetLatch = true;
     else jumpEdge = true;
   }
   if (e.code === 'ShiftLeft') dashEdge = true;
+  if (e.code === 'KeyL') levelView.setLodDebug(!levelView.lodDebug);
+  if (e.code === 'Digit1') R.setQuality(0);
+  if (e.code === 'Digit2') R.setQuality(1);
+  if (e.code === 'Digit3') R.setQuality(2);
 });
 document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
@@ -193,6 +90,7 @@ function commandForTick(tick) {
   if (keys.KeyS || keys.ArrowDown) iz -= 1;
   if (keys.KeyD || keys.ArrowRight) ix += 1;
   if (keys.KeyA || keys.ArrowLeft) ix -= 1;
+  ixNow = ix;
   const slide = keys.KeyC || keys.ControlLeft;
   const buttons =
     (jumpEdge ? BTN.JUMP : 0)
@@ -205,7 +103,7 @@ function commandForTick(tick) {
   return { tick, playerId: localId, move: { x: ix, z: iz }, yaw, pitch, buttons };
 }
 
-// ── snapshots + HUD ─────────────────────────────────────────────────────────
+// ── snapshots, events → cosmetics ───────────────────────────────────────────
 let prevSnap = null, lastSnap = null;
 const feedEl = document.getElementById('feed');
 function feed(msg) {
@@ -215,85 +113,169 @@ function feed(msg) {
   feedEl.appendChild(el);
   setTimeout(() => el.remove(), 1150);
 }
+let fovT = 1.05;
+const ENEMY_HEX = { blob: '#7BE3B0', wraith: '#8E5BD6', spike: '#E05548' };
+
 transport.onSnapshot((s) => {
   prevSnap = lastSnap; lastSnap = s;
   const me = s.players.find((p) => p.id === localId);
-  if (me) lastFlags = me.flags;
+  const prevMe = prevSnap?.players.find((p) => p.id === localId);
+  if (me) {
+    // hp drop → hurt vignette (renderer never mutates hp — it just watches it)
+    if (prevMe && me.hp < prevMe.hp) fx.hurtFlash();
+    // dash kick on the DASHING rising edge
+    if (prevMe && !(prevMe.flags & FLAG.DASHING) && (me.flags & FLAG.DASHING)) { fovT = 1.24; feed('DASH'); }
+    // walljump: airborne vy snapped up to ≈WALLJUMP_UP while a wall was near
+    if (prevMe && !(me.flags & FLAG.GROUNDED) && (prevMe.flags & FLAG.WALLNEAR)
+      && prevMe.vel.y < 9 && me.vel.y >= 9.4 && me.vel.y <= TUNE.WALLJUMP_UP + 0.01) {
+      fovT = 1.16; feed('WALLKICK');
+    }
+    lastFlags = me.flags;
+  }
   for (const ev of s.events) {
-    if (ev.playerId !== undefined && ev.playerId !== localId) continue;
-    if (ev.type === 'pad') feed('LAUNCH');
-    else if (ev.type === 'ring') feed('RING');
-    else if (ev.type === 'summit') feed('☀ SUMMIT REACHED ☀');
-    else if (ev.type === 'death') feed('REBOOTED');
+    const mine = ev.playerId === undefined || ev.playerId === localId;
+    if (ev.type === 'pad' && mine) { fovT = 1.20; feed('LAUNCH'); }
+    else if (ev.type === 'ring' && mine) { fovT = 1.26; feed('RING'); }
+    else if (ev.type === 'summit' && mine) feed('☀ SUMMIT REACHED ☀');
+    else if (ev.type === 'death' && mine) feed('REBOOTED');
+    else if (ev.type === 'pickup' && mine) {
+      feed('CELL · TANK +20');
+      if (ev.point) fx.burst(ev.point, '#FFB13D', 8, 4);
+    } else if (ev.type === 'hit') {
+      if (ev.shooter === localId) { fx.hitmarkFlash(); fx.dmgNum(ev.point, String(ev.dmg), '#FF3D81'); }
+      actors.flash(ev.target);
+    } else if (ev.type === 'kill') {
+      const pos = actors.positionOf(ev.target) || null;
+      if (pos) fx.burst(pos, ENEMY_HEX[ev.kind] || '#7BE3B0', 10, 7);
+      if (ev.by === localId) feed('POP!');
+    }
   }
 });
 
+// ── HUD ─────────────────────────────────────────────────────────────────────
 const hud = {
-  flowNum: document.getElementById('flowNum'),
-  flowFill: document.getElementById('flowFill'),
-  fuelFill: document.getElementById('fuelFill'),
-  fuelNum: document.getElementById('fuelNum'),
-  alt: document.getElementById('alt'),
-  pips: [...document.querySelectorAll('.pip')],
+  hpFill: document.getElementById('hpFill'), hpNum: document.getElementById('hpNum'),
+  fuelFill: document.getElementById('fuelFill'), fuelNum: document.getElementById('fuelNum'),
+  flowNum: document.getElementById('flowNum'), flowFill: document.getElementById('flowFill'),
+  alt: document.getElementById('alt'), pips: [...document.querySelectorAll('.pip')],
+  kills: document.getElementById('kills'), cells: document.getElementById('cells'),
+  deaths: document.getElementById('deaths'),
+  fps: document.getElementById('fps'), meshes: document.getElementById('meshes'),
 };
 function paintHud(me) {
-  const spd = Math.hypot(me.vel.x, me.vel.z);
-  hud.flowNum.textContent = spd.toFixed(1);
-  hud.flowFill.style.width = Math.min(100, (spd / 26) * 100) + '%';
-  hud.flowFill.style.background = spd > 15 ? '#FF3D81' : '#FF7A59';
-  hud.fuelFill.style.width = (me.fuel / me.fuelMax) * 100 + '%';
+  hud.hpFill.style.width = me.hp + '%';
+  hud.hpFill.style.background = me.hp > 40 ? 'var(--teal)' : 'var(--pink)';
+  hud.hpNum.textContent = Math.ceil(me.hp);
+  hud.fuelFill.style.width = (me.fuel / me.fuelMax * 100) + '%';
   hud.fuelNum.textContent = `${Math.floor(me.fuel)}/${me.fuelMax}`;
+  const spd = Math.hypot(me.vel.x, me.vel.z);
+  hud.flowNum.innerHTML = '<b>' + spd.toFixed(1) + '</b>';
+  hud.flowFill.style.width = Math.min(100, spd / 26 * 100) + '%';
+  hud.flowFill.style.background = spd > 15 ? 'var(--pink)' : 'var(--coral)';
+  fx.vig.speed.style.opacity = spd > 14 ? Math.min(1, (spd - 14) / 8) : 0;
   hud.alt.textContent = `ALT ${Math.max(0, me.pos.y).toFixed(0)}m · SUMMIT ${level.summitY}m${me.summitDone ? ' ✓' : ''}`;
   hud.pips.forEach((el, i) => { el.className = 'pip' + (i < me.dashCharges ? ' full' : ''); });
+  hud.kills.textContent = me.kills ?? 0;
+  hud.cells.textContent = me.cellsGot ?? 0;
+  hud.deaths.textContent = me.deaths ?? 0;
 }
 
-// ── camera ──────────────────────────────────────────────────────────────────
-const cam = new BABYLON.FreeCamera('cam', new BABYLON.Vector3(0, 5, 26), scene);
-cam.minZ = 0.05; cam.maxZ = 1200; cam.fov = 1.05; cam.inputs.clear();
-let camH = 0.55;
+// ── camera dynamics + client-side fire cosmetics ────────────────────────────
+let camH = 0.55, roll = 0, bob = 0;
+let fireCd = 0, jetPuffT = 0;
 
-// ── accumulator ─────────────────────────────────────────────────────────────
+// ── accumulator + render loop ───────────────────────────────────────────────
 let acc = 0;
 let lastTime = performance.now(); // render-side clock; the sim only sees ticks
+let fpsAcc = 0;
 engine.runRenderLoop(() => {
-  const now = performance.now();
-  const frameDt = Math.min(0.25, (now - lastTime) / 1000);
-  acc += frameDt;
-  lastTime = now;
+  const nowMs = performance.now();
+  const dt = Math.min(0.25, (nowMs - lastTime) / 1000);
+  const now = nowMs / 1000;
+  acc += dt;
+  lastTime = nowMs;
   while (acc >= SIM_DT) {
     transport.sendCommand(commandForTick(transport.tickCount));
     transport.tick();
     acc -= SIM_DT;
   }
-  coyoteT = (lastFlags & FLAG.GROUNDED) ? 0.1 : Math.max(0, coyoteT - frameDt);
+  coyoteT = (lastFlags & FLAG.GROUNDED) ? 0.1 : Math.max(0, coyoteT - dt);
+
+  const alpha = acc / SIM_DT;
+  levelView.update(now, dt);
 
   if (lastSnap) {
-    const alpha = acc / SIM_DT;
     const me = lastSnap.players.find((p) => p.id === localId);
     const pv = prevSnap?.players.find((p) => p.id === localId) || me;
     const px = pv.pos.x + (me.pos.x - pv.pos.x) * alpha;
     const py = pv.pos.y + (me.pos.y - pv.pos.y) * alpha;
     const pz = pv.pos.z + (me.pos.z - pv.pos.z) * alpha;
-    const targetH = (me.flags & FLAG.SLIDING) ? 0.15 : 0.55;
-    camH += (targetH - camH) * Math.min(1, 12 * frameDt);
-    cam.position.set(px, py + camH, pz);
-    cam.rotation.set(pitch, yaw, 0);
+    const grounded = !!(me.flags & FLAG.GROUNDED);
+    const sliding = !!(me.flags & FLAG.SLIDING);
+    const jetting = !!(me.flags & FLAG.JETTING);
+    const hSpeed = Math.hypot(me.vel.x, me.vel.z);
 
-    if ((me.flags & FLAG.GRAPPLING) && me.grapple) {
-      const a = cam.position.add(new BABYLON.Vector3(0.3, -0.25, 0));
-      const t = new BABYLON.Vector3(me.grapple.x, me.grapple.y, me.grapple.z);
-      const d = t.subtract(a);
-      rope.isVisible = true;
-      rope.position = a.add(d.scale(0.5));
-      rope.lookAt(t);
-      rope.scaling.z = Math.max(0.01, d.length());
-    } else {
-      rope.isVisible = false;
+    // camera block, ported (prototype 1213–1225)
+    if (pv && pv.vel.y < -14 && grounded && !(pv.flags & FLAG.GROUNDED)) camH = 0.40; // hard-landing dip
+    const targetH = sliding ? 0.15 : 0.55;
+    camH += (targetH - camH) * Math.min(1, 12 * dt);
+    const targetRoll = ((me.flags & FLAG.WALLNEAR) && !grounded) ? 0.06 : (-ixNow * 0.018);
+    roll += (targetRoll - roll) * Math.min(1, 10 * dt);
+    if (grounded && hSpeed > 1 && !sliding) bob += dt * hSpeed * 1.4;
+    const bobY = grounded && !sliding ? Math.sin(bob) * 0.03 * Math.min(1, hSpeed / 9) : 0;
+    const shake = jetting ? (Math.random() - 0.5) * 0.012 : 0;
+    cam.position.set(px + shake, py + camH + bobY + shake, pz);
+    cam.rotation.set(pitch, yaw, roll);
+    const fovTarget = sliding ? 1.12 : 1.05;
+    fovT += (fovTarget - fovT) * Math.min(1, 4 * dt);
+    cam.fov += (fovT - cam.fov) * Math.min(1, 10 * dt);
+
+    // fire cosmetics: kick/muzzle/recoil/tracer — damage is Phase 5's sim
+    fireCd -= dt;
+    if (firing && locked && fireCd <= 0) {
+      fireCd = 0.11;
+      fx.fire();
+      pitch -= 0.004;
+      const dir = new BABYLON.Vector3(Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+      const origin = { x: cam.position.x, y: cam.position.y, z: cam.position.z };
+      const hit = world.raycast(origin, { x: dir.x, y: dir.y, z: dir.z }, 250);
+      const end = hit
+        ? new BABYLON.Vector3(hit.point.x, hit.point.y, hit.point.z)
+        : cam.position.add(dir.scale(250));
+      fx.spawnTracer(fx.muzzleWorld(), end);
+      if (hit && !lastSnap.enemies.length) fx.burst(hit.point, '#FFE7B0', 4, 3);
     }
+
+    // jet vignette + puffs
+    fx.vig.jet.style.opacity = jetting ? 1 : 0;
+    if (jetting) {
+      jetPuffT -= dt;
+      if (jetPuffT <= 0) { jetPuffT = 0.05; fx.jetPuff({ x: px, y: py, z: pz }); }
+    }
+
+    // grapple rope
+    if ((me.flags & FLAG.GRAPPLING) && me.grapple) fx.ropeTo(me.grapple);
+    else fx.ropeOff();
+
+    // shadows: local player + live enemies
+    fx.placeShadow('me', { x: px, y: py, z: pz }, 1);
+    for (const e of lastSnap.enemies) {
+      const p = actors.positionOf(e.id);
+      if (p) fx.placeShadow('e' + e.id, { x: p.x, y: p.y, z: p.z }, 0.8);
+    }
+
+    actors.sync(prevSnap, lastSnap, alpha, localId, { x: px, y: py, z: pz }, now, dt);
+    fx.update(dt, grounded, bob);
     paintHud(me);
   }
-  syncPlatformMeshes();
+
   scene.render();
+  fpsAcc += dt;
+  if (fpsAcc > 0.5) {
+    fpsAcc = 0;
+    hud.fps.textContent = engine.getFps().toFixed(0);
+    hud.meshes.textContent = scene.getActiveMeshes().length;
+  }
 });
 window.addEventListener('resize', () => engine.resize());
 
