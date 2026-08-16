@@ -15,7 +15,23 @@
 import { TUNE, SIM_DT } from '../config.js';
 import { norm } from './vec.js';
 
-export const SUMMIT_Y = 128;
+export const SUMMIT_Y = 190;
+
+/* MD 17 — the arena is a regular HEXAGON, flat-top, circumradius HEX_R. For a
+   regular hexagon the side length equals the circumradius, and the apothem
+   (centre to the middle of an edge) is R·cos30 = 0.866R. So:
+       across the flats   2 · 0.866R = 173.2m
+       across the corners 2R         = 200m
+       area  (3√3/2)R²               = 25,981 m²  (the old square was 16,900)
+   Crossing time is the number that decides whether this is open or just a
+   walk: 173m at WALK 9.2 m/s is 18.8s on foot, but the kit is the real
+   measure — GRAPPLE_RANGE is 75m at GRAPPLE_PULL 24 m/s, so corner to corner
+   is three grapples, roughly 9s, and a dash chain sits between the two.
+   Bigger than that and the middle becomes dead space. */
+export const HEX_R = 100;
+export const HEX_APOTHEM = HEX_R * Math.cos(Math.PI / 6);
+// Edge k spans vertices k and k+1; its midpoint sits at this angle.
+export const hexEdgeAngle = (k) => (k + 0.5) * Math.PI / 3;
 const GOLD = 2.39996; // golden-angle spiral
 
 // Axes of a box rotated Babylon-style (rotation.y then rotation.x, roll 0):
@@ -54,23 +70,60 @@ export function buildLevel(world, rng) {
     world.addObb({ x, y, z }, { x: w / 2, y: h / 2, z: d / 2 }, rotYX(rotX, rotY));
   };
 
-  // ---- arena (prototype lines 272–306) ----
-  box('ground', 130, 2, 130, 0, -1, 0, '#E8C77E');
+  // ---- arena: hexagon ----
+  /* COLLISION FLOOR is one oversized square slab, not a fan of wedges. A fan
+     means five interior seams plus six wall joins, and a seam between angled
+     obbs is precisely where a capsule falls through — the single likeliest
+     failure this MD names. One slab has no seams at all. It extends past the
+     walls, which is invisible from inside (the walls are 12 tall) and costs
+     one shape instead of six.
+     The floor you SEE is hexagonal: level.hex tells the render layer to draw a
+     6-sided disc of radius HEX_R over it. Collision and appearance disagree
+     only in the region behind a solid wall. */
+  level.hex = { R: HEX_R, apothem: HEX_APOTHEM, floorY: 0, wallH: 12 };
+  box('ground', HEX_R * 2.4, 2, HEX_R * 2.4, 0, -1, 0, '#E8C77E');
+  level.blocks[level.blocks.length - 1].hexDisc = HEX_R;   // render draws a hexagon here
+
   const RIM = '#4A2B63';
-  box('wN', 134, 9, 3, 0, 3.5, -66, RIM); box('wS', 134, 9, 3, 0, 3.5, 66, RIM);
-  box('wE', 3, 9, 134, 66, 3.5, 0, RIM); box('wW', 3, 9, 134, -66, 3.5, 0, RIM);
-  box('spire', 7, 18, 7, 0, 9, 0, '#372052');
-  box('spireCap', 9, 1, 9, 0, 18.5, 0, '#3EC5B4');
-  ramp('rampA', 5, 1, 20, 15, 2.5, 0, -0.26, Math.PI / 2, '#D9A85C');
-  ramp('rampB', 5, 1, 20, -15, 2.5, 8, 0.26, Math.PI / 2, '#D9A85C');
-  box('padPlatA', 9, 1, 9, 30, 5, 0, '#5A3B7A');
-  box('padPlatB', 9, 1, 9, -30, 6, 14, '#5A3B7A');
-  box('slab1', 2, 14, 16, 44, 7, -20, '#372052');
-  box('slab2', 2, 14, 16, 52, 7, -20, '#372052');
-  box('slab3', 16, 14, 2, -40, 7, 40, '#372052');
-  box('slab4', 16, 14, 2, -40, 7, 48, '#372052');
-  [[24, 28], [-28, -24], [36, 30], [-44, -6], [10, 44], [-8, -46]].forEach((p, i) =>
-    box('pil' + i, 3.2, 10 + ((i * 3) % 6), 3.2, p[0], 5 + ((i * 3) % 6) / 2, p[1], i % 2 ? '#4A2B63' : '#372052'));
+  const WALL_H = 12, WALL_T = 3;
+  /* Six rim walls on the edges. Emitted through ramp() — a rotated box — so the
+     render layer draws them with no new code, and the obb axes come from the
+     same rotYX the ramps use. rotY = -midpointAngle puts local +X on the
+     outward normal and local +Z along the edge, which is the same convention
+     the ring segments already use. Length is the side (= R) plus an overlap so
+     the corner joins cannot open a gap. */
+  for (let k = 0; k < 6; k++) {
+    const m = hexEdgeAngle(k);
+    ramp('wall' + k, WALL_T, WALL_H, HEX_R + WALL_T * 2, 
+      Math.cos(m) * HEX_APOTHEM, WALL_H / 2, Math.sin(m) * HEX_APOTHEM,
+      0, -m, RIM);
+  }
+
+  box('spire', 9, 26, 9, 0, 13, 0, '#372052');
+  box('spireCap', 12, 1, 12, 0, 26.5, 0, '#3EC5B4');
+  ramp('rampA', 5, 1, 22, 17, 2.6, 0, -0.24, Math.PI / 2, '#D9A85C');
+  ramp('rampB', 5, 1, 22, -17, 2.6, 9, 0.24, Math.PI / 2, '#D9A85C');
+  box('padPlatA', 10, 1, 10, 38, 5, 0, '#5A3B7A');
+  box('padPlatB', 10, 1, 10, -38, 6, 18, '#5A3B7A');
+  box('slab1', 2, 16, 18, 56, 8, -26, '#372052');
+  box('slab2', 2, 16, 18, 66, 8, -26, '#372052');
+  box('slab3', 18, 16, 2, -52, 8, 50, '#372052');
+  box('slab4', 18, 16, 2, -52, 8, 60, '#372052');
+  /* Pillars on the six edge bearings rather than a scatter: standing anywhere
+     on the floor you see a pillar toward each flat, which is what makes the
+     six-sidedness readable from inside without a map. */
+  for (let k = 0; k < 6; k++) {
+    const m = hexEdgeAngle(k);
+    const r = HEX_APOTHEM * 0.62;
+    const h = 12 + (k % 3) * 5;
+    box('pil' + k, 3.6, h, 3.6, Math.cos(m) * r, h / 2, Math.sin(m) * r,
+      k % 2 ? '#4A2B63' : '#372052');
+  }
+  // ...and a shorter marker at each CORNER, so the vertices read too.
+  for (let k = 0; k < 6; k++) {
+    const a = k * Math.PI / 3, r = HEX_R * 0.9;
+    box('cor' + k, 4.4, 7, 4.4, Math.cos(a) * r, 3.5, Math.sin(a) * r, '#5A3B7A');
+  }
 
   // Jump pads: vcyl solid + trigger radius (movement consumes the trigger in
   // Phase 3; power is the launch velocity, straight from the prototype).
@@ -90,10 +143,22 @@ export function buildLevel(world, rng) {
     level.crystals.push({ x, y: cy, z, s, sy, rotY, col });
     world.addVcyl({ x, y: cy, z }, s * 0.9, sy);
   };
-  for (let i = 0; i < 40; i++) {
-    const a = rng() * Math.PI * 2, r = 18 + rng() * 42;
+  // Scatter band scales with the arena. Capped at 0.82·apothem so a crystal
+  // can never grow into a rim wall, which at the old fixed 60 would now leave
+  // the outer third of the floor bare.
+  /* SPAWN CLEARANCE, not just an origin box. Players spawn at (0±2, 26±2) and
+     walk out from there, but the old exclusion only guarded the middle — the
+     corridor in front of the spawn was never protected and simply happened to
+     stay clear on the old layout. On the rebuild two crystals landed at
+     (1.9, 34.6) and (-0.6, 34.8), close enough together to form a pocket that
+     wedged a walking player solid about 8m from where they start. Carving the
+     spawn as well as the centre fixes the class, not the instance. */
+  const SPAWN = { x: 0, z: 26 }, SPAWN_CLEAR = 12;
+  for (let i = 0; i < 64; i++) {
+    const a = rng() * Math.PI * 2, r = 20 + rng() * (HEX_APOTHEM * 0.82 - 20);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (Math.abs(x) < 10 && Math.abs(z) < 10) continue;
+    if (Math.abs(x) < 12 && Math.abs(z) < 12) continue;
+    if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < SPAWN_CLEAR) continue;
     crystal(x, 0, z, 0.7 + rng() * 1.6, rng() > 0.5 ? 'teal' : 'pink');
   }
 
@@ -171,12 +236,32 @@ export function buildLevel(world, rng) {
   }
 
   (function genAscent() {
-    let a = rng() * 6.28, y = 12;
-    let prev = null;
+    /* TWO interleaved spiral arms instead of one. The vertical step is
+       UNCHANGED (2.2 + rng*3.2, mean 3.8m) and that is deliberate: the shipped
+       single-arm climb is known reachable with the current kit, so keeping the
+       per-step delta identical means reachability per step is unchanged and
+       only the count and the spread grow. Arm B is offset half a turn and sits
+       in a wider radial band, so at any height there are two options at
+       different bearings instead of one — that is what fills the dead pockets
+       rather than making individual gaps bigger.
+       Arm B is also seeded half a step higher, so the two arms alternate on
+       the way up rather than pairing off at the same altitude. */
+    const ARMS = [
+      { a: rng() * 6.28, y: 10, rMin: 18, rSpan: 34, prev: null },
+      { a: rng() * 6.28 + Math.PI, y: 11.9, rMin: 34, rSpan: 40, prev: null },
+    ];
     let i = 0;
-    while (y < SUMMIT_Y - 6) {
+    // Round-robin the arms so the rng draw order is a stable interleave and
+    // both arms climb together.
+    while (ARMS.some((A) => A.y < SUMMIT_Y - 6)) {
+    for (const ARM of ARMS) {
+      if (ARM.y >= SUMMIT_Y - 6) continue;
+      let a = ARM.a, y = ARM.y, prev = ARM.prev;
       a += GOLD + (rng() - 0.5) * 0.5;
-      const r = 16 + rng() * 26 + Math.sin(y * 0.08) * 6;
+      // Radial band scales with the hexagon; clamped inside 0.86·apothem so a
+      // platform's collision approximation can never straddle a rim wall.
+      const rRaw = ARM.rMin + rng() * ARM.rSpan + Math.sin(y * 0.08) * 8;
+      const r = Math.min(rRaw, HEX_APOTHEM * 0.86);
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
       const roll = rng();
       let type = 'static', hex = '#5A3B7A';
@@ -229,6 +314,8 @@ export function buildLevel(world, rng) {
       }
       y += 2.2 + rng() * 3.2;
       i++;
+      ARM.a = a; ARM.y = y; ARM.prev = prev;
+    }
     }
     // summit (the beacon is render-only: no collision in the prototype either)
     box('summit', 15, 1.2, 15, 0, SUMMIT_Y, 0, '#3EC5B4');

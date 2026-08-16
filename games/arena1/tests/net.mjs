@@ -134,7 +134,11 @@ function makeClock() {
   const duel = async (pvp) => {
     const room = makeRoom();
     const clock = makeClock();
-    const host = createHostCore('net-duel', { pvp }, room.adapterFor(1));
+    // enemies:false — this case is about whether PLAYER damage is gated by pvp.
+    // With the MD 17 level a blob now reaches the duellists and lands its 20
+    // touch damage, which read as "co-op leaked damage" when nothing about the
+    // pvp gate had changed. Removing the third party measures the actual claim.
+    const host = createHostCore('net-duel', { pvp, enemies: false }, room.adapterFor(1));
     const client = createClientCore(room.adapterFor(2), {}, { now: clock.now });
     room.announceJoin(2);
     await client.ready;

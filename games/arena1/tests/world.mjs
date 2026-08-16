@@ -7,7 +7,21 @@
 // threshold with no spikes. Actual numbers are printed, not just pass/fail.
 import { strict as assert } from 'node:assert';
 import { createWorld, CAPSULE_R, CAPSULE_HALF_H } from '../js/sim/world.js';
-import { buildLevel, tickPlatforms } from '../js/sim/level.js';
+import { buildLevel, tickPlatforms, HEX_APOTHEM, hexEdgeAngle } from '../js/sim/level.js';
+
+/* MD 17: the arena is a hexagon, so "still inside the walls" is no longer a box
+   test. A point is inside when its projection onto each of the six outward edge
+   normals is under the apothem. Tolerance covers the capsule radius plus half
+   the wall thickness — a body resting against a wall is legitimately a little
+   past the wall's centre plane. */
+const HEX_TOL = 0.4 + 1.5 + 0.3;
+function insideHex(x, z) {
+  for (let k = 0; k < 6; k++) {
+    const m = hexEdgeAngle(k);
+    if (x * Math.cos(m) + z * Math.sin(m) > HEX_APOTHEM + HEX_TOL) return false;
+  }
+  return true;
+}
 import { createSim } from '../js/sim/sim.js';
 import { TUNE, SIM_DT } from '../js/config.js';
 import { rngFor } from '../js/core/rng.js';
@@ -98,8 +112,8 @@ console.log(`seed ${seed}: ${world.shapes.length} shapes, ${level.platforms.leng
     minY = Math.min(minY, w.pos.y);
     // Ground top is y=0, capsule center rides at 0.9. Below 0.85 = sunk in.
     assert.ok(w.pos.y > 0.85, `fell through at tick ${t}: y=${w.pos.y.toFixed(3)}`);
-    assert.ok(Math.abs(w.pos.x) < 64.2 && Math.abs(w.pos.z) < 64.2,
-      `escaped the walled arena at tick ${t}`);
+    assert.ok(insideHex(w.pos.x, w.pos.z),
+      `escaped the hexagon at tick ${t}: (${w.pos.x.toFixed(1)}, ${w.pos.z.toFixed(1)})`);
   }
   assert.ok(w.grounded, 'not grounded after the 10s walk');
   ok('walks 10s across the arena', `min center y ${minY.toFixed(3)} (floor contact = 0.900)`);
@@ -110,7 +124,11 @@ console.log(`seed ${seed}: ${world.shapes.length} shapes, ${level.platforms.leng
 // per-tick |Δv| must stay under DV_MAX in the window x∈[8,23] (before the
 // crest). The ground→ramp lip transition itself is a Phase 3 feel-check item.
 {
-  const w = makeWalker(world, { x: 6, y: 1.55, z: 0 }, Math.PI / 2);
+  // Re-pinned for MD 17: rampA moved to x=17/len 22, so its runnable surface is
+  // x∈[8,26] rising 0.91→5.32. Starting at x=6 now begins in mid-air short of
+  // the lip (and under the widened spireCap), which is what produced a 3.96
+  // Δv spike — an artefact of the start pose, not of the ramp.
+  const w = makeWalker(world, { x: 8, y: 0.91 + 0.9, z: 0 }, Math.PI / 2);
   w.vel.x = TUNE.WALK;
   let prevV = { ...w.vel };
   const dvs = [], dvsAll = [];
@@ -118,8 +136,8 @@ console.log(`seed ${seed}: ${world.shapes.length} shapes, ${level.platforms.leng
   for (let t = 0; t < 260; t++) {
     w.step(0, 1);
     const dv = Math.hypot(w.vel.x - prevV.x, w.vel.y - prevV.y, w.vel.z - prevV.z);
-    if (w.pos.x <= 23) dvsAll.push(dv); // includes the flat→slope transition
-    if (w.pos.x >= 8 && w.pos.x <= 23) {
+    if (w.pos.x <= 24) dvsAll.push(dv); // includes the flat→slope transition
+    if (w.pos.x >= 10 && w.pos.x <= 24) {
       winTicks++;
       if (w.grounded) groundedTicks++;
       dvs.push(dv);
@@ -149,7 +167,9 @@ console.log(`seed ${seed}: ${world.shapes.length} shapes, ${level.platforms.leng
 // Full speed along the south wall at a shallow (~8.6°) approach angle; same
 // per-tick |Δv| ceiling once the wall is engaged.
 {
-  const w = makeWalker(world, { x: -30, y: 0.92, z: 63.4 }, Math.PI / 2 - 0.15);
+  // The +z-facing flat replaces the old south wall: its face plane sits at the
+  // apothem less half the wall thickness, so start just inside that.
+  const w = makeWalker(world, { x: -30, y: 0.92, z: HEX_APOTHEM - 1.5 - 1.7 }, Math.PI / 2 - 0.15);
   w.vel.x = Math.cos(0.15) * TUNE.WALK;
   w.vel.z = Math.sin(0.15) * TUNE.WALK;
   let prevV = { ...w.vel };
@@ -185,7 +205,7 @@ console.log(`seed ${seed}: ${world.shapes.length} shapes, ${level.platforms.leng
 
 // ── 4. falls off an edge (padPlatA) and lands, no tunneling ────────────────
 {
-  const w = makeWalker(world, { x: 30, y: 5.5 + 0.92, z: 0 }, Math.PI / 2);
+  const w = makeWalker(world, { x: 38, y: 5.5 + 0.92, z: 0 }, Math.PI / 2);   // padPlatA moved to x=38
   let airStreak = 0, longestAir = 0, landedY = null, landTick = null;
   for (let t = 0; t < 400; t++) {
     w.step(0, 1);
@@ -256,17 +276,54 @@ console.log(`seed ${seed}: ${world.shapes.length} shapes, ${level.platforms.leng
 
 // ── 7. raycast sanity (the query Phase 3 grapple/shooting will lean on) ────
 {
-  // Straight down from above the arena center hits the spire cap (top y=19).
-  const down = world.raycast({ x: 0, y: 30, z: 0 }, { x: 0, y: -1, z: 0 }, 100);
-  assert.ok(down && Math.abs(down.point.y - 19) < 1e-6, `down ray hit y ${down?.point.y}`);
+  // Straight down from above the arena centre hits the spire cap. Derived from
+  // the level rather than a literal — MD 17 raised the cap from 19 to 27 and a
+  // hardcoded 19 only says "the spire moved", which is not what this checks.
+  const cap = level.blocks.find((b) => b.name === 'spireCap');
+  const capTop = cap.y + cap.h / 2;
+  const down = world.raycast({ x: 0, y: capTop + 12, z: 0 }, { x: 0, y: -1, z: 0 }, 100);
+  assert.ok(down && Math.abs(down.point.y - capTop) < 1e-6,
+    `down ray hit y ${down?.point.y}, expected the spire cap at ${capTop}`);
   assert.ok(down.n.y === 1, 'down ray normal not +Y');
-  // Toward the south wall from just short of it (crystals never reach z>62.1,
-  // so this lane is clear for every seed) hits its inner face (z=64.5).
-  const south = world.raycast({ x: 0, y: 2, z: 63 }, { x: 0, y: 0, z: 1 }, 10);
-  assert.ok(south && Math.abs(south.point.z - 64.5) < 1e-6, `south ray hit z ${south?.point.z}`);
+  /* Toward the +z flat. MD 17 replaced the axis-aligned south wall with a hex
+     edge, so the inner face is now the apothem less half the wall thickness
+     and it is an obb rather than an aabb — which is the more valuable thing to
+     be raycasting at anyway. Crystals are capped at 0.82·apothem so this lane
+     is still clear on every seed. */
+  const innerFace = HEX_APOTHEM - 1.5;
+  const south = world.raycast({ x: 0, y: 2, z: innerFace - 4 }, { x: 0, y: 0, z: 1 }, 10);
+  assert.ok(south && Math.abs(south.point.z - innerFace) < 1e-4,
+    `+z wall ray hit z ${south?.point.z}, expected ${innerFace.toFixed(3)}`);
   // Range-limited ray misses.
-  assert.equal(world.raycast({ x: 0, y: 2, z: 63 }, { x: 0, y: 0, z: 1 }, 1), null);
-  ok('raycast', `spire cap at y ${down.point.y.toFixed(1)}, south wall at z ${south.point.z.toFixed(1)}`);
+  assert.equal(world.raycast({ x: 0, y: 2, z: innerFace - 4 }, { x: 0, y: 0, z: 1 }, 1), null);
+  ok('raycast', `spire cap at y ${down.point.y.toFixed(1)}, +z hex wall at z ${south.point.z.toFixed(2)}`);
 }
 
-console.log(`\nworld.mjs: ${passed}/7 passed (seed ${seed})`);
+// ── 8. hex rim: no gap at any wall seam or corner (MD 17) ──────────────────
+// The six rim walls are angled obbs meeting at the vertices, and an obb-obb
+// join is exactly where a capsule squeezes through. Run hard into all six
+// corners AND the middle of all six flats; the body must neither sink nor
+// escape the hexagon.
+{
+  let minY = Infinity, worstPush = 0, escapes = 0;
+  const probes = [];
+  for (let k = 0; k < 6; k++) probes.push({ label: `corner ${k}`, a: k * Math.PI / 3 });
+  for (let k = 0; k < 6; k++) probes.push({ label: `flat ${k}`, a: hexEdgeAngle(k) });
+  for (const pr of probes) {
+    const sx = Math.cos(pr.a) * (HEX_APOTHEM - 12), sz = Math.sin(pr.a) * (HEX_APOTHEM - 12);
+    const w = makeWalker(world, { x: sx, y: 0.92, z: sz }, Math.atan2(Math.cos(pr.a), Math.sin(pr.a)));
+    for (let t = 0; t < 240; t++) {
+      w.step(0, 1);
+      assert.ok(Number.isFinite(w.pos.y), `${pr.label}: NaN at tick ${t}`);
+      assert.ok(w.pos.y > 0.85, `${pr.label}: sank through the floor at tick ${t} (y ${w.pos.y.toFixed(3)})`);
+      minY = Math.min(minY, w.pos.y);
+      if (!insideHex(w.pos.x, w.pos.z)) escapes++;
+    }
+    worstPush = Math.max(worstPush, w.pos.x * Math.cos(pr.a) + w.pos.z * Math.sin(pr.a));
+  }
+  assert.equal(escapes, 0, `${escapes} ticks outside the hexagon at a seam`);
+  ok('hex rim seams + corners hold', `12 probes x 4s into every corner and flat; `
+    + `min y ${minY.toFixed(3)}, deepest reach ${worstPush.toFixed(2)}m (apothem ${HEX_APOTHEM.toFixed(2)})`);
+}
+
+console.log(`\nworld.mjs: ${passed}/8 passed (seed ${seed})`);

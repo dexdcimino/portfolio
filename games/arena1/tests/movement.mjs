@@ -268,7 +268,9 @@ function step(ctx, p, c) {
 // ── 9. summit trigger, once (real level) ───────────────────────────────────
 {
   const ctx = levelCtx();
-  const p = createPlayerState(1, { x: 3, y: 131, z: 3 });
+  // Read the summit off the level instead of a literal — MD 17 moved it from
+  // 128 to 190 and a hardcoded 131 simply drops you in open air.
+  const p = createPlayerState(1, { x: 3, y: ctx.level.summitY + 3, z: 3 });
   let summitEvents = 0;
   for (let t = 0; t < 120; t++) {
     const ev = step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0));

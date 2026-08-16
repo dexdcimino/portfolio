@@ -36,7 +36,7 @@ export function initEnemies(ents, level, seed) {
   for (let i = 0; i < 5; i++) {
     const e = mk('wraith', { ang: 0, orbR: 0, orbH: 0, spd: 0, state: 'orbit', stT: 0 });
     e.spd = (0.25 + e.rng() * 0.35) * (e.rng() > 0.5 ? 1 : -1);
-    placeWraith(e);
+    placeWraith(e, level);
   }
   for (const s of level.spikeSpots) {
     const e = mk('spike', { home: { ...s.pos }, r: s.r, dirA: 0, t: 0, spd: 0 });
@@ -51,15 +51,23 @@ function placeBlob(e, level) {
     const p = level.platSpawnPoints[(e.rng() * level.platSpawnPoints.length) | 0];
     e.pos = { ...p };
   } else {
-    const a = e.rng() * Math.PI * 2, r = 26 + e.rng() * 24;
+    const reach = level && level.hex ? level.hex.apothem : 66;
+    const a = e.rng() * Math.PI * 2, r = reach * 0.25 + e.rng() * reach * 0.55;
     e.pos = { x: Math.cos(a) * r, y: 0.65, z: Math.sin(a) * r };
   }
   e.hp = 3; e.vx = 0; e.vy = 0; e.vz = 0; e.alive = true; e.yanked = 0;
 }
-function placeWraith(e) {
+/* MD 17 scales the two hardcoded spawn bands to the level. These are placement
+   numbers, not behaviour: the AI is untouched. Left alone, wraiths would orbit
+   only to y=112 of a 190m climb — the whole upper third of the new ascent would
+   have no air threat at all — and blobs would stay inside r=50 of an arena whose
+   apothem is now 86.6, leaving the outer ring empty. */
+function placeWraith(e, level) {
+  const top = level ? level.summitY : 128;
+  const reach = level && level.hex ? level.hex.apothem : 66;
   e.ang = e.rng() * 6.28;
-  e.orbR = 16 + e.rng() * 24;
-  e.orbH = 22 + e.rng() * 90;
+  e.orbR = reach * 0.2 + e.rng() * reach * 0.45;
+  e.orbH = 22 + e.rng() * (top - 40);
   e.pos = { x: Math.cos(e.ang) * e.orbR, y: e.orbH, z: Math.sin(e.ang) * e.orbR };
   e.hp = 2; e.alive = true; e.yanked = 0; e.state = 'orbit'; e.stT = 0;
   e.vx = 0; e.vy = 0; e.vz = 0;
@@ -110,7 +118,7 @@ export function stepEnemies(ctx) {
       e.respawnT -= dt;
       if (e.respawnT <= 0) {
         if (e.kind === 'blob') placeBlob(e, ctx.level);
-        else if (e.kind === 'wraith') placeWraith(e);
+        else if (e.kind === 'wraith') placeWraith(e, ctx.level);
         else placeSpike(e);
       }
       continue;

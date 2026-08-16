@@ -19,7 +19,14 @@ export function buildLevelMeshes({ scene, mat, V3 }, level, seed) {
 
   // arena boxes + ramps straight from level data
   for (const b of level.blocks) {
-    const m = BABYLON.MeshBuilder.CreateBox(b.name, { width: b.w, height: b.h, depth: b.d }, scene);
+    /* MD 17: the collision floor is an oversized square (one shape, no seams to
+       fall through) but the floor you SEE is the hexagon. A block tagged with
+       hexDisc is drawn as a 6-sided cylinder of that radius instead of a box;
+       the difference between the two only exists behind the rim walls. */
+    const m = b.hexDisc
+      ? BABYLON.MeshBuilder.CreateCylinder(b.name,
+          { diameter: b.hexDisc * 2, height: b.h, tessellation: 6 }, scene)
+      : BABYLON.MeshBuilder.CreateBox(b.name, { width: b.w, height: b.h, depth: b.d }, scene);
     m.position.set(b.x, b.y, b.z);
     solid(m, b.hex);
   }
@@ -114,7 +121,10 @@ export function buildLevelMeshes({ scene, mat, V3 }, level, seed) {
     p.material = mat('#C9A264'); p.isPickable = false;
     const N = 500, buf = new Float32Array(16 * N), M = BABYLON.Matrix;
     for (let i = 0; i < N; i++) {
-      const a = rng() * Math.PI * 2, r = 8 + rng() * 54, s = 0.4 + rng() * 1.4;
+      // Band scales with the arena — the old fixed 8..62 was sized to the ±65
+      // square and would leave the outer half of the hexagon bare gravel-free.
+      const rMax = (level.hex ? level.hex.apothem : 62) * 0.92;
+      const a = rng() * Math.PI * 2, r = 8 + rng() * (rMax - 8), s = 0.4 + rng() * 1.4;
       M.Compose(V3(s, s * (0.5 + rng()), s), BABYLON.Quaternion.FromEulerAngles(0, rng() * 6.28, 0),
         V3(Math.cos(a) * r, 0.05, Math.sin(a) * r)).copyToArray(buf, i * 16);
     }

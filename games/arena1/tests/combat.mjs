@@ -10,6 +10,7 @@ import { buildLevel } from '../js/sim/level.js';
 import { createPlayerState, stepPlayer, BTN } from '../js/sim/movement.js';
 import { stepEnemies } from '../js/sim/enemies.js';
 import { stepCombat, stepRockets, SPLASH_RADIUS } from '../js/sim/combat.js';
+import { HEX_APOTHEM } from '../js/sim/level.js';
 import { createSim } from '../js/sim/sim.js';
 import { rngFor } from '../js/core/rng.js';
 
@@ -264,7 +265,10 @@ const idleAt = (a, w = 1) => ({ move: { x: 0, z: 0 }, yaw: a.yaw, pitch: a.pitch
   const sim = createSim('rocket-wall', { enemies: false });
   const id = sim.addPlayer();
   const p = sim.getPlayer(id);
-  p.pos = { x: 0, y: 0.92, z: 63.0 }; p.spawn = { ...p.pos }; // 1.5m from the south wall face (z=64.5)
+  // MD 17: the wall face is now the hex apothem less half the wall thickness.
+  // Derived, so the "1.5m from the face" setup stays true wherever the wall is.
+  const FACE = HEX_APOTHEM - 1.5;
+  p.pos = { x: 0, y: 0.92, z: FACE - 1.5 }; p.spawn = { ...p.pos };
   const a = { yaw: 0, pitch: 0 }; // straight at the wall
   let exploded = null;
   for (let t = 0; t < 10 && !exploded; t++) {
@@ -272,12 +276,12 @@ const idleAt = (a, w = 1) => ({ move: { x: 0, z: 0 }, yaw: a.yaw, pitch: a.pitch
     const s = sim.snapshot();
     exploded = s.events.find((e) => e.type === 'explode') || null;
     for (const r of s.rockets) {
-      assert.ok(r.pos.z < 64.5 + 0.01, `rocket tunneled to z=${r.pos.z}`);
+      assert.ok(r.pos.z < FACE + 0.01, `rocket tunneled to z=${r.pos.z} (face ${FACE.toFixed(2)})`);
     }
   }
   assert.ok(exploded, 'never exploded on the wall');
-  assert.ok(Math.abs(exploded.point.z - 64.5) < 0.3, `impact at z=${exploded.point.z.toFixed(2)} (wall 64.5)`);
-  ok('no tunneling at point blank', `impact z ${exploded.point.z.toFixed(2)} on the 64.5 wall face, swept every tick`);
+  assert.ok(Math.abs(exploded.point.z - FACE) < 0.3, `impact at z=${exploded.point.z.toFixed(2)} (wall face ${FACE.toFixed(2)})`);
+  ok('no tunneling at point blank', `impact z ${exploded.point.z.toFixed(2)} on the hex wall face, swept every tick`);
 }
 
 // ── 9. splash: damages at radius edge, not beyond ──────────────────────────
@@ -324,8 +328,27 @@ const idleAt = (a, w = 1) => ({ move: { x: 0, z: 0 }, yaw: a.yaw, pitch: a.pitch
     const sim = createSim('rocket-pvp', { pvp, enemies: false });
     const a = sim.addPlayer(), b = sim.addPlayer();
     const pa = sim.getPlayer(a), pb = sim.getPlayer(b);
-    pa.pos = { x: 0, y: 0.92, z: 50 }; pa.spawn = { ...pa.pos };
-    pb.pos = { x: 1.5, y: 0.92, z: 62.5 }; pb.spawn = { ...pb.pos }; // near the wall impact
+    /* Both derived from the hex wall face, and the LANE IS PROBED rather than
+       assumed. Hardcoded 50/62.5 put the victim 22m from the impact once MD 17
+       moved the wall out to 85, and the obvious re-pin (x=0) then fired straight
+       into a crystal 1.8m from the muzzle. Scanning for a bearing whose first
+       hit really is the wall makes this independent of where the scatter lands,
+       which is the property the original quietly relied on. */
+    const WF = HEX_APOTHEM - 1.5;
+    // 15m back, the same setback the original had from the old wall — far
+    // enough to stay outside the 11m splash, near enough that the rocket
+    // still lands inside the loop's 40-tick budget.
+    const shooterZ = WF - 15;
+    let lane = null;
+    for (let dx = 0; dx <= 24 && lane === null; dx += 1.5) {
+      for (const sx of dx === 0 ? [0] : [dx, -dx]) {
+        const h = sim.world.raycast({ x: sx, y: 1.5, z: shooterZ }, { x: 0, y: 0, z: 1 }, 60);
+        if (h && Math.abs(h.point.z - WF) < 0.2) { lane = sx; break; }
+      }
+    }
+    assert.ok(lane !== null, 'no clear firing lane to the wall on any x offset');
+    pa.pos = { x: lane, y: 0.92, z: shooterZ }; pa.spawn = { ...pa.pos };
+    pb.pos = { x: lane + 1.5, y: 0.92, z: WF - 2.5 }; pb.spawn = { ...pb.pos }; // near the wall impact
     const am = { yaw: 0, pitch: 0 };
     let hitEvents = [];
     for (let t = 0; t < 40; t++) {
