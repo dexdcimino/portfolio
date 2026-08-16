@@ -26,12 +26,31 @@ rasters=$(printf '%s\n' "$staged" \
 markup=$(printf '%s\n' "$staged" \
          | grep -E '^(index\.html|tools/image_slots\.py|tools/bake_markup\.py)$' || true)
 
-if [ -z "$rasters" ] && [ -z "$markup" ]; then
+# The accent palette is byte-duplicated into five files; check_accents.py is what
+# holds them together. Trigger on any of them, plus the checker itself, so the
+# commit that breaks the invariant is the one that gets told — not some later
+# session wondering why one game's swatches are a different blue.
+palette=$(printf '%s\n' "$staged" \
+          | grep -E '^(script\.js|tools/check_accents\.py|games/(arena1|chomp)/js/pausemenu\.js|games/stickland/(src/pausemenu\.js|index\.html|v1/index\.html))$' || true)
+
+if [ -z "$rasters" ] && [ -z "$markup" ] && [ -z "$palette" ]; then
     exit 0
 fi
 
 PY=python
 command -v python >/dev/null 2>&1 || PY=python3
+
+# First, because it is the cheapest and the only one that can fail on a commit
+# touching no images at all. Nothing to regenerate here: two of the five copies
+# are build output, so the fix is to re-run Stickland's build, not to patch it.
+if [ -n "$palette" ]; then
+    if ! out=$($PY tools/check_accents.py 2>&1); then
+        printf 'pre-commit: accent palette OUT OF STEP, commit blocked\n' >&2
+        printf '%s\n' "$out" >&2
+        exit 1
+    fi
+    printf 'pre-commit: %s\n' "$out"
+fi
 
 if [ -n "$rasters" ]; then
     if ! out=$($PY tools/bake_images.py 2>&1); then

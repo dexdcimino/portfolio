@@ -48,6 +48,19 @@ const parallaxEls = [...document.querySelectorAll('[data-parallax]')];
 // tipping into neon. Hue is the mascot's; lightness is the UI's.
 // Exception: red is hand-picked and sits darker (L 50%), so accent-on-dark text
 // lands at 4.37:1 — just under AA. #DE4E2C would clear it if that ever matters.
+//
+// CONSTRAINT on picking any future accent, and the reason the range above is a
+// range: an accent is also the FILL under --accent-ink, and accentInk can only
+// offer black or white. Those two tie at relative luminance .1857, where the
+// best either can manage is 4.45:1 — under AA no matter which one wins. So an
+// accent must sit clear of that luminance in one direction or the other; land
+// on it and the button label cannot be fixed by any choice of ink, only by
+// moving the colour. Blue (L .150) and purple (L .226) straddle it closely.
+//
+// Separately, these seven are tuned against the SITE's dark surfaces. The
+// resume document is lighter (#1b1f24 / #23282f) and red, blue and purple do
+// not clear AA there; --cv-accent in styles.css lifts those three for that
+// subtree only. Retune a colour here and check that override still holds.
 const ACCENTS = [
   { name:'red',    color:'#D94727', mascot:'red' },      // hand-picked; glow hue 6°
   { name:'yellow', color:'#FAAA1E', mascot:'yellow' },   // glow hue 39°
@@ -173,16 +186,36 @@ function paintSwatches() {
   });
 }
 
-// Near-black label on a light accent, white on a dark one. #3151F3 only manages
-// 3.4:1 against #080a0b but 5.8:1 against white, so the button text has to follow
-// the accent rather than being hard-coded.
-function accentInk(hex) {
+// Near-black label on a light accent, white on a dark one — the button text has
+// to follow the accent rather than being hard-coded, because no single ink
+// clears AA against all seven.
+//
+// This used to flip at a hand-set luminance of .30, which was simply the wrong
+// place: black and white actually tie at .1857, so everything in between was
+// handed white when black scored higher. Red (L .194) got 4.30:1 and purple
+// (L .226) got 3.81:1 — both under AA on 14px/900 button labels — when the same
+// colours reach 4.61 and 5.21 on black. Rather than move the constant to .1857,
+// which is just as unexplained a number, ask the contrast formula directly and
+// let the crossover fall out of it. That also keeps this correct if BLACK is
+// ever retuned; a threshold would silently drift.
+const INK_BLACK = '#080a0b', INK_WHITE = '#ffffff';
+
+function relLuminance(hex) {
   const channel = i => {
     const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255;
     return c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4;
   };
-  const luminance = .2126 * channel(0) + .7152 * channel(1) + .0722 * channel(2);
-  return luminance > .30 ? '#080a0b' : '#ffffff';
+  return .2126 * channel(0) + .7152 * channel(1) + .0722 * channel(2);
+}
+
+// WCAG 2.x contrast from two relative luminances, lighter term first.
+const contrastOf = (a, b) => (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+
+function accentInk(hex) {
+  const accent = relLuminance(hex);
+  return contrastOf(accent, relLuminance(INK_BLACK)) >= contrastOf(accent, relLuminance(INK_WHITE))
+    ? INK_BLACK
+    : INK_WHITE;
 }
 
 const faviconSvg = document.getElementById('faviconSvg');
