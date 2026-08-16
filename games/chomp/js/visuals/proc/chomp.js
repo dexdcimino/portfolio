@@ -50,43 +50,25 @@ export function finishVisual(root, extraPose = null) {
   };
 }
 
-/* Accent-driven character palette (per Dex). Keyed by the site's accent name
-   (dex-accent-name, shared same-origin), resolved at every build; the pause
-   menu dispatches chomp-accent and the live materials retint below. */
+/* Accent-driven character palette (per Dex, v2). Keyed by the site's accent
+   name (dex-accent-name, shared same-origin) and resolved AT EVERY BUILD, so
+   every stage's rebuild — evolve, respawn, debug stage jump — wears the same
+   accent. Live changes rebuild the visual (main.js listens for chomp-accent
+   and remounts), which is what keeps the two-tone fur exact instead of
+   approximated: tuft colours are vertex-baked and cannot be retinted. */
 const CHOMP_PALETTES = {
-  red:    { body: '#D94727', eyes: '#FAAA1E', tufts: '#D94727', horns: '#2A2230' },
-  yellow: { body: '#FAAA1E', eyes: '#D94727', tufts: '#FAAA1E', horns: '#2A2230' },
-  lime:   { body: '#8D959C', eyes: '#9EE02B', tufts: '#9EE02B', horns: '#9EE02B' },
-  cyan:   { body: '#15181C', eyes: '#2CC7F6', tufts: '#2CC7F6', horns: '#2CC7F6' },
-  blue:   { body: '#335DF3', eyes: '#FF8A2B', tufts: '#335DF3', horns: '#2A2230' },
-  purple: { body: '#A85CF5', eyes: '#43D06B', tufts: '#A85CF5', horns: '#2A2230' },
-  white:  { body: '#E9EBEC', eyes: '#101216', tufts: '#E9EBEC', horns: '#2A2230' },
+  red:    { body: '#D94727', eyes: '#FFB021', horns: '#241A14', tuftBase: '#D94727', tuftTip: '#D94727' },
+  yellow: { body: '#FAAA1E', eyes: '#D94727', horns: '#241A14', tuftBase: '#FAAA1E', tuftTip: '#FAAA1E' },
+  lime:   { body: '#9EE02B', eyes: '#FAAA1E', horns: '#FAAA1E', tuftBase: '#FAAA1E', tuftTip: '#FAAA1E' },
+  cyan:   { body: '#0E1418', eyes: '#2CC7F6', horns: '#2CC7F6', tuftBase: '#0E1418', tuftTip: '#2CC7F6' },
+  blue:   { body: '#335DF3', eyes: '#FF8A2B', horns: '#241A14', tuftBase: '#335DF3', tuftTip: '#335DF3' },
+  purple: { body: '#A85CF5', eyes: '#39FF14', horns: '#A85CF5', tuftBase: '#A85CF5', tuftTip: '#39FF14' },
+  white:  { body: '#E9EBEC', eyes: '#101216', horns: '#101216', tuftBase: '#E9EBEC', tuftTip: '#E9EBEC' },
 };
 function accentPalette() {
   try { return CHOMP_PALETTES[localStorage.getItem('dex-accent-name')] || CHOMP_PALETTES.lime; }
   catch { return CHOMP_PALETTES.lime; }
 }
-// Live retint targets — overwritten by each build, read by the listener below.
-let liveMats = null;
-window.addEventListener('chomp-accent', () => {
-  if (!liveMats) return;
-  const pal = accentPalette();
-  const set = (m, hex) => { if (m && !m.isDisposed?.()) m.diffuseColor = BABYLON.Color3.FromHexString(hex); };
-  set(liveMats.body, pal.body);
-  set(liveMats.eyes, pal.eyes);
-  set(liveMats.horns, pal.horns);
-  // Fur colour is baked into vertex colours at build time; tint the material
-  // by the channel ratio so the change reads NOW, and the next stage rebuild
-  // makes it exact.
-  if (liveMats.fur && liveMats.furFrom) {
-    const from = BABYLON.Color3.FromHexString(liveMats.furFrom);
-    const to = BABYLON.Color3.FromHexString(pal.tufts);
-    liveMats.fur.diffuseColor = new BABYLON.Color3(
-      Math.min(2, to.r / Math.max(0.05, from.r)),
-      Math.min(2, to.g / Math.max(0.05, from.g)),
-      Math.min(2, to.b / Math.max(0.05, from.b)));
-  }
-});
 
 export function buildMawlingProc(stage, scene) {
   const s = Math.min(Math.max(stage, 1), 5);
@@ -96,10 +78,6 @@ export function buildMawlingProc(stage, scene) {
 
   const pal = accentPalette();
   const bodyMat = unlitMat(scene, pal.body);
-  // Registered up front, filled as each material is created below — the fur
-  // block runs before the eyes, so registering late would hand fur to the
-  // previous build's record.
-  liveMats = { body: bodyMat, eyes: null, horns: null, fur: null, furFrom: pal.tufts };
   const baseBody = bodyMat.diffuseColor.clone();
 
   // Head group: skull + horns + eyes tilt BACK together on chomp — the whole
@@ -168,9 +146,9 @@ export function buildMawlingProc(stage, scene) {
 
   // Horns: COUNT = STAGE (1 centre nub → a 4/5-horn crown), forward on the
   // head, curved — chained tapering segments curling back and flaring out.
-  const tuftBase = BABYLON.Color3.FromHexString(pal.tufts);
+  const tuftBase = BABYLON.Color3.FromHexString(pal.tuftBase);
+  const tuftTip = BABYLON.Color3.FromHexString(pal.tuftTip);
   const hornMat = unlitMat(scene, pal.horns, 0.12);
-  liveMats.horns = hornMat;
   const hornSegs = s <= 2 ? 2 : 3;
   // [xMult, sizeMult] per horn, per stage
   const HORN_LAYOUTS = [
@@ -240,7 +218,8 @@ export function buildMawlingProc(stage, scene) {
             BABYLON.Vector3.Up(), flow, new BABYLON.Quaternion()
           );
           const shade = 0.65 + fur() * 0.55;
-          const cc = (fur() < 0.25 ? tuftBase.scale(0.55) : tuftBase).scale(shade);
+          const segBase = seg === 1 ? tuftTip : tuftBase;
+          const cc = (seg === 0 && fur() < 0.25 ? segBase.scale(0.55) : segBase).scale(shade);
           const vcount = cone.getTotalVertices();
           const cols = new Float32Array(vcount * 4);
           for (let v = 0; v < vcount; v++) { cols[v * 4] = cc.r; cols[v * 4 + 1] = cc.g; cols[v * 4 + 2] = cc.b; cols[v * 4 + 3] = 1; }
@@ -261,7 +240,6 @@ export function buildMawlingProc(stage, scene) {
       merged.isPickable = false;
     };
     const furMat = new BABYLON.StandardMaterial('furMat', scene);
-    if (liveMats) liveMats.fur = furMat;
     furMat.diffuseColor = BABYLON.Color3.White(); // × per-tuft vertex color
     furMat.specularColor = BABYLON.Color3.Black();
     furMat.emissiveColor = BABYLON.Color3.White().scale(0.09);
@@ -280,7 +258,6 @@ export function buildMawlingProc(stage, scene) {
   // Acid-green eyes — pushed clear of the skull surface so they actually show
   // (post head-pivot refactor they ended up buried inside the sphere).
   const eyeMat = unlitMat(scene, pal.eyes, 1);
-  liveMats.eyes = eyeMat;
   for (const side of [-1, 1]) {
     const eye = BABYLON.MeshBuilder.CreateSphere('eye', { diameter: r * 0.3 }, scene);
     eye.material = eyeMat;

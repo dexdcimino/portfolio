@@ -103,6 +103,19 @@ function mountPlayerVisual() {
 }
 mountPlayerVisual();
 
+// Accent changed in the pause menu: rebuild the visual at the current stage.
+// The palette is resolved inside the build, so this is exact — body, jaw,
+// horns, eyes and the vertex-baked two-tone fur — at any stage.
+window.addEventListener('chomp-accent', () => {
+  // Order matters: release the LIVE visual into the pool first, THEN flush —
+  // flushing first let mountPlayerVisual() re-pool the live record and mount
+  // would pop the same old-coloured visual straight back out. dispose() has a
+  // released-guard, so mountPlayerVisual's own dispose call stays a no-op.
+  playerVisual?.dispose();
+  factory.flushPlayerPools();
+  mountPlayerVisual();
+});
+
 on('player:bonk', () => morphOnBonk(morph));
 on('player:damage', () => morphOnBonk(morph)); // hit = same pancake feedback for now
 on('player:eat', () => morphOnGulp(morph)); // every eat gets a visible gulp

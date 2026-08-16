@@ -184,6 +184,9 @@ function build() {
     store.set('chomp-zoom', zoom.value);
     window.dispatchEvent(new CustomEvent('chomp-zoom', { detail: parseFloat(zoom.value) }));
   });
+  // The scroll wheel also drives zoom (camera.js); mirror it here so the
+  // slider always shows the live value when the menu opens mid-scroll.
+  window.addEventListener('chomp-zoom-sync', (e) => { zoom.value = String(e.detail); });
 
   const vol = menu.querySelector('.cmenu-vol');
   const mute = menu.querySelector('.cmenu-mute');

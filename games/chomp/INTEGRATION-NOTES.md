@@ -34,5 +34,28 @@ current; keep it short by keeping the edits few.
      vertex-baked, so mid-game it tints by channel ratio and becomes exact on
      the next stage rebuild).
 
+5. `js/visuals/factory.js`
+   - `flushPlayerPools()` added and exported: `dispose()` releases visuals to
+     a pool and `mount()` recycles them, so an accent change must destroy the
+     pooled player records or the old colours come straight back.
+
+6. `js/main.js` (beyond the embed MD's edits)
+   - `chomp-accent` listener: `playerVisual.dispose()` -> `flushPlayerPools()`
+     -> `mountPlayerVisual()` — order matters, the live visual must be pooled
+     BEFORE the flush or mount pops it back out.
+
+7. `js/systems/camera.js` (beyond note 3)
+   - Scroll-wheel zoom (persists `chomp-zoom`, emits `chomp-zoom-sync` for the
+     menu slider), instant radius set on menu scrub (the update loop is not
+     running while paused), and a spawn-framing guard: for the first 0.6s,
+     raycast camera->player against `wall_*`/`rocks_*` and yaw to a clear
+     angle — the occlusion fader only dims `wall_*` chunks, so tall rock
+     formations could block the spawn view.
+
+8. `js/visuals/proc/chomp.js` (beyond note 4)
+   - Palette v2: per-accent body/eyes/horns/tuftBase/tuftTip, two-tone fur
+     (tip cones wear tuftTip), resolved at every build so every stage wears
+     the accent. Live change is handled by rebuild (note 6), not retinting.
+
 Nothing else under `js/` or `css/` is modified. `docs/` and `CLAUDE.md`
 were deleted (authoring docs, not servable content).

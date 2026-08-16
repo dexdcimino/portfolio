@@ -81,6 +81,18 @@ export function createFactory(scene) {
     };
   }
 
+  // Accent changes rebuild the player, but dispose() RELEASES TO THE POOL and
+  // mount() hands the same pooled record straight back — old colours and all.
+  // Flushing just the player pools forces the next mount to build fresh with
+  // the new palette; food/enemy pools are accent-independent and stay warm.
+  function flushPlayerPools() {
+    for (const [key, pool] of pools) {
+      if (!key.startsWith('player.')) continue;
+      for (const rec of pool) rec.destroy();
+      pool.length = 0;
+    }
+  }
+
   function mount(key, opts = {}) {
     const poolKey = key + (opts.shadow ? '|sh' : '');
     const pool = pools.get(poolKey);
@@ -144,6 +156,7 @@ export function createFactory(scene) {
 
   return {
     mount,
+    flushPlayerPools,
     mountInstanced,
     destroyPools,
     stats: () => ({
