@@ -1,0 +1,26 @@
+/* Arena 1 — shell styles. Phase 0: black canvas + HUD root, nothing else. */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%; width: 100%;
+  overflow: hidden; background: #000;
+}
+#game {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh;
+  display: block; outline: none;
+  touch-action: none;
+}
+#hud {
+  position: fixed; inset: 0;
+  padding-top: var(--safe-top, 0px);   /* wrapper's setSafeTop lands here (Phase 6) */
+  pointer-events: none;                /* gameplay clicks belong to the canvas —
+                                          interactive HUD islands opt back in,
+                                          the lesson Chomp's pause menu learned */
+  user-select: none; -webkit-user-select: none;
+  color: #cfe3dd;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+#hud-boot {
+  position: absolute; left: 14px; bottom: 12px;
+  font-size: 11px; font-weight: 700; letter-spacing: .22em; opacity: .5;
+}

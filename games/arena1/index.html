@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- no-zoom: a movement FPS cannot survive pinch-zoom hijacking the canvas -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Arena 1</title>
+  <link rel="stylesheet" href="css/game.css" />
+  <!-- Vendored, no CDN: the /games/* CSP is script-src 'self' 'unsafe-inline'
+       blob: — a CDN load fails as a silent `BABYLON is undefined`. -->
+  <script src="vendor/babylon.js"></script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <!-- HUD shell only in Phase 0; the real HUD ports in Phase 4. -->
+    <div id="hud-boot">ARENA 1 — scaffold</div>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
