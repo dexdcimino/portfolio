@@ -12,7 +12,7 @@ export const TUNE = {
   GRAPPLE_RANGE: 75, GRAPPLE_PULL: 24, GRAPPLE_ACCEL: 14,
 };
 
-// Sim/network constants (ARENA1_STEPS "Wire formats").
+// Sim/network constants (ARENA1_STEPS.md at the repo root, "Wire formats").
 export const SIM_DT = 1 / 60;            // fixed step; render interpolates
 export const PVP_DEFAULT = true;         // sim-level flag, one combat path
 export const SNAPSHOT_RATE_NET = 20;     // Hz, host -> peers (Phase 7)

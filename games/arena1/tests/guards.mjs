@@ -1,4 +1,4 @@
-// guards.mjs — the global guardrails from ARENA1_STEPS, run at the end of
+// guards.mjs — the global guardrails from ARENA1_STEPS.md (repo root), run at
 // EVERY phase. Enforced by script, not discipline:
 //   1. no Babylon anywhere under js/sim/, js/core/, js/net/
 //   2. no wall clock / Math.random under js/sim/
