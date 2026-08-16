@@ -143,7 +143,7 @@ function step(ctx, p, c) {
   ok('walljump + cling', `cling vy floor ${minVy.toFixed(2)} (limit -3.5), kick vy ${jumped.vy.toFixed(2)} (UP ${TUNE.WALLJUMP_UP}), out vx ${jumped.vx.toFixed(2)} (OUT ${TUNE.WALLJUMP_OUT} - steer 3)`);
 }
 
-// ── 5. jetpack: vy cap, burn, ground regen ─────────────────────────────────
+// ── 5. jetpack: vy cap, NET burn, regen in air and on ground (MD 15 item 2) ─
 {
   const ctx = flatCtx();
   const p = createPlayerState(1, { x: 0, y: 0.92, z: 0 });
@@ -153,17 +153,45 @@ function step(ctx, p, c) {
     step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, BTN.JET));
     if (p.jetting) { jetTicks++; maxVy = Math.max(maxVy, p.vel.y); }
   }
-  const expectFuel = 100 - TUNE.JET_BURN * jetTicks * SIM_DT;
+  // MD 15 item 2: regen is no longer ground-gated, and it runs on the same tick
+  // as the burn — so holding jet costs the NET rate, not the full burn. This is
+  // the assertion that pins the change: it fails if regen ever goes back to
+  // ground-only (fuel would come out lower) or if the rates drift apart.
+  const net = TUNE.JET_BURN - TUNE.FUEL_REGEN;
+  const expectFuel = 100 - net * jetTicks * SIM_DT;
   assert.ok(maxVy <= TUNE.JET_VMAX + 1e-9, `jet vy ${maxVy.toFixed(2)} above JET_VMAX`);
-  assert.ok(Math.abs(p.fuel - expectFuel) < 0.5, `fuel ${p.fuel.toFixed(1)} vs expected ${expectFuel.toFixed(1)}`);
-  const fuelBefore = p.fuel;
-  // fall back to ground, then regen for 1s
+  assert.ok(Math.abs(p.fuel - expectFuel) < 0.5,
+    `fuel ${p.fuel.toFixed(1)} vs expected ${expectFuel.toFixed(1)} (net ${net}/s)`);
+  // AIR regen, measured while provably not grounded — the half of item 2 that
+  // did not exist before. Coasting (no JET) for 30 ticks must gain exactly
+  // FUEL_REGEN * 0.5s, the same rate the ground gets below.
+  const airBefore = p.fuel;
+  let airTicks = 0;
+  for (let t = 0; t < 30 && !p.grounded; t++) { step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0)); airTicks++; }
+  assert.ok(!p.grounded, 'fell to the ground before the air-regen window finished');
+  const expectAir = Math.min(p.fuelMax, airBefore + TUNE.FUEL_REGEN * airTicks * SIM_DT);
+  assert.ok(Math.abs(p.fuel - expectAir) < 0.5,
+    `air regen ${airBefore.toFixed(1)} → ${p.fuel.toFixed(1)}, expected ${expectAir.toFixed(1)}`);
+  const airGain = p.fuel - airBefore;
+
+  // fall back to ground, then regen on the ground over the SAME window.
+  // Fuel is deliberately drained first: by the time the fall ends it has
+  // already refilled to fuelMax, and a capped tank regenerates 0 — which is
+  // what made the first version of this comparison read 8.00 vs 0.00.
   let t2 = 0;
   while (!p.grounded && t2 < 400) { step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0)); t2++; }
   assert.ok(p.grounded, 'never landed after jetting');
-  for (let t = 0; t < 60; t++) step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0));
-  assert.ok(p.fuel > fuelBefore + 10, `regen: ${fuelBefore.toFixed(1)} → ${p.fuel.toFixed(1)}`);
-  ok('jetpack', `vy cap ${maxVy.toFixed(2)} (JET_VMAX ${TUNE.JET_VMAX}), burn ${jetTicks} ticks → fuel ${p.fuel > fuelBefore ? fuelBefore.toFixed(1) : p.fuel.toFixed(1)} (expected ${expectFuel.toFixed(1)}), regen to ${p.fuel.toFixed(1)}`);
+  p.fuel = 50;
+  const fuelBefore = p.fuel;
+  const groundBefore = p.fuel;
+  for (let t = 0; t < airTicks; t++) step(ctx, p, cmd({ x: 0, z: 0 }, 0, 0, 0));
+  const groundGain = p.fuel - groundBefore;
+  assert.ok(p.fuel > fuelBefore + 5, `regen: ${fuelBefore.toFixed(1)} → ${p.fuel.toFixed(1)}`);
+  // "at the same rate as on the ground" is the literal requirement, so compare
+  // the two gains directly rather than trusting one constant feeds both.
+  assert.ok(Math.abs(airGain - groundGain) < 0.5,
+    `air regen ${airGain.toFixed(2)} != ground regen ${groundGain.toFixed(2)}`);
+  ok('jetpack', `vy cap ${maxVy.toFixed(2)} (JET_VMAX ${TUNE.JET_VMAX}), net burn ${net}/s over ${jetTicks} ticks → fuel ${expectFuel.toFixed(1)}, air regen ${airGain.toFixed(2)} == ground regen ${groundGain.toFixed(2)}`);
 }
 
 // ── 6. grapple: latch, pull, momentum release, auto-release (feel item 5) ──

@@ -88,7 +88,23 @@ const CSS = `
   border-radius:16px;padding:22px 22px 0;
   color:#F2D6A2;font-family:"Cascadia Mono","JetBrains Mono",Consolas,monospace;text-align:left;
   box-shadow:0 18px 60px rgba(0,0,0,.6);
+  /* MD 15 item 12. Firefox gets the standard properties, Chromium/WebKit the
+     ::-webkit- pseudos below; both land on the same dark track and sand thumb
+     so the bar belongs to the menu instead of the OS. Kept clearly visible
+     rather than hidden — an invisible scrollbar is worse than an ugly one when
+     the menu is this tall. scrollbar-gutter is deliberately NOT set: it would
+     reserve a strip the sticky action bar (MD 12) does not paint into. */
+  scrollbar-width:thin;
+  scrollbar-color:rgba(242,214,162,.34) rgba(13,8,26,.55);
 }
+.cmenu::-webkit-scrollbar{width:10px}
+.cmenu::-webkit-scrollbar-track{background:rgba(13,8,26,.55);border-radius:0 16px 16px 0}
+.cmenu::-webkit-scrollbar-thumb{
+  background:rgba(242,214,162,.34);border-radius:6px;
+  border:2px solid transparent;background-clip:content-box;
+}
+.cmenu::-webkit-scrollbar-thumb:hover{background:rgba(242,214,162,.55);background-clip:content-box}
+.cmenu::-webkit-scrollbar-thumb:active{background:var(--cmenu-accent,#9EE02B);background-clip:content-box}
 .cmenu h1{margin:0 0 16px;font-size:24px;letter-spacing:.2em;font-weight:400}
 .cmenu h2{margin:18px 0 10px;font-size:11px;font-weight:800;letter-spacing:.22em;
   color:#a8916b;text-transform:uppercase;border-bottom:1px solid rgba(242,214,162,.14);padding-bottom:6px}
@@ -100,8 +116,15 @@ const CSS = `
 /* the player's identity — centred in the menu, text centred, ALL CAPS; the
    small grey label sits to its left OUTSIDE the field (same treatment as the
    lobby ID label). Prominent: bigger and bold. Never empty. */
-.cmenu-tagrow{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px}
-.cmenu-tag{width:55%;height:42px;padding:0 12px;border-radius:8px;font-family:inherit;
+/* MD 15 item 6. 1fr auto 1fr, NOT a centred flex row: in a flex row the label
+   is part of the centred group, so its width shifts the field off the menu's
+   axis. Here the field owns the middle track and the two 1fr tracks are equal
+   by construction, so the field is dead centre and the label hangs in the left
+   track beside it. Centre the field first, place the label relative to it. */
+.cmenu-tagrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  gap:8px;margin-bottom:12px}
+.cmenu-tagrow .cmenu-roomlab{justify-self:end;min-width:0;white-space:nowrap}
+.cmenu-tag{width:230px;max-width:100%;height:42px;padding:0 12px;border-radius:8px;font-family:inherit;
   font-size:18px;font-weight:800;letter-spacing:.1em;color:#F2D6A2;background:#2b1b45;
   border:2px solid #4A2B63;outline:none;text-align:center;text-transform:uppercase}
 .cmenu-tag:focus{border-color:var(--cmenu-accent,#9EE02B)}
@@ -120,6 +143,15 @@ const CSS = `
   color:#F2D6A2;font-family:inherit}
 .cmenu-confirm-yes{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
 .cmenu-roomrow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+/* MD 15 item 8. Both lobby rows run on identical tracks — label / field /
+   button — so the ID field and the join field are exactly the same width with
+   their left and right borders on the same two lines. The join row carries an
+   empty first cell rather than shrinking its field by eye. */
+.cmenu-lobbyrow{display:grid;grid-template-columns:64px minmax(0,1fr) 64px;
+  align-items:center;gap:8px;margin-bottom:8px}
+.cmenu-lobbyrow .cmenu-roomlab{min-width:0}
+.cmenu-lobbyrow .cmenu-roomcode,.cmenu-lobbyrow .cmenu-joincode{width:100%;box-sizing:border-box}
+.cmenu-lobbyrow .cmenu-copy,.cmenu-lobbyrow .cmenu-join{width:100%;min-width:0}
 .cmenu-roomlab{font-size:10px;font-weight:800;letter-spacing:.18em;color:#a8916b;min-width:64px}
 .cmenu-roomcode{flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;
   font-size:15px;letter-spacing:.18em;color:#F2D6A2;background:#2b1b45;
@@ -133,18 +165,35 @@ const CSS = `
   font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#F2D6A2;background:#2b1b45;
   border:2px solid #4A2B63;outline:none}
 .cmenu-joincode:focus{border-color:var(--cmenu-accent,#9EE02B)}
-.cmenu-rows{display:grid;gap:8px}
-.cmenu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
-.cmenu-keys{display:flex;gap:4px;align-items:center}
+/* MD 15 item 7. The three cells live on ONE grid owned by .cmenu-rows, with
+   each row as display:contents, so every row shares the same tracks — that is
+   what puts every key button on a single right edge no matter how long the
+   label or the subtext is. A per-row flex could only ever align them by
+   accident. Subtext sits in the middle track pushed right, so it reads as
+   leading into the keys rather than trailing off them. */
+.cmenu-rows{display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center}
+.cmenu-row{display:contents;font-size:13px}
+.cmenu-row > :first-child{font-size:13px}
+.cmenu-keys{display:flex;gap:4px;align-items:center;justify-self:end}
 .cmenu-key{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:22px;
   padding:0 7px;font-size:11px;font-weight:600;color:#F2D6A2;background:#2b1b45;
   border:2px solid #4A2B63;border-radius:6px;white-space:nowrap}
-.cmenu-alt{color:#a8916b;font-size:11px;margin-left:6px}
-.cmenu-seg{display:flex;gap:8px}
-.cmenu-seg button{flex:1;height:32px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:800;
-  letter-spacing:.1em;border:2px solid #4A2B63;background:#2b1b45;color:#F2D6A2;
-  transition:background .15s ease,border-color .15s ease,color .15s ease}
-.cmenu-seg button.is-on{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
+.cmenu-alt{color:#a8916b;font-size:11px;justify-self:end;text-align:right}
+/* MD 15 item 9. ONE control with halves inside it, not a row of buttons: the
+   border and the radius belong to the container, the children carry neither and
+   are divided by a single hairline. That is the difference between a toggle and
+   a pair that happen to sit next to each other. Applied to .cmenu-seg rather
+   than only .cmenu-vis so Quality reads the same — see the MD 15 report; only
+   Public/Private was asked for. */
+.cmenu-seg{display:flex;gap:0;height:32px;padding:0;overflow:hidden;
+  border:2px solid #4A2B63;border-radius:8px;background:#2b1b45}
+.cmenu-seg button{flex:1;height:100%;border:0;border-radius:0;cursor:pointer;
+  font-size:11px;font-weight:800;letter-spacing:.1em;background:transparent;color:#F2D6A2;
+  font-family:inherit;
+  transition:background .15s ease,color .15s ease}
+.cmenu-seg button + button{border-left:2px solid #4A2B63}
+.cmenu-seg button:hover:not(.is-on){background:rgba(242,214,162,.09)}
+.cmenu-seg button.is-on{background:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
 .cmenu-note{font-size:10px;letter-spacing:.06em;color:#a8916b;margin-top:6px}
 .cmenu-audio{display:flex;align-items:center;gap:12px}
 .cmenu-audio input[type=range]{flex:1;accent-color:var(--cmenu-accent,#9EE02B)}
@@ -190,12 +239,13 @@ function build() {
     </div>
     <div class="cmenu-swatches"></div>
     <h2>Lobby</h2>
-    <div class="cmenu-roomrow">
+    <div class="cmenu-roomrow cmenu-lobbyrow">
       <span class="cmenu-roomlab">ID:</span>
       <code class="cmenu-roomcode"><span class="cmenu-roomid">SOLO</span><span class="cmenu-roomcount"></span></code>
       <button class="cmenu-copy" type="button" aria-label="Copy lobby code">COPY</button>
     </div>
-    <div class="cmenu-roomrow">
+    <div class="cmenu-roomrow cmenu-lobbyrow">
+      <span aria-hidden="true"></span>
       <input class="cmenu-joincode" type="text" maxlength="24" spellcheck="false"
              placeholder="enter a lobby word" aria-label="Lobby code to join">
       <button class="cmenu-join" type="button">JOIN</button>
@@ -212,7 +262,11 @@ function build() {
       <button class="cmenu-confirm-yes" type="button">YES</button>
       <button class="cmenu-confirm-no" type="button">CANCEL</button>
     </div>
-    <div class="cmenu-note cmenu-roomnote">pvp applies when the next match starts · matchmaking is automatic — lobby words are for playing with specific people</div>
+    <h2>Audio</h2>
+    <div class="cmenu-audio">
+      <button class="cmenu-mute" type="button"></button>
+      <input class="cmenu-vol" type="range" min="0" max="1" step="0.01" aria-label="Master volume">
+    </div>
     <h2>Controls</h2>
     <div class="cmenu-rows"></div>
     <h2>Quality</h2>
@@ -220,11 +274,6 @@ function build() {
       <button type="button" data-q="0">LOW</button>
       <button type="button" data-q="1">MED</button>
       <button type="button" data-q="2">HIGH</button>
-    </div>
-    <h2>Audio</h2>
-    <div class="cmenu-audio">
-      <button class="cmenu-mute" type="button"></button>
-      <input class="cmenu-vol" type="range" min="0" max="1" step="0.01" aria-label="Master volume">
     </div>
     <div class="cmenu-foot">
       <button class="cmenu-btn cmenu-exit" type="button">EXIT GAME</button>
@@ -371,7 +420,12 @@ function build() {
     const row = document.createElement('div');
     row.className = 'cmenu-row';
     const keySpans = keyList.map((k) => `<kbd class="cmenu-key">${k}</kbd>`).join('');
-    row.innerHTML = `<span>${label}</span><span class="cmenu-keys">${keySpans}${alt ? `<span class="cmenu-alt">${alt}</span>` : ''}</span>`;
+    // Order is the DOM order the grid reads: label, then subtext, then keys.
+    // The subtext span is always emitted, empty when there is none, so every
+    // row fills all three tracks and the key column cannot shift between rows.
+    row.innerHTML = `<span>${label}</span>`
+      + `<span class="cmenu-alt">${alt || ''}</span>`
+      + `<span class="cmenu-keys">${keySpans}</span>`;
     rows.appendChild(row);
   }
 

@@ -23,6 +23,23 @@ export function createFx({ scene, cam, mat, V3 }, world) {
   const zapView = makeZap({ mat, V3 }, scene, gunRoot);
   const launcherView = makeLauncher({ mat, V3 }, scene, gunRoot);
   const hookEmit = zapView.hookEmit;
+  /* MD 15 item 13. The rope used to start at hookEmit, which sits at local
+     z=0.3 with a depth of 0.2 — its back half is INSIDE the zap body (a 0.42
+     box centred on 0, so its front face is z=0.21). Coincident faces, so the
+     rope and the gun z-fought at the muzzle and the rope flickered through the
+     body cube.
+     Fixed by moving the rope's visual origin forward along the barrel axis,
+     past every piece of both weapons, rather than by switching off depth
+     testing — that would draw the rope over the level and the players too.
+     Clearance: the zap's barrel ends at z=0.51, the launcher's rim at 0.58 and
+     the muzzle flash sphere at 0.61, so 0.68 is past all of them with room to
+     spare. It has to clear BOTH models because the emitter is the zap's and is
+     used whichever weapon is shown. x/y stay on hookEmit so the rope still
+     leaves the same corner of the gun; only the depth changes, which at this
+     distance from the camera is a couple of pixels on screen. */
+  const ropeEmit = new BABYLON.TransformNode('ropeEmit', scene);
+  ropeEmit.parent = gunRoot;
+  ropeEmit.position = V3(-0.09, -0.02, 0.68);
   const muzzle = BABYLON.MeshBuilder.CreateIcoSphere('mz', { radius: 0.06, subdivisions: 1 }, scene);
   muzzle.parent = gunRoot; muzzle.position = V3(0, 0.03, 0.55);
   muzzle.material = mat('#FFE7B0', 1); muzzle.isPickable = false; muzzle.scaling.setAll(0.01);
@@ -58,7 +75,7 @@ export function createFx({ scene, cam, mat, V3 }, world) {
   const hookTip = BABYLON.MeshBuilder.CreateIcoSphere('hook', { radius: 0.14, subdivisions: 1 }, scene);
   hookTip.material = ropeMat; hookTip.isVisible = false; hookTip.isPickable = false;
   function ropeTo(target) {
-    const a = hookEmit.getAbsolutePosition();
+    const a = ropeEmit.getAbsolutePosition();
     const t = new BABYLON.Vector3(target.x, target.y, target.z);
     const d = t.subtract(a), len = Math.max(0.01, d.length());
     rope.isVisible = true; hookTip.isVisible = true;

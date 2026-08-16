@@ -9,7 +9,7 @@ import { createWorld } from '../js/sim/world.js';
 import { buildLevel } from '../js/sim/level.js';
 import { createPlayerState, stepPlayer, BTN } from '../js/sim/movement.js';
 import { stepEnemies } from '../js/sim/enemies.js';
-import { stepCombat, stepRockets } from '../js/sim/combat.js';
+import { stepCombat, stepRockets, SPLASH_RADIUS } from '../js/sim/combat.js';
 import { createSim } from '../js/sim/sim.js';
 import { rngFor } from '../js/core/rng.js';
 
@@ -291,9 +291,14 @@ const idleAt = (a, w = 1) => ({ move: { x: 0, z: 0 }, yaw: a.yaw, pitch: a.pitch
     id: bid, kind: 'blob', rng: rngFor('unit', 'enemy', bid),
     pos, vx: 0, vy: 0, vz: 0, hp: 3, alive: true, respawnT: 0, yanked: 0, hitCd: 0, hop: 9,
   });
-  // impact lands at ≈(0, 1.47, 10); distances measured from there
-  const inside = mkB(901, { x: 4.0, y: 1.4, z: 9.6 });   // ≈4.0m — inside the 4.5 radius
-  const outside = mkB(902, { x: 5.6, y: 1.4, z: 9.6 });  // ≈5.6m — beyond it
+  // impact lands at ≈(0, 1.47, 10); distances measured from there. Placed as
+  // FRACTIONS of SPLASH_RADIUS, not at literal metres — MD 15 item 3 moved the
+  // radius from 4.5 to 11 and the old hardcoded 4.0/5.6 pair silently became
+  // "both inside". Derived, this asserts the edge wherever the edge is.
+  const rIn = SPLASH_RADIUS * 0.36;
+  const rOut = SPLASH_RADIUS * 1.25;
+  const inside = mkB(901, { x: rIn, y: 1.4, z: 9.6 });
+  const outside = mkB(902, { x: rOut, y: 1.4, z: 9.6 });
   u.ents.enemies.set(901, inside);
   u.ents.enemies.set(902, outside);
   const ctx = () => ({ world: u.world, level: u.level, tick: u.tick, events: [], ents: u.ents, pvp: true });
@@ -310,7 +315,7 @@ const idleAt = (a, w = 1) => ({ move: { x: 0, z: 0 }, yaw: a.yaw, pitch: a.pitch
   assert.ok(exploded, 'rocket never exploded on the wall');
   assert.ok(inside.hp < 3, `edge enemy untouched (hp ${inside.hp})`);
   assert.equal(outside.hp, 3, `beyond-radius enemy damaged (hp ${outside.hp})`);
-  ok('splash radius edge', `≈4.0m enemy hp 3→${inside.hp}, ≈5.6m enemy untouched (radius 4.5)`);
+  ok('splash radius edge', `≈${rIn.toFixed(1)}m enemy hp 3→${inside.hp}, ≈${rOut.toFixed(1)}m untouched (radius ${SPLASH_RADIUS})`);
 }
 
 // ── 10. pvp branch on splash + self-damage in BOTH modes ───────────────────

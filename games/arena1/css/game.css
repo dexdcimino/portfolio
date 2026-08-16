@@ -31,7 +31,10 @@ html, body {
   padding: 8px 12px; backdrop-filter: blur(2px);
 }
 #xh { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 22px; height: 22px; }
-#xh::before, #xh::after { content: ''; position: absolute; background: var(--sand); opacity: .9; }
+/* White, not the sand accent: the reticle is a sighting instrument, and it has
+   to read the same against every surface in the level rather than tinting with
+   the palette. */
+#xh::before, #xh::after { content: ''; position: absolute; background: #fff; opacity: .9; }
 #xh::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
 #xh::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
 #xh .gap { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); background: transparent; box-shadow: 0 0 0 3px var(--ink) inset; }

@@ -44,11 +44,35 @@ const ROCKET_MUZZLE = 0.8;          // spawn ahead of the eye
 // Exported for the render layer: the explosion's DAMAGE CORE visual scales
 // from this constant so the bright boundary can never drift from the real
 // splash volume. The spectacle falloff around it deliberately does not.
-export const SPLASH_RADIUS = 4.5;
+export const SPLASH_RADIUS = 11;
+
+/* MD 15 items 3+4. The radius was 4.5 while the spectacle reached 10-15m, and
+   MD 13's split — a small damage core inside a larger "effect only" falloff —
+   did not read: people take the whole effect for the explosion. Resolved the
+   other way, by raising damage to meet the visual. The core visual scales off
+   this constant (render/fx.js), so the two converge automatically.
+
+   A flat falloff at 11m would make every near-miss lethal, so the curve goes
+   CUBIC. That is chosen, not arbitrary: cubic at 11m reproduces the old linear
+   4.5m numbers almost exactly inside 2m (24->23 at the feet, 17->16 at 2m) and
+   then trails off to a long chip tail — 8 at 4m, 4 at 5.5m, 1 at 7m. So the
+   close-range economy people already know is preserved, rocket-jump
+   self-damage is unchanged in practice, and the radius grows into chip damage
+   rather than into one-shot territory. */
+const FALLOFF_POW = 3;
+const falloff = (d) => Math.pow(1 - d / SPLASH_RADIUS, FALLOFF_POW);
 const DIRECT_PLAYER = 35;           // pvp-gated like every player hit
 const DIRECT_ENEMY = 3;             // a blob dies to a direct hit
 const SPLASH_PLAYER_MAX = 30;       // → ~22 self-damage from a feet blast (survivable ≥4×)
-const KNOCK_PLAYER = 54;            // → ~35 vertical from a clean feet blast (MD 13 feel gate)
+/* MD 15 item 5: substantially stronger, and it has to be read together with
+   the cubic curve above — the curve alone would have cut knockback at range,
+   so the constant rises to more than compensate. Net effect at a feet blast is
+   ~1.6x (43 -> 68 impulse), and 3.8x at 4m where the old radius delivered
+   almost nothing. Rocket-jump apex goes from ~31m to ~77m, which is the
+   "rocket jumping gets wilder" MD 3 accepted, on a spire map built for it.
+   NOT gated by sim.pvp — on record from MD 11, and what keeps rocket jumping
+   alive in co-op. It does mean you can punt teammates: accepted, not a bug. */
+const KNOCK_PLAYER = 88;
 const KNOCK_ENEMY = 18;             // unchanged from MD 11 — see header
 
 function viewDir(p) {
@@ -148,10 +172,15 @@ function explode(ctx, r, point, direct) {
     if (!e.alive || (direct?.type === 'enemy' && direct.e === e)) continue;
     const d = Math.hypot(e.pos.x - point.x, e.pos.y - point.y, e.pos.z - point.z);
     if (d > SPLASH_RADIUS) continue;
-    const dmg = d < SPLASH_RADIUS / 2 ? 2 : 1;
+    const dmg = d < SPLASH_RADIUS / 2 ? 2 : 1;   // ratio-based, so it tracks the radius
     e.hp -= dmg;
     ctx.events.push({ type: 'hit', shooter: r.ownerId, target: e.id, point, dmg });
-    const k = KNOCK_ENEMY * (1 - d / SPLASH_RADIUS);
+    // KNOCK_ENEMY itself is untouched (MD 15 item 5 says leave it), but it takes
+    // the same cubic curve — with the radius now 11m a LINEAR falloff would start
+    // shoving patrol spikeballs off platforms from 8m away, which is exactly the
+    // outcome the enemy/player split was created to avoid. Cubic keeps the
+    // profile close to what it was at 4.5m linear.
+    const k = KNOCK_ENEMY * falloff(d);
     const dd = Math.max(0.5, d);
     e.vx += (e.pos.x - point.x) / dd * k * 0.8;
     e.vz += (e.pos.z - point.z) / dd * k * 0.8;
@@ -163,7 +192,7 @@ function explode(ctx, r, point, direct) {
     const d = Math.hypot(q.pos.x - point.x, q.pos.y - point.y, q.pos.z - point.z);
     if (d > SPLASH_RADIUS) continue;
     const isSelf = q.id === r.ownerId;
-    const raw = Math.round(SPLASH_PLAYER_MAX * (1 - d / SPLASH_RADIUS));
+    const raw = Math.round(SPLASH_PLAYER_MAX * falloff(d));
     // The one pvp branch, same as direct hits — with self-damage DELIBERATELY
     // outside it: pvp off means you cannot hurt OTHER players, not that your
     // own rockets go soft. Gating self would silently kill rocket jumping in
@@ -175,7 +204,7 @@ function explode(ctx, r, point, direct) {
     // give angled launches (the rocket-jump feel), scaled by proximity like
     // the enemy knockback.
     const dd = Math.max(0.5, d);
-    const k = KNOCK_PLAYER * (1 - d / SPLASH_RADIUS);
+    const k = KNOCK_PLAYER * falloff(d);
     q.vel.x += (q.pos.x - point.x) / dd * k;
     q.vel.y += (q.pos.y - point.y) / dd * k;
     q.vel.z += (q.pos.z - point.z) / dd * k;

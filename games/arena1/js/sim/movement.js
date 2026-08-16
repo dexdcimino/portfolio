@@ -202,7 +202,15 @@ export function stepPlayer(ctx, p, cmd) {
     p.vel.y = Math.min(TUNE.JET_VMAX, p.vel.y + TUNE.JET_ACCEL * dt);
     p.fuel = Math.max(0, p.fuel - TUNE.JET_BURN * dt);
   }
-  if (p.grounded && p.fuel < p.fuelMax) {
+  // MD 15 item 2: regen is no longer gated on being grounded — same rate in the
+  // air as on the ground, and it runs on the SAME tick as the burn above rather
+  // than instead of it. Holding jet therefore nets BURN-REGEN = 26-16 = 10/s,
+  // so a 100 tank is 10s of continuous flight instead of 3.8s. The real change
+  // is tap-jetting: any duty cycle under REGEN/BURN (62%) never runs dry, which
+  // is unlimited airtime by construction. That is the asked-for behaviour, not
+  // an oversight — if it swallows the ground game the lever is a separate,
+  // lower AIR_REGEN constant here, not putting the gate back.
+  if (p.fuel < p.fuelMax) {
     p.fuel = Math.min(p.fuelMax, p.fuel + TUNE.FUEL_REGEN * dt);
   }
 
