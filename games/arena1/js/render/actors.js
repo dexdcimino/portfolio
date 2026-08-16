@@ -89,12 +89,33 @@ export function createActors({ scene, mat, V3 }) {
   }
 
   function makeRemotePlayer() {
-    const body = BABYLON.MeshBuilder.CreateBox('rplayer', { width: 0.8, height: 1.8, depth: 0.8 }, scene);
+    // The pill IS the collision capsule: r 0.4, total height 1.8 (halfH 0.9),
+    // centered on the player position like the solver's capsule.
+    const body = BABYLON.MeshBuilder.CreateCapsule('rplayer', {
+      radius: 0.4, height: 1.8, tessellation: 12, subdivisions: 4,
+    }, scene);
     const m = new BABYLON.StandardMaterial('rpm', scene);
-    m.diffuseColor = BABYLON.Color3.FromHexString('#FFE7B0');
+    m.diffuseColor = BABYLON.Color3.FromHexString('#FF7A59');
+    m.emissiveColor = BABYLON.Color3.FromHexString('#FF7A59').scale(0.25); // reads against fog
     m.specularColor = BABYLON.Color3.Black();
     body.material = m;
-    return { root: body, matRef: m };
+    // Floating tag: billboard plane + dynamic texture, redrawn only when the
+    // tag string changes. Hidden until a non-empty tag arrives.
+    const plane = BABYLON.MeshBuilder.CreatePlane('rtag', { width: 2.6, height: 0.65 }, scene);
+    plane.parent = body;
+    plane.position.y = 1.55;
+    plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+    plane.isPickable = false;
+    const tex = new BABYLON.DynamicTexture('rtagTex', { width: 256, height: 64 }, scene, false);
+    tex.hasAlpha = true;
+    const lm = new BABYLON.StandardMaterial('rtagMat', scene);
+    lm.emissiveTexture = tex;
+    lm.opacityTexture = tex;
+    lm.disableLighting = true;
+    lm.backFaceCulling = false;
+    plane.material = lm;
+    plane.setEnabled(false);
+    return { root: body, matRef: m, tagPlane: plane, tagTex: tex, tagText: null };
   }
 
   const pool = new Map(); // id → { kind, view, seen }
@@ -179,6 +200,15 @@ export function createActors({ scene, mat, V3 }) {
       a.wasVisible = true;
       a.view.root.position.set(lerp(pp.pos.x, p.pos.x, alpha), lerp(pp.pos.y, p.pos.y, alpha), lerp(pp.pos.z, p.pos.z, alpha));
       a.view.root.rotation.y = p.yaw;
+      const tag = (p.tag || '').slice(0, 16);
+      if (tag !== a.view.tagText) {
+        a.view.tagText = tag;
+        const ctx2 = a.view.tagTex.getContext();
+        ctx2.clearRect(0, 0, 256, 64);
+        if (tag) a.view.tagTex.drawText(tag, null, 46, 'bold 40px Consolas, monospace', '#FFE7B0', 'transparent', true);
+        else a.view.tagTex.update();
+        a.view.tagPlane.setEnabled(!!tag);
+      }
     }
     for (const [id, a] of pool) {
       if (!seen.has(id)) { a.view.root.setEnabled(false); a.wasVisible = false; }

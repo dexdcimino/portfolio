@@ -92,6 +92,10 @@ const CSS = `
   border:2px solid rgba(255,255,255,.18);transition:transform .15s ease,border-color .15s ease}
 .cmenu-swatch:hover{transform:scale(1.12)}
 .cmenu-swatch.is-on{border-color:#fff;box-shadow:0 0 0 2px var(--cmenu-accent,#9EE02B)}
+.cmenu-tag{width:100%;height:34px;padding:0 10px;border-radius:8px;font-family:inherit;
+  font-size:13px;letter-spacing:.08em;color:#F2D6A2;background:#2b1b45;
+  border:2px solid #4A2B63;outline:none}
+.cmenu-tag:focus{border-color:var(--cmenu-accent,#9EE02B)}
 .cmenu-rows{display:grid;gap:8px}
 .cmenu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
 .cmenu-keys{display:flex;gap:4px;align-items:center}
@@ -135,6 +139,9 @@ function build() {
     <h1>PAUSED</h1>
     <h2>Accent</h2>
     <div class="cmenu-swatches"></div>
+    <h2>Player Tag</h2>
+    <input class="cmenu-tag" type="text" maxlength="16" spellcheck="false"
+           placeholder="shown above you in multiplayer" aria-label="Player tag">
     <h2>Controls</h2>
     <div class="cmenu-rows"></div>
     <h2>Quality</h2>
@@ -172,6 +179,20 @@ function build() {
     swatches.appendChild(b);
   }
   applyAccent(currentAccent(), false);
+
+  // Player tag: persisted under arena1-tag; the transport listens for the
+  // event and announces the change to the room. Typing must not leak into the
+  // game's global key handlers (WASD state, Escape-resume) — stop keys at
+  // the input.
+  const tagInput = menu.querySelector('.cmenu-tag');
+  tagInput.value = store.get('arena1-tag') || '';
+  tagInput.addEventListener('input', () => {
+    const v = tagInput.value.slice(0, 16);
+    store.set('arena1-tag', v);
+    window.dispatchEvent(new CustomEvent('arena1-tag', { detail: v }));
+  });
+  tagInput.addEventListener('keydown', (e) => e.stopPropagation());
+  tagInput.addEventListener('keyup', (e) => e.stopPropagation());
 
   const rows = menu.querySelector('.cmenu-rows');
   for (const [label, keyList, alt] of CONTROLS) {

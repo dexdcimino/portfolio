@@ -40,7 +40,18 @@ const APP_ID = 'ff6d154a-33f9-480a-bb99-eeccfde3b012'; // the site's Photon app 
 const APP_VERSION = 'arena1-v1'; // partitions arena traffic from Stickland's
 const MAX_PLAYERS = 8;
 
-export const EV = { WELCOME: 11, COMMANDS: 12, SNAPSHOT: 13 };
+export const EV = { WELCOME: 11, COMMANDS: 12, SNAPSHOT: 13, TAG: 14 };
+
+// Player tag: presentation metadata, not sim state — it rides the transport
+// (localStorage arena1-tag, the pause menu edits it) and is injected into
+// snapshot player entries by the host. Guarded: the cores also run in Node.
+const TAG_MAX = 16;
+function readTag() {
+  try {
+    if (typeof localStorage === 'undefined') return '';
+    return (localStorage.getItem('arena1-tag') || '').slice(0, TAG_MAX);
+  } catch { return ''; }
+}
 export const TICKS_PER_NET = Math.max(1, Math.round(1 / (SNAPSHOT_RATE_NET * SIM_DT))); // 3
 const CMD_QUEUE_CAP = 12; // ≈200ms of backlog; beyond that old inputs are stale, drop them
 
@@ -74,9 +85,16 @@ export function createHostCore(seed, { pvp = PVP_DEFAULT, enemies = true } = {},
   const actorToPlayer = new Map(); // actorNr → playerId
   const queues = new Map();        // playerId → { q: [], last: cmd|null }
   const acks = new Map();          // playerId → highest command tick CONSUMED (MD 8)
+  const tags = new Map();          // playerId → display tag
   const subscribers = [];
   let pendingLocal = null;
   let eventAcc = [];
+
+  tags.set(localId, readTag());
+  if (typeof window !== 'undefined') {
+    window.addEventListener('arena1-tag', (e) => tags.set(localId, String(e.detail ?? '').slice(0, TAG_MAX)));
+  }
+  const withTags = (players) => players.map((p) => (tags.get(p.id) ? { ...p, tag: tags.get(p.id) } : p));
 
   const welcome = () => net.send(EV.WELCOME, {
     seed, pvp, players: Object.fromEntries(actorToPlayer),
@@ -96,6 +114,11 @@ export function createHostCore(seed, { pvp = PVP_DEFAULT, enemies = true } = {},
     sim.removePlayer(id);
   });
   net.onEvent((code, data, actorNr) => {
+    if (code === EV.TAG) {
+      const id = actorToPlayer.get(actorNr);
+      if (id != null) tags.set(id, String(data.tag ?? '').slice(0, TAG_MAX));
+      return;
+    }
     if (code !== EV.COMMANDS) return;
     const id = actorToPlayer.get(actorNr);
     if (id == null || data.playerId !== id) return; // never accept commands for someone else
@@ -126,6 +149,7 @@ export function createHostCore(seed, { pvp = PVP_DEFAULT, enemies = true } = {},
       }
       sim.step(cmds);
       const snap = sim.snapshot();
+      snap.players = withTags(snap.players);
       eventAcc.push(...snap.events);
       if (snap.tick % TICKS_PER_NET === 0) {
         net.send(EV.SNAPSHOT, {
@@ -161,6 +185,13 @@ export function createClientCore(net, hooks = {}, opts = {}) {
   let localTick = 0;
   let platformTick = 0;
   const hostActor = net.masterActorNr();
+
+  // Tag changes from the pause menu re-announce (host stores per player).
+  if (typeof window !== 'undefined') {
+    window.addEventListener('arena1-tag', (e) => {
+      if (welcomed) net.send(EV.TAG, { tag: String(e.detail ?? '').slice(0, TAG_MAX) });
+    });
+  }
 
   // ── prediction + reconciliation (MD 8) ─────────────────────────────────
   // A local predictOnly sim mirrors this client's player through the
@@ -253,6 +284,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       world = createWorld();
       level = buildLevel(world, rngFor(seed, 'level'));
       welcomed = true;
+      net.send(EV.TAG, { tag: readTag() }); // introduce ourselves by name
       readyResolve();
     } else if (code === EV.SNAPSHOT && actorNr === hostActor && welcomed) {
       buffer.push({ at: now(), snap: data });
@@ -332,7 +364,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
         ...pe,
         hp: meNow.hp, deaths: meNow.deaths, kills: meNow.kills,
         cellsGot: meNow.cellsGot, summitDone: meNow.summitDone,
-        fuelMax: meNow.fuelMax,
+        fuelMax: meNow.fuelMax, tag: meNow.tag,
       } : pe;
     })();
     if (meEntry) {
