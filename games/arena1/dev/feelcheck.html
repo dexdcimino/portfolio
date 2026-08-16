@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Arena 1 — feel check</title>
+  <!-- Phase 3 gate harness (ARENA1_STEPS): prototype LEFT, new build RIGHT,
+       flow meter visible on both. Dev-only; games/*/dev/ is vercelignored.
+       Serve the repo root (e.g. `python -m http.server 8784`) and open
+       /games/arena1/dev/feelcheck.html — file:// blocks the module scripts.
+
+       Note on "same seed": the ARENA (ground, ramps, slab alley, pads, spire)
+       is identical constants on both sides — that is where checklist items
+       1–7 run. The prototype's Ascent uses its own fixed internal stream
+       (rngSeed 1337), so only the floating-platform field differs from the
+       new build's seeded Ascent. ?seed=N feeds the right side.
+
+       Pointer lock belongs to ONE side at a time: click a pane to play it,
+       Esc to release, then click the other. -->
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #0d0916; color: #F2D6A2;
+      font-family: "Cascadia Mono", Consolas, monospace; }
+    header {
+      height: 64px; display: flex; align-items: center; gap: 24px;
+      padding: 0 16px; font-size: 11px; letter-spacing: .08em;
+    }
+    header b { color: #FF7A59; letter-spacing: .25em; }
+    header .item { opacity: .75; }
+    main { display: flex; height: calc(100% - 64px); }
+    section { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    section h2 {
+      margin: 0; padding: 6px 12px; font-size: 11px; letter-spacing: .28em;
+      background: #1a1030; font-weight: 700;
+    }
+    section:first-child h2 { color: #3EC5B4; }
+    section:last-child h2 { color: #FF7A59; }
+    iframe { flex: 1; width: 100%; border: 0; background: #000; }
+  </style>
+</head>
+<body>
+  <header>
+    <b>FEEL CHECK</b>
+    <span class="item">1 flat top speed ±0.1</span>
+    <span class="item">2 slide-hop ×3 flow ±0.3</span>
+    <span class="item">3 dash dist + retained</span>
+    <span class="item">4 walljump in slab alley</span>
+    <span class="item">5 grapple pendulum release ±0.5</span>
+    <span class="item">6 ramp walk-up: no jitter/launch</span>
+    <span class="item">7 wall glide: smooth</span>
+  </header>
+  <main>
+    <section>
+      <h2>PROTOTYPE (reference)</h2>
+      <iframe id="proto" allow="pointer-lock *"></iframe>
+    </section>
+    <section>
+      <h2>NEW BUILD (sim + debug render)</h2>
+      <iframe id="build" allow="pointer-lock *"></iframe>
+    </section>
+  </main>
+  <script>
+    // cb: the local test server sends no Cache-Control and Chrome's heuristic
+    // freshness will happily hand a feel COMPARISON a stale pane — bust both.
+    const seed = new URLSearchParams(location.search).get('seed') || '1';
+    const cb = Date.now();
+    document.getElementById('proto').src = `../reference/prototype.html?cb=${cb}`;
+    document.getElementById('build').src = `../index.html?seed=${encodeURIComponent(seed)}&cb=${cb}`;
+  </script>
+</body>
+</html>

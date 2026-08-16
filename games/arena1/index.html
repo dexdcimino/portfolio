@@ -13,8 +13,30 @@
 <body>
   <canvas id="game"></canvas>
   <div id="hud">
-    <!-- HUD shell only in Phase 0; the real HUD ports in Phase 4. -->
-    <div id="hud-boot">ARENA 1 — scaffold</div>
+    <!-- Phase 3 debug HUD: flow (the feel-gate meter), fuel, dash pips,
+         altimeter, feed. The full HUD port is Phase 4. -->
+    <div id="cross"></div>
+    <div class="panel" id="flowPanel">
+      <div class="lbl">FLOW · m/s</div>
+      <div id="flowNum">0.0</div>
+      <div id="flowBar"><div id="flowFill"></div></div>
+    </div>
+    <div class="panel" id="leftPanel">
+      <div class="lbl">TANK <span id="fuelNum">100/100</span></div>
+      <div id="fuelBar"><div id="fuelFill"></div></div>
+      <div id="pips"><span class="pip full"></span><span class="pip full"></span></div>
+      <div id="alt">ALT 0m</div>
+    </div>
+    <div id="feed"></div>
+    <div id="hud-boot">ARENA 1</div>
+  </div>
+  <div id="start">
+    <div>
+      <h1>ARENA 1 · movement build</h1>
+      <p>WASD move · SPACE jump / mid-air jet (hold) · SHIFT dash · C slide<br>
+         RIGHT MOUSE grapple (hold) · walls: jump while touching to kick off</p>
+      <p class="go">CLICK TO ENTER</p>
+    </div>
   </div>
   <script type="module" src="js/main.js"></script>
 </body>

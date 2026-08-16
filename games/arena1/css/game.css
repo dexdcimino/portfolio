@@ -1,8 +1,11 @@
-/* Arena 1 — shell styles. Phase 0: black canvas + HUD root, nothing else. */
+/* Arena 1 — shell styles + the Phase 3 debug HUD (flow/fuel/pips/alt/feed).
+   The full HUD ports in Phase 4; these panels echo the prototype's layout so
+   the feel gate can read both side by side. */
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0; height: 100%; width: 100%;
   overflow: hidden; background: #000;
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
 }
 #game {
   position: fixed; inset: 0;
@@ -17,10 +20,49 @@ html, body {
                                           interactive HUD islands opt back in,
                                           the lesson Chomp's pause menu learned */
   user-select: none; -webkit-user-select: none;
-  color: #cfe3dd;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #F2D6A2;
+}
+#cross {
+  position: absolute; left: 50%; top: 50%;
+  width: 6px; height: 6px; margin: -3px 0 0 -3px;
+  border-radius: 50%; background: rgba(242, 214, 162, .85);
+}
+.panel { position: absolute; }
+.lbl { font-size: 10px; font-weight: 700; letter-spacing: .22em; opacity: .7; }
+#flowPanel { right: 18px; bottom: 18px; width: 260px; text-align: right; }
+#flowNum { font-size: 28px; line-height: 1.2; color: #FF7A59; font-weight: 700; }
+#flowBar { height: 6px; background: rgba(242, 214, 162, .12); margin-top: 6px; }
+#flowFill { height: 100%; width: 0%; background: #FF7A59; transition: width .05s linear; }
+#leftPanel { left: 18px; bottom: 18px; width: 220px; }
+#fuelBar { height: 6px; background: rgba(242, 214, 162, .12); margin-top: 6px; }
+#fuelFill { height: 100%; width: 100%; background: #FFB13D; transition: width .05s linear; }
+#pips { margin-top: 8px; display: flex; gap: 6px; }
+.pip { width: 26px; height: 6px; background: rgba(242, 214, 162, .15); display: inline-block; }
+.pip.full { background: #3EC5B4; }
+#alt { margin-top: 8px; font-size: 11px; letter-spacing: .12em; opacity: .8; }
+#feed {
+  position: absolute; left: 50%; top: 34%;
+  transform: translateX(-50%); text-align: center;
+}
+.feedMsg {
+  font-size: 15px; font-weight: 700; letter-spacing: .18em; color: #FFE7B0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, .6);
+  animation: feedUp 1.1s ease-out forwards;
+}
+@keyframes feedUp {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-26px); }
 }
 #hud-boot {
-  position: absolute; left: 14px; bottom: 12px;
+  position: absolute; left: 14px; top: 12px;
   font-size: 11px; font-weight: 700; letter-spacing: .22em; opacity: .5;
 }
+#start {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(16, 10, 30, .82); color: #F2D6A2;
+  text-align: center; cursor: pointer;
+}
+#start h1 { font-size: 22px; letter-spacing: .3em; margin: 0 0 14px; }
+#start p { font-size: 12px; line-height: 1.9; letter-spacing: .08em; opacity: .85; margin: 0 0 10px; }
+#start .go { font-size: 15px; font-weight: 700; letter-spacing: .3em; color: #FF7A59; }

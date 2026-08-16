@@ -28,5 +28,11 @@ export function createLoopbackTransport(seed, opts) {
       return snap;
     },
     get tickCount() { return sim.tick; },
+    // One-directional render reads (spec: "the render layer may READ this"):
+    // level data to build meshes from, world.raycast for blob shadows. The
+    // Photon transport serves these by building the same level client-side
+    // from the shared seed — the interface stays identical.
+    get level() { return sim.level; },
+    get world() { return sim.world; },
   };
 }

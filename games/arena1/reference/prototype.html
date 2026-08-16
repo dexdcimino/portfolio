@@ -122,7 +122,32 @@
   <div class="fine">desktop + mouse · pointer lock · all audio synthesized, zero assets</div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/8.20.0/babylon.min.js"></script>
+<!-- Was https://cdnjs.cloudflare.com/ajax/libs/babylonjs/8.20.0/babylon.min.js —
+     the /games/* CSP (script-src 'self') blocks CDNs, which killed this pane in
+     dev/feelcheck.html. The vendored 9.21.2 is the same bundle the new build
+     runs, so the feel comparison sees one Babylon, not two. Gameplay code below
+     is untouched. -->
+<script src="../vendor/babylon.js"></script>
+<script>
+// 8.20 → vendored 9.21 shim: the static Quaternion.FromUnitVectors the
+// spikeball template calls is absent in this bundle. Same math, nothing else.
+if (!BABYLON.Quaternion.FromUnitVectors) {
+  BABYLON.Quaternion.FromUnitVectors = function (a, b) {
+    const q = new BABYLON.Quaternion();
+    if (BABYLON.Quaternion.FromUnitVectorsToRef) {
+      BABYLON.Quaternion.FromUnitVectorsToRef(a, b, q);
+      return q;
+    }
+    const d = BABYLON.Vector3.Dot(a, b);
+    if (d > 0.999999) return BABYLON.Quaternion.Identity();
+    if (d < -0.999999) return new BABYLON.Quaternion(1, 0, 0, 0); // 180° about x
+    const c = BABYLON.Vector3.Cross(a, b);
+    q.set(c.x, c.y, c.z, 1 + d);
+    q.normalize();
+    return q;
+  };
+}
+</script>
 <script>
 "use strict";
 /* =====================================================================

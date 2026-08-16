@@ -23,6 +23,19 @@ const WALL_NY = 0.35;      // contact |n.y| below this = wall
 const WALL_INFLATE = 0.15; // wall probe inflates the capsule radius by this
 const EPS = 1e-9;
 
+// Step-up allowance (grounded only, opt-in via moveCapsule opts.stepUp).
+// The prototype's Babylon ellipsoid (0.4, 0.9) rolls over low lips because its
+// tall vertical radius tilts contact normals upward; the capsule's r=0.4
+// bottom sphere walls out at lip height ≈ its center (measured: hard stall at
+// h≥0.35, snag-and-pop below — tests/stepup.mjs). 0.5 clears the tallest lip
+// the prototype walks (rampA's 0.41 base, the 0.40 jump-pad discs) and rejects
+// half-meter curbs.
+const STEP_H = 0.5;
+const STEP_OPPOSE = -0.3;   // contact must oppose the horizontal step direction
+const STEP_EDGE_NY = 0.85;  // edge contacts steeper than this trigger too (snag guard)
+const STEP_MIN_GAIN = 0.02; // must actually gain height (protects wall glides)
+const STEP_MIN_FWD = 0.5;   // must keep ≥ half the intended horizontal substep
+
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 export function createWorld() {
@@ -129,7 +142,12 @@ export function createWorld() {
     if (d2 > r * r) return null;
     if (d2 > EPS) {
       const d = Math.sqrt(d2);
-      return { n: { x: dx / d, y: dy / d, z: dz / d }, depth: r - d, shape: s };
+      // Edge/corner contact when the sphere center sits outside the box on
+      // two or more axes (a face contact clamps exactly one).
+      const edge = ((px < s.min.x || px > s.max.x) ? 1 : 0)
+        + ((sy < s.min.y || sy > s.max.y) ? 1 : 0)
+        + ((pz < s.min.z || pz > s.max.z) ? 1 : 0) >= 2;
+      return { n: { x: dx / d, y: dy / d, z: dz / d }, depth: r - d, shape: s, edge };
     }
     return insideBoxPush(px, sy, pz, s.min, s.max, r, s);
   }
@@ -154,7 +172,8 @@ export function createWorld() {
       const dist = Math.sqrt(d2);
       const rx = d > EPS ? dx / d : 0, rz = d > EPS ? dz / d : 0;
       const nr = ddr / dist;
-      return { n: { x: rx * nr, y: ddy / dist, z: rz * nr }, depth: r - dist, shape: s };
+      const edge = d > s.r && (sy < cyMin || sy > cyMax); // rim contact
+      return { n: { x: rx * nr, y: ddy / dist, z: rz * nr }, depth: r - dist, shape: s, edge };
     }
     // Inside: smallest of top / bottom / radial pushout.
     const cand = [
@@ -200,13 +219,16 @@ export function createWorld() {
     if (d2 > EPS) {
       const d = Math.sqrt(d2);
       const nl = { x: ex / d, y: ey / d, z: ez / d };
+      const edge = ((P.x < -h.x || P.x > h.x) ? 1 : 0)
+        + ((P.y < -h.y || P.y > h.y) ? 1 : 0)
+        + ((P.z < -h.z || P.z > h.z) ? 1 : 0) >= 2;
       return {
         n: {
           x: a0.x * nl.x + a1.x * nl.y + a2.x * nl.z,
           y: a0.y * nl.x + a1.y * nl.y + a2.y * nl.z,
           z: a0.z * nl.x + a1.z * nl.y + a2.z * nl.z,
         },
-        depth: r - d, shape: s,
+        depth: r - d, shape: s, edge,
       };
     }
     // Inside: face pushout in local space, normal mapped back to world.
@@ -356,15 +378,63 @@ export function createWorld() {
   //   component into every contact normal (slide).
   // grounded = any contact n.y > 0.55 (records groundPlatformId);
   // wallN = strongest contact |n.y| < 0.35 probed with the capsule inflated.
-  function moveCapsule(pos, vel, disp, r = CAPSULE_R, halfH = CAPSULE_HALF_H) {
+  // Lift the substep STEP_H, replay it horizontally, depenetrate, then snap
+  // back down onto whatever walkable surface is there. Null unless the result
+  // gains real height (≤ STEP_H), keeps most of the intended horizontal step,
+  // and lands on ground — so slope faces and shallow wall glides, which the
+  // plain solver already handles smoothly, can never take this path.
+  function tryStepUp(sx0, sy0, sz0, hx, hz, r, halfH) {
+    // Advance at least r past the lip, not just one substep (~0.15m at walk
+    // speed) — a shorter replay drops the capsule straddling the edge, whose
+    // corner contact reads unwalkable. A thin barrier can't be hopped by the
+    // extra reach: landing at the start height fails the min-gain gate.
+    const hl = Math.hypot(hx, hz);
+    const adv = Math.max(hl, r + 0.1);
+    const q = { x: sx0 + (hx / hl) * adv, y: sy0 + STEP_H, z: sz0 + (hz / hl) * adv };
+    for (let it = 0; it < MAX_ITERS; it++) {
+      const cs = overlapCapsule(q, r, halfH);
+      if (!cs.length) break;
+      let deepest = cs[0];
+      for (const c of cs) if (c.depth > deepest.depth) deepest = c;
+      q.x += deepest.n.x * deepest.depth;
+      q.y += deepest.n.y * deepest.depth;
+      q.z += deepest.n.z * deepest.depth;
+    }
+    if (overlapCapsule(q, r, halfH).some((c) => c.depth > 0.02)) return null;
+    let ground = null;
+    for (let dropped = 0; dropped < STEP_H + 0.15; dropped += 0.1) {
+      q.y -= 0.1;
+      const cs = overlapCapsule(q, r, halfH);
+      if (!cs.length) continue;
+      let g = null;
+      for (const c of cs) if (c.n.y > GROUND_NY && (!g || c.depth > g.depth)) g = c;
+      if (!g) return null;             // dropped onto something unwalkable
+      q.x += g.n.x * g.depth; q.y += g.n.y * g.depth; q.z += g.n.z * g.depth;
+      ground = g;
+      break;
+    }
+    if (!ground) return null;          // no floor within a step's drop — a ledge, not a step
+    const gain = q.y - sy0;
+    if (gain < STEP_MIN_GAIN || gain > STEP_H + 0.01) return null;
+    const fwd = ((q.x - sx0) * hx + (q.z - sz0) * hz) / hl;
+    if (fwd < STEP_MIN_FWD * hl) return null;
+    return { q, ground };
+  }
+
+  function moveCapsule(pos, vel, disp, r = CAPSULE_R, halfH = CAPSULE_HALF_H, opts) {
+    const stepUp = !!(opts && opts.stepUp);
     const p = { x: pos.x, y: pos.y, z: pos.z };
     const v = { x: vel.x, y: vel.y, z: vel.z };
     const dl = Math.hypot(disp.x, disp.y, disp.z);
     const steps = Math.max(1, Math.ceil(dl / SUBSTEP_LEN));
     const sx = disp.x / steps, sy = disp.y / steps, sz = disp.z / steps;
+    const stepHLen = Math.hypot(sx, sz);
     let grounded = false, groundPlatformId = null, groundDepth = -1;
     for (let st = 0; st < steps; st++) {
+      const sx0 = p.x, sy0 = p.y, sz0 = p.z;
+      const v0 = { x: v.x, y: v.y, z: v.z };
       p.x += sx; p.y += sy; p.z += sz;
+      let blocker = false;
       for (let it = 0; it < MAX_ITERS; it++) {
         const contacts = overlapCapsule(p, r, halfH);
         if (!contacts.length) break;
@@ -381,6 +451,30 @@ export function createWorld() {
             groundDepth = c.depth;
             groundPlatformId = c.shape.platformId;
           }
+          // A lip: a contact opposing the horizontal step that is either a
+          // wall face or a snaggy edge (steep-face contacts — real ramps —
+          // never qualify, so their smooth solve is untouched).
+          if (stepUp && stepHLen > EPS
+            && (c.n.x * sx + c.n.z * sz) / stepHLen < STEP_OPPOSE
+            && (c.n.y < GROUND_NY || (c.edge && c.n.y < STEP_EDGE_NY))) {
+            blocker = true;
+          }
+        }
+      }
+      if (blocker) {
+        const up = tryStepUp(sx0, sy0, sz0, sx, sz, r, halfH);
+        if (up) {
+          p.x = up.q.x; p.y = up.q.y; p.z = up.q.z;
+          // The blocked iterations mangled v; restore the substep's incoming
+          // velocity and slide it against the landing surface only, so the
+          // step carries speed the way the prototype's ellipsoid roll did.
+          v.x = v0.x; v.y = v0.y; v.z = v0.z;
+          const g = up.ground;
+          const vn = v.x * g.n.x + v.y * g.n.y + v.z * g.n.z;
+          if (vn < 0) { v.x -= g.n.x * vn; v.y -= g.n.y * vn; v.z -= g.n.z * vn; }
+          grounded = true;
+          groundDepth = Math.max(groundDepth, g.depth);
+          groundPlatformId = g.shape.platformId;
         }
       }
     }
