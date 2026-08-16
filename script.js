@@ -828,12 +828,12 @@ function selectTab(id) {
   resumeScroll.scrollLeft = 0;
 }
 
-/* The download must match what this visitor is looking at, and the accent is
-   part of that — the PDFs are pre-rendered per accent (tools/build_docs_pdf),
-   so the link points at THEIR colour's file, not always the default. The
-   download attribute keeps the saved filename clean regardless of variant.
-   Called from selectTab and from applyAccent, so switching either the document
-   or the colour re-aims the link. */
+/* The download must match the document on screen. There is ONE pre-rendered PDF
+   per document (tools/build_docs_pdf) — the per-accent variants were rolled back
+   in 35bd18b, so the accent no longer picks the file and this never needs to run
+   on a colour change. The download attribute pins the saved filename rather than
+   letting the browser derive one from the URL. Called from selectTab, so
+   switching document re-aims the link. */
 function refreshPdfLink(id) {
   const active = id || resumeTabs.find(t => t.getAttribute('aria-selected') === 'true')?.id;
   const doc = DOCS[active];
@@ -842,9 +842,9 @@ function refreshPdfLink(id) {
   pdfLink.setAttribute('download', doc.file);
   pdfLink.setAttribute('aria-label', doc.label);
 }
-// Aim it now: the boot-time applyAccent ran before this block existed, so this
-// is the call that makes a returning visitor's stored accent stick from the
-// first open rather than after their first tab switch.
+// Aim it now rather than waiting for the first selectTab: the href, download and
+// aria-label are all owned here, so this is what keeps them true to DOCS if the
+// markup's hardcoded starting values ever drift from it.
 refreshPdfLink();
 
 /* A visitor printing the open overlay themselves (Ctrl+P) goes through the
