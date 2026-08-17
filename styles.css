@@ -126,6 +126,8 @@ img{max-width:100%}
 [data-icon="contact"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M4 5h16v11H8l-4 3V5Zm3 4h10M7 12h7'/%3E%3C/svg%3E")} /* src: assets/icons/contact.svg */
 [data-icon="copy"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M9 9h10v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2'/%3E%3C/svg%3E")} /* src: assets/icons/copy.svg */
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
+[data-icon="fullscreen-exit"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' d='M9 4v3.5A1.5 1.5 0 0 1 7.5 9H4M20 9h-3.5A1.5 1.5 0 0 1 15 7.5V4M15 20v-3.5a1.5 1.5 0 0 1 1.5-1.5H20M4 15h3.5A1.5 1.5 0 0 1 9 16.5V20'/%3E%3C/svg%3E")} /* src: assets/icons/fullscreen-exit.svg */
+[data-icon="fullscreen"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' d='M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15'/%3E%3C/svg%3E")} /* src: assets/icons/fullscreen.svg */
 [data-icon="games"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M8.55 6.4h6.9a6.75 6.75 0 0 1 6.62 5.45l.66 3.36a3.2 3.2 0 0 1-5.72 2.5l-1.4-1.86H8.39l-1.4 1.86a3.2 3.2 0 0 1-5.72-2.5l.66-3.36A6.75 6.75 0 0 1 8.55 6.4Zm-1.4 3.15v1.6h-1.6v1.9h1.6v1.6h1.9v-1.6h1.6v-1.9h-1.6v-1.6h-1.9Zm9.1.3a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Zm2.6 2.75a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Z'/%3E%3C/svg%3E")} /* src: assets/icons/games.svg */
 [data-icon="home"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M3 10.5 12 3l9 7.5v10a.5.5 0 0 1-.5.5H15v-7H9v7H3.5a.5.5 0 0 1-.5-.5z'/%3E%3C/svg%3E")} /* src: assets/icons/home.svg */
 [data-icon="loop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M6.5 8.5h11a2.5 2.5 0 0 1 2.5 2.5v2M17.5 15.5h-11A2.5 2.5 0 0 1 4 13v-2'/%3E%3Cpath fill='%23fff' d='m8.6 5.4-3 3.1 3 3.1zm6.8 13.2 3-3.1-3-3.1z'/%3E%3C/svg%3E")} /* src: assets/icons/loop.svg */
@@ -2571,20 +2573,98 @@ body.modal-open{overflow:hidden}
   font-size:11px;letter-spacing:.06em;text-align:center;
 }
 
+/* The control bar, inside the frame and pinned to its bottom edge.
+
+   The scrim under it is not the one that got cut from the title: controls need
+   a guaranteed background because they are interactive and must be legible over
+   any frame of any clip, and every video player people have used puts one
+   exactly here. It is confined to the bar's own height and fades upward.
+
+   Auto-hide while playing, always up when paused — the standard behaviour, and
+   the reason the poster state reads as "press this" rather than "here is some
+   furniture". */
 .cl-bar{
-  display:grid;gap:6px;padding:10px 14px 12px;border-radius:14px;
-  background:color-mix(in srgb,var(--sidebar-bg) 94%,black);
-  border:2px solid color-mix(in srgb,var(--accent) 42%,transparent);
+  position:absolute;left:0;right:0;bottom:0;z-index:4;
+  display:grid;gap:2px;padding:22px 12px 10px;
+  background:linear-gradient(180deg,transparent,rgba(4,6,9,.55) 34%,rgba(4,6,9,.86));
+  opacity:1;transform:translateY(0);
+  transition:opacity .22s ease,transform .22s ease;
 }
-/* Same 1fr auto 1fr as the songs bar: the transport is centred on the BAR, not
-   on whatever is left after its neighbours. */
-.cl-controls{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px}
-.cl-side{display:flex;align-items:center;gap:8px;min-width:0}
-.cl-modes{justify-content:flex-end}
+.cl-frame.is-live:not(:hover):not(:focus-within) .cl-bar{opacity:0;transform:translateY(6px)}
+@media (hover:none){
+  /* No pointer to hover with — leave them up. */
+  .cl-frame.is-live .cl-bar{opacity:1;transform:none}
+}
+.cl-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cl-group{display:flex;align-items:center;gap:4px;min-width:0}
+
+.cl-btn{
+  width:34px;height:34px;flex:none;border:0;background:none;padding:0;cursor:pointer;
+  border-radius:9px;display:grid;place-items:center;color:#fff;
+  transition:color var(--accent-ease),background var(--accent-ease);
+}
+.cl-btn .icon{width:19px;height:19px}
+.cl-btn:hover{color:var(--accent);background:rgba(255,255,255,.1)}
+.cl-btn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.cl-btn:disabled{opacity:.4;cursor:default}
+.cl-btn:disabled:hover{color:#fff;background:none}
+/* Play is the one control that gets a fill, so the eye lands on it first. */
+.cl-play{width:38px;height:38px;background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.cl-play .icon{width:21px;height:21px}
+.cl-play:hover{background:var(--accent);color:var(--accent-ink,#0b0d12);filter:brightness(1.1)}
+.cl-loop[data-loop="all"]{color:var(--accent)}
+.cl-time{
+  margin-left:6px;font-family:var(--mono,ui-monospace),ui-monospace,monospace;
+  font-size:11px;color:rgba(255,255,255,.82);white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Two ranges sharing one look, both filled to their value through --fill.
+   Same treatment as the songs bar's scrubber so the two players feel like one
+   piece of software. */
+.cl-scrub,.cl-vol{
+  -webkit-appearance:none;appearance:none;height:14px;background:none;cursor:pointer;margin:0;
+}
+.cl-scrub{width:100%}
+.cl-vol{width:0;opacity:0;transition:width .2s ease,opacity .2s ease}
+.cl-volume{display:flex;align-items:center;gap:2px}
+.cl-volume:hover .cl-vol,.cl-volume:focus-within .cl-vol{width:74px;opacity:1}
+.cl-scrub::-webkit-slider-runnable-track,.cl-vol::-webkit-slider-runnable-track{
+  height:4px;border-radius:999px;
+  background:linear-gradient(90deg,var(--accent) var(--fill,0%),rgba(255,255,255,.28) var(--fill,0%));
+}
+.cl-scrub::-moz-range-track,.cl-vol::-moz-range-track{
+  height:4px;border-radius:999px;
+  background:linear-gradient(90deg,var(--accent) var(--fill,0%),rgba(255,255,255,.28) var(--fill,0%));
+}
+.cl-scrub::-webkit-slider-thumb,.cl-vol::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:12px;height:12px;border-radius:999px;
+  background:#fff;border:0;margin-top:-4px;box-shadow:0 1px 4px rgba(0,0,0,.5);
+}
+.cl-scrub::-moz-range-thumb,.cl-vol::-moz-range-thumb{
+  width:12px;height:12px;border-radius:999px;background:#fff;border:0;
+}
+.cl-scrub:focus-visible,.cl-vol:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* The note sits above the bar rather than under it. */
+.cl-note{
+  position:absolute;left:0;right:0;bottom:62px;z-index:4;margin:0;padding:6px 14px;
+  color:rgba(255,255,255,.82);text-shadow:0 1px 6px rgba(0,0,0,.8);
+  font-size:11px;letter-spacing:.06em;text-align:center;
+}
+
+/* Fullscreen: the frame becomes the whole screen, so the art letterboxes
+   rather than cropping and the plate steps up in size with it. */
+.cl-frame:fullscreen{aspect-ratio:auto;width:100vw;height:100dvh;border:0;border-radius:0;background:#000}
+.cl-frame:fullscreen .cl-img,.cl-frame:fullscreen .cl-video{object-fit:contain}
+.cl-frame:fullscreen .cl-bar{padding:34px 24px 20px}
+.cl-frame:fullscreen .wp-title{font-size:clamp(24px,2.6vw,36px)}
+
 @media (max-width:700px){
-  .cl-modes .player-volume{display:none}   /* touch has hardware volume */
   .cl-big{width:62px;height:62px}
   .cl-big .icon{width:28px;height:28px}
+  .cl-time{display:none}
+  .cl-volume:hover .cl-vol,.cl-volume:focus-within .cl-vol{width:56px}
 }
 
 /* AI Lab app overlay — a phone-shaped iframe on desktop only.

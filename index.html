@@ -805,37 +805,34 @@
                   <span class="icon" data-icon="play" aria-hidden="true"></span>
                 </button>
                 <p class="cl-note" id="clNote" hidden></p>
+
+                <!-- Controls live INSIDE the frame, pinned to its bottom edge,
+                     the way every video player people already know does it. As
+                     a separate bar underneath they read as a second component
+                     that happened to be parked below a picture. Scrubber across
+                     the full width, transport and volume left, loop and
+                     fullscreen right. -->
+                <div class="cl-bar" id="clBar">
+                  <input class="cl-scrub" id="clScrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+                  <div class="cl-row">
+                    <div class="cl-group">
+                      <button class="cl-btn" type="button" id="clPrev" aria-label="Previous clip"><span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
+                      <button class="cl-btn cl-play" type="button" id="clToggle" aria-label="Play"><span class="icon" data-icon="play" aria-hidden="true"></span></button>
+                      <button class="cl-btn" type="button" id="clNext" aria-label="Next clip"><span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
+                      <div class="cl-volume">
+                        <button class="cl-btn" type="button" id="clMute" aria-label="Mute"><span class="icon" data-icon="volume" aria-hidden="true"></span></button>
+                        <input class="cl-vol" id="clVol" type="range" min="0" max="100" value="40" step="1" aria-label="Volume">
+                      </div>
+                      <span class="cl-time"><span id="clElapsed">0:00</span> / <span id="clDuration">--:--</span></span>
+                    </div>
+                    <div class="cl-group">
+                      <button class="cl-btn cl-loop" type="button" id="clLoop" aria-label="Loop off" data-loop="off"><span class="icon" data-icon="loop" aria-hidden="true"></span></button>
+                      <button class="cl-btn" type="button" id="clFullBtn" aria-label="Full screen"><span class="icon" data-icon="fullscreen" aria-hidden="true"></span></button>
+                    </div>
+                  </div>
+                </div>
               </div>
               <button class="wp-arrow cl-next" type="button" aria-label="Next clip"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
-            </div>
-
-            <!-- Player. Same two-row shape as the songs bar: the scrubber gets
-                 its own full-width row, the transport is centred on the bar and
-                 volume sits to the right. -->
-            <div class="cl-bar" id="clBar">
-              <div class="player-seek">
-                <span class="player-time" id="clElapsed">0:00</span>
-                <input class="player-range player-scrub" id="clScrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
-                <span class="player-time" id="clDuration">--:--</span>
-              </div>
-              <div class="cl-controls">
-                <span class="cl-side"></span>
-                <div class="player-transport">
-                  <button class="player-btn" type="button" id="clPrev" aria-label="Previous clip"><span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
-                  <button class="player-btn is-primary" type="button" id="clToggle" aria-label="Play"><span class="icon" data-icon="play" aria-hidden="true"></span></button>
-                  <button class="player-btn" type="button" id="clNext" aria-label="Next clip"><span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
-                </div>
-                <div class="cl-side cl-modes">
-                  <button class="player-btn player-loop cl-loop" type="button" id="clLoop" aria-label="Loop off" data-loop="off">
-                    <span class="icon" data-icon="loop" aria-hidden="true"></span>
-                  </button>
-                  <div class="player-volume">
-                    <button class="player-btn player-volbtn" type="button" id="clMute" aria-label="Mute"><span class="icon" data-icon="volume" aria-hidden="true"></span></button>
-                    <input class="player-range player-vol" id="clVol" type="range" min="0" max="100" value="40" step="1" aria-label="Volume">
-                  </div>
-                  <button class="player-btn" type="button" id="clFullBtn" aria-label="Watch full size"><span class="icon" data-icon="zoom-in" aria-hidden="true"></span></button>
-                </div>
-              </div>
             </div>
 
             <div class="wp-thumbs" id="clThumbs" role="tablist" aria-label="Clips"></div>

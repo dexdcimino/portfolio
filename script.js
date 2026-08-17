@@ -1833,6 +1833,7 @@ initTabs(document.querySelector('.ai-tabs'));
     if (!ok) note.textContent = 'Placeholder — no clip connected to this slot yet';
     big.disabled = !ok;
     toggle.disabled = !ok;
+    scrub.disabled = !ok;
     if (ok) {
       video.src = item.dataset.src;
       if (autoplay) play();
@@ -1856,10 +1857,10 @@ initTabs(document.querySelector('.ai-tabs'));
 
   big.addEventListener('click', play);
   toggle.addEventListener('click', () => { video.paused ? play() : video.pause(); });
-  $('clPrev').addEventListener('click', () => select(index - 1));
-  $('clNext').addEventListener('click', () => select(index + 1));
-  root.querySelector('.cl-prev').addEventListener('click', () => select(index - 1));
-  root.querySelector('.cl-next').addEventListener('click', () => select(index + 1));
+  // Two sets of prev/next: the ones on the frame's edges and the ones in the
+  // control bar. Same handler, so they cannot drift.
+  document.querySelectorAll('#clPrev, .cl-prev').forEach(b => b.addEventListener('click', () => select(index - 1)));
+  document.querySelectorAll('#clNext, .cl-next').forEach(b => b.addEventListener('click', () => select(index + 1)));
 
   loopBtn.addEventListener('click', () => {
     loop = !loop;
@@ -1917,8 +1918,21 @@ initTabs(document.querySelector('.ai-tabs'));
 
   // Watching full size reuses the wallpaper overlay's shape rather than adding
   // a second one; the video element itself moves into it and back.
-  $('clFullBtn').addEventListener('click', () => {
-    if (frame.requestFullscreen) frame.requestFullscreen().catch(() => {});
+  /* Fullscreen puts the FRAME full screen, not the video element: the plate,
+     the controls and the poster are all children of it, so they come along and
+     keep working. Fullscreening the <video> would hand the browser its own
+     native chrome and drop ours. */
+  const fullBtn = $('clFullBtn');
+  fullBtn.addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else frame.requestFullscreen?.().catch(() => {});
+  });
+  // Driven off the event rather than off the click, so the icon is still right
+  // when someone leaves fullscreen with Escape or the browser's own control.
+  document.addEventListener('fullscreenchange', () => {
+    const on = document.fullscreenElement === frame;
+    icon(fullBtn, on ? 'fullscreen-exit' : 'fullscreen');
+    fullBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
   });
 
   setFill(vol, 40);
