@@ -776,8 +776,10 @@ const resumePages = [...document.querySelectorAll('.resume-page')];
 const resumeTabs = [...document.querySelectorAll('.resume-tab')];
 const pdfLink = document.querySelector('.resume-pdf');
 const DOCS = {
-  'tab-resume': { file: 'Dex_Cimino_Resume.pdf', label: 'Download Dex Cimino resume as PDF' },
-  'tab-cover':  { file: 'Dex_Cimino_Cover.pdf',  label: 'Download Dex Cimino cover letter as PDF' },
+  'tab-resume': { file: 'Dex_Cimino_Resume.pdf', label: 'Download Dex Cimino resume as PDF',
+                  tip: 'Download Resume' },
+  'tab-cover':  { file: 'Dex_Cimino_Cover.pdf',  label: 'Download Dex Cimino cover letter as PDF',
+                  tip: 'Download Cover' },
 };
 const zoomLevelEl = document.getElementById('zoomLevel');
 const zoomInBtn = document.getElementById('zoomIn');
@@ -864,21 +866,24 @@ function selectTab(id) {
 /* The download must match the document on screen. There is ONE pre-rendered PDF
    per document (tools/build_docs_pdf) — the per-accent variants were rolled back
    in 35bd18b, so the accent no longer picks the file and this never needs to run
-   on a colour change. The download attribute pins the saved filename rather than
-   letting the browser derive one from the URL. Called from selectTab, so
-   switching document re-aims the link. */
+   on a colour change. data-name pins the saved filename rather than letting the
+   browser derive one from the URL. Called from selectTab, so switching document
+   re-aims the button — including its tooltip, which names what you are about to
+   get. */
 function refreshPdfLink(id) {
   const active = id || resumeTabs.find(t => t.getAttribute('aria-selected') === 'true')?.id;
   const doc = DOCS[active];
   if (!doc || !pdfLink) return;
-  pdfLink.href = `assets/about/${doc.file}`;
-  pdfLink.setAttribute('download', doc.file);
+  pdfLink.dataset.file = `assets/about/${doc.file}`;
+  pdfLink.dataset.name = doc.file;
+  pdfLink.dataset.tip = doc.tip;
   pdfLink.setAttribute('aria-label', doc.label);
 }
-// Aim it now rather than waiting for the first selectTab: the href, download and
-// aria-label are all owned here, so this is what keeps them true to DOCS if the
+// Aim it now rather than waiting for the first selectTab: the target, saved name
+// and labels are all owned here, so this is what keeps them true to DOCS if the
 // markup's hardcoded starting values ever drift from it.
 refreshPdfLink();
+if (pdfLink) pdfLink.addEventListener('click', () => saveFile(pdfLink));
 
 /* A visitor printing the open overlay themselves (Ctrl+P) goes through the
    same @media print sheet as the generated PDFs. The fit factor cannot be
@@ -1613,6 +1618,46 @@ const tkSelect = initTabs(document.querySelector('.tk-tabs'), (next, tab) => {
 })();
 initTabs(document.querySelector('.ai-tabs'));
 
+/* --- saving a file without a link ---------------------------------------- */
+/* Every download on the site is a <button data-file data-name>, not an <a href
+   download>, for one reason: a link makes the browser print the full asset URL
+   in its status bubble at the bottom-left of the window on hover, and that
+   bubble is browser chrome — no page can style, move or suppress it. So the
+   file is fetched here and handed to a throwaway <a> carrying a blob URL, which
+   never appears in the bubble.
+
+   The cost is real and worth knowing: right-click "save link as" and the
+   works-without-JS fallback both go away. That is acceptable for a decorative
+   download button and would NOT be for a navigation link, which is why ordinary
+   links are left alone.
+
+   Declared (not assigned) so the carousels below can call it regardless of
+   where they sit in this file. */
+async function saveFile(btn) {
+  const url = btn.dataset.file, name = btn.dataset.name;
+  if (!url) return;
+  const tip = btn.dataset.tip;
+  btn.disabled = true;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.status);
+    const blob = await res.blob();
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = name || url.split('/').pop();
+    document.body.appendChild(a); a.click(); a.remove();
+    // Revoked later: revoking synchronously can beat the download to the file.
+    setTimeout(() => URL.revokeObjectURL(href), 4000);
+  } catch {
+    // Nothing clever to do, but say so rather than looking like a dead button.
+    btn.dataset.tip = 'Download failed — try again';
+    setTimeout(() => { btn.dataset.tip = tip; }, 2600);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 /* --- tooltip -------------------------------------------------------------- */
 /* One tooltip element for the whole page, moved and relabelled on hover.
 
@@ -1648,7 +1693,10 @@ initTabs(document.querySelector('.ai-tabs'));
     if (top < 6) top = r.bottom + GAP;
     let left = r.left + r.width / 2 - t.width / 2;
     left = Math.max(6, Math.min(left, window.innerWidth - t.width - 6));
-    tip.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+    // left/top, not a transform: transform is animatable and the tip would slide
+    // across the page from its previous spot every time it changed target.
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(top)}px`;
   }
 
   function show(el) {
@@ -1664,7 +1712,8 @@ initTabs(document.querySelector('.ai-tabs'));
   function hide() {
     current = null;
     tip.classList.remove('is-on');
-    tip.style.transform = 'translateY(3px)';
+    // Position is left where it was. It fades out in place, and the next show()
+    // moves it while it is still invisible.
   }
 
   const target = (e) => e.target.closest?.('[data-tip]');
@@ -1789,33 +1838,8 @@ initTabs(document.querySelector('.ai-tabs'));
     openModal(modal, full, null, views[0].thumbs[index]);
   }
 
-  /* Save without an href. Fetch the master, hand the blob to a throwaway <a>,
-     revoke it. Same file the link served; the only thing lost is right-click
-     "save link as", which is a second route to the thing this button already
-     does. */
-  async function saveWallpaper(btn) {
-    const url = btn.dataset.file, name = btn.dataset.name;
-    if (!url) return;
-    btn.disabled = true;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(res.status);
-      const blob = await res.blob();
-      const href = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = href; a.download = name || 'wallpaper.png';
-      document.body.appendChild(a); a.click(); a.remove();
-      // Revoked on the next tick: revoking synchronously can beat the download.
-      setTimeout(() => URL.revokeObjectURL(href), 4000);
-    } catch {
-      // Nothing clever to do, but say so rather than looking like a dead button.
-      btn.dataset.tip = 'Download failed — try again';
-      setTimeout(() => { btn.dataset.tip = 'Download Wallpaper'; }, 2600);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-  views.forEach(v => v.dl.addEventListener('click', () => saveWallpaper(v.dl)));
+  // The master, saved through the shared blob helper — see saveFile().
+  views.forEach(v => v.dl.addEventListener('click', () => saveFile(v.dl)));
 
   // Both stages drive the same index, so the panel and the overlay walk
   // together and neither needs to know the other exists.
@@ -2031,6 +2055,261 @@ initTabs(document.querySelector('.ai-tabs'));
 
   setFill(vol, 40);
   select(0);
+})();
+
+/* --- markdown ------------------------------------------------------------- */
+/* A deliberately small Markdown subset: headings, bold, italic, inline and
+   fenced code, lists, tables, block quotes, rules and links. Enough to read a
+   prompt the way it was written and nothing more.
+
+   Raw HTML in a source file is ESCAPED, not passed through. These files are
+   fetched and injected into the page, so honouring HTML would be a standing
+   XSS hole in exchange for formatting no prompt needs. HTML comments are
+   dropped instead of escaped — every other Markdown renderer hides them, and
+   they are how the files mark where you paste your own text.
+
+   Not a general Markdown implementation and not trying to be. Anything it does
+   not recognise falls through as a paragraph, which is the right failure. */
+function renderMarkdown(src) {
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Only http(s), mailto and same-origin relative targets become links. A
+  // javascript: URL in a file someone dropped in the folder should render as
+  // text, not as a working link.
+  const safeHref = (h) => (/^(https?:\/\/|mailto:|\/|#|[\w.-]+\/)/i.test(h) ? h : null);
+
+  const inline = (s) => {
+    let out = esc(s);
+    // Code first: nothing inside a span of code is markup.
+    const code = [];
+    // Parked behind a sentinel that cannot occur in the source text, so a
+    // number in prose is never mistaken for a parked span.
+    out = out.replace(/`([^`]+)`/g, (_, c) => `\u0000${code.push(c) - 1}\u0000`);
+    out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, text, href) => {
+      const url = safeHref(href);
+      if (!url) return m;
+      const ext = /^https?:/i.test(url);
+      return `<a href="${url}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ''}>${text}</a>`;
+    });
+    out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/(^|[^*\w])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+    out = out.replace(/(^|\s)_([^_\n]+)_(?=\s|$|[.,;:!?)])/g, '$1<em>$2</em>');
+    return out.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${code[i]}</code>`);
+  };
+
+  const row = (line) => line.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+
+  const lines = src.replace(/\r\n?/g, '\n').replace(/<!--[\s\S]*?-->/g, '').split('\n');
+  const out = [];
+  let para = [];
+
+  // Paragraphs accumulate until something ends them, so a blank line is the
+  // only thing that splits one — the same rule Markdown itself uses.
+  const flush = () => {
+    if (para.length) out.push(`<p>${inline(para.join(' '))}</p>`);
+    para = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    const fence = line.match(/^```\s*(\S*)/);
+    if (fence) {
+      flush();
+      const body = [];
+      while (++i < lines.length && !/^```/.test(lines[i])) body.push(lines[i]);
+      out.push(`<pre><code>${esc(body.join('\n'))}</code></pre>`);
+      continue;
+    }
+
+    if (!line.trim()) { flush(); continue; }
+
+    if (/^(---+|\*\*\*+|___+)\s*$/.test(line)) { flush(); out.push('<hr>'); continue; }
+
+    const head = line.match(/^(#{1,6})\s+(.*)$/);
+    if (head) {
+      flush();
+      const level = Math.min(6, head[1].length + 1);   // h1 in the file is h2 here
+      out.push(`<h${level}>${inline(head[2])}</h${level}>`);
+      continue;
+    }
+
+    if (/^>\s?/.test(line)) {
+      flush();
+      const body = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) body.push(lines[i++].replace(/^>\s?/, ''));
+      i--;
+      out.push(`<blockquote>${renderMarkdown(body.join('\n'))}</blockquote>`);
+      continue;
+    }
+
+    // A table needs its separator row, or a line of pipes in prose becomes one.
+    if (/^\|/.test(line) && /^\s*\|?[\s:-]*\|[\s:|-]*$/.test(lines[i + 1] || '')) {
+      flush();
+      const head2 = row(line);
+      i += 2;
+      const body = [];
+      while (i < lines.length && /^\|/.test(lines[i])) body.push(row(lines[i++]));
+      i--;
+      out.push('<table><thead><tr>' + head2.map(c => `<th>${inline(c)}</th>`).join('')
+        + '</tr></thead><tbody>'
+        + body.map(r => '<tr>' + r.map(c => `<td>${inline(c)}</td>`).join('') + '</tr>').join('')
+        + '</tbody></table>');
+      continue;
+    }
+
+    const bullet = line.match(/^\s*([-*+]|\d+\.)\s+(.*)$/);
+    if (bullet) {
+      flush();
+      const ordered = /\d/.test(bullet[1]);
+      const items = [];
+      while (i < lines.length) {
+        const m = lines[i].match(/^\s*([-*+]|\d+\.)\s+(.*)$/);
+        if (!m) {
+          // A wrapped continuation line belongs to the item above it.
+          if (items.length && /^\s{2,}\S/.test(lines[i])) { items[items.length - 1] += ' ' + lines[i].trim(); i++; continue; }
+          break;
+        }
+        if (/\d/.test(m[1]) !== ordered) break;
+        items.push(m[2]);
+        i++;
+      }
+      i--;
+      const tag = ordered ? 'ol' : 'ul';
+      out.push(`<${tag}>` + items.map(t => `<li>${inline(t)}</li>`).join('') + `</${tag}>`);
+      continue;
+    }
+
+    para.push(line.trim());
+  }
+  flush();
+  return out.join('\n');
+}
+
+/* --- AI prompts ----------------------------------------------------------- */
+/* Four cards, one .md file each. Nothing about a prompt is written twice: the
+   excerpt on the card, the size, the reading view and the downloaded bytes all
+   come from the file itself, so adding one is a file plus an <article> in the
+   markup — the same contract the wallpapers and the gallery use, for the same
+   reason. A hand-kept copy of the text on the card goes stale the first time
+   the prompt is edited.
+
+   The files are fetched once, when the tab is first opened. Fetching them on
+   load would cost four requests nobody asked for; fetching them per card would
+   re-request one every time a card is hovered. */
+(function initPrompts() {
+  const grid = document.getElementById('prompts');
+  if (!grid) return;
+  const cards = [...grid.querySelectorAll('.pr-card')];
+  if (!cards.length) return;
+
+  const modal = document.getElementById('prModal');
+  const readEl = document.getElementById('prRead');
+  const titleEl = document.getElementById('pr-dialog-title');
+  const metaEl = document.getElementById('prFullMeta');
+  const fullDl = document.getElementById('prFullDl');
+
+  const fileName = (card) => card.dataset.file.split('/').pop();
+  /* The file opens with its own `# Title`, and both views already show that
+     title in their own furniture — the card foot and the reader's bar. Rendering
+     it a third time reads as a mistake. Dropped from the VIEW only: the file you
+     download still has its heading. */
+  const body = (md) => md.replace(/^\s*#\s+.*\n+/, '');
+  const sizeOf = (text) => {
+    const kb = new Blob([text]).size / 1024;
+    return kb < 10 ? `${kb.toFixed(1)} KB` : `${Math.round(kb)} KB`;
+  };
+
+  // Build the card furniture here rather than in the markup: it is identical
+  // for every prompt, so writing it four times only creates four chances to
+  // write it differently.
+  cards.forEach((card) => {
+    const title = card.dataset.title || fileName(card);
+    card.innerHTML = `
+      <div class="pr-sheet">
+        <div class="pr-mini md" aria-hidden="true"></div>
+        <div class="pr-fade" aria-hidden="true"></div>
+        <p class="pr-desc">${card.dataset.desc || ''}</p>
+      </div>
+      <div class="pr-foot">
+        <div class="pr-foot-text">
+          <h3 class="pr-title"></h3>
+          <p class="pr-meta">MD</p>
+        </div>
+        <span class="pr-tag"></span>
+      </div>
+      <button class="pr-open" type="button" aria-label="Preview ${title}"></button>
+      <button class="pr-dl" type="button" data-tip="Download MD"
+              aria-label="Download ${title} as Markdown">
+        <span class="icon" data-icon="download" aria-hidden="true"></span>
+      </button>`;
+    card.querySelector('.pr-title').textContent = title;
+    card.querySelector('.pr-tag').textContent = card.dataset.tag || '';
+    const dl = card.querySelector('.pr-dl');
+    dl.dataset.file = card.dataset.file;
+    dl.dataset.name = fileName(card);
+    dl.addEventListener('click', () => saveFile(dl));
+    card.querySelector('.pr-open').addEventListener('click', () => open(card));
+  });
+
+  const text = new Map();
+
+  async function load(card) {
+    if (text.has(card)) return text.get(card);
+    const p = fetch(card.dataset.file)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
+    text.set(card, p);
+    return p;
+  }
+
+  async function fill(card) {
+    try {
+      const md = await load(card);
+      card.querySelector('.pr-mini').innerHTML = renderMarkdown(body(md));
+      card.querySelector('.pr-meta').textContent = `MD · ${sizeOf(md)}`;
+    } catch {
+      text.delete(card);                       // let a later open retry
+      card.querySelector('.pr-mini').innerHTML = '<p>Preview unavailable.</p>';
+    }
+  }
+
+  async function open(card) {
+    titleEl.textContent = card.dataset.title || fileName(card);
+    metaEl.textContent = fileName(card);
+    fullDl.dataset.file = card.dataset.file;
+    fullDl.dataset.name = fileName(card);
+    fullDl.setAttribute('aria-label', `Download ${card.dataset.title} as Markdown`);
+    readEl.innerHTML = '<p class="pr-loading">Loading…</p>';
+    openModal(modal, null, null, card.querySelector('.pr-open'));
+    try {
+      const md = await load(card);
+      // The overlay may already have been closed and reopened on another card
+      // while this was in flight; only paint if it is still the one on screen.
+      if (fullDl.dataset.file !== card.dataset.file) return;
+      readEl.innerHTML = renderMarkdown(body(md));
+      readEl.scrollTop = 0;
+      metaEl.textContent = `${fileName(card)} · ${sizeOf(md)}`;
+    } catch {
+      text.delete(card);
+      readEl.innerHTML = '<p class="pr-loading">Could not load this prompt.</p>';
+    }
+  }
+
+  fullDl.addEventListener('click', () => saveFile(fullDl));
+  document.getElementById('prClose').addEventListener('click', () => closeModal(modal));
+  bindModal(modal);
+
+  /* The panel is hidden until the tab is picked, and a hidden element never
+     intersects — so this fires exactly once, the first time Prompts is opened
+     and on screen. That is the cheapest correct trigger available: no polling,
+     no coupling to the tab code. */
+  const start = () => cards.forEach(fill);
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); start(); }
+    });
+    cards.forEach(c => io.observe(c));
+  } else start();
 })();
 
 /* --- AI Lab app overlay --------------------------------------------------- */

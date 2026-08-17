@@ -580,6 +580,7 @@
           <button class="ai-tab" type="button" role="tab" id="ai-tab-apps" aria-controls="ai-panel-apps" aria-selected="true" tabindex="0">Apps</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-images" aria-controls="ai-panel-images" aria-selected="false" tabindex="-1">Wallpapers</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-videos" aria-controls="ai-panel-videos" aria-selected="false" tabindex="-1">Clips</button>
+          <button class="ai-tab" type="button" role="tab" id="ai-tab-prompts" aria-controls="ai-panel-prompts" aria-selected="false" tabindex="-1">Prompts</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-madlabs" aria-controls="ai-panel-madlabs" aria-selected="false" tabindex="-1">MadLabs</button>
         </div>
 
@@ -931,6 +932,31 @@
                 <!-- /img -->
               </figure>
             </div>
+          </div>
+        </div>
+        <!-- Prompts. Four cards, each one a .md file in assets/ai/prompts.
+             Nothing about a prompt is written twice: the excerpt on the card,
+             the byte size, the reading view and the download all come from the
+             file at runtime, so adding one is a file plus the <article> below
+             and no JS edit. See assets/ai/prompts/README.md. -->
+        <div class="ai-panel" id="ai-panel-prompts" role="tabpanel" aria-labelledby="ai-tab-prompts" hidden>
+          <div class="pr" id="prompts">
+            <article class="pr-card" data-file="assets/ai/prompts/brain-dump.md"
+                     data-title="Brain Dump" data-tag="Thinking"
+                     data-desc="Dump everything unsorted and get back a ranked, grouped list of what to actually do — with the questions only you can answer kept separate.">
+            </article>
+            <article class="pr-card" data-file="assets/ai/prompts/bug-hunt.md"
+                     data-title="Bug Hunt" data-tag="Code"
+                     data-desc="Forces a diagnosis before a fix: name the candidates, kill them with evidence, and say plainly when the bug does not reproduce.">
+            </article>
+            <article class="pr-card" data-file="assets/ai/prompts/shot-list.md"
+                     data-title="Shot List" data-tag="Film"
+                     data-desc="Turns a rough scene into shots you can block out — framing, move, beat and length, with anything that does not earn its place cut.">
+            </article>
+            <article class="pr-card" data-file="assets/ai/prompts/style-pass.md"
+                     data-title="Style Pass" data-tag="Writing"
+                     data-desc="Edits a draft for rhythm without sanding off the voice: a short keep list, a shorter cut list, and no new facts.">
+            </article>
           </div>
         </div>
         <div class="ai-panel" id="ai-panel-madlabs" role="tabpanel" aria-labelledby="ai-tab-madlabs" hidden>
@@ -1839,6 +1865,32 @@
     </div>
   </dialog>
 
+  <!-- Prompt reader. The markdown rendered the way a person wants to read it,
+       on a sheet, with the download sitting in the same overlay so you never
+       have to close it to take the file. -->
+  <dialog class="pr-modal" id="prModal" aria-labelledby="pr-dialog-title">
+    <div class="pr-shell">
+      <header class="pr-bar">
+        <div class="pr-bar-text">
+          <h2 class="pr-bar-title" id="pr-dialog-title"></h2>
+          <p class="pr-bar-meta" id="prFullMeta"></p>
+        </div>
+        <div class="pr-bar-tools">
+          <button class="pr-dl pr-dl-lg" id="prFullDl" type="button"
+                  aria-label="Download this prompt as Markdown" data-tip="Download MD">
+            <span class="icon" data-icon="download" aria-hidden="true"></span>
+          </button>
+          <button class="contact-close pr-close" type="button" id="prClose" aria-label="Close prompt">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </header>
+      <!-- tabindex so the document can be scrolled by keyboard: it is a
+           scroll container with no focusable content of its own. -->
+      <div class="pr-read md" id="prRead" tabindex="0"></div>
+    </div>
+  </dialog>
+
   <!-- Game gallery — real screenshots captured from the live Stickland build,
        served through the image pipeline. The overlay renders whatever
        .gal-item pictures exist here; adding a shot is one img directive. -->
@@ -2111,10 +2163,12 @@
                   aria-label="Copy Dex Cimino resume to the clipboard">
             <span class="icon btn-icon" data-icon="copy" aria-hidden="true"></span>
           </button>
-          <a class="button primary resume-pdf" href="assets/about/Dex_Cimino_Resume.pdf"
-             download="Dex_Cimino_Resume.pdf" aria-label="Download Dex Cimino resume as PDF">
+          <!-- A button, not a link: see saveFile() in script.js. The file and
+               the saved name follow the open tab and are set there. -->
+          <button class="button primary resume-pdf" type="button"
+                  aria-label="Download Dex Cimino resume as PDF" data-tip="Download Resume">
             <span>PDF</span><span class="icon btn-icon" data-icon="download" aria-hidden="true"></span>
-          </a>
+          </button>
         </div>
       </div>
     </div>
