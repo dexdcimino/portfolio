@@ -212,6 +212,19 @@ function build() {
     { legacyMaster: legacyAudioLevel() ?? undefined });
   buildAudioPanel(menu.querySelector('.cmenu-audpanel'), audioSettings);
 
+  /* UI select (MD 27). The menu is plain DOM and emits nothing on the event
+     bus, so the sound is hung on the panel's own buttons — one delegated
+     listener rather than a call in each handler, so a button added later is
+     audible without anyone remembering to wire it. Capture phase, because
+     `resume` and `restart` tear the menu down (or reload the page) and a
+     bubble-phase listener would fire too late to be heard.
+     Deliberately NOT on the audio panel's own sliders and mute toggles: a
+     click sound on every step of a volume drag is unusable. */
+  menu.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('button');
+    if (btn && !btn.closest('.aud-panel')) playUiSelect();
+  }, true);
+
   menu.querySelector('.cmenu-resume').addEventListener('click', () => {
     if (window.Chomp && window.Chomp.resume) window.Chomp.resume();
   });

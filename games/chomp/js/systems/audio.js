@@ -83,7 +83,32 @@ const SAMPLES = {
   evolve:   ['evolve.ogg',    { cap: 2, gain: 1.13 }],
   death:    ['death.ogg',     { cap: 1, gain: 1.31 }],
   uiSelect: ['ui-select.ogg', { cap: 3, gain: 0.73 }],
+  // Not a one-shot: loaded for its decoded buffer, driven by startMusic below.
+  music:    ['music.ogg',     { cap: 1, gain: 1 }],
 };
+
+/* One looping source on the music bus, started once the context exists and then
+   left alone — the panel's Music channel is the only volume control it needs,
+   so there is no second fader here to disagree with. Deliberately quiet at
+   source as well: music sits UNDER the FX, and a track that only sits back
+   because the default slider says so is one bad drag away from drowning the
+   game. Same shape and same 0.45 as Arena 1, so one music slider means the same
+   loudness in both games.
+   `loop = true` on the BufferSource is a sample-accurate loop with no gap —
+   the reason this is a decoded buffer and not an <audio> element. */
+let musicNode = null;
+function startMusic() {
+  if (musicNode || !samples || !busGraph) return;
+  const buf = samples.buffer('music');
+  if (!buf) return;                 // no track shipped: silence, not an error
+  musicNode = ctx.createBufferSource();
+  musicNode.buffer = buf;
+  musicNode.loop = true;
+  const g = ctx.createGain();
+  g.gain.value = 0.45;
+  musicNode.connect(g); g.connect(busGraph.music);
+  musicNode.start();
+}
 
 /* Arena 1 falls back to a synthesized tone when a sample is missing. Chomp has
    no synth — missing means SILENT — so the miss is logged instead, once per
@@ -119,16 +144,22 @@ function start() {
   // Hands the graph the levels the pause menu already stored — this is the
   // single settings path, not a second one.
   attachBusGraph(graph);
-  // music bus is built and deliberately left empty: the track is picked from
-  // the shared review with Arena 1 (MD 27 item 4). A bus that arrives with the
-  // music is a bus nobody remembers to add.
   samples = createSamplePlayer({ ctx, destination: graph.fx, basePath: 'assets/audio/' });
-  for (const [name, [file, opts]] of Object.entries(SAMPLES)) samples.load(name, file, opts);
+  for (const [name, [file, opts]] of Object.entries(SAMPLES)) {
+    const loading = samples.load(name, file, opts);
+    // The track can only start once its buffer is decoded, and it is the one
+    // entry whose load result is worth waiting on — a one-shot that arrives
+    // late simply plays late, but music that starts before it decodes never
+    // starts at all.
+    if (name === 'music') loading.then((got) => { if (got) startMusic(); });
+  }
   if (ctx.state === 'suspended') ctx.resume();
 }
 
-/* The music bus, for whoever lands the track. Null until the first gesture. */
+/* The music bus. Null until the first gesture builds the graph. */
 export function musicDestination() { return busGraph ? busGraph.music : null; }
+/* For tests and for anyone adding a second music cue: is the loop running? */
+export function musicPlaying() { return !!musicNode; }
 
 /* UI sounds are not on the event bus — the pause menu is plain DOM — so this is
    exported for it to call directly. */
