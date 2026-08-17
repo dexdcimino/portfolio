@@ -1,28 +1,95 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Surveyor</title>
-  <!-- PLACEHOLDER BUILD.
-       This directory is the drop point for the real game, which is being built
-       in its own repo. Everything around it — the /surveyor wrapper, the route,
-       the games-section card and the baked thumbnail — is wired against THIS
-       page, so shipping the game is a file copy into games/surveyor/ and a
-       thumbnail swap, with no site change.
-       No inline <script> or <style>, no external assets, no CDN: the site CSP
-       is script-src 'self' / style-src 'self' and an inline block here would be
-       blocked live (that has happened before on /stickland's wrapper). -->
-  <link rel="icon" href="/favicon.ico" sizes="any" />
-  <link rel="stylesheet" href="/games/surveyor/placeholder.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Surveyor — Clayweld</title>
+<meta name="description" content="A procedurally generated survey world. One craft, three forms: rover, boat, jet.">
+<link rel="stylesheet" href="css/hud.css">
 </head>
 <body>
-  <main class="wip">
+
+<canvas id="stage" tabindex="0" aria-label="Surveyor game viewport"></canvas>
+<div id="streaks" aria-hidden="true"></div>
+<div id="deep" aria-hidden="true"></div>
+<div id="flash" aria-hidden="true"></div>
+
+<div id="hud" aria-hidden="true">
+
+  <div id="log" class="panel">
+    <div class="label">Survey log</div>
+    <div class="row"><span>Sectors</span><span id="sectors">000</span></div>
+    <div class="row"><span>Beacons</span><span id="beacons">00</span></div>
+    <div class="row"><span>Colonies</span><span id="colonies">00 / 00</span></div>
+    <div class="row"><span id="coord">+00000  +00000</span></div>
+  </div>
+
+  <div id="tape" class="panel">
+    <canvas id="compass"></canvas>
+    <div id="range">— M</div>
+  </div>
+
+  <div id="scan" class="panel">
+    <div class="label">Scanning beacon</div>
+    <div id="scanTrack"><div id="scanFill"></div></div>
+  </div>
+
+  <div id="flood" class="panel">
+    <div class="label">Hull flooding</div>
+    <div id="floodTrack"><div id="floodFill"></div></div>
+  </div>
+
+  <button id="sound" type="button" aria-pressed="false">SOUND OFF</button>
+
+  <div id="forms">
+    <div class="chip on" id="chipRover"><div class="key">1</div><div class="name">ROVER</div></div>
+    <div class="chip" id="chipBoat"><div class="key">2</div><div class="name">BOAT</div></div>
+    <div class="chip" id="chipJet"><div class="key">3</div><div class="name">JET</div></div>
+  </div>
+
+  <div id="gauges">
+    <div id="speedRow">
+      <div id="speed">000</div>
+      <div id="speedUnit">KM/H</div>
+    </div>
+    <div id="altRow">ALT <span id="alt">0</span> M</div>
+    <div id="fuelBar"></div>
+    <div id="fuelRow">
+      <span class="label">Cell charge</span>
+      <span id="fuelNum">000</span>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<div id="start">
+  <div id="card">
     <h1>SURVEYOR</h1>
-    <p class="wip-status">In development</p>
-    <p class="wip-blurb">
-      Procedural spherical worlds. One craft, three forms — rover, boat, jet.
+    <div class="sub">Clayweld · procedural survey world</div>
+    <p class="brief">
+      You are the instrument. The land goes on as far as you drive it — stone
+      terraces, carved basins, lakes with a drawn coastline. Log beacons to earn
+      flight time. Flying is the fastest way to cover ground and the only one
+      that runs out. Deep water will swallow the rover, so read the shallows.
     </p>
-  </main>
+    <div class="rule"></div>
+    <div id="keys">
+      <b>W A S D</b><span>Drive, steer — in the air, pitch and roll</span>
+      <b>1 2 3</b><span>Rover · Boat · Jet. Momentum carries across the change</span>
+      <b>SHIFT</b><span>Sustained boost</span>
+      <b>SPACE</b><span>Hold to charge a jump, release to leap. Full charge is ten times the height</span>
+      <b>DRAG · WHEEL</b><span>Swing the camera, scroll to pull back</span>
+      <b>C</b><span>Recentre the camera behind you</span>
+      <b>F</b><span>From the jet, drop a coloniser. It lands and builds itself</span>
+      <b>R · M</b><span>Back to the rover · mute sound</span>
+    </div>
+    <button id="begin" type="button">Begin survey</button>
+  </div>
+</div>
+
+<script src="vendor/babylon.js"></script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
