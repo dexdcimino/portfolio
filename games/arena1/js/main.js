@@ -143,39 +143,31 @@ let weaponSel = 0;                 // MD 11: 0 zap, 1 rocket — rides every com
 // puts you straight back in first-person control instead of leaving a
 // cursor. (Chrome permits gesture-less relock after a prior successful lock
 // once the cooldown expires; the first-ever lock still needs the click.)
+/* Reverted to the cadence that stood unchanged from the commit that
+   introduced it through MD 8, 9, 10, 11, 20, 22 and 23. I retuned it to 40ms
+   on the strength of a "1304ms -> 1124ms" reading that turned out to be
+   scheduling noise: headless Chrome enforces NO post-Escape cooldown at all
+   (measured — 0ms, one try, at every cadence tried), so that harness could
+   never have been measuring the thing I claimed. With no evidence of benefit
+   and a real downside — 50 refused requests in two seconds, each one a console
+   error — the unjustified change goes. The actual fix for resume latency is
+   Tab-pause below, which never drops the lock and so never re-acquires it. */
 let lockRetry = null;
-/* Retry cadence. Chrome imposes a cooldown of roughly a second after the user
-   leaves pointer lock with Escape, during which requestPointerLock is refused
-   outright — so resuming from the pause menu cannot be instant, it can only be
-   "the same frame the browser will allow". The old 300ms retry meant an
-   average of 150ms wasted PAST the cooldown, on top of the cooldown itself,
-   and up to 300ms; that is the delay before you get your camera back.
-   40ms costs at most 40ms of overshoot. The attempts are cheap — a refused
-   request is a rejected promise, no layout, no allocation — so the only real
-   budget here is console noise, which is why it stops after LOCK_WINDOW_MS
-   rather than retrying forever. */
-const LOCK_RETRY_MS = 40;
-const LOCK_WINDOW_MS = 2000;
 function requestLock(retries = 0) {
   clearTimeout(lockRetry);
-  // Callers pass a retry COUNT for historical reasons; what matters is how
-  // long to keep trying, so a count is read as a window and floored at one
-  // that outlasts Chrome's cooldown.
-  const deadline = performance.now()
-    + Math.max(retries > 1 ? LOCK_WINDOW_MS : retries * LOCK_RETRY_MS, retries ? LOCK_RETRY_MS : 0);
-  const attempt = () => {
+  const attempt = (left) => {
     if (locked || state !== 'playing') return;
     let p = null;
     try { p = canvas.requestPointerLock(); } catch { /* older engines throw sync */ }
     const again = () => {
-      if (performance.now() < deadline && !locked && state === 'playing') {
-        lockRetry = setTimeout(attempt, LOCK_RETRY_MS);
+      if (left > 0 && !locked && state === 'playing') {
+        lockRetry = setTimeout(() => attempt(left - 1), 300);
       }
     };
     if (p && typeof p.catch === 'function') p.catch(again);
     else again(); // no promise: the `locked` guard stops the chain on success
   };
-  attempt();
+  attempt(retries);
 }
 canvas.addEventListener('click', () => {
   AudioFX.ensure(); // first gesture also unlocks the AudioContext
@@ -202,13 +194,29 @@ document.addEventListener('pointerlockchange', () => {
   }
   updateHint();
 });
+/* Every mouse handler now checks `state` as well as `locked`. It did not have
+   to before, because pausing always dropped the lock and `locked` alone was
+   enough. Tab-pause keeps the lock (see PAUSE below), so without these the
+   menu would spin the camera and the trigger would still fire underneath it. */
+let pausedMouseTravel = 0;
 document.addEventListener('mousemove', (e) => {
   if (!locked) return;
+  if (state !== 'playing') {
+    /* Lock is held over the pause menu, so there is no cursor — and a click
+       under lock goes to the canvas, never to a button (measured). The moment
+       the player reaches for the mouse they want to press something, so give
+       the cursor back. Movement, not a click, because a click would be
+       swallowed revealing the cursor instead of pressing what they aimed at.
+       A threshold, so a knocked desk does not cost the instant resume. */
+    pausedMouseTravel += Math.abs(e.movementX) + Math.abs(e.movementY);
+    if (pausedMouseTravel > 24) { try { document.exitPointerLock(); } catch { /* already out */ } }
+    return;
+  }
   yaw += e.movementX * TUNE.SENS;
   pitch = Math.max(-1.5, Math.min(1.5, pitch + e.movementY * TUNE.SENS));
 });
 document.addEventListener('mousedown', (e) => {
-  if (!locked) return;
+  if (!locked || state !== 'playing') return;
   if (e.button === 0) firing = true;
   if (e.button === 2) { grappling = true; AudioFX.thwip(); }
 });
@@ -232,6 +240,22 @@ document.addEventListener('keydown', (e) => {
   // Escape while paused resumes (keydown is a user gesture, so the pointer
   // lock request is allowed to succeed here).
   if (e.code === 'Escape' && state === 'paused') { window.Arena1.resume(); return; }
+  /* TAB — pause WITHOUT dropping pointer lock, and resume from it instantly.
+     Escape is the browser's own "leave pointer lock" key: pressing it releases
+     the lock before any script runs, and Chrome then refuses to hand it back
+     without a fresh user gesture for about a second. That wait is the entire
+     resume delay, and nothing on the page can shorten it — the retry chain
+     only decides how promptly you notice the lock is available again.
+     Tab never touches the lock, so there is nothing to re-acquire: resume is a
+     state flip and the camera is live on the same frame.
+     preventDefault because Tab is focus navigation; left alone it would walk
+     focus out of the canvas and into the wrapper. */
+  if (e.code === 'Tab') {
+    e.preventDefault();
+    if (state === 'playing') window.Arena1.pause({ keepLock: true });
+    else if (state === 'paused') window.Arena1.resume();
+    return;
+  }
   if (!locked) return;
   if (e.code === 'Space') {
     // The prototype's policy: mid-air Space with no coyote and no wall = jet
@@ -730,15 +754,26 @@ netAttempt(roomParam ? { kind: 'named', room: roomParam } : { kind: 'public' });
 
 // Embed hooks (contract #3) — exact names, wired to the state machine.
 window.Arena1 = {
-  pause() {
+  /* opts.keepLock is the Tab path: the menu opens over a still-locked canvas,
+     so resuming costs nothing. Everything else (the wrapper's chip, an Escape
+     that somehow reached us) drops the lock as before, because a menu you
+     intend to CLICK needs a cursor and a locked page has none. */
+  pause(opts) {
     if (state !== 'playing') return;
-    try { document.exitPointerLock?.(); } catch { /* not locked */ }
+    pausedMouseTravel = 0;
+    if (!opts?.keepLock) {
+      try { document.exitPointerLock?.(); } catch { /* not locked */ }
+    }
     setState('paused');
   },
   resume() {
     if (state !== 'paused') return;
     AudioFX.ensure();
+    pausedMouseTravel = 0;
     setState('playing');
+    // Held the lock the whole time (Tab path): nothing to ask for, and asking
+    // would be a redundant round trip on the one path that is already instant.
+    if (document.pointerLockElement === canvas) { locked = true; updateHint(); return; }
     requestLock(8);
   },
   // Pause-menu respawn. Latches an input edge rather than moving the player:
