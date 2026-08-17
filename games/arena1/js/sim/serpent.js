@@ -72,9 +72,10 @@ export const TIERS = {
   /* popHp 12 -> 10 is a ZAP-ONLY buff, which is why it is the knob used. A
      rocket direct calls damageSerpent with exactly popHp, so it always pops
      one sphere whatever the number is and its time-to-kill does not move; the
-     zap does 1 per hit, so popHp IS the zap's pace. 240 hits -> 200, which is
-     26.4s -> 22.0s while the rocket stays at 16.0s. */
-  giant: { segs: 22, scale: 1.95, popHp: 10, boltDmg: 34, boltCd: 44,  boltSpeed: 40,
+     zap does 1 per hit, so popHp IS the zap's pace. 12 -> 10 -> 8 across two
+     passes; at 8 the giant is 168 zap hits where it was 240, and the rocket is
+     untouched throughout. */
+  giant: { segs: 22, scale: 1.95, popHp: 8,  boltDmg: 34, boltCd: 44,  boltSpeed: 40,
            speed: 6.5, respawnTicks: 2700,
            band: { yMin: 590, yMax: 650 }, fire: { yMin: 455, yMax: 900 } },
 };
@@ -90,12 +91,12 @@ export const SEG_LAG = 14;
 export const HEAD_R = 1.15;           // mid-tier head; scaled per tier
 const SEG_R0 = 0.78;                  // first body segment
 const SEG_TAPER_R = 0.955;            // each one a little smaller toward the tail
-/* MD 25 item 3. Was 3, which killed a serpent while three segments were still
-   drawn — you shot something to pieces and it gave up with a visible chunk of
-   body left, which read as the fight ending early rather than being won.
-   2 = head plus one segment, taken literally from the MD: every remaining body
-   sphere pops before the kill lands. */
-export const DEATH_LEN = 2;           // at or below this many segments it dies
+/* MD 25 item 3, settled at 1: the body is destroyed in full and only the head
+   is left when the kill lands. 3 killed it with a visible chunk of body still
+   attached, which read as giving up early; 2 still left one segment, and with
+   MD 24's FILL=4 that segment renders as four spheres — logical count and
+   visible count are not the same thing, which is what made 2 look like 3. */
+export const DEATH_LEN = 1;           // at or below this many segments it dies
 
 // Radius of segment i (0 = head), scaled by the tier.
 export function segRadius(i, scale = 1) {
@@ -315,12 +316,33 @@ export function damageSerpent(ctx, s, dmg, shooterId, seg = 0) {
   if (!s.alive) return false;
   s.tailHp -= dmg;
   while (s.tailHp <= 0 && s.alive) {
+    /* MD 26: a pop takes TWO spheres 20% of the time. Evaluated before it was
+       built — a flat random 1-3 was measured at a 1.4-2.0x spread in
+       time-to-kill and roughly halved every fight, which reads as an
+       unreliable weapon rather than a varied enemy. 20% of a double keeps the
+       texture at ~1.4x spread on the giant and trims rather than halves.
+       rngFor, keyed on the serpent and the tick, so the draw is reproducible
+       on a replay and identical for anyone recomputing the same tick — the
+       same discipline every other seeded decision in this file uses. */
+    const roll = rngFor(ctx.seed ?? 'serp', 'serpentPop', s.id * 100000 + ctx.tick)();
+    const dbl = roll < 0.2 && (s.len - 1) > DEATH_LEN;   // never let it skip the kill
     const popped = s.len - 1;
     ctx.events.push({
       type: 'serpent_sever', serpentId: s.id, seg: popped,
-      point: segAt(s, ctx.tick, popped), by: shooterId,
+      point: segAt(s, ctx.tick, popped), by: shooterId, double: dbl,
     });
     s.len--;
+    /* The second sphere of a double. Emitted as its own sever so the renderer
+       blows up both places rather than one bigger blast in the wrong spot, and
+       flagged so the tell fires once, on the first. */
+    if (dbl) {
+      const extra = s.len - 1;
+      ctx.events.push({
+        type: 'serpent_sever', serpentId: s.id, seg: extra,
+        point: segAt(s, ctx.tick, extra), by: shooterId, double: false, pair: true,
+      });
+      s.len--;
+    }
     if (s.len <= DEATH_LEN) {
       s.alive = false;
       s.respawnAt = ctx.tick + s.respawnTicks;

@@ -549,8 +549,14 @@ function startSession(transport) {
            physically bigger rather than merely louder. */
         if (ev.point) {
           const sv = sess.lastSnap?.serpents?.find((q) => q.id === ev.serpentId);
-          fx.serpentPop(ev.point, sv?.scale ?? 1);
+          /* MD 26: a double-pop reads at 1.7x and gets its own bright crack on
+             top of the boom. The tell rides the FIRST sever of the pair only —
+             `pair` marks the second, which blows up normally at its own
+             position so the two spheres visibly go together rather than one
+             oversized blast landing between them. */
+          fx.serpentPop(ev.point, (sv?.scale ?? 1) * (ev.double ? 1.7 : 1));
           AudioFX.boom();
+          if (ev.double) AudioFX.crit();
         }
       } else if (ev.type === 'serpent_death') {
         if (ev.point) {

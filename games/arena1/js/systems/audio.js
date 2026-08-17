@@ -10,6 +10,8 @@
 // retired — the keys below are read once so an existing player's saved level
 // is not silently thrown away on the upgrade.
 
+import { createSamplePlayer } from '../../../_shared/sample-player.js';
+
 const LEGACY_VOLUME_KEY = 'arena1-volume';
 const LEGACY_MUTED_KEY = 'arena1-muted';
 /* One-time migration. Someone who had the game at 20% should not have it jump
@@ -56,6 +58,34 @@ export function setAudioLevels(levels) {
 }
 export function musicDestination() { return musicBus; }
 
+/* MD 26 item 2 — CC0 samples in front of the synthesized sounds.
+   Every entry here corresponds to an event the game ACTUALLY emits: the MD's
+   six guns, sniper scope, reaver mortar, reload and wave sounds were dropped
+   because none of that exists (zap and rocket are the whole arsenal).
+   Caps are per sound and chosen by how fast the thing can fire: the zap is on
+   an 0.11s cooldown so it needs headroom, a death happens once.
+   If a file fails to load, `play` returns false and the caller falls through
+   to the tone it always used — the game never goes quiet over a missing asset. */
+let samples = null;
+const SAMPLES = {
+  zap:            ['zap.ogg',            { cap: 6, gain: 0.55 }],
+  rocketLaunch:   ['rocket-launch.ogg',  { cap: 3, gain: 0.7 }],
+  explosion:      ['explosion.ogg',      { cap: 4, gain: 0.8 }],
+  serpentPop:     ['serpent-pop.ogg',    { cap: 5, gain: 0.7 }],
+  serpentDeath:   ['serpent-death.ogg',  { cap: 2, gain: 0.9 }],
+  playerHit:      ['player-hit.ogg',     { cap: 3, gain: 0.6 }],
+  playerDeath:    ['player-death.ogg',   { cap: 1, gain: 0.85 }],
+  pickup:         ['pickup.ogg',         { cap: 3, gain: 0.5 }],
+  crit:           ['crit.ogg',           { cap: 3, gain: 0.5 }],
+};
+function initSamples() {
+  if (samples) return;
+  samples = createSamplePlayer({ ctx, destination: fxBus, basePath: 'assets/audio/' });
+  for (const [name, [file, opts]] of Object.entries(SAMPLES)) samples.load(name, file, opts);
+}
+// `s(name)` -> true if a sample played. Callers read: s('zap') || synth().
+const s = (name, opts) => !!samples && samples.play(name, opts);
+
 
 function ensure() {
   if (!ctx) {
@@ -74,6 +104,7 @@ function ensure() {
     fxBus = ctx.createGain(); fxBus.connect(master);
     // The panel may have set levels before any sound existed to hear them.
     setAudioLevels(pendingLevels);
+    initSamples();
   }
   if (ctx.state === 'suspended') ctx.resume();
 }
@@ -135,7 +166,7 @@ function jetStop() {
 
 export const AudioFX = {
   ensure, jetStart, jetStop,
-  fire: () => { tone(760, 140, 0.09, 'square', 0.09); noise(0.05, 0.05, 2000); },
+  fire: () => { if (s('zap')) return; tone(760, 140, 0.09, 'square', 0.09); noise(0.05, 0.05, 2000); },
   jump: () => tone(300, 520, 0.12, 'triangle', 0.10),
   wall: () => { tone(200, 640, 0.14, 'sawtooth', 0.09); noise(0.06, 0.04, 1200); },
   /* MD 25 item 6 — sprint/dash. Was whoosh(0.5, 950, 200, 0.13): half a
@@ -151,20 +182,24 @@ export const AudioFX = {
   dash: () => whoosh(0.16, 260, 90, 0.045, 0.018),
   slide: () => whoosh(0.35, 500, 160, 0.06),
   pad: () => tone(220, 880, 0.25, 'triangle', 0.12),
-  pop: () => { tone(520, 90, 0.18, 'square', 0.12); noise(0.08, 0.08, 900); },
+  pop: () => { if (s('serpentPop')) return; tone(520, 90, 0.18, 'square', 0.12); noise(0.08, 0.08, 900); },
+  /* MD 26: the double-pop tell. Deliberately UP where the normal pop goes
+     down, and short — it has to be recognisable in the same instant as the
+     blast it rides on, and it fires often enough that length would grate. */
+  crit: () => { if (s('crit')) return; tone(680, 1180, 0.09, 'square', 0.085); tone(1400, 1900, 0.06, 'triangle', 0.05); },
   hit: () => tone(980, 700, 0.05, 'square', 0.07),
-  hurt: () => tone(160, 60, 0.25, 'sawtooth', 0.14),
+  hurt: () => { if (s('playerHit')) return; tone(160, 60, 0.25, 'sawtooth', 0.14); },
   land: () => noise(0.08, 0.07, 200),
   thwip: () => { noise(0.07, 0.07, 1600); tone(300, 900, 0.08, 'triangle', 0.07); },
   latch: () => tone(1200, 500, 0.05, 'square', 0.08),
   snap: () => tone(700, 180, 0.08, 'triangle', 0.08),
-  cell: () => { tone(520, 1040, 0.14, 'triangle', 0.11); setTimeout(() => tone(780, 1560, 0.16, 'triangle', 0.10), 90); },
+  cell: () => { if (s('pickup')) return; tone(520, 1040, 0.14, 'triangle', 0.11); setTimeout(() => tone(780, 1560, 0.16, 'triangle', 0.10), 90); },
   ring: () => whoosh(0.4, 1400, 500, 0.11),
   crack: () => noise(0.15, 0.10, 300),
   screech: () => { tone(1300, 260, 0.28, 'sawtooth', 0.07); tone(1700, 400, 0.2, 'square', 0.03); },
   // MD 11 — new cues built from the same primitives, same master bus:
   launch: () => { noise(0.12, 0.09, 700); tone(220, 90, 0.18, 'square', 0.08); },
-  boom: () => { tone(180, 40, 0.35, 'sawtooth', 0.16); noise(0.28, 0.12, 150); },
+  boom: () => { if (s('explosion')) return; tone(180, 40, 0.35, 'sawtooth', 0.16); noise(0.28, 0.12, 150); },
   // MD 14 — the same fire/launch cues heard from someone ELSE, scaled down
   // with distance (no positional audio bus; a crude linear falloff reads
   // fine at arena scale and keeps a full lobby from being a wall of zaps).

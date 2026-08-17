@@ -73,20 +73,30 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
     + `head-to-tail span ${span.toFixed(1)}m at tick 300`);
 }
 
-// ── 3. MD 21: damage ANYWHERE pops spheres off the TAIL, one at a time ─────
+// ── 3. MD 21: damage ANYWHERE pops spheres off the TAIL ────────────────────
+/* MD 26 made a pop take TWO spheres 20% of the time, so "4 volleys = exactly 4
+   spheres" is no longer the rule and asserting it just pins the old one. What
+   still has to hold is that damage aimed at the HEAD removes spheres from the
+   TAIL, that each volley of popHp costs at least one, and that any extra came
+   from a flagged double rather than from drift. */
 {
   const { s, ctx, N } = rig();
-  let tick = 0, popped = 0;
-  // Aim at the HEAD every time; the tail must still be what falls off.
-  for (let k = 0; k < 4; k++) {
+  let tick = 0, popped = 0, doubles = 0;
+  const VOLLEYS = 4;
+  for (let k = 0; k < VOLLEYS; k++) {
     for (let h = 0; h < s.popHp; h++) {
       const c = ctx(tick++);
       damageSerpent(c, s, 1, 1, 0);          // seg 0 = the head
-      popped += c.events.filter((e) => e.type === 'serpent_sever').length;
+      const sev = c.events.filter((e) => e.type === 'serpent_sever');
+      popped += sev.length;
+      doubles += sev.filter((e) => e.double).length;
     }
   }
-  assert.equal(popped, 4, `expected 4 spheres off in 4x${s.popHp} hits, got ${popped}`);
-  assert.equal(s.len, N - 4, `len ${s.len}, expected ${N - 4}`);
+  assert.equal(popped, VOLLEYS + doubles,
+    `${VOLLEYS} volleys popped ${popped} spheres with ${doubles} doubles — the arithmetic does not close`);
+  assert.ok(popped >= VOLLEYS, `only ${popped} spheres off in ${VOLLEYS} full volleys`);
+  // len must track the spheres that actually came off, doubles included.
+  assert.equal(s.len, N - popped, `len ${s.len} does not match the ${popped} spheres severed`);
   ok('damage anywhere pops the tail', `${4 * s.popHp} hits aimed at the HEAD removed `
     + `${popped} TAIL spheres; len ${N}→${s.len} (popHp ${s.popHp})`);
 }

@@ -10,16 +10,43 @@ Kenney.nl (CC0 by default). CC-BY is *not* interchangeable with CC0 — it
 requires attribution in a place users can see, not just a repo file, so it is
 excluded here to keep the rule simple.
 
-## Format
+## Files
 
 | File | Game | Used for | Source URL | Author | Licence |
 | ---- | ---- | -------- | ---------- | ------ | ------- |
+| `games/arena1/assets/audio/zap.ogg` | Arena 1 | Zap fire | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/rocket-launch.ogg` | Arena 1 | Rocket launch | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/explosion.ogg` | Arena 1 | Rocket detonation | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/serpent-pop.ogg` | Arena 1 | Serpent segment destroyed | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/serpent-death.ogg` | Arena 1 | Serpent death | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/player-hit.ogg` | Arena 1 | Player takes damage | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/player-death.ogg` | Arena 1 | Player death | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/pickup.ogg` | Arena 1 | Fuel cell pickup | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/crit.ogg` | Arena 1 | Double-pop tell | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
 
-## Files
+All nine come from one pack — Kenney "Sci-Fi Sounds" v1.0, CC0, licence text
+bundled in the download and quoted here: *"This content is free to use in
+personal, educational and commercial projects."* Attribution is not required by
+CC0; Kenney is credited anyway because they ask nicely and it costs a line.
 
-*None yet.* MD 26 items 2 and 3 are not implemented — see the report for why.
-The shared mixer (MD 26 item 1) ships without any samples; both games are still
-running their synthesized SFX through the new `fx` bus.
+Renamed on the way in, so the mapping back to the pack is recorded:
+
+| Shipped as | Original in pack |
+| ---------- | ---------------- |
+| `zap.ogg` | `Audio/laserSmall_000.ogg` |
+| `rocket-launch.ogg` | `Audio/laserLarge_002.ogg` |
+| `explosion.ogg` | `Audio/explosionCrunch_000.ogg` |
+| `serpent-pop.ogg` | `Audio/impactMetal_003.ogg` |
+| `serpent-death.ogg` | `Audio/lowFrequency_explosion_001.ogg` |
+| `player-hit.ogg` | `Audio/impactMetal_000.ogg` |
+| `player-death.ogg` | `Audio/explosionCrunch_004.ogg` |
+| `pickup.ogg` | `Audio/forceField_000.ogg` |
+| `crit.ogg` | `Audio/laserRetro_001.ogg` |
+
+**Not yet sourced:** background music for either game (MD 26 item 3), and every
+Chomp sound — Chomp has no audio engine yet, so there is nothing to play them
+through. Arena 1 sounds with no sample still run their synthesized version:
+jump, jet, wall, dash, slide, land, pad, grapple, platform crack.
 
 ## Checklist for adding a sound
 
