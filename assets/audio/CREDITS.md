@@ -23,6 +23,12 @@ excluded here to keep the rule simple.
 | `games/arena1/assets/audio/player-death.ogg` | Arena 1 | Player death | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
 | `games/arena1/assets/audio/pickup.ogg` | Arena 1 | Fuel cell pickup | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
 | `games/arena1/assets/audio/crit.ogg` | Arena 1 | Double-pop tell | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/land.ogg` | Arena 1 | Landing | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/wall.ogg` | Arena 1 | Wall contact | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/pad.ogg` | Arena 1 | Jump pad | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/grapple.ogg` | Arena 1 | Grapple throw | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/crack.ogg` | Arena 1 | Platform crack | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/jet.ogg` | Arena 1 | Jetpack loop (5.00s, looped) | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
 
 All nine come from one pack — Kenney "Sci-Fi Sounds" v1.0, CC0, licence text
 bundled in the download and quoted here: *"This content is free to use in
@@ -42,11 +48,22 @@ Renamed on the way in, so the mapping back to the pack is recorded:
 | `player-death.ogg` | `Audio/explosionCrunch_004.ogg` |
 | `pickup.ogg` | `Audio/forceField_000.ogg` |
 | `crit.ogg` | `Audio/laserRetro_001.ogg` |
+| `land.ogg` | `Audio/doorClose_001.ogg` |
+| `wall.ogg` | `Audio/doorClose_000.ogg` |
+| `pad.ogg` | `Audio/forceField_002.ogg` |
+| `grapple.ogg` | `Audio/laserRetro_003.ogg` |
+| `crack.ogg` | `Audio/impactMetal_004.ogg` |
+| `jet.ogg` | `Audio/thrusterFire_000.ogg` |
 
 **Not yet sourced:** background music for either game (MD 26 item 3), and every
 Chomp sound — Chomp has no audio engine yet, so there is nothing to play them
-through. Arena 1 sounds with no sample still run their synthesized version:
-jump, jet, wall, dash, slide, land, pad, grapple, platform crack.
+through.
+
+Arena 1 sounds still running their synthesized version, because this pack has
+no honest match for them: **jump**, **dash** and **slide**. The engine families
+that looked right (`spaceEngineSmall`, `spaceEngineLow`) are all exactly 5.00s
+loops — a five-second space engine on a dash would undo the deliberate 0.16s
+tuning that sound was given. They want a foley/impact pack, not a sci-fi one.
 
 ## Checklist for adding a sound
 

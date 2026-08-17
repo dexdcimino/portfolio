@@ -77,6 +77,13 @@ const SAMPLES = {
   playerDeath:    ['player-death.ogg',   { cap: 1, gain: 0.85 }],
   pickup:         ['pickup.ogg',         { cap: 3, gain: 0.5 }],
   crit:           ['crit.ogg',           { cap: 3, gain: 0.5 }],
+  land:           ['land.ogg',           { cap: 3, gain: 0.55 }],
+  wall:           ['wall.ogg',           { cap: 3, gain: 0.5 }],
+  pad:            ['pad.ogg',            { cap: 2, gain: 0.6 }],
+  grapple:        ['grapple.ogg',        { cap: 3, gain: 0.45 }],
+  crack:          ['crack.ogg',          { cap: 4, gain: 0.6 }],
+  // Held loop, driven by jetStart below rather than by play().
+  jet:            ['jet.ogg',            { cap: 1, gain: 1 }],
 };
 function initSamples() {
   if (samples) return;
@@ -151,11 +158,26 @@ function whoosh(dur = 0.45, f0 = 1000, f1 = 220, vol = 0.12, sub = 0.05) {
 }
 function jetStart() {
   if (!ctx || jetNode) return;
-  jetNode = ctx.createBufferSource(); jetNode.buffer = noiseBuf(0.6); jetNode.loop = true;
-  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 460; lp.Q.value = 0.7;
+  /* MD 26: the jetpack is the one sampled sound that is a LOOP, so it does not
+     go through play() — it takes the decoded buffer and keeps its own gain
+     ramp. thrusterFire is a 5s loop designed for exactly this; the filtered
+     noise stays as the fallback, unchanged, for a missing file.
+     The lowpass is bypassed for the sample: it exists to shape white noise
+     into thrust, and applying it to something already recorded as thrust just
+     muffles it. */
+  const sampled = samples && samples.buffer('jet');
+  jetNode = ctx.createBufferSource();
+  jetNode.buffer = sampled || noiseBuf(0.6);
+  jetNode.loop = true;
   jetGain = ctx.createGain(); jetGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-  jetGain.gain.exponentialRampToValueAtTime(0.07, ctx.currentTime + 0.08);
-  jetNode.connect(lp); lp.connect(jetGain); jetGain.connect(fxBus); jetNode.start();
+  jetGain.gain.exponentialRampToValueAtTime(sampled ? 0.5 : 0.07, ctx.currentTime + 0.08);
+  if (sampled) {
+    jetNode.connect(jetGain);
+  } else {
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 460; lp.Q.value = 0.7;
+    jetNode.connect(lp); lp.connect(jetGain);
+  }
+  jetGain.connect(fxBus); jetNode.start();
 }
 function jetStop() {
   if (!ctx || !jetNode) return;
@@ -168,7 +190,7 @@ export const AudioFX = {
   ensure, jetStart, jetStop,
   fire: () => { if (s('zap')) return; tone(760, 140, 0.09, 'square', 0.09); noise(0.05, 0.05, 2000); },
   jump: () => tone(300, 520, 0.12, 'triangle', 0.10),
-  wall: () => { tone(200, 640, 0.14, 'sawtooth', 0.09); noise(0.06, 0.04, 1200); },
+  wall: () => { if (s('wall')) return; tone(200, 640, 0.14, 'sawtooth', 0.09); noise(0.06, 0.04, 1200); },
   /* MD 25 item 6 — sprint/dash. Was whoosh(0.5, 950, 200, 0.13): half a
      second of bandpassed noise sweeping down from 950Hz at the loudest volume
      of any movement sound in the game, plus a sine tail. Dash fires several
@@ -181,7 +203,7 @@ export const AudioFX = {
      0.045 puts it below the weapons instead of over them. */
   dash: () => whoosh(0.16, 260, 90, 0.045, 0.018),
   slide: () => whoosh(0.35, 500, 160, 0.06),
-  pad: () => tone(220, 880, 0.25, 'triangle', 0.12),
+  pad: () => { if (s('pad')) return; tone(220, 880, 0.25, 'triangle', 0.12); },
   pop: () => { if (s('serpentPop')) return; tone(520, 90, 0.18, 'square', 0.12); noise(0.08, 0.08, 900); },
   /* MD 26: the double-pop tell. Deliberately UP where the normal pop goes
      down, and short — it has to be recognisable in the same instant as the
@@ -189,13 +211,13 @@ export const AudioFX = {
   crit: () => { if (s('crit')) return; tone(680, 1180, 0.09, 'square', 0.085); tone(1400, 1900, 0.06, 'triangle', 0.05); },
   hit: () => tone(980, 700, 0.05, 'square', 0.07),
   hurt: () => { if (s('playerHit')) return; tone(160, 60, 0.25, 'sawtooth', 0.14); },
-  land: () => noise(0.08, 0.07, 200),
-  thwip: () => { noise(0.07, 0.07, 1600); tone(300, 900, 0.08, 'triangle', 0.07); },
+  land: () => { if (s('land')) return; noise(0.08, 0.07, 200); },
+  thwip: () => { if (s('grapple')) return; noise(0.07, 0.07, 1600); tone(300, 900, 0.08, 'triangle', 0.07); },
   latch: () => tone(1200, 500, 0.05, 'square', 0.08),
   snap: () => tone(700, 180, 0.08, 'triangle', 0.08),
   cell: () => { if (s('pickup')) return; tone(520, 1040, 0.14, 'triangle', 0.11); setTimeout(() => tone(780, 1560, 0.16, 'triangle', 0.10), 90); },
   ring: () => whoosh(0.4, 1400, 500, 0.11),
-  crack: () => noise(0.15, 0.10, 300),
+  crack: () => { if (s('crack')) return; noise(0.15, 0.10, 300); },
   screech: () => { tone(1300, 260, 0.28, 'sawtooth', 0.07); tone(1700, 400, 0.2, 'square', 0.03); },
   // MD 11 — new cues built from the same primitives, same master bus:
   launch: () => { noise(0.12, 0.09, 700); tone(220, 90, 0.18, 'square', 0.08); },

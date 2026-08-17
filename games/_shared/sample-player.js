@@ -97,5 +97,15 @@ export function createSamplePlayer({ ctx, destination, basePath = '', defaultCap
     return true;
   }
 
-  return { load, play, ready };
+  /* Raw buffer access, for sounds the caller has to drive itself. The jetpack
+     is a held loop with its own gain ramp, not a one-shot, so it cannot go
+     through play() — it wants the decoded buffer and nothing else. Returns
+     null when unavailable, which is the same fallback contract as play(). */
+  function buffer(name) {
+    const url = names.get(name);
+    const buf = url && buffers.get(url);
+    return buf instanceof AudioBuffer ? buf : null;
+  }
+
+  return { load, play, ready, buffer };
 }
