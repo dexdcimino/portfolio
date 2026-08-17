@@ -28,17 +28,16 @@ function giveGameTheKeyboard() {
 frame.addEventListener('load', giveGameTheKeyboard);
 if (frame.contentDocument?.readyState === 'complete') giveGameTheKeyboard();
 
-/* The one addition over /stickland's copy of this file.
-   Surveyor's canvas takes keyboard focus on start, and a click that lands
-   inside the frame does NOT move the parent document's focus (measured in
-   Chrome for Stickland — activeElement stays BODY). Focusing on load alone is
-   not enough here: anything that pulls focus back to the wrapper afterwards —
-   tabbing to the exit chip, an alt-tab, a click on the shell's letterboxing —
-   leaves 1 / 2 / 3 (rover / boat / jet) silently doing nothing while the game
-   still renders and looks fine. Re-handing focus on every pointerdown makes
-   that unrecoverable state impossible rather than unlikely.
-   Capture phase so it runs before anything in the shell can stop it. */
-window.addEventListener('pointerdown', giveGameTheKeyboard, true);
+/* NOTHING ELSE. An earlier version of this file also called
+   giveGameTheKeyboard() from a capture-phase `pointerdown` on the window, to
+   guarantee focus after any click. That is the classic "first click is eaten to
+   hand focus to the frame" bug and it cost a real one: clicking "Begin survey"
+   did nothing while Enter and Space started the game fine — the button had
+   focus, so the keyboard reached it, but the pointer sequence did not survive
+   a focus() landing in the middle of it.
+   The load handler above is sufficient and is what /stickland has shipped all
+   along; the MD for this integration said to use Stickland's solution, and the
+   extra listener was me adding to a pattern that was already correct. */
 
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape' || event.defaultPrevented) return;

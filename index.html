@@ -531,7 +531,7 @@
            data-genre="SHOOTER" data-dim="3D" data-players="1-6P"
            data-desc-lead="A first-person movement shooter built around speed and verticality."
            data-desc-body="Dash, slide, wall-jump, grapple, and jetpack your way up a procedural spire while wraiths swoop and spikeballs patrol the platforms. Built in Babylon.js on a deterministic, headless simulation — the same architecture that runs the multiplayer."><span>03</span><strong>ARENA1</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
-        <a class="stack-row" href="/surveyor" target="_blank" rel="noopener" data-game="surveyor" data-art="surveyor-art"
+        <a class="stack-row" href="/surveyor" data-game="surveyor" data-art="surveyor-art"
            data-genre="EXPLORATION" data-dim="3D" data-players="SOLO"
            data-desc-lead="Procedural spherical worlds. One craft, three forms — rover, boat, jet. Drop colonisers, claim the geysers, colonise the system."
            data-desc-body="A surveyor's job across six procedural worlds. The same craft transforms between a six-wheeled rover, a hydrofoil boat and a delta jet, and momentum carries across every transform. Colonies you plant build themselves on wall time whether or not you're watching. Fly far enough from a surface and your speed doubles every fifteen hundred metres, which is how the next planet is thirty seconds away and still looks like a speck from the ground."><span>04</span><strong>SURVEYOR</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
@@ -588,7 +588,7 @@
             <!-- Order is DOM order — there is no sort key. uVote first, then the
                  three live apps. The icon block in each card is generated from
                  the one-line directive by tools/bake_markup.py; never typed. -->
-            <a class="ai-card is-wip" href="/ai/apps/uvote/"><small>WEB APP</small><strong>uVote</strong><span>Consensus tooling — in development<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+            <a class="ai-card" id="splitmobCard" href="/splitmob/" data-app-modal="/splitmob/" data-app-title="Splitmob"><small>WEB APP</small><strong>Splitmob</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
               <!-- img src="assets/ai/icons/uvote-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
                 <source type="image/avif" srcset="assets/derived/ai/icons/uvote-icon-420.avif 420w,
@@ -1491,6 +1491,37 @@
        an SVG data URI (see the TEMPORARY MOCKUP DATA block); there are no real
        work assets, no work.json and nothing in assets/media/. The tab row, the
        filmstrip and the hero are all built by JS, so this is only the shell. -->
+  <!-- AI Lab app overlay. A phone-shaped iframe for apps that are built for a
+       phone and would read as broken stretched across a desktop window.
+       DESKTOP ONLY: below 768px the card is a plain link and this never opens.
+       That is deliberate — a phone-shaped modal inside a phone is pointless,
+       env(safe-area-inset-bottom) does not reliably reach into an iframe (the
+       app's dock would sit under the home indicator), and a real navigation
+       gives working back-button behaviour for free.
+
+       The close button sits OUTSIDE the frame on purpose: that rectangle
+       belongs to the app, and an overlay control inside it would collide with
+       the app's own thumb-reachable UI.
+
+       The src is set by JS, not typed here, so the iframe is not fetched on
+       every page load by people who never open it. -->
+  <dialog class="app-modal" id="appModal" aria-labelledby="app-dialog-title">
+    <div class="app-shell">
+      <h2 class="sr-only" id="app-dialog-title">Splitmob</h2>
+      <button class="contact-close app-close" type="button" id="appClose" aria-label="Close app">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <!-- iOS Safari ignores border-radius on an iframe itself, so the radius
+           and overflow live on this wrapper, with translateZ(0) to force the
+           clip. Removing either brings the square corners back on iPhone. -->
+      <div class="app-phone">
+        <iframe class="app-frame" id="appFrame" title="Splitmob" src="about:blank"
+                allow="clipboard-write" referrerpolicy="same-origin"></iframe>
+      </div>
+      <p class="app-hint">Esc or click outside to close · <a id="appOpenTab" href="/splitmob/">open full page</a></p>
+    </div>
+  </dialog>
+
   <!-- Game gallery — real screenshots captured from the live Stickland build,
        served through the image pipeline. The overlay renders whatever
        .gal-item pictures exist here; adding a shot is one img directive. -->

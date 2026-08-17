@@ -34,7 +34,15 @@ html,body{
    paint over this; the number just has to beat anything in THIS document.
    -------------------------------------------------------------------------- */
 .surveyor-exit{
-  position:fixed;top:14px;right:14px;z-index:2147483647;
+  /* MID-LEFT EDGE, not the top-right corner. The chip sat on top of
+     Surveyor's own SOUND button, and that is not a Surveyor problem: games put
+     their HUD in the four corners — Surveyor alone uses all four (SURVEY LOG
+     top-left, SOUND top-right, craft bar bottom-left, readout bottom-right) —
+     so any corner this shell picks will collide with some game eventually. The
+     vertical middle of an edge is the one place a game is very unlikely to
+     put anything, and the wrapper is the side that should move: the game does
+     not know it is in a frame and cannot be asked to work around one. */
+  position:fixed;top:50%;left:14px;transform:translateY(-50%);z-index:2147483647;
   width:48px;height:48px;                 /* >=44px touch target, as the site uses elsewhere */
   display:grid;place-items:center;
   border-radius:12px;
@@ -53,16 +61,18 @@ html,body{
    localStorage and is applied by script.js, which this page deliberately does
    not load. Reproducing the palette here would be a second copy to keep in
    step for a hover colour — not worth the drift. */
+/* Hover/active nudge is horizontal now, since the base transform already owns
+   translateY for the centring. */
 .surveyor-exit:hover{
   border-color:rgba(255,255,255,.62);
   background:rgba(9,13,24,.96);
-  transform:translateY(-1px);
+  transform:translateY(-50%) translateX(2px);
 }
-.surveyor-exit:active{transform:translateY(0)}
+.surveyor-exit:active{transform:translateY(-50%)}
 .surveyor-exit:focus-visible{outline:3px solid #9EE02B;outline-offset:3px}
 
 @media(max-width:760px){
-  .surveyor-exit{top:10px;right:10px;width:44px;height:44px;border-radius:11px}
+  .surveyor-exit{left:10px;width:44px;height:44px;border-radius:11px}
   .surveyor-exit svg{width:20px;height:20px}
 }
 
