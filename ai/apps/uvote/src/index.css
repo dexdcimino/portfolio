@@ -24,6 +24,12 @@
 @keyframes uvBub { to { transform: translateY(-105vh) translateX(18px); opacity: 0 } }
 @keyframes uvSpark { to { transform: translateY(-78vh) translateX(26px) scale(.3); opacity: 0 } }
 @keyframes uvShaft { 0%,100% { opacity: .55 } 50% { opacity: 1 } }
+/* Slate's drifting glows. Transform and opacity only, so the two large blurred
+   layers stay on the compositor instead of repainting the frame. */
+@keyframes uvDrift {
+  from { transform: translate3d(0,0,0) scale(1); opacity: .75 }
+  to   { transform: translate3d(6%,4%,0) scale(1.12); opacity: 1 }
+}
 .uv-rain { animation: uvRain linear infinite }
 .uv-bub { animation: uvBub linear infinite }
 .uv-spark { animation: uvSpark ease-out infinite }

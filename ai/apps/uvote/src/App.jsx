@@ -25,9 +25,25 @@ const L_INK = lum(INK), L_PAPER = lum(PAPER);
 const inkOn = (bg) => (ratio(lum(bg), L_INK) >= ratio(lum(bg), L_PAPER) ? INK : "#FBFAFE");
 const rgba = (h, a) => { const [r, g, b] = hex2rgb(h); return `rgba(${r},${g},${b},${a})`; };
 
-const CAT_ORDER = ["food", "tech", "life", "money", "games", "culture", "weird", "takes"];
-const CAT_LABEL = { food: "Food", tech: "Tech", life: "Life", money: "Money", games: "Games", culture: "Culture", weird: "Weird", takes: "Hot takes" };
-const CAT_HEX = { food: "#FF7A5C", tech: "#2FC7CC", life: "#8F7BE8", money: "#3FC98A", games: "#FF5FA2", culture: "#4D8DF0", weird: "#C9D93B", takes: "#FF4D4D" };
+/* Eleven categories. music / sports / love are the three that were missing —
+   between them they are most of what people actually argue about, and none of
+   the existing eight had anywhere to put them.
+   Hues are spaced deliberately rather than picked one at a time: the existing
+   eight left gaps around 40 degrees (amber), 280 (purple) and 305 (orchid), so
+   the new three take those and every category stays tellable from its
+   neighbour as a 10px dot. Saturation and lightness are held close across the
+   set so they read as one family once mix() pulls them toward the theme. */
+const CAT_ORDER = ["food", "tech", "life", "money", "games", "culture", "music", "sports", "love", "weird", "takes"];
+const CAT_LABEL = {
+  food: "Food", tech: "Tech", life: "Life", money: "Money", games: "Games",
+  culture: "Culture", music: "Music", sports: "Sports", love: "Love",
+  weird: "Weird", takes: "Hot takes",
+};
+const CAT_HEX = {
+  food: "#FF7A5C", tech: "#2FC7CC", life: "#8F7BE8", money: "#3FC98A", games: "#FF5FA2",
+  culture: "#4D8DF0", music: "#A96BF0", sports: "#E8A22E", love: "#E45CC4",
+  weird: "#C9D93B", takes: "#FF4D4D",
+};
 
 /* ═══════════════ THEMES ═══════════════
    Each returns a token set. `blend`/`amt` pull category colors into
@@ -49,6 +65,23 @@ const DAY_MS = 600000;
 const DAY_TICK_MS = 1000;
 
 const THEMES = {
+  /* The default. Cool grey-navy, nearly monochrome, and the only theme whose
+     scene does not depict anything — two very large soft glows drifting on a
+     40-second cycle behind a fixed vignette. That restraint is the point: it is
+     the one theme that never competes with the cards, so the category colour on
+     screen is the only real hue in the frame.
+     Its blend is a desaturated navy at a high amount, which is what pulls every
+     category hex toward the same steel family instead of letting eleven
+     saturated dots sit on a grey ground. */
+  slate: {
+    name: "Slate", note: "cool grey-navy, quiet",
+    swatch: ["#1B2431", "#2C3A4E", "#0F131B", "#93A6C2"],
+    tokens: () => ({
+      page: "linear-gradient(180deg, #0F131B 0%, #171F2C 48%, #0B0F16 100%)",
+      ink: "#E9EDF5", light: false,
+      blend: "#2B3648", amt: .46, shade: "#0B0F16", glassBase: "#151D29",
+    }),
+  },
   sky: {
     name: "Sky", note: "sun and moon, real time of day", live: true,
     swatch: ["#8FC7E8", "#F7C77E", "#2B3A6B", "#1A1730"],
@@ -69,39 +102,39 @@ const THEMES = {
     },
   },
   rain: {
-    name: "Downpour", note: "grey-blue, always raining",
-    swatch: ["#2E4A56", "#3E6B75", "#16242C", "#8FB8BE"],
+    name: "Downpour", note: "slate blue, always raining",
+    swatch: ["#243743", "#38606C", "#141F26", "#9BC2C8"],
     tokens: () => ({
-      page: "linear-gradient(180deg, #16242C 0%, #223C46 55%, #16242C 100%)",
-      ink: "#E7F0F2", light: false,
-      blend: "#2E5560", amt: .5, shade: "#101A20", glassBase: "#12242C",
+      page: "linear-gradient(180deg, #131D24 0%, #1F343D 55%, #101920 100%)",
+      ink: "#E6EFF2", light: false,
+      blend: "#2A4C57", amt: .5, shade: "#0F171C", glassBase: "#132029",
     }),
   },
   deep: {
     name: "Deep", note: "underwater, light from above",
-    swatch: ["#0A2A3A", "#12556B", "#061620", "#7FD8D0"],
+    swatch: ["#0B3346", "#12556B", "#04121A", "#7FD8D0"],
     tokens: () => ({
-      page: "linear-gradient(180deg, #12566B 0%, #0A2E3E 45%, #04121A 100%)",
-      ink: "#DFF4F4", light: false,
-      blend: "#0E4456", amt: .48, shade: "#04121A", glassBase: "#0A2836",
+      page: "linear-gradient(180deg, #0E4A5E 0%, #082C3B 45%, #031017 100%)",
+      ink: "#DDF2F4", light: false,
+      blend: "#0C4051", amt: .5, shade: "#031017", glassBase: "#082735",
     }),
   },
   ember: {
     name: "Ember", note: "campfire dark, sparks rising",
-    swatch: ["#2A1410", "#FF8A3D", "#140A08", "#FFD9A0"],
+    swatch: ["#2A1410", "#F2833A", "#140A08", "#FFD9A0"],
     tokens: () => ({
-      page: "linear-gradient(180deg, #120A0C 0%, #24120E 62%, #40200F 100%)",
-      ink: "#F8ECE2", light: false,
-      blend: "#54291A", amt: .44, shade: "#150B09", glassBase: "#1E100D",
+      page: "linear-gradient(180deg, #100A0B 0%, #22120E 60%, #3A1D10 100%)",
+      ink: "#F8EDE3", light: false,
+      blend: "#4E2818", amt: .46, shade: "#140B09", glassBase: "#1C110E",
     }),
   },
   paper: {
     name: "Paper", note: "daylight, no motion",
-    swatch: ["#F4F1EA", "#E4DED2", "#FFFFFF", "#2A2620"],
+    swatch: ["#FBFAF7", "#E8E3D9", "#FFFFFF", "#26232C"],
     tokens: () => ({
-      page: "linear-gradient(180deg, #FAF8F3 0%, #EFEBE1 100%)",
-      ink: "#1B1820", light: true,
-      blend: "#FFFFFF", amt: .18, shade: "#FFFFFF", glassBase: "#FFFFFF",
+      page: "linear-gradient(180deg, #FCFBF8 0%, #F0EDE6 100%)",
+      ink: "#191720", light: true,
+      blend: "#FFFFFF", amt: .2, shade: "#FFFFFF", glassBase: "#FFFFFF",
     }),
   },
 };
@@ -123,6 +156,17 @@ function chrome(t) {
 }
 
 /* ═══════════════ SCENES ═══════════════ */
+
+/* Total votes on a poll — the number the "Most voted" order reads, and the same
+   one the card prints. Live drift (bumps) is deliberately NOT included: the
+   order would then reshuffle under the reader every few seconds. */
+const votesOf = (p) => p.o.reduce((sum, o) => sum + o[1], 0);
+
+const SORTS = [
+  ["mix", "Mixed"],
+  ["new", "Newest"],
+  ["top", "Most voted"],
+];
 
 const seeded = (n, seed) => {
   let s = seed; const r = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -267,6 +311,40 @@ function EmberScene({ reduce }) {
   );
 }
 
+/* Two glows and a vignette. No particles, no loop of 30 spans — the whole
+   point of this theme is that nothing in the background asks for attention, and
+   the cheapest way to guarantee that is to have almost nothing there. Both
+   glows drift on long, mismatched cycles so they never visibly line up. */
+function SlateScene({ reduce }) {
+  const drift = (dur, delay) => ({
+    animation: `uvDrift ${dur}s ease-in-out ${delay}s infinite alternate`,
+    animationPlayState: reduce ? "paused" : "running",
+  });
+  return (
+    <>
+      <div className="absolute rounded-full" style={{
+        left: "-25%", top: "-18%", width: "85%", height: "58%",
+        background: "radial-gradient(circle, rgba(86,116,168,.30), transparent 68%)",
+        filter: "blur(18px)", ...drift(38, 0),
+      }} />
+      <div className="absolute rounded-full" style={{
+        right: "-30%", top: "26%", width: "80%", height: "52%",
+        background: "radial-gradient(circle, rgba(58,88,132,.26), transparent 70%)",
+        filter: "blur(22px)", ...drift(53, -11),
+      }} />
+      {/* A single hairline where the glows stop, so the lower half reads as
+          ground rather than as the gradient simply running out. */}
+      <div className="absolute left-0 right-0" style={{
+        top: "62%", height: 1,
+        background: "linear-gradient(90deg, transparent, rgba(147,166,194,.22) 22%, rgba(147,166,194,.22) 78%, transparent)",
+      }} />
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(120% 78% at 50% 42%, transparent 52%, rgba(6,9,14,.72))",
+      }} />
+    </>
+  );
+}
+
 function PaperScene() {
   return (
     <>
@@ -279,6 +357,7 @@ function PaperScene() {
 function Scene({ id, t, reduce }) {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ background: t.page, transition: "background 600ms linear" }}>
+      {id === "slate" && <SlateScene reduce={reduce} />}
       {id === "sky" && <SkyScene t={t} reduce={reduce} />}
       {id === "rain" && <RainScene reduce={reduce} />}
       {id === "deep" && <DeepScene reduce={reduce} />}
@@ -357,6 +436,228 @@ const POLLS = [
   { id: "h5", cat: "takes", q: "Reply-all", o: [["Sometimes necessary", 24310], ["Never acceptable", 58420]] },
   { id: "h6", cat: "takes", q: "Is water wet?", o: [["Yes", 54210], ["No", 42870]] },
   { id: "h7", cat: "takes", q: "Group projects", o: [["Fine, actually", 12340], ["Hell on earth", 78210]] },
+
+  /* ── Music ── */
+  { id: "mu1", cat: "music", q: "Filming the whole song at a concert", o: [["Let people enjoy it", 21440], ["Put the phone down", 74310]] },
+  { id: "mu2", cat: "music", q: "Album front to back or shuffle?", o: [["Front to back", 39820], ["Shuffle", 46170]] },
+  { id: "mu3", cat: "music", q: "Best decade for music", o: [["70s", 24310], ["80s", 31870], ["90s", 38240], ["2000s", 27650]] },
+  { id: "mu4", cat: "music", q: "A cover can beat the original", o: [["Absolutely", 58120], ["Never", 27430]] },
+  { id: "mu5", cat: "music", q: "Music while you work", o: [["Lyrics are fine", 34210], ["Instrumental only", 41880], ["Silence", 22940]] },
+  { id: "mu6", cat: "music", q: "Vinyl actually sounds better", o: [["Yes", 29310], ["It's the ritual, not the sound", 52470]] },
+  { id: "mu7", cat: "music", q: "Encores are planned and everyone knows it", o: [["Still love them", 44120], ["Just play the song", 33280]] },
+  { id: "mu8", cat: "music", q: "Do lyrics matter?", o: [["The whole point", 41230], ["It's about the sound", 39870]] },
+  { id: "mu9", cat: "music", q: "Talking during a live set", o: [["Go to a bar", 68420], ["It's a concert, not a library", 18310]] },
+  { id: "mu10", cat: "music", q: "Sad songs when you're already sad", o: [["Feeds the mood, in a good way", 62140], ["Makes it worse", 24380]] },
+  { id: "mu11", cat: "music", q: "Festival or one band in a small room?", o: [["Festival", 27410], ["Small room", 55290]] },
+  { id: "mu12", cat: "music", q: "Skipping a song before it ends", o: [["Constantly", 51230], ["Let it play", 34670]] },
+  { id: "mu13", cat: "music", q: "Karaoke", o: [["Hand me the mic", 33240], ["I will watch, thanks", 47120], ["Only after two drinks", 29840]] },
+  { id: "mu14", cat: "music", q: "Buying merch at the show", o: [["Every time", 31420], ["Twenty for a shirt?", 44870]] },
+  { id: "mu15", cat: "music", q: "Autotune", o: [["It's an instrument", 42310], ["It's a crutch", 38920]] },
+  { id: "mu16", cat: "music", q: "The best song on the album is never the single", o: [["True", 61240], ["The single is the single for a reason", 25180]] },
+  { id: "mu17", cat: "music", q: "Headphones or speakers at home?", o: [["Headphones", 46310], ["Speakers", 38240]] },
+  { id: "mu18", cat: "music", q: "Knowing an artist's politics changes the music", o: [["It does", 44120], ["Separate them", 47380]] },
+  { id: "mu19", cat: "music", q: "Songs over five minutes", o: [["Let it breathe", 38420], ["Edit it down", 31270]] },
+  { id: "mu20", cat: "music", q: "Live album or studio album?", o: [["Studio", 54120], ["Live", 24310]] },
+  { id: "mu21", cat: "music", q: "Your top artist on wrapped is", o: [["Exactly right", 41230], ["Deeply embarrassing", 46780]] },
+  { id: "mu22", cat: "music", q: "Music taste says something about a person", o: [["It says a lot", 57310], ["It says nothing", 28420]] },
+
+  /* ── Sports ── */
+  { id: "sp1", cat: "sports", q: "Best sport to watch live", o: [["Hockey", 31240], ["Basketball", 34870], ["Football", 38120], ["Baseball", 19340]] },
+  { id: "sp2", cat: "sports", q: "Video review", o: [["Get it right", 51230], ["It kills the game", 34870]] },
+  { id: "sp3", cat: "sports", q: "You move cities. Your team…", o: [["Stays your team forever", 78420], ["You adopt the new one", 11240]] },
+  { id: "sp4", cat: "sports", q: "Is chess a sport?", o: [["Yes", 34120], ["No", 52380]] },
+  { id: "sp5", cat: "sports", q: "Is esports a sport?", o: [["Yes", 38470], ["No", 47120]] },
+  { id: "sp6", cat: "sports", q: "Booing your own team", o: [["They earned it", 29310], ["Never", 54270]] },
+  { id: "sp7", cat: "sports", q: "Regular season or playoffs?", o: [["Playoffs, obviously", 64230], ["Regular season is the real test", 21870]] },
+  { id: "sp8", cat: "sports", q: "The halftime show", o: [["Part of the event", 41230], ["Bathroom break", 39870]] },
+  { id: "sp9", cat: "sports", q: "Athlete pay", o: [["Worth every cent", 42310], ["Wildly out of hand", 44280]] },
+  { id: "sp10", cat: "sports", q: "Fantasy leagues make you watch more", o: [["Way more", 51240], ["Ruins watching the actual game", 27380]] },
+  { id: "sp11", cat: "sports", q: "Highlights or the full game?", o: [["Full game", 44120], ["Highlights are enough", 41870]] },
+  { id: "sp12", cat: "sports", q: "The wave in the stands", o: [["Fun", 27310], ["Please stop", 58240]] },
+  { id: "sp13", cat: "sports", q: "Golf", o: [["A real sport", 44230], ["A walk with equipment", 39180]] },
+  { id: "sp14", cat: "sports", q: "Should refs ever explain a call?", o: [["Yes, out loud, every time", 71240], ["It would slow everything down", 14380]] },
+  { id: "sp15", cat: "sports", q: "Stadium food at stadium prices", o: [["Part of the day", 34210], ["Eat before you go", 52840]] },
+  { id: "sp16", cat: "sports", q: "Resting stars in the regular season", o: [["Smart", 31240], ["Fans paid for that ticket", 54120]] },
+  { id: "sp17", cat: "sports", q: "Ties", o: [["Fine, it's a draw", 27410], ["Play until someone wins", 58230]] },
+  { id: "sp18", cat: "sports", q: "Front-running a winning team", o: [["Everyone starts somewhere", 32180], ["Bandwagon", 51240]] },
+  { id: "sp19", cat: "sports", q: "The best rivalry is", o: [["Same city", 41230], ["Same division", 28470], ["Two players", 31840]] },
+  { id: "sp20", cat: "sports", q: "Sports gambling ads", o: [["Whatever, it's ads", 18240], ["Way too far", 68310]] },
+  { id: "sp21", cat: "sports", q: "Watching with a crowd or alone?", o: [["Crowd", 54120], ["Alone, no commentary", 31280]] },
+  { id: "sp22", cat: "sports", q: "A goalie is the most important player", o: [["Yes", 44120], ["No", 38270]] },
+
+  /* ── Love ── */
+  { id: "lv1", cat: "love", q: "Splitting the bill on a first date", o: [["Split it", 48210], ["Whoever asked pays", 44370]] },
+  { id: "lv2", cat: "love", q: "How long before a text back is too long?", o: [["An hour", 24310], ["A few hours", 41870], ["A day", 32140], ["Whenever", 18420]] },
+  { id: "lv3", cat: "love", q: "Meeting on an app", o: [["Completely normal", 71240], ["Still prefer real life", 24380]] },
+  { id: "lv4", cat: "love", q: "Long distance", o: [["Can absolutely work", 52310], ["Ends the same way", 38470]] },
+  { id: "lv5", cat: "love", q: "Looking through their phone", o: [["Never", 68420], ["If you have a reason", 24310]] },
+  { id: "lv6", cat: "love", q: "Do opposites attract?", o: [["Yes", 34120], ["Shared values win", 62380]] },
+  { id: "lv7", cat: "love", q: "Public proposals", o: [["Romantic", 27410], ["Enormous pressure", 61240]] },
+  { id: "lv8", cat: "love", q: "Staying friends with an ex", o: [["Sure", 31840], ["Not really", 48210], ["Depends how it ended", 41270]] },
+  { id: "lv9", cat: "love", q: "Big wedding or run off and elope?", o: [["Big wedding", 38240], ["Elope", 47120]] },
+  { id: "lv10", cat: "love", q: "Love at first sight", o: [["Real", 34210], ["That's attraction, not love", 58470]] },
+  { id: "lv11", cat: "love", q: "Texting every single day", o: [["Yes, that's the point", 44230], ["Space is healthy", 41180]] },
+  { id: "lv12", cat: "love", q: "Move in before getting engaged", o: [["Obviously", 64310], ["Wait", 21470]] },
+  { id: "lv13", cat: "love", q: "Best first date", o: [["Coffee", 38210], ["Dinner", 27340], ["A walk", 31870], ["Something with an activity", 34120]] },
+  { id: "lv14", cat: "love", q: "Ghosting", o: [["Sometimes the kindest exit", 14320], ["Just say something", 74210]] },
+  { id: "lv15", cat: "love", q: "Posting your relationship online", o: [["Share it", 27410], ["Keep it off there", 54280]] },
+  { id: "lv16", cat: "love", q: "Separate beds, same relationship", o: [["Sleep matters more", 41230], ["Same bed always", 44870]] },
+  { id: "lv17", cat: "love", q: "Go to bed angry?", o: [["Never", 44120], ["Sleep on it and talk tomorrow", 51380]] },
+  { id: "lv18", cat: "love", q: "Sharing passwords", o: [["Normal", 34210], ["Everyone gets privacy", 52470]] },
+  { id: "lv19", cat: "love", q: "A ten year age gap at forty", o: [["Fine", 51240], ["Still odd", 31870]] },
+  { id: "lv20", cat: "love", q: "Pet names", o: [["Cute", 47210], ["In public? No", 38340]] },
+  { id: "lv21", cat: "love", q: "Who says it first?", o: [["Whoever feels it", 68420], ["Wait for them", 17310]] },
+  { id: "lv22", cat: "love", q: "Do you need shared hobbies?", o: [["Helps a lot", 44230], ["Have your own thing", 51170]] },
+
+  /* ── Food ── */
+  { id: "f11", cat: "food", q: "Ketchup in the fridge or the cupboard?", o: [["Fridge", 62310], ["Cupboard", 28470]] },
+  { id: "f12", cat: "food", q: "Well done steak", o: [["Your money, your steak", 34210], ["A crime", 51870]] },
+  { id: "f13", cat: "food", q: "Breakfast for dinner", o: [["Elite", 71240], ["Wrong meal, wrong time", 14380]] },
+  { id: "f14", cat: "food", q: "Is a hot dog a sandwich?", o: [["Yes", 31240], ["No", 58470]] },
+  { id: "f15", cat: "food", q: "Cereal: milk first or last?", o: [["Cereal first", 74210], ["Milk first", 12340]] },
+  { id: "f16", cat: "food", q: "Leftover pizza", o: [["Cold, straight from the box", 44120], ["Reheated properly", 47380]] },
+  { id: "f17", cat: "food", q: "Tipping at a counter", o: [["Tip anyway", 38210], ["Not for handing me a coffee", 51470]] },
+  { id: "f18", cat: "food", q: "Cooking for one", o: [["Worth the effort", 41230], ["Toast is a meal", 44870]] },
+  { id: "f19", cat: "food", q: "The best fry is", o: [["Thin and crispy", 44210], ["Thick and fluffy", 38340], ["Curly", 27120]] },
+  { id: "f20", cat: "food", q: "Do you eat the crusts?", o: [["Yes", 61240], ["Never", 24380]] },
+  { id: "f21", cat: "food", q: "Sparkling water", o: [["Delicious", 41230], ["Spicy water, no thanks", 38470]] },
+  { id: "f22", cat: "food", q: "The best sandwich needs", o: [["Something crunchy", 51240], ["Something saucy", 44180]] },
+  { id: "f23", cat: "food", q: "Restaurants with no menu prices", o: [["Fine at that level", 12310], ["Absolutely not", 68420]] },
+  { id: "f24", cat: "food", q: "Meal prep for the week", o: [["Life changing", 47210], ["Day four tastes like regret", 41870]] },
+  { id: "f25", cat: "food", q: "Coffee order", o: [["Black", 34120], ["Milk, no sugar", 41870], ["Something with syrup", 28340]] },
+  { id: "f26", cat: "food", q: "Eating alone at a restaurant", o: [["Genuinely nice", 54210], ["Too exposed", 31470]] },
+
+  /* ── Tech ── */
+  { id: "t11", cat: "tech", q: "Dark mode everywhere?", o: [["Always", 78240], ["Light mode is fine", 18310]] },
+  { id: "t12", cat: "tech", q: "Inbox zero", o: [["The only way", 31240], ["I have 40,000 unread", 54870]] },
+  { id: "t13", cat: "tech", q: "Do you read the terms?", o: [["Yes", 4210], ["Nobody does", 88470]] },
+  { id: "t14", cat: "tech", q: "Phone face up or face down?", o: [["Face down", 61230], ["Face up", 27480]] },
+  { id: "t15", cat: "tech", q: "Notifications", o: [["All on", 14320], ["A curated few", 51240], ["Everything off", 34870]] },
+  { id: "t16", cat: "tech", q: "Best place for a password", o: [["Manager", 62410], ["My head", 24380], ["A notebook", 11240]] },
+  { id: "t17", cat: "tech", q: "Voice assistants", o: [["Use them daily", 27310], ["Never talk to them", 58470]] },
+  { id: "t18", cat: "tech", q: "Upgrading your phone", o: [["Every couple of years", 34120], ["Until it dies", 58370]] },
+  { id: "t19", cat: "tech", q: "Tabs open right now", o: [["Under ten", 34210], ["Dozens", 41870], ["I stopped counting", 28340]] },
+  { id: "t20", cat: "tech", q: "Video call with camera on", o: [["On", 31240], ["Off unless required", 58470]] },
+  { id: "t21", cat: "tech", q: "Smart home gadgets", o: [["Worth it", 38210], ["More things to break", 47380]] },
+  { id: "t22", cat: "tech", q: "Autoplay next episode", o: [["Keep it rolling", 44230], ["Let me choose", 41180]] },
+  { id: "t23", cat: "tech", q: "Typing speed matters", o: [["Yes", 41230], ["Thinking is the bottleneck", 51470]] },
+  { id: "t24", cat: "tech", q: "Do you back anything up?", o: [["Automatically", 44210], ["I live dangerously", 41870]] },
+  { id: "t25", cat: "tech", q: "Buying the extended warranty", o: [["Sometimes", 24310], ["Never", 61240]] },
+  { id: "t26", cat: "tech", q: "Screen time reports", o: [["Useful", 31240], ["I close them immediately", 58470]] },
+
+  /* ── Life ── */
+  { id: "l11", cat: "life", q: "Early bird or night owl?", o: [["Early", 41230], ["Night", 51870]] },
+  { id: "l12", cat: "life", q: "Do you use an alarm on weekends?", o: [["Yes", 27410], ["Absolutely not", 61240]] },
+  { id: "l13", cat: "life", q: "Small talk", o: [["It's how things start", 38210], ["Physically painful", 51470]] },
+  { id: "l14", cat: "life", q: "Arriving at the airport", o: [["Three hours early", 34120], ["Cutting it fine", 27480], ["Two hours, like a normal person", 41870]] },
+  { id: "l15", cat: "life", q: "Making the bed", o: [["Every morning", 51240], ["Why, I'm getting back in", 38470]] },
+  { id: "l16", cat: "life", q: "Group chats", o: [["Love them", 31240], ["Muted forever", 58370]] },
+  { id: "l17", cat: "life", q: "Calling instead of texting", o: [["Faster", 27410], ["Text me first", 68240]] },
+  { id: "l18", cat: "life", q: "Do you keep a to-do list?", o: [["Written down", 51230], ["It's all in my head", 41870]] },
+  { id: "l19", cat: "life", q: "Cancelled plans", o: [["Disappointing", 21340], ["The best feeling", 68470]] },
+  { id: "l20", cat: "life", q: "Moving somewhere you know nobody", o: [["Do it once", 58210], ["Not for me", 31470]] },
+  { id: "l21", cat: "life", q: "Sunday", o: [["Rest", 51230], ["Reset for the week", 44870]] },
+  { id: "l22", cat: "life", q: "Reading before bed", o: [["Every night", 44120], ["Phone until I pass out", 51380]] },
+  { id: "l23", cat: "life", q: "Do you name your car?", o: [["Of course", 34210], ["It's a car", 51470]] },
+  { id: "l24", cat: "life", q: "Keeping the thermostat", o: [["Cold, add blankets", 58240], ["Warm", 34310]] },
+  { id: "l25", cat: "life", q: "Handwriting", o: [["Still write by hand", 41230], ["I've forgotten how", 44870]] },
+  { id: "l26", cat: "life", q: "Saying no to things", o: [["Getting better at it", 68210], ["Still agree to everything", 27470]] },
+  { id: "l27", cat: "life", q: "Shoes on inside the house", o: [["Off at the door", 78420], ["Keep them on", 12310]] },
+  { id: "l28", cat: "life", q: "Getting older", o: [["Better every year", 51240], ["I'd take twenty-five again", 38470]] },
+
+  /* ── Money ── */
+  { id: "m11", cat: "money", q: "Talking about salary with friends", o: [["Everyone should", 51230], ["Too awkward", 41870]] },
+  { id: "m12", cat: "money", q: "Rent forever or buy anything?", o: [["Buy something", 61240], ["Rent and stay flexible", 28470]] },
+  { id: "m13", cat: "money", q: "The 20% tip default", o: [["Fair", 34210], ["Out of control", 54870]] },
+  { id: "m14", cat: "money", q: "Subscriptions you forgot about", o: [["None, I audit them", 27310], ["Certainly some", 64240]] },
+  { id: "m15", cat: "money", q: "Buy now, pay later", o: [["Useful", 18420], ["A trap", 68310]] },
+  { id: "m16", cat: "money", q: "Splitting a group dinner bill", o: [["Evenly, stop counting", 51240], ["Pay for what you ordered", 44870]] },
+  { id: "m17", cat: "money", q: "Cash", o: [["Still carry some", 41230], ["Haven't touched it in years", 51470]] },
+  { id: "m18", cat: "money", q: "An expensive coffee every day", o: [["Small joy, worth it", 58210], ["That's a holiday a year", 34470]] },
+  { id: "m19", cat: "money", q: "Lending money to a friend", o: [["Give it, don't lend it", 61230], ["Lend and expect it back", 27870]] },
+  { id: "m20", cat: "money", q: "Do you know your credit score?", o: [["Exactly", 51240], ["No idea", 38470]] },
+  { id: "m21", cat: "money", q: "Extended family gift limits", o: [["Set a number", 64210], ["Spend what you want", 24380]] },
+  { id: "m22", cat: "money", q: "Best money advice", o: [["Spend less", 41230], ["Earn more", 44870]] },
+  { id: "m23", cat: "money", q: "Buying the cheapest version first", o: [["Buy once, cry once", 58240], ["Cheap until you know you need better", 34310]] },
+  { id: "m24", cat: "money", q: "Retirement feels", o: [["Planned for", 31240], ["Theoretical", 58470]] },
+  { id: "m25", cat: "money", q: "Haggling", o: [["Always try", 34210], ["Just pay the price", 51470]] },
+  { id: "m26", cat: "money", q: "A raise or an extra week off?", o: [["Raise", 44230], ["The week", 47180]] },
+
+  /* ── Games ── */
+  { id: "g11", cat: "games", q: "Difficulty setting", o: [["Normal", 51240], ["Hardest available", 27470], ["Story mode, I'm here for the plot", 31840]] },
+  { id: "g12", cat: "games", q: "Fast travel", o: [["Use it constantly", 61230], ["Walk, it's the world", 24870]] },
+  { id: "g13", cat: "games", q: "Do you finish games?", o: [["To the credits", 34210], ["Eighty percent, then something new", 58470]] },
+  { id: "g14", cat: "games", q: "Remakes", o: [["Yes, more", 44120], ["Make something new", 41380]] },
+  { id: "g15", cat: "games", q: "Skipping cutscenes", o: [["Never", 51240], ["Immediately", 34870]] },
+  { id: "g16", cat: "games", q: "Controller or keyboard?", o: [["Controller", 47210], ["Keyboard and mouse", 44380]] },
+  { id: "g17", cat: "games", q: "Open world size", o: [["Bigger", 24310], ["Smaller and denser", 68240]] },
+  { id: "g18", cat: "games", q: "Early access", o: [["Support it", 27410], ["Wait for 1.0", 58370]] },
+  { id: "g19", cat: "games", q: "Multiplayer with strangers", o: [["Fine", 31240], ["Friends only", 58470]] },
+  { id: "g20", cat: "games", q: "Buying a game at full price", o: [["Day one", 34210], ["Wait for the sale", 61470]] },
+  { id: "g21", cat: "games", q: "Mods", o: [["Half the reason to play", 51230], ["Vanilla", 34870]] },
+  { id: "g22", cat: "games", q: "Games as a hobby vs a habit", o: [["Hobby", 58240], ["Honestly a habit", 34310]] },
+  { id: "g23", cat: "games", q: "Turn-based combat", o: [["Underrated", 51240], ["Too slow", 34870]] },
+  { id: "g24", cat: "games", q: "Achievement hunting", o: [["100% or nothing", 27410], ["Never look at them", 51240]] },
+  { id: "g25", cat: "games", q: "Best way to play a horror game", o: [["Lights off, headphones", 61230], ["Broad daylight, volume low", 24870]] },
+  { id: "g26", cat: "games", q: "Tutorials", o: [["Teach me properly", 51240], ["Let me figure it out", 38470]] },
+
+  /* ── Culture ── */
+  { id: "c11", cat: "culture", q: "Subtitles on", o: [["Always", 71240], ["Only if I need them", 24380]] },
+  { id: "c12", cat: "culture", q: "Talking in the cinema", o: [["A whisper is fine", 14310], ["Silence", 78420]] },
+  { id: "c13", cat: "culture", q: "Book before the film?", o: [["Book first", 51230], ["Doesn't matter", 41870]] },
+  { id: "c14", cat: "culture", q: "Binge or weekly episodes?", o: [["All at once", 47210], ["Weekly, let it breathe", 44380]] },
+  { id: "c15", cat: "culture", q: "Rewatching things you love", o: [["Constantly", 68240], ["Too much new stuff", 24310]] },
+  { id: "c16", cat: "culture", q: "Do you finish a bad book?", o: [["Push through", 27410], ["Put it down", 61240]] },
+  { id: "c17", cat: "culture", q: "Museums", o: [["Take all day", 44230], ["Ninety minutes, max", 41180]] },
+  { id: "c18", cat: "culture", q: "Reviews before watching", o: [["Read them", 31240], ["Go in blind", 58470]] },
+  { id: "c19", cat: "culture", q: "Sequels", o: [["Usually worse", 61230], ["Often better", 24870]] },
+  { id: "c20", cat: "culture", q: "Theatre or the couch?", o: [["Big screen", 44120], ["My own sofa", 47380]] },
+  { id: "c21", cat: "culture", q: "Spoilers a year later", o: [["Statute of limitations", 51240], ["Still rude", 38470]] },
+  { id: "c22", cat: "culture", q: "Audiobooks count as reading", o: [["Yes", 58210], ["No", 34470]] },
+  { id: "c23", cat: "culture", q: "Awards shows", o: [["Fun", 21340], ["Meaningless", 58470]] },
+  { id: "c24", cat: "culture", q: "Three hour films", o: [["If it earns it", 51230], ["Nothing needs three hours", 38870]] },
+  { id: "c25", cat: "culture", q: "The book was better", o: [["Almost always", 61240], ["Overrated as a take", 27380]] },
+  { id: "c26", cat: "culture", q: "Physical media in 2026", o: [["Own your things", 54210], ["Streaming is fine", 34470]] },
+
+  /* ── Weird ── */
+  { id: "w11", cat: "weird", q: "Would you read the last page first?", o: [["Sometimes", 21340], ["Monstrous", 61470]] },
+  { id: "w12", cat: "weird", q: "Same meal every day for a year for $50k", o: [["Easy money", 58210], ["Not a chance", 34470]] },
+  { id: "w13", cat: "weird", q: "Fight one horse-sized duck or a hundred duck-sized horses?", o: [["The duck", 41230], ["The horses", 44870]] },
+  { id: "w14", cat: "weird", q: "Would you want to be famous?", o: [["Yes", 24310], ["Absolutely not", 68240]] },
+  { id: "w15", cat: "weird", q: "Talking to yourself out loud", o: [["Constantly", 61240], ["Never", 24380]] },
+  { id: "w16", cat: "weird", q: "A button that pays $1m but a stranger loses their job", o: [["No", 58470], ["Yes", 31240]] },
+  { id: "w17", cat: "weird", q: "Do ghosts exist?", o: [["Something's out there", 41230], ["No", 51870]] },
+  { id: "w18", cat: "weird", q: "Living to 150 in good health", o: [["Sign me up", 51240], ["Too long", 38470]] },
+  { id: "w19", cat: "weird", q: "Reading minds or being invisible?", o: [["Minds", 34210], ["Invisible", 51470]] },
+  { id: "w20", cat: "weird", q: "Would you go to Mars, one way?", o: [["Yes", 18320], ["No", 71240]] },
+  { id: "w21", cat: "weird", q: "Cereal is soup", o: [["Yes", 24310], ["No", 68470]] },
+  { id: "w22", cat: "weird", q: "Do you believe in luck?", o: [["Yes", 44230], ["It's just variance", 47180]] },
+  { id: "w23", cat: "weird", q: "Sleep two hours a night with no downside", o: [["Take it", 61240], ["I like sleeping", 28470]] },
+  { id: "w24", cat: "weird", q: "Would you watch a recording of your whole life?", o: [["Yes", 38210], ["Terrifying", 51470]] },
+  { id: "w25", cat: "weird", q: "Is a straw one hole or two?", o: [["One", 51240], ["Two", 38470]] },
+  { id: "w26", cat: "weird", q: "Knowing exactly when you'd die", o: [["Tell me", 27410], ["Never", 64240]] },
+
+  /* ── Hot takes ── */
+  { id: "h8", cat: "takes", q: "Standing ovations", o: [["Earned", 24310], ["Automatic and meaningless", 58470]] },
+  { id: "h9", cat: "takes", q: "Voice notes", o: [["Efficient", 31240], ["Just type it", 61470]] },
+  { id: "h10", cat: "takes", q: "Open plan offices", o: [["Collaborative", 11240], ["A mistake", 74310]] },
+  { id: "h11", cat: "takes", q: "Meetings that could be an email", o: [["Some need a room", 27410], ["Nearly all of them", 68240]] },
+  { id: "h12", cat: "takes", q: "Aisle or window?", o: [["Window", 51230], ["Aisle", 44870]] },
+  { id: "h13", cat: "takes", q: "Clapping when the plane lands", o: [["Charming", 21340], ["Please don't", 64470]] },
+  { id: "h14", cat: "takes", q: "Adults with no hobbies", o: [["Fine", 24310], ["A warning sign", 51240]] },
+  { id: "h15", cat: "takes", q: "Sending a follow-up text before a reply", o: [["Normal", 27410], ["Let them breathe", 58470]] },
+  { id: "h16", cat: "takes", q: "Being on time means", o: [["Five minutes early", 68240], ["On the hour exactly", 24310]] },
+  { id: "h17", cat: "takes", q: "Small dogs", o: [["Real dogs", 54210], ["Not really", 31470]] },
+  { id: "h18", cat: "takes", q: "Reading the room is a skill you can learn", o: [["Yes", 61230], ["You have it or you don't", 27870]] },
+  { id: "h19", cat: "takes", q: "Punctuality in a group of six", o: [["Everyone waits", 34210], ["Order without them", 51470]] },
+  { id: "h20", cat: "takes", q: "Sharing a bill for a meal you didn't drink at", o: [["Split anyway", 27410], ["Pay your share only", 61240]] },
+  { id: "h21", cat: "takes", q: "Unsolicited advice", o: [["Usually helpful", 14320], ["Almost never wanted", 71240]] },
+  { id: "h22", cat: "takes", q: "Escalator etiquette", o: [["Stand right, walk left", 81240], ["Stand wherever", 9310]] },
+  { id: "h23", cat: "takes", q: "Answering a phone on speaker in public", o: [["Fine", 8420], ["Never", 84310]] },
+  { id: "h24", cat: "takes", q: "Saving a seat for someone not there yet", o: [["Reasonable", 34210], ["First come, first served", 51470]] },
+  { id: "h25", cat: "takes", q: "Overhead bin space", o: [["Above your own row or nothing", 71240], ["Anywhere it fits", 18310]] },
+  { id: "h26", cat: "takes", q: "The customer is always right", o: [["There's truth in it", 14320], ["Has ruined service jobs", 74210]] },
+  { id: "h27", cat: "takes", q: "Birthdays after thirty", o: [["Still celebrate properly", 51240], ["Quiet dinner, that's it", 44870]] },
 ];
 
 const HANDLES = ["@mothlight", "@dial_tone", "@quietstorm", "@paperclip", "@nine_volt", "@saltflat"];
@@ -575,7 +876,7 @@ const Flat = ({ C, onClick, label }) => (
    `allowCategories` is false on the profile, where filtering the feed you are
    not looking at is a control with nothing to act on — there it opens straight
    to Look and feel with no toggle at all. */
-function SettingsSheet({ C, themeId, setThemeId, cats, setCats, counts, onClose, allowCategories }) {
+function SettingsSheet({ C, themeId, setThemeId, cats, setCats, counts, sort, setSort, onClose, allowCategories }) {
   const [pane, setPane] = useState(allowCategories ? "cats" : "look");
   const showing = allowCategories ? pane : "look";
   const isCats = showing === "cats";
@@ -611,7 +912,8 @@ function SettingsSheet({ C, themeId, setThemeId, cats, setCats, counts, onClose,
       footer={<Flat C={C} onClick={onClose} label="Done" />}>
 
       {isCats ? (
-        <div className="grid grid-cols-2 gap-2 pb-3">
+        <>
+        <div className="grid grid-cols-2 gap-2">
           {["all", ...CAT_ORDER].map((k) => {
             const on = k === "all" ? cats.size === 0 : cats.has(k);
             return (
@@ -627,6 +929,27 @@ function SettingsSheet({ C, themeId, setThemeId, cats, setCats, counts, onClose,
             );
           })}
         </div>
+
+        {/* Order, under the categories in the same window. A separate control
+            because it answers a different question: categories are WHAT you
+            see, this is the order you see it in. */}
+        <div className="mt-5 pb-3">
+          <p className="mb-2" style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: ".14em", color: C.muted }}>ORDER</p>
+          <div className="grid grid-cols-3 gap-2">
+            {SORTS.map(([k, label]) => {
+              const on = sort === k;
+              return (
+                <button key={k} onClick={() => setSort(k)} aria-pressed={on}
+                  className="py-2.5 rounded-2xl border"
+                  style={{ background: on ? C.ink : "transparent", borderColor: on ? "transparent" : C.edge,
+                           color: on ? C.sheet : C.ink, fontFamily: "var(--disp)", fontWeight: 700, fontSize: 13 }}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        </>
       ) : (
         <div className="space-y-2 pb-3">
           {Object.entries(THEMES).map(([id, t]) => {
@@ -871,7 +1194,9 @@ function Compose({ C, T, onClose, onPost }) {
 
 /* ═══════════════ APP ═══════════════ */
 export default function Splitmob() {
-  const [themeId, setThemeId] = useState("sky");
+  /* Slate is the default: it is the one theme that stays out of the way,
+     which is the right first impression for a feed of other people's words. */
+  const [themeId, setThemeId] = useState("slate");
   const [votes, setVotes] = useState({});
   const [changed, setChanged] = useState({});
   const [flags, setFlags] = useState({});
@@ -880,6 +1205,7 @@ export default function Splitmob() {
      "no filter" and "all categories selected" from being two states that have
      to be kept in sync, and means the feed can never end up empty. */
   const [cats, setCats] = useState(() => new Set());
+  const [sort, setSort] = useState("mix");
   const [idx, setIdx] = useState(0);
   const [mine, setMine] = useState([]);
   const [sheet, setSheet] = useState(null);
@@ -918,7 +1244,32 @@ export default function Splitmob() {
     return a;
   }, []);
   const all = useMemo(() => [...mine, ...deck], [mine, deck]);
-  const list = useMemo(() => (cats.size === 0 ? all : all.filter((p) => cats.has(p.cat))), [all, cats]);
+  /* Filter, then order. Sorting is a separate pass rather than part of the
+     filter so the two controls stay independent — changing categories must not
+     silently reset the order and the other way round.
+
+     "top" is real data: the vote counts are right there. "new" is not, and the
+     comment matters more than the code — nothing in the seeded deck carries a
+     timestamp, so newest falls back to DEFINITION ORDER REVERSED, last written
+     is newest. Polls you create yourself have a real Date.now() id and always
+     sort ahead of the deck, which is the part a reader will actually check.
+     When Firestore lands (Task 3) this becomes a createdAt field and the
+     fallback goes away. */
+  const list = useMemo(() => {
+    const filtered = cats.size === 0 ? all : all.filter((p) => cats.has(p.cat));
+    if (sort === "mix") return filtered;
+    const rows = [...filtered];
+    if (sort === "top") {
+      return rows.sort((a, b) => votesOf(b) - votesOf(a));
+    }
+    const rank = new Map(POLLS.map((p, i) => [p.id, i]));
+    return rows.sort((a, b) => {
+      const am = !rank.has(a.id), bm = !rank.has(b.id);   // yours are the newest
+      if (am !== bm) return am ? -1 : 1;
+      if (am && bm) return Number(b.id.slice(1)) - Number(a.id.slice(1));
+      return rank.get(b.id) - rank.get(a.id);
+    });
+  }, [all, cats, sort]);
   const counts = useMemo(() => { const c = { all: all.length }; CAT_ORDER.forEach((k) => (c[k] = all.filter((p) => p.cat === k).length)); return c; }, [all]);
   /* The header is one line and must never wrap — it is what the thumb rule
      measures the top row against. Two names fit; past that, count them. */
@@ -940,7 +1291,9 @@ export default function Splitmob() {
   }, []);
 
   const scrollTo = useCallback((i) => { const el = feed.current; if (el) el.scrollTo({ top: i * el.clientHeight, behavior: reduce ? "auto" : "smooth" }); }, [reduce]);
-  useEffect(() => { feed.current?.scrollTo({ top: 0 }); setIdx(0); }, [cats]);
+  // Reordering is as much a change of feed as refiltering is, so both send
+  // you back to the top rather than leaving you mid-list in a new order.
+  useEffect(() => { feed.current?.scrollTo({ top: 0 }); setIdx(0); }, [cats, sort]);
 
   const castVote = useCallback((p, n) => {
     setVotes((v) => ({ ...v, [p.id]: n }));
@@ -1138,8 +1491,8 @@ export default function Splitmob() {
         )}
 
         {sheet === "settings" && <SettingsSheet C={C} themeId={themeId} setThemeId={setThemeId}
-          cats={cats} setCats={setCats} counts={counts} allowCategories={page !== "me"}
-          onClose={() => setSheet(null)} />}
+          cats={cats} setCats={setCats} counts={counts} sort={sort} setSort={setSort}
+          allowCategories={page !== "me"} onClose={() => setSheet(null)} />}
         {sheet === "actions" && <ActionsSheet C={C}
           onShare={() => setSheet("share")}
           onFlag={() => setSheet("flag")}
