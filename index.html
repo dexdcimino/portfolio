@@ -672,9 +672,16 @@
                   <h3 class="wp-title" id="wpTitle"></h3>
                   <p class="wp-dims" id="wpDims"></p>
                 </div>
-                <a class="wp-dl" id="wpDownload" href="#" download aria-label="Download this wallpaper" title="Download original">
+                <!-- A BUTTON, not a link, and that is the whole reason: an
+                     <a href> makes the browser print the full asset URL in its
+                     status bubble at the bottom-left of the window on every
+                     hover, and that bubble is browser chrome no page can style
+                     or suppress. The file is fetched and saved in script.js
+                     instead. -->
+                <button class="wp-dl" id="wpDownload" type="button"
+                        aria-label="Download wallpaper" data-tip="Download Wallpaper">
                   <span class="icon" data-icon="download" aria-hidden="true"></span>
-                </a>
+                </button>
               </div>
               <button class="wp-arrow wp-next" type="button" aria-label="Next wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
             </div>
@@ -1821,9 +1828,10 @@
             <h3 class="wp-title" id="wpFullTitle"></h3>
             <p class="wp-dims" id="wpFullDims"></p>
           </div>
-          <a class="wp-dl wp-dl-lg" id="wpFullDl" href="#" download aria-label="Download this wallpaper" title="Download original">
+          <button class="wp-dl wp-dl-lg" id="wpFullDl" type="button"
+                  aria-label="Download wallpaper" data-tip="Download Wallpaper">
             <span class="icon" data-icon="download" aria-hidden="true"></span>
-          </a>
+          </button>
         </div>
         <button class="wp-arrow wp-fullnext" type="button" aria-label="Next wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
       </div>

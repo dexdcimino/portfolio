@@ -1613,6 +1613,71 @@ const tkSelect = initTabs(document.querySelector('.tk-tabs'), (next, tab) => {
 })();
 initTabs(document.querySelector('.ai-tabs'));
 
+/* --- tooltip -------------------------------------------------------------- */
+/* One tooltip element for the whole page, moved and relabelled on hover.
+
+   The native `title` bubble cannot be styled at all — not the font, not the
+   radius, not the delay — so anything that wants a tooltip carries data-tip
+   instead. Any `title` left on a link or button is converted on load rather
+   than hunted down by hand: that also removes the attribute, which is what
+   stops the OS bubble appearing UNDER this one. `title` elsewhere (an iframe's
+   accessible name, an SVG <title>) is left alone, because there it is not a
+   tooltip at all.
+
+   Follows focus as well as the pointer, so keyboard users get the same label. */
+(function initTooltip() {
+  document.querySelectorAll('a[title], button[title]').forEach(el => {
+    el.dataset.tip = el.getAttribute('title');
+    el.removeAttribute('title');
+  });
+
+  const tip = document.createElement('div');
+  tip.id = 'tip';
+  tip.setAttribute('role', 'presentation');
+  document.body.appendChild(tip);
+
+  let current = null;
+  const GAP = 10;
+
+  function place(el) {
+    const r = el.getBoundingClientRect();
+    const t = tip.getBoundingClientRect();
+    // Above by default; below when there is no room, so it never leaves the
+    // viewport at the top of the page.
+    let top = r.top - t.height - GAP;
+    if (top < 6) top = r.bottom + GAP;
+    let left = r.left + r.width / 2 - t.width / 2;
+    left = Math.max(6, Math.min(left, window.innerWidth - t.width - 6));
+    tip.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+  }
+
+  function show(el) {
+    const text = el.dataset.tip;
+    if (!text) return;
+    current = el;
+    tip.textContent = text;
+    tip.classList.add('is-on');
+    // Measure after the text lands, or the first show is positioned off the
+    // previous label's width.
+    place(el);
+  }
+  function hide() {
+    current = null;
+    tip.classList.remove('is-on');
+    tip.style.transform = 'translateY(3px)';
+  }
+
+  const target = (e) => e.target.closest?.('[data-tip]');
+  document.addEventListener('pointerover', (e) => { const el = target(e); if (el && el !== current) show(el); });
+  document.addEventListener('pointerout', (e) => { if (target(e) === current && current) hide(); });
+  document.addEventListener('focusin', (e) => { const el = target(e); if (el) show(el); });
+  document.addEventListener('focusout', hide);
+  // A tooltip that outlives what it labels is the classic stuck-tooltip bug.
+  document.addEventListener('click', (e) => { if (target(e)) hide(); });
+  window.addEventListener('scroll', () => { if (current) place(current); }, { passive: true });
+  window.addEventListener('resize', hide);
+})();
+
 /* --- AI wallpapers -------------------------------------------------------- */
 /* One carousel, driven entirely off the .wp-item figures in the markup.
    Nothing here knows how many wallpapers there are or what they are called:
@@ -1707,9 +1772,10 @@ initTabs(document.querySelector('.ai-tabs'));
     view.host.insertBefore(pic, view.host.firstChild);
     view.title.textContent = item.dataset.title;
     view.dims.textContent = dimsOf(item);
-    view.dl.href = item.dataset.file;
-    view.dl.setAttribute('download', fileName(item));
-    view.dl.setAttribute('title', `Download original · ${dimsOf(item)}`);
+    // The button carries what to fetch and what to call it; no href, so the
+    // browser never shows its status bubble for this control.
+    view.dl.dataset.file = item.dataset.file;
+    view.dl.dataset.name = fileName(item);
     view.thumbs.forEach((b, n) => b.setAttribute('aria-selected', String(n === index)));
   }
 
@@ -1722,6 +1788,34 @@ initTabs(document.querySelector('.ai-tabs'));
   function openFull() {
     openModal(modal, full, null, views[0].thumbs[index]);
   }
+
+  /* Save without an href. Fetch the master, hand the blob to a throwaway <a>,
+     revoke it. Same file the link served; the only thing lost is right-click
+     "save link as", which is a second route to the thing this button already
+     does. */
+  async function saveWallpaper(btn) {
+    const url = btn.dataset.file, name = btn.dataset.name;
+    if (!url) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status);
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = href; a.download = name || 'wallpaper.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      // Revoked on the next tick: revoking synchronously can beat the download.
+      setTimeout(() => URL.revokeObjectURL(href), 4000);
+    } catch {
+      // Nothing clever to do, but say so rather than looking like a dead button.
+      btn.dataset.tip = 'Download failed — try again';
+      setTimeout(() => { btn.dataset.tip = 'Download Wallpaper'; }, 2600);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  views.forEach(v => v.dl.addEventListener('click', () => saveWallpaper(v.dl)));
 
   // Both stages drive the same index, so the panel and the overlay walk
   // together and neither needs to know the other exists.
