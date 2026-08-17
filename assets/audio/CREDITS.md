@@ -29,6 +29,11 @@ excluded here to keep the rule simple.
 | `games/arena1/assets/audio/grapple.ogg` | Arena 1 | Grapple throw | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
 | `games/arena1/assets/audio/crack.ogg` | Arena 1 | Platform crack | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
 | `games/arena1/assets/audio/jet.ogg` | Arena 1 | Jetpack loop (5.00s, looped) | https://kenney.nl/assets/sci-fi-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/jump.ogg` | Arena 1 | Jump push-off (0.11s) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/dash.ogg` | Arena 1 | Dash (0.18s) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/slide.ogg` | Arena 1 | Slide (0.69s) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
+| `games/arena1/assets/audio/music.ogg` | Arena 1 | Background music (38.5s seamless loop) | https://opengameart.org/content/analog-beats-looped | Analog Beats | CC0 |
+| `games/chomp/assets/audio/music.ogg` | Chomp | Background music (54.9s loop) — PLACEHOLDER, not yet wired | https://opengameart.org/content/dark-place-loop | Dark Place | CC0 |
 
 All nine come from one pack — Kenney "Sci-Fi Sounds" v1.0, CC0, licence text
 bundled in the download and quoted here: *"This content is free to use in
@@ -54,16 +59,28 @@ Renamed on the way in, so the mapping back to the pack is recorded:
 | `grapple.ogg` | `Audio/laserRetro_003.ogg` |
 | `crack.ogg` | `Audio/impactMetal_004.ogg` |
 | `jet.ogg` | `Audio/thrusterFire_000.ogg` |
+| `jump.ogg` | `footstep_concrete_000.ogg` (impact-sounds pack) |
+| `dash.ogg` | `impactSoft_medium_001.ogg` (impact-sounds pack) |
+| `slide.ogg` | `footstep_grass_002.ogg` (impact-sounds pack) |
 
 **Not yet sourced:** background music for either game (MD 26 item 3), and every
 Chomp sound — Chomp has no audio engine yet, so there is nothing to play them
 through.
 
-Arena 1 sounds still running their synthesized version, because this pack has
-no honest match for them: **jump**, **dash** and **slide**. The engine families
-that looked right (`spaceEngineSmall`, `spaceEngineLow`) are all exactly 5.00s
-loops — a five-second space engine on a dash would undo the deliberate 0.16s
-tuning that sound was given. They want a foley/impact pack, not a sci-fi one.
+Jump, dash and slide come from Kenney's **impact-sounds** pack rather than
+sci-fi, because the sci-fi engine families that looked right
+(`spaceEngineSmall`, `spaceEngineLow`) are all exactly 5.00s loops — a
+five-second space engine on a dash would have undone the deliberate 0.16s
+tuning that sound was given. Every duration in this table was measured from the
+Ogg granule position before the file was committed, for the same reason.
+
+Every Arena 1 sound now has a sample. The synthesized versions all remain in
+`js/systems/audio.js` as the fallback path: if a file 404s, `play()` returns
+false and the original tone runs, so a missing asset is a downgrade rather than
+silence.
+
+**Chomp** has music staged but nothing wired — its audio engine is MD 27, owned
+by another session. No Chomp code was touched here.
 
 ## Checklist for adding a sound
 

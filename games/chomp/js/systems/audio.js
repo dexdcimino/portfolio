@@ -1,14 +1,30 @@
-// systems/audio.js — sfx/music from assets/audio/ (ART_BIBLE slots),
-// silent-skip if a file is missing.
+// systems/audio.js — Chomp's audio engine (MD 27).
 //
-// Master volume API (site pause-menu contract): one master level + an
-// independent mute flag, both persisted under chomp-* localStorage keys and
-// restored on boot. Unmuting restores the previous level — it never resets.
-// (Deliberately NOT a multi-bus mixer; per-bus split is a separate job.)
+// Bus graph, matching Arena 1 exactly so the two games behave identically and
+// one mixer setting means the same thing in both:
+//
+//     music ─┐
+//            ├─→ master ─→ compressor ─→ destination
+//     fx ────┘
+//
+// The graph itself comes from games/_shared/audio-panel.js `createBusGraph`
+// rather than being rebuilt here — that module is the standard, and a second
+// hand-rolled compressor is how "why is Chomp quieter than Arena 1" starts.
+//
+// Levels are NOT owned here. The pause menu writes them through setAudioLevels
+// below (persisted under `chomp-audio` by the shared panel), and they are held
+// until a graph exists — see attachBusGraph. There is one settings path.
 
-const VOLUME_KEY = 'chomp-volume';
-const MUTED_KEY = 'chomp-muted';
+import { createSamplePlayer } from '../../../_shared/sample-player.js';
+import { createBusGraph } from '../../../_shared/audio-panel.js';
+import { on } from '../core/events.js';
 
+/* The pre-MD-26 single-level API (setVolume/getVolume/setMuted/isMuted/
+   effectiveVolume) is gone. It had no callers left once the pause menu moved to
+   the shared panel, and keeping a second thing that can write the output level
+   is how a slider ends up "sometimes doing nothing". Its two keys survive below
+   for one purpose only: reading an existing player's old level once, so the
+   upgrade does not silently change how loud the game is. */
 function readStore(key, fallback) {
   try {
     const v = localStorage.getItem(key);
@@ -18,52 +34,12 @@ function readStore(key, fallback) {
   }
 }
 
-function writeStore(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* storage unavailable — volume just won't persist */
-  }
-}
-
-let volume = Math.min(1, Math.max(0, parseFloat(readStore(VOLUME_KEY, '1')) || 0));
-let muted = readStore(MUTED_KEY, '0') === '1';
-
-export function setVolume(v) {
-  volume = Math.min(1, Math.max(0, Number(v) || 0));
-  writeStore(VOLUME_KEY, String(volume));
-}
-
-export function getVolume() {
-  return volume;
-}
-
-export function setMuted(on) {
-  muted = !!on;
-  writeStore(MUTED_KEY, muted ? '1' : '0');
-}
-
-export function isMuted() {
-  return muted;
-}
-
-// What playback code should actually apply to sounds.
-export function effectiveVolume() {
-  return muted ? 0 : volume;
-}
-
-// TODO(MD-06): load slots, subscribe to events, expose toggle().
-export function createAudio() {
-  // TODO(MD-06)
-}
-
 /* ── MD 26: shared mixer levels ────────────────────────────────────────────
-   The pause menu now drives master/music/fx through games/_shared/audio-panel.js.
-   Chomp has no audio graph yet (createAudio is a TODO stub above), so the
-   levels are held here and handed over the moment one exists — whoever builds
-   it reads currentAudioLevels() rather than inventing a second settings path.
-   The legacy single-level key is migrated once so an existing player's volume
-   is not discarded by the upgrade. */
+   The pause menu drives master/music/fx through games/_shared/audio-panel.js.
+   Levels can arrive before the audio graph exists — the panel is built at page
+   load, the graph waits for a user gesture — so they are held here and applied
+   the moment attachBusGraph runs. The legacy single-level key is migrated once
+   so an existing player's volume is not discarded by the upgrade. */
 const LEGACY_VOLUME_KEY = 'chomp-volume';
 const LEGACY_MUTED_KEY = 'chomp-muted';
 let levels = { master: 0.35, music: 0.30, fx: 0.40 };
@@ -84,4 +60,103 @@ export function legacyAudioLevel() {
   const v = parseFloat(readStore(LEGACY_VOLUME_KEY, ''));
   if (!Number.isFinite(v)) return null;
   return readStore(LEGACY_MUTED_KEY, '0') === '1' ? 0 : Math.min(1, Math.max(0, v));
+}
+
+/* ── Samples ───────────────────────────────────────────────────────────────
+   MD 27 asked for seven sounds. Five are wired, because five are all this game
+   emits anything for — see assets/audio/CREDITS.md and the MD 27 report for
+   the three that have no emitter (spawn, level start, level fail).
+
+   `gain` is not a taste value. Each file was decoded and measured (loudest
+   300ms window RMS), normalised toward a common reference, then given a
+   deliberate mix offset: chomp fires on every input and sits low, death
+   happens once a run and sits proud. Doing it here rather than re-encoding
+   keeps the shipped files byte-identical to the CC0 pack, which is what makes
+   the CREDITS rename map verifiable.
+
+   `cap` is per sound and follows how fast the thing can fire: chomp is
+   spammable, death happens once. */
+let samples = null;
+const SAMPLES = {
+  chomp:    ['chomp.ogg',     { cap: 5, gain: 0.46 }],
+  eat:      ['eat.ogg',       { cap: 4, gain: 0.68 }],
+  evolve:   ['evolve.ogg',    { cap: 2, gain: 1.13 }],
+  death:    ['death.ogg',     { cap: 1, gain: 1.31 }],
+  uiSelect: ['ui-select.ogg', { cap: 3, gain: 0.73 }],
+};
+
+/* Arena 1 falls back to a synthesized tone when a sample is missing. Chomp has
+   no synth — missing means SILENT — so the miss is logged instead, once per
+   key. A sound that quietly stopped existing is far harder to notice than one
+   that says so, and "the game went quiet after we renamed a file" is exactly
+   the bug this prevents. */
+const warned = new Set();
+function play(name, opts) {
+  if (samples && samples.play(name, opts)) return true;
+  if (!warned.has(name)) {
+    warned.add(name);
+    console.warn(`[chomp audio] "${name}" did not play — no sample loaded. `
+      + `Chomp has no synthesized fallback, so this event is silent. `
+      + `Expected assets/audio/${SAMPLES[name]?.[0] ?? '?'}`);
+  }
+  return false;
+}
+
+let ctx = null;
+let started = false;
+
+/* Autoplay policy: a context created before a user gesture is born suspended,
+   and every sound played into it is lost rather than queued. So the graph is
+   built on the FIRST gesture and not at boot. Chomp starts playing immediately
+   (main.js boots straight into the cave with no splash), which means the first
+   few frames of a run genuinely have no audio available — see the MD 27 report
+   on why "level start" cannot be wired here. */
+function start() {
+  if (started) return;
+  started = true;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const graph = createBusGraph(ctx);
+  // Hands the graph the levels the pause menu already stored — this is the
+  // single settings path, not a second one.
+  attachBusGraph(graph);
+  // music bus is built and deliberately left empty: the track is picked from
+  // the shared review with Arena 1 (MD 27 item 4). A bus that arrives with the
+  // music is a bus nobody remembers to add.
+  samples = createSamplePlayer({ ctx, destination: graph.fx, basePath: 'assets/audio/' });
+  for (const [name, [file, opts]] of Object.entries(SAMPLES)) samples.load(name, file, opts);
+  if (ctx.state === 'suspended') ctx.resume();
+}
+
+/* The music bus, for whoever lands the track. Null until the first gesture. */
+export function musicDestination() { return busGraph ? busGraph.music : null; }
+
+/* UI sounds are not on the event bus — the pause menu is plain DOM — so this is
+   exported for it to call directly. */
+export function playUiSelect() { play('uiSelect'); }
+
+let wired = false;
+export function createAudio() {
+  if (wired) return;
+  wired = true;
+
+  // Any of these is a real user gesture, and any of them can be the first one:
+  // Chomp is playable with the mouse or the keyboard alone.
+  const kick = () => start();
+  for (const ev of ['pointerdown', 'keydown', 'touchstart']) {
+    window.addEventListener(ev, kick, { once: false, passive: true });
+  }
+
+  /* Only events Chomp actually emits (audited for MD 27):
+       player:chomp   — the maw snaps shut, on every input
+       player:eat     — something was actually swallowed
+       player:evolve  — stage up
+       player:death   — run over
+     player:devolve, player:damage and player:bonk also exist and have no sound
+     in the MD 27 list; they are left alone rather than guessed at. */
+  on('player:chomp', () => play('chomp'));
+  on('player:eat', () => play('eat'));
+  on('player:evolve', () => play('evolve'));
+  on('player:death', () => play('death'));
+
+  return { play, playUiSelect, musicDestination };
 }

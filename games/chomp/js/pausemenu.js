@@ -13,7 +13,7 @@
    game drop re-applies by copying this file and adding one script tag
    (see INTEGRATION-NOTES.md). */
 
-import { setAudioLevels, legacyAudioLevel } from './systems/audio.js';
+import { setAudioLevels, legacyAudioLevel, playUiSelect } from './systems/audio.js';
 /* MD 26 item 1 — the shared Clayweld mixer, same module Arena 1 uses. */
 import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
 

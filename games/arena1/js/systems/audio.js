@@ -58,6 +58,28 @@ export function setAudioLevels(levels) {
 }
 export function musicDestination() { return musicBus; }
 
+/* MD 26 item 3. One looping source on the music bus, started once the context
+   exists and left alone — the panel's Music channel is the only volume control
+   it needs, so there is no second fader here to disagree with. Deliberately
+   quiet at source as well: the MD asks for music UNDER the FX, and a track
+   that only sits back because the default slider says so is one bad drag away
+   from drowning the game.
+   `loop = true` on the BufferSource is a sample-accurate loop with no gap —
+   the reason this is a decoded buffer and not an <audio> element. */
+let musicNode = null;
+function startMusic() {
+  if (musicNode || !samples) return;
+  const buf = samples.buffer('music');
+  if (!buf) return;                 // no track shipped: silence, not an error
+  musicNode = ctx.createBufferSource();
+  musicNode.buffer = buf;
+  musicNode.loop = true;
+  const g = ctx.createGain();
+  g.gain.value = 0.45;
+  musicNode.connect(g); g.connect(musicBus);
+  musicNode.start();
+}
+
 /* MD 26 item 2 — CC0 samples in front of the synthesized sounds.
    Every entry here corresponds to an event the game ACTUALLY emits: the MD's
    six guns, sniper scope, reaver mortar, reload and wave sounds were dropped
@@ -82,13 +104,23 @@ const SAMPLES = {
   pad:            ['pad.ogg',            { cap: 2, gain: 0.6 }],
   grapple:        ['grapple.ogg',        { cap: 3, gain: 0.45 }],
   crack:          ['crack.ogg',          { cap: 4, gain: 0.6 }],
-  // Held loop, driven by jetStart below rather than by play().
+  jump:           ['jump.ogg',          { cap: 3, gain: 0.5 }],
+  dash:           ['dash.ogg',           { cap: 3, gain: 0.5 }],
+  slide:          ['slide.ogg',          { cap: 2, gain: 0.45 }],
+  // Held loops, driven below rather than by play().
   jet:            ['jet.ogg',            { cap: 1, gain: 1 }],
+  music:          ['music.ogg',          { cap: 1, gain: 1 }],
 };
 function initSamples() {
   if (samples) return;
   samples = createSamplePlayer({ ctx, destination: fxBus, basePath: 'assets/audio/' });
-  for (const [name, [file, opts]] of Object.entries(SAMPLES)) samples.load(name, file, opts);
+  for (const [name, [file, opts]] of Object.entries(SAMPLES)) {
+    const p = samples.load(name, file, opts);
+    // Music has to start when its buffer lands, not when the context opens —
+    // load() is async, so calling startMusic() straight after this loop would
+    // always find nothing decoded yet and silently never play.
+    if (name === 'music') p.then((okLoad) => { if (okLoad) startMusic(); });
+  }
 }
 // `s(name)` -> true if a sample played. Callers read: s('zap') || synth().
 const s = (name, opts) => !!samples && samples.play(name, opts);
@@ -189,7 +221,7 @@ function jetStop() {
 export const AudioFX = {
   ensure, jetStart, jetStop,
   fire: () => { if (s('zap')) return; tone(760, 140, 0.09, 'square', 0.09); noise(0.05, 0.05, 2000); },
-  jump: () => tone(300, 520, 0.12, 'triangle', 0.10),
+  jump: () => { if (s('jump')) return; tone(300, 520, 0.12, 'triangle', 0.10); },
   wall: () => { if (s('wall')) return; tone(200, 640, 0.14, 'sawtooth', 0.09); noise(0.06, 0.04, 1200); },
   /* MD 25 item 6 — sprint/dash. Was whoosh(0.5, 950, 200, 0.13): half a
      second of bandpassed noise sweeping down from 950Hz at the loudest volume
@@ -201,8 +233,8 @@ export const AudioFX = {
      260Hz -> 90Hz is a body-level "shove" rather than a hiss, 0.16s is under
      the threshold where a repeated sound starts to feel like a rhythm, and
      0.045 puts it below the weapons instead of over them. */
-  dash: () => whoosh(0.16, 260, 90, 0.045, 0.018),
-  slide: () => whoosh(0.35, 500, 160, 0.06),
+  dash: () => { if (s('dash')) return; whoosh(0.16, 260, 90, 0.045, 0.018); },
+  slide: () => { if (s('slide')) return; whoosh(0.35, 500, 160, 0.06); },
   pad: () => { if (s('pad')) return; tone(220, 880, 0.25, 'triangle', 0.12); },
   pop: () => { if (s('serpentPop')) return; tone(520, 90, 0.18, 'square', 0.12); noise(0.08, 0.08, 900); },
   /* MD 26: the double-pop tell. Deliberately UP where the normal pop goes

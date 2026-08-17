@@ -18,6 +18,7 @@ import { createMorph, updateMorph, morphOnBonk, morphOnGulp } from './systems/mo
 import { updateCombat } from './systems/combat.js';
 import { createCameraRig } from './systems/camera.js';
 import { createHud } from './systems/hud.js';
+import { createAudio } from './systems/audio.js';
 
 // ── URL params ──────────────────────────────────────────────────────────────
 const params = new URLSearchParams(location.search);
@@ -64,6 +65,10 @@ const rig = createCameraRig(scene);
 const foods = createFoodSystem(world, factory);
 const enemies = createEnemySystem(world, factory);
 const hud = createHud(document.getElementById('hud'));
+// Subscribes to the game events now; the AudioContext itself is not built
+// until the first user gesture, because one created before that is born
+// suspended and everything played into it is lost (MD 27).
+createAudio();
 let morphState = null; // last computed, for the debug readout
 
 // ── Post FX: the pro Babylon stack — GlowLayer for emissives + HDR
