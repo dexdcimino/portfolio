@@ -62,96 +62,102 @@ const mixList = (stops, t) => {
    always still gliding toward the next position when it is set. Shorten the
    tick without shortening the transition and the motion stutters again. */
 const DAY_MS = 600000;
+
+/* Vote changes allowed per day. Three is enough to fix a misfire and far too
+   few to shop your way toward the majority across a session. */
+const CHANGES_PER_DAY = 3;
 const DAY_TICK_MS = 1000;
 
-const THEMES = {
-  /* The default. Cool grey-navy, nearly monochrome, and the only theme whose
-     scene does not depict anything — two very large soft glows drifting on a
-     40-second cycle behind a fixed vignette. That restraint is the point: it is
-     the one theme that never competes with the cards, so the category colour on
-     screen is the only real hue in the frame.
-     Its blend is a desaturated navy at a high amount, which is what pulls every
-     category hex toward the same steel family instead of letting eleven
-     saturated dots sit on a grey ground. */
-  slate: {
-    name: "Slate", note: "cool grey-navy, quiet",
-    swatch: ["#1B2431", "#2C3A4E", "#0F131B", "#93A6C2"],
-    tokens: () => ({
-      page: "linear-gradient(180deg, #0F131B 0%, #171F2C 48%, #0B0F16 100%)",
-      ink: "#E9EDF5", light: false,
-      blend: "#2B3648", amt: .46, shade: "#0B0F16", glassBase: "#151D29",
-    }),
-  },
-  sky: {
-    name: "Sky", note: "sun and moon, real time of day", live: true,
-    swatch: ["#8FC7E8", "#F7C77E", "#2B3A6B", "#1A1730"],
-    tokens: (p) => {
-      // p = 0 midnight → .25 sunrise → .5 noon → .75 sunset → 1 midnight
-      const top = mixList(["#11132B", "#2B3560", "#7FB2E0", "#59A6DE", "#7FB2E0", "#E88A5C", "#2B2A55", "#11132B"], p);
-      const bot = mixList(["#1A1B38", "#6E5C86", "#D9E6F2", "#BEDCF0", "#D9E6F2", "#F7C77E", "#463A62", "#1A1B38"], p);
-      const day = clamp01((lum(bot) - .12) / .35);
-      const light = day > .5;
-      return {
-        page: `linear-gradient(180deg, ${top} 0%, ${bot} 78%)`,
-        ink: light ? INK : "#F4F2FB", light,
-        blend: light ? "#FFFFFF" : "#3A3560", amt: light ? .1 : .42,
-        shade: light ? "#FFFFFF" : "#171531",
-        glassBase: light ? "#FFFFFF" : "#171634",
-        scene: { top, bot, p, day },
-      };
-    },
-  },
-  rain: {
-    name: "Downpour", note: "slate blue, always raining",
-    swatch: ["#243743", "#38606C", "#141F26", "#9BC2C8"],
-    tokens: () => ({
-      page: "linear-gradient(180deg, #131D24 0%, #1F343D 55%, #101920 100%)",
-      ink: "#E6EFF2", light: false,
-      blend: "#2A4C57", amt: .5, shade: "#0F171C", glassBase: "#132029",
-    }),
-  },
-  deep: {
-    name: "Deep", note: "underwater, light from above",
-    swatch: ["#0B3346", "#12556B", "#04121A", "#7FD8D0"],
-    tokens: () => ({
-      page: "linear-gradient(180deg, #0E4A5E 0%, #082C3B 45%, #031017 100%)",
-      ink: "#DDF2F4", light: false,
-      blend: "#0C4051", amt: .5, shade: "#031017", glassBase: "#082735",
-    }),
-  },
-  ember: {
-    name: "Ember", note: "campfire dark, sparks rising",
-    swatch: ["#2A1410", "#F2833A", "#140A08", "#FFD9A0"],
-    tokens: () => ({
-      page: "linear-gradient(180deg, #100A0B 0%, #22120E 60%, #3A1D10 100%)",
-      ink: "#F8EDE3", light: false,
-      blend: "#4E2818", amt: .46, shade: "#140B09", glassBase: "#1C110E",
-    }),
-  },
-  paper: {
-    name: "Paper", note: "daylight, no motion",
-    swatch: ["#FBFAF7", "#E8E3D9", "#FFFFFF", "#26232C"],
-    tokens: () => ({
-      page: "linear-gradient(180deg, #FCFBF8 0%, #F0EDE6 100%)",
-      ink: "#191720", light: true,
-      blend: "#FFFFFF", amt: .2, shade: "#FFFFFF", glassBase: "#FFFFFF",
-    }),
-  },
-};
+/* ═══════════════ PALETTE ═══════════════
+   ONE accent, picked by the reader, and everything else derived from it.
+
+   This replaced a set of six named themes. The themes bundled two unrelated
+   decisions — what colour the app is, and whether it rains — into one row of
+   cards, so you could not have a mint app with rain or a quiet one in amber.
+   They are separate controls now: an accent below, a motion picker further
+   down.
+
+   Accents are PASTELS on purpose. A saturated accent on a dark ground fights
+   the eleven category hues that are the actual signal in this app; a pastel
+   sits behind them. Each one is used three ways and never as a flat fill:
+   a few percent into the ground so the background is tinted rather than grey,
+   as the blend that pulls every category colour into the same family, and at
+   full strength only on the one thing that is currently interactive.
+
+   Rules from the brief still hold: nothing is rendered as
+   hsl(hue, sat, lowLightness), every surface is mix()ed from a hex, and text
+   colour comes from inkOn() rather than from a guess. */
+const ACCENTS = [
+  { id: "slate",  name: "Slate",  hex: "#A9BCD6" },
+  { id: "mint",   name: "Mint",   hex: "#9FE0C0" },
+  { id: "sky",    name: "Sky",    hex: "#9CC7EE" },
+  { id: "lilac",  name: "Lilac",  hex: "#BCB0EC" },
+  { id: "blush",  name: "Blush",  hex: "#EFA9BA" },
+  { id: "peach",  name: "Peach",  hex: "#F2BC9C" },
+  { id: "butter", name: "Butter", hex: "#E8D69B" },
+  { id: "sage",   name: "Sage",   hex: "#B4C7A4" },
+];
+const ACCENT_BY_ID = Object.fromEntries(ACCENTS.map((a) => [a.id, a]));
+
+/* Two grounds, both nearly neutral. The accent goes in at 7% and 4% — enough
+   that a mint app and a blush app are unmistakably different rooms, not enough
+   to read as a colour in its own right. The gradient is slight by design: two
+   stops, twelve points of lightness apart. */
+function palette(accentHex, light) {
+  if (light) {
+    const top = mix("#FBFAF8", accentHex, .10);
+    const bot = mix("#F1EFEA", accentHex, .16);
+    return {
+      accent: accentHex, light: true,
+      page: `linear-gradient(180deg, ${top} 0%, ${bot} 100%)`,
+      ink: "#16141C",
+      blend: "#FFFFFF", amt: .24,
+      shade: "#FFFFFF",
+      surface: mix("#FFFFFF", accentHex, .05),
+      raise: mix("#FFFFFF", accentHex, .12),
+      glassBase: "#FFFFFF",
+    };
+  }
+  const top = mix("#111319", accentHex, .07);
+  const bot = mix("#08090D", accentHex, .04);
+  return {
+    accent: accentHex, light: false,
+    page: `linear-gradient(180deg, ${top} 0%, ${bot} 100%)`,
+    ink: "#EEF0F5",
+    blend: mix("#1A1E27", accentHex, .18), amt: .44,
+    shade: mix("#0A0B10", accentHex, .04),
+    surface: mix("#151821", accentHex, .07),
+    raise: mix("#1D2029", accentHex, .11),
+    glassBase: mix("#141720", accentHex, .06),
+  };
+}
 
 /* chrome tokens derived from the theme's own light/dark reading */
+/* Chrome tokens.
+
+   The surfaces are SOLID now. They used to be translucent glass over the
+   scene with a 1px light border on every one, which is the look the brief
+   called out: a dozen outlined panes floating on a busy background reads as a
+   template rather than as a design. A card is one flat colour a few points
+   lighter than the ground behind it, and depth comes from that step instead of
+   from an outline. `edge` survives at a much lower strength for the two places
+   that genuinely need a hairline — an unfilled control and the dock's top
+   rule — and is transparent everywhere else. */
 function chrome(t) {
   const L = t.light;
   return {
     ink: t.ink,
-    muted: L ? "rgba(24,20,32,.5)" : "rgba(255,255,255,.5)",
-    faint: L ? "rgba(24,20,32,.07)" : "rgba(255,255,255,.09)",
-    edge: L ? "rgba(24,20,32,.12)" : "rgba(255,255,255,.15)",
-    glass: rgba(t.glassBase, L ? .62 : .5),
-    glassEdge: L ? "rgba(255,255,255,.7)" : "rgba(255,255,255,.13)",
-    dock: rgba(t.glassBase, L ? .8 : .72),
-    sheet: L ? "#FFFFFF" : mix(t.glassBase, INK, .35),
-    scrim: L ? "rgba(30,26,40,.34)" : "rgba(4,3,8,.6)",
+    muted: L ? "rgba(22,20,28,.52)" : "rgba(238,240,245,.48)",
+    faint: L ? mix(t.surface, INK, .05) : mix(t.surface, PAPER, .06),
+    edge: L ? "rgba(22,20,28,.08)" : "rgba(238,240,245,.07)",
+    /* Kept under the old names so every call site still reads the same token;
+       both are opaque now, and `glassEdge` is transparent because the cards
+       have no border at all. */
+    glass: t.surface,
+    glassEdge: "transparent",
+    dock: t.surface,
+    sheet: L ? "#FFFFFF" : t.raise,
+    scrim: L ? "rgba(28,24,36,.36)" : "rgba(3,4,7,.62)",
   };
 }
 
@@ -163,18 +169,77 @@ function chrome(t) {
 const votesOf = (p) => p.o.reduce((sum, o) => sum + o[1], 0);
 
 const SORTS = [
-  ["mix", "Mixed"],
+  ["mix", "For you"],
   ["new", "Newest"],
   ["top", "Most voted"],
 ];
+
+/* How interesting a poll is likely to be, 0..1.
+
+   Two things make one worth putting first, and they pull in different
+   directions so both are needed:
+     · CLOSENESS. A 50/50 split is an argument; a 92/8 split is a fact with a
+       vote attached. This is the dominant term.
+     · REACH. Something 90,000 people answered is a safer opening card than
+       something 9,000 did.
+   A three-option poll can never be 50/50, so closeness is measured against an
+   even split for that option count rather than against half. */
+function heat(p) {
+  const counts = p.o.map((o) => o[1]);
+  const total = counts.reduce((a, b) => a + b, 0) || 1;
+  const even = 1 / p.o.length;
+  const top = Math.max(...counts) / total;
+  // 0 when one option takes everything, 1 at a dead-even split.
+  const closeness = 1 - (top - even) / (1 - even);
+  const reach = Math.min(1, total / 120000);
+  return closeness * .72 + reach * .28;
+}
+
+/* One gesture reader for the whole app: the feed, the profile and every sheet
+   use it, so a swipe means the same thing everywhere.
+
+   Returns props to spread. It fires AT MOST ONE direction per gesture — the
+   dominant axis wins by a 1.4x margin, and an ambiguous diagonal does nothing
+   rather than guessing. That is what keeps a downward flick on the feed from
+   also being read as a leftward one into the profile.
+   Pointer events, so touch, pen and mouse-drag are all the same path. */
+const SWIPE_MIN = 55;
+function swipeHandlers({ onUp, onDown, onLeft, onRight, axis = "any" }) {
+  let start = null;
+  return {
+    onPointerDown: (e) => { start = { x: e.clientX, y: e.clientY, t: Date.now() }; },
+    onPointerCancel: () => { start = null; },
+    onPointerUp: (e) => {
+      const s = start; start = null;
+      if (!s || Date.now() - s.t > 900) return;      // a slow drag is not a swipe
+      const dx = e.clientX - s.x, dy = e.clientY - s.y;
+      const ax = Math.abs(dx), ay = Math.abs(dy);
+      const horizontal = ax > ay * 1.4, vertical = ay > ax * 1.4;
+      if (axis !== "y" && horizontal && ax > SWIPE_MIN) {
+        if (dx < 0) onLeft?.(); else onRight?.();
+        return;
+      }
+      if (axis !== "x" && vertical && ay > SWIPE_MIN) {
+        if (dy < 0) onUp?.(); else onDown?.();
+      }
+    },
+  };
+}
 
 const seeded = (n, seed) => {
   let s = seed; const r = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
   return Array.from({ length: n }, () => r());
 };
 
-function SkyScene({ t, reduce }) {
-  const { p, day } = t.scene;
+/* Sky is now an OVERLAY, not a palette. It used to own the page gradient and
+   repaint the whole app from midnight blue to noon blue, which cannot coexist
+   with the reader choosing their own accent — two things would be deciding the
+   background. The clock survives intact: the body still crosses the same arc on
+   the same ten-minute cycle, the stars still fade with it, and `day` now drives
+   a translucent wash over the reader's ground instead of replacing it. */
+function SkyScene({ phase, reduce }) {
+  const p = phase;
+  const day = clamp01(Math.sin(p * Math.PI * 2 - Math.PI / 2) * .5 + .5);
   const stars = useMemo(() => seeded(120, 7), []);
   /* The body moves once a second; this glides it across the gap so the arc
      reads as continuous rather than as one hop per tick. linear, because any
@@ -198,6 +263,12 @@ function SkyScene({ t, reduce }) {
 
   return (
     <>
+      {/* Day wash over the reader's ground, rather than a replacement for it:
+          warm and light at noon, cold and near-nothing at midnight. */}
+      <div className="absolute inset-0" style={{
+        background: `linear-gradient(180deg, ${rgba(day > .5 ? "#8FC0EA" : "#243056", .10 + day * .26)}, ${rgba(day > .5 ? "#DCE9F4" : "#141A33", .06 + day * .20)})`,
+        transition: `background ${DAY_TICK_MS}ms linear`,
+      }} />
       {/* stars */}
       <svg className="absolute inset-0 w-full h-full" style={{ opacity: 1 - day }} viewBox="0 0 100 100" preserveAspectRatio="none">
         {stars.map((v, i) => i % 2 === 0 ? null : (
@@ -227,24 +298,30 @@ function SkyScene({ t, reduce }) {
   );
 }
 
+/* Rain, thinned right down. It was 120 drops falling in under a second, which
+   is not rain on a window — it is static. Drizzle reads as weather; a downpour
+   reads as noise, and this sits behind text people are supposed to read.
+   Halved the count (26 near, 18 far), roughly tripled the fall time, and cut
+   the opacity, so it is something you notice rather than something you look
+   through. */
 function RainScene({ reduce }) {
   const drops = useMemo(() => seeded(240, 19), []);
   return (
     <>
-      <div className="absolute inset-0" style={{ background: "radial-gradient(120% 60% at 50% 0%, rgba(143,184,190,.16), transparent 70%)" }} />
+      <div className="absolute inset-0" style={{ background: "radial-gradient(120% 60% at 50% 0%, rgba(143,184,190,.10), transparent 70%)" }} />
       {[0, 1].map((layer) => (
-        <div key={layer} className="absolute inset-0 overflow-hidden" style={{ opacity: layer ? .5 : .85 }}>
-          {Array.from({ length: 60 }, (_, i) => {
+        <div key={layer} className="absolute inset-0 overflow-hidden" style={{ opacity: layer ? .34 : .6 }}>
+          {Array.from({ length: layer ? 18 : 26 }, (_, i) => {
             const a = drops[i * 3 + layer], b = drops[i * 3 + 1], c = drops[i * 3 + 2];
             return (
               <span key={i} className="absolute uv-rain" style={{
                 left: `${a * 104 - 2}%`, top: `${-20 - b * 40}%`,
-                width: layer ? 1 : 1.6, height: layer ? 42 : 66,
-                background: `linear-gradient(180deg, transparent, ${layer ? "rgba(180,214,220,.35)" : "rgba(200,232,238,.6)"})`,
-                animationDuration: `${(layer ? 1.15 : .8) + c * .5}s`,
-                animationDelay: `${b * -2}s`,
+                width: layer ? 1 : 1.4, height: layer ? 26 : 40,
+                background: `linear-gradient(180deg, transparent, ${layer ? "rgba(180,214,220,.26)" : "rgba(200,232,238,.42)"})`,
+                animationDuration: `${(layer ? 3.4 : 2.6) + c * 1.4}s`,
+                animationDelay: `${b * -4}s`,
                 animationPlayState: reduce ? "paused" : "running",
-                transform: "rotate(9deg)",
+                transform: "rotate(7deg)",
               }} />
             );
           })}
@@ -345,24 +422,27 @@ function SlateScene({ reduce }) {
   );
 }
 
-function PaperScene() {
-  return (
-    <>
-      <div className="absolute rounded-full" style={{ left: "-18%", top: "6%", width: "70%", height: "42%", background: "radial-gradient(circle, rgba(224,214,196,.55), transparent 70%)" }} />
-      <div className="absolute rounded-full" style={{ right: "-12%", bottom: "10%", width: "62%", height: "38%", background: "radial-gradient(circle, rgba(214,220,226,.5), transparent 70%)" }} />
-    </>
-  );
-}
+/* Motion is its own control now, and OFF is the default. The ground the accent
+   makes is the design; a scene is something you add to it, not something you
+   have to pick a colour scheme to get. `off` renders the SlateScene glows,
+   which are slow enough to read as depth in the background rather than as an
+   animation. */
+const SCENES = [
+  ["off", "None"],
+  ["rain", "Rain"],
+  ["sky", "Sky"],
+  ["deep", "Deep"],
+  ["ember", "Ember"],
+];
 
-function Scene({ id, t, reduce }) {
+function Scene({ id, t, phase, reduce }) {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ background: t.page, transition: "background 600ms linear" }}>
-      {id === "slate" && <SlateScene reduce={reduce} />}
-      {id === "sky" && <SkyScene t={t} reduce={reduce} />}
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ background: t.page, transition: "background 500ms linear" }}>
+      {id === "off" && <SlateScene reduce={reduce} />}
+      {id === "sky" && <SkyScene phase={phase} reduce={reduce} />}
       {id === "rain" && <RainScene reduce={reduce} />}
       {id === "deep" && <DeepScene reduce={reduce} />}
       {id === "ember" && <EmberScene reduce={reduce} />}
-      {id === "paper" && <PaperScene />}
     </div>
   );
 }
@@ -740,7 +820,7 @@ function Band({ opt, count, pct, rank, top, height, ramp, C, voted, mine, onVote
 }
 
 /* ═══════════════ CARD ═══════════════ */
-function Card({ poll, choice, onVote, onChange, onShare, onFlag, canChange, flagged, bump, reduce, active, T, C, topRow }) {
+function Card({ poll, choice, onVote, onChange, canChange, changesLeft, flagged, bump, reduce, active, T, C, topRow }) {
   const accent = mix(CAT_HEX[poll.cat], T.blend, T.amt);
   const ramp = [accent, mix(accent, T.shade, .38), mix(accent, T.shade, .58), mix(accent, T.shade, .72)];
   const voted = choice !== undefined;
@@ -805,7 +885,10 @@ function Card({ poll, choice, onVote, onChange, onShare, onFlag, canChange, flag
           ))}
         </div>
 
-        {/* action row — share and report never require voting first */}
+        {/* Verdict line and the one-time change. Share and report used to sit
+            here as two floating circles on every card; they live in the dock's
+            actions button now, so the card carries nothing that is not about
+            this question. */}
         <div className="h-10 shrink-0 flex items-center justify-between gap-2 px-1">
           <span className="truncate min-w-0" style={{
             fontFamily: "var(--mono)", fontSize: 11, color: C.ink,
@@ -815,18 +898,11 @@ function Card({ poll, choice, onVote, onChange, onShare, onFlag, canChange, flag
 
           <span className="flex items-center gap-1.5 shrink-0">
             {voted && canChange && (
-              <button onClick={onChange} className="flex items-center gap-1.5 pl-2.5 pr-3 h-9 rounded-full border"
-                style={{ background: C.glass, borderColor: C.glassEdge, color: C.ink, fontFamily: "var(--mono)", fontSize: 11, backdropFilter: "blur(10px)" }}>
-                {Ico.undo(C.ink)} change
+              <button onClick={onChange} className="flex items-center gap-1.5 pl-2.5 pr-3 h-9 rounded-full"
+                style={{ background: C.faint, color: C.ink, fontFamily: "var(--mono)", fontSize: 11 }}>
+                {Ico.undo(C.ink)} change{changesLeft <= 2 ? ` · ${changesLeft} left today` : ""}
               </button>
             )}
-            <button onClick={onShare} aria-label="Share this question" className="w-9 h-9 rounded-full grid place-items-center border"
-              style={{ background: C.glass, borderColor: C.glassEdge, backdropFilter: "blur(10px)" }}>{Ico.share(C.ink)}</button>
-            <button onClick={onFlag} aria-label="Report this question" className="w-9 h-9 rounded-full grid place-items-center border"
-              style={{
-                background: flagged ? mix("#FF4D4D", T.blend, T.amt) : C.glass,
-                borderColor: flagged ? "transparent" : C.glassEdge, backdropFilter: "blur(10px)",
-              }}>{Ico.flag(flagged ? inkOn(mix("#FF4D4D", T.blend, T.amt)) : C.ink)}</button>
           </span>
         </div>
       </div>
@@ -842,8 +918,12 @@ function Sheet({ title, sub, C, onClose, children, footer, actions }) {
   return (
     <div className="absolute inset-0 z-40">
       <button aria-label="Close" onClick={onClose} className="absolute inset-0 cursor-default" style={{ background: C.scrim, backdropFilter: "blur(2px)" }} />
+      {/* Swipe DOWN to dismiss, or swipe RIGHT the way "back" goes. The grab
+          handle above the title is the affordance for the first and was
+          previously decorative. */}
       <div className="absolute left-0 right-0 bottom-0 flex flex-col rounded-t-[28px] overflow-hidden"
-        style={{ height: "50%", background: C.sheet, borderTop: `1px solid ${C.edge}`, animation: "uvUp 320ms cubic-bezier(.22,1,.36,1)" }}>
+        style={{ height: "50%", background: C.sheet, animation: "uvUp 320ms cubic-bezier(.22,1,.36,1)" }}
+        {...swipeHandlers({ onDown: onClose, onRight: onClose })}>
         <div className="px-5 pt-4 pb-3 shrink-0">
           <div className="mx-auto w-9 h-1 rounded-full mb-4" style={{ background: C.faint }} />
           <div className="flex items-start gap-3">
@@ -876,7 +956,7 @@ const Flat = ({ C, onClick, label }) => (
    `allowCategories` is false on the profile, where filtering the feed you are
    not looking at is a control with nothing to act on — there it opens straight
    to Look and feel with no toggle at all. */
-function SettingsSheet({ C, themeId, setThemeId, cats, setCats, counts, sort, setSort, onClose, allowCategories }) {
+function SettingsSheet({ C, look, setLook, cats, setCats, counts, sort, setSort, onClose, allowCategories }) {
   const [pane, setPane] = useState(allowCategories ? "cats" : "look");
   const showing = allowCategories ? pane : "look";
   const isCats = showing === "cats";
@@ -897,7 +977,7 @@ function SettingsSheet({ C, themeId, setThemeId, cats, setCats, counts, sort, se
   return (
     <Sheet C={C} onClose={onClose}
       title={isCats ? "What are we arguing about?" : "Look and feel"}
-      sub={isCats ? "Pick as many as you like" : "The scene behind changes as you tap"}
+      sub={isCats ? "Pick as many as you like" : "One colour; motion is up to you"}
       actions={
         <>
           {allowCategories && (
@@ -951,49 +1031,92 @@ function SettingsSheet({ C, themeId, setThemeId, cats, setCats, counts, sort, se
         </div>
         </>
       ) : (
-        <div className="space-y-2 pb-3">
-          {Object.entries(THEMES).map(([id, t]) => {
-            const on = themeId === id;
-            return (
-              <button key={id} onClick={() => setThemeId(id)} className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl border"
-                style={{ background: on ? C.faint : "transparent", borderColor: on ? C.ink : C.edge }}>
-                <span className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 grid grid-cols-2 grid-rows-2">
-                  {t.swatch.map((s, i) => <span key={i} style={{ background: s }} />)}
-                </span>
-                <span className="flex-1 text-left">
-                  <span className="block" style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15, color: C.ink }}>{t.name}</span>
-                  <span className="block" style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.muted }}>{t.note}</span>
-                </span>
-              </button>
-            );
-          })}
+        <div className="pb-3">
+          {/* One pick. The swatch IS the control — no card, no name, no
+              description, because a colour does not need explaining and a row
+              of labelled panels was the thing that read as generated. */}
+          <p className="mb-2" style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: ".14em", color: C.muted }}>ACCENT</p>
+          <div className="grid grid-cols-8 gap-2">
+            {ACCENTS.map((a) => {
+              const on = look.accent === a.id;
+              return (
+                <button key={a.id} onClick={() => setLook({ accent: a.id })}
+                  aria-label={a.name} aria-pressed={on} title={a.name}
+                  className="relative rounded-full"
+                  style={{ aspectRatio: "1", background: a.hex,
+                           boxShadow: on ? `0 0 0 2px ${C.sheet}, 0 0 0 4px ${a.hex}` : "none" }} />
+              );
+            })}
+          </div>
+
+          <p className="mt-5 mb-2" style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: ".14em", color: C.muted }}>GROUND</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[[false, "Dark"], [true, "Light"]].map(([v, label]) => {
+              const on = look.light === v;
+              return (
+                <button key={label} onClick={() => setLook({ light: v })} aria-pressed={on}
+                  className="py-2.5 rounded-2xl"
+                  style={{ background: on ? C.ink : C.faint, color: on ? C.sheet : C.ink,
+                           fontFamily: "var(--disp)", fontWeight: 700, fontSize: 13 }}>{label}</button>
+              );
+            })}
+          </div>
+
+          {/* Motion, decoupled from colour. This is the pair that used to be
+              one row of themes: you can now have any accent with any weather,
+              including none. */}
+          <p className="mt-5 mb-2" style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: ".14em", color: C.muted }}>MOTION</p>
+          <div className="grid grid-cols-3 gap-2">
+            {SCENES.map(([id, label]) => {
+              const on = look.scene === id;
+              return (
+                <button key={id} onClick={() => setLook({ scene: id })} aria-pressed={on}
+                  className="py-2.5 rounded-2xl"
+                  style={{ background: on ? C.ink : C.faint, color: on ? C.sheet : C.ink,
+                           fontFamily: "var(--disp)", fontWeight: 700, fontSize: 13 }}>{label}</button>
+              );
+            })}
+          </div>
         </div>
       )}
     </Sheet>
   );
 }
 
-/* The dock's right-hand button on the feed. Share and report also sit on the
-   card itself, where they act on the question under your thumb; here they act
-   on whatever is on screen, which is the same poll. */
-function ActionsSheet({ C, onShare, onFlag, onProfile, onClose }) {
-  const row = (label, note, fn) => (
-    <button key={label} onClick={fn} className="w-full text-left px-4 py-3.5 rounded-2xl border"
-      style={{ borderColor: C.edge }}>
-      <span className="block" style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15, color: C.ink }}>{label}</span>
-      <span className="block mt-0.5" style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.muted }}>{note}</span>
-    </button>
-  );
+/* Actions: three icons stacked above the dock button that opened them, not a
+   half-screen sheet. Three destinations do not need a titled panel with a
+   footer — the sheet was more chrome than content, and it covered the poll the
+   actions are about. Each row is an icon and a word, appearing bottom-up so
+   the nearest one to your thumb is the one you reach first.
+   Still in the bottom half of the frame, so the thumb rule holds. */
+function ActionsPop({ C, T, onShare, onFlag, onProfile, onClose, flagged }) {
+  const items = [
+    ["Profile", Ico.user, onProfile, false],
+    ["Report", Ico.flag, onFlag, flagged],
+    ["Share", Ico.share, onShare, false],
+  ];
   return (
-    <Sheet title="Actions" C={C} onClose={onClose}
-      actions={<HeadBtn C={C} onClick={onClose} label="Close">{Ico.close(C.ink)}</HeadBtn>}
-      footer={<Flat C={C} onClick={onClose} label="Close" />}>
-      <div className="space-y-2 pb-3">
-        {row("Share the split", "Results, not just a link", onShare)}
-        {row("Report this question", "It stays up while we look at it", onFlag)}
-        {row("Your profile", "Votes cast, questions asked", onProfile)}
+    <div className="absolute inset-0 z-40" onPointerDown={onClose}>
+      <div className="absolute right-4 flex flex-col items-end gap-2" style={{ bottom: 92 }}
+        onPointerDown={(e) => e.stopPropagation()}>
+        {items.map(([label, icon, fn, on], i) => (
+          <button key={label} onClick={fn}
+            className="flex items-center gap-2.5 pl-3.5 pr-2 h-11 rounded-full"
+            style={{
+              background: on ? mix("#FF4D4D", T.blend, T.amt) : C.sheet,
+              color: on ? inkOn(mix("#FF4D4D", T.blend, T.amt)) : C.ink,
+              boxShadow: "0 8px 24px rgba(0,0,0,.28)",
+              fontFamily: "var(--disp)", fontWeight: 700, fontSize: 14,
+              animation: `uvPop 180ms cubic-bezier(.22,1,.36,1) ${i * 45}ms both`,
+            }}>
+            {label}
+            <span className="w-8 h-8 rounded-full grid place-items-center" style={{ background: C.faint }}>
+              {icon(on ? inkOn(mix("#FF4D4D", T.blend, T.amt)) : C.ink)}
+            </span>
+          </button>
+        ))}
       </div>
-    </Sheet>
+    </div>
   );
 }
 
@@ -1196,9 +1319,47 @@ function Compose({ C, T, onClose, onPost }) {
 export default function Splitmob() {
   /* Slate is the default: it is the one theme that stays out of the way,
      which is the right first impression for a feed of other people's words. */
-  const [themeId, setThemeId] = useState("slate");
+  /* Accent, light/dark and motion are three separate saved choices now.
+     localStorage is fine on our own domain (it was only banned in the artifact
+     sandbox), so a reader's pick survives a reload — which matters far more for
+     a colour they chose than for anything else in here. */
+  const [look, setLook] = useState(() => {
+    const fallback = { accent: "slate", light: false, scene: "off" };
+    try {
+      const raw = JSON.parse(localStorage.getItem("splitmob-look") || "null");
+      if (!raw) return fallback;
+      return {
+        accent: ACCENT_BY_ID[raw.accent] ? raw.accent : fallback.accent,
+        light: !!raw.light,
+        scene: SCENES.some(([id]) => id === raw.scene) ? raw.scene : fallback.scene,
+      };
+    } catch { return fallback; }
+  });
+  const setLookPart = useCallback((patch) => {
+    setLook((l) => {
+      const next = { ...l, ...patch };
+      try { localStorage.setItem("splitmob-look", JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  }, []);
   const [votes, setVotes] = useState({});
   const [changed, setChanged] = useState({});
+  /* Vote changes are rationed per DAY, on top of the existing one-per-poll
+     rule. Both are needed and they stop different things: per-poll stops you
+     flipping the same question back and forth once you have seen the split,
+     and the daily cap stops you doing it across the whole feed. Free re-voting
+     is what lets people drift toward the majority, which corrupts every number
+     in the app. Stored by date string, so it resets at local midnight without a
+     timer. */
+  const [budget, setBudget] = useState(() => {
+    const today = new Date().toDateString();
+    try {
+      const raw = JSON.parse(localStorage.getItem("splitmob-changes") || "null");
+      if (raw && raw.day === today) return raw;
+    } catch { /* private mode */ }
+    return { day: today, used: 0 };
+  });
+  const changesLeft = Math.max(0, CHANGES_PER_DAY - budget.used);
   const [flags, setFlags] = useState({});
   const [bumps, setBumps] = useState({});
   /* A SET of category keys, not one key. Empty means everything — which keeps
@@ -1206,6 +1367,16 @@ export default function Splitmob() {
      to be kept in sync, and means the feed can never end up empty. */
   const [cats, setCats] = useState(() => new Set());
   const [sort, setSort] = useState("mix");
+  /* One seed per visit, deliberately NOT persisted — the whole point is that
+     the opening cards differ next time you come back. Derived into a pure
+     function so the sort stays a useMemo rather than reading Math.random()
+     mid-render. */
+  const seed0 = useMemo(() => Math.floor(Math.random() * 0x7fffffff), []);
+  const shuffleRng = useCallback((i) => {
+    let x = (seed0 ^ (i * 2654435761)) >>> 0;
+    x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
+    return x / 0x100000000;
+  }, [seed0]);
   const [idx, setIdx] = useState(0);
   const [mine, setMine] = useState([]);
   const [sheet, setSheet] = useState(null);
@@ -1229,12 +1400,12 @@ export default function Splitmob() {
      linear-gradient — but at this speed each step moves it by an amount too
      small to see, which is the same result by a different route. */
   useEffect(() => {
-    if (themeId !== "sky" || reduce) return;
+    if (look.scene !== "sky" || reduce) return;
     const t = setInterval(() => setPhase((p) => (p + DAY_TICK_MS / DAY_MS) % 1), DAY_TICK_MS);
     return () => clearInterval(t);
-  }, [themeId, reduce]);
+  }, [look.scene, reduce]);
 
-  const T = useMemo(() => THEMES[themeId].tokens(phase), [themeId, phase]);
+  const T = useMemo(() => palette(ACCENT_BY_ID[look.accent].hex, look.light), [look.accent, look.light]);
   const C = useMemo(() => ({ ...chrome(T) }), [T]);
 
   const deck = useMemo(() => {
@@ -1257,7 +1428,29 @@ export default function Splitmob() {
      fallback goes away. */
   const list = useMemo(() => {
     const filtered = cats.size === 0 ? all : all.filter((p) => cats.has(p.cat));
-    if (sort === "mix") return filtered;
+    if (sort === "mix") {
+      /* "For you": best first, answered last.
+
+         Ranked by heat (see above), then the strongest fifth is SHUFFLED with a
+         per-visit seed. Without that, the best poll in the deck is the first
+         card of every session forever and the app looks like it has ten
+         questions in it. With it, the opening handful is drawn from the top
+         ~50 rather than being one fixed card, so two visits rarely start the
+         same way and nothing good is buried where it is never seen.
+         Anything already voted on sinks to the bottom instead of being removed,
+         so the feed never runs out and you can still scroll back to your own
+         results. */
+      const fresh = [], done = [];
+      for (const p of filtered) (votes[p.id] === undefined ? fresh : done).push(p);
+      fresh.sort((a, b) => heat(b) - heat(a));
+      const slice = Math.max(1, Math.round(fresh.length * .2));
+      const head = fresh.slice(0, slice);
+      for (let i = head.length - 1; i > 0; i--) {
+        const j = Math.floor(shuffleRng(i) * (i + 1));
+        [head[i], head[j]] = [head[j], head[i]];
+      }
+      return [...head, ...fresh.slice(slice), ...done];
+    }
     const rows = [...filtered];
     if (sort === "top") {
       return rows.sort((a, b) => votesOf(b) - votesOf(a));
@@ -1269,7 +1462,12 @@ export default function Splitmob() {
       if (am && bm) return Number(b.id.slice(1)) - Number(a.id.slice(1));
       return rank.get(b.id) - rank.get(a.id);
     });
-  }, [all, cats, sort]);
+    /* votes is deliberately NOT a dependency: re-sorting the moment you answer
+       would yank the card you just voted on out from under you. The order is
+       recomputed when the filter, the sort or the session seed changes, which
+       is every time you would expect it to and no time you would not. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, cats, sort, shuffleRng]);
   const counts = useMemo(() => { const c = { all: all.length }; CAT_ORDER.forEach((k) => (c[k] = all.filter((p) => p.cat === k).length)); return c; }, [all]);
   /* The header is one line and must never wrap — it is what the thumb rule
      measures the top row against. Two names fit; past that, count them. */
@@ -1290,10 +1488,37 @@ export default function Splitmob() {
     return () => ro.disconnect();
   }, []);
 
-  const scrollTo = useCallback((i) => { const el = feed.current; if (el) el.scrollTo({ top: i * el.clientHeight, behavior: reduce ? "auto" : "smooth" }); }, [reduce]);
+  /* ONE CARD PER GESTURE.
+
+     The feed used to be a scroll container with CSS snap points, and a flick
+     with any real velocity sailed through three or four questions before the
+     snap caught it — momentum is the browser's to own, and scroll-snap only
+     decides where a scroll ENDS, not how far it may travel. So there is no
+     scrolling here any more: the track is translated by whole cards and every
+     gesture is worth exactly one step. `moving` locks out further input until
+     the transition finishes, which is what stops a fast double-flick counting
+     twice.
+     `scrollTo` keeps its name and signature because openPoll and the compose
+     flow call it to jump to a specific card. */
+  const [moving, setMoving] = useState(false);
+  const scrollTo = useCallback((i) => {
+    setIdx(Math.max(0, Math.min(i, Math.max(0, list.length - 1))));
+  }, [list.length]);
+  const step = useCallback((d) => {
+    if (moving) return;
+    setIdx((i) => {
+      const n = Math.max(0, Math.min(i + d, list.length - 1));
+      if (n !== i && !reduce) {
+        setMoving(true);
+        setTimeout(() => setMoving(false), 400);
+      }
+      return n;
+    });
+  }, [moving, list.length, reduce]);
+
   // Reordering is as much a change of feed as refiltering is, so both send
   // you back to the top rather than leaving you mid-list in a new order.
-  useEffect(() => { feed.current?.scrollTo({ top: 0 }); setIdx(0); }, [cats, sort]);
+  useEffect(() => { setIdx(0); }, [cats, sort]);
 
   const castVote = useCallback((p, n) => {
     setVotes((v) => ({ ...v, [p.id]: n }));
@@ -1302,11 +1527,17 @@ export default function Splitmob() {
 
   /* one change, and only while the card is still on screen */
   const unvote = useCallback((p) => {
+    if (changesLeft <= 0) return;
     const prev = votes[p.id];
     setBumps((b) => { const c = b[p.id] || p.o.map(() => 0); const next = [...c]; next[prev] -= 1; return { ...b, [p.id]: next }; });
     setVotes((v) => { const n = { ...v }; delete n[p.id]; return n; });
     setChanged((c) => ({ ...c, [p.id]: true }));
-  }, [votes]);
+    setBudget((b) => {
+      const next = { ...b, used: b.used + 1 };
+      try { localStorage.setItem("splitmob-changes", JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  }, [votes, changesLeft]);
 
   useEffect(() => {
     const p = list[idx];
@@ -1327,15 +1558,26 @@ export default function Splitmob() {
 
   useEffect(() => {
     const onKey = (e) => {
+      /* Escape closes whatever is on top, innermost first: a sheet, then the
+         actions popup, then the profile. On desktop this is the key people
+         reach for and nothing was listening for it.
+         Inside the portfolio's modal the parent <dialog> also closes on Escape,
+         but focus is in this iframe so the parent never sees the key — closing
+         a sheet here can never also close the window around it. */
+      if (e.key === "Escape") {
+        if (sheet) { e.preventDefault(); setSheet(null); return; }
+        if (page !== "feed") { e.preventDefault(); setPage("feed"); return; }
+        return;
+      }
       if (sheet || page !== "feed") return;
       const p = list[idx];
-      if (e.key === "ArrowDown") { e.preventDefault(); scrollTo(Math.min(idx + 1, list.length - 1)); }
-      if (e.key === "ArrowUp") { e.preventDefault(); scrollTo(Math.max(idx - 1, 0)); }
+      if (e.key === "ArrowDown") { e.preventDefault(); step(1); }
+      if (e.key === "ArrowUp") { e.preventDefault(); step(-1); }
       if (p && /^[1-4]$/.test(e.key) && votes[p.id] === undefined && +e.key - 1 < p.o.length) castVote(p, +e.key - 1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [idx, list, votes, sheet, page, scrollTo, castVote]);
+  }, [idx, list, votes, sheet, page, step, castVote]);
 
   /* jump from a profile row back to that card in the feed */
   const openPoll = useCallback((poll) => {
@@ -1396,10 +1638,10 @@ export default function Splitmob() {
           height: "100dvh",
           maxHeight: isPhone ? "none" : 880,
           borderRadius: isPhone ? 0 : 28,
-          border: isPhone ? "none" : `1px solid ${C.edge}`,
+          border: isPhone ? "none" : `1px solid ${C.edge}`,   // the standalone-desktop device frame only
         }}>
 
-        <Scene id={themeId} t={T} reduce={reduce} />
+        <Scene id={look.scene} t={T} phase={phase} reduce={reduce} />
 
         <header ref={head} className="relative z-20 shrink-0 px-6 pt-4 pb-3">
           <div className="flex items-baseline justify-between">
@@ -1410,41 +1652,57 @@ export default function Splitmob() {
           </div>
         </header>
 
-        {page === "me" && (
-          /* Swipe right anywhere on the profile to go back, the same gesture
-             the platform uses for back. Tracked on pointer events so it works
-             for touch and mouse alike; the vertical check keeps it from firing
-             while you are scrolling the list, and the list scrolls vertically
-             so the two gestures never compete. */
-          <div className="flex-1 min-h-0" style={{ touchAction: "pan-y" }}
-            onPointerDown={(e) => { swipe.current = { x: e.clientX, y: e.clientY }; }}
-            onPointerUp={(e) => {
-              const s = swipe.current; swipe.current = null;
-              if (!s) return;
-              const dx = e.clientX - s.x, dy = e.clientY - s.y;
-              if (dx > 70 && Math.abs(dx) > Math.abs(dy) * 1.6) setPage("feed");
-            }}
-            onPointerCancel={() => { swipe.current = null; }}>
-            <Profile C={C} T={T} topRow={topRow} all={all} votes={votes} bumps={bumps} mine={mine} onOpen={openPoll} />
-          </div>
-        )}
+        {/* The profile slides in from the RIGHT and back out again, so the
+            swipe that opens it and the animation that follows move the same
+            direction. It stays mounted either way — unmounting would make the
+            exit jump. */}
+        <div className="absolute inset-0 z-20 flex flex-col"
+          style={{
+            transform: page === "me" ? "translateX(0)" : "translateX(100%)",
+            transition: reduce ? "none" : "transform 320ms cubic-bezier(.22,1,.36,1)",
+            pointerEvents: page === "me" ? "auto" : "none",
+            background: T.page, paddingTop: head.current ? head.current.offsetHeight : 0,
+          }}
+          {...swipeHandlers({ onRight: () => setPage("feed"), axis: "x" })}>
+          <Profile C={C} T={T} topRow={topRow} all={all} votes={votes} bumps={bumps} mine={mine} onOpen={openPoll} />
+        </div>
 
-        <div ref={feed} hidden={page !== "feed"} onScroll={() => {
-          const el = feed.current; if (!el) return;
-          const i = Math.round(el.scrollTop / el.clientHeight);
-          if (i !== idx) setIdx(i);
-        }} className="uv-nobar relative z-10 flex-1 overflow-y-auto min-h-0" style={{ scrollSnapType: "y mandatory" }}>
-          {list.map((p, i) => (
-            <div key={p.id} style={{ height: "100%" }} className="snap-start">
-              <Card poll={p} choice={votes[p.id]} bump={bumps[p.id]} active={i === idx} reduce={reduce}
-                T={T} C={C} topRow={topRow} flagged={!!flags[p.id]}
-                canChange={i === idx && !changed[p.id]}
-                onVote={(n) => castVote(p, n)}
-                onChange={() => unvote(p)}
-                onShare={() => setSheet("share")}
-                onFlag={() => setSheet("flag")} />
-            </div>
-          ))}
+        {/* The feed is a translated TRACK, not a scroller — see the note on
+            step(). One gesture, one card, and momentum cannot overshoot
+            because there is no momentum to have. */}
+        <div ref={feed} className="relative z-10 flex-1 min-h-0 overflow-hidden"
+          style={{ touchAction: "none" }}
+          onWheel={(e) => { if (Math.abs(e.deltaY) > 12) step(e.deltaY > 0 ? 1 : -1); }}
+          {...swipeHandlers({ onUp: () => step(1), onDown: () => step(-1), onLeft: () => setPage("me"), axis: "any" })}>
+          {/* height:100% is load-bearing twice over. It gives each card a
+              percentage to resolve against — without it they collapse to their
+              content and the empty windowed ones to nothing — and it makes the
+              track exactly one card tall, so translateY(-idx * 100%) steps by
+              one screen. Let the track size to its content instead and 100%
+              means the height of all 260 stacked together, which moves the feed
+              by the length of the whole deck. */}
+          <div style={{
+            height: "100%",
+            transform: `translateY(${-idx * 100}%)`,
+            transition: reduce ? "none" : "transform 380ms cubic-bezier(.22,1,.36,1)",
+          }}>
+            {list.map((p, i) => (
+              <div key={p.id} style={{ height: "100%" }} className="snap-start">
+                {/* Only the neighbours are built. 260 live cards each running a
+                    counter and a layout pass is what makes a phone hot; three
+                    is indistinguishable on screen because the other 257 are
+                    off it. */}
+                {Math.abs(i - idx) <= 1 ? (
+                  <Card poll={p} choice={votes[p.id]} bump={bumps[p.id]} active={i === idx} reduce={reduce}
+                    T={T} C={C} topRow={topRow} flagged={!!flags[p.id]}
+                    canChange={i === idx && !changed[p.id] && changesLeft > 0}
+                    changesLeft={changesLeft}
+                    onVote={(n) => castVote(p, n)}
+                    onChange={() => unvote(p)} />
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Three buttons, and the + is centred on the DOCK rather than on
@@ -1490,10 +1748,10 @@ export default function Splitmob() {
           </div>
         )}
 
-        {sheet === "settings" && <SettingsSheet C={C} themeId={themeId} setThemeId={setThemeId}
+        {sheet === "settings" && <SettingsSheet C={C} look={look} setLook={setLookPart}
           cats={cats} setCats={setCats} counts={counts} sort={sort} setSort={setSort}
           allowCategories={page !== "me"} onClose={() => setSheet(null)} />}
-        {sheet === "actions" && <ActionsSheet C={C}
+        {sheet === "actions" && <ActionsPop C={C} T={T} flagged={!!(cur && flags[cur.id])}
           onShare={() => setSheet("share")}
           onFlag={() => setSheet("flag")}
           onProfile={() => { setSheet(null); setPage("me"); }}

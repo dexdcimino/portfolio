@@ -19,6 +19,7 @@
 }
 
 @keyframes uvIn { to { opacity: .55 } }
+@keyframes uvPop { from { opacity: 0; transform: translateY(8px) scale(.96) } to { opacity: 1; transform: none } }
 @keyframes uvUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
 @keyframes uvRain { to { transform: translateY(135vh) rotate(9deg) } }
 @keyframes uvBub { to { transform: translateY(-105vh) translateX(18px); opacity: 0 } }
