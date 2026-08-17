@@ -57,7 +57,12 @@ export class Sound {
     let want = 0.14;
     if (playing) {
       const boost = craft.boostHeat;
-      if (craft.mode === 'jet') {
+      if (craft.hyper) {
+        // Between worlds the arrangement goes to the top and stays there, and
+        // the last stretch of the climb pushes past what flying can reach.
+        // Symmetric for free: hyperT falls on approach exactly as it rose.
+        want = 0.82 + craft.hyperT * 0.18;
+      } else if (craft.mode === 'jet') {
         want = 0.74 + clamp(craft.speed / JET.maxSpeed, 0, 1) * 0.20 + boost * 0.12;
         if (craft.glide) want -= 0.16;
       } else if (craft.mode === 'boat') {

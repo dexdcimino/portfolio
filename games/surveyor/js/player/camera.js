@@ -128,6 +128,16 @@ export class ChaseCam {
     this.shakeAmt = Math.min(1.4, this.shakeAmt + v);
   }
 
+  /**
+   * Arrived somewhere else. Only the far plane is per-planet, but it is per
+   * planet for a reason — Ember's is a fifth of Anvil's, and carrying Home's
+   * across to a 207m world wastes the whole depth range on empty space.
+   */
+  setPlanet(planet) {
+    this.planet = planet;
+    this.camera.maxZ = planet.farPlane;
+  }
+
   update(dt, craft) {
     const dragging = this.pointers.size > 0;
     if (dragging) this.idle = 0; else this.idle += dt;
@@ -147,6 +157,37 @@ export class ChaseCam {
     this.orbitYaw = damp(this.orbitYaw, this.wantYaw, CAM.orbitLerp, dt);
     this.orbitPitch = damp(this.orbitPitch, this.wantPitch, CAM.orbitLerp, dt);
     this.zoom = damp(this.zoom, this.wantZoom, CAM.zoomLerp, dt);
+
+    // In transit there is no tangent frame and no ground to clear the boom
+    // against — the whole framing below is expressed in a frame that does not
+    // exist between worlds. Sit behind the craft along its heading instead.
+    if (craft.hyper) {
+      const d = craft.hyper.dir;
+      const t = craft.hyperT;
+      // Wider lens and a longer boom as the speed climbs. Both are lerped
+      // rather than set, so the approach unwinds them at the same rate the
+      // departure wound them on.
+      const wantFov = CAM.fov.jet + t * CAM.hyperFov;
+      this.camera.fov = lerp(this.camera.fov, wantFov, 1 - Math.exp(-CAM.hyperLerp * dt));
+      const dist = CAM.dist.jet * this.zoom * (1.6 + t * CAM.hyperDist);
+      const w = craft.world;
+      // Any perpendicular will do for "up" out here; the heading is what reads.
+      const ax = Math.abs(d.x) <= Math.abs(d.y) && Math.abs(d.x) <= Math.abs(d.z) ? 1 : 0;
+      const ay = ax === 0 && Math.abs(d.y) <= Math.abs(d.z) ? 1 : 0;
+      const az = ax === 0 && ay === 0 ? 1 : 0;
+      let ux = ay * d.z - az * d.y, uy = az * d.x - ax * d.z, uz = ax * d.y - ay * d.x;
+      const ul = Math.hypot(ux, uy, uz) || 1;
+      ux /= ul; uy /= ul; uz /= ul;
+      const k = 1 - Math.exp(-CAM.posLerp * dt);
+      const tx = w.x - d.x * dist + ux * CAM.height.jet;
+      const ty = w.y - d.y * dist + uy * CAM.height.jet;
+      const tz = w.z - d.z * dist + uz * CAM.height.jet;
+      this.camera.position.x = lerp(this.camera.position.x, tx, k);
+      this.camera.position.y = lerp(this.camera.position.y, ty, k);
+      this.camera.position.z = lerp(this.camera.position.z, tz, k);
+      this.camera.setTarget(new BABYLON.Vector3(w.x, w.y, w.z));
+      return;
+    }
 
     const mode = craft.mode;
     const speedT = clamp(craft.speed / REF_SPEED[mode], 0, 1);

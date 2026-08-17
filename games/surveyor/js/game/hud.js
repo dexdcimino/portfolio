@@ -3,9 +3,10 @@
 // do I have left, and can I afford to take off right now.
 
 import { on } from '../core/events.js';
-import { FUEL, JET, ROVER, COLORS } from '../tune.js';
+import { FUEL, JET, ROVER, COLORS, ECONOMY } from '../tune.js';
 
 const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const DEG = 180 / Math.PI;
 // The tape grows a band for the artificial horizon when you're flying, and
 // gives it back when you land — a permanently empty strip reads as a bug.
@@ -28,7 +29,10 @@ export class Hud {
       coord: $('coord'), sectors: $('sectors'), beacons: $('beacons'),
       colonies: $('colonies'),
       fuelFill: $('fuelFill'), fuelNum: $('fuelNum'), fuelBar: $('fuelBar'),
+      hyperBar: $('hyperBar'), hyperNum: $('hyperNum'),
+      geysers: $('geysers'), hyperRate: $('hyperRate'), pips: $('pips'),
       scan: $('scan'), scanFill: $('scanFill'), scanLabel: $('scanLabel'),
+      threat: $('threat'), beamRow: $('beamRow'), beamState: $('beamState'),
       flood: $('flood'), floodFill: $('floodFill'),
       toast: $('toast'), streaks: $('streaks'), flash: $('flash'),
       chips: {
@@ -56,6 +60,12 @@ export class Hud {
     }
     this.segs = [...this.el.fuelBar.querySelectorAll('i')];
 
+    on('hyperdenied', (e) => this.say(
+      `NOT ENOUGH HYPER FOR ${e.name.toUpperCase()}  ` +
+      `${Math.ceil(e.need)} NEEDED, ${Math.floor(e.have)} HELD`, 'bad'));
+    on('colony', (e) => {
+      if (e.geyser) this.say('VENT CLAIMED  ·  HYPER PRODUCTION ONLINE', 'good');
+    });
     on('pickup', () => this.say('CELL RECOVERED  +' + FUEL.cellValue, 'good'));
     on('scanned', () => this.say('BEACON LOGGED  +' + FUEL.beaconValue, 'good'));
     on('scanstart', () => { this.el.scan.classList.add('on'); });
@@ -77,6 +87,42 @@ export class Hud {
     on('colony', () => this.say('SITE ESTABLISHED — HABITAT INFLATING', 'good'));
     on('colonygrow', (e) => this.say('COLONY EXPANDING — DOME ' + e.stage, 'good'));
     on('probelost', (e) => this.say(e.why === 'water' ? 'PROBE LOST — WATER' : 'PROBE LOST — TERRAIN TOO STEEP', 'warn'));
+    /* Raiders. A contact is announced wherever you are, because the world it
+       happened on may not be the one you are standing on — that is the whole
+       point of wall time, and an attack you are never told about is
+       indistinguishable from a bug that eats colonies. */
+    /* Throttled, and named. Six worlds are being attacked at once by the middle
+       of a session, so an untimed toast per contact is a wall of text — but a
+       contact somewhere you are not is exactly the thing worth being told. */
+    this.raiderCool = 0;
+    on('raider', (e) => {
+      if (this.raiderCool > 0) return;
+      this.raiderCool = 14;
+      const here = this.colonies && this.colonies.planet.key === e.world;
+      this.say(here ? 'RAIDER CONTACT — HOLD E TO DISRUPT'
+        : 'RAIDER CONTACT ON ' + e.world.toUpperCase(), 'warn');
+    });
+    on('raiderkill', (e) => {
+      if (e.by === 'ram') this.say('RAIDER RAMMED', 'good');
+      else if (e.by === 'beam') this.say('RAIDER DISRUPTED', 'good');
+    });
+    /* What the away window did, in one line. Colonies grow while the tab is
+       shut and raiders attack while it is shut — both capped to the same hour —
+       so coming back to fewer colonies than you left has to be stated rather
+       than discovered by counting. */
+    on('away', (e) => {
+      const mins = Math.round(e.seconds / 60);
+      this.say(e.lost
+        ? `AWAY ${mins} MIN — ${e.lost} ${e.lost > 1 ? 'COLONIES' : 'COLONY'} LOST ` +
+          `ON ${e.worlds.join(', ').toUpperCase()}`
+        : e.held ? `AWAY ${mins} MIN — TURRETS HELD, ${e.held} RAIDERS DESTROYED`
+        : `AWAY ${mins} MIN — ALL COLONIES INTACT`,
+      e.lost ? 'bad' : 'good');
+    });
+    on('colonylost', (e) => {
+      this.say(e.geyser ? 'COLONY LOST — VENT UNCLAIMED' : 'COLONY LOST', 'bad');
+      this.punch();
+    });
     on('dropfail', (e) => this.say(
       e.why === 'fuel' ? 'NOT ENOUGH CHARGE FOR A COLONISER'
       : e.why === 'low' ? 'TOO LOW TO DROP A COLONISER'
@@ -220,24 +266,93 @@ export class Hud {
     ctx.stroke();
   }
 
+  /**
+   * The economy panel. Built once: one pip per world, in system order.
+   *
+   * The headline is geysers claimed over geysers found, because that is finite
+   * and countable — surface coverage would be neither, and nobody can read a
+   * percentage of a sphere at a glance.
+   */
+  attachEconomy(economy, totals, planetKeys) {
+    this.economy = economy;
+    this.totals = totals;
+    this.planetKeys = planetKeys;
+    this.pips = planetKeys.map((key) => {
+      const i = document.createElement('i');
+      i.title = key;
+      this.el.pips.appendChild(i);
+      return { key, el: i, fill: -1, cls: '' };
+    });
+  }
+
+  /** The world under you changed. Same player, same panel, new instruments. */
+  retarget(survey, field, colonies) {
+    this.survey = survey;
+    this.field = field;
+    this.colonies = colonies;
+  }
+
   update(dt) {
     const c = this.craft, s = this.survey;
 
-    this.el.speed.textContent = Math.round(c.speed * 3.6).toString().padStart(3, '0');
-    this.el.coord.textContent =
-      `${c.pos.x < 0 ? '−' : '+'}${Math.abs(c.pos.x).toFixed(0).padStart(5, '0')}  ` +
-      `${c.pos.z < 0 ? '−' : '+'}${Math.abs(c.pos.z).toFixed(0).padStart(5, '0')}`;
+    /* Speed. In transit the number leaves km/h behind entirely — at the cap
+       that reading is ten digits long and means nothing. A plain number and a
+       changed unit is all this phase needs; the FX are 3c's job. */
+    if (c.hyper) {
+      /* Every digit, grouped, in metres per second. Switching to km/s would
+         keep the number short and lose the entire point: what sells the speed
+         is the readout visibly running out of room, 158 -> 1 000 000 -> 158,
+         with the groups appearing one at a time as it goes. */
+      const v = Math.round(c.speed);
+      this.el.speed.textContent = String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+      this.el.speedUnit.textContent = 'M/S';
+      // Shrink in steps as the groups arrive, so it never overruns the panel.
+      const digits = String(v).length;
+      this.el.speed.className = digits > 6 ? 'vast' : digits > 4 ? 'huge' : '';
+    } else {
+      this.el.speed.textContent = Math.round(c.speed * 3.6).toString().padStart(3, '0');
+      this.el.speedUnit.textContent = 'KM/H';
+      if (this.el.speed.className) this.el.speed.className = '';
+    }
+    // Local coordinates mean nothing between worlds; where you are going does.
+    this.el.coord.textContent = c.hyper
+      ? ('→ ' + (c.hyper.target ? c.hyper.target.name.toUpperCase() : 'OPEN SYSTEM'))
+      : `${c.pos.x < 0 ? '−' : '+'}${Math.abs(c.pos.x).toFixed(0).padStart(5, '0')}  ` +
+        `${c.pos.z < 0 ? '−' : '+'}${Math.abs(c.pos.z).toFixed(0).padStart(5, '0')}`;
     this.el.sectors.textContent = this.field.sectorsMapped.toString().padStart(3, '0');
     this.el.beacons.textContent = s.beaconsScanned.toString().padStart(2, '0');
     if (this.colonies) {
       this.el.colonies.textContent = this.colonies.count.toString().padStart(2, '0') +
         ' / ' + this.colonies.domes.toString().padStart(2, '0');
+      // Threat on THIS world. The other five are in the overlay's system view,
+      // which is where a number you cannot act on right now belongs.
+      const rd = this.colonies.raiders;
+      this.el.threat.textContent = rd.list.length.toString().padStart(2, '0') +
+        (rd.engaged ? ' ⚠' : '');
+    }
+
+    // The beam. A state rather than a gauge: it is firing or it is not, and the
+    // only other thing worth knowing is whether it is on something.
+    if (this.el.beamRow) {
+      this.el.beamRow.classList.toggle('on', !!s.beamOn);
+      this.el.beamRow.classList.toggle('hit', !!s.beamHits);
+      const label = s.beamOn
+        ? (s.beamHits ? 'ON TARGET ×' + s.beamHits : 'BEAM ACTIVE')
+        : (c.fuel <= 2 ? 'CHARGE TOO LOW' : 'HOLD E');
+      if (label !== this.lastBeam) { this.el.beamState.textContent = label; this.lastBeam = label; }
     }
 
     const flying = c.mode === 'jet';
+    // Altitude in transit is measured off the nearest world, which is the same
+    // number the speed law is reading — so the panel shows you why you are
+    // going as fast as you are.
+    if (c.hyper) {
+      this.el.altRow.classList.add('on');
+      this.el.alt.textContent = Math.round(c.hyper.alt).toString();
+    }
     this.setTapeHeight(flying ? TAPE_H_AIR : TAPE_H);
     this.el.altRow.classList.toggle('on', flying);
-    if (flying) {
+    if (flying && !c.hyper) {
       this.el.alt.textContent = Math.max(0, Math.round(c.altitude)).toString();
       this.el.altRow.classList.toggle('auto', c.assist > 0);
       this.el.altRow.classList.toggle('pull', c.nearGround > 0.45);
@@ -255,6 +370,43 @@ export class Hud {
       this.segs[i].classList.toggle('lit', i < lit);
     }
     this.el.fuelNum.textContent = Math.round(c.fuel).toString().padStart(3, '0');
+
+    // ---- the economy ----------------------------------------------------
+    if (this.economy) {
+      const e = this.economy;
+      const pct = clamp(e.hyper / ECONOMY.maxHyper, 0, 1) * 100;
+      if (Math.abs(pct - (this.lastHyper || 0)) > 0.4) {
+        this.lastHyper = pct;
+        this.el.hyperBar.style.setProperty('--fill', pct.toFixed(1) + '%');
+        this.el.hyperBar.classList.toggle('empty', e.hyper < 12);
+        this.el.hyperNum.textContent = Math.round(e.hyper).toString().padStart(3, '0');
+      }
+
+      const here = this.field.planet ? this.field.planet.key : null;
+      const claimed = here ? e.claimed(here) : 0;
+      const total = here ? (this.totals[here] || 0) : 0;
+      this.el.geysers.textContent =
+        String(claimed).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+      // Per minute reads better than per second at these rates — a good site is
+      // a fraction of a unit a second and nobody can feel that.
+      this.el.hyperRate.textContent = (e.rate * 60).toFixed(1);
+
+      for (const pip of this.pips) {
+        const t = this.totals[pip.key] || 0;
+        const got = e.claimed(pip.key);
+        const fill = t ? Math.round((got / t) * 100) : 0;
+        // Reachability is the trip check, shown before you commit to it rather
+        // than as a refusal after you have climbed to 900m.
+        const cls = (pip.key === here ? 'here ' : '') +
+          (got >= t && t ? 'full ' : '') +
+          (pip.key !== here && !e.canReach(here, pip.key).ok ? 'far' : '');
+        if (fill !== pip.fill) {
+          pip.fill = fill;
+          pip.el.style.setProperty('--fill', fill + '%');
+        }
+        if (cls !== pip.cls) { pip.cls = cls; pip.el.className = cls.trim(); }
+      }
+    }
 
     // Mode chips.
     if (c.mode !== this.lastMode) {
@@ -299,6 +451,7 @@ export class Hud {
         (c.boostHeat * Math.min(1, c.speed / ROVER.boostSpeed) * 0.85).toFixed(3);
     }
 
+    if (this.raiderCool > 0) this.raiderCool -= dt;
     if (this.toastTimer > 0) {
       this.toastTimer -= dt;
       if (this.toastTimer <= 0) this.el.toast.className = '';

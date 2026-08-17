@@ -10,7 +10,7 @@
 // What is better: the tree is bounded. A finite world has a knowable leaf
 // count, so there is no unbounded stream to leak.
 
-import { height } from './noise.js';
+import { height, fissureAt } from './noise.js';
 import { faceDir, dirToFace, arcBetween } from './sphere.js';
 import { splitNode } from './surface.js';
 import { appendRocks } from './scatter.js';
@@ -172,6 +172,25 @@ export class ChunkField {
       appendRocks(P, f, u0, v0, size, ox, oy, oz, pos, nrm);
     }
 
+    /* Bake the fissure mask (Phase 3a2). Ember's cracks glow, and the shader has
+       no way to know where they are: the mask lives inside height(), which the
+       GPU never sees.
+       Filled from each vertex's own DIRECTION after the fact rather than
+       threaded through the winding-critical emitters above — which means it
+       cannot fall out of step with the vertex order, and it covers the skirts
+       and the baked rocks for free. Zero everywhere else, because the shader
+       always declares the attribute and only Ember pays for filling it. */
+    const verts = pos.length / 3;
+    const fis = new Float32Array(verts);
+    if (P.wFissure > 0) {
+      for (let i = 0; i < verts; i++) {
+        const x = pos[i * 3] + ox, y = pos[i * 3 + 1] + oy, z = pos[i * 3 + 2] + oz;
+        const l = Math.hypot(x, y, z) || 1;
+        D.x = x / l; D.y = y / l; D.z = z / l;
+        fis[i] = fissureAt(D, P);
+      }
+    }
+
     const mesh = new BABYLON.Mesh(`leaf_${f}_${level}_${u0.toFixed(3)}_${v0.toFixed(3)}`, this.scene);
     const vd = new BABYLON.VertexData();
     vd.positions = pos;
@@ -181,6 +200,7 @@ export class ChunkField {
     for (let i = 0; i < idx.length; i++) idx[i] = i;
     vd.indices = idx;
     vd.applyToMesh(mesh, false);
+    mesh.setVerticesData('fissure', fis, false, 1);
 
     mesh.material = this.material;
     mesh.position.set(ox, oy, oz);

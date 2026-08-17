@@ -234,7 +234,12 @@ export function makePlanet(profile) {
   return Object.assign({}, profile, {
     faceArc,
     maxLevel,
+    // The radius at which local y is zero: this world's sea level. Terrain is
+    // drawn at surfaceR + height(), and height() is now measured from the same
+    // waterline, so the ground lands at R + (its raw offset) on every world.
     surfaceR: R + profile.waterY,
+    // A dry world has no shell to build and nothing to flood in.
+    hasWater: !profile.dry,
     // uv size of one grid cell in the finest leaf. This is the lattice the
     // vehicles actually ride, and what surfaceHeight has to reproduce.
     finestCellUV: (2 / Math.pow(2, maxLevel)) / profile.leafRes,

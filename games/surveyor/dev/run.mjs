@@ -10,7 +10,7 @@ const { Colonies } = await import('../js/game/colony.js');
 const { Sound } = await import('../js/audio/index.js');
 const { WORLD, ROVER, BOAT, HOP, JET, SUSP, WHEEL, COLONY, PLANETS } =
   await import('../js/tune.js');
-const { on } = await import('../js/core/events.js');
+const { on, off } = await import('../js/core/events.js');
 const { makePlanet, faceDir, dirToFace, arcBetween, TangentFrame } =
   await import('../js/world/sphere.js');
 const { Surface, findSpawn, splitNode } = await import('../js/world/surface.js');
@@ -30,6 +30,8 @@ const newCraft = (planet) => new Craft(forms, spawnOn(planet || HOME));
 
 const IN = (o = {}) => Object.assign(
   { fwd: 0, turn: 0, pitch: 0, roll: 0, boost: false, hopHeld: false, hopPress: false, mode: null }, o);
+
+const clampN = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 let fails = 0;
 const ok = (name, cond, extra = '') => {
@@ -184,8 +186,13 @@ for (let f = 0; f < 6; f++) {
 ok('no degenerate cells anywhere on the sphere', aMin > 0 && aMax / aMin < 2.0,
   'cell area ratio ' + (aMax / aMin).toFixed(2) + ':1 (naive cube is 5.20, lat/long is unbounded)');
 
-// Relief must stay inside the radius budget on both worlds.
-for (const P of [HOME, SMALL]) {
+/* SMALL only. Home's relief is now asserted by the six-world check further
+   down, which samples 60k points and reports percentage of cap rather than a
+   loose 105% bound — so keeping Home here asserted it twice, to two different
+   standards. SMALL is a synthetic tiny world used to prove the terrain
+   function degrades sanely at small radii; nothing else covers it, so it
+   stays. */
+for (const P of [SMALL]) {
   let lo = Infinity, hi = -Infinity, wet = 0, n = 0;
   sphereWalk(12000, (d) => {
     const h = height(d, P);
@@ -513,10 +520,18 @@ const craft = newCraft();
 const survey = new Survey(scene, craft, HOME);
 ok('craft spawns on dry land', craft.pos.y > 0, `y=${craft.pos.y.toFixed(1)}`);
 
+/* Local physics, deliberately kept local. The old third step held the nose up
+   under boost for fifteen seconds, which since Phase 3b climbs through the
+   approach altitude and leaves the planet — the run then never reached the boat
+   and topped out at a million metres per second, which is correct behaviour and
+   a useless stability test. The climb is now bounded and answered by a descent,
+   so this still exercises sustained boost, roll and pitch on both sides of
+   level flight. Departure is tested where it belongs, in section 11. */
 const script = [
   { frames: 300, in: { fwd: 1, turn: 0.3 }, mode: null },
   { frames: 60, in: { fwd: 1 }, mode: 'jet' },
-  { frames: 900, in: { fwd: 0.4, roll: 0.6, pitch: -0.2, boost: true }, mode: null },
+  { frames: 180, in: { fwd: 0.4, roll: 0.6, pitch: -0.2, boost: true }, mode: null },
+  { frames: 720, in: { fwd: 0.4, roll: -0.4, pitch: 0.25, boost: true }, mode: null },
   { frames: 600, in: { fwd: 1, pitch: 0.5, hop: true }, mode: null },
   { frames: 300, in: { fwd: 1, turn: -1, hop: true }, mode: 'boat' },
   { frames: 300, in: { fwd: -1, turn: 1 }, mode: 'rover' },
@@ -897,9 +912,28 @@ const colonies = new Colonies(scene, cJet, mat, HOME);
 ok('habitat domes are wound the right way out', signedVolume(colonies.domeProto) < 0,
   `signed volume ${signedVolume(colonies.domeProto).toFixed(2)} (Babylon wants negative)`);
 
-// A probe can only be dropped from the air, and it costs charge.
+/* Dropping. Phase 4a makes this possible from the rover as well as the jet —
+   geysers are found by driving, and requiring a take-off and a bombing run to
+   claim one turned the reward for exploring into a chore. What is still refused
+   is dropping from the boat, and dropping from the jet too low to survive it. */
 cJet.fuel = 100;
-ok('colonisers cannot be dropped from the ground', colonies.drop() === false);
+{
+  const fuelWas = cJet.fuel;
+  const droppedOnFoot = colonies.drop();
+  colonies.dropCool = 0;
+  cJet.setMode('boat');
+  const droppedAfloat = colonies.drop();
+  colonies.dropCool = 0;
+  cJet.setMode('rover');
+  ok('a coloniser can be planted from the rover, and not from the boat',
+    droppedOnFoot === true && droppedAfloat === false &&
+    Math.abs((fuelWas - cJet.fuel) - COLONY.cost) < 0.01,
+    `rover drop charged ${COLONY.cost}, boat drop refused`);
+  // Clear the probe that just left the rack so it cannot land mid-test.
+  for (const p of colonies.probes) p.mesh.dispose();
+  colonies.probes.length = 0;
+  colonies.dropCool = 0;
+}
 
 // Dry and level: score is height above sea level, penalised for being steep.
 const flat0 = bestRing(HOME, [0, 12, 24], (h) => h);
@@ -953,6 +987,1552 @@ const before8b = cJet.fuel;
 for (let i = 0; i < 60; i++) colonies.update(1 / 60);
 ok('a mature colony trickles charge back', cJet.fuel > before8b,
   `+${(cJet.fuel - before8b).toFixed(2)}/s from ${colonies.domes} domes`);
+
+
+// ---- 10. the six worlds (Phase 3a) -------------------------------------
+/* Relief has to stay inside radius/20 on every profile, and the check has to
+   SAMPLE rather than sum: `carve` and `ridge` are gated by `land` and by each
+   other, so the weights do not compose linearly and adding them up would miss
+   a violation entirely.
+   It reports percentage of cap per world rather than only pass/fail, because
+   Home already sits at 93% — a pass tells you nothing about how close the next
+   profile is to becoming a failure. A world creeping to 99% should be visible
+   in the log before someone else's tuning pass tips it over. */
+{
+  const SAMPLES = 60000;
+  const GA = Math.PI * (3 - Math.sqrt(5));   // Fibonacci sphere: even, unbiased
+  const measure = (planet) => {
+    let lo = Infinity, hi = -Infinity, wet = 0;
+    for (let i = 0; i < SAMPLES; i++) {
+      const y = 1 - (i / (SAMPLES - 1)) * 2;
+      const r = Math.sqrt(Math.max(0, 1 - y * y));
+      const a = GA * i;
+      const h = height({ x: Math.cos(a) * r, y, z: Math.sin(a) * r }, planet);
+      if (h < lo) lo = h;
+      if (h > hi) hi = h;
+      // Sea level is zero on every world: height() subtracts the profile's own
+      // waterY, so this is the same waterline the shell is drawn at. Measuring
+      // against planet.waterY was the bug — it read a line nothing rendered.
+      if (h < 0) wet++;
+    }
+    return { lo, hi, span: hi - lo, wet: wet / SAMPLES };
+  };
+
+  const keys = Object.keys(PLANETS);
+  ok('the system has six worlds', keys.length === 6, keys.join(', '));
+
+  for (const k of keys) {
+    const planet = PLANETS[k];
+    const cap = planet.radius / 20;
+    const m = measure(planet);
+    const pct = (m.span / cap) * 100;
+    ok(`${planet.name} relief within radius/20`, m.span <= cap,
+      `${m.span.toFixed(1)}m of ${cap.toFixed(1)}m = ${pct.toFixed(0)}% of cap, `
+      + `${(m.wet * 100).toFixed(0)}% under water`);
+  }
+
+  /* Identity checks. These are the two the MD calls out as load-bearing, and
+     they are asserted rather than eyeballed because both are invisible from a
+     screenshot: a world can look right and still have the wrong water rule. */
+  const ember = measure(PLANETS.ember);
+  /* Ember is dry by flag rather than by burying its waterline a kilometre
+     down, so what has to be asserted is that nothing builds a shell for it and
+     nothing can flood in it — its fissures DO cut below zero, and that is fine
+     precisely because there is no water to be below. */
+  ok('Ember is dry: no shell, and nothing to flood in',
+    !makePlanet(PLANETS.ember).hasWater && PLANETS.ember.dry === true,
+    `lowest terrain ${ember.lo.toFixed(1)}m, ${(ember.wet * 100).toFixed(0)}% of it under a ` +
+    'waterline that does not exist');
+  ok('Ember terracing is off', PLANETS.ember.terraceAmt === 0,
+    `terraceStep ${PLANETS.ember.terraceStep}m would be half of a ${(PLANETS.ember.radius / 20).toFixed(1)}m world`);
+  ok('Ember is the only world with fissures',
+    PLANETS.ember.wFissure > 0
+      && keys.filter((x) => PLANETS[x].wFissure > 0).length === 1,
+    `wFissure ${PLANETS.ember.wFissure} on Ember, 0 on the other five`);
+
+  const tarn = measure(PLANETS.tarn);
+  ok('Tarn is mostly ocean', tarn.wet > 0.6, `${(tarn.wet * 100).toFixed(0)}% under water`);
+
+  /* Anvil must actually be the most dramatic world in ABSOLUTE metres, which
+     is the point of the redistribution: it is not enough for it to have the
+     biggest cap, it has to use enough of it to out-relieve Home. */
+  const anvil = measure(PLANETS.anvil);
+  const home = measure(PLANETS.home);
+  ok('Anvil has the deepest relief in the system', anvil.span > home.span,
+    `${anvil.span.toFixed(1)}m vs Home ${home.span.toFixed(1)}m`);
+
+  /* ---- Phase 3a2: the identity layer ---------------------------------
+     Palette, sky and scatter are judged by eye — that is what dev/shots.mjs
+     is for, and no assertion can tell you two worlds look alike. What IS
+     assertable is that the parameterisation is complete, that the one
+     gameplay change is confined to the world that asked for it, and that the
+     new geometry is still wound the right way out. */
+  {
+    const { skyOf, paletteOf } = await import('../js/world/materials.js');
+    const { iceAt, iceHolds, iceRide, meltDepth } = await import('../js/world/water.js');
+    const { neighbours } = await import('../js/world/discs.js');
+    const { fissureAt } = await import('../js/world/noise.js');
+    const { SCATTER, ICE, SYSTEM } = await import('../js/tune.js');
+
+    // Every world must resolve a complete sky: a null that survives becomes a
+    // NaN uniform and a black screen, on that world only.
+    let skyHoles = [];
+    for (const k of keys) {
+      const s = skyOf(PLANETS[k]);
+      for (const [f, v] of Object.entries(s)) {
+        if (f === 'motes') continue;
+        if (v === null || v === undefined ||
+          (Array.isArray(v) && v.some((n) => !Number.isFinite(n))) ||
+          (!Array.isArray(v) && !Number.isFinite(v))) skyHoles.push(k + '.' + f);
+      }
+    }
+    ok('every world resolves a complete sky', skyHoles.length === 0,
+      skyHoles.length ? skyHoles.join(', ') : 'all stops, colours and scalars present');
+
+    // Same for the palette channels the shaders now read directly.
+    const missing = keys.filter((k) => {
+      const p = paletteOf(PLANETS[k]);
+      return !p.shade || !p.rim || !Number.isFinite(p.spec);
+    });
+    ok('every world resolves shade, rim and specular', missing.length === 0,
+      missing.join(', ') || 'inherited from COLORS where not stated');
+
+    /* THE REGRESSION THAT MATTERS. Frozen water is one boolean inside the
+       rover's existing water path, and it must be false on five worlds at
+       every depth those worlds can reach — including zero, where a bug in the
+       falloff would freeze the whole system's shallows. */
+    const unfrozen = keys.filter((k) => k !== 'vault');
+    let leaked = [];
+    for (const k of unfrozen) {
+      const P = PLANETS[k];
+      for (let d = 0; d <= 40; d += 0.25) {
+        if (iceAt(P, d) !== 0 || iceHolds(P, d) || iceRide(P, -d) !== -d) {
+          leaked.push(k + '@' + d + 'm');
+          break;
+        }
+      }
+    }
+    ok('water on the other five worlds is untouched by the ice rule',
+      leaked.length === 0,
+      leaked.length ? leaked.join(', ') : '0..40m of depth on ' + unfrozen.join('/'));
+
+    // Vault: thick where it is shallow, gone where it is deep, and the melt
+    // line has to sit past the depth that floods a hull or it is not a hazard.
+    {
+      const V = PLANETS.vault;
+      const melt = meltDepth(V);
+      ok('Vault: ice holds the rover up over shallow water',
+        iceHolds(V, 0.5) && iceHolds(V, 2) && iceRide(V, -2) === WORLD.waterY,
+        `${iceAt(V, 2).toFixed(2)}m of ice at 2m depth, support is ${ICE.support}m`);
+      ok('Vault: thin ice past the melt line gives way',
+        !iceHolds(V, melt + 0.5) && iceRide(V, -(melt + 2)) === -(melt + 2),
+        `melt line at ${melt.toFixed(2)}m`);
+      ok('...and what is under it still floods the hull',
+        melt > ROVER.sinkDepth,
+        `melt ${melt.toFixed(2)}m vs sinkDepth ${ROVER.sinkDepth}m, drown ${ROVER.drownDepth}m`);
+    }
+
+    // The rover actually driving on it: out across a frozen lake, on the ice
+    // the whole way, dry — then past the melt line, where the old flooding and
+    // recovery path has to take over unchanged.
+    {
+      const V = makePlanet(PLANETS.vault);
+      // A direction whose deepest water is past the melt line, so one straight
+      // line crosses thick ice, thin ice and open depth.
+      const melt = meltDepth(V);
+      let best = null, bestScore = -Infinity;
+      sphereWalk(9000, (d) => {
+        const h = height(d, V);
+        const score = -Math.abs(h + melt * 0.35);
+        if (score > bestScore) { bestScore = score; best = { x: d.x, y: d.y, z: d.z }; }
+      });
+      const c = new Craft(forms, new Surface(V, best));
+      c.pos.set(0, 1, 0);
+      let iced = 0, dry = 0, frames = 0;
+      for (let i = 0; i < 900; i++) {
+        c.update(1 / 60, IN({ fwd: 1, turn: Math.sin(i / 130) * 0.5 }));
+        frames++;
+        if (c.onIce) { iced++; if (c.swamp < 0.05 && c.sinkY === 0) dry++; }
+      }
+      ok('Vault: the rover crosses ice it would flood in anywhere else',
+        iced > 60 && dry === iced,
+        `${iced}/${frames} frames on ice, ${dry} of them dry, drowns ${c.drowns}`);
+
+      // And the deep middle still swallows it, through the code that was
+      // always there — no second flooding system.
+      let deep = null, deepest = 0;
+      sphereWalk(8000, (d) => {
+        const h = height(d, V);
+        if (h < deepest) { deepest = h; deep = { x: d.x, y: d.y, z: d.z }; }
+      });
+      const cD = new Craft(forms, new Surface(V, deep));
+      cD.pos.set(0, 1, 0);
+      let flooded = false;
+      for (let i = 0; i < 60 * 25 && cD.drowns === 0; i++) {
+        cD.update(1 / 60, IN({}));
+        if (cD.swamp > 0.9) flooded = true;
+      }
+      ok('Vault: thin ice over the deep still floods and still recovers',
+        !iceHolds(V, -deepest) && flooded && cD.drowns === 1,
+        `deepest water ${(-deepest).toFixed(1)}m, melt line ${melt.toFixed(2)}m`);
+    }
+
+    // Ember's mask is what the shader burns. It has to be a real 0..1 field
+    // with hot cores, and it has to be zero everywhere else in the system.
+    {
+      // Against the threshold the shader actually burns from, not a number
+      // written down here — the two drifting apart is how a world ends up
+      // either uniformly alight or with no glow at all.
+      const from = skyOf(PLANETS.ember).emitFrom;
+      const N = 6000;
+      let hot = 0, worst = 0, elsewhereNonZero = 0;
+      sphereWalk(N, (d) => {
+        const v = fissureAt(d, PLANETS.ember);
+        worst = Math.max(worst, v);
+        if (v > from) hot++;
+        for (const k of keys) {
+          if (k !== 'ember' && fissureAt(d, PLANETS[k]) !== 0) elsewhereNonZero++;
+        }
+      });
+      const pct = 100 * hot / N;
+      ok('Ember\'s cracks are a minority of the surface, and burn hot',
+        pct > 0.5 && pct < 12 && worst > 0.85 && elsewhereNonZero === 0,
+        `${pct.toFixed(1)}% of the surface above the ${from} emission ` +
+        `threshold, peak ${worst.toFixed(2)}, 0 on the other five`);
+      /* The mask must be the SAME field height() cuts with, or the glow lands
+         beside the crack instead of in it — which is exactly the failure the MD
+         warns about, and exactly the one a screenshot cannot show you.
+         Compared away from the lake-floor clamp, which is non-linear and
+         applies to both terms. */
+      const P = PLANETS.ember;
+      const flat = Object.assign({}, P, { wFissure: 0 });
+      const floor = -0.06 * P.relief;
+      let checked = 0, agree = 0;
+      sphereWalk(3000, (d) => {
+        const cut = fissureAt(d, P) * P.wFissure * P.relief;
+        const expected = height(d, flat) - cut;
+        if (expected <= floor) return;              // clamped, not comparable
+        checked++;
+        if (Math.abs(height(d, P) - expected) < 1e-9) agree++;
+      });
+      ok('the baked mask is the same field height() cuts with',
+        checked > 500 && agree === checked,
+        `${agree}/${checked} directions agree to 1e-9m`);
+    }
+
+    // Scatter profiles: every world resolves one, and no two silhouettes are
+    // built from the same numbers.
+    {
+      const sigs = keys.map((k) => JSON.stringify(
+        Object.assign({}, SCATTER, PLANETS[k].scatter || {})));
+      ok('the six worlds have six different rock profiles',
+        new Set(sigs).size === 6, sigs.length + ' profiles, ' + new Set(sigs).size + ' distinct');
+
+      /* Winding, on every profile — Ember's plates and Vault's four-sided
+         shards go through the same emitters with numbers Home never uses, and
+         it was Ember that finally exposed a slab that had been inside-out
+         since the flat world.
+         Position-independence is asserted alongside the sign, because that is
+         what makes the sign mean anything: an open or inconsistently wound
+         solid still produces a number, it just produces a different one
+         wherever you put it — which is how the old Home-only check reported a
+         healthy -32731 for a leaf whose boxes were all reversed. */
+      const bad = [];
+      const drift = [];
+      const OFF = [50000, -31000, 7700];
+      const volumeOf = (pos, shift) => {
+        let v = 0;
+        for (let i = 0; i < pos.length; i += 9) {
+          const g = (j) => [pos[i + j] + (shift ? OFF[0] : 0),
+            pos[i + j + 1] + (shift ? OFF[1] : 0), pos[i + j + 2] + (shift ? OFF[2] : 0)];
+          const a = g(0), b = g(3), c = g(6);
+          v += (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) +
+            a[2] * (b[0] * c[1] - b[1] * c[0])) / 6;
+        }
+        return v;
+      };
+      for (const k of keys) {
+        const P = makePlanet(PLANETS[k]);
+        const size = 2 / Math.pow(2, P.maxLevel);
+        let vol = 0, moved = 0, tris = 0;
+        /* A spread of leaf rects, not one. Rocks are skipped under water, and
+           Tarn is 86% ocean — a single rect at the same uv on every world found
+           nothing at all there and reported it as a winding failure. */
+        for (let f = 0; f < 6; f++) {
+          for (let g = 0; g < 5; g++) {
+            const u0 = -1 + g * 0.37, v0 = -1 + ((g * 7) % 5) * 0.33;
+            const pos = [], nrm = [];
+            appendRocks(P, f, u0, v0, size, 0, 0, 0, pos, nrm);
+            tris += pos.length / 9;
+            vol += volumeOf(pos, false);
+            moved += volumeOf(pos, true);
+          }
+        }
+        if (!(vol < 0) || tris === 0) bad.push(`${k} (${vol.toFixed(0)}, ${tris} tris)`);
+        if (Math.abs(moved - vol) > Math.abs(vol) * 1e-4) {
+          drift.push(`${k} (${vol.toFixed(0)} -> ${moved.toFixed(0)} when moved)`);
+        }
+      }
+      ok('every world\'s rocks are wound the right way out', bad.length === 0,
+        bad.join(', ') || 'all six profiles, six cube faces each');
+      ok('...and every rock is a closed solid, so that number means something',
+        drift.length === 0,
+        drift.join(', ') || 'signed volume unchanged by a 60km translation');
+    }
+
+    // The discs. Five neighbours from everywhere, honest angular sizes, and
+    // nothing degenerate that could shimmer.
+    {
+      const bad = [];
+      const sizes = [];
+      for (const k of keys) {
+        const list = neighbours(PLANETS[k]);
+        if (list.length !== 5) { bad.push(k + ' sees ' + list.length); continue; }
+        for (const d of list) {
+          const truth = Math.atan2(PLANETS[d.key].radius, d.dist);
+          if (Math.abs(d.angle - truth) > 1e-12 || !(d.dist > 100000) ||
+            d.tint.some((c) => !Number.isFinite(c))) bad.push(k + '->' + d.key);
+        }
+        if (k === 'home') {
+          for (const d of list) {
+            sizes.push(`${d.key} ${(d.dist / 1000) | 0}km ${(d.angle * 2 * 180 / Math.PI).toFixed(2)}deg`);
+          }
+        }
+      }
+      ok('every world sees the other five, at honest angular sizes',
+        bad.length === 0, bad.join(', ') || 'from Home: ' + sizes.join(', '));
+      ok('the discs are drawn in front of nothing and behind everything',
+        SYSTEM.distance > 0 && SYSTEM.distance < 1 && SYSTEM.minAngle > 0,
+        `billboards at ${SYSTEM.distance} of the far plane, floor ${SYSTEM.minAngle}rad`);
+    }
+  }
+
+  // Persistence: the same planet must generate identically, forever.
+  const a = height({ x: 0.31, y: 0.62, z: 0.72 }, PLANETS.shroud);
+  const b = height({ x: 0.31, y: 0.62, z: 0.72 }, PLANETS.shroud);
+  ok('a world generates identically every time', a === b, `${a.toFixed(6)}m twice`);
+
+  // ...and profiles must not collide: same direction, six different heights.
+  const at = (planet) => height({ x: 0.577, y: 0.577, z: 0.577 }, planet).toFixed(3);
+  const heights = keys.map((k) => at(PLANETS[k]));
+  ok('the six profiles are distinct worlds', new Set(heights).size === 6,
+    heights.join(' / '));
+}
+
+// ---- 11. hyper travel (Phase 3b) ---------------------------------------
+/* The tunnelling test is the reason this phase has a separate maths module,
+   and it is written first because it is the assertion everything else here
+   exists to satisfy: at the cap a frame is 33km long and Ember is 414m ACROSS
+   — note the unit, Tarn's RADIUS is 414m — so a naive integrator misses every
+   world in the system and reads as a physics bug rather than a missing sweep. */
+{
+  const H = await import('../js/world/hyper.js');
+  const { HYPER, SYSTEM } = await import('../js/tune.js');
+  const BS = H.bodies();
+  const by = (k) => BS.find((b) => b.key === k);
+  const V = (x, y, z) => ({ x, y, z });
+  const sub = (a, b) => V(a.x - b.x, a.y - b.y, a.z - b.z);
+  const norm = (v) => {
+    const l = Math.hypot(v.x, v.y, v.z) || 1;
+    return V(v.x / l, v.y / l, v.z / l);
+  };
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+
+  ok('the speed law matches the jet it hands over from',
+    HYPER.localSpeed === JET.boostSpeed,
+    `v0 ${HYPER.localSpeed} m/s = JET.boostSpeed, H ${HYPER.doubleEvery}m, ` +
+    `cap ${(HYPER.maxSpeed / 1e6).toFixed(1)}e6 m/s`);
+
+  ok('every world has an approach sphere clear of its own terrain',
+    BS.length === 6 && BS.every((b) => {
+      const relief = PLANETS[b.key].radius / 20;
+      return b.approachR > b.surfaceR + relief && b.approachR > 0;
+    }),
+    BS.map((b) => `${b.key} ${b.approachR.toFixed(0)}m`).join(', '));
+
+  /**
+   * Fire a craft at a world from `range` metres and run it to a stop.
+   * `offset` slides the aim point sideways in metres at the target, which is
+   * how the grazing cases are set up.
+   */
+  const fireAt = (targetKey, range, dt, offset = 0, steer = false) => {
+    const t = by(targetKey);
+    // Start from far outside everything, aimed at the target.
+    const away = norm(V(0.31, 0.62, 0.72));
+    const p = V(t.c.x + away.x * range, t.c.y + away.y * range, t.c.z + away.z * range);
+    let aim = V(t.c.x, t.c.y, t.c.z);
+    if (offset) {
+      // A perpendicular, so the miss distance at the target is exactly `offset`.
+      const perp = norm(V(-away.y, away.x, 0));
+      aim = V(aim.x + perp.x * offset, aim.y + perp.y * offset, aim.z + perp.z * offset);
+    }
+    const state = { p, dir: norm(sub(aim, p)), speed: 0, alt: 0 };
+    // Straight in at the cap: no steering unless the case asks for it, so what
+    // is under test is the sweep and nothing else.
+    state.dir = state.dir;
+    let arrived = null, frames = 0, time = 0, closest = Infinity;
+    while (frames < 60 * 600) {
+      if (steer) H.steer(state, t, dt);
+      closest = Math.min(closest, dist(state.p, t.c));
+      arrived = H.advance(BS, state, dt);
+      frames++;
+      time += dt;
+      if (arrived) break;
+      // Escaped: nothing left to hit and accelerating away forever.
+      if (H.nearest(BS, state.p).alt > 5e7) break;
+    }
+    return { arrived, frames, time, state, closest, target: t };
+  };
+
+  /* THE TEST. Maximum speed, straight at the smallest world, from further away
+     than any real trip, at 30fps where a frame is 33km. */
+  {
+    const r = fireAt('ember', 1.0e6, 1 / 30);
+    const t = by('ember');
+    const d = dist(r.state.p, t.c);
+    ok('a craft at the cap does not pass through Ember',
+      r.arrived && r.arrived.key === 'ember',
+      `${(1000).toFixed(0)}km out at 1e6 m/s, 33km per frame, ` +
+      `arrived after ${r.frames} frames`);
+    ok('...and it stops ON the approach sphere, not inside the world',
+      r.arrived && d <= t.approachR + 1 && d >= t.surfaceR,
+      `stopped ${d.toFixed(1)}m from Ember's centre — sphere ${t.approachR.toFixed(0)}m, ` +
+      `surface ${t.surfaceR.toFixed(0)}m, world radius ${t.radius}m (${t.radius * 2}m across)`);
+
+    /* And the same shot without the sweep, to show what the sweep is for.
+       Swept over 40 starting distances rather than one: whether a sampled
+       position happens to land inside a 607m sphere depends on where the frame
+       boundaries fall, and a single range either flatters the naive integrator
+       or libels it. The honest claim is the statistical one. */
+    {
+      const step = HYPER.maxSpeed / 30;
+      let hits = 0, sweptHits = 0;
+      const PHASES = 40;
+      for (let ph = 0; ph < PHASES; ph++) {
+        const range = 1.0e6 + (step * ph) / PHASES;
+        const away = norm(V(0.31, 0.62, 0.72));
+        const p = V(t.c.x + away.x * range, t.c.y + away.y * range, t.c.z + away.z * range);
+        const dir = norm(sub(t.c, p));
+        for (let i = 0; i < 100; i++) {
+          p.x += dir.x * step; p.y += dir.y * step; p.z += dir.z * step;
+          if (dist(p, t.c) <= t.approachR) { hits++; break; }
+          if (dist(p, t.c) > 1.2e6) break;
+        }
+        if (fireAt('ember', range, 1 / 30).arrived) sweptHits++;
+      }
+      ok('...where a per-frame integrator flies straight through it',
+        hits <= PHASES * 0.15 && sweptHits === PHASES,
+        `sampling every 33km, ${hits}/${PHASES} starting ranges register the hit; ` +
+        `sweeping the segment, ${sweptHits}/${PHASES} do`);
+    }
+  }
+
+  // Every world, at range, at the cap.
+  {
+    const missed = [];
+    for (const b of BS) {
+      const r = fireAt(b.key, 8e5, 1 / 30);
+      const d = dist(r.state.p, b.c);
+      if (!r.arrived || r.arrived.key !== b.key || d > b.approachR + 1) {
+        missed.push(`${b.key} (${r.arrived ? r.arrived.key : 'nothing'})`);
+      }
+    }
+    ok('and it arrives at every world in the system, not just the big ones',
+      missed.length === 0, missed.join(', ') || '800km at the cap, all six hit');
+  }
+
+  // Grazing. Just inside the sphere must register; just outside must not, or
+  // the sweep is really a proximity test with a generous radius.
+  {
+    const t = by('ember');
+    const graze = fireAt('ember', 5e5, 1 / 30, t.approachR * 0.92);
+    const miss = fireAt('ember', 5e5, 1 / 30, t.approachR * 1.35);
+    ok('a grazing pass still registers as an arrival',
+      graze.arrived && graze.arrived.key === 'ember',
+      `aimed ${(t.approachR * 0.92).toFixed(0)}m off centre, sphere is ${t.approachR.toFixed(0)}m`);
+    ok('...and a genuine near miss stays a miss',
+      !miss.arrived || miss.arrived.key !== 'ember',
+      `aimed ${(t.approachR * 1.35).toFixed(0)}m off centre, closest approach ` +
+      `${miss.closest.toFixed(0)}m`);
+  }
+
+  // Frame rate must not change the outcome. This is the property the analytic
+  // step buys, and the one a sampled integrator cannot have.
+  {
+    const at = [1 / 20, 1 / 30, 1 / 60, 1 / 144].map((dt) => fireAt('ember', 4e5, dt));
+    const times = at.map((r) => r.time);
+    const spread = Math.max(...times) - Math.min(...times);
+    ok('the trip takes the same time at 20fps as at 144fps',
+      at.every((r) => r.arrived && r.arrived.key === 'ember') && spread < 0.35,
+      times.map((t) => t.toFixed(2) + 's').join(' / ') +
+      `, spread ${(spread * 1000).toFixed(0)}ms`);
+  }
+
+  /* Trip time converges. This is the claim the whole design rests on: the
+     journey costs the same whether the world is 300km away or 850km. */
+  {
+    const home = by('home');
+    const rows = [];
+    let worst = 0;
+    // Predicted: out from the boundary to infinity and back down to it, which
+    // is 2H·2^(-a0/H)/(v0·ln2) with a0 the approach altitude.
+    const predicted = 2 * HYPER.doubleEvery *
+      Math.pow(2, -HYPER.approachAlt / HYPER.doubleEvery) /
+      (HYPER.localSpeed * Math.LN2);
+    for (const b of BS) {
+      if (b.key === 'home') continue;
+      // Leave Home's boundary pointed at the target, as the craft does.
+      const dir = norm(sub(b.c, home.c));
+      const p = V(home.c.x + dir.x * home.approachR,
+        home.c.y + dir.y * home.approachR,
+        home.c.z + dir.z * home.approachR);
+      const state = { p, dir: { x: dir.x, y: dir.y, z: dir.z }, speed: 0, alt: 0 };
+      let t = 0, arrived = null, top = 0;
+      for (let i = 0; i < 60 * 600 && !arrived; i++) {
+        H.steer(state, b, 1 / 60);
+        arrived = H.advance(BS, state, 1 / 60);
+        top = Math.max(top, state.speed);
+        t += 1 / 60;
+      }
+      const sep = dist(home.c, b.c) / 1000;
+      rows.push(`${b.name} ${sep.toFixed(0)}km ${t.toFixed(1)}s`);
+      worst = Math.max(worst, Math.abs(t - predicted));
+      if (!arrived || arrived.key !== b.key) worst = 999;
+    }
+    ok('trip time converges: every world is the same journey away',
+      worst < 3.5, `predicted ${predicted.toFixed(1)}s — ` + rows.join(', '));
+  }
+
+  // Arrival speed. There is no braking input, so the only thing that can make
+  // this safe is the law itself.
+  {
+    const b = by('anvil');
+    const home = by('home');
+    const dir = norm(sub(b.c, home.c));
+    const p = V(home.c.x + dir.x * home.approachR,
+      home.c.y + dir.y * home.approachR, home.c.z + dir.z * home.approachR);
+    const state = { p, dir: { x: dir.x, y: dir.y, z: dir.z }, speed: 0, alt: 0 };
+    let arrived = null, top = 0;
+    for (let i = 0; i < 60 * 600 && !arrived; i++) {
+      H.steer(state, b, 1 / 60);
+      arrived = H.advance(BS, state, 1 / 60);
+      top = Math.max(top, state.speed);
+    }
+    const vArrive = H.speedAt(H.nearest(BS, state.p).alt);
+    ok('deceleration into arrival is automatic, and there is no way around it',
+      arrived && top > 9e5 && vArrive < JET.boostSpeed * 2,
+      `topped out at ${(top / 1e6).toFixed(2)}e6 m/s, crossed the boundary at ` +
+      `${vArrive.toFixed(0)} m/s (jet boost is ${JET.boostSpeed})`);
+  }
+
+  // The boundary is one surface, so this is a property rather than a rule.
+  {
+    const home = by('home');
+    const inside = { x: home.c.x, y: home.c.y + home.surfaceR + 100, z: home.c.z };
+    const outside = { x: home.c.x, y: home.c.y + home.approachR + 1, z: home.c.z };
+    ok('hyper cannot begin from inside an approach sphere',
+      H.insideAny(BS, inside) === home && H.insideAny(BS, outside) === null,
+      `100m up is inside Home's sphere, ${HYPER.approachAlt}m up is not`);
+  }
+
+  /* The whole thing, through the real Craft: take off from Home, climb out,
+     cross, arrive. Nothing here reaches into hyper.js — it flies the jet and
+     watches what happens, which is the only way to catch the boundary being
+     unreachable or the handback landing inside a hill. */
+  {
+    const trips = [];
+    let bad = [];
+    for (const destKey of ['ember', 'tarn', 'vault', 'shroud', 'anvil']) {
+      const P = makePlanet(PLANETS.home);
+      const c = new Craft(forms, spawnOn(P));
+      c.fuel = 100;
+      c.setMode('jet');
+
+      // Arrival is handled the way main.js handles it: rebuild the world and
+      // stand the craft up on it.
+      let arrived = null;
+      const land = (e) => {
+        arrived = e;
+        const dest = makePlanet(PLANETS[e.key]);
+        c.landOn(new Surface(dest, e.dir), e.alt);
+      };
+      on('hyperarrive', land);
+
+      // Climb out. Nose up and boost is the only input; the boundary is the
+      // last thing the jet can reach under its own power.
+      let t = 0, climbFrames = 0, launched = false;
+      const target = by(destKey);
+      for (let i = 0; i < 60 * 200; i++) {
+        if (!c.hyper && !arrived) {
+          c.update(1 / 60, IN({ pitch: -1, boost: true }));
+          climbFrames++;
+        } else if (c.hyper) {
+          // Aim it at the world under test, then hands off.
+          if (!launched) { c.hyper.target = target; launched = true; }
+          c.update(1 / 60, IN({}));
+        } else break;
+        t += 1 / 60;
+        if (arrived) break;
+      }
+      // Fly on for a moment: the handback has to be survivable, not just
+      // geometrically correct.
+      let crashed = 0;
+      const onCrash = () => crashed++;
+      on('crash', onCrash);
+      for (let i = 0; i < 60 * 8 && arrived; i++) c.update(1 / 60, IN({}));
+
+      if (!arrived || arrived.key !== destKey) {
+        bad.push(`${destKey}: ${arrived ? 'went to ' + arrived.key : 'never left'}`);
+      } else if (c.surf.planet.key !== destKey) {
+        bad.push(`${destKey}: craft still on ${c.surf.planet.key}`);
+      } else if (c.speed > JET.boostSpeed * 1.05) {
+        bad.push(`${destKey}: arrived at ${c.speed.toFixed(0)} m/s`);
+      } else if (crashed) {
+        bad.push(`${destKey}: crashed on arrival`);
+      }
+      trips.push(`${PLANETS[destKey].name} ${t.toFixed(1)}s ` +
+        `(${(climbFrames / 60).toFixed(1)}s climbing out)`);
+    }
+    ok('a jet flies out of Home and arrives at every other world',
+      bad.length === 0, bad.join('; ') || trips.join(', '));
+  }
+
+  // Round trip, and the world you come home to is the one you left.
+  {
+    const home = makePlanet(PLANETS.home);
+    const c = new Craft(forms, spawnOn(home));
+    c.fuel = 100;
+    c.setMode('jet');
+    const legs = [];
+    let leg = null, arrived = null;
+    const land = (e) => {
+      arrived = e;
+      leg = e.key;
+      c.landOn(new Surface(makePlanet(PLANETS[e.key]), e.dir), e.alt);
+    };
+    on('hyperarrive', land);
+    for (const want of ['vault', 'home']) {
+      arrived = null;
+      const t0 = c.time;
+      const target = by(want);
+      let aimed = false;
+      for (let i = 0; i < 60 * 300 && !arrived; i++) {
+        if (c.hyper) {
+          if (!aimed) { c.hyper.target = target; aimed = true; }
+          c.update(1 / 60, IN({}));
+        } else {
+          c.update(1 / 60, IN({ pitch: -1, boost: true }));
+        }
+      }
+      legs.push(`${want} ${(c.time - t0).toFixed(1)}s`);
+      // Settle before turning round.
+      for (let i = 0; i < 60 * 4; i++) c.update(1 / 60, IN({}));
+    }
+    ok('and it can come home again', leg === 'home' && c.surf.planet.key === 'home',
+      'legs: ' + legs.join(' -> '));
+  }
+
+  /* The boundary is one surface, used for both directions, which is the thing
+     most likely to chatter. Pinned in both directions: sitting on it must not
+     read as an arrival, and arriving must not immediately read as a departure.
+     Found in a browser, where it rebuilt the destination world every frame. */
+  {
+    const home = by('home');
+    const out = { x: 0, y: 1, z: 0 };
+    const onSphere = {
+      p: { x: home.c.x, y: home.c.y + home.approachR, z: home.c.z },
+      dir: out, speed: 0, alt: 0,
+    };
+    const climbing = H.advance(BS, onSphere, 1 / 60);
+
+    const P = makePlanet(PLANETS.home);
+    const c = new Craft(forms, spawnOn(P));
+    c.fuel = 100;
+    c.setMode('jet');
+    let arrivals = 0;
+    const count = () => arrivals++;
+    on('hyperarrive', count);
+    const land = (e) => c.landOn(new Surface(makePlanet(PLANETS[e.key]), e.dir), e.alt);
+    on('hyperarrive', land);
+    for (let i = 0; i < 60 * 90 && arrivals === 0; i++) {
+      c.update(1 / 60, c.hyper ? IN({}) : IN({ pitch: -1, boost: true }));
+    }
+    const atArrival = arrivals;
+    for (let i = 0; i < 60 * 6; i++) c.update(1 / 60, IN({}));
+
+    ok('the boundary does not chatter in either direction',
+      climbing === null && atArrival === 1 && arrivals === 1,
+      `sitting on the sphere and climbing: ${climbing ? 'arrived at ' + climbing.key : 'no arrival'}; ` +
+      `six seconds after arriving: ${arrivals} arrival(s) total`);
+  }
+
+  /* Leaving must be deliberate (Phase 3c). The jet's ceiling is a wall at the
+     same altitude however long you climb, so the boundary alone cannot separate
+     a hard pull-up over a canyon from a departure — the separator is a HELD
+     boost, which is the only thing that keeps thrust above the ceiling.
+     Both halves are asserted: ordinary flight cannot leave, and a sustained
+     burn can, or the feature is unreachable. */
+  {
+    const flights = {
+      'hands off, 30s': [{ n: 60 * 30, in: {} }],
+      'hard 4s climb, boosted': [{ n: 60 * 4, in: { pitch: -1, boost: true } }, { n: 60 * 26, in: {} }],
+      'hard 6s climb, boosted': [{ n: 60 * 6, in: { pitch: -1, boost: true } }, { n: 60 * 26, in: {} }],
+      'nose up 30s, no boost': [{ n: 60 * 30, in: { pitch: -1 } }],
+    };
+    const escaped = [];
+    let peakOrdinary = 0;
+    for (const world of ['home', 'anvil']) {
+      const P = makePlanet(PLANETS[world]);
+      for (const [name, script] of Object.entries(flights)) {
+        const c = new Craft(forms, spawnOn(P));
+        c.fuel = 100;
+        c.setMode('jet');
+        let peak = 0;
+        for (const step of script) {
+          for (let i = 0; i < step.n && !c.hyper; i++) {
+            c.update(1 / 60, IN(step.in));
+            peak = Math.max(peak, c.pos.y);
+          }
+        }
+        peakOrdinary = Math.max(peakOrdinary, peak);
+        if (c.hyper) escaped.push(`${world}: ${name}`);
+      }
+    }
+    ok('ordinary jet flight cannot leave the planet by accident',
+      escaped.length === 0,
+      escaped.join(', ') || `highest ordinary flight reached ${peakOrdinary.toFixed(0)}m, ` +
+      `boundary is ${HYPER.approachAlt}m`);
+
+    // ...and the deliberate version still works, or the boundary is a wall.
+    const P = makePlanet(PLANETS.home);
+    const c = new Craft(forms, spawnOn(P));
+    c.fuel = 100;
+    c.setMode('jet');
+    let t = 0;
+    for (let i = 0; i < 60 * 60 && !c.hyper; i++) { c.update(1 / 60, IN({ pitch: -1, boost: true })); t += 1 / 60; }
+    ok('...and a sustained boost climb still gets you off it',
+      !!c.hyper && t > 5 && t < 15, `crossed the boundary after ${t.toFixed(1)}s of held boost`);
+  }
+
+  /* The FX curve. One number drives every effect, so this is the only place
+     "monotonic, and symmetric on approach" has to be true — and it is a
+     property of the speed law rather than of an animation, which is why it can
+     be asserted at all. */
+  {
+    const P = makePlanet(PLANETS.home);
+    const c = new Craft(forms, spawnOn(P));
+    c.fuel = 100;
+    c.setMode('jet');
+    const dest = by('anvil');
+    let aimed = false, arrived = null;
+    const land = (e) => {
+      arrived = e;
+      c.landOn(new Surface(makePlanet(PLANETS[e.key]), e.dir), e.alt);
+    };
+    on('hyperarrive', land);
+    const trace = [];
+    for (let i = 0; i < 60 * 200 && !arrived; i++) {
+      if (c.hyper) {
+        if (!aimed) { c.hyper.target = dest; aimed = true; }
+        c.update(1 / 60, IN({}));
+        trace.push(c.hyperT);
+      } else {
+        c.update(1 / 60, IN({ pitch: -1, boost: true }));
+      }
+    }
+    const peak = trace.indexOf(Math.max(...trace));
+    let rises = true, falls = true;
+    for (let i = 1; i <= peak; i++) if (trace[i] < trace[i - 1] - 1e-9) rises = false;
+    for (let i = peak + 1; i < trace.length; i++) if (trace[i] > trace[i - 1] + 1e-9) falls = false;
+    // Symmetry: the same intensity on the way out and the way back, at mirrored
+    // points about the peak. Sampled at thirds so it is a shape test, not noise.
+    let worstSym = 0;
+    for (const f of [0.25, 0.5, 0.75]) {
+      const a = trace[Math.round(peak * f)];
+      const b = trace[Math.round(peak + (trace.length - 1 - peak) * (1 - f))];
+      worstSym = Math.max(worstSym, Math.abs(a - b));
+    }
+    /* The bar is 0.10 rather than 0. The two halves are not quite mirror images
+       and cannot be: the craft leaves along whatever heading it had and bends
+       onto the target, so the outbound half is flown partly across the radial
+       and takes longer than the head-on descent at the far end. The SHAPE is
+       symmetric — same rise, same fall, same peak — while the durations differ
+       by a few seconds. That is a property of the lock-on, not of the FX, and
+       nothing here should be made to compensate for it. */
+    ok('the FX intensity rises, peaks, and falls back symmetrically',
+      rises && falls && Math.max(...trace) > 0.98 && worstSym < 0.10,
+      `peaked at ${Math.max(...trace).toFixed(2)} after ${(peak / 60).toFixed(1)}s of a ` +
+      `${(trace.length / 60).toFixed(1)}s crossing, worst mirror error ${worstSym.toFixed(3)}`);
+    ok('...and nothing is left switched on at arrival',
+      c.hyperT === 0 && c.hyper === null && arrived !== null,
+      `hyperT ${c.hyperT} on arrival at ${arrived && arrived.key}`);
+  }
+
+  // The speed law, spot-checked against the arithmetic in the MD.
+  {
+    const aCap = HYPER.doubleEvery * Math.log2(HYPER.maxSpeed / HYPER.localSpeed);
+    ok('the law doubles on schedule and reaches the cap where it should',
+      Math.abs(H.speedAt(HYPER.doubleEvery) - HYPER.localSpeed * 2) < 1e-9 &&
+      Math.abs(H.speedAt(0) - HYPER.localSpeed) < 1e-9 &&
+      H.speedAt(aCap + 1) === HYPER.maxSpeed,
+      `${HYPER.localSpeed} m/s at the boundary, ${(HYPER.localSpeed * 2)} at ` +
+      `${HYPER.doubleEvery}m, cap at ${(aCap / 1000).toFixed(1)}km`);
+  }
+}
+
+// ---- 12. the colonisation economy (Phase 4a) ---------------------------
+{
+  const { geysersOf, geyserAt } = await import('../js/world/geysers.js');
+  const { fissureAt } = await import('../js/world/noise.js');
+  const { Economy, densityOf, hyperRateOf } = await import('../js/game/economy.js');
+  const { Colonies } = await import('../js/game/colony.js');
+  const { GEYSER, ECONOMY, HYPER } = await import('../js/tune.js');
+  const keys = Object.keys(PLANETS);
+
+  // Placement: finite, countable, identical on return, and suited to the world.
+  {
+    const rows = [], bad = [];
+    for (const k of keys) {
+      const P = makePlanet(PLANETS[k]);
+      const g = geysersOf(P);
+      const want = (PLANETS[k].geysers || {}).count || GEYSER.count;
+      if (g.length !== want) bad.push(`${k} placed ${g.length}/${want}`);
+      // Spacing, or the count is a lie: two vents in one claim radius are one.
+      for (let i = 0; i < g.length; i++) {
+        for (let j = i + 1; j < g.length; j++) {
+          const dot = clampN(g[i].dir.x * g[j].dir.x + g[i].dir.y * g[j].dir.y +
+            g[i].dir.z * g[j].dir.z, -1, 1);
+          if (Math.acos(dot) * P.radius < P.radius * GEYSER.minSpacing * 0.999) {
+            bad.push(`${k} has two vents inside the spacing`);
+          }
+        }
+      }
+      rows.push(`${k} ${g.length}`);
+    }
+    ok('every world has a finite, spaced field of geysers', bad.length === 0,
+      bad.join(', ') || rows.join(', '));
+
+    // Deterministic across a rebuild of the planet object, not just cached.
+    const a = geysersOf(makePlanet(PLANETS.home)).map((g) => g.dir.x.toFixed(9)).join();
+    const b = geysersOf(makePlanet(Object.assign({}, PLANETS.home))).map((g) => g.dir.x.toFixed(9)).join();
+    ok('a field is the same field every time it is asked for', a === b,
+      `${geysersOf(makePlanet(PLANETS.home)).length} vents, identical directions`);
+
+    // Suited to the world: Tarn's vent from water, Vault's from ice, Ember's
+    // from the fissures. Asserted because a placement rule that silently falls
+    // back to "dry" would still produce a playable field and the wrong world.
+    const wet = geysersOf(makePlanet(PLANETS.tarn));
+    const ice = geysersOf(makePlanet(PLANETS.vault));
+    const fire = geysersOf(makePlanet(PLANETS.ember));
+    ok('and it suits the world it is on',
+      wet.every((g) => g.elevation < 0) && ice.every((g) => g.elevation < 0) &&
+      fire.every((g) => fissureAt(g.dir, PLANETS.ember) >= 0.35),
+      `Tarn vents ${wet[0].elevation.toFixed(1)}m under water, Vault ${ice[0].elevation.toFixed(1)}m, ` +
+      `Ember's in fissures at ${fissureAt(fire[0].dir, PLANETS.ember).toFixed(2)}`);
+  }
+
+  /* THE ANTI-SOFT-LOCK RULE, in the form it actually has to hold: stranded on
+     any world with an empty tank, there is a vent on THAT world within reach of
+     the ground you are standing on. Travel is not needed to get travel back. */
+  {
+    const stuck = [], rows = [];
+    for (const k of keys) {
+      const P = makePlanet(PLANETS[k]);
+      const g = geysersOf(P);
+      if (!g.length) { stuck.push(k + ' has none'); continue; }
+      // Worst case: spawn as far from the nearest vent as the field allows.
+      let worst = 0;
+      sphereWalk(2000, (d) => {
+        let best = Infinity;
+        for (const gy of g) best = Math.min(best, arcBetween(d, gy.dir, P.radius));
+        worst = Math.max(worst, best);
+      });
+      /* Stated as DRIVING TIME, not as a distance or a fraction of the radius.
+         A fraction of the radius is the wrong unit — on a 207m moon the two
+         furthest points are only 650m apart, so a "0.5 radii" bound fails a
+         world where the worst case is a fifteen-second drive. What matters is
+         that the way out is a journey you can actually make on the resource you
+         still have, which is wheels. */
+      rows.push(`${PLANETS[k].name} ${(worst / ROVER.maxSpeed / 60).toFixed(1)}min`);
+      if (worst / ROVER.maxSpeed > 60 * 8) {
+        stuck.push(`${k}: ${(worst / ROVER.maxSpeed / 60).toFixed(1)} minutes of driving`);
+      }
+    }
+    ok('you cannot be hard-stuck: every world has a vent you can drive to',
+      stuck.length === 0,
+      stuck.join(', ') || 'worst drive to a vent: ' + rows.join(', '));
+  }
+
+  // A vent claims, other ground does not.
+  {
+    const P = makePlanet(PLANETS.home);
+    const g = geysersOf(P)[0];
+    const onVent = geyserAt(P, g.dir);
+    // Somewhere provably far from every vent.
+    let far = null, bestD = 0;
+    sphereWalk(1500, (d) => {
+      let n = Infinity;
+      for (const gy of geysersOf(P)) n = Math.min(n, arcBetween(d, gy.dir, P.radius));
+      if (n > bestD) { bestD = n; far = { x: d.x, y: d.y, z: d.z }; }
+    });
+    ok('a coloniser claims a vent only by landing on one',
+      onVent && onVent.id === g.id && geyserAt(P, far) === null,
+      `claim radius ${(P.radius * GEYSER.claimRadius).toFixed(0)}m`);
+  }
+
+  /* DENSITY IS SUPERLINEAR. The whole clustering mechanic in one assertion:
+     four colonies packed together must out-produce four scattered by a margin
+     you would plan around, not by a rounding difference. */
+  {
+    const P = makePlanet(PLANETS.home);
+    const vents = geysersOf(P);
+    const mk = (dirs) => dirs.map((dir, i) => ({
+      id: i, dir, grown: COLONY.maxDomes, geyser: { id: i, yield: 1 },
+    }));
+    // Four in one basin: offsets well inside the density radius.
+    const c0 = vents[0].dir;
+    const fr = new TangentFrame(P, c0);
+    const step = P.radius * COLONY.densityRadius * 0.28;
+    const cluster = mk([c0,
+      Object.assign({}, fr.dirAt(step, 0, { x: 0, y: 0, z: 0 })),
+      Object.assign({}, fr.dirAt(-step, step * 0.6, { x: 0, y: 0, z: 0 })),
+      Object.assign({}, fr.dirAt(step * 0.4, -step, { x: 0, y: 0, z: 0 }))]);
+    // Four on different vents, which the spacing rule guarantees are far apart.
+    const spread = mk([vents[0].dir, vents[1].dir, vents[2].dir, vents[3].dir]);
+
+    const rate = (sites) => sites.reduce((a, s) => a + hyperRateOf(s, sites, P), 0);
+    const rc = rate(cluster), rs = rate(spread);
+    ok('clustering pays: four together beat four scattered, by a margin',
+      rc > rs * 1.8,
+      `cluster ${(rc * 60).toFixed(2)}/min vs scattered ${(rs * 60).toFixed(2)}/min ` +
+      `— ${(rc / rs).toFixed(2)}x at densityPower ${ECONOMY.densityPower}`);
+    ok('...and density counts neighbours, not just the site itself',
+      densityOf(cluster[0], cluster, P) > densityOf(spread[0], spread, P) * 1.5,
+      `${densityOf(cluster[0], cluster, P).toFixed(1)} vs ` +
+      `${densityOf(spread[0], spread, P).toFixed(1)} domes of effective density`);
+  }
+
+  /* Production runs on the RECORD, so a world nobody is rendering earns exactly
+     what it would if you were standing on it. This is the promise that makes
+     leaving a colony behind a strategy rather than a loss. */
+  {
+    const eco = new Economy();
+    const scene2 = new BABYLON.Scene();
+    const mat2 = new BABYLON.ShaderMaterial('m2');
+    const P = makePlanet(PLANETS.home);
+    const c = new Craft(forms, spawnOn(P));
+    const col = new Colonies(scene2, c, mat2, P);
+    eco.register('home', col);
+    // Plant one on a vent, by hand, at the age of a mature site.
+    const vent = geysersOf(P)[0];
+    col.restore({ id: 1, dir: [vent.dir.x, vent.dir.y, vent.dir.z], age: 600, geyser: vent.id }, 0);
+    eco.hyper = 0;
+    let meshBuilt = false;
+    for (let i = 0; i < 600; i++) {
+      eco.update(1 / 60);                       // tick only: nothing streams
+      if (col.sites[0].node) meshBuilt = true;
+    }
+    ok('a world nobody is looking at still produces',
+      eco.hyper > 0 && eco.rate > 0 && !meshBuilt,
+      `${(eco.rate * 60).toFixed(2)} hyper/min accrued with no mesh ever built`);
+
+    // ...and the claim shows up in the progress readout.
+    ok('and a claimed vent counts toward that planet progress readout',
+      eco.claimed('home') === 1 && eco.progress({ home: geysersOf(P).length }).total > 1,
+      `1 of ${geysersOf(P).length} claimed on Home`);
+  }
+
+  // The trip check: refused before departure, with a reason, and never after.
+  {
+    const eco = new Economy();
+    const cost = eco.costTo('home', 'anvil');
+    eco.hyper = cost - 1;
+    const poor = eco.canReach('home', 'anvil');
+    eco.hyper = cost + 1;
+    const rich = eco.canReach('home', 'anvil');
+    ok('a trip you cannot pay for is refused before you commit to it',
+      !poor.ok && rich.ok && cost > 0,
+      `Home->Anvil costs ${cost.toFixed(0)} hyper over 536km`);
+
+    // Through the craft, which is where it has to actually happen.
+    const P = makePlanet(PLANETS.home);
+    const c = new Craft(forms, spawnOn(P));
+    c.economy = eco;
+    eco.hyper = 0;
+    c.fuel = 100;
+    c.setMode('jet');
+    let denied = null;
+    const onDenied = (e) => { denied = e; };
+    on('hyperdenied', onDenied);
+    for (let i = 0; i < 60 * 40 && !c.hyper && !denied; i++) {
+      c.update(1 / 60, IN({ pitch: -1, boost: true }));
+    }
+    ok('...and the craft refuses to leave rather than stranding you',
+      !!denied && !c.hyper && c.pos.y > HYPER.approachAlt * 0.5,
+      denied ? `refused at ${denied.need.toFixed(0)} needed, ${denied.have.toFixed(0)} held` : 'never tried');
+
+    // With fuel, the same climb leaves and is charged for it.
+    eco.hyper = 200;
+    const c2 = new Craft(forms, spawnOn(P));
+    c2.economy = eco;
+    c2.fuel = 100;
+    c2.setMode('jet');
+    for (let i = 0; i < 60 * 40 && !c2.hyper; i++) c2.update(1 / 60, IN({ pitch: -1, boost: true }));
+    ok('...and pays for the trip on the way out', !!c2.hyper && eco.hyper < 200,
+      `spent ${(200 - eco.hyper).toFixed(0)} leaving Home`);
+  }
+
+  // Workers are decoration: they must not touch what a site produces.
+  {
+    const P = makePlanet(PLANETS.home);
+    const scene2 = new BABYLON.Scene();
+    const c = new Craft(forms, spawnOn(P));
+    const col = new Colonies(scene2, c, new BABYLON.ShaderMaterial('m3'), P);
+    const vent = geysersOf(P)[0];
+    col.restore({ id: 1, dir: [vent.dir.x, vent.dir.y, vent.dir.z], age: 600, geyser: vent.id }, 0);
+    col.tick(1 / 60);
+    const before = col.hyperRate;
+    const site = col.sites[0];
+    col.build(site);
+    col.buildWorkers(site);
+    const n = site.workers.length;
+    for (let i = 0; i < 120; i++) col.moveWorkers(site, 1 / 60);
+    col.tick(1 / 60);
+    ok('workers stream with the meshes and change nothing that produces',
+      n > 1 && Math.abs(col.hyperRate - before) < 1e-9,
+      `${n} workers on a site making ${(before * 60).toFixed(2)}/min, unchanged`);
+  }
+}
+
+// ---- 13. the overlay, raiders and defence (Phase 4b) -------------------
+{
+  const { geysersOf } = await import('../js/world/geysers.js');
+  const { Economy } = await import('../js/game/economy.js');
+  const { Colonies } = await import('../js/game/colony.js');
+  const { Overlay } = await import('../js/game/overlay.js');
+  const { Survey } = await import('../js/game/survey.js');
+  const { RAIDER, DEFENCE, OVERLAY, GEYSER, ECONOMY } = await import('../js/tune.js');
+  const keys = Object.keys(PLANETS);
+
+  const scene3 = new BABYLON.Scene();
+  const mat3 = new BABYLON.ShaderMaterial('m4');
+  /** A world with colonies on it, ready to be ticked and never rendered. */
+  const worldWith = (key, plant) => {
+    const P = makePlanet(PLANETS[key]);
+    const c = new Craft(forms, spawnOn(P));
+    const col = new Colonies(scene3, c, mat3, P);
+    if (plant) plant(col, P);
+    col.tick(1 / 60);
+    return { P, c, col };
+  };
+  /** Drop a site at a tangent offset from a direction, at a chosen age. */
+  const plant = (col, P, from, x, z, age, id) => {
+    const fr = new TangentFrame(P, from);
+    const d = fr.dirAt(x, z, { x: 0, y: 0, z: 0 });
+    col.restore({ id, dir: [d.x, d.y, d.z], age, geyser: null }, 0);
+    return col.sites[col.sites.length - 1];
+  };
+  const run = (col, seconds, step = 1 / 20) => {
+    for (let t = 0; t < seconds; t += step) col.tick(step);
+  };
+
+  /* Winding, again, and for the same reason it keeps earning its keep: three
+     meshes in this project have now been built inside-out and none of them was
+     caught by anything but this. Two more hand-built solids arrive this phase. */
+  {
+    const P = makePlanet(PLANETS.home);
+    const c = new Craft(forms, spawnOn(P));
+    const col = new Colonies(scene3, c, mat3, P);
+    const rv = signedVolume(col.raiders.proto);
+    const tv = signedVolume(col.raiders.turretProto);
+    ok('the raider and the turret are wound the right way out', rv < 0 && tv < 0,
+      `raider ${rv.toFixed(2)}, turret ${tv.toFixed(2)} (Babylon wants negative)`);
+  }
+
+  // ---- the overlay -----------------------------------------------------
+
+  /* IT DRAWS THROUGH TERRAIN, and this is the mechanism: everything the overlay
+     makes goes into rendering group 2, and the depth buffer is cleared before
+     that group runs. Terrain and every gameplay mesh are group 1. Asserted
+     rather than eyeballed, because a marker quietly landing in group 1 would
+     look correct from every angle where nothing is in the way. */
+  {
+    const { P, col } = worldWith('home', (c, P) => {
+      const g = geysersOf(P);
+      plant(c, P, g[0].dir, 0, 0, 600, 1);
+      plant(c, P, g[0].dir, 40, 20, 600, 2);
+      plant(c, P, g[6].dir, 0, 0, 600, 3);       // a lone site, a world away
+    });
+    col.raiders.spawn(col.sites[0]);
+    col.tick(1 / 60);
+
+    const ov = new Overlay(scene3, col.craft);
+    ov.attach(new Economy(), { home: geysersOf(P).length }, keys);
+    ov.retarget({ planet: P, colonies: col, mats: { terrain: {}, water: {} } });
+    ov.setHeld(true);
+    const cam = { aim: { x: 0, y: 0, z: 0 }, camera: { position: { x: 0, y: 0, z: 0 } } };
+    ov.update(1 / 60, cam);
+
+    const all = [...ov.pool.colony, ...ov.pool.vent, ...ov.pool.raider];
+    const wantMarkers = col.sites.length + col.geysers.length + col.raiders.list.length;
+    ok('the overlay draws everything it owns in the depth-cleared group',
+      ov.markers === wantMarkers && all.length === wantMarkers &&
+      all.every((m) => m.renderingGroupId === 2),
+      `${ov.markers} markers — ${col.sites.length} colonies, ${col.geysers.length} vents, ` +
+      `${col.raiders.list.length} raiders, all in group 2 (terrain is group 1)`);
+
+    // Size and brightness are the density, which is the same number the economy
+    // pays on and raiders are drawn to — so the brightest blob really is the
+    // biggest cluster, and it is also the biggest problem.
+    const dense = ov.pool.colony[0], thin = ov.pool.colony[2];
+    ok('...and a colony blob is sized and lit by its density',
+      dense.scaling.x > thin.scaling.x && dense.visibility >= thin.visibility &&
+      dense.scaling.x <= OVERLAY.blobMax,
+      `${dense.scaling.x.toFixed(1)}m radius at density ${col.sites[0].density.toFixed(1)} ` +
+      `in the pair, ${thin.scaling.x.toFixed(1)}m at ${col.sites[2].density.toFixed(1)} alone`);
+
+    // Claimed vents read differently from unclaimed ones, which is the whole
+    // reason to look at the field through this rather than fly over it.
+    const site = col.sites[0];
+    site.geyser = col.geysers[0];
+    ov.update(1 / 60, cam);
+    const claimedM = ov.pool.vent[0], openM = ov.pool.vent[1];
+    ok('...and a claimed vent is distinct from an open one',
+      claimedM.material !== openM.material && claimedM.scaling.y < openM.scaling.y,
+      `claimed ${claimedM.scaling.y.toFixed(0)}m column, unclaimed ${openM.scaling.y.toFixed(0)}m`);
+
+    // Cost, in the only terms the harness can honestly measure: the work the
+    // pass does per frame. The GPU side is measured for real in dev/perf.mjs.
+    for (let i = 0; i < 40; i++) ov.update(1 / 60, cam);
+    const t0 = process.hrtime.bigint();
+    for (let i = 0; i < 600; i++) ov.update(1 / 60, cam);
+    const us = Number(process.hrtime.bigint() - t0) / 1000 / 600;
+    ok('...and the pass costs a fraction of a frame to build', us < 400,
+      `${us.toFixed(0)}us of CPU per frame for ${ov.markers} markers ` +
+      `(a 60fps frame is 16 700us)`);
+
+    ov.setHeld(false);
+    ok('...and it puts everything away when the key comes up',
+      ov.markers === 0 && all.every((m) => m.enabled === false),
+      'all markers disabled, terrain out of wireframe');
+  }
+
+  /* SURVEY DIFFICULTY SCALES WITH RADIUS, FOR FREE. Markers are drawn at world
+     scale with no range limit anywhere in the overlay, so how much of a world
+     you can read is a property of how big the world is. Measured, not enforced:
+     the threshold below is "a mature colony's marker is at least nine pixels
+     across at 900x560" and the fractions fall out of the geometry. */
+  {
+    const rMarker = OVERLAY.blobBase + COLONY.maxDomes * OVERLAY.blobPerDensity;
+    const px = 0.95 / 560;                       // radians per pixel, jet FOV
+    const legible = rMarker / (4.5 * px);        // range at a 9px diameter
+    const rows = [];
+    let emberF = 0, anvilF = 0;
+    for (const k of keys) {
+      const R = PLANETS[k].radius;
+      // Fraction of a sphere within a straight-line distance of a point on it.
+      const s = Math.min(1, legible / (2 * R));
+      const frac = s * s;                        // (1 - cos θ)/2 with chord=2R sin(θ/2)
+      rows.push(`${PLANETS[k].name} ${(frac * 100).toFixed(0)}%`);
+      if (k === 'ember') emberF = frac;
+      if (k === 'anvil') anvilF = frac;
+    }
+    ok('the whole of Ember is legible at once and Anvil is a fraction of itself',
+      emberF >= 1 && anvilF < 0.5 && anvilF > 0.1,
+      `legible to ${(legible / 1000).toFixed(1)}km — ` + rows.join(', '));
+  }
+
+  // ---- raiders, on wall time ------------------------------------------
+
+  /* THE PROMISE, stated as arithmetic. A world nobody is rendering takes exactly
+     the damage the model says it takes: hp = base + domes x per-dome, less dps
+     for every second since contact. Compared against a closed form computed
+     here rather than against a number recorded from a previous run, so this
+     fails if the model changes rather than if the numbers do. */
+  {
+    const T = 100;                               // under the turret threshold
+    const { P, col } = worldWith('home', (c, P) => {
+      plant(c, P, geysersOf(P)[0].dir, 0, 0, 0, 1);
+    });
+    const site = col.sites[0];
+    const r = col.raiders.spawn(site);
+    run(col, T);
+    const domes = site.grown;
+    const expect = RAIDER.siteHp + domes * RAIDER.hpPerDome -
+      RAIDER.dps * (T - RAIDER.approach);
+    let built = site.node || (r && r.node);
+    ok('a world nobody is looking at is attacked exactly as hard as one you are on',
+      Math.abs(site.hp - expect) < 1.2 && !built && site.hp > 0,
+      `${T}s unrendered: ${site.hp.toFixed(1)} hp against a predicted ` +
+      `${expect.toFixed(1)} (${domes} domes built under fire), no mesh ever made`);
+  }
+
+  /* RAIDERS ARE DRAWN TO DENSITY. This is the loop 4a left open: clustering
+     pays 3.8x, and this is the bill. Four sites in one basin against one lone
+     site of the same maturity — the cluster has four times the domes and takes
+     far more than four times the traffic, because target weight is
+     superlinear in density exactly as production is. */
+  {
+    const { P, col } = worldWith('home', (c, P) => {
+      const g = geysersOf(P);
+      const step = P.radius * COLONY.densityRadius * 0.3;
+      plant(c, P, g[0].dir, 0, 0, 600, 1);
+      plant(c, P, g[0].dir, step, 0, 600, 2);
+      plant(c, P, g[0].dir, -step, step * 0.6, 600, 3);
+      plant(c, P, g[0].dir, step * 0.4, -step, 600, 4);
+      plant(c, P, g[6].dir, 0, 0, 600, 5);       // the lone one, a world away
+    });
+    const hits = new Map();
+    const tally = (e) => hits.set(e.site, (hits.get(e.site) || 0) + 1);
+    on('raider', tally);
+    run(col, 60 * 40);
+    off('raider', tally);
+    let cluster = 0;
+    for (const id of [1, 2, 3, 4]) cluster += hits.get(id) || 0;
+    const lone = hits.get(5) || 0;
+    const total = cluster + lone;
+    ok('raiders concentrate on the densest ground, which is the ground that pays',
+      total > 20 && cluster > lone * 6,
+      `${total} contacts over 40 min: ${(cluster / total * 100).toFixed(0)}% went to the ` +
+      `four-site basin, ${(lone / total * 100).toFixed(0)}% to the lone site ` +
+      `(${(cluster / Math.max(1, lone)).toFixed(1)}x the traffic for 4x the domes)`);
+  }
+
+  /* THE ONE THAT MATTERS: a player who colonises well must not be punished for
+     it. A mature cluster is left completely alone for an hour of wall time
+     against the pressure its own density generates, and has to still be there.
+     If this ever fails the phase is broken, whatever else passes. */
+  {
+    const { col } = worldWith('home', (c, P) => {
+      const g = geysersOf(P);
+      const step = P.radius * COLONY.densityRadius * 0.3;
+      plant(c, P, g[0].dir, 0, 0, 600, 1);
+      plant(c, P, g[0].dir, step, 0, 600, 2);
+      plant(c, P, g[0].dir, -step, step * 0.6, 600, 3);
+      plant(c, P, g[0].dir, step * 0.4, -step, 600, 4);
+    });
+    const before = col.sites.length;
+    run(col, 60 * 60);
+    const worst = Math.min(...col.sites.map((s) => s.hp / s.maxHp));
+    ok('a mature cluster holds its own ground for an hour with nobody watching',
+      col.sites.length === before && worst > 0.5,
+      `${col.sites.length}/${before} sites alive, worst integrity ` +
+      `${(worst * 100).toFixed(0)}%, ${col.raiders.kills} raiders destroyed by turrets`);
+  }
+
+  /* ...AND A YOUNG ISOLATED SITE IS GENUINELY VULNERABLE, which is the other
+     half of the same statement. One attacker is survivable — growth adds hit
+     points faster than a single raider removes them, so building IS the first
+     defence. Two is not. That is the whole difficulty curve of this phase and
+     it is entirely in these two numbers. */
+  {
+    const solo = worldWith('home', (c, P) => { plant(c, P, geysersOf(P)[0].dir, 0, 0, 0, 1); });
+    solo.col.raiders.spawn(solo.col.sites[0]);
+    run(solo.col, 60 * 10);
+    const survivedOne = solo.col.sites.length === 1;
+
+    const ganged = worldWith('home', (c, P) => { plant(c, P, geysersOf(P)[0].dir, 0, 0, 0, 1); });
+    ganged.col.raiders.spawn(ganged.col.sites[0]);
+    ganged.col.raiders.spawn(ganged.col.sites[0]);
+    let died = 0;
+    for (let t = 0; t < 60 * 10 && ganged.col.sites.length; t += 0.05) {
+      ganged.col.tick(0.05);
+      died = t;
+    }
+    ok('a young isolated site is genuinely vulnerable, and growth is its defence',
+      survivedOne && ganged.col.sites.length === 0,
+      `one raider on a fresh site: ${survivedOne ? 'survived and matured' : 'RAZED'}. ` +
+      `Two: razed ${died.toFixed(0)}s after landing, ${RAIDER.approach}s of which is ` +
+      `the approach — an undefended site has ${(RAIDER.siteHp / RAIDER.dps).toFixed(0)}s ` +
+      `of integrity per attacker`);
+  }
+
+  /* Where self-sufficiency starts, in domes rather than in a feeling. A site
+     defends itself once its turret kills faster than the world spawns, and both
+     sides of that are density — which is why there is one number here and not
+     a difficulty setting. */
+  {
+    const raiderHp = RAIDER.hp;
+    let d = 0;
+    for (d = 1; d <= 30; d++) {
+      const kill = DEFENCE.turretDps * (d / DEFENCE.turretFrom) / raiderHp;
+      const spawn = RAIDER.spawnBase + Math.min(d, COLONY.maxDomes) * RAIDER.spawnPerDome;
+      if (d >= DEFENCE.turretFrom && kill > spawn) break;
+    }
+    const { col } = worldWith('home', (c, P) => { plant(c, P, geysersOf(P)[0].dir, 0, 0, 600, 1); });
+    run(col, 60 * 60);
+    ok('a lone site becomes self-sufficient the moment it is nearly mature',
+      d === DEFENCE.turretFrom && col.sites.length === 1,
+      `turret at ${DEFENCE.turretFrom} domes of density (~${DEFENCE.turretFrom * COLONY.domeEvery}s ` +
+      `after landing); one mature site survived an hour alone, killing ${col.raiders.kills}`);
+  }
+
+  /* A turret takes the same time to kill on every world, whatever that world's
+     raiders are made of. Vault's 1.9x armour is meant to change what YOU do
+     about a raider, not to halve the away game there — before this term existed
+     it cost four of five mature Vault colonies over an hour away while every
+     other world lost none. Measured on the two extremes, because a profile that
+     silently doubles as a defence multiplier is invisible from anywhere else. */
+  {
+    const kill = (key) => {
+      const P = makePlanet(PLANETS[key]);
+      const c = new Craft(forms, spawnOn(P));
+      const col = new Colonies(scene3, c, mat3, P);
+      const site = plant(col, P, c.surf.frame.up, 0, 0, 600, 1);
+      col.tick(1 / 60);
+      const r = col.raiders.spawn(site);
+      r.age = r.approach;
+      let t = 0;
+      for (; t < 600 && col.raiders.list.length; t += 0.25) col.raiders.tick(0.25);
+      return t;
+    };
+    const home = kill('home'), vault = kill('vault');
+    ok('a turret kills at the same rate whatever its world is armoured with',
+      Math.abs(home - vault) < 1.0 && home > 1,
+      `Home ${home.toFixed(1)}s, Vault ${vault.toFixed(1)}s against 1.9x the hit ` +
+      `points — the beam still takes ${(RAIDER.hp * 1.9 / DEFENCE.beamDps).toFixed(1)}s there`);
+  }
+
+  // Every world's threat is its own. Profiles are asserted because a silent
+  // fallback to Home's numbers would still play, and would make six worlds one.
+  {
+    const rows = [], same = new Set();
+    for (const k of keys) {
+      const P = makePlanet(PLANETS[k]);
+      const c = new Craft(forms, spawnOn(P));
+      const col = new Colonies(scene3, c, mat3, P);
+      const p = col.raiders.P;
+      rows.push(`${PLANETS[k].name} ${p.approach}s/${(p.hp * (p.hpScale || 1)).toFixed(0)}hp` +
+        (p.ambush ? '/ambush' : '') + (p.fromWater ? '/by sea' : ''));
+      same.add(`${p.approach}:${p.hpScale || 1}:${p.spawnScale || 1}:${!!p.ambush}:${!!p.fromWater}`);
+    }
+    ok('each world has its own threat, not a recolour of Home\'s', same.size === keys.length,
+      rows.join(', '));
+  }
+
+  // ---- defence ---------------------------------------------------------
+
+  /* THE BEAM, from all three forms. A form that cannot defend itself makes the
+     transform a trap rather than a choice, so this is checked for each one —
+     and it has to cost charge, or it is not a decision. */
+  {
+    const P = makePlanet(PLANETS.home);
+    const rows = [], bad = [];
+    for (const mode of ['rover', 'boat', 'jet']) {
+      const c = new Craft(forms, spawnOn(P));
+      const col = new Colonies(scene3, c, mat3, P);
+      const sv = new Survey(scene3, c, P);
+      sv.attachRaiders(col.raiders);
+      c.fuel = 100;
+      c.setMode(mode, true);
+      c.yaw = 0; c.pitch = 0;
+      // A site 85m straight ahead, and a raider circling it. Which way round
+      // the circle is not something the test gets to choose, so it is found:
+      // the beam has to reach the one that is actually in front of the nose.
+      const site = plant(col, P, c.surf.frame.up, 0, 85, 600, 1);
+      col.tick(1 / 60);
+      const r = col.raiders.spawn(site);
+      r.age = r.approach;
+      let hit = false, fuelSpent = 0;
+      for (let i = 0; i < 24 && !hit; i++) {
+        r.angle = (i / 24) * Math.PI * 2;
+        r.hp = r.maxHp;
+        c.beamHeld = true;
+        const f0 = c.fuel;
+        for (let k = 0; k < 30; k++) sv.beam(1 / 60);
+        fuelSpent = f0 - c.fuel;
+        if (r.hp < r.maxHp) hit = true;
+      }
+      if (!hit) bad.push(mode + ' could not reach it');
+      if (fuelSpent <= 0) bad.push(mode + ' fired for free');
+      rows.push(`${mode} ${(r.maxHp - r.hp).toFixed(1)} damage for ${fuelSpent.toFixed(1)} charge`);
+      // Held, not clicked: let go and it stops costing and stops working.
+      c.beamHeld = false;
+      const f1 = c.fuel;
+      for (let k = 0; k < 30; k++) sv.beam(1 / 60);
+      if (c.fuel !== f1) bad.push(mode + ' kept burning charge after release');
+    }
+    ok('the scanner beam works from all three forms, and charges for it',
+      bad.length === 0, bad.join(', ') || rows.join(', ') +
+      ` — ${(RAIDER.hp / DEFENCE.beamDps).toFixed(1)}s to disrupt one`);
+  }
+
+  // It runs dry rather than stranding you: the beam cuts out with enough charge
+  // left to still be a vehicle, which is the same rule the whole game runs on.
+  {
+    const P = makePlanet(PLANETS.home);
+    const c = new Craft(forms, spawnOn(P));
+    const sv = new Survey(scene3, c, P);
+    c.fuel = DEFENCE.beamMinFuel * 0.5;
+    c.beamHeld = true;
+    sv.beam(1 / 60);
+    const dry = sv.beamOn;
+    c.fuel = 60;
+    sv.beam(1 / 60);
+    ok('...and it cuts out before it can strand you', !dry && sv.beamOn,
+      `refuses under ${DEFENCE.beamMinFuel} charge, ${DEFENCE.beamCost}/s while held`);
+  }
+
+  /* MOMENTUM IS THE THIRD LAYER, and it needs nothing built. No ammunition, no
+     cooldown, no upgrade: a rover at boost speed, a boat off a swell, a jet on
+     a strafing line. It is always the desperate option and never the plan. */
+  {
+    const { P, col } = worldWith('home', (c, P) => {
+      plant(c, P, geysersOf(P)[0].dir, 0, 0, 600, 1);
+    });
+    const rd = col.raiders;
+    const r = rd.spawn(col.sites[0]);
+    r.age = r.approach;
+    col.tick(1 / 60);
+    const here = rd.placeOf(r, { x: 0, y: 0, z: 0 });
+    const w = rd.worldOf(r, { x: 0, y: 0, z: 0 });
+    const c = col.craft;
+    c.world.set(w.x, w.y, w.z);
+
+    // Too slow, and it is just a near miss.
+    c.speed = DEFENCE.ramSpeed * 0.5;
+    rd.stream(1 / 60, here, c);
+    const survived = rd.list.length === 1;
+    // At speed, it is not.
+    c.speed = DEFENCE.ramSpeed + 4;
+    rd.stream(1 / 60, here, c);
+    ok('ramming kills raiders, and only at speed',
+      survived && rd.list.length === 0 && rd.kills === 1,
+      `contact under ${DEFENCE.ramSpeed} m/s bounces off, contact over it kills ` +
+      `(rover boost is ${ROVER.boostSpeed} m/s)`);
+  }
+
+  // Shroud ambushes: the mesh is withheld until a raider is close, so the
+  // overlay is the only warning that world gives you.
+  {
+    const P = makePlanet(PLANETS.shroud);
+    const c = new Craft(forms, spawnOn(P));
+    const col = new Colonies(scene3, c, mat3, P);
+    const site = plant(col, P, c.surf.frame.up, 0, 0, 600, 1);
+    col.tick(1 / 60);
+    const r = col.raiders.spawn(site);
+    const here = c.surf.frame.up;
+    col.raiders.stream(1 / 60, here, c);
+    const hiddenFar = !r.node;
+    r.age = r.approach;                       // arrived, and now inside the veil
+    col.raiders.stream(1 / 60, here, c);
+    ok('Shroud gives no visual warning until a raider is on top of you',
+      hiddenFar && !!r.node && col.raiders.P.ambush < RAIDER.viewRange,
+      `no mesh past ${col.raiders.P.ambush}m, against ${RAIDER.viewRange}m everywhere else`);
+  }
+
+  // Damage survives a reload; raiding does not run while the tab is shut. The
+  // merciful way round, and deliberate — see the note in colony.js.
+  {
+    const { P, col } = worldWith('home', (c, P) => {
+      plant(c, P, geysersOf(P)[0].dir, 0, 0, 600, 1);
+    });
+    const site = col.sites[0];
+    site.hp = site.maxHp * 0.4;
+    const rec = col.record(site);
+    const c2 = new Craft(forms, spawnOn(P));
+    const col2 = new Colonies(scene3, c2, mat3, P);
+    col2.restore(rec, 600);
+    col2.tick(1 / 60);
+    ok('damage is part of the record and survives a reload',
+      Math.abs(col2.sites[0].hp / col2.sites[0].maxHp - 0.4) < 0.02,
+      `saved at 40% integrity, restored at ` +
+      `${(col2.sites[0].hp / col2.sites[0].maxHp * 100).toFixed(0)}% after an hour away`);
+  }
+
+  /* THE AWAY WINDOW, and the incentive it exists to remove.
+     Growth is credited for the time the tab was shut. If attacks were not, the
+     cheapest way to protect a colony would be to close the game — so the window
+     is REPLAYED through the ordinary tick instead of back-dated, and both halves
+     come out of one mechanism. */
+  {
+    const { P, col } = worldWith('home', (c, P) => {
+      plant(c, P, geysersOf(P)[0].dir, 0, 0, 0, 1);
+    });
+    const site = col.sites[0];
+    col.raiders.spawn(site);
+    col.raiders.spawn(site);
+    let toasts = 0;
+    const count = () => { toasts++; };
+    for (const e of ['colonygrow', 'raider', 'raiderkill', 'colonylost']) on(e, count);
+    const fuelWas = col.craft.fuel;
+    const report = col.catchUp(600);
+    for (const e of ['colonygrow', 'raider', 'raiderkill', 'colonylost']) off(e, count);
+    ok('closing the tab does not protect a colony: raiders run in the away window',
+      report && report.lost === 1 && col.sites.length === 0,
+      `a fresh site with two attackers was razed during a ${(600 / 60)}-minute absence`);
+    ok('...and the replay is silent, and pays nothing',
+      toasts === 0 && col.craft.fuel === fuelWas,
+      'no toasts and no charge income for an hour nobody was holding the controls');
+  }
+
+  // ...and the same window grows what survives it, which is the half that was
+  // always there. A mature basin has to come back a mature basin.
+  {
+    const { col } = worldWith('home', (c, P) => {
+      const g = geysersOf(P);
+      const step = P.radius * COLONY.densityRadius * 0.3;
+      plant(c, P, g[0].dir, 0, 0, 600, 1);
+      plant(c, P, g[0].dir, step, 0, 600, 2);
+      plant(c, P, g[0].dir, -step, step * 0.6, 600, 3);
+      plant(c, P, g[1].dir, 0, 0, 20, 4);        // the young one, two ridges over
+    });
+    const young = col.sites[3];
+    const report = col.catchUp(ECONOMY.offlineCap);
+    ok('a cluster left for the full window comes back grown, not razed',
+      col.sites.length === 4 && young.grown === COLONY.maxDomes && report.lost === 0,
+      `${(ECONOMY.offlineCap / 60)} minutes away: 4/4 alive, the site planted 20s before ` +
+      `closing came back at ${young.grown}/${COLONY.maxDomes} domes, ` +
+      `${report.held} raiders destroyed by turrets`);
+  }
+
+  /* The cap, at the boundary where it matters: three days away costs the same
+     hour as one. Tested through the real save path, with a stubbed storage —
+     the clamp lives in `load`, and nothing else in the suite had ever run it. */
+  {
+    const store = new Map();
+    const had = globalThis.localStorage;
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+    };
+    const P = makePlanet(PLANETS.home);
+    const c = new Craft(forms, spawnOn(P));
+    const col = new Colonies(scene3, c, mat3, P);
+    plant(col, P, geysersOf(P)[0].dir, 0, 0, 300, 1);
+    col.sites[0].hp = 40; col.sites[0].maxHp = 100;
+    const eco = new Economy();
+    eco.register('home', col);
+    eco.hyper = 77;
+    const wrote = eco.save();
+    // Rewind the stamp by three days and read it back.
+    const blob = JSON.parse(store.get(ECONOMY.saveKey));
+    blob.at -= 3 * 24 * 3600 * 1000;
+    store.set(ECONOMY.saveKey, JSON.stringify(blob));
+    const back = new Economy().load();
+    globalThis.localStorage = had;
+    ok('three days away costs the same hour as one, both halves',
+      wrote && back && back.away === ECONOMY.offlineCap && back.hyper === 77 &&
+      Math.abs(back.worlds.home.sites[0].hp - 0.4) < 1e-9,
+      `away clamped to ${(ECONOMY.offlineCap / 60)} minutes, and 40% integrity came ` +
+      'back through the save');
+  }
+
+  // The plume is the objective made visible. Measured as the angle it subtends
+  // at the fog boundary, which is the distance at which a vent has to be
+  // spottable for finding one to be discovery rather than a grid search.
+  {
+    const P = makePlanet(PLANETS.home);
+    const tall = GEYSER.plumeHeight * Math.max(0.5, Math.min(2, P.relief / 52));
+    const at = P.fogFar;
+    const deg = 2 * Math.atan(tall / 2 / at) * 180 / Math.PI;
+    const wasDeg = 2 * Math.atan(22 / 2 / at) * 180 / Math.PI;
+    ok('a vent plume is spottable at the fog boundary', deg > 3.5 &&
+      GEYSER.plumeGlow.some((v) => v > 1),
+      `${tall.toFixed(0)}m column subtends ${deg.toFixed(1)}° at Home's fog line ` +
+      `(${at.toFixed(0)}m), against ${wasDeg.toFixed(1)}° before — and it blooms`);
+  }
+}
 
 // ---- 9. audio ----------------------------------------------------------
 // There is no WebAudio in Node, so what is being checked is that the module

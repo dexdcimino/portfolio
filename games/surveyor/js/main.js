@@ -3,18 +3,18 @@
 // for this game.
 
 import { createMaterials } from './world/materials.js';
-import { ChunkField } from './world/chunks.js';
-import { Water } from './world/water.js';
-import { createSky } from './world/sky.js';
+import { Worlds } from './world/world.js';
 import { buildRover, buildBoat, buildJet } from './player/meshes.js';
 import { Craft } from './player/craft.js';
 import { ChaseCam } from './player/camera.js';
 import { Trails } from './fx/trails.js';
-import { Survey } from './game/survey.js';
-import { Colonies } from './game/colony.js';
+import { Streaks } from './fx/streaks.js';
 import { Hud } from './game/hud.js';
+import { Overlay } from './game/overlay.js';
+import { Economy } from './game/economy.js';
+import { geysersOf } from './world/geysers.js';
 import { Sound } from './audio/index.js';
-import { on } from './core/events.js';
+import { on, emit } from './core/events.js';
 import { makePlanet } from './world/sphere.js';
 import { Surface, findSpawn } from './world/surface.js';
 import { COLORS, ATMO, ROVER, PLANETS } from './tune.js';
@@ -34,31 +34,136 @@ scene.autoClear = true;
 scene.fogEnabled = false;
 scene.skipPointerMovePicking = true;
 
-// Phase 2 ships one world. The planet object is the single place radius,
-// relief, LOD depth, fog and draw distance all come from — nothing downstream
-// carries a hardcoded world size any more.
-const planet = makePlanet(PLANETS.home);
+/* Which world boots. ?planet=<key> survives from the phase-3a dev warp — the
+   KEY is gone now that you can fly there, but the boot parameter stays: it is
+   how dev/shots.mjs photographs a world without a twenty-minute flight, and it
+   costs one line. Anything unrecognised falls back to home rather than
+   crashing, so a stale bookmark or a typo lands you somewhere real. */
+const wantPlanet = new URLSearchParams(location.search).get('planet');
+const bootKey = PLANETS[wantPlanet] ? wantPlanet : 'home';
+const planets = new Map();
+const planetOf = (key) => {
+  if (!planets.has(key)) planets.set(key, makePlanet(PLANETS[key]));
+  return planets.get(key);
+};
+
+const planet = planetOf(bootKey);
 const surface = new Surface(planet, findSpawn(planet, planet.relief * 0.12, planet.relief * 0.75));
 
-const mats = createMaterials(scene, planet);
-createSky(scene, mats.sky, planet);
-
-const field = new ChunkField(scene, mats.terrain, planet);
-const water = new Water(scene, mats.water, planet);
-
+/* The craft's meshes outlive any one world: they are built against the boot
+   world's craft material and re-pointed at the next one on arrival, in
+   swapTo(). The material is made here rather than inside World because the
+   ordering is forced — meshes need a material, a Craft needs meshes, and the
+   World's survey and colonies need a Craft. */
+const bootMats = createMaterials(scene, planet);
 const forms = {
-  rover: buildRover(scene, mats.craft),
-  boat: buildBoat(scene, mats.craft),
-  jet: buildJet(scene, mats.craft),
+  rover: buildRover(scene, bootMats.craft),
+  boat: buildBoat(scene, bootMats.craft),
+  jet: buildJet(scene, bootMats.craft),
 };
 
 const craft = new Craft(forms, surface);
+const economy = new Economy();
+craft.economy = economy;
+const worlds = new Worlds(scene, craft);
+let world = worlds.enter(planet, null, bootMats);
+
+/* Every world's colonies are registered with the Economy as they are built,
+   whether or not they are the one being drawn — that is what makes production
+   run on wall time everywhere instead of only where you are standing. */
+const registerWorld = (w) => economy.register(w.planet.key, w.colonies);
+registerWorld(world);
+
+// Geyser totals, for the progress readout. Fixed per planet, so counted once.
+const geyserTotals = {};
+for (const key of Object.keys(PLANETS)) {
+  geyserTotals[key] = geysersOf(planetOf(key)).length;
+}
+
+/* Pick up where the last session left off. Only the record is saved — sites,
+   ages, claims and the balance — and the layouts regenerate from their seeds,
+   exactly as they do when you drive back into range.
+
+   The time the tab was shut is REPLAYED rather than credited: sites come back
+   at the age they were saved at, and then every world runs the away window
+   through its ordinary tick, so colonies grow through it and raiders attack
+   through it. Crediting only the growth would make closing the tab strictly
+   better than playing. The window is capped — an absence of three days costs
+   the same hour as an absence of one. */
+let awayReport = null;
+{
+  const saved = economy.load();
+  if (saved) {
+    economy.hyper = saved.hyper;
+    const missed = [];
+    for (const [key, data] of Object.entries(saved.worlds || {})) {
+      if (!PLANETS[key]) continue;
+      const w = worlds.get(planetOf(key));
+      registerWorld(w);
+      w.colonies.clock = data.clock || 0;
+      for (const rec of data.sites || []) w.colonies.restore(rec, 0);
+      const report = w.colonies.catchUp(saved.away);
+      if (report) missed.push(report);
+    }
+    /* Held, not fired. This runs before the HUD exists and before anyone has
+       pressed Begin — a toast here is one nobody is in the room for. It goes
+       out when the session actually starts. */
+    if (missed.length) {
+      awayReport = {
+        seconds: saved.away,
+        lost: missed.reduce((a, m) => a + m.lost, 0),
+        held: missed.reduce((a, m) => a + m.held, 0),
+        raiders: missed.reduce((a, m) => a + m.raiders, 0),
+        worlds: missed.filter((m) => m.lost > 0).map((m) => m.world),
+      };
+    }
+  }
+}
+setInterval(() => economy.save(), 20000);
+window.addEventListener('pagehide', () => economy.save());
+
 const cam = new ChaseCam(scene, canvas, planet);
 const trails = new Trails(scene, craft, forms);
-const survey = new Survey(scene, craft, planet);
-const colonies = new Colonies(scene, craft, mats.craft, planet);
-const hud = new Hud(craft, survey, field, colonies);
+const streaks = new Streaks(scene);
+streaks.setPalette(planet);
+const hud = new Hud(craft, world.survey, world.field, world.colonies);
 const sound = new Sound();
+hud.attachEconomy(economy, geyserTotals, Object.keys(PLANETS));
+
+/* The survey overlay owns its own render pass and its own panel, so it is built
+   beside the HUD rather than inside it: one is what is always true, the other is
+   what you asked to see. */
+const overlay = new Overlay(scene, craft);
+overlay.attach(economy, geyserTotals, Object.keys(PLANETS));
+overlay.retarget(world);
+
+/**
+ * Arrive somewhere. Hyper hands over the world it reached and the direction it
+ * reached it from; everything the scene holds for a planet is swapped here, in
+ * one frame, and the craft is stood up in flight over the new ground.
+ */
+function swapTo(key, dir, alt) {
+  const next = planetOf(key);
+  world = worlds.enter(next, dir);
+  registerWorld(world);
+  const surf = new Surface(next, dir);
+  craft.landOn(surf, alt);
+  // The hull takes the new world's light: the craft shader carries that
+  // planet's rim, specular and sun colour, and a craft still lit by the world
+  // it left is the one thing that would give the swap away.
+  for (const form of Object.values(forms)) {
+    for (const m of form.root.getChildMeshes()) m.material = world.mats.craft;
+  }
+  cam.setPlanet(next);
+  streaks.setPalette(next);
+  hud.retarget(world.survey, world.field, world.colonies);
+  overlay.retarget(world);
+  economy.save();
+  scene.clearColor = new BABYLON.Color4(
+    world.mats.fogColor.r, world.mats.fogColor.g, world.mats.fogColor.b, 1);
+}
+
+on('hyperarrive', (e) => swapTo(e.key, e.dir, e.alt));
 
 // ---- post ----------------------------------------------------------------
 // This replaces the old GlowLayer. A glow layer renders its emissive meshes
@@ -92,12 +197,37 @@ if (ATMO.bloom) {
   }
 }
 
+/**
+ * The post chain under speed.
+ *
+ * Chromatic split is squared so it stays an effect of the EXTREMES — at half
+ * the log-scale it is barely a quarter of its full value, which keeps the
+ * instruments readable through most of a trip and only tears the edges apart
+ * when the readout has run out of digits. Grain and vignette ride along.
+ *
+ * Everything is a plain function of hyperT, so there is no state to leave
+ * switched on: the number returns to zero on arrival and so does the frame.
+ */
+let hyperWas = -1;
+function hyperPost(t) {
+  if (!pipeline || t === hyperWas) return;
+  hyperWas = t;
+  const sq = t * t;
+  if (t > 0.001) {
+    pipeline.chromaticAberrationEnabled = true;
+    pipeline.chromaticAberration.aberrationAmount = ATMO.hyperAberration * sq;
+    pipeline.chromaticAberration.radialIntensity = ATMO.hyperAberrationRadial * sq;
+  } else if (pipeline.chromaticAberrationEnabled) {
+    pipeline.chromaticAberrationEnabled = false;
+  }
+  if (ATMO.grain > 0) pipeline.grain.intensity = ATMO.grain + ATMO.hyperGrain * sq;
+  pipeline.imageProcessing.vignetteWeight = ATMO.vignette + ATMO.hyperVignette * sq;
+}
+
 // Warm the terrain around the spawn point before the first frame is shown.
 // The tree is bounded now, so this genuinely finishes rather than chasing an
 // unbounded stream.
-field.update(surface.frame.up);
-for (let i = 0; i < 600 && field.queue.length; i++) field.update(surface.frame.up);
-survey.update(0.016);
+world.warm(surface.frame.up);
 
 // ---- feel ----------------------------------------------------------------
 // Impacts move the camera, not the vehicle.
@@ -129,7 +259,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') pendingHopPress = true;
   if (e.code === 'KeyC') cam.recenter();
   if (e.code === 'KeyM') setMuted(sound.toggleMute());
-  if (e.code === 'KeyF') colonies.drop();
+  if (e.code === 'KeyF') world.colonies.drop();
 });
 window.addEventListener('keyup', (e) => keys.delete(e.code));
 window.addEventListener('blur', () => keys.clear());
@@ -145,6 +275,8 @@ function readInput() {
     pitch: fwd,          // in the air, forward is nose-down
     roll: lat,
     boost: !!down('ShiftLeft', 'ShiftRight'),
+    // Held, not toggled: the beam is a thing you are doing, not a mode.
+    beam: !!down('KeyE'),
     // Hold to charge a jump; the jet's mid-air pop wants the press edge.
     hopHeld: !!down('Space'),
     hopPress: pendingHopPress,
@@ -157,7 +289,7 @@ function readInput() {
 
 // ---- loop ---------------------------------------------------------------
 
-const IDLE = { fwd: 0, turn: 0, pitch: 0, roll: 0, boost: false, hopHeld: false, hopPress: false, mode: null };
+const IDLE = { fwd: 0, turn: 0, pitch: 0, roll: 0, boost: false, beam: false, hopHeld: false, hopPress: false, mode: null };
 const deepEl = document.getElementById('deep');
 let deepShown = 0;
 
@@ -166,14 +298,28 @@ engine.runRenderLoop(() => {
   const input = started ? readInput() : IDLE;
 
   craft.update(dt, input);
-  field.update(surface.frame.up);
-  water.update();
-  survey.update(dt);
-  colonies.update(dt);
+  // In transit there is no ground to stream and no local frame to stream it
+  // around; the sky and the discs are the whole of what is drawn.
+  // Growth and production for EVERY visited world, then the scene for this one.
+  economy.update(dt);
+  if (!craft.hyper) world.update(dt, craft, cam.camera);
+  else {
+    world.discs.update(cam.camera, world.mats.light);
+    // The beam is the one thing in survey.js that owns a mesh which has to be
+    // put away rather than merely stop being updated: nothing else runs in
+    // transit, so left alone it would hang over the world you departed from.
+    world.survey.beam(dt);
+  }
   trails.update(dt, cam.camera.position);
   cam.update(dt, craft);
-  mats.update(dt, cam.camera.position, craft.boostHeat,
-    surface.frame.up, surface.frame.east, surface.frame.north);
+  streaks.update(dt, craft, cam.camera);
+  // After the camera, because selection is by what is nearest the middle of the
+  // screen and that is not known until the camera has moved.
+  overlay.setHeld(started && keys.has('KeyQ'));
+  overlay.update(dt, cam);
+  hyperPost(craft.hyperT);
+  const fr = craft.surf.frame;
+  world.mats.update(dt, cam.camera.position, craft.boostHeat, fr.up, fr.east, fr.north);
   hud.update(dt);
   sound.update(dt, craft, started);
 
@@ -224,6 +370,9 @@ function begin() {
   startEl.classList.add('gone');
   canvas.focus();
   setTimeout(() => { startEl.style.display = 'none'; }, 500);
+  // What happened while the tab was shut, once, now that there is someone to
+  // tell. Held since boot — see the load block.
+  if (awayReport) { emit('away', awayReport); awayReport = null; }
 }
 
 beginBtn.addEventListener('click', begin);
@@ -236,8 +385,17 @@ document.body.classList.add('ready');
 // Exposed for tuning from the console — ROVER.sinkDepth and friends are the
 // dials most likely to be argued with after a first drive.
 window.SURVEYOR = {
-  craft, cam, sound, field, survey, colonies, pipeline, ROVER,
-  planet, surface,
+  craft, cam, sound, pipeline, ROVER, worlds, scene, streaks, economy, geyserTotals,
+  overlay,
+  get raiders() { return world.colonies.raiders; },
+  get world() { return world; },
+  get planet() { return world.planet; },
+  get field() { return world.field; },
+  get survey() { return world.survey; },
+  get colonies() { return world.colonies; },
+  get discs() { return world.discs; },
+  get mats() { return world.mats; },
+  surface,
   // Kept for the dev harness: local tangent height, the same call craft.js makes.
   surfaceHeight: (x, z) => surface.surfaceHeight(x, z),
 };

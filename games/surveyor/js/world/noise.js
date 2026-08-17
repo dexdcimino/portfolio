@@ -129,11 +129,62 @@ export function height(dir, planet) {
     m += (terr - m) * t;
   }
 
+  /* FISSURES (Phase 3a) — the only code this phase adds, and it is weight
+     gated: wFissure is 0 on five of the six worlds, so this stays data rather
+     than a branch on planet identity.
+
+     Ember needs it because Ember cannot use topography. At radius 207 its
+     relief budget is 10.4m for the ENTIRE world, so nothing broad reads at
+     all. A fissure is the one feature that works inside that budget: it does
+     not need height, it needs DEPTH in a narrow band, which is cheap in
+     vertical range and lethal to drive into.
+
+     Ridged noise inverted gives the network shape — ridged3 returns creases,
+     and a crease is exactly the plan view of a fissure system. Raised to a
+     power to narrow it: the exponent is what separates "cracked plain" from
+     "eroded badland", because it decides how much of the surface is inside a
+     crack at all. Cut downward only, and NOT scaled by `land`, since Ember has
+     no sea for land to mean anything against. */
+  if (planet.wFissure > 0) m -= fissureAt(dir, planet) * planet.wFissure * relief;
+
+  /* Heights come out relative to THIS world's sea level.
+     Everything above works in a datum measured from the nominal radius; the
+     rest of the game — the water shell, the flooding rule, the craft's own y,
+     the palette bands — reads sea level as zero. `waterY` is the offset between
+     the two, and it was never applied, so a profile could declare a waterline
+     that nothing but the assertions ever saw: Tarn measured 86% ocean and drew
+     9%, Anvil measured 15% and drew 41%.
+     It has to happen before the lake-floor clamp, because that clamp is about
+     what is under water, which is exactly the thing being defined here. */
+  m -= planet.waterY;
+
   // Lake floors flatten out so water reads as water, not as canyon.
   const floor = -0.06 * relief;
   if (m < floor) m = floor + (m - floor) * 0.5;
 
   return m;
+}
+
+/**
+ * How deep inside a fissure a direction is, 0..1. 0 on the intact plain.
+ *
+ * This is the mask `height` cuts with, exposed so the chunk baker can write it
+ * into a vertex attribute and the shader can burn the cracks (see the Phase 3a2
+ * note in chunks.js). It is a separate function rather than a second return
+ * value from `height` because `height` is called ~72 times a frame for the
+ * suspension alone and none of those callers want it.
+ *
+ * The one thing that must not happen is a second copy of this expression. The
+ * shader could recompute the noise itself in three lines, and on some hardware
+ * those three lines disagree with these — so `height` calls this too, and there
+ * is exactly one fissure field in the program.
+ */
+export function fissureAt(dir, planet) {
+  if (!(planet.wFissure > 0)) return 0;
+  const seed = seedOf(planet);
+  const f5 = planet.fFissure;
+  const fr = ridged3(dir.x * f5 + 12.4, dir.y * f5 + 71.9, dir.z * f5 - 40.3, 3, seed);
+  return Math.pow(Math.max(0, fr), planet.fissureNarrow);
 }
 
 // ---- the drawn surface --------------------------------------------------

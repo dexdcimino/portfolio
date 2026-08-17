@@ -327,25 +327,35 @@ export class Sfx {
     L.charge.set(ch > 0 ? 0.020 + ch * 0.055 : 0,
       900 + ch * 2600, 105 + ch * 300, now, 0.03);
 
-    const jT = clamp(craft.speed / JET.maxSpeed, 0, 1.8);
+    /* In hyper `craft.speed` runs to a million, which pins every speed-driven
+       term at its clamp within a second and then says nothing for the rest of
+       the trip. So the local terms are frozen at their top and the log-scaled
+       hyperT takes over as the thing that moves — one number, the same one the
+       camera and the shaders read, extending this path rather than forking it. */
+    const hy = craft.hyperT || 0;
+    const jT = craft.hyper ? 1.8 : clamp(craft.speed / JET.maxSpeed, 0, 1.8);
     const je = (mode === 'jet' ? 1 : 0) * SOUND.engineJet;
     // Thrust, not speed, drives the engine layers — gliding has to go quiet
     // even at 300km/h, and that contrast is most of the drama in a dead-stick.
-    const thrust = craft.glide ? 0 : clamp(0.45 + boost * 0.55, 0, 1);
-    const blade = 190 + thrust * 460 + jT * 130;   // blade-pass fundamental
+    const thrust = craft.hyper ? 1 : (craft.glide ? 0 : clamp(0.45 + boost * 0.55, 0, 1));
+    // Blade pitch climbs a full octave and a half across the trip. This is the
+    // layer that carries the acceleration: everything else saturates.
+    const blade = (190 + thrust * 460 + jT * 130) * (1 + hy * 1.55);
 
-    L.jetCore.set(je * (0.075 + thrust * 0.10 + jT * 0.03),
+    L.jetCore.set(je * (0.075 + thrust * 0.10 + jT * 0.03) * (1 - hy * 0.55),
       70 + thrust * 90, 0.55 + thrust * 0.35, now, 0.10);
-    L.jetRoar.set(je * (0.035 + thrust * 0.11 + jT * 0.045),
-      340 + thrust * 900 + jT * 380, 0.75 + thrust * 0.7, now, 0.08);
-    L.jetTurbine.set(je * (0.010 + thrust * 0.032),
-      1500 + thrust * 3200, blade, now, 0.09);
+    // The roar thins out as the air does — by the cap there is nothing left for
+    // an engine to shout into, and the mix opens up for the turbine.
+    L.jetRoar.set(je * (0.035 + thrust * 0.11 + jT * 0.045) * (1 - hy * 0.45),
+      340 + thrust * 900 + jT * 380 + hy * 900, 0.75 + thrust * 0.7, now, 0.08);
+    L.jetTurbine.set(je * (0.010 + thrust * 0.032 + hy * 0.055),
+      1500 + thrust * 3200 + hy * 3200, blade, now, 0.09);
     // The upper partial is what gives it that hollow turbine edge.
-    L.jetBlade.set(je * (0.004 + thrust * 0.016 + boost * 0.010),
-      2600 + thrust * 3400, blade * 2.49, now, 0.09);
+    L.jetBlade.set(je * (0.004 + thrust * 0.016 + boost * 0.010 + hy * 0.030),
+      2600 + thrust * 3400 + hy * 4000, blade * 2.49, now, 0.09);
     // Airframe rush follows speed alone, so a glide still whistles.
-    L.jetAir.set(je * (0.012 + jT * 0.055), 2600 + jT * 3600,
-      0.7 + jT * 0.7, now, 0.12);
+    L.jetAir.set(je * (0.012 + jT * 0.055 + hy * 0.075), 2600 + jT * 3600 + hy * 4200,
+      0.7 + jT * 0.7 + hy * 1.2, now, 0.12);
 
     // Afterburner: irregular low-frequency crackle on top of the roar. Random
     // spacing is the whole trick — an even rhythm sounds like a machine gun.
@@ -363,9 +373,12 @@ export class Sfx {
     // Wind rises with speed and with height — it's the altimeter you hear.
     const amb = SOUND.ambience;
     const alt = clamp((craft.pos.y - WORLD.waterY) / 320, 0, 1);
-    const spd = clamp(craft.speed / 90, 0, 1);
-    L.wind.set(amb * (0.016 + spd * 0.050 + alt * 0.045), 320 + spd * 900 + alt * 500,
-      0.6 + spd * 0.5, now, 0.2);
+    const spd = craft.hyper ? 1 : clamp(craft.speed / 90, 0, 1);
+    // Wind is an atmosphere effect and there is no atmosphere between worlds:
+    // it fades out as the trip climbs, which is what leaves room for the
+    // turbine to be the whole of the sound at the top.
+    L.wind.set(amb * (0.016 + spd * 0.050 + alt * 0.045) * (1 - hy * 0.85),
+      320 + spd * 900 + alt * 500, 0.6 + spd * 0.5, now, 0.2);
 
     // Water is audible whenever you're on or over it.
     const nearWater = craft.onWater ? 1 : 0;

@@ -5,6 +5,7 @@
 import { height } from './noise.js';
 import { faceDir } from './sphere.js';
 import { rngFor, range } from '../core/rng.js';
+import { SCATTER } from '../tune.js';
 
 // Where the rock currently being emitted sits, and which way is up there.
 // Rocks are authored y-up around their own origin, exactly as on the flat
@@ -117,15 +118,20 @@ function emitBoulder(pos, nrm, rng, ox, oy, oz, scale, hi) {
   for (const [a, b, c] of src.faces) pushTri(pos, nrm, put(a), put(b), put(c));
 }
 
-function emitSpire(pos, nrm, rng, ox, oy, oz, radius, tall) {
-  const sides = 5 + ((rng() * 3) | 0);
+/**
+ * The vertical form: eroded sea stack, crystalline shard or fog-bound needle,
+ * depending on `sides`, `taper` and how the caller has scaled radius against
+ * height. Four sides with a taper near 1.0 is a faceted shard; seven sides with
+ * a low taper is a blunt stack; six sides, thin and very tall, is a needle.
+ */
+function emitSpire(pos, nrm, rng, ox, oy, oz, radius, tall, sides, taper, lean0) {
   const segs = 4;
-  const lean = range(rng, -0.10, 0.10);
-  const leanZ = range(rng, -0.10, 0.10);
+  const lean = range(rng, -lean0, lean0);
+  const leanZ = range(rng, -lean0, lean0);
   const twist = range(rng, -0.5, 0.5);
   const ring = (k) => {
     const t = k / segs;
-    const r = radius * Math.pow(1 - t, 0.62) * range(rng, 0.92, 1.08);
+    const r = radius * Math.pow(1 - t, taper) * range(rng, 0.92, 1.08);
     const y = oy + tall * t;
     const cx = ox + lean * tall * t, cz = oz + leanZ * tall * t;
     const out = [];
@@ -136,6 +142,13 @@ function emitSpire(pos, nrm, rng, ox, oy, oz, radius, tall) {
     return out;
   };
   let lower = ring(0);
+  // Cap the base. It is buried — spires are emitted from a metre below the
+  // ground — so this is never seen, and it is here for the test rather than
+  // the view: an open solid has no signed volume worth asserting on, and that
+  // is precisely how an inside-out slab survived this long.
+  for (let s = 1; s + 1 < lower.length; s++) {
+    pushTri(pos, nrm, lower[0], lower[s], lower[s + 1]);
+  }
   for (let k = 1; k <= segs; k++) {
     const upper = ring(k);
     for (let s = 0; s < sides; s++) {
@@ -153,13 +166,18 @@ function emitSpire(pos, nrm, rng, ox, oy, oz, radius, tall) {
   }
 }
 
-function emitSlab(pos, nrm, rng, ox, oy, oz, scale) {
+/**
+ * The blocky form. Home stands them up as broken slabs; Ember's `tall` of 0.30
+ * against a `thin` of 2.3 lays the same solid down as a wide shattered plate,
+ * and Anvil's scale turns it into a fallen wall.
+ */
+function emitSlab(pos, nrm, rng, ox, oy, oz, scale, tall, thin, tilt) {
   const w = scale * range(rng, 0.9, 2.0);
-  const d = scale * range(rng, 0.3, 0.65);
-  const h = scale * range(rng, 1.1, 2.6);
+  const d = scale * thin * range(rng, 0.3, 0.65);
+  const h = scale * tall * range(rng, 1.1, 2.6);
   const yaw = rng() * Math.PI * 2;
-  const tiltX = range(rng, -0.34, 0.34);
-  const tiltZ = range(rng, -0.34, 0.34);
+  const tiltX = range(rng, -tilt, tilt);
+  const tiltZ = range(rng, -tilt, tilt);
   const ca = Math.cos(yaw), sa = Math.sin(yaw);
   const corners = [];
   for (let i = 0; i < 8; i++) {
@@ -174,9 +192,15 @@ function emitSlab(pos, nrm, rng, ox, oy, oz, scale) {
     [0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1],
     [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3],
   ];
+  // Reversed. Every one of these six faces was wound inward — a slab has been
+  // inside-out since the flat world, and nothing caught it: the only signed
+  // volume check ran on Home, where the spires' open bases produce an enormous
+  // position-dependent negative that swamped a few positive boxes. Ember is
+  // slab-dominated and has no spires, so it is the first world where the sum
+  // came out positive and the bug had nowhere to hide.
   for (const [a, b, c, dd] of quads) {
-    pushTri(pos, nrm, corners[a], corners[b], corners[c]);
-    pushTri(pos, nrm, corners[a], corners[c], corners[dd]);
+    pushTri(pos, nrm, corners[a], corners[c], corners[b]);
+    pushTri(pos, nrm, corners[a], corners[dd], corners[c]);
   }
 }
 
@@ -199,6 +223,10 @@ export function appendRocks(planet, f, u0, v0, size, ox, oy, oz, pos, nrm) {
     `rocks:${f}:${Math.round(u0 * 4096)},${Math.round(v0 * 4096)},${Math.round(size * 4096)}`);
   const arc = size * planet.faceArc * 0.5;    // leaf width in metres
   const relief = planet.relief;
+  /* The world's rock profile. Geometry, not colour — rocks are baked into the
+     terrain mesh and take the terrain palette for free, so the only thing left
+     to differentiate is the silhouette, and that is what this is. */
+  const S = Object.assign({}, SCATTER, planet.scatter || {});
 
   // Cluster seeds bias where rocks bunch up within the leaf, in uv space.
   const clusters = [];
@@ -207,7 +235,7 @@ export function appendRocks(planet, f, u0, v0, size, ox, oy, oz, pos, nrm) {
     clusters.push([rng(), rng(), range(rng, 0.12, 0.34)]);
   }
 
-  const attempts = Math.max(8, Math.round(42 * Math.min(1, arc / 160)));
+  const attempts = Math.max(8, Math.round(42 * S.density * Math.min(1, arc / 160)));
   for (let i = 0; i < attempts; i++) {
     let lu, lv;
     if (rng() < 0.68) {
@@ -259,19 +287,50 @@ export function appendRocks(planet, f, u0, v0, size, ox, oy, oz, pos, nrm) {
     // Rocks scale with the world. A 6m boulder is a landmark on Home and an
     // absurdity on a 10m-relief moon, and a spire must never out-top the
     // planet it stands on.
+    //
+    // `scale` raises the small-rock cap, because a world whose identity is
+    // "enormous boulders" has to be allowed enormous boulders — but tallCap
+    // stays absolute: out-topping the planet is not a stylistic choice.
     const tallCap = Math.max(3, relief * 0.42);
-    const rockCap = Math.max(0.8, relief * 0.085);
-    if (h > 0.62 * relief && rng() < 0.42) {
+    const rockCap = Math.max(0.8, relief * 0.085) * S.scale;
+
+    /* Which of the three solids. Weighted by the profile, with the old height
+       gates kept as a bias rather than a hard rule: verticals still prefer high
+       ground and small boulders the flats, but a world that asks for no spires
+       (Ember) gets none anywhere, which a gate could not express.
+       The gates SUPPRESS rather than promote. Promoting was the first cut, and
+       it put two 20m spires next to Home's spawn — a spire on the flats has to
+       be rare, or the world with a moderate mixed field reads as the world
+       carried by verticals. */
+    const bias = [
+      S.forms[0] * (h < 0.05 * relief ? 1.4 : 1),
+      S.forms[1] * (h > 0.22 * relief ? 1 : 0.55),
+      S.forms[2] * (h > 0.55 * relief ? 1 : 0.30),
+    ];
+    const total = bias[0] + bias[1] + bias[2];
+    if (total <= 0) continue;
+    const roll = rng() * total;
+    let form = 2, acc = 0;
+    for (let k = 0; k < 3; k++) {
+      acc += bias[k];
+      if (roll <= acc) { form = k; break; }
+    }
+
+    if (form === 2) {
       emitSpire(pos, nrm, rng, 0, -1, 0,
-        Math.min(rockCap, range(rng, 1.4, 3.4)), Math.min(tallCap, range(rng, 9, 26)));
-    } else if (h > 0.22 * relief && rng() < 0.34) {
-      emitSlab(pos, nrm, rng, 0, -0.4, 0, Math.min(rockCap, range(rng, 1.2, 3.0)));
-    } else if (h < 0.05 * relief && rng() < 0.55) {
-      emitBoulder(pos, nrm, rng, 0, -0.25, 0, Math.min(rockCap, range(rng, 0.5, 1.3)), false);
+        Math.min(rockCap, range(rng, 1.4, 3.4) * S.scale * S.thin),
+        Math.min(tallCap, range(rng, 9, 26) * S.scale * S.tall),
+        S.sides, S.taper, S.tilt * 0.30);
+    } else if (form === 1) {
+      emitSlab(pos, nrm, rng, 0, -0.4 * Math.min(1, S.tall), 0,
+        Math.min(rockCap, range(rng, 1.2, 3.0) * S.scale), S.tall, S.thin, S.tilt);
     } else {
-      const big = rng() < 0.22;
-      emitBoulder(pos, nrm, rng, 0, -0.5, 0,
-        Math.min(rockCap, big ? range(rng, 3.0, 6.5) : range(rng, 0.9, 2.4)), big);
+      // Big boulders are rarer, and the flats get pebbles rather than landmarks.
+      const low = h < 0.05 * relief;
+      const big = !low && rng() < 0.22;
+      const base = low ? range(rng, 0.5, 1.3) : (big ? range(rng, 3.0, 6.5) : range(rng, 0.9, 2.4));
+      emitBoulder(pos, nrm, rng, 0, low ? -0.25 : -0.5, 0,
+        Math.min(rockCap, base * S.scale), big);
     }
   }
 }

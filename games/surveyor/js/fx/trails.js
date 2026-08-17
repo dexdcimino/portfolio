@@ -10,6 +10,7 @@ import { Pool } from '../core/pool.js';
 import { on } from '../core/events.js';
 import { COLORS, WORLD, ATMO } from '../tune.js';
 import { placeOnSphere } from '../world/surface.js';
+import { skyOf } from '../world/materials.js';
 
 // Effects are authored in the craft's tangent frame and converted at the last
 // moment, the same deal as the camera. An anchor set from craft.pos directly
@@ -73,10 +74,22 @@ export class Trails {
     this.puff.minEmitBox = new BABYLON.Vector3(-1.2, 0, -1.2);
     this.puff.maxEmitBox = new BABYLON.Vector3(1.2, 0.2, 1.2);
 
-    // Motes drifting in the near field. They cost almost nothing and they are
-    // most of why the air reads as air.
+    /* Motes drifting in the near field. They cost almost nothing and they are
+       most of why the air reads as air.
+       This is also the sky's optional particle layer: a planet's `sky.motes`
+       block replaces the colour, the density and the fall rate — Ember's ash,
+       Shroud's murk — through this system rather than a second one. A world
+       that says nothing gets the drift it always had. */
     if (ATMO.motes) {
-      this.motes = this.makeSystem(260, this.moteAnchor, {
+      const m = skyOf(this.planet).motes;
+      // Capped: Shroud asks for five times the density, and the emitter simply
+      // runs out of pool rather than quietly costing five times the frame.
+      const cap = m ? Math.min(900, Math.round(260 * m.density)) : 260;
+      this.motes = this.makeSystem(cap, this.moteAnchor, m ? {
+        color1: C(m.color, 0.55), color2: C(m.color, 0.30),
+        dead: C(m.color, 0), min: 0.05 * m.size, max: 0.30 * m.size, life: [3.5, 9],
+        power: [0.1, 0.7], grav: new BABYLON.Vector3(0, m.fall, 0),
+      } : {
         color1: C(COLORS.coast, 0.20), color2: C(COLORS.phosphor, 0.14),
         dead: C(COLORS.coast, 0), min: 0.05, max: 0.30, life: [3.5, 9],
         power: [0.1, 0.7], grav: new BABYLON.Vector3(0, -0.30, 0),
@@ -85,7 +98,7 @@ export class Trails {
       this.motes.maxEmitBox = new BABYLON.Vector3(46, 30, 46);
       this.motes.direction1 = new BABYLON.Vector3(-0.4, -0.1, -0.4);
       this.motes.direction2 = new BABYLON.Vector3(0.4, 0.2, 0.4);
-      this.motes.emitRate = 34;
+      this.motes.emitRate = 34 * (m ? m.density : 1);
     }
 
     // Wingtip ribbons. Recreated on entering jet mode so they never streak

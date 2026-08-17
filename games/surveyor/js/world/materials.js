@@ -3,10 +3,45 @@
 // lines are cut into the rock, the waterline gets a drawn coastline stroke,
 // and light is quantised into flat bands so form reads as shape, not shading.
 
-import { COLORS, WORLD, ATMO } from '../tune.js';
+import { COLORS, WORLD, ATMO, SKY } from '../tune.js';
+import { meltDepth } from './water.js';
 
 const V3 = (c) => new BABYLON.Vector3(c[0], c[1], c[2]);
 const C3 = (c) => new BABYLON.Color3(c[0], c[1], c[2]);
+const scale = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
+
+/** This planet's palette: the system default with the profile merged over it. */
+export function paletteOf(planet) {
+  return Object.assign({}, COLORS, planet.palette || {});
+}
+
+/**
+ * This planet's sky, fully resolved.
+ *
+ * One model, six parameter sets. Every `null` in SKY means "derive it from the
+ * palette", and that is what keeps the six from drifting apart: a world that
+ * only states a mood inherits colours that already agree with its ground.
+ *
+ * Exported because the sky is not only the dome — the mote layer in trails.js
+ * reads the same block, so the ash falling on Ember is part of the same
+ * description as the ceiling it falls out of.
+ */
+export function skyOf(planet) {
+  const COL = paletteOf(planet);
+  const S = Object.assign({}, SKY, planet.sky || {});
+  return Object.assign(S, {
+    zenith: S.zenith || COL.skyHigh,
+    horizon: S.horizon || COL.skyLow,
+    below: S.below || scale(COL.fog, 0.55),
+    bandColor: S.bandColor || COL.fogSun,
+    cloudColor: S.cloudColor || COL.coast,
+    underglowColor: S.underglowColor || COL.fogSun,
+    sunColor: S.sunColor || COL.fogSun,
+    haze: S.haze === null || S.haze === undefined ? ATMO.horizonHaze : S.haze,
+    emit: S.emit || 0,
+    emitFrom: S.emitFrom || 0.30,
+  });
+}
 
 // Shared GLSL: banded lambert + the contour engine.
 const COMMON = `
@@ -66,14 +101,21 @@ function registerShaders() {
     precision highp float;
     attribute vec3 position;
     attribute vec3 normal;
+    // Baked on the CPU when the leaf is built: how deep inside a fissure this
+    // vertex is, 0 on the intact plain. Zero-filled on the five worlds that
+    // have no fissures, so the attribute is always present and the shader never
+    // has to know which world it is drawing.
+    attribute float fissure;
     uniform mat4 world;
     uniform mat4 worldViewProjection;
     varying vec3 vN;
     varying vec3 vW;
+    varying float vFis;
     void main() {
       vec4 wp = world * vec4(position, 1.0);
       vW = wp.xyz;
       vN = normalize(mat3(world) * normal);
+      vFis = fissure;
       gl_Position = worldViewProjection * vec4(position, 1.0);
     }
   `;
@@ -81,10 +123,13 @@ function registerShaders() {
   S.svTerrainFragmentShader = COMMON + `
     varying vec3 vN;
     varying vec3 vW;
+    varying float vFis;
     uniform vec3 uCam, uLight, uFog, uFogSun;
     uniform vec3 uDeep, uSilt, uShore, uFlats, uStone, uPeak, uCoast, uContour;
+    uniform vec3 uShade, uRim, uEmitCol, uEmitHot;
     uniform vec2 uFogRange;
     uniform float uSurfaceR, uScatter, uWash, uDetail, uRelief;
+    uniform float uSpec, uEmit, uEmitFrom;
 
     void main() {
       vec3 N = normalize(vN);
@@ -154,11 +199,35 @@ function registerShaders() {
       float d = dot(N, uLight);
       float band = bandLight(d);
       col *= band;
-      col = mix(col, col * vec3(0.72, 0.86, 1.0), (1.0 - band) * 0.7);
+      // The shade tint was a hardcoded cool blue. It is per-planet now, and it
+      // is doing more work than any single band colour: Vault's shadow is deep
+      // blue, Ember's is orange because the light comes off the ground, Anvil's
+      // is iron.
+      col = mix(col, col * uShade, (1.0 - band) * 0.7);
 
-      // Cool rim so silhouettes separate from the fog at speed.
+      // Rim so silhouettes separate from the fog at speed.
       float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.5);
-      col += vec3(0.10, 0.24, 0.26) * rim * 0.55;
+      col += uRim * rim * 0.55;
+
+      // Hard toon glint on the flats. Zero everywhere but Vault, where the ice
+      // sheen is half of what makes the ground read as frozen rather than pale.
+      if (uSpec > 0.0) {
+        vec3 H = normalize(uLight + V);
+        float sp = pow(clamp(dot(N, H), 0.0, 1.0), 42.0);
+        col += uFogSun * step(0.22, sp) * uSpec * (1.0 - smoothstep(0.06, 0.30, slope));
+      }
+
+      /* Fissure emission — Ember. The mask is the baked attribute, never
+         recomputed here: the CPU and GPU noise would have to agree bit for bit
+         across every driver in the world, and they do not.
+         Authored deliberately past 1.0 so the bloom pass in main.js turns the
+         cracks into glare. Applied after the light bands because the ground
+         glowing is not a lit surface — it is the light. */
+      if (uEmit > 0.0) {
+        float hot = smoothstep(uEmitFrom, 0.92, vFis);
+        vec3 fire = mix(uEmitCol, uEmitHot, hot * hot);
+        col = mix(col, fire * (0.55 + uEmit * hot), hot);
+      }
 
       // Distance eats saturation before it eats the colour outright — that is
       // most of what makes a far ridge read as far.
@@ -220,7 +289,7 @@ function registerShaders() {
     varying vec3 vN;
     uniform vec3 uCam, uLight, uFog, uFogSun, uDeepW, uShallowW, uCoast;
     uniform vec2 uFogRange;
-    uniform float uTime, uScatter, uMaxDepth;
+    uniform float uTime, uScatter, uMaxDepth, uFrozen, uMelt;
 
     void main() {
       vec3 toCam = uCam - vW;
@@ -255,10 +324,29 @@ function registerShaders() {
       float band = bandLight(dot(N, uLight));
       col *= mix(0.86, 1.0, band);
 
+      /* FROZEN (Vault). The same shelves, but read as a solid surface: pale,
+         opaque, and with the melt line stroked across it in the chart's own
+         hand. Past that line the ice does not hold the rover, so this stroke is
+         not decoration — it is the hazard, drawn where the hull can still turn
+         around. Everything here is multiplied by uFrozen, which is 0 on the
+         other five worlds. */
+      float lineNow = 0.0;
+      if (uFrozen > 0.0) {
+        vec3 ice = mix(uCoast, uShallowW, smoothstep(0.0, uMaxDepth, d) * 0.55);
+        // Wind-scoured streaks, so a frozen lake is not a flat panel of white.
+        ice *= 0.94 + 0.10 * fbm2(vW.xz * 0.06);
+        // Beyond the melt line the surface darkens back toward open water,
+        // which is the second reading of the same information.
+        ice = mix(ice, uDeepW * 1.25, smoothstep(uMelt, uMelt + uMaxDepth * 0.20, d));
+        lineNow = 1.0 - smoothstep(0.0, max(uMaxDepth * 0.035, 0.15), abs(d - uMelt));
+        ice = mix(ice, uCoast * 1.35, lineNow * 0.85);
+        col = mix(col, ice, uFrozen);
+      }
+
       float fog = smoothstep(uFogRange.x, uFogRange.y, dist);
       col = mix(col, hazeColor(uFog, uFogSun, V, uLight, uScatter), fog);
       float alpha = mix(0.72, 0.93, smoothstep(0.0, uMaxDepth * 0.6, d));
-      gl_FragColor = vec4(col, mix(alpha, 1.0, fog));
+      gl_FragColor = vec4(col, mix(mix(alpha, 1.0, uFrozen), 1.0, fog));
     }
   `;
 
@@ -274,11 +362,26 @@ function registerShaders() {
     }
   `;
 
+  // ONE sky, parameterised. Every world drives the same twenty lines with a
+  // different set of numbers — gradient stops, a horizon band, a cloud ceiling,
+  // an optional underglow — which is the only way six skies stay maintainable.
   S.svSkyFragmentShader = `
     precision highp float;
     varying vec3 vP;
-    uniform vec3 uLow, uHigh, uLight, uCoast, uFog, uFogSun, uUp, uEast, uNorth;
-    uniform float uTime, uHaze;
+    uniform vec3 uLow, uHigh, uBelow, uLight, uBandCol, uCloudCol, uUnderCol;
+    uniform vec3 uSunCol, uFog, uFogSun, uUp, uEast, uNorth;
+    uniform float uTime, uHaze, uBand, uBandW, uClouds, uCeil, uUnder;
+    uniform float uSunSize, uGlare;
+
+    /* One stratum's elevation window.
+       The window MOVES with the ceiling; its edges do not shrink with it. That
+       distinction is the whole function: scaling elevation by 1/ceiling instead
+       compresses the fades along with the band, and Ember's low lid came out as
+       a hard-edged ring drawn across the sky. */
+    float strat(float el, float lo, float hi, float ceil) {
+      return smoothstep(lo * ceil, lo * ceil + 0.06, el) *
+        (1.0 - smoothstep(hi * ceil, hi * ceil + 0.16, el));
+    }
 
     void main() {
       vec3 D = normalize(vP);
@@ -293,10 +396,17 @@ function registerShaders() {
       float q = floor(t * 10.0) / 10.0;
       vec3 col = mix(uLow, uHigh, mix(t, q, 0.42));
 
+      // The third gradient stop: what the dome does BELOW the skyline. Without
+      // it a dark world gets a bright sky wrapping under its own horizon, which
+      // is visible off every cliff edge and from the air.
+      col = mix(col, uBelow, smoothstep(0.03, -0.12, el));
+
       float s = dot(D, normalize(uLight));
 
       // Three cloud strata, drifting at different rates so the ceiling has
-      // depth rather than reading as one printed layer.
+      // depth rather than reading as one printed layer. uCeil divides the
+      // elevation windows: below 1.0 the whole stack is dragged down into a low
+      // heavy lid, which is most of what makes Ember's sky feel like a roof.
       //
       // Laid out in the LOCAL horizon frame, not in world X/Z. Driven by world
       // axes the pattern does not rotate with you, and wherever your local up
@@ -308,16 +418,20 @@ function registerShaders() {
       // smoothstep, not step: a hard threshold on a sine gives razor-straight
       // cloud edges, which is what made the artefact so obviously wrong.
       float band1 = sin(cu * 5.0 + uTime * 0.020) * sin(cv * 4.0 - uTime * 0.014);
-      float h1 = smoothstep(0.10, 0.16, el) * (1.0 - smoothstep(0.30, 0.46, el));
-      col = mix(col, uCoast * 0.94, smoothstep(0.40, 0.56, band1) * h1 * 0.42);
+      float h1 = strat(el, 0.10, 0.30, uCeil);
+      col = mix(col, uCloudCol * 0.94, smoothstep(0.40, 0.56, band1) * h1 * 0.42 * uClouds);
 
       float band2 = sin(cu * 2.4 - uTime * 0.011 + 1.7) * sin(cv * 2.9 + uTime * 0.009);
-      float h2 = smoothstep(0.26, 0.34, el) * (1.0 - smoothstep(0.54, 0.72, el));
-      col = mix(col, uCoast * 0.88, smoothstep(0.52, 0.70, band2) * h2 * 0.30);
+      float h2 = strat(el, 0.26, 0.54, uCeil);
+      col = mix(col, uCloudCol * 0.88, smoothstep(0.52, 0.70, band2) * h2 * 0.30 * uClouds);
 
       float band3 = sin(cu * 1.3 + uTime * 0.006 - 0.9) * sin(cv * 1.6 - uTime * 0.005);
-      float h3 = smoothstep(0.44, 0.56, el) * (1.0 - smoothstep(0.78, 0.96, el));
-      col = mix(col, uCoast * 0.80, smoothstep(0.58, 0.76, band3) * h3 * 0.22);
+      float h3 = strat(el, 0.44, 0.78, uCeil);
+      col = mix(col, uCloudCol * 0.80, smoothstep(0.58, 0.76, band3) * h3 * 0.22 * uClouds);
+
+      // A band hugging the skyline. Narrow and faint it is a horizon line; wide
+      // and strong it is sea haze, and Tarn is nothing but sea haze.
+      col = mix(col, uBandCol, uBand * (1.0 - smoothstep(0.0, max(uBandW, 0.005), abs(el))));
 
       // The horizon has to sit down into the same haze the terrain fades to,
       // or the two meet at a visible seam and the world looks like a diorama.
@@ -325,12 +439,119 @@ function registerShaders() {
       vec3 hz = mix(uFog, uFogSun, pow(clamp(s, 0.0, 1.0), 2.0) * 0.75);
       col = mix(col, hz, low * uHaze);
 
+      // Underglow: the ground lighting the sky from beneath, for a world whose
+      // light source is at your feet. Added rather than mixed, and authored
+      // past 1.0, so Ember's ceiling blooms like the cracks do.
+      col += uUnderCol * uUnder * smoothstep(0.34, -0.16, el);
+
       // Sun last, so nothing hazes over it. Deliberately above 1.0: the bloom
       // pass is what turns this into glare.
-      col += vec3(0.30, 0.46, 0.44) * smoothstep(0.945, 0.9970, s) * 0.55;
-      col += uCoast * smoothstep(0.9970, 0.9992, s) * 2.6;
+      col += uSunCol * smoothstep(1.0 - 0.055 * uSunSize, 1.0 - 0.003 * uSunSize, s)
+        * 0.55 * uGlare;
+      col += uSunCol * smoothstep(1.0 - 0.0030 * uSunSize, 1.0 - 0.0008 * uSunSize, s)
+        * 2.6 * uGlare;
 
       gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  // ---- the other worlds, seen from this one ------------------------------
+  // Billboards rebuilt every frame in CAMERA-RELATIVE coordinates (see
+  // discs.js), so nothing here ever sees a number in the hundreds of
+  // kilometres. `quad` is the corner in -1..1 and the vertex colour carries the
+  // world's tint in rgb and its honest core radius, as a fraction of the quad,
+  // in alpha.
+  S.svDiscVertexShader = `
+    precision highp float;
+    attribute vec3 position;
+    attribute vec2 quad;
+    attribute vec4 color;
+    uniform mat4 worldViewProjection;
+    varying vec2 vQ;
+    varying vec4 vC;
+    void main() {
+      vQ = quad;
+      vC = color;
+      gl_Position = worldViewProjection * vec4(position, 1.0);
+    }
+  `;
+
+  S.svDiscFragmentShader = `
+    precision highp float;
+    varying vec2 vQ;
+    varying vec4 vC;
+    uniform vec3 uLight, uRight, uUp, uFwd;
+    uniform float uGlow;
+
+    void main() {
+      float r = length(vQ);
+      float core = max(vC.a, 0.001);
+      // Hard edge on the disc itself; the glow around it is what makes a
+      // sub-pixel world visible at all, which is also how a distant planet
+      // actually reads to the naked eye.
+      float disc = 1.0 - smoothstep(core * 0.86, core * 1.14, r);
+      float halo = pow(max(0.0, 1.0 - r), 3.2);
+
+      // Phase. The billboard is flat, but the sphere it stands for is not: bend
+      // a normal across the disc and light it with the same fixed sun the
+      // ground uses, and the crescent tells you where the light is coming from.
+      vec2 q = vQ / core;
+      float z = sqrt(max(0.0, 1.0 - min(1.0, dot(q, q))));
+      vec3 N = normalize(uRight * q.x + uUp * q.y - uFwd * z);
+      float lit = 0.12 + 0.88 * smoothstep(-0.25, 0.55, dot(N, normalize(uLight)));
+
+      vec3 col = vC.rgb * (disc * lit * 1.6 + halo * uGlow * 0.30);
+      float a = clamp(disc * 0.96 + halo * 0.55, 0.0, 1.0);
+      gl_FragColor = vec4(col, a);
+    }
+  `;
+
+  // ---- velocity lines ----------------------------------------------------
+  /* Star streaking, without stars. There is nothing out there to streak, so the
+     streaks ARE the reference: short segments living in a box that scrolls past
+     the camera along the travel axis, stretched by speed.
+     Placed entirely in the vertex shader from a per-streak seed, so the whole
+     field is one draw call and costs nothing per frame on the CPU — at the cap
+     the game is already integrating a 33km step and rebuilding nothing else. */
+  S.svStreakVertexShader = `
+    precision highp float;
+    attribute vec3 seed;      // position in a unit box, per streak
+    attribute vec2 corner;    // x: along the streak, y: across it
+    uniform mat4 viewProjection;
+    uniform vec3 uCam, uDir, uRight, uUp;
+    uniform float uBox, uPhase, uLen, uWidth;
+    varying float vFade;
+
+    void main() {
+      // Scroll along the travel axis and wrap, so the field is endless without
+      // ever being regenerated.
+      float span = uBox * 2.0;
+      float along = fract(seed.z + uPhase) * span - uBox;
+      // Perpendicular offset, pushed off the axis so streaks never spawn inside
+      // the craft: the near field is where they would read as noise.
+      vec2 off = seed.xy * 2.0 - 1.0;
+      float r = 0.22 + 0.78 * length(off);
+      vec2 dirOff = normalize(off + vec2(1e-4)) * r * uBox;
+
+      vec3 base = uCam + uDir * along + uRight * dirOff.x + uUp * dirOff.y;
+      vec3 p = base + uDir * corner.x * uLen
+        + normalize(cross(uDir, base - uCam) + vec3(1e-5)) * corner.y * uWidth;
+
+      // Fade at both ends of the box so nothing pops in or out.
+      vFade = (1.0 - abs(along) / uBox) * min(1.0, r * 1.6);
+      gl_Position = viewProjection * vec4(p, 1.0);
+    }
+  `;
+
+  S.svStreakFragmentShader = `
+    precision highp float;
+    varying float vFade;
+    uniform vec3 uColor;
+    uniform float uAlpha;
+    void main() {
+      float a = clamp(vFade, 0.0, 1.0) * uAlpha;
+      // Above 1.0 at the top end so the bloom pass takes them.
+      gl_FragColor = vec4(uColor * (0.6 + uAlpha * 1.4), a);
     }
   `;
 
@@ -360,9 +581,9 @@ function registerShaders() {
     varying vec3 vN;
     varying vec3 vW;
     varying vec4 vC;
-    uniform vec3 uCam, uLight, uFog;
+    uniform vec3 uCam, uLight, uFog, uRim, uSunCol;
     uniform vec2 uFogRange;
-    uniform float uHeat;
+    uniform float uHeat, uSpec;
 
     void main() {
       vec3 N = normalize(vN);
@@ -374,7 +595,16 @@ function registerShaders() {
       vec3 col = vC.rgb * bandLight(dot(N, uLight));
 
       float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 2.6);
-      col += vec3(0.16, 0.42, 0.44) * rim * 0.55;
+      col += uRim * rim * 1.4;
+
+      // Hull specular. Hard-edged like everything else here, and zero on five
+      // worlds — the point is that the craft visibly catches the light on Vault
+      // and catches nothing anywhere else.
+      if (uSpec > 0.0) {
+        vec3 H = normalize(uLight + V);
+        col += uSunCol * step(0.30, pow(clamp(dot(N, H), 0.0, 1.0), 30.0))
+          * uSpec * (1.0 - emissive);
+      }
 
       // Emissive parts ignore lighting and ramp with boost heat.
       col = mix(col, vC.rgb * (1.4 + uHeat * 1.8), emissive);
@@ -387,38 +617,61 @@ function registerShaders() {
 
 let registered = false;
 
-export function createMaterials(scene, planet) {
+/** Shaders are global; anything that needs one before a world exists calls this. */
+export function ensureShaders() {
   if (!registered) { registerShaders(); registered = true; }
+}
+
+export function createMaterials(scene, planet) {
+  ensureShaders();
+
+  /* Per-planet palette. COLORS stays the system default and each profile
+     overrides only the bands it cares about, so a world that says nothing
+     about colour still renders exactly as Home does — which is what keeps
+     Home's approved look from drifting when another world is retuned. */
+  const COL = paletteOf(planet);
+  const SK = skyOf(planet);
 
   // Fog is per-planet now, derived from radius. The old fixed 1180m far plane
   // was longer than the diameter of half the worlds in the system.
   const fogRange = new BABYLON.Vector2(planet.fogNear, planet.fogFar);
-  const light = new BABYLON.Vector3(0.42, 0.74, 0.52).normalize();
+  // The sun is a fixed direction in PLANET space, and it is per-world now: it
+  // decides which hemisphere is lit, so two worlds with the same palette still
+  // read differently from the same spawn.
+  const light = V3(SK.sunDir).normalize();
 
   const terrain = new BABYLON.ShaderMaterial('svTerrain', scene,
     { vertex: 'svTerrain', fragment: 'svTerrain' },
     {
-      attributes: ['position', 'normal'],
+      attributes: ['position', 'normal', 'fissure'],
       uniforms: ['world', 'worldViewProjection', 'uCam', 'uLight', 'uFog',
         'uFogSun', 'uDeep', 'uSilt', 'uShore', 'uFlats', 'uStone', 'uPeak',
         'uCoast', 'uContour', 'uFogRange', 'uSurfaceR', 'uScatter', 'uWash',
-        'uDetail', 'uRelief'],
+        'uDetail', 'uRelief', 'uShade', 'uRim', 'uSpec', 'uEmit', 'uEmitFrom',
+        'uEmitCol', 'uEmitHot'],
     });
+  terrain.setVector3('uShade', V3(COL.shade));
+  terrain.setVector3('uRim', V3(COL.rim));
+  terrain.setFloat('uSpec', COL.spec);
+  terrain.setFloat('uEmit', SK.emit);
+  terrain.setFloat('uEmitFrom', SK.emitFrom);
+  terrain.setVector3('uEmitCol', V3(COL.emit));
+  terrain.setVector3('uEmitHot', V3(COL.emitHot));
   terrain.setVector3('uLight', light);
-  terrain.setVector3('uFog', V3(COLORS.fog));
-  terrain.setVector3('uFogSun', V3(COLORS.fogSun));
+  terrain.setVector3('uFog', V3(COL.fog));
+  terrain.setVector3('uFogSun', V3(COL.fogSun));
   terrain.setFloat('uScatter', ATMO.sunScatter);
   terrain.setFloat('uWash', ATMO.distanceWash);
   terrain.setFloat('uDetail', ATMO.terrainDetail);
   terrain.setFloat('uRelief', planet.relief);
-  terrain.setVector3('uDeep', V3(COLORS.deep));
-  terrain.setVector3('uSilt', V3(COLORS.silt));
-  terrain.setVector3('uShore', V3(COLORS.shore));
-  terrain.setVector3('uFlats', V3(COLORS.flats));
-  terrain.setVector3('uStone', V3(COLORS.stone));
-  terrain.setVector3('uPeak', V3(COLORS.peak));
-  terrain.setVector3('uCoast', V3(COLORS.coast));
-  terrain.setVector3('uContour', V3(COLORS.contour));
+  terrain.setVector3('uDeep', V3(COL.deep));
+  terrain.setVector3('uSilt', V3(COL.silt));
+  terrain.setVector3('uShore', V3(COL.shore));
+  terrain.setVector3('uFlats', V3(COL.flats));
+  terrain.setVector3('uStone', V3(COL.stone));
+  terrain.setVector3('uPeak', V3(COL.peak));
+  terrain.setVector3('uCoast', V3(COL.coast));
+  terrain.setVector3('uContour', V3(COL.contour));
   terrain.setVector2('uFogRange', fogRange);
   terrain.setFloat('uSurfaceR', planet.surfaceR);
 
@@ -428,22 +681,26 @@ export function createMaterials(scene, planet) {
       attributes: ['position', 'depth'],
       uniforms: ['world', 'worldViewProjection', 'uCam', 'uLight', 'uFog',
         'uFogSun', 'uDeepW', 'uShallowW', 'uCoast', 'uFogRange', 'uTime',
-        'uScatter', 'uWaveK', 'uWaveAmp', 'uMaxDepth'],
+        'uScatter', 'uWaveK', 'uWaveAmp', 'uMaxDepth', 'uFrozen', 'uMelt'],
       needAlphaBlending: true,
     });
   water.setVector3('uLight', light);
-  water.setVector3('uFog', V3(COLORS.fog));
-  water.setVector3('uFogSun', V3(COLORS.fogSun));
+  water.setVector3('uFog', V3(COL.fog));
+  water.setVector3('uFogSun', V3(COL.fogSun));
   water.setFloat('uScatter', ATMO.sunScatter);
-  water.setVector3('uDeepW', V3(COLORS.deep));
-  water.setVector3('uShallowW', V3(COLORS.shallow));
-  water.setVector3('uCoast', V3(COLORS.coast));
+  water.setVector3('uDeepW', V3(COL.deep));
+  water.setVector3('uShallowW', V3(COL.shallow));
+  water.setVector3('uCoast', V3(COL.coast));
   water.setVector2('uFogRange', fogRange);
   water.setFloat('uWaveK', planet.waveFreq);
   water.setFloat('uWaveAmp', planet.waveAmp);
   // How deep this planet's water actually gets, so the bathymetry bands spread
   // across the real range rather than a fixed 24m.
   water.setFloat('uMaxDepth', Math.max(3, planet.relief * 0.42));
+  // Frozen, and where the ice stops holding. Both 0 unless the profile says
+  // otherwise, so this costs the other five worlds a uniform and nothing else.
+  water.setFloat('uFrozen', planet.iceThickness > 0 ? 1 : 0);
+  water.setFloat('uMelt', meltDepth(planet));
   // Culling ON. The water is a closed shell now, not a plane: with culling off
   // the far side of the sphere draws straight through the sky above the
   // horizon, as a hard-edged grey quad hanging over the world.
@@ -454,16 +711,29 @@ export function createMaterials(scene, planet) {
     { vertex: 'svSky', fragment: 'svSky' },
     {
       attributes: ['position'],
-      uniforms: ['worldViewProjection', 'uLow', 'uHigh', 'uLight', 'uCoast',
-        'uTime', 'uFog', 'uFogSun', 'uHaze', 'uUp', 'uEast', 'uNorth'],
+      uniforms: ['worldViewProjection', 'uLow', 'uHigh', 'uBelow', 'uLight',
+        'uBandCol', 'uCloudCol', 'uUnderCol', 'uSunCol', 'uTime', 'uFog',
+        'uFogSun', 'uHaze', 'uBand', 'uBandW', 'uClouds', 'uCeil', 'uUnder',
+        'uSunSize', 'uGlare', 'uUp', 'uEast', 'uNorth'],
     });
-  sky.setVector3('uLow', V3(COLORS.skyLow));
-  sky.setVector3('uHigh', V3(COLORS.skyHigh));
+  sky.setVector3('uLow', V3(SK.horizon));
+  sky.setVector3('uHigh', V3(SK.zenith));
+  sky.setVector3('uBelow', V3(SK.below));
   sky.setVector3('uLight', light);
-  sky.setVector3('uCoast', V3(COLORS.coast));
-  sky.setVector3('uFog', V3(COLORS.fog));
-  sky.setVector3('uFogSun', V3(COLORS.fogSun));
-  sky.setFloat('uHaze', ATMO.horizonHaze);
+  sky.setVector3('uBandCol', V3(SK.bandColor));
+  sky.setVector3('uCloudCol', V3(SK.cloudColor));
+  sky.setVector3('uUnderCol', V3(SK.underglowColor));
+  sky.setVector3('uSunCol', V3(SK.sunColor));
+  sky.setVector3('uFog', V3(COL.fog));
+  sky.setVector3('uFogSun', V3(COL.fogSun));
+  sky.setFloat('uHaze', SK.haze);
+  sky.setFloat('uBand', SK.band);
+  sky.setFloat('uBandW', SK.bandWidth);
+  sky.setFloat('uClouds', SK.clouds);
+  sky.setFloat('uCeil', SK.ceiling);
+  sky.setFloat('uUnder', SK.underglow);
+  sky.setFloat('uSunSize', SK.sunSize);
+  sky.setFloat('uGlare', SK.glare);
   sky.setVector3('uUp', new BABYLON.Vector3(0, 1, 0));
   sky.setVector3('uEast', new BABYLON.Vector3(1, 0, 0));
   sky.setVector3('uNorth', new BABYLON.Vector3(0, 0, 1));
@@ -475,14 +745,23 @@ export function createMaterials(scene, planet) {
     {
       attributes: ['position', 'normal', 'color'],
       uniforms: ['world', 'worldViewProjection', 'uCam', 'uLight', 'uFog',
-        'uFogRange', 'uHeat'],
+        'uFogRange', 'uHeat', 'uRim', 'uSunCol', 'uSpec'],
     });
   craft.setVector3('uLight', light);
-  craft.setVector3('uFog', V3(COLORS.fog));
+  craft.setVector3('uFog', V3(COL.fog));
   craft.setVector2('uFogRange', fogRange);
   craft.setFloat('uHeat', 0);
+  // The hull's rim was a fixed teal, which quietly made every world's craft
+  // read as Home's craft. Scaled down against the terrain's because a hull
+  // covers far less screen than a hillside does.
+  craft.setVector3('uRim', V3(scale(COL.rim, 0.62)));
+  craft.setVector3('uSunCol', V3(SK.sunColor));
+  craft.setFloat('uSpec', COL.spec);
 
-  const mats = { terrain, water, sky, craft, light, fogColor: C3(COLORS.fog) };
+  const mats = {
+    terrain, water, sky, craft, light, palette: COL, skyParams: SK,
+    fogColor: C3(COL.fog),
+  };
 
   let time = 0;
   const upVec = new BABYLON.Vector3(0, 1, 0);

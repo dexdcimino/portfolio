@@ -13,6 +13,7 @@
 <canvas id="stage" tabindex="0" aria-label="Surveyor game viewport"></canvas>
 <div id="streaks" aria-hidden="true"></div>
 <div id="deep" aria-hidden="true"></div>
+<div id="xray" aria-hidden="true"></div>
 <div id="flash" aria-hidden="true"></div>
 
 <div id="hud" aria-hidden="true">
@@ -22,6 +23,10 @@
     <div class="row"><span>Sectors</span><span id="sectors">000</span></div>
     <div class="row"><span>Beacons</span><span id="beacons">00</span></div>
     <div class="row"><span>Colonies</span><span id="colonies">00 / 00</span></div>
+    <div class="row"><span>Geysers</span><span id="geysers">00 / 00</span></div>
+    <div class="row"><span>Hyper / min</span><span id="hyperRate">0.0</span></div>
+    <div class="row"><span>Threat</span><span id="threat">00</span></div>
+    <div id="pips" aria-label="Worlds colonised"></div>
     <div class="row"><span id="coord">+00000  +00000</span></div>
   </div>
 
@@ -33,6 +38,26 @@
   <div id="scan" class="panel">
     <div class="label">Scanning beacon</div>
     <div id="scanTrack"><div id="scanFill"></div></div>
+  </div>
+
+  <div id="survey" class="panel">
+    <div class="label">Survey overlay · system</div>
+    <div id="systemHead" class="srow head">
+      <span class="sname">World</span><span class="sprog">Vents</span>
+      <span class="srate">Hyp/min</span><span class="sthreat">Threat</span>
+      <span class="strip">Trip</span>
+    </div>
+    <div id="systemRows"></div>
+    <div id="surveySel">
+      <span id="selName">—</span>
+      <span id="selRange"></span>
+      <span id="selNote"></span>
+    </div>
+  </div>
+
+  <div id="beamRow" class="panel">
+    <div class="label">Scanner beam</div>
+    <div id="beamState">HOLD E</div>
   </div>
 
   <div id="flood" class="panel">
@@ -59,6 +84,11 @@
       <span class="label">Cell charge</span>
       <span id="fuelNum">000</span>
     </div>
+    <div id="hyperBar"></div>
+    <div id="fuelRow">
+      <span class="label">Hyper</span>
+      <span id="hyperNum">000</span>
+    </div>
   </div>
 
   <div id="toast"></div>
@@ -82,7 +112,9 @@
       <b>SPACE</b><span>Hold to charge a jump, release to leap. Full charge is ten times the height</span>
       <b>DRAG · WHEEL</b><span>Swing the camera, scroll to pull back</span>
       <b>C</b><span>Recentre the camera behind you</span>
-      <b>F</b><span>From the jet, drop a coloniser. It lands and builds itself</span>
+      <b>F</b><span>Drop a coloniser. It lands and builds itself</span>
+      <b>Q</b><span>Hold for the survey overlay — see through the planet, and the system at a glance</span>
+      <b>E</b><span>Hold for the scanner beam. It costs charge and it disrupts raiders</span>
       <b>R · M</b><span>Back to the rover · mute sound</span>
     </div>
     <button id="begin" type="button">Begin survey</button>

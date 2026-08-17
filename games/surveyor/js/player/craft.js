@@ -8,7 +8,9 @@
 // deep water fills up, goes under, and gets fished out.
 
 import { frameQuat } from '../world/surface.js';
-import { ROVER, BOAT, JET, FUEL, WORLD, HOP, WHEEL, SUSP } from '../tune.js';
+import { iceHolds, iceRide } from '../world/water.js';
+import { bodies, advance, steer, pickTarget, centreOf } from '../world/hyper.js';
+import { ROVER, BOAT, JET, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER } from '../tune.js';
 import { emit } from '../core/events.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -36,6 +38,11 @@ export class Craft {
     this.boostHeat = 0;
     this.grounded = true;
     this.onWater = false;
+    this.onIce = false;        // Vault only: driving on frozen water
+    this.hyper = null;         // between worlds: system-space transit state
+    this.economy = null;       // set by main.js; the trip check reads it
+    this.hyperT = 0;           // 0..1, how fast that is. Every FX reads this
+    this.bodies = null;        // the system, resolved once on the way out
     this.glide = false;
     this.time = 0;
     this.wheelSpin = 0;
@@ -156,6 +163,14 @@ export class Craft {
   update(dt, input) {
     this.time += dt;
     const wantBoost = input.boost;
+    // The beam is not physics, but it is an input, and inputs arrive here. It
+    // is read by survey.js, which owns scanning as a verb and therefore owns
+    // this one too.
+    this.beamHeld = !!input.beam;
+
+    // Between worlds nothing local applies: no ground, no tangent frame, no
+    // form to switch into. The whole update is the analytic step.
+    if (this.hyper) { this.updateHyper(dt); return; }
 
     if (input.mode && input.mode !== this.mode) this.setMode(input.mode);
 
@@ -197,6 +212,140 @@ export class Craft {
   canBoost() {
     if (this.mode === 'jet') return !this.glide && this.fuel > 0;
     return true;
+  }
+
+  // ---- hyper travel ------------------------------------------------------
+
+  /**
+   * Leave the world.
+   *
+   * There is no button for this: climbing past the approach altitude IS the
+   * departure, because that altitude is the boundary of the sphere inside which
+   * flight is local. Everything the craft carries — heading, fuel, the form it
+   * is in — is unchanged; what changes is that position becomes a point in the
+   * system rather than an offset in a tangent frame.
+   */
+  enterHyper() {
+    const P = this.surf.planet;
+    const fr = this.surf.frame;
+    const w = fr.toWorld(this.pos.x, this.pos.y, this.pos.z, WTMP);
+    const c = centreOf(P.key);
+    const p = { x: w.x + c.x, y: w.y + c.y, z: w.z + c.z };
+
+    // The heading, taken out of the tangent frame into system space. vel is in
+    // local (east, up, north), which are the frame's own axes.
+    const v = this.vel;
+    let dx = fr.east.x * v.x + fr.up.x * v.y + fr.north.x * v.z;
+    let dy = fr.east.y * v.x + fr.up.y * v.y + fr.north.y * v.z;
+    let dz = fr.east.z * v.x + fr.up.z * v.y + fr.north.z * v.z;
+    let l = Math.hypot(dx, dy, dz);
+    if (l < 1e-6) { dx = fr.up.x; dy = fr.up.y; dz = fr.up.z; l = 1; }
+    const dir = { x: dx / l, y: dy / l, z: dz / l };
+
+    const bs = this.bodies || (this.bodies = bodies());
+    const target = pickTarget(bs, p, dir, P.key);
+
+    /* THE TRIP CHECK. Committed before the craft leaves, not discovered halfway.
+       Deceleration is automatic, so running dry in transit would not strand you
+       in space — it would land you somewhere you did not choose with nothing
+       left to leave again, which is worse. The escape burn stops you leaving by
+       accident; this stops you leaving by mistake. */
+    if (this.economy && target) {
+      const check = this.economy.canReach(P.key, target.key);
+      if (!check.ok) {
+        emit('hyperdenied', {
+          to: target.key, name: target.name, need: check.need, have: check.have,
+        });
+        // Refused, not queued: you are still flying, still under your own
+        // power, and still pointed at the sky. Nose down and you are home.
+        return;
+      }
+      this.economy.spend(check.need);
+    }
+
+    this.hyper = { p, dir, target, speed: this.speedScalar, alt: this.pos.y, from: P.key };
+    emit('hyperenter', { from: P.key, to: target ? target.key : null, target });
+  }
+
+  /**
+   * One frame between worlds: bend onto the target, take one analytic step,
+   * and hand back the moment the step crosses an approach sphere.
+   */
+  updateHyper(dt) {
+    const bs = this.bodies || (this.bodies = bodies());
+    /* Turn late. The steering rate scales with how fast you already are, and
+       that ordering is the whole of it: speed comes from ALTITUDE, altitude
+       comes from flying straight up, and a craft that turns toward a sideways
+       target while it is still slow spends its climb going sideways instead.
+       Measured — at a flat rate, turning HARDER made every trip slower and the
+       spread between worlds wider, monotonically. */
+    steer(this.hyper, this.hyper.target, dt,
+      HYPER.turnRate * (HYPER.turnLow + (1 - HYPER.turnLow) * this.hyperT));
+    const arrived = advance(bs, this.hyper, dt);
+
+    this.speedScalar = this.hyper.speed;
+    this.speed = this.hyper.speed;
+    this.topSpeed = Math.max(this.topSpeed, this.speed);
+
+    /* The single number the presentation follows — FOV, streaks, aberration,
+       the engine mix and the readout all read this and nothing else.
+       LOG scaled, because the journey is a sequence of doublings: on a linear
+       fraction of the cap the craft would sit at "nearly zero" for two thirds
+       of a trip and then slam to full in the last second. And because speed is
+       a function of altitude and altitude is symmetric about the midpoint, so
+       is this — the fall-off on approach is the rise played backwards, with no
+       code to make it so. */
+    this.hyperT = clamp(Math.log2(Math.max(1, this.speed / HYPER.localSpeed)) /
+      Math.log2(HYPER.maxSpeed / HYPER.localSpeed), 0, 1);
+    this.altitude_ = this.hyper.alt;
+
+    // The scene is centred on whichever world is currently built, so the mesh
+    // and the camera get the transit position expressed in that world's frame.
+    const c = centreOf(this.surf.planet.key);
+    this.world.set(this.hyper.p.x - c.x, this.hyper.p.y - c.y, this.hyper.p.z - c.z);
+    this.applyTransform();
+
+    if (arrived) {
+      /* Direction on the destination, in its own frame — which is what a
+         Surface is anchored by. The listener rebuilds the world and hands back
+         a Surface through landOn(); nothing here assumes it will, so a headless
+         caller with no listener simply stops in space rather than throwing. */
+      const b = arrived;
+      const dx = this.hyper.p.x - b.c.x, dy = this.hyper.p.y - b.c.y, dz = this.hyper.p.z - b.c.z;
+      const l = Math.hypot(dx, dy, dz) || 1;
+      emit('hyperarrive', {
+        key: b.key,
+        dir: { x: dx / l, y: dy / l, z: dz / l },
+        alt: HYPER.approachAlt,
+        speed: this.speed,
+      });
+    }
+  }
+
+  /**
+   * Hyper hands back: stand the craft up in flight over a new world.
+   *
+   * Arrival speed is not negotiable — the law brought it back down to jet
+   * speeds on the way in, and this clamps what is left. The autopilot is handed
+   * the controls for the same reason it is after a launch: arriving somewhere
+   * you have never been, nose-down at altitude, is not a good first impression.
+   */
+  landOn(surface, alt) {
+    this.surf = surface;
+    this.hyper = null;
+    this.hyperT = 0;
+    this.bodies = null;
+    this.pos.set(0, alt === undefined ? HYPER.approachAlt : alt, 0);
+    this.speedScalar = Math.min(this.speedScalar, JET.maxSpeed);
+    this.speed = this.speedScalar;
+    this.vel.set(0, 0, 0);
+    this.pitch = 0.10;
+    this.roll = 0;
+    this.glide = false;
+    this.airborne = false;
+    this.assist = JET.assistTime;
+    this.assistGround = 0;
+    this.applyTransform();
   }
 
   // ---- the hop ----------------------------------------------------------
@@ -352,8 +501,20 @@ export class Craft {
     // surfaceHeight, not height: the wheels have to sit on the triangles that
     // are drawn, not on the ideal curve they approximate.
     const gh = this.surf.surfaceHeight(this.pos.x, this.pos.z);
-    const depth = Math.max(0, WORLD.waterY - gh);
-    const wet = depth > 0.35;
+    // A dry world has nothing to ford, nothing to flood in, and no shell to
+    // read a depth off. Ember's fissures cut below sea level and would
+    // otherwise read as lakes you drown in.
+    const depth = this.surf.planet.hasWater ? Math.max(0, WORLD.waterY - gh) : 0;
+    /* Vault: frozen water is a SURFACE. Ice thick enough to hold the rover
+       takes it out of the water path entirely — no wading, no flooding, it
+       simply drives across at the waterline. Past the melt line the ice does
+       not hold, `wet` goes true, and everything below is the flooding code that
+       was always here. That is the whole change: one boolean, and no second
+       flooding system.
+       `iceHolds` is false on the other five worlds, so their water behaves
+       exactly as it did — which is the regression that matters. */
+    this.onIce = depth > 0.35 && iceHolds(this.surf.planet, depth);
+    const wet = depth > 0.35 && !this.onIce;
     if (wet && !this.wasWet && Math.abs(this.speedScalar) > 4) {
       emit('splash', { pos: this.world.clone(), force: clamp(Math.abs(this.speedScalar) / 24, 0.3, 1.3) });
     }
@@ -455,7 +616,9 @@ export class Craft {
       const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
       const np = Math.atan2(n.x * fx + n.z * fz, Math.max(n.y, 0.2));
       const nr = -Math.atan2(n.x * rx + n.z * rz, Math.max(n.y, 0.2));
-      const a = SUSP.attitude;
+      // On ice the wheels are the only honest witness: the terrain normal under
+      // them belongs to the lake bed, several metres down.
+      const a = this.onIce ? 1 : SUSP.attitude;
       const tp = lerp(np, contact.pitch, a);
       const tr = lerp(nr, contact.roll, a);
       this.pitch = lerp(this.pitch, this.onWater ? 0 : tp, k);
@@ -497,9 +660,13 @@ export class Craft {
       // would make this a feedback loop for no visible gain.
       const wx = this.pos.x + c * md.lx + s * md.lz;
       const wz = this.pos.z - s * md.lx + c * md.lz;
-      const h = (this.surf.surfaceHeight(wx, wz) * 2 +
-        this.surf.surfaceHeight(wx + fx, wz + fz) +
-        this.surf.surfaceHeight(wx - fx, wz - fz)) * 0.25;
+      // Ice, where there is any, is what the wheel rests on. Applied per
+      // contact patch rather than once for the vehicle, so the suspension reads
+      // the lip of a frozen lake the same way it reads a kerb.
+      const h = iceRide(this.surf.planet,
+        (this.surf.surfaceHeight(wx, wz) * 2 +
+          this.surf.surfaceHeight(wx + fx, wz + fz) +
+          this.surf.surfaceHeight(wx - fx, wz - fz)) * 0.25);
       g[i] = h;
       sum += h;
       if (h > max) max = h;
@@ -516,7 +683,8 @@ export class Craft {
     // wheel samples instead lifts the whole vehicle by however much the
     // roughest wheel found, which is how it ended up hovering again — the
     // struts are what absorb the difference, and that is their whole job.
-    const centre = this.surf.surfaceHeight(this.pos.x, this.pos.z);
+    const centre = iceRide(this.surf.planet,
+      this.surf.surfaceHeight(this.pos.x, this.pos.z));
 
     return {
       ride: centre * (1 - SUSP.bodyShare) + Math.max(centre, mean) * SUSP.bodyShare,
@@ -574,7 +742,7 @@ export class Craft {
   // ---- water -----------------------------------------------------------
   updateBoat(dt, input, boost) {
     const gh = this.surf.surfaceHeight(this.pos.x, this.pos.z);
-    this.onWater = gh < WORLD.waterY - 0.5;
+    this.onWater = this.surf.planet.hasWater && gh < WORLD.waterY - 0.5;
 
     const speedNow = Math.hypot(this.vel.x, this.vel.z);
 
@@ -767,7 +935,11 @@ export class Craft {
     // Air thins with altitude: this caps the climb, which is what stops a
     // full-power vertical burn turning into a two-minute free glide home.
     const alt = this.pos.y - WORLD.waterY;
-    const thin = clamp(1 - (alt - JET.ceiling) / JET.ceilingFade, 0, 1);
+    let thin = clamp(1 - (alt - JET.ceiling) / JET.ceilingFade, 0, 1);
+    // The escape burn. Holding boost keeps a floor of thrust above the ceiling,
+    // and that floor is what a departure is made of — release it and the air is
+    // thin again and you sink back toward the world.
+    if (burning) thin = Math.max(thin, JET.escapeThin);
 
     const thrust = (this.glide ? 0 : (burning ? JET.boostThrust : JET.thrust)) * thin;
     const maxS = burning ? JET.boostSpeed : JET.maxSpeed;
@@ -797,9 +969,18 @@ export class Craft {
 
     this.pos.addInPlace(this.vel.scale(dt));
 
+    /* Out. The approach altitude is the edge of local flight, so climbing
+       through it IS the departure — no key, no mode, no confirmation. The jet's
+       own ceiling sits just above it, which makes leaving a world the last
+       thing the jet can do under its own power.
+       CLIMBING through, specifically: an arrival is handed back at this exact
+       altitude, and without the sign of the vertical speed the craft would
+       depart again on the frame it landed, forever. */
+    if (this.pos.y > HYPER.approachAlt && this.vel.y > 0) { this.enterHyper(); return; }
+
     const gh = this.surf.surfaceHeight(this.pos.x, this.pos.z);
     const floor = Math.max(gh, WORLD.waterY);
-    this.onWater = gh < WORLD.waterY;
+    this.onWater = this.surf.planet.hasWater && gh < WORLD.waterY;
 
     if (this.pos.y < floor + 1.3) {
       const impact = Math.abs(this.vel.y) + s * 0.35;
@@ -826,6 +1007,16 @@ export class Craft {
   applyTransform() {
     const form = this.forms[this.mode];
     const root = form.root;
+
+    // In transit there is no tangent frame to compose with: the craft is a
+    // point in the system, pointed along its own heading.
+    if (this.hyper) {
+      root.position.copyFrom(this.world);
+      const d = this.hyper.dir;
+      root.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+        Math.atan2(d.x, d.z), -Math.asin(clamp(d.y, -1, 1)), 0);
+      return;
+    }
 
     // Local -> world. The frame supplies the position and the orientation of
     // the tangent basis; the craft's own yaw/pitch/roll then compose on top of

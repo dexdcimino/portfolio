@@ -12,8 +12,62 @@
 
 import { height } from './noise.js';
 import { faceDir } from './sphere.js';
+import { ICE, WORLD } from '../tune.js';
 
 const D = { x: 0, y: 0, z: 0 };
+
+const sstep = (a, b, x) => {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * Metres of ice over water this deep. 0 on every world but Vault.
+ *
+ * Thickness falls off with depth, which is the physical way round — a shallow
+ * margin freezes solid, the deep middle of a lake freezes last and thinnest —
+ * and it is also the only way round that produces a hazard, because thin ice has
+ * to sit over water deep enough to swamp a hull or breaking through is a
+ * non-event. The melt line is wherever this crosses ICE.support.
+ */
+export function iceAt(planet, depth) {
+  if (!(planet.iceThickness > 0)) return 0;
+  return planet.iceThickness *
+    (1 - sstep(planet.iceMeltFrom, planet.iceMeltTo, depth));
+}
+
+/** Does the ice here hold the rover up? */
+export function iceHolds(planet, depth) {
+  return iceAt(planet, depth) >= ICE.support;
+}
+
+/**
+ * The height a wheel actually rests at: the ice where the ice holds, the ground
+ * everywhere else. Per contact patch, so driving off the edge of a frozen lake
+ * tips the rover over the lip rather than dropping it a metre in one frame.
+ */
+export function iceRide(planet, ground) {
+  const depth = WORLD.waterY - ground;
+  return depth > 0.35 && iceHolds(planet, depth) ? WORLD.waterY : ground;
+}
+
+/**
+ * The depth at which the ice stops holding, in metres. 0 on unfrozen worlds.
+ *
+ * Bisected rather than algebraically inverted because the falloff is a
+ * smoothstep, and this runs once per planet at boot. The shader strokes a line
+ * on the ice at exactly this depth, which is how the hazard becomes something
+ * you read off the surface instead of something that just happens to you.
+ */
+export function meltDepth(planet) {
+  if (!(planet.iceThickness > 0)) return 0;
+  let lo = 0, hi = planet.iceMeltTo;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) * 0.5;
+    if (iceHolds(planet, mid)) lo = mid; else hi = mid;
+  }
+  return (lo + hi) * 0.5;
+}
 
 export class Water {
   constructor(scene, material, planet) {

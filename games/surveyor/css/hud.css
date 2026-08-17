@@ -171,6 +171,95 @@ body.ready #hud { opacity: 1; }
 #flood.crit .label { color: var(--beacon); }
 #flood.crit #floodFill { background: var(--beacon); }
 
+/* ---- the survey overlay: the system view, and what is selected ----
+   Held, not toggled, so it never becomes a mode you can leave switched on. The
+   x-ray tint itself is #xray below; this is the half made of words. */
+#survey {
+  position: absolute;
+  /* Clear of the sound toggle, which owns the top-right corner. */
+  top: 54px; right: 16px;
+  width: 330px;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+#survey.on { opacity: 1; transform: translateY(0); }
+.srow {
+  display: grid;
+  grid-template-columns: 1fr 44px 52px 44px 40px;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 11.5px;
+  line-height: 1.85;
+  color: rgba(242, 246, 230, 0.78);
+  border-left: 2px solid transparent;
+  padding-left: 5px;
+}
+.srow.head {
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(242, 246, 230, 0.38);
+  border-bottom: 1px solid var(--edge);
+  padding-bottom: 2px;
+  margin-bottom: 3px;
+}
+.srow .sprog, .srow .srate, .srow .sthreat, .srow .strip { text-align: right; }
+.srow .srate { color: var(--phos); }
+.srow .sthreat { color: var(--beacon); letter-spacing: -0.08em; }
+.srow.here { border-left-color: var(--phos); color: var(--bone); }
+.srow.far .strip { color: rgba(255, 95, 162, 0.75); }
+.srow.far { opacity: 0.55; }
+.srow.full .sprog { color: var(--phos); font-weight: 700; }
+.srow.hot { background: rgba(255, 95, 162, 0.07); }
+#surveySel {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--edge);
+  display: none;
+}
+#surveySel.on { display: block; }
+#selName {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--bone);
+}
+#selRange {
+  display: block;
+  font-size: 13px;
+  color: var(--phos);
+  letter-spacing: 0.10em;
+}
+#selNote {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: 0.10em;
+  color: rgba(242, 246, 230, 0.5);
+}
+
+/* ---- the beam: a state, not a gauge. It is either firing or it is not ---- */
+#beamRow {
+  position: absolute;
+  /* Directly above the form chips: the beam is available from all three, and
+     sitting it over them is the shortest way to say so. */
+  left: 16px; bottom: 92px;
+  padding: 7px 10px;
+  opacity: 0.32;
+  transition: opacity 150ms ease, border-color 150ms ease;
+}
+#beamState {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: rgba(242, 246, 230, 0.6);
+}
+#beamRow.on { opacity: 1; border-color: var(--phos); }
+#beamRow.on #beamState { color: var(--phos); }
+#beamRow.hit { border-color: var(--beacon); }
+#beamRow.hit #beamState { color: var(--beacon); }
+
 /* ---- sound toggle: the one HUD element you can click ---- */
 #sound {
   position: absolute;
@@ -249,6 +338,10 @@ body.ready #hud { opacity: 1; }
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
+/* Hyper. The readout keeps every digit and gives up size instead, so the
+   number stays one number rather than becoming a unit change. */
+#speed.huge { font-size: 32px; letter-spacing: 0; }
+#speed.vast { font-size: 25px; letter-spacing: -0.01em; }
 #speedUnit {
   font-size: 10px;
   letter-spacing: 0.2em;
@@ -289,6 +382,56 @@ body.ready #hud { opacity: 1; }
 #fuelBar.low i.lit { background: var(--amber); }
 #fuelBar.crit i.lit { background: var(--beacon); animation: pulse 900ms ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.35; } }
+
+/* Hyper charge. Deliberately the amber of the system rather than another new
+   colour, and a continuous bar rather than segments, so it reads as a second
+   tank at a glance and never as more of the same one. */
+#hyperBar {
+  height: 5px;
+  margin-top: 7px;
+  background: rgba(242, 246, 230, 0.10);
+  position: relative;
+  overflow: hidden;
+}
+#hyperBar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--fill, 0%);
+  background: var(--amber);
+  transition: width 200ms ease;
+}
+#hyperBar.empty::after { background: var(--beacon); }
+
+/* One pip per world, filling as its geysers are claimed. The ring is the
+   world, the fill is how much of it is yours, and the outline is where you
+   are. Unreachable worlds dim — the trip check, shown before you commit. */
+#pips {
+  display: flex;
+  gap: 5px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--edge);
+}
+#pips i {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid rgba(242, 246, 230, 0.34);
+  position: relative;
+  overflow: hidden;
+}
+#pips i::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: var(--fill, 0%);
+  background: var(--amber);
+}
+#pips i.here { border-color: var(--phos); box-shadow: 0 0 0 2px rgba(43, 224, 200, 0.22); }
+#pips i.far { opacity: 0.30; }
+#pips i.full::after { background: var(--phos); }
 
 #fuelRow {
   display: flex;
@@ -350,6 +493,33 @@ body.ready #hud { opacity: 1; }
   backdrop-filter: blur(3px) saturate(0.6);
   -webkit-backdrop-filter: blur(3px) saturate(0.6);
 }
+
+/* ---- the x-ray wash ----
+   The terrain itself goes to wireframe in overlay.js; this is the tint over the
+   top of it, and the grid is a chart's grid rather than a sci-fi scanline. It
+   carries no information, so it stays weak — the markers are the instrument. */
+#xray {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0;
+  /* Dark, and darker than it looks like it needs to be. The markers are ADDITIVE
+     — they add light to whatever is behind them — so their contrast is set by
+     how dark the ground under them is, not by how bright they are authored.
+     Measured: only about four of twenty-four markers fall inside a 90-degree
+     cone at any moment, and each is 11-38px across at a kilometre out. Those
+     are the marks that have to read, and dropping the ground is what makes them. */
+  background:
+    radial-gradient(circle at 50% 50%, rgba(6, 26, 34, 0.58) 0%, rgba(3, 11, 17, 0.86) 84%),
+    repeating-linear-gradient(0deg, rgba(43, 224, 200, 0.07) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(90deg, rgba(43, 224, 200, 0.07) 0 1px, transparent 1px 34px);
+}
+/* No backdrop-filter here, deliberately. A full-viewport filter is one of the
+   most expensive things a page can ask for — it is a readback of the whole
+   frame every frame — and this one bought a saturation wash that a flat tint
+   already gives. #deep keeps its filter because going under is a moment; this
+   is held for as long as you are reading a chart. */
 
 #flash {
   position: fixed;
@@ -447,6 +617,7 @@ body.ready #hud { opacity: 1; }
   #log .row { font-size: 11px; }
   .chip { min-width: 62px; padding: 7px 9px 6px; }
   #scan, #flood { width: 200px; }
+  #survey { width: min(300px, calc(100vw - 32px)); font-size: 11px; }
   #sound { font-size: 8px; padding: 6px 9px; }
 }
 
