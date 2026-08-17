@@ -1744,11 +1744,29 @@ const LOOP_MODES = ['off', 'all', 'one'];
   const $ = id => document.getElementById(id);
   const art = $('playerArt'), title = $('playerTitle'), artist = $('playerArtist');
   const toggle = $('playerToggle'), prev = $('playerPrev'), next = $('playerNext');
-  const loopBtn = $('playerLoop'), scrub = $('playerScrub'), vol = $('playerVol');
+  const loopBtn = $('playerLoop'), shuffleBtn = $('playerShuffle');
+  const scrub = $('playerScrub'), vol = $('playerVol');
   const elapsed = $('playerElapsed'), total = $('playerDuration');
   const muteBtn = $('playerMute'), stopBtn = $('playerStop');
 
-  let index = -1, loop = 'off', scrubbing = false, lastVolume = 0.4;
+  let index = -1, loop = 'off', scrubbing = false, lastVolume = 0.4, shuffle = false;
+
+  /* Shuffle picks the next track at random rather than reordering the list: the
+     grid on the page IS the queue, and quietly re-sorting it under the reader
+     would make the bar disagree with what they are looking at.
+     Never returns the track already playing — with five songs, a plain random
+     pick repeats about one time in five, which reads as the button being
+     broken rather than as chance. */
+  const pickRandom = () => {
+    if (cards.length < 2) return 0;
+    let n = index;
+    while (n === index) n = Math.floor(Math.random() * cards.length);
+    return n;
+  };
+  /* What shuffle has already played this pass, so "loop off" can tell the
+     difference between a shuffle that still has tracks left and one that has
+     been through the list. Cleared whenever it wraps or shuffle is turned off. */
+  const played = new Set();
 
   const mmss = t => Number.isFinite(t)
     ? Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') : '--:--';
@@ -1801,6 +1819,18 @@ const LOOP_MODES = ['off', 'all', 'one'];
 
   function step(delta, auto) {
     if (loop === 'one' && auto) { audio.currentTime = 0; audio.play(); return; }
+    /* Shuffle owns next-track selection, whether the track ended on its own or
+       you pressed skip. Loop still has the last word on whether playback stops:
+       with loop off, an ended track in shuffle keeps going only as far as the
+       list would have — otherwise "off" would never actually stop. */
+    if (shuffle && index >= 0) {
+      if (auto && loop === 'off' && played.size >= cards.length - 1) { audio.pause(); paint(); return; }
+      const n = pickRandom();
+      played.add(n);
+      if (played.size >= cards.length) played.clear();
+      load(n, true);
+      return;
+    }
     const at = index + delta;
     if (at >= cards.length) {
       if (auto && loop === 'off') { audio.pause(); paint(); return; }
@@ -1821,6 +1851,14 @@ const LOOP_MODES = ['off', 'all', 'one'];
   toggle.addEventListener('click', () => { audio.paused ? audio.play() : audio.pause(); });
   prev.addEventListener('click', () => step(-1, false));
   next.addEventListener('click', () => step(1, false));
+
+  shuffleBtn.addEventListener('click', () => {
+    shuffle = !shuffle;
+    played.clear();
+    if (shuffle && index >= 0) played.add(index);
+    shuffleBtn.setAttribute('aria-pressed', String(shuffle));
+    shuffleBtn.setAttribute('aria-label', shuffle ? 'Shuffle on' : 'Shuffle off');
+  });
 
   loopBtn.addEventListener('click', () => {
     loop = LOOP_MODES[(LOOP_MODES.indexOf(loop) + 1) % LOOP_MODES.length];

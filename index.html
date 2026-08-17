@@ -1470,6 +1470,13 @@
       </div>
 
       <div class="player-modes">
+        <!-- Shuffle sits with loop because it is the same kind of control: a
+             MODE that changes how playback behaves, not a transport button that
+             drives it. aria-pressed rather than a data attribute — it is a
+             plain two-state toggle, unlike loop's three-state cycle. -->
+        <button class="player-btn player-shuffle" type="button" id="playerShuffle"
+                aria-label="Shuffle off" aria-pressed="false">
+          <span class="icon" data-icon="shuffle" aria-hidden="true"></span></button>
         <button class="player-btn player-loop" type="button" id="playerLoop"
                 aria-label="Loop off" data-loop="off">
           <span class="icon" data-icon="loop" aria-hidden="true"></span>
