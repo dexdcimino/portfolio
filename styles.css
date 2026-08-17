@@ -2379,27 +2379,18 @@ body.modal-open{overflow:hidden}
 }
 
 /* ==========================================================================
-   AI WALLPAPERS — one piece at a time, thumbnails under it.
+   AI WALLPAPERS — one piece at a time, thumbnails centred under it.
 
-   The stage is a FIXED 16:10 box, matching the 2560x1600 masters, so the
-   counter, title, thumbnails and download row never move between pieces. That
-   is the same lesson the work overlay's hero learned: size the frame, letterbox
-   the art into it, and nothing below the image jumps on every arrow press.
+   Everything that describes the piece sits ON the art: title and resolution
+   top-left, download bottom-right. That is deliberate — a wallpaper is the
+   whole point of the tab, so nothing beside it should compete for the width,
+   and the two things a person wants (what is this, give me the file) are where
+   their eye already is.
+
+   The stage is a FIXED 16:10 box matching the 2560x1600 masters, so the strip
+   below never moves between pieces.
    ========================================================================== */
 .wp{display:grid;gap:14px}
-/* Counter left, title hard right and large — it is the name of the piece, so
-   it gets display type rather than a caption's. */
-.wp-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
-.wp-count{
-  margin:0;font-family:var(--mono,ui-monospace),ui-monospace,monospace;
-  font-size:12px;letter-spacing:.14em;color:var(--muted);white-space:nowrap;
-}
-.wp-title{
-  margin:0;text-align:right;min-width:0;
-  font-size:clamp(20px,2.4vw,31px);font-weight:800;letter-spacing:-.03em;line-height:1.1;
-  color:var(--text);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
 .wp-stage{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
 .wp-frame{
   position:relative;aspect-ratio:16/10;min-width:0;border-radius:14px;overflow:hidden;
@@ -2408,6 +2399,50 @@ body.modal-open{overflow:hidden}
 }
 .wp-frame picture{display:block;width:100%;height:100%}
 .wp-img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* The plate. A soft gradient behind the text rather than a panel: art is
+   unpredictable, and white type on an unknown image is only readable if
+   something darkens what is under it. It covers the top strip and fades out,
+   so it reads as part of the picture rather than as a label stuck on top. */
+.wp-plate{
+  position:absolute;left:0;right:0;top:0;z-index:2;pointer-events:none;
+  padding:16px 18px 34px;
+  background:linear-gradient(180deg,rgba(6,9,12,.72),rgba(6,9,12,.34) 55%,transparent);
+}
+.wp-plate .wp-title{
+  margin:0;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.5);
+  font-size:clamp(19px,2vw,26px);font-weight:800;letter-spacing:-.02em;line-height:1.15;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+/* Resolution: smaller, NOT bold, and in the mono face so the digits line up
+   and read as a spec rather than as a second heading. */
+.wp-plate .wp-dims{
+  margin:3px 0 0;color:rgba(255,255,255,.82);text-shadow:0 1px 10px rgba(0,0,0,.5);
+  font-family:var(--mono,ui-monospace),ui-monospace,monospace;
+  font-size:12px;font-weight:400;letter-spacing:.08em;
+}
+.wp-plate-lg{padding:22px 26px 46px}
+.wp-plate-lg .wp-title{font-size:clamp(22px,2.6vw,34px)}
+.wp-plate-lg .wp-dims{font-size:13px}
+
+/* Download: a square with rounded corners in the inner bottom-right of the
+   art, icon only and large enough to read against anything under it. */
+.wp-dl{
+  position:absolute;right:14px;bottom:14px;z-index:3;
+  width:52px;height:52px;border-radius:14px;
+  display:grid;place-items:center;
+  background:rgba(10,13,17,.62);
+  border:1px solid rgba(255,255,255,.28);
+  backdrop-filter:blur(8px);
+  color:#fff;text-decoration:none;
+  transition:background var(--accent-ease),border-color var(--accent-ease),transform .18s ease,color var(--accent-ease);
+}
+.wp-dl .icon{width:28px;height:28px}
+.wp-dl:hover{background:var(--accent);border-color:var(--accent);color:var(--accent-ink,#0b0d12);transform:translateY(-2px)}
+.wp-dl:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.wp-dl-lg{right:20px;bottom:20px;width:60px;height:60px;border-radius:16px}
+.wp-dl-lg .icon{width:32px;height:32px}
+
 .wp-arrow{
   width:40px;height:40px;flex:none;border-radius:999px;border:var(--stroke) solid var(--line);
   background:rgba(12,15,18,.6);color:var(--text);display:grid;place-items:center;cursor:pointer;
@@ -2418,8 +2453,8 @@ body.modal-open{overflow:hidden}
 .wp-prev .icon{transform:rotate(90deg)}
 .wp-next .icon{transform:rotate(-90deg)}
 
-.wp-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
-.wp-thumbs{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
+/* Centred under the hero, in both places it appears. */
+.wp-thumbs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .wp-thumb{
   width:78px;aspect-ratio:16/10;border-radius:8px;overflow:hidden;padding:0;cursor:pointer;
   border:var(--stroke) solid rgba(255,255,255,.12);background:#0b0f12;
@@ -2429,49 +2464,36 @@ body.modal-open{overflow:hidden}
 .wp-thumb:hover{opacity:.85;transform:translateY(-2px)}
 .wp-thumb[aria-selected="true"]{opacity:1;border-color:var(--accent)}
 .wp-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-/* Download is the point of the tab, so it reads as the primary action here. */
-.wp-dl{
-  display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
-  padding:10px 16px;border-radius:999px;text-decoration:none;
-  background:var(--accent);color:var(--accent-ink,#0b0d12);
-  font-size:13px;font-weight:800;letter-spacing:.04em;
-  transition:filter var(--accent-ease),transform .18s ease;
-}
-.wp-dl:hover{filter:brightness(1.08);transform:translateY(-1px)}
-.wp-dl .icon{width:16px;height:16px}
 @media (max-width:700px){
   .wp-thumb{width:58px}
-  .wp-title{font-size:19px}
+  .wp-dl{width:44px;height:44px;border-radius:12px;right:10px;bottom:10px}
+  .wp-dl .icon{width:24px;height:24px}
 }
 
 /* The lightbox. 90vw AND 90vh: whichever runs out first decides, so a wide
    piece on a tall phone and the same piece on a wide monitor both land inside
-   the viewport with the ratio intact. */
+   the viewport with the ratio intact. Room is left under it for the strip. */
 .wp-modal{
   border:0;padding:0;background:transparent;color:var(--text);
   width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;overflow:hidden;
 }
 .wp-modal[open]{display:grid;place-items:center}
-.wp-modal::backdrop{background:rgba(3,5,7,.88);backdrop-filter:blur(6px)}
-.wp-shell{position:relative;display:grid;justify-items:center;gap:12px}
-.wp-close{position:absolute;top:-6px;right:-52px;z-index:3}
+.wp-modal::backdrop{background:rgba(3,5,7,.9);backdrop-filter:blur(6px)}
+.wp-shell{position:relative;display:grid;justify-items:center;gap:14px}
+.wp-close{position:absolute;top:-6px;right:-52px;z-index:4}
 .wp-full{
-  width:min(90vw, calc(90dvh * 16 / 10));
+  position:relative;
+  width:min(90vw, calc(78dvh * 16 / 10));
   aspect-ratio:16/10;
   border-radius:12px;overflow:hidden;background:#0b0f12;
   box-shadow:0 30px 90px rgba(0,0,0,.6);
 }
 .wp-full picture{display:block;width:100%;height:100%}
 .wp-full img{width:100%;height:100%;object-fit:contain;display:block}
-.wp-fullcap{
-  margin:0;font-size:12px;letter-spacing:.06em;color:var(--muted);
-  text-transform:uppercase;font-weight:700;
-}
-.wp-fullcap a{color:var(--accent);text-decoration:none}
-.wp-fullcap a:hover{text-decoration:underline}
+.wp-thumbs-lg{max-width:min(90vw, 760px)}
 @media (max-width:900px){
   .wp-close{top:-46px;right:0}
-  .wp-full{width:min(94vw, calc(84dvh * 16 / 10))}
+  .wp-full{width:min(94vw, calc(70dvh * 16 / 10))}
 }
 
 /* AI Lab app overlay — a phone-shaped iframe on desktop only.

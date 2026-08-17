@@ -1616,10 +1616,14 @@ initTabs(document.querySelector('.ai-tabs'));
 /* --- AI wallpapers -------------------------------------------------------- */
 /* One carousel, driven entirely off the .wp-item figures in the markup.
    Nothing here knows how many wallpapers there are or what they are called:
-   the count, the titles and the download targets all come from the DOM, so
+   the titles, the strip and the download targets all come from the DOM, so
    adding a piece is one <figure> and no JS edit. That is the same contract the
    Stickland gallery uses, for the same reason — a hand-kept count goes stale
-   the first time someone adds art. */
+   the first time someone adds art.
+
+   The overlay is not a second component. It shows the SAME index through the
+   same select(), with its own plate, download and strip, so walking the set at
+   full size and walking it in the panel can never disagree. */
 (function initWallpapers() {
   const root = document.getElementById('wallpapers');
   if (!root) return;
@@ -1627,88 +1631,114 @@ initTabs(document.querySelector('.ai-tabs'));
   if (!items.length) return;
 
   const frame = document.getElementById('wpFrame');
-  const thumbs = document.getElementById('wpThumbs');
-  const title = document.getElementById('wpTitle');
-  const idxOut = document.getElementById('wpIndex');
-  const totalOut = document.getElementById('wpTotal');
-  const dl = document.getElementById('wpDownload');
+  const plate = document.getElementById('wpPlate');
   const modal = document.getElementById('wpModal');
   const full = document.getElementById('wpFull');
-  const fullTitle = document.getElementById('wpFullTitle');
-  const fullDl = document.getElementById('wpFullDl');
+  const fullPlate = document.getElementById('wpFullPlate');
+  const views = [
+    { host: frame, title: document.getElementById('wpTitle'), dims: document.getElementById('wpDims'),
+      dl: document.getElementById('wpDownload'), strip: document.getElementById('wpThumbs'), sizes: null },
+    /* The overlay's `sizes` is rewritten to 90vw on its copy: the panel's value
+       describes an ~856px card, and left alone the browser would reuse that
+       choice and upscale a 900px file across most of the screen. This is the
+       whole reason the ladder carries a 2560. */
+    { host: full, title: document.getElementById('wpFullTitle'), dims: document.getElementById('wpFullDims'),
+      dl: document.getElementById('wpFullDl'), strip: document.getElementById('wpFullThumbs'), sizes: '90vw' },
+  ];
   let index = 0;
 
-  totalOut.textContent = String(items.length);
+  // Resolution comes from the img's width/height ATTRIBUTES, which the baker
+  // writes from the master — not from naturalWidth, which would report whatever
+  // derivative the browser happened to pick and print "900 x 563".
+  const dimsOf = (item) => {
+    const img = item.querySelector('img');
+    return `${img.getAttribute('width')} × ${img.getAttribute('height')}`;
+  };
+  // Built from the attributes, not from the display string: turning
+  // "2560 × 1600" back into "2560x1600" by substitution produced 2560xx1600,
+  // because the multiplication sign has a space on each side.
+  const fileName = (item) => {
+    const img = item.querySelector('img');
+    return item.dataset.title.replace(/\s+/g, '-').toLowerCase()
+      + `-${img.getAttribute('width')}x${img.getAttribute('height')}.png`;
+  };
 
   /* Thumbnails reuse the SAME <picture> the carousel does, cloned and given a
      small `sizes` so the browser picks the 600 rather than the 2560. Building
      them from a separate baked slot would double the derivative count for
      images that render 78px wide. */
-  items.forEach((item, i) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'wp-thumb';
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-label', item.dataset.title);
-    const pic = item.querySelector('picture').cloneNode(true);
-    pic.querySelectorAll('source').forEach(s => s.setAttribute('sizes', '120px'));
-    const img = pic.querySelector('img');
-    img.removeAttribute('class');
-    img.loading = 'lazy';
-    btn.appendChild(pic);
-    // A thumbnail click opens the piece full size. Selecting it in the carousel
-    // as well means the strip and the stage never disagree about what you are
-    // looking at when the overlay closes.
-    btn.addEventListener('click', () => { select(i); openFull(); });
-    thumbs.appendChild(btn);
+  views.forEach((view) => {
+    items.forEach((item, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'wp-thumb';
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-label', item.dataset.title);
+      const pic = item.querySelector('picture').cloneNode(true);
+      pic.querySelectorAll('source').forEach(sc => sc.setAttribute('sizes', '120px'));
+      const img = pic.querySelector('img');
+      img.removeAttribute('class');
+      img.loading = 'lazy';
+      btn.appendChild(pic);
+      // In the panel a thumbnail opens the piece full size; in the overlay it
+      // just switches, because you are already looking at it full size.
+      btn.addEventListener('click', () => {
+        select(i);
+        if (!modal.open) openFull();
+      });
+      view.strip.appendChild(btn);
+    });
+    view.thumbs = [...view.strip.children];
   });
-  const thumbBtns = [...thumbs.children];
+
+  function paint(view, item) {
+    // The plate and the download live inside the frame, so replacing the
+    // picture cannot go through textContent = '' — that would take them with
+    // it. Swap only the <picture> and leave the furniture alone.
+    view.host.querySelector('picture')?.remove();
+    const pic = item.querySelector('picture').cloneNode(true);
+    if (view.sizes) {
+      pic.querySelectorAll('source').forEach(sc => sc.setAttribute('sizes', view.sizes));
+      const img = pic.querySelector('img');
+      img.removeAttribute('loading');
+    }
+    pic.querySelector('img').removeAttribute('class');
+    if (view.host === frame) pic.querySelector('img').className = 'wp-img';
+    view.host.insertBefore(pic, view.host.firstChild);
+    view.title.textContent = item.dataset.title;
+    view.dims.textContent = dimsOf(item);
+    view.dl.href = item.dataset.file;
+    view.dl.setAttribute('download', fileName(item));
+    view.dl.setAttribute('title', `Download original · ${dimsOf(item)}`);
+    view.thumbs.forEach((b, n) => b.setAttribute('aria-selected', String(n === index)));
+  }
 
   function select(i) {
     index = (i + items.length) % items.length;
     const item = items[index];
-    frame.textContent = '';
-    frame.appendChild(item.querySelector('picture').cloneNode(true));
-    title.textContent = item.dataset.title;
-    idxOut.textContent = String(index + 1);
-    dl.href = item.dataset.file;
-    // The saved file is named after the piece, not after the slug on disk.
-    dl.setAttribute('download', item.dataset.title.replace(/\s+/g, '-').toLowerCase() + '-2560x1600.png');
-    thumbBtns.forEach((b, n) => b.setAttribute('aria-selected', String(n === index)));
+    views.forEach((view) => paint(view, item));
   }
 
   function openFull() {
-    const item = items[index];
-    const pic = item.querySelector('picture').cloneNode(true);
-    /* The carousel's `sizes` describes a ~856px card. Left alone, the browser
-       would reuse that choice here and upscale a 900px file across most of the
-       screen. Rewriting sizes on the clone makes it re-pick against the real
-       display width — this is the whole reason the ladder carries a 2560. */
-    pic.querySelectorAll('source').forEach(s => s.setAttribute('sizes', '90vw'));
-    const img = pic.querySelector('img');
-    img.removeAttribute('class');
-    img.removeAttribute('loading');
-    full.textContent = '';
-    full.appendChild(pic);
-    fullTitle.textContent = item.dataset.title;
-    fullDl.href = item.dataset.file;
-    fullDl.setAttribute('download', dl.getAttribute('download'));
-    openModal(modal, full, null, thumbBtns[index]);
+    openModal(modal, full, null, views[0].thumbs[index]);
   }
 
   root.querySelector('.wp-prev').addEventListener('click', () => select(index - 1));
   root.querySelector('.wp-next').addEventListener('click', () => select(index + 1));
-  frame.addEventListener('click', openFull);
+  // The frame opens the overlay, but not when the click was the download link
+  // sitting on top of it.
+  frame.addEventListener('click', (event) => {
+    if (event.target.closest('.wp-dl')) return;
+    openFull();
+  });
   document.getElementById('wpClose').addEventListener('click', () => closeModal(modal));
-  bindModal(modal, () => { full.textContent = ''; });
+  bindModal(modal);
 
-  // Arrows walk the carousel while the overlay is up, so you can page through
-  // at full size without closing it.
+  // Arrows walk the set while the overlay is up.
   modal.addEventListener('keydown', (event) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault();
     select(index + (event.key === 'ArrowRight' ? 1 : -1));
-    openFull();
   });
 
   select(0);

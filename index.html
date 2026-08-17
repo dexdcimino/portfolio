@@ -660,23 +660,26 @@
              serves; everything on screen is a baked derivative. -->
         <div class="ai-panel" id="ai-panel-images" role="tabpanel" aria-labelledby="ai-tab-images" hidden>
           <div class="wp" id="wallpapers">
-            <div class="wp-head">
-              <p class="wp-count"><span id="wpIndex">1</span> / <span id="wpTotal">5</span></p>
-              <h3 class="wp-title" id="wpTitle"></h3>
-            </div>
-
+            <!-- Everything that names the piece sits ON the art: title and
+                 resolution top-left, download bottom-right. The header row that
+                 used to carry a title and an "x / y" counter is gone — the
+                 thumbnail strip already shows how many there are and which one
+                 you are on, so the counter was the same fact written twice. -->
             <div class="wp-stage">
               <button class="wp-arrow wp-prev" type="button" aria-label="Previous wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
-              <div class="wp-frame" id="wpFrame"></div>
+              <div class="wp-frame" id="wpFrame">
+                <div class="wp-plate" id="wpPlate">
+                  <h3 class="wp-title" id="wpTitle"></h3>
+                  <p class="wp-dims" id="wpDims"></p>
+                </div>
+                <a class="wp-dl" id="wpDownload" href="#" download aria-label="Download this wallpaper" title="Download original">
+                  <span class="icon" data-icon="download" aria-hidden="true"></span>
+                </a>
+              </div>
               <button class="wp-arrow wp-next" type="button" aria-label="Next wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
             </div>
 
-            <div class="wp-bar">
-              <div class="wp-thumbs" id="wpThumbs" role="tablist" aria-label="Wallpapers"></div>
-              <a class="wp-dl" id="wpDownload" href="#" download>
-                <span class="icon" data-icon="download" aria-hidden="true"></span><span>Download 2560×1600</span>
-              </a>
-            </div>
+            <div class="wp-thumbs" id="wpThumbs" role="tablist" aria-label="Wallpapers"></div>
 
             <!-- The source set. Hidden; script.js moves these into the frame. -->
             <div class="wp-src" hidden>
@@ -1666,8 +1669,19 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
       <h2 class="sr-only" id="wp-dialog-title">Wallpaper at full size</h2>
-      <div class="wp-full" id="wpFull"></div>
-      <p class="wp-fullcap"><span id="wpFullTitle"></span> · <a id="wpFullDl" href="#" download>download original</a></p>
+      <!-- Same furniture as the carousel, at full size: the plate and the
+           download sit on the art, and the strip below keeps working so you can
+           walk the set without dropping back to the page. -->
+      <div class="wp-full" id="wpFull">
+        <div class="wp-plate wp-plate-lg" id="wpFullPlate">
+          <h3 class="wp-title" id="wpFullTitle"></h3>
+          <p class="wp-dims" id="wpFullDims"></p>
+        </div>
+        <a class="wp-dl wp-dl-lg" id="wpFullDl" href="#" download aria-label="Download this wallpaper" title="Download original">
+          <span class="icon" data-icon="download" aria-hidden="true"></span>
+        </a>
+      </div>
+      <div class="wp-thumbs wp-thumbs-lg" id="wpFullThumbs" role="tablist" aria-label="Wallpapers"></div>
     </div>
   </dialog>
 
