@@ -1943,6 +1943,39 @@ function _respawnPlayer() {
   if (window._dexResetCharDeath) window._dexResetCharDeath();
 }
 
+/* The arrival: character falls in from above and collapses on landing, with
+   input blocked until it lands (isChatOpen() reports _playModeDropping, which
+   is what holds the controls). Shared by boot and restart — arriving is half of
+   what "a fresh start" looks like, and a restart that teleports instead reads
+   as a respawn no matter what state it reset. */
+function _startDropIn() {
+  _playModeDropping = true;
+  _playModeDropY = -window.innerHeight * 0.5;
+  _playModeDropTargetY = 0;
+  _playModeDropVel = 0;
+  _playModeDropFrames = 0;
+  // Cancel any pending triggerJumpOut deferred cleanup
+  if (_charModule && _charModule.cancelJumpOut) _charModule.cancelJumpOut();
+  // Character will be positioned off-screen by _playModeDropY offset — make visible immediately
+  const charEl = document.querySelector('.char-local');
+  if (charEl) {
+    charEl.style.transition = 'none';
+    charEl.style.transform = '';
+    charEl.style.transformOrigin = '';
+    // MD#CHAR-TRANSITION-FLASH: keep hidden for one paint cycle so the
+    // play-mode drop math (_playModeDropping/_playModeDropY) repositions
+    // the character off-screen BEFORE it becomes visible. Without this
+    // defer, the character flashes at the bottom of the page (its old
+    // DOM y) for one frame between opacity:1 and the first world tick.
+    charEl.style.opacity = '0';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (charEl) charEl.style.opacity = '1';
+      });
+    });
+  }
+}
+
 // The vitals a new session begins with. enterPlayMode() runs exactly this at
 // boot and restartToBase() runs it again, which is what stops "restart" and
 // "first launch" from drifting into two different reset lists.
@@ -1998,7 +2031,9 @@ export function restartToBase() {
   _snapCharTo(SPAWN_X, SPAWN_Y);
   _syncHudHealthBar();
   if (window._dexResetCharDeath) window._dexResetCharDeath();
-  sfx('player.respawn');
+  // Arrive the way a new session arrives. Position is set first so the drop
+  // lands on the base rather than wherever the player happened to be standing.
+  _startDropIn();
 }
 
 // ═══════════════════════════════════
@@ -6374,31 +6409,7 @@ export async function enterPlayMode({ fresh = false } = {}) {
     if (window._dexUnequipAll) window._dexUnequipAll();
 
     // Start drop-in — character enters from above
-    _playModeDropping = true;
-    _playModeDropY = -window.innerHeight * 0.5;
-    _playModeDropTargetY = 0;
-    _playModeDropVel = 0;
-    _playModeDropFrames = 0;
-    // Cancel any pending triggerJumpOut deferred cleanup
-    if (_charModule && _charModule.cancelJumpOut) _charModule.cancelJumpOut();
-    // Character will be positioned off-screen by _playModeDropY offset — make visible immediately
-    const charEl = document.querySelector('.char-local');
-    if (charEl) {
-      charEl.style.transition = 'none';
-      charEl.style.transform = '';
-      charEl.style.transformOrigin = '';
-      // MD#CHAR-TRANSITION-FLASH: keep hidden for one paint cycle so the
-      // play-mode drop math (_playModeDropping/_playModeDropY) repositions
-      // the character off-screen BEFORE it becomes visible. Without this
-      // defer, the character flashes at the bottom of the page (its old
-      // DOM y) for one frame between opacity:1 and the first world tick.
-      charEl.style.opacity = '0';
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (charEl) charEl.style.opacity = '1';
-        });
-      });
-    }
+    _startDropIn();
 
   }, 520);
 
