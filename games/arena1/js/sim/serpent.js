@@ -69,7 +69,12 @@ export const TIERS = {
   /* The giant is a STEP CHANGE, not the next size up: 22 spheres against 13, a
      body scaled half again, a sphere that costs 12 instead of 8, and a turret
      on roughly half the cooldown of the tier below it. */
-  giant: { segs: 22, scale: 1.95, popHp: 12, boltDmg: 34, boltCd: 44,  boltSpeed: 40,
+  /* popHp 12 -> 10 is a ZAP-ONLY buff, which is why it is the knob used. A
+     rocket direct calls damageSerpent with exactly popHp, so it always pops
+     one sphere whatever the number is and its time-to-kill does not move; the
+     zap does 1 per hit, so popHp IS the zap's pace. 240 hits -> 200, which is
+     26.4s -> 22.0s while the rocket stays at 16.0s. */
+  giant: { segs: 22, scale: 1.95, popHp: 10, boltDmg: 34, boltCd: 44,  boltSpeed: 40,
            speed: 6.5, respawnTicks: 2700,
            band: { yMin: 590, yMax: 650 }, fire: { yMin: 455, yMax: 900 } },
 };

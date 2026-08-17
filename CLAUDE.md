@@ -1,3 +1,10 @@
+## Reporting
+
+- End every report with a block titled **NEEDS DEX** listing only decisions I
+  must make or questions I must answer. One line each, no context, no
+  reasoning. If nothing is needed, write `NEEDS DEX: nothing.`
+- Full detail goes above that block.
+
 ## Git workflow
 
 - After completing any MD or task that changes files, commit and push
