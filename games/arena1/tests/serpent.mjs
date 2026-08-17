@@ -6,8 +6,8 @@ import { buildLevel } from '../js/sim/level.js';
 import { createEntities } from '../js/sim/entities.js';
 import { createPlayerState } from '../js/sim/movement.js';
 import {
-  spawnSerpent, stepSerpents, stepBolts, hitSegment, headAt, segAt, segRadius,
-  segMaxHp, SEG_COUNT, SEG_LAG, HEAD_R, DEATH_LEN, TIERS, TIER_NAMES,
+  spawnSerpent, stepSerpents, stepBolts, headAt, segAt, segRadius,
+  SEG_COUNT, SEG_LAG, HEAD_R, DEATH_LEN, TIERS, TIER_NAMES, POP_HP, damageSerpent,
 } from '../js/sim/serpent.js';
 import { rngFor } from '../js/core/rng.js';
 import { SIM_DT } from '../js/config.js';
@@ -73,67 +73,80 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
     + `head-to-tail span ${span.toFixed(1)}m at tick 300`);
 }
 
-// ── 3. severing: kills the segment and everything behind it ────────────────
+// ── 3. MD 21: damage ANYWHERE pops spheres off the TAIL, one at a time ─────
 {
   const { s, ctx, N } = rig();
-  const c = ctx(100);
-  s.armourUntil.fill(-1);
-  hitSegment(c, s, 7, 9999, 1);
-  assert.equal(s.len, 7, `expected len 7 after severing at 7, got ${s.len}`);
-  const severs = c.events.filter((e) => e.type === 'serpent_sever');
-  assert.equal(severs.length, N - 7, `severed ${severs.length} segments, expected ${N - 7}`);
-  assert.ok(severs.every((e) => e.point && Number.isFinite(e.point.y)), 'sever events carry no drop point');
-  ok('severing detaches the whole tail', `cut at 7 → len ${N}→${s.len}, `
-    + `${severs.length} sever events each with a drop point`);
+  let tick = 0, popped = 0;
+  // Aim at the HEAD every time; the tail must still be what falls off.
+  for (let k = 0; k < 4; k++) {
+    for (let h = 0; h < s.popHp; h++) {
+      const c = ctx(tick++);
+      damageSerpent(c, s, 1, 1, 0);          // seg 0 = the head
+      popped += c.events.filter((e) => e.type === 'serpent_sever').length;
+    }
+  }
+  assert.equal(popped, 4, `expected 4 spheres off in 4x${s.popHp} hits, got ${popped}`);
+  assert.equal(s.len, N - 4, `len ${s.len}, expected ${N - 4}`);
+  ok('damage anywhere pops the tail', `${4 * s.popHp} hits aimed at the HEAD removed `
+    + `${popped} TAIL spheres; len ${N}→${s.len} (popHp ${s.popHp})`);
 }
 
-// ── 4. armour inflates on every quarter crossing and blocks ────────────────
+// ── 4. overkill carries into the next sphere ───────────────────────────────
 {
   const { s, ctx } = rig();
-  const SEG = 6, max = segMaxHp(SEG);
-  let tick = 0, shields = 0, blocked = 0, landed = 0;
-  // chip it down one zap at a time, waiting out each shield
-  for (let guard = 0; guard < 4000 && s.len > SEG; guard++) {
-    const c = ctx(tick);
-    const did = hitSegment(c, s, SEG, 1, 1);
-    if (did) landed++; else blocked++;
-    shields += c.events.filter((e) => e.type === 'serpent_armour').length;
-    tick++;
-  }
-  assert.equal(shields, 3, `expected 3 shields (75/50/25 crossings), got ${shields}`);
-  assert.ok(blocked > 0, 'armour never blocked a single shot');
-  assert.equal(landed, max, `took ${landed} landed hits to clear ${max} hp`);
-  ok('armour: 3 shields, 4 shooting phases', `segment ${SEG} (${max} hp): ${shields} shields raised, `
-    + `${blocked} shots refused while up, ${landed} landed — four bursts separated by three shields`);
+  const c = ctx(10);
+  // one hit shy of a pop, then a rocket: should pop two, not waste the excess
+  damageSerpent(c, s, s.popHp - 1, 1, 0);
+  assert.equal(c.events.filter((e) => e.type === 'serpent_sever').length, 0, 'popped early');
+  const c2 = ctx(11);
+  damageSerpent(c2, s, s.popHp * 2, 1, 0);
+  const n = c2.events.filter((e) => e.type === 'serpent_sever').length;
+  assert.ok(n >= 2, `overkill was discarded: ${s.popHp * 2} damage popped only ${n}`);
+  ok('overkill carries', `${s.popHp - 1} then ${s.popHp * 2} damage → ${n} spheres, nothing wasted`);
 }
 
-// ── 5. hp curve: neck expensive, tail cheap, both viable ───────────────────
+// ── 5. time-to-kill: a fight, not a formality and not a slog ───────────────
 {
-  const N = TIERS.mid.segs;
-  const hp = Array.from({ length: N }, (_, i) => segMaxHp(i));
-  for (let i = 1; i < N; i++) {
-    assert.ok(hp[i] < hp[i - 1], `hp not decreasing toward the tail at ${i}`);
+  const ZAP_CD = 0.11, ROCKET_CD = 0.8, ROCKET_DMG = 3;
+  const rows = [];
+  for (const tier of ['low', 'mid', 'boss']) {
+    const T = TIERS[tier];
+    const pops = T.segs - DEATH_LEN;
+    const zapHits = pops * POP_HP;
+    const zapS = zapHits * ZAP_CD;
+    const rockets = pops;                  // one rocket = one sphere, every tier
+    const rocketS = rockets * ROCKET_CD;
+    assert.ok(zapS > 1.6, `${tier}: ${zapS.toFixed(1)}s on zap is a formality`);
+    assert.ok(zapS < 14, `${tier}: ${zapS.toFixed(1)}s on zap is a slog`);
+    assert.ok(rocketS < 20, `${tier}: ${rocketS.toFixed(1)}s on rockets is a slog`);
+    rows.push(`${tier} ${pops} pops x ${POP_HP}hp → zap ${zapHits} hits ${zapS.toFixed(1)}s | rocket ${rockets} shots ${rocketS.toFixed(1)}s`);
   }
-  // cheapest instant kill: the frontmost segment whose removal drops len to DEATH_LEN
-  const killSeg = DEATH_LEN;
-  const burst = hp[killSeg];
-  // attrition: chip from the tail inward down to the same cut
-  let chip = 0;
-  for (let i = N - 1; i > killSeg; i--) chip += hp[i];
-  chip += hp[killSeg];
-  assert.ok(burst < chip, 'a neck kill is not cheaper in raw damage than chipping — no trade');
-  assert.ok(chip / burst > 1.8, `chipping is only ${(chip / burst).toFixed(1)}x the burst — too close to matter`);
-  ok('hp curve makes both strategies real', `ladder ${hp.join('/')}; `
-    + `burst cut at seg ${killSeg} = ${burst} dmg, tail attrition to the same cut = ${chip} dmg `
-    + `(${(chip / burst).toFixed(1)}x, but delivered safely and in small pieces)`);
+  ok('time-to-kill is a fight', rows.join('  |  '));
+}
+
+// ── 5b. armour is fully gone, no dangling references ───────────────────────
+{
+  const { s, ctx } = rig();
+  assert.equal(s.armourUntil, undefined, 'armourUntil still on the serpent record');
+  assert.equal(s.hp, undefined, 'per-segment hp array still on the serpent record');
+  const c = ctx(5);
+  damageSerpent(c, s, 1, 1, 0);
+  assert.ok(!c.events.some((e) => e.type === 'serpent_blocked'), 'serpent_blocked still emitted');
+  const snapSim = createSim('armour-gone', { pvp: true });
+  snapSim.addPlayer();
+  snapSim.step(new Map());
+  const wire = snapSim.snapshot().serpents[0];
+  assert.equal(wire.armour, undefined, 'armour mask still on the wire');
+  assert.ok(wire.tailHp !== undefined, 'tailHp missing from the wire');
+  ok('armour fully removed', 'no armourUntil, no hp[], no serpent_blocked, no armour mask on the wire');
 }
 
 // ── 6. down to the last few segments it dies ───────────────────────────────
 {
   const { s, ctx } = rig();
   const c = ctx(50);
-  s.armourUntil.fill(-1);
-  hitSegment(c, s, DEATH_LEN, 9999, 1);
+  
+  damageSerpent(c, s, 9999, 1, 0);
   assert.equal(s.alive, false, `still alive at len ${s.len}`);
   assert.ok(c.events.some((e) => e.type === 'serpent_death'), 'no serpent_death event');
   ok('dies at the last few segments', `cut to len ${s.len} (DEATH_LEN ${DEATH_LEN}) → death event`);
@@ -210,22 +223,33 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
 }
 
 // ── 10. the closed form is what a remote client would reconstruct ──────────
+/* Host and wire must be the SAME serpent, so both come out of one sim: `host`
+   is the live record, `wire` is the path object the snapshot actually ships.
+   Building `wire` from the snapshot rather than hand-listing fields is the
+   point — a parameter added to headAt() and forgotten on the wire fails here
+   instead of silently reconstructing NaN in a real client, which is exactly
+   what MD 21's `sw` did until this caught it. */
 {
-  const { s, N } = rig();
-  // A client holding only `path` + tick must land on the same segment positions
-  // the host computed — this is the claim the whole wire design rests on.
-  const wire = { cx: s.cx, cy: s.cy, cz: s.cz, R: s.R, amp: s.amp, lat: s.lat,
-    w: s.w, vw: s.vw, phase: s.phase, vphase: s.vphase };
+  const sim = createSim('serp-recon', { pvp: true });
+  sim.addPlayer();
+  sim.step(new Map());
+  const host = [...sim.ents.serpents.values()][0];
+  const wire = sim.snapshot().serpents.find((x) => x.id === host.id).path;
+  for (const k of Object.keys(wire)) {
+    assert.ok(Number.isFinite(wire[k]), `path.${k} is not finite`);
+  }
   let worst = 0;
   for (const tick of [0, 91, 455, 1200]) {
-    for (let i = 0; i < N; i++) {
-      const host = segAt(s, tick, i);
-      const client = segAt(wire, tick, i);
-      worst = Math.max(worst, Math.hypot(host.x - client.x, host.y - client.y, host.z - client.z));
+    for (let i = 0; i < host.len; i++) {
+      const h = segAt(host, tick, i);
+      const c = segAt(wire, tick, i);
+      worst = Math.max(worst, Math.hypot(h.x - c.x, h.y - c.y, h.z - c.z));
     }
   }
   assert.ok(worst < 1e-9, `client reconstruction drifted ${worst}m from the host`);
-  ok('client reconstructs the body from path + tick', `max divergence ${worst.toExponential(1)}m over 4 ticks x ${N} segments`);
+  ok('client reconstructs the body from path + tick',
+    `${Object.keys(wire).length} path params on the wire, all finite; max divergence `
+    + `${worst.toExponential(1)}m over 4 ticks x ${host.len} segments`);
 }
 
 // ── 11. the orbit is clear of all level geometry ───────────────────────────
@@ -267,6 +291,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   // severs anything proves nothing (which is what the first version did).
   const me = sim.getPlayer(pid);
   const host0 = [...sim.ents.serpents.values()][0];
+  const hostId = host0.id;
   me.pos = { x: 0, y: host0.cy, z: 0 }; me.spawn = { ...me.pos };
   let worstPos = 0, ticksChecked = 0, armourTicks = 0, severed = 0;
   const lenSeen = new Set();
@@ -285,14 +310,16 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
       yaw, pitch, buttons: BTN.FIRE, weapon: 0 }]]));
     const snap = sim.snapshot();
     severed += snap.events.filter((e) => e.type === 'serpent_sever').length;
-    const wire = snap.serpents[0];
-    const host = [...sim.ents.serpents.values()][0];
-    if (!wire || !host) continue;
+    /* Match by ID, not by index. There are three serpents and the snapshot
+       filters out dead ones, so the two arrays fall out of step the moment one
+       dies — which read as "len disagrees" when nothing was actually wrong. */
+    const host = [...sim.ents.serpents.values()].find((x) => x.id === hostId);
+    const wire = snap.serpents.find((x) => x.id === hostId);
+    if (!wire || !host || !host.alive) continue;
     assert.equal(wire.len, host.len, `len disagrees at tick ${t}`);
-    let hostMask = 0;
-    for (let k = 0; k < host.len; k++) if (snap.tick < host.armourUntil[k]) hostMask |= (1 << k);
-    assert.equal(wire.armour, hostMask, `armour mask disagrees at tick ${t}`);
-    if (wire.armour) armourTicks++;
+    // MD 21 removed armour; tailHp is the per-tick state that now has to agree.
+    assert.equal(wire.tailHp, host.tailHp, `tailHp disagrees at tick ${t}`);
+    if (wire.tailHp < POP_HP) armourTicks++;   // ticks with a partly-damaged sphere
     lenSeen.add(wire.len);
     for (let k = 0; k < wire.len; k++) {
       const c = segAt(wire.path, snap.tick, k);
@@ -305,7 +332,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   assert.ok(lenSeen.size > 1, `length never changed (only saw ${[...lenSeen]})`);
   assert.ok(worstPos < 1e-9, `client body drifted ${worstPos}m from the host`);
   ok('client agrees through severing', `${ticksChecked} ticks, lengths ${[...lenSeen].sort((a, b) => b - a).join('→')}, `
-    + `${severed} segments severed, ${armourTicks} ticks with armour up, max drift ${worstPos.toExponential(1)}m`);
+    + `${severed} spheres popped, ${armourTicks} ticks mid-sphere, max drift ${worstPos.toExponential(1)}m`);
 }
 
 // ── 13. MD 19: three tiers, distinct, all in clear air on every seed ───────
@@ -325,7 +352,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
       `seed ${seed}: altitudes not ordered (${byTier.low.cy}/${byTier.mid.cy}/${byTier.boss.cy})`);
     for (const x of list) {
       assert.ok(x.placedClear, `seed ${seed}: ${x.tier} fell back to the raised orbit — no clear air found`);
-      shapes.set(x.tier, { segs: x.segs, scale: x.scale, headHp: x.hp[0], boltDmg: x.boltDmg, cd: x.boltCd });
+      shapes.set(x.tier, { segs: x.segs, scale: x.scale, popHp: x.popHp, boltDmg: x.boltDmg, cd: x.boltCd });
       // SAMPLE the orbit against real geometry, the MD 18 way — do not trust
       // the placement search, re-prove it here at a finer step.
       const period = Math.abs(2 * Math.PI / x.w) / SIM_DT;
@@ -346,26 +373,8 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   assert.ok(shapes.get('boss').scale > shapes.get('low').scale);
   ok('three tiers, all in clear air', `${seeds.length} seeds x 3 tiers x 160 samples = ${samples} segment probes, `
     + `zero overlaps; low ${shapes.get('low').segs}seg/x${shapes.get('low').scale} hp${shapes.get('low').headHp}, `
-    + `mid ${shapes.get('mid').segs}/x${shapes.get('mid').scale} hp${shapes.get('mid').headHp}, `
-    + `boss ${shapes.get('boss').segs}/x${shapes.get('boss').scale} hp${shapes.get('boss').headHp}`);
-}
-
-// ── 14. burst vs attrition still a real choice at EVERY tier ───────────────
-{
-  const rows = [];
-  for (const tier of ['low', 'mid', 'boss']) {
-    const T = TIERS[tier];
-    const hp = Array.from({ length: T.segs }, (_, i) => segMaxHp(i, T.hpScale));
-    for (let i = 1; i < T.segs; i++) {
-      assert.ok(hp[i] < hp[i - 1], `${tier}: hp not rising toward the head at ${i}`);
-    }
-    const burst = hp[DEATH_LEN];
-    let chip = hp[DEATH_LEN];
-    for (let i = T.segs - 1; i > DEATH_LEN; i--) chip += hp[i];
-    assert.ok(chip / burst > 1.5, `${tier}: attrition only ${(chip / burst).toFixed(1)}x burst — not a choice`);
-    rows.push(`${tier} ${hp.join('/')} → burst ${burst}, attrition ${chip} (${(chip / burst).toFixed(1)}x)`);
-  }
-  ok('burst vs attrition holds at every tier', rows.join('  |  '));
+    + `mid ${shapes.get('mid').segs}/x${shapes.get('mid').scale}, `
+    + `boss ${shapes.get('boss').segs}/x${shapes.get('boss').scale}, popHp ${shapes.get('boss').popHp} each`);
 }
 
 // ── 15. each tier respawns after its own delay, deterministically ──────────
@@ -379,7 +388,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
     for (let t = 0; t < target.respawnTicks + 200; t++) {
       if (t === 10) {
         const c = { world: sim.world, level: null, tick: t, events: [], ents: sim.ents, pvp: true, seed: 'serp-respawn' };
-        hitSegment(c, target, DEATH_LEN, 99999, pid);
+        damageSerpent(c, target, 99999, pid);
       }
       sim.step(new Map([[pid, { tick: t, playerId: pid, move: { x: 0, z: 0 }, yaw: 0, pitch: 0, buttons: 0 }]]));
       for (const e of sim.snapshot().events) {

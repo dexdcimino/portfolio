@@ -29,7 +29,7 @@ import { SIM_DT } from '../config.js';
 import { CAPSULE_R, CAPSULE_HALF_H, raySphere, rayVCapsule } from './world.js';
 import { BTN, ENEMY_R, hurtPlayer } from './movement.js';
 import { killEnemy } from './enemies.js';
-import { raySerpents, hitSegment, segAt, segRadius } from './serpent.js';
+import { raySerpents, damageSerpent, segAt, segRadius, POP_HP } from './serpent.js';
 
 const FIRE_CD = 0.11; // prototype cadence (zap)
 const RANGE = 250;
@@ -142,11 +142,11 @@ export function stepCombat(ctx, p, buttons) {
 
   const point = at(bestT);
   if (best.type === 'serpent') {
+    // MD 21: damage lands anywhere and pops the TAIL; `seg` only tells the
+    // renderer where to draw the mark.
     const { s, seg } = best.hit;
-    // hitSegment returns false when armour ate it; the event it emits is what
-    // tells the renderer to show a blocked read instead of a damage number.
-    const landed = hitSegment(ctx, s, seg, 1, p.id);
-    if (landed) ctx.events.push({ type: 'hit', shooter: p.id, target: s.id, point, dmg: 1, seg });
+    damageSerpent(ctx, s, 1, p.id, seg);
+    ctx.events.push({ type: 'hit', shooter: p.id, target: s.id, point, dmg: 1, seg });
     return;
   }
   if (best.type === 'enemy') {
@@ -170,14 +170,17 @@ function explode(ctx, r, point, direct) {
 
   // direct hit first: full damage to whatever the sweep struck
   if (direct?.type === 'serpent') {
-    // A rocket direct is DIRECT_ENEMY (3 zap-hits' worth) into one segment.
-    // Splash deliberately does NOT spread down the chain: a blast that chewed
-    // several segments at once would collapse the whole hp curve into "aim
-    // anywhere near the neck", which is exactly the single correct answer the
-    // curve exists to prevent.
+    // A rocket direct is DIRECT_ENEMY = 3, which is exactly POP_HP: one rocket,
+    // one sphere off the tail. Splash still does not spread down the chain —
+    // with tail-first popping, a blast that counted several times would make
+    // the whole serpent a one-rocket kill.
+    /* A rocket direct pops exactly ONE sphere, whatever POP_HP is — the zap's
+       pace and the rocket's are set independently (see POP_HP in serpent.js).
+       Tying this to DIRECT_ENEMY instead would force POP_HP to 3, which makes
+       the low tier a 1.3s formality. */
     const { s: ser, seg } = direct.hit;
-    const landed = hitSegment(ctx, ser, seg, DIRECT_ENEMY, r.ownerId);
-    if (landed) ctx.events.push({ type: 'hit', shooter: r.ownerId, target: ser.id, point, dmg: DIRECT_ENEMY, seg });
+    damageSerpent(ctx, ser, POP_HP, r.ownerId, seg);
+    ctx.events.push({ type: 'hit', shooter: r.ownerId, target: ser.id, point, dmg: POP_HP, seg });
   } else if (direct?.type === 'enemy' && direct.e.alive) {
     const e = direct.e;
     e.hp -= DIRECT_ENEMY;

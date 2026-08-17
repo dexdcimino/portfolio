@@ -571,7 +571,7 @@ function startSession(transport) {
         actors.sync(sess.prevSnap, sess.lastSnap, alpha, localId, { x: px, y: py, z: pz }, now, dt);
         // Serpent bodies are rebuilt locally from the snapshot's path
         // parameters — no segment positions come over the wire.
-        serpents.sync(sess.lastSnap?.serpents, sess.lastSnap?.tick ?? 0, now);
+        serpents.sync(sess.lastSnap?.serpents, sess.lastSnap?.tick ?? 0, sess.lastSnap?.bolts);
         fx.update(dt, grounded, sess.bob);
         paintHud(me);
       }

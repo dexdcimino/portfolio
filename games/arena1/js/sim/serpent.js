@@ -1,5 +1,5 @@
 // sim/serpent.js — MD 18. A segmented flying serpent: a chain of spheres that
-// shortens as you destroy it, with an armour rhythm and a turret on the head.
+// shortens as you destroy it from the tail, with a turret on the head.
 //
 // THE ONE IDEA THAT SHAPES EVERYTHING HERE: the head's flight path is a CLOSED
 // FORM function of the tick. Not a simulated body with velocity and steering —
@@ -30,17 +30,17 @@ import { rngFor } from '../core/rng.js';
 
 // ── tiers (MD 19) ───────────────────────────────────────────────────────────
 /* Three serpents at three heights, so the climb means something. Every tier
-   keeps ALL of MD 18's mechanics — armour quarters, sever-everything-behind,
+   keeps the same mechanics — tail-first destruction, death at the last few,
    hp rising toward the head, death at the last few segments, contact damage,
-   swept bolts — and differs only in scale. The hpScale multiplies the whole
-   curve rather than reshaping it, which is what keeps the head-ward slope (and
-   therefore the burst-vs-attrition choice) intact at every tier. */
+   contact damage, swept bolts — and differs only in scale. Per-sphere cost is
+   uniform (POP_HP); the tiers differ in how MANY spheres there are, which is
+   what keeps one rocket equal to one sphere on every tier. */
 export const TIERS = {
-  low:  { segs: 7,  scale: 0.80, hpScale: 0.55, boltDmg: 7,  boltCd: 120, boltSpeed: 15,
+  low:  { segs: 7,  scale: 0.80, boltDmg: 7,  boltCd: 120, boltSpeed: 15,
           respawnTicks: 600,  band: { yMin: 34,  yMax: 74 } },
-  mid:  { segs: 10, scale: 1.00, hpScale: 1.00, boltDmg: 12, boltCd: 84,  boltSpeed: 18,
+  mid:  { segs: 10, scale: 1.00, boltDmg: 12, boltCd: 84,  boltSpeed: 18,
           respawnTicks: 1200, band: { yMin: 96,  yMax: 150 } },
-  boss: { segs: 14, scale: 1.35, hpScale: 1.90, boltDmg: 18, boltCd: 54,  boltSpeed: 22,
+  boss: { segs: 14, scale: 1.35, boltDmg: 18, boltCd: 54,  boltSpeed: 22,
           respawnTicks: 2400, band: { yMin: 206, yMax: 236 } },
 };
 export const TIER_NAMES = ['low', 'mid', 'boss'];
@@ -57,26 +57,26 @@ export function segRadius(i, scale = 1) {
   return scale * (i === 0 ? HEAD_R : SEG_R0 * Math.pow(SEG_TAPER_R, i - 1));
 }
 
-// ── hp curve ────────────────────────────────────────────────────────────────
-// Tougher toward the head, because destroying segment i also destroys every
-// segment behind it. Without a curve the only correct play is "always shoot the
-// neck" and the whole tail is scenery. Numbers are in ZAP HITS (the zap does 1
-// to an enemy; a rocket direct does 3), and the taper is steep on purpose — see
-// the MD 18 report for the full ladder and the two strategies it produces.
-const HEAD_HP = 90;
-const HP_TAPER = 0.74;
-export function segMaxHp(i, hpScale = 1) {
-  return Math.max(3, Math.round(HEAD_HP * Math.pow(HP_TAPER, i) * hpScale));
-}
+// ── damage (MD 21) ──────────────────────────────────────────────────────────
+/* One threshold, one strategy: hit it ANYWHERE and the tail loses a sphere.
 
-// ── armour ──────────────────────────────────────────────────────────────────
-// A shield inflates every time a segment's hp crosses a quarter of its maximum,
-// so a segment is four bursts of shooting separated by three shields, which is
-// the beat the MD asks for. While it is up, damage to that segment is REFUSED
-// — the hit still emits an event so the renderer can say so, it just does not
-// land.
-const ARMOUR_THRESHOLDS = [0.75, 0.5, 0.25];
-const ARMOUR_TICKS = 72;              // 1.2s — long enough to force a pause
+   This replaces MD 18's per-segment hp curve and its 25%-threshold armour, and
+   the removal is deliberate. That model made a neck kill expensive and
+   tail-chipping cheap so both burst and attrition were viable — a real choice,
+   but one that made the serpent far too hard to kill. With no per-segment hp
+   left there is nothing for armour to gate, so it goes too rather than
+   surviving as a vestige.
+
+   POP_HP is the whole balance now, and the two weapons are DECOUPLED on
+   purpose. The zap does 1 and fires every 0.11s, so POP_HP sets the zap pace;
+   a rocket direct is special-cased in combat.js to deal exactly POP_HP, so it
+   always pops precisely one sphere. That is the literal reading of "a few zap
+   hits, or one rocket", and it is what lets both weapons feel right at once —
+   tying the rocket to its own 3 damage would have made either the zap a 1.3s
+   formality or the rocket an 8-shots-per-sphere slog on the boss.
+   5 gives 2.2s / 3.9s / 6.1s on zap and 3.2s / 5.6s / 8.8s on rockets across
+   the three tiers; the ladder is in the MD 21 report. */
+export const POP_HP = 5;
 
 // ── turret ──────────────────────────────────────────────────────────────────
 const TURRET_CD_TICKS = 84;           // 1.4s between shots
@@ -92,13 +92,25 @@ const CONTACT_CD_TICKS = 48;
 // ── the flight path ─────────────────────────────────────────────────────────
 // A horizontal circuit, a vertical sine, and a lateral sine at 3x to give the
 // snaking. Pure function of the tick and the spawn parameters.
+/* MD 21: a real S-curve. The old wave was subtle for a reason worth writing
+   down — the body spans SEG_LAG*(segs-1) ticks, about 0.75s, while the lateral
+   wave ran at 3*w ≈ 1.2 rad/s, a 5.2s period. Only ~14% of a cycle fitted
+   across the whole snake, so it read as a near-straight line with a slight
+   lean, not as undulation.
+   The fix is FREQUENCY, not just amplitude: `sw` is set so roughly a full wave
+   spans the body, which is what makes neighbouring segments swing to opposite
+   sides and the thing read as a snake. Vertical gets the same treatment at a
+   different multiple so the S is three-dimensional rather than a flat ribbon.
+   Still a pure function of the tick — no velocity, no steering — so clients
+   keep reconstructing the body from the tick alone. */
 export function headAt(s, tick) {
   const t = tick * SIM_DT;
   const a = s.w * t + s.phase;
-  const lat = Math.sin(3 * a) * s.lat;
+  const lat = Math.sin(s.sw * t + s.phase) * s.lat;
+  const rise = Math.sin(s.sw * 0.62 * t + s.vphase) * s.amp;
   return {
     x: s.cx + Math.cos(a) * s.R - Math.sin(a) * lat,
-    y: s.cy + Math.sin(s.vw * t + s.vphase) * s.amp,
+    y: s.cy + rise,
     z: s.cz + Math.sin(a) * s.R + Math.cos(a) * lat,
   };
 }
@@ -162,10 +174,16 @@ function findClearOrbit(world, base, band, segs, scale, pick = 0) {
 export function spawnSerpent(ents, level, rng, id, opts = {}) {
   const tierName = opts.tier || 'mid';
   const T = TIERS[tierName];
+  /* sw is chosen so about one full lateral wave spans the body: the body is
+     SEG_LAG*(segs-1) ticks long, so the period wants to be roughly that, and
+     the frequency is 2π over it. Amplitudes are up hard from MD 18/19 — the
+     old 2–3.5 barely moved a body 18m long. */
+  const bodySeconds = SEG_LAG * (T.segs - 1) * SIM_DT;
   const base = {
     cx: 0, cz: 0,
-    amp: (3 + rng() * 3) * T.scale,
-    lat: (2 + rng() * 1.5) * T.scale,
+    amp: (2.6 + rng() * 1.6) * T.scale,
+    lat: (5.5 + rng() * 2.5) * T.scale,
+    sw: (2 * Math.PI / bodySeconds) * (0.85 + rng() * 0.3),
     w: (0.38 + rng() * 0.18) * (rng() > 0.5 ? 1 : -1),
     vw: 1.0 + rng() * 0.5,
     phase: rng() * 6.28,
@@ -188,11 +206,11 @@ export function spawnSerpent(ents, level, rng, id, opts = {}) {
   const s = {
     id, kind: 'serpent', tier: tierName,
     ...base, cy, R,
-    segs: T.segs, scale: T.scale, hpScale: T.hpScale,
+    segs: T.segs, scale: T.scale, popHp: POP_HP,
     boltDmg: T.boltDmg, boltCd: T.boltCd, boltSpeed: T.boltSpeed,
     respawnTicks: T.respawnTicks,
     len: T.segs,                          // alive segments, ALWAYS a prefix
-    hp: [], armourUntil: [],              // per segment, index 0 = head
+    tailHp: POP_HP,                       // damage left on the CURRENT tail sphere
     aimYaw: 0, aimPitch: 0,
     fireCd: T.boltCd,
     contactCd: 0,
@@ -200,7 +218,6 @@ export function spawnSerpent(ents, level, rng, id, opts = {}) {
     respawnAt: -1,
     placedClear: !!found,
   };
-  for (let i = 0; i < T.segs; i++) { s.hp.push(segMaxHp(i, T.hpScale)); s.armourUntil.push(-1); }
   ents.serpents.set(id, s);
   return s;
 }
@@ -218,63 +235,43 @@ export function respawnSerpent(s, tick, rng, world) {
   const found = world ? findClearOrbit(world, s, s.debugBand || T.band, T.segs, T.scale, rng()) : null;
   if (found) { s.cy = found.cy; s.R = found.R; }
   s.len = T.segs;
-  s.hp = []; s.armourUntil = [];
-  for (let i = 0; i < T.segs; i++) { s.hp.push(segMaxHp(i, T.hpScale)); s.armourUntil.push(-1); }
+  s.tailHp = POP_HP;
   s.alive = true;
   s.respawnAt = -1;
   s.fireCd = T.boltCd;
   s.contactCd = 0;
 }
 
-// Which quarter-band an hp value sits in; crossing a band edge raises armour.
-const band = (hp, max) => {
-  for (let k = 0; k < ARMOUR_THRESHOLDS.length; k++) if (hp > max * ARMOUR_THRESHOLDS[k]) return k;
-  return ARMOUR_THRESHOLDS.length;
-};
+/* Damage the serpent ANYWHERE. Spheres pop off the TAIL, one at a time, however
+   far forward the shot landed — `seg` rides through only so the renderer can
+   put the hit mark where the player actually aimed. Always returns true:
+   nothing refuses damage any more, so callers no longer need a blocked path.
 
-/* Damage one segment. Returns true if the hit LANDED, false if armour ate it —
-   combat.js uses that to emit the right event, and the renderer uses the event
-   to say "blocked" rather than showing a damage number that never happened. */
-export function hitSegment(ctx, s, i, dmg, shooterId) {
-  if (!s.alive || i >= s.len) return false;
-  if (ctx.tick < s.armourUntil[i]) {
-    ctx.events.push({ type: 'serpent_blocked', serpentId: s.id, seg: i, shooter: shooterId });
-    return false;
-  }
-  const max = segMaxHp(i, s.hpScale);
-  const before = band(s.hp[i], max);
-  s.hp[i] -= dmg;
-  const after = band(s.hp[i], max);
-  if (s.hp[i] <= 0) { severTail(ctx, s, i, shooterId); return true; }
-  if (after > before) {
-    // Crossed at least one quarter — armour inflates and blocks everything.
-    s.armourUntil[i] = ctx.tick + ARMOUR_TICKS;
-    ctx.events.push({ type: 'serpent_armour', serpentId: s.id, seg: i, untilTick: s.armourUntil[i] });
+   Overkill carries into the next sphere rather than being discarded, so a
+   rocket landing on a nearly-dead sphere is never wasted and the kill stays
+   predictable. */
+export function damageSerpent(ctx, s, dmg, shooterId, seg = 0) {
+  if (!s.alive) return false;
+  s.tailHp -= dmg;
+  while (s.tailHp <= 0 && s.alive) {
+    const popped = s.len - 1;
+    ctx.events.push({
+      type: 'serpent_sever', serpentId: s.id, seg: popped,
+      point: segAt(s, ctx.tick, popped), by: shooterId,
+    });
+    s.len--;
+    if (s.len <= DEATH_LEN) {
+      s.alive = false;
+      s.respawnAt = ctx.tick + s.respawnTicks;
+      ctx.events.push({
+        type: 'serpent_death', serpentId: s.id, tier: s.tier, by: shooterId,
+        point: headAt(s, ctx.tick), respawnAt: s.respawnAt,
+      });
+      break;
+    }
+    s.tailHp += s.popHp;
   }
   return true;
-}
-
-/* Destroying segment i destroys everything BEHIND it too — that is the whole
-   mechanic, and it is why alive segments are always a prefix and the wire can
-   carry one integer instead of a liveness array. Each detached segment emits
-   its own event so the renderer can drop and pop it individually. */
-function severTail(ctx, s, i, shooterId) {
-  const from = Math.max(1, i);   // the head itself is never severed; killing seg 1 ends it
-  for (let k = s.len - 1; k >= from; k--) {
-    ctx.events.push({
-      type: 'serpent_sever', serpentId: s.id, seg: k,
-      point: segAt(s, ctx.tick, k), by: shooterId,
-    });
-  }
-  s.len = from;
-  if (s.len <= DEATH_LEN) {
-    s.alive = false;
-    s.respawnAt = ctx.tick + s.respawnTicks;
-    ctx.events.push({
-      type: 'serpent_death', serpentId: s.id, tier: s.tier, by: shooterId,
-      point: headAt(s, ctx.tick), respawnAt: s.respawnAt,
-    });
-  }
 }
 
 // Nearest non-ghost player, for aim and turret range.
@@ -405,10 +402,7 @@ export function raySerpents(ctx, origin, dir, maxT) {
     if (!s.alive) continue;
     for (let i = 0; i < s.len; i++) {
       const c = segAt(s, ctx.tick, i);
-      const shielded = ctx.tick < s.armourUntil[i];
-      // The armour sphere is bigger than the segment, so a shielded segment is
-      // an easier thing to hit — you cannot avoid the shield by aiming finer.
-      const r = segRadius(i, s.scale) + (shielded ? 0.45 : 0);
+      const r = segRadius(i, s.scale);
       const t = raySphere(origin, dir, c, r, bestT);
       if (t !== null) { bestT = t; best = { s, seg: i, t }; }
     }

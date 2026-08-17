@@ -14,7 +14,7 @@ import { buildLevel, tickPlatforms } from './level.js';
 import { createPlayerState, stepPlayer, playerFlags, BTN, FLAG } from './movement.js';
 import { initEnemies, stepEnemies } from './enemies.js';
 import { stepCombat, stepRockets } from './combat.js';
-import { stepSerpents, stepBolts, spawnSerpent, TIER_NAMES, segMaxHp } from './serpent.js';
+import { stepSerpents, stepBolts, spawnSerpent, TIER_NAMES } from './serpent.js';
 
 export { BTN, FLAG }; // wire-format constants live with the movement port
 
@@ -190,26 +190,23 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
              len      alive segments. Destroying a segment always destroys
                       everything behind it, so the alive set is always a prefix
                       and fits in ONE integer, not a liveness array.
-             armour   a bitmask, one bit per segment — 12 segments in a single
-                      number. The inflate ANIMATION belongs to the renderer and
-                      is driven off the bit appearing, so no per-segment timer
-                      goes over the wire.
              aim      two angles for the turret.
-             hp0      frontmost segment hp, for the health readout only.
+             tailHp   damage left on the current tail sphere (MD 21 replaced the
+                      per-segment hp and armour mask with this single number).
            `path` is static after spawn; a client caches it by id on first
            sight. It is sent every frame here for simplicity and still costs
            less than one segment position would. */
         serpents: [...ents.serpents.values()].filter((s) => s.alive).map((s) => {
-          let mask = 0;
-          for (let i = 0; i < s.len; i++) if (tick < s.armourUntil[i]) mask |= (1 << i);
           return {
-            id: s.id, tier: s.tier, segs: s.segs, scale: s.scale, len: s.len, armour: mask,
+            id: s.id, tier: s.tier, segs: s.segs, scale: s.scale, len: s.len,
             aimYaw: Math.round(s.aimYaw * 1e4) / 1e4,
             aimPitch: Math.round(s.aimPitch * 1e4) / 1e4,
-            hp0: s.hp[0],
+            tailHp: s.tailHp,
+            // EVERY parameter headAt() reads has to be here — miss one and the
+            // client reconstructs NaN. MD 21's `sw` was exactly that near-miss.
             path: {
               cx: s.cx, cy: s.cy, cz: s.cz, R: s.R, amp: s.amp, lat: s.lat,
-              w: s.w, vw: s.vw, phase: s.phase, vphase: s.vphase,
+              sw: s.sw, w: s.w, vw: s.vw, phase: s.phase, vphase: s.vphase,
             },
           };
         }),
