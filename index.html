@@ -139,7 +139,7 @@
       <a class="nav-link active" href="#home"><span class="icon nav-icon" data-icon="home" aria-hidden="true"></span><span class="nav-text">HOME</span></a>
       <a class="nav-link" href="#work"><span class="icon nav-icon" data-icon="work" aria-hidden="true"></span><span class="nav-text">WORK</span></a>
       <a class="nav-link" href="#games"><span class="icon nav-icon" data-icon="games" aria-hidden="true"></span><span class="nav-text">GAMES</span></a>
-      <a class="nav-link" href="#ai"><span class="icon nav-icon" data-icon="ai" aria-hidden="true"></span><span class="nav-text">AI</span></a>
+      <a class="nav-link" href="#ai"><span class="icon nav-icon" data-icon="ai" aria-hidden="true"></span><span class="nav-text">AI LAB</span></a>
       <a class="nav-link" href="#about"><span class="icon nav-icon" data-icon="about" aria-hidden="true"></span><span class="nav-text">ABOUT</span></a>
     </nav>
 
@@ -250,7 +250,7 @@
 
         <div class="hero-actions">
           <a class="button primary" href="#work"><span>VIEW WORK</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
-          <a class="button" href="#ai"><span>AI PROJECTS</span></a>
+          <a class="button" href="#ai"><span>AI LAB</span></a>
           <button class="button ghost" type="button" data-resume-open><span>RESUME</span><span class="icon btn-icon" data-icon="preview" aria-hidden="true"></span></button>
         </div>
       </div>
@@ -571,7 +571,7 @@
     </section>
 
     <section class="split-section alt" id="ai">
-      <div class="statement reveal"><p class="eyebrow">BUILDING WITH AI</p><h2>AI PROJECTS</h2><p>Apps, visual experiments, videos, charts, and tools built with Claude, Gemini, GPT, and creative software.</p></div>
+      <div class="statement reveal"><p class="eyebrow">BUILDING WITH AI</p><h2>AI LAB</h2><p>Apps, visual experiments, videos, charts, and tools built with Claude, Gemini, GPT, and creative software.</p></div>
       <div class="ai-wrap reveal">
         <!-- Fourth tablist on the site; wired through the same initTabs() as the
              Toolkit and Top Picks rows, so roving tabindex, arrows and Home/End
@@ -585,9 +585,65 @@
 
         <div class="ai-panel" id="ai-panel-apps" role="tabpanel" aria-labelledby="ai-tab-apps">
           <div class="ai-grid">
-            <a class="ai-card" href="https://dexnote.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>DexNote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
-            <a class="ai-card" href="https://nodeblast.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>NodeBlast.dev</strong><span>Creator / gaming platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
-            <a class="ai-card" href="https://dexddc.com" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>dexddc.com</strong><span>Original portfolio site<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <!-- Order is DOM order — there is no sort key. uVote first, then the
+                 three live apps. The icon block in each card is generated from
+                 the one-line directive by tools/bake_markup.py; never typed. -->
+            <a class="ai-card is-wip" href="/ai/apps/uvote/"><small>WEB APP</small><strong>uVote</strong><span>Consensus tooling — in development<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+              <!-- img src="assets/ai/icons/uvote-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+              <picture class="ai-card-iconwrap">
+                <source type="image/avif" srcset="assets/derived/ai/icons/uvote-icon-420.avif 420w,
+                                                  assets/derived/ai/icons/uvote-icon-200.avif 200w,
+                                                  assets/derived/ai/icons/uvote-icon-84.avif 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <source type="image/webp" srcset="assets/derived/ai/icons/uvote-icon-420.webp 420w,
+                                                  assets/derived/ai/icons/uvote-icon-200.webp 200w,
+                                                  assets/derived/ai/icons/uvote-icon-84.webp 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <img class="ai-card-icon" src="assets/ai/icons/uvote-icon.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img --></a>
+            <a class="ai-card" href="https://dexnote.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>DexNote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+              <!-- img src="assets/ai/icons/dexnote-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+              <picture class="ai-card-iconwrap">
+                <source type="image/avif" srcset="assets/derived/ai/icons/dexnote-icon-420.avif 420w,
+                                                  assets/derived/ai/icons/dexnote-icon-200.avif 200w,
+                                                  assets/derived/ai/icons/dexnote-icon-84.avif 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <source type="image/webp" srcset="assets/derived/ai/icons/dexnote-icon-420.webp 420w,
+                                                  assets/derived/ai/icons/dexnote-icon-200.webp 200w,
+                                                  assets/derived/ai/icons/dexnote-icon-84.webp 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <img class="ai-card-icon" src="assets/ai/icons/dexnote-icon.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img --></a>
+            <a class="ai-card" href="https://nodeblast.dev" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>NodeBlast.dev</strong><span>Creator / gaming platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+              <!-- img src="assets/ai/icons/nodeblast-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+              <picture class="ai-card-iconwrap">
+                <source type="image/avif" srcset="assets/derived/ai/icons/nodeblast-icon-420.avif 420w,
+                                                  assets/derived/ai/icons/nodeblast-icon-200.avif 200w,
+                                                  assets/derived/ai/icons/nodeblast-icon-84.avif 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <source type="image/webp" srcset="assets/derived/ai/icons/nodeblast-icon-420.webp 420w,
+                                                  assets/derived/ai/icons/nodeblast-icon-200.webp 200w,
+                                                  assets/derived/ai/icons/nodeblast-icon-84.webp 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <img class="ai-card-icon" src="assets/ai/icons/nodeblast-icon.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img --></a>
+            <a class="ai-card" href="https://dexddc.com" target="_blank" rel="noreferrer"><small>WEB APP</small><strong>dexddc.com</strong><span>Original portfolio site<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+              <!-- img src="assets/ai/icons/dexddc-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+              <picture class="ai-card-iconwrap">
+                <source type="image/avif" srcset="assets/derived/ai/icons/dexddc-icon-420.avif 420w,
+                                                  assets/derived/ai/icons/dexddc-icon-200.avif 200w,
+                                                  assets/derived/ai/icons/dexddc-icon-84.avif 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <source type="image/webp" srcset="assets/derived/ai/icons/dexddc-icon-420.webp 420w,
+                                                  assets/derived/ai/icons/dexddc-icon-200.webp 200w,
+                                                  assets/derived/ai/icons/dexddc-icon-84.webp 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <img class="ai-card-icon" src="assets/ai/icons/dexddc-icon.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img --></a>
           </div>
         </div>
 

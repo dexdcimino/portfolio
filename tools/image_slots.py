@@ -115,6 +115,14 @@ SLOTS = {
         ladder="gallery",
         sizes="(max-width:1100px) 92vw, min(1200px, 78vw)",
     ),
+    # AI Lab app icon: a square badge in the corner of a card, sized off the
+    # card's height rather than its width, so it never gets large. The avatar
+    # ladder already covers exactly this range (420/200/84) and a third small
+    # ladder would be one more thing to keep in step for no gain.
+    "ai-icon": dict(
+        ladder="avatar",
+        sizes="(max-width:700px) 64px, 84px",
+    ),
 }
 
 
