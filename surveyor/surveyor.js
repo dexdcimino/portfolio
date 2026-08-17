@@ -1,0 +1,49 @@
+/* ==========================================================================
+   /surveyor — wrapper behaviour. Two small things, both about the keyboard.
+
+   The game runs in the iframe and owns its own Escape ladder (inventory ->
+   pause menu -> ...). Key events do not cross a frame boundary, so once the
+   game holds focus the listener below can never fire — which is the intent:
+   "Esc closes" is the standing rule for every overlay on this site, and this
+   shell should not be the one exception that traps you, but it also must not
+   steal Escape from the game.
+
+   The catch: nothing focuses the iframe on its own. Measured in Chrome, the
+   parent document keeps focus (activeElement stays BODY) even after a click
+   lands inside the frame, so Escape mid-session went to the wrapper and
+   navigated away — hijacking the game's pause menu. Handing focus to the frame
+   as soon as it loads makes the guard true by construction instead of relying
+   on the browser to do it, and has the happy side effect that WASD works
+   immediately on a cold load without clicking first.
+   ========================================================================== */
+
+const frame = document.querySelector('.surveyor-frame');
+
+function giveGameTheKeyboard() {
+  try {
+    frame.focus({ preventScroll: true });
+  } catch { /* focus can throw in odd embedding contexts; the guard still holds */ }
+}
+
+frame.addEventListener('load', giveGameTheKeyboard);
+if (frame.contentDocument?.readyState === 'complete') giveGameTheKeyboard();
+
+/* The one addition over /stickland's copy of this file.
+   Surveyor's canvas takes keyboard focus on start, and a click that lands
+   inside the frame does NOT move the parent document's focus (measured in
+   Chrome for Stickland — activeElement stays BODY). Focusing on load alone is
+   not enough here: anything that pulls focus back to the wrapper afterwards —
+   tabbing to the exit chip, an alt-tab, a click on the shell's letterboxing —
+   leaves 1 / 2 / 3 (rover / boat / jet) silently doing nothing while the game
+   still renders and looks fine. Re-handing focus on every pointerdown makes
+   that unrecoverable state impossible rather than unlikely.
+   Capture phase so it runs before anything in the shell can stop it. */
+window.addEventListener('pointerdown', giveGameTheKeyboard, true);
+
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
+  // Only when the wrapper itself holds focus — tabbed out to the exit button,
+  // say. While the game has it, this listener is never reached at all.
+  if (document.activeElement === frame) return;
+  window.location.href = '/';
+});

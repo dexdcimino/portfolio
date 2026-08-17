@@ -2065,7 +2065,7 @@ const LOOP_MODES = ['off', 'all', 'one'];
      in the row) but shouted about, so it is caught in the session that
      introduced it rather than three games later. */
   const GAME_TAGS = {
-    genre:   v => ['SURVIVAL', 'SANDBOX', 'SHOOTER', 'PLATFORMER', 'PUZZLE'].includes(v),
+    genre:   v => ['SURVIVAL', 'SANDBOX', 'SHOOTER', 'PLATFORMER', 'PUZZLE', 'EXPLORATION'].includes(v),
     dim:     v => ['2D', '3D'].includes(v),
     players: v => v === 'SOLO' || /^\d+-\d+P$/.test(v),
   };

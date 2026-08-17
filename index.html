@@ -458,6 +458,23 @@
             </picture>
             <!-- /img -->
           </span>
+          <span class="game-art-shot" data-art="surveyor-art" hidden>
+            <!-- img src="assets/thumbnails/surveyor-art.png" slot="game-art" alt="" class="game-art-img" -->
+            <picture>
+              <source type="image/avif" srcset="assets/derived/thumbnails/surveyor-art-1200.avif 1200w,
+                                                assets/derived/thumbnails/surveyor-art-900.avif 900w,
+                                                assets/derived/thumbnails/surveyor-art-600.avif 600w,
+                                                assets/derived/thumbnails/surveyor-art-400.avif 400w"
+                      sizes="(max-width:1100px) 520px, min(520px, 26vw)">
+              <source type="image/webp" srcset="assets/derived/thumbnails/surveyor-art-1200.webp 1200w,
+                                                assets/derived/thumbnails/surveyor-art-900.webp 900w,
+                                                assets/derived/thumbnails/surveyor-art-600.webp 600w,
+                                                assets/derived/thumbnails/surveyor-art-400.webp 400w"
+                      sizes="(max-width:1100px) 520px, min(520px, 26vw)">
+              <img class="game-art-img" src="assets/thumbnails/surveyor-art.png" alt="" width="1920" height="1080" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+          </span>
           <!-- Hover affordance. Inline rather than a data-icon mask because a
                mask is one colour by construction and this needs a face, an edge
                and a highlight. Painted in three passes so the edge stays crisp:
@@ -514,6 +531,10 @@
            data-genre="SHOOTER" data-dim="3D" data-players="1-6P"
            data-desc-lead="A first-person movement shooter built around speed and verticality."
            data-desc-body="Dash, slide, wall-jump, grapple, and jetpack your way up a procedural spire while wraiths swoop and spikeballs patrol the platforms. Built in Babylon.js on a deterministic, headless simulation — the same architecture that runs the multiplayer."><span>03</span><strong>ARENA1</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
+        <a class="stack-row is-wip" href="/surveyor" data-game="surveyor" data-art="surveyor-art"
+           data-genre="EXPLORATION" data-dim="3D" data-players="SOLO"
+           data-desc-lead="Procedural spherical worlds. One craft, three forms — rover, boat, jet. Drop colonisers, claim the geysers, colonise the system."
+           data-desc-body="A surveyor's job across six procedural worlds. The same craft transforms between a six-wheeled rover, a hydrofoil boat and a delta jet, and momentum carries across every transform. Colonies you plant build themselves on wall time whether or not you're watching. Fly far enough from a surface and your speed doubles every fifteen hundred metres, which is how the next planet is thirty seconds away and still looks like a speck from the ground."><span>04</span><strong>SURVEYOR</strong><small>In Development</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
         <div class="game-desc" id="gameDesc">
           <strong class="game-desc-lead"></strong>
           <p class="game-desc-body"></p>

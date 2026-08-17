@@ -1,0 +1,71 @@
+/* ==========================================================================
+   /surveyor — the embed shell for games/surveyor/v1/
+   Deliberately self-owned: this page has no sidebar, no header and no layout,
+   so it does NOT link styles.css. Pulling the site sheet in would bleed rail
+   and section rules into a page with neither. Everything this page needs is
+   here, and it is short on purpose.
+   ========================================================================== */
+
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;padding:0;height:100%;width:100%;
+  overflow:hidden;                 /* the game owns the viewport; never scroll the shell */
+  background:#0b0d12;              /* matches --page-bg, so any letterboxing reads as the site */
+  overscroll-behavior:none;        /* no rubber-banding round the frame on touch */
+}
+
+/* Fixed rather than 100%/100%: a mobile URL bar collapsing must not resize the
+   game mid-session, and dvh keeps it honest when it does. */
+.surveyor-frame{
+  position:fixed;inset:0;
+  width:100vw;height:100vh;height:100dvh;
+  border:0;display:block;
+}
+
+/* --------------------------------------------------------------------------
+   Exit button
+   Sits over the game, so it cannot rely on contrast with whatever is painted
+   underneath — a stick-figure game on a pale sky would swallow a bare glyph.
+   It carries its own chip: opaque dark fill, light stroke, and a shadow to
+   lift it off bright backgrounds.
+   z-index is deliberately absurd. The game stacks its own HUD, pause menu and
+   inventory inside the iframe, but those are in another document and cannot
+   paint over this; the number just has to beat anything in THIS document.
+   -------------------------------------------------------------------------- */
+.surveyor-exit{
+  position:fixed;top:14px;right:14px;z-index:2147483647;
+  width:48px;height:48px;                 /* >=44px touch target, as the site uses elsewhere */
+  display:grid;place-items:center;
+  border-radius:12px;
+  border:2px solid rgba(255,255,255,.28);
+  background:rgba(9,13,24,.86);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  color:#f1f3f4;
+  box-shadow:0 6px 22px rgba(0,0,0,.55);
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:border-color .2s ease,background .2s ease,transform .2s ease;
+}
+.surveyor-exit svg{width:22px;height:22px;display:block}
+
+/* Neutral rather than accent-tinted on purpose: the accent lives in
+   localStorage and is applied by script.js, which this page deliberately does
+   not load. Reproducing the palette here would be a second copy to keep in
+   step for a hover colour — not worth the drift. */
+.surveyor-exit:hover{
+  border-color:rgba(255,255,255,.62);
+  background:rgba(9,13,24,.96);
+  transform:translateY(-1px);
+}
+.surveyor-exit:active{transform:translateY(0)}
+.surveyor-exit:focus-visible{outline:3px solid #9EE02B;outline-offset:3px}
+
+@media(max-width:760px){
+  .surveyor-exit{top:10px;right:10px;width:44px;height:44px;border-radius:11px}
+  .surveyor-exit svg{width:20px;height:20px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .surveyor-exit{transition:none}
+}

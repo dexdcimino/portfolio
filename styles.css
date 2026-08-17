@@ -1231,6 +1231,21 @@ button.button{cursor:pointer;font-family:inherit}
 .stack-row span{color:var(--accent);font-size:13px;transition:color var(--accent-ease)}
 .stack-row strong{font-size:25px}
 .stack-row small{color:#959ea5;font-size:15px}
+/* WIP treatment. The games section had no such thing — every row's <small> is
+   a plain kind label ("Browser Game", "Prototype"), so an unfinished game read
+   exactly like a finished one. Rather than add a second element to the row and
+   restructure the grid, this restyles the <small> that is already there into a
+   badge for rows marked .is-wip. Same markup, same slot, same ordering
+   mechanism; only the paint changes.
+   Accent-outlined rather than filled: it has to say "not done" without
+   competing with the row title for attention. */
+.stack-row.is-wip small{
+  color:var(--accent);
+  font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+  border:1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius:999px;padding:4px 10px;
+  white-space:nowrap;
+}
 /* Both glyphs share one cell and cross-fade, so the row's geometry does not
    move when the icon changes. Sized to the old .row-arrow box exactly. */
 .row-go{position:relative;width:21px;height:21px}
