@@ -70,22 +70,27 @@
          user gesture, so this small chip invites the click and vanishes the
          moment the lock lands (full controls live in the pause menu). -->
     <div id="lockHint" class="on">CLICK FOR MOUSE LOOK · ESC PAUSES</div>
-    <!-- MD 22 item 8. There is no title card and no CLICK TO PLAY gate: the
-         game boots into the player's own camera at their spawn. This is the
-         LOADING view that covers the first moments, and it dismisses itself —
-         nothing here waits on a click. The ring is driven by real milestones
-         (js/main.js bootMark), not by a timer pretending to be one, so a slow
-         machine genuinely sees it longer. aria-hidden: it is decorative, and
-         it is gone before anything is interactive. -->
-    <div id="boot" aria-hidden="true">
-      <svg id="bootRing" viewBox="0 0 84 84" width="84" height="84">
-        <circle class="bootTrack" cx="42" cy="42" r="37" />
-        <circle class="bootFill"  cx="42" cy="42" r="37" />
-      </svg>
-      <div id="bootWord">ARENA<span>1</span></div>
     </div>
     </div>
   </div>
+    <!-- MD 23 — CONTROLS MODAL. Pointer lock needs a user gesture and the
+         browser gives no way round that, so rather than spend the gesture on a
+         CLICK TO PLAY card that teaches nothing, it buys the one screen a new
+         player actually reads. Any click or any keypress dismisses this AND
+         acquires lock in the same action, so it is information rather than a
+         gate — which is exactly why there is no "press any key" line anywhere
+         in here. Telling someone to dismiss it would turn it back into one.
+         The X is an affordance for anyone hunting for a close button; it is
+         not the intended path and is styled not to read as one. -->
+    <div id="controls">
+      <button id="controlsX" type="button" aria-label="Close">&#215;</button>
+      <div id="controlsRows">
+        <div class="ctlRow"><span class="ctlAct">MOVE</span><span class="ctlKeys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
+        <div class="ctlRow"><span class="ctlAct">JUMP / JETPACK</span><span class="ctlKeys"><kbd class="wide">SPACE</kbd><em>hold mid-air</em></span></div>
+        <div class="ctlRow"><span class="ctlAct">DASH</span><span class="ctlKeys"><kbd class="wide">SHIFT</kbd></span></div>
+        <div class="ctlRow"><span class="ctlAct">SHOOT</span><span class="ctlKeys"><kbd class="wide">LEFT CLICK</kbd></span></div>
+        <div class="ctlRow"><span class="ctlAct">GRAPPLE</span><span class="ctlKeys"><kbd class="wide">RIGHT CLICK</kbd></span></div>
+      </div>
   <!-- Pause overlay: main.js's setState('paused') shows it, pausemenu.js
        fills it. Starts hidden; the menu binds no keys (main owns Escape). -->
   <div id="paused" class="hidden"></div>

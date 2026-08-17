@@ -57,41 +57,27 @@ const hintEl = document.getElementById('lockHint');
 const feedEl = document.getElementById('feed');
 let state = 'playing'; // playing ⇄ paused; no title screen
 
-/* MD 22 item 8 — BOOT. MD 20 put a slow orbit over the arena behind a CLICK
-   TO PLAY card and held it there until the player clicked. That is a title
-   screen with extra steps, and it has two costs: the first thing you see is
-   somewhere you are not, and nothing happens until you act.
-   The boot now shows you WHERE YOU ARE. The camera starts pulled back over
-   your own spawn, looking at you, and pulls in to your eyes — so the first
-   moment of control is continuous with the last moment of the intro rather
-   than a cut to an unfamiliar viewpoint.
-   It is SELF-DISMISSING. Nothing waits on input: the pull-in begins as soon as
-   the scene is genuinely ready and runs to completion on its own. Pointer lock
-   still needs one user gesture — the browser gives no way round that — but it
-   is no longer a gate in front of the game. WASD is live before the click
-   (keydown fills keys[] above the lock guard), so a player can already be
-   moving when they press the button that captures the mouse. */
-let booted = false;          // intro over — the player camera is live
-let bootT = 0;               // seconds since the first rendered frame
-let handoff = 1;             // 1 = fully pulled back, 0 = at the eyes
-const BOOT_HOLD = 0.5;       // don't flash the loading view on a fast machine
-const BOOT_PULL = 1.05;      // seconds of pull-in
-const BOOT_BACK = 13;        // metres behind the spawn
-const BOOT_UP = 6;           // and above it
-
-/* Ring progress is REAL. Each milestone is marked where it actually completes,
-   so a slow machine sees a ring that steps rather than a sweep timed to look
-   plausible. The intro cannot end before all four land. */
-const BOOT_STEPS = ['engine', 'level', 'shaders', 'frame'];
-const bootDone = new Set();
-const bootRing = document.querySelector('.bootFill');
-const RING_LEN = 232.5;      // must match stroke-dasharray in game.css
-function bootMark(step) {
-  if (bootDone.has(step)) return;
-  bootDone.add(step);
-  if (bootRing) bootRing.style.strokeDashoffset = String(RING_LEN * (1 - bootDone.size / BOOT_STEPS.length));
-}
-const bootReady = () => bootDone.size === BOOT_STEPS.length;
+/* MD 23 — CONTROLS MODAL. This supersedes MD 22 item 8 (a pulled-back camera
+   that eased into the player's eyes) and, with it, the last of MD 20's orbit
+   flyover. Both are gone rather than left dormant.
+   Pointer lock requires a user gesture and no browser will give it up. Two
+   earlier passes treated that as a barrier to disguise. This one spends it:
+   the gesture buys the five controls a player needs in their first ten
+   seconds, and the SAME action that reads them enters the game.
+   Consequences that shape the code below:
+     · the camera NEVER moves for the boot. The view behind the modal is the
+       player's own spawn view, so dismissing is a fade, not a transition —
+       and something that does not move cannot be a cut;
+     · dismissal has to happen INSIDE the gesture handler. requestPointerLock
+       is only honoured from a live user gesture, so hiding the modal and
+       asking for lock are one call, not a hide that schedules a lock;
+     · a movement key that dismisses must still MOVE. keydown fills keys[]
+       before any modal or lock guard, so W dismisses and walks in one press;
+     · it is page-load only. Respawning keeps lock, so there is no gesture to
+       recover and no reason to interrupt play. `booted` is module scope and a
+       session swap never resets it. */
+let booted = false;          // the modal has been dismissed
+const controlsX = document.getElementById('controlsX');
 
 let S = null;          // the active session (see startSession)
 
@@ -103,13 +89,27 @@ function feed(msg) {
   setTimeout(() => el.remove(), 1150);
 }
 function updateHint() {
-  // Shown once the player camera is live and until the mouse is captured —
-  // during the loading view there is nothing worth clicking yet.
+  // The in-match "you lost lock" line. Never while the modal is up: the modal
+  // already owns the screen, and two prompts at once is one too many.
   hintEl.classList.toggle('on', booted && state === 'playing' && document.pointerLockElement !== canvas);
 }
 function updateBootChrome() {
-  // The HUD belongs to the player, not to the loading view.
+  // `booting` dims the HUD behind the modal and hides the cursor.
   document.body.classList.toggle('booting', !booted);
+}
+
+/* The one place the modal is dismissed. MUST be called synchronously from a
+   real user gesture — requestPointerLock is rejected otherwise, and then the
+   modal is gone with no lock to show for it, which is the worst outcome of
+   the three. Idempotent: several handlers can race to call it. */
+function dismissControls() {
+  if (booted) return false;
+  booted = true;
+  updateBootChrome();
+  updateHint();
+  AudioFX.ensure();            // the same gesture unlocks the AudioContext
+  if (state === 'playing' && !locked) requestLock(2);
+  return true;
 }
 function setState(s) {
   state = s;
@@ -161,6 +161,14 @@ canvas.addEventListener('click', () => {
   AudioFX.ensure(); // first gesture also unlocks the AudioContext
   if (state === 'playing' && !locked) requestLock(2);
 });
+/* "Any click" means any click, including one that lands on the modal itself —
+   which sits above the canvas and would otherwise swallow it. Capture phase on
+   the window, so it runs before anything can stop propagation. */
+window.addEventListener('pointerdown', () => { dismissControls(); }, true);
+// The X is an affordance for anyone who goes looking for one. It does exactly
+// what every other input does, including taking the lock — closing the modal
+// without it would leave a cursor on a live game.
+controlsX?.addEventListener('click', (e) => { e.stopPropagation(); dismissControls(); });
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
   if (locked) {
@@ -192,7 +200,15 @@ document.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') e.preventDefault();
   if (e.repeat) { keys[e.code] = true; return; }
+  /* keys[] is filled BEFORE the modal is dismissed and before the lock guard
+     below, which is the whole reason pressing W both closes the modal and
+     starts you walking: movement reads keys[] every frame and does not care
+     whether the mouse is captured. Swallowing the key here would make the
+     first press of the game do nothing. */
   keys[e.code] = true;
+  // Any keypress dismisses — Escape included, since with no lock to release it
+  // would otherwise be the one key that leaves a player stuck on the modal.
+  dismissControls();
   // Escape while paused resumes (keydown is a user gesture, so the pointer
   // lock request is allowed to succeed here).
   if (e.code === 'Escape' && state === 'paused') { window.Arena1.resume(); return; }
@@ -255,7 +271,6 @@ function startSession(transport) {
 
   const R = createRenderScene(canvas);
   const { engine, scene, cam } = R;
-  bootMark('engine');
   try {
     const q = localStorage.getItem('arena1-quality');
     if (q !== null) R.setQuality(Number(q));
@@ -266,8 +281,12 @@ function startSession(transport) {
   const actors = createActors(R);
   const fx = createFx(R, world);
   const serpents = createSerpentView(R);
-  bootMark('level');
-  fx.setViewmodelVisible(booted);   // no gun until the camera is at the eyes
+  /* Visible BEHIND the modal too. The earlier boots hid it because the camera
+     was somewhere else and a floating gun would have looked wrong; this one is
+     already the player's own view, so hiding it would mean the gun pops into
+     existence on dismissal — a change in the world at the exact moment the
+     MD asks for none. The only thing that changes is the modal fading. */
+  fx.setViewmodelVisible(true);
 
   const sess = {
     transport, localId, level, world, R, levelView, actors, fx,
@@ -454,19 +473,10 @@ function startSession(transport) {
   }
 
   let fpsAcc = 0;
-  let framesDrawn = 0;
+
   engine.runRenderLoop(() => {
     if (S !== sess) return; // superseded mid-frame during a handoff
     const dt = pump();
-    /* The last two boot milestones can only be observed from in here.
-       `shaders` is scene.isReady() — Babylon compiles materials lazily, so a
-       camera that arrives before that lands is a camera looking at black.
-       `frame` waits for three DRAWN frames with a snapshot to interpolate, so
-       the pull-in never starts over a world that has not been posed yet. */
-    if (!booted) {
-      if (scene.isReady()) bootMark('shaders');
-      if (sess.lastSnap && ++framesDrawn >= 3) bootMark('frame');
-    }
     const now = performance.now() / 1000;
     coyoteT = (lastFlags & FLAG.GROUNDED) ? 0.1 : Math.max(0, coyoteT - dt);
     const alpha = sess.acc / SIM_DT;
@@ -494,41 +504,12 @@ function startSession(transport) {
         const bobY = grounded && !sliding ? Math.sin(sess.bob) * 0.03 * Math.min(1, hSpeed / 9) : 0;
         const shake = jetting ? (Math.random() - 0.5) * 0.012 : 0;
         const camX = px + shake, camY = py + sess.camH + bobY + shake, camZ = pz;
-        if (handoff > 0) {
-          /* Pulled back over the player's OWN spawn, looking at them, easing
-             to their eyes. The wide point is derived from the live camera
-             every frame rather than fixed in world space, so it works from any
-             spawn the level picks and stays correct if the player is already
-             walking during the intro. */
-          bootT += dt;
-          if (bootReady() && bootT >= BOOT_HOLD) handoff = Math.max(0, handoff - dt / BOOT_PULL);
-          const k = handoff * handoff * (3 - 2 * handoff);   // smoothstep, 1 = wide
-          const bx = camX - Math.sin(yaw) * BOOT_BACK;
-          const bz = camZ - Math.cos(yaw) * BOOT_BACK;
-          const by = camY + BOOT_UP;
-          // look at the player from the wide point; at k=0 this is unused
-          const dx = camX - bx, dy = camY - by, dz = camZ - bz;
-          const bYaw = Math.atan2(dx, dz);
-          const bPitch = -Math.atan2(dy, Math.hypot(dx, dz));
-          const lerp = (u, v) => v + (u - v) * k;
-          const angLerp = (u, v) => {
-            let d = u - v;
-            while (d > Math.PI) d -= Math.PI * 2;
-            while (d < -Math.PI) d += Math.PI * 2;
-            return v + d * k;
-          };
-          cam.position.set(lerp(bx, camX), lerp(by, camY), lerp(bz, camZ));
-          cam.rotation.set(angLerp(bPitch, pitch), angLerp(bYaw, yaw), sess.roll * (1 - k));
-          if (handoff === 0 && !booted) {
-            booted = true;
-            updateBootChrome();
-            updateHint();
-            fx.setViewmodelVisible(true);
-          }
-        } else {
-          cam.position.set(camX, camY, camZ);
-          cam.rotation.set(pitch, yaw, sess.roll);
-        }
+        /* One camera, always the player's. MD 20's orbit and MD 22's pull-in
+           both lived here; MD 23 retires them, because a boot the player
+           dismisses instantly must not be mid-move when they do. Nothing to
+           blend out of means nothing that can be interrupted badly. */
+        cam.position.set(camX, camY, camZ);
+        cam.rotation.set(pitch, yaw, sess.roll);
         const fovTarget = sliding ? 1.12 : 1.05;
         sess.fovT += (fovTarget - sess.fovT) * Math.min(1, 4 * dt);
         cam.fov += (sess.fovT - cam.fov) * Math.min(1, 10 * dt);

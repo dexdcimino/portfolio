@@ -16,37 +16,80 @@ html, body {
   display: block; outline: none;
   touch-action: none;
 }
-/* MD 22 item 8 — BOOT/LOADING. There is no title card any more, so this is
-   not "chrome over a flyover": it is the loading view, and it is gone within a
-   second or so of the first frame. The HUD stays out until the player camera
-   is live, and the OS arrow stays hidden the whole way through — an arrow
-   parked on a game canvas is the single loudest "this is broken" signal. */
-body.booting #hud > *:not(#boot) { opacity: 0; transition: opacity .25s ease; }
+/* MD 23 — CONTROLS MODAL. `booting` now means "the modal is up", not "a camera
+   is flying somewhere": the world behind is the player's own spawn view, live
+   and unmoved, so dismissing is a fade and never a cut. The HUD is dimmed
+   rather than hidden — it belongs to the player, and the player is already
+   here — and the OS arrow stays hidden throughout, because an arrow parked on
+   a game canvas is the single loudest "this is broken" signal there is. */
+/* Dim #hud AS A WHOLE, never child-by-child. A per-child rule sets opacity on
+   elements that were deliberately hidden and drags them back into view — it
+   surfaced the "CLICK FOR MOUSE LOOK" chip behind the modal, which is the one
+   piece of instruction text this MD bans. Dimming the container leaves each
+   child's own visibility rules intact. The modal is a sibling of #hud for the
+   same reason: it must not inherit the dimming it causes. */
+body.booting #hud { opacity: .18; transition: opacity .22s ease; }
 body.booting #game, body.booting #hud { cursor: none; }
 #game, #hud { cursor: none; }              /* the crosshair IS the cursor */
-#boot {
-  position: absolute; inset: 0; display: grid; place-content: center;
-  justify-items: center; gap: 16px; pointer-events: none;
-  opacity: 0; transition: opacity .3s ease;
-  /* An even wash rather than MD 20's top-weighted gradient: the pull-in ends
-     at eye level, so there is no one part of the frame the type has to win. */
-  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(13,17,22,.72), rgba(13,17,22,.42) 72%, rgba(13,17,22,.28) 100%);
+
+#controls {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  /* "Roughly a third of the screen each way" — clamped so it neither shrinks
+     to unreadable on a laptop nor sprawls on a 4K display. */
+  width: clamp(420px, 38vw, 640px); min-height: clamp(280px, 33vh, 420px);
+  box-sizing: border-box; padding: 34px 38px 30px;
+  display: grid; align-content: center; gap: 2px;
+  opacity: 0; pointer-events: none; transition: opacity .22s ease;
+  /* Arena 1's own chrome: the pause menu's dark plum panel, sand type, coral
+     and teal accents. Deliberately not a browser dialog. */
+  background: linear-gradient(180deg, rgba(30,20,38,.96), rgba(20,13,26,.97));
+  border: 2px solid var(--coral); border-radius: 14px;
+  box-shadow: 0 26px 70px rgba(0,0,0,.62), inset 0 1px 0 rgba(255,255,255,.06);
 }
-body.booting #boot { opacity: 1; }
-#bootRing { transform: rotate(-90deg); }   /* 12 o'clock start */
-.bootTrack { fill: none; stroke: rgba(240,229,208,.16); stroke-width: 4; }
-.bootFill {
-  fill: none; stroke: var(--teal); stroke-width: 4; stroke-linecap: round;
-  /* 2*pi*37. Set once here; main.js only moves the offset. */
-  stroke-dasharray: 232.5; stroke-dashoffset: 232.5;
-  transition: stroke-dashoffset .22s ease-out;
+body.booting #controls { opacity: 1; pointer-events: auto; }
+
+/* An affordance, not a call to action: quiet until you go looking for it. */
+#controlsX {
+  position: absolute; top: 10px; right: 12px;
+  width: 34px; height: 34px; padding: 0; line-height: 1;
+  background: none; border: 0; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: 24px; color: var(--sand); opacity: .38;
+  transition: opacity .15s ease, background .15s ease;
 }
-#bootWord {
-  font-size: 15px; font-weight: 800; letter-spacing: .34em; color: var(--sand);
-  opacity: .82; text-shadow: 0 2px 10px rgba(0,0,0,.9);
+#controlsX:hover, #controlsX:focus-visible { opacity: .95; background: rgba(255,255,255,.07); }
+
+#controlsRows { display: grid; gap: 14px; }
+.ctlRow {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px;
 }
-#bootWord span { color: var(--coral); }
-@media (prefers-reduced-motion: reduce) { .bootFill { transition: none } }
+.ctlAct {
+  /* Large and sparse: five lines a new player reads at a glance, not a manual. */
+  font-size: clamp(15px, 1.45vw, 21px); font-weight: 800; letter-spacing: .13em;
+  color: var(--sand);
+}
+.ctlKeys { display: flex; align-items: center; gap: 7px; justify-self: end; }
+.ctlKeys kbd {
+  display: inline-grid; place-content: center; box-sizing: border-box;
+  min-width: 2.2em; padding: .42em .6em;
+  font: inherit; font-size: clamp(13px, 1.2vw, 18px); font-weight: 800; letter-spacing: .1em;
+  color: var(--teal);
+  background: rgba(255,255,255,.055);
+  border: 2px solid rgba(255,255,255,.16);
+  border-bottom-width: 4px;              /* reads as a keycap, not a chip */
+  border-radius: 7px;
+}
+.ctlKeys kbd.wide { letter-spacing: .13em; }
+.ctlKeys em {
+  font-style: normal; font-size: clamp(10px, .85vw, 13px); letter-spacing: .1em;
+  color: var(--sand); opacity: .55; margin-left: 2px;
+}
+@media (max-width: 560px) {
+  #controls { width: min(92vw, 460px); padding: 26px 20px 22px; }
+  .ctlRow { grid-template-columns: 1fr; gap: 6px; }
+  .ctlKeys { justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) { #controls { transition: none } }
+
 
 
 #hud {
