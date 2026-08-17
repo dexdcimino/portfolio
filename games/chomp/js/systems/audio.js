@@ -92,10 +92,17 @@ const SAMPLES = {
    so there is no second fader here to disagree with. Deliberately quiet at
    source as well: music sits UNDER the FX, and a track that only sits back
    because the default slider says so is one bad drag away from drowning the
-   game. Same shape and same 0.45 as Arena 1, so one music slider means the same
-   loudness in both games.
+   game.
+
+   0.57, not Arena 1's 0.45, and the difference is the point: these are two
+   different recordings. Matching the NUMBER does not match the loudness — the
+   old track measured 0.243 in its loudest 300ms window and this one 0.193, so
+   holding 0.45 would have quietly dropped the music ~20% when the track was
+   swapped. 0.45 × (0.243 / 0.193) ≈ 0.57 lands it exactly where the previous
+   track sat, which is the level that was signed off.
    `loop = true` on the BufferSource is a sample-accurate loop with no gap —
    the reason this is a decoded buffer and not an <audio> element. */
+const MUSIC_GAIN = 0.57;
 let musicNode = null;
 function startMusic() {
   if (musicNode || !samples || !busGraph) return;
@@ -105,7 +112,7 @@ function startMusic() {
   musicNode.buffer = buf;
   musicNode.loop = true;
   const g = ctx.createGain();
-  g.gain.value = 0.45;
+  g.gain.value = MUSIC_GAIN;
   musicNode.connect(g); g.connect(busGraph.music);
   musicNode.start();
 }

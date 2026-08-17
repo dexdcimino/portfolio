@@ -22,7 +22,7 @@ nothing in Chomp depends on user-visible attribution.
 | `games/chomp/assets/audio/evolve.ogg` | Chomp | Stage up / growth (`player:evolve`) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
 | `games/chomp/assets/audio/death.ogg` | Chomp | Death (`player:death`) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
 | `games/chomp/assets/audio/ui-select.ogg` | Chomp | Pause-menu button press | https://kenney.nl/assets/interface-sounds | Kenney | CC0 |
-| `games/chomp/assets/audio/music.ogg` | Chomp | Background music (54.9s, looped) | https://opengameart.org/content/dark-place-loop | SkyleTheFrench | CC0 |
+| `games/chomp/assets/audio/music.ogg` | Chomp | Background music (56.6s, looped) | https://opengameart.org/content/dark-shrine-loop | qubodup (remix of yd's "Shrine") | CC0 |
 
 Four of the five come from one pack — Kenney **"Impact Sounds"**, CC0 — and the
 UI sound from Kenney **"Interface Sounds"**, CC0. Licence text is bundled in
@@ -39,15 +39,17 @@ Renamed on the way in, so the mapping back to the pack is recorded:
 | `evolve.ogg` | `Audio/impactBell_heavy_001.ogg` | Impact Sounds |
 | `death.ogg` | `Audio/impactMining_003.ogg` | Impact Sounds |
 | `ui-select.ogg` | `Audio/select_005.ogg` | Interface Sounds |
-| `music.ogg` | `dark_place_0.ogg` | OpenGameArt — Dark Place (loop) |
+| `music.ogg` | `qubodup-yd-DarkShrineLoop-OpenGameArt.ogg` | OpenGameArt — Dark Shrine Loop |
 
 Files are byte-identical to the source originals. That is deliberate: it makes
 the rename map above verifiable by hash against a fresh download, which it
 would not be if they had been re-encoded. `music.ogg` was checked that way —
-SHA-256 `c78a433139ace4a050b5d4a1b9b94bcf…`, matching a fresh pull of
-`https://opengameart.org/sites/default/files/dark_place_0.ogg` byte for byte
-(1,758,616 bytes). The file's own Vorbis tags are empty (FL Studio export with
-no TITLE/ARTIST written), so the hash is the provenance, not the metadata.
+SHA-256 `9580618dc851f70c3a11b5ff87672867de44cd38…`, matching a fresh pull of
+`https://opengameart.org/sites/default/files/qubodup-yd-DarkShrineLoop-OpenGameArt.ogg`
+byte for byte (678,630 bytes).
+
+The source page describes it as "a slight remix of yd's LMMS-made *Shrine*",
+so both are credited above even though CC0 requires neither.
 
 ## Why these five, out of 180 auditioned
 
@@ -97,14 +99,45 @@ safety net, not a mixing tool.
 ## Music
 
 `music.ogg` is one looping `AudioBufferSourceNode` on the music bus, held at
-**0.45 at source** and started once the context exists — the same shape and the
-same number Arena 1 uses, so one Music slider means the same loudness in both
-games. `loop = true` on a decoded buffer is a sample-accurate, gapless loop,
-which is why it is not an `<audio>` element.
+**0.57 at source** and started once the context exists. `loop = true` on a
+decoded buffer is a sample-accurate, gapless loop, which is why it is not an
+`<audio>` element.
 
 It is the only file here whose load result is awaited: a one-shot that decodes
 late merely plays late, but music told to start before its buffer exists never
 starts at all.
+
+### Why this track, and why 0.57
+
+The first track (*Dark Place*, SkyleTheFrench) had the right mood but was too
+slow. Replacements were ranked by measurement rather than by title — every
+candidate decoded, then scored for tempo (onset-strength envelope,
+autocorrelated over 60–190 BPM), beat strength, and brightness:
+
+| Track | BPM | Beat strength | Centroid | Energy < 500 Hz | Size |
+| ----- | --- | ------------- | -------- | --------------- | ---- |
+| *Dark Place* (previous) | 140 | 0.40 | 3371 Hz | 48% | 1.68 MB |
+| **Dark Shrine Loop (shipped)** | **178** | **0.49** | **2381 Hz** | 21% | **0.66 MB** |
+| *Insistent* (runner-up) | 157 | 0.38 | 2116 Hz | 56% | 1.69 MB |
+| *Chase in the Night* | 129 | 0.51 | 2240 Hz | 58% | 2.81 MB |
+| *The Hunt* | 178 | 0.16 | 3888 Hz | 36% | 7.63 MB |
+| *The Ritual* | 80 | 0.20 | 4511 Hz | 26% | 5.04 MB |
+
+Dark Shrine is 27% faster than what it replaces, with a stronger pulse, a
+*darker* spectrum, and a quarter of the file size. The one regression is
+low-end weight — 21% of its energy sits under 500 Hz against the old track's
+48%, so it is faster and darker but less heavy. *Insistent* is the swap if that
+weight is missed: slower (157) but 56% low-end.
+
+The gain is **0.57, not Arena 1's 0.45**, because matching the number does not
+match the loudness. Measured in the loudest 300 ms window, the old track sat at
+0.243 and this one at 0.193; holding 0.45 would have dropped the music about
+20% purely as a side effect of the swap. 0.45 × (0.243 / 0.193) ≈ 0.57 puts it
+back exactly where the approved track sat.
+
+Worth knowing: Arena 1's own track measures 0.366 — half again as loud as
+Chomp's — so the two games have never actually matched at a shared 0.45, whatever
+the comments in either file claimed.
 
 ## Not sourced
 
