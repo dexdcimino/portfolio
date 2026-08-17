@@ -69,28 +69,29 @@
     <!-- No title screen: the world boots live. Pointer lock still needs one
          user gesture, so this small chip invites the click and vanishes the
          moment the lock lands (full controls live in the pause menu). -->
-    <div id="lockHint" class="on">CLICK FOR MOUSE LOOK · ESC PAUSES</div>
-    </div>
+    <div id="lockHint" class="on">CLICK FOR MOUSE LOOK &#183; ESC PAUSES</div>
+  </div>
+  <!-- MD 23 — CONTROLS MODAL. Pointer lock needs a user gesture and the
+       browser gives no way round that, so rather than spend the gesture on a
+       CLICK TO PLAY card that teaches nothing, it buys the one screen a new
+       player actually reads. Any click or any keypress dismisses this AND
+       acquires lock in the same action, so it is information rather than a
+       gate — which is exactly why there is no "press any key" line anywhere
+       in here. Telling someone to dismiss it would turn it back into one.
+       The X is an affordance for anyone hunting for a close button; it is
+       not the intended path and is styled not to read as one.
+       A SIBLING of #hud, not a child: body.booting dims #hud as a whole, and
+       the modal must not inherit the dimming it causes. -->
+  <div id="controls">
+    <button id="controlsX" type="button" aria-label="Close">&#215;</button>
+    <div id="controlsRows">
+      <div class="ctlRow"><span class="ctlAct">MOVE</span><span class="ctlKeys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
+      <div class="ctlRow"><span class="ctlAct">JUMP / JETPACK</span><span class="ctlKeys"><kbd class="wide">SPACE</kbd><em>hold mid-air</em></span></div>
+      <div class="ctlRow"><span class="ctlAct">DASH</span><span class="ctlKeys"><kbd class="wide">SHIFT</kbd></span></div>
+      <div class="ctlRow"><span class="ctlAct">SHOOT</span><span class="ctlKeys"><kbd class="wide">LEFT CLICK</kbd></span></div>
+      <div class="ctlRow"><span class="ctlAct">GRAPPLE</span><span class="ctlKeys"><kbd class="wide">RIGHT CLICK</kbd></span></div>
     </div>
   </div>
-    <!-- MD 23 — CONTROLS MODAL. Pointer lock needs a user gesture and the
-         browser gives no way round that, so rather than spend the gesture on a
-         CLICK TO PLAY card that teaches nothing, it buys the one screen a new
-         player actually reads. Any click or any keypress dismisses this AND
-         acquires lock in the same action, so it is information rather than a
-         gate — which is exactly why there is no "press any key" line anywhere
-         in here. Telling someone to dismiss it would turn it back into one.
-         The X is an affordance for anyone hunting for a close button; it is
-         not the intended path and is styled not to read as one. -->
-    <div id="controls">
-      <button id="controlsX" type="button" aria-label="Close">&#215;</button>
-      <div id="controlsRows">
-        <div class="ctlRow"><span class="ctlAct">MOVE</span><span class="ctlKeys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
-        <div class="ctlRow"><span class="ctlAct">JUMP / JETPACK</span><span class="ctlKeys"><kbd class="wide">SPACE</kbd><em>hold mid-air</em></span></div>
-        <div class="ctlRow"><span class="ctlAct">DASH</span><span class="ctlKeys"><kbd class="wide">SHIFT</kbd></span></div>
-        <div class="ctlRow"><span class="ctlAct">SHOOT</span><span class="ctlKeys"><kbd class="wide">LEFT CLICK</kbd></span></div>
-        <div class="ctlRow"><span class="ctlAct">GRAPPLE</span><span class="ctlKeys"><kbd class="wide">RIGHT CLICK</kbd></span></div>
-      </div>
   <!-- Pause overlay: main.js's setState('paused') shows it, pausemenu.js
        fills it. Starts hidden; the menu binds no keys (main owns Escape). -->
   <div id="paused" class="hidden"></div>
