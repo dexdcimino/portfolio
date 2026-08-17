@@ -1649,9 +1649,17 @@ initTabs(document.querySelector('.ai-tabs'));
       frame.title = title;
       const tab = dialog.querySelector('#appOpenTab');
       if (tab) tab.href = url;
+      /* embed=1 tells the app it is already inside a phone-shaped frame, so it
+         renders full-bleed instead of drawing its own device frame. It used to
+         infer that from window.innerWidth, which worked only while this modal
+         was narrow enough to pass for a phone — once the frame grew, the app
+         saw a desktop-width viewport and drew a second, smaller phone inside
+         this one. The link out and the mobile path stay clean URLs; only the
+         iframe carries the flag. */
+      const embedUrl = url + (url.includes('?') ? '&' : '?') + 'embed=1';
       // Set src on open, not in the markup: otherwise every visitor downloads
       // the whole bundle whether or not they ever click the card.
-      if (frame.getAttribute('src') !== url) frame.setAttribute('src', url);
+      if (frame.getAttribute('src') !== embedUrl) frame.setAttribute('src', embedUrl);
       openModal(dialog, dialog.querySelector('.app-shell'), null, card);
     });
   });

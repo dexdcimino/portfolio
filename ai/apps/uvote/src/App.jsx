@@ -993,14 +993,27 @@ export default function Splitmob() {
     }, 70);
   }, [all, scrollTo]);
 
-  /* on a real phone, drop the fake device frame and go full-bleed */
-  const [isPhone, setIsPhone] = useState(false);
+  /* On a real phone, drop the fake device frame and go full-bleed.
+
+     ?embed=1 forces the same thing. The portfolio opens this in a phone-shaped
+     iframe, so the frame is already there and drawing a second one inside it is
+     the bug: a 420x880 device floating in the middle of a device. Inferring it
+     from width alone was fine while the modal was ~420px wide and broke the
+     moment it got bigger — at 1440p the iframe is 623px, reads as a desktop,
+     and renders the fake frame. The embedder knows it is embedding; it should
+     say so rather than leave it to a threshold to guess. */
+  const embedded = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("embed") === "1";
+  }, []);
+  const [isPhone, setIsPhone] = useState(embedded);
   useEffect(() => {
+    if (embedded) return;
     const check = () => setIsPhone(window.innerWidth <= 500);
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
-  }, []);
+  }, [embedded]);
 
   const cur = list[idx];
   const dockAccent = cur ? mix(CAT_HEX[cur.cat], T.blend, T.amt) : mix(CAT_HEX.life, T.blend, T.amt);
