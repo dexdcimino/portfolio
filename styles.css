@@ -1273,9 +1273,17 @@ button.button{cursor:pointer;font-family:inherit}
    paragraph is not chunky: out toward the glyph column above (42px inset =
    30px track + the rows' 12px side padding), then pulled back 10% of the
    width, which full-to-the-column overshot. */
-.game-desc{padding:22px 42px 0 12px}
-.game-desc-lead{display:block;font-size:17px;line-height:1.45;color:var(--text);max-width:626px}
-.game-desc-body{margin:14px 10% 0 0;color:#adb5bb;line-height:1.72;font-size:var(--copy-size)}
+/* Hook and body share ONE measure. They used to have two different ones — the
+   hook capped at 626px, the body at 90% of the column — so on a wide screen the
+   hook wrapped inside a box narrower than the paragraph beneath it, which is
+   what made a one-sentence hook break into two lines while the longer text
+   below it ran wider. Same left edge, same right edge, one block.
+   760px is set by the longest hook (Stickland's, which needs 709px on one line)
+   plus slack, and is still a sane measure for the body. The 42px right padding
+   went with it: it was 42px of the hook's line length spent on nothing. */
+.game-desc{padding:22px 12px 0 12px;--desc-measure:760px}
+.game-desc-lead{display:block;font-size:17px;line-height:1.45;color:var(--text);max-width:var(--desc-measure)}
+.game-desc-body{margin:14px 0 0;color:#adb5bb;line-height:1.72;font-size:var(--copy-size);max-width:var(--desc-measure)}
 
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
