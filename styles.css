@@ -2394,11 +2394,20 @@ body.modal-open{overflow:hidden}
 }
 .app-modal[open]{display:grid;place-items:center}
 .app-modal::backdrop{background:rgba(4,6,8,.78);backdrop-filter:blur(4px)}
-.app-shell{position:relative;display:grid;justify-items:center;gap:10px}
+.app-shell{position:relative;display:grid;justify-items:center;gap:8px}
 /* Outside the phone, not on it — that rectangle belongs to the app. */
 .app-close{position:absolute;top:-6px;right:-52px;z-index:3}
 .app-phone{
-  height:min(92vh,880px);
+  /* Sized from HEIGHT so the phone grows with the window. The 880px cap this
+     replaces was the reason a tall monitor showed a small phone floating in a
+     field of backdrop: 92vh of a 1200px window is 1104px, and the cap threw
+     away every pixel past 880. 1240 is set by the WIDTH instead — at this
+     ratio it lands the frame at ~628px, still comfortably under the 768px
+     threshold the app's own isPhone check uses, so it keeps rendering
+     full-bleed with no device chrome. (768px of width would need 1664px of
+     height, so the cap can rise a long way before that breaks.) dvh, not vh,
+     so a mobile browser's retracting toolbar does not crop it. */
+  height:min(94dvh,1360px);
   aspect-ratio:9/19.5;
   max-width:calc(100vw - 120px);   /* leaves room for the close button beside it */
   border-radius:28px;

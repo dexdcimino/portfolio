@@ -40,6 +40,14 @@ const mixList = (stops, t) => {
   return mix(stops[i], stops[i + 1], f);
 };
 
+/* One full sunrise-to-sunrise in ten minutes, advanced once a second. Both
+   numbers are read by the app's day-cycle timer and by SkyScene's transition,
+   which have to agree: the transition lasts exactly one tick, so the sun is
+   always still gliding toward the next position when it is set. Shorten the
+   tick without shortening the transition and the motion stutters again. */
+const DAY_MS = 600000;
+const DAY_TICK_MS = 1000;
+
 const THEMES = {
   sky: {
     name: "Sky", note: "sun and moon, real time of day", live: true,
@@ -121,9 +129,21 @@ const seeded = (n, seed) => {
   return Array.from({ length: n }, () => r());
 };
 
-function SkyScene({ t }) {
+function SkyScene({ t, reduce }) {
   const { p, day } = t.scene;
   const stars = useMemo(() => seeded(120, 7), []);
+  /* The body moves once a second; this glides it across the gap so the arc
+     reads as continuous rather than as one hop per tick. linear, because any
+     easing would make each individual step visible as its own little
+     accelerate-and-stop. left/top rather than transform: it is a single
+     element moving 0.3% a second, the layout cost is nil, and percentages of
+     the frame are what the arc maths already produces.
+     The wrap-around at midnight is the one jump that must NOT be smoothed —
+     the body leaves at one edge and re-enters at the other, and interpolating
+     that would fly it backwards across the whole sky. */
+  const wrapping = p < DAY_TICK_MS / DAY_MS || Math.abs(p - .25) < DAY_TICK_MS / DAY_MS
+                || Math.abs(p - .75) < DAY_TICK_MS / DAY_MS;
+  const glide = reduce || wrapping ? "none" : `left ${DAY_TICK_MS}ms linear, top ${DAY_TICK_MS}ms linear`;
   // sun arcs 0.25→0.75, moon the rest
   const isSun = p >= .25 && p < .75;
   const local = isSun ? (p - .25) / .5 : (p < .25 ? p + .25 : p - .75) / .5;
@@ -144,6 +164,7 @@ function SkyScene({ t }) {
       <div className="absolute rounded-full" style={{
         left: `${x}%`, top: `${y}%`, width: 62, height: 62, marginLeft: -31, marginTop: -31,
         background: body, boxShadow: `0 0 70px 22px ${rgba(glow, .45)}`,
+        transition: glide,
       }} />
       {/* haze */}
       <div className="absolute left-0 right-0" style={{ top: "40%", height: "45%", background: `linear-gradient(180deg, transparent, ${rgba(isSun ? "#FFD9A0" : "#4A4E86", .22)})` }} />
@@ -258,7 +279,7 @@ function PaperScene() {
 function Scene({ id, t, reduce }) {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ background: t.page, transition: "background 600ms linear" }}>
-      {id === "sky" && <SkyScene t={t} />}
+      {id === "sky" && <SkyScene t={t} reduce={reduce} />}
       {id === "rain" && <RainScene reduce={reduce} />}
       {id === "deep" && <DeepScene reduce={reduce} />}
       {id === "ember" && <EmberScene reduce={reduce} />}
@@ -354,6 +375,10 @@ const Ico = {
   flag: (c) => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4M5 5h11l-2 3.5L16 12H5" /></svg>,
   undo: (c) => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9h11a4.5 4.5 0 010 9h-5M4 9l4-4M4 9l4 4" /></svg>,
   user: (c) => <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8.5" r="3.6" /><path d="M4.8 20a7.4 7.4 0 0114.4 0" /></svg>,
+  close: (c) => <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>,
+  sun: (c) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7" /></svg>,
+  dots: (c) => <svg viewBox="0 0 24 24" width="19" height="19" fill={c}><circle cx="5" cy="12" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="19" cy="12" r="1.9" /></svg>,
+  back: (c) => <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>,
 };
 
 function useCounter(target, run, reduce) {
@@ -485,7 +510,7 @@ function Card({ poll, choice, onVote, onChange, onShare, onFlag, canChange, flag
             fontFamily: "var(--mono)", fontSize: 11, color: C.ink,
             opacity: voted ? 0 : .55,
             animation: verdict && !reduce ? "uvIn 460ms 400ms forwards" : "none",
-          }}>{verdict || "Tap to vote"}</span>
+          }}>{verdict}</span>
 
           <span className="flex items-center gap-1.5 shrink-0">
             {voted && canChange && (
@@ -509,7 +534,10 @@ function Card({ poll, choice, onVote, onChange, onShare, onFlag, canChange, flag
 }
 
 /* ═══════════════ SHEETS ═══════════════ */
-function Sheet({ title, sub, C, onClose, children, footer }) {
+/* `actions` renders top-right of the sheet head, beside the title. Everything
+   in a sheet is inside the bottom 50% by construction, so controls are allowed
+   here in a way they are not in the header or the question card. */
+function Sheet({ title, sub, C, onClose, children, footer, actions }) {
   return (
     <div className="absolute inset-0 z-40">
       <button aria-label="Close" onClick={onClose} className="absolute inset-0 cursor-default" style={{ background: C.scrim, backdropFilter: "blur(2px)" }} />
@@ -517,8 +545,13 @@ function Sheet({ title, sub, C, onClose, children, footer }) {
         style={{ height: "50%", background: C.sheet, borderTop: `1px solid ${C.edge}`, animation: "uvUp 320ms cubic-bezier(.22,1,.36,1)" }}>
         <div className="px-5 pt-4 pb-3 shrink-0">
           <div className="mx-auto w-9 h-1 rounded-full mb-4" style={{ background: C.faint }} />
-          <h3 style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: 21, color: C.ink, letterSpacing: "-.04em" }}>{title}</h3>
-          {sub && <p className="mt-1" style={{ fontFamily: "var(--mono)", fontSize: 11, color: C.muted }}>{sub}</p>}
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <h3 style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: 21, color: C.ink, letterSpacing: "-.04em" }}>{title}</h3>
+              {sub && <p className="mt-1" style={{ fontFamily: "var(--mono)", fontSize: 11, color: C.muted }}>{sub}</p>}
+            </div>
+            {actions && <span className="flex items-center gap-1.5 shrink-0">{actions}</span>}
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto uv-nobar px-5 min-h-0">{children}</div>
         {footer && <div className="px-5 pt-2 pb-4 shrink-0">{footer}</div>}
@@ -526,51 +559,116 @@ function Sheet({ title, sub, C, onClose, children, footer }) {
     </div>
   );
 }
+/* Round icon button for a sheet's head row. */
+const HeadBtn = ({ C, onClick, label, on, children }) => (
+  <button onClick={onClick} aria-label={label} title={label}
+    className="w-10 h-10 rounded-full grid place-items-center shrink-0"
+    style={{ background: on ? C.ink : C.faint, color: on ? C.sheet : C.ink }}>{children}</button>
+);
 const Flat = ({ C, onClick, label }) => (
   <button onClick={onClick} className="w-full py-3.5 rounded-2xl" style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: 15, background: C.faint, color: C.ink }}>{label}</button>
 );
 
-function Settings({ C, themeId, setThemeId, onClose }) {
+/* One window, two panes. The dock's left button opens it; the head row carries
+   the pane toggle and the close button, in that order, so close stays furthest
+   right where it is on every other sheet.
+   `allowCategories` is false on the profile, where filtering the feed you are
+   not looking at is a control with nothing to act on — there it opens straight
+   to Look and feel with no toggle at all. */
+function SettingsSheet({ C, themeId, setThemeId, cats, setCats, counts, onClose, allowCategories }) {
+  const [pane, setPane] = useState(allowCategories ? "cats" : "look");
+  const showing = allowCategories ? pane : "look";
+  const isCats = showing === "cats";
+
+  /* Multi-select. Everything is not a category, it is the absence of a
+     filter — selecting it clears the set, and clearing the set is what
+     "everything" means everywhere else in the app. So the last category you
+     switch off lands you back on everything rather than on an empty feed. */
+  const toggle = (k) => {
+    if (k === "all") { setCats(new Set()); return; }
+    setCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
+
   return (
-    <Sheet title="Look and feel" sub="The scene behind changes as you tap" C={C} onClose={onClose} footer={<Flat C={C} onClick={onClose} label="Done" />}>
-      <div className="space-y-2 pb-3">
-        {Object.entries(THEMES).map(([id, t]) => {
-          const on = themeId === id;
-          return (
-            <button key={id} onClick={() => setThemeId(id)} className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl border"
-              style={{ background: on ? C.faint : "transparent", borderColor: on ? C.ink : C.edge }}>
-              <span className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 grid grid-cols-2 grid-rows-2">
-                {t.swatch.map((s, i) => <span key={i} style={{ background: s }} />)}
-              </span>
-              <span className="flex-1 text-left">
-                <span className="block" style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15, color: C.ink }}>{t.name}</span>
-                <span className="block" style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.muted }}>{t.note}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+    <Sheet C={C} onClose={onClose}
+      title={isCats ? "What are we arguing about?" : "Look and feel"}
+      sub={isCats ? "Pick as many as you like" : "The scene behind changes as you tap"}
+      actions={
+        <>
+          {allowCategories && (
+            <HeadBtn C={C} onClick={() => setPane(isCats ? "look" : "cats")}
+              label={isCats ? "Look and feel" : "Categories"}>
+              {isCats ? Ico.sun(C.ink) : Ico.grid(C.ink)}
+            </HeadBtn>
+          )}
+          <HeadBtn C={C} onClick={onClose} label="Close">{Ico.close(C.ink)}</HeadBtn>
+        </>
+      }
+      footer={<Flat C={C} onClick={onClose} label="Done" />}>
+
+      {isCats ? (
+        <div className="grid grid-cols-2 gap-2 pb-3">
+          {["all", ...CAT_ORDER].map((k) => {
+            const on = k === "all" ? cats.size === 0 : cats.has(k);
+            return (
+              <button key={k} onClick={() => toggle(k)} aria-pressed={on}
+                className="flex items-center justify-between px-3.5 py-3 rounded-2xl border"
+                style={{ background: on ? C.ink : "transparent", borderColor: on ? "transparent" : C.edge, color: on ? C.sheet : C.ink }}>
+                <span className="flex items-center gap-2">
+                  {k !== "all" && <span className="w-2.5 h-2.5 rounded-full" style={{ background: CAT_HEX[k] }} />}
+                  <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 14 }}>{k === "all" ? "Everything" : CAT_LABEL[k]}</span>
+                </span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, opacity: .55 }}>{counts[k]}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-2 pb-3">
+          {Object.entries(THEMES).map(([id, t]) => {
+            const on = themeId === id;
+            return (
+              <button key={id} onClick={() => setThemeId(id)} className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl border"
+                style={{ background: on ? C.faint : "transparent", borderColor: on ? C.ink : C.edge }}>
+                <span className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 grid grid-cols-2 grid-rows-2">
+                  {t.swatch.map((s, i) => <span key={i} style={{ background: s }} />)}
+                </span>
+                <span className="flex-1 text-left">
+                  <span className="block" style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15, color: C.ink }}>{t.name}</span>
+                  <span className="block" style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.muted }}>{t.note}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </Sheet>
   );
 }
 
-function Filter({ C, filter, setFilter, counts, onClose }) {
+/* The dock's right-hand button on the feed. Share and report also sit on the
+   card itself, where they act on the question under your thumb; here they act
+   on whatever is on screen, which is the same poll. */
+function ActionsSheet({ C, onShare, onFlag, onProfile, onClose }) {
+  const row = (label, note, fn) => (
+    <button key={label} onClick={fn} className="w-full text-left px-4 py-3.5 rounded-2xl border"
+      style={{ borderColor: C.edge }}>
+      <span className="block" style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15, color: C.ink }}>{label}</span>
+      <span className="block mt-0.5" style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.muted }}>{note}</span>
+    </button>
+  );
   return (
-    <Sheet title="What are we arguing about?" C={C} onClose={onClose} footer={<Flat C={C} onClick={onClose} label="Close" />}>
-      <div className="grid grid-cols-2 gap-2 pb-3">
-        {["all", ...CAT_ORDER].map((k) => {
-          const on = filter === k;
-          return (
-            <button key={k} onClick={() => { setFilter(k); onClose(); }} className="flex items-center justify-between px-3.5 py-3 rounded-2xl border"
-              style={{ background: on ? C.ink : "transparent", borderColor: on ? "transparent" : C.edge, color: on ? C.sheet : C.ink }}>
-              <span className="flex items-center gap-2">
-                {k !== "all" && <span className="w-2.5 h-2.5 rounded-full" style={{ background: CAT_HEX[k] }} />}
-                <span style={{ fontFamily: "var(--disp)", fontWeight: 700, fontSize: 14 }}>{k === "all" ? "Everything" : CAT_LABEL[k]}</span>
-              </span>
-              <span style={{ fontFamily: "var(--mono)", fontSize: 10, opacity: .55 }}>{counts[k]}</span>
-            </button>
-          );
-        })}
+    <Sheet title="Actions" C={C} onClose={onClose}
+      actions={<HeadBtn C={C} onClick={onClose} label="Close">{Ico.close(C.ink)}</HeadBtn>}
+      footer={<Flat C={C} onClick={onClose} label="Close" />}>
+      <div className="space-y-2 pb-3">
+        {row("Share the split", "Results, not just a link", onShare)}
+        {row("Report this question", "It stays up while we look at it", onFlag)}
+        {row("Your profile", "Votes cast, questions asked", onProfile)}
       </div>
     </Sheet>
   );
@@ -778,22 +876,35 @@ export default function Splitmob() {
   const [changed, setChanged] = useState({});
   const [flags, setFlags] = useState({});
   const [bumps, setBumps] = useState({});
-  const [filter, setFilter] = useState("all");
+  /* A SET of category keys, not one key. Empty means everything — which keeps
+     "no filter" and "all categories selected" from being two states that have
+     to be kept in sync, and means the feed can never end up empty. */
+  const [cats, setCats] = useState(() => new Set());
   const [idx, setIdx] = useState(0);
   const [mine, setMine] = useState([]);
   const [sheet, setSheet] = useState(null);
   const [page, setPage] = useState("feed");
   const [toast, setToast] = useState(null);
-  const feed = useRef(null), frame = useRef(null), head = useRef(null);
+  const feed = useRef(null), frame = useRef(null), head = useRef(null), swipe = useRef(null);
   const [topRow, setTopRow] = useState(300);
   const [phase, setPhase] = useState(() => { const d = new Date(); return (d.getHours() * 60 + d.getMinutes()) / 1440; });
 
   const reduce = useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches, []);
 
-  /* day cycle: starts at your real local time, then a full day every 100s */
+  /* Day cycle: starts at your real local time, then runs a full day every
+     DAY_MS. It used to be 100s a day advanced in 1/200 jumps twice a second —
+     which is why the sun visibly hopped and dawn arrived like a light switch.
+     Two things fix that and they work together:
+       · the cycle is six times longer, so every step is six times smaller;
+       · the step is now one per SECOND and the sun/moon carries a CSS
+         transition of exactly that length (see SkyScene), so the browser
+         interpolates the positions in between instead of teleporting.
+     The sky gradient cannot be transitioned — CSS does not interpolate
+     linear-gradient — but at this speed each step moves it by an amount too
+     small to see, which is the same result by a different route. */
   useEffect(() => {
     if (themeId !== "sky" || reduce) return;
-    const t = setInterval(() => setPhase((p) => (p + 1 / 200) % 1), 500);
+    const t = setInterval(() => setPhase((p) => (p + DAY_TICK_MS / DAY_MS) % 1), DAY_TICK_MS);
     return () => clearInterval(t);
   }, [themeId, reduce]);
 
@@ -807,8 +918,15 @@ export default function Splitmob() {
     return a;
   }, []);
   const all = useMemo(() => [...mine, ...deck], [mine, deck]);
-  const list = useMemo(() => (filter === "all" ? all : all.filter((p) => p.cat === filter)), [all, filter]);
+  const list = useMemo(() => (cats.size === 0 ? all : all.filter((p) => cats.has(p.cat))), [all, cats]);
   const counts = useMemo(() => { const c = { all: all.length }; CAT_ORDER.forEach((k) => (c[k] = all.filter((p) => p.cat === k).length)); return c; }, [all]);
+  /* The header is one line and must never wrap — it is what the thumb rule
+     measures the top row against. Two names fit; past that, count them. */
+  const catLabel = useMemo(() => {
+    if (cats.size === 0) return "everything";
+    const names = [...cats].map((k) => CAT_LABEL[k].toLowerCase());
+    return names.length <= 2 ? names.join(" · ") : `${names.length} categories`;
+  }, [cats]);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -822,7 +940,7 @@ export default function Splitmob() {
   }, []);
 
   const scrollTo = useCallback((i) => { const el = feed.current; if (el) el.scrollTo({ top: i * el.clientHeight, behavior: reduce ? "auto" : "smooth" }); }, [reduce]);
-  useEffect(() => { feed.current?.scrollTo({ top: 0 }); setIdx(0); }, [filter]);
+  useEffect(() => { feed.current?.scrollTo({ top: 0 }); setIdx(0); }, [cats]);
 
   const castVote = useCallback((p, n) => {
     setVotes((v) => ({ ...v, [p.id]: n }));
@@ -868,7 +986,7 @@ export default function Splitmob() {
 
   /* jump from a profile row back to that card in the feed */
   const openPoll = useCallback((poll) => {
-    setFilter("all"); setPage("feed");
+    setCats(new Set()); setPage("feed");
     setTimeout(() => {
       const i = all.findIndex((x) => x.id === poll.id);
       if (i >= 0) { scrollTo(i); setIdx(i); }
@@ -921,13 +1039,26 @@ export default function Splitmob() {
           <div className="flex items-baseline justify-between">
             <span style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: 19, color: C.ink, letterSpacing: "-.06em" }}>{APP_NAME}</span>
             <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: C.muted }}>
-              {page === "me" ? "your activity" : filter === "all" ? "everything" : CAT_LABEL[filter].toLowerCase()} · {Object.keys(votes).length} cast
+              {page === "me" ? "your activity" : catLabel} · {Object.keys(votes).length} cast
             </span>
           </div>
         </header>
 
         {page === "me" && (
-          <div className="flex-1 min-h-0">
+          /* Swipe right anywhere on the profile to go back, the same gesture
+             the platform uses for back. Tracked on pointer events so it works
+             for touch and mouse alike; the vertical check keeps it from firing
+             while you are scrolling the list, and the list scrolls vertically
+             so the two gestures never compete. */
+          <div className="flex-1 min-h-0" style={{ touchAction: "pan-y" }}
+            onPointerDown={(e) => { swipe.current = { x: e.clientX, y: e.clientY }; }}
+            onPointerUp={(e) => {
+              const s = swipe.current; swipe.current = null;
+              if (!s) return;
+              const dx = e.clientX - s.x, dy = e.clientY - s.y;
+              if (dx > 70 && Math.abs(dx) > Math.abs(dy) * 1.6) setPage("feed");
+            }}
+            onPointerCancel={() => { swipe.current = null; }}>
             <Profile C={C} T={T} topRow={topRow} all={all} votes={votes} bumps={bumps} mine={mine} onOpen={openPoll} />
           </div>
         )}
@@ -950,26 +1081,41 @@ export default function Splitmob() {
           ))}
         </div>
 
-        <nav className="relative z-30 shrink-0 flex items-center justify-between px-6"
+        {/* Three buttons, and the + is centred on the DOCK rather than on
+            whatever is left over beside its neighbours. `1fr auto 1fr` is what
+            guarantees that: the two side columns are equal by definition, so
+            the middle column's centre is the dock's centre no matter how wide
+            the side buttons get. The old flex/justify-between version put two
+            buttons on the left and one on the right, which pushed the + off
+            centre by exactly half a button. */}
+        <nav className="relative z-30 shrink-0 grid items-center px-6"
           style={{
+            gridTemplateColumns: "1fr auto 1fr",
             height: 74, paddingBottom: isPhone ? "env(safe-area-inset-bottom)" : 0,
             boxSizing: "content-box",
             background: C.dock, backdropFilter: "blur(16px)", borderTop: `1px solid ${C.edge}`,
           }}>
-          <span className="flex gap-2">
-            <button onClick={() => { setPage("feed"); setSheet("filter"); }} aria-label="Choose categories"
-              className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: C.faint }}>{Ico.grid(C.ink)}</button>
-            <button onClick={() => setPage(page === "me" ? "feed" : "me")} aria-label="Your activity"
-              className="w-12 h-12 rounded-2xl grid place-items-center"
-              style={{ background: page === "me" ? dockAccent : C.faint }}>{Ico.user(page === "me" ? inkOn(dockAccent) : C.ink)}</button>
+          <span className="justify-self-start">
+            <button onClick={() => setSheet("settings")}
+              aria-label={page === "me" ? "Look and feel" : "Categories and look"}
+              className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: C.faint }}>{Ico.gear(C.ink)}</button>
           </span>
 
-          <button onClick={() => setSheet("compose")} aria-label="Start an argument" className="w-[58px] h-[58px] rounded-full grid place-items-center"
+          <button onClick={() => setSheet("compose")} aria-label="Start an argument"
+            className="justify-self-center w-[58px] h-[58px] rounded-full grid place-items-center"
             style={{ background: dockAccent, transition: "background 400ms", boxShadow: T.light ? "0 6px 18px rgba(40,34,28,.2)" : "0 6px 22px rgba(0,0,0,.5)" }}>
             {Ico.plus(inkOn(dockAccent))}
           </button>
 
-          <button onClick={() => setSheet("settings")} aria-label="Look and feel" className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: C.faint }}>{Ico.gear(C.ink)}</button>
+          {/* On the profile this is the way back, which is why the profile does
+              not need a button of its own in the dock. Swiping right does the
+              same thing. */}
+          <span className="justify-self-end">
+            <button onClick={() => (page === "me" ? setPage("feed") : setSheet("actions"))}
+              aria-label={page === "me" ? "Back to the feed" : "Actions"}
+              className="w-12 h-12 rounded-2xl grid place-items-center"
+              style={{ background: C.faint }}>{page === "me" ? Ico.back(C.ink) : Ico.dots(C.ink)}</button>
+          </span>
         </nav>
 
         {toast && (
@@ -978,13 +1124,19 @@ export default function Splitmob() {
           </div>
         )}
 
-        {sheet === "filter" && <Filter C={C} filter={filter} setFilter={setFilter} counts={counts} onClose={() => setSheet(null)} />}
-        {sheet === "settings" && <Settings C={C} themeId={themeId} setThemeId={setThemeId} onClose={() => setSheet(null)} />}
+        {sheet === "settings" && <SettingsSheet C={C} themeId={themeId} setThemeId={setThemeId}
+          cats={cats} setCats={setCats} counts={counts} allowCategories={page !== "me"}
+          onClose={() => setSheet(null)} />}
+        {sheet === "actions" && <ActionsSheet C={C}
+          onShare={() => setSheet("share")}
+          onFlag={() => setSheet("flag")}
+          onProfile={() => { setSheet(null); setPage("me"); }}
+          onClose={() => setSheet(null)} />}
         {sheet === "share" && <ShareSheet C={C} text={shareText} onClose={() => setSheet(null)} />}
         {sheet === "flag" && <FlagSheet C={C} onClose={() => setSheet(null)}
           onSubmit={() => { if (cur) setFlags((f) => ({ ...f, [cur.id]: true })); setSheet(null); setToast("Reported — thanks"); setTimeout(() => setToast(null), 2200); }} />}
         {sheet === "compose" && <Compose C={C} T={T} onClose={() => setSheet(null)}
-          onPost={(p) => { setMine((m) => [p, ...m]); setFilter("all"); setSheet(null); setTimeout(() => scrollTo(0), 60); }} />}
+          onPost={(p) => { setMine((m) => [p, ...m]); setCats(new Set()); setSheet(null); setTimeout(() => scrollTo(0), 60); }} />}
       </div>
     </div>
   );
