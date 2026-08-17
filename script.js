@@ -1723,8 +1723,12 @@ initTabs(document.querySelector('.ai-tabs'));
     openModal(modal, full, null, views[0].thumbs[index]);
   }
 
-  root.querySelector('.wp-prev').addEventListener('click', () => select(index - 1));
-  root.querySelector('.wp-next').addEventListener('click', () => select(index + 1));
+  // Both stages drive the same index, so the panel and the overlay walk
+  // together and neither needs to know the other exists.
+  document.querySelectorAll('.wp-prev, .wp-fullprev')
+    .forEach(b => b.addEventListener('click', () => select(index - 1)));
+  document.querySelectorAll('.wp-next, .wp-fullnext')
+    .forEach(b => b.addEventListener('click', () => select(index + 1)));
   // The frame opens the overlay, but not when the click was the download link
   // sitting on top of it.
   frame.addEventListener('click', (event) => {
@@ -1741,6 +1745,183 @@ initTabs(document.querySelector('.ai-tabs'));
     select(index + (event.key === 'ArrowRight' ? 1 : -1));
   });
 
+  select(0);
+})();
+
+/* --- AI clips ------------------------------------------------------------- */
+/* Same carousel as the wallpapers, with a player where the download was.
+   Sources are remote (bunny.net) and the posters are the only local asset, so
+   this deliberately never assumes a clip can load: the poster is always shown,
+   the video fades in over it once it has frames, and a source that cannot play
+   says so instead of leaving a spinner.
+
+   The five shipped now point at an unresolvable REPLACE-ME host on purpose —
+   see assets/ai/clips/README.md. `playable()` is the one place that knows the
+   difference, so swapping in real URLs needs no other change here. */
+(function initClips() {
+  const root = document.getElementById('clips');
+  if (!root) return;
+  const items = [...root.querySelectorAll('.cl-item')];
+  if (!items.length) return;
+
+  const $ = id => document.getElementById(id);
+  const frame = $('clFrame'), video = $('clVideo'), note = $('clNote');
+  const title = $('clTitle'), meta = $('clMeta'), strip = $('clThumbs');
+  const toggle = $('clToggle'), big = $('clBig'), loopBtn = $('clLoop');
+  const scrub = $('clScrub'), vol = $('clVol'), muteBtn = $('clMute');
+  const elapsed = $('clElapsed'), duration = $('clDuration');
+  let index = 0, loop = false, scrubbing = false, lastVolume = 0.4;
+
+  // 40% by default, matching the songs bar — loud enough to hear, quiet enough
+  // that an autoplaying tab is not an event.
+  video.volume = 0.4;
+  vol.value = 40;
+
+  const mmss = t => Number.isFinite(t) && t >= 0
+    ? Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') : '--:--';
+  const setFill = (el, pct) => el.style.setProperty('--fill', pct + '%');
+  const icon = (btn, name) => { const i = btn.querySelector('.icon'); if (i) i.setAttribute('data-icon', name); };
+  // A placeholder source is one nobody has replaced yet.
+  const playable = (item) => !!item.dataset.src && !/REPLACE-ME/.test(item.dataset.src);
+
+  items.forEach((item, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'wp-thumb';
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-label', item.dataset.title);
+    const pic = item.querySelector('picture').cloneNode(true);
+    pic.querySelectorAll('source').forEach(s => s.setAttribute('sizes', '180px'));
+    const img = pic.querySelector('img');
+    img.removeAttribute('class');
+    img.loading = 'lazy';
+    btn.appendChild(pic);
+    btn.addEventListener('click', () => select(i, true));
+    strip.appendChild(btn);
+  });
+  const thumbs = [...strip.children];
+
+  function paintButtons() {
+    const playing = !video.paused && !video.ended && frame.classList.contains('is-live');
+    icon(toggle, playing ? 'pause' : 'play');
+    toggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  }
+
+  function select(i, autoplay) {
+    index = (i + items.length) % items.length;
+    const item = items[index];
+
+    video.pause();
+    frame.classList.remove('is-live');
+    video.removeAttribute('src');
+    video.load();
+
+    // Poster first, always. The <picture> is cloned rather than referenced so
+    // the source figures stay untouched and re-selecting is cheap.
+    frame.querySelector('picture')?.remove();
+    frame.insertBefore(item.querySelector('picture').cloneNode(true), frame.firstChild);
+
+    title.textContent = item.dataset.title;
+    meta.textContent = item.dataset.note || '';
+    thumbs.forEach((b, n) => b.setAttribute('aria-selected', String(n === index)));
+    scrub.value = 0; setFill(scrub, 0);
+    elapsed.textContent = '0:00';
+    duration.textContent = '--:--';
+
+    const ok = playable(item);
+    note.hidden = ok;
+    if (!ok) note.textContent = 'Placeholder — no clip connected to this slot yet';
+    big.disabled = !ok;
+    toggle.disabled = !ok;
+    if (ok) {
+      video.src = item.dataset.src;
+      if (autoplay) play();
+    }
+    paintButtons();
+  }
+
+  function play() {
+    if (!playable(items[index])) return;
+    video.play().then(() => {
+      frame.classList.add('is-live');
+      paintButtons();
+    }).catch(() => {
+      // Autoplay refused, or the source is unreachable. Either way, say so
+      // rather than leaving a dead button.
+      note.hidden = false;
+      note.textContent = 'This clip could not start — check the source URL and the media-src policy';
+      paintButtons();
+    });
+  }
+
+  big.addEventListener('click', play);
+  toggle.addEventListener('click', () => { video.paused ? play() : video.pause(); });
+  $('clPrev').addEventListener('click', () => select(index - 1));
+  $('clNext').addEventListener('click', () => select(index + 1));
+  root.querySelector('.cl-prev').addEventListener('click', () => select(index - 1));
+  root.querySelector('.cl-next').addEventListener('click', () => select(index + 1));
+
+  loopBtn.addEventListener('click', () => {
+    loop = !loop;
+    video.loop = loop;
+    loopBtn.dataset.loop = loop ? 'all' : 'off';
+    loopBtn.setAttribute('aria-label', loop ? 'Loop this clip' : 'Loop off');
+  });
+
+  vol.addEventListener('input', () => {
+    video.volume = vol.value / 100;
+    video.muted = video.volume === 0;
+    if (video.volume > 0) lastVolume = video.volume;
+    setFill(vol, vol.value);
+    icon(muteBtn, video.muted || video.volume === 0 ? 'volume-mute' : 'volume');
+  });
+  muteBtn.addEventListener('click', () => {
+    if (video.volume > 0) { lastVolume = video.volume; video.volume = 0; }
+    else video.volume = lastVolume || 0.4;
+    video.muted = video.volume === 0;
+    vol.value = Math.round(video.volume * 100);
+    setFill(vol, vol.value);
+    icon(muteBtn, video.volume === 0 ? 'volume-mute' : 'volume');
+  });
+
+  scrub.addEventListener('input', () => {
+    scrubbing = true;
+    setFill(scrub, scrub.value / 10);
+    if (Number.isFinite(video.duration)) elapsed.textContent = mmss((scrub.value / 1000) * video.duration);
+  });
+  scrub.addEventListener('change', () => {
+    if (Number.isFinite(video.duration)) video.currentTime = (scrub.value / 1000) * video.duration;
+    scrubbing = false;
+  });
+
+  video.addEventListener('play', paintButtons);
+  video.addEventListener('pause', paintButtons);
+  video.addEventListener('playing', () => { frame.classList.add('is-live'); paintButtons(); });
+  video.addEventListener('loadedmetadata', () => { duration.textContent = mmss(video.duration); });
+  video.addEventListener('timeupdate', () => {
+    if (scrubbing || !Number.isFinite(video.duration)) return;
+    const pct = (video.currentTime / video.duration) * 100;
+    scrub.value = Math.round(pct * 10);
+    setFill(scrub, pct);
+    elapsed.textContent = mmss(video.currentTime);
+  });
+  // Roll to the next clip when one ends, unless it is looping itself.
+  video.addEventListener('ended', () => { if (!loop) select(index + 1, true); });
+  video.addEventListener('error', () => {
+    if (!playable(items[index])) return;
+    frame.classList.remove('is-live');
+    note.hidden = false;
+    note.textContent = 'This clip could not load — check the source URL and the media-src policy';
+    paintButtons();
+  });
+
+  // Watching full size reuses the wallpaper overlay's shape rather than adding
+  // a second one; the video element itself moves into it and back.
+  $('clFullBtn').addEventListener('click', () => {
+    if (frame.requestFullscreen) frame.requestFullscreen().catch(() => {});
+  });
+
+  setFill(vol, 40);
   select(0);
 })();
 

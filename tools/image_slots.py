@@ -139,6 +139,14 @@ SLOTS = {
         ladder="wallpaper",
         sizes="(max-width:1100px) 92vw, min(56vw, 900px)",
     ),
+    # Clip posters. Same stage and therefore the same `sizes` as a wallpaper —
+    # only the aspect differs (16:9 against 16:10), and aspect is a CSS concern,
+    # not a width one. They share the wallpaper ladder too: the sources are
+    # 1920 wide, so the 2560 rung is simply skipped for being above the master.
+    "clip-poster": dict(
+        ladder="wallpaper",
+        sizes="(max-width:1100px) 92vw, min(56vw, 900px)",
+    ),
 }
 
 

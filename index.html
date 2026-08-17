@@ -579,7 +579,7 @@
         <div class="ai-tabs" role="tablist" aria-label="AI project categories">
           <button class="ai-tab" type="button" role="tab" id="ai-tab-apps" aria-controls="ai-panel-apps" aria-selected="true" tabindex="0">Apps</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-images" aria-controls="ai-panel-images" aria-selected="false" tabindex="-1">Wallpapers</button>
-          <button class="ai-tab" type="button" role="tab" id="ai-tab-videos" aria-controls="ai-panel-videos" aria-selected="false" tabindex="-1">Videos</button>
+          <button class="ai-tab" type="button" role="tab" id="ai-tab-videos" aria-controls="ai-panel-videos" aria-selected="false" tabindex="-1">Clips</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-madlabs" aria-controls="ai-panel-madlabs" aria-selected="false" tabindex="-1">MadLabs</button>
         </div>
 
@@ -781,8 +781,153 @@
             </div>
           </div>
         </div>
+        <!-- Clips. Same shape as Wallpapers — one large piece, a centred strip,
+             a plate on the art — with a player instead of a download, because
+             you cannot hand someone a file you are streaming.
+             Video is NOT self-hosted: sources are bunny.net URLs in data-src on
+             each figure, and the posters here are the only local assets. The
+             five below are placeholders and their data-src is deliberately an
+             unresolvable REPLACE-ME host, which the player detects and reports
+             rather than spinning forever. See assets/ai/clips/README.md — the
+             site CSP is media-src 'self' and will need the pull zone added
+             before a real URL can play. -->
         <div class="ai-panel" id="ai-panel-videos" role="tabpanel" aria-labelledby="ai-tab-videos" hidden>
-          <p class="ai-soon">Video work is being collected — this tab fills in shortly.</p>
+          <div class="cl" id="clips">
+            <div class="cl-stage">
+              <button class="wp-arrow cl-prev" type="button" aria-label="Previous clip"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+              <div class="cl-frame" id="clFrame">
+                <video class="cl-video" id="clVideo" playsinline preload="none"></video>
+                <div class="wp-plate cl-plate" id="clPlate">
+                  <h3 class="wp-title" id="clTitle"></h3>
+                  <p class="wp-dims" id="clMeta"></p>
+                </div>
+                <button class="cl-big" id="clBig" type="button" aria-label="Play clip">
+                  <span class="icon" data-icon="play" aria-hidden="true"></span>
+                </button>
+                <p class="cl-note" id="clNote" hidden></p>
+              </div>
+              <button class="wp-arrow cl-next" type="button" aria-label="Next clip"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+            </div>
+
+            <!-- Player. Same two-row shape as the songs bar: the scrubber gets
+                 its own full-width row, the transport is centred on the bar and
+                 volume sits to the right. -->
+            <div class="cl-bar" id="clBar">
+              <div class="player-seek">
+                <span class="player-time" id="clElapsed">0:00</span>
+                <input class="player-range player-scrub" id="clScrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+                <span class="player-time" id="clDuration">--:--</span>
+              </div>
+              <div class="cl-controls">
+                <span class="cl-side"></span>
+                <div class="player-transport">
+                  <button class="player-btn" type="button" id="clPrev" aria-label="Previous clip"><span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
+                  <button class="player-btn is-primary" type="button" id="clToggle" aria-label="Play"><span class="icon" data-icon="play" aria-hidden="true"></span></button>
+                  <button class="player-btn" type="button" id="clNext" aria-label="Next clip"><span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
+                </div>
+                <div class="cl-side cl-modes">
+                  <button class="player-btn player-loop cl-loop" type="button" id="clLoop" aria-label="Loop off" data-loop="off">
+                    <span class="icon" data-icon="loop" aria-hidden="true"></span>
+                  </button>
+                  <div class="player-volume">
+                    <button class="player-btn player-volbtn" type="button" id="clMute" aria-label="Mute"><span class="icon" data-icon="volume" aria-hidden="true"></span></button>
+                    <input class="player-range player-vol" id="clVol" type="range" min="0" max="100" value="40" step="1" aria-label="Volume">
+                  </div>
+                  <button class="player-btn" type="button" id="clFullBtn" aria-label="Watch full size"><span class="icon" data-icon="zoom-in" aria-hidden="true"></span></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="wp-thumbs" id="clThumbs" role="tablist" aria-label="Clips"></div>
+
+            <div class="wp-src" hidden>
+              <figure class="cl-item" data-title="Neon Transit" data-note="0:24 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/neon-transit/play_720p.mp4">
+                <!-- img src="assets/ai/clips/neon-transit.png" slot="clip-poster" alt="Neon Transit — blue and magenta light study" class="cl-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/clips/neon-transit-1920.avif 1920w,
+                                                    assets/derived/ai/clips/neon-transit-1280.avif 1280w,
+                                                    assets/derived/ai/clips/neon-transit-900.avif 900w,
+                                                    assets/derived/ai/clips/neon-transit-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/clips/neon-transit-1920.webp 1920w,
+                                                    assets/derived/ai/clips/neon-transit-1280.webp 1280w,
+                                                    assets/derived/ai/clips/neon-transit-900.webp 900w,
+                                                    assets/derived/ai/clips/neon-transit-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="cl-img" src="assets/ai/clips/neon-transit.png" alt="Neon Transit — blue and magenta light study" width="1920" height="1080" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="cl-item" data-title="Dust Bowl" data-note="0:18 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/dust-bowl/play_720p.mp4">
+                <!-- img src="assets/ai/clips/dust-bowl.png" slot="clip-poster" alt="Dust Bowl — amber and ochre haze" class="cl-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/clips/dust-bowl-1920.avif 1920w,
+                                                    assets/derived/ai/clips/dust-bowl-1280.avif 1280w,
+                                                    assets/derived/ai/clips/dust-bowl-900.avif 900w,
+                                                    assets/derived/ai/clips/dust-bowl-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/clips/dust-bowl-1920.webp 1920w,
+                                                    assets/derived/ai/clips/dust-bowl-1280.webp 1280w,
+                                                    assets/derived/ai/clips/dust-bowl-900.webp 900w,
+                                                    assets/derived/ai/clips/dust-bowl-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="cl-img" src="assets/ai/clips/dust-bowl.png" alt="Dust Bowl — amber and ochre haze" width="1920" height="1080" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="cl-item" data-title="Tide Machine" data-note="0:31 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/tide-machine/play_720p.mp4">
+                <!-- img src="assets/ai/clips/tide-machine.png" slot="clip-poster" alt="Tide Machine — teal and pale cyan water study" class="cl-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/clips/tide-machine-1920.avif 1920w,
+                                                    assets/derived/ai/clips/tide-machine-1280.avif 1280w,
+                                                    assets/derived/ai/clips/tide-machine-900.avif 900w,
+                                                    assets/derived/ai/clips/tide-machine-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/clips/tide-machine-1920.webp 1920w,
+                                                    assets/derived/ai/clips/tide-machine-1280.webp 1280w,
+                                                    assets/derived/ai/clips/tide-machine-900.webp 900w,
+                                                    assets/derived/ai/clips/tide-machine-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="cl-img" src="assets/ai/clips/tide-machine.png" alt="Tide Machine — teal and pale cyan water study" width="1920" height="1080" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="cl-item" data-title="Paper City" data-note="0:22 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/paper-city/play_720p.mp4">
+                <!-- img src="assets/ai/clips/paper-city.png" slot="clip-poster" alt="Paper City — grey and off-white architectural study" class="cl-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/clips/paper-city-1920.avif 1920w,
+                                                    assets/derived/ai/clips/paper-city-1280.avif 1280w,
+                                                    assets/derived/ai/clips/paper-city-900.avif 900w,
+                                                    assets/derived/ai/clips/paper-city-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/clips/paper-city-1920.webp 1920w,
+                                                    assets/derived/ai/clips/paper-city-1280.webp 1280w,
+                                                    assets/derived/ai/clips/paper-city-900.webp 900w,
+                                                    assets/derived/ai/clips/paper-city-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="cl-img" src="assets/ai/clips/paper-city.png" alt="Paper City — grey and off-white architectural study" width="1920" height="1080" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="cl-item" data-title="Slow Bloom" data-note="0:27 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/slow-bloom/play_720p.mp4">
+                <!-- img src="assets/ai/clips/slow-bloom.png" slot="clip-poster" alt="Slow Bloom — pink and violet bloom study" class="cl-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/clips/slow-bloom-1920.avif 1920w,
+                                                    assets/derived/ai/clips/slow-bloom-1280.avif 1280w,
+                                                    assets/derived/ai/clips/slow-bloom-900.avif 900w,
+                                                    assets/derived/ai/clips/slow-bloom-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/clips/slow-bloom-1920.webp 1920w,
+                                                    assets/derived/ai/clips/slow-bloom-1280.webp 1280w,
+                                                    assets/derived/ai/clips/slow-bloom-900.webp 900w,
+                                                    assets/derived/ai/clips/slow-bloom-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="cl-img" src="assets/ai/clips/slow-bloom.png" alt="Slow Bloom — pink and violet bloom study" width="1920" height="1080" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+            </div>
+          </div>
         </div>
         <div class="ai-panel" id="ai-panel-madlabs" role="tabpanel" aria-labelledby="ai-tab-madlabs" hidden>
           <p class="ai-soon">MadLabs is where the odd experiments land — images, video, simulations, whatever does not fit the other three.</p>
@@ -1672,14 +1817,18 @@
       <!-- Same furniture as the carousel, at full size: the plate and the
            download sit on the art, and the strip below keeps working so you can
            walk the set without dropping back to the page. -->
-      <div class="wp-full" id="wpFull">
-        <div class="wp-plate wp-plate-lg" id="wpFullPlate">
-          <h3 class="wp-title" id="wpFullTitle"></h3>
-          <p class="wp-dims" id="wpFullDims"></p>
+      <div class="wp-fullstage">
+        <button class="wp-arrow wp-fullprev" type="button" aria-label="Previous wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+        <div class="wp-full" id="wpFull">
+          <div class="wp-plate wp-plate-lg" id="wpFullPlate">
+            <h3 class="wp-title" id="wpFullTitle"></h3>
+            <p class="wp-dims" id="wpFullDims"></p>
+          </div>
+          <a class="wp-dl wp-dl-lg" id="wpFullDl" href="#" download aria-label="Download this wallpaper" title="Download original">
+            <span class="icon" data-icon="download" aria-hidden="true"></span>
+          </a>
         </div>
-        <a class="wp-dl wp-dl-lg" id="wpFullDl" href="#" download aria-label="Download this wallpaper" title="Download original">
-          <span class="icon" data-icon="download" aria-hidden="true"></span>
-        </a>
+        <button class="wp-arrow wp-fullnext" type="button" aria-label="Next wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
       </div>
       <div class="wp-thumbs wp-thumbs-lg" id="wpFullThumbs" role="tablist" aria-label="Wallpapers"></div>
     </div>
