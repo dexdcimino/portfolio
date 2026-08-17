@@ -1,0 +1,43 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+/* ── Moved out of App.jsx's <style> block, verbatim ───────────────────────────
+   The prototype shipped these rules in a <style> element rendered by the
+   component. On dexcimino.com that is refused: style-src 'self' rejects a style
+   ELEMENT (React writes its text content, and CSP reports it as inline), so the
+   whole block was dropped and every scene animation below quietly stopped
+   existing. Verified against the live policy — it reported
+   "style-src-elem: inline" before this move and nothing after it.
+
+   Same rules, same order, same global scope; only the delivery changed. The
+   app's style={{...}} props are a different mechanism (CSSOM, which CSP does
+   not police) and were left exactly as they were. */
+
+:root {
+  --disp: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  --mono: 'DM Mono', ui-monospace, monospace;
+}
+
+@keyframes uvIn { to { opacity: .55 } }
+@keyframes uvUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes uvRain { to { transform: translateY(135vh) rotate(9deg) } }
+@keyframes uvBub { to { transform: translateY(-105vh) translateX(18px); opacity: 0 } }
+@keyframes uvSpark { to { transform: translateY(-78vh) translateX(26px) scale(.3); opacity: 0 } }
+@keyframes uvShaft { 0%,100% { opacity: .55 } 50% { opacity: 1 } }
+.uv-rain { animation: uvRain linear infinite }
+.uv-bub { animation: uvBub linear infinite }
+.uv-spark { animation: uvSpark ease-out infinite }
+.uv-shaft { animation: uvShaft 7s ease-in-out infinite }
+.uv-nobar::-webkit-scrollbar { display: none }
+.uv-nobar { scrollbar-width: none }
+input::placeholder, textarea::placeholder { opacity: .4 }
+
+/* The app owns the full viewport and manages its own scrolling. Without this
+   the body keeps a scrollbar over the 100dvh frame. */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  overscroll-behavior: none;
+}

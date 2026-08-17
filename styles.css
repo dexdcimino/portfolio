@@ -2366,6 +2366,62 @@ body.modal-open{overflow:hidden}
   background:color-mix(in srgb,var(--accent) 12%,transparent);
 }
 
+/* AI Lab app overlay — a phone-shaped iframe on desktop only.
+
+   The frame is sized from HEIGHT, not width: 92vh tall at a 9/19.5 phone ratio,
+   with the width falling out of the aspect-ratio. Capping min(…, 92vh) against
+   the width too means a short, wide window shrinks the phone instead of
+   overflowing it. At 900px tall that lands around 415px wide, which is what the
+   app's own isPhone check (window.innerWidth) already reads as a phone — so it
+   renders full-bleed inside, with no fake device chrome. The modal IS the
+   phone shape.
+
+   Below 768px none of this loads: the card is a plain link to /splitmob/ and
+   script.js never calls showModal(). See the note on the dialog in index.html. */
+/* The dialog BOX fills the viewport and centres the shell inside it, rather
+   than shrinking to the phone. That is what makes backdrop-click-to-close work:
+   script.js closes on `event.target === dialog`, and with a content-sized box
+   every click beside the phone lands outside the dialog altogether and never
+   reaches that test. The other overlays get this for free from their explicit
+   widths; this one is the only shrink-to-fit dialog on the site.
+   Scoped to [open] because the UA rule that hides a closed dialog is
+   `display:none`, and an unconditional display here would out-specify it and
+   leave the overlay permanently on screen. */
+.app-modal{
+  border:0;padding:0;background:transparent;color:var(--text);
+  width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;
+  overflow:hidden;
+}
+.app-modal[open]{display:grid;place-items:center}
+.app-modal::backdrop{background:rgba(4,6,8,.78);backdrop-filter:blur(4px)}
+.app-shell{position:relative;display:grid;justify-items:center;gap:10px}
+/* Outside the phone, not on it — that rectangle belongs to the app. */
+.app-close{position:absolute;top:-6px;right:-52px;z-index:3}
+.app-phone{
+  height:min(92vh,880px);
+  aspect-ratio:9/19.5;
+  max-width:calc(100vw - 120px);   /* leaves room for the close button beside it */
+  border-radius:28px;
+  overflow:hidden;                 /* with translateZ below: the iOS radius fix */
+  transform:translateZ(0);
+  background:#07060B;
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 var(--stroke-ring) color-mix(in srgb,var(--accent) 30%,transparent);
+}
+.app-frame{display:block;width:100%;height:100%;border:0;background:#07060B}
+.app-hint{
+  margin:0;font-size:11px;letter-spacing:.06em;color:var(--muted);
+  text-transform:uppercase;font-weight:700;
+}
+.app-hint a{color:var(--accent);text-decoration:none}
+.app-hint a:hover{text-decoration:underline}
+/* Narrow desktop windows: the close button has nowhere to sit beside the frame,
+   so it moves over the backdrop above it rather than onto the app. */
+@media (max-width:900px){
+  .app-close{top:-46px;right:0}
+  .app-phone{max-width:calc(100vw - 32px)}
+}
+
 /* Gallery overlay. Same shell conventions as the other dialogs; the hero is a
    fixed-ratio box the shots letterbox into, so the caption and filmstrip never
    jump between images (the work overlay's lesson). Shots are 1440x690. */

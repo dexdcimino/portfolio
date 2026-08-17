@@ -1613,6 +1613,56 @@ const tkSelect = initTabs(document.querySelector('.tk-tabs'), (next, tab) => {
 })();
 initTabs(document.querySelector('.ai-tabs'));
 
+/* --- AI Lab app overlay --------------------------------------------------- */
+/* Phone-shaped iframe on desktop; a plain navigation on phones.
+
+   The card is a real <a href="/splitmob/"> and stays one. Everything here is an
+   enhancement layered on top: no JS, no modal, and the link still works —
+   which is also the whole mobile path, since below the breakpoint this handler
+   declines to preventDefault and the browser just follows the href.
+
+   768px matches the spec in the app's brief, and is read at CLICK time, not at
+   load: a desktop window dragged narrow (or a tablet rotated) then behaves like
+   what it currently is, rather than what it was when the page loaded. */
+(function initAppModal() {
+  const dialog = document.getElementById('appModal');
+  const frame = document.getElementById('appFrame');
+  const cards = document.querySelectorAll('[data-app-modal]');
+  if (!dialog || !frame || !cards.length) return;
+
+  const wantsModal = () => window.matchMedia('(min-width: 768px)').matches;
+
+  cards.forEach(card => {
+    card.addEventListener('click', event => {
+      // Let the browser handle anything that is not a plain left click:
+      // middle-click, ctrl/cmd-click and shift-click all mean "open it
+      // somewhere else", and hijacking those is the fastest way to make a card
+      // feel broken.
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey
+          || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!wantsModal()) return;            // phones: fall through to the href
+      event.preventDefault();
+
+      const url = card.dataset.appModal;
+      const title = card.dataset.appTitle || 'App';
+      dialog.querySelector('#app-dialog-title').textContent = title;
+      frame.title = title;
+      const tab = dialog.querySelector('#appOpenTab');
+      if (tab) tab.href = url;
+      // Set src on open, not in the markup: otherwise every visitor downloads
+      // the whole bundle whether or not they ever click the card.
+      if (frame.getAttribute('src') !== url) frame.setAttribute('src', url);
+      openModal(dialog, dialog.querySelector('.app-shell'), null, card);
+    });
+  });
+
+  document.getElementById('appClose')?.addEventListener('click', () => closeModal(dialog));
+  // Blank the frame on close so the app stops running — its scene animations
+  // and the fake vote-drift interval would otherwise keep ticking behind the
+  // page for as long as the tab is open.
+  bindModal(dialog, () => frame.setAttribute('src', 'about:blank'));
+})();
+
 /* --- sidebar profile collapse -------------------------------------------- */
 /* Hides the profile photo, bio and social row, leaving the toggle plus RESUME
    and CONTACT. The toggle only renders on the expanded sidebar, so the state is
