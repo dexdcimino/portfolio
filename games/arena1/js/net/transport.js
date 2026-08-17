@@ -10,6 +10,7 @@
 // LoopbackTransport owns the authoritative sim locally — the host case.
 // Phase 7's PhotonTransport implements the same surface.
 import { createSim } from '../sim/sim.js';
+import { readTag, readAccent } from './photon.js';
 
 export function createLoopbackTransport(seed, opts) {
   const sim = createSim(seed, opts);
@@ -34,6 +35,12 @@ export function createLoopbackTransport(seed, opts) {
       sim.step(pending);
       pending.clear();
       const snap = sim.snapshot();
+      /* MD 25: solo snapshots carry the local tag and accent too. The host
+         core already does this (withTags) and the leaderboard reads it, so
+         without it a solo board would show "P1" and a default dot for a player
+         who has both. Imported from photon.js rather than re-read here — one
+         definition of where a tag lives, not two. */
+      for (const q of snap.players) { q.tag = readTag(); q.accent = readAccent(); }
       for (const cb of subscribers) cb(snap);
       return snap;
     },

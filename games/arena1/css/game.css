@@ -215,3 +215,37 @@ body.booting #controls { opacity: 1; pointer-events: auto; }
 }
 #lockHint.on { opacity: 1; animation: pulse 1.8s infinite; }
 @keyframes pulse { 50% { opacity: .45; } }
+
+/* MD 25 — LEADERBOARD. An overlay, never a mode: the game keeps rendering and
+   the sim keeps running behind it, so it is deliberately compact and slightly
+   transparent rather than a full-screen takeover you cannot see past. */
+#board {
+  position: fixed; top: 14%; left: 50%; transform: translateX(-50%);
+  width: min(560px, 84vw); box-sizing: border-box;
+  padding: 14px 16px 12px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(30,20,38,.93), rgba(20,13,26,.95));
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  opacity: 0; pointer-events: none; transition: opacity .1s ease;
+  font-size: 13px; letter-spacing: .08em;
+}
+body.board #board { opacity: 1; }
+#boardHead, .boardRow {
+  display: grid; grid-template-columns: 1fr 62px 62px 62px; gap: 8px; align-items: center;
+}
+#boardHead {
+  font-size: 10px; letter-spacing: .22em; color: var(--sand); opacity: .5;
+  padding-bottom: 8px; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,.12);
+}
+#boardHead span:not(:first-child), .boardRow span:not(:first-child) { text-align: right; }
+.boardRow { padding: 5px 0; font-weight: 700; color: var(--sand); }
+.boardRow + .boardRow { border-top: 1px solid rgba(255,255,255,.055); }
+/* The accent dot ties a row to the pill you see in the world — the same colour
+   that player wears — so the board is readable at a glance mid-fight. */
+.boardRow .boardName { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.boardRow .boardDot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.boardRow .boardTag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.boardRow.is-me { color: #fff; }
+.boardRow.is-me .boardTag { text-decoration: underline; text-underline-offset: 3px; }
+#boardEmpty { opacity: .5; padding: 6px 0; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { #board { transition: none } }

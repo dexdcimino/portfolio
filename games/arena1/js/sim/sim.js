@@ -113,8 +113,18 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
       for (const r of list) ents.rockets.set(r.id, structuredClone(r));
     },
     playerIds() { return [...ents.players.keys()]; },
-    // commandsByPlayer: Map<playerId, command|undefined> for THIS tick.
+    /* commandsByPlayer: Map<playerId, command> for THIS tick.
+       An array of {id, cmd} is accepted too, and that is not sugar — it is a
+       guard. The lookup below is `commandsByPlayer?.get?.(p.id)`, so an array
+       silently resolved to undefined and every command in it was DISCARDED
+       with no error: a test could drive a player for a thousand ticks, assert
+       something about a world where that player never moved, and pass. That
+       had already happened here (MD 25 found it). Normalising costs one
+       branch; a silent no-op input path costs correctness. */
     step(commandsByPlayer) {
+      if (Array.isArray(commandsByPlayer)) {
+        commandsByPlayer = new Map(commandsByPlayer.map((e) => [e.id, e.cmd]));
+      }
       const events = [];
       const ctx = { world, level, tick, events, ents, pvp, seed, predictOnly };
       // Platforms first (prototype order), so ground carry uses fresh deltas

@@ -23,6 +23,9 @@ import { createSerpentView } from './render/serpent.js';
 // renderer draws with, so explosions land on the segments, not near them.
 import { segAt } from './sim/serpent.js';
 import { AudioFX } from './systems/audio.js';
+// One accent table for the whole client (MD 14 note in render/actors.js) — the
+// leaderboard dots must be the same colours the pills wear, not a second copy.
+import { SITE_ACCENTS } from './pausemenu.js';
 
 const canvas = document.getElementById('game');
 const params = new URLSearchParams(location.search);
@@ -80,6 +83,13 @@ let state = 'playing'; // playing ⇄ paused; no title screen
        recover and no reason to interrupt play. `booted` is module scope and a
        session swap never resets it. */
 let booted = false;          // the modal has been dismissed
+/* Work that must not happen behind the modal (MD 25 item 4). A match handoff
+   swaps the world and the spawn; doing that while the player is reading the
+   controls looks exactly like the game resetting itself. Only the newest is
+   kept — two matches cannot both be joined, and replaying a stale one would
+   put the player somewhere they already left. */
+let deferredBoot = null;
+function deferToBoot(fn) { deferredBoot = fn; }
 const controlsX = document.getElementById('controlsX');
 
 let S = null;          // the active session (see startSession)
@@ -91,6 +101,60 @@ function feed(msg) {
   feedEl.appendChild(el);
   setTimeout(() => el.remove(), 1150);
 }
+/* ── MD 25 item 2: leaderboard ──────────────────────────────────────────────
+   Painted from the SNAPSHOT, which is the only place that knows who is really
+   in the lobby right now — so joins, leaves and renames need no bookkeeping
+   here at all, they simply appear on the next frame the board is up.
+   Held rather than toggled: a board you hold cannot be left up by accident,
+   and with the game still live underneath (Tab does not pause) an accidental
+   overlay is a genuine hazard, not just clutter.
+   Repainted only while visible: this runs at frame rate and there is no point
+   rebuilding rows nobody is looking at. */
+const boardEl = document.getElementById('board');
+const boardRowsEl = document.getElementById('boardRows');
+const BOARD_HEX = new Map(SITE_ACCENTS.map((a) => [a.name, a.hex]));
+let boardOn = false;
+function setBoard(on) {
+  if (boardOn === on) return;          // keydown repeats while held
+  boardOn = on;
+  document.body.classList.toggle('board', on);
+  boardEl?.setAttribute('aria-hidden', on ? 'false' : 'true');
+  if (on) paintBoard();
+}
+function paintBoard() {
+  if (!boardOn || !boardRowsEl) return;
+  const snap = S?.lastSnap;
+  const me = S?.localId;
+  const players = [...(snap?.players ?? [])]
+    // Kills first, then fewest deaths — the ordering a scoreboard implies.
+    .sort((a, b) => (b.kills ?? 0) - (a.kills ?? 0) || (a.deaths ?? 0) - (b.deaths ?? 0));
+  if (!players.length) {
+    // Solo before the first snapshot: a row-less board still beats a key that
+    // appears to do nothing (MD 25 item 2).
+    boardRowsEl.innerHTML = '<div id="boardEmpty">CONNECTING…</div>';
+    return;
+  }
+  boardRowsEl.textContent = '';
+  for (const p of players) {
+    const row = document.createElement('div');
+    row.className = 'boardRow' + (p.id === me ? ' is-me' : '');
+    const name = document.createElement('span');
+    name.className = 'boardName';
+    const dot = document.createElement('span');
+    dot.className = 'boardDot';
+    dot.style.background = BOARD_HEX.get(p.accent) || '#FF7A59';
+    const tag = document.createElement('span');
+    tag.className = 'boardTag';
+    // Tag can be absent for a player who has not announced yet — show the id
+    // rather than an empty row, so somebody mid-join is still visibly present.
+    tag.textContent = p.tag || `P${p.id}`;
+    name.append(dot, tag);
+    const cell = (v) => { const e = document.createElement('span'); e.textContent = String(v ?? 0); return e; };
+    row.append(name, cell(p.kills), cell(p.deaths), cell(p.cellsGot));
+    boardRowsEl.appendChild(row);
+  }
+}
+
 function updateHint() {
   // The in-match "you lost lock" line. Never while the modal is up: the modal
   // already owns the screen, and two prompts at once is one too many.
@@ -111,6 +175,7 @@ function dismissControls() {
   updateBootChrome();
   updateHint();
   AudioFX.ensure();            // the same gesture unlocks the AudioContext
+  if (deferredBoot) { const fn = deferredBoot; deferredBoot = null; fn(); }
   if (state === 'playing' && !locked) requestLock(2);
   return true;
 }
@@ -151,7 +216,8 @@ let weaponSel = 0;                 // MD 11: 0 zap, 1 rocket — rides every com
    never have been measuring the thing I claimed. With no evidence of benefit
    and a real downside — 50 refused requests in two seconds, each one a console
    error — the unjustified change goes. The actual fix for resume latency is
-   Tab-pause below, which never drops the lock and so never re-acquires it. */
+   Escape is a browser rule; MD 25 keeps it as the only pause and gives Tab
+   to the leaderboard instead, which needs no lock change at all. */
 let lockRetry = null;
 function requestLock(retries = 0) {
   clearTimeout(lockRetry);
@@ -196,22 +262,15 @@ document.addEventListener('pointerlockchange', () => {
 });
 /* Every mouse handler now checks `state` as well as `locked`. It did not have
    to before, because pausing always dropped the lock and `locked` alone was
-   enough. Tab-pause keeps the lock (see PAUSE below), so without these the
-   menu would spin the camera and the trigger would still fire underneath it. */
-let pausedMouseTravel = 0;
+   enough. They stay because they state the invariant directly: nothing the
+   mouse does may reach the game unless the game is actually running. */
+/* The `state` checks stay even though pausing always drops the lock again —
+   they are the invariant, not a workaround, and they cost one comparison. The
+   mouse-travel lock release that used to live here is GONE: it existed only to
+   hand the cursor back during a Tab pause, and with Tab no longer pausing
+   there is nothing for it to do. */
 document.addEventListener('mousemove', (e) => {
-  if (!locked) return;
-  if (state !== 'playing') {
-    /* Lock is held over the pause menu, so there is no cursor — and a click
-       under lock goes to the canvas, never to a button (measured). The moment
-       the player reaches for the mouse they want to press something, so give
-       the cursor back. Movement, not a click, because a click would be
-       swallowed revealing the cursor instead of pressing what they aimed at.
-       A threshold, so a knocked desk does not cost the instant resume. */
-    pausedMouseTravel += Math.abs(e.movementX) + Math.abs(e.movementY);
-    if (pausedMouseTravel > 24) { try { document.exitPointerLock(); } catch { /* already out */ } }
-    return;
-  }
+  if (!locked || state !== 'playing') return;
   yaw += e.movementX * TUNE.SENS;
   pitch = Math.max(-1.5, Math.min(1.5, pitch + e.movementY * TUNE.SENS));
 });
@@ -240,20 +299,19 @@ document.addEventListener('keydown', (e) => {
   // Escape while paused resumes (keydown is a user gesture, so the pointer
   // lock request is allowed to succeed here).
   if (e.code === 'Escape' && state === 'paused') { window.Arena1.resume(); return; }
-  /* TAB — pause WITHOUT dropping pointer lock, and resume from it instantly.
-     Escape is the browser's own "leave pointer lock" key: pressing it releases
-     the lock before any script runs, and Chrome then refuses to hand it back
-     without a fresh user gesture for about a second. That wait is the entire
-     resume delay, and nothing on the page can shorten it — the retry chain
-     only decides how promptly you notice the lock is available again.
-     Tab never touches the lock, so there is nothing to re-acquire: resume is a
-     state flip and the camera is live on the same frame.
-     preventDefault because Tab is focus navigation; left alone it would walk
-     focus out of the canvas and into the wrapper. */
+  /* MD 25 item 2 — TAB IS THE LEADERBOARD. It briefly paused the game (MD's
+     predecessor) because Tab is the one key that never touches pointer lock;
+     that property is still why it is the right key, but a second way to pause
+     was worse than one obvious way, so Escape is the only pause again.
+     Held, not toggled: a scoreboard you hold is one you cannot leave up by
+     accident, and it costs no second press to put away — which matters when
+     the game is still running underneath and something is shooting at you.
+     preventDefault because Tab is focus navigation; unhandled it walks focus
+     out of the canvas and into the wrapper.
+     Deliberately does NOT touch pointer lock, pause, or the sim. */
   if (e.code === 'Tab') {
     e.preventDefault();
-    if (state === 'playing') window.Arena1.pause({ keepLock: true });
-    else if (state === 'paused') window.Arena1.resume();
+    setBoard(true);
     return;
   }
   if (!locked) return;
@@ -273,6 +331,7 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
+  if (e.code === 'Tab') { e.preventDefault(); setBoard(false); }
   if (e.code === 'Space') jetLatch = false;
 });
 
@@ -370,7 +429,14 @@ function startSession(transport) {
       | (firing ? BTN.FIRE : 0)
       | (grappling ? BTN.GRAPPLE : 0)
       | (jetLatch ? BTN.JET : 0)
-      | (respawnEdge ? BTN.RESPAWN : 0);
+      | (respawnEdge ? BTN.RESPAWN : 0)
+      /* MD 25 item 5. Told to the host every tick a menu is open, so its
+         enemies stop treating this player as a target. Only meaningful in a
+         net session — solo already freezes the whole sim — but it is sent
+         unconditionally because the same command builder feeds both, and a
+         branch here would be one more thing to get wrong on the path that
+         matters. */
+      | (state === 'paused' ? BTN.PAUSED : 0);
     jumpEdge = false; dashEdge = false; respawnEdge = false;
     return { tick, playerId: localId, move: { x: ix, z: iz }, yaw, pitch, buttons, weapon: weaponSel };
   }
@@ -547,6 +613,7 @@ function startSession(transport) {
   engine.runRenderLoop(() => {
     if (S !== sess) return; // superseded mid-frame during a handoff
     const dt = pump();
+    if (boardOn) paintBoard();     // only while it is actually on screen
     const now = performance.now() / 1000;
     coyoteT = (lastFlags & FLAG.GROUNDED) ? 0.1 : Math.max(0, coyoteT - dt);
     const alpha = sess.acc / SIM_DT;
@@ -684,10 +751,32 @@ async function netAttempt(mode, { joinedNotice } = {}) {
     if (pendingNet !== t) { t.dispose(); return; } // superseded by a newer attempt
     pendingNet = null;
     netState = 'online';
-    startSession(t);
-    const ni = t.netInfo;
-    feed(joinedNotice || (ni?.isHost ? `HOSTING ${ni.room}` : `JOINED ${ni.room}`));
-    publishRoomToShell(ni);
+    /* MD 25 item 4 — THE BOOT RESET, diagnosed.
+       Nothing was spawning the player twice and the level was not rebuilding.
+       The sequence at the bottom of this file is:
+           startSession(createLoopbackTransport(...))   // solo world, spawn A
+           netAttempt({ kind: 'public' })               // ...connects...
+           startSession(photonTransport)                // match world, spawn B
+       That second startSession is a whole new sim with the HOST's seed, so a
+       different level and a different spawn. It is correct — it is how joining
+       a match works — but it lands whenever Photon happens to answer, which on
+       a first load is squarely while the controls modal is still up. The
+       player reads the modal, the world silently swaps underneath them, and it
+       looks like the game reset itself.
+       The fix is ordering, not suppression: hold the swap until the modal is
+       dismissed. Before dismissal the player is placed exactly once and stays
+       there; after it, the handoff is something they can see happen, with its
+       own JOINED line. Nothing is dropped — the transport is already connected
+       and buffering, it is only the visible swap that waits. */
+    const land = () => {
+      if (S === null && pendingNet !== t) return;   // superseded while waiting
+      startSession(t);
+      const ni = t.netInfo;
+      feed(joinedNotice || (ni?.isHost ? `HOSTING ${ni.room}` : `JOINED ${ni.room}`));
+      publishRoomToShell(ni);
+    };
+    if (booted) land();
+    else deferToBoot(land);
   }).catch(() => {
     if (pendingNet === t) {
       pendingNet = null;
@@ -754,26 +843,15 @@ netAttempt(roomParam ? { kind: 'named', room: roomParam } : { kind: 'public' });
 
 // Embed hooks (contract #3) — exact names, wired to the state machine.
 window.Arena1 = {
-  /* opts.keepLock is the Tab path: the menu opens over a still-locked canvas,
-     so resuming costs nothing. Everything else (the wrapper's chip, an Escape
-     that somehow reached us) drops the lock as before, because a menu you
-     intend to CLICK needs a cursor and a locked page has none. */
-  pause(opts) {
+  pause() {
     if (state !== 'playing') return;
-    pausedMouseTravel = 0;
-    if (!opts?.keepLock) {
-      try { document.exitPointerLock?.(); } catch { /* not locked */ }
-    }
+    try { document.exitPointerLock?.(); } catch { /* not locked */ }
     setState('paused');
   },
   resume() {
     if (state !== 'paused') return;
     AudioFX.ensure();
-    pausedMouseTravel = 0;
     setState('playing');
-    // Held the lock the whole time (Tab path): nothing to ask for, and asking
-    // would be a redundant round trip on the one path that is already instant.
-    if (document.pointerLockElement === canvas) { locked = true; updateHint(); return; }
     requestLock(8);
   },
   // Pause-menu respawn. Latches an input edge rather than moving the player:

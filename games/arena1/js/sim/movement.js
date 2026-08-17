@@ -30,7 +30,13 @@ export const ENEMY_R = { blob: 0.75, wraith: 0.7, spike: 0.62 };
    tick, prediction reconciles it like any other input, and the transport does
    not care — it ships the whole command object rather than a packed bitfield,
    so widening this costs nothing on the wire. */
-export const BTN = { JUMP: 1, DASH: 2, SLIDE: 4, FIRE: 8, GRAPPLE: 16, JET: 32, RESPAWN: 64 };
+/* PAUSED (MD 25 item 5) rides the command like RESPAWN and for the same
+   reason: a net client cannot freeze the sim — that would stall the match for
+   everyone — so "this player is in the menu" has to be a fact the HOST knows,
+   on a tick every peer agrees about. A client-side "ignore me" would be
+   invisible to the host's enemies, which are the things doing the attacking.
+   It is a LEVEL, not an edge: it is true for as long as the menu is open. */
+export const BTN = { JUMP: 1, DASH: 2, SLIDE: 4, FIRE: 8, GRAPPLE: 16, JET: 32, RESPAWN: 64, PAUSED: 128 };
 
 // Player state flags (snapshot `flags` bitfield). WALLNEAR extends the six
 // specced bits: the client's Space policy (prototype: mid-air Space = jet
@@ -149,6 +155,9 @@ export function stepPlayer(ctx, p, cmd) {
      pad. Not routed through hurtPlayer on purpose — this is a voluntary reset,
      so it does not count a death or credit a killer, but it clears exactly what
      dying clears so no stale grapple or fall velocity survives the trip. */
+  // Level, not edge: read every tick so releasing it re-arms the enemies the
+  // same tick the player resumes.
+  p.paused = !!(buttons & BTN.PAUSED);
   if (pressed & BTN.RESPAWN) {
     p.pos = { ...p.spawn };
     p.vel = { x: 0, y: 0, z: 0 };

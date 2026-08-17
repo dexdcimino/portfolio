@@ -89,7 +89,7 @@ export function genDefaultTag() {
 }
 // Uppercase at the source (MD 12): the stored value, the wire value, and the
 // billboard label are the SAME string — no display transform over mixed case.
-function readTag() {
+export function readTag() {
   try {
     if (typeof localStorage === 'undefined') return '';
     return (localStorage.getItem('arena1-tag') || '').slice(0, TAG_MAX).toUpperCase();
@@ -101,7 +101,7 @@ function readTag() {
 // back to the default coral on anything unknown; the value is never forced
 // unique — a duplicate accent is better than hijacking someone's choice.
 const ACCENT_MAX = 16;
-function readAccent() {
+export function readAccent() {
   try {
     if (typeof localStorage === 'undefined') return '';
     return (localStorage.getItem('dex-accent-name') || '').slice(0, ACCENT_MAX);

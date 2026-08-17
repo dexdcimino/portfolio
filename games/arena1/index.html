@@ -69,7 +69,15 @@
     <!-- No title screen: the world boots live. Pointer lock still needs one
          user gesture, so this small chip invites the click and vanishes the
          moment the lock lands (full controls live in the pause menu). -->
-    <div id="lockHint" class="on">CLICK FOR MOUSE LOOK &#183; TAB PAUSES</div>
+    <div id="lockHint" class="on">CLICK FOR MOUSE LOOK &#183; ESC PAUSES</div>
+    <!-- MD 25 item 2. Held with Tab, over a running game, with pointer lock
+         untouched — that last part is the entire reason it is Tab and not any
+         other key. Rows are built by main.js from the snapshot, so it reflects
+         joins, leaves and renames with no separate bookkeeping. -->
+    <div id="board" aria-hidden="true">
+      <div id="boardHead"><span>PLAYER</span><span>KILLS</span><span>DEATHS</span><span>CELLS</span></div>
+      <div id="boardRows"></div>
+    </div>
   </div>
   <!-- MD 23 — CONTROLS MODAL. Pointer lock needs a user gesture and the
        browser gives no way round that, so rather than spend the gesture on a

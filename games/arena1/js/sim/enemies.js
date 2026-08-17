@@ -98,9 +98,18 @@ function releaseYankers(ctx, e) {
   }
 }
 
+/* MD 25 item 5. A paused player is not a target — enemies behave as if they
+   are not in the room, which is what makes disengagement fall out for free:
+   nearestPlayer simply picks somebody else, or nobody, and the existing
+   no-target branch handles the rest. There is no separate "forget your target"
+   path to keep in sync.
+   This is a TARGETING rule, not an invulnerability rule: other PLAYERS can
+   still hit a paused player (see combat.js), because pause that stops bullets
+   is a worse problem in PvP than the one being fixed. */
 function nearestPlayer(players, pos) {
   let best = null;
   for (const p of players.values()) {
+    if (p.paused) continue;
     const d = Math.hypot(p.pos.x - pos.x, p.pos.y - pos.y, p.pos.z - pos.z);
     if (!best || d < best.dist) best = { p, dist: d };
   }

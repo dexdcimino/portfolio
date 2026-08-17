@@ -74,7 +74,12 @@ function noise(dur, vol = 0.1, hp = 800) {
   s.connect(f); f.connect(g); g.connect(master); s.start(t);
 }
 // soft cinematic whoosh: bandpass noise sweeping down + low sine swell
-function whoosh(dur = 0.45, f0 = 1000, f1 = 220, vol = 0.12) {
+/* `sub` is the low sine under the noise. It used to be hard-coded at 0.05,
+   which was fine while every caller used a similar `vol` — but MD 25 drops the
+   dash to 0.045, and a fixed sub would then be LOUDER than the noise it is
+   meant to sit under, turning a quieter sound into a boomier one. Explicit
+   parameter, defaulted to the old value, so no existing sound moves. */
+function whoosh(dur = 0.45, f0 = 1000, f1 = 220, vol = 0.12, sub = 0.05) {
   if (!ctx) return;
   const t = ctx.currentTime, s = ctx.createBufferSource(); s.buffer = noiseBuf(dur + 0.05);
   const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.1;
@@ -85,7 +90,7 @@ function whoosh(dur = 0.45, f0 = 1000, f1 = 220, vol = 0.12) {
   s.connect(bp); bp.connect(g); g.connect(master); s.start(t);
   const o = ctx.createOscillator(), og = ctx.createGain();
   o.type = 'sine'; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(70, t + dur);
-  og.gain.setValueAtTime(0.05, t); og.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  og.gain.setValueAtTime(Math.max(0.0001, sub), t); og.gain.exponentialRampToValueAtTime(0.001, t + dur);
   o.connect(og); og.connect(master); o.start(t); o.stop(t + dur);
 }
 function jetStart() {
@@ -108,7 +113,17 @@ export const AudioFX = {
   fire: () => { tone(760, 140, 0.09, 'square', 0.09); noise(0.05, 0.05, 2000); },
   jump: () => tone(300, 520, 0.12, 'triangle', 0.10),
   wall: () => { tone(200, 640, 0.14, 'sawtooth', 0.09); noise(0.06, 0.04, 1200); },
-  dash: () => whoosh(0.5, 950, 200, 0.13),
+  /* MD 25 item 6 — sprint/dash. Was whoosh(0.5, 950, 200, 0.13): half a
+     second of bandpassed noise sweeping down from 950Hz at the loudest volume
+     of any movement sound in the game, plus a sine tail. Dash fires several
+     times a minute, and at 950Hz it sat in the same band as the zap and the
+     bolt hits — so the one sound you make constantly was competing with the
+     sounds that carry information.
+     Now: a third as long, a third as loud, and moved down out of the way.
+     260Hz -> 90Hz is a body-level "shove" rather than a hiss, 0.16s is under
+     the threshold where a repeated sound starts to feel like a rhythm, and
+     0.045 puts it below the weapons instead of over them. */
+  dash: () => whoosh(0.16, 260, 90, 0.045, 0.018),
   slide: () => whoosh(0.35, 500, 160, 0.06),
   pad: () => tone(220, 880, 0.25, 'triangle', 0.12),
   pop: () => { tone(520, 90, 0.18, 'square', 0.12); noise(0.08, 0.08, 900); },

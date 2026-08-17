@@ -85,7 +85,12 @@ export const SEG_LAG = 14;
 export const HEAD_R = 1.15;           // mid-tier head; scaled per tier
 const SEG_R0 = 0.78;                  // first body segment
 const SEG_TAPER_R = 0.955;            // each one a little smaller toward the tail
-export const DEATH_LEN = 3;           // at or below this many segments it dies
+/* MD 25 item 3. Was 3, which killed a serpent while three segments were still
+   drawn — you shot something to pieces and it gave up with a visible chunk of
+   body left, which read as the fight ending early rather than being won.
+   2 = head plus one segment, taken literally from the MD: every remaining body
+   sphere pops before the kill lands. */
+export const DEATH_LEN = 2;           // at or below this many segments it dies
 
 // Radius of segment i (0 = head), scaled by the tier.
 export function segRadius(i, scale = 1) {
@@ -326,10 +331,11 @@ export function damageSerpent(ctx, s, dmg, shooterId, seg = 0) {
 }
 
 // Nearest non-ghost player, for aim and turret range.
+// MD 25 item 5: a paused player is not a target, same rule as enemies.js.
 function nearestPlayer(players, from) {
   let best = null, bd = Infinity;
   for (const p of players.values()) {
-    if (p.ghost) continue;
+    if (p.ghost || p.paused) continue;
     const d = Math.hypot(p.pos.x - from.x, p.pos.y - from.y, p.pos.z - from.z);
     if (d < bd) { bd = d; best = p; }
   }
@@ -424,7 +430,13 @@ export function stepBolts(ctx) {
     let bestT = wh ? wh.t : Infinity;
     let hitPlayer = null;
     for (const q of ctx.ents.players.values()) {
-      if (q.ghost) continue;
+      /* A bolt already in the air when its target pauses PASSES THROUGH.
+         MD 25 leaves this to judgement; passing through is the only option
+         with no visible artefact — freezing it mid-air leaves a threat hanging
+         over a menu, and detonating it early punishes a pause the player has
+         already taken. It also keeps one rule instead of two: a paused player
+         is not there, for aiming and for hitting alike. */
+      if (q.ghost || q.paused) continue;
       const t = rayVCapsule(b.pos, dir, q.pos, CAPSULE_R + BOLT_R, CAPSULE_HALF_H + BOLT_R, Math.min(bestT, stepLen));
       if (t !== null) { bestT = t; hitPlayer = q; }
     }
