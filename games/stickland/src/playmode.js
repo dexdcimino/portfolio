@@ -183,6 +183,12 @@ const WORLD_W = 7200;
 const WORLD_H = 4500;
 const DEADZONE_X = 0.20;
 const DEADZONE_Y = 0.20;
+// Where a brand-new session drops you: the forest base, just south of the
+// village row (home/treehouse/castle/shop/jail all sit at y=2130). enterPlayMode
+// spawns here on boot and restartToBase() returns here, so "restart" and "first
+// launch" cannot describe two different places.
+const SPAWN_X = WORLD_W / 2;
+const SPAWN_Y = WORLD_H / 2;
 
 // ═══════════════════════════════════
 //  SEEDED RANDOM
@@ -1876,8 +1882,10 @@ function _showDeathScreen() {
   requestAnimationFrame(() => { requestAnimationFrame(() => { _deathScreenEl.style.opacity = '1'; }); });
 }
 
-function _respawnPlayer() {
-  sfx('player.respawn');
+// Fade the death overlay out and drop it. Shared with restartToBase() — the
+// two actions differ in WHERE they put you and what they reset, never in how
+// the overlay leaves.
+function _hideDeathScreen() {
   _deathScreenVisible = false;
   _deathFadeAlpha = 0;
   if (_deathScreenEl) {
@@ -1885,6 +1893,22 @@ function _respawnPlayer() {
     _deathScreenEl.style.opacity = '0';
     setTimeout(() => { if (_deathScreenEl) _deathScreenEl.style.display = 'none'; }, 300);
   }
+}
+
+// Move the player and take the camera with them, with no interpolation.
+function _snapCharTo(x, y) {
+  _charWorldX = x; _charWorldY = y;
+  _camera.x = x; _cameraTarget.x = x;
+  _camera.y = y; _cameraTarget.y = y;
+}
+
+/* RESPAWN — the death screen's OK button. Deliberately NOT a restart: it
+   returns you to your checkpoint (flag, else home) with an invuln window,
+   keeping the run going. The pause menu's restart is restartToBase() below and
+   the two must stay distinct. */
+function _respawnPlayer() {
+  sfx('player.respawn');
+  _hideDeathScreen();
   _playerDead = false;
   _playerHP = PLAYER_MAX_HP;
   _playerStunTimer = 0;
@@ -1895,15 +1919,11 @@ function _respawnPlayer() {
 
   // Determine spawn point: flag > home
   if (_flagPlanted) {
-    _charWorldX = _flagWX;
-    _charWorldY = _flagWY;
+    _snapCharTo(_flagWX, _flagWY);
   } else {
     const home = _getHomeObj();
-    if (home) { _charWorldX = home.x; _charWorldY = home.y + 30; }
+    if (home) _snapCharTo(home.x, home.y + 30);
   }
-  // Snap camera
-  _camera.x = _charWorldX; _cameraTarget.x = _charWorldX;
-  _camera.y = _charWorldY; _cameraTarget.y = _charWorldY;
 
   // Respawn FX (MD 04): an expanding accent ring and a rising sparkle
   // column at the spawn point — arrival should feel like an event.
@@ -1921,6 +1941,64 @@ function _respawnPlayer() {
 
   // Notify character.js to reset death state
   if (window._dexResetCharDeath) window._dexResetCharDeath();
+}
+
+// The vitals a new session begins with. enterPlayMode() runs exactly this at
+// boot and restartToBase() runs it again, which is what stops "restart" and
+// "first launch" from drifting into two different reset lists.
+function _resetPlayerVitals() {
+  _playerHP = PLAYER_MAX_HP;
+  _playerDead = false; _playerDeadTimer = 0;
+  _playerStunTimer = 0; _playerDamageFlash = 0; _playerHPBarTimer = 0;
+  _playerKnockVX = 0; _playerKnockVY = 0;
+}
+
+/* RESTART — the pause menu's button. Not a respawn: it reproduces a fresh
+   start, at the forest base, whatever the player had going.
+
+   From the platformer there is nothing to reconstruct — enterPlayMode() IS the
+   boot path main.js runs, so restart just runs it. The platformer tears itself
+   down on the next frame the way it always does when play mode comes up
+   (character.js drives _dexPlatDeactivate), so this does not reach into it.
+
+   From the open world a page reload is not needed and would be the wrong tool:
+   the world is regenerable and every piece of session state here is reachable.
+   What a genuine restart means is the teardown exitPlayMode() does plus the
+   setup enterPlayMode() does, minus the mode transition itself — so this
+   mirrors both lists rather than inventing a third. */
+export function restartToBase() {
+  if (!_active) { enterPlayMode({ fresh: true }); return; }
+
+  // — teardown, as exitPlayMode does it —
+  if (_inTank) { _inTank = false; const t = _getTankObj(); if (t) t.occupied = false; }
+  _hideDeathScreen();
+  _worldParticles.length = 0;
+  _goreParticles.length = 0;
+  _pufferProjectiles.length = 0;
+  _summonPortals.length = 0;
+  _activeWraiths.length = 0;
+  _liveCreatures.length = 0;
+  if (_charModule && _charModule.resetCreatures) _charModule.resetCreatures();
+  // A checkpoint is exactly the thing a fresh start does not have. Hand the
+  // flag back to the inventory rather than destroying it — the same move the
+  // pickup path makes, so the item is not lost.
+  if (_flagPlanted) {
+    _clearFlag();
+    _flagRespawnTimer = 0;
+    if (window._dexFlagRespawned) window._dexFlagRespawned();
+  }
+  if (window._dexUnequipAll) window._dexUnequipAll();
+
+  // — setup, as enterPlayMode does it —
+  _resetPlayerVitals();
+  // No invuln window: a new session does not start with one, and this is a
+  // restart, not a respawn.
+  _invulnTimer = 0;
+  _spawnLiveCreatures();
+  _snapCharTo(SPAWN_X, SPAWN_Y);
+  _syncHudHealthBar();
+  if (window._dexResetCharDeath) window._dexResetCharDeath();
+  sfx('player.respawn');
 }
 
 // ═══════════════════════════════════
@@ -1999,9 +2077,23 @@ window._dexPlantFlag = function() {
   _flagRespawnTimer = 0;
 };
 
+/* Un-plant the flag AND drop the prompt with it.
+   _flagPromptVisible is only recomputed inside `if (_flagPlanted)` in the draw
+   pass, so clearing the flag while the player is standing on it leaves the
+   prompt stuck on forever. That is not cosmetic: tryHomeInteract() gives the
+   flag prompt priority, so every later E press routes into flag pickup and the
+   Home and tank interactions go dead with no visible cause. Anything that
+   clears the flag must come through here. */
+function _clearFlag() {
+  _flagPlanted = false;
+  _flagPromptVisible = false;
+  _flagEHeld = false;
+  _flagEHoldT = 0;
+}
+
 function _destroyFlag() {
   if (!_flagPlanted) return;
-  _flagPlanted = false;
+  _clearFlag();
   // Destruction particles
   const clrHex = (_cachedClr || '#7B8A9C').replace('#', '');
   const r = parseInt(clrHex.slice(0, 2), 16), g = parseInt(clrHex.slice(2, 4), 16), b = parseInt(clrHex.slice(4, 6), 16);
@@ -2075,8 +2167,7 @@ function _tickFlagPickupHold() {
   if (!_flagEHeld || !_flagPromptVisible) { _flagEHoldT = 0; return; }
   _flagEHoldT += _dt;
   if (_flagEHoldT >= FLAG_PICKUP_HOLD) {
-    _flagEHeld = false; _flagEHoldT = 0;
-    _flagPlanted = false;
+    _clearFlag();   // prompt included — the player is standing on it right now
     if (window._dexFlagRespawned) window._dexFlagRespawned(); // add back to inventory
     _showFlagToast('Flag picked up');
   }
@@ -6075,7 +6166,10 @@ function _loadOrGenerateWorld() {
 
 let _charModule = null;
 
-export async function enterPlayMode() {
+/* `fresh` forces the base spawn instead of honouring a planted flag. Boot does
+   not need it (a new page load has no flag), but restartToBase() calls this
+   from the platformer and must land at the base even mid-run. */
+export async function enterPlayMode({ fresh = false } = {}) {
   if (_active || _entering || _exiting) return;
   _entering = true;
   window._dexPlayModeActive = true;
@@ -6118,12 +6212,9 @@ export async function enterPlayMode() {
   _chatTyping = false;
 
   // Reset player HP
-  _playerHP = PLAYER_MAX_HP;
-  _playerDead = false; _playerDeadTimer = 0;
-  _playerStunTimer = 0; _playerDamageFlash = 0; _playerHPBarTimer = 0;
+  _resetPlayerVitals();
   // Sync HUD after a short delay (HUD element may not be visible yet during enter transition)
   setTimeout(_syncHudHealthBar, 600);
-  _playerKnockVX = 0; _playerKnockVY = 0;
 
 
   // Read camera mode + keybind preferences
@@ -6254,14 +6345,9 @@ export async function enterPlayMode() {
     if (!_worldLoaded) await _loadOrGenerateWorld();
     if (_liveCreatures.length === 0) _spawnLiveCreatures();
 
-    // Set world position — flag spawn or world center
-    if (_flagPlanted) {
-      _charWorldX = _flagWX; _charWorldY = _flagWY;
-    } else {
-      _charWorldX = WORLD_W / 2; _charWorldY = WORLD_H / 2;
-    }
-    _camera.x = _charWorldX; _cameraTarget.x = _charWorldX;
-    _camera.y = _charWorldY; _cameraTarget.y = _charWorldY;
+    // Set world position — flag spawn or the forest base
+    if (_flagPlanted && !fresh) _snapCharTo(_flagWX, _flagWY);
+    else _snapCharTo(SPAWN_X, SPAWN_Y);
 
     // Slide HUD up from bottom, synced with avatar drop-in
     const gameHud2 = document.getElementById('game-hud');
@@ -6777,11 +6863,12 @@ export function initPlayMode() {
   // the same blob enterPlayMode already reads.
   initPauseMenu({
     exitWorld: exitPlayMode,
-    // Same function the death screen's OK button runs. Safe to call while
-    // alive: it resets HP, clears stun/knock/flash, grants the usual invuln
-    // window and moves the player to flag-or-home, none of which depends on
-    // having died first.
-    respawn: _respawnPlayer,
+    // NOT _respawnPlayer. That is the death screen's action — it sends you to
+    // your flag and hands you an invuln window, which is a respawn. The menu
+    // button is a restart: fresh start, forest base, and it works from the
+    // platformer too, where _respawnPlayer only wrote to open-world state
+    // nothing was rendering.
+    restart: restartToBase,
     getKeybind: (action) => _keybinds[action],
     setKeybind,
     // Camera lock is a switch in the menu now as well as a key.

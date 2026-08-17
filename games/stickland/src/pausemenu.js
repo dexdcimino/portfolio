@@ -64,7 +64,7 @@ const CONTROL_GROUPS = [
   { title: 'Game',  rows: [ { keys: ['Esc'], note: 'settings' } ] },
 ];
 
-let _hooks = { exitWorld: null, respawn: null, getKeybind: null, setKeybind: null, getCameraLock: null, setCameraLock: null };
+let _hooks = { exitWorld: null, restart: null, getKeybind: null, setKeybind: null, getCameraLock: null, setCameraLock: null };
 let _open = false;
 let _menuEl = null, _backdropEl = null, _endcardEl = null;
 let _openSection = 'general';   // General is expanded on open
@@ -247,11 +247,13 @@ function _ensureDom() {
   });
   _menuEl.querySelector('[data-act="resume"]').addEventListener('click', closePauseMenu);
   _menuEl.querySelector('[data-act="exit"]').addEventListener('click', _exitGame);
-  // Respawn belongs to playmode — it owns HP, the spawn point and the death
+  // Restart belongs to playmode — it owns HP, the spawn point and the death
   // screen — so this only calls the hook and gets out of the way. Closing after
   // is the point: you press it to be back in the world, not to admire the menu.
+  // The menu is shared with the platformer, and the hook handles that: from
+  // there a restart returns you to the open world at the base.
   _menuEl.querySelector('[data-act="respawn"]').addEventListener('click', () => {
-    _hooks.respawn?.();
+    _hooks.restart?.();
     closePauseMenu();
   });
 }
