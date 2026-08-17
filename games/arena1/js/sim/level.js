@@ -15,7 +15,7 @@
 import { TUNE, SIM_DT } from '../config.js';
 import { norm } from './vec.js';
 
-export const SUMMIT_Y = 190;
+export const SUMMIT_Y = 570;   // MD 22: 3x the old 190
 
 /* MD 17 — the arena is a regular HEXAGON, flat-top, circumradius HEX_R. For a
    regular hexagon the side length equals the circumradius, and the apothem
@@ -250,6 +250,19 @@ export function buildLevel(world, rng) {
       { a: rng() * 6.28, y: 10, rMin: 18, rSpan: 34, prev: null },
       { a: rng() * 6.28 + Math.PI, y: 11.9, rMin: 34, rSpan: 40, prev: null },
     ];
+    /* MD 22: the column is 3x taller and DELIBERATELY thins with altitude — the
+       sparse top is part of the difficulty curve, not decoration. The step
+       between platforms grows with height, so the lower and middle bands keep
+       roughly the density they had while the last stretch spreads out.
+       The ceiling on that growth is REACHABILITY, and it is derived rather than
+       guessed: the jetpack is hard-limited to 3.85s of continuous burn (MD 20)
+       at JET_VMAX 14.5, and a rocket jump apexes ~77m, so a step the jet alone
+       must cover has to stay well inside what one tank buys. STEP_MAX 10m is
+       0.7s of jet at JET_VMAX out of the 3.85s a tank buys, so grapple and
+       rocket jump stay comfort rather than necessity. */
+    const STEP_MIN_LOW = 2.2, STEP_VAR_LOW = 3.2;   // unchanged near the floor
+    const STEP_MAX = 10;
+    const thin = (y) => Math.min(1, Math.max(0, (y - 120) / (SUMMIT_Y - 120)));
     let i = 0;
     // Round-robin the arms so the rng draw order is a stable interleave and
     // both arms climb together.
@@ -312,7 +325,13 @@ export function buildLevel(world, rng) {
         }
         prev = { x, y, z };
       }
-      y += 2.2 + rng() * 3.2;
+      /* Step grows from the original 2.2-5.4m near the floor to at most
+         STEP_MAX at the summit. `thin` is 0 below 120m so the lower band is
+         bit-for-bit the spacing it always had. */
+      const t01 = thin(y);
+      const base = STEP_MIN_LOW + (STEP_MAX * 0.55 - STEP_MIN_LOW) * t01;
+      const varr = STEP_VAR_LOW + (STEP_MAX * 0.45 - STEP_VAR_LOW) * t01;
+      y += base + rng() * varr;
       i++;
       ARM.a = a; ARM.y = y; ARM.prev = prev;
     }

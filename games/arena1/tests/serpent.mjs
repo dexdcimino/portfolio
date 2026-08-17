@@ -10,7 +10,7 @@ import {
   SEG_COUNT, SEG_LAG, HEAD_R, DEATH_LEN, TIERS, TIER_NAMES, POP_HP, damageSerpent,
 } from '../js/sim/serpent.js';
 import { rngFor } from '../js/core/rng.js';
-import { SIM_DT } from '../js/config.js';
+import { SIM_DT, TUNE } from '../js/config.js';
 
 let passed = 0;
 const ok = (n, d) => { passed++; console.log(`ok  ${n}${d ? ` — ${d}` : ''}`); };
@@ -21,7 +21,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   const ents = createEntities();
   const id = ents.allocWorldId();
   const s = spawnSerpent(ents, level, rngFor('serp', 'serpent', id), id,
-    { tier: 'mid', world });
+    { tier: 't2', world });
   if (withPlayer) {
     const p = createPlayerState(1, playerAt || { x: 0, y: level.summitY + 20, z: 0 });
     ents.players.set(1, p);
@@ -34,7 +34,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
 
 // ── 1. shape: head is unmistakable, segments taper ─────────────────────────
 {
-  const N = TIERS.mid.segs;
+  const N = TIERS.t2.segs;
   const radii = Array.from({ length: N }, (_, i) => segRadius(i));
   assert.equal(radii[0], HEAD_R);
   assert.ok(radii[0] > radii[1] * 1.35,
@@ -109,17 +109,17 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
 {
   const ZAP_CD = 0.11, ROCKET_CD = 0.8, ROCKET_DMG = 3;
   const rows = [];
-  for (const tier of ['low', 'mid', 'boss']) {
+  for (const tier of TIER_NAMES) {
     const T = TIERS[tier];
     const pops = T.segs - DEATH_LEN;
-    const zapHits = pops * POP_HP;
+    const zapHits = pops * T.popHp;
     const zapS = zapHits * ZAP_CD;
     const rockets = pops;                  // one rocket = one sphere, every tier
     const rocketS = rockets * ROCKET_CD;
     assert.ok(zapS > 1.6, `${tier}: ${zapS.toFixed(1)}s on zap is a formality`);
-    assert.ok(zapS < 14, `${tier}: ${zapS.toFixed(1)}s on zap is a slog`);
-    assert.ok(rocketS < 20, `${tier}: ${rocketS.toFixed(1)}s on rockets is a slog`);
-    rows.push(`${tier} ${pops} pops x ${POP_HP}hp → zap ${zapHits} hits ${zapS.toFixed(1)}s | rocket ${rockets} shots ${rocketS.toFixed(1)}s`);
+    assert.ok(zapS < 30, `${tier}: ${zapS.toFixed(1)}s on zap is a slog`);
+    assert.ok(rocketS < 30, `${tier}: ${rocketS.toFixed(1)}s on rockets is a slog`);
+    rows.push(`${tier} ${pops}x${T.popHp}hp → zap ${zapHits} hits ${zapS.toFixed(1)}s | rocket ${rockets} shots ${rocketS.toFixed(1)}s`);
   }
   ok('time-to-kill is a fight', rows.join('  |  '));
 }
@@ -169,8 +169,17 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   assert.ok(fired > 0, 'turret never fired at a player in range');
   const bolt = [...ents.bolts.values()][0];
   assert.ok(bolt, 'fire event but no bolt entity');
+  /* MD 22 raised bolt speed, so "under 25 m/s" is no longer the property that
+     matters — DODGEABLE WHILE STRAFING is. At a typical 40m engagement the
+     bolt's flight time must let a player moving at WALK clear their own hit
+     radius (capsule 0.4 + bolt 0.35) with margin. Derived, so a future speed
+     bump fails here instead of silently becoming unavoidable. */
   const speed = Math.hypot(bolt.vel.x, bolt.vel.y, bolt.vel.z);
-  assert.ok(speed < 25, `bolt speed ${speed.toFixed(1)} m/s is not dodgeable-slow`);
+  const flight = 40 / speed;
+  const sidestep = TUNE.WALK * flight;
+  assert.ok(sidestep > (0.4 + 0.35) * 2.5,
+    `bolt at ${speed.toFixed(0)} m/s gives ${flight.toFixed(2)}s — a strafing player only clears `
+    + `${sidestep.toFixed(1)}m, not enough to dodge`);
   // it must despawn rather than leak
   let alive = true;
   for (let t = tick; t < tick + 400 && alive; t++) {
@@ -178,8 +187,8 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
     alive = ents.bolts.has(bolt.id);
   }
   assert.ok(!alive, 'bolt never despawned — a miss leaks forever');
-  ok('turret bolts', `fired at tick ${tick}, speed ${speed.toFixed(1)} m/s `
-    + `(player rocket is 40), despawned rather than leaking`);
+  ok('turret bolts', `fired at tick ${tick}, speed ${speed.toFixed(0)} m/s → ${flight.toFixed(2)}s over 40m; `
+    + `a strafing player clears ${sidestep.toFixed(1)}m vs a 0.75m hit radius; despawns on a miss`);
 }
 
 // ── 8. bolts do not tunnel through geometry ────────────────────────────────
@@ -259,7 +268,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   let bossClear = Infinity, overlaps = 0, worstSeed = null;
   for (const seed of ['serp', 'p2-1', 'p2-2', 'p2-3', 12345, 999]) {
     const sim = createSim(seed, { pvp: true });
-    const boss = [...sim.ents.serpents.values()].find((x) => x.tier === 'boss');
+    const boss = [...sim.ents.serpents.values()].find((x) => x.tier === 'giant');
     for (let t = 0; t < 900; t += 3) {
       for (let i = 0; i < boss.segs; i++) {
         const c = segAt(boss, t, i);
@@ -309,7 +318,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
     sim.step(new Map([[pid, { tick: t, playerId: pid, move: { x: 0, z: 0 },
       yaw, pitch, buttons: BTN.FIRE, weapon: 0 }]]));
     const snap = sim.snapshot();
-    severed += snap.events.filter((e) => e.type === 'serpent_sever').length;
+    severed += sim.snapshot().events.filter((e) => e.type === 'serpent_sever').length;
     /* Match by ID, not by index. There are three serpents and the snapshot
        filters out dead ones, so the two arrays fall out of step the moment one
        dies — which read as "len disagrees" when nothing was actually wrong. */
@@ -319,7 +328,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
     assert.equal(wire.len, host.len, `len disagrees at tick ${t}`);
     // MD 21 removed armour; tailHp is the per-tick state that now has to agree.
     assert.equal(wire.tailHp, host.tailHp, `tailHp disagrees at tick ${t}`);
-    if (wire.tailHp < POP_HP) armourTicks++;   // ticks with a partly-damaged sphere
+    if (wire.tailHp < host.popHp) armourTicks++;   // ticks with a partly-damaged sphere
     lenSeen.add(wire.len);
     for (let k = 0; k < wire.len; k++) {
       const c = segAt(wire.path, snap.tick, k);
@@ -335,7 +344,10 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
     + `${severed} spheres popped, ${armourTicks} ticks mid-sphere, max drift ${worstPos.toExponential(1)}m`);
 }
 
-// ── 13. MD 19: three tiers, distinct, all in clear air on every seed ───────
+// ── 13. MD 22: five tiers, distinct, all in clear air on every seed ───────
+// The sweep matters more than it used to: the space is 3x taller, there are
+// five orbits instead of three, and w now depends on the radius the scan
+// picks — so the path being sampled is the path actually flown.
 {
   const seeds = ['serp', 'p2-1', 'p2-2', 'p2-3', 'hex-a', 12345, 999];
   let samples = 0, overlaps = 0;
@@ -343,16 +355,17 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   for (const seed of seeds) {
     const sim = createSim(seed, { pvp: true });
     const list = [...sim.ents.serpents.values()];
-    assert.equal(list.length, 3, `seed ${seed}: expected 3 serpents, got ${list.length}`);
+    assert.equal(list.length, TIER_NAMES.length, `seed ${seed}: expected ${TIER_NAMES.length} serpents, got ${list.length}`);
     const tiers = list.map((x) => x.tier).sort();
-    assert.deepEqual(tiers, ['boss', 'low', 'mid'], `seed ${seed}: tiers ${tiers}`);
-    // distinct altitudes, low < mid < boss
+    assert.deepEqual(tiers, [...TIER_NAMES].sort(), `seed ${seed}: tiers ${tiers}`);
+    // distinct altitudes, t1 < t2 < t3 < t4 < giant
     const byTier = Object.fromEntries(list.map((x) => [x.tier, x]));
-    assert.ok(byTier.low.cy < byTier.mid.cy && byTier.mid.cy < byTier.boss.cy,
-      `seed ${seed}: altitudes not ordered (${byTier.low.cy}/${byTier.mid.cy}/${byTier.boss.cy})`);
+    assert.ok(TIER_NAMES.every((t,i)=>i===0||byTier[TIER_NAMES[i-1]].cy < byTier[t].cy),
+      `seed ${seed}: altitudes not ordered (${TIER_NAMES.map(t=>byTier[t].cy.toFixed(0)).join('/')})`);
     for (const x of list) {
       assert.ok(x.placedClear, `seed ${seed}: ${x.tier} fell back to the raised orbit — no clear air found`);
-      shapes.set(x.tier, { segs: x.segs, scale: x.scale, popHp: x.popHp, boltDmg: x.boltDmg, cd: x.boltCd });
+      shapes.set(x.tier, { segs: x.segs, scale: x.scale, popHp: x.popHp, boltDmg: x.boltDmg,
+        cd: x.boltCd, cy: x.cy, R: x.R, speed: Math.abs(x.w) * x.R });
       // SAMPLE the orbit against real geometry, the MD 18 way — do not trust
       // the placement search, re-prove it here at a finer step.
       const period = Math.abs(2 * Math.PI / x.w) / SIM_DT;
@@ -369,12 +382,14 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   }
   assert.equal(overlaps, 0, `${overlaps} of ${samples} orbit samples intersect geometry`);
   // visibly different at a glance
-  assert.ok(shapes.get('boss').segs > shapes.get('mid').segs && shapes.get('mid').segs > shapes.get('low').segs);
-  assert.ok(shapes.get('boss').scale > shapes.get('low').scale);
-  ok('three tiers, all in clear air', `${seeds.length} seeds x 3 tiers x 160 samples = ${samples} segment probes, `
-    + `zero overlaps; low ${shapes.get('low').segs}seg/x${shapes.get('low').scale} hp${shapes.get('low').headHp}, `
-    + `mid ${shapes.get('mid').segs}/x${shapes.get('mid').scale}, `
-    + `boss ${shapes.get('boss').segs}/x${shapes.get('boss').scale}, popHp ${shapes.get('boss').popHp} each`);
+  assert.ok(TIER_NAMES.every((t,i)=>i===0||shapes.get(TIER_NAMES[i-1]).segs < shapes.get(t).segs));
+  assert.ok(shapes.get('giant').scale > shapes.get('t1').scale);
+  ok('five tiers, all in clear air', `${seeds.length} seeds x ${TIER_NAMES.length} tiers x 160 samples = `
+    + `${samples} segment probes, zero overlaps; `
+    + TIER_NAMES.map((t) => {
+        const x = shapes.get(t);
+        return `${t} y${x.cy.toFixed(0)} ${x.segs}seg x${x.scale} ${x.speed.toFixed(1)}m/s`;
+      }).join(', '));
 }
 
 // ── 15. each tier respawns after its own delay, deterministically ──────────
@@ -383,7 +398,7 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
     const sim = createSim('serp-respawn', { pvp: true });
     const pid = sim.addPlayer();
     const log = [];
-    const target = [...sim.ents.serpents.values()].find((x) => x.tier === 'low');
+    const target = [...sim.ents.serpents.values()].find((x) => x.tier === 't1');
     // kill it outright at tick 10
     for (let t = 0; t < target.respawnTicks + 200; t++) {
       if (t === 10) {
@@ -401,8 +416,8 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   assert.deepEqual(a, b, 'respawn timing is not deterministic');
   assert.ok(a.some((x) => x.includes('serpent_respawn')), `no respawn happened: ${a.join(',')}`);
   const delay = Number(a.find((x) => x.includes('respawn')).split(':')[0]) - 10;
-  assert.ok(Math.abs(delay - TIERS.low.respawnTicks) <= 2,
-    `low tier respawned after ${delay} ticks, expected ${TIERS.low.respawnTicks}`);
+  assert.ok(Math.abs(delay - TIERS.t1.respawnTicks) <= 2,
+    `low tier respawned after ${delay} ticks, expected ${TIERS.t1.respawnTicks}`);
   ok('tiers respawn on their own delay', `low died t10, back at t${10 + delay} (${delay} ticks = ${(delay / 60).toFixed(0)}s); identical across two runs`);
 }
 
@@ -436,6 +451,51 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   assert.deepEqual(after.spawn, pa.spawn, 'player spawn moved during the run');
   ok('player identity independent of serpents', `3 serpents + ${bolts} live bolts, all ids >= 100000; `
     + `player id ${a} → next ${b2}; spawn (${pa.spawn.x.toFixed(2)}, ${pa.spawn.z.toFixed(2)}) unchanged`);
+}
+
+// ── 17. MD 22 item 6: the ground floor is a safe deck ─────────────────────
+/* The arena is a climb now, so the bottom has to be somewhere you can stand,
+   pick a route and gear up without being sniped from 500m. This is a whole-sim
+   assertion rather than band arithmetic: run every tier with a player parked on
+   the hex floor, in the open, long enough that each would have cleared its
+   cooldown a dozen times, and require that not one bolt is ever fired. */
+{
+  // enemies:true, because the same flag gates the serpents — but the ground
+  // blobs are cleared, so a bolt is the ONLY thing left that could take hp off
+  // a player standing still on the floor. That makes the hp assertion mean
+  // what it says instead of measuring blob pathing.
+  const sim = createSim('serp-floor', { pvp: true });
+  for (const e of sim.ents.enemies.values()) e.alive = false;
+  const id = sim.addPlayer();
+  const p = sim.getPlayer(id);
+  const list = [...sim.ents.serpents.values()];
+  const TICKS = Math.max(...list.map((x) => x.boltCd)) * 12;
+
+  let fired = 0, everBolt = 0;
+  for (let t = 0; t < TICKS; t++) {
+    p.pos.y = 1.6; p.vel.x = 0; p.vel.y = 0; p.vel.z = 0;
+    sim.step([{ id, cmd: { tick: t, yaw: 0, pitch: 0, buttons: 0, move: { x: 0, z: 0 } } }]);
+    fired += sim.snapshot().events.filter((e) => e.type === 'serpent_fire').length;
+    everBolt += sim.ents.bolts.size;
+  }
+  assert.equal(fired, 0, `${fired} bolts fired at a player standing on the floor`);
+  assert.equal(everBolt, 0, 'a bolt existed while the only player was on the floor');
+  assert.equal(p.hp, 100, `floor player lost ${100 - p.hp} hp`);
+
+  // And prove it is the ALTITUDE GATE doing it, not distance or luck: lift the
+  // same player into the lowest tier's window and it must open fire.
+  const t1 = list.find((x) => x.tier === 't1');
+  const mid = (t1.fire.yMin + t1.fire.yMax) / 2;
+  let firedUp = 0;
+  for (let t = 0; t < t1.boltCd * 4; t++) {
+    p.pos.y = mid; p.pos.x = 0; p.pos.z = 0; p.vel.y = 0;
+    sim.step([{ id, cmd: { tick: TICKS + t, yaw: 0, pitch: 0, buttons: 0, move: { x: 0, z: 0 } } }]);
+    firedUp += sim.snapshot().events.filter((e) => e.type === 'serpent_fire').length;
+  }
+  assert.ok(firedUp > 0, 'nothing fired inside the band either — the gate is not what is silencing them');
+  ok('the floor is a safe deck, and the gate is why', `${TICKS} ticks at y1.6: 0 shots from all `
+    + `${list.length} tiers (lowest window opens at y${t1.fire.yMin}), 100 hp intact; `
+    + `the same player at y${mid.toFixed(0)} drew ${firedUp} shots`);
 }
 
 console.log(`\nserpent.mjs: ${passed}/${passed} passed`);

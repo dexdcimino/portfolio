@@ -18,18 +18,53 @@ export function createSerpentView({ scene, mat, V3 }) {
      Pooled by id like rockets, and deliberately loud: a bolt is meant to be
      dodged on sight, so it is emissive, bigger than its 0.35m hit radius, and
      wears a trailing streak so it reads as travelling rather than hanging. */
-  const boltMat = new BABYLON.StandardMaterial('boltm', scene);
-  boltMat.diffuseColor = BABYLON.Color3.FromHexString('#FF7A59');
-  boltMat.emissiveColor = BABYLON.Color3.FromHexString('#FFB03D');
-  boltMat.specularColor = BABYLON.Color3.Black();
+  /* MD 22 item 3 — redesigned, then MEASURED and redesigned again.
+     The first attempt was a white core inside a bigger translucent magenta
+     shell. Sampling a real frame at 55m killed it: the sky at the altitudes
+     bolts actually fly through is plum (210,101,96), and #FF1E6E against that
+     is 1.02:1 — no luminance difference at all, and the same hue family into
+     the bargain. Worse, the shell was LARGER than the core and alpha-blended,
+     so the one element that did carry (white, 3.64:1) was being veiled by the
+     one that did not. At range the whole thing read as a faint pink ring.
+     What follows from that measurement:
+       · WHITE does the detecting. It is the only value the plum sky and the
+         sand floor cannot both supply, so it is the core and it is opaque.
+       · The magenta is a GLOW, and it is ADDITIVE. Additive can only brighten
+         what is behind it, so it can never wash the core out the way an
+         alpha-blended shell did, and over a mid-luminance sky it lifts rather
+         than matches. It carries identity (this is serpent fire, not yours);
+         it is not asked to carry visibility.
+       · The TAIL says which way it is going, so a glance tells you whether it
+         is yours to worry about. Additive for the same reason.
+     Still deliberately NOT the player accent: a threat must never wear the
+     colour the player chose for themselves. */
+  const coreMat = new BABYLON.StandardMaterial('boltCore', scene);
+  coreMat.diffuseColor = BABYLON.Color3.FromHexString('#FFFFFF');
+  coreMat.emissiveColor = BABYLON.Color3.FromHexString('#FFFFFF');
+  coreMat.specularColor = BABYLON.Color3.Black();
+  coreMat.disableLighting = true;
+  const glowMat = new BABYLON.StandardMaterial('boltGlow', scene);
+  glowMat.diffuseColor = BABYLON.Color3.Black();     // additive: diffuse would double
+  glowMat.emissiveColor = BABYLON.Color3.FromHexString('#FF1E6E');
+  glowMat.specularColor = BABYLON.Color3.Black();
+  glowMat.disableLighting = true;
+  glowMat.alphaMode = BABYLON.Engine.ALPHA_ADD;
+  glowMat.alpha = 0.6;
+  glowMat.backFaceCulling = false;   // both hulls add, so it thickens at the rim
+  glowMat.disableDepthWrite = true;  // never occlude the core or each other
   const bolts = new Map();   // boltId → mesh
   function boltMesh() {
-    const m = BABYLON.MeshBuilder.CreateSphere('bolt', { diameter: 1.15, segments: 6 }, scene);
-    m.material = boltMat; m.isPickable = false;
+    // 1.25m of white for a 0.7m hit diameter. Deliberately generous: erring
+    // toward "dodged something that would have missed" is the safe direction,
+    // and at 60m an honest 0.7m sphere is four pixels.
+    const m = BABYLON.MeshBuilder.CreateSphere('bolt', { diameter: 1.25, segments: 8 }, scene);
+    m.material = coreMat; m.isPickable = false;
+    const glow = BABYLON.MeshBuilder.CreateSphere('boltGlow', { diameter: 2.7, segments: 8 }, scene);
+    glow.material = glowMat; glow.isPickable = false; glow.parent = m;
     const tail = BABYLON.MeshBuilder.CreateCylinder('boltTail',
-      { height: 2.4, diameterTop: 0.05, diameterBottom: 0.75, tessellation: 6 }, scene);
-    tail.material = boltMat; tail.isPickable = false; tail.parent = m;
-    tail.rotation.x = Math.PI / 2; tail.position.z = -1.35;
+      { height: 6.2, diameterTop: 0.04, diameterBottom: 1.6, tessellation: 8 }, scene);
+    tail.material = glowMat; tail.isPickable = false; tail.parent = m;
+    tail.rotation.x = Math.PI / 2; tail.position.z = -3.3;
     return m;
   }
   function syncBolts(list) {
@@ -65,13 +100,22 @@ export function createSerpentView({ scene, mat, V3 }) {
       m.isPickable = false;
       segs.push(m);
 
-      // Spikes on the BODY only — the head reads differently on purpose.
+      /* Spikes on the BODY only — the head reads differently on purpose.
+         MD 22: they were one thin 1.7r cone on top, which vanished at any
+         distance and disappeared entirely when a segment happened to present
+         its underside. Now 3.4r long and 1.35r wide at the base — roughly
+         double each way — and THREE of them ringed around the segment, so
+         there is always a spike in silhouette whatever angle you see it from. */
       if (i > 0) {
-        const sp = BABYLON.MeshBuilder.CreateCylinder('serpSpk' + id + '_' + i,
-          { height: r * 1.7, diameterTop: 0, diameterBottom: r * 0.62, tessellation: 4 }, scene);
-        sp.material = spikeMat; sp.isPickable = false; sp.parent = m;
-        sp.position = V3(0, r * 0.85, 0);
-        spikes.push(sp);
+        for (let k = 0; k < 3; k++) {
+          const sp = BABYLON.MeshBuilder.CreateCylinder('serpSpk' + id + '_' + i + '_' + k,
+            { height: r * 3.4, diameterTop: 0, diameterBottom: r * 1.35, tessellation: 5 }, scene);
+          sp.material = spikeMat; sp.isPickable = false; sp.parent = m;
+          const ang = (k / 3) * Math.PI * 2 + (i % 2) * 0.5;
+          sp.position = V3(Math.sin(ang) * r * 0.75, Math.cos(ang) * r * 0.75, 0);
+          sp.rotation.z = -ang;
+          spikes.push(sp);
+        }
       }
     }
     /* The head has to be identifiable at 30m, so it is not just a bigger

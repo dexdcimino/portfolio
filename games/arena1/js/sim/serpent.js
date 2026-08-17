@@ -28,25 +28,60 @@ import { hurtPlayer } from './movement.js';
 import { raySphere, rayVCapsule, CAPSULE_R, CAPSULE_HALF_H } from './world.js';
 import { rngFor } from '../core/rng.js';
 
-// ── tiers (MD 19) ───────────────────────────────────────────────────────────
-/* Three serpents at three heights, so the climb means something. Every tier
-   keeps the same mechanics — tail-first destruction, death at the last few,
-   hp rising toward the head, death at the last few segments, contact damage,
-   contact damage, swept bolts — and differs only in scale. Per-sphere cost is
-   uniform (POP_HP); the tiers differ in how MANY spheres there are, which is
-   what keeps one rocket equal to one sphere on every tier. */
-export const TIERS = {
-  low:  { segs: 7,  scale: 0.80, boltDmg: 7,  boltCd: 120, boltSpeed: 15,
-          respawnTicks: 600,  band: { yMin: 34,  yMax: 74 } },
-  mid:  { segs: 10, scale: 1.00, boltDmg: 12, boltCd: 84,  boltSpeed: 18,
-          respawnTicks: 1200, band: { yMin: 96,  yMax: 150 } },
-  boss: { segs: 14, scale: 1.35, boltDmg: 18, boltCd: 54,  boltSpeed: 22,
-          respawnTicks: 2400, band: { yMin: 206, yMax: 236 } },
-};
-export const TIER_NAMES = ['low', 'mid', 'boss'];
+// ── tiers (MD 22) ───────────────────────────────────────────────────────────
+/* FIVE serpents: four regular, banded up the 570m column so there is roughly
+   always one in view as you climb, plus one giant at the very top. Every tier
+   keeps MD 21's model — damage anywhere pops tail spheres one at a time,
+   overkill carries, death at the last 3, no armour.
 
-export const SEG_COUNT = 14;          // the largest any tier gets (buffer sizing)
-export const SEG_LAG = 5;             // ticks of delay between neighbours
+   SPEED (MD 22 item 1). Tiers now specify a TANGENTIAL SPEED in m/s, and `w` is
+   derived from it once the orbit radius is known: w = speed / R. That matters
+   because R comes from the clear-air scan and lands anywhere from 16 to 80m —
+   with a fixed angular rate the same tier cruised at 2.7 m/s on a tight orbit
+   and 10.9 on a wide one, a 4x spread nobody designed. Deriving from speed
+   makes lap time vary instead, which is what physically should vary.
+   Old rate was 0.38-0.56 rad/s, up to 45 m/s on an 80m orbit — five times a
+   player's run, which is why they darted. Bigger tiers now cruise slower, which
+   reinforces the step up to the giant.
+
+   FIRE BAND (item 6). A serpent only shoots a player inside its OWN altitude
+   band, on top of the 90m range check. That is what stops a serpent 200m up
+   sniping someone on the floor, and it makes the difficulty curve legible: you
+   get shot at by the thing whose airspace you just entered. The lowest band
+   starts at 18m, well clear of the arena floor.
+
+   popHp rises with the tier so a sphere costs more the higher you go; the
+   rocket is scaled to it in combat.js so ONE rocket is still ONE sphere on
+   every tier, giant included. */
+export const TIERS = {
+  t1:    { segs: 7,  scale: 0.80, popHp: 5,  boltDmg: 14, boltCd: 110, boltSpeed: 26,
+           speed: 11, respawnTicks: 600,
+           band: { yMin: 40,  yMax: 90 },  fire: { yMin: 18,  yMax: 130 } },
+  t2:    { segs: 9,  scale: 0.95, popHp: 6,  boltDmg: 18, boltCd: 96,  boltSpeed: 29,
+           speed: 10, respawnTicks: 900,
+           band: { yMin: 120, yMax: 190 }, fire: { yMin: 95,  yMax: 235 } },
+  t3:    { segs: 11, scale: 1.10, popHp: 7,  boltDmg: 22, boltCd: 84,  boltSpeed: 32,
+           speed: 9, respawnTicks: 1200,
+           band: { yMin: 220, yMax: 300 }, fire: { yMin: 195, yMax: 350 } },
+  t4:    { segs: 13, scale: 1.25, popHp: 8,  boltDmg: 26, boltCd: 72,  boltSpeed: 35,
+           speed: 8, respawnTicks: 1500,
+           band: { yMin: 330, yMax: 430 }, fire: { yMin: 305, yMax: 480 } },
+  /* The giant is a STEP CHANGE, not the next size up: 22 spheres against 13, a
+     body scaled half again, a sphere that costs 12 instead of 8, and a turret
+     on roughly half the cooldown of the tier below it. */
+  giant: { segs: 22, scale: 1.95, popHp: 12, boltDmg: 34, boltCd: 44,  boltSpeed: 40,
+           speed: 6.5, respawnTicks: 2700,
+           band: { yMin: 590, yMax: 650 }, fire: { yMin: 455, yMax: 900 } },
+};
+export const TIER_NAMES = ['t1', 't2', 't3', 't4', 'giant'];
+
+export const SEG_COUNT = 22;          // the largest any tier gets (the giant)
+/* Ticks of delay between neighbours. Segment SPACING is speed x lag, so MD
+   22's slowdown (45 m/s down to ~11) collapsed a 9-segment body to a 4.5m
+   clump of overlapping spheres. Raised to hold roughly the old 2.5-3m
+   spacing at the new cruise: 11 m/s x 14 ticks = 2.6m. Anything that changes
+   `w` again has to revisit this — the two are one number in disguise. */
+export const SEG_LAG = 14;
 export const HEAD_R = 1.15;           // mid-tier head; scaled per tier
 const SEG_R0 = 0.78;                  // first body segment
 const SEG_TAPER_R = 0.955;            // each one a little smaller toward the tail
@@ -149,7 +184,12 @@ function orbitClear(world, cand, segs, scale) {
   return true;
 }
 
-function findClearOrbit(world, base, band, segs, scale, pick = 0) {
+/* `speed` is passed in because w = speed/R, so the candidate's angular rate —
+   and therefore the curve it actually traces — depends on the radius being
+   tried. Deriving w AFTER the scan validated a different path from the one the
+   serpent flies, which is exactly how 19 of 69,440 samples ended up inside
+   geometry. The scan now tests the real thing. */
+function findClearOrbit(world, base, band, segs, scale, pick = 0, speed = null, dir = 1) {
   /* Candidate radii outermost-first, but ROTATED by a seeded offset. Without
      the rotation every tier takes the first radius that works and all three end
      up stacked on the same ring — clear, but visibly uniform. The rotation only
@@ -164,6 +204,7 @@ function findClearOrbit(world, base, band, segs, scale, pick = 0) {
     for (let n = 0; n < radii.length; n++) {
       const R = radii[(n + off) % radii.length];
       const cand = { ...base, cy: alt, R };
+      if (speed !== null) cand.w = (speed / R) * dir;
       tried++;
       if (orbitClear(world, cand, segs, scale)) return { cy: alt, R, tried };
     }
@@ -184,7 +225,8 @@ export function spawnSerpent(ents, level, rng, id, opts = {}) {
     amp: (2.6 + rng() * 1.6) * T.scale,
     lat: (5.5 + rng() * 2.5) * T.scale,
     sw: (2 * Math.PI / bodySeconds) * (0.85 + rng() * 0.3),
-    w: (0.38 + rng() * 0.18) * (rng() > 0.5 ? 1 : -1),
+    w: T.speed / 40,                      // provisional; re-derived from R below
+    dir: rng() > 0.5 ? 1 : -1,
     vw: 1.0 + rng() * 0.5,
     phase: rng() * 6.28,
     vphase: rng() * 6.28,
@@ -197,20 +239,25 @@ export function spawnSerpent(ents, level, rng, id, opts = {}) {
   const band = opts.lowDebug ? { yMin: 18, yMax: 46 } : T.band;
 
   const pick = rng();
-  const found = opts.world ? findClearOrbit(opts.world, base, band, T.segs, T.scale, pick) : null;
+  const found = opts.world
+    ? findClearOrbit(opts.world, base, band, T.segs, T.scale, pick, T.speed, base.dir)
+    : null;
   // No clear orbit anywhere in the band: go above it rather than through
   // anything. The caller reports this; tests assert it never happens.
   const cy = found ? found.cy : band.yMax + 24;
   const R = found ? found.R : 26;
+  // Now R is known, so the angular rate that yields the intended cruise speed is
+  // too. Sign comes from the rng draw above so direction stays seeded.
+  base.w = (T.speed / R) * base.dir;   // matches what findClearOrbit validated
 
   const s = {
     id, kind: 'serpent', tier: tierName,
     ...base, cy, R,
-    segs: T.segs, scale: T.scale, popHp: POP_HP,
+    segs: T.segs, scale: T.scale, popHp: T.popHp, fire: T.fire,
     boltDmg: T.boltDmg, boltCd: T.boltCd, boltSpeed: T.boltSpeed,
     respawnTicks: T.respawnTicks,
     len: T.segs,                          // alive segments, ALWAYS a prefix
-    tailHp: POP_HP,                       // damage left on the CURRENT tail sphere
+    tailHp: T.popHp,                      // damage left on the CURRENT tail sphere
     aimYaw: 0, aimPitch: 0,
     fireCd: T.boltCd,
     contactCd: 0,
@@ -231,11 +278,15 @@ export function respawnSerpent(s, tick, rng, world) {
   const T = TIERS[s.tier];
   s.phase = rng() * 6.28;
   s.vphase = rng() * 6.28;
-  s.w = (0.38 + rng() * 0.18) * (rng() > 0.5 ? 1 : -1);
-  const found = world ? findClearOrbit(world, s, s.debugBand || T.band, T.segs, T.scale, rng()) : null;
+  const dir = rng() > 0.5 ? 1 : -1;
+  const found = world
+    ? findClearOrbit(world, s, s.debugBand || T.band, T.segs, T.scale, rng(), T.speed, dir)
+    : null;
   if (found) { s.cy = found.cy; s.R = found.R; }
+  // After `found`, because w depends on the radius actually taken.
+  s.w = (T.speed / s.R) * dir;
   s.len = T.segs;
-  s.tailHp = POP_HP;
+  s.tailHp = T.popHp;
   s.alive = true;
   s.respawnAt = -1;
   s.fireCd = T.boltCd;
@@ -302,7 +353,11 @@ export function stepSerpents(ctx) {
     const target = nearestPlayer(ctx.ents.players, head);
 
     // ---- turret aim: swings at a bounded rate so it visibly tracks ----
-    if (target && target.dist < TURRET_RANGE) {
+    /* MD 22 item 6: range alone is not the gate — the player must be inside
+       THIS serpent's altitude band. A player standing on the arena floor is
+       below every band, so none of the five can shoot them. */
+    const inBand = target && target.p.pos.y >= s.fire.yMin && target.p.pos.y <= s.fire.yMax;
+    if (target && inBand && target.dist < TURRET_RANGE) {
       const eye = { x: target.p.pos.x, y: target.p.pos.y + 0.55, z: target.p.pos.z };
       const dx = eye.x - head.x, dy = eye.y - head.y, dz = eye.z - head.z;
       const wantYaw = Math.atan2(dx, dz);

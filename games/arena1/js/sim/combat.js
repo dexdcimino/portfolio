@@ -174,13 +174,13 @@ function explode(ctx, r, point, direct) {
     // one sphere off the tail. Splash still does not spread down the chain —
     // with tail-first popping, a blast that counted several times would make
     // the whole serpent a one-rocket kill.
-    /* A rocket direct pops exactly ONE sphere, whatever POP_HP is — the zap's
+    /* A rocket direct pops exactly ONE sphere, whatever that tier's popHp is — the zap's
        pace and the rocket's are set independently (see POP_HP in serpent.js).
        Tying this to DIRECT_ENEMY instead would force POP_HP to 3, which makes
        the low tier a 1.3s formality. */
     const { s: ser, seg } = direct.hit;
-    damageSerpent(ctx, ser, POP_HP, r.ownerId, seg);
-    ctx.events.push({ type: 'hit', shooter: r.ownerId, target: ser.id, point, dmg: POP_HP, seg });
+    damageSerpent(ctx, ser, ser.popHp, r.ownerId, seg);
+    ctx.events.push({ type: 'hit', shooter: r.ownerId, target: ser.id, point, dmg: ser.popHp, seg });
   } else if (direct?.type === 'enemy' && direct.e.alive) {
     const e = direct.e;
     e.hp -= DIRECT_ENEMY;

@@ -57,19 +57,42 @@ const hintEl = document.getElementById('lockHint');
 const feedEl = document.getElementById('feed');
 let state = 'playing'; // playing ⇄ paused; no title screen
 
-/* MD 20 — BOOT STATE. Until the first pointer lock the player used to face a
-   flat purple wall with a crosshair on it, which reads as a broken build. This
-   is a CAMERA STATE, not a pause: the sim keeps stepping underneath exactly as
-   before, so a multiplayer match in progress is unaffected by someone sitting
-   at the title.
-   It costs nothing to build — the scene is already there and already running,
-   so the flyover is a camera transform and a title card, no asset and no
-   loading bar. It ends at the first lock, which is also the ONE gesture the
-   browser requires (see the note on requestLock below): the click that starts
-   the game is the click that locks the mouse. */
-let booted = false;          // becomes true on the first successful lock
-let bootT = 0;               // seconds spent in the boot orbit
-let handoff = 0;             // 1 → 0 blend out of the boot camera on lock
+/* MD 22 item 8 — BOOT. MD 20 put a slow orbit over the arena behind a CLICK
+   TO PLAY card and held it there until the player clicked. That is a title
+   screen with extra steps, and it has two costs: the first thing you see is
+   somewhere you are not, and nothing happens until you act.
+   The boot now shows you WHERE YOU ARE. The camera starts pulled back over
+   your own spawn, looking at you, and pulls in to your eyes — so the first
+   moment of control is continuous with the last moment of the intro rather
+   than a cut to an unfamiliar viewpoint.
+   It is SELF-DISMISSING. Nothing waits on input: the pull-in begins as soon as
+   the scene is genuinely ready and runs to completion on its own. Pointer lock
+   still needs one user gesture — the browser gives no way round that — but it
+   is no longer a gate in front of the game. WASD is live before the click
+   (keydown fills keys[] above the lock guard), so a player can already be
+   moving when they press the button that captures the mouse. */
+let booted = false;          // intro over — the player camera is live
+let bootT = 0;               // seconds since the first rendered frame
+let handoff = 1;             // 1 = fully pulled back, 0 = at the eyes
+const BOOT_HOLD = 0.5;       // don't flash the loading view on a fast machine
+const BOOT_PULL = 1.05;      // seconds of pull-in
+const BOOT_BACK = 13;        // metres behind the spawn
+const BOOT_UP = 6;           // and above it
+
+/* Ring progress is REAL. Each milestone is marked where it actually completes,
+   so a slow machine sees a ring that steps rather than a sweep timed to look
+   plausible. The intro cannot end before all four land. */
+const BOOT_STEPS = ['engine', 'level', 'shaders', 'frame'];
+const bootDone = new Set();
+const bootRing = document.querySelector('.bootFill');
+const RING_LEN = 232.5;      // must match stroke-dasharray in game.css
+function bootMark(step) {
+  if (bootDone.has(step)) return;
+  bootDone.add(step);
+  if (bootRing) bootRing.style.strokeDashoffset = String(RING_LEN * (1 - bootDone.size / BOOT_STEPS.length));
+}
+const bootReady = () => bootDone.size === BOOT_STEPS.length;
+
 let S = null;          // the active session (see startSession)
 
 function feed(msg) {
@@ -80,12 +103,12 @@ function feed(msg) {
   setTimeout(() => el.remove(), 1150);
 }
 function updateHint() {
-  // The old hint is the in-match "you lost lock" line. During boot the title
-  // card carries the prompt instead, so the two never show at once.
+  // Shown once the player camera is live and until the mouse is captured —
+  // during the loading view there is nothing worth clicking yet.
   hintEl.classList.toggle('on', booted && state === 'playing' && document.pointerLockElement !== canvas);
 }
 function updateBootChrome() {
-  // The HUD belongs to the player, not to the flyover.
+  // The HUD belongs to the player, not to the loading view.
   document.body.classList.toggle('booting', !booted);
 }
 function setState(s) {
@@ -141,12 +164,9 @@ canvas.addEventListener('click', () => {
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
   if (locked) {
-    if (!booted) {
-      booted = true;
-      handoff = 1;            // blend the camera rather than cutting to it
-      updateBootChrome();
-      S?.fx?.setViewmodelVisible(true);
-    }
+    // Locking no longer ends the boot — the boot ends itself. An early click
+    // just captures the mouse; the pull-in carries on underneath, and if the
+    // player was already holding a key they were already moving.
     if (state !== 'playing') setState('playing');
   } else {
     firing = false; grappling = false; jetLatch = false;
@@ -235,6 +255,7 @@ function startSession(transport) {
 
   const R = createRenderScene(canvas);
   const { engine, scene, cam } = R;
+  bootMark('engine');
   try {
     const q = localStorage.getItem('arena1-quality');
     if (q !== null) R.setQuality(Number(q));
@@ -245,7 +266,8 @@ function startSession(transport) {
   const actors = createActors(R);
   const fx = createFx(R, world);
   const serpents = createSerpentView(R);
-  fx.setViewmodelVisible(booted);   // no gun during the title flyover
+  bootMark('level');
+  fx.setViewmodelVisible(booted);   // no gun until the camera is at the eyes
 
   const sess = {
     transport, localId, level, world, R, levelView, actors, fx,
@@ -432,9 +454,19 @@ function startSession(transport) {
   }
 
   let fpsAcc = 0;
+  let framesDrawn = 0;
   engine.runRenderLoop(() => {
     if (S !== sess) return; // superseded mid-frame during a handoff
     const dt = pump();
+    /* The last two boot milestones can only be observed from in here.
+       `shaders` is scene.isReady() — Babylon compiles materials lazily, so a
+       camera that arrives before that lands is a camera looking at black.
+       `frame` waits for three DRAWN frames with a snapshot to interpolate, so
+       the pull-in never starts over a world that has not been posed yet. */
+    if (!booted) {
+      if (scene.isReady()) bootMark('shaders');
+      if (sess.lastSnap && ++framesDrawn >= 3) bootMark('frame');
+    }
     const now = performance.now() / 1000;
     coyoteT = (lastFlags & FLAG.GROUNDED) ? 0.1 : Math.max(0, coyoteT - dt);
     const alpha = sess.acc / SIM_DT;
@@ -462,44 +494,36 @@ function startSession(transport) {
         const bobY = grounded && !sliding ? Math.sin(sess.bob) * 0.03 * Math.min(1, hSpeed / 9) : 0;
         const shake = jetting ? (Math.random() - 0.5) * 0.012 : 0;
         const camX = px + shake, camY = py + sess.camH + bobY + shake, camZ = pz;
-        if (!booted || handoff > 0) {
-          /* Slow orbit over the arena, framed to show the hexagon and the
-             spiral at once: high enough to see the rim, tilted down enough
-             that the ascent reads as a column rather than a horizon line.
-             0.06 rad/s is about 100s a lap — a drift, not a spinning demo. */
+        if (handoff > 0) {
+          /* Pulled back over the player's OWN spawn, looking at them, easing
+             to their eyes. The wide point is derived from the live camera
+             every frame rather than fixed in world space, so it works from any
+             spawn the level picks and stays correct if the player is already
+             walking during the intro. */
           bootT += dt;
-          const a = bootT * 0.06 + 2.2;
-          /* High and well outside the rim, looking DOWN at the lower third of
-             the climb. Two reasons: from up here the hexagon reads as a
-             hexagon rather than a horizon line, and it drops the arena into
-             the bottom half of the frame so the title has clear sky behind it
-             instead of competing with the platform field. Orbiting at 250 also
-             keeps the camera clear of the corner markers at r=90, which were
-             swinging through the foreground at 235. */
-          const orbitR = 255, orbitY = 214;
-          const bx = Math.cos(a) * orbitR;
-          const bz = Math.sin(a) * orbitR;
-          const by = orbitY + Math.sin(bootT * 0.13) * 18;
-          const look = { x: 0, y: 46, z: 0 };
-          const dx = look.x - bx, dy = look.y - by, dz = look.z - bz;
+          if (bootReady() && bootT >= BOOT_HOLD) handoff = Math.max(0, handoff - dt / BOOT_PULL);
+          const k = handoff * handoff * (3 - 2 * handoff);   // smoothstep, 1 = wide
+          const bx = camX - Math.sin(yaw) * BOOT_BACK;
+          const bz = camZ - Math.cos(yaw) * BOOT_BACK;
+          const by = camY + BOOT_UP;
+          // look at the player from the wide point; at k=0 this is unused
+          const dx = camX - bx, dy = camY - by, dz = camZ - bz;
           const bYaw = Math.atan2(dx, dz);
           const bPitch = -Math.atan2(dy, Math.hypot(dx, dz));
-          if (handoff > 0) {
-            // ease out of the flyover instead of cutting — handoff runs 1→0
-            handoff = Math.max(0, handoff - dt / 0.9);
-            const k = handoff * handoff * (3 - 2 * handoff);   // smoothstep
-            const lerp = (u, v) => v + (u - v) * k;
-            const angLerp = (u, v) => {
-              let d = u - v;
-              while (d > Math.PI) d -= Math.PI * 2;
-              while (d < -Math.PI) d += Math.PI * 2;
-              return v + d * k;
-            };
-            cam.position.set(lerp(bx, camX), lerp(by, camY), lerp(bz, camZ));
-            cam.rotation.set(angLerp(bPitch, pitch), angLerp(bYaw, yaw), sess.roll * (1 - k));
-          } else {
-            cam.position.set(bx, by, bz);
-            cam.rotation.set(bPitch, bYaw, 0);
+          const lerp = (u, v) => v + (u - v) * k;
+          const angLerp = (u, v) => {
+            let d = u - v;
+            while (d > Math.PI) d -= Math.PI * 2;
+            while (d < -Math.PI) d += Math.PI * 2;
+            return v + d * k;
+          };
+          cam.position.set(lerp(bx, camX), lerp(by, camY), lerp(bz, camZ));
+          cam.rotation.set(angLerp(bPitch, pitch), angLerp(bYaw, yaw), sess.roll * (1 - k));
+          if (handoff === 0 && !booted) {
+            booted = true;
+            updateBootChrome();
+            updateHint();
+            fx.setViewmodelVisible(true);
           }
         } else {
           cam.position.set(camX, camY, camZ);
