@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/arena1/:room([A-Za-z0-9_-]+)",
+      "destination": "/arena1/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/assets/derived/(.*)",

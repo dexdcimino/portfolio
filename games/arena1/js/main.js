@@ -144,21 +144,38 @@ let weaponSel = 0;                 // MD 11: 0 zap, 1 rocket — rides every com
 // cursor. (Chrome permits gesture-less relock after a prior successful lock
 // once the cooldown expires; the first-ever lock still needs the click.)
 let lockRetry = null;
+/* Retry cadence. Chrome imposes a cooldown of roughly a second after the user
+   leaves pointer lock with Escape, during which requestPointerLock is refused
+   outright — so resuming from the pause menu cannot be instant, it can only be
+   "the same frame the browser will allow". The old 300ms retry meant an
+   average of 150ms wasted PAST the cooldown, on top of the cooldown itself,
+   and up to 300ms; that is the delay before you get your camera back.
+   40ms costs at most 40ms of overshoot. The attempts are cheap — a refused
+   request is a rejected promise, no layout, no allocation — so the only real
+   budget here is console noise, which is why it stops after LOCK_WINDOW_MS
+   rather than retrying forever. */
+const LOCK_RETRY_MS = 40;
+const LOCK_WINDOW_MS = 2000;
 function requestLock(retries = 0) {
   clearTimeout(lockRetry);
-  const attempt = (left) => {
+  // Callers pass a retry COUNT for historical reasons; what matters is how
+  // long to keep trying, so a count is read as a window and floored at one
+  // that outlasts Chrome's cooldown.
+  const deadline = performance.now()
+    + Math.max(retries > 1 ? LOCK_WINDOW_MS : retries * LOCK_RETRY_MS, retries ? LOCK_RETRY_MS : 0);
+  const attempt = () => {
     if (locked || state !== 'playing') return;
     let p = null;
     try { p = canvas.requestPointerLock(); } catch { /* older engines throw sync */ }
     const again = () => {
-      if (left > 0 && !locked && state === 'playing') {
-        lockRetry = setTimeout(() => attempt(left - 1), 300);
+      if (performance.now() < deadline && !locked && state === 'playing') {
+        lockRetry = setTimeout(attempt, LOCK_RETRY_MS);
       }
     };
     if (p && typeof p.catch === 'function') p.catch(again);
     else again(); // no promise: the `locked` guard stops the chain on success
   };
-  attempt(retries);
+  attempt();
 }
 canvas.addEventListener('click', () => {
   AudioFX.ensure(); // first gesture also unlocks the AudioContext
@@ -646,6 +663,7 @@ async function netAttempt(mode, { joinedNotice } = {}) {
     startSession(t);
     const ni = t.netInfo;
     feed(joinedNotice || (ni?.isHost ? `HOSTING ${ni.room}` : `JOINED ${ni.room}`));
+    publishRoomToShell(ni);
   }).catch(() => {
     if (pendingNet === t) {
       pendingNet = null;
@@ -664,6 +682,25 @@ function endedFor(t) {
   feed('HOST LEFT — REJOINING');
   startSession(createLoopbackTransport(seed, { pvp, serpentLow }));
   netAttempt({ kind: 'public' }, { joinedNotice: 'REJOINED — NEW MATCH' });
+}
+
+/* Tell the /arena1 wrapper which room we are in so it can put it in the
+   address bar. The game is in an iframe, so it cannot move the address bar
+   itself — the wrapper listens for this and replaceState's.
+
+   PRIVATE ROOMS ONLY, deliberately. A public room is a matchmaking slot, not a
+   destination: the code changes as rooms fill and rotate, so a public URL is a
+   link to a lobby that is very likely full or gone by the time anyone opens
+   it, and refreshing would pin you to one specific public room instead of
+   matchmaking you into a live one — strictly worse than the default. The right
+   share for a public game is /arena1 with no room at all, which is what you
+   get by not touching the URL. */
+function publishRoomToShell(ni) {
+  if (!ni?.room || ni.isPublic) return;
+  if (window.parent === window) return;         // opened directly, no shell
+  try {
+    window.parent.postMessage({ type: 'arena1-room', room: ni.room }, window.location.origin);
+  } catch { /* no shell to tell */ }
 }
 
 // Menu-driven room moves (pause menu dispatches these).

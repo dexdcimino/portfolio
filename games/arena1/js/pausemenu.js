@@ -388,10 +388,22 @@ function build() {
   };
   setInterval(paintRoom, 1000);
   paintRoom();
+  /* COPY puts the shareable URL on the clipboard, not the bare code. A code by
+     itself needs instructions ("open the game, pause, paste this in JOIN");
+     https://host/arena1/CODE is the whole instruction. Same room either way —
+     the path form is rewritten to ?room= by the wrapper.
+     `location.origin` is correct from inside the iframe: the game is served
+     from the same origin as the shell, so it names the right host whether that
+     is the live domain or a local server. A PUBLIC room copies the plain code
+     instead, for the same reason its URL is never put in the address bar — a
+     link to a matchmaking slot is a link to a room that will not be there. */
   copyBtn.addEventListener('click', () => {
     const r = window.Arena1?.room?.();
     if (!r?.code) return;
-    try { navigator.clipboard?.writeText(r.code); } catch { /* clipboard denied */ }
+    const text = r.isPublic === false
+      ? `${window.location.origin}/arena1/${r.code}`
+      : r.code;
+    try { navigator.clipboard?.writeText(text); } catch { /* clipboard denied */ }
     copyBtn.textContent = 'COPIED';
     setTimeout(() => { copyBtn.textContent = 'COPY'; }, 1200);
   });

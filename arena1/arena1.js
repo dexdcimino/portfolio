@@ -19,13 +19,48 @@
 
 const frame = document.querySelector('.arena1-frame');
 
-// Forward the wrapper's query string into the game — ?seed=123 reproduces a
-// world, and it is typed against /arena1, not against the internal tree path.
-// Done before anything else so the first load is the right one (reassigning
-// src just replaces the in-flight request).
-if (window.location.search) {
-  frame.src = '/games/arena1/index.html' + window.location.search;
+/* Forward the wrapper's query string into the game — ?seed=123 reproduces a
+   world, and it is typed against /arena1, not against the internal tree path.
+   Done before anything else so the first load is the right one (reassigning
+   src just replaces the in-flight request).
+
+   PATH-BASED ROOMS. /arena1/ROOMNAME is the shareable form of ?room=ROOMNAME.
+   It works because vercel.json rewrites /arena1/:room([A-Za-z0-9_-]+) to this
+   page — a single segment of exactly the characters the pause menu's join
+   field accepts, which is narrow enough that it cannot swallow a real file
+   under /arena1/: every one of them (arena1.css, arena1.js, refresh-home.js,
+   index.html) has a dot, and the pattern has no dot in it. Every asset on this
+   page is referenced absolutely, so the deeper URL changes nothing about how
+   it loads.
+   ?room= is untouched and WINS if both are present: links already shared are
+   explicit, and an explicit parameter should never lose to a path the server
+   may have rewritten. Uppercased to match the join field, which does
+   `.toUpperCase().replace(/[^A-Z0-9-]/g, '')` on whatever is typed. */
+const pathRoom = (window.location.pathname.match(/^\/arena1\/([A-Za-z0-9_-]+)\/?$/)?.[1] || '')
+  .toUpperCase().replace(/[^A-Z0-9-]/g, '');
+const params = new URLSearchParams(window.location.search);
+if (pathRoom && !params.has('room')) params.set('room', pathRoom);
+const qs = params.toString();
+if (qs) {
+  frame.src = '/games/arena1/index.html?' + qs;
 }
+
+/* The address bar belongs to the wrapper, not the iframe: changing the frame's
+   own URL would not move it. The game posts the room it actually landed in and
+   this reflects it, so copy-paste from the address bar works and a refresh
+   rejoins the same room.
+   PRIVATE ROOMS ONLY, by design — see the note in games/arena1/js/main.js. */
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin) return;   // same-origin only
+  const msg = event.data;
+  if (!msg || msg.type !== 'arena1-room' || typeof msg.room !== 'string') return;
+  const code = msg.room.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  if (!code) return;
+  const next = '/arena1/' + code + window.location.search;
+  if (next !== window.location.pathname + window.location.search) {
+    try { window.history.replaceState(null, '', next); } catch { /* file:// etc. */ }
+  }
+});
 
 function giveGameTheKeyboard() {
   try {

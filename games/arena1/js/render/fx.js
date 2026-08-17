@@ -188,54 +188,126 @@ export function createFx({ scene, cam, mat, V3 }, world) {
     }
   }
 
-  /* MD 24 — SERPENT DESTRUCTION. Both serpent events have been in the wire
-     vocabulary since MD 18 and NOTHING drew them: spheres popped off in
-     silence and a serpent died by simply ceasing to be rendered. Killing one
-     is the longest fight in the game (25s on the giant) and it had no payoff
-     at all.
-     Built out of the existing explosion pool rather than a new system, so a
-     barrage still degrades by stealing the oldest slot instead of allocating
-     without bound. `scale` is the tier's scale, so a giant's death is
-     physically bigger than a t1's rather than just louder. */
-  function serpentPop(pos, scale = 1) {
-    explosion(pos);                       // the flash, ring and bloom
-    /* Chunks thrown outward — what makes a pop read as something DESTROYED
-       rather than something deleted. Two colours on purpose: the blue of the
-       body it came off, and the sand of the spikes, so the debris is
-       identifiably serpent and not generic rubble. */
-    burst(pos, '#3E7FC5', Math.round(7 * scale), 13 * scale);
-    burst(pos, '#F2D6A2', Math.round(4 * scale), 11 * scale);
-    for (let i = 0; i < 5; i++) {
-      puff({ x: pos.x + (Math.random() - 0.5) * 3 * scale,
-        y: pos.y + (Math.random() - 0.5) * 2 * scale,
-        z: pos.z + (Math.random() - 0.5) * 3 * scale },
-        1.1 * scale, 3.4 * scale, 0.95, 0.3, 2.6);
+  /* MD 24 — SERPENT DESTRUCTION, second pass.
+     The first version called explosion() and burst(). Both were the wrong
+     tools and it showed as "just an explosion sphere":
+       · explosion()'s core is bounded at EXACTLY SPLASH_RADIUS, on purpose —
+         it is how a rocket tells you its damage radius. Firing it where there
+         is no splash draws a damage indicator that lies, and at 7m across it
+         swallowed everything else in the effect.
+       · burst() throws 0.22m boxes scaled 0.6–1.4, so 0.13–0.31m of confetti,
+         out of a 40-slot pool shared with jet puffs. A 22-segment death asked
+         for ~250 of them and got 40.
+     So: a blast with its own radius, and a real CHUNK pool — big tumbling
+     shards, sized per emit, that read as pieces of the body coming apart. */
+  const chunks = [];
+  {
+    // Icospheres, not boxes: a low-poly shard reads as a piece broken off a
+    // low-poly body, where a cube reads as a crate.
+    for (let i = 0; i < 72; i++) {
+      const m = BABYLON.MeshBuilder.CreateIcoSphere('ck' + i, { radius: 0.5, subdivisions: 1 }, scene);
+      m.convertToFlatShadedMesh();
+      m.isVisible = false; m.isPickable = false;
+      chunks.push({ mesh: m, vel: V3(0, 0, 0), spin: V3(0, 0, 0), life: 0, max: 1 });
+    }
+  }
+  function chunkBurst(pos, { n = 10, power = 14, size = 0.9, hex = '#3E7FC5', life = 1.7, up = 0.45 } = {}) {
+    for (let i = 0; i < n; i++) {
+      const c = chunks.find((c) => c.life <= 0);
+      if (!c) return;                 // pool dry: drop the rest, never allocate
+      c.mesh.material = mat(hex);
+      c.mesh.position.set(pos.x, pos.y, pos.z);
+      // Even-ish sphere of directions so pieces leave in every direction,
+      // biased upward so they arc rather than skid.
+      const a = Math.random() * Math.PI * 2;
+      const e = Math.acos(1 - 2 * Math.random()) - Math.PI / 2;
+      const sp = power * (0.45 + Math.random() * 0.9);
+      c.vel.set(Math.cos(a) * Math.cos(e) * sp,
+        Math.sin(e) * sp + power * up,
+        Math.sin(a) * Math.cos(e) * sp);
+      c.spin.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14);
+      c.mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+      c.mesh.scaling.setAll(size * (0.55 + Math.random() * 0.95));
+      c.mesh.isVisible = true;
+      c.life = life * (0.7 + Math.random() * 0.6);
+      c.max = c.life;
     }
   }
 
-  /* The final death. Deliberately not "one bigger pop": a serpent dies along
-     its whole length, so the blasts walk down the body over ~0.4s and the
-     debris count scales with the tier. Staggered with setTimeout because this
-     is presentation only — no sim state depends on it, and tying it to sim
-     ticks would make a death look different at a different frame rate. */
+  /* A blast whose radius is an ARGUMENT. Deliberately separate from
+     explosion(): that one's size is load-bearing information about splash
+     damage, and this one is free to be whatever size the thing that died was. */
+  const blasts = [];
+  {
+    const bm = new BABYLON.StandardMaterial('sbCore', scene);
+    bm.emissiveColor = BABYLON.Color3.FromHexString('#FFD9A0');
+    bm.diffuseColor = BABYLON.Color3.Black(); bm.specularColor = BABYLON.Color3.Black();
+    bm.disableLighting = true; bm.backFaceCulling = false;
+    const rm = new BABYLON.StandardMaterial('sbRing', scene);
+    rm.emissiveColor = BABYLON.Color3.FromHexString('#FF7A59');
+    rm.diffuseColor = BABYLON.Color3.Black(); rm.specularColor = BABYLON.Color3.Black();
+    rm.disableLighting = true;
+    for (let i = 0; i < 8; i++) {
+      const core = BABYLON.MeshBuilder.CreateSphere('sbc' + i, { diameter: 2, segments: 8 }, scene);
+      core.material = bm.clone('sbCore' + i);
+      const ring = BABYLON.MeshBuilder.CreateTorus('sbr' + i, { diameter: 2, thickness: 0.18, tessellation: 20 }, scene);
+      ring.material = rm.clone('sbRing' + i);
+      core.isVisible = false; ring.isVisible = false;
+      core.isPickable = false; ring.isPickable = false;
+      blasts.push({ core, ring, t: -1, r: 1 });
+    }
+  }
+  function blast(pos, r) {
+    let b = blasts.find((x) => x.t < 0) || blasts.reduce((a, c) => (a.t > c.t ? a : c));
+    b.t = 0; b.r = r;
+    for (const m of [b.core, b.ring]) { m.position.set(pos.x, pos.y, pos.z); m.isVisible = true; }
+    b.ring.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+  }
+
+  /* One sphere popping off. A modest flash and a lot of body: the point is
+     that a PIECE came off, so the pieces are the effect and the flash is only
+     there to punctuate it. `scale` is the tier's, so a giant sheds bigger
+     chunks than a t1 rather than the same ones louder. */
+  function serpentPop(pos, scale = 1) {
+    blast(pos, 1.5 * scale);
+    chunkBurst(pos, { n: 9, power: 15 * scale, size: 0.85 * scale, hex: '#3E7FC5', life: 1.6 });
+    chunkBurst(pos, { n: 5, power: 17 * scale, size: 0.55 * scale, hex: '#F2D6A2', life: 1.4 });
+    for (let i = 0; i < 4; i++) {
+      puff({ x: pos.x + (Math.random() - 0.5) * 2.5 * scale,
+        y: pos.y + (Math.random() - 0.5) * 2 * scale,
+        z: pos.z + (Math.random() - 0.5) * 2.5 * scale },
+        0.9 * scale, 3.0 * scale, 0.9, 0.3, 2.4);
+    }
+  }
+
+  /* The final death. Not "one bigger pop": a serpent dies along its whole
+     length, so the blasts walk the body over ~0.45s and the head goes last and
+     hardest. Staggered with setTimeout because this is presentation only — no
+     sim state depends on it, and pinning it to sim ticks would make a death
+     look different at a different frame rate. */
   function serpentDeath(pos, scale = 1, body = []) {
     const points = body.length ? body : [pos];
     points.forEach((q, i) => {
+      const k = 1 - i / Math.max(1, points.length);     // hardest at the head
       setTimeout(() => {
-        serpentPop(q, scale * (1 + 0.6 * (1 - i / Math.max(1, points.length))));
-      }, i * (400 / Math.max(1, points.length)));
+        blast(q, (1.6 + 1.4 * k) * scale);
+        chunkBurst(q, { n: 7, power: (17 + 9 * k) * scale, size: (0.9 + 0.5 * k) * scale,
+          hex: '#3E7FC5', life: 2.1 });
+        chunkBurst(q, { n: 4, power: (19 + 9 * k) * scale, size: 0.6 * scale,
+          hex: '#F2D6A2', life: 1.9 });
+      }, (points.length - 1 - i) * (450 / Math.max(1, points.length)));
     });
-    // One large shockwave at the head, on top of the walking blasts.
-    explosion(pos);
-    burst(pos, '#3E7FC5', Math.round(14 * scale), 24 * scale);
-    burst(pos, '#F2D6A2', Math.round(8 * scale), 20 * scale);
-    burst(pos, '#FF3D81', Math.round(6 * scale), 18 * scale);   // the head
-    for (let i = 0; i < 12; i++) {
-      puff({ x: pos.x + (Math.random() - 0.5) * 7 * scale,
-        y: pos.y + (Math.random() - 0.5) * 5 * scale,
-        z: pos.z + (Math.random() - 0.5) * 7 * scale },
-        1.6 * scale, 6.5 * scale, 1.0, 0.24, 3.4);
-    }
+    setTimeout(() => {
+      blast(pos, 6 * scale);
+      chunkBurst(pos, { n: 12, power: 30 * scale, size: 1.5 * scale, hex: '#FF3D81', life: 2.6, up: 0.7 });
+      chunkBurst(pos, { n: 10, power: 26 * scale, size: 1.2 * scale, hex: '#3E7FC5', life: 2.4, up: 0.6 });
+      for (let i = 0; i < 10; i++) {
+        puff({ x: pos.x + (Math.random() - 0.5) * 6 * scale,
+          y: pos.y + (Math.random() - 0.5) * 4 * scale,
+          z: pos.z + (Math.random() - 0.5) * 6 * scale },
+          1.5 * scale, 6.0 * scale, 1.0, 0.24, 3.2);
+      }
+    }, 450);
   }
 
   // ---- soft puffs: rocket exhaust trail + explosion smoke (one pool) ----
@@ -348,6 +420,39 @@ export function createFx({ scene, cam, mat, V3 }, world) {
         d.mesh.scaling.scaleInPlace(Math.max(0.001, 1 - dt * 1.4));
         if (d.life <= 0) d.mesh.isVisible = false;
       }
+    }
+    /* MD 24 chunks: real gravity and tumble, and they SHRINK only at the very
+       end. The old debris faded from the first frame (scale x0.986 every
+       frame), which is why a burst read as a puff of confetti rather than
+       pieces — these hold their size for most of their life so you can see
+       what came off, then collapse. */
+    for (const c of chunks) {
+      if (c.life <= 0) continue;
+      c.life -= dt;
+      c.vel.y += -30 * 0.85 * dt;
+      c.mesh.position.addInPlace(c.vel.scale(dt));
+      c.mesh.rotation.x += c.spin.x * dt;
+      c.mesh.rotation.y += c.spin.y * dt;
+      c.mesh.rotation.z += c.spin.z * dt;
+      const k = c.life / c.max;
+      if (k < 0.3) c.mesh.scaling.scaleInPlace(Math.max(0.001, 1 - dt * 4.5));
+      if (c.life <= 0) c.mesh.isVisible = false;
+    }
+    for (const b of blasts) {
+      if (b.t < 0) continue;
+      b.t += dt;
+      const CT = 0.34, RT = 0.46;
+      if (b.t < CT) {
+        const g = Math.min(1, b.t / 0.07);
+        b.core.scaling.setAll(b.r * (0.4 + 0.6 * (1 - (1 - g) * (1 - g))));
+        b.core.material.alpha = 0.95 * (1 - b.t / CT);
+      } else b.core.isVisible = false;
+      if (b.t < RT) {
+        const rt = b.t / RT;
+        b.ring.scaling.setAll(b.r * (0.5 + 3.2 * (1 - (1 - rt) * (1 - rt))));
+        b.ring.material.alpha = 0.6 * (1 - rt);
+      } else b.ring.isVisible = false;
+      if (b.t >= CT && b.t >= RT) b.t = -1;
     }
     for (const e of explosions) {
       if (e.t < 0) continue;
