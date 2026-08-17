@@ -124,6 +124,12 @@ export const CONFIG = {
 
   // ── Camera (GDD "Camera") ─────────────────────────────────────────────────
   camera: {
+    // The yaw the rig boots at, in Babylon's ArcRotate convention: the camera
+    // sits at target + r·(cos α·sin β, cos β, sin α·sin β), so −π/2 puts it
+    // straight behind the player in −Z. Shared with world/carve.js, which
+    // clears the spawn view along this exact axis — if this changes, the
+    // cleared corridor follows it rather than silently pointing the wrong way.
+    spawnAlpha: -Math.PI / 2,
     pitchDeg: 58,                       // tilted top-down
     posLerp: 6,                         // 1/s — exponential follow rate (MD-04)
     lookAhead: 2,                       // units ahead in movement dir
@@ -196,6 +202,22 @@ export const CONFIG = {
       edgeMargin: 4,        // edge openings stay this many cells from corners
       centerJitter: 6,      // worm hub offset from chunk centre, ± cells
       originClearRadius: 5, // cells forced open around world (0,0)
+
+      /* Spawn view corridor. The disc above keeps the spawn ROOM open; it does
+         nothing about the line the camera looks along, which starts ~9.3 units
+         BEHIND the player (camDistByStage[0] × max zoom 2 × sin(pitch)) and
+         5.8 units up. A hex wall is up to 5.5 tall, so one standing anywhere in
+         that corridor covers the character on frame one.
+
+         This is a generation-time guarantee, not a camera dodge: no wall and no
+         prop is placed in the corridor, so there is nothing to fade, nothing to
+         raycast, and nothing that depends on chunk streaming having finished.
+         Measured against the camera at spawn, with headroom for a fat wall
+         (diaMax 1.7) whose CELL is outside the corridor but whose geometry
+         leans in. */
+      spawnViewBack: 13,  // units cleared behind the player, toward the camera
+      spawnViewHalf: 5,   // units cleared either side of the camera axis
+      spawnViewFront: 2,  // units past the player, so nothing clips the near edge
     },
   },
 

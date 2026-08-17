@@ -21,6 +21,46 @@ import { biomeAt } from '../data/biomes.js';
 const N = CONFIG.world.chunkSize;
 const C = CONFIG.world.carve;
 
+/* ── Spawn view corridor ───────────────────────────────────────────────────
+   The player spawns at (0,0) and the camera looks at them from behind, along
+   CONFIG.camera.spawnAlpha. Nothing may occupy the space between the two, or
+   the run opens with the character behind a wall.
+
+   Handled HERE, at carve time, rather than in the camera: a wall that is never
+   generated cannot be occluding, cannot need fading, and cannot depend on
+   whether its chunk had finished streaming. The previous attempt raycast
+   camera→player at runtime and yawed away from hits — it could never work,
+   because both wall_* and rocks_* meshes are isPickable:false and a Babylon
+   ray does not hit unpickable meshes. It reported "clear" on the first frame
+   every time and switched itself off.
+
+   Axis-aligned to the camera, not to Z: `along` runs from the player toward
+   the camera, `side` across it. So the corridor still points the right way if
+   spawnAlpha is ever changed. */
+const SPAWN_AXIS = (() => {
+  const a = CONFIG.camera.spawnAlpha;
+  // Horizontal component of Babylon's ArcRotate offset: the direction from the
+  // target out to the camera.
+  return { x: Math.cos(a), z: Math.sin(a) };
+})();
+
+export function inSpawnView(wx, wz) {
+  const along = wx * SPAWN_AXIS.x + wz * SPAWN_AXIS.z;   // + = toward camera
+  const side = wx * -SPAWN_AXIS.z + wz * SPAWN_AXIS.x;   // perpendicular
+  return along >= -C.spawnViewFront && along <= C.spawnViewBack
+      && Math.abs(side) <= C.spawnViewHalf;
+}
+
+/* Does this chunk overlap the corridor at all? Cheap reject so only the two to
+   four chunks around the origin pay for the per-cell test. The corridor can
+   straddle a chunk boundary — world (0,0) is a CORNER shared by four chunks —
+   so this must be a box overlap, not "is this the origin chunk". */
+function chunkTouchesSpawnView(cx, cz, S) {
+  const reach = Math.max(C.spawnViewBack, C.spawnViewFront) + C.spawnViewHalf;
+  return cx * S <= reach && (cx + 1) * S >= -reach
+      && cz * S <= reach && (cz + 1) * S >= -reach;
+}
+
 function smooth(t) {
   return t * t * (3 - 2 * t);
 }
@@ -188,12 +228,15 @@ export function carveChunk(seed, cx, cz) {
   //    the spawn area survives the flood fill
   const R = C.originClearRadius;
   let originCell = null;
-  if (cx * S <= R && (cx + 1) * S >= -R && cz * S <= R && (cz + 1) * S >= -R) {
+  if (chunkTouchesSpawnView(cx, cz, S)) {
     for (let j = 0; j < N; j++) {
       for (let i = 0; i < N; i++) {
         const wx = cx * S + (i + 0.5) * cell;
         const wz = cz * S + (j + 0.5) * cell;
-        if (wx * wx + wz * wz <= R * R) grid[j * N + i] = 0;
+        // The room the player stands in, plus the corridor the camera looks
+        // down. Cell CENTRES are tested, so the corridor constants carry the
+        // half-cell (and fat-wall) margin rather than this loop.
+        if (wx * wx + wz * wz <= R * R || inSpawnView(wx, wz)) grid[j * N + i] = 0;
       }
     }
     const oi = clampCell(Math.round(-cx * N - 0.5));

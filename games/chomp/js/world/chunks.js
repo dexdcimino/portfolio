@@ -8,7 +8,7 @@
 import { CONFIG } from '../config.js';
 import { createPool } from '../core/pool.js';
 import { rngFor } from '../core/rng.js';
-import { carveChunk, floorHeightAt, floorBaseAt, riverAt } from './carve.js';
+import { carveChunk, floorHeightAt, floorBaseAt, riverAt, inSpawnView } from './carve.js';
 import { populateChunk } from './spawner.js';
 import { biomeAt, biomeBlendAt } from '../data/biomes.js';
 
@@ -367,9 +367,24 @@ export class ChunkManager {
     const rng = rngFor(this.seed, 'decor', rec.cx, rec.cz);
     const D = CONFIG.decor;
     const biome = biomeAt(Math.hypot((rec.cx + 0.5) * S, (rec.cz + 0.5) * S));
+    /* Every prop below — rocks, grass, mushrooms, crystals — picks its position
+       from this list, so excluding the spawn view corridor here keeps all of
+       them out of it with one test. Carving the walls away is not enough on its
+       own: a boulder or a 1.5-unit mushroom standing between the camera and the
+       player hides the character just as well as a wall does, and the rocks_*
+       mesh is exactly what blocked the view the last time this was reported. */
     const open = [];
     for (let j = 0; j < N; j++)
-      for (let i = 0; i < N; i++) if (rec.grid[j * N + i] === 0) open.push([i, j]);
+      for (let i = 0; i < N; i++) {
+        if (rec.grid[j * N + i] !== 0) continue;
+        const wx = rec.cx * S + (i + 0.5) * cell;
+        const wz = rec.cz * S + (j + 0.5) * cell;
+        if (inSpawnView(wx, wz)) continue;
+        open.push([i, j]);
+      }
+    // A chunk with nothing left to stand on would leave `spot()` indexing an
+    // empty list and returning undefined. buildDecor returns a mesh array.
+    if (!open.length) return [];
     if (open.length === 0) return [];
     const spot = () => {
       const [i, j] = open[Math.floor(rng() * open.length)];

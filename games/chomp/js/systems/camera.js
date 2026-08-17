@@ -78,39 +78,18 @@ export function createCameraRig(scene) {
       zoomMult = Math.min(2, Math.max(0.5, m));
       retarget();
     },
-    // Spawn framing guarantee: the occlusion fader only dims wall_* chunks,
-    // so a tall rocks_* formation between camera and player at spawn just
-    // blocks the view — "never possible" per Dex. For the first moments,
-    // raycast camera -> player and yaw to the clearest angle if blocked.
-    _spawnClearT: 0.6,
-    _clearSpawnView(player) {
-      const scene = cam.getScene();
-      const target = new BABYLON.Vector3(player.x, 0.8, player.z);
-      const blockedAt = (alpha) => {
-        // Babylon's ArcRotate mapping exactly: sin(beta) spans the horizontal,
-        // cos(beta) the height. (First cut had them swapped and tested phantom
-        // positions — "clear" verdicts for angles that were anything but.)
-        const pos = new BABYLON.Vector3(
-          target.x + targetDist * Math.cos(alpha) * Math.sin(cam.beta),
-          target.y + targetDist * Math.cos(cam.beta),
-          target.z + targetDist * Math.sin(alpha) * Math.sin(cam.beta));
-        const dir = target.subtract(pos);
-        const len = dir.length();
-        const ray = new BABYLON.Ray(pos, dir.normalize(), len - 1);
-        const hit = scene.pickWithRay(ray, (m) => /^(wall|rocks)_/.test(m.name));
-        return hit && hit.hit;
-      };
-      if (!blockedAt(cam.alpha)) return true;
-      for (const step of [0.5, -0.5, 1.0, -1.0, 1.6, -1.6, Math.PI]) {
-        if (!blockedAt(cam.alpha + step)) { cam.alpha += step; return true; }
-      }
-      return false;
-    },
+    /* The spawn-framing raycast that used to live here is gone, and the reason
+       is worth keeping: it raycast camera->player for the first 0.6s and yawed
+       away from any wall or rocks mesh it hit. It could never hit anything.
+       Both are built isPickable:false (chunks.js), and scene.pickWithRay
+       skips unpickable meshes — so it returned "clear" on frame one, set its
+       own timer to zero and did nothing, in every world, forever. It read like
+       a guarantee and was a no-op, which is worse than no guard at all.
+
+       The guarantee now lives in world/carve.js: the spawn view corridor is
+       never carved as wall and never decorated, so there is nothing to yaw
+       away from. See CONFIG.world.carve.spawnView*. */
     update(player, dt, targetY = 0) {
-      if (this._spawnClearT > 0) {
-        this._spawnClearT -= dt;
-        if (this._clearSpawnView(player)) this._spawnClearT = 0;
-      }
       // Smoothed look-ahead point in the velocity direction
       const speedFrac = player.maxSpeed > 0 ? Math.min(1, player.speed / player.maxSpeed) : 0;
       const lx = player.speed > 0.01 ? (player.vx / player.speed) * C.lookAhead * speedFrac : 0;
