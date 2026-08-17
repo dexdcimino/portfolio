@@ -19,6 +19,9 @@ import { buildLevelMeshes } from './render/level.js';
 import { createActors } from './render/actors.js';
 import { createFx } from './render/fx.js';
 import { createSerpentView } from './render/serpent.js';
+// segAt for the death FX: the blast chain uses the SAME closed form the
+// renderer draws with, so explosions land on the segments, not near them.
+import { segAt } from './sim/serpent.js';
 import { AudioFX } from './systems/audio.js';
 
 const canvas = document.getElementById('game');
@@ -430,6 +433,32 @@ function startSession(transport) {
           fx.burst(ev.point, '#FFE7B0', 8, 9);
         }
         AudioFX.boom();
+      } else if (ev.type === 'serpent_sever') {
+        /* MD 24. These two events have been on the wire since MD 18 with
+           NOTHING drawing them — spheres popped off in silence and a serpent
+           died by quietly ceasing to be rendered. Killing the giant is a 25s
+           fight and it had no payoff at all.
+           Scale comes from the serpent's own tier, so a giant's destruction is
+           physically bigger rather than merely louder. */
+        if (ev.point) {
+          const sv = sess.lastSnap?.serpents?.find((q) => q.id === ev.serpentId);
+          fx.serpentPop(ev.point, sv?.scale ?? 1);
+          AudioFX.boom();
+        }
+      } else if (ev.type === 'serpent_death') {
+        if (ev.point) {
+          /* The blasts walk down the BODY, not just the head — a serpent dies
+             along its whole length. Positions come from the same closed form
+             the renderer draws with, so the chain of explosions lands exactly
+             where the segments were rather than approximately near them. */
+          const sv = sess.lastSnap?.serpents?.find((q) => q.id === ev.serpentId);
+          const body = [];
+          if (sv?.path) {
+            for (let i = 0; i < (sv.len ?? 1); i++) body.push(segAt(sv.path, sess.lastSnap.tick, i));
+          }
+          fx.serpentDeath(ev.point, sv?.scale ?? 1, body);
+          AudioFX.boom();
+        }
       } else if (ev.type === 'platform_trigger') {
         AudioFX.crack();
       }

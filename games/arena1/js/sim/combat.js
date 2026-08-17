@@ -40,7 +40,7 @@ const PLAYER_DMG = 12;
 
 const ROCKET_SPEED = 40;
 const ROCKET_CD = 0.8;
-const ROCKET_LIFE_TICKS = 240;      // 4s — a rocket fired at the sky never leaks
+export const ROCKET_LIFE_TICKS = 240;      // 4s — a rocket fired at the sky never leaks
 const ROCKET_MUZZLE = 0.8;          // spawn ahead of the eye
 // Exported for the render layer: the explosion's DAMAGE CORE visual scales
 // from this constant so the bright boundary can never drift from the real
@@ -81,9 +81,28 @@ function viewDir(p) {
   return { x: Math.sin(p.yaw) * cp, y: -Math.sin(p.pitch), z: Math.cos(p.yaw) * cp };
 }
 
-export function stepCombat(ctx, p, buttons) {
+/* MD 24 item 1. MD 11 said "rockets are never predicted", and for DAMAGE that
+   is still exactly right — a client must never decide it killed someone. It
+   stopped being right when rocket jumping turned a rocket into a movement
+   input: every other movement input is predicted, and this one was not, so a
+   client at 120ms sat inert for ~367ms and then got snapped into an already
+   airborne authority state. You teleported mid-launch instead of launching.
+   The split this file now makes:
+     · the SELF-IMPULSE is predicted. The client owns the consequences of its
+       own knockback, so it may compute it locally.
+     · everything else stays host-only — damage to anything including self,
+       kills, splash and knockback on OTHER players, enemies and serpents.
+   `ctx.predictOnly` is the switch, and the code path either side of it is the
+   SAME code, not a parallel implementation: same swept sweep, same world
+   queries, same falloff. A second implementation would drift and every
+   correction it caused would make this worse rather than better. */
+export function stepCombat(ctx, p, buttons, cmdTick) {
   p.fireCd -= SIM_DT;
   if (!(buttons & BTN.FIRE) || p.fireCd > 0) return;
+  // A predict sim spawns rockets and nothing else. The zap is pure hitscan
+  // damage with no self-impulse, so there is nothing about it a client is
+  // entitled to predict — and running it here would let one try.
+  if (ctx.predictOnly && p.weapon !== 1) { p.fireCd = FIRE_CD; return; }
 
   // MD 14: EVERY shot emits fire — hit or miss — because remote muzzle flash
   // driven off `hit` alone would flash only on connects, and most shots miss.
@@ -112,7 +131,27 @@ export function stepCombat(ctx, p, buttons) {
       },
       vel: { x: dir.x * ROCKET_SPEED, y: dir.y * ROCKET_SPEED, z: dir.z * ROCKET_SPEED },
       born: ctx.tick,
+      /* `shot` is the CROSS-MACHINE identity, and it is deliberately not
+         `born`. The client predicts a command at its own sim tick; the host
+         applies that same command whenever its queue reaches it, which is a
+         different tick — so born differs between the two and matching on it
+         silently fails, putting two of the shooter's rockets on screen. The
+         COMMAND's tick is the one number both machines hold for one shot. */
+      shot: cmdTick ?? ctx.tick,
     });
+    /* MD 24. A point-blank feet blast is born and destroyed inside this same
+       sim.step — measured: it appears in ZERO snapshots, on the host as much
+       as on the client, so it is not a latency problem and predicting the
+       entity does not fix it. The shot is recorded on the shooter so a client
+       can draw a brief cosmetic rocket for one it never got to observe. Plain
+       deterministic sim state, identical on both machines, and off the wire. */
+    p.lastShot = { born: ctx.tick, shot: cmdTick ?? ctx.tick,
+      pos: { ...ctx.ents.rockets.get(id).pos },
+      vel: { ...ctx.ents.rockets.get(id).vel } };
+    /* `born` is the shot's identity. The client stamps it with the tick of the
+       command it predicted, and the host stamps it with the tick it applies
+       that same command — so (ownerId, born) names one shot on both machines
+       with no matching heuristic. It rides the wire for exactly that reason. */
     return;
   }
 
@@ -165,8 +204,47 @@ export function stepCombat(ctx, p, buttons) {
 
 // ── rockets ─────────────────────────────────────────────────────────────────
 
+/* ONE definition of blast knockback on a player, called by both the
+   authoritative splash loop and the predicted self-impulse. MD 24 makes the
+   client compute this for itself; the only way that is safe is if there is
+   nothing for the two sides to disagree about, so there is one function and
+   not two. Radial, proximity-scaled, never damage-gated — the launch has to
+   work at any hp and under any pvp setting. */
+function applyKnock(q, point, d) {
+  const dd = Math.max(0.5, d);
+  const k = KNOCK_PLAYER * falloff(d);
+  q.vel.x += (q.pos.x - point.x) / dd * k;
+  q.vel.y += (q.pos.y - point.y) / dd * k;
+  q.vel.z += (q.pos.z - point.z) / dd * k;
+}
+
+// The predicted half of a blast: the shooter's own impulse and nothing else.
+// Same radius and same falloff as the authoritative loop, by construction.
+function selfImpulse(ctx, r, point) {
+  const q = ctx.ents.players.get(r.ownerId);
+  if (!q || q.ghost) return;
+  const d = Math.hypot(q.pos.x - point.x, q.pos.y - point.y, q.pos.z - point.z);
+  if (d > SPLASH_RADIUS) return;
+  applyKnock(q, point, d);
+}
+
 function explode(ctx, r, point, direct) {
   ctx.events.push({ type: 'explode', point: { ...point }, ownerId: r.ownerId });
+  // Where this shot ended, for the cosmetic rocket above (MD 24). Keyed by
+  // born so a stale blast can never be attributed to a newer shot.
+  {
+    const owner = ctx.ents.players.get(r.ownerId);
+    if (owner) owner.lastBlast = { born: r.born, shot: r.shot, point: { ...point } };
+  }
+
+  /* MD 24: a PREDICT sim takes the one branch it is entitled to — the impulse
+     on the rocket's own owner — and returns before touching anything else. It
+     reaches selfImpulse() through the same falloff and the same radius the
+     host uses, so the two cannot drift; what it skips is every line that
+     decides a health value, a kill, or another entity's motion. Placed at the
+     top so that no damage path can ever be reached from a predict sim by
+     someone adding a branch below without reading this. */
+  if (ctx.predictOnly) { selfImpulse(ctx, r, point); return; }
 
   // direct hit first: full damage to whatever the sweep struck
   if (direct?.type === 'serpent') {
@@ -228,11 +306,7 @@ function explode(ctx, r, point, direct) {
     // any hp and under any pvp setting. Pure radial impulse — angled blasts
     // give angled launches (the rocket-jump feel), scaled by proximity like
     // the enemy knockback.
-    const dd = Math.max(0.5, d);
-    const k = KNOCK_PLAYER * falloff(d);
-    q.vel.x += (q.pos.x - point.x) / dd * k;
-    q.vel.y += (q.pos.y - point.y) / dd * k;
-    q.vel.z += (q.pos.z - point.z) / dd * k;
+    applyKnock(q, point, d);
     if (dmg > 0) hurtPlayer(q, dmg, ctx.events, null, r.ownerId);
   }
 }

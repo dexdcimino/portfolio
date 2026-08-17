@@ -188,6 +188,56 @@ export function createFx({ scene, cam, mat, V3 }, world) {
     }
   }
 
+  /* MD 24 — SERPENT DESTRUCTION. Both serpent events have been in the wire
+     vocabulary since MD 18 and NOTHING drew them: spheres popped off in
+     silence and a serpent died by simply ceasing to be rendered. Killing one
+     is the longest fight in the game (25s on the giant) and it had no payoff
+     at all.
+     Built out of the existing explosion pool rather than a new system, so a
+     barrage still degrades by stealing the oldest slot instead of allocating
+     without bound. `scale` is the tier's scale, so a giant's death is
+     physically bigger than a t1's rather than just louder. */
+  function serpentPop(pos, scale = 1) {
+    explosion(pos);                       // the flash, ring and bloom
+    /* Chunks thrown outward — what makes a pop read as something DESTROYED
+       rather than something deleted. Two colours on purpose: the blue of the
+       body it came off, and the sand of the spikes, so the debris is
+       identifiably serpent and not generic rubble. */
+    burst(pos, '#3E7FC5', Math.round(7 * scale), 13 * scale);
+    burst(pos, '#F2D6A2', Math.round(4 * scale), 11 * scale);
+    for (let i = 0; i < 5; i++) {
+      puff({ x: pos.x + (Math.random() - 0.5) * 3 * scale,
+        y: pos.y + (Math.random() - 0.5) * 2 * scale,
+        z: pos.z + (Math.random() - 0.5) * 3 * scale },
+        1.1 * scale, 3.4 * scale, 0.95, 0.3, 2.6);
+    }
+  }
+
+  /* The final death. Deliberately not "one bigger pop": a serpent dies along
+     its whole length, so the blasts walk down the body over ~0.4s and the
+     debris count scales with the tier. Staggered with setTimeout because this
+     is presentation only — no sim state depends on it, and tying it to sim
+     ticks would make a death look different at a different frame rate. */
+  function serpentDeath(pos, scale = 1, body = []) {
+    const points = body.length ? body : [pos];
+    points.forEach((q, i) => {
+      setTimeout(() => {
+        serpentPop(q, scale * (1 + 0.6 * (1 - i / Math.max(1, points.length))));
+      }, i * (400 / Math.max(1, points.length)));
+    });
+    // One large shockwave at the head, on top of the walking blasts.
+    explosion(pos);
+    burst(pos, '#3E7FC5', Math.round(14 * scale), 24 * scale);
+    burst(pos, '#F2D6A2', Math.round(8 * scale), 20 * scale);
+    burst(pos, '#FF3D81', Math.round(6 * scale), 18 * scale);   // the head
+    for (let i = 0; i < 12; i++) {
+      puff({ x: pos.x + (Math.random() - 0.5) * 7 * scale,
+        y: pos.y + (Math.random() - 0.5) * 5 * scale,
+        z: pos.z + (Math.random() - 0.5) * 7 * scale },
+        1.6 * scale, 6.5 * scale, 1.0, 0.24, 3.4);
+    }
+  }
+
   // ---- soft puffs: rocket exhaust trail + explosion smoke (one pool) ----
   const puffs = [];
   {
@@ -352,7 +402,7 @@ export function createFx({ scene, cam, mat, V3 }, world) {
 
   return {
     fire, spawnTracer, burst, jetPuff, dmgNum, setWeapon,
-    explosion, trailPuff, puff, setRopeColor,
+    explosion, serpentPop, serpentDeath, trailPuff, puff, setRopeColor,
     /* MD 20: the viewmodel is parented to the CAMERA, so the boot flyover
        carried the gun with it — a first-person weapon floating over an
        establishing shot of the arena. Hidden for the duration of the title

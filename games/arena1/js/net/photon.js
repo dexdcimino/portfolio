@@ -24,6 +24,9 @@
 // photon-realtime-module.js, same AppId Stickland ships on).
 
 import { createSim, FLAG } from '../sim/sim.js';
+// Imported, not re-declared: a second copy of the rocket lifetime here would
+// silently rot the moment combat.js changed it (MD 24).
+import { ROCKET_LIFE_TICKS } from '../sim/combat.js';
 import { createWorld } from '../sim/world.js';
 import { buildLevel, tickPlatforms } from '../sim/level.js';
 import { rngFor } from '../core/rng.js';
@@ -278,8 +281,30 @@ export function createClientCore(net, hooks = {}, opts = {}) {
   let predictSim = null;
   let predictReady = false;
   let everSent = false;   // no input yet → track authority, don't predict
-  const pendingHist = []; // { cmd, simTickAfter, stateAfter (deep clone) }
+  const pendingHist = []; // { cmd, simTickAfter, stateAfter, rocketsAfter }
   let corrections = 0, maxCorrection = 0;
+  /* MD 24. maxCorrection is a running max over the whole session, which makes
+     it useless for attributing any single correction — one respawn teleport
+     poisons it for everything after. lastCorrection is the magnitude of the
+     most recent one, so telemetry can tell a 100m respawn from a 0.2m
+     prediction wobble instead of reporting the worst of both. */
+  let lastCorrection = 0;
+  /* MD 24 item 1b. Every shot this client PREDICTED, keyed by its born tick.
+     The authoritative copy of one of these is suppressed for its whole life:
+     the client is already drawing that rocket, from the predict sim, at real
+     time. Handing over mid-flight would not be invisible — authority is
+     rendered an interpolation buffer behind, so the swap would jump the
+     rocket backwards by however far it travels in that window. One rocket
+     from spawn to detonation is what "no duplicate, no pop, no vanish and
+     reappear" actually requires; see the note at mergeRockets. */
+  const predictedShots = new Set();
+  // Far above any id either machine's counter will reach, so a predicted
+  // rocket and an authoritative one can never collide in the renderer's pool.
+  const PRED_ID_BASE = 2e9;
+  // Frames a shot is drawn for even when the rocket never existed long enough
+  // to be observed. Two: enough to register, short enough not to outlive the
+  // blast it belongs to.
+  const COSMETIC_TICKS = 2;
 
   // Fields the client can never predict (damage, pickups, kill credit) are
   // adopted from authority; position/velocity are what corrections govern.
@@ -321,6 +346,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       h.stateAfter.pos.z - authMe.pos.z);
     if (d > PREDICT_EPS) {
       corrections++;
+      lastCorrection = d;
       if (d > maxCorrection) maxCorrection = d;
       // Snap: authoritative pos/vel/scalars + command-derived internals
       // (dash timers, buffers, grapple mode) from the local history — those
@@ -328,12 +354,14 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       const restored = structuredClone(h.stateAfter);
       applyAuth(restored, authMe);
       predictSim.setPlayer(localId, restored);
+      predictSim.setRockets(h.rocketsAfter);   // rewind the tail's rockets too
       predictSim.setTick(h.simTickAfter);
       for (let i = idx + 1; i < pendingHist.length; i++) { // replay the tail
         const e = pendingHist[i];
         predictSim.step(new Map([[localId, e.cmd]]));
         e.simTickAfter = predictSim.tick;
         e.stateAfter = structuredClone(predictSim.getPlayer(localId));
+        e.rocketsAfter = predictSim.getRockets();
       }
     } else {
       // Below threshold: ignore the positional difference entirely (no
@@ -458,7 +486,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       players: interpList(a.snap.players, b.snap.players, t),
       enemies: interpList(a.snap.enemies, b.snap.enemies, t),
       cells: interpList(a.snap.cells, b.snap.cells, t),
-      rockets: interpList(a.snap.rockets || [], b.snap.rockets || [], t),
+      rockets: mergeRockets(interpList(a.snap.rockets || [], b.snap.rockets || [], t)),
       events: pendingEvents.splice(0),
     };
     // Local player entry: PREDICTED state (MD 8) — pos/vel/flags/grapple
@@ -488,6 +516,68 @@ export function createClientCore(net, hooks = {}, opts = {}) {
     for (const cb of subscribers) cb(synth);
   }
 
+  /* MD 24 item 1b — ONE rocket per shot, and for the shooter it is the
+     predicted one, start to finish.
+     The obvious reading of "hand off to the authoritative entity when it
+     arrives" is a mid-flight swap. That cannot be invisible: authority is
+     rendered an interpolation buffer plus half an RTT behind live, and a
+     rocket covers that gap at ROCKET_SPEED, so the swap would yank it
+     backwards by metres at the exact moment the player is watching it. So the
+     handoff happens at the ONLY point where the two provably agree — the shot
+     itself — and authority is suppressed for that shot's whole life. What the
+     host still owns is everything that matters: the explosion event, all
+     damage, all kills, and the reconciliation that corrects the shooter if the
+     two sims disagreed about where it went.
+     Remote players' rockets are untouched and stay fully authoritative. */
+  function mergeRockets(authRockets) {
+    const out = [];
+    for (const r of authRockets) {
+      // Suppress only OUR OWN shots that we are already drawing.
+      if (r.ownerId === localId && predictedShots.has(r.shot)) continue;
+      out.push(r);
+    }
+    if (predictReady) {
+      for (const r of predictSim.getRockets()) {
+        if (r.ownerId !== localId) continue;
+        // A distinct id space so the renderer's mesh pool can never confuse a
+        // predicted rocket with an authoritative one that happens to share an
+        // id from the other machine's counter.
+        out.push({ id: PRED_ID_BASE + r.id, pos: { ...r.pos }, vel: { ...r.vel },
+          ownerId: r.ownerId, shot: r.shot, predicted: true });
+      }
+      /* The cosmetic rocket, and the only part of MD 24 item 1b that is not
+         just the predicted entity. A point-blank blast detonates in the tick
+         it is fired, so there is no entity to draw on either machine — this
+         gives that shot a floor of COSMETIC_TICKS frames, walking from the
+         muzzle to the blast point the predict sim actually computed. It never
+         renders past where the rocket really stopped, so it is a short streak
+         rather than a rocket flying through the floor. */
+      const me = predictSim.getPlayer(localId);
+      const shot = me?.lastShot;
+      if (shot) {
+        const age = predictSim.tick - shot.born;
+        const live = out.some((r) => r.predicted && r.shot === shot.shot);
+        if (!live && age >= 0 && age < COSMETIC_TICKS) {
+          const end = me.lastBlast?.shot === shot.shot ? me.lastBlast.point : null;
+          const k = Math.min(1, (age + 1) / COSMETIC_TICKS);
+          const a = shot.pos;
+          const pos = end
+            ? { x: a.x + (end.x - a.x) * k, y: a.y + (end.y - a.y) * k, z: a.z + (end.z - a.z) * k }
+            : { ...a };
+          out.push({ id: PRED_ID_BASE - 1, pos, vel: { ...shot.vel },
+            ownerId: localId, shot: shot.shot, predicted: true });
+        }
+      }
+      // Forget shots older than a rocket can possibly live, so the set cannot
+      // grow without bound over a long match.
+      if (predictedShots.size > 64) {
+        const floor = predictSim.tick - ROCKET_LIFE_TICKS - 120;
+        for (const b of predictedShots) if (b < floor) predictedShots.delete(b);
+      }
+    }
+    return out;
+  }
+
   return {
     ready,
     isHost: false,
@@ -503,10 +593,19 @@ export function createClientCore(net, hooks = {}, opts = {}) {
       // Predict NOW: the local sim steps this command the same frame it was
       // issued — the whole point of MD 8.
       predictSim.step(new Map([[localId, stamped]]));
+      for (const r of predictSim.getRockets()) {
+        if (r.ownerId === localId) predictedShots.add(r.shot);
+      }
+      // A feet blast dies inside the step that spawned it, so it is never in
+      // getRockets() — take the born from the shot record or authority's copy
+      // of it would not be suppressed.
+      const shot = predictSim.getPlayer(localId)?.lastShot;
+      if (shot) predictedShots.add(shot.shot);
       pendingHist.push({
         cmd: stamped,
         simTickAfter: predictSim.tick,
         stateAfter: structuredClone(predictSim.getPlayer(localId)),
+        rocketsAfter: predictSim.getRockets(),
       });
       if (pendingHist.length > HIST_CAP) pendingHist.shift();
     },
@@ -525,7 +624,7 @@ export function createClientCore(net, hooks = {}, opts = {}) {
     // leak, not a tuning problem. unacked = pendingHist depth (replay cost).
     get prediction() {
       return predictReady
-        ? { corrections, maxCorrection, unacked: pendingHist.length }
+        ? { corrections, maxCorrection, lastCorrection, unacked: pendingHist.length }
         : null;
     },
   };

@@ -368,10 +368,21 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
         cd: x.boltCd, cy: x.cy, R: x.R, speed: Math.abs(x.w) * x.R });
       // SAMPLE the orbit against real geometry, the MD 18 way — do not trust
       // the placement search, re-prove it here at a finer step.
+      /* MD 24 item 2 tightened the visual spacing, which changes the swept
+         volume: the renderer now draws a sphere every 1/FILL of a segment, so
+         this samples at the same resolution. Strictly stricter than before —
+         every old integer sample is still taken, plus the FILL-1 between each
+         pair that the old sweep stepped straight over.
+         `x.w` is read off the live serpent, which is the same w findClearOrbit
+         validated (MD 22 fixed that: the scan used to test a provisional w and
+         pass a curve the serpent never flew). */
       const period = Math.abs(2 * Math.PI / x.w) / SIM_DT;
+      const FILL = 4;   // must match render/serpent.js
+      const subs = (x.segs - 1) * FILL;
       for (let n = 0; n < 160; n++) {
         const tick = (n / 160) * period;
-        for (let k = 0; k < x.segs; k++) {
+        for (let j = 0; j <= subs; j++) {
+          const k = j / FILL;
           const c = segAt(x, tick, k);
           const r = segRadius(k, x.scale);
           samples++;
@@ -496,6 +507,48 @@ function rig({ withPlayer = true, playerAt = null } = {}) {
   ok('the floor is a safe deck, and the gate is why', `${TICKS} ticks at y1.6: 0 shots from all `
     + `${list.length} tiers (lowest window opens at y${t1.fire.yMin}), 100 hp intact; `
     + `the same player at y${mid.toFixed(0)} drew ${firedUp} shots`);
+}
+
+// ── 18. MD 24: the destruction events carry what the FX needs ─────────────
+/* serpent_sever and serpent_death have been in the wire vocabulary since MD 18
+   with nothing drawing them — spheres popped in silence and a serpent died by
+   ceasing to be rendered. MD 24 wires them to an explosion chain, and the
+   chain is built from the SAME closed form the renderer draws with, so this
+   asserts the data that feeds it rather than the pixels: a finite point on
+   every event, a reconstructible body at the death tick, and the tier `scale`
+   the blast size is derived from actually present on the wire.
+   NOT covered here: that Babylon draws it. Verified only as far as node can
+   see — no page errors and correct inputs. */
+{
+  const sim = createSim('serp-fx', { pvp: true });
+  const list = [...sim.ents.serpents.values()];
+  const giant = list.find((x) => x.tier === 'giant');
+  const wire = sim.snapshot().serpents.find((x) => x.id === giant.id);
+  assert.ok(Number.isFinite(wire.scale) && wire.scale > 1,
+    `tier scale missing from the wire (${wire.scale}) — the renderer sized every tier at 1.0 before MD 24`);
+  assert.ok(Number.isInteger(wire.segs) && wire.segs === giant.segs, 'segs missing from the wire');
+
+  const ctx = { world: sim.world, level: null, tick: 500, events: [], ents: sim.ents, pvp: true, seed: 'serp-fx' };
+  let severs = 0, death = null;
+  for (let i = 0; i < 400 && giant.alive; i++) damageSerpent(ctx, giant, giant.popHp, 1);
+  for (const e of ctx.events) {
+    if (e.type === 'serpent_sever') {
+      severs++;
+      assert.ok(Number.isFinite(e.point?.x) && Number.isFinite(e.point?.y) && Number.isFinite(e.point?.z),
+        `serpent_sever ${severs} has no finite point — the pop would draw at the origin`);
+    }
+    if (e.type === 'serpent_death') death = e;
+  }
+  assert.ok(death, 'no serpent_death emitted');
+  assert.ok(Number.isFinite(death.point?.x), 'serpent_death has no finite point');
+  // the body chain the death FX walks down
+  const chain = [];
+  for (let i = 0; i < wire.len; i++) chain.push(segAt(wire.path, 500, i));
+  assert.ok(chain.length > 1 && chain.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && Number.isFinite(c.z)),
+    'the death blast chain is not reconstructible from path + tick');
+  ok('destruction events carry what the FX needs', `${severs} severs each with a finite point, `
+    + `death at (${death.point.x.toFixed(0)}, ${death.point.y.toFixed(0)}); `
+    + `${chain.length}-point blast chain rebuilt from path+tick; wire carries scale ${wire.scale} and segs ${wire.segs}`);
 }
 
 console.log(`\nserpent.mjs: ${passed}/${passed} passed`);

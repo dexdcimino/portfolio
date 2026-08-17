@@ -101,11 +101,22 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
     setTick(t) { tick = t; },
     getPlayer(id) { return ents.players.get(id); },
     setPlayer(id, state) { ents.players.set(id, state); },
+    /* MD 24. Reconciliation rewinds the player and replays the unacked tail.
+       A rocket in flight is part of that tail's state: without these it would
+       be stepped once on the original pass and AGAIN on every replay, flying
+       further each time and detonating early — a self-impulse the host never
+       applied. Rockets are one or two objects, so cloning them per history
+       entry is cheap; getting it wrong is not. */
+    getRockets() { return [...ents.rockets.values()].map((r) => structuredClone(r)); },
+    setRockets(list) {
+      ents.rockets.clear();
+      for (const r of list) ents.rockets.set(r.id, structuredClone(r));
+    },
     playerIds() { return [...ents.players.keys()]; },
     // commandsByPlayer: Map<playerId, command|undefined> for THIS tick.
     step(commandsByPlayer) {
       const events = [];
-      const ctx = { world, level, tick, events, ents, pvp, seed };
+      const ctx = { world, level, tick, events, ents, pvp, seed, predictOnly };
       // Platforms first (prototype order), so ground carry uses fresh deltas
       // and a collapser sees who stood on it at the end of last tick.
       const standing = new Set();
@@ -130,14 +141,25 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
         }
         const cmd = commandsByPlayer?.get?.(p.id);
         stepPlayer(ctx, p, cmd);
-        if (!predictOnly) stepCombat(ctx, p, cmd ? cmd.buttons : 0);
+        /* MD 24: stepCombat now runs in a predict sim too, but combat.js takes
+           only the rocket-spawn branch there — see the header on stepCombat.
+           This is deliberately NOT `if (!predictOnly)` any more: keeping the
+           gate here would have meant a second rocket implementation on the
+           client, and two implementations of a swept projectile is exactly how
+           the predicted and authoritative paths start disagreeing. */
+        stepCombat(ctx, p, cmd ? cmd.buttons : 0, cmd ? cmd.tick : undefined);
       }
       if (!predictOnly) {
         stepEnemies(ctx);
         stepSerpents(ctx);
-        stepRockets(ctx); // after enemies: a rocket sweeps against this tick's poses
-        stepBolts(ctx);   // and bolts after those, same fixed-order discipline
       }
+      /* Rockets step in BOTH sims. In a predict sim there are no enemies and
+         no serpents to sweep against and remote players are ghosts, so the
+         direct-hit loops fall through on their own — what is left is the world
+         raycast and the owner's own impulse, which is precisely the predicted
+         half. Same function, same order, no branch. */
+      stepRockets(ctx);
+      if (!predictOnly) stepBolts(ctx);
       lastEvents = events;
       tick++;
     },
@@ -179,8 +201,16 @@ export function createSim(seed, { pvp = PVP_DEFAULT, enemies = true, predictOnly
         cells: [...ents.cells.values()].filter((c) => !c.taken).map((c) => ({
           id: c.id, pos: round(c.pos),
         })),
+        /* `shot` (MD 24) names the shot: the tick of the COMMAND that fired
+           it, which is the one value the client and the host both hold for a
+           single trigger pull. `born` — the tick the rocket was created — is
+           NOT interchangeable: the host applies a command whenever its queue
+           reaches it, so its born runs ahead of the client's. Matching on born
+           put two of the shooter's rockets on screen at once. One integer, and
+           it is what lets a client suppress the authoritative copy of a rocket
+           it is already drawing. */
         rockets: [...ents.rockets.values()].map((r) => ({
-          id: r.id, pos: round(r.pos), vel: round(r.vel), ownerId: r.ownerId,
+          id: r.id, pos: round(r.pos), vel: round(r.vel), ownerId: r.ownerId, shot: r.shot,
         })),
         /* MD 18. NO segment positions on the wire. The head path is a closed
            form of the tick (serpent.js), so a client holding the parameters can

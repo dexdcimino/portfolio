@@ -43,7 +43,7 @@ body.booting #game, body.booting #hud { cursor: none; }
   /* Arena 1's own chrome: the pause menu's dark plum panel, sand type, coral
      and teal accents. Deliberately not a browser dialog. */
   background: linear-gradient(180deg, rgba(30,20,38,.96), rgba(20,13,26,.97));
-  border: 2px solid var(--coral); border-radius: 14px;
+  border: 2px solid var(--coral); border-radius: 42px;
   box-shadow: 0 26px 70px rgba(0,0,0,.62), inset 0 1px 0 rgba(255,255,255,.06);
 }
 body.booting #controls { opacity: 1; pointer-events: auto; }
