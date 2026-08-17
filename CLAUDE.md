@@ -25,6 +25,13 @@
 - Never use `--no-verify`, and never force-push.
 - If the working tree has unrelated changes the user made by hand, mention them
   rather than sweeping them into the commit.
+- **Never `git add -A`, `git add .`, or `git commit -a`.** Run `git status`
+  first, then stage the explicit paths you changed and nothing else.
+  More than one session works in this repo at a time. `git add -A` cannot tell
+  your work from someone else's in-progress edits, and on 2026-08-16 it swept
+  another session's half-finished Chomp files into an unrelated commit and
+  pushed them. Nothing was lost that time; the rule exists so there is no next
+  time. Staging by name also means the diff you commit is the diff you read.
 
 ## Work overlay is a MOCKUP (do not mistake it for finished)
 
