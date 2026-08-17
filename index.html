@@ -578,7 +578,7 @@
              are the one implementation. -->
         <div class="ai-tabs" role="tablist" aria-label="AI project categories">
           <button class="ai-tab" type="button" role="tab" id="ai-tab-apps" aria-controls="ai-panel-apps" aria-selected="true" tabindex="0">Apps</button>
-          <button class="ai-tab" type="button" role="tab" id="ai-tab-images" aria-controls="ai-panel-images" aria-selected="false" tabindex="-1">Images</button>
+          <button class="ai-tab" type="button" role="tab" id="ai-tab-images" aria-controls="ai-panel-images" aria-selected="false" tabindex="-1">Wallpapers</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-videos" aria-controls="ai-panel-videos" aria-selected="false" tabindex="-1">Videos</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-madlabs" aria-controls="ai-panel-madlabs" aria-selected="false" tabindex="-1">MadLabs</button>
         </div>
@@ -650,8 +650,133 @@
         <!-- Images, Videos and MadLabs land with their content. They share one
              tile + overlay component rather than three layouts, so these three
              panels stay structurally identical until then. -->
+        <!-- Wallpapers. One large piece at a time with a thumbnail strip under
+             it; the counter, the title, the download link and the strip are all
+             built by script.js from the .wp-item figures below, so ADDING A
+             WALLPAPER IS ONE FIGURE — drop the 2560x1600 master in
+             assets/ai/wallpapers/, copy a figure, commit. The count, the
+             ordering and the download all follow.
+             Masters are PNG at full size and are what the download button
+             serves; everything on screen is a baked derivative. -->
         <div class="ai-panel" id="ai-panel-images" role="tabpanel" aria-labelledby="ai-tab-images" hidden>
-          <p class="ai-soon">Image work is being collected — this tab fills in shortly.</p>
+          <div class="wp" id="wallpapers">
+            <div class="wp-head">
+              <p class="wp-count"><span id="wpIndex">1</span> / <span id="wpTotal">5</span></p>
+              <h3 class="wp-title" id="wpTitle"></h3>
+            </div>
+
+            <div class="wp-stage">
+              <button class="wp-arrow wp-prev" type="button" aria-label="Previous wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+              <div class="wp-frame" id="wpFrame"></div>
+              <button class="wp-arrow wp-next" type="button" aria-label="Next wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+            </div>
+
+            <div class="wp-bar">
+              <div class="wp-thumbs" id="wpThumbs" role="tablist" aria-label="Wallpapers"></div>
+              <a class="wp-dl" id="wpDownload" href="#" download>
+                <span class="icon" data-icon="download" aria-hidden="true"></span><span>Download 2560×1600</span>
+              </a>
+            </div>
+
+            <!-- The source set. Hidden; script.js moves these into the frame. -->
+            <div class="wp-src" hidden>
+              <figure class="wp-item" data-title="Aurora Drift" data-file="assets/ai/wallpapers/aurora-drift.png">
+                <!-- img src="assets/ai/wallpapers/aurora-drift.png" slot="wallpaper" alt="Aurora Drift — teal and indigo gradient study" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/wallpapers/aurora-drift-2560.avif 2560w,
+                                                    assets/derived/ai/wallpapers/aurora-drift-1920.avif 1920w,
+                                                    assets/derived/ai/wallpapers/aurora-drift-1280.avif 1280w,
+                                                    assets/derived/ai/wallpapers/aurora-drift-900.avif 900w,
+                                                    assets/derived/ai/wallpapers/aurora-drift-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/wallpapers/aurora-drift-2560.webp 2560w,
+                                                    assets/derived/ai/wallpapers/aurora-drift-1920.webp 1920w,
+                                                    assets/derived/ai/wallpapers/aurora-drift-1280.webp 1280w,
+                                                    assets/derived/ai/wallpapers/aurora-drift-900.webp 900w,
+                                                    assets/derived/ai/wallpapers/aurora-drift-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/wallpapers/aurora-drift.png" alt="Aurora Drift — teal and indigo gradient study" width="2560" height="1600" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Ember Vale" data-file="assets/ai/wallpapers/ember-vale.png">
+                <!-- img src="assets/ai/wallpapers/ember-vale.png" slot="wallpaper" alt="Ember Vale — orange and deep red gradient study" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/wallpapers/ember-vale-2560.avif 2560w,
+                                                    assets/derived/ai/wallpapers/ember-vale-1920.avif 1920w,
+                                                    assets/derived/ai/wallpapers/ember-vale-1280.avif 1280w,
+                                                    assets/derived/ai/wallpapers/ember-vale-900.avif 900w,
+                                                    assets/derived/ai/wallpapers/ember-vale-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/wallpapers/ember-vale-2560.webp 2560w,
+                                                    assets/derived/ai/wallpapers/ember-vale-1920.webp 1920w,
+                                                    assets/derived/ai/wallpapers/ember-vale-1280.webp 1280w,
+                                                    assets/derived/ai/wallpapers/ember-vale-900.webp 900w,
+                                                    assets/derived/ai/wallpapers/ember-vale-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/wallpapers/ember-vale.png" alt="Ember Vale — orange and deep red gradient study" width="2560" height="1600" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Silent Harbor" data-file="assets/ai/wallpapers/silent-harbor.png">
+                <!-- img src="assets/ai/wallpapers/silent-harbor.png" slot="wallpaper" alt="Silent Harbor — cold blue and pale grey gradient study" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/wallpapers/silent-harbor-2560.avif 2560w,
+                                                    assets/derived/ai/wallpapers/silent-harbor-1920.avif 1920w,
+                                                    assets/derived/ai/wallpapers/silent-harbor-1280.avif 1280w,
+                                                    assets/derived/ai/wallpapers/silent-harbor-900.avif 900w,
+                                                    assets/derived/ai/wallpapers/silent-harbor-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/wallpapers/silent-harbor-2560.webp 2560w,
+                                                    assets/derived/ai/wallpapers/silent-harbor-1920.webp 1920w,
+                                                    assets/derived/ai/wallpapers/silent-harbor-1280.webp 1280w,
+                                                    assets/derived/ai/wallpapers/silent-harbor-900.webp 900w,
+                                                    assets/derived/ai/wallpapers/silent-harbor-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/wallpapers/silent-harbor.png" alt="Silent Harbor — cold blue and pale grey gradient study" width="2560" height="1600" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Deep Field" data-file="assets/ai/wallpapers/deep-field.png">
+                <!-- img src="assets/ai/wallpapers/deep-field.png" slot="wallpaper" alt="Deep Field — violet and indigo gradient study" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/wallpapers/deep-field-2560.avif 2560w,
+                                                    assets/derived/ai/wallpapers/deep-field-1920.avif 1920w,
+                                                    assets/derived/ai/wallpapers/deep-field-1280.avif 1280w,
+                                                    assets/derived/ai/wallpapers/deep-field-900.avif 900w,
+                                                    assets/derived/ai/wallpapers/deep-field-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/wallpapers/deep-field-2560.webp 2560w,
+                                                    assets/derived/ai/wallpapers/deep-field-1920.webp 1920w,
+                                                    assets/derived/ai/wallpapers/deep-field-1280.webp 1280w,
+                                                    assets/derived/ai/wallpapers/deep-field-900.webp 900w,
+                                                    assets/derived/ai/wallpapers/deep-field-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/wallpapers/deep-field.png" alt="Deep Field — violet and indigo gradient study" width="2560" height="1600" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Paper Sky" data-file="assets/ai/wallpapers/paper-sky.png">
+                <!-- img src="assets/ai/wallpapers/paper-sky.png" slot="wallpaper" alt="Paper Sky — warm off-white and lilac gradient study" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/wallpapers/paper-sky-2560.avif 2560w,
+                                                    assets/derived/ai/wallpapers/paper-sky-1920.avif 1920w,
+                                                    assets/derived/ai/wallpapers/paper-sky-1280.avif 1280w,
+                                                    assets/derived/ai/wallpapers/paper-sky-900.avif 900w,
+                                                    assets/derived/ai/wallpapers/paper-sky-600.avif 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/wallpapers/paper-sky-2560.webp 2560w,
+                                                    assets/derived/ai/wallpapers/paper-sky-1920.webp 1920w,
+                                                    assets/derived/ai/wallpapers/paper-sky-1280.webp 1280w,
+                                                    assets/derived/ai/wallpapers/paper-sky-900.webp 900w,
+                                                    assets/derived/ai/wallpapers/paper-sky-600.webp 600w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/wallpapers/paper-sky.png" alt="Paper Sky — warm off-white and lilac gradient study" width="2560" height="1600" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+            </div>
+          </div>
         </div>
         <div class="ai-panel" id="ai-panel-videos" role="tabpanel" aria-labelledby="ai-tab-videos" hidden>
           <p class="ai-soon">Video work is being collected — this tab fills in shortly.</p>
@@ -1526,6 +1651,23 @@
                 allow="clipboard-write" referrerpolicy="same-origin"></iframe>
       </div>
       <p class="app-hint">Esc or click outside to close · <a id="appOpenTab" href="/splitmob/">open full page</a></p>
+    </div>
+  </dialog>
+
+  <!-- Wallpaper lightbox. The piece at full size over everything else: the
+       image is capped at 90vw AND 90vh so it always fits whichever way round
+       the screen is, and it keeps its 16:10 ratio rather than being cropped.
+       The <picture> inside is cloned from the carousel with its `sizes`
+       rewritten, so the browser re-picks a wider derivative for this view
+       instead of upscaling the one the small card was using. -->
+  <dialog class="wp-modal" id="wpModal" aria-labelledby="wp-dialog-title">
+    <div class="wp-shell">
+      <button class="contact-close wp-close" type="button" id="wpClose" aria-label="Close wallpaper">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <h2 class="sr-only" id="wp-dialog-title">Wallpaper at full size</h2>
+      <div class="wp-full" id="wpFull"></div>
+      <p class="wp-fullcap"><span id="wpFullTitle"></span> · <a id="wpFullDl" href="#" download>download original</a></p>
     </div>
   </dialog>
 

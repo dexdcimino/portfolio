@@ -51,6 +51,12 @@ LADDERS = {
     # next thing to get real art, and a 19vw thumbnail ladder would visibly
     # under-serve it. Give that hero a slot pointing here when it lands.
     "gallery": (1600, 1200, 900, 600),
+    # AI wallpapers. Sources are 2560x1600, and unlike every other ladder here
+    # the top rung is not for the layout — the carousel's main image is only
+    # ~856px wide. 2560 exists because the lightbox shows the piece at 90vw,
+    # which on a 2560 display asks for 2304 device px, and because these are
+    # smooth gradients that cost far less at width than a photograph would.
+    "wallpaper": (2560, 1920, 1280, 900, 600),
 }
 
 # `sizes` must describe the real rendered slot or the browser picks the wrong
@@ -122,6 +128,16 @@ SLOTS = {
     "ai-icon": dict(
         ladder="avatar",
         sizes="(max-width:700px) 64px, 84px",
+    ),
+    # The wallpaper carousel's main image. It fills the AI panel, which is the
+    # wide column of a split section — about 856px at 1920 and the full width
+    # once the split collapses below 1100. `sizes` describes THAT, not the
+    # lightbox: the lightbox rewrites sizes on its own copy at runtime, which
+    # is how one picture element serves a 500px card and a 2300px overlay
+    # without baking two sets.
+    "wallpaper": dict(
+        ladder="wallpaper",
+        sizes="(max-width:1100px) 92vw, min(56vw, 900px)",
     ),
 }
 

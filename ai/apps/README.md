@@ -39,6 +39,6 @@ ai/apps/<slug>/...             everything else it needs, self-contained
    generated, never typed.
 4. Commit. The pre-commit hook bakes the derivatives and fills the markup in.
 
-`assets/ai/images/` and `assets/ai/thumbnails/` are the equivalent drop points
-for the Images tab: full-size source in the first, and if a separate smaller
-crop is ever wanted, its source in the second. Both are baked, not hand-cut.
+`assets/ai/wallpapers/` is the drop point for the **Wallpapers** tab — see the
+README in that folder. There is no separate thumbnail source: the carousel and
+its strip are the same `<picture>` at two `sizes`, so one master serves both.

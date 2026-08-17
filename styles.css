@@ -2378,6 +2378,102 @@ body.modal-open{overflow:hidden}
   background:color-mix(in srgb,var(--accent) 12%,transparent);
 }
 
+/* ==========================================================================
+   AI WALLPAPERS — one piece at a time, thumbnails under it.
+
+   The stage is a FIXED 16:10 box, matching the 2560x1600 masters, so the
+   counter, title, thumbnails and download row never move between pieces. That
+   is the same lesson the work overlay's hero learned: size the frame, letterbox
+   the art into it, and nothing below the image jumps on every arrow press.
+   ========================================================================== */
+.wp{display:grid;gap:14px}
+/* Counter left, title hard right and large — it is the name of the piece, so
+   it gets display type rather than a caption's. */
+.wp-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.wp-count{
+  margin:0;font-family:var(--mono,ui-monospace),ui-monospace,monospace;
+  font-size:12px;letter-spacing:.14em;color:var(--muted);white-space:nowrap;
+}
+.wp-title{
+  margin:0;text-align:right;min-width:0;
+  font-size:clamp(20px,2.4vw,31px);font-weight:800;letter-spacing:-.03em;line-height:1.1;
+  color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.wp-stage{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
+.wp-frame{
+  position:relative;aspect-ratio:16/10;min-width:0;border-radius:14px;overflow:hidden;
+  background:#0b0f12;border:var(--stroke) solid rgba(255,255,255,.09);
+  cursor:zoom-in;
+}
+.wp-frame picture{display:block;width:100%;height:100%}
+.wp-img{width:100%;height:100%;object-fit:cover;display:block}
+.wp-arrow{
+  width:40px;height:40px;flex:none;border-radius:999px;border:var(--stroke) solid var(--line);
+  background:rgba(12,15,18,.6);color:var(--text);display:grid;place-items:center;cursor:pointer;
+  transition:color var(--accent-ease),border-color var(--accent-ease),background var(--accent-ease);
+}
+.wp-arrow:hover,.wp-arrow:focus-visible{color:var(--accent);border-color:var(--accent)}
+.wp-arrow .icon{width:20px;height:20px}
+.wp-prev .icon{transform:rotate(90deg)}
+.wp-next .icon{transform:rotate(-90deg)}
+
+.wp-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.wp-thumbs{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
+.wp-thumb{
+  width:78px;aspect-ratio:16/10;border-radius:8px;overflow:hidden;padding:0;cursor:pointer;
+  border:var(--stroke) solid rgba(255,255,255,.12);background:#0b0f12;
+  opacity:.55;transition:opacity .18s ease,border-color var(--accent-ease),transform .18s ease;
+}
+.wp-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.wp-thumb:hover{opacity:.85;transform:translateY(-2px)}
+.wp-thumb[aria-selected="true"]{opacity:1;border-color:var(--accent)}
+.wp-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Download is the point of the tab, so it reads as the primary action here. */
+.wp-dl{
+  display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
+  padding:10px 16px;border-radius:999px;text-decoration:none;
+  background:var(--accent);color:var(--accent-ink,#0b0d12);
+  font-size:13px;font-weight:800;letter-spacing:.04em;
+  transition:filter var(--accent-ease),transform .18s ease;
+}
+.wp-dl:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.wp-dl .icon{width:16px;height:16px}
+@media (max-width:700px){
+  .wp-thumb{width:58px}
+  .wp-title{font-size:19px}
+}
+
+/* The lightbox. 90vw AND 90vh: whichever runs out first decides, so a wide
+   piece on a tall phone and the same piece on a wide monitor both land inside
+   the viewport with the ratio intact. */
+.wp-modal{
+  border:0;padding:0;background:transparent;color:var(--text);
+  width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;overflow:hidden;
+}
+.wp-modal[open]{display:grid;place-items:center}
+.wp-modal::backdrop{background:rgba(3,5,7,.88);backdrop-filter:blur(6px)}
+.wp-shell{position:relative;display:grid;justify-items:center;gap:12px}
+.wp-close{position:absolute;top:-6px;right:-52px;z-index:3}
+.wp-full{
+  width:min(90vw, calc(90dvh * 16 / 10));
+  aspect-ratio:16/10;
+  border-radius:12px;overflow:hidden;background:#0b0f12;
+  box-shadow:0 30px 90px rgba(0,0,0,.6);
+}
+.wp-full picture{display:block;width:100%;height:100%}
+.wp-full img{width:100%;height:100%;object-fit:contain;display:block}
+.wp-fullcap{
+  margin:0;font-size:12px;letter-spacing:.06em;color:var(--muted);
+  text-transform:uppercase;font-weight:700;
+}
+.wp-fullcap a{color:var(--accent);text-decoration:none}
+.wp-fullcap a:hover{text-decoration:underline}
+@media (max-width:900px){
+  .wp-close{top:-46px;right:0}
+  .wp-full{width:min(94vw, calc(84dvh * 16 / 10))}
+}
+
 /* AI Lab app overlay — a phone-shaped iframe on desktop only.
 
    The frame is sized from HEIGHT, not width: 92vh tall at a 9/19.5 phone ratio,
