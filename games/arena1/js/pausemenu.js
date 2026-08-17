@@ -10,7 +10,11 @@
 
    Self-contained: injects its own styles, edits nothing else. */
 
-import { setVolume, getVolume, setMuted, isMuted } from './systems/audio.js';
+import { setAudioLevels, legacyAudioLevel } from './systems/audio.js';
+/* MD 26 item 1. The mixer is shared with every other Clayweld game rather than
+   reimplemented here — three copies of a volume panel is how Chomp ends up
+   quieter than Arena 1 for no reason anyone can find. */
+import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
 
 /* The site's seven accents, byte-identical to ACCENTS in the site's script.js
    (verified against script.js:51-59 at build time). The duplication is
@@ -213,7 +217,7 @@ const CSS = `
 .cmenu-seg button:hover:not(.is-on){background:rgba(242,214,162,.09)}
 .cmenu-seg button.is-on{background:var(--cmenu-accent,#9EE02B);color:var(--cmenu-ink,#0b0d12)}
 .cmenu-note{font-size:10px;letter-spacing:.06em;color:#a8916b;margin-top:6px}
-.cmenu-audio{display:flex;align-items:center;gap:12px}
+.cmenu-audio{display:block}
 .cmenu-audio input[type=range]{flex:1;accent-color:var(--cmenu-accent,#9EE02B)}
 .cmenu-mute{min-width:64px;height:28px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:800;
   letter-spacing:.08em;border:2px solid #4A2B63;background:#2b1b45;color:#F2D6A2;
@@ -282,10 +286,7 @@ function build() {
       <button class="cmenu-confirm-no" type="button">CANCEL</button>
     </div>
     <h2>Audio</h2>
-    <div class="cmenu-audio">
-      <button class="cmenu-mute" type="button"></button>
-      <input class="cmenu-vol" type="range" min="0" max="1" step="0.01" aria-label="Master volume">
-    </div>
+    <div class="cmenu-audio"></div>
     <h2>Controls</h2>
     <div class="cmenu-rows"></div>
     <h2>Quality</h2>
@@ -499,25 +500,13 @@ function build() {
   });
   paintPvp();
 
-  const vol = menu.querySelector('.cmenu-vol');
-  const mute = menu.querySelector('.cmenu-mute');
-  // audio.js persists arena1-volume / arena1-muted itself; this UI only reads
-  // and writes the live API. Muted shows the slider at 0 but the stored level
-  // survives underneath, so unmuting restores it rather than resetting.
-  const paint = () => {
-    const m = isMuted();
-    vol.value = m ? 0 : getVolume();
-    mute.textContent = m ? 'MUTED' : 'MUTE';
-    mute.classList.toggle('is-muted', m);
-    mute.setAttribute('aria-pressed', String(m));
-  };
-  vol.addEventListener('input', () => {
-    if (isMuted()) setMuted(false);         // touching the fader is intent to hear
-    setVolume(parseFloat(vol.value));
-    paint();
-  });
-  mute.addEventListener('click', () => { setMuted(!isMuted()); paint(); });
-  paint();
+  /* Three channels now, from the shared module. The settings object persists
+     itself under `arena1-audio` and pushes levels straight at audio.js, so the
+     menu is a view over the mixer rather than an owner of it — reopening the
+     menu cannot drift from what you are hearing. */
+  const audioSettings = createAudioSettings('arena1', setAudioLevels,
+    { legacyMaster: legacyAudioLevel() ?? undefined });
+  buildAudioPanel(menu.querySelector('.cmenu-audio'), audioSettings);
 
   menu.querySelector('.cmenu-resume').addEventListener('click', () => {
     window.Arena1?.resume?.();

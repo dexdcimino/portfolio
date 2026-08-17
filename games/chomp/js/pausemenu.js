@@ -13,7 +13,9 @@
    game drop re-applies by copying this file and adding one script tag
    (see INTEGRATION-NOTES.md). */
 
-import { setVolume, getVolume, setMuted, isMuted } from './systems/audio.js';
+import { setAudioLevels, legacyAudioLevel } from './systems/audio.js';
+/* MD 26 item 1 — the shared Clayweld mixer, same module Arena 1 uses. */
+import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
 
 /* The site's seven accents, byte-identical to ACCENTS in the site's script.js.
    The duplication is deliberate and documented there: the game must not reach
@@ -155,9 +157,7 @@ function build() {
       <input class="cmenu-zoom" type="range" min="0.5" max="2" step="0.05" aria-label="Camera zoom out">
     </div>
     <h2>Audio</h2>
-    <div class="cmenu-audio">
-      <button class="cmenu-mute" type="button"></button>
-      <input class="cmenu-vol" type="range" min="0" max="1" step="0.01" aria-label="Master volume">
+    <div class="cmenu-audio cmenu-audpanel">
     </div>
     <div class="cmenu-foot">
       <button class="cmenu-btn cmenu-exit" type="button">EXIT GAME</button>
@@ -201,25 +201,16 @@ function build() {
   // slider always shows the live value when the menu opens mid-scroll.
   window.addEventListener('chomp-zoom-sync', (e) => { zoom.value = String(e.detail); });
 
-  const vol = menu.querySelector('.cmenu-vol');
-  const mute = menu.querySelector('.cmenu-mute');
-  // audio.js persists chomp-volume / chomp-muted itself; this UI only reads
-  // and writes the live API. Muted shows the slider at 0 but the stored level
-  // survives underneath, so unmuting restores it rather than resetting.
-  const paint = () => {
-    const m = isMuted();
-    vol.value = m ? 0 : getVolume();
-    mute.textContent = m ? 'MUTED' : 'MUTE';
-    mute.classList.toggle('is-muted', m);
-    mute.setAttribute('aria-pressed', String(m));
-  };
-  vol.addEventListener('input', () => {
-    if (isMuted()) setMuted(false);         // touching the fader is intent to hear
-    setVolume(parseFloat(vol.value));
-    paint();
-  });
-  mute.addEventListener('click', () => { setMuted(!isMuted()); paint(); });
-  paint();
+  /* Same shared panel as Arena 1, same three channels, persisted under
+     `chomp-audio`. Chomp's createAudio() is still a TODO stub, so the levels
+     currently land in audio.js and wait there — setAudioLevels stores them and
+     applies them the moment a graph exists. The panel ships now rather than
+     with the audio because MD 26 makes it the standard for every game, and a
+     mixer that appears at the same time as the first sound is a mixer written
+     twice. */
+  const audioSettings = createAudioSettings('chomp', setAudioLevels,
+    { legacyMaster: legacyAudioLevel() ?? undefined });
+  buildAudioPanel(menu.querySelector('.cmenu-audpanel'), audioSettings);
 
   menu.querySelector('.cmenu-resume').addEventListener('click', () => {
     if (window.Chomp && window.Chomp.resume) window.Chomp.resume();

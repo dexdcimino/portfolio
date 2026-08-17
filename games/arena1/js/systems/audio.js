@@ -4,12 +4,24 @@
 // single master GainNode instead of ctx.destination, so volume and mute are
 // one knob, not per-recipe bookkeeping.
 //
-// Master volume API (site pause-menu contract, same shape as Chomp's):
-// setVolume/getVolume/setMuted/isMuted, persisted under arena1-volume /
-// arena1-muted, mute independent of volume — unmuting restores the level.
+// MD 26: the mixer moved to games/_shared/audio-panel.js, which persists
+// master/music/fx under `arena1-audio` and pushes them here via
+// setAudioLevels. The old single-level arena1-volume / arena1-muted pair is
+// retired — the keys below are read once so an existing player's saved level
+// is not silently thrown away on the upgrade.
 
-const VOLUME_KEY = 'arena1-volume';
-const MUTED_KEY = 'arena1-muted';
+const LEGACY_VOLUME_KEY = 'arena1-volume';
+const LEGACY_MUTED_KEY = 'arena1-muted';
+/* One-time migration. Someone who had the game at 20% should not have it jump
+   to the new 35% default just because the mixer changed shape underneath them;
+   their old master level carries across, and the new music/fx buses take the
+   defaults. Runs before the panel loads its own settings, and only when the
+   panel has none stored yet. */
+export function legacyAudioLevel() {
+  const v = parseFloat(readStore(LEGACY_VOLUME_KEY, ''));
+  if (!Number.isFinite(v)) return null;
+  return readStore(LEGACY_MUTED_KEY, '0') === '1' ? 0 : Math.min(1, Math.max(0, v));
+}
 
 function readStore(key, fallback) {
   try {
@@ -21,34 +33,47 @@ function writeStore(key, value) {
   try { localStorage.setItem(key, value); } catch { /* private mode */ }
 }
 
-let volume = Math.min(1, Math.max(0, parseFloat(readStore(VOLUME_KEY, '1')) || 0));
-let muted = readStore(MUTED_KEY, '0') === '1';
-
 let ctx = null, master = null, jetNode = null, jetGain = null;
+/* MD 26 item 1: three buses instead of one master. `fx` is where every
+   synthesized sound already routed (the old `master`), so nothing below had to
+   change its wiring; `music` is built now and unused until MD 26 item 3 lands
+   an actual loop, because a bus that appears with the track is a bus nobody
+   remembers to add. Levels arrive from the shared panel via setAudioLevels. */
+let musicBus = null, fxBus = null;
+let pendingLevels = { master: 0.35, music: 0.30, fx: 0.40 };
+/* The pre-MD-26 API (setVolume/getVolume/setMuted/isMuted) is gone: it had no
+   callers left once the pause menu moved to the shared panel, and leaving two
+   writers pointed at master.gain would have them fight — the last one to run
+   wins, which is exactly the kind of bug that presents as "the slider
+   sometimes does nothing". */
+export function setAudioLevels(levels) {
+  pendingLevels = levels;
+  if (!ctx) return;                        // applied when the context is built
+  const t = ctx.currentTime;
+  master.gain.setTargetAtTime(levels.master, t, 0.02);
+  musicBus.gain.setTargetAtTime(levels.music, t, 0.02);
+  fxBus.gain.setTargetAtTime(levels.fx, t, 0.02);
+}
+export function musicDestination() { return musicBus; }
 
-function applyMaster() {
-  if (master) master.gain.setTargetAtTime(muted ? 0 : volume, ctx.currentTime, 0.02);
-}
-
-export function setVolume(v) {
-  volume = Math.min(1, Math.max(0, Number(v) || 0));
-  writeStore(VOLUME_KEY, String(volume));
-  applyMaster();
-}
-export function getVolume() { return volume; }
-export function setMuted(on) {
-  muted = !!on;
-  writeStore(MUTED_KEY, muted ? '1' : '0');
-  applyMaster();
-}
-export function isMuted() { return muted; }
 
 function ensure() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
+    /* MD 26: master -> compressor -> destination, with music and fx feeding
+       master. The compressor is Stickland's safety net and it matters more
+       now than it did: synthesized tones were level by construction, sampled
+       SFX are not, and a barrage that clips is worse than one that ducks. */
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.knee.value = 20; comp.ratio.value = 5;
+    comp.attack.value = 0.004; comp.release.value = 0.18;
+    comp.connect(ctx.destination);
     master = ctx.createGain();
-    master.gain.value = muted ? 0 : volume;
-    master.connect(ctx.destination);
+    master.connect(comp);
+    musicBus = ctx.createGain(); musicBus.connect(master);
+    fxBus = ctx.createGain(); fxBus.connect(master);
+    // The panel may have set levels before any sound existed to hear them.
+    setAudioLevels(pendingLevels);
   }
   if (ctx.state === 'suspended') ctx.resume();
 }
@@ -59,7 +84,7 @@ function tone(f0, f1, dur, type = 'square', vol = 0.12) {
   o.type = type; o.frequency.setValueAtTime(f0, t);
   o.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), t + dur);
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+  o.connect(g); g.connect(fxBus); o.start(t); o.stop(t + dur + 0.02);
 }
 function noiseBuf(dur) {
   const n = Math.floor(ctx.sampleRate * dur), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
@@ -71,7 +96,7 @@ function noise(dur, vol = 0.1, hp = 800) {
   const t = ctx.currentTime, s = ctx.createBufferSource(); s.buffer = noiseBuf(dur);
   const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp;
   const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  s.connect(f); f.connect(g); g.connect(master); s.start(t);
+  s.connect(f); f.connect(g); g.connect(fxBus); s.start(t);
 }
 // soft cinematic whoosh: bandpass noise sweeping down + low sine swell
 /* `sub` is the low sine under the noise. It used to be hard-coded at 0.05,
@@ -87,11 +112,11 @@ function whoosh(dur = 0.45, f0 = 1000, f1 = 220, vol = 0.12, sub = 0.05) {
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.06);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  s.connect(bp); bp.connect(g); g.connect(master); s.start(t);
+  s.connect(bp); bp.connect(g); g.connect(fxBus); s.start(t);
   const o = ctx.createOscillator(), og = ctx.createGain();
   o.type = 'sine'; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(70, t + dur);
   og.gain.setValueAtTime(Math.max(0.0001, sub), t); og.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  o.connect(og); og.connect(master); o.start(t); o.stop(t + dur);
+  o.connect(og); og.connect(fxBus); o.start(t); o.stop(t + dur);
 }
 function jetStart() {
   if (!ctx || jetNode) return;
@@ -99,7 +124,7 @@ function jetStart() {
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 460; lp.Q.value = 0.7;
   jetGain = ctx.createGain(); jetGain.gain.setValueAtTime(0.0001, ctx.currentTime);
   jetGain.gain.exponentialRampToValueAtTime(0.07, ctx.currentTime + 0.08);
-  jetNode.connect(lp); lp.connect(jetGain); jetGain.connect(master); jetNode.start();
+  jetNode.connect(lp); lp.connect(jetGain); jetGain.connect(fxBus); jetNode.start();
 }
 function jetStop() {
   if (!ctx || !jetNode) return;

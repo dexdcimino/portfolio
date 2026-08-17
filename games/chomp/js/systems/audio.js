@@ -56,3 +56,32 @@ export function effectiveVolume() {
 export function createAudio() {
   // TODO(MD-06)
 }
+
+/* ── MD 26: shared mixer levels ────────────────────────────────────────────
+   The pause menu now drives master/music/fx through games/_shared/audio-panel.js.
+   Chomp has no audio graph yet (createAudio is a TODO stub above), so the
+   levels are held here and handed over the moment one exists — whoever builds
+   it reads currentAudioLevels() rather than inventing a second settings path.
+   The legacy single-level key is migrated once so an existing player's volume
+   is not discarded by the upgrade. */
+const LEGACY_VOLUME_KEY = 'chomp-volume';
+const LEGACY_MUTED_KEY = 'chomp-muted';
+let levels = { master: 0.35, music: 0.30, fx: 0.40 };
+let busGraph = null;
+
+export function setAudioLevels(next) {
+  levels = next;
+  if (busGraph) busGraph.apply(levels);
+}
+export function currentAudioLevels() { return levels; }
+// Called by whoever builds the audio graph; see createBusGraph in the shared
+// module for a ready-made master/music/fx set.
+export function attachBusGraph(graph) {
+  busGraph = graph;
+  if (graph) graph.apply(levels);
+}
+export function legacyAudioLevel() {
+  const v = parseFloat(readStore(LEGACY_VOLUME_KEY, ''));
+  if (!Number.isFinite(v)) return null;
+  return readStore(LEGACY_MUTED_KEY, '0') === '1' ? 0 : Math.min(1, Math.max(0, v));
+}

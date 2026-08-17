@@ -1,0 +1,84 @@
+/* games/_shared/audio-panel.css — the Clayweld audio panel, ported from
+   Stickland's .pmenu-chan rows (games/stickland/src/game.css).
+
+   Colours come from the host menu's own custom properties, so the panel takes
+   on each game's accent instead of carrying Stickland's: --cmenu-accent and
+   --cmenu-ink are what Arena 1 and Chomp already set on their pause menus.
+   That is the reason this is a stylesheet and not inline styles — one file,
+   three skins. */
+
+.aud-panel { display: grid; gap: 2px; }
+
+.aud-chan {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 2px;
+}
+
+/* Mute switch. A real switch rather than a checkbox so it reads at a glance
+   next to the slider it governs. */
+.aud-toggle {
+  flex: 0 0 auto; width: 34px; height: 19px; padding: 0;
+  border-radius: 999px; cursor: pointer;
+  background: rgba(255, 255, 255, .10);
+  border: 1px solid rgba(255, 255, 255, .22);
+  position: relative; transition: background .14s ease, border-color .14s ease;
+}
+.aud-toggle::after {
+  content: ''; position: absolute; top: 50%; left: 3px;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: rgba(255, 255, 255, .75);
+  transform: translateY(-50%); transition: transform .14s ease, background .14s ease;
+}
+.aud-toggle.on {
+  background: var(--cmenu-accent, #9EE02B);
+  border-color: var(--cmenu-accent, #9EE02B);
+}
+.aud-toggle.on::after {
+  transform: translateY(-50%) translateX(15px);
+  background: var(--cmenu-ink, #0b0d12);
+}
+.aud-toggle:focus-visible { outline: 2px solid var(--cmenu-accent, #9EE02B); outline-offset: 2px; }
+
+.aud-chanlabel {
+  flex: 0 0 62px; font-size: 12px; font-weight: 800; letter-spacing: .08em;
+}
+
+.aud-range {
+  flex: 1 1 auto; min-width: 0; height: 20px;
+  -webkit-appearance: none; appearance: none; background: none; cursor: pointer;
+}
+/* The track is painted with a gradient stop at --fill, which the JS sets, so
+   the filled portion follows the value without a second element to keep in
+   sync. */
+.aud-range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right,
+    var(--cmenu-accent, #9EE02B) 0 var(--fill, 0%),
+    rgba(255, 255, 255, .16) var(--fill, 0%) 100%);
+}
+.aud-range::-moz-range-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right,
+    var(--cmenu-accent, #9EE02B) 0 var(--fill, 0%),
+    rgba(255, 255, 255, .16) var(--fill, 0%) 100%);
+}
+.aud-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%; margin-top: -5px;
+  background: #fff; border: 0; box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+.aud-range::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; border: 0; box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+.aud-range:focus-visible { outline: 2px solid var(--cmenu-accent, #9EE02B); outline-offset: 4px; }
+
+.aud-range-val {
+  flex: 0 0 40px; text-align: right;
+  font-size: 11px; font-weight: 800; letter-spacing: .06em;
+  opacity: .72; font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aud-toggle, .aud-toggle::after { transition: none; }
+}

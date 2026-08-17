@@ -5,6 +5,17 @@
   reasoning. If nothing is needed, write `NEEDS DEX: nothing.`
 - Full detail goes above that block.
 
+### Briefing chat
+
+- A separate AI session receives pasted briefings and replies with ONLY one of:
+  `Paste to Claude Code:` (a copy-ready block, nothing else), `Dex does this:`
+  (numbered steps on his end), `Answer these:` (questions only he can answer),
+  or `All good` (nothing needed, next task). Combine when a briefing needs more
+  than one.
+- One line per item, decision only. Rationale only if Dex asks.
+- Write NEEDS DEX lines so they survive that round trip: each must stand alone
+  as a decision, with no reference to context above it.
+
 ## Git workflow
 
 - After completing any MD or task that changes files, commit and push
