@@ -29,7 +29,7 @@ Flags:
     (none)           bake anything stale or missing
     --check          report staleness and exit 1; writes nothing
     --prune          delete derivatives no ladder produces any more
-    --install-hooks  copy tools/hooks/pre-commit into .git/hooks/
+    --install-hooks  copy tools/hooks/* into .git/hooks/
 
 Encoder settings were validated against the source art at 100% crop. They are
 already visually lossless on this material — raising them "to be safe" only
@@ -203,20 +203,28 @@ def check() -> int:
 
 
 def install_hooks() -> int:
-    """Copy the versioned hook into .git/hooks/ and mark it executable."""
-    src = ROOT / "tools" / "hooks" / "pre-commit"
+    """Copy the versioned hooks into .git/hooks/ and mark them executable.
+
+    Two of them now. pre-commit bakes images and markup; commit-msg refuses a
+    commit that reaches across unrelated projects — see tools/check_scope.py.
+    They are separate hooks because they need different things: one runs before
+    the message exists, the other cannot work without it.
+    """
     hooks = ROOT / ".git" / "hooks"
-    if not src.exists():
-        print(f"ERROR: {src.relative_to(ROOT).as_posix()} not found", file=sys.stderr)
-        return 1
     if not hooks.is_dir():
         print("ERROR: .git/hooks not found — run this from inside the repo", file=sys.stderr)
         return 1
 
-    dest = hooks / "pre-commit"
-    shutil.copyfile(src, dest)
-    dest.chmod(dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-    print(f"installed {src.relative_to(ROOT).as_posix()} -> .git/hooks/pre-commit (executable)")
+    for name in ("pre-commit", "commit-msg"):
+        src = ROOT / "tools" / "hooks" / name
+        if not src.exists():
+            print(f"ERROR: {src.relative_to(ROOT).as_posix()} not found", file=sys.stderr)
+            return 1
+        dest = hooks / name
+        shutil.copyfile(src, dest)
+        dest.chmod(dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        print(f"installed {src.relative_to(ROOT).as_posix()} -> .git/hooks/{name} (executable)")
+
     print("A fresh clone needs this once: python tools/bake_images.py --install-hooks")
     return 0
 

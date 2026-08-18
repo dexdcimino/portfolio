@@ -32,6 +32,20 @@
   another session's half-finished Chomp files into an unrelated commit and
   pushed them. Nothing was lost that time; the rule exists so there is no next
   time. Staging by name also means the diff you commit is the diff you read.
+- **This is now enforced, because the rule above failed twice.** On 2026-08-18
+  commit `55e52cb` — subject "AI Lab: stop the thumbnail hover being clipped" —
+  also reverted ten files under `games/surveyor/`, 544 deletions including a
+  whole pause menu, in a commit that meant to change `styles.css`.
+  `.git/hooks/commit-msg` now refuses a commit that reaches across unrelated
+  projects, where a project is each `games/<name>`, each other top-level
+  directory, and the repo root. See `tools/check_scope.py` for why it is not
+  simply "one top-level directory" — that rule would not have caught either
+  incident. Deliberate reach is allowed and must say so:
+
+      Spans: games/chomp, games/surveyor — one shared panel, both games
+
+  A fresh clone installs both hooks once:
+  `python tools/bake_images.py --install-hooks`.
 
 ## Work overlay is a MOCKUP (do not mistake it for finished)
 

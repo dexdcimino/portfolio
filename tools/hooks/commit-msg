@@ -1,0 +1,21 @@
+#!/bin/sh
+# One commit, one project. See tools/check_scope.py for what that means and why
+# it is a hook rather than a line in CLAUDE.md.
+#
+# Lives here (versioned, reviewable) rather than only in .git/hooks, which git
+# does not track. Install with:
+#
+#     python tools/bake_images.py --install-hooks
+#
+# commit-msg rather than pre-commit, and that is forced: the check needs the
+# message to look for the Spans: escape hatch, and the message does not exist
+# yet when pre-commit runs.
+#
+# POSIX sh on purpose: this has to run under Git Bash on Windows.
+
+set -e
+
+PY=python
+command -v python >/dev/null 2>&1 || PY=python3
+
+exec "$PY" tools/check_scope.py "$1"
