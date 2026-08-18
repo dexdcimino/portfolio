@@ -75,7 +75,43 @@ for (const [name, form] of Object.entries(forms)) {
 }
 // Per-side, because a total can be healthy while one wing is inside-out —
 // which is exactly what happened while building this jet.
-const { Geo, mirrorOutline, JET_OUTLINES } = await import('../js/player/meshes.js');
+const { Geo, mirrorOutline, JET_OUTLINES, buildWheel } = await import('../js/player/meshes.js');
+
+/* The rover's wheels, per side. Three of the six used to face inwards: the hub,
+   the beadlock and the rim bolts all sit on one face, and the left wheels were
+   the SAME geometry as the right rather than a mirror of it, so that face was
+   pointing at the chassis. The fix mirrors the geometry, which is the thing
+   that has to be asserted — a mirrored TRANSFORM would flip the winding and
+   pass a "does it look mirrored" eye test while lighting the inside. */
+for (const side of [-1, 1]) {
+  const w = buildWheel(scene, mat, `wheelCheck_${side}`, side);
+  ok(`rover wheel, ${side < 0 ? 'left' : 'right'} side, is wound the right way out`,
+    signedVolume(w) < 0, 'signed volume ' + signedVolume(w).toFixed(3));
+}
+{
+  /* ...and the left wheel IS the right one mirrored, exactly.
+     The first version of this check compared bounding spans and passed
+     vacuously: a tyre is symmetric about its own axle, so both sides span the
+     same numbers whether or not either is mirrored. What distinguishes them is
+     the hub detail on one face, so the test has to look at the geometry rather
+     than at its extent — every triangle of the left wheel must be its right
+     counterpart with x negated and two vertices swapped, which is the mirror
+     this build performs and nothing else. */
+  const R = buildWheel(scene, mat, 'wheelR', 1)._vd.position;
+  const L = buildWheel(scene, mat, 'wheelL', -1)._vd.position;
+  let same = R.length === L.length && R.length > 0;
+  let worst = 0;
+  for (let i = 0; same && i < R.length; i += 9) {
+    const want = [-R[i], R[i + 1], R[i + 2],
+                  -R[i + 6], R[i + 7], R[i + 8],
+                  -R[i + 3], R[i + 4], R[i + 5]];
+    for (let k = 0; k < 9; k++) worst = Math.max(worst, Math.abs(want[k] - L[i + k]));
+    if (worst > 1e-6) same = false;
+  }
+  ok('the left wheel is the right one mirrored, triangle for triangle',
+    same, `${R.length / 3} verts a side, worst deviation ${worst.toExponential(1)}`);
+}
+
 for (const [name, pts] of Object.entries(JET_OUTLINES)) {
   const sides = [-1, 1].map((s) => {
     const g = new Geo();
