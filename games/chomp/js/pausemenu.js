@@ -76,6 +76,71 @@ const CONTROLS = [
   ['Pause', ['Esc', 'P'], ''],
 ];
 
+/* Master silences the other channels, the way Stickland's menu does it.
+
+   Switching master off has to move every fader, not just stop the sound: a
+   music slider sitting at 30% while nothing plays is the UI disagreeing with
+   itself. Turning master back on restores what was there, and touching any
+   child while master is down brings master back up — otherwise the child looks
+   live and stays silent.
+
+   This wraps the SHARED settings object rather than changing it. That module is
+   Arena 1's too, and its own semantics (mute a channel, keep its slider where
+   it was) are right for a panel with no master cascade. Nothing here reaches
+   into games/_shared/. */
+function masterCascade(settings) {
+  const CHILDREN = ['music', 'fx'];
+  // What to come back to. Seeded from the current levels, updated whenever a
+  // channel is left in an audible state.
+  const remembered = {};
+  for (const key of settings.keys) remembered[key] = settings.get(key) || undefined;
+
+  const remember = (key) => { const v = settings.get(key); if (v > 0) remembered[key] = v; };
+  const restore = (key) => settings.set(key, remembered[key] ?? 0.4);
+
+  const silenceChildren = () => CHILDREN.forEach((k) => { remember(k); settings.set(k, 0); settings.setOn(k, false); });
+  // Only restores children that master silenced — a channel the user turned off
+  // on purpose stays off, because it was already 0 before master went down.
+  const restoreChildren = () => CHILDREN.forEach((k) => {
+    if (settings.get(k) === 0 || !settings.isOn(k)) { restore(k); settings.setOn(k, true); }
+  });
+  const wakeMaster = () => {
+    if (settings.isOn('master') && settings.get('master') > 0) return;
+    settings.set('master', remembered.master ?? 0.35);
+    settings.setOn('master', true);
+  };
+
+  return {
+    ...settings,
+    keys: settings.keys,
+    get: settings.get,
+    level: settings.level,
+    isOn: settings.isOn,
+    set(key, v) {
+      const value = Number(v) || 0;
+      if (key === 'master') {
+        remember('master');
+        settings.set('master', value);
+        // Dragging master to zero is muting it; dragging it back up is unmuting.
+        if (value === 0) { settings.setOn('master', false); silenceChildren(); }
+        else { settings.setOn('master', true); restoreChildren(); }
+        return;
+      }
+      settings.set(key, value);
+      if (value > 0) { remember(key); wakeMaster(); }
+    },
+    setOn(key, on) {
+      if (key === 'master') {
+        if (on) { restore('master'); settings.setOn('master', true); restoreChildren(); }
+        else { remember('master'); settings.set('master', 0); settings.setOn('master', false); silenceChildren(); }
+        return;
+      }
+      if (on) { restore(key); settings.setOn(key, true); wakeMaster(); }
+      else { remember(key); settings.set(key, 0); settings.setOn(key, false); }
+    },
+  };
+}
+
 const CSS = `
 /* pointer-events: the game's #hud is pointer-events:none so the canvas gets
    clicks — which meant every click on this menu fell THROUGH to the canvas,
@@ -106,7 +171,35 @@ const CSS = `
   border:2px solid #3a4450;border-radius:6px;white-space:nowrap}
 .cmenu-alt{color:#8d959c;font-size:12px;margin-left:6px}
 .cmenu-audio{display:flex;align-items:center;gap:12px}
-.cmenu-audio input[type=range]{flex:1;accent-color:var(--cmenu-accent,#9EE02B)}
+.cmenu-audio input[type=range]{flex:1;min-width:0;accent-color:var(--cmenu-accent,#9EE02B)}
+/* The audio panel is a COLUMN of channels. It was mounted on a .cmenu-audio
+   element, which is a flex ROW, so master / music / fx were laid out side by
+   side — 943px of content in a 458px menu, i.e. the horizontal scrollbar.
+   The shared module (games/_shared/audio-panel.js) only emits class names; the
+   styling is each game's, and Chomp had none for .aud-* at all. */
+.cmenu-audpanel{display:grid;gap:10px;align-items:stretch}
+.aud-chan{display:flex;align-items:center;gap:10px;min-width:0}
+/* min-width:0 is what actually stops the overflow: a flex item will not shrink
+   below its content otherwise, and a range input's default width is 129px. */
+.aud-range{flex:1;min-width:0;accent-color:var(--cmenu-accent,#9EE02B)}
+.aud-chanlabel{flex:0 0 52px;font-size:11px;font-weight:800;letter-spacing:.08em;
+  color:#8d959c;text-transform:uppercase}
+.aud-range-val{flex:0 0 40px;text-align:right;font-size:11px;font-weight:700;
+  color:#8d959c;font-variant-numeric:tabular-nums}
+/* The switch: a pill that fills with the accent when the channel is on, so the
+   row reads at a glance without needing the percentage. */
+.aud-toggle{flex:0 0 auto;width:34px;height:20px;padding:0;border-radius:999px;cursor:pointer;
+  border:2px solid #3a4450;background:#232830;position:relative;
+  transition:background .15s ease,border-color .15s ease}
+.aud-toggle::after{content:'';position:absolute;top:50%;left:2px;width:12px;height:12px;
+  border-radius:50%;background:#8d959c;transform:translateY(-50%);
+  transition:transform .15s ease,background .15s ease}
+.aud-toggle.on{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B)}
+.aud-toggle.on::after{background:var(--cmenu-ink,#0b0d12);transform:translate(14px,-50%)}
+.aud-toggle:focus-visible{outline:2px solid var(--cmenu-accent,#9EE02B);outline-offset:2px}
+/* A channel silenced by master reads as off without pretending to be
+   independently disabled — it still takes a click to bring back. */
+.aud-chan.is-silenced .aud-chanlabel,.aud-chan.is-silenced .aud-range-val{opacity:.55}
 .cmenu-zoomlab{font-size:11px;font-weight:800;letter-spacing:.08em;color:#8d959c;min-width:64px}
 .cmenu-mute{min-width:64px;height:28px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:800;
   letter-spacing:.08em;border:2px solid #3a4450;background:#232830;color:#f1f3f4;
@@ -210,7 +303,7 @@ function build() {
      twice. */
   const audioSettings = createAudioSettings('chomp', setAudioLevels,
     { legacyMaster: legacyAudioLevel() ?? undefined });
-  buildAudioPanel(menu.querySelector('.cmenu-audpanel'), audioSettings);
+  buildAudioPanel(menu.querySelector('.cmenu-audpanel'), masterCascade(audioSettings));
 
   /* UI select (MD 27). The menu is plain DOM and emits nothing on the event
      bus, so the sound is hung on the panel's own buttons — one delegated

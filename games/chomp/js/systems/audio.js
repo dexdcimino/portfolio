@@ -78,13 +78,13 @@ export function legacyAudioLevel() {
    spammable, death happens once. */
 let samples = null;
 const SAMPLES = {
-  chomp:    ['chomp.ogg',     { cap: 5, gain: 0.46 }],
+  chomp:    ['chomp.ogg',     { cap: 5, gain: 1.01 }],
   eat:      ['eat.ogg',       { cap: 4, gain: 0.68 }],
   evolve:   ['evolve.ogg',    { cap: 2, gain: 1.13 }],
   death:    ['death.ogg',     { cap: 1, gain: 1.31 }],
   uiSelect: ['ui-select.ogg', { cap: 3, gain: 0.73 }],
   // Not a one-shot: loaded for its decoded buffer, driven by startMusic below.
-  music:    ['music.ogg',     { cap: 1, gain: 1 }],
+  music:    ['music.mp3',     { cap: 1, gain: 1 }],
 };
 
 /* One looping source on the music bus, started once the context exists and then
@@ -94,15 +94,15 @@ const SAMPLES = {
    because the default slider says so is one bad drag away from drowning the
    game.
 
-   0.57, not Arena 1's 0.45, and the difference is the point: these are two
-   different recordings. Matching the NUMBER does not match the loudness — the
-   old track measured 0.243 in its loudest 300ms window and this one 0.193, so
-   holding 0.45 would have quietly dropped the music ~20% when the track was
-   swapped. 0.45 × (0.243 / 0.193) ≈ 0.57 lands it exactly where the previous
-   track sat, which is the level that was signed off.
+   The number moves with every track and the loudness does not: each swap is
+   re-measured in the loudest 300 ms window and the gain scaled to land on the
+   level that was signed off. 0.45 (Arena 1) → 0.57 (Dark Shrine, 0.193) →
+   0.93 (Boss Fight Bounce, 0.1187): 0.57 × (0.193 / 0.1187) ≈ 0.93. It reads
+   high next to Arena 1's 0.45 and is not — this recording is simply quieter.
+   Headroom is fine: 0.93 × its 0.368 peak is 0.34.
    `loop = true` on the BufferSource is a sample-accurate loop with no gap —
    the reason this is a decoded buffer and not an <audio> element. */
-const MUSIC_GAIN = 0.57;
+const MUSIC_GAIN = 0.93;
 let musicNode = null;
 function startMusic() {
   if (musicNode || !samples || !busGraph) return;
