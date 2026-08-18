@@ -52,8 +52,17 @@ const PARACHUTE = {
      Anvil 228m. */
   reliefK: 2.2,
   minFall: 2.5,      // m/s of descent before a fall counts as one
-  descent: 11,       // m/s the canopy settles you at, fully open — survivable,
-                     // not safe: about what a hard hop lands at
+  /* m/s the canopy settles you at, fully open.
+     Not lower, and the reason is pacing rather than physics. At 11 a fall from
+     300m took 24 seconds — that stops being a descent you are flying and turns
+     into one you are watching, and it quietly answers the question the whole
+     system exists to ask. At 20 the same fall takes 15.5s and riding it down
+     against taking the jet back stays a live choice rather than a formality.
+     Still a firm arrival: a hard hop lands at about this.
+     The steady rate is exactly this number, so 300m is 15s of descent; the
+     extra half second is the canopy filling and the fall reaching terminal,
+     which no value here removes. Raising it to 21 would buy that back. */
+  descent: 20,
   open: 2.4,         // how fast the canopy takes hold once it is out
   stow: 9,           // ...and how fast it collapses when it is cut
   /* Horizontal bleed under canopy. Low on purpose: the rover and the boat
