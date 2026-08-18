@@ -2748,21 +2748,20 @@ body.modal-open{overflow:hidden}
 }
 
 /* ==========================================================================
-   AI PROMPTS — four .md files, shown as the pages they are.
+   AI PROMPTS — four .md files, shown as the documents they are.
 
-   The card IS a page: a small sheet of the actual rendered markdown, scaled
-   down and faded out at the bottom. Not a thumbnail of one, and not a summary
-   — the text you see is the text you get, which is the only honest preview of
-   a document whose whole content is words. Hovering swaps that sheet for what
-   the prompt is FOR, because the excerpt tells you how it opens and not what
-   it does.
+   The card reads top-down: what it is called, what it is for, how to take it.
+   At rest the body is the DESCRIPTION, because when you are scanning four of
+   these the useful question is what each prompt does — the opening lines of the
+   file tell you how it starts, which is a different question. Hovering swaps in
+   the document itself, set large enough to read rather than merely recognise.
    ========================================================================== */
 .pr{
   display:grid;gap:18px;padding:4px 2px 2px;
-  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
 }
 .pr-card{
-  position:relative;display:grid;grid-template-rows:1fr auto;
+  position:relative;display:grid;grid-template-rows:auto minmax(0,1fr);
   border-radius:16px;overflow:hidden;isolation:isolate;
   background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));
   border:var(--stroke) solid var(--line);
@@ -2774,52 +2773,50 @@ body.modal-open{overflow:hidden}
   box-shadow:0 14px 34px rgba(0,0,0,.4);
 }
 
-/* The sheet. A fixed height, so four prompts of four different lengths still
-   line their titles up across the row. */
-.pr-sheet{position:relative;height:224px;overflow:hidden;background:#0b0f12}
+/* The title bar, at the top where a document name belongs. */
+.pr-head{
+  display:flex;align-items:center;gap:12px;justify-content:space-between;
+  padding:15px 16px 13px;border-bottom:var(--stroke) solid var(--line);
+  background:rgba(6,9,12,.55);
+}
+.pr-head-text{min-width:0}
+.pr-title{margin:0;font-size:19px;font-weight:800;letter-spacing:.01em;color:var(--text)}
+.pr-meta{
+  margin:4px 0 0;font-family:var(--mono,ui-monospace),ui-monospace,monospace;
+  font-size:13px;letter-spacing:.05em;color:var(--muted);
+}
+.pr-tag{
+  flex:none;padding:5px 11px;border-radius:999px;
+  border:var(--stroke) solid color-mix(in srgb,var(--accent) 45%,transparent);
+  color:var(--accent);font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+}
+.pr-tag:empty{display:none}
+
+/* Both states are stacked in the body, so swapping one for the other cannot
+   change the height of the card. */
+.pr-body{position:relative;height:216px;overflow:hidden;background:#0b0f12}
+.pr-desc{
+  position:absolute;inset:0;margin:0;display:grid;align-content:center;
+  padding:18px 68px 18px 18px;color:var(--text);font-size:16px;line-height:1.6;
+  opacity:1;transition:opacity .18s ease;
+}
+.pr-sheet{position:absolute;inset:0;opacity:0;transition:opacity .18s ease}
 .pr-mini{
   padding:16px 16px 0;
-  /* The markdown is rendered at full size and shrunk, rather than restyled
-     small: one type scale, used twice. */
-  font-size:11px;line-height:1.5;
-  transform-origin:top left;
-  transition:opacity .18s ease,filter .18s ease;
+  /* 13px, not the 11px this started at: at thumbnail size it was texture, not
+     text. The reader renders the same markdown at 15px, so a card is now a
+     smaller copy of the page it opens rather than a different thing. */
+  font-size:13px;line-height:1.55;
 }
-/* Nothing in the mini sheet is reachable — it is a picture of a document. */
 .pr-mini *{pointer-events:none}
 .pr-fade{
   position:absolute;left:0;right:0;bottom:0;height:96px;
   background:linear-gradient(180deg,rgba(11,15,18,0),rgba(11,15,18,.96) 78%);
-  transition:opacity .18s ease;
 }
-/* What it is for, over the sheet, on hover or keyboard focus. */
-.pr-desc{
-  position:absolute;inset:0;margin:0;display:grid;align-content:center;
-  padding:20px 18px;background:rgba(8,11,14,.97);
-  color:var(--text);font-size:13px;line-height:1.6;
-  opacity:0;transition:opacity .18s ease;
-}
-.pr-card:hover .pr-desc,.pr-card:focus-within .pr-desc{opacity:1}
-.pr-card:hover .pr-mini,.pr-card:focus-within .pr-mini{filter:blur(1px)}
-.pr-card:hover .pr-fade,.pr-card:focus-within .pr-fade{opacity:0}
-
-.pr-foot{
-  display:flex;align-items:center;gap:10px;justify-content:space-between;
-  padding:12px 14px 13px;border-top:var(--stroke) solid var(--line);
-  background:rgba(6,9,12,.6);
-}
-.pr-foot-text{min-width:0}
-.pr-title{margin:0;font-size:15px;font-weight:800;letter-spacing:.01em;color:var(--text)}
-.pr-meta{
-  margin:3px 0 0;font-family:var(--mono,ui-monospace),ui-monospace,monospace;
-  font-size:10px;letter-spacing:.06em;color:var(--muted);
-}
-.pr-tag{
-  flex:none;padding:4px 9px;border-radius:999px;
-  border:var(--stroke) solid color-mix(in srgb,var(--accent) 45%,transparent);
-  color:var(--accent);font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-}
-.pr-tag:empty{display:none}
+/* Hover shows the document and hides the description. Keyboard focus counts as
+   hover here, so the preview is reachable without a pointer. */
+.pr-card:hover .pr-desc,.pr-card:focus-within .pr-desc{opacity:0}
+.pr-card:hover .pr-sheet,.pr-card:focus-within .pr-sheet{opacity:1}
 
 /* The whole card opens the reader. A transparent button laid over it rather
    than a click handler on the card: that is what makes it reachable by keyboard
@@ -2831,22 +2828,19 @@ body.modal-open{overflow:hidden}
 }
 .pr-open:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:16px}
 
+/* Bottom-right, and always visible: it is why half the people looking at these
+   cards are here, and a primary action behind a hover is one that goes
+   unfound. */
 .pr-dl{
-  position:absolute;right:12px;top:12px;z-index:3;
-  width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+  position:absolute;right:12px;bottom:12px;z-index:3;
+  width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
   background:var(--accent);border:2px solid var(--accent);
   color:var(--accent-ink,#0b0d12);cursor:pointer;
-  box-shadow:0 6px 18px rgba(0,0,0,.4);
-  opacity:0;transform:translateY(-4px);
-  transition:opacity .18s ease,transform .18s ease,background var(--accent-ease),
-             color var(--accent-ease);
+  box-shadow:0 6px 18px rgba(0,0,0,.45);
+  transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease;
 }
-.pr-dl .icon{width:22px;height:22px}
-/* Hidden until the card is engaged: four accent squares sitting on a grid of
-   text competes with the titles for the eye. Keyboard focus counts as engaged,
-   so it can never be reached without being visible. */
-.pr-card:hover .pr-dl,.pr-card:focus-within .pr-dl,.pr-dl:focus-visible{opacity:1;transform:none}
-.pr-dl:hover{background:rgba(8,11,15,.8);color:var(--accent)}
+.pr-dl .icon{width:24px;height:24px}
+.pr-dl:hover{background:rgba(8,11,15,.82);color:var(--accent);transform:translateY(-2px)}
 .pr-dl:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 
 /* The reader. A sheet, not a modal full of chrome: one bar with the name, the
@@ -2870,28 +2864,24 @@ body.modal-open{overflow:hidden}
   background:rgba(6,9,12,.7);
 }
 .pr-bar-text{min-width:0}
-.pr-bar-title{margin:0;font-size:17px;font-weight:800;letter-spacing:.01em}
+.pr-bar-title{margin:0;font-size:19px;font-weight:800;letter-spacing:.01em}
 .pr-bar-meta{
   margin:3px 0 0;font-family:var(--mono,ui-monospace),ui-monospace,monospace;
-  font-size:11px;letter-spacing:.05em;color:var(--muted);
+  font-size:12px;letter-spacing:.05em;color:var(--muted);
 }
 .pr-bar-tools{display:flex;align-items:center;gap:10px;flex:none}
-/* In the bar it is always visible — there is no grid of cards for it to shout
-   over, and it is the reason half of the people who open this are here. */
-.pr-dl-lg{position:static;opacity:1;transform:none;width:42px;height:42px;border-radius:12px}
+.pr-dl-lg{position:static;width:42px;height:42px;border-radius:12px}
 .pr-close{position:static}
 .pr-read{
   overflow:auto;padding:26px 30px 40px;
-  /* A measure, not the full width of the sheet: prompts are prose. */
   font-size:15px;line-height:1.7;
 }
 .pr-read:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
 .pr-loading{color:var(--muted)}
 
-/* Rendered markdown, used at two sizes: the mini sheet on a card and the
-   reader. Everything here is relative (em, not px) so the one scale serves
-   both — that is what keeps a card looking like a small copy of the page it
-   opens, rather than a second design. */
+/* Rendered markdown, used at two sizes: the card sheet and the reader.
+   Everything here is relative (em, not px) so one scale serves both — that is
+   what keeps a card a smaller copy of the page it opens. */
 .md > *:first-child{margin-top:0}
 .md h2,.md h3,.md h4,.md h5,.md h6{
   margin:1.6em 0 .5em;line-height:1.25;font-weight:800;letter-spacing:.01em;color:var(--text);
@@ -2929,14 +2919,16 @@ body.modal-open{overflow:hidden}
 
 @media (max-width:700px){
   .pr{grid-template-columns:1fr}
-  .pr-sheet{height:190px}
+  .pr-body{height:200px}
   .pr-shell{width:100vw;height:100dvh;border-radius:0;border:0}
-  .pr-read{padding:20px 18px 34px;font-size:14.5px}
-  /* No hover on a touch screen, so the download cannot hide behind one. */
-  .pr-dl{opacity:1;transform:none}
+  .pr-read{padding:20px 18px 34px;font-size:15px}
 }
+/* A touch screen has no hover, so the document preview is not reachable there.
+   The description stays put and a tap opens the full reader, which is the
+   better way to read it on a phone anyway. */
 @media (hover:none){
-  .pr-dl{opacity:1;transform:none}
+  .pr-card:hover .pr-desc{opacity:1}
+  .pr-card:hover .pr-sheet{opacity:0}
 }
 
 /* AI Lab app overlay — a phone-shaped iframe on desktop only.

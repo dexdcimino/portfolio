@@ -2344,18 +2344,24 @@ function renderMarkdown(src) {
   // write it differently.
   cards.forEach((card) => {
     const title = card.dataset.title || fileName(card);
+    /* Head, then body, then the download. The description is what the card
+       says at rest — what the prompt is FOR is the useful thing when you are
+       scanning four of them — and hovering swaps it for the document itself,
+       larger than the old always-on sheet so it can actually be read. */
     card.innerHTML = `
-      <div class="pr-sheet">
-        <div class="pr-mini md" aria-hidden="true"></div>
-        <div class="pr-fade" aria-hidden="true"></div>
-        <p class="pr-desc">${card.dataset.desc || ''}</p>
-      </div>
-      <div class="pr-foot">
-        <div class="pr-foot-text">
+      <div class="pr-head">
+        <div class="pr-head-text">
           <h3 class="pr-title"></h3>
           <p class="pr-meta">MD</p>
         </div>
         <span class="pr-tag"></span>
+      </div>
+      <div class="pr-body">
+        <p class="pr-desc">${card.dataset.desc || ''}</p>
+        <div class="pr-sheet" aria-hidden="true">
+          <div class="pr-mini md"></div>
+          <div class="pr-fade"></div>
+        </div>
       </div>
       <button class="pr-open" type="button" aria-label="Preview ${title}"></button>
       <button class="pr-dl" type="button" data-tip="Download MD"
