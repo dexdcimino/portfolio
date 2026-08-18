@@ -3,7 +3,7 @@
 // lines are cut into the rock, the waterline gets a drawn coastline stroke,
 // and light is quantised into flat bands so form reads as shape, not shading.
 
-import { COLORS, WORLD, ATMO, SKY, LIGHT, TERRAIN } from '../tune.js';
+import { COLORS, WORLD, ATMO, SKY, LIGHT, TERRAIN, SHADOW } from '../tune.js';
 import { meltDepth } from './water.js';
 
 const V3 = (c) => new BABYLON.Vector3(c[0], c[1], c[2]);
@@ -254,13 +254,21 @@ function registerShaders() {
                  w half the box, so the term fades before the box edge rather
                  than ending at a visible square
        uShadowS  PCF tap spacing, in shadow-map UV
-       uContact  xyz the craft's ground point, w its radius in metres
-       uContactK the contact blob's strength, already faded by altitude */
+       uContact  xyz the craft's ground point, w how far above or below it the
+                 shape is allowed to paint
+       uContactF  xyz the heading, flattened onto the ground; w unused
+       uContactS  x half length, y half width, z soft edge, w superellipse power
+       uContactK  strength, already faded by altitude */
     uniform sampler2D uShadowMap;
     uniform mat4 uShadowMat;
-    uniform vec4 uShadowP, uContact;
+    uniform vec4 uShadowP, uContact, uContactS;
+    uniform vec3 uContactF;
     uniform vec3 uShadowAt;
     uniform float uShadowS, uContactK;
+    /* 0 off, 1 the shadow term alone, 2 the cast term without the contact blob,
+       3 shadow-map texels per metre. Read with the post stack disabled or the
+       grade will flatten the very thing being looked at. */
+    uniform float uShadowDebug;
     /* Split from uTriMix.x on purpose. The perturbed NORMAL and the detail
        LUMINANCE do very different things to a chart: the normal changes how the
        ground catches light, which the contour lines do not care about, while
@@ -439,6 +447,8 @@ function registerShaders() {
         }
       }
 
+      float castOnly = shadow;
+
       /* The craft's contact shadow, and it is not the cast shadow's job.
          Independent of the sun, of the world, and of whether this world has
          cast shadows at all — Ember has none and the rover still has to sit on
@@ -446,9 +456,36 @@ function registerShaders() {
          already knows its own world position, so this follows every fold of the
          ground instead of clipping into slopes and hovering over hollows. */
       if (uContactK > 0.001) {
-        float cd = distance(vW, uContact.xyz);
-        shadow *= 1.0 - uContactK *
-          (1.0 - smoothstep(uContact.w * 0.40, uContact.w, cd));
+        /* A SUPERELLIPSE IN THE GROUND PLANE, oriented to the heading — not a
+           disc. This is the craft's only shadow now, on every world, so it has
+           to be the shape of the thing casting it: |u/a|^n + |v/b|^n = 1, with
+           n at 2 an ellipse, at 4 nearly a rectangle, and at 2.6 the rounded
+           rectangle a tracked hull actually occupies.
+           The basis is built from the LOCAL RADIAL, so it lies along the ground
+           on a sphere rather than along some world axis, and the vertical guard
+           stops a cliff face beside the rover taking its shadow. */
+        vec3 dv = vW - uContact.xyz;
+        vec3 f = uContactF - up * dot(uContactF, up);
+        f = normalize(f + vec3(1e-5));
+        vec3 rt = cross(up, f);
+        float a = abs(dot(dv, f)) / uContactS.x;
+        float bq = abs(dot(dv, rt)) / uContactS.y;
+        float t = pow(a, uContactS.w) + pow(bq, uContactS.w);
+        float blob = 1.0 - smoothstep(1.0 - uContactS.z, 1.0 + uContactS.z, t);
+        blob *= 1.0 - smoothstep(uContact.w * 0.5, uContact.w, abs(dot(dv, up)));
+        shadow *= 1.0 - uContactK * blob;
+      }
+
+      if (uShadowDebug > 0.5) {
+        if (uShadowDebug < 1.5) { gl_FragColor = vec4(vec3(shadow), 1.0); return; }
+        if (uShadowDebug < 2.5) { gl_FragColor = vec4(vec3(castOnly), 1.0); return; }
+        // Texels per metre: green is plenty, red is a shadow map that cannot
+        // resolve what is standing on it.
+        vec4 lsd = uShadowMat * vec4(vW, 1.0);
+        float tpm = 1.0 / max(uShadowP.y / 1.4, 0.0001);
+        gl_FragColor = vec4(clamp(1.0 - tpm / 12.0, 0.0, 1.0),
+                            clamp(tpm / 12.0, 0.0, 1.0), 0.0, 1.0);
+        return;
       }
 
       /* T3: the surface normal the LIGHT sees. Perturbed after the palette and
@@ -1045,7 +1082,7 @@ export function createMaterials(scene, planet) {
         'uEmitCol', 'uEmitHot', 'uLightMix', 'uSunCol', 'uRimP',
         'uTriScale', 'uTriSlope', 'uTriMix', 'uTriFade', 'uTriDetail',
         'uShadowMat', 'uShadowP', 'uShadowAt', 'uShadowS',
-        'uContact', 'uContactK'],
+        'uContact', 'uContactF', 'uContactS', 'uContactK', 'uShadowDebug'],
       samplers: ['uTriFlat', 'uTriSteep', 'uTriHigh', 'uShadowMap'],
     });
   /* T3 — triplanar. Fade distances arrive as fractions of the fog range so a
@@ -1189,10 +1226,13 @@ export function createMaterials(scene, planet) {
        neither has to import the other. Called once when a world is built. */
     bindShadows(sh) {
       terrain.setVector4('uContact', new BABYLON.Vector4(0, 0, 0, 1));
+      terrain.setVector3('uContactF', new BABYLON.Vector3(0, 0, 1));
+      terrain.setVector4('uContactS', new BABYLON.Vector4(1, 1, 0.4, 2.6));
       terrain.setFloat('uContactK', 0);
       if (!sh || !sh.rtt) {
         terrain.setVector4('uShadowP', new BABYLON.Vector4(0, 0, 0, 0));
         terrain.setFloat('uShadowS', 0);
+        terrain.setFloat('uShadowDebug', SHADOW.debug || 0);
         return;
       }
       terrain.setTexture('uShadowMap', sh.rtt);
@@ -1204,12 +1244,15 @@ export function createMaterials(scene, planet) {
         sh.cfg.strength, sh.texelWorld * sh.cfg.normalOffset,
         sh.cfg.depthBias, sh.cfg.range * 0.5));
       terrain.setFloat('uShadowS', sh.cfg.softness / sh.cfg.mapSize);
+      terrain.setFloat('uShadowDebug', SHADOW.debug || 0);
     },
 
     /** The craft's ground point, per frame. Zero strength when it is nowhere
      *  near the ground, or when there is no craft yet. */
-    setContact(at, strength) {
+    setContact(at, fwd, size, strength) {
       terrain.setVector4('uContact', at);
+      terrain.setVector3('uContactF', fwd);
+      terrain.setVector4('uContactS', size);
       terrain.setFloat('uContactK', strength);
     },
 

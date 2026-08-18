@@ -179,7 +179,6 @@ function swapTo(key, dir, alt) {
   for (const form of Object.values(forms)) {
     for (const m of form.root.getChildMeshes()) m.material = world.mats.craft;
   }
-  castCraft();
   cam.setPlanet(next);
   streaks.setPalette(next);
   // The world's own grade. Neutral on all six at T1, so this is a no-op that
@@ -210,20 +209,16 @@ function devWarp(key) {
 }
 hud.attachWarp(Object.keys(PLANETS), world.planet.key, devWarp);
 
-/* The craft casts too, and it has to be re-registered on every arrival.
-   The chunk stream registers terrain leaves itself through ChunkField's
-   onBuild, but the craft's meshes outlive any one world — they are built once
-   and re-pointed at each world's material — so nothing in world.js ever sees
-   them. Leaving the world drops its casters with its terrain, so this runs
-   again on the way in rather than once at boot. */
-function castCraft() {
-  const sh = world.shadows;
-  if (!sh || !sh.rtt) return;
-  for (const form of Object.values(forms)) {
-    for (const m of form.root.getChildMeshes()) sh.addCaster(m);
-  }
-}
-castCraft();
+/* THE CRAFT IS NOT A SHADOW-MAP CASTER, deliberately.
+   It was, and its map shadow was the worst thing in the frame: a 3m object in
+   a 400m box is a handful of texels, and what came out was a streak many
+   vehicle lengths long that no bias or filter setting improved, because the
+   problem is resolution and not depth. The craft is also the one object always
+   on screen, so it is the one that can least afford to be approximate.
+   Its shadow is the contact shadow instead — down-projected, footprint-shaped,
+   never elongated, and identical on every world including the one with no cast
+   shadows at all. That is standard practice for a hero object and it is why
+   removing this was a deletion rather than a new system. */
 
 // ---- post ----------------------------------------------------------------
 /* Bloom replaced a GlowLayer here two phases ago, for a reason that still

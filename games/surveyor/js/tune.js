@@ -240,8 +240,24 @@ export const TERRAIN = {
 export const SHADOW = {
   enabled: true,
   mapSize: 2048,
-  range: 400,           // metres across the box, centred on the craft
+  /* METRES ACROSS THE BOX, and it is much tighter than it was.
+     Measured on Home: a 400m box on a 2048 map is 19.5cm a texel, and the
+     terrain leaves that cast into it are flat-shaded triangle soup with a skirt
+     hanging 14m off every chunk edge. What that produced was a striped band
+     running along the light — acne, not projection, and no bias setting fixed
+     it because the caster geometry is discontinuous at exactly the scale the
+     map is sampling. Tightening to 150-260m takes a texel to 7-13cm and takes
+     the striping with it, at the cost of shadows that only exist near the
+     craft — which is where a contact-scale shadow belongs anyway, and the term
+     already fades out before the box edge. */
+  range: 180,
   strength: 0.75,       // how much of the key a full shadow removes
+  /* Terrain casts as well as receives. The fallback if tightening the box had
+     not been enough: props and the craft are small and well-behaved casters,
+     and a heightfield of flat-shaded soup with LOD skirts is not. Left true
+     because the tighter box did fix it — verified by A/B on Home, which was the
+     worst of the six. */
+  castTerrain: true,
 
   /* NORMAL-OFFSET BIAS, in texels of the shadow map, and it replaced a constant
      depth bias that could not be made to work.
@@ -266,6 +282,10 @@ export const SHADOW = {
      width of softness — enough to read as a shadow, not enough to smear the
      contact. */
   softness: 1.6,
+
+  // 0 off, 1 the shadow term alone, 2 the cast term without the contact
+  // blob, 3 texels per metre. Read with the post stack off.
+  debug: 0,
 };
 
 /**
@@ -284,12 +304,27 @@ export const SHADOW = {
  */
 export const CONTACT = {
   enabled: true,
-  radius: 4.2,          // metres. The rover is about 3m across the tracks
-  strength: 0.55,       // how much of the key it removes at the centre
+  /* SHAPED TO THE VEHICLE, not a generic disc, because this is now the craft's
+     only shadow on every world. A superellipse in the ground plane, oriented to
+     the heading: exponent 2 is an ellipse and 4 is nearly a rectangle, and 2.6
+     is the rounded-rectangle a tracked hull actually occupies. Metres, half
+     extents, along the heading and across it. */
+  size: {
+    rover: { long: 2.05, wide: 1.55 },
+    boat:  { long: 2.45, wide: 1.35 },
+    jet:   { long: 2.30, wide: 2.30 },
+  },
+  exponent: 2.6,
+  edge: 0.45,           // how far past the footprint the soft edge reaches
+  strength: 0.82,       // of the key, at the centre. Darker than the 0.55 it
+                        // shipped at, because it is now carrying the whole job
   // Metres of altitude over which it fades out. A jet at fifty metres should
-  // not be painting a hard disc on the ground under itself.
-  fadeFrom: 3.0,
-  fadeTo: 26.0,
+  // not be painting a hard shape on the ground under itself.
+  fadeFrom: 2.5,
+  fadeTo: 24.0,
+  // ...and it stops painting on anything far above or below the contact point,
+  // so a cliff face beside the rover does not take its shadow.
+  vertical: 3.5,
 };
 
 /**
@@ -495,6 +530,14 @@ export const PLANETS = {
     radius: 1036,
     seed: 'surveyor-home',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* Diagnosed rather than guessed. Home was the worst of the six and the
+       cause was resolution, not depth: a 400m box on a 2048 map is 19.5cm a
+       texel, and the terrain casting into it is flat-shaded triangle soup with
+       a 14m skirt on every chunk edge — discontinuous at exactly the scale the
+       map samples, which is acne no bias can reach. At 180m a texel is 8.8cm
+       and the striped band is gone entirely, verified on the isolated shadow
+       term. The strength below is only tunable at all because of that. */
+    shadows: { range: 180, strength: 0.80 },
     /* T3 — light. Home's ground is soft banded terraces and a chart drawn on
        them, and the scan is FRACTURED STONE: at 0.9 the marble's crack network
        reads as line work and competes with the contours it is supposed to sit
@@ -700,7 +743,7 @@ export const PLANETS = {
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
     // Low islands on a shallow sea: little to cast, and a humid 0.22 fill to
     // catch what does.
-    shadows: { range: 300, strength: 0.60 },
+    shadows: { range: 160, strength: 0.70 },
     // T3 — light, and mostly moot: 89% of this world is water, and the
     // bathymetry shelves and the waterline stroke do the visual work on it.
     terrain: { strength: 0.30, detail: 0.10 },
@@ -798,7 +841,7 @@ export const PLANETS = {
     // Hard shadows, and they come for free: this world's fill is 0, so a
     // shadowed face falls all the way to nothing. Long ones, too — the sun is
     // the lowest of the five that have shadows.
-    shadows: { range: 340, strength: 0.85 },
+    shadows: { range: 180, strength: 0.95 },
     /* T3 — light, and deliberately not zero. A fracture network is what
        crevassed ice looks like, so the scan's relief suits this world; what
        does NOT suit it is a matte rock grain over a surface whose whole
@@ -901,7 +944,7 @@ export const PLANETS = {
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
     // Short range and weak: the fog closes in at 232m here, so anything past
     // that is spent, and dense particulate is exactly what fills a shadow in.
-    shadows: { range: 260, strength: 0.55 },
+    shadows: { range: 150, strength: 0.62 },
     // T3 — the least of the six. Most of this world is behind its own fog, and
     // detail spent past the fog line is detail nobody sees.
     terrain: { strength: 0.25, detail: 0.08 },
@@ -1007,7 +1050,7 @@ export const PLANETS = {
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
     // The longest box in the system. 104m of relief and real canyon walls, so
     // the casters are big and the shadows are the point.
-    shadows: { range: 620, strength: 0.80 },
+    shadows: { range: 260, strength: 0.88 },
     /* T3 — the most of the six, and the world this transplant is for. 104m of
        relief, real canyons, rust and ochre: fractured stone is what Anvil
        actually is, and it is the only world where the scan is not standing in

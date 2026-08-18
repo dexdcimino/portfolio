@@ -55,10 +55,13 @@ export class World {
        — a list holding disposed meshes grows without bound and Babylon will
        happily try to draw them. */
     this.shadows = new Shadows(scene, planet, this.mats.skyParams.sunDir);
-    this._contactTmp = { x: 0, y: 0, z: 0 };
+    this._tmpA = { x: 0, y: 0, z: 0 };
+    this._tmpB = { x: 0, y: 0, z: 0 };
     this.field = new ChunkField(scene, this.mats.terrain, planet);
-    this.field.onBuild = (mesh) => this.shadows.addCaster(mesh);
-    this.field.onDrop = (mesh) => this.shadows.removeCaster(mesh);
+    if (this.shadows.cfg.castTerrain) {
+      this.field.onBuild = (mesh) => this.shadows.addCaster(mesh);
+      this.field.onDrop = (mesh) => this.shadows.removeCaster(mesh);
+    }
     this.mats.bindShadows(this.shadows);
     this.survey = new Survey(scene, craft, planet);
     this.colonies = new Colonies(scene, craft, this.mats.craft, planet);
@@ -86,7 +89,8 @@ export class World {
    */
   contact(craft) {
     if (!CONTACT.enabled || !craft || !craft.surf) {
-      this.mats.setContact(this._contactAt || BABYLON.Vector4.Zero(), 0);
+      this.mats.setContact(this._cAt(0, 0, 0, 1), this._cF(0, 0, 1),
+        this._cS(1, 1, 0.4, 2.6), 0);
       return;
     }
     const p = craft.pos;
@@ -95,15 +99,36 @@ export class World {
     const k = CONTACT.strength *
       (1 - Math.min(1, Math.max(0, (alt - CONTACT.fadeFrom) /
         (CONTACT.fadeTo - CONTACT.fadeFrom))));
-    if (k <= 0.001) { this.mats.setContact(this._contactVec(0, 0, 0, 1), 0); return; }
-    const w = craft.surf.toWorld(p.x, gy, p.z, this._contactTmp);
-    this.mats.setContact(this._contactVec(w.x, w.y, w.z, CONTACT.radius), k);
+    if (k <= 0.001) {
+      this.mats.setContact(this._cAt(0, 0, 0, 1), this._cF(0, 0, 1),
+        this._cS(1, 1, 0.4, 2.6), 0);
+      return;
+    }
+    const w = craft.surf.toWorld(p.x, gy, p.z, this._tmpA);
+    /* The heading, as a WORLD direction. Taken as the difference between two
+       points on the ground rather than from a stored basis, because the tangent
+       frame re-anchors as you drive and this way there is nothing to keep in
+       step with it. */
+    const fx = Math.sin(craft.yaw), fz = Math.cos(craft.yaw);
+    const w2 = craft.surf.toWorld(p.x + fx, gy, p.z + fz, this._tmpB);
+    const sz = CONTACT.size[craft.mode] || CONTACT.size.rover;
+    this.mats.setContact(
+      this._cAt(w.x, w.y, w.z, CONTACT.vertical),
+      this._cF(w2.x - w.x, w2.y - w.y, w2.z - w.z),
+      this._cS(sz.long, sz.wide, CONTACT.edge, CONTACT.exponent), k);
   }
 
-  _contactVec(x, y, z, r) {
-    if (!this._contactAt) this._contactAt = new BABYLON.Vector4(0, 0, 0, 1);
-    this._contactAt.set(x, y, z, r);
-    return this._contactAt;
+  _cAt(x, y, z, w) {
+    if (!this._at) this._at = new BABYLON.Vector4(0, 0, 0, 1);
+    this._at.set(x, y, z, w); return this._at;
+  }
+  _cF(x, y, z) {
+    if (!this._fw) this._fw = new BABYLON.Vector3(0, 0, 1);
+    this._fw.set(x, y, z); return this._fw;
+  }
+  _cS(x, y, z, w) {
+    if (!this._sz) this._sz = new BABYLON.Vector4(1, 1, 0.4, 2.6);
+    this._sz.set(x, y, z, w); return this._sz;
   }
 
   setActive(on) {

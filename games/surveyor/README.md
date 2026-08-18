@@ -154,6 +154,25 @@ a sun at all" and its light comes off the ground. A directional sun shadow map
 there draws shadows cast by a light that is not doing the lighting. Off, not
 tuned down.
 
+**The craft is not a shadow-map caster.** It was, and its map shadow was the
+worst thing in the frame. Its shadow is the contact shadow instead — a
+superellipse in the ground plane, oriented to the heading and sized to the form
+you are driving — which is down-projected, never elongated, and identical on
+every world including Ember, which has no cast shadows at all. Standard practice
+for the one object always on screen, and it made this a deletion rather than a
+new system.
+
+**Home was the worst of the six and the cause was resolution, not depth.** A
+400m box on a 2048 map is 19.5cm a texel, and the terrain casting into it is
+flat-shaded triangle soup with a 14m LOD skirt on every chunk edge —
+discontinuous at exactly the scale the map samples, which is acne no bias can
+reach. It showed as a striped band running along the light. At 180m a texel is
+8.8cm and the isolated shadow term comes back clean white. `SHADOW.debug` is
+what showed that; it is worth reaching for before tuning a number.
+
+Terrain still casts. The fallback was to make it receive-only if a tighter box
+was not enough, and it was enough.
+
 **Normal-offset bias, not a constant depth bias**, and the first cut had the
 constant one. It cannot be made to work: the depth error across a texel grows as
 1/cos of the angle between the normal and the light, so any value large enough
