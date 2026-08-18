@@ -10,6 +10,8 @@ const DARK   = [0.106, 0.145, 0.169, 0];
 const AMBER  = [1.000, 0.690, 0.239, 0];
 const GLASS  = [0.094, 0.341, 0.412, 0];
 const GLOW   = [0.169, 0.878, 0.784, 1];
+const CHUTE  = [0.925, 0.400, 0.243, 0];
+const CHUTE_B = [0.965, 0.851, 0.706, 0];
 const HOT    = [1.000, 0.451, 0.298, 1];
 
 export class Geo {
@@ -182,6 +184,55 @@ function ngon(n, w, h, yOff = 0) {
 
 // ---- form 1: six-wheeled ground rover ---------------------------------
 
+/**
+ * The auto-deploy canopy, carried by the rover and the boat.
+ *
+ * Built once with the form and scaled up out of nothing when it opens, so the
+ * deploy costs no allocation at the one moment you would notice a hitch.
+ *
+ * EVERY FACE IS WOUND BOTH WAYS, deliberately. You see this thing almost
+ * entirely from underneath — hanging under it is the entire point — and the
+ * shared vehicle material is back-face culled like everything else here, so a
+ * single-sided dome would be invisible in exactly the shot it exists for.
+ * Doubling 140 quads is cheaper than a second material.
+ */
+function buildChute(scene, mat, name) {
+  const g = new Geo();
+  const RINGS = 5, SEGS = 14, R = 3.1, H = 1.5;
+  const at = (ring, seg) => {
+    const t = ring / RINGS;                    // 0 at the crown, 1 at the hem
+    const a = (seg / SEGS) * Math.PI * 2;
+    // A flattened dome with a little flare at the hem, so it reads as loaded
+    // fabric rather than as half a ball.
+    const r = Math.sin(t * Math.PI * 0.5) * R * (1 + t * t * 0.10);
+    const y = Math.cos(t * Math.PI * 0.5) * H;
+    return [Math.cos(a) * r, y, Math.sin(a) * r];
+  };
+  for (let ring = 0; ring < RINGS; ring++) {
+    for (let seg = 0; seg < SEGS; seg++) {
+      const a = at(ring, seg), b = at(ring, seg + 1);
+      const c = at(ring + 1, seg + 1), d = at(ring + 1, seg);
+      // Alternating gores. This is what makes the canopy's rotation legible —
+      // a single-colour dome spinning looks like a dome standing still.
+      const col = seg % 2 ? CHUTE : CHUTE_B;
+      g.tri(a, b, c, col); g.tri(a, c, d, col);
+      g.tri(c, b, a, col); g.tri(d, c, a, col);
+    }
+  }
+  // Shroud lines, converging on the hardpoint the vehicle hangs from.
+  for (let seg = 0; seg < SEGS; seg += 2) {
+    const hem = at(RINGS, seg);
+    const w = 0.05;
+    const p0 = [hem[0], hem[1], hem[2]], p1 = [hem[0] + w, hem[1], hem[2] + w];
+    const p2 = [w, -2.6, w], p3 = [0, -2.6, 0];
+    g.tri(p0, p1, p2, DARK); g.tri(p0, p2, p3, DARK);
+    g.tri(p2, p1, p0, DARK); g.tri(p3, p2, p0, DARK);
+  }
+  const mesh = g.toMesh(scene, name, mat);
+  mesh.setEnabled(false);
+  return mesh;
+}
+
 export function buildRover(scene, mat) {
   const root = new BABYLON.TransformNode('rover', scene);
   const g = new Geo();
@@ -269,8 +320,11 @@ export function buildRover(scene, mat) {
     }
   }
 
+  const chute = buildChute(scene, mat, 'roverChute');
+  chute.parent = root;
+
   root.setEnabled(false);
-  return { root, body, wheels, arms, struts, restY };
+  return { root, body, wheels, arms, struts, restY, chute };
 }
 
 /**
@@ -368,8 +422,11 @@ export function buildBoat(scene, mat) {
   const jetR = new BABYLON.TransformNode('boatJetR', scene);
   jetR.parent = root; jetR.position.set(1.28, 0.16, -3.1);
 
+  const chute = buildChute(scene, mat, 'boatChute');
+  chute.parent = root;
+
   root.setEnabled(false);
-  return { root, body, jets: [jetL, jetR] };
+  return { root, body, jets: [jetL, jetR], chute };
 }
 
 // ---- form 3: alien delta jet -------------------------------------------

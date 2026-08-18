@@ -53,6 +53,17 @@ export class Sfx {
       jetTurbine: e.loop({ type: 'sawtooth', detunes: [-4, 5], pitch: 300, freq: 2600, q: 9 }),
       jetBlade: e.loop({ type: 'square', detunes: [0], pitch: 740, freq: 3400, q: 12 }),
       jetAir: e.loop({ noise: true, filterType: 'highpass', freq: 3600, q: 0.8, send: 0.10 }),
+      /* Skid layers, and the reason they are loops rather than one-shots. A
+         skid lasts as long as the momentum takes to bleed out, which depends on
+         how fast you arrived — an impact one-shot has to guess that length in
+         advance and is wrong every time it guesses. These are held and driven
+         from craft.skid, so the sound stops when the sliding stops, by
+         construction rather than by tuning. */
+      skidWash: e.loop({ noise: true, filterType: 'bandpass', freq: 1200, q: 0.6, send: 0.35 }),
+      skidScrape: e.loop({ noise: true, filterType: 'bandpass', freq: 520, q: 1.6, send: 0.30 }),
+      // Canopy: fabric under load, and the only sound in the game that means
+      // "you are going to survive this".
+      chuteFlap: e.loop({ noise: true, filterType: 'bandpass', freq: 700, q: 0.9, send: 0.25 }),
       // Ambience.
       wind: e.loop({ noise: true, filterType: 'bandpass', freq: 460, q: 0.7, send: 0.18 }),
       lap: e.loop({ noise: true, filterType: 'lowpass', freq: 360, q: 1.4, send: 0.12 }),
@@ -145,6 +156,32 @@ export class Sfx {
     });
 
     on('splash', (ev) => { if (ok()) this.splash(clamp((ev && ev.force) || 0.6, 0.2, 1.4)); });
+
+    /* A hull taking the sand. The bite of it only — the body of the sound is
+       the held scrape in update(), which runs for exactly as long as the boat
+       is still sliding. Soft attack on purpose: a beaching is something that
+       takes hold of you, and an instant transient would be the wall this whole
+       change exists to remove. */
+    on('beach', (ev) => {
+      if (!ok()) return;
+      const t = this.e.now;
+      const g = clamp(((ev && ev.speed) || 12) / 34, 0.25, 1);
+      const secs = clamp((ev && ev.secs) || 0.6, 0.3, 2.0);
+      this.e.hit({ at: t, dur: 0.55 * secs, gain: 0.13 * g, type: 'bandpass',
+        freq: 850, to: 240, q: 0.8, send: 0.40 });
+      this.e.note({ type: 'triangle', freq: 118, to: 62, at: t, dur: 0.45 * secs,
+        gain: 0.08 * g, attack: 0.09, filter: 640, q: 2 });
+    });
+
+    // The canopy taking the air: a crack, then fabric settling into its load.
+    on('chute', () => {
+      if (!ok()) return;
+      const t = this.e.now;
+      this.e.hit({ at: t, dur: 0.16, gain: 0.20, type: 'bandpass',
+        freq: 1700, to: 720, q: 1.1, send: 0.5 });
+      this.e.hit({ at: t + 0.10, dur: 0.85, gain: 0.10, type: 'lowpass',
+        freq: 1100, to: 300, q: 0.8, send: 0.45 });
+    });
 
     on('crash', () => {
       if (!ok()) return;
@@ -273,13 +310,21 @@ export class Sfx {
     });
   }
 
+  /**
+   * Entering water — softer and longer than it was, and the low sine is gone.
+   *
+   * That tone was the "hit" in this sound, and a rover now carries its speed
+   * into a lake over twenty-odd metres instead of stopping at the surface, so a
+   * thud was describing something that no longer happens. What is left is spray
+   * over a wash, both at roughly half the gain and twice the length; the body
+   * of the entry is the held layer in update(), cut to the skid.
+   */
   splash(force) {
     const t = this.e.now;
-    this.e.hit({ at: t, dur: 0.34 * force, gain: 0.30 * force, type: 'bandpass',
-      freq: 2400, to: 500, q: 0.7, send: 0.45 });
-    this.e.hit({ at: t + 0.02, dur: 0.5 * force, gain: 0.14 * force, type: 'lowpass',
-      freq: 900, to: 200, q: 1.1, send: 0.4 });
-    this.e.note({ type: 'sine', freq: 300, to: 110, at: t, dur: 0.18, gain: 0.10 * force });
+    this.e.hit({ at: t, dur: 0.55 * force, gain: 0.16 * force, type: 'bandpass',
+      freq: 1900, to: 430, q: 0.6, send: 0.50 });
+    this.e.hit({ at: t + 0.04, dur: 0.90 * force, gain: 0.09 * force, type: 'lowpass',
+      freq: 720, to: 190, q: 0.9, send: 0.45 });
   }
 
   // ---- per-frame ---------------------------------------------------------
@@ -369,6 +414,20 @@ export class Sfx {
           q: 2.2, send: 0.25, pan: Math.random() * 1.4 - 0.7 });
       }
     }
+
+    /* Skid and canopy, driven from state rather than fired as events. craft.skid
+       falls from 1 to 0 across the slide, so these fade out ON the skid: the
+       wash of a rover carrying into a lake and the scrape of a hull running up
+       a beach both end when the sliding does, at whatever length that turned
+       out to be. */
+    const skid = craft.skid || 0;
+    const wash = craft.skidKind === 'water' ? skid : 0;
+    const scrape = craft.skidKind === 'beach' ? skid : 0;
+    L.skidWash.set(wash * 0.075, 460 + wash * 2300, 0.5 + wash * 0.85, now, 0.08);
+    L.skidScrape.set(scrape * 0.085, 250 + scrape * 950, 1.2 + scrape * 1.4, now, 0.08);
+    // Fabric noise that rises as the canopy fills, so it reads as taking load.
+    const cf = craft.chute || 0;
+    L.chuteFlap.set(cf * 0.045, 380 + cf * 760, 0.7 + cf * 0.5, now, 0.15);
 
     // Wind rises with speed and with height — it's the altimeter you hear.
     const amb = SOUND.ambience;

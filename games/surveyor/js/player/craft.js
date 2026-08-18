@@ -17,6 +17,68 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const damp = (a, b, rate, dt) => a + (b - a) * (1 - Math.exp(-rate * dt));
 
+/* TEMPORARY — TUNING THAT BELONGS IN tune.js.
+ *
+ * Every number in the three blocks below is tuning and every one of them should
+ * be sitting in tune.js with the rest of it. They are here because a parallel
+ * session is transplanting the T2 light rig into that same file right now,
+ * adding per-planet blocks to the same six PLANETS entries the parachute
+ * ceiling has to live in, and whoever saved second would have won.
+ *
+ * Moving them across is mechanical and nothing else has to change with them:
+ * no other module reads these, and the parachute ceiling is already derived
+ * from `planet.relief` rather than written out per world, so PLANETS needs no
+ * new key at all. See NEEDS DEX.
+ */
+const AIR = {
+  // What separates "transformed in the air" from "transformed on the deck".
+  // The jet's own landing sets you down at floor + 1.3 and then calls setMode,
+  // so this has to sit above that: touching down must not read as a mid-air
+  // transform, or every landing would leave you falling.
+  minClearance: 3.0,
+  // Height over the waterline past which a rover is falling TOWARD water rather
+  // than wading in it. A hop tops out well under this; a drop out of a jet is
+  // far above it.
+  wadeCeiling: 6.0,
+};
+
+const PARACHUTE = {
+  /* The deploy ceiling is the planet's RELIEF times this — relief, not radius,
+     and that is the whole of the idea. What decides whether a fall is
+     survivable is how far there is to fall. Ember has 10.35m of relief and
+     Anvil has 103.6m on a radius ten times bigger, and a ceiling read off the
+     radius would hand the world with nothing to fall off the longest warning.
+     At 2.2 that is Ember 23m, Tarn 46m, Vault 91m, Home 114m, Shroud 160m,
+     Anvil 228m. */
+  reliefK: 2.2,
+  minFall: 2.5,      // m/s of descent before a fall counts as one
+  descent: 11,       // m/s the canopy settles you at, fully open — survivable,
+                     // not safe: about what a hard hop lands at
+  open: 2.4,         // how fast the canopy takes hold once it is out
+  stow: 9,           // ...and how fast it collapses when it is cut
+  /* Horizontal bleed under canopy. Low on purpose: the rover and the boat
+     already carry their own air drag, and at 0.55 the canopy was stacking on
+     top of that hard enough to erase three quarters of a 90 m/s entry inside a
+     second and a half — which took the "momentum carries" out of the drop it is
+     supposed to be saving. The canopy's job is the VERTICAL. */
+  drag: 0.30,
+};
+
+const SKID = {
+  /* An impact is a distance, not a frame. Both numbers are the DISTANCE, in
+     metres, over which carried overspeed is burned off — and it is burned
+     LINEARLY in distance travelled, so the skid is that long whether you
+     arrived at 20 m/s or at 60.
+     Linearly, and not on an exponential, because an exponential in distance
+     stalls exactly where you least want it to: as the hull slows, the metres
+     stop arriving, so the last of the carry takes longer to burn than all the
+     rest of it put together. A boat beaching at 66 m/s sat in its own skid for
+     fifteen seconds that way. Linear burn has a real end, at a known length. */
+  waterLength: 26,   // rover carrying into water
+  beachLength: 17,   // boat running up a beach, a bit over two hull lengths
+  minEntry: 6,       // slower than this and an entry is an arrival, not a skid
+};
+
 const WTMP = { x: 0, y: 0, z: 0 };
 let FQ = null;
 
@@ -89,6 +151,17 @@ export class Craft {
     this.wasWet = false;
     this.drowns = 0;
 
+    // impacts as skids, and the canopy
+    this.wadeCarry = 0;    // m/s of overspeed still being carried into water
+    this.wadeCarry0 = 0;   // ...what it was at entry, so the ramp has a scale
+    this.beachCarry = 0;   // the same, for a hull running up a beach
+    this.beachCarry0 = 0;
+    this.wasBeached = false;
+    this.skid = 0;         // 0..1, how much of the current skid is left
+    this.skidKind = null;  // 'water' | 'beach' | null — which sound it is
+    this.chute = 0;        // 0..1, how open the canopy is
+    this.chuteOut = false; // ...and whether it is meant to be
+
     // Drop in on solid ground. The frame was already anchored there by the
     // caller, so the craft starts at its own origin.
     this.pos.set(0, this.surf.surfaceHeight(0, 0) + ROVER.rideHeight, 0);
@@ -119,6 +192,27 @@ export class Craft {
     for (const key of ['rover', 'boat', 'jet']) {
       this.forms[key].root.setEnabled(key === mode);
     }
+
+    /* MID-AIR TRANSFORM. Dropping out of the jet with air underneath you used
+       to zero the vertical state and set the rover down flat on the next frame,
+       so altitude was something you could only spend by landing. Now the air
+       state carries: you keep falling, in the new form, on the heading and at
+       the speed you already had.
+       VERTICAL VELOCITY IS THE COMPONENT THIS WAS MISSING. The header of this
+       file has claimed since it was written that switching forms preserves
+       momentum, and horizontally it always did — but `vel.y` is the jet's
+       vertical channel and `hopVel` is the rover and boat's, and nothing joined
+       them up, so the y component was silently dropped on every transform.
+       Nothing gates this but "is there air under you" — no fuel check, no
+       cooldown, no lockout. Transforming back to the jet before you land has to
+       stay open, because that is what turns a fall into something you can fly
+       out of, and it is the reason altitude is worth spending at all. */
+    const floorNow = Math.max(this.groundHeight,
+      this.surf.planet.hasWater ? WORLD.waterY : -Infinity);
+    const dropping = !silent && prev === 'jet' && mode !== 'jet' &&
+      this.pos.y - floorNow > AIR.minClearance;
+    const carryH = dropping ? Math.hypot(this.vel.x, this.vel.z) : 0;
+    const carryV = dropping ? this.vel.y : 0;
     // A transform is also a bilge pump and a reset of anything mid-air. If you
     // were under, you come up with it — otherwise a jet launched from the
     // bottom of a lake touches down before its first frame is over.
@@ -126,9 +220,10 @@ export class Craft {
     this.sinkY = 0;
     this.floodTime = 0;
     this.swamp = 0;
-    this.airborne = false;
-    this.hopVel = 0;
+    this.airborne = dropping;
+    this.hopVel = carryV;
     this.fallVel = 0;
+    this.airTime = 0;
     this.charging = false;
     this.charge = 0;
     this.releaseQueued = false;
@@ -139,6 +234,16 @@ export class Craft {
     this.lastSurf = undefined;
     this.chainBoost = 1;
     this.chain = 0;
+    this.wadeCarry = 0;
+    this.beachCarry = 0;
+    this.wasBeached = false;
+    this.skid = 0;
+    this.skidKind = null;
+    /* The canopy is cut by ANY transform, which is what makes switching back to
+       the jet an escape hatch rather than a negotiation: there is no collapse
+       animation to sit through and no state that can outlive the form. */
+    this.chuteOut = false;
+    this.chute = 0;
 
     if (mode === 'jet') {
       // Convert whatever ground speed you had into a launch. speedScalar is
@@ -156,6 +261,19 @@ export class Craft {
       this.assistGround = 0;
     } else {
       this.pitch = 0; this.roll = 0;
+      if (dropping) {
+        /* Horizontal momentum, restated in each form's own currency: the rover
+           integrates `speedScalar` along its yaw, the boat integrates `vel`
+           directly, so both are set. Both also have a speed ceiling a jet is
+           far above — and `chainBoost` is already this file's lever for
+           "temporarily above your ceiling, bleeding back down to it", so the
+           carry rides that rather than growing a second system alongside it.
+           It damps back to 1 on its own, which is the fast rover becoming an
+           ordinary one over a couple of seconds instead of on one frame. */
+        this.speedScalar = carryH;
+        this.chainBoost = Math.max(1, carryH / ROVER.maxSpeed);
+        this.vel.set(Math.sin(this.yaw) * carryH, carryV, Math.cos(this.yaw) * carryH);
+      }
     }
     if (!silent) emit('transform', { from: prev, to: mode, pos: this.world.clone() });
   }
@@ -176,6 +294,11 @@ export class Craft {
 
     this.hopCool = Math.max(0, this.hopCool - dt);
     this.sinceLand += dt;
+
+    // Skid state is rebuilt from scratch every frame by whichever form owns it.
+    // The jet has none — you cannot skid on air.
+    this.skid = 0;
+    this.skidKind = null;
 
     if (this.mode === 'rover') this.updateRover(dt, input, wantBoost);
     else if (this.mode === 'boat') this.updateBoat(dt, input, wantBoost);
@@ -357,9 +480,32 @@ export class Craft {
    */
   rideSurface(dt, input, rideY, o) {
     this.tickCharge(dt, input, rideY, o);
+    this.tickChute(dt);
 
     if (this.airborne) {
-      this.hopVel -= HOP.gravity * dt;
+      /* Gravity, less whatever the canopy is currently carrying.
+         Damping toward `descent` on top of a FULL gravity step does not settle
+         at `descent` — it settles at `descent + gravity/rate`, because the two
+         terms fight to an offset. That put the real terminal rate at 22 m/s
+         while the constant said 11, which is the kind of number someone tunes
+         from and gets a surprise. Taking gravity out in proportion to how open
+         the canopy is makes the constant mean what it says at full deployment,
+         and leaves the partly-open descent correctly faster.
+         At chute 0 this is exactly the line it replaced, so hops are untouched. */
+      this.hopVel -= HOP.gravity * (1 - this.chute) * dt;
+      if (this.chute > 0) {
+        /* The canopy is a terminal descent rate, not a brake: it takes hold
+           over about half a second, so a deploy reads as a swing rather than a
+           jerk, and a half-open canopy is proportionally weaker — which is what
+           puts the opening itself into the motion and not only into the mesh.
+           It never pushes you up; arrive slower than `descent` and it does
+           nothing at all. */
+        this.hopVel = damp(this.hopVel, -PARACHUTE.descent,
+          PARACHUTE.open * this.chute, dt);
+        const bleed = Math.exp(-PARACHUTE.drag * this.chute * dt);
+        this.speedScalar *= bleed;
+        this.vel.x *= bleed; this.vel.z *= bleed;
+      }
       this.pos.y += this.hopVel * dt;
       this.airTime += dt;
       if (this.pos.y <= rideY) {
@@ -395,6 +541,43 @@ export class Craft {
         this.chain = 0;
       }
     }
+  }
+
+  /**
+   * The auto-deploy canopy.
+   *
+   * A rover that falls out of the sky should not simply die — but it must not
+   * be free either, or the altitude that mid-air transforming just made cheap
+   * to reach would stop meaning anything. So the chute is automatic above a
+   * per-planet ceiling and absent below it: above, you are going to live;
+   * below, you are too low for it and the landing is yours to take. That
+   * boundary is the system. Everything else here is how it deploys.
+   *
+   * THE CEILING SCALES WITH RELIEF, NOT RADIUS. What decides a fall is how far
+   * there is to fall, and the six worlds disagree about that by an order of
+   * magnitude — Ember has 10.35m of relief, Anvil 103.6m. Read off the radius
+   * instead and Ember, the world with nothing to fall off, would get a longer
+   * warning than the drop it is warning about.
+   */
+  get chuteAlt() { return this.surf.planet.relief * PARACHUTE.reliefK; }
+
+  tickChute(dt) {
+    const floor = Math.max(this.groundHeight,
+      this.surf.planet.hasWater ? WORLD.waterY : -Infinity);
+    if (this.airborne && !this.chuteOut &&
+        this.hopVel < -PARACHUTE.minFall &&
+        this.pos.y - floor > this.chuteAlt) {
+      this.chuteOut = true;
+      emit('chute', { pos: this.world.clone(), alt: this.pos.y - floor });
+    }
+    /* Out until you land or leave the form — deliberately NOT re-tested against
+       the ceiling on the way down. A canopy that repacked itself the moment you
+       dropped back under the threshold would strobe through exactly the band of
+       altitude it exists to cover, and would cut away at the worst moment of
+       every descent it was in the middle of saving. */
+    if (!this.airborne) this.chuteOut = false;
+    this.chute = damp(this.chute, this.chuteOut ? 1 : 0,
+      this.chuteOut ? PARACHUTE.open : PARACHUTE.stow, dt);
   }
 
   /**
@@ -514,12 +697,49 @@ export class Craft {
        `iceHolds` is false on the other five worlds, so their water behaves
        exactly as it did — which is the regression that matters. */
     this.onIce = depth > 0.35 && iceHolds(this.surf.planet, depth);
-    const wet = depth > 0.35 && !this.onIce;
+    /* Water you are falling TOWARD is not water you are in. Without this a
+       rover dropped out of a jet takes wading drag and the water speed cap from
+       eighty metres up — wrong on its own terms, and the exact opposite of the
+       momentum the drop exists to preserve. */
+    const aloft = this.pos.y > WORLD.waterY + AIR.wadeCeiling;
+    const wet = depth > 0.35 && !this.onIce && !aloft;
     if (wet && !this.wasWet && Math.abs(this.speedScalar) > 4) {
-      emit('splash', { pos: this.world.clone(), force: clamp(Math.abs(this.speedScalar) / 24, 0.3, 1.3) });
+      const entry = Math.abs(this.speedScalar);
+      emit('splash', {
+        pos: this.world.clone(), force: clamp(entry / 24, 0.3, 1.3), entry,
+      });
+      /* THE ENTRY IS A SKID. Everything above waterMaxSpeed used to be clamped
+         away on the single frame the hull touched, which is what made driving
+         into a lake read as hitting a wall. It is kept here instead and bled
+         off over a distance below.
+         Only the ENTRY changes. fordDepth still fords, sinkDepth still floods,
+         drownDepth and drownTime still drown you on the same schedule — none of
+         that is touched, and none of it needs to be. */
+      if (entry > SKID.minEntry) {
+        this.wadeCarry = Math.max(0, entry - ROVER.waterMaxSpeed);
+        this.wadeCarry0 = this.wadeCarry;
+      }
     }
     this.wasWet = wet;
     this.onWater = wet;
+
+    /* Burn the carried overspeed off across SKID.waterLength METRES of travel,
+       linearly — see the note on SKID. The speed cap below rides this down, so
+       the hull goes from entry speed to the wading cap over a fixed distance
+       instead of on the frame it touched. */
+    if (!wet) { this.wadeCarry = 0; this.wadeCarry0 = 0; }
+    else if (this.wadeCarry > 0) {
+      const travelled = Math.abs(this.speedScalar) * dt;
+      this.wadeCarry -= travelled * (this.wadeCarry0 / SKID.waterLength);
+      // ...and a floor under it, so a hull that stops dead in the shallows
+      // cannot sit in a skid it is no longer travelling far enough to finish.
+      if (this.wadeCarry < 0.25 || Math.abs(this.speedScalar) <= ROVER.waterMaxSpeed + 0.25) {
+        this.wadeCarry = 0; this.wadeCarry0 = 0;
+      }
+    }
+    const wadeT = this.wadeCarry > 0
+      ? clamp(this.wadeCarry / Math.max(1, this.wadeCarry0), 0, 1) : 0;
+    if (wadeT > 0) { this.skid = wadeT; this.skidKind = 'water'; }
 
     // Ford the shallows; past that the hull starts taking water on.
     const swampT = wet
@@ -535,7 +755,11 @@ export class Craft {
     const accel = wet
       ? ROVER.accel * (0.42 - 0.30 * this.swamp)
       : (boost ? ROVER.boostAccel : ROVER.accel);
-    const drag = wet ? ROVER.waterDrag : ROVER.drag;
+    // Progressive drag: the water closes on you across the skid instead of
+    // arriving all at once at the waterline. At entry it is barely more than
+    // driving on land; by the end of the skid it is the full wallow it always
+    // was, which is the state the flooding code below expects to find.
+    const drag = wet ? lerp(ROVER.waterDrag, ROVER.drag, wadeT) : ROVER.drag;
 
     // Turning authority scales with speed — no pirouettes from a standstill,
     // and next to none while the wheels are off the ground.
@@ -548,7 +772,8 @@ export class Craft {
     if (input.fwd === 0 && !this.airborne) s -= Math.sign(s) * Math.min(Math.abs(s), drag * 6 * dt);
     // Chained hops raise the ceiling temporarily; it bleeds back down.
     this.chainBoost = damp(this.chainBoost, 1, 0.55, dt);
-    s = clamp(s, -maxS * 0.42, maxS * (wet ? 1 : this.chainBoost));
+    s = clamp(s, -maxS * 0.42,
+      maxS * (wet ? 1 : this.chainBoost) + (wet ? this.wadeCarry : 0));
     this.speedScalar = s;
 
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
@@ -746,6 +971,38 @@ export class Craft {
 
     const speedNow = Math.hypot(this.vel.x, this.vel.z);
 
+    /* ---- beaching ----
+       Crossing the waterline used to clamp the hull to landMaxSpeed on that one
+       frame, which stopped a planing boat dead at the shore: a wall, where the
+       thing being modelled is a transition. The overspeed is carried up onto
+       the sand instead and ground off over a couple of hull lengths.
+       AIRBORNE IS NOT BEACHED. A boat dropped out of a jet is over land, not on
+       it, and keeps everything until something actually touches it — otherwise
+       the mid-air transform above would hand you a hull doing 5 m/s at 200m. */
+    const beaching = !this.onWater && !this.airborne;
+    if (beaching && !this.wasBeached && speedNow > SKID.minEntry) {
+      this.beachCarry = Math.max(0, speedNow - BOAT.landMaxSpeed);
+      this.beachCarry0 = this.beachCarry;
+      emit('beach', {
+        pos: this.world.clone(), speed: speedNow,
+        // How long the scrape is going to last, so the sound can be cut to the
+        // skid rather than fired as a fixed one-shot that ends before it does.
+        secs: clamp(SKID.beachLength / Math.max(4, speedNow), 0.25, 3.0),
+      });
+    }
+    this.wasBeached = beaching;
+    if (!beaching) { this.beachCarry = 0; this.beachCarry0 = 0; }
+    else if (this.beachCarry > 0) {
+      const travelled = speedNow * dt;
+      this.beachCarry -= travelled * (this.beachCarry0 / SKID.beachLength);
+      if (this.beachCarry < 0.25 || speedNow <= BOAT.landMaxSpeed + 0.25) {
+        this.beachCarry = 0; this.beachCarry0 = 0;
+      }
+    }
+    const beachT = this.beachCarry > 0
+      ? clamp(this.beachCarry / Math.max(1, this.beachCarry0), 0, 1) : 0;
+    if (beachT > 0) { this.skid = beachT; this.skidKind = 'beach'; }
+
     // ---- planing ----
     // Hysteresis: it takes more speed to get the hull up than to keep it up,
     // so the state does not chatter along the threshold. The crossing itself
@@ -769,12 +1026,21 @@ export class Craft {
     this.surge = Math.max(0, this.surge - dt);
     const surgeK = boost ? this.surge / BOAT.surgeTime : 0;
 
-    const maxS = this.onWater ? (boost ? BOAT.boostSpeed : BOAT.maxSpeed) : BOAT.landMaxSpeed;
+    const maxS = this.onWater ? (boost ? BOAT.boostSpeed : BOAT.maxSpeed)
+      /* Falling, not beached — and nothing that is not touching the hull may
+         take speed off it. Clamping to BOAT.maxSpeed here threw away two
+         thirds of the momentum of a boat dropped out of a jet, which is the
+         one thing the mid-air transform above exists to preserve. */
+      : this.airborne ? Math.max(BOAT.boostSpeed, speedNow)
+      : BOAT.landMaxSpeed + this.beachCarry;      // running up the sand
     const base = this.onWater ? (boost ? BOAT.boostAccel : BOAT.accel) : BOAT.accel * 0.3;
     const accel = base + surgeK * BOAT.surgeAccel;
+    // Hull friction arrives across the skid too, so the beach takes hold of you
+    // rather than catching you. In the air there is nothing to scrape against.
     const drag = this.onWater
       ? lerp(BOAT.ploughDrag, BOAT.drag, this.planeMix)
-      : BOAT.landDrag;
+      : this.airborne ? BOAT.drag
+      : lerp(BOAT.landDrag, BOAT.drag, beachT);
 
     const grip = clamp(speedNow / 10, 0, 1);
     this.yaw += input.turn * BOAT.turn * dt * grip * (this.airborne ? 0.4 : 1);
@@ -792,7 +1058,7 @@ export class Craft {
     const carve = clamp(Math.abs(this.roll) / BOAT.bankMax, 0, 1) * this.planeMix;
     const bleedRate = this.onWater
       ? lerp(BOAT.bleedLazy, BOAT.bleedCarve, carve)
-      : 9;
+      : this.airborne ? BOAT.bleedLazy : 9;
     const bleed = Math.exp(-bleedRate * dt);
     this.vel.x = fx * along + latX * bleed;
     this.vel.z = fz * along + latZ * bleed;
@@ -1031,6 +1297,23 @@ export class Craft {
     frameQuat(fr, FQ);
     if (!root.rotationQuaternion) root.rotationQuaternion = new BABYLON.Quaternion();
     FQ.multiplyToRef(local, root.rotationQuaternion);
+
+    /* The canopy, scaled up out of nothing so that the OPENING is the thing you
+       see rather than a chute that was suddenly there. It widens faster than it
+       rises, which is how fabric actually fills, and it swings on a slow double
+       pendulum while it is bleeding off your drift. Parented to the form root,
+       so it inherits the tangent frame and hangs along local up on a sphere
+       without any of that arithmetic happening twice. */
+    if (form.chute) {
+      const c = this.chute;
+      form.chute.setEnabled(c > 0.01);
+      if (c > 0.01) {
+        form.chute.scaling.set(0.30 + c * 0.70, 0.22 + c * 0.78, 0.30 + c * 0.70);
+        form.chute.position.y = 2.0 + c * 2.8;
+        form.chute.rotation.z = Math.sin(this.time * 1.7) * 0.11 * c;
+        form.chute.rotation.x = Math.cos(this.time * 1.3) * 0.09 * c;
+      }
+    }
 
     // Suspension travel is applied to the children, not the root, so the
     // vehicle's contact point with the world stays honest.
