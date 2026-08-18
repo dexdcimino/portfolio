@@ -119,8 +119,34 @@ const roundedRimPath = roundedPolygonPath(hexPoints(38, 38, RIM_R), 5 * RIM_R / 
 // carries 900/600/400, the card only 600/400) instead of hard-coding them here.
 function retint(el, attr, mascot) {
   const value = el.getAttribute(attr);
+  // Only the stem is rewritten, so the ?v= cache stamp bake_markup wrote comes
+  // along unchanged. It belongs to the mascot the markup NAMES, which is what
+  // makes a re-export of that one bust every colour at once — and means a
+  // re-export of only a non-default mascot would not. Re-save the named one
+  // (or touch it) if that ever matters.
   if (value) el.setAttribute(attr, value.replace(/mascot_[a-z]+/g, `mascot_${mascot}`));
 }
+
+/* Derivative URLs carry a ?v= content stamp (see tools/bake_markup.py). Any URL
+   built HERE has to carry the same one, or the browser treats it as a second
+   resource and fetches the identical bytes twice — which for the hero rung
+   meant downloading the LCP image twice on every load.
+
+   The stamp is not composed, it is read off the markup that already names this
+   family, so there is exactly one place it is decided. */
+function stampFor(family) {
+  const source = document.querySelector(`source[srcset*="${family}"]`);
+  if (!source) return '';
+  // First entry of the srcset is a URL; everything from ?v= on is the stamp.
+  // Read as a string rather than matched with a built regex — the family is a
+  // path full of slashes and dots, and building a pattern out of it is how you
+  // get a regex that throws at runtime instead of a URL.
+  const first = source.getAttribute('srcset').trim().split(/\s+/)[0];
+  const at = first.indexOf('?v=');
+  return at === -1 ? '' : first.slice(at);
+}
+const mascotUrl = (mascot, width) =>
+  `assets/derived/mascots/mascot_${mascot}-${width}.avif${stampFor('assets/derived/mascots/mascot_')}`;
 
 // Bumped per swap. Decodes finish out of order when someone clicks through the
 // colours quickly, and without this an earlier, slower decode lands last and
@@ -141,7 +167,7 @@ function swapMascots(theme) {
   // frame. decode() rejects on formats the browser can't take — apply anyway,
   // the <picture> negotiation will fall through to WebP or the PNG.
   const warm = new Image();
-  warm.src = `assets/derived/mascots/mascot_${theme.mascot}-900.avif`;
+  warm.src = mascotUrl(theme.mascot, 900);
   if (warm.decode) warm.decode().then(apply, apply);
   else warm.onload = warm.onerror = apply;
 }
@@ -151,7 +177,7 @@ function swapMascots(theme) {
 function warmOtherMascots() {
   const load = () => ACCENTS
     .filter(theme => theme.name !== currentTheme)
-    .forEach(theme => { new Image().src = `assets/derived/mascots/mascot_${theme.mascot}-600.avif`; });
+    .forEach(theme => { new Image().src = mascotUrl(theme.mascot, 600); });
   // Safari has no requestIdleCallback.
   if ('requestIdleCallback' in window) requestIdleCallback(load, { timeout: 4000 });
   else setTimeout(load, 2000);

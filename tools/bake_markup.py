@@ -25,7 +25,9 @@ Run it after adding an image, or let the pre-commit hook do it.
 
 from fnmatch import fnmatch
 from pathlib import Path
+import hashlib
 import re
+from functools import lru_cache
 import sys
 
 try:
@@ -66,11 +68,36 @@ def parse_attrs(blob: str) -> dict[str, str]:
     return {k: ("" if v is None else v) for k, v in ATTR.findall(blob.strip())}
 
 
+@lru_cache(maxsize=None)
+def stamp(master: Path) -> str:
+    """Eight hex characters of the master's own bytes.
+
+    assets/derived/ is served `immutable, max-age=1y`, which tells every browser
+    and CDN it never has to ask about that URL again — true only while the URL
+    changes when the bytes do. Derivative names carry the width, not the
+    content, so re-exporting a master under the same name left anyone who had
+    already fetched a rung holding the OLD art for a year, with no way to
+    correct it. That is not hypothetical: it happened to Shale Spire Crater,
+    and it showed up in the lightbox rather than the card because the two views
+    pull different rungs and only the card's rung is refetched by a reload.
+
+    Hashing the MASTER rather than each derivative means every rung of one piece
+    moves together, and it still works when a derivative has yet to be written.
+    """
+    return hashlib.sha256(master.read_bytes()).hexdigest()[:8]
+
+
 def derivative(master: Path, width: int, ext: str) -> str:
-    """URL of one derivative — must agree with bake_images.expected()."""
+    """URL of one derivative — the path must agree with bake_images.expected().
+
+    The ?v= is a cache key, not a path: the file on disk is still
+    <stem>-<width>.<ext>, so URLs built at runtime (script.js's mascot swap)
+    keep resolving. It only means a changed master is a changed URL.
+    """
     rel = master.relative_to(ROOT / "assets").parent
     stem = f"{master.stem}-{width}.{ext}"
-    return f"{DERIVED_URL}/{rel.as_posix()}/{stem}" if rel.parts else f"{DERIVED_URL}/{stem}"
+    path = f"{DERIVED_URL}/{rel.as_posix()}/{stem}" if rel.parts else f"{DERIVED_URL}/{stem}"
+    return f"{path}?v={stamp(master)}"
 
 
 def usable_widths(master: Path, slot: str) -> list[int]:
@@ -250,9 +277,10 @@ def check() -> int:
 
     problems: list[str] = []
 
-    # 1. Every derivative the page asks for has to exist on disk.
+    # 1. Every derivative the page asks for has to exist on disk. The ?v= is a
+    #    cache key, not part of the filename, so it comes off before looking.
     for url in sorted(set(urls)):
-        if not (ROOT / url).exists():
+        if not (ROOT / url.split("?")[0]).exists():
             problems.append(f"missing derivative   {url}")
 
     # 2. Every declared size has to match the file it describes. Regenerating

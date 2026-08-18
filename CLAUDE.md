@@ -105,7 +105,18 @@ output.
 - Below the fold: `loading="lazy"` + `decoding="async"`, applied automatically.
 - Budget: no single image over 150 KB on the wire; hero LCP < 1.2 s on cold 4G.
 - Video is not self-hosted — external streaming host only.
-- `assets/derived/` is served `immutable` for a year via `vercel.json`.
+- `assets/derived/` is served `immutable` for a year via `vercel.json`, so every
+  generated URL carries a `?v=<8 hex>` stamp of its **master's** bytes. That is
+  what makes re-exporting a master under the same name actually reach people:
+  without it, `immutable` means a browser that already fetched a rung keeps the
+  old art for a year. It bit Shale Spire Crater on 2026-08-17 and showed up only
+  in the lightbox, because the card and the lightbox pull different rungs and a
+  reload refetches just the card's. The stamp is a query, not a filename — the
+  file on disk is still `<stem>-<width>.<ext>`.
+- **URLs built in JS must carry the stamp too.** `mascotUrl()` in `script.js`
+  reads it off the markup with `stampFor()` rather than composing one; a
+  hand-built URL is a second cache entry for identical bytes, which briefly
+  double-fetched the LCP image. Never write a derivative URL by hand in JS.
 - **Any session touching images must run both checks before declaring work
   complete. A non-zero exit from either is a blocking failure:**
 
