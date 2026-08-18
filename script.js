@@ -1781,7 +1781,13 @@ async function saveFile(btn) {
      small `sizes` so the browser picks the 600 rather than the 2560. Building
      them from a separate baked slot would double the derivative count for
      images that render 78px wide. */
+  /* One row, always. The strip is a window and the thumbnails live on a track
+     inside it, so a set too long to fit slides rather than wrapping — a second
+     row of small thumbnails under the first is exactly what this is not. */
   views.forEach((view) => {
+    view.track = document.createElement('div');
+    view.track.className = 'wp-track';
+    view.strip.appendChild(view.track);
     items.forEach((item, i) => {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -1800,43 +1806,94 @@ async function saveFile(btn) {
         select(i);
         if (!modal.open) openFull();
       });
-      view.strip.appendChild(btn);
+      /* Hovering a thumbnail shows that piece in the hero without selecting
+         it — the fastest way to look through a set is to sweep the strip, and
+         a click for every look is a click too many. The selection marker stays
+         where it was (paint() reads `index`, not the hovered item), so leaving
+         the strip puts back exactly what was there.
+
+         The download follows what is on screen rather than what is selected,
+         which is the only version that cannot lie: the button sits inside the
+         frame, so reaching it leaves the thumbnail and restores the selection
+         first. */
+      btn.addEventListener('pointerenter', () => paint(view, item));
+      btn.addEventListener('pointerleave', () => paint(view, items[index]));
+      btn.addEventListener('focus', () => paint(view, item));
+      btn.addEventListener('blur', () => paint(view, items[index]));
+      view.track.appendChild(btn);
     });
-    view.thumbs = [...view.strip.children];
+    view.thumbs = [...view.track.children];
   });
 
-  /* Rows are balanced from the count, not left to flex-wrap. Wrapping fills the
-     first row and drops the remainder, so eight pieces in a strip that fits
-     seven left one thumbnail alone on a second row — which reads as a bug, not
-     a layout. Dividing the count by the number of rows it needs gives 4+4 or
-     5+5 instead, and it holds for any number of wallpapers, which is the point:
-     nothing here should need revisiting when art is added.
+  /* A page of thumbnails is five at most, fewer when five would not be legible
+     at the width available. Past that the set does not wrap — the track slides
+     the next page in, and the page follows whatever is selected, so walking the
+     set with the arrows carries the strip along without a control of its own.
 
-     The measurement is per strip because the panel and the overlay are
-     different widths, and it re-runs on resize for the same reason. */
-  function layoutStrip(strip) {
-    const kids = strip.children.length;
+     The shift is measured in pixels from a real thumbnail rather than assumed
+     to be 100% of the strip: the thumbnails are capped at their designed size,
+     so a page can be narrower than the window it sits in, and a percentage
+     would drift by that slack on every page. */
+  const PAGE_MAX = 5;                      // five across, per Dex
+  const THUMB_MIN = 70;                    // below this a thumbnail stops reading
+  function layoutStrip(view) {
+    const strip = view.strip, track = view.track;
+    const kids = track.children.length;
     if (!kids) return;
-    const gap = parseFloat(getComputedStyle(strip).columnGap) || 0;
     const width = strip.clientWidth;
     if (!width) return;                    // hidden tab: nothing to measure yet
-    /* The target size is read from the stylesheet, not repeated here: the
-       thumbnails are meant to stay the size they were designed at (117px, 87 on
-       a phone) and gain a row, not shrink every time a wallpaper is added. */
-    const cap = parseFloat(getComputedStyle(strip).getPropertyValue('--thumb-max')) || 117;
-    const fit = Math.max(1, Math.floor((width + gap) / (cap + gap)));
-    const rows = Math.ceil(kids / fit);
-    const perRow = Math.ceil(kids / rows);
-    strip.style.setProperty('--per-row', perRow);
+    const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+    const fit = Math.max(1, Math.floor((width + gap) / (THUMB_MIN + gap)));
+    const perPage = Math.min(PAGE_MAX, fit, kids);
+    strip.style.setProperty('--per-page', perPage);
+    view.perPage = perPage;
+    view.pages = Math.ceil(kids / perPage);
+    // Centred while it all fits; left-aligned once it pages, or the pages would
+    // each sit at a different offset.
+    strip.classList.toggle('is-paged', view.pages > 1);
+    const thumb = track.firstElementChild.getBoundingClientRect().width;
+    strip.style.setProperty('--shift', `${perPage * (thumb + gap)}px`);
+    showPage(view, Math.floor(index / perPage));
   }
-  const layoutStrips = () => views.forEach(v => layoutStrip(v.strip));
+  function showPage(view, page) {
+    const clamped = Math.max(0, Math.min(page, (view.pages || 1) - 1));
+    view.page = clamped;
+    view.strip.style.setProperty('--page', clamped);
+  }
+  const layoutStrips = () => views.forEach(layoutStrip);
   window.addEventListener('resize', layoutStrips);
   // The panel starts hidden, so the first measurable moment is when its tab is
   // opened — which is exactly when the strip first has a width.
   if ('ResizeObserver' in window) {
-    const ro = new ResizeObserver(entries => entries.forEach(e => layoutStrip(e.target)));
+    const ro = new ResizeObserver(() => layoutStrips());
     views.forEach(v => ro.observe(v.strip));
   } else layoutStrips();
+
+  /* Hover is only instant if the file is already there, and the hero rung is
+     not the thumbnail rung — so the pieces are fetched at hero size once the
+     tab is actually opened. Cloning the real <picture> rather than building an
+     Image() keeps the format and rung choice the browser's, which is the whole
+     point of having baked a ladder. Hidden panels never intersect, so this
+     fires exactly once, when someone first looks at the tab. */
+  function preloadHeroes() {
+    const host = document.createElement('div');
+    host.className = 'wp-preload';
+    host.setAttribute('aria-hidden', 'true');
+    items.forEach((item) => {
+      const pic = item.querySelector('picture').cloneNode(true);
+      const img = pic.querySelector('img');
+      img.removeAttribute('loading');
+      img.removeAttribute('class');
+      host.appendChild(pic);
+    });
+    root.appendChild(host);
+  }
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); preloadHeroes(); }
+    });
+    io.observe(root);
+  } else preloadHeroes();
 
   function paint(view, item) {
     // The plate and the download live inside the frame, so replacing the
@@ -1864,7 +1921,10 @@ async function saveFile(btn) {
   function select(i) {
     index = (i + items.length) % items.length;
     const item = items[index];
-    views.forEach((view) => paint(view, item));
+    views.forEach((view) => {
+      paint(view, item);
+      if (view.perPage) showPage(view, Math.floor(index / view.perPage));
+    });
   }
 
   function openFull() {
