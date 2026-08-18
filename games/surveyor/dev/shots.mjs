@@ -167,6 +167,20 @@ const SKYWARD = `(async () => {
   };
 })()`;
 
+/* KNOWN, OPEN, AND NOT THE GAME.
+   Occasionally a world's captured PNG comes back wearing the previous world's
+   sky — Vault after Ember, most often. The game is fine: probed in the same
+   browser and the same sequence, that world's sky uniforms are correct, a
+   readPixels off the framebuffer returns the right colour, and an independent
+   harness running the identical setup captures it correctly. It is something
+   between the render and Page.captureScreenshot, on an engine that runs
+   preserveDrawingBuffer:false.
+   Two things were tried and neither fixed it, so neither is in this file:
+   waiting after Target.closeTarget for the GPU context to release, and
+   capturing twice to force a fresh composite. Until it is understood, CHECK THE
+   SHEET — a world wearing a neighbour's sky is this, and re-shooting that world
+   alone has been correct every time. */
+
 const { server, port, close: closeServer } = await serve(SITE);
 const chrome = await launch({ width: W, height: H });
 console.log(`${chrome.version}, serving ${ROOT} on :${port}\n`);
@@ -238,6 +252,7 @@ for (const key of KEYS) {
 
   await chrome.browser.send('Target.closeTarget', { targetId: page.targetId });
   await page.close();
+
   await wait(150);
 }
 
