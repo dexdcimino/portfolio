@@ -1305,7 +1305,25 @@ button.button{cursor:pointer;font-family:inherit}
 .game-desc-lead{display:block;font-size:17px;line-height:1.45;color:var(--text);max-width:var(--desc-measure)}
 .game-desc-body{margin:14px 0 0;color:#adb5bb;line-height:1.72;font-size:var(--copy-size);max-width:var(--desc-measure)}
 
+/* The app copy under the AI LAB sub text. Reuses .game-desc / .game-actions so
+   it IS the games component rather than a lookalike; only the spacing above it
+   and the not-yet-shipped card treatment live here. */
+.app-info{margin-top:26px;max-width:560px}
+.app-info .game-desc{padding:0}
+.app-info .game-actions{padding-left:0;padding-right:0}
+
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+/* Not shipped yet: a div rather than a link, so it carries no hover lift and no
+   pointer — nothing here is clickable and the card should not pretend it is.
+   The SOON chip replaces the arrow the live cards use, which would be a promise
+   of somewhere to go. */
+.ai-card.is-soon{cursor:default}
+.ai-card.is-soon:hover{transform:none;border-color:var(--line);box-shadow:none}
+.ai-card-soon{
+  margin-left:8px;padding:2px 7px;border-radius:999px;vertical-align:middle;
+  border:var(--stroke) solid color-mix(in srgb,var(--accent) 40%,transparent);
+  color:var(--accent);font-size:10px;font-weight:800;letter-spacing:.1em;
+}
 .ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
 .ai-card:before{content:"";position:absolute;right:-18%;top:-44%;width:70%;aspect-ratio:1;background:var(--accent);filter:blur(70px);opacity:.08;transition:background-color var(--accent-ease)}
 .ai-card:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}

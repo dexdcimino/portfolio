@@ -2437,6 +2437,74 @@ function renderMarkdown(src) {
   } else start();
 })();
 
+/* --- AI Lab app info ------------------------------------------------------ */
+/* The empty half of the AI LAB column, filled with whatever app the pointer is
+   on: a lead line, a paragraph, two tags and a gallery button. Same components
+   as the games section (.game-desc, .game-actions) rather than a second set of
+   styles that would drift.
+
+   Copy lives on the cards as data-desc-lead / data-desc-body, next to the thing
+   it describes, so adding an app is one card and no edit here — the same
+   contract the games rows use.
+
+   It follows hover and focus but does NOT touch the shared screenshot viewer
+   until its button is actually clicked. Pointing the viewer at an app just
+   because the pointer crossed a card would leave the GAMES button showing an
+   app's set. */
+(function initAppInfo() {
+  const panel = document.getElementById('ai-panel-apps');
+  const info = document.getElementById('appInfo');
+  if (!panel || !info) return;
+  const cards = [...panel.querySelectorAll('.ai-card')];
+  if (!cards.length) return;
+
+  const lead = info.querySelector('.game-desc-lead');
+  const body = info.querySelector('.game-desc-body');
+  const tags = info.querySelectorAll('.game-tag');
+  const openBtn = document.getElementById('appGalleryOpen');
+  let current = cards[0];
+
+  const show = (card) => {
+    current = card;
+    lead.textContent = card.dataset.descLead || card.querySelector('strong')?.textContent || '';
+    body.textContent = card.dataset.descBody || '';
+    for (const tag of tags) {
+      const value = card.dataset[tag.dataset.slot] || '';
+      tag.textContent = value;
+      tag.hidden = !value;
+    }
+    // The count belongs to the app under the pointer, and comes from the
+    // gallery's own DOM rather than a number typed here.
+    if (openBtn) {
+      document.dispatchEvent(new CustomEvent('gallery:count', {
+        detail: { key: card.dataset.gallery || null, name: card.querySelector('strong')?.textContent,
+                  button: openBtn },
+      }));
+    }
+  };
+
+  for (const card of cards) {
+    card.addEventListener('pointerenter', () => show(card));
+    card.addEventListener('focus', () => show(card));
+  }
+  openBtn?.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('gallery:open', {
+      detail: { key: current.dataset.gallery || null,
+                name: current.querySelector('strong')?.textContent, button: openBtn },
+    }));
+  });
+
+  /* Seeded rather than left blank: this column is on screen before anyone has
+     hovered anything, and an empty half-column reads as a loading failure.
+
+     In a microtask, because the seed asks the gallery for a count and the
+     gallery module is further down this file — synchronously, its listener does
+     not exist yet and the button kept the bare "GALLERY" it ships with. A
+     microtask runs after the whole script has finished, which is the earliest
+     moment every module on the page is listening. */
+  queueMicrotask(() => show(cards[0]));
+})();
+
 /* --- AI Lab app overlay --------------------------------------------------- */
 /* Phone-shaped iframe on desktop; a plain navigation on phones.
 
@@ -3218,7 +3286,6 @@ const PORTRAIT_LABEL = {
   const capTitle = document.getElementById('galCapTitle');
   const capIndex = document.getElementById('galCapIndex');
   const title = document.getElementById('gal-dialog-title');
-  const label = openBtn.querySelector('.game-gallery-label') || openBtn.querySelector('span');
 
   /* Counted off the DOM, never off an attribute. A hand-typed count is wrong
      the first time a shot is added and nobody notices for weeks; this cannot
@@ -3239,6 +3306,11 @@ const PORTRAIT_LABEL = {
      recomputed as items[index]: switching games repoints items, and stowing
      into the new set would file a Stickland shot under Chomp and lose it. */
   let heroItem = null;
+  /* What the GAMES section currently has selected, kept separately from the
+     viewer's live key: the viewer is shared and can be pointed at another
+     section's pictures, and this is what the games button restores. */
+  let gamesKey = null;
+  let gamesName = null;
 
   function stow() {
     const pic = stage.querySelector('picture');
@@ -3263,20 +3335,31 @@ const PORTRAIT_LABEL = {
     });
   }
 
-  function setGame(key, name) {
+  /* Paints ONE open button. Split out from setGame because there is more than
+     one of these on the page now — games has its own, the AI Lab's apps have
+     another — and a button must always advertise its own set, not whichever set
+     the shared viewer happens to be holding. */
+  function paintOpenBtn(btn, count, name) {
+    const lbl = btn.querySelector('.game-gallery-label') || btn.querySelector('span');
+    if (lbl) lbl.textContent = `GALLERY (${count})`;
+    btn.classList.toggle('is-empty', count === 0);
+    btn.setAttribute('aria-label', count
+      ? `Open the ${name} gallery, ${count} screenshot${count === 1 ? '' : 's'}`
+      : `Open the ${name} gallery — no screenshots yet`);
+  }
+  const countFor = (key) => (byGame.get(key) || []).length;
+
+  function setGame(key, name, btn) {
+    const asked = name || 'this game';
+    if (btn) paintOpenBtn(btn, countFor(key), asked);
     if (key === gameKey) return;
     stow();                       // hand the hero picture back BEFORE items moves
     gameKey = key;
-    gameLabel = name || 'this game';
+    gameLabel = asked;
     items = byGame.get(key) || [];
     index = 0;
 
     buildFilm();
-    label.textContent = `GALLERY (${items.length})`;
-    openBtn.classList.toggle('is-empty', items.length === 0);
-    openBtn.setAttribute('aria-label', items.length
-      ? `Open the ${gameLabel} gallery, ${items.length} screenshot${items.length === 1 ? '' : 's'}`
-      : `Open the ${gameLabel} gallery — no screenshots yet`);
     if (title) title.textContent = `${gameLabel} gallery`;
     // The filmstrip is only a listbox when it has options in it, and arrows
     // that step through nothing are worse than no arrows.
@@ -3330,8 +3413,27 @@ const PORTRAIT_LABEL = {
     if (event.key === 'ArrowRight') { event.preventDefault(); step(1); }
   });
 
+  /* Re-assert this section's own set before opening. The viewer is shared, so
+     another section may have shown its own pictures in the meantime, and
+     opening on whatever was left there is how you click GAMES and get an app. */
   openBtn.addEventListener('click', () => {
+    setGame(gamesKey, gamesName, openBtn);
     openModal(dialog, dialog.querySelector('.gal-shell'), () => select(index), openBtn);
+  });
+
+  /* The one door in for anything else on the page: say which set you want and
+     which control asked, and this shows it. Used by the AI Lab's app cards —
+     one screenshot viewer on the page rather than a second implementation. */
+  document.addEventListener('gallery:open', (event) => {
+    const d = event.detail || {};
+    setGame(d.key ?? null, d.name, d.button || openBtn);
+    openModal(dialog, dialog.querySelector('.gal-shell'), () => select(index),
+              d.button || openBtn);
+  });
+  // Lets a caller label its own button without opening anything.
+  document.addEventListener('gallery:count', (event) => {
+    const d = event.detail || {};
+    if (d.button) paintOpenBtn(d.button, countFor(d.key ?? null), d.name || 'this');
   });
   document.getElementById('galleryClose').addEventListener('click', () => closeModal(dialog));
   bindModal(dialog, stow);
@@ -3339,8 +3441,13 @@ const PORTRAIT_LABEL = {
   // Follow the games section. The seeding select() up there has already fired
   // by the time this runs, so read the row it settled on rather than waiting
   // for an event that is never coming again.
-  document.addEventListener('game:select', e => setGame(e.detail.game, e.detail.name));
+  document.addEventListener('game:select', e => {
+    gamesKey = e.detail.game;
+    gamesName = e.detail.name;
+    setGame(gamesKey, gamesName, openBtn);
+  });
   const seeded = document.querySelector('.stack-row.is-current');
-  setGame(seeded ? seeded.dataset.game || null : null,
-          seeded ? (seeded.querySelector('strong') || {}).textContent : null);
+  gamesKey = seeded ? seeded.dataset.game || null : null;
+  gamesName = seeded ? (seeded.querySelector('strong') || {}).textContent : null;
+  setGame(gamesKey, gamesName, openBtn);
 })();
