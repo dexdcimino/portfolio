@@ -23,7 +23,8 @@
 //    are simply not wired to this shader.
 
 import { SYSTEM, PLANETS } from '../tune.js';
-import { paletteOf } from './materials.js';
+import { paletteOf, skyOf } from './materials.js';
+import { previews } from './preview.js';
 
 /**
  * Direction and angular radius of every other world, from this one.
@@ -51,8 +52,17 @@ export function neighbours(planet) {
       dist,
       // Honest: the half-angle a sphere of this radius subtends at this range.
       angle: Math.atan2(other.radius, dist),
-      // Its own brightest band, warmed toward its fog, so the tint identifies
-      // the world rather than just being "a colour".
+      /* Its own sun, not this world's. Each planet states a fixed sunDir in
+         planet space, so the crescent on the disc is the one you will actually
+         find when you land there — and six worlds do not all show the same
+         phase from the same sky. */
+      sun: (() => {
+        const v = skyOf(other).sunDir;
+        const l = Math.hypot(v[0], v[1], v[2]) || 1;
+        return { x: v[0] / l, y: v[1] / l, z: v[2] / l };
+      })(),
+      // Its own brightest band, warmed toward its fog. The surface map carries
+      // the identification now; this is what colours the halo around it.
       tint: [
         COL.peak[0] * 0.55 + COL.fogSun[0] * 0.45,
         COL.peak[1] * 0.55 + COL.fogSun[1] * 0.45,
@@ -75,10 +85,16 @@ export class Discs {
     // does not depend on it.
     this.K = planet.farPlane * SYSTEM.distance;
 
+    // The baked surface maps. One atlas for the whole session — see preview.js.
+    this.maps = previews(scene);
+
     const n = this.list.length;
     const pos = new Float32Array(n * 4 * 3);
     const quad = new Float32Array(n * 4 * 2);
     const col = new Float32Array(n * 4 * 4);
+    const dirs = new Float32Array(n * 4 * 3);
+    const suns = new Float32Array(n * 4 * 3);
+    const slots = new Float32Array(n * 4);
     const idx = [];
     const CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 
@@ -110,6 +126,11 @@ export class Discs {
         col[v * 4 + 1] = d.tint[1];
         col[v * 4 + 2] = d.tint[2];
         col[v * 4 + 3] = d.core;
+        // Per-disc, not per-frame: the worlds do not move and neither do their
+        // suns, so all three ride the vertex buffer and cost one upload.
+        dirs[v * 3] = d.dir.x; dirs[v * 3 + 1] = d.dir.y; dirs[v * 3 + 2] = d.dir.z;
+        suns[v * 3] = d.sun.x; suns[v * 3 + 1] = d.sun.y; suns[v * 3 + 2] = d.sun.z;
+        slots[v] = this.maps ? this.maps.slot[d.key] : 0;
       }
       // Clockwise, matching everything else in this game.
       const b = i * 4;
@@ -123,13 +144,17 @@ export class Discs {
     vd.applyToMesh(mesh, true);            // updatable: rebuilt every frame
     mesh.setVerticesData('quad', quad, false, 2);
     mesh.setVerticesData('color', col, false, 4);
+    mesh.setVerticesData('dir', dirs, false, 3);
+    mesh.setVerticesData('sun', suns, false, 3);
+    mesh.setVerticesData('slot', slots, false, 1);
 
     const mat = new BABYLON.ShaderMaterial('svDisc', scene,
       { vertex: 'svDisc', fragment: 'svDisc' },
       {
-        attributes: ['position', 'quad', 'color'],
-        uniforms: ['worldViewProjection', 'uLight', 'uRight', 'uUp', 'uFwd',
-                   'uGlow', 'uLimb', 'uDisc'],
+        attributes: ['position', 'quad', 'color', 'dir', 'sun', 'slot'],
+        uniforms: ['worldViewProjection', 'uRight', 'uUp',
+                   'uGlow', 'uLimb', 'uDisc', 'uNight', 'uEmit', 'uRows'],
+        samplers: ['uMap'],
         needAlphaBlending: true,
       });
     mat.backFaceCulling = false;
@@ -137,6 +162,12 @@ export class Discs {
     mat.setFloat('uGlow', SYSTEM.glow);
     mat.setFloat('uLimb', SYSTEM.limb);
     mat.setFloat('uDisc', SYSTEM.disc);
+    mat.setFloat('uNight', SYSTEM.night);
+    mat.setFloat('uEmit', SYSTEM.emitBoost);
+    if (this.maps) {
+      mat.setTexture('uMap', this.maps.texture);
+      mat.setFloat('uRows', this.maps.rows);
+    }
 
     mesh.material = mat;
     mesh.isPickable = false;
@@ -151,17 +182,17 @@ export class Discs {
     this.pos = pos;
     this.right = new BABYLON.Vector3();
     this.up = new BABYLON.Vector3();
-    this.fwd = new BABYLON.Vector3();
   }
 
   /** Rebuild the billboards for this frame's camera. */
-  update(camera, light) {
+  update(camera) {
     if (!this.mesh) return;
     const m = camera.getWorldMatrix();
-    // Columns of the camera's world matrix: its own right, up and forward.
+    // Columns of the camera's world matrix: its own right and up. Forward is
+    // no longer wanted — the shader builds each sphere around that world's own
+    // direction, not around wherever the camera happens to be pointing.
     this.right.set(m.m[0], m.m[1], m.m[2]);
     this.up.set(m.m[4], m.m[5], m.m[6]);
-    this.fwd.set(m.m[8], m.m[9], m.m[10]);
     const r = this.right, u = this.up;
 
     const p = this.pos;
@@ -181,10 +212,11 @@ export class Discs {
     }
     this.mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, p);
     this.mesh.position.copyFrom(camera.position);
+    /* Only the camera's orientation goes up now. The sun does not: each disc
+       carries its OWN world's sun on the vertex buffer, because the light on
+       Vault is not the light here. */
     this.mat.setVector3('uRight', r);
     this.mat.setVector3('uUp', u);
-    this.mat.setVector3('uFwd', this.fwd);
-    if (light) this.mat.setVector3('uLight', light);
   }
 
   dispose() { if (this.mesh) this.mesh.dispose(); }

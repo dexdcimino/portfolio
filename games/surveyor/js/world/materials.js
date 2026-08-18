@@ -466,12 +466,21 @@ function registerShaders() {
     attribute vec3 position;
     attribute vec2 quad;
     attribute vec4 color;
+    attribute vec3 dir;     // this world's direction, in planet space
+    attribute vec3 sun;     // ...and ITS sun, which is not this world's sun
+    attribute float slot;   // its row in the preview atlas
     uniform mat4 worldViewProjection;
     varying vec2 vQ;
     varying vec4 vC;
+    varying vec3 vDir;
+    varying vec3 vSun;
+    varying float vSlot;
     void main() {
       vQ = quad;
       vC = color;
+      vDir = dir;
+      vSun = sun;
+      vSlot = slot;
       gl_Position = worldViewProjection * vec4(position, 1.0);
     }
   `;
@@ -480,37 +489,68 @@ function registerShaders() {
     precision highp float;
     varying vec2 vQ;
     varying vec4 vC;
-    uniform vec3 uLight, uRight, uUp, uFwd;
-    uniform float uGlow, uLimb, uDisc;
+    varying vec3 vDir;
+    varying vec3 vSun;
+    varying float vSlot;
+    uniform vec3 uRight, uUp;
+    uniform sampler2D uMap;
+    uniform float uGlow, uLimb, uDisc, uNight, uEmit, uRows;
 
     void main() {
       float r = length(vQ);
       float core = max(vC.a, 0.001);
-      // Hard edge on the disc itself; the glow around it is what makes a
-      // sub-pixel world visible at all, which is also how a distant planet
-      // actually reads to the naked eye.
-      float disc = 1.0 - smoothstep(core * 0.86, core * 1.14, r);
+      float disc = 1.0 - smoothstep(core * 0.94, core * 1.06, r);
       float halo = pow(max(0.0, 1.0 - r), 3.2);
 
-      // Phase. The billboard is flat, but the sphere it stands for is not: bend
-      // a normal across the disc and light it with the same fixed sun the
-      // ground uses, and the crescent tells you where the light is coming from.
+      /* THE SPHERE THE BILLBOARD STANDS FOR.
+         The quad faces the camera, but the world it represents sits along vDir
+         — which is NOT the camera's forward axis, and at 40-70px the difference
+         is a visibly wrong terminator on any disc away from the centre of the
+         screen. So the basis is built around vDir and only ORIENTED by the
+         camera: e1/e2 are the screen's right and up flattened onto the plane
+         across vDir, which is what makes the world hold still when you turn
+         your head and roll when you tilt it, exactly as the real thing would. */
+      vec3 C = normalize(vDir);
+      vec3 e1 = uRight - C * dot(uRight, C);
+      // Degenerate only if the world is exactly off the side of the screen, at
+      // which point it is not in frame anyway; up is the fallback basis.
+      e1 = normalize(mix(e1, uUp - C * dot(uUp, C), step(length(e1), 0.001)));
+      vec3 e2 = normalize(cross(C, e1));
+
       vec2 q = vQ / core;
       float z = sqrt(max(0.0, 1.0 - min(1.0, dot(q, q))));
-      vec3 N = normalize(uRight * q.x + uUp * q.y - uFwd * z);
-      float lit = 0.12 + 0.88 * smoothstep(-0.25, 0.55, dot(N, normalize(uLight)));
+      // The outward normal at the point of that world's surface under this
+      // pixel — which, on a unit sphere, IS the point.
+      vec3 S = normalize(e1 * q.x + e2 * q.y - C * z);
 
-      /* Limb darkening, and the reason it is here rather than left implied by
-         the phase: at six pixels across there is no room for a terminator. The
-         crescent above spans a fraction of a pixel and averages back to a flat
-         coin, which reads as a speck of dust on the screen. z is already the
-         sphere's own depth — 1.0 at the centre, 0.0 at the edge — so bright in
-         the middle falling to uLimb at the rim costs one multiply and is what
-         makes the thing read as round at the size it is actually drawn. */
+      /* Its own map, its own row of the atlas. Longitude wraps, latitude is
+         inset half a texel from the row edges so bilinear filtering cannot
+         reach into the planet stacked above or below. */
+      float lon = atan(S.z, S.x);
+      float lat = asin(clamp(S.y, -1.0, 1.0));
+      float v = (0.5 - lat / 3.14159265);
+      vec2 uv = vec2(lon / 6.28318531 + 0.5, (vSlot + clamp(v, 0.002, 0.998)) / uRows);
+      vec4 map = texture2D(uMap, uv);
+
+      /* Phase, against THAT world's sun. Each planet has its own fixed sun
+         direction, so the six do not all show the same crescent — and the one
+         on the disc agrees with the light on that world's ground when you get
+         there. */
+      float lit = uNight + (1.0 - uNight) *
+        smoothstep(-0.22, 0.30, dot(S, normalize(vSun)));
+      // Limb darkening, off the sphere's own depth: 1.0 at the centre, uLimb at
+      // the rim. At this size it is visible, and it is most of what makes the
+      // thing read as a sphere rather than a sticker.
       float limb = mix(uLimb, 1.0, z);
 
-      vec3 col = vC.rgb * (disc * lit * limb * uDisc + halo * uGlow * 0.30);
-      float a = clamp(disc * 0.96 + halo * 0.55, 0.0, 1.0);
+      vec3 col = map.rgb * (lit * limb * uDisc);
+      // Ember's cracks are a light source, not a lit surface, so they are added
+      // after the terminator and past 1.0 for the bloom pass to find.
+      col += map.rgb * map.a * uEmit;
+      col *= disc;
+      col += vC.rgb * halo * uGlow * 0.10;
+
+      float a = clamp(disc * 0.97 + halo * 0.22, 0.0, 1.0);
       gl_FragColor = vec4(col, a);
     }
   `;

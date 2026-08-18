@@ -18,6 +18,7 @@ import { on, emit } from './core/events.js';
 import { makePlanet } from './world/sphere.js';
 import { Surface, findSpawn } from './world/surface.js';
 import { neighbours } from './world/discs.js';
+import { previews } from './world/preview.js';
 import { COLORS, ATMO, ROVER, PLANETS, HYPER, DEBUG } from './tune.js';
 
 const canvas = document.getElementById('stage');
@@ -61,6 +62,14 @@ const planetOf = (key) => {
    left — the trajectory does this honestly and does not need helping. */
 const spawnFacing = (p) =>
   findSpawn(p, p.relief * 0.12, p.relief * 0.75, neighbours(p).map((n) => n.dir));
+
+/* The world previews, baked before anything asks for one.
+   Six equirectangular maps of the actual height field, one per planet, so the
+   discs in the sky show the places rather than six tinted coins. It is a
+   one-off CPU cost paid here — in front of the start card, where there is
+   nothing to stall — rather than inside the first world build, where it would
+   read as a slow boot with no explanation. See preview.js. */
+const previewBake = previews(scene);
 
 const planet = planetOf(bootKey);
 const surface = new Surface(planet, spawnFacing(planet));
@@ -334,7 +343,7 @@ engine.runRenderLoop(() => {
   economy.update(dt);
   if (!craft.hyper) world.update(dt, craft, cam.camera);
   else {
-    world.discs.update(cam.camera, world.mats.light);
+    world.discs.update(cam.camera);
     // The beam is the one thing in survey.js that owns a mesh which has to be
     // put away rather than merely stop being updated: nothing else runs in
     // transit, so left alone it would hang over the world you departed from.
@@ -416,7 +425,7 @@ document.body.classList.add('ready');
 // dials most likely to be argued with after a first drive.
 window.SURVEYOR = {
   craft, cam, sound, pipeline, ROVER, worlds, scene, streaks, economy, geyserTotals,
-  overlay,
+  overlay, previewBake,
   get raiders() { return world.colonies.raiders; },
   get world() { return world; },
   get planet() { return world.planet; },

@@ -98,7 +98,7 @@ export class World {
     if (this.water) this.water.update();
     this.survey.update(dt);
     this.colonies.stream(dt);
-    this.discs.update(camera, this.mats.light);
+    this.discs.update(camera);
   }
 }
 

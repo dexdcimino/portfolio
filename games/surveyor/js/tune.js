@@ -124,14 +124,54 @@ export const SYSTEM = {
      visibly the big one, Ember visibly the far one — while the small end lands
      on four pixels instead of one. `drawRef` sits at the system's widest honest
      angle so nothing is ever drawn smaller than the truth. */
-  drawRef: 0.0070,      // radians. At this angle drawn and honest agree
+  drawRef: 0.148,       // radians
   drawExp: 0.30,        // below it, sizes pull together instead of vanishing
-  drawFloor: 0.0035,    // and never below this: ~4px across at 560p
-  /* Limb darkening. A flat coin at six pixels reads as a speck; a sphere reads
-     as a sphere because it is bright in the middle and falls off at the edge.
-     This is the fraction of full brightness left at the limb. */
-  limb: 0.52,
-  disc: 2.2,            // core brightness. Above 1.0 so the lit side blooms
+  drawFloor: 0.034,     // and never below this: ~40px across at 560p
+
+  /* WHY drawRef IS TWENTY TIMES THE LARGEST HONEST ANGLE.
+     At the honest scale the discs were 0.4 to 8 pixels: correct, and useless.
+     A world you cannot read is a light in the sky, and the point of putting
+     six worlds up there is that you can tell an ocean from a canyon before you
+     spend the fuel. These land at 40-70px across at 560p, which is where a
+     disc starts reading as an object with a surface.
+     The compression is unchanged and still does the only job it ever did —
+     hold the near and far worlds within about 1.7x of each other so the far
+     ones stay legible — and `Math.max(angle, ...)` still means nothing is ever
+     drawn SMALLER than the truth. What changed is the scale, once, here. */
+
+  /* Limb darkening: the fraction of full brightness left at the rim. This is
+     also what makes a pale world legible against a pale sky — the edge goes
+     darker than the haze behind it, and edge contrast is what carries a disc
+     over a bright horizon. Brightness alone cannot: a lamp on a bright sky is
+     the same problem as a lamp on a dark one, from the other side. */
+  limb: 0.44,
+  /* Core brightness, applied to the baked surface colour. Well under 1: these
+     read as distant worlds catching light, and at 40-70px the old 2.2 made
+     them lamps that dominated the sky. */
+  disc: 0.95,
+  night: 0.09,          // the unlit side, so the terminator is a real edge
+  emitBoost: 1.6,       // Ember's cracks, added past the terminator so they bloom
+};
+
+/**
+ * The world previews baked into the discs.
+ *
+ * One equirectangular map per planet, stacked into an atlas — see preview.js.
+ * Resolution is the whole cost: the height field runs 2-4us a sample, so this
+ * is width x height x six worlds x that. Measured on this machine:
+ *
+ *     128 x 64   ~140ms      192 x 96   ~310ms      256 x 128  ~550ms
+ *
+ * 128 x 64 is where it sits, and the reason is the DISC, not the budget: only
+ * half a world faces you, so 64 texels are spread over a disc 40-70px wide.
+ * That is about one texel per pixel — magnifying on the near worlds, barely
+ * minifying on the far ones — which is the resolution that does not crawl when
+ * the camera moves. 160 x 80 was measurably no sharper on screen and cost half
+ * again as much, because the extra texels were being averaged away.
+ */
+export const PREVIEW = {
+  width: 128,
+  height: 64,
 };
 
 /**

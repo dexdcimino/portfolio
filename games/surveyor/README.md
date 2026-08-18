@@ -65,6 +65,9 @@ js/
     water.js          static sphere shell, CPU-fed depth attribute, the ice rule
     sky.js            one parameterised dome; the numbers live in tune.js
     discs.js          the other five worlds, camera-relative billboards
+    preview.js        one equirectangular map per planet, baked at boot from
+                      height() and the real palette, atlased so the discs above
+                      show the actual places and still cost one draw call
     hyper.js          travel: the speed law, the analytic step, the sweep
     world.js          everything the scene holds for one planet, swappable
   player/
