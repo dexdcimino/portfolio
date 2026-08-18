@@ -47,10 +47,11 @@ export class ChunkField {
     while (this.queue.length && built < WORLD.buildBudgetPerFrame) {
       const job = this.queue.shift();
       if (this.live.has(job.key) || !this.wanted.has(job.key)) continue;
-      this.live.set(job.key, {
-        mesh: this.build(job.f, job.u0, job.v0, job.size, job.level),
-        level: job.level,
-      });
+      const mesh = this.build(job.f, job.u0, job.v0, job.size, job.level);
+      this.live.set(job.key, { mesh, level: job.level });
+      // Whoever wants to know a leaf exists. The shadow pass does: its render
+      // list has to follow a stream that builds and drops meshes every frame.
+      if (this.onBuild) this.onBuild(mesh);
       this.builds++;
       built++;
     }
@@ -89,6 +90,7 @@ export class ChunkField {
     // Drop anything the tree no longer wants.
     for (const [key, entry] of this.live) {
       if (!this.wanted.has(key)) {
+        if (this.onDrop) this.onDrop(entry.mesh);
         entry.mesh.dispose();
         this.live.delete(key);
       }
@@ -217,7 +219,10 @@ export class ChunkField {
   get maxLeaves() { return 6 * Math.pow(4, this.planet.maxLevel); }
 
   dispose() {
-    for (const [, e] of this.live) e.mesh.dispose();
+    for (const [, e] of this.live) {
+      if (this.onDrop) this.onDrop(e.mesh);
+      e.mesh.dispose();
+    }
     this.live.clear();
   }
 }

@@ -179,6 +179,7 @@ function swapTo(key, dir, alt) {
   for (const form of Object.values(forms)) {
     for (const m of form.root.getChildMeshes()) m.material = world.mats.craft;
   }
+  castCraft();
   cam.setPlanet(next);
   streaks.setPalette(next);
   // The world's own grade. Neutral on all six at T1, so this is a no-op that
@@ -208,6 +209,21 @@ function devWarp(key) {
   swapTo(key, spawnFacing(next), HYPER.approachAlt);
 }
 hud.attachWarp(Object.keys(PLANETS), world.planet.key, devWarp);
+
+/* The craft casts too, and it has to be re-registered on every arrival.
+   The chunk stream registers terrain leaves itself through ChunkField's
+   onBuild, but the craft's meshes outlive any one world — they are built once
+   and re-pointed at each world's material — so nothing in world.js ever sees
+   them. Leaving the world drops its casters with its terrain, so this runs
+   again on the way in rather than once at boot. */
+function castCraft() {
+  const sh = world.shadows;
+  if (!sh || !sh.rtt) return;
+  for (const form of Object.values(forms)) {
+    for (const m of form.root.getChildMeshes()) sh.addCaster(m);
+  }
+}
+castCraft();
 
 // ---- post ----------------------------------------------------------------
 /* Bloom replaced a GlowLayer here two phases ago, for a reason that still

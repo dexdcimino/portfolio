@@ -210,6 +210,46 @@ export const TERRAIN = {
 };
 
 /**
+ * CAST SHADOWS — the pass after T3, and its own commit on purpose.
+ *
+ * Roadmap call: T3's risk was whether the contour lines survived a texture
+ * pass, and shadows landing in the same commit would have made a wrong-looking
+ * frame unattributable. One variable at a time.
+ *
+ * NOT Babylon's ShadowGenerator. See shadows.js — it exists to inject itself
+ * into StandardMaterial and PBRMaterial, and this game has neither.
+ *
+ * WHAT A SHADOW MULTIPLIES. The KEY, and only the key. The fill is sky light
+ * and sky light does not care what stands between a pixel and the sun, so a
+ * shadowed face falls to that world's ambient floor rather than to black. This
+ * is why the T2 light rig had to land first: `ambient` decides, per world,
+ * whether a cast shadow reads hard or soft, and nothing here has to say so.
+ * Vault's fill is 0 and its shadows are hard. Tarn's is 0.22 and they are not.
+ *
+ * EMBER HAS NONE, and that is a finding rather than a saving. Its sunDir is
+ * declared "low, and barely a sun at all" and its light comes off the ground —
+ * the fissures are the source, which is why its key is 0.90 against a 0.10 fill
+ * only because the KEY is what carries the warm tint there. A directional sun
+ * shadow map on a world lit from underfoot draws shadows cast by a light that
+ * is not doing the lighting. Switched off, not tuned down.
+ *
+ * RANGE IS THE NEAR FIELD, not the world. Shadows stop mattering long before
+ * the fog does, and a 2048 map stretched over Anvil's 1906m fog range is a
+ * metre a texel — wider than most of the things casting. 400m at 2048 is 20cm.
+ */
+export const SHADOW = {
+  enabled: true,
+  mapSize: 2048,
+  range: 400,           // metres across the box, centred on the craft
+  strength: 0.75,       // how much of the key a full shadow removes
+  /* Depth slack, in the 0..1 the ortho box maps to. Scaled by slope in the
+     shader, because a face turned away from the sun crosses more depth per
+     texel and that is exactly where acne starts. */
+  bias: 0.0016,
+  softness: 0.00075,    // PCF tap spacing, in shadow-map UV
+};
+
+/**
  * Frozen water — Vault, and nowhere else.
  *
  * Thickness falls off with DEPTH, which is the physical way round (a shallow
@@ -484,6 +524,10 @@ export const PLANETS = {
     radius: 207,
     seed: 'surveyor-ember',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* Shadows OFF. Ember's light comes off the ground — the fissures are the
+       source — so a directional sun shadow map here would draw shadows cast by
+       a light that is not doing the lighting. See SHADOW above. */
+    shadows: { enabled: false },
     /* T3 — medium. Basalt genuinely is fractured, so this is the one world
        where the scan's crack network is the right material rather than a
        borrowed one. Detail stays under the strength because the fissure
@@ -611,6 +655,9 @@ export const PLANETS = {
     radius: 414,
     seed: 'surveyor-tarn',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    // Low islands on a shallow sea: little to cast, and a humid 0.22 fill to
+    // catch what does.
+    shadows: { range: 300, strength: 0.60 },
     // T3 — light, and mostly moot: 89% of this world is water, and the
     // bathymetry shelves and the waterline stroke do the visual work on it.
     terrain: { strength: 0.30, detail: 0.10 },
@@ -705,6 +752,10 @@ export const PLANETS = {
     radius: 829,
     seed: 'surveyor-vault',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    // Hard shadows, and they come for free: this world's fill is 0, so a
+    // shadowed face falls all the way to nothing. Long ones, too — the sun is
+    // the lowest of the five that have shadows.
+    shadows: { range: 340, strength: 0.85 },
     /* T3 — light, and deliberately not zero. A fracture network is what
        crevassed ice looks like, so the scan's relief suits this world; what
        does NOT suit it is a matte rock grain over a surface whose whole
@@ -805,6 +856,9 @@ export const PLANETS = {
     radius: 1451,
     seed: 'surveyor-shroud',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    // Short range and weak: the fog closes in at 232m here, so anything past
+    // that is spent, and dense particulate is exactly what fills a shadow in.
+    shadows: { range: 260, strength: 0.55 },
     // T3 — the least of the six. Most of this world is behind its own fog, and
     // detail spent past the fog line is detail nobody sees.
     terrain: { strength: 0.25, detail: 0.08 },
@@ -908,6 +962,9 @@ export const PLANETS = {
     radius: 2072,
     seed: 'surveyor-anvil',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    // The longest box in the system. 104m of relief and real canyon walls, so
+    // the casters are big and the shadows are the point.
+    shadows: { range: 620, strength: 0.80 },
     /* T3 — the most of the six, and the world this transplant is for. 104m of
        relief, real canyons, rust and ochre: fractured stone is what Anvil
        actually is, and it is the only world where the scan is not standing in

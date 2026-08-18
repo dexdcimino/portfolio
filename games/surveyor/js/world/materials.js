@@ -249,6 +249,13 @@ function registerShaders() {
        uTriFade   detail fade start/end, macro relax start/end, in metres */
     uniform sampler2D uTriFlat, uTriSteep, uTriHigh;
     uniform vec4 uTriScale, uTriSlope, uTriMix, uTriFade;
+    /* Cast shadows. uShadowP: x strength, y bias, z fade start, w fade end —
+       the last two in metres from the box centre, so the term is gone before
+       the box edge rather than ending at a visible square. */
+    uniform sampler2D uShadowMap;
+    uniform mat4 uShadowMat;
+    uniform vec4 uShadowP;
+    uniform vec3 uShadowAt;
     /* Split from uTriMix.x on purpose. The perturbed NORMAL and the detail
        LUMINANCE do very different things to a chart: the normal changes how the
        ground catches light, which the contour lines do not care about, while
@@ -385,6 +392,39 @@ function registerShaders() {
       coast *= 1.0 - smoothstep(420.0, 900.0, dist);
       col = mix(col, uCoast, coast * 0.80);
 
+      /* ---- cast shadow ------------------------------------------------------
+         Sampled here, applied to the KEY only a few lines below. That is the
+         physical reading and it is also what keeps this from wrecking the cel
+         look: the fill is sky light and sky light does not care what is between
+         this pixel and the sun, so a shadowed face drops to the world's ambient
+         floor rather than to black. On Vault, whose fill is 0, that is a hard
+         shadow; on Tarn, whose fill is 0.22, it is a soft one. The light rig
+         from T2 decides which without being asked.
+
+         Three by three PCF at one texel. Anything less aliases into a staircase
+         on a low sun, anything more costs more than it shows at this map size. */
+      float shadow = 1.0;
+      if (uShadowP.x > 0.001) {
+        vec4 ls = uShadowMat * vec4(vW, 1.0);
+        vec3 sc = ls.xyz / ls.w * 0.5 + 0.5;
+        if (sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0) {
+          // Bias scaled by slope: a face turned away from the sun crosses more
+          // depth per texel and needs more slack, which is where acne starts.
+          float bias = uShadowP.y * (1.0 + 3.0 * (1.0 - clamp(dot(N, uLight), 0.0, 1.0)));
+          float lit = 0.0;
+          for (int yy = -1; yy <= 1; yy++) {
+            for (int xx = -1; xx <= 1; xx++) {
+              vec2 o = vec2(float(xx), float(yy)) * uShadowP.z;
+              lit += step(sc.z - bias, texture2D(uShadowMap, sc.xy + o).r);
+            }
+          }
+          lit /= 9.0;
+          // Out over the last of the box, so the edge is never a visible square.
+          float far = smoothstep(uShadowP.w * 0.72, uShadowP.w, distance(vW, uShadowAt));
+          shadow = mix(mix(1.0 - uShadowP.x, 1.0, lit), 1.0, far);
+        }
+      }
+
       /* T3: the surface normal the LIGHT sees. Perturbed after the palette and
          the chart have been drawn off the geometric normal, and before the
          bands — so texture changes how the ground catches light without ever
@@ -407,7 +447,7 @@ function registerShaders() {
          because ambient + sunIntensity * 1.04 is held near 1.04. */
       float d = dot(N, uLight);
       float band = bandLight(d);
-      col *= (uLightMix.x + uLightMix.y * band) * uSunCol;
+      col *= (uLightMix.x + uLightMix.y * band * shadow) * uSunCol;
       // The shade tint was a hardcoded cool blue. It is per-planet now, and it
       // is doing more work than any single band colour: Vault's shadow is deep
       // blue, Ember's is orange because the light comes off the ground, Anvil's
@@ -671,6 +711,25 @@ function registerShaders() {
 
       gl_FragColor = vec4(col, 1.0);
     }
+  `;
+
+  /* ---- the shadow depth pass ---------------------------------------------
+     Every caster is drawn with this and nothing else, so a terrain leaf's
+     fissure attribute and a hull's colour attribute are simply not read. What
+     lands in the map is gl_FragCoord.z — the ortho camera's depth in 0..1 —
+     which is exactly what the terrain shader compares against after taking its
+     own light-space position through the same matrix. One encoding, chosen
+     here, decoded there, with nothing in between deciding for us. */
+  S.svDepthVertexShader = `
+    precision highp float;
+    attribute vec3 position;
+    uniform mat4 worldViewProjection;
+    void main() { gl_Position = worldViewProjection * vec4(position, 1.0); }
+  `;
+
+  S.svDepthFragmentShader = `
+    precision highp float;
+    void main() { gl_FragColor = vec4(gl_FragCoord.z, 0.0, 0.0, 1.0); }
   `;
 
   // ---- the other worlds, seen from this one ------------------------------
@@ -958,8 +1017,9 @@ export function createMaterials(scene, planet) {
         'uCoast', 'uContour', 'uFogRange', 'uSurfaceR', 'uScatter', 'uWash',
         'uDetail', 'uRelief', 'uShade', 'uRim', 'uSpec', 'uEmit', 'uEmitFrom',
         'uEmitCol', 'uEmitHot', 'uLightMix', 'uSunCol', 'uRimP',
-        'uTriScale', 'uTriSlope', 'uTriMix', 'uTriFade', 'uTriDetail'],
-      samplers: ['uTriFlat', 'uTriSteep', 'uTriHigh'],
+        'uTriScale', 'uTriSlope', 'uTriMix', 'uTriFade', 'uTriDetail',
+        'uShadowMat', 'uShadowP', 'uShadowAt'],
+      samplers: ['uTriFlat', 'uTriSteep', 'uTriHigh', 'uShadowMap'],
     });
   /* T3 — triplanar. Fade distances arrive as fractions of the fog range so a
      207m world and a 2072m one both get a detail field sized to what they can
@@ -1097,6 +1157,26 @@ export function createMaterials(scene, planet) {
   craft.setFloat('uSpec', COL.spec);
 
   const mats = {
+    /* The shadow pass hands itself over here rather than the other way round:
+       materials.js knows the terrain material and shadows.js knows the map, and
+       neither has to import the other. Called once when a world is built. */
+    bindShadows(sh) {
+      if (!sh || !sh.rtt) {
+        terrain.setVector4('uShadowP', new BABYLON.Vector4(0, 0, 0, 0));
+        return;
+      }
+      terrain.setTexture('uShadowMap', sh.rtt);
+      terrain.setVector4('uShadowP', new BABYLON.Vector4(
+        sh.cfg.strength, sh.cfg.bias, sh.cfg.softness, sh.cfg.range * 0.5));
+    },
+
+    /** Per frame: the box moves with the craft, so the matrix does too. */
+    syncShadows(sh) {
+      if (!sh || !sh.rtt) return;
+      terrain.setMatrix('uShadowMat', sh.matrix);
+      terrain.setVector3('uShadowAt', sh._centre);
+    },
+
     terrain, water, sky, craft, light, palette: COL, skyParams: SK,
     fogColor: C3(COL.fog),
   };

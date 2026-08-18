@@ -74,6 +74,8 @@ js/
     water.js          static sphere shell, CPU-fed depth attribute, the ice rule
     sky.js            one parameterised dome; the numbers live in tune.js
     discs.js          the other five worlds, camera-relative billboards
+    shadows.js        the cast-shadow depth pass. Own render target, own ortho
+                      camera, own depth material — not Babylon's ShadowGenerator
     preview.js        one equirectangular map per planet, baked at boot from
                       height() and the real palette, atlased so the discs above
                       show the actual places and still cost one draw call
@@ -125,6 +127,40 @@ contrast came down (ACES applies its own S-curve, so 1.22 was charging twice),
 and exposure did NOT go up. Raising it to 1.28 pushed every authored sky into
 the part of the curve where ACES desaturates hardest and turned Ember's sunset
 pale. Measured, on all six.
+
+## Cast shadows are hand-rolled, and Ember has none
+
+Its own pass after T3, on the roadmap's reasoning: T3's risk was whether the
+contours survived a texture pass, and shadows in the same commit would have made
+a wrong-looking frame unattributable.
+
+**Not Babylon's ShadowGenerator.** It exists to inject itself into
+StandardMaterial and PBRMaterial — the same reason the last three transplants
+left their files behind. Using it would have meant decoding a map whose format
+Babylon picks at runtime from device capabilities: standard or exponential,
+packed RGBA or float R. That is a decode that works on the machine you tested
+and fails elsewhere as either no shadows or black ones. `shadows.js` owns the
+lot instead: a render target, an ortho camera on the sun's axis, a depth
+material writing `gl_FragCoord.z`, and one compare in the terrain shader.
+
+**A shadow multiplies the key, never the fill.** That is the physical reading
+and it is what stops this wrecking the cel look: a shadowed face falls to that
+world's ambient floor, not to black. It also means T2 already decided, per
+world, whether shadows read hard or soft — Vault's fill is 0 and its shadows are
+hard; Tarn's is 0.22 and they are not. Nothing here had to say so.
+
+**Ember has none, and that is a finding.** Its sun is declared "low, and barely
+a sun at all" and its light comes off the ground. A directional sun shadow map
+there draws shadows cast by a light that is not doing the lighting. Off, not
+tuned down.
+
+Two things cost a while to find and are worth not rediscovering. Babylon's
+Camera constructor registers every camera in `scene.cameras` whatever you pass
+it, and T1's SSAO2 runs off the prepass — which follows every entry in
+`scene.customRenderTargets`, including this one, and then throws inside its own
+post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
+the fix. And the shadow box is snapped to a texel grid before it is centred, or
+the shadows swim as you drive.
 
 ## T3 put a surface on the ground without touching the chart
 

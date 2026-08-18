@@ -23,6 +23,7 @@ import { ChunkField } from './chunks.js';
 import { Water } from './water.js';
 import { createSky } from './sky.js';
 import { Discs } from './discs.js';
+import { Shadows } from './shadows.js';
 import { Survey } from '../game/survey.js';
 import { Colonies } from '../game/colony.js';
 
@@ -48,7 +49,15 @@ export class World {
     // nothing for the rover to drown in.
     this.water = planet.hasWater ? new Water(scene, this.mats.water, planet) : null;
     this.discs = new Discs(scene, planet);
+    /* The shadow pass, and the wiring that keeps it honest. Its render list
+       follows the chunk stream through onBuild/onDrop rather than being rebuilt
+       — a list holding disposed meshes grows without bound and Babylon will
+       happily try to draw them. */
+    this.shadows = new Shadows(scene, planet, this.mats.skyParams.sunDir);
     this.field = new ChunkField(scene, this.mats.terrain, planet);
+    this.field.onBuild = (mesh) => this.shadows.addCaster(mesh);
+    this.field.onDrop = (mesh) => this.shadows.removeCaster(mesh);
+    this.mats.bindShadows(this.shadows);
     this.survey = new Survey(scene, craft, planet);
     this.colonies = new Colonies(scene, craft, this.mats.craft, planet);
     // The beam is the scanner held down, so survey.js owns it — but the things
@@ -82,6 +91,8 @@ export class World {
       for (const key of [...this.survey.active.keys()]) this.survey.despawnChunk(key);
       this.survey.center = '';
       for (const site of this.colonies.sites) this.colonies.release(site);
+      // Terrain is gone, so every caster it registered is too.
+      this.shadows.clearCasters();
       // Raiders keep attacking; only what you could see of them is thrown away.
       this.colonies.raiders.releaseAll();
     }
@@ -99,6 +110,11 @@ export class World {
     this.survey.update(dt);
     this.colonies.stream(dt);
     this.discs.update(camera);
+    // Centred on the craft, not the camera: the camera swings and pulls back,
+    // and a box that followed it would slide the shadows around under a
+    // stationary rover.
+    this.shadows.update(craft.world);
+    this.mats.syncShadows(this.shadows);
   }
 }
 
