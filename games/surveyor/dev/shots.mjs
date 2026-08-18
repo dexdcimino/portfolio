@@ -229,7 +229,7 @@ for (const key of KEYS) {
   for (const e of errs) console.log(`        ! ${e}`);
 
   await chrome.browser.send('Target.closeTarget', { targetId: page.targetId });
-  page.close();
+  await page.close();
   await wait(150);
 }
 
@@ -268,7 +268,7 @@ if (KEYS.length > 1) {
     writeFileSync(join(OUT, sheet), Buffer.from(shot.data, 'base64'));
     console.log(`sheet  ${size.w}x${size.h}  -> dev/shots/${sheet}`);
     await chrome.browser.send('Target.closeTarget', { targetId: page.targetId });
-    page.close();
+    await page.close();
   }
 }
 

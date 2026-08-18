@@ -3,7 +3,7 @@
 // lines are cut into the rock, the waterline gets a drawn coastline stroke,
 // and light is quantised into flat bands so form reads as shape, not shading.
 
-import { COLORS, WORLD, ATMO, SKY } from '../tune.js';
+import { COLORS, WORLD, ATMO, SKY, LIGHT } from '../tune.js';
 import { meltDepth } from './water.js';
 
 const V3 = (c) => new BABYLON.Vector3(c[0], c[1], c[2]);
@@ -13,6 +13,25 @@ const scale = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
 /** This planet's palette: the system default with the profile merged over it. */
 export function paletteOf(planet) {
   return Object.assign({}, COLORS, planet.palette || {});
+}
+
+/**
+ * This planet's light rig, fully resolved — T2.
+ *
+ * Same shape as skyOf: the system default merged under whatever the profile
+ * says, so a world states only what it disagrees with. The nested rim blocks
+ * are merged one level down as well, because a world that wants a tighter rim
+ * should not have to restate its intensity to get it.
+ *
+ * Deliberately NOT holding a sun direction. That lives in `sky.sunDir` and is
+ * read from there by the ground, by the discs and by the baked disc relief —
+ * one value, three readers, nothing to fall out of step.
+ */
+export function lightOf(planet) {
+  const L = Object.assign({}, LIGHT, planet.light || {});
+  L.rim = Object.assign({}, LIGHT.rim, (planet.light || {}).rim || {});
+  L.craftRim = Object.assign({}, LIGHT.craftRim, (planet.light || {}).craftRim || {});
+  return L;
 }
 
 /**
@@ -130,6 +149,8 @@ function registerShaders() {
     uniform vec2 uFogRange;
     uniform float uSurfaceR, uScatter, uWash, uDetail, uRelief;
     uniform float uSpec, uEmit, uEmitFrom;
+    // T2: x = ambient fill, y = key, z = how hard the unlit bands take uShade.
+    uniform vec3 uLightMix, uSunCol, uRimP;
 
     void main() {
       vec3 N = normalize(vN);
@@ -194,20 +215,36 @@ function registerShaders() {
       coast *= 1.0 - smoothstep(420.0, 900.0, dist);
       col = mix(col, uCoast, coast * 0.80);
 
-      // Banded key light. uLight is a direction in planet space, so the sun
-      // is genuinely fixed and one side of the world is in shadow.
+      /* Banded key light, split into key and fill — T2. uLight is a direction
+         in planet space, so the sun is genuinely fixed and one side of the
+         world is in shadow.
+
+             luminance = ambient + sunIntensity * band
+
+         which is lookdev's own model with its own two numbers: uLightMix.x is
+         the fill it gets from an IBL, uLightMix.y is the key. Defaults 0 and 1
+         reproduce the pre-T2 image exactly. What the split buys is a world like
+         Ember, where the fire underfoot is the light source and the sun barely
+         is: lifting the fill and dropping the key flattens the shadows toward
+         the ground's own glow without touching how bright a lit face comes out,
+         because ambient + sunIntensity * 1.04 is held near 1.04. */
       float d = dot(N, uLight);
       float band = bandLight(d);
-      col *= band;
+      col *= (uLightMix.x + uLightMix.y * band) * uSunCol;
       // The shade tint was a hardcoded cool blue. It is per-planet now, and it
       // is doing more work than any single band colour: Vault's shadow is deep
       // blue, Ember's is orange because the light comes off the ground, Anvil's
       // is iron.
-      col = mix(col, col * uShade, (1.0 - band) * 0.7);
+      col = mix(col, col * uShade, (1.0 - band) * uLightMix.z);
 
-      // Rim so silhouettes separate from the fog at speed.
-      float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.5);
-      col += uRim * rim * 0.55;
+      /* Rim, so silhouettes separate from the fog at speed — and, since T2,
+         masked to the lit side. The mask is the whole difference between light
+         grazing an edge and an outline drawn around everything: uRimP.z at 0
+         rims every silhouette whatever it faces, at 1 only what the sun can
+         see. Term for term from lookdev's rim.js. */
+      float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), uRimP.x) * uRimP.y;
+      rim *= mix(1.0, clamp(d * 0.5 + 0.5, 0.0, 1.0), uRimP.z);
+      col += uRim * rim;
 
       // Hard toon glint on the flats. Zero everywhere but Vault, where the ice
       // sheen is half of what makes the ground read as frozen rather than pale.
@@ -290,6 +327,7 @@ function registerShaders() {
     uniform vec3 uCam, uLight, uFog, uFogSun, uDeepW, uShallowW, uCoast;
     uniform vec2 uFogRange;
     uniform float uTime, uScatter, uMaxDepth, uFrozen, uMelt;
+    uniform vec3 uLightMix, uSunCol;    // T2: see the terrain shader
 
     void main() {
       vec3 toCam = uCam - vW;
@@ -321,8 +359,11 @@ function registerShaders() {
       float path = pow(clamp(dot(-V, uLight), 0.0, 1.0), 8.0);
       col += uFogSun * path * 0.22 * smoothstep(0.0, 3.0, d);
 
+      // Water's response to the bands is shallower than the ground's by design,
+      // but it takes the same key and fill — T2 — or a world whose shadows lift
+      // would have its sea stay put and the two would disagree at the shore.
       float band = bandLight(dot(N, uLight));
-      col *= mix(0.86, 1.0, band);
+      col *= (uLightMix.x + uLightMix.y * mix(0.86, 1.0, band)) * uSunCol;
 
       /* FROZEN (Vault). The same shelves, but read as a solid surface: pale,
          opaque, and with the melt line stroked across it in the chart's own
@@ -654,9 +695,13 @@ function registerShaders() {
     varying vec3 vN;
     varying vec3 vW;
     varying vec4 vC;
-    uniform vec3 uCam, uLight, uFog, uRim, uSunCol;
+    uniform vec3 uCam, uLight, uFog, uRim;
     uniform vec2 uFogRange;
     uniform float uHeat, uSpec;
+    /* uSunCol is the KEY light's tint, new at T2 and shared with the ground.
+       uSpecCol is the sun DISC's colour and is what the glint has always been —
+       two different colours that were briefly one name. */
+    uniform vec3 uLightMix, uRimP, uSunCol, uSpecCol;
 
     void main() {
       vec3 N = normalize(vN);
@@ -665,17 +710,21 @@ function registerShaders() {
       vec3 V = toCam / max(dist, 0.001);
 
       float emissive = vC.a;
-      vec3 col = vC.rgb * bandLight(dot(N, uLight));
+      // Same key/fill split as the ground — T2. The hull has to sit in the
+      // world's light, not in its own.
+      float d = dot(N, uLight);
+      vec3 col = vC.rgb * (uLightMix.x + uLightMix.y * bandLight(d)) * uSunCol;
 
-      float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 2.6);
-      col += uRim * rim * 1.4;
+      float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), uRimP.x) * uRimP.y;
+      rim *= mix(1.0, clamp(d * 0.5 + 0.5, 0.0, 1.0), uRimP.z);
+      col += uRim * rim;
 
       // Hull specular. Hard-edged like everything else here, and zero on five
       // worlds — the point is that the craft visibly catches the light on Vault
       // and catches nothing anywhere else.
       if (uSpec > 0.0) {
         vec3 H = normalize(uLight + V);
-        col += uSunCol * step(0.30, pow(clamp(dot(N, H), 0.0, 1.0), 30.0))
+        col += uSpecCol * step(0.30, pow(clamp(dot(N, H), 0.0, 1.0), 30.0))
           * uSpec * (1.0 - emissive);
       }
 
@@ -704,6 +753,15 @@ export function createMaterials(scene, planet) {
      Home's approved look from drifting when another world is retuned. */
   const COL = paletteOf(planet);
   const SK = skyOf(planet);
+  const LT = lightOf(planet);
+  /* One vec3 rather than three floats: fill, key, shade-strength always move
+     together and always go to the same three shaders, so they travel together.
+     x + y * 1.04 is what a fully lit face comes out at — see LIGHT in tune.js. */
+  const mix3 = new BABYLON.Vector3(LT.ambient, LT.sunIntensity, LT.shade);
+  const sunCol = V3(LT.sunColour);
+  const rimP = new BABYLON.Vector3(LT.rim.power, LT.rim.intensity, LT.rim.sunMask);
+  const craftRimP = new BABYLON.Vector3(
+    LT.craftRim.power, LT.craftRim.intensity, LT.craftRim.sunMask);
 
   // Fog is per-planet now, derived from radius. The old fixed 1180m far plane
   // was longer than the diameter of half the worlds in the system.
@@ -721,8 +779,11 @@ export function createMaterials(scene, planet) {
         'uFogSun', 'uDeep', 'uSilt', 'uShore', 'uFlats', 'uStone', 'uPeak',
         'uCoast', 'uContour', 'uFogRange', 'uSurfaceR', 'uScatter', 'uWash',
         'uDetail', 'uRelief', 'uShade', 'uRim', 'uSpec', 'uEmit', 'uEmitFrom',
-        'uEmitCol', 'uEmitHot'],
+        'uEmitCol', 'uEmitHot', 'uLightMix', 'uSunCol', 'uRimP'],
     });
+  terrain.setVector3('uLightMix', mix3);
+  terrain.setVector3('uSunCol', sunCol);
+  terrain.setVector3('uRimP', rimP);
   terrain.setVector3('uShade', V3(COL.shade));
   terrain.setVector3('uRim', V3(COL.rim));
   terrain.setFloat('uSpec', COL.spec);
@@ -754,10 +815,13 @@ export function createMaterials(scene, planet) {
       attributes: ['position', 'depth'],
       uniforms: ['world', 'worldViewProjection', 'uCam', 'uLight', 'uFog',
         'uFogSun', 'uDeepW', 'uShallowW', 'uCoast', 'uFogRange', 'uTime',
-        'uScatter', 'uWaveK', 'uWaveAmp', 'uMaxDepth', 'uFrozen', 'uMelt'],
+        'uScatter', 'uWaveK', 'uWaveAmp', 'uMaxDepth', 'uFrozen', 'uMelt',
+        'uLightMix', 'uSunCol'],
       needAlphaBlending: true,
     });
   water.setVector3('uLight', light);
+  water.setVector3('uLightMix', mix3);
+  water.setVector3('uSunCol', sunCol);
   water.setVector3('uFog', V3(COL.fog));
   water.setVector3('uFogSun', V3(COL.fogSun));
   water.setFloat('uScatter', ATMO.sunScatter);
@@ -818,9 +882,12 @@ export function createMaterials(scene, planet) {
     {
       attributes: ['position', 'normal', 'color'],
       uniforms: ['world', 'worldViewProjection', 'uCam', 'uLight', 'uFog',
-        'uFogRange', 'uHeat', 'uRim', 'uSunCol', 'uSpec'],
+        'uFogRange', 'uHeat', 'uRim', 'uSunCol', 'uSpecCol', 'uSpec',
+        'uLightMix', 'uRimP'],
     });
   craft.setVector3('uLight', light);
+  craft.setVector3('uLightMix', mix3);
+  craft.setVector3('uRimP', craftRimP);
   craft.setVector3('uFog', V3(COL.fog));
   craft.setVector2('uFogRange', fogRange);
   craft.setFloat('uHeat', 0);
@@ -828,7 +895,8 @@ export function createMaterials(scene, planet) {
   // read as Home's craft. Scaled down against the terrain's because a hull
   // covers far less screen than a hillside does.
   craft.setVector3('uRim', V3(scale(COL.rim, 0.62)));
-  craft.setVector3('uSunCol', V3(SK.sunColor));
+  craft.setVector3('uSpecCol', V3(SK.sunColor));
+  craft.setVector3('uSunCol', sunCol);
   craft.setFloat('uSpec', COL.spec);
 
   const mats = {

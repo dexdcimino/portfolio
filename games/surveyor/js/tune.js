@@ -61,6 +61,68 @@ export const SKY = {
 };
 
 /**
+ * THE LIGHT RIG — transplanted from the lookdev testbed, T2.
+ *
+ * WHAT DID NOT COME ACROSS, AND WHY. lookdev's `lighting.js`, `environment.js`
+ * and `rim.js` are a Babylon DirectionalLight, an IBL cube and a PBRMaterial
+ * plugin. All three act on PBRMaterial, and Surveyor has none: six hand-written
+ * ShaderMaterials carry the whole look and do their own banded cel lighting off
+ * a `uLight` uniform. Dropping those files in would have added a directional
+ * light nothing samples, an environment texture nothing reads and a plugin with
+ * no injection site. What transplants is the MODEL, and it is this block.
+ *
+ * THE MODEL, in lookdev's own terms and its own key names:
+ *
+ *     luminance = ambient + sunIntensity * bandLight(dot(N, sunDirection))
+ *
+ * `sunIntensity` is the key and `ambient` is the fill — the same two numbers
+ * whose RATIO was the single biggest lever over there (4.6 against 1.15, a 4:1
+ * key to fill). The absolute values do not travel: they are linear-HDR PBR
+ * radiance and this shader multiplies an authored 0..1 albedo. The ratio does.
+ *
+ * SUN DIRECTION IS NOT HERE. It is `sky.sunDir`, per world, and it already has
+ * exactly one home: `skyOf()` resolves it and the ground shaders, the disc
+ * shader and the baked disc relief all read it through that one call. Adding a
+ * second copy here is how a world ends up lit one way on the ground and another
+ * way in the sky — the bug this MD asks to be checked for. There is nothing to
+ * check because there is nothing to disagree.
+ *
+ * THE INVARIANT WORTH HOLDING. bandLight's top step is 1.04, so
+ * `ambient + sunIntensity * 1.04` is what a fully lit face comes out at. Keep it
+ * near 1.04 and you are changing only how deep the shadows go; move it and you
+ * are re-exposing the whole world. Every profile below holds it within a few
+ * percent, which is why lifting Ember's fill did not brighten Ember.
+ *
+ * Defaults are a NO-OP: ambient 0, sunIntensity 1, white sun, sunMask 0
+ * reproduce the pre-T2 image exactly. A world opts in by saying so.
+ */
+export const LIGHT = {
+  sunColour: [1.0, 1.0, 1.0],   // tints the key. Not the sun disc — that is sky.sunColor
+  sunIntensity: 1.0,            // scales the banded key
+  /* The fill, and the reason it exists. lookdev's ambient is an IBL at 1.15
+     doing "the sky fill that makes shadows open and blue instead of black".
+     There is no IBL to have here, so this is a flat floor under the bands —
+     which is the honest cel-shaded equivalent and the only one a five-step
+     ramp can express. */
+  ambient: 0.0,
+  // How hard the unlit bands take the world's `shade` tint. The colour of the
+  // fill, where `ambient` is its strength.
+  shade: 0.70,
+
+  /* Rim, lifted term for term from lookdev's rim.js:
+   *     rim  = pow(1 - saturate(dot(N, V)), power) * intensity
+   *     rim *= mix(1, saturate(dot(N, L) * 0.5 + 0.5), sunMask)
+   * The second line is the part Surveyor did not have. Without it the rim is an
+   * outline: every silhouette edge lights up whether or not anything is
+   * shining on it. With it, it is light grazing an edge.
+   * sunMask defaults to 0 so the pre-T2 image is unchanged until a world asks. */
+  rim: { power: 3.5, intensity: 0.55, sunMask: 0.0 },
+  // The craft carries its own, tighter and hotter: it is a small bright object
+  // against terrain, not terrain.
+  craftRim: { power: 2.6, intensity: 1.4, sunMask: 0.0 },
+};
+
+/**
  * Frozen water — Vault, and nowhere else.
  *
  * Thickness falls off with DEPTH, which is the physical way round (a shallow
@@ -263,6 +325,10 @@ export const PLANETS = {
     radius: 1036,
     seed: 'surveyor-home',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T2 — clear, high, neutral. The reference the other five are read
+       against, so it says nothing and inherits everything. Its numbers ARE the
+       defaults in LIGHT; spelling them out here would be five more places to
+       forget to change. */
     waterY: 0,
     relief: 1036 / 20,        // ~52m, the cap the MD's radius table gives
 
@@ -325,6 +391,25 @@ export const PLANETS = {
     radius: 207,
     seed: 'surveyor-ember',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T2 — THE FIRE IS THE LIGHT SOURCE, and the fill is NOT how you say that.
+       First attempt put the fill at 0.46 on the reasoning that a world lit from
+       underfoot has open shadows. It does, and it was still wrong: `ambient` is
+       a flat lift across every surface, which is sky light — an overcast day,
+       not a fire. It took the palette note above ("near-black basalt, every
+       band dark so the fissure emission stands out") and undid it, and the
+       cracks stood out LESS against ground that had come up to meet them.
+       Ember's emission is localised and it is already the brightest thing in
+       the frame; what it needs from the light rig is a DARK warm surround, not
+       a bright one.
+       So the fill stays low and the key carries a warm tint instead: a lit face
+       is where it was, the shadow side lifts barely at all, and everything the
+       sun touches is the colour of the fire that is actually lighting it. */
+    light: {
+      sunIntensity: 0.90, ambient: 0.10, shade: 0.88,
+      sunColour: [1.00, 0.90, 0.80],
+      rim: { power: 3.0, intensity: 0.70, sunMask: 0.15 },
+      craftRim: { power: 2.6, intensity: 1.5, sunMask: 0.15 },
+    },
     /* No water at all, said as a flag rather than as a waterline a kilometre
        underground. The -1000 this used to carry did express "dry", but it also
        moved the whole datum: with sea level applied properly Ember's ground
@@ -426,6 +511,16 @@ export const PLANETS = {
     radius: 414,
     seed: 'surveyor-tarn',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T2 — bright, humid, low contrast. Water is 89% of this world and haze is
+       most of the rest, so the fill is high and the shade tint is weak: humid
+       air scatters light back into the shadows and takes the colour out of them
+       at the same time. The rim is half masked — enough to read as light on an
+       edge, not enough to draw an outline through the haze. */
+    light: {
+      sunIntensity: 0.79, ambient: 0.22, shade: 0.55,
+      sunColour: [1.00, 0.99, 0.96],
+      rim: { power: 3.5, intensity: 0.48, sunMask: 0.50 },
+    },
     /* The whole identity in one number. Home's mean surface sits near +5.9m,
        so a waterline above that drowns everything except the peaks and leaves
        an archipelago. Raising water is cheaper and truer than lowering land:
@@ -507,6 +602,20 @@ export const PLANETS = {
     radius: 829,
     seed: 'surveyor-vault',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T2 — cold, clear, hard light, long shadows. The only world with the fill
+       at zero: nothing is scattering, so a shadow is the absence of the sun and
+       nothing else. shade at 0.92 drives the palette's deep blue — the note on
+       that colour says "on ice the shadow IS the colour information" — and the
+       rim goes tight and almost fully sun-masked, which is what hard light
+       looks like: a bright edge where the sun catches, nothing where it does
+       not. This is the world where `spec: 0.85` finally has a light rig worth
+       glinting off. */
+    light: {
+      sunIntensity: 1.02, ambient: 0.0, shade: 0.92,
+      sunColour: [0.94, 0.97, 1.00],
+      rim: { power: 4.5, intensity: 0.50, sunMask: 0.90 },
+      craftRim: { power: 3.0, intensity: 1.5, sunMask: 0.75 },
+    },
     // Ice sits where Home's water does; what differs is the SURFACE RULE, and
     // that is not a terrain weight — see NEEDS DEX, it is still to be wired.
     waterY: 0,
@@ -588,6 +697,22 @@ export const PLANETS = {
     radius: 1451,
     seed: 'surveyor-shroud',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T2 — dense particulate; the fog is the antagonist. Fill is high because
+       everything in the air is scattering the key back down, and the key is
+       correspondingly weak. The shade tint is pulled back to 0.50 for the same
+       reason: scattered light arrives from everywhere, so it does not carry a
+       direction or a colour the way a clear sky's does. Cool violet key. */
+    light: {
+      /* Fill at 0.18, not the 0.34 the physics argued for. Scattering really
+         does open these shadows, but Shroud's deeper violet is an approved
+         look and 0.34 lifted the ground about a tenth and took the depth out
+         of it. The shade tint comes back up to 0.62 for the same reason: the
+         violet is the world, and the fog is allowed to be the antagonist
+         without also being the thing that washes it out. */
+      sunIntensity: 0.84, ambient: 0.18, shade: 0.62,
+      sunColour: [0.92, 0.90, 1.00],
+      rim: { power: 3.0, intensity: 0.52, sunMask: 0.20 },
+    },
     /* Pools in the valley floors, which at -2 was 43% of the world — a sea. -12
        leaves 19%: standing water only where the valleys actually bottom out,
        which is what makes the flooding hazard here a thing you drive into
@@ -672,6 +797,16 @@ export const PLANETS = {
     radius: 2072,
     seed: 'surveyor-anvil',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T2 — thin, high, washed out. A little fill from a thin sky, a weak shade
+       tint because there is not much sky to tint it, and the most strongly
+       sun-masked rim after Vault: thin air means edges are lit or they are not.
+       This is the largest world in the system and the one whose relief does the
+       most work, so the rim is kept low enough not to outline every ridge. */
+    light: {
+      sunIntensity: 0.79, ambient: 0.22, shade: 0.50,
+      sunColour: [1.00, 0.98, 0.94],
+      rim: { power: 3.8, intensity: 0.45, sunMask: 0.60 },
+    },
     /* Sparse, and now actually sparse. At -14 the corrected waterline put 22%
        of Anvil under water, which is a coastline, not "a few canyon-floor
        rivers". -24 leaves 10%: the water is only in the deepest cuts, which is

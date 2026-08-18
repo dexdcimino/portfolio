@@ -124,6 +124,42 @@ and exposure did NOT go up. Raising it to 1.28 pushed every authored sky into
 the part of the curve where ACES desaturates hardest and turned Ember's sunset
 pale. Measured, on all six.
 
+## T2 brought the light rig, and left three files behind
+
+lookdev's `lighting.js`, `environment.js` and `rim.js` are a Babylon
+DirectionalLight, an IBL cube and a PBRMaterial plugin. All three act on
+PBRMaterial and **Surveyor has none** — six hand-written ShaderMaterials carry
+the whole look and do their own banded cel lighting off a `uLight` uniform.
+Copying those files in would have added a directional light nothing samples, an
+environment texture nothing reads, and a material plugin with no injection site,
+plus a skybox fighting the one `sky.js` already draws and a shadow map costing
+GPU for no pixels. So what transplanted is the MODEL, and it lives in `LIGHT` in
+`tune.js`:
+
+    luminance = ambient + sunIntensity * bandLight(dot(N, sunDirection))
+
+`sunIntensity` is the key and `ambient` is the fill — lookdev's own two numbers,
+whose 4:1 ratio was the biggest lever over there. The absolute values do not
+travel (they are linear-HDR PBR radiance; this shader multiplies an authored
+0..1 albedo) and the ratio does. The rim came across term for term, including
+the sun mask Surveyor did not have: without it a rim is an outline on every
+silhouette, with it it is light grazing a lit edge.
+
+Defaults are a **no-op** — ambient 0, sunIntensity 1, white sun, sunMask 0
+reproduce the pre-T2 image to within 0.01/255, verified against the previous
+commit. A world opts in by saying so, and five of the six do.
+
+The invariant worth holding when authoring: `ambient + sunIntensity * 1.04` is
+what a lit face comes out at, because 1.04 is bandLight's top step. Hold it near
+1.04 and you are changing only how deep the shadows go. Ember is the cautionary
+tale — the first attempt lifted its fill to 0.46 on the reasoning that a world
+lit from underfoot has open shadows, which is true and was still wrong: a flat
+lift is *sky* light, and it undid the near-black basalt the fissure emission is
+authored to stand out against.
+
+**Shadows did not come across.** See the T2 report: the terrain shader has no
+shadow term, and adding one is a materials change.
+
 TEMPORARY: the HUD carries a **dev warp** row — six buttons, one per world,
 current one lit, click to arrive there. It calls the same `swapTo` a hyper
 arrival does and skips only the journey, so it proves a world builds and proves
