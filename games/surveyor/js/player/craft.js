@@ -199,25 +199,48 @@ export class Craft {
     this.chute = 0;
 
     if (mode === 'jet') {
-      // Convert whatever ground speed you had into a launch. speedScalar is
-      // what updateJet actually integrates — setting `speed` here did nothing,
-      // so launching from a standstill started you below stall and put you
-      // straight back into the dirt.
-      this.speedScalar = Math.max(this.speedScalar, JET.launchSpeed);
-      this.speed = this.speedScalar;
-      // Ground clearance for a standing launch. In the air there is nothing to
-      // clear and it would be three free metres, so position carries intact.
-      if (!dropping) this.pos.y += 3.0;
-      /* Falling, this IS the escape hatch and the impulse is the whole point of
-         it. Already going up faster than the impulse — a wound-up hop straight
-         into the jet — and you keep what you had instead of being braked by
-         your own launch. */
-      this.vel.y = Math.max(carryV, JET.launchImpulse);
-      this.pitch = -0.42;
       this.glide = false;
       this.jetLift = 0;
-      this.assist = JET.assistTime;
       this.assistGround = 0;
+      if (dropping) {
+        /* MOMENTUM TRANSFERS WHOLE, AND THE JET GETS NO EXCEPTION — but the jet
+           has no vertical velocity to hand it to. updateJet REBUILDS vel from
+           scratch every frame out of speedScalar along a heading made of yaw
+           and pitch, so a vel.y written here is overwritten before it moves you
+           a single metre. That is why the old launch impulse looked like it was
+           doing something: what actually cancelled the fall was `pitch = -0.42`
+           putting the nose up, and the free +26 was never the mechanism.
+           Preserving the fall therefore means restating it in the jet's own
+           currency. The speed is the whole 3D speed you were carrying, and the
+           pitch is the angle that reproduces its vertical part, since fwd.y is
+           -sin(pitch). A rover falling at 90 m/s becomes a jet doing 90 m/s
+           straight down with the nose there too, and pulling out is flying
+           rather than a formality. The clamp is the airframe's own pitch limit:
+           a dead vertical drop arrives at 74 degrees nose down. */
+        const S = Math.hypot(carryH, carryV);
+        this.speedScalar = S;
+        this.speed = S;
+        this.pitch = clamp(Math.asin(clamp(-carryV / Math.max(S, 0.001), -1, 1)),
+          -1.30, 1.30);
+        this.vel.set(Math.sin(this.yaw) * carryH, carryV, Math.cos(this.yaw) * carryH);
+        /* And no launch autopilot. Nine seconds of hands-off altitude hold is
+           what a LAUNCH gets; handing it to a fall would fly you out of the
+           dive on your behalf, which is the same free save by another road.
+           JET.avoidLift still applies — it is always on by design, autopilot or
+           not, and softening a dive at a hillside is what makes this learnable. */
+        this.assist = 0;
+      } else {
+        // Convert whatever ground speed you had into a launch. speedScalar is
+        // what updateJet actually integrates — setting `speed` here did nothing,
+        // so launching from a standstill started you below stall and put you
+        // straight back into the dirt.
+        this.speedScalar = Math.max(this.speedScalar, JET.launchSpeed);
+        this.speed = this.speedScalar;
+        this.pos.y += 3.0;
+        this.vel.y = JET.launchImpulse;
+        this.pitch = -0.42;
+        this.assist = JET.assistTime;
+      }
     } else {
       this.pitch = 0; this.roll = 0;
       if (dropping) {

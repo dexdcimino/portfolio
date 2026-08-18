@@ -988,8 +988,12 @@ function registerShaders() {
     }
   `;
 
-  // Alpha channel of the vertex colour is used as an emissive flag, so glowing
-  // engine parts and painted hull panels live in the same mesh.
+  /* Alpha channel of the vertex colour is the FINISH flag, so glowing engine
+     parts, matte rubber and painted hull panels all live in the same mesh with
+     no extra attribute: 0 ordinary paint, 0.5 matte, 1 emissive. Every colour
+     constant in meshes.js, colony.js and raiders.js is exactly one of those
+     three, and each triangle carries one colour on all three of its vertices,
+     so nothing interpolates into the gaps between them. */
   S.svCraftFragmentShader = COMMON + `
     varying vec3 vN;
     varying vec3 vW;
@@ -1008,7 +1012,9 @@ function registerShaders() {
       float dist = length(toCam);
       vec3 V = toCam / max(dist, 0.001);
 
-      float emissive = vC.a;
+      float emissive = step(0.75, vC.a);
+      // 1 for paint and for emissive parts, 0 for the matte flag.
+      float gloss = 1.0 - step(0.25, vC.a) + emissive;
       // Same key/fill split as the ground — T2. The hull has to sit in the
       // world's light, not in its own.
       float d = dot(N, uLight);
@@ -1016,15 +1022,20 @@ function registerShaders() {
 
       float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), uRimP.x) * uRimP.y;
       rim *= mix(1.0, clamp(d * 0.5 + 0.5, 0.0, 1.0), uRimP.z);
-      col += uRim * rim;
+      /* Matte surfaces keep a trace of the rim rather than none of it: taken
+         to zero the tyres lose their silhouette against dark ground and read as
+         holes in the wheel. At an eighth they still turn, and they are plainly
+         the least reflective thing on the craft, which is what rubber is. */
+      col += uRim * rim * mix(0.12, 1.0, gloss);
 
       // Hull specular. Hard-edged like everything else here, and zero on five
       // worlds — the point is that the craft visibly catches the light on Vault
-      // and catches nothing anywhere else.
+      // and catches nothing anywhere else. Rubber is excluded outright: a hard
+      // white glint is the one thing tread must never do, on Vault or anywhere.
       if (uSpec > 0.0) {
         vec3 H = normalize(uLight + V);
         col += uSpecCol * step(0.30, pow(clamp(dot(N, H), 0.0, 1.0), 30.0))
-          * uSpec * (1.0 - emissive);
+          * uSpec * (1.0 - emissive) * gloss;
       }
 
       // Emissive parts ignore lighting and ramp with boost heat.

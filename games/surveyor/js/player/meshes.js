@@ -7,6 +7,15 @@ import { WHEEL, ROVER } from '../tune.js';
 const HULL   = [0.855, 0.875, 0.835, 0];
 const PANEL  = [0.208, 0.259, 0.290, 0];
 const DARK   = [0.106, 0.145, 0.169, 0];
+/* Tyre carcass and tread. The same black as DARK — this is not a new paint, it
+   is a new FINISH. Alpha is the craft shader's finish flag: 0 ordinary paint,
+   1 emissive, and 0.5 matte, which costs no new vertex attribute because the
+   mesh already carries a vec4 per vertex.
+   Rubber was taking the full hull rim light, so the tread read as wet paint at
+   roughly the same value as the painted panels beside it. Hubs, beadlocks and
+   bolt heads stay HULL and PANEL and keep their finish — the contrast between
+   dead tread and bright hardware is the point. */
+const RUBBER = [0.106, 0.145, 0.169, 0.5];
 const AMBER  = [1.000, 0.690, 0.239, 0];
 const GLASS  = [0.094, 0.341, 0.412, 0];
 const GLOW   = [0.169, 0.878, 0.784, 1];
@@ -381,7 +390,7 @@ export function buildWheel(scene, mat, name, side = 1) {
   // Carcass and sidewalls. The lugs stand proud of the carcass and their outer
   // face lands exactly on WHEEL.radius, so the radius in tune.js is the real
   // rolling radius rather than an approximation of one.
-  g.cylX(0, 0, 0, R - WHEEL.lugDepth, W * 0.86, 14, DARK);
+  g.cylX(0, 0, 0, R - WHEEL.lugDepth, W * 0.86, 14, RUBBER);
   g.cylX(0, 0, 0, R * 0.80, W, 14, PANEL);
 
   // Two staggered rows of tread blocks — the stagger is what makes it read as
@@ -393,7 +402,7 @@ export function buildWheel(scene, mat, name, side = 1) {
     for (const row of [-1, 1]) {
       const ang = a + (row > 0 ? Math.PI / WHEEL.lugs : 0);
       g.boxX(row * W * 0.46, Math.cos(ang) * rMid, Math.sin(ang) * rMid,
-        rowW, WHEEL.lugDepth * 0.9, R * 0.20, ang, DARK);
+        rowW, WHEEL.lugDepth * 0.9, R * 0.20, ang, RUBBER);
     }
   }
 
