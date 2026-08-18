@@ -154,41 +154,6 @@ export class Geo {
     }
   }
 
-  /**
-   * Mirror everything built so far across X, properly.
-   *
-   * NOT `mesh.scaling.x = -1`, which is how the three left wheels came to be
-   * facing inwards in the first place — a negative scale flips the winding, so
-   * Babylon culls the outside and lights the inside, and the mesh reads as
-   * turned in on itself. This negates x on the positions, SWAPS two vertices of
-   * every triangle to put the winding back, and recomputes each normal through
-   * the same negated cross product `tri` uses, so a mirrored solid obeys the
-   * same convention as an unmirrored one and the suite's signed-volume check
-   * means the same thing on both sides.
-   *
-   * `mirrorOutline` already does this for the jet's 2D outlines; this is the
-   * same idea for geometry that is already built.
-   */
-  mirrorX() {
-    const p = this.pos, n = this.nrm;
-    for (let i = 0; i < p.length; i += 9) {
-      const a = [-p[i], p[i + 1], p[i + 2]];
-      const b = [-p[i + 3], p[i + 4], p[i + 5]];
-      const c = [-p[i + 6], p[i + 7], p[i + 8]];
-      // b and c swapped: mirroring reverses handedness and this restores it.
-      p[i] = a[0]; p[i + 1] = a[1]; p[i + 2] = a[2];
-      p[i + 3] = c[0]; p[i + 4] = c[1]; p[i + 5] = c[2];
-      p[i + 6] = b[0]; p[i + 7] = b[1]; p[i + 8] = b[2];
-      const ux = c[0] - a[0], uy = c[1] - a[1], uz = c[2] - a[2];
-      const vx = b[0] - a[0], vy = b[1] - a[1], vz = b[2] - a[2];
-      let nx = -(uy * vz - uz * vy), ny = -(uz * vx - ux * vz), nz = -(ux * vy - uy * vx);
-      const l = Math.hypot(nx, ny, nz) || 1;
-      nx /= l; ny /= l; nz /= l;
-      for (let k = 0; k < 3; k++) { n[i + k * 3] = nx; n[i + k * 3 + 1] = ny; n[i + k * 3 + 2] = nz; }
-    }
-    return this;
-  }
-
   toMesh(scene, name, material) {
     const mesh = new BABYLON.Mesh(name, scene);
     const vd = new BABYLON.VertexData();
@@ -300,11 +265,7 @@ export function buildRover(scene, mat) {
   g.cylZ(0, 3.05, -1.72, 0.14, 0.10, 8, GLOW);
 
   // Light bar forward, thruster vents aft.
-  // HULL, not amber. Cyan is the only accent this game reserves — it means
-  // technology, and it is the one saturated hue in the palette — so a second
-  // warm accent on the hull was reading as something left over rather than
-  // something meant.
-  g.extrudeY([[-0.70, 2.28], [0.70, 2.28], [0.70, 2.40], [-0.70, 2.40]], 1.30, 1.46, HULL);
+  g.extrudeY([[-0.70, 2.28], [0.70, 2.28], [0.70, 2.40], [-0.70, 2.40]], 1.30, 1.46, AMBER);
   g.cylZ(-0.52, 1.02, -2.46, 0.28, 0.12, 10, GLOW);
   g.cylZ(0.52, 1.02, -2.46, 0.28, 0.12, 10, GLOW);
 
@@ -321,11 +282,7 @@ export function buildRover(scene, mat) {
 
   for (const z of WHEEL.axles) {
     for (const sx of [-1, 1]) {
-      // Mirrored geometry per side, not a mirrored transform. The hub, the
-      // rim bolts and the beadlock all sit on one face of the wheel, so an
-      // unmirrored left wheel presents that face INWARD — which is exactly
-      // what the three left wheels were doing.
-      const w = buildWheel(scene, mat, `wheel_${z}_${sx}`, sx);
+      const w = buildWheel(scene, mat, `wheel_${z}_${sx}`);
       w.parent = root;
       w.position.set(sx * WHEEL.track, restY, z);
       w.metadata = { restY, side: sx, lx: sx * WHEEL.track, lz: z, travel: 0 };
@@ -374,7 +331,7 @@ export function buildRover(scene, mat) {
  * One lugged tyre. Built around the X axis because that is the axis it spins
  * on: a carcass, two staggered rows of tread blocks, a beadlock rim and a hub.
  */
-export function buildWheel(scene, mat, name, side = 1) {
+function buildWheel(scene, mat, name) {
   const g = new Geo();
   const R = WHEEL.radius, W = WHEEL.halfWidth;
 
@@ -402,13 +359,13 @@ export function buildWheel(scene, mat, name, side = 1) {
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     const rr = R * 0.60;
-    g.boxX(W * 1.02, Math.cos(a) * rr, Math.sin(a) * rr, 0.05, 0.07, 0.07, a, HULL);
+    g.boxX(W * 1.02, Math.cos(a) * rr, Math.sin(a) * rr, 0.05, 0.07, 0.07, a, AMBER);
   }
   g.cylX(0, 0, 0, R * 0.26, W * 1.16, 8, PANEL);
   g.cylX(0, 0, 0, R * 0.12, W * 1.22, 6, GLOW);
 
-  if (side < 0) g.mirrorX();
-  return g.toMesh(scene, name, mat);
+  const m = g.toMesh(scene, name, mat);
+  return m;
 }
 
 // ---- form 2: hydrofoil survey boat -------------------------------------

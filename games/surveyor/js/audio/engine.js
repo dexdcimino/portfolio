@@ -151,42 +151,13 @@ export class AudioEngine {
    */
   get running() { return !!this.ctx && this.ctx.state === 'running'; }
 
-  /**
-   * The pause menu's mixer. Three levels in 0..1, scaling the tune's own
-   * numbers rather than replacing them: SOUND.master and friends are the mix
-   * this game was balanced at, and a shared panel that set absolute gains would
-   * throw that balance away the first time anyone touched a slider.
-   */
-  setLevels(levels) {
-    if (levels && typeof levels.master === 'number') this.level = levels.master;
+  setMuted(m) {
+    this.muted = m;
     if (!this.ready) return;
-    const set = (node, base, k) => {
-      if (typeof k !== 'number') return;
-      node.gain.cancelScheduledValues(this.now);
-      node.gain.setTargetAtTime(base * k, this.now, 0.05);
-    };
-    set(this.out.music, SOUND.music, levels.music);
-    set(this.out.sfx, SOUND.sfx, levels.fx);
-    this.applyMaster();
-  }
-
-  /* THREE things can silence the master and they are independent: the M key,
-     the mixer's own fader, and the pause menu being up. One place computes the
-     result, or unmuting after a pause restores the wrong level — which is the
-     shape of bug that only shows up in the fourth combination someone tries. */
-  applyMaster() {
-    if (!this.ready) return;
-    const k = typeof this.level === 'number' ? this.level : 1;
     const g = this.out.master.gain;
     g.cancelScheduledValues(this.now);
-    g.setTargetAtTime(this.muted || this.paused ? 0 : SOUND.master * k, this.now, 0.05);
+    g.setTargetAtTime(m ? 0 : SOUND.master, this.now, 0.05);
   }
-
-  setMuted(m) { this.muted = m; this.applyMaster(); }
-
-  /** Paused is not muted: it does not touch the player's own mute state, and
-   *  the mixer comes back exactly where it was. */
-  setPaused(p) { this.paused = p; this.applyMaster(); }
 
   /** 0 = dry air, 1 = fully under. Rolls the whole mix off. */
   setSubmerged(t) {

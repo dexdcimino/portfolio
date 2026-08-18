@@ -310,24 +310,14 @@ export const CONTACT = {
      is the rounded-rectangle a tracked hull actually occupies. Metres, half
      extents, along the heading and across it. */
   size: {
-    rover: { long: 2.45, wide: 1.90 },
-    boat:  { long: 2.90, wide: 1.70 },
-    jet:   { long: 2.75, wide: 2.75 },
+    rover: { long: 2.05, wide: 1.55 },
+    boat:  { long: 2.45, wide: 1.35 },
+    jet:   { long: 2.30, wide: 2.30 },
   },
   exponent: 2.6,
-  /* HOW FAR PAST THE FOOTPRINT THE FALLOFF REACHES, as a fraction of it, and
-     it is most of what stops this reading as a decal. A tight edge is a sticker
-     under the vehicle; a wide one is something the ground is in. 0.45 was the
-     first pass and it was still drawing an outline — at 0.95 the shape is
-     unmistakable at the centre and gone by the time you look for its border,
-     which is what a contact shadow does. The footprints above grew with it, so
-     the dark middle still covers the hull rather than shrinking into it. */
-  edge: 0.95,
-  /* Of the key, at the centre. Down from 0.82: it is the only shadow the craft
-     has, which argued for dark, but a shape this soft reads as heavier than a
-     hard one at the same value, and 0.82 was sitting under the rover like a
-     hole rather than like shade. */
-  strength: 0.70,
+  edge: 0.45,           // how far past the footprint the soft edge reaches
+  strength: 0.82,       // of the key, at the centre. Darker than the 0.55 it
+                        // shipped at, because it is now carrying the whole job
   // Metres of altitude over which it fades out. A jet at fifty metres should
   // not be painting a hard shape on the ground under itself.
   fadeFrom: 2.5,

@@ -19,7 +19,7 @@ import { makePlanet } from './world/sphere.js';
 import { Surface, findSpawn } from './world/surface.js';
 import { neighbours } from './world/discs.js';
 import { previews } from './world/preview.js';
-import { COLORS, ATMO, POST, ROVER, PLANETS, HYPER, DEBUG, ECONOMY } from './tune.js';
+import { COLORS, ATMO, POST, ROVER, PLANETS, HYPER, DEBUG } from './tune.js';
 import { createPostStack } from './render/post.js';
 
 const canvas = document.getElementById('stage');
@@ -298,8 +298,6 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat) return;                 // hop is an edge, not a hold
   keys.add(e.code);
   if (!started) return;
-  if (e.code === 'Escape') { setPaused(!paused); return; }
-  if (paused) return;                     // the menu owns the keyboard while up
   if (e.code === 'Digit1') pendingMode = 'rover';
   if (e.code === 'Digit2') pendingMode = 'boat';
   if (e.code === 'Digit3') pendingMode = 'jet';
@@ -341,79 +339,8 @@ const IDLE = { fwd: 0, turn: 0, pitch: 0, roll: 0, boost: false, beam: false, ho
 const deepEl = document.getElementById('deep');
 let deepShown = 0;
 
-/* ---- the pause ladder ---------------------------------------------------
-   Escape pauses, Escape resumes, and this file owns both — js/pausemenu.js
-   binds no key handler at all. That split is what keeps the iframe working:
-   the game's own window listener is the only thing that sees the key, and
-   /surveyor/surveyor.js hands the frame focus on load so it gets there before
-   the wrapper's exit chip does.
-
-   PAUSING ACTUALLY PAUSES. The render loop keeps drawing — the menu sits over
-   a live frame rather than a frozen screenshot — but nothing is stepped: no
-   craft, no world, no economy, no audio intensity. `dt` is not merely zeroed,
-   the update calls are skipped, because a zero-dt tick still runs every
-   integrator's book-keeping and some of them are not identities at dt 0.
-
-   The gap is then handed to the SAME path an absence already takes. Colony
-   growth, production and raiders all run on wall time, and closing the tab has
-   always been replayed rather than credited — so a pause is replayed too, by
-   the same colonies.catchUp, capped by the same ECONOMY.offlineCap. Nothing
-   here is a special case; a two-hour pause and a two-hour absence come back to
-   the same world. */
-const pausedEl = document.getElementById('paused');
-let paused = false;
-let pausedAt = 0;
-
-function setPaused(on) {
-  if (!started || paused === on) return;
-  paused = on;
-  pausedEl.classList.toggle('hidden', !on);
-  if (on) {
-    pausedAt = performance.now();
-    sound.setPaused?.(true);
-    return;
-  }
-  sound.setPaused?.(false);
-  /* Replayed, not credited, and capped exactly as an absence is. The report is
-     emitted so the HUD says what happened — silence after a long pause would
-     leave a razed colony unexplained. */
-  const away = Math.min(ECONOMY.offlineCap, (performance.now() - pausedAt) / 1000);
-  if (away > 1) {
-    const missed = [];
-    for (const w of worlds.map.values()) {
-      const report = w.colonies.catchUp(away);
-      if (report) missed.push(report);
-    }
-    if (missed.length) {
-      emit('away', {
-        seconds: away,
-        lost: missed.reduce((a, m) => a + m.lost, 0),
-        held: missed.reduce((a, m) => a + m.held, 0),
-        raiders: missed.reduce((a, m) => a + m.raiders, 0),
-        worlds: missed.filter((m) => m.lost > 0).map((m) => m.world),
-      });
-    }
-    economy.save();
-  }
-  canvas.focus();
-}
-
-/* TWO globals, and they are not the same thing.
-   `window.Surveyor` is the pause menu's contract — small, stable, and defined
-   here rather than at the bottom of the file because js/pausemenu.js reads it
-   while it builds. `window.SURVEYOR` at the end of this file is the debug
-   surface for the console and the dev harnesses, and it changes whenever those
-   need something. Nothing should merge them: one is an interface, the other is
-   a window into the machine. */
-window.Surveyor = {
-  resume: () => setPaused(false),
-  get paused() { return paused; },
-  get sound() { return sound; },
-};
-
 engine.runRenderLoop(() => {
   const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
-  if (paused) { scene.render(); return; }
   const input = started ? readInput() : IDLE;
 
   craft.update(dt, input);

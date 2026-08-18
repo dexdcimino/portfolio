@@ -23,14 +23,6 @@ import { launch, serve, evaluate, wait } from './cdp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
-/* SERVED FROM THE REPO ROOT, not from this game's folder, and the game is
-   loaded at its real path. js/pausemenu.js imports the shared audio mixer from
-   games/_shared/ — one directory ABOVE this game — which is correct on the site
-   and a 404 against a server rooted here. Serving the root is also simply more
-   honest: it is the path the game actually ships at. */
-const SITE = resolve(HERE, '../../..');
-const GAME = '/games/surveyor/';
-
 
 const { PLANETS } = await import('../js/tune.js');
 const PARTS = process.argv.includes('--parts');
@@ -155,7 +147,7 @@ const MEASURE = ((PARTS, SETTLE) => `(async () => {
   };
 })()`)(PARTS, SETTLE);
 
-const { server, port, close: closeServer } = await serve(SITE);
+const { server, port, close: closeServer } = await serve(ROOT);
 const chrome = await launch({ width: 900, height: 560 });
 console.log(`${chrome.version}, SwiftShader — read the DIFFERENCE, not the absolutes\n`);
 
@@ -176,7 +168,7 @@ for (const key of KEYS) {
   await page.send('Page.enable');
   await page.send('Emulation.setDeviceMetricsOverride',
     { width: 900, height: 560, deviceScaleFactor: 1, mobile: false });
-  await page.send('Page.navigate', { url: `http://127.0.0.1:${port}${GAME}?planet=${key}` });
+  await page.send('Page.navigate', { url: `http://127.0.0.1:${port}/?planet=${key}` });
 
   let r;
   try {
