@@ -198,14 +198,42 @@ export class Surface {
   }
 }
 
+/* How high a neighbour has to sit before it counts as being in your sky, and
+   how much higher before it counts fully. 0.10 is about six degrees, which is
+   the least that clears the local skyline reliably; 0.40 is about twenty-four,
+   by which point nothing but a mountain is in the way. Between them a world
+   counts fractionally, so "five worlds barely up" scores below "four worlds
+   well up" without either number being a special case. */
+const SKY_LOW = 0.10;
+const SKY_FULL = 0.40;
+
 /**
  * A direction on the planet where the ground is between lo and hi metres.
  * Deterministic: walks a fixed spiral over the sphere so a planet's spawn is
  * the same every time.
+ *
+ * `face` is optional, and is what stops a world opening on an empty sky. The
+ * spiral starts at the north pole and returns the first point in the height
+ * band, which put every spawn in the same polar cap — and the six worlds are at
+ * fixed points in one shared frame, so on Vault, the highest of them, all five
+ * neighbours came out BELOW the local horizon and the sky was empty. Measured:
+ * Vault 0 of 5 up, Anvil 1, Home 3.
+ *
+ * Given a list of directions, this scans the whole spiral instead of stopping
+ * early and returns the valid point with the most of them comfortably up. The
+ * positions do not move and no disc is drawn that should not be — this only
+ * chooses which way you are standing when the world opens.
+ *
+ * Deliberately unweighted: a world is identified in the sky by its tint, not by
+ * its size, so a hemisphere with the small ones up is not worth less than one
+ * with the big ones up.
  */
-export function findSpawn(planet, lo, hi) {
+export function findSpawn(planet, lo, hi, face) {
   const GOLD = Math.PI * (3 - Math.sqrt(5));
   const d = { x: 0, y: 0, z: 0 };
+  const scored = face && face.length;
+  let best = null;
+  let bestScore = -Infinity;
   for (let i = 0; i < 4000; i++) {
     // Fibonacci sphere — even coverage with no clustering at the poles.
     const y = 1 - (i / 3999) * 2;
@@ -213,7 +241,16 @@ export function findSpawn(planet, lo, hi) {
     const a = i * GOLD;
     d.x = Math.cos(a) * r; d.y = y; d.z = Math.sin(a) * r;
     const h = height(d, planet);
-    if (h > lo && h < hi) return { x: d.x, y: d.y, z: d.z };
+    if (!(h > lo && h < hi)) continue;
+    if (!scored) return { x: d.x, y: d.y, z: d.z };
+    let score = 0;
+    for (const f of face) {
+      const e = d.x * f.x + d.y * f.y + d.z * f.z;
+      score += Math.min(1, Math.max(0, (e - SKY_LOW) / (SKY_FULL - SKY_LOW)));
+    }
+    // Strictly greater, so ties go to the earlier point and the answer stays
+    // the same on every boot.
+    if (score > bestScore) { bestScore = score; best = { x: d.x, y: d.y, z: d.z }; }
   }
-  return { x: 0, y: 1, z: 0 };
+  return best || { x: 0, y: 1, z: 0 };
 }

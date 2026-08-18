@@ -17,6 +17,7 @@ import { Sound } from './audio/index.js';
 import { on, emit } from './core/events.js';
 import { makePlanet } from './world/sphere.js';
 import { Surface, findSpawn } from './world/surface.js';
+import { neighbours } from './world/discs.js';
 import { COLORS, ATMO, ROVER, PLANETS, HYPER, DEBUG } from './tune.js';
 
 const canvas = document.getElementById('stage');
@@ -47,8 +48,22 @@ const planetOf = (key) => {
   return planets.get(key);
 };
 
+/* Where a world opens, when nothing flew you there.
+   Dry, reasonably flat ground is the whole of what findSpawn used to ask for,
+   and it left Vault opening on an empty sky — every spawn landed in the same
+   polar cap and Vault is the top of the system, so all five neighbours were
+   underfoot. Handing it the neighbour directions makes it pick the point in
+   that same height band with the most of them up. The worlds have not moved;
+   only which way you are standing when you arrive has.
+
+   This is for the boot spawn and the dev warp ONLY. A real hyper arrival keeps
+   the direction it actually came down on, which already faces the world you
+   left — the trajectory does this honestly and does not need helping. */
+const spawnFacing = (p) =>
+  findSpawn(p, p.relief * 0.12, p.relief * 0.75, neighbours(p).map((n) => n.dir));
+
 const planet = planetOf(bootKey);
-const surface = new Surface(planet, findSpawn(planet, planet.relief * 0.12, planet.relief * 0.75));
+const surface = new Surface(planet, spawnFacing(planet));
 
 /* The craft's meshes outlive any one world: they are built against the boot
    world's craft material and re-pointed at the next one on arrival, in
@@ -176,7 +191,7 @@ on('hyperarrive', (e) => swapTo(e.key, e.dir, e.alt));
 function devWarp(key) {
   if (!DEBUG.warp || !PLANETS[key] || key === world.planet.key) return;
   const next = planetOf(key);
-  swapTo(key, findSpawn(next, next.relief * 0.12, next.relief * 0.75), HYPER.approachAlt);
+  swapTo(key, spawnFacing(next), HYPER.approachAlt);
 }
 hud.attachWarp(Object.keys(PLANETS), world.planet.key, devWarp);
 
