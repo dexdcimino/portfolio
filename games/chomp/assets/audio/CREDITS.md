@@ -22,7 +22,7 @@ nothing in Chomp depends on user-visible attribution.
 | `games/chomp/assets/audio/evolve.ogg` | Chomp | Stage up / growth (`player:evolve`) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
 | `games/chomp/assets/audio/death.ogg` | Chomp | Death (`player:death`) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
 | `games/chomp/assets/audio/ui-select.ogg` | Chomp | Pause-menu button press | https://kenney.nl/assets/interface-sounds | Kenney | CC0 |
-| `games/chomp/assets/audio/music.mp3` | Chomp | Background music (72s, looped) | https://opengameart.org/content/boss-fight-bounce | Locomule | CC0 |
+| `games/chomp/assets/audio/music.mp3` | Chomp | Background music (105s, looped) | https://opengameart.org/content/boss-battle-6-metal | nene | CC0 |
 
 Three of the five come from one pack — Kenney **"Impact Sounds"**, CC0 — and the
 UI sound from Kenney **"Interface Sounds"**, CC0. The chomp and the music are
@@ -40,7 +40,7 @@ Renamed on the way in, so the mapping back to the pack is recorded:
 | `evolve.ogg` | `Audio/impactBell_heavy_001.ogg` | Impact Sounds |
 | `death.ogg` | `Audio/impactMining_003.ogg` | Impact Sounds |
 | `ui-select.ogg` | `Audio/select_005.ogg` | Interface Sounds |
-| `music.mp3` | `Boss Fight Bounce.mp3` | OpenGameArt — Boss Fight Bounce |
+| `music.mp3` | `Boss Battle 6 Metal V1 Preview_0.mp3` | OpenGameArt — Boss Battle 6 Metal |
 
 Files are byte-identical to the source originals. That is deliberate: it makes
 the rename map above verifiable by hash against a fresh download, which it
@@ -100,7 +100,7 @@ safety net, not a mixing tool.
 ## Music
 
 `music.mp3` is one looping `AudioBufferSourceNode` on the music bus, held at
-**0.93 at source** and started once the context exists. `loop = true` on a
+**0.73 at source** and started once the context exists. `loop = true` on a
 decoded buffer is a sample-accurate, gapless loop, which is why it is not an
 `<audio>` element.
 
@@ -120,30 +120,37 @@ the difference in energy between the opening 250 ms and the closing 250 ms,
 relative to the track's own average: 0 is a seamless join, 1 is a restart you
 hear every time.
 
-| Track | Beat strength | Energy < 500 Hz | edgeGap | Size |
-| ----- | ------------- | --------------- | ------- | ---- |
-| **Boss Fight Bounce (shipped)** | **0.48** | **93%** | **0.01** | 2.75 MB |
-| Dark Shrine Loop (previous) | 0.46 | 87% | 0.27 | 0.66 MB |
-| 8-Bit Battle Loop | 0.69 | 83% | 0.26 | 0.86 MB |
-| Krakatoa | 0.39 | 95% | 0.46 | 1.11 MB |
-| Hunted by the Evil | 0.39 | 94% | 0.38 | 6.97 MB (wav) |
-| Bleak Terminal | 0.23 | 92% | 0.63 | 3.60 MB |
-| Cave Explorer | 0.26 | 90% | 0.53 | 1.18 MB |
+Nineteen CC0 candidates, all decoded and scored the same way:
 
-Dark Shrine ends in silence and starts audible — an `edgeGap` of 0.27, which is
-a hole in the music once a minute, every minute. Boss Fight Bounce is the only
-candidate that beats it on pulse AND weight AND the seam: 0.01 is as close to
-inaudible as a join gets.
+| Track | BPM | Beat | < 500 Hz | edgeGap | Size |
+| ----- | --- | ---- | -------- | ------- | ---- |
+| **Boss Battle 6 Metal (shipped)** | **146** | **0.52** | **91%** | 0.47 | 2.40 MB |
+| Boss Fight Bounce (rejected by Dex) | 60 | 0.48 | 93% | **0.01** | 2.75 MB |
+| Dark Shrine Loop (rejected by Dex) | 130 | 0.46 | 87% | 0.27 | 0.66 MB |
+| 8-Bit Battle Loop | 60 | **0.69** | 83% | 0.26 | 0.84 MB |
+| Krakatoa | 120 | 0.39 | 95% | 0.46 | 1.11 MB |
+| Cursed Tower Veranda | 90 | 0.31 | 85% | 0.34 | 2.29 MB |
+| Deep Dive | 158 | 0.20 | 96% | 0.25 | 6.83 MB |
+| Cave Explorer | 80 | 0.26 | 90% | 0.53 | 1.18 MB |
+| Bleak Terminal | 72 | 0.23 | 92% | 0.63 | 3.60 MB |
+| Dungeon Deep | 171 | 0.15 | 96% | 1.41 | 1.11 MB |
+| Covert Operations | 95 | 0.14 | 92% | 0.73 | 2.29 MB |
+| Determined Pursuit | 162 | 0.07 | 86% | 0.63 | 4.23 MB |
 
-The cost is honest and worth stating: **2.75 MB against 0.66 MB**, because
-OpenGameArt hosts this one as MP3 and the only OGG there is a low-bitrate
-preview. `decodeAudioData` takes MP3 everywhere the game runs, so the container
-is not a compatibility problem — it is four times the download.
+(BPM is autocorrelated onset strength and lands on a subharmonic for some
+tracks — Boss Fight Bounce reads 60 where a listener would say 120. That is a
+known limit of the method, not a property of the music.)
 
-Runner-up: **8-Bit Battle Loop** has the strongest pulse of anything measured
-(0.69) at 0.86 MB. It is chiptune, which is a different game's aesthetic than
-this one's painterly cave, so it was not shipped on taste rather than on
-numbers.
+**Two of these were shipped and rejected by ear**, which is the useful fact
+here: the numbers rank playability, not taste. Boss Battle 6 Metal is the
+closest thing in the pool to the original brief — doomy, gloomy, and *fast* —
+without being chiptune. Its seam is honestly worse (0.47: the last few seconds
+dip about 40% before the restart, though it never falls to silence like Dark
+Shrine did).
+
+Alternatives, ready to swap, one file and one row each: **8-Bit Battle Loop**
+(strongest pulse measured, cleanest small file, but chiptune against a
+painterly 3D cave) and **Krakatoa** (heaviest low end, 1.11 MB OGG).
 
 ### Why 0.93 for the gain
 

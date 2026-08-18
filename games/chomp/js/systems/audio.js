@@ -97,12 +97,12 @@ const SAMPLES = {
    The number moves with every track and the loudness does not: each swap is
    re-measured in the loudest 300 ms window and the gain scaled to land on the
    level that was signed off. 0.45 (Arena 1) → 0.57 (Dark Shrine, 0.193) →
-   0.93 (Boss Fight Bounce, 0.1187): 0.57 × (0.193 / 0.1187) ≈ 0.93. It reads
-   high next to Arena 1's 0.45 and is not — this recording is simply quieter.
-   Headroom is fine: 0.93 × its 0.368 peak is 0.34.
+   0.73 (Boss Battle 6 Metal, 0.1506): 0.57 × (0.193 / 0.1506) ≈ 0.73. The
+   number moving is not a mix decision, it is the same loudness meeting a
+   different recording. Headroom: 0.73 × its 0.574 peak is 0.42.
    `loop = true` on the BufferSource is a sample-accurate loop with no gap —
    the reason this is a decoded buffer and not an <audio> element. */
-const MUSIC_GAIN = 0.93;
+const MUSIC_GAIN = 0.73;
 let musicNode = null;
 function startMusic() {
   if (musicNode || !samples || !busGraph) return;
