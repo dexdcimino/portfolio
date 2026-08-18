@@ -51,12 +51,19 @@ LADDERS = {
     # next thing to get real art, and a 19vw thumbnail ladder would visibly
     # under-serve it. Give that hero a slot pointing here when it lands.
     "gallery": (1600, 1200, 900, 600),
-    # AI wallpapers. Sources are 2560x1600, and unlike every other ladder here
-    # the top rung is not for the layout — the carousel's main image is only
-    # ~856px wide. 2560 exists because the lightbox shows the piece at 90vw,
-    # which on a 2560 display asks for 2304 device px, and because these are
-    # smooth gradients that cost far less at width than a photograph would.
-    "wallpaper": (2560, 1920, 1280, 900, 600),
+    # AI wallpapers. Sources are 2560x1600 and the carousel's main image is only
+    # ~856px wide, so the top rungs exist for the lightbox, which shows the piece
+    # at 90vw.
+    #
+    # 2560 was dropped on 2026-08-17. It was added when these were smooth
+    # gradients that cost almost nothing at width; the real art is painted, and
+    # at 2560 it ran 225–280 KB against the site's 150 KB-per-image budget. The
+    # cost of dropping it is a 2560-wide display upscaling the 1920 file by ~20%
+    # in the lightbox — invisible on a photograph-like image, and cheaper than
+    # blowing the budget on the one view that is already opt-in. 1920 is still
+    # over budget for the three busiest pieces; that is a knowing exception,
+    # recorded in assets/ai/wallpapers/README.md.
+    "wallpaper": (1920, 1280, 900, 600),
 }
 
 # `sizes` must describe the real rendered slot or the browser picks the wrong

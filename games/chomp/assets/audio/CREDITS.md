@@ -18,15 +18,15 @@ nothing in Chomp depends on user-visible attribution.
 | File | Game | Used for | Source URL | Author | Licence |
 | ---- | ---- | -------- | ---------- | ------ | ------- |
 | `games/chomp/assets/audio/chomp.ogg` | Chomp | Maw snaps shut (`player:chomp`) | https://opengameart.org/content/crunchy-bite | fvcalderan | CC0 |
-| `games/chomp/assets/audio/eat.ogg` | Chomp | Food swallowed (`player:eat`) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
+| `games/chomp/assets/audio/eat.ogg` | Chomp | Food swallowed (`player:eat`) | https://opengameart.org/content/7-eating-crunches | tito | CC0 |
 | `games/chomp/assets/audio/evolve.ogg` | Chomp | Stage up / growth (`player:evolve`) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
 | `games/chomp/assets/audio/death.ogg` | Chomp | Death (`player:death`) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
 | `games/chomp/assets/audio/ui-select.ogg` | Chomp | Pause-menu button press | https://kenney.nl/assets/interface-sounds | Kenney | CC0 |
-| `games/chomp/assets/audio/music.mp3` | Chomp | Background music (105s, looped) | https://opengameart.org/content/boss-battle-6-metal | nene | CC0 |
+| `games/chomp/assets/audio/music.mp3` | Chomp | Background music (29s, looped) | https://opengameart.org/content/dungeon-deep-0 | Alexandr Zhelanov | CC0 |
 
-Three of the five come from one pack — Kenney **"Impact Sounds"**, CC0 — and the
-UI sound from Kenney **"Interface Sounds"**, CC0. The chomp and the music are
-single files from OpenGameArt, both CC0. Licence text is bundled in
+Two of the five come from Kenney **"Impact Sounds"**, CC0, and the UI sound from
+Kenney **"Interface Sounds"**, CC0. The chomp, the eat and the music are single
+files from OpenGameArt, all CC0. Licence text is bundled in
 both downloads and reads: *"This content is free to use in personal,
 educational and commercial projects."* Attribution is not required by CC0;
 Kenney is credited anyway because they ask nicely and it costs a line.
@@ -36,11 +36,11 @@ Renamed on the way in, so the mapping back to the pack is recorded:
 | Shipped as | Original in pack | Pack |
 | ---------- | ---------------- | ---- |
 | `chomp.ogg` | `crunchybite_0.ogg` | OpenGameArt — Crunchy bite |
-| `eat.ogg` | `Audio/impactSoft_heavy_003.ogg` | Impact Sounds |
+| `eat.ogg` | `crunch.2.ogg` | OpenGameArt — 7 Eating Crunches |
 | `evolve.ogg` | `Audio/impactBell_heavy_001.ogg` | Impact Sounds |
 | `death.ogg` | `Audio/impactMining_003.ogg` | Impact Sounds |
 | `ui-select.ogg` | `Audio/select_005.ogg` | Interface Sounds |
-| `music.mp3` | `Boss Battle 6 Metal V1 Preview_0.mp3` | OpenGameArt — Boss Battle 6 Metal |
+| `music.mp3` | `dungeon_deep.mp3` | OpenGameArt — Dungeon Deep |
 
 Files are byte-identical to the source originals. That is deliberate: it makes
 the rename map above verifiable by hash against a fresh download, which it
@@ -62,13 +62,14 @@ darker), the share of energy below 500 Hz, peak and windowed loudness.
 
 | Slot | Chosen | Duration | Centroid | Energy < 500 Hz |
 | ---- | ------ | -------- | -------- | --------------- |
-| `eat` | `impactSoft_heavy_003` | 0.54s | **110 Hz** | 96% |
+| `eat` | `crunch.2` | 1.10s | — | 11% |
 | `chomp` | `crunchybite_0` | 0.29s | 548 Hz | 71% |
 | `evolve` | `impactBell_heavy_001` | 1.74s | 293 Hz | 81% |
 | `death` | `impactMining_003` | 0.99s | 290 Hz | 76% |
 | `ui-select` | `select_005` | 0.38s | 1239 Hz | 9% |
 
-`eat.ogg` is the darkest sound in all 180 candidates. `ui-select` is the one
+`eat.ogg` **was** the darkest sound in all 180 candidates, and that turned out
+to be the problem rather than the achievement — see the chomp note below. `ui-select` is the one
 deliberate exception to "darker is better": a UI click has to cut through the
 mix to read as feedback, so it is the darkest of the *select* family rather
 than the darkest overall.
@@ -88,7 +89,7 @@ proud. The trims live in `SAMPLES` in `js/systems/audio.js`:
 | Sound | Measured loudness | Normalise | Mix offset | Shipped gain |
 | ----- | ----------------- | --------- | ---------- | ------------ |
 | `chomp` | 0.086 | ×2.20 | — | **1.01** |
-| `eat` | 0.200 | ×0.80 | 0.85 | **0.68** |
+| `eat` | 0.090 | peak-limited | — | **1.03** |
 | `evolve` | 0.128 | ×1.25 | 0.90 | **1.13** |
 | `death` | 0.122 | ×1.31 | 1.00 | **1.31** |
 | `ui-select` | 0.131 | ×1.22 | 0.60 | **0.73** |
@@ -124,7 +125,8 @@ Nineteen CC0 candidates, all decoded and scored the same way:
 
 | Track | BPM | Beat | < 500 Hz | edgeGap | Size |
 | ----- | --- | ---- | -------- | ------- | ---- |
-| **Boss Battle 6 Metal (shipped)** | **146** | **0.52** | **91%** | 0.47 | 2.40 MB |
+| **Dungeon Deep (shipped — Dex picked it by ear)** | 171 | 0.15 | **96%** | 1.41 | **1.11 MB** |
+| Boss Battle 6 Metal (rejected by Dex) | 146 | 0.52 | 91% | 0.47 | 2.40 MB |
 | Boss Fight Bounce (rejected by Dex) | 60 | 0.48 | 93% | **0.01** | 2.75 MB |
 | Dark Shrine Loop (rejected by Dex) | 130 | 0.46 | 87% | 0.27 | 0.66 MB |
 | 8-Bit Battle Loop | 60 | **0.69** | 83% | 0.26 | 0.84 MB |
@@ -141,42 +143,66 @@ Nineteen CC0 candidates, all decoded and scored the same way:
 tracks — Boss Fight Bounce reads 60 where a listener would say 120. That is a
 known limit of the method, not a property of the music.)
 
-**Two of these were shipped and rejected by ear**, which is the useful fact
-here: the numbers rank playability, not taste. Boss Battle 6 Metal is the
-closest thing in the pool to the original brief — doomy, gloomy, and *fast* —
-without being chiptune. Its seam is honestly worse (0.47: the last few seconds
-dip about 40% before the restart, though it never falls to silence like Dark
-Shrine did).
+**Three picks by measurement were rejected by ear before Dex chose from a
+listening page.** That is the useful fact in this table: these numbers rank
+playability — pulse, weight, whether the loop joins — and they do not rank
+taste. Dungeon Deep scores *worst* of the shortlist on beat strength (0.15) and
+on the seam (1.41), and it is the one that sounds right, which is the whole
+lesson.
 
-Alternatives, ready to swap, one file and one row each: **8-Bit Battle Loop**
-(strongest pulse measured, cleanest small file, but chiptune against a
-painterly 3D cave) and **Krakatoa** (heaviest low end, 1.11 MB OGG).
+Its two weaknesses are real and worth knowing, in case they ever come up as
+complaints rather than numbers:
 
-### Why 0.93 for the gain
+- **The seam.** 1.41 is the worst measured: the track ends near silence and
+  restarts audible, so the join is a gap every 29 seconds. If that starts to
+  grate, the fix is a shorter fade or a different track, not a gain change.
+- **It is 29 seconds long**, the shortest thing here bar the drum loop, so it
+  comes round often.
 
-The numbers above are all relative to the recording, so the mix gain moves with
-it. Measured in the loudest 300 ms window this track sits at 0.1187 against Dark
-Shrine's 0.193, so 0.57 × (0.193 / 0.1187) ≈ **0.93** puts it exactly where the
-approved level was. It looks loud beside Arena 1's 0.45 and is not: the file is
-simply quieter. Peak after gain is 0.34, well clear of 1.0.
+Nothing else needs saying about the rest of the shortlist — it was auditioned
+and Dex picked from it.
 
-### The chomp, and why the old one could not be heard
+### Why 0.53 for the gain
 
-`impactSoft_medium_004` puts **2.7% of its energy above 500 Hz** (one-pole
-high-pass, same filter for every number here) — it is a low thud with almost
-nothing in the band a laptop or phone speaker can reproduce. It was picked when
-the brief was "darker is better", and it is among the darkest things in the
-pack; it is also, on any speaker without a woofer, close to silent.
+The mix gain moves with the recording. Measured in the loudest 300 ms window
+this track sits at 0.2075 against Dark Shrine's 0.193, so
+0.57 × (0.193 / 0.2075) ≈ **0.53** puts it exactly where the approved level was —
+this one is louder than its predecessors, so the number goes down. Peak after
+gain is 0.34, well clear of 1.0.
 
-`crunchybite_0` is an actual bite: 0.29s, **56.7% above 500 Hz**, with a 23 ms
-attack. Still dark next to the UI click (78.6%), but with teeth in it — which is
-the part you could not hear before. Peak decodes at 0.773, so at gain 1.01 it
-lands at 0.78 with headroom to spare.
+### The chomp and the eat, and why neither could be heard
 
-**`eat.ogg` has the same defect and was left alone:** `impactSoft_heavy_003`
-measures 1.6% above 500 Hz. It was not in scope for this change, and unlike the
-chomp it fires once per meal rather than on every input, but it is the next
-thing to fix here.
+Both were picked when the brief was "darker is better", and both were the
+darkest thing in the pack — which is exactly what went wrong. Measured through a
+one-pole 500 Hz high-pass (the same filter for every number here):
+
+| Slot | Was | Above 500 Hz | Now | Above 500 Hz |
+| ---- | --- | ------------ | --- | ------------ |
+| `chomp` | `impactSoft_medium_004` | **2.7%** | `crunchybite_0` | **57%** |
+| `eat` | `impactSoft_heavy_003` | **1.6%** | `crunch.2` | **89%** |
+
+Almost all of their energy sat below 500 Hz, where a laptop or phone speaker
+puts out essentially nothing. They were not quiet on a meter; they were quiet in
+the only band most people can hear.
+
+**Their gains are set by a different rule from the other three, and it matters.**
+Normalising these to the same total loudness as the thuds they replace would
+mean a gain of 2.5 and a peak of 2.29 — clipping badly, to chase a number that
+describes energy nobody hears. They are set to the loudest a safe peak allows
+instead:
+
+| Sound | Peak | Gain | Peak after gain | Audible-band energy vs before |
+| ----- | ---- | ---- | --------------- | ----------------------------- |
+| `chomp` | 0.773 | 1.01 | 0.78 | — (it replaced a sound with none) |
+| `eat` | 0.919 | 1.03 | 0.95 | **24×** |
+
+On a meter the eat is quieter than what it replaces. On a speaker it is
+dramatically louder, because the energy moved into a band that exists.
+
+`crunch.2` is 1.10s against the old 0.54s, which suits the slot: eating is a
+longer event than the snap that starts it, and it fires once a meal rather than
+on every input. It comes from tito's *7 Eating Crunches* — a pack of literal
+eating sounds, which is what this always wanted.
 
 ### Superseded (kept for the record)
 

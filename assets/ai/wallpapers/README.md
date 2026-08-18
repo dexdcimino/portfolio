@@ -46,8 +46,8 @@ adding a sixth needs no CSS or JS edit.
   re-encoding it would defeat that.
 - **The page never shows a master.** The carousel and the lightbox both use
   baked AVIF/WebP off the `wallpaper` ladder in `tools/image_slots.py`
-  (2560/1920/1280/900/600). The top rung exists for the lightbox at 90vw, not
-  for the card.
+  (1920/1280/900/600). The top rung exists for the lightbox at 90vw, not for the
+  card. **2560 was dropped on 2026-08-17** — see below.
 - **One picture, two sizes.** Thumbnails are the same `<picture>` cloned with a
   `120px` `sizes`, and the lightbox is the same one cloned with `90vw`. That is
   why there is no separate thumbnail master and no second slot.
@@ -55,9 +55,18 @@ adding a sixth needs no CSS or JS edit.
 ## Weight
 
 The five pieces here are real art and painted, so they compress nothing like the
-gradient placeholders they replaced. At the rungs the carousel actually serves
-(900 on a normal desktop) everything is 20–60 KB. The busiest pieces — Amphibious,
-Slick Anarchy, BASE Jump — run 160–240 KB at the 1920 and 2560 rungs, which a
-Retina desktop and the full-size lightbox will reach. That is over the site's
-150 KB-per-image budget; it is a deliberate, flagged exception for a tab whose
-whole job is showing art at size, not an oversight. Revisit it if the set grows.
+gradient placeholders they replaced. At the rung the carousel actually serves
+(900 on a normal desktop) everything is 20–60 KB, well inside the site's
+150 KB-per-image budget.
+
+**The 2560 rung is gone** (Dex, 2026-08-17). It was the worst offender at
+225–280 KB for the three busiest pieces, and it only ever served the lightbox on
+a 2560-wide display. Dropping it means such a display now upscales the 1920 file
+by about 20% in that one opt-in view — far cheaper than the budget breach.
+
+What remains over budget is the **1920** rung on Amphibious (163 KB), Slick
+Anarchy (171 KB) and BASE Jump (198 KB), reached by the lightbox and by a Retina
+desktop. That is a knowing exception, not an oversight: this is a tab whose whole
+job is showing art at size. If it needs closing later, the lever is the encoder
+quality for this role, not another rung — and that is a pipeline-wide setting
+(`AVIF q=58 / WebP q=76`) that CLAUDE.md says not to change casually.

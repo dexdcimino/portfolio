@@ -74,12 +74,20 @@ export function legacyAudioLevel() {
    keeps the shipped files byte-identical to the CC0 pack, which is what makes
    the CREDITS rename map verifiable.
 
+   Two of them (chomp, eat) are set by a different rule and it matters: their
+   replacements are crunches, where the energy sits an octave or two above the
+   thuds they replace. Matching TOTAL loudness across spectra that different
+   would have meant a gain of 2.5 and a peak of 2.29 — clipping, to chase a
+   number. They are set to the loudest a safe peak allows instead, which is
+   quieter on a meter and far louder on a speaker, because the energy is now in
+   a band a laptop can actually reproduce. See CREDITS.md.
+
    `cap` is per sound and follows how fast the thing can fire: chomp is
    spammable, death happens once. */
 let samples = null;
 const SAMPLES = {
   chomp:    ['chomp.ogg',     { cap: 5, gain: 1.01 }],
-  eat:      ['eat.ogg',       { cap: 4, gain: 0.68 }],
+  eat:      ['eat.ogg',       { cap: 4, gain: 1.03 }],
   evolve:   ['evolve.ogg',    { cap: 2, gain: 1.13 }],
   death:    ['death.ogg',     { cap: 1, gain: 1.31 }],
   uiSelect: ['ui-select.ogg', { cap: 3, gain: 0.73 }],
@@ -97,12 +105,12 @@ const SAMPLES = {
    The number moves with every track and the loudness does not: each swap is
    re-measured in the loudest 300 ms window and the gain scaled to land on the
    level that was signed off. 0.45 (Arena 1) → 0.57 (Dark Shrine, 0.193) →
-   0.73 (Boss Battle 6 Metal, 0.1506): 0.57 × (0.193 / 0.1506) ≈ 0.73. The
-   number moving is not a mix decision, it is the same loudness meeting a
-   different recording. Headroom: 0.73 × its 0.574 peak is 0.42.
+   0.53 (Dungeon Deep, 0.2075): 0.57 × (0.193 / 0.2075) ≈ 0.53. The number
+   moving is not a mix decision, it is the same loudness meeting a different
+   recording. Headroom: 0.53 × its 0.646 peak is 0.34.
    `loop = true` on the BufferSource is a sample-accurate loop with no gap —
    the reason this is a decoded buffer and not an <audio> element. */
-const MUSIC_GAIN = 0.73;
+const MUSIC_GAIN = 0.53;
 let musicNode = null;
 function startMusic() {
   if (musicNode || !samples || !busGraph) return;
