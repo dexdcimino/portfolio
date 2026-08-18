@@ -116,6 +116,25 @@ export async function launch({ width = 900, height = 560, port = 9222, gpu = fal
   }
 
   const browser = await connect(version.webSocketDebuggerUrl);
+
+  /* A HEADLESS CHROME STILL WRITES TO YOUR REAL DOWNLOADS FOLDER.
+     The throwaway --user-data-dir above isolates history, cookies and cache but
+     NOT the download directory: that falls back to the OS default. So anything
+     a driven page manages to trigger — a click that lands on a download
+     control, a keyboard activation on a focused one — drops a real file into
+     the folder a person actually uses, and it is invisible afterwards: no
+     history row, because this profile is thrown away, and no mark-of-the-web,
+     because 127.0.0.1 is a local-zone origin. That combination is what made a
+     wallpaper appear in Downloads on 2026-08-18 with nothing to explain it.
+     Screenshots and perf traces have no business downloading anything, so the
+     honest setting is `deny` rather than a redirect: a download that should not
+     be happening should fail, not land somewhere quieter.
+     Best-effort — a Chrome too old to know the command must not take the
+     tooling down with it. */
+  try {
+    await browser.send('Browser.setDownloadBehavior', { behavior: 'deny' });
+  } catch { /* older Chrome: nothing to turn off */ }
+
   return {
     version: version.Browser,
     browser,
