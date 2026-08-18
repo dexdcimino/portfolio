@@ -242,12 +242,27 @@ export const HYPER = {
   lockCone: 1.15,        // radians from the departure heading
 };
 
+/**
+ * The neutral grade every world ships with, T1.
+ *
+ * A LUT is the last thing the frame passes through, and the six palettes here
+ * are authored and approved, so the transplant lands the plumbing rather than a
+ * look: `identity.3dl` is a baked no-op and every profile below points at it.
+ * The slot is what matters — a world that wants its own grade replaces one
+ * string in its own profile and nothing else in the program changes.
+ *
+ * Declared above PLANETS on purpose: the profiles read it, and a const read out
+ * of the temporal dead zone throws at module load.
+ */
+export const NEUTRAL_LUT = 'assets/luts/identity.3dl';
+
 export const PLANETS = {
   home: {
     key: 'home',
     name: 'Home',
     radius: 1036,
     seed: 'surveyor-home',
+    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
     waterY: 0,
     relief: 1036 / 20,        // ~52m, the cap the MD's radius table gives
 
@@ -309,6 +324,7 @@ export const PLANETS = {
     name: 'Ember',
     radius: 207,
     seed: 'surveyor-ember',
+    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
     /* No water at all, said as a flag rather than as a waterline a kilometre
        underground. The -1000 this used to carry did express "dry", but it also
        moved the whole datum: with sea level applied properly Ember's ground
@@ -409,6 +425,7 @@ export const PLANETS = {
     name: 'Tarn',
     radius: 414,
     seed: 'surveyor-tarn',
+    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
     /* The whole identity in one number. Home's mean surface sits near +5.9m,
        so a waterline above that drowns everything except the peaks and leaves
        an archipelago. Raising water is cheaper and truer than lowering land:
@@ -489,6 +506,7 @@ export const PLANETS = {
     name: 'Vault',
     radius: 829,
     seed: 'surveyor-vault',
+    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
     // Ice sits where Home's water does; what differs is the SURFACE RULE, and
     // that is not a terrain weight — see NEEDS DEX, it is still to be wired.
     waterY: 0,
@@ -569,6 +587,7 @@ export const PLANETS = {
     name: 'Shroud',
     radius: 1451,
     seed: 'surveyor-shroud',
+    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
     /* Pools in the valley floors, which at -2 was 43% of the world — a sea. -12
        leaves 19%: standing water only where the valleys actually bottom out,
        which is what makes the flooding hazard here a thing you drive into
@@ -652,6 +671,7 @@ export const PLANETS = {
     name: 'Anvil',
     radius: 2072,
     seed: 'surveyor-anvil',
+    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
     /* Sparse, and now actually sparse. At -14 the corrected waterline put 22%
        of Anvil under water, which is a coastline, not "a few canyon-floor
        rivers". -24 leaves 10%: the water is only in the deepest cuts, which is
@@ -1183,20 +1203,151 @@ export const CAM = {
 // Post pass and everything else that sells "there is air between you and that
 // mountain". Bloom replaces the old GlowLayer, which had no depth test and so
 // leaked haloes straight through hillsides.
-export const ATMO = {
-  bloom: true,
-  // Terrain peaks land just under 1.0 and emissive parts are authored well
-  // above it, so the threshold is the clean dividing line between "lit object"
-  // and "bright rock". Drop it and the mountains start glowing.
-  bloomThreshold: 1.0,
-  bloomWeight: 0.45,
-  bloomKernel: 40,          // wider than this and the haloes swallow the craft
-  bloomScale: 0.5,
-  fxaa: true,
-  contrast: 1.22,
+/**
+ * THE POST STACK — transplanted from the lookdev testbed, T1.
+ *
+ * `js/render/post.js` reads this and nothing else, under the key `post`. The
+ * shape is lookdev's; the numbers are Surveyor's, because the two projects are
+ * lit differently and every value here was already argued about once in ATMO
+ * below. What is NEW is ACES, SSAO and the LUT slot.
+ *
+ * WHAT THE PALETTES ARE AND ARE NOT. Six worlds ship authored, approved
+ * palettes, and lookdev's golden-hour grade would break five of them at once.
+ * So the LUT plumbing lands live but NEUTRAL: `identity.3dl` on all six, per
+ * world, in each profile's `lut`. That proves the pipe end to end and changes
+ * nothing about the colour, which is the point — grading per world is a later
+ * pass, and it wants T2's lighting under it before there is anything worth
+ * grading.
+ *
+ * lookdev's numbers came off ONE 880M iGPU at low tier. They are not portable
+ * and none of them is treated as such here.
+ */
+export const POST = {
+  enabled: true,
+  hdr: true,                   // float pipeline, so bloom can threshold above 1
+  /* ACES, where Surveyor had NO tonemapping at all: the old comment said "the
+     palette is hand-picked; leave it", which was right when nothing else in the
+     frame went above 1.0 except the emissives. It is the single biggest change
+     in this transplant, and contrast is the number that had to move to pay for
+     it: ACES applies its own S-curve, so the old 1.22 was being charged twice.
+
+     EXPOSURE STAYS AT 0.97, and that was measured rather than assumed. The
+     first cut raised it to 1.28 on the reasoning that ACES pulls the top end
+     down and the midtones needed putting back — which is true of a scene lit in
+     linear HDR and false of this one. Six palettes are authored to land just
+     under 1.0, so 1.28 pushed every sky into the part of the ACES curve where
+     it desaturates hardest: Ember's sunset went from saturated orange to pale
+     peach, which is exactly the failure this transplant was told not to cause.
+     At 0.97 the curve holds the sky gradient that used to clip instead. */
+  toneMapping: 'aces',         // 'aces' | 'standard' | 'neutral' | 'none'
   exposure: 0.97,
-  vignette: 1.10,
-  grain: 2.4,               // 0 to switch the film grain off
+  contrast: 1.05,
+
+  // Antialiasing: MSAA where affordable, FXAA where not. Never both.
+  fxaa: true,
+  msaaSamples: 1,
+
+  bloom: {
+    enabled: true,
+    /* Surveyor's own, unchanged from ATMO and not lookdev's 1.25. Terrain peaks
+       land just under 1.0 and emissive parts are authored well above it, so 1.0
+       is the clean dividing line between "lit object" and "bright rock". Drop
+       it and the mountains start glowing.
+       This is the threshold Ember's fissures were authored against two phases
+       ago, for a stack that did not exist yet. */
+    threshold: 1.0,
+    weight: 0.45,
+    kernel: 40,                // wider than this and the haloes swallow the craft
+    scale: 0.5,
+  },
+
+  /* SSAO — new, and the reason it is worth having on a cel-shaded world is the
+     same reason lookdev kept it: banded light makes form read, but it says
+     nothing about CONTACT. Where a rock meets the ground, where a canyon wall
+     meets its floor, the bands are identical on both surfaces and the join
+     disappears. This is the only thing in the frame that draws it. */
+  ssao: {
+    enabled: true,
+    // 'half-float' | 'float' | 'byte'. Never 'byte': Babylon's default 8-bit AO
+    // buffer bands smooth occlusion gradients into concentric rings.
+    textureType: 'half-float',
+    // Measured in lookdev at 19.9ms vs 16.0ms against the prepass. Left false
+    // with the numbers recorded so this does not get retried.
+    forceGeometryBuffer: false,
+    ssaoRatio: 0.75,
+    blurRatio: 0.5,
+    samples: 16,
+    /* Metres, and NOT lookdev's 6.0: that was authored for a 4km flat world
+       where the eye is metres above a dune. Surveyor's craft sits 5-7m up on
+       worlds whose whole relief is 10m (Ember) to 104m (Anvil), and 6m of
+       radius there occludes entire hillsides rather than the foot of a rock.
+       2.2 is about the height of the rover, which is the scale of the contact
+       this is for. */
+    radius: 2.2,
+    totalStrength: 1.0,
+    base: 0.0,                 // 0 = AO allowed to reach black
+    /* Metres; no AO past this. The old 900 was longer than half the worlds in
+       this system are wide. Ember's whole fog range ends at 162m. */
+    maxZ: 260,
+    minZAspect: 0.2,
+    epsilon: 0.04,             // depth-comparison slack; too low bands
+    expensiveBlur: true,
+    bilateralSamples: 12,
+    bilateralSoften: 0.2,
+    bilateralTolerance: 0.5,
+  },
+
+  /* The grade. `url` here is only the fallback — the world being drawn sets it
+     through post.setGrade() from its own profile's `lut`, on arrival. */
+  colorGrading: {
+    enabled: true,
+    url: 'assets/luts/identity.3dl',
+    identityUrl: 'assets/luts/identity.3dl',
+    level: 1.0,
+  },
+
+  vignette: {
+    enabled: true,
+    weight: 1.10,
+    stretch: 0.4,
+    // Surveyor's, not lookdev's black: a very slightly blue corner sits with
+    // the fog instead of punching a hole in it.
+    colour: [0.02, 0.05, 0.07, 0],
+    blend: 'multiply',
+    // Pinned. Babylon otherwise computes this from the camera, and Surveyor's
+    // FOV changes per craft and again all the way up the hyper ramp.
+    cameraFov: 1.0,
+  },
+
+  /* Grain is load-bearing, not taste: it dithers dark gradients and is what
+     stops the fog and the sky banding. lookdev settled at 5 after its re-grade.
+     Surveyor's own was 2.4 against an untonemapped frame; ACES compresses the
+     top end and spreads the darks over more codes, which is exactly the
+     condition that needs more dither, so it meets lookdev at 5.0. */
+  grain: {
+    enabled: true,
+    intensity: 5.0,
+    animated: true,
+  },
+
+  // No depth of field. It fights a game where you look at terrain at all
+  // distances — lookdev's reason, and it holds here for the same reason.
+  depthOfField: false,
+
+  viewer: {
+    exposureMin: 0.35,
+    exposureMax: 3.0,
+    exposureStep: 0.05,
+  },
+};
+
+export const ATMO = {
+  /* Bloom, exposure, contrast, vignette, grain and fxaa MOVED to POST above in
+     T1 — they are the post stack's, and the post stack is now one transplanted
+     file that reads one block. What is left here is the atmosphere the SHADERS
+     read, plus the hyper FX, which main.js drives against the pipeline frame by
+     frame and which are Surveyor's alone. */
+  bloom: true,              // still the master switch: false builds no pipeline
   horizonHaze: 0.78,        // how hard the sky sits down into the fog
   sunScatter: 0.85,         // warm fog when you're looking into the sun
   distanceWash: 0.18,       // how much saturation range takes out

@@ -69,7 +69,16 @@ export function serve(root) {
 
 // ---- browser ------------------------------------------------------------
 
-export async function launch({ width = 900, height = 560, port = 9222 } = {}) {
+/**
+ * `gpu: true` renders on the real adapter instead of SwiftShader.
+ *
+ * The default stays software on purpose: it is deterministic, it is what the
+ * screenshot sheets are compared across, and it is available on any machine.
+ * But a frame TIME off SwiftShader is a software rasteriser's frame time and
+ * says nothing about what a player sees, so anything measuring cost rather than
+ * pixels wants this. Verified reachable headless on Windows via ANGLE/D3D11.
+ */
+export async function launch({ width = 900, height = 560, port = 9222, gpu = false } = {}) {
   const exe = findChrome();
   const profile = mkdtempSync(join(tmpdir(), 'surveyor-shots-'));
   const child = spawn(exe, [
@@ -85,8 +94,9 @@ export async function launch({ width = 900, height = 560, port = 9222 } = {}) {
     '--disable-background-timer-throttling',
     // SwiftShader, explicitly. Headless has no GPU to fall back from, and
     // without these two flags the WebGL context creation simply fails.
-    '--use-angle=swiftshader',
-    '--enable-unsafe-swiftshader',
+    ...(gpu
+      ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist']
+      : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
     'about:blank',
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
 

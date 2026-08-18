@@ -19,7 +19,8 @@ import { makePlanet } from './world/sphere.js';
 import { Surface, findSpawn } from './world/surface.js';
 import { neighbours } from './world/discs.js';
 import { previews } from './world/preview.js';
-import { COLORS, ATMO, ROVER, PLANETS, HYPER, DEBUG } from './tune.js';
+import { COLORS, ATMO, POST, ROVER, PLANETS, HYPER, DEBUG } from './tune.js';
+import { createPostStack } from './render/post.js';
 
 const canvas = document.getElementById('stage');
 const engine = new BABYLON.Engine(canvas, true, {
@@ -180,6 +181,10 @@ function swapTo(key, dir, alt) {
   }
   cam.setPlanet(next);
   streaks.setPalette(next);
+  // The world's own grade. Neutral on all six at T1, so this is a no-op that
+  // proves the wire — and the one line that has to exist before any world can
+  // be graded on its own.
+  if (post) post.setGrade(next.lut, POST.colorGrading.level);
   hud.retarget(world.survey, world.field, world.colonies);
   overlay.retarget(world);
   economy.save();
@@ -205,36 +210,23 @@ function devWarp(key) {
 hud.attachWarp(Object.keys(PLANETS), world.planet.key, devWarp);
 
 // ---- post ----------------------------------------------------------------
-// This replaces the old GlowLayer. A glow layer renders its emissive meshes
-// into a separate buffer with no depth information, so haloes came through
-// hillsides. Bloom works on the finished frame instead: if a hill is in front
-// of a beacon, the beacon isn't in the frame, so it can't bloom. Everything
-// that should glow is simply authored above 1.0 in an HDR buffer.
-let pipeline = null;
-if (ATMO.bloom) {
-  pipeline = new BABYLON.DefaultRenderingPipeline('post', true, scene, [cam.camera]);
-  pipeline.fxaaEnabled = ATMO.fxaa;
-  pipeline.bloomEnabled = true;
-  pipeline.bloomThreshold = ATMO.bloomThreshold;
-  pipeline.bloomWeight = ATMO.bloomWeight;
-  pipeline.bloomKernel = ATMO.bloomKernel;
-  pipeline.bloomScale = ATMO.bloomScale;
+/* Bloom replaced a GlowLayer here two phases ago, for a reason that still
+   holds: a glow layer renders its emissive meshes into a separate buffer with
+   no depth information, so haloes came through hillsides. Bloom works on the
+   finished frame instead — if a hill is in front of a beacon, the beacon isn't
+   in the frame, so it can't bloom. Everything that should glow is authored
+   above 1.0 in an HDR buffer.
 
-  const ip = pipeline.imageProcessing;
-  ip.toneMappingEnabled = false;        // the palette is hand-picked; leave it
-  ip.contrast = ATMO.contrast;
-  ip.exposure = ATMO.exposure;
-  ip.vignetteEnabled = true;
-  ip.vignetteWeight = ATMO.vignette;
-  ip.vignetteColor = new BABYLON.Color4(0.02, 0.05, 0.07, 0);
-  ip.vignetteCameraFov = 1.0;
+   T1 replaced the hand-rolled pipeline with the transplanted stack from the
+   lookdev testbed. What that buys, beyond the same bloom: ACES tonemapping,
+   SSAO, and a colour-grading LUT per world. Every number lives in POST.
 
-  if (ATMO.grain > 0) {
-    pipeline.grainEnabled = true;
-    pipeline.grain.intensity = ATMO.grain;
-    pipeline.grain.animated = true;
-  }
-}
+   `post.pipeline` is Babylon's own DefaultRenderingPipeline, the same object
+   this file used to build itself, which is why the hyper FX below needed no
+   change at all — they drive chromatic aberration, grain and vignette straight
+   onto it, and none of that is the stack's business. */
+const post = ATMO.bloom ? createPostStack(scene, cam.camera, { post: POST }) : null;
+const pipeline = post ? post.pipeline : null;
 
 /**
  * The post chain under speed.
@@ -247,6 +239,8 @@ if (ATMO.bloom) {
  * Everything is a plain function of hyperT, so there is no state to leave
  * switched on: the number returns to zero on arrival and so does the frame.
  */
+if (post) post.setGrade(planet.lut, POST.colorGrading.level);
+
 let hyperWas = -1;
 function hyperPost(t) {
   if (!pipeline || t === hyperWas) return;
@@ -259,8 +253,10 @@ function hyperPost(t) {
   } else if (pipeline.chromaticAberrationEnabled) {
     pipeline.chromaticAberrationEnabled = false;
   }
-  if (ATMO.grain > 0) pipeline.grain.intensity = ATMO.grain + ATMO.hyperGrain * sq;
-  pipeline.imageProcessing.vignetteWeight = ATMO.vignette + ATMO.hyperVignette * sq;
+  if (POST.grain.enabled) {
+    pipeline.grain.intensity = POST.grain.intensity + ATMO.hyperGrain * sq;
+  }
+  pipeline.imageProcessing.vignetteWeight = POST.vignette.weight + ATMO.hyperVignette * sq;
 }
 
 // Warm the terrain around the spawn point before the first frame is shown.
@@ -424,8 +420,8 @@ document.body.classList.add('ready');
 // Exposed for tuning from the console — ROVER.sinkDepth and friends are the
 // dials most likely to be argued with after a first drive.
 window.SURVEYOR = {
-  craft, cam, sound, pipeline, ROVER, worlds, scene, streaks, economy, geyserTotals,
-  overlay, previewBake,
+  craft, cam, sound, pipeline, post, ROVER, worlds, scene, streaks, economy,
+  geyserTotals, overlay, previewBake,
   get raiders() { return world.colonies.raiders; },
   get world() { return world; },
   get planet() { return world.planet; },

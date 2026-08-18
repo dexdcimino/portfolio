@@ -52,7 +52,14 @@ package.json          "type": "module", and nothing else. The portfolio repo
                       this lives in declares "commonjs" at its root, which made
                       dev/*.mjs unable to import a .js game module at all
 vendor/babylon.js     9.21.2, UMD, from npm
+assets/luts/          the colour-grading LUT. identity.3dl only — see CREDITS.md
+tools/bake_lut.py     writes it. Authoring-time only; the .3dl is the derivative
 js/
+  babylon.js          the transplanted stack's one point of contact with the
+                      BABYLON global. Nothing Surveyor wrote itself uses it
+  render/post.js      TRANSPLANTED (T1) from the lookdev testbed: ACES, bloom,
+                      SSAO, the LUT, vignette, grain, FXAA. Imports only ./ and
+                      ../babylon.js and takes all config as an argument
   tune.js             every tuning number, one file
   core/               rng (mulberry32 + hashStr + rngFor), events, pool
   world/
@@ -95,6 +102,27 @@ dev/cdp.mjs           the ~150-line DevTools client it runs on. No dependencies
 dev/history/          the standalone repo this game was built in, as a git
                       bundle. Read-only archive; see its README
 ```
+
+## The post stack is transplanted, and the boundary is the point
+
+`js/render/` came out of the lookdev testbed (T1) and holds to one rule: it
+imports only from itself and `js/babylon.js`, and every module takes its
+configuration as an argument. That is what let the post stack land here with no
+adapter layer, and it is what the next transplants — lighting, materials, sky —
+depend on. Do not reach into `js/tune.js` from anything under `js/render/`.
+
+What T1 added over the pipeline this file used to build by hand: ACES
+tonemapping, SSAO, and a per-world colour-grading LUT. What it did NOT add is a
+look. Six worlds ship authored palettes, so all six point at a baked neutral
+LUT: the plumbing is live and proven — an identity grade moves the frame's mean
+by 0.6/255, a real one by 10 — and the colour is unchanged. Grading per world
+comes after T2's lighting, when there is something worth grading.
+
+Two numbers moved to pay for ACES, and both are argued in `POST` in `tune.js`:
+contrast came down (ACES applies its own S-curve, so 1.22 was charging twice),
+and exposure did NOT go up. Raising it to 1.28 pushed every authored sky into
+the part of the curve where ACES desaturates hardest and turned Ember's sunset
+pale. Measured, on all six.
 
 TEMPORARY: the HUD carries a **dev warp** row — six buttons, one per world,
 current one lit, click to arrive there. It calls the same `swapTo` a hyper
