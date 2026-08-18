@@ -24,6 +24,7 @@ import { Water } from './water.js';
 import { createSky } from './sky.js';
 import { Discs } from './discs.js';
 import { Shadows } from './shadows.js';
+import { CONTACT } from '../tune.js';
 import { Survey } from '../game/survey.js';
 import { Colonies } from '../game/colony.js';
 
@@ -54,6 +55,7 @@ export class World {
        — a list holding disposed meshes grows without bound and Babylon will
        happily try to draw them. */
     this.shadows = new Shadows(scene, planet, this.mats.skyParams.sunDir);
+    this._contactTmp = { x: 0, y: 0, z: 0 };
     this.field = new ChunkField(scene, this.mats.terrain, planet);
     this.field.onBuild = (mesh) => this.shadows.addCaster(mesh);
     this.field.onDrop = (mesh) => this.shadows.removeCaster(mesh);
@@ -71,6 +73,37 @@ export class World {
     this.field.update(dir);
     for (let i = 0; i < budget && this.field.queue.length; i++) this.field.update(dir);
     this.survey.update(0.016);
+  }
+
+  /**
+   * The craft's contact shadow: where it meets the ground, and how much.
+   *
+   * The ground point is the terrain height under the craft's own tangent
+   * coordinates, not the craft's position — a rover on a slope sits above the
+   * point its shadow belongs on, and a jet sits a long way above it. Faded out
+   * with altitude, because a craft at fifty metres painting a hard disc under
+   * itself is worse than no contact shadow at all.
+   */
+  contact(craft) {
+    if (!CONTACT.enabled || !craft || !craft.surf) {
+      this.mats.setContact(this._contactAt || BABYLON.Vector4.Zero(), 0);
+      return;
+    }
+    const p = craft.pos;
+    const gy = craft.surf.surfaceHeight(p.x, p.z);
+    const alt = Math.max(0, p.y - gy);
+    const k = CONTACT.strength *
+      (1 - Math.min(1, Math.max(0, (alt - CONTACT.fadeFrom) /
+        (CONTACT.fadeTo - CONTACT.fadeFrom))));
+    if (k <= 0.001) { this.mats.setContact(this._contactVec(0, 0, 0, 1), 0); return; }
+    const w = craft.surf.toWorld(p.x, gy, p.z, this._contactTmp);
+    this.mats.setContact(this._contactVec(w.x, w.y, w.z, CONTACT.radius), k);
+  }
+
+  _contactVec(x, y, z, r) {
+    if (!this._contactAt) this._contactAt = new BABYLON.Vector4(0, 0, 0, 1);
+    this._contactAt.set(x, y, z, r);
+    return this._contactAt;
   }
 
   setActive(on) {
@@ -115,6 +148,7 @@ export class World {
     // stationary rover.
     this.shadows.update(craft.world);
     this.mats.syncShadows(this.shadows);
+    this.contact(craft);
   }
 }
 

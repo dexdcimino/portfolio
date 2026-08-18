@@ -121,6 +121,9 @@ export class Shadows {
 
     scene.customRenderTargets.push(this.rtt);
 
+    // One texel's width on the ground, which is the unit the depth error is
+    // actually in and therefore the unit the normal offset is stated in.
+    this.texelWorld = this.cfg.range / this.cfg.mapSize;
     this.sun = V3(sunDir).normalize();
     this.matrix = BABYLON.Matrix.Identity();
     this._centre = new BABYLON.Vector3();

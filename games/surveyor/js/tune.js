@@ -242,11 +242,54 @@ export const SHADOW = {
   mapSize: 2048,
   range: 400,           // metres across the box, centred on the craft
   strength: 0.75,       // how much of the key a full shadow removes
-  /* Depth slack, in the 0..1 the ortho box maps to. Scaled by slope in the
-     shader, because a face turned away from the sun crosses more depth per
-     texel and that is exactly where acne starts. */
-  bias: 0.0016,
-  softness: 0.00075,    // PCF tap spacing, in shadow-map UV
+
+  /* NORMAL-OFFSET BIAS, in texels of the shadow map, and it replaced a constant
+     depth bias that could not be made to work.
+     A constant bias fails at grazing angles by construction: the depth error
+     across one texel grows as 1/cos(angle between the normal and the light), so
+     any value large enough to stop acne on a slope has detached the shadow on
+     the flats before it got there. Both failures at once, which is exactly what
+     that looked like. Offsetting the SAMPLE POSITION along the surface normal
+     instead moves it in the direction the error actually lies, so one number
+     holds across every angle. This is metres at the shader, computed from the
+     texel's world size — a 400m box on a 2048 map is 20cm a texel, so 1.4 of
+     them is 27cm of offset. */
+  normalOffset: 1.4,
+  // A little depth slack on top, for the sliver right at a contact edge where
+  // the normal offset has nowhere to push.
+  depthBias: 0.00025,
+
+  /* PCF, in texels. 4x4 taps: a hard shadow-map edge on a cel-banded surface
+     reads as an artifact rather than as a shadow, because everything else in
+     the frame has deliberate hard edges and this one is the wrong shape. 16
+     taps at 1.6 texels is a ~6 texel penumbra, which at 20cm a texel is a hand's
+     width of softness — enough to read as a shadow, not enough to smear the
+     contact. */
+  softness: 1.6,
+};
+
+/**
+ * The craft's contact shadow.
+ *
+ * A guaranteed blob under the rover, independent of the sun, the world, and
+ * whether that world has cast shadows at all. Ember has none and the rover
+ * still has to sit on the ground there; so does anything flying at an angle
+ * where its cast shadow has gone somewhere else entirely.
+ *
+ * Drawn IN THE TERRAIN SHADER rather than as a decal mesh. The terrain already
+ * knows its own world position, so a distance test against the craft's ground
+ * point costs one subtract and follows every fold of the ground exactly — where
+ * a projected disc would clip into slopes and hover over hollows, which is the
+ * failure that makes blob shadows look cheap.
+ */
+export const CONTACT = {
+  enabled: true,
+  radius: 4.2,          // metres. The rover is about 3m across the tracks
+  strength: 0.55,       // how much of the key it removes at the centre
+  // Metres of altitude over which it fades out. A jet at fifty metres should
+  // not be painting a hard disc on the ground under itself.
+  fadeFrom: 3.0,
+  fadeTo: 26.0,
 };
 
 /**

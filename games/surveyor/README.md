@@ -154,6 +154,19 @@ a sun at all" and its light comes off the ground. A directional sun shadow map
 there draws shadows cast by a light that is not doing the lighting. Off, not
 tuned down.
 
+**Normal-offset bias, not a constant depth bias**, and the first cut had the
+constant one. It cannot be made to work: the depth error across a texel grows as
+1/cos of the angle between the normal and the light, so any value large enough
+to stop acne on a slope has already detached the shadow on the flats. Both
+failures at once, which is exactly what it looked like. Offsetting the sample
+position along the surface normal moves it in the direction the error actually
+lies, and one number then holds at every angle.
+
+**The sun elevations here are 38-59 degrees**, not lookdev's 5.8. A 2m rover
+casts 1.2-2.5m on the five worlds that have shadows. Ember is the only low one
+at 13.9 and its shadows are off. Worth knowing before anyone reaches for the
+sun angle to fix a shadow problem — on this project it is not the cause.
+
 Two things cost a while to find and are worth not rediscovering. Babylon's
 Camera constructor registers every camera in `scene.cameras` whatever you pass
 it, and T1's SSAO2 runs off the prepass — which follows every entry in

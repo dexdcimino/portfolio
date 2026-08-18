@@ -249,13 +249,18 @@ function registerShaders() {
        uTriFade   detail fade start/end, macro relax start/end, in metres */
     uniform sampler2D uTriFlat, uTriSteep, uTriHigh;
     uniform vec4 uTriScale, uTriSlope, uTriMix, uTriFade;
-    /* Cast shadows. uShadowP: x strength, y bias, z fade start, w fade end —
-       the last two in metres from the box centre, so the term is gone before
-       the box edge rather than ending at a visible square. */
+    /* Cast shadows.
+       uShadowP  x strength, y normal offset in METRES, z depth bias,
+                 w half the box, so the term fades before the box edge rather
+                 than ending at a visible square
+       uShadowS  PCF tap spacing, in shadow-map UV
+       uContact  xyz the craft's ground point, w its radius in metres
+       uContactK the contact blob's strength, already faded by altitude */
     uniform sampler2D uShadowMap;
     uniform mat4 uShadowMat;
-    uniform vec4 uShadowP;
+    uniform vec4 uShadowP, uContact;
     uniform vec3 uShadowAt;
+    uniform float uShadowS, uContactK;
     /* Split from uTriMix.x on purpose. The perturbed NORMAL and the detail
        LUMINANCE do very different things to a chart: the normal changes how the
        ground catches light, which the contour lines do not care about, while
@@ -405,24 +410,45 @@ function registerShaders() {
          on a low sun, anything more costs more than it shows at this map size. */
       float shadow = 1.0;
       if (uShadowP.x > 0.001) {
-        vec4 ls = uShadowMat * vec4(vW, 1.0);
+        /* NORMAL-OFFSET BIAS. The sample position is pushed along the surface
+           normal before it is projected, rather than the depth being nudged
+           after. A constant depth bias fails at grazing angles by construction
+           — the error across a texel goes as 1/cos, so the value that stops
+           acne on a slope has already detached the shadow on the flats — and
+           this moves the sample in the direction the error actually lies, so
+           one number holds everywhere. Scaled up as the surface turns away from
+           the light, which is where a texel spans the most depth. */
+        float ndl = clamp(dot(N, uLight), 0.0, 1.0);
+        vec3 sp = vW + N * uShadowP.y * (1.0 + 2.0 * (1.0 - ndl));
+        vec4 ls = uShadowMat * vec4(sp, 1.0);
         vec3 sc = ls.xyz / ls.w * 0.5 + 0.5;
         if (sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0) {
-          // Bias scaled by slope: a face turned away from the sun crosses more
-          // depth per texel and needs more slack, which is where acne starts.
-          float bias = uShadowP.y * (1.0 + 3.0 * (1.0 - clamp(dot(N, uLight), 0.0, 1.0)));
+          /* 4x4 PCF. A hard shadow-map edge on a cel-banded surface reads as an
+             artifact and not as a shadow: everything else in this frame has
+             deliberate hard edges, and this one is the wrong shape for them. */
           float lit = 0.0;
-          for (int yy = -1; yy <= 1; yy++) {
-            for (int xx = -1; xx <= 1; xx++) {
-              vec2 o = vec2(float(xx), float(yy)) * uShadowP.z;
-              lit += step(sc.z - bias, texture2D(uShadowMap, sc.xy + o).r);
+          for (int yy = 0; yy < 4; yy++) {
+            for (int xx = 0; xx < 4; xx++) {
+              vec2 o = (vec2(float(xx), float(yy)) - 1.5) * uShadowS;
+              lit += step(sc.z - uShadowP.z, texture2D(uShadowMap, sc.xy + o).r);
             }
           }
-          lit /= 9.0;
-          // Out over the last of the box, so the edge is never a visible square.
+          lit /= 16.0;
           float far = smoothstep(uShadowP.w * 0.72, uShadowP.w, distance(vW, uShadowAt));
           shadow = mix(mix(1.0 - uShadowP.x, 1.0, lit), 1.0, far);
         }
+      }
+
+      /* The craft's contact shadow, and it is not the cast shadow's job.
+         Independent of the sun, of the world, and of whether this world has
+         cast shadows at all — Ember has none and the rover still has to sit on
+         the ground there. Drawn here rather than as a decal because the terrain
+         already knows its own world position, so this follows every fold of the
+         ground instead of clipping into slopes and hovering over hollows. */
+      if (uContactK > 0.001) {
+        float cd = distance(vW, uContact.xyz);
+        shadow *= 1.0 - uContactK *
+          (1.0 - smoothstep(uContact.w * 0.40, uContact.w, cd));
       }
 
       /* T3: the surface normal the LIGHT sees. Perturbed after the palette and
@@ -1018,7 +1044,8 @@ export function createMaterials(scene, planet) {
         'uDetail', 'uRelief', 'uShade', 'uRim', 'uSpec', 'uEmit', 'uEmitFrom',
         'uEmitCol', 'uEmitHot', 'uLightMix', 'uSunCol', 'uRimP',
         'uTriScale', 'uTriSlope', 'uTriMix', 'uTriFade', 'uTriDetail',
-        'uShadowMat', 'uShadowP', 'uShadowAt'],
+        'uShadowMat', 'uShadowP', 'uShadowAt', 'uShadowS',
+        'uContact', 'uContactK'],
       samplers: ['uTriFlat', 'uTriSteep', 'uTriHigh', 'uShadowMap'],
     });
   /* T3 — triplanar. Fade distances arrive as fractions of the fog range so a
@@ -1161,13 +1188,29 @@ export function createMaterials(scene, planet) {
        materials.js knows the terrain material and shadows.js knows the map, and
        neither has to import the other. Called once when a world is built. */
     bindShadows(sh) {
+      terrain.setVector4('uContact', new BABYLON.Vector4(0, 0, 0, 1));
+      terrain.setFloat('uContactK', 0);
       if (!sh || !sh.rtt) {
         terrain.setVector4('uShadowP', new BABYLON.Vector4(0, 0, 0, 0));
+        terrain.setFloat('uShadowS', 0);
         return;
       }
       terrain.setTexture('uShadowMap', sh.rtt);
+      /* The normal offset arrives in METRES: tune states it in texels, because
+         that is the unit the error is actually in, and the texel's world size
+         is a property of this world's box. One multiply here rather than a
+         second uniform and a divide in every fragment. */
       terrain.setVector4('uShadowP', new BABYLON.Vector4(
-        sh.cfg.strength, sh.cfg.bias, sh.cfg.softness, sh.cfg.range * 0.5));
+        sh.cfg.strength, sh.texelWorld * sh.cfg.normalOffset,
+        sh.cfg.depthBias, sh.cfg.range * 0.5));
+      terrain.setFloat('uShadowS', sh.cfg.softness / sh.cfg.mapSize);
+    },
+
+    /** The craft's ground point, per frame. Zero strength when it is nowhere
+     *  near the ground, or when there is no craft yet. */
+    setContact(at, strength) {
+      terrain.setVector4('uContact', at);
+      terrain.setFloat('uContactK', strength);
     },
 
     /** Per frame: the box moves with the craft, so the matrix does too. */
