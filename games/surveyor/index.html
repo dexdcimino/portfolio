@@ -102,6 +102,12 @@
   <div id="toast"></div>
 </div>
 
+<!-- The pause overlay. Filled by js/pausemenu.js; shown and hidden by
+     main.js, which owns the pause ladder — see the contract at the top of that
+     module. Outside #hud on purpose: the HUD is pointer-events:none so the
+     canvas gets clicks, and a menu inside it could not be clicked. -->
+<div id="paused" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Paused"></div>
+
 <div id="start">
   <div id="card">
     <h1>SURVEYOR</h1>
@@ -131,5 +137,6 @@
 
 <script src="vendor/babylon.js"></script>
 <script type="module" src="js/main.js"></script>
+<script type="module" src="js/pausemenu.js"></script>
 </body>
 </html>

@@ -21,6 +21,14 @@ import { launch, serve, evaluate, wait } from './cdp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
+/* SERVED FROM THE REPO ROOT, not from this game's folder, and the game is
+   loaded at its real path. js/pausemenu.js imports the shared audio mixer from
+   games/_shared/ — one directory ABOVE this game — which is correct on the site
+   and a 404 against a server rooted here. Serving the root is also simply more
+   honest: it is the path the game actually ships at. */
+const SITE = resolve(HERE, '../../..');
+const GAME = '/games/surveyor/';
+
 const OUT = join(HERE, 'shots');
 
 const argv = process.argv.slice(2);
@@ -159,7 +167,21 @@ const SKYWARD = `(async () => {
   };
 })()`;
 
-const { server, port, close: closeServer } = await serve(ROOT);
+/* KNOWN, OPEN, AND NOT THE GAME.
+   Occasionally a world's captured PNG comes back wearing the previous world's
+   sky — Vault after Ember, most often. The game is fine: probed in the same
+   browser and the same sequence, that world's sky uniforms are correct, a
+   readPixels off the framebuffer returns the right colour, and an independent
+   harness running the identical setup captures it correctly. It is something
+   between the render and Page.captureScreenshot, on an engine that runs
+   preserveDrawingBuffer:false.
+   Two things were tried and neither fixed it, so neither is in this file:
+   waiting after Target.closeTarget for the GPU context to release, and
+   capturing twice to force a fresh composite. Until it is understood, CHECK THE
+   SHEET — a world wearing a neighbour's sky is this, and re-shooting that world
+   alone has been correct every time. */
+
+const { server, port, close: closeServer } = await serve(SITE);
 const chrome = await launch({ width: W, height: H });
 console.log(`${chrome.version}, serving ${ROOT} on :${port}\n`);
 
@@ -191,7 +213,7 @@ for (const key of KEYS) {
   await page.send('Emulation.setDeviceMetricsOverride',
     { width: W, height: H, deviceScaleFactor: 1, mobile: false });
 
-  await page.send('Page.navigate', { url: `http://127.0.0.1:${port}/?planet=${key}` });
+  await page.send('Page.navigate', { url: `http://127.0.0.1:${port}${GAME}?planet=${key}` });
   let info;
   try {
     info = await evaluate(page, READY);
@@ -230,6 +252,7 @@ for (const key of KEYS) {
 
   await chrome.browser.send('Target.closeTarget', { targetId: page.targetId });
   await page.close();
+
   await wait(150);
 }
 
@@ -250,7 +273,7 @@ if (KEYS.length > 1) {
 
     const page = await chrome.newPage();
     await page.send('Page.enable');
-    await page.send('Page.navigate', { url: `http://127.0.0.1:${port}/dev/shots/${html}` });
+    await page.send('Page.navigate', { url: `http://127.0.0.1:${port}${GAME}dev/shots/${html}` });
     await wait(1200);
     const size = await evaluate(page, `(async () => {
       await new Promise((r) => requestAnimationFrame(r));
