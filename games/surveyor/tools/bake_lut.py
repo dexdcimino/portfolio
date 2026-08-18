@@ -41,78 +41,43 @@ LUMA = (0.2126, 0.7152, 0.0722)
 
 
 # ============================================================================
-# home-golden-hour — the active grade
+# ONE GRADE, SIX PARAMETER SETS
 # ============================================================================
 #
-# THE INVERSION. The night grade's whole job was removing midtones: crush to
-# blue-black, desaturate broadly, let one cold key and an emissive cyan carry
-# three separate value bands. This grade does the opposite in every term.
+# Surveyor has six worlds with authored palettes and each wants its own mood, so
+# what used to be two hand-written functions is now one function and a table.
+# That is not tidiness for its own sake: the cyan protection below has to be
+# identical on all six, and the surest way to keep six copies identical is to
+# have one.
 #
-#   - Nothing is crushed. BLACK_POINT is 0 and the toe LIFTS instead, because
-#     the target's shadows are open and filled by sky light, not empty.
-#   - Saturation goes ABOVE 1. Colour now lives in the surface — warm ochre
-#     stone — where before it lived only in the light.
-#   - The tint is a SPLIT TONE, warm highlights against cool shadows, which is
-#     what a low warm sun against a big blue sky physically does. The night
-#     grade tinted both ends cold.
+# WHERE THE GRADE LIVES. Babylon applies colour grading in *gamma space*, after
+# ACES tonemapping and contrast, so everything here operates on display-referred
+# sRGB values in 0..1. js/tune.js only chooses which file a world loads.
 #
-# What carries over unchanged is the idea of protecting one hue band by name.
-# Cyan is still the reserved colour; its job changed from bioluminescence to
-# technology, but the grade's treatment of it did not.
+# WHITE MUST STAY WHITE. Babylon's 3DL loader divides every entry by the largest
+# in the file, so a grade whose brightest output is 0.95 is silently rescaled
+# back to 1.0 — you author a look and get a different one. Every set below keeps
+# `contrast` at or above 1.0 and uses gamma rather than a black point for its
+# darks, both of which map 1.0 to 1.0. write_3dl asserts it regardless.
 
-# Tone. A gentle lift, no crush: the darkest thing in the key art is open
-# blue shadow, not black, and there is no value below it to recover.
-BLACK_POINT = 0.0
-TOE_GAMMA = 0.94             # <1 opens the midtones; >1 was pulling them down
-SHADOW_LIFT = 0.018          # absolute lift into the darks, tinted by LIFT_TINT
-LIFT_TINT = (0.55, 0.85, 1.35)     # the lift itself is blue — sky fill, not fog
-
-# Contrast is put back as a gentle S around the pivot, so opening the shadows
-# does not read as a flat, milky frame.
-PIVOT = 0.44
-CONTRAST = 1.09
-
-SATURATION = 1.26            # up from 0.55; the surface carries colour now
-
-# Cyan stays the reserved hue, and stays the most saturated thing in frame — it
-# is the only colour allowed to read as manufactured.
+# ---- the invariant, and the reason the table exists --------------------------
+# CYAN IS RESERVED. It means technology — craft lights, colony beams, instrument
+# readouts — and it is the only saturated hue in this palette. A grade that ate
+# it would break that rule on every world at once, so cyan is protected the same
+# way in all six: its saturation is pushed rather than pulled, and it is
+# EXEMPTED FROM THE SPLIT TONE as well. That second part is new and it is what
+# makes the warm worlds safe: without it, Ember's warm shadow tint would turn a
+# cyan beacon standing in shade orange.
 CYAN_SAT = 1.30
 CYAN_LOW = 0.10              # chroma ratio where cyan protection starts
 CYAN_HIGH = 0.42             # ...and where it is fully applied
 
-# TEAL WATER, protected explicitly. Warm rock against cool water is a big part
-# of what the key art is doing, and a warm grade will happily eat the water if
-# left to it. This is a second, wider protection band than the cyan one: it
-# catches water (green and blue up, red down) at ordinary midtone saturation,
-# where the tight cyan test does not fire.
-# Measured against the key art, this had to go much further than it looks.
-# A photographic HDRI sky lands around 0.24 display saturation where the painted
-# key art sits at 0.72, because ACES sheds chroma exactly at the top end where
-# the sky lives. This band is what puts it back, and it lifts the sky, the water
-# and the cool side of the rock together - which is correct, since they are all
-# the same sky light.
-# The band has to fire at LOW chroma, which is the whole trick: a photographic
-# sky is a desaturated blue (~0.11 chroma ratio), not a teal, so a band tuned
-# for teal never caught it. Firing this low is safe precisely because the test
-# is 'green and blue above red' - warm rock has zero chroma by it and is left
-# completely alone, so the sky, the water and the haze can be pushed hard
-# without touching the stone.
-# 1.70 was overshooting badly: it turned the hazed distance neon cyan, which is
-# further from the key art than the desaturated version it replaced. The key
-# art's far mesas are a PALE BLUE-GREY at ~0.20 saturation, not a colour.
-TEAL_SAT = 1.30
+# The wider cool band. Catches water, sky and haze — anything where green and
+# blue sit above red at ordinary saturation — which warm grades otherwise eat.
+# Warm rock scores zero on this test and is left entirely alone.
+TEAL_SAT = 1.22
 TEAL_LOW = 0.02
 TEAL_HIGH = 0.20
-
-# 0.36 was too tight to catch anything: with shadows this open, terrain in
-# shadow measures around 0.45 luminance and was falling straight past the tint.
-# The cool has to reach up into the lower midtones or the frame is warm
-# everywhere and the warm/cool split the key art runs on never appears.
-SHADOW_RANGE = 0.44          # luminance below which the shadow tint applies
-SHADOW_TINT = (0.87, 0.97, 1.17)   # cool and blue, but nothing like a crush
-
-HIGHLIGHT_START = 0.58       # luminance where the highlight warm begins
-HIGHLIGHT_TINT = (1.05, 1.00, 0.93)   # warm sun, never cold
 
 
 def smoothstep(edge0: float, edge1: float, x: float) -> float:
@@ -124,98 +89,120 @@ def lerp(a: float, b: float, t: float) -> float:
     return a + (b - a) * t
 
 
-def golden_hour(rgb: tuple[float, float, float]) -> tuple[float, float, float]:
-    r, g, b = rgb
+# ---- the six moods -----------------------------------------------------------
+# Each profile in js/tune.js already describes what its world is; these are that
+# description as numbers. `toe` below 1 opens the midtones and above 1 darkens
+# them, and it is used instead of a black point because gamma maps 1.0 to 1.0
+# and a black point does not - see the note on the max-value trap above.
+WORLDS = {
+    # The reference the other five are read against, so it says as little as
+    # possible: a touch of contrast, a touch of split tone, and nothing else.
+    'home': dict(
+        toe=0.98, lift=0.012, lift_tint=(0.85, 0.95, 1.15),
+        pivot=0.46, contrast=1.06, sat=1.10,
+        shadow_range=0.40, shadow_tint=(0.95, 1.00, 1.08),
+        high_start=0.62, high_tint=(1.03, 1.00, 0.97)),
 
-    # --- tone: lift, do not crush -------------------------------------------
-    lum_in = LUMA[0] * r + LUMA[1] * g + LUMA[2] * b
-    lift = SHADOW_LIFT * (1.0 - smoothstep(0.0, 0.55, lum_in))
-    r = r ** TOE_GAMMA + lift * LIFT_TINT[0]
-    g = g ** TOE_GAMMA + lift * LIFT_TINT[1]
-    b = b ** TOE_GAMMA + lift * LIFT_TINT[2]
+    # Hot and dark. The toe above 1 keeps the basalt near-black while leaving
+    # 1.0 at 1.0, so the fissures - authored above 1 and already blooming - are
+    # untouched and end up carrying the whole frame. Its shadow tint is WARM,
+    # the one place this table contradicts the others: on a world lit from
+    # underfoot the shade is fire-coloured, not sky-coloured.
+    'ember': dict(
+        toe=1.22, lift=0.004, lift_tint=(1.30, 0.80, 0.55),
+        pivot=0.38, contrast=1.14, sat=1.18,
+        shadow_range=0.46, shadow_tint=(1.14, 0.92, 0.78),
+        high_start=0.50, high_tint=(1.06, 0.96, 0.84)),
 
-    # --- contrast: a gentle S about the pivot --------------------------------
-    def contrast(v: float) -> float:
-        return max(0.0, PIVOT + (v - PIVOT) * CONTRAST)
-    r, g, b = contrast(r), contrast(g), contrast(b)
+    # Pale, washed, high-key. The wash comes from the toe and the lift rather
+    # than from dropping contrast below 1, which would pull white down with it.
+    'tarn': dict(
+        toe=0.88, lift=0.030, lift_tint=(0.95, 1.02, 1.12),
+        pivot=0.52, contrast=1.00, sat=0.92,
+        shadow_range=0.42, shadow_tint=(0.98, 1.01, 1.06),
+        high_start=0.55, high_tint=(1.02, 1.02, 1.00)),
 
-    lum = LUMA[0] * r + LUMA[1] * g + LUMA[2] * b
+    # Cold. The deepest blue shadow of the six, which is the same call the
+    # palette makes - on ice the shadow is the colour information.
+    'vault': dict(
+        toe=0.97, lift=0.010, lift_tint=(0.62, 0.85, 1.40),
+        pivot=0.46, contrast=1.12, sat=1.05,
+        shadow_range=0.50, shadow_tint=(0.80, 0.92, 1.22),
+        high_start=0.60, high_tint=(0.98, 1.00, 1.05)),
 
-    # --- saturation, with the two protected cool bands ----------------------
-    # Both tests measure "green and blue above red", i.e. how cyan/teal this
-    # sample is; they differ only in how much of it is needed to fire.
-    chroma = max(0.0, min(g, b) - r)
-    peak = max(r, g, b, 1e-6)
-    ratio = chroma / peak
-    cyan = smoothstep(CYAN_LOW, CYAN_HIGH, ratio)
-    teal = smoothstep(TEAL_LOW, TEAL_HIGH, ratio)
-    sat = lerp(SATURATION, TEAL_SAT, teal)
-    sat = lerp(sat, CYAN_SAT, cyan)
+    # Violet murk. Both ends tinted toward violet rather than split warm against
+    # cool, because the fog is the light here and it is all one colour.
+    'shroud': dict(
+        toe=1.06, lift=0.014, lift_tint=(1.05, 0.85, 1.25),
+        pivot=0.44, contrast=1.04, sat=0.96,
+        shadow_range=0.48, shadow_tint=(1.06, 0.88, 1.18),
+        high_start=0.60, high_tint=(1.02, 0.97, 1.06)),
 
-    r = lum + (r - lum) * sat
-    g = lum + (g - lum) * sat
-    b = lum + (b - lum) * sat
-
-    # --- split tone ----------------------------------------------------------
-    shadow = 1.0 - smoothstep(0.0, SHADOW_RANGE, lum)
-    r *= lerp(1.0, SHADOW_TINT[0], shadow)
-    g *= lerp(1.0, SHADOW_TINT[1], shadow)
-    b *= lerp(1.0, SHADOW_TINT[2], shadow)
-
-    high = smoothstep(HIGHLIGHT_START, 1.0, lum)
-    r *= lerp(1.0, HIGHLIGHT_TINT[0], high)
-    g *= lerp(1.0, HIGHLIGHT_TINT[1], high)
-    b *= lerp(1.0, HIGHLIGHT_TINT[2], high)
-
-    return (min(1.0, max(0.0, r)), min(1.0, max(0.0, g)), min(1.0, max(0.0, b)))
-
-
-# ============================================================================
-# night-bioluminescent — the archived grade, kept for Ember and Shroud
-# ============================================================================
-# Unchanged. Crush the shadows toward blue-black, desaturate broadly, protect
-# the cyan band.
-
-N_BLACK_POINT = 0.035
-N_TOE_GAMMA = 1.35
-N_SATURATION = 0.55
-N_CYAN_SAT = 1.25
-N_CYAN_LOW = 0.12
-N_CYAN_HIGH = 0.45
-N_SHADOW_RANGE = 0.32
-N_SHADOW_TINT = (0.74, 0.90, 1.12)
-N_HIGHLIGHT_START = 0.62
-N_HIGHLIGHT_TINT = (0.94, 0.97, 1.00)
+    # Rust and ochre, and the most saturated of the six - it is the world with
+    # the most surface to carry it.
+    'anvil': dict(
+        toe=0.96, lift=0.014, lift_tint=(0.95, 0.92, 1.10),
+        pivot=0.45, contrast=1.10, sat=1.22,
+        shadow_range=0.44, shadow_tint=(1.00, 0.95, 1.05),
+        high_start=0.55, high_tint=(1.10, 1.00, 0.86)),
+}
 
 
-def night(rgb: tuple[float, float, float]) -> tuple[float, float, float]:
-    def tone(v: float) -> float:
-        v = max(0.0, (v - N_BLACK_POINT) / (1.0 - N_BLACK_POINT))
-        return v ** N_TOE_GAMMA
+def grade(P):
+    """Build one world's transform from its parameter set."""
 
-    r, g, b = (tone(c) for c in rgb)
-    lum = LUMA[0] * r + LUMA[1] * g + LUMA[2] * b
+    def apply(rgb):
+        r, g, b = rgb
 
-    chroma = max(0.0, min(g, b) - r)
-    peak = max(r, g, b, 1e-6)
-    cyan = smoothstep(N_CYAN_LOW, N_CYAN_HIGH, chroma / peak)
-    sat = lerp(N_SATURATION, N_CYAN_SAT, cyan)
+        # --- tone: gamma and a tinted lift, never a black point --------------
+        lum_in = LUMA[0] * r + LUMA[1] * g + LUMA[2] * b
+        lift = P['lift'] * (1.0 - smoothstep(0.0, 0.55, lum_in))
+        r = r ** P['toe'] + lift * P['lift_tint'][0]
+        g = g ** P['toe'] + lift * P['lift_tint'][1]
+        b = b ** P['toe'] + lift * P['lift_tint'][2]
 
-    r = lum + (r - lum) * sat
-    g = lum + (g - lum) * sat
-    b = lum + (b - lum) * sat
+        # --- contrast: a gentle S about the pivot ---------------------------
+        pv, c = P['pivot'], P['contrast']
+        r = max(0.0, pv + (r - pv) * c)
+        g = max(0.0, pv + (g - pv) * c)
+        b = max(0.0, pv + (b - pv) * c)
 
-    shadow = 1.0 - smoothstep(0.0, N_SHADOW_RANGE, lum)
-    r *= lerp(1.0, N_SHADOW_TINT[0], shadow)
-    g *= lerp(1.0, N_SHADOW_TINT[1], shadow)
-    b *= lerp(1.0, N_SHADOW_TINT[2], shadow)
+        lum = LUMA[0] * r + LUMA[1] * g + LUMA[2] * b
 
-    high = smoothstep(N_HIGHLIGHT_START, 1.0, lum)
-    r *= lerp(1.0, N_HIGHLIGHT_TINT[0], high)
-    g *= lerp(1.0, N_HIGHLIGHT_TINT[1], high)
-    b *= lerp(1.0, N_HIGHLIGHT_TINT[2], high)
+        # --- saturation, with the two protected cool bands ------------------
+        # Both tests measure "green and blue above red"; they differ only in how
+        # much of it is needed to fire.
+        chroma = max(0.0, min(g, b) - r)
+        peak = max(r, g, b, 1e-6)
+        ratio = chroma / peak
+        cyan = smoothstep(CYAN_LOW, CYAN_HIGH, ratio)
+        teal = smoothstep(TEAL_LOW, TEAL_HIGH, ratio)
+        sat = lerp(P['sat'], TEAL_SAT, teal)
+        sat = lerp(sat, CYAN_SAT, cyan)
 
-    return (min(1.0, max(0.0, r)), min(1.0, max(0.0, g)), min(1.0, max(0.0, b)))
+        r = lum + (r - lum) * sat
+        g = lum + (g - lum) * sat
+        b = lum + (b - lum) * sat
+
+        # --- split tone, WITH CYAN EXEMPTED ---------------------------------
+        # The exemption is why cyan survives six different moods. Saturating it
+        # and then tinting it warm would hand back with one line what the line
+        # above just protected - and on Ember, whose shade is deliberately
+        # fire-coloured, that is exactly what would happen to a beacon in shadow.
+        keep = 1.0 - cyan
+        shadow = (1.0 - smoothstep(0.0, P['shadow_range'], lum)) * keep
+        r *= lerp(1.0, P['shadow_tint'][0], shadow)
+        g *= lerp(1.0, P['shadow_tint'][1], shadow)
+        b *= lerp(1.0, P['shadow_tint'][2], shadow)
+
+        high = smoothstep(P['high_start'], 1.0, lum) * keep
+        r *= lerp(1.0, P['high_tint'][0], high)
+        g *= lerp(1.0, P['high_tint'][1], high)
+        b *= lerp(1.0, P['high_tint'][2], high)
+
+        return (min(1.0, max(0.0, r)), min(1.0, max(0.0, g)), min(1.0, max(0.0, b)))
+
+    return apply
 
 
 def identity(rgb: tuple[float, float, float]) -> tuple[float, float, float]:
@@ -256,27 +243,34 @@ def write_3dl(path: Path, transform, size: int = SIZE) -> None:
 
 
 def main() -> None:
-    # Identity first: it is the A/B control that proves the LUT plumbing is
-    # neutral before any look is judged through it.
+    # Identity first: the A/B control that proves the plumbing is neutral before
+    # any look is judged through it, and what every world shipped with from T1
+    # until this pass.
     write_3dl(LUT_DIR / "identity.3dl", identity)
-    write_3dl(LUT_DIR / "home-golden-hour.3dl", golden_hour)
-    write_3dl(LUT_DIR / "night-bioluminescent.3dl", night)
+    for name, params in WORLDS.items():
+        write_3dl(LUT_DIR / (name + ".3dl"), grade(params))
 
-    print("\nhome-golden-hour (input -> output, sRGB 0..1):")
+    # A few samples per world, so a change here can be read without opening a
+    # game. Cyan is on every one of them on purpose: it is the invariant.
     probes = [
-        ((0.0, 0.0, 0.0), "black — should LIFT off zero and go blue"),
-        ((0.06, 0.07, 0.10), "deep shadow — open and blue, not crushed"),
         ((0.18, 0.18, 0.18), "18% grey"),
-        ((0.5, 0.5, 0.5), "midtone"),
-        ((1.0, 1.0, 1.0), "white — must stay full scale"),
-        ((0.55, 0.40, 0.28), "lit warm stone — should stay warm"),
-        ((0.16, 0.55, 0.60), "teal water — must not be eaten by the warm grade"),
-        ((0.45, 0.86, 0.88), "cyan tech — the most saturated thing in frame"),
+        ((0.50, 0.50, 0.50), "midtone"),
+        ((1.00, 1.00, 1.00), "white, must stay full scale"),
+        ((0.45, 0.86, 0.88), "CYAN TECH, the reserved hue"),
+        ((0.55, 0.40, 0.28), "lit warm stone"),
     ]
-    for probe, note in probes:
-        out = golden_hour(probe)
-        print(f"  {tuple(f'{v:.2f}' for v in probe)} -> "
-              f"{tuple(f'{v:.3f}' for v in out)}   {note}")
+    for name, params in WORLDS.items():
+        fn = grade(params)
+        print("")
+        print(name)
+        for rgb, label in probes:
+            out = fn(rgb)
+            si = (max(rgb) - min(rgb)) / max(max(rgb), 1e-6)
+            so = (max(out) - min(out)) / max(max(out), 1e-6)
+            extra = ("   sat %.2f -> %.2f" % (si, so)) if "CYAN" in label else ""
+            print("  %s -> %s   %s%s" % (
+                tuple(round(c, 2) for c in rgb),
+                tuple(round(c, 3) for c in out), label, extra))
 
 
 if __name__ == "__main__":

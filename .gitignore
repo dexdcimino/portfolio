@@ -26,9 +26,3 @@ node_modules/
 games/surveyor/dev/shots/*.png
 games/surveyor/dev/shots/sheet*.html
 
-# games/surveyor/tools/bake_lut.py writes three grading LUTs; only the one the
-# game actually loads is committed. The other two are the A/B control and the
-# archived dark grade — half a megabyte of text each, reproduced byte for byte
-# in under a second, and referenced by nothing. See games/surveyor/assets/CREDITS.md.
-games/surveyor/assets/luts/home-golden-hour.3dl
-games/surveyor/assets/luts/night-bioluminescent.3dl

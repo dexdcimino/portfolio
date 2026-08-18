@@ -533,13 +533,20 @@ export const HYPER = {
  */
 export const NEUTRAL_LUT = 'assets/luts/identity.3dl';
 
+/* ...and since the grade pass, each world names its own instead. One file per
+   world, baked by tools/bake_lut.py from one parameterised grade and six
+   parameter sets — one function, so the cyan protection cannot drift between
+   them. NEUTRAL_LUT stays: it is what post.js A/Bs against to prove the
+   plumbing is not doing something of its own. */
+const LUT = (name) => `assets/luts/${name}.3dl`;
+
 export const PLANETS = {
   home: {
     key: 'home',
     name: 'Home',
     radius: 1036,
     seed: 'surveyor-home',
-    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    lut: LUT('home'),
     /* Diagnosed rather than guessed. Home was the worst of the six and the
        cause was resolution, not depth: a 400m box on a 2048 map is 19.5cm a
        texel, and the terrain casting into it is flat-shaded triangle soup with
@@ -619,7 +626,7 @@ export const PLANETS = {
     name: 'Ember',
     radius: 207,
     seed: 'surveyor-ember',
-    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    lut: LUT('ember'),
     /* Shadows OFF. Ember's light comes off the ground — the fissures are the
        source — so a directional sun shadow map here would draw shadows cast by
        a light that is not doing the lighting. See SHADOW above. */
@@ -750,7 +757,7 @@ export const PLANETS = {
     name: 'Tarn',
     radius: 414,
     seed: 'surveyor-tarn',
-    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    lut: LUT('tarn'),
     // Low islands on a shallow sea: little to cast, and a humid 0.22 fill to
     // catch what does.
     shadows: { range: 160, strength: 0.70 },
@@ -847,7 +854,7 @@ export const PLANETS = {
     name: 'Vault',
     radius: 829,
     seed: 'surveyor-vault',
-    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    lut: LUT('vault'),
     // Hard shadows, and they come for free: this world's fill is 0, so a
     // shadowed face falls all the way to nothing. Long ones, too — the sun is
     // the lowest of the five that have shadows.
@@ -951,7 +958,7 @@ export const PLANETS = {
     name: 'Shroud',
     radius: 1451,
     seed: 'surveyor-shroud',
-    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    lut: LUT('shroud'),
     // Short range and weak: the fog closes in at 232m here, so anything past
     // that is spent, and dense particulate is exactly what fills a shadow in.
     shadows: { range: 150, strength: 0.62 },
@@ -1057,7 +1064,7 @@ export const PLANETS = {
     name: 'Anvil',
     radius: 2072,
     seed: 'surveyor-anvil',
-    lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    lut: LUT('anvil'),
     // The longest box in the system. 104m of relief and real canyon walls, so
     // the casters are big and the shadows are the point.
     shadows: { range: 260, strength: 0.88 },
