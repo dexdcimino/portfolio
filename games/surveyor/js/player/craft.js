@@ -10,83 +10,13 @@
 import { frameQuat } from '../world/surface.js';
 import { iceHolds, iceRide } from '../world/water.js';
 import { bodies, advance, steer, pickTarget, centreOf } from '../world/hyper.js';
-import { ROVER, BOAT, JET, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER } from '../tune.js';
+import { ROVER, BOAT, JET, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER,
+         AIR, PARACHUTE, SKID } from '../tune.js';
 import { emit } from '../core/events.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const damp = (a, b, rate, dt) => a + (b - a) * (1 - Math.exp(-rate * dt));
-
-/* TEMPORARY — TUNING THAT BELONGS IN tune.js.
- *
- * Every number in the three blocks below is tuning and every one of them should
- * be sitting in tune.js with the rest of it. They are here because a parallel
- * session is transplanting the T2 light rig into that same file right now,
- * adding per-planet blocks to the same six PLANETS entries the parachute
- * ceiling has to live in, and whoever saved second would have won.
- *
- * Moving them across is mechanical and nothing else has to change with them:
- * no other module reads these, and the parachute ceiling is already derived
- * from `planet.relief` rather than written out per world, so PLANETS needs no
- * new key at all. See NEEDS DEX.
- */
-const AIR = {
-  // What separates "transformed in the air" from "transformed on the deck".
-  // The jet's own landing sets you down at floor + 1.3 and then calls setMode,
-  // so this has to sit above that: touching down must not read as a mid-air
-  // transform, or every landing would leave you falling.
-  minClearance: 3.0,
-  // Height over the waterline past which a rover is falling TOWARD water rather
-  // than wading in it. A hop tops out well under this; a drop out of a jet is
-  // far above it.
-  wadeCeiling: 6.0,
-};
-
-const PARACHUTE = {
-  /* The deploy ceiling is the planet's RELIEF times this — relief, not radius,
-     and that is the whole of the idea. What decides whether a fall is
-     survivable is how far there is to fall. Ember has 10.35m of relief and
-     Anvil has 103.6m on a radius ten times bigger, and a ceiling read off the
-     radius would hand the world with nothing to fall off the longest warning.
-     At 2.2 that is Ember 23m, Tarn 46m, Vault 91m, Home 114m, Shroud 160m,
-     Anvil 228m. */
-  reliefK: 2.2,
-  minFall: 2.5,      // m/s of descent before a fall counts as one
-  /* m/s the canopy settles you at, fully open.
-     Not lower, and the reason is pacing rather than physics. At 11 a fall from
-     300m took 24 seconds — that stops being a descent you are flying and turns
-     into one you are watching, and it quietly answers the question the whole
-     system exists to ask. At 20 the same fall takes 15.5s and riding it down
-     against taking the jet back stays a live choice rather than a formality.
-     Still a firm arrival: a hard hop lands at about this.
-     The steady rate is exactly this number, so 300m is 15s of descent; the
-     extra half second is the canopy filling and the fall reaching terminal,
-     which no value here removes. Raising it to 21 would buy that back. */
-  descent: 20,
-  open: 2.4,         // how fast the canopy takes hold once it is out
-  stow: 9,           // ...and how fast it collapses when it is cut
-  /* Horizontal bleed under canopy. Low on purpose: the rover and the boat
-     already carry their own air drag, and at 0.55 the canopy was stacking on
-     top of that hard enough to erase three quarters of a 90 m/s entry inside a
-     second and a half — which took the "momentum carries" out of the drop it is
-     supposed to be saving. The canopy's job is the VERTICAL. */
-  drag: 0.30,
-};
-
-const SKID = {
-  /* An impact is a distance, not a frame. Both numbers are the DISTANCE, in
-     metres, over which carried overspeed is burned off — and it is burned
-     LINEARLY in distance travelled, so the skid is that long whether you
-     arrived at 20 m/s or at 60.
-     Linearly, and not on an exponential, because an exponential in distance
-     stalls exactly where you least want it to: as the hull slows, the metres
-     stop arriving, so the last of the carry takes longer to burn than all the
-     rest of it put together. A boat beaching at 66 m/s sat in its own skid for
-     fifteen seconds that way. Linear burn has a real end, at a known length. */
-  waterLength: 26,   // rover carrying into water
-  beachLength: 17,   // boat running up a beach, a bit over two hull lengths
-  minEntry: 6,       // slower than this and an entry is an arrival, not a skid
-};
 
 const WTMP = { x: 0, y: 0, z: 0 };
 let FQ = null;
