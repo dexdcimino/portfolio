@@ -5,6 +5,7 @@
 
 import { COLORS, WORLD, ATMO, SKY, LIGHT, TERRAIN, SHADOW } from '../tune.js';
 import { meltDepth } from './water.js';
+import { waterOf } from './seabed.js';
 
 const V3 = (c) => new BABYLON.Vector3(c[0], c[1], c[2]);
 const C3 = (c) => new BABYLON.Color3(c[0], c[1], c[2]);
@@ -566,7 +567,7 @@ function registerShaders() {
     attribute float depth;
     uniform mat4 world;
     uniform mat4 worldViewProjection;
-    uniform float uTime, uWaveK, uWaveAmp;
+    uniform float uTime, uWaveK, uWaveAmp, uShoal;
     varying vec3 vW;
     varying float vDepth;
     varying vec3 vN;
@@ -584,7 +585,9 @@ function registerShaders() {
         sin((up.x + up.y + up.z) * uWaveK * 0.40 + uTime * 0.55) * 0.20;
       w *= uWaveAmp;
       // Flatten the swell as the shore comes up so waves don't pierce sand.
-      float shoal = smoothstep(0.0, 3.0, depth);
+      // Three metres was hardcoded; it is WATER.shoal now, because on the boat
+      // world it is also the reason the swell dies before it reaches the beach.
+      float shoal = smoothstep(0.0, uShoal, depth);
       float lift = w * shoal;
 
       // Tilt the normal from the swell gradient, in the tangent plane.
@@ -609,18 +612,176 @@ function registerShaders() {
     uniform float uTime, uScatter, uMaxDepth, uFrozen, uMelt;
     uniform vec3 uLightMix, uSunCol;    // T2: see the terrain shader
 
+    /* THE SEABED DEPTH PASS. view and projection are Babylon's own names and
+       are bound automatically; they are here so the refraction offset can be
+       stated in METRES at the surface and then projected, rather than in screen
+       UVs that would mean something different at every distance and fov.
+       (No backticks in this file's GLSL comments. They close the template
+       literal the shader is written in, and the error you get names a GLSL
+       identifier at a JS parse site. Fifth time.) */
+    uniform mat4 view, projection;
+    uniform sampler2D uSeabed;
+    uniform vec2 uInvScreen;
+    // x absorb (metres to halve), y absorbMax, z refract (metres), w the pass's
+    // "nothing here" distance.
+    uniform vec4 uWaterP;
+    // x shore width and y edge width, both in metres, z strength.
+    // NO SEMICOLON IN A COMMENT ON A UNIFORM LINE: Babylon's shader processor
+    // splits these lines on ';' before it strips comments, and the tail comes
+    // back as a statement. This one cost a FRAGMENT SHADER ERROR reading
+    // "'z' : syntax error" pointing at a line of prose.
+    uniform vec3 uFoamP;
+    // 1 when the depth pass is live and bound. 0 falls the whole thing back to
+    // the per-vertex depth, which is what the water always did.
+    uniform float uWaterOn, uWaterDebug;
+    // x opaque, y reflection mix, z reflection fresnel, w sharpen.
+    uniform vec4 uWaterP2;
+    // The swell, per pixel. Same three sines as waveAt() in js/world/noise.js.
+    uniform float uWaveK, uWaveAmp, uShoal, uWaveN;
+    // The sky's own horizon stops, so the reflection is this world's sky and
+    // not a second palette that has to be kept in step with it by hand.
+    uniform vec3 uSkyLow, uSkyHigh, uSkyBandCol;
+    uniform vec3 uSkyP;   // x band, y bandWidth, z haze
+
     void main() {
       vec3 toCam = uCam - vW;
       float dist = length(toCam);
       vec3 V = toCam / max(dist, 0.001);
       vec3 N = normalize(vN);
 
-      // Depth banded into discrete shelves — a bathymetric chart, not a gradient.
+      /* ---- THE SWELL, PER PIXEL, AND TIED TO waveAt BY CONSTRUCTION ----
+         The mesh cannot carry this. Samples per wavelength is 4 * waterFaceRes
+         / waveFreq — independent of radius, and it comes out at 1.78 on Home,
+         1.45 on Shroud, 1.23 on Anvil and 2.58 on Tarn. Every world with a
+         swell samples it BELOW NYQUIST, so the surface the vertex shader
+         displaces is not the wave, it is an alias of the wave. Meanwhile the
+         boat rides waveAt() on the CPU, which evaluates the function exactly.
+         The hull has been riding a swell the sea does not have.
+         Raising the mesh cannot fix it: eight samples a wavelength needs
+         waterFaceRes = 2 * waveFreq, which is 180 on Home — 196k vertices and a
+         second of height() at load, for one world.
+         So the NORMAL is computed here instead, analytically, from the same
+         three sines with the same coefficients. Geometry stays coarse and the
+         silhouette with it; everything that reads the surface as a direction —
+         the toon glint, the sun path, the band, the refraction bend — reads the
+         true swell at pixel resolution and for three cosines.
+         The gradient is exact rather than sampled: a1..a3 are the phases,
+         g is d(w)/d(up), and one tangential metre moves up by 1/R, which is
+         what turns a gradient in direction-space into a slope in metres. */
+      if (uWaveN > 0.0 && uWaveAmp > 0.0) {
+        vec3 up0 = normalize(vW);
+        float R = max(length(vW), 1.0);
+        float a1 = up0.x * uWaveK + uTime * 1.15;
+        float a2 = up0.z * uWaveK * 0.79 - uTime * 0.87;
+        float a3 = (up0.x + up0.y + up0.z) * uWaveK * 0.40 + uTime * 0.55;
+        float c3 = 0.20 * uWaveK * 0.40 * cos(a3);
+        vec3 g = vec3(0.30 * uWaveK * cos(a1) + c3,
+                      c3,
+                      0.26 * uWaveK * 0.79 * cos(a2) + c3);
+        // Same shoal the vertex shader flattens the displacement with, so the
+        // shading and the geometry agree about where the swell stops.
+        float sh = smoothstep(0.0, uShoal, vDepth);
+        vec3 gt = (g - up0 * dot(g, up0)) * (uWaveAmp * sh / R);
+        N = normalize(mix(N, normalize(up0 - gt), uWaveN));
+      }
+
       float d = vDepth;
-      // Six shelves spread across whatever depth this planet actually reaches,
+
+      /* ---- how much water is between the eye and the ground, per pixel ----
+         The shell samples depth every 40m; this asks the same question along
+         the actual view ray and gets a per-pixel answer. Note what falls out of
+         it for free: the swell already moves this surface up and down, and the
+         seabed does not move, so the thickness — and therefore the foam line —
+         breathes with the wave without a single term saying so. */
+      vec3 upW = normalize(vW);
+      /* The ray's angle off vertical, which is what converts between a VERTICAL
+         depth and a PATH LENGTH — and it is kept twice on purpose.
+         cosDiv is floored hard, because it is a DIVISOR and a horizon-grazing
+         ray would otherwise return infinity. cosTrue is not, because it is also
+         a MULTIPLIER on the way back, and there the floor is not a safety net,
+         it is an error: at 1000m the true cosine is 0.009, so multiplying by a
+         floor of 0.08 reports the seabed nine times deeper than it is. That
+         saturated every bathymetry shelf on the far half of every lake and
+         photographed as one flat plate of deep blue — the chart gone, from a
+         guard clause in the wrong place. */
+      float cosTrue = abs(dot(V, upW));
+      float cosDiv = max(0.08, cosTrue);
+      float fallback = d / cosDiv;
+
+      // Screen-space refraction. Stated as a displacement in metres along the
+      // surface's tilt and then projected, so it is the same physical bend at
+      // any distance. duv is EXACTLY zero when uWaterP.z is, which is what makes
+      // the neutral default a genuine no-op rather than a small resample.
+      vec2 uv = gl_FragCoord.xy * uInvScreen;
+      vec2 duv = vec2(0.0);
+      if (uWaterP.z > 0.0) {
+        vec3 tilt = N - upW * dot(N, upW);
+        vec4 c0 = projection * view * vec4(vW, 1.0);
+        vec4 c1 = projection * view * vec4(vW + tilt * uWaterP.z, 1.0);
+        duv = (c1.xy / max(abs(c1.w), 1e-4) - c0.xy / max(abs(c0.w), 1e-4)) * 0.5;
+      }
+      vec2 uvR = clamp(uv + duv, 0.0, 1.0);
+
+      float thick = fallback;
+      bool measured = false;
+      if (uWaterOn > 0.5) {
+        float seabed = texture2D(uSeabed, uvR).r;
+        // Past the pass's clear value there is no ground behind this water at
+        // all — the shell's far side against the sky. Fall back rather than
+        // paint the horizon black.
+        measured = seabed < uWaterP.w * 0.5;
+        thick = measured ? max(0.0, seabed - dist) : fallback;
+      }
+
+      /* PATH LENGTH IS NOT DEPTH, and keeping them apart is the whole reason
+         this pass is worth having. thick is how far the ray travels through
+         water; pdepth is how far the seabed it lands on sits below the
+         surface. They are the same looking straight down and nothing like each
+         other at a grazing angle — on Tarn, whose mean depth is 2.6m, a ray ten
+         degrees above the horizon crosses FIFTEEN metres of water.
+         That is not a nicety. Shoreline foam written against thick measured
+         zero moving pixels on Tarn, Vault and Anvil with the term turned up to
+         three metres: every ray that could have fired it was grazing, so
+         nothing anywhere was ever within 3m. Absorption wants the path.
+         Anything that has to be a fixed WIDTH ON THE GROUND — the foam line,
+         the bathymetry shelves — wants the depth. */
+      // Back the other way. When the pass measured this ray, the vertical drop
+      // is the path times the TRUE cosine; when it did not, the fallback was
+      // built from the vertex depth and the honest answer is that depth itself
+      // rather than a number round-tripped through a floored divisor.
+      float pdepth = measured ? thick * cosTrue : d;
+      // The shelves, per pixel, at the point the ray actually lands. sharpen
+      // is 0 until a world asks: at 0 this is the 40m-interpolated vertex depth
+      // the shelves have always been drawn from.
+      d = mix(d, pdepth, uWaterP2.w);
+      // Depth banded into discrete shelves — a bathymetric chart, not a gradient.
+      // Six of them spread across whatever depth this planet actually reaches,
       // instead of a fixed 0-24m that a shallow world never gets out of.
       float shelf = floor(clamp(d / uMaxDepth, 0.0, 0.999) * 6.0) / 6.0;
       vec3 col = mix(uShallowW, uDeepW, shelf);
+
+      /* ABSORPTION, AND IT IS SPLIT IN TWO — colour off DEPTH, transparency off
+         PATH. That split is the whole of what makes this survivable on a world
+         whose water is a bathymetric chart.
+         Written the obvious way, both halves come off the path length, and the
+         first version was. At a grazing angle the path through even shallow
+         water runs to tens of metres, so every lake seen from the shore went to
+         a single flat deep colour and took all six bathymetry shelves with it.
+         Home's lake came back as one plate of blue. That is the one thing this
+         pass was told not to do.
+         So: COLOUR reads pdepth, which is a property of the seabed and not of
+         where you are standing, and the chart therefore does not change as you
+         turn your head. TRANSPARENCY reads thick, which genuinely is a path
+         property — a long slant through water really does hide the bottom.
+         uWaterP.y caps only the colour half. The alpha half is uncapped because
+         its natural limit is 1, and because "you cannot see the bottom" is a
+         statement about water, not a look. */
+      float absorbed = 0.0;
+      if (uWaterP.x > 0.0) {
+        col = mix(col, uDeepW,
+          (1.0 - exp(-pdepth * 0.6931 / uWaterP.x)) * uWaterP.y);
+        absorbed = 1.0 - exp(-thick * 0.6931 / uWaterP.x);
+      }
 
       // Foam ring in the shallows, plus a broken second line further out.
       float foam = 1.0 - smoothstep(0.0, uMaxDepth * 0.14, d);
@@ -628,6 +789,38 @@ function registerShaders() {
       foam = max(foam, (1.0 - smoothstep(uMaxDepth * 0.12, uMaxDepth * 0.32, d)) *
         step(0.72, ripple) * 0.7);
       col = mix(col, uCoast, foam * 0.85);
+
+      /* THE SHORELINE, per pixel, and intersection foam for nothing extra.
+         Both are the same test — thickness going to zero — at two widths. The
+         wide one is the water's edge, where the ground rises to meet the
+         surface. The tight one fires wherever ANYTHING is close behind the
+         surface, which is what a rock breaking the water or a hull sitting in
+         it looks like from here, so intersection foam is not a second system.
+         Nothing in it is animated: the swell moves this surface and the seabed
+         does not, so the line breathes in and out with the wave already. */
+      // DEPTH for the shoreline, so the band is a fixed width on the ground and
+      // not a function of how obliquely you happen to be looking at it...
+      float shoreF = uFoamP.x > 0.0
+        ? (1.0 - smoothstep(0.0, uFoamP.x, pdepth)) : 0.0;
+      // ...and PATH for the collar, because "something is just behind this
+      // surface along this ray" is what a hull sitting in the water and a rock
+      // breaking through it have in common.
+      float edgeF = uFoamP.y > 0.0
+        ? (1.0 - smoothstep(0.0, uFoamP.y, thick)) : 0.0;
+      /* Broken up, so a per-pixel line does not read as a vector stroke on a
+         surface where everything else is drawn.
+         0.15 is metres, not taste: vW is in world metres, so this is noise with
+         features about seven metres across — a few paces of broken water. The
+         first cut used 0.9, which is features ONE METRE wide being viewed from
+         up to four hundred, and at that ratio it is not lace, it is aliasing.
+         It also fades out with distance for the same reason: past the point
+         where a feature is smaller than a pixel there is nothing to draw but
+         noise, so the line goes clean instead. */
+      float laceFade = 1.0 - smoothstep(60.0, 220.0, dist);
+      float lace = mix(1.0, 0.72 + 0.28 * fbm2(vW.xz * 0.15 + vec2(uTime * 0.35, 0.0)),
+                       laceFade);
+      float pfoam = clamp(max(shoreF * lace, edgeF), 0.0, 1.0) * uFoamP.z;
+      col = mix(col, uCoast, pfoam);
 
       // Toon glint: a hard-edged specular that pops on and off, no falloff.
       vec3 H = normalize(uLight + V);
@@ -644,6 +837,38 @@ function registerShaders() {
       // would have its sea stay put and the two would disagree at the shore.
       float band = bandLight(dot(N, uLight));
       col *= (uLightMix.x + uLightMix.y * mix(0.86, 1.0, band)) * uSunCol;
+
+      /* REFLECTION — THE SKY, AND DELIBERATELY NOT A PLANAR MIRROR.
+         A planar reflection needs a plane, and this water is a closed shell
+         around a planet. Measured with the eye at 9.5m, which is where the
+         chase camera sits: the horizon is 89m away on Tarn and 198m on Anvil,
+         and over that distance the surface falls away from its own tangent
+         plane by 9.5m on EVERY world — the drop at the horizon is just the eye
+         height. That is four times Tarn's swell and thirty times Shroud's. A
+         mirror plane would therefore be wrong by more than the waves it is
+         reflecting, and wrong worst at the skyline, which is the one place a
+         sea reflection is read. It would also cost a second render of the world
+         per frame to be wrong there.
+         So the reflected ray is traced against the SKY instead, which is an
+         analytic function of direction and therefore correct on a sphere at any
+         range, for about ten instructions and no extra pass. It reflects the
+         sky and not the terrain, and on a world whose horizon is a hundred
+         metres away and hazed to the fog colour, the sky is very nearly all
+         there is to reflect.
+         Fresnel does the rest: looking down you see through the water, looking
+         along it you see the sky, and the crossover moves with the swell
+         because N is now per-pixel. */
+      if (uWaterP2.y > 0.0) {
+        vec3 Rv = reflect(-V, N);
+        float rel = dot(Rv, upW);
+        vec3 sky = mix(uSkyLow, uSkyHigh, clamp(rel * 1.25 + 0.06, 0.0, 1.0));
+        sky = mix(sky, uSkyBandCol,
+          uSkyP.x * (1.0 - smoothstep(0.0, max(uSkyP.y, 0.005), abs(rel))));
+        sky = mix(sky, hazeColor(uFog, uFogSun, -Rv, uLight, uScatter),
+          (1.0 - smoothstep(-0.03, 0.24, rel)) * uSkyP.z);
+        float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), uWaterP2.z);
+        col = mix(col, sky, clamp(fres, 0.0, 1.0) * uWaterP2.y);
+      }
 
       /* FROZEN (Vault). The same shelves, but read as a solid surface: pale,
          opaque, and with the melt line stroked across it in the chart's own
@@ -667,7 +892,55 @@ function registerShaders() {
       float fog = smoothstep(uFogRange.x, uFogRange.y, dist);
       col = mix(col, hazeColor(uFog, uFogSun, V, uLight, uScatter), fog);
       float alpha = mix(0.72, 0.93, smoothstep(0.0, uMaxDepth * 0.6, d));
+      /* OPACITY, and it only ever goes UP from here — which is the invariant
+         that protects the bone waterline stroke. That stroke is drawn in the
+         TERRAIN shader at |h| near zero and reaches the eye through this
+         surface, so the one thing this pass must not do is make the shallows
+         less transparent. uOpaque is 0 on every world that has a readable
+         seabed and is turned up only where the water is SUPPOSED to hide what
+         is under it — Shroud, where a pool whose depth you cannot read is the
+         hazard. Foam is exempt: a foam line you can see through is a smear. */
+      alpha = mix(alpha, 1.0, uWaterP2.x);
+      /* ...and the OTHER half of absorption, which is the half that makes water
+         behave like water. Tinting deep water toward the deep colour without
+         also thickening it just paints a darker window: you would still see the
+         seabed perfectly through eight metres of ocean. Absorption raises the
+         alpha by exactly as much as it took out of the colour.
+         It is safe against the waterline stroke by construction: the term
+         comes off THICKNESS, thickness goes to zero at the shore, and so
+         does this. The one place this pass could have damaged the chart is
+         the one place it provably cannot reach. */
+      alpha = max(alpha, absorbed);
+      /* Foam thickens the water but does not close it. At 0.9 the shallows went
+          fully opaque, which on a world with a wide flat shelf means a white
+          plate where there should be pale water you can see the sand through —
+          and it would have hidden the bone waterline stroke, which is drawn in
+          the terrain shader and reaches the eye THROUGH this surface. */
+      alpha = max(alpha, pfoam * 0.6);
       gl_FragColor = vec4(col, mix(mix(alpha, 1.0, uFrozen), 1.0, fog));
+
+      /* Read with the post stack off — see WATER.debug. */
+      if (uWaterDebug > 0.5) {
+        if (uWaterDebug < 1.5) {
+          gl_FragColor = vec4(vec3(clamp(thick / 20.0, 0.0, 1.0)), 1.0);
+        } else if (uWaterDebug < 2.5) {
+          float sb = uWaterOn > 0.5 ? texture2D(uSeabed, uvR).r : 0.0;
+          gl_FragColor = vec4(vec3(clamp(sb / uFogRange.y, 0.0, 1.0)), 1.0);
+        } else if (uWaterDebug < 3.5) {
+          gl_FragColor = vec4(vec3(pfoam), 1.0);
+        } else {
+          /* MODE 4: a flat magenta mask, and it is here because measuring the
+             other three was giving wrong answers.
+             A debug mode that writes a ramp tells you nothing unless you can
+             say which pixels are water, and reading the red channel cannot:
+             terrain and sky have red channels too. The first pass at
+             dev/waterstats.mjs reported foam over 99.9% of the frame on Home,
+             which was the terrain and the sky being counted as foam. This is
+             the mask that separates them, and it is read with alpha blending
+             forced off so it comes back as exactly (255, 0, 255). */
+          gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
+        }
+      }
     }
   `;
 
@@ -783,6 +1056,30 @@ function registerShaders() {
      which is exactly what the terrain shader compares against after taking its
      own light-space position through the same matrix. One encoding, chosen
      here, decoded there, with nothing in between deciding for us. */
+  /* The seabed pass. Writes RADIAL DISTANCE FROM THE CAMERA in metres, which
+     is the same quantity the water shader computes for itself as
+     length(uCam - vW) — so the water thickness along a view ray is one subtract,
+     with no projection inverse and no near/far reconstruction to get wrong.
+     gl_FragCoord.z would have been cheaper to write and much worse to read.
+     See js/world/seabed.js for what the render list means. */
+  S.svSeabedVertexShader = `
+    precision highp float;
+    attribute vec3 position;
+    uniform mat4 world, worldViewProjection;
+    uniform vec3 uCam;
+    varying float vDist;
+    void main() {
+      vec4 wp = world * vec4(position, 1.0);
+      vDist = length(wp.xyz - uCam);
+      gl_Position = worldViewProjection * vec4(position, 1.0);
+    }
+  `;
+  S.svSeabedFragmentShader = `
+    precision highp float;
+    varying float vDist;
+    void main() { gl_FragColor = vec4(vDist, 0.0, 0.0, 1.0); }
+  `;
+
   S.svDepthVertexShader = `
     precision highp float;
     attribute vec3 position;
@@ -1148,7 +1445,13 @@ export function createMaterials(scene, planet) {
       uniforms: ['world', 'worldViewProjection', 'uCam', 'uLight', 'uFog',
         'uFogSun', 'uDeepW', 'uShallowW', 'uCoast', 'uFogRange', 'uTime',
         'uScatter', 'uWaveK', 'uWaveAmp', 'uMaxDepth', 'uFrozen', 'uMelt',
-        'uLightMix', 'uSunCol'],
+        'uLightMix', 'uSunCol',
+        // The water pass. `view` and `projection` are Babylon's own names and
+        // are bound automatically once they are declared here.
+        'view', 'projection', 'uInvScreen', 'uWaterP', 'uWaterP2', 'uFoamP',
+        'uWaterOn', 'uWaterDebug', 'uShoal', 'uWaveN',
+        'uSkyLow', 'uSkyHigh', 'uSkyBandCol', 'uSkyP'],
+      samplers: ['uSeabed'],
       needAlphaBlending: true,
     });
   water.setVector3('uLight', light);
@@ -1170,6 +1473,33 @@ export function createMaterials(scene, planet) {
   // otherwise, so this costs the other five worlds a uniform and nothing else.
   water.setFloat('uFrozen', planet.iceThickness > 0 ? 1 : 0);
   water.setFloat('uMelt', meltDepth(planet));
+
+  /* THE WATER PASS, WIRED LIVE AND NEUTRAL.
+     Every term below is at the value that reproduces the water this game
+     already shipped, so the first measurement answers "is the plumbing right"
+     with the colour held still — the habit that caught all four scale errors in
+     T1-T3. uWaterOn stays 0 until a Seabed pass is actually bound; an unbound
+     sampler reads black, which would mean a seabed distance of zero, which
+     would mean foam over the entire ocean. */
+  const WA = waterOf(planet);
+  water.setVector2('uInvScreen', new BABYLON.Vector2(1 / 1280, 1 / 720));
+  water.setVector4('uWaterP', new BABYLON.Vector4(
+    WA.absorb, WA.absorbMax, WA.refract, WA.depthPass.far));
+  water.setVector4('uWaterP2', new BABYLON.Vector4(
+    WA.opaque || 0, WA.reflect.mix, WA.reflect.fresnel, WA.sharpen || 0));
+  water.setVector3('uFoamP', new BABYLON.Vector3(
+    WA.foam.shore, WA.foam.edge, WA.foam.strength));
+  water.setFloat('uWaterOn', 0);
+  water.setFloat('uWaterDebug', WA.debug || 0);
+  water.setFloat('uShoal', WA.shoal);
+  water.setFloat('uWaveN', WA.waveNormal);
+  // Read straight off this world's sky rather than restated: a reflection that
+  // could disagree with the sky it is reflecting is a bug waiting for someone
+  // to retune SKY and not this.
+  water.setVector3('uSkyLow', V3(SK.horizon));
+  water.setVector3('uSkyHigh', V3(SK.zenith));
+  water.setVector3('uSkyBandCol', V3(SK.bandColor));
+  water.setVector3('uSkyP', new BABYLON.Vector3(SK.band, SK.bandWidth, SK.haze));
   // Culling ON. The water is a closed shell now, not a plane: with culling off
   // the far side of the sphere draws straight through the sky above the
   // horizon, as a hard-edged grey quad hanging over the world.
@@ -1267,6 +1597,29 @@ export function createMaterials(scene, planet) {
       terrain.setFloat('uContactK', strength);
     },
 
+    /** The range the six bathymetry shelves spread across, in metres.
+     *  Called once, after the shell exists — see WATER.measureDepth for what
+     *  the guess it replaces was costing. Ignored unless the world opted in, so
+     *  a world that has not is untouched. */
+    setMaxDepth(m) {
+      if (waterOf(planet).measureDepth && m > 0.5) water.setFloat('uMaxDepth', m);
+    },
+
+    /** Hand the water the seabed depth pass, once, at construction.
+     *  Until this is called uWaterOn is 0 and the shader uses the per-vertex
+     *  depth exactly as it always did — which is also what a dry world and a
+     *  device with no float targets get. */
+    bindSeabed(sb) {
+      if (!sb || !sb.enabled || !sb.rtt) { water.setFloat('uWaterOn', 0); return; }
+      water.setTexture('uSeabed', sb.rtt);
+      water.setFloat('uWaterOn', 1);
+      // A resize rebuilds the target; without this the sampler keeps the
+      // disposed one and reads black, which is a seabed at zero distance and a
+      // lake rendered as solid foam.
+      sb.onRebuild = (rtt) => water.setTexture('uSeabed', rtt);
+      seabed = sb;
+    },
+
     /** Per frame: the box moves with the craft, so the matrix does too. */
     syncShadows(sh) {
       if (!sh || !sh.rtt) return;
@@ -1279,6 +1632,7 @@ export function createMaterials(scene, planet) {
   };
 
   let time = 0;
+  let seabed = null;
   const upVec = new BABYLON.Vector3(0, 1, 0);
   const eastVec = new BABYLON.Vector3(1, 0, 0);
   const northVec = new BABYLON.Vector3(0, 0, 1);
@@ -1288,6 +1642,10 @@ export function createMaterials(scene, planet) {
     terrain.setVector3('uCam', cam);
     water.setVector3('uCam', cam);
     water.setFloat('uTime', time);
+    /* The screen size the water divides gl_FragCoord by, refreshed from the
+       pass itself rather than assumed: a stale one does not soften the result,
+       it addresses the wrong texels and slides the foam off the shoreline. */
+    if (seabed) water.setVector2('uInvScreen', seabed.invScreen);
     sky.setFloat('uTime', time);
     craft.setVector3('uCam', cam);
     craft.setFloat('uHeat', heat);

@@ -338,6 +338,234 @@ export const CONTACT = {
 };
 
 /**
+ * WATER.
+ *
+ * Everything here lands as a NO-OP and every world opts in, which is the habit
+ * that caught the four scale errors in T1-T3: a term shipped at its neutral
+ * value proves the plumbing in one measurement, and anything you see after that
+ * is your authoring rather than a transplant you converted by eye.
+ *
+ * WHAT THE PASS IS FOR, in one line: the water knows how deep it is at each
+ * VERTEX and had to guess everywhere else. Read the shell's mesh - 40 cells
+ * across a cube face, which on Home is a depth sample every FORTY METRES. The
+ * six bathymetry shelves were being interpolated across that, and so was the
+ * shoreline foam, whose whole job is to sit in the first three metres of depth.
+ * That is why the foam reads as a wide soft band instead of a line at the
+ * water's edge: it is not soft by choice, it is soft because it never had the
+ * resolution to be anything else.
+ *
+ * THE FIX IS A DEPTH PASS, not more vertices. Raising waterFaceRes to 128 costs
+ * half a second of height() per world at load (measured: 5.0us a sample, 100k
+ * samples) and still would not follow the ground between texels. Rendering the
+ * seabed's distance from the camera into a render target costs one depth-only
+ * pass over geometry that is already in the frame, and gives the water shader a
+ * PER-PIXEL answer to "how much water is between the eye and the ground" - the
+ * quantity every one of the terms below actually wants.
+ *
+ * WHAT MUST SURVIVE, and both are checked rather than hoped for:
+ *   - The BATHYMETRY SHELVES. They are computed in the water shader from that
+ *     same depth, so they do not merely survive the pass, they are the first
+ *     thing it sharpens.
+ *   - The BONE WATERLINE STROKE. It is drawn in the TERRAIN shader at |h| near
+ *     zero and shows through because the water is translucent. So the invariant
+ *     is one number: the water's alpha at the shoreline must not go UP. Every
+ *     term here is additive over the existing alpha ramp and none of them
+ *     touches its shallow end.
+ */
+export const WATER = {
+  enabled: true,
+
+  /* THE SEABED DEPTH PASS. Terrain only, from the main camera, writing radial
+     distance in metres - the same quantity the water shader already computes
+     for itself as length(uCam - vW), so thickness is one subtract and no
+     projection inverse.
+     Terrain ONLY, and that is not an optimisation: the render list is the thing
+     that makes the answer mean "the ground under the water" rather than "the
+     nearest surface", and a list that included the water shell would report a
+     thickness of zero everywhere. */
+  depthPass: {
+    enabled: true,
+    /* Of the render size, and 1.0 because half res costs the shoreline more
+       than it saves: the foam line is a few pixels wide by design.
+       WHAT THIS COSTS IS NOT MEASURED, and that is a statement rather than an
+       omission. dev/waterstats.mjs times it by splicing the target in and out
+       of scene.customRenderTargets across 30 interleaved pairs, and headless
+       Chrome falls back to SwiftShader — a software rasteriser. The medians
+       came back between +17ms and +330ms a frame for identical structural work,
+       against baselines that themselves swung from 94ms to 188ms. That is not a
+       number, it is noise, and quoting the middle of it would be worse than
+       saying so.
+       What CAN be said is structural. It is one extra pass over meshes already
+       in the frame, with a position-only vertex shader and a one-line fragment
+       shader, no post-processing and no texture fetches — against a main
+       terrain pass doing triplanar sampling, contour derivatives, a shadow
+       lookup and fog over the same triangles. The geometry is submitted twice;
+       almost no fragment work is added. If it ever does show up on real
+       hardware, this ratio is the lever, and 0.5 is a quarter of the pixels. */
+    ratio: 1.0,
+    // Distances past this read as "no ground behind this water" and the shader
+    // falls back to the per-vertex depth. Half-float tops out at 65504, so this
+    // is the largest round number that survives the fallback texture type.
+    far: 60000,
+  },
+
+  /* THE SWELL, PER PIXEL. How much of the surface normal is computed from the
+     wave function analytically in the fragment shader instead of interpolated
+     from the mesh. 0 is the no-op and is what every world starts at.
+     THE MESH CANNOT CARRY THE SWELL, and the arithmetic is short. Samples per
+     wavelength is 4 * waterFaceRes / waveFreq — the radius cancels — so:
+
+         world    wavelength   mesh cell   samples per wave
+         home           72m       40.7m               1.78
+         tarn           42m       16.3m               2.58
+         shroud         83m       57.0m               1.45
+         anvil         100m       81.4m               1.23
+
+     Every one of them is at or below Nyquist. What the vertex shader displaces
+     is not the swell, it is an alias of it — while waveAt() on the CPU, which
+     the boat's ride height and the whole wave-launch path read, evaluates the
+     function exactly. The hull has been riding a swell the sea does not have.
+     Raising the mesh is not the fix: eight samples a wavelength wants
+     waterFaceRes = 2 * waveFreq, which is 180 on Home. That is 196k vertices
+     and a second of height() at load, for one world.
+     So the normal is done analytically instead, from the same three sines with
+     the same coefficients — three cosines a pixel. The geometry stays coarse,
+     and so does the silhouette; everything that reads the surface as a
+     DIRECTION reads the true swell. See the guard in dev/run.mjs that pins the
+     shader's coefficients to noise.js's. */
+  waveNormal: 0,
+
+  /* HOW FAR OUT THE SWELL IS FLATTENED, in metres of depth. 3.0 is the value
+     that was hardcoded in the vertex shader and is therefore the no-op.
+     It exists to stop waves piercing sand, which it does. What it also does is
+     kill the swell before it reaches the beach — and on the boat world that is
+     most of what a shore is. It is per world now so Tarn can have surf. */
+  shoal: 3.0,
+
+  /* MEASURE THE DEEPEST POINT instead of guessing it from relief, and this is
+     a bug fix wearing a feature's clothes.
+     uMaxDepth is what the six bathymetry shelves are spread across, and it has
+     been max(3, relief * 0.42) since the shell went spherical. That number is
+     not close. Sampled at 64x64 over every cube face:
+
+         world    uMaxDepth   actual deepest   shelves ever reached
+         home         21.8m           10.9m    3.0 of 6
+         tarn          8.7m            6.7m    4.6 of 6
+         vault        17.4m            7.9m    2.7 of 6
+         shroud       30.5m           14.4m    2.8 of 6
+         anvil        43.5m           11.5m    1.6 of 6
+
+     So the chart that says "six shelves" has been drawing three on Home and
+     ONE AND A HALF on Anvil, and the deep half of every palette has never been
+     on screen. Nothing was wrong with the shelves; they were being asked to
+     span a range twice as deep as any water in the game.
+     Measured from the shell that was actually built, not from a fresh sampling
+     pass: it is the same depth array the mesh already filled at construction,
+     it costs nothing, and it cannot drift out of step with what is drawn.
+     false is the no-op and every world opts in. */
+  measureDepth: false,
+
+  /* SHARPEN: how much of the bathymetry chart is read PER PIXEL rather than
+     off the shell's 40m vertex grid. 0 draws the shelves exactly as they have
+     always been drawn, which is the neutral this ships at; 1 reads the depth at
+     the point the view ray actually lands on the seabed.
+     Two things get better at 1 and both are the chart's own argument. The bands
+     stop being linearly interpolated across forty metres of ground, which is
+     what a contour band is not. And they land at the right depth when you look
+     across the water instead of down at it — the shelf you see through a pixel
+     becomes the shelf of the seabed you are looking AT, rather than of the
+     water directly under your eye. */
+  sharpen: 0,
+
+  /* DEPTH COLOUR. Metres of water that halve what comes back through it -
+     Beer-Lambert, one number, per world. 0 is off and 0 is what ships until a
+     world says otherwise.
+     This is a SECOND reading of depth, laid over the shelves rather than
+     replacing them: the shelves say which contour band you are over, the
+     absorption says how much water is in the way, and the two disagree exactly
+     where the difference is interesting - at a grazing angle across shallows,
+     where the chart says "one shelf" and the eye correctly sees a long way
+     through water. */
+  absorb: 0,
+  /* How far toward the deep colour the absorption half is allowed to go, and
+     it is 0.35 rather than the 0.85 it started at because 0.85 erased the
+     chart. Six shelves under a term that takes 85% of the colour away leaves
+     15% of a six-step ramp, which is not a chart, it is a tint. At 0.35 the
+     absorption reads as a smooth depth gradient UNDER the banded one, which is
+     what a second reading of the same quantity should look like.
+     Only the colour half is capped by this. The transparency half runs to 1: a
+     deep lake hiding its own bottom is not a look to be moderated. */
+  absorbMax: 0.35,
+
+  /* FOAM. Both terms are thickness in METRES, per-pixel, and both are 0 here.
+     `shore` is the water's edge: thickness falling to nothing because the
+     ground is coming up to meet the surface. `edge` is the same test against
+     anything else in the frame - a rock, a hull, a colony leg - which is why
+     intersection foam is not a separate system. One quantity, one threshold,
+     and the second one was free. */
+  foam: { shore: 0, edge: 0, strength: 0.85 },
+
+  /* REFRACTION, in metres of lateral offset at the surface.
+     Screen-space, off the depth pass: the thickness lookup is displaced along
+     the surface normal's screen projection, so the bathymetry shelves, the foam
+     line and the transparency all bend where the swell tilts the surface. What
+     it does NOT bend is the seabed's own image - that arrives through the alpha
+     blend at full resolution and is not resampled here. Bending it too would
+     mean a second colour pass over the terrain; the note in dev/perf.mjs has
+     what that costs.
+     Scaled by thickness inside the shader, because a ray through half a metre
+     of water has half a metre to bend in. */
+  refract: 0,
+
+  /* OPACITY, and it is the one term here that can DAMAGE something.
+     The bone waterline stroke is drawn in the TERRAIN shader at |h| near zero
+     and reaches the eye THROUGH this surface. So the invariant this pass has to
+     hold is that the water's alpha in the shallows never goes up — and this is
+     the only knob that could push it there. It is 0 on every world with a
+     readable seabed, and it exists for the one world where water hiding what is
+     under it IS the design: Shroud, where a pool whose depth you cannot read is
+     the hazard rather than a failure to draw one. */
+  opaque: 0,
+
+  /* REFLECTION, AND IT IS NOT PLANAR. The MD asked for a planar reflection
+     behind a measured tier gate; the measurement came back against building one
+     at all, so this is what shipped instead and here is the number.
+     A planar reflection needs a plane. This water is a closed shell around a
+     planet, and with the eye at 9.5m where the chase camera sits:
+
+         world     horizon    surface drop from the tangent plane    swell
+         tarn          89m                                   9.5m      2.4m
+         home         140m                                   9.5m      1.0m
+         vault        126m                                   9.5m        0
+         shroud       166m                                   9.5m      0.3m
+         anvil        198m                                   9.5m      0.6m
+
+     The drop at the horizon is just the eye height, on every world, because
+     that is what a horizon is. So a mirror plane is wrong by four times Tarn's
+     swell and thirty times Shroud's, and wrong WORST at the skyline, which is
+     the one place anybody reads a reflection off water. It would cost a second
+     render of the world every frame to be wrong there, which is why there is no
+     tier at which it is the right trade rather than a cheaper one.
+     What ships instead reflects the ray against the SKY, which is an analytic
+     function of direction and therefore exact on a sphere at any range, for
+     about ten instructions and no extra pass. It reflects the sky and not the
+     terrain — the honest limit, and a small one on worlds whose horizon is a
+     hundred metres off and hazed to the fog colour long before it gets there.
+     mix is the no-op. fresnel is the exponent: 3 is close to Schlick, higher
+     keeps the reflection to the grazing angles. */
+  reflect: { mix: 0, fresnel: 3.0 },
+
+  /* 0 off, 1 thickness in metres as a ramp, 2 the depth pass raw, 3 the foam
+     mask alone, 4 a flat magenta water mask. Read with the post stack off —
+     ACES and a colour-grading LUT will regrade a debug ramp, and what comes
+     back is then a tonemapped version of the number rather than the number.
+     Mode 4 exists because the other three cannot be counted without it: terrain
+     and sky have red channels too, and the first measurement off mode 3
+     reported foam over 99.9% of Home. dev/waterstats.mjs reads it. */
+  debug: 0,
+};
+
+/**
  * Frozen water — Vault, and nowhere else.
  *
  * Thickness falls off with DEPTH, which is the physical way round (a shallow
@@ -584,6 +812,21 @@ export const PLANETS = {
     // Swell. Amplitude in metres, frequency in cycles across the sphere.
     waveAmp: 1.0, waveFreq: 90,
 
+    /* WATER — the reference the other four are read against, so it takes the
+       whole pass and says nothing else with it.
+       measureDepth is not taste: Home's shelves were spread across 21.8m of
+       guessed depth over water that is 9.9m deep, so the chart drew 2.7 of its
+       six bands and the deep half of the palette had never been on screen.
+       absorb 3.4m is read off that same 9.9m — the deepest water reaches about
+       two halvings, so the deepest shelf is where the seabed goes, not a colour
+       you have to swim to. */
+    water: {
+      measureDepth: true, sharpen: 1, waveNormal: 1,
+      absorb: 3.4,
+      foam: { shore: 0.65, edge: 0.30 },
+      refract: 0.30,
+    },
+
     // Mesh. targetCell is held near-constant across worlds so the vehicles
     // handle the same everywhere; the quadtree depth changes instead.
     leafRes: 16, targetCell: 4.5,
@@ -796,6 +1039,39 @@ export const PLANETS = {
     fFissure: 0,  wFissure: 0, fissureNarrow: 1,
     terraceStep: 2.2, terraceAmt: 0.30, terraceFrom: 0.30, terraceTo: 0.85,
     waveAmp: 2.4, waveFreq: 62,       // real swell — the boat world
+
+    /* WATER — and this is the world the pass exists for. 85% ocean, 6.7m at its
+       deepest, mean depth 2.6m: almost all of Tarn is shallow water seen at a
+       grazing angle from a boat, which is the exact case every term here was
+       built for.
+       SHOAL 1.0, down from 3.0, and it is the one number here that changes the
+       shape of the sea rather than its colour. The vertex shader flattens the
+       swell over the last `shoal` metres of depth so waves cannot pierce sand —
+       correct, and on the boat world it also meant the surf died three metres
+       out and every beach was glass. At 1.0 the swell runs in to the sand.
+       Nothing about the boat changes: the hull's ride height, its planing
+       threshold and the whole wave-launch path read waveAt() on the CPU, which
+       has never had a shoal term at all.
+       absorb 2.4m over 6.7m of water: the deepest point is under two halvings,
+       so Tarn stays a world you can see the bottom of. That is the point of it.
+       foam is the widest of the five and the strongest, because on a world this
+       shallow the shoreline IS the terrain feature. */
+    water: {
+      measureDepth: true, sharpen: 1, waveNormal: 1,
+      shoal: 1.0,
+      absorb: 2.4,
+      /* 0.12, from 0.90 and then 0.28, and both intermediate values were still
+         wrong for the same reason. A foam band stated in METRES OF DEPTH covers
+         an area that depends on the SLOPE it is lying on, and Tarn is one long
+         flat shelf: at 0.28m it still came back as 63% of every water pixel in
+         the frame. Measured, not guessed — half of Tarn's visible water is
+         under eight centimetres deep. On a shelf this flat the band has to be
+         narrow and, more to the point, it has to be WEAK: at 0.85 the shallows
+         went opaque white and the lagoon read as a snowfield. At 0.55 they read
+         as pale water with sand under it, which is what they are. */
+      foam: { shore: 0.12, edge: 0.30, strength: 0.55 },
+      refract: 0.55,
+    },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
     /* Pale, washed, high key. `coast` is pushed to near-white because on Tarn
@@ -895,6 +1171,23 @@ export const PLANETS = {
     // Wide and shallow against Home's tight 5m: 9m steps read as ice shelves.
     terraceStep: 9.0, terraceAmt: 0.72, terraceFrom: 0.10, terraceTo: 0.80,
     waveAmp: 0, waveFreq: 90,         // frozen: no swell
+
+    /* WATER — two terms, and neither of them is about water.
+       Vault's surface is ice: the frozen branch ends with mix(col, ice, uFrozen)
+       and uFrozen is 1, so absorption, foam and refraction are all computed and
+       then painted over. Verified rather than assumed — lifting uFrozen for one
+       frame in dev/noop.mjs shows 8.1% of the frame responding, so the pass is
+       live here and the ice is simply on top of it. No swell either, so
+       waveNormal has nothing to do.
+       What DOES matter is the two that reach the ice. measureDepth takes
+       uMaxDepth from 17.4m to the 8.0m the world actually has, which halves the
+       width of the melt-line stroke and tightens the darkening ramp behind it.
+       sharpen reads that depth per pixel instead of interpolating it across a
+       32m mesh cell. Between them the melt line stops being a soft 30m band and
+       becomes a line — and the melt line is the hazard: past it the ice does not
+       hold the rover. The physics is untouched (iceHolds reads surfaceHeight on
+       the CPU), so this is the drawn line moving TOWARD the real one. */
+    water: { measureDepth: true, sharpen: 1 },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
     /* White, pale blue, deep shadow. The widest gap in the system between
@@ -1002,6 +1295,33 @@ export const PLANETS = {
     fFissure: 0,  wFissure: 0, fissureNarrow: 1,
     terraceStep: 4.0, terraceAmt: 0.40, terraceFrom: 0.20, terraceTo: 0.78,
     waveAmp: 0.3, waveFreq: 110,      // still, dark pools
+
+    /* WATER — the only world where the water is supposed to LIE to you.
+       A Shroud pool whose depth you can read is not a hazard, it is a puddle
+       with a label. So this is the one profile that turns opacity up: absorb at
+       1.6m is four halvings before the deepest point, and opaque 0.45 lifts the
+       alpha the rest of the way, so what you get back off a pool is the surface
+       and not the bottom.
+       The bathymetry shelves still draw — they are computed ON the surface, not
+       seen through it — and Shroud's own palette already sets deep and shallow
+       two shades apart in the same violet, so the chart is present and nearly
+       unreadable, which is exactly the reading this world wants.
+       Foam is the narrowest and weakest of the five: a bright edge would put a
+       high-contrast line around every pool and hand back the outline the rest of
+       this is hiding. It is here at all so the water's edge is not a hard seam
+       against the rock. */
+    water: {
+      measureDepth: true, sharpen: 1, waveNormal: 1,
+      // absorb does most of the hiding now that its transparency half runs off
+       // path length, so `opaque` only has to close the shallow margin where the
+       // path is short and the bottom would otherwise show through at the rim.
+      absorb: 1.6, opaque: 0.30,
+      // Same correction as Tarn's and for the same reason: 0.25m came back as
+      // 40% of the pool, which is a rim drawn as a fill. On the one world whose
+      // water is supposed to hide things, that is the wrong direction twice.
+      foam: { shore: 0.12, edge: 0.20, strength: 0.45 },
+      refract: 0.10,
+    },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
     // The antagonist. Pulled in hard — a fraction of what the radius allows.
@@ -1118,6 +1438,31 @@ export const PLANETS = {
     // is twice the size.
     terraceStep: 14.0, terraceAmt: 0.70, terraceFrom: 0.22, terraceTo: 0.86,
     waveAmp: 0.6, waveFreq: 130,
+
+    /* WATER — sparse, and the profile says so by understating everything.
+       9.6% of Anvil is water, in scattered pans rather than a sea, and its
+       shelves were the worst-served of the six: 43.5m of guessed depth over
+       11.5m of actual water, so the chart drew ONE AND A HALF of its six bands
+       and five-sixths of the palette was unreachable. measureDepth is most of
+       what this world gets.
+       absorb 4.5m is the longest of the five on purpose. Anvil's water is a
+       thing you find, and finding it should mean being able to see into it —
+       a pan you can read the bottom of reads as a landmark, and one you cannot
+       reads as more ground. */
+    water: {
+      measureDepth: true, sharpen: 1, waveNormal: 1,
+      /* 7.0m to halve, not 4.5. At 4.5 the pans came back as flat dark holes:
+         the transparency half of absorption runs off PATH length, and a long
+         slant across eleven metres of water is four halvings whatever the
+         colour half is capped at. A pan you cannot see into reads as more
+         ground, which is the opposite of the landmark it is supposed to be. */
+      absorb: 7.0,
+      // 1.2m of depth, the widest of the five, because Anvil's pans have the
+      // steepest edges of the six worlds — at 0.60 the band was under a tenth
+      // of a percent of the frame, which is a line too thin to be a shore.
+      foam: { shore: 1.20, edge: 0.35, strength: 0.85 },
+      refract: 0.25,
+    },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
     /* Rust, ochre, dark iron. The one world with the vertical range for

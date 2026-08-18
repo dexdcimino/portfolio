@@ -1,3 +1,7 @@
+// FIRST, and it has to be first — see the header of glslcheck.mjs. This is the
+// one check that must run before the import chain below reaches materials.js.
+import { bodies, stray } from './glslcheck.mjs';
+import { readFile } from 'node:fs/promises';
 import { BABYLON, opts } from './babylon-stub.mjs';
 globalThis.BABYLON = BABYLON;
 
@@ -2586,6 +2590,129 @@ try {
 }
 ok('audio survives having no context at all', !audioThrew && started === false,
   audioThrew || 'silent, no throw');
+
+
+// ---- 10. the GLSL that lives inside JS ---------------------------------
+/* NO BACKTICKS IN A SHADER COMMENT, and this is a check rather than a rule in a
+   comment because the rule in a comment did not work: six debugging cycles
+   across five passes, on z, slope, spec, angle, view, uOpaque, thick and
+   pdepth. The scan itself lives in glslcheck.mjs and runs at the top of this
+   file's import list, because by the time the code down here executes,
+   materials.js has already been imported — and if it had an ODD number of stray
+   backticks it would have thrown a SyntaxError naming a GLSL identifier and
+   this line would never have been reached.
+   What is asserted here is the EVEN case, which is the one that hides: two
+   backticks in one comment close the literal and reopen it, the file parses
+   cleanly, and the shader silently loses every line between them. */
+ok('no backtick survives inside a shader body', stray.length === 0 && bodies.length > 10,
+  stray.length ? stray.join(' | ')
+    : `${bodies.length} shader bodies, not one of them quoting with a backtick`);
+
+
+// ---- 11. one swell, written down three times ---------------------------
+/* THE BOAT AND THE SEA HAVE TO AGREE, and they are three separate copies of the
+   same eight numbers: waveAt() in js/world/noise.js, which the boat's ride
+   height and the whole wave-launch path read; the vertex shader, which
+   displaces the shell; and the fragment shader, which now derives the surface
+   normal analytically. Change one and nothing breaks loudly — the hull just
+   starts riding a swell that is not the one being drawn, by an amount nobody
+   measures.
+   The sets are compared rather than the sequences, because the fragment shader
+   is the DERIVATIVE of the other two and necessarily uses the same constants in
+   a different order and with repeats. A set comparison still catches the thing
+   worth catching: a coefficient edited in one place and not the others.
+
+   Note what this does NOT claim. The mesh samples that swell at 1.2-2.6 points
+   per wavelength, so what is displaced is an alias of it however well the
+   constants agree — see WATER.waveNormal. This pins the FUNCTION; the sampling
+   is a separate problem with its own note. */
+{
+  const noiseSrc = await readFile(new URL('../js/world/noise.js', import.meta.url), 'utf8');
+  const nums = (t) => new Set((t.match(/\d+\.\d+/g) || []).map(Number)
+    .filter((v) => v !== 0.0 && v !== 1.0));
+
+  const waveAt = noiseSrc.slice(noiseSrc.indexOf('export function waveAt'));
+  const cpu = nums(waveAt.slice(0, waveAt.indexOf('\n}')));
+
+  const vtx = bodies.find((b) => b.name === 'svWaterVertexShader').text;
+  const vertBlock = vtx.slice(vtx.indexOf('float w ='), vtx.indexOf('w *= uWaveAmp'));
+  const gpuV = nums(vertBlock);
+
+  const frag = bodies.find((b) => b.name === 'svWaterFragmentShader').text;
+  const fragBlock = frag.slice(frag.indexOf('float a1 ='), frag.indexOf('float sh ='));
+  const gpuF = nums(fragBlock);
+
+  const same = (a, b) => a.size === b.size && [...a].every((v) => b.has(v));
+  const show = (x) => [...x].sort((a, b) => a - b).join(' ');
+  ok('the swell is the same function on the CPU and in both shaders',
+    cpu.size === 8 && same(cpu, gpuV) && same(cpu, gpuF),
+    same(cpu, gpuV) && same(cpu, gpuF)
+      ? `waveAt, the vertex displacement and the per-pixel normal all use ${show(cpu)}`
+      : `waveAt ${show(cpu)} | vertex ${show(gpuV)} | fragment ${show(gpuF)}`);
+}
+
+
+
+// ---- 12. the bathymetric chart, which is the thing that must survive ----
+/* Two checks, and between them they cover the two ways this pass could quietly
+   destroy the feature it was built to sharpen: a chart with most of its range
+   off the end of the scale, and a shoreline band wide enough to be the lake. */
+{
+  const { waterOf } = await import('../js/world/seabed.js');
+  const rows = [];
+  let allSix = true, allNarrow = true;
+
+  for (const key of Object.keys(PLANETS)) {
+    const planet = makePlanet(PLANETS[key]);
+    if (!planet.hasWater) continue;
+    const shell = new Water(opts.scene, null, planet);
+    const W = waterOf(planet);
+
+    // What the shelves are actually spread across, and what they would have
+    // been spread across before this pass measured it.
+    const guess = Math.max(3, planet.relief * 0.42);
+    const used = W.measureDepth ? shell.maxDepth : guess;
+    const reach = 6 * shell.maxDepth / used;
+
+    /* HOW MUCH OF THE SHELL WOULD FOAM, which is the question, and NOT the band
+       width over the mean depth, which was the first metric here and is
+       slope-blind. A band stated in metres of DEPTH covers an area that depends
+       entirely on the slope it is lying on: 1.2m is a thin line down Anvil's
+       steep-sided pans and would be half of Tarn. The first version flagged
+       Anvil for a number that was correct and let Tarn's real problem through
+       at a different one, so it measures the area now — the same wet vertices,
+       counted rather than averaged. */
+    let wet = 0, foamy = 0;
+    for (const d of shell.depth) {
+      if (d <= 0) continue;
+      wet++;
+      if (d < W.foam.shore) foamy++;
+    }
+    const area = wet ? foamy / wet : 0;
+
+    if (reach < 5.5) allSix = false;
+    if (area > 0.16) allNarrow = false;
+    rows.push(`${key} ${reach.toFixed(1)}/6 shelves, foam over ` +
+      `${(100 * area).toFixed(1)}% of its water`);
+  }
+
+  /* SHELVES REACHED. uMaxDepth is the depth the six bathymetry bands are spread
+     over, and it was max(3, relief * 0.42) — a guess that came out at 43.5m on
+     Anvil against 11.5m of actual water, so the chart drew 1.6 of its 6 bands
+     and five-sixths of the palette was unreachable. Measuring the shell fixes
+     it; this is the check that stops it drifting back. */
+  ok('every world reaches all six bathymetry shelves', allSix, rows.join(' | '));
+
+  /* ...AND THE SHORELINE IS A LINE, NOT A FILL. Tarn shipped a first cut at
+     0.90m of shoreline foam and photographed as a white plate with a bit of
+     lagoon round the edge — 63% of every water pixel in the frame came back as
+     foam, because half of Tarn's water is under eight centimetres deep and the
+     whole shelf qualified. Stated as an area this is one number that means the
+     same thing on a flat shelf and a steep pan. */
+  ok('no world foams more than a sixth of its own water', allNarrow,
+    rows.join(' | '));
+}
+
 
 console.log(fails === 0 ? '\nAll checks passed.' : `\n${fails} FAILURE(S).`);
 process.exit(fails ? 1 : 0);

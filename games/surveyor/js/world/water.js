@@ -126,6 +126,16 @@ export class Water {
     this.count = depth.length;
     this.depth = depth;
     this.tris = idx.length / 3;
+    /* THE DEEPEST POINT ON THIS WORLD, from the array that was just filled.
+       The water shader spreads its six bathymetry shelves across this. It used
+       to guess with relief * 0.42, which on Anvil is 43.5m against an actual
+       11.5m — so five of the six shelves were unreachable and the chart drew
+       one and a half of them. Taken from the shell rather than from a fresh
+       sampling pass because this is the depth field that gets DRAWN: a second
+       measurement could disagree with it, and this one cannot. */
+    let deepest = 0;
+    for (let i = 0; i < depth.length; i++) if (depth[i] > deepest) deepest = depth[i];
+    this.maxDepth = deepest;
   }
 
   /** Nothing to do. Kept so the call site reads the same as it always did. */

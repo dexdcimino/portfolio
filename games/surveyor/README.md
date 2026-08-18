@@ -68,10 +68,15 @@ js/
     sphere.js         cube-sphere charts, tangent frame, planet profiles
     noise.js          height(dir, planet) — the single source of truth
     surface.js        the flat-world adapter + the leaf cache
-    materials.js      five shaders: terrain, water, sky, disc, craft
+    materials.js      the shaders: terrain, water, sky, disc, craft, and the two
+                      depth passes
     chunks.js         cube-face quadtree + skirts + the baked fissure mask
     scatter.js        rock geometry, baked into leaf meshes. One profile per world
     water.js          static sphere shell, CPU-fed depth attribute, the ice rule
+    seabed.js         the water's depth pass. Renders the terrain's distance
+                      from the camera so the water can ask how much of itself is
+                      between the eye and the ground, per pixel, instead of
+                      interpolating a 40m vertex grid
     sky.js            one parameterised dome; the numbers live in tune.js
     discs.js          the other five worlds, camera-relative billboards
     shadows.js        the cast-shadow depth pass. Own render target, own ortho
@@ -100,7 +105,19 @@ js/
     hud.js
   main.js
 dev/run.mjs           headless harness — stubs Babylon, runs in Node
+dev/glslcheck.mjs     imported FIRST by run.mjs, because it is the one check that
+                      has to run before the import chain reaches materials.js: a
+                      backtick inside a shader template closes the literal, and
+                      the SyntaxError names a GLSL identifier
 dev/shots.mjs         six-way screenshot harness — drives real Chrome over CDP
+dev/frames.mjs        camera set-ups shared by the harnesses, so they cannot
+                      drift onto different pictures. The shoreline finder lives
+                      here
+dev/noop.mjs          proves a new term is neutral by flipping it inside one
+                      frozen frame. shots.mjs cannot: two runs over identical
+                      code differ in 85% of their pixels
+dev/waterstats.mjs    reads the water debug modes back as distributions, and
+                      what the depth pass costs
 dev/perf.mjs          what the overlay costs, measured on real frames
 dev/cdp.mjs           the ~150-line DevTools client it runs on. No dependencies
 dev/history/          the standalone repo this game was built in, as a git
@@ -193,6 +210,133 @@ it, and T1's SSAO2 runs off the prepass — which follows every entry in
 post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
+
+## The water knows how deep it is now, per pixel
+
+Authored here rather than transplanted — lookdev has no water. The whole pass
+turns on one measurement. The water shell carries a `depth` attribute per
+VERTEX and the shell is 40 cells across a cube face, which on Home is **one
+depth sample every forty metres**. Everything the water drew off depth was being
+interpolated across that: the six bathymetry shelves, and the shoreline foam,
+whose entire job is to live in the first three metres of depth. The foam read as
+a wide soft band because it had never had the resolution to be anything else.
+
+So `js/world/seabed.js` renders the terrain's distance from the camera into a
+render target and the water shader subtracts. Same quantity the shader already
+computes for itself as `length(uCam - vW)`, so thickness is one subtract with no
+projection inverse. Raising the mesh instead was measured and rejected:
+`waterFaceRes` 128 is 100k `height()` calls at 5.0us each, half a second of load
+per world, and it still samples the ground on a grid rather than following it.
+
+**Path length is not depth, and keeping them apart is the pass.** `thick` is how
+far a ray travels through water; `pdepth` is how far the seabed it lands on sits
+below the surface. Identical looking straight down, nothing alike at a graze —
+on Tarn, mean depth 2.6m, a ray ten degrees above the horizon crosses fifteen
+metres of water. Shoreline foam written against the path measured **zero moving
+pixels** on three worlds with the term turned up past any depth in the game.
+Absorption wants the path. Anything that has to be a fixed width on the ground —
+the foam line, the shelves — wants the depth.
+
+The same split runs through absorption: **colour off depth, transparency off
+path**. Colour has to be view-independent or the chart changes as you turn your
+head; transparency genuinely is a path property, because a long slant through
+water really does hide the bottom.
+
+**The chart was being drawn at a quarter scale and nobody had measured it.**
+`uMaxDepth`, the range the six shelves spread across, was `max(3, relief*0.42)`:
+
+| world | guessed | actually | shelves ever drawn |
+|---|---|---|---|
+| home | 21.8m | 9.9m | 2.7 of 6 |
+| tarn | 8.7m | 6.7m | 4.6 of 6 |
+| vault | 17.4m | 8.0m | 2.7 of 6 |
+| shroud | 30.5m | 13.8m | 2.7 of 6 |
+| anvil | 43.5m | 11.5m | **1.6 of 6** |
+
+Nothing was wrong with the shelves. They were being asked to span twice the
+depth of any water in the game, so the deep half of every palette had never been
+on screen. `WATER.measureDepth` takes the number off the shell that was actually
+built, and two assertions now hold it there.
+
+**The swell is sampled below Nyquist on every world, and the boat rides the real
+one.** Samples per wavelength is `4 * waterFaceRes / waveFreq` — the radius
+cancels — giving 1.78 on Home, 1.45 on Shroud, 1.23 on Anvil, 2.58 on Tarn. What
+the vertex shader displaces is an alias of the swell, while `waveAt()` on the CPU,
+which the hull's ride height and the whole wave-launch path read, evaluates the
+function exactly. Eight samples a wavelength would want `waterFaceRes = 2 *
+waveFreq`, which is 180 on Home: 196k vertices and a second of load. So the
+NORMAL is computed analytically in the fragment shader instead, from the same
+three sines, for three cosines a pixel. Geometry stays coarse and so does the
+silhouette; everything that reads the surface as a direction reads the true
+swell. A check in `dev/run.mjs` pins the shader's coefficients to `noise.js`'s,
+because that agreement is now written down in three places.
+
+**No planar reflection, and the measurement is the reason.** A planar reflection
+needs a plane; this water is a closed shell around a planet. With the eye at
+9.5m the horizon is 89m away on Tarn and 198m on Anvil, and on every world the
+surface falls away from its own tangent plane by 9.5m at the horizon — the drop
+just IS the eye height. That is four times Tarn's swell and thirty times
+Shroud's, wrong worst at the skyline, which is the one place anybody reads a
+reflection off water, and it would cost a second render of the world per frame
+to be wrong there. There is no tier at which that is the right trade rather than
+a cheaper one. The reflected ray is traced against the sky instead, which is an
+analytic function of direction and therefore exact on a sphere at any range.
+
+**Screen-space refraction bends what the water does to the seabed, not the
+seabed.** The thickness lookup is displaced along the surface tilt, so the
+shelves, the foam line and the transparency all bend where the swell tips the
+surface. The seabed's own image arrives through the alpha blend at full
+resolution and is not resampled. Bending that too would mean a second colour
+pass over the terrain; this pass does not spend it.
+
+### What it cost to find
+
+Three bugs, all of them found by reading numbers rather than pictures, and the
+first two looked exactly like bad tuning:
+
+- **`scene.overrideMaterial` does not survive a second render target.**
+  `shadows.js` swaps its depth material in that way and says so in a comment:
+  two lines instead of a per-mesh registration. With two such targets the
+  second one's swap does not take. The seabed pass came back holding terrain
+  COLOUR — 0.1 to 0.9 on Home, 0.3 to 1.3 on Tarn, the red channel of the
+  palette — which the water read as a seabed less than a metre away everywhere,
+  and Home's lake rendered as solid foam over 99.3% of its surface. It looked
+  like a foam term four times too wide. Fixed with
+  `RenderTargetTexture.setMaterialForRendering`, which is per-target and touches
+  no global state.
+- **A divide-by-zero floor applied to a multiply.** The cosine between the view
+  ray and the local up is a divisor one way and a multiplier the other. Floored
+  at 0.08 for both, it reported the seabed nine times deeper than it is at
+  1000m, saturating every shelf on the far half of every lake. Same symptom
+  again: one flat plate of blue, the chart gone.
+- **A semicolon inside a comment on a `uniform` line.** Babylon's shader
+  processor splits those lines on `;` before it strips comments, so the prose
+  came back as a statement and the compile failed with `'z' : syntax error`.
+
+### The instruments this pass had to build
+
+`dev/shots.mjs` could not see any of it. Its six frames are shot from the chase
+camera, and there is **no water in Tarn's** — Tarn is 85% ocean and spawns you
+on a dry ridge. So:
+
+- **`dev/frames.mjs`** finds a shoreline: a golden-angle spiral out from the
+  spawn for a point that crosses sea level with real depth behind it and real
+  land in front. Shared by two harnesses so they cannot drift onto different
+  pictures. `shots.mjs` gained a fourth frame from it.
+- **`dev/noop.mjs`** proves a new term neutral by flipping it inside one frozen
+  frame. `shots.mjs` cannot: two runs over identical code differ in 85% of their
+  pixels, up to 83 levels, because the grain is per-frame noise and the swell is
+  a function of wall-clock time. This stops the render loop, kills the grain and
+  the particle systems, and reads the framebuffer with `gl.readPixels` — a
+  screenshot goes through Chrome's compositor and came back different three
+  times in a row on a scene where nothing had moved. It renders on/off/on so the
+  control proves the rig would have noticed, and it turns one term up hard on
+  the way out, because "zero pixels changed" also describes a uniform that never
+  reached the shader.
+- **`dev/waterstats.mjs`** reads the debug modes back as distributions, and it
+  needed a magenta water mask (`WATER.debug = 4`) before any of it meant
+  anything: terrain and sky have red channels too, and the first measurement
+  reported foam over 99.9% of Home by counting them.
 
 ## T3 put a surface on the ground without touching the chart
 
@@ -692,9 +836,23 @@ that the overlay's markers all land in the depth-cleared rendering group, that a
 world nobody is rendering takes exactly the damage a closed form says it takes,
 that raiders concentrate on the densest ground, that a mature cluster survives an
 hour alone while a young isolated site does not, and that the beam works from all
-three forms and charges for it, and that closing the tab does not protect a colony. 178 checks. Run it after touching `noise.js`,
-`sphere.js`, `craft.js`, `chunks.js`, `scatter.js`, `hyper.js`, `colony.js` or
-`raiders.js`.
+three forms and charges for it, and that closing the tab does not protect a
+colony — plus, since the water pass, that no shader body quotes with a backtick,
+that the swell is the same eight coefficients on the CPU and in both shaders,
+that every world reaches all six of its bathymetry shelves, and that no world
+calls a fifth of its water column the shoreline. 185 checks. Run it after
+touching `noise.js`, `sphere.js`, `craft.js`, `chunks.js`, `scatter.js`,
+`hyper.js`, `colony.js`, `raiders.js`, `water.js` or `materials.js`.
+
+The last four are all guards against a specific thing that already happened.
+The backtick check exists because a code-quote inside a shader comment closed
+the template literal six times across five passes, and the error it produces
+names a GLSL identifier at a line of English prose. The swell check exists
+because the wave function is now written down in three places — `waveAt()`, the
+vertex displacement and the per-pixel normal — and the boat rides the first one.
+The two chart checks exist because the bathymetry shelves were being spread over
+twice the depth of any water in the game, and because Tarn's first shoreline was
+a third of its entire water column wide.
 
 The winding checks earn their keep. Three separate meshes here have now been
 built inside-out — boulders, then habitat domes, then tubes — and the
@@ -713,6 +871,41 @@ by side, which is the only way to ask whether two of them are interchangeable. I
 also fails on any console error, page exception or CSP refusal, so a world that
 renders but throws does not pass on the strength of a pretty picture. No npm: it
 speaks the DevTools protocol over node's built-in WebSocket.
+
+Four frames per world now, and the fourth was added because the other three
+could not see the water. All of them look at the craft, and there is **no water
+in Tarn's** — a world that is 85% ocean, which spawns you on a dry ridge. So
+`dev/frames.mjs` goes and finds a shoreline: a golden-angle spiral out from the
+spawn for a point that crosses sea level with real depth behind it and real land
+in front, nearest first. It looks down across the shallows at about thirty
+degrees rather than reproducing the chase camera, and that is deliberate — the
+first cut stood at a rover's roof height and photographed Home as one flat plate
+of blue three times running while the bathymetry underneath it was working
+perfectly. A test frame's job is to show the thing under test.
+
+```bash
+node dev/noop.mjs             # is a new term neutral?
+node dev/waterstats.mjs       # what the water shader computes, and what it costs
+```
+
+`noop.mjs` is the instrument behind the house habit — ship a term at its neutral
+value, prove it changes nothing, then author. `shots.mjs` cannot do that: two of
+its runs over identical code differ in 85% of their pixels, up to 83 levels,
+because the grain is per-frame noise and the swell is a function of wall-clock
+time. So this compares inside ONE run instead: boot, stop the render loop, kill
+the grain and the particle systems, then render, read the framebuffer, flip the
+term, render, read again. It renders on/off/on so the control proves the rig
+would have noticed a difference, and it turns one term up hard on the way out,
+because "zero pixels changed" is also what a uniform that never reached the
+shader looks like. That last check earned its place on the first run.
+
+Read the framebuffer with `gl.readPixels`, not a screenshot. The first version
+used `Page.captureScreenshot` and reported every world unstable — three renders
+of a frozen scene coming back as three different images, with the term under
+test not even flipped between two of them. The engine runs
+`preserveDrawingBuffer:false`, so a screenshot is whatever Chrome's compositor
+has when it gets round to it. This is very likely the same root cause as the
+known wrong-sky capture noted in `shots.mjs`.
 
 This closed the gap the tests could never cover. An inside-out boulder field, a
 rover riding 1.5m in the air and a jet that could not take off were all invisible

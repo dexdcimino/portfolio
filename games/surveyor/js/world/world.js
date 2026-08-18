@@ -24,6 +24,7 @@ import { Water } from './water.js';
 import { createSky } from './sky.js';
 import { Discs } from './discs.js';
 import { Shadows } from './shadows.js';
+import { Seabed } from './seabed.js';
 import { CONTACT } from '../tune.js';
 import { Survey } from '../game/survey.js';
 import { Colonies } from '../game/colony.js';
@@ -55,14 +56,35 @@ export class World {
        — a list holding disposed meshes grows without bound and Babylon will
        happily try to draw them. */
     this.shadows = new Shadows(scene, planet, this.mats.skyParams.sunDir);
+    /* The seabed depth pass, which answers "how much water is between the eye
+       and the ground" per pixel — the question the water shell's 40m depth grid
+       could only ever guess at. Same wiring as the shadow pass and for the same
+       reason, so the two share the chunk stream's one pair of hooks below. */
+    this.seabed = new Seabed(scene, planet);
     this._tmpA = { x: 0, y: 0, z: 0 };
     this._tmpB = { x: 0, y: 0, z: 0 };
     this.field = new ChunkField(scene, this.mats.terrain, planet);
-    if (this.shadows.cfg.castTerrain) {
-      this.field.onBuild = (mesh) => this.shadows.addCaster(mesh);
-      this.field.onDrop = (mesh) => this.shadows.removeCaster(mesh);
+    /* ONE pair of hooks, two consumers. ChunkField carries a single onBuild and
+       a single onDrop; assigning the seabed's over the shadow's would leave the
+       shadow map with an empty caster list and no error anywhere. Both are
+       registered here, and both are cheap enough that the branch is inside
+       rather than around. */
+    const castsShadow = this.shadows.cfg.castTerrain && this.shadows.enabled;
+    if (castsShadow || this.seabed.enabled) {
+      this.field.onBuild = (mesh) => {
+        if (castsShadow) this.shadows.addCaster(mesh);
+        if (this.seabed.enabled) this.seabed.add(mesh);
+      };
+      this.field.onDrop = (mesh) => {
+        if (castsShadow) this.shadows.removeCaster(mesh);
+        if (this.seabed.enabled) this.seabed.remove(mesh);
+      };
     }
     this.mats.bindShadows(this.shadows);
+    this.mats.bindSeabed(this.seabed);
+    // The shell knows how deep this world actually gets; the material was
+    // guessing from relief. See WATER.measureDepth.
+    if (this.water) this.mats.setMaxDepth(this.water.maxDepth);
     this.survey = new Survey(scene, craft, planet);
     this.colonies = new Colonies(scene, craft, this.mats.craft, planet);
     // The beam is the scanner held down, so survey.js owns it — but the things
@@ -149,8 +171,10 @@ export class World {
       for (const key of [...this.survey.active.keys()]) this.survey.despawnChunk(key);
       this.survey.center = '';
       for (const site of this.colonies.sites) this.colonies.release(site);
-      // Terrain is gone, so every caster it registered is too.
+      // Terrain is gone, so every caster it registered is too — and every
+      // mesh the seabed pass was measuring against.
       this.shadows.clearCasters();
+      this.seabed.clear();
       // Raiders keep attacking; only what you could see of them is thrown away.
       this.colonies.raiders.releaseAll();
     }
@@ -173,6 +197,10 @@ export class World {
     // stationary rover.
     this.shadows.update(craft.world);
     this.mats.syncShadows(this.shadows);
+    /* The CAMERA, not the craft — this one measures distance from the eye, and
+       measuring it from anywhere else would put the foam line where the chase
+       cam is not looking. */
+    if (camera) this.seabed.update(camera.position);
     this.contact(craft);
   }
 }

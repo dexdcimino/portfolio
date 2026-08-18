@@ -18,6 +18,9 @@ import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { launch, serve, evaluate, wait } from './cdp.mjs';
+// The shoreline set-up, shared with dev/noop.mjs — see dev/frames.mjs for why
+// it is shared rather than copied.
+import { SHORE } from './frames.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -233,6 +236,13 @@ for (const key of KEYS) {
     Object.assign(info, await evaluate(page, SKYWARD));
     const sky = await page.send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(OUT, name(key + '-sky')), Buffer.from(sky.data, 'base64'));
+
+    // ...and the water's edge, on the five worlds that have one.
+    Object.assign(info, await evaluate(page, SHORE));
+    if (info.shore) {
+      const sh = await page.send('Page.captureScreenshot', { format: 'png' });
+      writeFileSync(join(OUT, name(key + '-shore')), Buffer.from(sh.data, 'base64'));
+    }
   }
 
   const bad = !info.ok || errs.length;
@@ -247,6 +257,9 @@ for (const key of KEYS) {
       : 'never became ready' + (info.err ? ' — ' + info.err : '')));
   if (info.ok) {
     console.log(`        overlay: ${info.markers} markers over ${info.sites} colonies`);
+    console.log(`        shore: ` + (info.shore
+      ? `found at ${info.shore}m from spawn`
+      : (PLANETS[key].dry ? 'dry world, no water frame' : 'NONE FOUND within half a radius')));
   }
   for (const e of errs) console.log(`        ! ${e}`);
 
@@ -261,8 +274,13 @@ for (const key of KEYS) {
 // the size at which two worlds being interchangeable becomes obvious. One sheet
 // of ground, one of sky.
 if (KEYS.length > 1) {
-  for (const view of ['', '-survey', '-sky']) {
-    const cells = KEYS.map((k) => `  <figure><img src="${name(k + view)}" alt="${k}">` +
+  for (const view of ['', '-survey', '-sky', '-shore']) {
+    // The shore sheet is five wide, not six: Ember has no water, and a blank
+    // cell captioned "Ember" would read as a world that failed to render.
+    const shown = KEYS.filter((k) => view !== '-shore' || rows.some(
+      (r) => r.key === k && r.info.shore));
+    if (!shown.length) continue;
+    const cells = shown.map((k) => `  <figure><img src="${name(k + view)}" alt="${k}">` +
       `<figcaption>${PLANETS[k].name} · R=${PLANETS[k].radius}m</figcaption></figure>`).join('\n');
     const html = 'sheet' + view + '.html';
     writeFileSync(join(OUT, html),
