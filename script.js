@@ -2494,6 +2494,18 @@ function renderMarkdown(src) {
     }));
   });
 
+  /* This block lives in the statement column, which is OUTSIDE the tab panels
+     and therefore visible whatever tab is open — so it followed the visitor into
+     Wallpapers and Clips describing an app they were no longer looking at.
+
+     Tied to the Apps panel's own `hidden` attribute through an observer rather
+     than to a click on the tab: initTabs owns that attribute, and watching the
+     thing itself cannot fall out of step with however the panel comes to be
+     shown (a click, a keyboard arrow, or anything added later). */
+  const syncVisible = () => { info.hidden = panel.hidden; };
+  new MutationObserver(syncVisible).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+  syncVisible();
+
   /* Seeded rather than left blank: this column is on screen before anyone has
      hovered anything, and an empty half-column reads as a loading failure.
 
