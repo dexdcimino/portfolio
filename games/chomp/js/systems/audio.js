@@ -42,7 +42,9 @@ function readStore(key, fallback) {
    so an existing player's volume is not discarded by the upgrade. */
 const LEGACY_VOLUME_KEY = 'chomp-volume';
 const LEGACY_MUTED_KEY = 'chomp-muted';
-let levels = { master: 0.35, music: 0.30, fx: 0.40 };
+// Chomp's own starting mix — see rescaleMix() in pausemenu.js for why these
+// are not the shared module's 0.35/0.30/0.40 (those multiply out to silence).
+let levels = { master: 0.80, music: 0.60, fx: 0.70 };
 let busGraph = null;
 
 export function setAudioLevels(next) {
@@ -86,7 +88,7 @@ export function legacyAudioLevel() {
    spammable, death happens once. */
 let samples = null;
 const SAMPLES = {
-  chomp:    ['chomp.ogg',     { cap: 5, gain: 1.01 }],
+  chomp:    ['chomp.wav',     { cap: 3, gain: 0.95 }],
   eat:      ['eat.ogg',       { cap: 4, gain: 1.03 }],
   evolve:   ['evolve.ogg',    { cap: 2, gain: 1.13 }],
   death:    ['death.ogg',     { cap: 1, gain: 1.31 }],
@@ -107,10 +109,16 @@ const SAMPLES = {
    level that was signed off. 0.45 (Arena 1) → 0.57 (Dark Shrine, 0.193) →
    0.53 (Dungeon Deep, 0.2075): 0.57 × (0.193 / 0.2075) ≈ 0.53. The number
    moving is not a mix decision, it is the same loudness meeting a different
-   recording. Headroom: 0.53 × its 0.646 peak is 0.34.
+   recording.
+
+   Raised to 0.75 once the fader defaults were fixed. The old chain multiplied
+   out to a peak of -27 dBFS, which is inaudible; at the corrected defaults
+   (0.80 master, 0.60 music) 0.75 puts the music at about -11 dBFS peak, roughly
+   7 dB under the FX, which is where background music belongs. Rendered through
+   the real graph, not estimated — see the measurement in CREDITS.md.
    `loop = true` on the BufferSource is a sample-accurate loop with no gap —
    the reason this is a decoded buffer and not an <audio> element. */
-const MUSIC_GAIN = 0.53;
+const MUSIC_GAIN = 0.75;
 let musicNode = null;
 function startMusic() {
   if (musicNode || !samples || !busGraph) return;
@@ -193,13 +201,18 @@ export function createAudio() {
   }
 
   /* Only events Chomp actually emits (audited for MD 27):
-       player:chomp   — the maw snaps shut, on every input
-       player:eat     — something was actually swallowed
-       player:evolve  — stage up
-       player:death   — run over
+       player:chomp      — the LUNGE starts and the maw opens, on every input
+       player:chompShut  — the jaws close at the end of that lunge
+       player:eat        — something was actually swallowed
+       player:evolve     — stage up
+       player:death      — run over
      player:devolve, player:damage and player:bonk also exist and have no sound
-     in the MD 27 list; they are left alone rather than guessed at. */
-  on('player:chomp', () => play('chomp'));
+     in the MD 27 list; they are left alone rather than guessed at.
+
+     The bite hangs on chompShut, not chomp. They are 0.35s apart — the whole
+     length of the lunge — and the maw is wide OPEN for all of it, so a snap on
+     the keypress played against the wrong half of the animation. */
+  on('player:chompShut', () => play('chomp'));
   on('player:eat', () => play('eat'));
   on('player:evolve', () => play('evolve'));
   on('player:death', () => play('death'));

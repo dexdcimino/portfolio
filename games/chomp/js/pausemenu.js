@@ -76,6 +76,33 @@ const CONTROLS = [
   ['Pause', ['Esc', 'P'], ''],
 ];
 
+/* The mixer's three faders MULTIPLY, and the shared defaults did not account
+   for that: master 0.35 x music 0.30 x the track's own 0.53 is 0.056 — about 5%
+   of full scale, which rendered through the real graph is a peak of -27 dBFS.
+   That is not "quiet background music", that is inaudible under any system
+   volume a person actually uses. FX fared better only because a transient
+   survives attenuation that sustained music does not.
+
+   These are Chomp's own defaults rather than a change to
+   games/_shared/audio-panel.js, which is Arena 1's too and whose mix is its
+   own business.
+
+   The rescale runs once, stamped by CHOMP_MIX_VERSION, and only ever raises a
+   channel — someone who deliberately turned FX down keeps it. It has to touch
+   stored settings at all because the old numbers meant a different loudness:
+   leaving a player on 35/30 would leave them on silence they never chose. */
+const CHOMP_MIX = { master: 0.80, music: 0.60, fx: 0.70 };
+const CHOMP_MIX_VERSION = '2';
+const MIX_VERSION_KEY = 'chomp-mix-version';
+
+function rescaleMix(settings) {
+  if (store.get(MIX_VERSION_KEY) === CHOMP_MIX_VERSION) return;
+  for (const [key, floor] of Object.entries(CHOMP_MIX)) {
+    if (settings.get(key) < floor) settings.set(key, floor);
+  }
+  store.set(MIX_VERSION_KEY, CHOMP_MIX_VERSION);
+}
+
 /* Master silences the other channels, the way Stickland's menu does it.
 
    Switching master off has to move every fader, not just stop the sound: a
@@ -303,6 +330,7 @@ function build() {
      twice. */
   const audioSettings = createAudioSettings('chomp', setAudioLevels,
     { legacyMaster: legacyAudioLevel() ?? undefined });
+  rescaleMix(audioSettings);
   buildAudioPanel(menu.querySelector('.cmenu-audpanel'), masterCascade(audioSettings));
 
   /* UI select (MD 27). The menu is plain DOM and emits nothing on the event

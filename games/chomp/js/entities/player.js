@@ -113,7 +113,18 @@ export function updatePlayer(p, input, world, dt) {
     const lunge = p.maxSpeed * CONFIG.chomp.speedMult;
     p.vx = Math.sin(p.facing) * lunge;
     p.vz = Math.cos(p.facing) * lunge;
-    if (p.chomp.t >= CONFIG.chomp.duration) p.chomp.active = false;
+    if (p.chomp.t >= CONFIG.chomp.duration) {
+      p.chomp.active = false;
+      /* The jaws SHUT here, and this is the event the bite sound hangs on.
+         `player:chomp` above fires on the keypress, which is the moment the maw
+         starts to OPEN — it stays open for the whole 0.35s lunge (morph.js
+         holds mouthTarget at 1 while chomp.active) and only closes when the
+         lunge ends. Playing a snap on the press put the sound at the wrong end
+         of the animation by a third of a second, which is what "not lined up"
+         was. The lunge still has its own feedback: the camera kick, which is
+         still on player:chomp because the kick belongs to the launch. */
+      emit('player:chompShut', p);
+    }
   } else if (p.stunned > 0) {
     const f = Math.max(0, 1 - cfg.friction * 2 * dt);
     p.vx *= f;

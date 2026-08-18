@@ -17,7 +17,7 @@ nothing in Chomp depends on user-visible attribution.
 
 | File | Game | Used for | Source URL | Author | Licence |
 | ---- | ---- | -------- | ---------- | ------ | ------- |
-| `games/chomp/assets/audio/chomp.ogg` | Chomp | Maw snaps shut (`player:chomp`) | https://opengameart.org/content/crunchy-bite | fvcalderan | CC0 |
+| `games/chomp/assets/audio/chomp.wav` | Chomp | Jaws close (`player:chompShut`) | https://opengameart.org/content/fleshy-bone-breaksnap-sfx | Michel Baradari | CC0 |
 | `games/chomp/assets/audio/eat.ogg` | Chomp | Food swallowed (`player:eat`) | https://opengameart.org/content/7-eating-crunches | tito | CC0 |
 | `games/chomp/assets/audio/evolve.ogg` | Chomp | Stage up / growth (`player:evolve`) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
 | `games/chomp/assets/audio/death.ogg` | Chomp | Death (`player:death`) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
@@ -35,7 +35,7 @@ Renamed on the way in, so the mapping back to the pack is recorded:
 
 | Shipped as | Original in pack | Pack |
 | ---------- | ---------------- | ---- |
-| `chomp.ogg` | `crunchybite_0.ogg` | OpenGameArt — Crunchy bite |
+| `chomp.wav` | `Wet Break 5.wav` | OpenGameArt — Fleshy bone break/snap |
 | `eat.ogg` | `crunch.2.ogg` | OpenGameArt — 7 Eating Crunches |
 | `evolve.ogg` | `Audio/impactBell_heavy_001.ogg` | Impact Sounds |
 | `death.ogg` | `Audio/impactMining_003.ogg` | Impact Sounds |
@@ -63,7 +63,7 @@ darker), the share of energy below 500 Hz, peak and windowed loudness.
 | Slot | Chosen | Duration | Centroid | Energy < 500 Hz |
 | ---- | ------ | -------- | -------- | --------------- |
 | `eat` | `crunch.2` | 1.10s | — | 11% |
-| `chomp` | `crunchybite_0` | 0.29s | 548 Hz | 71% |
+| `chomp` | `Wet Break 5` | 0.82s | — | 15% |
 | `evolve` | `impactBell_heavy_001` | 1.74s | 293 Hz | 81% |
 | `death` | `impactMining_003` | 0.99s | 290 Hz | 76% |
 | `ui-select` | `select_005` | 0.38s | 1239 Hz | 9% |
@@ -88,7 +88,7 @@ proud. The trims live in `SAMPLES` in `js/systems/audio.js`:
 
 | Sound | Measured loudness | Normalise | Mix offset | Shipped gain |
 | ----- | ----------------- | --------- | ---------- | ------------ |
-| `chomp` | 0.086 | ×2.20 | — | **1.01** |
+| `chomp` | 0.108 | peak-limited | — | **0.95** |
 | `eat` | 0.090 | peak-limited | — | **1.03** |
 | `evolve` | 0.128 | ×1.25 | 0.90 | **1.13** |
 | `death` | 0.122 | ×1.31 | 1.00 | **1.31** |
@@ -178,7 +178,7 @@ one-pole 500 Hz high-pass (the same filter for every number here):
 
 | Slot | Was | Above 500 Hz | Now | Above 500 Hz |
 | ---- | --- | ------------ | --- | ------------ |
-| `chomp` | `impactSoft_medium_004` | **2.7%** | `crunchybite_0` | **57%** |
+| `chomp` | `impactSoft_medium_004` | **2.7%** | `Wet Break 5` | **85%** |
 | `eat` | `impactSoft_heavy_003` | **1.6%** | `crunch.2` | **89%** |
 
 Almost all of their energy sat below 500 Hz, where a laptop or phone speaker
@@ -193,7 +193,7 @@ instead:
 
 | Sound | Peak | Gain | Peak after gain | Audible-band energy vs before |
 | ----- | ---- | ---- | --------------- | ----------------------------- |
-| `chomp` | 0.773 | 1.01 | 0.78 | — (it replaced a sound with none) |
+| `chomp` | 0.964 | 0.95 | 0.92 | — (it replaced a sound with none) |
 | `eat` | 0.919 | 1.03 | 0.95 | **24×** |
 
 On a meter the eat is quieter than what it replaces. On a speaker it is
@@ -234,6 +234,46 @@ back exactly where the approved track sat.
 Worth knowing: Arena 1's own track measures 0.366 — half again as loud as
 Chomp's — so the two games have never actually matched at a shared 0.45, whatever
 the comments in either file claimed.
+
+## The mix, and why the music was inaudible
+
+The three faders **multiply**, and the shared defaults did not account for it:
+
+    music source 0.53  x  music bus 0.30  x  master 0.35  =  0.056
+
+Rendered through the real graph — the same source gain, buses and compressor the
+game builds — that is a peak of **-27.4 dBFS**. Not "quiet background music":
+inaudible at any system volume a person actually uses. FX survived only because
+a transient carries where sustained music does not.
+
+Fixed on both sides, measured rather than guessed:
+
+| | before | after |
+| --- | --- | --- |
+| starting faders | master .35 / music .30 / fx .40 | **master .80 / music .60 / fx .70** |
+| music source gain | 0.53 | **0.75** |
+| music at the output | -27.4 dBFS peak | **-11.4 dBFS peak** |
+| FX at the output | -14.5 dBFS peak | **-4.2 dBFS peak** |
+| every fader at 100% | — | -1.5 dBFS peak, still no clipping |
+
+Music now sits about 7 dB under the FX, which is where background music belongs.
+
+The starting faders are **Chomp's own**, set in `js/pausemenu.js`, not a change
+to `games/_shared/audio-panel.js` — that module is Arena 1's as well and its mix
+is its own business. A one-time rescale (`chomp-mix-version`) raises anyone
+already carrying the old numbers, because those numbers meant a different
+loudness; it only ever raises, so a deliberately quiet channel stays quiet.
+
+## Timing: the bite plays when the jaws close
+
+`player:chomp` fires on the keypress — which is when the maw begins to **open**.
+It stays open for the whole 0.35s lunge (`morph.js` holds the mouth at 1 while
+`chomp.active`) and shuts only when the lunge ends. The bite sound was on that
+first event, so it played a third of a second before the jaws it was meant to
+be. `player:chompShut` was added at the end of the lunge and the sound moved
+there; the camera kick stays on `player:chomp`, because the kick belongs to the
+launch. At 0.82s the bite still fits inside the 0.9s chomp cooldown, so two
+never overlap.
 
 ## Not sourced
 
