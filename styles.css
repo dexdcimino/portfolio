@@ -2532,9 +2532,21 @@ body.modal-open{overflow:hidden}
 .wp-next .icon,.wp-fullnext .icon,.cl-next .icon{transform:rotate(-90deg)}
 
 /* Centred under the hero, in both places it appears. */
-.wp-thumbs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+/* A GRID with an explicit column count, not a wrapping flex row. Wrapping fills
+   each row with as many as physically fit and drops the remainder, so eight
+   pieces in a strip that fits five came out 5+3 — and seven-and-one before the
+   thumbnails were capped. The count is set by script.js from the number of
+   wallpapers, so the rows come out balanced (4+4) at whatever size the strip
+   happens to be. --thumb-max is the designed size; the columns never exceed it,
+   and justify-content keeps a short row centred under the piece. */
+.wp-thumbs{
+  --thumb-max:117px;
+  display:grid;grid-template-columns:repeat(var(--per-row,5),minmax(0,var(--thumb-max)));
+  gap:8px;justify-content:center;
+}
 .wp-thumb{
-  width:117px;aspect-ratio:16/10;border-radius:8px;overflow:hidden;padding:0;cursor:pointer;
+  width:100%;
+  aspect-ratio:16/10;border-radius:8px;overflow:hidden;padding:0;cursor:pointer;
   border:var(--stroke) solid rgba(255,255,255,.12);background:#0b0f12;
   opacity:.55;transition:opacity .18s ease,border-color var(--accent-ease),transform .18s ease;
 }
@@ -2543,7 +2555,7 @@ body.modal-open{overflow:hidden}
 .wp-thumb[aria-selected="true"]{opacity:1;border-color:var(--accent)}
 .wp-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:700px){
-  .wp-thumb{width:87px}
+  .wp-thumbs{--thumb-max:87px}
   .wp-dl{width:44px;height:44px;border-radius:12px;right:10px;bottom:10px}
   .wp-dl .icon{width:24px;height:24px}
 }

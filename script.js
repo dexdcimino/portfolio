@@ -1805,6 +1805,39 @@ async function saveFile(btn) {
     view.thumbs = [...view.strip.children];
   });
 
+  /* Rows are balanced from the count, not left to flex-wrap. Wrapping fills the
+     first row and drops the remainder, so eight pieces in a strip that fits
+     seven left one thumbnail alone on a second row — which reads as a bug, not
+     a layout. Dividing the count by the number of rows it needs gives 4+4 or
+     5+5 instead, and it holds for any number of wallpapers, which is the point:
+     nothing here should need revisiting when art is added.
+
+     The measurement is per strip because the panel and the overlay are
+     different widths, and it re-runs on resize for the same reason. */
+  function layoutStrip(strip) {
+    const kids = strip.children.length;
+    if (!kids) return;
+    const gap = parseFloat(getComputedStyle(strip).columnGap) || 0;
+    const width = strip.clientWidth;
+    if (!width) return;                    // hidden tab: nothing to measure yet
+    /* The target size is read from the stylesheet, not repeated here: the
+       thumbnails are meant to stay the size they were designed at (117px, 87 on
+       a phone) and gain a row, not shrink every time a wallpaper is added. */
+    const cap = parseFloat(getComputedStyle(strip).getPropertyValue('--thumb-max')) || 117;
+    const fit = Math.max(1, Math.floor((width + gap) / (cap + gap)));
+    const rows = Math.ceil(kids / fit);
+    const perRow = Math.ceil(kids / rows);
+    strip.style.setProperty('--per-row', perRow);
+  }
+  const layoutStrips = () => views.forEach(v => layoutStrip(v.strip));
+  window.addEventListener('resize', layoutStrips);
+  // The panel starts hidden, so the first measurable moment is when its tab is
+  // opened — which is exactly when the strip first has a width.
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver(entries => entries.forEach(e => layoutStrip(e.target)));
+    views.forEach(v => ro.observe(v.strip));
+  } else layoutStrips();
+
   function paint(view, item) {
     // The plate and the download live inside the frame, so replacing the
     // picture cannot go through textContent = '' — that would take them with
