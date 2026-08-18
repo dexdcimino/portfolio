@@ -469,18 +469,21 @@ function registerShaders() {
     attribute vec3 dir;     // this world's direction, in planet space
     attribute vec3 sun;     // ...and ITS sun, which is not this world's sun
     attribute float slot;   // its row in the preview atlas
+    attribute float spec;   // its toon ice sheen. 0 on five of the six
     uniform mat4 worldViewProjection;
     varying vec2 vQ;
     varying vec4 vC;
     varying vec3 vDir;
     varying vec3 vSun;
     varying float vSlot;
+    varying float vSpec;
     void main() {
       vQ = quad;
       vC = color;
       vDir = dir;
       vSun = sun;
       vSlot = slot;
+      vSpec = spec;
       gl_Position = worldViewProjection * vec4(position, 1.0);
     }
   `;
@@ -492,6 +495,7 @@ function registerShaders() {
     varying vec3 vDir;
     varying vec3 vSun;
     varying float vSlot;
+    varying float vSpec;
     uniform vec3 uRight, uUp;
     uniform sampler2D uMap;
     uniform float uGlow, uLimb, uDisc, uNight, uEmit, uRows;
@@ -544,6 +548,26 @@ function registerShaders() {
       float limb = mix(uLimb, 1.0, z);
 
       vec3 col = map.rgb * (lit * limb * uDisc);
+
+      /* Ice sheen — Vault, and nowhere else. vSpec is that world's palette
+         spec, which is 0 on the other five, and the terrain shader calls this
+         half of what makes its ground read as frozen. The same is true up here:
+         without it Vault is a grey ball with a pale palette, and grey balls are
+         what every other world in the sky already looks like from far enough
+         away. The view direction from the world is -C, because C points from
+         here to there.
+
+         Wider and weaker than the ground's version, which is a 42nd power under
+         a hard step. Half a world away the highlight sits wherever the sun and
+         the line of sight bisect, and at a right angle between them that is the
+         LIMB — where a hard-edged chip of white reads as a rendering fault
+         rather than as ice. A broad sheen carries the same information and
+         cannot be mistaken for one. */
+      if (vSpec > 0.0) {
+        vec3 hv = normalize(normalize(vSun) - C);
+        col += vC.rgb * vSpec * 0.34 * smoothstep(0.18, 0.55,
+          pow(clamp(dot(S, hv), 0.0, 1.0), 12.0));
+      }
       // Ember's cracks are a light source, not a lit surface, so they are added
       // after the terminator and past 1.0 for the bloom pass to find.
       col += map.rgb * map.a * uEmit;

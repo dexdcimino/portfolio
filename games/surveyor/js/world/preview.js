@@ -67,7 +67,7 @@ const sub = (lon, lat) => {
  * source, not a lit surface, and it has to show on the night side.
  */
 function colourAt(out, dir, planet, COL, SK, maxDepth, melt, h, slope,
-                  lon, lat, dLonRad, dLatRad) {
+                  lon, lat, dLonRad, dLatRad, g, arc, nSun, upSun) {
   const e = h / planet.relief;
   let emit = 0;
 
@@ -98,6 +98,63 @@ function colourAt(out, dir, planet, COL, SK, maxDepth, melt, h, slope,
     // Steep faces forced back to stone. This is what draws the canyon walls on
     // Anvil, and it is why slope is worth a finite difference.
     mix3(out, out, scale3(COL.stone, 0.88), smoothstep(0.32, 0.66, slope));
+
+    /* THE THREE TERMS THAT MAKE RELIEF READ WHEN THE PALETTE WILL NOT.
+       Vault is why these exist. Its land is 23% shore / 44% flats / 23% stone,
+       and those three colours are 0.94 / 0.85 / 0.74 in luminance — a twentieth
+       of the range Home's palette covers — so the height ladder above returns a
+       flat pale disc and the world reads as a featureless ball. The palette
+       cannot carry that world; the height field has to.
+
+       None of this is invented: all three are in svTerrainFragmentShader
+       already, and each one uses that planet's OWN colours, so a world with a
+       contrasty palette gets them too and is simply less dependent on them. */
+
+    // 1. BASIN SHADOW. The low ground takes the world's shade tint, which is
+    //    the same colour its shadows are — Vault's is the deepest blue in the
+    //    system, and blue in the hollows is most of what makes ice read as ice.
+    mix3(out, out, mix3([0, 0, 0], out, COL.shade, 1),
+      (1 - smoothstep(-0.02, 0.34, e)) * PREVIEW.basin);
+
+    /* 2. RELIEF SHADING, from that planet's own sun.
+       Only the terrain's DEPARTURE from a smooth sphere is baked in: the disc
+       shader already lights the sphere, and baking the absolute dot product
+       would light it twice. So this carries the difference between the ground's
+       normal and the sphere's, which is exactly the crevasse-and-ridge signal
+       and nothing else. Free — the gradient was already computed for slope. */
+    const hs = 1 + PREVIEW.relief * (nSun - upSun);
+    const k = hs < 0.40 ? 0.40 : hs > 1.55 ? 1.55 : hs;
+    out[0] *= k; out[1] *= k; out[2] *= k;
+
+    /* 3. CONTOURS — the survey chart's own hand, same intervals as the ground:
+       minor at relief/8.7, index at relief/1.7.
+       The shader keeps its lines one PIXEL wide with a distance term; the same
+       job here is one TEXEL wide, and the honest width for that is half the
+       height the ground climbs across a texel. That falls out of the gradient,
+       so a line appears exactly where a contour crosses this texel and nowhere
+       else — which is also why they cannot alias into dots the way a fixed
+       width would.
+
+       The fade on w/interval is what SELECTS between the two intervals, and it
+       has to bite early. Measured at 128x64, the ground climbs 3.5m across a
+       texel on Vault and 8m on Anvil, against minor intervals of 4.8m and 11.9m
+       — so a minor contour crosses about seven texels in ten, which is not a
+       line network, it is noise, and it was reading as dirt on the ice. Past a
+       quarter of an interval per texel the lines are finer than the map can
+       hold and they are dropped. At this resolution that silently leaves the
+       index lines doing the work on every world, and brings the minor ones
+       back on their own if PREVIEW ever gets wider. */
+    const climb = g * arc;
+    for (const [interval, weight] of [[planet.relief * 0.115, PREVIEW.contourMinor],
+                                      [planet.relief * 0.580, PREVIEW.contour]]) {
+      const w = 0.5 * climb;
+      if (w <= 0) continue;
+      const c = Math.abs(h / interval - Math.floor(h / interval) - 0.5) * interval;
+      let line = 1 - smoothstep(w, w * 2.6, c);
+      line *= 1 - smoothstep(0.08, 0.25, w / interval);
+      line *= 1 - smoothstep(0.42, 0.80, slope);
+      if (line > 0) mix3(out, out, COL.contour, line * weight);
+    }
 
     /* Fissure emission — Ember, and only Ember. wFissure is 0 everywhere else,
        so this whole branch is skipped on the other five.
@@ -180,6 +237,10 @@ export function bakePreviews(scene) {
     const dLat = (Math.PI * planet.radius) / H;
     // The same step in radians, for the sub-texel fissure sampling below.
     const dLonRad = (Math.PI * 2) / W, dLatRad = Math.PI / H;
+    // That planet's own sun, for the relief shading. Its own, not this one's:
+    // the crevasse that is in shadow on Vault is in shadow on Vault's disc.
+    const sv = SK.sunDir, sl0 = Math.hypot(sv[0], sv[1], sv[2]) || 1;
+    const sun = { x: sv[0] / sl0, y: sv[1] / sl0, z: sv[2] / sl0 };
     for (let y = 0; y < H; y++) {
       const lat = (0.5 - (y + 0.5) / H) * Math.PI;
       const cl = Math.cos(lat), sl = Math.sin(lat);
@@ -193,10 +254,28 @@ export function bakePreviews(scene) {
         const gx = (h[y * W + ((x + 1) % W)] - h[y * W + ((x + W - 1) % W)]) / (2 * dLon);
         const gy = (h[yDn * W + x] - h[yUp * W + x]) / (Math.max(1, yDn - yUp) * dLat);
         const g = Math.hypot(gx, gy);
+
+        /* The ground's normal, for the relief shading.
+           The local frame falls straight out of the parameterisation: east is
+           d(dir)/d(lon) normalised, north is d(dir)/d(lat), and both are unit
+           already. `gy` above runs down the image, which is SOUTH, so it enters
+           with the sign flipped. A heightfield's normal is then up minus the
+           gradient laid along the two tangents. */
+        const eX = -Math.sin(lon), eZ = Math.cos(lon);
+        const nX = -sl * Math.cos(lon), nY = cl, nZ = -sl * Math.sin(lon);
+        let Nx = dir.x - eX * gx + nX * gy;
+        let Ny = dir.y + nY * gy;
+        let Nz = dir.z - eZ * gx + nZ * gy;
+        const nl = Math.hypot(Nx, Ny, Nz) || 1;
+        Nx /= nl; Ny /= nl; Nz /= nl;
+        const nSun = Nx * sun.x + Ny * sun.y + Nz * sun.z;
+        const upSun = dir.x * sun.x + dir.y * sun.y + dir.z * sun.z;
+
         // slope in the terrain shader is 1 - dot(N, up), and for a heightfield
         // dot(N, up) is exactly 1 / sqrt(1 + |grad|^2).
         colourAt(px, dir, planet, COL, SK, maxDepth, melt,
-          h[y * W + x], 1 - 1 / Math.sqrt(1 + g * g), lon, lat, dLonRad, dLatRad);
+          h[y * W + x], 1 - 1 / Math.sqrt(1 + g * g), lon, lat, dLonRad, dLatRad,
+          g, dLat, nSun, upSun);
         const o = ((row * H + y) * W + x) * 4;
         data[o] = clamp01(px[0]) * 255;
         data[o + 1] = clamp01(px[1]) * 255;

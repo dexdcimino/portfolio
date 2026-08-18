@@ -61,6 +61,9 @@ export function neighbours(planet) {
         const l = Math.hypot(v[0], v[1], v[2]) || 1;
         return { x: v[0] / l, y: v[1] / l, z: v[2] / l };
       })(),
+      // Its own toon sheen. 0 on five worlds; on Vault it is what says ice
+      // rather than pale rock, both on the ground and from three hundred km up.
+      spec: COL.spec || 0,
       // Its own brightest band, warmed toward its fog. The surface map carries
       // the identification now; this is what colours the halo around it.
       tint: [
@@ -95,6 +98,7 @@ export class Discs {
     const dirs = new Float32Array(n * 4 * 3);
     const suns = new Float32Array(n * 4 * 3);
     const slots = new Float32Array(n * 4);
+    const specs = new Float32Array(n * 4);
     const idx = [];
     const CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 
@@ -131,6 +135,7 @@ export class Discs {
         dirs[v * 3] = d.dir.x; dirs[v * 3 + 1] = d.dir.y; dirs[v * 3 + 2] = d.dir.z;
         suns[v * 3] = d.sun.x; suns[v * 3 + 1] = d.sun.y; suns[v * 3 + 2] = d.sun.z;
         slots[v] = this.maps ? this.maps.slot[d.key] : 0;
+        specs[v] = d.spec;
       }
       // Clockwise, matching everything else in this game.
       const b = i * 4;
@@ -147,11 +152,12 @@ export class Discs {
     mesh.setVerticesData('dir', dirs, false, 3);
     mesh.setVerticesData('sun', suns, false, 3);
     mesh.setVerticesData('slot', slots, false, 1);
+    mesh.setVerticesData('spec', specs, false, 1);
 
     const mat = new BABYLON.ShaderMaterial('svDisc', scene,
       { vertex: 'svDisc', fragment: 'svDisc' },
       {
-        attributes: ['position', 'quad', 'color', 'dir', 'sun', 'slot'],
+        attributes: ['position', 'quad', 'color', 'dir', 'sun', 'slot', 'spec'],
         uniforms: ['worldViewProjection', 'uRight', 'uUp',
                    'uGlow', 'uLimb', 'uDisc', 'uNight', 'uEmit', 'uRows'],
         samplers: ['uMap'],

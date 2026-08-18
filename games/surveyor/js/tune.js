@@ -172,6 +172,17 @@ export const SYSTEM = {
 export const PREVIEW = {
   width: 128,
   height: 64,
+
+  /* What makes relief read when a palette will not.
+     Vault is the world these are set against: its land is three shades of pale
+     between 0.74 and 0.94 luminance, so the height ladder alone returns a
+     featureless ball. All three terms are lifted from the terrain shader and
+     all three use the planet's OWN colours, so a contrasty world like Anvil
+     gets them as well and simply leans on them less. */
+  basin: 0.34,          // how far the low ground goes toward the world's shade
+  relief: 0.85,         // hillshade, from the terrain's departure from a sphere
+  contourMinor: 0.30,   // the relief/8.7 lines, as in the shader
+  contour: 0.55,        // ...and the relief/1.7 index lines
 };
 
 /**
