@@ -136,6 +136,14 @@ export const CONFIG = {
     lookAheadLerp: 4,                   // 1/s — look-ahead point smoothing
     camDistByStage: [5.5, 7, 9, 12, 15], // per stage 1–5 (MD-04b retune: s1 ≈1/14 screen height, s5 ≈1/6)
     zoomSmoothSec: 1.0,                 // smooth time for per-stage zoom change
+    /* Zoom multiplier bounds, applied to camDistByStage. 1.0 is the stage's own
+       framing; 2.0 is the shipped default because the game reads better wide.
+       The floor was 0.5 and Dex called it pointless: at half the stage distance
+       the camera is inside the animal's personal space and you can see nothing
+       coming. One definition, used by camera.js and the pause menu, so the
+       slider and the wheel cannot disagree about the range. */
+    zoomMin: 1.0,
+    zoomMax: 2.0,
     fovPunchScale: 0.9,                 // FOV ×0.9 → 1.0 on chomp…
     fovPunchSec: 0.1,                   // …over 100ms
   },

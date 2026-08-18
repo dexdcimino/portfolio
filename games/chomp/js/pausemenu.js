@@ -13,6 +13,7 @@
    game drop re-applies by copying this file and adding one script tag
    (see INTEGRATION-NOTES.md). */
 
+import { CONFIG } from './config.js';
 import { setAudioLevels, legacyAudioLevel, playUiSelect } from './systems/audio.js';
 /* MD 26 item 1 — the shared Clayweld mixer, same module Arena 1 uses. */
 import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
@@ -91,13 +92,27 @@ const CONTROLS = [
    channel — someone who deliberately turned FX down keeps it. It has to touch
    stored settings at all because the old numbers meant a different loudness:
    leaving a player on 35/30 would leave them on silence they never chose. */
-const CHOMP_MIX = { master: 0.80, music: 0.60, fx: 0.70 };
-const CHOMP_MIX_VERSION = '2';
+const CHOMP_MIX = { master: 0.80, music: 0.50, fx: 0.70 };
+const CHOMP_MIX_VERSION = '3';
 const MIX_VERSION_KEY = 'chomp-mix-version';
+
+/* Music is set EXACTLY on a version bump, the other two only ever raised.
+   The starting music level is a deliberate number that has now changed twice
+   (0.30 → 0.60 → 0.50), so someone carrying a previous default should land on
+   the new one rather than keeping a figure nobody chose; a level that is
+   neither of those defaults was set on purpose and is left alone. Master and FX
+   only ever go up, so a channel deliberately turned down stays down. */
+const PAST_MUSIC_DEFAULTS = [0.30, 0.60];
 
 function rescaleMix(settings) {
   if (store.get(MIX_VERSION_KEY) === CHOMP_MIX_VERSION) return;
   for (const [key, floor] of Object.entries(CHOMP_MIX)) {
+    if (key === 'music') {
+      const now = settings.get('music');
+      const untouched = PAST_MUSIC_DEFAULTS.some(v => Math.abs(now - v) < 0.005);
+      if (untouched || now < floor) settings.set('music', floor);
+      continue;
+    }
     if (settings.get(key) < floor) settings.set(key, floor);
   }
   store.set(MIX_VERSION_KEY, CHOMP_MIX_VERSION);
@@ -228,6 +243,13 @@ const CSS = `
    independently disabled — it still takes a click to bring back. */
 .aud-chan.is-silenced .aud-chanlabel,.aud-chan.is-silenced .aud-range-val{opacity:.55}
 .cmenu-zoomlab{font-size:11px;font-weight:800;letter-spacing:.08em;color:#8d959c;min-width:64px}
+.cmenu-zoom-block{display:grid;gap:6px}
+/* Centred under the slider, in the mono face so the digits do not shuffle as
+   they change. */
+.cmenu-zoomval{
+  justify-self:center;font-family:ui-monospace,Consolas,monospace;font-size:11px;
+  letter-spacing:.06em;color:#8d959c;font-variant-numeric:tabular-nums;
+}
 .cmenu-mute{min-width:64px;height:28px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:800;
   letter-spacing:.08em;border:2px solid #3a4450;background:#232830;color:#f1f3f4;
   transition:background .15s ease,color .15s ease,border-color .15s ease}
@@ -272,9 +294,12 @@ function build() {
     <h2>Controls</h2>
     <div class="cmenu-rows"></div>
     <h2>Camera</h2>
-    <div class="cmenu-audio cmenu-zoom-row">
-      <span class="cmenu-zoomlab">ZOOM OUT</span>
-      <input class="cmenu-zoom" type="range" min="0.5" max="2" step="0.05" aria-label="Camera zoom out">
+    <div class="cmenu-zoom-block">
+      <div class="cmenu-audio cmenu-zoom-row">
+        <span class="cmenu-zoomlab">ZOOM OUT</span>
+        <input class="cmenu-zoom" type="range" step="0.05" aria-label="Camera zoom out">
+      </div>
+      <output class="cmenu-zoomval" id="zoomVal" aria-live="polite"></output>
     </div>
     <h2>Audio</h2>
     <div class="cmenu-audio cmenu-audpanel">
@@ -310,16 +335,35 @@ function build() {
 
   // Camera zoom: 2.0 (full zoom-out) is the shipped default; the choice
   // persists as chomp-zoom and systems/camera.js applies the event live.
+  /* Bounds come from CONFIG.camera, not from the markup: camera.js clamps the
+     wheel and the boot value against the same two numbers, and a slider whose
+     range disagrees with the clamp is a slider that snaps back when you let go.
+     The floor is 1.0 (the stage's own framing) — 0.5 was close enough to be
+     useless, which is what Dex reported. */
   const zoom = menu.querySelector('.cmenu-zoom');
+  const zoomVal = menu.querySelector('.cmenu-zoomval');
+  const ZMIN = CONFIG.camera.zoomMin, ZMAX = CONFIG.camera.zoomMax;
+  zoom.min = String(ZMIN);
+  zoom.max = String(ZMAX);
+  const clampZoom = (v) => Math.min(ZMAX, Math.max(ZMIN, v));
+  // The readout says where you are between the two ends, because a bare
+  // multiplier means nothing without knowing what the range is.
+  const paintZoom = () => {
+    const v = parseFloat(zoom.value);
+    zoomVal.textContent = `${v.toFixed(2)}× · ${ZMIN.toFixed(1)} in / ${ZMAX.toFixed(1)} out`;
+    zoom.style.setProperty('--fill', `${((v - ZMIN) / (ZMAX - ZMIN)) * 100}%`);
+  };
   const storedZoom = parseFloat(store.get('chomp-zoom'));
-  zoom.value = Number.isFinite(storedZoom) ? Math.min(2, Math.max(0.5, storedZoom)) : 2;
+  zoom.value = String(Number.isFinite(storedZoom) ? clampZoom(storedZoom) : ZMAX);
+  paintZoom();
   zoom.addEventListener('input', () => {
     store.set('chomp-zoom', zoom.value);
+    paintZoom();
     window.dispatchEvent(new CustomEvent('chomp-zoom', { detail: parseFloat(zoom.value) }));
   });
   // The scroll wheel also drives zoom (camera.js); mirror it here so the
   // slider always shows the live value when the menu opens mid-scroll.
-  window.addEventListener('chomp-zoom-sync', (e) => { zoom.value = String(e.detail); });
+  window.addEventListener('chomp-zoom-sync', (e) => { zoom.value = String(e.detail); paintZoom(); });
 
   /* Same shared panel as Arena 1, same three channels, persisted under
      `chomp-audio`. Chomp's createAudio() is still a TODO stub, so the levels

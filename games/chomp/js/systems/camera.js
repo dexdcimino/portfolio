@@ -25,7 +25,7 @@ export function createCameraRig(scene) {
   let zoomMult = (() => {
     try {
       const v = parseFloat(localStorage.getItem('chomp-zoom'));
-      return Number.isFinite(v) ? Math.min(2, Math.max(0.5, v)) : 2;
+      return Number.isFinite(v) ? Math.min(C.zoomMax, Math.max(C.zoomMin, v)) : 2;
     } catch { return 2; }
   })();
   let targetDist = C.camDistByStage[0];
@@ -50,7 +50,7 @@ export function createCameraRig(scene) {
   // The pause menu lives in another module with no handle on this rig; it
   // dispatches chomp-zoom on window and the rig applies it here.
   window.addEventListener('chomp-zoom', (e) => {
-    zoomMult = Math.min(2, Math.max(0.5, Number(e.detail) || 2));
+    zoomMult = Math.min(C.zoomMax, Math.max(C.zoomMin, Number(e.detail) || 2));
     retarget();
     // Immediate, not lerped: while the pause menu is open the update loop is
     // not running, so without this the scrub would only land on resume.
@@ -61,7 +61,7 @@ export function createCameraRig(scene) {
   // same chomp-zoom the menu slider uses. The menu listens for the event to
   // keep its slider in step.
   window.addEventListener('wheel', (e) => {
-    zoomMult = Math.min(2, Math.max(0.5, zoomMult + (e.deltaY > 0 ? 0.1 : -0.1)));
+    zoomMult = Math.min(C.zoomMax, Math.max(C.zoomMin, zoomMult + (e.deltaY > 0 ? 0.1 : -0.1)));
     try { localStorage.setItem('chomp-zoom', zoomMult.toFixed(2)); } catch { /* private mode */ }
     retarget();
     cam.radius = targetDist;
@@ -75,7 +75,7 @@ export function createCameraRig(scene) {
       retarget();
     },
     setZoomMult(m) {
-      zoomMult = Math.min(2, Math.max(0.5, m));
+      zoomMult = Math.min(C.zoomMax, Math.max(C.zoomMin, m));
       retarget();
     },
     /* The spawn-framing raycast that used to live here is gone, and the reason

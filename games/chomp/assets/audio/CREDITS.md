@@ -88,7 +88,7 @@ proud. The trims live in `SAMPLES` in `js/systems/audio.js`:
 
 | Sound | Measured loudness | Normalise | Mix offset | Shipped gain |
 | ----- | ----------------- | --------- | ---------- | ------------ |
-| `chomp` | 0.108 | peak-limited | — | **0.95** |
+| `chomp` | 0.108 | peak-limited | — | **0.72** (voiced separately) |
 | `eat` | 0.090 | peak-limited | — | **1.03** |
 | `evolve` | 0.128 | ×1.25 | 0.90 | **1.13** |
 | `death` | 0.122 | ×1.31 | 1.00 | **1.31** |
@@ -193,7 +193,7 @@ instead:
 
 | Sound | Peak | Gain | Peak after gain | Audible-band energy vs before |
 | ----- | ---- | ---- | --------------- | ----------------------------- |
-| `chomp` | 0.964 | 0.95 | 0.92 | — (it replaced a sound with none) |
+| `chomp` | 0.964 | 0.72 | 0.69 | — (it replaced a sound with none) |
 | `eat` | 0.919 | 1.03 | 0.95 | **24×** |
 
 On a meter the eat is quieter than what it replaces. On a speaker it is
@@ -250,13 +250,17 @@ Fixed on both sides, measured rather than guessed:
 
 | | before | after |
 | --- | --- | --- |
-| starting faders | master .35 / music .30 / fx .40 | **master .80 / music .60 / fx .70** |
-| music source gain | 0.53 | **0.75** |
+| starting faders | master .35 / music .30 / fx .40 | **master .80 / music .50 / fx .70** |
+| music source gain | 0.53 | **0.90** |
 | music at the output | -27.4 dBFS peak | **-11.4 dBFS peak** |
-| FX at the output | -14.5 dBFS peak | **-4.2 dBFS peak** |
+| FX at the output | -14.5 dBFS peak | **-5.9 dBFS peak** |
 | every fader at 100% | — | -1.5 dBFS peak, still no clipping |
 
-Music now sits about 7 dB under the FX, which is where background music belongs.
+Music sits about 5 dB under the FX, which is where background music belongs.
+
+The starting music fader later moved 0.60 → 0.50 at Dex's request and the source
+gain went 0.75 → 0.90 with it: 0.75 × (0.60/0.50) = 0.90 is the same product, so
+the slider reads a rounder number and nothing sounds different.
 
 The starting faders are **Chomp's own**, set in `js/pausemenu.js`, not a change
 to `games/_shared/audio-panel.js` — that module is Arena 1's as well and its mix
@@ -274,6 +278,34 @@ be. `player:chompShut` was added at the end of the lunge and the sound moved
 there; the camera kick stays on `player:chomp`, because the kick belongs to the
 launch. At 0.82s the bite still fits inside the 0.9s chomp cooldown, so two
 never overlap.
+
+## The bite drops in pitch as you grow
+
+The bite is the one sound Chomp voices itself rather than handing to the shared
+sample player, because it needs a deliberate pitch and the shared `play()` only
+offers random variation. Nothing in `games/_shared/` was changed to get it — the
+player already exposes the decoded buffer, and `playChomp()` builds one source
+per shot onto the same FX bus.
+
+| Stage | Rate | Against the recording |
+| ----- | ---- | --------------------- |
+| 1 | 0.72 | −5.7 semitones |
+| 2 | 0.66 | −7.1 |
+| 3 | 0.61 | −8.6 |
+| 4 | 0.56 | −10.0 |
+| 5 | 0.52 | −11.5 |
+
+A bigger animal has a bigger mouth, and the cheap, correct way to say that is a
+lower resonance — the same reason a big dog and a small dog are obviously
+different sizes through the same bark. Just under six semitones across the run.
+
+**Rate, not detune, and it matters.** For an `AudioBufferSource` those are the
+same control, so a lower pitch also plays *longer*: 0.82s at rate 1 becomes 1.6s
+at stage 5. That is why each shot is truncated — 0.34s of sample-time, which
+stretches with the rate, then a 90 ms fade so the cut is never a click. The snap
+is the first fraction of a second; the rest is debris tail. At stage 5 a bite
+runs 0.75s against the 0.9s chomp cooldown, so two never overlap however big you
+get. The level is **0.72**, down from 0.95 — Dex, "could be a little quieter".
 
 ## Not sourced
 

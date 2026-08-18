@@ -44,7 +44,7 @@ const LEGACY_VOLUME_KEY = 'chomp-volume';
 const LEGACY_MUTED_KEY = 'chomp-muted';
 // Chomp's own starting mix — see rescaleMix() in pausemenu.js for why these
 // are not the shared module's 0.35/0.30/0.40 (those multiply out to silence).
-let levels = { master: 0.80, music: 0.60, fx: 0.70 };
+let levels = { master: 0.80, music: 0.50, fx: 0.70 };
 let busGraph = null;
 
 export function setAudioLevels(next) {
@@ -88,7 +88,10 @@ export function legacyAudioLevel() {
    spammable, death happens once. */
 let samples = null;
 const SAMPLES = {
-  chomp:    ['chomp.wav',     { cap: 3, gain: 0.95 }],
+  // Registered so the buffer loads; its gain and cap are NOT used — the bite
+  // is voiced by playChomp() below, which needs a pitch the shared player
+  // cannot give it. Level lives in CHOMP.gain.
+  chomp:    ['chomp.wav',     { cap: 3, gain: 1 }],
   eat:      ['eat.ogg',       { cap: 4, gain: 1.03 }],
   evolve:   ['evolve.ogg',    { cap: 2, gain: 1.13 }],
   death:    ['death.ogg',     { cap: 1, gain: 1.31 }],
@@ -111,14 +114,72 @@ const SAMPLES = {
    moving is not a mix decision, it is the same loudness meeting a different
    recording.
 
-   Raised to 0.75 once the fader defaults were fixed. The old chain multiplied
-   out to a peak of -27 dBFS, which is inaudible; at the corrected defaults
-   (0.80 master, 0.60 music) 0.75 puts the music at about -11 dBFS peak, roughly
-   7 dB under the FX, which is where background music belongs. Rendered through
-   the real graph, not estimated — see the measurement in CREDITS.md.
+   Raised once the fader defaults were fixed. The old chain multiplied out to a
+   peak of -27 dBFS, which is inaudible. 0.90 against the current defaults
+   (0.80 master, 0.50 music) puts the music at about -11 dBFS peak, roughly 7 dB
+   under the FX, which is where background music belongs. It went 0.75 -> 0.90
+   when the starting music fader moved 0.60 -> 0.50: 0.75 x (0.60/0.50) = 0.90
+   is the same product, so the slider reads differently and nothing sounds
+   different. Rendered through the real graph, not estimated — see CREDITS.md.
    `loop = true` on the BufferSource is a sample-accurate loop with no gap —
    the reason this is a decoded buffer and not an <audio> element. */
-const MUSIC_GAIN = 0.75;
+/* The bite is the one sound Chomp voices itself instead of handing to the
+   shared player, because it needs a deliberate pitch and the shared play() only
+   offers random variation. Nothing in games/_shared/ is touched to get it: the
+   player already exposes the decoded buffer, and this builds one source per
+   shot onto the same fx bus.
+
+   It drops a step per evolution stage. A bigger animal has a bigger mouth, and
+   the cheap, correct way to say that is a lower resonance — the same trick that
+   makes a small dog and a big dog obviously different sizes with the same bark.
+   0.72 at stage 1 down to about 0.51 at stage 5, roughly six semitones over the
+   run.
+
+   Rate, not detune: for a BufferSource they are the same control, so a lower
+   pitch also plays LONGER — 0.82s at rate 1 becomes 1.6s at 0.51, well past the
+   0.9s cooldown. Hence the release below: the snap is the first fraction of a
+   second and the rest is debris tail, so each shot is faded out well before the
+   next one can fire, and two bites never pile up however big you get. */
+const CHOMP = {
+  gain: 0.72,        // was 0.95 — Dex: "could be a little quieter"
+  rate: 0.72,        // stage 1, about five semitones below the recording
+  perStage: 0.92,    // each stage lower again
+  hold: 0.34,        // s of sample kept at rate 1, and it stretches with the
+                     // rate — 0.42 put a stage-5 bite at 0.90s, exactly the
+                     // cooldown, so two could just touch. 0.34 lands it at 0.74.
+  release: 0.09,     // s fade, so the cut is never a click
+};
+let chompVoices = [];
+
+function playChomp(stage) {
+  const buf = samples?.buffer('chomp');
+  if (!buf || !busGraph || !ctx) return;
+  // Two at once at most: a third would only ever be a tail nobody is listening
+  // to, and stealing the oldest keeps the newest bite — the one just taken.
+  while (chompVoices.length >= 2) {
+    const old = chompVoices.shift();
+    try { old.stop(); } catch { /* already ended */ }
+  }
+  const rate = CHOMP.rate * Math.pow(CHOMP.perStage, Math.max(0, (stage | 0) - 1));
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = rate;
+  const g = ctx.createGain();
+  g.gain.value = CHOMP.gain;
+  src.connect(g); g.connect(busGraph.fx);
+  const now = ctx.currentTime;
+  // hold is in sample-time, so a slower rate holds proportionally longer and
+  // the same part of the waveform is heard whatever the stage.
+  const end = now + CHOMP.hold / rate;
+  g.gain.setValueAtTime(CHOMP.gain, end);
+  g.gain.linearRampToValueAtTime(0, end + CHOMP.release);
+  src.start(now);
+  src.stop(end + CHOMP.release);
+  chompVoices.push(src);
+  src.onended = () => { chompVoices = chompVoices.filter(v => v !== src); };
+}
+
+const MUSIC_GAIN = 0.90;
 let musicNode = null;
 function startMusic() {
   if (musicNode || !samples || !busGraph) return;
@@ -212,7 +273,7 @@ export function createAudio() {
      The bite hangs on chompShut, not chomp. They are 0.35s apart — the whole
      length of the lunge — and the maw is wide OPEN for all of it, so a snap on
      the keypress played against the wrong half of the animation. */
-  on('player:chompShut', () => play('chomp'));
+  on('player:chompShut', (p) => playChomp(p?.stage ?? 1));
   on('player:eat', () => play('eat'));
   on('player:evolve', () => play('evolve'));
   on('player:death', () => play('death'));
