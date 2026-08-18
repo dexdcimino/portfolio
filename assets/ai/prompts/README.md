@@ -26,6 +26,10 @@ touching anything else.
 
 - `data-tag` is a free-text pill (Writing, Code, Film, …). It is a label, not a
   filter — nothing groups on it yet.
+- **`data-desc` is capped at about 25 words**, 30 at the absolute outside. It is
+  what the card shows at rest, in a fixed-height body, and a longer one either
+  overflows or forces the type down to a size nobody reads. Say what the prompt
+  is FOR; the file's own opening lines are already on the card, on hover.
 - The preview renders a deliberately small slice of Markdown: headings, bold,
   italic, inline code, fenced code, lists, tables, block quotes, rules and links.
   Raw HTML in a prompt file is escaped and shown as text, on purpose — these

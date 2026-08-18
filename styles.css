@@ -2795,9 +2795,15 @@ body.modal-open{overflow:hidden}
 /* Both states are stacked in the body, so swapping one for the other cannot
    change the height of the card. */
 .pr-body{position:relative;height:216px;overflow:hidden;background:#0b0f12}
+/* Even padding, so the text is centred in the card rather than pushed off it.
+   It used to carry a 68px right gutter to clear the download button; the button
+   only appears on hover now, and the description is gone by then, so the two
+   can never be on screen together and the gutter was reserving space for
+   nothing. Descriptions are kept to ~25 words (see the README) so they fit
+   without needing it. */
 .pr-desc{
   position:absolute;inset:0;margin:0;display:grid;align-content:center;
-  padding:18px 68px 18px 18px;color:var(--text);font-size:16px;line-height:1.6;
+  padding:18px;color:var(--text);font-size:16px;line-height:1.6;
   opacity:1;transition:opacity .18s ease;
 }
 .pr-sheet{position:absolute;inset:0;opacity:0;transition:opacity .18s ease}
@@ -2828,19 +2834,24 @@ body.modal-open{overflow:hidden}
 }
 .pr-open:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:16px}
 
-/* Bottom-right, and always visible: it is why half the people looking at these
-   cards are here, and a primary action behind a hover is one that goes
-   unfound. */
+/* Bottom-right, on hover only — the same engagement that swaps the description
+   for the document. Four accent squares sitting permanently on a grid of text
+   competed with the titles, and nothing is lost by waiting: you cannot want the
+   file before you have looked at the card. */
 .pr-dl{
   position:absolute;right:12px;bottom:12px;z-index:3;
   width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
   background:var(--accent);border:2px solid var(--accent);
   color:var(--accent-ink,#0b0d12);cursor:pointer;
   box-shadow:0 6px 18px rgba(0,0,0,.45);
-  transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease;
+  opacity:0;transform:translateY(4px);
+  transition:opacity .18s ease,transform .18s ease,
+             background var(--accent-ease),color var(--accent-ease);
 }
+.pr-card:hover .pr-dl,.pr-card:focus-within .pr-dl,.pr-dl:focus-visible{opacity:1;transform:none}
 .pr-dl .icon{width:24px;height:24px}
 .pr-dl:hover{background:rgba(8,11,15,.82);color:var(--accent);transform:translateY(-2px)}
+.pr-dl-lg{opacity:1;transform:none}
 .pr-dl:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 
 /* The reader. A sheet, not a modal full of chrome: one bar with the name, the
@@ -2929,6 +2940,8 @@ body.modal-open{overflow:hidden}
 @media (hover:none){
   .pr-card:hover .pr-desc{opacity:1}
   .pr-card:hover .pr-sheet{opacity:0}
+  /* No hover to reveal it, so the download stays put on touch. */
+  .pr-dl{opacity:1;transform:none}
 }
 
 /* AI Lab app overlay — a phone-shaped iframe on desktop only.
