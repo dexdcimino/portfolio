@@ -132,26 +132,40 @@ export class Craft {
       this.forms[key].root.setEnabled(key === mode);
     }
 
-    /* MID-AIR TRANSFORM. Dropping out of the jet with air underneath you used
-       to zero the vertical state and set the rover down flat on the next frame,
-       so altitude was something you could only spend by landing. Now the air
-       state carries: you keep falling, in the new form, on the heading and at
-       the speed you already had.
-       VERTICAL VELOCITY IS THE COMPONENT THIS WAS MISSING. The header of this
-       file has claimed since it was written that switching forms preserves
-       momentum, and horizontally it always did — but `vel.y` is the jet's
-       vertical channel and `hopVel` is the rover and boat's, and nothing joined
-       them up, so the y component was silently dropped on every transform.
-       Nothing gates this but "is there air under you" — no fuel check, no
-       cooldown, no lockout. Transforming back to the jet before you land has to
-       stay open, because that is what turns a fall into something you can fly
-       out of, and it is the reason altitude is worth spending at all. */
+    /* MID-AIR TRANSFORM — every transform, not just the jet's.
+       Dropping out of the jet with air underneath you used to zero the vertical
+       state and set the rover down flat on the next frame, so altitude was
+       something you could only spend by landing. That got fixed, but it got
+       fixed by testing `prev === 'jet'`, which quietly made the rule a property
+       of the form you were LEAVING rather than a property of there being air
+       under you. So jet -> rover and jet -> boat carried, and boat -> rover and
+       rover -> boat went on snapping to the deck from any height.
+       The test is now the only thing this was ever about: is there air under
+       you. All six transitions preserve position and all three velocity
+       components, in every direction, from any form to any form.
+       VERTICAL VELOCITY LIVES IN A DIFFERENT FIELD PER FORM, which is what made
+       it possible to drop on the floor twice. The jet integrates `vel.y`; the
+       rover and the boat both integrate `hopVel`. Reading the wrong one yields
+       a silent zero rather than an error, so the source is picked explicitly
+       here and written to BOTH channels below.
+       Nothing gates this but the air — no fuel check, no cooldown, no lockout.
+       Transforming back to the jet before you land has to stay open, because
+       that is what turns a fall into something you can fly out of, and it is
+       the reason altitude is worth spending at all. */
     const floorNow = Math.max(this.groundHeight,
       this.surf.planet.hasWater ? WORLD.waterY : -Infinity);
-    const dropping = !silent && prev === 'jet' && mode !== 'jet' &&
+    /* The jet is always flying; the rover and the boat carry their own flag for
+       it. Asking the flag rather than the height alone is what keeps a hull
+       floating on a swell or a rover sitting on its 0.55m ride height from ever
+       reading as airborne, and the clearance test on top of it is what keeps a
+       touchdown from doing so — the jet's own landing sets you at floor + 1.3
+       and then calls setMode, which would otherwise leave you falling on the
+       ground you had just arrived on. */
+    const inAir = prev === 'jet' || this.airborne;
+    const dropping = !silent && inAir &&
       this.pos.y - floorNow > AIR.minClearance;
     const carryH = dropping ? Math.hypot(this.vel.x, this.vel.z) : 0;
-    const carryV = dropping ? this.vel.y : 0;
+    const carryV = dropping ? (prev === 'jet' ? this.vel.y : this.hopVel) : 0;
     // A transform is also a bilge pump and a reset of anything mid-air. If you
     // were under, you come up with it — otherwise a jet launched from the
     // bottom of a lake touches down before its first frame is over.
@@ -191,8 +205,14 @@ export class Craft {
       // straight back into the dirt.
       this.speedScalar = Math.max(this.speedScalar, JET.launchSpeed);
       this.speed = this.speedScalar;
-      this.pos.y += 3.0;
-      this.vel.y = JET.launchImpulse;
+      // Ground clearance for a standing launch. In the air there is nothing to
+      // clear and it would be three free metres, so position carries intact.
+      if (!dropping) this.pos.y += 3.0;
+      /* Falling, this IS the escape hatch and the impulse is the whole point of
+         it. Already going up faster than the impulse — a wound-up hop straight
+         into the jet — and you keep what you had instead of being braked by
+         your own launch. */
+      this.vel.y = Math.max(carryV, JET.launchImpulse);
       this.pitch = -0.42;
       this.glide = false;
       this.jetLift = 0;
@@ -487,27 +507,40 @@ export class Craft {
    *
    * A rover that falls out of the sky should not simply die — but it must not
    * be free either, or the altitude that mid-air transforming just made cheap
-   * to reach would stop meaning anything. So the chute is automatic above a
-   * per-planet ceiling and absent below it: above, you are going to live;
-   * below, you are too low for it and the landing is yours to take. That
-   * boundary is the system. Everything else here is how it deploys.
+   * to reach would stop meaning anything.
    *
-   * THE CEILING SCALES WITH RELIEF, NOT RADIUS. What decides a fall is how far
-   * there is to fall, and the six worlds disagree about that by an order of
-   * magnitude — Ember has 10.35m of relief, Anvil 103.6m. Read off the radius
-   * instead and Ember, the world with nothing to fall off, would get a longer
-   * warning than the drop it is warning about.
+   * IT IS A SAVE, NOT A GLIDE, and that is a claim about WHEN. It used to open
+   * at a per-world height — the planet's relief times 2.2 — and it opened the
+   * moment you were above that line rather than below it, so any real fall
+   * deployed at the top and the canopy WAS the descent. It also opened at the
+   * same altitude whether you were sinking at 3 m/s or arriving at 90, because
+   * a height cannot tell those apart. Now it opens a couple of seconds before
+   * you would hit: one rule for all six worlds, scaled to how fast you are
+   * actually falling, at the only point in the fall anyone is watching.
+   *
+   * TWO TERMS, AND THE SECOND IS NOT OPTIONAL. Time to impact on its own fires
+   * at the apex of a full-charge hop — a slow descent close to the ground is
+   * arithmetically indistinguishable from the end of a fall. So the canopy also
+   * asks whether the landing would be harder than one you chose: predicted
+   * impact speed under full gravity, against a threshold set clear of what a
+   * wound-up hop returns to the deck at. Both numbers are global; neither is
+   * read off the planet, which is the point of the rewrite.
    */
-  get chuteAlt() { return this.surf.planet.relief * PARACHUTE.reliefK; }
-
   tickChute(dt) {
     const floor = Math.max(this.groundHeight,
       this.surf.planet.hasWater ? WORLD.waterY : -Infinity);
-    if (this.airborne && !this.chuteOut &&
-        this.hopVel < -PARACHUTE.minFall &&
-        this.pos.y - floor > this.chuteAlt) {
-      this.chuteOut = true;
-      emit('chute', { pos: this.world.clone(), alt: this.pos.y - floor });
+    if (this.airborne && !this.chuteOut && this.hopVel < -PARACHUTE.minFall) {
+      const alt = this.pos.y - floor;
+      const rate = -this.hopVel;
+      /* Impact speed if nothing changes. For a ballistic arc this comes out
+         equal to the speed you left the ground at, which is exactly why it
+         tells a hop from a fall — see PARACHUTE.hardLanding. */
+      const impact = Math.sqrt(rate * rate + 2 * HOP.gravity * Math.max(alt, 0));
+      if (alt > 0 && alt / rate < PARACHUTE.warn &&
+          impact > PARACHUTE.hardLanding) {
+        this.chuteOut = true;
+        emit('chute', { pos: this.world.clone(), alt, impact });
+      }
     }
     /* Out until you land or leave the form — deliberately NOT re-tested against
        the ceiling on the way down. A canopy that repacked itself the moment you

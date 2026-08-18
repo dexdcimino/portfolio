@@ -243,13 +243,41 @@ export class ChaseCam {
       this.shakeAmt *= Math.exp(-CAM.shakeDecay * dt);
     }
 
-    // Look slightly ahead of the craft, not at it. Also in the tangent frame.
+    /* Look slightly ahead of the craft, not at it. Also in the tangent frame.
+       THE LEAD ORBITS WITH THE BOOM, and that is the whole of what makes the
+       craft the pivot. The boom was already swung by `yaw` — craft plus orbit —
+       while the aim stayed pinned to `craft.yaw`, so dragging the view rotated
+       the camera about a point `reach` metres AHEAD of the vehicle and the
+       vehicle swung across the frame instead of holding still. Feeding the same
+       yaw to both puts the craft exactly on the camera-to-aim segment, so the
+       world turns around it and it stays where it is.
+       The pitch term is that same argument in the other axis. The boom rises by
+       orbitPitch * dist, so the aim has to fall by orbitPitch * (its own
+       horizontal distance) for the ray between them to keep passing through the
+       craft — same 0.9 in both places, or it does not cancel.
+       That horizontal distance is `reach * cp` and NOT `reach`, which is why
+       it is named here rather than written twice: the lead is laid along the
+       craft's heading, so pitching the nose foreshortens how far forward of the
+       craft it actually lands, and the compensation has to be measured against
+       where the aim IS. It is a small correction — cp is 0.96 in a jet at a
+       fair dive, so a few percent of the term — and it only shows up in the
+       jet, since the rover and the boat barely pitch. It is here because with
+       it the cancellation is exact in the tangent frame rather than nearly
+       exact, and "nearly" is what this whole block was suffering from.
+       Measured, in fractions of the half-frame the craft travels across while
+       you swing the view through nine orbits: rover 6.04 -> 0.27, boat 0.60 ->
+       0.18, jet 0.62 -> 0.10, and the rover no longer leaves the frame at all
+       on the three orbits that used to push it off the edge. What is left is
+       the boom hitting its terrain clearance on a low angle, which is ground
+       the camera genuinely cannot go through. */
     const cp = Math.cos(craft.pitch), sp = Math.sin(craft.pitch);
     const reach = 8 + speedT * 14;
+    const lead = reach * cp;
     const aw = fr.toWorld(
-      Math.sin(craft.yaw) * cp * reach,
-      craft.pos.y + 1.6 + (mode === 'jet' ? -sp : 0) * reach,
-      Math.cos(craft.yaw) * cp * reach, WB);
+      Math.sin(yaw) * lead,
+      craft.pos.y + 1.6 - this.orbitPitch * lead * 0.9 +
+        (mode === 'jet' ? -sp : 0) * reach,
+      Math.cos(yaw) * lead, WB);
     const ak = 1 - Math.exp(-CAM.aimLerp * dt);
     this.aim.x = lerp(this.aim.x, aw.x, ak);
     this.aim.y = lerp(this.aim.y, aw.y, ak);

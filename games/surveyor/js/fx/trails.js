@@ -58,10 +58,35 @@ export class Trails {
       dead: C(COLORS.coast, 0), min: 0.25, max: 1.2, life: [0.35, 0.9],
       power: [3, 9], grav: new BABYLON.Vector3(0, -9, 0),
     });
-    this.exhaust = this.makeSystem(300, forms.jet.exhaust, {
-      color1: C(COLORS.phosphor, 0.95), color2: new BABYLON.Color4(1, 0.55, 0.3, 0.8),
-      dead: C(COLORS.phosphor, 0), min: 0.4, max: 1.8, life: [0.18, 0.5],
-      power: [2, 12], grav: new BABYLON.Vector3(0, 0, 0),
+    /* THE PLUME, in two parts, and neither of them is orange.
+       It used to be one system running cyan into a hard orange, which read as a
+       firework in a game whose palette is earth and stone — the orange was the
+       only warm thing on screen and it pulled the eye off the horizon every
+       time the throttle came up.
+       Now the split is CORE and SMOKE, because they are saying two different
+       things. The core is HEAT: additive, so it adds light to what is behind it
+       and the HDR bloom in main.js picks it up rather than it being painted on;
+       short-lived and tight, so what you read is a hot throat and not a tail.
+       Cyan is right here and nowhere near a compromise — the thruster is a
+       craft system, which is exactly what this palette reserves cyan for. */
+    this.exhaust = this.makeSystem(220, forms.jet.exhaust, {
+      color1: new BABYLON.Color4(0.72, 1.00, 0.98, 0.95),
+      color2: C(COLORS.phosphor, 0.70),
+      dead: C(COLORS.phosphor, 0), min: 0.25, max: 1.05, life: [0.10, 0.26],
+      power: [3, 14], grav: new BABYLON.Vector3(0, 0, 0),
+    });
+    this.exhaust.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+
+    /* SMOKE is pressure: the only part of the plume that outlives the nozzle,
+       and its whole job is to say the thrust displaced some air. Sparse and
+       brief on purpose — a cloud that hangs behind you reads as an engine
+       failing rather than one working, which is what the old single system had
+       drifted into doing. Stone rather than black: it is dust the exhaust
+       picked up, so it belongs to the ground it came off. */
+    this.smoke = this.makeSystem(90, forms.jet.exhaust, {
+      color1: C(COLORS.stone, 0.26), color2: C(COLORS.shore, 0.14),
+      dead: C(COLORS.stone, 0), min: 0.5, max: 1.9, life: [0.22, 0.50],
+      power: [1, 4], grav: new BABYLON.Vector3(0, 0.5, 0),
     });
     // Fired in bursts on landing rather than run continuously.
     this.puff = this.makeSystem(200, this.puffAnchor, {
@@ -298,12 +323,18 @@ export class Trails {
 
     // --- jet plume ---
     if (c.mode === 'jet') {
-      this.exhaust.emitRate = 90 + c.boostHeat * 420;
-      this.exhaust.maxSize = 1.4 + c.boostHeat * 1.6;
+      /* Both ramp with boost, but only the CORE grows. The smoke stays sparse
+         at full throttle, which is the whole distinction: more heat, not more
+         cloud. The wing streamers below are untouched — they were already
+         doing the job the plume was getting in the way of. */
+      this.exhaust.emitRate = 110 + c.boostHeat * 460;
+      this.exhaust.maxSize = 0.90 + c.boostHeat * 0.90;
+      this.smoke.emitRate = 8 + c.boostHeat * 26;
       if (!this.trails.length) this.startJetTrails();
       this.trailMat.alpha = 0.30 + c.boostHeat * 0.45;
     } else {
       this.exhaust.emitRate = 0;
+      this.smoke.emitRate = 0;
       if (this.trails.length) this.stopJetTrails();
     }
 

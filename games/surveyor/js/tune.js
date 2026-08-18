@@ -1368,14 +1368,39 @@ export const AIR = {
 };
 
 export const PARACHUTE = {
-  /* The deploy ceiling is the planet's RELIEF times this — relief, not radius,
-     and that is the whole of the idea. What decides whether a fall is
-     survivable is how far there is to fall. Ember has 10.35m of relief and
-     Anvil has 103.6m on a radius ten times bigger, and a ceiling read off the
-     radius would hand the world with nothing to fall off the longest warning.
-     At 2.2 that is Ember 23m, Tarn 46m, Vault 91m, Home 114m, Shroud 160m,
-     Anvil 228m. */
-  reliefK: 2.2,
+  /* IT DEPLOYS ON PREDICTED TIME TO IMPACT, NOT ON HEIGHT, and that swap is the
+     whole character of the thing. The old ceiling was the planet's relief times
+     2.2 — Ember 23m, Home 114m, Anvil 228m — and because it fired the moment
+     you were ABOVE the line rather than below it, any real fall opened the
+     canopy at the top. From 800m you rode the entire 800m down. That is a
+     glide, and it answered the question the system exists to ask before the
+     fall had started.
+     Seconds fix all three complaints at once. They need no per-world number,
+     because a second is a second on a 207m world and on a 2072m one, and the
+     six ceilings simply stop existing. They account for how fast you are
+     actually falling, which the height never asked. And they put the deploy a
+     couple of seconds off the deck, where it is a moment rather than a state.
+     Measured, at 2.5: an 800m drop free-falls 425m before the canopy goes out,
+     a 200m drop free-falls 60m, and everything from 30m up lands at about
+     20 m/s — under what a fully wound hop already returns to the ground at.
+     SECONDS AT THE CURRENT RATE, which is height over descent speed and is what
+     the brief for this asked for. It ignores the acceleration still to come, so
+     it reads LONG — the true time left at deploy is around 1.5 to 2 seconds
+     across the whole range above. That is the correct direction to be wrong in
+     for something whose job is to already be open when you arrive. */
+  warn: 2.5,         // seconds of predicted fall left when the canopy goes out
+  /* ...and the qualifier that keeps it off a hop, which time alone cannot do.
+     The top of a full-charge leap is a slow descent a few metres up, and h/v
+     there is comfortably under any threshold worth having — so a pure time test
+     pops the canopy at the apex of every big jump.
+     So it also asks whether the landing would be harder than one you chose. For
+     a ballistic arc, predicted impact speed under full gravity comes out equal
+     to the launch speed, so a full-charge hop reads exactly 27.2 m/s no matter
+     how high it went, and one number cleanly separates "I jumped" from "I fell".
+     40 is what a 30m free fall arrives at, comfortably clear of the hop, and
+     below it the landing is yours to take. Global, like `warn` — a fall is a
+     fall on every world, and neither term is read off the planet. */
+  hardLanding: 40,   // m/s of predicted impact below which you are on your own
   minFall: 2.5,      // m/s of descent before a fall counts as one
   /* m/s the canopy settles you at, fully open.
      Not lower, and the reason is pacing rather than physics. At 11 a fall from

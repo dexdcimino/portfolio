@@ -504,17 +504,40 @@ body.ready #hud { opacity: 1; }
 #toast.good { border-left-color: var(--phos); color: var(--phos); }
 
 /* ---- boost streaks + impact flash ---- */
+/* ANCHORED TO THE VIEWPORT, not sized relative to it, and that is the fix.
+   This element SPINS, and a spinning rectangle only 20% larger than the frame
+   pulls its own corners inward as it turns — so its straight outer edge swept
+   through the picture. It showed up in the jet first because the jet is where
+   the streaks are strongest, but the edge was always there and the rover and
+   the boat were merely hiding it.
+   A square whose side is at least the viewport DIAGONAL can never expose an
+   edge at any angle. The diagonal is sqrt(W^2+H^2), which is at most
+   sqrt(2)*vmax and only reaches that on a perfectly square window, so 142vmax
+   covers every case with a hair to spare. Centred with margins rather than a
+   translate, because `transform` belongs to the spin — putting the centring
+   there too would have the keyframe overwrite it on the first frame.
+   The mask stops moved from percentages to vmax for the same reason: a
+   percentage is read against the ELEMENT, so growing the element would have
+   pushed the clear centre out past the corners of the screen and quietly
+   deleted the effect. In vmax they are measured against the frame instead, and
+   18/54 reproduces the old geometry to within a pixel or two from 16:9 through
+   to a portrait phone. */
 #streaks {
   position: fixed;
-  inset: -10%;
+  top: 50%;
+  left: 50%;
+  width: 142vmax;
+  height: 142vmax;
+  margin-top: -71vmax;
+  margin-left: -71vmax;
   pointer-events: none;
   z-index: 4;
   opacity: 0;
   background: repeating-conic-gradient(from 0deg at 50% 50%,
     transparent 0deg 1.6deg,
     rgba(242, 246, 230, 0.16) 1.6deg 2.1deg);
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 26%, #000 78%);
-  mask-image: radial-gradient(circle at 50% 50%, transparent 26%, #000 78%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 18vmax, #000 54vmax);
+  mask-image: radial-gradient(circle at 50% 50%, transparent 18vmax, #000 54vmax);
   animation: spin 40s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
