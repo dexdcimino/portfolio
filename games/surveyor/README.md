@@ -53,7 +53,9 @@ package.json          "type": "module", and nothing else. The portfolio repo
                       dev/*.mjs unable to import a .js game module at all
 vendor/babylon.js     9.21.2, UMD, from npm
 assets/luts/          the colour-grading LUT. identity.3dl only — see CREDITS.md
-tools/bake_lut.py     writes it. Authoring-time only; the .3dl is the derivative
+assets/textures/      three packed triplanar maps, 512^2 lossless WebP, 1.4MB
+tools/bake_lut.py     writes the LUT. Authoring-time only; the .3dl is derived
+tools/bake_terrain_maps.py  writes the three maps, from lookdev's scan family
 js/
   babylon.js          the transplanted stack's one point of contact with the
                       BABYLON global. Nothing Surveyor wrote itself uses it
@@ -123,6 +125,44 @@ contrast came down (ACES applies its own S-curve, so 1.22 was charging twice),
 and exposure did NOT go up. Raising it to 1.28 pushed every authored sky into
 the part of the curve where ACES desaturates hardest and turned Ember's sunset
 pale. Measured, on all six.
+
+## T3 put a surface on the ground without touching the chart
+
+Third transplant, third PBRMaterial plugin that had nothing to attach to, so
+again the technique came across and the file did not: triplanar sampling now
+lives in the terrain shader itself. It is not decoration. The surface grain it
+replaces was sampled on `vW.xz` — a single planar projection, on a cube-sphere,
+correct on two caps and smearing across most of a planet. That is why lookdev's
+note calls triplanar mandatory on a sphere, and it is why this was worth doing
+before anyone judged whether it looked better.
+
+**The chart survives by ordering, not by luck.** The palette ladder, the contour
+lines, the waterline stroke and the bathymetry shelves are all drawn off the
+GEOMETRIC normal and the height, exactly as before. The triplanar result is
+applied in two places, both after: the detail luminance modulates brightness,
+and the perturbed normal is handed to the LIGHT. Texture changes how the ground
+catches light. It never moves a line.
+
+**Two knobs, not one, and that is the finding.** `strength` bends the normal;
+`detail` draws the scan's own light and dark. The scan is fractured stone, so
+its detail channel is a crack network — which is line work, competing directly
+with the line work this game calls a chart. At a single knob of 0.7 the contours
+survived and Home still read as a different game. Separated, a world takes all
+the relief it wants and none of the cracks: Anvil runs 0.85/0.40 because
+fractured stone is what Anvil actually is, Shroud runs 0.25/0.08 because most of
+it is behind fog.
+
+**One map per layer, not two.** lookdev ships albedo sRGB plus a linear map
+holding normal XY and roughness — six samplers for three layers, already an
+optimisation. Here the albedo's colour is thrown away (six authored palettes
+already decide colour) and its luminance is packed into B alongside the normal's
+XY in RG. Three samplers, nine fetches worst case, nearer two on flat ground
+where one plane and one layer dominate and the rest branch out. 1.4 MB against
+6.4 MB of source.
+
+Scales are re-derived against `targetCell`, not converted from lookdev's metres.
+See TERRAIN in `tune.js` — the fade distances were the number I got wrong first,
+for the third transplant running.
 
 ## T2 brought the light rig, and left three files behind
 

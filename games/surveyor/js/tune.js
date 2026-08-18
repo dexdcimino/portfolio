@@ -123,6 +123,93 @@ export const LIGHT = {
 };
 
 /**
+ * TERRAIN MATERIALS — transplanted from the lookdev testbed, T3.
+ *
+ * WHAT DID NOT COME ACROSS. lookdev's `triplanar.js` is a PBRMaterial plugin,
+ * the third file in a row that acts on a material type Surveyor does not have.
+ * The technique came across into the terrain shader instead; the file did not.
+ * See materials.js.
+ *
+ * WHAT IT IS FOR, beyond looks. The surface grain this replaces was sampled on
+ * `vW.xz` — one planar projection, on a cube-sphere. That is right on the two
+ * caps and smears everywhere the surface turns to face sideways, which is most
+ * of a planet. Triplanar is the fix. It is also why lookdev's own note calls it
+ * mandatory on a sphere, and it is the reason this transplant is worth its cost
+ * even before anyone judges whether it looks better.
+ *
+ * WHAT IT MUST NOT TOUCH. The contour lines, the bands, the waterline stroke —
+ * the chart. So it does not: the palette ladder and the whole chart are drawn
+ * off the GEOMETRIC normal and the height, exactly as before, and the triplanar
+ * result is applied in two places only, both of them after. The detail
+ * luminance modulates brightness, and the perturbed normal goes to the LIGHT.
+ * Texture changes how the ground catches light. It never moves a line.
+ *
+ * SCALES ARE RE-DERIVED, NOT TRANSFERRED — the T1/T2 lesson, and this is where
+ * it bites hardest. lookdev tiles at 15-26 metres on a 4km plane. Ember is
+ * 207m across with 10m of relief: 26 metres there is an eighth of the world and
+ * two and a half times its total height range. What is actually constant across
+ * these six worlds is `targetCell`, held near 4.5m on purpose so the vehicles
+ * handle the same everywhere, so the tile scales below are multiples of THAT
+ * and land at 9-16m. Altitude thresholds are fractions of `relief`, like every
+ * other breakpoint in this file. Fade distances are fractions of the fog range,
+ * because Ember's fog ends at 162m and lookdev's 450-1400m macro relax would
+ * never once have engaged.
+ *
+ * DEFAULT IS OFF. `strength: 0` reproduces the pre-T3 image exactly, which is
+ * how the no-op gets proved before any world opts in.
+ */
+export const TERRAIN = {
+  // The three packed maps, baked by tools/bake_terrain_maps.py. RG hold the
+  // normal's XY, B holds the albedo's luminance; the colour is thrown away
+  // because six authored palettes already decide colour.
+  path: 'assets/textures/',
+  layers: ['flat', 'steep', 'high'],
+
+  /* TWO knobs, not one, and the split is the finding of this transplant.
+     `strength` bends the surface NORMAL, so texture changes how the ground
+     catches light. `detail` draws the scan's own light-and-dark — its crack
+     network — which is LINE WORK, and line work is what this game already puts
+     on the ground and calls a chart. At a single knob of 0.7 the contours
+     survived and Home still read as a different game, because the marble's
+     fractures were competing with them. Separated, a world can take all the
+     relief it wants and none of the cracks. Both 0 is the pre-T3 image. */
+  strength: 0.0,
+  detail: 0.0,
+  normalStrength: 1.0,    // how hard the packed normal bends the light
+  blendSharpness: 6.0,    // higher makes one projection plane dominate, and the
+                          // other two branch out of the shader entirely
+  steepBias: 0.55,        // holds the high-ground layer off cliff faces
+
+  // Metres per tile, as multiples of targetCell (4.5m). Steep is tightest
+  // because a cliff face is what the light actually rakes.
+  scale: { flat: 13.5, steep: 9.0, high: 15.75, detail: 2.25 },
+
+  // 1 - dot(N, radial): 0 is flat ground, 1 is a wall. lookdev's own 0.28/0.58
+  // survived re-derivation — it is a ratio, not a length.
+  slope: { start: 0.28, end: 0.58 },
+  // Fractions of the planet's relief, where lookdev had metres off pos.y.
+  altitude: { start: 0.45, end: 0.80 },
+
+  /* Fractions of the planet's fog range, and RE-DERIVED against the terrain
+     cell rather than converted from lookdev's metres by eye — which is what I
+     did first, and it put detail across the whole frame on Home.
+
+     The anchor is `targetCell`, 4.5m, held near-constant across all six worlds
+     so the vehicles handle the same everywhere. lookdev fades detail out over
+     25-95m, which is 5-21 cells; Surveyor's own procedural grain already fades
+     over 40-260m, or 9-58. So detail belongs in the 40-140m band on Home, and
+     these fractions put it there — while giving Ember, whose fog ends at 162m,
+     a proportionally tighter 8-29m instead of a number that would have covered
+     its entire visible world.
+
+     The macro relax is the one that stops the tiling aliasing into a visible
+     square lattice from the air. It has to sit well outside the detail fade and
+     well inside the fog. */
+  detailFade: { start: 0.05, end: 0.18 },
+  macroFade: { start: 0.20, end: 0.55 },
+};
+
+/**
  * Frozen water — Vault, and nowhere else.
  *
  * Thickness falls off with DEPTH, which is the physical way round (a shallow
@@ -325,6 +412,12 @@ export const PLANETS = {
     radius: 1036,
     seed: 'surveyor-home',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T3 — light. Home's ground is soft banded terraces and a chart drawn on
+       them, and the scan is FRACTURED STONE: at 0.9 the marble's crack network
+       reads as line work and competes with the contours it is supposed to sit
+       under. Enough here to give the ground a surface within a hundred metres
+       of the rover and no more. */
+    terrain: { strength: 0.30, detail: 0.12 },
     /* T2 — clear, high, neutral. The reference the other five are read
        against, so it says nothing and inherits everything. Its numbers ARE the
        defaults in LIGHT; spelling them out here would be five more places to
@@ -391,6 +484,13 @@ export const PLANETS = {
     radius: 207,
     seed: 'surveyor-ember',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T3 — medium. Basalt genuinely is fractured, so this is the one world
+       where the scan's crack network is the right material rather than a
+       borrowed one. Detail stays under the strength because the fissure
+       emission is the brightest thing on this world and nothing may compete
+       with it; it is applied after the light in any case, so it cannot be
+       buried, only crowded. */
+    terrain: { strength: 0.55, detail: 0.30 },
     /* T2 — THE FIRE IS THE LIGHT SOURCE, and the fill is NOT how you say that.
        First attempt put the fill at 0.46 on the reasoning that a world lit from
        underfoot has open shadows. It does, and it was still wrong: `ambient` is
@@ -511,6 +611,9 @@ export const PLANETS = {
     radius: 414,
     seed: 'surveyor-tarn',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    // T3 — light, and mostly moot: 89% of this world is water, and the
+    // bathymetry shelves and the waterline stroke do the visual work on it.
+    terrain: { strength: 0.30, detail: 0.10 },
     /* T2 — bright, humid, low contrast. Water is 89% of this world and haze is
        most of the rest, so the fill is high and the shade tint is weak: humid
        air scatters light back into the shadows and takes the colour out of them
@@ -602,6 +705,11 @@ export const PLANETS = {
     radius: 829,
     seed: 'surveyor-vault',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T3 — light, and deliberately not zero. A fracture network is what
+       crevassed ice looks like, so the scan's relief suits this world; what
+       does NOT suit it is a matte rock grain over a surface whose whole
+       identity is the hard specular glint. Normal up, detail down. */
+    terrain: { strength: 0.35, detail: 0.10 },
     /* T2 — cold, clear, hard light, long shadows. The only world with the fill
        at zero: nothing is scattering, so a shadow is the absence of the sun and
        nothing else. shade at 0.92 drives the palette's deep blue — the note on
@@ -697,6 +805,9 @@ export const PLANETS = {
     radius: 1451,
     seed: 'surveyor-shroud',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    // T3 — the least of the six. Most of this world is behind its own fog, and
+    // detail spent past the fog line is detail nobody sees.
+    terrain: { strength: 0.25, detail: 0.08 },
     /* T2 — dense particulate; the fog is the antagonist. Fill is high because
        everything in the air is scattering the key back down, and the key is
        correspondingly weak. The shade tint is pulled back to 0.50 for the same
@@ -797,6 +908,12 @@ export const PLANETS = {
     radius: 2072,
     seed: 'surveyor-anvil',
     lut: NEUTRAL_LUT,          // T1: neutral on all six. See NEUTRAL_LUT above
+    /* T3 — the most of the six, and the world this transplant is for. 104m of
+       relief, real canyons, rust and ochre: fractured stone is what Anvil
+       actually is, and it is the only world where the scan is not standing in
+       for something else. Its contours are 60m apart at the index interval, so
+       there is room between them for a surface. */
+    terrain: { strength: 0.85, detail: 0.40 },
     /* T2 — thin, high, washed out. A little fill from a thin sky, a weak shade
        tint because there is not much sky to tint it, and the most strongly
        sun-masked rim after Vault: thin air means edges are lit or they are not.

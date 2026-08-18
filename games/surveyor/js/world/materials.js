@@ -3,7 +3,7 @@
 // lines are cut into the rock, the waterline gets a drawn coastline stroke,
 // and light is quantised into flat bands so form reads as shape, not shading.
 
-import { COLORS, WORLD, ATMO, SKY, LIGHT } from '../tune.js';
+import { COLORS, WORLD, ATMO, SKY, LIGHT, TERRAIN } from '../tune.js';
 import { meltDepth } from './water.js';
 
 const V3 = (c) => new BABYLON.Vector3(c[0], c[1], c[2]);
@@ -13,6 +13,45 @@ const scale = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
 /** This planet's palette: the system default with the profile merged over it. */
 export function paletteOf(planet) {
   return Object.assign({}, COLORS, planet.palette || {});
+}
+
+/**
+ * The three triplanar maps, loaded once for the whole session — T3.
+ *
+ * Every world samples the same three: what changes per world is the tile scale,
+ * the blend thresholds and the strength, none of which is a texture. Six worlds
+ * loading six copies of the same 470KB map would be the obvious way to do it
+ * and the wrong one.
+ *
+ * `noMipmap: false` and WRAP on both axes, because these tile. `gammaSpace` is
+ * FALSE and that is load-bearing: two of the three channels are a normal's XY,
+ * and sRGB-decoding a normal bends every surface toward the light by an amount
+ * that looks like a lighting bug rather than a decoding one.
+ */
+let triMaps = null;
+function triplanarMaps(scene) {
+  if (triMaps) return triMaps;
+  triMaps = {};
+  for (const layer of TERRAIN.layers) {
+    const tex = new BABYLON.Texture(
+      `${TERRAIN.path}${layer}.webp`, scene, false, false,
+      BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+    tex.gammaSpace = false;
+    tex.anisotropicFilteringLevel = 4;
+    triMaps[layer] = tex;
+  }
+  return triMaps;
+}
+
+/** This planet's terrain-material settings, resolved like skyOf and lightOf. */
+export function terrainOf(planet) {
+  const T = Object.assign({}, TERRAIN, planet.terrain || {});
+  for (const k of ['scale', 'slope', 'altitude', 'detailFade', 'macroFade']) {
+    T[k] = Object.assign({}, TERRAIN[k], (planet.terrain || {})[k] || {});
+  }
+  return T;
 }
 
 /**
@@ -75,6 +114,58 @@ const COMMON = `
     if (d > 0.24) return 0.83;
     if (d > -0.10) return 0.63;
     return 0.47;
+  }
+
+  /* TRIPLANAR — transplanted from the lookdev testbed, T3.
+     Its version is a PBRMaterial plugin and there is no PBRMaterial here, so
+     what came across is the technique: project world position onto the three
+     axis planes, blend by the surface normal, and let one plane dominate so the
+     other two branch out of the shader entirely.
+
+     WHY IT IS NOT DECORATION. The surface grain below this already existed and
+     was sampled on vW.xz — a single planar projection, on a cube-sphere. That
+     is correct on the two caps and smears everywhere the surface turns to face
+     sideways, which is most of a planet. Triplanar is the fix, and the reason
+     lookdev's note calls it mandatory on a sphere.
+
+     WHAT THE MAPS HOLD. One RGBA per layer, not two: normal X and Y in RG, and
+     the albedo's LUMINANCE in B. The scan's colour is thrown away — six worlds
+     carry authored palettes and a marble scan has no business overruling Vault's
+     ice. See tools/bake_terrain_maps.py. Three samplers, nine fetches worst
+     case, nearer two on flat ground. */
+  vec3 triUnpack(vec2 xy, float strength) {
+    vec2 n = (xy * 2.0 - 1.0) * strength;
+    return vec3(n, sqrt(max(0.0001, 1.0 - dot(n, n))));
+  }
+
+  /* One layer. Each plane's tangent normal is rotated into world space
+     explicitly rather than by a swizzle trick — a wrong swizzle here is
+     invisible until the light moves, which is the worst way to find it. */
+  void triLayer(sampler2D map, vec3 pos, vec3 gn, vec3 pw, float scale,
+                float nStr, out vec3 outN, out float outD) {
+    vec3 n = vec3(0.0);
+    float d = 0.0, used = 0.0;
+    if (pw.x > 0.02) {
+      vec3 t = texture2D(map, pos.zy / scale).rgb;
+      vec3 v = triUnpack(t.rg, nStr);
+      float sx = gn.x >= 0.0 ? 1.0 : -1.0;
+      n += vec3(v.z * sx, v.y, v.x) * pw.x; d += t.b * pw.x; used += pw.x;
+    }
+    if (pw.y > 0.02) {
+      vec3 t = texture2D(map, pos.xz / scale).rgb;
+      vec3 v = triUnpack(t.rg, nStr);
+      float sy = gn.y >= 0.0 ? 1.0 : -1.0;
+      n += vec3(v.x, v.z * sy, v.y) * pw.y; d += t.b * pw.y; used += pw.y;
+    }
+    if (pw.z > 0.02) {
+      vec3 t = texture2D(map, pos.xy / scale).rgb;
+      vec3 v = triUnpack(t.rg, nStr);
+      float sz = gn.z >= 0.0 ? 1.0 : -1.0;
+      n += vec3(v.x, v.y, v.z * sz) * pw.z; d += t.b * pw.z; used += pw.z;
+    }
+    float inv = 1.0 / max(used, 0.0001);
+    outN = n * inv;
+    outD = d * inv;
   }
 
   // Cheap value noise. Two octaves is enough for surface grain and it keeps
@@ -151,6 +242,20 @@ function registerShaders() {
     uniform float uSpec, uEmit, uEmitFrom;
     // T2: x = ambient fill, y = key, z = how hard the unlit bands take uShade.
     uniform vec3 uLightMix, uSunCol, uRimP;
+    /* T3 — triplanar. One packed map per layer; see the helpers in COMMON.
+       uTriScale  metres per tile: flat, steep, high, detail
+       uTriSlope  slope start/end, then altitude start/end as fractions of relief
+       uTriMix    overall strength, normal strength, blend sharpness, steep bias
+       uTriFade   detail fade start/end, macro relax start/end, in metres */
+    uniform sampler2D uTriFlat, uTriSteep, uTriHigh;
+    uniform vec4 uTriScale, uTriSlope, uTriMix, uTriFade;
+    /* Split from uTriMix.x on purpose. The perturbed NORMAL and the detail
+       LUMINANCE do very different things to a chart: the normal changes how the
+       ground catches light, which the contour lines do not care about, while
+       the luminance draws the scan's own crack network — line work, competing
+       directly with the line work that is the point of this game. One knob for
+       both meant Home could not take relief without also taking cracks. */
+    uniform float uTriDetail;
 
     void main() {
       vec3 N = normalize(vN);
@@ -163,6 +268,64 @@ function registerShaders() {
       vec3 up = normalize(vW);
       float slope = 1.0 - clamp(dot(N, up), 0.0, 1.0);
       float h = length(vW) - uSurfaceR;
+      float e0 = h / uRelief;
+
+      /* ---- T3: triplanar detail and surface normal --------------------------
+         Sampled here and used twice: the detail luminance goes into the grain
+         term below, and the perturbed normal goes into the light bands. It has
+         to be computed before either, and it costs nothing when uTriMix.x is 0
+         — the default, and what makes this provably a no-op until a world opts
+         in.
+
+         Both inputs are ones this shader already computed for its own palette,
+         and both are the SPHERE'S versions rather than lookdev's: slope is
+         1 - dot(N, radial) and not 1 - normal.y, and altitude is a fraction of
+         the planet's relief and not a metre count off pos.y. That is the T1/T2
+         lesson — anything with a metre in it gets re-derived — and here it is
+         the difference between a cap on the high ground and one on a
+         hemisphere. */
+      vec3 triN = vec3(0.0);
+      float triD = 0.5;
+      if (uTriMix.x > 0.001 || uTriDetail > 0.001) {
+        vec3 pw = pow(abs(N), vec3(uTriMix.z));
+        pw /= max(pw.x + pw.y + pw.z, 0.0001);
+
+        float wSteep = smoothstep(uTriSlope.x, uTriSlope.y, slope);
+        float wHigh = smoothstep(uTriSlope.z, uTriSlope.w, e0)
+                    * (1.0 - wSteep * uTriMix.w);
+        float aHigh = wHigh;
+        float aSteep = wSteep * (1.0 - wHigh);
+        float aFlat = (1.0 - wSteep) * (1.0 - wHigh);
+
+        vec3 n; float d;
+        vec3 acc = vec3(0.0); float accD = 0.0;
+        if (aFlat > 0.02) {
+          triLayer(uTriFlat, vW, N, pw, uTriScale.x, uTriMix.y, n, d);
+          acc += n * aFlat; accD += d * aFlat;
+        }
+        if (aSteep > 0.02) {
+          triLayer(uTriSteep, vW, N, pw, uTriScale.y, uTriMix.y, n, d);
+          acc += n * aSteep; accD += d * aSteep;
+        }
+        if (aHigh > 0.02) {
+          triLayer(uTriHigh, vW, N, pw, uTriScale.z, uTriMix.y, n, d);
+          acc += n * aHigh; accD += d * aHigh;
+        }
+
+        /* Detail fade — grain close, macro far — then the macro relax, which is
+           what stops the tiling aliasing into a visible square lattice from the
+           air. Both are metres and both are per world: Ember's fog ends at
+           162m, so lookdev's 450-1400m relax would never once have engaged. */
+        float fade = 1.0 - smoothstep(uTriFade.x, uTriFade.y, dist);
+        if (fade > 0.02) {
+          triLayer(uTriFlat, vW, N, pw, uTriScale.w, uTriMix.y, n, d);
+          acc += (n - N) * (0.55 * fade);
+          accD = mix(accD, accD * 0.5 + d * 0.5, fade);
+        }
+        float relax = smoothstep(uTriFade.z, uTriFade.w, dist);
+        triN = mix(acc - N, vec3(0.0), relax) * uTriMix.x;
+        triD = mix(accD, 0.5, relax);
+      }
 
       // Height-banded palette, then steep faces forced back to stone.
       //
@@ -193,9 +356,16 @@ function registerShaders() {
       float bedLine = smoothstep(0.40, 0.50, bed) * (1.0 - smoothstep(0.50, 0.60, bed));
       col = mix(col, col * 0.78, bedLine * slope * 1.4 * uDetail);
 
-      // Grain, faded out with distance so it can never crawl or alias.
+      /* Grain, faded out with distance so it can never crawl or alias.
+         T3 HANDS THIS OVER. fbm2(vW.xz) is a single planar projection, right on
+         the two caps of a cube-sphere and smearing everywhere the surface turns
+         to face sideways — most of a planet. As uTriMix.x comes up the planar
+         term fades out and the triplanar detail takes its place, so the two
+         never double up and the projection stops being wrong. */
       float near = 1.0 - smoothstep(40.0, 260.0, dist);
-      col *= 1.0 + (fbm2(vW.xz * 1.35) - 0.5) * 0.30 * near * uDetail;
+      col *= 1.0 + (fbm2(vW.xz * 1.35) - 0.5) * 0.30 * near * uDetail
+                 * (1.0 - clamp(uTriDetail, 0.0, 1.0));
+      col *= 1.0 + (triD - 0.5) * uTriDetail * near;
 
       // Gravel speckle on the flats only. Keeps the terraces from reading as
       // painted card without touching the cliff faces.
@@ -214,6 +384,13 @@ function registerShaders() {
       float coast = 1.0 - smoothstep(0.0, uRelief * 0.022, abs(h));
       coast *= 1.0 - smoothstep(420.0, 900.0, dist);
       col = mix(col, uCoast, coast * 0.80);
+
+      /* T3: the surface normal the LIGHT sees. Perturbed after the palette and
+         the chart have been drawn off the geometric normal, and before the
+         bands — so texture changes how the ground catches light without ever
+         moving a contour line or a colour band. That ordering is the whole
+         reason the chart survives this transplant. */
+      N = normalize(N + triN);
 
       /* Banded key light, split into key and fill — T2. uLight is a direction
          in planet space, so the sun is genuinely fixed and one side of the
@@ -754,6 +931,7 @@ export function createMaterials(scene, planet) {
   const COL = paletteOf(planet);
   const SK = skyOf(planet);
   const LT = lightOf(planet);
+  const TR = terrainOf(planet);
   /* One vec3 rather than three floats: fill, key, shade-strength always move
      together and always go to the same three shaders, so they travel together.
      x + y * 1.04 is what a fully lit face comes out at — see LIGHT in tune.js. */
@@ -779,8 +957,27 @@ export function createMaterials(scene, planet) {
         'uFogSun', 'uDeep', 'uSilt', 'uShore', 'uFlats', 'uStone', 'uPeak',
         'uCoast', 'uContour', 'uFogRange', 'uSurfaceR', 'uScatter', 'uWash',
         'uDetail', 'uRelief', 'uShade', 'uRim', 'uSpec', 'uEmit', 'uEmitFrom',
-        'uEmitCol', 'uEmitHot', 'uLightMix', 'uSunCol', 'uRimP'],
+        'uEmitCol', 'uEmitHot', 'uLightMix', 'uSunCol', 'uRimP',
+        'uTriScale', 'uTriSlope', 'uTriMix', 'uTriFade', 'uTriDetail'],
+      samplers: ['uTriFlat', 'uTriSteep', 'uTriHigh'],
     });
+  /* T3 — triplanar. Fade distances arrive as fractions of the fog range so a
+     207m world and a 2072m one both get a detail field sized to what they can
+     actually see, rather than to a 4km plane neither of them is. */
+  const maps = triplanarMaps(scene);
+  terrain.setTexture('uTriFlat', maps.flat);
+  terrain.setTexture('uTriSteep', maps.steep);
+  terrain.setTexture('uTriHigh', maps.high);
+  terrain.setVector4('uTriScale', new BABYLON.Vector4(
+    TR.scale.flat, TR.scale.steep, TR.scale.high, TR.scale.detail));
+  terrain.setVector4('uTriSlope', new BABYLON.Vector4(
+    TR.slope.start, TR.slope.end, TR.altitude.start, TR.altitude.end));
+  terrain.setVector4('uTriMix', new BABYLON.Vector4(
+    TR.strength, TR.normalStrength, TR.blendSharpness, TR.steepBias));
+  terrain.setFloat('uTriDetail', TR.detail);
+  terrain.setVector4('uTriFade', new BABYLON.Vector4(
+    planet.fogFar * TR.detailFade.start, planet.fogFar * TR.detailFade.end,
+    planet.fogFar * TR.macroFade.start, planet.fogFar * TR.macroFade.end));
   terrain.setVector3('uLightMix', mix3);
   terrain.setVector3('uSunCol', sunCol);
   terrain.setVector3('uRimP', rimP);
