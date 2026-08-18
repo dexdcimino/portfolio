@@ -84,13 +84,24 @@ export class Discs {
 
     for (let i = 0; i < n; i++) {
       const d = this.list[i];
-      // The quad is padded out around the disc so the glow has somewhere to
-      // live, and never allowed below a few pixels' worth of angle: a
-      // sub-pixel quad is what shimmers, and the disc inside it stays honest
-      // because the shader is told what fraction of the quad it fills.
-      d.quadAngle = Math.max(d.angle * SYSTEM.pad, SYSTEM.minAngle);
+      /* The drawn radius, then the quad around it.
+         `angle` stays the honest half-angle and is never overwritten — the
+         survey overlay and anything else that wants the truth reads it. What
+         gets rasterised is `drawAngle`, the same number compressed toward a
+         readable band by SYSTEM.drawRef/drawExp/drawFloor, because the honest
+         disc is between a third of a pixel and five pixels across and the small
+         end of that does not survive the resolve. Never smaller than honest, so
+         the compression only ever pulls up.
+
+         The quad is then padded out around the drawn disc so the glow has
+         somewhere to live, and still floored at minAngle — which no longer
+         binds at this drawFloor, and is left in as the guard it was for anyone
+         who lowers the floor. */
+      const soft = SYSTEM.drawRef * Math.pow(d.angle / SYSTEM.drawRef, SYSTEM.drawExp);
+      d.drawAngle = Math.max(d.angle, soft, SYSTEM.drawFloor);
+      d.quadAngle = Math.max(d.drawAngle * SYSTEM.pad, SYSTEM.minAngle);
       d.half = this.K * Math.tan(d.quadAngle);
-      d.core = d.angle / d.quadAngle;
+      d.core = d.drawAngle / d.quadAngle;
       for (let c = 0; c < 4; c++) {
         const v = i * 4 + c;
         quad[v * 2] = CORNERS[c][0];
@@ -117,12 +128,15 @@ export class Discs {
       { vertex: 'svDisc', fragment: 'svDisc' },
       {
         attributes: ['position', 'quad', 'color'],
-        uniforms: ['worldViewProjection', 'uLight', 'uRight', 'uUp', 'uFwd', 'uGlow'],
+        uniforms: ['worldViewProjection', 'uLight', 'uRight', 'uUp', 'uFwd',
+                   'uGlow', 'uLimb', 'uDisc'],
         needAlphaBlending: true,
       });
     mat.backFaceCulling = false;
     mat.disableDepthWrite = true;
     mat.setFloat('uGlow', SYSTEM.glow);
+    mat.setFloat('uLimb', SYSTEM.limb);
+    mat.setFloat('uDisc', SYSTEM.disc);
 
     mesh.material = mat;
     mesh.isPickable = false;

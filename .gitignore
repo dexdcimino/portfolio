@@ -18,3 +18,10 @@ __pycache__/
 # future game's) is source. Scope the ignore to the one generated file.
 games/stickland/index.html
 node_modules/
+
+# games/surveyor/dev/shots.mjs output, carried over from that game's own repo
+# when it was imported. The per-world frames are regenerable in one command and
+# half a megabyte each, and sheet*.html is the scaffolding they are photographed
+# through; only the contact sheets it produces are kept.
+games/surveyor/dev/shots/*.png
+games/surveyor/dev/shots/sheet*.html

@@ -282,6 +282,48 @@ body.ready #hud { opacity: 1; }
 #sound.off { color: rgba(242, 246, 230, 0.35); border-color: rgba(242, 246, 230, 0.16); }
 #sound:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
 
+/* ---- dev warp: TEMPORARY TESTING SCAFFOLDING ----
+   Deliberately the chip's language rather than a new one — same panel, same
+   hairline edge, same phos-lit "you are here" — so it reads as an instrument
+   and not as a control panel someone forgot to finish. It sits under the sound
+   toggle because that is the other thing on this HUD you are allowed to click.
+   Goes away with DEBUG.warp; see tune.js. */
+#warp {
+  position: absolute;
+  top: 52px; right: 16px;
+  pointer-events: auto;
+  padding: 8px 9px 9px;
+  max-width: 190px;
+}
+#warp[hidden] { display: none; }
+#warpRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+}
+.wbtn {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  padding: 5px 7px;
+  color: rgba(242, 246, 230, 0.62);
+  background: transparent;
+  border: 1px solid rgba(242, 246, 230, 0.18);
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.wbtn:hover { color: var(--bone); border-color: var(--edge); }
+.wbtn.on {
+  color: var(--phos);
+  border-color: var(--phos);
+  background: rgba(43, 224, 200, 0.13);
+  cursor: default;
+}
+.wbtn:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
+
 /* ---- bottom left: form selector ---- */
 #forms {
   position: absolute;
@@ -619,6 +661,8 @@ body.ready #hud { opacity: 1; }
   #scan, #flood { width: 200px; }
   #survey { width: min(300px, calc(100vw - 32px)); font-size: 11px; }
   #sound { font-size: 8px; padding: 6px 9px; }
+  #warp { top: 46px; max-width: 148px; padding: 6px 7px 7px; }
+  .wbtn { font-size: 8px; padding: 4px 5px; letter-spacing: 0.10em; }
 }
 
 @media (prefers-reduced-motion: reduce) {

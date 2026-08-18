@@ -1,0 +1,13 @@
+417aa51  2026-08-17  Raid the away window too, and stop armour halving the turrets
+10115e3  2026-08-17  The survey overlay, raiders on wall time, and three defences
+e28f544  2026-08-17  The colonisation economy: geysers, density, hyper fuel
+22d01c9  2026-08-17  Speed FX, and the four tuning fixes that come before them
+dfb369d  2026-08-17  Hyper travel: the speed law, the analytic step, and the world swap
+72842d2  2026-08-17  Six skies, six rock profiles, Ember's emission, Vault's ice, the discs
+6ef0acf  2026-08-17  Six per-planet palettes, merged over the system defaults
+db58eea  2026-08-17  Dev warp by boot selection; de-duplicate Home's relief assertion
+48f9374  2026-08-17  Anvil to 85% of relief cap, Tarn to 86% ocean
+0cb4d74  2026-08-17  Phase 3a: five authored world profiles and a weight-gated fissure term
+43908e4  2026-08-17  Fix reversed faces and two reflection transforms
+7c042bc  2026-08-17  Phase 2: the sphere conversion (Home only)
+e66eec1  2026-08-17  SURVEYOR: flat-world baseline through Phase 1

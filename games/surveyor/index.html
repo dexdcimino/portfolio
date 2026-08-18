@@ -67,6 +67,14 @@
 
   <button id="sound" type="button" aria-pressed="false">SOUND OFF</button>
 
+  <!-- TEMPORARY TESTING SCAFFOLDING. The buttons are built by hud.js from the
+       planet table, and the whole panel is removed from the DOM when
+       DEBUG.warp is off — see tune.js. -->
+  <div id="warp" class="panel" hidden>
+    <div class="label">Dev warp</div>
+    <div id="warpRow"></div>
+  </div>
+
   <div id="forms">
     <div class="chip on" id="chipRover"><div class="key">1</div><div class="name">ROVER</div></div>
     <div class="chip" id="chipBoat"><div class="key">2</div><div class="name">BOAT</div></div>

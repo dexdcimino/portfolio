@@ -481,7 +481,7 @@ function registerShaders() {
     varying vec2 vQ;
     varying vec4 vC;
     uniform vec3 uLight, uRight, uUp, uFwd;
-    uniform float uGlow;
+    uniform float uGlow, uLimb, uDisc;
 
     void main() {
       float r = length(vQ);
@@ -500,7 +500,16 @@ function registerShaders() {
       vec3 N = normalize(uRight * q.x + uUp * q.y - uFwd * z);
       float lit = 0.12 + 0.88 * smoothstep(-0.25, 0.55, dot(N, normalize(uLight)));
 
-      vec3 col = vC.rgb * (disc * lit * 1.6 + halo * uGlow * 0.30);
+      /* Limb darkening, and the reason it is here rather than left implied by
+         the phase: at six pixels across there is no room for a terminator. The
+         crescent above spans a fraction of a pixel and averages back to a flat
+         coin, which reads as a speck of dust on the screen. z is already the
+         sphere's own depth — 1.0 at the centre, 0.0 at the edge — so bright in
+         the middle falling to uLimb at the rim costs one multiply and is what
+         makes the thing read as round at the size it is actually drawn. */
+      float limb = mix(uLimb, 1.0, z);
+
+      vec3 col = vC.rgb * (disc * lit * limb * uDisc + halo * uGlow * 0.30);
       float a = clamp(disc * 0.96 + halo * 0.55, 0.0, 1.0);
       gl_FragColor = vec4(col, a);
     }

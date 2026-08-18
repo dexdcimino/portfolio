@@ -28,6 +28,16 @@ export const WORLD = {
    photographs six worlds and cannot spend half an hour flying between them.
    It is read directly in main.js; there is nothing left to configure. */
 
+/* TEMPORARY TESTING SCAFFOLDING — the HUD planet selector.
+   Six labelled buttons that drop you onto any world without the flight. This is
+   for looking at six worlds in a minute, nothing else: it skips the trip, the
+   fuel and the arrival, so nothing it shows you proves the journey works.
+   `warp: false` removes the row from the HUD entirely and takes the warp path
+   with it. Turn it off before this ships. */
+export const DEBUG = {
+  warp: true,
+};
+
 export const SKY = {
   zenith: null,          // top of the gradient; null = palette.skyHigh
   horizon: null,         // bottom of it; null = palette.skyLow
@@ -94,6 +104,34 @@ export const SYSTEM = {
   pad: 3.4,             // quad is this many disc-radii wide, for the halo
   glow: 1.9,            // halo brightness, above 1.0 so the cores bloom
   distance: 0.42,       // where the billboards sit, as a fraction of farPlane
+
+  /* THE DRAWN RADIUS, against the honest one.
+     `minAngle` above sizes the QUAD, and a quad is not a disc: the disc inside
+     it is drawn at `angle / quadAngle` of the way out, so flooring the quad
+     left the honest disc exactly as small as it always was. Measured on Home at
+     560p, the five discs came out 0.8 / 1.6 / 2.7 / 4.2 / 4.6 pixels ACROSS,
+     and the smallest across the whole system — Ember seen from Vault — is 0.4.
+     Under a pixel is not a disc, it is a flicker the resolve step averages away.
+
+     So the drawn radius is the honest one COMPRESSED, not clamped:
+
+         r = drawRef * (r_true / drawRef)^drawExp,  never below drawFloor,
+                                                    never below r_true
+
+     Compressed rather than clamped because clamping makes three worlds the
+     same size and throws away the one cue that is free: at 0.30 the 23x spread
+     of honest angles becomes 2.1x, which still reads as an ordering — Anvil is
+     visibly the big one, Ember visibly the far one — while the small end lands
+     on four pixels instead of one. `drawRef` sits at the system's widest honest
+     angle so nothing is ever drawn smaller than the truth. */
+  drawRef: 0.0070,      // radians. At this angle drawn and honest agree
+  drawExp: 0.30,        // below it, sizes pull together instead of vanishing
+  drawFloor: 0.0035,    // and never below this: ~4px across at 560p
+  /* Limb darkening. A flat coin at six pixels reads as a speck; a sphere reads
+     as a sphere because it is bright in the middle and falls off at the edge.
+     This is the fraction of full brightness left at the limb. */
+  limb: 0.52,
+  disc: 2.2,            // core brightness. Above 1.0 so the lit side blooms
 };
 
 /**

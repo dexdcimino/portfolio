@@ -3,7 +3,7 @@
 // do I have left, and can I afford to take off right now.
 
 import { on } from '../core/events.js';
-import { FUEL, JET, ROVER, COLORS, ECONOMY } from '../tune.js';
+import { FUEL, JET, ROVER, COLORS, ECONOMY, PLANETS, DEBUG } from '../tune.js';
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -39,6 +39,7 @@ export class Hud {
         rover: $('chipRover'), boat: $('chipBoat'), jet: $('chipJet'),
       },
       range: $('range'),
+      warp: $('warp'), warpRow: $('warpRow'),
     };
 
     this.root = $('hud');
@@ -283,6 +284,53 @@ export class Hud {
       this.el.pips.appendChild(i);
       return { key, el: i, fill: -1, cls: '' };
     });
+  }
+
+  /**
+   * TEMPORARY TESTING SCAFFOLDING — the dev warp row.
+   *
+   * Six labelled buttons, one per world, the one you are standing on lit. It
+   * replaces the Shift+1..6 bindings this had in phase 3a, which were fine at a
+   * bare URL and useless everywhere the game actually gets looked at: inside an
+   * iframe the modifier never reaches the canvas, so the only way to see a
+   * second world was to fly there.
+   *
+   * It owns no warp logic. `pick` is main.js's handler and goes down exactly
+   * the path an arrival takes; this is a button and a highlight.
+   *
+   * Gated on DEBUG.warp, and gated HARD: with the flag off the panel is removed
+   * from the document rather than hidden, so there is nothing left to un-hide
+   * from a console.
+   */
+  attachWarp(keys, current, pick) {
+    if (!DEBUG.warp) { this.el.warp?.remove(); return; }
+    this.warpBtns = keys.map((key) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'wbtn';
+      b.dataset.key = key;
+      b.textContent = (PLANETS[key]?.name || key).toUpperCase();
+      b.addEventListener('click', () => pick(key));
+      /* The canvas keeps the keyboard. Without this the button holds focus
+         after a warp and the next W goes nowhere — which reads as the warp
+         having broken the controls. */
+      b.addEventListener('pointerup', () => document.getElementById('stage').focus());
+      this.el.warpRow.appendChild(b);
+      return b;
+    });
+    this.el.warp.hidden = false;
+    this.setWorld(current);
+  }
+
+  /** Light the world you are on. Called from every arrival, warped or flown. */
+  setWorld(key) {
+    if (!this.warpBtns) return;
+    for (const b of this.warpBtns) {
+      const here = b.dataset.key === key;
+      b.classList.toggle('on', here);
+      b.disabled = here;
+      b.setAttribute('aria-current', here ? 'true' : 'false');
+    }
   }
 
   /** The world under you changed. Same player, same panel, new instruments. */

@@ -17,7 +17,7 @@ import { Sound } from './audio/index.js';
 import { on, emit } from './core/events.js';
 import { makePlanet } from './world/sphere.js';
 import { Surface, findSpawn } from './world/surface.js';
-import { COLORS, ATMO, ROVER, PLANETS } from './tune.js';
+import { COLORS, ATMO, ROVER, PLANETS, HYPER, DEBUG } from './tune.js';
 
 const canvas = document.getElementById('stage');
 const engine = new BABYLON.Engine(canvas, true, {
@@ -159,11 +159,26 @@ function swapTo(key, dir, alt) {
   hud.retarget(world.survey, world.field, world.colonies);
   overlay.retarget(world);
   economy.save();
+  hud.setWorld(key);
   scene.clearColor = new BABYLON.Color4(
     world.mats.fogColor.r, world.mats.fogColor.g, world.mats.fogColor.b, 1);
 }
 
 on('hyperarrive', (e) => swapTo(e.key, e.dir, e.alt));
+
+/* TEMPORARY TESTING SCAFFOLDING — what the HUD's warp row calls.
+   It is the arrival, and nothing but the arrival: same swapTo, same spawn
+   search the boot path uses, same approach altitude hyper hands over. What it
+   skips is the journey — the climb, the lock-on, the fuel — so this proves a
+   world builds and looks right and proves nothing whatever about travel.
+   Gated here as well as in the HUD: the panel is what you can see, this is
+   what could be called. */
+function devWarp(key) {
+  if (!DEBUG.warp || !PLANETS[key] || key === world.planet.key) return;
+  const next = planetOf(key);
+  swapTo(key, findSpawn(next, next.relief * 0.12, next.relief * 0.75), HYPER.approachAlt);
+}
+hud.attachWarp(Object.keys(PLANETS), world.planet.key, devWarp);
 
 // ---- post ----------------------------------------------------------------
 // This replaces the old GlowLayer. A glow layer renders its emissive meshes

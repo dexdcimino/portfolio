@@ -48,6 +48,9 @@ while the hull is filling is the escape hatch. That's the teaching mechanism.
 ```
 index.html            no inline script or style — CSP-clean
 css/hud.css
+package.json          "type": "module", and nothing else. The portfolio repo
+                      this lives in declares "commonjs" at its root, which made
+                      dev/*.mjs unable to import a .js game module at all
 vendor/babylon.js     9.21.2, UMD, from npm
 js/
   tune.js             every tuning number, one file
@@ -86,7 +89,15 @@ dev/run.mjs           headless harness — stubs Babylon, runs in Node
 dev/shots.mjs         six-way screenshot harness — drives real Chrome over CDP
 dev/perf.mjs          what the overlay costs, measured on real frames
 dev/cdp.mjs           the ~150-line DevTools client it runs on. No dependencies
+dev/history/          the standalone repo this game was built in, as a git
+                      bundle. Read-only archive; see its README
 ```
+
+TEMPORARY: the HUD carries a **dev warp** row — six buttons, one per world,
+current one lit, click to arrive there. It calls the same `swapTo` a hyper
+arrival does and skips only the journey, so it proves a world builds and proves
+nothing about travel. `DEBUG.warp` in `tune.js` removes it from the document.
+It replaced `Shift+1..6`, which never worked in an iframe.
 
 ## Decisions worth knowing
 

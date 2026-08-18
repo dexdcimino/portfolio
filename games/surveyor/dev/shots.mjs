@@ -144,10 +144,18 @@ const SKYWARD = `(async () => {
   }
   const aim = c.position.add(dir.scale(200));
   for (let i = 0; i < 20; i++) { c.setTarget(aim); await frame(); }
+  /* Both sizes, because they are no longer the same number: angle is the
+     honest half-angle and drawAngle is what is rasterised, compressed toward
+     a readable band by SYSTEM.drawRef/drawExp/drawFloor. Printing only the
+     honest one made a disc look four times smaller than the pixels in the
+     photograph beside it. */
   return {
     discs: S.discs.list.length,
     aimed: best ? best.key : null,
     px: best ? +(2 * best.angle / (c.fov / ${H})).toFixed(1) : 0,
+    drawnPx: best ? +(2 * best.drawAngle / (c.fov / ${H})).toFixed(1) : 0,
+    up: S.discs.list.filter((d) =>
+      d.dir.x * up.x + d.dir.y * up.y + d.dir.z * up.z > 0.02).length,
   };
 })()`;
 
@@ -212,7 +220,8 @@ for (const key of KEYS) {
     (info.ok
       ? `R=${String(info.radius).padStart(4)}m  ${String(info.leaves).padStart(3)} leaves  ` +
         `spawn y=${String(info.y).padStart(5)}m  ${info.discs} discs, ` +
-        `sky shot aimed at ${info.aimed} (${info.px}px)`
+        `${info.up} above the horizon, ` +
+        `sky shot aimed at ${info.aimed} (${info.px}px honest, ${info.drawnPx}px drawn)`
       : 'never became ready' + (info.err ? ' — ' + info.err : '')));
   if (info.ok) {
     console.log(`        overlay: ${info.markers} markers over ${info.sites} colonies`);
