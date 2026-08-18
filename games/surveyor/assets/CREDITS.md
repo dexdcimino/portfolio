@@ -18,11 +18,16 @@ is the rock character this look asks for. The `_alb.jpg` / `_nrm.png` sources
 live there and not here; `tools/bake_terrain_maps.py --source <lookdev>/assets/textures`
 reproduces all three.
 
-## Weight, and the lever if it matters
+## Weight
 
-Seven 33³ LUTs is 3.1 MB of ASCII on a page that already carries an 8.2 MB
-Babylon build and 1.4 MB of terrain maps. `SIZE` in `tools/bake_lut.py` is the
-one number that changes it: 17³ is about a seventh of the size and these grades
-are gentle enough to survive it — the 33 was chosen for the archived night
-grade's hard shadow crush, which no longer exists. Left at 33 because fidelity
-is the safer default and the decision is one constant away.
+Seven LUTs at 17³ is 448 KB. They were 33³ and 3.1 MB, which is not a trade
+worth making for a browser game on a page already carrying an 8.2 MB Babylon
+build. 33 was chosen upstream for the archived night grade's hard shadow crush,
+where a coarse grid banded visibly; nothing here crushes — every grade is a
+gamma, a gentle S about a pivot, a saturation scale and two tints, all smooth in
+RGB. Checked on all six worlds after the change, including Ember's sky, which is
+the largest smooth gradient in the game: no banding. `SIZE` in
+`tools/bake_lut.py` is the one number if it ever needs to go back up.
+
+Also: `assets/luts/*.3dl` are 33³ no longer — regenerate with
+`python tools/bake_lut.py` rather than editing them.

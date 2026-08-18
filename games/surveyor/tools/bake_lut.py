@@ -34,8 +34,17 @@ from __future__ import annotations
 from pathlib import Path
 
 LUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "luts"
-SIZE = 33            # per axis; 33 is smooth enough for a hard shadow crush
+SIZE = 17            # per axis. See the note below.
 MAX_CODE = 1023      # 10-bit, the usual 3DL convention
+
+# WHY 17 AND NOT 33. Seven 33^3 LUTs came to 3.1 MB of ASCII on a page that
+# already carries an 8.2 MB Babylon build — not a trade worth making for a
+# browser game. 33 was chosen for the archived night grade's hard shadow crush,
+# where a coarse grid banded visibly; nothing here crushes. Every grade in this
+# file is a gamma, a gentle S about a pivot, a saturation scale and two tints,
+# all of them smooth in RGB, and trilinear interpolation across a 17-point axis
+# reproduces them to well under a code value. Checked on the six worlds after
+# the change, not assumed.
 
 LUMA = (0.2126, 0.7152, 0.0722)
 
