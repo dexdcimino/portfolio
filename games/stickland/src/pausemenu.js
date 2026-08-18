@@ -15,6 +15,7 @@
 //  build). Everything playmode-owned arrives through initPauseMenu(hooks).
 
 import { sfx, setVolume, getVolume, setMuted, isMuted, setBusVolume, getBusVolume } from './audio.js';
+import { nextTrack, prevTrack, toggleMusic, onMusicChange } from './music.js';
 import { safeStorage } from './storage.js';
 
 // ── Exit destination ────────────────────────────────────
@@ -145,6 +146,17 @@ export function initPauseMenu(hooks) {
 }
 
 // ── Open / close ────────────────────────────────────────
+/* A programmatic handle, the same pattern audio.js already uses for the mixer:
+   the menu is guarded by a key ladder in playmode.js (chat, inventory and the
+   cosmetics panel all take Escape first), which automation cannot reliably
+   reproduce. This opens the real menu through the real function — nothing is
+   mocked — and is how the track picker is tested. */
+try {
+  window._dexPauseMenu = {
+    open: () => openPauseMenu(), close: () => closePauseMenu(), isOpen: () => isPauseMenuOpen(),
+  };
+} catch (e) {}
+
 export function openPauseMenu() {
   if (_open) return;
   _open = true;
@@ -606,7 +618,55 @@ function _renderAudio(root) {
   rows.push(master, child('Music', 'amb', null), child('FX', 'sfx', 'ui'));
   rows.forEach(r => wrap.appendChild(r.el));
   sync();
+  wrap.appendChild(_trackPicker());
   root.appendChild(wrap);
+}
+
+/* The audition rack: previous / next across the candidate tracks, with the
+   number and the name, so a track can be judged while the game is actually
+   being played rather than in a browser tab. Numbered because that is how the
+   answer comes back — "track 4" — and named so the number can be turned into a
+   file without counting rows.
+
+   Temporary by design. When one is chosen this row goes and music.js shrinks to
+   that track. It is inside the audio section because it belongs to the Music
+   fader immediately above it — the same bus, the same mute. */
+function _trackPicker() {
+  const row = document.createElement('div');
+  row.className = 'pmenu-track-pick';
+
+  const prev = document.createElement('button');
+  prev.type = 'button'; prev.className = 'pmenu-track-btn'; prev.textContent = '\u2039';
+  prev.setAttribute('aria-label', 'Previous track');
+
+  const play = document.createElement('button');
+  play.type = 'button'; play.className = 'pmenu-track-btn pmenu-track-play';
+
+  const next = document.createElement('button');
+  next.type = 'button'; next.className = 'pmenu-track-btn'; next.textContent = '\u203a';
+  next.setAttribute('aria-label', 'Next track');
+
+  const label = document.createElement('span');
+  label.className = 'pmenu-track-label';
+
+  prev.addEventListener('click', () => { prevTrack(); sfx('ui.slot'); });
+  next.addEventListener('click', () => { nextTrack(); sfx('ui.slot'); });
+  play.addEventListener('click', () => { toggleMusic(); sfx('ui.slot'); });
+
+  onMusicChange((st) => {
+    label.textContent = st.failed
+      ? 'Track ' + st.number + ' \u2014 unavailable'
+      : 'Track ' + st.number + '/' + st.total + ' \u2014 ' + st.name;
+    play.textContent = st.playing ? '\u2016' : '\u25b6';
+    play.setAttribute('aria-label', st.playing ? 'Pause music' : 'Play music');
+    row.classList.toggle('is-failed', !!st.failed);
+  });
+
+  row.appendChild(prev);
+  row.appendChild(play);
+  row.appendChild(next);
+  row.appendChild(label);
+  return row;
 }
 
 function _exitGame() {

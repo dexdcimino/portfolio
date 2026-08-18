@@ -102,6 +102,10 @@ function _unlock() {
   ctx.resume().then(() => {
     _unlocked = true;
     _startAmbience();
+    // The audition rack, if it is present in this build. Late-bound through the
+    // window rather than imported: audio.js is the bottom of the module graph
+    // and importing upward would make a cycle.
+    try { window._sticklandStartMusic && window._sticklandStartMusic(); } catch (e) {}
   }).catch(() => {});
 }
 try {
@@ -144,6 +148,13 @@ export function setBusVolume(name, v) {
   _saveSettings();
   if (_ensure() && _bus[name]) _bus[name].gain.value = _settings.buses[name];
 }
+/* For music.js. Exported rather than letting another module reach in, so the
+   context is still created in exactly one place, and the music bus is named
+   here rather than guessed there: music rides `amb`, which is the bus the pause
+   menu's Music fader already drives. */
+export function audioContext() { return _ctx; }
+export function musicDestination() { return (_bus && _bus.amb) || null; }
+
 export function getBusVolume(name) {
   return (name in _settings.buses) ? _settings.buses[name] : 1;
 }

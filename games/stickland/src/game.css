@@ -741,6 +741,26 @@ body:has(#hud-stamina-wrap[style*="block"]) #inv2 {
 
 /* Audio channel: toggle | label | slider | percent, hard right. */
 .pmenu-chan{display:flex; align-items:center; gap:10px; padding:7px 2px;}
+/* The audition rack. Sits under the three faders because it belongs to the
+   Music one — same bus, same mute — and is deliberately plain: it is temporary
+   furniture for choosing a track, not part of the menu's design. */
+.pmenu-track-pick{
+  display:flex; align-items:center; gap:8px; padding:9px 2px 3px;
+  border-top:1px solid var(--bdr); margin-top:6px;
+}
+.pmenu-track-btn{
+  flex:0 0 auto; width:30px; height:30px; border-radius:8px; cursor:pointer;
+  border:1px solid var(--bdr); background:transparent; color:var(--tx);
+  font-size:15px; line-height:1; display:grid; place-items:center;
+  transition:border-color .15s ease, color .15s ease;
+}
+.pmenu-track-btn:hover{border-color:var(--ac); color:var(--ac);}
+.pmenu-track-btn:focus-visible{outline:2px solid var(--ac); outline-offset:2px;}
+.pmenu-track-label{
+  flex:1 1 auto; min-width:0; font-size:12.5px; color:var(--tx2);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.pmenu-track-pick.is-failed .pmenu-track-label{opacity:.6; font-style:italic;}
 .pmenu-chanlabel{flex:0 0 62px; font-size:13.5px; font-weight:600; color:var(--tx);}
 .pmenu-chan .pmenu-range{flex:1 1 auto; min-width:0;}
 .pmenu-chan .pmenu-range-val{
