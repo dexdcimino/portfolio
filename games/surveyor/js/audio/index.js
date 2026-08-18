@@ -43,6 +43,12 @@ export class Sound {
     this.live = true;
   }
 
+  /** The pause menu's mixer, straight through to the graph. */
+  setLevels(levels) { this.engine.setLevels(levels); }
+
+  /** Silence while the menu is up, without touching the player's mute. */
+  setPaused(on) { this.engine.setPaused(on); }
+
   toggleMute() {
     this.engine.setMuted(!this.engine.muted);
     return this.engine.muted;
