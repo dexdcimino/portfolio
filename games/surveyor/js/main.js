@@ -88,6 +88,12 @@ const forms = {
 };
 
 const craft = new Craft(forms, surface);
+/* ...and put it on the ground. The Craft constructor starts it at y = 0, which
+   is sea level and not the surface — and every spawn is chosen from a band that
+   starts at relief * 0.12 ABOVE sea level, so y = 0 is underground on all six.
+   See Craft.settle for why this only became visible when the spawn search
+   started choosing by sky rather than by order. */
+craft.settle();
 const economy = new Economy();
 craft.economy = economy;
 const worlds = new Worlds(scene, craft);
@@ -206,6 +212,19 @@ function devWarp(key) {
   if (!DEBUG.warp || !PLANETS[key] || key === world.planet.key) return;
   const next = planetOf(key);
   swapTo(key, spawnFacing(next), HYPER.approachAlt);
+  /* ...and then stand it on the ground, which is the one place this row now
+     deliberately differs from the arrival it otherwise mirrors.
+     HYPER.approachAlt is 900 METRES, absolute, on worlds whose radii run from
+     207m to 2072m — so a warp to Ember dropped you 4.35 planet radii up, with
+     the whole world a marble 22 degrees wide below you. That is a fine place to
+     begin a descent and a useless place to be put by a button whose entire
+     purpose is looking at six worlds in a minute.
+     A real hyper arrival is untouched: it keeps the approach altitude, the
+     autopilot and the descent, because arriving in flight is the designed
+     behaviour there and the number it uses is also the boundary the whole
+     travel model is built on. */
+  craft.setMode('rover', true);
+  craft.settle();
 }
 hud.attachWarp(Object.keys(PLANETS), world.planet.key, devWarp);
 
@@ -443,7 +462,11 @@ engine.runRenderLoop(() => {
   overlay.update(dt, cam);
   hyperPost(craft.hyperT);
   const fr = craft.surf.frame;
-  world.mats.update(dt, cam.camera.position, craft.boostHeat, fr.up, fr.east, fr.north);
+  /* The CRAFT's altitude, not the camera's. The camera swings out and pulls
+     back on a climb, and fog that thinned because the chase cam happened to
+     rise would be a world clearing for reasons the player did not cause. */
+  world.mats.update(dt, cam.camera.position, craft.boostHeat, fr.up, fr.east, fr.north,
+    craft.pos.y);
   hud.update(dt);
   sound.update(dt, craft, started);
 
@@ -520,4 +543,7 @@ window.SURVEYOR = {
   surface,
   // Kept for the dev harness: local tangent height, the same call craft.js makes.
   surfaceHeight: (x, z) => surface.surfaceHeight(x, z),
+  // The dev warp, so dev/spawncheck.mjs can measure the path the HUD row takes
+  // rather than a reimplementation of it. Still gated by DEBUG.warp inside.
+  warp: devWarp,
 };

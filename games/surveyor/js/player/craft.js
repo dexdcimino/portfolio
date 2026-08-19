@@ -428,6 +428,41 @@ export class Craft {
   }
 
   /**
+   * Stand the craft on the ground where it is, right now.
+   *
+   * WHY THIS HAD TO EXIST. The constructor puts the craft at y = 0, and y is
+   * height above SEA LEVEL, not above the ground. findSpawn returns a
+   * DIRECTION and has never returned a height — so the two halves of a spawn
+   * were never actually joined up. It only stopped being invisible when the
+   * spawn search changed: it used to stop at the first point in its height
+   * band, which on a Fibonacci spiral from the pole meant something near the
+   * bottom of that band, and the error was a metre or two. Scoring the whole
+   * spiral for how many neighbour worlds sit in the sky picks by a criterion
+   * with no relation to height at all, so the chosen point can sit anywhere in
+   * a band that runs from relief * 0.12 to relief * 0.75 — up to 78m above sea
+   * level on Anvil, with the craft still starting at zero. Underground, and
+   * then thrown clear.
+   *
+   * Every field that could carry that throw forward is cleared here as well as
+   * the position. Setting y alone leaves whatever the suspension had already
+   * wound up on the frame it spent inside the rock.
+   */
+  settle() {
+    const gh = this.surf.surfaceHeight(this.pos.x, this.pos.z);
+    this.pos.y = Math.max(gh, this.surf.planet.hasWater ? WORLD.waterY : -Infinity) +
+      ROVER.rideHeight;
+    this.vel.set(0, 0, 0);
+    this.fallVel = 0;
+    this.hopVel = 0;
+    this.airborne = false;
+    this.grounded = true;
+    this.speed = 0;
+    this.speedScalar = 0;
+    this.lastImpact = 0;
+    this.sinceLand = 0;
+  }
+
+  /**
    * Hyper hands back: stand the craft up in flight over a new world.
    *
    * Arrival speed is not negotiable — the law brought it back down to jet

@@ -3,13 +3,19 @@
 // lines are cut into the rock, the waterline gets a drawn coastline stroke,
 // and light is quantised into flat bands so form reads as shape, not shading.
 
-import { COLORS, WORLD, ATMO, SKY, LIGHT, TERRAIN, SHADOW } from '../tune.js';
+import { COLORS, WORLD, ATMO, SKY, LIGHT, TERRAIN, SHADOW, FOG } from '../tune.js';
 import { meltDepth } from './water.js';
 import { waterOf } from './seabed.js';
 
 const V3 = (c) => new BABYLON.Vector3(c[0], c[1], c[2]);
 const C3 = (c) => new BABYLON.Color3(c[0], c[1], c[2]);
 const scale = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
+
+/** Hermite, so the fog lifts into altitude rather than switching on. */
+const smooth01 = (x) => {
+  const t = Math.max(0, Math.min(1, x));
+  return t * t * (3 - 2 * t);
+};
 
 /** This planet's palette: the system default with the profile merged over it. */
 export function paletteOf(planet) {
@@ -638,6 +644,9 @@ function registerShaders() {
     uniform vec4 uWaterP2;
     // The swell, per pixel. Same three sines as waveAt() in js/world/noise.js.
     uniform float uWaveK, uWaveAmp, uShoal, uWaveN;
+    // x glint, y the ceiling on everything the sky adds, z the Fresnel ceiling,
+    // w how far the ice darkens with depth.
+    uniform vec4 uGlareP;
     // The sky's own horizon stops, so the reflection is this world's sky and
     // not a second palette that has to be kept in step with it by hand.
     uniform vec3 uSkyLow, uSkyHigh, uSkyBandCol;
@@ -822,15 +831,26 @@ function registerShaders() {
       float pfoam = clamp(max(shoreF * lace, edgeF), 0.0, 1.0) * uFoamP.z;
       col = mix(col, uCoast, pfoam);
 
-      // Toon glint: a hard-edged specular that pops on and off, no falloff.
+      /* EVERYTHING THE SKY ADDS TO THE SURFACE, COLLECTED AND THEN CAPPED.
+         These used to be two independent additions straight onto col, which is
+         fine until a surface normal gets sharper. The per-pixel analytic
+         swell made the
+         glint fire on every crest instead of on the few the mesh could
+         represent, and additive terms with no ceiling do not shade a surface,
+         they erase it — the bathymetry shelves and the depth ladder are chart
+         information, and no amount of weather is allowed to take them off the
+         page. Summing first and clamping once is what makes that a guarantee
+         rather than a hope, and it holds for whatever gets added here next. */
       vec3 H = normalize(uLight + V);
       float spec = pow(clamp(dot(N, H), 0.0, 1.0), 60.0);
-      col += vec3(0.85, 1.0, 0.98) * step(0.30, spec) * 0.40;
+      // Toon glint: a hard-edged specular that pops on and off, no falloff.
+      vec3 sky = vec3(0.85, 1.0, 0.98) * step(0.30, spec) * uGlareP.x;
 
       // A sun path on the water, stretched along the view. Cheap, and it
       // gives an otherwise flat lake a direction.
       float path = pow(clamp(dot(-V, uLight), 0.0, 1.0), 8.0);
-      col += uFogSun * path * 0.22 * smoothstep(0.0, 3.0, d);
+      sky += uFogSun * path * 0.22 * smoothstep(0.0, 3.0, d);
+      col += min(sky, vec3(uGlareP.y));
 
       // Water's response to the bands is shallower than the ground's by design,
       // but it takes the same key and fill — T2 — or a world whose shadows lift
@@ -861,13 +881,21 @@ function registerShaders() {
       if (uWaterP2.y > 0.0) {
         vec3 Rv = reflect(-V, N);
         float rel = dot(Rv, upW);
-        vec3 sky = mix(uSkyLow, uSkyHigh, clamp(rel * 1.25 + 0.06, 0.0, 1.0));
-        sky = mix(sky, uSkyBandCol,
+        vec3 refl = mix(uSkyLow, uSkyHigh, clamp(rel * 1.25 + 0.06, 0.0, 1.0));
+        refl = mix(refl, uSkyBandCol,
           uSkyP.x * (1.0 - smoothstep(0.0, max(uSkyP.y, 0.005), abs(rel))));
-        sky = mix(sky, hazeColor(uFog, uFogSun, -Rv, uLight, uScatter),
+        refl = mix(refl, hazeColor(uFog, uFogSun, -Rv, uLight, uScatter),
           (1.0 - smoothstep(-0.03, 0.24, rel)) * uSkyP.z);
+        /* FRESNEL, WITH A CEILING. Physically it runs to 1.0 at grazing
+           incidence, and at 1.0 the reflection IS the surface — the water's own
+           colour is gone and with it every band of the chart. A real sea gets
+           away with that because a real sea has nothing to say; this one is a
+           bathymetric chart and has to stay readable from the deck of a boat,
+           which is the most grazing view in the game. So the mix is capped, and
+           the cap is the thing that keeps the depth ladder visible rather than
+           any particular exponent. */
         float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), uWaterP2.z);
-        col = mix(col, sky, clamp(fres, 0.0, 1.0) * uWaterP2.y);
+        col = mix(col, refl, min(clamp(fres, 0.0, 1.0) * uWaterP2.y, uGlareP.z));
       }
 
       /* FROZEN (Vault). The same shelves, but read as a solid surface: pale,
@@ -878,7 +906,12 @@ function registerShaders() {
          other five worlds. */
       float lineNow = 0.0;
       if (uFrozen > 0.0) {
-        vec3 ice = mix(uCoast, uShallowW, smoothstep(0.0, uMaxDepth, d) * 0.55);
+        /* THE ICE CARRIES A DEPTH LADDER TOO, and on this world that ladder
+           is the hazard: depth is ice thickness is whether it holds the rover.
+           0.55 was as far as the ice was allowed to darken and it left the
+           sheet reading as one flat white plate with only the melt line on it —
+           a stroke you can drive past. */
+        vec3 ice = mix(uCoast, uShallowW, smoothstep(0.0, uMaxDepth, d) * uGlareP.w);
         // Wind-scoured streaks, so a frozen lake is not a flat panel of white.
         ice *= 0.94 + 0.10 * fbm2(vW.xz * 0.06);
         // Beyond the melt line the surface darkens back toward open water,
@@ -928,6 +961,11 @@ function registerShaders() {
           gl_FragColor = vec4(vec3(clamp(sb / uFogRange.y, 0.0, 1.0)), 1.0);
         } else if (uWaterDebug < 3.5) {
           gl_FragColor = vec4(vec3(pfoam), 1.0);
+        } else if (uWaterDebug > 4.5) {
+          // MODE 5: the VERTICAL depth the chart is drawn from, over 20m. This
+          // is the quantity "can you tell shallow from deep" is a question
+          // about, so it is the one dev/waterangles.mjs buckets by.
+          gl_FragColor = vec4(vec3(clamp(pdepth / 20.0, 0.0, 1.0)), 1.0);
         } else {
           /* MODE 4: a flat magenta mask, and it is here because measuring the
              other three was giving wrong answers.
@@ -1450,7 +1488,7 @@ export function createMaterials(scene, planet) {
         // are bound automatically once they are declared here.
         'view', 'projection', 'uInvScreen', 'uWaterP', 'uWaterP2', 'uFoamP',
         'uWaterOn', 'uWaterDebug', 'uShoal', 'uWaveN',
-        'uSkyLow', 'uSkyHigh', 'uSkyBandCol', 'uSkyP'],
+        'uSkyLow', 'uSkyHigh', 'uSkyBandCol', 'uSkyP', 'uGlareP'],
       samplers: ['uSeabed'],
       needAlphaBlending: true,
     });
@@ -1500,6 +1538,8 @@ export function createMaterials(scene, planet) {
   water.setVector3('uSkyHigh', V3(SK.zenith));
   water.setVector3('uSkyBandCol', V3(SK.bandColor));
   water.setVector3('uSkyP', new BABYLON.Vector3(SK.band, SK.bandWidth, SK.haze));
+  water.setVector4('uGlareP', new BABYLON.Vector4(
+    WA.glint, WA.skyCap, WA.reflect.maxMix, WA.iceDepth));
   // Culling ON. The water is a closed shell now, not a plane: with culling off
   // the far side of the sphere draws straight through the sky above the
   // horizon, as a hard-edged grey quad hanging over the world.
@@ -1636,9 +1676,47 @@ export function createMaterials(scene, planet) {
   const upVec = new BABYLON.Vector3(0, 1, 0);
   const eastVec = new BABYLON.Vector3(1, 0, 0);
   const northVec = new BABYLON.Vector3(0, 0, 1);
-  mats.update = (dt, camPos, heat, up, east, north) => {
+  /* THE FOG RANGE IS ONE OBJECT, SHARED BY THREE MATERIALS ON PURPOSE.
+     terrain, water and craft were all handed the same Vector2 at construction,
+     and Babylon binds whatever that object holds at draw time — so writing to
+     it here updates all three and cannot leave one of them lit for a different
+     atmosphere than the other two. That failure mode is not hypothetical: the
+     hull fogging on a different curve from the ground it is standing on is
+     exactly the sort of thing nobody sees until it is shipped. */
+  const fogAlt = { lift: -1 };
+  mats.update = (dt, camPos, heat, up, east, north, alt) => {
     time += dt;
     const cam = camPos;
+    if (FOG.enabled && alt !== undefined) {
+      const R = planet.radius;
+      /* Clamped to two radii, and the clamp is for hyper rather than for
+         flight. main.js calls this every frame including during a transit,
+         when the craft's y is a system-space number in the hundreds of
+         thousands — and sqrt(2 * R * that) would hand the fog a range wider
+         than the solar system on the frame you arrive. Nothing above two radii
+         is a world you are flying over. */
+      const a = Math.min(Math.max(0, alt), R * 2);
+      const t = smooth01((a - FOG.from * R) / Math.max(1e-6, (FOG.to - FOG.from) * R));
+      // The distance to your own horizon from here. Fog is allowed to reach it
+      // and no further, because past it there is no world to draw anyway.
+      const horizon = Math.sqrt(2 * R * a) * FOG.horizonK;
+      const far = Math.max(planet.fogFar, planet.fogFar + (horizon - planet.fogFar) * t);
+      /* NEAR LIFTS WITH THE ALTITUDE, and this is the half that actually made
+         the difference. At height a, NOTHING IN FRAME IS NEARER THAN a — the
+         ground straight below you is exactly a away. Leave the fog starting at
+         its surface value and every pixel of the world is already inside it
+         before the gradient begins: from 193m over Tarn the whole frame,
+         land and water alike, came back as one sheet of pale grey with the
+         coastline barely legible through it.
+         So the near plane is pushed out to the altitude. On the ground a is
+         zero and this is the profile's own number, untouched; in the air it
+         puts the start of the fog at the closest thing there is to fog. */
+      const near = Math.max(planet.fogNear, planet.fogNear + (a - planet.fogNear) * t);
+      if (Math.abs(t - fogAlt.lift) > 1e-4 || far !== planet.fogFar) {
+        fogAlt.lift = t;
+        fogRange.set(Math.min(near, far * 0.85), far);
+      }
+    }
     terrain.setVector3('uCam', cam);
     water.setVector3('uCam', cam);
     water.setFloat('uTime', time);

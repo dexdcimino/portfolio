@@ -338,6 +338,58 @@ export const CONTACT = {
 };
 
 /**
+ * FOG AT ALTITUDE.
+ *
+ * Fog was a per-world constant, authored at the surface and correct there. It
+ * is what makes Shroud Shroud. It also made Shroud UNFLYABLE: from the air the
+ * world vanished into flat violet with nothing to navigate by.
+ *
+ * THE MEASUREMENT THAT SETTLED THE SHAPE OF THIS. Fog range as a fraction of
+ * the world's own radius:
+ *
+ *     world    fogFar    far / radius    horizon at 0.1 R
+ *     home       808m            0.78                463m
+ *     ember      145m            0.70                 93m
+ *     tarn       393m            0.95                185m
+ *     vault      829m            1.00                371m
+ *     shroud     167m            0.12                649m
+ *     anvil     1906m            0.92                927m
+ *
+ * Five worlds fog out at 0.70-1.00 of a radius. Shroud fogs out at 0.12 — an
+ * order of magnitude shorter, which is the authored murk and is approved. But
+ * the last column is what you can SEE from a jet, and on Shroud that is 649m of
+ * world behind a wall at 167m. Nothing is wrong with the number; it is being
+ * asked a question it was never authored for.
+ *
+ * SO THE RULE IS THE HORIZON, and it needs no per-world table at all. Fog far
+ * grows toward the distance you can actually see from your altitude,
+ * sqrt(2 * R * alt), which is derived from the world's own geometry and is
+ * therefore already per-world and per-altitude. Two consequences make it the
+ * right rule rather than merely a working one:
+ *
+ *   - at zero altitude the horizon is zero, so the surface fog is untouched on
+ *     every world. Shroud's approved murk is approved murk, exactly.
+ *   - it only ever REACHES for worlds whose fog is shorter than their own
+ *     horizon, which is Shroud and nothing else until you fly high. The other
+ *     five are unchanged until well above anything but a deliberate climb:
+ *     the altitude at which each starts to clear is fogFar^2 / 2R, which is
+ *     10m on Shroud and 315m, 51m, 187m, 415m, 877m on the others.
+ */
+export const FOG = {
+  enabled: true,
+  /* Where the air starts to thin and where it has finished, as fractions of the
+     planet's radius. Not metres: the same lesson as everything else here, and
+     the radii run 207m to 2072m. The floor keeps the rover out of it — at 0.01R
+     Shroud does not start clearing until 15m up, and the rover's roof is 2m. */
+  from: 0.010,
+  to: 0.060,
+  // How much of the horizon distance the fog is allowed to reach. 1.0 puts the
+  // fog line at the horizon, which is where the world stops being visible for
+  // reasons that have nothing to do with fog.
+  horizonK: 1.0,
+};
+
+/**
  * WATER.
  *
  * Everything here lands as a NO-OP and every world opts in, which is the habit
@@ -465,6 +517,31 @@ export const WATER = {
      false is the no-op and every world opts in. */
   measureDepth: false,
 
+  /* GLARE, AND THE CEILING ON IT. Three numbers that exist for one rule: the
+     chart is never allowed to be fully occluded. The bathymetry shelves, the
+     depth ladder and the melt line are information, not decoration, and a term
+     that can take all of them off the surface at some viewing angle is a bug
+     however physical it is.
+     `glint` is the toon specular's amplitude, and it needed a knob because the
+     per-pixel analytic swell changed what it does. On the mesh's aliased normal
+     it fired on the few crests the geometry could represent; on a true one it
+     fires on every crest, which is far more of the surface and reads as glare
+     rather than as water.
+     `skyCap` is the ceiling on the SUM of everything the sky adds — the glint
+     and the sun path today, whatever gets added tomorrow. Additive terms with
+     no ceiling do not shade a surface, they erase it. 1.0 is above the sum of
+     the two current terms at full strength (0.40 + 0.22) and is therefore the
+     no-op. */
+  glint: 0.40,
+  skyCap: 1.0,
+
+  /* HOW FAR THE ICE DARKENS WITH DEPTH — Vault only, since it is the only world
+     with any. This is a hazard read, not a look: on Vault depth IS ice
+     thickness IS whether the sheet holds the rover, so a flat white sheet with
+     a single stroke on it is a world where the only warning is a line you can
+     drive straight past. 0.55 is what it shipped as and is the no-op. */
+  iceDepth: 0.55,
+
   /* SHARPEN: how much of the bathymetry chart is read PER PIXEL rather than
      off the shell's 40m vertex grid. 0 draws the shelves exactly as they have
      always been drawn, which is the neutral this ships at; 1 reads the depth at
@@ -552,8 +629,14 @@ export const WATER = {
      terrain — the honest limit, and a small one on worlds whose horizon is a
      hundred metres off and hazed to the fog colour long before it gets there.
      mix is the no-op. fresnel is the exponent: 3 is close to Schlick, higher
-     keeps the reflection to the grazing angles. */
-  reflect: { mix: 0, fresnel: 3.0 },
+     keeps the reflection to the grazing angles.
+     maxMix is the CEILING, and it is the important one. Fresnel physically
+     reaches 1.0 at grazing incidence, and at 1.0 the reflection is the surface:
+     the water's own colour is gone and every band of the chart with it. A real
+     sea can afford that because it has nothing to say. This one is a chart, and
+     the most grazing view in the game is the one you spend the most time in —
+     the deck of a boat. */
+  reflect: { mix: 0, fresnel: 3.0, maxMix: 0.55 },
 
   /* 0 off, 1 thickness in metres as a ramp, 2 the depth pass raw, 3 the foam
      mask alone, 4 a flat magenta water mask. Read with the post stack off —
@@ -825,6 +908,9 @@ export const PLANETS = {
       absorb: 3.4,
       foam: { shore: 0.65, edge: 0.30 },
       refract: 0.30,
+      // Measured across five viewing angles, the depth gap runs 66-121 levels
+      // and only softens looking straight down. A modest trim.
+      glint: 0.30, skyCap: 0.45,
     },
 
     // Mesh. targetCell is held near-constant across worlds so the vehicles
@@ -1071,6 +1157,14 @@ export const PLANETS = {
          as pale water with sand under it, which is what they are. */
       foam: { shore: 0.12, edge: 0.30, strength: 0.55 },
       refract: 0.55,
+      /* THE GLINT IS RELATIVE TO THE WATER IT LANDS ON, and Tarn's is the
+         palest of the five — shallow sits at 0.35/0.69/0.72 before anything is
+         added to it. A 0.40 white specular on top of that is most of the way to
+         clipping, so the crests blow out and take the shelves with them: the
+         depth gap measured 24 levels at six degrees against 82 at twenty-two.
+         The cap matters more than the amplitude here, because it is the thing
+         that holds when the swell puts a crest normal straight at the sun. */
+      glint: 0.22, skyCap: 0.32,
     },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
@@ -1187,7 +1281,13 @@ export const PLANETS = {
        becomes a line — and the melt line is the hazard: past it the ice does not
        hold the rover. The physics is untouched (iceHolds reads surfaceHeight on
        the CPU), so this is the drawn line moving TOWARD the real one. */
-    water: { measureDepth: true, sharpen: 1 },
+    /* iceDepth 0.80, from 0.55. The glare terms do not reach this world at all
+       — the frozen branch replaces the colour after they are added — so the
+       only thing that carries depth on Vault is the ice's own ramp, and at 0.55
+       it was a flat white sheet with a single stroke across it. Depth here is
+       ice thickness is whether the sheet holds you, so this is the hazard read
+       and not a look. */
+    water: { measureDepth: true, sharpen: 1, iceDepth: 0.80 },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
     /* White, pale blue, deep shadow. The widest gap in the system between
@@ -1321,6 +1421,13 @@ export const PLANETS = {
       // water is supposed to hide things, that is the wrong direction twice.
       foam: { shore: 0.12, edge: 0.20, strength: 0.45 },
       refract: 0.10,
+      /* The tightest cap of the five, and Shroud earns it by having the darkest
+         water: deep is 0.055/0.047/0.086, so a 0.40 white specular is not a
+         highlight on this surface, it is five times the surface. The depth gap
+         went flat looking down — five levels, and briefly inverted — which is
+         a pool reading as a mirror rather than as a hazard you cannot see the
+         bottom of. */
+      glint: 0.12, skyCap: 0.16,
     },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
@@ -1456,6 +1563,9 @@ export const PLANETS = {
          slant across eleven metres of water is four halvings whatever the
          colour half is capped at. A pan you cannot see into reads as more
          ground, which is the opposite of the landmark it is supposed to be. */
+      // Anvil reads well at every angle already (74-93 levels); the cap is here
+      // so a crest at the wrong moment cannot undo that, not to change it.
+      glint: 0.34, skyCap: 0.50,
       absorb: 7.0,
       // 1.2m of depth, the widest of the five, because Anvil's pans have the
       // steepest edges of the six worlds — at 0.60 the band was under a tenth

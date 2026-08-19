@@ -114,3 +114,52 @@ export const SHORE = `(async () => {
   for (let i = 0; i < 24; i++) { c.setTarget(aim); await frame(); }
   return { shore: +found.toFixed(0) };
 })()`;
+
+/* THE AIR VIEW.
+   Fog is authored at the surface, where on Shroud it is the antagonist and the
+   whole point. From a jet it was the antagonist of the game: the world went to
+   flat violet at 167m on a planet whose horizon from that altitude is 649m
+   away, and there was nothing to navigate by. That is a thing you cannot see in
+   any of the other four frames, because all of them stand on the ground.
+   The craft is flown up rather than the camera, for the reason the shoreline
+   frame drives there: terrain streams around the CRAFT, and a camera sent
+   somewhere it is not photographs an unstreamed world and blames the fog.
+   Altitude is a fraction of the RADIUS, not metres — 900m over Ember is four
+   and a half planet radii and 900m over Anvil is a low pass. */
+export const ALOFT = `(async () => {
+  const frame = () => new Promise((r) => requestAnimationFrame(r));
+  const S = window.SURVEYOR;
+  const hud = document.getElementById('hud');
+  if (hud) hud.style.visibility = 'hidden';
+  const R = S.planet.radius;
+  const alt = R * 0.10;
+
+  S.craft.setMode('jet', true);
+  S.craft.pos.y = alt;
+  S.craft.vel.set(0, 0, 0);
+  for (let i = 0; i < 4; i++) await frame();
+  const t0 = performance.now();
+  let settled = 0;
+  while (performance.now() - t0 < 30000) {
+    await frame();
+    // The craft is in free flight and will sink; hold it up while the ground
+    // streams in under it, or the frame is taken halfway through a fall.
+    S.craft.pos.y = alt;
+    S.craft.vel.y = 0;
+    settled = S.field.queue.length === 0 ? settled + 1 : 0;
+    if (settled > 20) break;
+  }
+
+  const c = S.cam.camera;
+  S.cam.update = () => {};
+  const up = S.surface.frame.up;
+  c.upVector.set(up.x, up.y, up.z);
+  const eye = new BABYLON.Vector3(), aim = new BABYLON.Vector3();
+  S.surface.toWorld(0, alt, 0, eye);
+  // Ahead and down, the angle you actually fly at when you are looking for
+  // somewhere to land rather than admiring the sky.
+  S.surface.toWorld(alt * 2.2, 0, 0, aim);
+  c.position.copyFrom(eye);
+  for (let i = 0; i < 24; i++) { c.setTarget(aim); await frame(); }
+  return { aloft: +alt.toFixed(0) };
+})()`;

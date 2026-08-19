@@ -118,6 +118,11 @@ dev/noop.mjs          proves a new term is neutral by flipping it inside one
                       code differ in 85% of their pixels
 dev/waterstats.mjs    reads the water debug modes back as distributions, and
                       what the depth pass costs
+dev/waterangles.mjs   whether brightness still tracks depth at five viewing
+                      angles on every world — the one acceptance criterion that
+                      cannot be checked from a frame shot at one angle
+dev/spawncheck.mjs    where the craft starts and what it does in the first
+                      second, by boot and by dev warp
 dev/perf.mjs          what the overlay costs, measured on real frames
 dev/cdp.mjs           the ~150-line DevTools client it runs on. No dependencies
 dev/history/          the standalone repo this game was built in, as a git
@@ -210,6 +215,86 @@ it, and T1's SSAO2 runs off the prepass — which follows every entry in
 post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
+
+## Fog answers to altitude, and the rule is the horizon
+
+Fog was a per-world constant, authored at the surface and right there. It is
+most of what makes Shroud Shroud. It also made Shroud **unflyable**: from a jet
+the world went to flat violet with nothing to navigate by.
+
+The measurement that settled the shape of the fix, fog range against the world's
+own radius:
+
+| world | fogFar | far / radius | horizon at 0.1 R |
+|---|---|---|---|
+| home | 808m | 0.78 | 463m |
+| ember | 145m | 0.70 | 93m |
+| tarn | 393m | 0.95 | 185m |
+| vault | 829m | 1.00 | 371m |
+| shroud | **167m** | **0.12** | 649m |
+| anvil | 1906m | 0.92 | 927m |
+
+Five worlds fog out between 0.70 and 1.00 of a radius. Shroud fogs out at 0.12 —
+an order of magnitude shorter, which is the authored murk and is approved. The
+last column is what you can actually *see* from that altitude, and on Shroud that
+is 649m of world behind a wall at 167m. Nothing was wrong with the number; it was
+being asked a question it was never authored for.
+
+**So the rule is the horizon, and it needs no per-world table.** Fog far grows
+toward `sqrt(2 * R * alt)`, which is derived from the world's own geometry and is
+therefore already per-world and per-altitude. Two properties make it the right
+rule rather than merely a working one: at zero altitude the horizon is zero, so
+every world's surface fog is untouched to the metre — Shroud's approved murk is
+exactly its approved murk — and it only ever reaches for worlds whose fog is
+shorter than their own horizon. The altitude at which each starts to clear is
+`fogFar² / 2R`: **10m on Shroud**, and 315m, 51m, 187m, 415m and 877m on the
+others. Anvil's canyons still read from the jet through Anvil's own fog.
+
+**Near lifts too, and that was the half that actually mattered.** At height `a`
+nothing in frame is nearer than `a` — the ground straight below you is exactly
+`a` away. Leaving fog to start at its surface value put every pixel of the world
+inside the gradient before it began: from 193m over Tarn the whole frame, land
+and water alike, came back as one sheet of pale grey with the coastline barely
+legible through it. Pushing the near plane out to the altitude puts the start of
+the fog at the closest thing there is to fog.
+
+One thing this uncovered rather than caused: with the air clear at altitude, the
+sky's horizon band is visibly separated from the actual skyline on four worlds.
+It is drawn at zero elevation in the local up frame, which is the visual horizon
+only when you are standing on the ground — at 103m over Home the true horizon has
+dipped 8 degrees below it. The murk was hiding that.
+
+## Spawn is two absolute heights on worlds that are not the same size
+
+Two defects, one symptom. `findSpawn` returns a **direction** and has never
+returned a height; the vertical placement is a separate line in each of the three
+paths that enter a world, and both of the ones that were wrong were wrong by
+using a number in metres across radii that run 207m to 2072m.
+
+**Boot put the craft at y = 0, which is sea level and not the ground.** Every
+spawn is chosen from a band that starts at `relief * 0.12` *above* sea level, so
+y = 0 is underground on all six worlds — by 1.2m on Ember and by up to 78m on
+Anvil, measured at 33.7m on the direction it actually picks. It only stopped
+being invisible when the spawn search changed: it used to stop at the first point
+in its height band, which on a Fibonacci spiral from the pole meant something
+near the bottom of that band. Scoring the whole spiral for how many neighbour
+worlds sit in the sky picks by a criterion with no relation to height at all, so
+the chosen point can now sit anywhere in the band. `Craft.settle()` puts it on
+the ground and clears every field that could carry the throw forward.
+
+**The dev warp arrived at `HYPER.approachAlt`, which is 900 metres, absolute.**
+That is 0.43 radii over Anvil and **4.35 radii over Ember** — the whole world a
+marble 22 degrees wide below you. A fine place to begin a descent and a useless
+place to be put by a button whose entire purpose is looking at six worlds in a
+minute, so the warp now settles on the surface.
+
+A real hyper arrival is untouched. Arriving in flight with the autopilot holding
+altitude is the designed behaviour there, and that same 900m is `approachR` in
+`hyper.js` — the boundary the whole travel model is built on, and the altitude
+you must climb through to leave. Re-deriving it per radius would make Ember's
+departure a 21m hop. **It is still an absolute length on worlds that differ
+tenfold, and it is still the class of error that has bitten this project five
+times.** It wants its own pass, with departure and arrival separated.
 
 ## The water knows how deep it is now, per pixel
 

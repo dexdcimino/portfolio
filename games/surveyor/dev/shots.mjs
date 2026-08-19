@@ -20,7 +20,7 @@ import { dirname, join, resolve } from 'node:path';
 import { launch, serve, evaluate, wait } from './cdp.mjs';
 // The shoreline set-up, shared with dev/noop.mjs — see dev/frames.mjs for why
 // it is shared rather than copied.
-import { SHORE } from './frames.mjs';
+import { SHORE, ALOFT } from './frames.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -243,6 +243,12 @@ for (const key of KEYS) {
       const sh = await page.send('Page.captureScreenshot', { format: 'png' });
       writeFileSync(join(OUT, name(key + '-shore')), Buffer.from(sh.data, 'base64'));
     }
+
+    // ...and the same world from a jet, which is the only frame that can show
+    // whether its fog leaves anything to navigate by.
+    Object.assign(info, await evaluate(page, ALOFT));
+    const al = await page.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, name(key + '-aloft')), Buffer.from(al.data, 'base64'));
   }
 
   const bad = !info.ok || errs.length;
@@ -257,6 +263,7 @@ for (const key of KEYS) {
       : 'never became ready' + (info.err ? ' — ' + info.err : '')));
   if (info.ok) {
     console.log(`        overlay: ${info.markers} markers over ${info.sites} colonies`);
+    console.log(`        aloft: ${info.aloft}m`);
     console.log(`        shore: ` + (info.shore
       ? `found at ${info.shore}m from spawn`
       : (PLANETS[key].dry ? 'dry world, no water frame' : 'NONE FOUND within half a radius')));
@@ -274,7 +281,7 @@ for (const key of KEYS) {
 // the size at which two worlds being interchangeable becomes obvious. One sheet
 // of ground, one of sky.
 if (KEYS.length > 1) {
-  for (const view of ['', '-survey', '-sky', '-shore']) {
+  for (const view of ['', '-survey', '-sky', '-shore', '-aloft']) {
     // The shore sheet is five wide, not six: Ember has no water, and a blank
     // cell captioned "Ember" would read as a world that failed to render.
     const shown = KEYS.filter((k) => view !== '-shore' || rows.some(
