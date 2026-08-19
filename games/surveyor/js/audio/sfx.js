@@ -202,6 +202,39 @@ export class Sfx {
       this.e.note({ type: 'sine', freq: 120, to: 50, at: t, dur: 0.24, gain: 0.26 });
     });
 
+    /* THE UI VOICE. Three sounds, and everything the interface does is one of
+       them: a TICK for anything that merely moves, a CONFIRM for anything that
+       commits, and a BACK for anything that reverses. Adding a fourth is how
+       an interface ends up sounding like a xylophone.
+       Quiet by a wide margin - a third of the gain of the gameplay one-shots
+       around it, and no echo except a whisper on the confirm. A menu is not an
+       event in the world, and a click that competes with a crash is a click
+       somebody turns off. Sine and short: nothing here should have a texture.
+       NOTE ON THE PAUSE MENU. It is deliberately silent, and that is the
+       engine's doing rather than an omission here - applyMaster() takes the
+       master to zero while `paused`, so a paused game is quiet, full stop. The
+       menu's feedback is the press state on the button instead. What DOES
+       sound is everything that happens with the game running: opening the
+       pause ladder, resuming out of it, starting the session, taking the map
+       up, choosing a world. */
+    on('ui', (ev) => {
+      if (!ok()) return;
+      const t = this.e.now;
+      const kind = (ev && ev.kind) || 'tick';
+      if (kind === 'confirm') {
+        this.e.note({ type: 'sine', freq: 660, at: t, dur: 0.05,
+          gain: 0.05, filter: 5200, q: 1 });
+        this.e.note({ type: 'sine', freq: 990, at: t + 0.045, dur: 0.09,
+          gain: 0.042, filter: 5200, q: 1, send: 0.18 });
+      } else if (kind === 'back') {
+        this.e.note({ type: 'sine', freq: 520, to: 330, at: t, dur: 0.12,
+          gain: 0.05, filter: 3000, q: 1 });
+      } else {
+        this.e.note({ type: 'sine', freq: 1180, at: t, dur: 0.03,
+          gain: 0.035, filter: 6000, q: 1 });
+      }
+    });
+
     on('pickup', () => {
       if (!ok()) return;
       const t = this.e.now;

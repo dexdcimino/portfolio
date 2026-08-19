@@ -17,6 +17,14 @@
    Self-contained: injects its own styles and edits nothing else. */
 
 import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
+/* The UI voice lives in js/audio/sfx.js and listens for one event. Emitting it
+   from here costs this module no knowledge of the audio engine at all, which
+   is the same split every other event in this game uses.
+   These fire while the game is PAUSED, so the engine's master is at zero and
+   most of them are inaudible by design - a paused game is quiet. Resume is the
+   exception and the one that matters: it sounds on the way out, as the master
+   comes back. */
+import { emit } from './core/events.js';
 
 /* The site's seven accents, byte-identical to ACCENTS in the site's script.js
    and to the copies in Chomp and Arena 1. The duplication is deliberate and
@@ -140,7 +148,26 @@ const CSS = `
 #paused.overlay{position:absolute;inset:0;z-index:40;display:flex;align-items:center;
   justify-content:center;padding:18px;pointer-events:auto;background:rgba(4,8,11,.62);
   backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-#paused.hidden{display:none}
+/* FADES rather than snaps. display:none cannot be transitioned, so the hidden
+   state is opacity plus visibility instead - visibility is what keeps a hidden
+   menu out of the tab order, and pointer-events is what keeps it from eating
+   clicks meant for the canvas underneath. main.js still just toggles .hidden.
+   The panel scales a hair on the way in so the menu arrives rather than
+   appears; 120ms, because a pause menu that makes you wait is a bad pause
+   menu. */
+/* visibility is switched, never interpolated. Giving it a DURATION makes the
+   computed value lag the class by a frame or more and reads as the menu being
+   in the wrong state; the delay form is the one that behaves: instant on the
+   way in, and held back until the fade has finished on the way out, which is
+   what keeps a fading menu out of the tab order without it vanishing early. */
+#paused{transition:opacity 150ms ease,visibility 0s}
+#paused .cmenu{transition:transform 150ms ease}
+#paused.hidden{opacity:0;visibility:hidden;pointer-events:none;transition:opacity 150ms ease,visibility 0s 150ms}
+#paused.hidden .cmenu{transform:scale(.985)}
+@media(prefers-reduced-motion:reduce){
+  #paused,#paused .cmenu{transition:none}
+  #paused.hidden .cmenu{transform:none}
+}
 .cmenu{
   width:min(460px,92vw);max-height:min(86vh,640px);overflow:auto;
   background:rgba(13,17,22,.96);border:1px solid rgba(255,255,255,.12);
@@ -190,6 +217,17 @@ const CSS = `
   letter-spacing:.06em;font-size:13px;border:2px solid rgba(255,255,255,.22);background:transparent;
   color:#f1f3f4;transition:border-color .15s ease,background .15s ease}
 .cmenu-btn:hover{border-color:rgba(255,255,255,.5)}
+/* Press and focus, which this menu had neither of. Every control here was
+   hover-only, so it read as inert to a touch device and gave a keyboard no
+   idea where it was. The transform is 1px: enough to feel, not enough to
+   reflow anything next to it. */
+.cmenu-btn:active{transform:translateY(1px)}
+.cmenu-btn:focus-visible{outline:3px solid var(--cmenu-accent,#9EE02B);outline-offset:3px}
+.cmenu-swatch:active{transform:scale(1.02)}
+.cmenu-swatch:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){
+  .cmenu-btn:active,.cmenu-swatch:active,.cmenu-swatch:hover{transform:none}
+}
 /* Exit left, Resume right — the standing order from Stickland's menu. Resume
    wears the accent, its ink flipped by the same luminance rule as the toggles. */
 .cmenu-resume{background:var(--cmenu-accent,#9EE02B);border-color:var(--cmenu-accent,#9EE02B);
@@ -231,7 +269,7 @@ function build() {
     b.dataset.name = a.name;
     b.style.background = a.hex;
     b.setAttribute('aria-label', `Accent ${a.name}`);
-    b.addEventListener('click', () => applyAccent(a));
+    b.addEventListener('click', () => { applyAccent(a); emit('ui', { kind: 'tick' }); });
     swatches.appendChild(b);
   }
   applyAccent(currentAccent(), false);
@@ -257,6 +295,7 @@ function build() {
 
   menu.querySelector('.cmenu-resume').addEventListener('click', () => {
     window.Surveyor?.resume?.();
+    emit('ui', { kind: 'confirm' });
   });
   menu.querySelector('.cmenu-restart').addEventListener('click', () => {
     /* A reload, the same as Chomp's respawn. Surveyor has no partial reset to

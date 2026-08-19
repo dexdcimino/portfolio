@@ -102,6 +102,22 @@ html, body {
   .cue, .cue.on { transform: translate(var(--cue-x), 0); transition: opacity 200ms linear; }
 }
 
+/* ---- STATE CHANGES YOU DO NOT HAVE TO READ ----
+   A ring leaving the thing that changed. The toast still says what happened in
+   words, but the words are for when you look; this is for when you do not, and
+   while driving you do not. Expanding-and-fading rather than a flash, because
+   a flash competes with the impact flash and this is not an impact.
+   Both are box-shadow only, so nothing reflows and nothing moves the panel a
+   pixel - a gauge that jumped when charge arrived would be worse than silence.
+   hud.js restarts these by removing the class, reading offsetWidth and adding
+   it back; it also skips them entirely under prefers-reduced-motion. */
+@keyframes ringOut {
+  from { box-shadow: 0 0 0 0 rgba(43, 224, 200, 0.50); }
+  to   { box-shadow: 0 0 0 14px rgba(43, 224, 200, 0); }
+}
+.gauge.gain { animation: ringOut 720ms ease-out; }
+.chip.swap { animation: ringOut 520ms ease-out; }
+
 #hud {
   position: fixed;
   inset: 0;
@@ -233,8 +249,9 @@ body.ready #hud { opacity: 1; }
    x-ray tint itself is #xray below; this is the half made of words. */
 #survey {
   position: absolute;
-  /* Clear of the sound toggle, which owns the top-right corner. */
-  top: 54px; right: 16px;
+  /* The sound toggle used to own this corner and this panel started below it.
+     It does not exist any more, so the overlay takes the corner itself. */
+  top: 16px; right: 16px;
   width: 330px;
   opacity: 0;
   transform: translateY(-6px);
@@ -318,28 +335,6 @@ body.ready #hud { opacity: 1; }
 #beamRow.hit { border-color: var(--beacon); }
 #beamRow.hit #beamState { color: var(--beacon); }
 
-/* ---- sound toggle: the one HUD element you can click ---- */
-#sound {
-  position: absolute;
-  top: 16px; right: 16px;
-  pointer-events: auto;
-  font-family: var(--mono);
-  font-size: var(--t-label);
-  font-weight: 700;
-  letter-spacing: 0.20em;
-  padding: clamp(9px, 0.85vw, 13px) clamp(12px, 1.1vw, 18px);
-  color: var(--phos);
-  background: var(--panel);
-  border: 1px solid var(--edge);
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
-  cursor: pointer;
-  transition: color 160ms ease, border-color 160ms ease;
-}
-#sound:hover { border-color: var(--phos); }
-#sound.off { color: rgba(242, 246, 230, 0.35); border-color: rgba(242, 246, 230, 0.16); }
-#sound:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
-
 /* ---- dev warp: TEMPORARY TESTING SCAFFOLDING ----
    It lives inside #survey now, so it is laid out by the flow of that panel
    rather than pinned to a corner of the screen, and it shows and hides with
@@ -373,6 +368,10 @@ body.ready #hud { opacity: 1; }
   transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 .wbtn:hover { color: var(--bone); border-color: var(--edge); }
+/* Press state. A hover alone tells a mouse it is over the button and tells a
+   touch device nothing at all, which is most of why the warp row felt dead on
+   a phone. */
+.wbtn:active { transform: translateY(1px); background: rgba(43, 224, 200, 0.10); }
 .wbtn.on {
   color: var(--phos);
   border-color: var(--phos);

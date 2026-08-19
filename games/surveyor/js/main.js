@@ -370,10 +370,15 @@ function setPaused(on) {
   pausedEl.classList.toggle('hidden', !on);
   if (on) {
     pausedAt = performance.now();
+    // Before the duck, not after: applyMaster ramps the master to zero over
+    // ~50ms, so a note scheduled first is still heard on the way down. After
+    // it, this would be silent and the pause would have no sound at all.
+    emit('ui', { kind: 'back' });
     sound.setPaused?.(true);
     return;
   }
   sound.setPaused?.(false);
+  emit('ui', { kind: 'confirm' });
   /* Replayed, not credited, and capped exactly as an absence is. The report is
      emitted so the HUD says what happened — silence after a long pause would
      leave a razed colony unexplained. */
@@ -458,22 +463,17 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) keys.clear();
 });
 
-// ---- sound toggle -------------------------------------------------------
-
-const soundBtn = document.getElementById('sound');
-
+/* ---- mute ----------------------------------------------------------------
+   The permanent SOUND chip is gone from the HUD. It was a button you press
+   once a session, if ever, holding a corner of the screen for the whole of it
+   — which is the shape of thing the triage exists to remove. M is bound below,
+   the pause menu carries both the binding and the full mixer, and the intro
+   card points at the pause menu.
+   What is left is the FEEDBACK, and it is a toast rather than a panel: the
+   state change is worth a moment on screen, not permanent residence. */
 function setMuted(m) {
-  soundBtn.classList.toggle('off', m);
-  soundBtn.setAttribute('aria-pressed', m ? 'false' : 'true');
-  soundBtn.textContent = m ? 'SOUND OFF' : 'SOUND ON';
+  hud.say(m ? 'SOUND OFF' : 'SOUND ON', m ? 'warn' : 'good');
 }
-
-soundBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  sound.start();
-  setMuted(sound.toggleMute());
-  canvas.focus();
-});
 
 // ---- start card ---------------------------------------------------------
 
@@ -485,7 +485,10 @@ function begin() {
   started = true;
   // A context can only be created inside a gesture, which is exactly what
   // this is.
-  if (sound.start()) setMuted(false);
+  // No toast here: starting the session is not a mute state change, and the
+  // first thing you see should not be the HUD telling you the sound is on.
+  sound.start();
+  emit('ui', { kind: 'confirm' });
   startEl.classList.add('gone');
   canvas.focus();
   setTimeout(() => { startEl.style.display = 'none'; }, 500);

@@ -2,7 +2,7 @@
 // actually asking: which way is the nearest unscanned beacon, how much flight
 // do I have left, and can I afford to take off right now.
 
-import { on } from '../core/events.js';
+import { on, emit } from '../core/events.js';
 import { FUEL, JET, ROVER, COLORS, ECONOMY, PLANETS, DEBUG } from '../tune.js';
 
 const $ = (id) => document.getElementById(id);
@@ -111,10 +111,17 @@ export class Hud {
       `NOT ENOUGH HYPER FOR ${e.name.toUpperCase()}  ` +
       `${Math.ceil(e.need)} NEEDED, ${Math.floor(e.have)} HELD`, 'bad'));
     on('colony', (e) => {
-      if (e.geyser) this.say('VENT CLAIMED  ·  HYPER PRODUCTION ONLINE', 'good');
+      if (e.geyser) {
+        this.say('VENT CLAIMED  ·  HYPER PRODUCTION ONLINE', 'good');
+        this.pulse('hyperGauge');
+      }
     });
-    on('pickup', () => this.say('CELL RECOVERED  +' + FUEL.cellValue, 'good'));
-    on('scanned', () => this.say('BEACON LOGGED  +' + FUEL.beaconValue, 'good'));
+    /* A GAIN IS A PULSE ON THE THING THAT GAINED, not only a line of text.
+       The toast says what happened and the ring says where it landed, so the
+       charge going up is readable out of the corner of an eye while you are
+       looking at the terrain - which is where you are actually looking. */
+    on('pickup', () => { this.say('CELL RECOVERED  +' + FUEL.cellValue, 'good'); this.pulse('cellGauge'); });
+    on('scanned', () => { this.say('BEACON LOGGED  +' + FUEL.beaconValue, 'good'); this.pulse('cellGauge'); });
     on('scanstart', () => { this.el.scan.classList.add('on'); });
     on('scanabort', () => { this.el.scan.classList.remove('on'); });
     on('denied', () => this.say('CELL CHARGE TOO LOW TO LAUNCH', 'warn'));
@@ -202,6 +209,22 @@ export class Hud {
     this.el.toast.textContent = text;
     this.el.toast.className = 'on ' + (kind || '');
     this.toastTimer = 2.2;
+  }
+
+  /**
+   * Restart a one-shot animation on an element.
+   *
+   * Removing the class, forcing a reflow and adding it back is the only way to
+   * replay a CSS animation, and the reflow read is load-bearing rather than
+   * superstition: without it the browser coalesces the remove and the add into
+   * no change at all and the second pulse never plays.
+   */
+  pulse(key) {
+    const el = this.el[key];
+    if (!el || this.reduced) return;
+    el.classList.remove('gain');
+    void el.offsetWidth;
+    el.classList.add('gain');
   }
 
   punch() {
@@ -357,7 +380,7 @@ export class Hud {
       b.className = 'wbtn';
       b.dataset.key = key;
       b.textContent = (PLANETS[key]?.name || key).toUpperCase();
-      b.addEventListener('click', () => pick(key));
+      b.addEventListener('click', () => { emit('ui', { kind: 'confirm' }); pick(key); });
       /* The canvas keeps the keyboard. Without this the button holds focus
          after a warp and the next W goes nowhere — which reads as the warp
          having broken the controls. */
@@ -492,6 +515,15 @@ export class Hud {
     if (c.mode !== this.lastMode) {
       for (const key of ['rover', 'boat', 'jet']) {
         this.el.chips[key].classList.toggle('on', key === c.mode);
+      }
+      /* The swap gets its own flash. The lit chip already moves and changes
+         colour, but a transform between two chips 90px apart is easy to miss
+         mid-corner; a ring leaving the one you just became is not. */
+      const now = this.el.chips[c.mode];
+      if (now && !this.reduced) {
+        now.classList.remove('swap');
+        void now.offsetWidth;
+        now.classList.add('swap');
       }
       this.lastMode = c.mode;
     }
