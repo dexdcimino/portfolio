@@ -91,6 +91,51 @@ export class World {
     // it disrupts belong to the colonies' record. This is the one wire between
     // them, and it is made here because this is where both first exist.
     this.survey.attachRaiders(this.colonies.raiders);
+
+    /* BORN HIDDEN, and this line is the whole of a bug that survived every
+       measurement aimed at it.
+
+       `active` is false above, but Babylon enables a new mesh by default, so
+       the flag and the scene disagreed from the first frame. That only
+       mattered because a World is constructed for every world in the SAVE
+       FILE at boot: the restore loop in main.js calls Worlds.get() per saved
+       world, and get() builds without entering. enter() is the only path that
+       has ever called setActive(false), and it only ever calls it on the
+       world you are leaving.
+
+       So a cold load with a save drew SIX sky domes, five water shells and
+       six disc sets at once. The domes are spheres sized off each world's own
+       far plane and centred on the planet centre, which every world shares —
+       concentric shells from 2295m to 22968m across, with the camera sitting
+       1052m out. You are inside some and outside others, so the ones you are
+       outside hang in the sky as hard-edged faceted balls in another world's
+       sky colour, and the ones you are inside wash the frame with it. They do
+       not move off centre because they are centred on the planet, and terrain
+       draws over them because the dome is renderingGroupId 0 with depth
+       writes off. Both of the things that made this look impossible fall out
+       of that.
+
+       Why every harness said the sun and the discs were fine: a headless run
+       uses a throwaway browser profile, localStorage is empty, economy.load()
+       returns null and the restore loop never runs. One world, no extra
+       domes, clean measurements, real bug. dev/savedworlds.mjs seeds a save
+       precisely so that condition is testable.
+
+       And why warping appeared to cure it permanently: warping in and out of
+       a world is the only thing that ever ran setActive(false) on it.
+
+       The invariant is one line long — a world is visible only while it is
+       the current one — so it is established here rather than left to whoever
+       calls setActive next. */
+    this.showMeshes(false);
+  }
+
+  /** The three meshes whose visibility IS this world being on screen.
+   *  Shared by the constructor and setActive so they cannot drift apart. */
+  showMeshes(on) {
+    this.sky.setEnabled(on);
+    if (this.water) this.water.mesh.setEnabled(on);
+    if (this.discs.mesh) this.discs.mesh.setEnabled(on);
   }
 
   /** Stream in the ground around a direction before anyone sees the gap. */
@@ -155,9 +200,7 @@ export class World {
 
   setActive(on) {
     this.active = on;
-    this.sky.setEnabled(on);
-    if (this.water) this.water.mesh.setEnabled(on);
-    if (this.discs.mesh) this.discs.mesh.setEnabled(on);
+    this.showMeshes(on);
     if (!on) {
       // Terrain is regenerated, never stored: dropping every leaf is both the
       // cheapest way to hide a world and the correct one, since the tree has to

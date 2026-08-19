@@ -216,6 +216,54 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
+## The giant disc was six sky domes, and it hid behind an empty profile
+
+**It was never the sun and never a planet disc.** The thing dominating the sky
+on a cold load — hard-edged, faceted, dead centre, in a colour belonging to
+another world, with terrain drawing over it — is another world's SKY DOME.
+Several of them, in fact.
+
+`Worlds.get()` constructs a whole `World`: sky dome, water shell, disc set.
+`Worlds.enter()` is the only thing that has ever called `setActive(false)`, and
+it only calls it on the world you are LEAVING. Babylon enables a new mesh by
+default, so a World that is built but never entered is fully visible while its
+own `active` flag says false. Nothing entered those worlds, so nothing ever
+turned them off.
+
+What builds a world you are not standing on is **the restore loop in
+`main.js`**: for every world in the save file it calls `worlds.get()` to hang
+the saved colonies off. So a cold load with a save drew **six sky domes, five
+water shells and six disc sets at once**. The domes are spheres sized off each
+world's own far plane, centred on the planet centre — which all six worlds
+share — so they are concentric shells from 2295m to 22968m across with the
+camera sitting 1052m out. You are inside some and outside others. The ones you
+are outside hang in the sky as faceted balls painted in that world's sky
+gradient; the ones you are inside wash the frame with it. They do not move off
+centre because they are centred on the planet, not on you, and terrain draws
+over them because the dome is `renderingGroupId` 0 with depth writes off.
+
+Both of the things that made this look impossible fall out of that one fact.
+
+**Why every measurement said everything was fine.** Every harness in
+`dev/` launches Chrome on a throwaway `--user-data-dir`. localStorage is empty,
+`economy.load()` returns null, and the restore loop never runs. One world, one
+dome, clean numbers — and a real bug on any browser that has ever played the
+game. The sun's `uSunCos` genuinely was identical cold and warped. The planet
+discs genuinely do draw at 3.9-6.8 degrees on all thirty world pairs. Both
+measurements were correct and both were measuring the wrong object.
+
+**Why warping appeared to cure it permanently.** Warping into a world and out
+again is the only path that runs `setActive(false)` on it. Once you had been
+somewhere, its dome was off for the rest of the session, and no reload meant no
+restore loop meant nobody noticed until the next cold start.
+
+The fix is the invariant, stated once in the constructor: a world is visible
+only while it is the current one. `showMeshes()` is shared by the constructor
+and `setActive` so the two cannot drift apart. `dev/savedworlds.mjs` seeds a
+save and asserts exactly one sky dome, one water shell and one disc set are on
+screen — before and after a warp — which is the condition no other harness here
+could see.
+
 ## The halo was the sun, the camera never landed, and the pointer vanished
 
 **The cold-load sun was not a different sun.** The report this came in on said
@@ -1093,7 +1141,14 @@ node dev/noop.mjs             # is a new term neutral?
 node dev/waterstats.mjs       # what the water shader computes, and what it costs
 node dev/sundisc.mjs          # is the bright thing at the sun, or at the camera?
 node dev/arrivecheck.mjs      # does a warp put the camera under the ground?
+node dev/disccheck.mjs        # how big is each planet disc, honestly and as drawn?
+node dev/savedworlds.mjs      # cold load WITH A SAVE — is more than one world drawn?
 ```
+
+`savedworlds.mjs` is the one to reach for when a bug reproduces in a browser and
+not in a harness. Everything else here runs on a throwaway browser profile, so
+`localStorage` is empty and every code path that only runs for a returning
+player is dark. That gap is what hid the six-sky-dome bug below.
 
 `arrivecheck.mjs` exits non-zero, so it is the one in this list you can put in
 front of a commit. It measures height above the GROUND UNDER THE CAMERA rather
