@@ -34,7 +34,16 @@ html,body{
    this; the number just has to beat anything in THIS document.
    -------------------------------------------------------------------------- */
 .arena1-exit{
-  position:fixed;top:14px;right:14px;z-index:2147483647;
+  /* MID-LEFT EDGE, not the top-right corner, and for the reason /surveyor's
+     moved: the corner it used to sit in is where Arena 1 keeps #perf — the FPS,
+     active-mesh, quality and LOD readout, pinned 18px from the top right. The
+     chip covered it at EVERY width, not merely narrow ones. Games put their
+     HUD in the corners, so any corner this shell picks collides with some game
+     eventually, and the wrapper is the side that should move: the game does not
+     know it is in a frame and cannot be asked to work around one.
+     Measured at 1280x800 and 390x844: the vertical middle of an edge is clear
+     in both, and the left one matches /surveyor so the two shells agree. */
+  position:fixed;top:50%;left:14px;transform:translateY(-50%);z-index:2147483647;
   width:48px;height:48px;                 /* >=44px touch target, as the site uses elsewhere */
   display:grid;place-items:center;
   border-radius:12px;
@@ -53,17 +62,28 @@ html,body{
    localStorage and is applied by script.js, which this page deliberately does
    not load. Reproducing the palette here would be a second copy to keep in
    step for a hover colour — not worth the drift. */
+/* Hover/active nudge is horizontal now, since the base transform already owns
+   translateY for the centring. */
 .arena1-exit:hover{
   border-color:rgba(255,255,255,.62);
   background:rgba(9,13,24,.96);
-  transform:translateY(-1px);
+  transform:translateY(-50%) translateX(2px);
 }
-.arena1-exit:active{transform:translateY(0)}
+.arena1-exit:active{transform:translateY(-50%)}
 .arena1-exit:focus-visible{outline:3px solid #9EE02B;outline-offset:3px}
 
 @media(max-width:760px){
-  .arena1-exit{top:10px;right:10px;width:44px;height:44px;border-radius:11px}
-  .arena1-exit svg{width:20px;height:20px}
+  /* An edge tab, the same device /surveyor uses and for the same reason: below
+     this width the game's UI is as wide as the screen, so an inset square lands
+     inside whatever is centred there. 32px rather than Surveyor's 38 because
+     Arena 1's controls modal is wider for its viewport — 92vw, sitting 15px off
+     the edge with 20px of padding, so the gutter to clear is 35px not 42. */
+  .arena1-exit{
+    left:0;width:32px;height:56px;
+    border-radius:0 12px 12px 0;
+    border-left:0;
+  }
+  .arena1-exit svg{width:17px;height:17px}
 }
 
 @media(prefers-reduced-motion:reduce){
