@@ -2714,5 +2714,81 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
 }
 
 
+/* ---- ONE WORLD ON SCREEN AT A TIME -------------------------------------
+   The invariant this suite could not previously see, because the thing that
+   breaks it only happens for a RETURNING PLAYER.
+
+   Worlds.get() constructs a whole World — sky dome, water shell, disc set —
+   and Worlds.enter() is the only path that has ever called setActive(false),
+   on the world you are LEAVING. Babylon enables a new mesh by default, so a
+   World that is built and never entered used to be fully visible while its own
+   `active` flag said false. What builds a world you are not standing on is the
+   restore loop in main.js: one get() per world in the SAVE FILE. So a cold
+   load with a save drew every saved world's sky dome at once — concentric
+   spheres around the shared planet centre, sized off each world's own far
+   plane, the ones you are outside hanging in the sky as faceted balls painted
+   in another world's sky colour.
+
+   Asserted HERE, against the real World, rather than only in
+   dev/savedworlds.mjs, because "exactly one of these is visible" is a silent
+   invariant: nothing throws when it breaks and no other check looks at it. The
+   browser harness still earns its place — it proves the restore loop in
+   main.js is what calls get(), which is wiring this suite does not run. This
+   proves the rule that wiring depends on. */
+{
+  const { createMaterials } = await import('../js/world/materials.js');
+  const { Worlds } = await import('../js/world/world.js');
+
+  const wScene = new BABYLON.Scene(new BABYLON.Engine());
+  const wMats = createMaterials(wScene, HOME);
+  const wForms = {
+    rover: buildRover(wScene, wMats.craft),
+    boat: buildBoat(wScene, wMats.craft),
+    jet: buildJet(wScene, wMats.craft),
+  };
+  const worlds = new Worlds(wScene, new Craft(wForms, spawnOn(HOME)));
+
+  /* Only the meshes that EXIST. Ember has no water at all — a dry world
+     builds no shell — and a `false` for the missing one would make
+     every(Boolean) unsatisfiable there, which is a test that fails on the
+     one world with the most interesting profile. */
+  const shown = (w) => [
+    w.sky.isEnabled(),
+    ...(w.water ? [w.water.mesh.isEnabled()] : []),
+    ...(w.discs.mesh ? [w.discs.mesh.isEnabled()] : []),
+  ];
+  const visible = () => [...worlds.map.values()]
+    .filter((w) => shown(w).some(Boolean)).length;
+
+  const home = worlds.enter(HOME, null, wMats);
+  ok('the world you are standing on is the one being drawn',
+    shown(home).every(Boolean) && home.active,
+    `sky/water/discs ${shown(home).join('/')}`);
+
+  // The restore loop's move: BUILD, do not enter. Every world in the save file
+  // goes through here on a cold load.
+  const others = Object.keys(PLANETS).filter((k) => k !== 'home');
+  for (const key of others) worlds.get(makePlanet(PLANETS[key]));
+
+  ok('a world that is built but never entered draws nothing',
+    visible() === 1, `${worlds.map.size} worlds built, ${visible()} visible`);
+
+  const left = [...worlds.map.entries()]
+    .filter(([k, w]) => k !== 'home' && shown(w).some(Boolean))
+    .map(([k, w]) => `${k} ${shown(w).join('/')}`);
+  ok('...and none of them leaves a dome, a shell or a disc set enabled',
+    left.length === 0, left.length ? left.join(' | ') : `${others.length} checked`);
+
+  /* And with the sign flipped: a world born hidden that enter() never shows is
+     the same bug the other way round, and would be just as silent. */
+  const ember = worlds.enter(makePlanet(PLANETS.ember), null);
+  ok('entering a world that was already built turns it back on',
+    shown(ember).every(Boolean) && visible() === 1,
+    `ember sky/water/discs ${shown(ember).join('/')}, ${visible()} visible`);
+  ok('...and the world you left is put away',
+    !shown(home).some(Boolean) && !home.active,
+    `home sky/water/discs ${shown(home).join('/')}`);
+}
+
 console.log(fails === 0 ? '\nAll checks passed.' : `\n${fails} FAILURE(S).`);
 process.exit(fails ? 1 : 0);

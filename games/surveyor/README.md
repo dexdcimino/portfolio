@@ -259,10 +259,17 @@ restore loop meant nobody noticed until the next cold start.
 
 The fix is the invariant, stated once in the constructor: a world is visible
 only while it is the current one. `showMeshes()` is shared by the constructor
-and `setActive` so the two cannot drift apart. `dev/savedworlds.mjs` seeds a
-save and asserts exactly one sky dome, one water shell and one disc set are on
-screen — before and after a warp — which is the condition no other harness here
-could see.
+and `setActive` so the two cannot drift apart. It is asserted in TWO places, on purpose.
+`dev/run.mjs` builds six real Worlds against the headless stub and checks that
+entering one draws exactly one — five assertions, in the fast suite, because
+"only one of these is visible" is silent when it breaks and nothing else looks
+at it. `dev/savedworlds.mjs` then proves the other half in a browser: that the
+restore loop in `main.js` is what calls `get()` in the first place, which is
+wiring the stub does not run.
+
+Extending the stub to construct a whole World — textures, render targets,
+cameras, `Vector4` — was the price of the first of those, and it is worth
+paying: world-level behaviour is now testable in a suite that runs in seconds.
 
 ## The halo was the sun, the camera never landed, and the pointer vanished
 
@@ -1145,10 +1152,42 @@ node dev/disccheck.mjs        # how big is each planet disc, honestly and as dra
 node dev/savedworlds.mjs      # cold load WITH A SAVE — is more than one world drawn?
 ```
 
-`savedworlds.mjs` is the one to reach for when a bug reproduces in a browser and
-not in a harness. Everything else here runs on a throwaway browser profile, so
-`localStorage` is empty and every code path that only runs for a returning
-player is dark. That gap is what hid the six-sky-dome bug below.
+### The harness had never met a returning player
+
+Every browser harness here launches Chrome on a throwaway `--user-data-dir`.
+That is correct for determinism and it has a consequence nobody had costed:
+`localStorage` is always empty, so `economy.load()` always returns null, so
+**every code path that exists only for someone coming back to the game had
+never once been exercised** — no restore loop, no colonies on a world you are
+not standing on, no claimed vents, no away-window catch-up. A whole class of
+bug this repo was structurally unable to see, and it hid a real one for as long
+as it existed (below).
+
+`dev/savefile.mjs` closes it as a standing option rather than a one-off. It
+builds the same blob `economy.save()` writes, with records in the shape
+`Colonies.record()` produces and REAL geyser ids, so vents come back claimed —
+which is the state a returning player actually has, and not the same test as a
+world with an empty site list.
+
+```bash
+node dev/shots.mjs --save         # photograph six worlds as a returning player
+node dev/shots.mjs --save=4       # ...with four colonies per world
+node dev/arrivecheck.mjs --save   # arrive somewhere you have already built on
+node dev/disccheck.mjs --save --away=3600   # and with the tab shut an hour
+```
+
+`--save` is off by default everywhere, because the reference sheets are compared
+against each other and a first-time world is the stable subject. `saveFromArgv`
+is the one place the flag is parsed, so every harness spells it the same.
+
+One trap worth knowing before you write your own: `economy.load()` gates on
+`v: 1` and drops a blob without it **in silence**. A malformed save reproduces
+as a perfectly clean run, which is how the first attempt at the reproduction
+below came back green.
+
+`savedworlds.mjs` also asserts the seeded save actually restored something. A
+harness that seeds a save the game quietly ignores is measuring the no-save case
+twice and reporting a pass.
 
 `arrivecheck.mjs` exits non-zero, so it is the one in this list you can put in
 front of a commit. It measures height above the GROUND UNDER THE CAMERA rather

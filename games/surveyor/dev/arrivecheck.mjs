@@ -23,12 +23,14 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { launch, serve, evaluate } from './cdp.mjs';
+import { saveFromArgv, seedSave, describeSave } from './savefile.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, '../../..');
 const GAME = '/games/surveyor/';
 
 const argv = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const SAVE = saveFromArgv(process.argv);
 const { PLANETS } = await import('../js/tune.js');
 const ALL = Object.keys(PLANETS);
 const KEYS = argv.length ? argv : ALL;
@@ -84,6 +86,8 @@ for (const key of KEYS) {
   await page.send('Page.enable');
   await page.send('Emulation.setDeviceMetricsOverride',
     { width: 900, height: 560, deviceScaleFactor: 1, mobile: false });
+  // --save arrives as a returning player, with colonies already on the ground.
+  if (SAVE) await seedSave(page, SAVE);
   await page.send('Page.navigate', { url: `http://127.0.0.1:${port}${GAME}?planet=${from}` });
   const r = await evaluate(page, READY);
   if (!r.ok) { console.log(`${from.padEnd(8)} ${key.padEnd(8)} never ready`); bad++; await page.close(); continue; }

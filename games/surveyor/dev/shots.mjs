@@ -18,6 +18,7 @@ import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { launch, serve, evaluate, wait } from './cdp.mjs';
+import { saveFromArgv, seedSave, describeSave } from './savefile.mjs';
 // The shoreline set-up, shared with dev/noop.mjs — see dev/frames.mjs for why
 // it is shared rather than copied.
 import { SHORE, ALOFT } from './frames.mjs';
@@ -35,6 +36,7 @@ const GAME = '/games/surveyor/';
 const OUT = join(HERE, 'shots');
 
 const argv = process.argv.slice(2);
+const SAVE = saveFromArgv(argv);
 const flag = (name, dflt) => {
   const i = argv.indexOf('--' + name);
   return i >= 0 ? argv[i + 1] : dflt;
@@ -215,6 +217,13 @@ for (const key of KEYS) {
   await page.send('Page.enable');
   await page.send('Emulation.setDeviceMetricsOverride',
     { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+  /* --save photographs a RETURNING player: colonies already grown, vents
+     already claimed, the restore loop actually run. Off by default, because the
+     reference sheets are compared against each other and a first-time world is
+     the stable subject. Seeded before navigate — the restore loop runs during
+     main.js's module evaluation, so a save written later is one the game has
+     already decided it does not have. */
+  if (SAVE) await seedSave(page, SAVE);
 
   await page.send('Page.navigate', { url: `http://127.0.0.1:${port}${GAME}?planet=${key}` });
   let info;

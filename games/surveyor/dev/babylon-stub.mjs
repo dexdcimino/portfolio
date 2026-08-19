@@ -14,12 +14,19 @@ class Vector3 {
   length() { return Math.hypot(this.x, this.y, this.z); }
   normalize() { const l = this.length() || 1; return this.scaleInPlace(1 / l); }
   subtract(o) { return new Vector3(this.x - o.x, this.y - o.y, this.z - o.z); }
+  static Zero() { return new Vector3(0, 0, 0); }
+  static Dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
   static Distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z); }
   static Cross(a, b) {
     return new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
   }
 }
-class Vector2 { constructor(x = 0, y = 0) { this.x = x; this.y = y; } }
+class Vector2 { constructor(x = 0, y = 0) { this.x = x; this.y = y; }
+  set(x, y) { this.x = x; this.y = y; return this; } }
+class Vector4 {
+  constructor(x = 0, y = 0, z = 0, w = 0) { Object.assign(this, { x, y, z, w }); }
+  set(x, y, z, w) { Object.assign(this, { x, y, z, w }); return this; }
+}
 class Color3 { constructor(r = 0, g = 0, b = 0) { this.r = r; this.g = g; this.b = b; } }
 class Color4 { constructor(r = 0, g = 0, b = 0, a = 1) { Object.assign(this, { r, g, b, a }); } }
 // Real quaternion and matrix maths, not placeholders: the sphere conversion
@@ -107,6 +114,7 @@ class Node {
     if (scene && scene._nodes) scene._nodes.push(this);
   }
   setEnabled(v) { this.enabled = v; }
+  isEnabled() { return this.enabled; }
   dispose() { this.disposed = true; }
   getChildMeshes() { return []; }
   freezeWorldMatrix() {}
@@ -178,7 +186,10 @@ const MeshBuilder = {
 
 class Material {
   constructor(name) { this.name = name; }
-  setVector3() {} setVector2() {} setFloat() {} setColor3() {}
+  setVector3() {} setVector2() {} setVector4() {} setFloat() {} setFloats() {}
+  setColor3() {} setColor4() {} setInt() {} setMatrix() {} setTexture() {}
+  setArray3() {} setArray4() {}
+  getEffect() { return null; }
   clone(n) { const m = new Material(n); return m; }
 }
 class StandardMaterial extends Material {}
@@ -201,21 +212,103 @@ class DynamicTexture {
   }
   update() {}
 }
+/* TEXTURES. Nothing here samples anything — the suite has no GPU and no image
+   decoder. What these exist for is CONSTRUCTION: shadows.js, seabed.js,
+   preview.js and materials.js all build real texture objects on the way to
+   building a World, and a World is what the "one world visible at a time"
+   assertion needs. They hold the fields those files write back and read, and
+   nothing else. */
+class Texture {
+  constructor(url, scene) { this.url = url; this.scene = scene; }
+  static NEAREST_SAMPLINGMODE = 1;
+  static BILINEAR_SAMPLINGMODE = 2;
+  static TRILINEAR_SAMPLINGMODE = 3;
+  static WRAP_ADDRESSMODE = 1;
+  static CLAMP_ADDRESSMODE = 0;
+  static MIRROR_ADDRESSMODE = 2;
+  dispose() {}
+}
+class RawTexture extends Texture {
+  static CreateRGBATexture(data, w, h, scene) {
+    const t = new RawTexture(null, scene);
+    Object.assign(t, { data, width: w, height: h });
+    return t;
+  }
+}
+class RenderTargetTexture extends Texture {
+  constructor(name, size, scene) {
+    super(null, scene);
+    this.name = name;
+    this.size = size;
+    this.renderList = [];
+    this.renderParticles = false;
+    this.refreshRate = 1;
+    this.onBeforeRenderObservable = { add() {} };
+    this.onAfterRenderObservable = { add() {} };
+    this.onClearObservable = { add() {} };
+  }
+  static REFRESHRATE_RENDER_ONEVERYFRAME = 1;
+  updateSamplingMode() {}
+  resize() {}
+  getSize() { const n = typeof this.size === 'number' ? this.size : (this.size && this.size.width) || 1;
+    const h = typeof this.size === 'number' ? this.size : (this.size && this.size.height) || 1;
+    return { width: n, height: h }; }
+}
+class Camera extends Node {
+  static ORTHOGRAPHIC_CAMERA = 1;
+  static PERSPECTIVE_CAMERA = 0;
+  setTarget() {}
+  getViewMatrix() { return Matrix.Identity(); }
+  getProjectionMatrix() { return Matrix.Identity(); }
+}
+class TargetCamera extends Camera {}
+class UniversalCamera extends Camera {}
+
+const Constants = {
+  TEXTURETYPE_FLOAT: 1,
+  TEXTURETYPE_HALF_FLOAT: 2,
+  TEXTURETYPE_UNSIGNED_BYTE: 0,
+};
+
 class Scene {
-  constructor() { this._nodes = []; }
+  constructor(engine) {
+    this._nodes = [];
+    this.meshes = this._nodes;          // one array: the stub has only meshes
+    this.customRenderTargets = [];
+    this.particleSystems = [];
+    this.overrideMaterial = null;
+    this._engine = engine || new Engine();
+  }
+  getEngine() { return this._engine; }
+  removeCamera() {}
   render() {}
 }
 class Engine {
   constructor() {}
   runRenderLoop() {} resize() {} getDeltaTime() { return 16; }
   setHardwareScalingLevel() {}
+  getRenderWidth() { return 1280; }
+  getRenderHeight() { return 720; }
+  /* Both float paths reported unsupported, which is the CONSERVATIVE answer:
+     shadows.js and seabed.js each fall back to a lower texture type rather
+     than skipping construction, so the code under test still runs. */
+  getCaps() {
+    return {
+      textureFloatRender: false, textureHalfFloatRender: false,
+      textureFloat: false, textureHalfFloat: false,
+      textureFloatLinearFiltering: false, textureHalfFloatLinearFiltering: false,
+      maxTextureSize: 4096,
+    };
+  }
 }
 
 export const BABYLON = {
-  Vector3, Vector2, Color3, Color4, Quaternion, Matrix,
+  Vector3, Vector2, Vector4, Color3, Color4, Quaternion, Matrix,
   Node, TransformNode, AbstractMesh, Mesh, VertexData, MeshBuilder,
   Material, StandardMaterial, ShaderMaterial, ParticleSystem, TrailMesh,
   GlowLayer, DynamicTexture, Scene, Engine,
+  Texture, RawTexture, RenderTargetTexture,
+  Camera, TargetCamera, UniversalCamera, Constants,
   VertexBuffer: { PositionKind: 'position' },
   Effect: { ShadersStore: {} },
 };

@@ -25,6 +25,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { launch, serve, evaluate } from './cdp.mjs';
+import { saveFromArgv, seedSave, describeSave } from './savefile.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, '../../..');
@@ -37,6 +38,7 @@ const GAME = '/games/surveyor/';
    is set to catch a disc that is wrong, not a disc that is large — raise it
    with --max=7 to gate on the design intent instead. */
 const argv = process.argv.slice(2);
+const SAVE = saveFromArgv(argv);
 const maxArg = argv.find((a) => a.startsWith('--max='));
 const MAX_DEG = maxArg ? Number(maxArg.slice(6)) : 5.0;
 
@@ -227,6 +229,8 @@ for (const from of FROM) {
   await page.send('Page.enable');
   await page.send('Emulation.setDeviceMetricsOverride',
     { width: 900, height: 560, deviceScaleFactor: 1, mobile: false });
+  // --save measures the discs as a returning player sees them. See savefile.mjs.
+  if (SAVE) await seedSave(page, SAVE);
   await page.send('Page.navigate', { url: `http://127.0.0.1:${port}${GAME}?planet=${from}` });
   const r = await evaluate(page, READY);
   if (!r.ok) { console.log(`${from}: never ready`); bad++; await page.close(); continue; }

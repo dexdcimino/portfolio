@@ -25,25 +25,19 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { writeFileSync } from 'node:fs';
 import { launch, serve, evaluate } from './cdp.mjs';
+import { buildSave, seedSave, describeSave } from './savefile.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = resolve(HERE, '../../..');
 const argv = process.argv.slice(2);
 const shot = argv.includes('--shot');
 const FROM = argv.filter((a) => !a.startsWith('--'))[0] || 'home';
-const { ECONOMY, PLANETS } = await import('../js/tune.js');
+const { PLANETS } = await import('../js/tune.js');
 
-/* A save with every world in it. `v: 1` is load()'s gate and a blob without it
-   is silently ignored — which cost a run, because the reproduction then looked
-   exactly like the clean case. Sites are empty on purpose: the World is built
-   by get() before anything is restored into it, so the domes appear whether or
-   not a single colony does. */
-const SAVE = JSON.stringify({
-  v: 1,
-  hyper: 40,
-  at: Date.now(),
-  worlds: Object.fromEntries(Object.keys(PLANETS).map((k) => [k, { clock: 0, sites: [] }])),
-});
+/* Every world, with colonies already on the ground and vents already claimed.
+   Built by dev/savefile.mjs, which is the shared seeded-save mode every browser
+   harness here can opt into with --save. */
+const SAVE = buildSave({ sites: 2 });
 
 const READY = `(async () => {
   const frame = () => new Promise((r) => requestAnimationFrame(r));
@@ -77,6 +71,9 @@ const ENUM = `(() => {
       discs: w.discs && w.discs.mesh ? w.discs.mesh.isEnabled() : null,
       domeD: w.sky ? Math.round(w.sky.getBoundingInfo().boundingSphere.radius * 2) : null,
     })),
+    colonies: [...S.worlds.map.entries()].reduce((a, [, w]) => a + w.colonies.sites.length, 0),
+    claimed: [...S.worlds.map.entries()].reduce((a, [, w]) =>
+      a + w.colonies.sites.filter((x) => x.geyser).length, 0),
     skies: named('sky'),
     waters: named('water'),
     discs: named('discs'),
@@ -98,9 +95,7 @@ for (const withSave of [false, true]) {
     { width: 900, height: 560, deviceScaleFactor: 1, mobile: false });
   if (withSave) {
     // Seeded before any game script runs, so the restore loop sees it at boot.
-    await page.send('Page.addScriptToEvaluateOnNewDocument', {
-      source: `try { localStorage.setItem(${JSON.stringify(ECONOMY.saveKey)}, ${JSON.stringify(SAVE)}); } catch (e) {}`,
-    });
+    await seedSave(page, SAVE);
   }
   await page.send('Page.navigate', { url: `http://127.0.0.1:${port}/games/surveyor/?planet=${FROM}` });
   const r = await evaluate(page, READY);
@@ -115,9 +110,17 @@ for (const withSave of [false, true]) {
     console.log(`  ${w.key.padEnd(8)} ${String(w.active).padEnd(8)} ${String(w.sky).padEnd(6)} ` +
       `${String(w.water).padEnd(6)} ${String(w.discs).padEnd(7)} ${String(w.domeD).padStart(7)}m`);
   }
+  console.log(`RESTORED: ${e.colonies} colonies, ${e.claimed} of them on a claimed vent`);
   console.log(`ON SCREEN: ${e.skies} sky dome(s), ${e.waters} water shell(s), ${e.discs} disc set(s)`);
   const ok = e.skies === 1 && e.discs === 1 && e.waters <= 1;
   if (!ok) { bad++; console.log('  FAIL: more than one world is being drawn.'); }
+  /* The save has to have actually been taken, or this whole run is measuring
+     the no-save case twice and reporting a pass. A blob the game silently
+     dropped looks exactly like the clean case. */
+  if (withSave && e.colonies === 0) {
+    bad++;
+    console.log('  FAIL: the seeded save restored nothing — the game did not take it.');
+  }
   console.log('');
 
   /* ...and again after a warp, because the fix moved when the meshes are shown
