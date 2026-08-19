@@ -127,26 +127,60 @@ function retint(el, attr, mascot) {
   if (value) el.setAttribute(attr, value.replace(/mascot_[a-z]+/g, `mascot_${mascot}`));
 }
 
-/* Derivative URLs carry a ?v= content stamp (see tools/bake_markup.py). Any URL
-   built HERE has to carry the same one, or the browser treats it as a second
-   resource and fetches the identical bytes twice — which for the hero rung
-   meant downloading the LCP image twice on every load.
-
-   The stamp is not composed, it is read off the markup that already names this
-   family, so there is exactly one place it is decided. */
-function stampFor(family) {
-  const source = document.querySelector(`source[srcset*="${family}"]`);
-  if (!source) return '';
-  // First entry of the srcset is a URL; everything from ?v= on is the stamp.
-  // Read as a string rather than matched with a built regex — the family is a
-  // path full of slashes and dots, and building a pattern out of it is how you
-  // get a regex that throws at runtime instead of a URL.
-  const first = source.getAttribute('srcset').trim().split(/\s+/)[0];
-  const at = first.indexOf('?v=');
-  return at === -1 ? '' : first.slice(at);
+/* Every <picture> whose art follows the accent. The hero plus any
+   [data-theme-mascot] slots — resolved fresh each time because the Work
+   overlay builds and tears down DOM. */
+function mascotPictures() {
+  return [heroMascot, ...document.querySelectorAll('[data-theme-mascot]')]
+    .filter(Boolean)
+    .map(img => img.closest('picture'))
+    .filter(Boolean);
 }
-const mascotUrl = (mascot, width) =>
-  `assets/derived/mascots/mascot_${mascot}-${width}.avif${stampFor('assets/derived/mascots/mascot_')}`;
+
+/* A probe is a throwaway offscreen clone of a real mascot <picture> with its
+   stems rewritten to the target colour. The browser runs the SAME format and
+   rung negotiation on the clone that it will run on the real one, so whatever
+   the probe fetches is — by construction — the exact resource the visible
+   swap needs, ?v= stamp included (retint preserves it).
+
+   This replaced hand-built warm URLs at guessed widths (600 idle / 900 swap),
+   which warmed rungs the picture never picked: the hero's `sizes` resolves to
+   the 900 rung on most desktops AND phones, so an idle warm at 600 left every
+   colour click waiting on a fresh 900 download — the mascot visibly trailing
+   the instant CSS repaint. Worse, small viewports downloaded 900 *and* their
+   real rung. The probe can't drift like that: there is no width or format
+   knowledge here to go stale.
+
+   Resolves after load AND decode, so the caller can retint knowing the paint
+   is a raster flip, not a fetch. Resolves on error/timeout too — a dead
+   network must never wedge the colour swap behind it. */
+function probeMascot(pic, mascot, priority) {
+  return new Promise(resolve => {
+    const clone = pic.cloneNode(true);
+    const img = clone.querySelector('img');
+    if (!img) { resolve(); return; }
+    clone.querySelectorAll('source').forEach(source => retint(source, 'srcset', mascot));
+    retint(img, 'src', mascot);
+    img.removeAttribute('id');            // no duplicate #heroMascot
+    img.removeAttribute('loading');       // lazy never fires offscreen
+    img.setAttribute('fetchpriority', priority);
+    img.alt = '';
+    clone.style.cssText =
+      'position:absolute;left:-9999px;top:0;width:2px;visibility:hidden;pointer-events:none;';
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clone.remove();
+      resolve();
+    };
+    img.addEventListener('load',
+      () => (img.decode ? img.decode().then(done, done) : done()), { once: true });
+    img.addEventListener('error', done, { once: true });
+    setTimeout(done, 3500);
+    document.body.appendChild(clone);
+  });
+}
 
 // Bumped per swap. Decodes finish out of order when someone clicks through the
 // colours quickly, and without this an earlier, slower decode lands last and
@@ -155,29 +189,30 @@ let swapToken = 0;
 
 function swapMascots(theme) {
   const token = ++swapToken;
-  const targets = [heroMascot, ...document.querySelectorAll('[data-theme-mascot]')].filter(Boolean);
-
-  const apply = () => token === swapToken && targets.forEach(img => {
-    img.closest('picture')?.querySelectorAll('source')
-      .forEach(source => retint(source, 'srcset', theme.mascot));
-    retint(img, 'src', theme.mascot);        // keep the master fallback in step
+  // Each picture flips the moment ITS probe has decoded — the hero never
+  // waits on the card slot, and vice versa. After the idle warm every probe
+  // is a cache hit, so the whole thing is one decode away from instant.
+  mascotPictures().forEach(pic => {
+    probeMascot(pic, theme.mascot, 'high').then(() => {
+      if (token !== swapToken) return;
+      pic.querySelectorAll('source').forEach(source => retint(source, 'srcset', theme.mascot));
+      const img = pic.querySelector('img');
+      if (img) retint(img, 'src', theme.mascot);   // keep the master fallback in step
+    });
   });
-
-  // Decode the widest derivative first so the swap never shows a half-painted
-  // frame. decode() rejects on formats the browser can't take — apply anyway,
-  // the <picture> negotiation will fall through to WebP or the PNG.
-  const warm = new Image();
-  warm.src = mascotUrl(theme.mascot, 900);
-  if (warm.decode) warm.decode().then(apply, apply);
-  else warm.onload = warm.onerror = apply;
 }
 
-// Once the page has painted, pull the other six in during idle time at 600w
-// only — enough that a colour click feels instant without competing with LCP.
+// Once the page has painted, pull the other six accents in during idle time —
+// via probes, so what lands in cache is the file a click will actually ask
+// for. One accent at a time: no 12-fetch burst shouldering into whatever the
+// visitor is doing.
 function warmOtherMascots() {
-  const load = () => ACCENTS
-    .filter(theme => theme.name !== currentTheme)
-    .forEach(theme => { new Image().src = mascotUrl(theme.mascot, 600); });
+  const load = async () => {
+    for (const theme of ACCENTS) {
+      if (theme.name === currentTheme) continue;
+      await Promise.all(mascotPictures().map(pic => probeMascot(pic, theme.mascot, 'low')));
+    }
+  };
   // Safari has no requestIdleCallback.
   if ('requestIdleCallback' in window) requestIdleCallback(load, { timeout: 4000 });
   else setTimeout(load, 2000);

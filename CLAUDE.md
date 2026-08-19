@@ -127,10 +127,13 @@ output.
   in the lightbox, because the card and the lightbox pull different rungs and a
   reload refetches just the card's. The stamp is a query, not a filename — the
   file on disk is still `<stem>-<width>.<ext>`.
-- **URLs built in JS must carry the stamp too.** `mascotUrl()` in `script.js`
-  reads it off the markup with `stampFor()` rather than composing one; a
-  hand-built URL is a second cache entry for identical bytes, which briefly
-  double-fetched the LCP image. Never write a derivative URL by hand in JS.
+- **Never build a derivative URL in JS at all.** A hand-built URL is a second
+  cache entry for identical bytes (this briefly double-fetched the LCP image),
+  and a hand-picked width/format goes stale against `sizes` (the idle mascot
+  warm fetched the 600 rung while nearly every screen's click needed the 900 —
+  the accent swap always hit the network). `probeMascot()` in `script.js` is
+  the pattern: clone the real `<picture>`, rewrite the stems in place (stamps
+  ride along), and let the browser's own negotiation fetch the one true file.
 - **Any session touching images must run both checks before declaring work
   complete. A non-zero exit from either is a blocking failure:**
 
