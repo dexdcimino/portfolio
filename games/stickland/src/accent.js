@@ -8,9 +8,21 @@
 
 const FALLBACK = '#68d121';
 
-export function getAccent() {
+// The uncached read — one forced style computation. Only the watcher below
+// calls this on a schedule; everyone else gets the cache.
+function _readAccent() {
   return getComputedStyle(document.documentElement)
     .getPropertyValue('--accent').trim() || FALLBACK;
+}
+
+/* MD 20 perf: cached. getAccent() is called from hot paths — every gore dot,
+   every FX spawn, both draw loops — and each getComputedStyle() forces style
+   work against a DOM that combat is mutating constantly. The watcher below
+   (mutation observer + 4Hz poll) already maintains `_last`; serving it makes
+   getAccent() a field read. Before the watch starts (or if it never does) the
+   uncached read keeps the old behavior. */
+export function getAccent() {
+  return (_watching && _last) ? _last : _readAccent();
 }
 
 // ── The --clr / --clr-adj bridge ──
@@ -55,7 +67,7 @@ export function onAccentChange(fn) {
 
 function _check() {
   if (_applying) return;
-  const cur = getAccent();
+  const cur = _readAccent();
   if (cur === _last) return;
   _last = cur;
   _publish(cur);
@@ -67,7 +79,7 @@ function _check() {
 export function startAccentWatch() {
   if (_watching) return;
   _watching = true;
-  _last = getAccent();
+  _last = _readAccent();
   _publish(_last);
 
   new MutationObserver(_check).observe(document.documentElement, {

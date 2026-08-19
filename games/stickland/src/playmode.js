@@ -700,9 +700,13 @@ function drawGrid() {
 }
 
 // ── Building helpers ──
+// Font caches — refreshed once per frame at the render head from a single
+// getComputedStyle (MD 20 perf); every drawer below reads the cache.
+let _labelFont = 'bold 16px sans-serif';
+let _labelFs = 16;
+
 function _drawBuildingLabel(ctx, sx, sy, text) {
-  const fs = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 16;
-  ctx.font = `bold ${fs}px ${getComputedStyle(document.documentElement).getPropertyValue('--fn').trim() || 'sans-serif'}`;
+  ctx.font = _labelFont;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
   ctx.fillStyle = _cachedClr; ctx.globalAlpha = 0.85;
   ctx.fillText(text, sx, sy);
@@ -1360,7 +1364,7 @@ function _drawInteractPrompt(ctx, sx, sy, label, progress, yOffset) {
   const py = sy - (yOffset || 48);
   const bgColor = _currentBg || '#13141a';
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  const fs = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--fs')) || 16;
+  const fs = _labelFs;   // cached at the render head (MD 20 perf)
 
   ctx.font = _promptFont(fs);
   const labelW = ctx.measureText(label).width;
@@ -2038,7 +2042,7 @@ export function restartToBase() {
   if (!_active) { enterPlayMode({ fresh: true }); return; }
 
   // — teardown, as exitPlayMode does it —
-  if (_inTank) { _inTank = false; const t = _getTankObj(); if (t) t.occupied = false; }
+  if (_inTank) { _inTank = false; _setTankHud(false); const t = _getTankObj(); if (t) t.occupied = false; }
   _hideDeathScreen();
   _worldParticles.length = 0;
   _goreParticles.length = 0;
@@ -4581,7 +4585,14 @@ export function tickPlayMode(vx, vy, dt) {
   _cachedClr = rawClr;
 
   // Smooth background color transition (lerp for canvas, matches CSS theme-transition)
-  const targetBg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#13141a';
+  // MD 20 perf: ONE getComputedStyle per frame, shared — --bg here plus the
+  // label/prompt font vars cached below. Every extra gCS call was a forced
+  // style read against a DOM that combat mutates constantly; the building
+  // labels alone were making two per label per frame.
+  const _rootStyle = getComputedStyle(document.documentElement);
+  _labelFs = parseInt(_rootStyle.getPropertyValue('--fs')) || 16;
+  _labelFont = `bold ${_labelFs}px ${(_rootStyle.getPropertyValue('--fn') || '').trim() || 'sans-serif'}`;
+  const targetBg = _rootStyle.getPropertyValue('--bg').trim() || '#13141a';
   if (_bgLerpTo !== targetBg) {
     _bgLerpFrom = _bgLerpTo || targetBg;
     _bgLerpTo = targetBg;
@@ -5254,12 +5265,13 @@ function _wrapBubbleText(text, maxChars, maxLines) {
   return lines.length ? lines : [text.slice(0, maxChars)];
 }
 
+// MD 20 perf: chat bubbles draw per frame while visible — serve the fonts
+// from the render head's once-per-frame cache instead of fresh gCS calls.
 function _getChatFont() {
-  return getComputedStyle(document.documentElement).getPropertyValue('--fn').trim() || 'outfit, sans-serif';
+  return _labelFont.replace(/^bold \d+(\.\d+)?px /, '') || 'outfit, sans-serif';
 }
 function _getChatFontSize() {
-  const fs = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--fs'));
-  return isNaN(fs) ? 16 : fs;
+  return _labelFs || 16;
 }
 
 function _wrapChatText(ctx, text, maxWidth, maxLines) {
@@ -6213,7 +6225,21 @@ export function getBuildingPolygons() {
 // Name kept for the character.js bridge (_isExitConfirmFn gates firing);
 // the pause menu is what "exit confirm open" means now.
 export function isExitConfirmOpen() { return isPauseMenuOpen(); }
-export function addWorldExplosion(wx, wy, isRocket) {
+export function addWorldExplosion(wx, wy, isRocket, isBullet) {
+  // MD 20: a bullet ending on a building is a spark tick, not a boom — no
+  // shake, no smoke ring. Automatic fire used to detonate the full
+  // explosion (sound + particles + shake) per round.
+  if (isBullet) {
+    sfx('bullet.impact', { at: { x: wx, y: wy } });
+    const clrHex = (_cachedClr || '#7B8A9C').replace('#', '');
+    const r = parseInt(clrHex.slice(0, 2), 16), g = parseInt(clrHex.slice(2, 4), 16), b = parseInt(clrHex.slice(4, 6), 16);
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * Math.PI * 2, spd = 0.6 + Math.random() * 1.2;
+      _pAddParticle(wx, wy, Math.cos(a) * spd, Math.sin(a) * spd,
+        10 + Math.floor(Math.random() * 8), r, g, b, 0.8 + Math.random() * 1.2, 'spark');
+    }
+    return;
+  }
   // Positional: a rocket across the map is a distant thump, not a blast.
   sfx('explosion', { big: !!isRocket, at: { x: wx, y: wy } });
   // Shake falls off with distance the same way the sound does.
@@ -6552,6 +6578,14 @@ function _tickTankHold() {
 
 let _tankExitLock = false; // prevents immediate exit after entry (E key still held)
 
+// MD 20: driving swaps the hotbar for the tank's single ability — the
+// double-wide missile chip. One helper so every exit path (E-hold, restart,
+// exitPlayMode) restores the loadout the same way.
+function _setTankHud(on) {
+  const bar = document.getElementById('item-bar');
+  if (bar) bar.classList.toggle('tank-mode', !!on);
+}
+
 function _enterTank() {
   const tank = _getTankObj();
   if (!tank) return;
@@ -6560,6 +6594,7 @@ function _enterTank() {
   if (window._dexDismountJetpack) window._dexDismountJetpack();
   sfx('tank.enter');
   _inTank = true;
+  _setTankHud(true);
   _tankExitLock = true; // must release E before exit is allowed
   tank.occupied = true;
   tank.speed = 0;
@@ -6576,6 +6611,7 @@ function _exitTank() {
   if (!tank) return;
   sfx('tank.exit');
   _inTank = false;
+  _setTankHud(false);
   tank.occupied = false;
   tank.speed = 0;
   _tankBoostFuel = TANK_BOOST_DURATION;
@@ -6794,7 +6830,7 @@ export function exitPlayMode() {
   _summonPortals.length = 0;
   _activeWraiths.length = 0;
   // Exit tank if in one
-  if (_inTank) { _inTank = false; const t = _getTankObj(); if (t) t.occupied = false; }
+  if (_inTank) { _inTank = false; _setTankHud(false); const t = _getTankObj(); if (t) t.occupied = false; }
   // Hide death screen
   _deathScreenVisible = false;
   if (_deathScreenEl) _deathScreenEl.style.display = 'none';

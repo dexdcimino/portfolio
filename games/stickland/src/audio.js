@@ -306,9 +306,15 @@ const SOUNDS = {
     _noise({ filter: 'bandpass', freq: 1300, dur: 0.035, gain: 0.14, delay: 0.07, pan: o.pan });
     _blip({ type: 'square', freq: 320, endFreq: 250, dur: 0.03, gain: 0.05, delay: 0.07, pan: o.pan });
   }},
+  // MD 20: rebuilt — the old voice was a thin crack (short square + bare
+  // hiss) that read as a toy at full auto. Now a body thud under a bark of
+  // lowpassed noise, with just a breath of snap on top: each round has
+  // weight, and the variance keeps a spray from machine-stitching.
   'shoot.smg':     { cd: 40, fn: (o) => {
-    _blip({ type: 'square', freq: _vary(360, 0.08), endFreq: 140, dur: 0.055, gain: _vary(0.14, 0.12), pan: o.pan });
-    _noise({ filter: 'highpass', freq: 2200, dur: 0.03, gain: 0.06, pan: o.pan });
+    _thud({ freq: _vary(185, 0.07), endFreq: 68, dur: 0.075, gain: _vary(0.30, 0.1), pan: o.pan });
+    _noise({ filter: 'lowpass', freq: _vary(2300, 0.15), sweepTo: 480, dur: 0.05, gain: _vary(0.22, 0.15), pan: o.pan });
+    _blip({ type: 'square', freq: _vary(430, 0.08), endFreq: 130, dur: 0.05, gain: _vary(0.13, 0.12), pan: o.pan });
+    _noise({ filter: 'highpass', freq: 3200, dur: 0.02, gain: 0.07, pan: o.pan });
   }},
   'shoot.rifle':   { cd: 90, fn: (o) => {
     _noise({ filter: 'highpass', freq: _vary(2600, 0.08), dur: 0.07, gain: 0.3, pan: o.pan });
@@ -424,9 +430,13 @@ const SOUNDS = {
     _thud({ freq: 140, endFreq: 60, dur: 0.1 + p * 0.1, gain: 0.06 + p * 0.28 });
     _blip({ type: 'sine', freq: _vary(300, 0.05), endFreq: 420, glide: 0.08, dur: 0.12, gain: 0.05 + p * 0.08 });
   }},
+  // MD 20: audible now — the old tick sat at gain 0.03-0.045, under the
+  // ambience bed. A soft heel thud under the scuff gives each step a body
+  // without turning walking into a drum line.
   'footstep':      { cd: 70, fn: (o) => {
-    _noise({ filter: 'bandpass', freq: _vary(o.sprint ? 420 : 340, 0.25), q: 1.2,
-             dur: 0.035, gain: _vary(o.sprint ? 0.045 : 0.032, 0.25) });
+    _noise({ filter: 'bandpass', freq: _vary(o.sprint ? 440 : 360, 0.22), q: 1.1,
+             dur: 0.045, gain: _vary(o.sprint ? 0.15 : 0.11, 0.2) });
+    _thud({ freq: _vary(110, 0.1), endFreq: 55, dur: 0.06, gain: o.sprint ? 0.09 : 0.06 });
   }},
   'board.mount':   { cd: 200, fn: () => {
     _duo(330, 494, { type: 'sine', gain: 0.14, dur: 0.09, gap: 0.07, bus: 'sfx' });
@@ -469,20 +479,35 @@ const SOUNDS = {
     _blip({ type: 'sine', freq: _vary(880, 0.04), dur: 0.05, gain: 0.08, bus: 'ui' });
   }},
 
-  // — creatures (added with the sampled overlay; these synth voices are the
-  //   file:// fallbacks, kept deliberately modest) —
+  // — creatures —
+  // MD 20: synth IS the voice here now. The recorded grunts/chirps from the
+  // first sample batch read as a person being punched, not a stick yak —
+  // retired. These stay synthetic and toylike, like the rest of the game.
   'creature.hurt': { cd: 120, fn: (o) => {
-    _blip({ type: 'triangle', freq: _vary(340, 0.1), endFreq: 180, dur: 0.1, gain: 0.16 * (o.gain || 1), pan: o.pan });
+    // Small startled squeak — pitch falls, reads "ow" without being one.
+    _blip({ type: 'triangle', freq: _vary(520, 0.12), endFreq: _vary(300, 0.1), dur: 0.08, gain: 0.14 * (o.gain || 1), pan: o.pan });
   }},
   'creature.death': { cd: 200, fn: (o) => {
-    _blip({ type: 'triangle', freq: _vary(300, 0.08), endFreq: 120, dur: 0.22, gain: 0.2 * (o.gain || 1), pan: o.pan });
-    _thud({ freq: 140, endFreq: 55, dur: 0.2, gain: 0.2 * (o.gain || 1), delay: 0.1, pan: o.pan });
+    // Two falling notes — reads "down", not "in pain". The body.thud that
+    // follows the tip-over is the weight; this is just the sigh.
+    _blip({ type: 'triangle', freq: _vary(420, 0.06), endFreq: 320, dur: 0.09, gain: 0.14 * (o.gain || 1), pan: o.pan });
+    _blip({ type: 'triangle', freq: _vary(260, 0.06), endFreq: 150, dur: 0.14, gain: 0.13 * (o.gain || 1), delay: 0.08, pan: o.pan });
   }},
   'bird.death':    { cd: 150, fn: (o) => {
-    _blip({ type: 'square', freq: _vary(1400, 0.1), endFreq: 500, dur: 0.12, gain: 0.1 * (o.gain || 1), pan: o.pan });
+    // One short falling tweet.
+    _blip({ type: 'sine', freq: _vary(1500, 0.12), endFreq: 700, dur: 0.09, gain: 0.10 * (o.gain || 1), pan: o.pan });
   }},
   'body.thud':     { cd: 120, fn: (o) => {
     _thud({ freq: _vary(130, 0.08), endFreq: 50, dur: 0.14, gain: 0.22 * (o.gain || 1), pan: o.pan });
+  }},
+
+  // — bullet impact (MD 20) —
+  // Bullets used to end EVERY flight — creature, wall, or just offscreen —
+  // with the full 'explosion' voice; automatic fire turned into one long
+  // boom-mush. Now only building hits tick, quietly.
+  'bullet.impact': { cd: 50, fn: (o) => {
+    _noise({ filter: 'bandpass', freq: _vary(1100, 0.2), q: 1.2, dur: 0.045, gain: 0.16 * (o.gain || 1), pan: o.pan });
+    _thud({ freq: _vary(200, 0.1), endFreq: 90, dur: 0.05, gain: 0.10 * (o.gain || 1), pan: o.pan });
   }},
 };
 
@@ -494,9 +519,12 @@ const SOUNDS = {
 // the identical waveform. Everything still runs through _chain — same
 // buses, cooldowns, voice cap, and spatial gain/pan as the synth voices.
 const SFX_BASE = 'sfx/';
+// MD 20 audition verdicts: the creature vocals (recorded grunts/chirps) and
+// the smg crack were rejected — those names now play their synth voices, and
+// the files left the repo. What survived: guns, explosions, gore, thuds,
+// the spell cast, and the ambience bed.
 const SAMPLES = {
   'shoot.pistol':    { files: ['shot-pistol.ogg'],     gain: 0.56, vary: 0.05 },
-  'shoot.smg':       { files: ['shot-smg.ogg'],        gain: 1.19, vary: 0.07 },
   'shoot.rifle':     { files: ['shot-rifle.ogg'],      gain: 0.44, vary: 0.04 },
   'shoot.shotgun':   { files: ['shot-shotgun.ogg'],    gain: 0.70, vary: 0.05 },
   'shoot.rocket':    { files: ['shot-rocket.ogg'],     gain: 1.44, vary: 0.05, rate: 1.15 },
@@ -506,9 +534,6 @@ const SAMPLES = {
   'explosion.big':   { files: ['explosion-big.ogg'],   gain: 0.93, vary: 0.04 },
   'gore':            { files: ['gore-splat-1.ogg', 'gore-splat-2.ogg'], gain: 1.25, vary: 0.1 },
   'body.thud':       { files: ['body-thud-1.ogg', 'body-thud-2.ogg'],  gain: 0.5,  vary: 0.06 },
-  'creature.hurt':   { files: ['creature-hurt-1.ogg', 'creature-hurt-2.ogg', 'creature-hurt-3.ogg'], gain: 0.5, vary: 0.08 },
-  'creature.death':  { files: ['creature-death-1.ogg', 'creature-death-2.ogg'], gain: 1.2, vary: 0.06 },
-  'bird.death':      { files: ['bird-death-1.ogg', 'bird-death-2.ogg'], gain: 1.05, vary: 0.1 },
 };
 
 const _sampleBufs = Object.create(null);   // file → AudioBuffer (present = ready)

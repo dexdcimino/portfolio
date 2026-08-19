@@ -6,13 +6,18 @@ game sounds exactly like it did before this folder existed. Licence confirmed
 CC0 on each source page, not from a search result. Attribution not required;
 given anyway because it costs a line.
 
+Audition history: the first batch also shipped creature vocals (grunts and
+chirps for animal hurt/death, from the same author's creature pack) and a
+sampled SMG crack. All were rejected in play — the vocals read as a person
+being punched, the crack as thin — and deleted; those names now use synth
+voices in `src/audio.js`.
+
 Files were renamed from their pack names (mapping below) but are byte-identical
 to the packs' contents — hash-check against a fresh download of the source zip.
 
 | Shipped as | Pack file | Pack / source | Author |
 | ---------- | --------- | ------------- | ------ |
 | `shot-pistol.ogg` | `shoot_01.ogg` | [50 CC0 Sci-Fi SFX](https://opengameart.org/content/50-cc0-sci-fi-sfx) | rubberduck |
-| `shot-smg.ogg` | `shoot_02.ogg` | 50 CC0 Sci-Fi SFX | rubberduck |
 | `shot-rifle.ogg` | `retro_laser_01.ogg` | 50 CC0 Sci-Fi SFX | rubberduck |
 | `shot-rocket.ogg` | `rocket_01.ogg` | 50 CC0 Sci-Fi SFX | rubberduck |
 | `cast-spell.ogg` | `teleport_01.ogg` | 50 CC0 Sci-Fi SFX | rubberduck |
@@ -24,13 +29,6 @@ to the packs' contents — hash-check against a fresh download of the source zip
 | `gore-splat-2.ogg` | `splash_02.ogg` | 100 CC0 SFX | rubberduck |
 | `body-thud-1.ogg` | `hit_03.ogg` | 100 CC0 SFX | rubberduck |
 | `body-thud-2.ogg` | `hit_04.ogg` | 100 CC0 SFX | rubberduck |
-| `creature-hurt-1.ogg` | `hurt_03.ogg` | [80 CC0 creature SFX](https://opengameart.org/content/80-cc0-creature-sfx) | rubberduck |
-| `creature-hurt-2.ogg` | `hurt_04.ogg` | 80 CC0 creature SFX | rubberduck |
-| `creature-hurt-3.ogg` | `hurt_05.ogg` | 80 CC0 creature SFX | rubberduck |
-| `creature-death-1.ogg` | `grunt_02.ogg` | 80 CC0 creature SFX | rubberduck |
-| `creature-death-2.ogg` | `grunt_03.ogg` | 80 CC0 creature SFX | rubberduck |
-| `bird-death-1.ogg` | `cute_05.ogg` | 80 CC0 creature SFX | rubberduck |
-| `bird-death-2.ogg` | `cute_01.ogg` | 80 CC0 creature SFX | rubberduck |
 | `ambience-forest.ogg` | `Birds and Wind - Ambient_1.ogg` | [Birds and Wind](https://opengameart.org/content/birds-and-wind-ambient-birds-wind-and-synth) | Spring Spring (bird sfx: isaiah658, syncopika, pauliuw — all public domain) |
 
 ## Levels
@@ -42,6 +40,6 @@ synth shot used to.
 
 ## Cost
 
-~2.3 MB, of which 1.8 MB is the ambience loop. Fetched at runtime like the
+~2.2 MB, of which 1.8 MB is the ambience loop. Fetched at runtime like the
 music rack, with the same degrade story over `file://` — synth everywhere,
 no errors.

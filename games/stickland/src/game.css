@@ -250,6 +250,21 @@ body:has(#hud-stamina-wrap[style*="block"]) #item-bar-name{ margin-bottom:48px; 
 .inv-slot-hotbar-badge{position:absolute;bottom:3px;right:4px;font-size:9px;font-family:var(--fn);font-weight:700;color:var(--clr-adj,var(--accent));opacity:0.8;line-height:1;}
 .inv-slot-dragging{opacity:0.4;border-color:var(--clr-adj,var(--accent)) !important;}
 .item-slot-drag-over{border-color:var(--clr-adj,var(--accent)) !important;background:rgba(0,0,0,0.6) !important;box-shadow:0 0 0 2px var(--clr-adj,var(--accent));}
+/* Tank mode (MD 20): driving collapses the loadout to the tank's one
+   ability — slots 1-4 give way to a double-wide missile chip (two slots
+   plus their gap). Bag (5) and cosmetics (6) stay put. */
+.item-slot-missile{display:none;width:110px;height:52px;}
+.item-slot-missile .item-slot-icon svg{width:70%;height:auto;}
+#item-bar.tank-mode .item-slot[data-slot="1"],
+#item-bar.tank-mode .item-slot[data-slot="2"],
+#item-bar.tank-mode .item-slot[data-slot="3"],
+#item-bar.tank-mode .item-slot[data-slot="4"]{display:none;}
+#item-bar.tank-mode .item-slot-missile{
+  display:flex;
+  border-color:var(--clr-adj,var(--accent));
+  box-shadow:0 0 0 1px var(--clr-adj,var(--accent));
+}
+#item-bar.tank-mode .item-slot-missile .item-slot-icon{opacity:.85;}
 [data-theme="light"] .inv-slot{background:rgba(255,255,255,0.3);border-color:rgba(0,0,0,0.12);}
 /* inv-slot-label light override removed — base uses --clr-adj */
 /* InfoChip :// command picker */

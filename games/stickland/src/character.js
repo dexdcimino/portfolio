@@ -300,6 +300,9 @@ window._dexPlatShiftWorld = (dx, dy) => {
   P.x -= dx; P.y -= dy;
   for (const p of _projectiles) { p.x -= dx; p.y -= dy; }
   for (const a of _arrows) {
+    // Edge-stuck arrows (MD 20) are nailed to the SCREEN border, not to a
+    // world position — the camera slides past them by design.
+    if (a._edgeStuck) continue;
     a.x -= dx; a.y -= dy;
     if (a._originX != null) { a._originX -= dx; a._originY -= dy; }
     // Stuck non-creature arrows stop ticking their element (same failure
@@ -3884,6 +3887,11 @@ window._dexFlagRespawned = function() {
 };
 
 function _tickProjectiles() {
+  // Hoisted per tick (MD 20 perf): play-mode flag and building polys were
+  // recomputed per bullet per frame — an SMG spray rebuilt the polygon set
+  // ten times a frame for no new information.
+  const _inPM = _isPlayModeFn && _isPlayModeFn();
+  const _pmPolys = (_inPM && _getBuildingPolysFn) ? _getBuildingPolysFn() : null;
   for (let i = _projectiles.length - 1; i >= 0; i--) {
     const p = _projectiles[i];
     p._prevX = p.x; p._prevY = p.y;
@@ -3928,14 +3936,13 @@ function _tickProjectiles() {
       }
     }
 
-    let hit = false;
+    let hit = false, hitSolid = false;
 
     // Projectiles used to be stopped by the notes-app header, sidebar and
     // infochips. Nothing but creatures and the world blocks them now.
-    const _inPlayMode = _isPlayModeFn && _isPlayModeFn();
 
     // Check creatures — sweep along travel path to prevent fast bullets skipping hitboxes
-    if (!hit && !_inPlayMode) {
+    if (!hit && !_inPM) {
       const _sdx = p.x - p._prevX, _sdy = p.y - p._prevY;
       const _sdist = Math.hypot(_sdx, _sdy);
       const _steps = Math.max(1, Math.ceil(_sdist / 12));
@@ -3944,7 +3951,7 @@ function _tickProjectiles() {
         if (_hitCreature(p._prevX + _sdx * _t, p._prevY + _sdy * _t, false, p.isRocket)) { hit = true; break; }
       }
     }
-    if (!hit && _isPlayModeFn && _isPlayModeFn() && _hitPlayCreaturesFn) {
+    if (!hit && _inPM && _hitPlayCreaturesFn) {
       const _sdx = p.x - p._prevX, _sdy = p.y - p._prevY;
       const _sdist = Math.hypot(_sdx, _sdy);
       const _steps = Math.max(1, Math.ceil(_sdist / 12));
@@ -3955,9 +3962,8 @@ function _tickProjectiles() {
     }
 
     // Hit buildings (play mode only) — polygon outline collision
-    if (!hit && _inPlayMode && _getBuildingPolysFn) {
-      const polys = _getBuildingPolysFn();
-      for (const poly of polys) {
+    if (!hit && _inPM && _pmPolys) {
+      for (const poly of _pmPolys) {
         for (const seg of poly.segments) {
           if (_segIntersect(p._prevX, p._prevY, p.x, p.y, seg[0], seg[1], seg[2], seg[3])) {
             if (p._isWorldCoord && _screenToWorldFn) {
@@ -3965,6 +3971,7 @@ function _tickProjectiles() {
               p.wx = w.wx; p.wy = w.wy;
             }
             hit = true;
+            hitSolid = true;
             break;
           }
         }
@@ -3972,20 +3979,38 @@ function _tickProjectiles() {
       }
     }
 
-    // Off screen
-    if (p.x < 0 || p.x > window.innerWidth || p.y < 0 || p.y > window.innerHeight) hit = true;
+    // Off screen. MD 20: bullets leaving the frame just leave — the old code
+    // treated the screen edge as a hit and played the FULL explosion (sound
+    // and particles) per bullet, so automatic fire was one long edge-of-
+    // screen boom-mush. Rockets keep their edge pop: an explosive vanishing
+    // silently reads as a dud.
+    if (p.x < 0 || p.x > window.innerWidth || p.y < 0 || p.y > window.innerHeight) {
+      if (!p.isRocket) { p.el.remove(); _projectiles.splice(i, 1); continue; }
+      hit = true;
+    }
 
     if (hit || p.life <= 0) {
       if (hit && p.life > 0) {
-        if (p._isWorldCoord && _addWorldExplosionFn) {
-          // World path: addWorldExplosion() in playmode.js plays the
-          // positional boom — no sound here or it doubles.
-          _addWorldExplosionFn(p.wx, p.wy, p.isRocket);
-        } else {
-          sfx('explosion', { big: !!p.isRocket });
-          if (p.isRocket) _spawnRocketExplosion(p.x, p.y);
-          else _spawnExplosion(p.x, p.y);
+        if (p.isRocket) {
+          if (p._isWorldCoord && _addWorldExplosionFn) {
+            // World path: addWorldExplosion() in playmode.js plays the
+            // positional boom — no sound here or it doubles.
+            _addWorldExplosionFn(p.wx, p.wy, true);
+          } else {
+            sfx('explosion', { big: true });
+            _spawnRocketExplosion(p.x, p.y);
+          }
+        } else if (hitSolid) {
+          // Bullet into a wall: a spark tick, not a boom.
+          if (p._isWorldCoord && _addWorldExplosionFn) {
+            _addWorldExplosionFn(p.wx, p.wy, false, true);
+          } else {
+            sfx('bullet.impact');
+            _spawnExplosion(p.x, p.y);
+          }
         }
+        // Bullet into a creature: the gore/hurt voices ARE the impact —
+        // stacking an explosion on every round was the mush.
       }
       p.el.remove();
       _projectiles.splice(i, 1);
@@ -5430,6 +5455,11 @@ function _getArrowEmbedPoint(creature, arrowAngle) {
 }
 
 function _tickArrows() {
+  // Hoisted per tick, not per arrow (MD 20 perf): building polys allocate
+  // segment arrays from a walk over every world object — a volley of arrows
+  // was rebuilding them dozens of times a frame.
+  const _pmNow = _isPlayModeFn && _isPlayModeFn();
+  const _pmPolys = (_pmNow && _getBuildingPolysFn) ? _getBuildingPolysFn() : null;
   for (let i = _arrows.length - 1; i >= 0; i--) {
     const a = _arrows[i];
     if (a.stuck) {
@@ -5532,8 +5562,8 @@ function _tickArrows() {
       }
     }
     // Hit buildings (play mode only) — polygon outline collision
-    if (_pmActive && _getBuildingPolysFn) {
-      const polys = _getBuildingPolysFn();
+    if (_pmActive && _pmPolys) {
+      const polys = _pmPolys;
       let hitBuilding = false;
       const prevX = a._prevX !== undefined ? a._prevX : a.x;
       const prevY = a._prevY !== undefined ? a._prevY : a.y;
@@ -5553,14 +5583,14 @@ function _tickArrows() {
       }
       if (hitBuilding) continue;
     }
-    // Hit chips + hex chips — stick at border edge (shallow penetration)
+    // Hit platform chips — stick at border edge (shallow penetration).
+    // (MD 20 perf: this used to ALSO querySelectorAll four notes-app chip
+    // classes and getBoundingClientRect each match — per arrow, per frame.
+    // None of those classes exist in this build, but the full-document scan
+    // still ran, and it grew with every blood stain a fight added to the
+    // DOM. It was the bow's frame drop.)
     let hitChip = false;
-    // Collect all chip rects: infochips + hex chips + link chips + note editors
-    const allChipRects = [..._chipFloors];
-    document.querySelectorAll('.note-hex-chip, .note-link-chip, .note-profile-chip, .infochip').forEach(el => {
-      const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) allChipRects.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
-    });
+    const allChipRects = _chipFloors;
     for (const chip of allChipRects) {
       if (a.x >= chip.left && a.x <= chip.right && a.y >= chip.top && a.y <= chip.bottom) {
         // Determine entry edge from travel direction (_prevX/_prevY → a.x/a.y).
@@ -5581,6 +5611,18 @@ function _tickArrows() {
       }
     }
     if (hitChip) continue;
+    // MD 20: outside the open world the play-area borders are walls — an
+    // arrow reaching the left, right or top edge sticks there like it hit
+    // masonry, angle kept. (Play mode skips this: there the screen edge is
+    // just where the camera stops, not a surface.) Edge-stuck arrows are
+    // screen-anchored — the platformer shift bridge leaves them be, so they
+    // stay nailed to the border they hit.
+    if (!_pmActive) {
+      const sw = window.innerWidth;
+      if (a.vx < 0 && a.x <= 3)       { a._edgeStuck = true; _stickArrow(a, 3, a.y); continue; }
+      else if (a.vx > 0 && a.x >= sw - 3) { a._edgeStuck = true; _stickArrow(a, sw - 3, a.y); continue; }
+      else if (a.vy < 0 && a.y <= 3)  { a._edgeStuck = true; _stickArrow(a, a.x, 3); continue; }
+    }
     // Off screen/expired
     const tooFar = a.x < -100 || a.x > window.innerWidth + 100 || a.y > window.innerHeight + 100 || a.y < -(window.innerHeight * 5);
     if (a.life <= 0 || tooFar) { a.el.remove(); _arrows.splice(i,1); }
