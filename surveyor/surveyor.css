@@ -72,8 +72,29 @@ html,body{
 .surveyor-exit:focus-visible{outline:3px solid #9EE02B;outline-offset:3px}
 
 @media(max-width:760px){
-  .surveyor-exit{left:10px;width:44px;height:44px;border-radius:11px}
-  .surveyor-exit svg{width:20px;height:20px}
+  /* AN EDGE TAB, not a floating chip, and the reason is the same one that put
+     this button on the left edge to begin with: the wrapper is the side that
+     moves. Below this width the game's UI is as wide as the screen, so a 44px
+     square inset 10px from the edge lands inside whatever the game has centred
+     there. On Surveyor that is the intro card, and it was covering the first
+     letter of a control binding.
+     MOVING IT TO A CORNER WOULD BE WORSE, and that is measured rather than
+     assumed. At 390x844 every corner and both edge centres are occupied by
+     live HUD while playing — survey log top left, compass top centre, sound
+     and dev warp top right, craft bar bottom left, gauges bottom right — and
+     the vertical middle of the left edge is the only 44px rect that is clear
+     during play. Trading a few seconds of overlap on a dismissible card for a
+     permanent one on the HUD is the wrong way round.
+     So it stays put and gets thinner: flush to the edge at 38px, which fits
+     inside a centred panel's own margin and padding instead of reaching its
+     text. Taller than it is wide to keep the touch area honest at 38x56, and
+     it sits against the screen edge where the thumb already is. */
+  .surveyor-exit{
+    left:0;width:38px;height:56px;
+    border-radius:0 12px 12px 0;
+    border-left:0;
+  }
+  .surveyor-exit svg{width:19px;height:19px}
 }
 
 @media(prefers-reduced-motion:reduce){
