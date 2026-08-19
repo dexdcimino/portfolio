@@ -219,3 +219,11 @@ output.
   `bake_markup --check` expands those `${...}` references across the whole family
   — narrow the hero ladder and it fails loudly instead of 404ing for anyone who
   picks a non-default accent.
+
+## Architecture docs stay current
+
+Any change that alters module structure, a data shape, an invariant, or a
+number quoted in an `ARCHITECTURE.md` must update that file in the same
+commit. A stale architecture doc is worse than none — it is confidently
+wrong. The docs: `ARCHITECTURE.md` (site shell) and one per game under
+`games/<name>/ARCHITECTURE.md`.
