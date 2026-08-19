@@ -664,9 +664,38 @@
 
         <div class="ai-panel" id="ai-panel-apps" role="tabpanel" aria-labelledby="ai-tab-apps">
           <div class="ai-grid">
-            <!-- Order is DOM order — there is no sort key. uVote first, then the
-                 three live apps. The icon block in each card is generated from
-                 the one-line directive by tools/bake_markup.py; never typed. -->
+            <!-- Order is DOM order — there is no sort key. ThemeDock leads (it
+                 also seeds the description panel via initAppInfo), then
+                 Splitmob, DexNote, NodeBlast, dexddc. The icon block in each
+                 card is generated from the one-line directive by
+                 tools/bake_markup.py; never typed. -->
+            <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The
+                 href is the LISTING, not the demo, because it is also the phone
+                 path — initAppModal declines below 768px and the browser follows
+                 it, and a mock VS Code window is not something to hand a phone.
+                 On desktop the click opens the demo in the overlay instead, in
+                 the window shape rather than the phone one, and data-desc-link
+                 keeps the listing one click away in the description panel. -->
+            <a class="ai-card" href="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock" target="_blank" rel="noreferrer"
+               data-app-modal="/themedock/" data-app-title="ThemeDock" data-app-shape="window"
+               data-gallery="themedock" data-kind="EXTENSION" data-stack="VS CODE"
+               data-desc-lead="Tell your VS Code windows apart at a glance."
+               data-desc-body="Open a dozen windows and they all look identical. ThemeDock puts a swatch grid in the sidebar: click a colour and that window takes it, stored with the folder so it comes back every time. Ten themes bundled, a custom mixer, and no command palette. Published on the VS Code Marketplace."
+               data-desc-link="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock"
+               data-desc-link-label="MARKETPLACE"><small>EXTENSION</small><strong>ThemeDock</strong><span>VS Code extension<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+              <!-- img src="assets/icons/apps/themedock.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+              <picture class="ai-card-iconwrap">
+                <source type="image/avif" srcset="assets/derived/icons/apps/themedock-420.avif?v=5f709369 420w,
+                                                  assets/derived/icons/apps/themedock-200.avif?v=5f709369 200w,
+                                                  assets/derived/icons/apps/themedock-84.avif?v=5f709369 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <source type="image/webp" srcset="assets/derived/icons/apps/themedock-420.webp?v=5f709369 420w,
+                                                  assets/derived/icons/apps/themedock-200.webp?v=5f709369 200w,
+                                                  assets/derived/icons/apps/themedock-84.webp?v=5f709369 84w"
+                        sizes="(max-width:700px) 64px, 84px">
+                <img class="ai-card-icon" src="assets/icons/apps/themedock.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img --></a>
             <a class="ai-card" id="splitmobCard" href="/splitmob/" data-app-modal="/splitmob/" data-app-title="Splitmob" data-gallery="splitmob" data-kind="WEB APP" data-stack="REACT"
                data-desc-lead="Swipe-to-vote polls, one question at a time."
                data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides in. Built in React with a hand-rolled colour model, and embedded here in its own frame so it runs on the page rather than only screenshotting well."><small>WEB APP</small><strong>Splitmob</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
@@ -713,33 +742,6 @@
                                                   assets/derived/icons/apps/nodeblast-84.webp?v=5b8fcf70 84w"
                         sizes="(max-width:700px) 64px, 84px">
                 <img class="ai-card-icon" src="assets/icons/apps/nodeblast.png" alt="" width="512" height="512" loading="lazy" decoding="async">
-              </picture>
-              <!-- /img --></a>
-            <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The
-                 href is the LISTING, not the demo, because it is also the phone
-                 path — initAppModal declines below 768px and the browser follows
-                 it, and a mock VS Code window is not something to hand a phone.
-                 On desktop the click opens the demo in the overlay instead, in
-                 the window shape rather than the phone one, and data-desc-link
-                 keeps the listing one click away in the description panel. -->
-            <a class="ai-card" href="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock" target="_blank" rel="noreferrer"
-               data-app-modal="/themedock/" data-app-title="ThemeDock" data-app-shape="window"
-               data-gallery="themedock" data-kind="EXTENSION" data-stack="VS CODE"
-               data-desc-lead="Tell your VS Code windows apart at a glance."
-               data-desc-body="Open a dozen windows and they all look identical. ThemeDock puts a swatch grid in the sidebar: click a colour and that window takes it, stored with the folder so it comes back every time. Ten themes bundled, a custom mixer, and no command palette. Published on the VS Code Marketplace."
-               data-desc-link="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock"
-               data-desc-link-label="MARKETPLACE"><small>EXTENSION</small><strong>ThemeDock</strong><span>VS Code extension<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
-              <!-- img src="assets/icons/apps/themedock.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
-              <picture class="ai-card-iconwrap">
-                <source type="image/avif" srcset="assets/derived/icons/apps/themedock-420.avif?v=5f709369 420w,
-                                                  assets/derived/icons/apps/themedock-200.avif?v=5f709369 200w,
-                                                  assets/derived/icons/apps/themedock-84.avif?v=5f709369 84w"
-                        sizes="(max-width:700px) 64px, 84px">
-                <source type="image/webp" srcset="assets/derived/icons/apps/themedock-420.webp?v=5f709369 420w,
-                                                  assets/derived/icons/apps/themedock-200.webp?v=5f709369 200w,
-                                                  assets/derived/icons/apps/themedock-84.webp?v=5f709369 84w"
-                        sizes="(max-width:700px) 64px, 84px">
-                <img class="ai-card-icon" src="assets/icons/apps/themedock.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
               <!-- /img --></a>
             <a class="ai-card" href="https://dexddc.com" target="_blank" rel="noreferrer" data-gallery="dexddc" data-kind="WEB APP" data-stack="SITE"
