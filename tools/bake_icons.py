@@ -58,7 +58,10 @@ NOT_AN_ICON = {"favicon"}
 # on dark, Unreal's "U" is white in a black circle. A mask paints every filled
 # region one colour, so those flatten to featureless blobs. They ship as real
 # <img> instead, in their own colours, and never enter this block.
-NOT_MASKS = {"software"}
+# `apps/` is the same case for our own product icons: an app mark is a coloured
+# plate with coloured shapes on it, and masking one gives a solid rounded
+# square. Those are baked as images by tools/bake_images.py, not as masks.
+NOT_MASKS = {"software", "apps"}
 
 
 def manifest() -> dict[str, tuple[str, str]]:

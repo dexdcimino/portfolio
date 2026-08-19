@@ -3190,6 +3190,7 @@ function renderMarkdown(src) {
   const body = info.querySelector('.game-desc-body');
   const tags = info.querySelectorAll('.game-tag');
   const openBtn = document.getElementById('appGalleryOpen');
+  const descLink = document.getElementById('appDescLink');
   let current = cards[0];
 
   const show = (card) => {
@@ -3200,6 +3201,18 @@ function renderMarkdown(src) {
       const value = card.dataset[tag.dataset.slot] || '';
       tag.textContent = value;
       tag.hidden = !value;
+    }
+    /* Where the app lives, when that is somewhere else. Hidden rather than
+       emptied on a card with no link: an empty button still takes a slot in
+       the actions row and still tabs. */
+    if (descLink) {
+      const href = card.dataset.descLink || '';
+      descLink.hidden = !href;
+      if (href) {
+        descLink.href = href;
+        const lbl = descLink.querySelector('.game-gallery-label');
+        if (lbl) lbl.textContent = card.dataset.descLinkLabel || 'VISIT';
+      }
     }
     // The count belongs to the app under the pointer, and comes from the
     // gallery's own DOM rather than a number typed here.

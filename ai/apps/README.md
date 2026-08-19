@@ -25,15 +25,17 @@ ai/apps/<slug>/...             everything else it needs, self-contained
   no `eval`. No inline `<script>` or `<style>` — inline blocks are blocked live,
   which has already cost a debugging session on `/stickland`'s wrapper.
 - **Images go through the bake.** Sources under `assets/`, never a hand-made
-  derivative. App icons live in `assets/ai/icons/<slug>-icon.png` and are
-  referenced from the card through the `ai-icon` slot.
+  derivative. App icons live in `assets/icons/apps/<slug>.png` — one folder for
+  every app icon on the site, with the vector source beside it where there is
+  one — and are referenced from the card through the `ai-icon` slot. See the
+  README in that folder.
 - **Card ordering** is the order the `.ai-card` elements appear in
   `index.html`'s Apps panel. There is no sort key.
 
 ## Adding an app
 
 1. Unpack the build into `ai/apps/<slug>/`.
-2. Put a square icon at `assets/ai/icons/<slug>-icon.png`.
+2. Put a square 512px icon at `assets/icons/apps/<slug>.png`.
 3. Add an `.ai-card` to the Apps panel in `index.html` with a one-line
    `<!-- img ... slot="ai-icon" -->` directive — the `<picture>` block is
    generated, never typed.

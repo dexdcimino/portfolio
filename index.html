@@ -624,6 +624,17 @@
             <button class="button game-gallery-open" type="button" id="appGalleryOpen">
               <span class="game-gallery-label">GALLERY</span>
             </button>
+            <!-- Where the app actually LIVES, when that is not this site: a
+                 marketplace listing, a store page. Driven off the card's own
+                 data-desc-link so adding one is a card attribute and no edit
+                 here, and hidden entirely on the cards that have none. It
+                 matters most for a card whose click opens an overlay — the
+                 href only takes you to the listing on a phone, so on desktop
+                 this is the way there. -->
+            <a class="button game-gallery-open app-desc-link" id="appDescLink" target="_blank" rel="noreferrer" hidden>
+              <span class="game-gallery-label"></span>
+              <span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span>
+            </a>
           </div>
         </div>
 
@@ -659,85 +670,95 @@
             <a class="ai-card" id="splitmobCard" href="/splitmob/" data-app-modal="/splitmob/" data-app-title="Splitmob" data-gallery="splitmob" data-kind="WEB APP" data-stack="REACT"
                data-desc-lead="Swipe-to-vote polls, one question at a time."
                data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides in. Built in React with a hand-rolled colour model, and embedded here in its own frame so it runs on the page rather than only screenshotting well."><small>WEB APP</small><strong>Splitmob</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
-              <!-- img src="assets/ai/icons/uvote-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+              <!-- img src="assets/icons/apps/uvote.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
-                <source type="image/avif" srcset="assets/derived/ai/icons/uvote-icon-420.avif?v=396f9bcb 420w,
-                                                  assets/derived/ai/icons/uvote-icon-200.avif?v=396f9bcb 200w,
-                                                  assets/derived/ai/icons/uvote-icon-84.avif?v=396f9bcb 84w"
+                <source type="image/avif" srcset="assets/derived/icons/apps/uvote-420.avif?v=396f9bcb 420w,
+                                                  assets/derived/icons/apps/uvote-200.avif?v=396f9bcb 200w,
+                                                  assets/derived/icons/apps/uvote-84.avif?v=396f9bcb 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <source type="image/webp" srcset="assets/derived/ai/icons/uvote-icon-420.webp?v=396f9bcb 420w,
-                                                  assets/derived/ai/icons/uvote-icon-200.webp?v=396f9bcb 200w,
-                                                  assets/derived/ai/icons/uvote-icon-84.webp?v=396f9bcb 84w"
+                <source type="image/webp" srcset="assets/derived/icons/apps/uvote-420.webp?v=396f9bcb 420w,
+                                                  assets/derived/icons/apps/uvote-200.webp?v=396f9bcb 200w,
+                                                  assets/derived/icons/apps/uvote-84.webp?v=396f9bcb 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <img class="ai-card-icon" src="assets/ai/icons/uvote-icon.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+                <img class="ai-card-icon" src="assets/icons/apps/uvote.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
               <!-- /img --></a>
             <a class="ai-card" href="https://dexnote.dev" target="_blank" rel="noreferrer" data-gallery="dexnote" data-kind="WEB APP" data-stack="PLATFORM"
                data-desc-lead="AI-assisted notes, built as a working product rather than a demo."
                data-desc-body="Notes that summarise, link and resurface themselves. It is the largest of these by some distance and the one that has had real users, which is what shaped it: sync, accounts and the boring parts came before anything clever."><small>WEB APP</small><strong>DexNote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
-              <!-- img src="assets/ai/icons/dexnote-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+              <!-- img src="assets/icons/apps/dexnote.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
-                <source type="image/avif" srcset="assets/derived/ai/icons/dexnote-icon-420.avif?v=708463e0 420w,
-                                                  assets/derived/ai/icons/dexnote-icon-200.avif?v=708463e0 200w,
-                                                  assets/derived/ai/icons/dexnote-icon-84.avif?v=708463e0 84w"
+                <source type="image/avif" srcset="assets/derived/icons/apps/dexnote-420.avif?v=708463e0 420w,
+                                                  assets/derived/icons/apps/dexnote-200.avif?v=708463e0 200w,
+                                                  assets/derived/icons/apps/dexnote-84.avif?v=708463e0 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <source type="image/webp" srcset="assets/derived/ai/icons/dexnote-icon-420.webp?v=708463e0 420w,
-                                                  assets/derived/ai/icons/dexnote-icon-200.webp?v=708463e0 200w,
-                                                  assets/derived/ai/icons/dexnote-icon-84.webp?v=708463e0 84w"
+                <source type="image/webp" srcset="assets/derived/icons/apps/dexnote-420.webp?v=708463e0 420w,
+                                                  assets/derived/icons/apps/dexnote-200.webp?v=708463e0 200w,
+                                                  assets/derived/icons/apps/dexnote-84.webp?v=708463e0 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <img class="ai-card-icon" src="assets/ai/icons/dexnote-icon.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+                <img class="ai-card-icon" src="assets/icons/apps/dexnote.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
               <!-- /img --></a>
             <a class="ai-card" href="https://nodeblast.dev" target="_blank" rel="noreferrer" data-gallery="nodeblast" data-kind="WEB APP" data-stack="PLATFORM"
                data-desc-lead="A creator and gaming platform, front to back."
                data-desc-body="Profiles, uploads, feeds and the moderation nobody puts in a portfolio shot. Built to find out how much of a social platform one person can actually carry, which turned out to be most of it and none of the fun parts."><small>WEB APP</small><strong>NodeBlast.dev</strong><span>Creator / gaming platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
-              <!-- img src="assets/ai/icons/nodeblast-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+              <!-- img src="assets/icons/apps/nodeblast.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
-                <source type="image/avif" srcset="assets/derived/ai/icons/nodeblast-icon-420.avif?v=5b8fcf70 420w,
-                                                  assets/derived/ai/icons/nodeblast-icon-200.avif?v=5b8fcf70 200w,
-                                                  assets/derived/ai/icons/nodeblast-icon-84.avif?v=5b8fcf70 84w"
+                <source type="image/avif" srcset="assets/derived/icons/apps/nodeblast-420.avif?v=5b8fcf70 420w,
+                                                  assets/derived/icons/apps/nodeblast-200.avif?v=5b8fcf70 200w,
+                                                  assets/derived/icons/apps/nodeblast-84.avif?v=5b8fcf70 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <source type="image/webp" srcset="assets/derived/ai/icons/nodeblast-icon-420.webp?v=5b8fcf70 420w,
-                                                  assets/derived/ai/icons/nodeblast-icon-200.webp?v=5b8fcf70 200w,
-                                                  assets/derived/ai/icons/nodeblast-icon-84.webp?v=5b8fcf70 84w"
+                <source type="image/webp" srcset="assets/derived/icons/apps/nodeblast-420.webp?v=5b8fcf70 420w,
+                                                  assets/derived/icons/apps/nodeblast-200.webp?v=5b8fcf70 200w,
+                                                  assets/derived/icons/apps/nodeblast-84.webp?v=5b8fcf70 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <img class="ai-card-icon" src="assets/ai/icons/nodeblast-icon.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+                <img class="ai-card-icon" src="assets/icons/apps/nodeblast.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
               <!-- /img --></a>
-            <!-- PLACEHOLDER. Protheme is not built and not published: the card
-                 has no href on purpose, so it cannot be clicked through to a
-                 404, and the icon is a drawn placeholder mark rather than a
-                 product icon. Give it an href and a real icon when it ships. -->
-            <div class="ai-card is-soon" data-gallery="protheme" data-kind="EXTENSION" data-stack="VS CODE"
-                 data-desc-lead="A colour theme for VS Code — one palette, properly finished."
-                 data-desc-body="Not another eighty-colour theme. A small, deliberate palette where syntax reads by shape and weight first and hue second, and the UI chrome gets out of the way. In progress."><small>EXTENSION</small><strong>Protheme</strong><span>VS Code colour theme<span class="ai-card-soon">SOON</span></span>
-              <!-- img src="assets/ai/icons/protheme-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+            <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The href
+                 is the LISTING, not the demo, because it is also the phone path —
+                 initAppModal declines below 768px and the browser follows it, and a
+                 mock VS Code window is not something to hand a phone. On desktop
+                 the click opens the demo in the overlay instead, and data-desc-link
+                 keeps the listing one click away in the description panel.
+                 NO data-app-modal YET — /themedock/ does not exist until the demo
+                 lands, and a card that opens an overlay onto a 404 is worse than a
+                 card that goes where it says. Add data-app-modal="/themedock/",
+                 data-app-title="ThemeDock" and data-app-shape="window" in the same
+                 change that adds the demo. -->
+            <a class="ai-card" href="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock" target="_blank" rel="noreferrer"
+               data-gallery="themedock" data-kind="EXTENSION" data-stack="VS CODE"
+               data-desc-lead="Tell your VS Code windows apart at a glance."
+               data-desc-body="Open a dozen windows and they all look identical. ThemeDock puts a swatch grid in the sidebar: click a colour and that window takes it, stored with the folder so it comes back every time. Ten themes bundled, a custom mixer, and no command palette. Published on the VS Code Marketplace."
+               data-desc-link="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock"
+               data-desc-link-label="MARKETPLACE"><small>EXTENSION</small><strong>ThemeDock</strong><span>VS Code extension<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+              <!-- img src="assets/icons/apps/themedock.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
-                <source type="image/avif" srcset="assets/derived/ai/icons/protheme-icon-420.avif?v=69544b9a 420w,
-                                                  assets/derived/ai/icons/protheme-icon-200.avif?v=69544b9a 200w,
-                                                  assets/derived/ai/icons/protheme-icon-84.avif?v=69544b9a 84w"
+                <source type="image/avif" srcset="assets/derived/icons/apps/themedock-420.avif?v=5f709369 420w,
+                                                  assets/derived/icons/apps/themedock-200.avif?v=5f709369 200w,
+                                                  assets/derived/icons/apps/themedock-84.avif?v=5f709369 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <source type="image/webp" srcset="assets/derived/ai/icons/protheme-icon-420.webp?v=69544b9a 420w,
-                                                  assets/derived/ai/icons/protheme-icon-200.webp?v=69544b9a 200w,
-                                                  assets/derived/ai/icons/protheme-icon-84.webp?v=69544b9a 84w"
+                <source type="image/webp" srcset="assets/derived/icons/apps/themedock-420.webp?v=5f709369 420w,
+                                                  assets/derived/icons/apps/themedock-200.webp?v=5f709369 200w,
+                                                  assets/derived/icons/apps/themedock-84.webp?v=5f709369 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <img class="ai-card-icon" src="assets/ai/icons/protheme-icon.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+                <img class="ai-card-icon" src="assets/icons/apps/themedock.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
-              <!-- /img --></div>
+              <!-- /img --></a>
             <a class="ai-card" href="https://dexddc.com" target="_blank" rel="noreferrer" data-gallery="dexddc" data-kind="WEB APP" data-stack="SITE"
                data-desc-lead="The portfolio this one replaced."
                data-desc-body="Kept live on purpose. It is a fair record of where the work was a couple of years ago, and the comparison is more useful to anyone reading than a claim about improvement would be."><small>WEB APP</small><strong>dexddc.com</strong><span>Original portfolio site<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
-              <!-- img src="assets/ai/icons/dexddc-icon.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+              <!-- img src="assets/icons/apps/dexddc.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
-                <source type="image/avif" srcset="assets/derived/ai/icons/dexddc-icon-420.avif?v=aa6fa8ca 420w,
-                                                  assets/derived/ai/icons/dexddc-icon-200.avif?v=aa6fa8ca 200w,
-                                                  assets/derived/ai/icons/dexddc-icon-84.avif?v=aa6fa8ca 84w"
+                <source type="image/avif" srcset="assets/derived/icons/apps/dexddc-420.avif?v=aa6fa8ca 420w,
+                                                  assets/derived/icons/apps/dexddc-200.avif?v=aa6fa8ca 200w,
+                                                  assets/derived/icons/apps/dexddc-84.avif?v=aa6fa8ca 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <source type="image/webp" srcset="assets/derived/ai/icons/dexddc-icon-420.webp?v=aa6fa8ca 420w,
-                                                  assets/derived/ai/icons/dexddc-icon-200.webp?v=aa6fa8ca 200w,
-                                                  assets/derived/ai/icons/dexddc-icon-84.webp?v=aa6fa8ca 84w"
+                <source type="image/webp" srcset="assets/derived/icons/apps/dexddc-420.webp?v=aa6fa8ca 420w,
+                                                  assets/derived/icons/apps/dexddc-200.webp?v=aa6fa8ca 200w,
+                                                  assets/derived/icons/apps/dexddc-84.webp?v=aa6fa8ca 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <img class="ai-card-icon" src="assets/ai/icons/dexddc-icon.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+                <img class="ai-card-icon" src="assets/icons/apps/dexddc.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
               <!-- /img --></a>
           </div>
@@ -2165,6 +2186,30 @@
                                               assets/derived/gallery/stickland-fields-600.webp?v=86f3f0b0 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
             <img src="assets/gallery/stickland-fields.png" alt="Fields west of the village with a tank and creatures" width="1440" height="690" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <!-- ThemeDock. One image, not four: the gallery stage is a 1440x690 box
+             and a single 444x1556 marketplace panel contains down to 158px wide
+             in it, which is unreadable. Four cropped panels across read at more
+             than twice that and say the thing the four shots were saying
+             separately anyway — the same sidebar in four window colours. The
+             merge is assets/gallery/themedock-panel.png; the sources are the
+             extension's own images/screenshot-1..4.png. -->
+        <figure class="gal-item" data-game="themedock" data-title="The panel, four windows">
+          <!-- img src="assets/gallery/themedock-panel.png" slot="game-shot" alt="Four ThemeDock sidebar panels side by side, each window in a different colour and theme" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/themedock-panel-1600.avif?v=76a827f0 1600w,
+                                              assets/derived/gallery/themedock-panel-1200.avif?v=76a827f0 1200w,
+                                              assets/derived/gallery/themedock-panel-900.avif?v=76a827f0 900w,
+                                              assets/derived/gallery/themedock-panel-600.avif?v=76a827f0 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/themedock-panel-1600.webp?v=76a827f0 1600w,
+                                              assets/derived/gallery/themedock-panel-1200.webp?v=76a827f0 1200w,
+                                              assets/derived/gallery/themedock-panel-900.webp?v=76a827f0 900w,
+                                              assets/derived/gallery/themedock-panel-600.webp?v=76a827f0 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/themedock-panel.png" alt="Four ThemeDock sidebar panels side by side, each window in a different colour and theme" width="1835" height="1167" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
