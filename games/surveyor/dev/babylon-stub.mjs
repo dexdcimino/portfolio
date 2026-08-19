@@ -118,6 +118,12 @@ class Node {
   dispose() { this.disposed = true; }
   getChildMeshes() { return []; }
   freezeWorldMatrix() {}
+  /* No-ops, because this stub has no transform hierarchy to recompute. They
+     exist because game code legitimately calls them on a node it has just
+     re-parented, and a missing method here reads as a crash in gameplay code
+     rather than as a hole in the shim. */
+  computeWorldMatrix() { return this.getWorldMatrix(); }
+  markAsDirty() { return this; }
   getWorldMatrix() { return {}; }
   clone(name) { const n = new Mesh(name); n._vd = this._vd; return n; }
 }
