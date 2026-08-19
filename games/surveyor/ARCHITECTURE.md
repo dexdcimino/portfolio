@@ -171,9 +171,18 @@ budget; refuses SwiftShader). `dev/history/` is the pre-import repo bundle.
 - Ember's pale sky slab = the cloud strata (diagnosed, left for the strata
   rework; check Shroud second).
 - Audio is fully synthesised on purpose; a small `.ogg` is the known upgrade.
-- **Duplicate `clouds` keys** in Vault/Shroud/Anvil sky blocks (second key
-  wins, first is dead — some `ceiling` values silently discarded too).
-  Found 2026-08-19, not yet fixed.
+- **Duplicate keys in three `sky` blocks of tune.js** — JS silently keeps
+  the second, so the first is dead. Fold the fix into the sky-strata rework
+  (decided 2026-08-19); until then the losing values are:
+  - Vault: `clouds: 0.12` dead, `clouds: 0.05` wins
+  - Shroud: `clouds: 1.5`, a `cloudColor`, and `ceiling: 0.55` dead;
+    `clouds: 1.8, cloudCover: 0.30, cloudSoft: 0.30, ceiling: 0.45` win
+  - Anvil: `clouds: 0.22` and `ceiling: 1.6` dead;
+    `clouds: 0.16, cloudCover: 0.66, cloudScale: 1.5` win
+
+  Home, Ember and Tarn are clean. Pattern says the sky pass appended a new
+  block instead of editing the old one — check for a third copy before
+  merging.
 - Stale prose: README still says identity-LUT-only (per-world LUTs shipped),
   "four frames per world" (now six), and `photon`-era comments in discs.js/
   tune.js say travel is "not wired".
