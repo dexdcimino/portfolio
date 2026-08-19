@@ -1804,6 +1804,51 @@
     </section>
     </section>
 
+    <!-- IDEA VAULT. Locked, and locked properly.
+
+         There is no PIN in this page and no comparison to bypass. What ships in
+         data-vault is a block of AES-GCM ciphertext; the code is what derives
+         the key, and a wrong code fails to DECRYPT rather than failing an `if`.
+         Reading the source, editing script.js or stepping through the debugger
+         gets you nothing, because the words are not in the page at all. Reseal
+         with: node tools/seal_vault.mjs --pin 12345 --text "…"
+
+         Deliberately not in the nav, and deliberately not in the scroll spy's
+         section list in script.js: findable, not advertised. -->
+    <section class="resume-strip vault" id="vault" aria-labelledby="vault-title"
+             data-vault="v1.310000.1ycQTILKvn0f4wTjhuZMe6BEzIRvJcN4rTcmOEowNDHKp0ZGoYuot0+jFsxWuDeT4OWRtr8ivpU3pUJlzXAmXny1BGnlDb3tVY38udd3lACuj05Tsjx3Npw/+HQqh4cgiEqJ0+tZb4SJKnDshyVq">
+      <div class="vault-head">
+        <p class="eyebrow vault-eyebrow">
+          <span class="icon vault-lock" id="vaultLock" data-icon="lock" aria-hidden="true"></span>
+          <span id="vaultLabel">CLASSIFIED</span>
+        </p>
+        <h2 id="vault-title">IDEA VAULT</h2>
+      </div>
+
+      <!-- Five boxes rather than one field: a code is read back a digit at a
+           time and typed the same way. They are real inputs, one per digit, so
+           the caret, the number pad on a phone and the tab order are the
+           browser's rather than something reimplemented here. -->
+      <div class="vault-lockbox">
+        <div class="vault-pins" id="vaultPins" role="group" aria-label="Vault code, 5 digits">
+          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 1 of 5">
+          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 2 of 5">
+          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 3 of 5">
+          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 4 of 5">
+          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 5 of 5">
+        </div>
+        <!-- role=status, so the shake is not the only way to learn it failed.
+             The resting line is in the markup rather than written in on load:
+             five empty boxes are a riddle on their own, and a live region that
+             announces itself the moment the page settles is a worse greeting. -->
+        <p class="vault-status" id="vaultStatus" role="status" aria-live="polite">ENTER CODE</p>
+      </div>
+
+      <!-- Whatever was sealed, once it is open. Empty in the markup on purpose:
+           it is filled from the decrypted text and never from anything here. -->
+      <div class="vault-open" id="vaultOpen" hidden></div>
+    </section>
+
     <section class="resume-strip" id="contact-cta">
       <div><p class="eyebrow">EXPERIENCE</p><h2>WANT THE SHORT VERSION?</h2></div>
       <div class="resume-actions">

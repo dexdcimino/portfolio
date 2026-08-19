@@ -144,6 +144,8 @@ img{max-width:100%}
 [data-icon="fullscreen"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' d='M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15'/%3E%3C/svg%3E")} /* src: assets/icons/fullscreen.svg */
 [data-icon="games"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M8.55 6.4h6.9a6.75 6.75 0 0 1 6.62 5.45l.66 3.36a3.2 3.2 0 0 1-5.72 2.5l-1.4-1.86H8.39l-1.4 1.86a3.2 3.2 0 0 1-5.72-2.5l.66-3.36A6.75 6.75 0 0 1 8.55 6.4Zm-1.4 3.15v1.6h-1.6v1.9h1.6v1.6h1.9v-1.6h1.6v-1.9h-1.6v-1.6h-1.9Zm9.1.3a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Zm2.6 2.75a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Z'/%3E%3C/svg%3E")} /* src: assets/icons/games.svg */
 [data-icon="home"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M3 10.5 12 3l9 7.5v10a.5.5 0 0 1-.5.5H15v-7H9v7H3.5a.5.5 0 0 1-.5-.5z'/%3E%3C/svg%3E")} /* src: assets/icons/home.svg */
+[data-icon="lock-open"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.6' y='10.1' width='14.8' height='10.3' rx='2.4'/%3E%3Cpath d='M8.4 10.1V6.9a3.6 3.6 0 0 1 7.1-.7M12 14.1v2.3'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/lock-open.svg */
+[data-icon="lock"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.6' y='10.1' width='14.8' height='10.3' rx='2.4'/%3E%3Cpath d='M8.4 10.1V6.9a3.6 3.6 0 0 1 7.2 0v3.2M12 14.1v2.3'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/lock.svg */
 [data-icon="loop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M6.5 8.5h11a2.5 2.5 0 0 1 2.5 2.5v2M17.5 15.5h-11A2.5 2.5 0 0 1 4 13v-2'/%3E%3Cpath fill='%23fff' d='m8.6 5.4-3 3.1 3 3.1zm6.8 13.2 3-3.1-3-3.1z'/%3E%3C/svg%3E")} /* src: assets/icons/loop.svg */
 [data-icon="pause"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M8 5h3v14H8zm5 0h3v14h-3z'/%3E%3C/svg%3E")} /* src: assets/icons/pause.svg */
 [data-icon="play"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23fff' stroke-width='3.4' stroke-linejoin='round' d='M8.4 5.9v12.2L18.2 12Z'/%3E%3C/svg%3E")} /* src: assets/icons/play.svg */
@@ -1646,6 +1648,97 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
 }
 
 .resume-strip{padding:85px var(--gutter);display:flex;align-items:center;justify-content:space-between;gap:30px;background:linear-gradient(125deg,#1c2227,#0d1013);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+/* ==========================================================================
+   IDEA VAULT
+
+   The same strip as the resume CTA below it — same component, not a lookalike,
+   so the two bands cannot drift apart. Only the ground and what sits in the
+   right-hand slot are its own: darker, because a locked thing should read as
+   the quieter of two neighbours, and the sheen runs the other way so they are
+   not two copies of one gradient stacked on each other.
+   ========================================================================== */
+.vault{background:linear-gradient(235deg,#171d22,#090b0e);border-bottom:0}
+.vault-head{display:grid;gap:12px}
+/* The padlock rides the eyebrow rather than floating somewhere near it: the
+   eyebrow is the word for the state, and the glyph is the same word. They open
+   together. */
+.vault-eyebrow{display:flex;align-items:center;gap:9px;margin:0}
+.vault-lock{width:17px;height:17px}
+
+.vault-lockbox{display:grid;justify-items:center;gap:14px}
+/* The UA sheet's [hidden]{display:none} is a type selector and loses to the
+   class above it, so hiding the keypad on unlock did nothing at all until this
+   said so explicitly. Anything given display: by a class needs this. */
+.vault-lockbox[hidden]{display:none}
+.vault-pins{display:flex;gap:clamp(6px,1.4vw,12px)}
+/* Square by construction, not by two numbers that have to agree. The width
+   tracks the viewport so five of them and their gaps always fit a phone
+   without a second set of rules for it. */
+.vault-pin{
+  width:clamp(46px,10.5vw,66px);aspect-ratio:1;
+  border-radius:16px;border:var(--stroke) solid rgba(255,255,255,.24);
+  background:rgba(255,255,255,.045);color:var(--text);text-align:center;
+  font-family:var(--mono,ui-monospace),ui-monospace,monospace;
+  font-size:clamp(22px,5vw,30px);font-weight:700;line-height:1;
+  caret-color:var(--accent);
+  transition:border-color var(--accent-ease),background var(--accent-ease),
+             color var(--accent-ease),box-shadow .18s ease;
+}
+/* On :focus, not :focus-visible — a text box you are typing into should say so
+   however you got there. */
+.vault-pin:focus{
+  outline:none;border-color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 8%,transparent);
+  box-shadow:0 0 0 var(--stroke-ring) var(--accent);
+}
+.vault-pin.is-set{border-color:rgba(255,255,255,.5)}
+.vault-pin:disabled{opacity:.6}
+
+/* min-height holds the line whether or not there is anything on it, so the row
+   of boxes does not jump the moment it is told NOPE. */
+.vault-status{
+  margin:0;min-height:17px;
+  font-family:var(--mono,ui-monospace),ui-monospace,monospace;
+  font-size:14px;font-weight:700;letter-spacing:.18em;color:#7f878e;
+  transition:color var(--accent-ease);
+}
+
+/* Wrong code, in two parts. .is-wrong is the ANSWER and stays until the next
+   attempt, so NOPE is still on screen while you retype; .is-shaking is the
+   MOVEMENT and comes off the moment it finishes, so the next wrong code can
+   replay it and the boxes are not left wearing red while they wait for you.
+   #ff8080 is the site's existing failure red — the resume copy button already
+   wears it — rather than a second red that means the same thing. */
+.vault.is-wrong .vault-status{color:#ff8080}
+.vault.is-shaking .vault-pin{border-color:#ff8080;color:#ff8080}
+.vault.is-shaking .vault-pins{animation:vault-shake .42s cubic-bezier(.36,.07,.19,.97)}
+/* Asymmetric on purpose: a shake that is a clean sine reads as a decoration.
+   This one overshoots early and settles, which reads as a refusal. The global
+   reduced-motion block turns it off; .vault-status is what carries the answer
+   there, which is why the word is never only in the movement. */
+@keyframes vault-shake{
+  10%,90%{transform:translateX(-3px)}
+  20%,80%{transform:translateX(5px)}
+  30%,50%,70%{transform:translateX(-9px)}
+  40%,60%{transform:translateX(9px)}
+  100%{transform:none}
+}
+.vault.is-working .vault-status{color:var(--muted)}
+.vault.is-open .vault-status{color:var(--accent)}
+.vault.is-open .vault-lock{color:var(--accent)}
+
+/* What was inside. Sized to a reading measure rather than to the strip, or a
+   sealed paragraph would run the full width of the band it opened in. */
+.vault-open{
+  max-width:620px;color:#adb5bb;line-height:1.72;font-size:var(--copy-size);
+  white-space:pre-wrap;
+}
+@media(max-width:760px){
+  /* The strip stacks here, so the boxes stop being centred in a column of
+     their own and line up with the heading above them. */
+  .vault-lockbox{justify-items:start}
+}
 .resume-actions{display:flex;gap:10px;flex-wrap:wrap}
 footer{min-height:130px;padding:0 var(--gutter);display:flex;align-items:center;gap:24px;color:#778088;background:#080a0c;font-size:13px;letter-spacing:.08em}
 footer strong{color:var(--accent);transition:color var(--accent-ease)}

@@ -103,9 +103,17 @@ def main() -> int:
             return 1
         lines.append(f'{selector}{{{prop}:url("{svg_data_uri(src)}")}} /* src: {rel} */')
     lines.append(END)
-    block = "\n".join(lines)
 
     css = CSS.read_text(encoding="utf-8", newline="")
+    # Join with the line ending the file around this block already uses.
+    # "\n".join drops LF lines into a CRLF file, and then EVERY icon line reads
+    # as modified: adding one icon arrived as a 36-line diff, and the file was
+    # left carrying two conventions at once. write_preserving_eol below keeps
+    # the rest of the file intact; this is the same promise for the part that
+    # actually gets rewritten.
+    crlf = css.count("\r\n")
+    eol = "\r\n" if crlf > css.count("\n") - crlf else "\n"
+    block = eol.join(lines)
     start, stop = css.find(BEGIN), css.find(END)
     if start == -1 or stop == -1:
         print("ERROR: GENERATED ICONS markers not found in styles.css", file=sys.stderr)

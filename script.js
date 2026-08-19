@@ -1820,6 +1820,164 @@ let flashTip = () => {};
   window.addEventListener('resize', hide);
 })();
 
+/* --- idea vault ----------------------------------------------------------- */
+/* A locked section, locked by DECRYPTION rather than by a check.
+
+   The usual version of this is a password compared against a string in the
+   page, which is theatre: the string is right there, and even a hash of it only
+   moves the answer one step away. Here the page ships nothing but ciphertext.
+   The code you type is run through PBKDF2 to derive an AES-GCM key, and AES-GCM
+   authenticates what it decrypts — so a wrong code does not fail a comparison,
+   it fails to produce plaintext at all. There is no branch to flip in the
+   debugger and no secret to read out of the source, because what is sealed is
+   simply not in the document.
+
+   What that buys is bounded, and worth saying out loud: five digits is a
+   hundred thousand combinations, and someone who wants in can grind them
+   offline against the blob. The iteration count is what makes that hours rather
+   than seconds. It is the right lock for half-finished ideas and the wrong one
+   for anything that would hurt to lose — tools/seal_vault.mjs will seal a
+   passphrase just as happily, and only the input boxes here are numeric.
+
+   Reseal with:  node tools/seal_vault.mjs --pin 12345 --text "…" */
+(function initVault() {
+  const section = document.getElementById('vault');
+  if (!section) return;
+  const pins = [...section.querySelectorAll('.vault-pin')];
+  const status = document.getElementById('vaultStatus');
+  const open = document.getElementById('vaultOpen');
+  const label = document.getElementById('vaultLabel');
+  const lock = document.getElementById('vaultLock');
+  if (!pins.length || !status || !open) return;
+
+  const code = () => pins.map(p => p.value).join('');
+  const RESTING = 'ENTER CODE';
+  const say = (text, state) => {
+    status.textContent = text;
+    section.classList.toggle('is-wrong', state === 'wrong');
+    section.classList.toggle('is-working', state === 'working');
+    section.classList.toggle('is-open', state === 'open');
+  };
+  /* The refusal clears the moment they start over, rather than sitting under a
+     half-typed second attempt still saying NOPE about the first one. */
+  const clearFail = () => { if (section.classList.contains('is-wrong')) say(RESTING, null); };
+
+  /* SubtleCrypto only exists in a secure context. Over https or on localhost
+     that is everywhere; opened as a file:// double-click it is nowhere, and the
+     honest thing is to say so rather than shake at someone typing the right
+     code. */
+  const canDecrypt = !!(window.crypto && window.crypto.subtle);
+
+  async function unseal(blob, secret) {
+    const [version, iterations, payload] = blob.split('.');
+    if (version !== 'v1') throw new Error('unknown vault format');
+    const raw = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
+    // salt | iv | ciphertext+tag — the layout tools/seal_vault.mjs writes.
+    const salt = raw.slice(0, 16), iv = raw.slice(16, 28), body = raw.slice(28);
+    const base = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(secret), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: Number(iterations), hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    // Throws on a wrong key: the tag will not verify. That IS the check.
+    return new TextDecoder().decode(
+      await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, body));
+  }
+
+  let busy = false;
+  async function attempt() {
+    const secret = code();
+    if (busy || secret.length !== pins.length) return;
+    const blob = section.dataset.vault;
+    if (!blob) { say('EMPTY', 'wrong'); return; }
+    if (!canDecrypt) { say('NEEDS HTTPS', 'wrong'); return; }
+
+    /* Deriving the key is deliberately slow — that is the whole defence — so it
+       has to be visible, or a phone taking half a second looks like a dead
+       control. The boxes lock while it runs so a second attempt cannot overlap
+       the first. */
+    busy = true;
+    pins.forEach(p => { p.disabled = true; });
+    say('CHECKING', 'working');
+    try {
+      const text = await unseal(blob, secret);
+      // textContent, never innerHTML: what comes out of the vault is treated as
+      // text, whatever was put in.
+      open.textContent = text;
+      open.hidden = false;
+      document.querySelector('.vault-lockbox').hidden = true;
+      if (label) label.textContent = 'OPEN';
+      if (lock) lock.dataset.icon = 'lock-open';
+      say('', 'open');
+    } catch {
+      say('NOPE', 'wrong');
+      section.classList.add('is-shaking');
+      pins.forEach(p => { p.value = ''; p.classList.remove('is-set'); p.disabled = false; });
+      pins[0].focus();
+      /* Off on animationend rather than on a timer that would have to be kept in
+         step with the CSS — and off at all because a class already set does not
+         replay its animation, so a second wrong code would sit there still. */
+      section.addEventListener('animationend', () => section.classList.remove('is-shaking'),
+                               { once: true });
+    } finally {
+      busy = false;
+      pins.forEach(p => { p.disabled = false; });
+    }
+  }
+
+  pins.forEach((pin, i) => {
+    pin.addEventListener('input', () => {
+      clearFail();
+      // Keep the last digit typed, so typing over a filled box replaces it
+      // rather than being swallowed by maxlength.
+      const digits = pin.value.replace(/\D/g, '');
+      pin.value = digits.slice(-1);
+      pin.classList.toggle('is-set', !!pin.value);
+      if (pin.value && i < pins.length - 1) pins[i + 1].focus();
+      // No submit button: filling the last box IS the submit. Deferred a frame
+      // so the digit is painted before the boxes lock.
+      if (code().length === pins.length) requestAnimationFrame(attempt);
+    });
+    pin.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace' && !pin.value && i > 0) {
+        // Backspace in an empty box steps back and clears, which is what every
+        // code field does and what the finger expects.
+        event.preventDefault();
+        pins[i - 1].value = '';
+        pins[i - 1].classList.remove('is-set');
+        pins[i - 1].focus();
+      } else if (event.key === 'ArrowLeft' && i > 0) {
+        event.preventDefault(); pins[i - 1].focus();
+      } else if (event.key === 'ArrowRight' && i < pins.length - 1) {
+        event.preventDefault(); pins[i + 1].focus();
+      } else if (event.key === 'Enter') {
+        event.preventDefault(); attempt();
+      }
+    });
+    // Pasting a code should fill the row, not drop five digits into one box.
+    pin.addEventListener('paste', (event) => {
+      const digits = (event.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+      if (!digits) return;
+      event.preventDefault();
+      pins.slice(i).forEach((box, n) => {
+        if (n >= digits.length) return;
+        box.value = digits[n];
+        box.classList.add('is-set');
+      });
+      const next = Math.min(i + digits.length, pins.length - 1);
+      pins[next].focus();
+      if (code().length === pins.length) requestAnimationFrame(attempt);
+    });
+    // A click anywhere in the row lands on the first empty box, so you cannot
+    // start typing in the middle of a code by accident.
+    pin.addEventListener('focus', () => {
+      const firstEmpty = pins.find(box => !box.value);
+      if (firstEmpty && pins.indexOf(firstEmpty) < i) firstEmpty.focus();
+      else pin.select();
+    });
+  });
+})();
+
 /* --- social links --------------------------------------------------------- */
 /* Two jobs over the same five icons.
 
