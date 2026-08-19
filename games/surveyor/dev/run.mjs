@@ -2724,6 +2724,72 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
 }
 
 
+/* ---- THE FAR BAND ------------------------------------------------------
+   Rendering a body three hundred kilometres away is not a matter of a bigger
+   far plane. A 0.4m near plane against 944km of separation is two and a half
+   million to one, which no conventional depth buffer holds, and float32
+   vertices at 400km jitter by centimetres as the camera moves.
+
+   So the far band draws a body at distance D and radius R as D*k and R*k. The
+   ENTIRE claim is that atan(R/D) is unchanged, because the k cancels — the same
+   picture, in numbers the GPU can hold. If that is not exact then the far band
+   is a different picture rather than the same one drawn closer, and every phase
+   built on top inherits the error. So it is asserted against the real function
+   the renderer calls, at the real distances, on every world pair. */
+{
+  const { farScale, farDistance, angularPair, systemExtent, isFar } =
+    await import('../js/world/space.js');
+  const { SPACE, SYSTEM } = await import('../js/tune.js');
+
+  let worstAngle = 0, pairs = 0;
+  const rows = [];
+  for (const here of Object.keys(PLANETS)) {
+    const P = makePlanet(PLANETS[here]);
+    for (const there of Object.keys(PLANETS)) {
+      if (there === here) continue;
+      const a = SYSTEM.at[here], b = SYSTEM.at[there];
+      const dist = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) * 1000;
+      if (!dist) continue;
+      const R = makePlanet(PLANETS[there]).radius;
+      const { truth, drawn } = angularPair(P, R, dist);
+      // Relative, because these angles run from 0.0006 to 0.014 radians and an
+      // absolute tolerance would be meaningless at one end or the other.
+      const err = Math.abs(drawn - truth) / truth;
+      if (err > worstAngle) worstAngle = err;
+      pairs++;
+    }
+  }
+  ok('the far band preserves angular size exactly', worstAngle < 1e-12,
+    `${pairs} world pairs, worst relative error ${worstAngle.toExponential(1)}`);
+
+  /* ...AND IT ALL FITS. The compression is chosen against the widest separation
+     in the system, so the test is that the widest one lands inside the frustum
+     on the world with the SMALLEST far plane — Ember's is 828m, a tenth of
+     Anvil's, which is the whole reason k is per world rather than global. */
+  let allInside = true, allOutsideNear = true;
+  for (const key of Object.keys(PLANETS)) {
+    const P = makePlanet(PLANETS[key]);
+    const far = farDistance(P, systemExtent());
+    if (far >= P.farPlane) allInside = false;
+    if (far <= 0.4) allOutsideNear = false;
+    rows.push(`${key} 1/${Math.round(1 / farScale(P))} -> ${Math.round(far)}m of ${Math.round(P.farPlane)}m`);
+  }
+  ok('...and the whole system fits inside every far plane', allInside,
+    rows.join(' | '));
+  ok('...and nothing lands inside the near plane', allOutsideNear,
+    `floor is SPACE.minDraw ${SPACE.minDraw}m`);
+
+  /* The band boundary is a TRUE distance, not a compressed one: a world is far
+     because it is far, not because of how it is being drawn this frame. It also
+     has to sit outside every world's own far plane, or a body would change band
+     while it is still being drawn at true scale. */
+  const biggestFar = Math.max(...Object.keys(PLANETS)
+    .map((k) => makePlanet(PLANETS[k]).farPlane));
+  ok('the band boundary is outside every far plane',
+    SPACE.nearBand > biggestFar && !isFar(biggestFar) && isFar(SPACE.nearBand),
+    `boundary ${SPACE.nearBand}m against the widest far plane ${Math.round(biggestFar)}m`);
+}
+
 /* ---- THE TRUE SKYLINE ---------------------------------------------------
    The sky's band, haze and underglow were drawn at zero elevation in the local
    frame, which is the visual horizon at ground level and nowhere else. These

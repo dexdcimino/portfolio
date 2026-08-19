@@ -44,7 +44,7 @@ const MAX_DEG = maxArg ? Number(maxArg.slice(6)) : 5.0;
 
 const all = argv.includes('--all');
 const only = argv.filter((a) => !a.startsWith('--'));
-const { PLANETS, SYSTEM } = await import('../js/tune.js');
+const { PLANETS, SYSTEM, SPACE } = await import('../js/tune.js');
 const FROM = all ? Object.keys(PLANETS) : (only.length ? only : ['home']);
 
 const READY = `(async () => {
@@ -79,7 +79,10 @@ const NUMBERS = `(() => {
   const deg = (r) => +(r * 360 / Math.PI).toFixed(3);   // half-angle -> diameter
   return {
     planet: S.planet.key,
-    K: Math.round(D.K),
+    // The far band's compression for this world, and the widest true
+    // separation it has to fit inside the frustum. See js/world/space.js.
+    k: D.k,
+    extent: Math.round(S.spaceExtent / 1000),
     farPlane: Math.round(S.planet.farPlane),
     list: D.list.map((d) => ({
       key: d.key,
@@ -90,6 +93,9 @@ const NUMBERS = `(() => {
       quadDeg: deg(d.quadAngle),
       core: +d.core.toFixed(4),
       halfM: Math.round(d.half),
+      // Where it is actually drawn, in metres from the camera: its true
+      // distance compressed by k. Each disc has its own now.
+      drawnAt: Math.round(d.K),
     })),
   };
 })()`;
@@ -193,7 +199,7 @@ const MEASURE = (key) => `(() => {
      footprint disagree, the quad and the shader disagree. */
   const proj = (p) => BABYLON.Vector3.Project(p, BABYLON.Matrix.Identity(),
     S.scene.getTransformMatrix(), c.viewport.toGlobal(w, h));
-  const ctr = c.position.add(dir.scale(S.discs.K));
+  const ctr = c.position.add(dir.scale(d.K));
   const right = new V(c.getWorldMatrix().m[0], c.getWorldMatrix().m[1], c.getWorldMatrix().m[2]);
   const a = proj(ctr.subtract(right.scale(d.half)));
   const b = proj(ctr.add(right.scale(d.half)));
@@ -236,9 +242,10 @@ for (const from of FROM) {
   if (!r.ok) { console.log(`${from}: never ready`); bad++; await page.close(); continue; }
 
   const N = await evaluate(page, NUMBERS);
-  console.log(`FROM ${N.planet.toUpperCase()}   billboards at K = ${N.K}m (farPlane ${N.farPlane}m)`);
+  console.log(`FROM ${N.planet.toUpperCase()}   far band k = 1/${Math.round(1 / N.k)} ` +
+    `(farPlane ${N.farPlane}m, system ${N.extent}km across)`);
   console.log('  disc     direction                    dist     TRUE°    DRAWN°   QUAD°   core    ' +
-    'ON SCREEN: body°  box°  halo°  quadpx  noise%');
+    'drawn at  ON SCREEN: body°  halo°  quadpx  noise%');
   for (const d of N.list) {
     const m = await evaluate(page, MEASURE(d.key));
     const over = d.drawnDeg > MAX_DEG || (m && m.bodyDeg > MAX_DEG);
@@ -246,7 +253,7 @@ for (const from of FROM) {
     const dir = `[${d.dir.map((v) => (v < 0 ? '' : ' ') + v.toFixed(3)).join(', ')}]`;
     console.log(`  ${d.key.padEnd(7)} ${dir.padEnd(28)} ${String(d.distKm).padStart(6)}km ` +
       `${String(d.trueDeg).padStart(7)} ${String(d.drawnDeg).padStart(8)} ${String(d.quadDeg).padStart(7)} ` +
-      `${String(d.core).padStart(7)}    ${String(m ? m.bodyDeg : '?').padStart(6)} ` +
+      `${String(d.core).padStart(7)} ${String(d.drawnAt).padStart(6)}m ${String(m ? m.bodyDeg : '?').padStart(6)} ` +
       `${String(m ? m.reachDeg : '?').padStart(6)} ${String(m ? m.quadPx : '?').padStart(7)} ` +
       `${String(m ? m.pctFrame : '?').padStart(6)}% ${String(m ? m.noisePct : '?').padStart(6)}%` +
       (over ? '   <-- OVER ' + MAX_DEG + '°' : ''));

@@ -216,6 +216,108 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
+## Seamless space, phase 1: the far band
+
+Travel still tears the current world down and builds the destination. This phase
+does not change that. It builds the thing every later phase needs: a way to draw
+a body three hundred kilometres away at all.
+
+### Why it is not a bigger far plane
+
+**Depth range.** The near plane is 0.4m and the worlds are up to 944km apart.
+Two and a half million to one. A 24-bit depth buffer spread over that range puts
+the entire surface of a planet inside a single depth value.
+
+**Float32.** Positions in JavaScript are doubles and 944km is nothing to them.
+Vertices reach the GPU as float32, which carries about seven significant digits:
+at 400km one unit in the last place is roughly 30 millimetres, so a vertex that
+should be still shimmers by that much as the camera moves and the exponent
+flips.
+
+### Compress the picture, not the physics
+
+A body at true distance `D` with radius `R` is drawn at `D·k` and `R·k`. Its
+angular size is `atan(R/D)` either way, because the `k` cancels. Same picture,
+small numbers.
+
+A uniform scale about the camera is a **similarity transform**, so it preserves
+every angle in the frame — not just the body's own size but its position, and
+the depth order and parallax between bodies. That is what makes it a foundation
+rather than a trick.
+
+What does **not** go through it: `SYSTEM.at`, the travel integrator, the speed
+law, the approach spheres, the analytic sweep. Those stay in doubles at true
+scale, so the speed readout is not a lie and the sweep still catches a 414m
+planet at a million metres a second. `js/world/space.js` is a rendering
+transform and nothing else.
+
+### k is per world, and that is the interesting part
+
+The band has to land inside the camera's far plane, and that plane is per world:
+Ember's is 828m against Anvil's 8288m. One global `k` would sit comfortably
+inside Anvil's frustum and a kilometre outside Ember's. So `k` is derived from
+the world you are standing on and the true extent of the system — the widest
+separation lands at `SPACE.fill` of this world's far plane, everything nearer
+lands proportionally nearer:
+
+| world | far plane | k | the whole system lands at |
+|---|---|---|---|
+| ember | 828m | 1/1901 | 497m |
+| tarn | 1656m | 1/951 | 994m |
+| vault | 3316m | 1/475 | 1990m |
+| home | 4144m | 1/380 | 2486m |
+| shroud | 5804m | 1/271 | 3482m |
+| anvil | 8288m | 1/190 | 4973m |
+
+### One camera, not two
+
+The brief specifies a second camera for the far pass. This is one camera and a
+transform, and the reason is that the seam the second camera exists to avoid is
+avoided more completely by not having one: sharing FOV and orientation is
+automatic when it is literally the same camera, with no matrices to keep in
+step and no multi-camera surgery on a post stack that is attached to one.
+
+The far band needs no depth range of its own yet either. It draws in rendering
+group 0 and Babylon clears depth before group 1, which is exactly the "no depth
+interaction with near geometry" the phase asks for — the same mechanism that
+already makes terrain draw over the sky. When phase 2 puts real spheres out
+there and they need to occlude each other, depth writes inside group 0 are the
+change, not a camera.
+
+If a later phase needs genuinely different projection maths for the far band
+rather than a scale, this is the point to revisit.
+
+### Verification: the picture did not move
+
+The discs were on **one shell** at a fixed fraction of the far plane, each quad
+sized against that shared distance. They now sit at their own true distance
+compressed by `k`. Two things are unchanged by construction: the **direction**
+is untouched, and a point projects to the same pixel whatever its distance along
+the ray; and the quad is still sized against whatever distance it ends up at, so
+the drawn angular size is still exactly what `SYSTEM.drawRef`/`drawExp`/
+`drawFloor` decided.
+
+`dev/disccheck.mjs` before and after, all thirty world pairs: every direction,
+true angle, drawn angle, quad angle and on-screen measurement identical, with
+one 0.01° rounding difference on one disc. The only columns that moved are the
+two reporting where a disc is drawn — 797m to 1410m from Home's camera now,
+against 1740m for every disc before.
+
+`dev/run.mjs` asserts the invariant against the real function at the real
+distances: **worst relative error over thirty world pairs is 1.6e-16**, which is
+machine epsilon. It also asserts the system fits inside every world's far plane,
+that nothing maps inside the near plane, and that the band boundary sits outside
+every world's own far plane so a body cannot change band while it is still being
+drawn at true scale.
+
+### What phase 1 deliberately does not do
+
+No world is promoted, nothing is rendered at two scales at once, and the
+one-world-visible assertions are untouched and still passing — this phase does
+not yet make two worlds visible, so restating them would be restating them
+against nothing. That is phase 2's change, and those five checks are the thing
+that must be rewritten rather than deleted when it comes.
+
 ## The art pass: six atmospheres, and vegetation with a silhouette
 
 ### Atmospheric thickness is the axis, and stars are how you read it
@@ -1512,6 +1614,7 @@ node dev/disccheck.mjs        # how big is each planet disc, honestly and as dra
 node dev/savedworlds.mjs      # cold load WITH A SAVE — is more than one world drawn?
 node dev/skyline.mjs          # does the horizon band sit on the horizon, at altitude?
 node dev/floracheck.mjs       # what does vegetation cost, and does the wind move it?
+node dev/disccheck.mjs --all  # every world pair: where the far band draws each body
 ```
 
 ### The harness had never met a returning player

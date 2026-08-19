@@ -973,6 +973,43 @@ export const ICE = {
  * Ember is a fortieth of that — a bright point rather than a disc. Both are
  * correct, and the smallness is the reason the tint carries the identification.
  */
+/**
+ * SEAMLESS SPACE — the far band.
+ *
+ * Travel between worlds tears the current planet down and builds the
+ * destination. The design was always that you FLY there, and the reason you
+ * cannot yet is not distance, it is precision: a 0.4m near plane against 944km
+ * of separation is two and a half million to one, which no depth buffer holds,
+ * and float32 vertices at 400km jitter by centimetres as the camera moves.
+ *
+ * So the far band is drawn COMPRESSED. A body at true distance D with radius R
+ * is drawn at D*k and R*k, and atan(R/D) is unchanged because the k cancels:
+ * the same picture, in numbers the GPU can hold. Physics is untouched and stays
+ * in doubles at true scale. See js/world/space.js.
+ */
+export const SPACE = {
+  /* Where the near band ends, in METRES of true distance. Inside this a body is
+     drawn at true scale and interacts with everything normally; outside it, it
+     is drawn compressed and interacts with nothing. 20km is well past any
+     world's own far plane (828m to 8288m), so nothing that is currently drawn
+     at true scale changes band. */
+  nearBand: 20000,
+
+  /* How much of the world's far plane the WHOLE SYSTEM is compressed into.
+     This is what sets k: the widest true separation between any two worlds
+     lands at this fraction of the far plane, and everything nearer lands
+     proportionally nearer. 0.6 leaves the outer third of the frustum empty,
+     which is deliberate — the sky dome sits at 0.8 of the far plane and has to
+     stay behind every body in the band. */
+  fill: 0.60,
+
+  /* A floor on the drawn distance, in metres. Nothing to do with looks: it
+     stops a body that is very nearly on top of you from being mapped inside the
+     near plane and vanishing, during the frames when it is crossing the band
+     boundary and has not been promoted yet. */
+  minDraw: 4.0,
+};
+
 export const SYSTEM = {
   at: {
     home:   [0, 0, 0],
@@ -992,7 +1029,14 @@ export const SYSTEM = {
   minAngle: 0.0095,     // radians
   pad: 3.4,             // quad is this many disc-radii wide, for the halo
   glow: 1.9,            // halo brightness, above 1.0 so the cores bloom
-  distance: 0.42,       // where the billboards sit, as a fraction of farPlane
+  /* NO LONGER USED, and left here rather than deleted so the next person who
+     greps for it finds this note instead of nothing. Every disc used to sit on
+     ONE SHELL at this fraction of the far plane, sized to preserve its angular
+     size. That is fine for painted coins and wrong for anything you are going
+     to fly toward: on a shell there is no depth order between worlds, no
+     parallax as you move, and nowhere for a body to come from as it grows.
+     Each disc now sits at its own true distance compressed by SPACE. */
+  distance: 0.42,
 
   /* THE DRAWN RADIUS, against the honest one.
      `minAngle` above sizes the QUAD, and a quad is not a disc: the disc inside

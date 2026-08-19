@@ -25,6 +25,7 @@
 import { SYSTEM, PLANETS } from '../tune.js';
 import { paletteOf, skyOf } from './materials.js';
 import { previews } from './preview.js';
+import { farDistance, farScale } from './space.js';
 
 /**
  * Direction and angular radius of every other world, from this one.
@@ -83,10 +84,21 @@ export class Discs {
     this.mesh = null;
     if (!this.list.length) return;
 
-    // How far in front of the camera the billboards sit. Well inside the far
-    // plane, and the quad is sized against this distance so the angular size
-    // does not depend on it.
-    this.K = planet.farPlane * SYSTEM.distance;
+    /* THE FAR BAND. Every disc used to sit on ONE SHELL at a fixed fraction of
+       the far plane, with its quad sized against that shared distance so the
+       angular size came out right. That is fine for painted coins and wrong for
+       anything you are going to fly toward: on one shell there is no depth
+       order between worlds, no parallax as you move, and nowhere for a body to
+       come from as it grows.
+
+       Each disc now sits at its OWN true distance compressed by k — see
+       js/world/space.js. Two things are unchanged by construction and that is
+       the whole point of the map: the DIRECTION is untouched, so a disc
+       projects to exactly the same pixel it did before, and the quad is still
+       sized against whatever distance it ends up at, so the drawn angular size
+       is exactly what SYSTEM.drawRef/drawExp/drawFloor decided. What changes is
+       that the number is now honest about which world is in front. */
+    this.k = farScale(planet);
 
     // The baked surface maps. One atlas for the whole session — see preview.js.
     this.maps = previews(scene);
@@ -120,7 +132,9 @@ export class Discs {
       const soft = SYSTEM.drawRef * Math.pow(d.angle / SYSTEM.drawRef, SYSTEM.drawExp);
       d.drawAngle = Math.max(d.angle, soft, SYSTEM.drawFloor);
       d.quadAngle = Math.max(d.drawAngle * SYSTEM.pad, SYSTEM.minAngle);
-      d.half = this.K * Math.tan(d.quadAngle);
+      // Its own compressed distance, not a shared shell.
+      d.K = farDistance(planet, d.dist);
+      d.half = d.K * Math.tan(d.quadAngle);
       d.core = d.drawAngle / d.quadAngle;
       for (let c = 0; c < 4; c++) {
         const v = i * 4 + c;
@@ -206,7 +220,7 @@ export class Discs {
       const d = this.list[i];
       // Centre of the billboard, as an offset from the camera. The mesh sits at
       // the camera, so these stay small however far apart the worlds are.
-      const cx = d.dir.x * this.K, cy = d.dir.y * this.K, cz = d.dir.z * this.K;
+      const cx = d.dir.x * d.K, cy = d.dir.y * d.K, cz = d.dir.z * d.K;
       const h = d.half;
       const sx = [-1, 1, 1, -1], sy = [-1, -1, 1, 1];
       for (let c = 0; c < 4; c++) {

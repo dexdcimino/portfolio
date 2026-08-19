@@ -18,6 +18,7 @@ import { on, emit } from './core/events.js';
 import { makePlanet } from './world/sphere.js';
 import { Surface, findSpawn } from './world/surface.js';
 import { neighbours } from './world/discs.js';
+import { systemExtent } from './world/space.js';
 import { previews } from './world/preview.js';
 import { COLORS, ATMO, POST, ROVER, PLANETS, HYPER, DEBUG, ECONOMY } from './tune.js';
 import { createPostStack } from './render/post.js';
@@ -546,6 +547,9 @@ document.body.classList.add('ready');
 window.SURVEYOR = {
   craft, cam, sound, pipeline, post, ROVER, worlds, scene, streaks, economy, trails,
   geyserTotals, overlay, previewBake,
+  // The far band's true extent, so dev/disccheck.mjs can report the
+  // compression against the distance it is compressing.
+  get spaceExtent() { return systemExtent(); },
   get raiders() { return world.colonies.raiders; },
   get world() { return world; },
   get planet() { return world.planet; },
