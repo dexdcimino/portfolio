@@ -140,6 +140,16 @@ SLOTS = {
         ladder="avatar",
         sizes="(max-width:700px) 64px, 84px",
     ),
+    # Collab project thumbnail: the full width of a card in the collab grid,
+    # which is two-up in the split section's wide column. That column runs
+    # ~856-900px on a desktop (measured for the wallpaper slot below), so a
+    # card is ~430-445px and 28vw tracks it above the 1100px collapse; below
+    # 700px the grid is one-up and the card is the row. The `card` ladder's
+    # 900 covers the 450px worst case at 2x exactly.
+    "collab-thumb": dict(
+        ladder="card",
+        sizes="(max-width:700px) 92vw, (max-width:1100px) 46vw, min(28vw, 450px)",
+    ),
     # The wallpaper carousel's main image. It fills the AI panel, which is the
     # wide column of a split section — about 856px at 1920 and the full width
     # once the split collapses below 1100. `sizes` describes THAT, not the

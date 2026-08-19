@@ -16,10 +16,10 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
 ## Modules
 
 - `index.html` — single-page shell: sidebar, hero, featured work, games, AI
-  Lab (5 tabs), about/toolkit/picks, Idea Vault (AES-GCM blob in
-  `data-vault`), contact. Eight native `<dialog>` overlays (app embed,
-  wallpaper lightbox, prompt reader, vault, shared game/app gallery, work
-  mockup, resume, contact)
+  Lab (5 tabs), Collab (shared builds — see below), about/toolkit/picks,
+  Idea Vault (AES-GCM blob in `data-vault`), contact. Eight native `<dialog>`
+  overlays (app embed, wallpaper lightbox, prompt reader, vault, shared
+  game/app gallery, work mockup, resume, contact)
 - `script.js` — plain script, feature blocks as IIFEs, executes top-to-bottom
   with `<script>` at the end of body. Major blocks: accent/theme system
   (7 accents; `applyAccent` sets `--accent`, rebuilds the SVG favicon,
@@ -29,8 +29,11 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   SVGs; everything after it renders `{title, desc, src, w, h}` and is
   data-shape-agnostic; hero is a fixed 3:2 box on purpose), one `initTabs()`
   behind four tablists, wallpapers carousel/lightbox (self-builds from
-  `.wp-item` figures), vault, clips, prompts, song player, resume overlay,
-  Web3Forms contact (public access key — by design)
+  `.wp-item` figures), `initCollabInfo()` (fills the Collab panel and builds
+  each card's brain row + invite link from the card's own `data-people` /
+  `data-invite`; adding a project is one card, no JS edit), vault, clips,
+  prompts, song player, resume overlay, Web3Forms contact (public access key
+  — by design)
 - `styles.css` — banner-delimited sections; icon system is baked CSS mask
   data-URIs (`tools/bake_icons.py`); accents are one `--accent` variable,
   never filter chains
@@ -54,6 +57,18 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   blob:` + Photon websockets + `frame-ancestors 'self'`; `/splitmob/*`
   strict but frameable. `assets/derived/` is `immutable` for a year — hence
   the `?v=<8 hex of the master's bytes>` stamp on every generated URL
+
+## Collab (shared builds)
+
+One card per project in `#collab`, same contract as the AI Lab app cards:
+everything lives on the card as `data-*` (`data-people` is the single source
+for both the brain row and the panel's collaborator list; `data-invite`, when
+present, renders a + linking to the repo's collaborators settings page). The
+architecture is deliberately NOT in this repo: each collab project is its own
+GitHub repo (adding a collaborator there IS the invite — no auth or roles on
+the site) with its own Vercel project, rewritten to `/collab/<slug>/` in
+`vercel.json` so the existing app overlay and CSP work unchanged. No rewrite
+exists yet — the first project card is a stamped placeholder.
 
 ## The image pipeline (full rules in CLAUDE.md — the short version)
 
@@ -89,8 +104,8 @@ add-an-image flow).
 
 ## Numbers
 
-7 accents (lime default) · 11 ladders / 14 slots in `image_slots.py` ·
-~49 generated markup blocks in index.html · fallback ladder
+7 accents (lime default) · 11 ladders / 15 slots in `image_slots.py` ·
+~50 generated markup blocks in index.html · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
 
@@ -98,5 +113,6 @@ add-an-image flow).
 
 The Work overlay is a mockup (no `work.json`, filler SVGs — do not build on
 its taxonomy). Clips point at an unresolvable placeholder video host on
-purpose. Some wallpapers are stamped placeholders. See `docs/STATUS.md` for
-the live list and open decisions.
+purpose. Some wallpapers are stamped placeholders. The Collab section's one
+card is a stamped placeholder until the first collab repo exists. See
+`docs/STATUS.md` for the live list and open decisions.

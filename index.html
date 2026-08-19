@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=153" />
+  <link rel="stylesheet" href="styles.css?v=154" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -140,6 +140,7 @@
       <a class="nav-link" href="#work"><span class="icon nav-icon" data-icon="work" aria-hidden="true"></span><span class="nav-text">WORK</span></a>
       <a class="nav-link" href="#games"><span class="icon nav-icon" data-icon="games" aria-hidden="true"></span><span class="nav-text">GAMES</span></a>
       <a class="nav-link" href="#ai"><span class="icon nav-icon" data-icon="ai" aria-hidden="true"></span><span class="nav-text">AI LAB</span></a>
+      <a class="nav-link" href="#collab"><span class="icon nav-icon" data-icon="collab" aria-hidden="true"></span><span class="nav-text">COLLAB</span></a>
       <a class="nav-link" href="#about"><span class="icon nav-icon" data-icon="about" aria-hidden="true"></span><span class="nav-text">ABOUT</span></a>
     </nav>
 
@@ -1090,6 +1091,88 @@
         </div>
         <div class="ai-panel" id="ai-panel-madlabs" role="tabpanel" aria-labelledby="ai-tab-madlabs" hidden>
           <p class="ai-soon">MadLabs is where the odd experiments land — images, video, simulations, whatever does not fit the other three.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLLAB — live projects more than one person builds. The architecture
+         is deliberately NOT on this page: access control is GitHub (one repo
+         per project; Dex adding a collaborator IS the invite) and hosting is
+         one Vercel project per repo, rewritten to /collab/<slug>/ in
+         vercel.json — same origin, so the app overlay and the CSP need no
+         changes. This section only presents that.
+         Same contract as the AI LAB app cards: everything about a project
+         lives on its card as data-*, read by initCollabInfo() in script.js,
+         so adding a project is one card and no JS edit.
+           data-people   one entry per contributor, "Name | relation |
+                         label=url, label=url", entries joined with ";;".
+                         The ONE source for both the brain row on the card and
+                         the collaborator list in the panel — a count typed
+                         separately from the list it counts would drift the
+                         first time someone joins.
+           data-invite   the repo's collaborators settings page. A shortcut
+                         for Dex, not an access control — GitHub gates the
+                         page itself. Omit it and no + is rendered.
+           data-status   LIVE / IN PROGRESS / PARKED, shown on the thumbnail.
+         A project that runs in the browser opens in the existing app overlay:
+         give its link data-app-modal="/collab/<slug>/" + data-app-title (and
+         data-app-shape="window" for desktop-shaped apps). One that does not
+         run in a browser links to its repo instead. -->
+    <section class="split-section" id="collab">
+      <div class="statement reveal"><p class="eyebrow">SHARED BUILDS</p><h2>COLLAB</h2><p>Live projects built with other people. Each one is its own GitHub repo — a collaborator pushes, and what they pushed is on this site. One brain per builder.</p>
+        <!-- The hovered project's copy, tags and crew — the same .game-desc /
+             .game-tags components the games and AI LAB sections use, filled by
+             initCollabInfo() from the cards' own data-*. -->
+        <div class="app-info collab-info" id="collabInfo">
+          <div class="game-desc">
+            <strong class="game-desc-lead"></strong>
+            <p class="game-desc-body"></p>
+          </div>
+          <div class="game-actions">
+            <ul class="game-tags">
+              <li class="game-tag" data-slot="kind"></li>
+              <li class="game-tag" data-slot="stack"></li>
+              <li class="game-tag" data-slot="status"></li>
+            </ul>
+          </div>
+          <!-- One row per contributor: name, relation, the links they chose to
+               show. Built from the hovered card's data-people. -->
+          <ul class="collab-people" id="collabPeople"></ul>
+        </div>
+      </div>
+      <div class="collab-wrap reveal">
+        <div class="collab-grid">
+          <!-- PLACEHOLDER PROJECT — the first collab repo does not exist yet,
+               so this card is the shape of one, stamped as such (thumbnail
+               says PLACEHOLDER; there is no href because there is nowhere to
+               go). When the repo exists: real thumbnail through the pipeline,
+               href (plus data-app-modal / data-app-title if it runs in the
+               browser), data-invite, and the real people. -->
+          <article class="collab-card" data-status="IN PROGRESS" data-kind="GAME" data-stack="TBD"
+                   data-people="Dex Cimino | — | github=https://github.com/dexdcimino ;; Nik Cimino | brother |"
+                   data-desc-lead="The first shared build lands here."
+                   data-desc-body="This card is the shape of a collab project: its own GitHub repo, its own deploy, live on this site the moment a collaborator pushes. The first real build replaces this placeholder — thumbnail, title, and crew all arrive with it.">
+            <a class="collab-card-link">
+              <span class="collab-thumb-frame">
+                <!-- img src="assets/thumbnails/collab-placeholder.png" slot="collab-thumb" alt="" class="collab-thumb-img" picture-class="collab-thumb" -->
+                <picture class="collab-thumb">
+                  <source type="image/avif" srcset="assets/derived/thumbnails/collab-placeholder-900.avif?v=264dde7c 900w,
+                                                    assets/derived/thumbnails/collab-placeholder-600.avif?v=264dde7c 600w,
+                                                    assets/derived/thumbnails/collab-placeholder-400.avif?v=264dde7c 400w"
+                          sizes="(max-width:700px) 92vw, (max-width:1100px) 46vw, min(28vw, 450px)">
+                  <source type="image/webp" srcset="assets/derived/thumbnails/collab-placeholder-900.webp?v=264dde7c 900w,
+                                                    assets/derived/thumbnails/collab-placeholder-600.webp?v=264dde7c 600w,
+                                                    assets/derived/thumbnails/collab-placeholder-400.webp?v=264dde7c 400w"
+                          sizes="(max-width:700px) 92vw, (max-width:1100px) 46vw, min(28vw, 450px)">
+                  <img class="collab-thumb-img" src="assets/thumbnails/collab-placeholder.png" alt="" width="1600" height="900" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+                <span class="collab-status"></span>
+              </span>
+              <span class="collab-card-copy"><small>GAME</small><strong>FIRST COLLAB</strong><span>Two builders, one repo</span></span>
+            </a>
+            <div class="collab-crew"></div>
+          </article>
         </div>
       </div>
     </section>
@@ -2450,6 +2533,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=153"></script>
+  <script src="script.js?v=154"></script>
 </body>
 </html>

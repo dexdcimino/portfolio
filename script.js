@@ -442,7 +442,7 @@ reveals.forEach(el => revealObserver.observe(el));
 
 // 'resume' is deliberately absent: the overlay owns #resume now, and the strip
 // it used to point at is a contact CTA (id="contact-cta").
-const sections = ['home', 'work', 'games', 'ai', 'about']
+const sections = ['home', 'work', 'games', 'ai', 'collab', 'about']
   .map(id => document.getElementById(id))
   .filter(Boolean);
 
@@ -3299,6 +3299,129 @@ function renderMarkdown(src) {
      microtask runs after the whole script has finished, which is the earliest
      moment every module on the page is listening. */
   queueMicrotask(() => show(cards[0]));
+})();
+
+/* --- Collab project info -------------------------------------------------- */
+/* The COLLAB section's initAppInfo: the statement column's empty half fills
+   with whatever project card the pointer is on. Same contract — the copy and
+   the tags live on the cards as data-*, so adding a project is one card and
+   no edit here.
+
+   One attribute is richer than the app cards needed: data-people, one entry
+   per contributor ("Name | relation | label=url, label=url", joined ";;").
+   It is parsed once and drives BOTH the brain row on the card and the
+   collaborator list in the panel — the brain count is the length of the list
+   it stands for, never a number typed beside it, so it cannot drift when
+   someone joins.
+
+   The + beside the brains goes to the repo's collaborators settings page
+   (data-invite) — the page where inviting actually happens, gated by GitHub
+   itself. It is rendered only when the card carries the URL, so cards whose
+   repo is not Dex's to administer simply have no +. */
+(function initCollabInfo() {
+  const info = document.getElementById('collabInfo');
+  const grid = document.querySelector('#collab .collab-grid');
+  if (!info || !grid) return;
+  const cards = [...grid.querySelectorAll('.collab-card')];
+  if (!cards.length) return;
+
+  const lead = info.querySelector('.game-desc-lead');
+  const body = info.querySelector('.game-desc-body');
+  const tags = info.querySelectorAll('.game-tag');
+  const list = document.getElementById('collabPeople');
+
+  const icon = (name) => {
+    const el = document.createElement('span');
+    el.className = 'icon';
+    el.dataset.icon = name;
+    el.setAttribute('aria-hidden', 'true');
+    return el;
+  };
+
+  const people = (card) => (card.dataset.people || '').split(';;').map(entry => {
+    const [name = '', relation = '', links = ''] = entry.split('|').map(s => s.trim());
+    return name && {
+      name, relation,
+      links: links.split(',').map(pair => {
+        // split on the FIRST '=' only — the URL side can carry its own.
+        const at = pair.indexOf('=');
+        return at < 0 ? null
+          : { label: pair.slice(0, at).trim(), url: pair.slice(at + 1).trim() };
+      }).filter(l => l && l.label && l.url),
+    };
+  }).filter(Boolean);
+
+  for (const card of cards) {
+    const crew = card.querySelector('.collab-crew');
+    const crowd = people(card);
+    if (crew) {
+      const row = document.createElement('span');
+      row.className = 'collab-brains';
+      // One image to assistive tech, not N unlabeled decorations.
+      row.setAttribute('role', 'img');
+      row.setAttribute('aria-label', `${crowd.length} contributor${crowd.length === 1 ? '' : 's'}`);
+      for (const person of crowd) {
+        const brain = icon('brain');
+        brain.classList.add('collab-brain');
+        brain.title = person.name;
+        row.append(brain);
+      }
+      crew.append(row);
+      const invite = card.dataset.invite;
+      if (invite) {
+        const plus = document.createElement('a');
+        plus.className = 'collab-invite';
+        plus.href = invite;
+        plus.target = '_blank';
+        plus.rel = 'noreferrer';
+        plus.setAttribute('aria-label', 'Invite a collaborator — repo access settings');
+        plus.append(icon('plus'));
+        crew.append(plus);
+      }
+    }
+    // The pill on the thumbnail. Filled from data-status rather than typed in
+    // the markup a second time; :empty hides it on a card that has none.
+    const status = card.querySelector('.collab-status');
+    if (status) status.textContent = card.dataset.status || '';
+  }
+
+  const show = (card) => {
+    lead.textContent = card.dataset.descLead || card.querySelector('strong')?.textContent || '';
+    body.textContent = card.dataset.descBody || '';
+    for (const tag of tags) {
+      const value = card.dataset[tag.dataset.slot] || '';
+      tag.textContent = value;
+      tag.hidden = !value;
+    }
+    list.replaceChildren(...people(card).map(person => {
+      const li = document.createElement('li');
+      const name = document.createElement('strong');
+      name.textContent = person.name;
+      const relation = document.createElement('small');
+      relation.textContent = person.relation || '—';
+      const links = document.createElement('span');
+      links.className = 'collab-links';
+      for (const link of person.links) {
+        const a = document.createElement('a');
+        a.href = link.url;
+        a.target = '_blank';
+        a.rel = 'noreferrer';
+        a.append(link.label, icon('arrow-ne'));
+        a.lastChild.classList.add('inline-arrow');
+        links.append(a);
+      }
+      li.append(name, relation, links);
+      return li;
+    }));
+  };
+
+  for (const card of cards) {
+    card.addEventListener('pointerenter', () => show(card));
+    card.addEventListener('focusin', () => show(card));
+  }
+  // Seeded so the column is never empty; nothing here waits on another module,
+  // so no microtask is needed the way the gallery-counting seed above is.
+  show(cards[0]);
 })();
 
 /* --- AI Lab app overlay --------------------------------------------------- */
