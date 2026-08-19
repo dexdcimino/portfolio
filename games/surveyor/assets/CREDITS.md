@@ -12,22 +12,35 @@ testbed, whose rule this is.
 | `textures/steep.webp` | `tools/bake_terrain_maps.py` from `marble_cliff_03` | Amal Kumar / Poly Haven | CC0 | as above. The cliff-face layer, tiled tightest |
 | `textures/high.webp` | `tools/bake_terrain_maps.py` from `marble_cliff_04` | Amal Kumar / Poly Haven | CC0 | as above. The high-ground layer |
 
-## Vegetation: no assets, and that is why there are no rows for it
+## Vegetation: no assets, and the arithmetic that decided it
 
-The vegetation pass added no files, so it added no rows. The brief allowed CC0
-models from Poly Haven, ambientCG, Quaternius or Kenney with a row each — none
-were used, and the reason is the same one that governs the rest of this folder.
+The vegetation pass added no files, so it added no rows. CC0 models from
+Quaternius and Kenney were explicitly on the table, both sites are reachable
+from the build machine, and the Babylon glTF loader bundle is 578KB — so this
+was a decision rather than a limitation.
 
-Blades are **generated**, the way the rocks in `js/world/scatter.js` are: three
-triangles emitted straight into the terrain chunk's vertex buffer, taking the
-terrain material and one extra vertex attribute. A downloaded mesh would need a
-loader, a material, its own draw call and its own streaming lifetime, and would
-arrive in a style that is not this one — the whole look is flat-shaded geometry
-with no textures on anything but the ground.
+The numbers that made it:
 
-If real models are wanted later, the rule stands: a row here per file, no row no
-ship, and one family per type. `js/world/flora.js` is where they would replace
-`blade()`, and nothing else would have to change.
+| | triangles |
+|---|---|
+| a max-detail terrain leaf, rocks included | ~2100 |
+| a stylised CC0 tree | 400 - 2000 |
+| fifty of those in one leaf | 20000 - 100000 |
+
+A downloaded model is affordable only as an INSTANCE. Vegetation here is baked
+into the terrain chunk's vertex buffer, the way `js/world/scatter.js` bakes
+rocks: no draw call, no separate culling, no separate LOD, no lifetime of its
+own on a ground that is already a stream. Keeping that machinery and using real
+models are not both possible, and the machinery is what the brief said to keep.
+
+What ships instead is generated geometry at 3 to 32 triangles a plant, in four
+forms — `blade`, `shrub`, `tree` and a hero variant of the tree. It is the same
+technique that produced the rock spires, and it arrives in this project's style
+rather than in someone else's.
+
+If real models are wanted later the rule stands — a row here per file, no row no
+ship, one family per type — and the work is instancing plus a vendored loader,
+not a swap inside `flora.js`.
 
 The three terrain maps are derivatives of the lookdev testbed's scan family —
 one collection, one capture, all six members tagged stratified/striated, which

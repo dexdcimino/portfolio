@@ -159,6 +159,48 @@ export const SKY = {
   cloudCover: 0.48,
   cloudSoft: 0.16,
   cloudScale: 1.0,
+  /* A BROKEN DECK OR A SOLID LID, which is most of what makes one world's
+     weather look like a different world's. `break` swings the coverage
+     threshold across the sky at `breakScale`: 0 is an even deck everywhere,
+     which is what all six shipped with and is why they read as one sky. */
+  cloudBreak: 0,
+  cloudBreakScale: 0.30,
+
+  /* STARS IN A DAYLIT SKY.
+     THERE WAS NO STAR FIELD TO TURN BACK ON. svStreak is the hyperspace
+     velocity lines and its own comment says so — "star streaking, without
+     stars. There is nothing out there to streak" — so this is new. It is
+     analytic, hashed off the view direction in the sky shader: no texture,
+     no asset, no atlas, and nothing to keep in step with anything.
+
+     It is the strongest single signal of ATMOSPHERIC THICKNESS, which is the
+     axis the six worlds are separated along: stars through the daylight mean
+     there is nothing above you, and no amount of colour grading says that as
+     directly. Thick-air worlds run amount 0 and pay one compare.
+
+     `horizon` is the elevation over which they fade in from the skyline —
+     even an airless world has more air along a grazing ray than a vertical
+     one, and stars sitting on the horizon read as fireflies. */
+  stars: {
+    /* 0 = no stars, and no cost beyond one compare.
+       ABOVE 1 IS THE USEFUL RANGE on a daylit world. A star has to compete with
+       a sky already at half brightness, so adding a value under 1 gives it
+       almost no contrast — the first pass at 1.0 put stars on Vault that were
+       technically present and invisible in the sheet. Authored past 1.0 the
+       bloom pass finds them, which is how a bright point is supposed to read
+       and is the same trick the sun and the fissures already use. */
+    amount: 0,
+    /* Star radius as a FRACTION OF ITS CELL, and the units are the trap. The
+       grid is 190 cells across a unit direction, so one cell subtends about
+       0.3 degrees — roughly three pixels at this field of view and resolution.
+       The first cut set 0.055, which is a fifth of a pixel, and the sheet came
+       back with no stars at all on either world that had asked for them.
+       0.26 is about a pixel and a half of radius, which is a star. */
+    size: 0.26,
+    density: 0.05,      // fraction of grid cells that carry one
+    horizon: 0.34,      // faded out below this elevation
+    color: null,        // null = palette.peak, the world's own brightest
+  },
 
   /* THE TRUE SKYLINE. See mats.update: at altitude h on a planet of radius R
      the horizon is BELOW local level by acos(R / (R + h)), and the band, the
@@ -200,6 +242,17 @@ export const TIER = {
   cloudDetail: { low: 1, high: 3 },
   // ...and how many of the three strata are drawn at all.
   cloudStrata: { low: 2, high: 3 },
+  /* WHICH VEGETATION LAYERS EXIST. Fewer layers, not worse ones: a low
+     tier drops the two that cost the most per unit of read — shrub is the
+     second most numerous layer, and hero is rare enough that losing it
+     costs a landmark rather than a landscape. Cover and tree stay, because
+     between them they are what makes a world look planted at all.
+     Degrading a layer instead would mean shipping a worse tree, and a
+     worse tree is visible in a way a missing shrub is not. */
+  floraLayers: {
+    low: ['cover', 'tree'],
+    high: ['cover', 'shrub', 'tree', 'hero'],
+  },
 };
 
 /**
@@ -1173,10 +1226,17 @@ export const PLANETS = {
        zenith-to-horizon gradient with the band of forward-scattered light
        sitting behind the spires. `gain` is the added scattering term, the only
        genuinely new one in the sky pass, and it is 0 everywhere until here. */
+    /* THICK AIR. The reference daytime sky and the only one with a real cloud
+       deck doing work: a broken deck, so there are open patches of blue and
+       thick patches that do not move together. No stars — you cannot see them
+       through this much atmosphere, and that is the whole point of the axis. */
     sky: {
       band: 0.12, clouds: 1.0,
       scatter: { gain: 0.30 },
-      cloudCover: 0.46,
+      cloudCover: 0.44, cloudSoft: 0.19,
+      cloudBreak: 0.30, cloudBreakScale: 0.26,
+      curve: 1.05,
+      mid: [0.372, 0.588, 0.616],
     },
 
     // The boulders and spires as authored: a mixed field, moderate everything.
@@ -1186,7 +1246,20 @@ export const PLANETS = {
        its whole habitable band rather than in a niche, and it is the world the
        other five are read against - the point of five bare worlds is that this
        one feels alive, so this is where the density is spent. */
-    flora: { density: 1.0, color: [0.310, 0.478, 0.376] },
+    /* THE LUSH ONE, and the only world with the full stack. If any world
+       should look alive it is the first one anyone sees, so this is where the
+       whole vegetation budget goes: cover everywhere, shrubs breaking up the
+       flats, trees in the valleys and down by the lakes, and a handful of hero
+       plants rare enough to be worth driving toward. */
+    flora: {
+      density: 1.0,
+      layers: {
+        cover: { density: 1.0, color: [0.310, 0.478, 0.376] },
+        shrub: { density: 1.0, color: [0.267, 0.412, 0.333] },
+        tree:  { density: 1.0, color: [0.216, 0.376, 0.322] },
+        hero:  { density: 1.0, color: [0.290, 0.451, 0.361] },
+      },
+    },
 
     // The richest field in the system, and the reason Home is home.
     geysers: { count: 12, yield: 1.0 },
@@ -1315,6 +1388,16 @@ export const PLANETS = {
       underglow: 1.5, underglowColor: [1.150, 0.420, 0.110],
       sunDir: [0.30, 0.24, 0.92],      // low, and barely a sun at all
       sunColor: [0.900, 0.400, 0.160], sunSize: 1.6, glare: 0.35,
+      /* THIN AIR UNDER A LOW LID. The sky itself is nearly black — the orange
+         everyone reads as "Ember's sky" is the ground's underglow lighting the
+         underside of the deck, not the sky's own colour, and separating those
+         two is what this pass changed here. Stars WHERE THE ASH THINS: present
+         but weak, and faded out low down where the ash and the glow are. */
+      zenith: [0.045, 0.030, 0.048],
+      mid: [0.235, 0.090, 0.070],
+      curve: 1.35,
+      cloudBreak: 0.34, cloudBreakScale: 0.22, cloudSoft: 0.24,
+      stars: { amount: 1.8, density: 0.045, size: 0.24, horizon: 0.55 },
       // Ash. Dense, dark, and falling — the only mote layer with real weight.
       motes: { color: [0.320, 0.180, 0.140], density: 3.2, fall: -1.5, size: 1.5 },
       /* How hard the fissures burn, and from what depth into the crack. 0 on
@@ -1470,9 +1553,15 @@ export const PLANETS = {
          as a painted stripe, and the motes are the spray it is scattering off.
          86% ocean, so this is the one world where the particulate layer is the
          atmosphere rather than a weather effect laid on top of it. */
+      /* THICK AIR, and wetter than Home. Low contrast on purpose: a humid sky
+         has a short tonal range and that is what sells the humidity. The deck
+         is nearly solid and sits low, because cloud over open water builds
+         rather than scatters. No stars. */
       scatter: { gain: 0.42, falloff: 4.2 },
-      curve: 0.85,
-      cloudCover: 0.54,
+      curve: 0.72,
+      mid: [0.812, 0.855, 0.845],
+      cloudCover: 0.40, cloudSoft: 0.26, cloudScale: 0.72,
+      cloudBreak: 0.10, ceiling: 0.80,
       motes: { color: [0.780, 0.840, 0.850], density: 1.6, fall: -0.12, size: 1.1 },
     },
 
@@ -1482,9 +1571,21 @@ export const PLANETS = {
        of the way up where Home's runs past half. Denser than Home inside that
        band, because a shoreline that is green against a bare hinterland is the
        composition; a uniform sprinkle over a flat island is not. */
+    /* COASTAL. 86% ocean and the land is low and flat, so everything is
+       pinned to the first fifth of the relief: dense at the waterline, nothing
+       inland to speak of because there is barely any inland. Trees but no
+       heroes — the islands are not big enough for a landmark that rare to be
+       findable, and one you never find is one you did not draw. */
     flora: {
-      density: 1.25, band: [0.03, 0.18], color: [0.286, 0.435, 0.396],
-      height: [0.7, 1.7], slope: 0.42,
+      density: 1.25,
+      layers: {
+        cover: { density: 1.0, band: [0.03, 0.18], color: [0.286, 0.435, 0.396],
+          height: [0.7, 1.7], slope: 0.42 },
+        shrub: { density: 0.9, band: [0.03, 0.16], color: [0.243, 0.396, 0.373],
+          height: [0.9, 1.8], slope: 0.38 },
+        tree:  { density: 0.55, band: [0.04, 0.15], color: [0.204, 0.353, 0.341],
+          height: [2.2, 3.8], slope: 0.26 },
+      },
     },
 
     // Sea stacks: eroded pillars, stout at the base and blunt-topped, standing
@@ -1616,9 +1717,18 @@ export const PLANETS = {
          steep curve so the deep blue holds most of the sky instead of washing
          out. This is the world the discs have to stay legible against at the
          BRIGHT end, so the horizon stays pale and the zenith does not. */
+      /* THIN AIR, and the clearest sky in the system. STARS THROUGH THE
+         DAYLIGHT: the deepest zenith, the least scattering, and almost no
+         cloud, so there is nothing between you and them. This is the world the
+         whole thick/thin axis is easiest to read on — a dark blue overhead with
+         stars in it, over a white glacier, in full sun. */
       scatter: { gain: 0.08, falloff: 9.0 },
-      curve: 1.45,
-      cloudCover: 0.62,
+      curve: 1.70,
+      zenith: [0.114, 0.220, 0.404],
+      mid: [0.400, 0.612, 0.780],
+      clouds: 0.05,
+      cloudCover: 0.72,
+      stars: { amount: 2.6, density: 0.070, size: 0.30, horizon: 0.30 },
     },
 
     // Crystalline shards: few sides, near-linear taper to a point, leaning.
@@ -1768,6 +1878,15 @@ export const PLANETS = {
       sunColor: [0.470, 0.400, 0.560], sunSize: 1.6, glare: 0.20,
       // The particulate itself. Densest layer in the system, drifting rather
       // than falling — this is what you are looking through.
+      /* NO SKY, AND THAT IS THE IDENTITY. The only world where you cannot see
+         up: the particulate is dense enough that the gradient never resolves,
+         so the curve is flat, the deck is solid and low, and the haze reaches
+         most of the way to the zenith. No stars, no band, nothing to navigate
+         by overhead — which is exactly what makes the other five feel open. */
+      curve: 0.42,
+      mid: [0.330, 0.290, 0.420],
+      clouds: 1.8, cloudCover: 0.30, cloudSoft: 0.30, ceiling: 0.45,
+      scatter: { gain: 0.10, falloff: 1.6 },
       motes: { color: [0.420, 0.380, 0.520], density: 5.0, fall: -0.35, size: 1.8 },
     },
 
@@ -1776,9 +1895,22 @@ export const PLANETS = {
        growing rather than as a lawn, which is the only version of vegetation
        that belongs on a world whose whole character is that you cannot see.
        Violet, so it is the murk's own colour and not an import. */
+    /* SPARSE, TALL AND STRANGE. Low density, high impact: things that loom out
+       of the murk at close range and are gone again. Almost no ground cover —
+       a lawn under that fog would be invisible and would cost the same as one
+       you can see — and the trees are thin and very tall so they resolve as a
+       silhouette before anything else does. */
     flora: {
-      density: 0.10, band: [0.02, 0.22], color: [0.396, 0.325, 0.478],
-      height: [1.2, 3.0], width: [0.05, 0.10], lean: 0.42, colorMix: 0.62,
+      density: 1.0,
+      layers: {
+        cover: { density: 0.10, band: [0.02, 0.22], color: [0.396, 0.325, 0.478],
+          height: [1.2, 3.0], width: [0.05, 0.10], lean: 0.42, colorMix: 0.62 },
+        tree:  { density: 0.22, band: [0.02, 0.34], color: [0.353, 0.294, 0.435],
+          height: [5.0, 9.0], girth: 0.018, taper: 0.4, sides: 5, tiers: 4,
+          canopy: 0.14, trunk: 0.55, slope: 0.42, colorMix: 0.70 },
+        hero:  { density: 0.35, band: [0.02, 0.30], color: [0.427, 0.341, 0.510],
+          height: [12.0, 18.0], girth: 0.014, canopy: 0.12, colorMix: 0.72 },
+      },
     },
 
     // Needles. Very tall, very thin, sparse — they loom out of the fog one at a
@@ -1923,10 +2055,18 @@ export const PLANETS = {
          exists for. Highest gain in the system and a slow falloff, because the
          rust sky wants the light carried well up off the skyline rather than
          held in a strip on it. */
+      /* THIN AIR, HIGH AND WASHED OUT. The bright horizon band already works
+         here and everything else is built outward from it: a pale rust wash at
+         the skyline going to a much darker sky overhead, faint stars in the top
+         of it, and only a thin high veil of cloud. The stars are half Vault's
+         strength and pushed higher up the sky, because the band is bright
+         enough near the horizon to wash them out and should be allowed to. */
       scatter: { gain: 0.55, falloff: 3.6 },
-      curve: 0.80,
-      mid: [0.560, 0.430, 0.340],
-      cloudCover: 0.56,
+      curve: 1.15,
+      mid: [0.470, 0.372, 0.318],
+      zenith: [0.200, 0.180, 0.220],
+      clouds: 0.16, cloudCover: 0.66, cloudScale: 1.5,
+      stars: { amount: 1.5, density: 0.050, size: 0.26, horizon: 0.46 },
     },
 
     /* LITTLE, AND ONLY IN THE LOW GROUND. 4% of Home's density in a band that
@@ -1934,9 +2074,20 @@ export const PLANETS = {
        world in the system means a few dry tufts in the canyon floors and
        nothing anywhere you can see from. This is the "almost none" the design
        asks for, stated as numbers rather than as an intention. */
+    /* ALMOST NOTHING, and only in the canyon floors near the water — which is
+       what makes the water worth reaching on a world that is 10% water and the
+       biggest surface in the system. A few hardy tufts and the occasional
+       stunted tree, in a band that stops a tenth of the way up 87.8 metres of
+       relief. No shrubs, no heroes. */
     flora: {
-      density: 0.04, band: [0.01, 0.10], color: [0.498, 0.435, 0.310],
-      height: [0.5, 1.2], slope: 0.30, colorMix: 0.55,
+      density: 1.0,
+      layers: {
+        cover: { density: 0.04, band: [0.01, 0.10], color: [0.498, 0.435, 0.310],
+          height: [0.5, 1.2], slope: 0.30, colorMix: 0.55 },
+        tree:  { density: 0.05, band: [0.01, 0.07], color: [0.435, 0.384, 0.282],
+          height: [1.8, 3.0], slope: 0.20, canopy: 0.24, tiers: 2,
+          colorMix: 0.62 },
+      },
     },
 
     // Home's field scaled up and coarsened: enormous boulders and fallen slabs,
@@ -2739,52 +2890,133 @@ export const COLORS = {
  * density typo should cost a plainer world rather than the frame.
  */
 export const FLORA = {
-  // 0 turns the system off for a world, before any work is done.
+  /* THE MASTER SWITCH. 0 turns the world off before any work is done at all:
+     floraOf returns null, chunks.js never calls appendFlora, no vertex carries
+     a sway other than -1 and the terrain shader's branch is never taken. Ember
+     and Vault run at 0 and that is the design, not a saving — bare worlds are
+     what make the planted ones read as planted. */
   density: 0,
-  // Blades attempted per leaf at density 1, before the height and slope tests
-  // reject any. The realised count is lower and worth measuring, not assuming.
-  perLeaf: 760,
-  /* The height band it grows in, as fractions of relief. The bottom is above
-     sea level on purpose - grass at 0 would stand in the water on every world
-     with a coast, and the shoreline stroke is drawn in that same first metre. */
-  band: [0.02, 0.55],
-  // Gradient it stops holding on at, in metres per metre, and how hard it
-  // thins approaching that - 1 fades a hillside bare, 0 cuts it at a line.
-  slope: 0.55,
-  slopeThin: 0.85,
-  // How tight the clumps are, in leaf-uv radius. Small is patchy.
-  clump: [0.035, 0.11],
-  /* Blade geometry, in METRES, and these are far bigger than grass because the
-     camera is not standing in it. The chase cam sits 15m behind the craft and
-     5.2m up; at that range a 0.4m blade is about a pixel, and the first cut
-     shipped 3903 of them on Home that could not be seen in the frame at all.
-     What reads at this distance is scrub and reed, not lawn - which is also
-     the honest thing for a low-poly chart to draw. width is a fraction of the
-     blade's own height, so a tall blade is a broad one. */
-  height: [0.55, 1.30],
-  width: [0.16, 0.30],
-  lean: 0.30,          // sideways lean at the tip, as a fraction of height
-  waist: 0.72,         // how far the blade narrows by mid-height
-  // Colour, mixed over the terrain's own band colour so the ground still reads
-  // through. null = the palette's flats, which is the no-op.
-  color: null,
-  colorMix: 0.72,
-  // How much darker the base is than the tip. Vegetation with a flat colour
-  // reads as a decal; the gradient is most of what makes it read as depth.
-  root: 0.55,
+
+  /* FOUR LAYERS AT FOUR SCALES, because one form repeated is why the first cut
+     read as texture rather than as plants. Each layer is a form, a density, and
+     the rules for where it is allowed to grow; a world states only what it
+     changes and floraOf merges the rest per key.
+
+     THE DISTRIBUTION RULES ARE THE LAYERS. Trees take a low band and a gentle
+     slope, which is a valley floor near water. Ground cover takes a wide band
+     and a steeper limit, which is a flat or a hillside. Nothing takes a cliff.
+     Stated per layer rather than per world, so a world inherits sensible
+     placement by naming a density and nothing else. */
+  layers: {
+    /* GROUND COVER. Cheap, dense, and the base everything else stands in. */
+    cover: {
+      form: 'blade',
+      density: 1.0,
+      /* Plants attempted per leaf at density 1, before the band and slope tests
+         reject any. COVER IS THE LAYER TO TRIM FIRST when the leaf-build budget
+         needs room: it is the most numerous by an order of magnitude and the
+         least visible, because at the chase camera's distance it is a texture
+         on the ground either way. The tree layer is a fiftieth of the count and
+         is what anyone actually sees. */
+      perLeaf: 260,
+      band: [0.02, 0.55],       // fractions of the world's relief
+      slope: 0.55,              // metres per metre it stops holding on at
+      slopeThin: 0.85,
+      clumps: [3, 8],           // clumps per leaf
+      clump: [0.035, 0.11],     // clump radius, in leaf uv
+      height: [0.55, 1.30],     // METRES. A blade is a blade on any world.
+      width: [0.16, 0.30],      // as a fraction of its own height
+      scale: [0.85, 1.15],
+      lean: 0.30,
+      waist: 0.72,
+      color: null,              // null = palette.flats
+      colorMix: 0.72,
+      root: 0.55,               // how much darker the base is than the tip
+    },
+
+    /* SHRUBS. Mid-height rosettes that break up the ground plane — the layer
+       that stops a field being flat without costing what a tree costs. */
+    shrub: {
+      form: 'shrub',
+      density: 0,
+      perLeaf: 55,
+      band: [0.02, 0.42],
+      slope: 0.45,
+      slopeThin: 0.9,
+      clumps: [2, 5],
+      clump: [0.05, 0.14],
+      height: [1.1, 2.2],
+      width: [0.10, 0.18],
+      scale: [0.8, 1.25],
+      splay: 0.55,              // how far the tips push out from the root
+      lean: 0.2,
+      waist: 0.7,
+      color: null,
+      colorMix: 0.78,
+      root: 0.5,
+    },
+
+    /* TREES. The layer that makes a world read as lush from a distance, and
+       the one thing ground cover can never do: at thirty metres cover is a
+       texture on the ground and a tree is a silhouette above it.
+       Low band and gentle slope, which is a valley near water. */
+    tree: {
+      form: 'tree',
+      density: 0,
+      perLeaf: 26,
+      band: [0.02, 0.30],
+      slope: 0.34,
+      slopeThin: 0.9,
+      clumps: [2, 5],
+      clump: [0.06, 0.18],
+      /* METRES, and this is the number that reads — in both directions. The
+         first cut ran 5 to 9.5 and a tree beside the chase camera, which sits
+         5.2m up and 15m back, filled the frame on its own. Trees have to be
+         readable at thirty metres and not overwhelming at ten, and the rover is
+         three metres long for scale. */
+      height: [2.8, 5.2],
+      scale: [0.85, 1.2],
+      trunk: 0.40,              // fraction of height that is bare trunk
+      girth: 0.035,             // trunk radius as a fraction of height
+      taper: 0.55,              // trunk radius at the neck, as a fraction
+      sides: 5,                 // trunk and canopy facets. 5 rounds the crown
+      tiers: 3,                 // canopy cones stacked up the trunk
+      canopy: 0.30,             // bottom tier radius as a fraction of height
+      lean: 0.05,
+      color: null,
+      colorMix: 0.80,
+      root: 0.42,
+    },
+
+    /* HERO PLANTS. Rare and much larger — something to drive toward. Same
+       generator as the tree with a different silhouette: more tiers, a longer
+       bare trunk, and a narrower crown, so it reads as a different species and
+       not as a tree that got scaled up. */
+    hero: {
+      form: 'tree',
+      density: 0,
+      perLeaf: 2,
+      band: [0.02, 0.26],
+      slope: 0.26,
+      slopeThin: 1.0,
+      clumps: [1, 2],
+      clump: [0.02, 0.06],
+      height: [7.5, 11.5],
+      scale: [0.9, 1.3],
+      trunk: 0.62,
+      girth: 0.028,
+      taper: 0.45,
+      sides: 5,
+      tiers: 4,
+      canopy: 0.20,
+      lean: 0.03,
+      color: null,
+      colorMix: 0.84,
+      root: 0.38,
+    },
+  },
 };
 
-/**
- * THE WIND, which is the whole reason vegetation is worth having.
- *
- * Movement matters more than density - grass that moves at low density beats
- * static grass at high density, for a fraction of the cost - so this is tuned
- * first and `FLORA.density` second.
- *
- * Driven entirely in the terrain vertex shader off the `sway` attribute and a
- * phase hashed from each blade's own world position, so there is no per-frame
- * CPU, no simulation and nothing to keep in step across a chunk rebuild.
- */
 export const WIND = {
   speed: 1.15,         // radians a second of the primary oscillation
   // Metres the tip travels, at sway 1. Not a fraction of blade height: a

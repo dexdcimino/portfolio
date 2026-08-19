@@ -158,6 +158,40 @@ export function tierOf() {
   return tierCache;
 }
 
+/**
+ * THIS WORLD'S VEGETATION STACK, resolved the way skyOf and lightOf are.
+ *
+ * Returns null when the world has none, which is the fast path Ember and Vault
+ * take: chunks.js never calls appendFlora, no vertex carries a sway other than
+ * -1, and the terrain shader's branch is never taken.
+ *
+ * Layers merge PER KEY, and per layer. A world stating only
+ * `flora: { density: 1, layers: { tree: { density: 0.6 } } }` gets a full tree
+ * definition with one number changed — a flat Object.assign would hand it a
+ * layer with one field and a dozen undefined ones, which reaches the emitter as
+ * NaN geometry and takes out that world's terrain and no other.
+ *
+ * The master density multiplies every layer, so a world can be thinned out as
+ * one decision rather than four.
+ */
+export function floraOf(planet) {
+  const F = Object.assign({}, FLORA, planet.flora || {});
+  if (!F.density) return null;
+  const COL = paletteOf(planet);
+  const over = (planet.flora || {}).layers || {};
+  // TIER DROPS LAYERS, it does not degrade them. See TIER.floraLayers.
+  const allowed = TIER.floraLayers[tierOf().name] || Object.keys(FLORA.layers);
+  const out = {};
+  for (const name of Object.keys(FLORA.layers)) {
+    if (allowed.indexOf(name) < 0) continue;
+    const L = Object.assign({}, FLORA.layers[name], over[name] || {});
+    L.density = (L.density || 0) * F.density;
+    L.color = L.color || COL.flats;
+    out[name] = L;
+  }
+  return out;
+}
+
 export function skyOf(planet) {
   const COL = paletteOf(planet);
   const S = Object.assign({}, SKY, planet.sky || {});
@@ -174,6 +208,12 @@ export function skyOf(planet) {
     cloudColor: S.cloudColor || COL.coast,
     underglowColor: S.underglowColor || COL.fogSun,
     sunColor: S.sunColor || COL.fogSun,
+    /* The star block, merged per key like `scatter` and resolved here so a
+       world stating only `stars: { amount: 0.9 }` gets four real numbers
+       rather than three undefined uniforms and a black sky. */
+    stars: Object.assign({}, SKY.stars, (planet.sky || {}).stars || {},
+      { color: ((planet.sky || {}).stars || {}).color || SKY.stars.color
+        || COL.peak }),
     /* The middle of the gradient, resolved HERE like every other null, so
        the shader is handed three real stops and nothing downstream has to
        know what a default mid is. null = the midpoint of the two ends at
@@ -1242,6 +1282,14 @@ function registerShaders() {
     uniform vec4 uGrad;      // curve, midAt, bands, bandMix
     uniform vec4 uScat;      // airmass falloff, sun power, sun mix, added gain
     uniform vec4 uCloudP;    // cover, soft, scale, octaves
+    /* x how far coverage swings across the sky (a broken deck vs a solid lid),
+       y the scale of that swing, z the deck's own contrast, w unused. */
+    uniform vec4 uCloudP2;
+    /* STARS. x amount, y angular size, z how many cells carry one, w how fast
+       they fade into the horizon haze. Amount 0 is off and every world with
+       thick air runs at 0. */
+    uniform vec4 uStars;
+    uniform vec3 uStarCol;
     /* x: the elevation of the TRUE horizon, zero on the ground and negative in
        the air. y: 1 / (1 - x), which renormalises the gradient so the zenith is
        still the zenith however far the skyline has dropped. z: how many cloud
@@ -1276,6 +1324,36 @@ function registerShaders() {
         amp *= 0.5;
       }
       return sum / max(norm, 1e-4);
+    }
+
+    /* STARS IN A DAYLIT SKY, which is the single strongest thing that separates
+       a world with air from one without. There was no star field to turn back
+       on — svStreak is hyperspace velocity lines and says so in its own comment
+       ("star streaking, without stars") — so this is new, and it is analytic
+       rather than a texture: no asset, no fetch, no atlas to keep in step.
+
+       The direction is quantised onto a grid and each cell is hashed. Most
+       cells are empty; the ones that are not place a point somewhere inside
+       themselves, so the field is irregular rather than a lattice. Fading them
+       out into the horizon haze is what keeps them from sitting on top of the
+       skyline where the air is thickest, which is the one place even an airless
+       world has something between you and the sky. */
+    float h31(vec3 p) {
+      return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
+    }
+    float starField(vec3 D, float t) {
+      if (uStars.x <= 0.0) return 0.0;
+      vec3 p = D * 190.0;
+      vec3 c = floor(p);
+      float pick = h31(c);
+      if (pick > uStars.z) return 0.0;
+      vec3 off = vec3(h31(c + 1.7), h31(c + 3.3), h31(c + 5.9)) - 0.5;
+      float d = length(fract(p) - 0.5 - off * 0.7);
+      // Brightness varies per star, so the field has depth rather than reading
+      // as one layer of identical dots.
+      float mag = 0.35 + 0.65 * h31(c + 9.1);
+      float horizon = smoothstep(0.0, uStars.w, t);
+      return smoothstep(uStars.y, 0.0, d) * mag * horizon;
     }
 
     /* One stratum's elevation window.
@@ -1342,7 +1420,17 @@ function registerShaders() {
          hard-edged slab hanging in the sky. */
       float ev = max(elRaw, 0.12);
       vec2 cp = vec2(dot(D, uEast), dot(D, uNorth)) / ev * uCloudP.z;
-      float cover = uCloudP.x, soft = max(uCloudP.y, 0.01), oct = uCloudP.w;
+      float soft = max(uCloudP.y, 0.01), oct = uCloudP.w;
+      /* A BROKEN DECK OR A SOLID LID. One extra octave at a much larger scale,
+         swinging the coverage threshold across the sky: at break 0 the deck is
+         even everywhere, which is what every world shipped with and is why they
+         all read as the same weather. Above 0 there are open patches and thick
+         patches, and the two do not move together. */
+      float cover = uCloudP.x;
+      if (uCloudP2.x > 0.0) {
+        float big = fbm(cp * uCloudP2.y + 53.7, 1.0);
+        cover += (big - 0.5) * uCloudP2.x;
+      }
 
       float n1 = fbm(cp * 1.7 + vec2(uTime * 0.006, uTime * -0.004), oct);
       float c1 = smoothstep(cover, cover + soft, n1) * strat(hzn, 0.10, 0.30, uCeil);
@@ -1379,6 +1467,12 @@ function registerShaders() {
          horizon on the sun's side. This is the bright band behind the mesas.
          Ships at gain 0 on every world until authored. */
       col += uFogSun * fwd * airmass * uScat.w;
+
+      /* Stars, above the haze and under the sun. Added, so a bright sky washes
+         them out on its own where the scattering is strong — which is exactly
+         the behaviour that makes them read as "there is no air here" rather
+         than as dots painted on. */
+      col += uStarCol * starField(D, t) * uStars.x;
 
       // Underglow: the ground lighting the sky from beneath, for a world whose
       // light source is at your feet. Added rather than mixed, and authored
@@ -1869,10 +1963,18 @@ export function createMaterials(scene, planet) {
      a sway other than -1, and the branch in the terrain shader is never taken.
      Three of the six worlds pay nothing at all for this existing. */
   {
-    const FL = Object.assign({}, FLORA, planet.flora || {});
+    /* ONE TINT FOR ALL FOUR LAYERS, taken from `cover`.
+       A colour per layer would need a second vertex attribute to select it, and
+       the four layers are the same plant family on any one world — what makes a
+       tree read as a tree is its silhouette and the root-to-tip gradient, not a
+       different hue from the grass under it. If that stops being true, the
+       cheapest route is packing a layer index into the sign bits of `sway`
+       rather than adding an attribute. */
+    const FL = floraOf(planet);
+    const CV = FL ? FL.cover : null;
     terrain.setVector4('uFlora', new BABYLON.Vector4(
-      ...(FL.color || COL.flats), FL.density ? FL.colorMix : 0));
-    terrain.setFloat('uFloraRoot', FL.root);
+      ...(CV ? CV.color : COL.flats), CV ? CV.colorMix : 0));
+    terrain.setFloat('uFloraRoot', CV ? CV.root : 0.5);
     terrain.setVector4('uWind', new BABYLON.Vector4(
       WIND.speed, WIND.amplitude, WIND.gustSpeed, WIND.gust));
     /* The wind's heading is refreshed per frame in mats.update from the local
@@ -1890,7 +1992,8 @@ export function createMaterials(scene, planet) {
         'uBandCol', 'uCloudCol', 'uUnderCol', 'uSunCol', 'uTime', 'uFog',
         'uFogSun', 'uHaze', 'uBand', 'uBandW', 'uClouds', 'uCeil', 'uUnder',
         'uSunSize', 'uGlare', 'uSunCos', 'uUp', 'uEast', 'uNorth',
-        'uMid', 'uGrad', 'uScat', 'uCloudP', 'uHoriz'],
+        'uMid', 'uGrad', 'uScat', 'uCloudP', 'uHoriz',
+        'uCloudP2', 'uStars', 'uStarCol'],
     });
   sky.setVector3('uLow', V3(SK.horizon));
   sky.setVector3('uHigh', V3(SK.zenith));
@@ -1938,6 +2041,12 @@ export function createMaterials(scene, planet) {
        be a shader recompile risk for nothing. */
     sky.setVector4('uCloudP', new BABYLON.Vector4(
       SK.cloudCover, SK.cloudSoft, SK.cloudScale, tierOf().cloudDetail));
+    sky.setVector4('uCloudP2', new BABYLON.Vector4(
+      SK.cloudBreak, SK.cloudBreakScale, 0, 0));
+    const ST = SK.stars;
+    sky.setVector4('uStars', new BABYLON.Vector4(
+      ST.amount, ST.size, ST.density, ST.horizon));
+    sky.setVector3('uStarCol', V3(ST.color));
     /* The true horizon, refreshed per frame in mats.update. Zero here is
        ground level, which is the value that makes the whole term a no-op
        until something climbs. */

@@ -216,6 +216,168 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
+## The art pass: six atmospheres, and vegetation with a silhouette
+
+### Atmospheric thickness is the axis, and stars are how you read it
+
+The six skies were variations of one sky. They are two families now, split on
+whether there is any air:
+
+| | world | reads as |
+|---|---|---|
+| **thick** | home | blue, a real broken cloud deck, a proper daytime sky |
+| | tarn | bright, humid, low contrast, a nearly solid low deck over open water |
+| **thin** | vault | cold and clear, deep blue overhead, **stars through the daylight** |
+| | anvil | high and washed out, pale at the skyline, faint stars in the dark top |
+| | ember | near-black sky; the orange is the GROUND lighting the deck from beneath |
+| **neither** | shroud | no sky at all. Flat violet murk, and you cannot see up |
+
+**THERE WAS NO STAR FIELD TO TURN BACK ON.** The brief had it as already built
+and switched off in the re-grade. `svStreak` is the hyperspace velocity lines
+and its own comment says why — *"star streaking, without stars. There is nothing
+out there to streak."* So this is new, and analytic rather than a texture: the
+view direction is quantised onto a grid, each cell hashed, most left empty. No
+asset, no fetch, no atlas to keep in step.
+
+Two things about it are worth keeping:
+
+- **The units are the trap.** The grid is 190 cells across a unit direction, so
+  a cell is about 0.3 degrees — roughly three pixels here. The first cut set the
+  star radius to 0.055 *of a cell*, which is a fifth of a pixel, and the sheet
+  came back with no stars at all on either world that had asked for them.
+- **Above 1.0 is the useful range.** A star has to compete with a sky already at
+  half brightness. At amount 1.0 they were technically present and invisible;
+  authored past 1.0 the bloom pass finds them, which is how a bright point is
+  meant to read and is what the sun and Ember's fissures already do.
+
+Cloud gained a **broken deck** term: one extra octave at a much larger scale,
+swinging the coverage threshold across the sky. At 0 the deck is even
+everywhere, which is what all six shipped with and is most of why they read as
+the same weather.
+
+### The ALOFT cyan band was a hyper-arrival bug
+
+Recorded last pass as a pre-existing sky defect. It is not a sky defect. It is
+the **jet's wingtip TrailMesh**, three metres from the lens.
+
+A TrailMesh accumulates points from its emitter's world position — right while
+the craft flies, and wrong the moment it does not. `swapTo` moves the craft
+across the solar system in one frame and the ribbon dutifully draws a segment
+spanning the jump: a hard-edged phosphor band over the new world, backface
+culling off. `dev/frames.mjs` teleports to altitude the same way, so the
+reference frame was showing a **real bug rather than an artefact of the
+harness**, which is exactly backwards from how it had been read.
+
+`Trails.resetJetTrails()` throws the ribbon away and starts a new one, and
+`swapTo` calls it. `stopJetTrails` alone does not hold, because `update()`
+correctly rebuilds the ribbon on the next frame whenever the craft is in jet
+mode and the list is empty.
+
+**How it was found matters more than the fix.** Two rounds of
+toggle-a-mesh-and-difference gave *every mesh in the scene the same delta*,
+which is not what a culprit looks like — first with the post stack on, then with
+it off and warm-up frames added. What answered it in one shot was
+`scene.multiPick` through the pixel: ask the scene what is there, instead of
+asking the framebuffer what changed. Reach for a pick ray before a diff.
+
+### The third instance of the constructor-caching bug
+
+Swept the whole family as asked. Everything that caches a `planet` is either
+constructed inside `World` — rebuilt per planet — or explicitly re-pointed in
+`swapTo`. There was one more.
+
+`main.js` holds a module-level `const surface`, built from the boot planet. It
+has to exist, because a `Craft` needs a surface before a `World` can be built,
+but nothing ever writes it again: `swapTo` replaces the *craft's*. Exposing it
+as `SURVEYOR.surface` meant that handle, and `SURVEYOR.surfaceHeight`, quietly
+answered for whichever world the tab opened on, forever.
+
+Nothing in the game reads it after boot, so it never showed. What reads it is
+`dev/frames.mjs`, which builds the ALOFT and SHORE cameras out of
+`S.surface.frame` — so a harness that warped would have framed one world's shot
+with another world's tangent basis and reported it as fine. It is a getter onto
+`craft.surf` now; there is no second copy.
+
+### Vegetation: four layers, and the tree is the one that mattered
+
+Placement was never the problem. The silhouette was. One form repeated is why a
+field reads as texture, so there are four:
+
+| layer | tris | what it does |
+|---|---|---|
+| cover | 3 | the ground layer |
+| shrub | 12 | a splayed rosette. Breaks up the ground plane |
+| tree | 20 | trunk and a tiered canopy. **What reads from a distance** |
+| hero | 32 | rare, larger, worth driving toward |
+
+The trunk does not sway — a tree that bends at the root reads as rubber — and
+the canopy tiers sway increasingly with height, so the crown drifts while the
+trunk holds. Distribution is stated per layer rather than per world: trees take
+a low band and a gentle slope, which is a valley near water; cover takes a wide
+band and a steeper limit, which is a flat or a hillside; nothing takes a cliff.
+
+**Scale was the whole of the second attempt.** Trees at 5-9.5m put a plant
+beside the chase camera that filled the frame on its own. The camera sits 5.2m
+up and 15m back and the rover is three metres long; 2.8-5.2m is a tree.
+
+| world | stack | why |
+|---|---|---|
+| home | all four | the lush one, and the first world anyone sees |
+| tarn | cover, shrub, tree | coastal, everything inside the first fifth of relief |
+| shroud | cover, tree, hero | sparse, tall, thin. Things looming out of murk |
+| anvil | cover, tree | a few tufts and stunted trees in the canyon floors |
+| ember, vault | none | and paying nothing |
+
+Tier drops **layers, not quality**: a low tier loses shrub and hero and keeps
+cover and tree. Shipping a worse tree would be visible in a way a missing shrub
+is not.
+
+### Why there are no downloaded models, in numbers
+
+The brief asked for CC0 models from Quaternius or Kenney. Both are reachable
+from here and the glTF loader bundle is 578KB, so it was possible. It is still
+the wrong call, and the arithmetic is the argument:
+
+- a max-detail leaf is about **2100 triangles**, rocks included
+- a stylised CC0 tree is **400 to 2000 triangles**
+- fifty of them in one leaf is **20k to 100k** — seven to thirty-five times the
+  entire leaf
+
+Real models are affordable only as **instances**, and instancing is precisely
+what this design does not do: the ground is a stream, and a baked plant needs no
+draw call, no separate culling, no separate LOD and no lifetime of its own. The
+brief also says to keep that machinery. Both cannot be true at once, and this is
+the half that was chosen.
+
+What is here instead is generated geometry at 3 to 32 triangles a plant — the
+same technique that produced the rock spires nobody calls procedural. If real
+models are wanted, the path is instancing plus the vendored loader, and that is
+a different architecture from the one this pass was told to keep. `blade()`,
+`shrub()` and `tree()` in `flora.js` are the only structural things that change.
+
+### What the cost measurement is actually worth
+
+Exact and reliable: **11974 plants on Home across 174786 triangles, and the draw
+call count does not move on any world.** CPU leaf build, timed in Node against
+the 6ms budget asserted in `dev/run.mjs`: **2.8ms**, stable run to run.
+
+Not reliable: the render-side frame delta — and `dev/floracheck.mjs` now says so
+itself rather than printing a number. Ember and Vault emit zero plants, so their
+"with" and "without" frames are the same picture and any difference between them
+is the rig: **a 49.9ms floor on a roughly 300ms software-rasterised frame.**
+Every vegetated world lands inside it, and one run had Shroud rendering *faster*
+with vegetation than without, which is the clearest available statement that the
+instrument does not resolve this.
+
+Three things had to be fixed before even that was true, and each produced a
+confident wrong number first: a mean over a block of frames (the same world at
++4.3% and +25.3% on consecutive runs), a comparison that straddled a field
+rebuild, and — once `ChunkField` began caching its resolved stack — a control
+that mutated `planet.flora` and therefore changed nothing, reporting Tarn at
+**+9527%** because it was comparing a full world against a nearly empty one. The
+harness now refuses to compare two scenes that are not the same scene minus the
+vegetation.
+
 ## Vegetation is part of the ground, and five worlds do not have it
 
 **NOT INSTANCED, DELIBERATELY.** The brief asked for instanced geometry with

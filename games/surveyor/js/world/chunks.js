@@ -15,6 +15,7 @@ import { faceDir, dirToFace, arcBetween } from './sphere.js';
 import { splitNode } from './surface.js';
 import { appendRocks } from './scatter.js';
 import { appendFlora } from './flora.js';
+import { floraOf } from './materials.js';
 import { WORLD } from '../tune.js';
 
 const D = { x: 0, y: 0, z: 0 };
@@ -24,6 +25,10 @@ export class ChunkField {
     this.scene = scene;
     this.material = material;
     this.planet = planet;
+    /* Resolved once per field rather than per leaf: the stack is a pure
+       function of the profile and a leaf builds while you are driving. null
+       means this world has no vegetation and the whole system is skipped. */
+    this.flora = floraOf(planet);
     this.live = new Map();       // key -> { mesh, level }
     this.queue = [];
     this.wanted = new Set();
@@ -187,10 +192,9 @@ export class ChunkField {
     const before = pos.length / 3;
     const sway = new Array(before).fill(-1);
     let blades = 0;
-    if (P.flora && P.flora.density &&
-        level >= P.maxLevel - (WORLD.floraLevels - 1)) {
+    if (this.flora && level >= P.maxLevel - (WORLD.floraLevels - 1)) {
       blades = appendFlora(P, f, u0, v0, size, ox, oy, oz, pos, nrm, sway,
-        WORLD.floraPerChunk);
+        WORLD.floraPerChunk, this.flora);
     }
 
     /* Bake the fissure mask (Phase 3a2). Ember's cracks glow, and the shader has

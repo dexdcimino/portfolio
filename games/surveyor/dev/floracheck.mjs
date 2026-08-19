@@ -81,15 +81,27 @@ const COUNT = `(() => {
     tris: Math.round(verts / 3) };
 })()`;
 
-/* Frame time, by hand. The loop is already stopped, so this times exactly the
-   render and nothing else. A warm-up pass first: the first render after any
-   state change compiles, uploads and settles, and timing it measures that. */
+/* Frame time, by hand, as a MEDIAN of individually timed frames.
+   The loop is already stopped, so this times the render and nothing else. A
+   warm-up pass first, because the first render after any state change compiles,
+   uploads and settles and timing it measures that.
+
+   The median is not fussiness. The first version averaged a block of frames and
+   reported the same world at +4.3% and +25.3% on two runs with identical
+   geometry, because one scheduling spike in forty frames moves a mean and does
+   not move a middle. The control worlds are what exposed it: Vault has zero
+   vegetation and came back at -3.3% and +8.9%. */
 const TIME = (n) => `(() => {
   const S = window.SURVEYOR;
-  for (let i = 0; i < 8; i++) S.scene.render();
-  const t0 = performance.now();
-  for (let i = 0; i < ${n}; i++) S.scene.render();
-  return (performance.now() - t0) / ${n};
+  for (let i = 0; i < 10; i++) S.scene.render();
+  const ms = [];
+  for (let i = 0; i < ${n}; i++) {
+    const t0 = performance.now();
+    S.scene.render();
+    ms.push(performance.now() - t0);
+  }
+  ms.sort((a, b) => a - b);
+  return ms[Math.floor(ms.length / 2)];
 })()`;
 
 /* DOES THE WIND ACTUALLY MOVE ANYTHING?
@@ -131,21 +143,35 @@ const WIND = `(() => {
 })()`;
 
 /* Rebuild every live chunk with vegetation forced off, from the same camera.
-   Not "hide the blades" — they have to be GONE from the vertex buffer, because
-   what is being measured is the cost of carrying them at all. */
-const REBUILD = (density) => `(async () => {
+   Not "hide the plants" — they have to be GONE from the vertex buffer, because
+   what is being measured is the cost of carrying them at all.
+
+   IT IS THE FIELD'S CACHED STACK THAT HAS TO CHANGE, not the profile.
+   ChunkField resolves floraOf() once in its constructor, because a leaf builds
+   while you are driving and re-resolving per leaf would be work for nothing.
+   This harness used to mutate planet.flora and rebuild, which after that change
+   did nothing at all — and the run that exposed it reported Tarn at +9527%,
+   because the rebuild left the field almost empty and it was comparing a full
+   world against a nearly blank one.
+
+   So the rebuild returns its leaf and plant counts, and the caller refuses to
+   compare two scenes that are not the same scene minus the vegetation. */
+const REBUILD = (on) => `(async () => {
   const S = window.SURVEYOR;
   const frame = () => new Promise((r) => requestAnimationFrame(r));
-  S.planet.flora = Object.assign({}, S.planet.flora, { density: ${density} });
+  if (!window.__FLORA_SAVED) window.__FLORA_SAVED = S.field.flora;
+  S.field.flora = ${on} ? window.__FLORA_SAVED : null;
   S.field.dispose();
   S.field.live.clear();
   S.field.queue.length = 0;
   S.field.dirty = true;
   const dir = S.craft.surf.frame.up;
   S.field.update(dir);
-  for (let i = 0; i < 4000 && S.field.queue.length; i++) S.field.update(dir);
+  for (let i = 0; i < 6000 && S.field.queue.length; i++) S.field.update(dir);
   for (let i = 0; i < 10; i++) await frame();
-  return S.field.live.size;
+  let blades = 0;
+  for (const [, e] of S.field.live) blades += (e.mesh && e.mesh.metadata || {}).blades || 0;
+  return { leaves: S.field.live.size, blades };
 })()`;
 
 const { port, close } = await serve(SITE);
@@ -167,23 +193,34 @@ for (const key of KEYS) {
 
   const on = await evaluate(page, COUNT);
   const wind = await evaluate(page, WIND);
-  const msOn = await evaluate(page, TIME(40));
+  const msOn = await evaluate(page, TIME(60));
   if (shot) {
     const png = await page.send('Page.captureScreenshot', { format: 'jpeg', quality: 88 });
     writeFileSync(resolve(HERE, `shots/flora-${key}.jpg`), Buffer.from(png.data, 'base64'));
   }
 
-  await evaluate(page, REBUILD(0));
+  /* Rebuild ONCE WITH vegetation first, so the "with" and "without" frames are
+     both post-rebuild: a fresh field and a re-streamed one are not the same
+     scene, and comparing one of each attributes the difference to vegetation. */
+  const reOn = await evaluate(page, REBUILD(true));
+  const msOn2 = await evaluate(page, TIME(60));
+  const reOff = await evaluate(page, REBUILD(false));
   const off = await evaluate(page, COUNT);
-  const msOff = await evaluate(page, TIME(40));
+  const msOff = await evaluate(page, TIME(60));
+  const comparable = reOn.leaves === reOff.leaves && reOff.blades === 0;
+  if (!comparable) {
+    console.log(`  SKIPPED: the two scenes differ — ${reOn.leaves} leaves with, ` +
+      `${reOff.leaves} without, ${reOff.blades} plants left in the control. ` +
+      'Nothing can be concluded from comparing them.');
+  }
 
   const dens = Object.assign({}, FLORA, PLANETS[key].flora || {}).density;
-  const cost = msOff > 0 ? ((msOn / msOff - 1) * 100) : 0;
-  rows.push({ key, dens, on, off, msOn, msOff, cost });
+  const cost = (comparable && msOff > 0) ? ((msOn2 / msOff - 1) * 100) : NaN;
+  rows.push({ key, dens, on, off, msOn: msOn2, msOff, cost, comparable });
   console.log(`${key.padEnd(8)} ${String(dens).padStart(6)}  ` +
     `${String(on.blades).padStart(6)}  ${String(on.withFlora + '/' + on.leaves).padStart(11)}  ` +
     `${String(on.tris).padStart(7)}  ${String(on.drawn).padStart(6)}  ` +
-    `${msOn.toFixed(2).padStart(7)}  ${msOff.toFixed(2).padStart(10)}   ` +
+    `${msOn2.toFixed(2).padStart(7)}  ${msOff.toFixed(2).padStart(10)}   ` +
     `${((cost >= 0 ? '+' : '') + cost.toFixed(1) + '%').padStart(7)}   ` +
     `wind moves ${String(wind.moved.pct).padStart(5)}% of frame, peak ${wind.moved.peak}` +
     (wind.control.pct > 0.02 ? `  (CONTROL DIRTY: ${wind.control.pct}%)` : ''));
@@ -198,16 +235,50 @@ for (const key of KEYS) {
   await page.close();
 }
 
-const worst = rows.filter((r) => r.dens > 0).sort((a, b) => b.cost - a.cost)[0];
+/* THE MEASUREMENT FLOOR, FROM THE WORLDS THAT HAVE NO VEGETATION.
+   Ember and Vault emit zero plants, so their "with" and "without" frames are
+   the same picture and any difference between them is this rig, not this
+   feature. That makes them a free control, and the honest thing to do with a
+   control is let it veto the result: any world whose cost is inside the floor
+   gets reported as inside it rather than as a number.
+
+   It is a wide floor. Two renders separated by a full chunk-field rebuild, on a
+   software rasteriser, in a browser sharing a machine with the harness, is not
+   an instrument that resolves single-digit percentages — successive runs put
+   the same unchanged world at -3.3%, +8.9% and +41.2%. Taking a median of
+   individually timed frames did not fix it, because the noise is between the
+   two measurements rather than within either.
+
+   What IS reliable here is exact: blade counts, triangle counts, and draw
+   calls. And the CPU side is measured properly elsewhere — dev/run.mjs times
+   leaf build against a 6ms budget in Node, with no browser in the way. */
+/* THE FLOOR IS IN MILLISECONDS, not percent.
+   Percent is the wrong unit for a control here: Ember's whole frame is under
+   two milliseconds because it is a small world with almost nothing in it, so a
+   couple of milliseconds of jitter is a three-figure percentage there and a
+   rounding error on Anvil. The absolute difference between two renders of the
+   SAME picture is what this rig cannot resolve, and that is a number of
+   milliseconds. */
+const bare = rows.filter((r) => r.dens === 0 && r.comparable);
+const floor = bare.length ? Math.max(...bare.map((r) => Math.abs(r.msOn - r.msOff))) : 0;
 console.log('');
-if (worst) {
-  console.log(`Worst case: ${worst.key} at ${worst.cost.toFixed(1)}% of frame time for ` +
-    `${worst.blades || worst.on.blades} blades, and no extra draw calls.`);
-}
-const bare = rows.filter((r) => r.dens === 0);
 if (bare.length) {
-  console.log(`No vegetation at all on ${bare.map((r) => r.key).join(', ')} — ` +
-    'appendFlora returns before it seeds an rng, so those pay nothing for the system.');
+  console.log(`MEASUREMENT FLOOR ${floor.toFixed(1)}ms, from ${bare.map((r) => r.key).join(' and ')}, ` +
+    'which emit no vegetation at all: their two frames are the same picture, ' +
+    'so any difference between them is this rig rather than this feature.');
+}
+for (const r of rows.filter((x) => x.dens > 0)) {
+  const delta = Math.abs(r.msOn - r.msOff);
+  const inside = !r.comparable || !Number.isFinite(r.cost) || delta <= floor;
+  console.log(`  ${r.key.padEnd(7)} ${String(r.on.blades).padStart(6)} plants, ` +
+    `${String(r.on.tris).padStart(7)} tris, draws unchanged, ` +
+    (inside ? `render delta ${delta.toFixed(1)}ms — inside the floor`
+      : `render cost ${r.cost.toFixed(1)}% (${delta.toFixed(1)}ms)`));
+}
+if (bare.length) {
+  console.log(`
+${bare.map((r) => r.key).join(' and ')} pay nothing: floraOf returns null, ` +
+    'appendFlora is never called and the shader branch is never taken.');
 }
 await chrome.close();
 close();

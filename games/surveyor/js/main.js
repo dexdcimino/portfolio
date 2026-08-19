@@ -195,6 +195,9 @@ function swapTo(key, dir, alt) {
      spray. Trails read its planet once in its constructor and nothing ever
      wrote it again, so every world's motes were the boot world's. */
   trails.setPlanet(next);
+  /* ...and throw away the wingtip ribbon, because landOn just moved the craft
+     across the solar system and a TrailMesh draws every metre of that. */
+  trails.resetJetTrails();
   // The world's own grade. Neutral on all six at T1, so this is a no-op that
   // proves the wire — and the one line that has to exist before any world can
   // be graded on its own.
@@ -551,9 +554,26 @@ window.SURVEYOR = {
   get colonies() { return world.colonies; },
   get discs() { return world.discs; },
   get mats() { return world.mats; },
-  surface,
+  /* THE LIVE SURFACE, not the boot one, and this is the third instance of the
+     same bug in this project.
+
+     `surface` above is a const built from the boot planet. It has to exist —
+     a Craft needs one before a World can be constructed — but it is never
+     written again, and swapTo replaces the craft's with `new Surface(next, dir)`
+     instead. Exposing the const meant SURVEYOR.surface and SURVEYOR.surfaceHeight
+     quietly answered for whichever world the tab opened on, forever.
+
+     Nothing in the game reads it after boot, so it never showed. What reads it
+     is dev/frames.mjs, which builds the ALOFT and SHORE cameras out of
+     S.surface.frame — so a harness that warped would have framed one world's
+     shot with another world's tangent basis and reported it as fine.
+
+     The craft's surface is the authority; there is no second copy now. Same
+     pattern as the sky domes and as Trails: an object caching `planet` or a
+     frame at construction and nothing re-pointing it. */
+  get surface() { return craft.surf; },
   // Kept for the dev harness: local tangent height, the same call craft.js makes.
-  surfaceHeight: (x, z) => surface.surfaceHeight(x, z),
+  surfaceHeight: (x, z) => craft.surf.surfaceHeight(x, z),
   // The dev warp, so dev/spawncheck.mjs can measure the path the HUD row takes
   // rather than a reimplementation of it. Still gated by DEBUG.warp inside.
   warp: devWarp,

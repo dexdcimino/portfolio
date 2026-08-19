@@ -150,16 +150,6 @@ export const ALOFT = `(async () => {
     if (settled > 20) break;
   }
 
-  /* THE WINGTIP RIBBONS GO, and they are the reason this frame had a hard
-     cyan slab across the sky in every sheet for several passes.
-     trails.js recreates them on ENTERING jet mode, precisely so they never
-     streak across the map from wherever you last were. This harness enters jet
-     mode and THEN teleports the craft to altitude, so the ribbon is drawn from
-     the old position to the new one: a phosphor-coloured band, backface culling
-     off, hanging over the horizon. It is an artefact of teleporting and not
-     something a player flying up there can produce, so it has no business in a
-     reference frame. */
-  if (S.trails) S.trails.stopJetTrails();
 
   const c = S.cam.camera;
   S.cam.update = () => {};
@@ -172,5 +162,16 @@ export const ALOFT = `(async () => {
   S.surface.toWorld(alt * 2.2, 0, 0, aim);
   c.position.copyFrom(eye);
   for (let i = 0; i < 24; i++) { c.setTarget(aim); await frame(); }
+
+  /* LAST, after the craft has stopped being teleported.
+     This harness holds craft.pos.y at altitude every frame while the ground
+     streams in, which is a teleport per frame, and the wingtip TrailMesh draws
+     a segment across every one of them. Resetting earlier does not hold:
+     Trails.update rebuilds the ribbon on the next frame whenever the craft is
+     in jet mode and the list is empty, which is correct behaviour.
+     The ribbon that produced the cyan band across four of these sheets was a
+     REAL bug and is fixed in swapTo; this is the harness's own teleport. */
+  if (S.trails) S.trails.resetJetTrails();
+  for (let i = 0; i < 3; i++) await frame();
   return { aloft: +alt.toFixed(0) };
 })()`;

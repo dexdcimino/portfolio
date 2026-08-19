@@ -208,7 +208,10 @@ export class Trails {
    * on. Flying to Ember got you Home's pale drift in an ash storm.
    *
    * Same class as the sky domes: a per-world thing built once at boot and never
-   * re-pointed. It is worth checking any other field that caches `planet`.
+   * re-pointed. The whole family was swept afterwards and there was a third —
+   * main.js's module-level `surface`, which SURVEYOR.surface handed out to the
+   * dev harnesses. Everything else that caches a planet is constructed inside
+   * World, which is rebuilt per planet, or is explicitly re-pointed in swapTo.
    */
   setPlanet(planet) {
     this.planet = planet;
@@ -254,6 +257,33 @@ export class Trails {
   stopJetTrails() {
     for (const t of this.trails) t.dispose();
     this.trails = [];
+  }
+
+  /**
+   * The craft has TELEPORTED. Throw the ribbon away and start a new one.
+   *
+   * A Babylon TrailMesh accumulates points from its emitter's world position,
+   * which is exactly right while the craft flies and exactly wrong the moment
+   * it does not: an arrival moves the craft across the solar system in one
+   * frame, and the ribbon dutifully draws a segment spanning the jump. What
+   * that looks like is a hard-edged phosphor band hanging over the new world,
+   * backface culling off, three metres from the lens — and it stays until the
+   * ribbon's 58 points cycle out.
+   *
+   * It was visible for several passes in dev/shots/*-aloft.png and was read as
+   * a sky defect, because a band across the sky is what it looks like. It is
+   * not: dev/frames.mjs teleports the craft to altitude the same way a hyper
+   * arrival does, so the reference frame was showing a real bug rather than an
+   * artefact of the harness. Anything that moves the craft without flying it
+   * has to call this.
+   *
+   * stopJetTrails alone is not enough, because update() rebuilds the ribbon on
+   * the next frame whenever the craft is in jet mode and the list is empty —
+   * which is the correct behaviour and is why this is a separate verb.
+   */
+  resetJetTrails() {
+    this.stopJetTrails();
+    if (this.craft && this.craft.mode === 'jet') this.startJetTrails();
   }
 
   /**
