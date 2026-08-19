@@ -1141,6 +1141,34 @@ Same iframe-wrapper pattern as Stickland, mounted at `/surveyor`.
 
 ## Not done
 
+**Ember's sky has a slab in it, and it belongs to the sky pass.** Look toward
+Ember's sun and there is a large pale lozenge across the lower sky with a hard
+enough edge to read as geometry — visible in `dev/shots/sun-ember-cold.jpg`. It
+is NOT the sun, and it is not new: the same wash is in the frames taken before
+the halo was reduced, and differencing a frame against the same frame with
+`uGlare` at zero leaves the lozenge untouched. It is the CLOUD STRATA, and the
+bright part is the gap between them.
+
+The mechanism, so the sky pass does not have to re-derive it. Each stratum is
+`smoothstep(0.40, 0.56, sin(cu * k) * sin(cv * k'))` — a level set of a product
+of two sines, which on a sphere is a rounded quadrilateral with a boundary only
+0.16 wide in a quantity that swings over 2. Ember then makes that boundary
+maximally visible: `cloudColor` is [0.145, 0.075, 0.067], nearly black, against
+an `underglow` of 1.5 in orange authored past 1.0, at `clouds: 1.4` — so the mix
+factor reaches 0.42 * 1.4 = 0.59 and the cloud reads as a hole punched in a
+glowing sky rather than as cloud.
+
+Three worlds draw a cloud darker than the sky under it, by luminance against
+their own `skyLow` — Ember 0.089 vs 0.171, Shroud 0.262 vs 0.275, Anvil 0.663 vs
+0.749 — but only Ember pairs that with both a high `clouds` and an underglow.
+Shroud has the dark cloud at 1.5 strength and no underglow at all; Anvil's cloud
+is barely darker and runs at 0.22. So the slab is an Ember artefact
+specifically, and any rework should be checked against Shroud second.
+
+Left alone deliberately: the strata are being reworked in the sky pass, and
+softening the smoothstep here would be tuning a term that is about to be
+replaced. Fixing it twice is the thing to avoid, not the slab.
+
 Audio is fully synthesised — there is no sample in the folder, because there is
 no asset in the folder. It is properly produced rather than three oscillators
 (sequenced score, send reverb, tempo-synced delay, sidechain under the kick,
