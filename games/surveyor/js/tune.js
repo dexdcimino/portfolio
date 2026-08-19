@@ -264,8 +264,11 @@ export const TIER = {
      character in that layer and nothing else, so a low tier there would have
      been ground cover in fog and no reason to look up. */
   floraLayers: {
+    // Tier drops LAYERS, not quality. `under` joins `shrub` as the low-tier
+    // sacrifice: both are mid-height filler whose absence thins a wood
+    // without deleting it, where dropping trees or heroes deletes the point.
     low: ['cover', 'tree', 'hero'],
-    high: ['cover', 'shrub', 'tree', 'hero'],
+    high: ['cover', 'shrub', 'under', 'tree', 'hero'],
   },
 };
 
@@ -1390,11 +1393,14 @@ export const PLANETS = {
         // camera's distance a 0.6m blade is a speck, and specks are why the
         // ground read as bare with twelve thousand plants on it.
         cover: { density: 1.0, color: [0.310, 0.478, 0.376],
-          perLeaf: 320, clumps: [4, 9], height: [0.65, 1.45] },
+          perLeaf: 340, clumps: [4, 9], height: [0.65, 1.45] },
         // A bush with a body: the rosette keeps the movement, the lobes are
         // the mass. ~62 triangles against the old 12.
         shrub: { density: 1.0, color: [0.267, 0.412, 0.333],
-          perLeaf: 44, lobes: 5 },
+          perLeaf: 48, lobes: 5 },
+        // Saplings under the canopy — what turns trees-on-a-lawn into a wood.
+        under: { density: 1.0, color: [0.243, 0.400, 0.341],
+          perLeaf: 22, shell: 2, jitter: 0.5 },
         /* The layer the whole pass exists for: ~200-240 triangles of closed
            faceted canopy, bare branches under the crown, one to two extra
            tiers per position hash. Fewer per leaf than the cardboard cones
@@ -1403,12 +1409,14 @@ export const PLANETS = {
            read. The band reaches further uphill than the default so the mid
            slopes are wooded too: Home is the lush one, and a plain that only
            greens at the waterline reads as a bare world with a hem. */
+        // Taller for the revamp: a tree must read against the SKY from the
+        // chase camera at 15m, and at 5m it only read against the ground.
         tree:  { density: 1.0, color: [0.216, 0.376, 0.322],
           perLeaf: 16, sides: 7, tiers: 4, tierVary: 1, shell: 2,
-          branches: 4, jitter: 0.55, canopy: 0.34, height: [3.2, 5.4],
+          branches: 4, jitter: 0.55, canopy: 0.32, height: [3.8, 6.2],
           band: [0.02, 0.38], clumps: [1, 3], clump: [0.09, 0.22] },
         // ~320 triangles, a crown you can see over the treeline from a ridge.
-        hero:  { density: 1.0, color: [0.290, 0.451, 0.361],
+        hero:  { density: 1.0, color: [0.290, 0.451, 0.361], perLeaf: 2,
           sides: 8, tiers: 6, shell: 2, branches: 5, branchLen: 0.34,
           jitter: 0.45 },
       },
@@ -3120,6 +3128,34 @@ export const FLORA = {
       color: null,
       colorMix: 0.78,
       root: 0.5,
+    },
+
+    /* UNDERSTOREY. Sapling-sized trees between the shrubs and the canopy —
+       the layer that makes a stand read as a WOOD rather than as trees on a
+       lawn, because a real treeline has something at every height. Density 0
+       by default: a world that does not name it never draws an rng for it,
+       which is the same guarantee every other layer's gate gives. */
+    under: {
+      form: 'tree',
+      density: 0,
+      perLeaf: 26,
+      band: [0.02, 0.34],
+      slope: 0.40,
+      slopeThin: 0.9,
+      clumps: [2, 4],
+      clump: [0.07, 0.16],
+      height: [1.5, 2.6],
+      scale: [0.8, 1.2],
+      trunk: 0.30,
+      girth: 0.045,
+      taper: 0.60,
+      sides: 5,
+      tiers: 2,
+      canopy: 0.42,
+      lean: 0.08,
+      color: null,
+      colorMix: 0.78,
+      root: 0.45,
     },
 
     /* TREES. The layer that makes a world read as lush from a distance, and
