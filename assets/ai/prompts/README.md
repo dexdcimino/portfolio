@@ -1,9 +1,10 @@
 # Prompts — the drop folder
 
-Every `.md` file in here is a prompt shown in **AI LAB → PROMPTS**. The four
-present are placeholders: the text is real enough to read, but each one opens
-with a `> PLACEHOLDER` line so nothing here is mistaken for finished work.
-Replace the body, delete that line, and the card needs no other change.
+Every `.md` file in here is a prompt shown in **AI LAB → PROMPTS**. The folder
+is empty right now — the placeholder set was cleared on 2026-08-19 rather than
+shipped. The panel shows a one-line `.ai-soon` note in its place; delete that
+line from `index.html` when the first real prompt lands (a comment beside it
+says the same).
 
 ## Adding one
 
@@ -35,5 +36,6 @@ touching anything else.
   Raw HTML in a prompt file is escaped and shown as text, on purpose — these
   files are fetched and injected, so treating them as trusted markup would be a
   standing XSS hole for the sake of formatting nobody needs here.
-- Downloads hand over the `.md` byte-for-byte, not the rendered preview.
+- Downloads hand over the `.md` byte-for-byte, not the rendered preview; the
+  copy button puts the same bytes on the clipboard.
 - These files are text and are not touched by the image pipeline.
