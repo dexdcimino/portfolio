@@ -63,7 +63,11 @@ LADDERS = {
     # blowing the budget on the one view that is already opt-in. 1920 is still
     # over budget for the three busiest pieces; that is a knowing exception,
     # recorded in assets/ai/wallpapers/README.md.
-    "wallpaper": (1920, 1280, 900, 600),
+    # 400 and 240 are the THUMBNAIL rungs. The strip under the hero renders each
+    # piece at ~130 CSS px (190 at the widest), and without them the smallest
+    # thing on offer was the 600 — five of them, ~95 KB, to fill nine boxes the
+    # size of a postage stamp. 400 covers a 2x display, 240 a 1x one.
+    "wallpaper": (1920, 1280, 900, 600, 400, 240),
 }
 
 # `sizes` must describe the real rendered slot or the browser picks the wrong

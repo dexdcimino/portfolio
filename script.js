@@ -1885,17 +1885,111 @@ let flashTip = () => {};
   const canDecrypt = !!(window.crypto && window.crypto.subtle);
   const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
 
+  /* ---- scrypt (RFC 7914) --------------------------------------------------
+
+     WHY NOT PBKDF2, which the browser has natively and this used to use: PBKDF2
+     is pure arithmetic and needs almost no memory, which is exactly the shape a
+     GPU is good at. A mid-range card runs PBKDF2-SHA256 by the millions per
+     second, so raising the iteration count buys one bit per doubling and the
+     attacker buys a second card.
+
+     scrypt is memory-hard. Every guess has to allocate and randomly walk 32 MiB
+     (N=2^15, r=8), and memory is the one thing a GPU cannot multiply cheaply: a
+     24 GB card holds a few hundred concurrent guesses instead of tens of
+     thousands. That is worth far more than any iteration count, and it is the
+     single biggest thing that can be done for a vault whose ciphertext is
+     public — which this one's is, and always will be, because it ships in a
+     static page.
+
+     Hand-rolled cryptography is normally a mistake, so this one is checked
+     rather than trusted: it reproduces all three RFC 7914 test vectors, and it
+     is byte-identical to node's native crypto.scryptSync on a spread of inputs
+     including unicode and 200-character passphrases. The outer and inner PBKDF2
+     passes the construction calls for are the browser's own, not mine.
+
+     Little-endian is assumed, as scrypt's spec requires and as every engine
+     this will ever run on is. */
+  function salsa20_8(B) {
+    const x = new Uint32Array(16);
+    x.set(B);
+    const R = (a, b) => (a << b) | (a >>> (32 - b));
+    for (let i = 8; i > 0; i -= 2) {
+      x[4] ^= R(x[0] + x[12], 7);    x[8] ^= R(x[4] + x[0], 9);
+      x[12] ^= R(x[8] + x[4], 13);   x[0] ^= R(x[12] + x[8], 18);
+      x[9] ^= R(x[5] + x[1], 7);     x[13] ^= R(x[9] + x[5], 9);
+      x[1] ^= R(x[13] + x[9], 13);   x[5] ^= R(x[1] + x[13], 18);
+      x[14] ^= R(x[10] + x[6], 7);   x[2] ^= R(x[14] + x[10], 9);
+      x[6] ^= R(x[2] + x[14], 13);   x[10] ^= R(x[6] + x[2], 18);
+      x[3] ^= R(x[15] + x[11], 7);   x[7] ^= R(x[3] + x[15], 9);
+      x[11] ^= R(x[7] + x[3], 13);   x[15] ^= R(x[11] + x[7], 18);
+      x[1] ^= R(x[0] + x[3], 7);     x[2] ^= R(x[1] + x[0], 9);
+      x[3] ^= R(x[2] + x[1], 13);    x[0] ^= R(x[3] + x[2], 18);
+      x[6] ^= R(x[5] + x[4], 7);     x[7] ^= R(x[6] + x[5], 9);
+      x[4] ^= R(x[7] + x[6], 13);    x[5] ^= R(x[4] + x[7], 18);
+      x[11] ^= R(x[10] + x[9], 7);   x[8] ^= R(x[11] + x[10], 9);
+      x[9] ^= R(x[8] + x[11], 13);   x[10] ^= R(x[9] + x[8], 18);
+      x[12] ^= R(x[15] + x[14], 7);  x[13] ^= R(x[12] + x[15], 9);
+      x[14] ^= R(x[13] + x[12], 13); x[15] ^= R(x[14] + x[13], 18);
+    }
+    for (let i = 0; i < 16; i++) B[i] = (B[i] + x[i]) | 0;
+  }
+
+  function blockMix(B, Y, r) {
+    const X = new Uint32Array(16);
+    X.set(B.subarray((2 * r - 1) * 16, 2 * r * 16));
+    for (let i = 0; i < 2 * r; i++) {
+      for (let k = 0; k < 16; k++) X[k] ^= B[i * 16 + k];
+      salsa20_8(X);
+      // Even blocks to the front half, odd to the back — the shuffle is what
+      // makes the next round's reads depend on this one's writes.
+      Y.set(X, ((i % 2 === 0) ? i / 2 : r + (i - 1) / 2) * 16);
+    }
+    B.set(Y);
+  }
+
+  /* The memory-hard part: fill V with N blocks, then walk it N times at
+     positions the data itself picks. An attacker who keeps less than the whole
+     of V has to recompute the misses, which is the trade this is built on. */
+  function roMix(B, N, r) {
+    const V = new Uint32Array(32 * r * N);
+    const Y = new Uint32Array(32 * r);
+    for (let i = 0; i < N; i++) { V.set(B, i * 32 * r); blockMix(B, Y, r); }
+    for (let i = 0; i < N; i++) {
+      const jj = (B[(2 * r - 1) * 16] >>> 0) % N;
+      for (let k = 0; k < 32 * r; k++) B[k] ^= V[jj * 32 * r + k];
+      blockMix(B, Y, r);
+    }
+    V.fill(0);
+  }
+
+  async function pbkdf2Bits(pw, salt, iterations, bytes) {
+    const key = await crypto.subtle.importKey('raw', pw, 'PBKDF2', false, ['deriveBits']);
+    return new Uint8Array(await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, key, bytes * 8));
+  }
+
+  async function scrypt(pw, salt, N, r, p, dkLen) {
+    const B = await pbkdf2Bits(pw, salt, 1, p * 128 * r);
+    const B32 = new Uint32Array(B.buffer, B.byteOffset, B.byteLength / 4);
+    for (let i = 0; i < p; i++) roMix(B32.subarray(i * 32 * r, (i + 1) * 32 * r), N, r);
+    const out = await pbkdf2Bits(pw, B, 1, dkLen);
+    B.fill(0);
+    return out;
+  }
+
   async function unseal(blob, secret) {
-    const [version, iterations, payload] = blob.split('.');
-    if (version !== 'v1') throw new Error('unknown vault format');
+    const [version, N, r, p, payload] = blob.split('.');
+    if (version !== 'v2') throw new Error('unknown vault format');
     const raw = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
     // salt | iv | ciphertext+tag — the layout tools/seal_vault.mjs writes.
     const salt = raw.slice(0, 16), iv = raw.slice(16, 28), body = raw.slice(28);
-    const base = await crypto.subtle.importKey(
-      'raw', new TextEncoder().encode(secret), 'PBKDF2', false, ['deriveKey']);
-    const key = await crypto.subtle.deriveKey(
-      { name: 'PBKDF2', salt, iterations: Number(iterations), hash: 'SHA-256' },
-      base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    const bytes = await scrypt(new TextEncoder().encode(secret), salt,
+                               Number(N), Number(r), Number(p), 32);
+    const key = await crypto.subtle.importKey(
+      'raw', bytes, { name: 'AES-GCM' }, false, ['decrypt']);
+    // The raw key material is no use to anyone once the CryptoKey holds it, and
+    // a buffer nobody wiped is a buffer that outlives the reason for it.
+    bytes.fill(0);
     // Throws on a wrong key: the tag will not verify. That IS the check.
     return new TextDecoder().decode(
       await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, body));
@@ -2070,6 +2164,10 @@ let flashTip = () => {};
     busy = true;
     pins.forEach(p => { p.disabled = true; });
     say('CHECKING', 'working');
+    /* scrypt runs on this thread and holds it for a few hundred milliseconds.
+       Yield one frame first or CHECKING never gets painted and the boxes just
+       freeze — the label would arrive at the same moment as the answer. */
+    await new Promise(requestAnimationFrame);
 
     /* Every blob is tried, because each is a different code opening a different
        thing and only its own key can read it. One derivation each, so this is a
@@ -2335,8 +2433,13 @@ let flashTip = () => {};
        describes an ~856px card, and left alone the browser would reuse that
        choice and upscale a 900px file across most of the screen. This is the
        whole reason the ladder carries a 2560. */
+    /* deferred: this view is NOT painted with the other one. Its `sizes` is
+       90vw, so painting it at load picked the 1920 rung and fetched 167 KB of
+       lightbox on every visit to the site — for an overlay nobody had opened,
+       in a dialog that was not on screen. It is painted when it opens. */
     { host: full, title: document.getElementById('wpFullTitle'), dims: document.getElementById('wpFullDims'),
-      dl: document.getElementById('wpFullDl'), strip: document.getElementById('wpFullThumbs'), sizes: '90vw' },
+      dl: document.getElementById('wpFullDl'), strip: document.getElementById('wpFullThumbs'), sizes: '90vw',
+      deferred: true },
   ];
   let index = 0;
 
@@ -2374,7 +2477,12 @@ let flashTip = () => {};
       btn.setAttribute('role', 'tab');
       btn.setAttribute('aria-label', item.dataset.title);
       const pic = item.querySelector('picture').cloneNode(true);
-      pic.querySelectorAll('source').forEach(sc => sc.setAttribute('sizes', '120px'));
+      /* The real rendered width, not a round number: 190px is the widest a cell
+         in the 3x3 gets (560px block / 3), and 30vw is what it is once the strip
+         stacks. Under-describing it here is what made every thumbnail fetch the
+         600 rung — `sizes` is the whole reason the ladder exists. */
+      pic.querySelectorAll('source').forEach(
+        sc => sc.setAttribute('sizes', '(max-width:1100px) 30vw, 190px'));
       const img = pic.querySelector('img');
       img.removeAttribute('class');
       img.loading = 'lazy';
@@ -2404,12 +2512,19 @@ let flashTip = () => {};
     view.thumbs = [...view.track.children];
   });
 
-  /* The grid form is three across, so a set that is not a multiple of three
-     leaves its last row short and the block stops looking like a block. These
-     finish it. Appended AFTER view.thumbs is taken, so they are scenery rather
-     than thumbnails — nothing selects them, paints them or counts them. */
+  /* The grid is 3x3 and holds its shape at nine: a set of five would otherwise
+     leave a row and a half of nothing and stop reading as a block. These are the
+     empty cells. Appended AFTER view.thumbs is taken, so they are scenery rather
+     than thumbnails — nothing selects them, paints them or counts them.
+     Past nine the block grows a row at a time and is filled out to the next
+     multiple of three, which is also where paging will go in when there is
+     enough art to need it. */
+  const PAGE = 9;
   views.filter(v => v.strip.classList.contains('wp-thumbs-grid')).forEach((view) => {
-    for (let n = (3 - items.length % 3) % 3; n > 0; n--) {
+    const short = items.length <= PAGE
+      ? PAGE - items.length
+      : (3 - items.length % 3) % 3;
+    for (let n = short; n > 0; n--) {
       const cell = document.createElement('div');
       cell.className = 'wp-thumb is-empty';
       cell.setAttribute('aria-hidden', 'true');
@@ -2472,18 +2587,30 @@ let flashTip = () => {};
      Image() keeps the format and rung choice the browser's, which is the whole
      point of having baked a ladder. Hidden panels never intersect, so this
      fires exactly once, when someone first looks at the tab. */
+  /* Five hero-sized images, so a hover swap is instant. They are speculative,
+     and speculative work must never be in front of the work someone is waiting
+     for: fetchpriority="low" puts them behind the thumbnails and the piece on
+     screen in the browser's own queue, and one idle callback each keeps them
+     from all starting in the same frame. Before this they went out at the same
+     priority as everything else and the strip filled in behind them. */
   function preloadHeroes() {
     const host = document.createElement('div');
     host.className = 'wp-preload';
     host.setAttribute('aria-hidden', 'true');
-    items.forEach((item) => {
-      const pic = item.querySelector('picture').cloneNode(true);
-      const img = pic.querySelector('img');
-      img.removeAttribute('loading');
-      img.removeAttribute('class');
-      host.appendChild(pic);
-    });
     root.appendChild(host);
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 120));
+    items.forEach((item, n) => {
+      // The piece already on screen is not speculative and is already fetched.
+      if (n === index) return;
+      idle(() => {
+        const pic = item.querySelector('picture').cloneNode(true);
+        const img = pic.querySelector('img');
+        img.removeAttribute('loading');
+        img.removeAttribute('class');
+        img.setAttribute('fetchpriority', 'low');
+        host.appendChild(pic);
+      }, { timeout: 2500 });
+    });
   }
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver((entries) => {
@@ -2519,12 +2646,18 @@ let flashTip = () => {};
     index = (i + items.length) % items.length;
     const item = items[index];
     views.forEach((view) => {
-      paint(view, item);
+      // A deferred view is painted by whatever opens it, and kept up to date
+      // only while it is up. Walking the set with the overlay closed must not
+      // fetch a full-screen image per arrow press.
+      if (!view.deferred || modal.open) paint(view, item);
       if (view.perPage) showPage(view, Math.floor(index / view.perPage));
     });
   }
 
   function openFull() {
+    // Paint first, so the overlay has its picture before it is shown rather
+    // than filling in a frame later.
+    paint(views[1], items[index]);
     openModal(modal, full, null, views[0].thumbs[index]);
   }
 
@@ -2779,7 +2912,13 @@ let flashTip = () => {};
    Not a general Markdown implementation and not trying to be. Anything it does
    not recognise falls through as a paragraph, which is the right failure. */
 function renderMarkdown(src) {
-  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  /* Quotes are escaped too, and that is not cosmetic. The href below is
+     interpolated into an attribute, and `sizes` aside, an unescaped " in a link
+     target closes the attribute early: [x](/a"onmouseover=…) parsed as a real
+     onmouseover handler on the anchor, which is script execution from a .md
+     file. Verified in the browser before and after this line. */
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   // Only http(s), mailto and same-origin relative targets become links. A
   // javascript: URL in a file someone dropped in the folder should render as

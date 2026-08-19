@@ -10,7 +10,7 @@
  *
  * This writes the blob. index.html carries it in one attribute:
  *
- *     <section class="resume-strip vault" id="vault" data-vault="v1.310000.…">
+ *     <section class="resume-strip vault" id="vault" data-vault="v2.32768.8.1.…">
  *
  * Usage:
  *     node tools/seal_vault.mjs --pin SNAIL --show snail      # open a named view
@@ -34,25 +34,40 @@
  * Snail and snail are one code. Digits and symbols are unchanged by folding, so
  * any code works: letters, numbers, punctuation, or a whole passphrase.
  *
- * Format: v1.<iterations>.<base64( salt[16] | iv[12] | ciphertext+tag )>
- * PBKDF2-SHA256 -> AES-256-GCM, which is exactly what SubtleCrypto in the
- * browser reads back. Both halves are stdlib; there is nothing to install.
+ * Format: v2.<N>.<r>.<p>.<base64( salt[16] | iv[12] | ciphertext+tag )>
+ * scrypt -> AES-256-GCM. The parameters travel with the blob, so raising them
+ * later does not strand anything already sealed. Both halves are stdlib; there
+ * is nothing to install.
  *
- * A WORD ON THE CODE. Five characters is a small space, and someone who wants in
- * can grind it offline against the blob. The iteration count below is what
- * stands between that and a laptop: at ~310k iterations a guess costs a few
- * hundred milliseconds. That is a speed bump, not a safe. It is the right shape
- * for "my half-finished ideas" and the wrong shape for anything that would
- * actually hurt to lose — for that, seal a passphrase. This tool does not care
- * how long it is; only the row of boxes on the page is five wide.
+ * A WORD ON THE CODE, and it is the whole ballgame. The ciphertext is public,
+ * so the only defence is how many guesses it takes and what each one costs.
+ * scrypt at 32 MiB makes a guess cost roughly a thousand times what PBKDF2 did
+ * on the hardware an attacker would actually use — but a thousand times a very
+ * small number is still a small number if the code is guessable.
+ *
+ *   SNAIL, or any dictionary word: found in seconds. A wordlist is the first
+ *          thing anyone runs, and no KDF saves a word that is in it.
+ *   5 random characters (a-z0-9): ~60 million; days to weeks on one GPU.
+ *   4 random dictionary words:    ~2^52; nothing anyone can afford.
+ *
+ * So: the KDF is as strong as this can reasonably be made, and the passphrase is
+ * the part that decides whether that matters. Seal anything that would actually
+ * hurt to lose with four random words, not five characters.
  */
 
-import { pbkdf2Sync, randomBytes, createCipheriv } from 'node:crypto';
+import { scryptSync, randomBytes, createCipheriv } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const ITERATIONS = 310000;          // OWASP's PBKDF2-SHA256 floor, 2023
+/* scrypt, not PBKDF2, and this is the most important line in the file. The
+   ciphertext is public — it ships in a static page — so the only thing between a
+   determined attacker and the plaintext is the cost of a guess. PBKDF2 is cheap
+   on a GPU no matter how high the iteration count goes; scrypt makes every guess
+   allocate and randomly walk 32 MiB, and memory is the one cost a GPU cannot
+   multiply away. Same parameters as the page's own implementation, which is
+   verified against this one. */
+const N = 32768, R = 8, P = 1;      // 128 * N * r = 32 MiB per guess
 const HTML = join(dirname(dirname(fileURLToPath(import.meta.url))), 'index.html');
 
 function arg(name) {
@@ -77,10 +92,12 @@ const secret = pin.toUpperCase();
 
 const salt = randomBytes(16);
 const iv = randomBytes(12);
-const key = pbkdf2Sync(secret, salt, ITERATIONS, 32, 'sha256');
+// maxmem has to be raised by hand: node's default ceiling is 32 MiB and these
+// parameters need exactly that for V plus the working blocks around it.
+const key = scryptSync(secret, salt, 32, { N, r: R, p: P, maxmem: 192 * 1024 * 1024 });
 const cipher = createCipheriv('aes-256-gcm', key, iv);
 const body = Buffer.concat([cipher.update(text, 'utf8'), cipher.final(), cipher.getAuthTag()]);
-const blob = `v1.${ITERATIONS}.${Buffer.concat([salt, iv, body]).toString('base64')}`;
+const blob = `v2.${N}.${R}.${P}.${Buffer.concat([salt, iv, body]).toString('base64')}`;
 
 if (process.argv.includes('--print')) {
   console.log(blob);
@@ -107,4 +124,4 @@ console.log(`sealed ${Buffer.byteLength(text)} bytes into ${HTML}`);
 console.log(`  code       ${secret}${secret === pin ? '' : `  (folded from "${pin}")`}`);
 console.log(`  payload    ${text.length > 60 ? text.slice(0, 57) + '…' : text}`);
 console.log(`  entries    ${kept.length + 1} in the vault`);
-console.log(`  iterations ${ITERATIONS}`);
+console.log(`  kdf        scrypt N=${N} r=${R} p=${P}  (${(128 * N * R) / 1048576} MiB per guess)`);
