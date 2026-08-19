@@ -201,7 +201,10 @@ the flat-world five — `wCliff` (escarpment step along a shelf-field contour,
 is what keeps the other five bit-identical; Home is the only user. Leaf
 builds are budgeted by time as well as count (`WORLD.buildBudgetMs`), and
 Home's flora places on the leaf's own height lattice (`flora.onGrid`) so
-plants sit on the drawn ground.
+plants sit on the drawn ground. Hero formations (`scatter.monuments: N`, Home
+only): a seeded world-space list from `monumentsOf()`, baked into leaves at
+EVERY LOD level with identical geometry so a landmark never pops; own rng
+streams, so the per-leaf rock roll is untouched everywhere.
 
 ## Known-outstanding — do not re-report
 
@@ -212,9 +215,10 @@ plants sit on the drawn ground.
 - Ember's pale sky slab = the cloud strata (diagnosed, left for the strata
   rework; check Shroud second).
 - Audio is fully synthesised on purpose; a small `.ogg` is the known upgrade.
-- **Duplicate keys in three `sky` blocks of tune.js** — JS silently keeps
-  the second, so the first is dead. Fold the fix into the sky-strata rework
-  (decided 2026-08-19); until then the losing values are:
+- ~~Duplicate keys in three `sky` blocks of tune.js~~ — FIXED in the Home
+  revamp's Phase 2: the dead first occurrences were deleted (a comment marks
+  each spot); every value that was actually winning is unchanged, so no world
+  looks different. The old note, for the record:
   - Vault: `clouds: 0.12` dead, `clouds: 0.05` wins
   - Shroud: `clouds: 1.5`, a `cloudColor`, and `ceiling: 0.55` dead;
     `clouds: 1.8, cloudCover: 0.30, cloudSoft: 0.30, ceiling: 0.45` win

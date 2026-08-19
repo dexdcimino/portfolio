@@ -3,7 +3,7 @@
 // literally part of the ground it sits on, and it streams in and out with it.
 
 import { height } from './noise.js';
-import { faceDir } from './sphere.js';
+import { faceDir, dirToFace } from './sphere.js';
 import { rngFor, range } from '../core/rng.js';
 import { SCATTER } from '../tune.js';
 
@@ -209,6 +209,28 @@ function emitSlab(pos, nrm, rng, ox, oy, oz, scale, tall, thin, tilt) {
 const RD = { x: 0, y: 0, z: 0 };
 const RE = { x: 0, y: 0, z: 0 };
 
+/** The shared tangent-basis + rebase step, split out of appendRocks so the
+ * monuments below can stand things up the same way. Fills XF for a direction
+ * whose ground is at height h, rebased to a leaf origin. The east x up order
+ * is load-bearing — the other way round is a reflection and every solid
+ * pushed through it comes out inside-out. */
+function basisAt(planet, dir, h, ox, oy, oz) {
+  const r = planet.surfaceR + h;
+  XF.ux = dir.x; XF.uy = dir.y; XF.uz = dir.z;
+  XF.ox = dir.x * r - ox; XF.oy = dir.y * r - oy; XF.oz = dir.z * r - oz;
+  const ax = Math.abs(dir.x), ay = Math.abs(dir.y), az = Math.abs(dir.z);
+  let kx = 0, ky = 0, kz = 0;
+  if (ax <= ay && ax <= az) kx = 1; else if (ay <= az) ky = 1; else kz = 1;
+  XF.ex = ky * dir.z - kz * dir.y;
+  XF.ey = kz * dir.x - kx * dir.z;
+  XF.ez = kx * dir.y - ky * dir.x;
+  const el = Math.hypot(XF.ex, XF.ey, XF.ez) || 1;
+  XF.ex /= el; XF.ey /= el; XF.ez /= el;
+  XF.nx = XF.ey * XF.uz - XF.ez * XF.uy;
+  XF.ny = XF.ez * XF.ux - XF.ex * XF.uz;
+  XF.nz = XF.ex * XF.uy - XF.ey * XF.ux;
+}
+
 /**
  * Append one leaf's rock field, in leaf-local coordinates.
  *
@@ -262,24 +284,8 @@ export function appendRocks(planet, f, u0, v0, size, ox, oy, oz, pos, nrm) {
     if (slope > 0.75 && rng() < 0.85) continue;        // won't perch on a cliff
 
     // Build the tangent basis at this rock and rebase to the leaf origin.
-    const r = planet.surfaceR + h;
-    XF.ux = RD.x; XF.uy = RD.y; XF.uz = RD.z;
-    XF.ox = RD.x * r - ox; XF.oy = RD.y * r - oy; XF.oz = RD.z * r - oz;
     // Any tangent will do; rocks are rotationally random anyway.
-    const ax = Math.abs(RD.x), ay = Math.abs(RD.y), az = Math.abs(RD.z);
-    let kx = 0, ky = 0, kz = 0;
-    if (ax <= ay && ax <= az) kx = 1; else if (ay <= az) ky = 1; else kz = 1;
-    XF.ex = ky * RD.z - kz * RD.y;
-    XF.ey = kz * RD.x - kx * RD.z;
-    XF.ez = kx * RD.y - ky * RD.x;
-    const el = Math.hypot(XF.ex, XF.ey, XF.ez) || 1;
-    XF.ex /= el; XF.ey /= el; XF.ez /= el;
-    // east x up, not up x east. The other way round the transform has
-    // determinant -1, and a reflection flips the winding of every solid pushed
-    // through it — which turned the whole rock field inside-out.
-    XF.nx = XF.ey * XF.uz - XF.ez * XF.uy;
-    XF.ny = XF.ez * XF.ux - XF.ex * XF.uz;
-    XF.nz = XF.ex * XF.uy - XF.ey * XF.ux;
+    basisAt(planet, RD, h, ox, oy, oz);
 
     // Sizes are absolute metres — a boulder is a boulder on any planet — but
     // the tallest features are capped against relief so a spire cannot out-top
@@ -332,5 +338,141 @@ export function appendRocks(planet, f, u0, v0, size, ox, oy, oz, pos, nrm) {
       emitBoulder(pos, nrm, rng, 0, low ? -0.25 : -0.5, 0,
         Math.min(rockCap, base * S.scale), big);
     }
+  }
+}
+
+// ---- monuments ----------------------------------------------------------
+//
+// Hero formations: a fixed, seeded set of large landmarks a world can opt
+// into with `scatter.monuments: N`. They are NOT part of the per-leaf rock
+// roll, for two reasons that are both about being a landmark:
+//
+//   - Rocks exist only on the finest two LOD levels, so anything emitted
+//     there pops into existence a couple of hundred metres out. A landmark's
+//     whole job is to be visible from across the world, so monuments are
+//     baked into EVERY level's leaf — the same full geometry each time, which
+//     is what makes the LOD handoff invisible: the vertices are identical,
+//     only the terrain under them changes resolution.
+//   - The per-leaf rng stream must not move. Monuments draw from their own
+//     rngFor streams, so a world that never asks for them emits every rock it
+//     emitted before, bit for bit.
+//
+// A monument is a few thousand triangles at most, and dev/budget.mjs measured
+// baked triangles as near-free — what is NOT free is a draw call, which is
+// why these ride the terrain buffer like everything else on the ground.
+
+const MON_CACHE = new Map();
+
+/** The world's monument sites: seeded, dry, moderately flat, well spaced. */
+export function monumentsOf(planet) {
+  const S = planet.scatter || {};
+  if (!S.monuments) return null;
+  let list = MON_CACHE.get(planet.seed);
+  if (list) return list;
+  list = [];
+  const rng = rngFor(planet.seed, 'monuments');
+  const relief = planet.relief;
+  const d = { x: 0, y: 0, z: 0 }, e = { x: 0, y: 0, z: 0 };
+  const fc = { f: 0, u: 0, v: 0 };
+  const step = 8 / planet.surfaceR;              // ~8m slope baseline, in radians
+  for (let tries = 0; tries < 4000 && list.length < S.monuments; tries++) {
+    // A random unit direction, from the monument stream only.
+    let x = rng() * 2 - 1, y = rng() * 2 - 1, z = rng() * 2 - 1;
+    const l = Math.hypot(x, y, z);
+    if (l < 0.05 || l > 1) continue;
+    d.x = x / l; d.y = y / l; d.z = z / l;
+    const h = height(d, planet);
+    // On land, below the mesa tops: a tower ON a summit outreaches the cap.
+    if (h < 0.06 * relief || h > 0.45 * relief) continue;
+    e.x = d.x + step * (1 - d.x * d.x); e.y = d.y - step * d.x * d.y; e.z = d.z - step * d.x * d.z;
+    const le = Math.hypot(e.x, e.y, e.z); e.x /= le; e.y /= le; e.z /= le;
+    if (Math.abs(height(e, planet) - h) / (8) > 0.30) continue;
+    // Spacing: no two monuments crowd one horizon.
+    let clear = true;
+    for (const m of list) {
+      if (m.dir.x * d.x + m.dir.y * d.y + m.dir.z * d.z > 0.9997) { clear = false; break; }
+    }
+    if (!clear) continue;
+    dirToFace(d.x, d.y, d.z, fc);
+    list.push({ i: list.length, dir: { x: d.x, y: d.y, z: d.z }, h, f: fc.f, u: fc.u, v: fc.v });
+  }
+  MON_CACHE.set(planet.seed, list);
+  return list;
+}
+
+/**
+ * Append every monument whose site falls inside this leaf's uv rect.
+ * Called for leaves at EVERY level; the geometry is identical at each, so a
+ * leaf split or merge under a monument never moves a vertex of it.
+ */
+export function appendMonuments(planet, f, u0, v0, size, ox, oy, oz, pos, nrm) {
+  const list = monumentsOf(planet);
+  if (!list) return 0;
+  let made = 0;
+  for (const M of list) {
+    if (M.f !== f || M.u < u0 || M.u >= u0 + size || M.v < v0 || M.v >= v0 + size) continue;
+    emitMonument(planet, M, ox, oy, oz, pos, nrm);
+    made++;
+  }
+  return made;
+}
+
+const MW = { x: 0, y: 0, z: 0 };
+
+function emitMonument(planet, M, ox, oy, oz, pos, nrm) {
+  const rng = rngFor(planet.seed, 'monument:' + M.i);
+  const relief = planet.relief;
+  basisAt(planet, M.dir, M.h, ox, oy, oz);
+  // Elements sit at local (ex, ez) offsets; each is grounded on its OWN
+  // terrain height, read back through the world position, so a formation on
+  // a gentle slope steps down the hill instead of floating off it.
+  const R0 = planet.surfaceR + M.h;
+  const groundAt = (lx, lz) => {
+    MW.x = M.dir.x * R0 + XF.ex * lx + XF.nx * lz;
+    MW.y = M.dir.y * R0 + XF.ey * lx + XF.ny * lz;
+    MW.z = M.dir.z * R0 + XF.ez * lx + XF.nz * lz;
+    const l = Math.hypot(MW.x, MW.y, MW.z) || 1;
+    MW.x /= l; MW.y /= l; MW.z /= l;
+    return height(MW, planet) - M.h;
+  };
+
+  const tallCap = relief * 0.62;
+  if (rng() < 0.55) {
+    /* A CROWN OF SPIRES: a ring rising toward one great central needle. */
+    const n = 4 + ((rng() * 4) | 0);
+    const spread = range(rng, 7, 13);
+    const a0 = rng() * Math.PI * 2;
+    emitSpire(pos, nrm, rng, 0, groundAt(0, 0) - 2, 0,
+      range(rng, 3.2, 5.2), Math.min(tallCap, range(rng, 34, 52)),
+      7, 0.62, 0.04);
+    for (let i = 0; i < n; i++) {
+      const a = a0 + (i / n) * Math.PI * 2 + range(rng, -0.3, 0.3);
+      const dx = Math.cos(a) * spread * range(rng, 0.8, 1.3);
+      const dz = Math.sin(a) * spread * range(rng, 0.8, 1.3);
+      emitSpire(pos, nrm, rng, dx, groundAt(dx, dz) - 1.5, dz,
+        range(rng, 1.8, 3.4), Math.min(tallCap * 0.62, range(rng, 14, 30)),
+        6, 0.62, 0.10);
+    }
+  } else {
+    /* A TIERED BUTTE: stacked, shrinking slabs — a stepped monolith. */
+    const tiers = 3 + ((rng() * 3) | 0);
+    let base = 0;
+    const w0 = range(rng, 10, 16);
+    for (let t = 0; t < tiers; t++) {
+      const k = 1 - t / (tiers + 0.5);
+      emitSlab(pos, nrm, rng, 0, groundAt(0, 0) + base - 1.5, 0,
+        w0 * k * 0.5, range(rng, 2.2, 3.2), 1.6, 0.05);
+      base += w0 * k * 0.5 * 2.0;                 // emitSlab's own h scale
+      if (base > tallCap) break;
+    }
+  }
+  // Scree: a skirt of boulders around the foot, so the thing meets the
+  // ground the way fallen rock does rather than the way a chess piece does.
+  const nb = 5 + ((rng() * 5) | 0);
+  for (let i = 0; i < nb; i++) {
+    const a = rng() * Math.PI * 2, r = range(rng, 9, 20);
+    const dx = Math.cos(a) * r, dz = Math.sin(a) * r;
+    emitBoulder(pos, nrm, rng, dx, groundAt(dx, dz) - 0.6, dz,
+      range(rng, 1.4, 3.6), rng() < 0.4);
   }
 }

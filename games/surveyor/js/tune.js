@@ -1250,12 +1250,14 @@ export const PLANETS = {
        and the striped band is gone entirely, verified on the isolated shadow
        term. The strength below is only tunable at all because of that. */
     shadows: { range: 180, strength: 0.80 },
-    /* T3 — light. Home's ground is soft banded terraces and a chart drawn on
-       them, and the scan is FRACTURED STONE: at 0.9 the marble's crack network
-       reads as line work and competes with the contours it is supposed to sit
-       under. Enough here to give the ground a surface within a hundred metres
-       of the rover and no more. */
-    terrain: { strength: 0.30, detail: 0.12 },
+    /* T3 — light, re-judged against the revamped terrain. 0.30/0.12 was
+       authored for a world of soft banded terraces where any more crack
+       network competed with the contours. Home has escarpment faces and mesa
+       walls now, and a vertical face under raking light is exactly where the
+       packed normal earns its keep — the detail stays low so the line work on
+       the FLATS still belongs to the chart, and the steep layer (tightest
+       tiling, slope-selected in the shader) carries the faces. */
+    terrain: { strength: 0.55, detail: 0.16 },
     /* T2 — clear, high, neutral. The reference the other five are read
        against, so it says nothing and inherits everything. Its numbers ARE the
        defaults in LIGHT; spelling them out here would be five more places to
@@ -1296,7 +1298,9 @@ export const PLANETS = {
     terraceStep: 8.0, terraceAmt: 0.55, terraceFrom: 0.17, terraceTo: 0.73,
 
     // Swell. Amplitude in metres, frequency in cycles across the sphere.
-    waveAmp: 1.0, waveFreq: 90,
+    // 1.2 for the revamp: the lakes sit in real valleys now and a touch more
+    // motion is most of what says "surface" from the chase camera.
+    waveAmp: 1.2, waveFreq: 90,
 
     /* WATER — the reference the other four are read against, so it takes the
        whole pass and says nothing else with it.
@@ -1308,15 +1312,18 @@ export const PLANETS = {
        you have to swim to. */
     water: {
       measureDepth: true, sharpen: 1, waveNormal: 1,
-      absorb: 3.4,
+      /* Re-derived for the revamp's seas: relief went radius/20 -> radius/12
+         and the deepest water roughly doubled with it, so 3.4m of absorption
+         had every basin at the bottom of the ladder within a boat-length of
+         shore. Two halvings across the new depth, same rule as before. */
+      absorb: 6.0,
       foam: { shore: 0.65, edge: 0.30 },
       refract: 0.30,
-      // Measured across five viewing angles, the depth gap runs 66-121 levels
-      // and only softens looking straight down. A modest trim.
-      glint: 0.30, skyCap: 0.45,
-      // The reference: enough softening that the ladder reads as contours on a
-      // surface, not so much that it stops being a ladder.
-      bandSoft: 0.50, bandTilt: 0.38, ripple: 0.35, depthBlur: 5.0,
+      // Livelier surface for the valley-floor lakes: more glint and ripple so
+      // the water reads as a SURFACE in motion, not a flat teal shape. Both
+      // still under the levels where sparkle starts competing with the chart.
+      glint: 0.42, skyCap: 0.45,
+      bandSoft: 0.50, bandTilt: 0.38, ripple: 0.55, depthBlur: 5.0,
       ringFoam: 0.22, ringSoft: 0.26, ringHard: 0,
     },
 
@@ -1350,7 +1357,11 @@ export const PLANETS = {
     },
 
     // The boulders and spires as authored: a mixed field, moderate everything.
-    scatter: { density: 1.0, forms: [0.58, 0.17, 0.25], scale: 1.0 },
+    // Plus the revamp's hero formations — see monumentsOf in scatter.js:
+    // eighteen seeded landmarks (spire crowns and tiered buttes) baked into
+    // the terrain at every LOD level, so they are visible from across the
+    // world and never pop.
+    scatter: { density: 1.0, forms: [0.58, 0.17, 0.25], scale: 1.0, monuments: 18 },
 
     /* THE REFERENCE FIELD. Home is the only world that gets vegetation across
        its whole habitable band rather than in a niche, and it is the world the
@@ -1851,7 +1862,8 @@ export const PLANETS = {
     sky: {
       below: [0.620, 0.729, 0.820],
       band: 0.06, bandWidth: 0.03,
-      clouds: 0.12,
+      // A dead `clouds: 0.12` sat here — JS keeps the later duplicate, so
+      // 0.05 below has always been the value on screen. Removed, not merged.
       haze: 0.40,
       sunDir: [0.62, 0.70, -0.35],
       sunColor: [1.000, 1.000, 1.000], sunSize: 0.7, glare: 1.3,
@@ -2014,7 +2026,9 @@ export const PLANETS = {
     sky: {
       below: [0.180, 0.161, 0.235],
       band: 0, bandWidth: 0.02,
-      clouds: 1.5, cloudColor: [0.280, 0.247, 0.353], ceiling: 0.55,
+      // Dead duplicates removed (`clouds: 1.5`, a cloudColor, `ceiling: 0.55`)
+      // — the sky-pass block further down has always won. cloudColor's default
+      // (palette.coast) is what the murk has actually been drawn with.
       haze: 1.0,
       sunDir: [-0.50, 0.62, -0.60],
       sunColor: [0.470, 0.400, 0.560], sunSize: 1.6, glare: 0.20,
@@ -2192,7 +2206,8 @@ export const PLANETS = {
     sky: {
       below: [0.400, 0.325, 0.263],
       band: 0.32, bandWidth: 0.09,
-      clouds: 0.22, ceiling: 1.6,
+      // Dead duplicates removed (`clouds: 0.22`, `ceiling: 1.6`) — the values
+      // below have always been the ones on screen.
       haze: 0.60,
       sunDir: [0.20, 0.86, 0.47],
       sunSize: 0.85, glare: 1.15,

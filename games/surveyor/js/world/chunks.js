@@ -13,7 +13,7 @@
 import { height, fissureAt } from './noise.js';
 import { faceDir, dirToFace, arcBetween } from './sphere.js';
 import { splitNode } from './surface.js';
-import { appendRocks } from './scatter.js';
+import { appendRocks, appendMonuments } from './scatter.js';
 import { appendFlora } from './flora.js';
 import { floraOf } from './materials.js';
 import { WORLD } from '../tune.js';
@@ -191,6 +191,11 @@ export class ChunkField {
     if (level >= P.maxLevel - (WORLD.rockLevels - 1)) {
       appendRocks(P, f, u0, v0, size, ox, oy, oz, pos, nrm);
     }
+    /* Monuments ride every level, not just the rock levels: a landmark that
+       pops in at 200m is not a landmark. Same geometry at every level, so the
+       LOD handoff under one never moves a vertex. No-op unless the world's
+       scatter profile asks (scatter.monuments). */
+    appendMonuments(P, f, u0, v0, size, ox, oy, oz, pos, nrm);
 
     /* VEGETATION, on the finest levels only and after the rocks.
        WORLD.floraLevels is the single biggest lever on what this costs, ahead
