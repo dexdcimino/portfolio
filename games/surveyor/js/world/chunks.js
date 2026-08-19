@@ -14,6 +14,7 @@ import { height, fissureAt } from './noise.js';
 import { faceDir, dirToFace, arcBetween } from './sphere.js';
 import { splitNode } from './surface.js';
 import { appendRocks } from './scatter.js';
+import { appendFlora } from './flora.js';
 import { WORLD } from '../tune.js';
 
 const D = { x: 0, y: 0, z: 0 };
@@ -174,6 +175,24 @@ export class ChunkField {
       appendRocks(P, f, u0, v0, size, ox, oy, oz, pos, nrm);
     }
 
+    /* VEGETATION, on the finest levels only and after the rocks.
+       WORLD.floraLevels is the single biggest lever on what this costs, ahead
+       of density: it decides how much GROUND carries blades at all, and one
+       level out is four times the area. It shipped at 1 and reads at 2 — at 1
+       the vegetation only existed in the leaves immediately under the craft and
+       the field ended in a visible ring a few metres away.
+       `sway` starts as -1 for every vertex emitted so far — terrain, skirts and
+       rocks — which is the value that means "not vegetation" and is what keeps
+       the terrain shader from having to know which world it is drawing. */
+    const before = pos.length / 3;
+    const sway = new Array(before).fill(-1);
+    let blades = 0;
+    if (P.flora && P.flora.density &&
+        level >= P.maxLevel - (WORLD.floraLevels - 1)) {
+      blades = appendFlora(P, f, u0, v0, size, ox, oy, oz, pos, nrm, sway,
+        WORLD.floraPerChunk);
+    }
+
     /* Bake the fissure mask (Phase 3a2). Ember's cracks glow, and the shader has
        no way to know where they are: the mask lives inside height(), which the
        GPU never sees.
@@ -203,6 +222,11 @@ export class ChunkField {
     vd.indices = idx;
     vd.applyToMesh(mesh, false);
     mesh.setVerticesData('fissure', fis, false, 1);
+    /* One float a vertex, the same budget the fissure mask spends. -1 is
+       terrain, 0 is a blade's base and 1 is its tip; the terrain shader reads
+       the sign as the flag and the magnitude as the wind weight. */
+    mesh.setVerticesData('sway', new Float32Array(sway), false, 1);
+    mesh.metadata = { blades, verts: pos.length / 3 };
 
     mesh.material = this.material;
     mesh.position.set(ox, oy, oz);

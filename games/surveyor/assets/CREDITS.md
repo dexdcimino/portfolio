@@ -12,6 +12,23 @@ testbed, whose rule this is.
 | `textures/steep.webp` | `tools/bake_terrain_maps.py` from `marble_cliff_03` | Amal Kumar / Poly Haven | CC0 | as above. The cliff-face layer, tiled tightest |
 | `textures/high.webp` | `tools/bake_terrain_maps.py` from `marble_cliff_04` | Amal Kumar / Poly Haven | CC0 | as above. The high-ground layer |
 
+## Vegetation: no assets, and that is why there are no rows for it
+
+The vegetation pass added no files, so it added no rows. The brief allowed CC0
+models from Poly Haven, ambientCG, Quaternius or Kenney with a row each — none
+were used, and the reason is the same one that governs the rest of this folder.
+
+Blades are **generated**, the way the rocks in `js/world/scatter.js` are: three
+triangles emitted straight into the terrain chunk's vertex buffer, taking the
+terrain material and one extra vertex attribute. A downloaded mesh would need a
+loader, a material, its own draw call and its own streaming lifetime, and would
+arrive in a style that is not this one — the whole look is flat-shaded geometry
+with no textures on anything but the ground.
+
+If real models are wanted later, the rule stands: a row here per file, no row no
+ship, and one family per type. `js/world/flora.js` is where they would replace
+`blade()`, and nothing else would have to change.
+
 The three terrain maps are derivatives of the lookdev testbed's scan family —
 one collection, one capture, all six members tagged stratified/striated, which
 is the rock character this look asks for. The `_alb.jpg` / `_nrm.png` sources

@@ -12,6 +12,16 @@ export const WORLD = {
   lodSplit: 1.7,
   skirt: 14,           // metres the LOD skirt hangs inward
   rockLevels: 2,       // finest N levels carry baked rock geometry
+  /* ...and the finest N carry vegetation. THE SINGLE BIGGEST LEVER on what
+     vegetation costs, ahead of density, because it decides how much ground
+     carries blades at all and one level out is four times the area.
+     It shipped at 1 and reads at 2: at 1 the field only existed in the leaves
+     immediately under the craft and ended in a visible ring a few metres away.
+     Drop it back to 1 before touching density if the frame needs room. */
+  floraLevels: 2,
+  /* A hard ceiling on blades per chunk, whatever the density says. A typo in
+     a world profile should cost a plainer world, not the frame. */
+  floraPerChunk: 2200,
 };
 
 /**
@@ -83,6 +93,113 @@ export const SKY = {
   // The particle layer. `null` keeps the system's near-field motes; a block
   // replaces their colour, rate and fall direction.
   motes: null,
+
+  /* ---- THE SKY PASS ----------------------------------------------------
+     Everything below lands NEUTRAL. At these values the shader computes the
+     sky it already shipped, which is the habit that has caught every scale
+     error in this project: one measurement proves the plumbing with the
+     colour held still, and anything you see after that is authoring. */
+
+  /* THE GRADIENT, as three stops rather than two.
+     The old one was `mix(low, high, clamp(el * 1.25 + 0.06, 0, 1))`, which
+     reaches the zenith colour at an elevation of 0.75 — so the top FORTY-ONE
+     DEGREES of every sky was one flat field, and the gradient everyone talks
+     about lived in the bottom half. `curve` is the falloff, `mid` is a third
+     stop and `midAt` is where it sits. null mid = the midpoint of the other
+     two at midAt, which with curve 1 is exactly a two-stop linear ramp. */
+  curve: 1.0,
+  mid: null,
+  midAt: 0.5,
+  /* Quantisation, kept because the cel banding IS the house look and it was
+     previously hardcoded at ten steps blended 42%. Now it is a dial, and
+     bands: 0 turns it off for a world that wants a smooth sky. */
+  bands: 10,
+  bandMix: 0.42,
+
+  /* SCATTERING AT THE HORIZON.
+     `falloff` stands in for the airmass along the view ray: the haze is full
+     strength at the skyline and falls as (1 - t)^falloff with elevation.
+     It is NOT a reproduction of what it replaced and should not be read as
+     one. The old term was 1 - smoothstep(-0.03, 0.24, el), which is zero above
+     fourteen degrees and has a corner there — that corner is the seam the
+     horizon met the sky at from the air. 6.0 is the value whose half-strength
+     point lands closest to the old curve's while going to zero smoothly
+     instead of stopping; it hazes a little higher up the sky and that is the
+     intended change, not a side effect.
+     `sunPower` and `sunMix` ARE the old pow(s, 2) * 0.75 warm shift toward
+     fogSun, unchanged and carried across deliberately.
+     `gain` is the one genuinely new term and it ships at ZERO on every world:
+     forward-scattered light ADDED rather than mixed, so it can push past 1.0
+     and bloom. That is the bright band behind the mesas in the key art. */
+  scatter: { falloff: 6.0, sunPower: 2.0, sunMix: 0.75, gain: 0 },
+
+  /* CLOUD SHAPE. The three strata used to be a product of two sines run
+     through a smoothstep, which is a level set of sin*sin — a rounded
+     quadrilateral with a boundary 0.16 wide in a quantity that swings over
+     2. On Ember, where the cloud colour is darker than the sky it is drawn
+     over and the underglow behind it is authored past 1.0, that boundary was
+     a hard-edged bright SLAB across the lower sky. It is value-noise fbm now.
+     `cover` is the coverage threshold: lower is cloudier. `soft` is the
+     width of the edge, and it is the dial that killed the slab. `scale` is
+     the size of the shapes and `detail` the octave count — detail is
+     TIER-GATED and a low-tier machine drops to one octave. */
+  /* MEASURED, not guessed. Three octaves of this value noise, normalised,
+     come out mean 0.499 with a standard deviation of 0.139 — p05 0.271,
+     p95 0.728, and it never once reached 0.92 over forty thousand samples.
+     The first cut shipped cover 0.52 with soft 0.34, so the smoothstep ran
+     from 0.52 to 0.86 across a field whose spread is 0.14: the top of the
+     ramp was two and a half standard deviations out and the sky came back
+     with NO CLOUD AT ALL on all six worlds. soft has to be the same order
+     as the field's own spread or the threshold is the only thing that
+     matters. At 0.48/0.16 about a third of the sky is cloud with a soft
+     edge, which is what the sheet shows.
+     ONE OCTAVE IS A DIFFERENT FIELD: sd 0.215 rather than 0.139, so a low
+     tier draws the same coverage in blotchier shapes. That is the honest
+     shape of the trade and not worth a second pair of numbers. */
+  cloudCover: 0.48,
+  cloudSoft: 0.16,
+  cloudScale: 1.0,
+
+  /* THE TRUE SKYLINE. See mats.update: at altitude h on a planet of radius R
+     the horizon is BELOW local level by acos(R / (R + h)), and the band, the
+     haze, the underglow and the bottom of the gradient were all pinned to
+     zero elevation instead — which is the visual horizon at ground level and
+     nowhere else. At 103m over Home the band floated eight degrees over the
+     real skyline. 1 measures them against the true horizon; 0 restores the
+     old behaviour for an A/B. It is a NO-OP AT ZERO ALTITUDE by construction,
+     because the dip angle is zero there — the same guarantee the fog
+     altitude rule carries. */
+  trueHorizon: 1,
+};
+
+/**
+ * WHAT THIS MACHINE CAN AFFORD.
+ *
+ * There was no tier system before the sky pass and there is a small one now,
+ * because cloud detail is the first thing in this game whose cost is worth
+ * spending differently on different hardware. It is deliberately not a
+ * quality menu: one number, detected once, read by the sky shader and (later)
+ * by anything else that wants to buy detail with frame time.
+ *
+ * DETECTED, NOT ASKED. `navigator.hardwareConcurrency` and the unmasked
+ * WebGL renderer string are what a browser will actually tell you. Neither is
+ * reliable alone and together they are good enough for a two-way split, which
+ * is all that is being bought: the failure mode of guessing low is a slightly
+ * plainer sky, and of guessing high is a slow one, so the tie goes to low.
+ *
+ * `force` overrides everything, for a screenshot sheet that has to compare
+ * like with like, and ?tier=low|high sets it from the URL.
+ */
+export const TIER = {
+  force: null,             // 'low' | 'high' | null to detect
+  // Anything reporting a software rasteriser is low whatever else it says:
+  // SwiftShader is what the screenshot harnesses run on.
+  softwareIsLow: true,
+  minCores: 4,             // fewer logical cores than this is low
+  // Octaves of cloud noise per tier. This is the only thing tier buys today.
+  cloudDetail: { low: 1, high: 3 },
+  // ...and how many of the three strata are drawn at all.
+  cloudStrata: { low: 2, high: 3 },
 };
 
 /**
@@ -1052,10 +1169,24 @@ export const PLANETS = {
 
     /* Clear, high, neutral — the reference the other five are read against, so
        it says as little as possible and inherits the rest. */
-    sky: { band: 0.12, clouds: 1.0 },
+    /* HOME IS THE REFERENCE SKY and the one the key art is drawn from: a real
+       zenith-to-horizon gradient with the band of forward-scattered light
+       sitting behind the spires. `gain` is the added scattering term, the only
+       genuinely new one in the sky pass, and it is 0 everywhere until here. */
+    sky: {
+      band: 0.12, clouds: 1.0,
+      scatter: { gain: 0.30 },
+      cloudCover: 0.46,
+    },
 
     // The boulders and spires as authored: a mixed field, moderate everything.
     scatter: { density: 1.0, forms: [0.58, 0.17, 0.25], scale: 1.0 },
+
+    /* THE REFERENCE FIELD. Home is the only world that gets vegetation across
+       its whole habitable band rather than in a niche, and it is the world the
+       other five are read against - the point of five bare worlds is that this
+       one feels alive, so this is where the density is spent. */
+    flora: { density: 1.0, color: [0.310, 0.478, 0.376] },
 
     // The richest field in the system, and the reason Home is home.
     geysers: { count: 12, yield: 1.0 },
@@ -1334,6 +1465,26 @@ export const PLANETS = {
       haze: 0.95,
       sunDir: [-0.28, 0.66, 0.70],
       sunSize: 1.4, glare: 0.75,
+      /* SEA HAZE IS THIS WORLD. The band above is already wide and strong; the
+         scattering gain is what makes it read as light in the air rather than
+         as a painted stripe, and the motes are the spray it is scattering off.
+         86% ocean, so this is the one world where the particulate layer is the
+         atmosphere rather than a weather effect laid on top of it. */
+      scatter: { gain: 0.42, falloff: 4.2 },
+      curve: 0.85,
+      cloudCover: 0.54,
+      motes: { color: [0.780, 0.840, 0.850], density: 1.6, fall: -0.12, size: 1.1 },
+    },
+
+    /* COASTAL GROWTH ONLY. 86% ocean and the land that exists is low and flat,
+       so the interesting band is the first couple of metres above the waterline
+       rather than the whole relief - hence a band that stops less than a fifth
+       of the way up where Home's runs past half. Denser than Home inside that
+       band, because a shoreline that is green against a bare hinterland is the
+       composition; a uniform sprinkle over a flat island is not. */
+    flora: {
+      density: 1.25, band: [0.03, 0.18], color: [0.286, 0.435, 0.396],
+      height: [0.7, 1.7], slope: 0.42,
     },
 
     // Sea stacks: eroded pillars, stout at the base and blunt-topped, standing
@@ -1461,6 +1612,13 @@ export const PLANETS = {
       haze: 0.40,
       sunDir: [0.62, 0.70, -0.35],
       sunColor: [1.000, 1.000, 1.000], sunSize: 0.7, glare: 1.3,
+      /* Thin, cold and nearly empty: the least scattering in the system, and a
+         steep curve so the deep blue holds most of the sky instead of washing
+         out. This is the world the discs have to stay legible against at the
+         BRIGHT end, so the horizon stays pale and the zenith does not. */
+      scatter: { gain: 0.08, falloff: 9.0 },
+      curve: 1.45,
+      cloudCover: 0.62,
     },
 
     // Crystalline shards: few sides, near-linear taper to a point, leaning.
@@ -1613,6 +1771,16 @@ export const PLANETS = {
       motes: { color: [0.420, 0.380, 0.520], density: 5.0, fall: -0.35, size: 1.8 },
     },
 
+    /* SPARSE AND STRANGE, low down where the valley pools are. A tenth of
+       Home's density and nearly twice the blade height: this reads as something
+       growing rather than as a lawn, which is the only version of vegetation
+       that belongs on a world whose whole character is that you cannot see.
+       Violet, so it is the murk's own colour and not an import. */
+    flora: {
+      density: 0.10, band: [0.02, 0.22], color: [0.396, 0.325, 0.478],
+      height: [1.2, 3.0], width: [0.05, 0.10], lean: 0.42, colorMix: 0.62,
+    },
+
     // Needles. Very tall, very thin, sparse — they loom out of the fog one at a
     // time at close range, which is the whole effect.
     scatter: { density: 0.72, forms: [0.14, 0.06, 0.80], scale: 0.9, tall: 2.4, thin: 0.42, taper: 0.80, sides: 6 },
@@ -1751,6 +1919,24 @@ export const PLANETS = {
       haze: 0.60,
       sunDir: [0.20, 0.86, 0.47],
       sunSize: 0.85, glare: 1.15,
+      /* THE BRIGHT BAND BEHIND THE MESAS, which is the composition this world
+         exists for. Highest gain in the system and a slow falloff, because the
+         rust sky wants the light carried well up off the skyline rather than
+         held in a strip on it. */
+      scatter: { gain: 0.55, falloff: 3.6 },
+      curve: 0.80,
+      mid: [0.560, 0.430, 0.340],
+      cloudCover: 0.56,
+    },
+
+    /* LITTLE, AND ONLY IN THE LOW GROUND. 4% of Home's density in a band that
+       stops a tenth of the way up 87.8 metres of relief, which on the biggest
+       world in the system means a few dry tufts in the canyon floors and
+       nothing anywhere you can see from. This is the "almost none" the design
+       asks for, stated as numbers rather than as an intention. */
+    flora: {
+      density: 0.04, band: [0.01, 0.10], color: [0.498, 0.435, 0.310],
+      height: [0.5, 1.2], slope: 0.30, colorMix: 0.55,
     },
 
     // Home's field scaled up and coarsened: enormous boulders and fallen slabs,
@@ -2532,6 +2718,88 @@ export const COLORS = {
  * profile stays proportionate on any radius. A world that says nothing gets
  * Home's field.
  */
+/**
+ * VEGETATION.
+ *
+ * NOT EVERY WORLD GETS IT, and that is the design rather than a budget cut: a
+ * world with growth on it reads as alive because five others do not. `density`
+ * 0 is off and costs exactly nothing - appendFlora returns before it seeds an
+ * rng, so a dead world does not pay for the system existing.
+ *
+ * EVERY LENGTH IS A FRACTION OF THE WORLD'S OWN RELIEF, except the blade sizes,
+ * which are absolute metres because a blade of grass is a blade of grass on a
+ * 207m world and on a 2072m one. Relief runs 5.5m to 87.8m across the six, so a
+ * height band written in metres would mean six different things and a band
+ * written as a fraction means one.
+ *
+ * WHERE THE FRAME COST IS. Three triangles a blade, baked into the terrain
+ * chunk, so there is no draw call and no per-frame CPU - the whole cost is
+ * vertices, and `perLeaf` times the number of live leaves is the only number
+ * that matters. It is capped per chunk by the caller as well, because a
+ * density typo should cost a plainer world rather than the frame.
+ */
+export const FLORA = {
+  // 0 turns the system off for a world, before any work is done.
+  density: 0,
+  // Blades attempted per leaf at density 1, before the height and slope tests
+  // reject any. The realised count is lower and worth measuring, not assuming.
+  perLeaf: 760,
+  /* The height band it grows in, as fractions of relief. The bottom is above
+     sea level on purpose - grass at 0 would stand in the water on every world
+     with a coast, and the shoreline stroke is drawn in that same first metre. */
+  band: [0.02, 0.55],
+  // Gradient it stops holding on at, in metres per metre, and how hard it
+  // thins approaching that - 1 fades a hillside bare, 0 cuts it at a line.
+  slope: 0.55,
+  slopeThin: 0.85,
+  // How tight the clumps are, in leaf-uv radius. Small is patchy.
+  clump: [0.035, 0.11],
+  /* Blade geometry, in METRES, and these are far bigger than grass because the
+     camera is not standing in it. The chase cam sits 15m behind the craft and
+     5.2m up; at that range a 0.4m blade is about a pixel, and the first cut
+     shipped 3903 of them on Home that could not be seen in the frame at all.
+     What reads at this distance is scrub and reed, not lawn - which is also
+     the honest thing for a low-poly chart to draw. width is a fraction of the
+     blade's own height, so a tall blade is a broad one. */
+  height: [0.55, 1.30],
+  width: [0.16, 0.30],
+  lean: 0.30,          // sideways lean at the tip, as a fraction of height
+  waist: 0.72,         // how far the blade narrows by mid-height
+  // Colour, mixed over the terrain's own band colour so the ground still reads
+  // through. null = the palette's flats, which is the no-op.
+  color: null,
+  colorMix: 0.72,
+  // How much darker the base is than the tip. Vegetation with a flat colour
+  // reads as a decal; the gradient is most of what makes it read as depth.
+  root: 0.55,
+};
+
+/**
+ * THE WIND, which is the whole reason vegetation is worth having.
+ *
+ * Movement matters more than density - grass that moves at low density beats
+ * static grass at high density, for a fraction of the cost - so this is tuned
+ * first and `FLORA.density` second.
+ *
+ * Driven entirely in the terrain vertex shader off the `sway` attribute and a
+ * phase hashed from each blade's own world position, so there is no per-frame
+ * CPU, no simulation and nothing to keep in step across a chunk rebuild.
+ */
+export const WIND = {
+  speed: 1.15,         // radians a second of the primary oscillation
+  // Metres the tip travels, at sway 1. Not a fraction of blade height: a
+  // gust moves a tall blade and a short one by similar absolute amounts.
+  amplitude: 0.16,
+  // The gust: a second, slower oscillation that multiplies the first, so the
+  // field breathes instead of buzzing at one frequency.
+  gustSpeed: 0.21,
+  gust: 0.55,
+  // How fast the phase varies across the ground, in radians a metre. Low
+  // numbers make whole clumps move together; high ones make it look like
+  // static. 0.35 is about a three-metre wavelength.
+  wavelength: 0.35,
+};
+
 export const SCATTER = {
   density: 1.0,        // multiplier on how many rocks are attempted per leaf
   forms: [0.58, 0.17, 0.25],

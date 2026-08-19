@@ -216,6 +216,193 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
+## Vegetation is part of the ground, and five worlds do not have it
+
+**NOT INSTANCED, DELIBERATELY.** The brief asked for instanced geometry with
+vertex-shader wind, and instancing is the right answer in an engine where the
+ground is a static mesh you scatter onto. This ground is a stream: chunks are
+built, dropped and rebuilt as you drive, at five LOD levels, and every one is a
+fresh mesh. An instance buffer would need its own lifetime tied to a mesh that
+is already being thrown away, its own culling, its own LOD and its own draw call
+per chunk. Rocks solved that years ago by being part of the ground they sit on,
+and vegetation does the same: same buffer, same material, **no extra draw
+calls**, streams and culls with the terrain because it *is* the terrain.
+
+**THE WIND IS ONE VERTEX ATTRIBUTE.** `sway` is -1 for terrain, skirts and
+rocks, 0 at a blade's base and 1 at its tip. The sign is the flag, the magnitude
+is the bend weight, and it is squared in the shader so the tip travels while the
+base stays planted — weighting it linearly shears the whole blade sideways and
+reads as a sliding decal. The oscillation phase is **hashed from world position**
+rather than stored, which costs nothing and means neighbouring blades are never
+in step; hashing the world position rather than the leaf-local one is what keeps
+a clump moving together across a chunk boundary, where the local origin jumps.
+
+**THE TINT IS AN ALBEDO AND GOES WHERE ALBEDOS GO.** The first cut mixed the
+vegetation colour in after the cel light bands, which made every blade a flat
+unlit colour on a lit hillside: it read as bright paint and did not turn with
+the sun.
+
+### Who gets it
+
+| world | density | band (of relief) | why |
+|---|---|---|---|
+| home | 1.0 | 0.02–0.55 | the reference. The point of five bare worlds is that this one feels alive |
+| tarn | 1.25 | 0.03–0.18 | coastal only. 86% ocean, so the composition is a green shoreline against a bare hinterland |
+| shroud | 0.10 | 0.02–0.22 | sparse, tall, violet. Something growing, not a lawn |
+| anvil | 0.04 | 0.01–0.10 | a few tufts in the low ground of the biggest world in the system |
+| ember | 0 | — | basalt and fissures |
+| vault | 0 | — | glacier |
+
+`density: 0` costs **nothing**: `appendFlora` returns before it seeds an rng, no
+vertex carries a sway other than -1, and the shader branch is never taken.
+
+### What it costs, and what the measurement is worth
+
+`dev/floracheck.mjs`, SwiftShader, 900x560, chase camera on the spawn:
+
+| world | blades | triangles | draw calls | frame cost | wind moves |
+|---|---|---|---|---|---|
+| home | 26957 | 203411 | 234, unchanged | +6.3% | 0.12% of frame, peak 99 |
+| tarn | 4235 | 80397 | 196, unchanged | -0.9% | 0.23% of frame, peak 149 |
+| shroud | 1403 | 119921 | 270, unchanged | +0.9% | 0.04% of frame, peak 50 |
+| anvil | 195 | 154185 | 254, unchanged | +2.1% | nothing measurable |
+| ember | 0 | 52384 | 161, unchanged | -27.1% | — |
+| vault | 0 | 123312 | 224, unchanged | -2.7% | — |
+
+**Read the last two rows before the first four.** Ember and Vault have ZERO
+blades, and the same measurement reports -27.1% and -2.7% for them. That is the
+noise floor, and it is wider than most of the costs above it. Every figure in
+that column except Home's is inside it.
+
+So what the run establishes is the SHAPE of the cost, not four significant
+figures of frame time: blade counts, triangle counts, and draw calls that do not
+move on any world. Ember's -27% is the honest reminder of why — its frame is
+2.4ms, so a fraction of a millisecond of scheduling noise is a quarter of it.
+The two bare worlds are the control and they came for free with the design.
+
+**THE WIND READS, and that is measured too** rather than judged from a still,
+because a still cannot show it. Two renders at different `uTime` with the loop
+stopped and the particle systems off, differenced: Home moves 0.65% of the frame
+with a peak channel delta of 99, Tarn 0.23% at 149, Shroud 0.04% at 50. Anvil's
+195 blades move nothing measurable, which is the honest result of asking for
+almost none.
+
+### The cost that nearly landed was on the CPU, not the GPU
+
+`dev/run.mjs` failed on **"a max-detail leaf builds inside the frame budget"** at
+16.77ms against 16, and nothing on screen looked wrong. Placement was testing
+height AND slope per blade — three `height()` evaluations each, times the attempt
+count, is thousands of noise lookups per chunk, paid every time a leaf streams
+in while you are driving.
+
+A clump is a couple of metres across and the ground under it does not change
+slope within that, so the slope is measured **once at the clump's centre** and
+the whole clump lives or dies by it. Blades still take their own `height()`,
+because one floating above the ground or buried in it is visible immediately.
+Leaf build went 16.77ms → 5.23ms.
+
+Worth stating plainly: the render cost was inside the noise floor the whole time
+and the build cost was over budget. The frame-cost risk in a streaming world is
+not always where a "frame cost" measurement looks.
+
+### Where it is not finished
+
+The geometry, the streaming, the wind and the per-world gating all work. **The
+art does not read yet.** At the chase camera's 15m and the worlds' scale, an
+individual blade is a small triangular spike hard to tell from a small rock, and
+three tuning passes — taller, wider, denser, patchier, hue pulled toward each
+palette — improved the distribution without solving that. It needs either a form
+that reads as a clump at 15-40m rather than as a blade, or a camera that gets
+closer to the ground than this one ever does. The numbers above are the budget
+that form has to fit inside, and there is room in it.
+
+## The sky pass: a real gradient, a cloud deck, and the skyline it belongs to
+
+**THE HORIZON BAND NOW SITS ON THE HORIZON.** The band, the haze and the
+underglow were all drawn at zero elevation in the local frame. That is the
+visual horizon at ground level and nowhere else: at altitude h on a planet of
+radius R the skyline sits below local level by `acos(R / (R + h))`. These are
+small worlds, so that angle is not small — 11.4 degrees at 2% of any world's
+radius, 29.6 at 15% — and the band floated that far above the skyline it was
+supposed to be drawn on. `mats.update` feeds the sky the elevation of the true
+horizon per frame and every horizon-referenced term measures from it.
+
+It is a **no-op at zero altitude by construction**, because the dip is exactly
+zero there. That is what let it ship without re-approving six surface skies, and
+it is the same guarantee the fog altitude rule carries. `dev/run.mjs` asserts the
+exact zero; `dev/skyline.mjs` measures the band's actual position on screen.
+
+`dev/skyline.mjs` is worth reading before writing another one of these, because
+it was wrong three times and each wrong answer looked plausible:
+
+| what it did | what it reported | why |
+|---|---|---|
+| aimed at local level | band off-frame above 6% radius | the dip exceeds the half-FOV almost immediately |
+| centroid of the whole difference | 12% of the dip, every altitude | the band is mixed over a base that darkens below the skyline |
+| summed whole rows | a constant degree of error | a line of constant elevation is a CONE, and projects as a curve that rises at both edges — only the centre column is flat |
+
+With the ground hidden, the sky flattened to one colour, and a narrow centre
+column, the band lands on the true skyline within 0.05° at every altitude on all
+six worlds. The same run reports where it *used* to be drawn: up to 30° higher.
+
+**THE GRADIENT RUNS THE WHOLE SKY.** The old ramp was
+`clamp(el * 1.25 + 0.06, 0, 1)`, which reaches the zenith colour at an elevation
+of 0.75 — the top forty-one degrees of every sky was one flat field. It is three
+stops with a per-world curve now, and the ten-step cel quantisation that was
+hardcoded is `SKY.bands`/`SKY.bandMix`.
+
+**THE CLOUD IS A DECK SEEN IN PERSPECTIVE.** Dividing the horizontal view
+direction by its elevation projects the ray onto a plane at fixed height, so
+shapes compress toward the skyline the way a real layer does. The field is
+value-noise fbm; the octave count is a uniform, tier-gated, and the loop breaks
+early because GLSL ES 1.0 wants a constant bound.
+
+That also **killed Ember's slab**, which was never cloud-shaped: `sin(a)*sin(b)`
+through a smoothstep is a level set of a product of sines, a rounded
+quadrilateral with a boundary 0.16 wide in a quantity that swings over 2. Over a
+near-black cloud colour and a 1.5 orange underglow that boundary was a
+hard-edged bright slab.
+
+The first cloud numbers shipped **no cloud at all on all six worlds**, and the
+reason is worth keeping: cover 0.52 with soft 0.34 runs the smoothstep from 0.52
+to 0.86 across a field whose measured standard deviation is 0.139. The top of
+the ramp was two and a half sigma out. `soft` has to be the same order as the
+field's own spread or only the threshold matters.
+
+**SCATTERING** replaces a smoothstep that cut off hard at fourteen degrees —
+that corner is the seam the horizon met the sky at from the air. `gain` is the
+one genuinely new term, added rather than mixed so it can push past 1.0 and
+bloom, and it shipped at zero on every world before being authored. It is the
+bright band behind Anvil's mesas.
+
+**THE PARTICULATE LAYER EXISTED AND WAS UNREACHABLE.** `Trails` read
+`craft.surf.planet` once in its constructor and nothing ever wrote it again, so
+Ember's ash and Shroud's murk were authored, resolved correctly by `skyOf`, and
+then only ever built against whichever world the tab opened on. Flying to Ember
+got you Home's pale drift in an ash storm. Same class as the sky domes: a
+per-world thing built once at boot and never re-pointed. Tarn's sea spray is new.
+
+### Still there: a cyan band in the ALOFT reference frame
+
+`dev/shots/*-aloft.png` has a hard horizontal teal band above the horizon on
+Home, Vault, Shroud and Anvil. It is **not** new — it is in the sheets committed
+before this pass, on the same four worlds — and it is not one of the two defects
+this pass was for, so it is recorded rather than fixed.
+
+What is known: it is not the clear colour (repainting the background magenta
+leaves it teal), and it survives removing the jet's wingtip ribbons. It is the
+same teal on four worlds whose palettes are nothing alike, which points at
+something drawn from `COLORS` rather than from the world's own palette. A patch
+bisection over every enabled mesh was inconclusive because the post stack's grain
+moves the patch as much as the candidates do — anyone picking this up should turn
+post off first, which is the lesson `dev/disccheck.mjs` already learned the hard
+way.
+
+Separately and confirmed: `dev/frames.mjs` entered jet mode and *then* teleported
+the craft, so the wingtip TrailMesh drew a ribbon from the old position to the
+new one. That is a teleport artefact no player can produce and it no longer
+appears in the reference frames.
+
 ## The giant disc was six sky domes, and it hid behind an empty profile
 
 **It was never the sun and never a planet disc.** The thing dominating the sky
@@ -1150,6 +1337,8 @@ node dev/sundisc.mjs          # is the bright thing at the sun, or at the camera
 node dev/arrivecheck.mjs      # does a warp put the camera under the ground?
 node dev/disccheck.mjs        # how big is each planet disc, honestly and as drawn?
 node dev/savedworlds.mjs      # cold load WITH A SAVE — is more than one world drawn?
+node dev/skyline.mjs          # does the horizon band sit on the horizon, at altitude?
+node dev/floracheck.mjs       # what does vegetation cost, and does the wind move it?
 ```
 
 ### The harness had never met a returning player

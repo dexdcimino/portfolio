@@ -3,7 +3,7 @@
 // lines are cut into the rock, the waterline gets a drawn coastline stroke,
 // and light is quantised into flat bands so form reads as shape, not shading.
 
-import { COLORS, WORLD, ATMO, SKY, LIGHT, TERRAIN, SHADOW, FOG } from '../tune.js';
+import { COLORS, WORLD, ATMO, SKY, LIGHT, TERRAIN, SHADOW, FOG, TIER, FLORA, WIND } from '../tune.js';
 import { meltDepth } from './water.js';
 import { waterOf } from './seabed.js';
 
@@ -91,9 +91,81 @@ export function lightOf(planet) {
  * reads the same block, so the ash falling on Ember is part of the same
  * description as the ceiling it falls out of.
  */
+/**
+ * WHAT THIS MACHINE CAN AFFORD, resolved once and remembered.
+ *
+ * Two signals, because a browser will not tell you anything better: the number
+ * of logical cores, and the unmasked WebGL renderer string. Neither is
+ * trustworthy alone — hardwareConcurrency is capped and lied about for
+ * fingerprinting reasons, and the renderer string is a free-text field — but a
+ * two-way split is all that is being bought, and the failure modes are not
+ * symmetric: guessing low costs a slightly plainer sky, guessing high costs
+ * frame time on the machine least able to give it. So the tie goes to low.
+ *
+ * SwiftShader is called out by name because it is what every screenshot
+ * harness in dev/ runs on, and a software rasteriser drawing three octaves of
+ * noise per sky pixel is the slowest thing in this game by a wide margin.
+ *
+ * ?tier=low|high forces it, which is how the sheets compare like with like.
+ */
+/**
+ * THE ELEVATION OF THE TRUE SKYLINE, as a dot with the local up.
+ *
+ * Zero on the ground and negative in the air. At altitude h on a planet of
+ * radius R the horizon sits below local level by the dip angle acos(R/(R+h)),
+ * and what the sky shader wants is the elevation of that direction, -sin(dip).
+ *
+ * Written exactly rather than as the small-angle sqrt(2h/R) the fog rule uses
+ * for its horizon DISTANCE, because these worlds are small enough that the
+ * approximation stops being one: 15% of Ember's radius is 31 metres and the
+ * dip there is already 29.6 degrees.
+ *
+ * Exported so the suite can assert on the function the game actually calls,
+ * rather than on a restatement of it that could agree with a broken original.
+ */
+export function horizonElevation(planet, alt) {
+  const R = planet.surfaceR;
+  const h = Math.max(0, alt || 0);
+  return -Math.sin(Math.acos(Math.min(1, R / (R + h))));
+}
+
+let tierCache = null;
+export function tierOf() {
+  if (tierCache) return tierCache;
+  let name = TIER.force;
+  if (!name && typeof location !== 'undefined') {
+    const q = new URLSearchParams(location.search).get('tier');
+    if (q === 'low' || q === 'high') name = q;
+  }
+  if (!name) {
+    const cores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 0;
+    let renderer = '';
+    try {
+      const c = document.createElement('canvas');
+      const gl = c.getContext('webgl2') || c.getContext('webgl');
+      const dbg = gl && gl.getExtension('WEBGL_debug_renderer_info');
+      renderer = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+    } catch (err) { /* no context, no opinion */ }
+    const software = TIER.softwareIsLow &&
+      /swiftshader|llvmpipe|software|basic render/i.test(renderer);
+    name = (software || (cores && cores < TIER.minCores)) ? 'low' : 'high';
+    tierCache = { name, cores, renderer };
+  } else {
+    tierCache = { name, cores: 0, renderer: 'forced' };
+  }
+  tierCache.cloudDetail = TIER.cloudDetail[tierCache.name];
+  tierCache.cloudStrata = TIER.cloudStrata[tierCache.name];
+  return tierCache;
+}
+
 export function skyOf(planet) {
   const COL = paletteOf(planet);
   const S = Object.assign({}, SKY, planet.sky || {});
+  /* NESTED BLOCKS MERGE PER KEY, and a flat Object.assign does not do it.
+     A world that states only `scatter: { gain: 0.4 }` would otherwise get an
+     object with one key and four undefined uniforms, which reaches the GPU
+     as NaN and blacks out that world and no other. */
+  S.scatter = Object.assign({}, SKY.scatter, (planet.sky || {}).scatter || {});
   return Object.assign(S, {
     zenith: S.zenith || COL.skyHigh,
     horizon: S.horizon || COL.skyLow,
@@ -102,6 +174,17 @@ export function skyOf(planet) {
     cloudColor: S.cloudColor || COL.coast,
     underglowColor: S.underglowColor || COL.fogSun,
     sunColor: S.sunColor || COL.fogSun,
+    /* The middle of the gradient, resolved HERE like every other null, so
+       the shader is handed three real stops and nothing downstream has to
+       know what a default mid is. null = the midpoint of the two ends at
+       midAt, which with curve 1 is exactly the two-stop linear ramp this
+       replaced — the neutral case stated rather than assumed. */
+    mid: S.mid || (() => {
+      const lo = S.horizon || COL.skyLow, hi = S.zenith || COL.skyHigh, k = S.midAt;
+      return [lo[0] + (hi[0] - lo[0]) * k,
+        lo[1] + (hi[1] - lo[1]) * k,
+        lo[2] + (hi[2] - lo[2]) * k];
+    })(),
     haze: S.haze === null || S.haze === undefined ? ATMO.horizonHaze : S.haze,
     emit: S.emit || 0,
     emitFrom: S.emitFrom || 0.30,
@@ -223,17 +306,52 @@ function registerShaders() {
     // have no fissures, so the attribute is always present and the shader never
     // has to know which world it is drawing.
     attribute float fissure;
+    /* VEGETATION, and the wind that moves it. -1 is not vegetation at all,
+       which is every terrain vertex, every skirt and every baked rock; 0 is a
+       blade's base and 1 is its tip. One float doing three jobs: the sign is
+       the flag, the magnitude is how far the wind carries this vertex, and
+       together they bend a blade from its base instead of sliding it. */
+    attribute float sway;
     uniform mat4 world;
     uniform mat4 worldViewProjection;
+    /* x speed, y amplitude in metres, z gust speed, w gust depth. */
+    uniform vec4 uWind;
+    // The wind's heading in WORLD space, and the phase wavelength in w.
+    uniform vec4 uWindDir;
+    uniform float uTime;
     varying vec3 vN;
     varying vec3 vW;
     varying float vFis;
+    varying float vVeg;
     void main() {
-      vec4 wp = world * vec4(position, 1.0);
+      vec3 p = position;
+      // The attribute travels to the fragment stage UNCHANGED, because its
+      // magnitude is the root-to-tip gradient there and its sign is the flag.
+      // A flora triangle never has a terrain vertex, so interpolating across
+      // the -1 boundary cannot happen.
+      vVeg = sway;
+      float isVeg = step(0.0, sway);
+
+      /* The phase is HASHED FROM POSITION rather than stored. A per-blade phase
+         attribute would be a second float on every terrain vertex in the game to
+         serve the handful that are grass; the blade's own place in the world is
+         already a unique number and costs nothing to read. Using the WORLD
+         position rather than the leaf-local one is what keeps a clump moving
+         together across a chunk boundary, where the local origin jumps. */
+      vec4 wp0 = world * vec4(p, 1.0);
+      float phase = dot(wp0.xyz, vec3(uWindDir.w, uWindDir.w * 0.61, uWindDir.w * 0.83));
+      float gust = 1.0 - uWind.w + uWind.w * (0.5 + 0.5 * sin(uTime * uWind.z + phase * 0.23));
+      float bend = max(sway, 0.0);
+      // Squared, so the tip travels and the base does not: linear weighting
+      // shears the whole blade sideways and reads as a sliding decal.
+      float amt = bend * bend * uWind.y * gust * isVeg;
+      p += uWindDir.xyz * (sin(uTime * uWind.x + phase) * amt);
+
+      vec4 wp = world * vec4(p, 1.0);
       vW = wp.xyz;
       vN = normalize(mat3(world) * normal);
       vFis = fissure;
-      gl_Position = worldViewProjection * vec4(position, 1.0);
+      gl_Position = worldViewProjection * vec4(p, 1.0);
     }
   `;
 
@@ -241,6 +359,13 @@ function registerShaders() {
     varying vec3 vN;
     varying vec3 vW;
     varying float vFis;
+    // The sway attribute, carried through: negative is not vegetation, and 0
+    // to 1 is a blade's root to its tip.
+    varying float vVeg;
+    // rgb the vegetation colour, a how far it covers the ground's own band.
+    uniform vec4 uFlora;
+    // How much darker a blade's root is than its tip.
+    uniform float uFloraRoot;
     uniform vec3 uCam, uLight, uFog, uFogSun;
     uniform vec3 uDeep, uSilt, uShore, uFlats, uStone, uPeak, uCoast, uContour;
     // x the coastline stroke's half-width in metres OF GROUND, y the gradient
@@ -512,6 +637,23 @@ function registerShaders() {
         gl_FragColor = vec4(clamp(1.0 - tpm / 12.0, 0.0, 1.0),
                             clamp(tpm / 12.0, 0.0, 1.0), 0.0, 1.0);
         return;
+      }
+
+      /* VEGETATION takes its own colour over the terrain's band rather than
+         replacing it, so the ground still reads through and a field does not
+         look like a sticker laid on the chart.
+
+         MIXED HERE, BEFORE THE LIGHT BANDS, and that position is the whole of
+         it. The first cut mixed after them, which meant a blade was a flat
+         unlit colour sitting on a cel-shaded hillside: it read as bright paint
+         and it did not turn with the sun. This is an ALBEDO, and it goes where
+         the other albedos go.
+
+         The root is darker than the tip. That gradient does more work than the
+         colour does - a flat green reads as a decal at any density. */
+      if (vVeg >= 0.0) {
+        col = mix(col, uFlora.rgb * mix(uFloraRoot, 1.0, clamp(vVeg, 0.0, 1.0)),
+          uFlora.a);
       }
 
       /* T3: the surface normal the LIGHT sees. Perturbed after the palette and
@@ -1091,12 +1233,50 @@ function registerShaders() {
     precision highp float;
     varying vec3 vP;
     uniform vec3 uLow, uHigh, uBelow, uLight, uBandCol, uCloudCol, uUnderCol;
-    uniform vec3 uSunCol, uFog, uFogSun, uUp, uEast, uNorth;
+    uniform vec3 uSunCol, uFog, uFogSun, uUp, uEast, uNorth, uMid;
     uniform float uTime, uHaze, uBand, uBandW, uClouds, uCeil, uUnder;
     uniform float uSunSize, uGlare;
     /* The sun's two edges, as COSINES of half-angles, computed on the CPU from
        degrees. x,y are the halo's outer and inner; z,w the core's. See SKY. */
     uniform vec4 uSunCos;
+    uniform vec4 uGrad;      // curve, midAt, bands, bandMix
+    uniform vec4 uScat;      // airmass falloff, sun power, sun mix, added gain
+    uniform vec4 uCloudP;    // cover, soft, scale, octaves
+    /* x: the elevation of the TRUE horizon, zero on the ground and negative in
+       the air. y: 1 / (1 - x), which renormalises the gradient so the zenith is
+       still the zenith however far the skyline has dropped. z: how many cloud
+       strata this machine is drawing. */
+    uniform vec3 uHoriz;
+
+    /* Value noise, and it replaced a product of two sines.
+       sin(a) * sin(b) through a smoothstep is a level set of sin*sin: a rounded
+       quadrilateral with a boundary 0.16 wide in a quantity that swings over 2.
+       On a world whose cloud colour is darker than the sky behind it and whose
+       underglow is authored past 1.0, that boundary is a hard-edged bright SLAB
+       across the lower sky rather than a cloud. This is three cheap octaves. */
+    float h21(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    }
+    float vnoise(vec2 p) {
+      vec2 i = floor(p), f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), u.x),
+                 mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), u.x), u.y);
+    }
+    /* The octave count is a UNIFORM, not a constant, because it is the one
+       thing in this game bought with frame time per machine. GLSL ES 1.0 wants
+       a constant loop bound, so the loop is fixed at three and breaks early. */
+    float fbm(vec2 p, float oct) {
+      float amp = 0.5, sum = 0.0, norm = 0.0;
+      for (int i = 0; i < 3; i++) {
+        if (float(i) >= oct) break;
+        sum += amp * vnoise(p);
+        norm += amp;
+        p *= 2.03;
+        amp *= 0.5;
+      }
+      return sum / max(norm, 1e-4);
+    }
 
     /* One stratum's elevation window.
        The window MOVES with the ceiling; its edges do not shrink with it. That
@@ -1113,72 +1293,102 @@ function registerShaders() {
       // Elevation is measured against the LOCAL up. Using D.y would keep the
       // sky's horizon fixed to world Y while yours rotated under you, so the
       // ground would meet the sky at a different angle on every continent.
-      float el = dot(D, uUp);
-      float t = clamp(el * 1.25 + 0.06, 0.0, 1.0);
-      // Quantised sky bands, softened just enough to avoid hard stepping. Ten
-      // steps at a lighter blend: seven was coarse enough that the seams read
-      // as geometry edges once the horizon haze was laid over them.
-      float q = floor(t * 10.0) / 10.0;
-      vec3 col = mix(uLow, uHigh, mix(t, q, 0.42));
+      float elRaw = dot(D, uUp);
 
-      // The third gradient stop: what the dome does BELOW the skyline. Without
-      // it a dark world gets a bright sky wrapping under its own horizon, which
-      // is visible off every cliff edge and from the air.
-      col = mix(col, uBelow, smoothstep(0.03, -0.12, el));
+      /* THE TRUE SKYLINE, and this is the defect that was left for this pass.
+         At altitude h on a planet of radius R the horizon sits BELOW local
+         level by acos(R / (R + h)) - eight degrees at 103m over Home.
+         Everything horizon-referenced used zero elevation instead, which is the
+         visual horizon at ground level and nowhere else, so the band, the haze
+         and the underglow all floated above the real skyline as you climbed.
+         hzn is elevation measured from the true horizon. On the ground
+         uHoriz.x is zero and this is elRaw to the bit, which is what makes the
+         whole term a no-op at zero altitude by construction. */
+      float hzn = elRaw - uHoriz.x;
+
+      /* The gradient, over the WHOLE sky.
+         The old ramp was clamp(el * 1.25 + 0.06, 0, 1) and reached the zenith
+         colour at an elevation of 0.75, so the top forty-one degrees of every
+         sky was one flat field. uHoriz.y renormalises against the dropped
+         skyline so climbing opens the sky downward rather than rescaling it. */
+      float t = clamp(hzn * uHoriz.y, 0.0, 1.0);
+      float g = pow(t, uGrad.x);
+      // Quantised sky bands, softened just enough to avoid hard stepping. This
+      // was ten steps at 42%, hardcoded; it is SKY.bands and SKY.bandMix now,
+      // and bands 0 turns it off for a world that wants a smooth sky.
+      float q = uGrad.z > 0.5 ? floor(g * uGrad.z) / uGrad.z : g;
+      g = mix(g, q, uGrad.w);
+      // Three stops rather than two, so a world can put its own colour in the
+      // middle of the sky instead of only at its two ends.
+      vec3 col = g < uGrad.y
+        ? mix(uLow, uMid, g / max(uGrad.y, 1e-4))
+        : mix(uMid, uHigh, (g - uGrad.y) / max(1.0 - uGrad.y, 1e-4));
+
+      // What the dome does BELOW the skyline. Without it a dark world gets a
+      // bright sky wrapping under its own horizon, which is visible off every
+      // cliff edge and from the air.
+      col = mix(col, uBelow, smoothstep(0.03, -0.12, hzn));
 
       float s = dot(D, normalize(uLight));
 
-      // Three cloud strata, drifting at different rates so the ceiling has
-      // depth rather than reading as one printed layer. uCeil divides the
-      // elevation windows: below 1.0 the whole stack is dragged down into a low
-      // heavy lid, which is most of what makes Ember's sky feel like a roof.
-      //
-      // Laid out in the LOCAL horizon frame, not in world X/Z. Driven by world
-      // axes the pattern does not rotate with you, and wherever your local up
-      // lines up with the pattern's own axis the bands degenerate into one
-      // enormous hard-edged slab hanging in the sky. Azimuth around the local
-      // up is the only stable parametrisation.
-      float cu = dot(D, uEast);
-      float cv = dot(D, uNorth);
-      // smoothstep, not step: a hard threshold on a sine gives razor-straight
-      // cloud edges, which is what made the artefact so obviously wrong.
-      float band1 = sin(cu * 5.0 + uTime * 0.020) * sin(cv * 4.0 - uTime * 0.014);
-      float h1 = strat(el, 0.10, 0.30, uCeil);
-      col = mix(col, uCloudCol * 0.94, smoothstep(0.40, 0.56, band1) * h1 * 0.42 * uClouds);
+      /* THE CLOUD DECK, laid out as a flat layer seen in perspective.
+         Dividing the horizontal direction by the elevation is what projects the
+         view ray onto a plane at a fixed height, so shapes compress toward the
+         skyline the way a real deck does. The divide is clamped because the
+         projection diverges at the horizon, and the strata are faded out below
+         it anyway by strat(). Driven by the LOCAL east and north: in world axes
+         the pattern does not rotate with you, and wherever your local up lines
+         up with the pattern's own axis the bands degenerate into one enormous
+         hard-edged slab hanging in the sky. */
+      float ev = max(elRaw, 0.12);
+      vec2 cp = vec2(dot(D, uEast), dot(D, uNorth)) / ev * uCloudP.z;
+      float cover = uCloudP.x, soft = max(uCloudP.y, 0.01), oct = uCloudP.w;
 
-      float band2 = sin(cu * 2.4 - uTime * 0.011 + 1.7) * sin(cv * 2.9 + uTime * 0.009);
-      float h2 = strat(el, 0.26, 0.54, uCeil);
-      col = mix(col, uCloudCol * 0.88, smoothstep(0.52, 0.70, band2) * h2 * 0.30 * uClouds);
+      float n1 = fbm(cp * 1.7 + vec2(uTime * 0.006, uTime * -0.004), oct);
+      float c1 = smoothstep(cover, cover + soft, n1) * strat(hzn, 0.10, 0.30, uCeil);
+      col = mix(col, uCloudCol * 0.94, c1 * 0.42 * uClouds);
 
-      float band3 = sin(cu * 1.3 + uTime * 0.006 - 0.9) * sin(cv * 1.6 - uTime * 0.005);
-      float h3 = strat(el, 0.44, 0.78, uCeil);
-      col = mix(col, uCloudCol * 0.80, smoothstep(0.58, 0.76, band3) * h3 * 0.22 * uClouds);
+      if (uHoriz.z > 1.5) {
+        float n2 = fbm(cp * 0.95 + vec2(uTime * -0.0035, uTime * 0.005) + 11.3, oct);
+        float c2 = smoothstep(cover, cover + soft, n2) * strat(hzn, 0.26, 0.54, uCeil);
+        col = mix(col, uCloudCol * 0.88, c2 * 0.30 * uClouds);
+      }
+      if (uHoriz.z > 2.5) {
+        float n3 = fbm(cp * 0.55 + vec2(uTime * 0.002, uTime * -0.0015) + 27.7, oct);
+        float c3 = smoothstep(cover, cover + soft, n3) * strat(hzn, 0.44, 0.78, uCeil);
+        col = mix(col, uCloudCol * 0.80, c3 * 0.22 * uClouds);
+      }
 
       // A band hugging the skyline. Narrow and faint it is a horizon line; wide
       // and strong it is sea haze, and Tarn is nothing but sea haze.
-      col = mix(col, uBandCol, uBand * (1.0 - smoothstep(0.0, max(uBandW, 0.005), abs(el))));
+      col = mix(col, uBandCol, uBand * (1.0 - smoothstep(0.0, max(uBandW, 0.005), abs(hzn))));
 
-      // The horizon has to sit down into the same haze the terrain fades to,
-      // or the two meet at a visible seam and the world looks like a diorama.
-      float low = 1.0 - smoothstep(-0.03, 0.24, el);
-      vec3 hz = mix(uFog, uFogSun, pow(clamp(s, 0.0, 1.0), 2.0) * 0.75);
-      col = mix(col, hz, low * uHaze);
+      /* SCATTERING AT THE HORIZON.
+         airmass stands in for how much air the view ray crosses: 1 at the
+         skyline, falling with elevation at SKY.scatter.falloff. It replaces a
+         smoothstep that cut off hard at fourteen degrees, which is why the
+         horizon used to meet the sky at a readable seam from the air.
+         The horizon has to sit down into the same haze the terrain fades to, or
+         the two meet at a visible line and the world looks like a diorama. */
+      float airmass = pow(1.0 - t, max(uScat.x, 0.001));
+      float fwd = pow(clamp(s, 0.0, 1.0), uScat.y);
+      vec3 air = mix(uFog, uFogSun, fwd * uScat.z);
+      col = mix(col, air, airmass * uHaze);
+      /* ...and the one genuinely new term, ADDED rather than mixed so it can
+         push past 1.0 and bloom: forward-scattered light piling up along the
+         horizon on the sun's side. This is the bright band behind the mesas.
+         Ships at gain 0 on every world until authored. */
+      col += uFogSun * fwd * airmass * uScat.w;
 
       // Underglow: the ground lighting the sky from beneath, for a world whose
       // light source is at your feet. Added rather than mixed, and authored
       // past 1.0, so Ember's ceiling blooms like the cracks do.
-      col += uUnderCol * uUnder * smoothstep(0.34, -0.16, el);
+      col += uUnderCol * uUnder * smoothstep(0.34, -0.16, hzn);
 
       /* Sun last, so nothing hazes over it. Deliberately above 1.0: the bloom
-         pass is what turns this into glare.
-         THE EDGES ARE COSINES OF REAL HALF-ANGLES NOW. They used to be written
-         as 1.0 - 0.055 * uSunSize and friends, which is a number in cosine
-         space with no obvious size attached — and the size it worked out to was
-         a core 7.4 to 11.2 DEGREES across and a halo of 32 to 48, against a
-         real sun's 0.53. The vertical field of view here is 0.95 rad, 54.4
-         degrees, so the halo was 88% of the frame height: it did not leave the
-         picture until you had turned more than sixty degrees, which is why it
-         read as being stuck to the camera rather than to the sky. */
+         pass is what turns this into glare. The edges are cosines of real
+         half-angles, computed on the CPU from degrees - see SKY.haloAngle,
+         which is 5 and stays there. */
       col += uSunCol * smoothstep(uSunCos.x, uSunCos.y, s) * 0.55 * uGlare;
       col += uSunCol * smoothstep(uSunCos.z, uSunCos.w, s) * 2.6 * uGlare;
 
@@ -1519,7 +1729,7 @@ export function createMaterials(scene, planet) {
   const terrain = new BABYLON.ShaderMaterial('svTerrain', scene,
     { vertex: 'svTerrain', fragment: 'svTerrain' },
     {
-      attributes: ['position', 'normal', 'fissure'],
+      attributes: ['position', 'normal', 'fissure', 'sway'],
       uniforms: ['world', 'worldViewProjection', 'uCam', 'uLight', 'uFog',
         'uFogSun', 'uDeep', 'uSilt', 'uShore', 'uFlats', 'uStone', 'uPeak',
         'uCoast', 'uContour', 'uCoastP', 'uFogRange', 'uSurfaceR', 'uScatter', 'uWash',
@@ -1527,7 +1737,8 @@ export function createMaterials(scene, planet) {
         'uEmitCol', 'uEmitHot', 'uLightMix', 'uSunCol', 'uRimP',
         'uTriScale', 'uTriSlope', 'uTriMix', 'uTriFade', 'uTriDetail',
         'uShadowMat', 'uShadowP', 'uShadowAt', 'uShadowS',
-        'uContact', 'uContactF', 'uContactS', 'uContactK', 'uShadowDebug'],
+        'uContact', 'uContactF', 'uContactS', 'uContactK', 'uShadowDebug',
+        'uWind', 'uWindDir', 'uTime', 'uFlora', 'uFloraRoot'],
       samplers: ['uTriFlat', 'uTriSteep', 'uTriHigh', 'uShadowMap'],
     });
   /* T3 — triplanar. Fade distances arrive as fractions of the fog range so a
@@ -1652,6 +1863,25 @@ export function createMaterials(scene, planet) {
   water.backFaceCulling = true;
   water.alpha = 0.9;
 
+  /* ---- vegetation and the wind that moves it ----------------------------
+     THE WHOLE SYSTEM IS A NO-OP UNTIL A WORLD OPTS IN. FLORA.density is 0 by
+     default, appendFlora returns before it seeds an rng, no vertex ever carries
+     a sway other than -1, and the branch in the terrain shader is never taken.
+     Three of the six worlds pay nothing at all for this existing. */
+  {
+    const FL = Object.assign({}, FLORA, planet.flora || {});
+    terrain.setVector4('uFlora', new BABYLON.Vector4(
+      ...(FL.color || COL.flats), FL.density ? FL.colorMix : 0));
+    terrain.setFloat('uFloraRoot', FL.root);
+    terrain.setVector4('uWind', new BABYLON.Vector4(
+      WIND.speed, WIND.amplitude, WIND.gustSpeed, WIND.gust));
+    /* The wind's heading is refreshed per frame in mats.update from the local
+       east: on a sphere there is no world-space wind direction that means the
+       same thing on two continents. w is the phase wavelength. */
+    terrain.setVector4('uWindDir', new BABYLON.Vector4(1, 0, 0, WIND.wavelength));
+    terrain.setFloat('uTime', 0);
+  }
+
   const sky = new BABYLON.ShaderMaterial('svSky', scene,
     { vertex: 'svSky', fragment: 'svSky' },
     {
@@ -1659,7 +1889,8 @@ export function createMaterials(scene, planet) {
       uniforms: ['worldViewProjection', 'uLow', 'uHigh', 'uBelow', 'uLight',
         'uBandCol', 'uCloudCol', 'uUnderCol', 'uSunCol', 'uTime', 'uFog',
         'uFogSun', 'uHaze', 'uBand', 'uBandW', 'uClouds', 'uCeil', 'uUnder',
-        'uSunSize', 'uGlare', 'uSunCos', 'uUp', 'uEast', 'uNorth'],
+        'uSunSize', 'uGlare', 'uSunCos', 'uUp', 'uEast', 'uNorth',
+        'uMid', 'uGrad', 'uScat', 'uCloudP', 'uHoriz'],
     });
   sky.setVector3('uLow', V3(SK.horizon));
   sky.setVector3('uHigh', V3(SK.zenith));
@@ -1689,6 +1920,29 @@ export function createMaterials(scene, planet) {
       Math.cos(core), Math.cos(core * 0.516)));
   }
   sky.setFloat('uGlare', SK.glare);
+
+  /* ---- the sky pass's own uniforms --------------------------------------
+     THE MIDDLE OF THE GRADIENT. A world that says nothing gets the midpoint of
+     its own two ends at its own midAt, which is exactly a two-stop linear ramp
+     and therefore states the neutral case rather than assuming it. */
+  {
+    sky.setVector3('uMid', V3(SK.mid));
+    sky.setVector4('uGrad', new BABYLON.Vector4(
+      SK.curve, SK.midAt, SK.bands, SK.bandMix));
+    const SC = SK.scatter;
+    sky.setVector4('uScat', new BABYLON.Vector4(
+      SC.falloff, SC.sunPower, SC.sunMix, SC.gain));
+    /* CLOUD DETAIL AND STRATUM COUNT ARE THE TIER, and they are the only
+       things it buys today. Resolved once here rather than per frame: a
+       machine does not change between frames, and a uniform that could would
+       be a shader recompile risk for nothing. */
+    sky.setVector4('uCloudP', new BABYLON.Vector4(
+      SK.cloudCover, SK.cloudSoft, SK.cloudScale, tierOf().cloudDetail));
+    /* The true horizon, refreshed per frame in mats.update. Zero here is
+       ground level, which is the value that makes the whole term a no-op
+       until something climbs. */
+    sky.setVector3('uHoriz', new BABYLON.Vector3(0, 1, tierOf().cloudStrata));
+  }
   sky.setVector3('uUp', new BABYLON.Vector3(0, 1, 0));
   sky.setVector3('uEast', new BABYLON.Vector3(1, 0, 0));
   sky.setVector3('uNorth', new BABYLON.Vector3(0, 0, 1));
@@ -1790,6 +2044,8 @@ export function createMaterials(scene, planet) {
   let time = 0;
   let seabed = null;
   const upVec = new BABYLON.Vector3(0, 1, 0);
+  const horizVec = new BABYLON.Vector3(0, 1, 1);
+  const windVec = new BABYLON.Vector4(1, 0, 0, WIND.wavelength);
   const eastVec = new BABYLON.Vector3(1, 0, 0);
   const northVec = new BABYLON.Vector3(0, 0, 1);
   /* THE FOG RANGE IS ONE OBJECT, SHARED BY THREE MATERIALS ON PURPOSE.
@@ -1834,6 +2090,7 @@ export function createMaterials(scene, planet) {
       }
     }
     terrain.setVector3('uCam', cam);
+    terrain.setFloat('uTime', time);
     water.setVector3('uCam', cam);
     water.setFloat('uTime', time);
     /* The screen size the water divides gl_FragCoord by, refreshed from the
@@ -1841,6 +2098,24 @@ export function createMaterials(scene, planet) {
        it addresses the wrong texels and slides the foam off the shoreline. */
     if (seabed) water.setVector2('uInvScreen', seabed.invScreen);
     sky.setFloat('uTime', time);
+
+    /* THE TRUE SKYLINE, per frame.
+       At altitude h on a planet of radius R the horizon is below local level
+       by the dip angle acos(R / (R + h)), and what the sky shader wants is the
+       ELEVATION of that direction, which is -sin(dip). The small-angle form
+       sqrt(2h/R) is the same number the fog rule uses for its horizon
+       distance, and it is written exactly here rather than approximated
+       because the cost is one acos a frame and Ember is a 207m world where a
+       jet at 300m is not a small angle at all: the dip there is 55 degrees.
+       ZERO ALTITUDE GIVES EXACTLY ZERO, which is what makes every
+       horizon-referenced term in that shader a no-op on the ground — the same
+       guarantee the fog altitude rule carries, and the reason this could be
+       shipped without touching six approved surface skies. */
+    if (alt !== undefined) {
+      const el = horizonElevation(planet, alt * SKY.trueHorizon);
+      horizVec.set(el, 1 / (1 - el), tierOf().cloudStrata);
+      sky.setVector3('uHoriz', horizVec);
+    }
     craft.setVector3('uCam', cam);
     craft.setFloat('uHeat', heat);
     if (up) {
@@ -1852,6 +2127,11 @@ export function createMaterials(scene, planet) {
       northVec.set(north.x, north.y, north.z);
       sky.setVector3('uEast', eastVec);
       sky.setVector3('uNorth', northVec);
+      /* The wind blows along the local EAST. There is no world-space
+         direction that means the same thing on two continents of a sphere,
+         and a wind that did would blow uphill on one of them. */
+      windVec.set(east.x, east.y, east.z, WIND.wavelength);
+      terrain.setVector4('uWindDir', windVec);
     }
   };
 

@@ -150,6 +150,17 @@ export const ALOFT = `(async () => {
     if (settled > 20) break;
   }
 
+  /* THE WINGTIP RIBBONS GO, and they are the reason this frame had a hard
+     cyan slab across the sky in every sheet for several passes.
+     trails.js recreates them on ENTERING jet mode, precisely so they never
+     streak across the map from wherever you last were. This harness enters jet
+     mode and THEN teleports the craft to altitude, so the ribbon is drawn from
+     the old position to the new one: a phosphor-coloured band, backface culling
+     off, hanging over the horizon. It is an artefact of teleporting and not
+     something a player flying up there can produce, so it has no business in a
+     reference frame. */
+  if (S.trails) S.trails.stopJetTrails();
+
   const c = S.cam.camera;
   S.cam.update = () => {};
   const up = S.surface.frame.up;

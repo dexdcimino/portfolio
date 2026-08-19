@@ -1119,11 +1119,21 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
     let skyHoles = [];
     for (const k of keys) {
       const s = skyOf(PLANETS[k]);
+      /* Recurses ONE level into a nested block rather than skipping it. The
+         sky pass added `scatter`, which is an object and would have passed a
+         !Number.isFinite test as trivially as a null does — a check that
+         steps around the new thing is a check that stops being one. */
+      const hole = (v) => v === null || v === undefined ||
+        (Array.isArray(v) ? v.some((n) => !Number.isFinite(n)) : !Number.isFinite(v));
       for (const [f, v] of Object.entries(s)) {
         if (f === 'motes') continue;
-        if (v === null || v === undefined ||
-          (Array.isArray(v) && v.some((n) => !Number.isFinite(n))) ||
-          (!Array.isArray(v) && !Number.isFinite(v))) skyHoles.push(k + '.' + f);
+        if (v && !Array.isArray(v) && typeof v === 'object') {
+          for (const [f2, v2] of Object.entries(v)) {
+            if (hole(v2)) skyHoles.push(k + '.' + f + '.' + f2);
+          }
+          continue;
+        }
+        if (hole(v)) skyHoles.push(k + '.' + f);
       }
     }
     ok('every world resolves a complete sky', skyHoles.length === 0,
@@ -2713,6 +2723,44 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
     rows.join(' | '));
 }
 
+
+/* ---- THE TRUE SKYLINE ---------------------------------------------------
+   The sky's band, haze and underglow were drawn at zero elevation in the local
+   frame, which is the visual horizon at ground level and nowhere else. These
+   assert the function the sky shader is actually fed, not a restatement of it.
+
+   The one that matters is the FIRST: zero altitude has to give exactly zero, or
+   the fix is not a no-op on the ground and six approved surface skies have
+   quietly moved. It is the same guarantee the fog altitude rule carries and it
+   is what let this ship without re-approving anything. */
+{
+  const { horizonElevation } = await import('../js/world/materials.js');
+
+  let onGround = [];
+  for (const k of Object.keys(PLANETS)) {
+    const el = horizonElevation(makePlanet(PLANETS[k]), 0);
+    if (el !== 0) onGround.push(`${k} ${el}`);
+  }
+  ok('the horizon dip is exactly zero at zero altitude', onGround.length === 0,
+    onGround.length ? onGround.join(' | ') : `${Object.keys(PLANETS).length} worlds, all 0`);
+
+  /* ...and it is a big enough angle at flying height to have been worth doing.
+     These are small worlds: a fixed metre count means nothing across a 10x
+     radius range, so altitude is quoted as a fraction of each world's own R. */
+  const rows = [];
+  let allBig = true, allMono = true;
+  for (const k of Object.keys(PLANETS)) {
+    const P = makePlanet(PLANETS[k]);
+    const deg = (f) => Math.asin(-horizonElevation(P, f * P.surfaceR)) * 180 / Math.PI;
+    const a = deg(0.02), b = deg(0.06), c = deg(0.15);
+    if (!(a < b && b < c)) allMono = false;
+    if (c < 25) allBig = false;
+    rows.push(`${k} ${a.toFixed(1)}/${b.toFixed(1)}/${c.toFixed(1)}°`);
+  }
+  ok('...and grows with altitude on every world', allMono, rows.join(' | '));
+  ok('...to an angle that was worth fixing', allBig,
+    'at 15% of radius the skyline is more than 25 degrees below local level');
+}
 
 /* ---- ONE WORLD ON SCREEN AT A TIME -------------------------------------
    The invariant this suite could not previously see, because the thing that

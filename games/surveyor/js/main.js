@@ -191,6 +191,10 @@ function swapTo(key, dir, alt) {
      radius is inside this one: the arrival came up through the terrain. */
   cam.arrive(craft);
   streaks.setPalette(next);
+  /* ...and the particulate layer, which is this world's ash or murk or sea
+     spray. Trails read its planet once in its constructor and nothing ever
+     wrote it again, so every world's motes were the boot world's. */
+  trails.setPlanet(next);
   // The world's own grade. Neutral on all six at T1, so this is a no-op that
   // proves the wire — and the one line that has to exist before any world can
   // be graded on its own.
@@ -537,7 +541,7 @@ document.body.classList.add('ready');
 // Exposed for tuning from the console — ROVER.sinkDepth and friends are the
 // dials most likely to be argued with after a first drive.
 window.SURVEYOR = {
-  craft, cam, sound, pipeline, post, ROVER, worlds, scene, streaks, economy,
+  craft, cam, sound, pipeline, post, ROVER, worlds, scene, streaks, economy, trails,
   geyserTotals, overlay, previewBake,
   get raiders() { return world.colonies.raiders; },
   get world() { return world; },

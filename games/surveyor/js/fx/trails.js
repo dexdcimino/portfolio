@@ -105,26 +105,7 @@ export class Trails {
        block replaces the colour, the density and the fall rate — Ember's ash,
        Shroud's murk — through this system rather than a second one. A world
        that says nothing gets the drift it always had. */
-    if (ATMO.motes) {
-      const m = skyOf(this.planet).motes;
-      // Capped: Shroud asks for five times the density, and the emitter simply
-      // runs out of pool rather than quietly costing five times the frame.
-      const cap = m ? Math.min(900, Math.round(260 * m.density)) : 260;
-      this.motes = this.makeSystem(cap, this.moteAnchor, m ? {
-        color1: C(m.color, 0.55), color2: C(m.color, 0.30),
-        dead: C(m.color, 0), min: 0.05 * m.size, max: 0.30 * m.size, life: [3.5, 9],
-        power: [0.1, 0.7], grav: new BABYLON.Vector3(0, m.fall, 0),
-      } : {
-        color1: C(COLORS.coast, 0.20), color2: C(COLORS.phosphor, 0.14),
-        dead: C(COLORS.coast, 0), min: 0.05, max: 0.30, life: [3.5, 9],
-        power: [0.1, 0.7], grav: new BABYLON.Vector3(0, -0.30, 0),
-      });
-      this.motes.minEmitBox = new BABYLON.Vector3(-46, -14, -46);
-      this.motes.maxEmitBox = new BABYLON.Vector3(46, 30, 46);
-      this.motes.direction1 = new BABYLON.Vector3(-0.4, -0.1, -0.4);
-      this.motes.direction2 = new BABYLON.Vector3(0.4, 0.2, 0.4);
-      this.motes.emitRate = 34 * (m ? m.density : 1);
-    }
+    if (ATMO.motes) this.buildMotes();
 
     // Wingtip ribbons. Recreated on entering jet mode so they never streak
     // across the map from wherever you last landed.
@@ -179,6 +160,59 @@ export class Trails {
     on('wavelaunch', (e) => { this.burst(e.pos); this.spray.manualEmitCount = 60; });
     on('slam', (e) => { this.burst(e.pos); this.spray.manualEmitCount = 120; });
     on('drown', (e) => { this.burst(e.from); this.shockwave(e.to); });
+  }
+
+  /**
+   * The near-field mote layer, which is also the SKY's particulate layer.
+   *
+   * A planet's `sky.motes` block replaces the colour, the density, the size and
+   * the fall rate — Ember's ash, Shroud's murk, Tarn's sea spray — through this
+   * system rather than a second one. A world that says nothing gets the drift
+   * the game has always had.
+   *
+   * Rebuilt rather than retuned, and disposed first, because a Babylon
+   * ParticleSystem's pool size is fixed at construction: Shroud asks for five
+   * times Home's density and a system built for 260 particles cannot deliver it
+   * however the emit rate is set.
+   */
+  buildMotes() {
+    if (this.motes) { this.motes.stop(); this.motes.dispose(); this.motes = null; }
+    const m = skyOf(this.planet).motes;
+    // Capped: Shroud asks for five times the density, and the emitter simply
+    // runs out of pool rather than quietly costing five times the frame.
+    const cap = m ? Math.min(900, Math.round(260 * m.density)) : 260;
+    this.motes = this.makeSystem(cap, this.moteAnchor, m ? {
+      color1: C(m.color, 0.55), color2: C(m.color, 0.30),
+      dead: C(m.color, 0), min: 0.05 * m.size, max: 0.30 * m.size, life: [3.5, 9],
+      power: [0.1, 0.7], grav: new BABYLON.Vector3(0, m.fall, 0),
+    } : {
+      color1: C(COLORS.coast, 0.20), color2: C(COLORS.phosphor, 0.14),
+      dead: C(COLORS.coast, 0), min: 0.05, max: 0.30, life: [3.5, 9],
+      power: [0.1, 0.7], grav: new BABYLON.Vector3(0, -0.30, 0),
+    });
+    this.motes.minEmitBox = new BABYLON.Vector3(-46, -14, -46);
+    this.motes.maxEmitBox = new BABYLON.Vector3(46, 30, 46);
+    this.motes.direction1 = new BABYLON.Vector3(-0.4, -0.1, -0.4);
+    this.motes.direction2 = new BABYLON.Vector3(0.4, 0.2, 0.4);
+    this.motes.emitRate = 34 * (m ? m.density : 1);
+  }
+
+  /**
+   * Arrived somewhere else.
+   *
+   * WITHOUT THIS THE PARTICULATE LAYER DOES NOT EXIST for anybody who did not
+   * boot straight onto the world. `this.planet` was read once in the
+   * constructor, from the craft's surface, and nothing ever wrote it again — so
+   * Ember's ash and Shroud's murk were authored in tune.js, resolved correctly
+   * by skyOf, and then only ever built against whichever world the tab opened
+   * on. Flying to Ember got you Home's pale drift in an ash storm.
+   *
+   * Same class as the sky domes: a per-world thing built once at boot and never
+   * re-pointed. It is worth checking any other field that caches `planet`.
+   */
+  setPlanet(planet) {
+    this.planet = planet;
+    if (ATMO.motes) this.buildMotes();
   }
 
   makeSystem(cap, emitter, o) {
