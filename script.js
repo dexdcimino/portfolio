@@ -1844,29 +1844,46 @@ let flashTip = () => {};
   const section = document.getElementById('vault');
   if (!section) return;
   const pins = [...section.querySelectorAll('.vault-pin')];
+  const lockbox = section.querySelector('.vault-lockbox');
   const status = document.getElementById('vaultStatus');
-  const open = document.getElementById('vaultOpen');
+  const timer = document.getElementById('vaultTimer');
+  const revealed = document.getElementById('vaultOpen');
   const label = document.getElementById('vaultLabel');
-  const lock = document.getElementById('vaultLock');
-  if (!pins.length || !status || !open) return;
+  const padlock = document.getElementById('vaultLock');
+  if (!pins.length || !lockbox || !status || !revealed) return;
 
-  const code = () => pins.map(p => p.value).join('');
   const RESTING = 'ENTER CODE';
+  const TRIES = 3;              // failures allowed...
+  const WINDOW = 15000;         // ...within this
+  const LOCKOUT = 15;           // seconds of waiting once they are spent
+  const ANSWER_HOLD = 5000;     // how long NOPE stays before it fades out
+
+  /* What a decrypted payload is allowed to ask for. "show:<name>" opens one of
+     these; anything else is printed as text. The code does not name the door —
+     the sealed text does — so a second code sealed against a different name
+     opens a different thing and nothing here changes but this table. */
+  const VIEWS = { snail: document.getElementById('snailModal') };
+
+  /* Folded to upper case on the way in, and folded the same way by
+     tools/seal_vault.mjs before it derives its key, so "snail" and "SNAIL" open
+     the same door. The WHOLE string is folded rather than only its letters:
+     digits and symbols come through unchanged, so one call covers every kind of
+     code. */
+  const code = () => pins.map(p => p.value).join('').toUpperCase();
+
   const say = (text, state) => {
     status.textContent = text;
     section.classList.toggle('is-wrong', state === 'wrong');
     section.classList.toggle('is-working', state === 'working');
     section.classList.toggle('is-open', state === 'open');
   };
-  /* The refusal clears the moment they start over, rather than sitting under a
-     half-typed second attempt still saying NOPE about the first one. */
-  const clearFail = () => { if (section.classList.contains('is-wrong')) say(RESTING, null); };
 
   /* SubtleCrypto only exists in a secure context. Over https or on localhost
      that is everywhere; opened as a file:// double-click it is nowhere, and the
      honest thing is to say so rather than shake at someone typing the right
      code. */
   const canDecrypt = !!(window.crypto && window.crypto.subtle);
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   async function unseal(blob, secret) {
     const [version, iterations, payload] = blob.split('.');
@@ -1884,12 +1901,157 @@ let flashTip = () => {};
       await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, body));
   }
 
+  /* ---- what happens when it opens ---- */
+
+  const viewOf = (payload) =>
+    payload.startsWith('show:') ? VIEWS[payload.slice(5).trim()] : null;
+
+  const show = (dialog, opener) =>
+    openModal(dialog, dialog.querySelector('.vault-modal-shell'), null, opener);
+
+  function reveal(payload) {
+    if (label) label.textContent = 'OPEN';
+    if (padlock) padlock.dataset.icon = 'lock-open';
+    say('YEP!', 'open');
+    lockbox.hidden = true;
+    revealed.hidden = false;
+    revealed.textContent = '';
+
+    const dialog = viewOf(payload);
+    if (!dialog) {
+      // Not a door, or a door this build does not have: whatever was sealed,
+      // as text. textContent, never innerHTML — it is treated as words however
+      // it was written.
+      revealed.textContent = payload;
+      return;
+    }
+    /* The keypad has done its job and is gone, so without this the strip would
+       be a dead band the moment the overlay is closed. */
+    const again = document.createElement('button');
+    again.className = 'button';
+    again.type = 'button';
+    const text = document.createElement('span');
+    text.textContent = 'VIEW AGAIN';
+    again.append(text);
+    again.addEventListener('click', () => show(dialog, again));
+    revealed.append(again);
+    show(dialog, pins[pins.length - 1]);
+  }
+
+  /* ---- getting it wrong ---- */
+
+  const fails = [];             // timestamps inside the current window
+  let lockedUntil = 0;
+  let tickTimer = null;
+  let fadeTimer = null;
+
+  const clearBoxes = () =>
+    pins.forEach(p => { p.value = ''; p.classList.remove('is-set'); });
+
+  /* Scripted rather than a CSS keyframe: it has to restart on a number that is
+     already on screen, and re-running a keyframe animation means taking a class
+     off, forcing a reflow and putting it back. The reduced-motion check is
+     explicit because the site's blanket `animation:none` rule does not reach
+     the Web Animations API. */
+  function pop(el) {
+    if (REDUCED.matches || !el.animate) return;
+    el.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }],
+               { duration: 900, easing: 'cubic-bezier(.22,.61,.36,1)' });
+  }
+
+  function fadeAnswer() {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      status.removeEventListener('transitionend', onEnd);
+      clearTimeout(guard);
+      say(RESTING, null);
+      status.classList.remove('is-fading');
+    };
+    const onEnd = (event) => { if (event.propertyName === 'opacity') finish(); };
+    status.addEventListener('transitionend', onEnd);
+    // A transition that never runs — a backgrounded tab will skip it — would
+    // otherwise leave the answer up for good, which is the thing this fixes.
+    const guard = setTimeout(finish, 900);
+    status.classList.add('is-fading');
+  }
+
+  /* The refusal clears the moment they start over, rather than sitting under a
+     half-typed second attempt still saying NOPE about the first one. */
+  const clearFail = () => {
+    if (!section.classList.contains('is-wrong') || lockedUntil) return;
+    clearTimeout(fadeTimer);
+    status.classList.remove('is-fading');
+    say(RESTING, null);
+  };
+
+  /* Three wrong codes inside fifteen seconds and the boxes stop listening for
+     fifteen. It is a doorknob, not a vault door: a five-character code is small
+     enough to sweep by hand, and this makes hammering it boring without ever
+     locking out someone who mistyped twice. */
+  function beginLockout() {
+    lockedUntil = Date.now() + LOCKOUT * 1000;
+    clearTimeout(fadeTimer);
+    status.classList.remove('is-fading');
+    say('TOO MANY TRIES', 'wrong');
+    pins.forEach(p => { p.disabled = true; });
+    timer.hidden = false;
+    tick();
+  }
+
+  function tick() {
+    const remain = lockedUntil - Date.now();
+    const left = Math.ceil(remain / 1000);
+    if (left <= 0) { endLockout(); return; }
+    timer.textContent = left;
+    pop(timer);
+    /* Aim at the next whole second rather than 1000ms from now. A fixed
+       interval drifts against the clock it is reading and eventually shows the
+       same number twice, or skips one. */
+    tickTimer = setTimeout(tick, remain - (left - 1) * 1000);
+  }
+
+  function endLockout() {
+    clearTimeout(tickTimer);
+    lockedUntil = 0;
+    timer.hidden = true;
+    pins.forEach(p => { p.disabled = false; });
+    say(RESTING, null);
+    // preventScroll: the wait is over whether or not they are still looking at
+    // it, and yanking the page back to a section they scrolled away from is not
+    // the reminder it sounds like.
+    pins[0].focus({ preventScroll: true });
+  }
+
+  function fail() {
+    clearBoxes();
+    /* Off on animationend rather than on a timer that would have to be kept in
+       step with the CSS — and off at all because a class already set does not
+       replay its animation, so a second wrong code would sit there still. */
+    section.classList.add('is-shaking');
+    section.addEventListener('animationend',
+                             () => section.classList.remove('is-shaking'), { once: true });
+
+    const now = Date.now();
+    while (fails.length && now - fails[0] > WINDOW) fails.shift();
+    fails.push(now);
+    if (fails.length >= TRIES) { fails.length = 0; beginLockout(); return; }
+
+    say('NOPE', 'wrong');
+    pins[0].focus({ preventScroll: true });
+    clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(fadeAnswer, ANSWER_HOLD);
+  }
+
+  /* ---- the attempt ---- */
+
   let busy = false;
   async function attempt() {
     const secret = code();
-    if (busy || secret.length !== pins.length) return;
-    const blob = section.dataset.vault;
-    if (!blob) { say('EMPTY', 'wrong'); return; }
+    if (busy || lockedUntil || secret.length !== pins.length) return;
+    const blobs = (section.dataset.vault || '').trim().split(/\s+/).filter(Boolean);
+    if (!blobs.length) { say('EMPTY', 'wrong'); return; }
     if (!canDecrypt) { say('NEEDS HTTPS', 'wrong'); return; }
 
     /* Deriving the key is deliberately slow — that is the whole defence — so it
@@ -1899,43 +2061,38 @@ let flashTip = () => {};
     busy = true;
     pins.forEach(p => { p.disabled = true; });
     say('CHECKING', 'working');
-    try {
-      const text = await unseal(blob, secret);
-      // textContent, never innerHTML: what comes out of the vault is treated as
-      // text, whatever was put in.
-      open.textContent = text;
-      open.hidden = false;
-      document.querySelector('.vault-lockbox').hidden = true;
-      if (label) label.textContent = 'OPEN';
-      if (lock) lock.dataset.icon = 'lock-open';
-      say('', 'open');
-    } catch {
-      say('NOPE', 'wrong');
-      section.classList.add('is-shaking');
-      pins.forEach(p => { p.value = ''; p.classList.remove('is-set'); p.disabled = false; });
-      pins[0].focus();
-      /* Off on animationend rather than on a timer that would have to be kept in
-         step with the CSS — and off at all because a class already set does not
-         replay its animation, so a second wrong code would sit there still. */
-      section.addEventListener('animationend', () => section.classList.remove('is-shaking'),
-                               { once: true });
-    } finally {
-      busy = false;
-      pins.forEach(p => { p.disabled = false; });
+
+    /* Every blob is tried, because each is a different code opening a different
+       thing and only its own key can read it. One derivation each, so this is a
+       handful of hundred-millisecond steps — fine for a short list, and the
+       reason to keep the list short. */
+    let payload = null;
+    for (const blob of blobs) {
+      try { payload = await unseal(blob, secret); break; } catch { /* not this one */ }
     }
+
+    busy = false;
+    pins.forEach(p => { p.disabled = false; });
+    if (payload !== null) reveal(payload);
+    else fail();
   }
+
+  /* ---- the keypad ---- */
 
   pins.forEach((pin, i) => {
     pin.addEventListener('input', () => {
       clearFail();
-      // Keep the last digit typed, so typing over a filled box replaces it
-      // rather than being swallowed by maxlength.
-      const digits = pin.value.replace(/\D/g, '');
-      pin.value = digits.slice(-1);
+      /* Keep the last character typed, so typing over a filled box replaces it
+         rather than being swallowed by maxlength. Anything printable counts —
+         letters, digits, symbols — and it lands in caps whatever was pressed.
+         Whitespace is dropped: an invisible character in a code you can see is
+         a way to be locked out of your own vault. */
+      const typed = pin.value.replace(/\s/g, '');
+      pin.value = typed.slice(-1).toUpperCase();
       pin.classList.toggle('is-set', !!pin.value);
       if (pin.value && i < pins.length - 1) pins[i + 1].focus();
       // No submit button: filling the last box IS the submit. Deferred a frame
-      // so the digit is painted before the boxes lock.
+      // so the character is painted before the boxes lock.
       if (code().length === pins.length) requestAnimationFrame(attempt);
     });
     pin.addEventListener('keydown', (event) => {
@@ -1954,17 +2111,19 @@ let flashTip = () => {};
         event.preventDefault(); attempt();
       }
     });
-    // Pasting a code should fill the row, not drop five digits into one box.
+    // Pasting a code should fill the row, not drop five characters into one box.
     pin.addEventListener('paste', (event) => {
-      const digits = (event.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
-      if (!digits) return;
+      const chars = (event.clipboardData || window.clipboardData)
+        .getData('text').replace(/\s/g, '').toUpperCase();
+      if (!chars) return;
       event.preventDefault();
+      clearFail();
       pins.slice(i).forEach((box, n) => {
-        if (n >= digits.length) return;
-        box.value = digits[n];
+        if (n >= chars.length) return;
+        box.value = chars[n];
         box.classList.add('is-set');
       });
-      const next = Math.min(i + digits.length, pins.length - 1);
+      const next = Math.min(i + chars.length, pins.length - 1);
       pins[next].focus();
       if (code().length === pins.length) requestAnimationFrame(attempt);
     });
@@ -1976,6 +2135,17 @@ let flashTip = () => {};
       else pin.select();
     });
   });
+
+  /* Every view is a <dialog> on the site's shared plumbing, so Escape, the
+     backdrop, the scroll lock and the focus return are the one implementation
+     rather than a second one living in here. */
+  for (const dialog of Object.values(VIEWS)) {
+    if (dialog) bindModal(dialog);
+  }
+  document.getElementById('snailClose')?.addEventListener('click',
+    () => closeModal(VIEWS.snail));
+  document.getElementById('snailOk')?.addEventListener('click',
+    () => closeModal(VIEWS.snail));
 })();
 
 /* --- social links --------------------------------------------------------- */

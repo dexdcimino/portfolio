@@ -1811,12 +1811,12 @@
          the key, and a wrong code fails to DECRYPT rather than failing an `if`.
          Reading the source, editing script.js or stepping through the debugger
          gets you nothing, because the words are not in the page at all. Reseal
-         with: node tools/seal_vault.mjs --pin 12345 --text "…"
+         with: node tools/seal_vault.mjs --pin SNAIL --show snail
 
          Deliberately not in the nav, and deliberately not in the scroll spy's
          section list in script.js: findable, not advertised. -->
     <section class="resume-strip vault" id="vault" aria-labelledby="vault-title"
-             data-vault="v1.310000.1ycQTILKvn0f4wTjhuZMe6BEzIRvJcN4rTcmOEowNDHKp0ZGoYuot0+jFsxWuDeT4OWRtr8ivpU3pUJlzXAmXny1BGnlDb3tVY38udd3lACuj05Tsjx3Npw/+HQqh4cgiEqJ0+tZb4SJKnDshyVq">
+             data-vault="v1.310000.fBqQ25aoz1zY9doafGDjIv0pFvCJyrmNa0bz8dX6fOmFbq7h7E4NE7lMcPU6O4bvY7LyEBzW">
       <div class="vault-head">
         <p class="eyebrow vault-eyebrow">
           <span id="vaultLabel">CLASSIFIED</span>
@@ -1825,17 +1825,26 @@
         <h2 id="vault-title">IDEA VAULT</h2>
       </div>
 
-      <!-- Five boxes rather than one field: a code is read back a digit at a
-           time and typed the same way. They are real inputs, one per digit, so
-           the caret, the number pad on a phone and the tab order are the
-           browser's rather than something reimplemented here. -->
+      <!-- Five boxes rather than one field: a code is read back one character
+           at a time and typed the same way. They are real inputs, one per
+           character, so the caret, the keyboard and the tab order are the
+           browser's rather than something reimplemented here.
+           Letters, digits and symbols all count, and the code is folded to
+           upper case on the way in — both what you see and what derives the
+           key — so typing it in lower case opens the same door. A code of a
+           different length is this many <input>s: nothing here or in script.js
+           counts them for you. -->
       <div class="vault-lockbox">
+        <!-- The lockout countdown, over the boxes. Out of flow on a wide screen
+             so its arrival does not shove the row down, in flow once the strip
+             stacks and there is no room above it to borrow. -->
+        <p class="vault-timer" id="vaultTimer" aria-hidden="true" hidden></p>
         <div class="vault-pins" id="vaultPins" role="group" aria-label="Vault code, 5 digits">
-          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 1 of 5">
-          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 2 of 5">
-          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 3 of 5">
-          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 4 of 5">
-          <input class="vault-pin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="1" aria-label="Vault code, digit 5 of 5">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Vault code, character 1 of 5">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Vault code, character 2 of 5">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Vault code, character 3 of 5">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Vault code, character 4 of 5">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Vault code, character 5 of 5">
         </div>
         <!-- role=status, so the shake is not the only way to learn it failed.
              The resting line is in the markup rather than written in on load:
@@ -2024,6 +2033,22 @@
   <!-- Game gallery — real screenshots captured from the live Stickland build,
        served through the image pipeline. The overlay renders whatever
        .gal-item pictures exist here; adding a shot is one img directive. -->
+  <!-- What the vault opens onto right now: one snail, large, in the accent.
+       It is a placeholder with a real mechanism behind it — the code does not
+       name this dialog, the DECRYPTED text does ("show:snail"), so a second
+       code sealed against a different name opens a different thing without any
+       of the wiring here changing. -->
+  <dialog class="vault-modal" id="snailModal" aria-labelledby="snail-dialog-title">
+    <div class="vault-modal-shell">
+      <button class="contact-close vault-modal-close" type="button" id="snailClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <h2 class="sr-only" id="snail-dialog-title">Snail</h2>
+      <span class="icon vault-modal-art" data-icon="snail" aria-hidden="true"></span>
+      <button class="button primary vault-modal-ok" type="button" id="snailOk"><span>GOT IT</span></button>
+    </div>
+  </dialog>
+
   <dialog class="gal-modal" id="galleryModal" aria-labelledby="gal-dialog-title">
     <div class="gal-shell">
       <button class="contact-close gal-close" type="button" id="galleryClose" aria-label="Close gallery">

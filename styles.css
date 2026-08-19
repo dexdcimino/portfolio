@@ -154,6 +154,7 @@ img{max-width:100%}
 [data-icon="shuffle"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M4 7h3.2c1 0 1.9.5 2.5 1.3l4.6 7.4c.6.8 1.5 1.3 2.5 1.3H20M4 17h3.2c1 0 1.9-.5 2.5-1.3l.9-1.4M13.4 9.7l.9-1.4c.6-.8 1.5-1.3 2.5-1.3H20'/%3E%3Cpath fill='%23fff' d='m17.4 4 3 3-3 3zm0 10 3 3-3 3z'/%3E%3C/svg%3E")} /* src: assets/icons/shuffle.svg */
 [data-icon="skip-back"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M7 5h2.4v14H7zm12 .8v12.4L10.4 12z'/%3E%3C/svg%3E")} /* src: assets/icons/skip-back.svg */
 [data-icon="skip-forward"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M14.6 5H17v14h-2.4zM5 5.8 13.6 12 5 18.2z'/%3E%3C/svg%3E")} /* src: assets/icons/skip-forward.svg */
+[data-icon="snail"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.4 19.6h13'/%3E%3Cpath d='M2.4 19.6C1.3 16 2.3 12.5 5 11.3'/%3E%3Cpath d='M5 11.3 3.4 7.8M6.6 11.1 7.6 7.5'/%3E%3Cpath d='M14.40 19.40L12.44 18.93L10.77 17.90L9.53 16.44L8.83 14.71L8.70 12.90L9.13 11.19L10.05 9.74L11.33 8.68L12.84 8.09L14.40 8.00L15.86 8.39L17.09 9.19L17.98 10.30L18.45 11.58L18.50 12.90L18.15 14.12L17.46 15.12L16.53 15.83L15.47 16.19L14.40 16.20L13.43 15.89L12.65 15.31L12.12 14.56L11.87 13.72L11.90 12.90L12.17 12.18L12.64 11.62L13.21 11.27L13.83 11.13L14.40 11.20L14.88 11.44L15.21 11.78L15.39 12.18L15.41 12.57L15.30 12.90'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/snail.svg */
 [data-icon="discord"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.198.3728.2924a.077.077 0 0 1-.0066.1276 12.2986 12.2986 0 0 1-1.873.8914.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z'/%3E%3C/svg%3E")} /* src: assets/icons/social/discord.svg */
 [data-icon="github"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 .3a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58l-.02-2.04c-3.34.73-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.08-.75.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.28-1.23 3.28-1.23.65 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.81 5.62-5.48 5.92.43.36.81 1.1.81 2.22l-.01 3.29c0 .31.21.69.82.57A12 12 0 0 0 12 .3Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/github.svg */
 [data-icon="instagram"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16ZM12 0C8.74 0 8.33.01 7.05.07c-1.28.06-2.15.26-2.91.56-.79.3-1.46.72-2.13 1.38C1.35 2.68.93 3.35.63 4.14c-.3.76-.5 1.63-.56 2.91C.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.28.26 2.15.56 2.91.3.79.72 1.46 1.38 2.13.67.67 1.34 1.08 2.13 1.38.76.3 1.63.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.28-.06 2.15-.26 2.91-.56.79-.3 1.46-.71 2.13-1.38.67-.67 1.08-1.34 1.38-2.13.3-.76.5-1.63.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.28-.26-2.15-.56-2.91-.3-.79-.71-1.46-1.38-2.13C21.32 1.35 20.65.93 19.86.63c-.76-.3-1.63-.5-2.91-.56C15.67.01 15.26 0 12 0Zm0 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm7.85-10.41a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/instagram.svg */
@@ -1668,7 +1669,7 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
 .vault-eyebrow{display:flex;align-items:center;gap:6px;margin:0}
 .vault-lock{width:17px;height:17px}
 
-.vault-lockbox{display:grid;justify-items:center;gap:14px}
+.vault-lockbox{position:relative;display:grid;justify-items:center;gap:14px}
 /* The UA sheet's [hidden]{display:none} is a type selector and loses to the
    class above it, so hiding the keypad on unlock did nothing at all until this
    said so explicitly. Anything given display: by a class needs this. */
@@ -1682,7 +1683,7 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
   border-radius:16px;border:var(--stroke) solid rgba(255,255,255,.24);
   background:rgba(255,255,255,.045);color:var(--text);text-align:center;
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
-  font-size:clamp(22px,5vw,30px);font-weight:700;line-height:1;
+  font-size:clamp(22px,5vw,30px);font-weight:700;line-height:1;text-transform:uppercase;
   caret-color:var(--accent);
   transition:border-color var(--accent-ease),background var(--accent-ease),
              color var(--accent-ease),box-shadow .18s ease;
@@ -1699,12 +1700,22 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
 
 /* min-height holds the line whether or not there is anything on it, so the row
    of boxes does not jump the moment it is told NOPE. */
+/* min-height holds the line at the size of the LARGEST thing it ever says, so
+   neither the answer arriving nor it fading out moves the row of boxes. */
 .vault-status{
-  margin:0;min-height:17px;
+  margin:0;min-height:21px;
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
   font-size:14px;font-weight:700;letter-spacing:.18em;color:#7f878e;
-  transition:color var(--accent-ease);
+  transition:color var(--accent-ease),opacity .4s ease;
 }
+/* The ANSWER is bigger than the prompt. "ENTER CODE" is a label and should sit
+   quietly under the boxes; NOPE and YEP! are replies to something you just did
+   and get three points on the label to say so. */
+.vault.is-wrong .vault-status,.vault.is-open .vault-status{font-size:17px}
+/* NOPE does not sit there forever: it fades out five seconds later and the
+   prompt comes back. Fading rather than blanking, because a word vanishing
+   between two glances reads as a glitch. */
+.vault-status.is-fading{opacity:0}
 
 /* Wrong code, in two parts. .is-wrong is the ANSWER and stays until the next
    attempt, so NOPE is still on screen while you retype; .is-shaking is the
@@ -1727,8 +1738,52 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
   100%{transform:none}
 }
 .vault.is-working .vault-status{color:var(--muted)}
+
+/* The lockout countdown. Centred over the boxes and out of flow: it appears
+   and disappears on its own schedule, and a number that pushed the keypad
+   down and let it back up every fifteen seconds would be worse than the wait
+   it is announcing. bottom:100% puts its baseline just above the lockbox. */
+.vault-timer{
+  position:absolute;left:0;right:0;bottom:calc(100% + 6px);margin:0;
+  text-align:center;pointer-events:none;
+  font-family:var(--mono,ui-monospace),ui-monospace,monospace;
+  font-size:clamp(34px,4.4vw,48px);font-weight:800;line-height:1;
+  letter-spacing:-.02em;color:var(--accent);
+  /* The per-second pop is scripted (Web Animations), not a CSS animation: it
+     has to restart on a number that is already on screen, and re-triggering a
+     keyframe animation means removing a class and forcing a reflow to do it. */
+  transition:color var(--accent-ease);
+}
+.vault-timer[hidden]{display:none}
+@media(max-width:760px){
+  /* Stacked, there is no room above the boxes to hang it in — the heading is
+     there. It takes a line of its own instead. */
+  .vault-timer{position:static;margin:0 0 2px}
+}
 .vault.is-open .vault-status{color:var(--accent)}
 .vault.is-open .vault-lock{color:var(--accent)}
+
+/* The overlay the vault opens onto. Built on the same <dialog> plumbing as
+   every other overlay here (openModal/bindModal), so Escape, the backdrop, the
+   scroll lock and the focus return are the one implementation.
+   The art is a mask icon, which is why it is accent-coloured without a second
+   copy of the file in a second colour. */
+.vault-modal{
+  border:0;padding:0;background:transparent;max-width:none;max-height:none;
+  width:100%;height:100%;overflow:hidden;
+}
+.vault-modal[open]{display:grid;place-items:center}
+.vault-modal::backdrop{background:rgba(3,5,7,.9);backdrop-filter:blur(6px)}
+.vault-modal-shell{
+  position:relative;display:grid;justify-items:center;gap:26px;
+  width:min(88vw,420px);padding:46px 34px 34px;
+  border-radius:var(--radius);border:var(--stroke) solid var(--line);
+  background:linear-gradient(235deg,#171d22,#0b0e11);
+  box-shadow:0 24px 60px rgba(0,0,0,.55);
+}
+.vault-modal-close{position:absolute;top:12px;right:12px;z-index:3}
+.vault-modal-art{width:min(46vw,190px);height:min(46vw,190px);color:var(--accent);
+  transition:color var(--accent-ease)}
 
 /* What was inside. Sized to a reading measure rather than to the strip, or a
    sealed paragraph would run the full width of the band it opened in. */
