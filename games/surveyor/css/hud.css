@@ -336,33 +336,51 @@ body.ready #hud { opacity: 1; }
 #beamRow.hit #beamState { color: var(--beacon); }
 
 /* ---- dev warp: TEMPORARY TESTING SCAFFOLDING ----
-   It lives inside #survey now, so it is laid out by the flow of that panel
-   rather than pinned to a corner of the screen, and it shows and hides with
-   the overlay for free - no second visibility path to keep in step. Still the
-   chip language: same hairline edge, same phos-lit "you are here", so it reads
-   as an instrument rather than a control panel someone forgot to finish.
-   Goes away entirely with DEBUG.warp. */
+   PERMANENT AND ON THE SCREEN, centre-right, as a stacked list. It spent a
+   while inside #survey, which cost it nothing in screen space and cost every
+   test two extra steps — hold a key, find the panel, then click. It is the way
+   the game is checked, so it is reachable.
+   Still the chip language: hairline edge, phos-lit "you are here", no fills.
+   It is deliberately quiet — lower contrast than any permanent readout, so it
+   sits behind the instruments rather than competing with them — and it goes
+   away entirely with DEBUG.warp.
+   Click-only. 1, 2 and 3 are the transforms. */
 #warp {
-  margin-top: 9px;
-  padding-top: 9px;
-  border-top: 1px solid var(--edge);
+  position: fixed;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  /* ...and then lifted clear of the speed block. Centred on its own, the sixth
+     button lands underneath the bottom-right readout and ANVIL is half a word.
+     The nudge is a constant rather than a percentage because what it has to
+     clear is a panel of fixed height, not a fraction of the viewport. */
+  margin-top: -60px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   pointer-events: auto;
+  z-index: 6;
 }
 #warp[hidden] { display: none; }
+#warp > .label { text-align: right; opacity: 0.55; }
 #warpRow {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 6px;
+  flex-direction: column;
+  gap: 4px;
 }
 .wbtn {
   font-family: var(--mono);
-  font-size: var(--t-label);
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  padding: 6px 9px;
+  letter-spacing: 0.14em;
+  /* Big enough to read and click without aiming, which is the whole reason it
+     came back out, and no bigger: six of these plus a label have to fit between
+     the compass and the speed block. */
+  min-width: 152px;
+  padding: 8px 13px;
+  text-align: right;
   color: rgba(242, 246, 230, 0.62);
-  background: transparent;
+  background: rgba(6, 12, 14, 0.34);
   border: 1px solid rgba(242, 246, 230, 0.18);
   cursor: pointer;
   transition: color 160ms ease, border-color 160ms ease, background 160ms ease;

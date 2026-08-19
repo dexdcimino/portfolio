@@ -55,7 +55,7 @@ function triplanarMaps(scene) {
 /** This planet's terrain-material settings, resolved like skyOf and lightOf. */
 export function terrainOf(planet) {
   const T = Object.assign({}, TERRAIN, planet.terrain || {});
-  for (const k of ['scale', 'slope', 'altitude', 'detailFade', 'macroFade']) {
+  for (const k of ['scale', 'slope', 'altitude', 'detailFade', 'macroFade', 'coast']) {
     T[k] = Object.assign({}, TERRAIN[k], (planet.terrain || {})[k] || {});
   }
   return T;
@@ -243,6 +243,9 @@ function registerShaders() {
     varying float vFis;
     uniform vec3 uCam, uLight, uFog, uFogSun;
     uniform vec3 uDeep, uSilt, uShore, uFlats, uStone, uPeak, uCoast, uContour;
+    // x the coastline stroke's half-width in metres OF GROUND, y the gradient
+    // below which there is no shoreline worth drawing.
+    uniform vec2 uCoastP;
     uniform vec3 uShade, uRim, uEmitCol, uEmitHot;
     uniform vec2 uFogRange;
     uniform float uSurfaceR, uScatter, uWash, uDetail, uRelief;
@@ -408,7 +411,23 @@ function registerShaders() {
       col = mix(col, uContour, major * 0.55);
 
       // The coastline is stroked in, the way it would be on paper.
-      float coast = 1.0 - smoothstep(0.0, uRelief * 0.022, abs(h));
+      /* THE COASTLINE STROKE, AND IT IS A WIDTH ON THE GROUND NOW.
+         It used to be a band in HEIGHT — |h| under relief * 0.022 — which is a
+         constant only if the shore is a constant steepness, and no shore is.
+         Measured across all six worlds at 160 samples a face, the median ground
+         width that produced was 31m on Home, 33m on Vault, 39m on Shroud and
+         81m on Anvil, with a fifth to a half of it running past 100m. On Tarn
+         it covered 56.8% of the land. A coastline stroke that is eighty metres
+         wide is not a stroke, it is a fill — and it is the broad near-white
+         apron that reads as neither foam nor shallows because it is neither.
+         The contour engine three lines up already solved this: divide by the
+         slope. Height band = desired ground width times the local gradient, so
+         a cliff gets a thin band in height and a beach gets a wide one, and
+         both come out the same number of metres across. Ground too flat to have
+         a definable shoreline is faded out entirely rather than flooded. */
+      float grad = sqrt(2.0 * clamp(slope, 0.0, 1.0));
+      float coast = 1.0 - smoothstep(0.0, uCoastP.x * max(grad, uCoastP.y), abs(h));
+      coast *= smoothstep(uCoastP.y * 0.45, uCoastP.y, grad);
       coast *= 1.0 - smoothstep(420.0, 900.0, dist);
       col = mix(col, uCoast, coast * 0.80);
 
@@ -642,6 +661,14 @@ function registerShaders() {
     uniform float uWaterOn, uWaterDebug;
     // x opaque, y reflection mix, z reflection fresnel, w sharpen.
     uniform vec4 uWaterP2;
+    // x soften the shelf edge, y tilt within the band, z blur the depth read
+    // in pixels.
+    uniform vec3 uBandP;
+    // x strength, y scale, z,w the metres over which it fades out with range.
+    uniform vec4 uRippleP;
+    // x how much of the legacy foam ring survives, y how soft its broken second
+    // line is, z how much of the old hard step is kept.
+    uniform vec3 uRingP;
     // The swell, per pixel. Same three sines as waveAt() in js/world/noise.js.
     uniform float uWaveK, uWaveAmp, uShoal, uWaveN;
     // x glint, y the ceiling on everything the sky adds, z the Fresnel ceiling,
@@ -696,6 +723,29 @@ function registerShaders() {
 
       float d = vDepth;
 
+      /* A FINE RIPPLE, so a still sea is still a SURFACE.
+         The swell is the only thing perturbing this normal, and three of the
+         five worlds have a swell amplitude at or near zero — Vault's is exactly
+         zero — so their water had no variation anywhere across it and read as a
+         flat sheet of colour. This is a metre-scale wrinkle, sampled as a
+         gradient so it tilts the normal rather than tinting the surface, which
+         means it reaches the band, the glint and the refraction and does not
+         have to be drawn twice.
+         It fades out with distance for the same reason the foam lace does: past
+         the point where a feature is smaller than a pixel there is nothing to
+         draw but aliasing. */
+      if (uRippleP.x > 0.0) {
+        float rf = 1.0 - smoothstep(uRippleP.z, uRippleP.w, dist);
+        vec2 q = vW.xz * uRippleP.y + vec2(uTime * 0.31, uTime * -0.19);
+        float e = 0.6;
+        float n0 = fbm2(q);
+        vec3 upR = normalize(vW);
+        vec3 tx = normalize(cross(upR, vec3(0.0, 1.0, 0.0)) + vec3(1e-5));
+        vec3 tz = cross(upR, tx);
+        N = normalize(N - (tx * (fbm2(q + vec2(e, 0.0)) - n0) +
+                           tz * (fbm2(q + vec2(0.0, e)) - n0)) * (uRippleP.x * rf));
+      }
+
       /* ---- how much water is between the eye and the ground, per pixel ----
          The shell samples depth every 40m; this asks the same question along
          the actual view ray and gets a per-pixel answer. Note what falls out of
@@ -734,7 +784,22 @@ function registerShaders() {
       float thick = fallback;
       bool measured = false;
       if (uWaterOn > 0.5) {
+        /* BLURRED, because the thing being measured is faceted.
+           The seabed is flat-shaded triangle soup, so the distance this pass
+           reports is piecewise flat and its shelf boundaries follow triangle
+           EDGES — which is why the ladder came back as hard-edged polygonal
+           blobs rather than as contours, and why turning the water fully opaque
+           did not remove them. Four taps across a couple of pixels round the
+           facet edge off without touching depth that was smooth to begin with. */
         float seabed = texture2D(uSeabed, uvR).r;
+        if (uBandP.z > 0.0) {
+          vec2 o = uInvScreen * uBandP.z;
+          seabed = (seabed
+            + texture2D(uSeabed, clamp(uvR + vec2( o.x, 0.0), 0.0, 1.0)).r
+            + texture2D(uSeabed, clamp(uvR + vec2(-o.x, 0.0), 0.0, 1.0)).r
+            + texture2D(uSeabed, clamp(uvR + vec2(0.0,  o.y), 0.0, 1.0)).r
+            + texture2D(uSeabed, clamp(uvR + vec2(0.0, -o.y), 0.0, 1.0)).r) * 0.2;
+        }
         // Past the pass's clear value there is no ground behind this water at
         // all — the shell's far side against the sky. Fall back rather than
         // paint the horizon black.
@@ -766,7 +831,19 @@ function registerShaders() {
       // Depth banded into discrete shelves — a bathymetric chart, not a gradient.
       // Six of them spread across whatever depth this planet actually reaches,
       // instead of a fixed 0-24m that a shallow world never gets out of.
-      float shelf = floor(clamp(d / uMaxDepth, 0.0, 0.999) * 6.0) / 6.0;
+      /* SIX SHELVES, BUT NOT SIX SLABS.
+         A bare floor() gives a bathymetric chart and also gives cut paper: flat
+         regions of solid colour meeting at a hard edge, with nothing inside a
+         band to say it is lying on a surface. Two terms fix that without
+         giving up the ladder. One rounds the step so the edge reads as a
+         contour rather than a seam; the other puts a little of the continuous
+         depth back inside each band so the band itself has somewhere to go.
+         Both are 0 by default, which is the bare floor() this shipped with. */
+      float bt = clamp(d / uMaxDepth, 0.0, 0.999) * 6.0;
+      float bf = fract(bt);
+      float sub = uBandP.x > 0.0
+        ? smoothstep(0.5 - uBandP.x, 0.5 + uBandP.x, bf) : 0.0;
+      float shelf = (floor(bt) + mix(sub, bf, uBandP.y)) / 6.0;
       vec3 col = mix(uShallowW, uDeepW, shelf);
 
       /* ABSORPTION, AND IT IS SPLIT IN TWO — colour off DEPTH, transparency off
@@ -792,12 +869,25 @@ function registerShaders() {
         absorbed = 1.0 - exp(-thick * 0.6931 / uWaterP.x);
       }
 
-      // Foam ring in the shallows, plus a broken second line further out.
+      /* THE LEGACY FOAM RING, and it is the cut paper.
+         It predates the depth pass: a shallow ring plus a "broken second line
+         further out" made with step(0.72, ripple) — a HARD binary threshold on
+         a sine of depth, mixed 0.7 toward bone. On a piecewise-flat depth field
+         a binary threshold does not make a broken line, it makes solid
+         polygons with hard edges, in a pale colour that reads as neither foam
+         nor shallows because it is neither. That is the near-white banding, and
+         it is why softening the shelves, blurring the depth read and halving
+         sharpen all changed nothing: none of them touch this.
+         The smoothstep is what it should always have been, and uRingP is what
+         lets a world turn it off now that per-pixel foam does the shoreline
+         properly. 1.0 reproduces the old ring, hard edge and all. */
       float foam = 1.0 - smoothstep(0.0, uMaxDepth * 0.14, d);
       float ripple = sin(d * (30.0 / uMaxDepth) - uTime * 2.2) * 0.5 + 0.5;
+      float brk = mix(smoothstep(0.72 - uRingP.y, 0.72 + uRingP.y, ripple),
+                      step(0.72, ripple), uRingP.z);
       foam = max(foam, (1.0 - smoothstep(uMaxDepth * 0.12, uMaxDepth * 0.32, d)) *
-        step(0.72, ripple) * 0.7);
-      col = mix(col, uCoast, foam * 0.85);
+        brk * 0.7);
+      col = mix(col, uCoast, foam * 0.85 * uRingP.x);
 
       /* THE SHORELINE, per pixel, and intersection foam for nothing extra.
          Both are the same test — thickness going to zero — at two widths. The
@@ -1004,6 +1094,9 @@ function registerShaders() {
     uniform vec3 uSunCol, uFog, uFogSun, uUp, uEast, uNorth;
     uniform float uTime, uHaze, uBand, uBandW, uClouds, uCeil, uUnder;
     uniform float uSunSize, uGlare;
+    /* The sun's two edges, as COSINES of half-angles, computed on the CPU from
+       degrees. x,y are the halo's outer and inner; z,w the core's. See SKY. */
+    uniform vec4 uSunCos;
 
     /* One stratum's elevation window.
        The window MOVES with the ceiling; its edges do not shrink with it. That
@@ -1076,12 +1169,18 @@ function registerShaders() {
       // past 1.0, so Ember's ceiling blooms like the cracks do.
       col += uUnderCol * uUnder * smoothstep(0.34, -0.16, el);
 
-      // Sun last, so nothing hazes over it. Deliberately above 1.0: the bloom
-      // pass is what turns this into glare.
-      col += uSunCol * smoothstep(1.0 - 0.055 * uSunSize, 1.0 - 0.003 * uSunSize, s)
-        * 0.55 * uGlare;
-      col += uSunCol * smoothstep(1.0 - 0.0030 * uSunSize, 1.0 - 0.0008 * uSunSize, s)
-        * 2.6 * uGlare;
+      /* Sun last, so nothing hazes over it. Deliberately above 1.0: the bloom
+         pass is what turns this into glare.
+         THE EDGES ARE COSINES OF REAL HALF-ANGLES NOW. They used to be written
+         as 1.0 - 0.055 * uSunSize and friends, which is a number in cosine
+         space with no obvious size attached — and the size it worked out to was
+         a core 7.4 to 11.2 DEGREES across and a halo of 32 to 48, against a
+         real sun's 0.53. The vertical field of view here is 0.95 rad, 54.4
+         degrees, so the halo was 88% of the frame height: it did not leave the
+         picture until you had turned more than sixty degrees, which is why it
+         read as being stuck to the camera rather than to the sky. */
+      col += uSunCol * smoothstep(uSunCos.x, uSunCos.y, s) * 0.55 * uGlare;
+      col += uSunCol * smoothstep(uSunCos.z, uSunCos.w, s) * 2.6 * uGlare;
 
       gl_FragColor = vec4(col, 1.0);
     }
@@ -1423,7 +1522,7 @@ export function createMaterials(scene, planet) {
       attributes: ['position', 'normal', 'fissure'],
       uniforms: ['world', 'worldViewProjection', 'uCam', 'uLight', 'uFog',
         'uFogSun', 'uDeep', 'uSilt', 'uShore', 'uFlats', 'uStone', 'uPeak',
-        'uCoast', 'uContour', 'uFogRange', 'uSurfaceR', 'uScatter', 'uWash',
+        'uCoast', 'uContour', 'uCoastP', 'uFogRange', 'uSurfaceR', 'uScatter', 'uWash',
         'uDetail', 'uRelief', 'uShade', 'uRim', 'uSpec', 'uEmit', 'uEmitFrom',
         'uEmitCol', 'uEmitHot', 'uLightMix', 'uSunCol', 'uRimP',
         'uTriScale', 'uTriSlope', 'uTriMix', 'uTriFade', 'uTriDetail',
@@ -1473,6 +1572,7 @@ export function createMaterials(scene, planet) {
   terrain.setVector3('uPeak', V3(COL.peak));
   terrain.setVector3('uCoast', V3(COL.coast));
   terrain.setVector3('uContour', V3(COL.contour));
+  terrain.setVector2('uCoastP', new BABYLON.Vector2(TR.coast.width, TR.coast.minGrad));
   terrain.setVector2('uFogRange', fogRange);
   terrain.setFloat('uSurfaceR', planet.surfaceR);
 
@@ -1488,7 +1588,8 @@ export function createMaterials(scene, planet) {
         // are bound automatically once they are declared here.
         'view', 'projection', 'uInvScreen', 'uWaterP', 'uWaterP2', 'uFoamP',
         'uWaterOn', 'uWaterDebug', 'uShoal', 'uWaveN',
-        'uSkyLow', 'uSkyHigh', 'uSkyBandCol', 'uSkyP', 'uGlareP'],
+        'uSkyLow', 'uSkyHigh', 'uSkyBandCol', 'uSkyP', 'uGlareP',
+        'uBandP', 'uRippleP', 'uRingP'],
       samplers: ['uSeabed'],
       needAlphaBlending: true,
     });
@@ -1540,6 +1641,11 @@ export function createMaterials(scene, planet) {
   water.setVector3('uSkyP', new BABYLON.Vector3(SK.band, SK.bandWidth, SK.haze));
   water.setVector4('uGlareP', new BABYLON.Vector4(
     WA.glint, WA.skyCap, WA.reflect.maxMix, WA.iceDepth));
+  water.setVector3('uBandP', new BABYLON.Vector3(WA.bandSoft, WA.bandTilt, WA.depthBlur));
+  water.setVector4('uRippleP', new BABYLON.Vector4(
+    WA.ripple, WA.rippleScale, WA.rippleFade[0], WA.rippleFade[1]));
+  water.setVector3('uRingP', new BABYLON.Vector3(
+    WA.ringFoam, WA.ringSoft, WA.ringHard));
   // Culling ON. The water is a closed shell now, not a plane: with culling off
   // the far side of the sphere draws straight through the sky above the
   // horizon, as a hard-edged grey quad hanging over the world.
@@ -1553,7 +1659,7 @@ export function createMaterials(scene, planet) {
       uniforms: ['worldViewProjection', 'uLow', 'uHigh', 'uBelow', 'uLight',
         'uBandCol', 'uCloudCol', 'uUnderCol', 'uSunCol', 'uTime', 'uFog',
         'uFogSun', 'uHaze', 'uBand', 'uBandW', 'uClouds', 'uCeil', 'uUnder',
-        'uSunSize', 'uGlare', 'uUp', 'uEast', 'uNorth'],
+        'uSunSize', 'uGlare', 'uSunCos', 'uUp', 'uEast', 'uNorth'],
     });
   sky.setVector3('uLow', V3(SK.horizon));
   sky.setVector3('uHigh', V3(SK.zenith));
@@ -1572,6 +1678,16 @@ export function createMaterials(scene, planet) {
   sky.setFloat('uCeil', SK.ceiling);
   sky.setFloat('uUnder', SK.underglow);
   sky.setFloat('uSunSize', SK.sunSize);
+  /* Degrees in, cosines out, once. The inner ratios are the ones the old magic
+     numbers implied — 0.23 of the halo's half-angle and 0.52 of the core's —
+     kept so the falloff still looks like itself at the new size. */
+  {
+    const halo = 0.5 * SK.haloAngle * SK.sunSize * Math.PI / 180;
+    const core = 0.5 * SK.sunAngle * SK.sunSize * Math.PI / 180;
+    sky.setVector4('uSunCos', new BABYLON.Vector4(
+      Math.cos(halo), Math.cos(halo * 0.233),
+      Math.cos(core), Math.cos(core * 0.516)));
+  }
   sky.setFloat('uGlare', SK.glare);
   sky.setVector3('uUp', new BABYLON.Vector3(0, 1, 0));
   sky.setVector3('uEast', new BABYLON.Vector3(1, 0, 0));

@@ -78,17 +78,19 @@
       <span id="selRange"></span>
       <span id="selNote"></span>
     </div>
-    <!-- TEMPORARY TESTING SCAFFOLDING, and now it lives where it belongs.
-         The buttons are built by hud.js from the planet table and the whole
-         panel is removed from the DOM when DEBUG.warp is off. It sits INSIDE
-         the overlay so it costs no permanent screen space and shows with the
-         system view it belongs to — the one place in the game where you
-         choose a world. Nesting is the whole mechanism: #survey fades it in
-         and out, so no second show/hide path exists to keep in step. -->
-    <div id="warp" hidden>
-      <div class="label">Dev warp</div>
-      <div id="warpRow"></div>
-    </div>
+  </div>
+
+  <!-- TEMPORARY TESTING SCAFFOLDING, and back out on the screen on purpose.
+       It was moved inside #survey during the HUD triage, which was right about
+       the planet PIPS and wrong about this: the selector is how the game gets
+       tested, and behind a held key and a glance at the system view it is two
+       steps away from every check anyone wants to make. It is permanent now,
+       centre-right, and large enough to hit without aiming.
+       Still removed from the DOM entirely when DEBUG.warp is off, and still
+       click-only — 1, 2 and 3 are the transforms and are not up for grabs. -->
+  <div id="warp" hidden>
+    <div class="label">Dev warp</div>
+    <div id="warpRow"></div>
   </div>
 
   <!-- PERMANENT · which form you are in, and whether the jet will take you.

@@ -53,6 +53,21 @@ export const SKY = {
   underglowColor: null,  // null = palette.fogSun
   sunDir: [0.42, 0.74, 0.52],   // in PLANET space: the sun is genuinely fixed
   sunColor: null,        // null = palette.fogSun
+  /* THE SUN'S ANGULAR DIAMETER IN DEGREES, and the halo's around it.
+     These are new only in the sense that they were previously written as
+     coefficients in cosine space inside the sky shader — 1.0 - 0.055 * sunSize
+     for the halo's outer edge and so on — where nothing said how big that was.
+     What it worked out to was a core between 7.4 and 11.2 degrees across and a
+     halo between 32 and 48, on a camera whose vertical field of view is 54.4.
+     The halo was 88% of the frame height. It did not leave the picture until
+     you had turned more than sixty degrees, which is a sun that reads as
+     welded to the camera even though the sky shader has always placed it by
+     dot(viewDir, sunDir) and nothing about it was ever screen-space.
+     For scale: the real sun is 0.53 degrees. 1.4 is a bright object you can
+     look away from, and the 14-degree halo is what bloom then spreads. */
+  sunAngle: 1.4,
+  haloAngle: 14.0,
+  // A per-world multiplier on both of the above, and on nothing else.
   sunSize: 1.0,
   glare: 1.0,            // how hard the disc and its halo push past 1.0
   // The particle layer. `null` keeps the system's near-field motes; a block
@@ -159,6 +174,17 @@ export const LIGHT = {
  * how the no-op gets proved before any world opts in.
  */
 export const TERRAIN = {
+  /* THE COASTLINE STROKE, AS A WIDTH ON THE GROUND.
+     It was a band in HEIGHT — |h| under relief * 0.022 — which is constant only
+     if every shore is equally steep. Measured at 160 samples a cube face, the
+     ground width that produced was a median of 31m on Home, 33m on Vault, 39m
+     on Shroud and 81m on Anvil, a fifth to a half of it past 100m, and on Tarn
+     it covered 56.8% of the land. That is the broad near-white apron that reads
+     as neither foam nor shallows: it is the coastline, drawn eighty metres wide.
+     `width` is the half-width in metres of ground. `minGrad` is the gradient
+     below which there is no shoreline worth drawing at all — flat pans near sea
+     level get nothing rather than getting flooded. */
+  coast: { width: 5.0, minGrad: 0.10 },
   // The three packed maps, baked by tools/bake_terrain_maps.py. RG hold the
   // normal's XY, B holds the albedo's luminance; the colour is thrown away
   // because six authored palettes already decide colour.
@@ -436,7 +462,33 @@ export const WATER = {
      nearest surface", and a list that included the water shell would report a
      thickness of zero everywhere. */
   depthPass: {
-    enabled: true,
+    /* OFF, AND THIS IS A KNOWN DEFECT rather than a decision about the look.
+       The pass does not contain the near field. Measured on Home from the
+       shoreline camera by picking rays through the frame and comparing the
+       terrain they actually hit against the texel the water would read:
+
+           frame point      real terrain      texel in the target
+           (0.50, 0.75)            31.9m                   181.1m
+           (0.35, 0.55)            49.6m                   227.2m
+           (0.50, 0.50)            55.9m                   358.0m
+           (0.65, 0.45)            68.4m       60000m (the clear value)
+
+       Not one texel anywhere near the truth, and holes where the ground is
+       closest. So every depth the water derived from it was wrong, and the
+       shelves were faithfully drawing the silhouette of whatever distant
+       geometry the lookup landed on — which is what the hard-edged slabs of
+       flat colour ARE. It survived softening the bands, blurring the read,
+       halving `sharpen`, forcing the surface opaque and gating the legacy foam
+       ring, because none of those change which texel is fetched.
+       Switched off, the water falls back to the per-vertex depth it used before
+       this pass existed: coarser, and correct. The foam line loses its
+       per-pixel edge and the shelves are interpolated across the shell's 40m
+       grid again. That is a worse chart than the one the pass was built for and
+       a much better one than a wrong chart.
+       It is NOT the lookup. Both flip conventions were tested against the same
+       rays and neither matched. The fault is in what the target contains, which
+       is js/world/seabed.js, and it wants its own pass. */
+    enabled: false,
     /* Of the render size, and 1.0 because half res costs the shoreline more
        than it saves: the foam line is a few pixels wide by design.
        WHAT THIS COSTS IS NOT MEASURED, and that is a statement rather than an
@@ -516,6 +568,67 @@ export const WATER = {
      it costs nothing, and it cannot drift out of step with what is drawn.
      false is the no-op and every world opts in. */
   measureDepth: false,
+
+  /* SIX SHELVES, NOT SIX SLABS. The bathymetry ladder is drawn with a floor(),
+     which is what makes it a chart — and on its own is also what made the water
+     read as cut paper: flat regions of solid colour meeting at a hard edge,
+     with nothing inside a band to say it is lying on a surface.
+     `bandSoft` rounds the step, in units of a band, so the edge reads as a
+     contour rather than a seam. `bandTilt` puts some of the continuous depth
+     back inside each band so the band has somewhere to go. Both 0 is the bare
+     floor() this shipped with, and both are per world because a chart drawn on
+     a 6.7m lagoon and one drawn on a 13.8m pool are not the same drawing.
+     THEY ARE AUTHORED NEAR THE TOP OF THEIR RANGE, and that took three
+     measurements to justify. The slabs were not the seabed showing through
+     (forcing the water opaque left every one of them in place) and they were
+     not one depth source misbehaving (blurring the read and halving `sharpen`
+     moved nothing). They are what quantising ANY piecewise-flat depth field
+     into six steps looks like — and both fields here are piecewise flat, the
+     shell's own 40m triangles and the flat-shaded seabed behind them. Nothing
+     is going to make those boundaries curve. What removes the cut-paper read is
+     not finding a smoother source, it is not having a hard step to put on it. */
+  bandSoft: 0,
+  bandTilt: 0,
+
+  /* THE LEGACY FOAM RING. It predates the depth pass — a shallow ring plus a
+     "broken second line further out" built with step(0.72, ...), a HARD binary
+     threshold on a sine of depth, mixed 0.7 toward the bone colour.
+     A binary threshold on a piecewise-flat depth field does not draw a broken
+     line. It fills polygons. That is the broad near-white banding that reads as
+     neither foam nor shallows, and it is why three rounds of softening the
+     shelves, blurring the depth read and halving `sharpen` moved nothing at
+     all: none of them touch this term.
+     `ringFoam` is how much of it survives. Per-pixel foam does the shoreline
+     properly now, so most worlds want very little. `ringSoft` widens the
+     threshold into a gradient and `ringHard` keeps the old step for anyone who
+     wants it back — 1.0/0/1.0 is exactly what shipped. */
+  ringFoam: 1.0,
+  ringSoft: 0.0,
+  ringHard: 1.0,
+
+  /* BLUR ON THE DEPTH READ, in pixels, because the thing being read is faceted.
+     The seabed is flat-shaded triangle soup — that is the whole look of this
+     game's ground — so the distance the depth pass reports is piecewise flat,
+     and quantising it into shelves puts the band boundaries on TRIANGLE EDGES.
+     That is what made the water read as cut paper: hard-edged polygonal blobs
+     of solid colour, several shelves apart across a single facet seam. Proved
+     rather than assumed — forcing the water fully opaque left every one of them
+     exactly where it was, so they were never the seabed showing through.
+     Four taps. 0 is off. */
+  depthBlur: 0,
+
+  /* A FINE RIPPLE, so a still sea is still a SURFACE.
+     The swell was the only thing perturbing the water's normal, and three of
+     the five worlds with water have a swell amplitude at or near zero — Vault's
+     is exactly zero. Their water had no variation across it at all.
+     Strength is how hard it tilts the normal; scale is in inverse metres, so
+     0.11 is a wrinkle about nine metres across. It fades between the two
+     distances for the reason every screen-scale detail in this game does:
+     past the point where a feature is smaller than a pixel there is nothing
+     left to draw but aliasing. */
+  ripple: 0,
+  rippleScale: 0.11,
+  rippleFade: [50, 300],
 
   /* GLARE, AND THE CEILING ON IT. Three numbers that exist for one rule: the
      chart is never allowed to be fully occluded. The bathymetry shelves, the
@@ -911,6 +1024,10 @@ export const PLANETS = {
       // Measured across five viewing angles, the depth gap runs 66-121 levels
       // and only softens looking straight down. A modest trim.
       glint: 0.30, skyCap: 0.45,
+      // The reference: enough softening that the ladder reads as contours on a
+      // surface, not so much that it stops being a ladder.
+      bandSoft: 0.50, bandTilt: 0.38, ripple: 0.35, depthBlur: 5.0,
+      ringFoam: 0.22, ringSoft: 0.26, ringHard: 0,
     },
 
     // Mesh. targetCell is held near-constant across worlds so the vehicles
@@ -1165,6 +1282,10 @@ export const PLANETS = {
          The cap matters more than the amplitude here, because it is the thing
          that holds when the swell puts a crest normal straight at the sun. */
       glint: 0.22, skyCap: 0.32,
+      // The most surface life of the five: it is the boat world, it is 85%
+      // ocean, and it is the one you spend the most time looking across.
+      bandSoft: 0.50, bandTilt: 0.42, ripple: 0.48, depthBlur: 5.0,
+      ringFoam: 0.20, ringSoft: 0.28, ringHard: 0,
     },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
@@ -1287,6 +1408,12 @@ export const PLANETS = {
        it was a flat white sheet with a single stroke across it. Depth here is
        ice thickness is whether the sheet holds you, so this is the hazard read
        and not a look. */
+    /* NO ripple and NO band terms on Vault, and that is not an oversight.
+       The frozen branch replaces the colour outright after all of them are
+       computed, so neither the shelves nor anything that perturbs the normal
+       reaches the eye here — the ice draws its own ramp off the same depth.
+       Verified rather than assumed: lifting uFrozen for one frame in
+       dev/noop.mjs shows 8.1% of the frame responding underneath it. */
     water: { measureDepth: true, sharpen: 1, iceDepth: 0.80 },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
@@ -1428,6 +1555,11 @@ export const PLANETS = {
          a pool reading as a mirror rather than as a hazard you cannot see the
          bottom of. */
       glint: 0.12, skyCap: 0.16,
+      /* A ripple, but barely a ladder. Shroud's pools are supposed to be
+         depth-unreadable, so the softening is here to stop the rim reading as
+         cut paper and not to open the chart up. */
+      bandSoft: 0.45, bandTilt: 0.30, ripple: 0.30, depthBlur: 5.0,
+      ringFoam: 0.12, ringSoft: 0.30, ringHard: 0,
     },
     leafRes: 16, targetCell: 4.5,
     waterFaceRes: 40,
@@ -1566,6 +1698,8 @@ export const PLANETS = {
       // Anvil reads well at every angle already (74-93 levels); the cap is here
       // so a crest at the wrong moment cannot undo that, not to change it.
       glint: 0.34, skyCap: 0.50,
+      bandSoft: 0.50, bandTilt: 0.38, ripple: 0.34, depthBlur: 5.0,
+      ringFoam: 0.20, ringSoft: 0.26, ringHard: 0,
       absorb: 7.0,
       // 1.2m of depth, the widest of the five, because Anvil's pans have the
       // steepest edges of the six worlds — at 0.60 the band was under a tenth

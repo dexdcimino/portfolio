@@ -228,6 +228,23 @@ for (const key of KEYS) {
     const shot = await page.send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(OUT, name(key)), Buffer.from(shot.data, 'base64'));
 
+    /* ...and the same frame with the HUD ON, which is the only one that shows
+       it. Every other frame here hides the HUD deliberately — it is not what is
+       under test and it covers the corners — but that left the instruments
+       themselves with no photograph at all, and the planet selector lives
+       there. One extra capture, no extra boot. */
+    await evaluate(page, `(async () => {
+      const f = () => new Promise((r) => requestAnimationFrame(r));
+      document.getElementById('hud').style.visibility = '';
+      for (let i = 0; i < 6; i++) await f();
+      return true;
+    })()`);
+    const hudShot = await page.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, name(key + '-hud')), Buffer.from(hudShot.data, 'base64'));
+    await evaluate(page, `(() => {
+      document.getElementById('hud').style.visibility = 'hidden'; return true;
+    })()`);
+
     // The overlay, from the same camera, with a field planted under it.
     Object.assign(info, await evaluate(page, OVERLAY));
     const ov = await page.send('Page.captureScreenshot', { format: 'png' });

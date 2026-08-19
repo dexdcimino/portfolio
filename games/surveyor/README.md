@@ -216,6 +216,60 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
+## The sun had a size, and the depth pass has a hole
+
+**The sun was never screen-space.** It is drawn in the sky dome as a function of
+`dot(viewDir, sunDir)` and nothing about it has ever been attached to the camera
+— confirmed by enumerating every mesh Babylon draws and projecting each one's
+centre through the camera at three headings, which found nothing that held its
+screen position. What it was, was **enormous**. The two smoothsteps that draw it
+were written as coefficients in cosine space, `1.0 - 0.055 * sunSize` and
+friends, where nothing says how big that is. It worked out to a core between
+7.4 and 11.2 degrees and a halo between 32 and 48, on a camera whose vertical
+field of view is 54.4. The halo was 88% of the frame height and did not clear
+the view until you had turned more than sixty degrees, which is a sun that reads
+as welded to the camera. It is stated in degrees now — `SKY.sunAngle` — and
+comes out at 0.98 to 2.24 across, against a real sun's 0.53.
+
+**The coastline stroke was a fill.** It was a band in HEIGHT, `|h| < relief *
+0.022`, which is a constant width only if every shore is equally steep.
+Measured at 160 samples a cube face, the ground width that produced was a median
+of 31m on Home, 33m on Vault, 39m on Shroud and 81m on Anvil, a fifth to a half
+of it past 100m, and on Tarn it covered **56.8% of the land**. That is the broad
+near-white apron that reads as neither foam nor shallows. It is a width on the
+ground now — height band = width times the local gradient, the same trick the
+contour engine three lines above it already used.
+
+**And the depth pass does not contain the near field.** Picking rays through the
+shoreline frame on Home and comparing the terrain they hit against the texel the
+water reads:
+
+| frame point | real terrain | texel in the target |
+|---|---|---|
+| (0.50, 0.75) | 31.9m | 181.1m |
+| (0.35, 0.55) | 49.6m | 227.2m |
+| (0.50, 0.50) | 55.9m | 358.0m |
+| (0.65, 0.45) | 68.4m | 60000m (the clear value) |
+
+Not one texel near the truth, and holes where the ground is closest. Every depth
+the water derived from it was wrong, and the shelves were faithfully drawing the
+silhouette of whatever distant geometry the lookup landed on — which is what the
+hard-edged slabs of flat colour ARE. It is not the lookup: both flip conventions
+were tested against the same rays and neither matched. `WATER.depthPass` is off
+until `seabed.js` is fixed, and the water falls back to the per-vertex depth it
+used before — coarser, and correct.
+
+**What it cost to find that.** Five changes that all did nothing, each of which
+looked like the obvious cause at the time: softening the shelf steps, adding a
+gradient inside each band, blurring the depth read, halving `sharpen`, and
+gating the legacy hard-`step` foam ring. Forcing the water fully opaque left the
+slabs exactly in place — which I read as proof they were not the seabed showing
+through, and which proved nothing at all, since a term that is not water is not
+affected by the water's opacity either. The magenta water mask settled that they
+were water pixels; rendering the depth field itself settled that the depth was
+saturated over half the lake and zero over the rest; and the ray comparison
+above settled where the fault is.
+
 ## Fog answers to altitude, and the rule is the horizon
 
 Fog was a per-world constant, authored at the surface and right there. It is
