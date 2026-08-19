@@ -457,6 +457,11 @@ change, and building a half of it now would be building it twice.
 
 ## Seamless space, phase 1: the far band
 
+> The plan this is built from is `docs/seamless-space.md`, which also carries
+> the phase log: what shipped, and the two places the plan turned out to be
+> wrong. The other two parked plans are beside it in `docs/`.
+
+
 Travel still tears the current world down and builds the destination. This phase
 does not change that. It builds the thing every later phase needs: a way to draw
 a body three hundred kilometres away at all.

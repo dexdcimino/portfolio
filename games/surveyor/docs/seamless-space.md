@@ -1,0 +1,263 @@
+# SURVEYOR — Seamless Space
+
+**Repo:** portfolio · **Target:** `games/surveyor/`
+
+**Status: in progress.** Phases 1 and 2 have shipped — see the phase log at the
+bottom of this file and the two matching sections in `../README.md`. Do not
+start until the graphics transplants (T2, T3) are done. This is a systems change
+to a game that currently works, and it should land on top of finished lighting
+rather than underneath it.
+
+---
+
+## The change
+
+Today, travelling between worlds tears down the current planet and builds the
+destination. The other five worlds are **billboards** — flat quads with a shader
+that fakes a sphere. They sit at honest angles but there is nothing actually out
+there.
+
+The original design was that you **fly to them**. They are genuinely far away,
+your speed climbs insanely as you leave a gravity well, and the world resolves
+from a dot into a place as you approach. No load, no swap, no cut.
+
+That is what this builds.
+
+---
+
+## Why it is not just "make the far plane bigger"
+
+Two hard limits, and both have the same solution.
+
+**Depth buffer range.** A near plane at 0.1 m and a far plane at 400 km is a
+ratio of four million to one. No conventional depth buffer holds that — you get
+z-fighting everywhere.
+
+**Float32 on the GPU.** Positions in JavaScript are doubles and handle 400 km
+fine. Vertices reach the GPU as float32, where a body 400 km out renders with
+visible jitter.
+
+## The solution — two passes, two scales
+
+**Do not move the planets. Render distant ones compressed, in their own pass.**
+
+- **Far pass** — everything beyond ~20 km, rendered **scaled down**. A planet
+  400 km away with a 2 km radius is drawn as a planet 4 km away with a 20 m
+  radius. Identical angular size on screen; now comfortably inside float32 and a
+  normal depth range.
+- **Near pass** — everything within ~20 km, at true scale, composited on top.
+
+Both cameras share FOV and orientation, so the seam is invisible.
+
+**This kills both problems at once.** Nothing beyond ~20 km ever reaches the GPU
+at true coordinates, so there is no precision jitter and no depth range problem.
+No logarithmic depth buffer. No camera-relative rewrite.
+
+**The physics stays honest.** Positions, travel, the speed law, approach spheres
+and the analytic sweep all stay in doubles and are unchanged. Only rendering
+compresses. The speed readout is not a lie — you really are covering 400 km at
+a million metres per second; the renderer is drawing it small.
+
+This is what Elite Dangerous, Kerbal Space Program and No Man's Sky do. Seamless
+surface-to-space is not solved with bigger numbers; it is solved by rendering
+distance bands separately at their own scales.
+
+---
+
+## What already exists and gets reused
+
+More than it looks. Do not rebuild any of this.
+
+- **Honest positions** — `SYSTEM.at` coordinates are real, in metres
+- **The speed law** — altitude-based, unchanged, `HYPER.doubleEvery = 1500`
+- **Approach spheres and boundaries** — from Phase 3b
+- **The analytic sweep** — stops you tunnelling through a 414 m planet at a
+  million m/s. Still needed, still correct.
+- **Bounded per-planet quadtree** — a distant planet is already cheap
+- **The disc shader** — becomes the lowest LOD rather than being replaced
+- **The swap machinery** — becomes LOD promotion instead of teardown
+- **Per-planet lighting from T2** — each world already carries its own sun
+
+---
+
+# PHASES
+
+## Phase 1 — The two-pass renderer
+
+The foundation. Nothing else works without it, and it is testable on its own.
+
+- Second camera and render pass for the far band, sharing FOV and orientation
+  with the main camera
+- Distance-based scale factor: a body at true distance `D` with true radius `R`
+  renders at `D · k` and `R · k`, `k` chosen to land it inside a safe range
+- **Angular size must be preserved exactly** across the transform — that is the
+  whole trick and the thing to assert
+- Composite far pass under near pass
+- Far pass takes no fog, no shadows, no depth interaction with near geometry
+
+**Verify:** the existing billboards, moved into the far pass, are
+indistinguishable from where they are today. Screenshot before and after — they
+should match.
+
+## Phase 2 — The LOD chain
+
+Replace the billboards with real geometry that resolves.
+
+```
+beyond 20 km    far pass — billboard, then low-poly sphere as it grows
+20 → 2 km       near pass, true scale, coarse quadtree
+under 2 km      quadtree subdivides as it does today
+```
+
+- **The handoff must not pop.** Angular size is continuous across each boundary,
+  so appearance should be too. Crossfade if a hard swap shows.
+- Only the destination promotes. Bodies you are not approaching stay at their
+  cheapest representation.
+- **Two planets rendered at once is the new cost ceiling** — the one you left
+  and the one you are approaching. Budget for it.
+
+**Verify:** fly toward a world and record the transitions. No pop, no hitch, no
+frame spike at either boundary.
+
+## Phase 3 — Multi-body gravity
+
+Currently gravity is "the planet below you," because there is only one.
+
+- Gravity resolves to the **nearest significant body**
+- Handover happens at the midpoint between wells, and must not jerk the craft
+- Below the approach boundary, behaviour is exactly as today — this changes
+  nothing about driving, boating or flying on a surface
+- **The craft's local tangent frame follows the new body** on handover
+
+This is the subtlest phase. The failure mode is a craft that flips orientation
+mid-flight, and it will only show up in the transition band.
+
+**Verify:** cross between two wells at several angles and speeds. No flip, no
+jerk, no loss of control.
+
+## Phase 4 — Remove the swap
+
+The payoff.
+
+- Delete the teardown-and-rebuild path
+- Travel becomes continuous: leave a surface, watch the destination grow,
+  arrive, land
+- **The dev warp keeps working** — route it through an instant position change
+  rather than a rebuild
+- **Hyper travel is unchanged.** It was always altitude-based and it still is;
+  the difference is that now there is something to look at while it happens
+
+**Verify:** surface to surface with no load, no cut, no black frame. All five
+other worlds visible the whole way. Round-trip times still ~29–35 s.
+
+## Phase 5 — Polish
+
+- Distant worlds should **grow visibly** during hyper travel — the speed FX
+  already exist and now have something to play against
+- Consider a **skip or fast-forward** for repeat trips. Thirty seconds is fine
+  the first time and tedious the fiftieth.
+- Re-check the speed FX against real approaching geometry. They were tuned
+  against an empty sky.
+
+---
+
+## Risks
+
+**This can destabilise a working game.** Ship each phase separately and confirm
+the game still plays before the next.
+
+**Frame budget.** Two planets at once is a real increase. Measure at every
+phase, not at the end.
+
+**Phase 3 is the one to be careful with.** Gravity handover bugs are subtle,
+intermittent, and only appear in a narrow band of the flight.
+
+**If a phase turns out to be much harder than this describes, stop and report.**
+The current swap-based travel works and ships. This is an improvement, not a
+rescue.
+
+---
+
+## How to spend each session
+
+- Build first, measure last. No findings sections.
+- Reports under 15 lines, plus screenshots.
+- Partial is expected — commit what is green, next session continues the same
+  phase. Do not split a phase into sub-phases.
+- **Every number from lookdev and from the transplants was derived against
+  different scales.** Anything with a length or a luminance needs re-deriving
+  here too — this phase changes distances by three orders of magnitude.
+
+## Constraints
+
+No build step, no bundler, no npm, no CDN. No inline `<script>` or `<style>`.
+All tuning in `js/tune.js`. Stage explicit paths — never `git add -A`.
+
+---
+
+# Phase log — what actually shipped, and where the plan was wrong
+
+Kept here rather than in the prose above so the plan stays readable as a plan.
+Full write-ups are in `../README.md`.
+
+## Phase 1 — shipped `ca7cc6b`
+
+`js/world/space.js`. Landed as described, with two deliberate departures.
+
+**One camera, not two.** A uniform scale about the camera is a *similarity
+transform*, so it preserves every angle in the frame — the body's size, its
+position, and the depth order and parallax between bodies. There is nothing left
+for a second camera to buy, and the seam it exists to avoid is avoided more
+completely by sharing FOV and orientation automatically. No matrices to keep in
+step, no multi-camera surgery on a post stack attached to one camera. The far
+band draws in rendering group 0 and Babylon clears depth before group 1, which
+*is* "no depth interaction with near geometry".
+
+**`k` is per world.** The plan implies one scale factor. The far plane is per
+world — 828 m on Ember against 8288 m on Anvil — so a single `k` sits inside
+Anvil's frustum and a kilometre outside Ember's. It is derived from the world
+you are standing on and the true extent of the system: 1/1901 on Ember to 1/190
+on Anvil, the whole 944 km system landing at `SPACE.fill` of each far plane.
+
+Verified: angular size preserved to **1.6e-16** relative over thirty world
+pairs, and `dev/disccheck.mjs` before and after shows every direction, angle and
+on-screen measurement identical.
+
+## Phase 2 — shipped `1a4fb60`
+
+`js/world/farbody.js`, plus promotion in `discs.js`.
+
+**The 20 km / 2 km bands do not survive contact with the worlds.** The disc
+compression already *is* an LOD ramp and it is scale-free — every world reaches
+the same apparent size at the same multiple of its own radius. Promotion runs
+17 km on Ember to 170 km on Anvil, and the threshold is stated as a **drawn**
+half-angle, because a threshold in true angle would promote Anvil and Ember at
+completely different apparent sizes.
+
+**The handoff had to be measured twice.** `dev/lodcheck.mjs` first measured
+angular size alone, found it continuous to 1.1%, and would have shipped the LOD
+as "no pop". Adding mean luminance to the same run showed the sphere arriving at
+0.42 of the billboard's brightness — a 55% cliff. See the continuity invariant
+in `../ARCHITECTURE.md`; it is the general lesson.
+
+The cause is not a bug in either LOD: the billboard fakes a sphere with a
+screen-aligned parametrisation and the body has a real terminator across real
+geometry, so the night side covers a different share of the visible disc.
+Matching them exactly would mean making the billboard wrong on purpose. It is
+crossfaded instead, via a per-vertex `fade` in `svDisc` that multiplies the
+body and never the halo.
+
+**Nothing in normal play promotes anything yet.** Travel is still an instant
+swap, so the closest a neighbour ever gets is 294 km and every world on the
+contact sheets is pinned at the `drawFloor`. This phase is invisible until
+phase 4, which is the correct outcome for a foundation.
+
+## Phase 3 — not started
+
+Gated on a green suite. Gravity handover bugs are subtle, intermittent and
+band-limited, and building them while the baseline is failing makes it
+impossible to tell whose bug is whose.
+
+**Known collision ahead.** The Home revamp's last phase adds a fourth craft form
+on key 4, touching `craft.js`, `meshes.js` and the HUD chips. If phase 3 work is
+still open in `craft.js` when that lands, flag it rather than racing.

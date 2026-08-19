@@ -17,10 +17,15 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   `swapTo()` — there is no third option. `SURVEYOR.surface` is now a getter
   onto `craft.surf`; a getter cannot go stale. Before adding a class that
   takes a `planet`/`surface`/palette, grep `this.planet =` and `this.surf =`.
-- **One world visible at a time.** Only the current world's sky dome, water
-  shell and disc set may be enabled. `Worlds.enter()` is the only path that
-  hides the world you left; `World`s are **born hidden**. Five assertions at
-  the end of `dev/run.mjs` hold this.
+- **Only the active set is visible.** The current world's sky dome, water
+  shell, disc set — and any far body its disc set has promoted. `Worlds.enter()`
+  is the only path that hides the world you left; `World`s are **born hidden**.
+  Six assertions at the end of `dev/run.mjs` hold this. It was "one world" until
+  the far band added a promoted body: a fourth thing with its own mesh and its
+  own lifetime, which `World.setActive()` did not know about, so a world you flew
+  away from would have left its bodies in the next world's sky. `Discs`
+  owns the whole set through `setEnabled()`; `World.showMeshes()` goes through
+  it rather than reaching past it to the billboard mesh.
 - **No PBRMaterial.** Six hand-written shaders (`svTerrain`, `svWater`,
   `svSky`, `svCraft`, `svDisc`, `svStreak`; plus two depth-only passes
   `svSeabed`, `svDepth`). Five passes have confirmed it: anything found as a
@@ -43,12 +48,36 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
 - **If a measurement disagrees with what is visibly on screen, the
   measurement is aimed wrong.** Three times now. (Also: render-cost numbers
   measured on SwiftShader are noise — `dev/budget.mjs` refuses to run there.)
+- **A continuity check that measures one channel is measuring one channel.**
+  `dev/lodcheck.mjs` walked a body through the billboard-to-sphere handoff,
+  measured angular SIZE, found it continuous to 1.1%, and would have shipped
+  the LOD as "no pop". Adding the body's mean luminance to the same run showed
+  the sphere arriving at **0.42 of the billboard's brightness** — a 55% cliff.
+  Size and brightness are independent, and a dark sphere and a bright quad of
+  equal area pass a size test and pop violently. Before declaring any transition
+  seamless, name the channels it could jump in — size, brightness, hue,
+  position, silhouette — and measure each. The fix that follows is also worth
+  keeping: neutralise the shader's terms **one at a time on both sides** rather
+  than guessing which one differs (terminator off took the ratio to 0.82, limb
+  off to 0.43, both to 0.93 — so it was the terminator).
 - **`economy.load()` silently drops a blob without `v: 1`** — a malformed
   save reproduces as a perfectly clean run. The first attempt at reproducing
   the save bug came back green because of exactly this.
 - **Line endings are per file** — preserve each file's own. **Stage explicit
   paths only** — a `git add -A` from another session once reverted 544 lines
   of this game; the repo's commit-msg hook now enforces scope.
+
+## Plans (`docs/`)
+
+The build plans live with the project rather than in someone's downloads. Each
+one carries its own phases, risks and verification list, and the two that have
+started carry a phase log of what actually shipped and where the plan was wrong.
+
+| plan | status |
+|---|---|
+| `docs/seamless-space.md` | phases 1-2 shipped, phase 3 gated on a green suite |
+| `docs/day-and-night.md` | parked. After Seamless Space — it changes lighting |
+| `docs/colony-architecture.md` | parked. Does not conflict with Seamless Space |
 
 ## Modules
 
