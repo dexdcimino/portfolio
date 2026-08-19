@@ -1719,6 +1719,29 @@ async function saveFile(btn) {
   }
 }
 
+/* Clipboard, with the fallback. The async API needs a secure context and can be
+   refused outright, so the old selection-based copy stays for a page opened over
+   plain http or straight off the disk. Module-level for the same reason saveFile
+   is: the callers sit elsewhere in this file. */
+async function copyText(value) {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch { /* fall through */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    ta.setAttribute('readonly', '');
+    // Off-screen but not display:none — a field with no box cannot be selected.
+    ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch { return false; }
+}
+
 /* --- tooltip -------------------------------------------------------------- */
 /* Assigned by initTooltip below, declared out here for the same reason saveFile
    is: the modules that call it sit elsewhere in this file and must not have to
@@ -2381,27 +2404,6 @@ let flashTip = () => {};
     arm();
   });
 
-  /* The async clipboard first. It needs a secure context - https or localhost -
-     and can be refused outright, so the old selection-based copy stays as the
-     fallback for a page opened over plain http or straight off the disk. */
-  async function copyText(value) {
-    try {
-      await navigator.clipboard.writeText(value);
-      return true;
-    } catch { /* fall through */ }
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = value;
-      ta.setAttribute('readonly', '');
-      // Off-screen but not display:none - a field with no box cannot be selected.
-      ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    } catch { return false; }
-  }
 })();
 
 /* --- AI wallpapers -------------------------------------------------------- */
@@ -3092,6 +3094,10 @@ function renderMarkdown(src) {
         </div>
       </div>
       <button class="pr-open" type="button" aria-label="Preview ${title}"></button>
+      <button class="pr-copy" type="button" data-tip="Copy prompt"
+              aria-label="Copy ${title} to the clipboard">
+        <span class="icon" data-icon="copy" aria-hidden="true"></span>
+      </button>
       <button class="pr-dl" type="button" data-tip="Download MD"
               aria-label="Download ${title} as Markdown">
         <span class="icon" data-icon="download" aria-hidden="true"></span>
@@ -3102,10 +3108,30 @@ function renderMarkdown(src) {
     dl.dataset.file = card.dataset.file;
     dl.dataset.name = fileName(card);
     dl.addEventListener('click', () => saveFile(dl));
+
+    /* Copies the file the card is already showing. `load` is the same cached
+       promise the preview and the reader use, so this costs no extra request —
+       and on a card whose fetch failed it retries rather than copying nothing. */
+    const cp = card.querySelector('.pr-copy');
+    cp.addEventListener('click', async () => {
+      cp.disabled = true;
+      try {
+        const ok = await copyText(await load(card));
+        flashTip(cp, ok ? 'Copied' : 'Copy failed', ok ? '!' : '');
+      } catch {
+        text.delete(card);
+        flashTip(cp, 'Copy failed', '');
+      } finally {
+        cp.disabled = false;
+      }
+    });
     card.querySelector('.pr-open').addEventListener('click', () => open(card));
   });
 
   const text = new Map();
+  /* Which card the reader is showing. fullDl.dataset.file already tracks it as
+     a string for the staleness check below, but load() needs the element. */
+  let current = null;
 
   async function load(card) {
     if (text.has(card)) return text.get(card);
@@ -3127,6 +3153,7 @@ function renderMarkdown(src) {
   }
 
   async function open(card) {
+    current = card;
     titleEl.textContent = card.dataset.title || fileName(card);
     metaEl.textContent = fileName(card);
     fullDl.dataset.file = card.dataset.file;
@@ -3149,6 +3176,22 @@ function renderMarkdown(src) {
   }
 
   fullDl.addEventListener('click', () => saveFile(fullDl));
+
+  // The reader's copy, same contract as the card's.
+  const fullCopy = document.getElementById('prFullCopy');
+  fullCopy?.addEventListener('click', async () => {
+    if (!current) return;
+    fullCopy.disabled = true;
+    try {
+      const ok = await copyText(await load(current));
+      flashTip(fullCopy, ok ? 'Copied' : 'Copy failed', ok ? '!' : '');
+    } catch {
+      text.delete(current);
+      flashTip(fullCopy, 'Copy failed', '');
+    } finally {
+      fullCopy.disabled = false;
+    }
+  });
   document.getElementById('prClose').addEventListener('click', () => closeModal(modal));
   bindModal(modal);
 
@@ -3290,6 +3333,10 @@ function renderMarkdown(src) {
 
       const url = card.dataset.appModal;
       const title = card.dataset.appTitle || 'App';
+      /* Phone unless the card says otherwise. Set on every open, not once: the
+         overlay is shared, so a window-shaped app must not leave the next
+         phone-shaped one stretched into a monitor. */
+      dialog.dataset.shape = card.dataset.appShape || 'phone';
       dialog.querySelector('#app-dialog-title').textContent = title;
       frame.title = title;
       const tab = dialog.querySelector('#appOpenTab');

@@ -714,18 +714,15 @@
                 <img class="ai-card-icon" src="assets/icons/apps/nodeblast.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
               <!-- /img --></a>
-            <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The href
-                 is the LISTING, not the demo, because it is also the phone path —
-                 initAppModal declines below 768px and the browser follows it, and a
-                 mock VS Code window is not something to hand a phone. On desktop
-                 the click opens the demo in the overlay instead, and data-desc-link
-                 keeps the listing one click away in the description panel.
-                 NO data-app-modal YET — /themedock/ does not exist until the demo
-                 lands, and a card that opens an overlay onto a 404 is worse than a
-                 card that goes where it says. Add data-app-modal="/themedock/",
-                 data-app-title="ThemeDock" and data-app-shape="window" in the same
-                 change that adds the demo. -->
+            <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The
+                 href is the LISTING, not the demo, because it is also the phone
+                 path — initAppModal declines below 768px and the browser follows
+                 it, and a mock VS Code window is not something to hand a phone.
+                 On desktop the click opens the demo in the overlay instead, in
+                 the window shape rather than the phone one, and data-desc-link
+                 keeps the listing one click away in the description panel. -->
             <a class="ai-card" href="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock" target="_blank" rel="noreferrer"
+               data-app-modal="/themedock/" data-app-title="ThemeDock" data-app-shape="window"
                data-gallery="themedock" data-kind="EXTENSION" data-stack="VS CODE"
                data-desc-lead="Tell your VS Code windows apart at a glance."
                data-desc-body="Open a dozen windows and they all look identical. ThemeDock puts a swatch grid in the sidebar: click a colour and that window takes it, stored with the folder so it comes back every time. Ten themes bundled, a custom mixer, and no command palette. Published on the VS Code Marketplace."
@@ -2080,6 +2077,12 @@
           <p class="pr-bar-meta" id="prFullMeta"></p>
         </div>
         <div class="pr-bar-tools">
+          <!-- Same pair as the cards, in the same order of loudness: the copy is
+               the quiet outline, the download is the filled one. -->
+          <button class="pr-copy pr-copy-lg" id="prFullCopy" type="button"
+                  aria-label="Copy this prompt to the clipboard" data-tip="Copy prompt">
+            <span class="icon" data-icon="copy" aria-hidden="true"></span>
+          </button>
           <button class="pr-dl pr-dl-lg" id="prFullDl" type="button"
                   aria-label="Download this prompt as Markdown" data-tip="Download MD">
             <span class="icon" data-icon="download" aria-hidden="true"></span>

@@ -1,0 +1,591 @@
+/* Everything here reads from VS Code's own theme variables. No hardcoded
+   colours and no font stack of our own: the panel should look like it shipped
+   with the editor, and follow along when you change themes. */
+
+/* Scoped from `body` to `.td-panel`: in the extension this stylesheet owns the
+   whole webview document; here it owns one column of a mock editor. This is the
+   ONLY edit to the vendored file. */
+.td-panel {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  padding: 12px 14px;
+  margin: 0;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 6px;
+}
+
+/* --- targets ------------------------------------------------------------ */
+
+.switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.switches.last {
+  margin-bottom: 14px;
+}
+
+/* The whole pill is the switch. The knob and the label swap sides with
+   flex order, so "on" reads as the knob having travelled to the right. */
+.sw {
+  flex: 1 1 82px;
+  min-width: 82px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 4px;
+  border-radius: 9px;
+  /* An off switch needs an edge of its own. In a light theme the input
+     background is near-white sitting on a near-white panel, so without this the
+     control disappears. The rgba fallback matters as much as the variable —
+     plenty of themes leave widget-border unset. */
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.4));
+  cursor: pointer;
+  color: var(--vscode-foreground);
+  background: var(--vscode-input-background);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.sw:hover {
+  border-color: var(--wc-edge, var(--vscode-focusBorder));
+}
+
+/* On uses the theme's focus colour, the same accent that draws the hover and
+   selection edges, so the whole panel speaks with one voice. The label colour is
+   measured against it at runtime — that accent is pale blue in some themes and
+   near-black in others, so no fixed value works. */
+.sw.on {
+  background: var(--wc-fill, var(--vscode-button-background));
+  color: var(--wc-on-ink, var(--vscode-button-foreground));
+  border-color: transparent;
+}
+
+.sw:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.sw .lbl {
+  font-size: 13px;
+  padding: 0 3px;
+  order: 1;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.sw .knob {
+  width: 12px;
+  height: 26px;
+  border-radius: 4px;
+  flex: none;
+  order: 0;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.sw.on .lbl {
+  order: 0;
+}
+
+.sw.on .knob {
+  order: 1;
+  opacity: 1;
+}
+
+/* --- swatches ----------------------------------------------------------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.swatch {
+  height: 46px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.4));
+  padding: 0;
+  cursor: pointer;
+}
+
+.swatch.sel {
+  outline: 2px solid var(--wc-edge, var(--vscode-foreground));
+  outline-offset: 2px;
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+/* --- custom slots ------------------------------------------------------- */
+
+.slots {
+  display: grid;
+  /* Exactly five across, always. auto-fit packed six onto one row whenever the
+     panel was wide enough, which turned "add a slot" into "reflow everything".
+     A fixed five wraps instead: 20 slots is four tidy rows, and the cells shrink
+     toward square on a narrow panel rather than dropping out of the row. */
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.slot {
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.4));
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+/* An empty slot is an outline and nothing else, so the row reads as space
+   waiting to be filled rather than as five dark swatches. */
+.slot.blank {
+  border: 1px dashed var(--vscode-descriptionForeground);
+  opacity: 0.7;
+}
+
+.slot.blank:hover {
+  opacity: 1;
+}
+
+/* Selected, marked exactly as a selected swatch is: an outline outside the
+   shape rather than a border that eats into it. An empty slot also drops its
+   dashed edge for a solid one — armed, but still empty until a slider moves. */
+.slot.open {
+  outline: 2px solid var(--wc-edge, var(--vscode-foreground));
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.slot.open.blank {
+  border-style: solid;
+}
+
+.slot:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+/* --- HSB editor --------------------------------------------------------- */
+
+.editor {
+  border: 1px solid var(--vscode-widget-border, var(--vscode-input-background));
+  border-radius: 6px;
+  padding: 7px 9px;
+  margin-bottom: 12px;
+}
+
+/* No vertical gap between rows: the rows themselves are 24px tall and the
+   slider fills each one, so the bands sit edge to edge with nothing dead
+   between them and nothing overlapping either. */
+.srow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+}
+
+.skey {
+  font-size: 11px;
+  width: 10px;
+  flex: none;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* The track carries the meaning: hue runs the spectrum, saturation runs grey to
+   the current hue, brightness runs black to it. Reading the slider tells you
+   what it does without a label. */
+/* The input box is the hit area, not the painted track. At 24px the whole row
+   is grabbable — anywhere near the bar counts — while the bar itself stays 8px
+   so it still reads as a slider rather than a slab. */
+.range {
+  flex: 1;
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.range.hue::-webkit-slider-runnable-track {
+  background: linear-gradient(to right,
+    #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+}
+
+.range.sat::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #808080, var(--hue, #007fff));
+}
+
+.range.val::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #000000, var(--hue, #007fff));
+}
+
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 16px;
+  margin-top: -4px;
+  border-radius: 3px;
+  background: var(--vscode-foreground);
+  border: 1px solid var(--vscode-editor-background);
+}
+
+.range:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+/* --- custom header ------------------------------------------------------ */
+
+.chead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.label.flat {
+  margin-bottom: 0;
+  flex: none;
+}
+
+.count {
+  width: 26px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  box-sizing: border-box;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--vscode-font-family);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--vscode-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+}
+
+.count:hover:not(:disabled) {
+  border-color: var(--vscode-focusBorder);
+}
+
+.count:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* --- hex ---------------------------------------------------------------- */
+
+.hexbox {
+  /* Six characters and a copy icon — sized to exactly that, not stretched to
+     fill. The auto margin pushes it to the right of the row. */
+  width: 104px;
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 4px 0 6px;
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
+}
+
+.hexbox:focus-within {
+  border-color: var(--vscode-focusBorder);
+}
+
+.hexbox.bad {
+  border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+}
+
+.hash {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+  flex: none;
+}
+
+.hexin {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0 2px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 13px;
+  color: var(--vscode-input-foreground);
+}
+
+.copy {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  background: transparent;
+  /* Same colour as the text it copies, so it reads as part of the field. */
+  color: var(--vscode-input-foreground);
+  opacity: 0.65;
+}
+
+.copy:hover {
+  opacity: 1;
+}
+
+.copy.done {
+  color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #3fb950));
+  opacity: 1;
+}
+
+.copy:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+/* --- empty state -------------------------------------------------------- */
+
+.empty {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.5;
+}
+
+/* --- themes ------------------------------------------------------------- */
+
+.themes {
+  /* Two across when there is room, one when there is not. A theme name that
+     ellipsises to "Light Mod…" is worse than a taller list. */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 6px;
+}
+
+.theme {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--vscode-font-family);
+  font-size: 11px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+}
+
+.theme:hover {
+  border-color: var(--wc-edge, var(--vscode-focusBorder));
+}
+
+/* Selection is a ring and only a ring. It used to also fill the cell with the
+   editor's list-selection colour, which is fine in most themes and unreadable in
+   the ones whose selection colour is a saturated green — the label vanished into
+   it. A border cannot do that to the text. Which border depends on the swatch:
+   a light ring disappears against a light theme and vice versa. */
+.theme.sel {
+  border-width: 2px;
+  padding: 4px 6px;
+  /* The same accent the switches use, which is chosen at runtime precisely
+     because it is guaranteed to contrast with the panel. */
+  border-color: var(--wc-edge, var(--vscode-focusBorder));
+}
+
+.label.spaced {
+  margin-top: 12px;
+}
+
+.theme:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+/* One solid fill per theme — the colour that identifies it fastest. */
+.chip {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 5px;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.55));
+}
+
+.tname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- reload ------------------------------------------------------------- */
+
+.actions {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.act-btn {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 11px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: var(--vscode-font-family);
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+}
+
+.act-btn:hover {
+  border-color: var(--wc-edge, var(--vscode-focusBorder));
+}
+
+.act-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+/* --- folder ------------------------------------------------------------- */
+
+/* Which folder this panel is writing to. Sized to be read, not to be a
+   footnote — getting this wrong means colouring the wrong project. */
+.folder {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+
+.ficon {
+  flex: none;
+  color: var(--vscode-descriptionForeground);
+}
+
+.fname {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A theme whose extension is not installed. Dimmed rather than hidden — it is
+   still an offer, just one that costs a download first. */
+.theme.missing {
+  opacity: 0.45;
+}
+
+.theme.missing:hover {
+  opacity: 1;
+}
+
+.bico {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.blabel {
+  /* Centred in the button while the icon keeps its own place at the left, so a
+     column of buttons reads as a column of labels. */
+  text-align: center;
+}
+
+/* --- reload: last, and visibly the one with a cost ----------------------- */
+
+.act-row {
+  display: flex;
+  gap: 6px;
+}
+
+.act-row .act-btn {
+  flex: 1;
+}
+
+/* Outlined rather than filled, so it does not read as a peer of the two above
+   it. Not red — it is not dangerous, just not free. */
+.act-btn.warn {
+  background: transparent;
+  border-color: var(--vscode-widget-border, rgba(128, 128, 128, 0.5));
+  color: var(--vscode-descriptionForeground);
+}
+
+.act-btn.warn:hover {
+  color: var(--vscode-foreground);
+  border-color: var(--wc-edge, var(--vscode-focusBorder));
+}
+
+/* Armed is the label change plus a firmer edge. Two clicks is already the whole
+   safeguard; dressing it in warning colours overstated a window reload. */
+.act-btn.warn.armed {
+  color: var(--vscode-foreground);
+  border-color: var(--wc-edge, var(--vscode-focusBorder));
+}
+
+.act-cancel {
+  flex: none;
+  width: 30px;
+  box-sizing: border-box;
+  padding: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: var(--vscode-font-family);
+  font-size: 15px;
+  line-height: 1;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.5));
+}
+
+.act-cancel:hover {
+  color: var(--vscode-foreground);
+  border-color: var(--wc-edge, var(--vscode-focusBorder));
+}
+
+.act-cancel:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.chev {
+  /* Slightly wider than the plus and minus so the arrow is not cramped. */
+  width: 28px;
+}

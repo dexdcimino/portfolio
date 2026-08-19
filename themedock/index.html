@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" class="td-html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ThemeDock — interactive preview</title>
+<meta name="description" content="A working preview of the ThemeDock panel: colour a VS Code window from a swatch grid and switch between ten bundled themes.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="window.css">
+<link rel="stylesheet" href="panel.css">
+</head>
+<body class="td-body">
+
+<!-- The mock editor. Every colour on this element is set at runtime from the
+     theme data in themes.js, as a --vscode-* custom property, which is what
+     lets panel.css be the extension's own stylesheet unmodified. -->
+<div class="vsc" id="vsc">
+
+  <!-- title bar -->
+  <div class="vsc-title" id="vscTitle">
+    <div class="vsc-menu">
+      <span class="vsc-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 2.4 9.7 9.9 5.4 6.6 3 7.8v8.4l2.4 1.2 4.3-3.3 7.9 7.5L21 19.8V4.2zM17 7.6v8.8l-5-4.4z"/></svg>
+      </span>
+      <span class="vsc-menu-item">File</span>
+      <span class="vsc-menu-item">Edit</span>
+      <span class="vsc-menu-item">View</span>
+      <span class="vsc-menu-item">Go</span>
+      <span class="vsc-menu-item">Run</span>
+      <span class="vsc-menu-item">Help</span>
+    </div>
+    <div class="vsc-titletext" id="vscTitleText">surveyor — Visual Studio Code</div>
+    <div class="vsc-wincontrols" aria-hidden="true">
+      <span class="vsc-wc"><svg viewBox="0 0 12 12"><path d="M2 6h8" stroke="currentColor" stroke-width="1" fill="none"/></svg></span>
+      <span class="vsc-wc"><svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" stroke="currentColor" stroke-width="1" fill="none"/></svg></span>
+      <span class="vsc-wc vsc-wc-x"><svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1" fill="none"/></svg></span>
+    </div>
+  </div>
+
+  <div class="vsc-mid">
+
+    <!-- activity bar -->
+    <div class="vsc-activity" id="vscActivity">
+      <button class="vsc-act" type="button" aria-label="Explorer" tabindex="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 5h6l2 2h10v12H3z"/></svg>
+      </button>
+      <button class="vsc-act" type="button" aria-label="Search" tabindex="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg>
+      </button>
+      <button class="vsc-act" type="button" aria-label="Source control" tabindex="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="6" r="2.4"/><circle cx="7" cy="18" r="2.4"/><circle cx="17" cy="12" r="2.4"/><path d="M7 8.4v7.2M9.4 6H13a2 2 0 0 1 2 2v1.8"/></svg>
+      </button>
+      <button class="vsc-act is-active" type="button" aria-label="ThemeDock" aria-current="true">
+        <svg viewBox="0 0 123.8165 123.8165" fill="currentColor" aria-hidden="true">
+          <path d="M77.4586,109.9082H15.8191c-2.1487,0-3.8907-1.687-3.8907-3.7679v-10.9219c0-2.081,1.7419-3.7679,3.8907-3.7679h58.0357c1.6925,0,3.1908,1.0597,3.706,2.621l3.6039,10.9219c.8022,2.431-1.0708,4.9149-3.706,4.9149Z"/>
+          <path d="M68.3422,82.28H15.8191c-2.1487,0-3.8907-1.687-3.8907-3.7679v-6.6347c0-2.081,1.7419-3.7679,3.8907-3.7679h50.3339c1.6925,0,3.1908,1.0597,3.706,2.621l2.1892,6.6347c.8022,2.431-1.0708,4.9149-3.706,4.9149Z"/>
+          <path d="M61.3042,60.9505H15.8191c-2.1487,0-3.8907-1.687-3.8907-3.7679v-3.685c0-2.081,1.7419-3.7679,3.8907-3.7679h44.2692c1.6925,0,3.1908,1.0597,3.706,2.621l1.2159,3.685c.8022,2.431-1.0708,4.9149-3.706,4.9149Z"/>
+          <path d="M55.7065,43.9862H15.8191c-2.1487,0-3.8907-1.687-3.8907-3.7679v-1.5692c0-2.081,1.7419-3.7679,3.8907-3.7679h39.3697c1.6925,0,3.1908,1.0597,3.706,2.621l.5178,1.5692c.8022,2.431-1.0708,4.9149-3.706,4.9149Z"/>
+          <path d="M51.1481,30.1714H15.8191c-2.1487,0-3.8907-1.687-3.8907-3.7679h0c0-2.081,1.7419-3.7679,3.8907-3.7679h35.329c1.6925,0,3.1908,1.0597,3.706,2.621h0c.8022,2.431-1.0708,4.9149-3.706,4.9149Z"/>
+          <path d="M106.9014,98.2933h-7.2107c-1.8896,0-3.9792-1.5318-4.6673-3.4214h0c-.6881-1.8896.2858-3.4214,2.1754-3.4214h7.2107c1.8896,0,3.9792,1.5318,4.6673,3.4214h0c.6881,1.8896-.2858,3.4214-2.1754,3.4214Z"/>
+          <path d="M102.0912,74.9522h-10.9005c-1.8896,0-3.9792-1.5318-4.6673-3.4214h0c-.6881-1.8896.2858-3.4214,2.1754-3.4214h10.9005c1.8896,0,3.9792,1.5318,4.6673,3.4214h0c.6881,1.8896-.2858,3.4214-2.1754,3.4214Z"/>
+          <path d="M98.7248,51.6112h-16.0342c-1.8896,0-3.9792-1.5318-4.6673-3.4214h0c-.6881-1.8896.2858-3.4214,2.1754-3.4214h16.0342c1.8896,0,3.9792,1.5318,4.6673,3.4214h0c.6881,1.8896-.2858,3.4214-2.1754,3.4214Z"/>
+          <path d="M93.4975,28.2701h-19.3069c-1.8896,0-3.9792-1.5318-4.6673-3.4214h0c-.6881-1.8896.2858-3.4214,2.1754-3.4214h19.3069c1.8896,0,3.9792,1.5318,4.6673,3.4214h0c.6881,1.8896-.2858,3.4214-2.1754,3.4214Z"/>
+        </svg>
+      </button>
+      <button class="vsc-act" type="button" aria-label="Extensions" tabindex="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.5" y="3.5" width="7" height="7"/><rect x="13.5" y="3.5" width="7" height="7"/><rect x="3.5" y="13.5" width="7" height="7"/><path d="M17 13.5v7M13.5 17h7"/></svg>
+      </button>
+    </div>
+
+    <!-- sidebar: the real ThemeDock panel, rendered by demo.js -->
+    <div class="vsc-side" id="vscSide">
+      <div class="vsc-side-title">ThemeDock</div>
+      <div class="vsc-side-scroll">
+        <div class="td-panel" id="root"></div>
+      </div>
+    </div>
+
+    <!-- editor -->
+    <div class="vsc-editor" id="vscEditor">
+      <div class="vsc-tabs" id="vscTabs">
+        <div class="vsc-tab is-active">world.js</div>
+        <div class="vsc-tab">terrain.js</div>
+        <div class="vsc-tab">README.md</div>
+      </div>
+      <div class="vsc-code" id="vscCode"></div>
+    </div>
+  </div>
+
+  <!-- status bar -->
+  <div class="vsc-status" id="vscStatus">
+    <span class="vsc-st-left">
+      <span class="vsc-st-item vsc-st-branch">main*</span>
+      <span class="vsc-st-item">0 &#9888;  0 &#9888;</span>
+    </span>
+    <span class="vsc-st-right">
+      <span class="vsc-st-item">Ln 24, Col 18</span>
+      <span class="vsc-st-item">Spaces: 2</span>
+      <span class="vsc-st-item">UTF-8</span>
+      <span class="vsc-st-item" id="vscStTheme">Dark</span>
+    </span>
+  </div>
+
+  <!-- Non-blocking note for the three window actions, which in the real
+       extension open or reload an editor window and here have nothing to act
+       on. Shown instead of doing nothing, which would read as a dead button. -->
+  <div class="vsc-toast" id="vscToast" role="status" aria-live="polite"></div>
+</div>
+
+<script src="themes.js"></script>
+<script src="demo.js"></script>
+</body>
+</html>

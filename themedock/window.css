@@ -1,0 +1,306 @@
+/* The window around the panel. panel.css is the extension's own stylesheet,
+   unmodified except for one selector; everything in here is the mock editor it
+   is being shown inside, and none of it ships in the extension.
+
+   Every colour is a --vscode-* custom property set on .vsc at runtime from
+   themes.js. That is deliberate: it is the same contract VS Code gives a
+   webview, so the vendored panel.css works with no shimming. */
+
+* { box-sizing: border-box; }
+
+.td-html, .td-body {
+  height: 100%;
+  margin: 0;
+  background: #07060b;
+  color: #e7e9ee;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu,
+               "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+.td-body { display: grid; place-items: center; padding: 0; }
+
+/* --- the window --------------------------------------------------------- */
+
+.vsc {
+  /* Free-standing (open full page) it is a window on a desk, with a radius and
+     a shadow. Inside the site's overlay the iframe already IS the window, so
+     .is-embed below takes the furniture off rather than drawing a second one. */
+  width: 100%;
+  height: 100%;
+  max-width: 1400px;
+  display: grid;
+  grid-template-rows: 32px 1fr 22px;
+  overflow: hidden;
+  position: relative;
+  font-size: 13px;
+
+  /* Painted at runtime. The fallbacks are VS Code's Dark Modern, so the shape
+     is right for the one frame before themes.js has been applied. */
+  --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  --vscode-font-size: 13px;
+  --vscode-editor-font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --vscode-foreground: #cccccc;
+  --vscode-editor-background: #1f1f1f;
+
+  --td-title-bg: #181818;
+  --td-title-fg: #cccccc;
+  --td-activity-bg: #181818;
+  --td-activity-fg: #d7d7d7;
+  --td-side-bg: #181818;
+  --td-status-bg: #181818;
+  --td-status-fg: #cccccc;
+  --td-border: rgba(128, 128, 128, .28);
+  --td-tab-active-bg: #1f1f1f;
+  --td-tab-inactive-bg: #181818;
+  --td-line-fg: #6e7681;
+
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+}
+
+.td-body:not(.is-embed) .vsc {
+  width: min(100%, 1400px);
+  height: min(100%, 860px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+}
+
+/* --- title bar ---------------------------------------------------------- */
+
+.vsc-title {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 0 8px;
+  background: var(--td-title-bg);
+  color: var(--td-title-fg);
+  border-bottom: 1px solid var(--td-border);
+  /* The colour landing is the whole point of the extension, so it is worth a
+     transition here even though VS Code itself snaps. */
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.vsc-menu { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.vsc-logo { width: 16px; height: 16px; display: block; opacity: .9; flex: none; }
+.vsc-logo svg { width: 100%; height: 100%; display: block; }
+.vsc-menu-item { font-size: 12px; opacity: .85; white-space: nowrap; }
+
+.vsc-titletext {
+  text-align: center;
+  font-size: 12px;
+  opacity: .8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vsc-wincontrols { display: flex; align-items: stretch; height: 100%; }
+.vsc-wc {
+  width: 44px;
+  display: grid;
+  place-items: center;
+  opacity: .75;
+}
+.vsc-wc svg { width: 11px; height: 11px; display: block; }
+
+/* --- middle ------------------------------------------------------------- */
+
+.vsc-mid {
+  display: grid;
+  grid-template-columns: 48px minmax(232px, 300px) 1fr;
+  min-height: 0;
+}
+
+.vsc-activity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 4px;
+  background: var(--td-activity-bg);
+  color: var(--td-activity-fg);
+  border-right: 1px solid var(--td-border);
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.vsc-act {
+  width: 48px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: .55;
+  cursor: default;
+  position: relative;
+  padding: 0;
+}
+.vsc-act svg { width: 22px; height: 22px; display: block; }
+.vsc-act.is-active { opacity: 1; }
+/* VS Code marks the open view with a 2px bar on the leading edge. */
+.vsc-act.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: currentColor;
+}
+
+.vsc-side {
+  display: grid;
+  grid-template-rows: 35px 1fr;
+  min-height: 0;
+  background: var(--td-side-bg);
+  border-right: 1px solid var(--td-border);
+}
+
+.vsc-side-title {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  opacity: .72;
+}
+
+.vsc-side-scroll {
+  overflow: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+}
+.vsc-side-scroll::-webkit-scrollbar { width: 10px; }
+.vsc-side-scroll::-webkit-scrollbar-thumb {
+  background: var(--td-scroll, rgba(128, 128, 128, .35));
+  border-radius: 6px;
+}
+
+/* --- editor ------------------------------------------------------------- */
+
+.vsc-editor {
+  display: grid;
+  grid-template-rows: 35px 1fr;
+  min-height: 0;
+  background: var(--vscode-editor-background);
+}
+
+.vsc-tabs {
+  display: flex;
+  align-items: stretch;
+  background: var(--td-tab-inactive-bg);
+  border-bottom: 1px solid var(--td-border);
+  overflow: hidden;
+}
+
+.vsc-tab {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 12px;
+  opacity: .6;
+  border-right: 1px solid var(--td-border);
+  white-space: nowrap;
+}
+.vsc-tab.is-active {
+  opacity: 1;
+  background: var(--td-tab-active-bg);
+  box-shadow: inset 0 1px 0 var(--td-accent, transparent);
+}
+
+.vsc-code {
+  overflow: auto;
+  min-height: 0;
+  padding: 10px 0 18px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12.5px;
+  line-height: 1.62;
+  tab-size: 2;
+}
+
+.vsc-ln { display: flex; }
+.vsc-ln-no {
+  flex: none;
+  width: 46px;
+  padding-right: 14px;
+  text-align: right;
+  color: var(--td-line-fg);
+  opacity: .7;
+  user-select: none;
+}
+.vsc-ln-src { white-space: pre; padding-right: 16px; }
+
+/* --- status bar --------------------------------------------------------- */
+
+.vsc-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-size: 11px;
+  background: var(--td-status-bg);
+  color: var(--td-status-fg);
+  transition: background 180ms ease, color 180ms ease;
+}
+.vsc-st-left, .vsc-st-right { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.vsc-st-item { white-space: nowrap; opacity: .92; }
+
+/* --- toast -------------------------------------------------------------- */
+
+.vsc-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  transform: translate(-50%, 8px);
+  max-width: 78%;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  background: rgba(8, 10, 14, .92);
+  color: #f2f4f8;
+  border: 1px solid rgba(255, 255, 255, .16);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.vsc-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* --- narrow ------------------------------------------------------------- */
+
+/* The overlay is landscape on desktop and this page is noindex, so the narrow
+   case is someone who opened it full page on a phone. The editor is the first
+   thing to go: the panel is the subject. */
+@media (max-width: 760px) {
+  .vsc { grid-template-rows: 30px 1fr 22px; }
+  .vsc-mid { grid-template-columns: 44px 1fr; }
+  .vsc-editor { display: none; }
+  .vsc-side { border-right: 0; }
+  .vsc-menu-item, .vsc-wincontrols { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vsc-title, .vsc-activity, .vsc-status, .vsc-toast { transition: none; }
+}
+
+/* --- syntax ------------------------------------------------------------- */
+/* One class per token kind, each pointing at a variable set from the theme's
+   own tokenColors. Nothing here picks a colour. */
+
+.tk { color: var(--td-syn-text); }
+.tk-comment { color: var(--td-syn-comment); font-style: italic; }
+.tk-string  { color: var(--td-syn-string); }
+.tk-keyword { color: var(--td-syn-keyword); }
+.tk-func    { color: var(--td-syn-func); }
+.tk-number  { color: var(--td-syn-number); }
+.tk-type    { color: var(--td-syn-type); }
+.tk-var     { color: var(--td-syn-var); }
+.tk-prop    { color: var(--td-syn-prop); }
+.tk-op      { color: var(--td-syn-op); }
+.tk-text    { color: inherit; }

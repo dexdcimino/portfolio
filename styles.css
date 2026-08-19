@@ -3226,6 +3226,24 @@ body.modal-open{overflow:hidden}
 .pr-dl:hover{background:rgba(8,11,15,.82);color:var(--accent);transform:translateY(-2px)}
 .pr-dl-lg{opacity:1;transform:none}
 .pr-dl:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+/* Bottom-left, and deliberately quieter than the download: same family, one
+   size down, an outline instead of a fill. Two solid accent buttons on one card
+   would read as two equal actions, and they are not — the download is the point
+   of the card and the copy is the shortcut. */
+.pr-copy{
+  position:absolute;left:12px;bottom:12px;z-index:3;
+  width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  background:rgba(8,11,15,.6);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);
+  color:var(--accent);cursor:pointer;
+  opacity:0;transform:translateY(4px);
+  transition:opacity .18s ease,transform .18s ease,
+             background var(--accent-ease),color var(--accent-ease),
+             border-color var(--accent-ease);
+}
+.pr-copy .icon{width:18px;height:18px}
+.pr-card:hover .pr-copy,.pr-card:focus-within .pr-copy,.pr-copy:focus-visible{opacity:1;transform:none}
+.pr-copy:hover{background:var(--accent);color:var(--accent-ink,#0b0d12);border-color:var(--accent);transform:translateY(-2px)}
+.pr-copy:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 
 /* The reader. A sheet, not a modal full of chrome: one bar with the name, the
    download and the close, and the document under it. */
@@ -3255,6 +3273,7 @@ body.modal-open{overflow:hidden}
 }
 .pr-bar-tools{display:flex;align-items:center;gap:10px;flex:none}
 .pr-dl-lg{position:static;width:42px;height:42px;border-radius:12px}
+.pr-copy-lg{position:static;width:42px;height:42px;border-radius:12px;opacity:1;transform:none}
 .pr-close{position:static}
 .pr-read{
   overflow:auto;padding:26px 30px 40px;
@@ -3314,7 +3333,7 @@ body.modal-open{overflow:hidden}
   .pr-card:hover .pr-desc{opacity:1}
   .pr-card:hover .pr-sheet{opacity:0}
   /* No hover to reveal it, so the download stays put on touch. */
-  .pr-dl{opacity:1;transform:none}
+  .pr-dl,.pr-copy{opacity:1;transform:none}
 }
 
 /* AI Lab app overlay — a phone-shaped iframe on desktop only.
@@ -3368,6 +3387,16 @@ body.modal-open{overflow:hidden}
   border:1px solid rgba(255,255,255,.12);
   box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 var(--stroke-ring) color-mix(in srgb,var(--accent) 30%,transparent);
 }
+/* A desktop app is not a phone. Sized from WIDTH here rather than height —
+   an editor is wider than it is tall, so width is the dimension that runs out
+   first — with the height cap folded into the same min() so the frame shrinks
+   on a short window instead of overflowing it. 1.6 is the 16/10 below. */
+.app-modal[data-shape="window"] .app-phone{
+  width:min(1400px,calc(100vw - 120px),calc(86dvh * 1.6));
+  height:auto;
+  aspect-ratio:16/10;
+  border-radius:12px;
+}
 .app-frame{display:block;width:100%;height:100%;border:0;background:#07060B}
 .app-hint{
   margin:0;font-size:11px;letter-spacing:.06em;color:var(--muted);
@@ -3380,6 +3409,9 @@ body.modal-open{overflow:hidden}
 @media (max-width:900px){
   .app-close{top:-46px;right:0}
   .app-phone{max-width:calc(100vw - 32px)}
+  .app-modal[data-shape="window"] .app-phone{
+    width:min(1400px,calc(100vw - 32px),calc(86dvh * 1.6));
+  }
 }
 
 /* Gallery overlay. Same shell conventions as the other dialogs; the hero is a
