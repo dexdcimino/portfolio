@@ -108,30 +108,29 @@
      canvas gets clicks, and a menu inside it could not be clicked. -->
 <div id="paused" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Paused"></div>
 
+<!-- THE INTRO — four bindings, not eleven.
+     This card used to open with a paragraph of prose and every control the
+     game has, before you had seen the game. That is what made it read as
+     documentation rather than as a title screen. The full list lives in the
+     pause menu now — already built, already written down, one key away — so
+     the only job left here is: what this is, and enough to move.
+     The structure is Arena 1's controls modal: the same row, the same
+     keycaps, the same restraint, because the two should read as one studio.
+     Cyan is the only saturated thing in here. This game reserves it for
+     technology, so it carries the single interactive element and nothing is
+     allowed to compete with it. -->
 <div id="start">
   <div id="card">
     <h1>SURVEYOR</h1>
-    <div class="sub">Clayweld · procedural survey world</div>
-    <p class="brief">
-      You are the instrument. The land goes on as far as you drive it — stone
-      terraces, carved basins, lakes with a drawn coastline. Log beacons to earn
-      flight time. Flying is the fastest way to cover ground and the only one
-      that runs out. Deep water will swallow the rover, so read the shallows.
-    </p>
-    <div class="rule"></div>
+    <p class="brief">One transforming craft surveys an uncharted system by land, sea, and air.</p>
     <div id="keys">
-      <b>W A S D</b><span>Drive, steer — in the air, pitch and roll</span>
-      <b>1 2 3</b><span>Rover · Boat · Jet. Momentum carries across the change</span>
-      <b>SHIFT</b><span>Sustained boost</span>
-      <b>SPACE</b><span>Hold to charge a jump, release to leap. Full charge is ten times the height</span>
-      <b>DRAG · WHEEL</b><span>Swing the camera, scroll to pull back</span>
-      <b>C</b><span>Recentre the camera behind you</span>
-      <b>F</b><span>Drop a coloniser. It lands and builds itself</span>
-      <b>Q</b><span>Hold for the survey overlay — see through the planet, and the system at a glance</span>
-      <b>E</b><span>Hold for the scanner beam. It costs charge and it disrupts raiders</span>
-      <b>R · M</b><span>Back to the rover · mute sound</span>
+      <div class="krow"><span class="kact">Drive, steer</span><span class="kkeys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
+      <div class="krow"><span class="kact">Rover · Boat · Jet</span><span class="kkeys"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span></div>
+      <div class="krow"><span class="kact">Boost</span><span class="kkeys"><kbd class="wide">SHIFT</kbd></span></div>
+      <div class="krow"><span class="kact">Jump</span><span class="kkeys"><kbd class="wide">SPACE</kbd><em>hold to charge</em></span></div>
     </div>
     <button id="begin" type="button">Begin survey</button>
+    <p class="more"><kbd>Esc</kbd>for every control, and the sound</p>
   </div>
 </div>
 

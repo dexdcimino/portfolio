@@ -597,15 +597,23 @@ body.ready #hud { opacity: 1; }
 #flash.on { animation: hit 320ms ease-out; }
 @keyframes hit { 0% { opacity: 0.75; } 100% { opacity: 0; } }
 
-/* ---- start card ---- */
+/* ---- start card ----
+   Arena 1's controls modal is the house pattern and this is built to it: one
+   centred panel, a row per binding, keycaps rather than bold text, and type
+   sized to be read rather than studied. Chart-like and bold are not in
+   tension — an altimeter is both, and the old card was small and dense for no
+   reason the art direction ever asked for.
+   What is NOT here is as deliberate as what is: no settings, no lore, no
+   feature list, and four bindings where there were eleven. */
 #start {
   position: fixed;
   inset: 0;
   z-index: 20;
   display: grid;
   place-items: center;
+  padding: 20px;
   background:
-    linear-gradient(rgba(7, 12, 15, 0.82), rgba(7, 12, 15, 0.92)),
+    linear-gradient(rgba(7, 12, 15, 0.86), rgba(7, 12, 15, 0.94)),
     repeating-linear-gradient(0deg, rgba(43, 224, 200, 0.07) 0 1px, transparent 1px 26px),
     repeating-linear-gradient(90deg, rgba(43, 224, 200, 0.07) 0 1px, transparent 1px 26px);
   transition: opacity 480ms ease;
@@ -613,59 +621,104 @@ body.ready #hud { opacity: 1; }
 #start.gone { opacity: 0; pointer-events: none; }
 
 #card {
-  width: min(560px, calc(100vw - 40px));
-  padding: 30px 32px 26px;
-  background: rgba(9, 19, 23, 0.86);
+  position: relative;
+  width: min(620px, 100%);
+  padding: clamp(26px, 4.4vw, 46px) clamp(22px, 4vw, 44px) clamp(20px, 3.2vw, 34px);
+  background: rgba(9, 19, 23, 0.90);
   border: 1px solid var(--edge);
 }
+/* Corner ticks — the chart device, in CSS so the folder stays asset-free.
+   Two pseudo-elements on opposite corners is enough to read as a plotted
+   frame; four would be drawing a box around a box. */
+#card::before,
+#card::after {
+  content: "";
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--phos);
+}
+#card::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+#card::after { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
+
 #card h1 {
   margin: 0;
-  font-size: clamp(30px, 7vw, 46px);
+  font-size: clamp(34px, 8vw, 60px);
   font-weight: 700;
-  letter-spacing: 0.34em;
-  text-indent: 0.34em;
+  /* Tracking is added to the RIGHT of every glyph including the last, so
+     without the matching indent the word sits visibly left of centre in its
+     own box. Same trick on the button below. */
+  letter-spacing: 0.30em;
+  text-indent: 0.30em;
+  line-height: 1.04;
   color: var(--bone);
 }
-#card .sub {
-  margin-top: 8px;
-  font-size: 10px;
-  letter-spacing: 0.30em;
-  color: var(--phos);
-  text-transform: uppercase;
-}
 #card .brief {
-  margin: 20px 0 0;
-  font-size: 13px;
-  line-height: 1.75;
-  color: rgba(242, 246, 230, 0.74);
+  margin: clamp(12px, 1.8vw, 18px) 0 0;
+  max-width: 42ch;
+  font-size: clamp(12px, 1.5vw, 16px);
+  line-height: 1.65;
+  color: rgba(242, 246, 230, 0.76);
 }
-#card .rule {
-  height: 1px;
-  background: var(--edge);
-  margin: 20px 0;
-}
+
 #keys {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 6px 16px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: rgba(242, 246, 230, 0.72);
+  gap: clamp(9px, 1.2vw, 14px);
+  margin-top: clamp(20px, 3vw, 28px);
+  padding-top: clamp(18px, 2.6vw, 26px);
+  border-top: 1px solid var(--edge);
 }
-#keys b {
-  color: var(--phos);
+.krow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+.kact {
+  font-size: clamp(11px, 1.3vw, 15px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bone);
+}
+.kkeys {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: end;
+}
+.kkeys kbd {
+  display: inline-grid;
+  place-content: center;
+  min-width: 2.2em;
+  padding: 0.40em 0.55em;
+  font-family: inherit;
+  font-size: clamp(11px, 1.15vw, 14px);
   font-weight: 700;
   letter-spacing: 0.10em;
-  white-space: nowrap;
+  color: var(--phos);
+  background: rgba(43, 224, 200, 0.07);
+  border: 1px solid var(--edge);
+  border-bottom-width: 3px;      /* reads as a keycap, not a chip */
 }
+.kkeys kbd.wide { min-width: 0; letter-spacing: 0.14em; }
+.kkeys em {
+  font-style: normal;
+  font-size: clamp(9px, 0.95vw, 12px);
+  letter-spacing: 0.10em;
+  color: rgba(242, 246, 230, 0.50);
+}
+
 #begin {
-  margin-top: 24px;
+  display: block;
+  margin-top: clamp(22px, 3.2vw, 30px);
   width: 100%;
-  padding: 14px;
+  padding: clamp(15px, 2vw, 20px);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: clamp(12px, 1.5vw, 16px);
   font-weight: 700;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.30em;
+  text-indent: 0.30em;
   text-transform: uppercase;
   color: var(--ink);
   background: var(--phos);
@@ -675,6 +728,43 @@ body.ready #hud { opacity: 1; }
 }
 #begin:hover { background: var(--bone); transform: translateY(-1px); }
 #begin:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+
+/* Where the other seven bindings went. Quiet on purpose: it is a signpost,
+   not an instruction, and the button above is the only thing being asked for. */
+#card .more {
+  margin: clamp(12px, 1.6vw, 16px) 0 0;
+  font-size: clamp(9px, 1vw, 12px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(242, 246, 230, 0.46);
+  text-align: center;
+}
+#card .more kbd {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--phos);
+  background: rgba(43, 224, 200, 0.07);
+  border: 1px solid var(--edge);
+  border-bottom-width: 2px;
+  padding: 0.18em 0.45em;
+  margin-right: 0.7em;
+}
+
+/* Arena 1's controls modal collapses its rows to one column at this width, for
+   the reason this one has to as well: below it a label and its keycaps cannot
+   share a line without whichever is longest setting the card's width for
+   everything else. Stacked, the label leads and the caps sit under it. */
+@media (max-width: 560px) {
+  .krow { grid-template-columns: 1fr; gap: 5px; }
+  .kkeys { justify-self: start; }
+  #card .more { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #start, #begin { transition: none; }
+}
 
 @media (max-width: 620px) {
   #speed { font-size: 30px; }
