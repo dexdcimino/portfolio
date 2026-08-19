@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=155" />
+  <link rel="stylesheet" href="styles.css?v=156" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -599,6 +599,16 @@
 
     <section class="split-section alt" id="ai">
       <div class="statement reveal"><p class="eyebrow">BUILDING WITH AI</p><h2>AI LAB</h2><p>Apps, visual experiments, videos, charts, and tools built with Claude, Gemini, GPT, and creative software.</p>
+        <!-- The hero thumbnail: the shown app’s first gallery shot, leading
+             the column the way #gameArt leads the games section, so the two
+             read as siblings — its own class, no shadow, no play glyph. Driven
+             by initAppInfo: hover, focus and a click on a card all set it, it
+             stays on the last one, and clicking it opens the shared viewer.
+             An app with no shots collapses it ([hidden]); the hidden label
+             span is where the gallery’s paintOpenBtn writes its count. -->
+        <button class="app-art" id="appArt" type="button" hidden>
+          <span class="game-gallery-label" hidden></span>
+        </button>
         <!-- What the hovered app IS, in the empty half of this column — the same
              component the games section uses (.game-desc / .game-actions), not a
              lookalike, so the two sections cannot drift apart visually. It sits
@@ -628,18 +638,6 @@
               <span class="game-gallery-label"></span>
             </a>
           </div>
-          <!-- The current app’s first gallery shot, standing where the GALLERY
-               button stood. It opens the SAME overlay through the same
-               gallery:open event — one screenshot viewer on the page, not two —
-               and it is honest the same way the button’s count was: the shots
-               are cloned from the .gal-item set by initAppInfo, so an app with
-               no shots gets no thumbnail and the space collapses ([hidden]).
-               The hidden label span is where the gallery’s paintOpenBtn writes
-               its count — it keeps the aria-label honest without painting text
-               over the picture. -->
-          <button class="app-art" id="appArt" type="button" hidden>
-            <span class="game-gallery-label" hidden></span>
-          </button>
         </div>
 
         <!-- The wallpaper thumbnails, in the same dead half-column .app-info
@@ -674,19 +672,19 @@
                  card is generated from the one-line directive by
                  tools/bake_markup.py; never typed. -->
             <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The
-                 href is the LISTING, not the demo, because it is also the phone
-                 path — initAppModal declines below 768px and the browser follows
-                 it, and a mock VS Code window is not something to hand a phone.
-                 On desktop the click opens the demo in the overlay instead, in
-                 the window shape rather than the phone one, and data-desc-link
-                 keeps the listing one click away in the description panel. -->
-            <a class="ai-card" href="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock" target="_blank" rel="noreferrer"
+                 title link is the LISTING, not the demo — it is also the phone
+                 path, and a mock VS Code window is not something to hand a
+                 phone. The eyeball opens the demo in the app overlay (window
+                 shape) on desktop; initAppModal declines below 768px and CSS
+                 hides the eyeball there. data-desc-link keeps the listing one
+                 click away in the description panel. -->
+            <article class="ai-card"
                data-app-modal="/themedock/" data-app-title="ThemeDock" data-app-shape="window"
-               data-gallery="themedock" data-kind="EXTENSION" data-stack="VS CODE"
+               data-gallery="themedock" data-kind="VS Code Extension" data-stack="VS CODE"
                data-desc-lead="Tell your VS Code windows apart at a glance."
-               data-desc-body="Open a dozen windows and they all look identical. ThemeDock puts a swatch grid in the sidebar: click a colour and that window takes it, stored with the folder so it comes back every time. Ten themes bundled, a custom mixer, and no command palette. Published on the VS Code Marketplace."
+               data-desc-body="Colour each VS Code window from a swatch grid, so a dozen open projects stop looking identical."
                data-desc-link="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock"
-               data-desc-link-label="MARKETPLACE"><small>EXTENSION</small><strong>ThemeDock</strong><span>VS Code extension<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+               data-desc-link-label="MARKETPLACE"><small>EXTENSION</small><a class="ai-card-link" href="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock" target="_blank" rel="noopener noreferrer"><strong>ThemeDock</strong><span>VS Code extension<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
               <!-- img src="assets/icons/apps/themedock.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
                 <source type="image/avif" srcset="assets/derived/icons/apps/themedock-420.avif?v=5f709369 420w,
@@ -699,10 +697,15 @@
                         sizes="(max-width:700px) 64px, 84px">
                 <img class="ai-card-icon" src="assets/icons/apps/themedock.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
-              <!-- /img --></a>
-            <a class="ai-card" id="splitmobCard" href="/splitmob/" data-app-modal="/splitmob/" data-app-title="Splitmob" data-gallery="splitmob" data-kind="WEB APP" data-stack="REACT"
+              <!-- /img -->
+              <button class="ai-card-eye" type="button" data-tip="Preview on this page"
+                      aria-label="Preview ThemeDock on this page">
+                <span class="icon" data-icon="preview" aria-hidden="true"></span>
+              </button>
+            </article>
+            <article class="ai-card" id="splitmobCard" data-app-modal="/splitmob/" data-app-title="Splitmob" data-gallery="splitmob" data-kind="WEB APP" data-stack="REACT"
                data-desc-lead="Swipe-to-vote polls, one question at a time."
-               data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides in. Built in React with a hand-rolled colour model, and embedded here in its own frame so it runs on the page rather than only screenshotting well."><small>WEB APP</small><strong>Splitmob</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+               data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides straight in."><small>WEB APP</small><a class="ai-card-link" href="/splitmob/" target="_blank" rel="noopener noreferrer"><strong>Splitmob</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
               <!-- img src="assets/icons/apps/uvote.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
                 <source type="image/avif" srcset="assets/derived/icons/apps/uvote-420.avif?v=396f9bcb 420w,
@@ -715,10 +718,15 @@
                         sizes="(max-width:700px) 64px, 84px">
                 <img class="ai-card-icon" src="assets/icons/apps/uvote.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
-              <!-- /img --></a>
-            <a class="ai-card" href="https://dexnote.dev" target="_blank" rel="noreferrer" data-gallery="dexnote" data-kind="WEB APP" data-stack="PLATFORM"
+              <!-- /img -->
+              <button class="ai-card-eye" type="button" data-tip="Preview on this page"
+                      aria-label="Preview Splitmob on this page">
+                <span class="icon" data-icon="preview" aria-hidden="true"></span>
+              </button>
+            </article>
+            <article class="ai-card" data-gallery="dexnote" data-kind="WEB APP" data-stack="PLATFORM"
                data-desc-lead="AI-assisted notes, built as a working product rather than a demo."
-               data-desc-body="Notes that summarise, link and resurface themselves. It is the largest of these by some distance and the one that has had real users, which is what shaped it: sync, accounts and the boring parts came before anything clever."><small>WEB APP</small><strong>DexNote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+               data-desc-body="Notes that summarise, link and resurface themselves. The largest of these, and the one with users."><small>WEB APP</small><a class="ai-card-link" href="https://dexnote.dev" target="_blank" rel="noopener noreferrer"><strong>dexnote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
               <!-- img src="assets/icons/apps/dexnote.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
                 <source type="image/avif" srcset="assets/derived/icons/apps/dexnote-420.avif?v=3f4f19ca 420w,
@@ -731,10 +739,11 @@
                         sizes="(max-width:700px) 64px, 84px">
                 <img class="ai-card-icon" src="assets/icons/apps/dexnote.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
-              <!-- /img --></a>
-            <a class="ai-card" href="https://nodeblast.dev" target="_blank" rel="noreferrer" data-gallery="nodeblast" data-kind="WEB APP" data-stack="PLATFORM"
+              <!-- /img -->
+            </article>
+            <article class="ai-card" data-gallery="nodeblast" data-kind="WEB APP" data-stack="PLATFORM"
                data-desc-lead="A creator and gaming platform, front to back."
-               data-desc-body="Profiles, uploads, feeds and the moderation nobody puts in a portfolio shot. Built to find out how much of a social platform one person can actually carry, which turned out to be most of it and none of the fun parts."><small>WEB APP</small><strong>NodeBlast.dev</strong><span>Creator / gaming platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+               data-desc-body="Profiles, uploads, feeds, and all the moderation nobody ever puts in a portfolio screenshot."><small>WEB APP</small><a class="ai-card-link" href="https://nodeblast.dev" target="_blank" rel="noopener noreferrer"><strong>NodeBlast.dev</strong><span>Creator / gaming platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
               <!-- img src="assets/icons/apps/nodeblast.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
                 <source type="image/avif" srcset="assets/derived/icons/apps/nodeblast-420.avif?v=82bb5206 420w,
@@ -747,10 +756,11 @@
                         sizes="(max-width:700px) 64px, 84px">
                 <img class="ai-card-icon" src="assets/icons/apps/nodeblast.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
-              <!-- /img --></a>
-            <a class="ai-card" href="https://dexddc.com" target="_blank" rel="noreferrer" data-gallery="dexddc" data-kind="WEB APP" data-stack="SITE"
+              <!-- /img -->
+            </article>
+            <article class="ai-card" data-gallery="dexddc" data-kind="WEB APP" data-stack="SITE"
                data-desc-lead="The portfolio this one replaced."
-               data-desc-body="Kept live on purpose. It is a fair record of where the work was a couple of years ago, and the comparison is more useful to anyone reading than a claim about improvement would be."><small>WEB APP</small><strong>dexddc.com</strong><span>Original portfolio site<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
+               data-desc-body="The portfolio this one replaced, kept live as an honest record of where the work stood before."><small>WEB APP</small><a class="ai-card-link" href="https://dexddc.com" target="_blank" rel="noopener noreferrer"><strong>dexddc.com</strong><span>Original portfolio site<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
               <!-- img src="assets/icons/apps/dexddc.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
                 <source type="image/avif" srcset="assets/derived/icons/apps/dexddc-420.avif?v=8b326cb0 420w,
@@ -763,7 +773,8 @@
                         sizes="(max-width:700px) 64px, 84px">
                 <img class="ai-card-icon" src="assets/icons/apps/dexddc.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
-              <!-- /img --></a>
+              <!-- /img -->
+            </article>
           </div>
         </div>
 
@@ -2591,6 +2602,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=155"></script>
+  <script src="script.js?v=156"></script>
 </body>
 </html>

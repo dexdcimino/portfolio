@@ -1461,16 +1461,18 @@ button.button{cursor:pointer;font-family:inherit}
 .app-desc-link{text-decoration:none}
 .app-desc-link[hidden]{display:none}
 
-/* The current app's first screenshot, where the GALLERY button stood. The
-   games preview's frame — same box, same aspect, same radius, same border
-   language — minus the drop shadow and the play glyph: two shadowed frames in
-   neighbouring sections read as two equal picture components, and this one is
-   the quiet echo of that one. Its own class rather than .game-art, so an edit
-   meant for either section cannot restyle the other. Unlike .game-art it is
-   never an empty box: initAppInfo [hidden]s it whole when the app has no
-   shots, so the space collapses instead of promising pictures. */
+/* The current app's first screenshot, leading the AI LAB column the way
+   #gameArt leads the games column — same box, same aspect, same radius, same
+   border language — minus the drop shadow and the play glyph: two shadowed
+   frames in neighbouring sections read as two equal picture components, and
+   this one is the quiet echo of that one. Its own class rather than
+   .game-art, so an edit meant for either section cannot restyle the other.
+   Unlike .game-art it is never an empty box: initAppInfo [hidden]s it whole
+   when the app has no shots, so the space collapses instead of promising
+   pictures. margin-top matches .game-art so the two frames sit at the same
+   depth under their headings. */
 .app-art{
-  display:block; margin-top:22px; width:100%; max-width:520px; aspect-ratio:16/9;
+  display:block; margin-top:34px; width:100%; max-width:520px; aspect-ratio:16/9;
   position:relative; border-radius:var(--radius-cover); overflow:hidden;
   padding:0; cursor:pointer;
   border:var(--stroke) solid rgba(255,255,255,.1);
@@ -1512,12 +1514,19 @@ button.button{cursor:pointer;font-family:inherit}
   border:var(--stroke) solid color-mix(in srgb,var(--accent) 40%,transparent);
   color:var(--accent);font-size:10px;font-weight:800;letter-spacing:.1em;
 }
-.ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
+/* A container with three targets, not a link: the title <a> goes out, the
+   eyeball <button> opens the preview overlay, and the blank space selects
+   the card (initAppInfo). cursor:pointer on the plate is the selection
+   affordance; focus-within lifts the card so keyboard focus on either inner
+   control reads exactly like hover. */
+.ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
 .ai-card:before{content:"";position:absolute;right:-18%;top:-44%;width:70%;aspect-ratio:1;background:var(--accent);filter:blur(70px);opacity:.08;transition:background-color var(--accent-ease)}
-.ai-card:hover{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
+.ai-card:hover,.ai-card:focus-within{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
 .ai-card small{color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
-.ai-card strong{font-size:25px;margin:8px 0}
-.ai-card>span{color:#9da5ab;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+.ai-card strong{font-size:25px;margin:8px 0;display:block}
+.ai-card-link{display:block;color:inherit;text-decoration:none}
+.ai-card-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+.ai-card-link>span{color:#9da5ab;font-size:12px;display:inline-flex;align-items:center;gap:6px}
 .inline-arrow{width:13px;height:13px}
 /* AI Lab app icon — square badge, top right, half the card's height.
    Percentage height on an absolutely positioned child resolves against the
@@ -1537,10 +1546,30 @@ button.button{cursor:pointer;font-family:inherit}
   transition:border-color var(--accent-ease),opacity .25s ease;
   opacity:.92;
 }
-.ai-card:hover .ai-card-iconwrap{opacity:1;border-color:var(--accent)}
+.ai-card:hover .ai-card-iconwrap,.ai-card:focus-within .ai-card-iconwrap{opacity:1;border-color:var(--accent)}
 .ai-card-icon{width:100%;height:100%;object-fit:cover;display:block}
 /* Long titles must not run under the badge. */
-.ai-card small,.ai-card strong,.ai-card>span{position:relative;z-index:2}
+.ai-card small,.ai-card .ai-card-link{position:relative;z-index:2}
+/* The eyeball — the on-site preview, sitting under the app's icon. Only
+   authored on cards that have a preview (data-app-modal), so there is no
+   disabled state to design. Quiet chip at rest, accent-filled on hover, the
+   same shape language as the icon badge above it. */
+.ai-card-eye{
+  position:absolute;right:20px;top:calc(50% + 30px);z-index:2;
+  width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  padding:0;cursor:pointer;color:#c3cad0;
+  background:rgba(8,11,15,.55);
+  border:1px solid rgba(255,255,255,.18);
+  transition:background var(--accent-ease),color var(--accent-ease),
+             border-color var(--accent-ease);
+}
+.ai-card-eye .icon{width:20px;height:20px}
+.ai-card-eye:hover{background:var(--accent);color:var(--accent-ink,#0b0d12);border-color:var(--accent)}
+.ai-card-eye:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+/* Below the overlay's own breakpoint initAppModal declines — a mock desktop
+   window is not something to hand a phone — so the control goes away rather
+   than turning into a redirect that duplicates the title link. */
+@media (max-width:767px){.ai-card-eye{display:none}}
 .ai-card strong{padding-right:6px}
 /* WIP treatment, matching the games section's .is-wip pill. */
 .ai-card.is-wip small{
@@ -1550,7 +1579,7 @@ button.button{cursor:pointer;font-family:inherit}
   font-size:10.5px;letter-spacing:.16em;
 }
 @media (max-width:700px){.ai-card-iconwrap{top:16px;right:16px}}
-.ai-card:hover .inline-arrow{transform:translate(2px,-2px)}
+.ai-card:hover .inline-arrow,.ai-card:focus-within .inline-arrow{transform:translate(2px,-2px)}
 
 /* ==========================================================================
    COLLAB — shared-build project cards, plus the contributor panel in the

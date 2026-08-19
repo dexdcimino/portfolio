@@ -29,11 +29,15 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   SVGs; everything after it renders `{title, desc, src, w, h}` and is
   data-shape-agnostic; hero is a fixed 3:2 box on purpose), one `initTabs()`
   behind four tablists, wallpapers carousel/lightbox (self-builds from
-  `.wp-item` figures), `initAppInfo()` (the AI Lab description panel follows
-  hover/focus off the cards' `data-*`; the current app's first gallery shot —
-  cloned from the `.gal-item` set, never borrowed — stands where the GALLERY
-  button stood and opens the shared viewer via `gallery:open`; an app with no
-  shots gets no thumbnail), `initCollabInfo()` (fills the Collab panel and builds
+  `.wp-item` figures), `initAppInfo()`/`initAppModal()` (an `.ai-card` is a
+  non-interactive container with three targets: the title `<a>` opens the
+  site in a new tab, the eyeball `<button>` — authored only on cards with
+  `data-app-modal` — opens the app overlay, and a click anywhere else selects
+  the card; hover, focus and click all drive the hero thumbnail under the AI
+  LAB intro — the shown app's first `.gal-item` shot, cloned never borrowed,
+  which opens the shared viewer via `gallery:open`; no shots, no thumbnail,
+  and the eyeball hides below 768px where the overlay declines),
+  `initCollabInfo()` (fills the Collab panel and builds
   each card's brain row + invite link from the card's own `data-people` /
   `data-invite`; adding a project is one card, no JS edit), vault, clips,
   prompts, song player, resume overlay, Web3Forms contact (public access key

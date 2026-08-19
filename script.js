@@ -3246,6 +3246,10 @@ function renderMarkdown(src) {
      the wallpaper thumbnails. */
   const art = document.getElementById('appArt');
   const shots = new Map();
+  /* Which shot the panel currently holds — needed because the frame now has
+     TWO reasons to be hidden (no shots for this app; the Apps panel itself is
+     hidden) and each check must not clobber the other. */
+  let artShot = null;
   if (art) {
     const SIZES = '(max-width:1100px) 520px, min(520px, 26vw)';
     for (const card of cards) {
@@ -3295,7 +3299,8 @@ function renderMarkdown(src) {
       const key = card.dataset.gallery || null;
       const shot = key ? shots.get(key) : null;
       for (const s of shots.values()) s.hidden = s !== shot;
-      art.hidden = !shot;
+      artShot = shot;
+      art.hidden = panel.hidden || !shot;
       // The accessible name comes from the gallery's own count, same as the
       // button's did — paintOpenBtn writes it onto the hidden label span.
       if (shot) {
@@ -3308,7 +3313,16 @@ function renderMarkdown(src) {
 
   for (const card of cards) {
     card.addEventListener('pointerenter', () => show(card));
-    card.addEventListener('focus', () => show(card));
+    /* focusin, not focus: the card is a container now and never takes focus
+       itself — focus lands on the title link or the eyeball inside it, and
+       focusin is the version that bubbles. Tabbing drives the thumbnail
+       exactly as hovering does, with no third tab stop spent on selection. */
+    card.addEventListener('focusin', () => show(card));
+    /* The blank space selects. Lowest-stakes action of the three targets, and
+       the only way to browse this section on touch, where hover never fires.
+       The title link and the eyeball keep their own jobs and select as a side
+       effect — it is the same card either way, so nothing is preventDefaulted. */
+    card.addEventListener('click', () => show(card));
   }
   art?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('gallery:open', {
@@ -3351,7 +3365,12 @@ function renderMarkdown(src) {
      than to a click on the tab: initTabs owns that attribute, and watching the
      thing itself cannot fall out of step with however the panel comes to be
      shown (a click, a keyboard arrow, or anything added later). */
-  const syncVisible = () => { info.hidden = panel.hidden; };
+  const syncVisible = () => {
+    info.hidden = panel.hidden;
+    // The hero thumbnail sits outside .app-info now, so it needs the same
+    // panel sync — combined with its own no-shots collapse.
+    if (art) art.hidden = panel.hidden || !artShot;
+  };
   new MutationObserver(syncVisible).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
   syncVisible();
 
@@ -3492,32 +3511,31 @@ function renderMarkdown(src) {
 /* --- AI Lab app overlay --------------------------------------------------- */
 /* Phone-shaped iframe on desktop; a plain navigation on phones.
 
-   The card is a real <a href="/splitmob/"> and stays one. Everything here is an
-   enhancement layered on top: no JS, no modal, and the link still works —
-   which is also the whole mobile path, since below the breakpoint this handler
-   declines to preventDefault and the browser just follows the href.
+   The trigger is the card's eyeball button — authored only on cards that
+   carry data-app-modal, so an app with no on-site preview has no dead
+   control. The card itself is a plain container now (its three targets are
+   split: title link out, eyeball to this overlay, blank space selects), so
+   there is no href here to fall through to.
 
    768px matches the spec in the app's brief, and is read at CLICK time, not at
    load: a desktop window dragged narrow (or a tablet rotated) then behaves like
-   what it currently is, rather than what it was when the page loaded. */
+   what it currently is, rather than what it was when the page loaded. Below
+   the breakpoint CSS hides the eyeball outright; if a resize strands a
+   visible one, the click degrades to the title link's destination rather
+   than a dead button. */
 (function initAppModal() {
   const dialog = document.getElementById('appModal');
   const frame = document.getElementById('appFrame');
-  const cards = document.querySelectorAll('[data-app-modal]');
+  const cards = document.querySelectorAll('.ai-card[data-app-modal]');
   if (!dialog || !frame || !cards.length) return;
 
   const wantsModal = () => window.matchMedia('(min-width: 768px)').matches;
 
   cards.forEach(card => {
-    card.addEventListener('click', event => {
-      // Let the browser handle anything that is not a plain left click:
-      // middle-click, ctrl/cmd-click and shift-click all mean "open it
-      // somewhere else", and hijacking those is the fastest way to make a card
-      // feel broken.
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey
-          || event.ctrlKey || event.shiftKey || event.altKey) return;
-      if (!wantsModal()) return;            // phones: fall through to the href
-      event.preventDefault();
+    const eye = card.querySelector('.ai-card-eye');
+    if (!eye) return;
+    eye.addEventListener('click', () => {
+      if (!wantsModal()) { card.querySelector('.ai-card-link')?.click(); return; }
 
       const url = card.dataset.appModal;
       const title = card.dataset.appTitle || 'App';
@@ -3540,7 +3558,7 @@ function renderMarkdown(src) {
       // Set src on open, not in the markup: otherwise every visitor downloads
       // the whole bundle whether or not they ever click the card.
       if (frame.getAttribute('src') !== embedUrl) frame.setAttribute('src', embedUrl);
-      openModal(dialog, dialog.querySelector('.app-shell'), null, card);
+      openModal(dialog, dialog.querySelector('.app-shell'), null, eye);
     });
   });
 
