@@ -1851,6 +1851,19 @@ async function saveFile(btn) {
     view.thumbs = [...view.track.children];
   });
 
+  /* The grid form is three across, so a set that is not a multiple of three
+     leaves its last row short and the block stops looking like a block. These
+     finish it. Appended AFTER view.thumbs is taken, so they are scenery rather
+     than thumbnails — nothing selects them, paints them or counts them. */
+  views.filter(v => v.strip.classList.contains('wp-thumbs-grid')).forEach((view) => {
+    for (let n = (3 - items.length % 3) % 3; n > 0; n--) {
+      const cell = document.createElement('div');
+      cell.className = 'wp-thumb is-empty';
+      cell.setAttribute('aria-hidden', 'true');
+      view.track.appendChild(cell);
+    }
+  });
+
   /* A page of thumbnails is five at most, fewer when five would not be legible
      at the width available. Past that the set does not wrap — the track slides
      the next page in, and the page follows whatever is selected, so walking the
@@ -1864,6 +1877,11 @@ async function saveFile(btn) {
   const THUMB_MIN = 70;                    // below this a thumbnail stops reading
   function layoutStrip(view) {
     const strip = view.strip, track = view.track;
+    /* None of this is the grid's. --per-page, the measured pixel shift and the
+       centring all describe one sliding row; the grid is three across and as
+       many rows as it takes, and has no pages until there are enough pieces to
+       need them. */
+    if (strip.classList.contains('wp-thumbs-grid')) return;
     const kids = track.children.length;
     if (!kids) return;
     const width = strip.clientWidth;
@@ -1981,6 +1999,24 @@ async function saveFile(btn) {
     event.preventDefault();
     select(index + (event.key === 'ArrowRight' ? 1 : -1));
   });
+
+  /* The panel's strip no longer lives in the panel — it sits in the statement
+     column, which is outside every tab panel and therefore on screen whatever
+     tab is open. That is the trap .app-info already fell into, so this is the
+     same fix: watch the Wallpapers panel's own `hidden` attribute rather than a
+     click on its tab, because initTabs owns that attribute and an observer on
+     the thing itself cannot fall out of step with however the panel comes to be
+     shown. Strips inside the panel or inside the overlay are left alone — they
+     are already hidden with whatever contains them. */
+  const imagesPanel = document.getElementById('ai-panel-images');
+  const detached = views.map(v => v.strip)
+    .filter(strip => imagesPanel && strip.closest('#ai') && !imagesPanel.contains(strip));
+  if (detached.length) {
+    const syncStrips = () => detached.forEach(strip => { strip.hidden = imagesPanel.hidden; });
+    new MutationObserver(syncStrips)
+      .observe(imagesPanel, { attributes: true, attributeFilter: ['hidden'] });
+    syncStrips();
+  }
 
   select(0);
 })();

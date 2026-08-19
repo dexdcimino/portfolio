@@ -2442,7 +2442,8 @@ body.modal-open{overflow:hidden}
 @media(prefers-reduced-motion:reduce){ #tip{transition:none} }
 
 /* ==========================================================================
-   AI WALLPAPERS — one piece at a time, thumbnails centred under it.
+   AI WALLPAPERS — one piece at a time, with the thumbnails in the statement
+   column beside it (see .wp-thumbs-grid) and centred under it in the overlay.
 
    Everything that describes the piece sits ON the art: title and resolution
    top-left, download bottom-right. That is deliberate — a wallpaper is the
@@ -2453,8 +2454,6 @@ body.modal-open{overflow:hidden}
    The stage is a FIXED 16:10 box matching the 2560x1600 masters, so the strip
    below never moves between pieces.
    ========================================================================== */
-/* 20px, not 14: the thumbnails lift on hover and at 14 they read as sliding
-   under the hero. */
 .wp{display:grid;gap:20px}
 .wp-stage{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
 .wp-frame{
@@ -2551,7 +2550,8 @@ body.modal-open{overflow:hidden}
 .wp-prev .icon,.wp-fullprev .icon,.cl-prev .icon{transform:rotate(90deg)}
 .wp-next .icon,.wp-fullnext .icon,.cl-next .icon{transform:rotate(-90deg)}
 
-/* Centred under the hero, in both places it appears. */
+/* The overlay's strip, centred under the piece. The panel's is the grid below
+   and shares everything here except the container. */
 /* ONE ROW, always. The strip is a window; the thumbnails sit on a track inside
    it and the next five slide in rather than wrapping underneath. A second row
    of small thumbnails under the first is the thing this is built to avoid.
@@ -2594,6 +2594,47 @@ body.modal-open{overflow:hidden}
 .wp-thumb:hover{opacity:.85;transform:translateY(-4px)}
 .wp-thumb[aria-selected="true"]{opacity:1;border-color:var(--accent)}
 .wp-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* The PANEL strip is not a strip. It lives in the statement column under the
+   AI LAB copy — three across, two rows deep at five pieces — while the overlay
+   keeps the sliding row above, which is the right shape there because the
+   overlay has the full width and nothing else to put in it.
+
+   Same classes, same buttons, same script: only the container changes. The
+   track keeps existing (display:contents) rather than being deleted, because
+   it is the paging mechanism — when there are more pieces than a page holds,
+   the next page slides in by moving the track, and that hook has to survive
+   the layout change to still be there.
+
+   Width is capped at .app-info's measure so the block and the app copy that
+   alternates with it in this column line up on the same right edge. */
+.wp-thumbs-grid{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;
+  overflow:visible;margin-top:30px;width:min(100%, 560px);
+}
+/* The statement column is ~335px at 1440 and the section gap beside it is 115px
+   of nothing, so a third of the column would make these SMALLER than the strip
+   they replaced. The block borrows part of that gap instead. The overhang is
+   capped well under the gap at every width it applies to (5vw against 8vw, 84px
+   against 130px), so it can never reach the hero.
+   Above the breakpoint only: below it the section is a single column, there is
+   no gap to borrow, and a block wider than 100% would push the page sideways. */
+@media (min-width:1101px){
+  .wp-thumbs-grid{width:min(100% + clamp(0px,5vw,84px), 560px)}
+}
+.wp-thumbs-grid[hidden]{display:none}
+.wp-thumbs-grid .wp-track{display:contents}
+/* The flex basis and the 132px cap are the sliding row's sizing; in the grid a
+   cell is a third of the column and the thumbnail is whatever that is. */
+.wp-thumbs-grid .wp-thumb{flex:none;max-width:none;border-radius:10px}
+/* The unfilled cells. Outlined and empty rather than absent, so the block
+   holds its rectangle and reads as "three more go here" instead of as a row
+   that stopped short. Not a button and not in the tab order. */
+.wp-thumbs-grid .wp-thumb.is-empty{
+  opacity:1;background:rgba(255,255,255,.015);
+  border-style:dashed;border-color:rgba(255,255,255,.09);
+  cursor:default;pointer-events:none;
+}
 @media (max-width:700px){
   .wp-thumbs{--thumb-max:96px}
   .wp-dl{width:44px;height:44px;border-radius:12px;right:10px;bottom:10px}

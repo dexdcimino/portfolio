@@ -534,7 +534,7 @@
         <a class="stack-row" href="/surveyor" data-game="surveyor" data-art="surveyor-art"
            data-genre="EXPLORATION" data-dim="3D" data-players="SOLO"
            data-desc-lead="One transforming craft surveys an uncharted system by land, sea, and air."
-           data-desc-body="Drive over dunes, skim across oceans, then climb until speed doubles with altitude and the next of six worlds is thirty seconds away. Drop colonizers to claim geysers, cluster them so they pay more, and hold what you built against raiders drawn to exactly the density that makes it worth holding. Built in Babylon.js, with an x-ray survey overlay for everything sitting past the curve of the planet."><span>04</span><strong>SURVEYOR</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
+           data-desc-body="Drive over dunes, skim oceans, then climb until altitude doubles your speed and the next of six worlds is thirty seconds out. Claim geysers with colonizers and hold them against raiders. Built in Babylon.js with an x-ray survey overlay."><span>04</span><strong>SURVEYOR</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play"></span></span></a>
         <div class="game-desc" id="gameDesc">
           <strong class="game-desc-lead"></strong>
           <p class="game-desc-body"></p>
@@ -600,6 +600,18 @@
             </button>
           </div>
         </div>
+
+        <!-- The wallpaper thumbnails, in the same dead half-column .app-info
+             uses and for the same reason: this column is empty on every tab
+             but Apps, and under the hero the strip was a thin line fighting
+             the art for the eye. Three across, so five pieces read as a block
+             rather than a row, and each thumbnail gets a third of a column
+             instead of a fifth of one.
+             It sits OUTSIDE the tab panels, so script.js hides it with the
+             Wallpapers panel exactly as .app-info is hidden with Apps. The
+             cells that finish the last row are added there too — the count is
+             not typed anywhere. -->
+        <div class="wp-thumbs wp-thumbs-grid" id="wpThumbs" role="tablist" aria-label="Wallpapers" hidden></div>
       </div>
       <div class="ai-wrap reveal">
         <!-- Fourth tablist on the site; wired through the same initTabs() as the
@@ -743,8 +755,6 @@
               </div>
               <button class="wp-arrow wp-next" type="button" aria-label="Next wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
             </div>
-
-            <div class="wp-thumbs" id="wpThumbs" role="tablist" aria-label="Wallpapers"></div>
 
             <!-- The source set. Hidden; script.js moves these into the frame.
                  Real art first, placeholders after — the tab opens on whatever
