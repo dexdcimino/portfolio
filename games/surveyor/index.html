@@ -16,32 +16,57 @@
 <div id="xray" aria-hidden="true"></div>
 <div id="flash" aria-hidden="true"></div>
 
+<!-- THE INSTRUMENT PANEL.
+     Triaged before it was restyled, because restyling a cluttered HUD only
+     gives you a prettier cluttered one. Every element here is one of three
+     things and is marked as such:
+
+     PERMANENT  heading, form, speed, cell charge, hyper. Five readings, and
+                each one answers a question you are asking continuously.
+     CONTEXTUAL survey log, scan, flooding, beam, altitude. Marked `cue`:
+                hud.js gives each a trigger and a HOLD, and the fade is slow
+                on the way out — see the .cue rules. Something that vanishes
+                the instant its trigger clears reads as a flicker, which is
+                worse than leaving it up.
+     MOVED      planet pips, per-world vents, hyper rate and threat are gone
+                from here entirely. The survey overlay already draws all four
+                as a table, one row per world, and a number you cannot act on
+                without opening the map belongs on the map. -->
 <div id="hud" aria-hidden="true">
 
-  <div id="log" class="panel">
+  <!-- PERMANENT · heading. -->
+  <div id="tape" class="panel">
+    <canvas id="compass"></canvas>
+    <div id="range" class="cue">&#8212; M</div>
+  </div>
+
+  <!-- CONTEXTUAL · the survey log. Up when a figure moves, then out slowly. -->
+  <div id="log" class="panel cue">
     <div class="label">Survey log</div>
     <div class="row"><span>Sectors</span><span id="sectors">000</span></div>
     <div class="row"><span>Beacons</span><span id="beacons">00</span></div>
     <div class="row"><span>Colonies</span><span id="colonies">00 / 00</span></div>
-    <div class="row"><span>Geysers</span><span id="geysers">00 / 00</span></div>
-    <div class="row"><span>Hyper / min</span><span id="hyperRate">0.0</span></div>
-    <div class="row"><span>Threat</span><span id="threat">00</span></div>
-    <div id="pips" aria-label="Worlds colonised"></div>
-    <div class="row"><span id="coord">+00000  +00000</span></div>
+    <div class="row wide"><span id="coord">+00000  +00000</span></div>
   </div>
 
-  <div id="tape" class="panel">
-    <canvas id="compass"></canvas>
-    <div id="range">— M</div>
-  </div>
-
-  <div id="scan" class="panel">
+  <!-- CONTEXTUAL · the three that stack under the tape. -->
+  <div id="scan" class="panel cue">
     <div class="label">Scanning beacon</div>
     <div id="scanTrack"><div id="scanFill"></div></div>
   </div>
 
+  <div id="flood" class="panel cue">
+    <div class="label">Hull flooding</div>
+    <div id="floodTrack"><div id="floodFill"></div></div>
+  </div>
+
+  <div id="beamRow" class="panel cue">
+    <div class="label">Scanner beam</div>
+    <div id="beamState">HOLD E</div>
+  </div>
+
   <div id="survey" class="panel">
-    <div class="label">Survey overlay · system</div>
+    <div class="label">Survey overlay &#183; system</div>
     <div id="systemHead" class="srow head">
       <span class="sname">World</span><span class="sprog">Vents</span>
       <span class="srate">Hyp/min</span><span class="sthreat">Threat</span>
@@ -49,53 +74,82 @@
     </div>
     <div id="systemRows"></div>
     <div id="surveySel">
-      <span id="selName">—</span>
+      <span id="selName">&#8212;</span>
       <span id="selRange"></span>
       <span id="selNote"></span>
     </div>
-  </div>
-
-  <div id="beamRow" class="panel">
-    <div class="label">Scanner beam</div>
-    <div id="beamState">HOLD E</div>
-  </div>
-
-  <div id="flood" class="panel">
-    <div class="label">Hull flooding</div>
-    <div id="floodTrack"><div id="floodFill"></div></div>
+    <!-- TEMPORARY TESTING SCAFFOLDING, and now it lives where it belongs.
+         The buttons are built by hud.js from the planet table and the whole
+         panel is removed from the DOM when DEBUG.warp is off. It sits INSIDE
+         the overlay so it costs no permanent screen space and shows with the
+         system view it belongs to — the one place in the game where you
+         choose a world. Nesting is the whole mechanism: #survey fades it in
+         and out, so no second show/hide path exists to keep in step. -->
+    <div id="warp" hidden>
+      <div class="label">Dev warp</div>
+      <div id="warpRow"></div>
+    </div>
   </div>
 
   <button id="sound" type="button" aria-pressed="false">SOUND OFF</button>
 
-  <!-- TEMPORARY TESTING SCAFFOLDING. The buttons are built by hud.js from the
-       planet table, and the whole panel is removed from the DOM when
-       DEBUG.warp is off — see tune.js. -->
-  <div id="warp" class="panel" hidden>
-    <div class="label">Dev warp</div>
-    <div id="warpRow"></div>
-  </div>
-
+  <!-- PERMANENT · which form you are in, and whether the jet will take you.
+       Icons are line work at one weight, drawn to the same chart language as
+       the compass ticks: no fills, no icon font, no request. -->
   <div id="forms">
-    <div class="chip on" id="chipRover"><div class="key">1</div><div class="name">ROVER</div></div>
-    <div class="chip" id="chipBoat"><div class="key">2</div><div class="name">BOAT</div></div>
-    <div class="chip" id="chipJet"><div class="key">3</div><div class="name">JET</div></div>
+    <div class="chip on" id="chipRover">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4.5 13.5h15l-2.2-4.8a2 2 0 0 0-1.8-1.2H8.5a2 2 0 0 0-1.8 1.2z"/>
+        <circle cx="8" cy="16.5" r="2.6"/><circle cx="16" cy="16.5" r="2.6"/>
+      </svg>
+      <div class="key">1</div><div class="name">Rover</div>
+    </div>
+    <div class="chip" id="chipBoat">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 13.5h16l-2.4 4.2a2 2 0 0 1-1.7 1H8.1a2 2 0 0 1-1.7-1z"/>
+        <path d="M12 4v9"/><path d="M12 5.6l4.6 2.6L12 10.8"/>
+      </svg>
+      <div class="key">2</div><div class="name">Boat</div>
+    </div>
+    <div class="chip" id="chipJet">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3.5 19 17H5z"/><path d="M9.2 17h5.6"/><path d="M12 17v3"/>
+      </svg>
+      <div class="key">3</div><div class="name">Jet</div>
+    </div>
   </div>
 
-  <div id="gauges">
+  <!-- PERMANENT · speed, and the two things that run out. -->
+  <div id="gauges" class="panel">
     <div id="speedRow">
       <div id="speed">000</div>
       <div id="speedUnit">KM/H</div>
     </div>
-    <div id="altRow">ALT <span id="alt">0</span> M</div>
-    <div id="fuelBar"></div>
-    <div id="fuelRow">
-      <span class="label">Cell charge</span>
-      <span id="fuelNum">000</span>
+    <div id="altRow" class="cue">ALT <span id="alt">0</span> M</div>
+
+    <div class="gauge" id="cellGauge">
+      <div class="gaugeHead">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3.5" y="7.5" width="14" height="9" rx="1.5"/>
+          <path d="M20.5 10.5v3"/><path d="M7 12h7"/>
+        </svg>
+        <span class="label">Cell charge</span>
+        <span id="fuelNum">000</span>
+      </div>
+      <div id="fuelBar"></div>
     </div>
-    <div id="hyperBar"></div>
-    <div id="fuelRow">
-      <span class="label">Hyper</span>
-      <span id="hyperNum">000</span>
+
+    <div class="gauge" id="hyperGauge">
+      <div class="gaugeHead">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 3.2v3"/><path d="M12 17.8v3"/>
+          <path d="M3.2 12h3"/><path d="M17.8 12h3"/>
+        </svg>
+        <span class="label">Hyper</span>
+        <span id="hyperNum">000</span>
+      </div>
+      <div id="hyperBar"></div>
     </div>
   </div>
 

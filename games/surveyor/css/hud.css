@@ -9,7 +9,9 @@
   --edge: rgba(43, 224, 200, 0.26);
   --phos: #2be0c8;
   --bone: #f2f6e6;
-  --amber: #ffb13d;
+  /* --amber is gone: every warn state now shares one hue, declared with the
+     type scale below as --warn. Two warm colours that neither ranked against
+     each other nor differed from the world palette was the old problem. */
   --beacon: #ff5fa2;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
@@ -37,13 +39,35 @@ html, body {
   touch-action: none;
 }
 
+/* ---- the type scale ----
+   One place, so "bigger" is one decision rather than forty. The old HUD
+   assumed a focused player on a large monitor; these assume neither. The
+   FLOORS are what make it legible at the site's embed size rather than only
+   fullscreen, and the ceilings stop a 4K display turning it into signage.
+   vw rather than vmin: the panel is laid out across the width, so that is the
+   axis its type should track. */
+:root {
+  --t-label: clamp(10px, 0.80vw, 13px);
+  --t-row:   clamp(12px, 1.00vw, 16px);
+  --t-num:   clamp(15px, 1.30vw, 21px);
+  --t-speed: clamp(40px, 4.10vw, 70px);
+  --t-chip:  clamp(11px, 0.95vw, 15px);
+  /* WARNING — one hue, two intensities: caution holds, critical pulses.
+     Deliberately a colour the WORLD never uses. The palette's warm slots are
+     the emissive orange on a vent and the pink of a beacon, and both of those
+     are things out there to fly TOWARD. A warning that borrowed either would
+     be saying "go here" with the colour and "stop" with the words, so this
+     sits yellow — between them, and outside both. */
+  --warn: #ffc93c;
+}
+
 /* ---- shared panel treatment: hairline rules like a chart margin ---- */
 .panel {
   background: var(--panel);
   border: 1px solid var(--edge);
   backdrop-filter: blur(7px);
   -webkit-backdrop-filter: blur(7px);
-  padding: 9px 12px;
+  padding: clamp(9px, 0.85vw, 13px) clamp(12px, 1.05vw, 17px);
   position: relative;
 }
 .panel::before {
@@ -52,6 +76,30 @@ html, body {
   inset: 3px;
   border: 1px solid rgba(43, 224, 200, 0.10);
   pointer-events: none;
+}
+
+/* ---- CONTEXTUAL elements ----
+   A trigger, a HOLD, then a slow fade. The hold is hud.js's — see Cue there —
+   and this is only the fade. The asymmetry is the whole point: 170ms in, so
+   the cue arrives with the event that caused it, and 900ms out, so nothing on
+   this screen can flicker. A panel that leaves the instant its trigger clears
+   is more distracting than one that never moved, which is why the trigger and
+   the disappearance are deliberately not the same moment.
+   --cue-x carries any horizontal centring the element already needed, so the
+   two transforms do not fight. */
+.cue {
+  --cue-x: 0px;
+  opacity: 0;
+  transform: translate(var(--cue-x), -5px);
+  transition: opacity 900ms ease, transform 900ms ease;
+}
+.cue.on {
+  opacity: 1;
+  transform: translate(var(--cue-x), 0);
+  transition-duration: 170ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cue, .cue.on { transform: translate(var(--cue-x), 0); transition: opacity 200ms linear; }
 }
 
 #hud {
@@ -65,111 +113,120 @@ html, body {
 body.ready #hud { opacity: 1; }
 
 .label {
-  font-size: 9px;
-  letter-spacing: 0.22em;
+  font-size: var(--t-label);
+  letter-spacing: 0.20em;
   text-transform: uppercase;
-  color: rgba(242, 246, 230, 0.45);
+  color: rgba(242, 246, 230, 0.52);
   margin-bottom: 3px;
 }
 
-/* ---- top left: survey log ---- */
+/* ---- top left: the survey log — CONTEXTUAL ----
+   Three figures and a coordinate. What left: vents claimed, hyper per minute,
+   threat and the six planet pips, all four of which the survey overlay already
+   draws as a table with a row per world. Keeping a second copy on screen
+   permanently was the single biggest thing making this read as a spreadsheet.
+   What is left is only the progress of the world you are standing on, and it
+   is up when one of the numbers moves. */
 #log {
   position: absolute;
   top: 16px; left: 16px;
-  min-width: 168px;
+  min-width: clamp(178px, 15vw, 236px);
 }
 #log .row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 14px;
-  font-size: 13px;
-  line-height: 1.7;
+  gap: 16px;
+  font-size: var(--t-row);
+  line-height: 1.75;
 }
 #log .row span:last-child {
   color: var(--phos);
   font-weight: 700;
   letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+#log .row.wide {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--edge);
 }
 #coord {
-  font-size: 11px !important;
-  color: rgba(242, 246, 230, 0.6) !important;
+  font-size: var(--t-label) !important;
+  color: rgba(242, 246, 230, 0.62) !important;
   letter-spacing: 0.10em;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---- top centre: bearing tape ---- */
+/* ---- top centre: bearing tape — PERMANENT ---- */
+/* ON A PANEL, and that is the legibility constraint rather than a decoration.
+   The compass is phosphor line work and the speed is bone: against Home's
+   slate both read, and against Tarn's pale sky and bright water both vanished
+   outright — measured, not guessed, from the six-sky sheet. Every other
+   readout on this HUD already sat on the panel treatment; these two were the
+   only ones trusting the sky behind them to stay dark. */
 #tape {
   position: absolute;
   top: 14px; left: 50%;
   transform: translateX(-50%);
-  padding: 6px 10px 2px;
+  padding: 7px 12px 4px;
   text-align: center;
 }
 #compass { display: block; }
 #range {
-  font-size: 10px;
+  --cue-x: 0px;
+  font-size: var(--t-label);
+  font-weight: 700;
   letter-spacing: 0.18em;
   color: var(--beacon);
-  opacity: 0;
-  transition: opacity 250ms ease;
-  margin-top: 2px;
+  margin-top: 3px;
 }
-#range.on { opacity: 1; }
 
-/* ---- scan progress ---- */
-/* Sits under the bearing tape. #hud.flying is set while the tape carries the
-   artificial horizon, which makes it 30px taller. */
-#scan {
+/* ---- the stack under the tape — CONTEXTUAL ----
+   Scan and flooding are the same shape and opposite meanings, which is on
+   purpose: one fills toward something you want, the other toward something you
+   do not. #hud.flying is set while the tape carries the artificial horizon,
+   which makes it 30px taller and moves everything under it down. */
+#scan, #flood {
+  --cue-x: -50%;
   position: absolute;
-  top: 96px; left: 50%;
-  transform: translateX(-50%) translateY(-6px);
-  width: 260px;
-  padding: 7px 10px;
-  opacity: 0;
-  transition: opacity 200ms ease, transform 200ms ease, top 220ms ease;
+  left: 50%;
+  width: clamp(260px, 24vw, 360px);
+  transition: opacity 900ms ease, transform 900ms ease, top 220ms ease;
 }
-#hud.flying #scan { top: 126px; }
-#hud.flying #flood { top: 182px; }
-#scan.on { opacity: 1; transform: translateX(-50%) translateY(0); }
-#scanTrack {
-  height: 5px;
-  background: rgba(255, 95, 162, 0.16);
+#scan.on, #flood.on { transition-duration: 170ms, 170ms, 220ms; }
+#scan { top: 100px; }
+#flood { top: 164px; }
+#hud.flying #scan { top: 130px; }
+#hud.flying #flood { top: 194px; }
+#scanTrack, #floodTrack {
+  height: 7px;
   overflow: hidden;
 }
+#scanTrack { background: rgba(255, 95, 162, 0.16); }
 #scanFill {
   height: 100%;
   width: 0%;
   background: var(--beacon);
   transition: width 90ms linear;
 }
-
-/* ---- flooding: same shape as the scan bar, opposite meaning ---- */
-#flood {
-  position: absolute;
-  top: 152px; left: 50%;
-  transform: translateX(-50%) translateY(-6px);
-  width: 260px;
-  padding: 7px 10px;
-  opacity: 0;
-  transition: opacity 200ms ease, transform 200ms ease, top 220ms ease;
-  border-color: rgba(255, 177, 61, 0.4);
-}
-#flood.on { opacity: 1; transform: translateX(-50%) translateY(0); }
-#flood .label { color: var(--amber); }
-#floodTrack {
-  height: 5px;
-  background: rgba(255, 177, 61, 0.16);
-  overflow: hidden;
-}
+#flood { border-color: rgba(255, 201, 60, 0.42); }
+#flood .label { color: var(--warn); }
+#floodTrack { background: rgba(255, 201, 60, 0.16); }
 #floodFill {
   height: 100%;
   width: 0%;
-  background: var(--amber);
+  background: var(--warn);
   transition: width 120ms linear;
 }
-#flood.crit { border-color: var(--beacon); animation: pulse 700ms ease-in-out infinite; }
-#flood.crit .label { color: var(--beacon); }
-#flood.crit #floodFill { background: var(--beacon); }
+/* Critical is the same hue harder, not a second colour: full-strength fill,
+   a lit border and a pulse. Two intensities of one warning beats two hues
+   nobody can rank against each other. */
+#flood.crit {
+  border-color: var(--warn);
+  box-shadow: 0 0 0 1px rgba(255, 201, 60, 0.35);
+  animation: pulse 700ms ease-in-out infinite;
+}
 
 /* ---- the survey overlay: the system view, and what is selected ----
    Held, not toggled, so it never becomes a mode you can leave switched on. The
@@ -239,24 +296,25 @@ body.ready #hud { opacity: 1; }
   color: rgba(242, 246, 230, 0.5);
 }
 
-/* ---- the beam: a state, not a gauge. It is either firing or it is not ---- */
+/* ---- the beam: a state, not a gauge - CONTEXTUAL ----
+   It used to sit here permanently at 32% opacity reading HOLD E, which is an
+   instruction rather than an instrument: a control you are not using does not
+   need a panel of its own. It now comes up when the beam fires and holds a
+   moment after it stops. Where the key is written down is the pause menu. */
 #beamRow {
+  --cue-x: 0px;
   position: absolute;
   /* Directly above the form chips: the beam is available from all three, and
      sitting it over them is the shortest way to say so. */
-  left: 16px; bottom: 92px;
-  padding: 7px 10px;
-  opacity: 0.32;
-  transition: opacity 150ms ease, border-color 150ms ease;
+  left: 16px; bottom: clamp(96px, 8.4vw, 126px);
+  border-color: var(--phos);
 }
 #beamState {
-  font-size: 12px;
+  font-size: var(--t-row);
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: rgba(242, 246, 230, 0.6);
+  color: var(--phos);
 }
-#beamRow.on { opacity: 1; border-color: var(--phos); }
-#beamRow.on #beamState { color: var(--phos); }
 #beamRow.hit { border-color: var(--beacon); }
 #beamRow.hit #beamState { color: var(--beacon); }
 
@@ -266,10 +324,10 @@ body.ready #hud { opacity: 1; }
   top: 16px; right: 16px;
   pointer-events: auto;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: var(--t-label);
   font-weight: 700;
   letter-spacing: 0.20em;
-  padding: 8px 12px;
+  padding: clamp(9px, 0.85vw, 13px) clamp(12px, 1.1vw, 18px);
   color: var(--phos);
   background: var(--panel);
   border: 1px solid var(--edge);
@@ -283,32 +341,31 @@ body.ready #hud { opacity: 1; }
 #sound:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
 
 /* ---- dev warp: TEMPORARY TESTING SCAFFOLDING ----
-   Deliberately the chip's language rather than a new one — same panel, same
-   hairline edge, same phos-lit "you are here" — so it reads as an instrument
-   and not as a control panel someone forgot to finish. It sits under the sound
-   toggle because that is the other thing on this HUD you are allowed to click.
-   Goes away with DEBUG.warp; see tune.js. */
+   It lives inside #survey now, so it is laid out by the flow of that panel
+   rather than pinned to a corner of the screen, and it shows and hides with
+   the overlay for free - no second visibility path to keep in step. Still the
+   chip language: same hairline edge, same phos-lit "you are here", so it reads
+   as an instrument rather than a control panel someone forgot to finish.
+   Goes away entirely with DEBUG.warp. */
 #warp {
-  position: absolute;
-  top: 52px; right: 16px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--edge);
   pointer-events: auto;
-  padding: 8px 9px 9px;
-  max-width: 190px;
 }
 #warp[hidden] { display: none; }
 #warpRow {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
+  gap: 5px;
   margin-top: 6px;
 }
 .wbtn {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: var(--t-label);
   font-weight: 700;
-  letter-spacing: 0.14em;
-  padding: 5px 7px;
+  letter-spacing: 0.12em;
+  padding: 6px 9px;
   color: rgba(242, 246, 230, 0.62);
   background: transparent;
   border: 1px solid rgba(242, 246, 230, 0.18);
@@ -324,7 +381,25 @@ body.ready #hud { opacity: 1; }
 }
 .wbtn:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
 
-/* ---- bottom left: form selector ---- */
+/* ---- the icon family ----
+   Line work at one weight, no fills, drawn on the same 24 grid as each other
+   so a rover and a jet read as members of one set rather than three separate
+   drawings. Inline SVG rather than a font: nothing to request, nothing for the
+   CSP to refuse, and it inherits currentColor so a lit chip lights its icon. */
+.ico {
+  width: clamp(20px, 1.7vw, 27px);
+  height: clamp(20px, 1.7vw, 27px);
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- bottom left: form selector - PERMANENT ----
+   The largest permanent thing on the left, because "which of the three am I,
+   and will the jet take me" is the question asked most often. */
 #forms {
   position: absolute;
   bottom: 18px; left: 16px;
@@ -332,49 +407,63 @@ body.ready #hud { opacity: 1; }
   gap: 8px;
 }
 .chip {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
   background: var(--panel);
   border: 1px solid var(--edge);
   backdrop-filter: blur(7px);
   -webkit-backdrop-filter: blur(7px);
-  padding: 8px 12px 7px;
-  min-width: 78px;
-  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+  padding: clamp(9px, 0.85vw, 13px) clamp(11px, 1vw, 16px) clamp(8px, 0.75vw, 11px);
+  min-width: clamp(76px, 6.6vw, 106px);
+  color: rgba(242, 246, 230, 0.55);
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease, color 180ms ease;
 }
 .chip .key {
-  font-size: 9px;
+  font-size: var(--t-label);
   letter-spacing: 0.2em;
   color: rgba(242, 246, 230, 0.38);
 }
 .chip .name {
-  font-size: 12px;
+  font-size: var(--t-chip);
   font-weight: 700;
   letter-spacing: 0.14em;
-  margin-top: 2px;
+  text-transform: uppercase;
 }
 .chip.on {
   border-color: var(--phos);
   background: rgba(43, 224, 200, 0.13);
   transform: translateY(-3px);
+  color: var(--phos);
 }
 .chip.on .name { color: var(--phos); }
-.chip.locked { opacity: 0.35; }
-.chip.locked .name { color: var(--amber); }
+.chip.on .key { color: rgba(43, 224, 200, 0.7); }
+/* Locked is a WARNING, not a dimming. The jet refusing to launch is the most
+   common thing this panel has to tell you, and 35% opacity said it far too
+   quietly to catch mid-drive. */
+.chip.locked {
+  opacity: 0.8;
+  border-color: rgba(255, 201, 60, 0.45);
+  color: var(--warn);
+}
+.chip.locked .name { color: var(--warn); }
 
-/* ---- bottom right: velocity + cell charge ---- */
+/* ---- bottom right: velocity, and the two things that run out - PERMANENT ---- */
 #gauges {
   position: absolute;
   bottom: 18px; right: 16px;
   text-align: right;
-  min-width: 200px;
+  min-width: clamp(212px, 19vw, 300px);
+  padding: clamp(10px, 0.95vw, 15px) clamp(12px, 1.1vw, 18px) clamp(11px, 1vw, 16px);
 }
 #speedRow {
   display: flex;
   align-items: baseline;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 7px;
 }
 #speed {
-  font-size: 40px;
+  font-size: var(--t-speed);
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -382,56 +471,78 @@ body.ready #hud { opacity: 1; }
 }
 /* Hyper. The readout keeps every digit and gives up size instead, so the
    number stays one number rather than becoming a unit change. */
-#speed.huge { font-size: 32px; letter-spacing: 0; }
-#speed.vast { font-size: 25px; letter-spacing: -0.01em; }
+#speed.huge { font-size: calc(var(--t-speed) * 0.80); letter-spacing: 0; }
+#speed.vast { font-size: calc(var(--t-speed) * 0.62); letter-spacing: -0.01em; }
 #speedUnit {
-  font-size: 10px;
+  font-size: var(--t-label);
   letter-spacing: 0.2em;
-  color: rgba(242, 246, 230, 0.45);
+  color: rgba(242, 246, 230, 0.5);
 }
 #altRow {
-  font-size: 11px;
+  --cue-x: 0px;
+  font-size: var(--t-row);
+  font-weight: 700;
   letter-spacing: 0.16em;
   color: var(--phos);
-  opacity: 0;
-  height: 0;
-  overflow: hidden;
-  transition: opacity 250ms ease;
+  margin-top: 4px;
 }
-#altRow.on { opacity: 1; height: auto; margin-top: 4px; }
 #altRow::after {
   content: "";
   margin-left: 8px;
   letter-spacing: 0.16em;
 }
-#altRow.auto::after { content: "· AUTOPILOT"; color: var(--amber); }
-#altRow.pull::after { content: "· PULL UP"; color: var(--beacon); }
+#altRow.auto::after { content: "\00B7 AUTOPILOT"; color: rgba(242, 246, 230, 0.6); }
+#altRow.pull::after { content: "\00B7 PULL UP"; color: var(--warn); }
 
+/* The two tanks. Each gets a head, so one glance lands on an icon, a label, a
+   number and a bar together rather than on four loose rows. */
+.gauge { margin-top: clamp(9px, 0.85vw, 14px); }
+.gaugeHead {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.gaugeHead .label { margin-bottom: 0; }
+.gaugeHead .ico { color: rgba(242, 246, 230, 0.42); }
+#fuelNum, #hyperNum {
+  font-size: var(--t-num);
+  font-weight: 700;
+  color: var(--phos);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.2ch;
+  text-align: right;
+}
 #fuelBar {
   display: flex;
   gap: 2px;
-  margin-top: 10px;
+  margin-top: 5px;
   justify-content: flex-end;
 }
 #fuelBar i {
   display: block;
-  width: 7px;
-  height: 14px;
-  background: rgba(242, 246, 230, 0.10);
+  flex: 1 1 0;
+  max-width: 13px;
+  height: clamp(14px, 1.2vw, 20px);
+  /* Up from 0.10: an unlit segment has to read as an empty socket, and at a
+     tenth it simply was not there against a bright sky. */
+  background: rgba(242, 246, 230, 0.20);
   transition: background 140ms ease;
 }
 #fuelBar i.lit { background: var(--phos); }
-#fuelBar.low i.lit { background: var(--amber); }
-#fuelBar.crit i.lit { background: var(--beacon); animation: pulse 900ms ease-in-out infinite; }
+#fuelBar.low i.lit { background: var(--warn); }
+#fuelBar.crit i.lit { background: var(--warn); animation: pulse 900ms ease-in-out infinite; }
+#cellGauge.low #fuelNum { color: var(--warn); }
+#cellGauge.crit #fuelNum { color: var(--warn); animation: pulse 900ms ease-in-out infinite; }
+#cellGauge.low .gaugeHead .ico, #cellGauge.crit .gaugeHead .ico { color: var(--warn); }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
-/* Hyper charge. Deliberately the amber of the system rather than another new
-   colour, and a continuous bar rather than segments, so it reads as a second
-   tank at a glance and never as more of the same one. */
+/* Hyper is a continuous bar against the cell gauge's segments, so the two
+   tanks never read as more of the same one. */
 #hyperBar {
-  height: 5px;
-  margin-top: 7px;
-  background: rgba(242, 246, 230, 0.10);
+  height: clamp(6px, 0.55vw, 9px);
+  margin-top: 5px;
+  background: rgba(242, 246, 230, 0.20);
   position: relative;
   overflow: hidden;
 }
@@ -440,68 +551,31 @@ body.ready #hud { opacity: 1; }
   position: absolute;
   inset: 0 auto 0 0;
   width: var(--fill, 0%);
-  background: var(--amber);
+  background: var(--phos);
   transition: width 200ms ease;
 }
-#hyperBar.empty::after { background: var(--beacon); }
-
-/* One pip per world, filling as its geysers are claimed. The ring is the
-   world, the fill is how much of it is yours, and the outline is where you
-   are. Unreachable worlds dim — the trip check, shown before you commit. */
-#pips {
-  display: flex;
-  gap: 5px;
-  margin-top: 7px;
-  padding-top: 7px;
-  border-top: 1px solid var(--edge);
-}
-#pips i {
-  display: block;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  border: 1px solid rgba(242, 246, 230, 0.34);
-  position: relative;
-  overflow: hidden;
-}
-#pips i::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0 0;
-  height: var(--fill, 0%);
-  background: var(--amber);
-}
-#pips i.here { border-color: var(--phos); box-shadow: 0 0 0 2px rgba(43, 224, 200, 0.22); }
-#pips i.far { opacity: 0.30; }
-#pips i.full::after { background: var(--phos); }
-
-#fuelRow {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 6px;
-}
-#fuelNum { font-size: 12px; font-weight: 700; color: var(--phos); }
+#hyperBar.empty::after { background: var(--warn); }
+#hyperGauge.empty #hyperNum { color: var(--warn); }
 
 /* ---- toast ---- */
 #toast {
   position: absolute;
-  bottom: 96px; left: 50%;
+  bottom: clamp(150px, 13vw, 205px); left: 50%;
   transform: translateX(-50%) translateY(8px);
-  font-size: 11px;
-  letter-spacing: 0.22em;
+  font-size: var(--t-row);
+  letter-spacing: 0.20em;
   text-transform: uppercase;
-  padding: 8px 16px;
+  padding: clamp(9px, 0.85vw, 13px) clamp(16px, 1.5vw, 24px);
   background: var(--panel);
-  border-left: 2px solid var(--phos);
+  border-left: 3px solid var(--phos);
   opacity: 0;
   transition: opacity 220ms ease, transform 220ms ease;
   white-space: nowrap;
 }
 #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
-#toast.warn { border-left-color: var(--amber); color: var(--amber); }
+#toast.warn { border-left-color: var(--warn); color: var(--warn); }
 #toast.good { border-left-color: var(--phos); color: var(--phos); }
+#toast.bad { border-left-color: var(--warn); color: var(--warn); }
 
 /* ---- boost streaks + impact flash ---- */
 /* ANCHORED TO THE VIEWPORT, not sized relative to it, and that is the fix.
@@ -766,16 +840,20 @@ body.ready #hud { opacity: 1; }
   #start, #begin { transition: none; }
 }
 
+/* Narrow screens get LAYOUT changes only. This block used to shrink the type
+   as well - speed to 30px, rows to 11, the sound toggle to 8 - which is the
+   exact opposite of what a small screen needs and was undoing the floors in
+   the scale above before they could do anything. The clamps already size the
+   type; all that is left here is making things fit side by side. */
 @media (max-width: 620px) {
-  #speed { font-size: 30px; }
-  #log { min-width: 132px; padding: 7px 9px; }
-  #log .row { font-size: 11px; }
-  .chip { min-width: 62px; padding: 7px 9px 6px; }
-  #scan, #flood { width: 200px; }
-  #survey { width: min(300px, calc(100vw - 32px)); font-size: 11px; }
-  #sound { font-size: 8px; padding: 6px 9px; }
-  #warp { top: 46px; max-width: 148px; padding: 6px 7px 7px; }
-  .wbtn { font-size: 8px; padding: 4px 5px; letter-spacing: 0.10em; }
+  #log { min-width: 0; }
+  #forms { gap: 6px; }
+  .chip { min-width: 0; padding: 8px 9px 7px; }
+  #scan, #flood { width: min(300px, calc(100vw - 32px)); }
+  #gauges { min-width: 0; }
+  #survey { width: min(300px, calc(100vw - 32px)); }
+  /* The compass is drawn to the canvas, and hud.js already sizes that to the
+     viewport - see resize(). Nothing to do here but let it. */
 }
 
 @media (prefers-reduced-motion: reduce) {

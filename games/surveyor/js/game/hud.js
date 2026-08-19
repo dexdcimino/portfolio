@@ -16,6 +16,32 @@ const HORIZON_Y = 46;
 const BRG = { x: 0, y: 0, z: 0 };
 const rgb = (c, a = 1) => `rgba(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0},${a})`;
 
+/**
+ * A CONTEXTUAL element: a trigger, a HOLD, and then a slow fade.
+ *
+ * The hold is the part that matters, and it is why this is a class rather than
+ * a classList.toggle at each call site. Driving a panel straight off its
+ * trigger makes it strobe: the scan bar would blink several times a second as
+ * a beacon drifts in and out of range, and the beam would flash on every tap
+ * of E. A HUD that flickers is worse than one that never moved.
+ *
+ * So a trigger tops the timer back up and the element only leaves once nothing
+ * has touched it for `hold` seconds. The fade itself is CSS - see .cue, which
+ * is deliberately asymmetric: fast in so the cue arrives with the event, slow
+ * out so the departure is never the thing you notice.
+ */
+class Cue {
+  constructor(el, hold) { this.el = el; this.hold = hold; this.t = 0; this.lit = false; }
+  bump() { this.t = this.hold; }
+  tick(dt) {
+    if (this.t > 0) this.t -= dt;
+    const want = this.t > 0;
+    if (want === this.lit || !this.el) return;
+    this.lit = want;
+    this.el.classList.toggle('on', want);
+  }
+}
+
 export class Hud {
   constructor(craft, survey, field, colonies) {
     this.craft = craft;
@@ -27,12 +53,11 @@ export class Hud {
       speed: $('speed'), speedUnit: $('speedUnit'),
       alt: $('alt'), altRow: $('altRow'),
       coord: $('coord'), sectors: $('sectors'), beacons: $('beacons'),
-      colonies: $('colonies'),
-      fuelFill: $('fuelFill'), fuelNum: $('fuelNum'), fuelBar: $('fuelBar'),
-      hyperBar: $('hyperBar'), hyperNum: $('hyperNum'),
-      geysers: $('geysers'), hyperRate: $('hyperRate'), pips: $('pips'),
-      scan: $('scan'), scanFill: $('scanFill'), scanLabel: $('scanLabel'),
-      threat: $('threat'), beamRow: $('beamRow'), beamState: $('beamState'),
+      colonies: $('colonies'), log: $('log'),
+      fuelNum: $('fuelNum'), fuelBar: $('fuelBar'), cellGauge: $('cellGauge'),
+      hyperBar: $('hyperBar'), hyperNum: $('hyperNum'), hyperGauge: $('hyperGauge'),
+      scan: $('scan'), scanFill: $('scanFill'),
+      beamRow: $('beamRow'), beamState: $('beamState'),
       flood: $('flood'), floodFill: $('floodFill'),
       toast: $('toast'), streaks: $('streaks'), flash: $('flash'),
       chips: {
@@ -48,6 +73,27 @@ export class Hud {
     this.tapeH = TAPE_H;
     this.resize();
     window.addEventListener('resize', () => this.resize());
+
+    /* THE CONTEXTUAL SET, with the hold each one earns.
+       The log is long because its figures move in bursts - three beacons in a
+       row, then nothing for a minute - and a panel that came and went between
+       each would be the worst thing on screen. The scan and beam are short
+       because their trigger is continuous while it lasts, so the hold only has
+       to cover the gap between one and the next. Flooding sits between: it
+       clears the moment you climb out of the water, and a rover that dips a
+       wheel should not have the panel snap away before you have read it. */
+    this.cues = {
+      log: new Cue(this.el.log, 6),
+      scan: new Cue(this.el.scan, 1.2),
+      flood: new Cue(this.el.flood, 2.2),
+      beam: new Cue(this.el.beamRow, 1.6),
+      range: new Cue(this.el.range, 1.0),
+      alt: new Cue(this.el.altRow, 1.5),
+    };
+    // Once at the start, so the log is something you have seen rather than
+    // something you have to discover by watching a number change.
+    this.cues.log.bump();
+    this.lastLog = '';
 
     this.reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.toastTimer = 0;
@@ -268,22 +314,23 @@ export class Hud {
   }
 
   /**
-   * The economy panel. Built once: one pip per world, in system order.
+   * The economy. Kept for the hyper gauge, which is one of the five permanent
+   * readings; everything else it used to draw here has MOVED.
    *
-   * The headline is geysers claimed over geysers found, because that is finite
-   * and countable — surface coverage would be neither, and nobody can read a
-   * percentage of a sphere at a glance.
+   * The six planet pips, the vents-claimed count, the hyper rate and the
+   * threat number are all gone from the HUD. The survey overlay already draws
+   * every one of them as a table with a row per world - see systemRows in
+   * overlay.js - so this was a second copy of the same four figures, kept
+   * permanently on screen, for a world you are standing on and five you are
+   * not. A number you cannot act on without opening the map belongs on the map.
+   *
+   * The signature is unchanged because main.js calls it and main.js is not
+   * this job's file.
    */
   attachEconomy(economy, totals, planetKeys) {
     this.economy = economy;
     this.totals = totals;
     this.planetKeys = planetKeys;
-    this.pips = planetKeys.map((key) => {
-      const i = document.createElement('i');
-      i.title = key;
-      this.el.pips.appendChild(i);
-      return { key, el: i, fill: -1, cls: '' };
-    });
   }
 
   /**
@@ -372,21 +419,26 @@ export class Hud {
     if (this.colonies) {
       this.el.colonies.textContent = this.colonies.count.toString().padStart(2, '0') +
         ' / ' + this.colonies.domes.toString().padStart(2, '0');
-      // Threat on THIS world. The other five are in the overlay's system view,
-      // which is where a number you cannot act on right now belongs.
-      const rd = this.colonies.raiders;
-      this.el.threat.textContent = rd.list.length.toString().padStart(2, '0') +
-        (rd.engaged ? ' ⚠' : '');
     }
+    /* The log's trigger is its own content changing. Comparing the rendered
+       strings rather than watching each source means a figure added later is
+       covered without anyone remembering to wire it up, and it costs one
+       concatenation a frame. */
+    const logNow = this.el.sectors.textContent + this.el.beacons.textContent +
+      this.el.colonies.textContent;
+    if (logNow !== this.lastLog) { this.lastLog = logNow; this.cues.log.bump(); }
 
     // The beam. A state rather than a gauge: it is firing or it is not, and the
     // only other thing worth knowing is whether it is on something.
     if (this.el.beamRow) {
-      this.el.beamRow.classList.toggle('on', !!s.beamOn);
+      // Up while it fires, and for a moment after — see Cue. The idle "HOLD E"
+      // is gone: a control you are not using does not need a panel, and the
+      // key is written down in the pause menu.
+      if (s.beamOn) this.cues.beam.bump();
       this.el.beamRow.classList.toggle('hit', !!s.beamHits);
       const label = s.beamOn
         ? (s.beamHits ? 'ON TARGET ×' + s.beamHits : 'BEAM ACTIVE')
-        : (c.fuel <= 2 ? 'CHARGE TOO LOW' : 'HOLD E');
+        : (c.fuel <= 2 ? 'CHARGE TOO LOW' : 'BEAM IDLE');
       if (label !== this.lastBeam) { this.el.beamState.textContent = label; this.lastBeam = label; }
     }
 
@@ -395,11 +447,11 @@ export class Hud {
     // number the speed law is reading — so the panel shows you why you are
     // going as fast as you are.
     if (c.hyper) {
-      this.el.altRow.classList.add('on');
+      this.cues.alt.bump();
       this.el.alt.textContent = Math.round(c.hyper.alt).toString();
     }
     this.setTapeHeight(flying ? TAPE_H_AIR : TAPE_H);
-    this.el.altRow.classList.toggle('on', flying);
+    if (flying) this.cues.alt.bump();
     if (flying && !c.hyper) {
       this.el.alt.textContent = Math.max(0, Math.round(c.altitude)).toString();
       this.el.altRow.classList.toggle('auto', c.assist > 0);
@@ -412,6 +464,9 @@ export class Hud {
     const state = c.fuel < 10 ? 'crit' : c.fuel < JET.minFuelToLaunch * 3 ? 'low' : 'ok';
     if (state !== this.lastFuelState) {
       this.el.fuelBar.className = state;
+      // The head carries it too, so the number and the icon warn with the bar
+      // rather than leaving the bar to say it alone.
+      if (this.el.cellGauge) this.el.cellGauge.className = 'gauge ' + state;
       this.lastFuelState = state;
     }
     for (let i = 0; i < this.segs.length; i++) {
@@ -426,33 +481,10 @@ export class Hud {
       if (Math.abs(pct - (this.lastHyper || 0)) > 0.4) {
         this.lastHyper = pct;
         this.el.hyperBar.style.setProperty('--fill', pct.toFixed(1) + '%');
-        this.el.hyperBar.classList.toggle('empty', e.hyper < 12);
+        const empty = e.hyper < 12;
+        this.el.hyperBar.classList.toggle('empty', empty);
+        if (this.el.hyperGauge) this.el.hyperGauge.classList.toggle('empty', empty);
         this.el.hyperNum.textContent = Math.round(e.hyper).toString().padStart(3, '0');
-      }
-
-      const here = this.field.planet ? this.field.planet.key : null;
-      const claimed = here ? e.claimed(here) : 0;
-      const total = here ? (this.totals[here] || 0) : 0;
-      this.el.geysers.textContent =
-        String(claimed).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
-      // Per minute reads better than per second at these rates — a good site is
-      // a fraction of a unit a second and nobody can feel that.
-      this.el.hyperRate.textContent = (e.rate * 60).toFixed(1);
-
-      for (const pip of this.pips) {
-        const t = this.totals[pip.key] || 0;
-        const got = e.claimed(pip.key);
-        const fill = t ? Math.round((got / t) * 100) : 0;
-        // Reachability is the trip check, shown before you commit to it rather
-        // than as a refusal after you have climbed to 900m.
-        const cls = (pip.key === here ? 'here ' : '') +
-          (got >= t && t ? 'full ' : '') +
-          (pip.key !== here && !e.canReach(here, pip.key).ok ? 'far' : '');
-        if (fill !== pip.fill) {
-          pip.fill = fill;
-          pip.el.style.setProperty('--fill', fill + '%');
-        }
-        if (cls !== pip.cls) { pip.cls = cls; pip.el.className = cls.trim(); }
       }
     }
 
@@ -469,7 +501,7 @@ export class Hud {
     // there's any danger, so going under is never a surprise.
     const swamp = c.swamp || 0;
     const sinking = (c.sinkY || 0) > 0.05;
-    this.el.flood.classList.toggle('on', swamp > 0.05);
+    if (swamp > 0.05) this.cues.flood.bump();
     this.el.flood.classList.toggle('crit', sinking);
     if (swamp > 0.05) {
       const shown = sinking ? Math.max(swamp, c.submersion) : swamp;
@@ -478,18 +510,14 @@ export class Hud {
 
     // Scan bar.
     if (s.scanTarget) {
-      this.el.scan.classList.add('on');
+      this.cues.scan.bump();
       this.el.scanFill.style.width = (s.scanProgress * 100).toFixed(1) + '%';
-    } else {
-      this.el.scan.classList.remove('on');
     }
 
     // Range to the next beacon.
     if (s.nearestBeacon) {
       this.el.range.textContent = Math.round(s.nearestDist) + ' M';
-      this.el.range.classList.add('on');
-    } else {
-      this.el.range.classList.remove('on');
+      this.cues.range.bump();
     }
 
     // Boost streaks.
@@ -498,6 +526,8 @@ export class Hud {
       this.el.streaks.style.opacity =
         (c.boostHeat * Math.min(1, c.speed / ROVER.boostSpeed) * 0.85).toFixed(3);
     }
+
+    for (const key in this.cues) this.cues[key].tick(dt);
 
     if (this.raiderCool > 0) this.raiderCool -= dt;
     if (this.toastTimer > 0) {
