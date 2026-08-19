@@ -5,6 +5,8 @@ page (`index.html`), one stylesheet, one plain script — no modules, no
 framework. The games live under `games/` with their own ARCHITECTURE.md
 each; this file covers the site shell, the image pipeline, and the hooks.
 
+Starting a new AI session? [docs/ONBOARDING.md](docs/ONBOARDING.md).
+
 Per-subsystem docs: [games/surveyor/](games/surveyor/ARCHITECTURE.md) ·
 [games/arena1/](games/arena1/ARCHITECTURE.md) ·
 [games/chomp/](games/chomp/ARCHITECTURE.md) ·
