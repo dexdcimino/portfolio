@@ -1461,6 +1461,42 @@ button.button{cursor:pointer;font-family:inherit}
 .app-desc-link{text-decoration:none}
 .app-desc-link[hidden]{display:none}
 
+/* The current app's first screenshot, where the GALLERY button stood. The
+   games preview's frame — same box, same aspect, same radius, same border
+   language — minus the drop shadow and the play glyph: two shadowed frames in
+   neighbouring sections read as two equal picture components, and this one is
+   the quiet echo of that one. Its own class rather than .game-art, so an edit
+   meant for either section cannot restyle the other. Unlike .game-art it is
+   never an empty box: initAppInfo [hidden]s it whole when the app has no
+   shots, so the space collapses instead of promising pictures. */
+.app-art{
+  display:block; margin-top:22px; width:100%; max-width:520px; aspect-ratio:16/9;
+  position:relative; border-radius:var(--radius-cover); overflow:hidden;
+  padding:0; cursor:pointer;
+  border:var(--stroke) solid rgba(255,255,255,.1);
+  background:#0e1217;                 /* the covers' plate, for the moment before the image paints */
+  transition:border-color var(--accent-ease),transform .25s ease;
+}
+.app-art[hidden]{display:none}
+.app-art:hover,.app-art:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
+.app-art:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.app-art-shot{position:absolute;inset:0;display:block}
+.app-art-shot[hidden]{display:none}
+.app-art-img{width:100%;height:100%;object-fit:cover;display:block;border-radius:var(--radius-cover)}
+@media(prefers-reduced-motion:reduce){
+  .app-art{transition:none}
+  .app-art:hover,.app-art:focus-visible{transform:none}
+}
+/* Below the split the statement column stacks ABOVE the grid, so height here
+   pushes the cards down — the exact push the app-info comment warns about.
+   MEASURED at 900: the full 520 frame adds 314px above a grid already at
+   1311px from the section top; 340 halves the push. Not hidden outright the
+   way .game-art is on touch, because this frame is the apps' only door into
+   the gallery. */
+@media (max-width:1100px){
+  .app-art{max-width:340px;margin-top:16px}
+}
+
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 /* Not shipped yet: a div rather than a link, so it carries no hover lift and no
    pointer — nothing here is clickable and the card should not pretend it is.

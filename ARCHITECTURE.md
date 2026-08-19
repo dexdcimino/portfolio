@@ -29,7 +29,11 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   SVGs; everything after it renders `{title, desc, src, w, h}` and is
   data-shape-agnostic; hero is a fixed 3:2 box on purpose), one `initTabs()`
   behind four tablists, wallpapers carousel/lightbox (self-builds from
-  `.wp-item` figures), `initCollabInfo()` (fills the Collab panel and builds
+  `.wp-item` figures), `initAppInfo()` (the AI Lab description panel follows
+  hover/focus off the cards' `data-*`; the current app's first gallery shot —
+  cloned from the `.gal-item` set, never borrowed — stands where the GALLERY
+  button stood and opens the shared viewer via `gallery:open`; an app with no
+  shots gets no thumbnail), `initCollabInfo()` (fills the Collab panel and builds
   each card's brain row + invite link from the card's own `data-people` /
   `data-invite`; adding a project is one card, no JS edit), vault, clips,
   prompts, song player, resume overlay, Web3Forms contact (public access key

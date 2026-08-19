@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=154" />
+  <link rel="stylesheet" href="styles.css?v=155" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -617,14 +617,6 @@
               <li class="game-tag" data-slot="kind"></li>
               <li class="game-tag" data-slot="stack"></li>
             </ul>
-            <!-- Opens the SAME overlay the games galleries use, through the
-                 gallery:open event — one screenshot viewer on the page, not two.
-                 The count is per app and comes off the .gal-item set, so it is
-                 honest about an app with no shots yet rather than promising
-                 some. -->
-            <button class="button game-gallery-open" type="button" id="appGalleryOpen">
-              <span class="game-gallery-label">GALLERY</span>
-            </button>
             <!-- Where the app actually LIVES, when that is not this site: a
                  marketplace listing, a store page. Driven off the card's own
                  data-desc-link so adding one is a card attribute and no edit
@@ -636,6 +628,18 @@
               <span class="game-gallery-label"></span>
             </a>
           </div>
+          <!-- The current app’s first gallery shot, standing where the GALLERY
+               button stood. It opens the SAME overlay through the same
+               gallery:open event — one screenshot viewer on the page, not two —
+               and it is honest the same way the button’s count was: the shots
+               are cloned from the .gal-item set by initAppInfo, so an app with
+               no shots gets no thumbnail and the space collapses ([hidden]).
+               The hidden label span is where the gallery’s paintOpenBtn writes
+               its count — it keeps the aria-label honest without painting text
+               over the picture. -->
+          <button class="app-art" id="appArt" type="button" hidden>
+            <span class="game-gallery-label" hidden></span>
+          </button>
         </div>
 
         <!-- The wallpaper thumbnails, in the same dead half-column .app-info
@@ -733,13 +737,13 @@
                data-desc-body="Profiles, uploads, feeds and the moderation nobody puts in a portfolio shot. Built to find out how much of a social platform one person can actually carry, which turned out to be most of it and none of the fun parts."><small>WEB APP</small><strong>NodeBlast.dev</strong><span>Creator / gaming platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
               <!-- img src="assets/icons/apps/nodeblast.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
-                <source type="image/avif" srcset="assets/derived/icons/apps/nodeblast-420.avif?v=5b8fcf70 420w,
-                                                  assets/derived/icons/apps/nodeblast-200.avif?v=5b8fcf70 200w,
-                                                  assets/derived/icons/apps/nodeblast-84.avif?v=5b8fcf70 84w"
+                <source type="image/avif" srcset="assets/derived/icons/apps/nodeblast-420.avif?v=82bb5206 420w,
+                                                  assets/derived/icons/apps/nodeblast-200.avif?v=82bb5206 200w,
+                                                  assets/derived/icons/apps/nodeblast-84.avif?v=82bb5206 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <source type="image/webp" srcset="assets/derived/icons/apps/nodeblast-420.webp?v=5b8fcf70 420w,
-                                                  assets/derived/icons/apps/nodeblast-200.webp?v=5b8fcf70 200w,
-                                                  assets/derived/icons/apps/nodeblast-84.webp?v=5b8fcf70 84w"
+                <source type="image/webp" srcset="assets/derived/icons/apps/nodeblast-420.webp?v=82bb5206 420w,
+                                                  assets/derived/icons/apps/nodeblast-200.webp?v=82bb5206 200w,
+                                                  assets/derived/icons/apps/nodeblast-84.webp?v=82bb5206 84w"
                         sizes="(max-width:700px) 64px, 84px">
                 <img class="ai-card-icon" src="assets/icons/apps/nodeblast.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
@@ -749,13 +753,13 @@
                data-desc-body="Kept live on purpose. It is a fair record of where the work was a couple of years ago, and the comparison is more useful to anyone reading than a claim about improvement would be."><small>WEB APP</small><strong>dexddc.com</strong><span>Original portfolio site<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span>
               <!-- img src="assets/icons/apps/dexddc.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
               <picture class="ai-card-iconwrap">
-                <source type="image/avif" srcset="assets/derived/icons/apps/dexddc-420.avif?v=aa6fa8ca 420w,
-                                                  assets/derived/icons/apps/dexddc-200.avif?v=aa6fa8ca 200w,
-                                                  assets/derived/icons/apps/dexddc-84.avif?v=aa6fa8ca 84w"
+                <source type="image/avif" srcset="assets/derived/icons/apps/dexddc-420.avif?v=8b326cb0 420w,
+                                                  assets/derived/icons/apps/dexddc-200.avif?v=8b326cb0 200w,
+                                                  assets/derived/icons/apps/dexddc-84.avif?v=8b326cb0 84w"
                         sizes="(max-width:700px) 64px, 84px">
-                <source type="image/webp" srcset="assets/derived/icons/apps/dexddc-420.webp?v=aa6fa8ca 420w,
-                                                  assets/derived/icons/apps/dexddc-200.webp?v=aa6fa8ca 200w,
-                                                  assets/derived/icons/apps/dexddc-84.webp?v=aa6fa8ca 84w"
+                <source type="image/webp" srcset="assets/derived/icons/apps/dexddc-420.webp?v=8b326cb0 420w,
+                                                  assets/derived/icons/apps/dexddc-200.webp?v=8b326cb0 200w,
+                                                  assets/derived/icons/apps/dexddc-84.webp?v=8b326cb0 84w"
                         sizes="(max-width:700px) 64px, 84px">
                 <img class="ai-card-icon" src="assets/icons/apps/dexddc.png" alt="" width="512" height="512" loading="lazy" decoding="async">
               </picture>
@@ -2587,6 +2591,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=154"></script>
+  <script src="script.js?v=155"></script>
 </body>
 </html>

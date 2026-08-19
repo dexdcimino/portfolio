@@ -3232,9 +3232,40 @@ function renderMarkdown(src) {
   const lead = info.querySelector('.game-desc-lead');
   const body = info.querySelector('.game-desc-body');
   const tags = info.querySelectorAll('.game-tag');
-  const openBtn = document.getElementById('appGalleryOpen');
   const descLink = document.getElementById('appDescLink');
   let current = cards[0];
+
+  /* The thumbnail that replaced the GALLERY button: the current app's FIRST
+     gallery shot, cloned out of the .gal-item set once at boot. Cloned, never
+     borrowed — the viewer moves the originals into its stage, and a shared
+     node would vanish from here the first time the overlay opened. Cloning at
+     boot also runs before the viewer can have borrowed anything.
+     sizes is rewritten on the clones because the originals advertise the
+     overlay's near-full-width slot, and a 520px frame fetching a 1200 rung is
+     the exact oversize fetch the slot table exists to prevent. Same move as
+     the wallpaper thumbnails. */
+  const art = document.getElementById('appArt');
+  const shots = new Map();
+  if (art) {
+    const SIZES = '(max-width:1100px) 520px, min(520px, 26vw)';
+    for (const card of cards) {
+      const key = card.dataset.gallery;
+      if (!key || shots.has(key)) continue;
+      const pic = document.querySelector(`#galleryModal .gal-item[data-game="${key}"] picture`);
+      if (!pic) continue;
+      const clone = pic.cloneNode(true);
+      for (const s of clone.querySelectorAll('source')) s.sizes = SIZES;
+      const img = clone.querySelector('img');
+      if (img) { img.classList.add('app-art-img'); img.sizes = SIZES; }
+      const shot = document.createElement('span');
+      shot.className = 'app-art-shot';
+      shot.dataset.key = key;
+      shot.hidden = true;
+      shot.appendChild(clone);
+      art.appendChild(shot);
+      shots.set(key, shot);
+    }
+  }
 
   const show = (card) => {
     current = card;
@@ -3257,13 +3288,21 @@ function renderMarkdown(src) {
         if (lbl) lbl.textContent = card.dataset.descLinkLabel || 'VISIT';
       }
     }
-    // The count belongs to the app under the pointer, and comes from the
-    // gallery's own DOM rather than a number typed here.
-    if (openBtn) {
-      document.dispatchEvent(new CustomEvent('gallery:count', {
-        detail: { key: card.dataset.gallery || null, name: card.querySelector('strong')?.textContent,
-                  button: openBtn },
-      }));
+    /* The thumbnail follows the panel. hidden both ways — the shot that was
+       up, and the whole frame when this app has none, so the space collapses
+       rather than holding an empty box for a promise nobody made. */
+    if (art) {
+      const key = card.dataset.gallery || null;
+      const shot = key ? shots.get(key) : null;
+      for (const s of shots.values()) s.hidden = s !== shot;
+      art.hidden = !shot;
+      // The accessible name comes from the gallery's own count, same as the
+      // button's did — paintOpenBtn writes it onto the hidden label span.
+      if (shot) {
+        document.dispatchEvent(new CustomEvent('gallery:count', {
+          detail: { key, name: card.querySelector('strong')?.textContent, button: art },
+        }));
+      }
     }
   };
 
@@ -3271,12 +3310,38 @@ function renderMarkdown(src) {
     card.addEventListener('pointerenter', () => show(card));
     card.addEventListener('focus', () => show(card));
   }
-  openBtn?.addEventListener('click', () => {
+  art?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('gallery:open', {
       detail: { key: current.dataset.gallery || null,
-                name: current.querySelector('strong')?.textContent, button: openBtn },
+                name: current.querySelector('strong')?.textContent, button: art },
     }));
   });
+
+  /* Same trap initGameArt documents: the clones' images are lazy and hidden,
+     so the first hover would also be the first request. Warm them when the
+     section comes into range instead, guarded so a width that hides the
+     frame does not pull pictures it can never show. */
+  if (art && shots.size) {
+    const warm = () => {
+      // display:none while NOT [hidden] means a media rule hides the frame on
+      // this device — do not pull pictures it can never show. [hidden] alone
+      // is just "this app has no shots"; eager images fetch through that.
+      if (getComputedStyle(art).display === 'none' && !art.hidden) return false;
+      for (const img of art.querySelectorAll('img')) {
+        img.loading = 'eager';
+        img.fetchPriority = 'low';
+        if (img.decode) img.decode().catch(() => {});
+      }
+      return true;
+    };
+    const section = art.closest('section') || art;
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(e => e.isIntersecting) && warm()) io.disconnect();
+      }, { rootMargin: '600px 0px' });
+      io.observe(section);
+    } else warm();
+  }
 
   /* This block lives in the statement column, which is OUTSIDE the tab panels
      and therefore visible whatever tab is open — so it followed the visitor into
