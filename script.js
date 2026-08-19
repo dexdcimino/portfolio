@@ -1913,29 +1913,38 @@ let flashTip = () => {};
     if (label) label.textContent = 'OPEN';
     if (padlock) padlock.dataset.icon = 'lock-open';
     say('YEP!', 'open');
-    lockbox.hidden = true;
-    revealed.hidden = false;
-    revealed.textContent = '';
+    // Getting in clears the slate: three old failures should not put someone
+    // who has just proved they know the code one mistype from a lockout.
+    fails.length = 0;
 
     const dialog = viewOf(payload);
-    if (!dialog) {
-      // Not a door, or a door this build does not have: whatever was sealed,
-      // as text. textContent, never innerHTML — it is treated as words however
-      // it was written.
-      revealed.textContent = payload;
+    if (dialog) {
+      /* The keypad stays exactly where it is. Closing the overlay relocks the
+         section (see relock), so getting back in means typing the code again —
+         a door that stands open for the rest of the visit is not a locked
+         section, it is a section with a lock on the front of it. */
+      show(dialog, pins[pins.length - 1]);
       return;
     }
-    /* The keypad has done its job and is gone, so without this the strip would
-       be a dead band the moment the overlay is closed. */
-    const again = document.createElement('button');
-    again.className = 'button';
-    again.type = 'button';
-    const text = document.createElement('span');
-    text.textContent = 'VIEW AGAIN';
-    again.append(text);
-    again.addEventListener('click', () => show(dialog, again));
-    revealed.append(again);
-    show(dialog, pins[pins.length - 1]);
+    /* Not a door, or a door this build does not have: whatever was sealed, as
+       text, in place of the keypad. Nothing to close, so this one stays open.
+       textContent, never innerHTML — it is words however it was written. */
+    lockbox.hidden = true;
+    revealed.hidden = false;
+    revealed.textContent = payload;
+  }
+
+  /* Put the section back the way it was found. Runs when the overlay closes,
+     however it closed — the button, the X, Escape or the backdrop — because it
+     hangs off the dialog's own close event rather than off any one of them. */
+  function relock() {
+    clearBoxes();
+    if (label) label.textContent = 'CLASSIFIED';
+    if (padlock) padlock.dataset.icon = 'lock';
+    say(RESTING, null);
+    // The overlay hands focus back to the box that opened it — the LAST one,
+    // where typing does nothing useful. Move it to the front of the row.
+    pins[0].focus({ preventScroll: true });
   }
 
   /* ---- getting it wrong ---- */
@@ -2140,7 +2149,7 @@ let flashTip = () => {};
      backdrop, the scroll lock and the focus return are the one implementation
      rather than a second one living in here. */
   for (const dialog of Object.values(VIEWS)) {
-    if (dialog) bindModal(dialog);
+    if (dialog) bindModal(dialog, relock);
   }
   document.getElementById('snailClose')?.addEventListener('click',
     () => closeModal(VIEWS.snail));
