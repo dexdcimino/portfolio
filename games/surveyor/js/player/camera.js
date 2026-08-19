@@ -138,6 +138,72 @@ export class ChaseCam {
     this.camera.maxZ = planet.farPlane;
   }
 
+  /**
+   * Arrive somewhere: PLACE the boom, rather than interpolate toward it.
+   *
+   * The framing in update() is computed in the craft's tangent frame and the
+   * spring that drives it runs in WORLD space. Both are right while you stay
+   * on one planet and both are wrong the instant you are on another: the
+   * camera's world position is still a point on the world you left, and on a
+   * sphere of a different radius that point is usually inside this one. That
+   * is the whole of “warping arrives below the surface and rises through the
+   * terrain” — the camera was never placed on arrival, it was interpolated,
+   * starting from somewhere in the rock.
+   *
+   * So this is the one place the spring is bypassed. It builds the settled
+   * boom exactly as update() does with the orbit at rest — including the
+   * terrain probe along its whole length, without which an arrival can still
+   * be placed inside a hillside — writes position and aim rather than lerping
+   * toward them, and then lifts the result by CAM.arriveLift so the ordinary
+   * spring still has something to do. You drop the last few metres into the
+   * shot instead of cutting to it, which is also what distinguishes an
+   * arrival from a teleport.
+   *
+   * Everything the drag input owns is reset here too: an orbit carried across
+   * a warp is a camera aimed at the horizon of a world that is no longer
+   * under it.
+   */
+  arrive(craft) {
+    const surf = craft.surf;
+    if (!surf || craft.hyper) return;
+    const fr = surf.frame;
+    const mode = craft.mode;
+
+    this.wantYaw = 0; this.wantPitch = 0;
+    this.orbitYaw = 0; this.orbitPitch = 0;
+    this.wantZoom = 1; this.zoom = 1;
+    this.recentering = false;
+    this.idle = 9;
+    this.shakeAmt = 0;
+    this.tilt = 0;
+    this.dist = CAM.dist[mode];
+    this.hgt = CAM.height[mode];
+
+    const yaw = craft.yaw;
+    const lx = -Math.sin(yaw) * this.dist;
+    const lz = -Math.cos(yaw) * this.dist;
+    let ly = craft.pos.y + this.hgt;
+    let floor = -1e9;
+    for (let i = 1; i <= CAM.boomSamples; i++) {
+      const t = i / CAM.boomSamples;
+      const h = Math.max(surf.surfaceHeight(lx * t, lz * t), WORLD.waterY) +
+        CAM.boomClearance * t;
+      if (h > floor) floor = h;
+    }
+    if (ly < floor) ly = floor;
+
+    const w = fr.toWorld(lx, ly + CAM.arriveLift, lz, WA);
+    this.camera.position.set(w.x, w.y, w.z);
+
+    // The aim is update()'s, at rest: the lead with no speed term on it.
+    const aw = fr.toWorld(Math.sin(yaw) * 8, craft.pos.y + 1.6,
+      Math.cos(yaw) * 8, WB);
+    this.aim.set(aw.x, aw.y, aw.z);
+    this.camera.fov = CAM.fov[mode];
+    this.setUp(0, fr.up);
+    this.camera.setTarget(this.aim);
+  }
+
   update(dt, craft) {
     const dragging = this.pointers.size > 0;
     if (dragging) this.idle = 0; else this.idle += dt;

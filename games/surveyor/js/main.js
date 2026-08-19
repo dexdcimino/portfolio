@@ -186,6 +186,10 @@ function swapTo(key, dir, alt) {
     for (const m of form.root.getChildMeshes()) m.material = world.mats.craft;
   }
   cam.setPlanet(next);
+  /* ...and PUT the camera down on it. Without this the chase spring runs
+     from wherever it was on the world you left, which on a sphere of another
+     radius is inside this one: the arrival came up through the terrain. */
+  cam.arrive(craft);
   streaks.setPalette(next);
   // The world's own grade. Neutral on all six at T1, so this is a no-op that
   // proves the wire — and the one line that has to exist before any world can
@@ -225,6 +229,9 @@ function devWarp(key) {
      travel model is built on. */
   craft.setMode('rover', true);
   craft.settle();
+  // settle() moved the craft after swapTo placed the camera against where it
+  // was, so the boom is rebuilt against where it actually ended up.
+  cam.arrive(craft);
 }
 hud.attachWarp(Object.keys(PLANETS), world.planet.key, devWarp);
 

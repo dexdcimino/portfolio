@@ -39,6 +39,51 @@ html, body {
   touch-action: none;
 }
 
+/* ---- THE POINTER IS AN INSTRUMENT ----
+   The system arrow is a dark glyph with a thin white keyline, and on Vault's
+   ice and Tarn's pale shallows that keyline is the only thing separating it
+   from the ground — it vanishes outright over a bright shoreline, which is
+   exactly where you are aiming when you drop a beacon.
+
+   So it is drawn here, as a survey reticle: chart line-work, cyan, and CENTRED
+   on the hotspot rather than hanging below and right of it, which is the other
+   half of why the arrow was hard to aim with in a game that has no crosshair.
+
+   VISIBLE ON BOTH GROUNDS BY CONSTRUCTION, not by picking a lucky colour. Every
+   stroke is drawn twice: a 3.6px casing in --ink first, then the 1.5px cyan
+   line on top of it. That leaves about a pixel of near-black either side of
+   every cyan stroke, so the shape carries its own contrast onto whatever it is
+   over. A single flat colour cannot do that, and a white one fails on Vault the
+   same way the arrow does.
+
+   Inline SVG in a data: URI — no file, no request, and the games CSP allows it
+   (`img-src 'self' data: blob:`, which is what a CSS cursor image is checked
+   against). Each declaration ends in a keyword, so a browser that refuses the
+   data URI falls back to `crosshair`/`pointer` rather than to nothing.
+
+   28px against a ~20px system arrow, hotspot dead centre at 14 14. */
+:root {
+  --cur-reticle: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='28'%3E%3Cg%20fill='none'%20stroke-linecap='round'%3E%3Cg%20stroke='%23070c0f'%20stroke-opacity='.85'%20stroke-width='3.6'%3E%3Cpath%20d='M14%201.8v5.2M14%2021v5.2M1.8%2014h5.2M21%2014h5.2'/%3E%3Ccircle%20cx='14'%20cy='14'%20r='5.4'/%3E%3C/g%3E%3Cg%20stroke='%232be0c8'%20stroke-width='1.5'%3E%3Cpath%20d='M14%201.8v5.2M14%2021v5.2M1.8%2014h5.2M21%2014h5.2'/%3E%3Ccircle%20cx='14'%20cy='14'%20r='5.4'/%3E%3C/g%3E%3C/g%3E%3Ccircle%20cx='14'%20cy='14'%20r='1.3'%20fill='%232be0c8'%20stroke='%23070c0f'%20stroke-width='1'/%3E%3C/svg%3E") 14 14, crosshair;
+  --cur-target: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='28'%3E%3Cg%20stroke-linecap='round'%3E%3Cg%20fill='none'%20stroke='%23070c0f'%20stroke-opacity='.85'%20stroke-width='3.6'%3E%3Cpath%20d='M14%203.4v3.4M14%2021.2v3.4M3.4%2014h3.4M21.2%2014h3.4'/%3E%3Ccircle%20cx='14'%20cy='14'%20r='6.4'/%3E%3C/g%3E%3Ccircle%20cx='14'%20cy='14'%20r='6.4'%20fill='%232be0c8'%20fill-opacity='.22'/%3E%3Cg%20fill='none'%20stroke='%232be0c8'%20stroke-width='1.6'%3E%3Cpath%20d='M14%203.4v3.4M14%2021.2v3.4M3.4%2014h3.4M21.2%2014h3.4'/%3E%3Ccircle%20cx='14'%20cy='14'%20r='6.4'/%3E%3C/g%3E%3C/g%3E%3Ccircle%20cx='14'%20cy='14'%20r='1.9'%20fill='%232be0c8'%20stroke='%23070c0f'%20stroke-width='1'/%3E%3C/svg%3E") 14 14, pointer;
+}
+
+html, body, #stage { cursor: var(--cur-reticle); }
+
+/* Over something you can press, the ring closes and fills. Same instrument,
+   one state on — a system hand here would be the only object on screen not
+   drawn in this language. */
+.chip { cursor: var(--cur-target); }
+/* .wbtn and #begin declare it at their own rules further down: those sit
+   later in the file and would win on equal specificity from here. */
+
+/* The pause menu ships its own stylesheet from js/pausemenu.js and is injected
+   AFTER this file, so its `cursor:pointer` would otherwise win on equal
+   specificity. Doubling the class is the whole reason these are written this
+   way; nothing else about that component is touched from here. */
+.cmenu .cmenu-btn,
+.cmenu .cmenu-swatch,
+.cmenu .aud-toggle { cursor: var(--cur-target); }
+
 /* ---- the type scale ----
    One place, so "bigger" is one decision rather than forty. The old HUD
    assumed a focused player on a large monitor; these assume neither. The
@@ -382,7 +427,7 @@ body.ready #hud { opacity: 1; }
   color: rgba(242, 246, 230, 0.62);
   background: rgba(6, 12, 14, 0.34);
   border: 1px solid rgba(242, 246, 230, 0.18);
-  cursor: pointer;
+  cursor: var(--cur-target);
   transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 .wbtn:hover { color: var(--bone); border-color: var(--edge); }
@@ -394,7 +439,9 @@ body.ready #hud { opacity: 1; }
   color: var(--phos);
   border-color: var(--phos);
   background: rgba(43, 224, 200, 0.13);
-  cursor: default;
+  /* The world you are already on is not a button. Still the reticle, not
+     the system arrow — see the cursor block at the top of this file. */
+  cursor: var(--cur-reticle);
 }
 .wbtn:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
 
@@ -814,7 +861,7 @@ body.ready #hud { opacity: 1; }
   color: var(--ink);
   background: var(--phos);
   border: 0;
-  cursor: pointer;
+  cursor: var(--cur-target);
   transition: background 160ms ease, transform 160ms ease;
 }
 #begin:hover { background: var(--bone); transform: translateY(-1px); }

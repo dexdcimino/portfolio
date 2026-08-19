@@ -216,6 +216,72 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
+## The halo was the sun, the camera never landed, and the pointer vanished
+
+**The cold-load sun was not a different sun.** The report this came in on said
+the oversized disc appeared on a fresh load and went away for good the moment
+you changed worlds — so the boot path was supposed to be missing something the
+swap path applied. It is not, and that is worth writing down because the fix
+that follows from a wrong diagnosis is usually worse than the bug. Both paths
+run the same `createMaterials`, and reading the sky material's `uSunCos` out of
+the live page on a cold load and again after a warp gives the same four
+cosines on all six worlds, to the last digit. Rendered and measured the same
+way, cold and warped-to frames agree to within 0.01% of the frame's bright
+pixels. There was never a boot/swap divergence to find.
+
+**What was true is that the halo was still half the frame — because `sunSize`
+multiplies it.** The previous pass stated the sun's size in degrees and reported
+0.98 to 2.24 across. That is the CORE. The number you actually see is
+`haloAngle * sunSize`, and `haloAngle` was 14 with two worlds setting `sunSize`
+1.6: Ember and Shroud were drawing a **22.4 degree halo into a 54.4 degree
+frame**, 41% of its height before bloom and about half after. The core was never
+the thing anyone was complaining about. `SKY.haloAngle` is 5 now, so the worst
+case on any of the six is 8 degrees — 15% of the frame — and the spreading is
+bloom's job, which is where it belongs. Isolated by rendering each world twice,
+once with `uGlare` at its authored value and once at zero, and differencing: the
+sun's own footprint is now **under 0.8% of the frame's pixels** on every world.
+
+**The camera arrived inside the planet, and it was a frame-of-reference bug.**
+The chase camera computes its framing in the craft's tangent frame and then
+springs toward it in WORLD space. Both halves are right while you stay on one
+planet. The instant you are on another, `camera.position` is still a point on
+the world you left — and on a sphere of a different radius that point is usually
+inside this one. Nothing threw; the camera simply interpolated up out of the
+rock, every arrival, on every world. `ChaseCam.arrive` is the fix: build the
+settled boom exactly as `update` does with the orbit at rest, run the same
+terrain probe along its whole length, and WRITE position and aim instead of
+lerping toward them. It is then lifted by `CAM.arriveLift` (26m) so the ordinary
+spring still has a job, which is what makes an arrival read as a drop-in rather
+than a cut. Called from `swapTo` for a real hyper arrival, and again at the end
+of the dev warp because `craft.settle()` moves the craft after `swapTo` ran.
+
+Measured by `dev/arrivecheck.mjs`, which samples the camera's height above the
+ground under it for 120 frames after a warp. The metric matters: the first
+version of that check measured height above SEA LEVEL, and a camera 7m over a
+20m hill passes that and is still inside the hill. All six now start 28-34m up
+and fall to the boom without a single frame below the terrain. The craft itself
+was already fine — it settles 0.55m above ground, which is its ride height.
+
+**And the pointer.** The system arrow is a dark glyph with a thin light keyline,
+and on Vault's ice and Tarn's shallows that keyline is the only thing separating
+it from the ground; over a bright shoreline it is simply gone, which is exactly
+where you are aiming when you drop a beacon. It is drawn in `css/hud.css` now,
+as a survey reticle in a `data:` URI — chart line-work, phosphor cyan, centred
+on its own hotspot rather than hanging below and right of it. **Every stroke is
+drawn twice**: a 3.6px casing in `--ink` first, then the 1.5px cyan line over
+it, which leaves about a pixel of near-black either side of every cyan stroke.
+That is what makes it legible on both a white glacier and a black basalt field,
+and it is a property of the construction rather than of a lucky colour choice —
+a single flat colour cannot do it in both directions. A second variant, ring
+closed and filled, marks anything you can press, so the HUD never falls back to
+a system hand. Every declaration ends in a keyword (`crosshair` / `pointer`), so
+a browser that refuses the data URI gets a real cursor rather than none.
+
+No file, no request, and it passes the deployed CSP: a CSS cursor image is
+checked against `img-src`, and `/games/(.*)` allows `data:`. Verified under the
+real `vercel.json` headers, on all six worlds and inside the `/surveyor`
+wrapper's iframe, with no console errors and no refusals.
+
 ## The sun had a size, and the depth pass has a hole
 
 **The sun was never screen-space.** It is drawn in the sky dome as a function of
@@ -1025,7 +1091,14 @@ perfectly. A test frame's job is to show the thing under test.
 ```bash
 node dev/noop.mjs             # is a new term neutral?
 node dev/waterstats.mjs       # what the water shader computes, and what it costs
+node dev/sundisc.mjs          # is the bright thing at the sun, or at the camera?
+node dev/arrivecheck.mjs      # does a warp put the camera under the ground?
 ```
+
+`arrivecheck.mjs` exits non-zero, so it is the one in this list you can put in
+front of a commit. It measures height above the GROUND UNDER THE CAMERA rather
+than above sea level, because the version that measured sea level passed while
+the camera was inside a hill.
 
 `noop.mjs` is the instrument behind the house habit — ship a term at its neutral
 value, prove it changes nothing, then author. `shots.mjs` cannot do that: two of

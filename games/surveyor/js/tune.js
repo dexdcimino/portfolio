@@ -64,10 +64,20 @@ export const SKY = {
      welded to the camera even though the sky shader has always placed it by
      dot(viewDir, sunDir) and nothing about it was ever screen-space.
      For scale: the real sun is 0.53 degrees. 1.4 is a bright object you can
-     look away from, and the 14-degree halo is what bloom then spreads. */
+     look away from, and the halo is what bloom then spreads.
+
+     THE HALO WAS 14 AND IT WAS STILL TOO BIG, because sunSize multiplies it
+     and two worlds set 1.6: Ember and Shroud were drawing a 22.4-degree halo
+     into a 54.4-degree frame, 41% of its height before bloom and about half
+     after. The 0.98-2.24 degrees reported when this landed was the CORE only
+     — the halo was never in that measurement, and the halo is the thing you
+     see. At 5 the worst case on any of the six is 8 degrees, 15% of the frame,
+     and the spreading is bloom's job rather than the sky shader's. */
   sunAngle: 1.4,
-  haloAngle: 14.0,
-  // A per-world multiplier on both of the above, and on nothing else.
+  haloAngle: 5.0,
+  /* A per-world multiplier on both of the above, and on nothing else.
+     Read the halo as haloAngle * sunSize before deciding it looks small in
+     this table: the two 1.6 worlds are the ones that set the ceiling. */
   sunSize: 1.0,
   glare: 1.0,            // how hard the disc and its halo push past 1.0
   // The particle layer. `null` keeps the system's near-field motes; a block
@@ -2283,6 +2293,14 @@ export const CAM = {
   frameLerp: 5,             // how fast dist/height settle after a form change
   boomSamples: 6,           // terrain probes along the arm, not just its tip
   boomClearance: 2.6,
+  /* METRES ABOVE THE SETTLED BOOM THAT AN ARRIVAL IS PLACED, straight up the
+     local radial. See ChaseCam.arrive: the camera is written rather than
+     sprung on arrival, and a bare write is a cut. This gives posLerp a few
+     metres to eat, which reads as dropping into the shot — and it is ABOVE
+     the boom rather than behind it on purpose, because the failure being
+     fixed was arriving underground. 26m decays to a metre in about 0.43s at
+     posLerp 7.5, so it is a beat and not a descent. 0 cuts straight in. */
+  arriveLift: 26,
   rollTilt: { rover: 0.16, boat: 0.20, jet: 0.55 },  // camera banks with you
   // Hyper. The lens opens up with the log-scaled speed, which is what makes the
   // acceleration visible when there is nothing outside to measure it against.
