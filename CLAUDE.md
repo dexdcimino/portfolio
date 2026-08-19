@@ -64,6 +64,53 @@
   image's aspect ratio: that is what makes the caption and filmstrip jump on
   every arrow press.
 
+## An object that caches the world it was built for (three times now)
+
+This has cost three separate bugs in `games/surveyor/`, and each one looked like
+something else first. The shape is always the same:
+
+```js
+constructor(scene, craft) {
+  this.planet = craft.surf.planet;   // read once, at boot
+}
+```
+
+Nothing writes it again. The object then answers for **whichever world the tab
+opened on, forever**, and because most sessions never leave the first world it
+does not show up in play or in the harnesses.
+
+What it has cost:
+
+- **Sky domes.** `Worlds.get()` built a whole World per saved world at boot and
+  only `enter()` ever hid one, so a cold load with a save file drew six sky
+  domes at once. Read as a sun bug for three sessions.
+- **`Trails`.** Ember's ash and Shroud's murk were authored, resolved correctly,
+  and only ever built against the boot world. Flying to Ember got you Home's
+  drift in an ash storm.
+- **`SURVEYOR.surface`.** A module-level `const surface` in `main.js`, handed to
+  the dev harnesses, still pointing at the boot planet after any warp.
+  `dev/frames.mjs` frames its shots from it.
+
+**The rules that follow:**
+
+- **Anything per-world is constructed inside `World`, or it is re-pointed in
+  `swapTo`. There is no third option.** `World` is rebuilt per planet, so
+  everything it owns is correct by construction.
+- **Never expose a cached copy of something that changes.** `SURVEYOR.surface`
+  is a getter onto `craft.surf` now. A getter cannot go stale.
+- **Anything that moves the craft without flying it must say so.** A hyper
+  arrival teleports across the solar system in one frame, and objects that
+  integrate position — the wingtip `TrailMesh` was the one that bit — will
+  happily draw the jump. `Trails.resetJetTrails()` exists for exactly this.
+- **When a bug reproduces in a browser and not in a harness, suspect this
+  first**, then suspect the harness's own profile: every harness in `dev/`
+  launches Chrome on a throwaway `--user-data-dir`, so `localStorage` is empty
+  and every returning-player path is dark. `dev/savedworlds.mjs` and the
+  `--save` flag in `dev/savefile.mjs` exist to close that gap.
+
+Before adding a class that takes a `planet`, a `surface` or a palette: grep for
+`this.planet =` and `this.surf =` and check the new one against the list above.
+
 ## Image pipeline (do not regress)
 
 - `assets/` = masters (only copy of some art). `assets/derived/` = generated;

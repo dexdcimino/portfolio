@@ -249,8 +249,16 @@ export const TIER = {
      between them they are what makes a world look planted at all.
      Degrading a layer instead would mean shipping a worse tree, and a
      worse tree is visible in a way a missing shrub is not. */
+  /* LOW DROPS `shrub` AND ONLY `shrub`.
+     The first cut dropped hero as well, on the assumption that the biggest form
+     must be the expensive one. It is the opposite: hero is authored at two
+     attempts per leaf against cover's 260, so it is the cheapest layer in the
+     stack by two orders of magnitude and the highest value per triangle — it is
+     a landmark. And dropping it is not a uniform loss. Shroud carries its whole
+     character in that layer and nothing else, so a low tier there would have
+     been ground cover in fog and no reason to look up. */
   floraLayers: {
-    low: ['cover', 'tree'],
+    low: ['cover', 'tree', 'hero'],
     high: ['cover', 'shrub', 'tree', 'hero'],
   },
 };
@@ -1895,21 +1903,24 @@ export const PLANETS = {
        growing rather than as a lawn, which is the only version of vegetation
        that belongs on a world whose whole character is that you cannot see.
        Violet, so it is the murk's own colour and not an import. */
-    /* SPARSE, TALL AND STRANGE. Low density, high impact: things that loom out
-       of the murk at close range and are gone again. Almost no ground cover —
-       a lawn under that fog would be invisible and would cost the same as one
-       you can see — and the trees are thin and very tall so they resolve as a
-       silhouette before anything else does. */
+    /* SPARSE, TALL AND STRANGE, and NO TREE LAYER.
+       A tree layer is a canopy: enough of them at enough density that the world
+       reads as wooded, which is Home's job. What Shroud wants is a few looming
+       things at low density — rare and large IS the read, and a mid-density
+       stand of thin trees was quietly turning the murk into a forest with poor
+       visibility rather than into a place you cannot see.
+       So the hero layer carries it alone, at nearly twice the density it has
+       anywhere else, and is still under one plant per leaf. Ground cover stays
+       at a tenth: a lawn under that fog would be invisible and would cost the
+       same as one you can see. */
     flora: {
       density: 1.0,
       layers: {
         cover: { density: 0.10, band: [0.02, 0.22], color: [0.396, 0.325, 0.478],
           height: [1.2, 3.0], width: [0.05, 0.10], lean: 0.42, colorMix: 0.62 },
-        tree:  { density: 0.22, band: [0.02, 0.34], color: [0.353, 0.294, 0.435],
-          height: [5.0, 9.0], girth: 0.018, taper: 0.4, sides: 5, tiers: 4,
-          canopy: 0.14, trunk: 0.55, slope: 0.42, colorMix: 0.70 },
-        hero:  { density: 0.35, band: [0.02, 0.30], color: [0.427, 0.341, 0.510],
-          height: [12.0, 18.0], girth: 0.014, canopy: 0.12, colorMix: 0.72 },
+        hero:  { density: 0.62, band: [0.02, 0.34], color: [0.427, 0.341, 0.510],
+          height: [13.0, 21.0], girth: 0.014, canopy: 0.12, sides: 5, tiers: 4,
+          trunk: 0.60, slope: 0.42, colorMix: 0.72 },
       },
     },
 

@@ -324,13 +324,24 @@ up and 15m back and the rover is three metres long; 2.8-5.2m is a tree.
 |---|---|---|
 | home | all four | the lush one, and the first world anyone sees |
 | tarn | cover, shrub, tree | coastal, everything inside the first fifth of relief |
-| shroud | cover, tree, hero | sparse, tall, thin. Things looming out of murk |
+| shroud | cover, hero | rare and large. NO tree layer, deliberately |
 | anvil | cover, tree | a few tufts and stunted trees in the canyon floors |
 | ember, vault | none | and paying nothing |
 
-Tier drops **layers, not quality**: a low tier loses shrub and hero and keeps
-cover and tree. Shipping a worse tree would be visible in a way a missing shrub
-is not.
+**Shroud has no tree layer, and that is the point.** A tree layer is a canopy —
+enough of them at enough density that a world reads as wooded, which is Home's
+job. A mid-density stand of thin trees was quietly turning the murk into a
+forest with poor visibility rather than into a place you cannot see. The hero
+layer carries Shroud alone, at nearly twice the density it has anywhere else and
+still under one plant per leaf.
+
+Tier drops **layers, not quality**, and it drops `shrub` and only `shrub`. The
+first cut dropped hero too, assuming the biggest form must be the expensive one.
+It is the opposite: hero is two attempts per leaf against cover's 260, so it is
+the cheapest layer in the stack by two orders of magnitude and the highest value
+per triangle — it is a landmark. And dropping it is not a uniform loss, because
+Shroud now carries its whole character there: a low tier would have been ground
+cover in fog with no reason to look up.
 
 ### Why there are no downloaded models, in numbers
 
