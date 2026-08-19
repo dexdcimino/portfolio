@@ -74,6 +74,17 @@ function place(x, y, z, out) {
 const V = [];
 for (let i = 0; i < 10; i++) V.push([0, 0, 0]);
 
+/* Ring scratch for the shell canopies and lobes below — up to five rows of
+   nine points, reused for the same reason as V. */
+const RINGS = [];
+for (let i = 0; i < 48; i++) RINGS.push([0, 0, 0]);
+
+/* Cheap deterministic 0..1 from a float. Used for the silhouette jitter so
+   variety comes from the plant's own position rather than from the rng —
+   drawing it from the rng would shift every draw after it and reshuffle the
+   whole leaf, including on the worlds that opted out. */
+const h01 = (x) => { const s = Math.sin(x) * 43758.5453; return s - Math.floor(s); };
+
 /**
  * One triangle, wound clockwise with a negated normal, exactly as the terrain
  * and the rocks are.
@@ -157,6 +168,35 @@ function shrub(pos, nrm, sway, rng, L, scale) {
     tri(pos, nrm, sway, b1, m0, m1, 0, 0.5, 0.5);
     tri(pos, nrm, sway, m0, tp, m1, 0.5, 1, 0.5);
   }
+
+  /* LOBES, gated on the profile saying so: faceted diamonds of foliage sat in
+     the rosette, which is what turns four blades into a bush with a body. Ten
+     triangles each — a five-sided ring, a top apex, an underside apex — with
+     the ring roughed by the position hash so neighbouring bushes differ. All
+     rng draws live inside the gate; see the note on h01 above. */
+  if (L.lobes) {
+    const seed = XF.ox * 12.9898 + XF.oz * 78.233;
+    const lsides = 5;
+    for (let i = 0; i < L.lobes; i++) {
+      const a = a0 + (i / L.lobes) * Math.PI * 2 + range(rng, -0.5, 0.5);
+      const d = h0 * range(rng, 0.10, 0.42);
+      const cy = h0 * range(rng, 0.30, 0.60);
+      const lr = h0 * range(rng, 0.30, 0.48);
+      const cx2 = Math.cos(a) * d, cz2 = Math.sin(a) * d;
+      for (let s = 0; s < lsides; s++) {
+        const aa = a0 + (s / lsides) * Math.PI * 2;
+        const j = 1 + 0.34 * (h01(seed + i * 5.1 + s * 2.3) - 0.5);
+        place(cx2 + Math.cos(aa) * lr * j, cy, cz2 + Math.sin(aa) * lr * j, RINGS[s]);
+      }
+      const topA = place(cx2, cy + lr * 1.05, cz2, V[4]);
+      const botA = place(cx2, Math.max(0.02, cy - lr * 0.9), cz2, V[5]);
+      for (let s = 0; s < lsides; s++) {
+        const n = (s + 1) % lsides;
+        tri(pos, nrm, sway, RINGS[s], topA, RINGS[n], 0.45, 0.8, 0.45);
+        tri(pos, nrm, sway, RINGS[s], RINGS[n], botA, 0.45, 0.45, 0.25);
+      }
+    }
+  }
 }
 
 /**
@@ -199,9 +239,40 @@ function tree(pos, nrm, sway, rng, L, scale) {
     tri(pos, nrm, sway, f1, t0, t1, 0, 0, 0);
   }
 
+  /* BRANCHES, gated on the profile saying so. Bare three-sided spikes leaving
+     the trunk just below the canopy — the mass the brief calls for between
+     trunk and crown, and what stops the silhouette being a lollipop. Every rng
+     draw sits inside the gate: a world that never asks for branches gets the
+     exact stream, and therefore the exact field, it had before this existed. */
+  if (L.branches) {
+    for (let i = 0; i < L.branches; i++) {
+      const ba = a0 + (i / L.branches) * Math.PI * 2 + range(rng, -0.4, 0.4);
+      const bh = trunkH * range(rng, 0.72, 1.02);
+      const bl = h * (L.branchLen || 0.30) * range(rng, 0.75, 1.15);
+      const pitch = range(rng, 0.35, 0.75);
+      const cx = Math.cos(ba), cz = Math.sin(ba);
+      const ax = lx * (bh / h), az = lz * (bh / h);
+      const br = r * 0.5;
+      const px = Math.cos(ba + 1.5708), pz = Math.sin(ba + 1.5708);
+      const b0 = place(ax + cx * r * 0.4 + px * br, bh - br * 0.8, az + cz * r * 0.4 + pz * br, V[0]);
+      const b1 = place(ax + cx * r * 0.4 - px * br, bh - br * 0.8, az + cz * r * 0.4 - pz * br, V[1]);
+      const b2 = place(ax + cx * r * 0.4, bh + br * 1.1, az + cz * r * 0.4, V[2]);
+      const tp = place(ax + cx * bl * Math.cos(pitch), bh + bl * Math.sin(pitch),
+        az + cz * bl * Math.cos(pitch), V[3]);
+      tri(pos, nrm, sway, b0, tp, b1, 0.12, 0.35, 0.12);
+      tri(pos, nrm, sway, b1, tp, b2, 0.12, 0.35, 0.12);
+      tri(pos, nrm, sway, b2, tp, b0, 0.12, 0.35, 0.12);
+    }
+  }
+
   // Canopy: cones stacked up the trunk, each narrower than the one below it.
   // The overlap is what stops them reading as separate objects.
-  const tiers = L.tiers;
+  // `tierVary` adds up to that many extra tiers per plant, so a stand is not
+  // a stamp repeated; gated, like everything above, to keep opted-out worlds'
+  // rng streams exact.
+  const tiers = L.tiers + (L.tierVary ? ((rng() * (L.tierVary + 1)) | 0) : 0);
+  const jig = L.jitter || 0;
+  const seed = XF.ox * 12.9898 + XF.oz * 78.233;
   for (let t = 0; t < tiers; t++) {
     const f = t / tiers;
     const base = trunkH + (h - trunkH) * f * 0.62;
@@ -213,11 +284,52 @@ function tree(pos, nrm, sway, rng, L, scale) {
     const sBase = 0.25 + 0.5 * f;
     const sTop = 0.55 + 0.45 * f;
     const apex = place(tx, top, tz, V[4]);
+    if (!L.shell) {
+      for (let i = 0; i < sides; i++) {
+        const a = a0 + i * step + f * 0.4, b = a0 + (i + 1) * step + f * 0.4;
+        const p0 = place(bx + Math.cos(a) * rad, base, bz + Math.sin(a) * rad, V[0]);
+        const p1 = place(bx + Math.cos(b) * rad, base, bz + Math.sin(b) * rad, V[1]);
+        tri(pos, nrm, sway, p0, apex, p1, sBase, sTop, sBase);
+      }
+      continue;
+    }
+
+    /* THE SHELL: a closed faceted mass instead of an open cone. `shell` mid
+       rings between the base ring and the apex, an underside fan so the tier
+       has a bottom — an open cone reads as a paper hat the moment the camera
+       is below it, which at 5m of boom on a 4m tree is most of the time — and
+       a per-vertex radial jitter, hashed from the plant's own position, that
+       roughs the silhouette so two trees are never the same solid. This is
+       where the "200-400 triangles minimum" the brief asks for is spent: on
+       the mass that reads at fifteen metres, not on more cones. */
+    const rows = L.shell + 1;
+    for (let k = 0; k < rows; k++) {
+      const u = k / rows;
+      const y = base + (top - base) * 0.75 * u;
+      const rr = rad * (1 - 0.52 * u);
+      const cx = bx + (tx - bx) * u, cz = bz + (tz - bz) * u;
+      for (let i = 0; i < sides; i++) {
+        const a = a0 + i * step + f * 0.4;
+        const j = 1 + jig * (h01(seed + t * 7.31 + i * 2.17 + k * 3.9) - 0.5);
+        place(cx + Math.cos(a) * rr * j, y, cz + Math.sin(a) * rr * j,
+          RINGS[k * sides + i]);
+      }
+    }
+    const under = place(bx, base - rad * 0.42, bz, V[5]);
     for (let i = 0; i < sides; i++) {
-      const a = a0 + i * step + f * 0.4, b = a0 + (i + 1) * step + f * 0.4;
-      const p0 = place(bx + Math.cos(a) * rad, base, bz + Math.sin(a) * rad, V[0]);
-      const p1 = place(bx + Math.cos(b) * rad, base, bz + Math.sin(b) * rad, V[1]);
-      tri(pos, nrm, sway, p0, apex, p1, sBase, sTop, sBase);
+      const n = (i + 1) % sides;
+      tri(pos, nrm, sway, RINGS[i], RINGS[n], under, sBase, sBase, sBase * 0.8);
+      for (let k = 0; k < rows - 1; k++) {
+        const s0 = sBase + (sTop - sBase) * (k / rows);
+        const s1 = sBase + (sTop - sBase) * ((k + 1) / rows);
+        const A = RINGS[k * sides + i], B = RINGS[k * sides + n];
+        const C = RINGS[(k + 1) * sides + n], D = RINGS[(k + 1) * sides + i];
+        tri(pos, nrm, sway, A, D, B, s0, s1, s0);
+        tri(pos, nrm, sway, B, D, C, s0, s1, s1);
+      }
+      const kTop = (rows - 1) * sides;
+      const sK = sBase + (sTop - sBase) * ((rows - 1) / rows);
+      tri(pos, nrm, sway, RINGS[kTop + i], apex, RINGS[kTop + n], sK, sTop, sK);
     }
   }
 }

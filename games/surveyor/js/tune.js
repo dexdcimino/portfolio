@@ -1303,13 +1303,42 @@ export const PLANETS = {
        whole vegetation budget goes: cover everywhere, shrubs breaking up the
        flats, trees in the valleys and down by the lakes, and a handful of hero
        plants rare enough to be worth driving toward. */
+    /* FAR FEWER PLANTS, FAR RICHER EACH — the spend dev/budget.mjs authorised.
+       On the real GPU, +525k baked vegetation triangles never left the 0.9ms
+       measurement floor, so triangles are not what a tree costs here; the 20-tri
+       cones were cardboard for no reason. The richness terms (shell, branches,
+       jitter, lobes, tierVary) are HOME-ONLY overrides: their defaults are off,
+       they draw no rng when off, and the other five worlds' fields are
+       bit-identical — asserted by dev/floracheck.mjs counts. The real ceiling
+       is CPU leaf-build, asserted at 6ms in dev/run.mjs. */
     flora: {
       density: 1.0,
       layers: {
-        cover: { density: 1.0, color: [0.310, 0.478, 0.376] },
-        shrub: { density: 1.0, color: [0.267, 0.412, 0.333] },
-        tree:  { density: 1.0, color: [0.216, 0.376, 0.322] },
-        hero:  { density: 1.0, color: [0.290, 0.451, 0.361] },
+        // Taller and spread across more clumps than the default: at the chase
+        // camera's distance a 0.6m blade is a speck, and specks are why the
+        // ground read as bare with twelve thousand plants on it.
+        cover: { density: 1.0, color: [0.310, 0.478, 0.376],
+          perLeaf: 320, clumps: [4, 9], height: [0.65, 1.45] },
+        // A bush with a body: the rosette keeps the movement, the lobes are
+        // the mass. ~62 triangles against the old 12.
+        shrub: { density: 1.0, color: [0.267, 0.412, 0.333],
+          perLeaf: 44, lobes: 5 },
+        /* The layer the whole pass exists for: ~200-240 triangles of closed
+           faceted canopy, bare branches under the crown, one to two extra
+           tiers per position hash. Fewer per leaf than the cardboard cones
+           were, in tighter copses — fewer, larger clumps put woods in the
+           valleys and leave open ground between, which is what makes both
+           read. The band reaches further uphill than the default so the mid
+           slopes are wooded too: Home is the lush one, and a plain that only
+           greens at the waterline reads as a bare world with a hem. */
+        tree:  { density: 1.0, color: [0.216, 0.376, 0.322],
+          perLeaf: 16, sides: 7, tiers: 4, tierVary: 1, shell: 2,
+          branches: 4, jitter: 0.55, canopy: 0.34, height: [3.2, 5.4],
+          band: [0.02, 0.38], clumps: [1, 3], clump: [0.09, 0.22] },
+        // ~320 triangles, a crown you can see over the treeline from a ridge.
+        hero:  { density: 1.0, color: [0.290, 0.451, 0.361],
+          sides: 8, tiers: 6, shell: 2, branches: 5, branchLen: 0.34,
+          jitter: 0.45 },
       },
     },
 
