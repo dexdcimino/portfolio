@@ -1899,9 +1899,11 @@ let flashTip = () => {};
   let timer = null;
   let held = false;                    // the pointer or focus is on the row itself
 
-  // is-off, not the hidden attribute: the row keeps its height so the rail never
-  // jumps. See the CSS for why it is visibility rather than opacity alone.
-  const clear = () => { clearTimeout(timer); btn.classList.add('is-off'); };
+  /* The state lives on the WRAPPER, not the button: it is the wrapper that has
+     a height to animate, and the panel above it slides down as that height
+     arrives. See the CSS. */
+  const wrap = btn.parentElement;
+  const clear = () => { clearTimeout(timer); wrap.classList.remove('is-on'); };
   /* Restarted rather than resumed, everywhere: whatever the visitor just did
      with this row is the moment the fifteen seconds should count from. */
   const arm = () => {
@@ -1917,7 +1919,7 @@ let flashTip = () => {};
     // A handle and a glyph, so the outcome has to reach a screen reader through
     // the button's name.
     btn.setAttribute('aria-label', `Copy ${tag} to the clipboard`);
-    btn.classList.remove('is-off');
+    wrap.classList.add('is-on');
     arm();
   };
 

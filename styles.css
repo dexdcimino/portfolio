@@ -20,14 +20,17 @@
   --avatar-collapsed:44px;
   --rail-content:210px;   /* --sidebar-open minus .profile-mini padding */
   /* Growing the window pushes RESUME/CONTACT up, which is intended — but it must
-     never push them off the rail. --rail-stack is everything else it has to fit:
-     the fixed chrome above the footer, plus the name, caption, social and handle
-     rows below it. It is a BUDGET, not a guess — the avatar is whatever is left
-     over — so anything added to or removed from the footer stack has to move this
-     number by the same amount, or the rail silently overflows its own
-     overflow:hidden and clips its bottom row. The handle row under the socials
-     cost 45px and this went 720 -> 745; the other 20 came out of slack that was
-     already there.
+     never push them off the rail. --rail-stack is everything else the rail has to
+     fit: the fixed chrome above the footer, plus the name, caption and social rows
+     below it. It is a BUDGET, not a guess — the avatar is whatever is left over —
+     so anything added to or removed from the footer stack has to move this number
+     by the same amount, or the rail overflows its own overflow:hidden and clips
+     its bottom row.
+     720 is the ORIGINAL number and it is deliberately back. The handle row is
+     40px tall but opens into the 26px footer lift, so it adds 14 — and the second
+     caption line that used to sit under the name gave back 66. The stack is
+     shorter than it ever was in both states, so the photo keeps exactly the size
+     it always had rather than paying for a row that is usually not even there.
      Width follows height at --avatar-ratio so the window keeps its shape on short
      screens instead of flattening out; 210px is the rail's content width. */
   --avatar-ratio:.93;   /* window w/h expanded — near square, still slightly portrait */
@@ -35,8 +38,9 @@
      status bubble, which sits bottom-left and covered the social row. Collapsed
      there is nothing under it to protect, so the rail keeps its full height.
      The socials themselves stopped raising that bubble when script.js took their
-     hrefs, but the nav links above them are still real anchors and still do, so
-     this stays — and now it is the handle row it keeps clear. */
+     hrefs, but the nav links above them are still real anchors and still do, and
+     the handle row under them is closed most of the time — so the social row is
+     still the bottom row this is protecting. */
   --rail-footer-lift:26px;
   /* Collapsed counterpart: how far the footer block drops so it sits near the
      bottom of the rail instead of above the space the faded-out caption and
@@ -44,7 +48,7 @@
      of it is reclaimed — 72 leaves a 37px margin under the avatar, close enough
      to the bottom to look deliberate without crowding the edge. */
   --rail-footer-drop:72px;
-  --rail-stack:745px;
+  --rail-stack:720px;
   --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - var(--rail-stack) - var(--rail-footer-lift))));
   --avatar-expanded-w:min(var(--rail-content),calc(var(--avatar-expanded-h) * var(--avatar-ratio)));
   /* Brand mark: how far it grows as the rail opens, and the extra bump when the
@@ -293,6 +297,19 @@ img{max-width:100%}
    since they all ride this wrapper. The lift is subtracted from the avatar clamp
    above, so the space comes out of the photo rather than off the bottom of the rail. */
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .side-bottom{margin-bottom:var(--rail-footer-lift)}
+/* The handle row spends that lift rather than adding to the stack on top of it.
+   The lift is 26px of deliberate clearance under the social row; the row is 40px
+   and opens into it, so the footer above only travels 14 — less than half a
+   social icon, which is the difference between the icons drifting under the
+   pointer and jumping out from under it. Hovering an icon then still leaves you
+   on that icon.
+   The clearance itself is not lost: the row is now the bottom-most thing and is
+   what any status bubble would sit over, and it is empty most of the time.
+   Not while the profile is collapsed — the row is clipped to nothing in that
+   state, so there is nothing to make room for and dropping the lift would just
+   walk CONTACT down the rail. This rides .side-bottom's own margin transition,
+   so the giving-up and the growing happen on one curve. */
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .side-bottom:not(.is-profile-collapsed):has(.social-tagwrap.is-on){margin-bottom:0}
 /* The drop above exists to take up the blank rail the caption and social row
    reserve under the avatar. Collapse the profile and that block is gone, so the
    same -72px has nothing to absorb it and walks CONTACT off the bottom edge.
@@ -334,7 +351,10 @@ img{max-width:100%}
 .profile-nameline strong{flex:0 1 auto}
 button.button{cursor:pointer;font-family:inherit}
 .contact-mini{border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
-.profile-mini{min-height:136px;padding:14px 14px 13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+/* --rail-gap is named because the handle row has to cancel it: a flex gap is
+   charged for a child of zero height, so a collapsed row would still push
+   RESUME and CONTACT 12px up the rail. */
+.profile-mini{--rail-gap:12px;min-height:136px;padding:14px 14px 13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--rail-gap)}
 
 /* Collapse wrapper. 1fr -> 0fr animates to the block's real height, so nothing
    here needs a magic max-height that would either clip the block or spend the
@@ -452,11 +472,17 @@ button.button{cursor:pointer;font-family:inherit}
   transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 .profile-extra>*{min-height:0}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-extra{grid-template-rows:1fr}
-.profile-role{display:block;margin:0 0 6px}
-.profile-bio{margin:0;font-size:13px;line-height:1.55;letter-spacing:.015em;color:#8f979e;white-space:normal}
+/* The only line under the name now — the second one said the same thing in
+   prose and the About section says it properly. It keeps the brighter of the two
+   greys and stays unbolded: the name directly above it is already bold and
+   accent-coloured, and a second bold line under it flattens the difference
+   between a name and a description of one. */
+.profile-role{display:block;margin:0}
 /* Below this the rail simply has no room: fixed chrome (516) + the footer at its
-   floor + a ~112px caption exceeds the viewport, and the sidebar would clip its
-   own bottom. The avatar and name still work; only the caption drops out. */
+   floor + the caption exceeds the viewport, and the sidebar would clip its own
+   bottom. The avatar and name still work; only the caption drops out.
+   Still 840 with the caption down to one line: the threshold is measured against
+   the handle row being OPEN, which is when the rail is at its tallest. */
 @media(max-height:840px){ .profile-extra{display:none} }
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-copy{opacity:1;transform:none}
 
@@ -480,29 +506,41 @@ button.button{cursor:pointer;font-family:inherit}
 
 /* The handle row under the socials.
 
-   It reserves its height for as long as the rail is open, whether or not a
-   handle is showing, and script.js toggles visibility rather than display. A
-   row that appeared and vanished with the pointer would move the avatar, the
-   name and the caption every time someone crossed an icon.
+   It takes up NO height until there is a handle to show, and grows into place
+   when there is: RESUME, CONTACT and the profile above it slide down and back up
+   with it, on the rail's own duration and easing, so the movement reads as the
+   panel breathing rather than as a jolt. Same 0fr -> 1fr as .profile-extra.
 
-   Height is reserved only while the rail is OPEN: the collapsed rail is 44px of
-   content width with nothing readable in it, and the bottom of this sidebar is
-   tight enough that the caption already drops out under 840px tall.
-   Same 0fr -> 1fr as .profile-extra, on the same curve, so the row grows with
-   everything else in the panel rather than on a timing of its own. */
+   The negative margin cancels .profile-mini's flex gap. A gap is charged for a
+   child even when that child is zero pixels tall, so without this the row would
+   push the whole footer stack 12px up the rail while showing nothing at all —
+   including on the COLLAPSED rail, which must not move a pixel for a row that
+   cannot be read there. The spacing you actually see above the handle is the
+   button's own margin, inside the box that collapses.
+
+   Two conditions to open, and the sidebar one comes first: a handle set while
+   the rail happens to be closed must not prise it open. */
 .social-tagwrap{
-  width:100%;display:grid;grid-template-rows:0fr;overflow:hidden;
+  width:100%;display:grid;overflow:hidden;
+  margin-top:calc(-1 * var(--rail-gap));
   transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease);
 }
-.social-tagwrap>*{min-height:0}
-.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .social-tagwrap{grid-template-rows:1fr}
+/* minmax(0,Nfr), not a bare Nfr. A track sized in fr takes its automatic
+   MINIMUM from the item in it, and the button in this one has a 30px min-height
+   for its hit area — so a bare 0fr row still stood 40px tall and quietly pushed
+   RESUME and CONTACT up the rail while showing nothing. .profile-extra gets away
+   with the bare form because it disarms the same minimum from the other side,
+   with min-height:0 on its child. Measured, not guessed: the collapsed rail was
+   40px out before this. */
+.social-tagwrap{grid-template-rows:minmax(0,0fr)}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .social-tagwrap.is-on{grid-template-rows:minmax(0,1fr)}
 
 /* Mono, and 14px rather than the caption's 13: this is a string to be copied
    exactly, not prose, and an underscore or a digit in a handle has to survive
    being read off a screen. The bio's grey so it sits under the icons rather
    than competing with the accent-coloured name above them. */
 .social-tag{
-  position:relative;width:100%;min-height:30px;margin-top:3px;
+  position:relative;width:100%;min-height:30px;margin-top:10px;
   display:grid;place-items:center;padding:0 30px;
   border:0;border-radius:8px;background:transparent;color:#8f979e;cursor:pointer;
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
@@ -510,12 +548,11 @@ button.button{cursor:pointer;font-family:inherit}
   transition:background var(--accent-ease),color var(--accent-ease),
              opacity .18s ease,visibility .18s ease;
 }
-/* visibility, NOT display or the hidden attribute: the row has to keep its
-   height. It also takes the button out of the tab order and out of the
-   accessibility tree while it is empty, which display:none would do but
-   opacity:0 alone would not — an invisible control you can still Tab to is a
-   worse bug than the one this avoids. */
-.social-tag.is-off{opacity:0;visibility:hidden}
+/* The wrapper owns the state; this is the same state seen from inside. The box
+   above is already clipping the button to zero height, but a clipped button is
+   still focusable — visibility is what takes it out of the tab order and out of
+   the accessibility tree, which opacity alone would not. */
+.social-tagwrap:not(.is-on) .social-tag{opacity:0;visibility:hidden}
 /* One hover state for the whole row, so the glyph lights with the text no
    matter which half the pointer is over — it is all one button. */
 .social-tag:hover,.social-tag:focus-visible{
@@ -529,11 +566,13 @@ button.button{cursor:pointer;font-family:inherit}
 
 /* The same argument as the caption above, one floor lower: with the caption
    already dropped and the avatar on its 44px floor, nothing is left to absorb
-   this row and the rail would clip its own bottom edge. 720 is measured rather
-   than chosen — the last height at which it still fits is around 704. It sits
-   here rather than beside the caption's guard because display:none has to come
-   after the display:grid above it to win. */
-@media(max-height:720px){ .social-tagwrap{display:none} }
+   this row and the rail would clip its own bottom edge. Measured rather than
+   chosen — the row still fits at 680 and is 3px over at 670. display:none also
+   drops the flex gap it would otherwise still be charged, so below this the rail
+   is exactly what it was before the row existed. It sits here rather than beside
+   the caption's guard because display:none has to come after the display:grid
+   above it to win. */
+@media(max-height:680px){ .social-tagwrap{display:none} }
 
 /* ==========================================================================
    SHELL
@@ -2237,9 +2276,7 @@ body.modal-open{overflow:hidden}
   :root{--brand-w:52px}
   .nav-link,.resume-mini,.contact-mini{padding:0 17px;gap:14px}
   .nav-text{font-size:13px}
-  /* 8px more than the wide rail: the caption wraps to one more line in a 168px
-     column, and the avatar is what pays for it. */
-  :root{--avatar-collapsed:38px;--rail-content:168px;--rail-stack:753px}
+  :root{--avatar-collapsed:38px;--rail-content:168px}
   .profile-mini{padding:10px;min-height:120px}
   .social-mini .icon{width:16px;height:16px}
   .topbar{padding:0 12px}

@@ -208,7 +208,6 @@
           <div class="profile-extra">
             <div>
               <small class="profile-role">2D / 3D Artist, Creative Technologist, and AI-Assisted Builder.</small>
-              <p class="profile-bio">I combine art, technology, and AI to build games, digital experiences, and creative tools.</p>
             </div>
           </div>
         </div>
@@ -239,11 +238,11 @@
         <!-- The handle of the social last hovered, centred under the row with a
              copy glyph pinned right. The WHOLE ROW is the button — the glyph is
              a hint about what happens, not a target you have to hit.
-             It keeps its height whether or not a handle is showing, so the rail
-             does not jump every time the pointer crosses an icon; script.js
-             toggles visibility, never display. -->
+             Zero height until there is a handle to show: script.js puts is-on on
+             the wrapper and the panel above slides down to make room, on the same
+             curve the rail itself opens with. -->
         <div class="social-tagwrap">
-          <button class="social-tag is-off" id="socialTag" type="button">
+          <button class="social-tag" id="socialTag" type="button">
             <span class="social-tag-text" id="socialTagText"></span>
             <span class="icon social-tag-copy" data-icon="copy" aria-hidden="true"></span>
           </button>
