@@ -329,9 +329,26 @@ window._dexPlatShiftWorld = (dx, dy) => {
 // through here or it will silently glue itself to the screen. All the
 // blood/gore/feather emitters register; new emitters must too.
 const _worldFxEls = [];
+// Hard ceiling on live stain/gore DOM nodes. Every dot is an absolutely
+// positioned element the compositor has to track, and in the platformer the
+// camera-shift bridge rewrites each one's left/top per shifting frame — a
+// long fight used to pile up thousands and drag the whole frame down. At the
+// cap the oldest stain vanishes for each new one; nobody misses stain #131.
+const WORLD_FX_CAP = 130;
 function _anchorFxEl(el, x, y) {
   el._wfx = { x, y };
   _worldFxEls.push(el);
+  if (_worldFxEls.length > WORLD_FX_CAP) {
+    // Compact anything already removed by its own timeout first…
+    for (let i = _worldFxEls.length - 1; i >= 0 && _worldFxEls.length > WORLD_FX_CAP; i--) {
+      if (!_worldFxEls[i].isConnected) _worldFxEls.splice(i, 1);
+    }
+    // …then evict oldest-first for real.
+    while (_worldFxEls.length > WORLD_FX_CAP) {
+      const old = _worldFxEls.shift();
+      try { old.remove(); } catch (e) {}
+    }
+  }
 }
 // Moving-platform carry: the platform's per-frame delta applied directly.
 window._dexPlatShiftChar = (dx) => { P.x += dx; };
@@ -2487,6 +2504,10 @@ function _deactivateJetpack() {
   _syncJetFuelHud();
 }
 window._dexDismountJetpack = () => { if (_jetpack.active) { _deactivateJetpack(); sfx('board.dismount'); } };
+// Platform mode straps the pack on automatically at the door (platformer.js
+// _enter) — the climb is designed around it. Doesn't touch the hotbar
+// loadout: the pack is worn, fuel HUD and all, whatever slot 4 holds.
+window._dexEquipJetpack = () => { if (!_jetpack.active) _toggleJetpack(); };
 
 function _syncJetpackVisual() {
   const g = _el('jetpack');
@@ -2959,6 +2980,11 @@ const SWORD_CHARGE_MIN = 0.22;  // release below this fraction → no power swip
 const SWORD_POWER_BACK = 2.2;   // full-charge wind-back angle (rad)
 const SWORD_POWER_DUR = 54;     // power swipe swing duration
 
+// Swing-arc sign for the current facing. Sword angles are raw screen-space
+// (atan2 of the cursor), so an arc offset that reads "back over the shoulder"
+// facing right reads "down through the floor" facing left unless mirrored.
+function _swordDir() { return flipX ? -1 : 1; }
+
 function _ensureSwordEls() {
   if (_gun._swordEl) return;
   const ns = 'http://www.w3.org/2000/svg';
@@ -3029,8 +3055,11 @@ function _updateSword(cfg, gripY, advance) {
     // CHARGING — the click is being held: the blade slowly winds backwards,
     // opposite the cursor. Release fires the power swipe (mouseup handler →
     // _swordPowerRelease). Trembles once fully charged.
+    // Wind-back is mirrored by facing: angles are raw screen-space, so the
+    // fixed minus sign that lifts the blade over the right shoulder dragged
+    // it DOWN when facing left. _swordDir() keeps "back and up" true both ways.
     const cf = Math.min((_gun._swordChargeT - SWORD_CHARGE_DELAY) / SWORD_CHARGE_DUR, 1);
-    effAngle = _gun.angle - SWORD_POWER_BACK * cf * (2 - cf);
+    effAngle = _gun.angle - SWORD_POWER_BACK * cf * (2 - cf) * _swordDir();
     ext = -3 * cf;
     if (cf >= 1) {
       effAngle += Math.sin(_gun._swordChargeT * 0.45) * 0.045;
@@ -3097,8 +3126,12 @@ function _swordPowerRelease() {
   if (_isChatOpenFn && _isChatOpenFn()) return;
   _trackAction();
   _gun._swordLast = 'swipe';
+  // a0 mirrors with facing so the sweep starts exactly where the charge pose
+  // left the blade (wound back and UP on either side), a1 with it so the
+  // release cuts down through the front instead of sweeping backwards.
+  const sd = _swordDir();
   _gun._swordAnim = { kind: 'swipe', t: 0, windup: 2, dur: SWORD_POWER_DUR, struck: false,
-                      power: cf, a0: -SWORD_POWER_BACK * cf * (2 - cf), a1: 1.35 + 0.45 * cf, _a0: null };
+                      power: cf, a0: -SWORD_POWER_BACK * cf * (2 - cf) * sd, a1: (1.35 + 0.45 * cf) * sd, _a0: null };
   sfx('melee.sword', { jab: false, power: cf });
 }
 
@@ -3572,7 +3605,9 @@ function _shootGun() {
     _gun._swordAnim = kind === 'jab'
       ? { kind, t: 0, windup: SWORD_JAB_WINDUP, dur: SWORD_JAB_DUR, struck: false }
       : { kind, t: 0, windup: SWORD_SWIPE_WINDUP, dur: SWORD_SWIPE_DUR, struck: false,
-          a0: -SWORD_SWIPE_ARC * 1.2, a1: SWORD_SWIPE_ARC, _a0: null };
+          // Mirrored like the power swipe: cock up-and-back, cut down-forward,
+          // whichever way the character faces.
+          a0: -SWORD_SWIPE_ARC * 1.2 * _swordDir(), a1: SWORD_SWIPE_ARC * _swordDir(), _a0: null };
     _gun._swordChargeT = 0; _gun._swordChargeCued = false;
     sfx('melee.sword', { jab: kind === 'jab' });
     return;
@@ -4211,8 +4246,8 @@ function _tickCreatures() {
             dot.style.cssText = `position:fixed;left:${dropX + clusterOX - sz/2}px;top:${floorY + clusterOY}px;width:${sz}px;height:${szH}px;border-radius:50%;background:${_bloodClr()};opacity:${0.4 + Math.random() * 0.4};pointer-events:none;z-index:0;`;
             document.body.appendChild(dot);
             _anchorFxEl(dot, dropX + clusterOX - sz / 2, floorY + clusterOY);
-            setTimeout(() => { dot.style.transition = 'opacity 4s'; dot.style.opacity = '0'; }, 36000);
-            setTimeout(() => dot.remove(), 40100);
+            setTimeout(() => { dot.style.transition = 'opacity 4s'; dot.style.opacity = '0'; }, 14000);
+            setTimeout(() => dot.remove(), 18100);
           }
         }
       }
@@ -4248,6 +4283,7 @@ function _tickCreatures() {
           c.landed = true;
           c.landTime = Date.now();
           c.wing.setAttribute('d', 'M2,6 Q5,4 10,6 Q15,4 18,6');
+          sfx('body.thud', { gain: 0.55 });
           _spawnBloodPuddle(c.x + 10, c.y + 12);
         }
         continue;
@@ -4304,6 +4340,12 @@ function _tickCreatures() {
     if (c.kind === 'yak' || c.kind === 'deer') {
       if (c.dead) {
         c.deadT = (c.deadT || 0) + _dt;
+        // Corpse retired (rocket deaths null el instantly, normal deaths on
+        // their fade timeout) → drop the husk from the array. Dead bodies
+        // used to sit in _creatures forever — every kill made every later
+        // frame's tick, hit tests and camera shifts a little slower, which
+        // is exactly the "starts crawling after a big fight" curve.
+        if (!c.el) { _creatures.splice(i, 1); }
         continue;
       }
       // Thrown yak — gravity arc, land on platforms or canvas floor
@@ -4554,8 +4596,8 @@ function _tickCreatures() {
             dot.style.cssText = `position:fixed;left:${dropX + clusterOX - sz/2}px;top:${dropY + clusterOY}px;width:${sz}px;height:${szH}px;border-radius:50%;background:${_bloodClr()};opacity:${0.4 + Math.random()*0.4};pointer-events:none;z-index:0;`;
             document.body.appendChild(dot);
             _anchorFxEl(dot, dropX + clusterOX - sz / 2, dropY + clusterOY);
-            setTimeout(() => { dot.style.transition = 'opacity 4s'; dot.style.opacity = '0'; }, 36000);
-            setTimeout(() => dot.remove(), 40100);
+            setTimeout(() => { dot.style.transition = 'opacity 4s'; dot.style.opacity = '0'; }, 14000);
+            setTimeout(() => dot.remove(), 18100);
           }
         }
       }
@@ -4611,9 +4653,11 @@ function _hitCreature(px, py, isArrow, isRocket, prevPx, prevPy) {
       if (c.hp > 0 && c.kind === 'yak') {
         c._woundCount = (c._woundCount || 0) + 1;
       }
+      if (c.hp > 0 && c.kind !== 'bird') sfx('creature.hurt');
       if (c.hp <= 0) {
         c.dead = true;
         if (c.kind === 'bird') {
+          sfx('bird.death');
           _spawnFeathers(c.x + 10, c.y + 6, 12);
           c.falling = true; c.vy = 0;
           c.fallVx = c.vx * 0.3; c.vx = 0;
@@ -4644,6 +4688,9 @@ function _killSessionCreature(c, w, h, isRocket) {
   const cy = c.y + h/2;
   c.vx = 0;
   c.deadT = 0;
+  sfx('creature.death');
+  // The tip-over transition runs 0.25s — the body hits the ground then.
+  if (!isRocket) setTimeout(() => sfx('body.thud', { gain: 0.8 }), 280);
 
   if (isRocket) {
     // ── ROCKET DEATH: instant removal + explosion gore ──
@@ -4664,27 +4711,27 @@ function _killSessionCreature(c, w, h, isRocket) {
       if (!c.el) return;
       c.el.style.transition = 'none';
     }, 280);
-    // Fade out after 30 seconds
-    setTimeout(() => { if (c.el) { c.el.style.transition = 'opacity 3s'; c.el.style.opacity = '0'; } }, 30000);
-    setTimeout(() => { if (c.el) { c.el.remove(); c.el = null; } }, 33000);
+    // Fade out after 12 seconds. (Perf pass: corpses lived 30-45s across TWO
+    // overlapping fade timelines; during a long fight that meant dozens of
+    // dead DOM bodies being camera-shifted every frame. One timeline, ~15s
+    // on screen — long enough to read the kill, short enough to not stack.)
+    setTimeout(() => { if (c.el) { c.el.style.transition = 'opacity 3s'; c.el.style.opacity = '0'; } }, 12000);
+    setTimeout(() => { if (c.el) { c.el.remove(); c.el = null; } }, 15200);
   }
   // Blood puddle grows smoothly. Coordinates are re-derived from the
   // creature at each step — the world may have camera-shifted since death
   // (MD 06b issue 2), and c.x/c.y are kept live by the shift bridge.
+  // Three steps, not five: each step is its own DOM container, and the
+  // grow reads the same with fewer nodes.
   const _puddleOffX = cx - c.x, _puddleOffY = (c.y + h - 2) - c.y;
   const _puddleSteps = [
-    { delay: 100, scale: 0.2 },
-    { delay: 400, scale: 0.45 },
-    { delay: 900, scale: 0.7 },
-    { delay: 1800, scale: 0.9 },
-    { delay: 3000, scale: 1.0 },
+    { delay: 100, scale: 0.3 },
+    { delay: 700, scale: 0.65 },
+    { delay: 1800, scale: 1.0 },
   ];
   _puddleSteps.forEach(step => {
     setTimeout(() => _spawnBloodPuddleSession(c.x + _puddleOffX, c.y + _puddleOffY, step.scale), step.delay);
   });
-  // Fade and remove after 45s
-  setTimeout(() => { if (!c.el) return; c.el.style.transition = 'opacity 6s ease-out'; c.el.style.opacity = '0'; }, 36000);
-  setTimeout(() => { if (c.el) { c.el.remove(); c.el = null; } }, 42500);
 }
 
 function _spawnRocketGoreSession(cx, cy, w, h) {
@@ -4751,8 +4798,8 @@ function _spawnRocketGoreSession(cx, cy, w, h) {
       part.style.width = (pw * 1.4) + 'px';
       part.style.height = Math.max(1, ph * 0.3) + 'px';
     }, dur * 1000 + 20);
-    setTimeout(() => { part.style.transition = 'opacity 4s'; part.style.opacity = '0'; }, 30000);
-    setTimeout(() => part.remove(), 34100);
+    setTimeout(() => { part.style.transition = 'opacity 4s'; part.style.opacity = '0'; }, 13000);
+    setTimeout(() => part.remove(), 17100);
   }
   // Blood puddle at center
   setTimeout(() => _spawnBloodPuddleSession(cx, cy + h/2 - 2, 0.8), 100);
@@ -4772,8 +4819,8 @@ function _spawnGoreParticle(cx, cy, tx, ty, sz, clr, dur) {
     dot.style.width = (sz * 1.3) + 'px';
     dot.style.height = (sz * 0.2) + 'px';
   }, dur * 1000 + 20);
-  setTimeout(() => { dot.style.transition = 'opacity 4s'; dot.style.opacity = '0'; }, 30000);
-  setTimeout(() => dot.remove(), 34100);
+  setTimeout(() => { dot.style.transition = 'opacity 4s'; dot.style.opacity = '0'; }, 13000);
+  setTimeout(() => dot.remove(), 17100);
 }
 
 function _bloodClr() {
@@ -4799,7 +4846,7 @@ function _spawnHitBloodSession(x, y, count, isBird) {
     document.body.appendChild(dot);
     _anchorFxEl(dot, x, y);
     requestAnimationFrame(() => { dot.style.transform = `translate(${tx}px,${ty}px)`; });
-    const fadeDelay = isBird ? 400 : 30000;
+    const fadeDelay = isBird ? 400 : 14000;
     const fadeDur = isBird ? 0.6 : 4;
     setTimeout(() => { dot.style.transition = `opacity ${fadeDur}s`; dot.style.opacity = '0'; }, fadeDelay);
     setTimeout(() => dot.remove(), fadeDelay + fadeDur * 1000 + 100);
@@ -4838,8 +4885,8 @@ function _spawnBloodPuddleSession(x, y, scale) {
     container.appendChild(dot);
     requestAnimationFrame(() => { dot.style.transform = `translate(${tx}px,${ty}px)`; });
   }
-  setTimeout(() => { container.style.transition = 'opacity 6s'; container.style.opacity = '0'; }, 36000);
-  setTimeout(() => container.remove(), 42100);
+  setTimeout(() => { container.style.transition = 'opacity 6s'; container.style.opacity = '0'; }, 16000);
+  setTimeout(() => container.remove(), 22100);
 }
 
 function _spawnBloodPuddle(x, y) {

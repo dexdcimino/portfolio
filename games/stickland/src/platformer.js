@@ -303,7 +303,11 @@ function _enter() {
       hud.classList.add('hud-visible');
     }); });
   }
-  try { unholsterBow(); renderAllHotbarSlots(); } catch (e) {}
+  // Auto-equip the jetpack — this mode is designed around it (star fuel,
+  // rest ledges, thin high bands), so entering wears the pack without a
+  // trip through the bag. Before renderAllHotbarSlots so a jetpack sitting
+  // in slot 4 lights up as active on the same frame.
+  try { unholsterBow(); window._dexEquipJetpack?.(); renderAllHotbarSlots(); } catch (e) {}
   const stats = document.getElementById('plat-stats');
   if (stats) stats.style.display = '';
 }

@@ -1,9 +1,14 @@
 // ══════════════════════════════════════════════════════
-//  Procedural audio — the only module that touches AudioContext
+//  Game audio — the only module that touches AudioContext
 // ══════════════════════════════════════════════════════
-//  Zero audio files: everything is synthesized (oscillators, one shared
-//  noise buffer, envelopes, filters). Matches the game's visual language —
-//  clean, synthetic, bouncy, a little toylike.
+//  Synthesized core (oscillators, one shared noise buffer, envelopes,
+//  filters) with a SAMPLED OVERLAY on top: a set of CC0 recordings in
+//  sfx/ next to index.html (see sfx/CREDITS.md) that replace the synth
+//  voice for the sounds where a real recording reads better — gunshots,
+//  explosions, creature hurt/death, corpse thuds, gore, and the forest
+//  ambience bed. The synth voices all remain as fallbacks: over file://
+//  (or any fetch/decode failure) every sample silently degrades to the
+//  synth that has always been there, matching music.js's contract.
 //
 //  Guarantees the rest of the codebase relies on:
 //   · never throws — a browser that blocks AudioContext gets a silent game
@@ -32,7 +37,9 @@ let _master = null, _comp = null;
 const _bus = {};          // sfx / ui / amb gain nodes
 let _noiseBuf = null;     // 1s of white noise, built once
 
-const _settings = { volume: 0.8, muted: false, buses: { sfx: 1, ui: 0.7, amb: 0.5 } };
+// Master defaults to 50% — the synth mix reads hot at 80%, and first-boot
+// loudness is the one thing a settings menu can't retroactively fix.
+const _settings = { volume: 0.5, muted: false, buses: { sfx: 1, ui: 0.7, amb: 0.5 } };
 try {
   const s = JSON.parse(safeStorage.getItem(LS_KEY) || 'null');
   if (s && typeof s === 'object') {
@@ -101,6 +108,7 @@ function _unlock() {
   if (!ctx) return;
   ctx.resume().then(() => {
     _unlocked = true;
+    _loadSamples();
     _startAmbience();
     // The audition rack, if it is present in this build. Late-bound through the
     // window rather than imported: audio.js is the bottom of the module graph
@@ -460,7 +468,88 @@ const SOUNDS = {
   'ui.chat':       { cd: 100, fn: () => {
     _blip({ type: 'sine', freq: _vary(880, 0.04), dur: 0.05, gain: 0.08, bus: 'ui' });
   }},
+
+  // — creatures (added with the sampled overlay; these synth voices are the
+  //   file:// fallbacks, kept deliberately modest) —
+  'creature.hurt': { cd: 120, fn: (o) => {
+    _blip({ type: 'triangle', freq: _vary(340, 0.1), endFreq: 180, dur: 0.1, gain: 0.16 * (o.gain || 1), pan: o.pan });
+  }},
+  'creature.death': { cd: 200, fn: (o) => {
+    _blip({ type: 'triangle', freq: _vary(300, 0.08), endFreq: 120, dur: 0.22, gain: 0.2 * (o.gain || 1), pan: o.pan });
+    _thud({ freq: 140, endFreq: 55, dur: 0.2, gain: 0.2 * (o.gain || 1), delay: 0.1, pan: o.pan });
+  }},
+  'bird.death':    { cd: 150, fn: (o) => {
+    _blip({ type: 'square', freq: _vary(1400, 0.1), endFreq: 500, dur: 0.12, gain: 0.1 * (o.gain || 1), pan: o.pan });
+  }},
+  'body.thud':     { cd: 120, fn: (o) => {
+    _thud({ freq: _vary(130, 0.08), endFreq: 50, dur: 0.14, gain: 0.22 * (o.gain || 1), pan: o.pan });
+  }},
 };
+
+// ── Sampled overlay ─────────────────────────────────────
+// name (or 'explosion.big') → recording(s). `gain` normalizes each file's
+// measured peak to a level matched against the synth mix; `vary` is the
+// per-trigger playbackRate spread (the sampled cousin of the synth's pitch
+// drift); multiple files round-robin at random so repeats don't machine-gun
+// the identical waveform. Everything still runs through _chain — same
+// buses, cooldowns, voice cap, and spatial gain/pan as the synth voices.
+const SFX_BASE = 'sfx/';
+const SAMPLES = {
+  'shoot.pistol':    { files: ['shot-pistol.ogg'],     gain: 0.56, vary: 0.05 },
+  'shoot.smg':       { files: ['shot-smg.ogg'],        gain: 1.19, vary: 0.07 },
+  'shoot.rifle':     { files: ['shot-rifle.ogg'],      gain: 0.44, vary: 0.04 },
+  'shoot.shotgun':   { files: ['shot-shotgun.ogg'],    gain: 0.70, vary: 0.05 },
+  'shoot.rocket':    { files: ['shot-rocket.ogg'],     gain: 1.44, vary: 0.05, rate: 1.15 },
+  'shoot.spellbook': { files: ['cast-spell.ogg'],      gain: 0.56, vary: 0.05 },
+  'shoot.puffer':    { files: ['shot-puffer.ogg'],     gain: 0.45, vary: 0.08 },
+  'explosion':       { files: ['explosion-small.ogg'], gain: 1.17, vary: 0.06 },
+  'explosion.big':   { files: ['explosion-big.ogg'],   gain: 0.93, vary: 0.04 },
+  'gore':            { files: ['gore-splat-1.ogg', 'gore-splat-2.ogg'], gain: 1.25, vary: 0.1 },
+  'body.thud':       { files: ['body-thud-1.ogg', 'body-thud-2.ogg'],  gain: 0.5,  vary: 0.06 },
+  'creature.hurt':   { files: ['creature-hurt-1.ogg', 'creature-hurt-2.ogg', 'creature-hurt-3.ogg'], gain: 0.5, vary: 0.08 },
+  'creature.death':  { files: ['creature-death-1.ogg', 'creature-death-2.ogg'], gain: 1.2, vary: 0.06 },
+  'bird.death':      { files: ['bird-death-1.ogg', 'bird-death-2.ogg'], gain: 1.05, vary: 0.1 },
+};
+
+const _sampleBufs = Object.create(null);   // file → AudioBuffer (present = ready)
+let _samplesRequested = false;
+function _loadSamples() {
+  if (_samplesRequested || !_ctx) return;
+  _samplesRequested = true;
+  try {
+    const files = new Set();
+    for (const d of Object.values(SAMPLES)) for (const f of d.files) files.add(f);
+    for (const f of files) {
+      fetch(SFX_BASE + f)
+        .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); })
+        .then(ab => _ctx.decodeAudioData(ab))
+        .then(buf => { _sampleBufs[f] = buf; })
+        .catch(() => { /* file:// or 404 — the synth voice keeps the slot */ });
+    }
+  } catch (e) { /* no fetch — synth only */ }
+}
+
+function _playSample(def, o) {
+  const file = def.files.length > 1
+    ? def.files[Math.floor(Math.random() * def.files.length)]
+    : def.files[0];
+  const buf = _sampleBufs[file];
+  if (!buf) return false;                    // not loaded (yet) — synth plays
+  const t0 = _ctx.currentTime;
+  const g = _chain(def.bus || 'sfx', o.pan);
+  const src = _ctx.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = _vary(def.rate || 1, def.vary == null ? 0.04 : def.vary);
+  const peak = (def.gain || 1) * (o.gain || 1);
+  // 4ms attack ramp — dodges the click a hard start can make.
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(Math.max(0.0002, peak), t0 + 0.004);
+  src.connect(g);
+  src.start(t0);
+  src.onended = () => { _liveVoices = Math.max(0, _liveVoices - 1); try { g.disconnect(); } catch (e) {} };
+  _liveVoices++;
+  return true;
+}
 
 const _lastTrigger = Object.create(null);   // name → performance.now()
 
@@ -481,6 +570,10 @@ export function sfx(name, opts) {
       o.gain = (o.gain || 1) * s.gain;
       o.pan = s.pan;
     }
+    // Sampled overlay first; the synth voice is the fallback, not a layer.
+    const sKey = (name === 'explosion' && o.big) ? 'explosion.big' : name;
+    const smp = SAMPLES[sKey];
+    if (smp && _playSample(smp, o)) return;
     def.fn(o);
   } catch (e) {}
 }
@@ -634,9 +727,13 @@ export function footstep(phase, sprint) {
 }
 
 // ── Ambience ────────────────────────────────────────────
-// A whisper of wind — slow LFO drifting a bandpass over looped noise.
-// Lives on the amb bus, starts after the first user gesture, and is fully
-// muted with everything else. Deliberately almost inaudible.
+// Two layers with one survivor: the synth wind (slow LFO drifting a
+// bandpass over looped noise) starts instantly, and the recorded forest
+// bed (sfx/ambience-forest.ogg — wind + birds, CC0) crossfades in over it
+// once fetched and decoded. Over file:// the fetch fails and the synth
+// wind simply stays, same degrade story as the music rack. Lives on the
+// amb bus, starts after the first user gesture, muted with everything
+// else. Deliberately background.
 // Temporary programmatic handle until MD 02's ESC menu binds the exported
 // API — lets volume/mute be exercised from the console. Trivially removable.
 try {
@@ -647,6 +744,7 @@ let _ambStarted = false;
 function _startAmbience() {
   if (_ambStarted || _failed || !_ctx) return;
   _ambStarted = true;
+  let windG = null;
   try {
     const src = _ctx.createBufferSource();
     src.buffer = _noiseBuf; src.loop = true;
@@ -659,5 +757,22 @@ function _startAmbience() {
     src.connect(f); f.connect(g); g.connect(_bus.amb);
     src.start(); lfo.start();
     g.gain.setTargetAtTime(0.022, _ctx.currentTime, 3);   // fade in over seconds
+    windG = g;
+  } catch (e) {}
+  // The recorded bed — fades in over the wind, then the wind bows out.
+  try {
+    fetch(SFX_BASE + 'ambience-forest.ogg')
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); })
+      .then(ab => _ctx.decodeAudioData(ab))
+      .then(buf => {
+        const src = _ctx.createBufferSource();
+        src.buffer = buf; src.loop = true;
+        const g = _ctx.createGain(); g.gain.value = 0.0001;
+        src.connect(g); g.connect(_bus.amb);
+        src.start(0, Math.random() * Math.max(0, buf.duration - 1));
+        g.gain.setTargetAtTime(0.5, _ctx.currentTime, 4);
+        if (windG) windG.gain.setTargetAtTime(0.0001, _ctx.currentTime, 3);
+      })
+      .catch(() => { /* file:// — the synth wind stays */ });
   } catch (e) {}
 }

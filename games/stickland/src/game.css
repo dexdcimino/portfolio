@@ -757,7 +757,7 @@ body:has(#hud-stamina-wrap[style*="block"]) #inv2 {
 .pmenu-track-btn:hover{border-color:var(--ac); color:var(--ac);}
 .pmenu-track-btn:focus-visible{outline:2px solid var(--ac); outline-offset:2px;}
 .pmenu-track-label{
-  flex:1 1 auto; min-width:0; font-size:12.5px; color:var(--tx2);
+  flex:1 1 auto; min-width:0; font-size:14.5px; color:var(--tx2);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .pmenu-track-pick.is-failed .pmenu-track-label{opacity:.6; font-style:italic;}

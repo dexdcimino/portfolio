@@ -558,7 +558,7 @@ function _renderAudio(root) {
 
   // Silencing the children lives in one helper so the switch and the slider
   // cannot drift apart — dragging master to zero has to behave like muting it.
-  let lastMaster = getVolume() || 0.8;
+  let lastMaster = getVolume() || 0.5;
   const silenceChildren = () => { setBusVolume('amb', 0); setBusVolume('sfx', 0); setBusVolume('ui', 0); };
   const restoreChildren = () => {
     if (getBusVolume('amb') === 0 && getBusVolume('sfx') === 0) {
@@ -583,7 +583,7 @@ function _renderAudio(root) {
         setVolume(0);
         silenceChildren();
       } else {
-        setVolume(lastMaster || 0.8);
+        setVolume(lastMaster || 0.5);
         restoreChildren();
       }
     }, sync);
@@ -596,7 +596,7 @@ function _renderAudio(root) {
       // Any child coming off zero un-mutes the master, or it stays silent.
       if (v > 0 && (isMuted() || getVolume() === 0)) {
         setMuted(false);
-        if (getVolume() === 0) setVolume(0.8);
+        if (getVolume() === 0) setVolume(0.5);
       }
     },
     () => getBusVolume(bus) > 0,
@@ -606,7 +606,7 @@ function _renderAudio(root) {
       if (extra) setBusVolume(extra, v);
       if (on && (isMuted() || getVolume() === 0)) {
         setMuted(false);
-        if (getVolume() === 0) setVolume(0.8);
+        if (getVolume() === 0) setVolume(0.5);
       }
       // Both children off is the same as muting the sum.
       if (!on && getBusVolume('amb') === 0 && getBusVolume('sfx') === 0) setMuted(true);

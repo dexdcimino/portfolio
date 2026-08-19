@@ -709,6 +709,41 @@ function _drawBuildingLabel(ctx, sx, sy, text) {
   ctx.globalAlpha = 1; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 }
 
+// Little padlock, centered on (sx, sy) with a slow bob — shown over the
+// buildings that don't open yet (Co-op, PvP, Shop, Jail) when the player
+// walks up, so a shut door reads as "locked", not "broken E key".
+function _drawLockIcon(ctx, sx, sy) {
+  const y = sy + Math.sin(performance.now() * 0.003) * 2;
+  const bw = 13, bh = 10, r = 2.5;                 // body box + corner radius
+  ctx.save();
+  ctx.strokeStyle = _cachedClr;
+  ctx.fillStyle = _cachedClr;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.globalAlpha = 0.92;
+  // Shackle — half circle opening downward into the body.
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(sx, y - 2, 4.2, Math.PI, 0);
+  ctx.stroke();
+  // Body — filled rounded slab.
+  const bx = sx - bw / 2, by = y - 2;
+  ctx.beginPath();
+  ctx.moveTo(bx + r, by);
+  ctx.arcTo(bx + bw, by, bx + bw, by + bh, r);
+  ctx.arcTo(bx + bw, by + bh, bx, by + bh, r);
+  ctx.arcTo(bx, by + bh, bx, by, r);
+  ctx.arcTo(bx, by, bx + bw, by, r);
+  ctx.closePath();
+  ctx.fill();
+  // Keyhole — punched out in the background color.
+  ctx.fillStyle = _currentBg || '#13141a';
+  ctx.beginPath();
+  ctx.arc(sx, by + 3.6, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(sx - 0.8, by + 4.2, 1.6, 3.2);
+  ctx.restore();
+}
+
 // ── Home drawing ──
 // layer: 'behind' = bg fill + outlines (drawn before character), 'front' = drawn after character, 'full' = both
 function _drawHome(ctx, sx, sy, layer) {
@@ -2663,6 +2698,7 @@ function _drawLiveCreature(c, ctx) {
         if (c._fallWorldY >= c._fallTargetWorldY) {
           c._fallWorldY = c._fallTargetWorldY;
           c._falling = false;
+          sfx('body.thud', { at: { x: c.x, y: c._fallWorldY }, gain: 0.55 });
         }
         const { sx: fsx, sy: fsy } = worldToScreen(c.x, c._fallWorldY);
         ctx.lineWidth = 2;
@@ -3299,6 +3335,7 @@ function _pSpawnRocketExplosion(wx, wy) {
         c.vx = kbDir.x * kbStrength * kbMult;
         c.vy = kbDir.y * kbStrength * kbMult;
         if (c.kind === 'bird') {
+          sfx('bird.death', { at: { x: c.x, y: c.y } });
           c._falling = true;
           c._fallWorldY = c.y;
           const _fallRoll = Math.random();
@@ -3306,6 +3343,7 @@ function _pSpawnRocketExplosion(wx, wy) {
           c._fallVY = 0;
           _spawnWorldFeathers(c.x, c.y, c._fallTargetWorldY);
         } else {
+          sfx('creature.death', { at: { x: c.x, y: c.y } });
           c._bloodSeed = Math.random();
           c._splatSeeds = Array.from({length: 5}, () => Math.random());
         }
@@ -3378,11 +3416,13 @@ export function hitTestCreatures(px, py, isRocket, pvx, pvy, isArrow, dmgOverrid
       if (c.hp > 0) {
         c._woundCount = (c._woundCount || 0) + dmg;
         c._trailTimer = 0;
+        sfx('creature.hurt', { at: { x: c.x, y: c.y } });
       }
       if (c.hp <= 0) {
         c.dead = true; c.deadT = 0;
         c.vx = 0; c.vy = 0;
         if (c.kind === 'bird') {
+          sfx('bird.death', { at: { x: c.x, y: c.y } });
           c._falling = true;
           c._fallWorldY = c.y;
           const _fallRoll = Math.random();
@@ -3390,6 +3430,7 @@ export function hitTestCreatures(px, py, isRocket, pvx, pvy, isArrow, dmgOverrid
           c._fallVY = 0;
           _spawnWorldFeathers(c.x, c.y, c._fallTargetWorldY);
         } else {
+          sfx('creature.death', { at: { x: c.x, y: c.y } });
           c._bloodSeed = Math.random();
           c._splatSeeds = Array.from({length: 5}, () => Math.random());
         }
@@ -4809,6 +4850,24 @@ export function tickPlayMode(vx, vy, dt) {
       } else {
         _tankEHeld = false; _tankEHoldT = 0;
       }
+    }
+  }
+
+  // ── Locked buildings — padlock on approach ──
+  // Co-op treehouse, PvP castle, shop and jail have no inside yet; the
+  // padlock appears when the player gets close so the shut door is a
+  // stated fact instead of a mystery. Per-building offsets put the icon
+  // just above each label line.
+  {
+    const LOCK_RADIUS = 150;
+    const locked = [
+      [treehouseObj, 160], [castleObj, 138], [shopObj, 92], [jailObj, 86],
+    ];
+    for (const [obj, above] of locked) {
+      if (!obj) continue;
+      if (Math.hypot(_charWorldX - obj.x, _charWorldY - obj.y) >= LOCK_RADIUS) continue;
+      const s = worldToScreen(obj.x, obj.y);
+      _drawLockIcon(ctx, s.sx, s.sy - above);
     }
   }
 

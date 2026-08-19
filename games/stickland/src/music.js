@@ -24,29 +24,35 @@ import { musicDestination, audioContext } from './audio.js';
    answer this rack exists to get. The names are here so the answer can be
    turned back into a file without counting rows. */
 export const TRACKS = [
-  { file: 'w1-adventure-theme.ogg',   name: 'Adventure Theme',            set: 'world' },
-  { file: 'w2-town-theme.mp3',        name: 'Town Theme',                 set: 'world' },
-  { file: 'w3-a-start-to-space.ogg',  name: 'A Start to Space',           set: 'world' },
-  { file: 'w4-picnic.mp3',            name: 'Picnic',                     set: 'world' },
-  { file: 'w5-calm-theme.ogg',        name: 'Calm Theme',                 set: 'world' },
-  { file: 'w6-a-path.ogg',            name: 'A Path Which Leads Somewhere', set: 'world' },
-  { file: 'w7-frozen-in-time.mp3',    name: 'Frozen in Time',             set: 'world' },
-  { file: 'p1-run-jump-duck.ogg',     name: 'Run Jump Duck',              set: 'platform' },
-  { file: 'p2-bravery-run.ogg',       name: 'Bravery Run',                set: 'platform' },
-  { file: 'p3-chiptune-stage-1.ogg',  name: 'Chiptune Adventures 1',      set: 'platform' },
-  { file: 'p4-chiptune-stage-2.ogg',  name: 'Chiptune Adventures 2',      set: 'platform' },
-  { file: 'p5-chiptune-select.ogg',   name: 'Chiptune Adventures Select', set: 'platform' },
+  // Second batch (2026-08): the first ten candidates were rejected in
+  // audition; tracks 5 and 6 survived. w* = chill explore for the open
+  // world, p* = energetic for platform mode.
+  { file: 'w1-crystal-cave.mp3',       name: 'Crystal Cave',               set: 'world' },
+  { file: 'w2-mysterious-ambience.mp3', name: 'Mysterious Ambience',       set: 'world' },
+  { file: 'w3-field-of-dreams.mp3',    name: 'The Field of Dreams',        set: 'world' },
+  { file: 'w4-snowfall.ogg',           name: 'Snowfall',                   set: 'world' },
+  { file: 'w5-calm-theme.ogg',         name: 'Calm Theme',                 set: 'world' },
+  { file: 'w6-a-path.ogg',             name: 'A Path Which Leads Somewhere', set: 'world' },
+  { file: 'w7-observing-the-star.ogg', name: 'Observing the Star',         set: 'world' },
+  { file: 'p1-junkala-level-1.ogg',    name: 'Action Chiptune — Level 1',  set: 'platform' },
+  { file: 'p2-junkala-level-2.ogg',    name: 'Action Chiptune — Level 2',  set: 'platform' },
+  { file: 'p3-nes-venus.ogg',          name: 'Venus',                      set: 'platform' },
+  { file: 'p4-fast-fight.ogg',         name: 'Fast Fight',                 set: 'platform' },
+  { file: 'p5-awake.mp3',              name: 'Awake!',                     set: 'platform' },
 ];
 
 /* Per-track gain, measured the same way the site's other music is: each file's
    loudest 300ms window scaled to one reference, capped so nothing peaks over
    0.95. Without this the loudest master wins the audition regardless of whether
-   it is the best track. */
+   it is the best track. Re-measured for this batch (the reference is the
+   quietest of the twelve, so the kept tracks' numbers moved too). */
 const GAIN = {
-  'w1-adventure-theme.ogg': 0.64, 'w2-town-theme.mp3': 0.59, 'w3-a-start-to-space.ogg': 1.00,
-  'w4-picnic.mp3': 0.66, 'w5-calm-theme.ogg': 1.00, 'w6-a-path.ogg': 1.00,
-  'w7-frozen-in-time.mp3': 0.44, 'p1-run-jump-duck.ogg': 0.68, 'p2-bravery-run.ogg': 0.58,
-  'p3-chiptune-stage-1.ogg': 0.64, 'p4-chiptune-stage-2.ogg': 0.62, 'p5-chiptune-select.ogg': 0.89,
+  'w1-crystal-cave.mp3': 0.27, 'w2-mysterious-ambience.mp3': 0.31,
+  'w3-field-of-dreams.mp3': 0.92, 'w4-snowfall.ogg': 0.82,
+  'w5-calm-theme.ogg': 0.67, 'w6-a-path.ogg': 1.00,
+  'w7-observing-the-star.ogg': 0.52,
+  'p1-junkala-level-1.ogg': 0.15, 'p2-junkala-level-2.ogg': 0.16,
+  'p3-nes-venus.ogg': 0.38, 'p4-fast-fight.ogg': 0.18, 'p5-awake.mp3': 0.22,
 };
 
 const KEY = 'stickland-track';
