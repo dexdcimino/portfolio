@@ -1662,8 +1662,10 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
 .vault-head{display:grid;gap:12px}
 /* The padlock rides the eyebrow rather than floating somewhere near it: the
    eyebrow is the word for the state, and the glyph is the same word. They open
-   together. */
-.vault-eyebrow{display:flex;align-items:center;gap:9px;margin:0}
+   together.
+   6px, not 9: the eyebrow is tracked out at .2em and that trailing space is
+   still there after the D, so an even gap measures wider than it looks. */
+.vault-eyebrow{display:flex;align-items:center;gap:6px;margin:0}
 .vault-lock{width:17px;height:17px}
 
 .vault-lockbox{display:grid;justify-items:center;gap:14px}
