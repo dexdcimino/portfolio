@@ -26,3 +26,8 @@ node_modules/
 games/surveyor/dev/shots/*.png
 games/surveyor/dev/shots/sheet*.html
 
+# Editor state, not project. A colour theme is a property of whoever is
+# sitting here, and committing it means the next person's editor silently
+# changes when they clone.
+.vscode/
+
