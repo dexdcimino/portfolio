@@ -20,14 +20,23 @@
   --avatar-collapsed:44px;
   --rail-content:210px;   /* --sidebar-open minus .profile-mini padding */
   /* Growing the window pushes RESUME/CONTACT up, which is intended — but it must
-     never push them off the rail. 640px is the fixed chrome above the footer plus
-     the name, caption and social rows below it, so this is the room available.
+     never push them off the rail. --rail-stack is everything else it has to fit:
+     the fixed chrome above the footer, plus the name, caption, social and handle
+     rows below it. It is a BUDGET, not a guess — the avatar is whatever is left
+     over — so anything added to or removed from the footer stack has to move this
+     number by the same amount, or the rail silently overflows its own
+     overflow:hidden and clips its bottom row. The handle row under the socials
+     cost 45px and this went 720 -> 745; the other 20 came out of slack that was
+     already there.
      Width follows height at --avatar-ratio so the window keeps its shape on short
      screens instead of flattening out; 210px is the rail's content width. */
   --avatar-ratio:.93;   /* window w/h expanded — near square, still slightly portrait */
   /* Expanded only, the footer stack lifts clear of the browser's link-hover
      status bubble, which sits bottom-left and covered the social row. Collapsed
-     there is nothing under it to protect, so the rail keeps its full height. */
+     there is nothing under it to protect, so the rail keeps its full height.
+     The socials themselves stopped raising that bubble when script.js took their
+     hrefs, but the nav links above them are still real anchors and still do, so
+     this stays — and now it is the handle row it keeps clear. */
   --rail-footer-lift:26px;
   /* Collapsed counterpart: how far the footer block drops so it sits near the
      bottom of the rail instead of above the space the faded-out caption and
@@ -35,7 +44,8 @@
      of it is reclaimed — 72 leaves a 37px margin under the avatar, close enough
      to the bottom to look deliberate without crowding the edge. */
   --rail-footer-drop:72px;
-  --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - 720px - var(--rail-footer-lift))));
+  --rail-stack:745px;
+  --avatar-expanded-h:max(var(--avatar-collapsed),min(226px,calc(100vh - var(--rail-stack) - var(--rail-footer-lift))));
   --avatar-expanded-w:min(var(--rail-content),calc(var(--avatar-expanded-h) * var(--avatar-ratio)));
   /* Brand mark: how far it grows as the rail opens, and the extra bump when the
      mark itself is hovered. The open value rides the rail's own duration and
@@ -459,9 +469,71 @@ button.button{cursor:pointer;font-family:inherit}
    editing this number. */
 .social-mini{width:100%;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity .2s ease,transform .2s ease;pointer-events:none}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .social-mini{opacity:1;transform:none;pointer-events:auto}
-.social-mini a{height:30px;display:grid;place-items:center;border-radius:8px;color:var(--icon-idle);transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease}
+/* cursor:pointer by hand: script.js takes the href off these, and an <a>
+   without one is not a link as far as the cursor is concerned. */
+.social-mini a{height:30px;display:grid;place-items:center;border-radius:8px;cursor:pointer;color:var(--icon-idle);transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease}
 .social-mini a:hover{background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);transform:translateY(-2px)}
+/* Nor is it focusable on its own — the tabindex comes from the same place —
+   so the ring it would have had by default has to be drawn here. */
+.social-mini a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .social-mini .icon{width:17px;height:17px}
+
+/* The handle row under the socials.
+
+   It reserves its height for as long as the rail is open, whether or not a
+   handle is showing, and script.js toggles visibility rather than display. A
+   row that appeared and vanished with the pointer would move the avatar, the
+   name and the caption every time someone crossed an icon.
+
+   Height is reserved only while the rail is OPEN: the collapsed rail is 44px of
+   content width with nothing readable in it, and the bottom of this sidebar is
+   tight enough that the caption already drops out under 840px tall.
+   Same 0fr -> 1fr as .profile-extra, on the same curve, so the row grows with
+   everything else in the panel rather than on a timing of its own. */
+.social-tagwrap{
+  width:100%;display:grid;grid-template-rows:0fr;overflow:hidden;
+  transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease);
+}
+.social-tagwrap>*{min-height:0}
+.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .social-tagwrap{grid-template-rows:1fr}
+
+/* Mono, and 14px rather than the caption's 13: this is a string to be copied
+   exactly, not prose, and an underscore or a digit in a handle has to survive
+   being read off a screen. The bio's grey so it sits under the icons rather
+   than competing with the accent-coloured name above them. */
+.social-tag{
+  position:relative;width:100%;min-height:30px;margin-top:3px;
+  display:grid;place-items:center;padding:0 30px;
+  border:0;border-radius:8px;background:transparent;color:#8f979e;cursor:pointer;
+  font-family:var(--mono,ui-monospace),ui-monospace,monospace;
+  font-size:14px;font-weight:600;letter-spacing:.01em;line-height:1;
+  transition:background var(--accent-ease),color var(--accent-ease),
+             opacity .18s ease,visibility .18s ease;
+}
+/* visibility, NOT display or the hidden attribute: the row has to keep its
+   height. It also takes the button out of the tab order and out of the
+   accessibility tree while it is empty, which display:none would do but
+   opacity:0 alone would not — an invisible control you can still Tab to is a
+   worse bug than the one this avoids. */
+.social-tag.is-off{opacity:0;visibility:hidden}
+/* One hover state for the whole row, so the glyph lights with the text no
+   matter which half the pointer is over — it is all one button. */
+.social-tag:hover,.social-tag:focus-visible{
+  background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);
+}
+.social-tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.social-tag-text{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Pinned right and out of flow, so the handle stays centred on the row itself
+   rather than on whatever space the glyph leaves. */
+.social-tag-copy{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:15px;height:15px}
+
+/* The same argument as the caption above, one floor lower: with the caption
+   already dropped and the avatar on its 44px floor, nothing is left to absorb
+   this row and the rail would clip its own bottom edge. 720 is measured rather
+   than chosen — the last height at which it still fits is around 704. It sits
+   here rather than beside the caption's guard because display:none has to come
+   after the display:grid above it to win. */
+@media(max-height:720px){ .social-tagwrap{display:none} }
 
 /* ==========================================================================
    SHELL
@@ -2165,7 +2237,9 @@ body.modal-open{overflow:hidden}
   :root{--brand-w:52px}
   .nav-link,.resume-mini,.contact-mini{padding:0 17px;gap:14px}
   .nav-text{font-size:13px}
-  :root{--avatar-collapsed:38px;--rail-content:168px}
+  /* 8px more than the wide rail: the caption wraps to one more line in a 168px
+     column, and the avatar is what pays for it. */
+  :root{--avatar-collapsed:38px;--rail-content:168px;--rail-stack:753px}
   .profile-mini{padding:10px;min-height:120px}
   .social-mini .icon{width:16px;height:16px}
   .topbar{padding:0 12px}
@@ -2439,6 +2513,13 @@ body.modal-open{overflow:hidden}
   transition:opacity .13s ease;
 }
 #tip.is-on{opacity:1}
+/* The same bubble used as a confirmation rather than a label — see flashTip().
+   A shade larger and heavier, because "Copied!" is an answer to something the
+   visitor just did and a 12px label reads as chrome they are meant to ignore. */
+#tip.is-flash{font-size:13px;font-weight:700;letter-spacing:.01em}
+/* The one accent mark on it. The word stays the tooltip's own colour so the
+   emphasis lands on the punctuation, which is the part that reads as a reaction. */
+.tip-bang{color:var(--accent);transition:color var(--accent-ease)}
 @media(prefers-reduced-motion:reduce){ #tip{transition:none} }
 
 /* ==========================================================================

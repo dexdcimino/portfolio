@@ -213,13 +213,40 @@
           </div>
         </div>
 
-        <!-- Replace the "#" hrefs with your real profile URLs. -->
+        <!-- Replace the "#" hrefs with your real profile URLs.
+
+             THE href STAYS HERE even though the page never navigates through
+             it. script.js moves it to data-href on load and opens the profile
+             itself, because an <a href> makes the browser print the full URL in
+             its status bubble at the bottom-left of the window on every hover —
+             chrome no page can style or suppress. It is the same reason the
+             wallpaper download is a button rather than a link. Writing the URL
+             in the markup rather than only in a data- attribute is what keeps
+             these working with JS off and readable as real links to a crawler.
+
+             data-tag is the handle shown in the row below, and is the whole
+             feature: it is what someone pastes into that site to find Dex. A
+             link without one shows nothing rather than leaving the last handle
+             up, which would name the wrong service. -->
         <div class="social-mini" aria-label="Social links">
           <a href="#" aria-label="YouTube" rel="noreferrer"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
           <a href="#" aria-label="Instagram" rel="noreferrer"><span class="icon" data-icon="instagram" aria-hidden="true"></span></a>
           <a href="https://www.linkedin.com/in/dex-cimino-7055453b6/" aria-label="Dex Cimino on LinkedIn" target="_blank" rel="noopener noreferrer"><span class="icon" data-icon="linkedin" aria-hidden="true"></span></a>
-          <a href="https://github.com/dexdcimino" aria-label="Dex Cimino on GitHub." target="_blank" rel="noopener noreferrer"><span class="icon" data-icon="github" aria-hidden="true"></span></a>
-          <a href="https://discord.gg/8SkP5ZzWh" aria-label="Discord" target="_blank" rel="noopener noreferrer"><span class="icon" data-icon="discord" aria-hidden="true"></span></a>
+          <a href="https://github.com/dexdcimino" data-tag="@dexdcimino" aria-label="Dex Cimino on GitHub." target="_blank" rel="noopener noreferrer"><span class="icon" data-icon="github" aria-hidden="true"></span></a>
+          <a href="https://discord.gg/8SkP5ZzWh" data-tag="@dex_ddc" aria-label="Discord" target="_blank" rel="noopener noreferrer"><span class="icon" data-icon="discord" aria-hidden="true"></span></a>
+        </div>
+
+        <!-- The handle of the social last hovered, centred under the row with a
+             copy glyph pinned right. The WHOLE ROW is the button — the glyph is
+             a hint about what happens, not a target you have to hit.
+             It keeps its height whether or not a handle is showing, so the rail
+             does not jump every time the pointer crosses an icon; script.js
+             toggles visibility, never display. -->
+        <div class="social-tagwrap">
+          <button class="social-tag is-off" id="socialTag" type="button">
+            <span class="social-tag-text" id="socialTagText"></span>
+            <span class="icon social-tag-copy" data-icon="copy" aria-hidden="true"></span>
+          </button>
         </div>
       </div>
       </div>

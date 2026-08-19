@@ -1720,6 +1720,11 @@ async function saveFile(btn) {
 }
 
 /* --- tooltip -------------------------------------------------------------- */
+/* Assigned by initTooltip below, declared out here for the same reason saveFile
+   is: the modules that call it sit elsewhere in this file and must not have to
+   care which IIFE ran first. */
+let flashTip = () => {};
+
 /* One tooltip element for the whole page, moved and relabelled on hover.
 
    The native `title` bubble cannot be styled at all — not the font, not the
@@ -1744,6 +1749,9 @@ async function saveFile(btn) {
 
   let current = null;
   const GAP = 10;
+  // Non-null while the bubble is being used as a confirmation rather than a
+  // label. Hover must not overwrite an answer to something the visitor just did.
+  let flashing = null;
 
   function place(el) {
     const r = el.getBoundingClientRect();
@@ -1761,6 +1769,7 @@ async function saveFile(btn) {
   }
 
   function show(el) {
+    if (flashing) return;
     const text = el.dataset.tip;
     if (!text) return;
     current = el;
@@ -1771,11 +1780,34 @@ async function saveFile(btn) {
     place(el);
   }
   function hide() {
+    if (flashing) return;
     current = null;
     tip.classList.remove('is-on');
     // Position is left where it was. It fades out in place, and the next show()
     // moves it while it is still invisible.
   }
+
+  /* The same bubble, borrowed as a confirmation: one word and an accent mark,
+     placed against whatever control was just used. Built from nodes rather than
+     innerHTML — the word is the caller's and never touches the parser. */
+  flashTip = (el, word, bang = '!') => {
+    clearTimeout(flashing);
+    tip.textContent = word;
+    if (bang) {
+      const mark = document.createElement('span');
+      mark.className = 'tip-bang';
+      mark.textContent = bang;
+      tip.append(mark);
+    }
+    tip.classList.add('is-on', 'is-flash');
+    // Measured after the text lands, exactly as show() does.
+    place(el);
+    flashing = setTimeout(() => {
+      flashing = null;
+      tip.classList.remove('is-on', 'is-flash');
+      current = null;
+    }, 1500);
+  };
 
   const target = (e) => e.target.closest?.('[data-tip]');
   document.addEventListener('pointerover', (e) => { const el = target(e); if (el && el !== current) show(el); });
@@ -1786,6 +1818,153 @@ async function saveFile(btn) {
   document.addEventListener('click', (e) => { if (target(e)) hide(); });
   window.addEventListener('scroll', () => { if (current) place(current); }, { passive: true });
   window.addEventListener('resize', hide);
+})();
+
+/* --- social links --------------------------------------------------------- */
+/* Two jobs over the same five icons.
+
+   ONE - THE STATUS BUBBLE. Every browser prints the href of whatever link is
+   under the pointer in the bottom-left corner of the window. It is browser
+   chrome: no page can style it, move it, or turn it off, and a raw Discord
+   invite URL sliding across the bottom of a designed page is not a decision
+   anyone made. The only thing that stops it is the hovered element not having
+   an href, so the URL is taken off here and the navigation is done below. It is
+   the same argument that made the wallpaper download a button rather than a
+   link. Moving the href in JS rather than shipping markup without one is what
+   keeps these real links to a crawler and working with JS off.
+
+   TWO - THE HANDLE. Hovering a social puts that site's handle in the row under
+   the icons, and the whole row is one button that copies it. Someone who wants
+   to add Dex on Discord needs the tag, not the invite page, and the tag appears
+   nowhere else on the site. It holds for fifteen seconds after the pointer
+   leaves the icon: reading a handle, crossing to it and clicking it is a longer
+   trip than a hover state normally survives, and the row sits BELOW the thing
+   you were pointing at, so the pointer has to leave to reach it.
+
+   Which handle belongs to which site is data-tag in the markup, next to the
+   link it describes. A link without one shows nothing rather than leaving the
+   previous handle up under a different logo. */
+(function initSocialLinks() {
+  const row = document.querySelector('.social-mini');
+  if (!row) return;
+  const links = [...row.querySelectorAll('a')];
+  if (!links.length) return;
+
+  /* The attribute is REMOVED, not hidden behind a data- name it also answers
+     to: an <a href> is what the browser reads at hover time, and anything that
+     leaves one in place leaves the bubble in place. */
+  for (const a of links) {
+    const url = a.getAttribute('href');
+    a.removeAttribute('href');
+    // Nothing to act on without an href; window.open below carries the new tab.
+    a.removeAttribute('target');
+    // The '#' placeholders went nowhere and now do nothing, rather than
+    // scrolling the page to the top on a click that looked like a profile link.
+    if (url && url !== '#') a.dataset.href = url;
+    // An <a> without an href is neither a link nor focusable. Say both.
+    a.setAttribute('role', 'link');
+    a.tabIndex = 0;
+  }
+
+  // noopener: the profile tab gets no handle back on this window.
+  const open = (a) => { if (a.dataset.href) window.open(a.dataset.href, '_blank', 'noopener'); };
+
+  row.addEventListener('click', (e) => { const a = e.target.closest('a'); if (a) open(a); });
+  /* Middle-click meant "open in a new tab" on these before, and an element with
+     no href gives the browser nothing to do with it. Same destination, since
+     these open in a new tab either way. */
+  row.addEventListener('auxclick', (e) => {
+    if (e.button !== 1) return;
+    const a = e.target.closest('a');
+    if (!a) return;
+    e.preventDefault();
+    open(a);
+  });
+  /* Enter only. Space on a role="link" is not an activation - it scrolls the
+     page - and taking it would break scrolling for anyone who tabbed here. */
+  row.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const a = e.target.closest('a');
+    if (!a) return;
+    e.preventDefault();
+    open(a);
+  });
+
+  /* --- the handle row --- */
+  const btn = document.getElementById('socialTag');
+  const text = document.getElementById('socialTagText');
+  if (!btn || !text) return;
+
+  const HOLD = 15000;                  // per Dex: fifteen seconds after the last hover
+  let timer = null;
+  let held = false;                    // the pointer or focus is on the row itself
+
+  // is-off, not the hidden attribute: the row keeps its height so the rail never
+  // jumps. See the CSS for why it is visibility rather than opacity alone.
+  const clear = () => { clearTimeout(timer); btn.classList.add('is-off'); };
+  /* Restarted rather than resumed, everywhere: whatever the visitor just did
+     with this row is the moment the fifteen seconds should count from. */
+  const arm = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { if (!held) clear(); }, HOLD);
+  };
+
+  const show = (a) => {
+    const tag = a.dataset.tag;
+    if (!tag) { clear(); return; }
+    text.textContent = tag;
+    btn.dataset.tag = tag;
+    // A handle and a glyph, so the outcome has to reach a screen reader through
+    // the button's name.
+    btn.setAttribute('aria-label', `Copy ${tag} to the clipboard`);
+    btn.classList.remove('is-off');
+    arm();
+  };
+
+  for (const a of links) {
+    a.addEventListener('pointerenter', () => show(a));
+    // Follows focus as well as the pointer, the same way the tooltip does.
+    a.addEventListener('focus', () => show(a));
+  }
+
+  // Nothing times out while it is being pointed at or is holding focus - a row
+  // that vanished under the cursor mid-click would be the whole feature failing.
+  btn.addEventListener('pointerenter', () => { held = true; clearTimeout(timer); });
+  btn.addEventListener('pointerleave', () => { held = false; arm(); });
+  btn.addEventListener('focus', () => { held = true; clearTimeout(timer); });
+  btn.addEventListener('blur', () => { held = false; arm(); });
+
+  btn.addEventListener('click', async () => {
+    const tag = btn.dataset.tag;
+    if (!tag) return;
+    const ok = await copyText(tag);
+    flashTip(btn, ok ? 'Copied' : 'Copy failed', ok ? '!' : '');
+    // The reason to copy a handle is to paste it somewhere else, and they may
+    // well come back for it. Start the fifteen seconds again.
+    arm();
+  });
+
+  /* The async clipboard first. It needs a secure context - https or localhost -
+     and can be refused outright, so the old selection-based copy stays as the
+     fallback for a page opened over plain http or straight off the disk. */
+  async function copyText(value) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch { /* fall through */ }
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = value;
+      ta.setAttribute('readonly', '');
+      // Off-screen but not display:none - a field with no box cannot be selected.
+      ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch { return false; }
+  }
 })();
 
 /* --- AI wallpapers -------------------------------------------------------- */
