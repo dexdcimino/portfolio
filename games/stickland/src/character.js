@@ -2508,9 +2508,18 @@ function _deactivateJetpack() {
 }
 window._dexDismountJetpack = () => { if (_jetpack.active) { _deactivateJetpack(); sfx('board.dismount'); } };
 // Platform mode straps the pack on automatically at the door (platformer.js
-// _enter) — the climb is designed around it. Doesn't touch the hotbar
-// loadout: the pack is worn, fuel HUD and all, whatever slot 4 holds.
-window._dexEquipJetpack = () => { if (!_jetpack.active) _toggleJetpack(); };
+// _enter) — the climb is designed around it. MD 21: the pack must READ as
+// equipped too, so slot 4 (its mount slot) takes the jetpack item — that is
+// what _syncHotbarVisuals keys the lit "on" state off. Persisted like any
+// other equip; whatever held slot 4 stays available in the backpack.
+window._dexEquipJetpack = () => {
+  if (_hotbar[4] !== 'jetpack') {
+    _hotbar[4] = 'jetpack';
+    _saveHotbar();
+    try { _renderAllHotbarSlots(); } catch (e) {}
+  }
+  if (!_jetpack.active) _toggleJetpack();
+};
 
 function _syncJetpackVisual() {
   const g = _el('jetpack');
