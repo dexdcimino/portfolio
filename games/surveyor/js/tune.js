@@ -2465,6 +2465,12 @@ export const COLONY = {
   workersPerDensity: 1.1,
   maxWorkers: 9,
   viewRange: 1200,     // metres before the meshes are released again
+  /* ...and how near the craft a site must be before its workers render and
+     walk. Decoration only — production reads the sites record, never a mesh —
+     and dev/colonycost.mjs measured workers as the largest mesh class a mature
+     basin carries: ~9 of its ~22 meshes per site. Beyond this arc they are
+     hidden and their motion is skipped; the site keeps producing either way. */
+  workerRange: 320,
   landSlope: 0.55,     // steeper than this and the probe tips over and is lost
 };
 

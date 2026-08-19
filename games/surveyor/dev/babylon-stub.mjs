@@ -127,6 +127,23 @@ class Mesh extends Node {
   getVerticesData(kind) { return this._vd && this._vd[kind]; }
   setVerticesData(kind, data) { (this._vd = this._vd || {})[kind] = data; }
   updateVerticesData(kind, data) { (this._vd = this._vd || {})[kind] = data; }
+  /* Enough of the real thing for colony.consolidate(): the sources become one
+     mesh and are disposed. Transforms are not baked — the stub has no world
+     matrices — so this is a concatenation, which is all the headless checks
+     read (counts and disposal, never placement). */
+  static MergeMeshes(meshes, disposeSource) {
+    const m = new Mesh('merged');
+    m._vd = { position: [], normal: [], color: [] };
+    for (const src of meshes) {
+      const vd = src._vd || {};
+      for (const k of ['position', 'normal', 'color']) {
+        if (vd[k]) m._vd[k] = m._vd[k].concat(Array.from(vd[k]));
+      }
+      if (disposeSource) src.dispose();
+    }
+    m.vertexCount = m._vd.position.length / 3;
+    return m;
+  }
 }
 
 export const opts = { validate: true };

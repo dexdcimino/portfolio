@@ -359,16 +359,58 @@ export class Colonies {
       for (const w of site.workers) w.mesh.dispose();
       site.workers = null;
     }
+    if (site.node.merged) site.node.merged.dispose();
     for (const m of site.node.domes) m.dispose();
     for (const t of site.node.tubes) t.mesh.dispose();
-    site.node.lander.dispose();
+    if (site.node.lander) site.node.lander.dispose();
     site.node.node.dispose();
     site.node = null;
+    site.staffed = false;
+  }
+
+  /**
+   * A mature site becomes ONE mesh.
+   *
+   * dev/budget.mjs measured where colony cost actually lives, on the real GPU:
+   * baked triangles are near-free and every mesh is ~12us of CPU draw
+   * submission a frame, so a grown site carrying its ~13 static meshes —
+   * lander, domes, tubes — was paying for its part count, not its geometry.
+   * That is also why the lag scaled with how well you played: more sites,
+   * more parts, all of them evaluated every frame whether visible or not.
+   *
+   * The merge is safe because a mature layout is FINAL: growth only ever adds
+   * domes until maxDomes, and raiders destroy whole sites, never single domes.
+   * shape() has just posed every part at its settled scale, so the pose is
+   * baked as-is. Workers and the turret stay separate meshes — both appear
+   * and disappear on rules of their own (density and defence, not growth).
+   */
+  consolidate(site) {
+    const n = site.node;
+    // moveWorkers reads each dome's ground height off its mesh; keep the
+    // heights before the meshes go.
+    n.domeY = n.domes.map((m) => m.position.y);
+    const parts = [n.lander, ...n.domes, ...n.tubes.map((t) => t.mesh)]
+      .filter((m) => m && m.isEnabled());
+    // MergeMeshes recomputes each part's world matrix itself and bakes the
+    // transforms in, so the result is scene-rooted; release() disposes it
+    // alongside the node.
+    const merged = BABYLON.Mesh.MergeMeshes(parts, true, true);
+    if (!merged) return;
+    merged.name = 'colonyM' + site.id;
+    merged.material = this.mat;
+    merged.isPickable = false;
+    merged.renderingGroupId = 1;
+    merged.freezeWorldMatrix();
+    n.merged = merged;
+    n.lander = null;
+    n.domes = [];
+    n.tubes = [];
   }
 
   /** Scale the visible parts to match how far along the site is. */
   shape(site, age) {
     const n = site.node;
+    if (n.merged) return;            // consolidated: the pose is baked
     for (let i = 0; i < site.domes.length; i++) {
       const d = site.domes[i];
       const grow = clamp((age - d.born) / COLONY.growTime, 0, 1);
@@ -520,7 +562,8 @@ export class Colonies {
       const ease = w.t * w.t * (3 - 2 * w.t);
       const x = A.ox + (B.ox - A.ox) * ease;
       const z = A.oz + (B.oz - A.oz) * ease;
-      const y = site.node.domes[w.a].position.y;
+      const y = site.node.merged
+        ? site.node.domeY[w.a] : site.node.domes[w.a].position.y;
       w.mesh.position.set(x, y + 0.1, z);
       w.mesh.rotation.y = Math.atan2((B.ox - A.ox) * w.dir, (B.oz - A.oz) * w.dir);
     }
@@ -604,16 +647,37 @@ export class Colonies {
 
     const here = craft.hyper ? null : craft.surf.frame.up;
     const range = Math.min(COLONY.viewRange, this.planet.radius * 1.4);
+    const staffRange = Math.min(COLONY.workerRange, range);
     for (const site of this.sites) {
-      const near = here &&
-        arcBetween(site.dir, here, this.planet.radius) < range;
-      if (near && !site.node) this.build(site);
-      else if (!near && site.node) this.release(site);
-      if (site.node) {
-        this.shape(site, this.clock - site.t0);
-        this.moveWorkers(site, dt);
-        this.raiders.shapeTurret(site);
+      const arc = here ? arcBetween(site.dir, here, this.planet.radius) : Infinity;
+      if (arc < range && !site.node) this.build(site);
+      else if (arc >= range && site.node) this.release(site);
+      if (!site.node) continue;
+
+      const age = this.clock - site.t0;
+      // While a site is growing it stays in parts and is posed every frame;
+      // the moment the last dome has had its grow time it is baked into one
+      // mesh and this whole block stops costing anything.
+      if (!site.node.merged) {
+        this.shape(site, age);
+        if (age >= site.domes[site.domes.length - 1].born + COLONY.growTime) {
+          this.consolidate(site);
+        }
       }
+
+      /* Workers only exist near the craft. They are the "this site is busy"
+         readout, unreadable beyond a few hundred metres, and they were the
+         single largest mesh class a mature basin carried — ~9 of ~22 meshes a
+         site — every one of them moved every frame. Beyond workerRange the
+         meshes are hidden and the motion is skipped; production never reads a
+         worker, so nothing else notices. */
+      const staffed = arc < staffRange;
+      if (site.workers && staffed !== site.staffed) {
+        for (const w of site.workers) w.mesh.setEnabled(staffed);
+      }
+      site.staffed = staffed;
+      if (staffed) this.moveWorkers(site, dt);
+      this.raiders.shapeTurret(site);
     }
 
     this.streamGeysers(dt, here);
