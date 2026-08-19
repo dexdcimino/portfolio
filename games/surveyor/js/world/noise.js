@@ -118,6 +118,54 @@ export function height(dir, planet) {
   const f4 = planet.fFine;
   m += (fbm3(x * f4, y * f4, z * f4, 2, seed) - 0.5) * planet.wFine * relief;
 
+  /* ESCARPMENTS (the Home revamp) — cliff lines with plateaus behind them.
+     Weight-gated like the fissures: wCliff is 0 or absent on five worlds and
+     this block never runs there, which is what keeps them bit-identical.
+
+     The wall is a STEP IN THE SHELF FIELD, not new noise: everything on the
+     high side of an `e` threshold is lifted by the full cliff height, so the
+     face appears exactly where the shelf field crosses the line — a long,
+     coherent escarpment that wanders the world the way the coastline does,
+     because it is literally a contour of the same field. The high side is a
+     plateau by construction, since e varies at continental scale.
+
+     `cliffWander` matters more than it looks: a second, faster field pushes
+     the threshold locally, which bends the wall, varies its height, and —
+     where the push exceeds the transition width — breaks it entirely. Those
+     breaks are the ramps. A cliff line with no gaps is a wall around the
+     world, and the rover has to live here. */
+  if (planet.wCliff > 0) {
+    // One octave for the wander on purpose: it only nudges a threshold, and
+    // leaf build pays for every noise3 here 289 times a leaf.
+    const fg = planet.fCliffGap;
+    const g = noise3(x * fg - 19.1, y * fg + 42.7, z * fg + 8.3, seed);
+    const t = e + (g - 0.5) * planet.cliffWander;
+    const c = sstep(planet.cliffAt, planet.cliffAt + planet.cliffWidth, t);
+    m += c * planet.wCliff * relief * land;
+  }
+
+  /* MESAS — isolated flat-topped landmarks you can navigate by. A low-
+     frequency field over a sharp threshold: sstep saturating at 1 is what
+     makes the top a plateau rather than a peak, and the narrowness of the
+     band is the wall. Kept on land and off the carved basins. */
+  if (planet.wMesa > 0 && land > 0.01) {
+    const fm = planet.fMesa;
+    const mm = fbm3(x * fm + 63.2, y * fm - 27.9, z * fm + 91.4, 2, seed);
+    const top = sstep(planet.mesaAt, planet.mesaAt + planet.mesaWidth, mm);
+    m += top * planet.wMesa * relief * land * (1 - carve);
+  }
+
+  /* GULLIES — erosion at driving scale. Inverted ridged noise is a drainage
+     network in plan view (the same read as the fissures, wider and shallower),
+     cubed so most ground is intact and the cuts are channels rather than a
+     rumble strip. This is what makes the ground read at 15m instead of only
+     at 1500. */
+  if (planet.wGully > 0 && land > 0.01) {
+    const fy = planet.fGully;
+    const gy = ridged3(x * fy + 7.7, y * fy - 51.3, z * fy + 23.8, 2, seed);
+    m -= gy * gy * gy * planet.wGully * relief * land;
+  }
+
   // Terracing — stone breaks in steps, and steps read beautifully under
   // contour lines. Step height is absolute metres, because the contour
   // interval it plays against is too.

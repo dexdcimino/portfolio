@@ -345,8 +345,18 @@ const FORMS = { blade, shrub, tree };
  * origin, and the arrays being filled. `layers` is the resolved per-world
  * stack from floraOf(). Returns the number of plants emitted.
  */
+/* `gridSample`, when given, is a bilinear read of the leaf's OWN height
+   lattice (chunks.js hands it over, gated per world by flora.onGrid). Two
+   things follow. It is cheaper: the lattice was already paid for, so clump
+   placement stops re-deriving analytic heights that cost ~23 noise reads
+   each. And it is more correct: the analytic curve floats above every convex
+   cell of the drawn mesh by up to ~0.9m (run.mjs measures it), so plants
+   placed on it hovered; plants placed on the lattice sit on the ground that
+   is actually there. Gated rather than default because the switch moves
+   every rejection test by centimetres and therefore reshuffles the field —
+   the five untouched worlds must stay bit-identical. */
 export function appendFlora(planet, f, u0, v0, size, ox, oy, oz, pos, nrm, sway,
-  budget, layers) {
+  budget, layers, gridSample) {
   let made = 0;
   const base = `flora:${f}:${Math.round(u0 * 4096)},${Math.round(v0 * 4096)},${Math.round(size * 4096)}`;
   const arc = size * planet.faceArc * 0.5;         // leaf width in metres
@@ -378,15 +388,24 @@ export function appendFlora(planet, f, u0, v0, size, ox, oy, oz, pos, nrm, sway,
        exactly what lets every plant in the clump be placed by a first-order
        expansion instead of another height() call. */
     const clumps = [];
+    const cell = 1 / planet.leafRes;          // one lattice cell, in leaf uv
     const nClumps = L.clumps[0] + ((rng() * (L.clumps[1] - L.clumps[0] + 1)) | 0);
     for (let i = 0; i < nClumps; i++) {
       const cu = rng(), cv = rng(), cr = range(rng, L.clump[0], L.clump[1]);
-      const u = u0 + cu * size, v = v0 + cv * size;
-      faceDir(f, u, v, RD);
-      const h = height(RD, planet);
-      if (h < loH || h > hiH) continue;
-      faceDir(f, u + du, v, RE); const hu = height(RE, planet);
-      faceDir(f, u, v + du, RE); const hv = height(RE, planet);
+      let h, hu, hv;
+      if (gridSample) {
+        h = gridSample(cu, cv);
+        if (h < loH || h > hiH) continue;
+        hu = gridSample(cu + cell, cv);
+        hv = gridSample(cu, cv + cell);
+      } else {
+        const u = u0 + cu * size, v = v0 + cv * size;
+        faceDir(f, u, v, RD);
+        h = height(RD, planet);
+        if (h < loH || h > hiH) continue;
+        faceDir(f, u + du, v, RE); hu = height(RE, planet);
+        faceDir(f, u, v + du, RE); hv = height(RE, planet);
+      }
       const slope = Math.hypot(hu - h, hv - h) / Math.max(scale, 1e-6);
       if (slope > L.slope) continue;
       // Thin approaching the limit rather than cutting at it, so a hillside
@@ -407,10 +426,13 @@ export function appendFlora(planet, f, u0, v0, size, ox, oy, oz, pos, nrm, sway,
       const lv = c[1] + Math.sin(ang) * rr;
       if (lu < 0 || lu > 1 || lv < 0 || lv > 1) continue;
 
-      // The ground height, from the clump's own gradient rather than another
-      // height() call. The error is second-order in the clump radius and the
-      // clump has already been rejected if it is steep.
-      const h = c[3] + (lu - c[0]) * size * c[4] + (lv - c[1]) * size * c[5];
+      // The ground height: read straight off the lattice when there is one
+      // (a bilinear is cheaper than the first-order expansion was), else from
+      // the clump's own gradient rather than another height() call — the
+      // error is second-order in the clump radius and the clump has already
+      // been rejected if it is steep.
+      const h = gridSample ? gridSample(lu, lv)
+        : c[3] + (lu - c[0]) * size * c[4] + (lv - c[1]) * size * c[5];
       if (h < loH || h > hiH) continue;
 
       const u = u0 + lu * size, v = v0 + lv * size;

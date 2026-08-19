@@ -136,7 +136,7 @@ arrival reaches this via `emit('hyperarrive')`. `devWarp()` (gated on
 
 | key | radius m | relief m | water | fog ×R | notes |
 |---|---|---|---|---|---|
-| home | 1036 | 51.8 | 0 | .18/.78 | the tuned reference, 12 geysers |
+| home | 1036 | 86.3 | 0 | .18/.78 | the tuned reference, 12 geysers; radius/12 relief (the revamp), escarpments/mesas/gullies via weight-gated terms in noise.js |
 | ember | 207 | 10.35 | dry | .20/.70 | no shadows, no flora, fissure vents |
 | tarn | 414 | 20.7 | +7.8 | .26/.95 | wettest, flora 1.25 |
 | vault | 829 | 41.45 | 0 | .30/1.0 | ice (`iceDepth` rules), ambient 0 |
@@ -159,8 +159,20 @@ fails on any console error. `savedworlds.mjs` — cold load **with** a save,
 asserts one sky/disc set/water. `arrivecheck.mjs` — exits non-zero, the one
 you can gate a commit on. `savefile.mjs` — seeded saves (`--save`,
 `--away=N`). Plus frames/spawncheck/noop/waterstats/waterangles/disccheck/
-sundisc/skyline/floracheck/perf/whatisthat, and `budget.mjs` (real-GPU frame
-budget; refuses SwiftShader). `dev/history/` is the pre-import repo bundle.
+sundisc/skyline/floracheck/perf/whatisthat, `budget.mjs` (real-GPU frame
+budget; refuses SwiftShader), `colonycost.mjs` (what a mature basin costs),
+and `flycheck.mjs` (frame pacing while the jet boosts across a world — worst
+frame, not average; the smoothness gate every Home-revamp phase reports).
+`dev/history/` is the pre-import repo bundle.
+
+Terrain note: `height()` in noise.js carries three weight-gated terms beyond
+the flat-world five — `wCliff` (escarpment step along a shelf-field contour,
+`cliffWander` breaks it into ramps), `wMesa` (flat-topped buttes), `wGully`
+(driving-scale drainage). Zero-weight worlds skip the blocks entirely, which
+is what keeps the other five bit-identical; Home is the only user. Leaf
+builds are budgeted by time as well as count (`WORLD.buildBudgetMs`), and
+Home's flora places on the leaf's own height lattice (`flora.onGrid`) so
+plants sit on the drawn ground.
 
 ## Known-outstanding — do not re-report
 

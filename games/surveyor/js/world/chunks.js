@@ -29,6 +29,9 @@ export class ChunkField {
        function of the profile and a leaf builds while you are driving. null
        means this world has no vegetation and the whole system is skipped. */
     this.flora = floraOf(planet);
+    // Home opts its flora onto the leaf's own height lattice — cheaper and
+    // sits plants on the drawn ground. See the note on appendFlora.
+    this.floraOnGrid = !!(planet.flora && planet.flora.onGrid);
     this.live = new Map();       // key -> { mesh, level }
     this.queue = [];
     this.wanted = new Set();
@@ -49,8 +52,17 @@ export class ChunkField {
     // Sectors surveyed, keyed on the finest leaf you have stood in.
     this.visited.add(this.leafKeyAt(dir));
 
+    /* Builds are budgeted by TIME as well as count. A max-detail Home leaf is
+       ~4.2ms of CPU, and two of them landing in one frame on top of the render
+       was most of what dev/flycheck.mjs measured as hitches at jet boost. One
+       build per frame is 60 leaves a second, four times what a 158m/s boost
+       actually demands (~15/s measured), so capping the frame's build time
+       costs no streaming and buys back the worst frame. The first build always
+       runs — a stall must never starve the queue entirely. */
     let built = 0;
-    while (this.queue.length && built < WORLD.buildBudgetPerFrame) {
+    const t0 = performance.now();
+    while (this.queue.length && built < WORLD.buildBudgetPerFrame &&
+      (built === 0 || performance.now() - t0 < WORLD.buildBudgetMs)) {
       const job = this.queue.shift();
       if (this.live.has(job.key) || !this.wanted.has(job.key)) continue;
       const mesh = this.build(job.f, job.u0, job.v0, job.size, job.level);
@@ -193,8 +205,20 @@ export class ChunkField {
     const sway = new Array(before).fill(-1);
     let blades = 0;
     if (this.flora && level >= P.maxLevel - (WORLD.floraLevels - 1)) {
+      // The lattice above, re-read bilinearly in leaf uv. Clamped so a clump
+      // gradient probe half a cell past the edge reads the edge rather than
+      // walking off the array.
+      const gridSample = this.floraOnGrid ? (lu, lv) => {
+        const gx = Math.min(res, Math.max(0, lu * res));
+        const gy = Math.min(res, Math.max(0, lv * res));
+        const i = Math.min(res - 1, gx | 0), j = Math.min(res - 1, gy | 0);
+        const fx = gx - i, fy = gy - j;
+        const r0 = j * (res + 1) + i, r1 = r0 + res + 1;
+        return (grid[r0] * (1 - fx) + grid[r0 + 1] * fx) * (1 - fy) +
+               (grid[r1] * (1 - fx) + grid[r1 + 1] * fx) * fy;
+      } : null;
       blades = appendFlora(P, f, u0, v0, size, ox, oy, oz, pos, nrm, sway,
-        WORLD.floraPerChunk, this.flora);
+        WORLD.floraPerChunk, this.flora, gridSample);
     }
 
     /* Bake the fissure mask (Phase 3a2). Ember's cracks glow, and the shader has
