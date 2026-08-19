@@ -1426,16 +1426,35 @@ button.button{cursor:pointer;font-family:inherit}
 .app-info .game-desc{padding:0}
 .app-info .game-actions{padding-left:0;padding-right:0}
 /* Two controls in this row, not one: GALLERY opens in place and the link
-   leaves the site. `space-between` spreads three groups evenly and leaves the
-   pair floating apart with a hole between them, so the tags take the slack
-   instead and the buttons stay together on the right.
+   leaves the site. Three things on a `space-between` row spread evenly and
+   leave the two buttons floating apart with a hole between them, so the tags
+   take a whole line to themselves (flex-basis 100%) and the pair shares the
+   next line as a pair. That is also what keeps them on ONE line: left to wrap
+   naturally they broke between each other, and one button sitting under the
+   other reads as a mistake rather than as a layout.
    Scoped to .app-info — the games section still has one control and wants the
    space-between it already has.
    `.button` sets display:inline-flex, which beats the UA sheet's [hidden] type
-   selector, so hiding has to be said again here or a card with no link shows
+   selector, so hiding has to be said again below or a card with no link shows
    an empty pill. */
-.app-info .game-actions{justify-content:flex-start}
-.app-info .game-tags{margin-right:auto}
+.app-info .game-actions{justify-content:flex-start;gap:12px}
+.app-info .game-tags{flex:1 0 100%}
+.app-info .game-gallery-open{padding:0 16px}
+/* MEASURED, not guessed. This column is narrowest just above the 1100px
+   collapse, not on a phone: the split is live but the viewport is not yet wide
+   enough to give this half any room, so it runs 250px at 1101 and only reaches
+   375px by 1600. Below 1100 the split collapses and the row is 560px.
+   The pair at the full 16px needs 314px, so everything from 1101 to about 1355
+   wrapped. At 14px with 8px of side padding it needs 249px, which clears the
+   250px worst case — one row at every width the page has.
+   The band is deliberate rather than making the buttons smaller everywhere:
+   this is the only stretch where the type steps down, and above 1360 there is
+   room for the size the button is supposed to be. The comment on
+   .game-gallery-open explains why that size is 16 and not 14. */
+@media (min-width:1101px) and (max-width:1360px){
+  .app-info .game-actions{gap:8px}
+  .app-info .game-gallery-open{font-size:14px;padding:0 8px}
+}
 .app-desc-link{text-decoration:none}
 .app-desc-link[hidden]{display:none}
 
