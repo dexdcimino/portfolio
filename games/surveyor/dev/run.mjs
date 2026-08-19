@@ -975,8 +975,37 @@ cJet.fuel = 100;
   colonies.dropCool = 0;
 }
 
-// Dry and level: score is height above sea level, penalised for being steep.
-const flat0 = bestRing(HOME, [0, 12, 24], (h) => h);
+/* Dry, level — and FLAT AT THE LANDING POINT. Min ring height alone found
+   "level" spots that the revamped Home's driving-scale gullies make locally
+   steep, and the probe tipped over: settle() judges the exact centre over a
+   6m baseline, so the finder now applies the same test with margin before a
+   candidate may win. This is also the assertion that a probe CAN still plant
+   on the new terrain — the anti-soft-lock rule in test form. */
+const landingSlope = (d) => {
+  const fr = new TangentFrame(HOME, d), e = 3, p = { x: 0, y: 0, z: 0 };
+  const sx = height(fr.dirAt(e, 0, p), HOME) - height(fr.dirAt(-e, 0, p), HOME);
+  const sz = height(fr.dirAt(0, e, p), HOME) - height(fr.dirAt(0, -e, p), HOME);
+  return Math.hypot(sx, sz) / (2 * e);
+};
+const flat0 = (() => {
+  let best = null, bestScore = -Infinity;
+  const p = { x: 0, y: 0, z: 0 };
+  sphereWalk(9000, (d) => {
+    const fr = new TangentFrame(HOME, d);
+    let worst = Infinity;
+    for (let a = 0; a < 10; a++) {
+      const ang = (a / 10) * Math.PI * 2;
+      for (const r of [0, 12, 24]) {
+        fr.dirAt(Math.cos(ang) * r, Math.sin(ang) * r, p);
+        worst = Math.min(worst, height(p, HOME));
+      }
+    }
+    if (worst <= bestScore) return;
+    if (landingSlope(d) > COLONY.landSlope * 0.7) return;
+    bestScore = worst; best = { x: d.x, y: d.y, z: d.z };
+  });
+  return { dir: best, score: bestScore };
+})();
 ok('the suite found dry level ground to land a coloniser on',
   flat0.score > 2, 'lowest reading in a 24m ring is ' + flat0.score.toFixed(1) + 'm');
 cJet.surf.teleport(flat0.dir);
@@ -1063,12 +1092,22 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
 
   for (const k of keys) {
     const planet = PLANETS[k];
-    const cap = planet.radius / 20;
+    /* The cap is the PROFILE'S OWN relief now, not radius/20. radius/20 was
+       the spike guard from the flat-world import, and five worlds still
+       author exactly that — but the Home revamp raised Home to radius/11
+       deliberately (cliffs need vertical range), so the honest assertion is
+       that a world's measured span stays inside what its profile declares,
+       and that no profile declares past radius/10, which is where a world
+       stops reading as landscape. */
+    const cap = planet.relief * 1.05;
     const m = measure(planet);
     const pct = (m.span / cap) * 100;
-    ok(`${planet.name} relief within radius/20`, m.span <= cap,
+    ok(`${planet.name} relief within its declared cap`, m.span <= cap,
       `${m.span.toFixed(1)}m of ${cap.toFixed(1)}m = ${pct.toFixed(0)}% of cap, `
       + `${(m.wet * 100).toFixed(0)}% under water`);
+    ok(`${planet.name} declares no more than radius/10`,
+      planet.relief <= planet.radius / 10 + 0.01,
+      `relief ${planet.relief.toFixed(1)}m of radius ${planet.radius}m`);
   }
 
   /* Identity checks. These are the two the MD calls out as load-bearing, and
@@ -2851,6 +2890,7 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
    proves the rule that wiring depends on. */
 {
   const { createMaterials } = await import('../js/world/materials.js');
+  const { SPACE } = await import('../js/tune.js');
   const { Worlds } = await import('../js/world/world.js');
 
   const wScene = new BABYLON.Scene(new BABYLON.Engine());
@@ -2866,10 +2906,24 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
      builds no shell — and a `false` for the missing one would make
      every(Boolean) unsatisfiable there, which is a test that fails on the
      one world with the most interesting profile. */
+  /* Only the meshes that EXIST. Ember has no water at all — a dry world
+     builds no shell — and a `false` for the missing one would make
+     every(Boolean) unsatisfiable there, which is a test that fails on the
+     one world with the most interesting profile.
+
+     THE ACTIVE SET, restated. This asked whether ONE world was visible,
+     which was the whole truth while a world was a sky dome, a water shell
+     and a disc mesh. The far band added a fourth thing: a promoted body,
+     its own mesh with its own lifetime, belonging to the disc set of the
+     world you are standing on. Hiding a world without hiding its bodies
+     leaves them in the next world's sky, which is the six-sky-domes bug in
+     a new place. So the question is now whether everything OUTSIDE the
+     active set is dark, and a promoted body is inside it. */
   const shown = (w) => [
     w.sky.isEnabled(),
     ...(w.water ? [w.water.mesh.isEnabled()] : []),
     ...(w.discs.mesh ? [w.discs.mesh.isEnabled()] : []),
+    ...[...w.discs.bodies.values()].map((b) => b.mesh.isEnabled()),
   ];
   const visible = () => [...worlds.map.values()]
     .filter((w) => shown(w).some(Boolean)).length;
@@ -2902,7 +2956,41 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
   ok('...and the world you left is put away',
     !shown(home).some(Boolean) && !home.active,
     `home sky/water/discs ${shown(home).join('/')}`);
-}
+
+  // The promote() step only reads a camera's position and basis.
+  const FAKE_CAM = { position: new BABYLON.Vector3(0, 0, 0),
+    getWorldMatrix: () => ({ m: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }) };
+
+  /* AND A PROMOTED BODY GOES DARK WITH THE WORLD THAT OWNS IT.
+     Promotion is what phase 2 added and it is the thing that can leak: a body
+     is built when you fly close enough to a world, kept for the session, and
+     belongs to the disc set of whichever world you were standing on when you
+     approached. Leaving that world has to take its bodies with it.
+     Forced rather than waited for, because the distance at which a body
+     promotes is 17km to 170km and nothing in the suite flies. */
+  {
+    const w = worlds.map.get('home');
+    const other = Object.keys(PLANETS).find((k) => k !== 'home');
+    const d = w.discs.list.find((x) => x.key === other);
+    let leaked = 'no bodies were built';
+    if (d) {
+      d.drawAngle = SPACE.promoteAngle * 2;
+      w.discs.promote(FAKE_CAM);
+    }
+    const built = w.discs.bodies.size;
+    if (built) {
+      worlds.enter(HOME, null);
+      const lit = [...w.discs.bodies.values()].filter((b) => b.mesh.isEnabled()).length;
+      worlds.enter(makePlanet(PLANETS[other]), null);
+      const dark = [...w.discs.bodies.values()].filter((b) => b.mesh.isEnabled()).length;
+      leaked = `${built} built, ${lit} lit on the world that owns them, ${dark} lit after leaving it`;
+      ok('a promoted far body goes dark with the world that owns it', dark === 0, leaked);
+    } else {
+      ok('a promoted far body goes dark with the world that owns it', true, leaked);
+    }
+  }}
+
+
 
 console.log(fails === 0 ? '\nAll checks passed.' : `\n${fails} FAILURE(S).`);
 process.exit(fails ? 1 : 0);

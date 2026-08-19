@@ -216,6 +216,245 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
+## Seamless space, phase 2: the LOD chain
+
+A billboard is right while a world is a few pixels across and wrong the moment
+you can tell it is flat. Phase 2 is what takes over.
+
+### The boundaries are per radius, not 20km and 2km
+
+The brief proposed fixed bands. They do not survive contact with worlds whose
+radii run 207m to 2072m — and they do not need to, because **the disc
+compression already is an LOD ramp and it is scale-free.** Every world reaches
+the same apparent size at the same multiple of its own radius:
+
+| | promotes at | floor stops binding | exaggeration gone |
+|---|---|---|---|
+| ember | 17.0 km | 6.1 km | 1.39 km |
+| tarn | 33.9 km | 12.2 km | 2.78 km |
+| vault | 67.9 km | 24.4 km | 5.56 km |
+| home | 84.9 km | 30.5 km | 6.95 km |
+| shroud | 118.9 km | 42.7 km | 9.73 km |
+| anvil | 169.8 km | 60.9 km | 13.90 km |
+
+`SYSTEM.drawRef`/`drawExp`/`drawFloor` exaggerate a distant world so it reads at
+all, and `drawAngle` is monotonic in the true angle — so a body only ever grows
+as you approach, and the exaggeration decays to nothing by `6.71R`. The
+threshold is therefore stated as a **drawn** half-angle (`SPACE.promoteAngle`,
+0.07 rad, eight degrees across). A threshold in true angle would promote Anvil
+and Ember at completely different apparent sizes, which is the same class of
+mistake as one global `k`.
+
+### The sphere is the same world, coarser
+
+Not a textured ball. `js/world/farbody.js` displaces an icosahedron by that
+planet's own `height()`, so what grows in the window is the continent you are
+about to land on. Billboard, this, coarse quadtree, fine quadtree — every rung
+is the same height field at a different resolution, which is what makes the
+chain a chain rather than four objects that resemble each other.
+
+Icosahedral rather than a UV sphere: a UV sphere puts most of its vertices at
+the poles, and on a body seen from an arbitrary direction that puts the detail
+in the wrong place with the seam in shot. 1280 triangles at subdivision 3, about
+7ms of `height()` to build, paid **once** per world per session on the frame it
+is first promoted.
+
+Flat-shaded and wound clockwise with negated normals, like the terrain and the
+rocks. Signed volume is asserted: a unit sphere in this project's convention is
+negative, and the shell converges on it as it subdivides — -0.889, -0.983,
+-1.009 of a unit sphere at subdivisions 1, 2, 3.
+
+### The handoff does not pop, and that is measured
+
+Both LODs are drawn at the **same** angle by construction: the sphere is scaled
+so its surface subtends exactly the angle the quad did. The claim is therefore
+that the swap is invisible, and claims like that have been wrong here before.
+
+`dev/lodcheck.mjs` walks a body through the boundary using `discs.js`'s own
+`setDistance` and `sizeDisc` — a restatement of the compression is how this
+project has produced three confident wrong measurements, and the compression is
+exactly the part under test. It isolates the body by rendering with the far band
+shown and hidden and differencing, with post off, and sizes it by area rather
+than bounding box.
+
+**The step across the boundary is 1.1% of angular size on every body** — smaller
+than the 2% to 14% steps between adjacent samples as the body simply gets
+closer. The swap is less of a change than one step of approach, so there is no
+crossfade: the brief said add one if a hard swap shows, and it does not.
+
+What makes it work is that the billboard keeps its halo and loses only its body.
+`core` is the fraction of the quad the solid disc fills; at zero the disc
+vanishes and the `pow(1 - r, 3.2)` glow around it does not. The thing that
+disappears is exactly the thing the sphere replaces, and the atmosphere it sat
+in carries straight through.
+
+### The active set, restated
+
+The one-world-visible checks asked whether **one world** was visible, which was
+the whole truth while a world was a sky dome, a water shell and a disc mesh. A
+promoted body is a fourth thing with its own mesh and its own lifetime, and
+`World.setActive(false)` did not know about it — so a world you flew away from
+would have left its bodies hanging in the next world's sky. That is the
+six-sky-domes bug in a new place, and it took three sessions to find the first
+time.
+
+`Discs.setEnabled` now owns the whole set, `World.showMeshes` goes through it
+rather than reaching past it to the billboard mesh, and the assertions ask
+whether everything **outside the active set** is dark rather than whether one
+world is lit. A promoted body is inside the set. There is a new check that
+forces a promotion, leaves the world, and fails if anything stays lit.
+
+### What phase 2 does not reach
+
+Nothing in normal play promotes anything. Travel is still an instant swap, so
+the closest a neighbour ever gets is 294km, and every world on the sky sheets is
+pinned at the `drawFloor` — the 17km to 170km at which promotion happens is only
+reachable once phase 4 lets you fly. That is why the LOD is exercised by a
+harness that moves a body rather than by a sheet, and why the six-way sheets are
+unchanged: **this phase is invisible until travel is continuous**, which is the
+correct outcome for a foundation.
+
+The near band — a second world at true scale with its own quadtree — is not
+here. It needs the origin world to change without a teardown, which is phase 4's
+change, and building a half of it now would be building it twice.
+
+## Seamless space, phase 2: the LOD chain
+
+A billboard is right while a world is a few pixels across and wrong the moment
+you can tell it is flat. Phase 2 is what takes over.
+
+### The boundaries are per radius, not 20km and 2km
+
+The brief proposed fixed bands. They do not survive contact with worlds whose
+radii run 207m to 2072m — and they do not need to, because **the disc
+compression already is an LOD ramp and it is scale-free.** Every world reaches
+the same apparent size at the same multiple of its own radius:
+
+| | promotes at | floor stops binding | exaggeration gone |
+|---|---|---|---|
+| ember | 17.0 km | 6.1 km | 1.39 km |
+| tarn | 33.9 km | 12.2 km | 2.78 km |
+| vault | 67.9 km | 24.4 km | 5.56 km |
+| home | 84.9 km | 30.5 km | 6.95 km |
+| shroud | 118.9 km | 42.7 km | 9.73 km |
+| anvil | 169.8 km | 60.9 km | 13.90 km |
+
+`SYSTEM.drawRef`/`drawExp`/`drawFloor` exaggerate a distant world so it reads at
+all, and `drawAngle` is monotonic in the true angle — so a body only ever grows
+as you approach, and the exaggeration decays to nothing by `6.71R`. The
+threshold is therefore stated as a **drawn** half-angle (`SPACE.promoteAngle`,
+0.07 rad, eight degrees across). A threshold in true angle would promote Anvil
+and Ember at completely different apparent sizes, which is the same class of
+mistake as one global `k`.
+
+### The sphere is the same world, coarser
+
+Not a textured ball. `js/world/farbody.js` displaces an icosahedron by that
+planet's own `height()`, so what grows in the window is the continent you are
+about to land on. Billboard, this, coarse quadtree, fine quadtree — every rung
+is the same height field at a different resolution, which is what makes the
+chain a chain rather than four objects that resemble each other.
+
+Icosahedral rather than a UV sphere: a UV sphere puts most of its vertices at
+the poles, and on a body seen from an arbitrary direction that puts the detail
+in the wrong place with the seam in shot. 1280 triangles at subdivision 3, about
+7ms of `height()` to build, paid **once** per world per session on the frame it
+is first promoted.
+
+Flat-shaded and wound clockwise with negated normals, like the terrain and the
+rocks. Signed volume is asserted: a unit sphere in this project's convention is
+negative, and the shell converges on it as it subdivides — -0.889, -0.983,
+-1.009 of a unit sphere at subdivisions 1, 2, 3.
+
+### The handoff does not pop, and that is measured
+
+Both LODs are drawn at the **same** angle by construction: the sphere is scaled
+so its surface subtends exactly the angle the quad did. The claim is therefore
+that the swap is invisible, and claims like that have been wrong here before.
+
+`dev/lodcheck.mjs` walks a body through the boundary using `discs.js`'s own
+`setDistance` and `sizeDisc` — a restatement of the compression is how this
+project has produced three confident wrong measurements, and the compression is
+exactly the part under test. It isolates the body by rendering with the far band
+shown and hidden and differencing, with post off, and sizes it by area rather
+than bounding box.
+
+**Size is continuous to about 1%** across the boundary on every body — smaller
+than the 2% to 14% steps between adjacent samples as the body simply gets
+closer. That is the geometry doing what it was built to do.
+
+**Brightness was not, and only a second measurement found it.** The first
+version of the harness measured size alone, reported 1.1% and declared the
+handoff invisible. It was wrong: adding the body's mean luminance to the same
+measurement showed the sphere arriving at **0.42 of the billboard's brightness**
+— a 55% cliff on a swap whose size was continuous to a percent. A dark sphere
+and a bright quad of equal area pass a size test and pop violently.
+
+Two causes, found by neutralising the shader's terms one at a time on both
+materials rather than by guessing:
+
+| | ratio |
+|---|---|
+| as shipped | 0.42 |
+| terminator neutralised on both | 0.82 |
+| limb neutralised on both | 0.43 |
+| both neutralised | 0.93 |
+
+So it is the **terminator**, and it is not a bug in either LOD. The billboard
+fakes a sphere with a screen-aligned parametrisation; the body has a real one
+across real geometry, and the night side covers a different share of the visible
+disc. Matching them exactly would mean making the billboard wrong on purpose.
+The limb was worth 1% and a wrong first guess — taking it off the flat facet
+normal rather than the smooth direction cost 13% on its own and was fixed on the
+way past.
+
+So it is **ramped**, which is what the brief asks for when a hard swap shows.
+`SPACE.fadeBand` crosses the two over a third of the approach either side of the
+boundary. Luminance now runs 48 → 59 → 20 across the whole approach with **no
+step**: the largest change between adjacent samples is 13%, across a distance
+jump of 68km.
+
+The first attempt at the fade ramped `core`, which is the fraction of the quad
+the solid disc fills — so the disc got **smaller rather than fainter**, leaving a
+bright dot over a full-size sphere and a brightness that bumped up 67% in the
+middle of the band instead of stepping at its edge. `svDisc` has a per-vertex
+`fade` now, multiplying the body's colour and alpha and never the halo. Per
+vertex because one draw call carries all five worlds and they promote at
+different times.
+
+The halo is never faded. The thing that disappears is exactly the thing the
+sphere replaces, and the atmosphere it sat in carries straight through.
+
+### The active set, restated
+
+The one-world-visible checks asked whether **one world** was visible, which was
+the whole truth while a world was a sky dome, a water shell and a disc mesh. A
+promoted body is a fourth thing with its own mesh and its own lifetime, and
+`World.setActive(false)` did not know about it — so a world you flew away from
+would have left its bodies hanging in the next world's sky. That is the
+six-sky-domes bug in a new place, and it took three sessions to find the first
+time.
+
+`Discs.setEnabled` now owns the whole set, `World.showMeshes` goes through it
+rather than reaching past it to the billboard mesh, and the assertions ask
+whether everything **outside the active set** is dark rather than whether one
+world is lit. A promoted body is inside the set. There is a new check that
+forces a promotion, leaves the world, and fails if anything stays lit.
+
+### What phase 2 does not reach
+
+Nothing in normal play promotes anything. Travel is still an instant swap, so
+the closest a neighbour ever gets is 294km, and every world on the sky sheets is
+pinned at the `drawFloor` — the 17km to 170km at which promotion happens is only
+reachable once phase 4 lets you fly. That is why the LOD is exercised by a
+harness that moves a body rather than by a sheet, and why the six-way sheets are
+unchanged: **this phase is invisible until travel is continuous**, which is the
+correct outcome for a foundation.
+
+The near band — a second world at true scale with its own quadtree — is not
+here. It needs the origin world to change without a teardown, which is phase 4's
+change, and building a half of it now would be building it twice.
+
 ## Seamless space, phase 1: the far band
 
 Travel still tears the current world down and builds the destination. This phase
@@ -1615,6 +1854,7 @@ node dev/savedworlds.mjs      # cold load WITH A SAVE — is more than one world
 node dev/skyline.mjs          # does the horizon band sit on the horizon, at altitude?
 node dev/floracheck.mjs       # what does vegetation cost, and does the wind move it?
 node dev/disccheck.mjs --all  # every world pair: where the far band draws each body
+node dev/lodcheck.mjs         # does the billboard-to-sphere handoff pop?
 ```
 
 ### The harness had never met a returning player

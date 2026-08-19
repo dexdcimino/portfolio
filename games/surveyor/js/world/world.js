@@ -135,7 +135,11 @@ export class World {
   showMeshes(on) {
     this.sky.setEnabled(on);
     if (this.water) this.water.mesh.setEnabled(on);
-    if (this.discs.mesh) this.discs.mesh.setEnabled(on);
+    /* Through the disc set rather than at its mesh, because a disc set is
+       no longer one mesh: a world you have flown toward has a promoted body
+       with its own mesh, and reaching past Discs to hide only the billboards
+       would leave that body hanging in another world's sky. */
+    this.discs.setEnabled(on);
   }
 
   /** Stream in the ground around a direction before anyone sees the gap. */

@@ -22,10 +22,12 @@
 // 3. NO FOG. They are outside the atmosphere by definition, so the fog uniforms
 //    are simply not wired to this shader.
 
-import { SYSTEM, PLANETS } from '../tune.js';
+import { SYSTEM, SPACE, PLANETS } from '../tune.js';
 import { paletteOf, skyOf } from './materials.js';
 import { previews } from './preview.js';
 import { farDistance, farScale } from './space.js';
+import { farBodyMesh } from './farbody.js';
+import { makePlanet } from './sphere.js';
 
 /**
  * Direction and angular radius of every other world, from this one.
@@ -77,6 +79,41 @@ export function neighbours(planet) {
   return out;
 }
 
+/**
+ * One disc's drawn geometry, from its true distance.
+ *
+ * SEPARATE FROM THE CONSTRUCTOR because it is no longer a build-time decision.
+ * A world you are flying toward changes distance every frame, and its drawn
+ * size, its quad, its compressed placement and the LOD it is due all follow
+ * from that one number. Pulling it out means the approach and the initial
+ * build derive them the same way — and it means dev/lodcheck.mjs can walk a
+ * body through the promotion boundary using the real function rather than a
+ * restatement of it, which is the mistake that has cost this project three
+ * wrong measurements.
+ */
+export function sizeDisc(planet, d) {
+  const soft = SYSTEM.drawRef * Math.pow(d.angle / SYSTEM.drawRef, SYSTEM.drawExp);
+  d.drawAngle = Math.max(d.angle, soft, SYSTEM.drawFloor);
+  d.quadAngle = Math.max(d.drawAngle * SYSTEM.pad, SYSTEM.minAngle);
+  // Its own compressed distance, not a shared shell.
+  d.K = farDistance(planet, d.dist);
+  d.half = d.K * Math.tan(d.quadAngle);
+  d.core = d.drawAngle / d.quadAngle;
+  return d;
+}
+
+/**
+ * Move a body to a new true distance and re-derive everything.
+ *
+ * The honest half-angle is radius over distance; everything else follows from
+ * sizeDisc. Used by the approach and by the LOD harness.
+ */
+export function setDistance(planet, d, radius, dist) {
+  d.dist = dist;
+  d.angle = Math.atan2(radius, dist);
+  return sizeDisc(planet, d);
+}
+
 export class Discs {
   constructor(scene, planet) {
     this.planet = planet;
@@ -111,6 +148,8 @@ export class Discs {
     const suns = new Float32Array(n * 4 * 3);
     const slots = new Float32Array(n * 4);
     const specs = new Float32Array(n * 4);
+    // 1 until the far band starts promoting this world. See svDisc.
+    const fade = new Float32Array(n * 4).fill(1);
     const idx = [];
     const CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 
@@ -129,13 +168,7 @@ export class Discs {
          somewhere to live, and still floored at minAngle — which no longer
          binds at this drawFloor, and is left in as the guard it was for anyone
          who lowers the floor. */
-      const soft = SYSTEM.drawRef * Math.pow(d.angle / SYSTEM.drawRef, SYSTEM.drawExp);
-      d.drawAngle = Math.max(d.angle, soft, SYSTEM.drawFloor);
-      d.quadAngle = Math.max(d.drawAngle * SYSTEM.pad, SYSTEM.minAngle);
-      // Its own compressed distance, not a shared shell.
-      d.K = farDistance(planet, d.dist);
-      d.half = d.K * Math.tan(d.quadAngle);
-      d.core = d.drawAngle / d.quadAngle;
+      sizeDisc(planet, d);
       for (let c = 0; c < 4; c++) {
         const v = i * 4 + c;
         quad[v * 2] = CORNERS[c][0];
@@ -167,11 +200,12 @@ export class Discs {
     mesh.setVerticesData('sun', suns, false, 3);
     mesh.setVerticesData('slot', slots, false, 1);
     mesh.setVerticesData('spec', specs, false, 1);
+    mesh.setVerticesData('fade', fade, false, 1);
 
     const mat = new BABYLON.ShaderMaterial('svDisc', scene,
       { vertex: 'svDisc', fragment: 'svDisc' },
       {
-        attributes: ['position', 'quad', 'color', 'dir', 'sun', 'slot', 'spec'],
+        attributes: ['position', 'quad', 'color', 'dir', 'sun', 'slot', 'spec', 'fade'],
         uniforms: ['worldViewProjection', 'uRight', 'uUp',
                    'uGlow', 'uLimb', 'uDisc', 'uNight', 'uEmit', 'uRows'],
         samplers: ['uMap'],
@@ -200,6 +234,18 @@ export class Discs {
     this.mesh = mesh;
     this.mat = mat;
     this.pos = pos;
+    this.col = col;
+    this.fade = fade;
+    this.scene = scene;
+    /* Promoted bodies, built lazily and kept. A world is promoted when its
+       DRAWN half-angle passes SPACE.promoteAngle, which on the way in happens
+       once and on the way out happens once — so this map holds at most the
+       handful of worlds you have actually approached this session. */
+    this.bodies = new Map();
+    this.promoted = new Set();
+    // Last core written per disc, so the colour buffer is only re-uploaded
+    // when the fade actually moves rather than every frame.
+    this.fadeNow = this.list.map(() => 1);
     this.right = new BABYLON.Vector3();
     this.up = new BABYLON.Vector3();
   }
@@ -231,6 +277,7 @@ export class Discs {
       }
     }
     this.mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, p);
+    this.promote(camera);
     this.mesh.position.copyFrom(camera.position);
     /* Only the camera's orientation goes up now. The sun does not: each disc
        carries its OWN world's sun on the vertex buffer, because the light on
@@ -239,5 +286,120 @@ export class Discs {
     this.mat.setVector3('uUp', u);
   }
 
-  dispose() { if (this.mesh) this.mesh.dispose(); }
+  /**
+   * Show or hide everything this disc set owns, promoted bodies included.
+   *
+   * THE BODIES ARE THE NEW WAY TO LEAK A WORLD. World.setActive hid the sky
+   * dome, the water shell and the disc mesh, which was the complete list until
+   * a promoted body became a fourth thing with its own mesh and its own
+   * lifetime. A world you fly away from would have left its bodies in the sky —
+   * which is the six-sky-domes bug exactly, and it took three sessions to find
+   * the first time. dev/run.mjs asserts this rather than trusting it.
+   */
+  setEnabled(on) {
+    if (this.mesh) this.mesh.setEnabled(on);
+    for (const b of this.bodies.values()) {
+      // A hidden world shows nothing; a visible one shows what it had promoted.
+      b.mesh.setEnabled(on && this.promoted.has(b.key));
+    }
+  }
+
+  dispose() {
+    if (this.mesh) this.mesh.dispose();
+    for (const b of this.bodies.values()) b.mesh.dispose();
+    this.bodies.clear();
+    this.promoted.clear();
+  }
 }
+
+/* ---- promotion ---------------------------------------------------------- */
+
+Discs.prototype.promote = function promote(camera) {
+  let changed = false;
+  for (let i = 0; i < this.list.length; i++) {
+    const d = this.list[i];
+    /* HOW FAR THROUGH THE HANDOFF THIS BODY IS, 0 to 1. The sphere fades in
+       across the band and the billboard's disc fades out across the same one,
+       so at any instant the two together carry a full body. */
+    const lo = SPACE.promoteAngle * (1 - SPACE.fadeBand);
+    const hi = SPACE.promoteAngle * (1 + SPACE.fadeBand);
+    const t = Math.max(0, Math.min(1, (d.drawAngle - lo) / Math.max(hi - lo, 1e-9)));
+    const want = t > 0;
+    const had = this.promoted.has(d.key);
+
+    if (want && !this.bodies.has(d.key)) {
+      /* Built on the frame it is first needed, which is a stall of a few
+         milliseconds ONCE per world per session. Building all five up front
+         would be 35ms at boot for four bodies nobody is looking at, and
+         building per frame would be absurd. */
+      const P = PLANETS[d.key] && makePlanet(PLANETS[d.key]);
+      if (P) {
+        const b = farBodyMesh(this.scene, P, SPACE.bodySubdiv, this.maps,
+          this.maps ? this.maps.slot[d.key] : 0);
+        b.mat.setVector3('uSun', new BABYLON.Vector3(d.sun.x, d.sun.y, d.sun.z));
+        b.mat.setVector3('uTint', new BABYLON.Vector3(d.tint[0], d.tint[1], d.tint[2]));
+        b.mat.setFloat('uDisc', SYSTEM.disc);
+        b.mat.setFloat('uNight', SYSTEM.night);
+        b.mat.setFloat('uEmit', SYSTEM.emitBoost);
+        b.mat.setFloat('uLimb', SYSTEM.limb);
+        b.mat.setFloat('uSpec', d.spec);
+        b.mat.setFloat('uFade', 1);
+        b.key = d.key;
+        this.bodies.set(d.key, b);
+      }
+    }
+
+    const b = this.bodies.get(d.key);
+    if (b) {
+      b.mesh.setEnabled(want);
+      if (want) {
+        /* Placed a whisker BEHIND the billboard, not in front of it, and the
+           difference is most of what made the handoff visible.
+
+           The billboard is one draw: a solid disc AND a halo around and over
+           it, and the halo adds brightness across the body as well as outside
+           it. Promotion drops the disc and keeps the halo. Put the sphere in
+           FRONT and it writes depth, the halo over the body fails the depth
+           test, and the body loses that light — measured at 22% to 55% darker
+           across the boundary, on a swap whose SIZE was continuous to 1%.
+           Behind, the halo composites over the sphere exactly as it did over
+           the quad, and nothing z-fights because the billboard never writes
+           depth. */
+        const at = d.K * 1.02;
+        b.mesh.position.set(
+          camera.position.x + d.dir.x * at,
+          camera.position.y + d.dir.y * at,
+          camera.position.z + d.dir.z * at);
+        // Scaled so its surface subtends exactly the angle the billboard did.
+        const r = at * Math.tan(d.drawAngle);
+        b.mesh.scaling.set(r, r, r);
+        b.mat.setVector3('uCam', camera.position);
+        b.mat.setFloat('uFade', t);
+      }
+    }
+
+    /* THE BILLBOARD FADES; IT DOES NOT SHRINK. The first cut ramped `core`,
+       which is the fraction of the quad the solid disc fills — so the disc got
+       SMALLER rather than fainter, leaving a bright dot over a full-size sphere
+       and a measured brightness that bumped up by 60% in the middle of the band
+       instead of stepping at its edge. `fade` multiplies the body's colour and
+       its alpha, and never the halo. */
+    const f = 1 - t;
+    if (Math.abs(f - (this.fadeNow[i] || 0)) > 1e-4) {
+      this.fadeNow[i] = f;
+      changed = true;
+      for (let c = 0; c < 4; c++) this.fade[i * 4 + c] = f;
+    }
+    if (want !== had) {
+      if (want) this.promoted.add(d.key); else this.promoted.delete(d.key);
+      /* THE BILLBOARD KEEPS ITS HALO AND LOSES ITS BODY. `core` is the fraction
+         of the quad the solid disc fills, and the shader reads it off the
+         vertex colour alpha; at zero the body vanishes and pow(1 - r, 3.2)
+         glow around it does not. That is what makes the handoff hard to see:
+         the thing that disappears is exactly the thing the sphere replaces,
+         and the atmosphere it sat in carries straight through. */
+      for (let c = 0; c < 4; c++) this.col[(i * 4 + c) * 4 + 3] = d.core;
+    }
+  }
+  if (changed) this.mesh.setVerticesData('fade', this.fade, false, 1);
+};

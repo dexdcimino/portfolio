@@ -1548,6 +1548,15 @@ function registerShaders() {
     attribute vec3 sun;     // ...and ITS sun, which is not this world's sun
     attribute float slot;   // its row in the preview atlas
     attribute float spec;   // its toon ice sheen. 0 on five of the six
+    /* HOW MUCH OF THIS DISC'S BODY IS STILL DRAWN, 1 to 0. The far band
+       promotes a world to real geometry as it grows, and the two have to
+       cross over: this fades the solid disc out while the sphere fades in.
+       It multiplies the BODY only and never the halo, so the glow the body
+       sits in carries straight through the handoff untouched — which is what
+       makes the swap hard to see rather than merely quick.
+       Per vertex rather than a uniform because svDisc draws all five worlds
+       in one call and they promote at different times. */
+    attribute float fade;
     uniform mat4 worldViewProjection;
     varying vec2 vQ;
     varying vec4 vC;
@@ -1555,6 +1564,7 @@ function registerShaders() {
     varying vec3 vSun;
     varying float vSlot;
     varying float vSpec;
+    varying float vFade;
     void main() {
       vQ = quad;
       vC = color;
@@ -1562,6 +1572,7 @@ function registerShaders() {
       vSun = sun;
       vSlot = slot;
       vSpec = spec;
+      vFade = fade;
       gl_Position = worldViewProjection * vec4(position, 1.0);
     }
   `;
@@ -1574,6 +1585,7 @@ function registerShaders() {
     varying vec3 vSun;
     varying float vSlot;
     varying float vSpec;
+    varying float vFade;
     uniform vec3 uRight, uUp;
     uniform sampler2D uMap;
     uniform float uGlow, uLimb, uDisc, uNight, uEmit, uRows;
@@ -1649,10 +1661,11 @@ function registerShaders() {
       // Ember's cracks are a light source, not a lit surface, so they are added
       // after the terminator and past 1.0 for the bloom pass to find.
       col += map.rgb * map.a * uEmit;
-      col *= disc;
+      // The body fades; the halo does not.
+      col *= disc * vFade;
       col += vC.rgb * halo * uGlow * 0.10;
 
-      float a = clamp(disc * 0.97 + halo * 0.22, 0.0, 1.0);
+      float a = clamp(disc * 0.97 * vFade + halo * 0.22, 0.0, 1.0);
       gl_FragColor = vec4(col, a);
     }
   `;

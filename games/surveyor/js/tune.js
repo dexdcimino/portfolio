@@ -7,6 +7,12 @@ export const WORLD = {
   // move onto a sphere unchanged.
   waterY: 0,
   buildBudgetPerFrame: 2,
+  /* ...and a time cap on the same loop: once a frame has spent this many ms
+     building leaves it stops, whatever the count says. A Home leaf is ~4.2ms,
+     so in practice this is one build per frame on the reference machine —
+     measured at jet boost by dev/flycheck.mjs, demand is ~15 leaves/s against
+     the 60/s this still supplies. */
+  buildBudgetMs: 3,
   // A quadtree node subdivides while the player is within this many node-widths
   // of it. Higher = more triangles held at high detail further out.
   lodSplit: 1.7,
@@ -1008,6 +1014,39 @@ export const SPACE = {
      near plane and vanishing, during the frames when it is crossing the band
      boundary and has not been promoted yet. */
   minDraw: 4.0,
+
+  /* WHERE A BILLBOARD STOPS BEING A BODY, as a drawn HALF-angle in radians.
+     A flat quad is correct while a world is a few pixels across and stops
+     being correct the moment you can tell it is flat. 0.07 is a drawn diameter
+     of eight degrees.
+     It is a DRAWN angle, not a true one, because the drawn angle is what the
+     eye is judging: SYSTEM.drawRef/drawExp/drawFloor exaggerate a distant world
+     so it reads at all, and a threshold in true angle would promote Anvil at a
+     completely different apparent size from Ember. */
+  promoteAngle: 0.07,
+
+  /* THE CROSSFADE, as a fraction of promoteAngle either side of it.
+     The two LODs agree on SIZE to about one percent across the boundary, which
+     is what the geometry guarantees. They do not agree on BRIGHTNESS: measured
+     with dev/lodcheck.mjs, the sphere comes out 0.42 of the billboard's mean
+     luminance, and neutralising the terminator on both takes that to 0.82 while
+     neutralising the limb takes it to 0.43 — so it is the terminator, and it is
+     not a bug in either. The billboard fakes a sphere with a screen-aligned
+     parametrisation and the body has a real one across real geometry; the night
+     side covers a different share of the visible disc. Matching them exactly
+     would mean making the billboard wrong on purpose.
+     So it is ramped instead, which is what the brief asks for when a hard swap
+     shows. 0.35 spreads the change over roughly a third of the approach to the
+     boundary and back — long enough that no single frame carries a visible step,
+     short enough that two bodies are never both half-drawn for long. */
+  fadeBand: 0.35,
+
+  /* Subdivisions of the icosahedron the promoted body is built from. 3 is 1280
+     triangles and about 7ms of height() to build, paid once when a body is
+     first promoted and never again. 4 would be 5120 and 28ms, which is two
+     dropped frames for detail that is under a pixel at the size this LOD is
+     ever seen at. */
+  bodySubdiv: 3,
 };
 
 export const SYSTEM = {
@@ -1222,20 +1261,39 @@ export const PLANETS = {
        defaults in LIGHT; spelling them out here would be five more places to
        forget to change. */
     waterY: 0,
-    relief: 1036 / 20,        // ~52m, the cap the MD's radius table gives
+    /* THE HOME REVAMP: nearly double the vertical range. radius/20 was a cap
+       to stop a 207m world becoming spikes; on a 1036m world it had become the
+       thing standing between Home and cliffs. /11 rather than /10 because
+       "Anvil has the deepest relief in the system" is asserted, and Anvil's
+       103.6m stays the ceiling. Everything downstream is relief-relative by
+       construction — contours, palette bands, flora bands, rock caps — so the
+       chart identity scales with it. */
+    relief: 1036 / 12,        // ~86m
 
-    // Terrain terms. Same five as the flat world, re-expressed on the sphere.
-    // seaBias/wCarve set the land-water split. At the flat world's 0.30/0.38
-    // a sphere comes out 14% water and only 8m deep, which leaves the boat and
-    // the flooding hazard with nothing to do — this is 30% water, a quarter of
-    // it deep enough to swamp a rover.
-    fShelf: 2.0,  wShelf: 1.00, seaBias: 0.36,
-    fCarve: 5.5,  wCarve: 0.55,
-    fRidge: 6.0,  wRidge: 0.30,
-    fRough: 22,   wRough: 0.065,
-    fFine: 60,    wFine: 0.016,
+    // Terrain terms. seaBias/wShelf set the land-water split; the shelf's
+    // shape (fShelf 2.0, seaBias 0.36) is UNCHANGED so the approved coastline
+    // survives the taller world — the same geography, amplified.
+    // wRough/wFine are halved because they are absolute-scale grain: 0.065 of
+    // 52m and 0.036 of 94m are the same 3.4m of boulder-field rumble.
+    fShelf: 2.0,  wShelf: 0.72, seaBias: 0.36,
+    fCarve: 5.5,  wCarve: 0.44,
+    fRidge: 6.0,  wRidge: 0.22,
+    fRough: 22,   wRough: 0.036,
+    fFine: 60,    wFine: 0.009,
     fFissure: 0,  wFissure: 0, fissureNarrow: 1,   // no fissures on Home
-    terraceStep: 5.0, terraceAmt: 0.62, terraceFrom: 0.17, terraceTo: 0.73,
+    /* The new relief spends itself in three places (see noise.js):
+       ESCARPMENTS — ~19m cliff lines along a contour of the shelf field, with
+       plateaus behind them and wander-gaps that are the rover's ramps.
+       MESAS — a handful of ~25m flat-topped buttes, landmarks from a long way.
+       GULLIES — ~4m drainage cuts at driving scale, so the ground reads at
+       15m as well as at 1500. */
+    wCliff: 0.24, cliffAt: 0.52, cliffWidth: 0.005,
+    cliffWander: 0.12, fCliffGap: 9,
+    wMesa: 0.17, fMesa: 4.6, mesaAt: 0.66, mesaWidth: 0.02,
+    wGully: 0.045, fGully: 34,
+    // Step 8m against the new 10.8m minor contour interval — the same
+    // step-to-interval ratio the 5m step had against 6m contours.
+    terraceStep: 8.0, terraceAmt: 0.55, terraceFrom: 0.17, terraceTo: 0.73,
 
     // Swell. Amplitude in metres, frequency in cycles across the sphere.
     waveAmp: 1.0, waveFreq: 90,
@@ -1313,6 +1371,9 @@ export const PLANETS = {
        is CPU leaf-build, asserted at 6ms in dev/run.mjs. */
     flora: {
       density: 1.0,
+      // Plants sit on the drawn lattice rather than the analytic curve —
+      // cheaper per leaf and nothing hovers. See appendFlora.
+      onGrid: true,
       layers: {
         // Taller and spread across more clumps than the default: at the chase
         // camera's distance a 0.6m blade is a speck, and specks are why the
