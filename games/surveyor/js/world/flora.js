@@ -44,6 +44,7 @@
 import { height } from './noise.js';
 import { faceDir } from './sphere.js';
 import { rngFor, range } from '../core/rng.js';
+import { WORLD } from '../tune.js';
 
 const RD = { x: 0, y: 0, z: 0 };
 const RE = { x: 0, y: 0, z: 0 };
@@ -356,7 +357,7 @@ const FORMS = { blade, shrub, tree };
    every rejection test by centimetres and therefore reshuffles the field —
    the five untouched worlds must stay bit-identical. */
 export function appendFlora(planet, f, u0, v0, size, ox, oy, oz, pos, nrm, sway,
-  budget, layers, gridSample) {
+  budget, layers, gridSample, level) {
   let made = 0;
   const base = `flora:${f}:${Math.round(u0 * 4096)},${Math.round(v0 * 4096)},${Math.round(size * 4096)}`;
   const arc = size * planet.faceArc * 0.5;         // leaf width in metres
@@ -368,6 +369,14 @@ export function appendFlora(planet, f, u0, v0, size, ox, oy, oz, pos, nrm, sway,
   for (const name of Object.keys(layers)) {
     const L = layers[name];
     if (!L.density || left <= 0) continue;
+    /* Per-layer LOD reach: a layer carries into the finest `levels` quadtree
+       levels (default: the global floraLevels). Trees can reach one level
+       further than the ground cover — a treeline that materialises 200m out
+       is a pop, a blade of grass that does is invisible. The skip sits before
+       the rng is seeded, so a layer at default reach behaves exactly as it
+       always has on every world. */
+    const reach = L.levels || WORLD.floraLevels;
+    if (level !== undefined && level < planet.maxLevel - (reach - 1)) continue;
     const rng = rngFor(planet.seed, `${base}:${name}`);
 
     /* WHERE EACH LAYER GROWS, as fractions of the world's OWN relief. These

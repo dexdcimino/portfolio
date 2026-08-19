@@ -204,7 +204,12 @@ Home's flora places on the leaf's own height lattice (`flora.onGrid`) so
 plants sit on the drawn ground. Hero formations (`scatter.monuments: N`, Home
 only): a seeded world-space list from `monumentsOf()`, baked into leaves at
 EVERY LOD level with identical geometry so a landmark never pops; own rng
-streams, so the per-leaf rock roll is untouched everywhere.
+streams, so the per-leaf rock roll is untouched everywhere. Rocks can opt
+onto the lattice too (`scatter.onGrid`). Flora layers carry a per-layer LOD
+reach (`levels`; Home's trees/heroes run 3, so the treeline outranges the
+grass), and the shadow pass culls its caster list to the box each frame —
+measured at ~0 GPU and ~1.4ms CPU before, ~0.7ms after; the cost was draw
+submission, never resolution, so no coarse-geometry caster LOD was built.
 
 ## Known-outstanding — do not re-report
 

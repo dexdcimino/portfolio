@@ -128,23 +128,31 @@ export class Shadows {
     this.matrix = BABYLON.Matrix.Identity();
     this._centre = new BABYLON.Vector3();
     this._eye = new BABYLON.Vector3();
+    this.casters = [];
   }
 
-  /** Register a caster. Safe to call for every leaf the chunk stream builds. */
+  /** Register a caster. Safe to call for every leaf the chunk stream builds.
+   *  Casters live in a master set; the RTT's renderList is refilled per frame
+   *  in update() with only the ones near enough to reach the box. Measured on
+   *  the revamped Home: the caster pass costs ~0 GPU and ~1.4ms of CPU — it
+   *  is draw submission, so the whole win is submitting fewer casters, and a
+   *  leaf 600m from a 180m box cannot cast into it from any sun angle. */
   addCaster(mesh) {
-    if (this.rtt && mesh) this.rtt.renderList.push(mesh);
+    if (this.rtt && mesh) this.casters.push(mesh);
   }
 
   /** ...and drop one, because the chunk stream disposes leaves constantly and a
-   *  render list holding disposed meshes grows without bound. */
+   *  caster set holding disposed meshes grows without bound. */
   removeCaster(mesh) {
     if (!this.rtt) return;
-    const i = this.rtt.renderList.indexOf(mesh);
-    if (i >= 0) this.rtt.renderList.splice(i, 1);
+    const i = this.casters.indexOf(mesh);
+    if (i >= 0) this.casters.splice(i, 1);
   }
 
   clearCasters() {
-    if (this.rtt) this.rtt.renderList.length = 0;
+    if (!this.rtt) return;
+    this.casters.length = 0;
+    this.rtt.renderList.length = 0;
   }
 
   /**
@@ -172,6 +180,23 @@ export class Shadows {
     this.cam.orthoTop = R;
     this.cam.orthoBottom = -R;
     this.cam.getViewMatrix().multiplyToRef(this.cam.getProjectionMatrix(), this.matrix);
+
+    /* Refill the render list with only the casters that can reach the box:
+       centre within 1.1x the range, which covers a finest or next-finest leaf
+       overlapping the box edge with margin (coarser leaves cannot overlap it —
+       the quadtree has already split everything this close to the craft). The
+       distance test is ~100 subtractions a frame; the draws it saves are 12us
+       each, and they were most of what the caster pass cost. */
+    const list = this.rtt.renderList;
+    list.length = 0;
+    const rr = this.cfg.range * 1.1, r2 = rr * rr;
+    for (const m of this.casters) {
+      const p = m.position;
+      const dx = p.x - this._centre.x;
+      const dy = p.y - this._centre.y;
+      const dz = p.z - this._centre.z;
+      if (dx * dx + dy * dy + dz * dz < r2) list.push(m);
+    }
   }
 
   describe() {

@@ -1364,7 +1364,10 @@ export const PLANETS = {
     // eighteen seeded landmarks (spire crowns and tiered buttes) baked into
     // the terrain at every LOD level, so they are visible from across the
     // world and never pop.
-    scatter: { density: 1.0, forms: [0.58, 0.17, 0.25], scale: 1.0, monuments: 18 },
+    // onGrid: rock placement reads the leaf's height lattice, like the flora —
+    // ~1.1ms cheaper per leaf build and boulders sit on the drawn ground.
+    scatter: { density: 1.0, forms: [0.58, 0.17, 0.25], scale: 1.0,
+      monuments: 18, onGrid: true },
 
     /* THE REFERENCE FIELD. Home is the only world that gets vegetation across
        its whole habitable band rather than in a niche, and it is the world the
@@ -1393,11 +1396,11 @@ export const PLANETS = {
         // camera's distance a 0.6m blade is a speck, and specks are why the
         // ground read as bare with twelve thousand plants on it.
         cover: { density: 1.0, color: [0.310, 0.478, 0.376],
-          perLeaf: 340, clumps: [4, 9], height: [0.65, 1.45] },
+          perLeaf: 330, clumps: [4, 9], height: [0.65, 1.45] },
         // A bush with a body: the rosette keeps the movement, the lobes are
         // the mass. ~62 triangles against the old 12.
         shrub: { density: 1.0, color: [0.267, 0.412, 0.333],
-          perLeaf: 48, lobes: 5 },
+          perLeaf: 44, lobes: 5 },
         // Saplings under the canopy — what turns trees-on-a-lawn into a wood.
         under: { density: 1.0, color: [0.243, 0.400, 0.341],
           perLeaf: 22, shell: 2, jitter: 0.5 },
@@ -1411,14 +1414,17 @@ export const PLANETS = {
            greens at the waterline reads as a bare world with a hem. */
         // Taller for the revamp: a tree must read against the SKY from the
         // chase camera at 15m, and at 5m it only read against the ground.
+        // `levels: 3`: the treeline reaches one LOD level further out than
+        // the ground layers, so distant valleys read as wooded instead of
+        // the woods materialising at the flora boundary.
         tree:  { density: 1.0, color: [0.216, 0.376, 0.322],
           perLeaf: 16, sides: 7, tiers: 4, tierVary: 1, shell: 2,
           branches: 4, jitter: 0.55, canopy: 0.32, height: [3.8, 6.2],
-          band: [0.02, 0.38], clumps: [1, 3], clump: [0.09, 0.22] },
+          band: [0.02, 0.38], clumps: [1, 3], clump: [0.09, 0.22], levels: 3 },
         // ~320 triangles, a crown you can see over the treeline from a ridge.
         hero:  { density: 1.0, color: [0.290, 0.451, 0.361], perLeaf: 2,
           sides: 8, tiers: 6, shell: 2, branches: 5, branchLen: 0.34,
-          jitter: 0.45 },
+          jitter: 0.45, levels: 3 },
       },
     },
 

@@ -239,7 +239,14 @@ function basisAt(planet, dir, h, ox, oy, oz) {
  * and uv rect, so a boulder is in the same place every time the leaf streams
  * back in, and rocks at the same spot on two different LOD levels agree.
  */
-export function appendRocks(planet, f, u0, v0, size, ox, oy, oz, pos, nrm) {
+/* `gridSample`, when given, answers placement heights from the leaf's own
+   lattice instead of the analytic curve — the same trade appendFlora makes,
+   for the same two reasons: a bilinear is ~30x cheaper than a 23-noise-read
+   height() (the three probes per attempt were ~1.1ms of every Home leaf
+   build), and a boulder grounded on the lattice sits on the terrain that is
+   actually drawn. Gated per world (scatter.onGrid) because the switch moves
+   every reject test and therefore reshuffles the field. */
+export function appendRocks(planet, f, u0, v0, size, ox, oy, oz, pos, nrm, gridSample) {
   // Seeded on the leaf rect, quantised so floating point cannot shift it.
   const rng = rngFor(planet.seed,
     `rocks:${f}:${Math.round(u0 * 4096)},${Math.round(v0 * 4096)},${Math.round(size * 4096)}`);
@@ -272,14 +279,22 @@ export function appendRocks(planet, f, u0, v0, size, ox, oy, oz, pos, nrm) {
 
     const u = u0 + lu * size, v = v0 + lv * size;
     faceDir(f, u, v, RD);
-    const h = height(RD, planet);
-    if (h < -0.03 * relief) continue;                  // underwater, skip
-
     // Slope from a small uv-space difference, in metres per metre.
     const du = size / planet.leafRes;
     const scale = (planet.faceArc * 0.5) * du;
-    faceDir(f, u + du, v, RE); const hu = height(RE, planet);
-    faceDir(f, u, v + du, RE); const hv = height(RE, planet);
+    let h, hu, hv;
+    if (gridSample) {
+      h = gridSample(lu, lv);
+      if (h < -0.03 * relief) continue;                // underwater, skip
+      const cell = 1 / planet.leafRes;
+      hu = gridSample(lu + cell, lv);
+      hv = gridSample(lu, lv + cell);
+    } else {
+      h = height(RD, planet);
+      if (h < -0.03 * relief) continue;                // underwater, skip
+      faceDir(f, u + du, v, RE); hu = height(RE, planet);
+      faceDir(f, u, v + du, RE); hv = height(RE, planet);
+    }
     const slope = Math.hypot(hu - h, hv - h) / Math.max(scale, 0.001);
     if (slope > 0.75 && rng() < 0.85) continue;        // won't perch on a cliff
 

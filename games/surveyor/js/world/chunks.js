@@ -29,9 +29,16 @@ export class ChunkField {
        function of the profile and a leaf builds while you are driving. null
        means this world has no vegetation and the whole system is skipped. */
     this.flora = floraOf(planet);
-    // Home opts its flora onto the leaf's own height lattice — cheaper and
-    // sits plants on the drawn ground. See the note on appendFlora.
+    // Home opts its flora and rocks onto the leaf's own height lattice —
+    // cheaper and sits everything on the drawn ground. See appendFlora and
+    // appendRocks.
     this.floraOnGrid = !!(planet.flora && planet.flora.onGrid);
+    this.rocksOnGrid = !!(planet.scatter && planet.scatter.onGrid);
+    // How many finest levels carry ANY layer — the widest per-layer reach.
+    // appendFlora gates each layer to its own reach inside that.
+    this.floraReach = this.flora
+      ? Math.max(...Object.values(this.flora).map((L) => L.levels || WORLD.floraLevels))
+      : 0;
     this.live = new Map();       // key -> { mesh, level }
     this.queue = [];
     this.wanted = new Set();
@@ -188,8 +195,22 @@ export class ChunkField {
       skirt(pos, nrm, pt(res, i), pt(res, i + 1), hem(res, i), hem(res, i + 1));
     }
 
+    // The lattice above, re-read bilinearly in leaf uv, for whichever of the
+    // scatter passes below has opted onto it. Clamped so a gradient probe half
+    // a cell past the edge reads the edge rather than walking off the array.
+    const gridSample = (this.floraOnGrid || this.rocksOnGrid) ? (lu, lv) => {
+      const gx = Math.min(res, Math.max(0, lu * res));
+      const gy = Math.min(res, Math.max(0, lv * res));
+      const i = Math.min(res - 1, gx | 0), j = Math.min(res - 1, gy | 0);
+      const fx = gx - i, fy = gy - j;
+      const r0 = j * (res + 1) + i, r1 = r0 + res + 1;
+      return (grid[r0] * (1 - fx) + grid[r0 + 1] * fx) * (1 - fy) +
+             (grid[r1] * (1 - fx) + grid[r1 + 1] * fx) * fy;
+    } : null;
+
     if (level >= P.maxLevel - (WORLD.rockLevels - 1)) {
-      appendRocks(P, f, u0, v0, size, ox, oy, oz, pos, nrm);
+      appendRocks(P, f, u0, v0, size, ox, oy, oz, pos, nrm,
+        this.rocksOnGrid ? gridSample : null);
     }
     /* Monuments ride every level, not just the rock levels: a landmark that
        pops in at 200m is not a landmark. Same geometry at every level, so the
@@ -209,21 +230,10 @@ export class ChunkField {
     const before = pos.length / 3;
     const sway = new Array(before).fill(-1);
     let blades = 0;
-    if (this.flora && level >= P.maxLevel - (WORLD.floraLevels - 1)) {
-      // The lattice above, re-read bilinearly in leaf uv. Clamped so a clump
-      // gradient probe half a cell past the edge reads the edge rather than
-      // walking off the array.
-      const gridSample = this.floraOnGrid ? (lu, lv) => {
-        const gx = Math.min(res, Math.max(0, lu * res));
-        const gy = Math.min(res, Math.max(0, lv * res));
-        const i = Math.min(res - 1, gx | 0), j = Math.min(res - 1, gy | 0);
-        const fx = gx - i, fy = gy - j;
-        const r0 = j * (res + 1) + i, r1 = r0 + res + 1;
-        return (grid[r0] * (1 - fx) + grid[r0 + 1] * fx) * (1 - fy) +
-               (grid[r1] * (1 - fx) + grid[r1 + 1] * fx) * fy;
-      } : null;
+    if (this.flora && level >= P.maxLevel - (this.floraReach - 1)) {
       blades = appendFlora(P, f, u0, v0, size, ox, oy, oz, pos, nrm, sway,
-        WORLD.floraPerChunk, this.flora, gridSample);
+        WORLD.floraPerChunk, this.flora, this.floraOnGrid ? gridSample : null,
+        level);
     }
 
     /* Bake the fissure mask (Phase 3a2). Ember's cracks glow, and the shader has
