@@ -7,7 +7,7 @@
 // length instead of only at the tip, and the camera banks with the craft so
 // you can tell which way is up in a roll.
 
-import { CAM, WORLD, ROVER, BOAT, JET } from '../tune.js';
+import { CAM, WORLD, ROVER, BOAT, JET, DRONE } from '../tune.js';
 
 // What counts as "flat out" for each form. The boom pulls back and the FOV
 // widens as you approach it, so this is derived from the vehicles' own top
@@ -17,6 +17,7 @@ const REF_SPEED = {
   rover: ROVER.boostSpeed,
   boat: BOAT.boostSpeed,
   jet: JET.maxSpeed * 1.3,
+  drone: DRONE.boostSpeed,
 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);

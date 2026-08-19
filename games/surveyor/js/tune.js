@@ -536,6 +536,7 @@ export const CONTACT = {
     rover: { long: 2.45, wide: 1.90 },
     boat:  { long: 2.90, wide: 1.70 },
     jet:   { long: 2.75, wide: 2.75 },
+    drone: { long: 1.80, wide: 1.80 },   // square: four pods, fourfold body
   },
   exponent: 2.6,
   /* HOW FAR PAST THE FOOTPRINT THE FALLOFF REACHES, as a fraction of it, and
@@ -2397,6 +2398,35 @@ export const JET = {
   avoidLift: 26,
 };
 
+/* THE DRONE — form 4. A hover, not a wing: it holds height with no input,
+   moves by tilting like a quadcopter, and its thruster pods visibly swivel
+   with the tilt (that swivel is the whole character — see applyTransform).
+   Precise and slow beside the jet: the jet crosses the world, the drone gets
+   you into a canyon and back out. There is no descend key on purpose — the
+   hover line follows the floor, so flying out over a drop IS the descent,
+   and Space climbs you back out; the held height stays where you leave it. */
+export const DRONE = {
+  minFuelToLaunch: 4,
+  burn: 0.55,          // charge/sec just to hold the rotors up
+  boostBurn: 1.6,
+  accel: 30,
+  boostAccel: 46,
+  maxSpeed: 14,        // against the jet's 92: this is the precision form
+  boostSpeed: 24,
+  drag: 1.4,
+  turnRate: 2.2,       // radians/sec of direct, quadcopter yaw
+  tilt: 0.38,          // radians of body tilt at full stick
+  tiltRate: 5.0,
+  swivel: 1.8,         // pods lean this much FURTHER than the body does
+  hover: 6.5,          // metres above the floor with no climb held
+  maxLift: 42,         // Space can hold you this far above the hover line
+  climbRate: 7,        // metres/sec the held height rises while Space is down
+  riseRate: 11,        // the vertical spring's ceiling going up...
+  sinkRate: 9,         // ...and going down, which is what makes canyons gentle
+  hoverSpring: 1.6,
+  hoverDamp: 4.5,
+};
+
 // Six big lugged tyres on independent gas struts. Each wheel samples the ground
 // underneath itself, so the rover crawls over a terrace instead of sliding up
 // it as one rigid block.
@@ -2786,9 +2816,11 @@ export const OVERLAY = {
 };
 
 export const CAM = {
-  dist: { rover: 15, boat: 17, jet: 26 },
-  height: { rover: 5.2, boat: 5.8, jet: 7.4 },
-  fov: { rover: 0.95, boat: 0.95, jet: 1.05 },
+  // Drone: closer and lower than the jet — it is the precision form, and the
+  // camera should sit where the pods' swivel is readable.
+  dist: { rover: 15, boat: 17, jet: 26, drone: 13 },
+  height: { rover: 5.2, boat: 5.8, jet: 7.4, drone: 4.2 },
+  fov: { rover: 0.95, boat: 0.95, jet: 1.05, drone: 0.95 },
   fovBoost: 0.22,
   posLerp: 7.5,
   aimLerp: 9,
@@ -2818,7 +2850,7 @@ export const CAM = {
      fixed was arriving underground. 26m decays to a metre in about 0.43s at
      posLerp 7.5, so it is a beat and not a descent. 0 cuts straight in. */
   arriveLift: 26,
-  rollTilt: { rover: 0.16, boat: 0.20, jet: 0.55 },  // camera banks with you
+  rollTilt: { rover: 0.16, boat: 0.20, jet: 0.55, drone: 0.25 },  // camera banks with you
   // Hyper. The lens opens up with the log-scaled speed, which is what makes the
   // acceleration visible when there is nothing outside to measure it against.
   hyperFov: 0.62,           // radians added at the cap, on top of the jet's

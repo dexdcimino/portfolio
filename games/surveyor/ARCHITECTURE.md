@@ -100,8 +100,13 @@ game (40 exported blocks incl. `PLANETS`, `POST`, `ECONOMY`, `HYPER`);
   `materials.js` (every shader as template literals + `createMaterials`),
   `world.js` (**`World`** — everything the scene holds for one planet — and
   **`Worlds`** — the visited set: `get()` builds hidden, `enter()` swaps)
-- `js/player/` — `meshes.js` (rover/boat/jet geometry), `craft.js` (one
-  vehicle, three physics models + hyper transit), `camera.js` (`ChaseCam`)
+- `js/player/` — `meshes.js` (rover/boat/jet/drone geometry), `craft.js` (one
+  vehicle, four physics models + hyper transit — the drone is a hover on key
+  `4`: holds height with no input, moves by tilting, thruster pods swivel in
+  `applyTransform`, Space climbs and the height stays held), `camera.js`
+  (`ChaseCam`). NOTE: the camera keys FOUR maps by mode — `CAM.dist/height/
+  fov/rollTilt` plus `REF_SPEED` — and a mode missing from any one of them is
+  a NaN camera and a grey frame with no error anywhere.
 - `js/game/` — `survey.js` (cells/beacons + scanner beam), `colony.js`
   (colonies grow on wall time; `sites` permanent, `node` meshes),
   `raiders.js` (positions **derived** from age/target/hp so unrendered worlds

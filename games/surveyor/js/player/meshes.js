@@ -595,3 +595,84 @@ export function buildJet(scene, mat) {
   root.setEnabled(false);
   return { root, body, tips: [tipL, tipR], exhaust };
 }
+
+// ---- form 4: the survey drone ------------------------------------------
+
+/**
+ * A quadcopter, not a plane: a squat hex pod with four arms and four SHROUDED
+ * THRUSTER PODS that are separate meshes on purpose — they swivel with the
+ * tilt in applyTransform, and the swivel is the whole character of the form.
+ * The pod shrouds are built along Z like every other cylinder here and stood
+ * up by a base rotation the swivel composes with (metadata.baseX).
+ *
+ * Scale: 2.6m across the pods against the rover's 3m length — the precise,
+ * slow one. Wound clockwise with negated normals like everything else;
+ * signed volumes asserted per pod in dev/run.mjs.
+ */
+export function buildDrone(scene, mat) {
+  const root = new BABYLON.TransformNode('drone', scene);
+  const g = new Geo();
+
+  // Body: a squat lofted pod, blunt at the tail, sensor chin at the nose.
+  g.loft([
+    { z: -0.95, pts: ngon(6, 0.28, 0.20) },
+    { z: -0.40, pts: ngon(6, 0.60, 0.38) },
+    { z: 0.45, pts: ngon(6, 0.56, 0.36) },
+    { z: 1.00, pts: ngon(6, 0.22, 0.16) },
+  ], HULL);
+
+  // Canopy bubble and the survey lamp strip.
+  g.loft([
+    { z: -0.25, pts: ngon(6, 0.30, 0.16, 0.34) },
+    { z: 0.30, pts: ngon(6, 0.34, 0.20, 0.38) },
+    { z: 0.72, pts: ngon(6, 0.20, 0.12, 0.32) },
+  ], GLASS);
+  g.extrudeY([[-0.10, -0.85], [0.10, -0.85], [0.10, 0.85], [-0.10, 0.85]],
+    0.40, 0.46, GLOW);
+  // Nose sensor, amber, so front reads as front while everything else is
+  // fourfold symmetric.
+  g.extrudeY([[-0.16, 0.95], [0.16, 0.95], [0.10, 1.18], [-0.10, 1.18]],
+    -0.06, 0.04, AMBER);
+
+  // Four arms, out to the pod mounts.
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      g.extrudeY([
+        [sx * 0.28, sz * 0.30], [sx * 0.52, sz * 0.24],
+        [sx * 1.30, sz * 0.94], [sx * 1.16, sz * 1.12],
+      ], 0.08, 0.24, PANEL);
+    }
+  }
+  // Landing skids: two low rails, so it has something to sit on.
+  for (const sx of [-1, 1]) {
+    g.extrudeY([[sx * 0.42, -0.70], [sx * 0.58, -0.70], [sx * 0.58, 0.70], [sx * 0.42, 0.70]],
+      -0.46, -0.36, DARK);
+  }
+
+  const body = g.toMesh(scene, 'droneBody', mat);
+  body.parent = root;
+
+  // The pods. Each is its own little solid so it can pivot: shroud drum,
+  // motor can below, lit rotor disc on top.
+  const pods = [];
+  for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+    const pg = new Geo();
+    pg.loft([
+      { z: -0.16, pts: ngon(8, 0.38, 0.38) },
+      { z: 0.06, pts: ngon(8, 0.46, 0.46) },
+      { z: 0.18, pts: ngon(8, 0.40, 0.40) },
+    ], PANEL);
+    pg.cylZ(0, 0, 0.20, 0.32, 0.030, 8, GLOW);   // the rotor disc, emissive
+    pg.cylZ(0, 0, -0.26, 0.11, 0.10, 6, DARK);   // the motor can
+    const pod = pg.toMesh(scene, 'dronePod' + pods.length, mat);
+    pod.parent = root;
+    pod.position.set(sx * 1.28, 0.34, sz * 1.06);
+    const baseX = -Math.PI / 2;                   // stand the shroud up
+    pod.rotation.x = baseX;
+    pod.metadata = { sx, sz, baseX };
+    pods.push(pod);
+  }
+
+  root.setEnabled(false);
+  return { root, body, pods };
+}

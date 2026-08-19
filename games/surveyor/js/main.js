@@ -4,7 +4,7 @@
 
 import { createMaterials } from './world/materials.js';
 import { Worlds } from './world/world.js';
-import { buildRover, buildBoat, buildJet } from './player/meshes.js';
+import { buildRover, buildBoat, buildJet, buildDrone } from './player/meshes.js';
 import { Craft } from './player/craft.js';
 import { ChaseCam } from './player/camera.js';
 import { Trails } from './fx/trails.js';
@@ -86,6 +86,7 @@ const forms = {
   rover: buildRover(scene, bootMats.craft),
   boat: buildBoat(scene, bootMats.craft),
   jet: buildJet(scene, bootMats.craft),
+  drone: buildDrone(scene, bootMats.craft),
 };
 
 const craft = new Craft(forms, surface);
@@ -337,6 +338,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Digit1') pendingMode = 'rover';
   if (e.code === 'Digit2') pendingMode = 'boat';
   if (e.code === 'Digit3') pendingMode = 'jet';
+  if (e.code === 'Digit4') pendingMode = 'drone';
   if (e.code === 'KeyR') craft.setMode('rover');
   if (e.code === 'Space') pendingHopPress = true;
   if (e.code === 'KeyC') cam.recenter();

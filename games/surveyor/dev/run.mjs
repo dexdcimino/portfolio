@@ -7,7 +7,7 @@ globalThis.BABYLON = BABYLON;
 
 const { ChunkField } = await import('../js/world/chunks.js');
 const { Water } = await import('../js/world/water.js');
-const { buildRover, buildBoat, buildJet } = await import('../js/player/meshes.js');
+const { buildRover, buildBoat, buildJet, buildDrone } = await import('../js/player/meshes.js');
 const { Craft } = await import('../js/player/craft.js');
 const { Survey } = await import('../js/game/survey.js');
 const { Colonies } = await import('../js/game/colony.js');
@@ -51,12 +51,16 @@ const forms = {
   rover: buildRover(scene, mat),
   boat: buildBoat(scene, mat),
   jet: buildJet(scene, mat),
+  drone: buildDrone(scene, mat),
 };
 ok('rover geometry builds', forms.rover.body.vertexCount > 0,
   forms.rover.body.vertexCount + ' verts, ' + forms.rover.wheels.length + ' wheels');
 ok('rover has six wheels', forms.rover.wheels.length === 6);
 ok('boat geometry builds', forms.boat.body.vertexCount > 0, forms.boat.body.vertexCount + ' verts');
 ok('jet geometry builds', forms.jet.body.vertexCount > 0, forms.jet.body.vertexCount + ' verts');
+ok('drone geometry builds, with four thruster pods',
+  forms.drone.body.vertexCount > 0 && forms.drone.pods.length === 4,
+  forms.drone.body.vertexCount + ' verts, ' + forms.drone.pods.length + ' pods');
 ok('jet has two wingtip anchors', forms.jet.tips.length === 2);
 
 // Winding. Babylon treats clockwise as front-facing, so a correctly built
@@ -77,6 +81,13 @@ for (const [name, form] of Object.entries(forms)) {
   ok(`${name} hull is wound the right way out`, signedVolume(form.body) < 0,
     'signed volume ' + signedVolume(form.body).toFixed(2));
 }
+// Per pod, because the pods are separate solids that swivel — a total over the
+// body says nothing about them, and two inside-out meshes have shipped in this
+// project on exactly that gap.
+forms.drone.pods.forEach((p, i) => {
+  ok(`drone pod ${i} is wound the right way out`, signedVolume(p) < 0,
+    'signed volume ' + signedVolume(p).toFixed(3));
+});
 // Per-side, because a total can be healthy while one wing is inside-out —
 // which is exactly what happened while building this jet.
 const { Geo, mirrorOutline, JET_OUTLINES, buildWheel } = await import('../js/player/meshes.js');
@@ -441,6 +452,71 @@ for (const P of [SMALL, HOME]) {
     Math.abs(Math.hypot(flier.world.x, flier.world.y, flier.world.z) -
       (P.surfaceR + flier.pos.y)) < 0.01,
     'world radius matches surfaceR + altitude');
+}
+
+/* THE DRONE — form 4. Three contracts, asserted rather than felt: it holds
+   height with no input; the climb stays held after the key comes up; and a
+   transform into or out of it in mid-air carries momentum whole, like every
+   other pair of forms. */
+{
+  const surf = spawnOn(HOME);
+  const d = new Craft(forms, surf);
+  d.fuel = 200;
+  d.setMode('drone');
+  for (let i = 0; i < 60 * 5; i++) d.update(1 / 60, IN({}));   // hover settles
+  const y0 = d.pos.y;
+  let worst = 0;
+  for (let i = 0; i < 60 * 10; i++) {
+    d.update(1 / 60, IN({}));
+    worst = Math.max(worst, Math.abs(d.pos.y - y0));
+  }
+  ok('the drone holds altitude with no input', d.mode === 'drone' && worst < 1.5,
+    'drifted ' + worst.toFixed(2) + 'm over ten hands-off seconds');
+
+  // Two seconds of climb, then hands off. The spring lags the held height, so
+  // the settled altitude is measured AFTER release — asserting at the moment
+  // of release measures the lag, which is deliberate (it reads as mass).
+  for (let i = 0; i < 60 * 2; i++) d.update(1 / 60, IN({ hopHeld: true }));
+  for (let i = 0; i < 60 * 4; i++) d.update(1 / 60, IN({}));
+  const held = d.pos.y;
+  let drift = 0;
+  for (let i = 0; i < 60 * 5; i++) {
+    d.update(1 / 60, IN({}));
+    drift = Math.max(drift, Math.abs(d.pos.y - held));
+  }
+  ok('the climb is held after Space is released', held - y0 > 8 && drift < 0.5,
+    'climbed ' + (held - y0).toFixed(1) + 'm, then drifted ' +
+    drift.toFixed(2) + 'm over five hands-off seconds');
+
+  // Momentum across the transform, in both directions, airborne throughout.
+  for (let i = 0; i < 60 * 3; i++) d.update(1 / 60, IN({ fwd: 1, boost: true }));
+  const s0 = Math.hypot(d.vel.x, d.vel.z);
+  d.setMode('jet');
+  ok('drone -> jet carries the speed', d.mode === 'jet' &&
+    Math.hypot(d.vel.x, d.vel.z) > s0 * 0.85,
+    s0.toFixed(1) + ' -> ' + Math.hypot(d.vel.x, d.vel.z).toFixed(1) + ' m/s');
+  for (let i = 0; i < 30; i++) d.update(1 / 60, IN({ boost: true }));
+  const s1 = Math.hypot(d.vel.x, d.vel.z);
+  d.setMode('drone');
+  ok('jet -> drone carries it back', d.mode === 'drone' &&
+    Math.hypot(d.vel.x, d.vel.z) > s1 * 0.85,
+    s1.toFixed(1) + ' -> ' + Math.hypot(d.vel.x, d.vel.z).toFixed(1) + ' m/s');
+
+  // Dropping to the rover from the hover is a FALL that keeps the speed...
+  for (let i = 0; i < 60 * 2; i++) d.update(1 / 60, IN({ fwd: 1, hopHeld: true }));
+  const s2 = Math.hypot(d.vel.x, d.vel.z);
+  d.setMode('rover');
+  ok('drone -> rover in mid-air falls with the speed carried',
+    d.mode === 'rover' && d.airborne && Math.abs(d.speedScalar) > s2 * 0.85,
+    s2.toFixed(1) + ' m/s carried, airborne ' + d.airborne);
+  // ...and transforming back mid-fall arrests it: the fall arrives in vel.y,
+  // and the hover picks up from wherever you are.
+  for (let i = 0; i < 30; i++) d.update(1 / 60, IN({}));
+  const falling = d.hopVel;
+  d.setMode('drone');
+  ok('rover -> drone mid-fall carries the fall into the hover',
+    d.mode === 'drone' && falling < -1 && d.vel.y <= falling * 0.5,
+    'fell at ' + falling.toFixed(1) + ' m/s, drone took ' + d.vel.y.toFixed(1));
 }
 
 // ---- 2c. no penetration, all three forms, smallest and largest ---------

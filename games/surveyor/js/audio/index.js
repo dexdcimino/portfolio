@@ -4,7 +4,7 @@
 import { AudioEngine } from './engine.js';
 import { Music } from './music.js';
 import { Sfx } from './sfx.js';
-import { ROVER, BOAT, JET, WORLD } from '../tune.js';
+import { ROVER, BOAT, JET, DRONE, WORLD } from '../tune.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -71,6 +71,9 @@ export class Sound {
       } else if (craft.mode === 'jet') {
         want = 0.74 + clamp(craft.speed / JET.maxSpeed, 0, 1) * 0.20 + boost * 0.12;
         if (craft.glide) want -= 0.16;
+      } else if (craft.mode === 'drone') {
+        // Airborne but deliberate: above the ground forms, below the jet.
+        want = 0.42 + clamp(craft.speed / DRONE.maxSpeed, 0, 1) * 0.22 + boost * 0.12;
       } else if (craft.mode === 'boat') {
         want = 0.28 + clamp(craft.speed / BOAT.maxSpeed, 0, 1) * 0.46 + boost * 0.18;
       } else {

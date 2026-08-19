@@ -10,7 +10,7 @@
 import { frameQuat } from '../world/surface.js';
 import { iceHolds, iceRide } from '../world/water.js';
 import { bodies, advance, steer, pickTarget, centreOf } from '../world/hyper.js';
-import { ROVER, BOAT, JET, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER,
+import { ROVER, BOAT, JET, DRONE, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER,
          AIR, PARACHUTE, SKID } from '../tune.js';
 import { emit } from '../core/events.js';
 
@@ -45,6 +45,7 @@ export class Craft {
     this.hyperT = 0;           // 0..1, how fast that is. Every FX reads this
     this.bodies = null;        // the system, resolved once on the way out
     this.glide = false;
+    this.droneLift = 0;    // metres of held climb above the drone's hover line
     this.time = 0;
     this.wheelSpin = 0;
     this.shake = 0;
@@ -126,10 +127,14 @@ export class Craft {
       emit('denied', { reason: 'fuel' });
       return;
     }
+    if (mode === 'drone' && this.fuel < DRONE.minFuelToLaunch) {
+      emit('denied', { reason: 'fuel' });
+      return;
+    }
     const prev = this.mode;
     this.mode = mode;
-    for (const key of ['rover', 'boat', 'jet']) {
-      this.forms[key].root.setEnabled(key === mode);
+    for (const key of ['rover', 'boat', 'jet', 'drone']) {
+      if (this.forms[key]) this.forms[key].root.setEnabled(key === mode);
     }
 
     /* MID-AIR TRANSFORM — every transform, not just the jet's.
@@ -161,11 +166,15 @@ export class Craft {
        touchdown from doing so — the jet's own landing sets you at floor + 1.3
        and then calls setMode, which would otherwise leave you falling on the
        ground you had just arrived on. */
-    const inAir = prev === 'jet' || this.airborne;
+    // The jet and the drone are always flying; the ground forms carry a flag.
+    const inAir = prev === 'jet' || prev === 'drone' || this.airborne;
     const dropping = !silent && inAir &&
       this.pos.y - floorNow > AIR.minClearance;
     const carryH = dropping ? Math.hypot(this.vel.x, this.vel.z) : 0;
-    const carryV = dropping ? (prev === 'jet' ? this.vel.y : this.hopVel) : 0;
+    // The jet AND the drone keep their vertical speed in vel.y; the ground
+    // forms keep theirs in hopVel. Reading the wrong channel is a silent zero.
+    const carryV = dropping
+      ? ((prev === 'jet' || prev === 'drone') ? this.vel.y : this.hopVel) : 0;
     // A transform is also a bilge pump and a reset of anything mid-air. If you
     // were under, you come up with it — otherwise a jet launched from the
     // bottom of a lake touches down before its first frame is over.
@@ -241,6 +250,20 @@ export class Craft {
         this.pitch = -0.42;
         this.assist = JET.assistTime;
       }
+    } else if (mode === 'drone') {
+      /* The drone integrates `vel` directly, all three components, so the
+         carry is simply the velocity you arrived with — a jet handing over at
+         60 m/s becomes a drone doing 60 m/s that its own drag then reels in.
+         The hover picks up FROM WHERE YOU ARE: the lift offset is set so the
+         current height above the floor is the held height, which is what
+         makes drone-from-jet a mid-air brake rather than a descent. */
+      this.pitch = 0; this.roll = 0;
+      this.speedScalar = carryH;
+      this.vel.set(Math.sin(this.yaw) * carryH, dropping ? carryV : 0,
+        Math.cos(this.yaw) * carryH);
+      const floorD = Math.max(this.groundHeight,
+        this.surf.planet.hasWater ? WORLD.waterY : -Infinity);
+      this.droneLift = clamp((this.pos.y - floorD) - DRONE.hover, 0, DRONE.maxLift);
     } else {
       this.pitch = 0; this.roll = 0;
       if (dropping) {
@@ -284,6 +307,7 @@ export class Craft {
 
     if (this.mode === 'rover') this.updateRover(dt, input, wantBoost);
     else if (this.mode === 'boat') this.updateBoat(dt, input, wantBoost);
+    else if (this.mode === 'drone') this.updateDrone(dt, input, wantBoost);
     else this.updateJet(dt, input, wantBoost);
 
     this.speed = this.vel.length();
@@ -316,6 +340,7 @@ export class Craft {
 
   canBoost() {
     if (this.mode === 'jet') return !this.glide && this.fuel > 0;
+    if (this.mode === 'drone') return this.fuel > 0;
     return true;
   }
 
@@ -1296,6 +1321,72 @@ export class Craft {
     this.grounded = false;
   }
 
+  /**
+   * The drone: a hover, not a wing. It holds height with no input — the fourth
+   * physics model is mostly a vertical spring — and it moves by TILTING, with
+   * the thruster pods visibly vectoring in applyTransform. Precise and slow
+   * beside the jet: the jet crosses the world, this gets you into a canyon and
+   * back out.
+   *
+   * There is no descend key on purpose. The hover line follows the floor, so
+   * flying out over a canyon IS the descent, and Space (climb) is how you get
+   * back out; the held height stays where you leave it, which is the "holds
+   * altitude without input" the form is for. R lands it, like everything else.
+   */
+  updateDrone(dt, input, boost) {
+    const drain = boost ? DRONE.boostBurn : DRONE.burn;
+    this.fuel = Math.max(0, this.fuel - drain * dt);
+    this.flightTime += dt;
+    if (this.fuel <= 0) {
+      /* Out of charge the rotors stop, and what happens next is whatever
+         happens to a falling rover — a form that already knows how to fall,
+         open a canopy and land. The transform carries the momentum whole. */
+      emit('fuelout', {});
+      this.setMode(this.onWater ? 'boat' : 'rover');
+      return;
+    }
+
+    // Yaw is direct, quadcopter-style; tilt is how you move.
+    this.yaw += input.turn * DRONE.turnRate * dt;
+    const wantPitch = input.fwd * DRONE.tilt * (boost ? 1.25 : 1);
+    this.pitch = damp(this.pitch, wantPitch, DRONE.tiltRate, dt);
+    this.roll = damp(this.roll, -input.turn * DRONE.tilt * 0.55, DRONE.tiltRate, dt);
+
+    // Thrust follows the tilt — the pods vector, the craft slides after them.
+    const a = (boost ? DRONE.boostAccel : DRONE.accel) * (this.pitch / DRONE.tilt);
+    this.vel.x += Math.sin(this.yaw) * a * dt;
+    this.vel.z += Math.cos(this.yaw) * a * dt;
+    const drag = Math.exp(-DRONE.drag * dt);
+    this.vel.x *= drag; this.vel.z *= drag;
+    const hs = Math.hypot(this.vel.x, this.vel.z);
+    const maxS = boost ? DRONE.boostSpeed : DRONE.maxSpeed;
+    if (hs > maxS) { const k = maxS / hs; this.vel.x *= k; this.vel.z *= k; }
+    this.speedScalar = Math.hypot(this.vel.x, this.vel.z);
+
+    if (input.hopHeld) {
+      this.droneLift = Math.min(DRONE.maxLift, this.droneLift + DRONE.climbRate * dt);
+    }
+    const gh = this.surf.surfaceHeight(this.pos.x, this.pos.z);
+    const floor = Math.max(gh, this.surf.planet.hasWater ? WORLD.waterY : -Infinity);
+    this.onWater = this.surf.planet.hasWater && gh < WORLD.waterY;
+    const wantY = floor + DRONE.hover + this.droneLift;
+    // A spring on the climb RATE, not a snap to the position: the ease as it
+    // crests a ridge is what reads as mass.
+    const wantV = clamp((wantY - this.pos.y) * DRONE.hoverSpring,
+      -DRONE.sinkRate, DRONE.riseRate);
+    this.vel.y = damp(this.vel.y, wantV, DRONE.hoverDamp, dt);
+
+    this.pos.addInPlace(this.vel.scale(dt));
+
+    // The skids kiss the ground rather than clip it; R is how you land.
+    if (this.pos.y < floor + 0.6) {
+      this.pos.y = floor + 0.6;
+      if (this.vel.y < 0) this.vel.y = 0;
+    }
+    this.grounded = false;
+    this.airborne = false;
+  }
+
   addFuel(v) {
     this.fuel = Math.min(FUEL.max, this.fuel + v);
   }
@@ -1369,6 +1460,18 @@ export class Craft {
         const wmd = form.wheels[i].metadata;
         const reach = p.metadata.anchorY - (wmd.restY + wmd.travel + this.wheelY);
         p.scaling.y = Math.max(SUSP.strutMin, reach);
+      }
+    }
+
+    /* The pods swivel — thrust vectoring is the drone's whole character. They
+       lean further than the body does (DRONE.swivel multiplies the tilt), so
+       a hard forward tilt reads as four rotors visibly pulling the craft
+       along rather than a brick gliding under a slab. */
+    if (form.pods) {
+      for (const pod of form.pods) {
+        const md = pod.metadata;
+        pod.rotation.x = md.baseX + this.pitch * DRONE.swivel;
+        pod.rotation.z = -this.roll * DRONE.swivel * 0.8;
       }
     }
 

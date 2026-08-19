@@ -6,7 +6,7 @@
 // frame from the craft state — no note-per-frame, no allocation in the loop.
 
 import { on } from '../core/events.js';
-import { ROVER, BOAT, JET, WORLD, SOUND } from '../tune.js';
+import { ROVER, BOAT, JET, DRONE, WORLD, SOUND } from '../tune.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -434,6 +434,23 @@ export class Sfx {
     // Airframe rush follows speed alone, so a glide still whistles.
     L.jetAir.set(je * (0.012 + jT * 0.055 + hy * 0.075), 2600 + jT * 3600 + hy * 4200,
       0.7 + jT * 0.7 + hy * 1.2, now, 0.12);
+
+    /* The drone rides the jet's held voices an octave up: a rotor whine is a
+       turbine with no roar under it, and reusing the voices keeps the graph's
+       voice count fixed. The jet terms above already zeroed everything (je is
+       0 in this mode), so these four writes are the drone's whole engine. */
+    if (mode === 'drone') {
+      const dT = clamp(craft.speed / DRONE.maxSpeed, 0, 1.4);
+      const dr = SOUND.engineJet;
+      L.jetCore.set(dr * (0.040 + dT * 0.025 + boost * 0.02), 92 + boost * 55,
+        0.60, now, 0.10);
+      L.jetTurbine.set(dr * (0.028 + dT * 0.030 + boost * 0.020),
+        2300 + dT * 1700 + boost * 500, 640 + dT * 420 + boost * 240, now, 0.07);
+      L.jetBlade.set(dr * (0.011 + dT * 0.018),
+        3300 + dT * 2500, (640 + dT * 420) * 2.01, now, 0.07);
+      L.jetAir.set(dr * (0.005 + dT * 0.028), 2300 + dT * 2300,
+        0.6 + dT * 0.5, now, 0.10);
+    }
 
     // Afterburner: irregular low-frequency crackle on top of the roar. Random
     // spacing is the whole trick — an even rhythm sounds like a machine gun.

@@ -28,9 +28,9 @@ the air, glide down when it runs dry.
 | | |
 |---|---|
 | `W A S D` | drive and steer — in the air, pitch and roll |
-| `1` `2` `3` | rover · boat · jet |
+| `1` `2` `3` `4` | rover · boat · jet · drone |
 | `Shift` | sustained boost |
-| `Space` | hold to charge a jump, release to leap (full charge = 10x height) |
+| `Space` | hold to charge a jump, release to leap (full charge = 10x height) — in the drone, hold to climb; the height stays held |
 | drag · wheel | swing the camera · pull the boom in and out |
 | `C` | recentre the camera behind you |
 | `F` | drop a coloniser |

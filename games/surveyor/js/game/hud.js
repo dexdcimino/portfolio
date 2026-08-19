@@ -3,7 +3,7 @@
 // do I have left, and can I afford to take off right now.
 
 import { on, emit } from '../core/events.js';
-import { FUEL, JET, ROVER, COLORS, ECONOMY, PLANETS, DEBUG } from '../tune.js';
+import { FUEL, JET, DRONE, ROVER, COLORS, ECONOMY, PLANETS, DEBUG } from '../tune.js';
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -62,6 +62,7 @@ export class Hud {
       toast: $('toast'), streaks: $('streaks'), flash: $('flash'),
       chips: {
         rover: $('chipRover'), boat: $('chipBoat'), jet: $('chipJet'),
+        drone: $('chipDrone'),
       },
       range: $('range'),
       warp: $('warp'), warpRow: $('warpRow'),
@@ -513,8 +514,8 @@ export class Hud {
 
     // Mode chips.
     if (c.mode !== this.lastMode) {
-      for (const key of ['rover', 'boat', 'jet']) {
-        this.el.chips[key].classList.toggle('on', key === c.mode);
+      for (const key of ['rover', 'boat', 'jet', 'drone']) {
+        if (this.el.chips[key]) this.el.chips[key].classList.toggle('on', key === c.mode);
       }
       /* The swap gets its own flash. The lit chip already moves and changes
          colour, but a transform between two chips 90px apart is easy to miss
@@ -528,6 +529,9 @@ export class Hud {
       this.lastMode = c.mode;
     }
     this.el.chips.jet.classList.toggle('locked', c.fuel < JET.minFuelToLaunch);
+    if (this.el.chips.drone) {
+      this.el.chips.drone.classList.toggle('locked', c.fuel < DRONE.minFuelToLaunch);
+    }
 
     // Flooding. Shows the moment the hull starts taking water, well before
     // there's any danger, so going under is never a surprise.
