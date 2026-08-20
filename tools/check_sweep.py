@@ -23,7 +23,11 @@ that with index.html, and `git add styles.css` does it to anyone. The wrong
 attribution is the small half. The real risk is a revert: rolling back a rename
 takes out a CSS fix nobody knew was in there.
 
-TWO RULES, because the two incidents are different in kind.
+THREE RULES now, because the incidents are different in kind. Rules 1 and 1b
+are exact and unescapable; rule 2 is a judgement call with an escape hatch.
+All three failure modes share one shape: THE HOOK DOES SOMETHING AFTER YOU
+STAGED — it bakes, restamps, or stages whole, and what lands is more than
+what you meant. Rule 1b (restamps) is defined at restamps_without_bytes().
 
 RULE 1 - DANGLING DERIVATIVES, exact, and it has no escape hatch because there
 is no version of it that is fine. If the staged markup names a file under
@@ -261,6 +265,43 @@ def dangling_derivatives(files: list[str], blob_of, present: set) -> list[tuple[
     return out
 
 
+STAMP_RE = re.compile(r"(assets/derived/[A-Za-z0-9_./-]+\.\w+)\?v=([0-9a-fA-F]{8})")
+
+
+def restamps_without_bytes(files: list[str], blob_before, blob_after,
+                           contained: set) -> list[tuple[str, str, str, str]]:
+    """RULE 1b — RESTAMPS, exact, and like rule 1 it has no escape hatch.
+
+    The third distinct sweep failure mode, and all three are "the hook does
+    something after you staged". On 2026-08-20 (e8645cd) the pre-commit
+    markup bake ran off ANOTHER file's trigger while a re-exported master
+    sat unbaked in the tree: it rewrote the ?v= stamp on references whose
+    FILES already existed in HEAD and staged the page whole. Rule 1 saw
+    nothing dangle — every filename resolved — but the new stamp promised
+    bytes the commit did not carry, and assets/derived/ is served immutable
+    for a year, so everyone who pulled in the window cached the OLD art
+    under the NEW stamp. (The hook is also fixed to run the bake only on
+    its own trigger; this is the backstop for the next way in.)
+
+    The rule: if a checked file's staged content changes the stamp on a
+    derivative reference, the commit must CONTAIN that derivative's bytes.
+    Returns (file, ref, old_stamp, new_stamp).
+    """
+    out: list[tuple[str, str, str, str]] = []
+    seen: set[str] = set()
+    for path in files:
+        before = dict(STAMP_RE.findall(blob_before(path)))
+        if not before:
+            continue
+        for ref, stamp in sorted(set(STAMP_RE.findall(blob_after(path)))):
+            if ref in seen:
+                continue
+            if ref in before and before[ref] != stamp and ref not in contained:
+                seen.add(ref)
+                out.append((path, ref, before[ref], stamp))
+    return out
+
+
 def regions(diff: str) -> list[tuple[int, str]]:
     """Split a unified diff into (changed-line-count, text) regions.
 
@@ -396,6 +437,18 @@ def main() -> int:
             for path, ref in dang[:8]:
                 print(f"  DANGLING {path} -> {ref}")
             return 1
+        all_changed = set(git("show", "--name-only", "--format=",
+                              "--diff-filter=ACMR", sha).splitlines())
+        restamped = restamps_without_bytes(
+            [p for p in names if p.endswith((".html", ".css", ".js"))],
+            lambda p: git("show", f"{sha}^:{p}"),
+            lambda p: git("show", f"{sha}:{p}"),
+            all_changed)
+        if restamped:
+            print(f"{sha[:7]} {subject}")
+            for path, ref, old, new in restamped[:8]:
+                print(f"  RESTAMP  {path} -> {ref} ?v={old} -> {new}, bytes not in commit")
+            return 1
         if flagged:
             print(f"{sha[:7]} {subject}")
             for path, sample in flagged:
@@ -436,6 +489,30 @@ def main() -> int:
         print("  Half an image change is worse than none: main would 404 for", file=sys.stderr)
         print("  everyone until the other half lands. Stage the derivatives:", file=sys.stderr)
         print("    python tools/bake_images.py && git add assets/derived/", file=sys.stderr)
+        return 1
+
+    # RULE 1b next, same standing as rule 1: a stamp changed on a file the
+    # commit does not carry means old bytes served immutable under a new URL.
+    all_staged = set(git("diff", "--cached", "--name-only",
+                         "--diff-filter=ACMR").splitlines())
+    restamped = restamps_without_bytes(
+        [p for p in files if p.endswith((".html", ".css", ".js"))],
+        lambda p: git("show", f"HEAD:{p}"),
+        lambda p: git("show", f":{p}"),
+        all_staged)
+    if restamped:
+        print("commit-msg: this commit restamps derived references whose "
+              "bytes it does not contain.", file=sys.stderr)
+        print("", file=sys.stderr)
+        for path, ref, old, new in restamped[:12]:
+            print(f"  {path} -> {ref}  ?v={old} -> {new}", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("  The new stamp promises a new bake, but the file in this commit", file=sys.stderr)
+        print("  is still the old one — and assets/derived/ is cached immutable", file=sys.stderr)
+        print("  for a year, so everyone who pulls keeps the OLD art under the", file=sys.stderr)
+        print("  NEW stamp. Usually a master sits re-exported but unbaked in the", file=sys.stderr)
+        print("  working tree. Bake and stage the bytes the stamp points at:", file=sys.stderr)
+        print("    python tools/bake_images.py && git add assets/derived/ <master>", file=sys.stderr)
         return 1
 
     message = message_text(Path(argv[0]))

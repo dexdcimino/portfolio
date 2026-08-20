@@ -411,7 +411,13 @@ Stages `index.html` **whole**, but derivatives only for the masters in the
 commit — `bake_images.py --derived-for` maps one to the other. It used to
 stage `assets/derived/` whole, and because the bake is repo-wide that pulled
 in whatever another session had left unbaked; two commits on 2026-08-20
-carried a third party's derivatives that way, master not included.
+carried a third party's derivatives that way, master not included. The
+markup bake is likewise gated to ITS OWN triggers (index.html/slots staged,
+or rasters staged) — it used to run whenever ANY trigger fired, and on
+2026-08-20 a palette check on script.js tripped it while another session's
+re-exported masters sat unbaked: it restamped their blocks and staged the
+page whole into `e8645cd`, publishing new `?v=` stamps over old immutable
+bytes.
 `commit-msg` → `check_scope.py`: a commit may not span "projects" (each
 `games/<name>`, each other top-level dir, the repo root as one unit) unless
 the message carries a `Spans:` line naming every one. One exemption:
@@ -419,10 +425,15 @@ the message carries a `Spans:` line naming every one. One exemption:
 
 Then `check_sweep.py`, which catches the opposite accident: a commit that stays
 inside one project and carries a SECOND session's work out with it, because a
-file both were editing got staged whole. Two rules. Markup pointing at an
+file both were editing got staged whole. Three rules now, all sharing one
+shape — the hook does something after you staged. Markup pointing at an
 `assets/derived/` file the commit does not contain is refused outright — that
 is `b6ba02f`, which published a `<picture>` whose 1920 rung was in no tree at
-all. A region of a root file or an `ARCHITECTURE.md` whose identifiers appear
+all. A `?v=` RESTAMP on a derivative whose bytes the commit does not carry is
+refused just as outright — that is `e8645cd`, where the file existed in HEAD
+so nothing dangled, but the new stamp promised a new bake over year-immutable
+old bytes; both incident commits are kept as `--commit` regression cases. A
+region of a root file or an `ARCHITECTURE.md` whose identifiers appear
 nowhere in the message is refused with a `Carries:` escape hatch; usually the
 right answer is a sentence in the message instead. It flags about one commit in
 ten, which is the agreed price (revisit past one in five).

@@ -129,23 +129,33 @@ if [ -n "$rasters" ]; then
 fi
 
 # Markup is generated from the masters, so it has to be rewritten whenever
-# either side moved. Note this stages index.html whole — if you deliberately
-# staged only part of it, commit the image change separately.
-if ! out=$($PY tools/bake_markup.py 2>&1); then
-    printf 'pre-commit: markup bake FAILED, commit blocked\n' >&2
-    printf '%s\n' "$out" >&2
-    exit 1
-fi
-if ! printf '%s\n' "$out" | grep -q 'already current'; then
-    git add index.html
-    printf 'pre-commit: %s\n' "$out"
-fi
+# either side moved — and ONLY then. This block used to run whenever ANY
+# trigger fired, and on 2026-08-20 a palette check on script.js tripped it
+# while another session's re-exported masters sat unbaked in the tree: the
+# regen restamped THEIR blocks against the new masters and staged index.html
+# whole into a commit that carried none of their derivatives — new ?v= over
+# old bytes under immutable caching, the Shale Spire failure, live. Same
+# shape as the derived/ sweep fixed earlier the same day: a step that runs
+# on any trigger instead of its own. Note this still stages index.html
+# whole — if you deliberately staged only part of it, commit the image
+# change separately.
+if [ -n "$markup" ] || [ -n "$rasters" ]; then
+    if ! out=$($PY tools/bake_markup.py 2>&1); then
+        printf 'pre-commit: markup bake FAILED, commit blocked\n' >&2
+        printf '%s\n' "$out" >&2
+        exit 1
+    fi
+    if ! printf '%s\n' "$out" | grep -q 'already current'; then
+        git add index.html
+        printf 'pre-commit: %s\n' "$out"
+    fi
 
-# Belt and braces: the bakes above make this pass by construction, so a failure
-# here means something the generators cannot fix by themselves — a master that
-# does not exist, or a slot name nothing defines.
-if ! out=$($PY tools/bake_markup.py --check 2>&1); then
-    printf 'pre-commit: image markup check FAILED, commit blocked\n' >&2
-    printf '%s\n' "$out" >&2
-    exit 1
+    # Belt and braces: the bakes above make this pass by construction, so a
+    # failure here means something the generators cannot fix by themselves —
+    # a master that does not exist, or a slot name nothing defines.
+    if ! out=$($PY tools/bake_markup.py --check 2>&1); then
+        printf 'pre-commit: image markup check FAILED, commit blocked\n' >&2
+        printf '%s\n' "$out" >&2
+        exit 1
+    fi
 fi
