@@ -2514,25 +2514,12 @@ let flashTip = () => {};
     view.thumbs = [...view.track.children];
   });
 
-  /* The grid is 3x3 and holds its shape at nine: a set of five would otherwise
-     leave a row and a half of nothing and stop reading as a block. These are the
-     empty cells. Appended AFTER view.thumbs is taken, so they are scenery rather
-     than thumbnails — nothing selects them, paints them or counts them.
-     Past nine the block grows a row at a time and is filled out to the next
-     multiple of three, which is also where paging will go in when there is
-     enough art to need it. */
-  const PAGE = 9;
-  views.filter(v => v.strip.classList.contains('wp-thumbs-grid')).forEach((view) => {
-    const short = items.length <= PAGE
-      ? PAGE - items.length
-      : (3 - items.length % 3) % 3;
-    for (let n = short; n > 0; n--) {
-      const cell = document.createElement('div');
-      cell.className = 'wp-thumb is-empty';
-      cell.setAttribute('aria-hidden', 'true');
-      view.track.appendChild(cell);
-    }
-  });
+  /* The grid used to be padded out to nine with dashed empty cells so it held
+     a rectangle. It no longer is: while the set is this small the placeholders
+     read as work that is missing rather than as room for more, and each new
+     wallpaper closed one of them, which made the block look like a checklist.
+     Three columns, growing a row at a time as art lands — the last row is short
+     until it is not. Paging goes in here when there is enough art to need it. */
 
   /* A page of thumbnails is five at most, fewer when five would not be legible
      at the width available. Past that the set does not wrap — the track slides

@@ -1857,11 +1857,18 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
 .vault-pins{display:flex;gap:clamp(6px,1.4vw,12px)}
 /* Square by construction, not by two numbers that have to agree. The width
    tracks the viewport so five of them and their gaps always fit a phone
-   without a second set of rules for it. */
+   without a second set of rules for it.
+
+   At rest they are cut-outs, not boxes: the footer's near-black and no visible
+   edge at all, so five empty ones read as somewhere to type rather than as five
+   outlined controls competing with the lock and the status line above them. The
+   border is still THERE, just transparent — focus, is-set and the wrong-code
+   shake all work by changing border-color, and a border that appeared from
+   nothing would shift the character inside it by a stroke every time. */
 .vault-pin{
   width:clamp(46px,10.5vw,66px);aspect-ratio:1;
-  border-radius:16px;border:var(--stroke) solid rgba(255,255,255,.24);
-  background:rgba(255,255,255,.045);color:var(--text);text-align:center;
+  border-radius:16px;border:var(--stroke) solid transparent;
+  background:#080a0c;color:var(--text);text-align:center;
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
   font-size:clamp(22px,5vw,30px);font-weight:700;line-height:1;text-transform:uppercase;
   caret-color:var(--accent);
@@ -1869,13 +1876,20 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
              color var(--accent-ease),box-shadow .18s ease;
 }
 /* On :focus, not :focus-visible — a text box you are typing into should say so
-   however you got there. */
+   however you got there.
+   The tint mixes into the pin's own near-black, not into transparent: over an
+   opaque box a transparent mix would show the section's gradient through it and
+   the pin would go LIGHTER than the four beside it on focus, which reads as a
+   hole rather than as the one you are typing in. */
 .vault-pin:focus{
   outline:none;border-color:var(--accent);
-  background:color-mix(in srgb,var(--accent) 8%,transparent);
+  background:color-mix(in srgb,var(--accent) 10%,#080a0c);
   box-shadow:0 0 0 var(--stroke-ring) var(--accent);
 }
-.vault-pin.is-set{border-color:rgba(255,255,255,.5)}
+/* Quiet against the unlit boxes rather than a bright ring: the character
+   already says the slot is filled, and this only has to keep a row of
+   entered-but-unfocused pins from reading as empty. */
+.vault-pin.is-set{border-color:rgba(255,255,255,.16)}
 .vault-pin:disabled{opacity:.6}
 
 /* min-height holds the line whether or not there is anything on it, so the row
@@ -3047,9 +3061,9 @@ body.modal-open{overflow:hidden}
 .wp-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* The PANEL strip is not a strip. It lives in the statement column under the
-   AI LAB copy — three across, two rows deep at five pieces — while the overlay
-   keeps the sliding row above, which is the right shape there because the
-   overlay has the full width and nothing else to put in it.
+   AI LAB copy — three across, as many rows deep as there is art — while the
+   overlay keeps the sliding row above, which is the right shape there because
+   the overlay has the full width and nothing else to put in it.
 
    Same classes, same buttons, same script: only the container changes. The
    track keeps existing (display:contents) rather than being deleted, because
@@ -3078,14 +3092,6 @@ body.modal-open{overflow:hidden}
 /* The flex basis and the 132px cap are the sliding row's sizing; in the grid a
    cell is a third of the column and the thumbnail is whatever that is. */
 .wp-thumbs-grid .wp-thumb{flex:none;max-width:none;border-radius:10px}
-/* The unfilled cells. Outlined and empty rather than absent, so the block
-   holds its rectangle and reads as "three more go here" instead of as a row
-   that stopped short. Not a button and not in the tab order. */
-.wp-thumbs-grid .wp-thumb.is-empty{
-  opacity:1;background:rgba(255,255,255,.015);
-  border-style:dashed;border-color:rgba(255,255,255,.09);
-  cursor:default;pointer-events:none;
-}
 @media (max-width:700px){
   .wp-thumbs{--thumb-max:96px}
   .wp-dl{width:44px;height:44px;border-radius:12px;right:10px;bottom:10px}

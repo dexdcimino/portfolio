@@ -121,6 +121,6 @@ add-an-image flow).
 
 The Work overlay is a mockup (no `work.json`, filler SVGs — do not build on
 its taxonomy). Clips point at an unresolvable placeholder video host on
-purpose. Some wallpapers are stamped placeholders. The Collab section's one
-card is a stamped placeholder until the first collab repo exists. See
-`docs/STATUS.md` for the live list and open decisions.
+purpose. The Collab section's one card is a stamped placeholder until the
+first collab repo exists. See `docs/STATUS.md` for the live list and open
+decisions.
