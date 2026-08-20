@@ -1714,13 +1714,13 @@
         <button class="pk-tab" type="button" role="tab" id="pk-tab-quotes" aria-controls="pk-panel-quotes" aria-selected="false" tabindex="-1">Quotes</button>
       </div>
       <button class="pk-suggest-btn" id="pkSuggestOpen" type="button"
-              aria-label="Suggest a pick, or tell me if a top five comes easily to you">
+              aria-label="Suggest a pick">
         <span aria-hidden="true">?</span>
       </button>
       <!-- The suggestion popover: anchored to the ?, not a dialog. No
            backdrop, no focus trap; Escape / outside click / a real scroll
            close it, and typed values PERSIST (it only hides) until a
-           successful send. The dashes are indicators, aria-hidden - the
+           successful send. The dots are indicators, aria-hidden - the
            cycler button is the one control. -->
       <div class="pk-pop" id="pkPop" hidden>
         <form id="pkForm" novalidate>
@@ -1736,13 +1736,6 @@
                  required placeholder="Title" />
           <input class="pk-pop-input" id="pkFrom" type="text" maxlength="120"
                  autocomplete="off" placeholder="Anon" />
-          <div class="pk-easy">
-            <span id="pkEasyLabel">Top 5 easy to pick?</span>
-            <div class="pk-yesno" role="group" aria-labelledby="pkEasyLabel">
-              <button class="pk-yn" type="button" id="pkYes" aria-pressed="false">Yes</button>
-              <button class="pk-yn" type="button" id="pkNo" aria-pressed="false">No</button>
-            </div>
-          </div>
           <input class="contact-trap" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <input class="contact-trap" type="checkbox" name="botcheck" id="pkBotcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <div class="pk-pop-foot">

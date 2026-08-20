@@ -134,15 +134,14 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   Escape, outside click, and >24px of scroll close it, and TYPED VALUES
   PERSIST across closes — only a successful send resets the form; below
   760px it drops under the row's right edge instead of beside the button.
-  The header row is "Suggestion?" left / the cycler right: one button
-  walking Game→Movie→Song→Quote wrapping, its four aria-hidden indicator
-  dashes tucked UNDER it — deliberately not controls, four tab stops would
-  cost more than a four-step cycle pays; whatever shows is what sends.
-  Below the two placeholder-labelled inputs (Title / Anon) sits the
-  optional "Top 5 easy to pick?" Yes/No row (one-or-neither, selection
-  accent-filled — Dex found it hard and is curious), and SEND holds the
-  footer's right edge. Same Web3Forms relay with a `[Top Picks]` subject,
-  `category` and `top5_easy` fields; the Anon fallback happens in the
+  The header row is the accent-coloured "Suggestion?" left / the cycler
+  right: one button walking Game→Movie→Song→Quote wrapping, its four
+  aria-hidden indicator dots centred UNDER it — deliberately not controls,
+  four tab stops would cost more than a four-step cycle pays; whatever
+  shows is what sends. Below sit the two placeholder-labelled inputs
+  (Title / Anon), and SEND holds the
+  footer's right edge. Same Web3Forms relay with a `[Top Picks]` subject
+  and a `category` field; the Anon fallback happens in the
   PAYLOAD with a `name_given` flag so a typed "Anon" stays distinguishable
   from a blank; honeypot pattern shared; three sends a minute under
   `dex-picks-sends`; the contact form's own code untouched)

@@ -5113,8 +5113,8 @@ const PORTRAIT_LABEL = {
    click, a real scroll), and TYPED VALUES PERSIST — closing only hides the
    panel, so reopening finds the draft; only a successful send resets it.
    Scroll-close waits for >24px of travel so a nudge cannot eat a draft
-   either. The Yes/No question is gone; a single cycler button walks
-   Game→Movie→Song→Quote (wrapping), with four aria-hidden dashes above it
+   either. A single cycler button walks
+   Game→Movie→Song→Quote (wrapping), with four aria-hidden dots above it
    as set-size indicators — deliberately NOT controls, because four extra
    tab stops to jump a four-step cycle the button already walks would cost
    more keyboard-wise than they pay. Same Web3Forms relay as the contact
@@ -5171,20 +5171,6 @@ const PORTRAIT_LABEL = {
   catBtn.addEventListener('click', () => { cat = (cat + 1) % CATS.length; paintCat(); });
   paintCat();
 
-  /* "Top 5 easy to pick?" — Dex found it hard and is curious. Optional,
-     one-or-neither: selecting one clears the other, re-clicking clears it. */
-  const yes = document.getElementById('pkYes');
-  const no = document.getElementById('pkNo');
-  let easy = '';
-  const paintYN = () => {
-    yes.classList.toggle('on', easy === 'yes');
-    no.classList.toggle('on', easy === 'no');
-    yes.setAttribute('aria-pressed', String(easy === 'yes'));
-    no.setAttribute('aria-pressed', String(easy === 'no'));
-  };
-  yes.addEventListener('click', () => { easy = easy === 'yes' ? '' : 'yes'; paintYN(); });
-  no.addEventListener('click', () => { easy = easy === 'no' ? '' : 'no'; paintYN(); });
-
   /* open / close: focus in on open, back to the ? on close. Values are NOT
      reset here — the panel only hides, so a draft survives its own closes. */
   let openScrollY = 0;
@@ -5226,9 +5212,7 @@ const PORTRAIT_LABEL = {
     if (trap?.value || document.getElementById('pkBotcheck')?.checked) {
       form.reset();
       cat = 0;
-      easy = '';
       paintCat();
-      paintYN();
       say('On the pile.', 'ok', '✓ Sent.');
       setTimeout(() => close(), 1400);
       return;
@@ -5268,9 +5252,8 @@ const PORTRAIT_LABEL = {
           name: from,
           name_given: Boolean(typed),
           category,
-          top5_easy: easy || '(unanswered)',
           suggestion: sugg,
-          message: `Category: ${category}\nTop-5 easy: ${easy || '(unanswered)'}\n\nSuggestion:\n${sugg}`
+          message: `Category: ${category}\n\nSuggestion:\n${sugg}`
         })
       });
 
@@ -5279,9 +5262,7 @@ const PORTRAIT_LABEL = {
       record();
       form.reset();          // the one reset: a SENT draft is done with
       cat = 0;
-      easy = '';
       paintCat();
-      paintYN();
       say('On the pile.', 'ok', '✓ Sent.');
       send.disabled = sends().length >= PK_MAX;
       setTimeout(() => close(), 1400);

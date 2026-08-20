@@ -949,24 +949,13 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .pk-pop[hidden]{display:none}
 .pk-pop form{display:grid;gap:9px;margin:0}
 /* Header row: the question on the left, the cycler on the right, its four
-   indicator dashes (not controls) tucked UNDER the button. */
+   indicator dots (not controls) centred UNDER the button. */
 .pk-pop-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-.pk-pop-title{font-size:15px;font-weight:900;letter-spacing:.03em;color:var(--text);padding-top:5px}
-.pk-cat{display:grid;gap:5px;justify-items:end}
-.pk-cat-dashes{display:flex;gap:4px;pointer-events:none;padding-right:2px}
-.pk-cat-dashes i{width:13px;height:2.5px;border-radius:2px;background:#39424b;transition:background var(--accent-ease)}
+.pk-pop-title{font-size:19px;font-weight:900;letter-spacing:.03em;color:var(--accent);padding-top:3px}
+.pk-cat{display:grid;gap:6px;justify-items:center}
+.pk-cat-dashes{display:flex;gap:6px;pointer-events:none}
+.pk-cat-dashes i{width:8px;height:8px;border-radius:50%;background:#39424b;transition:background var(--accent-ease)}
 .pk-cat-dashes i.on{background:var(--accent)}
-/* The curiosity row: was a top five easy? Compact, optional, one-or-neither. */
-.pk-easy{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:#98a1a9}
-.pk-yesno{display:flex;gap:6px}
-.pk-yn{
-  padding:6px 13px;border:0;border-radius:8px;
-  font-family:inherit;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
-  background:#232a32;color:#aab2ba;cursor:pointer;
-  transition:background var(--accent-ease),color var(--accent-ease);
-}
-.pk-yn.on{background:var(--accent);color:var(--accent-ink,#0b0d12)}
-.pk-yn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pk-cat-btn{
   min-width:88px;padding:8px 16px;border:0;border-radius:9px;
   font-family:inherit;font-size:13px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
