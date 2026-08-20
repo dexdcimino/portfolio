@@ -434,6 +434,72 @@ parallax bind; remaining IIFEs run inline. On `load`: re-measure, hand the
 URL to the scroll spy, then idle-warm the other six mascots one accent at a
 time via `probeMascot`.
 
+## Animating a box: nothing inside it may resolve its own height from it
+
+A panel that opens by animating its own height — a `0fr -> 1fr` grid track, a
+clip, a max-height — is animating the number its contents are laid out against.
+**Anything inside that works out its own size from the parent's current height
+gets its motion for free from the layout engine, on a schedule nobody chose.**
+
+This is the one that does not look like itself. Every symptom says timing, so
+every instinct says easing, and the timing is fine: when the sidebar profile was
+stepping badly enough to read as unfinished, the whole toggle was already five
+transitions, all 240ms, all on `--sidebar-transition-ease`, all starting on the
+same frame. There was nothing to stagger and nothing to slow down. The raggedness
+was coming out of flex and min-height.
+
+Three shapes, all of them found in that one panel:
+
+- **A flex child shrinks by default.** `.profile-mini` is a flex column, so while
+  the wrapper's track was short every child was being squashed and let out again
+  as it grew — and flex distributes shrinkage against each child's own
+  min-content floor, so they come off their floors at different points in the one
+  motion. Measured: `.profile-copy` and `.profile-extra` sat pinned at their
+  collapsed floor for the first 144ms of 240 and then did all 45px of travel in
+  the remaining 96. `.social-mini` travelled 90px up and then 20px back down —
+  a direction reversal, which is the most conspicuous thing a moving element can
+  do. Fix: `flex:none` on the children, so the block holds its final layout the
+  whole way and the clip is the only thing that changes.
+- **A floor that snaps against a track that interpolates.** `min-height:136px`
+  flipped to 0 with the class while the track it floors eased from `0fr`, so the
+  first 40ms of every expand ran underneath a box that was already 136px tall and
+  nothing moved at all; the box did not start travelling until 72ms in, a third
+  of the way through. A floor has to be out of the way for the WHOLE transition,
+  not just at the end of it.
+- **A sibling that is not transitioned at all.** `.profile-compact`, the 52px
+  stand-in row, arrived at full opacity on the frame of the press: the footer
+  jumped 47px before the collapse had run a millisecond, and for that frame the
+  rail carried two portraits and two copies of the name.
+
+So, for anything that opens or closes by animating its own box:
+
+1. **Take the contents out of the calculation.** `flex:none`, an explicit size,
+   anything that makes the inside independent of the outside. If the content
+   reflows during the motion, the motion is not one motion.
+2. **Every property that changes with the class must interpolate.** The frame the
+   class flips on is a separate measurement from the transition, and an
+   untransitioned property snaps there where no amount of looking at the
+   transition will show it. It is also what breaks reversibility: a transition
+   restarts from the value it is currently at, so if nothing snaps from a settled
+   state, nothing snaps mid-flight either.
+3. **Reveal direction is a decision, so make it.** `justify-content:center`
+   inside a box that is animating to zero puts half the content outside the clip
+   and reveals from the middle outwards. `flex-start` reveals top-down, which is
+   the direction this block grows.
+4. **Check the resting states before shipping a flex change.** These are layout
+   properties being changed for motion reasons, and the MD that asked for the fix
+   forbade a layout change. Diff every box in both directions of every state —
+   the fix above is zero-difference everywhere visible, and that is a measured
+   claim, not a hopeful one.
+
+Measuring it: do NOT sample with `requestAnimationFrame`. Headless Chrome paints
+only on demand, so a 240ms transition lands in about four samples. Pause the
+`CSSTransition`s from `document.getAnimations()` and step `currentTime` in slices,
+reading computed style and shooting a frame at each. That also gets you the
+inventory — every element, property, duration, delay and easing the one state
+change started — which is the first thing to look at, and which is what said
+"timing is not the problem here" in under a minute.
+
 ## Writing a checker: count the subject, assert the count
 
 Every check in this repo answers a question about a set of things it had to go
@@ -549,7 +615,7 @@ that convention, not this hook, is what covers the adjacent case.
 ## Numbers
 
 7 accents (lime default) · 11 ladders / 16 slots in `image_slots.py` ·
-70 generated markup blocks in index.html · fallback ladder
+71 generated markup blocks in index.html · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
 
