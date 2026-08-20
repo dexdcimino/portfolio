@@ -386,8 +386,10 @@ mirroring the master's subfolder. Adding an image = drop the file + one
 hook bakes and fills in everything (`<picture>`, srcsets, `sizes`,
 dimensions). Never edit inside the markers, never type width/height, never
 build a derivative URL in JS. Ladders/`sizes` live per-SLOT in
-`image_slots.py`. AVIF q58 / WebP q76. Budget: ≤150 KB per image on the
-wire, hero LCP < 1.2 s on cold 4G. The two blocking checks:
+`image_slots.py`. AVIF q58 / WebP q76. Budget: ≤150 KB per **served AVIF** on
+the wire, hero LCP < 1.2 s on cold 4G — the AVIF is what a modern browser
+downloads, and the WebP fallback is reported by `--check` but never gated on.
+The two blocking checks:
 
     python tools/bake_images.py --check
     python tools/bake_markup.py --check

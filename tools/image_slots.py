@@ -57,12 +57,14 @@ LADDERS = {
     #
     # 2560 was dropped on 2026-08-17. It was added when these were smooth
     # gradients that cost almost nothing at width; the real art is painted, and
-    # at 2560 it ran 225–280 KB against the site's 150 KB-per-image budget. The
-    # cost of dropping it is a 2560-wide display upscaling the 1920 file by ~20%
-    # in the lightbox — invisible on a photograph-like image, and cheaper than
-    # blowing the budget on the one view that is already opt-in. 1920 is still
-    # over budget for the three busiest pieces; that is a knowing exception,
-    # recorded in assets/ai/wallpapers/README.md.
+    # at 2560 it ran 225–280 KB against the site's 150 KB budget (which is the
+    # AVIF's size — the WebP fallback is reported, not gated; see CLAUDE.md).
+    # The cost of dropping it is a 2560-wide display upscaling the 1920 file by
+    # ~20% in the lightbox — invisible on a photograph-like image, and cheaper
+    # than blowing the budget on the one view that is already opt-in. 1920 is
+    # still over on several pieces; that is a knowing exception, and the count
+    # is NOT written down anywhere — a hand-kept one said three while naming
+    # four and the truth was six. `bake_images.py --check` prints it.
     # 400 and 240 are the THUMBNAIL rungs. The strip under the hero renders each
     # piece at ~130 CSS px (190 at the widest), and without them the smallest
     # thing on offer was the 600 — five of them, ~95 KB, to fill nine boxes the

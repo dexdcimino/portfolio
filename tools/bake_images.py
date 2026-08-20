@@ -58,6 +58,18 @@ DERIVED = ROOT / "assets" / "derived"
 AVIF_OPTS = {"quality": 58}
 WEBP_OPTS = {"quality": 76, "method": 6}
 
+# THE BUDGET IS THE AVIF, and only the AVIF (Dex, 2026-08-20). That is the file
+# a modern browser actually downloads, so it is the number that describes what a
+# visitor pays. The WebP beside it is the fallback for browsers too old for
+# AVIF; holding it to the same ceiling would mean either degrading the AVIF or
+# dropping a rung for a shrinking minority, so its size is reported below and
+# never gated on.
+#
+# Reported rather than written down, because a hand-counted list of what is over
+# goes stale silently: assets/ai/wallpapers/README.md said "the three busiest
+# pieces" while naming four of them, and the real count was six.
+BUDGET_BYTES = 150 * 1024
+
 # Fallback ladder for a master that no slot in index.html claims — a file
 # dropped in ahead of the markup that will use it, or art referenced only from
 # somewhere this script cannot see. Anything the page does place gets exactly
@@ -191,6 +203,18 @@ def check() -> int:
     if extra:
         print(f"bake_images --check: note — {len(extra)} orphaned derivative(s) "
               f"no ladder produces; clear with: python tools/bake_images.py --prune")
+
+    # Same reasoning for the weight note. Over-budget rungs render perfectly;
+    # they just cost more than they should, and some of them do so knowingly —
+    # the wallpapers tab exists to show art at size. A note keeps the number
+    # current without turning a judgement call into a build failure.
+    heavy = sorted(((p.stat().st_size, p) for p in DERIVED.rglob("*.avif")
+                    if p.stat().st_size > BUDGET_BYTES), reverse=True)
+    if heavy:
+        print(f"bake_images --check: note — {len(heavy)} AVIF rung(s) over the "
+              f"{BUDGET_BYTES // 1024} KB budget (WebP is not gated; see CLAUDE.md)")
+        for size, out in heavy:
+            print(f"  {out.relative_to(ROOT).as_posix():52s} {size / 1024:5.0f} KB")
 
     if not stale:
         print("bake_images --check: all derivatives present and current")

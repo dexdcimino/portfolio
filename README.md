@@ -120,8 +120,11 @@ Rules:
 - Everything below the fold keeps `loading="lazy"` and `decoding="async"`.
 - Get `sizes` right per slot. A wrong `sizes` makes the browser pick a width far
   larger than it renders, which throws away the whole exercise.
-- **Budget: no single image over 150 KB on the wire**, hero LCP under 1.2 s on a
-  cold 4G load.
+- **Budget: no served AVIF over 150 KB on the wire**, hero LCP under 1.2 s on a
+  cold 4G load. The AVIF is what a modern browser downloads, so it is what the
+  budget describes; the WebP fallback is reported but not gated on, because
+  holding it to the same ceiling would mean degrading the AVIF or dropping a
+  rung for a shrinking minority.
 - Video is **not** self-hosted — it goes to an external streaming host.
 
 ### Adding new art
@@ -145,8 +148,9 @@ python tools/bake_images.py --check      # exit 0 = current, exit 1 = stale/miss
 
 The hook is convenience, not a guarantee — it can be skipped with `--no-verify`
 and a fresh clone has none until installed. `--check` is the guarantee; treat a
-non-zero exit as a blocking failure. Budget is unchanged: **no image over
-150 KB on the wire**.
+non-zero exit as a blocking failure. Budget is unchanged: **no served AVIF
+over 150 KB on the wire** — `--check` lists the rungs over it as a note, which
+does not affect the exit code. WebP is not gated.
 
 `assets/derived/` is served with `Cache-Control: immutable` for a year
 (`vercel.json`). Derivatives are content-addressed by width and never mutate in

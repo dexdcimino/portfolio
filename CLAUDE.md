@@ -208,7 +208,17 @@ output.
   `loading="lazy"`. It is the LCP element — that comes from `eager: True` on its
   slot, and the `<head>` preload is generated from the same ladder.
 - Below the fold: `loading="lazy"` + `decoding="async"`, applied automatically.
-- Budget: no single image over 150 KB on the wire; hero LCP < 1.2 s on cold 4G.
+- **Budget: no served AVIF over 150 KB on the wire**; hero LCP < 1.2 s on cold
+  4G. The budget is the AVIF and only the AVIF (Dex, 2026-08-20): that is the
+  file a modern browser downloads, so it is the number that describes what a
+  visitor pays. The WebP beside it is the fallback for browsers too old for
+  AVIF, and holding it to the same ceiling would mean either degrading the AVIF
+  or dropping a rung for a shrinking minority — so **WebP is informational, not
+  a gate**. Worth a glance if it ever runs away; never a reason to fail a
+  commit. `bake_images --check` prints the AVIF rungs currently over as a note
+  (six today, all the wallpapers' 1920) rather than anyone keeping a list —
+  the last hand-written one said "the three busiest pieces" while naming four,
+  and the real answer was six.
 - Video is not self-hosted — external streaming host only.
 - `assets/derived/` is served `immutable` for a year via `vercel.json`, so every
   generated URL carries a `?v=<8 hex>` stamp of its **master's** bytes. That is

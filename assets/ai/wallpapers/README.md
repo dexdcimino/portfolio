@@ -57,17 +57,20 @@ adding a sixth needs no CSS or JS edit.
 The pieces here are real art and painted, so they compress nothing like the
 gradient placeholders they replaced. At the rung the carousel actually serves
 (900 on a normal desktop) everything is 20–60 KB, well inside the site's
-150 KB-per-image budget.
+150 KB budget — which is **the AVIF's size, not the WebP's**; see CLAUDE.md.
 
-**The 2560 rung is gone** (Dex, 2026-08-17). It was the worst offender at
-225–280 KB for the three busiest pieces, and it only ever served the lightbox on
-a 2560-wide display. Dropping it means such a display now upscales the 1920 file
+**The 2560 rung is gone** (Dex, 2026-08-17). It was the worst offender, at
+225–280 KB on the heaviest pieces, and it only ever served the lightbox on a
+2560-wide display. Dropping it means such a display now upscales the 1920 file
 by about 20% in that one opt-in view — far cheaper than the budget breach.
 
-What remains over budget is the **1920** rung on Amphibious (163 KB), Slick
-Anarchy (171 KB), BASE Jump (198 KB) and Kong Fu (157 KB), reached by the
-lightbox and by a Retina desktop. That is a knowing exception, not an
-oversight: this is a tab whose whole job is showing art at size. If it needs
-closing later, the lever is the encoder quality for this role, not another
-rung — and that is a pipeline-wide setting
+What remains over budget is the **1920** rung, reached by the lightbox and by a
+Retina desktop. **Do not read the list of which pieces off this file** — it was
+wrong within a day of being written, saying "the three busiest pieces" while
+naming four, when the answer was six. `python tools/bake_images.py --check`
+prints the current list as a note, and that is the only copy of it.
+
+The exception is knowing, not an oversight: this is a tab whose whole job is
+showing art at size. If it needs closing later, the lever is the encoder
+quality for this role, not another rung — and that is a pipeline-wide setting
 (`AVIF q=58 / WebP q=76`) that CLAUDE.md says not to change casually.
