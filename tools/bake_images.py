@@ -190,12 +190,28 @@ def orphans() -> list[Path]:
 def check() -> int:
     """Report missing/stale derivatives without writing anything."""
     stale = []
+    masters = rungs = 0
     for src, widths in collect():
+        masters += 1
         for _width, _ext, out in expected(src, widths):
+            rungs += 1
             if not out.exists():
                 stale.append((out, "missing"))
             elif out.stat().st_mtime <= src.stat().st_mtime:
                 stale.append((out, "older than master"))
+
+    # COUNT THE SUBJECT, ASSERT THE COUNT. Everything below reports on what
+    # collect() walked, and an empty walk produces an empty `stale` — so a
+    # discovery that found nothing printed "all derivatives present and current"
+    # and exited 0, which is what a healthy repo prints. A checker that examined
+    # nothing must never be able to say something positive. This is not
+    # hypothetical: three of Surveyor's harnesses had the same shape and one of
+    # them had been measuring nothing for its whole life.
+    if not masters:
+        print("bake_images --check: FAIL — walked assets/ and found no masters "
+              "at all. Discovery is broken (wrong root, SKIP_DIRS, or a partial "
+              "checkout), not the derivatives.", file=sys.stderr)
+        return 1
 
     # Orphans do not break the site, so they are a note rather than a failure —
     # --check's exit code should mean "the page will render", nothing else.
@@ -217,7 +233,8 @@ def check() -> int:
             print(f"  {out.relative_to(ROOT).as_posix():52s} {size / 1024:5.0f} KB")
 
     if not stale:
-        print("bake_images --check: all derivatives present and current")
+        print(f"bake_images --check: {masters} master(s), {rungs} derivative(s), "
+              f"all present and current")
         return 0
 
     print(f"bake_images --check: {len(stale)} derivative(s) stale or missing")

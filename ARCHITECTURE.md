@@ -401,6 +401,47 @@ parallax bind; remaining IIFEs run inline. On `load`: re-measure, hand the
 URL to the scroll spy, then idle-warm the other six mascots one accent at a
 time via `probeMascot`.
 
+## Writing a checker: count the subject, assert the count
+
+Every check in this repo answers a question about a set of things it had to go
+and find — masters under `assets/`, derivative references in the markup, shader
+bodies in a source file, worlds in a system. **The failure that matters is not a
+wrong answer. It is an empty set.**
+
+A checker that discovers nothing does not fail. It examines nothing, finds no
+problems, prints whatever it prints when all is well, and exits 0 — which is
+byte-identical to a clean run. **A pattern that silently matches nothing looks
+exactly like a pattern that matches everything and passes**, and it is worse
+than having no check at all, because it buys confidence nobody earned.
+
+This has now happened four times in this repo, three of them in one afternoon:
+
+- `games/surveyor/dev/glslcheck.mjs` scanned none of `COMMON`, `HAZE` or
+  `svFarBodyFragmentShader` — its regex only knew one declaration shape — and
+  reported clean while a live break sat in one of them.
+- `arrivecheck`, `disccheck` and `lodcheck` each end in `exit(bad ? 1 : 0)` and
+  print a positive claim in words. `lodcheck` had been observing **zero** of the
+  handoffs it exists to measure, for its whole life, while printing that the
+  handoff was clean.
+- `tools/bake_images.py --check`, which CLAUDE.md names as a blocking gate,
+  printed "all derivatives present and current" over an empty walk.
+
+So, for anything new that checks something:
+
+1. **Count what you examined** and put the number in the output, pass or fail.
+   `bake_markup --check` has always done this — "70 image block(s) current, 514
+   derivative(s) referenced" — and is the model.
+2. **Assert the count against an expectation**, not against zero. `bodies.length
+   > 10` passed on seventeen while three were missing; a loose bound is
+   decoration. Where there is no fixed expectation, derive the same number a
+   second, independent way and require the two to agree.
+3. **Never let a positive claim be reachable with an empty subject.** If the set
+   is empty, that is the failure — report it as broken discovery, which is what
+   it is, and not as a clean result.
+4. **A loop that emits checks emits none when its subject is empty**, so the
+   suite total silently drops and everything still passes. Assert the size
+   before the loop.
+
 ## Commit hooks
 
 `pre-commit` (only fires when rasters/markup/palette/script.js are staged):
