@@ -102,3 +102,7 @@ prediction, md16, md24, md25, serpent. `opts.enemies=false` is a test hook.
 Balance is "v1, on record" (`combat.js:18`). Out of scope on purpose: host
 migration, lag comp, spectators, more guns, mobile input. Two-word lobby IDs
 noted but "do not build now".
+
+## The site cursor
+
+The page installs the site’s accent cursor set last (`games/_shared/cursor-boot.js` → `cursor.js`): arrow, pointing hand and I-beam as accent data URIs, following the shared `dex-cursor` toggle and accent live over the storage event. The crosshair lock (`#game { cursor:none }`) is an explicit rule and always outranks it — the in-game cursor is a game state, not site chrome.

@@ -682,6 +682,15 @@ html.dex-cursor :is(a,button,summary,select,label,
    cursor:default the stylesheet gives them natively. */
 html.dex-cursor :is(:disabled,[disabled],[aria-disabled="true"],
   .ai-card.is-soon,.game-art[aria-hidden="true"]){cursor:var(--dex-cursor-arrow,auto)}
+/* Selectable copy and the form fields take the accent I-beam — the OS I-beam
+   was the last system cursor on the page. Text elements INSIDE anything
+   clickable inherit instead (the rule below outranks this one), so a label
+   in a button never shows the I-beam over the hand. */
+html.dex-cursor :is(p,h1,h2,h3,h4,li,blockquote,figcaption,dt,dd){cursor:var(--dex-cursor-text,text)}
+html.dex-cursor :is(input[type="text"],input[type="email"],input[type="search"],
+  input:not([type]),textarea){cursor:var(--dex-cursor-text,text)}
+html.dex-cursor :is(a,button,summary,[role="button"],[role="tab"],.ai-card)
+  :is(p,h1,h2,h3,h4,li,blockquote,figcaption,dt,dd){cursor:inherit}
 /* The shot zoom says something more specific than "clickable" — keep it
    (the wallpaper magnifier is on .wp-frame, a div, and needs no re-assert).
    `button.` matters: it ties the pointer rule's (0,2,2) so source order wins. */

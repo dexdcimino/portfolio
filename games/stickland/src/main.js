@@ -9,12 +9,18 @@ import './chat-picker.js';   // defines the window._dex* chat picker bridges
 import './audio.js';         // installs its own unlock listeners; never throws
 import './platformer.js';    // platformer world (MD 06); self-activates when play mode is off
 import { startAccentWatch } from './accent.js';
+import { installAccentCursor } from './cursor.js';
 import { initCharacter, mountCosmeticsButton } from './character.js';
 import { initPlayMode, enterPlayMode } from './playmode.js';
 
 // Publish the host page's --accent into the vars the game reads, and keep
 // them in sync. Must run before anything paints.
 startAccentWatch();
+
+// The site's accent cursor, drawn from the accent published above. The
+// hoverboard's inline `grabbing` still wins while dragging — inline styles
+// outrank the class this installs.
+installAccentCursor();
 
 initCharacter();
 initPlayMode();

@@ -78,3 +78,7 @@ shared module's defaults, which multiply out to silence here.
 enemy art are procedural placeholders behind the GLB loader; swapping art
 touches `visuals/manifest.js` only. Every hand edit made to this drop is
 logged in `INTEGRATION-NOTES.md` — keep it current if you touch the drop.
+
+## The site cursor
+
+The page installs the site’s accent cursor set last (`games/_shared/cursor-boot.js` → `cursor.js`): arrow, pointing hand and I-beam as accent data URIs, following the shared `dex-cursor` toggle and accent live over the storage event.

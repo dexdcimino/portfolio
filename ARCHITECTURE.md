@@ -28,14 +28,27 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   both the arrow and the pointer-hand as double-stroke data URIs — accent
   stroke over a dark casing, hotspot at the tip/fingertip — into
   `--dex-cursor-arrow`/`--dex-cursor-pointer`; the whole feature rides
-  `html.dex-cursor`, default on, persisted as `dex-cursor`, toggled by the
+  `html.dex-cursor`, default on, persisted as `dex-cursor` — an accent
+  I-BEAM (`--dex-cursor-text`) covers selectable copy and the form fields,
+  with text elements inside clickables inheriting the hand instead —
+  toggled by the
   `cursor-toggle` button after the swatches — accent-filled when on, muted
   outline when off, `aria-pressed` + `aria-label` its only name, visible in
   the docked `.compact` state too; deliberately NOT gated on
   prefers-reduced-motion — the toggle is the escape hatch back to the OS
   accessibility cursors; the styles.css block re-asserts `zoom-in` on the
-  shot view and keeps disabled things on the arrow, and the games inside
-  iframes keep their own documents' cursors), `probeMascot()` (clones the real `<picture>` so the browser
+  shot view and keeps disabled things on the arrow. The game iframes adopt
+  the same set via `games/_shared/cursor.js` (`installAccentCursor()`:
+  reads the game's own published `--accent` and the shared `dex-cursor`
+  key, injects generic rules, follows toggle and accent changes live over
+  the `storage` event) — Arena 1 and Chomp load `_shared/cursor-boot.js`
+  as their last module; Stickland carries a COPY at `src/cursor.js`
+  because its blob build cannot reach `_shared` over file://; Surveyor is
+  deliberately untouched — its reticle/target set already covers its whole
+  document. The SVG paths exist in three places (script.js, _shared,
+  stickland src) and must stay in step. Game states win by construction:
+  Arena 1's `cursor:none` crosshair lock, Stickland's inline `grabbing`,
+  the breakout field's hide-and-dot), `probeMascot()` (clones the real `<picture>` so the browser
   negotiates the one true file — **never hand-build derivative URLs**), Work
   overlay (**mockup** — see CLAUDE.md; `TEMPORARY MOCKUP DATA` block, filler
   SVGs; everything after it renders `{title, desc, src, w, h}` and is

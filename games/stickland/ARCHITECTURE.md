@@ -75,3 +75,7 @@ Camera deadzone 0.20. Caps: 7 birds, 5 yaks. 10 weapons.
 Multiplayer wired but dark (`MULTIPLAYER = false`). `music.js` is an audition
 rack awaiting a final pick. BUILD.md's file table is stale against src/
 (audio/music/platformer/pausemenu landed after the port).
+
+## The site cursor
+
+`src/cursor.js` installs the site’s accent cursor set (arrow, pointing hand, I-beam) from `main.js` after the accent watch starts. It is a deliberate COPY of `games/_shared/cursor.js` — the blob build ships src/ alone and cannot reach `_shared` over file:// — so a shape change there must be mirrored here. The hoverboard’s inline `grabbing` outranks it while dragging.

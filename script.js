@@ -303,6 +303,10 @@ const CURSOR_PATHS = {
     d: 'M13.2 14V5.4a1.8 1.8 0 0 1 3.6 0v6l4.9 1.3a2.4 2.4 0 0 1 1.8 2.6l-.6 4.2a3.8 3.8 0 0 1-3.8 3.3h-4.3a4.4 4.4 0 0 1-3.3-1.5l-3.2-3.7 1.7-1.6a2.4 2.4 0 0 1 2.8-.4z',
     hot: '15 4', fallback: 'pointer',
   },
+  // The I-beam, for selectable copy and the form fields — the OS I-beam was
+  // the one system cursor left on the page, and one system cursor in an
+  // otherwise custom set is the thing people notice without naming it.
+  text: { d: 'M12.5 6.5h7M16 6.5v19M12.5 25.5h7', hot: '16 16', fallback: 'text' },
 };
 function cursorValue(kind, hex) {
   const p = CURSOR_PATHS[kind];
@@ -320,9 +324,10 @@ function applyAccent(name, persist = true) {
   root.style.setProperty('--accent-ink', accentInk(theme.color));
   root.dataset.accent = theme.name;
 
-  // The cursor is the accent: both variants follow every accent change.
+  // The cursor is the accent: all three variants follow every accent change.
   root.style.setProperty('--dex-cursor-arrow', cursorValue('arrow', theme.color));
   root.style.setProperty('--dex-cursor-pointer', cursorValue('pointer', theme.color));
+  root.style.setProperty('--dex-cursor-text', cursorValue('text', theme.color));
 
   // favicon.ico is a static raster — it cannot read --accent and never follows
   // the theme. The SVG data URI is the live one, and it is rebuilt here rather
