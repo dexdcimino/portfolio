@@ -54,7 +54,7 @@ adding a sixth needs no CSS or JS edit.
 
 ## Weight
 
-The five pieces here are real art and painted, so they compress nothing like the
+The pieces here are real art and painted, so they compress nothing like the
 gradient placeholders they replaced. At the rung the carousel actually serves
 (900 on a normal desktop) everything is 20–60 KB, well inside the site's
 150 KB-per-image budget.
@@ -65,8 +65,9 @@ a 2560-wide display. Dropping it means such a display now upscales the 1920 file
 by about 20% in that one opt-in view — far cheaper than the budget breach.
 
 What remains over budget is the **1920** rung on Amphibious (163 KB), Slick
-Anarchy (171 KB) and BASE Jump (198 KB), reached by the lightbox and by a Retina
-desktop. That is a knowing exception, not an oversight: this is a tab whose whole
-job is showing art at size. If it needs closing later, the lever is the encoder
-quality for this role, not another rung — and that is a pipeline-wide setting
+Anarchy (171 KB), BASE Jump (198 KB) and Kong Fu (157 KB), reached by the
+lightbox and by a Retina desktop. That is a knowing exception, not an
+oversight: this is a tab whose whole job is showing art at size. If it needs
+closing later, the lever is the encoder quality for this role, not another
+rung — and that is a pipeline-wide setting
 (`AVIF q=58 / WebP q=76`) that CLAUDE.md says not to change casually.
