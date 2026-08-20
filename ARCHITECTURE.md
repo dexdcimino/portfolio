@@ -106,10 +106,13 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   Catalysts toggle and does NOT close on a plain mouseleave — the pointer
   has to be walked THROUGH the panel and out again, which means it is closed
   LAST, after all navigation, since any click near the top-left reopens it.
-  All three are asserted at the shutter rather than slept on. A third shot,
-  of the Account page, is still owed: it needs a signed-in session and
-  NodeBlast's sign-in is OAuth-only (Google, GitHub, Discord), so it cannot
-  be driven headlessly and is waiting on Dex. dexddc.com's
+  All three are asserted at the shutter rather than slept on. There is no
+  Account-page shot and there is not going to be one: it would need a
+  signed-in session, NodeBlast's sign-in is OAuth-only (Google, GitHub,
+  Discord) with no password form, and signed out "My Profile" does
+  nothing at all — so it cannot be driven headlessly and was dropped
+  rather than staged by hand (Dex, 2026-08-20). Two shots is the set.
+  dexddc.com's
   (`dexddc-portfolio.png`) is a supplied 2482x1478 grab of that site's
   portfolio grid, cropped to 16:9 across the empty sky and floor rather than
   centred, which would have clipped the nav ornament's horns, and then GRADED
