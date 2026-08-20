@@ -18,6 +18,7 @@ import { on, emit } from './core/events.js';
 import { makePlanet } from './world/sphere.js';
 import { Surface, findSpawn } from './world/surface.js';
 import { neighbours } from './world/discs.js';
+import { dominant } from './world/gravity.js';
 import { systemExtent } from './world/space.js';
 import { previews } from './world/preview.js';
 import { COLORS, ATMO, POST, ROVER, PLANETS, HYPER, DEBUG, ECONOMY } from './tune.js';
@@ -213,11 +214,14 @@ overlay.retarget(world);
  * one frame, and the craft is stood up in flight over the new ground.
  */
 function swapTo(key, dir, alt) {
+  performance.mark('sw:in');
   const next = planetOf(key);
   world = worlds.enter(next, dir);
+  performance.mark('sw:enter');
   registerWorld(world);
   const surf = new Surface(next, dir);
   craft.landOn(surf, alt);
+  performance.mark('sw:landOn');
   // The hull takes the new world's light: the craft shader carries that
   // planet's rim, specular and sun colour, and a craft still lit by the world
   // it left is the one thing that would give the swap away.
@@ -229,6 +233,7 @@ function swapTo(key, dir, alt) {
      from wherever it was on the world you left, which on a sphere of another
      radius is inside this one: the arrival came up through the terrain. */
   cam.arrive(craft);
+  performance.mark('sw:cam');
   streaks.setPalette(next);
   /* ...and the particulate layer, which is this world's ash or murk or sea
      spray. Trails read its planet once in its constructor and nothing ever
@@ -237,16 +242,81 @@ function swapTo(key, dir, alt) {
   /* ...and throw away the wingtip ribbon, because landOn just moved the craft
      across the solar system and a TrailMesh draws every metre of that. */
   trails.resetJetTrails();
+  performance.mark('sw:trails');
   // The world's own grade. Neutral on all six at T1, so this is a no-op that
   // proves the wire — and the one line that has to exist before any world can
   // be graded on its own.
   if (post) post.setGrade(next.lut, POST.colorGrading.level);
+  performance.mark('sw:lut');
   hud.retarget(world.survey, world.field, world.colonies);
   overlay.retarget(world);
   economy.save();
+  performance.mark('sw:save');
   hud.setWorld(key);
   scene.clearColor = new BABYLON.Color4(
     world.mats.fogColor.r, world.mats.fogColor.g, world.mats.fogColor.b, 1);
+  performance.mark('sw:out');
+  const PH = [['enter','sw:in','sw:enter'],['landOn','sw:enter','sw:landOn'],
+    ['cam','sw:landOn','sw:cam'],['trails','sw:cam','sw:trails'],
+    ['lut','sw:trails','sw:lut'],['save','sw:lut','sw:save'],['rest','sw:save','sw:out']];
+  for (const [n, from, to] of PH) {
+    try { performance.measure('swap:' + n, from, to); } catch (e) { /* no mark */ }
+  }
+}
+
+/* THE DESTINATION STREAMS WHILE YOU ARE STILL FLYING TO IT.
+
+   Arriving used to cost 324ms in a single frame against a 5.3ms median,
+   because swapTo built the world it was arriving at from nothing - terrain
+   included - between two frames. A trip is eighteen to thirty seconds long
+   and the destination is known the moment you leave, so none of that work
+   has to happen at the end of it.
+
+   WHERE it streams is predicted rather than known. The arrival point is
+   wherever the trajectory first enters the approach sphere, and the
+   trajectory is still bending; but the direction from the target's centre
+   back to the craft CONVERGES on it, exactly, as the craft closes - and it
+   is the same expression hyper.js hands over on arrival. Early on it is
+   roughly right, which costs a few leaves that get dropped; by the time it
+   matters it is right.
+
+   One field update a frame, so this costs what ordinary streaming costs and
+   cannot spike. It runs only in transit, where world.update() does not. */
+let ahead = null;               // the World being streamed, if any
+const AH = { x: 0, y: 0, z: 0 };
+function streamAhead() {
+  const h = craft.hyper;
+  if (!h || !h.target) return;
+  const key = h.target.key;
+  if (key === world.planet.key) return;      // already standing on it
+  if (!ahead || ahead.planet.key !== key) {
+    const __g = performance.now();
+    ahead = worlds.get(planetOf(key));
+    window.__getMs = +(performance.now() - __g).toFixed(1);
+    registerWorld(ahead);
+  }
+  const c = h.target.c;
+  AH.x = h.p.x - c.x; AH.y = h.p.y - c.y; AH.z = h.p.z - c.z;
+  const l = Math.hypot(AH.x, AH.y, AH.z) || 1;
+  AH.x /= l; AH.y /= l; AH.z /= l;
+  ahead.prewarm(AH);
+  /* ...and its shaders, once there is a leaf to compile them against. See
+     World.precompile: the terrain being ready is only half of an arrival. */
+  ahead.precompile(forms.jet.body);
+
+  /* ...and its colonies, ONCE THE DESTINATION OWNS YOU.
+     Not from the moment you leave. `AH` is a prediction and early in a flight
+     it points roughly back the way you came, so building against it lays down
+     a hemisphere of sites that the real arrival direction then releases and
+     rebuilds - measured at 106ms on the arrival frame against the 60ms of
+     doing nothing at all, which is the whole trap in prefetching against a
+     guess. The gate is phase 3's dominance test: the world that owns you is
+     the one that looks biggest in your sky, and by the time that is the
+     destination the prediction has converged. */
+  if (dominant(craft.bodies || [], h.p) === h.target) ahead.colonies.prebuild(AH);
+  /* ...and the far body for the world you are LEAVING, which is the one that
+     promotes the instant you arrive. */
+  ahead.discs.prebuild(h.from);
 }
 
 on('hyperarrive', (e) => swapTo(e.key, e.dir, e.alt));
@@ -565,6 +635,7 @@ engine.runRenderLoop(() => {
   if (!craft.hyper) world.update(dt, craft, cam.camera);
   else {
     world.discs.update(cam.camera);
+    streamAhead();
     // The beam is the one thing in survey.js that owns a mesh which has to be
     // put away rather than merely stop being updated: nothing else runs in
     // transit, so left alone it would hang over the world you departed from.

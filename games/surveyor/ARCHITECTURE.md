@@ -112,7 +112,7 @@ started carry a phase log of what actually shipped and where the plan was wrong.
 
 | plan | status |
 |---|---|
-| `docs/seamless-space.md` | phases 1-3 shipped; phase 4 scoped, not started |
+| `docs/seamless-space.md` | phases 1-3 shipped; phase 4 started, arrival cut |
 | `docs/day-and-night.md` | parked. After Seamless Space — it changes lighting |
 | `docs/colony-architecture.md` | parked. Does not conflict with Seamless Space |
 
@@ -144,7 +144,9 @@ across 2 worlds"), read at arm time, then reloads.
   `discs.js` (other five worlds as billboards, one draw call), `preview.js`,
   `geysers.js`, `hyper.js` (travel maths, no Babylon, no game state),
   `gravity.js` (the summed field, well dominance and the craft's transit
-  basis — same rule as hyper.js: no Babylon, no game state), `space.js` (the
+  basis — same rule as hyper.js: no Babylon, no game state; `dominant()` also
+  gates phase 4's prebuilding, which must not run against an unconverged
+  arrival prediction), `space.js` (the
   far band's uniform scale about the camera), `farbody.js` (displaced
   icosphere + `svFarBody`, the LOD a billboard promotes to),
   `materials.js` (every shader as template literals + `createMaterials`),
@@ -316,6 +318,19 @@ submission, never resolution, so no coarse-geometry caster LOD was built.
 
 ## Known-outstanding — do not re-report
 
+- **A subsystem's total is not a diagnosis.** `colonies.stream` measured 60ms
+  on the arrival frame, so the fix built colony sites ahead of time — and made
+  it 106ms. Measured properly, that frame built **zero sites**: all of it was
+  `streamGeysers`, which is called from the same function. Two rounds lost to
+  reading a timer's NAME as a cause. Time the line, not the module, before
+  changing anything.
+- **A World can be built and invisible, and that is load-bearing.** Terrain
+  leaves, colony sites and geyser vents hang off `World.ground`; `showMeshes`
+  switches it. Until phase 4 the only thing keeping an inactive world's ground
+  off screen was that its field had been DISPOSED. Two assertions hold it,
+  because this is the six-sky-domes shape — something that exists, is correct,
+  and is drawn when it should not be. Note the headless stub's `isEnabled()`
+  walks ancestors for the same reason.
 - **A check that fails on a healthy build teaches people to ignore the suite.**
   `dev/disccheck.mjs` gated discs at 5 degrees — the right number the morning it
   was written and wrong by that afternoon, because the sky pass raised the disc

@@ -136,8 +136,12 @@ function workerGeo() {
 const PD = { x: 0, y: 0, z: 0 };
 
 export class Colonies {
-  constructor(scene, craft, mat, planet) {
+  constructor(scene, craft, mat, planet, root = null) {
     this.scene = scene;
+    /* Every site's node hangs off the world's ground node, so a world can have
+       its colonies BUILT and still not be on screen. That is what lets them be
+       built during a flight rather than in the frame you land. */
+    this.root = root;
     this.craft = craft;
     this.mat = mat;
     this.planet = planet;
@@ -314,6 +318,7 @@ export class Colonies {
 
   build(site) {
     const node = new BABYLON.TransformNode('colony' + site.id, this.scene);
+    if (this.root) node.parent = this.root;
     // The site's own frame becomes the node's transform, so every dome offset
     // below is still a plain (x, z) in metres — the layout code never changed.
     placeOnSphere(node, this.planet, site.dir, site.elevation, 0);
@@ -453,6 +458,29 @@ export class Colonies {
    * loops seamlessly, which matters because these are meant to be read from a
    * long way off and never seen to restart.
    */
+  /* One vent, built. Pulled out of streamGeysers so prebuild can use the
+     same code rather than a copy that drifts from it. */
+  buildVent(gy) {
+    const P = this.planet;
+    const node = new BABYLON.TransformNode('vent' + gy.id, this.scene);
+    if (this.root) node.parent = this.root;
+    placeOnSphere(node, P, gy.dir, gy.elevation, 0);
+    const vent = this.ventProto.clone('ventM' + gy.id);
+    vent.parent = node;
+    vent.setEnabled(true);
+    vent.renderingGroupId = 1;
+    vent.scaling.setAll(1.6);
+    const puffs = [];
+    for (let i = 0; i < GEYSER.plumePuffs; i++) {
+      const m = this.puffProto.clone('puff' + gy.id + '_' + i);
+      m.parent = node;
+      m.setEnabled(true);
+      m.renderingGroupId = 1;
+      puffs.push(m);
+    }
+    this.vents.set(gy.id, { node, vent, puffs });
+  }
+
   streamGeysers(dt, here) {
     const P = this.planet;
     const range = Math.min(GEYSER.viewRange, P.radius * 1.6);
@@ -463,22 +491,7 @@ export class Colonies {
       const near = here && arcBetween(gy.dir, here, P.radius) < range;
       const live = this.vents.get(gy.id);
       if (near && !live) {
-        const node = new BABYLON.TransformNode('vent' + gy.id, this.scene);
-        placeOnSphere(node, P, gy.dir, gy.elevation, 0);
-        const vent = this.ventProto.clone('ventM' + gy.id);
-        vent.parent = node;
-        vent.setEnabled(true);
-        vent.renderingGroupId = 1;
-        vent.scaling.setAll(1.6);
-        const puffs = [];
-        for (let i = 0; i < GEYSER.plumePuffs; i++) {
-          const m = this.puffProto.clone('puff' + gy.id + '_' + i);
-          m.parent = node;
-          m.setEnabled(true);
-          m.renderingGroupId = 1;
-          puffs.push(m);
-        }
-        this.vents.set(gy.id, { node, vent, puffs });
+        this.buildVent(gy);
       } else if (!near && live) {
         for (const m of live.puffs) m.dispose();
         live.vent.dispose();
@@ -625,6 +638,42 @@ export class Colonies {
    * The visible half: falling probes, colony meshes, geyser plumes, workers.
    * Only ever called for the world the scene is drawing.
    */
+  /**
+   * Build the sites around a direction, ahead of anybody looking at them.
+   *
+   * stream() takes its centre from the craft, and in transit the craft has no
+   * tangent frame - so `here` is null, nothing is in range, and every colony
+   * on the destination is built in the frame you arrive. Measured at 60.5ms of
+   * a 95ms world.update on that frame, the largest single piece of the arrival
+   * hitch once the terrain was already streaming ahead.
+   *
+   * MOSTLY THE GEYSERS, and that was not the guess. The first version built
+   * sites only, on the assumption that a mature basin was the cost; measured
+   * on the arrival frame it came back "0 sites, 0 built, 0 released" against
+   * 112ms of colonies.stream, so none of the cost was ever there. It is
+   * streamGeysers: every vent within range of the arrival gets a node, a
+   * cloned mesh and a ring of plume puffs, all in the frame you land.
+   *
+   * Bounded per call, so this spreads across a flight rather than moving the
+   * spike earlier. Only the building; none of the per-frame simulation.
+   */
+  prebuild(at, budget = 1) {
+    let built = 0;
+    const range = Math.min(COLONY.viewRange, this.planet.radius * 1.4);
+    for (const site of this.sites) {
+      if (built >= budget) break;
+      if (site.node) continue;
+      if (arcBetween(site.dir, at, this.planet.radius) < range) { this.build(site); built++; }
+    }
+    const vRange = Math.min(GEYSER.viewRange, this.planet.radius * 1.6);
+    for (const gy of this.geysers) {
+      if (built >= budget) break;
+      if (this.vents.has(gy.id)) continue;
+      if (arcBetween(gy.dir, at, this.planet.radius) < vRange) { this.buildVent(gy); built++; }
+    }
+    return built;
+  }
+
   stream(dt) {
     const craft = this.craft;
 

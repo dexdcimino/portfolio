@@ -63,7 +63,11 @@ export class World {
     this.seabed = new Seabed(scene, planet);
     this._tmpA = { x: 0, y: 0, z: 0 };
     this._tmpB = { x: 0, y: 0, z: 0 };
-    this.field = new ChunkField(scene, this.mats.terrain, planet);
+    /* One node over this world's terrain — see ChunkField's note. It exists so
+       a field can be BUILT AND HIDDEN, which is the whole of how the arrival
+       stopped costing 324ms in a single frame. */
+    this.ground = new BABYLON.TransformNode(`ground_${planet.key}`, scene);
+    this.field = new ChunkField(scene, this.mats.terrain, planet, this.ground);
     /* ONE pair of hooks, two consumers. ChunkField carries a single onBuild and
        a single onDrop; assigning the seabed's over the shadow's would leave the
        shadow map with an empty caster list and no error anywhere. Both are
@@ -86,7 +90,7 @@ export class World {
     // guessing from relief. See WATER.measureDepth.
     if (this.water) this.mats.setMaxDepth(this.water.maxDepth);
     this.survey = new Survey(scene, craft, planet);
-    this.colonies = new Colonies(scene, craft, this.mats.craft, planet);
+    this.colonies = new Colonies(scene, craft, this.mats.craft, planet, this.ground);
     // The beam is the scanner held down, so survey.js owns it — but the things
     // it disrupts belong to the colonies' record. This is the one wire between
     // them, and it is made here because this is where both first exist.
@@ -134,12 +138,74 @@ export class World {
    *  Shared by the constructor and setActive so they cannot drift apart. */
   showMeshes(on) {
     this.sky.setEnabled(on);
+    /* The ground, as one flag. A world being streamed ahead of an arrival has
+       a field full of real leaves and must not be on screen until you get
+       there; a world you have left must take its terrain with it. */
+    this.ground.setEnabled(on);
     if (this.water) this.water.mesh.setEnabled(on);
     /* Through the disc set rather than at its mesh, because a disc set is
        no longer one mesh: a world you have flown toward has a promoted body
        with its own mesh, and reaching past Discs to hide only the billboards
        would leave that body hanging in another world's sky. */
     this.discs.setEnabled(on);
+  }
+
+  /**
+   * One frame's worth of streaming for a world nobody is looking at yet.
+   *
+   * THE ARRIVAL USED TO COST 324 MILLISECONDS IN ONE FRAME, measured against a
+   * 5.3ms median: swapTo threw away the world you were leaving and built the
+   * one you were arriving at from nothing, terrain and all, between two
+   * frames. That is the "cut" phase 4 exists to remove, and the fix is not to
+   * make the build faster — it is to have done it already. A trip takes
+   * eighteen to thirty seconds and the destination is known from the moment
+   * you leave, so the ground can stream the whole way in, a frame at a time,
+   * behind a node that is switched off.
+   *
+   * Deliberately ONE update per call. The field's own per-frame budget then
+   * applies unchanged, so a prewarm costs exactly what ordinary streaming
+   * costs and cannot spike; there is room for it because world.update() does
+   * not run in transit at all.
+   */
+  prewarm(dir) {
+    this.field.update(dir);
+    return this.field.queue.length;
+  }
+
+  /**
+   * Compile this world's shaders before anything asks to draw them.
+   *
+   * THE OTHER HALF OF THE ARRIVAL COST, and the half that is not obvious.
+   * With the terrain streamed ahead the swap still cost ~102ms in one frame,
+   * and swapTo's own work measured 16.6ms of it — so most of the hitch was
+   * never in swapTo at all. It was the FIRST DRAW of a set of materials that
+   * had been created but never used: Babylon compiles a ShaderMaterial the
+   * first time it is asked to render something, and it is never asked while
+   * the mesh is disabled. Six worlds, five hand-written shaders each, and the
+   * bill lands on the frame you arrive.
+   *
+   * forceCompilation polls until the effect is ready rather than blocking, so
+   * starting it mid-transit spreads the work across frames that have nothing
+   * else to do — world.update() does not run out there.
+   *
+   * Once per world. Guarded because the headless stub has no GL and no
+   * forceCompilation, and a harness must not care.
+   */
+  precompile(craftMesh) {
+    if (this._compiled) return false;
+    const first = this.field.live.values().next().value;
+    if (!first) return false;              // no leaf to compile against yet
+    this._compiled = true;
+    const go = (m, mesh) => {
+      if (!m || !mesh || typeof m.forceCompilation !== 'function') return;
+      try { m.forceCompilation(mesh); } catch (e) { /* no GL, or a stub */ }
+    };
+    go(this.mats.terrain, first.mesh);
+    go(this.mats.sky, this.sky);
+    if (this.water) go(this.mats.water, this.water.mesh);
+    if (this.discs && this.discs.mat && this.discs.mesh) go(this.discs.mat, this.discs.mesh);
+    if (craftMesh) go(this.mats.craft, craftMesh);
+    return true;
   }
 
   /** Stream in the ground around a direction before anyone sees the gap. */

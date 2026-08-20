@@ -135,7 +135,10 @@ const SETUP = (to) => `(async () => {
     const cu = S.cam.camera.upVector;
     if (r) {
       window.__cross.q.push([r.x, r.y, r.z, r.w, S.craft.hyper ? 1 : 0,
-        cu.x, cu.y, cu.z, +(S.craft.hyperT || 0).toFixed(4)]);
+        cu.x, cu.y, cu.z, +(S.craft.hyperT || 0).toFixed(4), performance.now(),
+        (() => { const e = S.scene.getEngine()._compiledEffects;
+          return e ? Object.keys(e).length : -1; })(),
+        window.__getMs || 0]);
       if (S.craft.hyper) window.__cross.peak = Math.max(window.__cross.peak, S.craft.hyperT);
     }
     requestAnimationFrame(sample);
@@ -197,6 +200,17 @@ const REPORT = `(() => {
   const q = X.q;
   let worst = 0, worstAt = -1, camWorst = 0, camAt = -1;
   let depart = null, arrive = null;
+  /* THE HITCH. Frame-to-frame wall clock, so the swap's teardown-and-rebuild
+     shows up as the one long frame it is. Reported against the median rather
+     than against 16.7ms, because this runs on SwiftShader where an ordinary
+     frame is already tens of milliseconds and a fixed budget would call every
+     frame a hitch. */
+  const dt = [];
+  for (let i = 1; i < q.length; i++) if (q[i][9] && q[i - 1][9]) dt.push(q[i][9] - q[i - 1][9]);
+  const sorted = dt.slice().sort((a, b) => a - b);
+  const med = sorted.length ? sorted[sorted.length >> 1] : 0;
+  let hitch = 0, hitchAt = -1;
+  for (let i = 0; i < dt.length; i++) if (dt[i] > hitch) { hitch = dt[i]; hitchAt = i + 1; }
   for (let i = 1; i < q.length; i++) {
     const boundary = q[i - 1][4] !== q[i][4];
     const d = ang(q[i - 1], q[i]);
@@ -220,8 +234,24 @@ const REPORT = `(() => {
   }
   return {
     frames: q.length, inHyper: q.filter((r) => r[4] === 1).length,
+    medFrame: +med.toFixed(1), hitch: +hitch.toFixed(1), hitchAt,
+    /* HOW MANY SHADERS WERE COMPILED, and when. A ShaderMaterial compiles the
+       first time Babylon is asked to draw with it, and it is never asked while
+       the mesh is disabled — so a world built during transit brings its whole
+       shader bill to the frame you arrive unless something forces it earlier.
+       Frame times are far too noisy across runs to answer that; the count is
+       not. */
+    fxAtDepart: depart ? q[depart.at][10] : -1,
+    fxBeforeSwap: arrive ? q[arrive.at - 1][10] : -1,
+    fxAfterSwap: arrive ? q[Math.min(q.length - 1, arrive.at + 1)][10] : -1,
+    fxEnd: q.length ? q[q.length - 1][10] : -1,
+    getMs: Math.max.apply(null, q.map((r) => r[11] || 0)),
+    hitchAtBoundary: arrive ? Math.abs(hitchAt - arrive.at) <= 2 : false,
     worst: +deg(worst).toFixed(2), worstAt,
     camWorst: +deg(camWorst).toFixed(2), camAt,
+    swap: performance.getEntriesByType('measure')
+      .filter((m) => m.name.startsWith('swap:'))
+      .map((m) => [m.name.slice(5), +m.duration.toFixed(1)]),
     depart, arrive, errs: X.errs.slice(0, 5),
   };
 })()`;
@@ -318,6 +348,18 @@ console.log(`worst step in flight      ${rep.worst}°  at frame ${rep.worstAt}`)
 console.log(`the departure seam        ${fmt(rep.depart)}`);
 console.log(`the arrival seam          ${fmt(rep.arrive)}`);
 console.log(`worst camera up step      ${rep.camWorst}°  at frame ${rep.camAt}`);
+console.log(`median frame              ${rep.medFrame}ms`);
+console.log(`building the destination  ${rep.getMs}ms, once, on departure`);
+console.log(`shaders compiled          ${rep.fxAtDepart} at departure -> ` +
+  `${rep.fxBeforeSwap} before the swap -> ${rep.fxAfterSwap} after -> ${rep.fxEnd} at rest` +
+  (rep.fxAfterSwap > rep.fxBeforeSwap
+    ? `   <-- ${rep.fxAfterSwap - rep.fxBeforeSwap} COMPILED ON THE ARRIVAL FRAME` : ''));
+if (rep.swap && rep.swap.length) {
+  console.log('the swap, by phase        ' +
+    rep.swap.map(([n, d]) => `${n} ${d}ms`).join('  '));
+}
+console.log(`worst frame               ${rep.hitch}ms  at frame ${rep.hitchAt}` +
+  (rep.hitchAtBoundary ? '   <-- THIS IS THE SWAP' : ''));
 /* THE ARRIVAL SEAM IS NOT ZERO AND IS NOT SUPPOSED TO BE. landOn stands the
    craft up — pitch to 0.10 and the autopilot on — because arriving nose-down
    at 900m over a world you have never seen is a bad first second. What Phase 3

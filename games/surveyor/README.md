@@ -473,6 +473,140 @@ far plane"; at 0.8 of it, it does not, and it does not need to, because
 `infiniteDistance` re-centres the dome on the camera every frame. The radius
 only has to land inside the far plane to be drawn at all.
 
+## Seamless space, phase 4: the arrival stops being a cut
+
+Phase 4 deletes the teardown-and-rebuild. This is the first half of it: not the
+teardown yet, but everything the rebuild was doing in the frame you land.
+
+### The cut, measured
+
+`dev/crosscheck.mjs` samples every animation frame of a real crossing, so the
+swap shows up as the one long frame it is:
+
+| | |
+|---|---|
+| median frame | **5.3ms** |
+| the arrival frame | **324ms** |
+
+A 61x spike, and the harness pins it to the boundary frame rather than to a
+guess. That is the "cut" the brief asks to remove.
+
+### It was almost none of it in `swapTo`
+
+The obvious suspect is `swapTo`, so it was marked phase by phase. It comes to
+**16.6ms of the 324** — `enter` 10.7, `trails` 3.3, `lut` 1.5, the rest under a
+millisecond each. Everything else was happening *after* it, in the same frame:
+
+| | |
+|---|---|
+| `craft.update` (contains swapTo) | 21.7ms |
+| **`world.update`** | **81.3ms** |
+| the rest of the loop | 6ms |
+| the same `world.update`, one frame later | 4ms |
+
+The first `world.update` of a world that has just been built is not the same
+function as the second. Splitting it again:
+
+| | |
+|---|---|
+| `colonies.stream` | **60.5ms** |
+| `discs.update` | **31ms** |
+| `survey.update` | 3.1ms |
+| everything else | under 1ms |
+
+### Four things, none of which has to happen then
+
+A trip is eighteen to thirty seconds long and the destination is known from the
+moment you leave. Nothing about building it belongs at the end.
+
+**The terrain streams ahead.** `World.prewarm` runs one field update a frame
+during transit, so the field's own per-frame budget applies unchanged and a
+prewarm costs exactly what ordinary streaming costs. There is room for it
+because `world.update` does not run in transit at all.
+
+**Where** it streams is predicted rather than known: the arrival point is
+wherever the trajectory first enters the approach sphere and the trajectory is
+still bending, but the direction from the target's centre back to the craft
+converges on it exactly, and is the same expression `hyper.js` hands over on
+arrival.
+
+**The shaders compile ahead.** With the terrain streaming the arrival still cost
+~102ms, and `swapTo` was still only 16 of it. Babylon compiles a
+`ShaderMaterial` the first time it is asked to draw with it, and it is never
+asked while the mesh is disabled — so a world built during transit brings its
+whole shader bill to the frame you arrive. `World.precompile` forces it mid-flight.
+The harness counts compiled effects rather than trusting the frame time, which
+is far too noisy across runs to answer the question: **29 at departure, 31
+before the swap, 31 after.** Nothing compiles on the arrival frame.
+
+**The geyser vents build ahead** — and this is where the guessing went wrong,
+twice. See below.
+
+**The far body of the world you are leaving builds ahead.** Arriving at B makes
+A the nearest thing in B's sky, so A promotes on the frame you land and builds
+an icosphere displaced at 642 directions plus its material. The comment on that
+code said it was "a stall of a few milliseconds ONCE per world per session". It
+is 41. `Discs.prebuild(key)` does it during the flight, and the key is known
+from the moment you leave.
+
+### Guessing which subsystem, twice
+
+`colonies.stream` at 60ms reads as colony sites, so the first fix built sites
+ahead. It made the arrival **worse — 106ms** — because the prediction has not
+converged early in a flight and building against it lays down a hemisphere of
+sites that the real arrival direction then releases and rebuilds. Gating on
+phase 3's dominance test — the destination owns you before its colonies are
+worth building — brought it to 90ms. Still worse than doing nothing.
+
+So it was measured properly instead, counting builds and releases on the arrival
+frame:
+
+```
+colonies   0 sites, 0 already built, 0 domes; built 0 (0.0ms), released 0 (0.0ms)
+```
+
+**Zero.** None of the 60ms was ever sites. It is `streamGeysers`: every vent
+within range of the arrival gets a node, a cloned mesh and a ring of plume
+puffs, all in one frame. `buildVent` came out of `streamGeysers` so `prebuild`
+could call the same code rather than a copy, and the cost went to nothing.
+
+The lesson is the general one and it cost two rounds: **a subsystem's total is
+not a diagnosis.** `colonies.stream` was the honest name of the line that was
+slow and the wrong name for the thing that was slow.
+
+### What it cost and where it went
+
+| | before | after |
+|---|---|---|
+| the arrival frame | **324ms** | **~45ms** |
+| `world.update` on it | 81–145ms | ~16ms |
+| shaders compiled on it | 2 | **0** |
+| the worst frame of a crossing | the arrival | **the departure** |
+
+The one cost this moves rather than removes: building a `World` is ~56ms and it
+now happens on the frame you leave instead of the frame you arrive. Departure is
+the better place for it by a distance — the speed FX are ramping, the streaks
+are up and the frame is already busy — but it is a spike and it is known.
+
+### A world can now be built and invisible
+
+All of this rests on one thing: a `World` has a `ground` node, and its terrain
+leaves, colony sites and geyser vents hang off it. `showMeshes` switches it.
+Before, the only thing keeping an inactive world's ground off the screen was
+that its field had been **disposed** — which is exactly why arriving meant
+building one from nothing.
+
+That is the six-sky-domes shape again: something that exists, is correct, and is
+drawn when it should not be. So it is asserted rather than trusted — a world is
+streamed ahead, kept inactive, and checked for zero lit leaves and zero lit
+vents; then entered, and checked that the ground that was already there is what
+lights up. Removing the one line that sets the parent puts 40 leaves of an
+unvisited planet on screen and the check catches it.
+
+The headless stub had to learn the same thing: its `isEnabled()` did not walk
+ancestors, so it reported every leaf of a hidden world as visible and would have
+passed a build with a whole second planet drawn over the first.
+
 ## Seamless space, phase 3: which world you belong to
 
 Gravity was one constant and one direction, because there was only ever one

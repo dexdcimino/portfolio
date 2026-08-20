@@ -21,10 +21,18 @@ import { WORLD } from '../tune.js';
 const D = { x: 0, y: 0, z: 0 };
 
 export class ChunkField {
-  constructor(scene, material, planet) {
+  constructor(scene, material, planet, root = null) {
     this.scene = scene;
     this.material = material;
     this.planet = planet;
+    /* EVERY LEAF HANGS OFF ONE NODE, so a whole world's terrain can be hidden
+       with a single flag. Until phase 4 the only thing keeping an inactive
+       world's ground off the screen was that its field had been DISPOSED —
+       which is why arriving somewhere meant building one from nothing in the
+       frame you got there. A field that can be built and held invisible is
+       what lets the destination stream while you are still flying to it.
+       Identity, and it stays identity: this is a switch, not a transform. */
+    this.root = root;
     /* Resolved once per field rather than per leaf: the stack is a pure
        function of the profile and a leaf builds while you are driving. null
        means this world has no vegetation and the whole system is skipped. */
@@ -273,6 +281,10 @@ export class ChunkField {
 
     mesh.material = this.material;
     mesh.position.set(ox, oy, oz);
+    /* Parent BEFORE freezing. freezeWorldMatrix caches parent x local as it
+       stands, so a leaf frozen and then re-parented keeps the matrix it had
+       when it had no parent. The root never moves, so frozen stays correct. */
+    if (this.root) mesh.parent = this.root;
     mesh.freezeWorldMatrix();
     mesh.isPickable = false;
     mesh.receiveShadows = false;

@@ -308,7 +308,58 @@ a perfect zero off a sample of nought. See the continuity invariant in
 and nothing else. It is the swap, not the gravity handover, and phase 4 deletes
 it. Changing it in isolation changes the feel of every arrival in the game.
 
-## Phase 4 — not started, and scoped
+## Phase 4 — in progress: the arrival stops being a cut
+
+Not the teardown yet. The first half is everything the rebuild was doing in the
+frame you land, which turned out to be almost all of the cost and none of it in
+`swapTo`.
+
+**Measured first.** A real crossing, every animation frame sampled: 5.3ms
+median, **324ms on the arrival frame**. `swapTo` itself is 16.6ms of that. The
+rest is the first `world.update` of a world that has just been built — 81ms of
+it, against 4ms for the same call one frame later — plus the shader compiles
+that Babylon defers until something is actually drawn.
+
+**Four things move off that frame**, all of them onto a flight that lasts
+eighteen to thirty seconds and knows its destination from the moment it starts:
+the terrain streams a field-update a frame; the shaders are force-compiled
+mid-flight; the geyser vents are built a vent a frame; and the far body for the
+world you are LEAVING is built before you get there, because arriving at B is
+what makes A the nearest thing in B's sky.
+
+**Two rounds were lost to guessing which subsystem.** `colonies.stream` at 60ms
+reads as colony sites; building sites ahead made it 106ms, because the arrival
+prediction has not converged early in a flight. Gating on phase 3's `dominant()`
+brought it to 90 — still worse than nothing. Counting builds on the arrival
+frame said "0 sites, 0 built": none of it was ever sites, it was `streamGeysers`
+called from the same function. The general lesson is in `../ARCHITECTURE.md`.
+
+**Result: 324ms to ~45ms**, with zero shaders compiled on the arrival frame and
+the worst frame of a crossing now at the DEPARTURE rather than the arrival.
+
+**What this rests on** is that a World can now be built and held invisible: its
+terrain, colonies and vents hang off `World.ground` and `showMeshes` switches
+it. Before, the only thing keeping an inactive world's ground off the screen was
+that its field had been disposed — which is exactly why arriving meant building
+one from nothing. Two assertions hold it, because it is the six-sky-domes shape.
+
+### What is left in phase 4
+
+- **The ~56ms `World` build**, which this MOVES rather than removes: it now
+  happens on the frame you depart. Better placed — the FX are ramping and the
+  frame is already busy — but it is still a spike. Building all six at boot in
+  idle time, behind the title card, would remove it; the card is up at 70ms now
+  and a player spends seconds on it.
+- **The swap itself.** Travel is still an instant substitution at the approach
+  sphere; nothing yet grows continuously into a landing.
+- **The 84-degree stand-up** that `landOn` performs, left deliberately by phase
+  3 and deleted by this phase when the swap goes.
+- **The LOD substitution**: a 642-direction far body replaced by a quadtree
+  sampling every 5m, in one frame. The shape for fixing it — a coarse quadtree
+  drawn in the far band, since a uniform scale about the camera is a similarity
+  transform — is unchanged from the scoping below.
+
+### The scoping this started from
 
 Not begun because two of its three files were held by another session when the
 scoping was done, and because the answer to "what does the swap actually cost"

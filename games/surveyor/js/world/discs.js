@@ -287,6 +287,52 @@ export class Discs {
   }
 
   /**
+   * The geometry for one promoted world, built once and kept.
+   *
+   * Lazy because building all five up front is 35ms at boot for bodies nobody
+   * is looking at. But "lazy" used to mean "on the frame it is first needed",
+   * and the comment here said that was a stall of a few milliseconds. It is
+   * 41: an icosphere subdivided three times, displaced by that planet's own
+   * height field at 642 directions, plus its material. And the frame it is
+   * first needed is almost always an ARRIVAL — the world you have just left is
+   * suddenly the closest thing in the sky, so it promotes immediately and the
+   * bill lands in the same frame as everything else the swap does.
+   *
+   * So it is callable ahead of time. See prebuild.
+   */
+  ensureBody(d) {
+    if (!d || this.bodies.has(d.key)) return false;
+    const P = PLANETS[d.key] && makePlanet(PLANETS[d.key]);
+    if (!P) return false;
+    const b = farBodyMesh(this.scene, P, SPACE.bodySubdiv, this.maps,
+      this.maps ? this.maps.slot[d.key] : 0);
+    b.mat.setVector3('uSun', new BABYLON.Vector3(d.sun.x, d.sun.y, d.sun.z));
+    b.mat.setVector3('uTint', new BABYLON.Vector3(d.tint[0], d.tint[1], d.tint[2]));
+    b.mat.setFloat('uDisc', SYSTEM.disc);
+    b.mat.setFloat('uNight', SYSTEM.night);
+    b.mat.setFloat('uEmit', SYSTEM.emitBoost);
+    b.mat.setFloat('uLimb', SYSTEM.limb);
+    b.mat.setFloat('uSpec', d.spec);
+    b.mat.setFloat('uFade', 1);
+    b.key = d.key;
+    b.mesh.setEnabled(false);
+    this.bodies.set(d.key, b);
+    return true;
+  }
+
+  /**
+   * Build the body for one world now, because it is about to be needed.
+   *
+   * The caller that matters is a flight: arriving at B makes A - the world you
+   * just left - the nearest thing in B's sky, so A promotes on the frame you
+   * land. B's disc set exists throughout the trip and A's key is known from
+   * the moment you leave, so there is no reason for that to be true.
+   */
+  prebuild(key) {
+    return this.ensureBody(this.list.find((x) => x.key === key));
+  }
+
+  /**
    * Show or hide everything this disc set owns, promoted bodies included.
    *
    * THE BODIES ARE THE NEW WAY TO LEAK A WORLD. World.setActive hid the sky
@@ -327,27 +373,7 @@ Discs.prototype.promote = function promote(camera) {
     const want = t > 0;
     const had = this.promoted.has(d.key);
 
-    if (want && !this.bodies.has(d.key)) {
-      /* Built on the frame it is first needed, which is a stall of a few
-         milliseconds ONCE per world per session. Building all five up front
-         would be 35ms at boot for four bodies nobody is looking at, and
-         building per frame would be absurd. */
-      const P = PLANETS[d.key] && makePlanet(PLANETS[d.key]);
-      if (P) {
-        const b = farBodyMesh(this.scene, P, SPACE.bodySubdiv, this.maps,
-          this.maps ? this.maps.slot[d.key] : 0);
-        b.mat.setVector3('uSun', new BABYLON.Vector3(d.sun.x, d.sun.y, d.sun.z));
-        b.mat.setVector3('uTint', new BABYLON.Vector3(d.tint[0], d.tint[1], d.tint[2]));
-        b.mat.setFloat('uDisc', SYSTEM.disc);
-        b.mat.setFloat('uNight', SYSTEM.night);
-        b.mat.setFloat('uEmit', SYSTEM.emitBoost);
-        b.mat.setFloat('uLimb', SYSTEM.limb);
-        b.mat.setFloat('uSpec', d.spec);
-        b.mat.setFloat('uFade', 1);
-        b.key = d.key;
-        this.bodies.set(d.key, b);
-      }
-    }
+    if (want) this.ensureBody(d);
 
     const b = this.bodies.get(d.key);
     if (b) {

@@ -3101,7 +3101,39 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
     } else {
       ok('a promoted far body goes dark with the world that owns it', true, leaked);
     }
-  }}
+  }
+
+  /* AND A WORLD BEING STREAMED AHEAD SHOWS NOTHING.
+     Phase 4 builds the destination's terrain, its colonies and its geyser
+     vents while the craft is still flying to it, so that arriving costs a
+     frame instead of 324ms. Every one of those is a real mesh in the scene
+     from the moment it is built, and the only thing keeping a whole second
+     planet off the screen is that they hang off World.ground with the node
+     switched off. That is the six-sky-domes shape exactly - something that
+     exists, is correct, and is drawn when it should not be - so it is
+     asserted rather than trusted. */
+  {
+    const other = Object.keys(PLANETS).find((k) => k !== 'home');
+    const w = worlds.get(makePlanet(PLANETS[other]));
+    worlds.enter(HOME, null);                       // ...and stand somewhere else
+    const dir = { x: 0, y: 1, z: 0 };
+    for (let i = 0; i < 40; i++) w.prewarm(dir);
+    for (let i = 0; i < 8; i++) w.colonies.prebuild(dir, 1);
+    const leaves = [...w.field.live.values()];
+    const lit = leaves.filter((e) => e.mesh.isEnabled()).length;
+    const vents = [...w.colonies.vents.values()].filter((v) => v.node.isEnabled()).length;
+    ok('a world streamed ahead of an arrival is built and invisible',
+      leaves.length > 0 && lit === 0 && vents === 0,
+      `${leaves.length} leaves and ${w.colonies.vents.size} vents built, ` +
+      `${lit} leaves and ${vents} vents on screen`);
+    worlds.enter(makePlanet(PLANETS[other]), null);
+    const nowLit = [...w.field.live.values()].filter((e) => e.mesh.isEnabled()).length;
+    ok('...and entering it shows the ground that was already there',
+      nowLit === leaves.length && leaves.length > 0,
+      `${nowLit} of ${leaves.length} leaves lit on arrival`);
+    worlds.enter(HOME, null);
+  }
+}
 
 
 

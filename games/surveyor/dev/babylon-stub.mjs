@@ -114,7 +114,17 @@ class Node {
     if (scene && scene._nodes) scene._nodes.push(this);
   }
   setEnabled(v) { this.enabled = v; }
-  isEnabled() { return this.enabled; }
+  /* ANCESTORS COUNT, as they do in Babylon, where isEnabled() walks up unless
+     you pass false. It matters since a World's terrain hangs off one node:
+     without this the stub reports every leaf of a hidden world as visible, and
+     the "only the active set is visible" assertions would pass on a build
+     where a whole planet's ground was on screen behind another one. */
+  isEnabled(checkAncestors = true) {
+    if (!this.enabled) return false;
+    if (!checkAncestors) return true;
+    for (let p = this.parent; p; p = p.parent) if (!p.enabled) return false;
+    return true;
+  }
   dispose() { this.disposed = true; }
   getChildMeshes() { return []; }
   freezeWorldMatrix() {}
