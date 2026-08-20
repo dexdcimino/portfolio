@@ -1891,21 +1891,29 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
    tracks the viewport so five of them and their gaps always fit a phone
    without a second set of rules for it.
 
-   At rest they are unlit fields, not outlined boxes: a near-black a few steps
-   under the section behind them and no visible edge at all, so five empty ones
-   read as somewhere to type rather than as five controls competing with the
-   lock and the status line above them.
-   #0e1216 against the ~#12171b the vault's gradient reaches here. That gap is
-   the whole design and it is narrow on purpose in both directions: the footer's
-   own #080a0c made them pits, and anything from #101418 up sits so close to the
-   section that a border-less empty pin stops being findable at all.
+   At rest they are unlit fields, not outlined boxes: a near-black under the
+   ~#12171b the vault's gradient reaches here, and no visible edge at all, so
+   five empty ones read as somewhere to type rather than as five controls
+   competing with the lock and the status line above them.
+
+   THE SHADOW IS WHAT LETS THE FILL BE THIS DARK. Flat, the darkest values read
+   as holes punched in the section rather than as fields — that is what the
+   footer's own #080a0c did here. The drop shadow gives each pin a defined edge
+   that its fill no longer has to provide, so #0c1013 grounds the row instead of
+   perforating it. Take the shadow away and the fill has to come back up to
+   about #0e1216 to stay findable.
    The border is still THERE, just transparent — focus, is-set and the
    wrong-code shake all work by changing border-color, and a border that
    appeared from nothing would shift the character inside it by a stroke. */
 .vault-pin{
+  /* Named once because :focus has to repeat it — box-shadow does not stack,
+     so a focus rule that only sets the accent ring silently drops the pin's
+     depth at the moment it matters most. */
+  --pin-shadow:0 4px 12px rgba(0,0,0,.6);
   width:clamp(46px,10.5vw,66px);aspect-ratio:1;
   border-radius:16px;border:var(--stroke) solid transparent;
-  background:#0e1216;color:var(--text);text-align:center;
+  background:#0c1013;color:var(--text);text-align:center;
+  box-shadow:var(--pin-shadow);
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
   font-size:clamp(22px,5vw,30px);font-weight:700;line-height:1;text-transform:uppercase;
   caret-color:var(--accent);
@@ -1920,8 +1928,8 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
    hole rather than as the one you are typing in. */
 .vault-pin:focus{
   outline:none;border-color:var(--accent);
-  background:color-mix(in srgb,var(--accent) 10%,#0e1216);
-  box-shadow:0 0 0 var(--stroke-ring) var(--accent);
+  background:color-mix(in srgb,var(--accent) 10%,#0c1013);
+  box-shadow:var(--pin-shadow),0 0 0 var(--stroke-ring) var(--accent);
 }
 /* Quiet against the unlit boxes rather than a bright ring: the character
    already says the slot is filled, and this only has to keep a row of
