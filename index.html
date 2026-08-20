@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=174" />
+  <link rel="stylesheet" href="styles.css?v=177" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -1356,6 +1356,15 @@
             <input class="bb-vol" id="bbVol" type="range" min="0" max="100" step="1"
                    aria-label="Game volume">
           </div>
+        </div>
+        <!-- Control hints: keycaps in the games' pause-menu treatment,
+             bottom-left outside the playfield (script positions them under
+             the portrait), only while the game runs. -->
+        <div class="bb-keys" id="bbKeys" hidden>
+          <span class="bb-keygroup"><kbd class="bb-key">A</kbd><span class="bb-keysep">/</span><kbd class="bb-key">D</kbd></span>
+          <span class="bb-keygroup"><kbd class="bb-key">←</kbd><span class="bb-keysep">/</span><kbd class="bb-key">→</kbd></span>
+          <span class="bb-keygroup"><kbd class="bb-key">Space</kbd></span>
+          <span class="bb-keygroup"><kbd class="bb-key">Click</kbd></span>
         </div></div>
       </div>
 
@@ -3114,6 +3123,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=176"></script>
+  <script src="script.js?v=177"></script>
 </body>
 </html>

@@ -4872,7 +4872,7 @@ const PORTRAIT_LABEL = {
   const stopBtn = document.getElementById('bbStopBtn');
   if (!ui || !play || !stack) return;
 
-  const MODULE = './about-breakout.js?v=5';
+  const MODULE = './about-breakout.js?v=6';
   let mod = null;
   const load = async () => (mod ??= await import(MODULE));
 
@@ -4924,6 +4924,8 @@ const PORTRAIT_LABEL = {
     const on = s.isOn('master');
     muteBtn.setAttribute('aria-checked', String(on));
     muteBtn.setAttribute('aria-label', on ? 'Mute game sound' : 'Unmute game sound');
+    // muted hides the slider (a level not in effect) and slashes the speaker
+    muteBtn.closest('.bb-mrow').classList.toggle('bb-muted', !on);
     const paused = !!ctl && ctl.state.paused;
     pauseBtn.setAttribute('aria-pressed', String(paused));
     pauseBtn.setAttribute('aria-label', paused ? 'Resume game' : 'Pause game');
@@ -4940,6 +4942,8 @@ const PORTRAIT_LABEL = {
         onStop: () => {
           ctl = null;
           stack.hidden = true;
+          const keys = document.getElementById('bbKeys');
+          if (keys) keys.hidden = true;
           ui.classList.remove('bb-playing');
           gate();
         },
@@ -4954,15 +4958,26 @@ const PORTRAIT_LABEL = {
       // element has no height to measure.
       stack.hidden = false;
       const canvasTop = ctl.handle.canvas.getBoundingClientRect().top;
-      const copyTop = document.querySelector('.about-copy').getBoundingClientRect().top;
+      const copyRect = document.querySelector('.about-copy').getBoundingClientRect();
       stack.style.top = (canvasTop + ctl.state.paddle.y + 8 -
-        stack.offsetHeight - copyTop) + 'px';
+        stack.offsetHeight - copyRect.top) + 'px';
+      // The keycap hints: bottom-left OUTSIDE the playfield, in the strip
+      // under the portrait (the one clear space on that side).
+      const keys = document.getElementById('bbKeys');
+      if (keys) {
+        const photo = document.querySelector('.about-photo').getBoundingClientRect();
+        keys.style.left = (photo.left - copyRect.left) + 'px';
+        keys.style.top = (photo.bottom + 6 - copyRect.top) + 'px';
+        keys.hidden = false;
+      }
       paintControls();
       MediaBus.solo(me);            // the music began: the songs bar yields
     } catch (e) {
       // Any failure to start leaves the section exactly as it was.
       ctl = null;
       stack.hidden = true;
+      const keys = document.getElementById('bbKeys');
+      if (keys) keys.hidden = true;
       ui.classList.remove('bb-playing');
     } finally {
       starting = false;

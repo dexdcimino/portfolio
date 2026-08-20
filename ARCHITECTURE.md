@@ -132,8 +132,19 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   reversed the one-ball call of the same day (Dex, 2026-08-20: two balls
   halve the clear time honestly) — and past 60% every ball grows
   continuously from 5px toward 11px radius, sweeping up the end-game hunt
-  for scattered survivors. Letter blips carry a 35ms refractory window so
-  two balls read as hits, not a rattle. Audio is the shared Clayweld panel
+  for scattered survivors. Every 5% cleared a BOMB drop falls from the
+  letter just broken (one in flight at a time, missed is gone, no bounce):
+  caught with the paddle it arms the next ball the paddle serves, and that
+  ball's next hit explodes a 52px radius with a synthesised noise-burst
+  boom, letters thrown radially. Letter blips carry a 35ms refractory
+  window so two balls read as hits, not a rattle. While the pointer is
+  over the field above the paddle line, the OS cursor hides and a faint
+  accent dot drawn on the canvas marks it instead (a true repel is
+  impossible without Pointer Lock, which is too heavy for a toy); below
+  the line and outside, the accent game cursor returns. Control hints
+  (`.bb-keys`, the games' pause-menu keycap treatment) sit bottom-left
+  under the portrait while the game runs. Muted reads muted: the slider
+  hides and the speaker takes a horizontal slash. Audio is the shared Clayweld panel
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
   MediaBus registration for the BLIPS (short fx are not a player and must
@@ -163,13 +174,15 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   the last fall has faded, every
   letter flies home from scatter below the floor, staggered in reading
   order, and is UNCOVERED the frame it lands — the handoff back to real
-  text is per letter and needs no final swap. The win is celebrated:
-  a synthesised rising run into a held chord (same voice and bus as the
-  blips — no file, no fetch), and accent firework bursts over the flying
-  letters, pure canvas paint that can leave nothing behind; the canvas
-  outlives the last landing under a second so the final sparks die, and
-  `prefers-reduced-motion` gets the reassembly and the sound without the
-  fireworks. The `<p>` stays in the accessible tree
+  text is per letter and needs no final swap. The win is celebrated the
+  reassembly long: a synthesised fanfare (~4s — rising run, chord stabs
+  into a held chord, sparkle tail; same voice and bus as the blips, no
+  file, no fetch), accent fireworks AND a steady confetti fall, and a
+  VICTORY wordmark at half the container width that scales in and then
+  flashes outline-to-fill at a chunky arcade rate — all pure canvas paint
+  that can leave nothing behind; the canvas outlives the last landing only
+  until the final particles die, and `prefers-reduced-motion` gets the
+  reassembly and the sound with no particles and no flashing VICTORY. The `<p>` stays in the accessible tree
   at all times (never hidden, never aria-hidden; the canvas is), and every
   exit — any error, Escape, resize, layout shift, a late font swap,
   scrolling the section away — restores the untouched text

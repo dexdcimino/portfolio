@@ -323,6 +323,10 @@ const MIN_VY = 0.25;         // min |vy| as a fraction of speed: no horizontal s
 const STEP = 4;              // px of ball travel per collision substep
 const MIN_TRAVEL = 56;       // px of clear air the ball needs under the bio
 const SECOND_BALL_AT = 0.3;  // progress where the second ball joins (max two)
+const DROP_EVERY = 0.05;     // a bomb drop falls every 5% of letters cleared
+const DROP_SPEED = 130;      // px/s — readable, catchable
+const DROP_SIZE = 13;        // the flashing rounded square's edge
+const BOMB_RADIUS = 52;      // px around an armed hit that goes up with it
 const GRAVITY = 1100;        // px/s^2 on a falling letter
 const FADE = 0.85;           // s for a falling letter to fade out — always
                              // gone before it lands, so there is no pile-up
@@ -344,6 +348,9 @@ function createAudio() {
   const settings = createAudioSettings('about-breakout',
     (levels) => graph?.apply(levels));
 
+  // Whether the GAME asked for silence (pause): a scheduled note landing
+  // mid-pause must not resume the context the pause just suspended.
+  let gamePaused = false;
   const ensure = () => {
     if (!ctx) {
       ctx = new AudioContext();
@@ -356,7 +363,7 @@ function createAudio() {
     }
     // Created on the Play click, so this resolves; harness-driven starts
     // without a gesture just stay suspended and the blips are silent no-ops.
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    if (ctx.state === 'suspended' && !gamePaused) ctx.resume().catch(() => {});
     return ctx;
   };
 
@@ -447,8 +454,8 @@ function createAudio() {
       },
     },
     // The paused world: everything through the one context stops mid-note.
-    pauseAll: () => { try { ctx?.suspend(); } catch { } },
-    resumeAll: () => { try { ctx?.resume(); } catch { } },
+    pauseAll: () => { gamePaused = true; try { ctx?.suspend(); } catch { } },
+    resumeAll: () => { gamePaused = false; try { ctx?.resume(); } catch { } },
     // Narrow letters ring higher — the wall plays a scatter of pitches
     // instead of one repeated click.
     letter: letterBlip,
@@ -457,18 +464,53 @@ function createAudio() {
     ceiling: () => blip(540, 0.06, { type: 'sine', peak: 0.34 }),
     lost: () => blip(300, 0.22, { type: 'sine', peak: 0.3, slideTo: 120 }),
     /* The victory: synthesised, not sourced — same voice and bus as every
-     * other sound the toy makes, so it sits WITH the three-note jingle
-     * instead of fighting it, needs no file and no fetch. A rising run
-     * into a held major chord. */
+     * other sound the toy makes, so it sits WITH the game's language
+     * instead of fighting it, needs no file and no fetch. A rising run,
+     * three chord stabs landing on a held chord, then a sparkle tail that
+     * rings over the letters flying home (~4s, the reassembly's length). */
     win: () => {
       [440, 554, 660, 880].forEach((f, i) =>
-        setTimeout(() => blip(f, 0.11, { peak: 0.4 }), i * 90));
-      setTimeout(() => {
-        blip(440, 0.55, { peak: 0.26 });
-        blip(554, 0.55, { peak: 0.26 });
-        blip(660, 0.55, { peak: 0.26 });
-        blip(880, 0.65, { peak: 0.3 });
-      }, 400);
+        setTimeout(() => blip(f, 0.11, { peak: 0.38 }), i * 85));
+      [0, 210, 420].forEach((d, k) => setTimeout(() => {
+        const dur = k === 2 ? 0.6 : 0.14;
+        blip(440, dur, { peak: 0.22 });
+        blip(554, dur, { peak: 0.22 });
+        blip(660, dur, { peak: 0.22 });
+        if (k === 2) blip(880, 0.7, { peak: 0.28 });
+      }, 430 + d));
+      const sparkle = [1108, 1318, 1760, 1318];
+      for (let i = 0; i < 12; i++) {
+        setTimeout(() => blip(sparkle[i % 4] + Math.random() * 30, 0.09, { peak: 0.15 }),
+          1450 + i * 210);
+      }
+    },
+    // Bomb pickup: a bright little two-note "got it".
+    arm: () => { blip(660, 0.06, { peak: 0.35 });
+      setTimeout(() => blip(990, 0.08, { peak: 0.35 }), 70); },
+    /* The bomb: a filtered noise burst over a pitched thump — synthesised
+     * like everything else, through the same fx bus. */
+    explosion: () => {
+      try {
+        if (!settings.isOn('master') || !settings.isOn('fx')) return;
+        const c = ensure();
+        const t = c.currentTime;
+        const len = Math.floor(c.sampleRate * 0.3);
+        const buf = c.createBuffer(1, len, c.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        const lp = c.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(900, t);
+        lp.frequency.exponentialRampToValueAtTime(120, t + 0.28);
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.9, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        src.connect(lp).connect(g).connect(graph.fx);
+        src.start(t);
+      } catch { }
+      blip(90, 0.25, { type: 'sine', peak: 0.7, slideTo: 45 });
     },
     running: () => (ctx ? ctx.state : 'none'),
     // Suspended between games, not closed: the popover panel and the next
@@ -578,7 +620,14 @@ export async function start({ onStop, onPauseChange } = {}) {
   });
   const balls = [makeBall()];
   let launches = 0;
-  const events = { paddleHits: 0, ceilingHits: 0, wallHits: 0, respawns: 0, breaks: 0 };
+  /* The bomb powerup: every DROP_EVERY of the wall cleared, a drop falls
+   * from the letter that was just broken — one in flight at a time, missed
+   * is gone. Caught with the paddle it arms the next ball the paddle
+   * serves; that ball's next letter hit explodes a BOMB_RADIUS. */
+  let drop = null;
+  let nextDropAt = DROP_EVERY;
+  let pendingArm = false;
+  const events = { paddleHits: 0, ceilingHits: 0, wallHits: 0, respawns: 0, breaks: 0, drops: 0, bombs: 0 };
   let paused = false;
   const state = {
     balls, paddle, alive, events, falling,
@@ -586,6 +635,9 @@ export async function start({ onStop, onPauseChange } = {}) {
     bounds: { left, right, ceiling, floor },
     get destroyed() { return destroyed; }, total,
     get paused() { return paused; },
+    get drop() { return drop; },
+    get armedPending() { return pendingArm; },
+    get particleCount() { return particles.length; },
     time: 0,                           // sim seconds actually played
     running: true, won: false,
   };
@@ -606,17 +658,16 @@ export async function start({ onStop, onPauseChange } = {}) {
       `<path d='M6 4l10 20 2.5-8.5L27 13z'/></g></svg>`;
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 6 4, auto`;
   };
-  let cursorAccent = null;
+  let cursorApplied = null;
   const applyCursor = () => {
+    let want = null;
     if (state.running && !paused) {
-      if (cursorAccent !== accent) {
-        cursorAccent = accent;
-        document.documentElement.style.cursor = cursorFor(accent);
-      }
-    } else {
-      cursorAccent = null;
-      document.documentElement.style.removeProperty('cursor');
+      want = pointerInField ? 'none' : cursorFor(accent);
     }
+    if (want === cursorApplied) return;
+    cursorApplied = want;
+    if (want) document.documentElement.style.cursor = want;
+    else document.documentElement.style.removeProperty('cursor');
   };
 
   /* Pause is a real state, not a stopped clock: updates freeze, the render
@@ -664,6 +715,8 @@ export async function start({ onStop, onPauseChange } = {}) {
   /* ---- input ---------------------------------------------------------- */
   const keys = { left: false, right: false };
   let mouseX = null;                      // canvas-local; last input wins
+  let pointerY = null;                    // canvas-local, for the field dot
+  let pointerInField = false;             // above the paddle line, over the canvas
   const editable = (t) => t && (t.isContentEditable ||
     /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
   const onKey = (down) => (e) => {
@@ -680,7 +733,17 @@ export async function start({ onStop, onPauseChange } = {}) {
   const onKeyUp = onKey(false);
   const onPointer = (e) => {
     if (e.pointerType && e.pointerType !== 'mouse') return;
-    mouseX = e.clientX - h.canvas.getBoundingClientRect().left;
+    const r = h.canvas.getBoundingClientRect();
+    mouseX = e.clientX - r.left;
+    pointerY = e.clientY - r.top;
+    /* Above the paddle line the OS pointer would slide over the letters —
+     * a true repel is impossible without Pointer Lock, which is far too
+     * heavy for a toy. So the field rejects it: the real cursor hides and
+     * a faint accent dot (drawn in render) marks the position instead.
+     * Below the line and outside the canvas the game cursor returns. */
+    pointerInField = e.clientX >= r.left && e.clientX <= r.right &&
+      pointerY >= 0 && pointerY < paddle.y;
+    applyCursor();
   };
 
   /* ---- physics (all per-ball: b is whichever ball is being stepped) ---- */
@@ -697,10 +760,47 @@ export async function start({ onStop, onPauseChange } = {}) {
 
   const launch = (b) => {
     b.attached = false;
+    if (pendingArm) { pendingArm = false; b.armed = true; }
     const a = 0.3 * (launches++ % 2 ? 1 : -1);   // alternate slight angles
     const s = speed();
     b.vx = s * Math.sin(a);
     b.vy = -s * Math.cos(a);
+  };
+
+  /* An armed hit takes the neighbourhood with it: every living letter in
+   * BOMB_RADIUS goes, thrown radially off the blast rather than falling. */
+  const explode = (cx, cy) => {
+    events.bombs++;
+    audio.explosion();
+    for (let i = 0; i < total; i++) {
+      if (!alive[i]) continue;
+      const l = h.letters[i];
+      const lx = l.x + l.w / 2, ly = l.y + l.h / 2;
+      const dx = lx - cx, dy = ly - cy;
+      if (dx * dx + dy * dy > BOMB_RADIUS * BOMB_RADIUS) continue;
+      alive[i] = false;
+      destroyed++;
+      events.breaks++;
+      const d = Math.hypot(dx, dy) || 1;
+      falling.push({
+        i, x: lx, y: ly, rot: 0,
+        vx: (dx / d) * (120 + Math.random() * 90),
+        vy: (dy / d) * (120 + Math.random() * 90) - 40,
+        om: (Math.random() - 0.5) * 9,
+        alpha: 1,
+      });
+    }
+  };
+
+  const maybeDrop = (l) => {
+    // One in flight at a time; a threshold crossed while one falls waits
+    // for the NEXT broken letter after it resolves.
+    if (drop || phase !== 'play') return;
+    if (destroyed / total < nextDropAt) return;
+    drop = { x: l.x + l.w / 2, y: l.y + l.h / 2, t: 0 };
+    events.drops++;
+    // A bomb can jump several thresholds at once; re-anchor to the next one.
+    nextDropAt = (Math.floor((destroyed / total) / DROP_EVERY) + 1) * DROP_EVERY;
   };
 
   const respawn = (b) => {
@@ -735,6 +835,8 @@ export async function start({ onStop, onPauseChange } = {}) {
         alpha: 1,
       });
       audio.letter(l.w);
+      if (b.armed) { b.armed = false; explode(l.x + l.w / 2, l.y + l.h / 2); }
+      maybeDrop(l);
       // Reflect off the shallower penetration axis and push out of it.
       const ox = b.r + l.w / 2 - Math.abs(b.x - (l.x + l.w / 2));
       const oy = b.r + l.h / 2 - Math.abs(b.y - (l.y + l.h / 2));
@@ -754,6 +856,8 @@ export async function start({ onStop, onPauseChange } = {}) {
   const particles = [];
   let celebrate = false;
   let nextBurst = 0;
+  let confettiAcc = 0;
+  let victorySize = 0;
 
   const burst = () => {
     const bx = left + 30 + Math.random() * (right - left - 60);
@@ -763,7 +867,7 @@ export async function start({ onStop, onPauseChange } = {}) {
       const a = (k / n) * Math.PI * 2 + Math.random() * 0.4;
       const sp = 70 + Math.random() * 190;
       particles.push({
-        x: bx, y: by,
+        kind: 's', x: bx, y: by,
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
         life: 0.55 + Math.random() * 0.35, max: 0.9,
         size: 1.6 + Math.random() * 1.4,
@@ -776,6 +880,11 @@ export async function start({ onStop, onPauseChange } = {}) {
     reassembleT = 0;
     celebrate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
     nextBurst = 0.15;
+    confettiAcc = 0;
+    // VICTORY at ~half the container width: fit once, draw many.
+    h.ctx.font = `900 100px ${h.fontFamily}`;
+    victorySize = Math.floor(100 * (h.size.w * 0.5) / h.ctx.measureText('VICTORY').width);
+    h.ctx.font = h.font;
     audio.win();
     flights = h.letters.map((l, i) => ({
       i, landed: false,
@@ -801,12 +910,32 @@ export async function start({ onStop, onPauseChange } = {}) {
       if (!allLanded) {
         nextBurst -= dt;
         if (nextBurst <= 0) { burst(); nextBurst = 0.22 + Math.random() * 0.26; }
+        // a steady confetti fall the whole length of the reassembly
+        confettiAcc += dt;
+        while (confettiAcc > 0.045 && particles.length < 450) {
+          confettiAcc -= 0.045;
+          particles.push({
+            kind: 'c',
+            x: left + Math.random() * (right - left), y: 2,
+            vx: 0, vy: 70 + Math.random() * 90,
+            life: 1.1 + Math.random() * 0.35, max: 1.4,
+            size: 3 + Math.random() * 3,
+            rot: Math.random() * Math.PI, om: (Math.random() - 0.5) * 8,
+            phase: Math.random() * Math.PI * 2,
+          });
+        }
       }
       for (let k = particles.length - 1; k >= 0; k--) {
         const p = particles[k];
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.vy += 260 * dt;          // sparks arc, not drift
+        if (p.kind === 'c') {
+          p.x += Math.sin(p.life * 6 + p.phase) * 40 * dt;   // sway down
+          p.y += p.vy * dt;
+          p.rot += p.om * dt;
+        } else {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vy += 260 * dt;        // sparks arc, not drift
+        }
         p.life -= dt;
         if (p.life <= 0) particles.splice(k, 1);
       }
@@ -871,6 +1000,8 @@ export async function start({ onStop, onPauseChange } = {}) {
         // already prevents. Give perfect catches a slight angle.
         if (Math.abs(offset) < 0.05) offset = Math.random() < 0.5 ? -0.05 : 0.05;
         audio.paddle(offset);
+        // A caught drop arms the next ball the paddle serves — this one.
+        if (pendingArm) { pendingArm = false; b.armed = true; }
         const a = offset * MAX_AIM;
         const sp = speed();
         b.vx = sp * Math.sin(a);
@@ -903,6 +1034,21 @@ export async function start({ onStop, onPauseChange } = {}) {
     else paddle.x += ((keys.right ? 1 : 0) - (keys.left ? 1 : 0)) * PADDLE_SPEED * dt;
     paddle.x = Math.max(left + paddle.w / 2, Math.min(right - paddle.w / 2, paddle.x));
 
+    // the falling bomb drop: caught by the paddle, or gone past it
+    if (drop) {
+      drop.t += dt;
+      drop.y += DROP_SPEED * dt;
+      const half = DROP_SIZE / 2;
+      if (drop.y + half >= paddle.y && drop.y - half <= paddle.y + paddle.h + 6 &&
+          Math.abs(drop.x - paddle.x) <= paddle.w / 2 + half) {
+        drop = null;
+        pendingArm = true;
+        audio.arm();
+      } else if (drop.y - half > floor + 20) {
+        drop = null;               // missed: no bounce, no second chance
+      }
+    }
+
     for (let i = 0; i < balls.length; i++) stepBall(balls[i], dt, i);
   };
 
@@ -917,14 +1063,14 @@ export async function start({ onStop, onPauseChange } = {}) {
     const ctx = h.ctx;
     ctx.fillStyle = 'rgba(5, 7, 9, 0.2)';
     ctx.fillRect(0, 0, h.size.w, h.size.h);
+    // Just the word, centred — the controls sit right there, and the block
+    // is obviously a pause state; a hint line only pushed PAUSED off-centre.
     const cx = h.size.w / 2;
     const cy = h.size.h / 2;
     const titleFont = `800 24px ${h.fontFamily}`;
-    const hintFont = `400 13px ${h.fontFamily}`;
-    ctx.font = hintFont;
-    const hint = 'space, click, or the pause button resumes';
-    const bw = Math.max(180, ctx.measureText(hint).width + 56);
-    const bh = 92;
+    ctx.font = titleFont;
+    const bw = Math.max(150, ctx.measureText('PAUSED').width + 64);
+    const bh = 64;
     const panel = new Path2D();
     panel.roundRect(cx - bw / 2, cy - bh / 2, bw, bh, 14);
     ctx.fillStyle = '#101418';
@@ -933,13 +1079,11 @@ export async function start({ onStop, onPauseChange } = {}) {
     ctx.strokeStyle = accent;
     ctx.stroke(panel);
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = accent;
-    ctx.font = titleFont;
-    ctx.fillText('PAUSED', cx, cy - 6);
-    ctx.fillStyle = 'rgba(173, 181, 187, 0.85)';
-    ctx.font = hintFont;
-    ctx.fillText(hint, cx, cy + 24);
+    ctx.fillText('PAUSED', cx, cy + 1);
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
     ctx.font = h.font;
   };
   const render = () => {
@@ -976,15 +1120,47 @@ export async function start({ onStop, onPauseChange } = {}) {
         ctx.fillText(l.ch, -l.w / 2, l.baseline - hy);
         ctx.restore();
       }
-      // sparks over the flying letters, in the accent, fading with life
+      // sparks and confetti over the flying letters, in the accent
       ctx.fillStyle = accent;
       for (const p of particles) {
         ctx.globalAlpha = Math.max(0, Math.min(1, p.life / p.max));
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
+        if (p.kind === 'c') {
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       ctx.globalAlpha = 1;
+      /* VICTORY: half the container wide, scaling up as it arrives, then
+       * flashing outline-to-fill at a deliberately chunky frame rate — an
+       * arcade cabinet, not a CSS fade. Skipped entirely under reduced
+       * motion (it flashes by nature); the reassembly and sound carry it. */
+      if (celebrate) {
+        const grow = 1 - Math.pow(1 - Math.min(1, reassembleT / 0.45), 3);
+        ctx.save();
+        ctx.translate(h.size.w / 2, h.size.h / 2);
+        ctx.scale(grow, grow);
+        ctx.font = `900 ${victorySize}px ${h.fontFamily}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (Math.floor(reassembleT / 0.28) % 2) {
+          ctx.fillStyle = accent;
+          ctx.fillText('VICTORY', 0, 0);
+        } else {
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = accent;
+          ctx.strokeText('VICTORY', 0, 0);
+        }
+        ctx.restore();
+        ctx.font = h.font;
+        ctx.textBaseline = 'alphabetic';
+      }
       drawVeil();
       return;
     }
@@ -992,12 +1168,40 @@ export async function start({ onStop, onPauseChange } = {}) {
     const pr = new Path2D();
     pr.roundRect(paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 3);
     ctx.fill(pr);
+    // the bomb drop: a small rounded square, flashing at a chunky rate
+    if (drop) {
+      const on = (drop.t % 0.32) < 0.2;
+      ctx.globalAlpha = on ? 1 : 0.35;
+      const dp = new Path2D();
+      dp.roundRect(drop.x - DROP_SIZE / 2, drop.y - DROP_SIZE / 2, DROP_SIZE, DROP_SIZE, 4);
+      ctx.fill(dp);
+      ctx.globalAlpha = 1;
+    }
     for (const b of balls) {
       if (!b.attached || b.timer < 0.25) {
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
         ctx.fill();
+        if (b.armed) {
+          // the armed ball wears a pulsing ring until it spends the bomb
+          ctx.globalAlpha = 0.45 + 0.4 * Math.sin(state.time * 12);
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = accent;
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, b.r + 4, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
       }
+    }
+    // the field's own pointer: the OS cursor is hidden up here, a faint
+    // accent dot marks it instead
+    if (pointerInField && !paused && mouseX !== null) {
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.arc(mouseX, pointerY, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
     drawVeil();
   };
