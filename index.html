@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=172" />
+  <link rel="stylesheet" href="styles.css?v=173" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -1285,6 +1285,28 @@
             <svg viewBox="0 0 14 12" aria-hidden="true" focusable="false"><path d="M1 4h2.6L7 1v10L3.6 8H1zM9.2 3.4a3.4 3.4 0 0 1 0 5.2l-.9-1a2 2 0 0 0 0-3.1zM10.9 1.5a5.8 5.8 0 0 1 0 9l-.9-1a4.4 4.4 0 0 0 0-7z"/></svg>
           </button>
           <div class="bb-audio" id="bbAudioPanel" hidden></div>
+        </div>
+        <!-- In-game controls: outside the playfield on its right, shown only
+             while the game runs. Mute + slider drive the SAME shared mixer as
+             the popover panel - one place writes the level. -->
+        <div class="bb-stack" id="bbStack" hidden>
+          <div class="bb-mrow">
+            <button class="bb-ctl" id="bbMuteBtn" type="button" role="switch"
+                    aria-checked="true" aria-label="Game sound">
+              <svg viewBox="0 0 14 12" aria-hidden="true" focusable="false"><path d="M1 4h2.6L7 1v10L3.6 8H1zM9.2 3.4a3.4 3.4 0 0 1 0 5.2l-.9-1a2 2 0 0 0 0-3.1zM10.9 1.5a5.8 5.8 0 0 1 0 9l-.9-1a4.4 4.4 0 0 0 0-7z"/></svg>
+            </button>
+            <input class="bb-vol" id="bbVol" type="range" min="0" max="100" step="1"
+                   aria-label="Game volume">
+          </div>
+          <button class="bb-ctl" id="bbPauseBtn" type="button" aria-pressed="false"
+                  aria-label="Pause game">
+            <svg class="bb-ic-pause" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 1.5h2.6v9H2.5zM6.9 1.5h2.6v9H6.9z"/></svg>
+            <svg class="bb-ic-play" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 1.5v9l8-4.5z"/></svg>
+          </button>
+          <button class="bb-ctl" id="bbStopBtn" type="button"
+                  aria-label="Stop the game and restore the bio">
+            <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 2.5h7v7h-7z"/></svg>
+          </button>
         </div></div>
       </div>
 
@@ -2738,6 +2760,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=172"></script>
+  <script src="script.js?v=173"></script>
 </body>
 </html>

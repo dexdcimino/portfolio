@@ -93,9 +93,13 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   that owns the gate and the lazy `import()` on first click — the cold
   path costs a rect check and two chips, nothing game-related is fetched
   before then. Gating is split on purpose: pointer + motion live in a CSS
-  media query on `.bb-ui`; the geometry half (is there room for the ball)
-  is a small duplicate in `script.js`, because the module's authoritative
-  `canPlay()` cannot run before the module loads. Every glyph of the
+  media query on `.bb-ui`; the geometry half (is there room for the ball,
+  and >=150px of clear gutter right of the copy for the in-game control
+  stack — one gate, so no width offers the game without somewhere to put
+  stop) is a small duplicate in `script.js`, because the module's
+  authoritative `canPlay()` cannot run before the module loads. The wall is
+  BOTH bio paragraphs; the `h2` is the ceiling and flashes accent on
+  contact. Every glyph of the
   second bio paragraph is measured per character via Range rects (no spans,
   ever — the `<p>` stays one text node), and a transparent canvas overlay
   erases and redraws single letters. The paragraph is NEVER hidden or
@@ -115,8 +119,23 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   by construction). Audio is the shared Clayweld panel
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
-  MediaBus registration (short fx are not a player and must not pause the
-  song bar). `getAudio()` is a singleton shared by the game and the sound
+  MediaBus registration for the BLIPS (short fx are not a player and must
+  not pause the song bar) — but the MUSIC is a player and registers:
+  Heavenly Loop (CC0, isaiah658 — `assets/audio/heavenly-loop.mp3`, row in
+  `assets/CREDITS.md`), fetched on first start and looped as a WebAudio
+  buffer with silence-trimmed loop points (the only way a compressed loop
+  is seamless, and Safari cannot decode ogg-vorbis). The registered `el` is
+  a `.paused` shim — the bus only ever reads that — so starting the toy
+  pauses the songs bar, the space bar pauses/resumes the game under the
+  bus's existing rules, and the hidden-tab rule quiets it; the module also
+  pauses the GAME on visibilitychange. Pause is real: updates freeze, the
+  playfield dims under a labelled veil, and the whole AudioContext
+  suspends; clicking the playfield toggles it, Escape is always a full
+  stop. In-game controls are the `.bb-stack` (mute + master slider, pause,
+  stop) right of the playfield, shown only while running — the mute and
+  slider write the same shared settings as the popover, one volume path.
+  Music opens at 50% for a first-time player (seeded only when no stored
+  mix exists). `getAudio()` is a singleton shared by the game and the sound
   chip's popover (the shared panel + `games/_shared/audio-panel.css`,
   linked lazily on first open), so a slider dragged there IS the live
   mixer. Win: when the wall is empty and the last fall has faded, every

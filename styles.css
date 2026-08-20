@@ -1775,8 +1775,11 @@ button.button{cursor:pointer;font-family:inherit}
 .about-copy{position:relative}
 .bb-ui{display:none}
 @media (pointer:fine) and (prefers-reduced-motion:no-preference){
+  /* Centred under the bio text as a pair — the sound chip travels with the
+     play button rather than reading as an unrelated control. */
   .bb-ui:not([hidden]){
-    position:absolute;left:0;top:calc(100% + 24px);
+    position:absolute;left:50%;transform:translateX(-50%);
+    top:calc(100% + 24px);
     display:flex;align-items:center;gap:10px;z-index:2;
   }
 }
@@ -1797,6 +1800,9 @@ button.button{cursor:pointer;font-family:inherit}
   width:32px;height:32px;padding:0;border:1px solid var(--line);
   border-radius:50%;background:none;color:#959ea5;cursor:pointer;
   transition:color .2s ease,border-color .2s ease;
+  /* Out of flow, hanging off the play button's right: the BUTTON is what
+     centres under the bio, and the chip rides beside it as its pair. */
+  position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);
 }
 .bb-sound svg{width:13px;height:13px;fill:currentColor}
 .bb-sound:hover,.bb-sound:focus-visible,
@@ -1812,6 +1818,61 @@ button.button{cursor:pointer;font-family:inherit}
   box-shadow:0 12px 30px rgba(0,0,0,.45);
 }
 .bb-audio[hidden]{display:none}
+
+/* In-game control stack: outside the playfield on its right, vertical, shown
+   only while the game runs (script toggles [hidden]). The geometry gate in
+   script.js requires ~150px of clear gutter here, so any width that shows
+   BREAK THE BIO also fits this. */
+.bb-stack{
+  position:absolute;left:calc(100% + 16px);top:2px;
+  display:flex;flex-direction:column;align-items:flex-start;gap:10px;
+  z-index:2;
+}
+.bb-stack[hidden]{display:none}
+.bb-mrow{display:flex;align-items:center;gap:8px}
+.bb-ctl{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;padding:0;border:1px solid var(--line);
+  border-radius:50%;background:#101418;color:#959ea5;cursor:pointer;
+  transition:color .2s ease,border-color .2s ease;
+}
+.bb-ctl svg{width:12px;height:12px;fill:currentColor}
+.bb-ctl:hover,.bb-ctl:focus-visible{color:var(--accent);border-color:var(--accent)}
+.bb-ctl[role="switch"][aria-checked="false"] svg{opacity:.35}
+/* The pause chip swaps its glyph with its state: paused shows play. */
+.bb-ctl .bb-ic-play{display:none}
+.bb-ctl[aria-pressed="true"] .bb-ic-pause{display:none}
+.bb-ctl[aria-pressed="true"] .bb-ic-play{display:block}
+.bb-ctl[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
+/* Master slider, same painted-track idiom as the shared panel (--fill set by
+   script.js) but self-contained: the shared stylesheet only loads with the
+   popover, and the stack must not depend on it. */
+.bb-vol{
+  width:80px;height:20px;-webkit-appearance:none;appearance:none;
+  background:none;cursor:pointer;
+}
+.bb-vol::-webkit-slider-runnable-track{
+  height:4px;border-radius:2px;
+  background:linear-gradient(to right,
+    var(--accent) 0 var(--fill,0%),
+    rgba(255,255,255,.16) var(--fill,0%) 100%);
+}
+.bb-vol::-moz-range-track{
+  height:4px;border-radius:2px;
+  background:linear-gradient(to right,
+    var(--accent) 0 var(--fill,0%),
+    rgba(255,255,255,.16) var(--fill,0%) 100%);
+}
+.bb-vol::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:13px;height:13px;border-radius:50%;margin-top:-4.5px;
+  background:#fff;border:0;box-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+.bb-vol::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;
+  background:#fff;border:0;box-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+.bb-vol:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 
 /* ==========================================================================
    PORTRAIT TOGGLE — photo <-> accent line art

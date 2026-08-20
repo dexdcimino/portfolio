@@ -4860,28 +4860,38 @@ const PORTRAIT_LABEL = {
    nothing here touches the module, so the cold path costs a rect check and
    two chips. Pointer + motion gating is CSS (see .bb-ui); this block owns
    the geometry half: the toy only exists where the layout has dead space
-   under the bio for the ball, which today means roughly >=1400px wide. */
+   under the bio for the ball AND clear gutter to the right for the in-game
+   control stack, which today means roughly >=1400px wide. */
 (() => {
   const ui = document.getElementById('bbUi');
   const play = document.getElementById('bbPlay');
   const soundBtn = document.getElementById('bbSound');
   const panelHost = document.getElementById('bbAudioPanel');
-  if (!ui || !play || !soundBtn || !panelHost) return;
+  const stack = document.getElementById('bbStack');
+  const muteBtn = document.getElementById('bbMuteBtn');
+  const vol = document.getElementById('bbVol');
+  const pauseBtn = document.getElementById('bbPauseBtn');
+  const stopBtn = document.getElementById('bbStopBtn');
+  if (!ui || !play || !soundBtn || !panelHost || !stack) return;
 
-  const MODULE = './about-breakout.js?v=1';
+  const MODULE = './about-breakout.js?v=2';
   let mod = null;
   const load = async () => (mod ??= await import(MODULE));
 
-  // The module's canPlay() re-checks this at start; the duplicate exists so
-  // the button can appear without loading the module.
+  // The module's canPlay() re-checks the dead space at start; the duplicate
+  // exists so the button can appear without loading the module. The gutter
+  // check is what keeps the play button and the control stack gated
+  // TOGETHER: no width may offer the game and then have nowhere to put stop.
   const room = () => {
+    const copy = document.querySelector('.about-copy');
     const p = document.querySelector('.about-copy > p:last-of-type');
     const photo = document.querySelector('.about-photo');
     const sub = document.querySelector('.about-sub');
-    if (!p || !photo || !sub) return false;
+    if (!copy || !p || !photo || !sub) return false;
     const floor = Math.min(photo.getBoundingClientRect().bottom,
       sub.getBoundingClientRect().top - 10);
-    return floor - p.getBoundingClientRect().bottom >= 56;
+    return floor - p.getBoundingClientRect().bottom >= 56
+      && window.innerWidth - copy.getBoundingClientRect().right >= 150;
   };
   const gate = () => { ui.hidden = !room(); };
   gate();
@@ -4895,6 +4905,37 @@ const PORTRAIT_LABEL = {
 
   let ctl = null;
   let starting = false;
+
+  /* The game registers with MediaBus THROUGH its music: starting the toy
+     pauses the songs bar (two things playing at once is worse than either),
+     the space bar reaches the game under the bus's existing rules — a
+     focused field still types, a focused button still activates, nothing
+     playing still scrolls — and the hidden-tab rule pauses it like any other
+     player. The blips deliberately stay unregistered: short fx are not a
+     player. `el` is a shim because the music is a WebAudio loop, not a media
+     element — the bus only ever reads `.paused`. */
+  const me = MediaBus.add({
+    el: { get paused() { return !ctl || !ctl.state.running || ctl.state.paused; } },
+    onScreen: () => !!ctl && ctl.state.running,
+    touched: () => !!ctl,
+    toggle: () => ctl?.toggle(),
+    pause: () => ctl?.pause(),
+  });
+
+  const paintControls = () => {
+    if (!mod) return;
+    const s = mod.getAudio().settings;
+    const pct = Math.round(s.get('master') * 100);
+    vol.value = String(pct);
+    vol.style.setProperty('--fill', pct + '%');
+    const on = s.isOn('master');
+    muteBtn.setAttribute('aria-checked', String(on));
+    muteBtn.setAttribute('aria-label', on ? 'Mute game sound' : 'Unmute game sound');
+    const paused = !!ctl && ctl.state.paused;
+    pauseBtn.setAttribute('aria-pressed', String(paused));
+    pauseBtn.setAttribute('aria-label', paused ? 'Resume game' : 'Pause game');
+  };
+
   play.addEventListener('click', async () => {
     if (ctl || starting) return;
     starting = true;
@@ -4904,16 +4945,51 @@ const PORTRAIT_LABEL = {
       closePanel();
       ui.classList.add('bb-playing');
       ctl = await m.start({
-        onStop: () => { ctl = null; ui.classList.remove('bb-playing'); gate(); },
+        onStop: () => {
+          ctl = null;
+          stack.hidden = true;
+          ui.classList.remove('bb-playing');
+          gate();
+        },
+        onPauseChange: (paused) => {
+          paintControls();
+          // Resuming is "this player started playing": silence the rest.
+          if (!paused) MediaBus.solo(me);
+        },
       });
+      // Align the stack with the playfield's top — the canvas starts under
+      // the h2, and only the game knows exactly where that lands.
+      stack.style.top = (ctl.handle.canvas.getBoundingClientRect().top -
+        document.querySelector('.about-copy').getBoundingClientRect().top + 2) + 'px';
+      stack.hidden = false;
+      paintControls();
+      MediaBus.solo(me);            // the music began: the songs bar yields
     } catch (e) {
       // Any failure to start leaves the section exactly as it was.
       ctl = null;
+      stack.hidden = true;
       ui.classList.remove('bb-playing');
     } finally {
       starting = false;
     }
   });
+
+  /* The stack: mute + slider write the SHARED mixer (the same settings
+     object the popover panel edits — one place writes the level), pause is
+     the module's own pause, stop is a full reset and exit. */
+  muteBtn.addEventListener('click', () => {
+    if (!mod) return;
+    const s = mod.getAudio().settings;
+    s.setOn('master', !s.isOn('master'));
+    paintControls();
+  });
+  vol.addEventListener('input', () => {
+    if (!mod) return;
+    mod.getAudio().settings.set('master', vol.value / 100);
+    paintControls();
+  });
+  pauseBtn.addEventListener('click', () => { ctl?.toggle(); paintControls(); });
+  stopBtn.addEventListener('click', () => ctl?.stop());
 
   /* The audio popover: the shared Clayweld panel, its stylesheet linked the
      first time it opens. Sharing getAudio() with the game means a slider

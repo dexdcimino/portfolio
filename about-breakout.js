@@ -38,9 +38,15 @@ const BLEED = 8;  // px of canvas beyond the paragraph, so nothing ever clips
 const PAD = 1.25; // px around a letter cell an erase patch also covers: the
                   // antialiasing fringe. Wider would start nicking neighbours.
 
-/** The wall: the second real bio paragraph (the eyebrow is also a <p>). */
+/** Anchor paragraph (the second one): background walks and drift checks. */
 function findParagraph() {
   return document.querySelector('.about-copy > p:last-of-type');
+}
+
+/** The wall: BOTH real bio paragraphs, in reading order (the eyebrow is
+ * also a <p> and is not part of the game). */
+function findWall() {
+  return [...document.querySelectorAll('.about-copy > p:not(.eyebrow)')];
 }
 
 /* Walk up from the paragraph to the first opaque background-color — the paint
@@ -69,10 +75,12 @@ function opaqueBackground(el) {
  * invisible on a warm machine. There is no webfont today — the wait is free —
  * but the day one is added, this line is why nothing breaks.
  */
-async function measure(p) {
+async function measure(paras) {
   await document.fonts.ready;
 
-  const cs = getComputedStyle(p);
+  // Both paragraphs share the same rules; the first one's computed style is
+  // everyone's computed style.
+  const cs = getComputedStyle(paras[0]);
   // Canvas font shorthand takes no line-height, and canvas ignores it anyway.
   const font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
 
@@ -84,6 +92,7 @@ async function measure(p) {
 
   const letters = [];
   const range = document.createRange();
+  for (const p of paras) {
   const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const text = node.nodeValue;
@@ -113,7 +122,8 @@ async function measure(p) {
       i += len;
     }
   }
-  return { letters, font, color: cs.color };
+  }
+  return { letters, font, color: cs.color, fontFamily: cs.fontFamily };
 }
 
 /**
@@ -133,7 +143,8 @@ async function measure(p) {
  */
 export async function engage({ top, bottom } = {}) {
   const p = findParagraph();
-  if (!p || !p.textContent.trim()) throw new Error('bio paragraph not found');
+  const wall = findWall();
+  if (!p || !wall.length || !p.textContent.trim()) throw new Error('bio paragraphs not found');
   const parent = p.parentElement;
 
   const undo = [];
@@ -168,9 +179,9 @@ export async function engage({ top, bottom } = {}) {
     // the glyphs we erase/redraw the same thing. (No ligature pairs exist in
     // the bio today, so this changes nothing visible — it is here for the day
     // the text changes.)
-    setStyle(p, 'font-variant-ligatures', 'none');
+    for (const para of wall) setStyle(para, 'font-variant-ligatures', 'none');
 
-    const { letters, font, color } = await measure(p);
+    const { letters, font, color, fontFamily } = await measure(wall);
     if (!letters.length) throw new Error('nothing measured');
 
     // `let`, not `const`: the erase colour is re-resolved while the game runs
@@ -180,7 +191,15 @@ export async function engage({ top, bottom } = {}) {
     let bg = opaqueBackground(p);
     if (!bg) throw new Error('no opaque background behind the bio — cannot erase letters');
 
-    const pRect = p.getBoundingClientRect();
+    // The box spans the union of both wall paragraphs (same column, so this
+    // is really "p1's top to p2's bottom" plus the caller's extensions).
+    const rects = wall.map((el) => el.getBoundingClientRect());
+    const pRect = {
+      left: Math.min(...rects.map((r) => r.left)),
+      top: Math.min(...rects.map((r) => r.top)),
+      bottom: Math.max(...rects.map((r) => r.bottom)),
+      width: Math.max(...rects.map((r) => r.width)),
+    };
     const parentRect = parent.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
 
@@ -237,7 +256,8 @@ export async function engage({ top, bottom } = {}) {
     document.fonts.addEventListener('loadingdone', onFontSwap);
 
     return {
-      restore, letters, canvas, ctx, paragraph: p, color, font,
+      restore, letters, canvas, ctx, paragraph: p, color, font, fontFamily,
+      size: { w, h },                  // canvas box in CSS px
       origin: { x: vLeft, y: vTop },   // canvas-local 0,0 in viewport coords at engage time
       get background() { return bg; },
       /* Re-resolve the erase colour against the live computed styles. Returns
@@ -285,7 +305,10 @@ const BALL_R = 5;
 const PADDLE_W = 68;
 const PADDLE_H = 6;
 const BASE_SPEED = 340;      // px/s before the ramp
-const RAMP = 0.35;           // full wall cleared -> +35% speed
+const RAMP = 0.55;           // full wall cleared -> +55% speed. Steeper than
+                             // pass 4's 0.35 because BOTH paragraphs are the
+                             // wall now — more bricks earn pace, not fewer
+                             // letters
 const PADDLE_SPEED = 560;    // keyboard px/s
 const MAX_AIM = 1.05;        // rad from vertical at the paddle's very edge
 const MIN_VY = 0.25;         // min |vy| as a fraction of speed: no horizontal skims
@@ -306,8 +329,15 @@ const FADE = 0.85;           // s for a falling letter to fade out — always
 function createAudio() {
   let ctx = null;
   let graph = null;
+  // Was there a stored mix BEFORE settings are created? Read it first: the
+  // music channel should open around 50% for a first-time player (the shared
+  // default of 30% is tuned for the games' longer sessions), but a level the
+  // player has chosen is never overwritten.
+  let firstRun = false;
+  try { firstRun = localStorage.getItem('about-breakout-audio') === null; } catch { }
   const settings = createAudioSettings('about-breakout',
     (levels) => graph?.apply(levels));
+  if (firstRun) settings.set('music', 0.5);
 
   const ensure = () => {
     if (!ctx) {
@@ -343,8 +373,65 @@ function createAudio() {
     } catch { /* no audio is never an error worth surfacing */ }
   };
 
+  /* ---- music: Heavenly Loop (CC0, isaiah658 — see assets/CREDITS.md) ----
+   * A WebAudio buffer loop rather than an <audio> element: loopStart/loopEnd
+   * are set past the MP3 encoder's padding silence, which is the only way a
+   * compressed loop is actually seamless, and it decodes everywhere (Safari
+   * cannot decode ogg-vorbis). Fetched on first start — nothing loads before
+   * the first click. Pause is ctx.suspend(): the whole toy goes quiet and
+   * resumes mid-note, which is what "paused" should sound like. */
+  let musicBuffer = null;
+  let musicSource = null;
+  let musicOn = false;
+  const trimPoints = (buf) => {
+    const d = buf.getChannelData(0);
+    const EPS = 1e-3;
+    let a = 0, b = d.length - 1;
+    while (a < b && Math.abs(d[a]) < EPS) a++;
+    while (b > a && Math.abs(d[b]) < EPS) b--;
+    return { start: a / buf.sampleRate, end: (b + 1) / buf.sampleRate };
+  };
+  const startMusic = async () => {
+    try {
+      const c = ensure();
+      if (!musicBuffer) {
+        const res = await fetch('assets/audio/heavenly-loop.mp3');
+        musicBuffer = await c.decodeAudioData(await res.arrayBuffer());
+      }
+      if (musicSource || !musicOn) return;   // stopped while fetching
+      const { start, end } = trimPoints(musicBuffer);
+      musicSource = c.createBufferSource();
+      musicSource.buffer = musicBuffer;
+      musicSource.loop = true;
+      musicSource.loopStart = start;
+      musicSource.loopEnd = end;
+      musicSource.connect(graph.music);
+      musicSource.start(0, start);
+    } catch { musicSource = null; /* a silent game is still a game */ }
+  };
+
   return {
     settings,
+    music: {
+      start() { if (!musicOn) { musicOn = true; startMusic(); } },
+      stop() {
+        musicOn = false;
+        try { musicSource?.stop(); } catch { }
+        try { musicSource?.disconnect(); } catch { }
+        musicSource = null;
+      },
+      // "Playing" in the MediaBus sense: a live loop in a running context.
+      get playing() { return musicOn && !!ctx && ctx.state === 'running'; },
+      // Loop points, for the harness: seamless means a real trimmed window.
+      get loop() {
+        return musicSource
+          ? { start: musicSource.loopStart, end: musicSource.loopEnd }
+          : null;
+      },
+    },
+    // The paused world: everything through the one context stops mid-note.
+    pauseAll: () => { try { ctx?.suspend(); } catch { } },
+    resumeAll: () => { try { ctx?.resume(); } catch { } },
     // Narrow letters ring higher — the wall plays a scatter of pitches
     // instead of one repeated click.
     letter: (w) => blip(920 - Math.min(16, w) * 22 + Math.random() * 40, 0.09, { peak: 0.45 }),
@@ -398,7 +485,7 @@ export function canPlay() {
  * off screen, and to every failure path; engage()'s own resize/font-swap
  * restore is caught by the isConnected check in the frame loop).
  */
-export async function start({ onStop } = {}) {
+export async function start({ onStop, onPauseChange } = {}) {
   const copy = findParagraph()?.parentElement;
   if (!copy) throw new Error('about copy not found');
   const h2 = copy.querySelector('h2');
@@ -406,17 +493,17 @@ export async function start({ onStop } = {}) {
   const photo = document.querySelector('.about-photo');
   if (!h2 || !p1) throw new Error('about layout not recognised');
 
-  /* The playfield, in viewport Y: ceiling just under paragraph one (the ball
-   * must never enter it), floor level with the portrait's bottom — that dead
-   * space is the ball travel. The floor is hard-capped above the toolkit
-   * subsection: at narrow desktop widths the copy column outgrows the
-   * portrait and the "dead space" the layout has at 1440+ simply does not
-   * exist — the game declines to start rather than play on top of the
-   * toolkit (measured 2026-08-19: portrait hangs 65-114px below the bio at
-   * 1440-1700, sits ABOVE its bottom at <=1200). */
-  const p1Rect = p1.getBoundingClientRect();
+  /* The playfield, in viewport Y: BOTH paragraphs are the wall now, so the
+   * ceiling is the h2's underside (it flashes accent on contact); floor
+   * level with the portrait's bottom — that dead space is the ball travel.
+   * The floor is hard-capped above the toolkit subsection: at narrow desktop
+   * widths the copy column outgrows the portrait and the "dead space" the
+   * layout has at 1440+ simply does not exist — the game declines to start
+   * rather than play on top of the toolkit (measured 2026-08-19: portrait
+   * hangs 65-114px below the bio at 1440-1700, sits ABOVE its bottom at
+   * <=1200). */
   const pRect = findParagraph().getBoundingClientRect();
-  const ceilingY = p1Rect.bottom + 2;
+  const ceilingY = h2.getBoundingClientRect().bottom + 4;
   const sub = document.querySelector('.about-sub');
   const subTop = sub ? sub.getBoundingClientRect().top : Infinity;
   const floorY = Math.min(
@@ -455,12 +542,37 @@ export async function start({ onStop } = {}) {
   const ball = { x: paddle.x, y: paddle.y - BALL_R - 1, vx: 0, vy: 0, attached: true, timer: 0.5 };
   let launches = 0;
   const events = { paddleHits: 0, ceilingHits: 0, wallHits: 0, respawns: 0, breaks: 0 };
+  let paused = false;
   const state = {
     ball, paddle, alive, events, falling,
     bounds: { left, right, ceiling, floor },
     get destroyed() { return destroyed; }, total,
+    get paused() { return paused; },
     running: true, won: false,
   };
+
+  /* Pause is a real state, not a stopped clock: updates freeze, the render
+   * keeps running so the dim + label frame is always current, and the whole
+   * audio context suspends — the music halts mid-note, which is what paused
+   * should sound like. onPauseChange is how the page's controls (and its
+   * MediaBus registration) follow along. */
+  const pause = () => {
+    if (!state.running || paused) return;
+    paused = true;
+    audio.pauseAll();
+    try { onPauseChange?.(true); } catch { }
+  };
+  const resume = () => {
+    if (!state.running || !paused) return;
+    paused = false;
+    audio.resumeAll();
+    try { onPauseChange?.(false); } catch { }
+  };
+  const togglePause = () => (paused ? resume() : pause());
+
+  // A hidden tab pauses the game along with its music: coming back to a ball
+  // that carried on without you is worse than a paused one.
+  const onVisibility = () => { if (document.hidden) pause(); };
 
   const speed = () => BASE_SPEED * (1 + RAMP * (destroyed / total));
 
@@ -657,6 +769,25 @@ export async function start({ onStop } = {}) {
 
   /* ---- render --------------------------------------------------------- */
   let frameCount = 0;
+  /* Pause must LOOK paused, or a frozen ball over a half-eaten bio reads as
+   * the site having broken: dim the whole playfield and say so. */
+  const drawVeil = () => {
+    if (!paused) return;
+    const ctx = h.ctx;
+    ctx.fillStyle = 'rgba(5, 7, 9, 0.55)';
+    ctx.fillRect(0, 0, h.size.w, h.size.h);
+    const cx = h.size.w / 2;
+    const cy = Math.min(h.size.h - 40, floor - 46);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = accent;
+    ctx.font = `800 14px ${h.fontFamily}`;
+    ctx.fillText('PAUSED', cx, cy);
+    ctx.fillStyle = 'rgba(173, 181, 187, 0.8)';
+    ctx.font = `400 11px ${h.fontFamily}`;
+    ctx.fillText('space, click, or the pause button resumes', cx, cy + 20);
+    ctx.textAlign = 'left';
+    ctx.font = h.font;
+  };
   const render = () => {
     h.clearPaint();
     const ctx = h.ctx;
@@ -691,6 +822,7 @@ export async function start({ onStop } = {}) {
         ctx.fillText(l.ch, -l.w / 2, l.baseline - hy);
         ctx.restore();
       }
+      drawVeil();
       return;
     }
     ctx.fillStyle = accent;
@@ -702,6 +834,7 @@ export async function start({ onStop } = {}) {
       ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
       ctx.fill();
     }
+    drawVeil();
   };
 
   /* ---- lifecycle ------------------------------------------------------ */
@@ -723,6 +856,8 @@ export async function start({ onStop } = {}) {
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('keyup', onKeyUp, true);
     window.removeEventListener('pointermove', onPointer);
+    document.removeEventListener('visibilitychange', onVisibility);
+    audio.music.stop();
     audio.suspend();          // shared instance: quiet, not gone
     h.restore();
     try { onStop?.(state); } catch { /* the page's problem, not the game's */ }
@@ -746,12 +881,14 @@ export async function start({ onStop } = {}) {
         if (Math.abs(pr.left - cr.left - left) > 1 ||
             Math.abs(pr.top - cr.top - (pRect.top - ceilingY)) > 1) { stop(); return; }
       }
-      if (phase === 'play') {
-        update(dt);
-        // The wall is empty and the last falling letter has faded: payoff.
-        if (state.running && destroyed === total && falling.length === 0) beginReassembly();
-      } else if (phase === 'reassemble') {
-        updateReassembly(dt);
+      if (!paused) {
+        if (phase === 'play') {
+          update(dt);
+          // The wall is empty and the last falling letter has faded: payoff.
+          if (state.running && destroyed === total && falling.length === 0) beginReassembly();
+        } else if (phase === 'reassemble') {
+          updateReassembly(dt);
+        }
       }
       if (!state.running) return;
       render();
@@ -765,10 +902,21 @@ export async function start({ onStop } = {}) {
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('keyup', onKeyUp, true);
   window.addEventListener('pointermove', onPointer);
+  document.addEventListener('visibilitychange', onVisibility);
+
+  /* Clicking the playfield pauses (and clicking it again resumes). The
+   * canvas takes pointer events only while the game runs; the controls sit
+   * outside it, so their clicks never land here. */
+  h.canvas.style.pointerEvents = 'auto';
+  h.canvas.addEventListener('click', () => {
+    if (state.running && phase !== 'done') togglePause();
+  });
+
+  audio.music.start();
   raf = requestAnimationFrame(frame);
 
   return {
-    stop, state, handle: h, audio,
+    stop, state, handle: h, audio, pause, resume, toggle: togglePause,
     debug: {
       /* Test hook: empty the wall so the frame loop's own win detection and
        * reassembly run for real — clearing 194 letters by physics takes
