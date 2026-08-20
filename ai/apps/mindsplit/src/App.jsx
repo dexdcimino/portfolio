@@ -77,27 +77,55 @@ const DAY_TICK_MS = 1000;
    They are separate controls now: an accent below, a motion picker further
    down.
 
-   Accents are PASTELS on purpose. A saturated accent on a dark ground fights
-   the eleven category hues that are the actual signal in this app; a pastel
-   sits behind them. Each one is used three ways and never as a flat fill:
+   Accents stay on the pastel SIDE on purpose. A fully saturated accent on a
+   dark ground fights the eleven category hues that are the actual signal in
+   this app; these sit behind them. But pastel does not have to mean timid —
+   this set is warmer and more characterful than the first pass, pushed as
+   far toward playful as it can go while still reading as the room rather
+   than the furniture. Each one is used three ways and never as a flat fill:
    a few percent into the ground so the background is tinted rather than grey,
    as the blend that pulls every category colour into the same family, and at
    full strength only on the one thing that is currently interactive.
+
+   Crimson leads and is the default — it is the colour of the app's own icon
+   plate, so a first-time reader gets MindSplit's colour before they have
+   chosen anything. Slate is the one grey and sits LAST: the quiet option
+   exists, it just is not the first thing anyone sees.
 
    Rules from the brief still hold: nothing is rendered as
    hsl(hue, sat, lowLightness), every surface is mix()ed from a hex, and text
    colour comes from inkOn() rather than from a guess. */
 const ACCENTS = [
-  { id: "slate",  name: "Slate",  hex: "#A9BCD6" },
-  { id: "mint",   name: "Mint",   hex: "#9FE0C0" },
-  { id: "sky",    name: "Sky",    hex: "#9CC7EE" },
-  { id: "lilac",  name: "Lilac",  hex: "#BCB0EC" },
-  { id: "blush",  name: "Blush",  hex: "#EFA9BA" },
-  { id: "peach",  name: "Peach",  hex: "#F2BC9C" },
-  { id: "butter", name: "Butter", hex: "#E8D69B" },
-  { id: "sage",   name: "Sage",   hex: "#B4C7A4" },
+  { id: "crimson", name: "Crimson", hex: "#DD4764" },
+  { id: "coral",   name: "Coral",   hex: "#F0805E" },
+  { id: "mango",   name: "Mango",   hex: "#F0A24E" },
+  { id: "matcha",  name: "Matcha",  hex: "#A5CC66" },
+  { id: "lagoon",  name: "Lagoon",  hex: "#4EC4BC" },
+  { id: "corn",    name: "Cornflower", hex: "#7A99EE" },
+  { id: "grape",   name: "Grape",   hex: "#A47AE6" },
+  { id: "slate",   name: "Slate",   hex: "#A9BCD6" },
 ];
 const ACCENT_BY_ID = Object.fromEntries(ACCENTS.map((a) => [a.id, a]));
+
+/* The SECOND colour: the scene's. Never a free grid of swatches — eight
+   accents times an open palette is a combination count nobody has looked at.
+   The five offers are FIXED RELATIONSHIPS to the chosen accent instead, each
+   derived with mix() on hexes (no hsl anywhere): the accent itself, the
+   accent pulled warm, pulled cool, its RGB complement tempered back toward
+   paper, and a desaturated near-neutral. Every option is therefore in a
+   known relationship to the accent and a clashing pair is not reachable —
+   which is also why this picker is short. Only Rain drinks the colour today,
+   so the picker renders only when Rain is the chosen motion. */
+const invertHex = (h) => rgb2hex(hex2rgb(h).map((v) => 255 - v));
+const TINTS = [
+  ["match", "Accent", (a) => a],
+  ["warm",  "Warm",   (a) => mix(a, "#FF9A4D", .5)],
+  ["cool",  "Cool",   (a) => mix(a, "#4DA6FF", .5)],
+  ["flip",  "Flip",   (a) => mix(invertHex(a), "#FFFFFF", .22)],
+  ["mist",  "Mist",   (a) => mix(a, "#AAB4BD", .68)],
+];
+const TINT_BY_ID = Object.fromEntries(TINTS.map(([k, label, fn]) => [k, fn]));
+const tintHex = (accentHex, id) => (TINT_BY_ID[id] || TINTS[0][2])(accentHex);
 
 /* Two grounds, both nearly neutral. The accent goes in at 7% and 4% — enough
    that a mint app and a blush app are unmistakably different rooms, not enough
@@ -303,12 +331,17 @@ function SkyScene({ phase, reduce }) {
    reads as noise, and this sits behind text people are supposed to read.
    Halved the count (26 near, 18 far), roughly tripled the fall time, and cut
    the opacity, so it is something you notice rather than something you look
-   through. */
-function RainScene({ reduce }) {
+   through.
+   The drops take the reader's SCENE colour now (yellow rain is a good idea,
+   and so is teal rain) — but the density and opacities above are exactly as
+   measured, and turning the count back up to make a colour feel more "fun"
+   recreates the static this comment exists to prevent. */
+function RainScene({ reduce, tint }) {
   const drops = useMemo(() => seeded(240, 19), []);
+  const near = mix(tint, "#FFFFFF", .45), far = mix(tint, "#FFFFFF", .25);
   return (
     <>
-      <div className="absolute inset-0" style={{ background: "radial-gradient(120% 60% at 50% 0%, rgba(143,184,190,.10), transparent 70%)" }} />
+      <div className="absolute inset-0" style={{ background: `radial-gradient(120% 60% at 50% 0%, ${rgba(mix(tint, "#FFFFFF", .2), .12)}, transparent 70%)` }} />
       {[0, 1].map((layer) => (
         <div key={layer} className="absolute inset-0 overflow-hidden" style={{ opacity: layer ? .34 : .6 }}>
           {Array.from({ length: layer ? 18 : 26 }, (_, i) => {
@@ -317,7 +350,7 @@ function RainScene({ reduce }) {
               <span key={i} className="absolute uv-rain" style={{
                 left: `${a * 104 - 2}%`, top: `${-20 - b * 40}%`,
                 width: layer ? 1 : 1.4, height: layer ? 26 : 40,
-                background: `linear-gradient(180deg, transparent, ${layer ? "rgba(180,214,220,.26)" : "rgba(200,232,238,.42)"})`,
+                background: `linear-gradient(180deg, transparent, ${layer ? rgba(far, .3) : rgba(near, .48)})`,
                 animationDuration: `${(layer ? 3.4 : 2.6) + c * 1.4}s`,
                 animationDelay: `${b * -4}s`,
                 animationPlayState: reduce ? "paused" : "running",
@@ -427,20 +460,22 @@ function SlateScene({ reduce }) {
    have to pick a colour scheme to get. `off` renders the SlateScene glows,
    which are slow enough to read as depth in the background rather than as an
    animation. */
+/* "Sun & moon", not "Sky": the scene runs a ten-minute day cycle with a sun
+   AND a moon in it, and the old one-word label kept that a secret. */
 const SCENES = [
   ["off", "None"],
   ["rain", "Rain"],
-  ["sky", "Sky"],
+  ["sky", "Sun & moon"],
   ["deep", "Deep"],
   ["ember", "Ember"],
 ];
 
-function Scene({ id, t, phase, reduce }) {
+function Scene({ id, t, tint, phase, reduce }) {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ background: t.page, transition: "background 500ms linear" }}>
       {id === "off" && <SlateScene reduce={reduce} />}
       {id === "sky" && <SkyScene phase={phase} reduce={reduce} />}
-      {id === "rain" && <RainScene reduce={reduce} />}
+      {id === "rain" && <RainScene reduce={reduce} tint={tint} />}
       {id === "deep" && <DeepScene reduce={reduce} />}
       {id === "ember" && <EmberScene reduce={reduce} />}
     </div>
@@ -752,10 +787,14 @@ const Ico = {
   plus: (c) => <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke={c} strokeWidth="2.7" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>,
   grid: (c) => <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h11M4 18h7" /></svg>,
   gear: (c) => <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3.2" /><path d="M12 3v2.1M12 18.9V21M4.2 7.5l1.8 1.1M18 15.4l1.8 1.1M4.2 16.5l1.8-1.1M18 8.6l1.8-1.1" /></svg>,
-  share: (c) => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M8 8l4-4 4 4M5 14v5a1 1 0 001 1h12a1 1 0 001-1v-5" /></svg>,
-  flag: (c) => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4M5 5h11l-2 3.5L16 12H5" /></svg>,
+  /* share is the paper-plane/send mark — the one every messaging app uses.
+     The old glyph was an upload arrow, which read as "export", not "share". */
+  share: (c, s = 15) => <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 3L11 13.2M21.5 3l-6.8 18.2-3.7-8L3 9.5 21.5 3z" /></svg>,
+  /* flag is a plain pennant now — a triangle on a pole survives 24px in a way
+     the old notched banner never did. */
+  flag: (c, s = 15) => <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V3.5" /><path d="M5 4.5l12 4.2L5 13" fill={c} strokeLinejoin="round" /></svg>,
   undo: (c) => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9h11a4.5 4.5 0 010 9h-5M4 9l4-4M4 9l4 4" /></svg>,
-  user: (c) => <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8.5" r="3.6" /><path d="M4.8 20a7.4 7.4 0 0114.4 0" /></svg>,
+  user: (c, s = 19) => <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8.5" r="3.6" /><path d="M4.8 20a7.4 7.4 0 0114.4 0" /></svg>,
   close: (c) => <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>,
   sun: (c) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7" /></svg>,
   dots: (c) => <svg viewBox="0 0 24 24" width="19" height="19" fill={c}><circle cx="5" cy="12" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="19" cy="12" r="1.9" /></svg>,
@@ -851,14 +890,14 @@ function Card({ poll, choice, onVote, onChange, canChange, changesLeft, flagged,
     <section className="relative w-full shrink-0 snap-start grid" style={{ height: "100%", gridTemplateRows: `${topRow}px 1fr` }}>
       {/* top half — read only */}
       <div className="px-4 pt-3 pb-3 min-h-0">
-        <div className="h-full w-full rounded-[28px] px-6 py-6 flex flex-col justify-between overflow-hidden border"
+        <div className="h-full w-full rounded-[28px] px-6 py-6 flex flex-col overflow-hidden border"
           style={{
             background: C.glass, borderColor: C.glassEdge, color: C.ink,
             backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
             boxShadow: T.light ? "0 14px 40px rgba(40,34,28,.12)" : "0 14px 44px rgba(0,0,0,.35)",
             transition: "background 500ms, border-color 500ms, color 500ms",
           }}>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between shrink-0">
             <span className="px-2.5 py-1 rounded-full" style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: ".14em", background: chipBg, color: inkOn(chipBg) }}>
               {CAT_LABEL[poll.cat].toUpperCase()}
             </span>
@@ -866,7 +905,12 @@ function Card({ poll, choice, onVote, onChange, canChange, changesLeft, flagged,
               {sum ? `${fmt(sum)} votes` : "be first"}{voted && sum ? " · live" : ""}
             </span>
           </div>
-          <div>
+          {/* The question sits DEAD CENTRE of what is left after the chip row —
+              both axes, both font sizes. justify-between used to drop it to the
+              panel's floor, which read as leftover space above rather than as a
+              placed thing. min-h-0 so a four-line question shrinks the gap
+              instead of pushing the panel open. */}
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center">
             <h2 style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: poll.q.length > 42 ? 29 : 35, lineHeight: 1.04, letterSpacing: "-.04em" }}>{poll.q}</h2>
             <p className="mt-3" style={{ fontFamily: "var(--mono)", fontSize: 10, opacity: .45 }}>
               asked by {who || "anonymous"}
@@ -1077,6 +1121,29 @@ function SettingsSheet({ C, look, setLook, cats, setCats, counts, sort, setSort,
               );
             })}
           </div>
+
+          {/* The scene's colour — see TINTS for why this row is short: every
+              swatch is derived from the chosen accent, so no pair can clash.
+              Rendered only when the chosen motion actually drinks the colour,
+              which today is Rain alone. */}
+          {look.scene === "rain" && (
+            <>
+              <p className="mt-5 mb-2" style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: ".14em", color: C.muted }}>RAIN COLOUR</p>
+              <div className="grid grid-cols-5 gap-2">
+                {TINTS.map(([id, label, fn]) => {
+                  const hex = fn(ACCENT_BY_ID[look.accent].hex);
+                  const on = look.tint === id;
+                  return (
+                    <button key={id} onClick={() => setLook({ tint: id })}
+                      aria-label={`Rain colour: ${label}`} aria-pressed={on} title={label}
+                      className="relative rounded-full"
+                      style={{ aspectRatio: "1", background: hex,
+                               boxShadow: on ? `0 0 0 2px ${C.sheet}, 0 0 0 4px ${hex}` : "none" }} />
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       )}
     </Sheet>
@@ -1086,8 +1153,11 @@ function SettingsSheet({ C, look, setLook, cats, setCats, counts, sort, setSort,
 /* Actions: three icons stacked above the dock button that opened them, not a
    half-screen sheet. Three destinations do not need a titled panel with a
    footer — the sheet was more chrome than content, and it covered the poll the
-   actions are about. Each row is an icon and a word, appearing bottom-up so
-   the nearest one to your thumb is the one you reach first.
+   actions are about. ICON-ONLY round buttons now: share and flag are
+   universally understood and the word was costing width for nothing — but
+   with no visible text the aria-label is what names each one to a screen
+   reader, so it is not optional. Appearing bottom-up so the nearest one to
+   your thumb is the one you reach first.
    Still in the bottom half of the frame, so the thumb rule holds. */
 function ActionsPop({ C, T, onShare, onFlag, onProfile, onClose, flagged }) {
   const items = [
@@ -1095,24 +1165,21 @@ function ActionsPop({ C, T, onShare, onFlag, onProfile, onClose, flagged }) {
     ["Report", Ico.flag, onFlag, flagged],
     ["Share", Ico.share, onShare, false],
   ];
+  const red = mix("#FF4D4D", T.blend, T.amt);
   return (
     <div className="absolute inset-0 z-40" onPointerDown={onClose}>
-      <div className="absolute right-4 flex flex-col items-end gap-2" style={{ bottom: 92 }}
+      <div className="absolute right-4 flex flex-col items-end gap-2.5" style={{ bottom: 92 }}
         onPointerDown={(e) => e.stopPropagation()}>
         {items.map(([label, icon, fn, on], i) => (
-          <button key={label} onClick={fn}
-            className="flex items-center gap-2.5 pl-3.5 pr-2 h-11 rounded-full"
+          <button key={label} onClick={fn} aria-label={label} title={label}
+            className="w-[54px] h-[54px] rounded-full grid place-items-center"
             style={{
-              background: on ? mix("#FF4D4D", T.blend, T.amt) : C.sheet,
-              color: on ? inkOn(mix("#FF4D4D", T.blend, T.amt)) : C.ink,
+              background: on ? red : C.sheet,
+              color: on ? inkOn(red) : C.ink,
               boxShadow: "0 8px 24px rgba(0,0,0,.28)",
-              fontFamily: "var(--disp)", fontWeight: 700, fontSize: 14,
               animation: `uvPop 180ms cubic-bezier(.22,1,.36,1) ${i * 45}ms both`,
             }}>
-            {label}
-            <span className="w-8 h-8 rounded-full grid place-items-center" style={{ background: C.faint }}>
-              {icon(on ? inkOn(mix("#FF4D4D", T.blend, T.amt)) : C.ink)}
-            </span>
+            {icon(on ? inkOn(red) : C.ink, 24)}
           </button>
         ))}
       </div>
@@ -1317,14 +1384,15 @@ function Compose({ C, T, onClose, onPost }) {
 
 /* ═══════════════ APP ═══════════════ */
 export default function MindSplit() {
-  /* Slate is the default: it is the one theme that stays out of the way,
-     which is the right first impression for a feed of other people's words. */
-  /* Accent, light/dark and motion are three separate saved choices now.
-     localStorage is fine on our own domain (it was only banned in the artifact
-     sandbox), so a reader's pick survives a reload — which matters far more for
-     a colour they chose than for anything else in here. */
+  /* Crimson is the default: the app's own icon colour, so a first-time
+     reader lands in MindSplit's room rather than a generic grey one. A saved
+     pick from the old palette (mint, blush, …) falls back here too. */
+  /* Accent, scene colour, light/dark and motion are four separate saved
+     choices now. localStorage is fine on our own domain (it was only banned
+     in the artifact sandbox), so a reader's pick survives a reload — which
+     matters far more for a colour they chose than for anything else in here. */
   const [look, setLook] = useState(() => {
-    const fallback = { accent: "slate", light: false, scene: "off" };
+    const fallback = { accent: "crimson", light: false, scene: "off", tint: "match" };
     try {
       const raw = JSON.parse(localStorage.getItem("mindsplit-look") || "null");
       if (!raw) return fallback;
@@ -1332,6 +1400,7 @@ export default function MindSplit() {
         accent: ACCENT_BY_ID[raw.accent] ? raw.accent : fallback.accent,
         light: !!raw.light,
         scene: SCENES.some(([id]) => id === raw.scene) ? raw.scene : fallback.scene,
+        tint: TINT_BY_ID[raw.tint] ? raw.tint : fallback.tint,
       };
     } catch { return fallback; }
   });
@@ -1641,7 +1710,7 @@ export default function MindSplit() {
           border: isPhone ? "none" : `1px solid ${C.edge}`,   // the standalone-desktop device frame only
         }}>
 
-        <Scene id={look.scene} t={T} phase={phase} reduce={reduce} />
+        <Scene id={look.scene} t={T} tint={tintHex(T.accent, look.tint)} phase={phase} reduce={reduce} />
 
         <header ref={head} className="relative z-20 shrink-0 px-6 pt-4 pb-3">
           <div className="flex items-baseline justify-between">
