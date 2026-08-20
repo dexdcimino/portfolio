@@ -1449,7 +1449,6 @@ button.button{cursor:pointer;font-family:inherit}
    an empty pill. */
 .app-info .game-actions{justify-content:flex-start;gap:12px}
 .app-info .game-tags{flex:1 0 100%}
-.app-info .game-gallery-open{padding:0 16px}
 /* MEASURED, not guessed. This column is narrowest just above the 1100px
    collapse, not on a phone: the split is live but the viewport is not yet wide
    enough to give this half any room, so it runs 250px at 1101 and only reaches
@@ -1457,13 +1456,12 @@ button.button{cursor:pointer;font-family:inherit}
    The pair at the full 16px needs 314px, so everything from 1101 to about 1355
    wrapped. At 14px with 8px of side padding it needs 249px, which clears the
    250px worst case — one row at every width the page has.
-   The band is deliberate rather than making the buttons smaller everywhere:
-   this is the only stretch where the type steps down, and above 1360 there is
-   room for the size the button is supposed to be. The comment on
-   .game-gallery-open explains why that size is 16 and not 14. */
+   The pair this band was sized for is down to one control: the AI Lab's
+   gallery button is gone and #galleryOpen lives in the games section, which
+   has the space it needs. Only the gap survives, because .game-actions here
+   still holds a row that wraps. */
 @media (min-width:1101px) and (max-width:1360px){
   .app-info .game-actions{gap:8px}
-  .app-info .game-gallery-open{font-size:14px;padding:0 8px}
 }
 .app-desc-link{text-decoration:none}
 .app-desc-link[hidden]{display:none}
@@ -3092,23 +3090,22 @@ body.modal-open{overflow:hidden}
 /* GHOST, not filled. A solid accent plate made this the loudest thing in the
    GAMES section — louder than the game rows, which are the primary action here.
    The gallery is secondary and now sits beneath them: transparent fill, the
-   same 2px --stroke border the hero buttons wear, and no drop-glow (that halo
-   belongs to the hero's VIEW WORK, which has air around it; inline beside the
-   tag pills it pooled light under them and read as a smudge).
+   same 2px --stroke border the hero buttons wear, and no drop-glow.
 
-   The LABEL is --text, not the accent. Accent-on-dark clears AA at this size
-   for only five of the seven accents — red lands at 4.40 and blue at 3.61
-   against this section — while --text is 17:1 on every one. So the accent
-   carries the BORDER, where the bar is 3:1 and even blue passes at 3.61, and
-   the text is held to the standard text actually has to meet.
-
-   16px, up from 14: it read smaller than its physical weight suggested. */
+   ALL OF THAT IS GONE. The button is .button.primary now — the same filled
+   accent button as VIEW WORK and VIEW RESUME — so everything this rule used to
+   say about transparency, border colour, label colour and shadow was said in
+   order to NOT look like .primary, and every one of those declarations would
+   now win against it and undo the change. The contrast reasoning that shaped
+   them goes with them: .primary puts the label on --accent-ink over the accent
+   fill, which is the pairing the rest of the page already meets AA with.
+   What survives is the two things that are about this button's PLACE rather
+   than its appearance: it must not stretch in the flex row, and it is 16px
+   because inline beside the tag pills it read smaller than its weight. */
 .game-gallery-open{
   flex:0 0 auto;
-  background:transparent;border-color:var(--accent);color:var(--text);
-  font-size:16px;box-shadow:none;
+  font-size:16px;
 }
-.game-gallery-open:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
 /* Empty variant drops the accent for a neutral hairline — there is nothing to
    open yet, so it should not wear the colour that says "this is live". Still
    NOT disabled: every game gets a gallery shortly, and a control that silently

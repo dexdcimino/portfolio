@@ -189,8 +189,25 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   SLOTS/SIBLINGS — the single source of truth), `check_scope.py` (commit-msg
   scope hook), `check_sweep.py` (commit-msg sweep hook), `bake_favicon.py`, `bake_icons.py`, `check_accents.py` (the
   7-accent palette is duplicated in 5 places and must stay byte-identical),
-  `seal_vault.mjs`, `build_docs_pdf.mjs`. Hooks are versioned in
+  `seal_vault.mjs`, `build_docs_pdf.mjs`, `make_gallery_composite.py` (the
+  multi-panel gallery masters — Chomp's progress strip and Stickland's four-up;
+  it writes MASTERS into `assets/gallery/` and `bake_images.py` treats them
+  like any other, so the two tools run one way round and share no state).
+  Hooks are versioned in
   `tools/hooks/` and installed once via `bake_images.py --install-hooks`
+- `games/_shared/dev/` — the screenshot harness all four games share.
+  `cdp.mjs` is the browser (launch, serve, evaluate; every command takes an
+  optional deadline, because a CDP call whose page navigates under it never
+  answers at all). `capture.mjs` is everything above it that is not about any
+  one game: trusted CDP input — which is what reaches pointer lock — a settle
+  that watches the canvas stop changing rather than sleeping, and the contact
+  sheet builder. Each game then has its own `dev/gallery.mjs` on top: several
+  deliberately varied candidates per named shot, the seed and the input stream
+  recorded in every caption, and one sheet per game to choose from. The
+  candidates are gitignored and regenerable; the sheet is the artefact.
+  **Every shot asserts what its caption claims** — the vehicle, the altitude,
+  the region — because four frames captioned "Jet" once shipped showing a
+  rover, and nothing noticed
 - `vercel.json` — CSP in four scopes: root is strict (`script-src 'self'`,
   no inline, connect only to Web3Forms, and `media-src` naming the one
   bunny.net pull zone the AI Lab clips stream from — an exact host, never a
@@ -312,7 +329,7 @@ that convention, not this hook, is what covers the adjacent case.
 ## Numbers
 
 7 accents (lime default) · 11 ladders / 16 slots in `image_slots.py` ·
-71 generated markup blocks in index.html · fallback ladder
+69 generated markup blocks in index.html · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
 

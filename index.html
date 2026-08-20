@@ -589,12 +589,20 @@
             <li class="game-tag" data-slot="dim"></li>
             <li class="game-tag" data-slot="players"></li>
           </ul>
-          <!-- No arrow. The diagonal conventionally means "this leaves the
-               page", and the gallery opens a dialog in place — it was telling
-               the visitor something untrue. Nothing replaces it: with the arrow
-               gone there is nothing pulling the label off centre. -->
-          <button class="button game-gallery-open" type="button" id="galleryOpen">
+          <!-- The same button as VIEW WORK: .button.primary with an icon.
+               The icon is `preview`, the one VIEW RESUME wears, and NOT
+               `arrow-ne` — the diagonal conventionally means "this leaves the
+               page" and the gallery opens a dialog in place, which is why this
+               button carried no icon at all before.
+               .game-gallery-label stays, and it is load-bearing: script.js
+               writes the honest per-game count into it (paintOpenBtn), looking
+               for that class first and falling back to the first <span>. With
+               an icon span now in the button, that fallback is a coin toss on
+               DOM order — naming the label means the count can never be
+               written into the icon. -->
+          <button class="button primary game-gallery-open" type="button" id="galleryOpen">
             <span class="game-gallery-label">GALLERY</span>
+            <span class="icon btn-icon" data-icon="preview" aria-hidden="true"></span>
           </button>
         </div>
       </div>
@@ -2420,63 +2428,47 @@
       <p class="gal-cap"><span class="gal-cap-title" id="galCapTitle"></span><span class="gal-cap-index" id="galCapIndex"></span></p>
       <div class="gal-film" id="galFilm" role="listbox" aria-label="Screenshots"></div>
       <div class="gal-data" hidden>
-        <figure class="gal-item" data-game="stickland" data-title="Spawn — home plateau">
-          <!-- img src="assets/gallery/stickland-spawn.png" slot="game-shot" alt="Stickland spawn area with the home cabin" -->
+        <!-- STICKLAND, REDONE. The four shots that were here — spawn, the
+             village strip, the bow, the fields — are gone, masters and all.
+             They were captured before the harness existed and it shows: not
+             one of them has a HUD, so nothing in the frame said a person plays
+             this, and the figure is about fifty pixels tall in a mostly black
+             1440x690 picture.
+             These two come off the pass A contact sheet and keep the hotbar,
+             the health and charge bars and the chat button — the half that
+             reads as a game. 1920x1080 like every other master here; the stage
+             is 1440x690 and contains, so they letterbox. -->
+        <figure class="gal-item" data-game="stickland" data-title="The base, and the tank you drive out of it">
+          <!-- img src="assets/gallery/stickland-base.png" slot="game-shot" alt="Stickland's base row in lime line art on black: a house labelled Home, a treehouse labelled Co-op, a castle labelled PvP, a Shop and a Jail, with the stick figure standing below them, a tank parked to the left and a four-legged creature grazing" -->
           <picture>
-            <source type="image/avif" srcset="assets/derived/gallery/stickland-spawn-1200.avif?v=3cb2be38 1200w,
-                                              assets/derived/gallery/stickland-spawn-900.avif?v=3cb2be38 900w,
-                                              assets/derived/gallery/stickland-spawn-600.avif?v=3cb2be38 600w"
+            <source type="image/avif" srcset="assets/derived/gallery/stickland-base-1600.avif?v=b061de24 1600w,
+                                              assets/derived/gallery/stickland-base-1200.avif?v=b061de24 1200w,
+                                              assets/derived/gallery/stickland-base-900.avif?v=b061de24 900w,
+                                              assets/derived/gallery/stickland-base-600.avif?v=b061de24 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <source type="image/webp" srcset="assets/derived/gallery/stickland-spawn-1200.webp?v=3cb2be38 1200w,
-                                              assets/derived/gallery/stickland-spawn-900.webp?v=3cb2be38 900w,
-                                              assets/derived/gallery/stickland-spawn-600.webp?v=3cb2be38 600w"
+            <source type="image/webp" srcset="assets/derived/gallery/stickland-base-1600.webp?v=b061de24 1600w,
+                                              assets/derived/gallery/stickland-base-1200.webp?v=b061de24 1200w,
+                                              assets/derived/gallery/stickland-base-900.webp?v=b061de24 900w,
+                                              assets/derived/gallery/stickland-base-600.webp?v=b061de24 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/stickland-spawn.png" alt="Stickland spawn area with the home cabin" width="1440" height="690" loading="lazy" decoding="async">
+            <img src="assets/gallery/stickland-base.png" alt="Stickland's base row in lime line art on black: a house labelled Home, a treehouse labelled Co-op, a castle labelled PvP, a Shop and a Jail, with the stick figure standing below them, a tank parked to the left and a four-legged creature grazing" width="1920" height="1080" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
-        <figure class="gal-item" data-game="stickland" data-title="The village strip">
-          <!-- img src="assets/gallery/stickland-village.png" slot="game-shot" alt="Stickland village with Co-op treehouse, PvP castle, shop and jail" -->
+        <figure class="gal-item" data-game="stickland" data-title="The tank, firing on the move">
+          <!-- img src="assets/gallery/stickland-tank.png" slot="game-shot" alt="The Stickland tank driving through the forest with its gun firing, trees scattered around it and the Jail building off to the left" -->
           <picture>
-            <source type="image/avif" srcset="assets/derived/gallery/stickland-village-1200.avif?v=2872fbd1 1200w,
-                                              assets/derived/gallery/stickland-village-900.avif?v=2872fbd1 900w,
-                                              assets/derived/gallery/stickland-village-600.avif?v=2872fbd1 600w"
+            <source type="image/avif" srcset="assets/derived/gallery/stickland-tank-1600.avif?v=f60c3103 1600w,
+                                              assets/derived/gallery/stickland-tank-1200.avif?v=f60c3103 1200w,
+                                              assets/derived/gallery/stickland-tank-900.avif?v=f60c3103 900w,
+                                              assets/derived/gallery/stickland-tank-600.avif?v=f60c3103 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <source type="image/webp" srcset="assets/derived/gallery/stickland-village-1200.webp?v=2872fbd1 1200w,
-                                              assets/derived/gallery/stickland-village-900.webp?v=2872fbd1 900w,
-                                              assets/derived/gallery/stickland-village-600.webp?v=2872fbd1 600w"
+            <source type="image/webp" srcset="assets/derived/gallery/stickland-tank-1600.webp?v=f60c3103 1600w,
+                                              assets/derived/gallery/stickland-tank-1200.webp?v=f60c3103 1200w,
+                                              assets/derived/gallery/stickland-tank-900.webp?v=f60c3103 900w,
+                                              assets/derived/gallery/stickland-tank-600.webp?v=f60c3103 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/stickland-village.png" alt="Stickland village with Co-op treehouse, PvP castle, shop and jail" width="1440" height="690" loading="lazy" decoding="async">
-          </picture>
-          <!-- /img -->
-        </figure>
-        <figure class="gal-item" data-game="stickland" data-title="Bow drawn, arrow away">
-          <!-- img src="assets/gallery/stickland-bow.png" slot="game-shot" alt="Firing the bow across the village" -->
-          <picture>
-            <source type="image/avif" srcset="assets/derived/gallery/stickland-bow-1200.avif?v=647edfc5 1200w,
-                                              assets/derived/gallery/stickland-bow-900.avif?v=647edfc5 900w,
-                                              assets/derived/gallery/stickland-bow-600.avif?v=647edfc5 600w"
-                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <source type="image/webp" srcset="assets/derived/gallery/stickland-bow-1200.webp?v=647edfc5 1200w,
-                                              assets/derived/gallery/stickland-bow-900.webp?v=647edfc5 900w,
-                                              assets/derived/gallery/stickland-bow-600.webp?v=647edfc5 600w"
-                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/stickland-bow.png" alt="Firing the bow across the village" width="1440" height="690" loading="lazy" decoding="async">
-          </picture>
-          <!-- /img -->
-        </figure>
-        <figure class="gal-item" data-game="stickland" data-title="Out in the fields">
-          <!-- img src="assets/gallery/stickland-fields.png" slot="game-shot" alt="Fields west of the village with a tank and creatures" -->
-          <picture>
-            <source type="image/avif" srcset="assets/derived/gallery/stickland-fields-1200.avif?v=86f3f0b0 1200w,
-                                              assets/derived/gallery/stickland-fields-900.avif?v=86f3f0b0 900w,
-                                              assets/derived/gallery/stickland-fields-600.avif?v=86f3f0b0 600w"
-                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <source type="image/webp" srcset="assets/derived/gallery/stickland-fields-1200.webp?v=86f3f0b0 1200w,
-                                              assets/derived/gallery/stickland-fields-900.webp?v=86f3f0b0 900w,
-                                              assets/derived/gallery/stickland-fields-600.webp?v=86f3f0b0 600w"
-                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/stickland-fields.png" alt="Fields west of the village with a tank and creatures" width="1440" height="690" loading="lazy" decoding="async">
+            <img src="assets/gallery/stickland-tank.png" alt="The Stickland tank driving through the forest with its gun firing, trees scattered around it and the Jail building off to the left" width="1920" height="1080" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
@@ -2487,7 +2479,7 @@
              using games/stickland/dev/shots/gallery/fourup-boxes.json, because
              the game caps its own zoom at 1.5x and the figure is 36x60 there. -->
         <figure class="gal-item" data-game="stickland" data-title="Four builds, four loadouts">
-          <!-- img src="assets/gallery/stickland-fourup.png" slot="game-shot" alt="Four Stickland characters in lime line art on black: a figure carrying a pickaxe, one in goggles and a welding rig, one in a top hat and cloak, and one with a bow" -->
+          <!-- img src="assets/gallery/stickland-fourup.png" slot="game-shot" alt="Four Stickland characters in lime line art on black, one per quarter: a slim figure in a forward cap holding a bow, a figure in a horned viking helmet with a triangular armoured torso, a figure in a top hat and a long robe, and a figure in a backwards cap and an open coat carrying a hoverboard" -->
           <picture>
             <source type="image/avif" srcset="assets/derived/gallery/stickland-fourup-1600.avif?v=1042521d 1600w,
                                               assets/derived/gallery/stickland-fourup-1200.avif?v=1042521d 1200w,
@@ -2499,7 +2491,7 @@
                                               assets/derived/gallery/stickland-fourup-900.webp?v=1042521d 900w,
                                               assets/derived/gallery/stickland-fourup-600.webp?v=1042521d 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/stickland-fourup.png" alt="Four Stickland characters in lime line art on black: a figure carrying a pickaxe, one in goggles and a welding rig, one in a top hat and cloak, and one with a bow" width="1920" height="1080" loading="lazy" decoding="async">
+            <img src="assets/gallery/stickland-fourup.png" alt="Four Stickland characters in lime line art on black, one per quarter: a slim figure in a forward cap holding a bow, a figure in a horned viking helmet with a triangular armoured torso, a figure in a top hat and a long robe, and a figure in a backwards cap and an open coat carrying a hoverboard" width="1920" height="1080" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
