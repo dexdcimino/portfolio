@@ -265,7 +265,7 @@ img{max-width:100%}
   transition:color var(--accent-ease),background var(--accent-ease);
 }
 .nav-icon{width:24px;height:24px}
-.nav-text{opacity:0;transform:translateX(-8px);transition:opacity .2s ease,transform .2s ease;text-transform:uppercase;letter-spacing:.06em;font-weight:750;font-size:14px;color:#c3cad0}
+.nav-text{opacity:0;transform:translateX(-8px);transition:opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease),transform var(--sidebar-transition-duration) var(--sidebar-transition-ease);text-transform:uppercase;letter-spacing:.06em;font-weight:750;font-size:14px;color:#c3cad0}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .nav-text{opacity:1;transform:none}
 /* Expanded only: the label slides a few px right under the pointer, and under
    keyboard focus so it is not a mouse-only flourish. The icon stays put — it
@@ -353,14 +353,47 @@ img{max-width:100%}
 .profile-toggle{visibility:hidden;opacity:0}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-toggle{visibility:visible;opacity:1}
 /* The expanded name and its chevron share one line. */
-.profile-nameline{display:flex;align-items:center;gap:10px;width:100%}
+/* min-height is the chevron's own height, and it is here because script.js
+   MOVES that one button between this row and the compact row on every toggle —
+   two identical controls in the tab order being the thing it avoids. Without a
+   floor the row measured 26px with the button in it and 21px without, so the
+   handover resized the name line by 5px on the frame of the press, inside the
+   block that was already animating. The floor is what the row measures anyway
+   with the button present, so no resting state moves. */
+.profile-nameline{display:flex;align-items:center;gap:10px;width:100%;min-height:26px}
 .profile-nameline strong{flex:0 1 auto}
 button.button{cursor:pointer;font-family:inherit}
 .contact-mini{border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
 /* --rail-gap is named because the handle row has to cancel it: a flex gap is
    charged for a child of zero height, so a collapsed row would still push
    RESUME and CONTACT 12px up the rail. */
-.profile-mini{--rail-gap:12px;min-height:136px;padding:14px 14px 13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--rail-gap)}
+.profile-mini{--rail-gap:12px;min-height:136px;padding:14px 14px 13px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:var(--rail-gap)}
+/* NOTHING IN HERE MAY WORK OUT ITS OWN HEIGHT FROM THE HEIGHT THAT IS
+   ANIMATING. That is what made the chevron expand step, and none of the timing
+   was to blame - the whole toggle runs five transitions, all 240ms, all on the
+   one curve. The stepping came from LAYOUT.
+
+   This is a flex column, and a flex item shrinks by default. While the wrapper
+   above animates its grid track from 0fr, this box is short, so every child was
+   being squashed and then let out again as the box grew - and flex distributes
+   that shrinkage against each child's own min-content floor, so they came off
+   their floors at different points in the one motion. Measured on the expand:
+   .profile-copy and .profile-extra sat pinned at their collapsed floor for the
+   first 144ms of 240 and then did all 45px of travel in the remaining 96. That
+   is the bio arriving in a jerk, and nobody chose it.
+
+   `flex:none` takes them out of it: the block keeps its final layout the whole
+   way and the wrapper's clip is the only thing that changes. justify-content
+   goes with it - centring content that now overflows a short box would put half
+   of it above the clip and reveal from the middle outwards. flex-start reveals
+   top-down, which is the direction the block grows.
+
+   Both are inert in every resting state (the content is always taller than the
+   136px floor, so there was never free space to centre in): verified by diffing
+   every box in the rail, rail-open and rail-shut, profile-expanded and
+   collapsed, at 1280x900, 1280x760 and 900x760 - zero difference outside the
+   collapsed box, which is clipped to nothing and invisible. */
+.profile-mini>*{flex:none}
 
 /* Collapse wrapper. 1fr -> 0fr animates to the block's real height, so nothing
    here needs a magic max-height that would either clip the block or spend the
@@ -372,8 +405,15 @@ button.button{cursor:pointer;font-family:inherit}
    34px photo + 8px gap puts the name at 64px, which is exactly where RESUME and
    CONTACT put their labels (22px padding + 24px icon + 18px gap), so the pair
    sits on the nav's icon/label rhythm rather than near it.
-   Height collapses rather than display:none, so the fade still runs; the height
-   itself is deliberately not transitioned, so this never animates open either. */
+   Height collapses rather than display:none, and BOTH the height and the fade
+   are transitioned — but only under .is-toggling, below. Untransitioned, this
+   row was a 52px block arriving at full opacity on the frame the chevron was
+   pressed: measured, the footer jumped 47px before the collapse had started a
+   single millisecond of its 240, and for that frame the rail carried two
+   portraits and two copies of the name. The reason it used to be left alone was
+   that it must not animate when the RAIL opens — but its presence keys off
+   .is-profile-collapsed alone, and .is-toggling is exactly the "a chevron press,
+   not a hover" gate the wrapper already uses for the same reason. */
 .profile-compact{
   display:flex;align-items:center;gap:8px;padding:0 22px;
   height:0;overflow:hidden;white-space:nowrap;
@@ -389,12 +429,18 @@ button.button{cursor:pointer;font-family:inherit}
 .profile-compact-name{font-size:14px;font-weight:750;letter-spacing:.025em;
   color:var(--accent);
   opacity:0;transform:translateX(-8px);
-  transition:color var(--accent-ease),opacity .2s ease,transform .2s ease}
+  transition:color var(--accent-ease),opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease),transform var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-compact-name{
   opacity:1;transform:none}
 /* Presence depends on the collapsed state ALONE, never on hover — see the note
    on .profile-wrap below. */
 .side-bottom.is-profile-collapsed .profile-compact{height:52px;opacity:1}
+/* 0 <-> 52px, both ends stated, so it interpolates rather than snapping. It
+   cross-fades with .profile-wrap on the same curve: one row grows as the other
+   shrinks, and the footer's travel stays monotonic through the swap. */
+.side-bottom.is-toggling .profile-compact{
+  transition:height var(--sidebar-transition-duration) var(--sidebar-transition-ease),
+             opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 
 .profile-wrap{display:grid;grid-template-rows:1fr}
 .profile-wrap>.profile-mini{overflow:hidden}
@@ -404,8 +450,13 @@ button.button{cursor:pointer;font-family:inherit}
    height in the rail, then animated 167px -> 0 as the sidebar widened, which
    reads as the block growing open and snapping shut. Now that flip is instant
    and only a real toggle animates. */
+/* One fade for the whole panel, on the height's own curve and duration, so the
+   block arrives as one thing rather than as a clip edge sweeping past five
+   items that each snap on at full strength as it passes. It is the wrapper that
+   carries it - a fade per child is how the ragged version of this gets built. */
 .side-bottom.is-toggling .profile-wrap{
-  transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
+  transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease),
+             opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 
 /* The collapsed state is deliberately NOT scoped to the expanded sidebar.
    Scoping it there meant the rule stopped matching the instant hover ended, so
@@ -417,14 +468,23 @@ button.button{cursor:pointer;font-family:inherit}
    The rail's own avatar lives inside this wrapper, so while collapsed the rail
    shows the mini profile's crop instead — which is why .profile-compact is
    visible in both sidebar states and only its name waits for the expand. */
-.side-bottom.is-profile-collapsed .profile-wrap{grid-template-rows:0fr}
+.side-bottom.is-profile-collapsed .profile-wrap{grid-template-rows:0fr;opacity:0}
 .side-bottom.is-profile-collapsed .profile-mini{min-height:0;padding-block:0}
 /* min-height would hold the track open at 136px and stop it reaching 0fr, and
    the block's own padding survives a zero-height track — overflow:hidden clips
    the content but padding is still box height, which floors the collapse at
    27px. Both have to go, and the padding animates so it does not snap shut
    ahead of the rest of the block. */
+/* And the same argument for min-height, which is the other half of it: the
+   floor is 136px and it SNAPS between 0 and 136 with the class, while the track
+   it is flooring interpolates. Expanding, that bought a dead hold - the first
+   40ms of the motion ran underneath a box that was already 136px tall and
+   nothing moved at all, and .profile-mini itself did not start travelling until
+   72ms in, a third of the way through. It has to be gone for the whole
+   transition, not just at the collapsed end of it. Safe to hand back when
+   .is-toggling lifts: expanded the block is 322px, well clear of the floor. */
 .side-bottom.is-toggling .profile-mini{
+  min-height:0;
   transition:padding var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 
 /* Masked window onto a single portrait. The frame animates its box; the image
@@ -472,7 +532,7 @@ button.button{cursor:pointer;font-family:inherit}
    name + tagline, so collapsing the caption does not shift RESUME/CONTACT. It
    tracks the name's own line box — raising the name 14px -> 16px raised this
    with it, or the floor would sit under the text it exists to reserve. */
-.profile-copy{display:grid;gap:4px;width:var(--rail-content);min-height:42px;opacity:0;transform:translateX(-7px);transition:opacity .2s ease,transform .2s ease}
+.profile-copy{display:grid;gap:4px;width:var(--rail-content);min-height:42px;opacity:0;transform:translateX(-7px);transition:opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease),transform var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
 /* 0fr -> 1fr animates to the exact auto height, on the shared sidebar curve. */
 .profile-extra{display:grid;grid-template-rows:0fr;overflow:hidden;
   transition:grid-template-rows var(--sidebar-transition-duration) var(--sidebar-transition-ease)}
@@ -499,7 +559,7 @@ button.button{cursor:pointer;font-family:inherit}
    reserved height shoves RESUME, CONTACT and the avatar back up the rail.
    A fixed count just makes the tracks narrow instead. Adding a sixth link means
    editing this number. */
-.social-mini{width:100%;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity .2s ease,transform .2s ease;pointer-events:none}
+.social-mini{width:100%;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease),transform var(--sidebar-transition-duration) var(--sidebar-transition-ease);pointer-events:none}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .social-mini{opacity:1;transform:none;pointer-events:auto}
 /* cursor:pointer by hand: script.js takes the href off these, and an <a>
    without one is not a link as far as the cursor is concerned. */
@@ -552,7 +612,7 @@ button.button{cursor:pointer;font-family:inherit}
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
   font-size:14px;font-weight:600;letter-spacing:.01em;line-height:1;
   transition:background var(--accent-ease),color var(--accent-ease),
-             opacity .18s ease,visibility .18s ease;
+             opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease),visibility var(--sidebar-transition-duration) var(--sidebar-transition-ease);
 }
 /* The wrapper owns the state; this is the same state seen from inside. The box
    above is already clipping the button to zero height, but a clipped button is
@@ -2219,8 +2279,11 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
   display:grid;place-items:center;cursor:pointer;
   color:#e9ebec;background:rgba(8,11,14,.62);
   border:var(--stroke) solid rgba(255,255,255,.14);
+  /* opacity is the RAIL chip's arrival - .ink-chip-rail is the only one whose
+     opacity ever changes - so it takes the rail's duration and curve and lands
+     with the labels and the portrait. transform stays its own hover bump. */
   transition:background-color var(--accent-ease),border-color var(--accent-ease),
-             color var(--accent-ease),opacity .2s ease,transform .2s ease;
+             color var(--accent-ease),opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease),transform .2s ease;
 }
 .ink-chip::before{content:"";position:absolute;inset:-5px}
 .ink-chip-glyph{width:19px;height:19px;display:block}
