@@ -296,10 +296,10 @@ const faviconSvg = document.getElementById('faviconSvg');
    hatch for anyone who needs the OS cursor (large, inverted, high-contrast). */
 const CURSOR_KEY = 'dex-cursor';
 const CURSOR_PATHS = {
-  // Rotated ~20° clockwise ABOUT THE TIP from the original upright form, so
-  // the left edge hangs near-vertical the way every OS arrow does. Rotating
-  // about the tip is what keeps the hotspot exactly on it.
-  arrow: { d: 'M6 4l2.56 22.21 5.25-7.13L22.66 19.64z', hot: '6 4', fallback: 'auto' },
+  // Rotated ~14° clockwise ABOUT THE TIP from the original upright form
+  // (20° overshot and read as leaning). Rotating about the tip is what
+  // keeps the hotspot exactly on it.
+  arrow: { d: 'M6 4l4.87 21.83 4.48-7.64L24.2 17.81z', hot: '6 4', fallback: 'auto' },
   // The standard pointing hand: index extended, three folded knuckles, the
   // thumb tucked across. Same line weight, same casing; the hotspot is the
   // fingertip.
@@ -449,9 +449,12 @@ function buildAccentPicker() {
   const cHex = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   cHex.setAttribute('class', 'ct-hex');
   cHex.setAttribute('d', roundedHexPath);
-  // The 32-box cursor artwork, scaled and centred on the 76-box hexagon.
+  // The 32-box cursor artwork on the 76-box hexagon: slightly smaller than
+  // a pure fit, and nudged down-right past the bounding-box centre — an
+  // arrow's visual mass sits toward its tip, so geometric centring reads
+  // high-left.
   const cG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  cG.setAttribute('transform', 'translate(16.5 13.8) scale(1.55)');
+  cG.setAttribute('transform', 'translate(19 19.5) scale(1.35)');
   const cPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   cPath.setAttribute('class', 'ct-glyph');
   cPath.setAttribute('d', CURSOR_PATHS.arrow.d);
