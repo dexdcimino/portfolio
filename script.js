@@ -5105,22 +5105,31 @@ const PORTRAIT_LABEL = {
 })();
 
 
-/* ---------- top picks: the ? and its suggestion form ----------------------
-   Everything here leans on the contact modal's machinery — openModal /
-   bindModal / flagField, the .contact-* styling, the honeypot pattern, the
-   same Web3Forms relay — WITHOUT touching a line of it. Its own status line,
-   its own rate window, and a [Top Picks] subject so the mail is tellable
-   from a contact message without opening it. */
+/* ---------- top picks: the ? and its suggestion popover -------------------
+   A full-screen modal was too much for one question and one field, so this
+   is a compact popover anchored to the ? — no backdrop, no dialog, no
+   modal-sized focus trap. It still owes everything a small surface owes:
+   focus moves in on open and back to the ? on every close (Escape, outside
+   click, a real scroll), and TYPED VALUES PERSIST — closing only hides the
+   panel, so reopening finds the draft; only a successful send resets it.
+   Scroll-close waits for >24px of travel so a nudge cannot eat a draft
+   either. The Yes/No question is gone; a single cycler button walks
+   Game→Movie→Song→Quote (wrapping), with four aria-hidden dashes above it
+   as set-size indicators — deliberately NOT controls, because four extra
+   tab stops to jump a four-step cycle the button already walks would cost
+   more keyboard-wise than they pay. Same Web3Forms relay as the contact
+   form (whose code stays untouched), same [Top Picks] subject, same
+   payload-side Anon fallback + name_given flag, same honeypot pattern. */
 (() => {
-  const dialog = document.getElementById('pkModal');
+  const pop = document.getElementById('pkPop');
   const form = document.getElementById('pkForm');
   const openBtn = document.getElementById('pkSuggestOpen');
-  if (!dialog || !form || !openBtn) return;
+  if (!pop || !form || !openBtn) return;
 
   const status = document.getElementById('pkStatus');
   const send = document.getElementById('pkSend');
-  const yes = document.getElementById('pkYes');
-  const no = document.getElementById('pkNo');
+  const catBtn = document.getElementById('pkCat');
+  const dashes = [...pop.querySelectorAll('.pk-cat-dashes i')];
   const suggestion = document.getElementById('pkSuggestion');
   const fromField = document.getElementById('pkFrom');
 
@@ -5139,39 +5148,60 @@ const PORTRAIT_LABEL = {
   };
 
   // The contact form's setStatus is bound to ITS status element; this is the
-  // same two-node pattern against this form's own line.
+  // same two-node pattern against this popover's own line.
   const say = (message, kind = '', lead = '') => {
     if (!status) return;
-    status.className = `contact-status${kind ? ' ' + kind : ''}`;
+    status.className = `pk-pop-status${kind ? ' ' + kind : ''}`;
     if (!lead) { status.textContent = message; return; }
     const strong = document.createElement('strong');
     strong.textContent = lead;
     status.replaceChildren(strong, ` ${message}`);
   };
 
-  /* Yes/No: one or NEITHER — the question is optional, the suggestion is the
-     form's point. Selecting one always clears the other; clicking the
-     selected one clears it back to neither. Both can never read chosen. */
-  let easy = '';
-  const paintYN = () => {
-    yes.classList.toggle('on', easy === 'yes');
-    no.classList.toggle('on', easy === 'no');
-    yes.setAttribute('aria-pressed', String(easy === 'yes'));
-    no.setAttribute('aria-pressed', String(easy === 'no'));
+  /* The category cycler: whatever shows is what gets sent — no unselected
+     state, nothing to validate. Enter/Space advance it natively (it is a
+     real button); the aria-label re-announces the value it landed on. */
+  const CATS = ['Game', 'Movie', 'Song', 'Quote'];
+  let cat = 0;
+  const paintCat = () => {
+    catBtn.textContent = CATS[cat];
+    catBtn.setAttribute('aria-label', `Category: ${CATS[cat]} — press to change`);
+    dashes.forEach((d, i) => d.classList.toggle('on', i === cat));
   };
-  yes.addEventListener('click', () => { easy = easy === 'yes' ? '' : 'yes'; paintYN(); });
-  no.addEventListener('click', () => { easy = easy === 'no' ? '' : 'no'; paintYN(); });
+  catBtn.addEventListener('click', () => { cat = (cat + 1) % CATS.length; paintCat(); });
+  paintCat();
 
-  openBtn.addEventListener('click', () => {
+  /* open / close: focus in on open, back to the ? on close. Values are NOT
+     reset here — the panel only hides, so a draft survives its own closes. */
+  let openScrollY = 0;
+  const isOpen = () => !pop.hidden;
+  const open = () => {
     say('');
-    form.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
-    openModal(dialog, form, () => suggestion.focus(), openBtn);
+    suggestion.classList.remove('invalid');
+    pop.hidden = false;
+    openScrollY = window.scrollY;
     send.disabled = sends().length >= PK_MAX;
-    if (send.disabled) say('That is plenty for now — the form reopens in a few minutes.', 'error');
+    if (send.disabled) say('That is plenty for now — try again in a few minutes.', 'error');
+    suggestion.focus();
+  };
+  const close = (refocus = true) => {
+    if (!isOpen()) return;
+    pop.hidden = true;
+    if (refocus) openBtn.focus({ preventScroll: true });
+  };
+  openBtn.addEventListener('click', () => (isOpen() ? close() : open()));
+  document.addEventListener('pointerdown', e => {
+    if (isOpen() && !pop.contains(e.target) && !openBtn.contains(e.target)) close(false);
   });
-  document.getElementById('pkClose')?.addEventListener('click', () => closeModal(dialog));
-  document.getElementById('pkCancel')?.addEventListener('click', () => closeModal(dialog));
-  bindModal(dialog);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); close(); }
+  }, true);
+  // An anchored panel must not drift away from its anchor — but a nudge of a
+  // few pixels must not eat a draft, so the close waits for real travel
+  // (and the draft survives regardless; see above).
+  window.addEventListener('scroll', () => {
+    if (isOpen() && Math.abs(window.scrollY - openScrollY) > 24) close(false);
+  }, { passive: true });
 
   form.addEventListener('submit', async event => {
     event.preventDefault();
@@ -5181,19 +5211,20 @@ const PORTRAIT_LABEL = {
     const trap = form.querySelector('.contact-trap');
     if (trap?.value || document.getElementById('pkBotcheck')?.checked) {
       form.reset();
-      easy = '';
-      paintYN();
-      say('Straight onto the shortlist pile.', 'ok', '✓ Sent.');
+      cat = 0;
+      paintCat();
+      say('On the pile.', 'ok', '✓ Sent.');
+      setTimeout(() => close(), 1400);
       return;
     }
 
     const sugg = suggestion.value.trim();
     const suggOk = sugg.length >= 3;
-    flagField(suggestion, !suggOk);
+    suggestion.classList.toggle('invalid', !suggOk);
     if (!suggOk) { say('Give me at least a title to chase.', 'error'); suggestion.focus(); return; }
 
     if (sends().length >= PK_MAX) {
-      say('That is plenty for now — the form reopens in a few minutes.', 'error');
+      say('That is plenty for now — try again in a few minutes.', 'error');
       return;
     }
 
@@ -5203,6 +5234,7 @@ const PORTRAIT_LABEL = {
        distinguishable in the mail. */
     const typed = fromField.value.trim();
     const from = typed || 'Anon';
+    const category = CATS[cat];
 
     send.disabled = true;
     say('Sending…');
@@ -5219,20 +5251,21 @@ const PORTRAIT_LABEL = {
           subject: `[Top Picks] suggestion from ${from}`,
           name: from,
           name_given: Boolean(typed),
-          top5_easy: easy || '(unanswered)',
+          category,
           suggestion: sugg,
-          message: `Top-5 easy: ${easy || '(unanswered)'}\n\nSuggestion:\n${sugg}`
+          message: `Category: ${category}\n\nSuggestion:\n${sugg}`
         })
       });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       record();
-      form.reset();
-      easy = '';
-      paintYN();
-      say('Straight onto the shortlist pile.', 'ok', '✓ Sent.');
+      form.reset();          // the one reset: a SENT draft is done with
+      cat = 0;
+      paintCat();
+      say('On the pile.', 'ok', '✓ Sent.');
       send.disabled = sends().length >= PK_MAX;
+      setTimeout(() => close(), 1400);
     } catch {
       send.disabled = false;
       say(`Could not send — email me instead at ${CONTACT.to}.`, 'error');

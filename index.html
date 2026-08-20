@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=184" />
+  <link rel="stylesheet" href="styles.css?v=185" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -1717,6 +1717,28 @@
               aria-label="Suggest a pick, or tell me if a top five comes easily to you">
         <span aria-hidden="true">?</span>
       </button>
+      <!-- The suggestion popover: anchored to the ?, not a dialog. No
+           backdrop, no focus trap; Escape / outside click / a real scroll
+           close it, and typed values PERSIST (it only hides) until a
+           successful send. The dashes are indicators, aria-hidden - the
+           cycler button is the one control. -->
+      <div class="pk-pop" id="pkPop" hidden>
+        <form id="pkForm" novalidate>
+          <div class="pk-cat">
+            <span class="pk-cat-dashes" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <button class="pk-cat-btn" type="button" id="pkCat"
+                    aria-label="Category: Game — press to change">Game</button>
+          </div>
+          <input class="pk-pop-input" id="pkSuggestion" type="text" maxlength="300"
+                 required placeholder="Suggest a game, movie, song, or quote" />
+          <input class="pk-pop-input" id="pkFrom" type="text" maxlength="120"
+                 autocomplete="off" placeholder="Anon" />
+          <input class="contact-trap" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <input class="contact-trap" type="checkbox" name="botcheck" id="pkBotcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <p class="pk-pop-status" id="pkStatus" role="status" aria-live="polite"></p>
+          <button class="button primary pk-pop-send" type="submit" id="pkSend"><span>SEND</span></button>
+        </form>
+      </div>
       </div>
       <div class="pk-stage">
       <!-- Same carousel as Toolkit: the whole side lane is the target, full
@@ -3098,46 +3120,6 @@
 
   <!-- Contact modal. <dialog>.showModal() gives focus trapping and Esc-to-close
        for free; the backdrop click is wired in script.js. -->
-  <dialog class="contact-modal" id="pkModal" aria-labelledby="pkFormTitle">
-    <form class="contact-panel" id="pkForm" novalidate>
-      <button class="contact-close" type="button" id="pkClose" aria-label="Close the picks suggestion form">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      </button>
-
-      <p class="eyebrow">TOP PICKS</p>
-      <h2 id="pkFormTitle">SUGGEST A PICK</h2>
-      <p class="contact-intro">Argue with my top fives, or hand me something that belongs in one.</p>
-
-      <div class="contact-field" role="group" aria-labelledby="pkEasyLabel">
-        <span id="pkEasyLabel">IS A TOP 5 PICK EASY FOR YOU?</span>
-        <div class="pk-yesno">
-          <button class="pk-yn" type="button" id="pkYes" aria-pressed="false">Yes</button>
-          <button class="pk-yn" type="button" id="pkNo" aria-pressed="false">No</button>
-        </div>
-      </div>
-      <label class="contact-field">
-        <span>YOUR SUGGESTION <b>*</b></span>
-        <textarea id="pkSuggestion" rows="4" maxlength="2000" required placeholder="A game, a movie, a song, or a quote — and why it belongs in a top five."></textarea>
-      </label>
-      <label class="contact-field">
-        <span>NAME OR CONTACT</span>
-        <input id="pkFrom" type="text" maxlength="120" autocomplete="off" placeholder="Anon" />
-      </label>
-
-      <!-- Honeypots, exactly the contact form's pattern: hidden by class, not
-           an inline style, which style-src 'self' would block. -->
-      <input class="contact-trap" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
-      <input class="contact-trap" type="checkbox" name="botcheck" id="pkBotcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
-
-      <p class="contact-status" id="pkStatus" role="status" aria-live="polite"></p>
-
-      <div class="contact-actions">
-        <button class="button primary" type="submit" id="pkSend"><span>SEND SUGGESTION</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></button>
-        <button class="button ghost" type="button" id="pkCancel"><span>CANCEL</span></button>
-      </div>
-    </form>
-  </dialog>
-
   <dialog class="contact-modal" id="contactModal" aria-labelledby="contactTitle">
     <form class="contact-panel" id="contactForm" novalidate>
       <button class="contact-close" type="button" id="contactClose" aria-label="Close contact form">
@@ -3178,6 +3160,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=184"></script>
+  <script src="script.js?v=185"></script>
 </body>
 </html>
