@@ -170,6 +170,41 @@ the leading suspect and is arithmetic, not a measurement.
 > goes; `docs/seamless-space.md` stays.
 
 
+**Started. "Grows visibly" is not the same claim as "grows", and it is not met
+yet.** Phase 4 closed the first bullet by measuring angular size — 4.21 degrees
+climbing out to 13.1 on approach — and the filmstrip shows no world in any
+transit frame. `dev/crosscheck.mjs` now measures VISIBILITY rather than size: it
+lifts the destination's far body for one frame and differences the frame against
+itself, so the pixels that change are the body exactly. Three things had to be
+fixed in the measurement before it said anything:
+
+- **A control.** Two grabs with nothing toggled differ by more than two levels
+  across **61% of the frame** — the sky's dither and the post grain are
+  per-frame. The first version reported 61% of the frame responding at a stage
+  where the body was not promoted. Averaging twelve renders per grab takes the
+  control to ~6%.
+- **Mean absolute difference**, not the difference of means, which cancels to
+  zero for a body half brighter and half darker than its sky.
+- **One instant.** The stage line comes from an earlier round trip and the craft
+  moves kilometres between evaluations, so the target's live distance and
+  drawAngle are now read in the same synchronous pass as the pixels.
+
+With all three: **the destination's contribution is below the frame's own noise
+at every stage**, at cuts of 2, 8 and 20 levels. That is consistent with the
+filmstrip and it is not yet a diagnosis — the body's footprint at these stages
+is around 0.1% of frame against a 6% floor, so the test lacks the sensitivity to
+separate "flat" from "tiny".
+
+**Open, and deliberately not acted on:** in one synchronous read the body's own
+`drawAngle` says 13.67 degrees across while its `scaling` and its distance from
+`scene.activeCamera` subtend 2.12. `scaling` has exactly one writer and the
+formula there is right, so the leading suspect is the measurement — `promote()`
+takes a camera argument that need not be `scene.activeCamera` at read time,
+which would make the distance wrong rather than the renderer. Settle that before
+touching anything.
+
+The other two bullets are untouched.
+
 - Distant worlds should **grow visibly** during hyper travel — the speed FX
   already exist and now have something to play against
 - Consider a **skip or fast-forward** for repeat trips. Thirty seconds is fine

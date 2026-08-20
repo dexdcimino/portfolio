@@ -329,6 +329,118 @@ const MARKS = [
   ['past the balance point', 'c.hyperT < window.__cross.peak - 0.15'],
   ['on approach', 'c.hyperT < 0.45'],
 ];
+/* IS IT VISIBLE, WHICH IS NOT THE SAME QUESTION AS HOW BIG IT IS.
+   The brief says distant worlds should grow VISIBLY, and what was measured to
+   close that in phase 4 was angular size: 4.21 degrees climbing out to 13.04 on
+   approach. Both figures are true and neither says the world can be SEEN. A
+   body drawn at 13 degrees in the same tone as the sky behind it is 13 degrees
+   of nothing, and the filmstrip is what said so first.
+
+   So the body is lifted for one frame and the frame differenced against itself.
+   The pixels that CHANGE are the body, exactly — limb, air and all — with no
+   projection maths, which is the same trick the water pass and --forcelit use.
+   BOTH GRABS HAPPEN INSIDE ONE SYNCHRONOUS EVALUATION, with no await between
+   them, so the game's rAF loop cannot run and the craft cannot move: at a
+   million metres a second two consecutive real frames differ by more than the
+   body does. */
+const VISIBLE = (key) => `(() => {
+  const S = window.SURVEYOR;
+  const b = S.discs && S.discs.bodies && S.discs.bodies.get(${JSON.stringify(key)});
+  if (!b || !b.mesh || !b.mesh.isEnabled()) return { promoted: false, pixels: 0 };
+  const eng = S.scene.getEngine(), gl = eng._gl;
+  const w = eng.getRenderWidth(), h = eng.getRenderHeight();
+  /* AVERAGED OVER N RENDERS, and that is not caution, it is required. Two
+     consecutive renders of a completely static scene differ by more than two
+     levels across SIXTY-ONE PERCENT of the frame — the sky's dither and the
+     post stack's grain are per-frame — so a single-frame difference is all
+     noise and the first version of this measured exactly that. The control
+     below is what said so; averaging is what makes the control go quiet. */
+  const N = 12;
+  const grab = () => {
+    const acc = new Float32Array(w * h);
+    const p = new Uint8Array(w * h * 4);
+    for (let f = 0; f < N; f++) {
+      S.scene.render();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, p);
+      for (let i = 0, j = 0; i < acc.length; i++, j += 4) {
+        acc[i] += (0.2126 * p[j] + 0.7152 * p[j + 1] + 0.0722 * p[j + 2]) / N;
+      }
+    }
+    return acc;
+  };
+  /* A CONTROL FIRST. Two grabs with NOTHING toggled between them, so the
+     render-to-render variation is known before any of it is attributed to the
+     body. Without this the first version of this measurement reported 61% of
+     the frame responding at a stage where the body was not even promoted. */
+  const ctrlA = grab();
+  const ctrlB = grab();
+  /* WHAT THE SCENE THINKS OF IT, before any pixels are counted. If the toggle
+     changes nothing, the next question is whether the thing being toggled is
+     in the frame at all — and that is cheaper to ask than to infer. */
+  /* THE TARGET'S OWN LIVE NUMBERS, READ HERE. The stage line above comes from
+     a previous round trip, and at a million metres a second the craft moves
+     kilometres between two evaluations — so comparing that line's trueKm and
+     drawnDeg against a scale measured now is comparing two different instants,
+     and the first version of this did exactly that and appeared to show the
+     body drawn seven times too small. Everything compared below is read in one
+     synchronous pass. */
+  const tgt = (S.discs.list || []).find((x) => x.key === ${JSON.stringify(key)});
+  const act = S.scene.getActiveMeshes ? S.scene.getActiveMeshes() : null;
+  const active = act ? (act.data || []).indexOf(b.mesh) >= 0 : null;
+  const state = {
+    enabled: b.mesh.isEnabled(), visibility: b.mesh.visibility,
+    group: b.mesh.renderingGroupId, active,
+    /* No isInFrustum here on purpose: calling it needs the scene's frustum
+       planes and the obvious accessor hands back an empty array, which makes it
+       answer false for everything. A field that is always false looks exactly
+       like a finding. */
+    scale: +b.mesh.scaling.x.toFixed(2),
+    trueKm: tgt ? +(tgt.dist / 1000).toFixed(1) : null,
+    drawnDeg: tgt ? +(tgt.drawAngle * 360 / Math.PI).toFixed(2) : null,
+    // What that scale and distance actually subtend, to compare against the
+    // drawnDeg the line above reports. These are the two numbers that disagree.
+    subtend: +(2 * Math.atan(b.mesh.scaling.x / Math.max(1e-6,
+      BABYLON.Vector3.Distance(b.mesh.position, S.scene.activeCamera.position)))
+      * 180 / Math.PI).toFixed(2),
+    dist: +BABYLON.Vector3.Distance(b.mesh.position, S.scene.activeCamera.position).toFixed(1),
+  };
+  const on = grab();
+  b.mesh.setEnabled(false);
+  const off = grab();
+  b.mesh.setEnabled(true);
+  /* SWEPT, NOT THRESHOLDED ONCE. A single cut cannot tell "the body is there
+     and has no contrast" from "the body is not drawn": both give zero. Three
+     cuts and the peak difference can — a body present but flat shows a big
+     count at 2 and nothing at 20, and a body absent shows the control's
+     numbers at every cut. */
+  const CUTS = [2, 8, 20];
+  const diff = (x, y) => {
+    const k = [0, 0, 0];
+    let sx = 0, sy = 0, sAbs = 0, peak = 0;
+    for (let i = 0; i < x.length; i++) {
+      const a = x[i], c = y[i], m = Math.abs(a - c);
+      if (m > peak) peak = m;
+      for (let j = 0; j < CUTS.length; j++) if (m > CUTS[j]) k[j]++;
+      if (m > CUTS[0]) { sx += a; sy += c; sAbs += m; }
+    }
+    return { k, sx, sy, sAbs, peak: +peak.toFixed(1) };
+  };
+  const ctrl = diff(ctrlA, ctrlB);
+  const d = diff(on, off);
+  const mean = (v, k) => +(v / Math.max(1, k)).toFixed(1);
+  return {
+    promoted: true, state,
+    noise: ctrl.k, noisePeak: ctrl.peak,
+    pixels: d.k, peak: d.peak,
+    body: mean(d.sx, d.k[0]), behind: mean(d.sy, d.k[0]),
+    // MEAN ABSOLUTE difference, not the difference of the means: a body half of
+    // which is brighter than the sky and half darker cancels to zero otherwise,
+    // which is exactly what the first run of this reported.
+    contrast: mean(d.sAbs, d.k[0]),
+  };
+})()`;
+
 for (const [label, cond] of MARKS) {
   const r = await evaluate(page, UNTIL(`!c.hyper || (${cond})`, 120000));
   await grab(`${label} — ${(r.hyperT * 100).toFixed(0)}%`);
@@ -336,6 +448,12 @@ for (const [label, cond] of MARKS) {
     console.log(`  ${label.padEnd(24)} ${r.tgt.key} is ${r.tgt.trueKm}km away, ` +
       `drawn as if ${r.tgt.discKm}km — true ${r.tgt.trueDeg}°, drawn ${r.tgt.drawnDeg}°` +
       `, fov ${r.tgt.fov}°${r.tgt.promoted ? ', promoted' : ''}`);
+    const v = await evaluate(page, VISIBLE(r.tgt.key));
+    console.log(`  ${''.padEnd(24)} ${v.promoted
+      ? `px over 2/8/20: ${v.pixels.join('/')} (control ${v.noise.join('/')}), ` +
+        `peak ${v.peak} vs ${v.noisePeak}
+  ${''.padEnd(24)} ${JSON.stringify(v.state)}`
+      : 'not promoted yet — still the billboard'}`);
   }
   if (!r.hyper) break;
 }
