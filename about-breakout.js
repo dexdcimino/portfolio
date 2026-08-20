@@ -31,6 +31,9 @@
  * it. Every failure path lands in restore().
  */
 
+import { createAudioSettings, buildAudioPanel, createBusGraph }
+  from './games/_shared/audio-panel.js';
+
 const BLEED = 8;  // px of canvas beyond the paragraph, so nothing ever clips
 const PAD = 1.25; // px around a letter cell an erase patch also covers: the
                   // antialiasing fringe. Wider would start nicking neighbours.
@@ -288,6 +291,72 @@ const MAX_AIM = 1.05;        // rad from vertical at the paddle's very edge
 const MIN_VY = 0.25;         // min |vy| as a fraction of speed: no horizontal skims
 const STEP = 4;              // px of ball travel per collision substep
 const MIN_TRAVEL = 56;       // px of clear air the ball needs under the bio
+const GRAVITY = 1100;        // px/s^2 on a falling letter
+const FADE = 0.85;           // s for a falling letter to fade out — always
+                             // gone before it lands, so there is no pile-up
+                             // and no pile collision to write
+
+/* ---- audio ---------------------------------------------------------------
+ * The shared Clayweld panel (games/_shared/audio-panel.js) owns settings,
+ * persistence ('about-breakout-audio') and the panel UI; this wires it to a
+ * lazily created AudioContext and synthesises the handful of blips the toy
+ * needs — no samples, nothing fetched. Sound must never break the game:
+ * every entry point swallows its own failures.
+ */
+function createAudio() {
+  let ctx = null;
+  let graph = null;
+  const settings = createAudioSettings('about-breakout',
+    (levels) => graph?.apply(levels));
+
+  const ensure = () => {
+    if (!ctx) {
+      ctx = new AudioContext();
+      graph = createBusGraph(ctx);
+      graph.apply({
+        master: settings.level('master'),
+        music: settings.level('music'),
+        fx: settings.level('fx'),
+      });
+    }
+    // Created on the Play click, so this resolves; harness-driven starts
+    // without a gesture just stay suspended and the blips are silent no-ops.
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    return ctx;
+  };
+
+  const blip = (freq, dur, { type = 'triangle', peak = 0.5, slideTo = 0 } = {}) => {
+    try {
+      if (!settings.isOn('master') || !settings.isOn('fx')) return;
+      const c = ensure();
+      const t = c.currentTime;
+      const osc = c.createOscillator();
+      const env = c.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+      env.gain.setValueAtTime(peak, t);
+      env.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.connect(env).connect(graph.fx);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+    } catch { /* no audio is never an error worth surfacing */ }
+  };
+
+  return {
+    settings,
+    // Narrow letters ring higher — the wall plays a scatter of pitches
+    // instead of one repeated click.
+    letter: (w) => blip(920 - Math.min(16, w) * 22 + Math.random() * 40, 0.09, { peak: 0.45 }),
+    paddle: (offset) => blip(200 + 90 * Math.abs(offset), 0.07, { type: 'sine', peak: 0.5 }),
+    wall: () => blip(340, 0.045, { type: 'sine', peak: 0.28 }),
+    ceiling: () => blip(540, 0.06, { type: 'sine', peak: 0.34 }),
+    lost: () => blip(300, 0.22, { type: 'sine', peak: 0.3, slideTo: 120 }),
+    mountPanel: (root) => buildAudioPanel(root, settings),
+    running: () => (ctx ? ctx.state : 'none'),
+    close: () => { try { ctx?.close(); } catch { } ctx = null; graph = null; },
+  };
+}
 
 /**
  * Can the game be offered here at all? The Play button's gate: a fine
@@ -353,13 +422,19 @@ export async function start() {
   const total = h.letters.length;
   const alive = new Array(total).fill(true);
   let destroyed = 0;
+  /* A hit letter detaches: covered in the DOM, twinned on the canvas with the
+   * ball's momentum, gravity and a little spin, fading out before it can
+   * land. Entries: {i, x, y, rot, vx, vy, om, alpha} with x/y the CELL
+   * CENTRE. */
+  const falling = [];
+  const audio = createAudio();
 
   const paddle = { x: (left + right) / 2, y: floor - 14, w: PADDLE_W, h: PADDLE_H };
   const ball = { x: paddle.x, y: paddle.y - BALL_R - 1, vx: 0, vy: 0, attached: true, timer: 0.5 };
   let launches = 0;
   const events = { paddleHits: 0, ceilingHits: 0, wallHits: 0, respawns: 0, breaks: 0 };
   const state = {
-    ball, paddle, alive, events,
+    ball, paddle, alive, events, falling,
     bounds: { left, right, ceiling, floor },
     get destroyed() { return destroyed; }, total,
     running: true, won: false,
@@ -426,6 +501,7 @@ export async function start() {
 
   const respawn = () => {
     events.respawns++;
+    audio.lost();
     ball.attached = true;
     ball.timer = 0.6;
     ball.vx = ball.vy = 0;
@@ -442,6 +518,16 @@ export async function start() {
       alive[i] = false;
       destroyed++;
       events.breaks++;
+      falling.push({
+        i, x: l.x + l.w / 2, y: l.y + l.h / 2, rot: 0,
+        // a fraction of the ball's momentum plus a small upward pop — the
+        // letter is knocked off, not dropped
+        vx: ball.vx * 0.18 + (Math.random() - 0.5) * 60,
+        vy: Math.min(0, ball.vy * 0.15) - 30 - Math.random() * 60,
+        om: (Math.random() - 0.5) * 7,
+        alpha: 1,
+      });
+      audio.letter(l.w);
       // Reflect off the shallower penetration axis and push out of it.
       const ox = BALL_R + l.w / 2 - Math.abs(ball.x - (l.x + l.w / 2));
       const oy = BALL_R + l.h / 2 - Math.abs(ball.y - (l.y + l.h / 2));
@@ -452,7 +538,21 @@ export async function start() {
     }
   };
 
+  const updateFalling = (dt) => {
+    for (let k = falling.length - 1; k >= 0; k--) {
+      const f = falling[k];
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.vy += GRAVITY * dt;
+      f.rot += f.om * dt;
+      f.alpha -= dt / FADE;
+      // Faded, fallen out, or drifted out of the canvas: gone. No pile-up.
+      if (f.alpha <= 0 || f.y > floor + 30) falling.splice(k, 1);
+    }
+  };
+
   const update = (dt) => {
+    updateFalling(dt);
     // paddle
     if (mouseX !== null) paddle.x = mouseX;
     else paddle.x += ((keys.right ? 1 : 0) - (keys.left ? 1 : 0)) * PADDLE_SPEED * dt;
@@ -475,11 +575,11 @@ export async function start() {
       ball.x += (ball.vx / s) * step;
       ball.y += (ball.vy / s) * step;
 
-      if (ball.x - BALL_R < left) { ball.x = left + BALL_R; ball.vx = Math.abs(ball.vx); events.wallHits++; clampAngle(); }
-      else if (ball.x + BALL_R > right) { ball.x = right - BALL_R; ball.vx = -Math.abs(ball.vx); events.wallHits++; clampAngle(); }
+      if (ball.x - BALL_R < left) { ball.x = left + BALL_R; ball.vx = Math.abs(ball.vx); events.wallHits++; audio.wall(); clampAngle(); }
+      else if (ball.x + BALL_R > right) { ball.x = right - BALL_R; ball.vx = -Math.abs(ball.vx); events.wallHits++; audio.wall(); clampAngle(); }
       if (ball.y - BALL_R < ceiling) {
         ball.y = ceiling + BALL_R; ball.vy = Math.abs(ball.vy);
-        events.ceilingHits++; flashCeiling(); clampAngle();
+        events.ceilingHits++; flashCeiling(); audio.ceiling(); clampAngle();
       }
 
       // paddle: only a descending ball, only from above
@@ -488,6 +588,7 @@ export async function start() {
           Math.abs(ball.x - paddle.x) <= paddle.w / 2 + BALL_R) {
         events.paddleHits++;
         const offset = Math.max(-1, Math.min(1, (ball.x - paddle.x) / (paddle.w / 2)));
+        audio.paddle(offset);
         const a = offset * MAX_AIM;
         const sp = speed();
         ball.vx = sp * Math.sin(a);
@@ -507,6 +608,18 @@ export async function start() {
     h.clearPaint();
     const ctx = h.ctx;
     for (let i = 0; i < total; i++) if (!alive[i]) h.cover(i);
+    for (const f of falling) {
+      const l = h.letters[f.i];
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, f.alpha);
+      ctx.translate(f.x, f.y);
+      ctx.rotate(f.rot);
+      ctx.fillStyle = h.color;
+      // fillText anchors on the baseline; place it relative to the cell
+      // centre the twin is rotating around.
+      ctx.fillText(l.ch, -l.w / 2, l.baseline - (l.y + l.h / 2));
+      ctx.restore();
+    }
     ctx.fillStyle = accent;
     const pr = new Path2D();
     pr.roundRect(paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 3);
@@ -537,6 +650,7 @@ export async function start() {
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('keyup', onKeyUp, true);
     window.removeEventListener('pointermove', onPointer);
+    audio.close();
     h.restore();
   };
 
@@ -580,5 +694,5 @@ export async function start() {
   window.addEventListener('pointermove', onPointer);
   raf = requestAnimationFrame(frame);
 
-  return { stop, state, handle: h };
+  return { stop, state, handle: h, audio };
 }

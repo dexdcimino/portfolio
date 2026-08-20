@@ -100,7 +100,13 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   underside (h2 flashes accent, throttled), floor at the portrait's bottom
   hard-capped above `.about-sub` — and `canPlay()` gates on a fine pointer,
   motion allowed, and >=56px of dead space under the bio, which the layout
-  only has at roughly >=1400px wide. The `<p>` stays in the accessible tree
+  only has at roughly >=1400px wide. A hit letter detaches with the ball's
+  momentum, gravity and spin, and always fades before it lands (no pile-up
+  by construction). Audio is the shared Clayweld panel
+  (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
+  driving synthesized blips through `createBusGraph` — no samples, no
+  fetches, no MediaBus registration (short fx are not a player and must
+  not pause the song bar). The `<p>` stays in the accessible tree
   at all times (never hidden, never aria-hidden; the canvas is), and every
   exit — any error, Escape, resize, layout shift, a late font swap,
   scrolling the section away — restores the untouched text
