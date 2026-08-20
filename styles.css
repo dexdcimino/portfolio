@@ -3667,6 +3667,16 @@ body.modal-open{overflow:hidden}
   padding:22px 22px 18px;
 }
 .gal-close{position:absolute;top:12px;right:12px;z-index:3}
+/* These two X buttons sit over ARBITRARY content — an app frame that may be
+   running a light theme, a pale screenshot — where .contact-close's
+   near-transparent white plate leaves nothing behind the glyph. A dark,
+   mostly-opaque plate reads against anything. Scoped here, not on the shared
+   base: the contact modal, prompt reader, vault and wallpaper lightbox all
+   sit on the site's own dark surfaces and are right as they are. The hover
+   is scoped with it, or the first pointer touch would flash the plate back
+   to translucent white over the same light content. */
+.app-close,.gal-close{background:rgba(8,11,15,.72);color:#c9d0d6}
+.app-close:hover,.gal-close:hover{background:rgba(8,11,15,.88)}
 .gal-hero{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:stretch}
 /* The explicit track is load-bearing, not tidiness. The stage's own height is
    definite (aspect-ratio), but an implicit grid row is auto-sized to its
