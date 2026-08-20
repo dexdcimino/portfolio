@@ -302,6 +302,14 @@ export async function engage({ top, bottom } = {}) {
  * ======================================================================== */
 
 const BALL_R = 5;
+const BALL_R_MAX = 11;       // radius at a fully cleared wall
+const FATTEN_AT = 0.6;       // progress where the ball starts growing. The
+                             // end-game is hunting scattered survivors, and
+                             // that tail is what made a full clear take
+                             // minutes: a fatter ball sweeps wider channels,
+                             // rewards progress visibly, and keeps ONE ball —
+                             // a second one would double the physics for a
+                             // toy that should not have any more of it.
 const PADDLE_W = 68;
 const PADDLE_H = 6;
 const BASE_SPEED = 340;      // px/s before the ramp
@@ -539,7 +547,7 @@ export async function start({ onStop, onPauseChange } = {}) {
   let reassembleT = 0;
 
   const paddle = { x: (left + right) / 2, y: floor - 14, w: PADDLE_W, h: PADDLE_H };
-  const ball = { x: paddle.x, y: paddle.y - BALL_R - 1, vx: 0, vy: 0, attached: true, timer: 0.5 };
+  const ball = { x: paddle.x, y: paddle.y - BALL_R - 1, r: BALL_R, vx: 0, vy: 0, attached: true, timer: 0.5 };
   let launches = 0;
   const events = { paddleHits: 0, ceilingHits: 0, wallHits: 0, respawns: 0, breaks: 0 };
   let paused = false;
@@ -679,7 +687,7 @@ export async function start({ onStop, onPauseChange } = {}) {
       const qx = Math.max(l.x, Math.min(ball.x, l.x + l.w));
       const qy = Math.max(l.y, Math.min(ball.y, l.y + l.h));
       const dx = ball.x - qx, dy = ball.y - qy;
-      if (dx * dx + dy * dy > BALL_R * BALL_R) continue;
+      if (dx * dx + dy * dy > ball.r * ball.r) continue;
       alive[i] = false;
       destroyed++;
       events.breaks++;
@@ -694,8 +702,8 @@ export async function start({ onStop, onPauseChange } = {}) {
       });
       audio.letter(l.w);
       // Reflect off the shallower penetration axis and push out of it.
-      const ox = BALL_R + l.w / 2 - Math.abs(ball.x - (l.x + l.w / 2));
-      const oy = BALL_R + l.h / 2 - Math.abs(ball.y - (l.y + l.h / 2));
+      const ox = ball.r + l.w / 2 - Math.abs(ball.x - (l.x + l.w / 2));
+      const oy = ball.r + l.h / 2 - Math.abs(ball.y - (l.y + l.h / 2));
       if (ox < oy) { ball.vx = -ball.vx; ball.x += Math.sign(dx || ball.vx) * ox; }
       else { ball.vy = -ball.vy; ball.y += Math.sign(dy || ball.vy) * oy; }
       clampAngle();
@@ -749,6 +757,12 @@ export async function start({ onStop, onPauseChange } = {}) {
 
   const update = (dt) => {
     updateFalling(dt);
+    // The 90-second lever: past FATTEN_AT the ball grows toward BALL_R_MAX,
+    // sweeping wider channels so the last scattered letters stop being a
+    // minutes-long hunt. Continuous in progress, so it reads as a reward
+    // swelling rather than a step.
+    ball.r = BALL_R + (BALL_R_MAX - BALL_R) *
+      Math.max(0, destroyed / total - FATTEN_AT) / (1 - FATTEN_AT);
     // paddle
     if (mouseX !== null) paddle.x = mouseX;
     else paddle.x += ((keys.right ? 1 : 0) - (keys.left ? 1 : 0)) * PADDLE_SPEED * dt;
@@ -756,7 +770,7 @@ export async function start({ onStop, onPauseChange } = {}) {
 
     if (ball.attached) {
       ball.x = paddle.x;
-      ball.y = paddle.y - BALL_R - 1;
+      ball.y = paddle.y - ball.r - 1;
       ball.timer -= dt;
       if (ball.timer <= 0) launch();
       return;
@@ -771,17 +785,17 @@ export async function start({ onStop, onPauseChange } = {}) {
       ball.x += (ball.vx / s) * step;
       ball.y += (ball.vy / s) * step;
 
-      if (ball.x - BALL_R < left) { ball.x = left + BALL_R; ball.vx = Math.abs(ball.vx); events.wallHits++; audio.wall(); clampAngle(); }
-      else if (ball.x + BALL_R > right) { ball.x = right - BALL_R; ball.vx = -Math.abs(ball.vx); events.wallHits++; audio.wall(); clampAngle(); }
-      if (ball.y - BALL_R < ceiling) {
-        ball.y = ceiling + BALL_R; ball.vy = Math.abs(ball.vy);
+      if (ball.x - ball.r < left) { ball.x = left + ball.r; ball.vx = Math.abs(ball.vx); events.wallHits++; audio.wall(); clampAngle(); }
+      else if (ball.x + ball.r > right) { ball.x = right - ball.r; ball.vx = -Math.abs(ball.vx); events.wallHits++; audio.wall(); clampAngle(); }
+      if (ball.y - ball.r < ceiling) {
+        ball.y = ceiling + ball.r; ball.vy = Math.abs(ball.vy);
         events.ceilingHits++; flashCeiling(); audio.ceiling(); clampAngle();
       }
 
       // paddle: only a descending ball, only from above
       if (ball.vy > 0 &&
-          ball.y + BALL_R >= paddle.y && ball.y + BALL_R <= paddle.y + paddle.h + 8 &&
-          Math.abs(ball.x - paddle.x) <= paddle.w / 2 + BALL_R) {
+          ball.y + ball.r >= paddle.y && ball.y + ball.r <= paddle.y + paddle.h + 8 &&
+          Math.abs(ball.x - paddle.x) <= paddle.w / 2 + ball.r) {
         events.paddleHits++;
         const offset = Math.max(-1, Math.min(1, (ball.x - paddle.x) / (paddle.w / 2)));
         audio.paddle(offset);
@@ -789,12 +803,12 @@ export async function start({ onStop, onPauseChange } = {}) {
         const sp = speed();
         ball.vx = sp * Math.sin(a);
         ball.vy = -sp * Math.cos(a);
-        ball.y = paddle.y - BALL_R;
+        ball.y = paddle.y - ball.r;
       }
 
       collideLetters();
 
-      if (ball.y - BALL_R > floor + 22) { respawn(); return; }
+      if (ball.y - ball.r > floor + 22) { respawn(); return; }
     }
   };
 
@@ -877,7 +891,7 @@ export async function start({ onStop, onPauseChange } = {}) {
     ctx.fill(pr);
     if (!ball.attached || ball.timer < 0.25) {
       ctx.beginPath();
-      ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
       ctx.fill();
     }
     drawVeil();
@@ -972,6 +986,15 @@ export async function start({ onStop, onPauseChange } = {}) {
        * minutes a harness does not have. */
       winNow() {
         for (let i = 0; i < total; i++) if (alive[i]) { alive[i] = false; destroyed++; }
+        falling.length = 0;
+      },
+      /* Test hook: jump the clear fraction so the fatten curve and the
+       * end-game it exists for can be exercised without minutes of play. */
+      clear(fraction) {
+        const target = Math.floor(total * fraction);
+        for (let i = 0; i < total && destroyed < target; i++) {
+          if (alive[i]) { alive[i] = false; destroyed++; }
+        }
         falling.length = 0;
       },
     },

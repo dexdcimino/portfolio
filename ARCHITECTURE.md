@@ -124,7 +124,11 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   motion allowed, and >=56px of dead space under the bio, which the layout
   only has at roughly >=1400px wide. A hit letter detaches with the ball's
   momentum, gravity and spin, and always fades before it lands (no pile-up
-  by construction). Audio is the shared Clayweld panel
+  by construction). Past 60% cleared the ball grows continuously from 5px
+  toward 11px radius — the end-game hunt for scattered survivors is what
+  made a full clear take minutes, and a fatter ball sweeps it up while
+  reading as a reward; deliberately ONE ball, never a second (Dex,
+  2026-08-20 — a second ball doubles the physics for a toy). Audio is the shared Clayweld panel
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
   MediaBus registration for the BLIPS (short fx are not a player and must

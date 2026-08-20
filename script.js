@@ -4872,7 +4872,7 @@ const PORTRAIT_LABEL = {
   const stopBtn = document.getElementById('bbStopBtn');
   if (!ui || !play || !stack) return;
 
-  const MODULE = './about-breakout.js?v=3';
+  const MODULE = './about-breakout.js?v=4';
   let mod = null;
   const load = async () => (mod ??= await import(MODULE));
 
