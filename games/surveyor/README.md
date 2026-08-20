@@ -588,6 +588,66 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### Fog got worse as you climbed, and the fix is one term
+
+`fogRangeAt` had two faults that only met above the altitude either was written
+for, and together they whited out an arrival.
+
+**The clamp was a model, not a guard.** Altitude was clamped to `2R` — put there
+so a transit's system-space altitude could not hand the fog a range wider than
+the solar system, which is right — but `2R` is 414m on Ember and 828m on Tarn,
+and `HYPER.approachAlt` is **900m absolute**. Above the clamp the range froze
+while the distance being looked through did not. It is `64R` now: past anything
+that is still a world you are flying over, and the arrival sits far inside it.
+
+**The horizon was the small-angle form.** `sqrt(2Ra)` is only right while `a` is
+small against `R`. The exact distance to the horizon from altitude `a` is
+`sqrt((R+a)² - R²)` — one term longer, and it grows with `a` instead of
+stalling. On Tarn at 900m the approximation returns 863m against a true 1247, a
+31% under-read, which is what put the ground below you outside the fog's reach.
+
+The two formulas differ by exactly `sqrt(1 + a/2R)`, so the error is a function
+of altitude over radius and of nothing else:
+
+| a/R | 0 | 0.1 | 0.25 | 0.5 | 1.0 | 4.35 |
+|---|---|---|---|---|---|---|
+| fog reaches further by | 0% | 2.5% | 6.1% | 11.8% | 22.5% | **78.2%** |
+
+**On the ground it is exactly nothing**, which is what makes this a fix rather
+than a regrade: at spawn altitude the lift blend `t` is at or near zero and both
+numbers are the profile's own. It grows where the old formula was wrong, and it
+only ever lets the fog reach *further* — a clearer view, never a murkier one.
+The worlds it changes in flight are the small ones, because `a/R` is what
+matters: the jet's ceiling of ~580m is 0.28 radii on Anvil and **2.80 on Ember**.
+
+The ground straight below you, as you climb, before and after:
+
+| world | 200m | 400m | 600m | 900m | 1200m |
+|---|---|---|---|---|---|
+| Ember, before | 0% | **96%** | **100%** | **100%** | **100%** |
+| Ember, after | 0% | 0% | 0% | 0% | 2% |
+| Tarn, before | 0% | 0% | 0% | **100%** | **100%** |
+| Tarn, after | 0% | 0% | 0% | 0% | 0% |
+
+The other four never whited out and are unchanged.
+
+The handoff step came down with it — Ember from +168% to **+47%**, Tarn from
++928% to **+634%** — which is the largest single improvement in that number so
+far and was a side effect of fixing a different bug.
+
+### ...and the arrival is still not a picture of anything
+
+Worth saying plainly, because the fix above did not deliver it. Photographed at
+the approach altitude with the camera pointed at the world, before and after are
+near enough identical: a flat dark disc on Ember, a flat pale one on Tarn,
+against a bright sky. The fog is gone from the numbers and the image did not
+change, so **the arrival's brightness is not the terrain's fog** — and it is not
+the ocean either, since Ember is dry and steps +168% all the same.
+
+What the frames do show is that the sky dome is the bright thing and the planet
+is a silhouette in front of it. That is the next thread and it is not a shader
+tuning job: `dev/shots/arrivals.jpg`.
+
 ### The far body gains its world's air — plumbing in, gap not yet closed
 
 Dex's call, and the reasoning is worth keeping: the world's arrival lighting is

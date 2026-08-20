@@ -331,13 +331,16 @@ submission, never resolution, so no coarse-geometry caster LOD was built.
 
 ## Known-outstanding — do not re-report
 
-- **Fog gets worse as you climb, above two radii.** `fogRangeAt` clamps
-  altitude to `2R` so a transit cannot hand it a range wider than the solar
-  system; above that the range freezes while the distance you are looking
-  through does not. Ember above ~400m and Tarn above ~900m go to 100% fog on
-  the ground straight below, and the hyper arrival altitude is 900m ABSOLUTE —
-  so both white out on arrival. The four larger worlds never do. Same root
-  cause as the far plane not reaching its own world.
+- ~~**Fog gets worse as you climb, above two radii.**~~ FIXED, and it was two
+  faults meeting: an altitude clamp of `2R` that was a model rather than the
+  overflow guard it was written as (`64R` now), and `sqrt(2Ra)` for the
+  horizon, which is the small-angle form and under-reads by 31% at the arrival
+  altitude on Tarn. The exact `sqrt((R+a)² - R²)` is one term longer and grows
+  with `a` instead of stalling. The two differ by `sqrt(1 + a/2R)` — zero on
+  the ground, 22% at one radius up, 78% at Ember's arrival — so it is a fix
+  everywhere the old one was right and a correction only where it was not.
+  A constant that is correct for the average world is wrong for the small ones;
+  that is the same lesson as the far plane and as the far body's air gate.
 - **The sky is observed from the craft, not from the planet.** `neighbours()`
   fixes every disc's direction and distance from the owning world's CENTRE at
   construction. Nothing rewrote it, so a destination was drawn at a constant

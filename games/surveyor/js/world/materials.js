@@ -263,11 +263,29 @@ export function skyOf(planet) {
  */
 export function fogRangeAt(planet, alt, out = { near: 0, far: 0 }) {
   const R = planet.radius;
-  const a = Math.min(Math.max(0, alt), R * 2);
+  /* THE CLAMP IS AN OVERFLOW GUARD, NOT A MODEL. main.js calls this every
+     frame including during a transit, when the craft's altitude is a
+     system-space number in the hundreds of thousands, and the range should not
+     run away with it. It used to clamp at TWO RADII, which is a number that is
+     correct for the average world and wrong for the small ones: the hyper
+     arrival altitude is 900m absolute, and 2R is 414m on Ember and 828m on
+     Tarn. Above the clamp the range froze while the distance being looked
+     through did not, so the ground straight below went to 100% fog and both
+     worlds arrived into a white-out. Sixty-four radii is past anything that is
+     still a world you are flying over, and the arrival sits far inside it. */
+  const a = Math.min(Math.max(0, alt), R * 64);
   const t = smooth01((a - FOG.from * R) / Math.max(1e-6, (FOG.to - FOG.from) * R));
   // The distance to your own horizon from here. Fog is allowed to reach it and
   // no further, because past it there is no world to draw anyway.
-  const horizon = Math.sqrt(2 * R * a) * FOG.horizonK;
+  /* THE HORIZON, EXACTLY. sqrt(2Ra) is the small-angle form and it is the
+     other half of the same bug: it is only right while a is small against R,
+     and at the arrival altitude it is not. On Tarn at 900m it returns 863m
+     against a true 1247, a 31% under-read, which is what put the ground below
+     you outside the fog's reach. The exact distance to the horizon from
+     altitude a is sqrt((R+a)^2 - R^2), one term longer, identical to the
+     approximation everywhere the approximation was valid, and it grows with a
+     instead of stalling. */
+  const horizon = Math.sqrt(a * a + 2 * R * a) * FOG.horizonK;
   const far = Math.max(planet.fogFar, planet.fogFar + (horizon - planet.fogFar) * t);
   const near = Math.max(planet.fogNear, planet.fogNear + (a - planet.fogNear) * t);
   out.near = Math.min(near, far * 0.85);
