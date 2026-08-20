@@ -322,6 +322,7 @@ const MAX_AIM = 1.05;        // rad from vertical at the paddle's very edge
 const MIN_VY = 0.25;         // min |vy| as a fraction of speed: no horizontal skims
 const STEP = 4;              // px of ball travel per collision substep
 const MIN_TRAVEL = 56;       // px of clear air the ball needs under the bio
+const SECOND_BALL_AT = 0.3;  // progress where the second ball joins (max two)
 const GRAVITY = 1100;        // px/s^2 on a falling letter
 const FADE = 0.85;           // s for a falling letter to fade out — always
                              // gone before it lands, so there is no pile-up
@@ -337,15 +338,11 @@ const FADE = 0.85;           // s for a falling letter to fade out — always
 function createAudio() {
   let ctx = null;
   let graph = null;
-  // Was there a stored mix BEFORE settings are created? Read it first: the
-  // music channel should open around 50% for a first-time player (the shared
-  // default of 30% is tuned for the games' longer sessions), but a level the
-  // player has chosen is never overwritten.
-  let firstRun = false;
-  try { firstRun = localStorage.getItem('about-breakout-audio') === null; } catch { }
+  // First-run music level is the shared default of 30% — the round-two 50%
+  // seed proved loud in place, and 30 needs no override at all. A stored
+  // preference always wins, exactly as createAudioSettings already works.
   const settings = createAudioSettings('about-breakout',
     (levels) => graph?.apply(levels));
-  if (firstRun) settings.set('music', 0.5);
 
   const ensure = () => {
     if (!ctx) {
@@ -419,6 +416,17 @@ function createAudio() {
     } catch { musicSource = null; /* a silent game is still a game */ }
   };
 
+  // With two balls live the letter blips arrive twice as fast; a short
+  // refractory window keeps a burst reading as distinct pitched hits
+  // instead of a rattle. Walls, paddle and the rest stay untouched.
+  let lastLetterBlip = 0;
+  const letterBlip = (w) => {
+    const now = performance.now();
+    if (now - lastLetterBlip < 35) return;
+    lastLetterBlip = now;
+    blip(920 - Math.min(16, w) * 22 + Math.random() * 40, 0.09, { peak: 0.45 });
+  };
+
   return {
     settings,
     music: {
@@ -443,14 +451,25 @@ function createAudio() {
     resumeAll: () => { try { ctx?.resume(); } catch { } },
     // Narrow letters ring higher — the wall plays a scatter of pitches
     // instead of one repeated click.
-    letter: (w) => blip(920 - Math.min(16, w) * 22 + Math.random() * 40, 0.09, { peak: 0.45 }),
+    letter: letterBlip,
     paddle: (offset) => blip(200 + 90 * Math.abs(offset), 0.07, { type: 'sine', peak: 0.5 }),
     wall: () => blip(340, 0.045, { type: 'sine', peak: 0.28 }),
     ceiling: () => blip(540, 0.06, { type: 'sine', peak: 0.34 }),
     lost: () => blip(300, 0.22, { type: 'sine', peak: 0.3, slideTo: 120 }),
-    win: () => { blip(440, 0.1, { peak: 0.4 });
-      setTimeout(() => blip(554, 0.1, { peak: 0.4 }), 90);
-      setTimeout(() => blip(660, 0.16, { peak: 0.4 }), 180); },
+    /* The victory: synthesised, not sourced — same voice and bus as every
+     * other sound the toy makes, so it sits WITH the three-note jingle
+     * instead of fighting it, needs no file and no fetch. A rising run
+     * into a held major chord. */
+    win: () => {
+      [440, 554, 660, 880].forEach((f, i) =>
+        setTimeout(() => blip(f, 0.11, { peak: 0.4 }), i * 90));
+      setTimeout(() => {
+        blip(440, 0.55, { peak: 0.26 });
+        blip(554, 0.55, { peak: 0.26 });
+        blip(660, 0.55, { peak: 0.26 });
+        blip(880, 0.65, { peak: 0.3 });
+      }, 400);
+    },
     running: () => (ctx ? ctx.state : 'none'),
     // Suspended between games, not closed: the popover panel and the next
     // start() keep working against the same context and settings instance.
@@ -547,15 +566,27 @@ export async function start({ onStop, onPauseChange } = {}) {
   let reassembleT = 0;
 
   const paddle = { x: (left + right) / 2, y: floor - 14, w: PADDLE_W, h: PADDLE_H };
-  const ball = { x: paddle.x, y: paddle.y - BALL_R - 1, r: BALL_R, vx: 0, vy: 0, attached: true, timer: 0.5 };
+  /* Balls, plural: one below SECOND_BALL_AT cleared, two from there on —
+   * never three (the spawn only fires while length < 2, and a missed ball
+   * respawns rather than dying). This deliberately reverses the round-two
+   * one-ball call (Dex, 2026-08-20): two balls halve the clear time
+   * honestly, and they compound with the fatten so the back half of a run
+   * falls apart in the player's favour. */
+  const makeBall = () => ({
+    x: paddle.x, y: paddle.y - BALL_R - 1, r: BALL_R,
+    vx: 0, vy: 0, attached: true, timer: 0.5,
+  });
+  const balls = [makeBall()];
   let launches = 0;
   const events = { paddleHits: 0, ceilingHits: 0, wallHits: 0, respawns: 0, breaks: 0 };
   let paused = false;
   const state = {
-    ball, paddle, alive, events, falling,
+    balls, paddle, alive, events, falling,
+    get ball() { return balls[0]; },   // the harnesses' single-ball view
     bounds: { left, right, ceiling, floor },
     get destroyed() { return destroyed; }, total,
     get paused() { return paused; },
+    time: 0,                           // sim seconds actually played
     running: true, won: false,
   };
 
@@ -652,42 +683,45 @@ export async function start({ onStop, onPauseChange } = {}) {
     mouseX = e.clientX - h.canvas.getBoundingClientRect().left;
   };
 
-  /* ---- physics -------------------------------------------------------- */
-  const clampAngle = () => {
-    // A bounce that leaves the ball skimming horizontally stalls the game:
+  /* ---- physics (all per-ball: b is whichever ball is being stepped) ---- */
+  const clampAngle = (b) => {
+    // A bounce that leaves a ball skimming horizontally stalls the game:
     // enforce a minimum vertical component, preserving speed and direction.
-    const s = Math.hypot(ball.vx, ball.vy) || 1;
+    const s = Math.hypot(b.vx, b.vy) || 1;
     const min = MIN_VY * s;
-    if (Math.abs(ball.vy) < min) {
-      ball.vy = (ball.vy < 0 || (ball.vy === 0 && Math.random() < 0.5) ? -1 : 1) * min;
-      ball.vx = Math.sign(ball.vx || 1) * Math.sqrt(Math.max(0, s * s - min * min));
+    if (Math.abs(b.vy) < min) {
+      b.vy = (b.vy < 0 || (b.vy === 0 && Math.random() < 0.5) ? -1 : 1) * min;
+      b.vx = Math.sign(b.vx || 1) * Math.sqrt(Math.max(0, s * s - min * min));
     }
   };
 
-  const launch = () => {
-    ball.attached = false;
+  const launch = (b) => {
+    b.attached = false;
     const a = 0.3 * (launches++ % 2 ? 1 : -1);   // alternate slight angles
     const s = speed();
-    ball.vx = s * Math.sin(a);
-    ball.vy = -s * Math.cos(a);
+    b.vx = s * Math.sin(a);
+    b.vy = -s * Math.cos(a);
   };
 
-  const respawn = () => {
+  const respawn = (b) => {
     events.respawns++;
     audio.lost();
-    ball.attached = true;
-    ball.timer = 0.6;
-    ball.vx = ball.vy = 0;
+    b.attached = true;
+    b.timer = 0.6;
+    b.vx = b.vy = 0;
   };
 
-  const collideLetters = () => {
+  const collideLetters = (b) => {
+    // The wall is SHARED: alive[] is the one source of truth, and the balls
+    // are stepped sequentially, so a letter broken by the first ball is
+    // already gone when the second one is tested in the same frame.
     for (let i = 0; i < total; i++) {
       if (!alive[i]) continue;
       const l = h.letters[i];
-      const qx = Math.max(l.x, Math.min(ball.x, l.x + l.w));
-      const qy = Math.max(l.y, Math.min(ball.y, l.y + l.h));
-      const dx = ball.x - qx, dy = ball.y - qy;
-      if (dx * dx + dy * dy > ball.r * ball.r) continue;
+      const qx = Math.max(l.x, Math.min(b.x, l.x + l.w));
+      const qy = Math.max(l.y, Math.min(b.y, l.y + l.h));
+      const dx = b.x - qx, dy = b.y - qy;
+      if (dx * dx + dy * dy > b.r * b.r) continue;
       alive[i] = false;
       destroyed++;
       events.breaks++;
@@ -695,25 +729,53 @@ export async function start({ onStop, onPauseChange } = {}) {
         i, x: l.x + l.w / 2, y: l.y + l.h / 2, rot: 0,
         // a fraction of the ball's momentum plus a small upward pop — the
         // letter is knocked off, not dropped
-        vx: ball.vx * 0.18 + (Math.random() - 0.5) * 60,
-        vy: Math.min(0, ball.vy * 0.15) - 30 - Math.random() * 60,
+        vx: b.vx * 0.18 + (Math.random() - 0.5) * 60,
+        vy: Math.min(0, b.vy * 0.15) - 30 - Math.random() * 60,
         om: (Math.random() - 0.5) * 7,
         alpha: 1,
       });
       audio.letter(l.w);
       // Reflect off the shallower penetration axis and push out of it.
-      const ox = ball.r + l.w / 2 - Math.abs(ball.x - (l.x + l.w / 2));
-      const oy = ball.r + l.h / 2 - Math.abs(ball.y - (l.y + l.h / 2));
-      if (ox < oy) { ball.vx = -ball.vx; ball.x += Math.sign(dx || ball.vx) * ox; }
-      else { ball.vy = -ball.vy; ball.y += Math.sign(dy || ball.vy) * oy; }
-      clampAngle();
+      const ox = b.r + l.w / 2 - Math.abs(b.x - (l.x + l.w / 2));
+      const oy = b.r + l.h / 2 - Math.abs(b.y - (l.y + l.h / 2));
+      if (ox < oy) { b.vx = -b.vx; b.x += Math.sign(dx || b.vx) * ox; }
+      else { b.vy = -b.vy; b.y += Math.sign(dy || b.vy) * oy; }
+      clampAngle(b);
       return;                              // one brick per substep
+    }
+  };
+
+  /* The celebration: accent firework bursts WHILE the letters fly home —
+   * the payoff and the restore are one moment. Pure canvas paint, so it can
+   * leave nothing behind by construction; the canvas outlives the last
+   * landing only long enough for the final sparks to die (under a second,
+   * and every letter has already handed off to real text by then). Reduced
+   * motion gets the reassembly and the sound, not the fireworks. */
+  const particles = [];
+  let celebrate = false;
+  let nextBurst = 0;
+
+  const burst = () => {
+    const bx = left + 30 + Math.random() * (right - left - 60);
+    const by = ceiling + 30 + Math.random() * (floor - ceiling - 110);
+    const n = 14 + (Math.random() * 6 | 0);
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2 + Math.random() * 0.4;
+      const sp = 70 + Math.random() * 190;
+      particles.push({
+        x: bx, y: by,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 0.55 + Math.random() * 0.35, max: 0.9,
+        size: 1.6 + Math.random() * 1.4,
+      });
     }
   };
 
   const beginReassembly = () => {
     phase = 'reassemble';
     reassembleT = 0;
+    celebrate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    nextBurst = 0.15;
     audio.win();
     flights = h.letters.map((l, i) => ({
       i, landed: false,
@@ -735,7 +797,21 @@ export async function start({ onStop, onPauseChange } = {}) {
         alive[f.i] = true;         // uncovered: the real glyph takes over
       } else allLanded = false;
     }
-    if (allLanded) {
+    if (celebrate) {
+      if (!allLanded) {
+        nextBurst -= dt;
+        if (nextBurst <= 0) { burst(); nextBurst = 0.22 + Math.random() * 0.26; }
+      }
+      for (let k = particles.length - 1; k >= 0; k--) {
+        const p = particles[k];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 260 * dt;          // sparks arc, not drift
+        p.life -= dt;
+        if (p.life <= 0) particles.splice(k, 1);
+      }
+    }
+    if (allLanded && particles.length === 0) {
       phase = 'done';
       state.won = true;
       stop();
@@ -755,61 +831,79 @@ export async function start({ onStop, onPauseChange } = {}) {
     }
   };
 
+  const stepBall = (b, dt, idx) => {
+    if (b.attached) {
+      // Two balls can wait on the paddle at once; a small offset keeps them
+      // both visible instead of stacked into one.
+      b.x = paddle.x + (balls.length > 1 ? (idx === 0 ? -12 : 12) : 0);
+      b.y = paddle.y - b.r - 1;
+      b.timer -= dt;
+      if (b.timer <= 0) launch(b);
+      return;
+    }
+
+    // substeps small enough that no letter cell can be tunnelled
+    let dist = Math.hypot(b.vx, b.vy) * dt;
+    while (dist > 0) {
+      const step = Math.min(STEP, dist);
+      dist -= step;
+      const s = Math.hypot(b.vx, b.vy) || 1;
+      b.x += (b.vx / s) * step;
+      b.y += (b.vy / s) * step;
+
+      if (b.x - b.r < left) { b.x = left + b.r; b.vx = Math.abs(b.vx); events.wallHits++; audio.wall(); clampAngle(b); }
+      else if (b.x + b.r > right) { b.x = right - b.r; b.vx = -Math.abs(b.vx); events.wallHits++; audio.wall(); clampAngle(b); }
+      if (b.y - b.r < ceiling) {
+        b.y = ceiling + b.r; b.vy = Math.abs(b.vy);
+        events.ceilingHits++; flashCeiling(); audio.ceiling(); clampAngle(b);
+      }
+
+      // paddle: only a descending ball, only from above — the contact-point
+      // aim serves whichever ball arrives
+      if (b.vy > 0 &&
+          b.y + b.r >= paddle.y && b.y + b.r <= paddle.y + paddle.h + 8 &&
+          Math.abs(b.x - paddle.x) <= paddle.w / 2 + b.r) {
+        events.paddleHits++;
+        let offset = Math.max(-1, Math.min(1, (b.x - paddle.x) / (paddle.w / 2)));
+        // A dead-centre catch would send the ball exactly vertical, and a
+        // vertical ball in its own cleared channel returns to the same spot
+        // forever — the vertical twin of the horizontal skim the angle clamp
+        // already prevents. Give perfect catches a slight angle.
+        if (Math.abs(offset) < 0.05) offset = Math.random() < 0.5 ? -0.05 : 0.05;
+        audio.paddle(offset);
+        const a = offset * MAX_AIM;
+        const sp = speed();
+        b.vx = sp * Math.sin(a);
+        b.vy = -sp * Math.cos(a);
+        b.y = paddle.y - b.r;
+      }
+
+      collideLetters(b);
+
+      if (b.y - b.r > floor + 22) { respawn(b); return; }
+    }
+  };
+
   const update = (dt) => {
+    state.time += dt;
     updateFalling(dt);
-    // The 90-second lever: past FATTEN_AT the ball grows toward BALL_R_MAX,
-    // sweeping wider channels so the last scattered letters stop being a
-    // minutes-long hunt. Continuous in progress, so it reads as a reward
-    // swelling rather than a step.
-    ball.r = BALL_R + (BALL_R_MAX - BALL_R) *
+    // The two progress levers, compounding on purpose: a second ball from
+    // SECOND_BALL_AT, and past FATTEN_AT every ball grows toward BALL_R_MAX
+    // so the last scattered letters stop being a minutes-long hunt.
+    if (destroyed / total >= SECOND_BALL_AT && balls.length < 2) {
+      const nb = makeBall();
+      nb.timer = 0.6;                 // the same delay a miss uses
+      balls.push(nb);
+    }
+    const r = BALL_R + (BALL_R_MAX - BALL_R) *
       Math.max(0, destroyed / total - FATTEN_AT) / (1 - FATTEN_AT);
+    for (const b of balls) b.r = r;
     // paddle
     if (mouseX !== null) paddle.x = mouseX;
     else paddle.x += ((keys.right ? 1 : 0) - (keys.left ? 1 : 0)) * PADDLE_SPEED * dt;
     paddle.x = Math.max(left + paddle.w / 2, Math.min(right - paddle.w / 2, paddle.x));
 
-    if (ball.attached) {
-      ball.x = paddle.x;
-      ball.y = paddle.y - ball.r - 1;
-      ball.timer -= dt;
-      if (ball.timer <= 0) launch();
-      return;
-    }
-
-    // ball, in substeps small enough that no letter cell can be tunnelled
-    let dist = Math.hypot(ball.vx, ball.vy) * dt;
-    while (dist > 0) {
-      const step = Math.min(STEP, dist);
-      dist -= step;
-      const s = Math.hypot(ball.vx, ball.vy) || 1;
-      ball.x += (ball.vx / s) * step;
-      ball.y += (ball.vy / s) * step;
-
-      if (ball.x - ball.r < left) { ball.x = left + ball.r; ball.vx = Math.abs(ball.vx); events.wallHits++; audio.wall(); clampAngle(); }
-      else if (ball.x + ball.r > right) { ball.x = right - ball.r; ball.vx = -Math.abs(ball.vx); events.wallHits++; audio.wall(); clampAngle(); }
-      if (ball.y - ball.r < ceiling) {
-        ball.y = ceiling + ball.r; ball.vy = Math.abs(ball.vy);
-        events.ceilingHits++; flashCeiling(); audio.ceiling(); clampAngle();
-      }
-
-      // paddle: only a descending ball, only from above
-      if (ball.vy > 0 &&
-          ball.y + ball.r >= paddle.y && ball.y + ball.r <= paddle.y + paddle.h + 8 &&
-          Math.abs(ball.x - paddle.x) <= paddle.w / 2 + ball.r) {
-        events.paddleHits++;
-        const offset = Math.max(-1, Math.min(1, (ball.x - paddle.x) / (paddle.w / 2)));
-        audio.paddle(offset);
-        const a = offset * MAX_AIM;
-        const sp = speed();
-        ball.vx = sp * Math.sin(a);
-        ball.vy = -sp * Math.cos(a);
-        ball.y = paddle.y - ball.r;
-      }
-
-      collideLetters();
-
-      if (ball.y - ball.r > floor + 22) { respawn(); return; }
-    }
+    for (let i = 0; i < balls.length; i++) stepBall(balls[i], dt, i);
   };
 
   /* ---- render --------------------------------------------------------- */
@@ -882,6 +976,15 @@ export async function start({ onStop, onPauseChange } = {}) {
         ctx.fillText(l.ch, -l.w / 2, l.baseline - hy);
         ctx.restore();
       }
+      // sparks over the flying letters, in the accent, fading with life
+      ctx.fillStyle = accent;
+      for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, Math.min(1, p.life / p.max));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
       drawVeil();
       return;
     }
@@ -889,10 +992,12 @@ export async function start({ onStop, onPauseChange } = {}) {
     const pr = new Path2D();
     pr.roundRect(paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 3);
     ctx.fill(pr);
-    if (!ball.attached || ball.timer < 0.25) {
-      ctx.beginPath();
-      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-      ctx.fill();
+    for (const b of balls) {
+      if (!b.attached || b.timer < 0.25) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     drawVeil();
   };

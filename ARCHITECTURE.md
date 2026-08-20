@@ -124,11 +124,16 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   motion allowed, and >=56px of dead space under the bio, which the layout
   only has at roughly >=1400px wide. A hit letter detaches with the ball's
   momentum, gravity and spin, and always fades before it lands (no pile-up
-  by construction). Past 60% cleared the ball grows continuously from 5px
-  toward 11px radius — the end-game hunt for scattered survivors is what
-  made a full clear take minutes, and a fatter ball sweeps it up while
-  reading as a reward; deliberately ONE ball, never a second (Dex,
-  2026-08-20 — a second ball doubles the physics for a toy). Audio is the shared Clayweld panel
+  by construction). Two progress levers compound so the back half of a run
+  falls apart in the player's favour: at 30% cleared a SECOND ball spawns
+  (two maximum, each missed ball respawns on the same delay; one wall,
+  stepped sequentially, so a letter broken by one is gone for the other in
+  the same frame; aim and angle clamp are per ball) — this deliberately
+  reversed the one-ball call of the same day (Dex, 2026-08-20: two balls
+  halve the clear time honestly) — and past 60% every ball grows
+  continuously from 5px toward 11px radius, sweeping up the end-game hunt
+  for scattered survivors. Letter blips carry a 35ms refractory window so
+  two balls read as hits, not a rattle. Audio is the shared Clayweld panel
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
   MediaBus registration for the BLIPS (short fx are not a player and must
@@ -153,11 +158,18 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   the playfield, bottom level with the paddle, shown only while running —
   top to bottom: X (stop), pause, then mute + master slider at the very
   bottom, writing the same shared settings, one volume path. Music opens
-  at 50% for a first-time player (seeded only when no stored mix
-  exists). Win: when the wall is empty and the last fall has faded, every
+  at the shared 30% default for a first-time player (no seed override any
+  more); a stored preference always wins. Win: when the wall is empty and
+  the last fall has faded, every
   letter flies home from scatter below the floor, staggered in reading
   order, and is UNCOVERED the frame it lands — the handoff back to real
-  text is per letter and needs no final swap. The `<p>` stays in the accessible tree
+  text is per letter and needs no final swap. The win is celebrated:
+  a synthesised rising run into a held chord (same voice and bus as the
+  blips — no file, no fetch), and accent firework bursts over the flying
+  letters, pure canvas paint that can leave nothing behind; the canvas
+  outlives the last landing under a second so the final sparks die, and
+  `prefers-reduced-motion` gets the reassembly and the sound without the
+  fireworks. The `<p>` stays in the accessible tree
   at all times (never hidden, never aria-hidden; the canvas is), and every
   exit — any error, Escape, resize, layout shift, a late font swap,
   scrolling the section away — restores the untouched text
