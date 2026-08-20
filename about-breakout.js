@@ -128,7 +128,7 @@ async function measure(p) {
  * thing down. A frame is: clearPaint → cover every dead letter → draw
  * whatever moves.
  */
-export async function engage() {
+export async function engage({ top, bottom } = {}) {
   const p = findParagraph();
   if (!p || !p.textContent.trim()) throw new Error('bio paragraph not found');
   const parent = p.parentElement;
@@ -170,7 +170,11 @@ export async function engage() {
     const { letters, font, color } = await measure(p);
     if (!letters.length) throw new Error('nothing measured');
 
-    const bg = opaqueBackground(p);
+    // `let`, not `const`: the erase colour is re-resolved while the game runs
+    // (via refreshBackground below), so a future accent/theme state that
+    // repaints under the paragraph updates the patches instead of leaving
+    // stale rectangles in the old colour.
+    let bg = opaqueBackground(p);
     if (!bg) throw new Error('no opaque background behind the bio — cannot erase letters');
 
     const pRect = p.getBoundingClientRect();
@@ -184,10 +188,15 @@ export async function engage() {
      * smear. So the canvas's VIEWPORT position is snapped to the device-pixel
      * grid, and the styled offset inside the parent is whatever fraction
      * makes that true. */
+    // The caller may extend the box vertically (viewport-Y values) — the game
+    // needs the overlay to reach from under the first paragraph down to the
+    // ball's floor, not just cover the text.
+    const boxTop = top ?? pRect.top - BLEED;
+    const boxBottom = bottom ?? pRect.bottom + BLEED;
     const vLeft = Math.round((pRect.left - BLEED) * dpr) / dpr;
-    const vTop = Math.round((pRect.top - BLEED) * dpr) / dpr;
+    const vTop = Math.round(boxTop * dpr) / dpr;
     const w = pRect.width + BLEED * 2;
-    const h = pRect.height + BLEED * 2;
+    const h = boxBottom - boxTop;
 
     canvas = document.createElement('canvas');
     canvas.setAttribute('aria-hidden', 'true');
@@ -225,7 +234,17 @@ export async function engage() {
     document.fonts.addEventListener('loadingdone', onFontSwap);
 
     return {
-      restore, letters, canvas, ctx, paragraph: p, background: bg, color, font,
+      restore, letters, canvas, ctx, paragraph: p, color, font,
+      origin: { x: vLeft, y: vTop },   // canvas-local 0,0 in viewport coords at engage time
+      get background() { return bg; },
+      /* Re-resolve the erase colour against the live computed styles. Returns
+       * the colour, or null if the background stopped being a single opaque
+       * colour — the caller must treat null as "erasing is no longer
+       * possible" and shut down. */
+      refreshBackground() {
+        bg = opaqueBackground(p);
+        return bg;
+      },
       clearPaint() {
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -248,4 +267,318 @@ export async function engage() {
     restore();
     throw err;
   }
+}
+
+/* ========================================================================
+ * PASS 2 — the game: loop, paddle, ball.
+ *
+ * A twenty-second toy, not a game: no lives, no score, no fail state. The
+ * only difficulty is a gentle speed ramp as the wall empties, and the only
+ * agency is paddle aim — the bounce angle comes from the contact point,
+ * because with nothing to lose, aiming is the whole game.
+ * ======================================================================== */
+
+const BALL_R = 5;
+const PADDLE_W = 68;
+const PADDLE_H = 6;
+const BASE_SPEED = 340;      // px/s before the ramp
+const RAMP = 0.35;           // full wall cleared -> +35% speed
+const PADDLE_SPEED = 560;    // keyboard px/s
+const MAX_AIM = 1.05;        // rad from vertical at the paddle's very edge
+const MIN_VY = 0.25;         // min |vy| as a fraction of speed: no horizontal skims
+const STEP = 4;              // px of ball travel per collision substep
+const MIN_TRAVEL = 56;       // px of clear air the ball needs under the bio
+
+/**
+ * Can the game be offered here at all? The Play button's gate: a fine
+ * pointer, motion allowed, the About layout recognisable, and enough dead
+ * space under the bio for the ball to travel in. Cheap enough to re-run on
+ * every resize.
+ */
+export function canPlay() {
+  if (!matchMedia('(pointer: fine)').matches) return false;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  const p = findParagraph();
+  const copy = p?.parentElement;
+  if (!copy || !copy.querySelector('h2') || !copy.querySelector('p:not(.eyebrow)')) return false;
+  const photo = document.querySelector('.about-photo');
+  const sub = document.querySelector('.about-sub');
+  const floorY = Math.min(
+    photo ? photo.getBoundingClientRect().bottom : Infinity,
+    sub ? sub.getBoundingClientRect().top - 10 : Infinity);
+  return floorY - p.getBoundingClientRect().bottom >= MIN_TRAVEL;
+}
+
+/**
+ * Start the game. Engages the overlay, runs the loop, returns a controller
+ * with stop() (idempotent — also wired to Escape, to scrolling the section
+ * off screen, and to every failure path; engage()'s own resize/font-swap
+ * restore is caught by the isConnected check in the frame loop).
+ */
+export async function start() {
+  const copy = findParagraph()?.parentElement;
+  if (!copy) throw new Error('about copy not found');
+  const h2 = copy.querySelector('h2');
+  const p1 = copy.querySelector('p:not(.eyebrow)');
+  const photo = document.querySelector('.about-photo');
+  if (!h2 || !p1) throw new Error('about layout not recognised');
+
+  /* The playfield, in viewport Y: ceiling just under paragraph one (the ball
+   * must never enter it), floor level with the portrait's bottom — that dead
+   * space is the ball travel. The floor is hard-capped above the toolkit
+   * subsection: at narrow desktop widths the copy column outgrows the
+   * portrait and the "dead space" the layout has at 1440+ simply does not
+   * exist — the game declines to start rather than play on top of the
+   * toolkit (measured 2026-08-19: portrait hangs 65-114px below the bio at
+   * 1440-1700, sits ABOVE its bottom at <=1200). */
+  const p1Rect = p1.getBoundingClientRect();
+  const pRect = findParagraph().getBoundingClientRect();
+  const ceilingY = p1Rect.bottom + 2;
+  const sub = document.querySelector('.about-sub');
+  const subTop = sub ? sub.getBoundingClientRect().top : Infinity;
+  const floorY = Math.min(
+    photo ? photo.getBoundingClientRect().bottom : Infinity, subTop - 10);
+  if (!(floorY - pRect.bottom >= MIN_TRAVEL)) {
+    throw new Error('not enough room under the bio for the ball at this layout');
+  }
+
+  const h = await engage({ top: ceilingY, bottom: Math.min(floorY + 26, subTop - 8) });
+
+  // Canvas-local playfield bounds.
+  const left = pRect.left - h.origin.x;
+  const right = left + pRect.width;
+  const ceiling = ceilingY - h.origin.y;
+  const floor = floorY - h.origin.y;
+
+  const total = h.letters.length;
+  const alive = new Array(total).fill(true);
+  let destroyed = 0;
+
+  const paddle = { x: (left + right) / 2, y: floor - 14, w: PADDLE_W, h: PADDLE_H };
+  const ball = { x: paddle.x, y: paddle.y - BALL_R - 1, vx: 0, vy: 0, attached: true, timer: 0.5 };
+  let launches = 0;
+  const events = { paddleHits: 0, ceilingHits: 0, wallHits: 0, respawns: 0, breaks: 0 };
+  const state = {
+    ball, paddle, alive, events,
+    bounds: { left, right, ceiling, floor },
+    get destroyed() { return destroyed; }, total,
+    running: true, won: false,
+  };
+
+  const speed = () => BASE_SPEED * (1 + RAMP * (destroyed / total));
+
+  const root = document.documentElement;
+  let accent = getComputedStyle(root).getPropertyValue('--accent').trim() || '#9dff20';
+  const h2Color = getComputedStyle(h2).color;
+
+  // One line, and it keeps the ball out of the first paragraph. Throttled:
+  // a ball riding the ceiling along the ragged right edge of the wall would
+  // otherwise strobe the title several times a second.
+  let lastFlash = 0;
+  const flashCeiling = () => {
+    const now = performance.now();
+    if (now - lastFlash < 350) return;
+    lastFlash = now;
+    h2.animate({ color: [accent, h2Color] }, { duration: 280, easing: 'ease-out' });
+  };
+
+  /* ---- input ---------------------------------------------------------- */
+  const keys = { left: false, right: false };
+  let mouseX = null;                      // canvas-local; last input wins
+  const editable = (t) => t && (t.isContentEditable ||
+    /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  const onKey = (down) => (e) => {
+    if (editable(e.target)) return;
+    const k = e.key;
+    if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.left = down; mouseX = null; }
+    else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.right = down; mouseX = null; }
+    else if (k === 'Escape' && down) { stop(); return; }
+    else return;
+    // The arrows must not scroll the page while they steer the paddle.
+    if (k.startsWith('Arrow')) e.preventDefault();
+  };
+  const onKeyDown = onKey(true);
+  const onKeyUp = onKey(false);
+  const onPointer = (e) => {
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+    mouseX = e.clientX - h.canvas.getBoundingClientRect().left;
+  };
+
+  /* ---- physics -------------------------------------------------------- */
+  const clampAngle = () => {
+    // A bounce that leaves the ball skimming horizontally stalls the game:
+    // enforce a minimum vertical component, preserving speed and direction.
+    const s = Math.hypot(ball.vx, ball.vy) || 1;
+    const min = MIN_VY * s;
+    if (Math.abs(ball.vy) < min) {
+      ball.vy = (ball.vy < 0 || (ball.vy === 0 && Math.random() < 0.5) ? -1 : 1) * min;
+      ball.vx = Math.sign(ball.vx || 1) * Math.sqrt(Math.max(0, s * s - min * min));
+    }
+  };
+
+  const launch = () => {
+    ball.attached = false;
+    const a = 0.3 * (launches++ % 2 ? 1 : -1);   // alternate slight angles
+    const s = speed();
+    ball.vx = s * Math.sin(a);
+    ball.vy = -s * Math.cos(a);
+  };
+
+  const respawn = () => {
+    events.respawns++;
+    ball.attached = true;
+    ball.timer = 0.6;
+    ball.vx = ball.vy = 0;
+  };
+
+  const collideLetters = () => {
+    for (let i = 0; i < total; i++) {
+      if (!alive[i]) continue;
+      const l = h.letters[i];
+      const qx = Math.max(l.x, Math.min(ball.x, l.x + l.w));
+      const qy = Math.max(l.y, Math.min(ball.y, l.y + l.h));
+      const dx = ball.x - qx, dy = ball.y - qy;
+      if (dx * dx + dy * dy > BALL_R * BALL_R) continue;
+      alive[i] = false;
+      destroyed++;
+      events.breaks++;
+      // Reflect off the shallower penetration axis and push out of it.
+      const ox = BALL_R + l.w / 2 - Math.abs(ball.x - (l.x + l.w / 2));
+      const oy = BALL_R + l.h / 2 - Math.abs(ball.y - (l.y + l.h / 2));
+      if (ox < oy) { ball.vx = -ball.vx; ball.x += Math.sign(dx || ball.vx) * ox; }
+      else { ball.vy = -ball.vy; ball.y += Math.sign(dy || ball.vy) * oy; }
+      clampAngle();
+      return;                              // one brick per substep
+    }
+  };
+
+  const update = (dt) => {
+    // paddle
+    if (mouseX !== null) paddle.x = mouseX;
+    else paddle.x += ((keys.right ? 1 : 0) - (keys.left ? 1 : 0)) * PADDLE_SPEED * dt;
+    paddle.x = Math.max(left + paddle.w / 2, Math.min(right - paddle.w / 2, paddle.x));
+
+    if (ball.attached) {
+      ball.x = paddle.x;
+      ball.y = paddle.y - BALL_R - 1;
+      ball.timer -= dt;
+      if (ball.timer <= 0) launch();
+      return;
+    }
+
+    // ball, in substeps small enough that no letter cell can be tunnelled
+    let dist = Math.hypot(ball.vx, ball.vy) * dt;
+    while (dist > 0) {
+      const step = Math.min(STEP, dist);
+      dist -= step;
+      const s = Math.hypot(ball.vx, ball.vy) || 1;
+      ball.x += (ball.vx / s) * step;
+      ball.y += (ball.vy / s) * step;
+
+      if (ball.x - BALL_R < left) { ball.x = left + BALL_R; ball.vx = Math.abs(ball.vx); events.wallHits++; clampAngle(); }
+      else if (ball.x + BALL_R > right) { ball.x = right - BALL_R; ball.vx = -Math.abs(ball.vx); events.wallHits++; clampAngle(); }
+      if (ball.y - BALL_R < ceiling) {
+        ball.y = ceiling + BALL_R; ball.vy = Math.abs(ball.vy);
+        events.ceilingHits++; flashCeiling(); clampAngle();
+      }
+
+      // paddle: only a descending ball, only from above
+      if (ball.vy > 0 &&
+          ball.y + BALL_R >= paddle.y && ball.y + BALL_R <= paddle.y + paddle.h + 8 &&
+          Math.abs(ball.x - paddle.x) <= paddle.w / 2 + BALL_R) {
+        events.paddleHits++;
+        const offset = Math.max(-1, Math.min(1, (ball.x - paddle.x) / (paddle.w / 2)));
+        const a = offset * MAX_AIM;
+        const sp = speed();
+        ball.vx = sp * Math.sin(a);
+        ball.vy = -sp * Math.cos(a);
+        ball.y = paddle.y - BALL_R;
+      }
+
+      collideLetters();
+
+      if (ball.y - BALL_R > floor + 22) { respawn(); return; }
+    }
+  };
+
+  /* ---- render --------------------------------------------------------- */
+  let frameCount = 0;
+  const render = () => {
+    h.clearPaint();
+    const ctx = h.ctx;
+    for (let i = 0; i < total; i++) if (!alive[i]) h.cover(i);
+    ctx.fillStyle = accent;
+    const pr = new Path2D();
+    pr.roundRect(paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 3);
+    ctx.fill(pr);
+    if (!ball.attached || ball.timer < 0.25) {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+
+  /* ---- lifecycle ------------------------------------------------------ */
+  let raf = 0;
+  let last = performance.now();
+
+  const io = new IntersectionObserver((entries) => {
+    // A half-destroyed bio someone scrolls back to reads as a broken site:
+    // leaving the section restores the text, always.
+    for (const e of entries) if (!e.isIntersecting) stop();
+  }, { threshold: 0 });
+  io.observe(copy);
+
+  const stop = () => {
+    if (!state.running) return;
+    state.running = false;
+    cancelAnimationFrame(raf);
+    io.disconnect();
+    window.removeEventListener('keydown', onKeyDown, true);
+    window.removeEventListener('keyup', onKeyUp, true);
+    window.removeEventListener('pointermove', onPointer);
+    h.restore();
+  };
+
+  const frame = (now) => {
+    try {
+      const dt = Math.min(0.032, (now - last) / 1000);
+      last = now;
+      // engage() restores itself on resize and font swap; the canvas leaving
+      // the DOM is the one signal that covers every such path.
+      if (!h.canvas.isConnected) { stop(); return; }
+      if (++frameCount % 20 === 0) {
+        if (!h.refreshBackground()) { stop(); return; }   // bg went translucent
+        accent = getComputedStyle(root).getPropertyValue('--accent').trim() || accent;
+        // A layout shift with no resize event (content above the section
+        // growing, a font engage missed) moves the text out from under the
+        // measured coordinates. Scroll cancels out — both rects are viewport.
+        const cr = h.canvas.getBoundingClientRect();
+        const pr = h.paragraph.getBoundingClientRect();
+        if (Math.abs(pr.left - cr.left - left) > 1 ||
+            Math.abs(pr.top - cr.top - (pRect.top - ceilingY)) > 1) { stop(); return; }
+      }
+      update(dt);
+      if (state.running && destroyed === total) {
+        // Pass 4 replaces this with the reassembly payoff; until then the
+        // win simply hands the untouched paragraph back.
+        state.won = true;
+        stop();
+        return;
+      }
+      if (!state.running) return;
+      render();
+      raf = requestAnimationFrame(frame);
+    } catch (err) {
+      stop();
+      throw err;
+    }
+  };
+
+  window.addEventListener('keydown', onKeyDown, true);
+  window.addEventListener('keyup', onKeyUp, true);
+  window.addEventListener('pointermove', onPointer);
+  raf = requestAnimationFrame(frame);
+
+  return { stop, state, handle: h };
 }

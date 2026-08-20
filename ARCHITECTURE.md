@@ -65,28 +65,45 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   make sound (the clips player and the song bar). Players register a small
   object, never the media element, because every question it asks — is your
   panel the open tab, is your frame on screen — is about the surrounding UI.
-  Two invariants live here: **only one player is ever unpaused** (enforced on
-  the `play` event, so no new way to start playback can forget it), and the
-  space bar goes to a player only when it is on screen and playing or already
-  started — never out of a text field, never off a button or link, never
-  behind an open `dialog`, and `preventDefault()` is reached at exactly one
-  point, after a claimant is found. A third player registers, it does not
-  rewrite this.
+  Three invariants live here: **only one player is ever unpaused** (enforced on
+  the `play` event, so no new way to start playback can forget it); **nothing
+  plays in a hidden tab** (paused on `visibilitychange`, and deliberately NOT
+  resumed on return — a page that starts talking when you come back is the
+  same ambush reversed); and the space bar goes to a player only when it is on
+  screen and playing or already started — never out of a text field, never off
+  a button or link, never behind an open `dialog`, and `preventDefault()` is
+  reached at exactly one point, after a claimant is found. A third player
+  registers, it does not rewrite this.
+- The clips player's play control **is the whole video surface**: `#clBig` is
+  positioned `inset:0` with the disc drawn inside it, so clicking the picture
+  toggles playback and the click target is the same `<button>` the keyboard
+  already reaches, already named and already in the tab order. A bare click
+  handler on the frame would have been a mouse-only control. `.cl-bar` and
+  `.cl-note` sit above it (z-index 4 against 3), which is what leaves the
+  scrubber, volume and chips their own clicks; `.wp-plate` is
+  `pointer-events:none`.
 - `about-breakout.js` — ES module for the About section's Breakout toy,
   loaded only by dynamic `import()`, never on the critical path, runs nothing
-  at import time. Pass 1 (measurement) is what exists: every glyph of the
-  second bio paragraph measured per character via Range rects (no spans,
-  ever — the `<p>` stays one text node), plus a transparent canvas overlay
-  with erase/redraw primitives. The paragraph is NEVER hidden or redrawn
-  wholesale: Canvas2D rasterises glyphs measurably brighter than Blink
-  rasterises the same font in the DOM (~13% more lit luminance, measured
-  2026-08-19), so intact letters stay real DOM text and the canvas only
-  paints opaque background patches over destroyed letters and glyphs in
-  motion. Erasing needs an opaque background behind the paragraph —
-  `engage()` fails loudly if the About section ever loses one. The `<p>`
-  stays in the accessible tree at all times (never hidden, never
-  aria-hidden; the canvas is), and every failure path — any error, resize,
-  a late font swap — restores the untouched text
+  at import time. Not yet wired into the page — nothing in `index.html` or
+  `script.js` references it until the win state exists. Every glyph of the
+  second bio paragraph is measured per character via Range rects (no spans,
+  ever — the `<p>` stays one text node), and a transparent canvas overlay
+  erases and redraws single letters. The paragraph is NEVER hidden or
+  redrawn wholesale: Canvas2D rasterises glyphs measurably brighter than
+  Blink rasterises the same font in the DOM (~13% more lit luminance,
+  measured 2026-08-19), so intact letters stay real DOM text and the canvas
+  only paints opaque background patches over destroyed letters and glyphs
+  in motion. Erasing needs an opaque background behind the paragraph —
+  the game re-resolves it every ~20 frames and shuts down if it ever stops
+  being one colour. `start()` runs the game: paddle (mouse + A/D/arrows),
+  contact-point aim, minimum-bounce-angle clamp, ceiling at paragraph one's
+  underside (h2 flashes accent, throttled), floor at the portrait's bottom
+  hard-capped above `.about-sub` — and `canPlay()` gates on a fine pointer,
+  motion allowed, and >=56px of dead space under the bio, which the layout
+  only has at roughly >=1400px wide. The `<p>` stays in the accessible tree
+  at all times (never hidden, never aria-hidden; the canvas is), and every
+  exit — any error, Escape, resize, layout shift, a late font swap,
+  scrolling the section away — restores the untouched text
 - `styles.css` — banner-delimited sections; icon system is baked CSS mask
   data-URIs (`tools/bake_icons.py`); accents are one `--accent` variable,
   never filter chains
