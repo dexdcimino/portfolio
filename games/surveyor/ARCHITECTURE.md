@@ -85,6 +85,13 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
 - **If a measurement disagrees with what is visibly on screen, the
   measurement is aimed wrong.** Three times now. (Also: render-cost numbers
   measured on SwiftShader are noise — `dev/budget.mjs` refuses to run there.)
+- **Three instances now, and the third overturned a plan.** The far-body to
+  quadtree handoff was scoped as a geometry problem — 642 sampled directions
+  against a 5m quadtree, a 6x to 46x jump. Measured at the approach sphere it
+  is continuous to 3% in both size and silhouette, and the luminance step is
+  +928%, −59% and +1132% on three pairs. The remaining work is a lighting
+  match, not an LOD chain. `dev/handoff.mjs`, and read its list of what it
+  cannot see before trusting a number from it.
 - **A continuity check that measures one channel is measuring one channel.**
   `dev/lodcheck.mjs` walked a body through the billboard-to-sphere handoff,
   measured angular SIZE, found it continuous to 1.1%, and would have shipped
@@ -294,6 +301,10 @@ attributes every frame to streaming / leaf build / render / the rest of the
 loop / outside our JavaScript, and prints the worst ten with the breakdown),
 `lodcheck.mjs` (walks a body through the billboard-to-sphere handoff and
 measures BOTH size and luminance — see the continuity invariant), and
+`handoff.mjs` (the far body against the world it becomes, at the approach
+sphere, isolated by show/hide differencing on each side — size, luminance and
+silhouette, because the first two handoffs both hid in the channel nobody
+measured), and
 `crosscheck.mjs` (one real crossing in the live engine: samples the drawn
 `rotationQuaternion` every animation frame and reports the step across each
 boundary, plus a filmstrip. The maths version lives in `run.mjs`; this is the

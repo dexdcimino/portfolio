@@ -588,6 +588,45 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### The geometry handoff is already seamless. The brightness is not.
+
+The last discontinuity in a crossing is the destination ceasing to be a body in
+the sky and becoming the ground under you: a 642-direction displaced icosphere
+in `svFarBody`, rendering group 0, replaced in one frame by a quadtree sampling
+every 5m in `svTerrain`, rendering group 1, with a water shell, an atmosphere,
+rocks and colonies that did not exist a frame earlier.
+
+The scoping for this phase predicted the resolution jump — 6x on Ember, 46x on
+Anvil — would be the pop. **It is not.** `dev/handoff.mjs` puts the camera at the
+approach sphere and isolates each side by rendering it twice, shown and hidden,
+and differencing:
+
+| | size | silhouette | luminance |
+|---|---|---|---|
+| Home → Tarn | +2.6% | −3.2% | **+928%** |
+| Anvil → Ember | +0.4% | +0.6% | **−59.5%** |
+| Home → Anvil | −1.7% | −1.2% | **+1132%** |
+
+Size and silhouette are continuous to within about three percent on every pair.
+At 900m over a world whose relief is a few percent of its radius, the limb is a
+smooth circle whether it is drawn from 642 samples or from a quadtree — the
+detail the two LODs disagree about is below a pixel at the only distance where
+the swap happens.
+
+**Luminance is the entire discontinuity, and it is an order of magnitude worse
+than the one phase 2 found.** It also does not have a sign: arriving at Tarn the
+world is ten times brighter than the body that preceded it, and arriving at
+Ember it is less than half. The far body is lit by a terminator with no
+atmosphere in it; the world is lit by its own sun through its own fog, and which
+way the step goes depends on which world and which side of it you came down on.
+
+That is the third time this project has measured a handoff and found the channel
+nobody was looking at — see the continuity invariant, which now has three
+instances behind it. It also means the remaining work is **not** the coarse
+quadtree in the far band that the scoping proposed. That was designed to fix a
+geometry pop that measurement says is not there. What is left is a lighting
+match at the boundary.
+
 ### The sky was anchored to the planet, not to you
 
 The other half of "leave a surface, watch the destination grow", and it turned

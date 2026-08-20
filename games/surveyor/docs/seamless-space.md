@@ -368,10 +368,22 @@ one from nothing. Two assertions hold it, because it is the six-sky-domes shape.
   body giving way to the world's own quadtree — is still one frame.
 - **The 84-degree stand-up** that `landOn` performs, left deliberately by phase
   3 and deleted by this phase when the swap goes.
-- **The LOD substitution**: a 642-direction far body replaced by a quadtree
-  sampling every 5m, in one frame. The shape for fixing it — a coarse quadtree
-  drawn in the far band, since a uniform scale about the camera is a similarity
-  transform — is unchanged from the scoping below.
+- ~~**The LOD substitution**: a 642-direction far body replaced by a quadtree
+  sampling every 5m, in one frame.~~ MEASURED, and the scoping was wrong about
+  it. `dev/handoff.mjs` puts the camera at the approach sphere and isolates
+  each side: size and silhouette are continuous to within 3% on every pair
+  tried, because at 900m over a world whose relief is a few percent of its
+  radius the limb is a smooth circle either way and the detail the two LODs
+  disagree about is below a pixel at the only distance the swap happens.
+  **The luminance step is +928%, −59% and +1132%** on Home-Tarn, Anvil-Ember
+  and Home-Anvil — an order of magnitude worse than the cliff phase 2 found,
+  and without a consistent sign, because the far body is lit by a terminator
+  with no atmosphere while the world is lit through its own fog.
+  So the coarse quadtree in the far band is NOT the next piece of work. It was
+  designed to fix a geometry pop that is not there. What is left is a lighting
+  match at the boundary: `svFarBody` and `svTerrain`-plus-atmosphere agreeing
+  on brightness at the handoff distance, which is a shading problem in two
+  files rather than a second terrain pipeline.
 
 ### The scoping this started from
 
