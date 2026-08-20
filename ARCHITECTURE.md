@@ -48,7 +48,14 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   in the DOM; the Apps panel across from the list shows the selection: the
   app's NAME large, then an inline carousel of ALL its `.gal-item` shots
   (cloned never borrowed; chevrons hidden on one-shot apps; x/x counter in
-  the corner; no filmstrip; no shots collapses the frame), then lead,
+  the corner; no filmstrip; no shots collapses the frame — nothing sits in
+  that state now, every one of the five apps carries at least one shot.
+  NodeBlast and dexddc.com are 1920x1080 captures of the live sites driven
+  over CDP through `games/_shared/dev/cdp.mjs`; MindSplit is three captures
+  of `/mindsplit/` at a 414x736 handset, in three of its five rooms,
+  composited side by side the way `themedock-panel.png` merges four
+  marketplace panels — a lone portrait frame in a 1440x690 stage is mostly
+  background), then lead,
   description and tags; clicking the shot enlarges it in `#appShotModal` —
   a wallpaper-style lightbox with a centred x/x between arrows that grey
   out on single shots — NOT the games' gallery modal, which apps no longer
@@ -280,7 +287,7 @@ that convention, not this hook, is what covers the adjacent case.
 ## Numbers
 
 7 accents (lime default) · 11 ladders / 16 slots in `image_slots.py` ·
-54 generated markup blocks in index.html · fallback ladder
+57 generated markup blocks in index.html · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
 
