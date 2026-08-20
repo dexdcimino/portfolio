@@ -19,7 +19,11 @@ or wall time — `tests/guards.mjs` greps for violations. Render may read
 - `js/main.js` — boot, input→command, fixed-step accumulator, render loop,
   session lifecycle, net orchestration, HUD, leaderboard, embed hooks
 - `js/pausemenu.js` — pause overlay (tag, accent, lobby row, audio, quality);
-  binds no keys — main.js owns Escape
+  binds no keys — main.js owns Escape. Ends with the shared Reset All Player
+  Progress control (`games/_shared/reset-progress.js`), shipped **disabled**:
+  everything this game stores is a preference (`arena1-quality`, `arena1-pvp`,
+  `arena1-tag`, `arena1-audio`, `dex-accent-name`), so there is no progress to
+  destroy. A save key added to `keys` makes it live with no other change
 - `js/core/` — `rng.js` (FNV-1a + mulberry32 `rngFor(seed,...salts)`),
   `events.js` (pub/sub), `pool.js`
 - `js/sim/` — `vec.js`, `entities.js` (id alloc; serpents/bolts from a separate

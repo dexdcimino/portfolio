@@ -109,7 +109,11 @@ started carry a phase log of what actually shipped and where the plan was wrong.
 game (40 exported blocks incl. `PLANETS`, `POST`, `ECONOMY`, `HYPER`);
 `js/babylon.js` re-export used only by the transplanted `js/render/post.js`
 (T1 post stack: ACES/bloom/SSAO/LUT/vignette/grain/FXAA); `js/pausemenu.js`
-(binds no keys — main.js owns the pause ladder).
+(binds no keys — main.js owns the pause ladder). The pause menu ends with
+Reset All Player Progress (`games/_shared/reset-progress.js`): two-stage, and it
+clears **only** `ECONOMY.saveKey` — `surveyor-audio` and `dex-accent-name` are
+preferences and survive. The armed label counts the real save ("5 colonies
+across 2 worlds"), read at arm time, then reloads.
 
 - `js/core/` — events, pool, seeded rng (same shape as Chomp/Arena1)
 - `js/world/` — `sphere.js` (cube-sphere charts, `TangentFrame`,

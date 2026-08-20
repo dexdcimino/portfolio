@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=169" />
+  <link rel="stylesheet" href="styles.css?v=170" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -980,8 +980,14 @@
                   <h3 class="wp-title" id="clTitle"></h3>
                   <p class="wp-dims" id="clMeta"></p>
                 </div>
+                <!-- The whole video surface, not just the disc. Clicking the picture is
+                     how everyone expects to pause a video, and making the BUTTON the
+                     surface keeps that one control rather than adding a second,
+                     mouse-only one: it already has a role and an accessible name, it is
+                     already in the tab order, and Space and Enter already work on it.
+                     The control bar and the note sit above it and take their own clicks. -->
                 <button class="cl-big" id="clBig" type="button" aria-label="Play clip">
-                  <span class="icon" data-icon="play" aria-hidden="true"></span>
+                  <span class="cl-big-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
                 </button>
                 <p class="cl-note" id="clNote" hidden></p>
 
@@ -2672,6 +2678,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=169"></script>
+  <script src="script.js?v=170"></script>
 </body>
 </html>

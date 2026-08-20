@@ -3259,18 +3259,36 @@ body.modal-open{overflow:hidden}
 .cl-frame[data-fit="contain"] .cl-video{object-fit:contain}
 .cl-plate{padding:16px 18px}
 
-/* The big centre play button — the target people actually aim for. */
+/* The play control is the WHOLE video surface, with the disc drawn in the
+   middle of it. Clicking the picture is how every video player people already
+   use behaves, and doing it this way keeps that as one control instead of two:
+   the <button> is the surface, so the click target is the same thing the
+   keyboard reaches, already named and already in the tab order. A transparent
+   div with a click handler would have been a mouse-only control wearing a
+   button's job.
+   z-index 3 puts it under .cl-bar and .cl-note (both 4), which is what lets the
+   scrubber, the volume and the chips keep taking their own clicks, and over
+   .wp-plate (2), which is pointer-events:none anyway. */
 .cl-big{
-  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
-  width:76px;height:76px;border-radius:999px;display:grid;place-items:center;cursor:pointer;
+  position:absolute;inset:0;z-index:3;width:auto;height:auto;
+  display:grid;place-items:center;cursor:pointer;
+  padding:0;margin:0;background:none;border:0;box-shadow:none;
+}
+/* Focus draws INSIDE the frame — the button is now frame-sized, so an outset
+   ring would float off the artwork's edge. */
+.cl-big:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;border-radius:14px}
+.cl-big-disc{
+  width:76px;height:76px;border-radius:999px;display:grid;place-items:center;
   background:var(--accent);border:2px solid var(--accent);color:var(--accent-ink,#0b0d12);
   box-shadow:0 10px 30px rgba(0,0,0,.45);
   transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease,opacity .2s ease;
 }
 .cl-big .icon{width:34px;height:34px;margin-left:3px}   /* optical centring for a triangle */
-.cl-big:hover{background:rgba(8,11,15,.72);color:var(--accent);transform:translate(-50%,-50%) scale(1.06)}
-.cl-big:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-.cl-frame.is-live .cl-big{opacity:0;pointer-events:none}
+.cl-big:hover .cl-big-disc{background:rgba(8,11,15,.72);color:var(--accent);transform:scale(1.06)}
+/* Playing: the disc goes, the SURFACE stays live — that is the click that
+   pauses. Only the disc was ever the affordance for starting it. */
+.cl-frame.is-live .cl-big-disc{opacity:0;transform:scale(.96)}
+.cl-frame.is-live .cl-big:hover .cl-big-disc{transform:scale(.96)}
 /* Why a clip will not play, when it will not. */
 .cl-note{
   position:absolute;left:0;right:0;bottom:0;z-index:4;margin:0;padding:10px 14px;
@@ -3366,7 +3384,7 @@ body.modal-open{overflow:hidden}
 .cl-frame:fullscreen .wp-title{font-size:clamp(24px,2.6vw,36px)}
 
 @media (max-width:700px){
-  .cl-big{width:62px;height:62px}
+  .cl-big-disc{width:62px;height:62px}
   .cl-big .icon{width:28px;height:28px}
   .cl-time{display:none}
   .cl-volume:hover .cl-vol,.cl-volume:focus-within .cl-vol{width:56px}

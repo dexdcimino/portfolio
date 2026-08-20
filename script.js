@@ -2710,6 +2710,23 @@ let flashTip = () => {};
    frame still on screen — and an <audio> cannot answer any of them. */
 const MediaBus = (() => {
   const players = [];
+
+  /* A player left running in a background tab is audio coming from nowhere, and
+     nobody can find the tab it is coming from. So everything stops the moment
+     the document is hidden.
+
+     Nothing resumes on the way back, deliberately. A page that starts talking
+     the instant you return to it is the same ambush pointing the other way, and
+     the player is right there — pressing play is one click or one space bar.
+
+     It lives in MediaBus rather than in either player because it is a rule
+     about media on this page, not about clips or about songs; a third player
+     that registers with the bus gets it without having to remember it. */
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) return;
+    for (const p of players) if (!p.el.paused) p.pause();
+  });
+
   return {
     add(p) { players.push(p); return p; },
 
@@ -2795,6 +2812,11 @@ const MediaBus = (() => {
     const playing = !video.paused && !video.ended && frame.classList.contains('is-live');
     icon(toggle, playing ? 'pause' : 'play');
     toggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    /* The big control is the whole video surface and stays operable while the
+       clip runs, so its name has to follow the state — its disc is hidden by
+       then, and a button announcing "Play clip" while pausing is a lie to
+       anyone who cannot see it. */
+    big.setAttribute('aria-label', playing ? 'Pause clip' : 'Play clip');
   }
 
   function select(i, autoplay) {
@@ -2852,7 +2874,11 @@ const MediaBus = (() => {
     });
   }
 
-  big.addEventListener('click', play);
+  /* The surface toggles rather than only starting: it covers the frame now, so
+     the click that starts a clip and the click that pauses it are the same
+     gesture in the same place. The bar and the note sit above it in z-order and
+     keep their own clicks, so the scrubber and the chips are unaffected. */
+  big.addEventListener('click', () => { video.paused ? play() : video.pause(); });
   toggle.addEventListener('click', () => { video.paused ? play() : video.pause(); });
   // Two sets of prev/next: the ones on the frame's edges and the ones in the
   // control bar. Same handler, so they cannot drift.

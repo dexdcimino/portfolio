@@ -13,7 +13,11 @@ path from logic to meshes.
   input, death cinematics, `window.Chomp` embed hooks
 - `pausemenu.js` — self-contained pause menu (ported from Stickland; see
   `INTEGRATION-NOTES.md` — the list of local edits a fresh game drop must
-  re-apply by hand)
+  re-apply by hand). It ends with the shared Reset All Player Progress control
+  (`games/_shared/reset-progress.js`), shipped **disabled**: this game persists
+  nothing but preferences (`chomp-zoom`, `chomp-audio`, `dex-accent-name`), so
+  there is no progress to destroy. Give it a save key and it goes live by
+  naming that key in `keys`, with no other change
 - `core/` — `events.js` pub/sub, `pool.js`, `rng.js` (`rngFor(seed, tag, …)`
   — FNV-1a → mulberry32, fully deterministic)
 - `data/` — stages (5), foods (9), enemies (+ the THREAT RULE: predator only

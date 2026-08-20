@@ -17,6 +17,7 @@
 import { sfx, setVolume, getVolume, setMuted, isMuted, setBusVolume, getBusVolume } from './audio.js';
 import { nextTrack, prevTrack, toggleMusic, onMusicChange } from './music.js';
 import { safeStorage } from './storage.js';
+import { createResetProgress } from './reset-progress.js';
 
 // ── Exit destination ────────────────────────────────────
 // '/' → the portfolio homepage (MD 12): relative on purpose, so it's right
@@ -252,6 +253,34 @@ function _ensureDom() {
               aria-label="Respawn" title="Respawn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
       <button class="pmenu-btn pmenu-btn-accent" data-act="resume" type="button">Resume</button>
     </div>`;
+  /* Reset, at the very bottom and behind a rule — see src/reset-progress.js
+     (a mirror of games/_shared/reset-progress.js; its header says why).
+
+     WHAT GOES, and the reasoning matters more than the list:
+       `sfg-plat`  — {bestH}, the best climb in metres. The one number this
+                     game persists that a player actually earned.
+       `sfg-world` — today this is only a CACHE of generateWorld() output, which
+                     is deterministic and which nothing in play mutates (see the
+                     note in storage.js), so clearing it regenerates an identical
+                     world. It is listed anyway because it is the file any future
+                     world editing would land in, and a reset that quietly
+                     skipped the world would stop being a reset the day that
+                     shipped.
+
+     WHAT SURVIVES, because none of it was earned: `sfg-audio` (volume, mute),
+     `sfg-accent` and `dex-accent-name`, `sfg-fx` (screen shake), `stickland-track`
+     (track choice), `dexnote-keybinds`, `dexnote-play-camera` (camera mode),
+     `sfg-cosmetics` and `dexnote-hotbar` — the last two are freely chosen, not
+     unlocked, so they are wardrobe and loadout rather than progress. */
+  _menuEl.appendChild(createResetProgress({
+    keys: ['sfg-plat', 'sfg-world'],
+    describe() {
+      const st = JSON.parse(safeStorage.getItem('sfg-plat') || 'null');
+      const best = st && typeof st.bestH === 'number' ? st.bestH : 0;
+      return best > 0 ? `best climb ${best}m` : null;
+    },
+  }));
+
   document.body.appendChild(_menuEl);
 
   _menuEl.querySelectorAll('[data-toggle]').forEach(btn => {

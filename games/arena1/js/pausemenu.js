@@ -15,6 +15,7 @@ import { setAudioLevels, legacyAudioLevel } from './systems/audio.js';
    reimplemented here — three copies of a volume panel is how Chomp ends up
    quieter than Arena 1 for no reason anyone can find. */
 import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
+import { createResetProgress } from '../../_shared/reset-progress.js';
 
 /* The site's seven accents, byte-identical to ACCENTS in the site's script.js
    (verified against script.js:51-59 at build time). The duplication is
@@ -517,6 +518,17 @@ function build() {
     window.Arena1?.respawn?.();
     window.Arena1?.resume?.();
   });
+  /* Reset, at the very bottom — see _shared/reset-progress.js. This game
+     stores NO progress: arena1-quality` (the tier), `arena1-tag` (the name you chose) and `arena1-audio` are
+     preferences, and `dex-accent-name` is shared with the site and every other
+     game. So there is nothing for a reset to destroy and the control ships
+     disabled rather than as a button that appears to do something.
+     It stays on screen on purpose: these four menus are ports of one another
+     and should read the same, and "nothing is saved about you here" is a real
+     answer to the question the button raises. Give this game a save key and it
+     becomes live by listing it in `keys`, with no other change. */
+  menu.appendChild(createResetProgress({ keys: [] }));
+
   menu.querySelector('.cmenu-exit').addEventListener('click', () => {
     // Navigate the PARENT, not the iframe: the game runs framed by the
     // wrapper, and the site's frame-ancestors header (correctly) refuses to

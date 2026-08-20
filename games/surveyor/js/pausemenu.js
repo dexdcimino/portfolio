@@ -17,6 +17,11 @@
    Self-contained: injects its own styles and edits nothing else. */
 
 import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
+import { createResetProgress } from '../../_shared/reset-progress.js';
+/* Only for ECONOMY.saveKey. The key is written down once, in tune.js, and a
+   second copy of that string here is how a reset quietly stops matching the
+   save it is supposed to destroy. */
+import { ECONOMY } from './tune.js';
 /* The UI voice lives in js/audio/sfx.js and listens for one event. Emitting it
    from here costs this module no knowledge of the audio engine at all, which
    is the same split every other event in this game uses.
@@ -305,6 +310,26 @@ function build() {
        the save, and restarting a session is not the same as abandoning it. */
     location.reload();
   });
+  /* Reset, at the very bottom and behind a rule — see _shared/reset-progress.js.
+     Surveyor is the game that most needed this: colonies persist across every
+     session and nothing on screen admitted the save existed.
+     ONLY the economy key goes. `surveyor-audio` (the shared mixer) and
+     `dex-accent-name` (shared with every game and the site) are preferences and
+     survive by not being named here.
+     The count is read at arm time straight from the saved blob, so the warning
+     is specific — "12 colonies across 4 worlds" rather than a generic scare. */
+  menu.appendChild(createResetProgress({
+    keys: [ECONOMY.saveKey],
+    describe() {
+      const data = JSON.parse(localStorage.getItem(ECONOMY.saveKey) || 'null');
+      const worlds = data && data.worlds ? Object.values(data.worlds) : [];
+      const colonies = worlds.reduce((n, w) => n + (w.sites ? w.sites.length : 0), 0);
+      if (!colonies) return null;
+      return `${colonies} colon${colonies === 1 ? 'y' : 'ies'} across `
+        + `${worlds.length} world${worlds.length === 1 ? '' : 's'}`;
+    },
+  }));
+
   menu.querySelector('.cmenu-exit').addEventListener('click', () => {
     // Navigate the PARENT, not the iframe: the site's frame-ancestors header
     // refuses to load the site inside a frame. Same-origin, so window.top is

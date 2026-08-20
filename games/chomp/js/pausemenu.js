@@ -17,6 +17,7 @@ import { CONFIG } from './config.js';
 import { setAudioLevels, legacyAudioLevel, playUiSelect } from './systems/audio.js';
 /* MD 26 item 1 — the shared Clayweld mixer, same module Arena 1 uses. */
 import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
+import { createResetProgress } from '../../_shared/reset-progress.js';
 
 /* The site's seven accents, byte-identical to ACCENTS in the site's script.js.
    The duplication is deliberate and documented there: the game must not reach
@@ -400,6 +401,17 @@ function build() {
     // boot, so a fresh run IS a fresh page.
     location.reload();
   });
+  /* Reset, at the very bottom — see _shared/reset-progress.js. This game
+     stores NO progress: chomp-zoom` (the camera zoom) and `chomp-audio` are
+     preferences, and `dex-accent-name` is shared with the site and every other
+     game. So there is nothing for a reset to destroy and the control ships
+     disabled rather than as a button that appears to do something.
+     It stays on screen on purpose: these four menus are ports of one another
+     and should read the same, and "nothing is saved about you here" is a real
+     answer to the question the button raises. Give this game a save key and it
+     becomes live by listing it in `keys`, with no other change. */
+  menu.appendChild(createResetProgress({ keys: [] }));
+
   menu.querySelector('.cmenu-exit').addEventListener('click', () => {
     // Navigate the PARENT, not the iframe: the game runs framed and the
     // site's frame-ancestors header refuses to load the site inside a frame.
