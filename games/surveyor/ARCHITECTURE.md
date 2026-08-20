@@ -189,6 +189,29 @@ master, so `chunks.js` never calls `appendFlora`, no rng stream is drawn and no
 vertex carries a sway — the layer code below is dormant, not deleted, and
 restoring a world is that one number.
 
+**FRAME BUDGET IS SET BY PIXELS, NOT BY CPU** (measured 2026-08-19, real
+window, boosted Home flight, Radeon 880M). Every previous number came off
+900x560 or 1280x760 headless, where the GPU is nearly free and a CPU spike
+hides under it. At 2560x1440 the game loop's CPU is a 6ms median while the
+frame is 13.4ms, and **half of all over-budget time is outside our JavaScript
+entirely** — the GPU, the compositor, the collector. Three cuts, in the order
+they paid:
+
+- `MAX_BACKBUFFER_SCALE 1` in `main.js`. It rendered at devicePixelRatio, so
+  a 125%-scaled desktop drew **1.56x the pixels it showed**, on every post
+  pass. This is the single biggest lever and it is one number.
+- Survey props are queued and drained at `PROP_SPAWN_PER_FRAME 2`, and the
+  beacon's three meshes are cloned from protos rather than built with
+  `MeshBuilder` per beacon. `survey.update`'s worst frame: 21.7ms -> 8.5ms.
+- `buildBudgetPerFrame` 2 -> 1. Two leaf builds could land in one frame
+  whenever the first was quick; one build a frame is still 4x what a 158m/s
+  boost demands.
+
+Together at 2560x1440: median 13.4 -> 9.5-12ms, p99 30.9 -> ~20.5, frames
+missing 60Hz 12.2% -> 2.2-5%, visible hitches (>34ms) 12 -> 2. At 1920x1080:
+median 8ms, p99 16ms, 0.5% of frames missing 60Hz. What is left is dominated
+by the GPU and the collector, not by anything the loop does.
+
 All worlds: `leafRes 16`, `targetCell 4.5` (held constant so handling is
 identical; quadtree depth varies instead). POST: exposure **0.97**, contrast
 1.05, SSAO half-float / radius 2.2 / maxZ 260 / ratio 0.75, grain 5.0
@@ -208,7 +231,11 @@ you can gate a commit on. `savefile.mjs` — seeded saves (`--save`,
 sundisc/skyline/floracheck/perf/whatisthat, `budget.mjs` (real-GPU frame
 budget; refuses SwiftShader), `colonycost.mjs` (what a mature basin costs),
 `flycheck.mjs` (frame pacing while the jet boosts across a world — worst
-frame, not average; the smoothness gate every Home-revamp phase reports),
+frame, not average; the smoothness gate every Home-revamp phase reports.
+`--size WxH`, `--window` for a real window on a real compositor, and
+`--scale N` / `--off ssao,bloom,grain,fxaa` to A/B one lever at a time; it
+attributes every frame to streaming / leaf build / render / the rest of the
+loop / outside our JavaScript, and prints the worst ten with the breakdown),
 `lodcheck.mjs` (walks a body through the billboard-to-sphere handoff and
 measures BOTH size and luminance — see the continuity invariant), and
 `crosscheck.mjs` (one real crossing in the live engine: samples the drawn
@@ -222,7 +249,8 @@ the flat-world five — `wCliff` (escarpment step along a shelf-field contour,
 `cliffWander` breaks it into ramps), `wMesa` (flat-topped buttes), `wGully`
 (driving-scale drainage). Zero-weight worlds skip the blocks entirely, which
 is what keeps the other five bit-identical; Home is the only user. Leaf
-builds are budgeted by time as well as count (`WORLD.buildBudgetMs`), and
+builds are budgeted by time as well as count (`buildBudgetPerFrame 1`,
+`buildBudgetMs 3`), and
 Home's flora places on the leaf's own height lattice (`flora.onGrid`) so
 plants sit on the drawn ground. Hero formations (`scatter.monuments: N`, Home
 only): a seeded world-space list from `monumentsOf()`, baked into leaves at

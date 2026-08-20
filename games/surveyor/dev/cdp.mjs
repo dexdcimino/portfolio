@@ -78,11 +78,20 @@ export function serve(root) {
  * says nothing about what a player sees, so anything measuring cost rather than
  * pixels wants this. Verified reachable headless on Windows via ANGLE/D3D11.
  */
-export async function launch({ width = 900, height = 560, port = 9222, gpu = false } = {}) {
+export async function launch({ width = 900, height = 560, port = 9222, gpu = false,
+                              headed = false, app = null } = {}) {
   const exe = findChrome();
   const profile = mkdtempSync(join(tmpdir(), 'surveyor-shots-'));
   const child = spawn(exe, [
-    '--headless=new',
+    /* HEADED puts the frame on a real compositor: a vsync'd swap chain, a
+       desktop the GPU is also drawing, and no Emulation override deciding the
+       backbuffer. Headless is the right default — deterministic and
+       screenshot-comparable — but it is NOT where a player's frame lives, and
+       a hitch that only appears against vsync will not show up without this.
+       `app` drops the omnibox and tab strip so --window-size is very nearly the
+       canvas, rather than the canvas plus 85px of browser. */
+    ...(headed ? [] : ['--headless=new']),
+    ...(headed && app ? [`--app=${app}`] : []),
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`,
     `--window-size=${width},${height}`,
@@ -92,12 +101,13 @@ export async function launch({ width = 900, height = 560, port = 9222, gpu = fal
     '--no-default-browser-check',
     '--disable-extensions',
     '--disable-background-timer-throttling',
+    ...(headed ? ['--autoplay-policy=no-user-gesture-required'] : []),
     // SwiftShader, explicitly. Headless has no GPU to fall back from, and
     // without these two flags the WebGL context creation simply fails.
     ...(gpu
       ? ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist']
       : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
-    'about:blank',
+    ...(headed && app ? [] : ['about:blank']),
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
 
   let stderr = '';
@@ -138,6 +148,40 @@ export async function launch({ width = 900, height = 560, port = 9222, gpu = fal
   return {
     version: version.Browser,
     browser,
+    /* The window Chrome opened for itself. `--app=<url>` means the page
+       already exists and is already navigating; calling newPage() there would
+       measure a second, empty tab while the real one rendered beside it. */
+    async firstPage(matchUrl = null) {
+      /* WAIT FOR THE NAVIGATION FIRST. --app opens on about:blank and navigates
+         a moment later; attaching before that lands you in a context Chrome is
+         about to throw away, and the first evaluate dies with "Execution
+         context was destroyed" some seconds into the run. */
+      let t = null;
+      for (let i = 0; i < 200 && !t; i++) {
+        const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+        t = list.find((x) => x.type === 'page');
+        if (!t) await wait(100);
+      }
+      if (!t) throw new Error('no page target — did --app fail to open?');
+      const page = await connect(t.webSocketDebuggerUrl);
+      page.targetId = t.id;
+      /* THE TARGET LIST LIES ABOUT WHEN. /json/list reports the URL Chrome
+         INTENDS to load, so a target can match the game's address while the
+         live context is still about:blank; attaching there and evaluating gets
+         you a context Chrome destroys a moment later, seconds into the run.
+         The page's own location is the only honest signal, so it is polled
+         from inside the context that will actually run the script. */
+      for (let i = 0; i < 300; i++) {
+        const r = await page.send('Runtime.evaluate', {
+          expression: 'location.href + "|" + document.readyState',
+          returnByValue: true,
+        }).catch(() => null);
+        const v = r && r.result && r.result.value;
+        if (v && (!matchUrl || v.startsWith(matchUrl)) && !v.endsWith('|loading')) return page;
+        await wait(100);
+      }
+      throw new Error(`page never navigated to ${matchUrl}`);
+    },
     async newPage() {
       const { targetId } = await browser.send('Target.createTarget', { url: 'about:blank' });
       const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();

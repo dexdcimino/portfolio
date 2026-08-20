@@ -24,6 +24,12 @@ const PROP_ARC = 135;               // metres of arc per prop cell
 const PROP_MIN = 4;                 // ...but never so few that a face is bald
 const PROP_MAX = 20;
 const PROP_RING = 2;                // rings of cells kept alive around you
+/* How much of the ring may be built in one frame. Two cells is 120 a second at
+   60Hz, against a boost crossing that asks for at most five, so this costs no
+   props at any speed the craft can reach — it only stops them arriving all in
+   the same frame. */
+const PROP_SPAWN_PER_FRAME = 2;
+const PROP_SPAWN_MS = 1.5;
 const SCAN_RANGE = 34;
 const SCAN_TIME = 2.0;
 
@@ -72,6 +78,37 @@ export class Survey {
     this.cellProto.setEnabled(false);
     this.cellProto.isPickable = false;
     this.cellProto.renderingGroupId = 1;
+
+    /* THE BEACON'S THREE PARTS ARE TEMPLATES TOO, and this is a frame-time fix
+       rather than tidying. buildBeacon used to call MeshBuilder three times per
+       beacon, so every beacon a cell crossing spawned generated three lots of
+       geometry and uploaded three new vertex buffers inside one frame. At jet
+       boost that landed as a spike in survey.update — measured at 21ms worst
+       on a 25s Home flight, the largest single CPU spike left in the loop after
+       the streaming budget. A clone shares the source's geometry and costs a
+       transform, so the same beacon is now most of a rounding error. */
+    const proto = (name, mesh, mat, y) => {
+      mesh.name = name;
+      mesh.material = mat;
+      mesh.position.y = y;
+      mesh.isPickable = false;
+      mesh.renderingGroupId = 1;
+      mesh.setEnabled(false);
+      return mesh;
+    };
+    this.shaftProto = proto('shaftProto', BABYLON.MeshBuilder.CreateCylinder('shaftProto',
+      { height: 15, diameterTop: 1.1, diameterBottom: 2.4, tessellation: 7 }, scene),
+      this.matStone, 7.0);
+    this.crystalProto = proto('crystalProto', BABYLON.MeshBuilder.CreatePolyhedron('crystalProto',
+      { type: 2, size: 1.5 }, scene), this.matBeacon, 16.2);
+    this.ringProto = proto('ringProto', BABYLON.MeshBuilder.CreateTorus('ringProto',
+      { diameter: 5.2, thickness: 0.22, tessellation: 20 }, scene), this.matBeacon, 12.5);
+
+    /* Cells waiting to be spawned, drained under a per-frame budget. Crossing
+       a survey cell used to spawn the whole new column in the frame it
+       happened; crossing a FACE dropped the ring and rebuilt all 25 at once.
+       Same shape as ChunkField's build queue and same reason. */
+    this.spawnQueue = [];
 
     /* The beam. A long thin cone off the nose, depth-tested like everything
        else in group 1 — so a hillside between you and a raider stops the beam
@@ -225,30 +262,23 @@ export class Survey {
     // Beacons stand on the radial, so a mast is upright wherever it lands.
     placeOnSphere(root, this.planet, dir, elevation, 0);
 
-    const shaft = BABYLON.MeshBuilder.CreateCylinder('shaft',
-      { height: 15, diameterTop: 1.1, diameterBottom: 2.4, tessellation: 7 }, this.scene);
+    /* Clones of the three protos. A clone keeps the proto's position, material
+       and renderingGroupId, so only what differs per beacon is set here. */
+    const shaft = this.shaftProto.clone('shaft_' + key);
     shaft.parent = root;
-    shaft.position.y = 7.0;
-    shaft.material = this.matStone;
-    shaft.isPickable = false;
-    shaft.renderingGroupId = 1;
+    shaft.setEnabled(true);
 
     const lit = this.scanned.has(key);
-    const crystal = BABYLON.MeshBuilder.CreatePolyhedron('crystal',
-      { type: 2, size: 1.5 }, this.scene);
+    const mat = lit ? this.matBeaconDone : this.matBeacon;
+    const crystal = this.crystalProto.clone('crystal_' + key);
     crystal.parent = root;
-    crystal.position.y = 16.2;
-    crystal.material = lit ? this.matBeaconDone : this.matBeacon;
-    crystal.isPickable = false;
-    crystal.renderingGroupId = 1;
+    crystal.material = mat;
+    crystal.setEnabled(true);
 
-    const ring = BABYLON.MeshBuilder.CreateTorus('bring',
-      { diameter: 5.2, thickness: 0.22, tessellation: 20 }, this.scene);
+    const ring = this.ringProto.clone('bring_' + key);
     ring.parent = root;
-    ring.position.y = 12.5;
-    ring.material = lit ? this.matBeaconDone : this.matBeacon;
-    ring.isPickable = false;
-    ring.renderingGroupId = 1;
+    ring.material = mat;
+    ring.setEnabled(true);
 
     return { key, root, crystal, ring, lit, dir, elevation, world: root.position.clone() };
   }
@@ -277,6 +307,10 @@ export class Survey {
 
     if (cellKey !== this.center) {
       this.center = cellKey;
+      /* QUEUED, NOT SPAWNED. Replacing the queue rather than appending is what
+         drops jobs the last centre wanted and this one does not, so a fast
+         crossing never spawns a cell that has already left the ring. */
+      const jobs = [];
       for (let dv = -PROP_RING; dv <= PROP_RING; dv++) {
         for (let du = -PROP_RING; du <= PROP_RING; du++) {
           const ju = iu + du, jv = iv + dv;
@@ -285,9 +319,14 @@ export class Survey {
           // twelve edges does not justify a cross-face adjacency table.
           if (ju < 0 || jv < 0 || ju >= this.cells || jv >= this.cells) continue;
           const k = FC.f + ':' + ju + ',' + jv;
-          if (!this.active.has(k)) this.spawnCell(FC.f, ju, jv);
+          if (!this.active.has(k)) {
+            jobs.push({ f: FC.f, ju, jv, k, d: Math.max(Math.abs(du), Math.abs(dv)) });
+          }
         }
       }
+      // Nearest ring first, so what you can actually see arrives first.
+      jobs.sort((a, b) => a.d - b.d);
+      this.spawnQueue = jobs;
       for (const key of [...this.active.keys()]) {
         const parts = key.split(':');
         const ij = parts[1].split(',').map(Number);
@@ -295,6 +334,20 @@ export class Survey {
             Math.max(Math.abs(ij[0] - iu), Math.abs(ij[1] - iv)) > PROP_RING) {
           this.despawnChunk(key);
         }
+      }
+    }
+
+    /* Drain the queue under a budget. The first job always runs so a stall can
+       never starve it, and PROP_SPAWN_MS caps the rest — the same two rules the
+       leaf-build loop uses, for the same reason. */
+    if (this.spawnQueue.length) {
+      const t0 = performance.now();
+      let n = 0;
+      while (this.spawnQueue.length && n < PROP_SPAWN_PER_FRAME &&
+        (n === 0 || performance.now() - t0 < PROP_SPAWN_MS)) {
+        const job = this.spawnQueue.shift();
+        if (!this.active.has(job.k)) this.spawnCell(job.f, job.ju, job.jv);
+        n++;
       }
     }
 

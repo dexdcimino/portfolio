@@ -6,7 +6,14 @@ export const WORLD = {
   // level on every planet, which is why the whole of craft.js survived the
   // move onto a sphere unchanged.
   waterY: 0,
-  buildBudgetPerFrame: 2,
+  /* ONE. It read 2, and the 3ms cap below let both land together whenever the
+     first was quick — which on a 2560x1440 window was most of what was left in
+     the worst-frame list after the survey spawn burst was budgeted: 3.4 to
+     5.2ms of build on top of an already full frame. The note below already had
+     the argument: 60 leaves a second against a boost that demands ~15, so a
+     second build per frame buys no streaming and costs the frame it lands in.
+     Raise it back if a world is ever seen to stream in behind the craft. */
+  buildBudgetPerFrame: 1,
   /* ...and a time cap on the same loop: once a frame has spent this many ms
      building leaves it stops, whatever the count says. A Home leaf is ~4.2ms,
      so in practice this is one build per frame on the reference machine —

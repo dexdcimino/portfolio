@@ -30,7 +30,18 @@ const engine = new BABYLON.Engine(canvas, true, {
   antialias: true,
   powerPreference: 'high-performance',
 }, true);
-engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, 1.5));
+/* ONE BACKBUFFER PIXEL PER CSS PIXEL, and this is a frame-time decision.
+   This used to render at the display's devicePixelRatio (capped at 1.5), which
+   on a 125%-scaled Windows desktop — the reference machine, and the common
+   default on a laptop — is 1.25 linear and therefore 1.56x the PIXELS, paid on
+   every pass in the post stack. Measured on a 2560x1440 window during a boosted
+   Home flight: 3183x1577 at dpr, 2547x1262 at 1.0, and the frame went from a
+   13.4ms median with 12.2% of frames missing 60Hz to 9.3ms and 2.7%.
+   The cost is that a HiDPI display no longer supersamples, and FXAA is on
+   precisely so the edges survive that. Raise the cap here to trade it back. */
+const MAX_BACKBUFFER_SCALE = 1;
+engine.setHardwareScalingLevel(
+  1 / Math.min(window.devicePixelRatio || 1, MAX_BACKBUFFER_SCALE));
 
 const scene = new BABYLON.Scene(engine);
 scene.clearColor = new BABYLON.Color4(COLORS.fog[0], COLORS.fog[1], COLORS.fog[2], 1);
