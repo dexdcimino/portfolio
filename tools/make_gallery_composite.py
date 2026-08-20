@@ -118,6 +118,20 @@ PRESETS = {
         # browser reported into the device pixels the screenshot is in.
         'crop_zoom': 1.0,
     },
+
+    # Chomp's concept sheet, letterboxed to the house 1920x1080 rather than
+    # cropped. It is the only image in Chomp's gallery that is not a dark cave,
+    # and the only one that shows the creature's growth stages and the enemy
+    # roster as DESIGN — which is why it earns an entry beside the gameplay.
+    # One source, so the "grid" is 1x1 and this preset is really just a
+    # conform-to-the-convention step.
+    'chomp-concept': {
+        'sources': ['CHOMP PROGRESS PICS/early concept.png'],
+        'from': 'desktop',
+        'grid': (1, 1),
+        'fit': 'contain',
+        'out': 'assets/gallery/chomp-concept.png',
+    },
 }
 
 # `from: desktop` sources are Dex's own working files, outside the repo on
@@ -154,6 +168,24 @@ def crop_at(img, w, h, cx, cy):
     left = max(0, min(img.width - w, cx - w // 2))
     top = max(0, min(img.height - h, cy - h // 2))
     return img.crop((left, top, left + w, top + h))
+
+
+def contain(img, w, h):
+    """Scale to FIT inside w x h and letterbox the remainder in the stage colour.
+
+    The opposite of cover(), and the right choice when the source is a designed
+    sheet rather than a gameplay frame: cropping a character sheet cuts a
+    creature off its own edge, which is the one thing that image is for. The
+    bars are STAGE_BG, so in .gal-stage — which is that colour and contains
+    anyway — they are invisible, and the master still conforms to the 1920x1080
+    every other one on the site uses.
+    """
+    src_w, src_h = img.size
+    scale = min(w / src_w, h / src_h)
+    new = (max(1, round(src_w * scale)), max(1, round(src_h * scale)))
+    out = Image.new('RGB', (w, h), STAGE_BG)
+    out.paste(img.resize(new, Image.LANCZOS), ((w - new[0]) // 2, (h - new[1]) // 2))
+    return out
 
 
 def build(preset_name, preset, dry_run=False):
@@ -216,6 +248,9 @@ def build(preset_name, preset, dry_run=False):
                     cell = cell.resize((w, h), Image.LANCZOS)
                 note = (f"figure {b['w']}x{b['h']}css at {b['x']},{b['y']} dpr {r}"
                         + (f', crop {cw}x{ch}' + (f' up {z}x' if z != 1.0 else ' 1:1')))
+            elif preset.get('fit') == 'contain':
+                cell = contain(flat, w, h)
+                note = f'contain {im.size[0]}x{im.size[1]}'
             else:
                 cell = cover(flat, w, h)
                 note = 'cover'

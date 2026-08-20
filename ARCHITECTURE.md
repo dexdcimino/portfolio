@@ -329,7 +329,7 @@ that convention, not this hook, is what covers the adjacent case.
 ## Numbers
 
 7 accents (lime default) · 11 ladders / 16 slots in `image_slots.py` ·
-69 generated markup blocks in index.html · fallback ladder
+70 generated markup blocks in index.html · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
 
