@@ -75,7 +75,7 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
 - `tools/` — `bake_images.py` (sole writer of `assets/derived/`),
   `bake_markup.py` (owns every `<picture>` block), `image_slots.py` (LADDERS/
   SLOTS/SIBLINGS — the single source of truth), `check_scope.py` (commit-msg
-  scope hook), `bake_favicon.py`, `bake_icons.py`, `check_accents.py` (the
+  scope hook), `check_sweep.py` (commit-msg sweep hook), `bake_favicon.py`, `bake_icons.py`, `check_accents.py` (the
   7-accent palette is duplicated in 5 places and must stay byte-identical),
   `seal_vault.mjs`, `build_docs_pdf.mjs`. Hooks are versioned in
   `tools/hooks/` and installed once via `bake_images.py --install-hooks`
@@ -135,6 +135,27 @@ not span "projects" (each `games/<name>`, each other top-level dir, the repo
 root as one unit) unless the message carries a `Spans:` line naming every
 one. One exemption: `assets` + root-`index.html` only (the documented
 add-an-image flow).
+
+Then `check_sweep.py`, which catches the opposite accident: a commit that stays
+inside one project and carries a SECOND session's work out with it, because a
+file both were editing got staged whole. Two rules. Markup pointing at an
+`assets/derived/` file the commit does not contain is refused outright — that
+is `b6ba02f`, which published a `<picture>` whose 1920 rung was in no tree at
+all. A region of a root file or an `ARCHITECTURE.md` whose identifiers appear
+nowhere in the message is refused with a `Carries:` escape hatch; usually the
+right answer is a sentence in the message instead. It flags about one commit in
+ten, which is the agreed price (revisit past one in five).
+
+**IT CANNOT SEE A SWEPT HUNK THAT SITS NEXT TO A REAL EDIT.** Hunks less than
+60 lines apart are one region, so a region containing both your work and
+someone else's is explained by your half of it and passes. That is not
+theoretical: `d3c2f6a` carried a `games/surveyor/ARCHITECTURE.md` invariant out
+under an unrelated Ember fix, and the finished hook does not catch it. Widening
+the region gap does not fix it either — at 150 lines the kong-fu sweep merged
+into the edit beside it and the check went silent instead. The hook is a
+backstop for the far-apart case; the near case is still on whoever stages.
+One session owns `index.html` and `styles.css` at a time (Dex, 2026-08-19) —
+that convention, not this hook, is what covers the adjacent case.
 
 ## Numbers
 
