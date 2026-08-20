@@ -277,6 +277,8 @@ the frame never changes shape, so that clip carries `data-fit="contain"` and
 the `clip-poster-portrait` slot instead of being cropped to a third of itself.
 The Collab section is dormant — off the nav, content hidden behind
 an UNDER CONSTRUCTION plate — until the first collab repo exists. The vault
-backlog carries five plans; the bio-breakout plan named in its brief has no
-file behind it yet, so it has no row. See
+backlog carries six plans, three Surveyor and three Site. The Breakout toy
+in the bio has no row and never will: the vault holds parked or unstarted
+plans, and that one is built. Its unstarted sibling `docs/bio-invaders.md`
+is exactly what does get a row. See
 `docs/STATUS.md` for the live list and open decisions.
