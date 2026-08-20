@@ -20,7 +20,9 @@
 // CPU believes; if they disagree with it, the fault is in the shader or in the
 // quad, not in the compression chain.
 //
-// Exits non-zero if any disc is drawn wider than MAX_DEG.
+// Exits non-zero if a disc is COMPUTED wider than MAX_DEG, or MEASURED wider
+// than the frame it is in. Two different bars because they are two different
+// measurements — see the note on them further down.
 
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -32,15 +34,30 @@ const SITE = resolve(HERE, '../../..');
 const GAME = '/games/surveyor/';
 
 /* What a planet in the sky is allowed to be, in degrees of DRAWN diameter.
-   The moon is 0.52; these are deliberately exaggerated so a world reads as a
-   place rather than a dot, and SYSTEM's own comment aims at 40-70px at 560p,
-   which is 4-7 degrees. 5 is therefore INSIDE the authored range and this bar
-   is set to catch a disc that is wrong, not a disc that is large — raise it
-   with --max=7 to gate on the design intent instead. */
+
+   THE BAR HAS TO SIT ABOVE THE AUTHORED RANGE, and for a long time it did not.
+   It was 5, which was the right number on 2026-08-17 and stopped being one
+   later the same day: the disc compression's reference was raised twenty-fold
+   in the sky pass, deliberately, so that a world reads as a place rather than
+   as a dot. Computed across all thirty ordered pairs, the design now produces
+
+       3.90 degrees   the drawFloor, which is what a distant world lands on
+       6.80 degrees   Anvil seen from Ember, the widest in the system
+
+   so a gate at 5 fails on Shroud and Anvil from a perfectly healthy build. A
+   check that fails on a healthy build is worse than no check, because what it
+   teaches is that the suite can be ignored.
+
+   8 clears the widest by about a fifth, which is enough headroom for the
+   measured on-screen figure to sit a little above the computed one without
+   crying wolf, and still catches the failure this harness was written for: a
+   single disc drawn at seventy-five degrees while the others were correct.
+   Tighten it per run with --max= when you want to gate on design intent rather
+   than on breakage. */
 const argv = process.argv.slice(2);
 const SAVE = saveFromArgv(argv);
 const maxArg = argv.find((a) => a.startsWith('--max='));
-const MAX_DEG = maxArg ? Number(maxArg.slice(6)) : 5.0;
+const MAX_DEG = maxArg ? Number(maxArg.slice(6)) : 8.0;
 
 const all = argv.includes('--all');
 const only = argv.filter((a) => !a.startsWith('--'));
@@ -248,7 +265,26 @@ for (const from of FROM) {
     'drawn at  ON SCREEN: body°  halo°  quadpx  noise%');
   for (const d of N.list) {
     const m = await evaluate(page, MEASURE(d.key));
-    const over = d.drawnDeg > MAX_DEG || (m && m.bodyDeg > MAX_DEG);
+    /* TWO GATES, EACH COMPARING LIKE WITH LIKE, and it used to be one that
+       did not. `bodyDeg` was gated against MAX_DEG as though the two were the
+       same measurement. They are not. MAX_DEG is a BODY diameter the CPU
+       computed; `bodyDeg` is the area-equivalent diameter of every pixel that
+       changed by more than 40 levels when the disc was toggled, which is the
+       solid disc PLUS whatever of its halo is bright enough to clear that
+       threshold — and how much of the halo clears it depends on the sky behind
+       it. The same disc measured 5.25 against Home's pale sky and 8.73 against
+       a dark one, with a computed body of 3.90 both times. Gating on that is
+       gating on contrast.
+
+       So: the computed body answers to MAX_DEG, which is what MAX_DEG means.
+       The measured footprint answers to the FRAME, which is the bound that
+       cannot be argued with and is the one that caught the failure this
+       harness was written for — a single disc covering 75 degrees inside a
+       54.4 degree view. A disc wider than the frame is wrong however bright
+       its halo is. */
+    const tooBig = d.drawnDeg > MAX_DEG;
+    const offFrame = !!(m && m.bodyDeg > m.fovDeg);
+    const over = tooBig || offFrame;
     if (over) bad++;
     const dir = `[${d.dir.map((v) => (v < 0 ? '' : ' ') + v.toFixed(3)).join(', ')}]`;
     console.log(`  ${d.key.padEnd(7)} ${dir.padEnd(28)} ${String(d.distKm).padStart(6)}km ` +
@@ -256,15 +292,16 @@ for (const from of FROM) {
       `${String(d.core).padStart(7)} ${String(d.drawnAt).padStart(6)}m ${String(m ? m.bodyDeg : '?').padStart(6)} ` +
       `${String(m ? m.reachDeg : '?').padStart(6)} ${String(m ? m.quadPx : '?').padStart(7)} ` +
       `${String(m ? m.pctFrame : '?').padStart(6)}% ${String(m ? m.noisePct : '?').padStart(6)}%` +
-      (over ? '   <-- OVER ' + MAX_DEG + '°' : ''));
+      (tooBig ? '   <-- DRAWN OVER ' + MAX_DEG + '°' : '') +
+      (offFrame ? '   <-- WIDER THAN THE FRAME' : ''));
   }
   console.log('');
   await page.close();
 }
 
 console.log(bad
-  ? `FAIL: ${bad} disc(s) drawn wider than ${MAX_DEG}°.`
-  : `All discs drawn at or under ${MAX_DEG}°.`);
+  ? `FAIL: ${bad} disc(s) over ${MAX_DEG}° computed, or wider than the frame.`
+  : `All discs at or under ${MAX_DEG}° computed, and inside the frame.`);
 await chrome.close();
 close();
 process.exitCode = bad ? 1 : 0;

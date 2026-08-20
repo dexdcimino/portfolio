@@ -316,6 +316,16 @@ submission, never resolution, so no coarse-geometry caster LOD was built.
 
 ## Known-outstanding — do not re-report
 
+- **A check that fails on a healthy build teaches people to ignore the suite.**
+  `dev/disccheck.mjs` gated discs at 5 degrees — the right number the morning it
+  was written and wrong by that afternoon, because the sky pass raised the disc
+  compression's reference twentyfold on purpose. The design produces 3.90 to
+  6.80 degrees across all thirty ordered pairs, so the bar sat INSIDE the
+  authored range and two worlds failed from a perfectly good build. It is 8 now,
+  above the widest by a fifth. A bar has to clear what the design produces; if
+  it does not, it is not measuring the design, it is measuring the bar.
+  The same check also gated a MEASURED footprint against a COMPUTED body
+  diameter, which are not the same quantity — see the note in the file.
 - ~~**`dev/cdp.mjs` launches Chrome on a fixed debug port (9222).**~~ FIXED.
   `launch()` asks for port 0 and reads back the one Chrome bound from
   `DevToolsActivePort` in its own throwaway profile. It mattered because a

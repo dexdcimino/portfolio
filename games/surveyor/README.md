@@ -308,6 +308,40 @@ loading screen is waiting for.
 Babylon's compile is what is left and there is no honest way to remove it
 without a build step: 1.6s cold, ~480ms warm once V8 has code-cached it.
 
+### A check that fails on a healthy build
+
+`dev/disccheck.mjs` exited non-zero on a perfectly good build, and had been
+doing it since 2026-08-17.
+
+Its bar was 5 degrees of drawn disc diameter. That was the right number the
+morning it was written, and wrong by that afternoon: the sky pass raised
+`SYSTEM.drawRef` twentyfold, deliberately, so that a world in the sky reads as
+a place rather than as a dot. Computed across all thirty ordered pairs, the
+design now produces **3.90 degrees** — the `drawFloor`, where a distant world
+lands — up to **6.80 degrees**, which is Anvil seen from Ember. A bar at 5 sits
+inside that range, so Shroud and Anvil failed for being exactly the size they
+were authored to be.
+
+It is 8 now, clearing the widest by about a fifth.
+
+**And the second gate was comparing two different measurements.** The same line
+tested the MEASURED on-screen figure against the same 5 degrees. `bodyDeg` is
+the area-equivalent diameter of every pixel that changed by more than 40 levels
+when the disc was toggled — the solid disc plus however much of its halo is
+bright enough to clear that threshold, which depends on the sky behind it. The
+same disc measured 5.25 against Home's pale sky and 8.73 against a dark one,
+with a computed body of 3.90 both times. Gating on that is gating on contrast.
+
+So there are two bars now and each compares like with like:
+
+- the **computed** body against `MAX_DEG`, which is what `MAX_DEG` means
+- the **measured** footprint against the **frame**, which is the bound that
+  cannot be argued with and is the one that caught the failure this harness
+  exists for: a single disc covering 75 degrees inside a 54.4 degree view
+
+Verified by tightening the bar to `--max=3`, which catches five discs, and by
+forcing `drawFloor` to 0.80 rad, which draws a 91.7 degree disc and is caught.
+
 ### Two harnesses at once used to hang, both of them, silently
 
 `launch()` in the shared CDP client asked for debug port 9222 by default. That
