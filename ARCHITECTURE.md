@@ -29,19 +29,22 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   SVGs; everything after it renders `{title, desc, src, w, h}` and is
   data-shape-agnostic; hero is a fixed 3:2 box on purpose), one `initTabs()`
   behind four tablists, wallpapers carousel/lightbox (self-builds from
-  `.wp-item` figures), `initAppInfo()`/`initAppModal()` (the app cards list
-  in the statement column under the AI LAB heading (`#aiApps`, hidden with
-  the Apps panel the way `#wpThumbs` follows Wallpapers); each `.ai-card` is
-  a non-interactive container with three targets: the title `<a>` opens the
-  site in a new tab and underlines on hover, the eyeball `<button>` —
-  authored only on cards with `data-app-modal` — opens the app overlay, and
-  a click anywhere else selects the card; the Apps panel across from it
-  shows the selection as lead line, then the app's first `.gal-item` shot
-  (cloned never borrowed; opens the shared viewer via `gallery:open`; no
-  shots collapses it), then description and tags; the eyeball hides below
-  768px where the overlay declines; app icons carry their own plates — the
-  icon wrap draws no border because the plates' corner radii differ per
-  mark),
+  `.wp-item` figures), `initAppInfo()`/`initAppModal()` (the apps are ROWS
+  stacked in the statement column under the AI LAB heading (`#aiApps`,
+  hidden with the Apps panel the way `#wpThumbs` follows Wallpapers); each
+  `.ai-card` row is a non-interactive container with three targets: name +
+  mini line on the left are the out-link `<a>` (new tab; both lines
+  underline on hover), the eyeball `<button>` — authored only on rows with
+  `data-app-modal` — opens the app overlay, and a click anywhere else
+  selects the row (`.is-current` holds the accent frame; seeded on the
+  first row); the mark sits at the row's far right via flex `order`, so the
+  generated `<picture>` never moves in the DOM, and wears no wrap border —
+  the plates' corner radii differ per mark; the Apps panel across from the
+  list shows the selection: the app's NAME large, then its first
+  `.gal-item` shot (centred, up to 660px; cloned never borrowed; opens the
+  shared viewer via `gallery:open`; no shots collapses it), then lead,
+  description and tags — no marketplace button; the eyeball hides below
+  768px where the overlay declines),
   `initCollabInfo()` (fills the Collab panel and builds
   each card's brain row + invite link from the card's own `data-people` /
   `data-invite`; adding a project is one card, no JS edit), vault, clips,

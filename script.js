@@ -3222,10 +3222,10 @@ function renderMarkdown(src) {
   const cards = [...apps.querySelectorAll('.ai-card')];
   if (!cards.length) return;
 
+  const title = document.getElementById('appInfoTitle');
   const lead = info.querySelector('.game-desc-lead');
   const body = info.querySelector('.game-desc-body');
   const tags = info.querySelectorAll('.game-tag');
-  const descLink = document.getElementById('appDescLink');
   let current = cards[0];
 
   /* The thumbnail that replaced the GALLERY button: the current app's FIRST
@@ -3240,7 +3240,7 @@ function renderMarkdown(src) {
   const art = document.getElementById('appArt');
   const shots = new Map();
   if (art) {
-    const SIZES = '(max-width:1100px) 520px, min(520px, 26vw)';
+    const SIZES = '(max-width:1100px) min(92vw, 660px), min(660px, 42vw)';
     for (const card of cards) {
       const key = card.dataset.gallery;
       if (!key || shots.has(key)) continue;
@@ -3262,24 +3262,16 @@ function renderMarkdown(src) {
 
   const show = (card) => {
     current = card;
-    lead.textContent = card.dataset.descLead || card.querySelector('strong')?.textContent || '';
+    // The held selection is visible on the list itself — seeded on the first
+    // row, so the section arrives already showing a choice.
+    for (const c of cards) c.classList.toggle('is-current', c === card);
+    if (title) title.textContent = card.querySelector('strong')?.textContent || '';
+    lead.textContent = card.dataset.descLead || '';
     body.textContent = card.dataset.descBody || '';
     for (const tag of tags) {
       const value = card.dataset[tag.dataset.slot] || '';
       tag.textContent = value;
       tag.hidden = !value;
-    }
-    /* Where the app lives, when that is somewhere else. Hidden rather than
-       emptied on a card with no link: an empty button still takes a slot in
-       the actions row and still tabs. */
-    if (descLink) {
-      const href = card.dataset.descLink || '';
-      descLink.hidden = !href;
-      if (href) {
-        descLink.href = href;
-        const lbl = descLink.querySelector('.game-gallery-label');
-        if (lbl) lbl.textContent = card.dataset.descLinkLabel || 'VISIT';
-      }
     }
     /* The thumbnail follows the panel. hidden both ways — the shot that was
        up, and the whole frame when this app has none, so the space collapses

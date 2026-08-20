@@ -1425,8 +1425,12 @@ button.button{cursor:pointer;font-family:inherit}
 /* The app copy under the AI LAB sub text. Reuses .game-desc / .game-actions so
    it IS the games component rather than a lookalike; only the spacing above it
    and the not-yet-shipped card treatment live here. */
-.app-info{margin-top:26px;max-width:560px}
-.app-info .game-desc{padding:0}
+/* Centred in the panel column rather than hugging its left edge, and wider
+   than the old 560 — the shot is the panel's whole point now. */
+.app-info{margin-top:18px;max-width:660px;margin-left:auto;margin-right:auto}
+/* The selected app's name, large, above the shot. */
+.app-info-title{display:block;font-size:clamp(26px,2.6vw,34px);font-weight:750;line-height:1.12;letter-spacing:.01em}
+.app-info .game-desc{padding:0;margin-top:16px}
 .app-info .game-actions{padding-left:0;padding-right:0}
 /* Two controls in this row, not one: GALLERY opens in place and the link
    leaves the site. Three things on a `space-between` row spread evenly and
@@ -1472,7 +1476,7 @@ button.button{cursor:pointer;font-family:inherit}
    pictures. Sits between the lead line and the description in the Apps
    panel, so its margin is a text gap, not a section gap. */
 .app-art{
-  display:block; margin-top:14px; width:100%; max-width:520px; aspect-ratio:16/9;
+  display:block; margin-top:14px; width:100%; aspect-ratio:16/9;
   position:relative; border-radius:var(--radius-cover); overflow:hidden;
   padding:0; cursor:pointer;
   border:var(--stroke) solid rgba(255,255,255,.1);
@@ -1493,13 +1497,9 @@ button.button{cursor:pointer;font-family:inherit}
    ABOVE the panel this frame lives in, so its height pushes nothing. */
 
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-/* The statement-column variant: the cards are this section's list now, under
-   the heading. auto-fit rather than a fixed two-up, because this column runs
-   250px just above the split's collapse and 560px below it — the cards go
-   one-up or two-up by what actually fits. Slightly shorter cards than the
-   panel grid used: five in a column is a list, not a wall. */
-.ai-grid-side{margin-top:34px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-.ai-grid-side .ai-card{min-height:160px}
+/* The statement-column variant: the section's list, under the heading —
+   rows stacked one over the other at every width, never a wall of tiles. */
+.ai-grid-side{margin-top:34px;grid-template-columns:1fr;gap:10px}
 .ai-grid-side[hidden]{display:none}
 /* Not shipped yet: a div rather than a link, so it carries no hover lift and no
    pointer — nothing here is clickable and the card should not pretend it is.
@@ -1515,20 +1515,25 @@ button.button{cursor:pointer;font-family:inherit}
   border:var(--stroke) solid color-mix(in srgb,var(--accent) 40%,transparent);
   color:var(--accent);font-size:10px;font-weight:800;letter-spacing:.1em;
 }
-/* A container with three targets, not a link: the title <a> goes out, the
+/* A list row with three targets, not a link: the title <a> goes out, the
    eyeball <button> opens the preview overlay, and the blank space selects
-   the card (initAppInfo). cursor:pointer on the plate is the selection
-   affordance; focus-within lifts the card so keyboard focus on either inner
-   control reads exactly like hover. */
-.ai-card{min-height:190px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:24px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
+   the row (initAppInfo). Left to right: name + mini line (the out-link),
+   then the eyeball, then the app's mark at the far edge — flex `order`
+   arranges that so the generated <picture> block never has to move in the
+   DOM. cursor:pointer on the plate is the selection affordance;
+   focus-within lights the row so keyboard focus reads exactly like hover. */
+.ai-card{display:flex;align-items:center;gap:14px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:14px 18px;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
 .ai-card:before{content:"";position:absolute;right:-18%;top:-44%;width:70%;aspect-ratio:1;background:var(--accent);filter:blur(70px);opacity:.08;transition:background-color var(--accent-ease)}
-.ai-card:hover,.ai-card:focus-within{transform:translateY(-4px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
-.ai-card small{color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
-.ai-card strong{font-size:25px;margin:8px 0;display:block}
-.ai-card-link{display:block;color:inherit;text-decoration:none}
+.ai-card:hover,.ai-card:focus-within{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
+/* The selected row: the same accent frame the hover shows, held. Seeded on
+   ThemeDock, so the section arrives with a selection rather than a guess. */
+.ai-card.is-current{border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
+.ai-card strong{font-size:18px;margin:0 0 3px;display:block}
+.ai-card-link{order:0;flex:1 1 auto;min-width:0;display:block;color:inherit;text-decoration:none}
 /* The out-link affordance lives on the text itself: only this element leaves
-   the site, so only this element underlines. */
-.ai-card-link:hover strong,.ai-card-link:focus-visible strong{text-decoration:underline;text-underline-offset:4px}
+   the site, so the name AND the mini line under it underline together. */
+.ai-card-link:hover strong,.ai-card-link:hover>span,
+.ai-card-link:focus-visible strong,.ai-card-link:focus-visible>span{text-decoration:underline;text-underline-offset:3px}
 .ai-card-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 .ai-card-link>span{color:#9da5ab;font-size:12px;display:inline-flex;align-items:center;gap:6px}
 .inline-arrow{width:13px;height:13px}
@@ -1541,28 +1546,25 @@ button.button{cursor:pointer;font-family:inherit}
    The copy sits at the bottom of the card (flex-end), so the icon has the top
    corner to itself and needs no reflow. */
 .ai-card-iconwrap{
-  position:absolute;top:20px;right:20px;
-  height:50%;aspect-ratio:1;
+  order:2;flex:0 0 auto;
+  width:46px;height:46px;
   display:block;
   /* No frame of its own: every mark ships on its own rounded plate, and the
      plates' corner radii differ per app (three at 31.25%, ThemeDock at
      18.75%), so any single wrap border leaves gapped corners on at least one
      of them. The silhouette is the icon's own. */
-  /* Under the copy if a long title ever reaches it, and above the blur. */
   z-index:1;pointer-events:none;
   transition:opacity .25s ease;
   opacity:.92;
 }
 .ai-card:hover .ai-card-iconwrap,.ai-card:focus-within .ai-card-iconwrap{opacity:1}
 .ai-card-icon{width:100%;height:100%;object-fit:cover;display:block}
-/* Long titles must not run under the badge. */
-.ai-card small,.ai-card .ai-card-link{position:relative;z-index:2}
-/* The eyeball — the on-site preview, sitting under the app's icon. Only
-   authored on cards that have a preview (data-app-modal), so there is no
-   disabled state to design. Quiet chip at rest, accent-filled on hover, the
-   same shape language as the icon badge above it. */
+.ai-card .ai-card-link{position:relative;z-index:2}
+/* The eyeball — the on-site preview, between the text and the app's mark.
+   Only authored on rows that have a preview (data-app-modal), so there is no
+   disabled state to design. Quiet chip at rest, accent-filled on hover. */
 .ai-card-eye{
-  position:absolute;right:20px;top:calc(50% + 30px);z-index:2;
+  order:1;flex:0 0 auto;z-index:2;
   width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
   padding:0;cursor:pointer;color:#c3cad0;
   background:rgba(8,11,15,.55);
@@ -1577,7 +1579,6 @@ button.button{cursor:pointer;font-family:inherit}
    window is not something to hand a phone — so the control goes away rather
    than turning into a redirect that duplicates the title link. */
 @media (max-width:767px){.ai-card-eye{display:none}}
-.ai-card strong{padding-right:6px}
 /* WIP treatment, matching the games section's .is-wip pill. */
 .ai-card.is-wip small{
   color:var(--accent);
@@ -1585,7 +1586,7 @@ button.button{cursor:pointer;font-family:inherit}
   border-radius:999px;padding:3px 9px;align-self:flex-start;
   font-size:10.5px;letter-spacing:.16em;
 }
-@media (max-width:700px){.ai-card-iconwrap{top:16px;right:16px}}
+@media (max-width:700px){.ai-card-iconwrap{width:40px;height:40px}}
 .ai-card:hover .inline-arrow,.ai-card:focus-within .inline-arrow{transform:translate(2px,-2px)}
 
 /* ==========================================================================
