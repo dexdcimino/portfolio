@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=163" />
+  <link rel="stylesheet" href="styles.css?v=164" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -1132,10 +1132,19 @@
              and no JS edit. See assets/ai/prompts/README.md. -->
         <div class="ai-panel" id="ai-panel-prompts" role="tabpanel" aria-labelledby="ai-tab-prompts" hidden>
           <div class="pr" id="prompts">
+            <article class="pr-card" data-file="assets/ai/prompts/braindump-to-batch.md"
+                     data-title="Braindump to Batch" data-tag="Planning"
+                     data-desc="Turns an unsorted braindump into numbered, self-contained tasks, ordered so the safe work ships before the risky work.">
+            </article>
+            <article class="pr-card" data-file="assets/ai/prompts/ship-check.md"
+                     data-title="Ship Check" data-tag="Frontend"
+                     data-desc="Eight ways a UI change looks right in the file and wrong on the screen. Run it before calling anything done.">
+            </article>
+            <article class="pr-card" data-file="assets/ai/prompts/browser-game-spec.md"
+                     data-title="Browser Game Spec" data-tag="Games"
+                     data-desc="Turns a game idea into a browser game that ships — and settles single or multiplayer before a line is written.">
+            </article>
           </div>
-          <!-- Placeholder until the first real prompt lands. Delete this line
-               when it does — the grid above is the drop point. -->
-          <p class="ai-soon">Prompts is where the keepers land — the ones worth rerunning, as plain Markdown you can copy or download.</p>
         </div>
         <div class="ai-panel" id="ai-panel-madlabs" role="tabpanel" aria-labelledby="ai-tab-madlabs" hidden>
           <p class="ai-soon">Madness is where the odd experiments land — images, video, simulations, whatever does not fit the other three.</p>
@@ -2673,6 +2682,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=163"></script>
+  <script src="script.js?v=164"></script>
 </body>
 </html>

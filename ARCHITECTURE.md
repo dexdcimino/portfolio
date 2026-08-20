@@ -57,8 +57,10 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   `initCollabInfo()` (fills the Collab panel and builds
   each card's brain row + invite link from the card's own `data-people` /
   `data-invite`; adding a project is one card, no JS edit), vault, clips,
-  prompts, song player, resume overlay, Web3Forms contact (public access key
-  — by design)
+  prompts (three live cards; excerpt, size, reader, copy and download all
+  read `assets/ai/prompts/*.md` at runtime — adding one is a file plus an
+  `<article>`, no JS edit), song player, resume overlay, Web3Forms contact
+  (public access key — by design)
 - `styles.css` — banner-delimited sections; icon system is baked CSS mask
   data-URIs (`tools/bake_icons.py`); accents are one `--accent` variable,
   never filter chains

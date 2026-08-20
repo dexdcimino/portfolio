@@ -1,10 +1,11 @@
 # Prompts — the drop folder
 
-Every `.md` file in here is a prompt shown in **AI LAB → PROMPTS**. The folder
-is empty right now — the placeholder set was cleared on 2026-08-19 rather than
-shipped. The panel shows a one-line `.ai-soon` note in its place; delete that
-line from `index.html` when the first real prompt lands (a comment beside it
-says the same).
+Every `.md` file in here is a prompt shown in **AI LAB → PROMPTS**. The three
+present are the real set (Braindump to Batch, Ship Check, Browser Game Spec) —
+the earlier PLACEHOLDER files were cleared on 2026-08-19, and these landed the
+same day. Each file opens with its own `# Title`; the reading view strips it
+(both views show the title in their own furniture) but the download keeps it,
+so leave it in the file.
 
 ## Adding one
 
