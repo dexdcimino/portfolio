@@ -1388,7 +1388,7 @@ export const PLANETS = {
        bit-identical — asserted by dev/floracheck.mjs counts. The real ceiling
        is CPU leaf-build, asserted at 6ms in dev/run.mjs. */
     flora: {
-      density: 1.0,
+      density: 0,   // OFF (Dex, 2026-08-19). Was 1.0.
       // Plants sit on the drawn lattice rather than the analytic curve —
       // cheaper per leaf and nothing hovers. See appendFlora.
       onGrid: true,
@@ -1745,7 +1745,7 @@ export const PLANETS = {
        heroes — the islands are not big enough for a landmark that rare to be
        findable, and one you never find is one you did not draw. */
     flora: {
-      density: 1.25,
+      density: 0,   // OFF (Dex, 2026-08-19). Was 1.25.
       layers: {
         cover: { density: 1.0, band: [0.03, 0.18], color: [0.286, 0.435, 0.396],
           height: [0.7, 1.7], slope: 0.42 },
@@ -2077,7 +2077,7 @@ export const PLANETS = {
        at a tenth: a lawn under that fog would be invisible and would cost the
        same as one you can see. */
     flora: {
-      density: 1.0,
+      density: 0,   // OFF (Dex, 2026-08-19). Was 1.0.
       layers: {
         cover: { density: 0.10, band: [0.02, 0.22], color: [0.396, 0.325, 0.478],
           height: [1.2, 3.0], width: [0.05, 0.10], lean: 0.42, colorMix: 0.62 },
@@ -2255,7 +2255,7 @@ export const PLANETS = {
        stunted tree, in a band that stops a tenth of the way up 87.8 metres of
        relief. No shrubs, no heroes. */
     flora: {
-      density: 1.0,
+      density: 0,   // OFF (Dex, 2026-08-19). Was 1.0.
       layers: {
         cover: { density: 0.04, band: [0.01, 0.10], color: [0.498, 0.435, 0.310],
           height: [0.5, 1.2], slope: 0.30, colorMix: 0.55 },

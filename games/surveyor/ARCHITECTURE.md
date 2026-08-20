@@ -176,10 +176,18 @@ arrival reaches this via `emit('hyperarrive')`. `devWarp()` (gated on
 |---|---|---|---|---|---|
 | home | 1036 | 86.3 | 0 | .18/.78 | the tuned reference, 12 geysers; radius/12 relief (the revamp), escarpments/mesas/gullies via weight-gated terms in noise.js |
 | ember | 207 | 10.35 | dry | .20/.70 | no shadows, no flora, fissure vents |
-| tarn | 414 | 20.7 | +7.8 | .26/.95 | wettest, flora 1.25 |
+| tarn | 414 | 20.7 | +7.8 | .26/.95 | wettest; flora authored 1.25, off |
 | vault | 829 | 41.45 | 0 | .30/1.0 | ice (`iceDepth` rules), ambient 0 |
-| shroud | 1451 | 72.55 | −12 | **.020/.115** | fog wall; hero flora |
+| shroud | 1451 | 72.55 | −12 | **.020/.115** | fog wall; hero flora authored, off |
 | anvil | 2072 | 103.6 | −24 | .22/.92 | biggest, triplanar 0.85 |
+
+**VEGETATION IS OFF ON ALL SIX** (Dex, 2026-08-19) — it looked wrong
+everywhere. One value per world does it: `PLANETS.<key>.flora.density: 0`, with
+the authored value in the comment beside it (Home 1.0, Tarn 1.25, Shroud 1.0,
+Anvil 1.0; Ember and Vault were always 0). `floraOf()` returns null on a zero
+master, so `chunks.js` never calls `appendFlora`, no rng stream is drawn and no
+vertex carries a sway — the layer code below is dormant, not deleted, and
+restoring a world is that one number.
 
 All worlds: `leafRes 16`, `targetCell 4.5` (held constant so handling is
 identical; quadtree depth varies instead). POST: exposure **0.97**, contrast
