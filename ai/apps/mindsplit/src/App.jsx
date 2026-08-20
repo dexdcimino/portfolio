@@ -13,7 +13,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } fr
    ═══════════════════════════════════════════════════════════════ */
 
 /* Working name only — one string, change it when you land the real one. */
-const APP_NAME = "Splitmob";
+const APP_NAME = "MindSplit";
 
 const INK = "#0D0B13", PAPER = "#FFFFFF";
 const hex2rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -1316,7 +1316,7 @@ function Compose({ C, T, onClose, onPost }) {
 }
 
 /* ═══════════════ APP ═══════════════ */
-export default function Splitmob() {
+export default function MindSplit() {
   /* Slate is the default: it is the one theme that stays out of the way,
      which is the right first impression for a feed of other people's words. */
   /* Accent, light/dark and motion are three separate saved choices now.
@@ -1326,7 +1326,7 @@ export default function Splitmob() {
   const [look, setLook] = useState(() => {
     const fallback = { accent: "slate", light: false, scene: "off" };
     try {
-      const raw = JSON.parse(localStorage.getItem("splitmob-look") || "null");
+      const raw = JSON.parse(localStorage.getItem("mindsplit-look") || "null");
       if (!raw) return fallback;
       return {
         accent: ACCENT_BY_ID[raw.accent] ? raw.accent : fallback.accent,
@@ -1338,7 +1338,7 @@ export default function Splitmob() {
   const setLookPart = useCallback((patch) => {
     setLook((l) => {
       const next = { ...l, ...patch };
-      try { localStorage.setItem("splitmob-look", JSON.stringify(next)); } catch { /* private mode */ }
+      try { localStorage.setItem("mindsplit-look", JSON.stringify(next)); } catch { /* private mode */ }
       return next;
     });
   }, []);
@@ -1354,7 +1354,7 @@ export default function Splitmob() {
   const [budget, setBudget] = useState(() => {
     const today = new Date().toDateString();
     try {
-      const raw = JSON.parse(localStorage.getItem("splitmob-changes") || "null");
+      const raw = JSON.parse(localStorage.getItem("mindsplit-changes") || "null");
       if (raw && raw.day === today) return raw;
     } catch { /* private mode */ }
     return { day: today, used: 0 };
@@ -1534,7 +1534,7 @@ export default function Splitmob() {
     setChanged((c) => ({ ...c, [p.id]: true }));
     setBudget((b) => {
       const next = { ...b, used: b.used + 1 };
-      try { localStorage.setItem("splitmob-changes", JSON.stringify(next)); } catch { /* private mode */ }
+      try { localStorage.setItem("mindsplit-changes", JSON.stringify(next)); } catch { /* private mode */ }
       return next;
     });
   }, [votes, changesLeft]);

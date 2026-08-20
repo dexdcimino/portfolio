@@ -1,4 +1,4 @@
-# Splitmob — project brief
+# MindSplit — project brief
 
 Swipe-to-vote app. Reels-style vertical feed, one poll per screen, tap an option,
 results reveal instantly as proportional bands. Anonymous by default.
@@ -7,7 +7,7 @@ Codename only — the real name isn't locked. It lives in `APP_NAME` at the top 
 the app file. One string. Don't scatter it.
 
 **Stack:** Vite + React + Tailwind v4. Deploys as a static bundle to
-`dexcimino.com/splitmob/`. Backend will be Firebase (reuse `dexnote-d7047`).
+`dexcimino.com/mindsplit/`. Backend will be Firebase (reuse `dexnote-d7047`).
 
 ---
 
@@ -72,7 +72,7 @@ it.
 - Fonts are a Google Fonts `@import` in a `<style>` block. dexcimino.com runs
   strict CSP (A+ Observatory) — this **will** be blocked. Self-host Bricolage
   Grotesque and DM Mono as woff2 and delete the `@import`. Don't weaken the CSP.
-- Set `base: '/splitmob/'` in `vite.config.js`.
+- Set `base: '/mindsplit/'` in `vite.config.js`.
 - Page head needs
   `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`
   or the safe-area padding on the dock does nothing on iPhone.
@@ -84,14 +84,14 @@ it.
 Priority is a working URL on a real phone. Don't refactor anything yet.
 
 ```bash
-npm create vite@latest splitmob -- --template react
-cd splitmob && npm i && npm i -D tailwindcss @tailwindcss/vite
+npm create vite@latest mindsplit -- --template react
+cd mindsplit && npm i && npm i -D tailwindcss @tailwindcss/vite
 ```
 
 - `vite.config.js`: add `import tailwindcss from '@tailwindcss/vite'`, then
-  `plugins: [react(), tailwindcss()]` and `base: '/splitmob/'`
+  `plugins: [react(), tailwindcss()]` and `base: '/mindsplit/'`
 - `src/index.css`: replace contents with `@import "tailwindcss";`
-- Drop the prototype in as `src/App.jsx` (default export is `Splitmob`)
+- Drop the prototype in as `src/App.jsx` (default export is `MindSplit`)
 - `index.html` head:
   `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`
   — without `viewport-fit=cover` the dock's safe-area padding does nothing on iPhone.
@@ -105,20 +105,20 @@ to make the CDN work.
 Then: `npm run dev -- --host`, open the printed LAN address on a phone on the same
 wifi. That's the iteration loop — no deploy needed while tweaking.
 
-To ship: `npm run build`, copy `dist/` to `/splitmob/` in the portfolio repo,
+To ship: `npm run build`, copy `dist/` to `/mindsplit/` in the portfolio repo,
 push. Same iframe/route pattern as the other games.
 
 **Embed on the portfolio — modal on desktop, full page on mobile.**
 
-The app ships as a standalone route at `/splitmob/`. How it's *entered* differs:
+The app ships as a standalone route at `/mindsplit/`. How it's *entered* differs:
 
 - **Desktop (≥768px):** clicking the card in the AI Lab section opens a modal
-  overlay — a dimmed backdrop plus a phone-shaped iframe pointing at `/splitmob/`.
+  overlay — a dimmed backdrop plus a phone-shaped iframe pointing at `/mindsplit/`.
   Roughly 92vh tall, 9:19.5 aspect ratio (so ~420px wide at 900px tall), capped so
   it never exceeds viewport. Rounded corners ~28px, subtle shadow. Closes on Esc,
   on backdrop click, and via a close button *outside* the phone frame — never
   inside it, that space belongs to the app. Lock body scroll while open.
-- **Mobile (<768px):** do **not** use a modal. Navigate to `/splitmob/` as a
+- **Mobile (<768px):** do **not** use a modal. Navigate to `/mindsplit/` as a
   normal full page. This is deliberate — a phone-shaped modal inside a phone is
   pointless, `env(safe-area-inset-bottom)` doesn't reliably propagate into an
   iframe (the dock would sit under the home indicator), and a real page gives you
@@ -132,7 +132,7 @@ No changes needed inside the app for this — its `isPhone` check reads
 `window.innerWidth`, which inside a ~420px iframe is already true, so it correctly
 renders full-bleed with no fake device chrome. The modal supplies the phone shape.
 
-Acceptance: loads on a phone at dexcimino.com/splitmob/, no CSP violations in
+Acceptance: loads on a phone at dexcimino.com/mindsplit/, no CSP violations in
 console, fonts render (not fallback), dock clears the home indicator, all 5 themes
 switch, modal opens/closes cleanly on desktop and is bypassed on mobile.
 

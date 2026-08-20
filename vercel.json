@@ -1,8 +1,18 @@
 {
   "redirects": [
     {
-      "source": "/ai/apps/uvote/:path*",
-      "destination": "/splitmob/",
+      "source": "/ai/apps/mindsplit/:path*",
+      "destination": "/mindsplit/",
+      "permanent": false
+    },
+    {
+      "source": "/splitmob",
+      "destination": "/mindsplit/",
+      "permanent": false
+    },
+    {
+      "source": "/splitmob/:path*",
+      "destination": "/mindsplit/:path*",
       "permanent": false
     }
   ],
@@ -69,7 +79,7 @@
       ]
     },
     {
-      "source": "/splitmob/(.*)",
+      "source": "/mindsplit/(.*)",
       "headers": [
         {
           "key": "Content-Security-Policy",

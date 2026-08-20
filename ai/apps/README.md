@@ -13,14 +13,14 @@ ai/apps/<slug>/...             everything else it needs, self-contained
   An app that needs a build produces its output here; the source lives in its
   own repo.
 
-  **Splitmob is the exception, deliberately.** Its source is a Vite project that
-  lives *here* (`uvote/`, with `src/` and `package.json`) and builds to
-  `/splitmob/` at the repo root — the same source-beside-build split
+  **MindSplit is the exception, deliberately.** Its source is a Vite project that
+  lives *here* (`mindsplit/`, with `src/` and `package.json`) and builds to
+  `/mindsplit/` at the repo root — the same source-beside-build split
   `games/stickland/` uses, because the source was already in this repo and
   moving it somewhere else to satisfy a sentence helps nobody. Two consequences
-  worth knowing: `uvote/index.html` is now Vite's dev entry, not a servable
-  page, and `/ai/apps/uvote/` therefore redirects to `/splitmob/` in
-  `vercel.json`. The card in the Apps panel points at `/splitmob/`.
+  worth knowing: `mindsplit/index.html` is now Vite's dev entry, not a servable
+  page, and `/ai/apps/mindsplit/` therefore redirects to `/mindsplit/` in
+  `vercel.json`. The card in the Apps panel points at `/mindsplit/`.
 - **CSP.** The site is `script-src 'self'` / `style-src 'self'` with no CDN and
   no `eval`. No inline `<script>` or `<style>` — inline blocks are blocked live,
   which has already cost a debugging session on `/stickland`'s wrapper.

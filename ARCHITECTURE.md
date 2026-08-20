@@ -38,7 +38,7 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   `data-app-modal` — opens the app overlay (which offers NO open-full-page
   or new-tab escape: it is only ever an overlay; `data-link-preview` on a
   card additionally routes its TITLE link into that overlay until the app
-  has a public home — Splitmob today), and a click anywhere else SELECTS
+  has a public home — MindSplit today), and a click anywhere else SELECTS
   the row and holds (`.is-current`; hover only previews and snaps back to
   the held row on pointerleave/focusout; seeded on the first row; the link
   deliberately does not flex-grow, or the row's empty middle would open the
@@ -69,8 +69,8 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   reach the game), forward the query string, and leave the game on refresh
   (`refresh-home.js`, external file because CSP bans inline). All URLs
   root-absolute: Vercel serves both `/name` and `/name/`
-- `splitmob/` — Vite build **output** served directly (source at
-  `ai/apps/uvote/`; the one build-step exception). `ai/apps/` contract is in
+- `mindsplit/` — Vite build **output** served directly (source at
+  `ai/apps/mindsplit/`; the one build-step exception). `ai/apps/` contract is in
   its README
 - `tools/` — `bake_images.py` (sole writer of `assets/derived/`),
   `bake_markup.py` (owns every `<picture>` block), `image_slots.py` (LADDERS/
@@ -81,7 +81,7 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   `tools/hooks/` and installed once via `bake_images.py --install-hooks`
 - `vercel.json` — CSP in three scopes: root is strict (`script-src 'self'`,
   no inline, connect only to Web3Forms); `/games/*` adds `'unsafe-inline'
-  blob:` + Photon websockets + `frame-ancestors 'self'`; `/splitmob/*`
+  blob:` + Photon websockets + `frame-ancestors 'self'`; `/mindsplit/*`
   strict but frameable. `assets/derived/` is `immutable` for a year — hence
   the `?v=<8 hex of the master's bytes>` stamp on every generated URL
 

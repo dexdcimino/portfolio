@@ -1,10 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import Splitmob from './App.jsx';
+import MindSplit from './App.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <Splitmob />
+    <MindSplit />
   </StrictMode>
 );

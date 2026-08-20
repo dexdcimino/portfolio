@@ -1934,27 +1934,32 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
    tracks the viewport so five of them and their gaps always fit a phone
    without a second set of rules for it.
 
-   At rest they are unlit fields, not outlined boxes: a near-black under the
-   ~#12171b the vault's gradient reaches here, and no visible edge at all, so
-   five empty ones read as somewhere to type rather than as five controls
-   competing with the lock and the status line above them.
+   At rest they are unlit fields: #0c1013 against the ~#12171b the vault's
+   gradient reaches here, so five empty ones read as somewhere to type rather
+   than as five controls competing with the lock and the status line above.
 
-   THE SHADOW IS WHAT LETS THE FILL BE THIS DARK. Flat, the darkest values read
-   as holes punched in the section rather than as fields — that is what the
-   footer's own #080a0c did here. The drop shadow gives each pin a defined edge
-   that its fill no longer has to provide, so #0c1013 grounds the row instead of
-   perforating it. Take the shadow away and the fill has to come back up to
-   about #0e1216 to stay findable.
-   The border is still THERE, just transparent — focus, is-set and the
-   wrong-code shake all work by changing border-color, and a border that
-   appeared from nothing would shift the character inside it by a stroke. */
+   THREE VALUES DOING THREE JOBS, and none of them can be read alone:
+   the FILL is dark enough to read as a recess; the SHADOW gives the pin a
+   defined edge its fill no longer has to provide, which is what lets the fill
+   be that dark at all — flat, this value read as a hole punched in the
+   section, which is what the footer's own #080a0c did here; and the BORDER is
+   the clean break between the two, because fill and shadow are both near-black
+   and without a line between them the pin dissolves into its own shadow at the
+   bottom edge.
+   #222a31 is deliberately a lighter BLACK rather than a grey — a step above
+   the section, still nowhere near a visible outline. #171d22 vanished into the
+   section; past about #2a333c it starts reading as a grey box.
+   The border was always THERE, transparent, so it costs no layout to light up:
+   focus, is-set and the wrong-code shake have always worked by changing
+   border-color alone, and a border appearing from nothing would shift the
+   character inside it by a stroke. */
 .vault-pin{
   /* Named once because :focus has to repeat it — box-shadow does not stack,
      so a focus rule that only sets the accent ring silently drops the pin's
      depth at the moment it matters most. */
   --pin-shadow:0 4px 12px rgba(0,0,0,.6);
   width:clamp(46px,10.5vw,66px);aspect-ratio:1;
-  border-radius:16px;border:var(--stroke) solid transparent;
+  border-radius:16px;border:var(--stroke) solid #222a31;
   background:#0c1013;color:var(--text);text-align:center;
   box-shadow:var(--pin-shadow);
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
@@ -3585,7 +3590,7 @@ body.modal-open{overflow:hidden}
    renders full-bleed inside, with no fake device chrome. The modal IS the
    phone shape.
 
-   Below 768px none of this loads: the card is a plain link to /splitmob/ and
+   Below 768px none of this loads: the card is a plain link to /mindsplit/ and
    script.js never calls showModal(). See the note on the dialog in index.html. */
 /* The dialog BOX fills the viewport and centres the shell inside it, rather
    than shrinking to the phone. That is what makes backdrop-click-to-close work:

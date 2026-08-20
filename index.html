@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=166" />
+  <link rel="stylesheet" href="styles.css?v=167" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -611,7 +611,7 @@
         <div class="ai-grid ai-grid-side" id="aiApps">
           <!-- Order is DOM order — there is no sort key. ThemeDock leads (it
                also seeds the description panel via initAppInfo), then
-               Splitmob, DexNote, NodeBlast, dexddc. The icon block in each
+               MindSplit, DexNote, NodeBlast, dexddc. The icon block in each
                card is generated from the one-line directive by
                tools/bake_markup.py; never typed. -->
           <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The
@@ -646,28 +646,28 @@
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
           </article>
-          <!-- data-link-preview: until Splitmob is live somewhere real, its title
+          <!-- data-link-preview: until MindSplit is live somewhere real, its title
                link opens the same on-site overlay the eyeball does instead of
                navigating. Drop the attribute when the app has a public home
                and the link will simply follow its href again. -->
-          <article class="ai-card" id="splitmobCard" data-app-modal="/splitmob/" data-link-preview data-app-title="Splitmob" data-gallery="splitmob" data-kind="WEB APP" data-stack="REACT"
+          <article class="ai-card" id="mindsplitCard" data-app-modal="/mindsplit/" data-link-preview data-app-title="MindSplit" data-gallery="mindsplit" data-kind="WEB APP" data-stack="REACT"
              data-desc-lead="Swipe-to-vote polls, one question at a time."
-             data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides straight in."><a class="ai-card-link" href="/splitmob/" target="_blank" rel="noopener noreferrer"><strong>Splitmob</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
-            <!-- img src="assets/icons/apps/uvote.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+             data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides straight in."><a class="ai-card-link" href="/mindsplit/" target="_blank" rel="noopener noreferrer"><strong>MindSplit</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <!-- img src="assets/icons/apps/mindsplit.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
             <picture class="ai-card-iconwrap">
-              <source type="image/avif" srcset="assets/derived/icons/apps/uvote-420.avif?v=396f9bcb 420w,
-                                                assets/derived/icons/apps/uvote-200.avif?v=396f9bcb 200w,
-                                                assets/derived/icons/apps/uvote-84.avif?v=396f9bcb 84w"
+              <source type="image/avif" srcset="assets/derived/icons/apps/mindsplit-420.avif?v=396f9bcb 420w,
+                                                assets/derived/icons/apps/mindsplit-200.avif?v=396f9bcb 200w,
+                                                assets/derived/icons/apps/mindsplit-84.avif?v=396f9bcb 84w"
                       sizes="(max-width:700px) 64px, 84px">
-              <source type="image/webp" srcset="assets/derived/icons/apps/uvote-420.webp?v=396f9bcb 420w,
-                                                assets/derived/icons/apps/uvote-200.webp?v=396f9bcb 200w,
-                                                assets/derived/icons/apps/uvote-84.webp?v=396f9bcb 84w"
+              <source type="image/webp" srcset="assets/derived/icons/apps/mindsplit-420.webp?v=396f9bcb 420w,
+                                                assets/derived/icons/apps/mindsplit-200.webp?v=396f9bcb 200w,
+                                                assets/derived/icons/apps/mindsplit-84.webp?v=396f9bcb 84w"
                       sizes="(max-width:700px) 64px, 84px">
-              <img class="ai-card-icon" src="assets/icons/apps/uvote.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+              <img class="ai-card-icon" src="assets/icons/apps/mindsplit.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
             <button class="ai-card-eye" type="button" data-tip="Functional preview overlay"
-                    aria-label="Open a functional preview of Splitmob">
+                    aria-label="Open a functional preview of MindSplit">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
           </article>
@@ -2156,7 +2156,7 @@
        every page load by people who never open it. -->
   <dialog class="app-modal" id="appModal" aria-labelledby="app-dialog-title">
     <div class="app-shell">
-      <h2 class="sr-only" id="app-dialog-title">Splitmob</h2>
+      <h2 class="sr-only" id="app-dialog-title">MindSplit</h2>
       <button class="contact-close app-close" type="button" id="appClose" aria-label="Close app">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
@@ -2168,7 +2168,7 @@
              same-origin, so this changes nothing it can legitimately do, but it
              takes away the one thing a compromised frame would reach for first —
              navigating the page around it to somewhere else. -->
-        <iframe class="app-frame" id="appFrame" title="Splitmob" src="about:blank"
+        <iframe class="app-frame" id="appFrame" title="MindSplit" src="about:blank"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
                 allow="clipboard-write" referrerpolicy="same-origin"></iframe>
       </div>
@@ -2682,6 +2682,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=166"></script>
+  <script src="script.js?v=167"></script>
 </body>
 </html>

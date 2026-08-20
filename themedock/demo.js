@@ -657,7 +657,7 @@
   /* ---------- start ------------------------------------------------------- */
 
   /* embed=1 is set by the site's overlay, which has already drawn the frame.
-     Free-standing, the page draws its own. Same flag Splitmob uses. */
+     Free-standing, the page draws its own. Same flag MindSplit uses. */
   if (/(^|[?&])embed=1(&|$)/.test(location.search)) document.body.classList.add('is-embed');
 
   applyTheme();

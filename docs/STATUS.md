@@ -14,8 +14,8 @@ Read off the tree and git history, not memory. `CLAUDE.md` holds the rules.
   a render layer over it — Phases 0–7 of `ARENA1_STEPS.md` plus the MD series
   through 18 (rockets, lobbies, player-grapple, serpent). Photon transport sits
   behind the same interface as loopback.
-- **AI Lab**: five tabs (Apps, Wallpapers, Clips, Prompts, MadLabs). Splitmob
-  embeds at `/splitmob`. The wallpapers carousel, strip and lightbox all build
+- **AI Lab**: five tabs (Apps, Wallpapers, Clips, Prompts, MadLabs). MindSplit
+  embeds at `/mindsplit`. The wallpapers carousel, strip and lightbox all build
   themselves from the `.wp-item` figures.
 
 ## In flight

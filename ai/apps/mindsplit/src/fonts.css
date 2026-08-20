@@ -13,7 +13,7 @@
    nothing in the app needs it and it is 30 KB that would never be requested.
 
    Paths are RELATIVE so Vite fingerprints them into dist/assets and applies the
-   base itself. Hardcoding /splitmob/ here would 404 silently the day the route
+   base itself. Hardcoding /mindsplit/ here would 404 silently the day the route
    moves. */
 
 /* latin */
