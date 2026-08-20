@@ -18,9 +18,9 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
 - `index.html` — single-page shell: sidebar, hero, featured work, games, AI
   Lab (5 tabs), Collab (shared builds — dormant, see below), about/toolkit/picks,
   Idea Vault (AES-GCM blob in `data-vault`; the overlay it opens carries the
-  backlog list — see below), contact. Eight native `<dialog>`
+  backlog list — see below), contact. Nine native `<dialog>`
   overlays (app embed, wallpaper lightbox, document reader, vault, shared
-  game/app gallery, work mockup, resume, contact)
+  game/app gallery, work mockup, resume, contact, picks suggestion)
 - `script.js` — plain script, feature blocks as IIFEs, executes top-to-bottom
   with `<script>` at the end of body. Major blocks: accent/theme system
   (7 accents; `applyAccent` sets `--accent`, rebuilds the SVG favicon,
@@ -118,7 +118,16 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   name and knows nothing about prompts or plans, prompts (three live cards;
   excerpt, size, reader, copy and download all read `assets/ai/prompts/*.md`
   at runtime — adding one is a file plus an `<article>`, no JS edit), song
-  player, resume overlay, Web3Forms contact (public access key — by design)
+  player, resume overlay, Web3Forms contact (public access key — by design),
+  and the Top Picks suggestion form (the `?` sits in `.pk-tabrow` as a
+  SIBLING of the picks tablist, never inside it — role=tab there would join
+  the arrow-key cycle and announce as a fifth category; the form reuses
+  openModal/bindModal/flagField, the `.contact-*` styling and honeypot
+  pattern, and the same Web3Forms relay with a `[Top Picks]` subject; the
+  Anon fallback happens in the PAYLOAD with a `name_given` flag so a typed
+  "Anon" stays distinguishable from a blank field; Yes/No is one-or-neither
+  with the selection accent-filled; its own rate window under
+  `dex-picks-sends`; the contact form's own code untouched)
 - `MediaBus` in `script.js` — the only arbiter between the two things that
   make sound (the clips player and the song bar). Players register a small
   object, never the media element, because every question it asks — is your

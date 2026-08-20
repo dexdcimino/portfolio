@@ -920,6 +920,35 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .tk-tab[aria-selected="true"],.pk-tab[aria-selected="true"],.ai-tab[aria-selected="true"],.iv-tab[aria-selected="true"]{
   color:var(--accent);border-bottom-color:var(--accent);
 }
+/* --- top picks: the ? beside the tabs, and its suggestion form ----------- */
+/* The row owns the underline and the bottom margin so it runs UNDER the ?
+   as well; the tablist inside gives its copies up (scoped — the shared rule
+   above still serves the other three rows). */
+.pk-tabrow{display:flex;align-items:stretch;justify-content:space-between;gap:12px;margin-bottom:26px;border-bottom:1px solid var(--line)}
+.pk-tabrow .pk-tabs{margin-bottom:0;border-bottom:0;flex:1 1 auto;min-width:0}
+.pk-suggest-btn{
+  align-self:center;flex:0 0 auto;
+  width:38px;height:38px;margin-bottom:6px;
+  display:grid;place-items:center;
+  border:1px solid var(--line);border-radius:10px;background:#14181d;
+  color:var(--accent);font-family:inherit;font-size:19px;font-weight:900;
+  cursor:pointer;transition:border-color var(--accent-ease),color var(--accent-ease),transform .18s ease;
+}
+.pk-suggest-btn:hover{border-color:var(--accent);transform:scale(1.08)}
+.pk-suggest-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Yes/No: two FILLED buttons — accent for the chosen one, grey for the
+   other; selecting one clears its partner, so both can never read chosen. */
+.pk-yesno{display:flex;gap:8px}
+.pk-yn{
+  flex:0 0 auto;min-width:74px;padding:9px 18px;border:0;border-radius:9px;
+  font-family:inherit;font-size:13px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+  background:#232a32;color:#aab2ba;cursor:pointer;
+  transition:background var(--accent-ease),color var(--accent-ease),transform .15s ease;
+}
+.pk-yn:hover{transform:translateY(-1px)}
+.pk-yn.on{background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.pk-yn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
 @media(max-width:760px){
   /* min-width:0 is what makes overflow-x:auto do anything here. Without it a
      grid/flex item is floored at its min-content width, so the row simply grew
@@ -928,7 +957,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
      page was cut off (body has overflow-x:hidden, so it did not even scroll).
      It goes on the wrapper as well as the row: the floor applies at each level,
      and clearing it on one alone leaves the other one holding the width. */
-  .ai-wrap,.tk-tabrow{min-width:0}
+  .ai-wrap,.tk-tabrow,.pk-tabrow{min-width:0}
   .tk-tabs,.pk-tabs,.ai-tabs,.iv-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-width:0}
   .tk-tabs::-webkit-scrollbar,.pk-tabs::-webkit-scrollbar,.ai-tabs::-webkit-scrollbar,.iv-tabs::-webkit-scrollbar{display:none}
   .tk-tab,.pk-tab,.ai-tab,.iv-tab{padding:11px 13px;font-size:13px}

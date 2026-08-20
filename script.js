@@ -5103,3 +5103,139 @@ const PORTRAIT_LABEL = {
   pauseBtn.addEventListener('click', () => { ctl?.toggle(); paintControls(); });
   stopBtn.addEventListener('click', () => ctl?.stop());
 })();
+
+
+/* ---------- top picks: the ? and its suggestion form ----------------------
+   Everything here leans on the contact modal's machinery — openModal /
+   bindModal / flagField, the .contact-* styling, the honeypot pattern, the
+   same Web3Forms relay — WITHOUT touching a line of it. Its own status line,
+   its own rate window, and a [Top Picks] subject so the mail is tellable
+   from a contact message without opening it. */
+(() => {
+  const dialog = document.getElementById('pkModal');
+  const form = document.getElementById('pkForm');
+  const openBtn = document.getElementById('pkSuggestOpen');
+  if (!dialog || !form || !openBtn) return;
+
+  const status = document.getElementById('pkStatus');
+  const send = document.getElementById('pkSend');
+  const yes = document.getElementById('pkYes');
+  const no = document.getElementById('pkNo');
+  const suggestion = document.getElementById('pkSuggestion');
+  const fromField = document.getElementById('pkFrom');
+
+  const PK_RATE_KEY = 'dex-picks-sends';
+  const PK_MAX = 3;
+  const PK_WINDOW = 10 * 60 * 1000;
+  const sends = () => {
+    try {
+      const stamps = JSON.parse(localStorage.getItem(PK_RATE_KEY) || '[]');
+      const cutoff = Date.now() - PK_WINDOW;
+      return (Array.isArray(stamps) ? stamps : []).filter(t => typeof t === 'number' && t > cutoff);
+    } catch { return []; }
+  };
+  const record = () => {
+    try { localStorage.setItem(PK_RATE_KEY, JSON.stringify([...sends(), Date.now()])); } catch { /* private mode */ }
+  };
+
+  // The contact form's setStatus is bound to ITS status element; this is the
+  // same two-node pattern against this form's own line.
+  const say = (message, kind = '', lead = '') => {
+    if (!status) return;
+    status.className = `contact-status${kind ? ' ' + kind : ''}`;
+    if (!lead) { status.textContent = message; return; }
+    const strong = document.createElement('strong');
+    strong.textContent = lead;
+    status.replaceChildren(strong, ` ${message}`);
+  };
+
+  /* Yes/No: one or NEITHER — the question is optional, the suggestion is the
+     form's point. Selecting one always clears the other; clicking the
+     selected one clears it back to neither. Both can never read chosen. */
+  let easy = '';
+  const paintYN = () => {
+    yes.classList.toggle('on', easy === 'yes');
+    no.classList.toggle('on', easy === 'no');
+    yes.setAttribute('aria-pressed', String(easy === 'yes'));
+    no.setAttribute('aria-pressed', String(easy === 'no'));
+  };
+  yes.addEventListener('click', () => { easy = easy === 'yes' ? '' : 'yes'; paintYN(); });
+  no.addEventListener('click', () => { easy = easy === 'no' ? '' : 'no'; paintYN(); });
+
+  openBtn.addEventListener('click', () => {
+    say('');
+    form.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+    openModal(dialog, form, () => suggestion.focus(), openBtn);
+    send.disabled = sends().length >= PK_MAX;
+    if (send.disabled) say('That is plenty for now — the form reopens in a few minutes.', 'error');
+  });
+  document.getElementById('pkClose')?.addEventListener('click', () => closeModal(dialog));
+  document.getElementById('pkCancel')?.addEventListener('click', () => closeModal(dialog));
+  bindModal(dialog);
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+
+    // A filled honeypot reports success and sends nothing — a bot told it
+    // failed just tries again.
+    const trap = form.querySelector('.contact-trap');
+    if (trap?.value || document.getElementById('pkBotcheck')?.checked) {
+      form.reset();
+      easy = '';
+      paintYN();
+      say('Straight onto the shortlist pile.', 'ok', '✓ Sent.');
+      return;
+    }
+
+    const sugg = suggestion.value.trim();
+    const suggOk = sugg.length >= 3;
+    flagField(suggestion, !suggOk);
+    if (!suggOk) { say('Give me at least a title to chase.', 'error'); suggestion.focus(); return; }
+
+    if (sends().length >= PK_MAX) {
+      say('That is plenty for now — the form reopens in a few minutes.', 'error');
+      return;
+    }
+
+    /* The Anon fallback happens HERE, in the payload — never as a value in
+       the field — and name_given records whether it was typed, so a visitor
+       who writes "Anon" and one who leaves the field blank stay
+       distinguishable in the mail. */
+    const typed = fromField.value.trim();
+    const from = typed || 'Anon';
+
+    send.disabled = true;
+    say('Sending…');
+
+    try {
+      const response = await fetch(CONTACT.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          ...(CONTACT.accessKey ? { access_key: CONTACT.accessKey } : {}),
+          botcheck: false,
+          // The subject is the tell: a picks mail must be distinguishable
+          // from a contact message without opening either.
+          subject: `[Top Picks] suggestion from ${from}`,
+          name: from,
+          name_given: Boolean(typed),
+          top5_easy: easy || '(unanswered)',
+          suggestion: sugg,
+          message: `Top-5 easy: ${easy || '(unanswered)'}\n\nSuggestion:\n${sugg}`
+        })
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      record();
+      form.reset();
+      easy = '';
+      paintYN();
+      say('Straight onto the shortlist pile.', 'ok', '✓ Sent.');
+      send.disabled = sends().length >= PK_MAX;
+    } catch {
+      send.disabled = false;
+      say(`Could not send — email me instead at ${CONTACT.to}.`, 'error');
+    }
+  });
+})();

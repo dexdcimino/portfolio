@@ -1703,11 +1703,20 @@
       <div class="section-head reveal">
         <h2 class="featured-title" id="picks-title"><span class="icon featured-mark" data-icon="tick" aria-hidden="true"></span><span>TOP PICKS</span></h2>
       </div>
+      <!-- The ? is a sibling of the tablist, not a member: role="tab"
+           inside it would join the arrow-key cycle and read as a fifth
+           category. The row lays the two out at opposite ends. -->
+      <div class="pk-tabrow">
       <div class="pk-tabs" role="tablist" aria-label="Top picks categories">
         <button class="pk-tab" type="button" role="tab" id="pk-tab-games" aria-controls="pk-panel-games" aria-selected="true" tabindex="0">Games</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-movies" aria-controls="pk-panel-movies" aria-selected="false" tabindex="-1">Movies</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-songs" aria-controls="pk-panel-songs" aria-selected="false" tabindex="-1">Songs</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-quotes" aria-controls="pk-panel-quotes" aria-selected="false" tabindex="-1">Quotes</button>
+      </div>
+      <button class="pk-suggest-btn" id="pkSuggestOpen" type="button"
+              aria-label="Suggest a pick, or tell me if a top five comes easily to you">
+        <span aria-hidden="true">?</span>
+      </button>
       </div>
       <div class="pk-stage">
       <!-- Same carousel as Toolkit: the whole side lane is the target, full
@@ -3089,6 +3098,46 @@
 
   <!-- Contact modal. <dialog>.showModal() gives focus trapping and Esc-to-close
        for free; the backdrop click is wired in script.js. -->
+  <dialog class="contact-modal" id="pkModal" aria-labelledby="pkFormTitle">
+    <form class="contact-panel" id="pkForm" novalidate>
+      <button class="contact-close" type="button" id="pkClose" aria-label="Close the picks suggestion form">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+
+      <p class="eyebrow">TOP PICKS</p>
+      <h2 id="pkFormTitle">SUGGEST A PICK</h2>
+      <p class="contact-intro">Argue with my top fives, or hand me something that belongs in one.</p>
+
+      <div class="contact-field" role="group" aria-labelledby="pkEasyLabel">
+        <span id="pkEasyLabel">IS A TOP 5 PICK EASY FOR YOU?</span>
+        <div class="pk-yesno">
+          <button class="pk-yn" type="button" id="pkYes" aria-pressed="false">Yes</button>
+          <button class="pk-yn" type="button" id="pkNo" aria-pressed="false">No</button>
+        </div>
+      </div>
+      <label class="contact-field">
+        <span>YOUR SUGGESTION <b>*</b></span>
+        <textarea id="pkSuggestion" rows="4" maxlength="2000" required placeholder="A game, a movie, a song, or a quote — and why it belongs in a top five."></textarea>
+      </label>
+      <label class="contact-field">
+        <span>NAME OR CONTACT</span>
+        <input id="pkFrom" type="text" maxlength="120" autocomplete="off" placeholder="Anon" />
+      </label>
+
+      <!-- Honeypots, exactly the contact form's pattern: hidden by class, not
+           an inline style, which style-src 'self' would block. -->
+      <input class="contact-trap" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <input class="contact-trap" type="checkbox" name="botcheck" id="pkBotcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
+
+      <p class="contact-status" id="pkStatus" role="status" aria-live="polite"></p>
+
+      <div class="contact-actions">
+        <button class="button primary" type="submit" id="pkSend"><span>SEND SUGGESTION</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></button>
+        <button class="button ghost" type="button" id="pkCancel"><span>CANCEL</span></button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog class="contact-modal" id="contactModal" aria-labelledby="contactTitle">
     <form class="contact-panel" id="contactForm" novalidate>
       <button class="contact-close" type="button" id="contactClose" aria-label="Close contact form">
@@ -3129,6 +3178,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=182"></script>
+  <script src="script.js?v=184"></script>
 </body>
 </html>
