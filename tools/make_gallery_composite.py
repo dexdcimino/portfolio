@@ -102,17 +102,21 @@ PRESETS = {
         # camera transform.
         'crop_around': 'games/stickland/dev/shots/gallery/fourup-boxes.json',
         'crop_keys': ['slim-bow', 'armor-smg', 'robe-rocket', 'coat-board'],
-        # ...and then scale the crop UP, which a 1:1 crop alone cannot avoid.
-        # The game caps its own camera at _ZOOM_MAX = 1.5 and the figure is 36x60
-        # pixels there. Cropped 1:1 into a 957x537 panel that is eleven per cent
-        # of the panel's height: the four builds are technically distinguishable
-        # and nobody looking at a gallery would distinguish them. At 2.4x the
-        # figure is 144px, a quarter of the panel, and the top hat, the viking
-        # horns, the coat and the robe all read at a glance.
-        # Upscaling line art is lossy and this is the one place it is worth it:
-        # every other shot on the site is native, and this panel's subject is
-        # sixty pixels tall no matter how it is framed.
-        'crop_zoom': 2.4,
+        # CROP AT 1:1 OUT OF A 3x CAPTURE, which is the only way this panel
+        # is both tight and sharp. The game caps its own camera at
+        # _ZOOM_MAX = 1.5 and the figure is 36x60 CSS pixels there, so a 1:1
+        # crop of a 1920x1080 frame leaves it eleven per cent of the panel —
+        # four builds that are technically distinguishable and that nobody
+        # would distinguish. Upscaling that crop 2.4x fixed the size and cost
+        # the edges: line art three pixels wide went soft, which is the one
+        # thing line art cannot afford.
+        # So dev/gallery.mjs captures these four at deviceScaleFactor 3. The
+        # character is an SVG overlay, so it re-rasterises at the higher ratio
+        # and comes back 108x180 in REAL pixels; cropping 957x537 straight out
+        # of that puts the figure at a third of the panel with nothing
+        # interpolated. `dpr` in the sidecar converts the CSS-pixel box the
+        # browser reported into the device pixels the screenshot is in.
+        'crop_zoom': 1.0,
     },
 }
 
@@ -202,12 +206,16 @@ def build(preset_name, preset, dry_run=False):
                 # which puts its feet and its hat equidistant from the edges and
                 # leaves the hotbar out of frame.
                 z = preset.get('crop_zoom', 1.0)
+                # The box is CSS pixels; the capture is device pixels.
+                r = b.get('dpr', 1)
                 cw, ch = max(1, round(w / z)), max(1, round(h / z))
-                cell = crop_at(flat, cw, ch, b['x'], b['y'] - round(18 / z))
+                # Lifted a little, so the figure's feet and its hat sit
+                # equidistant from the edges and the hotbar stays out of frame.
+                cell = crop_at(flat, cw, ch, round(b['x'] * r), round(b['y'] * r) - round(24 * r / z))
                 if z != 1.0:
                     cell = cell.resize((w, h), Image.LANCZOS)
-                note = (f"figure {b['w']}x{b['h']} at {b['x']},{b['y']}"
-                        + (f', crop {cw}x{ch} up {z}x' if z != 1.0 else ''))
+                note = (f"figure {b['w']}x{b['h']}css at {b['x']},{b['y']} dpr {r}"
+                        + (f', crop {cw}x{ch}' + (f' up {z}x' if z != 1.0 else ' 1:1')))
             else:
                 cell = cover(flat, w, h)
                 note = 'cover'

@@ -98,12 +98,30 @@ const CHARBOX = `(() => {
 const STATE = `(() => {
   const p = window._dexGetPlayState?.() || null;
   const t = window._dexGetTankState?.() || null;
+  /* Platform mode has its own readout — "▲ 12m · best 81m · ✦ 0" — and it is
+     the only altitude there is in that mode: _dexGetPlayState returns null
+     because play mode is not active. Parsed rather than assumed, because four
+     frames captioned "jetpacking" came back with the character standing on the
+     ground and nothing in the run noticed. */
+  /* #plat-stats by id, and parsed WITHOUT a regex on purpose. The first cut
+     scanned every leaf element for a backslash-s, backslash-d pattern and
+     matched nothing on a HUD that plainly read "0m": this whole expression is
+     a template literal, and inside one those escapes collapse to plain s and d
+     before the page ever sees them. Any regex written in here needs its
+     backslashes doubled; not writing one is simpler and cannot regress.
+     The element sets its own textContent, so slicing the marker off the front
+     and letting parseInt stop at the m is exact.
+     (No backticks in this comment either — one would close the literal.) */
+  const platTxt = document.getElementById('plat-stats')?.textContent || '';
+  const platAlt = platTxt ? (parseInt(platTxt.slice(1).trim(), 10) ?? -1) : -1;
+
   return {
     play: !!window._dexPlayModeActive,
     plat: !!window._dexPlatActive,
     x: p ? Math.round(p.x) : null,
     y: p ? Math.round(p.y) : null,
     anim: p?.animState || '', weapon: p?.weapon || 'none',
+    platAlt,
     inTank: !!t?.inTank,
     tankX: t ? Math.round(t.tankX) : null,
     tankY: t ? Math.round(t.tankY) : null,
@@ -132,7 +150,18 @@ let problems = 0;
  * a chosen preference is standing in for a player who chose it. Seeding
  * progress would not be, and nothing here does.
  */
-async function run(label, plan, prefs = null) {
+/* `dpr` renders the page at a higher device pixel ratio.
+   Only the four-up uses it, and only because of what the character IS: the
+   world is a 2D canvas whose backing store Stickland sizes in CSS pixels, but
+   the CHARACTER is an SVG overlay in the DOM. At deviceScaleFactor 3 the canvas
+   is composited up and softens, while the SVG is RE-RASTERISED — so the figure
+   comes back with three times the real pixels rather than three times the same
+   ones. That is the whole difference between a legible top hat and a smudge,
+   and it is why the four-up is cropped out of a 5760x3240 capture at 1:1
+   instead of being upscaled out of a 1920x1080 one.
+   The background pays for it. In these panels the background is empty ground
+   forty metres behind the subject, so it pays very little. */
+async function run(label, plan, prefs = null, dpr = 1) {
   const page = await chrome.newPage();
   const errs = [];
   page.on((method, params) => {
@@ -152,7 +181,7 @@ async function run(label, plan, prefs = null) {
   await page.send('Log.enable');
   await page.send('Page.enable');
   await page.send('Emulation.setDeviceMetricsOverride',
-    { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+    { width: W, height: H, deviceScaleFactor: dpr, mobile: false });
   try { await page.send('Page.setWebLifecycleState', { state: 'active' }); } catch { /* older Chrome */ }
 
   if (prefs) {
@@ -211,16 +240,23 @@ async function zoomIn(page, notches = 12) {
 
 async function take(page, opts) {
   const s = await evaluate(page, STATE, 30000);
+  if (opts.minPlatAlt && s.platAlt < opts.minPlatAlt) {
+    throw new Error(`shot claims jetpacking but the platform HUD reads ${s.platAlt}m`
+      + ' — the pack is equipped and the character never left the ground');
+  }
   const box = opts.box ? await evaluate(page, CHARBOX, 15000) : null;
   const where = s.inTank ? `tank at ${s.tankX},${s.tankY}`
-    : s.plat ? 'platform mode'
+    : s.plat ? `platform mode, ${s.platAlt}m up`
     : `${s.x},${s.y}`;
   const file = await roll.take(page, {
     ...opts,
     note: `${where} · ${s.anim}${s.weapon !== 'none' ? ' · ' + s.weapon : ''}${opts.note ? ' · ' + opts.note : ''}`,
   });
   if (opts.box) {
-    boxes[opts.variant] = box;
+    /* getBoundingClientRect answers in CSS pixels; the screenshot is in DEVICE
+       pixels. Recording the ratio rather than pre-multiplying keeps the sidecar
+       readable and puts the conversion in one place — the composite tool. */
+    boxes[opts.variant] = box ? { ...box, dpr: FOURUP_DPR } : null;
     console.log(`  ok  ${opts.shot} / ${opts.variant}  (${where}, ${s.anim}`
       + (box ? `, figure ${box.w}x${box.h} at ${box.x},${box.y})` : ', figure NOT FOUND)'));
   } else {
@@ -236,9 +272,55 @@ async function take(page, opts) {
    a master, and neither knows the other's job. */
 const boxes = {};
 
+/* THE PACK NEEDS A JUMP UNDER IT BEFORE IT WILL THRUST.
+   Holding Space from a standing start does nothing: character.js reads a
+   grounded Space as the start of a CHARGE, and only lets the jetpack burn once
+   the character is already off the floor. So four frames captioned
+   "jetpacking" came back with the pack lit on the character's back, the HUD
+   reading 0m, and the figure standing in the grass — the same shape of lie as
+   a rover captioned as a jet, and caught the same way once something checked.
+   Tap, let the hop clear the ground, then hold: measured, that takes the
+   character from 0m to 52m in two seconds. */
+async function platLift(page, input) {
+  /* WAIT FOR THE FLOOR FIRST. Each shot releases Space, so the next one starts
+     while the character is still falling from the last — and a jump needs
+     ground under it. Tapping mid-fall does nothing, the hold that follows finds
+     the character grounded a moment later, and the grounded branch swallows it
+     as a charge: the second frame read 0m for exactly this reason.
+     _dexPlatCharPos reports it, so this is a wait on the game's own state
+     rather than a sleep long enough to probably work. */
+  await evaluate(page, `(async () => {
+    const f = () => new Promise((r) => requestAnimationFrame(r));
+    for (let i = 0; i < 400; i++) {
+      const P = window._dexPlatCharPos && window._dexPlatCharPos();
+      if (P && P.grounded) return true;
+      await f();
+    }
+    return false;
+  })()`, 30000);
+  /* ...and let the tank refill. JET_FUEL_MAX is 300 against a JET_REFILL of
+     2.2 a frame while grounded, so a full tank is a little over two seconds of
+     standing still and holds about 1.9s of thrust. The second frame read 0m
+     even once it was jumping properly, because the first frame's 2.6s burn had
+     emptied it and nothing waited. */
+  await wait(3200);
+  await input.tap('Space', 90);
+  await wait(320);
+}
+
 /** Hold keys across the capture, so the frame is mid-action rather than after it. */
 async function act(page, input, codes, ms, opts) {
   const list = [].concat(codes);
+  if (opts.prejump) await platLift(page, input);
+  /* RE-ZOOM AT THE SHUTTER, for the tank.
+     zoomIn() after mounting does not survive: entering the tank hands the
+     camera to _tickTank, which frames the hull at its own distance, and the
+     wheel notches spent on the way in are simply gone. Every tank frame came
+     back at zoom 1.0 — a small tank in a large black field, which is exactly
+     what the pass-B session called out. Re-applying it here, inside the same
+     act that takes the picture, means the zoom is the last thing that happens
+     before the capture and nothing can undo it in between. */
+  if (opts.rezoom) await zoomIn(page, opts.rezoom);
   for (const c of list) await input.down(c);
   await wait(ms);
   await frames(page, 4);
@@ -314,48 +396,80 @@ async function walkTo(page, input, target, { tol = 55, legs = 26, sprint = true 
 
 /* DRIVE THERE, and a tank is not a character.
    _tickTank is car-style: W is forward along the hull's own angle and A/D
-   ROTATE. Pressing D to go east — which is what walking taught the first cut of
-   this file — spins the tank on the spot and moves it nowhere, which is exactly
-   what the first tank run photographed.
+   ROTATE. Pressing D to go east — which is what walking teaches — spins the
+   tank on the spot and moves it nowhere.
    The hull angle is not exposed (window._dexGetTankState hands back the TURRET
-   angle), so the heading is measured instead: sample the position twice while
-   rolling forward, and the vector between them is the way the tank is actually
-   pointing. That is also robust to the thing an exposed angle would not be —
-   sliding, terrain, and being nudged by a creature. */
-async function driveTo(page, input, target, { tol = 120, legs = 30 } = {}) {
+   angle), so the heading is MEASURED: sample the position twice while rolling
+   forward and the vector between them is the way the tank is actually
+   pointing. That is also robust to what an exposed angle would not be —
+   sliding, terrain, and being shoved by a creature.
+
+   THE FIRST VERSION OF THIS STEERED ITSELF IN CIRCLES. It asked for a heading
+   before the tank had moved far enough to have one — TANK_ACCEL is 0.025 and
+   it takes a good second to reach a speed worth measuring — and when the
+   sample came back under its 3-unit threshold it turned on `i % 2`, a coin
+   flip. So the tank spent every other leg rotating on the spot, the estimate
+   never settled, and one run photographed four frames a kilometre short of the
+   forest while reporting success.
+   Now: two full-throttle legs first to BUILD a heading, then turns that are
+   proportional to the error and always taken with the throttle still down —
+   a tank that stops to turn never gets anywhere. */
+async function driveTo(page, input, target, { tol = 140, legs = 44 } = {}) {
   let last = null;
+  let heading = null;
   for (let i = 0; i < legs; i++) {
     const s = await evaluate(page, STATE, 30000);
     if (!s.inTank) throw new Error('left the tank mid-drive');
     const dx = target.x - s.tankX, dy = target.y - s.tankY;
-    if (Math.hypot(dx, dy) < tol) return s;
+    const dist = Math.hypot(dx, dy);
+    if (dist < tol) return s;
 
-    const wantA = Math.atan2(dy, dx);
-    let turn = null;
     if (last) {
       const mx = s.tankX - last.tankX, my = s.tankY - last.tankY;
-      if (Math.hypot(mx, my) > 3) {
-        const headA = Math.atan2(my, mx);
-        let err = wantA - headA;
-        while (err > Math.PI) err -= 2 * Math.PI;
-        while (err < -Math.PI) err += 2 * Math.PI;
-        if (Math.abs(err) > 0.18) turn = err > 0 ? 'KeyD' : 'KeyA';
-      } else {
-        // Not moving: either wedged or still spinning up. Turn and try again.
-        turn = i % 2 ? 'KeyD' : 'KeyA';
-      }
-    } else {
-      // First leg has no heading yet — roll forward to make one.
-      turn = null;
+      // 6 units in a leg is unambiguous motion; below that the direction is
+      // mostly rounding and taking it as a heading is what caused the spin.
+      if (Math.hypot(mx, my) > 6) heading = Math.atan2(my, mx);
     }
-    const codes = ['KeyW', ...(turn ? [turn] : [])];
-    for (const c of codes) await input.down(c);
-    await wait(turn ? 320 : 700);
-    for (const c of codes) await input.up(c);
     last = s;
+
+    let err = 0;
+    if (heading !== null) {
+      err = Math.atan2(dy, dx) - heading;
+      while (err > Math.PI) err -= 2 * Math.PI;
+      while (err < -Math.PI) err += 2 * Math.PI;
+    }
+
+    /* Throttle is ALWAYS down. TANK_ROT_SPEED scales with speed anyway
+       (rotMult falls as the tank goes faster), so turning under power is both
+       what the game expects and the only way to make progress while steering. */
+    const codes = ['KeyW'];
+    if (heading === null) {
+      // No heading yet: a long straight leg to make one.
+      await input.down('KeyW');
+      await wait(900);
+      await input.up('KeyW');
+      continue;
+    }
+    if (Math.abs(err) > 0.15) codes.push(err > 0 ? 'KeyD' : 'KeyA');
+    // Turn for as long as the error deserves, capped so one leg cannot spin
+    // past the target and start the correction over.
+    const ms = Math.abs(err) > 0.15
+      ? Math.max(140, Math.min(650, Math.round(Math.abs(err) * 420)))
+      : Math.max(300, Math.min(800, Math.round(dist * 1.6)));
+
+    for (const c of codes) await input.down(c);
+    await wait(ms);
+    for (const c of codes) await input.up(c);
   }
-  return evaluate(page, STATE);
+  return evaluate(page, STATE, 30000);
 }
+
+/* The forest is a REGION, not a coordinate: playmode.js calls everything past
+   x=4300 with y>2150 'forest' and seeds 14 tree clumps into it. A shot
+   captioned "through the forest" taken at x=3800 is a shot of the meadow, and
+   one run produced exactly that — four frames near the village, all reported
+   ok, because nothing checked. */
+const inForest = (s) => s.tankX > 4300 && s.tankY > 2150;
 
 // ---- 1. Home base -------------------------------------------------------
 if (want('base')) {
@@ -466,31 +580,35 @@ if (want('tank')) {
         + '(the prompt needs 75)');
     }
     await zoomIn(page);
-    await driveTo(page, input, { x: 4450, y: 2300 });
+    const edge = await driveTo(page, input, { x: 4500, y: 2350 });
+    if (!inForest(edge)) {
+      throw new Error(`never reached the forest — tank stopped at `
+        + `${edge.tankX},${edge.tankY} (needs x>4300, y>2150)`);
+    }
     // Held forward across the capture: a tank at rest among trees is a parked
     // tank, and the frame is supposed to be of one driving.
     await act(page, input, ['KeyW', 'ShiftLeft'], 1200, {
-      shot: 'A tank driving through the forest',
+      shot: 'A tank driving through the forest', rezoom: 12,
       variant: 'entering the treeline, boosting',
       repro: `walk to tank · hold E 1.6s · drive to 4450,2300 · W+Shift 1.2s (shot held)` });
 
     await driveTo(page, input, FOREST);
     await act(page, input, ['KeyW'], 1000, {
-      shot: 'A tank driving through the forest',
+      shot: 'A tank driving through the forest', rezoom: 12,
       variant: 'deep in the trees',
       repro: `drive to ${FOREST.x},${FOREST.y} · W 1s (shot held)` });
 
     // Turning under canopy, so the hull is across the frame rather than
     // pointing away down its own axis.
     await act(page, input, ['KeyW', 'KeyD'], 900, {
-      shot: 'A tank driving through the forest',
+      shot: 'A tank driving through the forest', rezoom: 12,
       variant: 'turning under the canopy',
       repro: `drive to ${FOREST.x},${FOREST.y} · W+D 0.9s (shot held)` });
 
     // ...and firing, which is the tank's own event.
     await input.click(W * 0.66, H * 0.35);
     await act(page, input, ['KeyW'], 500, {
-      shot: 'A tank driving through the forest',
+      shot: 'A tank driving through the forest', rezoom: 12,
       variant: 'firing on the move',
       repro: `drive to ${FOREST.x},${FOREST.y} · click to fire · W 0.5s (shot held)` });
   });
@@ -524,27 +642,39 @@ if (want('jet')) {
 
     // Space is the thrust. Held across every capture — the flame only exists
     // while it is down, and the flame is the whole picture.
-    await act(page, input, ['Space'], 900, {
-      shot: 'Platform mode, jetpacking',
+    await act(page, input, ['Space'], 1800, {
+      shot: 'Platform mode, jetpacking', minPlatAlt: 3, prejump: true,
       variant: 'lifting off the first platform',
       repro: `/home · equip jetpack · Space 0.9s (shot held)` });
 
-    await act(page, input, ['Space', 'KeyD'], 1600, {
-      shot: 'Platform mode, jetpacking',
+    await act(page, input, ['Space', 'KeyD'], 1800, {
+      shot: 'Platform mode, jetpacking', minPlatAlt: 8, prejump: true,
       variant: 'climbing right across the gap',
       repro: `/home · Space 0.9s, Space+D 1.6s (shot held)` });
 
     await act(page, input, ['Space', 'KeyD', 'ShiftLeft'], 1800, {
-      shot: 'Platform mode, jetpacking',
+      shot: 'Platform mode, jetpacking', minPlatAlt: 10, prejump: true,
       variant: 'high and fast, platforms below',
       repro: `/home · Space+D 1.6s, Space+D+Shift 1.8s (shot held)` });
 
     // Falling with the thrust off, which is the other half of the mode and
     // the frame where the platforms are legible under the character.
-    await act(page, input, ['KeyD'], 700, {
-      shot: 'Platform mode, jetpacking',
+    /* The drop. Its premise is thrust OFF, so it cannot use prejump+hold like
+       the three above — it has to climb first and then let go, and the shutter
+       has to fall while the character is still in the air. Written out rather
+       than pushed through act(), because act() holds one set of keys for the
+       whole shot and this one deliberately changes them mid-flight. */
+    await platLift(page, input);
+    await input.down('Space');
+    await wait(1200);
+    await input.up('Space');
+    await input.down('KeyD');
+    await wait(420);
+    await frames(page, 3);
+    await take(page, { shot: 'Platform mode, jetpacking', minPlatAlt: 4,
       variant: 'thrust off, dropping to the next platform',
-      repro: `/home · Space+D+Shift 1.8s, then D 0.7s (shot held)` });
+      repro: `/home · equip jetpack · Space hop + hold 1.2s, release, D 0.4s (shot held)` });
+    await input.up('KeyD');
   });
 }
 
@@ -556,6 +686,17 @@ if (want('jet')) {
    Each panel changes BOTH axes at once. Four figures in four hats holding the
    same bow is a hat catalogue; four figures that differ in build, hat, hair and
    what they are holding is the customiser doing what it is for. */
+/* FOUR, and the number is chosen against the panel rather than against the
+   screen. The four-up crops 957x537 straight out of this capture at 1:1, so the
+   ratio IS the framing: at 3x the figure is 108x180 real pixels and fills a
+   third of its panel, at 4x it is 144x240 and fills nearly half. Half is where
+   the top hat, the viking horns, the robe and the coat all read at a glance,
+   which is the entire job of this shot.
+   Going tighter than the capture allows would mean upscaling again, and
+   upscaling three-pixel line art is what made the first version soft. Raising
+   the ratio instead buys the same tightness in real pixels. */
+const FOURUP_DPR = 4;
+
 const LOADOUTS = [
   { tag: 'slim-bow',      cosmetics: { torso: 'default',  hat: 'cap_forward', hair: 'short' },
     hotbar: { 1: 'bow', 2: 'smg', 3: 'rocket', 4: 'hoverboard' }, slot: 'Digit1', weapon: 'bow' },
@@ -588,7 +729,7 @@ if (want('cosmetics')) {
         box: true,
         note: `${L.cosmetics.torso}/${L.cosmetics.hat}/${L.cosmetics.hair} · ${L.weapon}`,
         repro: `sfg-cosmetics=${JSON.stringify(L.cosmetics)} · slot1=${L.hotbar[1]} · wheel-in x12 · D 0.6s (shot held)` });
-    }, { cosmetics: L.cosmetics, hotbar: L.hotbar });
+    }, { cosmetics: L.cosmetics, hotbar: L.hotbar }, FOURUP_DPR);
   }
 }
 

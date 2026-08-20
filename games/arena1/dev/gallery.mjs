@@ -71,7 +71,13 @@ const BOOT = `(async () => {
      other prints the sim tick, the seed and the Photon room. They are the same
      kind of thing as Surveyor's DEV WARP row — useful while building, and an
      admission of a debug build in a shop window. */
-  for (const id of ['perf', 'hud-boot']) {
+  /* #feed goes too, and it is the one that needed looking at twice. It is a
+     real player-facing feed — kills land in it — but in a solo harness the only
+     thing it ever carries is the Photon room announcement, and every
+     ground-level candidate came back with HOSTING GECKO or HOSTING JAGUAR
+     printed across the middle of the arena. A room name is session chrome, it
+     reads as a debug string, and it sits exactly where the eye goes. */
+  for (const id of ['perf', 'hud-boot', 'feed']) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   }
@@ -234,6 +240,16 @@ async function find(page, kind) {
    came back captioned "51m, serpent at 12.7m" with the HUD reading ALT 1m —
    the tank had run dry during the aim and the player was standing on the floor
    again. Same class of mistake as a rover captioned as a jet, same fix. */
+/* ONE SHOT FAILING MUST NOT COST THE REST OF THE SEED.
+   The plan is a straight line of awaits, so the first throw ends it — and the
+   throw that kept happening was the altitude guard on the serpent frame, which
+   silently took the wraith frame down with it every run. A refused caption is
+   a success for the guard and should cost exactly the frame it refused. */
+async function attempt(label, fn) {
+  try { await fn(); }
+  catch (err) { console.log(`  --  ${label}: ${err.message}`); }
+}
+
 async function take(page, opts) {
   const l = await evaluate(page, LOOK, 30000);
   if (l.paused) throw new Error('paused at capture — the page lost visibility');
@@ -381,45 +397,101 @@ for (const seed of SEEDS) {
         repro: `?seed=${seed} · aim at nearest serpent head (shot held)` });
     }
 
-    // ── 3. Airborne ─────────────────────────────────────────────────────
-    // The jet is the only sustained lift in the game and the only way to get
-    // level with a serpent, which is why the serpent's real frame is up here.
-    const up = await climb(page, input, 3400);
-    if (up.alt < 12) {
-      console.log(`  --  seed ${seed}: jet reached only ${up.alt.toFixed(0)}m`
-        + (up.latched === false ? ' (never latched — landed or stood in the booth)' : '')
-        + ', not an airborne frame');
-      await up.release();
-    } else {
-      // Looking down: the shot that shows the level as a place rather than as
-      // the wall in front of you.
+    /* ── 3. AIRBORNE, and each of these buys its own tank ───────────────
+       TANK holds about three and a half seconds of burn and FUEL_REGEN puts it
+       back at 16 a second on the ground. Three airborne frames off one climb
+       does not fit — the first version spent it on the ascent and the aim, and
+       every later frame came back at 1m with the guard refusing the caption.
+       Landing between them and waiting is not a workaround; it is the loop the
+       game is built around, and eight seconds on the floor is a full tank. */
+    const regen = async () => { await wait(8000); };
+
+    // Looking down: the shot that shows the level as a place rather than as
+    // the wall in front of you. Straight after the first climb, at full height.
+    await attempt('airborne, looking down', async () => {
+      const up = await climb(page, input, 3400);
+      if (up.alt < 12) throw new Error(`jet reached only ${up.alt.toFixed(0)}m`);
       await aimAt(page, input, { x: 0, y: 0, z: 0 });
       await act(page, input, { ms: 700, minAlt: 12,
         shot: 'Airborne — looking down',
         variant: `seed ${seed} · ${up.alt.toFixed(0)}m over the arena`,
         repro: `?seed=${seed} · Space jump, 0.5s, Space held 3.4s · aim at origin (shot held)` });
-
-      // ...and the serpent, from level with it and firing. This is the frame
-      // the shot list is really asking for.
-      const serp = await find(page, 'serpent');
-      if (serp) {
-        /* Aim FIRST, then top the climb back up. Aiming costs the better part
-           of a second of the three and a half the tank holds, and the shot has
-           to still be in the air when the shutter falls. */
-        await aimAt(page, input, serp);
-        await up.release();
-        await wait(120);
-        await input.down('Space');
-        await wait(600);
-        await act(page, input, { fire: true, ms: 700, minAlt: 10,
-          shot: 'Airborne — level with a serpent',
-          variant: `seed ${seed} · ${up.alt.toFixed(0)}m, serpent at ${serp.d}m`,
-          repro: `?seed=${seed} · Space jump, 0.5s, Space held 3.4s · aim at serpent head · fire 1s (shot held)` });
-      } else {
-        console.log(`  --  seed ${seed}: no serpent head visible from ${up.alt.toFixed(0)}m`);
-      }
       await up.release();
-    }
+    });
+
+    // The serpent, from level with it. Its own climb, because aiming at a
+    // moving serpent costs most of a tank on its own.
+    await regen();
+    await attempt('airborne, level with a serpent', async () => {
+      const up = await climb(page, input, 2600);
+      if (up.alt < 12) throw new Error(`jet reached only ${up.alt.toFixed(0)}m`);
+      const serp = await find(page, 'serpent');
+      if (!serp) throw new Error('no serpent head in the scene');
+      await aimAt(page, input, serp);
+      await act(page, input, { fire: true, ms: 600, minAlt: 10,
+        shot: 'Airborne — level with a serpent',
+        variant: `seed ${seed} · ${up.alt.toFixed(0)}m, serpent at ${serp.d}m`,
+        repro: `?seed=${seed} · Space jump, 0.5s, Space held 2.6s · aim at serpent head · fire 0.6s (shot held)` });
+      await up.release();
+    });
+
+    /* ── 4. A WRAITH, CLOSE ENOUGH TO BE A WRAITH ────────────────────────
+       The brief asks for wraiths and seventeen candidates could not deliver
+       one. Not for want of wraiths — five orbit from boot — but because of
+       WHERE: placeWraith puts them at 22m to (summit-40) on a radius of a
+       fifth to two thirds of the arena, so from the floor the nearest is
+       65-270m away and lands on about eight pixels.
+       Flying to one does not work either, twice proved: a wraith is a hundred
+       metres out and the tank is three and a half seconds long.
+       So close the distance ON FOOT, which is free, and spend the tank only on
+       the last twelve metres. That is also exactly the geometry the game asks
+       for — enemies.js flips a wraith from `orbit` to `swoop` when the player
+       is inside 22m horizontally and 16m vertically — so running under the
+       lowest one and hopping into its band is not a trick to get a photograph,
+       it is the thing that makes a wraith come at you. */
+    await regen();
+    await attempt('a wraith at close range', async () => {
+      for (let leg = 0; leg < 14; leg++) {
+        const w = await find(page, 'wraith');
+        if (!w) throw new Error('no wraith in the scene');
+        const l = await evaluate(page, LOOK, 30000);
+        const flat = Math.hypot(w.x - l.cam.x, w.z - l.cam.z);
+        if (flat < 18) break;
+        /* Aim LEVEL at its ground position, not up at the wraith. W runs along
+           the camera's horizontal forward, so aiming up still runs you there
+           but points the view at empty sky. */
+        await aimAt(page, input, { x: w.x, y: l.cam.y, z: w.z });
+        await input.hold(['KeyW', 'ShiftLeft'], 700);
+      }
+      /* HOVER IN THE BAND AND WAIT, across three tanks.
+         One hop is a three-and-a-half second window and a wraith on a 20-55m
+         orbit at 0.25-0.6 rad/s sweeps past a given bearing in about that long,
+         so a single hop is a coin flip — and it came up tails on all three
+         seeds twice running. Three tanks with a landing between them is thirty
+         seconds of real waiting for a bird to come round, which is what
+         waiting for a bird to come round costs. */
+      let closed = null;
+      let hop = null;
+      for (let tank = 0; tank < 3 && !closed; tank++) {
+        if (tank) { await wait(8000); }
+        hop = await climb(page, input, 900);
+        // Poll the whole burn rather than a fixed count: the wraith only has
+        // to be close for one frame for the shutter to be worth opening.
+        for (let i = 0; i < 26 && !closed; i++) {
+          const w = await find(page, 'wraith');
+          if (w && w.d < 30) { closed = w; break; }
+          await frames(page, 6);
+        }
+        if (!closed) await hop.release();
+      }
+      if (!closed) throw new Error('no wraith came inside 30m in three tanks');
+      await aimAt(page, input, closed);
+      await act(page, input, { fire: true, ms: 600,
+        shot: 'A wraith at close range',
+        variant: `seed ${seed} · wraith at ${closed.d}m`,
+        repro: `?seed=${seed} · run to under the nearest wraith · Space hop · fire 0.6s (shot held)` });
+      await hop.release();
+    });
   });
 }
 
