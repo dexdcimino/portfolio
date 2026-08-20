@@ -41,6 +41,13 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   SSAO radius (2.2 m, not lookdev's 6.0 for a 4 km flat world), SSAO maxZ
   (260, not 900 — longer than half the worlds are wide), ambient fill, and
   texture scale.
+- **A cosmetic compositor property can cost more than the thing it decorates.**
+  `backdrop-filter: blur(3px)` on the intro card put **1.3 seconds** on the
+  WebGL context creation — the compositor keeps a readback of a full-screen
+  backdrop layer and it contends with the engine coming up behind it. Measured
+  warm: card on screen 210ms against 70ms, `Begin` live 2.4s against 1.0s. It
+  is a `box-shadow` now. Before adding blur, filter or large-area transparency
+  to anything that shares a frame with engine start-up, measure the boot.
 - **An absolute length is a bug on six worlds of different sizes.** Almost
   every constant here is expressed in radii for exactly this reason; the one
   that is not — `HYPER.approachAlt`, 900m flat — is 0.43 radii up on Anvil and
@@ -105,6 +112,11 @@ started carry a phase log of what actually shipped and where the plan was wrong.
 
 ## Modules
 
+`js/boot.js` the entry point, and the only script `index.html` names: it
+waits for a PAINTED frame before creating the `<script>` for Babylon and
+importing main.js, because an 8.2MB parser-blocking engine means the start card
+cannot go on screen until the whole game has booted (measured at 6296ms to
+first contentful paint before this existed, ~70ms after on a warm load).
 `js/main.js` boot + the single render loop; `js/tune.js` every number in the
 game (40 exported blocks incl. `PLANETS`, `POST`, `ECONOMY`, `HYPER`);
 `js/babylon.js` re-export used only by the transplanted `js/render/post.js`

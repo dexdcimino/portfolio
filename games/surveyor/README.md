@@ -216,6 +216,138 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
+## Six seconds of black screen, and where they went
+
+The complaint was that the game takes forever to load and that the intro card
+sits on nothing. Both were the same bug, and it was not the download.
+
+### The card could not paint, because nothing could
+
+Measured on a real GPU, before:
+
+| | |
+|---|---|
+| first contentful paint | **6296ms** |
+| `Begin survey` becomes live | 5780ms |
+| total main-thread blocking | 5798ms across 6 tasks |
+
+The card is plain markup at the top of `index.html`, parsed inside 100ms. It
+could not go on screen because **the thread that paints was busy for the whole
+boot**: `<script src="vendor/babylon.js">` is parser-blocking, Babylon is 8.2MB
+of minified UMD, and compiling it is over a second — then `main.js` builds a
+planet on top of that, synchronously, at module scope. A browser cannot commit
+a frame in the middle of that, so the first thing anybody saw was black until
+the game was entirely ready.
+
+`defer` does not fix it, and made it worse: deferred scripts run at the end of
+parsing, immediately, and no rendering opportunity is guaranteed in between.
+First paint went to 6925ms.
+
+**The fix is `js/boot.js`**, which is the smallest file in the game. It waits
+for a frame that has actually been painted — two `requestAnimationFrame`s, since
+the first callback runs *before* its own frame's paint — and only then creates
+the `<script>` for the engine and imports `main.js`. The engine is fetched from
+there rather than from a tag in the document, because a tag in the document is
+precisely the thing that cannot wait.
+
+### Then the boot itself, which was doing five things nobody was waiting for
+
+With the card up, the remaining question is when `Begin` works. Marks at every
+boot milestone (warm navigation, so Babylon's compile is code-cached):
+
+| step | was |
+|---|---|
+| the preview atlas, six worlds | 295ms |
+| geyser totals, six worlds | 283ms |
+| terrain warm around the spawn | 346ms |
+| the world itself | 199ms |
+| saved-world restore | 70ms |
+
+Three of those are now off the critical path:
+
+- **The preview atlas bakes a row at a time.** `previews()` returns the texture
+  immediately and fills it over `setTimeout(0)`, so a disc drawn before its row
+  exists is a dark coin for a frame or two on a screen nobody has started
+  playing on. It was called from `main.js` explicitly so the cost would land
+  "in front of the start card, where there is nothing to stall" — which was
+  right about everything except that the start card was what it was stalling.
+  295ms → **1ms**.
+- **Geyser totals count the world you are standing on**, and the other five fill
+  in behind the card. The HUD and the overlay hold the object by reference and
+  read it per row per frame, so it does not matter that it is still filling.
+  283ms → **1ms**.
+- **`Begin` is wired before the terrain warm, not after it.** That third of a
+  second of leaf building used to sit between the game being playable and the
+  only control on screen doing anything.
+
+### The prettiest thing on the loading screen was the loading
+
+The card got `backdrop-filter: blur(3px)` as part of the restyle. It cost
+**1.3 seconds on WebGL context creation** — the compositor has to keep a
+readback of a full-screen backdrop layer, and that contends with the engine
+coming up behind it. Measured both ways, warm:
+
+| | card on screen | `Begin` live |
+|---|---|---|
+| with the blur | 210ms | 2.4s |
+| without | 70ms | 1.0s |
+
+It is a box-shadow now. This is worth remembering as a class: a purely cosmetic
+compositor property on the loading screen can cost more than everything the
+loading screen is waiting for.
+
+### Where it landed
+
+| | before | after |
+|---|---|---|
+| card on screen, cold | 6296ms | **~840ms** |
+| card on screen, warm | 6296ms | **~70ms** |
+| `Begin` live, cold | 5780ms | ~2.4s |
+| `Begin` live, warm | 5780ms | **~1.0s** |
+
+Babylon's compile is what is left and there is no honest way to remove it
+without a build step: 1.6s cold, ~480ms warm once V8 has code-cached it.
+
+### The card, while that happens
+
+Three things, and the first two exist because a black screen behind a title
+card reads as a game that has failed to start rather than one that is starting.
+
+- **A photograph of Home behind it.** 1440px, blurred, 11KB of WebP —
+  `assets/ui/start.webp`, baked from a real 1920x1080 capture. Deliberately
+  soft: it is a backdrop under a scrim behind a card, so detail is noise, and
+  blurring it is most of why it fits in 11KB. It stays up until `Begin`. Fading
+  it out when the world was ready was tried and is worse — what is behind the
+  card at that point is the spawn, at ground level, which is a dull view of a
+  hillside rather than a composed one.
+- **The button says `LOADING`** and carries an indeterminate bar until it
+  actually works. A control that looks pressable and is not is the one thing
+  worse than a slow load, because the player presses it and concludes the game
+  is broken. The bar is indeterminate on purpose: the boot has no honest
+  progress figure and inventing one is a lie that gets caught.
+- **The HUD comes up with the session, not with the boot.** It used to appear
+  the moment the boot finished, which is now a moment the player can see;
+  instrument panels behind a title card are clutter reading a game nobody has
+  started.
+
+The card is rounded — 18px, with the chart corner-ticks carrying the same radius
+on their outer corner so the device survives the rounding instead of fighting it.
+
+### The pointer is an arrow again
+
+The reticle is gone. It was a centred circle-and-ticks, built on the assumption
+that the mouse aims something — and it does not: the craft is driven on WASD,
+and the pointer's whole job is the HUD, the warp row and the pause menu. A
+reticle over a game with no crosshair is an instrument reading nothing.
+
+What replaces it is an **outlined arrow in the game's own line-work**, cyan,
+hotspot at the tip. The part that is kept exactly as it was is the reason the
+old one existed: every stroke is drawn twice, a 3.4px casing in `--ink` and then
+the 1.4px cyan line on top, so the shape carries about a pixel of near-black
+either side of every stroke and stays visible on Vault's ice and Tarn's pale
+shallows as well as on dark ground. A single flat colour cannot do that, and the
+white-keylined system arrow is exactly what fails there.
+
 ## Arriving at Ember drew no world at all
 
 Found while scoping phase 4, in the one place nothing was looking.

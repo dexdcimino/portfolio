@@ -23,6 +23,8 @@ import { previews } from './world/preview.js';
 import { COLORS, ATMO, POST, ROVER, PLANETS, HYPER, DEBUG, ECONOMY } from './tune.js';
 import { createPostStack } from './render/post.js';
 
+const MK = (n) => performance.mark(n);
+MK('boot:start');
 const canvas = document.getElementById('stage');
 const engine = new BABYLON.Engine(canvas, true, {
   preserveDrawingBuffer: false,
@@ -30,6 +32,7 @@ const engine = new BABYLON.Engine(canvas, true, {
   antialias: true,
   powerPreference: 'high-performance',
 }, true);
+MK('boot:Engine');
 /* ONE BACKBUFFER PIXEL PER CSS PIXEL, and this is a frame-time decision.
    This used to render at the display's devicePixelRatio (capped at 1.5), which
    on a 125%-scaled Windows desktop — the reference machine, and the common
@@ -44,6 +47,7 @@ engine.setHardwareScalingLevel(
   1 / Math.min(window.devicePixelRatio || 1, MAX_BACKBUFFER_SCALE));
 
 const scene = new BABYLON.Scene(engine);
+MK('boot:Scene');
 scene.clearColor = new BABYLON.Color4(COLORS.fog[0], COLORS.fog[1], COLORS.fog[2], 1);
 scene.autoClear = true;
 scene.fogEnabled = false;
@@ -82,7 +86,9 @@ const spawnFacing = (p) =>
    one-off CPU cost paid here — in front of the start card, where there is
    nothing to stall — rather than inside the first world build, where it would
    read as a slow boot with no explanation. See preview.js. */
+MK('boot:engine');
 const previewBake = previews(scene);
+MK('boot:previews');
 
 const planet = planetOf(bootKey);
 const surface = new Surface(planet, spawnFacing(planet));
@@ -92,7 +98,9 @@ const surface = new Surface(planet, spawnFacing(planet));
    swapTo(). The material is made here rather than inside World because the
    ordering is forced — meshes need a material, a Craft needs meshes, and the
    World's survey and colonies need a Craft. */
+MK('boot:spawn');
 const bootMats = createMaterials(scene, planet);
+MK('boot:mats');
 const forms = {
   rover: buildRover(scene, bootMats.craft),
   boat: buildBoat(scene, bootMats.craft),
@@ -100,6 +108,7 @@ const forms = {
   drone: buildDrone(scene, bootMats.craft),
 };
 
+MK('boot:meshes');
 const craft = new Craft(forms, surface);
 /* ...and put it on the ground. The Craft constructor starts it at y = 0, which
    is sea level and not the surface — and every spawn is chosen from a band that
@@ -110,7 +119,9 @@ craft.settle();
 const economy = new Economy();
 craft.economy = economy;
 const worlds = new Worlds(scene, craft);
+MK('boot:craft');
 let world = worlds.enter(planet, null, bootMats);
+MK('boot:world');
 
 /* Every world's colonies are registered with the Economy as they are built,
    whether or not they are the one being drawn — that is what makes production
@@ -118,10 +129,24 @@ let world = worlds.enter(planet, null, bootMats);
 const registerWorld = (w) => economy.register(w.planet.key, w.colonies);
 registerWorld(world);
 
-// Geyser totals, for the progress readout. Fixed per planet, so counted once.
+/* Geyser totals, for the progress readout. Fixed per planet, so counted once —
+   but SIX of them is 280ms, and the only one anybody can see before they have
+   flown anywhere is the world they are standing on. The other five fill in
+   behind the start card, a world per turn of the event loop.
+   The object is handed to the HUD and the overlay by reference and both read it
+   per row per frame, so it does not matter that it is still filling. */
 const geyserTotals = {};
-for (const key of Object.keys(PLANETS)) {
-  geyserTotals[key] = geysersOf(planetOf(key)).length;
+MK('boot:register');
+geyserTotals[bootKey] = geysersOf(planetOf(bootKey)).length;
+{
+  const rest = Object.keys(PLANETS).filter((k) => k !== bootKey);
+  const next = () => {
+    const key = rest.shift();
+    if (!key) return;
+    geyserTotals[key] = geysersOf(planetOf(key)).length;
+    setTimeout(next, 0);
+  };
+  setTimeout(next, 0);
 }
 
 /* Pick up where the last session left off. Only the record is saved — sites,
@@ -134,6 +159,7 @@ for (const key of Object.keys(PLANETS)) {
    through it. Crediting only the growth would make closing the tab strictly
    better than playing. The window is capped — an absence of three days costs
    the same hour as an absence of one. */
+MK('boot:geysers');
 let awayReport = null;
 {
   const saved = economy.load();
@@ -316,10 +342,55 @@ function hyperPost(t) {
   pipeline.imageProcessing.vignetteWeight = POST.vignette.weight + ATMO.hyperVignette * sq;
 }
 
-// Warm the terrain around the spawn point before the first frame is shown.
-// The tree is bounded now, so this genuinely finishes rather than chasing an
-// unbounded stream.
+// ---- start card ---------------------------------------------------------
+
+const startEl = document.getElementById('start');
+const beginBtn = document.getElementById('begin');
+
+function begin() {
+  if (started) return;
+  started = true;
+  // A context can only be created inside a gesture, which is exactly what
+  // this is.
+  // No toast here: starting the session is not a mute state change, and the
+  // first thing you see should not be the HUD telling you the sound is on.
+  sound.start();
+  emit('ui', { kind: 'confirm' });
+  startEl.classList.add('gone');
+  canvas.focus();
+  document.body.classList.add('ready');
+  setTimeout(() => { startEl.style.display = 'none'; }, 500);
+  // What happened while the tab was shut, once, now that there is someone to
+  // tell. Held since boot — see the load block.
+  if (awayReport) { emit('away', awayReport); awayReport = null; }
+}
+
+/* Live. js/boot.js put the button into its loading state before any of this
+   existed, because a control that looks pressable and is not is worse than one
+   that says it is not ready. This is the moment it becomes true, and it is now
+   ahead of the terrain warm rather than behind it. */
+MK('boot:ready');
+beginBtn.disabled = false;
+beginBtn.dataset.state = 'ready';
+beginBtn.textContent = 'Begin survey';
+startEl.dataset.state = 'ready';
+beginBtn.addEventListener('click', begin);
+window.addEventListener('keydown', (e) => {
+  if (!started && (e.code === 'Enter' || e.code === 'Space')) begin();
+});
+
+
+/* Warm the terrain around the spawn point before the first frame is shown.
+   The tree is bounded now, so this genuinely finishes rather than chasing an
+   unbounded stream.
+   AFTER the start card is wired, deliberately. This is a third of a second of
+   leaf building and it used to sit between the world being ready and the button
+   being live, which is a third of a second in which the game is playable and
+   the only control on screen does nothing. Nobody can see the terrain yet — the
+   card is over it. */
+MK('boot:restore');
 world.warm(surface.frame.up);
+MK('boot:warm');
 
 // ---- feel ----------------------------------------------------------------
 // Impacts move the camera, not the vehicle.
@@ -544,34 +615,11 @@ function setMuted(m) {
   hud.say(m ? 'SOUND OFF' : 'SOUND ON', m ? 'warn' : 'good');
 }
 
-// ---- start card ---------------------------------------------------------
-
-const startEl = document.getElementById('start');
-const beginBtn = document.getElementById('begin');
-
-function begin() {
-  if (started) return;
-  started = true;
-  // A context can only be created inside a gesture, which is exactly what
-  // this is.
-  // No toast here: starting the session is not a mute state change, and the
-  // first thing you see should not be the HUD telling you the sound is on.
-  sound.start();
-  emit('ui', { kind: 'confirm' });
-  startEl.classList.add('gone');
-  canvas.focus();
-  setTimeout(() => { startEl.style.display = 'none'; }, 500);
-  // What happened while the tab was shut, once, now that there is someone to
-  // tell. Held since boot — see the load block.
-  if (awayReport) { emit('away', awayReport); awayReport = null; }
-}
-
-beginBtn.addEventListener('click', begin);
-window.addEventListener('keydown', (e) => {
-  if (!started && (e.code === 'Enter' || e.code === 'Space')) begin();
-});
-
-document.body.classList.add('ready');
+/* The HUD used to come up here, the moment the boot finished - which is now
+   a moment the player can see, because the world renders behind the title
+   card while they read it. Instrument panels over a title card are clutter
+   reading a game nobody has started. It goes up with the session instead;
+   see begin(). */
 
 // Exposed for tuning from the console — ROVER.sinkDepth and friends are the
 // dials most likely to be argued with after a first drive.

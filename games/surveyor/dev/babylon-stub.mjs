@@ -257,6 +257,8 @@ class RawTexture extends Texture {
     Object.assign(t, { data, width: w, height: h });
     return t;
   }
+  // preview.js writes its rows one at a time and pushes each one up.
+  update(data) { this.data = data; }
 }
 class RenderTargetTexture extends Texture {
   constructor(name, size, scene) {

@@ -198,93 +198,125 @@ function colourAt(out, dir, planet, COL, SK, maxDepth, melt, h, slope,
  *
  * Returns { texture, slot, rows, ms } — `slot` maps a planet key to its row.
  */
+/**
+ * One planet's row, written into the shared atlas buffer.
+ *
+ * Pulled out of the loop it used to be so it can be driven one row at a time.
+ * The cost is the height field at 2-4us a sample, twice over 128x64 texels, and
+ * that comes to about 50ms per world — six of them in a row is a third of a
+ * second, which used to be spent in front of the start card with the screen
+ * still black. See `previews` below.
+ */
+function bakeRow(data, row, key) {
+  const W = PREVIEW.width, H = PREVIEW.height;
+  const px = [0, 0, 0, 0];
+  const dir = { x: 0, y: 0, z: 0 };
+  const planet = makePlanet(PLANETS[key]);
+  const COL = paletteOf(planet);
+  const SK = skyOf(planet);
+  const maxDepth = Math.max(3, planet.relief * 0.42);
+  const melt = meltDepth(planet);
+
+  /* Height first, the whole row, then colour.
+     Two passes because slope is a finite difference and needs its neighbours:
+     one height() call per texel instead of five, which on a field costing
+     2-4us a call is the difference between a bake you can afford at boot and
+     one you cannot. */
+  const h = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) {
+    const lat = (0.5 - (y + 0.5) / H) * Math.PI;
+    const cl = Math.cos(lat), sl = Math.sin(lat);
+    for (let x = 0; x < W; x++) {
+      const lon = ((x + 0.5) / W) * Math.PI * 2 - Math.PI;
+      dir.x = cl * Math.cos(lon); dir.y = sl; dir.z = cl * Math.sin(lon);
+      h[y * W + x] = height(dir, planet);
+    }
+  }
+
+  // Metres of arc between neighbouring samples, which is what turns a height
+  // difference into a gradient. Longitude steps shorten toward the poles.
+  const dLat = (Math.PI * planet.radius) / H;
+  // The same step in radians, for the sub-texel fissure sampling below.
+  const dLonRad = (Math.PI * 2) / W, dLatRad = Math.PI / H;
+  // That planet's own sun, for the relief shading. Its own, not this one's:
+  // the crevasse that is in shadow on Vault is in shadow on Vault's disc.
+  const sv = SK.sunDir, sl0 = Math.hypot(sv[0], sv[1], sv[2]) || 1;
+  const sun = { x: sv[0] / sl0, y: sv[1] / sl0, z: sv[2] / sl0 };
+  for (let y = 0; y < H; y++) {
+    const lat = (0.5 - (y + 0.5) / H) * Math.PI;
+    const cl = Math.cos(lat), sl = Math.sin(lat);
+    const dLon = Math.max(1e-3, (2 * Math.PI * planet.radius * Math.abs(cl)) / W);
+    const yUp = y > 0 ? y - 1 : y;
+    const yDn = y < H - 1 ? y + 1 : y;
+    for (let x = 0; x < W; x++) {
+      const lon = ((x + 0.5) / W) * Math.PI * 2 - Math.PI;
+      dir.x = cl * Math.cos(lon); dir.y = sl; dir.z = cl * Math.sin(lon);
+      // Longitude wraps; latitude clamps at the poles.
+      const gx = (h[y * W + ((x + 1) % W)] - h[y * W + ((x + W - 1) % W)]) / (2 * dLon);
+      const gy = (h[yDn * W + x] - h[yUp * W + x]) / (Math.max(1, yDn - yUp) * dLat);
+      const g = Math.hypot(gx, gy);
+
+      /* The ground's normal, for the relief shading.
+         The local frame falls straight out of the parameterisation: east is
+         d(dir)/d(lon) normalised, north is d(dir)/d(lat), and both are unit
+         already. `gy` above runs down the image, which is SOUTH, so it enters
+         with the sign flipped. A heightfield's normal is then up minus the
+         gradient laid along the two tangents. */
+      const eX = -Math.sin(lon), eZ = Math.cos(lon);
+      const nX = -sl * Math.cos(lon), nY = cl, nZ = -sl * Math.sin(lon);
+      let Nx = dir.x - eX * gx + nX * gy;
+      let Ny = dir.y + nY * gy;
+      let Nz = dir.z - eZ * gx + nZ * gy;
+      const nl = Math.hypot(Nx, Ny, Nz) || 1;
+      Nx /= nl; Ny /= nl; Nz /= nl;
+      const nSun = Nx * sun.x + Ny * sun.y + Nz * sun.z;
+      const upSun = dir.x * sun.x + dir.y * sun.y + dir.z * sun.z;
+
+      // slope in the terrain shader is 1 - dot(N, up), and for a heightfield
+      // dot(N, up) is exactly 1 / sqrt(1 + |grad|^2).
+      colourAt(px, dir, planet, COL, SK, maxDepth, melt,
+        h[y * W + x], 1 - 1 / Math.sqrt(1 + g * g), lon, lat, dLonRad, dLatRad,
+        g, dLat, nSun, upSun);
+      const o = ((row * H + y) * W + x) * 4;
+      data[o] = clamp01(px[0]) * 255;
+      data[o + 1] = clamp01(px[1]) * 255;
+      data[o + 2] = clamp01(px[2]) * 255;
+      data[o + 3] = clamp01(px[3]) * 255;
+    }
+  }
+}
+
+/**
+ * Bake every world into one atlas: PREVIEW.width across, one PREVIEW.height row
+ * per planet, equirectangular — u is longitude, v is latitude within the row.
+ *
+ * Equirectangular rather than a per-disc orthographic face because a world is
+ * seen from five different directions and this is the projection that serves
+ * all five out of one bake. It over-samples the poles; that is the price.
+ *
+ * Returns { texture, slot, rows, ms } — `slot` maps a planet key to its row.
+ * ALL SIX ROWS AT ONCE, synchronously. Nothing in the game calls this any more;
+ * it is what a harness wants when it needs the atlas finished before it looks.
+ */
 export function bakePreviews(scene) {
   const clock = typeof performance !== 'undefined' ? performance : Date;
   const t0 = clock.now();
-  const W = PREVIEW.width, H = PREVIEW.height;
   const keys = Object.keys(PLANETS);
+  const handle = emptyAtlas(scene, keys);
+  keys.forEach((key, row) => bakeRow(handle.data, row, key));
+  if (handle.texture.update) handle.texture.update(handle.data);
+  handle.baked = keys.length;
+  handle.done = true;
+  handle.ms = clock.now() - t0;
+  return handle;
+}
+
+/** The atlas as one texture of the right shape, with nothing in it yet. */
+function emptyAtlas(scene, keys) {
+  const W = PREVIEW.width, H = PREVIEW.height;
   const data = new Uint8Array(W * H * keys.length * 4);
   const slot = {};
-  const px = [0, 0, 0, 0];
-  const dir = { x: 0, y: 0, z: 0 };
-
-  keys.forEach((key, row) => {
-    slot[key] = row;
-    const planet = makePlanet(PLANETS[key]);
-    const COL = paletteOf(planet);
-    const SK = skyOf(planet);
-    const maxDepth = Math.max(3, planet.relief * 0.42);
-    const melt = meltDepth(planet);
-
-    /* Height first, the whole row, then colour.
-       Two passes because slope is a finite difference and needs its neighbours:
-       one height() call per texel instead of five, which on a field costing
-       2-4us a call is the difference between a bake you can afford at boot and
-       one you cannot. */
-    const h = new Float32Array(W * H);
-    for (let y = 0; y < H; y++) {
-      const lat = (0.5 - (y + 0.5) / H) * Math.PI;
-      const cl = Math.cos(lat), sl = Math.sin(lat);
-      for (let x = 0; x < W; x++) {
-        const lon = ((x + 0.5) / W) * Math.PI * 2 - Math.PI;
-        dir.x = cl * Math.cos(lon); dir.y = sl; dir.z = cl * Math.sin(lon);
-        h[y * W + x] = height(dir, planet);
-      }
-    }
-
-    // Metres of arc between neighbouring samples, which is what turns a height
-    // difference into a gradient. Longitude steps shorten toward the poles.
-    const dLat = (Math.PI * planet.radius) / H;
-    // The same step in radians, for the sub-texel fissure sampling below.
-    const dLonRad = (Math.PI * 2) / W, dLatRad = Math.PI / H;
-    // That planet's own sun, for the relief shading. Its own, not this one's:
-    // the crevasse that is in shadow on Vault is in shadow on Vault's disc.
-    const sv = SK.sunDir, sl0 = Math.hypot(sv[0], sv[1], sv[2]) || 1;
-    const sun = { x: sv[0] / sl0, y: sv[1] / sl0, z: sv[2] / sl0 };
-    for (let y = 0; y < H; y++) {
-      const lat = (0.5 - (y + 0.5) / H) * Math.PI;
-      const cl = Math.cos(lat), sl = Math.sin(lat);
-      const dLon = Math.max(1e-3, (2 * Math.PI * planet.radius * Math.abs(cl)) / W);
-      const yUp = y > 0 ? y - 1 : y;
-      const yDn = y < H - 1 ? y + 1 : y;
-      for (let x = 0; x < W; x++) {
-        const lon = ((x + 0.5) / W) * Math.PI * 2 - Math.PI;
-        dir.x = cl * Math.cos(lon); dir.y = sl; dir.z = cl * Math.sin(lon);
-        // Longitude wraps; latitude clamps at the poles.
-        const gx = (h[y * W + ((x + 1) % W)] - h[y * W + ((x + W - 1) % W)]) / (2 * dLon);
-        const gy = (h[yDn * W + x] - h[yUp * W + x]) / (Math.max(1, yDn - yUp) * dLat);
-        const g = Math.hypot(gx, gy);
-
-        /* The ground's normal, for the relief shading.
-           The local frame falls straight out of the parameterisation: east is
-           d(dir)/d(lon) normalised, north is d(dir)/d(lat), and both are unit
-           already. `gy` above runs down the image, which is SOUTH, so it enters
-           with the sign flipped. A heightfield's normal is then up minus the
-           gradient laid along the two tangents. */
-        const eX = -Math.sin(lon), eZ = Math.cos(lon);
-        const nX = -sl * Math.cos(lon), nY = cl, nZ = -sl * Math.sin(lon);
-        let Nx = dir.x - eX * gx + nX * gy;
-        let Ny = dir.y + nY * gy;
-        let Nz = dir.z - eZ * gx + nZ * gy;
-        const nl = Math.hypot(Nx, Ny, Nz) || 1;
-        Nx /= nl; Ny /= nl; Nz /= nl;
-        const nSun = Nx * sun.x + Ny * sun.y + Nz * sun.z;
-        const upSun = dir.x * sun.x + dir.y * sun.y + dir.z * sun.z;
-
-        // slope in the terrain shader is 1 - dot(N, up), and for a heightfield
-        // dot(N, up) is exactly 1 / sqrt(1 + |grad|^2).
-        colourAt(px, dir, planet, COL, SK, maxDepth, melt,
-          h[y * W + x], 1 - 1 / Math.sqrt(1 + g * g), lon, lat, dLonRad, dLatRad,
-          g, dLat, nSun, upSun);
-        const o = ((row * H + y) * W + x) * 4;
-        data[o] = clamp01(px[0]) * 255;
-        data[o + 1] = clamp01(px[1]) * 255;
-        data[o + 2] = clamp01(px[2]) * 255;
-        data[o + 3] = clamp01(px[3]) * 255;
-      }
-    }
-  });
-
+  keys.forEach((key, row) => { slot[key] = row; });
   const tex = BABYLON.RawTexture.CreateRGBATexture(
     data, W, H * keys.length, scene,
     false,            // no mipmaps: the disc magnifies this, it never minifies it
@@ -295,18 +327,46 @@ export function bakePreviews(scene) {
   tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
   tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
   tex.anisotropicFilteringLevel = 1;
-
-  return { texture: tex, slot, rows: keys.length, ms: clock.now() - t0 };
+  return { texture: tex, data, slot, rows: keys.length, ms: 0, baked: 0, done: false };
 }
 
+/* Off the main thread's critical path, one row at a time.
+   `setTimeout(0)` rather than requestIdleCallback: idle callbacks can be
+   deferred for a long time on a busy tab and the discs would sit blank while
+   the browser decided it was busy. A zero timeout yields to paint and input
+   between rows, which is the whole requirement, and the six rows are finished
+   inside the first second of a session nobody has started yet. */
+const soon = (fn) => setTimeout(fn, 0);
+
 /* One set for the whole session, and ONE bake.
-   Everything goes through here — main.js at boot and every world's Discs after
-   it — because two callers of bakePreviews() would pay the cost twice and hold
-   two atlases for identical worlds. main.js calls it first so that cost lands
-   in front of the start card, where it can be measured, rather than in the
-   middle of building the first world. */
+   Everything goes through here — every world's Discs, and whatever asks first —
+   because two callers would pay the cost twice and hold two atlases for
+   identical worlds.
+
+   PROGRESSIVE, since the boot pass. This used to bake all six rows before it
+   returned, called from main.js explicitly so the cost landed "in front of the
+   start card, where there is nothing to stall". That was wrong about the one
+   thing that mattered: the start card is markup the browser has already parsed
+   and cannot paint while this is running, so a third of a second of bake was a
+   third of a second of black screen. The texture is created immediately and
+   the rows fill in behind it; a disc drawn before its row exists is a dark
+   coin for a frame or two, on a screen nobody has started playing on yet. */
 let cached = null;
 export function previews(scene) {
-  if (!cached && scene) cached = bakePreviews(scene);
-  return cached;
+  if (cached || !scene) return cached;
+  const keys = Object.keys(PLANETS);
+  const clock = typeof performance !== 'undefined' ? performance : Date;
+  const handle = emptyAtlas(scene, keys);
+  cached = handle;
+  let row = 0;
+  const step = () => {
+    const t0 = clock.now();
+    bakeRow(handle.data, row, keys[row]);
+    handle.ms += clock.now() - t0;
+    handle.baked = ++row;
+    if (handle.texture.update) handle.texture.update(handle.data);
+    if (row < keys.length) soon(step); else handle.done = true;
+  };
+  soon(step);
+  return handle;
 }

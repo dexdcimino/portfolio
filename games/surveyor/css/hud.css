@@ -39,32 +39,34 @@ html, body {
   touch-action: none;
 }
 
-/* ---- THE POINTER IS AN INSTRUMENT ----
+/* ---- THE POINTER ----
    The system arrow is a dark glyph with a thin white keyline, and on Vault's
    ice and Tarn's pale shallows that keyline is the only thing separating it
-   from the ground — it vanishes outright over a bright shoreline, which is
-   exactly where you are aiming when you drop a beacon.
+   from the ground — it vanishes outright over a bright shoreline.
 
-   So it is drawn here, as a survey reticle: chart line-work, cyan, and CENTRED
-   on the hotspot rather than hanging below and right of it, which is the other
-   half of why the arrow was hard to aim with in a game that has no crosshair.
+   So it is drawn here, in the game's own line-work: an OUTLINED arrow, cyan,
+   with the tip as the hotspot. It replaces a centred circle-and-ticks reticle,
+   which was built on the assumption that the mouse aims something. It does not:
+   the craft is driven on WASD, and the pointer's whole job is the HUD, the warp
+   row and the pause menu. A reticle over a game with no crosshair is an
+   instrument reading nothing, and it read as one.
 
-   VISIBLE ON BOTH GROUNDS BY CONSTRUCTION, not by picking a lucky colour. Every
-   stroke is drawn twice: a 3.6px casing in --ink first, then the 1.5px cyan
-   line on top of it. That leaves about a pixel of near-black either side of
-   every cyan stroke, so the shape carries its own contrast onto whatever it is
-   over. A single flat colour cannot do that, and a white one fails on Vault the
-   same way the arrow does.
+   VISIBLE ON BOTH GROUNDS BY CONSTRUCTION, not by picking a lucky colour, and
+   this part is kept exactly as it was. The outline is drawn twice: a 3.4px
+   casing in --ink first, then the 1.4px cyan line on top of it. That leaves
+   about a pixel of near-black either side of every cyan stroke, so the shape
+   carries its own contrast onto whatever it is over. A single flat colour
+   cannot do that, and a white one fails on Vault the same way the arrow does.
 
    Inline SVG in a data: URI — no file, no request, and the games CSP allows it
    (`img-src 'self' data: blob:`, which is what a CSS cursor image is checked
    against). Each declaration ends in a keyword, so a browser that refuses the
-   data URI falls back to `crosshair`/`pointer` rather than to nothing.
+   data URI falls back to `default`/`pointer` rather than to nothing.
 
-   28px against a ~20px system arrow, hotspot dead centre at 14 14. */
+   28px against a ~20px system arrow, hotspot at the tip, 4 4. */
 :root {
-  --cur-reticle: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='28'%3E%3Cg%20fill='none'%20stroke-linecap='round'%3E%3Cg%20stroke='%23070c0f'%20stroke-opacity='.85'%20stroke-width='3.6'%3E%3Cpath%20d='M14%201.8v5.2M14%2021v5.2M1.8%2014h5.2M21%2014h5.2'/%3E%3Ccircle%20cx='14'%20cy='14'%20r='5.4'/%3E%3C/g%3E%3Cg%20stroke='%232be0c8'%20stroke-width='1.5'%3E%3Cpath%20d='M14%201.8v5.2M14%2021v5.2M1.8%2014h5.2M21%2014h5.2'/%3E%3Ccircle%20cx='14'%20cy='14'%20r='5.4'/%3E%3C/g%3E%3C/g%3E%3Ccircle%20cx='14'%20cy='14'%20r='1.3'%20fill='%232be0c8'%20stroke='%23070c0f'%20stroke-width='1'/%3E%3C/svg%3E") 14 14, crosshair;
-  --cur-target: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='28'%3E%3Cg%20stroke-linecap='round'%3E%3Cg%20fill='none'%20stroke='%23070c0f'%20stroke-opacity='.85'%20stroke-width='3.6'%3E%3Cpath%20d='M14%203.4v3.4M14%2021.2v3.4M3.4%2014h3.4M21.2%2014h3.4'/%3E%3Ccircle%20cx='14'%20cy='14'%20r='6.4'/%3E%3C/g%3E%3Ccircle%20cx='14'%20cy='14'%20r='6.4'%20fill='%232be0c8'%20fill-opacity='.22'/%3E%3Cg%20fill='none'%20stroke='%232be0c8'%20stroke-width='1.6'%3E%3Cpath%20d='M14%203.4v3.4M14%2021.2v3.4M3.4%2014h3.4M21.2%2014h3.4'/%3E%3Ccircle%20cx='14'%20cy='14'%20r='6.4'/%3E%3C/g%3E%3C/g%3E%3Ccircle%20cx='14'%20cy='14'%20r='1.9'%20fill='%232be0c8'%20stroke='%23070c0f'%20stroke-width='1'/%3E%3C/svg%3E") 14 14, pointer;
+  --cur-reticle: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='28'%3E%3Cg%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cg%20stroke='%23070c0f'%20stroke-opacity='.88'%20stroke-width='3.4'%3E%3Cpath%20d='M3.6%203.6V19.4L8.3%2015.1%2011.6%2022.4%2014.8%2020.9%2011.4%2013.8%2017.6%2013.4Z'/%3E%3C/g%3E%3Cg%20stroke='%232be0c8'%20stroke-width='1.4'%3E%3Cpath%20d='M3.6%203.6V19.4L8.3%2015.1%2011.6%2022.4%2014.8%2020.9%2011.4%2013.8%2017.6%2013.4Z'/%3E%3C/g%3E%3C/g%3E%3Ccircle%20cx='3.6'%20cy='3.6'%20r='1.15'%20fill='%232be0c8'/%3E%3C/svg%3E") 4 4, default;
+  --cur-target: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='28'%3E%3Cpath%20d='M3.6%203.6V19.4L8.3%2015.1%2011.6%2022.4%2014.8%2020.9%2011.4%2013.8%2017.6%2013.4Z'%20fill='%232be0c8'%20fill-opacity='.24'/%3E%3Cg%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cg%20stroke='%23070c0f'%20stroke-opacity='.88'%20stroke-width='3.4'%3E%3Cpath%20d='M3.6%203.6V19.4L8.3%2015.1%2011.6%2022.4%2014.8%2020.9%2011.4%2013.8%2017.6%2013.4Z'/%3E%3C/g%3E%3Cg%20stroke='%232be0c8'%20stroke-width='1.8'%3E%3Cpath%20d='M3.6%203.6V19.4L8.3%2015.1%2011.6%2022.4%2014.8%2020.9%2011.4%2013.8%2017.6%2013.4Z'/%3E%3C/g%3E%3C/g%3E%3Ccircle%20cx='3.6'%20cy='3.6'%20r='1.15'%20fill='%232be0c8'/%3E%3C/svg%3E") 4 4, pointer;
 }
 
 html, body, #stage { cursor: var(--cur-reticle); }
@@ -750,12 +752,39 @@ body.ready #hud { opacity: 1; }
   display: grid;
   place-items: center;
   padding: 20px;
+  /* The scrim and the chart grid. The PLACE is behind them — see ::before. */
   background:
-    linear-gradient(rgba(7, 12, 15, 0.86), rgba(7, 12, 15, 0.94)),
+    linear-gradient(rgba(7, 12, 15, 0.72), rgba(7, 12, 15, 0.90)),
     repeating-linear-gradient(0deg, rgba(43, 224, 200, 0.07) 0 1px, transparent 1px 26px),
     repeating-linear-gradient(90deg, rgba(43, 224, 200, 0.07) 0 1px, transparent 1px 26px);
   transition: opacity 480ms ease;
 }
+
+/* THE WORLD, WHILE THERE IS NOT ONE YET.
+   The canvas behind this card is black until the engine has compiled and a
+   planet has been built, and a black screen behind a title card reads as a
+   game that has failed to start rather than one that is starting. So the card
+   sits on a photograph of Home instead: 1440px, blurred, 11KB of WebP, which
+   is cheaper than a third of a second of anything.
+
+   Deliberately soft. It is a backdrop under a scrim behind a card, so detail is
+   noise — and blurring it is most of why it fits in 11KB.
+
+   It STAYS UP until Begin. Fading it out when the world was ready was tried
+   and is worse: what is behind the card at that point is the spawn, at ground
+   level, in whatever light the world opens in — a dull view of a hillside, not
+   a composed one. The photograph is a title card's backdrop and it is chosen;
+   the live frame is neither. Behind the scrim rather than in it, so it can be
+   dimmed without dimming the grid over it. */
+#start::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: #070c0f url("../assets/ui/start.webp") center / cover no-repeat;
+  transition: opacity 900ms ease;
+}
+
 #start.gone { opacity: 0; pointer-events: none; }
 
 #card {
@@ -764,20 +793,40 @@ body.ready #hud { opacity: 1; }
   padding: clamp(26px, 4.4vw, 46px) clamp(22px, 4vw, 44px) clamp(20px, 3.2vw, 34px);
   background: rgba(9, 19, 23, 0.90);
   border: 1px solid var(--edge);
+  border-radius: 18px;
+  /* Now that it is a rounded panel floating over a photograph rather than a
+     hard-edged plate over black, it needs to sit off the backdrop rather than
+     be cut into it. A shadow, and NOT a backdrop-filter: a 3px blur here was
+     tried and cost 1.3 SECONDS on the WebGL context creation, because the
+     compositor has to keep a readback of a full-screen backdrop layer and that
+     contends with the engine coming up behind it. Measured — Begin went live at
+     2.4s with the blur and 1.0s without, and the card itself painted at 210ms
+     against 70ms. The prettiest thing on the loading screen was the loading. */
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
 }
 /* Corner ticks — the chart device, in CSS so the folder stays asset-free.
    Two pseudo-elements on opposite corners is enough to read as a plotted
-   frame; four would be drawing a box around a box. */
+   frame; four would be drawing a box around a box.
+   They carry the card's radius on their own outer corner, so the device
+   survives the rounding instead of fighting it. */
 #card::before,
 #card::after {
   content: "";
   position: absolute;
-  width: 15px;
-  height: 15px;
+  width: 26px;
+  height: 26px;
   border: 2px solid var(--phos);
 }
-#card::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
-#card::after { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
+#card::before {
+  top: -1px; left: -1px;
+  border-right: 0; border-bottom: 0;
+  border-top-left-radius: 18px;
+}
+#card::after {
+  right: -1px; bottom: -1px;
+  border-left: 0; border-top: 0;
+  border-bottom-right-radius: 18px;
+}
 
 #card h1 {
   margin: 0;
@@ -864,8 +913,44 @@ body.ready #hud { opacity: 1; }
   cursor: var(--cur-target);
   transition: background 160ms ease, transform 160ms ease;
 }
+#begin { border-radius: 10px; }
 #begin:hover { background: var(--bone); transform: translateY(-1px); }
 #begin:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+
+/* WHILE THE ENGINE IS STILL COMPILING. js/boot.js puts the button here before
+   main.js exists and main.js takes it out again the moment Begin actually
+   works — see the note there. A control that looks pressable and is not is the
+   one thing worse than a slow load, because the player presses it and concludes
+   the game is broken. The bar underneath is indeterminate on purpose: the boot
+   has no honest progress figure, and inventing one is a lie that gets caught. */
+#begin[disabled] {
+  color: rgba(242, 246, 230, 0.62);
+  background: rgba(43, 224, 200, 0.14);
+  cursor: var(--cur-reticle);
+  position: relative;
+  overflow: hidden;
+}
+#begin[disabled]:hover { background: rgba(43, 224, 200, 0.14); transform: none; }
+#begin[disabled]::after {
+  content: "";
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 34%;
+  height: 2px;
+  background: var(--phos);
+  animation: beginwait 1150ms ease-in-out infinite;
+}
+#begin[data-state="failed"] { background: rgba(224, 86, 74, 0.22); }
+#begin[data-state="failed"]::after { animation: none; width: 100%; opacity: 0.35; }
+
+@keyframes beginwait {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(330%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #begin[disabled]::after { animation: none; width: 100%; opacity: 0.45; }
+  #start::before { transition: none; }
+}
 
 /* Where the other seven bindings went. Quiet on purpose: it is a signpost,
    not an instruction, and the button above is the only thing being asked for. */
