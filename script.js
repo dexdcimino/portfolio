@@ -296,12 +296,16 @@ const faviconSvg = document.getElementById('faviconSvg');
    hatch for anyone who needs the OS cursor (large, inverted, high-contrast). */
 const CURSOR_KEY = 'dex-cursor';
 const CURSOR_PATHS = {
-  arrow: { d: 'M6 4l10 20 2.5-8.5L27 13z', hot: '6 4', fallback: 'auto' },
-  // A simplified pointing hand: same line weight, same casing, but nobody
-  // mistakes it for the arrow. The hotspot is the fingertip.
+  // Rotated ~20° clockwise ABOUT THE TIP from the original upright form, so
+  // the left edge hangs near-vertical the way every OS arrow does. Rotating
+  // about the tip is what keeps the hotspot exactly on it.
+  arrow: { d: 'M6 4l2.56 22.21 5.25-7.13L22.66 19.64z', hot: '6 4', fallback: 'auto' },
+  // The standard pointing hand: index extended, three folded knuckles, the
+  // thumb tucked across. Same line weight, same casing; the hotspot is the
+  // fingertip.
   pointer: {
-    d: 'M13.2 14V5.4a1.8 1.8 0 0 1 3.6 0v6l4.9 1.3a2.4 2.4 0 0 1 1.8 2.6l-.6 4.2a3.8 3.8 0 0 1-3.8 3.3h-4.3a4.4 4.4 0 0 1-3.3-1.5l-3.2-3.7 1.7-1.6a2.4 2.4 0 0 1 2.8-.4z',
-    hot: '15 4', fallback: 'pointer',
+    d: 'M12.9 3.3a1.7 1.7 0 0 1 1.7 1.7v5.3a1.55 1.55 0 0 1 3.1.2v.9a1.5 1.5 0 0 1 3 .3v.9a1.45 1.45 0 0 1 2.9.5l-.2 6.7a6.8 6.8 0 0 1-6.7 6.1h-1.5a6.4 6.4 0 0 1-4.6-2l-3.4-4.1a1.85 1.85 0 0 1 2.6-2.6l1.4 1.2V5a1.7 1.7 0 0 1 1.7-1.7zM14.6 12.4v-1.9M17.7 12.9v-1.4M20.6 13.4v-.9',
+    hot: '13 3', fallback: 'pointer',
   },
   // The I-beam, for selectable copy and the form fields — the OS I-beam was
   // the one system cursor left on the page, and one system cursor in an
@@ -420,28 +424,41 @@ function buildAccentPicker() {
 
   accentHost.replaceChildren(frag);
   swatches = [...accentHost.querySelectorAll('.swatch')];
-  picker.style.setProperty('--rows', String(ACCENTS.length - 1));
+  // One extra row: the cursor toggle sits at the bottom of the open cascade.
+  picker.style.setProperty('--rows', String(ACCENTS.length));
 
-  /* The cursor toggle: far right of the row, after the swatches (and after
-     them in the tab order). No visible text — like the swatches — so the
-     aria-label IS its name. It lives here because the cursor is the accent:
-     anyone fiddling with appearance is already looking at this row, and it
-     is the escape hatch back to the OS cursor for anyone who relies on the
-     system's accessibility cursors. It stays visible while the picker docks
-     (.compact) — it is a control, not a label. */
+  /* The cursor toggle: last member of the swatch row, after the seven hexes
+     and after them in the tab order. It wears the SAME hexagon as the
+     swatches — dark, so it reads as part of the set while being obviously
+     not a colour — with the live arrow cursor drawn on top. No visible text,
+     like the swatches, so the aria-label IS its name. It lives here because
+     the cursor is the accent, and it is the escape hatch back to the OS
+     cursor for anyone relying on the system's accessibility cursors. While
+     the picker is docked it sits INSIDE the dropdown, at the bottom of the
+     cascade (--row after the last swatch); collapsed, only the active hex
+     shows, exactly as before. */
   const cursorBtn = document.createElement('button');
   cursorBtn.className = 'cursor-toggle';
   cursorBtn.type = 'button';
   cursorBtn.id = 'cursorToggle';
   cursorBtn.setAttribute('aria-label', 'Accent cursor: replace the system cursor with the site’s');
+  cursorBtn.style.setProperty('--row', String(ACCENTS.length));
   const cSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  cSvg.setAttribute('viewBox', '0 0 32 32');
+  cSvg.setAttribute('viewBox', '0 0 76 76');
   cSvg.setAttribute('aria-hidden', 'true');
+  const cHex = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  cHex.setAttribute('class', 'ct-hex');
+  cHex.setAttribute('d', roundedHexPath);
+  // The 32-box cursor artwork, scaled and centred on the 76-box hexagon.
+  const cG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  cG.setAttribute('transform', 'translate(16.5 13.8) scale(1.55)');
   const cPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  cPath.setAttribute('class', 'ct-glyph');
   cPath.setAttribute('d', CURSOR_PATHS.arrow.d);
-  cSvg.appendChild(cPath);
+  cG.appendChild(cPath);
+  cSvg.append(cHex, cG);
   cursorBtn.appendChild(cSvg);
-  picker.appendChild(cursorBtn);
+  accentHost.appendChild(cursorBtn);
 
   const applyCursorPref = (on, persist = true) => {
     document.documentElement.classList.toggle('dex-cursor', on);

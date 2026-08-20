@@ -696,27 +696,52 @@ html.dex-cursor :is(a,button,summary,[role="button"],[role="tab"],.ai-card)
    `button.` matters: it ties the pointer rule's (0,2,2) so source order wins. */
 html.dex-cursor button.app-art-view{cursor:zoom-in}
 
-/* The toggle: far right of the accent row, a control with no label — like
-   the swatches — so its state is its colour: accent-filled arrow when the
-   accent cursor is on, muted outline when the system cursor is in charge. */
+/* The toggle: the swatch row's last member, wearing the SAME hexagon as the
+   swatches but dark — a member of the set that is obviously not a colour.
+   The live arrow cursor sits centred on it; its state is its ink: accent
+   stroke with a soft accent fill when on, muted gray when the system cursor
+   is in charge. */
 .cursor-toggle{
-  width:30px;height:30px;padding:0;border:0;background:none;cursor:pointer;
-  display:grid;place-items:center;color:#8f979e;
-  transition:color var(--accent-ease),transform .18s ease;
+  width:var(--swatch);height:var(--swatch);padding:0;border:0;background:none;
+  cursor:pointer;display:grid;place-items:center;
+  transition:transform var(--accent-ease),opacity .2s ease;
 }
-.cursor-toggle svg{width:17px;height:17px;display:block;overflow:visible}
-.cursor-toggle svg path{
-  fill:none;stroke:currentColor;stroke-width:2.4;
+.cursor-toggle svg{display:block;width:100%;height:100%;overflow:visible}
+.cursor-toggle .ct-hex{
+  fill:#14181d;stroke:rgba(255,255,255,.22);stroke-width:3;
+  transition:stroke .2s ease;
+}
+.cursor-toggle .ct-glyph{
+  fill:none;stroke:#8f979e;stroke-width:2.2;
   stroke-linejoin:round;stroke-linecap:round;
   transition:fill .2s ease,stroke .2s ease;
 }
-.cursor-toggle[aria-pressed="true"]{color:var(--accent)}
-.cursor-toggle[aria-pressed="true"] svg path{fill:color-mix(in srgb,var(--accent) 30%,transparent)}
-.cursor-toggle:hover{transform:scale(1.15)}
+.cursor-toggle[aria-pressed="true"] .ct-glyph{
+  stroke:var(--accent);
+  fill:color-mix(in srgb,var(--accent) 28%,transparent);
+}
+.cursor-toggle[aria-pressed="true"] .ct-hex{stroke:color-mix(in srgb,var(--accent) 45%,transparent)}
+.cursor-toggle:hover{transform:scale(1.18)}
 .cursor-toggle:focus-visible{outline:2px solid var(--text);outline-offset:3px;border-radius:6px}
-/* Docked, the picker collapses to the active hex — the toggle is a control,
-   not a label, so it stays beside it (compact zeroes the row gap). */
-.accent-picker.compact .cursor-toggle{margin-left:8px}
+/* Docked: the toggle lives INSIDE the dropdown, at the bottom of the open
+   cascade (its --row sits one past the last swatch). Collapsed, it hides
+   with the rest — the docked state stays a single hexagon. The hex rotates
+   with the swatch hexes; the glyph must not, so only .ct-hex turns. */
+.accent-picker.compact .cursor-toggle{
+  position:absolute;top:0;left:0;
+  opacity:0;pointer-events:none;transform:scale(.55);
+  transition:transform .34s cubic-bezier(.22,.61,.36,1),opacity .2s ease;
+}
+.accent-picker.compact .cursor-toggle .ct-hex{transform:rotate(90deg);transform-origin:38px 38px}
+.accent-picker.compact.open .cursor-toggle{
+  opacity:1;pointer-events:auto;
+  transform:translateY(calc(var(--row,7) * var(--swatch-step)));
+  transition-delay:calc(var(--row,7) * 32ms);
+}
+.accent-picker.compact.open .cursor-toggle:hover{
+  transform:translateY(calc(var(--row,7) * var(--swatch-step))) scale(1.18);
+  transition-delay:0s;
+}
 
 /* ==========================================================================
    HERO

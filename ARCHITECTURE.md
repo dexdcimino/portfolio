@@ -32,9 +32,12 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   I-BEAM (`--dex-cursor-text`) covers selectable copy and the form fields,
   with text elements inside clickables inheriting the hand instead —
   toggled by the
-  `cursor-toggle` button after the swatches — accent-filled when on, muted
-  outline when off, `aria-pressed` + `aria-label` its only name, visible in
-  the docked `.compact` state too; deliberately NOT gated on
+  `cursor-toggle` button, the swatch row's LAST member — the same hexagon
+  as the swatches but dark, wearing the live arrow glyph (accent-inked when
+  on, muted when off), `aria-pressed` + `aria-label` its only name; docked,
+  it sits INSIDE the dropdown at the bottom of the cascade (`--row` one
+  past the last swatch, `--rows` = ACCENTS.length) while the collapsed
+  state stays a single hexagon; deliberately NOT gated on
   prefers-reduced-motion — the toggle is the escape hatch back to the OS
   accessibility cursors; the styles.css block re-asserts `zoom-in` on the
   shot view and keeps disabled things on the arrow. The game iframes adopt
