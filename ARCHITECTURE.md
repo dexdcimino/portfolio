@@ -72,6 +72,21 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   behind an open `dialog`, and `preventDefault()` is reached at exactly one
   point, after a claimant is found. A third player registers, it does not
   rewrite this.
+- `about-breakout.js` — ES module for the About section's Breakout toy,
+  loaded only by dynamic `import()`, never on the critical path, runs nothing
+  at import time. Pass 1 (measurement) is what exists: every glyph of the
+  second bio paragraph measured per character via Range rects (no spans,
+  ever — the `<p>` stays one text node), plus a transparent canvas overlay
+  with erase/redraw primitives. The paragraph is NEVER hidden or redrawn
+  wholesale: Canvas2D rasterises glyphs measurably brighter than Blink
+  rasterises the same font in the DOM (~13% more lit luminance, measured
+  2026-08-19), so intact letters stay real DOM text and the canvas only
+  paints opaque background patches over destroyed letters and glyphs in
+  motion. Erasing needs an opaque background behind the paragraph —
+  `engage()` fails loudly if the About section ever loses one. The `<p>`
+  stays in the accessible tree at all times (never hidden, never
+  aria-hidden; the canvas is), and every failure path — any error, resize,
+  a late font swap — restores the untouched text
 - `styles.css` — banner-delimited sections; icon system is baked CSS mask
   data-URIs (`tools/bake_icons.py`); accents are one `--accent` variable,
   never filter chains
