@@ -162,11 +162,21 @@ SLOTS = {
     ),
     # Clip posters. Same stage and therefore the same `sizes` as a wallpaper —
     # only the aspect differs (16:9 against 16:10), and aspect is a CSS concern,
-    # not a width one. They share the wallpaper ladder too: the sources are
-    # 1920 wide, so the 2560 rung is simply skipped for being above the master.
+    # not a width one. They share the wallpaper ladder too: a 1280-wide source
+    # simply skips every rung above it.
     "clip-poster": dict(
         ladder="wallpaper",
         sizes="(max-width:1100px) 92vw, min(56vw, 900px)",
+    ),
+    # A PORTRAIT clip in the same 16:9 frame. The frame does NOT change shape to
+    # fit it — that would make the plate and the thumbnail strip jump on every
+    # arrow press — so a 9:16 poster is pillarboxed inside it and renders about a
+    # third of the frame's width: the height x 9/16, where the height is itself
+    # the width x 9/16. Same place in the layout, very different rendered width,
+    # so it is its own slot rather than a lie told with the landscape `sizes`.
+    "clip-poster-portrait": dict(
+        ladder="wallpaper",
+        sizes="(max-width:1100px) 29vw, min(18vw, 285px)",
     ),
 }
 

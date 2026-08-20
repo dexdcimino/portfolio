@@ -2811,6 +2811,12 @@ const MediaBus = (() => {
     frame.querySelector('picture')?.remove();
     frame.insertBefore(item.querySelector('picture').cloneNode(true), frame.firstChild);
 
+    /* A clip that is not 16:9 is fitted into the frame rather than cropped to
+       it; the frame is shared, so the flag has to travel from the item onto it
+       and be cleared again for the next clip. */
+    if (item.dataset.fit) frame.dataset.fit = item.dataset.fit;
+    else delete frame.dataset.fit;
+
     title.textContent = item.dataset.title;
     meta.textContent = item.dataset.note || '';
     thumbs.forEach((b, n) => b.setAttribute('aria-selected', String(n === index)));

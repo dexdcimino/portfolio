@@ -42,9 +42,11 @@ standard ladder instead of the 2560-wide `wallpaper` one. Wiring the figures per
 1. Wire and bake the two new wallpapers; check the top rung against the 150 KB
    budget now the art is photographic rather than gradient.
 2. Retire the five placeholder wallpapers as real art replaces them.
-3. Clips: one real clip (Surveyor) streams from bunny.net. Its poster is
-   1280 wide, not 1920, because the uploaded master is 720p — a wider poster
-   needs a fresh 1080p render, not an upscale. More clips are one figure each.
+3. Clips: five stream from bunny.net. Every poster is Bunny's auto-generated
+   MIDPOINT frame, not one picked in the dashboard — the zone caches them for
+   30 days and no client-side cache-bust works, so they need re-setting and a
+   purge in Bunny. All masters are 720p, so posters top out at 1280 (600 for
+   the portrait one); a wider poster needs a fresh render, not an upscale.
 4. Work overlay is still the mockup — filler SVGs, no `work.json`.
 5. `CHANGELOG.md` and `README.md` last moved 2026-08-11, ~25 commits back;
    README still says V31 against a V33 changelog.
@@ -54,7 +56,8 @@ standard ladder instead of the 2560-wide `wallpaper` one. Wiring the figures per
 ## Decisions needed
 
 - The two new masters break the lowercase-hyphen slug rule. Rename, or relax it?
-- Re-render the Surveyor clip at 1080p for a full-width poster, or accept 1280?
+- Re-render the clips at 1080p for full-width posters, or accept 1280?
+- King Kong is 9:16 — pillarboxed in the 16:9 frame. Keep, or re-export 16:9?
 - Delete the five placeholder wallpapers now, or hold them until replaced?
 - YouTube and Instagram links in the sidebar are still `href="#"`.
 - Keep the V-number scheme in `CHANGELOG.md`, or log by date?

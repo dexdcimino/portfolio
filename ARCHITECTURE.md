@@ -173,16 +173,21 @@ that convention, not this hook, is what covers the adjacent case.
 
 ## Numbers
 
-7 accents (lime default) · 11 ladders / 15 slots in `image_slots.py` ·
-~50 generated markup blocks in index.html · fallback ladder
+7 accents (lime default) · 11 ladders / 16 slots in `image_slots.py` ·
+54 generated markup blocks in index.html · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
 
 ## Known-outstanding
 
 The Work overlay is a mockup (no `work.json`, filler SVGs — do not build on
-its taxonomy). The Clips tab carries one real clip; its poster is 1280 wide
-because the source is a 720p master, so the 1920 rung is skipped.
+its taxonomy). The Clips tab carries five clips. Every poster is baked at its
+clip's own resolution and never upscaled, so a 720p master simply skips the
+rungs above it — and every poster so far is Bunny's auto-generated midpoint
+frame, not the frame picked in the dashboard (its edge cache holds them for
+30 days; clearing it is a Bunny-side job). King Kong is 9:16 in a 16:9 frame:
+the frame never changes shape, so that clip carries `data-fit="contain"` and
+the `clip-poster-portrait` slot instead of being cropped to a third of itself.
 The Collab section is dormant — off the nav, content hidden behind
 an UNDER CONSTRUCTION plate — until the first collab repo exists. See
 `docs/STATUS.md` for the live list and open decisions.

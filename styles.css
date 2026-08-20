@@ -3249,6 +3249,14 @@ body.modal-open{overflow:hidden}
   opacity:0;transition:opacity .25s ease;background:#07090c;
 }
 .cl-frame.is-live .cl-video{opacity:1}
+/* A clip whose shape is not the frame's. The frame keeps its 16:9 — resizing it
+   per clip would make the plate, the controls and the thumbnail strip jump on
+   every arrow press — so the odd one out is fitted inside it instead of being
+   cropped to it. `cover` on a 9:16 clip in a 16:9 box shows barely a third of
+   the frame's height and throws the rest away. Set data-fit on the .cl-item and
+   select() carries it to the frame. */
+.cl-frame[data-fit="contain"] .cl-img,
+.cl-frame[data-fit="contain"] .cl-video{object-fit:contain}
 .cl-plate{padding:16px 18px}
 
 /* The big centre play button — the target people actually aim for. */

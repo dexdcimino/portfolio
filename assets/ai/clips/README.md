@@ -11,11 +11,11 @@ assets/derived/ai/clips/<slug>-*.avif|webp     generated, never hand-made
 
 ## Adding one
 
-1. Save a poster frame here as `<slug>.png`, 16:9 and at the clip's own
-   resolution. Bunny's chosen frame is `<video-id>/thumbnail.jpg` on the pull
-   zone, which is stored at the source's resolution — convert it to PNG, and do
-   **not** upscale it to reach a wider rung. The ladder skips any width above
-   the master, so a 720p clip simply tops out at 1280.
+1. Save a poster frame here as `<slug>.png`, at the clip's own resolution.
+   `<video-id>/thumbnail.jpg` on the pull zone is stored at the source's
+   resolution — convert it to PNG, and do **not** upscale it to reach a wider
+   rung. The ladder skips any width above the master, so a 720p clip tops out
+   at 1280 and a 720-wide portrait one at 600.
 2. Copy a `<figure class="cl-item">` in the Clips panel of `index.html` and set
    `data-title`, `data-note`, `data-src`, and the `src`/`alt` in the one-line
    `<!-- img ... -->` directive.
@@ -26,6 +26,42 @@ assets/derived/ai/clips/<slug>-*.avif|webp     generated, never hand-made
 ```
 https://vz-<pull-zone>.b-cdn.net/<video-id>/play_720p.mp4
 ```
+
+## ⚠ `thumbnail.jpg` is probably NOT the frame you picked
+
+Every poster pulled so far has matched the video at **exactly its midpoint**
+(t = duration/2, to within a frame). That is Bunny's auto-generated thumbnail,
+not a frame chosen in the dashboard. Setting one there does not necessarily
+reach you: the pull zone caches `thumbnail.jpg` for 30 days and ignores query
+strings for its cache key, so `?nocache=` will not bust it and neither will
+`Cache-Control: no-cache` — every request comes back `CDN-Cache: HIT`.
+
+Before trusting a poster, check which moment it matches. If it is the midpoint,
+say so and have the thumbnail re-set **and the zone cache purged** in Bunny
+rather than working around it from here. A `Last-Modified` within a minute of
+`CDN-CachedAt` is the auto-generator's signature: both are stamped when the
+encode finishes.
+
+## A clip that is not 16:9
+
+The frame is a fixed 16:9 box and **stays one**. Resizing it per clip makes the
+plate, the controls and the thumbnail strip jump on every arrow press, which is
+the same mistake the Work overlay's hero is warned about in CLAUDE.md.
+
+So an odd-shaped clip is fitted into the frame instead of cropped to it. Two
+things go on the figure and nothing else changes:
+
+```html
+<figure class="cl-item" data-title="King Kong" data-note="0:10" data-fit="contain"
+        data-src="...">
+  <!-- img src="assets/ai/clips/king-kong.png" slot="clip-poster-portrait" ... -->
+```
+
+`data-fit="contain"` is carried onto the shared frame by `select()` and switches
+both the poster and the video to `object-fit:contain`. Default is `cover`, which
+is right for 16:9 and would show barely a third of a 9:16 clip.
+`clip-poster-portrait` exists because a pillarboxed poster renders about a third
+of the frame's width — same place in the layout, very different `sizes`.
 
 ## ⚠ The CSP has to allow your pull zone
 
