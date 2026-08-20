@@ -48,6 +48,12 @@ const PHOTONVER = '-m12fixed';   // see the note above — do not invent a new o
 const argv = process.argv.slice(2);
 const flag = (n, d) => { const i = argv.indexOf('--' + n); return i >= 0 ? argv[i + 1] : d; };
 const SEEDS = flag('seed', '') ? [flag('seed', '')] : ['7', '1291', '4400'];
+/* `--only <text>` runs just the named shots. A gallery frame gets RE-shot far
+   more often than the set gets shot from scratch — one frame is rejected and
+   wants six more candidates — and the full run is four minutes a seed, most of
+   it waiting on the fuel tank to refill for shots nobody is looking at. */
+const ONLY = flag('only', '').toLowerCase();
+const wanted = (shot) => !ONLY || shot.toLowerCase().includes(ONLY);
 
 if (!existsSync(OUT)) mkdirSync(OUT, { recursive: true });
 
@@ -128,6 +134,150 @@ const LOOK = `(() => {
       locked: document.pointerLockElement?.tagName === 'CANVAS',
       paused: !document.getElementById('paused')?.classList.contains('hidden'),
     };
+  } catch (err) { return { err: String(err) }; }
+})()`;
+
+/* WHAT IS FILLING THE FRAME — the third thing a caption can lie about.
+   "Ground level, looking up" shipped for a while as a frame whose right half
+   was one pink crystal four metres from the lens: a real moment, honestly
+   captured, and a photograph of a rock. The vehicle guard and the altitude
+   guard could both pass on it, because neither is about what the picture is
+   OF. So this is the third assertion, and it is measured the same way and at
+   the same moment as the other two.
+   A grid of picking rays over the viewport, and the answer is the fraction of
+   the frame that is something within NEAR_M metres. Rays rather than bounding
+   spheres because a bounding sphere on a 7m crystal is 7m of nothing in three
+   directions, and the question is what is actually painted.
+   THE PREDICATE IS LOAD-BEARING TWICE. Babylon skips `isPickable:false`
+   meshes only when no predicate is given — crystals, rings and pebbles are all
+   marked unpickable for the sim's benefit, so without one this measures
+   everything EXCEPT the thing it was written to catch. And it is where the two
+   deliberate exclusions live: the viewmodel (`gb`/`gbar`/`gf`/`he` — the
+   player's own gun is in every frame by design and is the game's face, not an
+   obstruction) and the floor, which is not "in front of" anything.
+   The LOD proxies go too: `crysM*`/`crysL*` are clones Babylon draws through
+   the master's world matrix, so they are all still sitting at the origin and
+   a ray through the middle of the arena would hit sixty of them. */
+const NEAR_M = 18;
+const CLEAR = `(() => {
+  try {
+    const s = BABYLON.Engine.Instances[0].scenes[0];
+    const e = s.getEngine();
+    const W = e.getRenderWidth(), H = e.getRenderHeight();
+    const keep = (m) => m.isEnabled() && m.isVisible && m.isReady()
+      && !/^(gb|gbar|gf|he|ground|peb|crysM|crysL)/.test(m.name);
+    /* 24x14 = 336 rays, about half a second. Fine enough that a crystal
+       filling a fifth of the frame reads as a fifth, cheap enough to run at
+       every shutter and at every step of the walk that looks for a spot. */
+    const GX = 24, GY = 14;
+    let hit = 0, tot = 0, closest = 1e9, cname = '';
+    const by = new Map();
+    for (let iy = 0; iy < GY; iy++) for (let ix = 0; ix < GX; ix++) {
+      const p = s.pick((ix + 0.5) * W / GX, (iy + 0.5) * H / GY, keep);
+      tot++;
+      if (p && p.hit && p.distance < ${NEAR_M}) {
+        hit++;
+        by.set(p.pickedMesh.name, (by.get(p.pickedMesh.name) || 0) + 1);
+        if (p.distance < closest) { closest = p.distance; cname = p.pickedMesh.name; }
+      }
+    }
+    /* Both numbers are reported because they are different failures. "near"
+       is clutter — a dozen small things close in — and "worst" is the one
+       object that ate the frame, which is the thing that got rejected. */
+    let worst = ['nothing', 0];
+    for (const [n, c] of by) if (c > worst[1]) worst = [n, c];
+    return { near: +(hit / tot).toFixed(3), worst: worst[0],
+             worstFrac: +(worst[1] / tot).toFixed(3),
+             closest: closest > 1e8 ? null : +closest.toFixed(1), closestName: cname };
+  } catch (err) { return { err: String(err) }; }
+})()`;
+
+/* SOMEWHERE TO STAND WHERE THE SKY IS THE SUBJECT.
+   The crystal was not bad luck. Spawn is (0, 26) with a 12m carve around it,
+   the scatter band starts at 20m, and the looking-up shot was taken from
+   wherever the floor fight had left the player — so the nearest crystal was
+   reliably about one crystal-radius outside the carve and reliably enormous.
+   Rather than walk in a hopeful direction and re-measure, ask the level: score
+   floor positions by how far they are from anything with a footprint, and
+   walk to the best one that is not a hike. Blockers are read as bounding
+   spheres and the clearance is edge-to-edge, so a fat crystal counts as fat.
+   The two rejections are the rim (a wall 12m tall right beside you is the same
+   photograph) and the middle, where the 26m spire is. */
+const OPEN_SPOT = `(() => {
+  try {
+    const s = BABYLON.Engine.Instances[0].scenes[0];
+    const c = s.activeCamera;
+    const blockers = [];
+    for (const m of s.meshes) {
+      if (!m.isEnabled() || !m.isVisible) continue;
+      if (!/^(crys[0-9]+|pil[0-9]|cor[0-9]|spire|spireCap|slab[0-9]|padPlat[AB]|ramp[AB])$/
+          .test(m.name)) continue;
+      /* THE BOX, NOT THE SPHERE. A crystal is a unit icosphere scaled
+         (s, sy, s) with sy up to three times s, and boundingSphere.radiusWorld
+         is one number for all three axes — so a 2m-wide 7m-tall spike reads as
+         7m wide and 12m tall and every position in the arena scores as blocked.
+         The first cut of this returned "3.6 degrees of clear sky" for a spot
+         whose frame came back 0% obstructed. The world AABB has the two
+         extents this needs separately: how wide it is to walk around, and how
+         tall it is to look over. */
+      const bb = m.getBoundingInfo().boundingBox;
+      const lo = bb.minimumWorld, hi = bb.maximumWorld;
+      /* ON THE FLOOR, or it is scenery rather than an obstacle. The name
+         crys<n> covers the 64 crystals scattered over the arena AND the 54
+         more that dress the Ascent platforms, and the highest of those sits at
+         565m. Scored as if it stood in front of you, a crystal 300m up leaves
+         two degrees of clear sky ANYWHERE in the arena, which is how the first
+         two cuts of this managed to report a spot as hopeless and then
+         photograph a completely clear frame from it. */
+      if (lo.y > 6) continue;
+      blockers.push({ x: (lo.x + hi.x) / 2, z: (lo.z + hi.z) / 2,
+                      r: Math.max(hi.x - lo.x, hi.z - lo.z) / 2, top: hi.y });
+    }
+    let best = null;
+    for (let ring = 1; ring <= 7; ring++) {
+      const rad = ring * 6;
+      for (let k = 0; k < 24; k++) {
+        const a = k * Math.PI * 2 / 24;
+        const x = c.position.x + Math.cos(a) * rad, z = c.position.z + Math.sin(a) * rad;
+        const fromMid = Math.hypot(x, z);
+        /* THE BAND IS NOT "ANYWHERE CLEAR", and the first cut of this walked
+           straight out of the picture. The Ascent spirals between 18m and 74m
+           of the middle and climbs to 570m, so how much of it is overhead is
+           entirely a question of how far out you stand: from 72m the column is
+           a thing on the horizon and the frame is an empty orange sky, which
+           is a different bad photograph from the crystal but just as bad. From
+           20-42m it fills the upper half. The rim also stops mattering — the
+           walls are at an apothem of 86.6m, so 42m out is 44m of clearance
+           from the nearest one without having to score them. */
+        if (fromMid > 42 || fromMid < 20) continue;
+        /* THE SCORE IS AN ANGLE, not a distance, because the question is how
+           high the skyline sits and that is what a distance cannot answer. Ten
+           metres of clearance from a 3m crystal is open ground; ten metres
+           from the 26m spire is a wall. So each blocker is measured as the
+           ELEVATION of its top seen from here, and the spot keeps the worst
+           one — SKY is how many degrees of clear air there are above the
+           highest thing around you. It is also directly comparable with what
+           the camera does: the fov is 0.8 rad, so a look pitched up 50 degrees
+           has its bottom edge at 27, and a skyline under that is out of frame
+           entirely.
+           This is what seed 4400 needed. Scored on footprint alone it stood
+           23m from the middle, cleared every crystal, and the spire filled a
+           third of the frame — refused by maxNear, which is the guard
+           working and the shot lost. */
+        let sky = 90;
+        for (const b of blockers) {
+          const face = Math.max(0.5, Math.hypot(x - b.x, z - b.z) - b.r);
+          sky = Math.min(sky, 90 - Math.atan2(b.top, face) * 180 / Math.PI);
+        }
+        // A degree of sky is worth about seven metres of walking.
+        const score = sky - rad * 0.15;
+        if (!best || score > best.score) {
+          best = { x: +x.toFixed(2), z: +z.toFixed(2),
+                   sky: +sky.toFixed(1), walk: rad, score };
+        }
+      }
+    }
+    return best || { err: 'no floor position scored' };
   } catch (err) { return { err: String(err) }; }
 })()`;
 
@@ -257,12 +407,42 @@ async function take(page, opts) {
     throw new Error(`shot claims airborne but the player is at ${l.cam.y.toFixed(0)}m`
       + ` (wanted ${opts.minAlt}m) — the jetpack ran dry before the shutter`);
   }
+  /* `maxNear` is the same kind of promise as `minAlt`: a shot that says it is
+     looking UP is claiming the sky is what you see, and a frame half-filled by
+     a crystal is not that frame however honest the rest of it is. Refused here
+     rather than noticed on the sheet, because five lying captions have got
+     past a person looking at a sheet. */
+  let clear = null;
+  if (opts.maxNear != null) {
+    clear = await evaluate(page, CLEAR, 60000);
+    if (clear.err) throw new Error('clearance check failed: ' + clear.err);
+    if (clear.worstFrac > opts.maxNear) {
+      throw new Error(`${(clear.worstFrac * 100).toFixed(0)}% of the frame is `
+        + `${clear.worst} within ${NEAR_M}m (allowed ${(opts.maxNear * 100).toFixed(0)}%)`
+        + ` — the shot claims a clear look up`);
+    }
+    /* AND THE SAME OBSTRUCTION SPLIT IN TWO. The one-object cap alone passed a
+       frame with a crystal down the left and a platform through the middle,
+       12% each, because neither was the biggest thing on its own. Two things
+       blocking a quarter of the picture is the failure this exists to catch,
+       whatever the picking rays chose to call them. */
+    if (opts.maxClutter != null && clear.near > opts.maxClutter) {
+      throw new Error(`${(clear.near * 100).toFixed(0)}% of the frame is within `
+        + `${NEAR_M}m across ${clear.worst} and others `
+        + `(allowed ${(opts.maxClutter * 100).toFixed(0)}%)`
+        + ` — the shot claims a clear look up`);
+    }
+  }
   const inView = (l.seen || []).slice(0, 3).map((e) => e.kind).join('+') || 'nothing';
   const file = await roll.take(page, {
     ...opts,
-    note: `hp ${l.hp} · alt ${l.alt} · nearest: ${inView}${opts.note ? ' · ' + opts.note : ''}`,
+    note: `hp ${l.hp} · alt ${l.alt} · nearest: ${inView}`
+      + (clear ? ` · foreground ${(clear.near * 100).toFixed(0)}% (worst ${clear.worst} `
+        + `${(clear.worstFrac * 100).toFixed(0)}%)` : '')
+      + (opts.note ? ' · ' + opts.note : ''),
   });
-  console.log(`  ok  ${opts.shot} / ${opts.variant}  (hp ${l.hp}, alt ${l.alt}, near ${inView})`);
+  console.log(`  ok  ${opts.shot} / ${opts.variant}  (hp ${l.hp}, alt ${l.alt}, near ${inView}`
+    + (clear ? `, foreground ${(clear.near * 100).toFixed(0)}%` : '') + ')');
   return file;
 }
 
@@ -344,13 +524,41 @@ async function climb(page, input, ms = 2600) {
   };
 }
 
+/**
+ * Walk to a floor position, on foot, in legs.
+ *
+ * One long hold does not arrive: W runs along the camera's horizontal forward
+ * and the target is a fixed point, so any drift — a crystal shouldered aside,
+ * a pad, the slope off a ramp — compounds over ten metres. Re-aiming every leg
+ * is what a player does and costs nothing.
+ *
+ * The aim is LEVEL, at the target's ground position rather than at the target,
+ * for the same reason the wraith approach is: pitch does not steer, so aiming
+ * up runs you there looking at empty sky and the arrival is already wrong.
+ */
+async function walkTo(page, input, spot, { legs = 10, within = 3.5 } = {}) {
+  for (let leg = 0; leg < legs; leg++) {
+    const l = await evaluate(page, LOOK, 30000);
+    const left = Math.hypot(spot.x - l.cam.x, spot.z - l.cam.z);
+    if (left < within) return left;
+    await aimAt(page, input, { x: spot.x, y: l.cam.y, z: spot.z });
+    // Sprint the long legs, walk the last few — a dash overshoots a 4m gap.
+    await input.hold(left > 12 ? ['KeyW', 'ShiftLeft'] : ['KeyW'],
+      Math.min(900, Math.max(220, left * 70)));
+    await frames(page, 4);
+  }
+  const l = await evaluate(page, LOOK, 30000);
+  return Math.hypot(spot.x - l.cam.x, spot.z - l.cam.z);
+}
+
 for (const seed of SEEDS) {
   await run(seed, async (page, input) => {
     // ── 1. On the ground, looking at ground-level action ────────────────
     // Blobs hop across the arena floor and spikes patrol it; either is the
     // ground fight. Walk INTO it rather than sniping from spawn — the frame
     // wants the enemy at a size you can read.
-    let t = (await find(page, 'blob')) || (await find(page, 'spike'));
+    let t = wanted('Ground level — the floor fight')
+      ? (await find(page, 'blob')) || (await find(page, 'spike')) : null;
     if (t) {
       await aimAt(page, input, t);
       await act(page, input, { keys: ['KeyW'], fire: true, ms: 1500,
@@ -365,36 +573,92 @@ for (const seed of SEEDS) {
         shot: 'Ground level — the floor fight',
         variant: `seed ${seed} · dashing in close`,
         repro: `?seed=${seed} · aim at nearest ${t ? t.kind : 'enemy'} · W+Shift + fire 1.2s (shot held)` });
-    } else {
+    } else if (wanted('Ground level — the floor fight')) {
       console.log(`  --  seed ${seed}: no blob or spike in the scene for the ground shot`);
     }
 
-    // ── 2. On the ground, looking UP ────────────────────────────────────
-    // Wraiths orbit from 22m, so from the floor they are the sky threat that
-    // is actually close enough to read. The serpent gets its own frame from
-    // the air, below — squinting at one 90m up produced a handsome sunset
-    // with a few blue pixels in the corner, which is not "a shot with a
-    // serpent in it".
-    const wr = await find(page, 'wraith');
-    if (wr) {
-      await aimAt(page, input, wr);
-      await act(page, input, { keys: ['KeyA'], fire: true, ms: 1100,
-        shot: 'Ground level — looking up',
-        variant: `seed ${seed} · wraith overhead at ${wr.d}m`,
-        repro: `?seed=${seed} · aim at nearest wraith · A + fire 1.1s (shot held)` });
-    } else {
-      console.log(`  --  seed ${seed}: no wraith in the scene`);
-    }
+    /* ── 2. On the ground, looking UP ────────────────────────────────────
+       AND THE FIRST THING IT DOES IS WALK SOMEWHERE. This shot shipped once
+       with a pink crystal filling the right half of the frame, and that was
+       not bad luck: the floor fight above leaves the player somewhere in the
+       scatter band, the band starts 20m out with crystals up to 7m across, and
+       the look up was taken from wherever that happened to be. So find an open
+       piece of floor first, on the level's own terms, and photograph the sky
+       from there — then let `maxNear` refuse the frame anyway if the walk did
+       not work out.
 
-    // ...and the wide version of the same look, aimed up the column, which is
-    // the frame that shows the arena is 570m tall and not a room.
-    const serpFar = await find(page, 'serpent');
-    if (serpFar) {
-      await aimAt(page, input, serpFar);
-      await act(page, input, { ms: 800,
-        shot: 'Ground level — looking up',
-        variant: `seed ${seed} · up the column, serpent at ${serpFar.d}m`,
-        repro: `?seed=${seed} · aim at nearest serpent head (shot held)` });
+       Wraiths orbit from 22m, so from the floor they are the sky threat that
+       is actually close enough to read. The serpent gets its own frame from
+       the air, below — squinting at one 90m up produced a handsome sunset with
+       a few blue pixels in the corner, which is not "a shot with a serpent in
+       it". Up the column it is a shape in a wide frame instead, which is a
+       different and honest thing to ask of it.
+
+       AN EIGHTH IS THE LINE, and it is on `worstFrac` — the single biggest
+       near object — not on total clutter, because the rejected frame was one
+       object at 45% and a busy skyline of small ones is a good photograph.
+       It started at a fifth and that was too kind: seed 1291 came back with a
+       pink crystal across the whole lower right of the frame, measured at 20%,
+       and passed. A fifth of a 1920-wide frame is a quarter of the picture
+       once you allow for the HUD, which is not "a bit of foreground". Every
+       frame worth keeping so far has measured under 5%. */
+    if (wanted('Ground level — looking up')) {
+      const spot = await evaluate(page, OPEN_SPOT, 30000);
+      if (spot.err) {
+        console.log(`  --  seed ${seed}: no open floor position — ${spot.err}`);
+      } else {
+        const left = await walkTo(page, input, spot);
+        console.log(`      open floor at ${spot.x},${spot.z}`
+          + ` (${spot.sky}° of clear sky, ${spot.walk}m away)`
+          + ` — stopped ${left.toFixed(1)}m off`);
+      }
+
+      const wr = await find(page, 'wraith');
+      if (wr) {
+        await aimAt(page, input, wr);
+        await attempt('looking up, a wraith overhead', () => act(page, input,
+          { keys: ['KeyA'], fire: true, ms: 1100, maxNear: 0.12, maxClutter: 0.18,
+            shot: 'Ground level — looking up',
+            variant: `seed ${seed} · wraith overhead at ${wr.d}m`,
+            repro: `?seed=${seed} · walk to open floor · aim at nearest wraith`
+              + ` · A + fire 1.1s (shot held)` }));
+      } else {
+        console.log(`  --  seed ${seed}: no wraith in the scene`);
+      }
+
+      // ...and the wide version of the same look, aimed up the column, which
+      // is the frame that shows the arena is 570m tall and not a room.
+      const serpFar = await find(page, 'serpent');
+      if (serpFar) {
+        await aimAt(page, input, serpFar);
+        await attempt('looking up, the column', () => act(page, input,
+          { ms: 800, maxNear: 0.12, maxClutter: 0.18,
+            shot: 'Ground level — looking up',
+            variant: `seed ${seed} · up the column, serpent at ${serpFar.d}m`,
+            repro: `?seed=${seed} · walk to open floor · aim at nearest serpent head`
+              + ` (shot held)` }));
+      }
+
+      /* ...and the same look with the COLUMN as the aim rather than whichever
+         enemy is nearest, which is the frame that shows the arena is 570m tall
+         and not a room. A serpent is somewhere in it either way — five of them
+         are banded up the climb — but the subject is the Ascent.
+         TWO HEIGHTS, because the aim decides the whole composition and there
+         is no arguing it from here: 150m puts the lower spiral across the
+         middle of the frame at a size you can read, 330m tips the view back
+         until the stack runs off the top and the summit beacon is the vanishing
+         point. Which of the two is the photograph is the sheet's question. */
+      for (const up of [150, 330]) {
+        await attempt(`looking up, the column at ${up}m`, async () => {
+          const l = await evaluate(page, LOOK, 30000);
+          await aimAt(page, input, { x: 0, y: up, z: 0 });
+          await act(page, input, { ms: 700, maxNear: 0.12, maxClutter: 0.18,
+            shot: 'Ground level — looking up',
+            variant: `seed ${seed} · the Ascent to ${up}m, from ${Math.hypot(l.cam.x, l.cam.z)
+              .toFixed(0)}m out`,
+            repro: `?seed=${seed} · walk to open floor · aim at (0, ${up}, 0) (shot held)` });
+        });
+      }
     }
 
     /* ── 3. AIRBORNE, and each of these buys its own tank ───────────────
@@ -408,7 +672,7 @@ for (const seed of SEEDS) {
 
     // Looking down: the shot that shows the level as a place rather than as
     // the wall in front of you. Straight after the first climb, at full height.
-    await attempt('airborne, looking down', async () => {
+    if (wanted('Airborne — looking down')) await attempt('airborne, looking down', async () => {
       const up = await climb(page, input, 3400);
       if (up.alt < 12) throw new Error(`jet reached only ${up.alt.toFixed(0)}m`);
       await aimAt(page, input, { x: 0, y: 0, z: 0 });
@@ -421,8 +685,8 @@ for (const seed of SEEDS) {
 
     // The serpent, from level with it. Its own climb, because aiming at a
     // moving serpent costs most of a tank on its own.
-    await regen();
-    await attempt('airborne, level with a serpent', async () => {
+    if (wanted('Airborne — level with a serpent')) await attempt('airborne, level with a serpent', async () => {
+      await regen();
       const up = await climb(page, input, 2600);
       if (up.alt < 12) throw new Error(`jet reached only ${up.alt.toFixed(0)}m`);
       const serp = await find(page, 'serpent');
@@ -449,8 +713,8 @@ for (const seed of SEEDS) {
        is inside 22m horizontally and 16m vertically — so running under the
        lowest one and hopping into its band is not a trick to get a photograph,
        it is the thing that makes a wraith come at you. */
-    await regen();
-    await attempt('a wraith at close range', async () => {
+    if (wanted('A wraith at close range')) await attempt('a wraith at close range', async () => {
+      await regen();
       for (let leg = 0; leg < 14; leg++) {
         const w = await find(page, 'wraith');
         if (!w) throw new Error('no wraith in the scene');

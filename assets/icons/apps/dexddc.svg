@@ -12,18 +12,26 @@
       }
 
       .st2 {
-        fill: #002538;
+        fill: #004573;
       }
     </style>
   </defs>
   <g id="Layer_1-2">
     <!-- THE BACKGROUND, and it is settled — not a placeholder to go looking
          for. The Illustrator export linked a raster layer, dexddc-1.png,
-         which does not exist and is not coming (Dex, 2026-08-20); #002538 is
-         this file's own second colour, the one .st2 draws the rim in, and it
-         is what the icon ships on. Original export line, for the record:
+         which does not exist and is not coming (Dex, 2026-08-20). It shipped
+         first on #002538, this file's own second colour, and that read as a
+         hole in the app list: the other four marks sit on plates a shade or
+         two off black at most, and this one was nearly black, so the mark
+         looked heavy and the card looked empty. #004573 is the replacement
+         (Dex, 2026-08-20) — the same hue, lifted until the plate is a colour
+         rather than an absence.
+         .st2 MOVES WITH IT. That path is a 4px ring around the rounded
+         rectangle in exactly the same colour, so it is invisible while the two
+         agree and a dark rim the moment they do not. Change one, change both.
+         Original export line, for the record:
          <image class="st0" width="129" height="129" transform="translate(-.5 -.5)" xlink:href="dexddc-1.png"/> -->
-    <rect width="128" height="128" rx="40" ry="40" fill="#002538"/>
+    <rect width="128" height="128" rx="40" ry="40" fill="#004573"/>
     <g>
       <path class="st1" d="M83.9,66.3l-19.1,12.2c-.3.2-.8.2-1.1,0l-19.1-12.2c-.3-.2-.5-.5-.5-.9.3-10.9,9.2-19.6,20.2-19.6s19.9,8.7,20.2,19.6c0,.4-.2.7-.5.9h0Z"/>
       <path class="st1" d="M58.9,106.8l-14.4-9.8c-.3-.2-.5-.5-.5-.9v-19.9c0-.8.9-1.4,1.7-.9l14.4,9.8c.3.2.5.5.5.9v19.9c0,.8-.9,1.4-1.7.9Z"/>

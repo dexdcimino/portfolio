@@ -98,7 +98,14 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   through `games/_shared/dev/cdp.mjs`; dexddc.com's
   (`dexddc-portfolio.png`) is a supplied 2482x1478 grab of that site's
   portfolio grid, cropped to 16:9 across the empty sky and floor rather than
-  centred, which would have clipped the nav ornament's horns; MindSplit is three captures
+  centred, which would have clipped the nav ornament's horns, and then GRADED
+  — the Windows screen capture came back flat and sat dead beside its
+  neighbours in the carousel, measuring sd 43.5 against nodeblast-hub's 50.8
+  and topping out at 189 where the others reach 197 and 255. The master now
+  carries a five-point tone curve (20,14 · 60,60 · 128,144 · 190,212) and a
+  1.26x saturation about luma, applied once and baked in: sd 50.4, p99 209,
+  nothing clipped either end that was not already. The ungraded original is in
+  git, which is the only copy there needs to be; MindSplit is three captures
   of `/mindsplit/` at a 414x736 handset, in three of its five rooms,
   composited side by side the way `themedock-panel.png` merges four
   marketplace panels — a lone portrait frame in a 1440x690 stage is mostly
@@ -294,8 +301,19 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   recorded in every caption, and one sheet per game to choose from. The
   candidates are gitignored and regenerable; the sheet is the artefact.
   **Every shot asserts what its caption claims** — the vehicle, the altitude,
-  the region — because four frames captioned "Jet" once shipped showing a
-  rover, and nothing noticed
+  the region, and now what is FILLING THE FRAME — because four frames
+  captioned "Jet" once shipped showing a rover, and nothing noticed. The third
+  of those is Arena 1's: "Ground level — looking up" shipped with a pink
+  crystal across the right half of the picture, which the vehicle and altitude
+  guards both passed because neither is about what the shot is OF. A grid of
+  336 picking rays measures how much of the viewport is something within 18m,
+  and the shot is refused if one object holds more than 12% or everything near
+  holds more than 18% (`maxNear` / `maxClutter` in `arena1/dev/gallery.mjs`).
+  The predicate is what makes it work at all — Babylon skips `isPickable:false`
+  meshes unless one is given, and the crystals are exactly those. The same file
+  now also WALKS somewhere first: floor positions are scored by the elevation
+  of the tallest thing near them, so the frame starts from open ground instead
+  of from wherever the floor fight ended. `--only <text>` runs one named shot
 - `vercel.json` — CSP in four scopes: root is strict (`script-src 'self'`,
   no inline, connect only to Web3Forms, and `media-src` naming the one
   bunny.net pull zone the AI Lab clips stream from — an exact host, never a
