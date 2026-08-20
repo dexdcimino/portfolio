@@ -2339,9 +2339,12 @@
     </div>
   </dialog>
 
-  <!-- Game gallery — real screenshots captured from the live Stickland build,
-       served through the image pipeline. The overlay renders whatever
-       .gal-item pictures exist here; adding a shot is one img directive. -->
+  <!-- Game gallery — real screenshots of all four games, captured by each
+       game's dev/gallery.mjs off games/_shared/dev/capture.mjs and served
+       through the image pipeline. The overlay renders whatever .gal-item
+       pictures exist here, grouped by data-game; adding a shot is one img
+       directive. Two of them are composites built by
+       tools/make_gallery_composite.py rather than single frames. -->
   <!-- What the vault opens onto right now: one snail, large, in the accent.
        It is a placeholder with a real mechanism behind it — the code does not
        name this dialog, the DECRYPTED text does ("show:snail"), so a second
@@ -2474,6 +2477,230 @@
                                               assets/derived/gallery/stickland-fields-600.webp?v=86f3f0b0 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
             <img src="assets/gallery/stickland-fields.png" alt="Fields west of the village with a tank and creatures" width="1440" height="690" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <!-- Two more Stickland shots, from the pass A harness. Both cover a
+             mode the first four do not: the cosmetics/weapon combinations and
+             the platform mode. stickland-fourup.png is a composite —
+             tools/make_gallery_composite.py crops each panel around the figure
+             using games/stickland/dev/shots/gallery/fourup-boxes.json, because
+             the game caps its own zoom at 1.5x and the figure is 36x60 there. -->
+        <figure class="gal-item" data-game="stickland" data-title="Four builds, four loadouts">
+          <!-- img src="assets/gallery/stickland-fourup.png" slot="game-shot" alt="Four Stickland characters in lime line art on black: a figure carrying a pickaxe, one in goggles and a welding rig, one in a top hat and cloak, and one with a bow" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/stickland-fourup-1600.avif?v=1042521d 1600w,
+                                              assets/derived/gallery/stickland-fourup-1200.avif?v=1042521d 1200w,
+                                              assets/derived/gallery/stickland-fourup-900.avif?v=1042521d 900w,
+                                              assets/derived/gallery/stickland-fourup-600.avif?v=1042521d 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/stickland-fourup-1600.webp?v=1042521d 1600w,
+                                              assets/derived/gallery/stickland-fourup-1200.webp?v=1042521d 1200w,
+                                              assets/derived/gallery/stickland-fourup-900.webp?v=1042521d 900w,
+                                              assets/derived/gallery/stickland-fourup-600.webp?v=1042521d 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/stickland-fourup.png" alt="Four Stickland characters in lime line art on black: a figure carrying a pickaxe, one in goggles and a welding rig, one in a top hat and cloak, and one with a bow" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="stickland" data-title="Platform mode, jetpacking up">
+          <!-- img src="assets/gallery/stickland-platforms.png" slot="game-shot" alt="Stickland&#39;s platform mode: a stick figure jetpacking off the lowest ledge at 57 metres, with dozens of lime platforms scattered up the dark screen above the curved ground" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/stickland-platforms-1600.avif?v=be91c00a 1600w,
+                                              assets/derived/gallery/stickland-platforms-1200.avif?v=be91c00a 1200w,
+                                              assets/derived/gallery/stickland-platforms-900.avif?v=be91c00a 900w,
+                                              assets/derived/gallery/stickland-platforms-600.avif?v=be91c00a 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/stickland-platforms-1600.webp?v=be91c00a 1600w,
+                                              assets/derived/gallery/stickland-platforms-1200.webp?v=be91c00a 1200w,
+                                              assets/derived/gallery/stickland-platforms-900.webp?v=be91c00a 900w,
+                                              assets/derived/gallery/stickland-platforms-600.webp?v=be91c00a 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/stickland-platforms.png" alt="Stickland&#39;s platform mode: a stick figure jetpacking off the lowest ledge at 57 metres, with dozens of lime platforms scattered up the dark screen above the curved ground" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <!-- Arena 1. Three of the eighteen pass A candidates, in the order
+             the harness names them: the floor fight, then straight up a
+             column, then the arena from the air. The seeds differ per shot on
+             purpose — each was picked on its own merits off the contact
+             sheet, not for a matching set. -->
+        <figure class="gal-item" data-game="arena1" data-title="The floor fight">
+          <!-- img src="assets/gallery/arena1-floor-fight.png" slot="game-shot" alt="Arena 1 in first person on the arena floor: a purple and teal weapon firing a white beam at a small green blob across pale yellow sand, pink and teal crystals standing under a warm orange sky" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/arena1-floor-fight-1600.avif?v=0b41e6df 1600w,
+                                              assets/derived/gallery/arena1-floor-fight-1200.avif?v=0b41e6df 1200w,
+                                              assets/derived/gallery/arena1-floor-fight-900.avif?v=0b41e6df 900w,
+                                              assets/derived/gallery/arena1-floor-fight-600.avif?v=0b41e6df 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/arena1-floor-fight-1600.webp?v=0b41e6df 1600w,
+                                              assets/derived/gallery/arena1-floor-fight-1200.webp?v=0b41e6df 1200w,
+                                              assets/derived/gallery/arena1-floor-fight-900.webp?v=0b41e6df 900w,
+                                              assets/derived/gallery/arena1-floor-fight-600.webp?v=0b41e6df 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/arena1-floor-fight.png" alt="Arena 1 in first person on the arena floor: a purple and teal weapon firing a white beam at a small green blob across pale yellow sand, pink and teal crystals standing under a warm orange sky" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="arena1" data-title="Up the column">
+          <!-- img src="assets/gallery/arena1-up-the-column.png" slot="game-shot" alt="Looking straight up an Arena 1 column: a wall of pink rock to the right, a swarm of dark geometric debris overhead, and a chain of blue spheres — a serpent — winding through it against an orange sky" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/arena1-up-the-column-1600.avif?v=2a4af4a7 1600w,
+                                              assets/derived/gallery/arena1-up-the-column-1200.avif?v=2a4af4a7 1200w,
+                                              assets/derived/gallery/arena1-up-the-column-900.avif?v=2a4af4a7 900w,
+                                              assets/derived/gallery/arena1-up-the-column-600.avif?v=2a4af4a7 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/arena1-up-the-column-1600.webp?v=2a4af4a7 1600w,
+                                              assets/derived/gallery/arena1-up-the-column-1200.webp?v=2a4af4a7 1200w,
+                                              assets/derived/gallery/arena1-up-the-column-900.webp?v=2a4af4a7 900w,
+                                              assets/derived/gallery/arena1-up-the-column-600.webp?v=2a4af4a7 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/arena1-up-the-column.png" alt="Looking straight up an Arena 1 column: a wall of pink rock to the right, a swarm of dark geometric debris overhead, and a chain of blue spheres — a serpent — winding through it against an orange sky" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="arena1" data-title="Fifty metres over the arena">
+          <!-- img src="assets/gallery/arena1-airborne.png" slot="game-shot" alt="Arena 1 from fifty metres up: the bowl&#39;s dark rim curving around pale yellow ground strewn with teal, pink and purple geometry, a serpent of blue spheres ringed by the targeting reticle" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/arena1-airborne-1600.avif?v=b44f2bc0 1600w,
+                                              assets/derived/gallery/arena1-airborne-1200.avif?v=b44f2bc0 1200w,
+                                              assets/derived/gallery/arena1-airborne-900.avif?v=b44f2bc0 900w,
+                                              assets/derived/gallery/arena1-airborne-600.avif?v=b44f2bc0 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/arena1-airborne-1600.webp?v=b44f2bc0 1600w,
+                                              assets/derived/gallery/arena1-airborne-1200.webp?v=b44f2bc0 1200w,
+                                              assets/derived/gallery/arena1-airborne-900.webp?v=b44f2bc0 900w,
+                                              assets/derived/gallery/arena1-airborne-600.webp?v=b44f2bc0 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/arena1-airborne.png" alt="Arena 1 from fifty metres up: the bowl&#39;s dark rim curving around pale yellow ground strewn with teal, pink and purple geometry, a serpent of blue spheres ringed by the targeting reticle" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <!-- Chomp. The cave is dark by design, so the set leads with the
+             progress strip — a composite of six real captures, one per growth
+             stage — and the two single frames are the ones with something lit
+             in them. "Big enough to light the cave" was captured and dropped:
+             at gallery size it is a dark frame with a small creature in it. -->
+        <figure class="gal-item" data-game="chomp" data-title="Six stages of the mawling">
+          <!-- img src="assets/gallery/chomp-progress.png" slot="game-shot" alt="Six panels of Chomp in a two-by-three grid, following the mawling from a small pale sphere with two horns through to a large spined creature lighting the cave floor around itself" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/chomp-progress-1600.avif?v=cb122451 1600w,
+                                              assets/derived/gallery/chomp-progress-1200.avif?v=cb122451 1200w,
+                                              assets/derived/gallery/chomp-progress-900.avif?v=cb122451 900w,
+                                              assets/derived/gallery/chomp-progress-600.avif?v=cb122451 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/chomp-progress-1600.webp?v=cb122451 1600w,
+                                              assets/derived/gallery/chomp-progress-1200.webp?v=cb122451 1200w,
+                                              assets/derived/gallery/chomp-progress-900.webp?v=cb122451 900w,
+                                              assets/derived/gallery/chomp-progress-600.webp?v=cb122451 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/chomp-progress.png" alt="Six panels of Chomp in a two-by-three grid, following the mawling from a small pale sphere with two horns through to a large spined creature lighting the cave floor around itself" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="chomp" data-title="Early, still small">
+          <!-- img src="assets/gallery/chomp-early.png" slot="game-shot" alt="The Chomp mawling early on, small and lime-lit beside a blue underground stream, with pink and yellow mushrooms and tufts of grass across the dark cave floor" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/chomp-early-1600.avif?v=ac6c2e9f 1600w,
+                                              assets/derived/gallery/chomp-early-1200.avif?v=ac6c2e9f 1200w,
+                                              assets/derived/gallery/chomp-early-900.avif?v=ac6c2e9f 900w,
+                                              assets/derived/gallery/chomp-early-600.avif?v=ac6c2e9f 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/chomp-early-1600.webp?v=ac6c2e9f 1600w,
+                                              assets/derived/gallery/chomp-early-1200.webp?v=ac6c2e9f 1200w,
+                                              assets/derived/gallery/chomp-early-900.webp?v=ac6c2e9f 900w,
+                                              assets/derived/gallery/chomp-early-600.webp?v=ac6c2e9f 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/chomp-early.png" alt="The Chomp mawling early on, small and lime-lit beside a blue underground stream, with pink and yellow mushrooms and tufts of grass across the dark cave floor" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="chomp" data-title="Chomp open">
+          <!-- img src="assets/gallery/chomp-open.png" slot="game-shot" alt="The grown Chomp mawling with its spined mouth open in a narrow passage, blue water and pale rock pillars behind it" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/chomp-open-1600.avif?v=79cf5eb4 1600w,
+                                              assets/derived/gallery/chomp-open-1200.avif?v=79cf5eb4 1200w,
+                                              assets/derived/gallery/chomp-open-900.avif?v=79cf5eb4 900w,
+                                              assets/derived/gallery/chomp-open-600.avif?v=79cf5eb4 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/chomp-open-1600.webp?v=79cf5eb4 1600w,
+                                              assets/derived/gallery/chomp-open-1200.webp?v=79cf5eb4 1200w,
+                                              assets/derived/gallery/chomp-open-900.webp?v=79cf5eb4 900w,
+                                              assets/derived/gallery/chomp-open-600.webp?v=79cf5eb4 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/chomp-open.png" alt="The grown Chomp mawling with its spined mouth open in a narrow passage, blue water and pale rock pillars behind it" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <!-- Surveyor. One shot per world and per vehicle, which is the whole
+             pitch: four planets that do not look alike, and a craft that
+             changes to suit each. Home rover, Tarn boat, Shroud jet, Ember
+             drone — grey-green, turquoise, violet, orange. -->
+        <figure class="gal-item" data-game="surveyor" data-title="Rover, out past the spawn — Home">
+          <!-- img src="assets/gallery/surveyor-rover-home.png" slot="game-shot" alt="The Surveyor rover driving at 122 km/h across Home&#39;s pale grey-green terrain, throwing up dust, dark rock spires along the horizon and the survey log in the corner" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/surveyor-rover-home-1600.avif?v=9cc34126 1600w,
+                                              assets/derived/gallery/surveyor-rover-home-1200.avif?v=9cc34126 1200w,
+                                              assets/derived/gallery/surveyor-rover-home-900.avif?v=9cc34126 900w,
+                                              assets/derived/gallery/surveyor-rover-home-600.avif?v=9cc34126 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/surveyor-rover-home-1600.webp?v=9cc34126 1600w,
+                                              assets/derived/gallery/surveyor-rover-home-1200.webp?v=9cc34126 1200w,
+                                              assets/derived/gallery/surveyor-rover-home-900.webp?v=9cc34126 900w,
+                                              assets/derived/gallery/surveyor-rover-home-600.webp?v=9cc34126 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/surveyor-rover-home.png" alt="The Surveyor rover driving at 122 km/h across Home&#39;s pale grey-green terrain, throwing up dust, dark rock spires along the horizon and the survey log in the corner" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="surveyor" data-title="Boat, wake behind — Tarn">
+          <!-- img src="assets/gallery/surveyor-boat-tarn.png" slot="game-shot" alt="The Surveyor boat under way at 137 km/h across Tarn&#39;s turquoise shallows, wake trailing behind it, passing concentric stone rings sunk into the seabed" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/surveyor-boat-tarn-1600.avif?v=85dc932f 1600w,
+                                              assets/derived/gallery/surveyor-boat-tarn-1200.avif?v=85dc932f 1200w,
+                                              assets/derived/gallery/surveyor-boat-tarn-900.avif?v=85dc932f 900w,
+                                              assets/derived/gallery/surveyor-boat-tarn-600.avif?v=85dc932f 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/surveyor-boat-tarn-1600.webp?v=85dc932f 1600w,
+                                              assets/derived/gallery/surveyor-boat-tarn-1200.webp?v=85dc932f 1200w,
+                                              assets/derived/gallery/surveyor-boat-tarn-900.webp?v=85dc932f 900w,
+                                              assets/derived/gallery/surveyor-boat-tarn-600.webp?v=85dc932f 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/surveyor-boat-tarn.png" alt="The Surveyor boat under way at 137 km/h across Tarn&#39;s turquoise shallows, wake trailing behind it, passing concentric stone rings sunk into the seabed" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="surveyor" data-title="Jet, high pass over Shroud">
+          <!-- img src="assets/gallery/surveyor-jet-shroud.png" slot="game-shot" alt="The Surveyor jet at 331 km/h and 263 metres over Shroud, its cyan vapour trail sweeping up both sides of the frame against the planet&#39;s violet haze" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/surveyor-jet-shroud-1600.avif?v=0b84af30 1600w,
+                                              assets/derived/gallery/surveyor-jet-shroud-1200.avif?v=0b84af30 1200w,
+                                              assets/derived/gallery/surveyor-jet-shroud-900.avif?v=0b84af30 900w,
+                                              assets/derived/gallery/surveyor-jet-shroud-600.avif?v=0b84af30 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/surveyor-jet-shroud-1600.webp?v=0b84af30 1600w,
+                                              assets/derived/gallery/surveyor-jet-shroud-1200.webp?v=0b84af30 1200w,
+                                              assets/derived/gallery/surveyor-jet-shroud-900.webp?v=0b84af30 900w,
+                                              assets/derived/gallery/surveyor-jet-shroud-600.webp?v=0b84af30 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/surveyor-jet-shroud.png" alt="The Surveyor jet at 331 km/h and 263 metres over Shroud, its cyan vapour trail sweeping up both sides of the frame against the planet&#39;s violet haze" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="surveyor" data-title="Drone, beam out over Ember">
+          <!-- img src="assets/gallery/surveyor-drone-ember.png" slot="game-shot" alt="The Surveyor drone descending onto a site on Ember, its scanner beam extended straight down as a pale column against the planet&#39;s deep orange dust" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/surveyor-drone-ember-1600.avif?v=b27f24f2 1600w,
+                                              assets/derived/gallery/surveyor-drone-ember-1200.avif?v=b27f24f2 1200w,
+                                              assets/derived/gallery/surveyor-drone-ember-900.avif?v=b27f24f2 900w,
+                                              assets/derived/gallery/surveyor-drone-ember-600.avif?v=b27f24f2 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/surveyor-drone-ember-1600.webp?v=b27f24f2 1600w,
+                                              assets/derived/gallery/surveyor-drone-ember-1200.webp?v=b27f24f2 1200w,
+                                              assets/derived/gallery/surveyor-drone-ember-900.webp?v=b27f24f2 900w,
+                                              assets/derived/gallery/surveyor-drone-ember-600.webp?v=b27f24f2 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/surveyor-drone-ember.png" alt="The Surveyor drone descending onto a site on Ember, its scanner beam extended straight down as a pale column against the planet&#39;s deep orange dust" width="1920" height="1080" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
