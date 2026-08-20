@@ -1,0 +1,10 @@
+# Generated. The contact sheets and filmstrips beside them are the artefacts
+# worth keeping in the repo; these are the frames they are assembled from, and
+# every one of them is a single command away.
+#
+#   node dev/shots.mjs         the six worlds, and five sheets
+#   node dev/crosscheck.mjs    one crossing, and its filmstrip
+*.png
+sheet*.html
+crosssheet.html
+cross-[0-9].jpg

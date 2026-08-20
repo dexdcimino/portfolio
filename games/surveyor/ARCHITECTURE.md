@@ -75,7 +75,7 @@ started carry a phase log of what actually shipped and where the plan was wrong.
 
 | plan | status |
 |---|---|
-| `docs/seamless-space.md` | phases 1-2 shipped, phase 3 gated on a green suite |
+| `docs/seamless-space.md` | phases 1-3 shipped, phase 4 next — it deletes the swap |
 | `docs/day-and-night.md` | parked. After Seamless Space — it changes lighting |
 | `docs/colony-architecture.md` | parked. Does not conflict with Seamless Space |
 
@@ -97,6 +97,10 @@ game (40 exported blocks incl. `PLANETS`, `POST`, `ECONOMY`, `HYPER`);
   depth pass — deliberately not Babylon's ShadowGenerator), `sky.js`,
   `discs.js` (other five worlds as billboards, one draw call), `preview.js`,
   `geysers.js`, `hyper.js` (travel maths, no Babylon, no game state),
+  `gravity.js` (the summed field, well dominance and the craft's transit
+  basis — same rule as hyper.js: no Babylon, no game state), `space.js` (the
+  far band's uniform scale about the camera), `farbody.js` (displaced
+  icosphere + `svFarBody`, the LOD a billboard promotes to),
   `materials.js` (every shader as template literals + `createMaterials`),
   `world.js` (**`World`** — everything the scene holds for one planet — and
   **`Worlds`** — the visited set: `get()` builds hidden, `enter()` swaps)
@@ -186,7 +190,7 @@ identical; quadtree depth varies instead). POST: exposure **0.97**, contrast
 ## Harnesses (`dev/`)
 
 All launch Chrome on a throwaway profile via `dev/cdp.mjs` (no npm deps).
-`run.mjs` — headless suite over a Babylon stub, ~174 `ok()` sites, imports
+`run.mjs` — headless suite over a Babylon stub, 225 assertions, imports
 `glslcheck.mjs` first (backtick-count scan of materials.js; that failure cost
 six debugging cycles). `shots.mjs` — six PNGs per world + contact sheets,
 fails on any console error. `savedworlds.mjs` — cold load **with** a save,
@@ -195,8 +199,14 @@ you can gate a commit on. `savefile.mjs` — seeded saves (`--save`,
 `--away=N`). Plus frames/spawncheck/noop/waterstats/waterangles/disccheck/
 sundisc/skyline/floracheck/perf/whatisthat, `budget.mjs` (real-GPU frame
 budget; refuses SwiftShader), `colonycost.mjs` (what a mature basin costs),
-and `flycheck.mjs` (frame pacing while the jet boosts across a world — worst
-frame, not average; the smoothness gate every Home-revamp phase reports).
+`flycheck.mjs` (frame pacing while the jet boosts across a world — worst
+frame, not average; the smoothness gate every Home-revamp phase reports),
+`lodcheck.mjs` (walks a body through the billboard-to-sphere handoff and
+measures BOTH size and luminance — see the continuity invariant), and
+`crosscheck.mjs` (one real crossing in the live engine: samples the drawn
+`rotationQuaternion` every animation frame and reports the step across each
+boundary, plus a filmstrip. The maths version lives in `run.mjs`; this is the
+one that can catch the game drawing something other than what the maths says).
 `dev/history/` is the pre-import repo bundle.
 
 Terrain note: `height()` in noise.js carries three weight-gated terms beyond
@@ -218,9 +228,12 @@ submission, never resolution, so no coarse-geometry caster LOD was built.
 
 ## Known-outstanding — do not re-report
 
-- **In flight (another session, uncommitted): the seamless-space/far-band
-  pass** — `js/world/space.js`, per-disc compressed distances in `discs.js`,
-  `SPACE` block in tune.js, `dev/budget.mjs`.
+- **The arrival seam is 84 degrees and is deliberate.** `landOn` stands the
+  craft up out of a radial dive — pitch to 0.10, autopilot on — in one frame.
+  Phase 3 owns only that it is a pitch about the craft's own wings and nothing
+  else, which is asserted; phase 4 deletes the swap and the seam with it. Do
+  not "fix" it in isolation: changing that pitch changes the feel of every
+  arrival in the game.
 - `DEBUG.warp: true` — the HUD warp row. Off before shipping.
 - Ember's pale sky slab = the cloud strata (diagnosed, left for the strata
   rework; check Shroud second).

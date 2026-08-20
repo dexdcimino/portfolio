@@ -216,107 +216,222 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
-## Seamless space, phase 2: the LOD chain
+## Seamless space, phase 3: which world you belong to
 
-A billboard is right while a world is a few pixels across and wrong the moment
-you can tell it is flat. Phase 2 is what takes over.
+Gravity was one constant and one direction, because there was only ever one
+world under you. Phase 3 is the field, the handover between wells, and the two
+moments a craft changes which world it belongs to.
 
-### The boundaries are per radius, not 20km and 2km
+`js/world/gravity.js`, beside `hyper.js` and with the same rule: no Babylon, no
+game state, so a crossing can be flown ten thousand times with no scene.
 
-The brief proposed fixed bands. They do not survive contact with worlds whose
-radii run 207m to 2072m — and they do not need to, because **the disc
-compression already is an LOD ramp and it is scale-free.** Every world reaches
-the same apparent size at the same multiple of its own radius:
+### The field is summed, not switched
 
-| | promotes at | floor stops binding | exaggeration gone |
-|---|---|---|---|
-| ember | 17.0 km | 6.1 km | 1.39 km |
-| tarn | 33.9 km | 12.2 km | 2.78 km |
-| vault | 67.9 km | 24.4 km | 5.56 km |
-| home | 84.9 km | 30.5 km | 6.95 km |
-| shroud | 118.9 km | 42.7 km | 9.73 km |
-| anvil | 169.8 km | 60.9 km | 13.90 km |
+There is no "which body owns me" decision anywhere in the physics. The
+acceleration at a point is the sum over all six, so the handover the brief asks
+for happens where the two pulls are equal — because that is where the sum stops
+leaning one way and starts leaning the other. It is a consequence of the
+arithmetic, not a rule someone wrote, and a consequence cannot be got wrong at a
+boundary case.
 
-`SYSTEM.drawRef`/`drawExp`/`drawFloor` exaggerate a distant world so it reads at
-all, and `drawAngle` is monotonic in the true angle — so a body only ever grows
-as you approach, and the exaggeration decays to nothing by `6.71R`. The
-threshold is therefore stated as a **drawn** half-angle (`SPACE.promoteAngle`,
-0.07 rad, eight degrees across). A threshold in true angle would promote Anvil
-and Ember at completely different apparent sizes, which is the same class of
-mistake as one global `k`.
+A switched field is discontinuous by construction and the fix is a blend band:
+a second set of numbers to tune and a second place to be wrong. A summed one
+needs none, and the assertion that it did not disturb the surface is exact
+rather than argued — **the field reads 26.9992 to 27.0002 m/s² at the six
+surfaces against `HOP.gravity` of 27**, the 28ppm being the other five worlds
+pulling from across the system.
 
-### The sphere is the same world, coarser
+### A well's reach is its radius
 
-Not a textured ball. `js/world/farbody.js` displaces an icosahedron by that
-planet's own `height()`, so what grows in the window is the continent you are
-about to land on. Billboard, this, coarse quadtree, fine quadtree — every rung
-is the same height field at a different resolution, which is what makes the
-chain a chain rather than four objects that resemble each other.
+The game has always had exactly one gravity constant, which was already a
+statement about the six worlds: they pull the same at their own ground. What it
+never said is how far each one pulls, and equal surface gravity settles it —
+`mu = g0 · R²`, so dominance is **R/d**. The world that owns you is the one that
+looks biggest in your sky, which needs no HUD element and gets none.
 
-Icosahedral rather than a UV sphere: a UV sphere puts most of its vertices at
-the poles, and on a body seen from an arbitrary direction that puts the detail
-in the wrong place with the seam in shot. 1280 triangles at subdivision 3, about
-7ms of `height()` to build, paid **once** per world per session on the frame it
-is first promoted.
+Two wells balance at `Ra / (Ra + Rb)` along the line between them: no masses, no
+distances, no per-pair tuning. Equal worlds balance at the midpoint, which is
+what the brief asked for; unequal ones balance proportionally, which is what it
+meant.
 
-Flat-shaded and wound clockwise with negated normals, like the terrain and the
-rocks. Signed volume is asserted: a unit sphere in this project's convention is
-negative, and the shell converges on it as it subdivides — -0.889, -0.983,
--1.009 of a unit sphere at subdivisions 1, 2, 3.
+| pair | apart | balances |
+|---|---|---|
+| Ember–Anvil | 294km | 27km out from Ember, not 147 |
+| Home–Ember | 306km | 255km out from Home |
+| Home–Vault | 364km | 202km out from Home |
 
-### The handoff does not pop, and that is measured
+Verified by bisecting the field itself with only those two bodies in it, to
+5e-8 of the separation — the closed form checked against the thing it claims to
+describe rather than against itself.
 
-Both LODs are drawn at the **same** angle by construction: the sphere is scaled
-so its surface subtends exactly the angle the quad did. The claim is therefore
-that the swap is invisible, and claims like that have been wrong here before.
+### Gravity and altitude are not the same selector
 
-`dev/lodcheck.mjs` walks a body through the boundary using `discs.js`'s own
-`setDistance` and `sizeDisc` — a restatement of the compression is how this
-project has produced three confident wrong measurements, and the compression is
-exactly the part under test. It isolates the body by rendering with the far band
-shown and hidden and differencing, with post off, and sizes it by area rather
-than bounding box.
+`hyper.js` already picks a world every frame: `nearest()`, ranked by **altitude**
+`d - surfaceR`, which is right for a speed law defined on altitude. Gravity falls
+off as `1/d²` and ranks by `R/d`. On the Ember–Anvil line the two disagree from
+10% to 50% of the way across — everything in that band is nearer Ember's surface
+and owned by Anvil. Both are correct for what they are for, and there is now an
+assertion pinning the disagreement so a later phase cannot quietly collapse them
+into one call.
 
-**The step across the boundary is 1.1% of angular size on every body** — smaller
-than the 2% to 14% steps between adjacent samples as the body simply gets
-closer. The swap is less of a change than one step of approach, so there is no
-crossfade: the brief said add one if a hard swap shows, and it does not.
+### What this actually found: the craft rolled onto its back, twice a trip
 
-What makes it work is that the billboard keeps its halo and loses only its body.
-`core` is the fraction of the quad the solid disc fills; at zero the disc
-vanishes and the `pow(1 - r, 3.2)` glow around it does not. The thing that
-disappears is exactly the thing the sphere replaces, and the atmosphere it sat
-in carries straight through.
+The phase is about attitude, because that is what changing wells means to a
+craft — and transit orientation was built from **world +Y**:
 
-### The active set, restated
+```js
+RotationYawPitchRoll(Math.atan2(d.x, d.z), -Math.asin(d.y), 0)
+```
 
-The one-world-visible checks asked whether **one world** was visible, which was
-the whole truth while a world was a sky dome, a water shell and a disc mesh. A
-promoted body is a fourth thing with its own mesh and its own lifetime, and
-`World.setActive(false)` did not know about it — so a world you flew away from
-would have left its bodies hanging in the next world's sky. That is the
-six-sky-domes bug in a new place, and it took three sessions to find the first
-time.
+World +Y is an axis the player has no relationship with. The heading was right;
+the roll was whatever that axis happened to imply, so the craft **snapped on the
+frame it crossed the boundary**, by an amount that depends only on where on the
+sphere it launched:
 
-`Discs.setEnabled` now owns the whole set, `World.showMeshes` goes through it
-rather than reaching past it to the billboard mesh, and the assertions ask
-whether everything **outside the active set** is dark rather than whether one
-world is lit. A promoted body is inside the set. There is a new check that
-forces a promotion, leaves the world, and fails if anything stays lit.
+| departure point | roll snap |
+|---|---|
+| the +Y pole | 8.6° |
+| the equator | 146° |
+| the far side | 171° |
 
-### What phase 2 does not reach
+Measured on Home, at three departure attitudes each. The same thing happened in
+reverse on arrival, and `landOn` never set `yaw` at all — so a craft arrived
+holding whatever compass bearing it had on the world it left, which is not a
+direction on the world it reached.
 
-Nothing in normal play promotes anything. Travel is still an instant swap, so
-the closest a neighbour ever gets is 294km, and every world on the sky sheets is
-pinned at the `drawFloor` — the 17km to 170km at which promotion happens is only
-reachable once phase 4 lets you fly. That is why the LOD is exercised by a
-harness that moves a body rather than by a sheet, and why the six-way sheets are
-unchanged: **this phase is invisible until travel is continuous**, which is the
-correct outcome for a foundation.
+None of this threw, none of it showed in a still frame, and no assertion in the
+suite was aimed anywhere near it.
 
-The near band — a second world at true scale with its own quadtree — is not
-here. It needs the origin world to change without a teardown, which is phase 4's
-change, and building a half of it now would be building it twice.
+### A carried basis, not three angles
+
+`TransitFrame` is an (east, up, north) basis — the craft's right, up and forward
+— with the same three fields in the same order as a `TangentFrame`, so
+`frameQuat` turns it straight into the drawn rotation and `applyTransform`'s
+transit branch becomes the surface branch with the local rotation left out.
+
+It is **seeded from the tangent frame with the craft's own yaw, pitch and roll**
+at the moment of departure, which is exactly what was being drawn on the
+previous frame. Departure stops being a transition and becomes the same
+orientation expressed once more. Measured seam: **2.4e-6 degrees over twelve
+departures**, against 180 for the build it replaces.
+
+A basis rather than angles because angles need a chart and every chart has a
+pole. Departure is a climb straight up and arrival is a dive straight down —
+precisely the two attitudes at which yaw and roll stop being distinguishable.
+Referencing the angles to the gravity frame instead of world +Y would have
+traded a snap for a gimbal.
+
+Each frame the basis does two separate rotations:
+
+- the **nose** swings onto the heading at `GRAV.aimRate`, set above hyper's own
+  2.0 rad/s steering so the craft never visibly lags the course it is flying
+- the **bank** is a rotation about the nose and nothing else, so correcting it
+  can never disturb the heading
+
+### The bound is the whole phase
+
+Following the field directly does not work, and the reason is worth stating
+because it is not obvious from the maths: the summed field is perfectly smooth,
+and it still snaps the craft over.
+
+A trajectory between two worlds passes within a few hundred metres of the point
+where the two pulls cancel. Measured along real trips, **the field direction is
+almost stationary for nine seconds and then reverses inside one frame** — peak
+turn rates of 776 to 10531 degrees a second, on every pair tried. Continuity is
+not the same problem as smoothness.
+
+So the bank is rate limited at `GRAV.turn`, 0.9 rad/s. A half turn takes 3.5s
+against the nine seconds a trip has left when it happens; every one of the
+thirty ordered pairs is upright again by **83% of the trip at the latest**, and
+arrives 0.000° off. It reads as the craft rolling over rather than as the world
+moving.
+
+### The camera had the same bug and a second one
+
+The chase camera in transit took its up from "any perpendicular will do out
+here; the heading is what reads". The perpendicular was chosen by which
+component of the heading was smallest, so it **jumped to a different axis
+whenever steering turned the heading through a component swap** — a camera roll
+mid-flight, out of a tie-break. And `camera.upVector` was never written in that
+branch at all, so the view stayed rolled to the departure world's radial for the
+whole trip and snapped to the destination's on arrival.
+
+Both are one line now: the camera shares the craft's basis.
+
+### The check that measured nothing
+
+The bank at arrival came back at exactly 0.000° on every crossing in the system,
+which is the number a check returns when it is measuring the wrong thing. A bank
+is an angle **about the nose**, and a craft diving straight into a world is at
+90° to the local up while being perfectly upright — so the first version, which
+took the raw angle between the craft's up and the local radial, reported a 90°
+error on every arrival and said nothing about whether anything had converged.
+
+Gating on "the local up is at least 5% across the nose" then threw away every
+frame of the handover, because the whole second half of a crossing is a dive
+down the destination's radial where that fraction is 1e-5, and reported a
+perfect zero off a sample of **nought frames**. Small is not undefined — the
+direction is still exact in double precision.
+
+The check now requires three things at once, and the middle one exists because
+the other two pass trivially on a craft that never banks at all:
+
+- every crossing **banks at least 104°** at the balance point
+- it is upright again before the approach sphere
+- the residual at arrival is under a degree
+
+Same lesson as the LOD handoff, in a new place: see the continuity invariant in
+`ARCHITECTURE.md`.
+
+### Verified twice, and the second one is the real engine
+
+`dev/run.mjs` flies the crossing as maths — hyper's own integrator, hyper's own
+steering, a `TransitFrame` carried beside it exactly as `craft.js` does. Ten
+assertions, thirty ordered pairs, four departure points and three attitudes, at
+15fps and at 120fps.
+
+That cannot prove the game draws what the maths says, because the drawn
+orientation goes through `frameQuat`, through Babylon's quaternion, onto a mesh,
+with a camera reading the same basis. So **`dev/crosscheck.mjs` samples
+`root.rotationQuaternion` on every animation frame of an actual departure,
+transit and arrival** and reports the largest step between consecutive frames. A
+snap is a single large step; that is the whole of it.
+
+```
+frames                    421 (404 in transit)
+worst step in flight      4.22°  at frame 10
+the departure seam        0.55°, camera 8.3°
+the arrival seam          84.27° of which 0° is off the wings, camera 90°
+```
+
+The harness does not call `enterHyper`. It stands the craft up as a jet forty
+metres under the boundary, dispatches a real `ShiftLeft` and holds it, and lets
+the escape burn take it over the edge — a harness that skips the trigger cannot
+tell you the trigger still fires.
+
+It also found that **you cannot leave toward a world that is below your
+horizon.** Aimed at Anvil, which sits 31° under Home's skyline, the lock-on bent
+the course down toward it and the trajectory went straight back through the
+sphere it had just left; the trip ended two seconds later, back on Home. That is
+honest behaviour and worth knowing about.
+
+### The arrival seam is 84°, and it is not this phase's
+
+`landOn` stands the craft up — pitch to 0.10 and the autopilot on — because
+arriving nose-down at 900m over a world you have never seen is a bad first
+second. What phase 3 owns is that the stand-up is a **pitch about the craft's
+own wings and nothing else**: no roll, no yaw, no frame swapping underneath it.
+Measured at 0.00° off that axis, and 169° off it if `landingYaw` is replaced
+with the stale departure bearing, which is what the check is for.
+
+Phase 4 deletes the swap and with it this seam entirely.
+
+### What phase 3 does not do
+
+**It does not move anything.** Hyper's speed law is a function of altitude and
+stays that way; the field decides orientation, not trajectory. Round-trip times
+are untouched, and so is every metre of surface play — which is what the
+26.9992-to-27.0002 measurement is for.
 
 ## Seamless space, phase 2: the LOD chain
 

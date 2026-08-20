@@ -225,9 +225,21 @@ export class ChaseCam {
     this.orbitPitch = damp(this.orbitPitch, this.wantPitch, CAM.orbitLerp, dt);
     this.zoom = damp(this.zoom, this.wantZoom, CAM.zoomLerp, dt);
 
-    // In transit there is no tangent frame and no ground to clear the boom
-    // against — the whole framing below is expressed in a frame that does not
-    // exist between worlds. Sit behind the craft along its heading instead.
+    /* In transit there is no tangent frame and no ground to clear the boom
+       against — the whole framing below is expressed in a frame that does not
+       exist between worlds. Sit behind the craft along its heading instead,
+       and take "up" from the craft's own transit basis.
+
+       That last part used to read "any perpendicular will do out here; the
+       heading is what reads", and it was wrong twice. The perpendicular was
+       chosen by which of the heading's components was smallest, so it JUMPED
+       to a different axis whenever the steering turned the heading through a
+       component swap — a camera roll mid-flight, from a tie-break. And the
+       camera's own upVector was never written at all in this branch, so the
+       view stayed rolled to the departure world's radial for the whole trip
+       and snapped to the destination's on arrival. The craft now carries a
+       basis that is continuous across both boundaries; the camera shares it,
+       and both problems are the same line. */
     if (craft.hyper) {
       const d = craft.hyper.dir;
       const t = craft.hyperT;
@@ -238,21 +250,20 @@ export class ChaseCam {
       this.camera.fov = lerp(this.camera.fov, wantFov, 1 - Math.exp(-CAM.hyperLerp * dt));
       const dist = CAM.dist.jet * this.zoom * (1.6 + t * CAM.hyperDist);
       const w = craft.world;
-      // Any perpendicular will do for "up" out here; the heading is what reads.
-      const ax = Math.abs(d.x) <= Math.abs(d.y) && Math.abs(d.x) <= Math.abs(d.z) ? 1 : 0;
-      const ay = ax === 0 && Math.abs(d.y) <= Math.abs(d.z) ? 1 : 0;
-      const az = ax === 0 && ay === 0 ? 1 : 0;
-      let ux = ay * d.z - az * d.y, uy = az * d.x - ax * d.z, uz = ax * d.y - ay * d.x;
-      const ul = Math.hypot(ux, uy, uz) || 1;
-      ux /= ul; uy /= ul; uz /= ul;
+      const u = craft.transit.up;
       const k = 1 - Math.exp(-CAM.posLerp * dt);
-      const tx = w.x - d.x * dist + ux * CAM.height.jet;
-      const ty = w.y - d.y * dist + uy * CAM.height.jet;
-      const tz = w.z - d.z * dist + uz * CAM.height.jet;
+      const tx = w.x - d.x * dist + u.x * CAM.height.jet;
+      const ty = w.y - d.y * dist + u.y * CAM.height.jet;
+      const tz = w.z - d.z * dist + u.z * CAM.height.jet;
       this.camera.position.x = lerp(this.camera.position.x, tx, k);
       this.camera.position.y = lerp(this.camera.position.y, ty, k);
       this.camera.position.z = lerp(this.camera.position.z, tz, k);
-      this.camera.setTarget(new BABYLON.Vector3(w.x, w.y, w.z));
+      this.aim.set(w.x, w.y, w.z);
+      // Level in transit: the bank the player should read is the craft's
+      // against the field, not the camera's against the craft.
+      this.tilt = damp(this.tilt, 0, 6, dt);
+      this.setUp(this.tilt, u);
+      this.camera.setTarget(this.aim);
       return;
     }
 

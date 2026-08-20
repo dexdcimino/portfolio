@@ -10,6 +10,7 @@
 import { frameQuat } from '../world/surface.js';
 import { iceHolds, iceRide } from '../world/water.js';
 import { bodies, advance, steer, pickTarget, centreOf } from '../world/hyper.js';
+import { TransitFrame, landingYaw } from '../world/gravity.js';
 import { ROVER, BOAT, JET, DRONE, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER,
          AIR, PARACHUTE, SKID } from '../tune.js';
 import { emit } from '../core/events.js';
@@ -41,6 +42,11 @@ export class Craft {
     this.onWater = false;
     this.onIce = false;        // Vault only: driving on frozen water
     this.hyper = null;         // between worlds: system-space transit state
+    /* ...and the basis it is drawn in out there. Its up is the summed gravity
+       field's, so it is the destination's local up by the time the craft
+       arrives and the departure world's on the frame it left — one object,
+       following one field, rather than a special case at each end. */
+    this.transit = new TransitFrame();
     this.economy = null;       // set by main.js; the trip check reads it
     this.hyperT = 0;           // 0..1, how fast that is. Every FX reads this
     this.bodies = null;        // the system, resolved once on the way out
@@ -393,6 +399,13 @@ export class Craft {
       this.economy.spend(check.need);
     }
 
+    /* The orientation is carried out of the frame as well as the heading, and
+       this line is the whole of "no snap at the boundary": the basis is seeded
+       with exactly what applyTransform was drawing on the previous frame, so
+       departure is the same attitude expressed in a frame that has no planet
+       under it rather than a new attitude computed from world +Y. */
+    this.transit.seed(fr, this.yaw, this.pitch, this.roll);
+
     this.hyper = { p, dir, target, speed: this.speedScalar, alt: this.pos.y, from: P.key };
     emit('hyperenter', { from: P.key, to: target ? target.key : null, target });
   }
@@ -412,6 +425,11 @@ export class Craft {
     steer(this.hyper, this.hyper.target, dt,
       HYPER.turnRate * (HYPER.turnLow + (1 - HYPER.turnLow) * this.hyperT));
     const arrived = advance(bs, this.hyper, dt);
+
+    /* Nose onto the course, then bank onto the local up. Attitude only — the
+       field does not move the craft, because speed out here is a function of
+       altitude and that law is hyper's, not this one's. */
+    this.transit.aim(bs, this.hyper.p, this.hyper.dir, dt);
 
     this.speedScalar = this.hyper.speed;
     this.speed = this.hyper.speed;
@@ -496,6 +514,16 @@ export class Craft {
    * you have never been, nose-down at altitude, is not a good first impression.
    */
   landOn(surface, alt) {
+    /* The heading, read out of the transit basis and into the new world's
+       frame, BEFORE the basis is thrown away. Yaw is the one part of the
+       attitude an arrival has to carry: pitch and roll below are a deliberate
+       stand-up that the autopilot then flies, but yaw was simply never set,
+       so the craft used to arrive pointing at whatever compass bearing it had
+       been holding on the world it left — a number with no meaning on this one.
+       Guarded, because this is also the dev warp's path: there is no transit
+       basis to read on a warp, and reading the stale one would replace an
+       arbitrary heading with a differently arbitrary one. */
+    if (this.hyper) this.yaw = landingYaw(this.transit, surface.frame);
     this.surf = surface;
     this.hyper = null;
     this.hyperT = 0;
@@ -1395,13 +1423,17 @@ export class Craft {
     const form = this.forms[this.mode];
     const root = form.root;
 
-    // In transit there is no tangent frame to compose with: the craft is a
-    // point in the system, pointed along its own heading.
+    /* In transit there is no tangent frame, so the craft carries its own —
+       and it is composed the same way, which is the point. The local rotation
+       is the identity because the transit basis IS the craft's axes: it is
+       aimed at the heading and banked onto the gravity field every frame, so
+       there is nothing left for a yaw, pitch and roll to say.
+       This used to be RotationYawPitchRoll(heading, pitch, 0), which references
+       world +Y. See TransitFrame for what that cost at the boundary. */
     if (this.hyper) {
       root.position.copyFrom(this.world);
-      const d = this.hyper.dir;
-      root.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
-        Math.atan2(d.x, d.z), -Math.asin(clamp(d.y, -1, 1)), 0);
+      if (!root.rotationQuaternion) root.rotationQuaternion = new BABYLON.Quaternion();
+      frameQuat(this.transit, root.rotationQuaternion);
       return;
     }
 

@@ -3081,5 +3081,371 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
 
 
 
+// ---- multi-body gravity, and the crossing ---------------------------------
+//
+// Pure maths, so this flies real trips with the real integrator and no scene.
+// The whole phase is about the two moments a craft changes which world it
+// belongs to, and both of them used to be silent: nothing threw, nothing
+// looked wrong in a still frame, and the craft rolled onto its back.
+{
+  const { bodies: systemBodies, advance, steer, nearest } =
+    await import('../js/world/hyper.js');
+  const { fieldAt, dominant, balancePoint, TransitFrame, landingYaw } =
+    await import('../js/world/gravity.js');
+  const { GRAV, HYPER, SYSTEM } = await import('../js/tune.js');
+  const { frameQuat } = await import('../js/world/surface.js');
+
+  const bs = systemBodies();
+  const by = (k) => bs.find((b) => b.key === k);
+  const deg = (r) => r * 180 / Math.PI;
+  const dot3 = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+  const nrm = (v) => {
+    const l = Math.hypot(v.x, v.y, v.z) || 1;
+    return { x: v.x / l, y: v.y / l, z: v.z / l };
+  };
+  const angle3 = (a, b) => Math.acos(clampN(dot3(a, b), -1, 1));
+  // Angle between two orientations, through the quaternions the game draws.
+  const qAngle = (p, q) =>
+    2 * Math.acos(Math.min(1, Math.abs(p.x * q.x + p.y * q.y + p.z * q.z + p.w * q.w)));
+
+  /* 1. THE FIELD HAS TO REPRODUCE THE CONSTANT IT REPLACES.
+     Surface play is explicitly unchanged by this phase, and the only thing
+     that makes that true rather than merely intended is that g0 * R^2 / R^2 is
+     g0 on every world. The residual is the other five pulling from across the
+     system, which is the honest amount by which the six differ. */
+  {
+    let worst = 0;
+    const detail = [];
+    for (const b of bs) {
+      const g = fieldAt(bs, { x: b.c.x + b.surfaceR, y: b.c.y, z: b.c.z }).g;
+      const rel = Math.abs(g - HOP.gravity) / HOP.gravity;
+      worst = Math.max(worst, rel);
+      detail.push(b.key + ' ' + g.toFixed(4));
+    }
+    ok('the summed field is the old gravity constant at every surface',
+      worst < 1e-4,
+      detail.join(' | ') + ' against ' + HOP.gravity +
+      ', worst ' + (worst * 1e6).toFixed(1) + 'ppm');
+  }
+
+  /* 2. WHERE TWO WELLS BALANCE.
+     balancePoint() is closed form; this finds the same point by bisecting the
+     field itself, with only those two bodies in it, so the formula is checked
+     against the thing it claims to describe rather than against itself. */
+  {
+    let worst = 0;
+    const detail = [];
+    for (let i = 0; i < bs.length; i++) {
+      for (let j = i + 1; j < bs.length; j++) {
+        const a = bs[i], b = bs[j], pair = [a, b];
+        const at = (t) => fieldAt(pair, {
+          x: a.c.x + (b.c.x - a.c.x) * t,
+          y: a.c.y + (b.c.y - a.c.y) * t,
+          z: a.c.z + (b.c.z - a.c.z) * t,
+        }).g;
+        // The field points at `a` below the null and at `b` above it, so its
+        // magnitude is unimodal between them: bisect on the sign of the slope.
+        let lo = 1e-4, hi = 1 - 1e-4;
+        for (let k = 0; k < 80; k++) {
+          const m = (lo + hi) / 2;
+          if (at(m) < at(m + 1e-7)) hi = m; else lo = m;
+        }
+        const err = Math.abs((lo + hi) / 2 - balancePoint(a, b));
+        worst = Math.max(worst, err);
+        if (i === 0 && j < 3) {
+          detail.push(a.key + '-' + b.key + ' ' + (balancePoint(a, b) * 100).toFixed(1) + '%');
+        }
+      }
+    }
+    ok('...and two wells balance exactly where their radii say they do',
+      worst < 1e-5,
+      detail.join(' | ') + ', worst error ' + worst.toExponential(1) + ' of the separation');
+  }
+
+  /* 3. GRAVITY AND ALTITUDE ARE NOT THE SAME SELECTOR, and that is on purpose.
+     hyper.js ranks worlds by altitude because its speed law is defined on
+     altitude. Gravity ranks by R/d. If these ever agreed everywhere one of
+     them would be wrong — this pins the disagreement, so that a later phase
+     cannot quietly collapse the two into a single call. */
+  {
+    const a = by('ember'), b = by('anvil');
+    let split = 0, lo = 1, hi = 0;
+    for (let i = 1; i < 200; i++) {
+      const t = i / 200;
+      const p = {
+        x: a.c.x + (b.c.x - a.c.x) * t,
+        y: a.c.y + (b.c.y - a.c.y) * t,
+        z: a.c.z + (b.c.z - a.c.z) * t,
+      };
+      if (nearest(bs, p).body.key !== dominant(bs, p).key) {
+        split++; lo = Math.min(lo, t); hi = Math.max(hi, t);
+      }
+    }
+    ok('gravity and altitude disagree about who owns the space between wells',
+      split > 20,
+      'ember-anvil: nearest and dominant differ from ' + (lo * 100).toFixed(0) +
+      '% to ' + (hi * 100).toFixed(0) + '% of the way across');
+  }
+
+  /* 4. ONE CROSSING.
+     Departs on the approach sphere with a real attitude, flies hyper's own
+     integrator with hyper's own steering, and carries a TransitFrame beside it
+     exactly as craft.js does. Everything below is measured off this. */
+  const FQ1 = new BABYLON.Quaternion();
+  const FQ2 = new BABYLON.Quaternion();
+  const FQ3 = new BABYLON.Quaternion();
+  const headingOf = (fr, att) => {
+    const cp = Math.cos(att.pitch), sp = Math.sin(att.pitch);
+    const lf = { x: Math.sin(att.yaw) * cp, y: -sp, z: Math.cos(att.yaw) * cp };
+    return nrm({
+      x: fr.east.x * lf.x + fr.up.x * lf.y + fr.north.x * lf.z,
+      y: fr.east.y * lf.x + fr.up.y * lf.y + fr.north.y * lf.z,
+      z: fr.east.z * lf.x + fr.up.z * lf.y + fr.north.z * lf.z,
+    });
+  };
+
+  function cross(fromKey, toKey, spawn, att, dt) {
+    const a = by(fromKey), b = by(toKey);
+    const fr = new TangentFrame(makePlanet(PLANETS[fromKey]), spawn);
+    const p = {
+      x: a.c.x + fr.up.x * a.approachR,
+      y: a.c.y + fr.up.y * a.approachR,
+      z: a.c.z + fr.up.z * a.approachR,
+    };
+    const dir = headingOf(fr, att);
+
+    // What applyTransform was drawing on the last surface frame...
+    frameQuat(fr, FQ1);
+    FQ1.multiplyToRef(
+      BABYLON.Quaternion.RotationYawPitchRoll(att.yaw, att.pitch, att.roll), FQ2);
+    // ...and what it draws on the first transit frame.
+    const tf = new TransitFrame().seed(fr, att.yaw, att.pitch, att.roll);
+    frameQuat(tf, FQ3);
+    const seam = qAngle(FQ2, FQ3);
+
+    const st = { p, dir, target: b, speed: 0, alt: 0 };
+    let t = 0, maxStep = 0, maxNose = 0, rawMax = 0, arrived = null;
+    let prevUp = { x: tf.up.x, y: tf.up.y, z: tf.up.z };
+    let prevField = null;
+    const f = { x: 0, y: 0, z: 0, g: 0 };
+    /* The bank, every frame, WITH how much of the local up was across the
+       nose to define it. A bank is an angle about the nose, so where the local
+       up lies ALONG the nose there is no bank to be right or wrong about, and
+       a check that does not record that is a check that can report a perfect
+       zero off a sample of nothing. It did: an earlier cut of this gated on
+       that fraction being above 0.05 and threw away every frame of the
+       handover, because the whole second half of a crossing is a dive down the
+       destination's radial and the fraction there is 1e-5. Small is not
+       undefined — the direction is still exact in double precision — so the
+       gate is the same 1e-6 rollError itself refuses to divide by. */
+    const bank = [];
+    for (let i = 0; i < 500000 && t < 400; i++) {
+      steer(st, b, dt, HYPER.turnRate * (HYPER.turnLow + (1 - HYPER.turnLow) *
+        clampN(Math.log2(Math.max(1, st.speed / HYPER.localSpeed)) /
+          Math.log2(HYPER.maxSpeed / HYPER.localSpeed), 0, 1)));
+      const hit = advance(bs, st, dt);
+      // What an unbounded follow would have done this frame, for the witness.
+      fieldAt(bs, st.p, f);
+      const fu = { x: -f.x / f.g, y: -f.y / f.g, z: -f.z / f.g };
+      if (prevField) rawMax = Math.max(rawMax, angle3(prevField, fu) / dt);
+      prevField = fu;
+
+      tf.aim(bs, st.p, st.dir, dt);
+      const along = dot3(fu, tf.north);
+      bank.push([t, Math.abs(tf.rollError(bs, st.p)),
+        Math.sqrt(Math.max(0, 1 - along * along))]);
+      maxStep = Math.max(maxStep, angle3(prevUp, tf.up) / dt);
+      prevUp = { x: tf.up.x, y: tf.up.y, z: tf.up.z };
+      maxNose = Math.max(maxNose, angle3(tf.north, st.dir));
+      t += dt;
+      if (hit) { arrived = hit; break; }
+    }
+    if (!arrived) return { seam, arrived: null, t };
+    const radial = nrm({
+      x: st.p.x - arrived.c.x, y: st.p.y - arrived.c.y, z: st.p.z - arrived.c.z });
+    const land = new TangentFrame(makePlanet(PLANETS[arrived.key]), radial);
+    const live = bank.filter((b) => b[2] > 1e-6);
+    /* Last moment the craft was more than a degree off upright, as a fraction
+       of the trip. This is the handover unwinding, and WHEN it finishes is the
+       number that matters — a fixed window at the end of the trip is not, and
+       reported a 138-degree failure on vault-to-home purely because that pair
+       settles at 83% and the window started at 75%. */
+    let settle = 0;
+    for (const b of live) if (b[1] > 0.02) settle = b[0] / t;
+    return {
+      seam, arrived, t, maxStep, maxNose, rawMax, tf, st, land, radial,
+      peakBank: live.length ? Math.max.apply(null, live.map((b) => b[1])) : 0,
+      finalBank: live.length ? live[live.length - 1][1] : Infinity,
+      liveFrames: live.length, settle, yaw: landingYaw(tf, land),
+    };
+  }
+
+  /* Attitudes and spawn points chosen to be awkward: an off-axis departure
+     point — the old code's error was 8.6 degrees at the +Y pole and 171 on the
+     far side of the world from it — and a craft that leaves banked. */
+  const SPAWNS = [
+    ['pole', { x: 0, y: 1, z: 0 }],
+    ['equator', { x: 1, y: 0, z: 0 }],
+    ['far side', { x: 0, y: -1, z: 0 }],
+    ['oblique', nrm({ x: 0.4, y: 0.6, z: -0.7 })],
+  ];
+  const ATTS = [
+    ['climbing', { yaw: 0.7, pitch: -1.35, roll: 0 }],
+    ['banked', { yaw: 2.4, pitch: -1.10, roll: 0.55 }],
+    ['shallow', { yaw: -1.9, pitch: -0.75, roll: -0.30 }],
+  ];
+  const RUNS = [];
+  for (const [sn, sp] of SPAWNS) {
+    for (const [an, att] of ATTS) {
+      RUNS.push(Object.assign({ name: sn + '/' + an }, cross('home', 'anvil', sp, att, 1 / 60)));
+    }
+  }
+
+  /* 5. THE DEPARTURE SEAM. This is the bug the phase was named for, and it is
+     the one number that has to be zero rather than small: the craft is drawn
+     from a tangent frame on one side of the boundary and from a transit basis
+     on the other, and if they do not agree exactly it snaps. Measured against
+     what the previous build did, which was to rebuild the orientation from
+     world +Y and throw the roll away entirely. */
+  {
+    const worst = Math.max.apply(null, RUNS.map((r) => r.seam));
+    let oldWorst = 0;
+    for (const [, sp] of SPAWNS) {
+      for (const [, att] of ATTS) {
+        const fr = new TangentFrame(makePlanet(PLANETS.home), sp);
+        const d = headingOf(fr, att);
+        frameQuat(fr, FQ1);
+        FQ1.multiplyToRef(
+          BABYLON.Quaternion.RotationYawPitchRoll(att.yaw, att.pitch, att.roll), FQ2);
+        const old = BABYLON.Quaternion.RotationYawPitchRoll(
+          Math.atan2(d.x, d.z), -Math.asin(clampN(d.y, -1, 1)), 0);
+        oldWorst = Math.max(oldWorst, qAngle(FQ2, old));
+      }
+    }
+    ok('leaving a world does not move the craft',
+      worst < 1e-6,
+      RUNS.length + ' departures, worst seam ' + deg(worst).toExponential(1) +
+      ' deg — the world-+Y build was ' + deg(oldWorst).toFixed(0) + ' deg');
+  }
+
+  /* 6. NO FLIP. The field's own direction reverses inside a frame at the
+     balance point; the craft's does not, because the bank is rate limited and
+     the nose only follows a heading that is itself rate limited. The raw
+     number beside it is what would have happened without the bound. */
+  {
+    const worst = Math.max.apply(null, RUNS.map((r) => r.maxStep));
+    const raw = Math.max.apply(null, RUNS.map((r) => r.rawMax));
+    const cap = GRAV.aimRate + GRAV.turn;
+    ok('nothing in a crossing turns faster than the rate limits allow',
+      worst <= cap * 1.001,
+      'worst ' + deg(worst).toFixed(1) + ' deg/s against a ' + deg(cap).toFixed(1) +
+      ' deg/s ceiling — the field itself peaks at ' + deg(raw).toFixed(0) + ' deg/s');
+  }
+
+  /* 7. NO LOSS OF CONTROL. The nose stays on the course through the roll. */
+  {
+    const worst = Math.max.apply(null, RUNS.map((r) => r.maxNose));
+    ok('...and the craft points where it is going the whole way',
+      worst < 0.02,
+      'worst nose-to-heading ' + deg(worst).toFixed(3) + ' deg over ' +
+      RUNS.length + ' crossings');
+  }
+
+  /* 8. THE FRAME FOLLOWED THE NEW BODY. The plan's actual requirement: by the
+     time the destination's approach sphere is reached, up means up THERE.
+     Measured as a BANK, because the arrival is a dive down the radial and a
+     craft diving straight into a world is at 90 degrees to the local up while
+     being perfectly upright — see TransitFrame.rollError. */
+  {
+    const worst = Math.max.apply(null, RUNS.map((r) => r.finalBank));
+    const peak = Math.min.apply(null, RUNS.map((r) => r.peakBank));
+    const late = Math.max.apply(null, RUNS.map((r) => r.settle));
+    /* Three conditions, and the middle one is there because the other two pass
+       trivially on a craft that never banks at all. The handover MUST show up
+       as a large error — the local up genuinely reverses at the balance point
+       — and it must then be gone well before the approach sphere. */
+    ok('the handover rolls the craft over, and it is level again before it lands',
+      worst < 0.02 && peak > 1.5 && late < 0.9,
+      'every one of ' + RUNS.length + ' crossings banks at least ' + deg(peak).toFixed(0) +
+      ' deg at the balance point and is upright again by ' + (late * 100).toFixed(0) +
+      '% of the trip, arriving ' + deg(worst).toFixed(3) + ' deg off');
+  }
+
+  /* 9. ...AND ARRIVING IS BEING STOOD UP, NOT SPUN ROUND.
+     landingYaw is the only part of the attitude an arrival keeps — pitch and
+     roll below it are the deliberate stand-up the autopilot then flies — and
+     yaw used to be simply whatever bearing the craft held on the world it
+     left, which is not a direction on the world it reached.
+     The property that says it is right is not what yaw equals, which can only
+     be restated from the code that computes it. It is that the rotation from
+     the transit attitude to the landed one is a PITCH ABOUT THE CRAFT'S OWN
+     RIGHT AXIS: stand a diving craft up and its wings stay where they were.
+     Anything else — a stale yaw included — moves that axis. */
+  {
+    let worst = -1, detail = '';
+    const QL = new BABYLON.Quaternion(), QR = new BABYLON.Quaternion();
+    for (const r of RUNS) {
+      frameQuat(r.land, QL);
+      QL.multiplyToRef(BABYLON.Quaternion.RotationYawPitchRoll(r.yaw, 0.10, 0), QR);
+      // The landed right axis, out of the quaternion the game will draw.
+      const { x, y, z, w } = QR;
+      const right = { x: 1 - 2 * (y * y + z * z), y: 2 * (x * y + z * w), z: 2 * (x * z - y * w) };
+      const err = angle3(right, r.tf.east);
+      if (err > worst) { worst = err; detail = r.name; }
+    }
+    ok('...and arriving stands the craft up rather than spinning it round',
+      worst < 0.12, 'worst wing swing ' + deg(worst).toFixed(2) + ' deg (' + detail + ')');
+  }
+
+  /* 10. AND IT IS THE SAME CROSSING AT ANY FRAME RATE. A rate-limited turn is
+     exactly the kind of thing that integrates differently at 15fps and 120fps,
+     and the failure would be invisible on the machine it was written on. */
+  {
+    let worst = 0;
+    const detail = [];
+    for (const [sn, sp] of SPAWNS) {
+      const fast = cross('home', 'anvil', sp, ATTS[1][1], 1 / 120);
+      const slow = cross('home', 'anvil', sp, ATTS[1][1], 1 / 15);
+      const d = angle3(fast.tf.up, slow.tf.up);
+      worst = Math.max(worst, d);
+      detail.push(sn + ' ' + deg(d).toFixed(2) + ' deg');
+    }
+    ok('a crossing arrives in the same attitude at 15fps as at 120fps',
+      worst < 0.05, detail.join(' | '));
+  }
+
+  /* 11. EVERY PAIR, NOT JUST THE ONE THE NUMBERS WERE TUNED ON. Thirty
+     ordered pairs, one crossing each: the bank has to converge before arrival
+     on the short hops as well as the long ones, and Ember to Anvil is the
+     worst case in the system — the largest radius ratio, so the balance point
+     sits closest to the world being left. */
+  {
+    const keys = Object.keys(SYSTEM.at);
+    let worst = 0, worstPair = '', late = 0, latePair = '', bad = 0, n = 0;
+    const cap = (GRAV.aimRate + GRAV.turn) * 1.001;
+    for (const from of keys) {
+      for (const to of keys) {
+        if (from === to) continue;
+        n++;
+        const r = cross(from, to, nrm({ x: 0.4, y: 0.6, z: -0.7 }), ATTS[1][1], 1 / 60);
+        if (!r.arrived || r.arrived.key !== to || r.seam > 1e-6 || r.maxStep > cap) {
+          bad++; continue;
+        }
+        if (r.finalBank > worst) { worst = r.finalBank; worstPair = from + '->' + to; }
+        if (r.settle > late) { late = r.settle; latePair = from + '->' + to; }
+      }
+    }
+    /* No peak requirement here: four of the thirty never flip at all, because
+       the departure heading already leaves them on the far side of the balance
+       point. A pair that does not need the handover must not be failed for not
+       performing one. */
+    ok('every ordered pair of worlds crosses cleanly',
+      bad === 0 && worst < 0.02 && late < 0.9,
+      n + ' crossings, ' + bad + ' bad; latest to come upright is ' + latePair + ' at ' +
+      (late * 100).toFixed(0) + '% of the trip, worst arrival ' + deg(worst).toFixed(3) +
+      ' deg off (' + worstPair + ')');
+  }
+}
+
 console.log(fails === 0 ? '\nAll checks passed.' : `\n${fails} FAILURE(S).`);
 process.exit(fails ? 1 : 0);

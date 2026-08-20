@@ -86,6 +86,7 @@ function anyPerp(d, out) {
 // ---- the tangent frame --------------------------------------------------
 
 const T1 = { x: 0, y: 0, z: 0 };
+const T2 = { x: 0, y: 0, z: 0 };
 
 export class TangentFrame {
   constructor(planet, dir) {
@@ -189,6 +190,56 @@ export class TangentFrame {
     // Re-orthonormalise. Thousands of small rotations a minute will drift.
     orthonormalise(this);
   }
+}
+
+/**
+ * Rotate a whole basis by the minimal rotation that takes one of its own axes
+ * toward `to`, by at most `maxAngle` radians. Returns the angle turned.
+ *
+ * The same parallel transport `TangentFrame.advance` performs, generalised in
+ * two ways that only matter off a surface. The step is BOUNDED, because
+ * between two worlds the target is a field direction that turns arbitrarily
+ * fast near the point where the two pulls cancel — measured at up to 9923
+ * degrees a second — and an unbounded step there is a 180-degree snap in one
+ * frame. And the exactly-opposed case is handled rather than skipped: two
+ * directions 180 degrees apart have no unique axis between them, so any
+ * perpendicular is chosen, because "already there" is the one thing that case
+ * is not.
+ *
+ * `from` must BE one of fr.east / fr.up / fr.north, not a copy: it is rotated
+ * along with the other two and the rotation is computed off its pre-rotation
+ * value. Deliberately not a method, so a transit frame with no sphere under it
+ * is carried by exactly the same code as one on a surface.
+ */
+export function swingFrame(fr, from, to, maxAngle) {
+  const l = Math.hypot(to.x, to.y, to.z);
+  if (l < 1e-12) return 0;
+  const tx = to.x / l, ty = to.y / l, tz = to.z / l;
+  let kx = from.y * tz - from.z * ty;
+  let ky = from.z * tx - from.x * tz;
+  let kz = from.x * ty - from.y * tx;
+  const sinA = Math.hypot(kx, ky, kz);
+  const cosA = clamp(from.x * tx + from.y * ty + from.z * tz, -1, 1);
+  const ang = Math.atan2(sinA, cosA);
+  if (ang < 1e-9) return 0;
+  if (sinA < 1e-12) {
+    anyPerp(from, T2);                   // opposed: pick a turn rather than none
+    kx = T2.x; ky = T2.y; kz = T2.z;
+  } else {
+    kx /= sinA; ky /= sinA; kz /= sinA;
+  }
+  const step = Math.min(ang, maxAngle);
+  rollFrame(fr, kx, ky, kz, step);
+  return step;
+}
+
+/** Rotate every axis of a basis about a unit axis, then re-orthonormalise. */
+export function rollFrame(fr, kx, ky, kz, ang) {
+  if (!ang) return;
+  rodrigues(fr.up, kx, ky, kz, ang);
+  rodrigues(fr.east, kx, ky, kz, ang);
+  rodrigues(fr.north, kx, ky, kz, ang);
+  orthonormalise(fr);
 }
 
 /** Rotate v about unit axis k by angle a, in place. */

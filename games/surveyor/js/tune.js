@@ -2487,6 +2487,57 @@ export const HOP = {
 };
 
 /**
+ * WHICH WAY IS DOWN, when there is more than one world.
+ *
+ * Nothing here changes how anything falls on a surface. `g0` is HOP.gravity
+ * read back out, so the summed field reproduces the constant the hop arc has
+ * always used at every world's own ground — measured at 26.9992 to 27.0002 on
+ * the six, the deviation being the other five pulling from across the system.
+ * It is a reference rather than a second number precisely so it cannot drift.
+ *
+ * WHAT IS NEW IS THE REACH. If every world pulls the same at its own surface
+ * then mu = g0 * R^2, and a well's extent is set by RADIUS alone. Anvil is ten
+ * times Ember's radius, so it pulls a hundred times harder at equal distance
+ * and two wells balance at Ra/(Ra+Rb) along the line between them — Ember and
+ * Anvil are 294km apart and balance 27km out from Ember, not at 147km. That is
+ * a property of the profiles that were already written, not a new axis to tune.
+ */
+export const GRAV = {
+  g0: HOP.gravity,     // surface gravity, identical on all six. See above.
+
+  /* THE BANK RATE, and this is the load-bearing number of the phase.
+     Measured along real trips: the field direction is almost stationary for
+     nine seconds and then REVERSES inside one frame, because the trajectory
+     passes within a few hundred metres of the point where the two pulls
+     cancel. Peak turn rates of 776 to 9923 degrees a second, on every pair
+     tried. Followed without a bound that is a half turn in one frame — the
+     flip this phase exists to prevent, arriving not as a bug in the handover
+     but as the handover being correct and instantaneous.
+     0.9 rad/s is a shade under 52 degrees a second: a half turn takes 3.5s
+     against the 9s a trip has left when it happens, so the craft is upright
+     with respect to the destination long before it gets there, and it reads as
+     the craft rolling over rather than as the world moving. */
+  turn: 0.9,           // rad/s the craft may bank at
+
+  /* How fast the nose follows the heading. ABOVE HYPER.turnRate — the course
+     itself turns at up to 2.0 rad/s, and a nose that cannot keep up with the
+     course is a craft visibly flying sideways through its own steering. It is
+     bounded at all only so that a departure, where the velocity carries lift
+     and stall terms the nose does not, resolves over a few frames instead of
+     snapping on the first one. */
+  aimRate: 2.6,        // rad/s
+
+  /* Below this there is no down, so the craft holds the bank it had.
+     A NUMERICAL FLOOR, not a gameplay dial: the smallest field magnitude on
+     any measured trip is 1.2e-4, a thousand times above it, so nothing in
+     normal play takes this branch. It exists because the sweep in hyper.js
+     makes a point inside a body a state the maths must survive, and because a
+     direction normalised out of zero is a NaN that would come back several
+     frames later as an attitude nobody can account for. */
+  hold: 1e-7,          // m/s^2
+};
+
+/**
  * Air, canopy and skid — the three things that happen between forms.
  *
  * These sit after HOP because they are all read against it: HOP.gravity is the

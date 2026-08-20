@@ -2,7 +2,7 @@
 
 **Repo:** portfolio · **Target:** `games/surveyor/`
 
-**Status: in progress.** Phases 1 and 2 have shipped — see the phase log at the
+**Status: in progress.** Phases 1, 2 and 3 have shipped — see the phase log at the
 bottom of this file and the two matching sections in `../README.md`. Do not
 start until the graphics transplants (T2, T3) are done. This is a systems change
 to a game that currently works, and it should land on top of finished lighting
@@ -252,12 +252,72 @@ swap, so the closest a neighbour ever gets is 294 km and every world on the
 contact sheets is pinned at the `drawFloor`. This phase is invisible until
 phase 4, which is the correct outcome for a foundation.
 
-## Phase 3 — not started
+## Phase 3 — shipped
 
-Gated on a green suite. Gravity handover bugs are subtle, intermittent and
-band-limited, and building them while the baseline is failing makes it
-impossible to tell whose bug is whose.
+`js/world/gravity.js`, plus a transit basis in `craft.js` and one line in
+`camera.js`.
 
-**Known collision ahead.** The Home revamp's last phase adds a fourth craft form
-on key 4, touching `craft.js`, `meshes.js` and the HUD chips. If phase 3 work is
-still open in `craft.js` when that lands, flag it rather than racing.
+**The field is summed rather than switched, so there is no handover to blend.**
+The plan asks for a handover at the midpoint that does not jerk the craft. Sum
+the six contributions and the midpoint is where the sum stops leaning one way —
+a consequence of the arithmetic instead of a rule, and a consequence cannot be
+got wrong at a boundary case. With equal surface gravity, `mu = g0 · R²`, so two
+wells balance at `Ra / (Ra + Rb)`: the plan's "midpoint" for equal worlds, and
+proportional for unequal ones, which is what it meant. Ember and Anvil are 294km
+apart and balance 27km out from Ember.
+
+Surface play is untouched by construction and by measurement: the field reads
+26.9992 to 27.0002 against `HOP.gravity` of 27 at the six surfaces.
+
+**"Gravity resolves to the nearest significant body" is a different selector
+from the one already in the file.** `hyper.js` ranks by altitude because its
+speed law is defined on altitude; gravity ranks by `R/d`. On the Ember-Anvil
+line they disagree from 10% to 50% of the way across. Both are right for what
+they are for, and there is an assertion pinning the disagreement so a later
+phase cannot collapse them into one call.
+
+**The plan's stated failure mode was already shipped, in both directions.**
+"A craft that flips orientation mid-flight" — transit orientation was built from
+world +Y, so the roll snapped at the boundary by 8.6 degrees leaving from the +Y
+pole, 146 from the equator and 171 from the far side, and snapped back on
+arrival, where `yaw` was never set at all and carried the departure world's
+bearing across. Nothing threw and nothing showed in a still frame.
+
+**The bank has to be rate limited, and that is the whole phase.** The summed
+field is smooth and following it still snaps the craft over: a trajectory passes
+within a few hundred metres of the balance point, where the field direction
+reverses inside one frame — 776 to 10531 degrees a second, on every pair.
+Continuity is not the same problem as smoothness. Bounded at 0.9 rad/s the half
+turn takes 3.5s of the nine a trip has left, and all thirty ordered pairs are
+upright again by 83% of the trip at the latest.
+
+**What phase 3 does not do is move anything.** Hyper's speed law stays a
+function of altitude; the field decides orientation, not trajectory. The plan
+does not ask for more, and phase 4's "hyper travel is unchanged" forbids it.
+
+**The check measured nothing, twice, before it measured this.** Bank at arrival
+came back as exactly 0.000 degrees on every crossing — first because the raw
+angle between the craft's up and the local radial is 90 degrees for any craft
+diving into a world, upright or not, and then because gating on "the local up is
+at least 5% across the nose" threw away every frame of the handover and reported
+a perfect zero off a sample of nought. See the continuity invariant in
+`../ARCHITECTURE.md`; this is its second instance.
+
+**Left deliberately.** `landOn` stands the craft up out of the dive in one frame
+— 84 degrees, measured, and asserted to be a pitch about the craft's own wings
+and nothing else. It is the swap, not the gravity handover, and phase 4 deletes
+it. Changing it in isolation changes the feel of every arrival in the game.
+
+## Phase 4 — not started
+
+The payoff, and the one that removes the teardown. Two things phase 3 leaves on
+the table for it: the 84-degree arrival stand-up above, and the fact that
+`nearest()` and `dominant()` will both be live at once when a craft can be
+inside two worlds' influence with both of them rendered.
+
+**Known collision.** The Home revamp's fourth craft form landed in `craft.js`,
+`meshes.js`, the HUD chips, the camera and audio while phase 3 was open. It was
+pulled before phase 3 started rather than raced, and phase 3's own craft.js
+changes are four small edits — the transit basis, its seed, its per-frame aim,
+and the arrival yaw. Phase 4 will touch far more of that file, so check what
+else is in flight before starting.
