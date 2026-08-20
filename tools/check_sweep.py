@@ -610,10 +610,11 @@ CASES = [
     ("03222c7", False, "three image fixes, Spans: declared, honestly described"),
     ("42d95f4", False, "large honest feature commit, several regions, all explained"),
     ("d3c2f6a", False,
-     "CLAUDE.md calls this an ARCHITECTURE.md sweep, and rule 2 has always "
-     "passed it: the region's approachAlt, makePlanet, maxZ and "
-     "seamless-space are all in the message. Recorded as expected-clean so "
-     "the disagreement is visible rather than rediscovered"),
+     "the ADJACENCY limit, and expected to pass: the swept invariant is "
+     "merged into a 34-line region with the Ember fix that earned it, and is "
+     "excused by that fix's own approachAlt, makePlanet, maxZ and "
+     "seamless-space. CLAUDE.md and ARCHITECTURE.md both name it as a known "
+     "limit now; this control is what keeps all three saying the same thing"),
 ]
 
 
