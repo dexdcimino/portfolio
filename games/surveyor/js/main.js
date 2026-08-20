@@ -19,6 +19,7 @@ import { makePlanet } from './world/sphere.js';
 import { Surface, findSpawn } from './world/surface.js';
 import { neighbours } from './world/discs.js';
 import { dominant } from './world/gravity.js';
+import { centreOf } from './world/hyper.js';
 import { systemExtent } from './world/space.js';
 import { previews } from './world/preview.js';
 import { COLORS, ATMO, POST, ROVER, PLANETS, HYPER, DEBUG, ECONOMY } from './tune.js';
@@ -283,6 +284,7 @@ function swapTo(key, dir, alt) {
    One field update a frame, so this costs what ordinary streaming costs and
    cannot spike. It runs only in transit, where world.update() does not. */
 let ahead = null;               // the World being streamed, if any
+const AT = { x: 0, y: 0, z: 0 };  // the observer, in system metres
 const AH = { x: 0, y: 0, z: 0 };
 function streamAhead() {
   const h = craft.hyper;
@@ -632,9 +634,17 @@ engine.runRenderLoop(() => {
   // around; the sky and the discs are the whole of what is drawn.
   // Growth and production for EVERY visited world, then the scene for this one.
   economy.update(dt);
-  if (!craft.hyper) world.update(dt, craft, cam.camera);
+  /* WHERE THE OBSERVER IS, in system metres, and it is the same expression
+     on a surface and between worlds: craft.world is the position in the
+     current planet's frame, and updateHyper writes exactly that from the
+     transit position. The sky is re-derived from it every frame, because a
+     disc set built from a planet's CENTRE stops being true the moment you
+     leave that planet. See Discs.observe. */
+  const oc = centreOf(world.planet.key);
+  AT.x = oc.x + craft.world.x; AT.y = oc.y + craft.world.y; AT.z = oc.z + craft.world.z;
+  if (!craft.hyper) world.update(dt, craft, cam.camera, AT);
   else {
-    world.discs.update(cam.camera);
+    world.discs.update(cam.camera, AT);
     streamAhead();
     // The beam is the one thing in survey.js that owns a mesh which has to be
     // put away rather than merely stop being updated: nothing else runs in

@@ -53,6 +53,13 @@ export function neighbours(planet) {
       key,
       dir: { x: dx / dist, y: dy / dist, z: dz / dist },
       dist,
+      /* Where this world actually IS, and how big it actually is, so the disc
+         can be re-derived from wherever the observer has got to. Without these
+         the entry is frozen at the separation between two planet CENTRES —
+         correct while you are standing on one of them and wrong the moment you
+         leave, which is the whole of travel. */
+      c: { x: p[0] * 1000, y: p[1] * 1000, z: p[2] * 1000 },
+      radius: other.radius,
       // Honest: the half-angle a sphere of this radius subtends at this range.
       angle: Math.atan2(other.radius, dist),
       /* Its own sun, not this world's. Each planet states a fixed sunDir in
@@ -251,8 +258,42 @@ export class Discs {
   }
 
   /** Rebuild the billboards for this frame's camera. */
-  update(camera) {
+  /**
+   * Re-derive every disc from where the observer actually is.
+   *
+   * THE SKY WAS ANCHORED TO THE PLANET, NOT TO YOU. `neighbours()` measures
+   * each world from the centre of the world that owns the disc set, once, at
+   * construction — and nothing wrote it again. That is exact while you are
+   * standing on that planet and it is the entire journey once you leave:
+   * measured on a Home-to-Tarn crossing, Tarn was drawn at a constant 4.16
+   * degrees "as if 302.8km away" from departure to arrival, while the craft
+   * closed from 291km to 8.9km and its true angle grew from 0.17 degrees to
+   * 5.45. The destination did not grow at all, which is the one thing the
+   * brief asks a crossing to do.
+   *
+   * Same family as the invariant about caching a per-world object, one level
+   * down: not a stale planet, a stale POSITION. Recomputed per frame now, five
+   * discs and a square root each, which is nothing.
+   *
+   * On a surface `at` is within a kilometre of the planet centre against
+   * separations of 294 to 945km, so the sky is unchanged to about a third of a
+   * percent — and what change there is is parallax, which the far band was
+   * built for and never had.
+   */
+  observe(at) {
+    if (!at) return;
+    for (const d of this.list) {
+      const dx = d.c.x - at.x, dy = d.c.y - at.y, dz = d.c.z - at.z;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist < 1) continue;
+      d.dir.x = dx / dist; d.dir.y = dy / dist; d.dir.z = dz / dist;
+      setDistance(this.planet, d, d.radius, dist);
+    }
+  }
+
+  update(camera, at) {
     if (!this.mesh) return;
+    this.observe(at);
     const m = camera.getWorldMatrix();
     // Columns of the camera's world matrix: its own right and up. Forward is
     // no longer wanted — the shader builds each sphere around that world's own

@@ -278,7 +278,9 @@ All launch Chrome on a throwaway profile via `dev/cdp.mjs` (no npm deps).
 `run.mjs` — headless suite over a Babylon stub, 227 assertions, imports
 `glslcheck.mjs` first (backtick-count scan of materials.js; that failure cost
 six debugging cycles). `shots.mjs` — six PNGs per world + contact sheets,
-fails on any console error. `savedworlds.mjs` — cold load **with** a save,
+fails on any console error. NOTE: it rebuilds the sheets from whatever subset
+of worlds you pass, so `shots.mjs home ember` overwrites the committed six-way
+sheets with a two-way one. Pass no worlds when the sheets matter. `savedworlds.mjs` — cold load **with** a save,
 asserts one sky/disc set/water. `arrivecheck.mjs` — exits non-zero, the one
 you can gate a commit on. `savefile.mjs` — seeded saves (`--save`,
 `--away=N`). Plus frames/spawncheck/noop/waterstats/waterangles/disccheck/
@@ -318,6 +320,15 @@ submission, never resolution, so no coarse-geometry caster LOD was built.
 
 ## Known-outstanding — do not re-report
 
+- **The sky is observed from the craft, not from the planet.** `neighbours()`
+  fixes every disc's direction and distance from the owning world's CENTRE at
+  construction. Nothing rewrote it, so a destination was drawn at a constant
+  4.16 degrees "as if 302.8km away" for a whole crossing while the craft closed
+  to 8.9km — it never grew, which is the one thing a crossing is for.
+  `Discs.observe(at)` re-derives both per frame; `main.js` passes
+  `centreOf(current) + craft.world`, which is the system position on a surface
+  and in transit alike. Same family as the caching invariant, one level down:
+  not a stale planet, a stale POSITION.
 - **A subsystem's total is not a diagnosis.** `colonies.stream` measured 60ms
   on the arrival frame, so the fix built colony sites ahead of time — and made
   it 106ms. Measured properly, that frame built **zero sites**: all of it was

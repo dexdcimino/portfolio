@@ -337,6 +337,16 @@ called from the same function. The general lesson is in `../ARCHITECTURE.md`.
 **Result: 324ms to ~45ms**, with zero shaders compiled on the arrival frame and
 the worst frame of a crossing now at the DEPARTURE rather than the arrival.
 
+**And then the destination turned out not to grow at all.** `neighbours()` fixes
+every disc's direction and distance from the owning world's centre at
+construction, and nothing rewrote it — so across a Home-to-Tarn crossing Tarn
+was drawn at a constant 4.16 degrees "as if 302.8km away" while the craft closed
+from 291km to 8.9km, where its true angle was 5.45 and the drawn one had turned
+from an exaggeration into an understatement. `Discs.observe(at)` re-derives both
+per frame from wherever the observer is; the destination now runs 4.21 to 11.99
+degrees over a trip and promotes to real geometry on the way in. Same family as
+the caching invariant, one level down: not a stale planet, a stale position.
+
 **What this rests on** is that a World can now be built and held invisible: its
 terrain, colonies and vents hang off `World.ground` and `showMeshes` switches
 it. Before, the only thing keeping an inactive world's ground off the screen was
@@ -346,12 +356,16 @@ one from nothing. Two assertions hold it, because it is the six-sky-domes shape.
 ### What is left in phase 4
 
 - **The ~56ms `World` build**, which this MOVES rather than removes: it now
-  happens on the frame you depart. Better placed — the FX are ramping and the
-  frame is already busy — but it is still a spike. Building all six at boot in
-  idle time, behind the title card, would remove it; the card is up at 70ms now
-  and a player spends seconds on it.
+  happens on the frame you depart. DECIDED (Dex, 2026-08-20): leave it there.
+  Building all six at boot is a permanent memory cost to smooth the one moment
+  nobody is looking at — you are pointing at empty sky and accelerating away
+  from everything visible — and it fights phases 1-3, which exist so that only
+  the current world is real. If departure ever reads badly in play, the cheaper
+  fix is starting the build a beat earlier in the escape burn; 8.7 seconds of
+  held boost is a lot of runway.
 - **The swap itself.** Travel is still an instant substitution at the approach
-  sphere; nothing yet grows continuously into a landing.
+  sphere. The destination grows and promotes now, but the last step — a far
+  body giving way to the world's own quadtree — is still one frame.
 - **The 84-degree stand-up** that `landOn` performs, left deliberately by phase
   3 and deleted by this phase when the swap goes.
 - **The LOD substitution**: a 642-direction far body replaced by a quadtree

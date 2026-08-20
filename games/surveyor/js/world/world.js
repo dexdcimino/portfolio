@@ -298,13 +298,13 @@ export class World {
    * every visited world every frame, including the five nobody is looking at,
    * so this only ever does the part that needs a scene.
    */
-  update(dt, craft, camera) {
+  update(dt, craft, camera, at) {
     if (!this.active) return;
     this.field.update(craft.surf.frame.up);
     if (this.water) this.water.update();
     this.survey.update(dt);
     this.colonies.stream(dt);
-    this.discs.update(camera);
+    this.discs.update(camera, at);
     // Centred on the craft, not the camera: the camera swings and pulls back,
     // and a box that followed it would slide the shadows around under a
     // stationary rover.

@@ -588,6 +588,58 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### The sky was anchored to the planet, not to you
+
+The other half of "leave a surface, watch the destination grow", and it turned
+out the destination was not growing at all.
+
+`neighbours()` measures every world from the centre of the world that owns the
+disc set — once, at construction — and nothing ever wrote it again.
+`Discs.update` rebuilds the billboard quads every frame but only from values
+that were already fixed. That is exact while you are standing on that planet,
+and it is wrong for the entire journey. Measured across a Home-to-Tarn crossing:
+
+| | craft to Tarn | drawn as if | true | drawn |
+|---|---|---|---|---|
+| climbing out | 291.4km | 302.8km | 0.17° | **4.16°** |
+| near the top | 278.6km | 302.8km | 0.17° | **4.16°** |
+| past the balance point | 14.2km | 302.8km | 3.40° | **4.16°** |
+| on approach | 8.9km | 302.8km | 5.45° | **4.16°** |
+
+A constant 4.16 degrees, at a constant 302.8km, from departure to arrival, while
+the craft closed to within nine kilometres — by which point the exaggeration had
+turned into an *under*-statement and the world was drawn smaller than it really
+was. The last frame before the swap showed a marble; the next frame was the
+inside of Tarn's atmosphere.
+
+`Discs.observe(at)` re-derives direction and distance per disc from wherever the
+observer actually is, and `main.js` passes it every frame. The same expression
+works on a surface and in transit, because `craft.world` is the position in the
+current planet's frame and `updateHyper` writes exactly that from the transit
+position, so `centreOf(current) + craft.world` is the system position in both
+cases. Now:
+
+| | craft to Tarn | true | drawn |
+|---|---|---|---|
+| climbing out | 291.3km | 0.17° | 4.21° |
+| near the top | 254.7km | 0.19° | 4.38° |
+| past the balance point | 13.2km | 3.66° | **10.65°**, promoted |
+| on approach | 8.9km | 5.43° | **11.99°**, promoted |
+
+It grows, it promotes to real geometry on the way in, and the frame before the
+swap is a world filling a third of the sky instead of a marble.
+
+**Same family as the caching invariant, one level down.** Not a stale planet —
+a stale *position*. The cost of not having it was five discs and a square root
+a frame, which is nothing; the cost of having it was three sessions of a phase
+whose entire premise is that you fly toward things.
+
+On a surface the observer is within a kilometre of the planet centre against
+separations of 294 to 945km, so the sky is unchanged to about a third of a
+percent — verified by capturing the departure frame with and without the
+re-derivation and finding every disc angle identical. What change there is is
+parallax, which the far band was built for and never had.
+
 ### A world can now be built and invisible
 
 All of this rests on one thing: a `World` has a `ground` node, and its terrain

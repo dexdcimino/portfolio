@@ -165,6 +165,19 @@ const UNTIL = (cond, limit) => `(async () => {
   return {
     frames: n, secs: +((performance.now() - t0) / 1000).toFixed(2),
     hyper: !!c.hyper, hyperT: +(c.hyperT || 0).toFixed(3),
+    tgt: (() => {
+      const t = c.hyper && c.hyper.target; if (!t) return null;
+      const d = S.discs.list.find((x) => x.key === t.key); if (!d) return null;
+      const p = c.hyper.p, cc = t.c;
+      const trueDist = Math.hypot(p.x - cc.x, p.y - cc.y, p.z - cc.z);
+      return { key: t.key,
+        trueKm: +(trueDist / 1000).toFixed(1),
+        discKm: +(d.dist / 1000).toFixed(1),
+        trueDeg: +(2 * Math.atan2(t.surfaceR, trueDist) * 180 / Math.PI).toFixed(2),
+        drawnDeg: +(2 * d.drawAngle * 180 / Math.PI).toFixed(2),
+        promoted: S.discs.promoted.has(t.key),
+        fov: +(S.cam.camera.fov * 180 / Math.PI).toFixed(1) };
+    })(),
     alt: c.hyper ? c.hyper.alt : c.pos.y,
     world: S.planet.key, speed: Math.round(c.speed),
     to: c.hyper && c.hyper.target ? c.hyper.target.key : null,
@@ -319,6 +332,11 @@ const MARKS = [
 for (const [label, cond] of MARKS) {
   const r = await evaluate(page, UNTIL(`!c.hyper || (${cond})`, 120000));
   await grab(`${label} — ${(r.hyperT * 100).toFixed(0)}%`);
+  if (r.tgt) {
+    console.log(`  ${label.padEnd(24)} ${r.tgt.key} is ${r.tgt.trueKm}km away, ` +
+      `drawn as if ${r.tgt.discKm}km — true ${r.tgt.trueDeg}°, drawn ${r.tgt.drawnDeg}°` +
+      `, fov ${r.tgt.fov}°${r.tgt.promoted ? ', promoted' : ''}`);
+  }
   if (!r.hyper) break;
 }
 

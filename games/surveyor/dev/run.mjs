@@ -18,6 +18,7 @@ const { on, off } = await import('../js/core/events.js');
 const { makePlanet, faceDir, dirToFace, arcBetween, TangentFrame } =
   await import('../js/world/sphere.js');
 const { Surface, findSpawn, splitNode } = await import('../js/world/surface.js');
+const { centreOf } = await import('../js/world/hyper.js');
 const { appendRocks } = await import('../js/world/scatter.js');
 
 // One world for phase 2. A second, tiny profile is built alongside it purely so
@@ -3132,6 +3133,35 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
       nowLit === leaves.length && leaves.length > 0,
       `${nowLit} of ${leaves.length} leaves lit on arrival`);
     worlds.enter(HOME, null);
+  }
+
+  /* THE SKY IS ANCHORED TO YOU, NOT TO THE PLANET.
+     neighbours() measures every world from the centre of the world that owns
+     the disc set, once, at construction - and nothing wrote it again. That is
+     exact while you are standing on that planet and wrong for the whole of a
+     journey: measured on a Home-to-Tarn crossing, Tarn was drawn at a constant
+     4.16 degrees "as if 302.8km away" from departure to arrival while the craft
+     closed from 291km to 8.9km. The destination did not grow, which is the one
+     thing the brief asks a crossing to do.
+     Same family as the invariant about caching a per-world object, one level
+     down - not a stale planet, a stale POSITION. */
+  {
+    const home = worlds.get(HOME);
+    const d = home.discs.list.find((x) => x.key === 'anvil');
+    const before = d.drawAngle;
+    // Stand at Home's centre: the distance it was built with.
+    home.discs.observe(centreOf('home'));
+    const atHome = d.drawAngle;
+    // ...and then most of the way to Anvil.
+    const a = centreOf('home'), b = centreOf('anvil');
+    home.discs.observe({ x: a.x + (b.x - a.x) * 0.99,
+      y: a.y + (b.y - a.y) * 0.99, z: a.z + (b.z - a.z) * 0.99 });
+    const near = d.drawAngle;
+    home.discs.observe(centreOf('home'));          // ...and put it back
+    const deg = (r) => (r * 360 / Math.PI).toFixed(2);
+    ok('a world grows as you fly toward it',
+      Math.abs(atHome - before) < 1e-9 && near > atHome * 3,
+      `Anvil is ${deg(atHome)} deg from Home and ${deg(near)} deg from 99% of the way there`);
   }
 }
 
