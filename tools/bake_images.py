@@ -29,6 +29,7 @@ Flags:
     (none)           bake anything stale or missing
     --check          report staleness and exit 1; writes nothing
     --prune          delete derivatives no ladder produces any more
+    --derived-for    read master paths on stdin, print the derivatives they own
     --install-hooks  copy tools/hooks/* into .git/hooks/
 
 Encoder settings were validated against the source art at 100% crop. They are
@@ -245,11 +246,47 @@ def prune() -> int:
     return 0
 
 
+def derived_for() -> int:
+    """Print the derivatives owned by the masters named on stdin, one per line.
+
+    This exists so the pre-commit hook can stage what the bake produced for THIS
+    commit. It used to stage assets/derived/ whole, which is a different set: the
+    bake is repo-wide, so a commit containing any raster also picked up whatever
+    another session had left unbaked in the working tree. Two commits on
+    2026-08-20 carried a third party's derivatives into the repo that way, master
+    not included, which is the same shape as the b6ba02f incident.
+
+    Masters arrive on stdin rather than in argv so a path with a space in it
+    survives. Anything the walk does not consider a master — a favicon output at
+    the root, a raster under games/ — yields nothing rather than erroring: the
+    hook passes every staged raster and lets this decide which ones are ours.
+
+    Paths are printed whether or not they exist; the hook bakes immediately
+    before calling this, so a missing one means the bake did not do its job and
+    git add failing on it is the correct loud answer.
+    """
+    # The consumer is a shell script, so the separator has to be LF. print()
+    # would translate it to CRLF on Windows and the stray carriage return rode
+    # into the path, so git add saw 'off-the-wall-1920.avif\r' and failed.
+    sys.stdout.reconfigure(newline="\n")
+    wanted = {(ROOT / line.strip()).resolve()
+              for line in sys.stdin.read().splitlines() if line.strip()}
+    if not wanted:
+        return 0
+    for src, widths in collect():
+        if src.resolve() in wanted:
+            for _, _, out in expected(src, widths):
+                print(out.relative_to(ROOT).as_posix())
+    return 0
+
+
 def main() -> int:
     if "--install-hooks" in sys.argv[1:]:
         return install_hooks()
     if "--prune" in sys.argv[1:]:
         return prune()
+    if "--derived-for" in sys.argv[1:]:
+        return derived_for()
 
     if not features.check("avif"):
         print("ERROR: this Pillow has no AVIF encoder. Upgrade: "

@@ -266,11 +266,15 @@ time via `probeMascot`.
 
 `pre-commit` (only fires when rasters/markup/palette files are staged):
 `check_accents.py` → bake images → bake markup → `bake_markup --check`.
-Stages `index.html` **whole**. `commit-msg` → `check_scope.py`: a commit may
-not span "projects" (each `games/<name>`, each other top-level dir, the repo
-root as one unit) unless the message carries a `Spans:` line naming every
-one. One exemption: `assets` + root-`index.html` only (the documented
-add-an-image flow).
+Stages `index.html` **whole**, but derivatives only for the masters in the
+commit — `bake_images.py --derived-for` maps one to the other. It used to
+stage `assets/derived/` whole, and because the bake is repo-wide that pulled
+in whatever another session had left unbaked; two commits on 2026-08-20
+carried a third party's derivatives that way, master not included.
+`commit-msg` → `check_scope.py`: a commit may not span "projects" (each
+`games/<name>`, each other top-level dir, the repo root as one unit) unless
+the message carries a `Spans:` line naming every one. One exemption:
+`assets` + root-`index.html` only (the documented add-an-image flow).
 
 Then `check_sweep.py`, which catches the opposite accident: a commit that stays
 inside one project and carries a SECOND session's work out with it, because a

@@ -229,6 +229,10 @@ output.
   is convenience (skippable via `--no-verify`, absent on fresh clones); the two
   `--check`s are the actual guarantee. Note the hook stages `index.html` whole —
   if you deliberately staged only part of it, commit the image change separately.
+  Derivatives are staged per-master, not by folder: the bake is repo-wide, so
+  `git add assets/derived/` swept another session's unbaked art into two commits
+  on 2026-08-20. The hook now asks `bake_images.py --derived-for` which files
+  belong to the masters being committed, and reports what it left alone.
 - Accent swaps retint the `<source>` srcsets, not just `img.src` — changing
   `src` alone does nothing inside a `<picture>`.
 - `script.js` builds mascot URLs at runtime (`mascot_${theme.mascot}-900.avif`),

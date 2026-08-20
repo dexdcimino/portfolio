@@ -58,11 +58,32 @@ if [ -n "$rasters" ]; then
         printf '%s\n' "$out" >&2
         exit 1
     fi
-    git add assets/derived/
+    # Stage the derivatives of the masters in THIS commit, not assets/derived/
+    # whole. The bake is repo-wide, so staging the folder also swept in whatever
+    # another session had left unbaked in the working tree — twice on 2026-08-20,
+    # master not included, which is the b6ba02f shape. check_scope and check_sweep
+    # both read the index, so neither can see what the bake adds after they run;
+    # the fix has to be here, at the point of staging. Masters go in on stdin so a
+    # path with a space in it survives.
+    mine=$(printf '%s\n' "$rasters" | $PY tools/bake_images.py --derived-for)
+    staged=0
+    if [ -n "$mine" ]; then
+        printf '%s\n' "$mine" | tr '\n' '\0' | xargs -0 git add --
+        staged=$(printf '%s\n' "$mine" | grep -c . || true)
+    fi
     # Pull the count straight out of the bake summary rather than recounting.
     written=$(printf '%s\n' "$out" | sed -n 's/.*[[:space:]]\([0-9][0-9]*\) written.*/\1/p' | tail -1)
     [ -n "$written" ] || written=0
-    printf 'pre-commit: baked images — %s derivative(s) written, assets/derived/ staged\n' "$written"
+    printf 'pre-commit: baked images — %s derivative(s) written, %s staged for this commit\n' "$written" "$staged"
+
+    # Anything still untracked or unstaged under assets/derived/ after that came
+    # from a master this commit does not carry. Leaving it out is the point; not
+    # saying so is how it went unnoticed twice.
+    left=$( { git ls-files --others --exclude-standard -- assets/derived/;
+              git diff --name-only -- assets/derived/; } | sort -u | grep -c . || true)
+    if [ "$left" -gt 0 ]; then
+        printf 'pre-commit: %s derivative(s) under assets/derived/ belong to masters not in this commit, left alone\n' "$left"
+    fi
 fi
 
 # Markup is generated from the masters, so it has to be rewritten whenever
