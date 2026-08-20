@@ -3547,8 +3547,8 @@ let openReader = () => {};
     paintShots();
   };
 
-  /* Hover PREVIEWS; only a click HOLDS. The pointer leaving a row snaps the
-     panel back to whatever was last clicked — seeded on the first row, so
+  /* Hover PREVIEWS; only a click HOLDS. The pointer leaving the LIST snaps
+     the panel back to whatever was last clicked — seeded on the first row, so
      with nothing ever clicked the section rests on the top app. Keyboard
      gets the same deal through focusout on the list. */
   let selected = cards[0];
@@ -3559,7 +3559,6 @@ let openReader = () => {};
 
   for (const card of cards) {
     card.addEventListener('pointerenter', () => show(card));
-    card.addEventListener('pointerleave', () => show(selected));
     /* focusin, not focus: the card is a container and never takes focus
        itself — focus lands on the title link or the eyeball inside it, and
        focusin is the version that bubbles. Tabbing previews exactly as
@@ -3571,6 +3570,15 @@ let openReader = () => {};
        select as a side effect — same card either way, nothing prevented. */
     card.addEventListener('click', () => { setSelected(card); show(card); });
   }
+  /* The revert belongs to the LIST, not to each row. Held per card, it fired
+     the instant the pointer crossed the gap between two rows, so every move
+     down the list flashed the selected app's copy and shot before the next
+     row's pointerenter painted over it — a glitch, not a preview. The gaps
+     are INSIDE #aiApps, and pointerleave on a container fires only when the
+     pointer leaves the whole subtree, so crossing one is not leaving
+     anything. Fixing it in the gaps themselves was the wrong end of it: the
+     spacing is right, the handling was wrong. */
+  apps.addEventListener('pointerleave', () => show(selected));
   // Focus leaving the whole list snaps back too, same rule as the pointer.
   apps.addEventListener('focusout', (event) => {
     if (!apps.contains(event.relatedTarget)) show(selected);

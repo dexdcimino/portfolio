@@ -40,18 +40,27 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   or new-tab escape: it is only ever an overlay; `data-link-preview` on a
   card additionally routes its TITLE link into that overlay until the app
   has a public home — MindSplit today), and a click anywhere else SELECTS
-  the row and holds (`.is-current`; hover only previews and snaps back to
-  the held row on pointerleave/focusout; seeded on the first row; the link
+  the row and holds (`.is-current`; hover only previews, and the snap back
+  to the held row is bound to the LIST — `pointerleave`/`focusout` on
+  `#aiApps`, never on a card, because the gaps between rows are inside the
+  list and a per-card revert flashed the held app every time the pointer
+  crossed one; seeded on the first row; the link
   deliberately does not flex-grow, or the row's empty middle would open the
-  tab); the mark sits at the row's far LEFT and the filled-eye button at
+  tab); a row is one flat fill (`#181d23`, a step above the section rather
+  than a match for it) and carries no accent wash — the accent's only job in
+  the list is the border on the current row; the mark sits at the row's far
+  LEFT and the filled-eye button at
   the far right via flex `order`, so the generated `<picture>` never moves
   in the DOM; the Apps panel across from the list shows the selection: the
   app's NAME large, then an inline carousel of ALL its `.gal-item` shots
   (cloned never borrowed; chevrons hidden on one-shot apps; x/x counter in
   the corner; no filmstrip; no shots collapses the frame — nothing sits in
   that state now, every one of the five apps carries at least one shot.
-  NodeBlast and dexddc.com are 1920x1080 captures of the live sites driven
-  over CDP through `games/_shared/dev/cdp.mjs`; MindSplit is three captures
+  NodeBlast's is a 1920x1080 capture of the live site driven over CDP
+  through `games/_shared/dev/cdp.mjs`; dexddc.com's
+  (`dexddc-portfolio.png`) is a supplied 2482x1478 grab of that site's
+  portfolio grid, cropped to 16:9 across the empty sky and floor rather than
+  centred, which would have clipped the nav ornament's horns; MindSplit is three captures
   of `/mindsplit/` at a 414x736 handset, in three of its five rooms,
   composited side by side the way `themedock-panel.png` merges four
   marketplace panels — a lone portrait frame in a 1440x690 stage is mostly
@@ -244,9 +253,12 @@ exists yet — the first project card is a stamped placeholder.
 
 DORMANT right now: no nav link (commented out in the nav), no `sections`
 entry in the scroll spy, and the panel + grid wear `hidden` behind a CSS-only
-UNDER CONSTRUCTION plate (`.collab-soon`). The machinery is finished and
+UNDER CONSTRUCTION strip (`.collab-soon`) — one line of type between two
+full-width hazard bars, not the 340px dashed plate it started as: a section
+that is not built yet should cost a rule's height, not a panel. The
+machinery is finished and
 tested, not deleted — going live is dropping the two `hidden` attributes and
-the plate, restoring the nav link and the `sections` entry, and putting real
+the strip, restoring the nav link and the `sections` entry, and putting real
 data on the card.
 
 ## Idea Vault — the backlog
@@ -357,7 +369,7 @@ frame, not the frame picked in the dashboard (its edge cache holds them for
 the frame never changes shape, so that clip carries `data-fit="contain"` and
 the `clip-poster-portrait` slot instead of being cropped to a third of itself.
 The Collab section is dormant — off the nav, content hidden behind
-an UNDER CONSTRUCTION plate — until the first collab repo exists. The vault
+an UNDER CONSTRUCTION strip — until the first collab repo exists. The vault
 backlog carries six plans, three Surveyor and three Site. The Breakout toy
 in the bio has no row and never will: the vault holds parked or unstarted
 plans, and that one is built. Its unstarted sibling `docs/bio-invaders.md`

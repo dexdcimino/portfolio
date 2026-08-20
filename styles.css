@@ -265,7 +265,6 @@ img{max-width:100%}
   transition:color var(--accent-ease),background var(--accent-ease);
 }
 .nav-icon{width:24px;height:24px}
-.nav-trail{width:15px;height:15px;margin-left:auto;opacity:0;transform:translateX(-6px)}
 .nav-text{opacity:0;transform:translateX(-8px);transition:opacity .2s ease,transform .2s ease;text-transform:uppercase;letter-spacing:.06em;font-weight:750;font-size:14px;color:#c3cad0}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .nav-text{opacity:1;transform:none}
 /* Expanded only: the label slides a few px right under the pointer, and under
@@ -276,7 +275,6 @@ img{max-width:100%}
    which is why the states are spelled out as :is() pairs. */
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible))
   :is(.nav-link,.resume-mini,.contact-mini):is(:hover,:focus-visible) .nav-text{transform:translateX(5px)}
-.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .nav-trail{opacity:.75;transform:none}
 
 .nav-link:hover,.nav-link.active,
 .resume-mini:hover,.resume-mini.active,
@@ -286,7 +284,6 @@ img{max-width:100%}
 .contact-mini:hover .nav-text{color:var(--accent)}
 .nav-link:hover .nav-icon,.nav-link.active .nav-icon,
 .resume-mini:hover .nav-icon,.contact-mini:hover .nav-icon{transform:scale(1.06)}
-.resume-mini:hover .nav-trail{opacity:1;transform:translateY(2px)}
 .nav-link.active::after,.resume-mini.active::after{content:"";position:absolute;right:0;top:8px;bottom:8px;width:3px;background:var(--accent);transition:background-color var(--accent-ease)}
 
 /* Collapsed, the caption and the social row are still in flow (they only fade
@@ -700,6 +697,13 @@ button.button{cursor:pointer;font-family:inherit}
 .button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink,#080a0b);box-shadow:0 12px 32px color-mix(in srgb,var(--accent) 22%,transparent)}
 .button.ghost{background:transparent}
 .btn-icon{width:16px;height:16px;transition:transform .2s ease}
+/* The eye runs a size up. Its glyph is wide and short — the lid spans the
+   full viewBox width but only the middle 14 of its 24 units vertically — so
+   in a 16px box it carries about half the ink an arrow does and reads small
+   beside one. Scoped to the icon, not to the two resume buttons that wear
+   it: the reason is the artwork, so any button taking the eye later wants
+   the same correction without knowing to ask. */
+.btn-icon[data-icon="eye"]{width:18px;height:18px}
 /* Arrows kick up-and-right; the download glyph gets no transform of its own so
    it simply rides the button's -2px lift instead of cancelling it out. */
 /* Only the up-right arrow gets its own travel — the motion is the affordance,
@@ -1557,12 +1561,18 @@ button.button{cursor:pointer;font-family:inherit}
    plate is the selection affordance; focus-within lights the row so
    keyboard focus reads exactly like hover. The vertical padding is what
    the mark's 60px leaves of the ~80px row — grow one and the other pays.
-   The fill is the grey behind COLLAB: .split-section is rgba(14,17,20,.91)
-   over the page, and this is that composite written flat. Flat because the
-   rows live in .split-section.alt, which is darker — reusing the alpha here
-   would composite twice and land a shade under the section it should match. */
-.ai-card{display:flex;align-items:center;gap:14px;border:var(--stroke) solid transparent;border-radius:14px;background:#0f1216;padding:8px 16px 8px 12px;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
-.ai-card:before{content:"";position:absolute;right:-18%;top:-44%;width:70%;aspect-ratio:1;background:var(--accent);filter:blur(70px);opacity:.08;transition:background-color var(--accent-ease)}
+   The fill is a STEP ABOVE its ground, not a match for it. It used to be
+   #0f1216 — .split-section's grey written flat — so a row would read as the
+   same surface COLLAB sits on. But these rows are in .split-section.alt,
+   which composites to about #080a0c, and seven levels is not a surface: the
+   list read as text lying on the section rather than as a stack of plates.
+   #181d23 is the first fill that makes a row obviously its own plate at
+   arm's length, and it stops there — further up and a dark row turns into a
+   light-grey card that pulls the eye off the panel it exists to fill.
+   Flat, and with no accent wash over it: the accent's one job in this list
+   is the border on the current row, and anything else wearing it competes
+   with the only thing here that carries meaning. */
+.ai-card{display:flex;align-items:center;gap:14px;border:var(--stroke) solid transparent;border-radius:14px;background:#181d23;padding:8px 16px 8px 12px;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
 .ai-card:hover,.ai-card:focus-within{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
 /* The selected row: the same accent frame the hover shows, held. Seeded on
    ThemeDock, so the section arrives with a selection rather than a guess. */
@@ -1579,14 +1589,14 @@ button.button{cursor:pointer;font-family:inherit}
 .ai-card-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 .ai-card-link>span{color:#9da5ab;font-size:12px;display:inline-flex;align-items:center;gap:6px}
 .inline-arrow{width:13px;height:13px}
-/* AI Lab app icon — square badge, top right, half the card's height.
-   Percentage height on an absolutely positioned child resolves against the
-   card's padding box, so "50%" tracks the real card height rather than a
-   number typed to match today's min-height; aspect-ratio keeps it square at
-   whatever that works out to. The card already has position:relative for its
-   accent blur, so nothing new is introduced to position against.
-   The copy sits at the bottom of the card (flex-end), so the icon has the top
-   corner to itself and needs no reflow. */
+/* AI Lab app icon — the row's leading square. A flex item at order:0, not a
+   badge positioned into a corner: `order` is what arranges the row, so the
+   generated <picture> block never has to move in the DOM.
+   60px is a typed number rather than a percentage, because the row's height
+   comes FROM the mark plus the vertical padding — a height resolving against
+   the row would be circular. position:relative and overflow:hidden stay on
+   the card: the 14px radius clips whatever a child paints, and the pair is
+   also what used to hold and clip the accent blur that lived there. */
 .ai-card-iconwrap{
   order:0;flex:0 0 auto;
   width:60px;height:60px;
@@ -1648,23 +1658,28 @@ button.button{cursor:pointer;font-family:inherit}
    the same trap .app-desc-link documents. .collab-info gets the same guard so
    the dormant pair cannot half-hide if its display ever changes. */
 .collab-grid[hidden],.collab-info[hidden]{display:none}
-/* The DORMANT state's stand-in: hazard tape and type where the grid will be.
+/* The DORMANT state's stand-in: ONE line of type between two hazard bars,
+   run edge to edge. It was a 340px plate with the words stacked over two
+   lines, which is a panel occupying the section — far more room than
+   "not built yet" is worth. A strip says the same thing in a rule's height,
+   so the plate is gone with it: no dashed frame, no gradient, no min-height.
    CSS only — nothing to fetch, nothing to bake. Goes live = delete this block,
    the .collab-soon markup, and the two hidden attributes (see index.html). */
 .collab-soon{
-  min-height:340px;padding:56px 24px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;
-  border:2px dashed color-mix(in srgb, var(--accent) 42%, transparent);
-  border-radius:14px;text-align:center;
-  background:linear-gradient(145deg,rgba(35,41,46,.5),rgba(12,15,18,.6));
-  transition:border-color var(--accent-ease);
+  display:flex;flex-direction:column;align-items:stretch;gap:13px;
+  text-align:center;
 }
+/* One line, always. A wrap would make it a block again, so the type shrinks
+   with the column instead of breaking — and the tracking, which is what makes
+   two short words read as a sign, comes out of the same budget. */
 .collab-soon strong{
-  font-size:clamp(34px,4.4vw,68px);line-height:1.06;letter-spacing:.08em;
-  font-weight:900;color:var(--text);opacity:.88;
+  font-size:clamp(15px,1.7vw,26px);line-height:1.1;letter-spacing:.2em;
+  font-weight:900;color:var(--text);opacity:.88;white-space:nowrap;
 }
+/* Full width now, not min(430px,74%): the bars ARE the strip, and a bar that
+   stops short of the edges reads as the top of a plate again. */
 .collab-soon-tape{
-  display:block;width:min(430px,74%);height:12px;border-radius:2px;
+  display:block;width:100%;height:12px;border-radius:2px;
   background:repeating-linear-gradient(-45deg,var(--accent) 0 15px,transparent 15px 30px);
   opacity:.5;
   transition:background-color var(--accent-ease);
