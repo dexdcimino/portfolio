@@ -31,3 +31,13 @@ games/surveyor/dev/shots/sheet*.html
 # changes when they clone.
 .vscode/
 
+# dev/gallery.mjs candidates, for every game. Same reasoning as the surveyor
+# block above and the same split: several deliberately-varied frames per named
+# shot, a megabyte each, regenerable with one command — and the point of them
+# is that a person looks at the CONTACT SHEET once and picks. The sheet is
+# kept (sheet.jpg); the candidates and the html it is photographed through are
+# not. fourup-boxes.json IS kept: it is where the figure stood in each panel,
+# and tools/make_gallery_composite.py cannot rebuild the four-up without it.
+games/*/dev/shots/gallery/*.png
+games/*/dev/shots/gallery/sheet.html
+games/*/dev/shots/gallery/sheet.css
