@@ -2888,6 +2888,51 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
       pairs++;
     }
   }
+  /* THE FAR BODY'S NIGHT SIDE IS THE GROUND'S DARKEST BAND.
+     This is the check that was missing while the handoff stepped by 634%.
+
+     The terrain is cel-shaded and bandLight does NOT fall to zero — its floor
+     is BANDS.floor at 0.47, because form has to keep reading on the unlit side.
+     So the ground has no night: the darkest it ever gets is about half its lit
+     value. svFarBody draws a real terminator, and it was falling to a global
+     0.09. Every arrival from Home lands on the destination's NIGHT side, so
+     that gap was the entire brightness step at the handoff — and it read as a
+     missing ambient term for two rounds because ambient is the other name in
+     the same expression.
+
+     Asserted as a RANGE rather than against a recomputed formula, which would
+     only prove the function equals itself. 0.30 to 0.75 is wide enough that
+     retuning the ladder or a world's fill passes, and narrow enough that the
+     two ways this has already been wrong both fail: the authored-ambient model
+     returns 0.0 on Vault and Home, and the old global was 0.09. */
+  const { nightFloorOf, BANDS } = await import('../js/world/materials.js');
+  let floorsOk = true;
+  const floors = [];
+  for (const key of Object.keys(PLANETS)) {
+    const f = nightFloorOf(makePlanet(PLANETS[key]));
+    if (!(f > 0.30 && f < 0.75)) floorsOk = false;
+    floors.push(`${key} ${f.toFixed(3)}`);
+  }
+  ok('the far body is as dark as the ground gets, and no darker', floorsOk,
+    `${floors.join(' | ')} — the cel floor is ${BANDS.floor}, the old global was ${SYSTEM.night}`);
+
+  /* ...and the ladder the shader runs is the ladder that answer came from.
+     bandLight is GENERATED from BANDS now, so this reads the registered GLSL
+     back and checks the floor it returns is the floor nightFloorOf used. A
+     generator that silently emits something else is the one way these two can
+     still disagree. */
+  /* Registration is lazy — nothing has built a material this early — so this
+     forces it rather than reading an empty store and calling that a pass. */
+  (await import('../js/world/materials.js')).createMaterials(
+    new BABYLON.Scene(new BABYLON.Engine()), makePlanet(PLANETS.home));
+  const gen = (BABYLON.Effect.ShadersStore.svTerrainFragmentShader || '')
+    .match(/float bandLight\(float d\)[^}]*}/);
+  const emitted = gen && gen[0].match(/return ([-\d.]+);\s*}$/);
+  ok('...and the ladder in the shader is the ladder that answer came from',
+    !!emitted && Math.abs(parseFloat(emitted[1]) - BANDS.floor) < 1e-9,
+    emitted ? `shader floor ${emitted[1]} against BANDS.floor ${BANDS.floor}`
+            : 'svTerrainFragmentShader is not registered');
+
   ok('the far band preserves angular size exactly', worstAngle < 1e-12,
     `${pairs} world pairs, worst relative error ${worstAngle.toExponential(1)}`);
 

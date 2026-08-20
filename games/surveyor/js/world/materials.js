@@ -296,21 +296,31 @@ export function fogRangeAt(planet, alt, out = { near: 0, far: 0 }) {
 /**
  * How bright a world's unlit side is, as a fraction of its lit side.
  *
- * The terrain's model is `ambient + sunIntensity * band`, so where the band is
- * zero what is left is the fill — and that fill is authored PER WORLD, from 0
- * on Vault to 0.22 on the two with real air in them. svFarBody had one global
- * number for the same thing, SYSTEM.night at 0.09, so a body's night side was
- * the same darkness whatever world it was a picture of.
+ * THIS IS THE GROUND'S ANSWER, NOT A PHYSICAL ONE. The terrain's model is
+ * `ambient + sunIntensity * bandLight(d)`, and bandLight does not reach zero —
+ * its floor is BANDS.floor, 0.47, because the cel look wants form to read on
+ * the unlit side. So the darkest the ground ever gets is
  *
- * Measured at the approach sphere, the far body arrives at 20.8 against the
- * ground's 146 on Tarn and 18.6 against 27.4 on Ember: too dark on one and
- * about right on the other, which is exactly what one constant standing in for
- * six authored ones looks like.
+ *     (ambient + sunIntensity * 0.47) / (ambient + sunIntensity * 1.04)
+ *
+ * which lands between 0.45 and 0.57 on all six worlds. The far body had 0.09.
+ *
+ * THE FIRST VERSION OF THIS FUNCTION RETURNED `ambient / (ambient + sun)` — the
+ * fill as a fraction of full key, which is the answer to a question nobody
+ * asked. It is the right formula for a lambert world whose unlit side falls to
+ * the fill and this world's does not; it gave 0.0 on Vault and Home, and
+ * handing Vault's far body a 0.0 night side made the handoff step WORSE, from
+ * +634% to +1356%. That was the measurement that said the model was wrong
+ * rather than the constant.
+ *
+ * Reading BANDS rather than restating 0.47 is the point: retune the ladder and
+ * this follows, and the far bodies do not quietly stop matching the ground.
  */
 export function nightFloorOf(planet) {
   const L = Object.assign({}, LIGHT, planet.light || {});
-  const lit = L.ambient + L.sunIntensity;
-  return lit > 1e-6 ? L.ambient / lit : 0;
+  const peak = BANDS.steps[0][1];
+  const lit = L.ambient + L.sunIntensity * peak;
+  return lit > 1e-6 ? (L.ambient + L.sunIntensity * BANDS.floor) / lit : 0;
 }
 
 /** The air a world is seen through: colour, sun colour and forward scatter. */
@@ -326,19 +336,56 @@ export const HAZE = `
   }
 `;
 
+/**
+ * THE CEL LADDER, and the one place it is written down.
+ *
+ * `d` is dot(normal, sun). Each entry is [above this, return that], and the
+ * last number is the floor — what a face pointing directly AWAY from the sun
+ * returns.
+ *
+ * THE FLOOR IS 0.47 AND THAT IS THE WHOLE POINT. It is not a lambert term with
+ * the bottom rounded off: a surface with its back to the sun still gets 47% of
+ * key, deliberately, because the cel look needs form to read on the unlit side
+ * rather than collapsing into a silhouette. The consequence is that THE GROUND
+ * HAS NO NIGHT. Stand anywhere on any of the six worlds, at any hour, and the
+ * darkest the terrain gets is 0.47 of its lit value.
+ *
+ * That is a look, and it is approved, and it is also why the far body did not
+ * match it. svFarBody draws a real sphere with a real terminator falling to
+ * uNight, and every arrival from Home lands on the destination's NIGHT SIDE —
+ * measured, all five, dot(arrival, sun) between -0.52 and -0.86. So the body
+ * sat at its floor while the ground it turned into sat at 0.47 of full key,
+ * and the entire brightness step at the handoff was those two floors
+ * disagreeing. It was read as a missing ambient term for two rounds; the
+ * authored ambient is a small part of it and on Vault and Home it is zero.
+ *
+ * So the ladder is a table now, and `nightFloorOf` reads the same table the
+ * shader is built from. A number that two things must agree on is written once.
+ */
+export const BANDS = {
+  steps: [[0.85, 1.04], [0.60, 0.97], [0.24, 0.83], [-0.10, 0.63]],
+  floor: 0.47,
+};
+
+/** `bandLight` as GLSL, generated from BANDS so the two cannot drift. */
+function bandLightGLSL() {
+  const f = (n) => n.toFixed(2);
+  const lines = BANDS.steps.map(
+    ([above, val]) => `    if (d > ${f(above)}) return ${f(val)};`);
+  lines.push(`    return ${f(BANDS.floor)};`);
+  return ['  float bandLight(float d) {', ...lines, '  }'].join('\n');
+}
+
 const COMMON = `
   precision highp float;
 
   // Flat steps instead of a gradient. This is the whole cel look. Five steps
   // rather than four, with a hot top band, so form still reads on a shallow
   // slope where the old four-step ramp collapsed everything into one tone.
-  float bandLight(float d) {
-    if (d > 0.85) return 1.04;
-    if (d > 0.60) return 0.97;
-    if (d > 0.24) return 0.83;
-    if (d > -0.10) return 0.63;
-    return 0.47;
-  }
+  // GENERATED FROM THE BANDS TABLE BELOW — see the note there for why it is
+  // not typed out here any more. No backticks in this comment: it is inside a
+  // template literal and a backtick would end the shader here.
+${bandLightGLSL()}
 
   /* TRIPLANAR — transplanted from the lookdev testbed, T3.
      Its version is a PBRMaterial plugin and there is no PBRMaterial here, so

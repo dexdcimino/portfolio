@@ -588,6 +588,109 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### The factor of seven was the ground having no night
+
+The far body arrived at Vault reading 21 against the ground's 150, and the
+previous round had blamed the authored ambient fill and been wrong — Vault
+authors an ambient of exactly zero, so there was nothing there to be missing.
+Four candidates, measured in order, three of them dead:
+
+**The per-world LUT.** Six worlds ship six different grades now, and the frame
+is regraded at the swap, so the whole step could have been post. Reading the
+`.3dl` transfer curves says no: they are contrast curves, not brightness lifts,
+and Vault's *crushes* shadows (input 32 comes out 24). It works against the step
+rather than causing it. Tarn's lifts blacks by half, which is a real contributor
+on that world alone and nowhere near a factor of seven.
+
+**The preview atlas the far body samples for albedo.** The suspicion was that
+the three relief terms that make Vault's flat pale palette read — basin,
+hillshade, contours — were darkening it. Baked both ways on the CPU: Vault's
+row is 207/255 with them and 226 without. They cost 8%. The albedo was never
+the problem, and Vault's body is correctly the brightest of the six.
+
+That leaves the lighting, and dividing out what was known settled it:
+21.4/255 ÷ (albedo 0.81 × `uDisc` 0.95) = **0.109**, which is `uNight` at 0.09.
+The far body was not dim. It was **fully on its night side.**
+
+**And it should have been.** The arrival radial is the direction from the
+destination back toward the world you left, so where you come down is fixed by
+the geometry of the system:
+
+| leaving Home for | dot(arrival, sun) | |
+|---|---|---|
+| Ember | −0.854 | full night |
+| Tarn | −0.673 | full night |
+| Vault | −0.859 | full night |
+| Shroud | −0.524 | full night |
+| Anvil | −0.582 | full night |
+
+**All five.** Every arrival from Home lands on the destination's night side.
+
+So why is the ground bright? Because **the ground has no night.** `bandLight`
+is the cel ladder and its floor is `0.47` — a face pointing directly away from
+the sun still gets 47% of key, deliberately, so form keeps reading on the unlit
+side instead of collapsing to silhouette. Stand anywhere on any world at any
+hour and the darkest the terrain gets is about half its lit value. The far body
+was drawing a real terminator falling to 0.09 against ground that bottoms out at
+0.47. **0.47/0.09 is 5.2, and the ice sheen and the LUT's highlight lift carry
+the rest.** That is the factor of seven, and neither half of it is ambient.
+
+The fix is one line of model, not a constant:
+
+    nightFloor = (ambient + sunIntensity * BANDS.floor)
+               / (ambient + sunIntensity * BANDS.peak)
+
+which lands between 0.452 and 0.568 across the six, against the 0.09 that was
+there and the 0.0 the ambient model returned for Vault and Home.
+
+| | as shipped | ambient model | the cel ladder |
+|---|---|---|---|
+| Home → Ember | +47% | +43% | **−30%** |
+| Home → Tarn | +634% | +352% | **+120%** |
+| Home → Vault | +634% | +601% | **+126%** |
+| Home → Shroud | +434% | +255% | **+49%** |
+| Home → Anvil | +76% | +56% | **+19%** |
+
+Mean step 261% → **69%**. Ember now overshoots, at a smaller magnitude than it
+undershot. Nothing got worse.
+
+**The ladder is a table now**, and `bandLight` is generated from it, because
+this is a number the shader and the far body have to agree on and it was
+written down in two places with only one of them thinking about it. There is a
+check that the floor in the registered GLSL is the floor `nightFloorOf` used,
+and another that every world's night side lands in 0.30–0.75 — wide enough to
+survive a retune, narrow enough that both ways this has already been wrong
+(0.0 from the ambient model, 0.09 from the global) fail it.
+
+**What is left is not explained and is not ambient.** Tarn and Vault still step
+by ~120%. The leading suspect is that the comparison has a floor built into it:
+the far body's mean is taken over a whole sphere including its limb, where
+`uLimb` at 0.44 pulls the mean to about 0.81 of centre, while the ground is all
+centre. That is arithmetic, not a measurement, and it is roughly 19% against a
+120% gap — so it is written here as the next thing to measure and explicitly not
+as a cause. The pattern that cost two rounds was tuning a term into an unproven
+mechanism.
+
+### The guard that was not looking at three of the shaders
+
+`dev/glslcheck.mjs` exists because a backtick inside a shader body closes the
+template literal and silently eats the GLSL to the next one. While the cel
+ladder was being moved into a table, a comment carrying a pair of backticks went
+into `COMMON` — and the check reported **clean**. Node happened to throw on the
+identifiers the break exposed, which is luck, not a guard; a tidier pair would
+have left a shader that still parses and no longer works.
+
+It was matching `\w+Shader = ` and nothing else, so it never saw:
+
+- `COMMON` and `HAZE`, which are template literals holding nothing but GLSL and
+  are not named `...Shader` because they are not registered as anything;
+- `svFarBodyFragmentShader`, declared as `PRECISION + HAZE + \``, because the
+  prefix pattern only allowed the literal string `COMMON + `.
+
+That last one is the whole far band, in the file this phase has been editing.
+Three shader bodies, none of them scanned. All three are now, verified by
+injecting a backtick pair into each and watching it fail.
+
 ### The far body borrows its world's ambient, and the harness stops testing a path nobody takes
 
 **`dev/arrivecheck.mjs` drove the dev warp.** The one check that exists to catch

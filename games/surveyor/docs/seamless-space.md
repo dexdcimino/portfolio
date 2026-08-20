@@ -150,6 +150,16 @@ The payoff.
 **Verify:** surface to surface with no load, no cut, no black frame. All five
 other worlds visible the whole way. Round-trip times still ~29–35 s.
 
+**The handoff's brightness step, explained and mostly closed.** It was not
+ambient and not albedo and not the per-world LUT — all three measured and
+rejected. `bandLight`'s floor is 0.47, so the cel-shaded ground has no night
+side at all, while the far body drew a real terminator falling to 0.09; and
+every arrival from Home lands on the destination's night side (all five,
+measured). Deriving the far body's night from the same ladder the ground is lit
+by took the mean step from 261% to 69%. The residual ~120% on Tarn and Vault is
+open — limb darkening over a whole sphere against a ground that is all centre is
+the leading suspect and is arithmetic, not a measurement.
+
 ## Phase 5 — Polish
 
 > **WHEN THIS PHASE IS DONE, DROP THE VAULT ROW.** Dex, 2026-08-20: the Idea

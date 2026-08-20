@@ -85,6 +85,19 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
 - **If a measurement disagrees with what is visibly on screen, the
   measurement is aimed wrong.** Three times now. (Also: render-cost numbers
   measured on SwiftShader are noise — `dev/budget.mjs` refuses to run there.)
+- **The ground has no night, and anything drawing a terminator must know it.**
+  `bandLight` is the cel ladder and its floor is `BANDS.floor` at 0.47: a face
+  pointing directly away from the sun still gets 47% of key, so form reads on
+  the unlit side. The darkest the terrain gets anywhere, at any hour, is about
+  half its lit value. `svFarBody` draws a real sphere with a real terminator, so
+  its `uNight` is derived from that ladder by `nightFloorOf` and NOT from the
+  authored ambient — which is zero on two worlds and gave a night side darker
+  than any ground the game can show. Every arrival from Home lands on the
+  destination's night side (all five, dot(arrival, sun) from -0.52 to -0.86), so
+  this is the term the handoff is made of.
+- **The cel ladder is written down once.** `BANDS` in materials.js is the table;
+  the GLSL `bandLight` is generated from it. Two readers that must agree, one
+  number. Retune the ladder and the far bodies follow.
 - **A harness that drives the dev warp is testing a path nobody takes.**
   `dev/arrivecheck.mjs` did, for most of its life — `devWarp` passes
   `approachAlt` explicitly and settles to the deck — which is how an absolute
@@ -300,6 +313,18 @@ identical; quadtree depth varies instead). POST: exposure **0.97**, contrast
 `.3dl` + identity in `assets/luts/`.
 
 ## Harnesses (`dev/`)
+
+**`glslcheck` must be able to see every shader body.** A backtick inside one
+closes the template literal and silently eats the GLSL after it, which is the
+whole reason that check exists. For most of its life it matched `\w+Shader = `
+with an optional literal `COMMON + ` prefix, and so never scanned `COMMON` or
+`HAZE` (GLSL chunks, not named `...Shader`) or `svFarBodyFragmentShader`
+(declared `PRECISION + HAZE + `) — three bodies, one of them the entire far
+band. A pair of backticks went into `COMMON` on 2026-08-20 and it reported
+clean. Declare a shader with a new prefix shape and you must widen `DECLARES`
+and both regexes in `shaderBodies` together, then prove it by injecting a
+backtick pair and watching it fail.
+
 
 All launch Chrome on a throwaway profile via `dev/cdp.mjs` (no npm deps).
 `run.mjs` — headless suite over a Babylon stub, 227 assertions, imports

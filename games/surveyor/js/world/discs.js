@@ -351,18 +351,19 @@ export class Discs {
     b.mat.setVector3('uSun', new BABYLON.Vector3(d.sun.x, d.sun.y, d.sun.z));
     b.mat.setVector3('uTint', new BABYLON.Vector3(d.tint[0], d.tint[1], d.tint[2]));
     b.mat.setFloat('uDisc', SYSTEM.disc);
-    /* THIS WORLD'S OWN unlit side, not one global number for six worlds — see
-       nightFloorOf. SYSTEM.night stays as the billboard's, which is a coin at
-       four pixels and has no business carrying a lighting model.
-
-       FLOORED AT THE OLD VALUE, so this can only ever lighten. Two worlds
-       author an ambient of exactly zero, and handing their far bodies a 0.0
-       night side made the step WORSE where it had been merely wrong — Vault
-       went from +634% to +1356%. Whatever is keeping Vault's ground bright at
-       the approach sphere, it is not its ambient fill, and until that is
-       measured rather than guessed this may not take light away from anything.
-       Tarn, Anvil and Shroud author more than 0.09 and get their own. */
-    b.mat.setFloat('uNight', Math.max(nightFloorOf(P), SYSTEM.night));
+    /* THE UNLIT SIDE, AS THE GROUND DRAWS IT — see nightFloorOf.
+       Not the authored ambient, which is what this was for one round and is
+       zero on two of the six. The terrain's darkest cel band is BANDS.floor at
+       0.47, so ground with its back to the sun still gets about half its lit
+       value; the far body's 0.09 was drawing a night the world it becomes does
+       not have. Every arrival from Home lands on the destination's night side —
+       all five, dot(arrival, sun) from -0.52 to -0.86 — so that gap WAS the
+       handoff step, not a missing ambient term.
+       No floor on it any more. The value is derived from the ladder the ground
+       is lit by rather than guessed, so there is nothing to hedge against; the
+       Math.max that used to be here existed because the previous model could
+       return 0 and did. */
+    b.mat.setFloat('uNight', nightFloorOf(P));
     b.mat.setFloat('uEmit', SYSTEM.emitBoost);
     b.mat.setFloat('uLimb', SYSTEM.limb);
     b.mat.setFloat('uSpec', d.spec);

@@ -45,9 +45,20 @@ function walk(dir, out = []) {
   return out;
 }
 
-// Matches `S.svThingVertexShader =` and `ShadersStore.svThingFragmentShader =`,
-// which are the two ways a shader gets registered in this project.
-const DECLARES = /\w+Shader\s*=\s*(?:COMMON \+ )?`/;
+// Matches S.svThingVertexShader= and ShadersStore.svThingFragmentShader=,
+// which are the two ways a shader gets registered in this project — AND the
+// shared GLSL chunks, which are not registered as anything.
+//
+// THE CHUNKS WERE THE BLIND SPOT AND IT WAS A LIVE ONE. COMMON and HAZE are
+// template literals holding nothing but GLSL, and because neither is named
+// ...Shader this scan walked straight past them. A comment carrying a pair of
+// backticks went into COMMON on 2026-08-20 and this check reported clean; node
+// happened to throw on the identifiers it exposed, which is luck, not a guard.
+// A tidier pair would have closed and reopened the template, eaten the GLSL
+// between them, and left a shader that still parses and no longer works —
+// which is the exact failure this file exists to prevent, in the one kind of
+// string it was not looking at.
+const DECLARES = /(?:\w+Shader\s*=|^(?:export )?const (?:COMMON|HAZE)\s*=)\s*(?:[A-Z]+ \+ )*`/m;
 
 export const sources = walk(ROOT)
   .map((path) => ({ path, text: readFileSync(path, 'utf8') }))
@@ -56,9 +67,19 @@ export const sources = walk(ROOT)
 /** Every shader body in one file, as { name, firstLine, text }. */
 export function shaderBodies(text) {
   const out = [];
-  const re = /(\w+Shader) = (?:COMMON \+ )?`([\s\S]*?)\n  `;/g;
+  /* Two shapes: a registered shader, which ends at a backtick indented two
+     spaces, and a shared chunk, which ends at one in the first column. */
+  const re = /(\w+Shader) = (?:[A-Z]+ \+ )*`([\s\S]*?)\n  `;/g;
   let m;
   while ((m = re.exec(text))) {
+    out.push({
+      name: m[1],
+      firstLine: text.slice(0, m.index).split('\n').length,
+      text: m[2],
+    });
+  }
+  const chunk = /^(?:export )?const (COMMON|HAZE) = `([\s\S]*?)\n`;/gm;
+  while ((m = chunk.exec(text))) {
     out.push({
       name: m[1],
       firstLine: text.slice(0, m.index).split('\n').length,
