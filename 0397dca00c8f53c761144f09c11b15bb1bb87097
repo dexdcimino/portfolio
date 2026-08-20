@@ -1,0 +1,17 @@
+Also carries, unmentioned in the message above: the sidebar RESUME
+eyeball removal and the button eye sizing rule.
+
+  index.html  .resume-mini loses its trailing <span class="icon nav-trail"
+              data-icon="eye">. The leading data-icon="resume" glyph stays —
+              the rail collapses to icons only, so removing that one leaves a
+              blank row where RESUME is.
+  styles.css  the three .nav-trail rules go with it (nothing else used the
+              class), and .btn-icon[data-icon="eye"] arrives at 18px, a step
+              over .btn-icon's 16px, for the hero ghost RESUME and VIEW
+              RESUME.
+
+Both belong with dafb908, "Resume buttons wear the AI Lab eye; the gallery
+button wears nothing". They landed here because they were loose in the working
+trees of index.html and styles.css when this commit staged both files whole.
+
+Reverting this commit reverts them too. That is the reason for this note.
