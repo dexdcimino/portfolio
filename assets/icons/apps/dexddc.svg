@@ -17,8 +17,11 @@
     </style>
   </defs>
   <g id="Layer_1-2">
-    <!-- Background layer stood in for a linked raster that was never
-         supplied. Original export line:
+    <!-- THE BACKGROUND, and it is settled — not a placeholder to go looking
+         for. The Illustrator export linked a raster layer, dexddc-1.png,
+         which does not exist and is not coming (Dex, 2026-08-20); #002538 is
+         this file's own second colour, the one .st2 draws the rim in, and it
+         is what the icon ships on. Original export line, for the record:
          <image class="st0" width="129" height="129" transform="translate(-.5 -.5)" xlink:href="dexddc-1.png"/> -->
     <rect width="128" height="128" rx="40" ry="40" fill="#002538"/>
     <g>
