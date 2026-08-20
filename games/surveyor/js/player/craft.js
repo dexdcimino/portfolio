@@ -1363,7 +1363,7 @@ export class Craft {
    * back out.
    *
    * VERTICAL IS TWO KEYS ON THE HOVER LINE, not two forces on the spring.
-   * Space raises the held offset and Ctrl (or Z) lowers it; the spring then
+   * Space raises the held offset and Z lowers it; the spring then
    * flies to wherever the line now is. That is why letting go of both HOLDS
    * the new height instead of sagging back — there is nothing to sag towards,
    * because the target moved rather than being pushed against. The line still
