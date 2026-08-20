@@ -132,9 +132,11 @@ game (40 exported blocks incl. `PLANETS`, `POST`, `ECONOMY`, `HYPER`);
   vehicle, four physics models + hyper transit — the drone is a hover on key
   `4`: holds height with no input, moves by tilting, thruster pods swivel in
   `applyTransform`. VERTICAL IS TWO KEYS ON THE HOVER LINE, not two forces on
-  the spring — Space raises `droneLift`, Z lowers it into `DRONE.minLift`, and
+  the spring — T raises `droneLift`, G lowers it into `DRONE.minLift`, and
   releasing both holds the new height because the target moved rather than
-  being pushed against. Entry floors that offset at 0, not at `minLift`, or the
+  being pushed against. T/G because the Q/A/Z column is full (Q is the survey
+  overlay, globally, so it is live in the drone too) and a stacked pair is
+  worth more than two keys picked separately. Entry floors that offset at 0, not at `minLift`, or the
   drone cannot take off from the ground), `camera.js`
   (`ChaseCam`). NOTE: the camera keys FOUR maps by mode — `CAM.dist/height/
   fov/rollTilt` plus `REF_SPEED` — and a mode missing from any one of them is

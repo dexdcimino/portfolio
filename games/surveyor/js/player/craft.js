@@ -1363,7 +1363,7 @@ export class Craft {
    * back out.
    *
    * VERTICAL IS TWO KEYS ON THE HOVER LINE, not two forces on the spring.
-   * Space raises the held offset and Z lowers it; the spring then
+   * T raises the held offset and G lowers it; the spring then
    * flies to wherever the line now is. That is why letting go of both HOLDS
    * the new height instead of sagging back — there is nothing to sag towards,
    * because the target moved rather than being pushed against. The line still
@@ -1403,7 +1403,7 @@ export class Craft {
     /* One signed input, so holding both is a deliberate zero rather than a
        race between two branches, and releasing both leaves the line exactly
        where it was. */
-    const lift = (input.hopHeld ? 1 : 0) - (input.descHeld ? 1 : 0);
+    const lift = (input.liftHeld ? 1 : 0) - (input.descHeld ? 1 : 0);
     if (lift) {
       this.droneLift = clamp(this.droneLift + lift * DRONE.climbRate * dt,
         DRONE.minLift, DRONE.maxLift);

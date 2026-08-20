@@ -76,7 +76,7 @@ const CONTROLS = [
   ['Drive, steer', ['W', 'A', 'S', 'D'], 'pitch and roll in the air'],
   ['Boost', ['Shift'], 'sustained'],
   ['Jump', ['Space'], 'hold to charge, release to leap'],
-  ['Drone: climb · descend', ['Space', 'Z'], 'the held height stays where you leave it'],
+  ['Drone: climb · descend', ['T', 'G'], 'the held height stays where you leave it'],
   ['Rover · Boat · Jet · Drone', ['1', '2', '3', '4'], 'momentum carries across'],
   ['Back to the rover', ['R'], ''],
   ['Drop a coloniser', ['F'], 'it lands and builds itself'],

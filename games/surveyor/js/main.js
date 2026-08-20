@@ -334,7 +334,7 @@ for (const e of ['colony', 'colonygrow']) on(e, () => cam.addShake(0.10));
 
 const keys = new Set();
 const HELD = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'ArrowUp', 'ArrowDown',
-  'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ']);
+  'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyT', 'KeyG']);
 let pendingMode = null;
 let pendingHopPress = false;
 let started = false;
@@ -373,13 +373,24 @@ function readInput() {
     // Held, not toggled: the beam is a thing you are doing, not a mode.
     beam: !!down('KeyE'),
     // Hold to charge a jump; the jet's mid-air pop wants the press edge.
-    // The drone reads the same hold as CLIMB — see updateDrone.
     hopHeld: !!down('Space'),
-    /* The drone's descend, and Z alone (Dex, 2026-08-19). Ctrl was tried and
-       withdrawn: Ctrl+W is a browser tab-close no page can preventDefault away
-       and W is this game's forward, so descending while accelerating closed the
-       game. A binding that can lose the session is not a binding. */
-    descHeld: !!down('KeyZ'),
+    /* THE DRONE'S VERTICAL, and it is a PAIR (Dex, 2026-08-19). T over G is
+       the one untouched vertical column on the keyboard — Q is the survey
+       overlay, A is strafe, so the Q/A/Z column everyone reaches for first is
+       full — and being stacked is what makes them memorable. Two keys chosen
+       together beat two keys chosen separately, which is what Z alone was.
+
+       Ctrl was tried and withdrawn: Ctrl+W is a browser tab-close no page can
+       preventDefault away, and W is this game's forward, so descending while
+       accelerating closed the game. A binding that can lose the session is not
+       a binding. Z is free again.
+
+       NOT Space, which used to climb here. One key doing two things in one
+       form is the bug that only shows up in the form nobody tested, and the
+       drone was the form nobody tested — Space is the jump everywhere else and
+       it is nothing at all in the drone now. */
+    liftHeld: !!down('KeyT'),
+    descHeld: !!down('KeyG'),
     hopPress: pendingHopPress,
     mode: pendingMode,
   };
@@ -391,7 +402,7 @@ function readInput() {
 // ---- loop ---------------------------------------------------------------
 
 const IDLE = { fwd: 0, turn: 0, pitch: 0, roll: 0, boost: false, beam: false,
-  hopHeld: false, hopPress: false, descHeld: false, mode: null };
+  hopHeld: false, hopPress: false, liftHeld: false, descHeld: false, mode: null };
 const deepEl = document.getElementById('deep');
 let deepShown = 0;
 
