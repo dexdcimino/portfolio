@@ -24,7 +24,18 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
 - `script.js` — plain script, feature blocks as IIFEs, executes top-to-bottom
   with `<script>` at the end of body. Major blocks: accent/theme system
   (7 accents; `applyAccent` sets `--accent`, rebuilds the SVG favicon,
-  swaps mascots), `probeMascot()` (clones the real `<picture>` so the browser
+  swaps mascots, and regenerates the SITE CURSOR: `cursorValue()` builds
+  both the arrow and the pointer-hand as double-stroke data URIs — accent
+  stroke over a dark casing, hotspot at the tip/fingertip — into
+  `--dex-cursor-arrow`/`--dex-cursor-pointer`; the whole feature rides
+  `html.dex-cursor`, default on, persisted as `dex-cursor`, toggled by the
+  `cursor-toggle` button after the swatches — accent-filled when on, muted
+  outline when off, `aria-pressed` + `aria-label` its only name, visible in
+  the docked `.compact` state too; deliberately NOT gated on
+  prefers-reduced-motion — the toggle is the escape hatch back to the OS
+  accessibility cursors; the styles.css block re-asserts `zoom-in` on the
+  shot view and keeps disabled things on the arrow, and the games inside
+  iframes keep their own documents' cursors), `probeMascot()` (clones the real `<picture>` so the browser
   negotiates the one true file — **never hand-build derivative URLs**), Work
   overlay (**mockup** — see CLAUDE.md; `TEMPORARY MOCKUP DATA` block, filler
   SVGs; everything after it renders `{title, desc, src, w, h}` and is

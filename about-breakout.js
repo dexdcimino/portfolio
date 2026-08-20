@@ -1058,11 +1058,17 @@ export async function start({ onStop, onPauseChange } = {}) {
    * the site having broken. A small centred block says so — a full dark wash
    * across the container read as a crash, so the playfield behind only dims
    * slightly and the outlined panel is what carries the message. */
+  // The dim behind the pause block rounds to the same radius the About
+  // section's own rounded container uses (the portrait frame's --radius-art),
+  // read from the live style rather than duplicated here.
+  const veilRadius = photo ? parseFloat(getComputedStyle(photo).borderRadius) || 0 : 0;
   const drawVeil = () => {
     if (!paused) return;
     const ctx = h.ctx;
     ctx.fillStyle = 'rgba(5, 7, 9, 0.2)';
-    ctx.fillRect(0, 0, h.size.w, h.size.h);
+    const veil = new Path2D();
+    veil.roundRect(0, 0, h.size.w, h.size.h, veilRadius);
+    ctx.fill(veil);
     // Just the word, centred — the controls sit right there, and the block
     // is obviously a pause state; a hint line only pushed PAUSED off-centre.
     const cx = h.size.w / 2;

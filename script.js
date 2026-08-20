@@ -281,6 +281,37 @@ function accentInk(hex) {
 
 const faviconSvg = document.getElementById('faviconSvg');
 
+/* ---------- the accent cursor -------------------------------------------
+   The breakout toy's in-game cursor, promoted to the whole site: an accent
+   stroke over a dark casing, which is what keeps it readable on any ground
+   (the wallpaper lightbox magnifier is built the same way). Both variants —
+   the arrow and the pointer hand for anything clickable — come from this ONE
+   function and are regenerated on every accent change; hand-writing a cursor
+   per accent would be eleven things to forget. The values live in two custom
+   properties on :root and the whole feature rides one class, html.dex-cursor,
+   so turning it off restores the system cursor everywhere instantly. Default
+   on, persisted under dex-cursor like the other preferences. Deliberately NOT
+   gated on prefers-reduced-motion — a cursor does not move by itself, and
+   that signal would be a lie; the toggle in the accent picker is the escape
+   hatch for anyone who needs the OS cursor (large, inverted, high-contrast). */
+const CURSOR_KEY = 'dex-cursor';
+const CURSOR_PATHS = {
+  arrow: { d: 'M6 4l10 20 2.5-8.5L27 13z', hot: '6 4', fallback: 'auto' },
+  // A simplified pointing hand: same line weight, same casing, but nobody
+  // mistakes it for the arrow. The hotspot is the fingertip.
+  pointer: {
+    d: 'M13.2 14V5.4a1.8 1.8 0 0 1 3.6 0v6l4.9 1.3a2.4 2.4 0 0 1 1.8 2.6l-.6 4.2a3.8 3.8 0 0 1-3.8 3.3h-4.3a4.4 4.4 0 0 1-3.3-1.5l-3.2-3.7 1.7-1.6a2.4 2.4 0 0 1 2.8-.4z',
+    hot: '15 4', fallback: 'pointer',
+  },
+};
+function cursorValue(kind, hex) {
+  const p = CURSOR_PATHS[kind];
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>` +
+    `<g fill='none' stroke='#000' stroke-opacity='.55' stroke-width='4.5' stroke-linejoin='round' stroke-linecap='round'><path d='${p.d}'/></g>` +
+    `<g fill='none' stroke='${hex}' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'><path d='${p.d}'/></g></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${p.hot}, ${p.fallback}`;
+}
+
 function applyAccent(name, persist = true) {
   const theme = ACCENTS.find(item => item.name === name) || ACCENTS[2];
   currentTheme = theme.name;
@@ -288,6 +319,10 @@ function applyAccent(name, persist = true) {
   root.style.setProperty('--accent', theme.color);
   root.style.setProperty('--accent-ink', accentInk(theme.color));
   root.dataset.accent = theme.name;
+
+  // The cursor is the accent: both variants follow every accent change.
+  root.style.setProperty('--dex-cursor-arrow', cursorValue('arrow', theme.color));
+  root.style.setProperty('--dex-cursor-pointer', cursorValue('pointer', theme.color));
 
   // favicon.ico is a static raster — it cannot read --accent and never follows
   // the theme. The SVG data URI is the live one, and it is rebuilt here rather
@@ -381,6 +416,40 @@ function buildAccentPicker() {
   accentHost.replaceChildren(frag);
   swatches = [...accentHost.querySelectorAll('.swatch')];
   picker.style.setProperty('--rows', String(ACCENTS.length - 1));
+
+  /* The cursor toggle: far right of the row, after the swatches (and after
+     them in the tab order). No visible text — like the swatches — so the
+     aria-label IS its name. It lives here because the cursor is the accent:
+     anyone fiddling with appearance is already looking at this row, and it
+     is the escape hatch back to the OS cursor for anyone who relies on the
+     system's accessibility cursors. It stays visible while the picker docks
+     (.compact) — it is a control, not a label. */
+  const cursorBtn = document.createElement('button');
+  cursorBtn.className = 'cursor-toggle';
+  cursorBtn.type = 'button';
+  cursorBtn.id = 'cursorToggle';
+  cursorBtn.setAttribute('aria-label', 'Accent cursor: replace the system cursor with the site’s');
+  const cSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  cSvg.setAttribute('viewBox', '0 0 32 32');
+  cSvg.setAttribute('aria-hidden', 'true');
+  const cPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  cPath.setAttribute('d', CURSOR_PATHS.arrow.d);
+  cSvg.appendChild(cPath);
+  cursorBtn.appendChild(cSvg);
+  picker.appendChild(cursorBtn);
+
+  const applyCursorPref = (on, persist = true) => {
+    document.documentElement.classList.toggle('dex-cursor', on);
+    cursorBtn.setAttribute('aria-pressed', String(on));
+    if (persist) {
+      try { localStorage.setItem(CURSOR_KEY, on ? 'on' : 'off'); } catch { /* private mode */ }
+    }
+  };
+  let cursorStored = null;
+  try { cursorStored = localStorage.getItem(CURSOR_KEY); } catch { /* private mode */ }
+  applyCursorPref(cursorStored !== 'off', false);
+  cursorBtn.addEventListener('click', () =>
+    applyCursorPref(!document.documentElement.classList.contains('dex-cursor')));
 
   let stored = null;
   try { stored = localStorage.getItem(STORAGE_KEY); } catch { /* private mode */ }
@@ -4880,7 +4949,7 @@ const PORTRAIT_LABEL = {
   const stopBtn = document.getElementById('bbStopBtn');
   if (!ui || !play || !stack) return;
 
-  const MODULE = './about-breakout.js?v=6';
+  const MODULE = './about-breakout.js?v=7';
   let mod = null;
   const load = async () => (mod ??= await import(MODULE));
 
