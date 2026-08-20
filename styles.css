@@ -707,8 +707,12 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   transition:transform var(--accent-ease),opacity .2s ease;
 }
 .cursor-toggle svg{display:block;width:100%;height:100%;overflow:visible}
-/* Dark fill only, no outline — the border added nothing on the topbar. */
-.cursor-toggle .ct-hex{fill:#14181d}
+/* Dark fill only, no outline — the border added nothing on the topbar.
+   The slight upscale is OPTICAL, not a size mismatch: the path is measured
+   pixel-identical to the swatch hexes (23.25x25.72 at the default 34px
+   swatch), but a dark shape on a dark ground reads smaller than a bright
+   one of equal geometry, so it gets the few percent back. */
+.cursor-toggle .ct-hex{fill:#14181d;transform:scale(1.07);transform-origin:38px 38px}
 /* Solid fill, not the double stroke: that construction is for the real
    cursor, which has to survive any background — on a known dark hexagon it
    was only adding weight. */
@@ -725,7 +729,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   opacity:0;pointer-events:none;transform:scale(.55);
   transition:transform .34s cubic-bezier(.22,.61,.36,1),opacity .2s ease;
 }
-.accent-picker.compact .cursor-toggle .ct-hex{transform:rotate(90deg);transform-origin:38px 38px}
+.accent-picker.compact .cursor-toggle .ct-hex{transform:rotate(90deg) scale(1.07);transform-origin:38px 38px}
 .accent-picker.compact.open .cursor-toggle{
   opacity:1;pointer-events:auto;
   transform:translateY(calc(var(--row,7) * var(--swatch-step)));
