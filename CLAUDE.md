@@ -51,16 +51,28 @@
   that was in no tree at all; `feef1f3` ("Splitmob renamed everywhere") carried
   a `.vault-pin` restyle; `d3c2f6a` carried an ARCHITECTURE.md invariant. Wrong
   attribution is the small half — the real risk is a revert taking out
-  something nobody knew was in there. `tools/check_sweep.py` refuses two
+  something nobody knew was in there. `tools/check_sweep.py` refuses three
   things: markup pointing at an `assets/derived/` file the commit does not
-  contain (exact, no escape hatch), and a region of a root file or an
-  `ARCHITECTURE.md` whose identifiers appear nowhere in the message. The second
-  is escapable, and has to name the file:
+  contain, and a `?v=` restamp whose bytes the commit does not carry (both
+  exact, no escape hatch), and a region of a root file or an `ARCHITECTURE.md`
+  whose identifiers appear nowhere in the message. The last is escapable, and
+  has to name the file:
 
       Carries: styles.css - the vault pin restyle, agreed with the other session
 
   Usually the right fix is not the escape hatch but a sentence in the message.
-  `python tools/check_sweep.py --commit <sha>` runs it against history.
+  `python tools/check_sweep.py --commit <sha>` runs it against history, and
+  `--cases` re-runs every incident named here as an assertion.
+
+  **Two of those three are refused. `d3c2f6a` is not, and is not meant to
+  be.** It is the checker's one known limit and it has a name: the ADJACENCY
+  limit. Hunks no more than 60 untouched lines apart are treated as ONE
+  region, so a swept invariant sitting beside a real edit is explained by the
+  real half and passes — d3c2f6a's invariant is inside a 34-line region with
+  the Ember fix that earned it, excused by that fix's own `approachAlt` and
+  `maxZ`. Do not read the list above as "all three are now caught". Widening
+  it is a tuning decision with a measured noise cost, not an oversight; the
+  reasoning is in `tools/check_sweep.py`'s docstring and in ARCHITECTURE.md.
 
   A fresh clone installs both hooks once:
   `python tools/bake_images.py --install-hooks`.
