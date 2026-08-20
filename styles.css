@@ -137,6 +137,7 @@ img{max-width:100%}
 [data-icon="arrow-right"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M4 12h15M13 6l6 6-6 6'/%3E%3C/svg%3E")} /* src: assets/icons/arrow-right.svg */
 [data-icon="brain"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M11.2 4.6C9.3 3.3 6.6 4 5.7 6.1 3.6 6.5 2.4 9 3.6 10.9c-1 1.8-.4 4.2 1.4 5.2.2 2.4 2.4 4 4.6 3.4.6-.1 1.2.1 1.6-.1ZM12.8 4.6c1.9-1.3 4.6-.6 5.5 1.5 2.1.4 3.3 2.9 2.1 4.8 1 1.8.4 4.2-1.4 5.2-.2 2.4-2.4 4-4.6 3.4-.6-.1-1.2.1-1.6-.1Z'/%3E%3C/svg%3E")} /* src: assets/icons/brain.svg */
 [data-icon="brand"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23fff' d='M15 7h27l15 25-15 25H15L4 45l9-7 8 9h15l9-15-9-15H21l-8 9-9-7Z'/%3E%3C/svg%3E")} /* src: assets/icons/brand-mark.svg */
+[data-icon="browser"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M4 4.6h16a1.5 1.5 0 0 1 1.5 1.5v11.8a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5V6.1A1.5 1.5 0 0 1 4 4.6Z M2.5 9.2h19'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' d='M5.6 6.9h.01M8.3 6.9h.01'/%3E%3C/svg%3E")} /* src: assets/icons/browser.svg */
 [data-icon="chevron"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E")} /* src: assets/icons/chevron.svg */
 [data-icon="collab"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M8.8 12.6a3.7 3.7 0 1 0 0-7.4 3.7 3.7 0 0 0 0 7.4ZM2.2 20a6.6 6.6 0 0 1 13.2 0ZM17.2 12.4a3.1 3.1 0 1 0 0-6.2 3.1 3.1 0 0 0 0 6.2ZM11.8 20a5.6 5.6 0 0 1 11.2 0Z'/%3E%3C/svg%3E")} /* src: assets/icons/collab.svg */
 [data-icon="contact"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M4 5h16v11H8l-4 3V5Zm3 4h10M7 12h7'/%3E%3C/svg%3E")} /* src: assets/icons/contact.svg */
@@ -151,6 +152,7 @@ img{max-width:100%}
 [data-icon="lock"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.6' y='10.1' width='14.8' height='10.3' rx='2.4'/%3E%3Cpath d='M8.4 10.1V6.9a3.6 3.6 0 0 1 7.2 0v3.2M12 14.1v2.3'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/lock.svg */
 [data-icon="loop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M6.5 8.5h11a2.5 2.5 0 0 1 2.5 2.5v2M17.5 15.5h-11A2.5 2.5 0 0 1 4 13v-2'/%3E%3Cpath fill='%23fff' d='m8.6 5.4-3 3.1 3 3.1zm6.8 13.2 3-3.1-3-3.1z'/%3E%3C/svg%3E")} /* src: assets/icons/loop.svg */
 [data-icon="pause"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M8 5h3v14H8zm5 0h3v14h-3z'/%3E%3C/svg%3E")} /* src: assets/icons/pause.svg */
+[data-icon="planet"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M12 5.4a6.6 6.6 0 1 0 0 13.2 6.6 6.6 0 0 0 0-13.2Z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.9' stroke-linecap='round' d='M2.13 15.59A10.5 3.3 -20 0 1 21.87 8.41A10.5 3.3 -20 0 1 2.13 15.59Z'/%3E%3C/svg%3E")} /* src: assets/icons/planet.svg */
 [data-icon="play"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23fff' stroke-width='3.4' stroke-linejoin='round' d='M8.4 5.9v12.2L18.2 12Z'/%3E%3C/svg%3E")} /* src: assets/icons/play.svg */
 [data-icon="plus"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M10.7 4.8h2.6v5.9h5.9v2.6h-5.9v5.9h-2.6v-5.9H4.8v-2.6h5.9Z'/%3E%3C/svg%3E")} /* src: assets/icons/plus.svg */
 [data-icon="preview"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.2 12c2.6-3.9 5.8-5.8 9.8-5.8s7.2 1.9 9.8 5.8c-2.6 3.9-5.8 5.8-9.8 5.8S4.8 15.9 2.2 12Z M12 14.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z'/%3E%3C/svg%3E")} /* src: assets/icons/preview.svg */
@@ -815,20 +817,20 @@ button.button{cursor:pointer;font-family:inherit}
 
 
 /* --- shared tab row ------------------------------------------------------ */
-.tk-tabs,.pk-tabs,.ai-tabs{
+.tk-tabs,.pk-tabs,.ai-tabs,.iv-tabs{
   display:flex;gap:2px;flex-wrap:wrap;margin-bottom:26px;
   border-bottom:1px solid var(--line);
 }
-.tk-tab,.pk-tab,.ai-tab{
+.tk-tab,.pk-tab,.ai-tab,.iv-tab{
   appearance:none;border:0;background:none;cursor:pointer;font:inherit;
   padding:11px 16px;margin-bottom:-1px;
   color:var(--icon-idle);font-size:14px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;
   border-bottom:var(--stroke) solid transparent;white-space:nowrap;
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
 }
-.tk-tab:hover,.pk-tab:hover,.ai-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
-.tk-tab:focus-visible,.pk-tab:focus-visible,.ai-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
-.tk-tab[aria-selected="true"],.pk-tab[aria-selected="true"],.ai-tab[aria-selected="true"]{
+.tk-tab:hover,.pk-tab:hover,.ai-tab:hover,.iv-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.tk-tab:focus-visible,.pk-tab:focus-visible,.ai-tab:focus-visible,.iv-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+.tk-tab[aria-selected="true"],.pk-tab[aria-selected="true"],.ai-tab[aria-selected="true"],.iv-tab[aria-selected="true"]{
   color:var(--accent);border-bottom-color:var(--accent);
 }
 @media(max-width:760px){
@@ -840,9 +842,9 @@ button.button{cursor:pointer;font-family:inherit}
      It goes on the wrapper as well as the row: the floor applies at each level,
      and clearing it on one alone leaves the other one holding the width. */
   .ai-wrap,.tk-tabrow{min-width:0}
-  .tk-tabs,.pk-tabs,.ai-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-width:0}
-  .tk-tabs::-webkit-scrollbar,.pk-tabs::-webkit-scrollbar,.ai-tabs::-webkit-scrollbar{display:none}
-  .tk-tab,.pk-tab,.ai-tab{padding:11px 13px;font-size:13px}
+  .tk-tabs,.pk-tabs,.ai-tabs,.iv-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-width:0}
+  .tk-tabs::-webkit-scrollbar,.pk-tabs::-webkit-scrollbar,.ai-tabs::-webkit-scrollbar,.iv-tabs::-webkit-scrollbar{display:none}
+  .tk-tab,.pk-tab,.ai-tab,.iv-tab{padding:11px 13px;font-size:13px}
 }
 
 /* --- toolkit tab row + hover description --------------------------------- */
@@ -2082,6 +2084,71 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
   /* The strip stacks here, so the boxes stop being centred in a column of
      their own and line up with the heading above them. */
   .vault-lockbox{justify-items:start}
+}
+
+/* --- the backlog, under the snail ---------------------------------------- */
+/* A LIST, not a card grid. These are documents — a row of them should read like
+   a directory rather than like a feature showcase, so the rows are quiet and
+   dense and nothing about one moves on hover except its icon.
+   The tabs are the site's existing tab family (see .ai-tab), not a second one. */
+.vault-modal-shell.has-list{
+  /* 420px is a snail's worth of width; a list of documents wants a reading
+     measure. The height is capped and the SHELL scrolls, because the list is
+     the one part of this overlay that grows every time a plan is written. */
+  width:min(94vw,660px);max-height:min(88dvh,860px);overflow:auto;
+  justify-items:stretch;gap:20px;padding:46px 26px 26px;
+}
+.vault-modal-shell.has-list .vault-modal-art{justify-self:center}
+.vault-modal-shell.has-list .vault-modal-ok{justify-self:center}
+
+.iv{border-top:var(--stroke) solid var(--line);padding-top:22px;text-align:left}
+.iv-eyebrow{margin:0 0 14px}
+.iv-tabs{margin-bottom:6px}
+.iv-list{display:grid}
+
+.iv-row{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
+  gap:14px;padding:12px 10px;border-radius:12px;
+  border-bottom:var(--stroke) solid var(--line);
+  transition:background .18s ease;
+}
+.iv-row:last-child{border-bottom:0}
+.iv-row:hover{background:rgba(255,255,255,.04)}
+/* display:grid outranks the hidden attribute, so a filtered-out row would stay
+   on screen without this. Same trap the tab panels avoid by being block. */
+.iv-row[hidden]{display:none}
+
+.iv-icon{width:22px;height:22px;color:var(--icon-idle);transition:color var(--accent-ease)}
+.iv-row:hover .iv-icon{color:var(--accent)}
+.iv-text{min-width:0}
+.iv-title{margin:0;font-size:15px;font-weight:800;letter-spacing:.01em;color:var(--text)}
+.iv-desc{margin:3px 0 0;font-size:13px;line-height:1.5;color:var(--muted)}
+
+/* Preview then download, in that order and always visible: on a touch screen
+   there is no hover to reveal them, and this list is half the reason to open
+   the vault at all. */
+.iv-tools{display:flex;align-items:center;gap:6px}
+.iv-btn{
+  appearance:none;cursor:pointer;display:grid;place-items:center;
+  width:34px;height:34px;border-radius:10px;
+  border:var(--stroke) solid var(--line);background:rgba(8,11,15,.55);color:var(--icon-idle);
+  transition:color var(--accent-ease),border-color var(--accent-ease),
+             background .2s ease,transform .2s ease;
+}
+.iv-btn .icon{width:18px;height:18px}
+.iv-btn:hover{
+  color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,transparent);
+  transform:translateY(-1px);
+}
+.iv-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.iv-btn[disabled]{opacity:.5;cursor:default;transform:none}
+
+@media(max-width:560px){
+  .vault-modal-shell.has-list{padding:44px 14px 20px}
+  .vault-modal-shell.has-list .vault-modal-art{width:min(38vw,140px);height:min(38vw,140px)}
+  .iv-row{gap:10px;padding:11px 4px}
+  .iv-icon{width:20px;height:20px}
+  .iv-btn{width:32px;height:32px}
 }
 .resume-actions{display:flex;gap:10px;flex-wrap:wrap}
 footer{min-height:130px;padding:0 var(--gutter);display:flex;align-items:center;gap:24px;color:#778088;background:#080a0c;font-size:13px;letter-spacing:.08em}

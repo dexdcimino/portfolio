@@ -17,8 +17,9 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
 
 - `index.html` — single-page shell: sidebar, hero, featured work, games, AI
   Lab (5 tabs), Collab (shared builds — dormant, see below), about/toolkit/picks,
-  Idea Vault (AES-GCM blob in `data-vault`), contact. Eight native `<dialog>`
-  overlays (app embed, wallpaper lightbox, prompt reader, vault, shared
+  Idea Vault (AES-GCM blob in `data-vault`; the overlay it opens carries the
+  backlog list — see below), contact. Eight native `<dialog>`
+  overlays (app embed, wallpaper lightbox, document reader, vault, shared
   game/app gallery, work mockup, resume, contact)
 - `script.js` — plain script, feature blocks as IIFEs, executes top-to-bottom
   with `<script>` at the end of body. Major blocks: accent/theme system
@@ -56,11 +57,14 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   below 768px where the overlay declines),
   `initCollabInfo()` (fills the Collab panel and builds
   each card's brain row + invite link from the card's own `data-people` /
-  `data-invite`; adding a project is one card, no JS edit), vault, clips,
-  prompts (three live cards; excerpt, size, reader, copy and download all
-  read `assets/ai/prompts/*.md` at runtime — adding one is a file plus an
-  `<article>`, no JS edit), song player, resume overlay, Web3Forms contact
-  (public access key — by design)
+  `data-invite`; adding a project is one card, no JS edit), vault, the vault
+  backlog list (see below), clips, ONE markdown loader and ONE reader
+  (`loadMd` over a URL-keyed promise cache, `openReader` over `#prModal`)
+  serving both document lists — the reader is handed a file, a title and a
+  name and knows nothing about prompts or plans, prompts (three live cards;
+  excerpt, size, reader, copy and download all read `assets/ai/prompts/*.md`
+  at runtime — adding one is a file plus an `<article>`, no JS edit), song
+  player, resume overlay, Web3Forms contact (public access key — by design)
 - `MediaBus` in `script.js` — the only arbiter between the two things that
   make sound (the clips player and the song bar). Players register a small
   object, never the media element, because every question it asks — is your
@@ -156,6 +160,39 @@ tested, not deleted — going live is dropping the two `hidden` attributes and
 the plate, restoring the nav link and the `sections` entry, and putting real
 data on the card.
 
+## Idea Vault — the backlog
+
+The overlay the vault opens onto is the snail, `GOT IT`, and under them a list
+of every plan that is written but unbuilt. Same contract as the prompt cards and
+for the same reason: a row names a `.md` file and the reading view, the byte size
+and the downloaded bytes all come from that file, so **adding a plan is one
+`<article class="iv-row">` in `index.html` and no JS edit**. Proven rather than
+asserted — a sixth row in a brand-new category renders, previews and downloads
+with `script.js` untouched.
+
+The Surveyor rows point straight at the committed plans under
+`games/surveyor/docs/`. Nothing is copied into `assets/`: a second copy is a
+second thing to update and goes stale the first time a plan is amended. A row
+pointing at nothing is worse than no row — if the plan has not been written,
+leave the row out.
+
+**The tabs build themselves from the rows' `data-cat`.** That is what keeps
+"markup only" true for a plan that is the first of a new category, and what makes
+"a category with a single plan gets no tab of its own" automatic instead of
+something to remember. Every tab addresses the same one list, so they
+deliberately carry no `aria-controls` — `initTabs` reads that attribute to hide
+the panel a tab owns, and here they would all own the list. The relationship is
+stated the other way round: the list names the selected tab as its label.
+
+This is the one place an overlay opens **over** another instead of in place of
+it — the single exception to `openModal`'s "never two overlays at once", taken
+by passing `stack`. Closing the reader has to put you back in the list you
+opened it from: the vault section relocks the moment its own overlay closes, so
+replacing it would leave the keypad on screen still reading OPEN with nothing to
+close. `bindModal`'s close handler tells a stacked overlay from a hand-off (a
+replacement overlay taking the old one's place) and restores focus only for the
+first. Nothing opened from outside another overlay may pass `stack`.
+
 ## The image pipeline (full rules in CLAUDE.md — the short version)
 
 Masters under `assets/`, derivatives generated into `assets/derived/`
@@ -227,5 +264,7 @@ frame, not the frame picked in the dashboard (its edge cache holds them for
 the frame never changes shape, so that clip carries `data-fit="contain"` and
 the `clip-poster-portrait` slot instead of being cropped to a third of itself.
 The Collab section is dormant — off the nav, content hidden behind
-an UNDER CONSTRUCTION plate — until the first collab repo exists. See
+an UNDER CONSTRUCTION plate — until the first collab repo exists. The vault
+backlog carries five plans; the bio-breakout plan named in its brief has no
+file behind it yet, so it has no row. See
 `docs/STATUS.md` for the live list and open decisions.

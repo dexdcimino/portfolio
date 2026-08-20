@@ -632,6 +632,9 @@ function setStatus(message, kind = '', lead = '') {
 // two can never be open at once.
 const openDialogs = new Set();
 const openerFor = new WeakMap();
+// Which of them were opened OVER another rather than in place of it — see
+// openModal's `stack`. It changes one thing on the way out: where focus goes.
+const stackedOn = new WeakSet();
 const sidebar = document.getElementById('sidebar');
 
 // A modal's trigger lives in the sidebar, and <dialog> restores focus to it on
@@ -679,13 +682,22 @@ function closeModal(dialog) {
   dialog.close();                               // the 'close' listener clears the lock
 }
 
-function openModal(dialog, panel, onOpen, opener) {
+/* `stack` is the one exception to "never two overlays at once", and it is here
+   for exactly one case: a document opened FROM inside another overlay, where
+   closing the reader has to put you back in the list you opened it from. The
+   Idea Vault is that case — its section relocks the moment its overlay closes,
+   so replacing the overlay would leave the keypad on screen still reading OPEN
+   with nothing to close. Native <dialog> stacks correctly by itself: the top
+   layer orders them, Escape closes the topmost, the one underneath is inert.
+   Nothing opened from OUTSIDE another overlay may pass it. */
+function openModal(dialog, panel, onOpen, opener, stack) {
   if (!dialog) return;
   // Read the trigger before closing anything: closing a dialog synchronously
   // hands focus back to *its* opener, so activeElement would name the wrong one.
   const trigger = opener || document.activeElement;
-  openDialogs.forEach(closeModal);      // never two overlays at once
+  if (!stack) openDialogs.forEach(closeModal);      // never two overlays at once
   openerFor.set(dialog, trigger);
+  if (stack) stackedOn.add(dialog); else stackedOn.delete(dialog);
   document.body.classList.add('modal-open');
   dialog.showModal();
   onOpen?.();
@@ -708,7 +720,18 @@ function bindModal(dialog, onClose) {
     // state the replacement just set.
     const opener = openerFor.get(dialog);
     openerFor.delete(dialog);
-    if ([...openDialogs].some(d => d.open)) return;
+    const wasStacked = stackedOn.delete(dialog);
+    if ([...openDialogs].some(d => d.open)) {
+      /* One overlay still open, two ways to get here. A HAND-OFF — a
+         replacement overlay took this one's place — must not pull focus back
+         out of the thing the user is now looking at. A STACKED overlay closing
+         back into the one it was opened from is the opposite: the overlay
+         underneath was there first, and focus belongs on the control inside it
+         that opened this one, or it lands on <body> and the list is gone from
+         under the keyboard. */
+      if (wasStacked) restoreFocusQuietly(opener);
+      return;
+    }
     document.body.classList.remove('modal-open');
     restoreFocusQuietly(opener);
     onClose?.();
@@ -3115,6 +3138,98 @@ function renderMarkdown(src) {
   return out.join('\n');
 }
 
+/* --- markdown documents: one loader, one reader --------------------------- */
+/* Two lists point at .md files now — the AI Lab's prompt cards and the Idea
+   Vault's plan rows — and there is exactly one of everything between them: one
+   fetch cache, one size format, one reading overlay. The alternative was a
+   second reader for the vault, which is two implementations to keep in step and
+   two places for the same markdown bug to live. */
+
+/* Keyed by URL and holding the PROMISE, not the text: two cards hovered before
+   the first response lands share one request, and a rejection is deleted by
+   whoever caught it so a later open retries rather than caching the failure. */
+const mdCache = new Map();
+function loadMd(url) {
+  if (mdCache.has(url)) return mdCache.get(url);
+  const p = fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
+  mdCache.set(url, p);
+  return p;
+}
+
+/* The file opens with its own `# Title`, and every view already shows that title
+   in its own furniture — the card foot, the row, the reader's bar. Rendering it
+   a third time reads as a mistake. Dropped from the VIEW only: the file you
+   download still has its heading. */
+const mdBody = (md) => md.replace(/^\s*#\s+.*\n+/, '');
+const mdSize = (text) => {
+  const kb = new Blob([text]).size / 1024;
+  return kb < 10 ? `${kb.toFixed(1)} KB` : `${Math.round(kb)} KB`;
+};
+
+/* Assigned by initReader, declared out here for the same reason flashTip is:
+   the lists that call it sit elsewhere in this file and must not have to care
+   which IIFE ran first. */
+let openReader = () => {};
+
+/* --- the reader ----------------------------------------------------------- */
+/* #prModal: the markdown rendered the way a person wants to read it, with the
+   copy and the download in the same overlay so you never have to close it to
+   take the file. It knows nothing about prompts or plans — it is handed a file,
+   a title and a name, and the only state it keeps is which file is on screen. */
+(function initReader() {
+  const modal = document.getElementById('prModal');
+  if (!modal) return;
+  const readEl = document.getElementById('prRead');
+  const titleEl = document.getElementById('pr-dialog-title');
+  const metaEl = document.getElementById('prFullMeta');
+  const fullDl = document.getElementById('prFullDl');
+  const fullCopy = document.getElementById('prFullCopy');
+
+  /* fullDl.dataset.file IS the record of what is showing — the download button
+     has to carry it anyway, and a second variable tracking the same thing is a
+     second thing that can disagree with it. */
+  openReader = ({ file, title, name, opener, stack }) => {
+    titleEl.textContent = title;
+    metaEl.textContent = name;
+    fullDl.dataset.file = file;
+    fullDl.dataset.name = name;
+    fullDl.setAttribute('aria-label', `Download ${title} as Markdown`);
+    readEl.innerHTML = '<p class="pr-loading">Loading…</p>';
+    openModal(modal, null, null, opener, stack);
+    loadMd(file).then((md) => {
+      // The overlay may already have been closed and reopened on another
+      // document while this was in flight; only paint if it is still the one
+      // on screen.
+      if (fullDl.dataset.file !== file) return;
+      readEl.innerHTML = renderMarkdown(mdBody(md));
+      readEl.scrollTop = 0;
+      metaEl.textContent = `${name} · ${mdSize(md)}`;
+    }, () => {
+      mdCache.delete(file);                    // let a later open retry
+      if (fullDl.dataset.file !== file) return;
+      readEl.innerHTML = '<p class="pr-loading">Could not load this document.</p>';
+    });
+  };
+
+  fullDl.addEventListener('click', () => saveFile(fullDl));
+  fullCopy?.addEventListener('click', async () => {
+    const file = fullDl.dataset.file;
+    if (!file) return;
+    fullCopy.disabled = true;
+    try {
+      const ok = await copyText(await loadMd(file));
+      flashTip(fullCopy, ok ? 'Copied' : 'Copy failed', ok ? '!' : '');
+    } catch {
+      mdCache.delete(file);
+      flashTip(fullCopy, 'Copy failed', '');
+    } finally {
+      fullCopy.disabled = false;
+    }
+  });
+  document.getElementById('prClose').addEventListener('click', () => closeModal(modal));
+  bindModal(modal);
+})();
+
 /* --- AI prompts ----------------------------------------------------------- */
 /* Four cards, one .md file each. Nothing about a prompt is written twice: the
    excerpt on the card, the size, the reading view and the downloaded bytes all
@@ -3132,22 +3247,7 @@ function renderMarkdown(src) {
   const cards = [...grid.querySelectorAll('.pr-card')];
   if (!cards.length) return;
 
-  const modal = document.getElementById('prModal');
-  const readEl = document.getElementById('prRead');
-  const titleEl = document.getElementById('pr-dialog-title');
-  const metaEl = document.getElementById('prFullMeta');
-  const fullDl = document.getElementById('prFullDl');
-
   const fileName = (card) => card.dataset.file.split('/').pop();
-  /* The file opens with its own `# Title`, and both views already show that
-     title in their own furniture — the card foot and the reader's bar. Rendering
-     it a third time reads as a mistake. Dropped from the VIEW only: the file you
-     download still has its heading. */
-  const body = (md) => md.replace(/^\s*#\s+.*\n+/, '');
-  const sizeOf = (text) => {
-    const kb = new Blob([text]).size / 1024;
-    return kb < 10 ? `${kb.toFixed(1)} KB` : `${Math.round(kb)} KB`;
-  };
 
   // Build the card furniture here rather than in the markup: it is identical
   // for every prompt, so writing it four times only creates four chances to
@@ -3189,91 +3289,38 @@ function renderMarkdown(src) {
     dl.dataset.name = fileName(card);
     dl.addEventListener('click', () => saveFile(dl));
 
-    /* Copies the file the card is already showing. `load` is the same cached
+    /* Copies the file the card is already showing. loadMd is the same cached
        promise the preview and the reader use, so this costs no extra request —
        and on a card whose fetch failed it retries rather than copying nothing. */
     const cp = card.querySelector('.pr-copy');
     cp.addEventListener('click', async () => {
       cp.disabled = true;
       try {
-        const ok = await copyText(await load(card));
+        const ok = await copyText(await loadMd(card.dataset.file));
         flashTip(cp, ok ? 'Copied' : 'Copy failed', ok ? '!' : '');
       } catch {
-        text.delete(card);
+        mdCache.delete(card.dataset.file);
         flashTip(cp, 'Copy failed', '');
       } finally {
         cp.disabled = false;
       }
     });
-    card.querySelector('.pr-open').addEventListener('click', () => open(card));
+    const openBtn = card.querySelector('.pr-open');
+    openBtn.addEventListener('click', () => openReader({
+      file: card.dataset.file, title, name: fileName(card), opener: openBtn,
+    }));
   });
-
-  const text = new Map();
-  /* Which card the reader is showing. fullDl.dataset.file already tracks it as
-     a string for the staleness check below, but load() needs the element. */
-  let current = null;
-
-  async function load(card) {
-    if (text.has(card)) return text.get(card);
-    const p = fetch(card.dataset.file)
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
-    text.set(card, p);
-    return p;
-  }
 
   async function fill(card) {
     try {
-      const md = await load(card);
-      card.querySelector('.pr-mini').innerHTML = renderMarkdown(body(md));
-      card.querySelector('.pr-meta').textContent = `MD · ${sizeOf(md)}`;
+      const md = await loadMd(card.dataset.file);
+      card.querySelector('.pr-mini').innerHTML = renderMarkdown(mdBody(md));
+      card.querySelector('.pr-meta').textContent = `MD · ${mdSize(md)}`;
     } catch {
-      text.delete(card);                       // let a later open retry
+      mdCache.delete(card.dataset.file);        // let a later open retry
       card.querySelector('.pr-mini').innerHTML = '<p>Preview unavailable.</p>';
     }
   }
-
-  async function open(card) {
-    current = card;
-    titleEl.textContent = card.dataset.title || fileName(card);
-    metaEl.textContent = fileName(card);
-    fullDl.dataset.file = card.dataset.file;
-    fullDl.dataset.name = fileName(card);
-    fullDl.setAttribute('aria-label', `Download ${card.dataset.title} as Markdown`);
-    readEl.innerHTML = '<p class="pr-loading">Loading…</p>';
-    openModal(modal, null, null, card.querySelector('.pr-open'));
-    try {
-      const md = await load(card);
-      // The overlay may already have been closed and reopened on another card
-      // while this was in flight; only paint if it is still the one on screen.
-      if (fullDl.dataset.file !== card.dataset.file) return;
-      readEl.innerHTML = renderMarkdown(body(md));
-      readEl.scrollTop = 0;
-      metaEl.textContent = `${fileName(card)} · ${sizeOf(md)}`;
-    } catch {
-      text.delete(card);
-      readEl.innerHTML = '<p class="pr-loading">Could not load this prompt.</p>';
-    }
-  }
-
-  fullDl.addEventListener('click', () => saveFile(fullDl));
-
-  // The reader's copy, same contract as the card's.
-  const fullCopy = document.getElementById('prFullCopy');
-  fullCopy?.addEventListener('click', async () => {
-    if (!current) return;
-    fullCopy.disabled = true;
-    try {
-      const ok = await copyText(await load(current));
-      flashTip(fullCopy, ok ? 'Copied' : 'Copy failed', ok ? '!' : '');
-    } catch {
-      text.delete(current);
-      flashTip(fullCopy, 'Copy failed', '');
-    } finally {
-      fullCopy.disabled = false;
-    }
-  });
-  document.getElementById('prClose').addEventListener('click', () => closeModal(modal));
-  bindModal(modal);
 
   /* The panel is hidden until the tab is picked, and a hidden element never
      intersects — so this fires exactly once, the first time Prompts is opened
@@ -3286,6 +3333,112 @@ function renderMarkdown(src) {
     });
     cards.forEach(c => io.observe(c));
   } else start();
+})();
+
+/* --- the backlog, under the snail ----------------------------------------- */
+/* The list beneath the vault's snail: every plan that is written but unbuilt,
+   previewable and downloadable. Same contract as the prompt cards and for the
+   same reason — a row names a .md file and the reading view, the byte size and
+   the downloaded bytes all come from that file, so adding a plan is one
+   <article> and no JS edit.
+
+   The Surveyor rows point at the committed copies under games/surveyor/docs/.
+   Nothing is duplicated into assets/: a second copy is a second thing to
+   update, and it goes stale the first time a plan is amended.
+
+   THE TABS ARE BUILT FROM THE ROWS rather than written beside them. That is
+   what keeps "adding a plan is markup only" true when the plan is the first of
+   a new category, and it is what makes "a category with one plan gets no tab of
+   its own" automatic instead of something to remember. */
+(function initVaultList() {
+  const list = document.getElementById('ivList');
+  if (!list) return;
+  const rows = [...list.querySelectorAll('.iv-row')];
+  if (!rows.length) return;
+  const tabsEl = document.getElementById('ivTabs');
+
+  const fileName = (row) => row.dataset.file.split('/').pop();
+
+  rows.forEach((row) => {
+    const title = row.dataset.title || fileName(row);
+    // Icon, then what it is, then how to take it — left to right, in the order
+    // the row is read.
+    row.innerHTML = `
+      <span class="icon iv-icon" data-icon="${row.dataset.icon || 'work'}" aria-hidden="true"></span>
+      <div class="iv-text">
+        <h3 class="iv-title"></h3>
+        <p class="iv-desc"></p>
+      </div>
+      <div class="iv-tools">
+        <button class="iv-btn iv-preview" type="button" data-tip="Preview">
+          <span class="icon" data-icon="preview" aria-hidden="true"></span>
+        </button>
+        <button class="iv-btn iv-dl" type="button" data-tip="Download MD">
+          <span class="icon" data-icon="download" aria-hidden="true"></span>
+        </button>
+      </div>`;
+    row.querySelector('.iv-title').textContent = title;
+    row.querySelector('.iv-desc').textContent = row.dataset.desc || '';
+
+    const preview = row.querySelector('.iv-preview');
+    preview.setAttribute('aria-label', `Preview ${title}`);
+    preview.addEventListener('click', () => openReader({
+      file: row.dataset.file, title, name: fileName(row), opener: preview,
+      /* Stacked OVER the vault overlay rather than replacing it: closing the
+         reader has to put you back in the list you opened it from, and the
+         vault section relocks the moment its own overlay closes. */
+      stack: true,
+    }));
+
+    const dl = row.querySelector('.iv-dl');
+    dl.dataset.file = row.dataset.file;
+    dl.dataset.name = fileName(row);
+    dl.setAttribute('aria-label', `Download ${title} as Markdown`);
+    dl.addEventListener('click', () => saveFile(dl));
+  });
+
+  if (!tabsEl) return;
+
+  // Map insertion order is the order the rows are written in, so the tabs come
+  // out in the markup's order and there is no second list to keep in step.
+  const counts = new Map();
+  rows.forEach(r => counts.set(r.dataset.cat, (counts.get(r.dataset.cat) || 0) + 1));
+  const cats = [...counts.entries()].filter(([cat, n]) => cat && n > 1).map(([cat]) => cat);
+  // One category, or one plan each: a row of tabs that cannot filter anything
+  // is furniture. The list keeps its own label in that case.
+  if (!cats.length) {
+    tabsEl.hidden = true;
+    list.setAttribute('aria-label', 'Plans');
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  ['All', ...cats].forEach((label, i) => {
+    const tab = document.createElement('button');
+    tab.className = 'iv-tab';
+    tab.type = 'button';
+    tab.id = `iv-tab-${i}`;
+    tab.dataset.cat = i === 0 ? '' : label;     // ALL filters on nothing
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', 'false');
+    tab.tabIndex = -1;                          // roving: initTabs owns it
+    tab.textContent = label;
+    frag.appendChild(tab);
+  });
+  tabsEl.replaceChildren(frag);
+
+  /* One tab row over ONE list, so the tabs deliberately carry no aria-controls:
+     initTabs reads that attribute to hide the panel a tab owns, and every tab
+     here points at the same list — it would hide the list on every tab but the
+     selected one. The relationship is stated the other way round instead, with
+     the list naming the selected tab as its label. */
+  list.setAttribute('role', 'tabpanel');
+  const select = initTabs(tabsEl, (_, tab) => {
+    const cat = tab.dataset.cat;
+    rows.forEach(r => { r.hidden = !!cat && r.dataset.cat !== cat; });
+    list.setAttribute('aria-labelledby', tab.id);
+  });
+  select?.(0);
 })();
 
 /* --- AI Lab app info ------------------------------------------------------ */
