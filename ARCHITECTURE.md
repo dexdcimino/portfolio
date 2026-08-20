@@ -78,7 +78,15 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   deliberately does not flex-grow, or the row's empty middle would open the
   tab); a row is one flat fill (`#181d23`, a step above the section rather
   than a match for it) and carries no accent wash — the accent's only job in
-  the list is the border on the current row; the mark sits at the row's far
+  the list is the border on the current row. HOVER AND SELECTED ARE NOT THE
+  SAME LANGUAGE: hover (and `:focus-within`, which stays paired with it) is
+  ONE STEP OF GREY, `#181d23` → `#1f262e`, with no border, no ring and no
+  lift; the accent border is the selected row's alone, and it is FADED to
+  55% rather than thickened — a 2px border plus a 1px ring at full accent
+  was the loudest thing in the section, and on a near-black page more
+  accent pixels read as shouting rather than as weight. The focus
+  INDICATOR is unchanged: the accent outline on the link or the eyeball
+  itself. The mark sits at the row's far
   LEFT and the filled-eye button at
   the far right via flex `order`, so the generated `<picture>` never moves
   in the DOM; the Apps panel across from the list shows the selection: the

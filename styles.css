@@ -1627,7 +1627,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    The SOON chip replaces the arrow the live cards use, which would be a promise
    of somewhere to go. */
 .ai-card.is-soon{cursor:default}
-.ai-card.is-soon:hover{transform:none;border-color:transparent;box-shadow:none}
+.ai-card.is-soon:hover{background:#181d23}
 .ai-card-soon{
   margin-left:8px;padding:2px 7px;border-radius:999px;vertical-align:middle;
   border:var(--stroke) solid color-mix(in srgb,var(--accent) 40%,transparent);
@@ -1655,11 +1655,28 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    Flat, and with no accent wash over it: the accent's one job in this list
    is the border on the current row, and anything else wearing it competes
    with the only thing here that carries meaning. */
-.ai-card{display:flex;align-items:center;gap:14px;border:var(--stroke) solid transparent;border-radius:14px;background:#181d23;padding:8px 16px 8px 12px;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
-.ai-card:hover,.ai-card:focus-within{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
-/* The selected row: the same accent frame the hover shows, held. Seeded on
-   ThemeDock, so the section arrives with a selection rather than a guess. */
-.ai-card.is-current{border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
+.ai-card{display:flex;align-items:center;gap:14px;border:var(--stroke) solid transparent;border-radius:14px;background:#181d23;padding:8px 16px 8px 12px;position:relative;overflow:hidden;cursor:pointer;transition:background var(--accent-ease),border-color var(--accent-ease)}
+/* Hover is ONE STEP OF GREY and nothing else. It used to paint the full
+   accent frame the selected row wears, which made every row you passed
+   over claim to be the chosen one — five rows in a list, and the thing
+   that means "this is the one" fired on the thing that means "you are
+   over this". #1f262e is #181d23 lifted ~32% on every channel, so the hue
+   does not move; no border, no ring, and no lift either — a row inside a
+   scrolling list that rises off the page is the same overclaim in
+   geometry. focus-within stays paired with hover: the focus INDICATOR is
+   the accent outline on the link or the eyeball itself, which is
+   untouched, and the row lighting under it is the same preview a pointer
+   gets. */
+.ai-card:hover,.ai-card:focus-within{background:#1f262e}
+/* The selected row: the accent border, FADED rather than thickened. Seeded
+   on ThemeDock, so the section arrives with a selection rather than a
+   guess. It was the 2px border plus a 1px ring — a 3px lime frame on a
+   near-black page, which is the loudest thing in the section and beat the
+   panel it exists to point at. Thicker-and-solid was the other option and
+   is the wrong one here: on this ground more accent pixels read as more
+   shouting, not as more weight. At 55% over the row's own fill it is still
+   the only bordered row of the five, which is all it has to be. */
+.ai-card.is-current{border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
 .ai-card strong{font-size:18px;margin:0 0 3px;display:block}
 .ai-card-link{order:1;flex:0 1 auto;min-width:0;margin-right:auto;display:block;color:inherit;text-decoration:none}
 /* The out-link affordance lives on the text itself: only this element leaves
