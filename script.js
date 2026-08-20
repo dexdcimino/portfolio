@@ -2699,6 +2699,42 @@ let flashTip = () => {};
   select(0);
 })();
 
+/* --- shared media transport ------------------------------------------------ */
+/* Two things on this page make sound — the clips player in the AI Lab and the
+   songs bar — and neither knows the other exists. This is the only place that
+   arbitrates between them, so "they must not both play" and "who owns the space
+   bar" are one readable list here instead of two halves that drift apart.
+
+   What registers is a small object, NOT the media element. Every question worth
+   asking is about the UI around the element — is its panel the open tab, is its
+   frame still on screen — and an <audio> cannot answer any of them. */
+const MediaBus = (() => {
+  const players = [];
+  return {
+    add(p) { players.push(p); return p; },
+
+    /* Whoever starts playing silences the rest. Wired to the `play` EVENT rather
+       than to the buttons: a click on a card, a click on the bar, the space bar
+       and a track ending and rolling to the next are four call sites and one
+       event, and an event cannot be forgotten by whoever adds the fifth. */
+    solo(who) { for (const p of players) if (p !== who && !p.el.paused) p.pause(); },
+
+    /* Who owns the space bar right now, or null for "nobody — let it scroll".
+       A player must be on screen to be in the running at all. Of those, one that
+       is actually playing beats one that is merely open; if neither is playing
+       the first registered wins, which is the clips player — it is on screen
+       only when its tab is the open one AND its frame is in view, so it is the
+       stronger evidence of what someone is actually looking at. */
+    claimant() {
+      /* A modal covers the page. Whatever is behind it is not what the space bar
+         is addressing — the overlay's own scrolling is. */
+      if (document.querySelector('dialog[open]')) return null;
+      const live = players.filter(p => p.onScreen());
+      return live.find(p => !p.el.paused) || live.find(p => p.touched()) || null;
+    },
+  };
+})();
+
 /* --- AI clips ------------------------------------------------------------- */
 /* Same carousel as the wallpapers, with a player where the download was.
    Sources are remote (bunny.net) and the posters are the only local asset, so
@@ -2722,6 +2758,9 @@ let flashTip = () => {};
   const scrub = $('clScrub'), vol = $('clVol'), muteBtn = $('clMute');
   const elapsed = $('clElapsed'), duration = $('clDuration');
   let index = 0, loop = false, scrubbing = false, lastVolume = 0.4;
+  // Whether anyone has ever started this player. The space bar will not claim
+  // a player nobody has touched — see MediaBus and initSpaceTransport.
+  let touched = false;
 
   // 40% by default, matching the songs bar — loud enough to hear, quiet enough
   // that an autoplaying tab is not an event.
@@ -2794,6 +2833,7 @@ let flashTip = () => {};
 
   function play() {
     if (!playable(items[index])) return;
+    touched = true;
     video.play().then(() => {
       frame.classList.add('is-live');
       paintButtons();
@@ -2885,6 +2925,24 @@ let flashTip = () => {};
     icon(fullBtn, on ? 'fullscreen-exit' : 'fullscreen');
     fullBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
   });
+
+  /* Space-bar ownership and the no-two-players-at-once rule are arbitrated in
+     MediaBus. `onScreen` is deliberately strict: the Clips panel is a tab and is
+     `hidden` unless it is the open one, and a frame scrolled past is not
+     something worth stealing the page's scroll for. */
+  const me = MediaBus.add({
+    el: video,
+    onScreen: () => {
+      const panel = document.getElementById('ai-panel-videos');
+      if (!panel || panel.hidden) return false;
+      const r = frame.getBoundingClientRect();
+      return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+    },
+    touched: () => touched,
+    toggle: () => { video.paused ? play() : video.pause(); },
+    pause: () => video.pause(),
+  });
+  video.addEventListener('play', () => MediaBus.solo(me));
 
   setFill(vol, 40);
   select(0);
@@ -3911,9 +3969,75 @@ const LOOP_MODES = ['off', 'all', 'one'];
   const start = Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : 0.4;
   lastVolume = start || 0.4;
   applyVolume(start, false);
+
+  /* Registered exactly like the clips player — see MediaBus. The bar is fixed to
+     the bottom of the viewport, so "on screen" is just whether it has been
+     revealed; and the only thing that reveals it is someone starting a track,
+     which is the same fact as having been interacted with. */
+  const me = MediaBus.add({
+    el: audio,
+    onScreen: () => !bar.hidden,
+    touched: () => index >= 0,
+    toggle: () => { audio.paused ? audio.play().catch(paint) : audio.pause(); },
+    pause: () => audio.pause(),
+  });
+  audio.addEventListener('play', () => MediaBus.solo(me));
+
   paint();
 })();
 
+
+/* --- the space bar --------------------------------------------------------- */
+/* Space plays and pauses the media instead of scrolling the page — but only
+   where taking it is not rude. The order below IS the specification, and every
+   rule is here because skipping it breaks something that already worked:
+
+     1. In a text field, space types a space. Nothing on this page is worth
+        breaking that for, so it is the first question asked.
+     2. On a button, link or any other control, space belongs to the platform:
+        it activates the control, or on a link it scrolls. A page that takes it
+        is a page you cannot operate from the keyboard. (The social row earlier
+        in this file refuses it for the same reason, on the same grounds.)
+     3. Only then may a player have it, and only one that is playing or that
+        someone has already started. A player nobody has touched does not get
+        to make the space bar mysterious.
+     4. If both could claim it, the one playing wins, else the one on screen.
+        MediaBus.claimant() is that decision and the comment there is why.
+     5. If nothing claims it the page scrolls exactly as it always did. That is
+        the case that most has to keep working, so it is the fall-through rather
+        than a special case — every early return above lands on it.
+
+   preventDefault() is called at ONE point, after a claimant is found. Calling
+   it any earlier is how a feature like this quietly eats the page's scroll. */
+(function initSpaceTransport() {
+  const FIELD = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+  const CONTROL = 'button, a[href], summary, audio[controls], video[controls],'
+    + ' [role="button"], [role="link"], [role="tab"], [role="checkbox"], [role="switch"],'
+    + ' [role="radio"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"],'
+    + ' [role="option"], [role="slider"], [role="spinbutton"], [role="combobox"], [role="textbox"]';
+
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== ' ' && event.code !== 'Space') return;
+    // Shift+Space is page-up; the rest are the browser's shortcuts. None are ours.
+    if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.defaultPrevented) return;
+
+    // Rules 1 and 2. `closest` rather than a tag test, because focus can sit on
+    // a <span class="icon"> inside the button that actually owns the key.
+    const target = event.target;
+    if (target instanceof Element && (target.closest(FIELD) || target.closest(CONTROL))) return;
+
+    // Rules 3 and 4.
+    const player = MediaBus.claimant();
+    if (!player) return;                  // rule 5 — the page scrolls, untouched
+
+    event.preventDefault();               // only now is the scroll ours to stop
+    // Held down, space repeats. The scroll still has to be stopped on every
+    // repeat, but toggling on each one would strobe the player.
+    if (event.repeat) return;
+    player.toggle();
+  });
+})();
 
 /* --- toolkit hover descriptions ------------------------------------------- */
 /* Fills the right-hand slot of the tab row with the hovered or focused tile's

@@ -61,6 +61,17 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   read `assets/ai/prompts/*.md` at runtime — adding one is a file plus an
   `<article>`, no JS edit), song player, resume overlay, Web3Forms contact
   (public access key — by design)
+- `MediaBus` in `script.js` — the only arbiter between the two things that
+  make sound (the clips player and the song bar). Players register a small
+  object, never the media element, because every question it asks — is your
+  panel the open tab, is your frame on screen — is about the surrounding UI.
+  Two invariants live here: **only one player is ever unpaused** (enforced on
+  the `play` event, so no new way to start playback can forget it), and the
+  space bar goes to a player only when it is on screen and playing or already
+  started — never out of a text field, never off a button or link, never
+  behind an open `dialog`, and `preventDefault()` is reached at exactly one
+  point, after a claimant is found. A third player registers, it does not
+  rewrite this.
 - `styles.css` — banner-delimited sections; icon system is baked CSS mask
   data-URIs (`tools/bake_icons.py`); accents are one `--accent` variable,
   never filter chains
