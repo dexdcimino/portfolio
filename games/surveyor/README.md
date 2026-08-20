@@ -588,6 +588,62 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### What the step actually is, and who sees it
+
+Two rounds of shader work went into a cause that had not been established. This
+establishes it, and then finds out whether anybody is looking.
+
+**The layers, isolated.** Each piece of the arrival, shown and hidden and
+differenced, at the approach sphere:
+
+| | far body | ground | water | sky behind |
+|---|---|---|---|---|
+| Ember (dry) | 18.6 | **27.4** | — | 176.5 |
+| Tarn | 20.8 | **146** | 173.1 | 249.3 |
+| Anvil | 44.4 | **79.9** | 145.7 | 179.4 |
+
+The far body is dark on every world. The real ground is dark on Ember and bright
+on Tarn — so it is not the ocean (Ember has none and still steps), and it is not
+the air (the fog is at 0% on all six now, and fixing it did not move the image).
+
+**It is the terminator.** `svFarBody` lights itself with a hard terminator over a
+flat night floor — `SYSTEM.night` is 0.09, nine percent — while the real terrain
+is lit by its world's full rig, ambient included. Proven by removing it:
+`dev/handoff.mjs --forcelit` sets `uNight` and `uLimb` to 1 and re-measures.
+
+| | as shipped | terminator removed |
+|---|---|---|
+| Home → Tarn | **+634%** | **+8.8%** |
+| Home → Ember | +47% | −65% |
+
+Tarn's step all but disappears. Ember overshoots the other way, which is the
+useful half of the result: the answer is not "turn the night floor up". Ember's
+real ground genuinely is dark, so a uniformly lit body is too bright there. The
+far body needs **its world's own ambient**, per world, in place of one global
+0.09 — the same shape as it needing its world's own air, and the reason the air
+work was not wasted even though it was aimed at the wrong term.
+
+### ...and from the seat, there is no world in the frame
+
+The question that reframes the rest of it. `dev/seat.jpg` is the arrival as a
+player gets it: `landOn`'s own state, the chase camera untouched, three quarters
+of a second in.
+
+| | Ember | Tarn | Home | Anvil |
+|---|---|---|---|---|
+| how much of the frame is the world | **0%** | **0%** | **0.1%** | **1%** |
+
+At 880m, nose down 22 degrees, the world is below and behind the chase boom on
+every world in the system. What you get handed is sky, your own craft, and the
+autopilot readout.
+
+So the far-body-to-quadtree handoff — measured, taken apart and argued about for
+most of a session — **happens in a frame where the destination occupies zero to
+one percent of the screen.** It is a real discontinuity and it is invisible from
+the seat, and those are two different facts.
+
+The arrival framing is its own problem and a larger one. It is not started here.
+
 ### Fog got worse as you climbed, and the fix is one term
 
 `fogRangeAt` had two faults that only met above the altitude either was written

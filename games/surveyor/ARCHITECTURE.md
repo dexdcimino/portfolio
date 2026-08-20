@@ -85,6 +85,13 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
 - **If a measurement disagrees with what is visibly on screen, the
   measurement is aimed wrong.** Three times now. (Also: render-cost numbers
   measured on SwiftShader are noise — `dev/budget.mjs` refuses to run there.)
+- **Measure who is looking before measuring what changed.** The far-body to
+  quadtree handoff was taken apart across most of a session — size, luminance,
+  silhouette, three shader terms — and then the arrival was photographed from
+  the seat: the destination fills **0% of the frame on Ember and Tarn, 1% on
+  Anvil**. At 880m nose-down the world is below and behind the chase boom on
+  every world. The step is real and invisible, and those are two different
+  facts. `dev/shots/seat.jpg`.
 - **Three instances now, and the third overturned a plan.** The far-body to
   quadtree handoff was scoped as a geometry problem — 642 sampled directions
   against a 5m quadtree, a 6x to 46x jump. Measured at the approach sphere it

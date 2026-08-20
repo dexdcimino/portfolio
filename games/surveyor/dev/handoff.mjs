@@ -204,6 +204,14 @@ const FAR = (to) => `(async () => {
      the gap". Worth keeping for the next person who adds a term to a shader
      they cannot single-step. */
   const probe = S.discs.bodies.get('${to}');
+  /* --forcelit removes the terminator from the far body: every point fully
+     lit, as if the sun were behind the camera. It answers whether the step is
+     LIGHTING rather than air, which is the question two rounds of fog work
+     did not settle. */
+  if (probe && window.__forceLit) {
+    probe.mat.setFloat('uNight', 1);
+    probe.mat.setFloat('uLimb', 1);
+  }
   if (probe && window.__forceFog) {
     probe.mat.setVector3('uFog', new BABYLON.Vector3(1, 0, 0));
     probe.mat.setVector3('uFogSun', new BABYLON.Vector3(1, 0, 0));
@@ -287,15 +295,42 @@ const NEAR = (to) => `(async () => {
     gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, b); return b; };
 
   const measure = ${MEASURE};
+  const water = S.world.water ? S.world.water.mesh : null;
+
+  /* ATTRIBUTION, one layer at a time. Two rounds of shader work went into a
+     cause that had not been established, so each piece of the arrival is
+     isolated the same way the whole was: shown, hidden, differenced.
+       world   ground and water together, which is what the step was measured on
+       ground  the terrain alone
+       water   the shell alone, on the worlds that have one
+       sky     the dome behind all of it */
   const on = grab();
   S.world.ground.setEnabled(false);
-  if (S.world.water) S.world.water.mesh.setEnabled(false);
-  const off = grab();
+  if (water) water.setEnabled(false);
+  const off = grab();                       // sky only
   S.world.ground.setEnabled(true);
-  if (S.world.water) S.world.water.mesh.setEnabled(true);
+  const groundOn = grab();                  // sky + ground
+  S.world.ground.setEnabled(false);
+  if (water) water.setEnabled(true);
+  const waterOn = grab();                   // sky + water
+  S.world.ground.setEnabled(true);
   const m = measure(on, off, w, h, c.fov);
+  const mg = measure(groundOn, off, w, h, c.fov);
+  const mw = water ? measure(waterOn, off, w, h, c.fov) : { n: 0, deg: 0, lum: 0 };
+  // The dome's own brightness, over the pixels the world covers.
+  let skyN = 0, skySum = 0;
+  for (let i = 0; i < off.length; i += 4) {
+    const dd = Math.max(Math.abs(on[i] - off[i]), Math.abs(on[i + 1] - off[i + 1]),
+      Math.abs(on[i + 2] - off[i + 2]));
+    if (dd <= 12) continue;
+    skyN++;
+    skySum += 0.2126 * off[i] + 0.7152 * off[i + 1] + 0.0722 * off[i + 2];
+  }
+  const skyBehind = skyN ? +(skySum / skyN).toFixed(1) : 0;
   return Object.assign({ world: S.planet.key, leaves: S.field.live.size,
-    distM: Math.round(r), altM: Math.round(alt) }, m);
+    distM: Math.round(r), altM: Math.round(alt), hasWater: !!water,
+    groundLum: mg.lum, groundPx: mg.n, waterLum: mw.lum, waterPx: mw.n,
+    skyBehind }, m);
 })()`;
 
 const SHOT = `(() => {
@@ -314,6 +349,7 @@ await page.send('Emulation.setDeviceMetricsOverride',
 await page.send('Page.navigate', { url: `http://127.0.0.1:${port}${GAME}?planet=${FROM}` });
 
 if (process.argv.includes('--forcefog')) await evaluate(page, 'window.__forceFog = true');
+if (process.argv.includes('--forcelit')) await evaluate(page, 'window.__forceLit = true');
 const r = await evaluate(page, READY);
 if (!r.ok) {
   console.log('never ready');
@@ -345,6 +381,7 @@ console.log(`silhouette  ${String(far.rough).padStart(10)} ${String(near.rough).
   `${(pct(near.rough, far.rough) >= 0 ? '+' : '') + pct(near.rough, far.rough).toFixed(1)}%`);
 console.log(`pixels      ${String(far.n).padStart(10)} ${String(near.n).padStart(12)}`);
 console.log(`\nfar body promoted: ${far.promoted}; the world streamed ${near.leaves} leaves`);
+console.log('the world, by layer:  ground ' + near.groundLum + ' over ' + near.groundPx + 'px' + '  water ' + near.waterLum + ' over ' + near.waterPx + 'px' + '  sky behind it ' + near.skyBehind + (near.hasWater ? '' : '   (dry world)'));
 console.log('far body air: amt ' + far.fogAmt + ', range ' + JSON.stringify(far.fogRange) + ', airFrom ' + far.airFrom + ', surfaceR ' + far.surfaceR);
 console.log(`frames -> dev/shots/handoff-far.png, dev/shots/handoff-near.png`);
 

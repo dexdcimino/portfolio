@@ -82,6 +82,31 @@
   image's aspect ratio: that is what makes the caption and filmstrip jump on
   every arrow press.
 
+## A constant correct for the average world is wrong for the small ones (four times)
+
+`games/surveyor/` has six worlds whose radii run **207m to 2072m**, a factor of
+ten. Every number that is a length has to be asked what it means at both ends,
+and four times now one has not been:
+
+| the constant | what it was | what it broke |
+|---|---|---|
+| `HYPER.approachAlt` | 900m, absolute | 0.43 radii up on Anvil, **4.35 on Ember** — the root cause under the three below |
+| `farPlane` | `R * 4` | on Ember the arrival sat outside it: all 51 live leaves clipped, no world drawn at all |
+| the fog altitude clamp | `2R` | froze the range above it, so Ember over ~400m and Tarn over ~900m went to 100% fog — an arrival into a white-out |
+| the far body's air gate | `2R` | switched the term off at exactly the altitude it was written for, on exactly the worlds that needed it |
+
+The fog rule carried a second version of the same mistake in its maths rather
+than its constants: `sqrt(2Ra)` for the horizon is the small-angle form and is
+only right while `a` is small against `R`. At Tarn's arrival it under-read by
+31%.
+
+**So: EMBER AND TARN ARE THE FIRST CHECK ON ANY NEW CONSTANT, NOT THE LAST.**
+Before adding a length, divide it by 207 and by 2072 and look at both answers.
+If the number is absolute, say why it is allowed to be. If it is a multiple of
+the radius, check it against the altitudes the game actually puts a craft at —
+the jet's ceiling of ~580m is 0.28 radii on Anvil and **2.80 on Ember**, and
+anything keyed to one or two radii is already wrong there.
+
 ## An object that caches the world it was built for (three times now)
 
 This has cost three separate bugs in `games/surveyor/`, and each one looked like
