@@ -510,8 +510,30 @@ so nothing dangled, but the new stamp promised a new bake over year-immutable
 old bytes; both incident commits are kept as `--commit` regression cases. A
 region of a root file or an `ARCHITECTURE.md` whose identifiers appear
 nowhere in the message is refused with a `Carries:` escape hatch; usually the
-right answer is a sentence in the message instead. It flags about one commit in
-ten, which is the agreed price (revisit past one in five).
+right answer is a sentence in the message instead.
+
+That last rule went SILENT on the shape it exists for, and the miss is worth
+more than the rule: `ba546b6` carried this file's whole NodeBlast gallery
+paragraph out under a `.bb-keys` subject, and the check passed it. Not the
+adjacency limit below — the region split correctly and was measured and kept.
+It died at the last gate, on two coincidences, because ONE shared word was
+enough to excuse a region: `sign`, a piece of the region's `sign-in`, against
+a message using "sign" about the UNDER CONSTRUCTION sign; and `nodeblast`,
+a piece of `nodeblast-alchemists`, against the one sentence in that message
+saying it was deliberately NOT committing the NodeBlast work. So a whole
+identifier now excuses a region outright, a PIECE of one takes two agreeing
+(`FRAGMENTS_NEEDED`), and a disclaiming sentence lends no words at all
+(`DISCLAIMER_RE`) — this repo's conventions ask for disclaimers constantly,
+which made them a standing source of false excuses. Re-measured over forty
+commits: it fires twice, on `ba546b6` and on `dafb908`, whose message says
+"icon span" about a `btn-icon` region. One in forty, against an agreed price
+of about one in ten (revisit past one in five).
+
+Every incident is now an assertable case rather than a paragraph:
+`python tools/check_sweep.py --cases` re-runs all four refusals and four
+controls through the same `run_commit()` the hook uses. A checker that buys
+confidence has to be checkable — three separate checkers in this repo were
+found reporting clean while observing nothing on 2026-08-20 alone.
 
 **IT CANNOT SEE A SWEPT HUNK THAT SITS NEXT TO A REAL EDIT.** Hunks less than
 60 lines apart are one region, so a region containing both your work and

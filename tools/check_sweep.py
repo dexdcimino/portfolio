@@ -2,6 +2,7 @@
 
     python tools/check_sweep.py <path-to-commit-message>
     python tools/check_sweep.py --commit <sha>     # try it against history
+    python tools/check_sweep.py --cases           # re-run every incident
 
 Run from .git/hooks/commit-msg, after check_scope.py.
 
@@ -17,6 +18,18 @@ edited. Two of those shipped on 2026-08-19, hours apart, in both directions:
   feef1f3  "MindSplit: Splitmob renamed everywhere" also carried a .vault-pin
            restyle. Nothing broke, but nobody reading that subject would ever
            guess the vault's code fields changed in it.
+
+And on 2026-08-20 a third, which is different in kind because by then this
+file existed and said no:
+
+  ba546b6  "Quiet the COLLAB strip, and move the Breakout keycaps under the
+           playfield" also carried ARCHITECTURE.md's whole NodeBlast gallery
+           paragraph, written by the session that was mid-capture. Rule 2 saw
+           the region, sized it, kept it, reached its last gate and EXCUSED
+           it on two coincidences - see rule 2.4 and 2.5 below. It had been
+           silent for weeks on exactly the shape it was written for, and
+           nothing would have revealed that, because "it fired when I tried
+           it in August" cannot be re-run. That is what CASES is for.
 
 Both came from staging a shared file WHOLE — the pre-commit hook does exactly
 that with index.html, and `git add styles.css` does it to anyone. The wrong
@@ -57,17 +70,33 @@ RULE 2 - UNEXPLAINED REGIONS, a judgement call, and therefore escapable:
   3. SUBSTANTIAL, and not generated. Under MIN_CHANGED changed lines is never
      flagged, and neither is bake_markup.py's output - a re-baked <picture> is
      a generator running, not someone's work riding along.
-  4. UNEXPLAINED. Flagged only when none of the region's identifiers appear in
-     the commit message or in a staged path. Identifiers, not words: this
-     repo's comment blocks are long enough that a naive tokeniser matched
-     `deliberately` and `somewhere` across unrelated diffs and excused every
-     sweep it was aimed at. See code_shaped().
+  4. UNEXPLAINED, AND IT TAKES MORE THAN ONE WORD IN COMMON. A WHOLE
+     identifier of the region appearing in the message excuses it outright.
+     A PIECE of one does not, on its own: tokens() deliberately splits
+     `vault-pin` into `vault` so a prose message can account for a code
+     region, and that generosity is what let ba546b6 through — `sign-in`
+     yielded `sign`, and the message said "sign" about a hazard sign. Pieces
+     now take FRAGMENTS_NEEDED of them agreeing. Identifiers, not words:
+     this repo's comment blocks are long enough that a naive tokeniser
+     matched `deliberately` and `somewhere` across unrelated diffs and
+     excused every sweep it was aimed at. See code_shaped(), identifiers()
+     and the gate in analyse().
+  5. AND SAID ABOUT WHAT THE COMMIT DID. A sentence saying what a commit is
+     NOT carrying lends it no words. The conventions here ask for disclaimers
+     constantly — "HELD BACK:", "left alone", "untouched", Spans:, Carries: —
+     and ba546b6's ONLY mention of NodeBlast was the sentence explaining that
+     it was deliberately not committing the NodeBlast work. A token that also
+     appears in any ordinary sentence still counts, so this can only remove
+     evidence that was never evidence. See DISCLAIMER_RE.
 
 A root file with one region is never checked. The rule only speaks when one
 file changed in two distant places and the message accounts for one of them.
 Residual noise is about one commit in twelve, always a large feature commit
 whose prose subject did not happen to name a symbol; the fix there is usually
-to mention it in the message, which is the cheaper outcome anyway.
+to mention it in the message, which is the cheaper outcome anyway. Re-measured
+over the last forty commits after the ba546b6 fix: rule 2 fires twice, on
+ba546b6 itself and on dafb908, whose message says "icon span" about a
+`btn-icon` region. One in forty, against a budget of one in twelve.
 
 THE ESCAPE HATCH is a `Carries:` line naming each file, in the same shape and
 for the same reason as check_scope.py's `Spans:` — deliberate reach has to be
@@ -98,6 +127,13 @@ SEPARATION = 60
 MIN_CHANGED = 14
 # Identifiers shorter than this are noise.
 MIN_TOKEN = 4
+# Fragment matches needed to excuse a region on their own, when the message
+# names none of its whole identifiers. One was enough until ba546b6, where a
+# single homograph (`sign`, out of `sign-in`) covered eighteen unrelated
+# lines. Two is measured, not chosen: across the last forty commits it is the
+# value that flags ba546b6 and leaves every honestly-described region alone
+# but dafb908's, whose message says "icon span" for a `btn-icon` region.
+FRAGMENTS_NEEDED = 2
 
 # Binary and generated things this cannot reason about.
 SKIP_GLOB = ("assets/index-", "vendor/", "package-lock.json", ".min.",
@@ -185,6 +221,74 @@ def tokens(text: str) -> set[str]:
             if len(part) >= MIN_TOKEN and part not in STOP:
                 found.add(part)
     return found
+
+
+def identifiers(text: str) -> set[str]:
+    """The region's WHOLE identifiers, with no splitting into parts.
+
+    tokens() also yields the pieces of a hyphenated name, on purpose, so that
+    a prose message saying "vault" can account for a `vault-pin` region. That
+    generosity is what let ba546b6 through: the region's `sign-in` yielded
+    `sign`, and the message used the English word "sign" about something else
+    entirely (the UNDER CONSTRUCTION sign). One accidental homograph excused
+    eighteen lines. So a piece is weaker evidence than a whole name now — see
+    the gate in analyse().
+    """
+    out: set[str] = set()
+    for m in TOKEN_RE.finditer(text):
+        raw = m.group(0)
+        if not code_shaped(raw):
+            continue
+        w = raw.lower()
+        if w not in STOP:
+            out.add(w)
+    return out
+
+
+# Sentences that say what a commit is NOT carrying. This repo's messages are
+# full of them — the conventions here actively ask for disclaimers ("HELD
+# BACK:", "left alone", "untouched", Spans:, Carries:) — and their words were
+# being read as evidence that the commit DESCRIBES the thing. That is
+# backwards, and it is how ba546b6 passed: its only mention of NodeBlast was
+# the sentence explaining that it was deliberately NOT committing the
+# NodeBlast work.
+DISCLAIMER_RE = re.compile(
+    r"held back|holding back|holds back|another session|working tree"
+    r"|left alone|leaves alone|untouched|not staged|unstaged"
+    r"|would sweep|sweep their|sweeping|deliberately not"
+    r"|not in this commit|not in here|stays out|kept out|is not here",
+    re.I)
+
+PARA_SPLIT = re.compile(r"\n\s*\n")
+SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
+
+def sentences(text: str) -> list[str]:
+    """The message split into sentences. Paragraphs first, because these
+    messages hard-wrap mid-sentence and a per-LINE split cuts them in half —
+    ba546b6's disclaimer runs across three lines."""
+    out: list[str] = []
+    for para in PARA_SPLIT.split(text):
+        para = " ".join(para.split())
+        if not para:
+            continue
+        out.extend(x.strip() for x in SENT_SPLIT.split(para) if x.strip())
+    return out
+
+
+def message_excuse(message: str) -> set[str]:
+    """What the message says the commit DID, as loose words.
+
+    A token appearing ONLY inside a disclaiming sentence is dropped; one that
+    also appears anywhere else is kept, so this can only remove evidence that
+    was never evidence. If every sentence disclaims something the whole
+    message is used rather than nothing — a message that excuses nothing at
+    all would make the check fire on its own author.
+    """
+    kept = [x for x in sentences(message) if not DISCLAIMER_RE.search(x)]
+    if not kept:
+        return loose(message)
+    return loose(" ".join(kept))
 
 
 def staged_files() -> list[str]:
@@ -352,7 +456,7 @@ def analyse(files: list[str], diff_of, message: str) -> list[tuple[str, str]]:
     """Return (path, sample) for every region the commit does not explain."""
     per_file = {p: regions(diff_of(p)) for p in files}
     # Everything the commit says about itself, other than the region in hand.
-    msg_tokens = loose(message)
+    msg_tokens = message_excuse(message)
     path_tokens: set[str] = set()
     for p in files:
         path_tokens |= tokens(p.replace("/", " "))
@@ -377,8 +481,19 @@ def analyse(files: list[str], diff_of, message: str) -> list[tuple[str, str]]:
             # every short token there is. What a person wrote about this
             # commit on purpose is the message and the paths; a collision
             # inside someone else's build output is not evidence of anything.
-            if mine & (msg_tokens | path_tokens):
-                continue                  # the message accounts for it
+            excuse = msg_tokens | path_tokens
+            # A WHOLE NAME IS EVIDENCE; A PIECE OF ONE, ALONE, IS NOT.
+            # ba546b6 was excused by two pieces and neither was anybody
+            # accounting for anything: `sign` out of `sign-in`, against a
+            # message using "sign" about a hazard sign, and `nodeblast` out
+            # of `nodeblast-alchemists`, against the sentence saying the
+            # commit was NOT carrying the NodeBlast work. Pieces still
+            # excuse, but it takes FRAGMENTS_NEEDED of them agreeing, which
+            # is what keeps honestly-described prose regions quiet.
+            if identifiers(text) & excuse:
+                continue                  # the message names it outright
+            if len(mine & excuse) >= FRAGMENTS_NEEDED:
+                continue                  # or enough of its pieces agree
             sample = next((l.strip() for l in text.splitlines()
                            if l.strip() and not l.strip().startswith(("*", "//", "#"))),
                           text.strip().splitlines()[0] if text.strip() else "")
@@ -406,8 +521,124 @@ def report(flagged: list[tuple[str, str]], named: list[str]) -> None:
     print(f"    Carries: {', '.join(sorted(set(named)))} - <why>", file=sys.stderr)
 
 
+def run_commit(sha: str, quiet: bool = False) -> int:
+    """Run every rule against a commit that already happened.
+
+    This is what --commit and --cases both go through, so an incident in
+    CASES is checked by exactly the code the hook runs and not by a second
+    copy of it that can drift.
+    """
+    def emit(*a, **k):
+        if not quiet:
+            print(*a, **k)
+
+    names = [p for p in git("show", "--name-only", "--format=", "--diff-filter=ACMR", sha).splitlines()
+             if p.strip() and keepable(p) and shared(p)]
+    msg = git("show", "-s", "--format=%B", sha)
+    flagged = analyse(names,
+                      lambda p: git("show", "--format=", "-U0", sha, "--", p),
+                      msg)
+    subject = msg.splitlines()[0] if msg.splitlines() else sha
+    dang = dangling_derivatives(
+        [p for p in names if p.endswith((".html", ".css", ".js"))],
+        lambda p: git("show", f"{sha}:{p}"),
+        # Resolved against the commit's OWN tree. Resolving against today's
+        # would call every later rename a dangling reference and report
+        # nonsense about history.
+        set(git("ls-tree", "-r", "--name-only", sha, "--",
+                "assets/derived/").splitlines()))
+    if dang:
+        emit(f"{sha[:7]} {subject}")
+        for path, ref in dang[:8]:
+            emit(f"  DANGLING {path} -> {ref}")
+        return 1
+    all_changed = set(git("show", "--name-only", "--format=",
+                          "--diff-filter=ACMR", sha).splitlines())
+    restamped = restamps_without_bytes(
+        [p for p in names if p.endswith((".html", ".css", ".js"))],
+        lambda p: git("show", f"{sha}^:{p}"),
+        lambda p: git("show", f"{sha}:{p}"),
+        all_changed)
+    if restamped:
+        emit(f"{sha[:7]} {subject}")
+        for path, ref, old, new in restamped[:8]:
+            emit(f"  RESTAMP  {path} -> {ref} ?v={old} -> {new}, bytes not in commit")
+        return 1
+    if flagged:
+        emit(f"{sha[:7]} {subject}")
+        for path, sample in flagged:
+            emit(f"  CARRIES  {path}: {sample}")
+        return 1
+    emit(f"{sha[:7]} {subject}\n  clean")
+    return 0
+
+
+# The incidents, as an assertable list rather than as prose in a docstring.
+#
+#     python tools/check_sweep.py --cases
+#
+# WHY THIS IS A LIST AND NOT A PARAGRAPH. Every rule here was written after an
+# incident, and each was checked once, by hand, on the day. ba546b6 is why that
+# is not enough: rule 2 had been correct for weeks and went silent on the exact
+# shape it exists for, and nobody could have known, because "it fired when I
+# tried it in August" is not a thing you can re-run. A checker that buys
+# confidence has to be checkable, and on 2026-08-20 three separate checkers in
+# this repo were found reporting clean while observing nothing at all.
+#
+# `fires` is the whole assertion: True means this commit must be refused,
+# False means it must pass. Adding a case costs one line and is the cheapest
+# thing in this file.
+CASES = [
+    ("b6ba02f", True,
+     "published a re-baked kong-fu <picture> whose derivatives were not "
+     "staged - rule 1, dangling"),
+    ("feef1f3", True,
+     "'Splitmob renamed everywhere' also carried a .vault-pin restyle - rule 2"),
+    ("e8645cd", True,
+     "restamped dexddc-portfolio ?v= without the bytes - rule 1b"),
+    ("ba546b6", True,
+     "carried this file's NodeBlast paragraph under a .bb-keys subject. Rule 2 "
+     "reached its last gate and EXCUSED it on two coincidences: `sign` out of "
+     "`sign-in` against a message using 'sign' about a hazard sign, and "
+     "`nodeblast` out of `nodeblast-alchemists` against the one sentence "
+     "saying the commit was NOT carrying the NodeBlast work"),
+    # Controls. A rule that fires on everything is as useless as one that
+    # fires on nothing, and these are the commits that prove it still says no.
+    ("bed02fd", False,
+     "the NodeBlast gallery commit itself: a real carry, declared on a "
+     "Carries: line, and correctly quiet"),
+    ("03222c7", False, "three image fixes, Spans: declared, honestly described"),
+    ("42d95f4", False, "large honest feature commit, several regions, all explained"),
+    ("d3c2f6a", False,
+     "CLAUDE.md calls this an ARCHITECTURE.md sweep, and rule 2 has always "
+     "passed it: the region's approachAlt, makePlanet, maxZ and "
+     "seamless-space are all in the message. Recorded as expected-clean so "
+     "the disagreement is visible rather than rediscovered"),
+]
+
+
 def main() -> int:
     argv = sys.argv[1:]
+
+    # --cases: re-run every incident. This is the whole answer to "the rule
+    # was correct when it was written"; see the note on CASES above.
+    if argv and argv[0] == "--cases":
+        bad = 0
+        for sha, want, note in CASES:
+            if not git("rev-parse", "--verify", f"{sha}^{{commit}}"):
+                print(f"  SKIP  {sha}  not in this clone")
+                continue
+            got = run_commit(sha, quiet=True)
+            ok = (got == 1) == want
+            if not ok:
+                bad += 1
+            verdict = "refused" if got == 1 else "clean"
+            expect = "refused" if want else "clean"
+            print(f"  {'ok  ' if ok else 'FAIL'}  {sha}  {verdict:8s}"
+                  f"{'' if ok else ' (expected ' + expect + ')'}  {note[:64]}")
+        print("")
+        print(f"check_sweep --cases: {len(CASES) - bad} of {len(CASES)} as expected")
+        return 1 if bad else 0
 
     # --commit <sha>: run the rule against a commit that already happened. This
     # is how the two incidents above are kept as regression cases rather than
@@ -416,46 +647,7 @@ def main() -> int:
         if len(argv) < 2:
             print("check_sweep: --commit needs a sha", file=sys.stderr)
             return 2
-        sha = argv[1]
-        names = [p for p in git("show", "--name-only", "--format=", "--diff-filter=ACMR", sha).splitlines()
-                 if p.strip() and keepable(p) and shared(p)]
-        msg = git("show", "-s", "--format=%B", sha)
-        flagged = analyse(names,
-                          lambda p: git("show", "--format=", "-U0", sha, "--", p),
-                          msg)
-        subject = msg.splitlines()[0] if msg.splitlines() else sha
-        dang = dangling_derivatives(
-            [p for p in names if p.endswith((".html", ".css", ".js"))],
-            lambda p: git("show", f"{sha}:{p}"),
-            # Resolved against the commit's OWN tree. Resolving against today's
-            # would call every later rename a dangling reference and report
-            # nonsense about history.
-            set(git("ls-tree", "-r", "--name-only", sha, "--",
-                    "assets/derived/").splitlines()))
-        if dang:
-            print(f"{sha[:7]} {subject}")
-            for path, ref in dang[:8]:
-                print(f"  DANGLING {path} -> {ref}")
-            return 1
-        all_changed = set(git("show", "--name-only", "--format=",
-                              "--diff-filter=ACMR", sha).splitlines())
-        restamped = restamps_without_bytes(
-            [p for p in names if p.endswith((".html", ".css", ".js"))],
-            lambda p: git("show", f"{sha}^:{p}"),
-            lambda p: git("show", f"{sha}:{p}"),
-            all_changed)
-        if restamped:
-            print(f"{sha[:7]} {subject}")
-            for path, ref, old, new in restamped[:8]:
-                print(f"  RESTAMP  {path} -> {ref} ?v={old} -> {new}, bytes not in commit")
-            return 1
-        if flagged:
-            print(f"{sha[:7]} {subject}")
-            for path, sample in flagged:
-                print(f"  CARRIES  {path}: {sample}")
-            return 1
-        print(f"{sha[:7]} {subject}\n  clean")
-        return 0
+        return run_commit(argv[1])
 
     if not argv:
         print("check_sweep: no message file given", file=sys.stderr)
