@@ -4853,3 +4853,89 @@ const PORTRAIT_LABEL = {
   gamesName = seeded ? (seeded.querySelector('strong') || {}).textContent : null;
   setGame(gamesKey, gamesName, openBtn);
 })();
+
+
+/* ---------- about breakout (the bio is the wall) --------------------------
+   Everything game lives in about-breakout.js and loads on the FIRST click —
+   nothing here touches the module, so the cold path costs a rect check and
+   two chips. Pointer + motion gating is CSS (see .bb-ui); this block owns
+   the geometry half: the toy only exists where the layout has dead space
+   under the bio for the ball, which today means roughly >=1400px wide. */
+(() => {
+  const ui = document.getElementById('bbUi');
+  const play = document.getElementById('bbPlay');
+  const soundBtn = document.getElementById('bbSound');
+  const panelHost = document.getElementById('bbAudioPanel');
+  if (!ui || !play || !soundBtn || !panelHost) return;
+
+  const MODULE = './about-breakout.js?v=1';
+  let mod = null;
+  const load = async () => (mod ??= await import(MODULE));
+
+  // The module's canPlay() re-checks this at start; the duplicate exists so
+  // the button can appear without loading the module.
+  const room = () => {
+    const p = document.querySelector('.about-copy > p:last-of-type');
+    const photo = document.querySelector('.about-photo');
+    const sub = document.querySelector('.about-sub');
+    if (!p || !photo || !sub) return false;
+    const floor = Math.min(photo.getBoundingClientRect().bottom,
+      sub.getBoundingClientRect().top - 10);
+    return floor - p.getBoundingClientRect().bottom >= 56;
+  };
+  const gate = () => { ui.hidden = !room(); };
+  gate();
+  window.addEventListener('resize', gate);
+  window.addEventListener('load', gate);
+
+  const closePanel = () => {
+    panelHost.hidden = true;
+    soundBtn.setAttribute('aria-expanded', 'false');
+  };
+
+  let ctl = null;
+  let starting = false;
+  play.addEventListener('click', async () => {
+    if (ctl || starting) return;
+    starting = true;
+    try {
+      const m = await load();
+      if (!m.canPlay()) { gate(); return; }
+      closePanel();
+      ui.classList.add('bb-playing');
+      ctl = await m.start({
+        onStop: () => { ctl = null; ui.classList.remove('bb-playing'); gate(); },
+      });
+    } catch (e) {
+      // Any failure to start leaves the section exactly as it was.
+      ctl = null;
+      ui.classList.remove('bb-playing');
+    } finally {
+      starting = false;
+    }
+  });
+
+  /* The audio popover: the shared Clayweld panel, its stylesheet linked the
+     first time it opens. Sharing getAudio() with the game means a slider
+     dragged here IS the game's mixer, not a copy of its numbers. */
+  let panelBuilt = false;
+  soundBtn.addEventListener('click', async () => {
+    if (!panelHost.hidden) { closePanel(); return; }
+    try {
+      const m = await load();
+      if (!panelBuilt) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'games/_shared/audio-panel.css?v=1';
+        document.head.appendChild(link);
+        m.getAudio().mountPanel(panelHost);
+        panelBuilt = true;
+      }
+      panelHost.hidden = false;
+      soundBtn.setAttribute('aria-expanded', 'true');
+    } catch (e) { /* no panel is no reason to lose the game */ }
+  });
+  document.addEventListener('click', (e) => {
+    if (!panelHost.hidden && !ui.contains(e.target)) closePanel();
+  });
+})();

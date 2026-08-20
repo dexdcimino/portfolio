@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=171" />
+  <link rel="stylesheet" href="styles.css?v=172" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -1272,7 +1272,20 @@
             </svg>
           </button>
         </div>
-        <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH <span class="title-accent">+&nbsp;EXECUTION</span></h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p><p>My path began in engineering before moving through graphic design, animation, and 3D art. That mix shaped how I work today: combining an artist’s eye, a technical mindset, and a willingness to learn whatever each project requires.</p></div>
+        <div class="about-copy reveal"><p class="eyebrow">ABOUT</p><h2>ART + TECH <span class="title-accent">+&nbsp;EXECUTION</span></h2><p>I’m Dex Cimino, a 3D artist and creative technologist focused on game art, real-time content, and AI-assisted production. I like learning fast, building from scratch, and turning weird ideas into finished things.</p><p>My path began in engineering before moving through graphic design, animation, and 3D art. That mix shaped how I work today: combining an artist’s eye, a technical mindset, and a willingness to learn whatever each project requires.</p><!-- Breakout chips: absolutely positioned into the dead space under the
+             bio, so the copy block's layout never changes whether they show or
+             not. hidden is the JS geometry gate; pointer/motion gating is CSS. -->
+        <div class="bb-ui" id="bbUi" hidden>
+          <button class="bb-play" id="bbPlay" type="button">
+            <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 1.5v9l8-4.5z"/></svg>
+            <span>BREAK THE BIO</span>
+          </button>
+          <button class="bb-sound" id="bbSound" type="button" aria-expanded="false"
+                  aria-controls="bbAudioPanel" aria-label="Game sound settings">
+            <svg viewBox="0 0 14 12" aria-hidden="true" focusable="false"><path d="M1 4h2.6L7 1v10L3.6 8H1zM9.2 3.4a3.4 3.4 0 0 1 0 5.2l-.9-1a2 2 0 0 0 0-3.1zM10.9 1.5a5.8 5.8 0 0 1 0 9l-.9-1a4.4 4.4 0 0 0 0-7z"/></svg>
+          </button>
+          <div class="bb-audio" id="bbAudioPanel" hidden></div>
+        </div></div>
       </div>
 
     <section class="about-sub toolkit" id="toolkit" aria-labelledby="toolkit-title">
@@ -2721,6 +2734,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=171"></script>
+  <script src="script.js?v=172"></script>
 </body>
 </html>

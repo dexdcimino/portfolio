@@ -352,10 +352,24 @@ function createAudio() {
     wall: () => blip(340, 0.045, { type: 'sine', peak: 0.28 }),
     ceiling: () => blip(540, 0.06, { type: 'sine', peak: 0.34 }),
     lost: () => blip(300, 0.22, { type: 'sine', peak: 0.3, slideTo: 120 }),
+    win: () => { blip(440, 0.1, { peak: 0.4 });
+      setTimeout(() => blip(554, 0.1, { peak: 0.4 }), 90);
+      setTimeout(() => blip(660, 0.16, { peak: 0.4 }), 180); },
     mountPanel: (root) => buildAudioPanel(root, settings),
     running: () => (ctx ? ctx.state : 'none'),
+    // Suspended between games, not closed: the popover panel and the next
+    // start() keep working against the same context and settings instance.
+    suspend: () => { try { ctx?.suspend(); } catch { } },
     close: () => { try { ctx?.close(); } catch { } ctx = null; graph = null; },
   };
+}
+
+/* One audio instance for the page. The popover's panel and the running game
+ * must share a settings object, or a slider dragged mid-game would only
+ * write localStorage and never reach the live bus graph. */
+let sharedAudio = null;
+export function getAudio() {
+  return (sharedAudio ??= createAudio());
 }
 
 /**
@@ -384,7 +398,7 @@ export function canPlay() {
  * off screen, and to every failure path; engage()'s own resize/font-swap
  * restore is caught by the isConnected check in the frame loop).
  */
-export async function start() {
+export async function start({ onStop } = {}) {
   const copy = findParagraph()?.parentElement;
   if (!copy) throw new Error('about copy not found');
   const h2 = copy.querySelector('h2');
@@ -427,7 +441,15 @@ export async function start() {
    * land. Entries: {i, x, y, rot, vx, vy, om, alpha} with x/y the CELL
    * CENTRE. */
   const falling = [];
-  const audio = createAudio();
+  const audio = getAudio();
+  /* Win choreography. 'play' -> (wall empty, last fall faded) ->
+   * 'reassemble': every letter flies home from scatter below the floor,
+   * staggered in text order, and is uncovered the frame it lands — the
+   * handoff back to real text is per letter, a cascade, and needs no final
+   * swap at all. -> 'done' -> stop(). */
+  let phase = 'play';
+  let flights = null;
+  let reassembleT = 0;
 
   const paddle = { x: (left + right) / 2, y: floor - 14, w: PADDLE_W, h: PADDLE_H };
   const ball = { x: paddle.x, y: paddle.y - BALL_R - 1, vx: 0, vy: 0, attached: true, timer: 0.5 };
@@ -538,6 +560,37 @@ export async function start() {
     }
   };
 
+  const beginReassembly = () => {
+    phase = 'reassemble';
+    reassembleT = 0;
+    audio.win();
+    flights = h.letters.map((l, i) => ({
+      i, landed: false,
+      delay: 0.35 + i * 0.011 + Math.random() * 0.05,
+      dur: 0.5,
+      fromX: l.x + l.w / 2 + (Math.random() - 0.5) * 220,
+      fromY: floor + 30 + Math.random() * 70,
+      fromRot: (Math.random() - 0.5) * 2.4,
+    }));
+  };
+
+  const updateReassembly = (dt) => {
+    reassembleT += dt;
+    let allLanded = true;
+    for (const f of flights) {
+      if (f.landed) continue;
+      if (reassembleT >= f.delay + f.dur) {
+        f.landed = true;
+        alive[f.i] = true;         // uncovered: the real glyph takes over
+      } else allLanded = false;
+    }
+    if (allLanded) {
+      phase = 'done';
+      state.won = true;
+      stop();
+    }
+  };
+
   const updateFalling = (dt) => {
     for (let k = falling.length - 1; k >= 0; k--) {
       const f = falling[k];
@@ -620,6 +673,26 @@ export async function start() {
       ctx.fillText(l.ch, -l.w / 2, l.baseline - (l.y + l.h / 2));
       ctx.restore();
     }
+    if (phase === 'reassemble') {
+      // Letters fly home, straightening as they arrive; each is drawn only
+      // once its stagger delay passes, so the cascade sweeps through the
+      // paragraph in reading order. No paddle, no ball — the game is over.
+      for (const f of flights) {
+        if (f.landed) continue;
+        const p = (reassembleT - f.delay) / f.dur;
+        if (p <= 0) continue;
+        const e = 1 - Math.pow(1 - Math.min(1, p), 3);
+        const l = h.letters[f.i];
+        const hx = l.x + l.w / 2, hy = l.y + l.h / 2;
+        ctx.save();
+        ctx.translate(f.fromX + (hx - f.fromX) * e, f.fromY + (hy - f.fromY) * e);
+        ctx.rotate(f.fromRot * (1 - e));
+        ctx.fillStyle = h.color;
+        ctx.fillText(l.ch, -l.w / 2, l.baseline - hy);
+        ctx.restore();
+      }
+      return;
+    }
     ctx.fillStyle = accent;
     const pr = new Path2D();
     pr.roundRect(paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 3);
@@ -650,8 +723,9 @@ export async function start() {
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('keyup', onKeyUp, true);
     window.removeEventListener('pointermove', onPointer);
-    audio.close();
+    audio.suspend();          // shared instance: quiet, not gone
     h.restore();
+    try { onStop?.(state); } catch { /* the page's problem, not the game's */ }
   };
 
   const frame = (now) => {
@@ -672,13 +746,12 @@ export async function start() {
         if (Math.abs(pr.left - cr.left - left) > 1 ||
             Math.abs(pr.top - cr.top - (pRect.top - ceilingY)) > 1) { stop(); return; }
       }
-      update(dt);
-      if (state.running && destroyed === total) {
-        // Pass 4 replaces this with the reassembly payoff; until then the
-        // win simply hands the untouched paragraph back.
-        state.won = true;
-        stop();
-        return;
+      if (phase === 'play') {
+        update(dt);
+        // The wall is empty and the last falling letter has faded: payoff.
+        if (state.running && destroyed === total && falling.length === 0) beginReassembly();
+      } else if (phase === 'reassemble') {
+        updateReassembly(dt);
       }
       if (!state.running) return;
       render();
@@ -694,5 +767,16 @@ export async function start() {
   window.addEventListener('pointermove', onPointer);
   raf = requestAnimationFrame(frame);
 
-  return { stop, state, handle: h, audio };
+  return {
+    stop, state, handle: h, audio,
+    debug: {
+      /* Test hook: empty the wall so the frame loop's own win detection and
+       * reassembly run for real — clearing 194 letters by physics takes
+       * minutes a harness does not have. */
+      winNow() {
+        for (let i = 0; i < total; i++) if (alive[i]) { alive[i] = false; destroyed++; }
+        falling.length = 0;
+      },
+    },
+  };
 }

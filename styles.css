@@ -1761,6 +1761,59 @@ button.button{cursor:pointer;font-family:inherit}
 .about-photo img{width:100%;height:100%;object-fit:cover;transition:opacity var(--ink-fade)}
 
 /* ==========================================================================
+   ABOUT BREAKOUT — the chips that launch the bio toy
+   The chips sit ABSOLUTELY in the dead space under the second bio paragraph:
+   they must never add layout height, because about-breakout.js measures the
+   copy block and treats any layout drift as a reason to shut down. Gating is
+   split on purpose: pointer + motion live here in a media query (no JS, no
+   module load, correct before first paint), while the is-there-room-for-the-
+   ball check needs rects and lives in script.js, which toggles [hidden].
+   .about-copy is position:relative for these AND for the game's canvas —
+   the module no longer has to set it inline at engage time, but still does,
+   harmlessly, for robustness.
+   ========================================================================== */
+.about-copy{position:relative}
+.bb-ui{display:none}
+@media (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .bb-ui:not([hidden]){
+    position:absolute;left:0;top:calc(100% + 24px);
+    display:flex;align-items:center;gap:10px;z-index:2;
+  }
+}
+/* The chips ARE the playfield once the ball is out: visibility, not display,
+   so nothing reflows and the game's layout-drift guard stays quiet. */
+.bb-ui.bb-playing{visibility:hidden}
+.bb-play{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:9px 16px;border:1px solid var(--line);border-radius:999px;
+  background:none;color:#959ea5;font-family:inherit;font-size:11px;
+  font-weight:800;letter-spacing:.16em;cursor:pointer;
+  transition:color .2s ease,border-color .2s ease;
+}
+.bb-play svg{width:9px;height:9px;fill:currentColor}
+.bb-play:hover,.bb-play:focus-visible{color:var(--accent);border-color:var(--accent)}
+.bb-sound{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;padding:0;border:1px solid var(--line);
+  border-radius:50%;background:none;color:#959ea5;cursor:pointer;
+  transition:color .2s ease,border-color .2s ease;
+}
+.bb-sound svg{width:13px;height:13px;fill:currentColor}
+.bb-sound:hover,.bb-sound:focus-visible,
+.bb-sound[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}
+/* The shared Clayweld panel (games/_shared/audio-panel.css, linked lazily on
+   first open) reads these two tokens for its accent and knob ink. */
+.bb-audio{
+  --cmenu-accent:var(--accent);
+  --cmenu-ink:#0b0e11;
+  position:absolute;left:0;top:calc(100% + 12px);
+  min-width:300px;padding:12px 14px;
+  background:#101418;border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 12px 30px rgba(0,0,0,.45);
+}
+.bb-audio[hidden]{display:none}
+
+/* ==========================================================================
    PORTRAIT TOGGLE — photo <-> accent line art
    The line art is a CSS mask, so it takes the accent like every other mark on
    the site. Referenced as an external URL rather than baked into this file by

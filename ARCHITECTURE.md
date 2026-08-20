@@ -86,10 +86,16 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   `.cl-note` sit above it (z-index 4 against 3), which is what leaves the
   scrubber, volume and chips their own clicks; `.wp-plate` is
   `pointer-events:none`.
-- `about-breakout.js` — ES module for the About section's Breakout toy,
-  loaded only by dynamic `import()`, never on the critical path, runs nothing
-  at import time. Not yet wired into the page — nothing in `index.html` or
-  `script.js` references it until the win state exists. Every glyph of the
+- `about-breakout.js` — ES module for the About section's Breakout toy.
+  Wired into the page as two chips (`.bb-ui` in `index.html`, absolutely
+  positioned into the dead space under the bio so layout never changes;
+  BREAK THE BIO + a sound chip) and one block at the end of `script.js`
+  that owns the gate and the lazy `import()` on first click — the cold
+  path costs a rect check and two chips, nothing game-related is fetched
+  before then. Gating is split on purpose: pointer + motion live in a CSS
+  media query on `.bb-ui`; the geometry half (is there room for the ball)
+  is a small duplicate in `script.js`, because the module's authoritative
+  `canPlay()` cannot run before the module loads. Every glyph of the
   second bio paragraph is measured per character via Range rects (no spans,
   ever — the `<p>` stays one text node), and a transparent canvas overlay
   erases and redraws single letters. The paragraph is NEVER hidden or
@@ -109,8 +115,14 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   by construction). Audio is the shared Clayweld panel
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
-  fetches, no MediaBus registration (short fx are not a player and must
-  not pause the song bar). The `<p>` stays in the accessible tree
+  MediaBus registration (short fx are not a player and must not pause the
+  song bar). `getAudio()` is a singleton shared by the game and the sound
+  chip's popover (the shared panel + `games/_shared/audio-panel.css`,
+  linked lazily on first open), so a slider dragged there IS the live
+  mixer. Win: when the wall is empty and the last fall has faded, every
+  letter flies home from scatter below the floor, staggered in reading
+  order, and is UNCOVERED the frame it lands — the handoff back to real
+  text is per letter and needs no final swap. The `<p>` stays in the accessible tree
   at all times (never hidden, never aria-hidden; the canvas is), and every
   exit — any error, Escape, resize, layout shift, a late font swap,
   scrolling the section away — restores the untouched text
