@@ -269,6 +269,12 @@ export class Craft {
         Math.cos(this.yaw) * carryH);
       const floorD = Math.max(this.groundHeight,
         this.surf.planet.hasWater ? WORLD.waterY : -Infinity);
+      /* ENTRY FLOORS AT 0, not at minLift, and that is deliberate: minLift is
+         somewhere the descend key can take you, not somewhere you can arrive.
+         Transforming on the ground puts (pos.y - floor) near zero, so a
+         minLift floor here left the drone sitting in the dirt at 0.8m instead
+         of lifting off to the hover line — it stopped being able to take off.
+         Caught by dev/_drone in the same session that added the descend. */
       this.droneLift = clamp((this.pos.y - floorD) - DRONE.hover, 0, DRONE.maxLift);
     } else {
       this.pitch = 0; this.roll = 0;
@@ -1356,10 +1362,13 @@ export class Craft {
    * beside the jet: the jet crosses the world, this gets you into a canyon and
    * back out.
    *
-   * There is no descend key on purpose. The hover line follows the floor, so
-   * flying out over a canyon IS the descent, and Space (climb) is how you get
-   * back out; the held height stays where you leave it, which is the "holds
-   * altitude without input" the form is for. R lands it, like everything else.
+   * VERTICAL IS TWO KEYS ON THE HOVER LINE, not two forces on the spring.
+   * Space raises the held offset and Ctrl (or Z) lowers it; the spring then
+   * flies to wherever the line now is. That is why letting go of both HOLDS
+   * the new height instead of sagging back — there is nothing to sag towards,
+   * because the target moved rather than being pushed against. The line still
+   * follows the floor underneath it, so flying out over a canyon is still a
+   * descent you get for free. R lands it, like everything else.
    */
   updateDrone(dt, input, boost) {
     const drain = boost ? DRONE.boostBurn : DRONE.burn;
@@ -1391,8 +1400,13 @@ export class Craft {
     if (hs > maxS) { const k = maxS / hs; this.vel.x *= k; this.vel.z *= k; }
     this.speedScalar = Math.hypot(this.vel.x, this.vel.z);
 
-    if (input.hopHeld) {
-      this.droneLift = Math.min(DRONE.maxLift, this.droneLift + DRONE.climbRate * dt);
+    /* One signed input, so holding both is a deliberate zero rather than a
+       race between two branches, and releasing both leaves the line exactly
+       where it was. */
+    const lift = (input.hopHeld ? 1 : 0) - (input.descHeld ? 1 : 0);
+    if (lift) {
+      this.droneLift = clamp(this.droneLift + lift * DRONE.climbRate * dt,
+        DRONE.minLift, DRONE.maxLift);
     }
     const gh = this.surf.surfaceHeight(this.pos.x, this.pos.z);
     const floor = Math.max(gh, this.surf.planet.hasWater ? WORLD.waterY : -Infinity);

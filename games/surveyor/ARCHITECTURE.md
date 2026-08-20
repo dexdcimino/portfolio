@@ -107,7 +107,11 @@ game (40 exported blocks incl. `PLANETS`, `POST`, `ECONOMY`, `HYPER`);
 - `js/player/` — `meshes.js` (rover/boat/jet/drone geometry), `craft.js` (one
   vehicle, four physics models + hyper transit — the drone is a hover on key
   `4`: holds height with no input, moves by tilting, thruster pods swivel in
-  `applyTransform`, Space climbs and the height stays held), `camera.js`
+  `applyTransform`. VERTICAL IS TWO KEYS ON THE HOVER LINE, not two forces on
+  the spring — Space raises `droneLift`, Ctrl or Z lowers it into
+  `DRONE.minLift`, and releasing both holds the new height because the target
+  moved rather than being pushed against. Entry floors that offset at 0, not
+  at `minLift`, or the drone cannot take off from the ground), `camera.js`
   (`ChaseCam`). NOTE: the camera keys FOUR maps by mode — `CAM.dist/height/
   fov/rollTilt` plus `REF_SPEED` — and a mode missing from any one of them is
   a NaN camera and a grey frame with no error anywhere.

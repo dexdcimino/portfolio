@@ -2416,18 +2416,35 @@ export const DRONE = {
   minFuelToLaunch: 4,
   burn: 0.55,          // charge/sec just to hold the rotors up
   boostBurn: 1.6,
-  accel: 30,
-  boostAccel: 46,
-  maxSpeed: 14,        // against the jet's 92: this is the precision form
-  boostSpeed: 24,
+  /* RAISED (Dex, 2026-08-19): 14 m/s read as slow rather than as precise.
+     The drone is the form you take into a canyon, and taking two minutes to
+     get down the canyon is not precision. 26 against the jet's 92 keeps the
+     gap that makes the jet the crossing form — still under a third of it —
+     while making the drone feel deliberate instead of sluggish.
+     ACCEL HAD TO MOVE WITH IT. Horizontal drag is exponential, so the speed
+     the craft actually settles at is accel/drag, not maxSpeed: at the old
+     accel 30 the drag terminal is 21 m/s and a 26 m/s cap would simply never
+     be reached, leaving the number a lie. 44/1.4 = 31, so the cap binds and
+     maxSpeed means what it says. Same arithmetic for boost: 66/1.4 = 47
+     against a 42 cap. */
+  accel: 44,
+  boostAccel: 66,
+  maxSpeed: 26,        // against the jet's 92: this is the precision form
+  boostSpeed: 42,
   drag: 1.4,
   turnRate: 2.2,       // radians/sec of direct, quadcopter yaw
   tilt: 0.38,          // radians of body tilt at full stick
   tiltRate: 5.0,
   swivel: 1.8,         // pods lean this much FURTHER than the body does
   hover: 6.5,          // metres above the floor with no climb held
-  maxLift: 42,         // Space can hold you this far above the hover line
-  climbRate: 7,        // metres/sec the held height rises while Space is down
+  maxLift: 42,         // climb can hold you this far above the hover line
+  /* ...and this far BELOW it, which is what the descend key buys. Negative
+     because the whole quantity is an offset from the hover line, and the
+     hover line is what follows the ground. It stops at -5.7 rather than at
+     -6.5 so a full descent parks the skids just clear of the floor instead of
+     fighting the 0.6m contact clamp every frame; R is still how you land. */
+  minLift: -5.7,
+  climbRate: 7,        // metres/sec the held height moves, either direction
   riseRate: 11,        // the vertical spring's ceiling going up...
   sinkRate: 9,         // ...and going down, which is what makes canyons gentle
   hoverSpring: 1.6,

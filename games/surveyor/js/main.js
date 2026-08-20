@@ -334,7 +334,8 @@ for (const e of ['colony', 'colonygrow']) on(e, () => cam.addShake(0.10));
 
 const keys = new Set();
 const HELD = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'ArrowUp', 'ArrowDown',
-  'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD']);
+  'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
+  'ControlLeft', 'ControlRight']);
 let pendingMode = null;
 let pendingHopPress = false;
 let started = false;
@@ -373,7 +374,14 @@ function readInput() {
     // Held, not toggled: the beam is a thing you are doing, not a mode.
     beam: !!down('KeyE'),
     // Hold to charge a jump; the jet's mid-air pop wants the press edge.
+    // The drone reads the same hold as CLIMB — see updateDrone.
     hopHeld: !!down('Space'),
+    /* The drone's descend. Ctrl as asked, plus Z, and the alias is not
+       decoration: Ctrl+W is a browser tab-close that no page can preventDefault
+       away, and W is this game's forward. Anyone who descends and accelerates
+       at the same time closes the tab, so there has to be a key that cannot do
+       that. Nothing else reads either code. */
+    descHeld: !!down('ControlLeft', 'ControlRight', 'KeyZ'),
     hopPress: pendingHopPress,
     mode: pendingMode,
   };
@@ -384,7 +392,8 @@ function readInput() {
 
 // ---- loop ---------------------------------------------------------------
 
-const IDLE = { fwd: 0, turn: 0, pitch: 0, roll: 0, boost: false, beam: false, hopHeld: false, hopPress: false, mode: null };
+const IDLE = { fwd: 0, turn: 0, pitch: 0, roll: 0, boost: false, beam: false,
+  hopHeld: false, hopPress: false, descHeld: false, mode: null };
 const deepEl = document.getElementById('deep');
 let deepShown = 0;
 
