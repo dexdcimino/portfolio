@@ -3212,8 +3212,11 @@ function renderMarkdown(src) {
 (function initAppInfo() {
   const panel = document.getElementById('ai-panel-apps');
   const info = document.getElementById('appInfo');
-  if (!panel || !info) return;
-  const cards = [...panel.querySelectorAll('.ai-card')];
+  // The cards live in the statement column now (#aiApps), not in the panel —
+  // the panel holds what they select: lead, shot, description, actions.
+  const apps = document.getElementById('aiApps');
+  if (!panel || !info || !apps) return;
+  const cards = [...apps.querySelectorAll('.ai-card')];
   if (!cards.length) return;
 
   const lead = info.querySelector('.game-desc-lead');
@@ -3233,10 +3236,6 @@ function renderMarkdown(src) {
      the wallpaper thumbnails. */
   const art = document.getElementById('appArt');
   const shots = new Map();
-  /* Which shot the panel currently holds — needed because the frame now has
-     TWO reasons to be hidden (no shots for this app; the Apps panel itself is
-     hidden) and each check must not clobber the other. */
-  let artShot = null;
   if (art) {
     const SIZES = '(max-width:1100px) 520px, min(520px, 26vw)';
     for (const card of cards) {
@@ -3286,8 +3285,7 @@ function renderMarkdown(src) {
       const key = card.dataset.gallery || null;
       const shot = key ? shots.get(key) : null;
       for (const s of shots.values()) s.hidden = s !== shot;
-      artShot = shot;
-      art.hidden = panel.hidden || !shot;
+      art.hidden = !shot;
       // The accessible name comes from the gallery's own count, same as the
       // button's did — paintOpenBtn writes it onto the hidden label span.
       if (shot) {
@@ -3344,20 +3342,17 @@ function renderMarkdown(src) {
     } else warm();
   }
 
-  /* This block lives in the statement column, which is OUTSIDE the tab panels
-     and therefore visible whatever tab is open — so it followed the visitor into
-     Wallpapers and Clips describing an app they were no longer looking at.
+  /* The card grid lives in the statement column, which is OUTSIDE the tab
+     panels and therefore visible whatever tab is open — left alone it would
+     follow the visitor into Wallpapers and Clips advertising apps the panels
+     no longer describe. Same sync #wpThumbs uses for the same reason.
 
      Tied to the Apps panel's own `hidden` attribute through an observer rather
      than to a click on the tab: initTabs owns that attribute, and watching the
      thing itself cannot fall out of step with however the panel comes to be
-     shown (a click, a keyboard arrow, or anything added later). */
-  const syncVisible = () => {
-    info.hidden = panel.hidden;
-    // The hero thumbnail sits outside .app-info now, so it needs the same
-    // panel sync — combined with its own no-shots collapse.
-    if (art) art.hidden = panel.hidden || !artShot;
-  };
+     shown (a click, a keyboard arrow, or anything added later). The panel's
+     own contents (lead, shot, description) need no sync — they hide with it. */
+  const syncVisible = () => { apps.hidden = panel.hidden; };
   new MutationObserver(syncVisible).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
   syncVisible();
 

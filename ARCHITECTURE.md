@@ -29,14 +29,19 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   SVGs; everything after it renders `{title, desc, src, w, h}` and is
   data-shape-agnostic; hero is a fixed 3:2 box on purpose), one `initTabs()`
   behind four tablists, wallpapers carousel/lightbox (self-builds from
-  `.wp-item` figures), `initAppInfo()`/`initAppModal()` (an `.ai-card` is a
-  non-interactive container with three targets: the title `<a>` opens the
-  site in a new tab, the eyeball `<button>` — authored only on cards with
-  `data-app-modal` — opens the app overlay, and a click anywhere else selects
-  the card; hover, focus and click all drive the hero thumbnail under the AI
-  LAB intro — the shown app's first `.gal-item` shot, cloned never borrowed,
-  which opens the shared viewer via `gallery:open`; no shots, no thumbnail,
-  and the eyeball hides below 768px where the overlay declines),
+  `.wp-item` figures), `initAppInfo()`/`initAppModal()` (the app cards list
+  in the statement column under the AI LAB heading (`#aiApps`, hidden with
+  the Apps panel the way `#wpThumbs` follows Wallpapers); each `.ai-card` is
+  a non-interactive container with three targets: the title `<a>` opens the
+  site in a new tab and underlines on hover, the eyeball `<button>` —
+  authored only on cards with `data-app-modal` — opens the app overlay, and
+  a click anywhere else selects the card; the Apps panel across from it
+  shows the selection as lead line, then the app's first `.gal-item` shot
+  (cloned never borrowed; opens the shared viewer via `gallery:open`; no
+  shots collapses it), then description and tags; the eyeball hides below
+  768px where the overlay declines; app icons carry their own plates — the
+  icon wrap draws no border because the plates' corner radii differ per
+  mark),
   `initCollabInfo()` (fills the Collab panel and builds
   each card's brain row + invite link from the card's own `data-people` /
   `data-invite`; adding a project is one card, no JS edit), vault, clips,

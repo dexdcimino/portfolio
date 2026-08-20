@@ -1469,10 +1469,10 @@ button.button{cursor:pointer;font-family:inherit}
    .game-art, so an edit meant for either section cannot restyle the other.
    Unlike .game-art it is never an empty box: initAppInfo [hidden]s it whole
    when the app has no shots, so the space collapses instead of promising
-   pictures. margin-top matches .game-art so the two frames sit at the same
-   depth under their headings. */
+   pictures. Sits between the lead line and the description in the Apps
+   panel, so its margin is a text gap, not a section gap. */
 .app-art{
-  display:block; margin-top:34px; width:100%; max-width:520px; aspect-ratio:16/9;
+  display:block; margin-top:14px; width:100%; max-width:520px; aspect-ratio:16/9;
   position:relative; border-radius:var(--radius-cover); overflow:hidden;
   padding:0; cursor:pointer;
   border:var(--stroke) solid rgba(255,255,255,.1);
@@ -1489,17 +1489,18 @@ button.button{cursor:pointer;font-family:inherit}
   .app-art{transition:none}
   .app-art:hover,.app-art:focus-visible{transform:none}
 }
-/* Below the split the statement column stacks ABOVE the grid, so height here
-   pushes the cards down — the exact push the app-info comment warns about.
-   MEASURED at 900: the full 520 frame adds 314px above a grid already at
-   1311px from the section top; 340 halves the push. Not hidden outright the
-   way .game-art is on touch, because this frame is the apps' only door into
-   the gallery. */
-@media (max-width:1100px){
-  .app-art{max-width:340px;margin-top:16px}
-}
+/* No stacked-width cap any more: below the split the card list now sits
+   ABOVE the panel this frame lives in, so its height pushes nothing. */
 
 .ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+/* The statement-column variant: the cards are this section's list now, under
+   the heading. auto-fit rather than a fixed two-up, because this column runs
+   250px just above the split's collapse and 560px below it — the cards go
+   one-up or two-up by what actually fits. Slightly shorter cards than the
+   panel grid used: five in a column is a list, not a wall. */
+.ai-grid-side{margin-top:34px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.ai-grid-side .ai-card{min-height:160px}
+.ai-grid-side[hidden]{display:none}
 /* Not shipped yet: a div rather than a link, so it carries no hover lift and no
    pointer — nothing here is clickable and the card should not pretend it is.
    NOTHING WEARS THIS RIGHT NOW — ThemeDock was the last SOON card and it has
@@ -1525,6 +1526,9 @@ button.button{cursor:pointer;font-family:inherit}
 .ai-card small{color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
 .ai-card strong{font-size:25px;margin:8px 0;display:block}
 .ai-card-link{display:block;color:inherit;text-decoration:none}
+/* The out-link affordance lives on the text itself: only this element leaves
+   the site, so only this element underlines. */
+.ai-card-link:hover strong,.ai-card-link:focus-visible strong{text-decoration:underline;text-underline-offset:4px}
 .ai-card-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 .ai-card-link>span{color:#9da5ab;font-size:12px;display:inline-flex;align-items:center;gap:6px}
 .inline-arrow{width:13px;height:13px}
@@ -1539,14 +1543,17 @@ button.button{cursor:pointer;font-family:inherit}
 .ai-card-iconwrap{
   position:absolute;top:20px;right:20px;
   height:50%;aspect-ratio:1;
-  display:block;border-radius:12px;overflow:hidden;
-  border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  display:block;
+  /* No frame of its own: every mark ships on its own rounded plate, and the
+     plates' corner radii differ per app (three at 31.25%, ThemeDock at
+     18.75%), so any single wrap border leaves gapped corners on at least one
+     of them. The silhouette is the icon's own. */
   /* Under the copy if a long title ever reaches it, and above the blur. */
   z-index:1;pointer-events:none;
-  transition:border-color var(--accent-ease),opacity .25s ease;
+  transition:opacity .25s ease;
   opacity:.92;
 }
-.ai-card:hover .ai-card-iconwrap,.ai-card:focus-within .ai-card-iconwrap{opacity:1;border-color:var(--accent)}
+.ai-card:hover .ai-card-iconwrap,.ai-card:focus-within .ai-card-iconwrap{opacity:1}
 .ai-card-icon{width:100%;height:100%;object-fit:cover;display:block}
 /* Long titles must not run under the badge. */
 .ai-card small,.ai-card .ai-card-link{position:relative;z-index:2}
