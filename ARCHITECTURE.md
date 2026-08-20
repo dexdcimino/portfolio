@@ -234,12 +234,19 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   the line and outside, the accent game cursor returns. Control hints
   (`.bb-keys`, the games' pause-menu keycap treatment) sit UNDER THE
   PLAYFIELD while the game runs: left edge flush with the bio column,
-  centred in the strip between the ball's floor
-  and `.about-sub`. That strip is the portrait's overhang and is a steady
-  54px at every width the toy is offered at (1400-2560, measured
-  2026-08-20), which a 34px row clears at both ends. They anchored to
-  `.about-photo` until 2026-08-20 and so rendered under the PORTRAIT, one
-  column over from the game they label. Muted reads muted: the slider
+  centred in the strip between the ball's floor and `.about-sub`. That
+  strip is the portrait's overhang and is a steady 54px at every width the
+  toy is offered at (1400-2560, measured 2026-08-20), which a 34px row
+  clears at both ends. They anchored to `.about-photo` until 2026-08-20
+  and so rendered under the PORTRAIT, one column over from the game they
+  label. A / D / Space / Click carry 15px type; the two arrow caps carry a
+  solid sideways triangle instead of ← / → — `.bb-key-tri`, an inline SVG
+  with `.sr-only` text beside it for the name the character used to say
+  out loud. The glyphs are hairlines at every weight the system font has,
+  so they read as TEXT sitting in a keycap while the lettered caps read as
+  keys; 14px of triangle plus the caps' padding comes to the same 36px
+  min-width the letters take from `.bb-key`, so the row stays one set of
+  keys. Muted reads muted: the slider
   hides and the speaker takes a horizontal slash. Audio is the shared Clayweld panel
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
