@@ -112,6 +112,40 @@ export const bodies = sources.flatMap((f) =>
 export const stray = sources.flatMap((f) =>
   strayBackticks(f.text).map((line) => `${base(f.path)} ${line}`));
 
+/* A SECOND, INDEPENDENT COUNT — and this is the part that was missing.
+   Everything above finds shader bodies with the same regexes it then trusts, so
+   a body those regexes cannot see is not reported as unscanned: it is not
+   reported at all. That is how COMMON, HAZE and svFarBodyFragmentShader went
+   unscanned while this file exited 0, and the suite's guard on it — bodies
+   .length > 10 — passed on the seventeen it could see and could not have
+   noticed the three it could not.
+
+   So the declarations are counted a DIFFERENT way: a flat scan for the shapes
+   of a declaration, over every js file rather than over the ones DECLARES
+   already accepted. Two counts derived independently must agree. If a shader is
+   ever declared with a prefix the body regex does not know, this is what says
+   so, and it says so by NAME rather than by a total. */
+export const declared = walk(ROOT).flatMap((path) => {
+  const text = readFileSync(path, 'utf8');
+  return [
+    ...text.matchAll(/(\w+Shader)\s*=/g),
+    ...text.matchAll(/^(?:export )?const (COMMON|HAZE)\s*=/gm),
+  ].map((m) => base(path) + ':' + m[1]);
+});
+
+/** Declared somewhere in js/ and not parsed into a body. Empty is the pass. */
+export const unscanned = declared.filter(
+  (d) => !bodies.some((b) => b.file + ':' + b.name === d));
+
+if (unscanned.length) {
+  console.error('\nA SHADER IS DECLARED BUT NEVER SCANNED. The backtick check below');
+  console.error('cannot see it, so it reports clean whatever is inside it:\n');
+  for (const d of unscanned) console.error('  ' + d);
+  console.error('\nWiden DECLARES and both regexes in shaderBodies(), then prove it by');
+  console.error('putting a backtick pair in that shader and watching this fail.\n');
+  process.exit(1);
+}
+
 if (stray.length) {
   console.error('\nA SHADER BODY CONTAINS A BACKTICK. It closes the template literal');
   console.error('the shader is written in. Use plain words, not code quotes:\n');

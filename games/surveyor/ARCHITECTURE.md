@@ -314,6 +314,29 @@ identical; quadtree depth varies instead). POST: exposure **0.97**, contrast
 
 ## Harnesses (`dev/`)
 
+**A checker must report what it examined.** `process.exitCode = bad ? 1 : 0` is
+0 when nothing was looked at, and the summary line above it usually states a
+positive — so a harness that measured nothing prints "Every arrival stayed above
+ground" and exits clean, which is worse than no check because it buys confidence
+it has not earned. `arrivecheck`, `disccheck` and `lodcheck` all had this shape;
+each now counts what it examined against what it was asked for and prints both.
+The same applies inside `run.mjs`: a loop over a discovered set does not fail
+when the set is empty, it deletes its checks, so assert the subject count before
+the loop — as `the system has six worlds` already did.
+
+**And a count guard must be pinned, not loose.** The backtick check read
+`bodies.length > 10` and passed on seventeen while three bodies went unscanned.
+`glslcheck` now counts declarations a second, independent way and compares the
+two, naming any shader it declared but never parsed.
+
+**`lodcheck`'s sweep must bracket the crossing in DRAWN angle, not true
+distance.** The far band compresses distance, so a 10x change in range is under
+2x in drawn angle; the fade band is `promoteAngle*(1 ± fadeBand)` and the sweep
+has to start below its low edge. It did not for most of this file's life — every
+sample came out `sphere` and the pop check evaluated nothing. If `promoteAngle`
+or `fadeBand` move, re-solve for the crossing step and move the tight pair with
+it; the harness now fails loudly when it observes no crossing.
+
 **`glslcheck` must be able to see every shader body.** A backtick inside one
 closes the template literal and silently eats the GLSL after it, which is the
 whole reason that check exists. For most of its life it matched `\w+Shader = `

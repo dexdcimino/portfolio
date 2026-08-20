@@ -246,6 +246,7 @@ console.log(`SYSTEM.minAngle  ${SYSTEM.minAngle} rad  (${(SYSTEM.minAngle * 360 
 console.log(`SYSTEM.distance  ${SYSTEM.distance} of farPlane\n`);
 
 let bad = 0;
+let seen = 0, worlds = 0;
 for (const from of FROM) {
   const page = await chrome.newPage();
   await page.send('Runtime.enable');
@@ -263,6 +264,7 @@ for (const from of FROM) {
     `(farPlane ${N.farPlane}m, system ${N.extent}km across)`);
   console.log('  disc     direction                    dist     TRUE°    DRAWN°   QUAD°   core    ' +
     'drawn at  ON SCREEN: body°  halo°  quadpx  noise%');
+  worlds++;
   for (const d of N.list) {
     const m = await evaluate(page, MEASURE(d.key));
     /* TWO GATES, EACH COMPARING LIKE WITH LIKE, and it used to be one that
@@ -286,6 +288,7 @@ for (const from of FROM) {
     const offFrame = !!(m && m.bodyDeg > m.fovDeg);
     const over = tooBig || offFrame;
     if (over) bad++;
+    seen++;
     const dir = `[${d.dir.map((v) => (v < 0 ? '' : ' ') + v.toFixed(3)).join(', ')}]`;
     console.log(`  ${d.key.padEnd(7)} ${dir.padEnd(28)} ${String(d.distKm).padStart(6)}km ` +
       `${String(d.trueDeg).padStart(7)} ${String(d.drawnDeg).padStart(8)} ${String(d.quadDeg).padStart(7)} ` +
@@ -299,9 +302,20 @@ for (const from of FROM) {
   await page.close();
 }
 
+/* WHAT WAS ACTUALLY EXAMINED, counted. A bad-counter passes when nothing was
+   looked at, and the summary below states a positive in words — so a run that
+   measured no discs claimed "All discs at or under the gate" and exited 0. That is
+   indistinguishable from a clean run and worse than no check, because it buys
+   confidence it has not earned. dev/glslcheck.mjs had the same shape while it
+   was scanning none of three shader bodies and reporting clean. */
+const wantDiscs = worlds * (Object.keys(PLANETS).length - 1);
+if (!worlds || seen !== wantDiscs) {
+  console.log(`FAIL: measured ${seen} discs over ${worlds} world(s); expected ${wantDiscs}.`);
+  bad++;
+}
 console.log(bad
   ? `FAIL: ${bad} disc(s) over ${MAX_DEG}° computed, or wider than the frame.`
-  : `All discs at or under ${MAX_DEG}° computed, and inside the frame.`);
+  : `All ${seen} discs over ${worlds} world(s) at or under ${MAX_DEG}° computed, and inside the frame.`);
 await chrome.close();
 close();
 process.exitCode = bad ? 1 : 0;

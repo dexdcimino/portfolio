@@ -42,7 +42,24 @@ const FROM = only[0] || 'home';
 
 // How far either side of the boundary to walk, as a factor on the promotion
 // distance. The step is deliberately fine near the crossing.
-const STEPS = [3.0, 2.0, 1.4, 1.12, 1.02, 0.98, 0.9, 0.72, 0.5, 0.32];
+/* THE SWEEP HAS TO BRACKET THE CROSSING, and for most of this file's life it
+   did not. These multiply the TRUE distance at which a body promotes, but what
+   promotes it is its DRAWN angle, and the far band compresses distance so hard
+   that a 10x change in one is under 2x in the other. The band is
+   promoteAngle*(1 +/- fadeBand) = 5.21 to 10.83 degrees across; the old widest
+   step, 3.0, already drew 5.77 and was therefore INSIDE it. Every sample came
+   out 'sphere', no crossing was ever observed, and the pop check - the whole
+   point of the harness - evaluated nothing while reporting a clean handoff.
+   The band's low edge is promoteAngle*(1-fadeBand)*2 = 5.214 degrees across,
+   which lands at f = 4.218; 4.30 and 4.13 straddle it 4% apart in distance, so
+   POP_TOL is comparing like with like again. Putting the tight pair at 1.02 and
+   0.98 - either side of the TRUE promotion distance - was the original mistake,
+   and it is why the diagnostic frames are captured at the new pair too. If
+   promoteAngle or
+   fadeBand move, check the far end still starts below the band: the harness
+   now says so out loud rather than passing quietly. */
+const STEPS = [6.0, 5.0, 4.30, 4.13, 3.0, 2.0, 1.4, 1.12, 1.02, 0.98, 0.9,
+  0.72, 0.5, 0.32];
 
 // A pop is a jump in measured angular size that the geometry does not explain.
 // The samples either side of the boundary are 4% apart in distance, so anything
@@ -170,6 +187,7 @@ console.log(`FROM ${FROM.toUpperCase()}, promotion at drawn half-angle ${SPACE.p
   `(${(SPACE.promoteAngle * 360 / Math.PI).toFixed(1)} deg across)\n`);
 
 let bad = 0;
+let seen = 0, blind = false;
 const targets = Object.keys(PLANETS).filter((k) => k !== FROM);
 for (const key of targets) {
   const page = await chrome.newPage();
@@ -214,6 +232,9 @@ for (const key of targets) {
       const crossing = prevLod && prevLod !== lod;
       step = (rel * 100).toFixed(1) + '%';
       if (crossing) {
+        // Counted here, not per body: the crossing IS the thing under test,
+        // so a body that never crossed was never checked.
+        seen++;
         // Brightness across the handoff, on the same footing as size.
         const dl = prevLum > 0 ? Math.abs(m.lum - prevLum) / prevLum : 0;
         const popped = rel > POP_TOL || dl > POP_TOL;
@@ -226,12 +247,12 @@ for (const key of targets) {
       ` ${String(info.trueDeg).padStart(8)} ${String(info.drawnDeg).padStart(8)}` +
       ` ${String(info.drawnAt + 'm').padStart(9)} ${lod.padStart(8)}` +
       ` ${String(m.deg).padStart(11)} ${String(m.lum).padStart(6)}   ${step}`);
-    if (shot && (f === 1.02 || f === 0.98)) {
+    if (shot && (f === 4.30 || f === 4.13)) {
       /* PNG, so .gitignore's `dev/shots/*.png` rule covers them. These are
          diagnostic frames from a harness that regenerates them in a command;
          the .jpg contact sheets are kept because they are the reference. */
       const png = await page.send('Page.captureScreenshot', { format: 'png' });
-      writeFileSync(resolve(HERE, `shots/lod-${FROM}-${key}-${f === 1.02 ? 'quad' : 'sphere'}.png`),
+      writeFileSync(resolve(HERE, `shots/lod-${FROM}-${key}-${f === 4.30 ? 'quad' : 'sphere'}.png`),
         Buffer.from(png.data, 'base64'));
     }
     prev = m.deg; prevLod = lod; prevLum = m.lum;
@@ -240,9 +261,19 @@ for (const key of targets) {
   await page.close();
 }
 
+/* WHAT WAS ACTUALLY EXAMINED, counted. A bad-counter passes when nothing was
+   looked at, and the summary below states a positive in words — so a run that
+   measured no bodies claimed a clean handoff and exited 0. That is
+   indistinguishable from a clean run and worse than no check, because it buys
+   confidence it has not earned. dev/glslcheck.mjs had the same shape while it
+   was scanning none of three shader bodies and reporting clean. */
+if (seen < targets.length) {
+  console.log(`FAIL: observed the handoff on ${seen} of ${targets.length} bodies.`);
+  blind = true;
+}
 console.log(bad
   ? `FAIL: the handoff pops on ${bad} body/bodies.`
   : `The handoff is within ${(POP_TOL * 100).toFixed(0)}% of angular size on every body.`);
 await chrome.close();
 close();
-process.exitCode = bad ? 1 : 0;
+process.exitCode = (bad || blind) ? 1 : 0;

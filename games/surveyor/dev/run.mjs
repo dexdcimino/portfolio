@@ -78,6 +78,15 @@ const signedVolume = (m) => {
   }
   return v;
 };
+/* SIZE FIRST, THEN THE LOOP — and that is not ceremony.
+   Every check below is EMITTED BY a loop over a discovered set, so an empty set
+   does not fail them, it deletes them: the suite reports all-pass having
+   asserted nothing about winding, which is the one property that has already
+   shipped broken twice here. A count is what tells the difference between
+   "checked and fine" and "never looked". Same reason dev/glslcheck.mjs counts
+   its shader declarations a second, independent way. */
+ok('every craft form is checked for winding', Object.keys(forms).length === 4,
+  Object.keys(forms).join(', '));
 for (const [name, form] of Object.entries(forms)) {
   ok(`${name} hull is wound the right way out`, signedVolume(form.body) < 0,
     'signed volume ' + signedVolume(form.body).toFixed(2));
@@ -85,6 +94,8 @@ for (const [name, form] of Object.entries(forms)) {
 // Per pod, because the pods are separate solids that swivel — a total over the
 // body says nothing about them, and two inside-out meshes have shipped in this
 // project on exactly that gap.
+ok('...and every drone pod is', forms.drone.pods.length === 4,
+  `${forms.drone.pods.length} pods`);
 forms.drone.pods.forEach((p, i) => {
   ok(`drone pod ${i} is wound the right way out`, signedVolume(p) < 0,
     'signed volume ' + signedVolume(p).toFixed(3));
@@ -128,6 +139,8 @@ for (const side of [-1, 1]) {
     same, `${R.length / 3} verts a side, worst deviation ${worst.toExponential(1)}`);
 }
 
+ok('...and every jet outline is', Object.keys(JET_OUTLINES).length === 4,
+  Object.keys(JET_OUTLINES).join(', '));
 for (const [name, pts] of Object.entries(JET_OUTLINES)) {
   const sides = [-1, 1].map((s) => {
     const g = new Geo();
@@ -168,6 +181,8 @@ for (const [name, pts] of Object.entries(JET_OUTLINES)) {
     extrudeY: (g) => g.extrudeY(unit, -1, 1, COL),
     loft: (g) => g.loft([{ z: -1, pts: unit }, { z: 1, pts: unit }], COL),
   };
+  ok('every Geo primitive is checked', Object.keys(prims).length === 5,
+    Object.keys(prims).join(', '));
   for (const [name, fn] of Object.entries(prims)) {
     const bad = faces(build(fn));
     ok('Geo.' + name + ': every face points out of the solid', bad === 0,

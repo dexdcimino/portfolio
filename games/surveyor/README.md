@@ -588,6 +588,74 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### Auditing the other checkers for the same shape
+
+The glslcheck find generalises: **a guard that reports clean while scanning
+nothing looks exactly like a guard that scanned everything and passed.** So
+every checker was read for that shape, and it was in three more of them.
+
+**The suite's own guard was present and too loose.** The backtick check already
+read `stray.length === 0 && bodies.length > 10` — a count guard, correctly
+anticipating the failure. It passed on the seventeen bodies it could see while
+three others were unscanned, because seventeen clears ten. A count that is not
+pinned to an expectation is decoration. `glslcheck` now derives a **second,
+independent tally**: a flat scan for declaration shapes across every js file,
+not just the ones its own filter already accepted. Two counts from two methods
+must agree, and a mismatch is reported by name — `unscanned` — rather than as a
+total. Verified by declaring a shader with a prefix the body regex cannot parse
+and watching it name the shader.
+
+**Three standalone checkers passed on an empty subject.** `arrivecheck`,
+`disccheck` and `lodcheck` all end in `process.exitCode = bad ? 1 : 0`, which is
+0 when nothing was examined — and each then prints a *positive claim*: "Every
+arrival stayed above ground", "All discs at or under 8°". A run that measured
+nothing said so in words and exited clean. All three now count what they
+actually examined, against what they were asked for, and say it in the summary:
+`Every arrival stayed above ground — 6 of 6 measured`.
+
+**Four check-emitting loops in the suite could emit zero checks.** A loop over a
+discovered set does not fail when the set is empty — it *deletes* its checks,
+and the suite reports all-pass having asserted nothing. The four were the craft
+forms, the drone pods, the jet outlines and the Geo primitives — which is to say
+**the winding checks**, the one property this project has already shipped broken
+twice. Each now asserts its subject count first, the idiom the suite already
+used for `the system has six worlds` and had not applied here.
+
+### ...and one of them had been vacuous for real
+
+`lodcheck` measures whether the billboard-to-sphere handoff pops. Counting what
+it examined said: **the handoff was observed on 0 of 5 bodies.** Every sample in
+every sweep came out `sphere`.
+
+`STEPS` multiplies the TRUE distance at which a body promotes. What promotes it
+is its DRAWN angle — and the far band compresses distance so hard that a 10x
+change in one is under 2x in the other. The fade band is
+`promoteAngle*(1 ± fadeBand)`, 5.21° to 10.83° across; the old widest step drew
+**5.77°** and was already inside it. The tight pair at 1.02/0.98, placed either
+side of the true promotion distance, straddled nothing at all. The harness had
+never seen the transition it exists to measure, and reported a clean handoff
+every time.
+
+Widening the sweep to 6.0 made the crossing appear — and it read as a 12.6% pop
+on four bodies. **That was not a defect either.** The crossing had landed
+between two steps 50% apart in distance, and `POP_TOL` is calibrated for samples
+4% apart, so most of that was the approach. Solving for where the band's low
+edge actually falls puts it at f = 4.218; sampling 4.30 and 4.13 either side of
+it restores like-for-like:
+
+| | size step | light step |
+|---|---|---|
+| Ember | 0.7% | 0.5% |
+| Tarn | 1.7% | 1.0% |
+| Vault | 1.6% | 0.8% |
+| Shroud | 1.7% | 2.4% |
+| Anvil | 0.9% | 1.0% |
+
+**The handoff is clean, on all five, and now actually measured.** Both wrong
+answers on the way here — "no crossing" and "a 12.6% pop" — came from the sweep,
+not the renderer, and the second one would have been an easy thing to go and
+"fix" in the shader.
+
 ### The factor of seven was the ground having no night
 
 The far body arrived at Vault reading 21 against the ground's 150, and the

@@ -106,6 +106,7 @@ console.log(`${chrome.version}, serving on :${port}\n`);
 console.log('from     to       first frames (m above ground)        settles  worst  craft   verdict');
 
 let bad = 0;
+let seen = 0;
 for (const key of KEYS) {
   const from = key === 'home' ? 'ember' : 'home';
   const page = await chrome.newPage();
@@ -129,12 +130,23 @@ for (const key of KEYS) {
   // spawn placed at sea level is underground on all six. See Craft.settle.
   const ok = worst >= 0 && craft >= 0;
   if (!ok) bad++;
+  seen++;
   console.log(`${from.padEnd(8)} ${key.padEnd(8)} ${cam.slice(0, 6).map((v) => String(v).padStart(6)).join('')}   ` +
     `${String(settled).padStart(6)}m ${String(worst).padStart(6)}m ${String(craft).padStart(6)}m  ${ok ? 'ok' : 'UNDER GROUND'}  [${res.landed} r=${res.r}]`);
   await page.close();
 }
 
-console.log(bad ? `\n${bad} arrival(s) put something under the ground.` : '\nEvery arrival stayed above ground.');
+/* WHAT WAS ACTUALLY EXAMINED, counted — because a bad-counter passes when
+   nothing was looked at, and the line below says so in words. A run that
+   measured no arrivals printed "Every arrival stayed above ground" and exited
+   0, which is indistinguishable from a clean run and strictly worse than no
+   check: it buys confidence it has not earned. Same shape dev/glslcheck.mjs
+   had while it scanned none of three shader bodies and reported clean. */
+if (seen < KEYS.length) {
+  console.log(`\nFAIL: measured ${seen} of ${KEYS.length} arrivals.`);
+  bad++;
+}
+console.log(bad ? `\n${bad} arrival(s) put something under the ground.` : `\nEvery arrival stayed above ground — ${seen} of ${KEYS.length} measured.`);
 await chrome.close();
 close();
 process.exitCode = bad ? 1 : 0;
