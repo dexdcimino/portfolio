@@ -398,6 +398,16 @@ const VISIBLE = (key) => `(() => {
     scale: +b.mesh.scaling.x.toFixed(2),
     trueKm: tgt ? +(tgt.dist / 1000).toFixed(1) : null,
     drawnDeg: tgt ? +(tgt.drawAngle * 360 / Math.PI).toFixed(2) : null,
+    /* PROMOTE'S OWN IDENTITY, CHECKED AGAINST ITS OWN INPUTS. It sets
+         at = d.K * 1.02;  scaling = at * tan(d.drawAngle)
+       so if wantScale matches scaling the maths is self-consistent and any
+       disagreement is in what this harness is measuring against; if it does
+       not, the renderer is placing the body by numbers it did not derive. One
+       of those is a bug and the other is a broken measurement, and this is the
+       line that says which. wantDist is the same question for the position. */
+    K: tgt ? +tgt.K.toFixed(2) : null,
+    wantScale: tgt ? +(tgt.K * 1.02 * Math.tan(tgt.drawAngle)).toFixed(2) : null,
+    wantDist: tgt ? +(tgt.K * 1.02).toFixed(1) : null,
     // What that scale and distance actually subtend, to compare against the
     // drawnDeg the line above reports. These are the two numbers that disagree.
     subtend: +(2 * Math.atan(b.mesh.scaling.x / Math.max(1e-6,
@@ -441,6 +451,7 @@ const VISIBLE = (key) => `(() => {
   };
 })()`;
 
+let placed = 0, misplaced = 0;
 for (const [label, cond] of MARKS) {
   const r = await evaluate(page, UNTIL(`!c.hyper || (${cond})`, 120000));
   await grab(`${label} — ${(r.hyperT * 100).toFixed(0)}%`);
@@ -449,6 +460,26 @@ for (const [label, cond] of MARKS) {
       `drawn as if ${r.tgt.discKm}km — true ${r.tgt.trueDeg}°, drawn ${r.tgt.drawnDeg}°` +
       `, fov ${r.tgt.fov}°${r.tgt.promoted ? ', promoted' : ''}`);
     const v = await evaluate(page, VISIBLE(r.tgt.key));
+    /* THE FAR BAND IS WHERE IT SAYS IT IS. promote() places a body at K*1.02
+       along its direction from the camera and scales it to subtend drawAngle,
+       so the angle its transform actually subtends must BE drawAngle. It was
+       not: the placement used last frame's camera, which on the ground is an
+       error of a part in ten thousand and in hyper flight is larger than the
+       placement distance itself — 101.6m from the camera against the 15.5m it
+       was placed at, and a destination reported as drawn at 13.7 degrees that
+       was not in the frame at all. Counted per stage, and stages are counted
+       too: a run that measured none of them must not pass. */
+    const st = v.state || {};
+    if (v.promoted && st.drawnDeg > 0) {
+      placed++;
+      const err = Math.abs(st.subtend - st.drawnDeg) / st.drawnDeg;
+      if (err > 0.02) {
+        misplaced++;
+        console.log(`  ${''.padEnd(24)} MISPLACED: subtends ${st.subtend}° but ` +
+          `drawAngle says ${st.drawnDeg}° — placed ${st.dist}m from the camera, ` +
+          `promote wanted ${st.wantDist}m`);
+      }
+    }
     console.log(`  ${''.padEnd(24)} ${v.promoted
       ? `px over 2/8/20: ${v.pixels.join('/')} (control ${v.noise.join('/')}), ` +
         `peak ${v.peak} vs ${v.noisePeak}
@@ -547,9 +578,19 @@ if (noisy.length) {
    well below what a boundary snap looked like: the world-+Y build put 180 into
    a single frame. The two seams are judged on the part that is NOT the
    deliberate stand-up, which is the part this phase is responsible for. */
+if (misplaced) {
+  console.log(`\n${misplaced} of ${placed} stage(s) drew the destination somewhere ` +
+    'other than where promote() placed it.');
+} else if (!placed) {
+  console.log('\nFAIL: no stage measured the destination at all — the far band ' +
+    'was never promoted, so nothing here checked it.');
+} else {
+  console.log(`\nthe far band is where it says it is, at ${placed} stage(s)`);
+}
 const bad = !!noisy.length || arr.hyper || !dep.hyper ||
   rep.worst > 12 ||
   !rep.depart || rep.depart.ang > 12 ||
-  !rep.arrive || rep.arrive.offWings > 6;
+  !rep.arrive || rep.arrive.offWings > 6 ||
+  !placed || misplaced > 0;
 console.log(bad ? '\nCROSSING FAILED.' : '\nCrossing is continuous.');
 process.exit(bad ? 1 : 0);

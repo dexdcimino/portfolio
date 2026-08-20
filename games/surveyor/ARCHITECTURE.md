@@ -85,6 +85,17 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
 - **If a measurement disagrees with what is visibly on screen, the
   measurement is aimed wrong.** Three times now. (Also: render-cost numbers
   measured on SwiftShader are noise — `dev/budget.mjs` refuses to run there.)
+- **Anything placed relative to the camera runs AFTER the camera has moved.**
+  `World.update` does the frame's world; `World.updateCamera` does the half that
+  is pinned to the eye — the far band and the seabed — and main.js calls it
+  after `cam.update`. The far band puts every disc and promoted body at a drawn
+  distance K along its direction FROM THE CAMERA, so a stale camera is a
+  placement error of exactly however far the camera travelled that frame. On the
+  ground that is a part in ten thousand; in hyper flight K collapses to ~15m
+  while the camera covers hundreds of metres a frame, which put the destination
+  behind the eye and made a world "drawn at 13.7 degrees" invisible. Add
+  anything else that is positioned from `camera.position` and it goes in
+  `updateCamera`, not in `update`.
 - **The ground has no night, and anything drawing a terminator must know it.**
   `bandLight` is the cel ladder and its floor is `BANDS.floor` at 0.47: a face
   pointing directly away from the sun still gets 47% of key, so form reads on

@@ -644,7 +644,6 @@ engine.runRenderLoop(() => {
   AT.x = oc.x + craft.world.x; AT.y = oc.y + craft.world.y; AT.z = oc.z + craft.world.z;
   if (!craft.hyper) world.update(dt, craft, cam.camera, AT);
   else {
-    world.discs.update(cam.camera, AT);
     streamAhead();
     // The beam is the one thing in survey.js that owns a mesh which has to be
     // put away rather than merely stop being updated: nothing else runs in
@@ -653,6 +652,13 @@ engine.runRenderLoop(() => {
   }
   trails.update(dt, cam.camera.position);
   cam.update(dt, craft);
+  /* THE FAR BAND, AFTER THE CAMERA HAS MOVED. Everything it draws is pinned to
+     the camera at a drawn distance, so placing it against last frame's camera
+     is wrong by however far the camera travelled — nothing on the ground, and
+     larger than the placement distance itself in hyper flight. See
+     World.updateCamera. Both branches above go through here; the transit one
+     used to call discs.update itself, before the camera moved. */
+  world.updateCamera(cam.camera, AT);
   streaks.update(dt, craft, cam.camera);
   // After the camera, because selection is by what is nearest the middle of the
   // screen and that is not known until the camera has moved.

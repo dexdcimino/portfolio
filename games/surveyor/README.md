@@ -588,6 +588,62 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### The far band was placed against last frame's camera
+
+The 13.67-vs-2.12 discrepancy was a real bug, and the way to tell was to check
+`promote()`'s identity against its own inputs rather than against anything the
+harness computed. It sets
+
+    at = d.K * 1.02;   scaling = at * tan(d.drawAngle)
+
+so reading `d.K`, `d.drawAngle` and `mesh.scaling` in one synchronous pass says
+whether the renderer agrees with itself. **It did, exactly, at every stage** —
+`wantScale` matched `scaling` to the last digit. What did not match was the
+position: promote placed the body **15.5m** from the camera and it sat **101.6m**
+away.
+
+So the scaling was never wrong. The frame of reference was stale.
+
+`world.discs.update()` ran at main.js:647. `cam.update(dt, craft)` ran at 655.
+The far band pins every disc and every promoted body to the camera's position,
+and it was being placed against the camera's position from the **previous
+frame**, then the camera moved before the frame was drawn.
+
+**On the ground this is invisible and always was.** K is hundreds of metres
+standing on a world, and the camera moves centimetres a frame — an error of a
+part in ten thousand. **In hyper flight both numbers invert:** K collapses as
+the destination is approached (102m climbing out, 15m on approach) while the
+camera covers hundreds of metres per frame. Placing a body 15m in front of where
+the camera *was* and then moving the camera 80m along that same heading leaves
+it behind the eye. That is why a destination the game reported as drawn at 13.7°
+was not in the frame at all.
+
+The fix is `World.updateCamera(camera, at)` — the half of the world that is
+placed relative to the camera, called after the camera has moved, for both the
+flying and the transit branch. main.js already knew this ordering mattered: the
+overlay runs after the camera "because selection is by what is nearest the
+middle of the screen and that is not known until the camera has moved". The far
+band has the same dependency and was on the wrong side of it.
+
+| stage | subtends | drawAngle says | placed at | wanted |
+|---|---|---|---|---|
+| climbing out | 0.02° | 7.81° | 42462m | 99.7m |
+| near the top | 0.10° | 12.40° | 2560m | 21.3m |
+| past the balance | 0.77° | 13.11° | 301m | 17.7m |
+| on approach | 2.06° | 13.64° | 102.8m | 15.5m |
+
+After the fix every one of those pairs agrees to the digit, and the pixel test
+finally has signal over its control — 5916 px against 829 at a cut of 8 levels,
+3875 against 375 at 20. **The destination is now a dot climbing out that grows
+into a world you can see, which is what phase 5's first bullet asked for.**
+
+`crosscheck` asserts it now, and counts the stages it checked so a run that
+promotes nothing cannot pass. Reverting the ordering fails all four stages by
+name. It also caught its own miswiring on the first run — the fields it wanted
+were one level down in the returned object, and it said "no stage measured the
+destination at all" rather than quietly passing, which is the rule this repo
+wrote down two commits ago working as intended.
+
 ### Auditing the other checkers for the same shape
 
 The glslcheck find generalises: **a guard that reports clean while scanning

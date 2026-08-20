@@ -170,8 +170,8 @@ the leading suspect and is arithmetic, not a measurement.
 > goes; `docs/seamless-space.md` stays.
 
 
-**Started. "Grows visibly" is not the same claim as "grows", and it is not met
-yet.** Phase 4 closed the first bullet by measuring angular size — 4.21 degrees
+**DONE, and it was a renderer bug rather than a look.** "Grows visibly" is not
+the same claim as "grows". Phase 4 closed the first bullet by measuring angular size — 4.21 degrees
 climbing out to 13.1 on approach — and the filmstrip shows no world in any
 transit frame. `dev/crosscheck.mjs` now measures VISIBILITY rather than size: it
 lifts the destination's far body for one frame and differences the frame against
@@ -195,13 +195,18 @@ filmstrip and it is not yet a diagnosis — the body's footprint at these stages
 is around 0.1% of frame against a 6% floor, so the test lacks the sensitivity to
 separate "flat" from "tiny".
 
-**Open, and deliberately not acted on:** in one synchronous read the body's own
-`drawAngle` says 13.67 degrees across while its `scaling` and its distance from
-`scene.activeCamera` subtend 2.12. `scaling` has exactly one writer and the
-formula there is right, so the leading suspect is the measurement — `promote()`
-takes a camera argument that need not be `scene.activeCamera` at read time,
-which would make the distance wrong rather than the renderer. Settle that before
-touching anything.
+**Found and fixed.** The body's own `drawAngle` said 13.67 degrees across while
+its transform subtended 2.12. `promote()`'s identity — `scale = K*1.02 *
+tan(drawAngle)` — held exactly, so the scaling was right and the POSITION was
+placed against the previous frame's camera: `world.discs.update()` ran before
+`cam.update()`. Invisible on the ground, where K is hundreds of metres and the
+camera moves centimetres; fatal in transit, where K collapses to 15m and the
+camera covers hundreds of metres a frame, leaving the destination behind the
+eye. `World.updateCamera` now carries everything pinned to the camera and runs
+after it. Every stage's subtended angle matches its drawAngle to the digit, the
+pixel test has 7x signal over its control, and the filmstrip shows a dot
+climbing out that grows into a world. crosscheck asserts it and fails all four
+stages if the ordering is put back.
 
 The other two bullets are untouched.
 

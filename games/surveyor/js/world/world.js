@@ -304,17 +304,48 @@ export class World {
     if (this.water) this.water.update();
     this.survey.update(dt);
     this.colonies.stream(dt);
-    this.discs.update(camera, at);
     // Centred on the craft, not the camera: the camera swings and pulls back,
     // and a box that followed it would slide the shadows around under a
     // stationary rover.
     this.shadows.update(craft.world);
     this.mats.syncShadows(this.shadows);
+    this.contact(craft);
+  }
+
+  /**
+   * The half that is placed RELATIVE TO THE CAMERA — and it runs AFTER the
+   * camera has moved this frame.
+   *
+   * IT USED TO RUN BEFORE, and on the ground that is invisible. The far band
+   * pins every disc and every promoted body to the camera's position, at a
+   * drawn distance K; standing on a world K is hundreds of metres and the
+   * camera moves centimetres a frame, so placing against last frame's camera
+   * is an error of a part in ten thousand and nobody will ever see it.
+   *
+   * IN HYPER FLIGHT BOTH NUMBERS INVERT. K collapses as the destination is
+   * approached — 102m climbing out, 15m on approach — while the camera moves
+   * hundreds of metres per frame. Placing a body 15m in front of where the
+   * camera WAS, and then moving the camera 80m along that same heading, leaves
+   * it behind the eye: measured at 101.6m from the camera against the 15.5m it
+   * was placed at, a factor of 6.5, which is why a destination reported as
+   * drawn at 13.7 degrees was not in the frame at all.
+   *
+   * The scaling was never wrong — promote()'s own identity, scale = K*1.02 *
+   * tan(drawAngle), holds exactly at every stage. Only the frame of reference
+   * was stale.
+   *
+   * main.js already knew this ordering mattered: the overlay runs after the
+   * camera "because selection is by what is nearest the middle of the screen
+   * and that is not known until the camera has moved". The far band has the
+   * same dependency and was on the wrong side of it.
+   */
+  updateCamera(camera, at) {
+    if (!this.active || !camera) return;
+    this.discs.update(camera, at);
     /* The CAMERA, not the craft — this one measures distance from the eye, and
        measuring it from anywhere else would put the foam line where the chase
        cam is not looking. */
-    if (camera) this.seabed.update(camera.position);
-    this.contact(craft);
+    this.seabed.update(camera.position);
   }
 }
 
