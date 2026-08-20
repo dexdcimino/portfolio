@@ -1542,7 +1542,7 @@ button.button{cursor:pointer;font-family:inherit}
    The SOON chip replaces the arrow the live cards use, which would be a promise
    of somewhere to go. */
 .ai-card.is-soon{cursor:default}
-.ai-card.is-soon:hover{transform:none;border-color:var(--line);box-shadow:none}
+.ai-card.is-soon:hover{transform:none;border-color:transparent;box-shadow:none}
 .ai-card-soon{
   margin-left:8px;padding:2px 7px;border-radius:999px;vertical-align:middle;
   border:var(--stroke) solid color-mix(in srgb,var(--accent) 40%,transparent);
@@ -1559,7 +1559,7 @@ button.button{cursor:pointer;font-family:inherit}
    plate is the selection affordance; focus-within lights the row so
    keyboard focus reads exactly like hover. The vertical padding is what
    the mark's 60px leaves of the ~80px row — grow one and the other pays. */
-.ai-card{display:flex;align-items:center;gap:14px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:8px 16px 8px 12px;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
+.ai-card{display:flex;align-items:center;gap:14px;border:var(--stroke) solid transparent;border-radius:14px;background:var(--panel);padding:8px 16px 8px 12px;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
 .ai-card:before{content:"";position:absolute;right:-18%;top:-44%;width:70%;aspect-ratio:1;background:var(--accent);filter:blur(70px);opacity:.08;transition:background-color var(--accent-ease)}
 .ai-card:hover,.ai-card:focus-within{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
 /* The selected row: the same accent frame the hover shows, held. Seeded on
