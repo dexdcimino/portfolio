@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=158" />
+  <link rel="stylesheet" href="styles.css?v=159" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -140,7 +140,10 @@
       <a class="nav-link" href="#work"><span class="icon nav-icon" data-icon="work" aria-hidden="true"></span><span class="nav-text">WORK</span></a>
       <a class="nav-link" href="#games"><span class="icon nav-icon" data-icon="games" aria-hidden="true"></span><span class="nav-text">GAMES</span></a>
       <a class="nav-link" href="#ai"><span class="icon nav-icon" data-icon="ai" aria-hidden="true"></span><span class="nav-text">AI LAB</span></a>
-      <a class="nav-link" href="#collab"><span class="icon nav-icon" data-icon="collab" aria-hidden="true"></span><span class="nav-text">COLLAB</span></a>
+      <!-- COLLAB is deliberately absent while the section is dormant — see
+           the section itself. Restore:
+           <a class="nav-link" href="#collab"><span class="icon nav-icon" data-icon="collab" aria-hidden="true"></span><span class="nav-text">COLLAB</span></a>
+           and put 'collab' back in script.js's `sections` list with it. -->
       <a class="nav-link" href="#about"><span class="icon nav-icon" data-icon="about" aria-hidden="true"></span><span class="nav-text">ABOUT</span></a>
     </nav>
 
@@ -1156,13 +1159,22 @@
          A project that runs in the browser opens in the existing app overlay:
          give its link data-app-modal="/collab/<slug>/" + data-app-title (and
          data-app-shape="window" for desktop-shaped apps). One that does not
-         run in a browser links to its repo instead. -->
+         run in a browser links to its repo instead.
+
+         DORMANT until the first collab repo exists: the section is off the
+         nav (the link above is commented out, and 'collab' is out of
+         script.js's scroll-spy `sections` list — an active section with no
+         nav link would light nothing), and everything below the intro wears
+         `hidden` rather than being deleted. The panel, the grid and
+         initCollabInfo() are finished and tested. Going live is: drop the two
+         hidden attributes and the .collab-soon plate, restore the nav link
+         and the `sections` entry, put real data on the card. -->
     <section class="split-section" id="collab">
-      <div class="statement reveal"><p class="eyebrow">SHARED BUILDS</p><h2>COLLAB</h2><p>Live projects built with other people. Each one is its own GitHub repo — a collaborator pushes, and what they pushed is on this site. One brain per builder.</p>
+      <div class="statement reveal"><p class="eyebrow">SHARED BUILDS</p><h2>COLLAB</h2><p>Live projects built with other people. The first one is under way.</p>
         <!-- The hovered project's copy, tags and crew — the same .game-desc /
              .game-tags components the games and AI LAB sections use, filled by
              initCollabInfo() from the cards' own data-*. -->
-        <div class="app-info collab-info" id="collabInfo">
+        <div class="app-info collab-info" id="collabInfo" hidden>
           <div class="game-desc">
             <strong class="game-desc-lead"></strong>
             <p class="game-desc-body"></p>
@@ -1180,7 +1192,14 @@
         </div>
       </div>
       <div class="collab-wrap reveal">
-        <div class="collab-grid">
+        <!-- The dormant state's whole content: hazard tape and type, CSS only,
+             nothing fetched. Delete when the section goes live. -->
+        <div class="collab-soon">
+          <span class="collab-soon-tape"></span>
+          <strong>UNDER<br>CONSTRUCTION</strong>
+          <span class="collab-soon-tape"></span>
+        </div>
+        <div class="collab-grid" hidden>
           <!-- PLACEHOLDER PROJECT — the first collab repo does not exist yet,
                so this card is the shape of one, stamped as such (thumbnail
                says PLACEHOLDER; there is no href because there is nowhere to
@@ -2624,6 +2643,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=158"></script>
+  <script src="script.js?v=159"></script>
 </body>
 </html>

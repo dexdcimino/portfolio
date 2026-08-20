@@ -442,7 +442,10 @@ reveals.forEach(el => revealObserver.observe(el));
 
 // 'resume' is deliberately absent: the overlay owns #resume now, and the strip
 // it used to point at is a contact CTA (id="contact-cta").
-const sections = ['home', 'work', 'games', 'ai', 'collab', 'about']
+// 'collab' is absent WHILE THE SECTION IS DORMANT: it has no nav link, and a
+// spy that activates an id no link carries turns every link off as you scroll
+// through it. Restore the entry together with the link (see index.html's nav).
+const sections = ['home', 'work', 'games', 'ai', 'about']
   .map(id => document.getElementById(id))
   .filter(Boolean);
 

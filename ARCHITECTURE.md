@@ -16,7 +16,7 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
 ## Modules
 
 - `index.html` — single-page shell: sidebar, hero, featured work, games, AI
-  Lab (5 tabs), Collab (shared builds — see below), about/toolkit/picks,
+  Lab (5 tabs), Collab (shared builds — dormant, see below), about/toolkit/picks,
   Idea Vault (AES-GCM blob in `data-vault`), contact. Eight native `<dialog>`
   overlays (app embed, wallpaper lightbox, prompt reader, vault, shared
   game/app gallery, work mockup, resume, contact)
@@ -83,6 +83,13 @@ the site) with its own Vercel project, rewritten to `/collab/<slug>/` in
 `vercel.json` so the existing app overlay and CSP work unchanged. No rewrite
 exists yet — the first project card is a stamped placeholder.
 
+DORMANT right now: no nav link (commented out in the nav), no `sections`
+entry in the scroll spy, and the panel + grid wear `hidden` behind a CSS-only
+UNDER CONSTRUCTION plate (`.collab-soon`). The machinery is finished and
+tested, not deleted — going live is dropping the two `hidden` attributes and
+the plate, restoring the nav link and the `sections` entry, and putting real
+data on the card.
+
 ## The image pipeline (full rules in CLAUDE.md — the short version)
 
 Masters under `assets/`, derivatives generated into `assets/derived/`
@@ -126,6 +133,6 @@ add-an-image flow).
 
 The Work overlay is a mockup (no `work.json`, filler SVGs — do not build on
 its taxonomy). Clips point at an unresolvable placeholder video host on
-purpose. The Collab section's one card is a stamped placeholder until the
-first collab repo exists. See `docs/STATUS.md` for the live list and open
-decisions.
+purpose. The Collab section is dormant — off the nav, content hidden behind
+an UNDER CONSTRUCTION plate — until the first collab repo exists. See
+`docs/STATUS.md` for the live list and open decisions.
