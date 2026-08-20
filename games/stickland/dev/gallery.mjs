@@ -95,6 +95,34 @@ const CHARBOX = `(() => {
            w: Math.round(r.width), h: Math.round(r.height) };
 })()`;
 
+/* HOW MUCH OF THE FRAME HAS ANYTHING IN IT.
+   Stickland is lime line art on black, so "sparse" is measurable: count the
+   lit pixels in the middle of the world canvas. Two separate sessions looked
+   at the tank shot and independently called it a small tank in a mostly-black
+   field, which is the kind of judgement a harness is supposed to be unable to
+   make — but the thing they were judging IS a number, and this is it.
+   Sampled small and centre-weighted: the edges of a Stickland frame are almost
+   always empty and including them would just measure the world's average
+   emptiness rather than this frame's. */
+const DENSITY = `(async () => {
+  const f = () => new Promise((r) => requestAnimationFrame(r));
+  await f();
+  const src = document.getElementById('world-canvas');
+  if (!src) return 0;
+  const c = document.createElement('canvas');
+  c.width = 160; c.height = 90;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  // central 70% of the frame, scaled down
+  const sx = src.width * 0.15, sy = src.height * 0.15;
+  g.drawImage(src, sx, sy, src.width * 0.7, src.height * 0.7, 0, 0, 160, 90);
+  const d = g.getImageData(0, 0, 160, 90).data;
+  let lit = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 1] > 70 && d[i + 1] > d[i] + 20) lit++;
+  }
+  return +(lit / (160 * 90)).toFixed(4);
+})()`;
+
 const STATE = `(() => {
   const p = window._dexGetPlayState?.() || null;
   const t = window._dexGetTankState?.() || null;
@@ -161,7 +189,7 @@ let problems = 0;
    instead of being upscaled out of a 1920x1080 one.
    The background pays for it. In these panels the background is empty ground
    forty metres behind the subject, so it pays very little. */
-async function run(label, plan, prefs = null, dpr = 1) {
+async function run(label, plan, prefs = null, dpr = 1, vw = W, vh = H) {
   const page = await chrome.newPage();
   const errs = [];
   page.on((method, params) => {
@@ -181,7 +209,7 @@ async function run(label, plan, prefs = null, dpr = 1) {
   await page.send('Log.enable');
   await page.send('Page.enable');
   await page.send('Emulation.setDeviceMetricsOverride',
-    { width: W, height: H, deviceScaleFactor: dpr, mobile: false });
+    { width: vw, height: vh, deviceScaleFactor: dpr, mobile: false });
   try { await page.send('Page.setWebLifecycleState', { state: 'active' }); } catch { /* older Chrome */ }
 
   if (prefs) {
@@ -207,7 +235,7 @@ async function run(label, plan, prefs = null, dpr = 1) {
     const input = createInput(page);
     // A real click into the world: it is the gesture the audio graph is waiting
     // on, and a session with no sound is not quite the session.
-    await input.click(W / 2, H * 0.62);
+    await input.click(vw / 2, vh * 0.62);
     await wait(400);
     try { await plan(page, input); }
     catch (err) { problems++; console.log(`FAIL  ${label} — ${err.message}`); }
@@ -228,10 +256,10 @@ async function run(label, plan, prefs = null, dpr = 1) {
    scroll-up is what a player does, and the game's own lerp eases it. The extra
    frames afterwards are for that lerp — photograph it too early and the shot is
    of a camera still moving. */
-async function zoomIn(page, notches = 12) {
+async function zoomIn(page, notches = 12, vw = W, vh = H) {
   for (let i = 0; i < notches; i++) {
     await page.send('Input.dispatchMouseEvent', {
-      type: 'mouseWheel', x: W / 2, y: H / 2, deltaX: 0, deltaY: -120,
+      type: 'mouseWheel', x: vw / 2, y: vh / 2, deltaX: 0, deltaY: -120,
     }, 8000);
     await wait(45);
   }
@@ -320,7 +348,14 @@ async function act(page, input, codes, ms, opts) {
      what the pass-B session called out. Re-applying it here, inside the same
      act that takes the picture, means the zoom is the last thing that happens
      before the capture and nothing can undo it in between. */
-  if (opts.rezoom) await zoomIn(page, opts.rezoom);
+  if (opts.rezoom) await zoomIn(page, opts.rezoom, TANK_VIEW.w, TANK_VIEW.h);
+  if (opts.inForest) {
+    const st = await evaluate(page, STATE, 30000);
+    if (!inForest(st)) {
+      throw new Error(`shot claims the forest but the tank is at `
+        + `${st.tankX},${st.tankY} (needs x>4300, y>2150)`);
+    }
+  }
   for (const c of list) await input.down(c);
   await wait(ms);
   await frames(page, 4);
@@ -484,7 +519,7 @@ if (want('base')) {
        the house frames the house and the figure together and is somewhere a
        player can actually stand. */
     await walkTo(page, input, { x: HOME.x + 40, y: 2250 });
-    await zoomIn(page);
+    await zoomIn(page, 12, TANK_VIEW.w, TANK_VIEW.h);
     await take(page, { shot: 'Home base', variant: 'below the house, zoomed in',
       repro: `walk to ${HOME.x + 40},2250 · wheel-in x12` });
 
@@ -510,6 +545,23 @@ if (want('base')) {
 }
 
 // ---- 2. A tank driving through the forest -------------------------------
+/* THE TANK IS SHOT FROM CLOSER, and the lever is the VIEWPORT, not the zoom.
+   Two sessions independently called the shipped tank frame a small tank in a
+   mostly-black field, and the second diagnosed it correctly as camera
+   distance. The game's own zoom is already maxed here — _ZOOM_MAX is 1.5 and
+   the wheel is spent at the shutter — so there is nothing left to take from
+   that dial.
+   What is left is how much WORLD the camera is asked to show. Stickland sizes
+   its canvas to window.innerWidth, so a 1280x720 page shows two thirds of the
+   world a 1920x1080 page does, and the tank lands two thirds bigger in the
+   frame. deviceScaleFactor 1.5 brings the capture back to 1920x1080 so the
+   master still matches every other one on the site.
+   That composites the canvas up 1.5x, which is a real cost — but Stickland is
+   thick lime strokes on black, which is about the most forgiving thing there
+   is to scale, and 1280/1.5 was picked over 960/2 for exactly that reason:
+   960 made the tank bigger again and started to show on the edges. */
+const TANK_VIEW = { w: 1280, h: 720, dpr: 1.5 };
+
 if (want('tank')) {
   await run('tank in the forest', async (page, input) => {
     /* MOUNTING THE TANK IS A GEOMETRY PROBLEM, and both obvious approaches
@@ -585,33 +637,81 @@ if (want('tank')) {
       throw new Error(`never reached the forest — tank stopped at `
         + `${edge.tankX},${edge.tankY} (needs x>4300, y>2150)`);
     }
+
+    /* ...and then keep driving until the frame is not empty.
+       Being inside the forest region is not the same as having trees in shot:
+       the 14 clumps are spread over 2800x2250, so a tank can sit in the middle
+       of "the forest" with nothing within a screen of it, which is exactly the
+       frame that got called out. DENSITY measures the lit fraction of the
+       middle of the canvas, so "sparse" stops being a matter of opinion — and
+       the harness drives on until it clears a threshold instead of
+       photographing wherever it happened to stop.
+       0.010 was read off the frames: an empty patch measures about 0.004 and
+       a clump with the tank in it about 0.015. */
+    async function findDense(target = 0.010, tries = 14) {
+      let best = { d: -1, pos: null };
+      for (let i = 0; i < tries; i++) {
+        const d = await evaluate(page, DENSITY, 30000);
+        const st = await evaluate(page, STATE, 30000);
+        const here = inForest(st);
+        if (here && d > best.d) best = { d, pos: `${st.tankX},${st.tankY}` };
+        // Both conditions, not either: a dense frame outside the forest is a
+        // dense frame of somewhere else.
+        if (here && d >= target) return { d, tries: i };
+        /* Push on through the forest rather than circling — but STAY IN IT.
+           The first version drove freely and the fourth frame came back at
+           y=1284, a kilometre north of the forest band, still captioned
+           "through the forest". Density is not the only thing that has to hold
+           while this searches. When the tank wanders out, the next leg steers
+           back toward the middle of the band instead of pressing on. */
+        const st2 = await evaluate(page, STATE, 30000);
+        const out = !inForest(st2);
+        let codes;
+        if (out) {
+          const back = await driveTo(page, input, { x: 4750, y: 2500 }, { tol: 200, legs: 8 });
+          if (!inForest(back)) continue;
+          codes = ['KeyW'];
+        } else {
+          codes = ['KeyW', ...(i % 3 === 2 ? [i % 2 ? 'KeyD' : 'KeyA'] : [])];
+        }
+        for (const c of codes) await input.down(c);
+        await wait(i % 3 === 2 && !out ? 420 : 900);
+        for (const c of codes) await input.up(c);
+      }
+      console.log(`      -- never cleared ${target} density; best ${best.d} at ${best.pos}`);
+      return { d: best.d, tries };
+    }
     // Held forward across the capture: a tank at rest among trees is a parked
     // tank, and the frame is supposed to be of one driving.
+    const dA = await findDense(0.010);
     await act(page, input, ['KeyW', 'ShiftLeft'], 1200, {
-      shot: 'A tank driving through the forest', rezoom: 12,
-      variant: 'entering the treeline, boosting',
+      shot: 'A tank driving through the forest', rezoom: 12, inForest: true,
+      variant: `entering the treeline, boosting (density ${dA.d})`,
       repro: `walk to tank · hold E 1.6s · drive to 4450,2300 · W+Shift 1.2s (shot held)` });
 
     await driveTo(page, input, FOREST);
+    const dB = await findDense(0.012);
     await act(page, input, ['KeyW'], 1000, {
-      shot: 'A tank driving through the forest', rezoom: 12,
-      variant: 'deep in the trees',
+      shot: 'A tank driving through the forest', rezoom: 12, inForest: true,
+      variant: `deep in the trees (density ${dB.d})`,
       repro: `drive to ${FOREST.x},${FOREST.y} · W 1s (shot held)` });
 
     // Turning under canopy, so the hull is across the frame rather than
     // pointing away down its own axis.
+    const dC = await findDense(0.011);
     await act(page, input, ['KeyW', 'KeyD'], 900, {
-      shot: 'A tank driving through the forest', rezoom: 12,
-      variant: 'turning under the canopy',
+      shot: 'A tank driving through the forest', rezoom: 12, inForest: true,
+      variant: `turning under the canopy (density ${dC.d})`,
       repro: `drive to ${FOREST.x},${FOREST.y} · W+D 0.9s (shot held)` });
 
     // ...and firing, which is the tank's own event.
-    await input.click(W * 0.66, H * 0.35);
+    const dD = await findDense(0.011);
+    await input.click(TANK_VIEW.w * 0.66, TANK_VIEW.h * 0.35);
     await act(page, input, ['KeyW'], 500, {
-      shot: 'A tank driving through the forest', rezoom: 12,
-      variant: 'firing on the move',
+      shot: 'A tank driving through the forest', rezoom: 12, inForest: true,
+      variant: `firing on the move (density ${dD.d})`,
       repro: `drive to ${FOREST.x},${FOREST.y} · click to fire · W 0.5s (shot held)` });
-  });
+  }, null, TANK_VIEW.dpr, TANK_VIEW.w, TANK_VIEW.h);
 }
 
 // ---- 3. Platform mode, jetpacking ---------------------------------------
