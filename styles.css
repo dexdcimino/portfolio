@@ -142,6 +142,7 @@ img{max-width:100%}
 [data-icon="contact"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M4 5h16v11H8l-4 3V5Zm3 4h10M7 12h7'/%3E%3C/svg%3E")} /* src: assets/icons/contact.svg */
 [data-icon="copy"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M9 9h10v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2'/%3E%3C/svg%3E")} /* src: assets/icons/copy.svg */
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
+[data-icon="eye"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 5.1C7.2 5.1 3.5 7.8 1.4 12c2.1 4.2 5.8 6.9 10.6 6.9s8.5-2.7 10.6-6.9C20.5 7.8 16.8 5.1 12 5.1Zm0 11.2a4.3 4.3 0 1 1 0-8.6 4.3 4.3 0 0 1 0 8.6Z'/%3E%3Ccircle fill='%23fff' cx='12' cy='12' r='2.1'/%3E%3C/svg%3E")} /* src: assets/icons/eye.svg */
 [data-icon="fullscreen-exit"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' d='M9 4v3.5A1.5 1.5 0 0 1 7.5 9H4M20 9h-3.5A1.5 1.5 0 0 1 15 7.5V4M15 20v-3.5a1.5 1.5 0 0 1 1.5-1.5H20M4 15h3.5A1.5 1.5 0 0 1 9 16.5V20'/%3E%3C/svg%3E")} /* src: assets/icons/fullscreen-exit.svg */
 [data-icon="fullscreen"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' d='M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15'/%3E%3C/svg%3E")} /* src: assets/icons/fullscreen.svg */
 [data-icon="games"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M8.55 6.4h6.9a6.75 6.75 0 0 1 6.62 5.45l.66 3.36a3.2 3.2 0 0 1-5.72 2.5l-1.4-1.86H8.39l-1.4 1.86a3.2 3.2 0 0 1-5.72-2.5l.66-3.36A6.75 6.75 0 0 1 8.55 6.4Zm-1.4 3.15v1.6h-1.6v1.9h1.6v1.6h1.9v-1.6h1.6v-1.9h-1.6v-1.6h-1.9Zm9.1.3a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Zm2.6 2.75a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Z'/%3E%3C/svg%3E")} /* src: assets/icons/games.svg */
@@ -1517,19 +1518,23 @@ button.button{cursor:pointer;font-family:inherit}
 }
 /* A list row with three targets, not a link: the title <a> goes out, the
    eyeball <button> opens the preview overlay, and the blank space selects
-   the row (initAppInfo). Left to right: name + mini line (the out-link),
-   then the eyeball, then the app's mark at the far edge — flex `order`
+   the row (initAppInfo). Left to right: the app's mark, then name + mini
+   line (the out-link), then the eyeball at the far edge — flex `order`
    arranges that so the generated <picture> block never has to move in the
-   DOM. cursor:pointer on the plate is the selection affordance;
-   focus-within lights the row so keyboard focus reads exactly like hover. */
-.ai-card{display:flex;align-items:center;gap:14px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:14px 18px;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
+   DOM. The link does NOT flex-grow: a stretched link made the row's empty
+   middle open a new tab when it should only select — margin-right:auto on
+   it keeps the eyeball at the far edge instead. cursor:pointer on the
+   plate is the selection affordance; focus-within lights the row so
+   keyboard focus reads exactly like hover. The vertical padding is what
+   the mark's 60px leaves of the ~80px row — grow one and the other pays. */
+.ai-card{display:flex;align-items:center;gap:14px;border:var(--stroke) solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(35,41,46,.83),rgba(12,15,18,.82));padding:8px 16px 8px 12px;position:relative;overflow:hidden;cursor:pointer;transition:transform .25s ease,border-color var(--accent-ease),box-shadow var(--accent-ease)}
 .ai-card:before{content:"";position:absolute;right:-18%;top:-44%;width:70%;aspect-ratio:1;background:var(--accent);filter:blur(70px);opacity:.08;transition:background-color var(--accent-ease)}
 .ai-card:hover,.ai-card:focus-within{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
 /* The selected row: the same accent frame the hover shows, held. Seeded on
    ThemeDock, so the section arrives with a selection rather than a guess. */
 .ai-card.is-current{border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent)}
 .ai-card strong{font-size:18px;margin:0 0 3px;display:block}
-.ai-card-link{order:0;flex:1 1 auto;min-width:0;display:block;color:inherit;text-decoration:none}
+.ai-card-link{order:1;flex:0 1 auto;min-width:0;margin-right:auto;display:block;color:inherit;text-decoration:none}
 /* The out-link affordance lives on the text itself: only this element leaves
    the site, so the name AND the mini line under it underline together. */
 .ai-card-link:hover strong,.ai-card-link:hover>span,
@@ -1546,8 +1551,8 @@ button.button{cursor:pointer;font-family:inherit}
    The copy sits at the bottom of the card (flex-end), so the icon has the top
    corner to itself and needs no reflow. */
 .ai-card-iconwrap{
-  order:2;flex:0 0 auto;
-  width:46px;height:46px;
+  order:0;flex:0 0 auto;
+  width:60px;height:60px;
   display:block;
   /* No frame of its own: every mark ships on its own rounded plate, and the
      plates' corner radii differ per app (three at 31.25%, ThemeDock at
@@ -1560,19 +1565,20 @@ button.button{cursor:pointer;font-family:inherit}
 .ai-card:hover .ai-card-iconwrap,.ai-card:focus-within .ai-card-iconwrap{opacity:1}
 .ai-card-icon{width:100%;height:100%;object-fit:cover;display:block}
 .ai-card .ai-card-link{position:relative;z-index:2}
-/* The eyeball — the on-site preview, between the text and the app's mark.
-   Only authored on rows that have a preview (data-app-modal), so there is no
-   disabled state to design. Quiet chip at rest, accent-filled on hover. */
+/* The eyeball — the on-site preview, at the row's far edge, drawn with the
+   filled eye mask. Only authored on rows that have a preview
+   (data-app-modal), so there is no disabled state to design. Quiet chip at
+   rest, accent-filled on hover. */
 .ai-card-eye{
-  order:1;flex:0 0 auto;z-index:2;
-  width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  order:2;flex:0 0 auto;z-index:2;
+  width:46px;height:46px;border-radius:11px;display:grid;place-items:center;
   padding:0;cursor:pointer;color:#c3cad0;
   background:rgba(8,11,15,.55);
   border:1px solid rgba(255,255,255,.18);
   transition:background var(--accent-ease),color var(--accent-ease),
              border-color var(--accent-ease);
 }
-.ai-card-eye .icon{width:20px;height:20px}
+.ai-card-eye .icon{width:26px;height:26px}
 .ai-card-eye:hover{background:var(--accent);color:var(--accent-ink,#0b0d12);border-color:var(--accent)}
 .ai-card-eye:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 /* Below the overlay's own breakpoint initAppModal declines — a mock desktop
@@ -1586,7 +1592,7 @@ button.button{cursor:pointer;font-family:inherit}
   border-radius:999px;padding:3px 9px;align-self:flex-start;
   font-size:10.5px;letter-spacing:.16em;
 }
-@media (max-width:700px){.ai-card-iconwrap{width:40px;height:40px}}
+@media (max-width:700px){.ai-card-iconwrap{width:48px;height:48px}}
 .ai-card:hover .inline-arrow,.ai-card:focus-within .inline-arrow{transform:translate(2px,-2px)}
 
 /* ==========================================================================

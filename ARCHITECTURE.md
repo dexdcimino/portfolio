@@ -35,16 +35,21 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   `.ai-card` row is a non-interactive container with three targets: name +
   mini line on the left are the out-link `<a>` (new tab; both lines
   underline on hover), the eyeball `<button>` — authored only on rows with
-  `data-app-modal` — opens the app overlay, and a click anywhere else
+  `data-app-modal` — opens the app overlay (which offers NO open-full-page
+  or new-tab escape: it is only ever an overlay), and a click anywhere else
   selects the row (`.is-current` holds the accent frame; seeded on the
-  first row); the mark sits at the row's far right via flex `order`, so the
-  generated `<picture>` never moves in the DOM, and wears no wrap border —
-  the plates' corner radii differ per mark; the Apps panel across from the
+  first row; the link deliberately does not flex-grow, or the row's empty
+  middle would open the tab); the mark sits at the row's far LEFT and the
+  filled-eye button at the far right via flex `order`, so the generated
+  `<picture>` never moves in the DOM; the mark wears no wrap border — the
+  plates' corner radii differ per mark; the Apps panel across from the
   list shows the selection: the app's NAME large, then its first
   `.gal-item` shot (centred, up to 660px; cloned never borrowed; opens the
   shared viewer via `gallery:open`; no shots collapses it), then lead,
-  description and tags — no marketplace button; the eyeball hides below
-  768px where the overlay declines),
+  description and tags — no marketplace button; the panel's min-height is
+  measured across all cards (and on resize) so hover never changes the
+  section's height; the eyeball hides below 768px where the overlay
+  declines),
   `initCollabInfo()` (fills the Collab panel and builds
   each card's brain row + invite link from the card's own `data-people` /
   `data-invite`; adding a project is one card, no JS edit), vault, clips,

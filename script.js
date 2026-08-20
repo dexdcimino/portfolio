@@ -3337,6 +3337,28 @@ function renderMarkdown(src) {
     } else warm();
   }
 
+  /* The panel must not change height as the pointer walks the list — apps
+     with no shots collapse the frame, and every copy block wraps
+     differently, so left alone the whole section breathed on every hover.
+     Reserve the tallest state instead: run every card through show(), take
+     the max rendered height, pin it as min-height, then restore. Width
+     changes what wraps, so a resize re-measures; a hidden panel measures
+     zero, so it never runs there — returning to the Apps tab re-runs it. */
+  let reserveArmed = null;
+  const reserve = () => {
+    if (panel.hidden) return;
+    const held = current;
+    info.style.minHeight = '';
+    let max = 0;
+    for (const card of cards) { show(card); max = Math.max(max, info.offsetHeight); }
+    show(held);
+    info.style.minHeight = max + 'px';
+  };
+  window.addEventListener('resize', () => {
+    clearTimeout(reserveArmed);
+    reserveArmed = setTimeout(reserve, 150);
+  });
+
   /* The card grid lives in the statement column, which is OUTSIDE the tab
      panels and therefore visible whatever tab is open — left alone it would
      follow the visitor into Wallpapers and Clips advertising apps the panels
@@ -3347,7 +3369,10 @@ function renderMarkdown(src) {
      thing itself cannot fall out of step with however the panel comes to be
      shown (a click, a keyboard arrow, or anything added later). The panel's
      own contents (lead, shot, description) need no sync — they hide with it. */
-  const syncVisible = () => { apps.hidden = panel.hidden; };
+  const syncVisible = () => {
+    apps.hidden = panel.hidden;
+    if (!panel.hidden) reserve();
+  };
   new MutationObserver(syncVisible).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
   syncVisible();
 
@@ -3359,7 +3384,7 @@ function renderMarkdown(src) {
      not exist yet and the button kept the bare "GALLERY" it ships with. A
      microtask runs after the whole script has finished, which is the earliest
      moment every module on the page is listening. */
-  queueMicrotask(() => show(cards[0]));
+  queueMicrotask(() => { show(cards[0]); reserve(); });
 })();
 
 /* --- Collab project info -------------------------------------------------- */
@@ -3522,8 +3547,6 @@ function renderMarkdown(src) {
       dialog.dataset.shape = card.dataset.appShape || 'phone';
       dialog.querySelector('#app-dialog-title').textContent = title;
       frame.title = title;
-      const tab = dialog.querySelector('#appOpenTab');
-      if (tab) tab.href = url;
       /* embed=1 tells the app it is already inside a phone-shaped frame, so it
          renders full-bleed instead of drawing its own device frame. It used to
          infer that from window.innerWidth, which worked only while this modal
