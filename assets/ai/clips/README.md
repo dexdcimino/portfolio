@@ -5,13 +5,17 @@ here and never will be** — clips stream from bunny.net. This folder holds the
 poster frame for each one, which is the only local asset a clip needs.
 
 ```
-assets/ai/clips/<slug>.png                     poster  (1920x1080)
+assets/ai/clips/<slug>.png                     poster  (16:9, clip's native size)
 assets/derived/ai/clips/<slug>-*.avif|webp     generated, never hand-made
 ```
 
 ## Adding one
 
-1. Export a poster frame at **1920x1080** and save it here as `<slug>.png`.
+1. Save a poster frame here as `<slug>.png`, 16:9 and at the clip's own
+   resolution. Bunny's chosen frame is `<video-id>/thumbnail.jpg` on the pull
+   zone, which is stored at the source's resolution — convert it to PNG, and do
+   **not** upscale it to reach a wider rung. The ladder skips any width above
+   the master, so a 720p clip simply tops out at 1280.
 2. Copy a `<figure class="cl-item">` in the Clips panel of `index.html` and set
    `data-title`, `data-note`, `data-src`, and the `src`/`alt` in the one-line
    `<!-- img ... -->` directive.
@@ -25,28 +29,41 @@ https://vz-<pull-zone>.b-cdn.net/<video-id>/play_720p.mp4
 
 ## ⚠ The CSP has to allow your pull zone
 
-The site ships `media-src 'self'`. **A bunny.net URL will be blocked until that
-changes** — the clip will fail with a console CSP error and the player will say
-it could not load. Nothing else on the site needs this, so it is not done in
-advance:
+`media-src` in the global CSP block of `vercel.json` lists the zones clips may
+stream from. The one in use is already there:
 
 ```jsonc
 // vercel.json — the global CSP block
-"media-src 'self' https://vz-<pull-zone>.b-cdn.net"
+"media-src 'self' https://vz-f98421b2-da0.b-cdn.net"
 ```
 
-Add the exact host, not a wildcard. `https://*.b-cdn.net` would open the policy
-to every bunny.net customer's zone, which is most of the internet's CDN traffic.
+**A clip on any other zone is blocked until its host is added too**, and the
+failure reads as a broken player rather than a policy error unless the console
+is open. Add the exact host, not a wildcard. `https://*.b-cdn.net` would open
+the policy to every bunny.net customer's zone, which is most of the internet's
+CDN traffic.
 
-## The five here are placeholders
+## ⚠ The library blocks requests with no referrer
 
-Their `data-src` points at `vz-REPLACE-ME.b-cdn.net`, which does not resolve.
-That is deliberate and the player detects it: the poster shows, the play button
-is disabled, and a line under the frame says the slot is not connected. Nothing
-spins, nothing retries, and no console noise pretends to be a bug.
+This library refuses a request that arrives without a `Referer` header — 403,
+on every path including `thumbnail.jpg`. A browser on the live site sends its
+origin and is fine; `curl` with no `-e` is not, so a bare curl 403 is the
+library's referrer rule, **not** a missing file and not the CSP. It also means
+the site's `Referrer-Policy` is load-bearing: it is
+`strict-origin-when-cross-origin`, which sends the origin cross-site. Setting
+it to `no-referrer` would break every clip.
 
-Swap in a real URL and the same slot plays with no other edit — `playable()` in
-`script.js` is the only thing that knows the difference.
+## A slot with no clip yet
+
+**Leave `data-src` off the figure entirely.** The player detects that: the
+poster shows, the play button is disabled, and a line under the frame says the
+slot is not connected. Nothing spins, nothing retries, and no console noise
+pretends to be a bug.
+
+Add a real `data-src` and the same slot plays with no other edit — `playable()`
+in `script.js` is the only thing that knows the difference. Do not park a
+made-up host there instead: an unresolvable URL is a failed request and a
+console error, which is exactly what the empty slot exists to avoid.
 
 ## Why there is no download here
 

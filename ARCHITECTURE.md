@@ -79,10 +79,13 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   7-accent palette is duplicated in 5 places and must stay byte-identical),
   `seal_vault.mjs`, `build_docs_pdf.mjs`. Hooks are versioned in
   `tools/hooks/` and installed once via `bake_images.py --install-hooks`
-- `vercel.json` — CSP in three scopes: root is strict (`script-src 'self'`,
-  no inline, connect only to Web3Forms); `/games/*` adds `'unsafe-inline'
-  blob:` + Photon websockets + `frame-ancestors 'self'`; `/mindsplit/*`
-  strict but frameable. `assets/derived/` is `immutable` for a year — hence
+- `vercel.json` — CSP in four scopes: root is strict (`script-src 'self'`,
+  no inline, connect only to Web3Forms, and `media-src` naming the one
+  bunny.net pull zone the AI Lab clips stream from — an exact host, never a
+  `*.b-cdn.net` wildcard, which would be every bunny customer's zone);
+  `/games/*` adds `'unsafe-inline' blob:` + Photon websockets +
+  `frame-ancestors 'self'`; `/mindsplit/*` and `/themedock/*` strict but
+  frameable. `assets/derived/` is `immutable` for a year — hence
   the `?v=<8 hex of the master's bytes>` stamp on every generated URL
 
 ## Collab (shared builds)
@@ -167,7 +170,8 @@ that convention, not this hook, is what covers the adjacent case.
 ## Known-outstanding
 
 The Work overlay is a mockup (no `work.json`, filler SVGs — do not build on
-its taxonomy). Clips point at an unresolvable placeholder video host on
-purpose. The Collab section is dormant — off the nav, content hidden behind
+its taxonomy). The Clips tab carries one real clip; its poster is 1280 wide
+because the source is a 720p master, so the 1920 rung is skipped.
+The Collab section is dormant — off the nav, content hidden behind
 an UNDER CONSTRUCTION plate — until the first collab repo exists. See
 `docs/STATUS.md` for the live list and open decisions.

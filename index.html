@@ -965,11 +965,11 @@
              you cannot hand someone a file you are streaming.
              Video is NOT self-hosted: sources are bunny.net URLs in data-src on
              each figure, and the posters here are the only local assets. The
-             five below are placeholders and their data-src is deliberately an
-             unresolvable REPLACE-ME host, which the player detects and reports
-             rather than spinning forever. See assets/ai/clips/README.md — the
-             site CSP is media-src 'self' and will need the pull zone added
-             before a real URL can play. -->
+             pull zone has to be named in the media-src policy in vercel.json — a
+             clip from a host that is not listed there is blocked, and the player
+             says so rather than spinning forever. A figure with no data-src at
+             all is a slot nobody has connected yet and reports itself as one.
+             See assets/ai/clips/README.md. -->
         <div class="ai-panel" id="ai-panel-videos" role="tabpanel" aria-labelledby="ai-tab-videos" hidden>
           <div class="cl" id="clips">
             <div class="cl-stage">
@@ -1017,108 +1017,22 @@
             <div class="wp-thumbs" id="clThumbs" role="tablist" aria-label="Clips"></div>
 
             <div class="wp-src" hidden>
-              <figure class="cl-item" data-title="Neon Transit" data-note="0:24 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/neon-transit/play_720p.mp4">
-                <!-- img src="assets/ai/clips/neon-transit.png" slot="clip-poster" alt="Neon Transit — blue and magenta light study" class="cl-img" -->
+              <figure class="cl-item" data-title="Surveyor" data-note="0:10 · loop" data-src="https://vz-f98421b2-da0.b-cdn.net/a0d41a95-b770-4fb7-9e1f-3911c0c0b117/play_720p.mp4">
+                <!-- img src="assets/ai/clips/surveyor.png" slot="clip-poster" alt="Surveyor — a white survey craft banking over a green river valley, engines trailing cyan light" class="cl-img" -->
                 <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/clips/neon-transit-1920.avif?v=5e919cce 1920w,
-                                                    assets/derived/ai/clips/neon-transit-1280.avif?v=5e919cce 1280w,
-                                                    assets/derived/ai/clips/neon-transit-900.avif?v=5e919cce 900w,
-                                                    assets/derived/ai/clips/neon-transit-600.avif?v=5e919cce 600w,
-                                                    assets/derived/ai/clips/neon-transit-400.avif?v=5e919cce 400w,
-                                                    assets/derived/ai/clips/neon-transit-240.avif?v=5e919cce 240w"
+                  <source type="image/avif" srcset="assets/derived/ai/clips/surveyor-1280.avif?v=6bc63c19 1280w,
+                                                    assets/derived/ai/clips/surveyor-900.avif?v=6bc63c19 900w,
+                                                    assets/derived/ai/clips/surveyor-600.avif?v=6bc63c19 600w,
+                                                    assets/derived/ai/clips/surveyor-400.avif?v=6bc63c19 400w,
+                                                    assets/derived/ai/clips/surveyor-240.avif?v=6bc63c19 240w"
                           sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/clips/neon-transit-1920.webp?v=5e919cce 1920w,
-                                                    assets/derived/ai/clips/neon-transit-1280.webp?v=5e919cce 1280w,
-                                                    assets/derived/ai/clips/neon-transit-900.webp?v=5e919cce 900w,
-                                                    assets/derived/ai/clips/neon-transit-600.webp?v=5e919cce 600w,
-                                                    assets/derived/ai/clips/neon-transit-400.webp?v=5e919cce 400w,
-                                                    assets/derived/ai/clips/neon-transit-240.webp?v=5e919cce 240w"
+                  <source type="image/webp" srcset="assets/derived/ai/clips/surveyor-1280.webp?v=6bc63c19 1280w,
+                                                    assets/derived/ai/clips/surveyor-900.webp?v=6bc63c19 900w,
+                                                    assets/derived/ai/clips/surveyor-600.webp?v=6bc63c19 600w,
+                                                    assets/derived/ai/clips/surveyor-400.webp?v=6bc63c19 400w,
+                                                    assets/derived/ai/clips/surveyor-240.webp?v=6bc63c19 240w"
                           sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="cl-img" src="assets/ai/clips/neon-transit.png" alt="Neon Transit — blue and magenta light study" width="1920" height="1080" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="cl-item" data-title="Dust Bowl" data-note="0:18 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/dust-bowl/play_720p.mp4">
-                <!-- img src="assets/ai/clips/dust-bowl.png" slot="clip-poster" alt="Dust Bowl — amber and ochre haze" class="cl-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/clips/dust-bowl-1920.avif?v=4b200f1a 1920w,
-                                                    assets/derived/ai/clips/dust-bowl-1280.avif?v=4b200f1a 1280w,
-                                                    assets/derived/ai/clips/dust-bowl-900.avif?v=4b200f1a 900w,
-                                                    assets/derived/ai/clips/dust-bowl-600.avif?v=4b200f1a 600w,
-                                                    assets/derived/ai/clips/dust-bowl-400.avif?v=4b200f1a 400w,
-                                                    assets/derived/ai/clips/dust-bowl-240.avif?v=4b200f1a 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/clips/dust-bowl-1920.webp?v=4b200f1a 1920w,
-                                                    assets/derived/ai/clips/dust-bowl-1280.webp?v=4b200f1a 1280w,
-                                                    assets/derived/ai/clips/dust-bowl-900.webp?v=4b200f1a 900w,
-                                                    assets/derived/ai/clips/dust-bowl-600.webp?v=4b200f1a 600w,
-                                                    assets/derived/ai/clips/dust-bowl-400.webp?v=4b200f1a 400w,
-                                                    assets/derived/ai/clips/dust-bowl-240.webp?v=4b200f1a 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="cl-img" src="assets/ai/clips/dust-bowl.png" alt="Dust Bowl — amber and ochre haze" width="1920" height="1080" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="cl-item" data-title="Tide Machine" data-note="0:31 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/tide-machine/play_720p.mp4">
-                <!-- img src="assets/ai/clips/tide-machine.png" slot="clip-poster" alt="Tide Machine — teal and pale cyan water study" class="cl-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/clips/tide-machine-1920.avif?v=b875eb6e 1920w,
-                                                    assets/derived/ai/clips/tide-machine-1280.avif?v=b875eb6e 1280w,
-                                                    assets/derived/ai/clips/tide-machine-900.avif?v=b875eb6e 900w,
-                                                    assets/derived/ai/clips/tide-machine-600.avif?v=b875eb6e 600w,
-                                                    assets/derived/ai/clips/tide-machine-400.avif?v=b875eb6e 400w,
-                                                    assets/derived/ai/clips/tide-machine-240.avif?v=b875eb6e 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/clips/tide-machine-1920.webp?v=b875eb6e 1920w,
-                                                    assets/derived/ai/clips/tide-machine-1280.webp?v=b875eb6e 1280w,
-                                                    assets/derived/ai/clips/tide-machine-900.webp?v=b875eb6e 900w,
-                                                    assets/derived/ai/clips/tide-machine-600.webp?v=b875eb6e 600w,
-                                                    assets/derived/ai/clips/tide-machine-400.webp?v=b875eb6e 400w,
-                                                    assets/derived/ai/clips/tide-machine-240.webp?v=b875eb6e 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="cl-img" src="assets/ai/clips/tide-machine.png" alt="Tide Machine — teal and pale cyan water study" width="1920" height="1080" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="cl-item" data-title="Paper City" data-note="0:22 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/paper-city/play_720p.mp4">
-                <!-- img src="assets/ai/clips/paper-city.png" slot="clip-poster" alt="Paper City — grey and off-white architectural study" class="cl-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/clips/paper-city-1920.avif?v=2316c5e5 1920w,
-                                                    assets/derived/ai/clips/paper-city-1280.avif?v=2316c5e5 1280w,
-                                                    assets/derived/ai/clips/paper-city-900.avif?v=2316c5e5 900w,
-                                                    assets/derived/ai/clips/paper-city-600.avif?v=2316c5e5 600w,
-                                                    assets/derived/ai/clips/paper-city-400.avif?v=2316c5e5 400w,
-                                                    assets/derived/ai/clips/paper-city-240.avif?v=2316c5e5 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/clips/paper-city-1920.webp?v=2316c5e5 1920w,
-                                                    assets/derived/ai/clips/paper-city-1280.webp?v=2316c5e5 1280w,
-                                                    assets/derived/ai/clips/paper-city-900.webp?v=2316c5e5 900w,
-                                                    assets/derived/ai/clips/paper-city-600.webp?v=2316c5e5 600w,
-                                                    assets/derived/ai/clips/paper-city-400.webp?v=2316c5e5 400w,
-                                                    assets/derived/ai/clips/paper-city-240.webp?v=2316c5e5 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="cl-img" src="assets/ai/clips/paper-city.png" alt="Paper City — grey and off-white architectural study" width="1920" height="1080" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="cl-item" data-title="Slow Bloom" data-note="0:27 · loop" data-src="https://vz-REPLACE-ME.b-cdn.net/slow-bloom/play_720p.mp4">
-                <!-- img src="assets/ai/clips/slow-bloom.png" slot="clip-poster" alt="Slow Bloom — pink and violet bloom study" class="cl-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/clips/slow-bloom-1920.avif?v=87e73c3a 1920w,
-                                                    assets/derived/ai/clips/slow-bloom-1280.avif?v=87e73c3a 1280w,
-                                                    assets/derived/ai/clips/slow-bloom-900.avif?v=87e73c3a 900w,
-                                                    assets/derived/ai/clips/slow-bloom-600.avif?v=87e73c3a 600w,
-                                                    assets/derived/ai/clips/slow-bloom-400.avif?v=87e73c3a 400w,
-                                                    assets/derived/ai/clips/slow-bloom-240.avif?v=87e73c3a 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/clips/slow-bloom-1920.webp?v=87e73c3a 1920w,
-                                                    assets/derived/ai/clips/slow-bloom-1280.webp?v=87e73c3a 1280w,
-                                                    assets/derived/ai/clips/slow-bloom-900.webp?v=87e73c3a 900w,
-                                                    assets/derived/ai/clips/slow-bloom-600.webp?v=87e73c3a 600w,
-                                                    assets/derived/ai/clips/slow-bloom-400.webp?v=87e73c3a 400w,
-                                                    assets/derived/ai/clips/slow-bloom-240.webp?v=87e73c3a 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="cl-img" src="assets/ai/clips/slow-bloom.png" alt="Slow Bloom — pink and violet bloom study" width="1920" height="1080" loading="lazy" decoding="async">
+                  <img class="cl-img" src="assets/ai/clips/surveyor.png" alt="Surveyor — a white survey craft banking over a green river valley, engines trailing cyan light" width="1280" height="720" loading="lazy" decoding="async">
                 </picture>
                 <!-- /img -->
               </figure>

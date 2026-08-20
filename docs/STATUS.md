@@ -42,8 +42,9 @@ standard ladder instead of the 2560-wide `wallpaper` one. Wiring the figures per
 1. Wire and bake the two new wallpapers; check the top rung against the 150 KB
    budget now the art is photographic rather than gradient.
 2. Retire the five placeholder wallpapers as real art replaces them.
-3. Clips: all five `data-src` values point at the unresolvable
-   `vz-REPLACE-ME.b-cdn.net` host on purpose. Needs a real stream host.
+3. Clips: one real clip (Surveyor) streams from bunny.net. Its poster is
+   1280 wide, not 1920, because the uploaded master is 720p — a wider poster
+   needs a fresh 1080p render, not an upscale. More clips are one figure each.
 4. Work overlay is still the mockup — filler SVGs, no `work.json`.
 5. `CHANGELOG.md` and `README.md` last moved 2026-08-11, ~25 commits back;
    README still says V31 against a V33 changelog.
@@ -53,7 +54,7 @@ standard ladder instead of the 2560-wide `wallpaper` one. Wiring the figures per
 ## Decisions needed
 
 - The two new masters break the lowercase-hyphen slug rule. Rename, or relax it?
-- Video host for Clips.
+- Re-render the Surveyor clip at 1080p for a full-width poster, or accept 1280?
 - Delete the five placeholder wallpapers now, or hold them until replaced?
 - YouTube and Instagram links in the sidebar are still `href="#"`.
 - Keep the V-number scheme in `CHANGELOG.md`, or log by date?

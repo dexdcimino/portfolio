@@ -2706,9 +2706,9 @@ let flashTip = () => {};
    the video fades in over it once it has frames, and a source that cannot play
    says so instead of leaving a spinner.
 
-   The five shipped now point at an unresolvable REPLACE-ME host on purpose —
-   see assets/ai/clips/README.md. `playable()` is the one place that knows the
-   difference, so swapping in real URLs needs no other change here. */
+   A figure with no data-src is a slot nobody has connected yet — see
+   assets/ai/clips/README.md. `playable()` is the one place that knows the
+   difference, so wiring a real URL needs no other change here. */
 (function initClips() {
   const root = document.getElementById('clips');
   if (!root) return;
@@ -2732,8 +2732,8 @@ let flashTip = () => {};
     ? Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') : '--:--';
   const setFill = (el, pct) => el.style.setProperty('--fill', pct + '%');
   const icon = (btn, name) => { const i = btn.querySelector('.icon'); if (i) i.setAttribute('data-icon', name); };
-  // A placeholder source is one nobody has replaced yet.
-  const playable = (item) => !!item.dataset.src && !/REPLACE-ME/.test(item.dataset.src);
+  // A placeholder is a figure that carries a poster but no source yet.
+  const playable = (item) => !!item.dataset.src;
 
   items.forEach((item, i) => {
     const btn = document.createElement('button');
