@@ -1605,9 +1605,12 @@ button.button{cursor:pointer;font-family:inherit}
 .ai-card-eye{
   order:2;flex:0 0 auto;z-index:2;
   width:46px;height:46px;border-radius:11px;display:grid;place-items:center;
-  padding:0;cursor:pointer;color:#c3cad0;
-  background:rgba(8,11,15,.55);
-  border:1px solid rgba(255,255,255,.18);
+  padding:0;cursor:pointer;color:#8b939a;
+  /* No outline at rest — the near-opaque fill carries the chip's shape on its
+     own, and the plain grey glyph keeps it a quiet secondary control until
+     the accent-filled hover says otherwise. */
+  background:rgba(6,8,11,.8);
+  border:0;
   transition:background var(--accent-ease),color var(--accent-ease),
              border-color var(--accent-ease);
 }
