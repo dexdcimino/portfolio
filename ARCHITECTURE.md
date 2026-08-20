@@ -244,6 +244,11 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   `check_cursors.py` (the 3-cursor set — arrow/hand/I-beam paths, hotspots,
   fallbacks — is duplicated in script.js, `games/_shared/cursor.js` and
   Stickland's src + build, and must stay in step the same way),
+  `check_markdown.mjs` (renderMarkdown() shipped an XSS on 2026-08-19 —
+  quotes were not escaped, so a link target closed its own attribute and the
+  next thing in it became an event handler; this re-proves the fix against 24
+  hostile payloads in a real HTML parser and refuses any new attribute the
+  renderer interpolates into),
   `seal_vault.mjs`, `build_docs_pdf.mjs`, `make_gallery_composite.py` (the
   multi-panel gallery masters — Chomp's progress strip and Stickland's four-up;
   it writes MASTERS into `assets/gallery/` and `bake_images.py` treats them
@@ -351,8 +356,11 @@ time via `probeMascot`.
 
 ## Commit hooks
 
-`pre-commit` (only fires when rasters/markup/palette files are staged):
-`check_accents.py` → bake images → bake markup → `bake_markup --check`.
+`pre-commit` (only fires when rasters/markup/palette/script.js are staged):
+`check_accents.py` → `check_cursors.py` → `check_markdown.mjs` → bake images
+→ bake markup → `bake_markup --check`. The markdown check needs node, and its
+browser half needs Chrome; both degrade to a printed notice rather than a
+block, since a hook is convenience and the check is the guarantee.
 Stages `index.html` **whole**, but derivatives only for the masters in the
 commit — `bake_images.py --derived-for` maps one to the other. It used to
 stage `assets/derived/` whole, and because the bake is repo-wide that pulled

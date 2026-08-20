@@ -39,7 +39,18 @@ palette=$(printf '%s\n' "$staged" \
 cursors=$(printf '%s\n' "$staged" \
           | grep -E '^(script\.js|tools/check_cursors\.py|games/_shared/cursor\.js|games/stickland/(src/cursor\.js|index\.html|v1/index\.html))$' || true)
 
-if [ -z "$rasters" ] && [ -z "$markup" ] && [ -z "$palette" ] && [ -z "$cursors" ]; then
+# renderMarkdown() turns prompt .md files into HTML through innerHTML, and on
+# 2026-08-19 it shipped an XSS: it escaped < > and & but not quotes, so a link
+# target closed its own attribute and whatever followed became an event handler.
+# The fix was one .replace(), which is exactly the kind that comes back.
+# check_markdown.mjs re-proves it against 24 hostile payloads in a real HTML
+# parser, and separately refuses any NEW attribute the renderer interpolates
+# into. Triggered on the file the function lives in, plus the checker itself.
+markdown=$(printf '%s\n' "$staged" \
+           | grep -E '^(script\.js|tools/check_markdown\.mjs)$' || true)
+
+if [ -z "$rasters" ] && [ -z "$markup" ] && [ -z "$palette" ] && [ -z "$cursors" ] \
+   && [ -z "$markdown" ]; then
     exit 0
 fi
 
@@ -65,6 +76,22 @@ if [ -n "$cursors" ]; then
         exit 1
     fi
     printf 'pre-commit: %s\n' "$out"
+fi
+
+# The static half needs nothing installed; the browser half needs Chrome or Edge
+# and says so rather than failing when there is none. node is already a dev
+# dependency here, so a machine that can run the dev harnesses can run this.
+if [ -n "$markdown" ]; then
+    if command -v node >/dev/null 2>&1; then
+        if ! out=$(node tools/check_markdown.mjs 2>&1); then
+            printf 'pre-commit: renderMarkdown can emit markup it should not, commit blocked\n' >&2
+            printf '%s\n' "$out" >&2
+            exit 1
+        fi
+        printf '%s\n' "$out" | sed 's/^check_markdown: /pre-commit: markdown /'
+    else
+        printf 'pre-commit: node not found, markdown XSS check skipped\n' >&2
+    fi
 fi
 
 if [ -n "$rasters" ]; then
