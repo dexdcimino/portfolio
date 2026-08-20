@@ -48,7 +48,10 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   document. The SVG paths exist in three places (script.js, _shared,
   stickland src) and must stay in step. Game states win by construction:
   Arena 1's `cursor:none` crosshair lock, Stickland's inline `grabbing`,
-  the breakout field's hide-and-dot), `probeMascot()` (clones the real `<picture>` so the browser
+  the breakout field's hide-and-dot. `tools/check_cursors.py` enforces the
+  three copies byte-for-byte the way `check_accents.py` guards the palette,
+  and the pre-commit hook runs it whenever any copy, the source or the
+  checker itself is staged), `probeMascot()` (clones the real `<picture>` so the browser
   negotiates the one true file — **never hand-build derivative URLs**), Work
   overlay (**mockup** — see CLAUDE.md; `TEMPORARY MOCKUP DATA` block, filler
   SVGs; everything after it renders `{title, desc, src, w, h}` and is
@@ -235,6 +238,9 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   SLOTS/SIBLINGS — the single source of truth), `check_scope.py` (commit-msg
   scope hook), `check_sweep.py` (commit-msg sweep hook), `bake_favicon.py`, `bake_icons.py`, `check_accents.py` (the
   7-accent palette is duplicated in 5 places and must stay byte-identical),
+  `check_cursors.py` (the 3-cursor set — arrow/hand/I-beam paths, hotspots,
+  fallbacks — is duplicated in script.js, `games/_shared/cursor.js` and
+  Stickland's src + build, and must stay in step the same way),
   `seal_vault.mjs`, `build_docs_pdf.mjs`, `make_gallery_composite.py` (the
   multi-panel gallery masters — Chomp's progress strip and Stickland's four-up;
   it writes MASTERS into `assets/gallery/` and `bake_images.py` treats them

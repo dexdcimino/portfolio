@@ -33,7 +33,13 @@ markup=$(printf '%s\n' "$staged" \
 palette=$(printf '%s\n' "$staged" \
           | grep -E '^(script\.js|tools/check_accents\.py|games/(arena1|chomp)/js/pausemenu\.js|games/stickland/(src/pausemenu\.js|index\.html|v1/index\.html))$' || true)
 
-if [ -z "$rasters" ] && [ -z "$markup" ] && [ -z "$palette" ]; then
+# The cursor set (arrow / hand / I-beam paths) is duplicated into three files
+# the same way the palette is; check_cursors.py holds them together. Same
+# trigger logic: any copy, the source, or the checker itself.
+cursors=$(printf '%s\n' "$staged" \
+          | grep -E '^(script\.js|tools/check_cursors\.py|games/_shared/cursor\.js|games/stickland/(src/cursor\.js|index\.html|v1/index\.html))$' || true)
+
+if [ -z "$rasters" ] && [ -z "$markup" ] && [ -z "$palette" ] && [ -z "$cursors" ]; then
     exit 0
 fi
 
@@ -46,6 +52,15 @@ command -v python >/dev/null 2>&1 || PY=python3
 if [ -n "$palette" ]; then
     if ! out=$($PY tools/check_accents.py 2>&1); then
         printf 'pre-commit: accent palette OUT OF STEP, commit blocked\n' >&2
+        printf '%s\n' "$out" >&2
+        exit 1
+    fi
+    printf 'pre-commit: %s\n' "$out"
+fi
+
+if [ -n "$cursors" ]; then
+    if ! out=$($PY tools/check_cursors.py 2>&1); then
+        printf 'pre-commit: cursor set OUT OF STEP, commit blocked\n' >&2
         printf '%s\n' "$out" >&2
         exit 1
     fi
