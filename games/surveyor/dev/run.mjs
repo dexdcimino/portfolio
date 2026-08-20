@@ -2940,6 +2940,23 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
     }
     ok('every world can draw itself at the altitude hyper hands it back',
       ground, rows2.join(' | '));
+
+    /* ...AND THE ALTITUDE IT HANDS BACK CLEARS THE TALLEST GROUND.
+       ARRIVE.alt is in radii and it is deliberately low - low enough that the
+       world is actually in the frame you arrive in - so the one thing it must
+       not do is put the craft inside a mountain. Relief is the profile's own
+       peak-to-trough, so clearing it is the conservative test. */
+    const { ARRIVE } = await import('../js/tune.js');
+    let clears = true;
+    const rows3 = [];
+    for (const key of Object.keys(PLANETS)) {
+      const P = makePlanet(PLANETS[key]);
+      const at = Math.min(HYPER.approachAlt, P.radius * ARRIVE.alt);
+      if (at <= P.relief * 1.5) clears = false;
+      rows3.push(`${key} ${Math.round(at)}m over ${Math.round(P.relief)}m of relief`);
+    }
+    ok('...and hands the craft back well clear of the tallest ground',
+      clears, rows3.join(' | '));
   }
 }
 

@@ -85,6 +85,13 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
 - **If a measurement disagrees with what is visibly on screen, the
   measurement is aimed wrong.** Three times now. (Also: render-cost numbers
   measured on SwiftShader are noise — `dev/budget.mjs` refuses to run there.)
+- **The arrival altitude and the departure boundary are different numbers.**
+  They shared `HYPER.approachAlt` and only ever shared a value. Departure must
+  sit above the jet's ceiling, which is metres for an absolute reason; where
+  the craft is put down answers to how big the world looks, which is radii —
+  `ARRIVE.alt`, 0.35R, always at or below where the sphere was crossed. A
+  world's limb enters the chase view at 0.41-0.42 radii on all six, so 900m
+  absolute framed Anvil and missed Ember by a factor of ten.
 - **Measure who is looking before measuring what changed.** The far-body to
   quadtree handoff was taken apart across most of a session — size, luminance,
   silhouette, three shader terms — and then the arrival was photographed from

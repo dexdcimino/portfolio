@@ -82,11 +82,11 @@
   image's aspect ratio: that is what makes the caption and filmstrip jump on
   every arrow press.
 
-## A constant correct for the average world is wrong for the small ones (four times)
+## A constant correct for the average world is wrong for the small ones (five times)
 
 `games/surveyor/` has six worlds whose radii run **207m to 2072m**, a factor of
 ten. Every number that is a length has to be asked what it means at both ends,
-and four times now one has not been:
+and five times now one has not been:
 
 | the constant | what it was | what it broke |
 |---|---|---|
@@ -94,6 +94,7 @@ and four times now one has not been:
 | `farPlane` | `R * 4` | on Ember the arrival sat outside it: all 51 live leaves clipped, no world drawn at all |
 | the fog altitude clamp | `2R` | froze the range above it, so Ember over ~400m and Tarn over ~900m went to 100% fog — an arrival into a white-out |
 | the far body's air gate | `2R` | switched the term off at exactly the altitude it was written for, on exactly the worlds that needed it |
+| the arrival altitude | shared `approachAlt`, 900m | the world you flew to filled **0% of the frame** on Ember and Tarn. A limb enters the chase view at 0.41 radii and 900m is 4.35 of them there |
 
 The fog rule carried a second version of the same mistake in its maths rather
 than its constants: `sqrt(2Ra)` for the horizon is the small-angle form and is

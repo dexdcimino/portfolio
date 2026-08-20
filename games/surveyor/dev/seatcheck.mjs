@@ -35,7 +35,7 @@ const READY = `(async () => {
 const SEAT = `(async () => {
   const frame = () => new Promise((r) => requestAnimationFrame(r));
   const S = window.SURVEYOR;
-  const { HYPER, JET } = await import('/games/surveyor/js/tune.js');
+  const { HYPER, JET, ARRIVE } = await import('/games/surveyor/js/tune.js');
   const c = S.craft;
   /* A hyper arrival keeps the form it departed in, and departing needs the
      jet: the escape burn is the only thing that reaches the boundary. Landing
@@ -43,7 +43,11 @@ const SEAT = `(async () => {
      inside a frame, which is what the first run of this measured. */
   c.setMode('jet', true);
   c.fuel = 999;
-  c.landOn(c.surf, HYPER.approachAlt);      // exactly what a hyper arrival calls
+  /* The altitude the game actually hands back, which is per world now - see
+     ARRIVE.alt. Hardcoding approachAlt here tested the path the fix replaced,
+     and reported no change from a change that had landed. */
+  const alt = Math.min(HYPER.approachAlt, S.planet.radius * ARRIVE.alt);
+  c.landOn(c.surf, alt);                    // exactly what a hyper arrival calls
   S.cam.arrive(c);
   for (let i = 0; i < 45; i++) await frame();   // the first three-quarters of a second
   // How much of the frame is the world at all?

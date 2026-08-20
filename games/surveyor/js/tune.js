@@ -1234,6 +1234,48 @@ export const HYPER = {
 };
 
 /**
+ * ARRIVING, as a thing you can see.
+ *
+ * The nose-down angle a hyper arrival hands back is DERIVED, not stated: the
+ * planet's limb sits (90 degrees - its angular radius) below level, and the
+ * view reaches half a field of view past its axis, so the difference is what
+ * it takes to have the world in frame at all. That is 15.9 degrees on Anvil
+ * and 49.1 on Ember. See Craft.landOn. These two are the taste either side of
+ * that geometry.
+ */
+export const ARRIVE = {
+  /* WHERE YOU ARE HANDED BACK, in radii, and this is the fix for the arrival
+     showing you nothing.
+
+     It used to be HYPER.approachAlt - 900 metres, absolute, shared with the
+     departure boundary. Measured: with the chase camera looking along the
+     flight path, a world's limb enters the view at 0.41 to 0.42 radii of
+     altitude, and it is 0.41-0.42 on ALL SIX, which is what a scale-free
+     answer looks like. 900m is 0.43 radii on Anvil and 4.35 on Ember, so
+     Anvil arrived with the world just in shot and Ember arrived pointing at
+     empty sky. Fifth instance of the same pattern; see CLAUDE.md.
+
+     THE TWO NUMBERS ARE NOT THE SAME THING and only ever shared a value. The
+     departure boundary has to sit above the jet's unassisted ceiling so that
+     leaving is deliberate, and that ceiling is in metres - an absolute number
+     for an absolute reason. Where the craft is PUT DOWN afterwards answers to
+     how big the world looks, which is radii. Splitting them costs one line and
+     is always a hand-back at or below where the sphere was crossed, never
+     above it: 0.35R is 72m on Ember against 900, and 725m on Anvil. */
+  alt: 0.35,
+
+  /* How far past "just inside the edge" the limb is put. Without it the world
+     arrives exactly touching the top of the frame, which reads as a mistake
+     rather than as a view. 0.14rad is 8 degrees. */
+  margin: 0.14,
+  /* The ceiling, however small the world. Ember asks for 49 degrees of dive
+     and the geometry would go on asking for more on anything smaller; past
+     about sixty an arrival stops reading as a descent and starts reading as a
+     fall. The autopilot recovers either way - it is the look that sets this. */
+  maxDive: 1.05,        // 60 degrees
+};
+
+/**
  * The neutral grade every world ships with, T1.
  *
  * A LUT is the last thing the frame passes through, and the six palettes here

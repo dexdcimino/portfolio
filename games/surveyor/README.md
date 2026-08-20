@@ -588,6 +588,56 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### The arrival puts the world in the frame
+
+The seat numbers said it: the destination filled 0% to 1% of the frame on a
+world you had crossed a solar system to reach. This is the fix.
+
+**It is the same constant, a fifth time.** With the chase camera looking along
+the flight path, a world's limb enters the view at **0.41 to 0.42 radii** of
+altitude — and it is 0.41 to 0.42 on all six, which is what a scale-free answer
+looks like. `HYPER.approachAlt` is 900m absolute, which is 0.43 radii on Anvil
+and **4.35 on Ember**. Anvil arrived with the world just in shot; Ember arrived
+pointing at empty sky.
+
+**The two altitudes were never the same thing.** The departure boundary has to
+sit above the jet's unassisted ceiling so that leaving a world is deliberate,
+and that ceiling is in metres — an absolute number for an absolute reason. Where
+the craft is *put down* afterwards answers to how big the world looks, which is
+radii. They only ever shared a value. `ARRIVE.alt` is 0.35 radii and is always
+at or below where the approach sphere was crossed, so nothing is ever placed
+higher than it arrived: 72m on Ember against 900, 725m on Anvil.
+
+**And the nose is aimed rather than levelled.** `landOn` used to hand back a flat
+`pitch = 0.10` — a stand-up out of the radial dive the craft actually arrived
+on. The dive is derived now: the limb sits (90° − the planet's angular radius)
+below level and the view reaches half a field of view past its axis, so the nose
+goes down by the difference. That is 15.9° on Anvil and 49.1° on Ember. The
+autopilot that already existed for exactly this levels it out afterwards.
+
+| | Ember | Tarn | Home | Vault | Shroud | Anvil |
+|---|---|---|---|---|---|---|
+| before | 0% | 0% | 0.1% | — | — | 1% |
+| after | **2%** | **7.1%** | **7%** | **4.7%** | **3.1%** | **9.2%** |
+
+Those percentages are a **lower bound**, not the picture: the metric counts
+pixels that change when the world's ground and water are hidden, and low-contrast
+ground against its own fog does not clear the threshold. `dev/shots/seat.jpg` is
+what to judge it on — six arrivals, each with a curved horizon, its own ground,
+and the craft descending into it.
+
+**What this does not do** is make the chase camera able to frame a world in
+ordinary flight. It cannot: at a settled 15° descent the view reaches 45° below
+level and a world's limb is further down than that until 0.41 radii, so flying a
+jet over Ember you still never see Ember as a body. The arrival is now inside
+that window by construction. Everywhere else is a camera problem and is not
+this one.
+
+An assertion holds the altitude against the one thing it must not do — the
+arrival clears the tallest ground on every world by a factor of four or more —
+because `ARRIVE.alt` is deliberately low and the failure would be a craft handed
+back inside a mountain.
+
 ### What the step actually is, and who sees it
 
 Two rounds of shader work went into a cause that had not been established. This

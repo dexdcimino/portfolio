@@ -12,7 +12,7 @@ import { iceHolds, iceRide } from '../world/water.js';
 import { bodies, advance, steer, pickTarget, centreOf } from '../world/hyper.js';
 import { TransitFrame, landingYaw } from '../world/gravity.js';
 import { ROVER, BOAT, JET, DRONE, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER,
-         AIR, PARACHUTE, SKID } from '../tune.js';
+         AIR, PARACHUTE, SKID, ARRIVE, CAM } from '../tune.js';
 import { emit } from '../core/events.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -470,7 +470,10 @@ export class Craft {
       emit('hyperarrive', {
         key: b.key,
         dir: { x: dx / l, y: dy / l, z: dz / l },
-        alt: HYPER.approachAlt,
+        /* Handed back in RADII, not in metres - see ARRIVE.alt. The
+           sphere was crossed at approachAlt and this is at or below it on
+           every world, so nothing is ever placed higher than it arrived. */
+        alt: Math.min(HYPER.approachAlt, b.radius * ARRIVE.alt),
         speed: this.speed,
       });
     }
@@ -534,11 +537,39 @@ export class Craft {
     this.hyper = null;
     this.hyperT = 0;
     this.bodies = null;
-    this.pos.set(0, alt === undefined ? HYPER.approachAlt : alt, 0);
+    const arriveAlt = alt === undefined ? HYPER.approachAlt : alt;
+    this.pos.set(0, arriveAlt, 0);
     this.speedScalar = Math.min(this.speedScalar, JET.maxSpeed);
     this.speed = this.speedScalar;
     this.vel.set(0, 0, 0);
-    this.pitch = 0.10;
+
+    /* FACING THE WORLD YOU FLEW TO, and this is the point of the whole phase.
+       This used to be a flat `pitch = 0.10`: a stand-up out of the radial dive
+       the craft actually arrived on, so that nobody was handed a nose-down
+       first second on a world they had never seen. It cost the world.
+       Measured from the seat — the chase camera untouched, three quarters of a
+       second after landOn — the destination filled 0% of the frame on Ember
+       and Tarn, 0.1% on Home and 1% on Anvil. At 880m, nose level, the planet
+       is at your NADIR and the boom looks along your heading, so you crossed a
+       solar system and arrived looking at empty sky.
+
+       So the dive is kept, and how much of it is geometry rather than taste:
+       the limb sits (90 degrees - the planet's angular radius) below level, and
+       the view reaches half a field of view past its axis, so the nose has to
+       be down by the difference for the world to be in frame at all. That is
+       15.9 degrees on Anvil and 49.1 on Ember — the same spread as everything
+       else here, and the reason a single number could not have worked.
+       ARRIVE.margin puts it comfortably in rather than just inside the edge,
+       and ARRIVE.maxDive is the ceiling on how steep an arrival is allowed to
+       be however small the world.
+
+       Nothing else has to change to recover it: `assist` below is the autopilot
+       that already exists for exactly this, and it levels the craft out over
+       its own time constant while the world falls away down the frame. */
+    const P = surface.planet;
+    const angR = Math.asin(clamp(P.surfaceR / (P.surfaceR + arriveAlt), -1, 1));
+    this.pitch = clamp((Math.PI / 2 - angR) - CAM.fov.jet * 0.5 + ARRIVE.margin,
+      0.10, ARRIVE.maxDive);
     this.roll = 0;
     this.glide = false;
     this.airborne = false;
