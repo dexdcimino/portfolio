@@ -16,7 +16,7 @@
 //    is swept against every approach sphere. That is the whole reason this file
 //    is separate and separately tested.
 
-import { PLANETS, SYSTEM, HYPER } from '../tune.js';
+import { PLANETS, SYSTEM, HYPER, ARRIVE } from '../tune.js';
 
 const L2 = Math.LN2;
 
@@ -230,6 +230,23 @@ export function steer(state, target, dt, rate) {
   dir.z += (wz - dir.z) * t;
   const l = len(dir.x, dir.y, dir.z) || 1;
   dir.x /= l; dir.y /= l; dir.z /= l;
+}
+
+/**
+ * How high above a world the craft is handed back, in metres.
+ *
+ * ONE EXPRESSION, because three callers need the same answer and two of them
+ * are harnesses. dev/arrivecheck.mjs used to drive the DEV WARP instead, which
+ * passes HYPER.approachAlt explicitly and then settles to the deck — so the
+ * check that exists to catch a camera underground was checking a path no
+ * player takes, and that is how an absolute 900m shipped without anything
+ * noticing that it framed nothing on the small worlds.
+ *
+ * Radii, not metres: see ARRIVE.alt. Never above the approach sphere, so the
+ * craft is only ever placed at or below where it crossed.
+ */
+export function arriveAlt(radius) {
+  return Math.min(HYPER.approachAlt, radius * ARRIVE.alt);
 }
 
 /** Where a world's centre sits, in system metres. */

@@ -85,6 +85,12 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
 - **If a measurement disagrees with what is visibly on screen, the
   measurement is aimed wrong.** Three times now. (Also: render-cost numbers
   measured on SwiftShader are noise — `dev/budget.mjs` refuses to run there.)
+- **A harness that drives the dev warp is testing a path nobody takes.**
+  `dev/arrivecheck.mjs` did, for most of its life — `devWarp` passes
+  `approachAlt` explicitly and settles to the deck — which is how an absolute
+  900m arrival survived long enough to frame nothing on the small worlds. It
+  emits `hyperarrive` now, the same event the game fires. Before trusting a
+  harness, check that the path it drives is the one a player gets.
 - **The arrival altitude and the departure boundary are different numbers.**
   They shared `HYPER.approachAlt` and only ever shared a value. Departure must
   sit above the jet's ceiling, which is metres for an absolute reason; where

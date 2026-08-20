@@ -152,6 +152,14 @@ other worlds visible the whole way. Round-trip times still ~29–35 s.
 
 ## Phase 5 — Polish
 
+> **WHEN THIS PHASE IS DONE, DROP THE VAULT ROW.** Dex, 2026-08-20: the Idea
+> Vault holds unbuilt things only, so a shipped feature has no row there.
+> Delete the `data-title="Seamless Space"` article from the backlog list in
+> `index.html` (it sits with the other two Surveyor plans, around line 2402) and
+> leave this file in the repo as the record. The row is the only thing that
+> goes; `docs/seamless-space.md` stays.
+
+
 - Distant worlds should **grow visibly** during hyper travel — the speed FX
   already exist and now have something to play against
 - Consider a **skip or fast-forward** for repeat trips. Thirty seconds is fine

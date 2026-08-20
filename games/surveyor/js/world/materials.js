@@ -293,6 +293,26 @@ export function fogRangeAt(planet, alt, out = { near: 0, far: 0 }) {
   return out;
 }
 
+/**
+ * How bright a world's unlit side is, as a fraction of its lit side.
+ *
+ * The terrain's model is `ambient + sunIntensity * band`, so where the band is
+ * zero what is left is the fill — and that fill is authored PER WORLD, from 0
+ * on Vault to 0.22 on the two with real air in them. svFarBody had one global
+ * number for the same thing, SYSTEM.night at 0.09, so a body's night side was
+ * the same darkness whatever world it was a picture of.
+ *
+ * Measured at the approach sphere, the far body arrives at 20.8 against the
+ * ground's 146 on Tarn and 18.6 against 27.4 on Ember: too dark on one and
+ * about right on the other, which is exactly what one constant standing in for
+ * six authored ones looks like.
+ */
+export function nightFloorOf(planet) {
+  const L = Object.assign({}, LIGHT, planet.light || {});
+  const lit = L.ambient + L.sunIntensity;
+  return lit > 1e-6 ? L.ambient / lit : 0;
+}
+
 /** The air a world is seen through: colour, sun colour and forward scatter. */
 export function atmoOf(planet) {
   const COL = paletteOf(planet);

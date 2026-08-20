@@ -9,7 +9,7 @@
 
 import { frameQuat } from '../world/surface.js';
 import { iceHolds, iceRide } from '../world/water.js';
-import { bodies, advance, steer, pickTarget, centreOf } from '../world/hyper.js';
+import { bodies, advance, steer, pickTarget, centreOf, arriveAlt } from '../world/hyper.js';
 import { TransitFrame, landingYaw } from '../world/gravity.js';
 import { ROVER, BOAT, JET, DRONE, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER,
          AIR, PARACHUTE, SKID, ARRIVE, CAM } from '../tune.js';
@@ -470,10 +470,8 @@ export class Craft {
       emit('hyperarrive', {
         key: b.key,
         dir: { x: dx / l, y: dy / l, z: dz / l },
-        /* Handed back in RADII, not in metres - see ARRIVE.alt. The
-           sphere was crossed at approachAlt and this is at or below it on
-           every world, so nothing is ever placed higher than it arrived. */
-        alt: Math.min(HYPER.approachAlt, b.radius * ARRIVE.alt),
+        // Handed back in RADII, not metres — see arriveAlt and ARRIVE.alt.
+        alt: arriveAlt(b.radius),
         speed: this.speed,
       });
     }

@@ -1,6 +1,6 @@
 // Does arriving somewhere put the camera under the ground?
 //
-//   node dev/arrivecheck.mjs                  every world, warped to from home
+//   node dev/arrivecheck.mjs                  every world, arrived at from home
 //   node dev/arrivecheck.mjs vault ember      just these
 //
 // THE BUG THIS EXISTS FOR. The chase camera's framing is computed in the
@@ -19,6 +19,15 @@
 //
 // A pass is: no frame below zero, and the height falling monotonically-ish from
 // the arrival lift to the settled boom. See ChaseCam.arrive and CAM.arriveLift.
+//
+// IT DRIVES THE REAL ARRIVAL, and for most of its life it did not. It called
+// the DEV WARP, which passes HYPER.approachAlt explicitly and then settles the
+// craft to the deck - so the one check that exists to catch a broken arrival
+// was exercising a path no player takes, at an altitude the game had stopped
+// handing back. That is how an absolute 900m survived long enough to frame
+// nothing on the small worlds. It emits `hyperarrive` now, which is the same
+// event craft.js fires and the same swapTo that listens for it, with the
+// altitude from hyper.js's own arriveAlt rather than a number typed twice.
 
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -67,10 +76,28 @@ const WARP = (key) => `(async () => {
       craft: +(S.craft.pos.y - surf.surfaceHeight(S.craft.pos.x, S.craft.pos.z)).toFixed(2),
     };
   };
-  S.warp(${JSON.stringify(key)});
+  const { emit } = await import('/games/surveyor/js/core/events.js');
+  const { arriveAlt, centreOf } = await import('/games/surveyor/js/world/hyper.js');
+  const { PLANETS } = await import('/games/surveyor/js/tune.js');
+  const { makePlanet } = await import('/games/surveyor/js/world/sphere.js');
+  const key = ${JSON.stringify(key)};
+  const P = makePlanet(PLANETS[key]);
+  /* The direction a real arrival comes down on: the radial from the
+     destination's centre back toward the world being left, which is what the
+     trajectory converges to. */
+  const a = centreOf(key), b = centreOf(S.planet.key);
+  let dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+  const l = Math.hypot(dx, dy, dz) || 1;
+  dx /= l; dy /= l; dz /= l;
+  // A hyper arrival is always in the jet: the escape burn is what reaches the
+  // boundary, and landing a rover at altitude is not the path under test.
+  S.craft.setMode('jet', true);
+  emit('hyperarrive', { key, dir: { x: dx, y: dy, z: dz },
+    alt: arriveAlt(P.radius), speed: S.craft.speed });
   const rows = [];
   for (let i = 0; i < 120; i++) { rows.push(probe()); await frame(); }
-  return { rows, landed: S.planet.key, r: Math.round(S.planet.radius) };
+  return { rows, landed: S.planet.key, r: Math.round(S.planet.radius),
+    alt: Math.round(arriveAlt(P.radius)) };
 })()`;
 
 const { port, close } = await serve(SITE);

@@ -588,6 +588,49 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### The far body borrows its world's ambient, and the harness stops testing a path nobody takes
+
+**`dev/arrivecheck.mjs` drove the dev warp.** The one check that exists to catch
+a broken arrival was exercising a path no player takes — `devWarp` passes
+`HYPER.approachAlt` explicitly and then settles the craft to the deck — at an
+altitude the game had stopped handing back. That is how an absolute 900m
+survived long enough to frame nothing on the small worlds. It emits
+`hyperarrive` now: the same event `craft.js` fires, the same `swapTo` that
+listens, the craft in the jet it would have arrived in, and the altitude from
+`hyper.js`'s own `arriveAlt` rather than a number typed twice. Every arrival
+still clears its ground, now at the altitudes players actually get — 104m at
+Ember, 710m at Anvil.
+
+`arriveAlt(radius)` exists because three callers needed the same answer and two
+of them are harnesses. A number typed twice is how the first one drifted.
+
+**And the far body's night side is its world's own.** The terrain's model is
+`ambient + sunIntensity * band`, so where the band is zero what is left is the
+fill — authored per world, from 0 on Vault and Home to 0.218 on Tarn and Anvil.
+`svFarBody` had one global number for the same thing, `SYSTEM.night` at 0.09, so
+a body's unlit side was the same darkness whatever world it was a picture of.
+
+| | before | after |
+|---|---|---|
+| Home → Tarn | +634% | **+352%** |
+| Home → Shroud | +434% | **+255%** |
+| Home → Anvil | +76% | **+56%** |
+| Home → Vault | +634% | +601% |
+| Home → Ember | +47% | +43% |
+
+**Floored at the old value, so it can only ever lighten.** Two worlds author an
+ambient of exactly zero, and handing their far bodies a 0.0 night side made the
+step *worse* where it had merely been wrong — Vault went to +1356%. Which is
+itself a finding: whatever keeps Vault's ground bright at the approach sphere,
+**it is not its ambient fill**, because Vault has none. The body and the ground
+are looking at the same hemisphere under the same sun vector — both take
+`skyOf(planet).sunDir` — and they still disagree by a factor of seven. That is
+not explained yet, and until it is measured rather than guessed this term may
+not take light away from anything.
+
+So: the largest steps are roughly halved and none of them got worse. The
+residual is real and its cause is still open.
+
 ### The arrival puts the world in the frame
 
 The seat numbers said it: the destination filled 0% to 1% of the frame on a
