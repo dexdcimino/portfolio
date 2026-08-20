@@ -94,8 +94,22 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   (cloned never borrowed; chevrons hidden on one-shot apps; x/x counter in
   the corner; no filmstrip; no shots collapses the frame — nothing sits in
   that state now, every one of the five apps carries at least one shot.
-  NodeBlast's is a 1920x1080 capture of the live site driven over CDP
-  through `games/_shared/dev/cdp.mjs`; dexddc.com's
+  NodeBlast's are TWO 1920x1080 captures of the live site, driven SIGNED OUT
+  over CDP through `games/_shared/dev/cdp.mjs`: `nodeblast-alchemists.png`
+  (the creator hub, and FIRST, because the card's thumbnail is whatever shot
+  leads) and `nodeblast-catalysts.png` (the hex grid). Three things sit in
+  front of those frames and every one of them has produced a wrong
+  screenshot: the feed is ASYNCHRONOUS, so a frame timed off `load`
+  photographs an empty grid; the welcome modal is re-shown on EVERY load,
+  because dismissing it does not persist, so it has to be clicked away each
+  run; and the logo's hover opens a colour picker column that covers the
+  Catalysts toggle and does NOT close on a plain mouseleave — the pointer
+  has to be walked THROUGH the panel and out again, which means it is closed
+  LAST, after all navigation, since any click near the top-left reopens it.
+  All three are asserted at the shutter rather than slept on. A third shot,
+  of the Account page, is still owed: it needs a signed-in session and
+  NodeBlast's sign-in is OAuth-only (Google, GitHub, Discord), so it cannot
+  be driven headlessly and is waiting on Dex. dexddc.com's
   (`dexddc-portfolio.png`) is a supplied 2482x1478 grab of that site's
   portfolio grid, cropped to 16:9 across the empty sky and floor rather than
   centred, which would have clipped the nav ornament's horns, and then GRADED
@@ -215,8 +229,14 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   accent dot drawn on the canvas marks it instead (a true repel is
   impossible without Pointer Lock, which is too heavy for a toy); below
   the line and outside, the accent game cursor returns. Control hints
-  (`.bb-keys`, the games' pause-menu keycap treatment) sit bottom-left
-  under the portrait while the game runs. Muted reads muted: the slider
+  (`.bb-keys`, the games' pause-menu keycap treatment) sit UNDER THE
+  PLAYFIELD while the game runs: left edge flush with the bio column,
+  centred in the strip between the ball's floor
+  and `.about-sub`. That strip is the portrait's overhang and is a steady
+  54px at every width the toy is offered at (1400-2560, measured
+  2026-08-20), which a 34px row clears at both ends. They anchored to
+  `.about-photo` until 2026-08-20 and so rendered under the PORTRAIT, one
+  column over from the game they label. Muted reads muted: the slider
   hides and the speaker takes a horizontal slash. Audio is the shared Clayweld panel
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
@@ -338,7 +358,10 @@ DORMANT right now: no nav link (commented out in the nav), no `sections`
 entry in the scroll spy, and the panel + grid wear `hidden` behind a CSS-only
 UNDER CONSTRUCTION strip (`.collab-soon`) — one line of type between two
 full-width hazard bars, not the 340px dashed plate it started as: a section
-that is not built yet should cost a rule's height, not a panel. The
+that is not built yet should cost a rule's height, not a panel. The whole
+strip carries `opacity:.5`, type and tape together rather than a greyer
+text colour: the words and the tape are one sign, and at full strength the
+line read brighter than the sections that have real content in them. The
 machinery is finished and
 tested, not deleted — going live is dropping the two `hidden` attributes and
 the strip, restoring the nav link and the `sections` entry, and putting real

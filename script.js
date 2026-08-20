@@ -5063,14 +5063,27 @@ const PORTRAIT_LABEL = {
       const copyRect = document.querySelector('.about-copy').getBoundingClientRect();
       stack.style.top = (canvasTop + ctl.state.paddle.y + 8 -
         stack.offsetHeight - copyRect.top) + 'px';
-      // The keycap hints: bottom-left OUTSIDE the playfield, in the strip
-      // under the portrait (the one clear space on that side).
+      /* The keycap hints belong to the GAME, so they go under the playfield:
+         left edge flush with the bio column, in the strip between the ball's
+         floor and the toolkit below. They used to anchor to .about-photo,
+         which is the other column entirely — the row rendered under the
+         portrait, labelling controls for a game happening beside it.
+         Unhide first: a hidden element has no height to measure, same as the
+         stack above. */
       const keys = document.getElementById('bbKeys');
       if (keys) {
-        const photo = document.querySelector('.about-photo').getBoundingClientRect();
-        keys.style.left = (photo.left - copyRect.left) + 'px';
-        keys.style.top = (photo.bottom + 6 - copyRect.top) + 'px';
         keys.hidden = false;
+        const floorY = ctl.handle.canvas.getBoundingClientRect().top +
+          ctl.state.bounds.floor;
+        const sub = document.querySelector('.about-sub');
+        const strip = sub
+          ? sub.getBoundingClientRect().top - floorY
+          : keys.offsetHeight + 20;
+        // Centred in that strip, and never within 6px of the ball's floor —
+        // the paddle lives 14px above it and must stay clear of the caps.
+        const slack = Math.max(6, (strip - keys.offsetHeight) / 2);
+        keys.style.left = '0px';
+        keys.style.top = (floorY + slack - copyRect.top) + 'px';
       }
       paintControls();
       MediaBus.solo(me);            // the music began: the songs bar yields
