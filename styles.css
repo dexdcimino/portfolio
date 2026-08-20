@@ -2141,7 +2141,14 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    it sits in is the portrait's overhang, a steady 54px at every width the toy
    is offered at (1400-2560, measured 2026-08-20) — so 10px clear of the
    ball's floor above and 10px clear of .about-sub below. */
-.bb-keys{position:absolute;display:flex;align-items:center;gap:22px;z-index:2}
+/* Held at .45. The row is a reference for someone who needs it, not a
+   feature, and at full strength six lit keycaps sat in the dead space
+   under the playfield competing with the ball and the letters — the one
+   place on the page where something IS moving and should have the eye.
+   Faded as a whole rather than per-part so the caps keep their internal
+   relationship (border to fill to type to triangle); judged against the
+   game running, which is the only state it is ever visible in. */
+.bb-keys{position:absolute;display:flex;align-items:center;gap:22px;z-index:2;opacity:.45}
 .bb-keys[hidden]{display:none}
 .bb-keygroup{display:inline-flex;align-items:center;gap:7px}
 .bb-key{

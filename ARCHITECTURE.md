@@ -28,7 +28,17 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   both the arrow and the pointer-hand as double-stroke data URIs — accent
   stroke over a dark casing, hotspot at the tip/fingertip — into
   `--dex-cursor-arrow`/`--dex-cursor-pointer`; the whole feature rides
-  `html.dex-cursor`, default on, persisted as `dex-cursor` — an accent
+  `html.dex-cursor`, default on, persisted as `dex-cursor`. The arrow has
+  been eased upright twice: 20° of lean overshot, 14° still read as a lean,
+  and it sits at ~9° now (2026-08-20). **Every rotation is about the TIP**,
+  which is why `hot` has read `6 4` unchanged through all three — the `M6 4`
+  that opens the path is the pivot and the hotspot at once. Re-verified by
+  measurement each time rather than by assumption, because a few degrees is
+  exactly the size of change that looks like it cannot have moved anything:
+  rasterise the live `--dex-cursor-arrow`, keep only the ACCENT ink (the
+  casing is the wider stroke and would read as the extreme), and fit the
+  round cap's support function back to its centre — 5.998 4.000 measured
+  against a declared 6 4. An accent
   I-BEAM (`--dex-cursor-text`) covers selectable copy and the form fields,
   with text elements inside clickables inheriting the hand instead —
   toggled by the
@@ -37,7 +47,22 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   on, muted when off), `aria-pressed` + `aria-label` its only name; docked,
   it sits INSIDE the dropdown at the bottom of the cascade (`--row` one
   past the last swatch, `--rows` = ACCENTS.length) while the collapsed
-  state stays a single hexagon; deliberately NOT gated on
+  state stays a single hexagon. DOCKED, the active hex is a disclosure and
+  never a re-pick, and it opens two ways: hover, which closes again on
+  mouse-out, and a deliberate act — click, Enter, Space, or an arrow key —
+  which sets `pickerPinned` and HOLDS it open until a second click, an
+  outside tap, or Escape. The two are distinguished so that a pointer
+  merely passing through cannot latch it; every close funnels through
+  `setOpen(false)`, which drops the pin, so a pin can never outlive the
+  open state. Until 2026-08-20 a click was gated on `!open`, which on a
+  real pointer is never true — pointerenter has already opened it — so the
+  click fell through to re-picking the accent already on and then closing:
+  the dropdown shut in your face and would not reopen under the cursor.
+  Escape is a document listener for the same reason (the hover path leaves
+  focus on `<body>`, where a listener bound to the swatches never hears
+  it), and the arrow keys open the stack before walking it, because a
+  collapsed cascade still has six focusable hexes at `opacity:0`.
+  Deliberately NOT gated on
   prefers-reduced-motion — the toggle is the escape hatch back to the OS
   accessibility cursors; the styles.css block re-asserts `zoom-in` on the
   shot view and keeps disabled things on the arrow. The game iframes adopt
@@ -237,7 +262,10 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   centred in the strip between the ball's floor and `.about-sub`. That
   strip is the portrait's overhang and is a steady 54px at every width the
   toy is offered at (1400-2560, measured 2026-08-20), which a 34px row
-  clears at both ends. They anchored to `.about-photo` until 2026-08-20
+  clears at both ends, at `opacity:.45` — the row is a reference for whoever
+  needs it, not a feature, and at full strength six lit caps competed with
+  the one part of the page that is actually moving. They anchored to
+  `.about-photo` until 2026-08-20
   and so rendered under the PORTRAIT, one column over from the game they
   label. A / D / Space / Click carry 15px type; the two arrow caps carry a
   solid sideways triangle instead of ← / → — `.bb-key-tri`, an inline SVG

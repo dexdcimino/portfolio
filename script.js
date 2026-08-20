@@ -296,10 +296,21 @@ const faviconSvg = document.getElementById('faviconSvg');
    hatch for anyone who needs the OS cursor (large, inverted, high-contrast). */
 const CURSOR_KEY = 'dex-cursor';
 const CURSOR_PATHS = {
-  // Rotated ~14° clockwise ABOUT THE TIP from the original upright form
-  // (20° overshot and read as leaning). Rotating about the tip is what
-  // keeps the hotspot exactly on it.
-  arrow: { d: 'M6 4l4.87 21.83 4.48-7.64L24.2 17.81z', hot: '6 4', fallback: 'auto' },
+  // Rotated ~9° clockwise ABOUT THE TIP from the original upright form:
+  // 20° overshot and read as leaning, 14° still did, so another 5° came
+  // back off (2026-08-20). Measured rather than nominal, the left edge now
+  // sits 7.58° off vertical, was 12.58° — the ° figures in these comments
+  // have always been the whole glyph's nominal lean, not that edge's.
+  // ROTATING ABOUT THE TIP is what keeps the hotspot exactly on it: 'M6 4'
+  // is the tip and it is the one number in here that never changes, which
+  // is why 'hot' has read '6 4' through all three rotations. Verified by
+  // rasterising the live data URI, keeping only the ACCENT ink (the casing
+  // is a wider stroke under it and would read as the extreme), and fitting
+  // the support function of the round cap back to its centre: measured
+  // apex 5.998 4.000, which is 0.002px off the declared hotspot and inside
+  // the raster's own noise. Assuming it had not moved is the failure this
+  // avoids — a 5° turn is small enough to look like it cannot matter.
+  arrow: { d: 'M6 4l2.95 22.17 5.13-7.22L22.93 19.34z', hot: '6 4', fallback: 'auto' },
   // The standard pointing hand: index extended, three folded knuckles, the
   // thumb tucked across. Same line weight, same casing; the hotspot is the
   // fingertip.
@@ -355,8 +366,17 @@ function isDocked() {
   return Boolean(picker?.classList.contains('compact'));
 }
 
-function setOpen(open) {
+/* PINNED = opened by a deliberate act (click, Enter, Space) rather than by the
+   pointer happening to be over it. Only the pin survives pointerleave; a
+   hover-open still closes the moment the pointer goes, which is the whole
+   reason the two states are distinguished rather than one 'open' flag being
+   made stickier. Every close funnels through setOpen(false), which drops the
+   pin, so there is no path that leaves it latched behind a closed dropdown. */
+let pickerPinned = false;
+
+function setOpen(open, { pin = false } = {}) {
   if (!picker) return;
+  pickerPinned = open && (pin || pickerPinned);
   picker.classList.toggle('open', open);
   const toggle = swatches.find(b => b.classList.contains('active'));
   swatches.forEach(b => b.removeAttribute('aria-expanded'));
@@ -377,9 +397,26 @@ function moveFocus(from, delta) {
 }
 
 function onSwatchClick(theme, button) {
-  // While docked and closed, the active hex is a disclosure toggle, not a re-pick.
-  if (isDocked() && !picker.classList.contains('open') && button.classList.contains('active')) {
-    setOpen(true);
+  /* While docked, the active hex is the DISCLOSURE, never a re-pick — picking
+     the accent that is already on is a no-op, so the gesture is free to mean
+     the only thing anyone tries it for.
+
+     This used to be gated on `!open`, which on a real pointer is never true:
+     pointerenter fires before click and has already opened it, so every click
+     fell through to applyAccent(same) + setOpen(false) + blur(). The click was
+     not doing nothing — it was CANCELLING the hover, and because the pointer
+     had already entered, pointerenter would not fire again, so it stayed shut
+     until you left and came back. Clicking by instinct got you a dropdown that
+     shut in your face and would not reopen under the cursor. */
+  if (isDocked() && button.classList.contains('active')) {
+    if (pickerPinned) {
+      // Toggle shut, but do NOT blur: Enter closing the stack must not also
+      // throw a keyboard visitor out of the tab order, and a mouse click
+      // leaves no ring anyway (:focus-visible does not match a pointer).
+      setOpen(false);
+    } else {
+      setOpen(true, { pin: true }); // first: open and hold it open
+    }
     return;
   }
   applyAccent(theme.name);
@@ -481,8 +518,12 @@ function buildAccentPicker() {
   applyAccent(stored || DEFAULT_ACCENT, false);
 
   // Pointer: hover opens on real pointers, tap-to-toggle handles touch.
+  // Leaving closes a HOVER-open only — a pinned one is waiting on a click,
+  // an outside tap or Escape, which is the point of pinning it.
   picker.addEventListener('pointerenter', () => { if (isDocked() && canHover.matches) setOpen(true); });
-  picker.addEventListener('pointerleave', () => { if (isDocked() && canHover.matches) setOpen(false); });
+  picker.addEventListener('pointerleave', () => {
+    if (isDocked() && canHover.matches && !pickerPinned) setOpen(false);
+  });
 
   // Keyboard: focus opens it, arrows walk the stack, Escape closes it.
   picker.addEventListener('focusin', () => { if (isDocked()) setOpen(true); });
@@ -496,15 +537,33 @@ function buildAccentPicker() {
     const nextKey = vertical ? 'ArrowDown' : 'ArrowRight';
     const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft';
 
-    if (event.key === nextKey) { event.preventDefault(); moveFocus(target, 1); }
-    else if (event.key === prevKey) { event.preventDefault(); moveFocus(target, -1); }
-    else if (event.key === 'Escape' && isDocked()) {
-      setOpen(false);
-      swatches.find(b => b.classList.contains('active'))?.focus();
-    }
+    if (event.key !== nextKey && event.key !== prevKey) return;
+    event.preventDefault();
+    /* Open FIRST if it is shut. While docked and closed the six other hexes
+       are still in the tab order but are opacity:0 and pointer-events:none,
+       so walking the stack blind would park the focus ring on something the
+       visitor cannot see. Pinned, because an arrow key is as deliberate as a
+       click and the stack should not evaporate on the next pointer move. */
+    if (vertical && !picker.classList.contains('open')) setOpen(true, { pin: true });
+    moveFocus(target, event.key === nextKey ? 1 : -1);
   });
 
-  // Outside tap closes the docked stack.
+  /* Escape, from anywhere. It used to live on the picker's own keydown behind
+     `event.target.closest('.swatch')`, which means it only ever fired while a
+     swatch held focus — and the hover-open path leaves focus on <body>, so the
+     one state a visitor is most likely to press Escape in was the one state it
+     did nothing in. Focus is only pulled back to the active hex if it was
+     inside the picker to begin with; Escape on a hover-open must not yank the
+     caret out of whatever the reader was actually in. */
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !isDocked()) return;
+    if (!picker.classList.contains('open')) return;
+    const wasInside = picker.contains(document.activeElement);
+    setOpen(false);
+    if (wasInside) swatches.find(b => b.classList.contains('active'))?.focus();
+  });
+
+  // Outside tap closes the docked stack, pinned or not.
   document.addEventListener('pointerdown', event => {
     if (isDocked() && !picker.contains(event.target)) setOpen(false);
   });
