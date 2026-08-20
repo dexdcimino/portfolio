@@ -15,6 +15,9 @@
 //    keeps working unchanged. Only the conversion at the edges is new.
 //
 // Nothing here imports Babylon: it runs in the harness with no stub at all.
+// tune.js is data and imports nothing itself, so that stays true.
+
+import { HYPER } from '../tune.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -299,7 +302,41 @@ export function makePlanet(profile) {
     horizon: Math.sqrt(2 * R * 2),
     fogNear: R * profile.fogNear,
     fogFar: R * profile.fogFar,
-    farPlane: R * 4,
+    /* THE FAR PLANE HAS TO REACH THE WORLD IT BELONGS TO, from the highest
+       place the game will ever put you — and four radii did not, on the world
+       where four radii is the smallest number.
+
+       `farPlane` is the camera's maxZ and the far band's compression. A hyper
+       arrival hands the craft back at HYPER.approachAlt, which is 900 METRES
+       ABSOLUTE on worlds whose radii run 207m to 2072m — so on Ember the
+       arrival sits 4.35 radii up, 1107m from the centre, against a far plane
+       of 828m. The horizon from there is 1087m away and the ground directly
+       below is 900m away: BOTH beyond it.
+
+       Measured, with the camera pointed at the planet from exactly that
+       altitude: all 51 live terrain leaves outside maxZ, the nearest at 848m.
+       Not a clipped horizon — no world at all. Arriving at Ember by hyper put
+       you in an empty orange frame until you had descended eighty metres.
+
+       Nothing caught it. dev/arrivecheck.mjs measures geometry and the craft
+       really was above the ground; the six-way sheets photograph a spawn, which
+       is on the surface; and the HUD's warp row calls settle() immediately,
+       dropping you to the deck before a frame is drawn — which is exactly why
+       the note in main.js about Ember being "a marble 22 degrees wide below
+       you" stopped one step short of this.
+
+       So the floor is the horizon distance at the arrival altitude, plus a
+       quarter for the chase boom, which sits behind and above the craft and so
+       sees further than it does. Only Ember is under it; the other five keep
+       four radii unchanged.
+
+       This treats the far plane, not the cause. The cause is an absolute
+       approach altitude on worlds of six different sizes, and that number is
+       the boundary the whole travel model is built on — every departure, every
+       arrival and the tunnelling sweep reference it. Phase 4 owns it. */
+    farPlane: Math.max(R * 4, 1.25 * Math.sqrt(
+      Math.pow(R + profile.waterY + HYPER.approachAlt, 2) -
+      Math.pow(R + profile.waterY, 2))),
   });
 }
 

@@ -41,6 +41,30 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   SSAO radius (2.2 m, not lookdev's 6.0 for a 4 km flat world), SSAO maxZ
   (260, not 900 — longer than half the worlds are wide), ambient fill, and
   texture scale.
+- **An absolute length is a bug on six worlds of different sizes.** Almost
+  every constant here is expressed in radii for exactly this reason; the one
+  that is not — `HYPER.approachAlt`, 900m flat — is 0.43 radii up on Anvil and
+  **4.35 radii up on Ember**. The far plane was `R * 4`, so on Ember a hyper
+  arrival put the entire world outside `maxZ`: measured at that altitude, all
+  51 live leaves clipped, nearest at 848m against 828m. Not a clipped horizon —
+  no world at all, for eighty metres of descent. `makePlanet` floors the far
+  plane at the horizon distance from the arrival altitude now, and an assertion
+  holds it; the absolute altitude itself is phase 4's to fix. Before adding a
+  constant in metres, divide it by 207 and by 2072 and look at both answers.
+- **Measure at the resolution AND the scaling a player actually uses.**
+  `devicePixelRatio` and the OS display scale MULTIPLY, and neither exists
+  headless. Every frame number this project quoted for a year came off 900x560
+  or 1280x760 headless, which is a ninth to a quarter of the pixels anyone
+  plays at — and on the reference machine's 125%-scaled desktop the engine was
+  rendering at dpr, so a 2560x1440 window drew a **3183x1577** backbuffer,
+  1.56x the pixels it displayed. Both facts were invisible to every
+  measurement that had ever been taken. The consequence is not a scaled-down
+  answer, it is the WRONG answer: a CPU spike costs the same at any resolution,
+  but the frame it lands in grows with every pixel, so a headless run says
+  "CPU-bound, cut the leaf build" about a frame that is in fact GPU-bound with
+  half its over-budget time outside our JavaScript entirely. `flycheck.mjs`
+  takes `--size WxH` and `--window` for exactly this; it reports the backbuffer
+  it actually got rather than the one it asked for, because those differ.
 - **Harnesses run on a throwaway `--user-data-dir`** — no save, no restore
   loop, no returning player. A bug hidden by this survived three sessions of
   clean measurements. `dev/savedworlds.mjs` and `--save` in `dev/savefile.mjs`
@@ -75,7 +99,7 @@ started carry a phase log of what actually shipped and where the plan was wrong.
 
 | plan | status |
 |---|---|
-| `docs/seamless-space.md` | phases 1-3 shipped, phase 4 next — it deletes the swap |
+| `docs/seamless-space.md` | phases 1-3 shipped; phase 4 scoped, not started |
 | `docs/day-and-night.md` | parked. After Seamless Space — it changes lighting |
 | `docs/colony-architecture.md` | parked. Does not conflict with Seamless Space |
 
@@ -108,10 +132,10 @@ game (40 exported blocks incl. `PLANETS`, `POST`, `ECONOMY`, `HYPER`);
   vehicle, four physics models + hyper transit — the drone is a hover on key
   `4`: holds height with no input, moves by tilting, thruster pods swivel in
   `applyTransform`. VERTICAL IS TWO KEYS ON THE HOVER LINE, not two forces on
-  the spring — Space raises `droneLift`, Ctrl or Z lowers it into
-  `DRONE.minLift`, and releasing both holds the new height because the target
-  moved rather than being pushed against. Entry floors that offset at 0, not
-  at `minLift`, or the drone cannot take off from the ground), `camera.js`
+  the spring — Space raises `droneLift`, Z lowers it into `DRONE.minLift`, and
+  releasing both holds the new height because the target moved rather than
+  being pushed against. Entry floors that offset at 0, not at `minLift`, or the
+  drone cannot take off from the ground), `camera.js`
   (`ChaseCam`). NOTE: the camera keys FOUR maps by mode — `CAM.dist/height/
   fov/rollTilt` plus `REF_SPEED` — and a mode missing from any one of them is
   a NaN camera and a grey frame with no error anywhere.
@@ -225,7 +249,7 @@ identical; quadtree depth varies instead). POST: exposure **0.97**, contrast
 ## Harnesses (`dev/`)
 
 All launch Chrome on a throwaway profile via `dev/cdp.mjs` (no npm deps).
-`run.mjs` — headless suite over a Babylon stub, 225 assertions, imports
+`run.mjs` — headless suite over a Babylon stub, 227 assertions, imports
 `glslcheck.mjs` first (backtick-count scan of materials.js; that failure cost
 six debugging cycles). `shots.mjs` — six PNGs per world + contact sheets,
 fails on any console error. `savedworlds.mjs` — cold load **with** a save,
@@ -268,6 +292,10 @@ submission, never resolution, so no coarse-geometry caster LOD was built.
 
 ## Known-outstanding — do not re-report
 
+- **`dev/cdp.mjs` launches Chrome on a fixed debug port (9222).** Two
+  harnesses at once deadlock on it, silently — both hang with empty output
+  rather than failing. Run browser harnesses one at a time, or give `launch()`
+  a port.
 - **The arrival seam is 84 degrees and is deliberate.** `landOn` stands the
   craft up out of a radial dive — pitch to 0.10, autopilot on — in one frame.
   Phase 3 owns only that it is a pitch about the craft's own wings and nothing

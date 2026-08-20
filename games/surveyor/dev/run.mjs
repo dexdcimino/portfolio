@@ -2867,7 +2867,7 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
 {
   const { farScale, farDistance, angularPair, systemExtent, isFar } =
     await import('../js/world/space.js');
-  const { SPACE, SYSTEM } = await import('../js/tune.js');
+  const { SPACE, SYSTEM, HYPER } = await import('../js/tune.js');
 
   let worstAngle = 0, pairs = 0;
   const rows = [];
@@ -2916,6 +2916,30 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
   ok('the band boundary is outside every far plane',
     SPACE.nearBand > biggestFar && !isFar(biggestFar) && isFar(SPACE.nearBand),
     `boundary ${SPACE.nearBand}m against the widest far plane ${Math.round(biggestFar)}m`);
+
+  /* ...AND A WORLD CAN DRAW ITSELF WHERE THE GAME PUTS YOU.
+     farPlane is the camera's maxZ, and a hyper arrival hands the craft back at
+     an ABSOLUTE 900m on worlds whose radii run 207m to 2072m. On Ember that is
+     4.35 radii up, and at four radii of far plane the whole planet was outside
+     it: measured with the camera pointed at the ground from exactly that
+     altitude, all 51 live leaves beyond maxZ, the nearest at 848m against 828m.
+     Not a clipped horizon — no world at all.
+     The horizon distance rather than the altitude, because the ground you can
+     see reaches further than the ground beneath you: on Ember 1087m against
+     900m, and it is the horizon that goes first on the bigger worlds. */
+  {
+    const rows2 = [];
+    let ground = true;
+    for (const key of Object.keys(PLANETS)) {
+      const P = makePlanet(PLANETS[key]);
+      const arrival = P.surfaceR + HYPER.approachAlt;
+      const horizon = Math.sqrt(arrival * arrival - P.surfaceR * P.surfaceR);
+      if (horizon > P.farPlane) ground = false;
+      rows2.push(`${key} ${Math.round(horizon)}m of ${Math.round(P.farPlane)}m`);
+    }
+    ok('every world can draw itself at the altitude hyper hands it back',
+      ground, rows2.join(' | '));
+  }
 }
 
 /* ---- THE TRUE SKYLINE ---------------------------------------------------

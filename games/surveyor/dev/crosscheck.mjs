@@ -162,6 +162,7 @@ const UNTIL = (cond, limit) => `(async () => {
   return {
     frames: n, secs: +((performance.now() - t0) / 1000).toFixed(2),
     hyper: !!c.hyper, hyperT: +(c.hyperT || 0).toFixed(3),
+    alt: c.hyper ? c.hyper.alt : c.pos.y,
     world: S.planet.key, speed: Math.round(c.speed),
     to: c.hyper && c.hyper.target ? c.hyper.target.key : null,
   };
@@ -291,8 +292,17 @@ for (const [label, cond] of MARKS) {
   if (!r.hyper) break;
 }
 
+/* THE SWAP, FROM BOTH SIDES. The frame before it is the destination as the far
+   band draws it — a promoted icosphere, compressed about the camera; the frame
+   after is the same world as real terrain at true scale, built at the scene
+   origin. Nothing crossfades between those two, and phase 4 is the phase that
+   has to. Photographed rather than measured because "how big is the pop" is a
+   question about a silhouette. */
+const brink = await evaluate(page, UNTIL('!c.hyper || c.hyper.alt < 2000', 240000));
+await grab(brink.hyper ? `the frame before the swap — ${Math.round(brink.alt)}m out`
+  : 'arrived before the brink');
 const arr = await evaluate(page, UNTIL('!c.hyper', 240000));
-await grab(arr.hyper ? 'still in transit' : `arrived at ${arr.world}`);
+await grab(arr.hyper ? 'still in transit' : `the frame after — ${arr.world} at true scale`);
 console.log(`arrived: ${!arr.hyper}, world ${arr.world}, after ${arr.secs}s more`);
 
 const rep = await evaluate(page, REPORT);

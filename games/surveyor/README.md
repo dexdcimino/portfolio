@@ -216,6 +216,74 @@ post-process with nothing of ours in the stack. `noPrePassRenderer = true` is
 the fix. And the shadow box is snapped to a texel grid before it is centred, or
 the shadows swim as you drive.
 
+## Arriving at Ember drew no world at all
+
+Found while scoping phase 4, in the one place nothing was looking.
+
+`farPlane` is the camera's `maxZ` and the far band's compression, and it was
+`R * 4` on every world. A hyper arrival hands the craft back at
+`HYPER.approachAlt`, which is **900 metres absolute** on worlds whose radii run
+207m to 2072m — so on Ember the arrival sits 4.35 radii up, 1107m from the
+centre, against a far plane of 828m. The ground directly below is 900m away and
+the horizon is 1087m away: both beyond it.
+
+Measured with the camera pointed at the planet from exactly that altitude, on a
+real boot:
+
+| | leaves inside maxZ | leaves clipped | nearest leaf |
+|---|---|---|---|
+| shipped, `maxZ` 828m | **0** | 51 | 848m |
+| same frame, `maxZ` 60000m | 51 | 0 | 848m |
+
+Not a clipped horizon. **No world.** The nearest terrain was twenty metres
+beyond the far plane and everything else was further, so arriving at Ember by
+hyper put you in an empty orange frame — the sky dome, which `infiniteDistance`
+keeps centred on the camera — until you had descended eighty metres.
+
+### Why nothing caught it
+
+Four things look at arrivals and none of them could see this.
+
+- `dev/arrivecheck.mjs` measures **geometry** — where the craft is against where
+  the ground is. The craft really was above the ground.
+- the six-way sheets photograph a **spawn**, which is on the surface.
+- the HUD's warp row calls `settle()` immediately, dropping you to the deck
+  before a frame is drawn. The note in `main.js` about Ember being "a marble 22
+  degrees wide below you" is this bug's neighbour and stopped one step short.
+- `dev/crosscheck.mjs` flies a real arrival, but the departure spawn on Home has
+  Ember 46 degrees below the horizon, so it cannot be aimed at from there.
+
+It needed a camera pointed at the ground from the arrival altitude, which is a
+state no harness had ever been in.
+
+### The fix, and what it is not
+
+`makePlanet` floors the far plane at the horizon distance from the arrival
+altitude, plus a quarter for the chase boom, which sits behind and above the
+craft and so sees further than it does:
+
+```js
+farPlane: Math.max(R * 4, 1.25 * horizonAt(HYPER.approachAlt))
+```
+
+**Only Ember moves**, 828 → 1359. Its far-band compression goes with it, 1/1901
+→ 1/1158, and angular size is preserved through that exactly — still 1.6e-16
+over thirty world pairs — so no disc changes size or position on screen.
+
+**This treats the far plane, not the cause.** The cause is an absolute approach
+altitude on worlds of six different sizes, and that number is the boundary the
+whole travel model is built on: every departure, every arrival and the
+tunnelling sweep reference it. Phase 4 owns it.
+
+One assertion holds the property rather than the number — every world can draw
+itself out to its horizon at the altitude hyper hands it back — and it fails on
+Ember the moment the floor is removed.
+
+A wrong comment went with it. `sky.js` said the dome "always sits outside the
+far plane"; at 0.8 of it, it does not, and it does not need to, because
+`infiniteDistance` re-centres the dome on the camera every frame. The radius
+only has to land inside the far plane to be drawn at all.
+
 ## Seamless space, phase 3: which world you belong to
 
 Gravity was one constant and one direction, because there was only ever one

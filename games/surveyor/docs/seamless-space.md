@@ -308,16 +308,67 @@ a perfect zero off a sample of nought. See the continuity invariant in
 and nothing else. It is the swap, not the gravity handover, and phase 4 deletes
 it. Changing it in isolation changes the feel of every arrival in the game.
 
-## Phase 4 — not started
+## Phase 4 — not started, and scoped
 
-The payoff, and the one that removes the teardown. Two things phase 3 leaves on
-the table for it: the 84-degree arrival stand-up above, and the fact that
-`nearest()` and `dominant()` will both be live at once when a craft can be
-inside two worlds' influence with both of them rendered.
+Not begun because two of its three files were held by another session when the
+scoping was done, and because the answer to "what does the swap actually cost"
+turned out to change the shape of the work. Measured rather than assumed:
 
-**Known collision.** The Home revamp's fourth craft form landed in `craft.js`,
-`meshes.js`, the HUD chips, the camera and audio while phase 3 was open. It was
-pulled before phase 3 started rather than raced, and phase 3's own craft.js
-changes are four small edits — the transit basis, its seed, its per-frame aim,
-and the arrival yaw. Phase 4 will touch far more of that file, so check what
-else is in flight before starting.
+**The swap is a wholesale substitution, not a teardown that can simply be
+deleted.** At the approach sphere a promoted far body — 1280 triangles, 642
+directions, so the height field sampled every 29m on Ember and every 290m on
+Anvil — is replaced in one frame by the quadtree, which samples every 5m. That
+is a 6x to 46x jump in terrain resolution, arriving alongside the water shell,
+the rocks, the colonies, the survey markers and a different material set. Add
+the 84-degree stand-up phase 3 measured and left in place.
+
+**Two worlds cannot both be at true scale, and the reason is the far plane, not
+precision.** Everyone reaches for float32 here; it is not the constraint. The
+closest pair of worlds is 294km apart, where the float32 spacing is 3.1cm, and
+the widest pair is 945km at 6.3cm — invisible on a body subtending a fraction of
+a degree. The constraint is that the far plane runs 1359m to 8288m, so a second
+world at its true position is **35 to 700 times beyond the frustum**. That is
+what the far band exists for and it does not stop being true in phase 4.
+
+**Every world's geometry is built about the scene origin.** `dir * (surfaceR +
+h)` in `chunks.js`, `placeOnSphere` in `colony.js` and `geysers.js`, the sky
+dome, the water shell. Six concentric worlds is exactly the geometry of the
+six-sky-domes bug, and it is why only one can be active today.
+
+### The shape that falls out
+
+The plan's chain is billboard, low-poly sphere, coarse quadtree, fine quadtree.
+The first two rungs already ship. The third is the one that carries phase 4, and
+the measurements say it should live **in the far band, not the near one**:
+
+- a uniform scale about the camera is a similarity transform, so a quadtree
+  drawn compressed is still a quadtree with every angle intact — the same fact
+  phase 1 was built on, applied to terrain instead of to a disc
+- that puts the destination's geometry in its own local coordinates about its
+  own centre, so the origin problem never arises and no rebase is needed
+- the handover to true scale then happens when the destination is within the far
+  plane — a few kilometres — where the two representations can be made to agree
+  because they are the same height field at two resolutions
+
+Mechanically that is a root `TransformNode` per World carrying the far-band
+scale and offset, with the current world's left at identity, rather than a
+coordinate rewrite of eight files. `farbody.js` already does exactly this for
+one mesh.
+
+### What has to be decided before it starts
+
+`HYPER.approachAlt` is 900 metres absolute on worlds whose radii run 207m to
+2072m. It is the boundary the whole travel model is built on — departure,
+arrival, the tunnelling sweep and the trip check all reference it — and it is
+already the cause of one shipped bug (see "Arriving at Ember drew no world at
+all" in `../README.md`, patched at the far plane rather than at the cause). A
+continuous approach wants it per-world; making it per-world touches every one of
+those. That is a decision, not a detail.
+
+### Collisions to check first
+
+`js/main.js` owns `swapTo` and is the file phase 4 deletes half of. `js/tune.js`
+carries `HYPER` and `SPACE`. `js/player/craft.js` carries `enterHyper`,
+`landOn` and the fourth craft form. All three are high-traffic. Check what is
+uncommitted before starting, every time.
+
