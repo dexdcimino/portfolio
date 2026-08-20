@@ -36,20 +36,24 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   mini line on the left are the out-link `<a>` (new tab; both lines
   underline on hover), the eyeball `<button>` — authored only on rows with
   `data-app-modal` — opens the app overlay (which offers NO open-full-page
-  or new-tab escape: it is only ever an overlay), and a click anywhere else
-  selects the row (`.is-current` holds the accent frame; seeded on the
-  first row; the link deliberately does not flex-grow, or the row's empty
-  middle would open the tab); the mark sits at the row's far LEFT and the
-  filled-eye button at the far right via flex `order`, so the generated
-  `<picture>` never moves in the DOM; the mark wears no wrap border — the
-  plates' corner radii differ per mark; the Apps panel across from the
-  list shows the selection: the app's NAME large, then its first
-  `.gal-item` shot (centred, up to 660px; cloned never borrowed; opens the
-  shared viewer via `gallery:open`; no shots collapses it), then lead,
-  description and tags — no marketplace button; the panel's min-height is
-  measured across all cards (and on resize) so hover never changes the
-  section's height; the eyeball hides below 768px where the overlay
-  declines),
+  or new-tab escape: it is only ever an overlay; `data-link-preview` on a
+  card additionally routes its TITLE link into that overlay until the app
+  has a public home — Splitmob today), and a click anywhere else SELECTS
+  the row and holds (`.is-current`; hover only previews and snaps back to
+  the held row on pointerleave/focusout; seeded on the first row; the link
+  deliberately does not flex-grow, or the row's empty middle would open the
+  tab); the mark sits at the row's far LEFT and the filled-eye button at
+  the far right via flex `order`, so the generated `<picture>` never moves
+  in the DOM; the Apps panel across from the list shows the selection: the
+  app's NAME large, then an inline carousel of ALL its `.gal-item` shots
+  (cloned never borrowed; chevrons hidden on one-shot apps; x/x counter in
+  the corner; no filmstrip; no shots collapses the frame), then lead,
+  description and tags; clicking the shot enlarges it in `#appShotModal` —
+  a wallpaper-style lightbox with a centred x/x between arrows that grey
+  out on single shots — NOT the games' gallery modal, which apps no longer
+  touch; the panel's min-height is measured across all cards (and on
+  resize) so hover never changes the section's height; the eyeball hides
+  below 768px where the overlay declines),
   `initCollabInfo()` (fills the Collab panel and builds
   each card's brain row + invite link from the card's own `data-people` /
   `data-invite`; adding a project is one card, no JS edit), vault, clips,

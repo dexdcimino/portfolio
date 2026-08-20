@@ -3228,43 +3228,68 @@ function renderMarkdown(src) {
   const tags = info.querySelectorAll('.game-tag');
   let current = cards[0];
 
-  /* The thumbnail that replaced the GALLERY button: the current app's FIRST
-     gallery shot, cloned out of the .gal-item set once at boot. Cloned, never
-     borrowed — the viewer moves the originals into its stage, and a shared
-     node would vanish from here the first time the overlay opened. Cloning at
-     boot also runs before the viewer can have borrowed anything.
-     sizes is rewritten on the clones because the originals advertise the
-     overlay's near-full-width slot, and a 520px frame fetching a 1200 rung is
-     the exact oversize fetch the slot table exists to prevent. Same move as
-     the wallpaper thumbnails. */
+  /* The inline gallery: every .gal-item shot for every app, cloned out of
+     the gallery's data block once at boot. Cloned, never borrowed — the
+     games viewer moves the originals into its own stage, and a shared node
+     would vanish from here the first time that overlay opened. The original
+     picture rides along per shot so the enlarge view can clone it again at
+     overlay sizes on demand. sizes is rewritten on the inline clones because
+     the originals advertise the overlay's near-full-width slot, and a 660px
+     frame fetching a 1600 rung is the exact oversize fetch the slot table
+     exists to prevent. */
   const art = document.getElementById('appArt');
-  const shots = new Map();
-  if (art) {
+  const artView = document.getElementById('appArtView');
+  const artPrev = document.getElementById('appArtPrev');
+  const artNext = document.getElementById('appArtNext');
+  const artCount = document.getElementById('appArtCount');
+  const shots = new Map();               // key -> [{span, source}]
+  if (artView) {
     const SIZES = '(max-width:1100px) min(92vw, 660px), min(660px, 42vw)';
     for (const card of cards) {
       const key = card.dataset.gallery;
       if (!key || shots.has(key)) continue;
-      const pic = document.querySelector(`#galleryModal .gal-item[data-game="${key}"] picture`);
-      if (!pic) continue;
-      const clone = pic.cloneNode(true);
-      for (const s of clone.querySelectorAll('source')) s.sizes = SIZES;
-      const img = clone.querySelector('img');
-      if (img) { img.classList.add('app-art-img'); img.sizes = SIZES; }
-      const shot = document.createElement('span');
-      shot.className = 'app-art-shot';
-      shot.dataset.key = key;
-      shot.hidden = true;
-      shot.appendChild(clone);
-      art.appendChild(shot);
-      shots.set(key, shot);
+      const pics = [...document.querySelectorAll(`#galleryModal .gal-item[data-game="${key}"] picture`)];
+      if (!pics.length) continue;
+      shots.set(key, pics.map((source) => {
+        const clone = source.cloneNode(true);
+        for (const s of clone.querySelectorAll('source')) s.sizes = SIZES;
+        const img = clone.querySelector('img');
+        if (img) { img.classList.add('app-art-img'); img.sizes = SIZES; }
+        const span = document.createElement('span');
+        span.className = 'app-art-shot';
+        span.hidden = true;
+        span.appendChild(clone);
+        artView.appendChild(span);
+        return { span, source };
+      }));
     }
   }
 
+  /* One shot on screen, x/x in the corner, chevrons only when there is
+     somewhere to go. The index resets when the shown app changes. */
+  let viewKey = null;
+  let idx = 0;
+  const setFor = () => (viewKey && shots.get(viewKey)) || [];
+  const paintShots = () => {
+    if (!art) return;
+    const set = setFor();
+    for (const list of shots.values()) for (const s of list) s.span.hidden = true;
+    art.hidden = !set.length;
+    if (!set.length) return;
+    idx = ((idx % set.length) + set.length) % set.length;
+    set[idx].span.hidden = false;
+    const single = set.length < 2;
+    artPrev.hidden = single;
+    artNext.hidden = single;
+    artCount.textContent = `${idx + 1}/${set.length}`;
+    artView.setAttribute('aria-label', `Enlarge screenshot ${idx + 1} of ${set.length}` +
+      (current ? ` for ${current.querySelector('strong')?.textContent}` : ''));
+  };
+  artPrev?.addEventListener('click', () => { idx -= 1; paintShots(); });
+  artNext?.addEventListener('click', () => { idx += 1; paintShots(); });
+
   const show = (card) => {
     current = card;
-    // The held selection is visible on the list itself — seeded on the first
-    // row, so the section arrives already showing a choice.
-    for (const c of cards) c.classList.toggle('is-current', c === card);
     if (title) title.textContent = card.querySelector('strong')?.textContent || '';
     lead.textContent = card.dataset.descLead || '';
     body.textContent = card.dataset.descBody || '';
@@ -3273,43 +3298,89 @@ function renderMarkdown(src) {
       tag.textContent = value;
       tag.hidden = !value;
     }
-    /* The thumbnail follows the panel. hidden both ways — the shot that was
-       up, and the whole frame when this app has none, so the space collapses
-       rather than holding an empty box for a promise nobody made. */
-    if (art) {
-      const key = card.dataset.gallery || null;
-      const shot = key ? shots.get(key) : null;
-      for (const s of shots.values()) s.hidden = s !== shot;
-      art.hidden = !shot;
-      // The accessible name comes from the gallery's own count, same as the
-      // button's did — paintOpenBtn writes it onto the hidden label span.
-      if (shot) {
-        document.dispatchEvent(new CustomEvent('gallery:count', {
-          detail: { key, name: card.querySelector('strong')?.textContent, button: art },
-        }));
-      }
-    }
+    // The frame follows the panel: fresh app, first shot; no shots, no frame.
+    viewKey = card.dataset.gallery || null;
+    idx = 0;
+    paintShots();
+  };
+
+  /* Hover PREVIEWS; only a click HOLDS. The pointer leaving a row snaps the
+     panel back to whatever was last clicked — seeded on the first row, so
+     with nothing ever clicked the section rests on the top app. Keyboard
+     gets the same deal through focusout on the list. */
+  let selected = cards[0];
+  const setSelected = (card) => {
+    selected = card;
+    for (const c of cards) c.classList.toggle('is-current', c === selected);
   };
 
   for (const card of cards) {
     card.addEventListener('pointerenter', () => show(card));
-    /* focusin, not focus: the card is a container now and never takes focus
+    card.addEventListener('pointerleave', () => show(selected));
+    /* focusin, not focus: the card is a container and never takes focus
        itself — focus lands on the title link or the eyeball inside it, and
-       focusin is the version that bubbles. Tabbing drives the thumbnail
-       exactly as hovering does, with no third tab stop spent on selection. */
+       focusin is the version that bubbles. Tabbing previews exactly as
+       hovering does, with no third tab stop spent on selection. */
     card.addEventListener('focusin', () => show(card));
-    /* The blank space selects. Lowest-stakes action of the three targets, and
-       the only way to browse this section on touch, where hover never fires.
-       The title link and the eyeball keep their own jobs and select as a side
-       effect — it is the same card either way, so nothing is preventDefaulted. */
-    card.addEventListener('click', () => show(card));
+    /* The blank space selects and HOLDS. Lowest-stakes action of the three
+       targets, and the only way to browse this section on touch, where hover
+       never fires. The title link and the eyeball keep their own jobs and
+       select as a side effect — same card either way, nothing prevented. */
+    card.addEventListener('click', () => { setSelected(card); show(card); });
   }
-  art?.addEventListener('click', () => {
-    document.dispatchEvent(new CustomEvent('gallery:open', {
-      detail: { key: current.dataset.gallery || null,
-                name: current.querySelector('strong')?.textContent, button: art },
-    }));
+  // Focus leaving the whole list snaps back too, same rule as the pointer.
+  apps.addEventListener('focusout', (event) => {
+    if (!apps.contains(event.relatedTarget)) show(selected);
   });
+
+  /* The enlarge view — wallpaper-style, not the games' gallery modal: one
+     image large over the page, x/x centred under it between two arrows that
+     grey out (never vanish) when there is only one shot. The stage clone is
+     built from the ORIGINAL gallery picture at overlay sizes, so the big
+     rungs are fetched only when someone actually enlarges. */
+  const lb = document.getElementById('appShotModal');
+  if (artView && lb) {
+    const lbStage = document.getElementById('appShotStage');
+    const lbCount = document.getElementById('appShotCount');
+    const lbPrev = document.getElementById('appShotPrev');
+    const lbNext = document.getElementById('appShotNext');
+    let lbIdx = 0;
+    const lbPaint = () => {
+      const set = setFor();
+      if (!set.length) return;
+      lbIdx = ((lbIdx % set.length) + set.length) % set.length;
+      const clone = set[lbIdx].source.cloneNode(true);
+      for (const s of clone.querySelectorAll('source')) s.sizes = '92vw';
+      const img = clone.querySelector('img');
+      if (img) {
+        img.sizes = '92vw';
+        img.loading = 'eager';
+        if (img.decode) img.decode().catch(() => {});
+      }
+      lbStage.replaceChildren(clone);
+      lbCount.textContent = `${lbIdx + 1}/${set.length}`;
+      const single = set.length < 2;
+      lbPrev.disabled = single;
+      lbNext.disabled = single;
+      // the inline frame keeps step, so closing lands where you left off
+      idx = lbIdx;
+      paintShots();
+    };
+    artView.addEventListener('click', () => {
+      if (!setFor().length) return;
+      lbIdx = idx;
+      lbPaint();
+      openModal(lb, lb.querySelector('.app-shot-shell'), null, artView);
+    });
+    lbPrev.addEventListener('click', () => { lbIdx -= 1; lbPaint(); });
+    lbNext.addEventListener('click', () => { lbIdx += 1; lbPaint(); });
+    lb.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowLeft') { event.preventDefault(); lbIdx -= 1; lbPaint(); }
+      if (event.key === 'ArrowRight') { event.preventDefault(); lbIdx += 1; lbPaint(); }
+    });
+    document.getElementById('appShotClose')?.addEventListener('click', () => closeModal(lb));
+    bindModal(lb, () => lbStage.replaceChildren());
+  }
 
   /* Same trap initGameArt documents: the clones' images are lazy and hidden,
      so the first hover would also be the first request. Warm them when the
@@ -3384,7 +3455,7 @@ function renderMarkdown(src) {
      not exist yet and the button kept the bare "GALLERY" it ships with. A
      microtask runs after the whole script has finished, which is the earliest
      moment every module on the page is listening. */
-  queueMicrotask(() => { show(cards[0]); reserve(); });
+  queueMicrotask(() => { setSelected(cards[0]); show(cards[0]); reserve(); });
 })();
 
 /* --- Collab project info -------------------------------------------------- */
@@ -3535,10 +3606,26 @@ function renderMarkdown(src) {
 
   cards.forEach(card => {
     const eye = card.querySelector('.ai-card-eye');
+    const link = card.querySelector('.ai-card-link');
     if (!eye) return;
+    /* data-link-preview: the app has no public home yet, so its TITLE link
+       opens this same overlay instead of navigating — a stand-in, dropped
+       from the card the day the app is live. Phones keep following the href
+       (the overlay declines below 768px either way). */
+    if (card.hasAttribute('data-link-preview') && link) {
+      link.addEventListener('click', (event) => {
+        if (!wantsModal()) return;
+        if (event.button !== 0 || event.metaKey || event.ctrlKey
+            || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        open(link);
+      });
+    }
     eye.addEventListener('click', () => {
-      if (!wantsModal()) { card.querySelector('.ai-card-link')?.click(); return; }
-
+      if (!wantsModal()) { link?.click(); return; }
+      open(eye);
+    });
+    function open(opener) {
       const url = card.dataset.appModal;
       const title = card.dataset.appTitle || 'App';
       /* Phone unless the card says otherwise. Set on every open, not once: the
@@ -3558,8 +3645,8 @@ function renderMarkdown(src) {
       // Set src on open, not in the markup: otherwise every visitor downloads
       // the whole bundle whether or not they ever click the card.
       if (frame.getAttribute('src') !== embedUrl) frame.setAttribute('src', embedUrl);
-      openModal(dialog, dialog.querySelector('.app-shell'), null, eye);
-    });
+      openModal(dialog, dialog.querySelector('.app-shell'), null, opener);
+    }
   });
 
   document.getElementById('appClose')?.addEventListener('click', () => closeModal(dialog));

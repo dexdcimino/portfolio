@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=162" />
+  <link rel="stylesheet" href="styles.css?v=163" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -641,12 +641,16 @@
               <img class="ai-card-icon" src="assets/icons/apps/themedock.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
-            <button class="ai-card-eye" type="button" data-tip="Preview on this page"
-                    aria-label="Preview ThemeDock on this page">
+            <button class="ai-card-eye" type="button" data-tip="Functional preview overlay"
+                    aria-label="Open a functional preview of ThemeDock">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
           </article>
-          <article class="ai-card" id="splitmobCard" data-app-modal="/splitmob/" data-app-title="Splitmob" data-gallery="splitmob" data-kind="WEB APP" data-stack="REACT"
+          <!-- data-link-preview: until Splitmob is live somewhere real, its title
+               link opens the same on-site overlay the eyeball does instead of
+               navigating. Drop the attribute when the app has a public home
+               and the link will simply follow its href again. -->
+          <article class="ai-card" id="splitmobCard" data-app-modal="/splitmob/" data-link-preview data-app-title="Splitmob" data-gallery="splitmob" data-kind="WEB APP" data-stack="REACT"
              data-desc-lead="Swipe-to-vote polls, one question at a time."
              data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides straight in."><a class="ai-card-link" href="/splitmob/" target="_blank" rel="noopener noreferrer"><strong>Splitmob</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
             <!-- img src="assets/icons/apps/uvote.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
@@ -662,8 +666,8 @@
               <img class="ai-card-icon" src="assets/icons/apps/uvote.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
-            <button class="ai-card-eye" type="button" data-tip="Preview on this page"
-                    aria-label="Preview Splitmob on this page">
+            <button class="ai-card-eye" type="button" data-tip="Functional preview overlay"
+                    aria-label="Open a functional preview of Splitmob">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
           </article>
@@ -754,15 +758,23 @@
                hides it with no extra sync. -->
           <div class="app-info" id="appInfo">
             <strong class="app-info-title" id="appInfoTitle"></strong>
-            <!-- The selected app's first gallery shot — .game-art's sibling
-                 shape, no shadow, no play glyph. Hover, focus and a click on
-                 a card all set it, and it stays on the last one; clicking it
-                 opens the shared viewer. An app with no shots collapses it
-                 ([hidden]); the hidden label span is where the gallery's
-                 paintOpenBtn writes its count. -->
-            <button class="app-art" id="appArt" type="button" hidden>
-              <span class="game-gallery-label" hidden></span>
-            </button>
+            <!-- The selected app's gallery, inline: one shot at a time in
+                 the .game-art sibling frame, chevrons to cycle when there is
+                 more than one, and an x/x counter in the corner — no
+                 filmstrip. The frame is a plain div so the arrows sit BESIDE
+                 the enlarge button instead of nested inside it; clicking the
+                 shot enlarges it in #appShotModal, wallpaper-style. An app
+                 with no shots collapses the whole frame ([hidden]). -->
+            <div class="app-art" id="appArt" hidden>
+              <button class="app-art-view" id="appArtView" type="button"></button>
+              <button class="wp-arrow app-art-nav app-art-prev" id="appArtPrev" type="button" aria-label="Previous screenshot" hidden>
+                <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+              </button>
+              <button class="wp-arrow app-art-nav app-art-next" id="appArtNext" type="button" aria-label="Next screenshot" hidden>
+                <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+              </button>
+              <span class="app-art-count" id="appArtCount" aria-hidden="true"></span>
+            </div>
             <div class="game-desc">
               <strong class="game-desc-lead"></strong>
               <p class="game-desc-body"></p>
@@ -2155,6 +2167,30 @@
     </div>
   </dialog>
 
+  <!-- App screenshots at full size — the wallpaper lightbox's little sibling:
+       one image large, the x/x counter centred under it between two arrows
+       (greyed out when there is nothing to step to). Fed by initAppInfo from
+       the same .gal-item pictures the inline frame shows, cloned at overlay
+       sizes at open so nobody downloads the big rungs early. -->
+  <dialog class="app-shot-modal" id="appShotModal" aria-labelledby="appshot-dialog-title">
+    <div class="app-shot-shell">
+      <button class="contact-close app-shot-close" type="button" id="appShotClose" aria-label="Close screenshot">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <h2 class="sr-only" id="appshot-dialog-title">App screenshots</h2>
+      <div class="app-shot-stage" id="appShotStage"></div>
+      <div class="app-shot-bar">
+        <button class="wp-arrow app-shot-prev" id="appShotPrev" type="button" aria-label="Previous screenshot">
+          <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+        </button>
+        <span class="app-shot-count" id="appShotCount"></span>
+        <button class="wp-arrow app-shot-next" id="appShotNext" type="button" aria-label="Next screenshot">
+          <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Wallpaper lightbox. The piece at full size over everything else: the
        image is capped at 90vw AND 90vh so it always fits whichever way round
        the screen is, and it keeps its 16:10 ratio rather than being cropped.
@@ -2637,6 +2673,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=162"></script>
+  <script src="script.js?v=163"></script>
 </body>
 </html>

@@ -1479,17 +1479,47 @@ button.button{cursor:pointer;font-family:inherit}
 .app-art{
   display:block; margin-top:14px; width:100%; aspect-ratio:16/9;
   position:relative; border-radius:var(--radius-cover); overflow:hidden;
-  padding:0; cursor:pointer;
   border:var(--stroke) solid rgba(255,255,255,.1);
   background:#0e1217;                 /* the covers' plate, for the moment before the image paints */
   transition:border-color var(--accent-ease),transform .25s ease;
 }
 .app-art[hidden]{display:none}
-.app-art:hover,.app-art:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
-.app-art:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.app-art:hover,.app-art:focus-within{border-color:var(--accent);transform:translateY(-3px)}
+/* The enlarge control IS the picture area — a full-bleed button under the
+   chevrons, so the arrows are its siblings rather than nested inside it. */
+.app-art-view{position:absolute;inset:0;display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.app-art-view:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;border-radius:var(--radius-cover)}
 .app-art-shot{position:absolute;inset:0;display:block}
 .app-art-shot[hidden]{display:none}
 .app-art-img{width:100%;height:100%;object-fit:cover;display:block;border-radius:var(--radius-cover)}
+/* Cycle chevrons over the shot's edges; [hidden] on a one-shot app. */
+.app-art-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:3}
+.app-art-nav[hidden]{display:none}
+.app-art-prev{left:10px}
+.app-art-next{right:10px}
+/* x/x in the corner, on a translucent black plate — the whole filmstrip's
+   worth of information in eleven pixels of type. */
+.app-art-count{
+  position:absolute;right:10px;bottom:10px;z-index:3;pointer-events:none;
+  padding:3px 10px;border-radius:8px;background:rgba(0,0,0,.58);
+  color:#e9ebec;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
+}
+
+/* The enlarge view — the wallpaper lightbox's little sibling: image large,
+   x/x centred underneath between the two arrows; arrows grey out (disabled)
+   rather than vanish when there is only one shot, per Dex. */
+.app-shot-modal{border:0;padding:0;background:transparent;max-width:none;max-height:none}
+.app-shot-modal::backdrop{background:rgba(3,5,7,.9);backdrop-filter:blur(6px)}
+.app-shot-shell{position:relative;display:grid;justify-items:center;gap:14px}
+.app-shot-close{position:absolute;top:-6px;right:-52px;z-index:4}
+@media (max-width:1200px){.app-shot-close{top:-46px;right:0}}
+.app-shot-stage img{
+  display:block;width:auto;height:auto;max-width:min(92vw,1400px);max-height:76vh;
+  border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);
+}
+.app-shot-bar{display:flex;align-items:center;gap:16px}
+.app-shot-count{min-width:52px;text-align:center;font-size:14px;font-weight:700;color:#c3cad0;font-variant-numeric:tabular-nums}
+.wp-arrow[disabled]{opacity:.35;cursor:default;pointer-events:none}
 @media(prefers-reduced-motion:reduce){
   .app-art{transition:none}
   .app-art:hover,.app-art:focus-visible{transform:none}
@@ -1539,6 +1569,9 @@ button.button{cursor:pointer;font-family:inherit}
    the site, so the name AND the mini line under it underline together. */
 .ai-card-link:hover strong,.ai-card-link:hover>span,
 .ai-card-link:focus-visible strong,.ai-card-link:focus-visible>span{text-decoration:underline;text-underline-offset:3px}
+/* ...and the mini line steps well up from its resting grey, so the whole
+   text block reads as the live target. */
+.ai-card-link:hover>span,.ai-card-link:focus-visible>span{color:#e2e7ea}
 .ai-card-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 .ai-card-link>span{color:#9da5ab;font-size:12px;display:inline-flex;align-items:center;gap:6px}
 .inline-arrow{width:13px;height:13px}
@@ -3061,8 +3094,8 @@ body.modal-open{overflow:hidden}
    Listed together rather than per-carousel: scoping the rotation to .wp-prev
    left the overlay and the clips arrows pointing at the floor the moment they
    were added. Any new arrow gets its class added here, not its own rule. */
-.wp-prev .icon,.wp-fullprev .icon,.cl-prev .icon{transform:rotate(90deg)}
-.wp-next .icon,.wp-fullnext .icon,.cl-next .icon{transform:rotate(-90deg)}
+.wp-prev .icon,.wp-fullprev .icon,.cl-prev .icon,.app-art-prev .icon,.app-shot-prev .icon{transform:rotate(90deg)}
+.wp-next .icon,.wp-fullnext .icon,.cl-next .icon,.app-art-next .icon,.app-shot-next .icon{transform:rotate(-90deg)}
 
 /* The overlay's strip, centred under the piece. The panel's is the grid below
    and shares everything here except the container. */
