@@ -148,7 +148,7 @@
     </nav>
 
     <div class="side-bottom">
-      <button class="resume-mini" type="button" data-resume-open><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="preview" aria-hidden="true"></span></button>
+      <button class="resume-mini" type="button" data-resume-open><span class="icon nav-icon" data-icon="resume" aria-hidden="true"></span><span class="nav-text">RESUME</span><span class="icon nav-trail" data-icon="eye" aria-hidden="true"></span></button>
       <a class="contact-mini" href="mailto:dexdcimino@gmail.com"><span class="icon nav-icon" data-icon="contact" aria-hidden="true"></span><span class="nav-text">CONTACT</span></a>
 
       <!-- Stands in for the full profile block while it is collapsed. Purely
@@ -281,7 +281,7 @@
         <div class="hero-actions">
           <a class="button primary" href="#work"><span>VIEW WORK</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
           <a class="button" href="#ai"><span>AI LAB</span></a>
-          <button class="button ghost" type="button" data-resume-open><span>RESUME</span><span class="icon btn-icon" data-icon="preview" aria-hidden="true"></span></button>
+          <button class="button ghost" type="button" data-resume-open><span>RESUME</span><span class="icon btn-icon" data-icon="eye" aria-hidden="true"></span></button>
         </div>
       </div>
 
@@ -589,20 +589,18 @@
             <li class="game-tag" data-slot="dim"></li>
             <li class="game-tag" data-slot="players"></li>
           </ul>
-          <!-- The same button as VIEW WORK: .button.primary with an icon.
-               The icon is `preview`, the one VIEW RESUME wears, and NOT
-               `arrow-ne` — the diagonal conventionally means "this leaves the
-               page" and the gallery opens a dialog in place, which is why this
-               button carried no icon at all before.
+          <!-- The same button as VIEW WORK: .button.primary, but bare — no icon.
+               Not `arrow-ne`, because the diagonal conventionally means "this
+               leaves the page" and the gallery opens a dialog in place; and not
+               the eye either, which now belongs to the resume and the AI Lab
+               previews alone.
                .game-gallery-label stays, and it is load-bearing: script.js
                writes the honest per-game count into it (paintOpenBtn), looking
-               for that class first and falling back to the first <span>. With
-               an icon span now in the button, that fallback is a coin toss on
-               DOM order — naming the label means the count can never be
-               written into the icon. -->
+               for that class first and falling back to the first <span>. Keep
+               the class even while the label is the only span — it is what makes
+               a second span, whenever one arrives, harmless. -->
           <button class="button primary game-gallery-open" type="button" id="galleryOpen">
             <span class="game-gallery-label">GALLERY</span>
-            <span class="icon btn-icon" data-icon="preview" aria-hidden="true"></span>
           </button>
         </div>
       </div>
@@ -2150,7 +2148,7 @@
     <section class="resume-strip" id="contact-cta">
       <div><p class="eyebrow">EXPERIENCE</p><h2>WANT THE SHORT VERSION?</h2></div>
       <div class="resume-actions">
-        <button class="button primary" type="button" data-resume-open><span>VIEW RESUME</span><span class="icon btn-icon" data-icon="preview" aria-hidden="true"></span></button>
+        <button class="button primary" type="button" data-resume-open><span>VIEW RESUME</span><span class="icon btn-icon" data-icon="eye" aria-hidden="true"></span></button>
         <a class="button" href="mailto:dexdcimino@gmail.com"><span>EMAIL ME</span><span class="icon btn-icon" data-icon="arrow-ne" aria-hidden="true"></span></a>
       </div>
     </section>
