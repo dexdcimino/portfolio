@@ -41,13 +41,19 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   SSAO radius (2.2 m, not lookdev's 6.0 for a 4 km flat world), SSAO maxZ
   (260, not 900 — longer than half the worlds are wide), ambient fill, and
   texture scale.
-- **A cosmetic compositor property can cost more than the thing it decorates.**
-  `backdrop-filter: blur(3px)` on the intro card put **1.3 seconds** on the
-  WebGL context creation — the compositor keeps a readback of a full-screen
-  backdrop layer and it contends with the engine coming up behind it. Measured
-  warm: card on screen 210ms against 70ms, `Begin` live 2.4s against 1.0s. It
-  is a `box-shadow` now. Before adding blur, filter or large-area transparency
-  to anything that shares a frame with engine start-up, measure the boot.
+- **A blur costs whatever is coming up behind it.** `backdrop-filter:
+  blur(3px)` on the intro card put **1.3 seconds** on the WebGL context
+  creation: the compositor has to keep a readback of a full-screen backdrop
+  layer, and that contends with the engine coming up underneath. Measured warm,
+  card on screen 210ms against 70ms and `Begin` live 2.4s against 1.0s — a
+  cosmetic property costing more than everything it was decorating.
+  **This is not only about the start card.** `backdrop-filter`, large-area
+  `filter`, and full-screen transparency all force the compositor to keep and
+  re-read a layer it would otherwise skip, and the cost lands on whatever is
+  drawing behind them — the pause overlay over a live scene, the survey overlay,
+  the deep-water and x-ray veils, any future modal over the canvas. The rule is
+  the same in all of them: if it sits over something that is still rendering,
+  measure that something before and after. A shadow is free; a blur is not.
 - **An absolute length is a bug on six worlds of different sizes.** Almost
   every constant here is expressed in radii for exactly this reason; the one
   that is not — `HYPER.approachAlt`, 900m flat — is 0.43 radii up on Anvil and
@@ -310,10 +316,15 @@ submission, never resolution, so no coarse-geometry caster LOD was built.
 
 ## Known-outstanding — do not re-report
 
-- **`dev/cdp.mjs` launches Chrome on a fixed debug port (9222).** Two
-  harnesses at once deadlock on it, silently — both hang with empty output
-  rather than failing. Run browser harnesses one at a time, or give `launch()`
-  a port.
+- ~~**`dev/cdp.mjs` launches Chrome on a fixed debug port (9222).**~~ FIXED.
+  `launch()` asks for port 0 and reads back the one Chrome bound from
+  `DevToolsActivePort` in its own throwaway profile. It mattered because a
+  second Chrome told to use a busy port does not fail: it starts, loses the
+  debugging socket, and the harness then talks to the FIRST browser or to
+  nothing — both sessions hanging with empty output and no error. Six sessions
+  work in this repo. Verified by running two harnesses at once, which is the
+  case that used to hang; an explicit `port` still wins, for attaching a
+  browser of your own to watch a run.
 - **The arrival seam is 84 degrees and is deliberate.** `landOn` stands the
   craft up out of a radial dive — pitch to 0.10, autopilot on — in one frame.
   Phase 3 owns only that it is a pitch about the craft's own wings and nothing

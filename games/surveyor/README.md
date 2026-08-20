@@ -308,6 +308,29 @@ loading screen is waiting for.
 Babylon's compile is what is left and there is no honest way to remove it
 without a build step: 1.6s cold, ~480ms warm once V8 has code-cached it.
 
+### Two harnesses at once used to hang, both of them, silently
+
+`launch()` in the shared CDP client asked for debug port 9222 by default. That
+is fine for one harness and a trap for two, and **six sessions work in this
+repo**.
+
+A second Chrome told to use a port already in use does not fail. It starts,
+loses the debugging socket, and the harness then talks to the *first* browser's
+endpoint or to nothing at all — so both runs sit there with empty output and no
+error. It cost two ten-minute runs before anyone thought to look at the port,
+and the giveaway when someone did was two listeners on 9222.
+
+It asks for port **0** now: Chrome binds a free one and writes it to
+`DevToolsActivePort` inside the throwaway profile directory, which is a fresh
+`mkdtemp` per launch and therefore cannot be confused with anybody else's. The
+file is polled rather than slept on, because it appears when the socket is
+listening, which is exactly the moment there is something to talk to. An
+explicit `port` still wins, for the one case that wants a known address:
+attaching a browser of your own to watch a harness run.
+
+Verified against the failure itself — the boot harness and the six-way shot
+harness launched concurrently, both green, and nothing listening on 9222.
+
 ### The card, while that happens
 
 Three things, and the first two exist because a black screen behind a title
