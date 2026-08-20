@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=185" />
+  <link rel="stylesheet" href="styles.css?v=186" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -716,13 +716,13 @@
              data-desc-body="The portfolio this one replaced, kept live as an honest record of where the work stood before."><a class="ai-card-link" href="https://dexddc.com" target="_blank" rel="noopener noreferrer"><strong>dexddc.com</strong><span>Original portfolio site<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
             <!-- img src="assets/icons/apps/dexddc.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
             <picture class="ai-card-iconwrap">
-              <source type="image/avif" srcset="assets/derived/icons/apps/dexddc-420.avif?v=791fb749 420w,
-                                                assets/derived/icons/apps/dexddc-200.avif?v=791fb749 200w,
-                                                assets/derived/icons/apps/dexddc-84.avif?v=791fb749 84w"
+              <source type="image/avif" srcset="assets/derived/icons/apps/dexddc-420.avif?v=b67ab709 420w,
+                                                assets/derived/icons/apps/dexddc-200.avif?v=b67ab709 200w,
+                                                assets/derived/icons/apps/dexddc-84.avif?v=b67ab709 84w"
                       sizes="(max-width:700px) 64px, 84px">
-              <source type="image/webp" srcset="assets/derived/icons/apps/dexddc-420.webp?v=791fb749 420w,
-                                                assets/derived/icons/apps/dexddc-200.webp?v=791fb749 200w,
-                                                assets/derived/icons/apps/dexddc-84.webp?v=791fb749 84w"
+              <source type="image/webp" srcset="assets/derived/icons/apps/dexddc-420.webp?v=b67ab709 420w,
+                                                assets/derived/icons/apps/dexddc-200.webp?v=b67ab709 200w,
+                                                assets/derived/icons/apps/dexddc-84.webp?v=b67ab709 84w"
                       sizes="(max-width:700px) 64px, 84px">
               <img class="ai-card-icon" src="assets/icons/apps/dexddc.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
@@ -1724,19 +1724,31 @@
            cycler button is the one control. -->
       <div class="pk-pop" id="pkPop" hidden>
         <form id="pkForm" novalidate>
-          <div class="pk-cat">
-            <span class="pk-cat-dashes" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-            <button class="pk-cat-btn" type="button" id="pkCat"
-                    aria-label="Category: Game — press to change">Game</button>
+          <div class="pk-pop-head">
+            <span class="pk-pop-title">Suggestion?</span>
+            <div class="pk-cat">
+              <button class="pk-cat-btn" type="button" id="pkCat"
+                      aria-label="Category: Game — press to change">Game</button>
+              <span class="pk-cat-dashes" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            </div>
           </div>
           <input class="pk-pop-input" id="pkSuggestion" type="text" maxlength="300"
-                 required placeholder="Suggest a game, movie, song, or quote" />
+                 required placeholder="Title" />
           <input class="pk-pop-input" id="pkFrom" type="text" maxlength="120"
                  autocomplete="off" placeholder="Anon" />
+          <div class="pk-easy">
+            <span id="pkEasyLabel">Top 5 easy to pick?</span>
+            <div class="pk-yesno" role="group" aria-labelledby="pkEasyLabel">
+              <button class="pk-yn" type="button" id="pkYes" aria-pressed="false">Yes</button>
+              <button class="pk-yn" type="button" id="pkNo" aria-pressed="false">No</button>
+            </div>
+          </div>
           <input class="contact-trap" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <input class="contact-trap" type="checkbox" name="botcheck" id="pkBotcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
-          <p class="pk-pop-status" id="pkStatus" role="status" aria-live="polite"></p>
-          <button class="button primary pk-pop-send" type="submit" id="pkSend"><span>SEND</span></button>
+          <div class="pk-pop-foot">
+            <p class="pk-pop-status" id="pkStatus" role="status" aria-live="polite"></p>
+            <button class="button primary pk-pop-send" type="submit" id="pkSend"><span>SEND</span></button>
+          </div>
         </form>
       </div>
       </div>
@@ -2872,15 +2884,15 @@
         <figure class="gal-item" data-game="dexddc" data-title="The portfolio grid, on the old site">
           <!-- img src="assets/gallery/dexddc-portfolio.png" slot="game-shot" alt="The dexddc.com portfolio page: a carved stone fantasy navigation bar reading Home, Portfolio, Projects and Resume over a blue-lit castle backdrop, above a grid of six numbered work cards — a rigged bow and axe, a skull-faced king, a green sci-fi grenade launcher, an armoured dwarf bust, a multi-render weapon showcase, and a robed warrior" -->
           <picture>
-            <source type="image/avif" srcset="assets/derived/gallery/dexddc-portfolio-1600.avif?v=2784955d 1600w,
-                                              assets/derived/gallery/dexddc-portfolio-1200.avif?v=2784955d 1200w,
-                                              assets/derived/gallery/dexddc-portfolio-900.avif?v=2784955d 900w,
-                                              assets/derived/gallery/dexddc-portfolio-600.avif?v=2784955d 600w"
+            <source type="image/avif" srcset="assets/derived/gallery/dexddc-portfolio-1600.avif?v=68fde176 1600w,
+                                              assets/derived/gallery/dexddc-portfolio-1200.avif?v=68fde176 1200w,
+                                              assets/derived/gallery/dexddc-portfolio-900.avif?v=68fde176 900w,
+                                              assets/derived/gallery/dexddc-portfolio-600.avif?v=68fde176 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <source type="image/webp" srcset="assets/derived/gallery/dexddc-portfolio-1600.webp?v=2784955d 1600w,
-                                              assets/derived/gallery/dexddc-portfolio-1200.webp?v=2784955d 1200w,
-                                              assets/derived/gallery/dexddc-portfolio-900.webp?v=2784955d 900w,
-                                              assets/derived/gallery/dexddc-portfolio-600.webp?v=2784955d 600w"
+            <source type="image/webp" srcset="assets/derived/gallery/dexddc-portfolio-1600.webp?v=68fde176 1600w,
+                                              assets/derived/gallery/dexddc-portfolio-1200.webp?v=68fde176 1200w,
+                                              assets/derived/gallery/dexddc-portfolio-900.webp?v=68fde176 900w,
+                                              assets/derived/gallery/dexddc-portfolio-600.webp?v=68fde176 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
             <img src="assets/gallery/dexddc-portfolio.png" alt="The dexddc.com portfolio page: a carved stone fantasy navigation bar reading Home, Portfolio, Projects and Resume over a blue-lit castle backdrop, above a grid of six numbered work cards — a rigged bow and axe, a skull-faced king, a green sci-fi grenade launcher, an armoured dwarf bust, a multi-render weapon showcase, and a robed warrior" width="1920" height="1080" loading="lazy" decoding="async">
           </picture>
@@ -3160,6 +3172,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=185"></script>
+  <script src="script.js?v=186"></script>
 </body>
 </html>

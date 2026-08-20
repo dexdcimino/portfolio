@@ -948,11 +948,25 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 }
 .pk-pop[hidden]{display:none}
 .pk-pop form{display:grid;gap:9px;margin:0}
-/* The cycler: four indicator dashes (not controls) over the one button. */
-.pk-cat{display:grid;gap:6px;justify-items:start}
-.pk-cat-dashes{display:flex;gap:5px;pointer-events:none}
-.pk-cat-dashes i{width:16px;height:2.5px;border-radius:2px;background:#39424b;transition:background var(--accent-ease)}
+/* Header row: the question on the left, the cycler on the right, its four
+   indicator dashes (not controls) tucked UNDER the button. */
+.pk-pop-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.pk-pop-title{font-size:15px;font-weight:900;letter-spacing:.03em;color:var(--text);padding-top:5px}
+.pk-cat{display:grid;gap:5px;justify-items:end}
+.pk-cat-dashes{display:flex;gap:4px;pointer-events:none;padding-right:2px}
+.pk-cat-dashes i{width:13px;height:2.5px;border-radius:2px;background:#39424b;transition:background var(--accent-ease)}
 .pk-cat-dashes i.on{background:var(--accent)}
+/* The curiosity row: was a top five easy? Compact, optional, one-or-neither. */
+.pk-easy{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:#98a1a9}
+.pk-yesno{display:flex;gap:6px}
+.pk-yn{
+  padding:6px 13px;border:0;border-radius:8px;
+  font-family:inherit;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+  background:#232a32;color:#aab2ba;cursor:pointer;
+  transition:background var(--accent-ease),color var(--accent-ease);
+}
+.pk-yn.on{background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.pk-yn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pk-cat-btn{
   min-width:88px;padding:8px 16px;border:0;border-radius:9px;
   font-family:inherit;font-size:13px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
@@ -968,10 +982,12 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 }
 .pk-pop-input:focus{outline:none;border-color:var(--accent)}
 .pk-pop-input.invalid{border-color:#ff8585}
-.pk-pop-status{margin:0;font-size:12.5px;color:#98a1a9;min-height:1em}
+/* Footer: status grows on the left, SEND holds the right edge. */
+.pk-pop-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pk-pop-status{margin:0;flex:1 1 auto;font-size:12.5px;color:#98a1a9;min-height:1em}
 .pk-pop-status.ok{color:var(--accent)}
 .pk-pop-status.error{color:#ff8585}
-.pk-pop-send{justify-self:start;min-height:36px;padding:0 18px}
+.pk-pop-send{flex:0 0 auto;min-height:36px;padding:0 18px}
 @media(max-width:760px){
   /* no room beside the button: drop below the row, hug its right edge */
   .pk-pop{top:calc(100% + 8px);right:0}
