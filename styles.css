@@ -1720,12 +1720,28 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .collab-soon{
   display:flex;flex-direction:column;align-items:stretch;gap:13px;
   text-align:center;
+  /* The type is measured against THIS box, not the viewport — see below. */
+  container-type:inline-size;
 }
-/* One line, always. A wrap would make it a block again, so the type shrinks
-   with the column instead of breaking — and the tracking, which is what makes
-   two short words read as a sign, comes out of the same budget. */
+/* One line, always, and very nearly as wide as the bars above and below it:
+   the words and the tape are the same sign, so they should be the same
+   length. Sized in cqi off .collab-soon, the way .about-copy h2 is sized off
+   .about-copy and for the same reason — a vw size is a guess about the
+   viewport, and this column is a fraction of it that changes at the split.
+   UNDER CONSTRUCTION at .2em tracking measures 15.25x its own font-size of
+   INK (15.45 as laid out, less the .2em of tracking that trails the last N
+   and is not ink), so 100/15.25 = 6.556cqi would touch both edges exactly.
+   6.3 stops at 96% of the column, and that ~4% is not slack — it is the only
+   headroom there is against the FONT, which is the one thing here that is
+   not ours: nothing self-hosts Inter, so `system-ui` hands this to Segoe UI,
+   SF Pro or Roboto depending on the device, and their Blacks are not the
+   same width. If one of them is more than 4% wider the line still does not
+   wrap or scroll the page: nowrap keeps it one line, .split-section's
+   var(--gutter) absorbs the spill, and body{overflow-x:hidden} is under that.
+   margin-right pulls the trailing tracking back out of the box so the line
+   is optically centred rather than sitting .1em left of centre. */
 .collab-soon strong{
-  font-size:clamp(15px,1.7vw,26px);line-height:1.1;letter-spacing:.2em;
+  font-size:6.3cqi;line-height:1.1;letter-spacing:.2em;margin-right:-.2em;
   font-weight:900;color:var(--text);opacity:.88;white-space:nowrap;
 }
 /* Full width now, not min(430px,74%): the bars ARE the strip, and a bar that
