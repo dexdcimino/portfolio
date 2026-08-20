@@ -94,20 +94,21 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   scrubber, volume and chips their own clicks; `.wp-plate` is
   `pointer-events:none`.
 - `about-breakout.js` — ES module for the About section's Breakout toy.
-  Wired into the page as two chips (`.bb-ui` in `index.html`, absolutely
-  positioned into the dead space under the bio so layout never changes;
-  BREAK THE BIO + a sound chip) and one block at the end of `script.js`
-  that owns the gate and the lazy `import()` on first click — the cold
-  path costs a rect check and two chips, nothing game-related is fetched
-  before then. Gating is split on purpose: pointer + motion live in a CSS
-  media query on `.bb-ui`; the geometry half (is there room for the ball,
-  and >=150px of clear gutter right of the copy for the in-game control
-  stack — one gate, so no width offers the game without somewhere to put
-  stop) is a small duplicate in `script.js`, because the module's
-  authoritative `canPlay()` cannot run before the module loads. The wall is
+  Wired into the page as one centred BREAK THE BIO pill (`.bb-ui` in
+  `index.html`, absolutely positioned into the dead space under the bio so
+  layout never changes; no sound control out here — before the game starts
+  there is nothing to mute) and one block at the end of `script.js` that
+  owns the gate and the lazy `import()` on first click — the cold path
+  costs a rect check and one pill, nothing game-related is fetched before
+  then. Gating is split on purpose: pointer + motion live in a CSS media
+  query on `.bb-ui`; the geometry half (is there room for the ball, and
+  >=150px of clear gutter right of the copy for the in-game control stack
+  — one gate, so no width offers the game without somewhere to put the X)
+  is a small duplicate in `script.js`, because the module's authoritative
+  `canPlay()` cannot run before the module loads. The wall is
   BOTH bio paragraphs; the `h2` is the ceiling and flashes accent on
   contact. Every glyph of the
-  second bio paragraph is measured per character via Range rects (no spans,
+  wall is measured per character via Range rects (no spans,
   ever — the `<p>` stays one text node), and a transparent canvas overlay
   erases and redraws single letters. The paragraph is NEVER hidden or
   redrawn wholesale: Canvas2D rasterises glyphs measurably brighter than
@@ -117,8 +118,8 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   in motion. Erasing needs an opaque background behind the paragraph —
   the game re-resolves it every ~20 frames and shuts down if it ever stops
   being one colour. `start()` runs the game: paddle (mouse + A/D/arrows),
-  contact-point aim, minimum-bounce-angle clamp, ceiling at paragraph one's
-  underside (h2 flashes accent, throttled), floor at the portrait's bottom
+  contact-point aim, minimum-bounce-angle clamp, ceiling at the h2's
+  underside (it flashes accent, throttled), floor at the portrait's bottom
   hard-capped above `.about-sub` — and `canPlay()` gates on a fine pointer,
   motion allowed, and >=56px of dead space under the bio, which the layout
   only has at roughly >=1400px wide. A hit letter detaches with the ball's
@@ -128,24 +129,28 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   driving synthesized blips through `createBusGraph` — no samples, no
   MediaBus registration for the BLIPS (short fx are not a player and must
   not pause the song bar) — but the MUSIC is a player and registers:
-  Heavenly Loop (CC0, isaiah658 — `assets/audio/heavenly-loop.mp3`, row in
-  `assets/CREDITS.md`), fetched on first start and looped as a WebAudio
+  Juhani Junkala's Title Screen chiptune (CC0 —
+  `assets/audio/breakout-loop.mp3`, row in `assets/audio/CREDITS.md`, the
+  one audio credits table), fetched on first start and looped as a WebAudio
   buffer with silence-trimmed loop points (the only way a compressed loop
   is seamless, and Safari cannot decode ogg-vorbis). The registered `el` is
   a `.paused` shim — the bus only ever reads that — so starting the toy
   pauses the songs bar, the space bar pauses/resumes the game under the
   bus's existing rules, and the hidden-tab rule quiets it; the module also
-  pauses the GAME on visibilitychange. Pause is real: updates freeze, the
-  playfield dims under a labelled veil, and the whole AudioContext
+  pauses the GAME on visibilitychange. Pause is real: updates freeze, a
+  small centred accent-outlined PAUSED panel appears over a slightly dimmed
+  playfield (a full dark wash read as a crash), and the whole AudioContext
   suspends; clicking the playfield toggles it, Escape is always a full
-  stop. In-game controls are the `.bb-stack` (mute + master slider, pause,
-  stop) right of the playfield, shown only while running — the mute and
-  slider write the same shared settings as the popover, one volume path.
-  Music opens at 50% for a first-time player (seeded only when no stored
-  mix exists). `getAudio()` is a singleton shared by the game and the sound
-  chip's popover (the shared panel + `games/_shared/audio-panel.css`,
-  linked lazily on first open), so a slider dragged there IS the live
-  mixer. Win: when the wall is empty and the last fall has faded, every
+  stop. While the ball is live the page cursor becomes an accent arrow in
+  the site cursor's own double-stroke construction (dark casing under the
+  accent line — same reason the lightbox cursor is built that way),
+  cleared on pause and on every exit through stop(), the one funnel all
+  error paths drain into. In-game controls are the `.bb-stack` right of
+  the playfield, bottom level with the paddle, shown only while running —
+  top to bottom: X (stop), pause, then mute + master slider at the very
+  bottom, writing the same shared settings, one volume path. Music opens
+  at 50% for a first-time player (seeded only when no stored mix
+  exists). Win: when the wall is empty and the last fall has faded, every
   letter flies home from scatter below the floor, staggered in reading
   order, and is UNCOVERED the frame it lands — the handoff back to real
   text is per letter and needs no final swap. The `<p>` stays in the accessible tree

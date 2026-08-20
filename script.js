@@ -4865,16 +4865,14 @@ const PORTRAIT_LABEL = {
 (() => {
   const ui = document.getElementById('bbUi');
   const play = document.getElementById('bbPlay');
-  const soundBtn = document.getElementById('bbSound');
-  const panelHost = document.getElementById('bbAudioPanel');
   const stack = document.getElementById('bbStack');
   const muteBtn = document.getElementById('bbMuteBtn');
   const vol = document.getElementById('bbVol');
   const pauseBtn = document.getElementById('bbPauseBtn');
   const stopBtn = document.getElementById('bbStopBtn');
-  if (!ui || !play || !soundBtn || !panelHost || !stack) return;
+  if (!ui || !play || !stack) return;
 
-  const MODULE = './about-breakout.js?v=2';
+  const MODULE = './about-breakout.js?v=3';
   let mod = null;
   const load = async () => (mod ??= await import(MODULE));
 
@@ -4897,11 +4895,6 @@ const PORTRAIT_LABEL = {
   gate();
   window.addEventListener('resize', gate);
   window.addEventListener('load', gate);
-
-  const closePanel = () => {
-    panelHost.hidden = true;
-    soundBtn.setAttribute('aria-expanded', 'false');
-  };
 
   let ctl = null;
   let starting = false;
@@ -4942,7 +4935,6 @@ const PORTRAIT_LABEL = {
     try {
       const m = await load();
       if (!m.canPlay()) { gate(); return; }
-      closePanel();
       ui.classList.add('bb-playing');
       ctl = await m.start({
         onStop: () => {
@@ -4957,11 +4949,14 @@ const PORTRAIT_LABEL = {
           if (!paused) MediaBus.solo(me);
         },
       });
-      // Align the stack with the playfield's top — the canvas starts under
-      // the h2, and only the game knows exactly where that lands.
-      stack.style.top = (ctl.handle.canvas.getBoundingClientRect().top -
-        document.querySelector('.about-copy').getBoundingClientRect().top + 2) + 'px';
+      // The stack sits LOW: its bottom roughly level with the paddle, and
+      // only the game knows where that lands. Unhide first — a hidden
+      // element has no height to measure.
       stack.hidden = false;
+      const canvasTop = ctl.handle.canvas.getBoundingClientRect().top;
+      const copyTop = document.querySelector('.about-copy').getBoundingClientRect().top;
+      stack.style.top = (canvasTop + ctl.state.paddle.y + 8 -
+        stack.offsetHeight - copyTop) + 'px';
       paintControls();
       MediaBus.solo(me);            // the music began: the songs bar yields
     } catch (e) {
@@ -4974,9 +4969,9 @@ const PORTRAIT_LABEL = {
     }
   });
 
-  /* The stack: mute + slider write the SHARED mixer (the same settings
-     object the popover panel edits — one place writes the level), pause is
-     the module's own pause, stop is a full reset and exit. */
+  /* The stack: mute + slider write the SHARED mixer (the module's
+     createAudioSettings instance — one place writes the level), pause is
+     the module's own pause, and the X is a full reset and exit. */
   muteBtn.addEventListener('click', () => {
     if (!mod) return;
     const s = mod.getAudio().settings;
@@ -4990,28 +4985,4 @@ const PORTRAIT_LABEL = {
   });
   pauseBtn.addEventListener('click', () => { ctl?.toggle(); paintControls(); });
   stopBtn.addEventListener('click', () => ctl?.stop());
-
-  /* The audio popover: the shared Clayweld panel, its stylesheet linked the
-     first time it opens. Sharing getAudio() with the game means a slider
-     dragged here IS the game's mixer, not a copy of its numbers. */
-  let panelBuilt = false;
-  soundBtn.addEventListener('click', async () => {
-    if (!panelHost.hidden) { closePanel(); return; }
-    try {
-      const m = await load();
-      if (!panelBuilt) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'games/_shared/audio-panel.css?v=1';
-        document.head.appendChild(link);
-        m.getAudio().mountPanel(panelHost);
-        panelBuilt = true;
-      }
-      panelHost.hidden = false;
-      soundBtn.setAttribute('aria-expanded', 'true');
-    } catch (e) { /* no panel is no reason to lose the game */ }
-  });
-  document.addEventListener('click', (e) => {
-    if (!panelHost.hidden && !ui.contains(e.target)) closePanel();
-  });
 })();

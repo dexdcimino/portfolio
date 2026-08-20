@@ -31,7 +31,7 @@
  * it. Every failure path lands in restore().
  */
 
-import { createAudioSettings, buildAudioPanel, createBusGraph }
+import { createAudioSettings, createBusGraph }
   from './games/_shared/audio-panel.js';
 
 const BLEED = 8;  // px of canvas beyond the paragraph, so nothing ever clips
@@ -373,7 +373,8 @@ function createAudio() {
     } catch { /* no audio is never an error worth surfacing */ }
   };
 
-  /* ---- music: Heavenly Loop (CC0, isaiah658 — see assets/CREDITS.md) ----
+  /* ---- music: Juhani Junkala's Title Screen chiptune (CC0 — see
+   * assets/audio/CREDITS.md) ----
    * A WebAudio buffer loop rather than an <audio> element: loopStart/loopEnd
    * are set past the MP3 encoder's padding silence, which is the only way a
    * compressed loop is actually seamless, and it decodes everywhere (Safari
@@ -395,7 +396,7 @@ function createAudio() {
     try {
       const c = ensure();
       if (!musicBuffer) {
-        const res = await fetch('assets/audio/heavenly-loop.mp3');
+        const res = await fetch('assets/audio/breakout-loop.mp3');
         musicBuffer = await c.decodeAudioData(await res.arrayBuffer());
       }
       if (musicSource || !musicOn) return;   // stopped while fetching
@@ -442,7 +443,6 @@ function createAudio() {
     win: () => { blip(440, 0.1, { peak: 0.4 });
       setTimeout(() => blip(554, 0.1, { peak: 0.4 }), 90);
       setTimeout(() => blip(660, 0.16, { peak: 0.4 }), 180); },
-    mountPanel: (root) => buildAudioPanel(root, settings),
     running: () => (ctx ? ctx.state : 'none'),
     // Suspended between games, not closed: the popover panel and the next
     // start() keep working against the same context and settings instance.
@@ -551,8 +551,37 @@ export async function start({ onStop, onPauseChange } = {}) {
     running: true, won: false,
   };
 
+  /* The game cursor: the pointer becomes part of the toy while the ball is
+   * live — an accent arrow in the site cursor's own construction (a dark
+   * casing stroke UNDER the accent stroke, which is what keeps it readable
+   * over any ground; the wallpaper lightbox cursor is built the same way).
+   * Applied to the whole page because the paddle steers from anywhere, and
+   * cleared on pause and on EVERY exit — stop() is the single funnel all
+   * error paths already drain into, so a stuck page-wide cursor cannot
+   * happen without the game itself being stuck. */
+  const cursorFor = (hex) => {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>` +
+      `<g fill='none' stroke='#000' stroke-opacity='.55' stroke-width='4.5' stroke-linejoin='round' stroke-linecap='round'>` +
+      `<path d='M6 4l10 20 2.5-8.5L27 13z'/></g>` +
+      `<g fill='none' stroke='${hex}' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'>` +
+      `<path d='M6 4l10 20 2.5-8.5L27 13z'/></g></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 6 4, auto`;
+  };
+  let cursorAccent = null;
+  const applyCursor = () => {
+    if (state.running && !paused) {
+      if (cursorAccent !== accent) {
+        cursorAccent = accent;
+        document.documentElement.style.cursor = cursorFor(accent);
+      }
+    } else {
+      cursorAccent = null;
+      document.documentElement.style.removeProperty('cursor');
+    }
+  };
+
   /* Pause is a real state, not a stopped clock: updates freeze, the render
-   * keeps running so the dim + label frame is always current, and the whole
+   * keeps running so the paused frame is always current, and the whole
    * audio context suspends — the music halts mid-note, which is what paused
    * should sound like. onPauseChange is how the page's controls (and its
    * MediaBus registration) follow along. */
@@ -560,12 +589,14 @@ export async function start({ onStop, onPauseChange } = {}) {
     if (!state.running || paused) return;
     paused = true;
     audio.pauseAll();
+    applyCursor();
     try { onPauseChange?.(true); } catch { }
   };
   const resume = () => {
     if (!state.running || !paused) return;
     paused = false;
     audio.resumeAll();
+    applyCursor();
     try { onPauseChange?.(false); } catch { }
   };
   const togglePause = () => (paused ? resume() : pause());
@@ -770,21 +801,36 @@ export async function start({ onStop, onPauseChange } = {}) {
   /* ---- render --------------------------------------------------------- */
   let frameCount = 0;
   /* Pause must LOOK paused, or a frozen ball over a half-eaten bio reads as
-   * the site having broken: dim the whole playfield and say so. */
+   * the site having broken. A small centred block says so — a full dark wash
+   * across the container read as a crash, so the playfield behind only dims
+   * slightly and the outlined panel is what carries the message. */
   const drawVeil = () => {
     if (!paused) return;
     const ctx = h.ctx;
-    ctx.fillStyle = 'rgba(5, 7, 9, 0.55)';
+    ctx.fillStyle = 'rgba(5, 7, 9, 0.2)';
     ctx.fillRect(0, 0, h.size.w, h.size.h);
     const cx = h.size.w / 2;
-    const cy = Math.min(h.size.h - 40, floor - 46);
+    const cy = h.size.h / 2;
+    const titleFont = `800 24px ${h.fontFamily}`;
+    const hintFont = `400 13px ${h.fontFamily}`;
+    ctx.font = hintFont;
+    const hint = 'space, click, or the pause button resumes';
+    const bw = Math.max(180, ctx.measureText(hint).width + 56);
+    const bh = 92;
+    const panel = new Path2D();
+    panel.roundRect(cx - bw / 2, cy - bh / 2, bw, bh, 14);
+    ctx.fillStyle = '#101418';
+    ctx.fill(panel);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = accent;
+    ctx.stroke(panel);
     ctx.textAlign = 'center';
     ctx.fillStyle = accent;
-    ctx.font = `800 14px ${h.fontFamily}`;
-    ctx.fillText('PAUSED', cx, cy);
-    ctx.fillStyle = 'rgba(173, 181, 187, 0.8)';
-    ctx.font = `400 11px ${h.fontFamily}`;
-    ctx.fillText('space, click, or the pause button resumes', cx, cy + 20);
+    ctx.font = titleFont;
+    ctx.fillText('PAUSED', cx, cy - 6);
+    ctx.fillStyle = 'rgba(173, 181, 187, 0.85)';
+    ctx.font = hintFont;
+    ctx.fillText(hint, cx, cy + 24);
     ctx.textAlign = 'left';
     ctx.font = h.font;
   };
@@ -851,6 +897,7 @@ export async function start({ onStop, onPauseChange } = {}) {
   const stop = () => {
     if (!state.running) return;
     state.running = false;
+    applyCursor();            // the page's own pointer, back on every exit
     cancelAnimationFrame(raf);
     io.disconnect();
     window.removeEventListener('keydown', onKeyDown, true);
@@ -873,6 +920,7 @@ export async function start({ onStop, onPauseChange } = {}) {
       if (++frameCount % 20 === 0) {
         if (!h.refreshBackground()) { stop(); return; }   // bg went translucent
         accent = getComputedStyle(root).getPropertyValue('--accent').trim() || accent;
+        applyCursor();                                    // accent swap recolours it
         // A layout shift with no resize event (content above the section
         // growing, a font engage missed) moves the text out from under the
         // measured coordinates. Scroll cancels out — both rects are viewport.
@@ -913,6 +961,7 @@ export async function start({ onStop, onPauseChange } = {}) {
   });
 
   audio.music.start();
+  applyCursor();
   raf = requestAnimationFrame(frame);
 
   return {

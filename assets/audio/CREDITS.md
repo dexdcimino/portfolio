@@ -34,6 +34,7 @@ excluded here to keep the rule simple.
 | `games/arena1/assets/audio/slide.ogg` | Arena 1 | Slide (0.69s) | https://kenney.nl/assets/impact-sounds | Kenney | CC0 |
 | `games/arena1/assets/audio/music.ogg` | Arena 1 | Background music (38.5s seamless loop) | https://opengameart.org/content/analog-beats-looped | Analog Beats | CC0 |
 | `games/chomp/assets/audio/music.ogg` | Chomp | Background music (54.9s loop) — PLACEHOLDER, not yet wired | https://opengameart.org/content/dark-place-loop | Dark Place | CC0 |
+| `assets/audio/breakout-loop.mp3` | Site — About Breakout | Background music (11.3s seamless loop; "Title Screen" from the 5 Chiptunes (Action) pack, transcoded from the author's WAV to 112kbps MP3 — loop points are set at runtime past the encoder padding, so the MP3 gap cannot break the seam) | https://opengameart.org/content/5-chiptunes-action | Juhani Junkala (SubspaceAudio) | CC0 |
 
 All nine come from one pack — Kenney "Sci-Fi Sounds" v1.0, CC0, licence text
 bundled in the download and quoted here: *"This content is free to use in

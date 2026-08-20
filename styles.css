@@ -1775,8 +1775,8 @@ button.button{cursor:pointer;font-family:inherit}
 .about-copy{position:relative}
 .bb-ui{display:none}
 @media (pointer:fine) and (prefers-reduced-motion:no-preference){
-  /* Centred under the bio text as a pair — the sound chip travels with the
-     play button rather than reading as an unrelated control. */
+  /* Centred under the bio text. Just the invitation: no sound chip out here,
+     because before the game starts there is nothing to mute. */
   .bb-ui:not([hidden]){
     position:absolute;left:50%;transform:translateX(-50%);
     top:calc(100% + 24px);
@@ -1786,57 +1786,37 @@ button.button{cursor:pointer;font-family:inherit}
 /* The chips ARE the playfield once the ball is out: visibility, not display,
    so nothing reflows and the game's layout-drift guard stays quiet. */
 .bb-ui.bb-playing{visibility:hidden}
+/* The invitation. Sized to be read at a glance from normal viewing distance —
+   it whispered at 11px and this button is the whole reason the toy is found. */
 .bb-play{
-  display:inline-flex;align-items:center;gap:9px;
-  padding:9px 16px;border:1px solid var(--line);border-radius:999px;
-  background:none;color:#959ea5;font-family:inherit;font-size:11px;
-  font-weight:800;letter-spacing:.16em;cursor:pointer;
+  display:inline-flex;align-items:center;gap:12px;
+  padding:14px 26px;border:1px solid var(--line);border-radius:999px;
+  background:none;color:#959ea5;font-family:inherit;font-size:15px;
+  font-weight:800;letter-spacing:.18em;cursor:pointer;
   transition:color .2s ease,border-color .2s ease;
 }
-.bb-play svg{width:9px;height:9px;fill:currentColor}
+.bb-play svg{width:14px;height:14px;fill:currentColor}
 .bb-play:hover,.bb-play:focus-visible{color:var(--accent);border-color:var(--accent)}
-.bb-sound{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:32px;height:32px;padding:0;border:1px solid var(--line);
-  border-radius:50%;background:none;color:#959ea5;cursor:pointer;
-  transition:color .2s ease,border-color .2s ease;
-  /* Out of flow, hanging off the play button's right: the BUTTON is what
-     centres under the bio, and the chip rides beside it as its pair. */
-  position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);
-}
-.bb-sound svg{width:13px;height:13px;fill:currentColor}
-.bb-sound:hover,.bb-sound:focus-visible,
-.bb-sound[aria-expanded="true"]{color:var(--accent);border-color:var(--accent)}
-/* The shared Clayweld panel (games/_shared/audio-panel.css, linked lazily on
-   first open) reads these two tokens for its accent and knob ink. */
-.bb-audio{
-  --cmenu-accent:var(--accent);
-  --cmenu-ink:#0b0e11;
-  position:absolute;left:0;top:calc(100% + 12px);
-  min-width:300px;padding:12px 14px;
-  background:#101418;border:1px solid var(--line);border-radius:12px;
-  box-shadow:0 12px 30px rgba(0,0,0,.45);
-}
-.bb-audio[hidden]{display:none}
 
 /* In-game control stack: outside the playfield on its right, vertical, shown
-   only while the game runs (script toggles [hidden]). The geometry gate in
-   script.js requires ~150px of clear gutter here, so any width that shows
-   BREAK THE BIO also fits this. */
+   only while the game runs (script toggles [hidden] and sets the top so the
+   stack's bottom sits level with the paddle). Order: X, pause, volume. The
+   geometry gate in script.js requires ~150px of clear gutter here, so any
+   width that shows BREAK THE BIO also fits this (mute row: 14+44+8+80px). */
 .bb-stack{
-  position:absolute;left:calc(100% + 16px);top:2px;
-  display:flex;flex-direction:column;align-items:flex-start;gap:10px;
+  position:absolute;left:calc(100% + 14px);top:2px;
+  display:flex;flex-direction:column;align-items:flex-start;gap:12px;
   z-index:2;
 }
 .bb-stack[hidden]{display:none}
 .bb-mrow{display:flex;align-items:center;gap:8px}
 .bb-ctl{
   display:inline-flex;align-items:center;justify-content:center;
-  width:32px;height:32px;padding:0;border:1px solid var(--line);
+  width:44px;height:44px;padding:0;border:1px solid var(--line);
   border-radius:50%;background:#101418;color:#959ea5;cursor:pointer;
   transition:color .2s ease,border-color .2s ease;
 }
-.bb-ctl svg{width:12px;height:12px;fill:currentColor}
+.bb-ctl svg{width:19px;height:19px;fill:currentColor}
 .bb-ctl:hover,.bb-ctl:focus-visible{color:var(--accent);border-color:var(--accent)}
 .bb-ctl[role="switch"][aria-checked="false"] svg{opacity:.35}
 /* The pause chip swaps its glyph with its state: paused shows play. */
@@ -1848,7 +1828,7 @@ button.button{cursor:pointer;font-family:inherit}
    script.js) but self-contained: the shared stylesheet only loads with the
    popover, and the stack must not depend on it. */
 .bb-vol{
-  width:80px;height:20px;-webkit-appearance:none;appearance:none;
+  width:80px;height:24px;-webkit-appearance:none;appearance:none;
   background:none;cursor:pointer;
 }
 .bb-vol::-webkit-slider-runnable-track{
@@ -1865,11 +1845,11 @@ button.button{cursor:pointer;font-family:inherit}
 }
 .bb-vol::-webkit-slider-thumb{
   -webkit-appearance:none;appearance:none;
-  width:13px;height:13px;border-radius:50%;margin-top:-4.5px;
+  width:16px;height:16px;border-radius:50%;margin-top:-6px;
   background:#fff;border:0;box-shadow:0 1px 3px rgba(0,0,0,.5);
 }
 .bb-vol::-moz-range-thumb{
-  width:13px;height:13px;border-radius:50%;
+  width:16px;height:16px;border-radius:50%;
   background:#fff;border:0;box-shadow:0 1px 3px rgba(0,0,0,.5);
 }
 .bb-vol:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
