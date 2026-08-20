@@ -44,6 +44,24 @@
 
       Spans: games/chomp, games/surveyor — one shared panel, both games
 
+- **And the other half of that accident is now enforced too.** A commit can
+  also carry work it never mentions, by staging a file two sessions are both
+  editing. On 2026-08-19 three did: `b6ba02f` published a re-baked kong-fu
+  `<picture>` whose derivatives were not staged, so `main` referenced a file
+  that was in no tree at all; `feef1f3` ("Splitmob renamed everywhere") carried
+  a `.vault-pin` restyle; `d3c2f6a` carried an ARCHITECTURE.md invariant. Wrong
+  attribution is the small half — the real risk is a revert taking out
+  something nobody knew was in there. `tools/check_sweep.py` refuses two
+  things: markup pointing at an `assets/derived/` file the commit does not
+  contain (exact, no escape hatch), and a region of a root file or an
+  `ARCHITECTURE.md` whose identifiers appear nowhere in the message. The second
+  is escapable, and has to name the file:
+
+      Carries: styles.css - the vault pin restyle, agreed with the other session
+
+  Usually the right fix is not the escape hatch but a sentence in the message.
+  `python tools/check_sweep.py --commit <sha>` runs it against history.
+
   A fresh clone installs both hooks once:
   `python tools/bake_images.py --install-hooks`.
 
