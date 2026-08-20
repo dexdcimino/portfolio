@@ -232,6 +232,62 @@ export function skyOf(planet) {
 }
 
 // Shared GLSL: banded lambert + the contour engine.
+/* The air, as one function, because more than one shader has to agree with it.
+   svTerrain and svWater have always shared it through COMMON; svFarBody cannot,
+   because it lives in farbody.js and COMMON carries a page of noise and
+   triplanar helpers it has no use for. So the three lines that decide what a
+   distance looks like are their own chunk and both sides include it — a copy
+   would be a second place for the haze to drift from the ground it is meant to
+   be matching. */
+/**
+ * The fog range at an altitude, for a world.
+ *
+ * Lifted out of mats.update so the far band can ask the same question and get
+ * the same answer. A far body that is going to become this ground has to fade
+ * into the air this ground is behind, and a second copy of this rule is a
+ * second place for the two to disagree — which is the whole reason the handoff
+ * is being worked on at all.
+ *
+ * CLAMPED TO TWO RADII, and the clamp is for hyper rather than for flight.
+ * main.js calls this every frame including during a transit, when the craft's y
+ * is a system-space number in the hundreds of thousands, and sqrt(2 * R * that)
+ * would hand the fog a range wider than the solar system on the frame you
+ * arrive. Nothing above two radii is a world you are flying over.
+ *
+ * NEAR LIFTS WITH THE ALTITUDE, and that is the half that made the difference.
+ * At height a, nothing in frame is nearer than a — the ground straight below
+ * you is exactly a away. Leave the fog starting at its surface value and every
+ * pixel is already inside it before the gradient begins: from 193m over Tarn
+ * the whole frame came back as one sheet of pale grey. On the ground a is zero
+ * and both numbers are the profile's own, untouched.
+ */
+export function fogRangeAt(planet, alt, out = { near: 0, far: 0 }) {
+  const R = planet.radius;
+  const a = Math.min(Math.max(0, alt), R * 2);
+  const t = smooth01((a - FOG.from * R) / Math.max(1e-6, (FOG.to - FOG.from) * R));
+  // The distance to your own horizon from here. Fog is allowed to reach it and
+  // no further, because past it there is no world to draw anyway.
+  const horizon = Math.sqrt(2 * R * a) * FOG.horizonK;
+  const far = Math.max(planet.fogFar, planet.fogFar + (horizon - planet.fogFar) * t);
+  const near = Math.max(planet.fogNear, planet.fogNear + (a - planet.fogNear) * t);
+  out.near = Math.min(near, far * 0.85);
+  out.far = far;
+  return out;
+}
+
+/** The air a world is seen through: colour, sun colour and forward scatter. */
+export function atmoOf(planet) {
+  const COL = paletteOf(planet);
+  return { fog: COL.fog, fogSun: COL.fogSun, scatter: ATMO.sunScatter };
+}
+
+export const HAZE = `
+  vec3 hazeColor(vec3 fogc, vec3 sunc, vec3 V, vec3 L, float amount) {
+    float toward = clamp(dot(-V, L), 0.0, 1.0);
+    return mix(fogc, sunc, pow(toward, 3.0) * amount);
+  }
+`;
+
 const COMMON = `
   precision highp float;
 
@@ -316,10 +372,7 @@ const COMMON = `
   // Aerial perspective: haze warms up as you look into the sun and stays cool
   // away from it. One line, and suddenly there is air between you and that
   // mountain instead of a flat grey wash.
-  vec3 hazeColor(vec3 fogc, vec3 sunc, vec3 V, vec3 L, float amount) {
-    float toward = clamp(dot(-V, L), 0.0, 1.0);
-    return mix(fogc, sunc, pow(toward, 3.0) * amount);
-  }
+${HAZE}
 
   // Contour lines at a fixed vertical interval, widened with distance so they
   // never alias into noise, and faded out entirely on cliffs and at range.
@@ -2177,38 +2230,17 @@ export function createMaterials(scene, planet) {
      atmosphere than the other two. That failure mode is not hypothetical: the
      hull fogging on a different curve from the ground it is standing on is
      exactly the sort of thing nobody sees until it is shipped. */
-  const fogAlt = { lift: -1 };
+  const fogAlt = { near: -1, far: -1 };
+  const FR = { near: 0, far: 0 };
   mats.update = (dt, camPos, heat, up, east, north, alt) => {
     time += dt;
     const cam = camPos;
     if (FOG.enabled && alt !== undefined) {
       const R = planet.radius;
-      /* Clamped to two radii, and the clamp is for hyper rather than for
-         flight. main.js calls this every frame including during a transit,
-         when the craft's y is a system-space number in the hundreds of
-         thousands — and sqrt(2 * R * that) would hand the fog a range wider
-         than the solar system on the frame you arrive. Nothing above two radii
-         is a world you are flying over. */
-      const a = Math.min(Math.max(0, alt), R * 2);
-      const t = smooth01((a - FOG.from * R) / Math.max(1e-6, (FOG.to - FOG.from) * R));
-      // The distance to your own horizon from here. Fog is allowed to reach it
-      // and no further, because past it there is no world to draw anyway.
-      const horizon = Math.sqrt(2 * R * a) * FOG.horizonK;
-      const far = Math.max(planet.fogFar, planet.fogFar + (horizon - planet.fogFar) * t);
-      /* NEAR LIFTS WITH THE ALTITUDE, and this is the half that actually made
-         the difference. At height a, NOTHING IN FRAME IS NEARER THAN a — the
-         ground straight below you is exactly a away. Leave the fog starting at
-         its surface value and every pixel of the world is already inside it
-         before the gradient begins: from 193m over Tarn the whole frame,
-         land and water alike, came back as one sheet of pale grey with the
-         coastline barely legible through it.
-         So the near plane is pushed out to the altitude. On the ground a is
-         zero and this is the profile's own number, untouched; in the air it
-         puts the start of the fog at the closest thing there is to fog. */
-      const near = Math.max(planet.fogNear, planet.fogNear + (a - planet.fogNear) * t);
-      if (Math.abs(t - fogAlt.lift) > 1e-4 || far !== planet.fogFar) {
-        fogAlt.lift = t;
-        fogRange.set(Math.min(near, far * 0.85), far);
+      const { near, far } = fogRangeAt(planet, alt, FR);
+      if (Math.abs(near - fogAlt.near) > 1e-3 || Math.abs(far - fogAlt.far) > 1e-3) {
+        fogAlt.near = near; fogAlt.far = far;
+        fogRange.set(near, far);
       }
     }
     terrain.setVector3('uCam', cam);

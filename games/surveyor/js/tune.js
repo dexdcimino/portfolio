@@ -1058,6 +1058,14 @@ export const SPACE = {
      dropped frames for detail that is under a pixel at the size this LOD is
      ever seen at. */
   bodySubdiv: 3,
+
+  /* How far out a promoted body starts picking up its own world's air, as a
+     multiple of that world's approach sphere. 6 puts the first haze on it at
+     about six times the radius it will be landed on, which on every world is
+     well inside the range where it is already a resolved sphere rather than a
+     coin, and leaves the ordinary sky untouched: a neighbour at 294km is two
+     hundred times out and gets nothing. */
+  airFade: 6,
 };
 
 export const SYSTEM = {

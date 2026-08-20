@@ -22,11 +22,12 @@
 // 3. NO FOG. They are outside the atmosphere by definition, so the fog uniforms
 //    are simply not wired to this shader.
 
-import { SYSTEM, SPACE, PLANETS } from '../tune.js';
+import { SYSTEM, SPACE, PLANETS, HYPER } from '../tune.js';
 import { paletteOf, skyOf } from './materials.js';
 import { previews } from './preview.js';
 import { farDistance, farScale } from './space.js';
 import { farBodyMesh } from './farbody.js';
+import { fogRangeAt, atmoOf } from './materials.js';
 import { makePlanet } from './sphere.js';
 
 /**
@@ -355,6 +356,30 @@ export class Discs {
     b.mat.setFloat('uLimb', SYSTEM.limb);
     b.mat.setFloat('uSpec', d.spec);
     b.mat.setFloat('uFade', 1);
+    /* THE AIR OF THE WORLD THIS IS A PICTURE OF, set once. Its own fog colour
+       and its own sun colour, because a far body converging on the ground it
+       becomes has to converge on that ground's atmosphere and not on the one
+       the camera happens to be standing in. The RANGE is the part that moves,
+       and it is written per frame in promote(). */
+    const A = atmoOf(P);
+    /* WHERE THE AIR BEGINS, for the fade in promote().
+       Keyed to this world's APPROACH SPHERE rather than to its radius, and the
+       first cut got that wrong in a way worth keeping: it gated on two radii,
+       because that is where the fog rule clamps. But HYPER.approachAlt is 900m
+       absolute, which is 0.43 radii up on Anvil and 4.35 on Ember - so on
+       exactly the small worlds where the arrival is a white-out, the gate
+       switched the term off at the altitude it was written for, and the
+       luminance step stayed at +928%.
+       The approach sphere is per world and is where the handoff happens by
+       definition, so the air arrives where the ground does. */
+    b.airFrom = P.surfaceR + HYPER.approachAlt;
+    b.planet = P;
+    b.mat.setVector3('uFog', new BABYLON.Vector3(A.fog[0], A.fog[1], A.fog[2]));
+    b.mat.setVector3('uFogSun', new BABYLON.Vector3(A.fogSun[0], A.fogSun[1], A.fogSun[2]));
+    b.mat.setVector3('uFogLight', new BABYLON.Vector3(d.sun.x, d.sun.y, d.sun.z));
+    b.mat.setFloat('uScatter', A.scatter);
+    b.mat.setVector2('uFogRange', new BABYLON.Vector2(1e9, 2e9));
+    b.surfaceR = P.surfaceR;
     b.key = d.key;
     b.mesh.setEnabled(false);
     this.bodies.set(d.key, b);
@@ -401,6 +426,9 @@ export class Discs {
 
 /* ---- promotion ---------------------------------------------------------- */
 
+const FR = { near: 0, far: 0 };
+const FV = new BABYLON.Vector2(1e9, 2e9);
+
 Discs.prototype.promote = function promote(camera) {
   let changed = false;
   for (let i = 0; i < this.list.length; i++) {
@@ -442,6 +470,33 @@ Discs.prototype.promote = function promote(camera) {
         b.mesh.scaling.set(r, r, r);
         b.mat.setVector3('uCam', camera.position);
         b.mat.setFloat('uFade', t);
+
+        /* THE AIR, on this world's own curve and at this world's own altitude.
+           The body is drawn compressed about the camera, so the range is
+           converted into drawn units by the same factor the geometry is — the
+           comparison then happens in the space the fragment is actually in,
+           and no distance has to be un-scaled in the shader.
+           A world at its ordinary range is hundreds of kilometres away against
+           a fog range of a few hundred metres, so this saturates and the body
+           would be a flat fog-coloured coin. It is gated on being INSIDE the
+           air: above the altitude at which the fog rule has finished lifting
+           there is no term at all, and the two meet where the arrival does. */
+        const alt = Math.max(0, d.dist - b.surfaceR);
+        fogRangeAt(b.planet, alt, FR);
+        const k = d.K / Math.max(d.dist, 1e-6);
+        FV.set(FR.near * k, FR.far * k);
+        b.mat.setVector2('uFogRange', FV);
+        /* HOW MUCH OF THAT AIR THERE IS, ramped in as the body is approached.
+           At its ordinary range a world is hundreds of kilometres away against
+           a fog range of a few hundred metres, so the term would saturate and
+           every disc in the sky would be a flat fog-coloured coin. It fades in
+           over the last few multiples of the approach sphere instead: none at
+           SPACE.airFade times out, all of it by the time the ground it is
+           about to become is drawn the same way. */
+        const far = b.airFrom * SPACE.airFade;
+        const raw = 1 - Math.max(0, Math.min(1,
+          (d.dist - b.airFrom) / Math.max(far - b.airFrom, 1e-6)));
+        b.mat.setFloat('uFogAmt', raw * raw * (3 - 2 * raw));
       }
     }
 

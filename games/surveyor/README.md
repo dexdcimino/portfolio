@@ -588,6 +588,69 @@ now happens on the frame you leave instead of the frame you arrive. Departure is
 the better place for it by a distance — the speed FX are ramping, the streaks
 are up and the frame is already busy — but it is a spike and it is known.
 
+### The far body gains its world's air — plumbing in, gap not yet closed
+
+Dex's call, and the reasoning is worth keeping: the world's arrival lighting is
+approved and shipping, so the representation converges on the truth rather than
+the truth compromising toward the representation. A far body carrying its
+world's atmosphere is also right at every distance, not only at the handoff.
+
+**What is built and proven.** `hazeColor` is its own exported chunk now, so
+`svTerrain`, `svWater` and `svFarBody` share one definition instead of the far
+body carrying a copy that could drift. The altitude fog rule came out of
+`mats.update` as `fogRangeAt(planet, alt)`, so the far band asks the same
+question the ground answers. `svFarBody` mixes toward `hazeColor` on exactly the
+terrain's `smoothstep`, with that world's own fog colour, its own sun and its own
+range — converted into drawn units on the CPU, since the far band scales
+distance about the camera and the comparison then happens in the space the
+fragment is actually in.
+
+It fades in over the last few multiples of the **approach sphere**
+(`SPACE.airFade`), not of the radius. The first cut keyed it to two radii,
+because that is where the fog rule clamps — and `HYPER.approachAlt` is 900m
+absolute, which is 0.43 radii up on Anvil and **4.35 on Ember**, so on exactly
+the small worlds where the arrival whites out, the gate switched the term off at
+the altitude it was written for.
+
+**What has not happened yet is the result.** With the real values the luminance
+step is unchanged: +928% on Tarn, +168% on Ember. The term is not being ignored
+— forcing the air bright red at full strength (`--forcefog`) moves the body from
+20.8 to 51.7, so the code path is live and the uniforms reach it. The world's own
+fog, applied to the body at the world's own range, simply does not account for
+how bright the arrival is.
+
+So the next question is not "why is the shader ignoring me" but **what actually
+makes an arrival bright**, and it is not the terrain's fog: Ember is a dry world
+with no ocean and still steps +168%. Candidates not yet separated — the water
+shell on the worlds that have one, the sky dome behind the limb, and the
+possibility that the white-out on Tarn and Ember is not a lighting property at
+all but the defect below.
+
+### Fog gets worse as you climb, above two radii
+
+Found while looking for the target the far body has to match, and it is a
+separate bug. `fogRangeAt` clamps altitude to `2R` — deliberately, so that a
+transit's system-space altitude cannot hand the fog a range wider than the solar
+system — and above that the range freezes while the distance you are looking
+through does not. The ground straight below you, as you climb:
+
+| world | 50m | 200m | 400m | 600m | 900m | 1200m |
+|---|---|---|---|---|---|---|
+| Home | 0% | 0% | 0% | 0% | 0% | 0% |
+| **Ember** | 0% | 0% | **96%** | **100%** | **100%** | **100%** |
+| **Tarn** | 0% | 0% | 0% | 0% | **100%** | **100%** |
+| Vault | 0% | 0% | 0% | 0% | 0% | 0% |
+| Shroud | 1% | 0% | 0% | 0% | 0% | 0% |
+| Anvil | 0% | 0% | 0% | 0% | 0% | 0% |
+
+Only the two worlds whose `2R` is under the 900m arrival altitude, and only
+above it. A hyper arrival at Ember or Tarn therefore lands in a white-out — the
+same root cause as the far plane not reaching its own world, which is an
+absolute 900m against radii of 207m to 2072m.
+
+Matching a far body to that would be matching it to a defect, which is why this
+is written down rather than built against.
+
 ### The geometry handoff is already seamless. The brightness is not.
 
 The last discontinuity in a crossing is the destination ceasing to be a body in

@@ -22,6 +22,7 @@
 // mountains inflating as the world grows.
 
 import { height } from './noise.js';
+import { HAZE } from './materials.js';
 
 let registered = false;
 
@@ -142,6 +143,9 @@ export function buildFarBody(planet, subdiv) {
    terminator against that world's own sun, the same limb darkening and the same
    emissive mask for Ember's cracks. The crossfade between them only reads as
    one object growing if the two agree on everything except the geometry. */
+// The qualifier every fragment shader needs before anything using a float.
+const PRECISION = 'precision highp float;\n';
+
 function ensureFarShaders() {
   if (registered) return;
   registered = true;
@@ -168,8 +172,16 @@ function ensureFarShaders() {
     }
   `;
 
-  S.svFarBodyFragmentShader = `
-    precision highp float;
+  /* HAZE GOES AFTER THE PRECISION STATEMENT, not before it. COMMON carries its
+     own precision qualifier at the top, which is why materials.js can simply
+     prepend it; this chunk does not, and a function taking floats declared
+     ahead of the qualifier does not compile. It failed silently — the body
+     stopped drawing and dev/handoff.mjs reported a zero-pixel far side rather
+     than an error.
+     Both halves are joined BEFORE the template rather than spliced into the
+     middle of one, because dev/glslcheck.mjs scans shader bodies for backticks
+     and a mid-template splice puts two of them inside what it is reading. */
+  S.svFarBodyFragmentShader = PRECISION + HAZE + `
     varying vec3 vN;
     varying vec3 vDir;
     varying vec3 vView;
@@ -179,6 +191,16 @@ function ensureFarShaders() {
     // edges are what make this read as the same flat-shaded game.
     uniform vec3 uSun, uCam, uTint;
     uniform float uSlot, uRows, uDisc, uNight, uEmit, uLimb, uFade, uSpec;
+    /* THE AIR THIS WORLD IS SEEN THROUGH. Its own, not the one you are
+       standing in: a far body is a picture of somewhere else, and the whole
+       point of the term is that it converges on what that somewhere else
+       actually looks like as you close on it.
+       uFogRange arrives in DRAWN units — the far band scales distance about
+       the camera, so the range is pre-multiplied by the same factor on the CPU
+       and the comparison below happens in the space the geometry is in. */
+    uniform vec3 uFog, uFogSun, uFogLight;
+    uniform vec2 uFogRange;
+    uniform float uScatter, uFogAmt;
 
     void main() {
       vec3 S = normalize(vDir);
@@ -226,6 +248,21 @@ function ensureFarShaders() {
       // Ember's cracks are a light source, not a lit surface: added after the
       // terminator and past 1.0 so the bloom pass finds them.
       col += map.rgb * map.a * uEmit;
+
+      /* ...and then the air, on exactly the terrain's curve.
+         MEASURED, BECAUSE THE GEOMETRY WAS NOT THE PROBLEM. At the approach
+         sphere the far body and the world it becomes agree on size and on
+         silhouette to within three percent — the resolution jump the plan
+         predicted is below a pixel at the only distance the swap happens. What
+         did not agree was brightness: +928% arriving at Tarn, -59% at Ember,
+         +1132% at Anvil, because this shader had no air in it at all and the
+         ground it turns into is lit through its world's own fog.
+         Same smoothstep, same hazeColor, same uniforms as svTerrain, so the
+         two cannot drift; and at the range a disc is normally seen from the
+         distance is far outside uFogRange and this is exactly zero. */
+      float fogD = length(uCam - vView);
+      float fog = smoothstep(uFogRange.x, uFogRange.y, fogD) * uFogAmt;
+      col = mix(col, hazeColor(uFog, uFogSun, V, uFogLight, uScatter), fog);
 
       gl_FragColor = vec4(col, uFade);
     }
@@ -281,7 +318,8 @@ export function farBodyMesh(scene, planet, subdiv, atlas, slot) {
     {
       attributes: ['position', 'normal', 'dir'],
       uniforms: ['world', 'worldViewProjection', 'uSun', 'uCam', 'uTint',
-        'uSlot', 'uRows', 'uDisc', 'uNight', 'uEmit', 'uLimb', 'uFade', 'uSpec'],
+        'uSlot', 'uRows', 'uDisc', 'uNight', 'uEmit', 'uLimb', 'uFade', 'uSpec',
+        'uFog', 'uFogSun', 'uFogLight', 'uFogRange', 'uScatter', 'uFogAmt'],
       samplers: ['uMap'],
       /* BLENDED, for the crossfade. The handoff is continuous in size to about
          a percent and discontinuous in brightness by more than half, because a

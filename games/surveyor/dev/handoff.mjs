@@ -196,6 +196,20 @@ const FAR = (to) => `(async () => {
      0.032 to 0.356 purely by widening the lens enough to bring the halo into
      frame, which is a measurement of the halo and not of the limb. Leaving the
      billboard up in BOTH grabs subtracts it exactly. */
+  /* --forcefog paints the body's air bright red at full strength. It answers
+     one question and it is the question that took longest here: is the shader
+     term running at all? With it the body goes from 20.8 to 51.7, so the code
+     path is live and the uniforms reach it — which is what turned the search
+     from "why is the shader ignoring me" to "why do the real values not close
+     the gap". Worth keeping for the next person who adds a term to a shader
+     they cannot single-step. */
+  const probe = S.discs.bodies.get('${to}');
+  if (probe && window.__forceFog) {
+    probe.mat.setVector3('uFog', new BABYLON.Vector3(1, 0, 0));
+    probe.mat.setVector3('uFogSun', new BABYLON.Vector3(1, 0, 0));
+    probe.mat.setFloat('uFogAmt', 1);
+    probe.mat.setVector2('uFogRange', new BABYLON.Vector2(0.001, 0.002));
+  }
   const body = S.discs.bodies.get('${to}');
   const measure = ${MEASURE};
   const on = grab();
@@ -203,8 +217,14 @@ const FAR = (to) => `(async () => {
   const off = grab();
   if (body) body.mesh.setEnabled(true);
   const m = measure(on, off, w, h, c.fov);
+  const bb = S.discs.bodies.get('${to}');
+  const uf = bb && bb.mat && bb.mat._floats ? bb.mat._floats.uFogAmt : undefined;
+  const ur = bb && bb.mat && bb.mat._vectors2 ? bb.mat._vectors2.uFogRange : undefined;
   return Object.assign({ promoted: S.discs.promoted.has('${to}'),
-    distM: Math.round(dist), drawnDeg: +(2 * d.drawAngle * 180 / Math.PI).toFixed(3) }, m);
+    distM: Math.round(dist), drawnDeg: +(2 * d.drawAngle * 180 / Math.PI).toFixed(3),
+    fogAmt: uf === undefined ? 'unset' : +uf.toFixed(3),
+    fogRange: ur ? [+ur.x.toFixed(1), +ur.y.toFixed(1)] : 'unset',
+    airFrom: bb ? bb.airFrom : 'unset', surfaceR: bb ? bb.surfaceR : 'unset' }, m);
 })()`;
 
 /* SIDE TWO: the same world, arrived at, through the same swapTo a player
@@ -293,6 +313,7 @@ await page.send('Emulation.setDeviceMetricsOverride',
   { width: W, height: H, deviceScaleFactor: 1, mobile: false });
 await page.send('Page.navigate', { url: `http://127.0.0.1:${port}${GAME}?planet=${FROM}` });
 
+if (process.argv.includes('--forcefog')) await evaluate(page, 'window.__forceFog = true');
 const r = await evaluate(page, READY);
 if (!r.ok) {
   console.log('never ready');
@@ -324,6 +345,7 @@ console.log(`silhouette  ${String(far.rough).padStart(10)} ${String(near.rough).
   `${(pct(near.rough, far.rough) >= 0 ? '+' : '') + pct(near.rough, far.rough).toFixed(1)}%`);
 console.log(`pixels      ${String(far.n).padStart(10)} ${String(near.n).padStart(12)}`);
 console.log(`\nfar body promoted: ${far.promoted}; the world streamed ${near.leaves} leaves`);
+console.log('far body air: amt ' + far.fogAmt + ', range ' + JSON.stringify(far.fogRange) + ', airFrom ' + far.airFrom + ', surfaceR ' + far.surfaceR);
 console.log(`frames -> dev/shots/handoff-far.png, dev/shots/handoff-near.png`);
 
 await page.close();
