@@ -365,8 +365,9 @@ export const LIGHT = {
  *
  * SCALES ARE RE-DERIVED, NOT TRANSFERRED — the T1/T2 lesson, and this is where
  * it bites hardest. lookdev tiles at 15-26 metres on a 4km plane. Ember is
- * 207m across with 10m of relief: 26 metres there is an eighth of the world and
- * two and a half times its total height range. What is actually constant across
+ * 207m in RADIUS with 10m of relief — 207 is `PLANETS.ember.radius`, not the
+ * diameter — so 26 metres there is an eighth of that radius and two and a
+ * half times its total height range. What is actually constant across
  * these six worlds is `targetCell`, held near 4.5m on purpose so the vehicles
  * handle the same everywhere, so the tile scales below are multiples of THAT
  * and land at 9-16m. Altitude thresholds are fractions of `relief`, like every
