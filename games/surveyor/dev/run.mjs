@@ -1507,6 +1507,86 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
         SYSTEM.distance > 0 && SYSTEM.distance < 1 && SYSTEM.minAngle > 0,
         `billboards at ${SYSTEM.distance} of the far plane, floor ${SYSTEM.minAngle}rad`);
     }
+
+    /* WHERE THE WORLDS SIT IN THE SKY, which `SYSTEM.at` decides and nothing
+       else does. Two properties, and they pull against each other — see the
+       note on SYSTEM.at and `dev/skycheck.mjs`, which prints the whole picture.
+
+       1. NO TWO WORLDS CONFUSABLE FROM ANY SKY. This is a pure property of the
+          direction set and it holds wherever you stand, which is what makes it
+          checkable at all: the angle between two directions does not depend on
+          the observer's up. It was 4.3 degrees before 2026-08-21 — Home and
+          Shroud seen from Anvil, two discs almost touching. */
+    {
+      const keys6 = Object.keys(SYSTEM.at).filter((k) => PLANETS[k]);
+      const unit = (a, b) => {
+        const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+        const l = Math.hypot(d[0], d[1], d[2]) || 1;
+        return [d[0] / l, d[1] / l, d[2] / l];
+      };
+      const dotv = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      let gap = Infinity, where = '', looked = 0;
+      for (const o of keys6) {
+        const ds = keys6.filter((k) => k !== o)
+          .map((k) => ({ k, d: unit(SYSTEM.at[o], SYSTEM.at[k]) }));
+        for (let i = 0; i < ds.length; i++) {
+          for (let j = i + 1; j < ds.length; j++) {
+            looked++;
+            const g = (Math.acos(clampN(dotv(ds[i].d, ds[j].d), -1, 1)) * 180) / Math.PI;
+            if (g < gap) { gap = g; where = `${o}: ${ds[i].k}/${ds[j].k}`; }
+          }
+        }
+      }
+      /* Six observers, ten pairs of neighbours each. Asserted before the bar,
+         because a loop over a discovered set deletes its own check when the
+         set is empty. The bar is 20: the design produces 29.4 and a bar has to
+         clear what the design produces, not sit inside it. */
+      ok('no two worlds are close enough to be confused from any sky',
+        keys6.length === 6 && looked === 60 && gap > 20,
+        `${looked} neighbour pairs over ${keys6.length} skies, closest ` +
+        `${gap.toFixed(1)} deg (${where})`);
+    }
+
+    /* 2. AND THE SPAWN PUTS ALL FIVE IN A BAND. Elevation is NOT a property of
+          a world — local up rotates as you drive, so over one lap every world
+          traces a sinusoid through zero and there is no layout that holds a
+          band everywhere. What a layout CAN do is leave a standing point on
+          each world from which all five are comfortably up, and `findSpawn` is
+          what finds it. Both halves have to be checked here: a spawn scoring
+          that reaches the band, and a layout in which the band is reachable
+          from a point the spawn search can actually return.
+
+          THE FLOOR AND THE CEILING ARE THE POINT. Below the floor a world is
+          behind the skyline; above the ceiling it is out of the top of the
+          frame in level flight (CAM.fov.jet is 1.05 rad, so half of it is 30
+          degrees). Before 2026-08-21 the spawn scoring was a ramp that
+          saturated and never came down, and three of thirty were BELOW the
+          horizon while two were over 60 degrees. */
+    {
+      const keys6 = Object.keys(SYSTEM.at).filter((k) => PLANETS[k]);
+      const rows = [];
+      let lo = 90, hi = -90, looked = 0, loAt = '', hiAt = '';
+      for (const k of keys6) {
+        const P = makePlanet(PLANETS[k]);
+        const list = neighbours(P);
+        const up = findSpawn(P, P.relief * 0.12, P.relief * 0.75, list.map((n) => n.dir));
+        for (const n of list) {
+          looked++;
+          const e = (Math.asin(clampN(up.x * n.dir.x + up.y * n.dir.y + up.z * n.dir.z,
+            -1, 1)) * 180) / Math.PI;
+          if (e < lo) { lo = e; loAt = `${k}->${n.key}`; }
+          if (e > hi) { hi = e; hiAt = `${k}->${n.key}`; }
+        }
+        rows.push(k);
+      }
+      /* Thirty looks, and the bars clear what the design produces (8 to 50) at
+         both ends rather than sitting on it. */
+      ok('every spawn opens with all five worlds up, and none of them overhead',
+        rows.length === 6 && looked === 30 && lo > 5 && hi < 55,
+        `${looked} looks over ${rows.length} spawns, ${lo.toFixed(0)} deg ` +
+        `(${loAt}) to ${hi.toFixed(0)} deg (${hiAt}) — nothing below the ` +
+        `skyline, nothing out of the top of the frame`);
+    }
   }
 
   // Persistence: the same planet must generate identically, forever.
@@ -3964,16 +4044,31 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
      being perfectly upright — see TransitFrame.rollError. */
   {
     const worst = Math.max.apply(null, RUNS.map((r) => r.finalBank));
-    const peak = Math.min.apply(null, RUNS.map((r) => r.peakBank));
+    const peak = Math.max.apply(null, RUNS.map((r) => r.peakBank));
+    const least = Math.min.apply(null, RUNS.map((r) => r.peakBank));
     const late = Math.max.apply(null, RUNS.map((r) => r.settle));
     /* Three conditions, and the middle one is there because the other two pass
        trivially on a craft that never banks at all. The handover MUST show up
        as a large error — the local up genuinely reverses at the balance point
-       — and it must then be gone well before the approach sphere. */
+       — and it must then be gone well before the approach sphere.
+
+       IT IS THE LARGEST PEAK, NOT THE SMALLEST, and reading it as the smallest
+       was a bar tied to one pair's geometry. The vacuity this guards against is
+       a craft that never banks AT ALL, and that shows in the maximum; requiring
+       EVERY run to reverse is a different and false claim — the 30-pair sweep
+       below already says so in words ("four of the thirty never flip at all,
+       because the departure heading already leaves them on the far side of the
+       balance point"), and the same is true here. It went unnoticed because the
+       old SYSTEM.at happened to put every one of these twelve above 86 degrees;
+       respacing the worlds on 2026-08-21 took two of them to 43 and 59 and the
+       check failed on a handover that was working. The least peak is reported,
+       because a run that stops reversing is worth seeing — it is just not a
+       failure. */
     ok('the handover rolls the craft over, and it is level again before it lands',
       worst < 0.02 && peak > 1.5 && late < 0.9,
-      'every one of ' + RUNS.length + ' crossings banks at least ' + deg(peak).toFixed(0) +
-      ' deg at the balance point and is upright again by ' + (late * 100).toFixed(0) +
+      RUNS.length + ' crossings peak between ' + deg(least).toFixed(0) + ' and ' +
+      deg(peak).toFixed(0) + ' deg of bank at the balance point, and every one is ' +
+      'upright again by ' + (late * 100).toFixed(0) +
       '% of the trip, arriving ' + deg(worst).toFixed(3) + ' deg off');
   }
 

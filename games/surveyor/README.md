@@ -1174,7 +1174,7 @@ a frame, which is nothing; the cost of having it was three sessions of a phase
 whose entire premise is that you fly toward things.
 
 On a surface the observer is within a kilometre of the planet centre against
-separations of 294 to 945km, so the sky is unchanged to about a third of a
+separations of 338 to 869km, so the sky is unchanged to about a third of a
 percent — verified by capturing the departure frame with and without the
 re-derivation and finding every disc angle identical. What change there is is
 parallax, which the far band was built for and never had.
@@ -1238,7 +1238,7 @@ meant.
 
 | pair | apart | balances |
 |---|---|---|
-| Ember–Anvil | 294km | 27km out from Ember, not 147 |
+| Ember–Anvil | 423km | 38km out from Ember, not 211 |
 | Home–Ember | 306km | 255km out from Home |
 | Home–Vault | 364km | 202km out from Home |
 
@@ -1551,7 +1551,7 @@ forces a promotion, leaves the world, and fails if anything stays lit.
 ### What phase 2 does not reach
 
 Nothing in normal play promotes anything. Travel is still an instant swap, so
-the closest a neighbour ever gets is 294km, and every world on the sky sheets is
+the closest a neighbour ever gets is 338km, and every world on the sky sheets is
 pinned at the `drawFloor` — the 17km to 170km at which promotion happens is only
 reachable once phase 4 lets you fly. That is why the LOD is exercised by a
 harness that moves a body rather than by a sheet, and why the six-way sheets are
@@ -2747,6 +2747,49 @@ unconditionally, so the craft is handed back at 92.0 m/s under every one of
 them. The suite used to gate the boundary number at twice the jet's boost,
 which a 7s leg fails over a speed the player never sees; it asserts the clamp
 now, which is the thing that actually makes a trip length safe.
+
+**The five other worlds are spread across your sky, and none of them is
+overhead.** Respaced 2026-08-21; `dev/skycheck.mjs` is the measurement and
+`SYSTEM.at` carries the before/after table. The closest two worlds on any sky
+went from **4.3 degrees to 29.4** — Home and Shroud seen from Anvil used to be
+two discs almost touching — and the elevations at the six spawns went from
+-46..61 degrees, with three of thirty below the horizon and two above 60, to
+**8..50 degrees with none of either**.
+
+**Elevation is not a property of a world, and that is why this took a
+measurement rather than a nudge.** You are standing on a sphere: local up
+rotates as you drive, so at the antipode of any point a world's elevation is
+exactly negated. Over one lap each pair traces a sinusoid through zero with a
+span of 31 to 121 degrees — every world spends half of every lap below the
+horizon, on any layout. What a layout controls is the angle between two worlds
+on the sky, which is the same wherever you stand, and whether a standing point
+exists with all five comfortably up. **Those two trade one-for-one**: two
+worlds `g` degrees apart differ in elevation by up to `g` from any point, so a
+29.4-degree spread cannot be squeezed into a band narrower than 29.4. The band
+is 6-40 degrees, which is as tight as this spread allows with anything to
+spare.
+
+**The bearings still bunch, and that part is not fixed.** `skycheck` reports
+the widest stretch of compass with nothing in it at each spawn: 78 degrees on
+Home, which is about what an even five leave, and 199 to 276 on the other
+five. The worlds are far apart on the sky and still mostly on one side of it.
+It is a third objective and it fights the other two — a 34-degree elevation
+band puts the five in a thin annulus, and the same five positions have to form
+a good annulus from all six vantages at once. A search with an empty-arc term
+got every world to about 211 degrees and paid 8 degrees of separation for it
+(29.4 to 21.5), which is the worse trade. Measured, not fixed.
+
+Two traps on the way, both worth the ink. **Fixing the spread made the
+near-overhead complaint true where it had not been**: `findSpawn` scored a ramp
+that saturated at 24 degrees and never came down, so "as high as possible" was
+free — harmless while no point had all five up, and not harmless the moment
+respacing made one reachable, at which point two neighbours came out at 83 and
+87 degrees. It scores a BAND now. And **the layout has to be searched against
+the spawns the game can actually return**, not against the sphere: `findSpawn`
+only considers points whose ground height is between `relief*0.12` and
+`relief*0.75`, and a layout scored against the whole sphere put Tarn's ideal
+standing point somewhere unreachable, with three of its five neighbours below
+the horizon.
 
 **Leaving has to be deliberate.** The jet's thin-air ceiling is a wall at ~580m
 whether you climb for four seconds or twenty-five, so altitude alone cannot tell

@@ -637,6 +637,9 @@ if (noisy.length) {
    well below what a boundary snap looked like: the world-+Y build put 180 into
    a single frame. The two seams are judged on the part that is NOT the
    deliberate stand-up, which is the part this phase is responsible for. */
+/* One median frame of slack, doubled: if the arrival came within two frames of
+   the last stage that fired, the gate it missed was never on screen. */
+const thinFrames = placed >= 1 && Number(arr.secs) * 1000 < rep.medFrame * 2;
 if (misplaced) {
   console.log(`\n${misplaced} of ${placed} stage(s) drew the destination somewhere ` +
     'other than where promote() placed it.');
@@ -646,10 +649,32 @@ if (misplaced) {
      what the design produces and fewer means a mark stopped firing rather than
      that the run was unlucky. It used to report four, from four hyperT gates
      that all landed inside the same second; four clustered samples are not
-     better coverage than two spread ones. */
-  console.log(`\nFAIL: ${placed} stage(s) measured the destination, expected 2 — ` +
-    'the far band was not promoted where it should have been, so this checked ' +
-    'less than it claims.');
+     better coverage than two spread ones.
+
+     ...UNLESS THE FLIGHT ENDED INSIDE ONE FRAME OF THE LAST MARK, which is a
+     statement about this harness and not about the game. SwiftShader runs this
+     at three to five frames a second, and the last stretch of an approach to a
+     small world crosses tens of degrees of drawn angle in a fraction of a
+     second: tarn->ember measured the 10-degree mark and arrived 0.32s later
+     against a 322ms median frame, so the 25-degree band was open for about one
+     frame and the shutter was not in it. That is a resolution limit, and
+     reporting it as a fault is how a check earns being ignored. It is still
+     printed, because a run that could not see what it came to see has not
+     proved what a clean run proves.
+
+     EVERYTHING ELSE IS FATAL NOW. This printed the word FAIL and exited 0
+     until 2026-08-21 — `bad` tested `!placed` and never `placed < 2` — which is
+     the shape this repo has written down more than any other: a checker
+     stating that it examined less than it claims, and then reporting success.
+     Found by moving the worlds, which changed which pair the run flies. */
+  console.log(`\n${placed} stage(s) measured the destination, expected 2 — ` +
+    (thinFrames
+      ? `the flight ended ${arr.secs}s after the last one against a ` +
+        `${rep.medFrame}ms median frame, so the band was open for about one ` +
+        'frame and this harness cannot photograph it. Not a fault, and not a ' +
+        'complete run either — re-run with --gpu to see it.'
+      : 'the far band was not promoted where it should have been, so this ' +
+        'checked less than it claims.'));
 } else {
   console.log(`\nthe far band is where it says it is, at ${placed} stage(s) of 2 expected`);
 }
@@ -657,6 +682,6 @@ const bad = !!noisy.length || arr.hyper || !dep.hyper ||
   rep.worst > 12 ||
   !rep.depart || rep.depart.ang > 12 ||
   !rep.arrive || rep.arrive.offWings > 6 ||
-  !placed || misplaced > 0;
+  !placed || misplaced > 0 || (placed < 2 && !thinFrames);
 console.log(bad ? '\nCROSSING FAILED.' : '\nCrossing is continuous.');
 process.exit(bad ? 1 : 0);

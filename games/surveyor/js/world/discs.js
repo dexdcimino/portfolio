@@ -277,7 +277,7 @@ export class Discs {
    * discs and a square root each, which is nothing.
    *
    * On a surface `at` is within a kilometre of the planet centre against
-   * separations of 294 to 945km, so the sky is unchanged to about a third of a
+   * separations of 338 to 869km, so the sky is unchanged to about a third of a
    * percent — and what change there is is parallax, which the far band was
    * built for and never had.
    */

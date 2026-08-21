@@ -198,14 +198,51 @@ export class Surface {
   }
 }
 
-/* How high a neighbour has to sit before it counts as being in your sky, and
-   how much higher before it counts fully. 0.10 is about six degrees, which is
-   the least that clears the local skyline reliably; 0.40 is about twenty-four,
-   by which point nothing but a mountain is in the way. Between them a world
-   counts fractionally, so "five worlds barely up" scores below "four worlds
-   well up" without either number being a special case. */
-const SKY_LOW = 0.10;
-const SKY_FULL = 0.40;
+/* WHERE A NEIGHBOUR WANTS TO SIT IN YOUR SKY — a BAND, not a ramp.
+
+   These are sines of elevation, because that is what a dot product gives you.
+   6 degrees is the least that clears the local skyline reliably; 12 is up
+   properly; 40 is the top of the band this SYSTEM.at can hold from one point
+   and is a little over half of `CAM.fov.jet` (1.05 rad, so 30 degrees of frame
+   above the axis in level flight). Above that you are craning, and `SKY_TOP`
+   at 65 degrees is near enough overhead that a world stops being something you
+   can aim at.
+
+   40 IS NOT A TASTE, IT IS WHAT THE SPREAD LEAVES. Two worlds g degrees apart
+   on the sky differ in elevation by up to g from any point, so a layout with
+   no two worlds closer than 29.4 degrees cannot put all five inside a band
+   narrower than 29.4. 6 to 40 is 34 wide: as tight as this spread allows with
+   anything to spare. Tighten the band without respacing the worlds and the
+   spare goes below the horizon instead — measured, a 6-to-30 band puts four of
+   thirty under it. See the table on SYSTEM.at.
+
+   IT WAS A RAMP THAT SATURATED AT 0.40 AND NEVER CAME BACK DOWN, which made
+   "as high as possible" free. That was harmless while the worlds were badly
+   spread — there was no point with all five well up, so the score never
+   reached its plateau — and it stopped being harmless the moment SYSTEM.at was
+   respaced on 2026-08-21: with the worlds separated, the spiral found points
+   where everything was up, ties went to the earliest, and two neighbours came
+   out at 83 and 87 degrees. Measured: spawn elevations ran 17-87 degrees, mean
+   45, four of thirty above 60. Fixing the spread made the overhead complaint
+   true where it had not been.
+
+   So above `SKY_HIGH` the score falls away to `SKY_OVER` rather than holding.
+   Not to zero: a world overhead is still in your sky and still better than one
+   below the horizon, it is just not one you can point at. */
+const SKY_LOW = 0.105;   // sin 6deg   — clears the skyline
+const SKY_FULL = 0.208;  // sin 12deg  — up, full marks from here
+const SKY_HIGH = 0.643;  // sin 40deg  — the top of the band the layout can hold
+const SKY_TOP = 0.906;   // sin 65deg  — overhead
+const SKY_OVER = 0;      // an overhead world is not one you can aim at
+
+/** How much a neighbour at sin(elevation) `e` contributes to a spawn's score. */
+function skyScore(e) {
+  if (e <= SKY_LOW) return 0;
+  if (e < SKY_FULL) return (e - SKY_LOW) / (SKY_FULL - SKY_LOW);
+  if (e <= SKY_HIGH) return 1;
+  if (e >= SKY_TOP) return SKY_OVER;
+  return 1 - (1 - SKY_OVER) * ((e - SKY_HIGH) / (SKY_TOP - SKY_HIGH));
+}
 
 /**
  * A direction on the planet where the ground is between lo and hi metres.
@@ -220,9 +257,18 @@ const SKY_FULL = 0.40;
  * Vault 0 of 5 up, Anvil 1, Home 3.
  *
  * Given a list of directions, this scans the whole spiral instead of stopping
- * early and returns the valid point with the most of them comfortably up. The
+ * early and returns the valid point with the most of them IN THE BAND above —
+ * not the most of them high, which is what it did until 2026-08-21. The
  * positions do not move and no disc is drawn that should not be — this only
  * chooses which way you are standing when the world opens.
+ *
+ * THE HEIGHT BAND IS PART OF THE ANSWER, not a filter on it. Only a small
+ * fraction of the spiral has ground between `lo` and `hi`, so the reachable
+ * standing points are a sparse subset of the sphere and the best point on the
+ * sphere is usually not one of them. A `SYSTEM.at` chosen against the whole
+ * sphere put Tarn's ideal point somewhere this cannot return and three of its
+ * five neighbours came out below the horizon; the layout search uses this same
+ * filtered set now.
  *
  * Deliberately unweighted: a world is identified in the sky by its tint, not by
  * its size, so a hemisphere with the small ones up is not worth less than one
@@ -245,8 +291,7 @@ export function findSpawn(planet, lo, hi, face) {
     if (!scored) return { x: d.x, y: d.y, z: d.z };
     let score = 0;
     for (const f of face) {
-      const e = d.x * f.x + d.y * f.y + d.z * f.z;
-      score += Math.min(1, Math.max(0, (e - SKY_LOW) / (SKY_FULL - SKY_LOW)));
+      score += skyScore(d.x * f.x + d.y * f.y + d.z * f.z);
     }
     // Strictly greater, so ties go to the earlier point and the answer stays
     // the same on every boot.

@@ -74,6 +74,27 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   within 1.5s of the asked time. Where a number has a scale-free unit, author
   it in that unit and derive the metres; then nobody has to divide anything by
   207.
+- **ELEVATION IS NOT A PROPERTY OF A WORLD, AND NO LAYOUT CAN MAKE IT ONE.**
+  You are standing on a sphere. Elevation is `asin(dot(dirTo(world), localUp))`,
+  the separations are a thousand times the radii so the direction is fixed to a
+  part in a thousand, and every variable in it is the observer's up. At the
+  antipode of any point the up is exactly reversed, so the elevation is exactly
+  NEGATED: measured over one lap each of the thirty ordered pairs traces a
+  sinusoid through zero with a span of 31 to 121 degrees. **Every world spends
+  half of every lap below the horizon and passes through level flight twice**,
+  on any arrangement of `SYSTEM.at` whatsoever. What a layout DOES control is
+  the angle between two worlds ON THE SKY — that one is observer-independent,
+  because the angle between two directions does not depend on where you stand —
+  and whether a standing point exists from which all five are comfortably up.
+  Those two trade one-for-one, and the exchange rate is arithmetic: two worlds
+  `g` degrees apart differ in elevation by up to `g` from any point, so a
+  spread of 29.4 degrees cannot be squeezed into a band narrower than 29.4.
+  `dev/skycheck.mjs` prints the whole picture; run it before moving a world.
+  The corollary bit once: fixing the SPREAD made the near-overhead complaint
+  TRUE where it had not been, because `findSpawn`'s score was a ramp that
+  saturated and never came down, so "as high as possible" was free — and it was
+  only ever free because no point had all five well up. Respacing made one
+  reachable and two neighbours came out at 83 and 87 degrees.
 - **SECONDS ARE SCALE-FREE ACROSS WORLDS AND NOT ACROSS TRIP LENGTHS.** The
   same trap wearing a clock face, and it has now been walked into twice.
   `GRAV.turn` at 0.9 rad/s is a half turn in π/0.9 = 3.49s: 17.5% of the 20s
@@ -489,7 +510,12 @@ of worlds you pass, so `shots.mjs home ember` overwrites the committed six-way
 sheets with a two-way one. Pass no worlds when the sheets matter. `savedworlds.mjs` — cold load **with** a save,
 asserts one sky/disc set/water. `arrivecheck.mjs` — exits non-zero, the one
 you can gate a commit on. `savefile.mjs` — seeded saves (`--save`,
-`--away=N`). Plus frames/spawncheck/noop/waterstats/waterangles/disccheck/
+`--away=N`). `skycheck.mjs` — where the other five sit in each world's sky, from four
+vantages around a lap rather than from the spawn alone (elevation, bearing, the
+closest pair on each sky, and the elevation span over a lap; `--pairs` for all
+thirty). Pure arithmetic on the Babylon stub, no browser. It is the file to run
+before and after touching `SYSTEM.at` or `findSpawn`'s band. Plus
+frames/spawncheck/noop/waterstats/waterangles/disccheck/
 sundisc/skyline/floracheck/perf/whatisthat, `budget.mjs` (real-GPU frame
 budget; refuses SwiftShader), `colonycost.mjs` (what a mature basin costs),
 `flycheck.mjs` (frame pacing while the jet boosts across a world — worst
@@ -509,6 +535,16 @@ measured), and
 boundary, plus a filmstrip. `--repeat` IS GONE with the two trip lengths (2026-08-21) —
 a flag that flies a trip the game does not have produces a filmstrip of
 something nobody can see; `cross-<from>-<to>.jpg` is the one sheet.
+**It printed the word FAIL and exited 0 until 2026-08-21.** `bad` tested
+`!placed` — zero stages measured — and never `placed < 2`, so a run that said
+in words "this checked less than it claims" reported success. Found by moving
+`SYSTEM.at`, which changed which pair the run flies. `placed < 2` is fatal now,
+with one stated exception that is about the harness rather than the game: at
+SwiftShader's three to five frames a second the last stretch of an approach to
+a small world crosses tens of degrees in a fraction of a second, so if the
+arrival lands within two median frames of the last mark that fired, the band it
+missed was never on screen. That case is printed and not failed; everything
+else is failed.
 **Its filmstrip gates on the destination's DRAWN ANGLE, not on `hyperT`.** The
 four hyperT gates it used to carry all landed within about a second of the
 midpoint, because hyperT is altitude and altitude peaks there — the four stages

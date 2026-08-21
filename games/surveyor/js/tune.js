@@ -1064,19 +1064,103 @@ export const SPACE = {
      multiple of that world's approach sphere. 6 puts the first haze on it at
      about six times the radius it will be landed on, which on every world is
      well inside the range where it is already a resolved sphere rather than a
-     coin, and leaves the ordinary sky untouched: a neighbour at 294km is two
-     hundred times out and gets nothing. */
+     coin, and leaves the ordinary sky untouched: the nearest neighbour any
+     world has is 338km, which is two hundred times out and gets nothing. */
   airFade: 6,
 };
 
 export const SYSTEM = {
+  /* WHERE THE SIX WORLDS ARE, in kilometres. Respaced 2026-08-21, and the
+     measurement that decided it is `dev/skycheck.mjs` — run it before touching
+     a number here.
+
+     | world  | was                | is                 |
+     |--------|--------------------|--------------------|
+     | home   | [0, 0, 0]          | [0, 0, 0]          |
+     | ember  | [180, -60, 240]    | [-214, 337, 135]   |
+     | tarn   | [-260, 40, 150]    | [241, 440, 250]    |
+     | vault  | [120, 200, -280]   | [33, 43, -495]     |
+     | shroud | [-340, -120, -200] | [319, 77, -83]     |
+     | anvil  | [420, 90, 320]     | [-285, 211, -262]  |
+
+     |                              | was          | is           |
+     |------------------------------|--------------|--------------|
+     | closest two worlds on any sky | **4.3 deg** | **29.4 deg** |
+     | elevations at the six spawns | -46 to 61 deg | 8 to 50 deg |
+     | ...mean                       | 30 deg       | 29 deg       |
+     | ...above 60 deg               | 2 of 30      | 0 of 30      |
+     | ...below the horizon          | 3 of 30      | 0 of 30      |
+     | separations                   | 294-945km    | 338-869km    |
+
+     ELEVATION IS NOT A PROPERTY OF A WORLD, and no arrangement of this table
+     can make it one. You are standing on a sphere: elevation is
+     asin(dot(dirTo(world), localUp)), the separations are a thousand times the
+     radii so the direction is fixed, and every variable is the observer's up.
+     At the antipode of any point the up is exactly reversed, so the elevation
+     is exactly negated — measured over one lap, each pair traces a sinusoid
+     through zero with a span of 31 to 121 degrees. **Every world spends half of
+     every lap below the horizon and passes through level flight twice**, on any
+     layout whatsoever. "The band holds across the vantage points" is not
+     something this table can deliver, and that is geometry rather than tuning.
+
+     WHAT IT CAN DELIVER IS TWO THINGS, AND THEY PULL AGAINST EACH OTHER.
+
+     The first is a pure property of the direction set and holds wherever you
+     stand, because the angle between two directions does not depend on the
+     observer: NO TWO WORLDS CLOSE ENOUGH TO BE CONFUSED. It was 4.3 degrees —
+     Home and Shroud seen from Anvil, two discs 40-70px across almost touching,
+     which is the whole of "you cannot tell them apart". It is 29.4 now.
+
+     The second is that a STANDING POINT EXISTS on each world from which all
+     five are comfortably up, which is what the spawn can then be chosen to
+     find. These trade one-for-one and the exchange rate is arithmetic: two
+     worlds g degrees apart on the sky differ in elevation by up to g from any
+     point, so a spread of 29.4 degrees means the elevations from one point
+     span at least 29.4 degrees. You can have them spread out or you can have
+     them in a narrow band, not both. 6 to 40 degrees is the band this layout
+     holds — 34 degrees wide, which is as tight as a 29.4-degree spread allows
+     with anything to spare.
+
+     THE SPAWN SCORING HAD TO MOVE WITH IT, and that is the trap this walked
+     into on the way. `findSpawn` scored a ramp that saturated at 24 degrees and
+     never came down, so "as high as possible" was free. That was harmless while
+     the worlds were badly spread — no point had all five well up, so the score
+     never reached its plateau. Respacing them made it reachable, ties went to
+     the earliest spiral point, and the first candidate layout put neighbours at
+     83 and 87 degrees: fixing the spread made the overhead complaint TRUE where
+     it had not been. See SKY_LOW/SKY_FULL/SKY_HIGH in `world/surface.js`.
+
+     AND THE LAYOUT HAS TO BE SEARCHED AGAINST THE SPAWNS THE GAME CAN ACTUALLY
+     RETURN. `findSpawn` only considers spiral points whose ground height is
+     between `relief*0.12` and `relief*0.75`, which is a small fraction of the
+     sphere. A layout scored against the whole sphere put Tarn's ideal standing
+     point somewhere the search cannot reach and three of its five neighbours
+     came out below the horizon.
+
+     WHAT IS STILL NOT RIGHT, AND IS MEASURED RATHER THAN LEFT QUIET: the
+     BEARINGS bunch. `skycheck` reports the widest stretch of compass with
+     nothing in it at each spawn, and it runs 78 degrees on Home — which is
+     about what an even five leave — but 199 to 276 on the other five. The five
+     worlds are far apart on the sky and they are still mostly on one side of
+     it. This is a THIRD objective and it fights the other two: holding all five
+     inside a 34-degree elevation band puts them in a thin annulus, and the
+     same five positions have to form a good annulus from all six vantages at
+     once, which is six constraints on five free position vectors. A search
+     that added an empty-arc term got every world to about 211 degrees and
+     paid 8 degrees of separation for it (29.4 -> 21.5), which is a worse
+     trade. Left as measured, not as fixed.
+
+     WHAT THIS DOES NOT CHANGE: the trip is authored in seconds and converges,
+     so a longer leg makes a FASTER crossing rather than a longer one. The
+     longest leg went 945km to 869km, which is 0.87s of a 7s trip at the cap —
+     the cap is nowhere near the constraint on this layout. */
   at: {
     home:   [0, 0, 0],
-    ember:  [180, -60, 240],
-    tarn:   [-260, 40, 150],
-    vault:  [120, 200, -280],
-    shroud: [-340, -120, -200],
-    anvil:  [420, 90, 320],
+    ember:  [-214, 337, 135],
+    tarn:   [241, 440, 250],
+    vault:  [33, 43, -495],
+    shroud: [319, 77, -83],
+    anvil:  [-285, 211, -262],
   },
   // A disc smaller than a few pixels cannot be drawn as a disc without
   // shimmering, so the quad never goes below this angular radius and the honest
@@ -2656,7 +2740,7 @@ export const HOP = {
  * then mu = g0 * R^2, and a well's extent is set by RADIUS alone. Anvil is ten
  * times Ember's radius, so it pulls a hundred times harder at equal distance
  * and two wells balance at Ra/(Ra+Rb) along the line between them — Ember and
- * Anvil are 294km apart and balance 27km out from Ember, not at 147km. That is
+ * Anvil are 423km apart and balance 38km out from Ember, not at 211km. That is
  * a property of the profiles that were already written, not a new axis to tune.
  */
 export const GRAV = {

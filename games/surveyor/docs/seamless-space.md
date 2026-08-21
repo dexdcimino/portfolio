@@ -619,7 +619,7 @@ crossfaded instead, via a per-vertex `fade` in `svDisc` that multiplies the
 body and never the halo.
 
 **Nothing in normal play promotes anything yet.** Travel is still an instant
-swap, so the closest a neighbour ever gets is 294 km and every world on the
+swap, so the closest a neighbour ever gets is 338 km and every world on the
 contact sheets is pinned at the `drawFloor`. This phase is invisible until
 phase 4, which is the correct outcome for a foundation.
 
@@ -634,8 +634,8 @@ the six contributions and the midpoint is where the sum stops leaning one way �
 a consequence of the arithmetic instead of a rule, and a consequence cannot be
 got wrong at a boundary case. With equal surface gravity, `mu = g0 · R²`, so two
 wells balance at `Ra / (Ra + Rb)`: the plan's "midpoint" for equal worlds, and
-proportional for unequal ones, which is what it meant. Ember and Anvil are 294km
-apart and balance 27km out from Ember.
+proportional for unequal ones, which is what it meant. Ember and Anvil are 423km
+apart and balance 38km out from Ember.
 
 Surface play is untouched by construction and by measurement: the field reads
 26.9992 to 27.0002 against `HOP.gravity` of 27 at the six surfaces.
@@ -774,8 +774,8 @@ the 84-degree stand-up phase 3 measured and left in place.
 
 **Two worlds cannot both be at true scale, and the reason is the far plane, not
 precision.** Everyone reaches for float32 here; it is not the constraint. The
-closest pair of worlds is 294km apart, where the float32 spacing is 3.1cm, and
-the widest pair is 945km at 6.3cm — invisible on a body subtending a fraction of
+closest pair of worlds is 338km apart, where the float32 spacing is 3.1cm, and
+the widest pair is 869km at 6.3cm — invisible on a body subtending a fraction of
 a degree. The constraint is that the far plane runs 1359m to 8288m, so a second
 world at its true position is **35 to 700 times beyond the frustum**. That is
 what the far band exists for and it does not stop being true in phase 4.
