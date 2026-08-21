@@ -559,6 +559,25 @@ a small world crosses tens of degrees in a fraction of a second, so if the
 arrival lands within two median frames of the last mark that fired, the band it
 missed was never on screen. That case is printed and not failed; everything
 else is failed.
+
+**So the verdict is a pure function with its own case table** — `crosscheck.mjs
+--cases`, fourteen scenarios, no browser, a second to run, subject counted
+before the bar. The browser half takes twenty minutes on SwiftShader and half
+the verdict's branches never fire in a healthy run, which is precisely the
+shape that lets a wrong one sit unread. Proven by re-injecting the old `bad`
+expression and watching exactly the two `placed < 2` cases go red, the same way
+`glslcheck` is proven with a backtick pair; same arrangement as
+`tools/check_sweep.py --cases` at the repo root.
+
+**AND THE FATAL BRANCH CANNOT BE REACHED BY FLYING, which is why it went a year
+without running.** `placed` only counts stages where the destination is
+PROMOTED, and promotion happens close to the arrival by construction — so a run
+with one promoted stage always has a short tail to arrival, which is the
+exempted case. One promoted stage AND a long tail does not occur. It was
+exercised end to end by fault injection instead: a real `tarn` run with its real
+`placed` of 1, with `arr.secs` forced from 0.13 to 9.99 just before the verdict
+call. If a future change makes the branch flyable, the case table is what says
+the code under it still works.
 **Its filmstrip gates on the destination's DRAWN ANGLE, not on `hyperT`.** The
 four hyperT gates it used to carry all landed within about a second of the
 midpoint, because hyperT is altitude and altitude peaks there — the four stages

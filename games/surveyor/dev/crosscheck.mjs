@@ -3,6 +3,7 @@
 //   node dev/crosscheck.mjs                 home to anvil
 //   node dev/crosscheck.mjs ember shroud    another pair
 //   node dev/crosscheck.mjs --gpu           on ANGLE rather than SwiftShader
+//   node dev/crosscheck.mjs --cases         the verdict's own table, no browser
 //
 // `--repeat` IS GONE (2026-08-21). It existed because there were two trip
 // lengths and a throwaway profile had never flown, so the default flew the
@@ -45,6 +46,82 @@ const FROM = argv[0] || 'home';
 const TO = argv[1] || 'anvil';
 const GPU = process.argv.includes('--gpu');
 const [W, H] = ['900', '560'].map(Number);
+
+/**
+ * THE VERDICT, AS A PURE FUNCTION, so that it can be exercised without a
+ * browser. Everything above it takes twenty minutes on SwiftShader and half of
+ * these branches never fire in a healthy run — which is exactly the shape that
+ * lets a wrong one sit unnoticed. `placed < 2` printed the word FAIL and
+ * returned success for its whole life because nothing ever ran it.
+ *
+ * `--cases` below runs the table through this and asserts each answer. Same
+ * arrangement as `tools/check_sweep.py --cases` at the repo root, and for the
+ * same reason: a checker that buys confidence has to be checkable.
+ */
+export function verdict(o) {
+  /* One median frame of slack, doubled: if the arrival came within two frames
+     of the last stage that fired, the gate it missed was never on screen. */
+  const thinFrames = o.placed >= 1 && Number(o.arrSecs) * 1000 < o.medFrame * 2;
+  const bad = !!o.noisy || o.arrHyper || !o.depHyper ||
+    o.worst > 12 ||
+    !o.depart || o.departAng > 12 ||
+    !o.arrive || o.offWings > 6 ||
+    !o.placed || o.misplaced > 0 || (o.placed < 2 && !thinFrames);
+  return { bad, thinFrames };
+}
+
+/* A healthy run, as the baseline every case below varies ONE field of. */
+const HEALTHY = {
+  noisy: 0, arrHyper: false, depHyper: true, worst: 3.2,
+  depart: true, departAng: 0.3, arrive: true, offWings: 0.01,
+  placed: 2, misplaced: 0, arrSecs: '9.23', medFrame: 300,
+};
+
+if (process.argv.includes('--cases')) {
+  const CASES = [
+    ['a healthy crossing', {}, { bad: false, thinFrames: false }],
+    ['four stages instead of two', { placed: 4 }, { bad: false, thinFrames: false }],
+    /* THE ONE THIS FILE GOT WRONG. One stage, and the flight ran on for nine
+       seconds afterwards — so the gate that did not fire had ten frames to
+       fire in and did not. That is a fault and it must be fatal. */
+    ['one stage, and time to spare', { placed: 1 },
+      { bad: true, thinFrames: false }],
+    /* ...and the exemption, which is about this harness and not the game:
+       0.13s after the last mark against a 280ms median frame is less than one
+       frame, so the band was never on screen. */
+    ['one stage, arrival inside a frame', { placed: 1, arrSecs: '0.13', medFrame: 280 },
+      { bad: false, thinFrames: true }],
+    ['one stage, arrival at exactly two frames', { placed: 1, arrSecs: '0.60', medFrame: 300 },
+      { bad: true, thinFrames: false }],
+    ['no stages at all', { placed: 0 }, { bad: true, thinFrames: false }],
+    ['no stages, and a fast arrival too', { placed: 0, arrSecs: '0.01' },
+      { bad: true, thinFrames: false }],
+    ['a stage drawn in the wrong place', { misplaced: 1 }, { bad: true, thinFrames: false }],
+    ['console errors', { noisy: 1 }, { bad: true, thinFrames: false }],
+    ['never left', { depHyper: false }, { bad: true, thinFrames: false }],
+    ['never arrived', { arrHyper: true }, { bad: true, thinFrames: false }],
+    ['a snap in flight', { worst: 40 }, { bad: true, thinFrames: false }],
+    ['a departure seam', { departAng: 30 }, { bad: true, thinFrames: false }],
+    ['an arrival seam off the wings', { offWings: 20 }, { bad: true, thinFrames: false }],
+  ];
+  let failed = 0;
+  for (const [name, over, want] of CASES) {
+    const got = verdict(Object.assign({}, HEALTHY, over));
+    const ok = got.bad === want.bad && got.thinFrames === want.thinFrames;
+    if (!ok) failed++;
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name.padEnd(38)} ` +
+      `bad ${got.bad} (want ${want.bad}), thinFrames ${got.thinFrames} (want ${want.thinFrames})`);
+  }
+  /* COUNT THE SUBJECT. An empty table would print nothing and exit 0, which is
+     byte-identical to every case passing. */
+  const WANT = 14;
+  if (CASES.length !== WANT) {
+    console.log(`\n${CASES.length} cases, expected ${WANT} — broken discovery, not a clean run.`);
+    process.exit(1);
+  }
+  console.log(`\n${CASES.length} cases, ${failed} failed.`);
+  process.exit(failed ? 1 : 0);
+}
 
 /* Boot, dismiss the card, wait for the ground to stop streaming, and put the
    craft where a departure begins.
@@ -637,9 +714,12 @@ if (noisy.length) {
    well below what a boundary snap looked like: the world-+Y build put 180 into
    a single frame. The two seams are judged on the part that is NOT the
    deliberate stand-up, which is the part this phase is responsible for. */
-/* One median frame of slack, doubled: if the arrival came within two frames of
-   the last stage that fired, the gate it missed was never on screen. */
-const thinFrames = placed >= 1 && Number(arr.secs) * 1000 < rep.medFrame * 2;
+const { bad, thinFrames } = verdict({
+  noisy: noisy.length, arrHyper: arr.hyper, depHyper: dep.hyper,
+  worst: rep.worst, depart: rep.depart, departAng: rep.depart && rep.depart.ang,
+  arrive: rep.arrive, offWings: rep.arrive && rep.arrive.offWings,
+  placed, misplaced, arrSecs: arr.secs, medFrame: rep.medFrame,
+});
 if (misplaced) {
   console.log(`\n${misplaced} of ${placed} stage(s) drew the destination somewhere ` +
     'other than where promote() placed it.');
@@ -678,10 +758,5 @@ if (misplaced) {
 } else {
   console.log(`\nthe far band is where it says it is, at ${placed} stage(s) of 2 expected`);
 }
-const bad = !!noisy.length || arr.hyper || !dep.hyper ||
-  rep.worst > 12 ||
-  !rep.depart || rep.depart.ang > 12 ||
-  !rep.arrive || rep.arrive.offWings > 6 ||
-  !placed || misplaced > 0 || (placed < 2 && !thinFrames);
 console.log(bad ? '\nCROSSING FAILED.' : '\nCrossing is continuous.');
 process.exit(bad ? 1 : 0);
