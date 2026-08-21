@@ -202,7 +202,7 @@ started carry a phase log of what actually shipped and where the plan was wrong.
 
 | plan | status |
 |---|---|
-| `docs/seamless-space.md` | phases 1-4 shipped; phase 5 bullets 1-2 done, bullet 3 measured and open on one decision |
+| `docs/seamless-space.md` | **shipped**, all five phases. Two findings parked and written up in it |
 | `docs/day-and-night.md` | parked. After Seamless Space — it changes lighting |
 | `docs/colony-architecture.md` | parked. Does not conflict with Seamless Space |
 

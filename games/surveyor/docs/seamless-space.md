@@ -2,12 +2,13 @@
 
 **Repo:** portfolio · **Target:** `games/surveyor/`
 
-**Status: in progress.** Phases 1 to 4 have shipped. Phase 5's three bullets
-are all measured; bullets 1 and 2 shipped and **bullet 3 is audited, measured
-and open on one decision** — the FX crescendo lands on an empty sky because
-`hyperT` is altitude and the picture is distance, which no intensity can fix.
-See the phase log at the bottom of this file. The residual handoff step stays
-parked.
+**Status: SHIPPED.** All five phases are done and seamless space is in the
+game. Phase 5's three bullets are all measured and closed; two findings are
+parked and shipped around, both written up under PARKED near the bottom of
+this file — the FX crescendo landing before the arrival, and the residual
+handoff step on Tarn and Vault. Neither is a bug and neither blocked ship.
+This file stays as the record; it no longer has a row in the Idea Vault,
+because the vault holds unbuilt plans.
 
 This was a systems change to a game that already worked, and the instruction it
 opened with — do not start until the graphics transplants T2 and T3 are done —
@@ -351,6 +352,78 @@ about a second before the swap; the bank has settled by 89% of a short trip,
 which is 1.2s before arrival. So the short trip's later settle costs nothing
 that can be seen, and `GRAV.turn` was not touched. The margin is about one
 second, and that is the thing to watch if a leg ever goes below ten.
+
+---
+
+# PARKED, AND SHIPPED AROUND — the two findings phase 5 leaves open
+
+Seamless space ships with both of these open. **Neither is a bug**: the game
+plays, travel is continuous, and nothing here is a regression against what the
+plan promised. They are measured findings, written as mechanism so that whoever
+picks one up does not have to derive it again.
+
+## 1. The crescendo does not land on the arrival
+
+`hyperT` is `log(speed)/log(cap)`, and with `v = v0·2^(a/H)` that reduces
+**exactly** to `a/aCap`. Every speed effect is therefore driven by ALTITUDE.
+Apparent size is driven by DISTANCE TO THE DESTINATION, and during the climb
+the two are unrelated: 533.7km out at departure, 529.4km at halfway. Measured
+at 60Hz, home to Anvil:
+
+- the destination holds 5.7° for the whole climb
+- it crosses 8° to 20° in **0.4s** on a twenty-second leg, **0.15s** on a ten
+- the FX peak **1.2s before** the fastest growth
+
+The filmstrip frame captioned `FX at full, still a dot` is the whole of it:
+full streaks at 1,000,000 m/s against a four-degree grey billboard. **No
+intensity closes this.** It is an envelope problem, not a tuning one, and two
+assertions in `run.mjs` pin both halves so it cannot be quietly re-lost.
+
+### The intended direction, so it is not re-litigated
+
+**`hyperT` is correct for what it describes and is not to be rewired.** The
+speed layer stays exactly as it is. What is missing is a SECOND envelope, for
+arrival, driven by the picture rather than by speed.
+
+**Raw drawn angle is too spiky to drive it** — 0.15s across the 8-to-20 degree
+band on a short crossing.
+
+**The log of drawn angle was the candidate, and it does not survive
+measurement.** The reasoning was that angle goes as 1/d against a geometric
+collapse in d, so its log would be near-linear across the descent. The collapse
+is not geometric. Deceleration is the climb run backwards, so `2^(-a/H)` is
+linear in time and `a = -H·log2(c - kt)` — distance is ALREADY logarithmic in
+time, and taking a log of it again over-flattens. Measured over the descent
+half only (peak altitude to arrival), as the worst deviation from a straight
+line in time as a fraction of the total change:
+
+| pair | leg | log(drawn) | raw drawn |
+|---|---|---|---|
+| home→anvil | first / repeat | 49% / 57% | 22% / 32% |
+| home→ember | first / repeat | 47% / 53% | 28% / 34% |
+| anvil→ember | first / repeat | 47% / 53% | 28% / 34% |
+
+The log is the WORSE of the two on every pair tried. So the next session does
+not start there. Note also what the same table says about the objection to raw
+angle: the spikiness is in the CROSSING, not in the descent — across the
+descent proper the raw angle is the better behaved of the two, at 22-34%. A
+candidate that separates the crossing from the descent is worth more than one
+that tries to cover both with a single curve.
+
+Whatever is chosen has to carry no radius, because the worlds run 207m to
+2072m in radius and this project has now written that lesson down six times.
+
+## 2. The residual handoff step
+
+Tarn and Vault still step **~120%** at the far-body to quadtree handoff. The
+leading hypothesis is that the comparison has a floor built in — the body's
+mean spans a whole sphere including its limb while the ground is all centre,
+which is roughly 19% of arithmetic against a 120% gap.
+
+**The limb hypothesis is still unmeasured, and measuring it comes first.** This
+is a standing instruction (Dex): **do not touch a shader.** Two earlier rounds
+were lost tuning terms into an unproven mechanism, and it is the specific
+failure this project keeps repeating.
 
 ---
 
