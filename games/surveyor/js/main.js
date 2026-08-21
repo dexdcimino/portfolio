@@ -483,9 +483,12 @@ for (const e of ['colony', 'colonygrow']) on(e, () => cam.addShake(0.10));
 // ---- input --------------------------------------------------------------
 
 const keys = new Set();
+/* Keys whose browser default is worth refusing. C is NOT in here and does not
+   need to be: a bare letter has no default action, and putting it in would
+   have `preventDefault`ed Ctrl+C along with it. Ctrl came out on 2026-08-21 —
+   see the note in readInput. */
 const HELD = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'ArrowUp', 'ArrowDown',
-  'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
-  'ControlLeft', 'ControlRight']);
+  'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD']);
 let pendingMode = null;
 let pendingHopPress = false;
 let started = false;
@@ -503,7 +506,13 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Digit4') pendingMode = 'drone';
   if (e.code === 'KeyR') craft.setMode('rover');
   if (e.code === 'Space') pendingHopPress = true;
-  if (e.code === 'KeyC') cam.recenter();
+  /* C RECENTRES, EXCEPT IN THE DRONE, WHERE IT IS THE DESCEND KEY. Exactly
+     the arrangement Shift is already under — boost in three forms, climb in
+     the fourth — and resolved the same way: the form that owns the key takes
+     it, and the other meaning does not fire at all there. Not both: one key
+     doing two things AT ONCE in one form is the bug that only shows up in the
+     form nobody tested, and the drone was that form once already. */
+  if (e.code === 'KeyC' && craft.mode !== 'drone') cam.recenter();
   if (e.code === 'KeyM') setMuted(sound.toggleMute());
   if (e.code === 'KeyF') world.colonies.drop();
 });
@@ -525,22 +534,29 @@ function readInput() {
     beam: !!down('KeyE'),
     // Hold to charge a jump; the jet's mid-air pop wants the press edge.
     hopHeld: !!down('Space'),
-    /* THE DRONE'S VERTICAL IS SHIFT AND CTRL (Dex, 2026-08-21), which is the
-       flight-sim pair every other hover craft uses, and T/G are unbound. The
-       drone's own boost went with them — Shift cannot mean two things in one
-       form, and `updateDrone` ignores boost entirely now.
+    /* THE DRONE'S VERTICAL IS SHIFT AND C (Dex, 2026-08-21). Shift climbs,
+       C descends, the held height stays where you leave it, and T/G are
+       unbound. The drone's own boost went with the rebind — Shift cannot mean
+       two things in one form, so `updateDrone` ignores boost entirely.
 
-       CTRL WAS TRIED AND WITHDRAWN ONCE BEFORE, on 2026-08-19, and the reason
-       has not gone away: it is in `HELD` and `preventDefault`ed like every
-       other bound key, which stops Ctrl+A, Ctrl+S, Ctrl+D and Ctrl+P — but
-       Chrome RESERVES Ctrl+W, Ctrl+T and Ctrl+N and delivers them to the
-       browser whatever the page does. W is this game's forward, so descending
-       while flying forward is Ctrl+W, which closes the tab. That is not a
-       rare combination in a hover craft; it is the usual one. Asked for again
-       anyway, so it ships — but if the session ever dies mid-drone, this is
-       why, and the fix is a key that is not a modifier. */
+       CTRL HAS NOW BEEN TRIED AND WITHDRAWN TWICE, and the second time was
+       the same day as the first fix. 2026-08-19: bound, then withdrawn
+       because Ctrl+W is a browser tab-close, and T/G took over. 2026-08-21:
+       bound again, deliberately and knowing that, then withdrawn again within
+       the day. The mechanism has never changed and is not tunable — Ctrl is in
+       `HELD` and `preventDefault`ed like every other bound key, which stops
+       Ctrl+A, Ctrl+S, Ctrl+D and Ctrl+P, but Chrome RESERVES Ctrl+W, Ctrl+T
+       and Ctrl+N and hands them to the browser whatever the page does. W is
+       this game's forward. Descending while moving forward is Ctrl+W, and
+       Ctrl+W closes the tab: not a rare combination in a hover craft, the
+       usual one. A binding that can end the session is not a binding, and no
+       amount of wanting the flight-sim pair changes that.
+
+       SO THE DESCEND KEY IS NOT A MODIFIER, AND WILL NOT BE AGAIN. C costs
+       the camera recentre in this one form; that is a real price and it is
+       the cheap one. Ctrl is free again and nothing should take it. */
     liftHeld: !!down('ShiftLeft', 'ShiftRight'),
-    descHeld: !!down('ControlLeft', 'ControlRight'),
+    descHeld: !!down('KeyC'),
     hopPress: pendingHopPress,
     mode: pendingMode,
   };

@@ -2619,7 +2619,7 @@ export const JET = {
    moves by tilting like a quadcopter, and its thruster pods visibly swivel
    with the tilt (that swivel is the whole character — see applyTransform).
    Precise and slow beside the jet: the jet crosses the world, the drone gets
-   you into a canyon and back out. VERTICAL IS A PAIR: Shift climbs, Ctrl
+   you into a canyon and back out. VERTICAL IS A PAIR: Shift climbs, C
    descends, and the held height stays where you leave it. The hover line
    follows the floor underneath it, so flying out over a drop is still a
    descent you get for free. (This block said "there is no descend key on

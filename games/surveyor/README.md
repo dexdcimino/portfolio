@@ -30,10 +30,10 @@ the air, glide down when it runs dry.
 | `W A S D` | drive and steer — in the air, pitch and roll |
 | `1` `2` `3` `4` | rover · boat · jet · drone |
 | `Shift` | sustained boost — rover, boat and jet. **In the drone it is climb** |
-| `Ctrl` | drone only — descend. The held height stays where you leave it |
+| `C` | **drone only** — descend. The held height stays where you leave it |
 | `Space` | hold to charge a jump, release to leap (full charge = 10x height) |
 | drag · wheel | swing the camera · pull the boom in and out |
-| `C` | recentre the camera behind you |
+| `C` | recentre the camera behind you — every form **except** the drone, where it descends |
 | `F` | drop a coloniser |
 | `Q` | **hold** for the survey overlay — see through the planet, and the system |
 | `E` | **hold** for the scanner beam. Costs charge, disrupts raiders |

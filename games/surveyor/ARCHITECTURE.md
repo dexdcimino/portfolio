@@ -302,19 +302,26 @@ across 2 worlds"), read at arm time, then reloads.
   vehicle, four physics models + hyper transit — the drone is a hover on key
   `4`: holds height with no input, moves by tilting, thruster pods swivel in
   `applyTransform`. VERTICAL IS TWO KEYS ON THE HOVER LINE, not two forces on
-  the spring — Shift raises `droneLift`, Ctrl lowers it into `DRONE.minLift`,
-  and releasing both holds the new height because the target moved rather than
+  the spring — Shift raises `droneLift`, C lowers it into `DRONE.minLift`, and
+  releasing both holds the new height because the target moved rather than
   being pushed against. **The drone has NO BOOST**: Shift cannot mean two
   things in one form, so `boostBurn`/`boostAccel`/`boostSpeed` were deleted
   from `DRONE` rather than orphaned, `canBoost()` returns false here, and
   `camera.js`'s drone REF_SPEED moved to `maxSpeed` — a reference of 42 on a
   craft that tops out at 26 is the exact mistake that file's own comment warns
-  about. **Ctrl is a browser modifier and this is the SECOND time it has been
-  bound** (T/G held it in between): it is `preventDefault`ed like every other
-  bound key, which covers Ctrl+A/S/D/P, but Chrome reserves Ctrl+W and W is
-  forward — descending while flying forward closes the tab, and no page can
-  stop it. Asked for knowingly (Dex, 2026-08-21); the escape is a non-modifier
-  key. Entry floors that offset at 0, not at `minLift`, or the
+  about. **CTRL HAS BEEN TRIED AND WITHDRAWN TWICE, and it is not
+  coming back.** Bound 2026-08-19 and withdrawn the same day; bound again
+  2026-08-21, knowingly, and withdrawn again within the day. The mechanism is
+  not tunable: Ctrl is `preventDefault`ed like every other bound key, which
+  covers Ctrl+A/S/D/P, but Chrome RESERVES Ctrl+W and no page can refuse it —
+  and W is forward, so descending while moving forward closes the tab. That is
+  the usual combination in a hover craft, not a rare one, and a binding that
+  can end the session is not a binding. **The descend key is C**, which costs
+  the camera recentre IN THE DRONE ONLY: `main.js` gates `cam.recenter()` on
+  `craft.mode !== 'drone'`, the same arrangement Shift is already under, and
+  resolved the same way — the form that owns the key takes it and the other
+  meaning does not fire there at all, rather than both firing at once.
+  Entry floors that offset at 0, not at `minLift`, or the
   drone cannot take off from the ground), `camera.js`
   (`ChaseCam`). NOTE: the camera keys FOUR maps by mode — `CAM.dist/height/
   fov/rollTilt` plus `REF_SPEED` — and a mode missing from any one of them is
@@ -510,7 +517,14 @@ of worlds you pass, so `shots.mjs home ember` overwrites the committed six-way
 sheets with a two-way one. Pass no worlds when the sheets matter. `savedworlds.mjs` — cold load **with** a save,
 asserts one sky/disc set/water. `arrivecheck.mjs` — exits non-zero, the one
 you can gate a commit on. `savefile.mjs` — seeded saves (`--save`,
-`--away=N`). `skycheck.mjs` — where the other five sit in each world's sky, from four
+`--away=N`). `keycheck.mjs` — the one check that drives REAL KEY EVENTS at a real browser.
+It exists because C means two things: the camera recentre everywhere, and the
+drone's descend key in the drone, with `main.js` gating `cam.recenter()` on the
+mode. `run.mjs` cannot reach that — the map lives in `readInput`, which needs a
+document, and the suite drives `liftHeld`/`descHeld` directly — so between them
+the input LAYER and the key MAP are both covered and neither file covers both.
+Add a form-dependent binding and it goes here.
+`skycheck.mjs` — where the other five sit in each world's sky, from four
 vantages around a lap rather than from the spawn alone (elevation, bearing, the
 closest pair on each sky, and the elevation span over a lap; `--pairs` for all
 thirty). Pure arithmetic on the Babylon stub, no browser. It is the file to run

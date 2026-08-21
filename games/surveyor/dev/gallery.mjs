@@ -465,9 +465,10 @@ if (want('drone')) {
     const N = PLANETS[V.world].name;
     await toMode(page, input, V.digit, 'drone');
 
-    /* Shift climbs, Ctrl descends - the drone's vertical is a pair, and the
-       drone has no boost, so Shift here is lift and nothing else. Space is
-       nothing at all in this mode. */
+    /* Shift climbs, C descends - the drone's vertical is a pair, and the
+       drone has no boost, so Shift here is lift and nothing else. C does not
+       recentre the camera in this form, which is what makes it available.
+       Space is nothing at all in this mode. */
     await drive(page, input, ['ShiftLeft'], 2200, {
       shot: `Drone - ${N}`, variant: 'climbing, close over the ground', expect: 'drone',
       repro: `?planet=${V.world} - Digit4 - Shift 2.2s (shot held)` });
@@ -478,13 +479,13 @@ if (want('drone')) {
 
     // The beam is the one thing the drone does that no other vehicle does, and
     // the reason the mode exists. Held, not toggled.
-    await drive(page, input, ['KeyE', 'ControlLeft'], 1500, {
+    await drive(page, input, ['KeyE', 'KeyC'], 1500, {
       shot: `Drone - ${N}`, variant: 'beam out, descending onto a site', expect: 'drone',
-      repro: `?planet=${V.world} - Digit4 - Shift 2.2s, Shift+W 3.6s, E+Ctrl 1.5s (shot held)` });
+      repro: `?planet=${V.world} - Digit4 - Shift 2.2s, Shift+W 3.6s, E+C 1.5s (shot held)` });
 
     await drive(page, input, ['KeyW', 'KeyD'], 2400, {
       shot: `Drone - ${N}`, variant: 'strafing across a ridge', expect: 'drone',
-      repro: `?planet=${V.world} - Digit4 - Shift 2.2s, Shift+W 3.6s, E+Ctrl 1.5s, W+D 2.4s (shot held)` });
+      repro: `?planet=${V.world} - Digit4 - Shift 2.2s, Shift+W 3.6s, E+C 1.5s, W+D 2.4s (shot held)` });
 
   });
 }
