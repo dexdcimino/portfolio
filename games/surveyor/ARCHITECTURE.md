@@ -64,6 +64,16 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   plane at the horizon distance from the arrival altitude now, and an assertion
   holds it; the absolute altitude itself is phase 4's to fix. Before adding a
   constant in metres, divide it by 207 and by 2072 and look at both answers.
+  **And consider whether metres is the unit at all.** `HYPER.tripFirst` and
+  `tripRepeat` are the length of a crossing and they are authored in SECONDS,
+  with `doublingFor()` solving back to the metres of altitude per doubling that
+  produce them. The constant behind them is absolute — 1612m and 1013m — and it
+  is allowed to be, because `legSeconds` has no radius in it: the middle of a
+  journey is flown at the cap and costs nothing, so a trip costs the climb out
+  and the fall in, which are the same climb on every world. Measured, all five
+  destinations land within 0.5s of the asked time under both laws. Where a
+  number has a scale-free unit, author it in that unit and derive the metres;
+  then nobody has to divide anything by 207.
 - **Measure at the resolution AND the scaling a player actually uses.**
   `devicePixelRatio` and the OS display scale MULTIPLY, and neither exists
   headless. Every frame number this project quoted for a year came off 900x560
@@ -163,7 +173,7 @@ started carry a phase log of what actually shipped and where the plan was wrong.
 
 | plan | status |
 |---|---|
-| `docs/seamless-space.md` | phases 1-3 shipped; phase 4 started, arrival cut |
+| `docs/seamless-space.md` | phases 1-4 shipped; phase 5 bullets 1-2 done, bullet 3 (speed FX) left |
 | `docs/day-and-night.md` | parked. After Seamless Space — it changes lighting |
 | `docs/colony-architecture.md` | parked. Does not conflict with Seamless Space |
 
@@ -193,7 +203,10 @@ across 2 worlds"), read at arm time, then reloads.
   `water.js`, `seabed.js` (RTT depth pass), `shadows.js` (hand-rolled ortho
   depth pass — deliberately not Babylon's ShadowGenerator), `sky.js`,
   `discs.js` (other five worlds as billboards, one draw call), `preview.js`,
-  `geysers.js`, `hyper.js` (travel maths, no Babylon, no game state),
+  `geysers.js`, `hyper.js` (travel maths, no Babylon, no game state; also
+  owns the trip length — `legSeconds`/`doublingFor` convert between seconds of
+  crossing and metres per doubling, and `doublingAfter(crossings)` picks which
+  law a departure flies),
   `gravity.js` (the summed field, well dominance and the craft's transit
   basis — same rule as hyper.js: no Babylon, no game state; `dominant()` also
   gates phase 4's prebuilding, which must not run against an unconverged
@@ -234,7 +247,10 @@ across 2 worlds"), read at arm time, then reloads.
   empties the shadow caster list.
 - **`craft`**: `surf` (a `Surface`), `world` (planet-centred position),
   `pos/vel` in local tangent space (y = metres above sea level), `mode`,
-  `hyper` (null or transit state), `hyperT` (0..1 — every FX reads only this).
+  `hyper` (null or transit state, carrying the `H` this crossing flies under —
+  chosen at departure from `economy.crossings` and never re-read), `hyperT`
+  (0..1 — every FX reads only this, and it is a function of SPEED, so it still
+  spans the full range on a short trip; only the dwell shortens).
 - **`Surface`**: `{planet, frame, cache}`; `height()` is analytic,
   `surfaceHeight()` is the **drawn** lattice — anything touching the ground
   uses the latter. In `TangentFrame`, `north = east × up`; the sign is
@@ -242,8 +258,13 @@ across 2 worlds"), read at arm time, then reloads.
   non-unit quaternion into scale).
 - **Planet profiles** live in `PLANETS` (tune.js); `makePlanet()` derives
   `maxLevel`, `horizon`, `fogNear/Far`, `farPlane = R·4` etc.
-- **Save blob**: `{v: 1, hyper, at, worlds: {key: {clock, sites: [{id, dir,
-  age, geyser, hp}]}}}` at `localStorage['surveyor.economy.v1']`.
+- **Save blob**: `{v: 1, hyper, at, crossings, worlds: {key: {clock, sites:
+  [{id, dir, age, geyser, hp}]}}}` at `localStorage['surveyor.economy.v1']`.
+  `crossings` is completed trips and decides how long the next one takes
+  (`HYPER.tripFirst` against `tripRepeat`), so it persists for the same reason
+  a colony does. Added WITHOUT bumping `v` — a blob that lacks it reads as
+  zero, which costs a returning player one more long trip and nothing else;
+  bumping the version would have dropped every save on disk.
 - **`window.SURVEYOR`** = debug surface (live getters, incl. `surface` →
   `craft.surf`); **`window.Surveyor`** = the stable interface
   (`resume/paused/sound`). Never merge them (main.js says why).
@@ -348,6 +369,25 @@ sample came out `sphere` and the pop check evaluated nothing. If `promoteAngle`
 or `fadeBand` move, re-solve for the crossing step and move the tight pair with
 it; the harness now fails loudly when it observes no crossing.
 
+**A gate that stops a check reporting a false zero can make it report a false
+FAILURE, and the trigger is the window moving rather than the code changing.**
+`cross()` in `run.mjs` measures the bank every frame and throws away the frames
+where the local up lies along the nose, because a craft diving straight down a
+radial has no bank to be right or wrong about — without that gate the check
+reported a perfect zero off a sample of nothing. Its `finalBank` is then named
+for arrival but MEASURED at the last frame the gate lets through. On a 25s
+crossing the gate shuts at 87% and the bank had settled at 73%, so the two
+coincided and the name was never tested. Halving the trip shut the gate at 82%
+with 35 degrees still to unwind, and the check reported "arrives 35 degrees
+off" about a number from 2.4 seconds before the end. Nothing was wrong with the
+craft: the bank unwinds at a bounded rate with 2.4s to spend 0.68s of it, and
+`landOn` sets roll to zero regardless. The fix is not a wider gate but a
+scale-free quantity — the SHORTFALL, seconds of bank still standing minus
+seconds left to unwind it — which says the same thing about a 37-second
+crossing and an 11-second one. Before trusting a number, check whether its NAME
+and its MEASUREMENT point at the same moment; they may only coincide at the
+scale it was written at.
+
 **`glslcheck` must be able to see every shader body.** A backtick inside one
 closes the template literal and silently eats the GLSL after it, which is the
 whole reason that check exists. For most of its life it matched `\w+Shader = `
@@ -386,7 +426,9 @@ silhouette, because the first two handoffs both hid in the channel nobody
 measured), and
 `crosscheck.mjs` (one real crossing in the live engine: samples the drawn
 `rotationQuaternion` every animation frame and reports the step across each
-boundary, plus a filmstrip. The maths version lives in `run.mjs`; this is the
+boundary, plus a filmstrip. `--repeat` flies the SHORT crossing — a throwaway
+profile has never flown, so the default is the long first trip, which is the
+one nobody makes twice; the two write separate sheets. The maths version lives in `run.mjs`; this is the
 one that can catch the game drawing something other than what the maths says).
 `dev/history/` is the pre-import repo bundle.
 

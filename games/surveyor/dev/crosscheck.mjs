@@ -3,6 +3,12 @@
 //   node dev/crosscheck.mjs                 home to anvil
 //   node dev/crosscheck.mjs ember shroud    another pair
 //   node dev/crosscheck.mjs --gpu           on ANGLE rather than SwiftShader
+//   node dev/crosscheck.mjs --repeat        the SHORT crossing, not the first
+//
+// A fresh profile has never flown, so the default here is the long first
+// crossing — which is the one nobody makes twice. `--repeat` seeds the save's
+// crossing count so the run flies HYPER.tripRepeat instead, which is the trip
+// the FX and the approach actually have to hold up under.
 //
 // dev/run.mjs already flies the crossing as maths: it carries a TransitFrame
 // beside hyper's own integrator and proves the seams are zero and the bank
@@ -36,6 +42,7 @@ const argv = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const FROM = argv[0] || 'home';
 const TO = argv[1] || 'anvil';
 const GPU = process.argv.includes('--gpu');
+const REPEAT = process.argv.includes('--repeat');
 const [W, H] = ['900', '560'].map(Number);
 
 /* Boot, dismiss the card, wait for the ground to stop streaming, and put the
@@ -44,7 +51,7 @@ const [W, H] = ['900', '560'].map(Number);
    altitude`, and a harness that skips the trigger cannot tell you the trigger
    still fires — so the craft is stood up as a jet just under the boundary, in a
    climb, and the real update loop takes it over the edge on its own. */
-const SETUP = (to) => `(async () => {
+const SETUP = (to, repeat) => `(async () => {
   const frame = () => new Promise((r) => requestAnimationFrame(r));
   const t0 = performance.now();
   let drained = 0;
@@ -66,6 +73,9 @@ const SETUP = (to) => `(async () => {
   // Fuel for the trip, so the departure is not refused by the economy check.
   S.economy.hyper = 999;
   c.addFuel(999);
+  /* Which trip length this run flies. The count is read at enterHyper, so it
+     has to be set before the climb crosses the boundary — which is here. */
+  S.economy.crossings = ${repeat ? 1 : 0};
 
   /* Point the climb at the destination. The heading you leave with is what
      picks the world, so this is the aim, not a teleport: yaw and pitch are set
@@ -287,7 +297,7 @@ await page.send('Emulation.setDeviceMetricsOverride',
   { width: W, height: H, deviceScaleFactor: 1, mobile: false });
 await page.send('Page.navigate', { url: `http://127.0.0.1:${port}${GAME}?planet=${FROM}` });
 
-const setup = await evaluate(page, SETUP(TO));
+const setup = await evaluate(page, SETUP(TO, REPEAT));
 if (!setup.ok) {
   console.log('setup failed:', setup.why);
   await chrome.close(); closeServer(); server.unref();
@@ -558,7 +568,7 @@ writeFileSync(join(OUT, 'crosssheet.html'),
     { width: size.w, height: size.h, deviceScaleFactor: 1, mobile: false });
   await wait(400);
   const s = await p2.send('Page.captureScreenshot', { format: 'jpeg', quality: 88 });
-  const sheet = `cross-${FROM}-${setup.aimed}.jpg`;
+  const sheet = `cross-${FROM}-${setup.aimed}${REPEAT ? '-repeat' : ''}.jpg`;
   writeFileSync(join(OUT, sheet), Buffer.from(s.data, 'base64'));
   console.log(`\nfilmstrip  ${size.w}x${size.h}  -> dev/shots/${sheet}`);
   await p2.close();

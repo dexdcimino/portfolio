@@ -2,8 +2,10 @@
 
 **Repo:** portfolio · **Target:** `games/surveyor/`
 
-**Status: in progress.** Phases 1, 2 and 3 have shipped — see the phase log at the
-bottom of this file and the two matching sections in `../README.md`. Do not
+**Status: in progress.** Phases 1 to 4 have shipped and phase 5 is two bullets
+of three — see the phase log at the bottom of this file and the matching
+sections in `../README.md`. What is left is bullet 3, the speed FX against real
+geometry, plus the parked residual handoff step. Do not
 start until the graphics transplants (T2, T3) are done. This is a systems change
 to a game that currently works, and it should land on top of finished lighting
 rather than underneath it.
@@ -208,7 +210,7 @@ pixel test has 7x signal over its control, and the filmstrip shows a dot
 climbing out that grows into a world. crosscheck asserts it and fails all four
 stages if the ordering is put back.
 
-The other two bullets are untouched.
+The phase's three bullets as written, and where each one stands:
 
 - Distant worlds should **grow visibly** during hyper travel — the speed FX
   already exist and now have something to play against
@@ -216,6 +218,68 @@ The other two bullets are untouched.
   the first time and tedious the fiftieth.
 - Re-check the speed FX against real approaching geometry. They were tuned
   against an empty sky.
+
+## Bullet 2 — DONE, and neither of the two things it offered
+
+**Neither a skip nor a fast-forward** (Dex, 2026-08-21). Both are a SECOND WAY
+TO TRAVEL — another arrival path, another FX state, another thing that has to
+keep working — to solve what is really just a duration. The trip itself gets
+shorter instead: **20 seconds the first crossing a save ever makes, 10 seconds
+every crossing after it**, counted per player rather than per world or per pair.
+One field in the save blob decides it and there is no new path through the game.
+
+**The trip is now authored in SECONDS.** `H` — metres of altitude per doubling
+— is the only knob that changes trip time, and `t(H) = 2H·2^(-a0/H)/(v0·ln2)`
+is not a relation anyone can set by hand: 1500m was 18.1 seconds and nothing
+about the number said so. `tune.js` states the seconds and `doublingFor()`
+solves back for the metres. That also settles the absolute-length question this
+project has got wrong five times: the metres are absolute and allowed to be,
+because `legSeconds` has no radius in it, and all five destinations land within
+0.5s of the asked time under both laws. Where a number has a scale-free unit,
+author it in that unit.
+
+**A shorter trip arrives faster, and that is arithmetic, not a side effect.**
+Deceleration is the same curve run backwards, so halving the leg takes the
+speed at the far boundary from 240 m/s to 292 m/s — pinned in the suite against
+the jet, which sheds it under its own drag exactly as it does today. It is the
+number to watch if these ever go lower.
+
+**What nearly got tuned instead of measured.** Phase 3's bank rate was sized as
+"a half turn takes 3.5s against the 9s a trip has left", and a 10-second leg
+leaves about 5. The 30-pair sweep, run under both laws, duly reported an
+arrival 35 degrees off. It was the CHECK. `finalBank` is named for arrival and
+measured at the last frame the bank is defined — the last stretch of a crossing
+is a dive down the destination's radial where there is no bank to be right
+about, and those frames are gated out. On a 25s crossing the gate shuts at 87%
+and the bank settled at 73%, so the name was never tested; on a 13s crossing it
+shuts at 82% with 35 degrees still standing. The craft is fine: 0.68s of roll
+with 2.4s to spend, and `landOn` zeroes roll regardless. The check now measures
+the SHORTFALL — seconds of bank standing minus seconds left to unwind it —
+which is scale-free and says the same thing about a 37-second crossing and an
+11-second one. `GRAV.turn` was not touched. The general lesson is in
+`../ARCHITECTURE.md`.
+
+**Verified.** 244 checks in `run.mjs` (up from 236), all pass bar the drone's
+pre-existing `climb is held after Space is released`; the 30-pair gravity sweep
+now flies 60 crossings over both laws; `arrivecheck` clean on all six;
+`crosscheck --repeat` reports the short crossing continuous with the far band
+where it says it is at four stages, and its filmstrip shows the destination
+growing from a dot to a world in ten seconds — `dev/shots/cross-home-tarn-repeat.jpg`.
+
+**Open, for Dex.** The bank comes upright at 89% of a short trip against 82% of
+a long one — 1.7 seconds before arrival rather than 6.7. It converges and it
+reads, but if it wants more room the lever is `GRAV.turn`, currently 0.9 rad/s.
+And these are the LEG, boundary to boundary; the 8.7s escape burn that gets you
+to the boundary is flying rather than travelling and is deliberately not in the
+number, so door to door a first crossing is about 29s and a repeat about 19s.
+
+### Bullet 3 is untouched
+
+Re-check the speed FX against real approaching geometry. `hyperT` is a function
+of speed, not of time, so it still spans its full range on a short trip and the
+peak is unchanged — only the dwell shortens. Judge them against
+`cross-home-tarn.jpg` and `cross-home-tarn-repeat.jpg`, which are the same
+crossing at both lengths.
 
 ---
 

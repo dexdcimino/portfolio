@@ -1192,20 +1192,54 @@ export const PREVIEW = {
  * NEAREST surface, the deceleration into the destination is the same curve
  * running backwards. There is no braking input because none is possible.
  *
- * `doubleEvery` is the only knob that changes trip time. Raising `maxSpeed`
- * changes the number on the HUD and almost nothing else — at the cap the craft
- * is crossing the empty middle, which is a fraction of a second either way.
+ * H is the only knob that changes trip time, and THE TRIP IS AUTHORED IN
+ * SECONDS: t(H) = 2H·2^(-a0/H)/(v0·ln2) is not a relation anyone can set by
+ * hand — 1500m is 18.1 seconds and nothing about the number says so — so
+ * `tripFirst` and `tripRepeat` below state the seconds they are meant to
+ * produce and `doublingFor()` in hyper.js solves back for the metres. Raising
+ * `maxSpeed` changes the number on the HUD and almost nothing else — at the
+ * cap the craft is crossing the empty middle, which is a fraction of a second
+ * either way.
  *
- * H is 1500. It was briefly 1750, chosen to put the boundary-to-boundary LEG on
- * the design's 27s — but the leg is not the trip. Door to door, with the climb
- * out and the descent in, that read 33-39s against a target of 20-30s. The leg
- * is the wrong thing to hold constant; what the player experiences is the
- * whole journey, so H comes back down and the leg gets shorter to pay for the
- * ends. Anvil stays the longest haul in the system, which is correct — it is
- * the one world whose distance should be felt.
+ * The leg was a flat 18.1s for most of this project's life (H = 1500m), and
+ * briefly 27s before that (H = 1750), chosen to put the boundary-to-boundary
+ * LEG on the design's number — but the leg is not the trip. Door to door, with
+ * the climb out and the descent in, that read 33-39s against a target of 20-30s.
+ * The leg is the wrong thing to hold constant; what the player experiences is
+ * the whole journey. Anvil stays the longest haul in the system, which is
+ * correct — it is the one world whose distance should be felt.
  */
 export const HYPER = {
-  doubleEvery: 1500,     // H, metres of altitude per doubling
+  /* HOW LONG A CROSSING TAKES, in seconds, and the first one you ever make is
+     twice the rest.
+
+     Thirty seconds of travel is good the first time and tedious the fiftieth
+     (Dex, 2026-08-21). The other two candidates were a skip button that puts
+     you down at the destination and a held key that compresses time, and both
+     are a SECOND WAY TO TRAVEL — another arrival path, another FX state,
+     another thing that has to keep working — to solve what is really just a
+     duration. This is the same journey with a different constant in it.
+
+     Counted per PLAYER and not per route: crossing one is the long one and
+     every crossing after it is short, whichever worlds they join. The count
+     lives in the save blob as `crossings`, so it survives a reload the way a
+     colony does, and a save written before it existed reads as zero — one
+     more long trip, once, for a returning player.
+
+     THESE ARE THE LEG, boundary out to boundary in, which is the stretch with
+     no input in it. Getting to the boundary is 8.7s of held boost on top (see
+     JET.escapeThin) and that is flying rather than travelling, so it is
+     deliberately not in this number: door to door a first crossing is about
+     29s and a repeat about 19s.
+
+     A SHORTER TRIP ARRIVES FASTER, and that is not a side effect to tune away
+     — deceleration is the same curve run backwards, so halving the leg raises
+     the speed at the far boundary from 240 m/s to 292 m/s. The jet's crash
+     speed is 78 and it sheds the difference under its own drag exactly as it
+     does today, but it is the number to watch if these ever go lower; the
+     suite pins it against JET.boostSpeed. */
+  tripFirst: 20,         // seconds, the first crossing of a save
+  tripRepeat: 10,        // ...and every one after it
   localSpeed: 158,       // v0. Must match JET.boostSpeed — asserted in the suite
   maxSpeed: 1e6,         // the HUD's top number. Does not change trip time
   /* THE BOUNDARY, and there is only one: inside a planet's approach sphere you

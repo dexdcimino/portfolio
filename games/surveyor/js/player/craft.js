@@ -9,7 +9,7 @@
 
 import { frameQuat } from '../world/surface.js';
 import { iceHolds, iceRide } from '../world/water.js';
-import { bodies, advance, steer, pickTarget, centreOf, arriveAlt } from '../world/hyper.js';
+import { bodies, advance, steer, pickTarget, centreOf, arriveAlt, doublingAfter } from '../world/hyper.js';
 import { TransitFrame, landingYaw } from '../world/gravity.js';
 import { ROVER, BOAT, JET, DRONE, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER,
          AIR, PARACHUTE, SKID, ARRIVE, CAM } from '../tune.js';
@@ -412,7 +412,14 @@ export class Craft {
        under it rather than a new attitude computed from world +Y. */
     this.transit.seed(fr, this.yaw, this.pitch, this.roll);
 
-    this.hyper = { p, dir, target, speed: this.speedScalar, alt: this.pos.y, from: P.key };
+    /* WHICH LAW THIS CROSSING FLIES UNDER, fixed here and never touched again.
+       A first crossing is the long one; see HYPER.tripFirst. Read at DEPARTURE
+       so a trip cannot change speed under the player halfway across — the
+       count advances on arrival, and a state that read it per frame would step
+       the speed law on the frame it landed. */
+    const H = doublingAfter(this.economy ? this.economy.crossings : 0);
+
+    this.hyper = { p, dir, target, speed: this.speedScalar, alt: this.pos.y, from: P.key, H };
     emit('hyperenter', { from: P.key, to: target ? target.key : null, target });
   }
 
@@ -460,6 +467,13 @@ export class Craft {
     this.applyTransform();
 
     if (arrived) {
+      /* Counted on ARRIVAL rather than on departure, so a tab closed halfway
+         across does not spend the one long crossing a save has. Here rather
+         than in main.js's listener because the harnesses drive the craft and
+         never the listener, and a count only the game increments is a count
+         no check can see. */
+      if (this.economy) this.economy.crossings++;
+
       /* Direction on the destination, in its own frame — which is what a
          Surface is anchored by. The listener rebuilds the world and hands back
          a Surface through landOn(); nothing here assumes it will, so a headless

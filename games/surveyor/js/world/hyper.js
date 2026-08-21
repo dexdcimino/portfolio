@@ -9,6 +9,13 @@
 //    fall toward one and you decelerate, on exactly the same curve. Nobody
 //    presses anything, and there is no way to arrive fast.
 //
+//    H IS CHOSEN AT DEPARTURE AND FIXED FOR THE TRIP, because the fiftieth
+//    crossing is shorter than the first — see doublingAfter(). Within a flight
+//    nothing about the law changes, so "of nothing else" still holds exactly;
+//    what varies between flights is the constant in the exponent. That is why
+//    H rides on the transit state rather than being read from tune.js at the
+//    point of use, and why every function here takes it rather than knowing it.
+//
 // 2. THE STEP IS INTEGRATED, NOT SAMPLED. At the cap a frame is 33km long and
 //    the smallest world is 414m across, so a per-frame `pos += v·dt` does not
 //    merely lose accuracy — it passes clean through planets and never registers
@@ -21,6 +28,79 @@ import { PLANETS, SYSTEM, HYPER, ARRIVE } from '../tune.js';
 const L2 = Math.LN2;
 
 const len = (x, y, z) => Math.hypot(x, y, z);
+
+/**
+ * How long a leg of `H` takes, boundary out to boundary in, in seconds.
+ *
+ *     t(H) = 2H·2^(-a0/H) / (v0·ln2)
+ *
+ * Out from the boundary to infinity and back down to it, with a0 the approach
+ * altitude. There is no distance in it and no radius in it: the middle of a
+ * journey is flown at the cap and costs nothing, so what a trip costs is the
+ * climb out and the fall in, and those are the same climb on every world.
+ */
+export function legSeconds(H) {
+  return (2 * H * Math.pow(2, -HYPER.approachAlt / H)) / (HYPER.localSpeed * L2);
+}
+
+/**
+ * THE LENGTH OF A CROSSING IS AUTHORED IN SECONDS, and this solves back to H.
+ *
+ * `H` — metres of altitude per doubling — is the only knob that changes trip
+ * time, and t(H) above is not a relation anyone can set by hand: 1500m is 18.1
+ * seconds and nothing about the number says so. So tune.js states the seconds
+ * it wants and this finds the H, which means the tuning file says what it
+ * means and the arithmetic lives in one place.
+ *
+ * H IS AN ABSOLUTE LENGTH ON SIX WORLDS WHOSE RADII RUN 207m TO 2072m, which is
+ * the exact shape of constant this project has now got wrong five times — so:
+ * it is allowed to be absolute, and the reason is that the number it produces
+ * is not. t(H) has no radius in it. Measured across all five destinations from
+ * Home the legs run 18.3-18.6s against a predicted 18.1, a spread of 1.6% over
+ * worlds that differ by a factor of ten, and `run.mjs` pins that convergence
+ * for both laws. The player feels seconds; seconds are scale-free; seconds are
+ * what tune.js says. The metres are derived and nobody has to divide them by
+ * 207 and by 2072, because the thing they produce has already been checked at
+ * both ends.
+ *
+ * t is strictly increasing in H — d/dH[H·2^(-a0/H)] = 2^(-a0/H)(1 + a0·ln2/H),
+ * positive everywhere — so the bisection cannot land on a second root. Solved
+ * twice at module load and never again.
+ */
+export function doublingFor(seconds) {
+  let lo = 1, hi = 1e7;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    if (legSeconds(mid) < seconds) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/** The two laws, in metres per doubling. Derived; nothing authors these. */
+export const DOUBLING = {
+  first: doublingFor(HYPER.tripFirst),
+  repeat: doublingFor(HYPER.tripRepeat),
+};
+
+/**
+ * Which law a craft flies under, given how many crossings it has completed.
+ *
+ * Thirty seconds of travel is good the first time and tedious the fiftieth
+ * (Dex, 2026-08-21). A skip button and a hold-to-fast-forward key were the
+ * other two candidates and both are a SECOND WAY TO TRAVEL — another arrival
+ * path, another FX state, another thing that has to keep working — to solve
+ * what is really just a duration. This is the same journey with a different
+ * constant in it, so there is no second path to keep working and nothing new
+ * can be forgotten at the boundary.
+ *
+ * The count is the PLAYER'S, not the route's: the first crossing you ever make
+ * is the long one and every crossing after it is short, whichever worlds they
+ * join (Dex, 2026-08-21 — per-world and per-pair were the alternatives). One
+ * flag's worth of state, and a first flight is a first flight.
+ */
+export function doublingAfter(crossings) {
+  return crossings > 0 ? DOUBLING.repeat : DOUBLING.first;
+}
 
 /**
  * The system, as spheres.
@@ -58,10 +138,11 @@ export function nearest(bs, p) {
   return { body: best, alt: bestAlt };
 }
 
-/** v(a), capped. */
-export function speedAt(alt) {
+/** v(a), capped. `H` defaults to a first crossing, the slowest law there is. */
+export function speedAt(alt, H) {
+  const h = H === undefined ? DOUBLING.first : H;
   return Math.min(HYPER.maxSpeed,
-    HYPER.localSpeed * Math.pow(2, Math.max(0, alt) / HYPER.doubleEvery));
+    HYPER.localSpeed * Math.pow(2, Math.max(0, alt) / h));
 }
 
 /** Is this point inside any world's approach sphere? Hyper cannot run in one. */
@@ -94,12 +175,12 @@ export function insideAny(bs, p) {
  * The result is clamped to maxSpeed·dt regardless, which also guarantees the
  * step can never be longer than the swept segment the caller is about to test.
  */
-export function stepDistance(alt0, k, dt) {
-  const H = HYPER.doubleEvery;
+export function stepDistance(alt0, k, dt, HIn) {
+  const H = HIn === undefined ? DOUBLING.first : HIn;
   const v0 = HYPER.localSpeed;
   const capStep = HYPER.maxSpeed * dt;
   if (!(dt > 0)) return 0;
-  if (Math.abs(k) < 1e-9) return Math.min(speedAt(alt0) * dt, capStep);
+  if (Math.abs(k) < 1e-9) return Math.min(speedAt(alt0, H) * dt, capStep);
 
   const a0 = Math.max(0, alt0);
   const b = Math.pow(2, -a0 / H) - (k * v0 * dt * L2) / H;
@@ -157,8 +238,9 @@ export function sweepAll(bs, p, dir, dist) {
 /**
  * One frame of hyper flight.
  *
- * `state` is { p, dir, target } in system metres; it is mutated. Returns the
- * body arrived at, or null. On arrival the position is clamped to the entry
+ * `state` is { p, dir, target, H } in system metres; it is mutated. `H` is the
+ * law this trip flies under and is fixed at departure; a state without one
+ * flies a first crossing. Returns the body arrived at, or null. On arrival the position is clamped to the entry
  * point on the approach sphere, which is where normal flight resumes — never
  * a point inside the world, and never past it.
  */
@@ -172,7 +254,7 @@ export function advance(bs, state, dt) {
   const rx = (p.x - near.body.c.x) / d, ry = (p.y - near.body.c.y) / d, rz = (p.z - near.body.c.z) / d;
   const k = dir.x * rx + dir.y * ry + dir.z * rz;
 
-  const dist = stepDistance(near.alt, k, dt);
+  const dist = stepDistance(near.alt, k, dt, state.H);
   const hit = sweepAll(bs, p, dir, dist);
 
   const travel = hit ? hit.t : dist;

@@ -167,6 +167,11 @@ let awayReport = null;
   const saved = economy.load();
   if (saved) {
     economy.hyper = saved.hyper;
+    /* Absent from any save written before crossings were counted, and a missing
+       count reads as zero: one more full-length trip for a returning player,
+       once. Inferring it from the worlds in the blob would be a guess — a
+       player can have flown five times and founded nothing. */
+    economy.crossings = saved.crossings || 0;
     const missed = [];
     for (const [key, data] of Object.entries(saved.worlds || {})) {
       if (!PLANETS[key]) continue;

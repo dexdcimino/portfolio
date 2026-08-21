@@ -2665,7 +2665,7 @@ Speed scales with altitude above the nearest surface. There is no warp button
 and no mode to switch into: climb, and you go faster.
 
 ```
-v(a) = 158 x 2^(a / 1750)     capped at 1,000,000 m/s
+v(a) = 158 x 2^(a / H)        capped at 1,000,000 m/s
 ```
 
 Integrating that is the whole design. Time to climb away from a world is
@@ -2676,8 +2676,30 @@ because the law reads altitude above the NEAREST surface, deceleration into the
 destination is the same curve backwards. There is no braking input because none
 is possible, and no way to arrive fast.
 
-`HYPER.doubleEvery` is the only knob that moves trip time. Raising the cap
-changes the number on the HUD and about a third of a second of the journey.
+`H` is the only knob that moves trip time. Raising the cap changes the number
+on the HUD and about a third of a second of the journey.
+
+**So the trip is authored in seconds, and the first one is twice the rest.**
+`t(H)` is not a relation anyone can set by hand — 1500m is 18.1 seconds and
+nothing about the number says so — so `HYPER.tripFirst` and `HYPER.tripRepeat`
+state the seconds and `doublingFor()` solves back for the metres: **20 seconds
+boundary to boundary the first crossing a save ever makes, 10 every crossing
+after it.** Thirty seconds of travel is good the first time and tedious the
+fiftieth, and the alternatives — a skip button, a hold-to-fast-forward key —
+were each a second way to travel, with their own arrival and their own FX
+state, to fix what is really just a duration. This is the same journey with a
+different constant in it. The count is the player's rather than the route's,
+lives in the save blob as `crossings`, and a save written before it existed
+reads as zero: one more long trip, once.
+
+Two consequences worth knowing. **H is an absolute length on worlds that differ
+by a factor of ten, and it is allowed to be**, because the seconds it produces
+have no radius in them — the middle of a journey is free, so a trip costs the
+climb out and the fall in, which are the same climb everywhere; all five
+destinations land within 0.5s of the asked time under both laws. And **a
+shorter trip arrives faster**: deceleration is the same curve run backwards, so
+the far boundary is crossed at 292 m/s instead of 240, which the jet sheds
+under its own drag and the suite pins against it.
 
 **Leaving has to be deliberate.** The jet's thin-air ceiling is a wall at ~580m
 whether you climb for four seconds or twenty-five, so altitude alone cannot tell

@@ -67,6 +67,11 @@ export class Economy {
     this.worlds = new Map();       // planetKey -> Colonies
     this.rate = 0;                 // hyper/sec, all worlds
     this.lastCost = null;
+    /* Completed crossings. Not a statistic — it is what decides how long the
+       next trip takes (HYPER.tripFirst against HYPER.tripRepeat), so it has to
+       persist for the same reason a colony does. Incremented by the craft on
+       arrival, not here, because arriving is the craft's event. */
+    this.crossings = 0;
   }
 
   register(planetKey, colonies) { this.worlds.set(planetKey, colonies); }
@@ -152,7 +157,7 @@ export class Economy {
         worlds[key] = { clock: c.clock, sites: c.sites.map((s) => c.record(s)) };
       }
       localStorage.setItem(ECONOMY.saveKey, JSON.stringify({
-        v: 1, hyper: this.hyper, at: Date.now(), worlds,
+        v: 1, hyper: this.hyper, at: Date.now(), crossings: this.crossings, worlds,
       }));
       return true;
     } catch (err) {
