@@ -2714,7 +2714,7 @@ so it rises and falls symmetrically with altitude for free — FOV, boom length,
 velocity lines, chromatic split, grain, vignette, the engine mix and the readout
 all read it and nothing else. There is no state to leave switched on.
 
-**The 400m boundary is one surface used for both directions.** Inside a planet's
+**The 900m boundary is one surface used for both directions.** Inside a planet's
 approach sphere flight is local; outside every sphere it is hyper. That is why
 travel cannot begin from inside one — it is the definition, not a rule someone
 had to enforce. Departure additionally requires *climbing* through it, or an
