@@ -489,10 +489,18 @@ for (const P of [SMALL, HOME]) {
   ok('the drone holds altitude with no input', d.mode === 'drone' && worst < 1.5,
     'drifted ' + worst.toFixed(2) + 'm over ten hands-off seconds');
 
-  // Two seconds of climb, then hands off. The spring lags the held height, so
-  // the settled altitude is measured AFTER release — asserting at the moment
-  // of release measures the lag, which is deliberate (it reads as mass).
-  for (let i = 0; i < 60 * 2; i++) d.update(1 / 60, IN({ hopHeld: true }));
+  /* Two seconds of climb, then hands off. The spring lags the held height, so
+     the settled altitude is measured AFTER release — asserting at the moment
+     of release measures the lag, which is deliberate (it reads as mass).
+
+     IT DROVE `hopHeld` UNTIL 2026-08-21, and that is why this check was the
+     suite's one standing red. Space climbed the drone until 2026-08-19, when
+     the vertical became a pair of its own; the check kept driving Space, Space
+     became nothing at all in this form, and "climbed 0.0m" was the honest
+     answer to a question about a binding that no longer existed. It was never
+     the drone. Drive the ASCEND INPUT, not a key name, so the next rebind —
+     T to Shift, on 2026-08-21 — cannot re-break it. */
+  for (let i = 0; i < 60 * 2; i++) d.update(1 / 60, IN({ liftHeld: true }));
   for (let i = 0; i < 60 * 4; i++) d.update(1 / 60, IN({}));
   const held = d.pos.y;
   let drift = 0;
@@ -500,7 +508,7 @@ for (const P of [SMALL, HOME]) {
     d.update(1 / 60, IN({}));
     drift = Math.max(drift, Math.abs(d.pos.y - held));
   }
-  ok('the climb is held after Space is released', held - y0 > 8 && drift < 0.5,
+  ok('the climb is held after the ascend key is released', held - y0 > 8 && drift < 0.5,
     'climbed ' + (held - y0).toFixed(1) + 'm, then drifted ' +
     drift.toFixed(2) + 'm over five hands-off seconds');
 

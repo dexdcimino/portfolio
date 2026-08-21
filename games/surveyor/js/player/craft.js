@@ -319,7 +319,7 @@ export class Craft {
 
     if (this.mode === 'rover') this.updateRover(dt, input, wantBoost);
     else if (this.mode === 'boat') this.updateBoat(dt, input, wantBoost);
-    else if (this.mode === 'drone') this.updateDrone(dt, input, wantBoost);
+    else if (this.mode === 'drone') this.updateDrone(dt, input);
     else this.updateJet(dt, input, wantBoost);
 
     this.speed = this.vel.length();
@@ -352,7 +352,7 @@ export class Craft {
 
   canBoost() {
     if (this.mode === 'jet') return !this.glide && this.fuel > 0;
-    if (this.mode === 'drone') return this.fuel > 0;
+    if (this.mode === 'drone') return false;   // Shift is the drone's climb
     return true;
   }
 
@@ -1406,15 +1406,20 @@ export class Craft {
    * back out.
    *
    * VERTICAL IS TWO KEYS ON THE HOVER LINE, not two forces on the spring.
-   * T raises the held offset and G lowers it; the spring then
+   * Shift raises the held offset and Ctrl lowers it; the spring then
    * flies to wherever the line now is. That is why letting go of both HOLDS
    * the new height instead of sagging back — there is nothing to sag towards,
    * because the target moved rather than being pushed against. The line still
    * follows the floor underneath it, so flying out over a canyon is still a
    * descent you get for free. R lands it, like everything else.
    */
-  updateDrone(dt, input, boost) {
-    const drain = boost ? DRONE.boostBurn : DRONE.burn;
+  /* NO BOOST (Dex, 2026-08-21). Shift is the drone's climb now and one key
+     cannot mean two things in one form, so the drone's boost was removed
+     rather than moved: no boostBurn, no boostAccel, no boostSpeed, and
+     `canBoost()` says so, which keeps `boostHeat` at zero here and therefore
+     keeps the camera, the trails, the mixer and the HUD honest for free. */
+  updateDrone(dt, input) {
+    const drain = DRONE.burn;
     this.fuel = Math.max(0, this.fuel - drain * dt);
     this.flightTime += dt;
     if (this.fuel <= 0) {
@@ -1428,18 +1433,18 @@ export class Craft {
 
     // Yaw is direct, quadcopter-style; tilt is how you move.
     this.yaw += input.turn * DRONE.turnRate * dt;
-    const wantPitch = input.fwd * DRONE.tilt * (boost ? 1.25 : 1);
+    const wantPitch = input.fwd * DRONE.tilt;
     this.pitch = damp(this.pitch, wantPitch, DRONE.tiltRate, dt);
     this.roll = damp(this.roll, -input.turn * DRONE.tilt * 0.55, DRONE.tiltRate, dt);
 
     // Thrust follows the tilt — the pods vector, the craft slides after them.
-    const a = (boost ? DRONE.boostAccel : DRONE.accel) * (this.pitch / DRONE.tilt);
+    const a = DRONE.accel * (this.pitch / DRONE.tilt);
     this.vel.x += Math.sin(this.yaw) * a * dt;
     this.vel.z += Math.cos(this.yaw) * a * dt;
     const drag = Math.exp(-DRONE.drag * dt);
     this.vel.x *= drag; this.vel.z *= drag;
     const hs = Math.hypot(this.vel.x, this.vel.z);
-    const maxS = boost ? DRONE.boostSpeed : DRONE.maxSpeed;
+    const maxS = DRONE.maxSpeed;
     if (hs > maxS) { const k = maxS / hs; this.vel.x *= k; this.vel.z *= k; }
     this.speedScalar = Math.hypot(this.vel.x, this.vel.z);
 

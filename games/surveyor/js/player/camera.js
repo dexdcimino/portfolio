@@ -17,7 +17,7 @@ const REF_SPEED = {
   rover: ROVER.boostSpeed,
   boat: BOAT.boostSpeed,
   jet: JET.maxSpeed * 1.3,
-  drone: DRONE.boostSpeed,
+  drone: DRONE.maxSpeed,     // the drone has no boost; 26 IS flat out
 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);

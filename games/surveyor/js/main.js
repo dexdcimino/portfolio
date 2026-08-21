@@ -482,7 +482,8 @@ for (const e of ['colony', 'colonygrow']) on(e, () => cam.addShake(0.10));
 
 const keys = new Set();
 const HELD = new Set(['Space', 'ShiftLeft', 'ShiftRight', 'ArrowUp', 'ArrowDown',
-  'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyT', 'KeyG']);
+  'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD',
+  'ControlLeft', 'ControlRight']);
 let pendingMode = null;
 let pendingHopPress = false;
 let started = false;
@@ -522,23 +523,22 @@ function readInput() {
     beam: !!down('KeyE'),
     // Hold to charge a jump; the jet's mid-air pop wants the press edge.
     hopHeld: !!down('Space'),
-    /* THE DRONE'S VERTICAL, and it is a PAIR (Dex, 2026-08-19). T over G is
-       the one untouched vertical column on the keyboard — Q is the survey
-       overlay, A is strafe, so the Q/A/Z column everyone reaches for first is
-       full — and being stacked is what makes them memorable. Two keys chosen
-       together beat two keys chosen separately, which is what Z alone was.
+    /* THE DRONE'S VERTICAL IS SHIFT AND CTRL (Dex, 2026-08-21), which is the
+       flight-sim pair every other hover craft uses, and T/G are unbound. The
+       drone's own boost went with them — Shift cannot mean two things in one
+       form, and `updateDrone` ignores boost entirely now.
 
-       Ctrl was tried and withdrawn: Ctrl+W is a browser tab-close no page can
-       preventDefault away, and W is this game's forward, so descending while
-       accelerating closed the game. A binding that can lose the session is not
-       a binding. Z is free again.
-
-       NOT Space, which used to climb here. One key doing two things in one
-       form is the bug that only shows up in the form nobody tested, and the
-       drone was the form nobody tested — Space is the jump everywhere else and
-       it is nothing at all in the drone now. */
-    liftHeld: !!down('KeyT'),
-    descHeld: !!down('KeyG'),
+       CTRL WAS TRIED AND WITHDRAWN ONCE BEFORE, on 2026-08-19, and the reason
+       has not gone away: it is in `HELD` and `preventDefault`ed like every
+       other bound key, which stops Ctrl+A, Ctrl+S, Ctrl+D and Ctrl+P — but
+       Chrome RESERVES Ctrl+W, Ctrl+T and Ctrl+N and delivers them to the
+       browser whatever the page does. W is this game's forward, so descending
+       while flying forward is Ctrl+W, which closes the tab. That is not a
+       rare combination in a hover craft; it is the usual one. Asked for again
+       anyway, so it ships — but if the session ever dies mid-drone, this is
+       why, and the fix is a key that is not a modifier. */
+    liftHeld: !!down('ShiftLeft', 'ShiftRight'),
+    descHeld: !!down('ControlLeft', 'ControlRight'),
     hopPress: pendingHopPress,
     mode: pendingMode,
   };

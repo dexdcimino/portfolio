@@ -250,11 +250,19 @@ across 2 worlds"), read at arm time, then reloads.
   vehicle, four physics models + hyper transit — the drone is a hover on key
   `4`: holds height with no input, moves by tilting, thruster pods swivel in
   `applyTransform`. VERTICAL IS TWO KEYS ON THE HOVER LINE, not two forces on
-  the spring — T raises `droneLift`, G lowers it into `DRONE.minLift`, and
-  releasing both holds the new height because the target moved rather than
-  being pushed against. T/G because the Q/A/Z column is full (Q is the survey
-  overlay, globally, so it is live in the drone too) and a stacked pair is
-  worth more than two keys picked separately. Entry floors that offset at 0, not at `minLift`, or the
+  the spring — Shift raises `droneLift`, Ctrl lowers it into `DRONE.minLift`,
+  and releasing both holds the new height because the target moved rather than
+  being pushed against. **The drone has NO BOOST**: Shift cannot mean two
+  things in one form, so `boostBurn`/`boostAccel`/`boostSpeed` were deleted
+  from `DRONE` rather than orphaned, `canBoost()` returns false here, and
+  `camera.js`'s drone REF_SPEED moved to `maxSpeed` — a reference of 42 on a
+  craft that tops out at 26 is the exact mistake that file's own comment warns
+  about. **Ctrl is a browser modifier and this is the SECOND time it has been
+  bound** (T/G held it in between): it is `preventDefault`ed like every other
+  bound key, which covers Ctrl+A/S/D/P, but Chrome reserves Ctrl+W and W is
+  forward — descending while flying forward closes the tab, and no page can
+  stop it. Asked for knowingly (Dex, 2026-08-21); the escape is a non-modifier
+  key. Entry floors that offset at 0, not at `minLift`, or the
   drone cannot take off from the ground), `camera.js`
   (`ChaseCam`). NOTE: the camera keys FOUR maps by mode — `CAM.dist/height/
   fov/rollTilt` plus `REF_SPEED` — and a mode missing from any one of them is

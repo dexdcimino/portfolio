@@ -2500,7 +2500,14 @@ export const JET = {
 export const DRONE = {
   minFuelToLaunch: 4,
   burn: 0.55,          // charge/sec just to hold the rotors up
-  boostBurn: 1.6,
+  /* NO BOOST BLOCK, and that is the whole of it (Dex, 2026-08-21). Shift is
+     the drone's CLIMB now, so `boostBurn`, `boostAccel` and `boostSpeed` were
+     deleted rather than left dangling behind a key that no longer reaches
+     them. `camera.js`'s REF_SPEED for the drone moved to `maxSpeed` in the
+     same edit — its own comment says why: "retuning a boost used to quietly
+     cost that form its sense of speed, because the reference stayed where it
+     was", and a reference of 42 on a craft that now tops out at 26 is exactly
+     that mistake with the boost removed instead of retuned. */
   /* RAISED (Dex, 2026-08-19): 14 m/s read as slow rather than as precise.
      The drone is the form you take into a canyon, and taking two minutes to
      get down the canyon is not precision. 26 against the jet's 92 keeps the
@@ -2510,12 +2517,9 @@ export const DRONE = {
      the craft actually settles at is accel/drag, not maxSpeed: at the old
      accel 30 the drag terminal is 21 m/s and a 26 m/s cap would simply never
      be reached, leaving the number a lie. 44/1.4 = 31, so the cap binds and
-     maxSpeed means what it says. Same arithmetic for boost: 66/1.4 = 47
-     against a 42 cap. */
+     maxSpeed means what it says. */
   accel: 44,
-  boostAccel: 66,
   maxSpeed: 26,        // against the jet's 92: this is the precision form
-  boostSpeed: 42,
   drag: 1.4,
   turnRate: 2.2,       // radians/sec of direct, quadcopter yaw
   tilt: 0.38,          // radians of body tilt at full stick
