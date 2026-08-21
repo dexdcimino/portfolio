@@ -1588,7 +1588,8 @@ rather than a trick.
 What does **not** go through it: `SYSTEM.at`, the travel integrator, the speed
 law, the approach spheres, the analytic sweep. Those stay in doubles at true
 scale, so the speed readout is not a lie and the sweep still catches a 414m
-planet at a million metres a second. `js/world/space.js` is a rendering
+planet — that is Ember at its DIAMETER, radius 207m — at a million metres a
+second. `js/world/space.js` is a rendering
 transform and nothing else.
 
 ### k is per world, and that is the interesting part
@@ -2508,6 +2509,12 @@ which since the Phase 3b `waterY` fix is the same line the shell is drawn at.
 | Shroud |  1451m |       61.0m |      84% |   19% | atmosphere |
 | Anvil  |  2072m |       87.6m |      85% |   10% | topography |
 
+**Every world size in this file is a RADIUS unless it says otherwise**, and the
+one place that matters is 414m: it is Tarn's RADIUS and Ember's DIAMETER at the
+same time. Reading one against a list of the other has already produced a
+confident correction to a line that was right. `js/tune.js` carries the radii
+and nothing else; a diameter in prose has to say so.
+
 Anvil and Shroud were retuned in Phase 3c: the `waterY` fix made their drawn
 waterlines real for the first time and exposed 22% and 43% coverage against
 profiles that call for canyon-floor rivers and valley-floor pools. Anvil's
@@ -2722,7 +2729,8 @@ arrival (which is handed back at exactly that altitude) would depart again on
 the frame it landed.
 
 **Tunnelling is the whole reason `hyper.js` exists.** At the cap a frame is 33km
-long and Ember is 414m across, so a per-frame `pos += v·dt` misses every world in
+long and Ember is 414m across — its DIAMETER; its radius is 207m, and 414m is
+separately Tarn's radius — so a per-frame `pos += v·dt` misses every world in
 the system — measured, in the suite: 1 starting range in 40 registers the hit.
 The position step is solved in closed form and the resulting segment is swept
 against six spheres, which makes arrival a property of the geometry rather than
@@ -2914,7 +2922,8 @@ audio degrades to silence when there is no context — plus, since Phase 3a2, th
 every world resolves a complete sky and palette, that the ice rule is confined to
 Vault at every depth the other five reach, and that Ember's baked emission mask
 is bit-for-bit the field `height()` cuts with, and — since Phase 3b — that a
-craft at a million metres per second does not fly through a 414m planet, and
+craft at a million metres per second does not fly through a 414m-diameter
+planet (Ember), and
 that four colonies clustered out-produce four scattered — plus, since Phase 4b,
 that the overlay's markers all land in the depth-cleared rendering group, that a
 world nobody is rendering takes exactly the damage a closed form says it takes,

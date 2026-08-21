@@ -75,10 +75,13 @@ distance bands separately at their own scales.
 More than it looks. Do not rebuild any of this.
 
 - **Honest positions** — `SYSTEM.at` coordinates are real, in metres
-- **The speed law** — altitude-based, unchanged, `HYPER.doubleEvery = 1500`
+- **The speed law** — altitude-based, unchanged. It was `HYPER.doubleEvery =
+  1500` when this was written; phase 5 bullet 2 replaced that with
+  `HYPER.tripFirst`/`tripRepeat` in seconds, solved back to the metres
 - **Approach spheres and boundaries** — from Phase 3b
 - **The analytic sweep** — stops you tunnelling through a 414 m planet at a
-  million m/s. Still needed, still correct.
+  million m/s — that is Ember measured across, radius 207 m. Still needed,
+  still correct.
 - **Bounded per-planet quadtree** — a distant planet is already cheap
 - **The disc shader** — becomes the lowest LOD rather than being replaced
 - **The swap machinery** — becomes LOD promotion instead of teardown

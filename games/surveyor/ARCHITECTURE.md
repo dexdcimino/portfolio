@@ -336,6 +336,11 @@ arrival reaches this via `emit('hyperarrive')`. `devWarp()` (gated on
 | shroud | 1451 | 72.55 | −12 | **.020/.115** | fog wall; hero flora authored, off |
 | anvil | 2072 | 103.6 | −24 | .22/.92 | biggest, triplanar 0.85 |
 
+Sizes here and everywhere else in this file are RADII. The collision to watch
+is 414m, which is Tarn's radius and Ember's diameter at once — reading one
+against a list of the other has already produced a confident correction to a
+line that was right.
+
 **VEGETATION IS OFF ON ALL SIX** (Dex, 2026-08-19) — it looked wrong
 everywhere. One value per world does it: `PLANETS.<key>.flora.density: 0`, with
 the authored value in the comment beside it (Home 1.0, Tarn 1.25, Shroud 1.0,
