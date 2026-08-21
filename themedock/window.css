@@ -29,7 +29,17 @@
      .is-embed below takes the furniture off rather than drawing a second one. */
   width: 100%;
   height: 100%;
-  max-width: 1400px;
+  /* 960, not the 1400 it was. MEASURED: at 1400 the editor column is 1052px
+     wide and the widest line of the sample is 517.9px, so 45% of the editor
+     was empty — a lot of space spent showing nothing, which is also a lot of
+     space inviting a click. 960 leaves the editor 612px: the gutter (46) plus
+     the widest line (518) plus the right padding (16) comes to 580, so the
+     code fills its box instead of floating in it, and nothing wraps or
+     scrolls. Below about 940 the longest line starts to clip.
+     The HEIGHT is deliberately unchanged: the panel's own content is 714px
+     tall and the scroll area is 786px, so any trim here starts scrolling the
+     one live thing on the page. */
+  max-width: 960px;
   display: grid;
   grid-template-rows: 32px 1fr 22px;
   overflow: hidden;
@@ -61,7 +71,7 @@
 }
 
 .td-body:not(.is-embed) .vsc {
-  width: min(100%, 1400px);
+  width: min(100%, 960px);
   height: min(100%, 860px);
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, .12);
@@ -187,6 +197,11 @@
   grid-template-rows: 35px 1fr;
   min-height: 0;
   background: var(--vscode-editor-background);
+  /* z-index stays auto, so this does NOT open a stacking context: the note
+     below is positioned against this box but competes with .vsc-dead in
+     .vsc's context, which is how it sits ON TOP of the hatch rather than
+     under it. */
+  position: relative;
 }
 
 .vsc-tabs {
@@ -234,6 +249,72 @@
 }
 .vsc-ln-src { white-space: pre; padding-right: 16px; }
 
+/* --- dead zones --------------------------------------------------------- */
+/* Everything except the panel is a picture. It used to be a picture that
+   looked clickable, so people clicked the tabs and the code and nothing
+   happened; a full fake window invites exactly that.
+
+   THE SIGN AND THE FENCE ARE DIFFERENT THINGS and both are here. The fence is
+   `pointer-events: none` plus `inert` and `aria-hidden` in the markup — the
+   dead half cannot be clicked, cannot be tabbed into and is not read out. The
+   sign is the hatch below, which is the only part anyone sees. A sign without
+   a fence is a lie; a fence without a sign is the bug being reported. */
+.vsc-title,
+.vsc-activity,
+.vsc-tabs,
+.vsc-code,
+.vsc-status { pointer-events: none; }
+
+/* ONE ELEMENT, NOT ONE PER REGION. Diagonals drawn by separate boxes do not
+   meet at the seams and the mismatch reads as a rendering fault, so this is a
+   single field over the whole window with the live panel punched out of it.
+
+   The punch-out is `--td-hatch-clip`, written by demo.js from the panel's own
+   getBoundingClientRect and refreshed by a ResizeObserver. Deriving it rather
+   than restating the grid is the point: a few pixels wide and there is hatch
+   sitting on live UI, a few narrow and there is a bare stripe down the seam.
+
+   Two background layers, and the order matters — the first listed paints on
+   top. The hatch covers everything; the wash is a single flat gradient sized
+   and positioned to the editor's box (also measured, same pass), so the tab
+   row and the code get dimmed as well as hatched. They are dark and busy, and
+   lines alone do not read as dead there. The three chrome regions get NO wash:
+   they are the extension's paint targets, recolouring them is the whole demo,
+   and anything that mutes the fill is muting the thing being demonstrated. */
+.vsc-dead {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(45deg,
+      var(--td-hatch-ink, rgba(255, 255, 255, .25)) 0 2px,
+      transparent 2px 12px),
+    linear-gradient(var(--td-dead-wash, rgba(6, 7, 10, .4)),
+                    var(--td-dead-wash, rgba(6, 7, 10, .4)));
+  background-repeat: repeat, no-repeat;
+  background-position: 0 0, var(--td-ed-x, 0) var(--td-ed-y, 0);
+  background-size: auto, var(--td-ed-w, 0) var(--td-ed-h, 0);
+  clip-path: var(--td-hatch-clip, none);
+}
+
+/* The pattern should not have to carry the whole message. Bottom-right of the
+   code area, out of the way of the first thing anyone reads. z-index 6 puts it
+   over the hatch (see .vsc-editor) so its own letters are not hatched. */
+.vsc-deadnote {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  z-index: 6;
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--td-syn-comment, var(--td-line-fg));
+  opacity: .8;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* --- status bar --------------------------------------------------------- */
 
 .vsc-status {
@@ -253,6 +334,10 @@
 
 .vsc-toast {
   position: absolute;
+  /* Above .vsc-dead. Both are positioned siblings, but a z-index of 5 beats a
+     z-index of auto whatever the DOM order says, so without this the one real
+     message in the window came up with hatch lines drawn over it. */
+  z-index: 7;
   left: 50%;
   bottom: 40px;
   transform: translate(-50%, 8px);

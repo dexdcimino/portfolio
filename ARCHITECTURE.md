@@ -332,6 +332,64 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
 - `mindsplit/` — Vite build **output** served directly (source at
   `ai/apps/mindsplit/`; the one build-step exception). `ai/apps/` contract is in
   its README
+- `themedock/` — the ThemeDock preview, opened by the AI Lab card's eyeball into
+  the app overlay (`data-app-shape="window"`). `panel.css` is the extension's
+  own stylesheet vendored in unmodified, `window.css` is the mock VS Code around
+  it, `themes.js` is ten themes read out of the real sources, and `demo.js`
+  drives both. Every colour is a `--vscode-*` custom property set on `.vsc` at
+  runtime, which is the same contract a webview gets, which is what lets the
+  vendored stylesheet work unshimmed.
+
+  **ONLY THE PANEL IS LIVE, AND THE REST NOW SAYS SO.** A full fake window
+  invites clicks on the tabs and the code, and it was getting them. The dead
+  half is marked by a single diagonal hatch — `.vsc-dead`, ONE element over the
+  whole window with the panel punched out of it by a `clip-path`, because
+  separate elements per region do not line their diagonals up at the seams and
+  the mismatch reads as a rendering fault. The punch-out's corners are measured
+  off the panel's own `getBoundingClientRect` and kept current by a
+  `ResizeObserver`; restating `.vsc-mid`'s grid in the clip-path would be a
+  second copy of the geometry to drift, and a few pixels either way is hatch on
+  live UI or a bare stripe down the seam. Measured at 0.000px of corner error.
+
+  **The three chrome regions keep their fill and the code area does not.** The
+  title bar, activity bar and status bar are the extension's paint targets —
+  recolouring them IS the demo — so they get hatch lines and nothing that mutes
+  the colour. The tab row and the code demonstrate nothing, so they take a wash
+  as well, sized to the editor's box from the same measuring pass.
+
+  **The hatch ink is the chrome's own text ink**, `luminance > 0.42 ?
+  '#15181d' : '#ffffff'`, the same expression and the same value rather than a
+  parallel one — verified to agree with `--td-title-fg` on all twelve swatches.
+  A fixed neutral dies in the middle of the range: the lime sits at 0.4296 and
+  the green at 0.367, so the two of them want opposite inks. With no swatch
+  worn the same expression runs against the theme's own title bar instead.
+
+  **The wash goes AWAY from the editor, not toward it.** "Dim" reads as
+  "darken", and a dark wash over a near-black editor moves no pixels — and then
+  the dark ink on top of it could not be seen either, both halves failing in
+  the same place for the same reason. Less contrast is what dimming means, and
+  that direction is away from whatever is already there: pale over dark code,
+  dark over light.
+
+  The hatch is a sign, not a fence, so the fence is separate and real —
+  `pointer-events: none`, `aria-hidden="true"` and `inert` on all five dead
+  regions, with `tabindex="-1"` under `inert` for anything that predates it.
+  Verified by tabbing rather than by eye: 28 stops, every one of them a panel
+  control, and `.focus()` called directly on a dead element leaves the
+  activeElement on `body`. **No animation** — moving dashes would make the dead
+  zone the most active thing in the frame, which is backwards, and
+  `prefers-reduced-motion` is moot only for as long as that stays true.
+
+  The window is **960x875**, down from 1400 at 16:10. At 1400 the editor column
+  was 1052px wide against a 518px widest line: 45% of the frame was empty code
+  area, which is both nothing to look at and a lot of surface inviting a click.
+  612px of editor leaves the gutter, the widest line and the right padding
+  fitting in 580 with nothing wrapping; below about 940 the longest line
+  clips. The HEIGHT is deliberately unchanged — the panel's own content is
+  714px against a 786px scroll box, so any trim there starts scrolling the one
+  live thing on the page. The size lives in `styles.css`'s
+  `[data-shape="window"]` rule (the shape ThemeDock is the only user of) and in
+  `window.css` for the free-standing page, and the two have to move together.
 - `tools/` — `bake_images.py` (sole writer of `assets/derived/`),
   `bake_markup.py` (owns every `<picture>` block), `image_slots.py` (LADDERS/
   SLOTS/SIBLINGS — the single source of truth), `check_scope.py` (commit-msg

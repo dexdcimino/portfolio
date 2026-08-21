@@ -26,6 +26,9 @@
   var root = document.getElementById('root');
   var codeEl = document.getElementById('vscCode');
   var toastEl = document.getElementById('vscToast');
+  var deadEl = document.getElementById('vscDead');
+  var sideEl = document.getElementById('vscSide');
+  var edEl = document.getElementById('vscEditor');
   if (!vsc || !root) return;
 
   /* Peacock's nine defaults plus the three ThemeDock adds — the lime, the
@@ -184,6 +187,25 @@
     set('--td-line-fg', g('editorLineNumber.foreground', mix(fg, editorBg, 0.55)));
     set('--td-scroll', g('scrollbarSlider.background', 'rgba(128,128,128,.35)'));
 
+    /* The code area's wash, and it is the one dead-zone value that has to know
+       whether the theme is light.
+
+       IT WASHES AWAY FROM THE EDITOR, not toward it, and the first cut had it
+       the other way round. "Dim" reads as "darken", so a dark wash went over a
+       near-black editor and did almost nothing — black on black moves no
+       pixels, and the hatch on top of it was dark ink on the same near-black
+       and could not be seen either. Both halves of the treatment failed in the
+       same place for the same reason. What dimming actually means here is
+       LESS CONTRAST, and the direction that costs contrast is the one away
+       from whatever the background already is: a pale veil over dark code, a
+       dark one over light code. It also lifts the code far enough off its own
+       floor for the hatch to land on something.
+
+       The three chrome regions never get this. They are the extension's paint
+       targets, recolouring them is the whole demo, and anything that mutes the
+       fill is muting the thing being demonstrated. */
+    set('--td-dead-wash', light ? 'rgba(18, 20, 25, .13)' : 'rgba(233, 237, 244, .10)');
+
     var syn = t.syn || {};
     var edFg = g('editor.foreground', fg);
     set('--td-syn-text', edFg);
@@ -226,6 +248,24 @@
     var ink = state.color ? (relLum(state.color) > 0.42 ? '#15181d' : '#ffffff') : null;
     var read = function (n) { return getComputedStyle(vsc).getPropertyValue(n).trim(); };
 
+    /* THE HATCH INK IS THE SAME DECISION AS THE CHROME'S TEXT, not a parallel
+       one — the same 0.42 split on the same relative luminance. A fixed
+       neutral dies on a mid-tone: the lime swatch sits at 0.4296, a hair over
+       the line, and the green at 0.367, a hair under, so the two of them want
+       opposite inks and a single grey would vanish on one or the other. Being
+       the same computation is also what keeps it in step when the colour
+       changes, which a second copy would not.
+
+       WHAT IT IS MEASURED AGAINST depends on what is actually painted there.
+       With a swatch worn, the chrome IS `state.color`. With every target
+       switched off it is the theme's own title bar, so the same expression
+       runs against that instead. The alpha is carried here rather than in the
+       stylesheet because there is no colour function in CSS old enough to be
+       safe on every browser this page has to survive. */
+    var hatchOver = on ? state.color : (read('--td-base-title-bg') || '#181818');
+    vsc.style.setProperty('--td-hatch-ink',
+      relLum(hatchOver) > 0.42 ? 'rgba(21, 24, 29, .25)' : 'rgba(255, 255, 255, .25)');
+
     var map = [
       ['title', '--td-title-bg', '--td-title-fg', '--td-base-title-bg', '--td-base-title-fg'],
       ['activity', '--td-activity-bg', '--td-activity-fg', '--td-base-activity-bg', '--td-base-activity-fg'],
@@ -241,6 +281,40 @@
 
   function anyOn() {
     return TARGETS.some(function (t) { return state.targets[t.key]; });
+  }
+
+  /* WHERE THE LIVE PANEL IS, in the hatch's own coordinates.
+
+     The hatch is one element over the whole window and the panel is punched
+     out of it, so the punch has to land exactly on the panel's boundary: a few
+     pixels wide and there is hatch sitting on live UI, a few narrow and there
+     is a bare stripe down the seam. So it is measured off the panel's own box
+     rather than restated from the grid — `.vsc-mid` is
+     `48px minmax(232px, 300px) 1fr` and a second copy of that in a clip-path
+     would be a second thing to keep in step, which is how seams drift.
+
+     `evenodd` is what makes the second rectangle a hole rather than a second
+     shape. The alternative is winding back along a zero-width seam, which can
+     leave a hairline on fractional device pixels.
+
+     The same pass gives the wash its box, because the wash covers the editor
+     and the editor is the other thing whose size the grid decides. */
+  function measureDead() {
+    if (!deadEl || !sideEl || !edEl) return;
+    var host = vsc.getBoundingClientRect();
+    var side = sideEl.getBoundingClientRect();
+    var ed = edEl.getBoundingClientRect();
+    var px = function (n) { return n.toFixed(2) + 'px'; };
+    var l = side.left - host.left, t = side.top - host.top;
+    var r = side.right - host.left, b = side.bottom - host.top;
+    vsc.style.setProperty('--td-hatch-clip',
+      'polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, ' +
+      px(l) + ' ' + px(t) + ', ' + px(r) + ' ' + px(t) + ', ' +
+      px(r) + ' ' + px(b) + ', ' + px(l) + ' ' + px(b) + ')');
+    vsc.style.setProperty('--td-ed-x', px(ed.left - host.left));
+    vsc.style.setProperty('--td-ed-y', px(ed.top - host.top));
+    vsc.style.setProperty('--td-ed-w', px(ed.width));
+    vsc.style.setProperty('--td-ed-h', px(ed.height));
   }
 
   function stashTargets() {
@@ -664,4 +738,12 @@
   paintCode();
   render();
   paint();
+  measureDead();
+
+  /* The panel column is `minmax(232px, 300px)`, so its box moves whenever the
+     window does — and the window is an iframe the site resizes. Observing the
+     window rather than listening for `resize` also catches the overlay opening
+     at a size the page never had a resize event for. */
+  if (window.ResizeObserver) new ResizeObserver(measureDead).observe(vsc);
+  else window.addEventListener('resize', measureDead);
 })();

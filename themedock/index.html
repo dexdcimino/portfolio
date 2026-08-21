@@ -17,7 +17,7 @@
 <div class="vsc" id="vsc">
 
   <!-- title bar -->
-  <div class="vsc-title" id="vscTitle">
+  <div class="vsc-title" id="vscTitle" aria-hidden="true" inert>
     <div class="vsc-menu">
       <span class="vsc-logo" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 2.4 9.7 9.9 5.4 6.6 3 7.8v8.4l2.4 1.2 4.3-3.3 7.9 7.5L21 19.8V4.2zM17 7.6v8.8l-5-4.4z"/></svg>
@@ -40,7 +40,7 @@
   <div class="vsc-mid">
 
     <!-- activity bar -->
-    <div class="vsc-activity" id="vscActivity">
+    <div class="vsc-activity" id="vscActivity" aria-hidden="true" inert>
       <button class="vsc-act" type="button" aria-label="Explorer" tabindex="-1">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 5h6l2 2h10v12H3z"/></svg>
       </button>
@@ -50,7 +50,7 @@
       <button class="vsc-act" type="button" aria-label="Source control" tabindex="-1">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="6" r="2.4"/><circle cx="7" cy="18" r="2.4"/><circle cx="17" cy="12" r="2.4"/><path d="M7 8.4v7.2M9.4 6H13a2 2 0 0 1 2 2v1.8"/></svg>
       </button>
-      <button class="vsc-act is-active" type="button" aria-label="ThemeDock" aria-current="true">
+      <button class="vsc-act is-active" type="button" aria-label="ThemeDock" aria-current="true" tabindex="-1">
         <svg viewBox="0 0 123.8165 123.8165" fill="currentColor" aria-hidden="true">
           <path d="M77.4586,109.9082H15.8191c-2.1487,0-3.8907-1.687-3.8907-3.7679v-10.9219c0-2.081,1.7419-3.7679,3.8907-3.7679h58.0357c1.6925,0,3.1908,1.0597,3.706,2.621l3.6039,10.9219c.8022,2.431-1.0708,4.9149-3.706,4.9149Z"/>
           <path d="M68.3422,82.28H15.8191c-2.1487,0-3.8907-1.687-3.8907-3.7679v-6.6347c0-2.081,1.7419-3.7679,3.8907-3.7679h50.3339c1.6925,0,3.1908,1.0597,3.706,2.621l2.1892,6.6347c.8022,2.431-1.0708,4.9149-3.706,4.9149Z"/>
@@ -78,17 +78,21 @@
 
     <!-- editor -->
     <div class="vsc-editor" id="vscEditor">
-      <div class="vsc-tabs" id="vscTabs">
+      <div class="vsc-tabs" id="vscTabs" aria-hidden="true" inert>
         <div class="vsc-tab is-active">world.js</div>
         <div class="vsc-tab">terrain.js</div>
         <div class="vsc-tab">README.md</div>
       </div>
-      <div class="vsc-code" id="vscCode"></div>
+      <div class="vsc-code" id="vscCode" aria-hidden="true" inert></div>
+      <!-- The one thing in the dead half a screen reader SHOULD hear, so it
+           is outside every aria-hidden subtree above. The hatch is the sign;
+           this is the caption on it. -->
+      <p class="vsc-deadnote">preview only</p>
     </div>
   </div>
 
   <!-- status bar -->
-  <div class="vsc-status" id="vscStatus">
+  <div class="vsc-status" id="vscStatus" aria-hidden="true" inert>
     <span class="vsc-st-left">
       <span class="vsc-st-item vsc-st-branch">main*</span>
       <span class="vsc-st-item">0 &#9888;  0 &#9888;</span>
@@ -100,6 +104,14 @@
       <span class="vsc-st-item" id="vscStTheme">Dark</span>
     </span>
   </div>
+
+  <!-- THE DEAD-ZONE HATCH. One element across the whole window rather than
+       one per region: separate elements do not line their diagonals up at
+       the seams and it reads as a rendering bug. The live panel is punched
+       out of it with a clip-path whose corners demo.js measures off the
+       panel's own box, so there is no second copy of the grid geometry to
+       drift. Decorative, and everything it marks is already `inert`. -->
+  <div class="vsc-dead" id="vscDead" aria-hidden="true"></div>
 
   <!-- Non-blocking note for the three window actions, which in the real
        extension open or reload an editor window and here have nothing to act

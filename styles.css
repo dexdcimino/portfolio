@@ -4135,11 +4135,21 @@ body.modal-open{overflow:hidden}
 /* A desktop app is not a phone. Sized from WIDTH here rather than height —
    an editor is wider than it is tall, so width is the dimension that runs out
    first — with the height cap folded into the same min() so the frame shrinks
-   on a short window instead of overflowing it. 1.6 is the 16/10 below. */
+   on a short window instead of overflowing it. The multiplier is the
+   aspect ratio below, so the two move together. */
 .app-modal[data-shape="window"] .app-phone{
-  width:min(1400px,calc(100vw - 120px),calc(86dvh * 1.6));
+  /* 960x875, not 1400 at 16:10. The one app wearing this shape is
+     ThemeDock, and at 1400 its editor column came out 1052px wide against
+     a 518px widest line — 45% of the frame was empty code area, which is
+     both nothing to look at and a lot of surface inviting a click on dead
+     UI. The HEIGHT is unchanged on purpose: the live panel's own content
+     is 714px tall against a 786px scroll box, so any trim here starts
+     scrolling the one thing on the page that does anything. The ratio is
+     that box stated as itself rather than rounded to a convention it is
+     not. */
+  width:min(960px,calc(100vw - 120px),calc(86dvh * 960 / 875));
   height:auto;
-  aspect-ratio:16/10;
+  aspect-ratio:960/875;
   border-radius:12px;
 }
 .app-frame{display:block;width:100%;height:100%;border:0;background:#07060B}
@@ -4155,7 +4165,7 @@ body.modal-open{overflow:hidden}
   .app-close{top:-46px;right:0}
   .app-phone{max-width:calc(100vw - 32px)}
   .app-modal[data-shape="window"] .app-phone{
-    width:min(1400px,calc(100vw - 32px),calc(86dvh * 1.6));
+    width:min(960px,calc(100vw - 32px),calc(86dvh * 960 / 875));
   }
 }
 
