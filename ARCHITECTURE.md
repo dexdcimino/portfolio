@@ -659,7 +659,8 @@ the frame never changes shape, so that clip carries `data-fit="contain"` and
 the `clip-poster-portrait` slot instead of being cropped to a third of itself.
 The Collab section is dormant — off the nav, content hidden behind
 an UNDER CONSTRUCTION strip — until the first collab repo exists. The vault
-backlog carries six plans, three Surveyor and three Site. The Breakout toy
+backlog carries five plans, two Surveyor and three Site — Seamless Space came
+out when it shipped, which is the rule working rather than an edit to it. The Breakout toy
 in the bio has no row and never will: the vault holds parked or unstarted
 plans, and that one is built. Its unstarted sibling `docs/bio-invaders.md`
 is exactly what does get a row. See
