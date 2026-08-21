@@ -119,14 +119,26 @@ function _unlock() {
 try {
   window.addEventListener('keydown', _unlock, { capture: true });
   window.addEventListener('pointerdown', _unlock, { capture: true });
-  // Pause everything when the tab is hidden — the game's rAF loop stops
-  // there too, so a sustained sound would otherwise drone on unattended.
+  /* Hiding the tab used to suspend the whole context, which also stopped the
+     music — and a track you deliberately put on is the one thing here that is
+     meant to survive you looking at something else (Dex, 2026-08-21). The
+     context now keeps running.
+
+     The drone that suspending was really guarding against is the sustained
+     voices: the rAF loop DOES stop in a hidden tab, so nothing feeds them and
+     a held laser would hang on its last note. That is handled precisely instead
+     of by silencing everything — release the holds on the way out. (The 150ms
+     sweeper would get there too, but it is a setInterval and a hidden tab
+     throttles it to about a second, which is a second of unattended drone.) */
   document.addEventListener('visibilitychange', () => {
     if (!_ctx || !_unlocked) return;
-    try {
-      if (document.hidden) _ctx.suspend().catch(() => {});
-      else _ctx.resume().catch(() => {});
-    } catch (e) {}
+    if (document.hidden) {
+      try { for (const n of Object.keys(_activeHolds)) _releaseHold(n); } catch (e) {}
+      return;
+    }
+    // Nothing here suspends the context any more, but a browser may still do it
+    // on its own while backgrounded. Coming back is the one place to notice.
+    try { if (_ctx.state === 'suspended') _ctx.resume().catch(() => {}); } catch (e) {}
   });
 } catch (e) {}
 

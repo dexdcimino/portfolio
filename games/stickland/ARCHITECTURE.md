@@ -36,14 +36,18 @@ imports go through the `window.__DEXMODS` registry.
 - `platformer.js` — platformer mode; deterministic *and stateless* (ground,
   platforms, movers are pure functions of position/cell/clock)
 - `pausemenu.js` — the origin of every other game's pause menu; never binds
-  Escape itself (playmode's Escape ladder drives it). Ends with Reset All Player
+  Escape itself (playmode's Escape ladder drives it). Its fourth and last
+  accordion section is Reset All Player
   Progress, which clears `sfg-plat` (best climb) and `sfg-world`; wardrobe,
   loadout, keybinds, camera, FX, audio, accent and track choice all survive
 - `reset-progress.js` — a deliberate MIRROR of
   `games/_shared/reset-progress.js`. build.mjs refuses imports that escape
   `src/`, so this game cannot share the file; change one, change both
 - `audio.js` — the only module touching AudioContext; synth core + sampled
-  overlay; its own sfx/ui/amb buses (predates `games/_shared`)
+  overlay; its own sfx/ui/amb buses (predates `games/_shared`). A hidden tab no
+  longer suspends the context — music is meant to outlast switching windows —
+  it releases the sustained holds instead, which is the drone the suspend was
+  really for; the rAF loop that feeds them stops, the context does not
 - `music.js` — deliberately temporary audition player (12 CC0 tracks)
 - `accent.js`, `shims.js`, `storage.js`, `config.js` (`MULTIPLAYER = false`),
   `chat-picker.js` + `emoji-data.js`, `photon-client.js` (vendor-ish, do not

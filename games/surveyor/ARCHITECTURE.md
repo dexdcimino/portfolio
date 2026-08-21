@@ -217,8 +217,9 @@ first contentful paint before this existed, ~70ms after on a warm load).
 game (40 exported blocks incl. `PLANETS`, `POST`, `ECONOMY`, `HYPER`);
 `js/babylon.js` re-export used only by the transplanted `js/render/post.js`
 (T1 post stack: ACES/bloom/SSAO/LUT/vignette/grain/FXAA); `js/pausemenu.js`
-(binds no keys — main.js owns the pause ladder). The pause menu ends with
-Reset All Player Progress (`games/_shared/reset-progress.js`): two-stage, and it
+(binds no keys — main.js owns the pause ladder). The pause menu's last section
+is Reset All Player Progress (`games/_shared/reset-progress.js`), a section like
+Audio or Controls above the pinned action row: two-stage, and it
 clears **only** `ECONOMY.saveKey` — `surveyor-audio` and `dex-accent-name` are
 preferences and survive. The armed label counts the real save ("5 colonies
 across 2 worlds"), read at arm time, then reloads.
@@ -263,7 +264,12 @@ across 2 worlds"), read at arm time, then reloads.
   `raiders.js` (positions **derived** from age/target/hp so unrendered worlds
   are attacked identically), `economy.js` (balance + save/load), `hud.js`,
   `overlay.js` (hold-Q x-ray + system view)
-- `js/audio/` — fully synthesised (engine/music/sfx/index); zero audio assets
+- `js/audio/` — fully synthesised (engine/music/sfx/index); zero audio assets.
+  `music.js` is a lookahead sequencer on the WebAudio clock driven by a 26ms
+  `setInterval`; a hidden tab throttles that to ~1s, so the horizon widens
+  0.25s → 1.6s while hidden or the score runs dry between ticks and the music
+  plays in gaps. Its `intensity` feed comes from the render loop and simply
+  stops there, which is why a wider horizon costs nothing
 - `js/fx/` — `trails.js` (dust/spray/wakes/wingtips), `streaks.js` (hyper
   lines placed entirely in the vertex shader)
 

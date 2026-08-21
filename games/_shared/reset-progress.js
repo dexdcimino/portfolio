@@ -40,16 +40,25 @@ const STYLE_ID = 'greset-styles';
 const ARM_TIMEOUT_MS = 6000;
 
 const CSS = `
-/* Below everything, and behind a rule, because the buttons above it are all
-   safe to press and this one is not. Deliberately smaller than the real
-   actions: it should be impossible to hit while reaching for Resume. */
+/* A SECTION BODY, not a tail. This used to be appended after the menu's own
+   markup, which put it after the action row — and every one of these menus
+   pins that row, either sticky (the .cmenu three) or as the last child of a
+   fixed-height flex column (Stickland). A block after a pinned footer either
+   hides behind it or squeezes it, and both happened: Resume, Respawn and Exit
+   came out shorter and the reset read as bolted onto them rather than as part
+   of the menu. It is now the last section, with its own heading, exactly like
+   Audio or Controls.
+
+   So the wrapper contributes no rule and no margin of its own: the heading
+   above it is the separation, and adding a second one only doubles it. Full
+   width so the label sits on one line at every panel size. It stays quieter
+   than the real actions through weight, size and colour, which is what kept it
+   un-hittable-by-accident — never through being narrow. */
 .greset-wrap{
-  margin-top:20px;padding-top:16px;
-  border-top:1px solid rgba(255,255,255,.10);
   display:flex;justify-content:center;
 }
 .greset{
-  width:30%;min-width:140px;max-width:280px;
+  width:100%;
   font:inherit;font-size:11px;line-height:1.35;letter-spacing:.05em;
   text-transform:uppercase;padding:9px 10px;border-radius:9px;cursor:pointer;
   background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.14);

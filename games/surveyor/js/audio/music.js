@@ -95,7 +95,16 @@ export class Music {
     // A backgrounded tab throttles the interval; resync rather than firing
     // fifty catch-up steps into the same millisecond.
     if (this.next < now - 0.4) this.next = now + 0.05;
-    const horizon = now + 0.25;
+    /* And schedule far enough ahead to survive that throttle. The interval is
+       26ms while the tab is visible, but a hidden one is clamped to about a
+       second — longer than the 0.25s lookahead, so the score ran out of
+       scheduled notes between ticks and the music came back in gaps. Sixteenths
+       at 124bpm are 121ms, so 1.6s is roughly thirteen of them: comfortably
+       more than one throttled tick, and still inside the 48-step guard.
+       Everything is scheduled on the WebAudio clock, so a wider horizon costs
+       nothing but responsiveness to `intensity` — which is fed from the render
+       loop and is not running at all while the tab is hidden. */
+    const horizon = now + (document.hidden ? 1.6 : 0.25);
     let guard = 0;
     while (this.next < horizon && guard++ < 48) {
       this.emit(this.step, this.next, stepDur);

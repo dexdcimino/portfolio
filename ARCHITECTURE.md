@@ -193,9 +193,13 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   panel the open tab, is your frame on screen — is about the surrounding UI.
   Three invariants live here: **only one player is ever unpaused** (enforced on
   the `play` event, so no new way to start playback can forget it); **nothing
-  plays in a hidden tab** (paused on `visibilitychange`, and deliberately NOT
-  resumed on return — a page that starts talking when you come back is the
-  same ambush reversed); and the space bar goes to a player only when it is on
+  plays in a hidden tab EXCEPT a player that declares `keepPlayingHidden`**
+  (paused on `visibilitychange`, and deliberately NOT resumed on return — a page
+  that starts talking when you come back is the same ambush reversed). The songs
+  bar is the one exemption: a track someone put on deliberately is meant to
+  outlast switching windows, and they know where it is coming from because they
+  started it. Clips and the toy keep the default, where the sound is a side
+  effect of looking at something. And the space bar goes to a player only when it is on
   screen and playing or already started — never out of a text field, never off
   a button or link, never behind an open `dialog`, and `preventDefault()` is
   reached at exactly one point, after a claimant is found. A third player

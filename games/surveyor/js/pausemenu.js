@@ -260,6 +260,8 @@ function build() {
     <div class="cmenu-audpanel"></div>
     <h2>Controls</h2>
     <div class="cmenu-rows"></div>
+    <h2>Progress</h2>
+    <div class="cmenu-reset"></div>
     <div class="cmenu-foot">
       <button class="cmenu-btn cmenu-exit" type="button">EXIT GAME</button>
       <button class="cmenu-btn cmenu-restart" type="button" aria-label="Restart" title="Restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
@@ -310,7 +312,7 @@ function build() {
        the save, and restarting a session is not the same as abandoning it. */
     location.reload();
   });
-  /* Reset, at the very bottom and behind a rule — see _shared/reset-progress.js.
+  /* Reset, the last section — see _shared/reset-progress.js.
      Surveyor is the game that most needed this: colonies persist across every
      session and nothing on screen admitted the save existed.
      ONLY the economy key goes. `surveyor-audio` (the shared mixer) and
@@ -318,7 +320,7 @@ function build() {
      survive by not being named here.
      The count is read at arm time straight from the saved blob, so the warning
      is specific — "12 colonies across 4 worlds" rather than a generic scare. */
-  menu.appendChild(createResetProgress({
+  menu.querySelector('.cmenu-reset').appendChild(createResetProgress({
     keys: [ECONOMY.saveKey],
     describe() {
       const data = JSON.parse(localStorage.getItem(ECONOMY.saveKey) || 'null');

@@ -71,6 +71,11 @@ let _open = false;
 let _menuEl = null, _backdropEl = null, _endcardEl = null;
 let _openSection = 'general';   // General is expanded on open
 let _rebindArmed = null;   // action name while listening for a new key
+/* Built once, re-parented on every render. _renderTab empties a section body
+   before filling it, and rebuilding this control per open would stack another
+   set of its document-level Escape/pointerdown/visibilitychange listeners each
+   time — it registers those at construction and never removes them. */
+let _resetEl = null;
 
 export function isPauseMenuOpen() { return _open; }
 
@@ -246,6 +251,7 @@ function _ensureDom() {
       ${_sec('general', 'General')}
       ${_sec('audio', 'Audio')}
       ${_sec('controls', 'Controls')}
+      ${_sec('reset', 'Reset')}
     </div>
     <div class="pmenu-footer">
       <button class="pmenu-btn" data-act="exit" type="button">Exit game</button>
@@ -253,8 +259,11 @@ function _ensureDom() {
               aria-label="Respawn" title="Respawn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
       <button class="pmenu-btn pmenu-btn-accent" data-act="resume" type="button">Resume</button>
     </div>`;
-  /* Reset, at the very bottom and behind a rule — see src/reset-progress.js
-     (a mirror of games/_shared/reset-progress.js; its header says why).
+  /* Reset, its own section at the end of the accordion — see src/reset-progress.js
+     (a mirror of games/_shared/reset-progress.js; its header says why). It used to
+     be appended to #pmenu itself, which made it a third child of a fixed-height
+     flex column and took its height out of the footer: Exit, Respawn and Resume
+     came out short. It goes in a section body now, the same as Audio or Controls.
 
      WHAT GOES, and the reasoning matters more than the list:
        `sfg-plat`  — {bestH}, the best climb in metres. The one number this
@@ -272,14 +281,14 @@ function _ensureDom() {
      (track choice), `dexnote-keybinds`, `dexnote-play-camera` (camera mode),
      `sfg-cosmetics` and `dexnote-hotbar` — the last two are freely chosen, not
      unlocked, so they are wardrobe and loadout rather than progress. */
-  _menuEl.appendChild(createResetProgress({
+  _resetEl = createResetProgress({
     keys: ['sfg-plat', 'sfg-world'],
     describe() {
       const st = JSON.parse(safeStorage.getItem('sfg-plat') || 'null');
       const best = st && typeof st.bestH === 'number' ? st.bestH : 0;
       return best > 0 ? `best climb ${best}m` : null;
     },
-  }));
+  });
 
   document.body.appendChild(_menuEl);
 
@@ -322,6 +331,7 @@ function _renderTab() {
     if (!on) continue;
     if (id === 'general') _renderGeneral(body);
     else if (id === 'audio') _renderAudio(body);
+    else if (id === 'reset') body.appendChild(_resetEl);
     else _renderControls(body);
   }
 }

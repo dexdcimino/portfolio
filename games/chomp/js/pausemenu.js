@@ -305,6 +305,8 @@ function build() {
     <h2>Audio</h2>
     <div class="cmenu-audio cmenu-audpanel">
     </div>
+    <h2>Progress</h2>
+    <div class="cmenu-reset"></div>
     <div class="cmenu-foot">
       <button class="cmenu-btn cmenu-exit" type="button">EXIT GAME</button>
       <button class="cmenu-btn cmenu-restart" type="button" aria-label="Respawn" title="Respawn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
@@ -401,7 +403,7 @@ function build() {
     // boot, so a fresh run IS a fresh page.
     location.reload();
   });
-  /* Reset, at the very bottom — see _shared/reset-progress.js. This game
+  /* Reset, the last section — see _shared/reset-progress.js. This game
      stores NO progress: chomp-zoom` (the camera zoom) and `chomp-audio` are
      preferences, and `dex-accent-name` is shared with the site and every other
      game. So there is nothing for a reset to destroy and the control ships
@@ -410,7 +412,7 @@ function build() {
      and should read the same, and "nothing is saved about you here" is a real
      answer to the question the button raises. Give this game a save key and it
      becomes live by listing it in `keys`, with no other change. */
-  menu.appendChild(createResetProgress({ keys: [] }));
+  menu.querySelector('.cmenu-reset').appendChild(createResetProgress({ keys: [] }));
 
   menu.querySelector('.cmenu-exit').addEventListener('click', () => {
     // Navigate the PARENT, not the iframe: the game runs framed and the

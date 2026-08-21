@@ -2888,19 +2888,28 @@ const MediaBus = (() => {
   const players = [];
 
   /* A player left running in a background tab is audio coming from nowhere, and
-     nobody can find the tab it is coming from. So everything stops the moment
-     the document is hidden.
+     nobody can find the tab it is coming from. So a player stops the moment the
+     document is hidden — unless it declares `keepPlayingHidden`.
 
      Nothing resumes on the way back, deliberately. A page that starts talking
      the instant you return to it is the same ambush pointing the other way, and
      the player is right there — pressing play is one click or one space bar.
 
-     It lives in MediaBus rather than in either player because it is a rule
-     about media on this page, not about clips or about songs; a third player
-     that registers with the bus gets it without having to remember it. */
+     THE SONGS BAR IS THE EXEMPTION (Dex, 2026-08-21), and it is the one case
+     the rule above got wrong: someone who put a track on wants the track, and
+     switching to another window or tab to do something else while it plays is
+     the ordinary way music gets listened to. Cutting it there is not protecting
+     them from anything — they know exactly where it is coming from, because
+     they started it. The rule still holds for the clips player and the toy,
+     where the sound is a side effect of looking at something and stops making
+     sense the moment you look away.
+
+     It lives in MediaBus rather than in the players because it is a rule about
+     media on this page; a fourth player that registers with the bus gets the
+     default without having to remember it. */
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) return;
-    for (const p of players) if (!p.el.paused) p.pause();
+    for (const p of players) if (!p.keepPlayingHidden && !p.el.paused) p.pause();
   });
 
   return {
@@ -4322,6 +4331,10 @@ const LOOP_MODES = ['off', 'all', 'one'];
      which is the same fact as having been interacted with. */
   const me = MediaBus.add({
     el: audio,
+    // Keeps playing when the tab is hidden or the window loses focus — see the
+    // exemption in MediaBus. Music is the one thing here you start and then go
+    // and do something else to.
+    keepPlayingHidden: true,
     onScreen: () => !bar.hidden,
     touched: () => index >= 0,
     toggle: () => { audio.paused ? audio.play().catch(paint) : audio.pause(); },
