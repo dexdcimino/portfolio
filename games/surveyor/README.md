@@ -2497,17 +2497,34 @@ construction, cracks *cannot* open at a face boundary.
 ### The six worlds, as measured
 
 Regenerate with `node dev/run.mjs` — these are the numbers it prints, not
-numbers anyone typed. Water is the fraction of the surface below sea level,
-which since the Phase 3b `waterY` fix is the same line the shell is drawn at.
+numbers anyone typed. It samples 60000 directions on a Fibonacci sphere and is
+deterministic, so two runs agree to the digit.
 
-| world  | radius | relief span | % of cap | water | carried by |
-|--------|-------:|------------:|---------:|------:|------------|
-| Home   |  1036m |       48.2m |      93% |   31% | balance |
-| Ember  |   207m |        5.5m |      53% |   dry | light and emission |
-| Tarn   |   414m |       11.6m |      56% |   86% | water |
-| Vault  |   829m |       30.0m |      72% |   33% | material and a mechanic |
-| Shroud |  1451m |       61.0m |      84% |   19% | atmosphere |
-| Anvil  |  2072m |       87.6m |      85% |   10% | topography |
+**Cap is the profile's own `relief` plus 5% of headroom**, which is what the
+suite asserts against — not `radius/20`. Those were the same number until the
+Home revamp raised Home alone to `radius/12`, and a percentage quoted against
+the old denominator is the one thing in this table that cannot be spotted by
+looking at it. **Water is the fraction of the surface below sea level**, which
+since the Phase 3b `waterY` fix is the same line the shell is drawn at — except
+on Ember, which is `dry: true` and draws no shell at all, so the 36% the suite
+measures there is ground below the datum and not water. That cell says what
+Ember is rather than what the column measures.
+
+| world  | radius | relief span | cap | % of cap | water | carried by |
+|--------|-------:|------------:|----:|---------:|------:|------------|
+| Home   |  1036m |       83.1m |  90.7m |   92% |   24% | balance |
+| Ember  |   207m |        5.5m |  10.9m |   50% |   dry | light and emission |
+| Tarn   |   414m |       11.6m |  21.7m |   54% |   86% | water |
+| Vault  |   829m |       30.0m |  43.5m |   69% |   33% | material and a mechanic |
+| Shroud |  1451m |       61.0m |  76.2m |   80% |   19% | atmosphere |
+| Anvil  |  2072m |       87.6m | 108.8m |   81% |   10% | topography |
+
+Five of the six rows moved when this was last regenerated (2026-08-21), and
+only one of those was a world changing: Home's span went 48.2m to 83.1m and
+its water 31% to 24% in the revamp. Every other row moved only in `% of cap`,
+because the denominator had been `relief` and the suite has been asserting
+against `relief * 1.05` — the numbers were stale against a check nobody had
+re-read. The spans themselves were right the whole time.
 
 **Every world size in this file is a RADIUS unless it says otherwise**, and the
 one place that matters is 414m: it is Tarn's RADIUS and Ember's DIAMETER at the
