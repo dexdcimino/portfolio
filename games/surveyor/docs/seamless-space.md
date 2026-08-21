@@ -76,8 +76,9 @@ More than it looks. Do not rebuild any of this.
 
 - **Honest positions** — `SYSTEM.at` coordinates are real, in metres
 - **The speed law** — altitude-based, unchanged. It was `HYPER.doubleEvery =
-  1500` when this was written; phase 5 bullet 2 replaced that with
-  `HYPER.tripFirst`/`tripRepeat` in seconds, solved back to the metres
+  1500` when this was written; phase 5 bullet 2 replaced that with seconds
+  solved back to the metres, first as `tripFirst`/`tripRepeat` and then, a day
+  later, as one `HYPER.trip`
 - **Approach spheres and boundaries** — from Phase 3b
 - **The analytic sweep** — stops you tunnelling through a 414 m planet at a
   million m/s — that is Ember measured across, radius 207 m. Still needed,
@@ -231,9 +232,53 @@ The phase's three bullets as written, and where each one stands:
 **Neither a skip nor a fast-forward** (Dex, 2026-08-21). Both are a SECOND WAY
 TO TRAVEL — another arrival path, another FX state, another thing that has to
 keep working — to solve what is really just a duration. The trip itself gets
-shorter instead: **20 seconds the first crossing a save ever makes, 10 seconds
-every crossing after it**, counted per player rather than per world or per pair.
-One field in the save blob decides it and there is no new path through the game.
+shorter instead.
+
+**AND THEN THE SPLIT WENT TOO, one day later.** It shipped as 20 seconds the
+first crossing a save ever makes and 10 every crossing after, counted per
+player. That is one crossing length now — **`HYPER.trip`, 7 seconds, every
+time**. The split had bought a cheaper fiftieth trip with two of everything:
+two laws for the suite to fly, a `--repeat` flag on crosscheck, a save field
+that changed the physics, and a trip nobody could state in one number.
+`economy.crossings` is still counted and still saved; it decides nothing.
+
+**DOOR TO DOOR IS 15.6s, AND THE ESCAPE BURN IS WHY.** The ask was 7 seconds
+door to door — button press to driving — around a 3s burn and a 4s crossing.
+**3s of burn is not reachable, and the measurement says so twice over.**
+`JET.escapeThin` is a fraction of thrust ABOVE the jet's ceiling, and the first
+four seconds of a climb happen below it where the fraction does not apply, so
+the burn saturates:
+
+| `escapeThin` | burn to the 900m boundary | six-second boosted pull-up |
+|---|---|---|
+| 0.5 (shipped) | 8.63s | 799m — stays |
+| 0.6 | 7.62s | 842m — stays |
+| 0.7 | 6.98s | 886m — stays |
+| 0.8 | 6.60s | **crosses — departure stops being deliberate** |
+| 1.0 | 6.50s | **crosses** |
+
+Six and a half seconds is the floor at infinite thrust, and the guard breaks
+before the burn gets anywhere near three. So the burn is untouched and the
+crossing took the stated fallback: **7s of crossing, 15.6s door to door.** The
+sweep above is an assertion in `run.mjs` now rather than a paragraph, because a
+number in a comment is a number that rots. The lever, if this is revisited, is
+the jet's climb itself and not `escapeThin`.
+
+**THE ARRIVAL DWELL WAS THE OTHER HALF, and it was `JET.assistTime`.** Nine
+seconds of autopilot after a seven-second crossing — the world in frame and the
+controls not yours. Found by measurement rather than assumed: the autopilot
+ended at exactly 9.00s on all six worlds, which is what a governor that is a
+number of seconds looks like. Not `HYPER.approachAlt`, which decides where
+hyper ENDS, and not `ARRIVE.alt`, which is already in radii and produces the
+same ~20° arrival dive on all six. It is `ARRIVE.assist` now, 2.0s, split off
+for the same reason `ARRIVE.alt` was split off `approachAlt`: a launch and an
+arrival only ever shared a value. 2.0 is derived from `JET.assistFade` (1.4s) —
+`auto` is `assist/assistFade` clamped, so anything shorter never reaches full
+authority. Measured hands-off on all six at 9 / 4 / 3 / 2.5 / 2 / 1.5s: the
+lowest ground clearance in the 25s after arrival is **17m at every value** — it
+is the GPWS that keeps the craft off the ground, never the assist — and nothing
+crashes at any of them. Touching the stick still hands over in `assistFade`, so
+only the hands-off case moved, which is the case an arrival is.
 
 **The trip is now authored in SECONDS.** `H` — metres of altitude per doubling
 — is the only knob that changes trip time, and `t(H) = 2H·2^(-a0/H)/(v0·ln2)`
@@ -245,11 +290,16 @@ because `legSeconds` has no radius in it, and all five destinations land within
 0.5s of the asked time under both laws. Where a number has a scale-free unit,
 author it in that unit.
 
-**A shorter trip arrives faster, and that is arithmetic, not a side effect.**
-Deceleration is the same curve run backwards, so halving the leg takes the
-speed at the far boundary from 240 m/s to 292 m/s — pinned in the suite against
-the jet, which sheds it under its own drag exactly as it does today. It is the
-number to watch if these ever go lower.
+**A shorter trip crosses the far boundary faster — and does not arrive
+faster.** Deceleration is the same curve run backwards, so the boundary speed
+rises as the leg shortens: 233 m/s at 20s, 292 at 10, 338 at 7, 440 at 4. The
+suite pinned that number against twice the jet's boost and a 7s leg fails it.
+**It never reaches the player.** `landOn` clamps `speedScalar` to
+`JET.maxSpeed` unconditionally, so the craft is handed back at **92.0 m/s under
+every one of those legs** — measured, all four. The check's name and its
+measurement were pointing at different things; it asserts the clamp now, over
+the whole plausible range of legs, because the clamp is what makes any trip
+length safe.
 
 **What nearly got tuned instead of measured.** Phase 3's bank rate was sized as
 "a half turn takes 3.5s against the 9s a trip has left", and a 10-second leg
@@ -266,19 +316,13 @@ which is scale-free and says the same thing about a 37-second crossing and an
 11-second one. `GRAV.turn` was not touched. The general lesson is in
 `../ARCHITECTURE.md`.
 
-**Verified.** 244 checks in `run.mjs` (up from 236), all pass bar the drone's
-pre-existing `climb is held after Space is released`; the 30-pair gravity sweep
-now flies 60 crossings over both laws; `arrivecheck` clean on all six;
-`crosscheck --repeat` reports the short crossing continuous with the far band
-where it says it is at four stages, and its filmstrip shows the destination
-growing from a dot to a world in ten seconds — `dev/shots/cross-home-tarn-repeat.jpg`.
+**Verified at 7 seconds.** 248 checks in `run.mjs`, 0 failures; the 30-pair
+gravity sweep flies 30 crossings under the one law and every pair is upright by
+81% of the trip at the latest; `arrivecheck` clean on all six; `crosscheck`
+reports the crossing continuous with the far band where it says it is at four
+stages. `--repeat` is gone with the second law and so is its sheet.
 
-**Open, for Dex.** The bank comes upright at 89% of a short trip against 82% of
-a long one — 1.7 seconds before arrival rather than 6.7. It converges and it
-reads, but if it wants more room the lever is `GRAV.turn`, currently 0.9 rad/s.
-And these are the LEG, boundary to boundary; the 8.7s escape burn that gets you
-to the boundary is flying rather than travelling and is deliberately not in the
-number, so door to door a first crossing is about 29s and a repeat about 19s.
+**`GRAV.turn` WAS THE THING THAT BROKE, and it is decided.** See bullet 3.
 
 ## Bullet 3 — AUDITED AND MEASURED, and the answer is a decision, not a value
 
@@ -286,26 +330,67 @@ number, so door to door a first crossing is about 29s and a repeat about 19s.
 
 Every FX term the crossing drives, and which kind it is:
 
-| term | kind | of a 20s leg | of a 10s leg |
-|---|---|---|---|
-| `hyperAberration` 34, `hyperAberrationRadial` 22 | fraction of t² | — | — |
-| `hyperGrain` 2.6, `hyperVignette` 1.2 | fraction of t² | — | — |
-| `streakFrom` 0.16, `streakLen` .55, alpha/width ramps | fraction of t | — | — |
-| `CAM.hyperFov` 0.62 rad, `hyperDist` 1.9 | fraction of t | — | — |
-| streak scroll `0.35 + k*5.5` | a RATE, per second — correct in kind | — | — |
-| `streakBox` 260m | spatial, not temporal | — | — |
-| `CAM.hyperLerp` 1.6/s (FOV) | seconds, τ = 0.63s | 3.1% | 6.3% |
-| `CAM.posLerp` 7.5/s (boom) | seconds, τ = 0.13s | 0.7% | 1.3% |
-| camera tilt damp 6/s | seconds, τ = 0.17s | 0.8% | 1.7% |
-| music intensity 1.6/s, lead 1.1/s | seconds, τ = 0.63 / 0.91s | 3.1 / 4.5% | 6.3 / 9.1% |
-| sfx layer glides | seconds, ≤ 0.10s | ≤ 0.5% | ≤ 1.0% |
-| `GRAV.turn` 0.9 rad/s (the bank) | seconds, π/0.9 = 3.49s | 17.4% | **34.9%** |
+**EXTENDED TO 7s AND 4s (2026-08-21), which is what the trip change asked
+for.** The two right-hand columns are new and they are the ones that decide
+anything; 20s and 10s are kept because a term that is 6% at one scale and 25%
+at another is the whole point of the table.
 
-**No FX term is wrong in kind, and none of the ones in seconds is large enough
-to matter** — the worst is the music lead at 9.1% of a short leg, and the
-lagged FOV reaches 73.8% of its push on a long trip against 72.0% on a short
-one, a difference of under two per cent. The ATMO block's own claim, that
-everything rides one number and nothing needs its own ramp, holds.
+| term | kind | of 20s | of 10s | of **7s** | of 4s |
+|---|---|---|---|---|---|
+| `hyperAberration` 34, `hyperAberrationRadial` 22 | fraction of t² | — | — | — | — |
+| `hyperGrain` 2.6, `hyperVignette` 1.2 | fraction of t² | — | — | — | — |
+| `streakFrom` 0.16, `streakLen` .55, alpha/width ramps | fraction of t | — | — | — | — |
+| `CAM.hyperFov` 0.62 rad, `hyperDist` 1.9 | fraction of t | — | — | — | — |
+| streak scroll `0.35 + k*5.5` | a RATE, per second — correct in kind | — | — | — | — |
+| `streakBox` 260m | spatial, not temporal | — | — | — | — |
+| `CAM.posLerp` 7.5/s (boom) | seconds, τ = 0.133s | 0.7% | 1.3% | 1.9% | 3.3% |
+| sfx layer glides | seconds, ≤ 0.10s | ≤0.5% | ≤1.0% | ≤1.4% | ≤2.5% |
+| camera tilt damp 6/s | seconds, τ = 0.167s | 0.8% | 1.7% | 2.4% | 4.2% |
+| `CAM.hyperLerp` 1.6/s (FOV) | seconds, τ = 0.625s | 3.1% | 6.3% | 8.9% | 15.6% |
+| music intensity 1.6/s | seconds, τ = 0.625s | 3.1% | 6.3% | 8.9% | 15.6% |
+| music lead 1.1/s | seconds, τ = 0.909s | 4.5% | 9.1% | 13.0% | 22.7% |
+| `GRAV.turn` 0.9 rad/s (the bank) | seconds, π/0.9 = 3.49s | 17.5% | 34.9% | **49.9%** | **87.3%** |
+
+**Re-derived rather than assumed, and everything except the bank still holds.**
+The one measured claim in the old table was the lagged FOV, and it was
+re-measured by flying real legs through `hyper.js` and running the camera's own
+first-order lag over the `hyperT` they produce: the FOV reaches **73.8% of its
+push at 20s, 72.0% at 10s, 71.1% at 7s and 69.8% at 4s** — the 20s and 10s
+figures reproduce the original two exactly, which is what makes the other two
+worth quoting. A third of the trip length costs the FOV push 2.7 percentage
+points. The worst term in seconds is the music lead at 13.0% of a 7s leg,
+against the 9.1% that was already accepted at 10s. The ATMO block's claim —
+everything rides one number, nothing needs its own ramp — still holds at 7s.
+
+**`GRAV.turn` DOES NOT, AND THIS IS THE DECISION IT WAS DEFERRED TWICE FOR.**
+At 7s the half turn is half the leg, and three unrelated checks failed in one
+run: the 30-pair sweep settled at **99% of the trip** against a 95% bar, the
+flown 12-crossing check arrived **88° off**, and the arrival attitude stopped
+agreeing between 15fps and 120fps by **4.2°** — which is what a bank still
+slewing when the trip ends looks like from three directions at once.
+
+**It is 2.6 rad/s, and the value is derived rather than picked:** whatever
+holds the half turn at the same SHARE of the leg that 0.9 held at 20 seconds.
+17.45% of 7s is 1.222s, so π/1.222 = 2.57 and 2.6 is the round number above it
+— a half turn in 1.21s, 17.3% of the trip. Swept over the 30 pairs at 7s:
+
+| `GRAV.turn` | bank upright by | flown 12-crossing | 15fps vs 120fps |
+|---|---|---|---|
+| 0.9 | 99% of the trip | 88.0° off | 4.21° |
+| 1.1 | 91% | 23.3° | 5.07° |
+| 1.3 | 87% | 53.5° | 5.93° |
+| 1.5 | 84% | 41.2° | 3.03° |
+| 1.8 | 82% | 15.7° | 2.91° |
+| 2.0 | 82% | 3.5° | 0.01° |
+| **2.1** | 82% | **0.000°** | 0.01° |
+| 2.6 (shipped) | 75% | 0.000° | 0.00° |
+| 3.0 | 73% | 0.000° | 0.00° |
+
+The flown checks turn green between 2.0 and 2.1, so 2.6 clears the threshold by
+half a radian a second rather than sitting on it — a bar has to clear what the
+design produces, and so does a design. It is still a roll and not a snap: the
+raw field reverses at 776 to 10523 degrees a second and this is 149.
+**Re-derive it the same way if the trip length moves again.**
 
 ### The term that IS wrong in kind is `hyperT`
 
@@ -375,7 +460,20 @@ at 60Hz, home to Anvil:
 
 - the destination holds 5.7° for the whole climb
 - it crosses 8° to 20° in **0.4s** on a twenty-second leg, **0.15s** on a ten
+  and **0.15s** on the seven that ships
 - the FX peak **1.2s before** the fastest growth
+
+**AND SHORTENING THE TRIP CANNOT CLOSE IT — measured, 2026-08-21.** The offset
+is a fixed number of SECONDS, not a fraction. Over home→anvil, home→ember and
+anvil→ember at 20 / 10 / 7 / 4 seconds it is **1.07s to 1.33s in all twelve**,
+dead flat, while the fraction runs 6%, 13%, 18%, 30%. It is a property of the
+geometry — the cap is reached at the midpoint because of the speed law, and the
+distance collapses later than that whatever the clock says — so a shorter trip
+leaves the gap exactly where it is and makes it a bigger share of a smaller
+journey. `run.mjs` asserted the FRACTION under 15% until this was measured,
+which held at 20s and at 10s and failed the moment the leg went to 7; it
+asserts the SECONDS now, flown at two lengths in one run so the invariance is
+measured rather than claimed.
 
 The filmstrip frame captioned `FX at full, still a dot` is the whole of it:
 full streaks at 1,000,000 m/s against a four-degree grey billboard. **No
@@ -400,11 +498,15 @@ time, and taking a log of it again over-flattens. Measured over the descent
 half only (peak altitude to arrival), as the worst deviation from a straight
 line in time as a fraction of the total change:
 
+Measured under the 20s and 10s laws, which is what existed at the time; the
+trip is a single 7s leg now and the ordering below is what matters, not the
+absolute figures.
+
 | pair | leg | log(drawn) | raw drawn |
 |---|---|---|---|
-| home→anvil | first / repeat | 49% / 57% | 22% / 32% |
-| home→ember | first / repeat | 47% / 53% | 28% / 34% |
-| anvil→ember | first / repeat | 47% / 53% | 28% / 34% |
+| home→anvil | 20s / 10s | 49% / 57% | 22% / 32% |
+| home→ember | 20s / 10s | 47% / 53% | 28% / 34% |
+| anvil→ember | 20s / 10s | 47% / 53% | 28% / 34% |
 
 The log is the WORSE of the two on every pair tried. So the next session does
 not start there. Note also what the same table says about the objection to raw
@@ -558,7 +660,9 @@ within a few hundred metres of the balance point, where the field direction
 reverses inside one frame — 776 to 10531 degrees a second, on every pair.
 Continuity is not the same problem as smoothness. Bounded at 0.9 rad/s the half
 turn takes 3.5s of the nine a trip has left, and all thirty ordered pairs are
-upright again by 83% of the trip at the latest.
+upright again by 83% of the trip at the latest. (0.9 was right for the 20s leg
+it was sized against and wrong for the 7s one that replaced it; it is 2.6 now —
+see bullet 3, which carries the sweep.)
 
 **What phase 3 does not do is move anything.** Hyper's speed law stays a
 function of altitude; the field decides orientation, not trajectory. The plan

@@ -1542,9 +1542,8 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
 
   ok('the speed law matches the jet it hands over from',
     HYPER.localSpeed === JET.boostSpeed,
-    `v0 ${HYPER.localSpeed} m/s = JET.boostSpeed, H ${H.DOUBLING.first.toFixed(0)}m ` +
-    `first / ${H.DOUBLING.repeat.toFixed(0)}m repeat, ` +
-    `cap ${(HYPER.maxSpeed / 1e6).toFixed(1)}e6 m/s`);
+    `v0 ${HYPER.localSpeed} m/s = JET.boostSpeed, H ${H.DOUBLING.toFixed(0)}m ` +
+    `for a ${HYPER.trip}s leg, cap ${(HYPER.maxSpeed / 1e6).toFixed(1)}e6 m/s`);
 
   ok('every world has an approach sphere clear of its own terrain',
     BS.length === 6 && BS.every((b) => {
@@ -1674,51 +1673,42 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
   /* Trip time converges. This is the claim the whole design rests on: the
      journey costs the same whether the world is 300km away or 850km.
 
-     FLOWN UNDER BOTH LAWS, because a short crossing is the same equation with a
-     different constant in it and "converges" is a claim about the equation, not
-     about 1500m. It is also the check that stands in for dividing H by 207 and
-     by 2072: H is an absolute length, and this is where its being absolute is
-     shown not to matter, at both ends of a tenfold range of radii and at both
-     ends of the range of trip lengths.
+     ONE LAW SINCE 2026-08-21 — this flew both while there were two. It is
+     still the check that stands in for dividing H by 207 and by 2072: H is an
+     absolute length, and this is where its being absolute is shown not to
+     matter, across a tenfold range of radii.
 
      The crossing count is asserted before the times are — a loop over a
      discovered set deletes its own checks when the set is empty. */
   {
     const home = by('home');
-    const lines = [];
+    const rows = [];
     let worst = 0, flown = 0;
-    for (const [name, HH, target] of [
-      ['first', H.DOUBLING.first, HYPER.tripFirst],
-      ['repeat', H.DOUBLING.repeat, HYPER.tripRepeat],
-    ]) {
-      const rows = [];
-      for (const b of BS) {
-        if (b.key === 'home') continue;
-        // Leave Home's boundary pointed at the target, as the craft does.
-        const dir = norm(sub(b.c, home.c));
-        const p = V(home.c.x + dir.x * home.approachR,
-          home.c.y + dir.y * home.approachR,
-          home.c.z + dir.z * home.approachR);
-        const state = { p, dir: { x: dir.x, y: dir.y, z: dir.z }, speed: 0, alt: 0, H: HH };
-        let t = 0, arrived = null, top = 0;
-        for (let i = 0; i < 60 * 600 && !arrived; i++) {
-          H.steer(state, b, 1 / 60);
-          arrived = H.advance(BS, state, 1 / 60);
-          top = Math.max(top, state.speed);
-          t += 1 / 60;
-        }
-        const sep = dist(home.c, b.c) / 1000;
-        rows.push(`${b.name} ${sep.toFixed(0)}km ${t.toFixed(1)}s`);
-        worst = Math.max(worst, Math.abs(t - target));
-        if (!arrived || arrived.key !== b.key) worst = 999;
-        flown++;
+    for (const b of BS) {
+      if (b.key === 'home') continue;
+      // Leave Home's boundary pointed at the target, as the craft does.
+      const dir = norm(sub(b.c, home.c));
+      const p = V(home.c.x + dir.x * home.approachR,
+        home.c.y + dir.y * home.approachR,
+        home.c.z + dir.z * home.approachR);
+      const state = { p, dir: { x: dir.x, y: dir.y, z: dir.z }, speed: 0, alt: 0,
+        H: H.DOUBLING };
+      let t = 0, arrived = null;
+      for (let i = 0; i < 60 * 600 && !arrived; i++) {
+        H.steer(state, b, 1 / 60);
+        arrived = H.advance(BS, state, 1 / 60);
+        t += 1 / 60;
       }
-      lines.push(`${name} (asked ${target}s) ` + rows.join(', '));
+      const sep = dist(home.c, b.c) / 1000;
+      rows.push(`${b.name} ${sep.toFixed(0)}km ${t.toFixed(1)}s`);
+      worst = Math.max(worst, Math.abs(t - HYPER.trip));
+      if (!arrived || arrived.key !== b.key) worst = 999;
+      flown++;
     }
     ok('trip time converges: every world is the same journey away',
-      flown === (BS.length - 1) * 2 && worst < 3.5,
-      `${flown} crossings over 2 laws, worst ${worst.toFixed(1)}s off the asked ` +
-      `time — ` + lines.join(' | '));
+      flown === BS.length - 1 && worst < 1.5,
+      `${flown} crossings, worst ${worst.toFixed(1)}s off the ${HYPER.trip}s ` +
+      `asked — ` + rows.join(', '));
   }
 
   /* THE TRIP IS AUTHORED IN SECONDS, so the round trip through the solver is the
@@ -1727,12 +1717,11 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
      is asserted so an empty sweep cannot report clean. */
   {
     const want = [...new Set(
-      [4, 6, 8, 10, 14, 18, 20, 27, 40, HYPER.tripFirst, HYPER.tripRepeat])];
+      [4, 6, 8, 10, 14, 18, 20, 27, 40, HYPER.trip])];
     let worst = 0;
     for (const t of want) worst = Math.max(worst, Math.abs(H.legSeconds(H.doublingFor(t)) - t));
     ok('a leg authored in seconds solves back to itself',
-      want.length === 9 && want.includes(HYPER.tripFirst) &&
-      want.includes(HYPER.tripRepeat) && worst < 1e-9,
+      want.length === 10 && want.includes(HYPER.trip) && worst < 1e-9,
       `${want.length} targets from ${Math.min(...want)}s to ${Math.max(...want)}s, ` +
       `worst round-trip error ${worst.toExponential(1)}s`);
 
@@ -1744,44 +1733,79 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
       `${rising[rising.length - 1]}s, strictly`);
   }
 
-  /* The first crossing is the long one, and it is the FIRST — not the first to
-     each world and not the first of each ordered pair. One flag decides it. */
+  /* ONE LENGTH, AND THE SAVE CANNOT REACH IT. This replaces the check that
+     pinned the old first/repeat split; the property is now the opposite one and
+     it is worth asserting for the same reason the split was — `crossings` is
+     still counted and still saved, and the failure it would produce is silent.
+     Flown through the craft's own departure path so that "the count no longer
+     reaches the law" is measured where it could actually be got wrong, not
+     asserted about hyper.js in isolation. */
   {
-    const after = [0, 1, 2, 7, 50].map((n) => H.doublingAfter(n));
-    ok('the first crossing of a save is the long one, every later one is short',
-      after.length === 5 && after[0] === H.DOUBLING.first &&
-      after.slice(1).every((L) => L === H.DOUBLING.repeat) &&
-      H.legSeconds(H.DOUBLING.first) > H.legSeconds(H.DOUBLING.repeat),
-      `crossing 1 flies ${H.legSeconds(H.DOUBLING.first).toFixed(1)}s at ` +
-      `${H.DOUBLING.first.toFixed(0)}m; crossings 2, 3, 8 and 51 all fly ` +
-      `${H.legSeconds(H.DOUBLING.repeat).toFixed(1)}s at ${H.DOUBLING.repeat.toFixed(0)}m`);
+    const { Economy } = await import('../js/game/economy.js');
+    const P0 = makePlanet(PLANETS.home);
+    const stamped = [0, 1, 2, 7, 50].map((count) => {
+      const eco = new Economy();
+      eco.crossings = count;
+      eco.hyper = 1e6;
+      const c = new Craft(forms, spawnOn(P0));
+      c.economy = eco;
+      c.setMode('jet');
+      c.fuel = 1e6;
+      for (let i = 0; i < 60 * 40 && !c.hyper; i++) {
+        c.update(1 / 60, IN({ pitch: -1, boost: true }));
+      }
+      return c.hyper ? c.hyper.H : NaN;
+    });
+    ok('every crossing flies the same law, whatever the save says',
+      stamped.length === 5 && stamped.every((L) => L === H.DOUBLING) &&
+      Math.abs(H.legSeconds(H.DOUBLING) - HYPER.trip) < 1e-6,
+      `crossings 1, 2, 3, 8 and 51 all depart stamped with H ` +
+      `${H.DOUBLING.toFixed(0)}m, which flies ` +
+      `${H.legSeconds(H.DOUBLING).toFixed(2)}s against ${HYPER.trip}s asked`);
   }
 
-  /* A SHORTER TRIP ARRIVES FASTER, which is the thing a duration change breaks
-     that has nothing to do with duration: deceleration is the same curve run
-     backwards, so the speed at the far boundary rises as the leg shortens.
-     Both laws held against the jet that has to fly away from it. */
+  /* WHAT THE CRAFT IS HANDED BACK AT, which is not the boundary speed and was
+     checked as though it were. The BOUNDARY speed rises as the leg shortens —
+     233 m/s at 20s, 292 at 10, 338 at 7, 440 at 4 — and the old bar gated that
+     number at twice the jet's boost, which a 7s leg fails. But `landOn` clamps
+     `speedScalar` to `JET.maxSpeed` unconditionally, so NONE of those numbers
+     reaches the player: the craft is handed back at 92.0 m/s under every one
+     of them. The clamp is what makes a trip length safe, so the clamp is what
+     is asserted, over the whole plausible range rather than at today's value.
+     Both halves are reported, because the boundary sweep is still the thing to
+     watch if the clamp is ever taken out. */
   {
-    const rows = [];
+    const probe = [4, 5, 6, 7, 8, 10, 14, 20];
     let bad = 0;
-    for (const [name, HH] of [['first', H.DOUBLING.first], ['repeat', H.DOUBLING.repeat]]) {
-      const v = H.speedAt(HYPER.approachAlt, HH);
-      if (!(v < JET.boostSpeed * 2)) bad++;
-      rows.push(`${name} ${v.toFixed(0)} m/s`);
+    const rows = [];
+    for (const secs of probe) {
+      const HH = H.doublingFor(secs);
+      const vB = H.speedAt(HYPER.approachAlt, HH);
+      const c = new Craft(forms, spawnOn(makePlanet(PLANETS.home)));
+      c.setMode('jet');
+      c.speedScalar = vB;
+      c.speed = vB;
+      c.landOn(c.surf, 200);
+      if (!(Math.abs(c.speedScalar - JET.maxSpeed) < 1e-9)) bad++;
+      rows.push(`${secs}s ${vB.toFixed(0)}->${c.speedScalar.toFixed(0)}`);
     }
-    ok('a shorter crossing arrives faster, and still slowly enough to fly away',
-      rows.length === 2 && bad === 0,
-      rows.join(', ') + `, against a ceiling of ${JET.boostSpeed * 2} m/s (2x boost)`);
+    ok('however fast the boundary comes round, the craft is handed back flyable',
+      probe.length === 8 && rows.length === 8 && bad === 0,
+      `landOn clamps to JET.maxSpeed ${JET.maxSpeed} m/s under every leg from ` +
+      `${probe[0]}s to ${probe[probe.length - 1]}s — ` + rows.join(', '));
   }
 
   /* The anti-tunnelling guarantee is a property of the CAP, not of the law, so
-     shortening a trip must not lengthen a step. Swept over both laws at every
-     altitude the fast one reaches, at the worst frame anyone plays at. */
+     shortening a trip must not lengthen a step. Swept at every altitude the
+     law reaches, at the worst frame anyone plays at — and over a SPREAD of
+     laws rather than only the shipped one, because the guarantee is what makes
+     a future retune safe rather than something to re-derive each time. */
   {
     const dt = 1 / 15;
     const capStep = HYPER.maxSpeed * dt;
+    const laws = [3, 4, HYPER.trip, 10, 20].map(H.doublingFor);
     let worst = 0, samples = 0;
-    for (const HH of [H.DOUBLING.first, H.DOUBLING.repeat]) {
+    for (const HH of laws) {
       for (let alt = 0; alt <= 400000; alt += 2000) {
         for (const k of [-1, -0.5, 0, 0.5, 1]) {
           worst = Math.max(worst, H.stepDistance(alt, k, dt, HH));
@@ -1790,9 +1814,10 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
       }
     }
     ok('a shorter law cannot take a longer step, so the sweep still holds',
-      samples === 2010 && worst <= capStep + 1e-6,
-      `${samples} steps sampled over 2 laws, longest ${(worst / 1000).toFixed(1)}km ` +
-      `against the cap's ${(capStep / 1000).toFixed(1)}km at 15fps`);
+      laws.length === 5 && samples === 5025 && worst <= capStep + 1e-6,
+      `${samples} steps sampled over ${laws.length} laws from 3s to 20s, ` +
+      `longest ${(worst / 1000).toFixed(1)}km against the cap's ` +
+      `${(capStep / 1000).toFixed(1)}km at 15fps`);
   }
 
   /* THE SPEED FX AGAINST THE GEOMETRY — phase 5 bullet 3, pinned here rather
@@ -1813,11 +1838,21 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
      ever decreases — so they can agree at one instant and this is where that
      instant is measured.
 
-     The claim being asserted is that the FX peak lands on the part of the trip
-     where the distance actually collapses. It does, to within a few percent,
-     and it is not obvious: it is true because the cap is reached at the
-     midpoint, which is itself a consequence of the speed law rather than
-     anything anyone tuned. Break that and this fails. */
+     THE OFFSET IS A FIXED NUMBER OF SECONDS, AND THAT IS THE FINDING. This
+     check used to assert the offset as a FRACTION of the trip, under 15%,
+     which held at 20s (6%) and at 10s (13%) and failed the moment the leg went
+     to 7 (18%). The fraction was the wrong unit: measured over home->anvil,
+     home->ember and anvil->ember at 20 / 10 / 7 / 4 seconds, the offset is
+     1.07 to 1.33 SECONDS in all twelve — dead flat — while the fraction runs
+     6%, 13%, 18%, 30%. It is a property of the geometry and not of the
+     duration: the cap is reached at the midpoint because of the speed law, and
+     the distance collapses later than that whatever the clock says.
+
+     So SHORTENING THE TRIP CANNOT CLOSE THE CRESCENDO GAP. It leaves the gap
+     exactly where it is and makes it a bigger share of a smaller trip. That is
+     the sharpest form of parked finding 1 (`docs/seamless-space.md`) and it is
+     asserted in seconds now, flown at two lengths in the same run so the
+     invariance is measured rather than claimed. */
   {
     const { ATMO } = await import('../js/tune.js');
     const home = by('home');
@@ -1829,9 +1864,11 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
     };
     const deg = (r) => (r * 180) / Math.PI;
     const lines = [];
-    let worstOffset = 0, laws = 0, thinnest = Infinity;
+    let laws = 0, thinnest = Infinity;
+    let peakOff = 0;              // worst |FX peak - midpoint|, as a fraction
+    const offsets = [];           // FX-peak-to-collapse, in SECONDS, per length
     for (const [name, HH] of [
-      ['first', H.DOUBLING.first], ['repeat', H.DOUBLING.repeat]]) {
+      [`${HYPER.trip}s`, H.DOUBLING], ['20s', H.doublingFor(20)]]) {
       const b = by('anvil');
       const dir = norm(sub(b.c, home.c));
       const p = V(home.c.x + dir.x * home.approachR,
@@ -1851,7 +1888,13 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
         t += dt;
       }
       const n = hs.length;
-      if (!arrived || n < 500) { worstOffset = 999; continue; }
+      /* THE GUARD SCALES WITH THE TRIP, and it did not until 2026-08-21: it
+         read `n < 500`, which is 8.3 seconds at 60Hz. That was a sanity floor
+         under a 20s leg and it silently became the failure when the leg went
+         to 7 — both of these checks reported 999 and Infinity about a crossing
+         that had flown perfectly. Half the asked time is the same sanity floor
+         expressed in the units the trip is authored in. */
+      if (!arrived || n < 60 * HYPER.trip * 0.5) { offsets.push(999); continue; }
       laws++;
       // Where the FX peak, and where the picture moves fastest. Both as a
       // fraction of the trip, so the two trip lengths are comparable at all.
@@ -1861,22 +1904,33 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
         const g = ds[i] - ds[i - 60];
         if (g > fastest) { fastest = g; growAt = i / n; }
       }
-      worstOffset = Math.max(worstOffset, Math.abs(fxAt - growAt));
+      offsets.push(Math.abs(fxAt - growAt) * t);
+      peakOff = Math.max(peakOff, Math.abs(fxAt - 0.5));
       // ...and how long the destination spends being a thing that is growing.
       const band = (lo, hi) => ds.filter((d) => d >= lo && d < hi).length * dt;
       thinnest = Math.min(thinnest, band(8, 20));
       // Monotone: you only ever get closer, so the drawn size only ever grows.
       let backwards = 0;
       for (let i = 1; i < n; i++) if (ds[i] < ds[i - 1] - 1e-9) backwards++;
-      if (backwards) worstOffset = 999;
+      if (backwards) offsets.push(999);
       lines.push(`${name} ${t.toFixed(1)}s: FX peak at ${(fxAt * 100).toFixed(0)}%, ` +
         `fastest growth ${fastest.toFixed(0)}°/s at ${(growAt * 100).toFixed(0)}%; ` +
         `drawn holds 5-8° for ${band(0, 8).toFixed(1)}s, crosses 8-20° in ` +
         `${band(8, 20).toFixed(1)}s, then ${band(20, 999).toFixed(1)}s above 20°`);
     }
-    ok('the speed FX peak where the distance actually collapses',
-      laws === 2 && worstOffset < 0.15,
-      `worst offset ${(worstOffset * 100).toFixed(0)}% of the trip — ` + lines.join(' | '));
+    /* Two lengths, one run: the offset in seconds must agree between them to
+       within a fifth of a second, which is what "it does not scale" means as
+       something a machine can refuse. `peakOff` holds the other half — the FX
+       still peak at the midpoint, because the cap is reached there. */
+    const spread = offsets.length === 2 ? Math.abs(offsets[0] - offsets[1]) : 999;
+    ok('the FX-to-collapse offset is a fixed 1.2s, not a fraction of the trip',
+      laws === 2 && offsets.length === 2 && offsets.every((o) => o > 0.8 && o < 1.6) &&
+      spread < 0.2 && peakOff < 0.07,
+      `${offsets[0].toFixed(2)}s at ${HYPER.trip}s (` +
+      `${(offsets[0] / (HYPER.trip + 0.5) * 100).toFixed(0)}% of the trip) against ` +
+      `${offsets[1].toFixed(2)}s at 20s (${(offsets[1] / 20.5 * 100).toFixed(0)}%) — ` +
+      `${spread.toFixed(2)}s apart, FX peak within ` +
+      `${(peakOff * 100).toFixed(0)}% of the midpoint — ` + lines.join(' | '));
 
     /* AND THE APPROACH IS NOT A CRESCENDO, WHICH IS THE THING THE FILMSTRIP
        CANNOT SHOW YOU. The destination holds the far band's compressed floor
@@ -1889,13 +1943,14 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
        approach read better has to move this. */
     ok('...and the destination crosses from dot to world in under half a second',
       laws === 2 && thinnest > 0 && thinnest < 0.5,
-      `the narrowest 8-20° crossing of the two is ${thinnest.toFixed(2)}s ` +
+      `the 8-20° crossing is ${thinnest.toFixed(2)}s ` +
       `(${(thinnest * 60).toFixed(0)} frames at 60Hz) — a climb is not an approach, ` +
       'so the whole of it happens at the cap');
   }
 
-  // Arrival speed. There is no braking input, so the only thing that can make
-  // this safe is the law itself.
+  /* Arrival speed. There is no braking input, so the law has to do the
+     braking — six orders of magnitude of it, from the cap to a few hundred
+     metres a second by the time the far boundary comes round. */
   {
     const b = by('anvil');
     const home = by('home');
@@ -1911,9 +1966,10 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
     }
     const vArrive = H.speedAt(H.nearest(BS, state.p).alt);
     ok('deceleration into arrival is automatic, and there is no way around it',
-      arrived && top > 9e5 && vArrive < JET.boostSpeed * 2,
+      arrived && top > 9e5 && vArrive < top / 1000,
       `topped out at ${(top / 1e6).toFixed(2)}e6 m/s, crossed the boundary at ` +
-      `${vArrive.toFixed(0)} m/s (jet boost is ${JET.boostSpeed})`);
+      `${vArrive.toFixed(0)} m/s — a factor of ${(top / vArrive).toFixed(0)}, ` +
+      `with no input`);
   }
 
   // The boundary is one surface, so this is a property rather than a rule.
@@ -2103,6 +2159,94 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
     for (let i = 0; i < 60 * 60 && !c.hyper; i++) { c.update(1 / 60, IN({ pitch: -1, boost: true })); t += 1 / 60; }
     ok('...and a sustained boost climb still gets you off it',
       !!c.hyper && t > 5 && t < 15, `crossed the boundary after ${t.toFixed(1)}s of held boost`);
+
+    /* THE BURN CANNOT BE COMPRESSED, and this is the reason a 7s door-to-door
+       trip is a 15.6s one. `JET.escapeThin` is a fraction of thrust ABOVE the
+       ceiling, and the first four seconds of a climb happen below it where the
+       fraction does not apply — so the burn saturates. Swept here rather than
+       written down, because a number in a comment is a number that rots, and
+       both halves of the trade have to be visible at once: what the burn buys,
+       and what it costs the guard above.
+
+       At escapeThin 0.8 the six-second pull-up that check flies crosses the
+       boundary — leaving stops being deliberate — and the burn is still 6.6s.
+       So the whole compressible range is 8.63s down to 6.98s, and 3s is not
+       in it at any value. Restores the shipped value on the way out. */
+    {
+      const was = JET.escapeThin;
+      const rows = [];
+      let floor = Infinity, breaksAt = null, shipped = 0;
+      for (const thin of [0.5, 0.6, 0.7, 0.8, 1.0]) {
+        JET.escapeThin = thin;
+        const P2 = makePlanet(PLANETS.home);
+        // the burn: hold boost and nose up from a standing start
+        const b1 = new Craft(forms, spawnOn(P2));
+        b1.fuel = 1e6; b1.setMode('jet');
+        let bt = 0;
+        for (let i = 0; i < 60 * 60 && !b1.hyper; i++) {
+          b1.update(1 / 60, IN({ pitch: -1, boost: true })); bt += 1 / 60;
+        }
+        // the guard: a six-second boosted pull-up must not leave
+        const b2 = new Craft(forms, spawnOn(P2));
+        b2.fuel = 1e6; b2.setMode('jet');
+        for (let i = 0; i < 60 * 6 && !b2.hyper; i++) b2.update(1 / 60, IN({ pitch: -1, boost: true }));
+        for (let i = 0; i < 60 * 26 && !b2.hyper; i++) b2.update(1 / 60, IN({}));
+        if (b2.hyper && breaksAt === null) breaksAt = thin;
+        if (!b2.hyper) floor = Math.min(floor, bt);
+        if (thin === was) shipped = bt;
+        rows.push(`${thin}: ${bt.toFixed(2)}s${b2.hyper ? ' GUARD BREAKS' : ''}`);
+      }
+      JET.escapeThin = was;
+      ok('the escape burn saturates well above three seconds, whatever escapeThin does',
+        rows.length === 5 && breaksAt !== null && floor > 5 && floor < 8 && shipped > 0,
+        `the shipped burn is ${shipped.toFixed(2)}s at escapeThin ${was}, so DOOR TO ` +
+        `DOOR IS ${(shipped + HYPER.trip).toFixed(1)}s (burn + a ${HYPER.trip}s leg); ` +
+        `the shortest burn that keeps departure deliberate at all is ` +
+        `${floor.toFixed(2)}s and the guard breaks at escapeThin ${breaksAt}; ` +
+        `swept ` + rows.join(', '));
+    }
+  }
+
+  /* THE ARRIVAL DWELL — the gap between a crossing ending and the controls
+     coming back, which is `ARRIVE.assist` and was `JET.assistTime` until
+     2026-08-21. Nine seconds of autopilot after a seven-second crossing.
+
+     MEASURED ON ALL SIX rather than reasoned about, for two reasons. It is the
+     only way to show it is really a number of seconds and carries no radius —
+     the worlds run 207m to 2072m and the arrival altitude is in radii, so a
+     dwell that depended on the descent would come out ten times longer on
+     Anvil than on Ember. And it is the only way to catch the launch autopilot
+     being re-shared with it, which is the state this started in. */
+  {
+    const { arriveAlt } = await import('../js/world/hyper.js');
+    const { ARRIVE } = await import('../js/tune.js');
+    const rows = [];
+    let worst = 0, bad = 0, n = 0;
+    for (const key of Object.keys(PLANETS)) {
+      const P = makePlanet(PLANETS[key]);
+      const surf = spawnOn(P);
+      const c = new Craft(forms, surf);
+      c.fuel = 1e6;
+      c.setMode('jet');
+      c.landOn(surf, arriveAlt(P.radius));
+      let t = 0, ends = null;
+      for (let i = 0; i < 60 * 30 && ends === null; i++) {
+        c.update(1 / 60, IN({}));
+        t += 1 / 60;
+        if (c.assist <= 0) ends = t;
+      }
+      n++;
+      if (ends === null || Math.abs(ends - ARRIVE.assist) > 0.05) bad++;
+      worst = Math.max(worst, Math.abs((ends === null ? 99 : ends) - ARRIVE.assist));
+      rows.push(`${key} ${ends === null ? 'never' : ends.toFixed(2) + 's'}`);
+    }
+    ok('the controls come back ARRIVE.assist seconds after an arrival, on every world',
+      n === 6 && bad === 0 && ARRIVE.assist < JET.assistTime &&
+      ARRIVE.assist < HYPER.trip * 0.5,
+      `${ARRIVE.assist}s asked, worst ${worst.toFixed(3)}s off over ${n} worlds ` +
+      `(${rows.join(', ')}) — the launch autopilot is still ${JET.assistTime}s, ` +
+      `and the dwell is now ${(ARRIVE.assist / HYPER.trip * 100).toFixed(0)}% of the crossing ` +
+      `rather than ${(JET.assistTime / HYPER.trip * 100).toFixed(0)}%`);
   }
 
   /* The FX curve. One number drives every effect, so this is the only place
@@ -2159,10 +2303,12 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
       `hyperT ${c.hyperT} on arrival at ${arrived && arrived.key}`);
   }
 
-  // The speed law, spot-checked against the arithmetic in the MD. Both laws:
-  // "doubles one H up" is the definition of H and must hold for whichever H.
+  /* The speed law, spot-checked against the arithmetic in the MD. Over a
+     SPREAD of laws rather than the one that ships: "doubles one H up" is the
+     definition of H and must hold for whichever H, and holding it over a range
+     is what keeps this a check on the law instead of on today's constant. */
   {
-    const laws = [H.DOUBLING.first, H.DOUBLING.repeat];
+    const laws = [3, 4, HYPER.trip, 10, 20].map(H.doublingFor);
     let bad = 0;
     const rows = laws.map((HH) => {
       const aCap = HH * Math.log2(HYPER.maxSpeed / HYPER.localSpeed);
@@ -2173,16 +2319,17 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
         `${(aCap / 1000).toFixed(1)}km`;
     });
     ok('the law doubles on schedule and reaches the cap where it should',
-      laws.length === 2 && bad === 0,
+      laws.length === 5 && bad === 0,
       `${HYPER.localSpeed} m/s at the boundary; ` + rows.join(' | '));
   }
 
   /* THE FEATURE ITSELF, flown rather than derived: two crossings by one craft
-     carrying one economy, and the second has to come in near the short target.
-     Everything above measures the law. This measures that the law reaches the
-     craft, that the count reaches the law, and that the count advances on
-     ARRIVAL rather than on departure — three separate places this could be
-     right on paper and wrong in the game. */
+     carrying one economy, and BOTH have to come in near the same target now
+     that there is only one. Everything above measures the law. This measures
+     that the law reaches the craft and that the count still advances on
+     ARRIVAL rather than on departure — the count no longer changes the
+     physics, but it is still saved, and a counter that stops counting is a
+     silent failure. */
   {
     const { Economy } = await import('../js/game/economy.js');
     const eco = new Economy();
@@ -2211,21 +2358,19 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
     unsub();
     /* A FLOWN leg runs LONGER than the asked time and can only run longer: the
        craft leaves along whatever heading it had and the lock-on bends it, and
-       time spent going sideways is time not spent climbing. 23.1s against 20
-       here, 10.7 against 10 — and the surcharge is smaller on the short trip,
-       not larger, because the steering rate scales with how fast you already
-       are and the short law gets there sooner. So the bar is a band above the
-       asked time and a RATIO between the two legs, which is the claim being
-       made; pinning either leg tightly would be pinning the lock-on. */
-    ok('the second crossing a save makes is the short one, flown end to end',
+       time spent going sideways is time not spent climbing. So the bar is a
+       band above the asked time, never a tight pin — pinning a flown leg
+       tightly would be pinning the lock-on. What IS pinned tightly is that the
+       two legs agree with each other, because that is the claim: the fiftieth
+       crossing is the first crossing. */
+    const spread = Math.abs(legs[0] - legs[1]);
+    ok('two crossings by one save are the same crossing, flown end to end',
       legs.length === 2 && legs.every((s) => s > 0) &&
-      legs[0] >= HYPER.tripFirst && legs[0] - HYPER.tripFirst < 6 &&
-      legs[1] >= HYPER.tripRepeat && legs[1] - HYPER.tripRepeat < 6 &&
-      legs[1] < legs[0] * 0.75 &&
+      legs.every((s) => s >= HYPER.trip && s - HYPER.trip < 6) &&
+      spread < 1.0 &&
       before[0] === 0 && before[1] === 1 && eco.crossings === 2,
-      `leg 1 ${legs[0].toFixed(1)}s against ${HYPER.tripFirst}s asked, ` +
-      `leg 2 ${legs[1].toFixed(1)}s against ${HYPER.tripRepeat}s — ` +
-      `${(100 - legs[1] / legs[0] * 100).toFixed(0)}% shorter; ` +
+      `leg 1 ${legs[0].toFixed(1)}s, leg 2 ${legs[1].toFixed(1)}s, both against ` +
+      `${HYPER.trip}s asked — ${spread.toFixed(2)}s apart; ` +
       `count 0 -> 1 -> ${eco.crossings}`);
   }
 }
@@ -3881,34 +4026,29 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
      worst case in the system — the largest radius ratio, so the balance point
      sits closest to the world being left.
 
-     AND UNDER BOTH LAWS, WHICH IS THE POINT OF DOING IT TWICE. The rate limit
-     was sized against a trip with about nine seconds left after the balance
-     point, and the half turn it has to perform takes 3.5 of them. A ten-second
-     leg leaves roughly five. This is the one place shortening a trip could
-     take out something that has nothing to do with duration, so the sweep is
-     sixty crossings and the settle fraction is reported per law rather than
-     pooled — a pooled worst case would hide which law produced it. */
+     AND THIS IS WHERE `GRAV.turn` GETS DECIDED, every time the trip length
+     moves. The rate limit was sized against a trip with about nine seconds
+     left after the balance point, and the half turn it performs takes
+     pi/GRAV.turn of them. At 7 seconds a half turn is half the whole leg, so
+     the sweep is the measurement and the SHORTFALL is the number it turns on.
+     Flown over one law, because there is one. */
   {
     const keys = Object.keys(SYSTEM.at);
     let worst = 0, worstPair = '', late = 0, latePair = '', bad = 0, n = 0;
-    const perLaw = [];
     let short_ = -Infinity, shortPair = '';
     const cap = (GRAV.aimRate + GRAV.turn) * 1.001;
-    for (const [lawName, HH] of [
-      ['first', DOUBLING.first], ['repeat', DOUBLING.repeat]]) {
-      let lawLate = 0, lawPair = '';
+    {
       for (const from of keys) {
         for (const to of keys) {
           if (from === to) continue;
           n++;
           const r = cross(from, to, nrm({ x: 0.4, y: 0.6, z: -0.7 }), ATTS[1][1],
-            1 / 60, HH);
+            1 / 60, DOUBLING);
           if (!r.arrived || r.arrived.key !== to || r.seam > 1e-6 || r.maxStep > cap) {
             bad++; continue;
           }
           if (r.finalBank > worst) { worst = r.finalBank; worstPair = from + '->' + to; }
           if (r.settle > late) { late = r.settle; latePair = from + '->' + to; }
-          if (r.settle > lawLate) { lawLate = r.settle; lawPair = from + '->' + to; }
           /* Whatever bank is still standing when the window shuts, priced as the
              time it takes to unwind at the bounded rate, against the time left
              to spend. A crossing whose window runs all the way to arrival has
@@ -3922,26 +4062,24 @@ ok('no backtick survives inside a shader body', stray.length === 0 && bodies.len
           if (shortfall > short_) { short_ = shortfall; shortPair = from + '->' + to; }
         }
       }
-      perLaw.push(`${lawName} settles by ${(lawLate * 100).toFixed(0)}% (${lawPair})`);
     }
     /* No peak requirement here: four of the thirty never flip at all, because
        the departure heading already leaves them on the far side of the balance
        point. A pair that does not need the handover must not be failed for not
        performing one. */
-    /* The settle bar is 0.95, not the 0.9 it was while only the long law flew.
-       A bar has to clear what the design PRODUCES, and the design now produces
-       89% on vault-to-home under the short law — 0.9 sat inside its own range,
-       which is how disccheck came to fail a perfectly good build. What the bar
-       is for is a craft still banking as it hits the ground, and 0.95 refuses
-       that just as flatly. */
-    ok('every ordered pair of worlds crosses cleanly, under both trip lengths',
-      n === keys.length * (keys.length - 1) * 2 && bad === 0 && short_ < 0.25 &&
+    /* SETTLE 0.95, SHORTFALL 0.25s. A bar has to clear what the design
+       PRODUCES — 0.9 sat inside the design's own range while the short law
+       flew, which is how disccheck came to fail a perfectly good build. What
+       the bars are for is a craft still banking as it hits the ground, and
+       these refuse that just as flatly. */
+    ok('every ordered pair of worlds crosses cleanly',
+      n === keys.length * (keys.length - 1) && bad === 0 && short_ < 0.25 &&
       late < 0.95,
-      n + ' crossings over 2 laws, ' + bad + ' bad; ' + perLaw.join(', ') +
-      '; latest overall ' + latePair + ' at ' + (late * 100).toFixed(0) +
-      '% of the trip; worst unwind shortfall ' + short_.toFixed(2) + 's on ' +
-      shortPair + ', with ' + deg(worst).toFixed(0) + ' deg the most left ' +
-      'standing when the bank goes undefined (' + worstPair + ')');
+      n + ' crossings, ' + bad + ' bad; latest ' + latePair + ' at ' +
+      (late * 100).toFixed(0) + '% of the trip; worst unwind shortfall ' +
+      short_.toFixed(2) + 's on ' + shortPair + ', with ' +
+      deg(worst).toFixed(0) + ' deg the most left standing when the bank goes ' +
+      'undefined (' + worstPair + ')');
   }
 }
 

@@ -9,12 +9,12 @@
 //    fall toward one and you decelerate, on exactly the same curve. Nobody
 //    presses anything, and there is no way to arrive fast.
 //
-//    H IS CHOSEN AT DEPARTURE AND FIXED FOR THE TRIP, because the fiftieth
-//    crossing is shorter than the first — see doublingAfter(). Within a flight
-//    nothing about the law changes, so "of nothing else" still holds exactly;
-//    what varies between flights is the constant in the exponent. That is why
-//    H rides on the transit state rather than being read from tune.js at the
-//    point of use, and why every function here takes it rather than knowing it.
+//    H STILL RIDES ON THE TRANSIT STATE even though there is now only one law
+//    (the 20s/10s split went out on 2026-08-21). Not ceremony: it is what
+//    keeps every function here a pure function of its arguments, which is what
+//    lets the tunnelling test fire ten thousand crossings a second with no
+//    scene, no craft and no tune.js reachable from the call site. A default of
+//    DOUBLING is the convenience; passing it is the contract.
 //
 // 2. THE STEP IS INTEGRATED, NOT SAMPLED. At the cap a frame is 33km long and
 //    the smallest world is 414m across, so a per-frame `pos += v·dt` does not
@@ -76,31 +76,16 @@ export function doublingFor(seconds) {
   return (lo + hi) / 2;
 }
 
-/** The two laws, in metres per doubling. Derived; nothing authors these. */
-export const DOUBLING = {
-  first: doublingFor(HYPER.tripFirst),
-  repeat: doublingFor(HYPER.tripRepeat),
-};
-
 /**
- * Which law a craft flies under, given how many crossings it has completed.
+ * THE law, in metres per doubling. Derived; nothing authors this.
  *
- * Thirty seconds of travel is good the first time and tedious the fiftieth
- * (Dex, 2026-08-21). A skip button and a hold-to-fast-forward key were the
- * other two candidates and both are a SECOND WAY TO TRAVEL — another arrival
- * path, another FX state, another thing that has to keep working — to solve
- * what is really just a duration. This is the same journey with a different
- * constant in it, so there is no second path to keep working and nothing new
- * can be forgotten at the boundary.
- *
- * The count is the PLAYER'S, not the route's: the first crossing you ever make
- * is the long one and every crossing after it is short, whichever worlds they
- * join (Dex, 2026-08-21 — per-world and per-pair were the alternatives). One
- * flag's worth of state, and a first flight is a first flight.
+ * It was two — `{first, repeat}`, picked per departure by a `doublingAfter()`
+ * that read the save's crossing count — for exactly one day. Every crossing is
+ * the same length now, so the pair, the selector and the save field's grip on
+ * the physics all went with it. `economy.crossings` still counts and still
+ * persists; it simply no longer decides anything.
  */
-export function doublingAfter(crossings) {
-  return crossings > 0 ? DOUBLING.repeat : DOUBLING.first;
-}
+export const DOUBLING = doublingFor(HYPER.trip);
 
 /**
  * The system, as spheres.
@@ -140,7 +125,7 @@ export function nearest(bs, p) {
 
 /** v(a), capped. `H` defaults to a first crossing, the slowest law there is. */
 export function speedAt(alt, H) {
-  const h = H === undefined ? DOUBLING.first : H;
+  const h = H === undefined ? DOUBLING : H;
   return Math.min(HYPER.maxSpeed,
     HYPER.localSpeed * Math.pow(2, Math.max(0, alt) / h));
 }
@@ -176,7 +161,7 @@ export function insideAny(bs, p) {
  * step can never be longer than the swept segment the caller is about to test.
  */
 export function stepDistance(alt0, k, dt, HIn) {
-  const H = HIn === undefined ? DOUBLING.first : HIn;
+  const H = HIn === undefined ? DOUBLING : HIn;
   const v0 = HYPER.localSpeed;
   const capStep = HYPER.maxSpeed * dt;
   if (!(dt > 0)) return 0;

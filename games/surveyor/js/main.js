@@ -167,10 +167,12 @@ let awayReport = null;
   const saved = economy.load();
   if (saved) {
     economy.hyper = saved.hyper;
-    /* Absent from any save written before crossings were counted, and a missing
-       count reads as zero: one more full-length trip for a returning player,
-       once. Inferring it from the worlds in the blob would be a guess — a
-       player can have flown five times and founded nothing. */
+    /* A STATISTIC NOW, not a physics input: every crossing is HYPER.trip
+       since 2026-08-21, so a missing count costs a returning player nothing
+       at all rather than one more long trip. Still restored, because the
+       field is still written and a number that round-trips is cheaper than a
+       save migration. Inferring it from the worlds in the blob would be a
+       guess anyway — a player can have flown five times and founded nothing. */
     economy.crossings = saved.crossings || 0;
     const missed = [];
     for (const [key, data] of Object.entries(saved.worlds || {})) {

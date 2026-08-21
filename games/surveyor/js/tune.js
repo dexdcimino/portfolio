@@ -1196,8 +1196,8 @@ export const PREVIEW = {
  * H is the only knob that changes trip time, and THE TRIP IS AUTHORED IN
  * SECONDS: t(H) = 2H·2^(-a0/H)/(v0·ln2) is not a relation anyone can set by
  * hand — 1500m is 18.1 seconds and nothing about the number says so — so
- * `tripFirst` and `tripRepeat` below state the seconds they are meant to
- * produce and `doublingFor()` in hyper.js solves back for the metres. Raising
+ * `trip` below states the seconds it is meant to produce and `doublingFor()`
+ * in hyper.js solves back for the metres. Raising
  * `maxSpeed` changes the number on the HUD and almost nothing else — at the
  * cap the craft is crossing the empty middle, which is a fraction of a second
  * either way.
@@ -1211,36 +1211,44 @@ export const PREVIEW = {
  * correct — it is the one world whose distance should be felt.
  */
 export const HYPER = {
-  /* HOW LONG A CROSSING TAKES, in seconds, and the first one you ever make is
-     twice the rest.
+  /* HOW LONG A CROSSING TAKES, in seconds. ONE LENGTH, for every crossing.
 
-     Thirty seconds of travel is good the first time and tedious the fiftieth
-     (Dex, 2026-08-21). The other two candidates were a skip button that puts
-     you down at the destination and a held key that compresses time, and both
-     are a SECOND WAY TO TRAVEL — another arrival path, another FX state,
-     another thing that has to keep working — to solve what is really just a
-     duration. This is the same journey with a different constant in it.
+     The 20s-then-10s split went out on 2026-08-21, a day after it went in. It
+     existed to make the fiftieth trip cheaper than the first, and it bought
+     that with two of everything: two laws for the suite to fly, a `--repeat`
+     flag on crosscheck, a save field that changed the physics, and a trip
+     nobody could state in one number. A single short crossing is the same
+     answer with none of the second copies.
 
-     Counted per PLAYER and not per route: crossing one is the long one and
-     every crossing after it is short, whichever worlds they join. The count
-     lives in the save blob as `crossings`, so it survives a reload the way a
-     colony does, and a save written before it existed reads as zero — one
-     more long trip, once, for a returning player.
+     THIS IS THE LEG, boundary out to boundary in, which is the stretch with no
+     input in it. Getting to the boundary is 8.63s of held boost on top (see
+     JET.escapeThin) and that is flying rather than travelling, so it is not in
+     this number: DOOR TO DOOR IS ABOUT 15.6s.
 
-     THESE ARE THE LEG, boundary out to boundary in, which is the stretch with
-     no input in it. Getting to the boundary is 8.7s of held boost on top (see
-     JET.escapeThin) and that is flying rather than travelling, so it is
-     deliberately not in this number: door to door a first crossing is about
-     29s and a repeat about 19s.
+     SEVEN, NOT FOUR, AND THE BURN IS WHY. The ask was 7s door to door — 3s of
+     burn around a 4s crossing — and 3s of burn is not reachable. `escapeThin`
+     is a fraction of thrust ABOVE the jet's ceiling, and the first four
+     seconds of a climb happen below it where the fraction does not apply, so
+     the burn saturates: measured 8.63s at 0.5, 6.98s at 0.7, 6.50s at 1.0 —
+     a floor of six and a half seconds at infinite thrust. Worse, the guard
+     that makes leaving deliberate breaks before the burn gets near 3s:
+     `run.mjs` asserts that a six-second boosted pull-up cannot cross the
+     boundary, and it crosses at escapeThin 0.8, which still only buys 6.6s.
+     So the burn is untouched and the crossing took the stated fallback — 7s
+     of crossing, 15.6s door to door. The number to move if this is revisited
+     is the jet's climb itself, not escapeThin.
 
-     A SHORTER TRIP ARRIVES FASTER, and that is not a side effect to tune away
-     — deceleration is the same curve run backwards, so halving the leg raises
-     the speed at the far boundary from 240 m/s to 292 m/s. The jet's crash
-     speed is 78 and it sheds the difference under its own drag exactly as it
-     does today, but it is the number to watch if these ever go lower; the
-     suite pins it against JET.boostSpeed. */
-  tripFirst: 20,         // seconds, the first crossing of a save
-  tripRepeat: 10,        // ...and every one after it
+     A SHORTER TRIP CROSSES THE FAR BOUNDARY FASTER — deceleration is the same
+     curve run backwards, so the speed there rises with every second taken off
+     the leg: 233 m/s at 20s, 292 at 10, 338 at 7, 440 at 4. IT DOES NOT ARRIVE
+     FASTER, and the suite used to say it did. `landOn` clamps `speedScalar` to
+     `JET.maxSpeed` unconditionally, so the craft is handed back at 92.0 m/s at
+     every one of those lengths — measured, all four. The old check gated the
+     BOUNDARY speed at twice the jet's boost and would have refused a 7s leg
+     over a number the player never sees; it measures the handed-back speed
+     now, which is the quantity its name was always about. The clamp is what
+     makes any trip length safe, and it is the thing to keep. */
+  trip: 7,               // seconds, boundary to boundary, every crossing
   localSpeed: 158,       // v0. Must match JET.boostSpeed — asserted in the suite
   maxSpeed: 1e6,         // the HUD's top number. Does not change trip time
   /* THE BOUNDARY, and there is only one: inside a planet's approach sphere you
@@ -1308,6 +1316,39 @@ export const ARRIVE = {
      about sixty an arrival stops reading as a descent and starts reading as a
      fall. The autopilot recovers either way - it is the look that sets this. */
   maxDive: 1.05,        // 60 degrees
+
+  /* HOW LONG THE AUTOPILOT KEEPS THE CONTROLS AFTER AN ARRIVAL, in seconds.
+
+     THIS IS THE ARRIVAL DWELL, and finding it meant not assuming. `landOn` set
+     `JET.assistTime` — 9 seconds, the number sized for a LAUNCH, where the
+     craft leaves the deck with no speed and a hill in front of it. Measured on
+     all six: the autopilot ended at exactly 9.0s on every world, which is what
+     a governor that is a number of seconds looks like, and it is the only
+     thing in the sequence that governs when control comes back. Not
+     `HYPER.approachAlt`, which decides where hyper ENDS, and not `ARRIVE.alt`,
+     which is already in radii and produces the same 20-degree arrival dive on
+     all six worlds. Nine seconds of watching, after a seven-second crossing.
+
+     THE SAME SPLIT AS `alt` ABOVE, for the same reason: a launch and an
+     arrival only ever shared a value. A launch has to be flown out of a
+     standing start; an arrival is handed a craft already at speed, already
+     pointed at the world, and already stood up out of the radial dive by the
+     frame `landOn` runs. What is left is the transient, not the flight.
+
+     2.0 IS DERIVED FROM `JET.assistFade`, 1.4s: `auto` is
+     `assist / assistFade` clamped, so anything under 1.4s never reaches full
+     authority and the hand-over ramp becomes the whole of it. 2.0 is the ramp
+     intact plus 0.6s of full authority. Measured hands-off across all six, at
+     9 / 4 / 3 / 2.5 / 2 / 1.5 seconds: the lowest ground clearance in the
+     twenty-five seconds after arrival is 17m at EVERY value — it is the GPWS
+     (`JET.avoidRange`/`avoidLift`) that keeps the craft off the ground, never
+     the assist — and the pitch at hand-over moves from 15 to 20 degrees on
+     Home and not at all on Anvil or Shroud, which are still descending either
+     way. Nothing crashes at any value.
+
+     Touching the stick still cuts it to `assistFade` exactly as before, so
+     this changes the HANDS-OFF case only, which is the case an arrival is. */
+  assist: 2.0,
 };
 
 /**
@@ -2494,9 +2535,12 @@ export const JET = {
    moves by tilting like a quadcopter, and its thruster pods visibly swivel
    with the tilt (that swivel is the whole character — see applyTransform).
    Precise and slow beside the jet: the jet crosses the world, the drone gets
-   you into a canyon and back out. There is no descend key on purpose — the
-   hover line follows the floor, so flying out over a drop IS the descent,
-   and Space climbs you back out; the held height stays where you leave it. */
+   you into a canyon and back out. VERTICAL IS A PAIR: Shift climbs, Ctrl
+   descends, and the held height stays where you leave it. The hover line
+   follows the floor underneath it, so flying out over a drop is still a
+   descent you get for free. (This block said "there is no descend key on
+   purpose... and Space climbs you back out" until 2026-08-21 — that was true
+   until 2026-08-19, when the vertical became T/G, and stale for two days.) */
 export const DRONE = {
   minFuelToLaunch: 4,
   burn: 0.55,          // charge/sec just to hold the rotors up
@@ -2626,11 +2670,27 @@ export const GRAV = {
      tried. Followed without a bound that is a half turn in one frame — the
      flip this phase exists to prevent, arriving not as a bug in the handover
      but as the handover being correct and instantaneous.
-     0.9 rad/s is a shade under 52 degrees a second: a half turn takes 3.5s
-     against the 9s a trip has left when it happens, so the craft is upright
-     with respect to the destination long before it gets there, and it reads as
-     the craft rolling over rather than as the world moving. */
-  turn: 0.9,           // rad/s the craft may bank at
+     IT IS A FRACTION OF THE TRIP, AND THAT IS WHY IT MOVED. 0.9 rad/s is a
+     half turn in pi/0.9 = 3.49s, which was 17.5% of the 20s leg it was sized
+     against and 87% of a 4s one — the constant trap wearing a clock face, and
+     deferred twice because at 10s (35%) it still read fine. At HYPER.trip = 7s
+     it stopped reading fine and three separate checks said so at once: the
+     30-pair sweep settled at 99% of the trip against a 95% bar, the flown
+     12-crossing check arrived 88 degrees off, and the arrival attitude stopped
+     agreeing between 15fps and 120fps by 4.2 degrees — which is what a bank
+     still slewing when the trip ends looks like from three directions.
+
+     2.6 IS DERIVED, NOT PICKED: it is whatever holds the half turn at the same
+     SHARE of the leg that 0.9 held at 20 seconds. 17.45% of 7s is 1.222s, so
+     pi/1.222 = 2.57 and 2.6 is the round number above it — a half turn in
+     1.21s, 17.3% of the trip. Measured over the 30-pair sweep at 7s: the bank
+     is upright by 99% of the trip at 0.9, 91% at 1.1, 84% at 1.5, 82% at 1.8,
+     81% at 2.2 and 75% at 2.6, and the flown checks turn green between 2.0 and
+     2.1 — so 2.6 clears the threshold by half a radian a second rather than
+     sitting on it. It is still a roll and not a snap: the raw field reverses
+     at 776 to 10523 degrees a second and this is 149.
+     Re-derive it the same way if the trip length moves again. */
+  turn: 2.6,           // rad/s the craft may bank at
 
   /* How fast the nose follows the heading. ABOVE HYPER.turnRate — the course
      itself turns at up to 2.0 rad/s, and a nose that cannot keep up with the

@@ -1322,11 +1322,21 @@ almost stationary for nine seconds and then reverses inside one frame** — peak
 turn rates of 776 to 10531 degrees a second, on every pair tried. Continuity is
 not the same problem as smoothness.
 
-So the bank is rate limited at `GRAV.turn`, 0.9 rad/s. A half turn takes 3.5s
-against the nine seconds a trip has left when it happens; every one of the
-thirty ordered pairs is upright again by **83% of the trip at the latest**, and
-arrives 0.000° off. It reads as the craft rolling over rather than as the world
-moving.
+So the bank is rate limited at `GRAV.turn`, **2.6 rad/s** — 0.9 until the trip
+came down to 7 seconds on 2026-08-21. It is a number of SECONDS (a half turn is
+π/turn) against a trip measured in seconds, so it is a fraction of the leg, and
+0.9's half turn was 17.5% of a 20s leg, 35% of a 10s one and **50% of a 7s
+one**. At 7s three checks failed at once — the 30-pair sweep settled at 99% of
+the trip, the flown 12-crossing check arrived 88° off, and the arrival attitude
+stopped agreeing between 15fps and 120fps by 4.2°. 2.6 is whatever holds the
+half turn at the same SHARE of the leg 0.9 held at 20s: π/2.6 = 1.21s, 17.3%.
+Measured over the sweep at 7s the bank is upright by 99% of the trip at 0.9,
+91% at 1.1, 84% at 1.5, 81% at 2.2 and 75% at 2.6, and the flown checks turn
+green between 2.0 and 2.1 — so it clears the threshold by half a radian a
+second rather than sitting on it. Every one of the thirty ordered pairs is
+upright again by **81% of the trip at the latest**, and arrives 0.000° off. It
+is still a roll and not a snap: the raw field reverses at up to 10523°/s and
+this is 149.
 
 ### The camera had the same bug and a second one
 
@@ -2650,7 +2660,9 @@ Everything lives in `js/tune.js`. Some starting points:
 - flying too short / too long → `JET.burn`, `FUEL.cellValue`, `JET.ceiling`
   (`JET.burn` is turned right down at the moment — flight is near-unlimited
   while the handling is being tuned. Put it back to 3.2 to restore the economy)
-- too much hand-holding in the air → `JET.assistTime`, `JET.assistAlt`
+- too much hand-holding in the air → `JET.assistTime` (after a LAUNCH),
+  `ARRIVE.assist` (after a hyper arrival — a different number since
+  2026-08-21), `JET.assistAlt`
 - suspension too soft / too jittery → `SUSP.rate`, `SUSP.up`/`down`, `SUSP.bodyShare`
 - tyres too big / too small → `WHEEL.radius` (the wheel mount is derived from it
   and `ROVER.rideHeight`, so they cannot drift apart)
@@ -2704,27 +2716,37 @@ is possible, and no way to arrive fast.
 `H` is the only knob that moves trip time. Raising the cap changes the number
 on the HUD and about a third of a second of the journey.
 
-**So the trip is authored in seconds, and the first one is twice the rest.**
-`t(H)` is not a relation anyone can set by hand — 1500m is 18.1 seconds and
-nothing about the number says so — so `HYPER.tripFirst` and `HYPER.tripRepeat`
-state the seconds and `doublingFor()` solves back for the metres: **20 seconds
-boundary to boundary the first crossing a save ever makes, 10 every crossing
-after it.** Thirty seconds of travel is good the first time and tedious the
-fiftieth, and the alternatives — a skip button, a hold-to-fast-forward key —
-were each a second way to travel, with their own arrival and their own FX
-state, to fix what is really just a duration. This is the same journey with a
-different constant in it. The count is the player's rather than the route's,
-lives in the save blob as `crossings`, and a save written before it existed
-reads as zero: one more long trip, once.
+**So the trip is authored in seconds, and there is one length.** `t(H)` is not
+a relation anyone can set by hand — 1500m is 18.1 seconds and nothing about the
+number says so — so `HYPER.trip` states the seconds and `doublingFor()` solves
+back for the metres: **7 seconds boundary to boundary, every crossing.** It was
+20-then-10 for one day; the split existed to make the fiftieth trip cheaper
+than the first and it bought that with two of everything — two laws for the
+suite to fly, a `--repeat` flag on crosscheck, a save field that changed the
+physics, and a trip nobody could state in one number. `crossings` is still
+counted and still saved; it no longer decides anything.
+
+**Door to door is 15.6s, not 7, and the escape burn is why.** The ask was 7s
+door to door: 3s of burn around a 4s crossing. 3s of burn is not reachable.
+`JET.escapeThin` is a fraction of thrust ABOVE the jet's ceiling and the first
+four seconds of a climb happen below it, so the burn saturates — measured 8.63s
+at escapeThin 0.5, 7.62s at 0.6, 6.98s at 0.7, 6.50s at 1.0. And the guard that
+makes leaving deliberate breaks first: a six-second boosted pull-up crosses the
+boundary at escapeThin 0.8, which still only buys 6.6s. So the burn is
+untouched and the crossing took the fallback — 7s of leg, 15.6s door to door.
+The lever, if this is revisited, is the jet's climb itself.
 
 Two consequences worth knowing. **H is an absolute length on worlds that differ
 by a factor of ten, and it is allowed to be**, because the seconds it produces
 have no radius in them — the middle of a journey is free, so a trip costs the
 climb out and the fall in, which are the same climb everywhere; all five
-destinations land within 0.5s of the asked time under both laws. And **a
-shorter trip arrives faster**: deceleration is the same curve run backwards, so
-the far boundary is crossed at 292 m/s instead of 240, which the jet sheds
-under its own drag and the suite pins against it.
+destinations land within 1.5s of the asked time. And **a shorter trip crosses
+the far boundary faster but does not arrive faster**: 233 m/s at 20s, 292 at
+10, 338 at 7, 440 at 4 — and `landOn` clamps `speedScalar` to `JET.maxSpeed`
+unconditionally, so the craft is handed back at 92.0 m/s under every one of
+them. The suite used to gate the boundary number at twice the jet's boost,
+which a 7s leg fails over a speed the player never sees; it asserts the clamp
+now, which is the thing that actually makes a trip length safe.
 
 **Leaving has to be deliberate.** The jet's thin-air ceiling is a wall at ~580m
 whether you climb for four seconds or twenty-five, so altitude alone cannot tell
@@ -2732,7 +2754,9 @@ whether you climb for four seconds or twenty-five, so altitude alone cannot tell
 them: above the ceiling a held boost keeps a floor of thrust (`JET.escapeThin`),
 and that is the only way past the 900m boundary. Let go and you sink back.
 Measured: hands-off cruise tops out at 125-199m, a six-second boosted climb at
-808m, a sustained burn crosses at 8.7s.
+799m, a sustained burn crosses at 8.63s. **That 8.63s is a floor, not a
+setting** — see the trip-length section above and the escapeThin sweep in
+`dev/run.mjs`.
 
 **The FX are one number.** `craft.hyperT` is the log of the speed over its range,
 so it rises and falls symmetrically with altitude for free — FOV, boom length,

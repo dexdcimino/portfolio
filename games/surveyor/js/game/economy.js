@@ -67,10 +67,12 @@ export class Economy {
     this.worlds = new Map();       // planetKey -> Colonies
     this.rate = 0;                 // hyper/sec, all worlds
     this.lastCost = null;
-    /* Completed crossings. Not a statistic — it is what decides how long the
-       next trip takes (HYPER.tripFirst against HYPER.tripRepeat), so it has to
-       persist for the same reason a colony does. Incremented by the craft on
-       arrival, not here, because arriving is the craft's event. */
+    /* Completed crossings. It DID decide how long the next trip took, until
+       the 20s/10s split went out on 2026-08-21 and every crossing became
+       HYPER.trip; it is a statistic again. Still counted and still saved: it
+       costs a number, a save that has it stays readable, and a save that never
+       had it still reads as zero. Incremented by the craft on arrival, not
+       here, because arriving is the craft's event. */
     this.crossings = 0;
   }
 

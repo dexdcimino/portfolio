@@ -9,7 +9,7 @@
 
 import { frameQuat } from '../world/surface.js';
 import { iceHolds, iceRide } from '../world/water.js';
-import { bodies, advance, steer, pickTarget, centreOf, arriveAlt, doublingAfter } from '../world/hyper.js';
+import { bodies, advance, steer, pickTarget, centreOf, arriveAlt, DOUBLING } from '../world/hyper.js';
 import { TransitFrame, landingYaw } from '../world/gravity.js';
 import { ROVER, BOAT, JET, DRONE, FUEL, WORLD, HOP, WHEEL, SUSP, HYPER,
          AIR, PARACHUTE, SKID, ARRIVE, CAM } from '../tune.js';
@@ -412,12 +412,13 @@ export class Craft {
        under it rather than a new attitude computed from world +Y. */
     this.transit.seed(fr, this.yaw, this.pitch, this.roll);
 
-    /* WHICH LAW THIS CROSSING FLIES UNDER, fixed here and never touched again.
-       A first crossing is the long one; see HYPER.tripFirst. Read at DEPARTURE
-       so a trip cannot change speed under the player halfway across — the
-       count advances on arrival, and a state that read it per frame would step
-       the speed law on the frame it landed. */
-    const H = doublingAfter(this.economy ? this.economy.crossings : 0);
+    /* THE LAW THIS CROSSING FLIES UNDER, stamped here and never touched again.
+       There is only one now — HYPER.trip, 7 seconds, every crossing — so this
+       is a copy rather than a choice; it was `doublingAfter(crossings)` until
+       2026-08-21. Stamped at DEPARTURE regardless, because hyper.js takes H
+       per call on purpose and a state that re-read it per frame would be free
+       to step the speed law mid-flight the day a second law comes back. */
+    const H = DOUBLING;
 
     this.hyper = { p, dir, target, speed: this.speedScalar, alt: this.pos.y, from: P.key, H };
     emit('hyperenter', { from: P.key, to: target ? target.key : null, target });
@@ -585,7 +586,11 @@ export class Craft {
     this.roll = 0;
     this.glide = false;
     this.airborne = false;
-    this.assist = JET.assistTime;
+    /* ARRIVE.assist, not JET.assistTime: an arrival is not a launch and the
+       two only ever shared a value. Nine seconds of autopilot after a seven
+       second crossing was the whole of the arrival dwell — see ARRIVE.assist,
+       which carries the measurement. */
+    this.assist = ARRIVE.assist;
     this.assistGround = 0;
     this.applyTransform();
   }

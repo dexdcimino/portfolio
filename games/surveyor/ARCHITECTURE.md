@@ -64,16 +64,32 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   plane at the horizon distance from the arrival altitude now, and an assertion
   holds it; the absolute altitude itself is phase 4's to fix. Before adding a
   constant in metres, divide it by 207 and by 2072 and look at both answers.
-  **And consider whether metres is the unit at all.** `HYPER.tripFirst` and
-  `tripRepeat` are the length of a crossing and they are authored in SECONDS,
-  with `doublingFor()` solving back to the metres of altitude per doubling that
-  produce them. The constant behind them is absolute — 1612m and 1013m — and it
-  is allowed to be, because `legSeconds` has no radius in it: the middle of a
-  journey is flown at the cap and costs nothing, so a trip costs the climb out
-  and the fall in, which are the same climb on every world. Measured, all five
-  destinations land within 0.5s of the asked time under both laws. Where a
-  number has a scale-free unit, author it in that unit and derive the metres;
-  then nobody has to divide anything by 207.
+  **And consider whether metres is the unit at all.** `HYPER.trip` is the
+  length of a crossing and it is authored in SECONDS, with `doublingFor()`
+  solving back to the metres of altitude per doubling that produce it. The
+  constant behind it is absolute — 820m for a 7s leg — and it is allowed to be,
+  because `legSeconds` has no radius in it: the middle of a journey is flown at
+  the cap and costs nothing, so a trip costs the climb out and the fall in,
+  which are the same climb on every world. Measured, all five destinations land
+  within 1.5s of the asked time. Where a number has a scale-free unit, author
+  it in that unit and derive the metres; then nobody has to divide anything by
+  207.
+- **SECONDS ARE SCALE-FREE ACROSS WORLDS AND NOT ACROSS TRIP LENGTHS.** The
+  same trap wearing a clock face, and it has now been walked into twice.
+  `GRAV.turn` at 0.9 rad/s is a half turn in π/0.9 = 3.49s: 17.5% of the 20s
+  leg it was sized against, 35% of a 10s one, 50% of a 7s one, 87% of a 4s one.
+  It was deferred twice because at 10s it still read fine, and at 7s three
+  unrelated checks failed in the same run — the 30-pair sweep settled at 99% of
+  the trip, the flown 12-crossing check arrived 88° off, and the arrival
+  attitude stopped agreeing between 15fps and 120fps by 4.2°. It is 2.6 now,
+  derived as whatever holds the half turn at the SHARE of the leg 0.9 held at
+  20s. `JET.assistTime` at 9s was the same shape from the other end: the
+  arrival dwell was longer than the crossing, and `ARRIVE.assist` (2.0s) is the
+  split. Before writing a constant in seconds, divide it by the SHORTEST trip
+  it will ever run inside, not only by the current one — and every timing check
+  written against a longer trip is suspect until it has been looked at, which
+  is how `n < 500` (8.3s at 60Hz) came to fail a 7s crossing that had flown
+  perfectly.
 - **Measure at the resolution AND the scaling a player actually uses.**
   `devicePixelRatio` and the OS display scale MULTIPLY, and neither exists
   headless. Every frame number this project quoted for a year came off 900x560
@@ -125,6 +141,17 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   900m arrival survived long enough to frame nothing on the small worlds. It
   emits `hyperarrive` now, the same event the game fires. Before trusting a
   harness, check that the path it drives is the one a player gets.
+- **The arrival DWELL is not the launch autopilot either.** `landOn` set
+  `JET.assistTime` — 9 seconds, sized for a launch off the deck with no speed
+  and a hill in front of it — so the controls came back nine seconds after a
+  seven-second crossing. It is `ARRIVE.assist`, 2.0s, since 2026-08-21: derived
+  from `JET.assistFade` (1.4s), because `auto` is `assist/assistFade` clamped
+  and anything shorter never reaches full authority. Measured hands-off on all
+  six at 9 / 4 / 3 / 2.5 / 2 / 1.5s: the lowest ground clearance in the 25s
+  after arrival is 17m at EVERY value — it is the GPWS that keeps the craft off
+  the ground, never the assist. Touching the stick still hands over in
+  `assistFade` exactly as before, so this changes the hands-off case only,
+  which is the case an arrival is. Same shape as the split below, one level on.
 - **The arrival altitude and the departure boundary are different numbers.**
   They shared `HYPER.approachAlt` and only ever shared a value. Departure must
   sit above the jet's ceiling, which is metres for an absolute reason; where
@@ -142,9 +169,14 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   and falls symmetrically about the midpoint; distance to the destination only
   ever decreases. The two can agree at one instant and do: the cap is reached
   at the midpoint, which is a consequence of the speed law rather than anything
-  tuned. But the FX peak at 48-49% of a crossing and the destination's fastest
-  growth is at 55-60% — an offset of about 1.2 SECONDS, which is 6% of a
-  twenty-second leg and 12% of a ten-second one. Measured: the destination
+  tuned. But the FX peak at 44-49% of a crossing and the destination's fastest
+  growth is later — an offset of **1.07 to 1.33 SECONDS, dead flat over three
+  pairs at 20 / 10 / 7 / 4 seconds**, which is 6% of a twenty-second leg, 13%
+  of a ten, 18% of a seven and 30% of a four. The offset is geometry, not
+  duration, so SHORTENING THE TRIP CANNOT CLOSE IT — it leaves the gap where it
+  is and makes it a bigger share of a smaller trip. `run.mjs` asserts it in
+  SECONDS now, flown at two lengths in one run; it asserted the FRACTION under
+  15% until 2026-08-21, which held at 20s and at 10s and failed at 7. Measured: the destination
   holds the far band's compressed floor near 5.7 degrees for the whole climb
   (533.7km out at departure, 529.4km at halfway — a climb is not an approach),
   then crosses 8 to 20 degrees in 0.4s on a long trip and **0.15s on a short
@@ -157,10 +189,9 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   `ChaseCam` takes its up from `craft.transit.up`, so the craft is always level
   in frame and a handover bank shows only as the DESTINATION rotating — and a
   sphere with no readable surface detail does not show rotation. Detail arrives
-  in roughly the last second before the swap; the bank has settled by 82% of a
-  long crossing and 89% of a short one. So the short trip's later settle costs
-  nothing visible, and the margin is about one second. Do not measure this by
-  photographing the craft.
+  in roughly the last second before the swap; at `GRAV.turn` 2.6 the bank has
+  settled by 81% of the 7s crossing at the latest, on all thirty ordered pairs.
+  Do not measure this by photographing the craft.
 - **Measure who is looking before measuring what changed.** The far-body to
   quadtree handoff was taken apart across most of a session — size, luminance,
   silhouette, three shader terms — and then the arrival was photographed from
@@ -235,8 +266,8 @@ across 2 worlds"), read at arm time, then reloads.
   `discs.js` (other five worlds as billboards, one draw call), `preview.js`,
   `geysers.js`, `hyper.js` (travel maths, no Babylon, no game state; also
   owns the trip length — `legSeconds`/`doublingFor` convert between seconds of
-  crossing and metres per doubling, and `doublingAfter(crossings)` picks which
-  law a departure flies),
+  crossing and metres per doubling; `DOUBLING` is the one law, and
+  `doublingAfter(crossings)` went with the 20s/10s split on 2026-08-21),
   `gravity.js` (the summed field, well dominance and the craft's transit
   basis — same rule as hyper.js: no Babylon, no game state; `dominant()` also
   gates phase 4's prebuilding, which must not run against an unconverged
@@ -303,11 +334,12 @@ across 2 worlds"), read at arm time, then reloads.
   `maxLevel`, `horizon`, `fogNear/Far`, `farPlane = R·4` etc.
 - **Save blob**: `{v: 1, hyper, at, crossings, worlds: {key: {clock, sites:
   [{id, dir, age, geyser, hp}]}}}` at `localStorage['surveyor.economy.v1']`.
-  `crossings` is completed trips and decides how long the next one takes
-  (`HYPER.tripFirst` against `tripRepeat`), so it persists for the same reason
-  a colony does. Added WITHOUT bumping `v` — a blob that lacks it reads as
-  zero, which costs a returning player one more long trip and nothing else;
-  bumping the version would have dropped every save on disk.
+  `crossings` is completed trips. It DECIDED how long the next one took until
+  the 20s/10s split went out on 2026-08-21; every crossing is `HYPER.trip` (7s)
+  now and it is a statistic again, still counted and still saved. Added WITHOUT
+  bumping `v` — a blob that lacks it reads as zero, which now costs a returning
+  player nothing at all; bumping the version would have dropped every save on
+  disk.
 - **`window.SURVEYOR`** = debug surface (live getters, incl. `surface` →
   `craft.surf`); **`window.Surveyor`** = the stable interface
   (`resume/paused/sound`). Never merge them (main.js says why).
@@ -474,9 +506,9 @@ silhouette, because the first two handoffs both hid in the channel nobody
 measured), and
 `crosscheck.mjs` (one real crossing in the live engine: samples the drawn
 `rotationQuaternion` every animation frame and reports the step across each
-boundary, plus a filmstrip. `--repeat` flies the SHORT crossing — a throwaway
-profile has never flown, so the default is the long first trip, which is the
-one nobody makes twice; the two write separate sheets.
+boundary, plus a filmstrip. `--repeat` IS GONE with the two trip lengths (2026-08-21) —
+a flag that flies a trip the game does not have produces a filmstrip of
+something nobody can see; `cross-<from>-<to>.jpg` is the one sheet.
 **Its filmstrip gates on the destination's DRAWN ANGLE, not on `hyperT`.** The
 four hyperT gates it used to carry all landed within about a second of the
 midpoint, because hyperT is altitude and altitude peaks there — the four stages
