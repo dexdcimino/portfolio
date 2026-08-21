@@ -2,13 +2,16 @@
 
 **Repo:** portfolio · **Target:** `games/surveyor/`
 
-**Status: in progress.** Phases 1 to 4 have shipped and phase 5 is two bullets
-of three — see the phase log at the bottom of this file and the matching
-sections in `../README.md`. What is left is bullet 3, the speed FX against real
-geometry, plus the parked residual handoff step. Do not
-start until the graphics transplants (T2, T3) are done. This is a systems change
-to a game that currently works, and it should land on top of finished lighting
-rather than underneath it.
+**Status: in progress.** Phases 1 to 4 have shipped. Phase 5's three bullets
+are all measured; bullets 1 and 2 shipped and **bullet 3 is audited, measured
+and open on one decision** — the FX crescendo lands on an empty sky because
+`hyperT` is altitude and the picture is distance, which no intensity can fix.
+See the phase log at the bottom of this file. The residual handoff step stays
+parked.
+
+This was a systems change to a game that already worked, and the instruction it
+opened with — do not start until the graphics transplants T2 and T3 are done —
+was honoured: it landed on top of finished lighting rather than underneath it.
 
 ---
 
@@ -273,13 +276,81 @@ And these are the LEG, boundary to boundary; the 8.7s escape burn that gets you
 to the boundary is flying rather than travelling and is deliberately not in the
 number, so door to door a first crossing is about 29s and a repeat about 19s.
 
-### Bullet 3 is untouched
+## Bullet 3 — AUDITED AND MEASURED, and the answer is a decision, not a value
 
-Re-check the speed FX against real approaching geometry. `hyperT` is a function
-of speed, not of time, so it still spans its full range on a short trip and the
-peak is unchanged — only the dwell shortens. Judge them against
-`cross-home-tarn.jpg` and `cross-home-tarn-repeat.jpg`, which are the same
-crossing at both lengths.
+### The term audit, which came first
+
+Every FX term the crossing drives, and which kind it is:
+
+| term | kind | of a 20s leg | of a 10s leg |
+|---|---|---|---|
+| `hyperAberration` 34, `hyperAberrationRadial` 22 | fraction of t² | — | — |
+| `hyperGrain` 2.6, `hyperVignette` 1.2 | fraction of t² | — | — |
+| `streakFrom` 0.16, `streakLen` .55, alpha/width ramps | fraction of t | — | — |
+| `CAM.hyperFov` 0.62 rad, `hyperDist` 1.9 | fraction of t | — | — |
+| streak scroll `0.35 + k*5.5` | a RATE, per second — correct in kind | — | — |
+| `streakBox` 260m | spatial, not temporal | — | — |
+| `CAM.hyperLerp` 1.6/s (FOV) | seconds, τ = 0.63s | 3.1% | 6.3% |
+| `CAM.posLerp` 7.5/s (boom) | seconds, τ = 0.13s | 0.7% | 1.3% |
+| camera tilt damp 6/s | seconds, τ = 0.17s | 0.8% | 1.7% |
+| music intensity 1.6/s, lead 1.1/s | seconds, τ = 0.63 / 0.91s | 3.1 / 4.5% | 6.3 / 9.1% |
+| sfx layer glides | seconds, ≤ 0.10s | ≤ 0.5% | ≤ 1.0% |
+| `GRAV.turn` 0.9 rad/s (the bank) | seconds, π/0.9 = 3.49s | 17.4% | **34.9%** |
+
+**No FX term is wrong in kind, and none of the ones in seconds is large enough
+to matter** — the worst is the music lead at 9.1% of a short leg, and the
+lagged FOV reaches 73.8% of its push on a long trip against 72.0% on a short
+one, a difference of under two per cent. The ATMO block's own claim, that
+everything rides one number and nothing needs its own ramp, holds.
+
+### The term that IS wrong in kind is `hyperT`
+
+`hyperT` is `log(speed)/log(cap)`, and the log of `v0·2^(a/H)` is **exactly
+`a/aCap`** — so the single number every effect follows is linear in ALTITUDE.
+The picture is a function of DISTANCE TO THE DESTINATION. Altitude climbs and
+falls symmetrically; distance only ever decreases. Measured at 60Hz, home to
+Anvil, both laws:
+
+- the destination holds the far band's floor near **5.7° for the entire climb**
+  — 533.7km out at departure, 529.4km at halfway, because a climb is not an
+  approach
+- it crosses 8° to 20° in **0.4s** on the long leg and **0.15s** on the short one
+- the FX peak at 48-49% of the trip; the fastest growth is at 55-60%. An offset
+  of about **1.2 seconds** — 6% of a long leg, 12% of a short one
+
+The filmstrips say it in one frame. `FX at full, still a dot` is a full streak
+blast at 1,000,000 m/s with the destination a four-degree grey billboard; two
+frames later the world is real and textured and the streaks are gone. **The
+effects were tuned against an empty sky, and the reason they still look tuned
+against an empty sky is that at the moment they play, the sky IS empty.**
+
+That is not fixable by tuning an intensity. Closing it means driving the FX by
+something other than speed alone, which contradicts the design's central claim
+(`js/main.js`: "everything is a plain function of hyperT, so there is no state
+to leave switched on") and the symmetry `run.mjs` asserts. **It is a decision.**
+
+### What shipped instead
+
+Two assertions in `run.mjs` that pin both halves of the finding, so it cannot
+be re-lost, and a fix to the harness that was hiding it: `crosscheck`'s
+filmstrip gated its four stages on `hyperT`, which peaks at the midpoint, so
+all four landed within about a second of each other — 289.9km to 7.2km of
+separation across a 20.5s crossing. It reported that the world grew, and the
+world does grow, over that second. The stages gate on the destination's drawn
+angle now, and captions are read either side of the shutter and print a range
+when they disagree; the first cut of that captioned a frame `4.45°` whose own
+pixel probe measured 12.85°.
+
+### The 1.7s upright, which was asked about
+
+**It is invisible, and that is a property of the camera rather than of the
+bank.** `ChaseCam` takes its up from `craft.transit.up`, so the craft is always
+level in frame and the handover shows only as the destination ROTATING — and a
+sphere with no readable surface detail does not show rotation. Detail arrives
+about a second before the swap; the bank has settled by 89% of a short trip,
+which is 1.2s before arrival. So the short trip's later settle costs nothing
+that can be seen, and `GRAV.turn` was not touched. The margin is about one
+second, and that is the thing to watch if a leg ever goes below ten.
 
 ---
 

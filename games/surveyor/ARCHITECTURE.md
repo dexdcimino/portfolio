@@ -132,6 +132,35 @@ banded cel lighting; there is **no PBRMaterial anywhere**.
   `ARRIVE.alt`, 0.35R, always at or below where the sphere was crossed. A
   world's limb enters the chase view at 0.41-0.42 radii on all six, so 900m
   absolute framed Anvil and missed Ember by a factor of ten.
+- **`hyperT` IS ALTITUDE. THE PICTURE IS DISTANCE. They are not the same
+  journey.** Every speed FX reads `craft.hyperT` and nothing else — aberration,
+  grain and vignette as t², the streaks off a threshold on t, the camera's FOV
+  and boom as t through a lag — so all of them are fractions of the trip and
+  none is wrong in kind. `hyperT` is where it goes wrong: it is
+  `log(speed)/log(cap)`, and the log of `v0·2^(a/H)` is **exactly `a/aCap`**, so
+  the one number every effect follows is linear in ALTITUDE. Altitude climbs
+  and falls symmetrically about the midpoint; distance to the destination only
+  ever decreases. The two can agree at one instant and do: the cap is reached
+  at the midpoint, which is a consequence of the speed law rather than anything
+  tuned. But the FX peak at 48-49% of a crossing and the destination's fastest
+  growth is at 55-60% — an offset of about 1.2 SECONDS, which is 6% of a
+  twenty-second leg and 12% of a ten-second one. Measured: the destination
+  holds the far band's compressed floor near 5.7 degrees for the whole climb
+  (533.7km out at departure, 529.4km at halfway — a climb is not an approach),
+  then crosses 8 to 20 degrees in 0.4s on a long trip and **0.15s on a short
+  one**, by which time the streaks are at a fifth of their peak. The filmstrip
+  frame captioned `FX at full, still a dot` is the whole of it: every effect at
+  maximum against a four-degree grey dot. Two assertions in `run.mjs` pin both
+  halves. This is not fixable by tuning an intensity, and anything claiming to
+  have made the approach read better has to move those numbers.
+- **The bank is invisible in transit, and that is a property of the camera.**
+  `ChaseCam` takes its up from `craft.transit.up`, so the craft is always level
+  in frame and a handover bank shows only as the DESTINATION rotating — and a
+  sphere with no readable surface detail does not show rotation. Detail arrives
+  in roughly the last second before the swap; the bank has settled by 82% of a
+  long crossing and 89% of a short one. So the short trip's later settle costs
+  nothing visible, and the margin is about one second. Do not measure this by
+  photographing the craft.
 - **Measure who is looking before measuring what changed.** The far-body to
   quadtree handoff was taken apart across most of a session — size, luminance,
   silhouette, three shader terms — and then the arrival was photographed from
@@ -173,7 +202,7 @@ started carry a phase log of what actually shipped and where the plan was wrong.
 
 | plan | status |
 |---|---|
-| `docs/seamless-space.md` | phases 1-4 shipped; phase 5 bullets 1-2 done, bullet 3 (speed FX) left |
+| `docs/seamless-space.md` | phases 1-4 shipped; phase 5 bullets 1-2 done, bullet 3 measured and open on one decision |
 | `docs/day-and-night.md` | parked. After Seamless Space — it changes lighting |
 | `docs/colony-architecture.md` | parked. Does not conflict with Seamless Space |
 
@@ -428,7 +457,22 @@ measured), and
 `rotationQuaternion` every animation frame and reports the step across each
 boundary, plus a filmstrip. `--repeat` flies the SHORT crossing — a throwaway
 profile has never flown, so the default is the long first trip, which is the
-one nobody makes twice; the two write separate sheets. The maths version lives in `run.mjs`; this is the
+one nobody makes twice; the two write separate sheets.
+**Its filmstrip gates on the destination's DRAWN ANGLE, not on `hyperT`.** The
+four hyperT gates it used to carry all landed within about a second of the
+midpoint, because hyperT is altitude and altitude peaks there — the four stages
+of a 20.5s crossing spanned 289.9km to 7.2km of separation, which is to say
+they photographed the one second in which the journey happens and nothing of
+the twenty either side, and then reported that the world grew. Drawn angle is
+monotone, so a gate cannot be missed by overshooting it, which matters at
+SwiftShader's five frames a second. It **cannot** measure the timing itself:
+the game clamps dt at 0.05s a frame, so the band this is all about is one or
+two steps to it — that measurement lives in `run.mjs` at 60Hz.
+Captions are read either side of the shutter and print a RANGE when the two
+disagree, because the gate returns one frame and the screenshot lands a frame
+or three later: the first cut captioned a frame `4.45 deg` whose own pixel
+probe measured 12.85. Pausing would be exact and is not available — `setPaused`
+shows the pause card, plays a sound and replays away-time on resume. The maths version lives in `run.mjs`; this is the
 one that can catch the game drawing something other than what the maths says).
 `dev/history/` is the pre-import repo bundle.
 

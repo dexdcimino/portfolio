@@ -326,19 +326,46 @@ await grab(dep.hyper ? `left ${setup.from}` : 'never left');
 if (!dep.hyper) console.log('WARNING: never departed');
 else console.log(`departed after ${dep.secs}s, locked onto ${dep.to}`);
 
-/* Four frames spaced through the transit, by PROGRESS rather than by wall
-   clock. hyperT is symmetric about the midpoint by construction — the same
-   number climbing out and falling in — so it cannot say which half you are
-   looking at on its own, and the turnover is detected against the peak so far.
-   Wall clock was worse than useless here: SwiftShader runs this at five frames
-   a second, so four fixed windows photographed the first eight seconds of a
-   twenty-eight second trip four times over. */
+/* Four frames spaced through the transit, gated on THE SIZE OF THE THING THE
+   FILMSTRIP IS OF.
+
+   Wall clock is useless here and always was: SwiftShader runs this at five
+   frames a second, so four fixed windows photographed the first eight seconds
+   of a twenty-eight second trip four times over. The fix for that was to gate
+   on hyperT, and it was the wrong quantity for this picture. hyperT is
+   log(speed), and the log of an exponential speed law is LINEAR IN ALTITUDE:
+   t = a/aCap exactly. Altitude climbs and falls symmetrically about the
+   midpoint, so all four gates cluster within about a second of it — measured,
+   the four stages of a 20.5s crossing spanned 289.9km to 7.2km of separation,
+   which is to say they photographed the one second in which the entire journey
+   happens and nothing of the twenty either side. The strip showed a world
+   growing because the world does grow, over that second.
+
+   Gating on the destination's own drawn angle asks the question the brief
+   asks. It is monotone — you only ever get closer — so a gate cannot be missed
+   by overshooting it, which matters at five frames a second where the 8-to-20
+   degree band is a single step. The captions carry the angle each frame was
+   actually taken at rather than a percentage of anything, because a frame that
+   lands late must SAY it landed late. See `run.mjs`, which measures the timing
+   itself at 60Hz because this harness structurally cannot. */
+const DRAWN = `(() => { const t = c.hyper && c.hyper.target; if (!t) return 0;
+  const d = S.discs.list.find((x) => x.key === t.key);
+  return d ? 2 * d.drawAngle * 180 / Math.PI : 0; })()`;
 const MARKS = [
-  ['climbing out', 'c.hyperT > 0.55'],
-  ['near the top', 'c.hyperT > 0.9 || (window.__cross.peak > 0.3 && c.hyperT < window.__cross.peak - 0.01)'],
-  ['past the balance point', 'c.hyperT < window.__cross.peak - 0.15'],
-  ['on approach', 'c.hyperT < 0.45'],
+  ['a dot, mid-climb', `c.hyperT > 0.30`],
+  /* THE FRAME BULLET 3 IS ABOUT: every effect at its maximum, and the place you
+     are going still four degrees across. The climb is not an approach — 533.7km
+     out at departure and 529.4km at the halfway mark — so the FX spend their
+     whole crescendo against a sky that has not changed. */
+  ['FX at full, still a dot', `c.hyperT > 0.95`],
+  ['crossing, 10 deg', `${DRAWN} >= 10`],
+  ['crossing, 25 deg', `${DRAWN} >= 25`],
 ];
+/* 45 degrees drawn is not reachable: the swap to true scale happens at the
+   approach sphere, and no world gets there in the far band first. A gate that
+   can never fire photographs whatever the trip ended on and captions it with
+   the request — which is the failure this file exists to avoid. The frames
+   either side of the swap are already grabbed separately below. */
 /* IS IT VISIBLE, WHICH IS NOT THE SAME QUESTION AS HOW BIG IT IS.
    The brief says distant worlds should grow VISIBLY, and what was measured to
    close that in phase 4 was angular size: 4.21 degrees climbing out to 13.04 on
@@ -461,10 +488,35 @@ const VISIBLE = (key) => `(() => {
   };
 })()`;
 
+/* THE CAPTION IS READ EITHER SIDE OF THE SHUTTER, and says so when the two
+   disagree. The gate returns on one frame and the screenshot lands a frame or
+   three later, and in the band this strip exists to show, one frame is the
+   whole event — the first cut of this captioned a frame "4.45 deg" whose own
+   pixel probe, taken moments later, measured 12.85. Pausing would be exact and
+   is not available: setPaused shows the pause card, plays a sound and replays
+   away-time on resume, so it would photograph the pause menu.
+   The game clock is clamped at 0.05s a frame (main.js), so the drift is
+   bounded in GAME time however slowly the harness renders — which is why a
+   range is a fair statement of it rather than a shrug. */
+const ANGLE = `(() => { const S = window.SURVEYOR, c = S.craft;
+  const t = c.hyper && c.hyper.target; if (!t) return 0;
+  const d = S.discs.list.find((x) => x.key === t.key);
+  return d ? +(2 * d.drawAngle * 180 / Math.PI).toFixed(2) : 0; })()`;
+
 let placed = 0, misplaced = 0;
 for (const [label, cond] of MARKS) {
   const r = await evaluate(page, UNTIL(`!c.hyper || (${cond})`, 120000));
-  await grab(`${label} — ${(r.hyperT * 100).toFixed(0)}%`);
+  const before = await evaluate(page, ANGLE);
+  await grab(label);
+  const after = await evaluate(page, ANGLE);
+  const moved = Math.abs(after - before) > Math.max(0.4, before * 0.05);
+  shots[shots.length - 1].label = `${label} — drawn ` +
+    (moved ? `${before}-${after}°` : `${before}°`) +
+    `, hyperT ${(r.hyperT * 100).toFixed(0)}%`;
+  if (moved) {
+    console.log(`  ${label.padEnd(24)} the shutter moved: ${before}° -> ${after}° ` +
+      'across the capture, so the frame is somewhere in that band');
+  }
   if (r.tgt) {
     console.log(`  ${label.padEnd(24)} ${r.tgt.key} is ${r.tgt.trueKm}km away, ` +
       `drawn as if ${r.tgt.discKm}km — true ${r.tgt.trueDeg}°, drawn ${r.tgt.drawnDeg}°` +
@@ -591,11 +643,18 @@ if (noisy.length) {
 if (misplaced) {
   console.log(`\n${misplaced} of ${placed} stage(s) drew the destination somewhere ` +
     'other than where promote() placed it.');
-} else if (!placed) {
-  console.log('\nFAIL: no stage measured the destination at all — the far band ' +
-    'was never promoted, so nothing here checked it.');
+} else if (placed < 2) {
+  /* PINNED, not loose. Two of the four marks sit above the promotion angle by
+     construction — the two dot frames are deliberately below it — so two is
+     what the design produces and fewer means a mark stopped firing rather than
+     that the run was unlucky. It used to report four, from four hyperT gates
+     that all landed inside the same second; four clustered samples are not
+     better coverage than two spread ones. */
+  console.log(`\nFAIL: ${placed} stage(s) measured the destination, expected 2 — ` +
+    'the far band was not promoted where it should have been, so this checked ' +
+    'less than it claims.');
 } else {
-  console.log(`\nthe far band is where it says it is, at ${placed} stage(s)`);
+  console.log(`\nthe far band is where it says it is, at ${placed} stage(s) of 2 expected`);
 }
 const bad = !!noisy.length || arr.hyper || !dep.hyper ||
   rep.worst > 12 ||

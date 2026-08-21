@@ -1787,6 +1787,105 @@ ok('a mature colony trickles charge back', cJet.fuel > before8b,
       `against the cap's ${(capStep / 1000).toFixed(1)}km at 15fps`);
   }
 
+  /* THE SPEED FX AGAINST THE GEOMETRY — phase 5 bullet 3, pinned here rather
+     than in a browser for a reason. The interesting part of a crossing is under
+     half a second long, and `dev/crosscheck.mjs` runs on SwiftShader at about
+     five frames a second, so its game clock advances 200ms a step: the whole
+     band is one frame to it. The browser can say whether a crossing LOOKS
+     right; only this can say WHEN anything happens.
+
+     Every FX term is a pure function of `craft.hyperT` — aberration, grain and
+     vignette as t², the streaks off a threshold on t, the camera's FOV and boom
+     as t through a first-order lag. So they are all fractions of the trip and
+     none of them is wrong in kind. `hyperT` itself is the term to look at, and
+     what it is a function of is ALTITUDE: t = a/aCap exactly, since the log of
+     an exponential speed law is linear in altitude. The picture, meanwhile, is
+     a function of DISTANCE TO THE DESTINATION. Over a crossing those two are
+     nearly independent — altitude climbs and falls symmetrically, distance only
+     ever decreases — so they can agree at one instant and this is where that
+     instant is measured.
+
+     The claim being asserted is that the FX peak lands on the part of the trip
+     where the distance actually collapses. It does, to within a few percent,
+     and it is not obvious: it is true because the cap is reached at the
+     midpoint, which is itself a consequence of the speed law rather than
+     anything anyone tuned. Break that and this fails. */
+  {
+    const { ATMO } = await import('../js/tune.js');
+    const home = by('home');
+    // discs.sizeDisc's drawn half-angle, which is what is actually rasterised.
+    const drawnHalf = (R, d) => {
+      const a = Math.atan2(R, d);
+      return Math.max(a, SYSTEM.drawRef * Math.pow(a / SYSTEM.drawRef, SYSTEM.drawExp),
+        SYSTEM.drawFloor);
+    };
+    const deg = (r) => (r * 180) / Math.PI;
+    const lines = [];
+    let worstOffset = 0, laws = 0, thinnest = Infinity;
+    for (const [name, HH] of [
+      ['first', H.DOUBLING.first], ['repeat', H.DOUBLING.repeat]]) {
+      const b = by('anvil');
+      const dir = norm(sub(b.c, home.c));
+      const p = V(home.c.x + dir.x * home.approachR,
+        home.c.y + dir.y * home.approachR, home.c.z + dir.z * home.approachR);
+      const st = { p, dir: { x: dir.x, y: dir.y, z: dir.z }, speed: 0, alt: 0, H: HH };
+      const dt = 1 / 60;
+      const hs = [], ds = [];
+      let t = 0, arrived = null;
+      for (let i = 0; i < 60 * 600 && !arrived; i++) {
+        H.steer(st, b, dt, HYPER.turnRate * (HYPER.turnLow + (1 - HYPER.turnLow) *
+          Math.min(1, Math.max(0, Math.log2(Math.max(1, st.speed / HYPER.localSpeed)) /
+            Math.log2(HYPER.maxSpeed / HYPER.localSpeed)))));
+        arrived = H.advance(BS, st, dt);
+        hs.push(Math.min(1, Math.max(0, Math.log2(Math.max(1, st.speed / HYPER.localSpeed)) /
+          Math.log2(HYPER.maxSpeed / HYPER.localSpeed))));
+        ds.push(deg(2 * drawnHalf(b.radius, dist(st.p, b.c))));
+        t += dt;
+      }
+      const n = hs.length;
+      if (!arrived || n < 500) { worstOffset = 999; continue; }
+      laws++;
+      // Where the FX peak, and where the picture moves fastest. Both as a
+      // fraction of the trip, so the two trip lengths are comparable at all.
+      const fxAt = hs.indexOf(Math.max(...hs)) / n;
+      let fastest = 0, growAt = 0;
+      for (let i = 60; i < n; i++) {
+        const g = ds[i] - ds[i - 60];
+        if (g > fastest) { fastest = g; growAt = i / n; }
+      }
+      worstOffset = Math.max(worstOffset, Math.abs(fxAt - growAt));
+      // ...and how long the destination spends being a thing that is growing.
+      const band = (lo, hi) => ds.filter((d) => d >= lo && d < hi).length * dt;
+      thinnest = Math.min(thinnest, band(8, 20));
+      // Monotone: you only ever get closer, so the drawn size only ever grows.
+      let backwards = 0;
+      for (let i = 1; i < n; i++) if (ds[i] < ds[i - 1] - 1e-9) backwards++;
+      if (backwards) worstOffset = 999;
+      lines.push(`${name} ${t.toFixed(1)}s: FX peak at ${(fxAt * 100).toFixed(0)}%, ` +
+        `fastest growth ${fastest.toFixed(0)}°/s at ${(growAt * 100).toFixed(0)}%; ` +
+        `drawn holds 5-8° for ${band(0, 8).toFixed(1)}s, crosses 8-20° in ` +
+        `${band(8, 20).toFixed(1)}s, then ${band(20, 999).toFixed(1)}s above 20°`);
+    }
+    ok('the speed FX peak where the distance actually collapses',
+      laws === 2 && worstOffset < 0.15,
+      `worst offset ${(worstOffset * 100).toFixed(0)}% of the trip — ` + lines.join(' | '));
+
+    /* AND THE APPROACH IS NOT A CRESCENDO, WHICH IS THE THING THE FILMSTRIP
+       CANNOT SHOW YOU. The destination holds the far band's compressed floor
+       for the whole climb — it is 533.7km away at departure and 529.4km at the
+       halfway point, because a climb is not an approach — and then crosses from
+       a 5.7 degree dot to a 20 degree world in well under half a second. This
+       asserts that window is SHORT, which is the opposite of what a check
+       usually wants, because the number being small is the finding: tuning an
+       FX intensity cannot widen it, and anything that claims to have made the
+       approach read better has to move this. */
+    ok('...and the destination crosses from dot to world in under half a second',
+      laws === 2 && thinnest > 0 && thinnest < 0.5,
+      `the narrowest 8-20° crossing of the two is ${thinnest.toFixed(2)}s ` +
+      `(${(thinnest * 60).toFixed(0)} frames at 60Hz) — a climb is not an approach, ` +
+      'so the whole of it happens at the cap');
+  }
+
   // Arrival speed. There is no braking input, so the only thing that can make
   // this safe is the law itself.
   {
