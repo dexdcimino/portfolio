@@ -279,7 +279,11 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   keys; 14px of triangle plus the caps' padding comes to the same 36px
   min-width the letters take from `.bb-key`, so the row stays one set of
   keys. Muted reads muted: the slider
-  hides and the speaker takes a horizontal slash. Audio is the shared Clayweld panel
+  hides and the speaker takes a horizontal slash. **Every `roundRect` goes
+  through `roundedRect()`**: it is Safari 16.4 and Firefox 112, and an engine
+  without it does not draw square corners, it THROWS out of the middle of the
+  draw — paddle, ball, bomb and veil vanish together and the toy reads as
+  broken rather than as unrounded. Audio is the shared Clayweld panel
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
   MediaBus registration for the BLIPS (short fx are not a player and must
@@ -380,7 +384,9 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   zone the most active thing in the frame, which is backwards, and
   `prefers-reduced-motion` is moot only for as long as that stays true.
 
-  **The hatching can be switched off**, and the switch is the ONE live control
+  **The hatching can be switched off** — the switch is labelled *Overlay*,
+  because the word people reach for is the thing on top of the window rather
+  than the name of the pattern it is drawn with — and it is the ONE live control
   in the dead half — a child of `.vsc-editor`, which is neither `inert` nor
   aria-hidden, so it clicks, tabs and announces normally while everything
   around it does not. demo.js centres it in whatever empty space is left below
@@ -447,6 +453,20 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   like any other, so the two tools run one way round and share no state).
   Hooks are versioned in
   `tools/hooks/` and installed once via `bake_images.py --install-hooks`
+- `games/_shared/audio-panel.js` — the mixer every game and the Breakout toy
+  share: master/music/fx, a row per channel, levels persisted per game.
+  `createMasterCascade()` wraps the settings object so a mute drives its own
+  fader to zero rather than leaving it at 30% over silence, master takes all
+  three down with it, and turning anything back on restores what was there —
+  including the rule that a channel you switched off YOURSELF stays off through
+  a master cycle. It lived as byte-identical private copies in Chomp's and
+  Surveyor's pause menus while Arena 1 had none, which is where it was noticed
+  missing; three copies of a mixer is the exact failure that module was
+  extracted to prevent, and it should not have been three copies of the cascade
+  either. **Both copies claimed the stays-off rule in a comment and neither
+  implemented it** — `restoreChildren` woke any child sitting at zero, which is
+  every child. Writing the sentence down as a test rather than as a comment is
+  what found it.
 - `games/_shared/dev/` — the screenshot harness all four games share.
   `cdp.mjs` is the browser (launch, serve, evaluate; every command takes an
   optional deadline, because a CDP call whose page navigates under it never

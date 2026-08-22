@@ -97,6 +97,27 @@ prediction, md16, md24, md25, serpent. `opts.enemies=false` is a test hook.
 - Solo must never bypass the transport seam
 - Renderer keys mesh pools by entity id, never creation order
 - `sim.step()` takes a Map (an array once silently dropped every command)
+- **THE GAME MUST BE PLAYABLE WITHOUT POINTER LOCK.** It was not, and the loss
+  was total rather than partial: `pointerlockchange` was the ONLY caller of
+  `setState('playing')`, so an engine that refuses the lock never started the
+  match at all — and every mouse AND keyboard gate read `locked`, so the whole
+  input surface except walking was dead behind a canvas that looked ready.
+  Reported as "he could not shoot" on Safari/macOS, where pointer lock in a
+  SUBFRAME has never been dependable and every game here is served in one.
+  The gates read `aiming()` — `locked || lockDenied` — now. `lockDenied` is set
+  by asking from a real gesture and then LOOKING 900ms later, because the
+  engines that need this are the ones whose `requestPointerLock` returns
+  undefined rather than a promise that rejects; it is armed only while
+  `everLocked` is false, which is what keeps Chrome's post-Escape relock
+  cooldown from looking like a refusal. Fallback aim reads CLIENT DELTAS, not
+  `movementX`, which is populated unlocked by some engines and not others.
+  Anything new that the mouse or the keyboard drives goes behind `aiming()`,
+  never `locked`.
+- **Declare `aiming()` and its state ABOVE `updateHint`.** `updateHint` runs
+  during boot and reads them; the first cut of the above put them beside
+  `requestLock` three hundred lines down and the module threw ReferenceError
+  out of the temporal dead zone, so `window.Arena1` never existed and the game
+  was blank. A fix for a broken game that breaks the game.
 
 ## Known-outstanding
 

@@ -16,7 +16,8 @@
 import { CONFIG } from './config.js';
 import { setAudioLevels, legacyAudioLevel, playUiSelect } from './systems/audio.js';
 /* MD 26 item 1 — the shared Clayweld mixer, same module Arena 1 uses. */
-import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
+import { createAudioSettings, createMasterCascade, buildAudioPanel }
+  from '../../_shared/audio-panel.js';
 import { createResetProgress } from '../../_shared/reset-progress.js';
 
 /* The site's seven accents, byte-identical to ACCENTS in the site's script.js.
@@ -117,71 +118,6 @@ function rescaleMix(settings) {
     if (settings.get(key) < floor) settings.set(key, floor);
   }
   store.set(MIX_VERSION_KEY, CHOMP_MIX_VERSION);
-}
-
-/* Master silences the other channels, the way Stickland's menu does it.
-
-   Switching master off has to move every fader, not just stop the sound: a
-   music slider sitting at 30% while nothing plays is the UI disagreeing with
-   itself. Turning master back on restores what was there, and touching any
-   child while master is down brings master back up — otherwise the child looks
-   live and stays silent.
-
-   This wraps the SHARED settings object rather than changing it. That module is
-   Arena 1's too, and its own semantics (mute a channel, keep its slider where
-   it was) are right for a panel with no master cascade. Nothing here reaches
-   into games/_shared/. */
-function masterCascade(settings) {
-  const CHILDREN = ['music', 'fx'];
-  // What to come back to. Seeded from the current levels, updated whenever a
-  // channel is left in an audible state.
-  const remembered = {};
-  for (const key of settings.keys) remembered[key] = settings.get(key) || undefined;
-
-  const remember = (key) => { const v = settings.get(key); if (v > 0) remembered[key] = v; };
-  const restore = (key) => settings.set(key, remembered[key] ?? 0.4);
-
-  const silenceChildren = () => CHILDREN.forEach((k) => { remember(k); settings.set(k, 0); settings.setOn(k, false); });
-  // Only restores children that master silenced — a channel the user turned off
-  // on purpose stays off, because it was already 0 before master went down.
-  const restoreChildren = () => CHILDREN.forEach((k) => {
-    if (settings.get(k) === 0 || !settings.isOn(k)) { restore(k); settings.setOn(k, true); }
-  });
-  const wakeMaster = () => {
-    if (settings.isOn('master') && settings.get('master') > 0) return;
-    settings.set('master', remembered.master ?? 0.35);
-    settings.setOn('master', true);
-  };
-
-  return {
-    ...settings,
-    keys: settings.keys,
-    get: settings.get,
-    level: settings.level,
-    isOn: settings.isOn,
-    set(key, v) {
-      const value = Number(v) || 0;
-      if (key === 'master') {
-        remember('master');
-        settings.set('master', value);
-        // Dragging master to zero is muting it; dragging it back up is unmuting.
-        if (value === 0) { settings.setOn('master', false); silenceChildren(); }
-        else { settings.setOn('master', true); restoreChildren(); }
-        return;
-      }
-      settings.set(key, value);
-      if (value > 0) { remember(key); wakeMaster(); }
-    },
-    setOn(key, on) {
-      if (key === 'master') {
-        if (on) { restore('master'); settings.setOn('master', true); restoreChildren(); }
-        else { remember('master'); settings.set('master', 0); settings.setOn('master', false); silenceChildren(); }
-        return;
-      }
-      if (on) { restore(key); settings.setOn(key, true); wakeMaster(); }
-      else { remember(key); settings.set(key, 0); settings.setOn(key, false); }
-    },
-  };
 }
 
 const CSS = `
@@ -378,7 +314,7 @@ function build() {
   const audioSettings = createAudioSettings('chomp', setAudioLevels,
     { legacyMaster: legacyAudioLevel() ?? undefined });
   rescaleMix(audioSettings);
-  buildAudioPanel(menu.querySelector('.cmenu-audpanel'), masterCascade(audioSettings));
+  buildAudioPanel(menu.querySelector('.cmenu-audpanel'), createMasterCascade(audioSettings));
 
   /* UI select (MD 27). The menu is plain DOM and emits nothing on the event
      bus, so the sound is hung on the panel's own buttons — one delegated

@@ -14,7 +14,7 @@ import { setAudioLevels, legacyAudioLevel } from './systems/audio.js';
 /* MD 26 item 1. The mixer is shared with every other Clayweld game rather than
    reimplemented here — three copies of a volume panel is how Chomp ends up
    quieter than Arena 1 for no reason anyone can find. */
-import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
+import { createAudioSettings, createMasterCascade, buildAudioPanel } from '../../_shared/audio-panel.js';
 import { createResetProgress } from '../../_shared/reset-progress.js';
 
 /* The site's seven accents, byte-identical to ACCENTS in the site's script.js
@@ -509,7 +509,11 @@ function build() {
      menu cannot drift from what you are hearing. */
   const audioSettings = createAudioSettings('arena1', setAudioLevels,
     { legacyMaster: legacyAudioLevel() ?? undefined });
-  buildAudioPanel(menu.querySelector('.cmenu-audio'), audioSettings);
+  /* Through the cascade, which Arena 1 was the only one of the three menus not
+     to have: muting a channel drives its fader to zero rather than leaving it
+     sitting at 30% over silence, master takes all three down with it, and
+     turning any of them back on brings back what was there. */
+  buildAudioPanel(menu.querySelector('.cmenu-audio'), createMasterCascade(audioSettings));
 
   menu.querySelector('.cmenu-resume').addEventListener('click', () => {
     window.Arena1?.resume?.();

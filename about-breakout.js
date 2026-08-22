@@ -319,6 +319,19 @@ const RAMP = 0.55;           // full wall cleared -> +55% speed. Steeper than
                              // letters
 const PADDLE_SPEED = 560;    // keyboard px/s
 const MAX_AIM = 1.05;        // rad from vertical at the paddle's very edge
+
+/* `Path2D.roundRect` is Safari 16.4 and Firefox 112, and an engine without it
+   does not draw square corners — it THROWS, out of the middle of the draw, so
+   the paddle, the ball, the bomb and the veil all vanish together and the toy
+   reads as broken rather than as unrounded. One helper so the fallback is in
+   one place; a plain rect is the right degradation, since the rounding is the
+   only thing being given up. */
+const CAN_ROUND = typeof Path2D !== 'undefined'
+  && typeof Path2D.prototype.roundRect === 'function';
+function roundedRect(path, x, y, w, h, r) {
+  if (CAN_ROUND) path.roundRect(x, y, w, h, r);
+  else path.rect(x, y, w, h);
+}
 const MIN_VY = 0.25;         // min |vy| as a fraction of speed: no horizontal skims
 const STEP = 4;              // px of ball travel per collision substep
 const MIN_TRAVEL = 56;       // px of clear air the ball needs under the bio
@@ -1067,7 +1080,7 @@ export async function start({ onStop, onPauseChange } = {}) {
     const ctx = h.ctx;
     ctx.fillStyle = 'rgba(5, 7, 9, 0.2)';
     const veil = new Path2D();
-    veil.roundRect(0, 0, h.size.w, h.size.h, veilRadius);
+    roundedRect(veil, 0, 0, h.size.w, h.size.h, veilRadius);
     ctx.fill(veil);
     // Just the word, centred — the controls sit right there, and the block
     // is obviously a pause state; a hint line only pushed PAUSED off-centre.
@@ -1078,7 +1091,7 @@ export async function start({ onStop, onPauseChange } = {}) {
     const bw = Math.max(150, ctx.measureText('PAUSED').width + 64);
     const bh = 64;
     const panel = new Path2D();
-    panel.roundRect(cx - bw / 2, cy - bh / 2, bw, bh, 14);
+    roundedRect(panel, cx - bw / 2, cy - bh / 2, bw, bh, 14);
     ctx.fillStyle = '#101418';
     ctx.fill(panel);
     ctx.lineWidth = 2;
@@ -1172,14 +1185,14 @@ export async function start({ onStop, onPauseChange } = {}) {
     }
     ctx.fillStyle = accent;
     const pr = new Path2D();
-    pr.roundRect(paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 3);
+    roundedRect(pr, paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 3);
     ctx.fill(pr);
     // the bomb drop: a small rounded square, flashing at a chunky rate
     if (drop) {
       const on = (drop.t % 0.32) < 0.2;
       ctx.globalAlpha = on ? 1 : 0.35;
       const dp = new Path2D();
-      dp.roundRect(drop.x - DROP_SIZE / 2, drop.y - DROP_SIZE / 2, DROP_SIZE, DROP_SIZE, 4);
+      roundedRect(dp, drop.x - DROP_SIZE / 2, drop.y - DROP_SIZE / 2, DROP_SIZE, DROP_SIZE, 4);
       ctx.fill(dp);
       ctx.globalAlpha = 1;
     }

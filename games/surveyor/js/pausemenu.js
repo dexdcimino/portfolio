@@ -16,7 +16,8 @@
 
    Self-contained: injects its own styles and edits nothing else. */
 
-import { createAudioSettings, buildAudioPanel } from '../../_shared/audio-panel.js';
+import { createAudioSettings, createMasterCascade, buildAudioPanel }
+  from '../../_shared/audio-panel.js';
 import { createResetProgress } from '../../_shared/reset-progress.js';
 /* Only for ECONOMY.saveKey. The key is written down once, in tune.js, and a
    second copy of that string here is how a reset quietly stops matching the
@@ -93,59 +94,6 @@ const CONTROLS = [
   ['Pause', ['Esc'], ''],
 ];
 
-/* Master silences the other channels, the way Stickland's and Chomp's menus do.
-   Switching master off has to move every fader, not just stop the sound: a
-   music slider sitting at 30% while nothing plays is the UI disagreeing with
-   itself. This WRAPS the shared settings object rather than changing it —
-   games/_shared/ is Arena 1's and Chomp's too. */
-function masterCascade(settings) {
-  const CHILDREN = ['music', 'fx'];
-  const remembered = {};
-  for (const key of settings.keys) remembered[key] = settings.get(key) || undefined;
-
-  const remember = (k) => { const v = settings.get(k); if (v > 0) remembered[k] = v; };
-  const restore = (k) => settings.set(k, remembered[k] ?? 0.4);
-  const silenceChildren = () => CHILDREN.forEach((k) => {
-    remember(k); settings.set(k, 0); settings.setOn(k, false);
-  });
-  const restoreChildren = () => CHILDREN.forEach((k) => {
-    if (settings.get(k) === 0 || !settings.isOn(k)) { restore(k); settings.setOn(k, true); }
-  });
-  const wakeMaster = () => {
-    if (settings.isOn('master') && settings.get('master') > 0) return;
-    settings.set('master', remembered.master ?? 0.35);
-    settings.setOn('master', true);
-  };
-
-  return {
-    ...settings,
-    keys: settings.keys,
-    get: settings.get,
-    level: settings.level,
-    isOn: settings.isOn,
-    set(key, v) {
-      const value = Number(v) || 0;
-      if (key === 'master') {
-        remember('master');
-        settings.set('master', value);
-        if (value === 0) { settings.setOn('master', false); silenceChildren(); }
-        else { settings.setOn('master', true); restoreChildren(); }
-        return;
-      }
-      settings.set(key, value);
-      if (value > 0) { remember(key); wakeMaster(); }
-    },
-    setOn(key, on) {
-      if (key === 'master') {
-        if (on) { restore('master'); settings.setOn('master', true); restoreChildren(); }
-        else { remember('master'); settings.set('master', 0); settings.setOn('master', false); silenceChildren(); }
-        return;
-      }
-      if (on) { restore(key); settings.setOn(key, true); wakeMaster(); }
-      else { remember(key); settings.set(key, 0); settings.setOn(key, false); }
-    },
-  };
-}
 
 const CSS = `
 /* pointer-events: Surveyor's #hud is pointer-events:none so the canvas gets
@@ -299,7 +247,7 @@ function build() {
   const settings = createAudioSettings('surveyor', (levels) => {
     if (window.Surveyor && window.Surveyor.sound) window.Surveyor.sound.setLevels(levels);
   });
-  buildAudioPanel(menu.querySelector('.cmenu-audpanel'), masterCascade(settings));
+  buildAudioPanel(menu.querySelector('.cmenu-audpanel'), createMasterCascade(settings));
 
   menu.querySelector('.cmenu-resume').addEventListener('click', () => {
     window.Surveyor?.resume?.();

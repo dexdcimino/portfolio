@@ -104,6 +104,100 @@ export function createAudioSettings(game, onChange, opts = {}) {
   };
 }
 
+/* ==========================================================================
+   MASTER SILENCES THE REST, and every fader moves when it does.
+
+   Muting a channel used to leave its slider where it was — the level was kept
+   so unmuting could be exact, and the panel went on showing 30% while nothing
+   played. That is the UI disagreeing with itself, and on a master switch it is
+   worse: three sliders sitting at their old positions with the whole mix dead.
+   So a mute drives the fader to zero, master's mute drives all of them, and
+   turning anything back on restores what was there.
+
+   TOUCHING A CHILD WHILE MASTER IS DOWN BRINGS MASTER BACK UP. Without that
+   the child looks live and stays silent, which is the same complaint one level
+   in. Only children that MASTER silenced come back — one you turned off
+   yourself was already at zero before master went down, and it stays off.
+
+   THIS WRAPS `createAudioSettings` RATHER THAN CHANGING IT. The bare module's
+   semantics — mute a channel, keep its slider — are still right for a panel
+   with no master in it, and the persisted shape does not move.
+
+   Lifted here on 2026-08-22 from Chomp's pause menu and Surveyor's, which had
+   grown byte-identical copies of it while Arena 1 had none — and Arena 1 is
+   where it was noticed missing. Three copies of a mixer is the exact failure
+   this file was extracted to prevent; it should not have been three copies of
+   the cascade either.
+   ========================================================================== */
+export function createMasterCascade(settings) {
+  const CHILDREN = CHANNELS.map((c) => c.key).filter((k) => k !== 'master');
+  // What to come back to. Seeded from the current levels, updated whenever a
+  // channel is left in an audible state.
+  const remembered = {};
+  for (const key of settings.keys) remembered[key] = settings.get(key) || undefined;
+
+  const remember = (key) => { const v = settings.get(key); if (v > 0) remembered[key] = v; };
+  const restore = (key) => settings.set(key, remembered[key] ?? DEFAULTS[key] ?? 0.4);
+
+  /* WHICH CHILDREN MASTER ACTUALLY SILENCED, so that turning master back on
+     restores those and only those. Both copies this was lifted from claimed
+     exactly that in a comment and neither did it: `restoreChildren` woke any
+     child sitting at zero, which is every child, including one you had
+     switched off yourself a moment earlier. Caught by writing the sentence
+     down as a test rather than as a comment.
+
+     Empty means master went down before this panel existed — a persisted
+     mix, reopened — and there the whole set is the honest answer, because
+     nothing here knows what was deliberate. */
+  let silenced = [];
+  const silenceChildren = () => {
+    silenced = CHILDREN.filter((k) => settings.get(k) > 0 && settings.isOn(k));
+    CHILDREN.forEach((k) => { remember(k); settings.set(k, 0); settings.setOn(k, false); });
+  };
+  const restoreChildren = () => {
+    const wake = silenced.length ? silenced : CHILDREN;
+    wake.forEach((k) => {
+      if (settings.get(k) === 0 || !settings.isOn(k)) { restore(k); settings.setOn(k, true); }
+    });
+    silenced = [];
+  };
+  const wakeMaster = () => {
+    if (settings.isOn('master') && settings.get('master') > 0) return;
+    settings.set('master', remembered.master ?? DEFAULTS.master);
+    settings.setOn('master', true);
+  };
+
+  return {
+    ...settings,
+    keys: settings.keys,
+    get: settings.get,
+    level: settings.level,
+    isOn: settings.isOn,
+    set(key, v) {
+      const value = Number(v) || 0;
+      if (key === 'master') {
+        remember('master');
+        settings.set('master', value);
+        // Dragging master to zero is muting it; dragging it back up is unmuting.
+        if (value === 0) { settings.setOn('master', false); silenceChildren(); }
+        else { settings.setOn('master', true); restoreChildren(); }
+        return;
+      }
+      settings.set(key, value);
+      if (value > 0) { remember(key); wakeMaster(); }
+    },
+    setOn(key, on) {
+      if (key === 'master') {
+        if (on) { restore('master'); settings.setOn('master', true); restoreChildren(); }
+        else { remember('master'); settings.set('master', 0); settings.setOn('master', false); silenceChildren(); }
+        return;
+      }
+      if (on) { restore(key); settings.setOn(key, true); wakeMaster(); }
+      else { remember(key); settings.set(key, 0); settings.setOn(key, false); }
+    },
+  };
+}
+
 /* Builds the panel. `root` is an element to fill; returns a repaint function
    so a menu that reopens can re-sync without rebuilding the DOM. Class names
    match Stickland's so the styling is the same panel, not a lookalike. */
