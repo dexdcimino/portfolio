@@ -4017,6 +4017,51 @@ let openReader = () => {};
 
   const wantsModal = () => window.matchMedia('(min-width: 768px)').matches;
 
+  /* ESCAPE, ONCE FOCUS IS INSIDE THE FRAME.
+
+     A <dialog> closes on Escape by itself, and that worked right up until
+     anyone clicked anything: the key goes to the document that has focus,
+     focus is in the iframe, and the parent never sees it. So Escape closed
+     the overlay before you touched the app and stopped closing it forever
+     after — which reads as the overlay being stuck, and is worse than never
+     having worked, because it teaches the key and then takes it away.
+
+     The frame is same-origin, so the fix is to listen on its document too.
+     BUBBLE PHASE, NOT CAPTURE, and that is the whole contract: the app's own
+     handler gets to call preventDefault() when it had something of its own
+     to close, and this only closes the window when nothing did.
+
+     AND THE ANSWER IS READ A TICK LATE, WHICH IS THE PART THAT WAS WRONG
+     FIRST. Both apps listen on their `window`, and window is the LAST hop
+     in the bubble path — after document. So a document listener, bubble phase
+     or not, runs BEFORE them and reads defaultPrevented while it is still
+     false: ThemeDock's slider popover closed and the window closed with it,
+     in one press. Deferring the decision to a timeout lets the whole
+     dispatch finish first, which makes this independent of where an app
+     chooses to listen instead of quietly depending on it.
+     MindSplit already worked that way — a sheet, then the profile page — and
+     its comment says exactly why it could not reach the parent; ThemeDock
+     claims Escape the same way for its slider popover. So a sheet takes one
+     press and the window takes the next, innermost first, which is what
+     Escape means everywhere else.
+
+     Re-armed on every load because each open navigates the frame (it is
+     blanked to about:blank on close), so the document this binds to is a new
+     one each time and the old listener dies with the old document. */
+  frame.addEventListener('load', () => {
+    let doc = null;
+    try { doc = frame.contentDocument; } catch { return; }   // never same-origin? nothing to do
+    if (!doc) return;
+    doc.addEventListener('keydown', event => {
+      if (event.key !== 'Escape' && event.key !== 'Esc') return;
+      setTimeout(() => {
+        if (event.defaultPrevented) return;   // the app claimed it
+        if (!dialog.open) return;
+        closeModal(dialog);
+      }, 0);
+    });
+  });
+
   cards.forEach(card => {
     const eye = card.querySelector('.ai-card-eye');
     const link = card.querySelector('.ai-card-link');

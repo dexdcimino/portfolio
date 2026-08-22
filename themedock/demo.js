@@ -728,6 +728,32 @@
     return out;
   }
 
+  /* ---------- escape ------------------------------------------------------ */
+
+  /* INNERMOST FIRST, and the second half of that is not in this file.
+
+     Inside the site's overlay this page is an iframe, so once anything here has
+     been clicked the parent <dialog> never sees Escape — the key belongs to the
+     document that has focus. The parent listens on this document too (see
+     `initAppModal` in the site's script.js) and closes the window only when the
+     event was NOT default-prevented. So claiming Escape here is how the slider
+     popover gets to close first, and letting it through is how the window
+     closes on the next press.
+
+     `slidersOpen` and `editing` are cleared together on purpose. They are one
+     thing to a person — the slot you have open, with its sliders under it — and
+     making that two presses before the window will close is one more than
+     anybody counts. */
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.key !== 'Esc') return;
+    if (!slidersOpen && editing === null) return;   // nothing of ours; let it close the window
+    e.preventDefault();
+    slidersOpen = false;
+    editing = null;
+    render();
+    paint();
+  });
+
   /* ---------- start ------------------------------------------------------- */
 
   /* embed=1 is set by the site's overlay, which has already drawn the frame.
