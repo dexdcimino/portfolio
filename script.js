@@ -4795,33 +4795,31 @@ const LOOP_MODES = ['off', 'all', 'one'];
 })();
 
 /* ==========================================================================
-   PORTRAIT TOGGLE  (accent line art <-> gray line art)
+   PORTRAIT TOGGLE  (photo -> accent line art -> gray line art -> photo)
    Two controls, one state. Either button drives every portrait on the page —
    the About hero, the sidebar profile, and the compact avatar the rail shows
    while the profile is collapsed. That third one is easy to miss: leave it out
    and the two portraits disagree the moment somebody hits the chevron.
 
-   THE PHOTO IS PARKED, NOT REMOVED (Dex, 2026-08-22). The cycle used to run
-   photo -> accent -> gray; it is the two drawings now and the site never shows
-   the photograph. Nothing else was touched to do it: `assets/about/profile.jpg`
-   stays, all three <img> elements stay in the markup, and the `photo` branches
-   in apply() below stay with them — every one of them is written as `state !==
-   'photo'`, so putting the state back in PORTRAIT_CYCLE and PORTRAIT_LABEL is
-   the whole of restoring it. A saved 'photo' from before today fails the
-   `includes` check on load and falls back to the accent, so nobody is stranded
-   on a state that no longer exists.
+   THE PHOTO WAS PARKED FOR A DAY AND IS BACK (Dex, out 2026-08-22, in
+   2026-08-22). Worth keeping the note because of how the round trip went: out
+   and back in were each a two-line edit, to PORTRAIT_CYCLE and to the `gray`
+   label, and nothing else moved either way. That is not luck — it is that the
+   photo branches in apply() are all written as `state !== 'photo'` rather than
+   as a photo case, so the state going missing from the cycle leaves them inert
+   instead of leaving them wrong. Anything added here should keep that shape.
 
-   The three <img>s go on being loaded and sit at opacity 0 under the drawing.
-   That is deliberate at this size — they are lazy, none is preloaded, and none
-   is the LCP element — and it is what keeps the photo one line away rather
-   than one bake away.
+   The one thing to check when it goes out again: a saved 'photo' from a
+   previous visit fails the `includes` test on load and falls back to the
+   accent, so a returning visitor is never stranded on a state the cycle no
+   longer has. Coming back in it simply starts working again — the key is
+   unchanged and nothing was migrated.
 
-   No aria-pressed, still. It became defensible the moment this went to two
-   states, and it is left off because the third is parked rather than deleted:
-   adding the attribute now buys nothing a cycling label does not already say
-   and costs a second edit when the photo comes back. The label states what is
-   showing AND what pressing next will do, which is what a cycling control has
-   to do and what a two-state one may.
+   No aria-pressed. It is a two-state attribute, and with three states both
+   line-art variants would report pressed=true — so stepping from accent to gray
+   would be silent to a screen reader while the page visibly changed. A cycling
+   control has to speak through its name instead, which is why the label states
+   what is showing AND what pressing next will do.
 
    State is two classes on <html> and nothing else, so the CSS owns every visual
    consequence. ink-on means "a drawing rather than the photo"; ink-gray only
@@ -4830,11 +4828,11 @@ const LOOP_MODES = ['off', 'all', 'one'];
    before first paint rather than swapping in after it.
    ========================================================================== */
 const PORTRAIT_KEY = 'dex-portrait-ink';
-const PORTRAIT_CYCLE = ['ink', 'gray'];          // 'photo' parked — see above
+const PORTRAIT_CYCLE = ['photo', 'ink', 'gray'];
 const PORTRAIT_LABEL = {
   photo: 'Portrait: photo. Switch to accent line art.',
   ink: 'Portrait: accent line art. Switch to gray line art.',
-  gray: 'Portrait: gray line art. Switch back to accent line art.'
+  gray: 'Portrait: gray line art. Switch back to the photo.'
 };
 
 (function initPortraitInk() {
