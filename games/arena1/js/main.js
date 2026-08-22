@@ -155,10 +155,56 @@ function paintBoard() {
   }
 }
 
+/* POINTER LOCK MIGHT NOT BE AVAILABLE AT ALL, and until 2026-08-22 that was
+   a silent, total loss of the game. Every mouse gate here reads `locked`, so
+   an engine that refuses the lock leaves a canvas that looks live, a hint that
+   says CLICK FOR MOUSE LOOK, and a mouse that does nothing — you cannot look
+   and you cannot SHOOT, which is how it gets reported (Dex's brother, Safari
+   on macOS, 2026-08-22). WebKit's pointer lock has never been dependable in a
+   SUBFRAME, and every game on this site is served inside one.
+
+   `lockDenied` is the fallback: asked for from a real gesture, never arrived.
+   Armed only while `everLocked` is false, so a browser that has locked once is
+   never demoted — which is what keeps Chrome out of this path entirely, since
+   its post-Escape relock cooldown would otherwise look exactly like a refusal.
+
+   In fallback the mouse still aims and still fires; it just does it with the
+   cursor visible, from client deltas rather than movementX. That is a worse
+   game than pointer lock and a very much better one than no game.
+
+   DECLARED UP HERE, ABOVE updateHint, AND THAT IS LOAD-BEARING. `updateHint`
+   runs during boot and reads all of this; leaving it beside `requestLock`
+   three hundred lines down put the consts in the temporal dead zone at that
+   moment and the whole module threw ReferenceError before Arena1 ever
+   existed — a blank game, from a change meant to unbreak one. */
+let everLocked = false;
+let lockDenied = false;
+let denyTimer = null;
+const HINT_LOCK = 'CLICK FOR MOUSE LOOK \u00b7 ESC PAUSES';
+const HINT_FALLBACK = 'MOUSE LOOK UNAVAILABLE IN THIS BROWSER \u00b7 DRAG TO AIM \u00b7 ESC PAUSES';
+
+/* Prefixed spellings. WebKit shipped pointer lock behind `webkit` first and
+   some builds still only answer to that; asking for both costs three `||`. */
+const lockedElement = () =>
+  document.pointerLockElement || document.webkitPointerLockElement || null;
+const askForLock = (el) => {
+  const fn = el.requestPointerLock || el.webkitRequestPointerLock;
+  return fn ? fn.call(el) : null;
+};
+
+/* Aiming, as opposed to locked. This is the condition the mouse is allowed to
+   drive the game under, and every gate below reads it rather than `locked`. */
+const aiming = () => locked || lockDenied;
+
 function updateHint() {
   // The in-match "you lost lock" line. Never while the modal is up: the modal
   // already owns the screen, and two prompts at once is one too many.
-  hintEl.classList.toggle('on', booted && state === 'playing' && document.pointerLockElement !== canvas);
+  const unlocked = lockedElement() !== canvas;
+  /* And in fallback it says so, rather than going on asking for a click that
+     this engine is never going to honour. A prompt that cannot be satisfied is
+     worse than no prompt: it reads as the game being broken. */
+  hintEl.textContent = lockDenied ? HINT_FALLBACK : HINT_LOCK;
+  hintEl.classList.toggle('on', booted && state === 'playing' && unlocked);
 }
 function updateBootChrome() {
   // `booting` dims the HUD behind the modal and hides the cursor.
@@ -224,7 +270,27 @@ function requestLock(retries = 0) {
   const attempt = (left) => {
     if (locked || state !== 'playing') return;
     let p = null;
-    try { p = canvas.requestPointerLock(); } catch { /* older engines throw sync */ }
+    try { p = askForLock(canvas); } catch { /* older engines throw sync */ }
+    /* Did it actually land? A promise rejection says so on Chrome; on the
+       engines that return undefined the only honest test is to look. One
+       shot, only before the first successful lock — see lockDenied. */
+    if (!everLocked) {
+      clearTimeout(denyTimer);
+      denyTimer = setTimeout(() => {
+        if (everLocked || lockedElement() === canvas) return;
+        if (!lockDenied) {
+          lockDenied = true;
+          updateHint();
+          /* AND START THE MATCH, which is the deeper half of the same bug.
+             Acquiring the lock was the ONLY path into `playing` - line for
+             line, `pointerlockchange` was the one place that ever called
+             setState('playing'). So on an engine that refuses the lock the
+             session never began: not a game you could not shoot in, a game
+             that never started, behind a canvas that looked ready. */
+          if (state !== 'playing') setState('playing');
+        }
+      }, 900);
+    }
     const again = () => {
       if (left > 0 && !locked && state === 'playing') {
         lockRetry = setTimeout(() => attempt(left - 1), 300);
@@ -247,9 +313,12 @@ window.addEventListener('pointerdown', () => { dismissControls(); }, true);
 // what every other input does, including taking the lock — closing the modal
 // without it would leave a cursor on a live game.
 controlsX?.addEventListener('click', (e) => { e.stopPropagation(); dismissControls(); });
-document.addEventListener('pointerlockchange', () => {
-  locked = document.pointerLockElement === canvas;
+function onLockChange() {
+  locked = lockedElement() === canvas;
   if (locked) {
+    everLocked = true;
+    lockDenied = false;
+    clearTimeout(denyTimer);
     // Locking no longer ends the boot — the boot ends itself. An early click
     // just captures the mouse; the pull-in carries on underneath, and if the
     // player was already holding a key they were already moving.
@@ -259,7 +328,9 @@ document.addEventListener('pointerlockchange', () => {
     if (state === 'playing') setState('paused'); // Escape (or focus loss) pauses
   }
   updateHint();
-});
+}
+document.addEventListener('pointerlockchange', onLockChange);
+document.addEventListener('webkitpointerlockchange', onLockChange);
 /* Every mouse handler now checks `state` as well as `locked`. It did not have
    to before, because pausing always dropped the lock and `locked` alone was
    enough. They stay because they state the invariant directly: nothing the
@@ -269,13 +340,26 @@ document.addEventListener('pointerlockchange', () => {
    mouse-travel lock release that used to live here is GONE: it existed only to
    hand the cursor back during a Tab pause, and with Tab no longer pausing
    there is nothing for it to do. */
+/* Fallback aim reads CLIENT DELTAS, not movementX. Unlocked movementX is
+   populated by some engines and not others, and the one thing that is true
+   everywhere is where the cursor was last frame. `lastX` is nulled whenever
+   aiming stops so the first move after a pause does not jump the view. */
+let lastX = null, lastY = null;
 document.addEventListener('mousemove', (e) => {
-  if (!locked || state !== 'playing') return;
-  yaw += e.movementX * TUNE.SENS;
-  pitch = Math.max(-1.5, Math.min(1.5, pitch + e.movementY * TUNE.SENS));
+  if (!aiming() || state !== 'playing') { lastX = lastY = null; return; }
+  let dx, dy;
+  if (locked) {
+    dx = e.movementX; dy = e.movementY;
+  } else {
+    dx = lastX === null ? 0 : e.clientX - lastX;
+    dy = lastY === null ? 0 : e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+  }
+  yaw += dx * TUNE.SENS;
+  pitch = Math.max(-1.5, Math.min(1.5, pitch + dy * TUNE.SENS));
 });
 document.addEventListener('mousedown', (e) => {
-  if (!locked || state !== 'playing') return;
+  if (!aiming() || state !== 'playing') return;
   if (e.button === 0) firing = true;
   if (e.button === 2) { grappling = true; AudioFX.thwip(); }
 });
@@ -314,7 +398,10 @@ document.addEventListener('keydown', (e) => {
     setBoard(true);
     return;
   }
-  if (!locked) return;
+  /* Jump, dash and the weapon keys were gated on `locked` as well, so on an
+     engine that refuses the lock the keyboard lost everything except walking.
+     Same gate, same fix. */
+  if (!aiming()) return;
   if (e.code === 'Space') {
     // The prototype's policy: mid-air Space with no coyote and no wall = jet
     // (hold); otherwise it buffers a jump (WALLNEAR exists for this call).
@@ -661,7 +748,7 @@ function startSession(transport) {
         // viewmodel and cadence follow the PREDICTED weapon (same-frame).
         fx.setWeapon(me.weapon ?? 0);
         sess.fireCd -= dt;
-        if (firing && locked && state === 'playing' && sess.fireCd <= 0) {
+        if (firing && aiming() && state === 'playing' && sess.fireCd <= 0) {
           if ((me.weapon ?? 0) === 1) {
             // the rocket itself is authoritative — it appears via snapshots
             sess.fireCd = 0.8;
