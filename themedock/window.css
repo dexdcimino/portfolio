@@ -281,11 +281,15 @@
    lines alone do not read as dead there. The three chrome regions get NO wash:
    they are the extension's paint targets, recolouring them is the whole demo,
    and anything that mutes the fill is muting the thing being demonstrated. */
-/* HATCHING OFF. The wash stays, and that is deliberate: the switch is labelled
-   Hatching and turns off the hatching. The region is still dead either way, the
-   wash is 10-13% and hides nothing, and the `preview only` note is still there
-   — what goes is the pattern, for anyone who wants to look at a theme without
-   diagonals across it. */
+/* THE OVERLAY SWITCH, OFF. The wash stays, and that is deliberate: what the
+   switch turns off is the diagonal pattern. The region is still dead either
+   way, the wash is 10-13% and hides nothing, and the `preview only` note is
+   still there — what goes is the hatching, for anyone who wants to look at a
+   theme without diagonals across it.
+
+   Labelled "Overlay" rather than "Hatching" (Dex, 2026-08-22): the word people
+   reach for is the thing on top of the window, not the name of the pattern it
+   is drawn with. */
 .vsc-dead.no-hatch {
   background-image:
     linear-gradient(var(--td-dead-wash, rgba(6, 7, 10, .4)),

@@ -2060,7 +2060,17 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   font-weight:800;letter-spacing:.18em;cursor:pointer;
   transition:color .2s ease,border-color .2s ease;
 }
-.bb-play svg{width:14px;height:14px;fill:currentColor}
+/* THE TRIANGLE IS THE ONE SPOT OF COLOUR ON THE PILL, and it is drawn as a
+   stroked fill so the corners round. A play glyph is three acute vertices
+   and they read as sharp at any size; stroking the same path with a round
+   join is the only way to blunt them without hand-drawing arcs. The path
+   is inset ~22% toward its own centroid to pay for the stroke, so the
+   silhouette lands where the old sharp one did and only the corners move. */
+.bb-play svg{
+  width:18px;height:18px;
+  fill:var(--accent);stroke:var(--accent);
+  stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round;
+}
 .bb-play:hover,.bb-play:focus-visible{color:var(--accent);border-color:var(--accent)}
 
 /* In-game control stack: outside the playfield on its right, vertical, shown
