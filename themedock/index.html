@@ -84,6 +84,16 @@
         <div class="vsc-tab">README.md</div>
       </div>
       <div class="vsc-code" id="vscCode" aria-hidden="true" inert></div>
+      <!-- THE ONE LIVE CONTROL IN THE DEAD HALF, and the reason it sits here
+           rather than inside .vsc-code: this is a child of .vsc-editor, which
+           is neither `inert` nor aria-hidden, so it clicks, tabs and announces
+           normally while everything around it does not. demo.js centres it in
+           whatever empty space is left below the last line of code. -->
+      <button class="vsc-hatchsw" id="vscHatchSw" type="button" role="switch" aria-checked="true">
+        <span class="vsc-hatchsw-lbl">Hatching</span>
+        <span class="vsc-hatchsw-track" aria-hidden="true"><span class="vsc-hatchsw-knob"></span></span>
+      </button>
+
       <!-- The one thing in the dead half a screen reader SHOULD hear, so it
            is outside every aria-hidden subtree above. The hatch is the sign;
            this is the caption on it. -->

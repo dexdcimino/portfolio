@@ -27,6 +27,7 @@
   var codeEl = document.getElementById('vscCode');
   var toastEl = document.getElementById('vscToast');
   var deadEl = document.getElementById('vscDead');
+  var hatchSw = document.getElementById('vscHatchSw');
   var sideEl = document.getElementById('vscSide');
   var edEl = document.getElementById('vscEditor');
   if (!vsc || !root) return;
@@ -46,15 +47,76 @@
     { key: 'status', label: 'Status' }
   ];
 
+  /* REMEMBERED FOR THE SESSION, AND NOT ONE SECOND LONGER.
+
+     Reopening the overlay reloads this page — the site blanks the iframe to
+     about:blank on close — so anything kept in this document is gone by the
+     time you come back to it, and the panel reset itself every time. What
+     should survive is the trip out and back; what should NOT survive is a
+     reload of the site, because this is a preview and a preview that remembers
+     across visits is a preview that never shows anyone the default.
+
+     So the slot is a property on the PARENT window, which outlives this
+     document and dies with the page around it. sessionStorage is the reflex
+     here and it is wrong: it survives a refresh, which is the one thing that
+     has to clear. localStorage is wronger still. Standalone, `window.parent`
+     is `window` and the same reasoning holds, one level down. Cross-origin can
+     never happen (same site, same host) but the guard is a try/catch anyway,
+     because the failure would be a thrown SecurityError on load rather than a
+     forgotten colour. */
+  var MEM = '__themedockSession';
+
+  function memHost() {
+    try {
+      var w = window.parent || window;
+      void w.document;            // throws if it is ever cross-origin
+      return w;
+    } catch (e) { return window; }
+  }
+
+  function remember() {
+    try {
+      memHost()[MEM] = {
+        color: state.color, theme: state.theme,
+        targets: { title: !!state.targets.title, activity: !!state.targets.activity,
+          status: !!state.targets.status },
+        custom: custom.slice(), hatch: hatchOn
+      };
+    } catch (e) { /* nothing to remember with */ }
+  }
+
+  function recall() {
+    var m = null;
+    try { m = memHost()[MEM]; } catch (e) { return; }
+    if (!m || typeof m !== 'object') return;
+    if (m.theme && THEMES.some(function (t) { return t.key === m.theme; })) state.theme = m.theme;
+    if (clean(m.color)) state.color = clean(m.color);
+    if (m.targets) {
+      state.targets = { title: !!m.targets.title, activity: !!m.targets.activity,
+        status: !!m.targets.status };
+    }
+    if (Array.isArray(m.custom) && m.custom.length >= MIN_SLOTS && m.custom.length <= MAX_SLOTS) {
+      custom = m.custom.map(function (c) { return clean(c) || null; });
+    }
+    if (typeof m.hatch === 'boolean') hatchOn = m.hatch;
+  }
+
   var MIN_SLOTS = 5;
   var MAX_SLOTS = 20;
 
+  /* THE DEFAULT IS THE ONE THE EXTENSION'S OWN SCREENSHOTS OPEN ON (Dex,
+     2026-08-22): Solarized Dark wearing #074b73. The colour is not in the
+     twelve-swatch palette on purpose — it is a CUSTOM slot, which is the half
+     of the panel nobody discovers by looking, so the preview opens with one
+     already filled and worn rather than with five empty outlines. */
+  var DEFAULT_COLOR = '#074b73';
   var state = {
-    color: '#007fff',
+    color: DEFAULT_COLOR,
     targets: { title: true, activity: false, status: false },
-    theme: 'dark'
+    theme: 'solarized'
   };
-  var custom = [null, null, null, null, null];
+  var custom = [DEFAULT_COLOR, null, null, null, null];
+  var hatchOn = true;
   var parkedTargets = null;
   var parked = null;
   var editing = null;
@@ -263,8 +325,26 @@
        stylesheet because there is no colour function in CSS old enough to be
        safe on every browser this page has to survive. */
     var hatchOver = on ? state.color : (read('--td-base-title-bg') || '#181818');
+    var darkInk = relLum(hatchOver) > 0.42;
     vsc.style.setProperty('--td-hatch-ink',
-      relLum(hatchOver) > 0.42 ? 'rgba(21, 24, 29, .25)' : 'rgba(255, 255, 255, .25)');
+      darkInk ? 'rgba(21, 24, 29, .25)' : 'rgba(255, 255, 255, .25)');
+    /* The switch's outline is the same ink drawn as a line rather than as a
+       field, so it needs the alpha a line reads at. Same decision, one value
+       apart — not a second colour.
+
+       AND ITS FILL IS THE INK'S OPPOSITE, which is what makes that outline
+       mean anything. The first cut filled the pill with the editor background
+       and it worked until the two poles met: GitHub Light wearing a dark
+       swatch gives a WHITE ink on a near-white editor, so the pill came out
+       with no edge at all — the one control in the dead half, invisible.
+       Filling with the other pole guarantees the edge contrasts by
+       construction rather than by luck, and it is the same pair of values the
+       chrome's own text is picked from, so the pill never introduces a third
+       colour. */
+    vsc.style.setProperty('--td-hatch-edge',
+      darkInk ? 'rgba(21, 24, 29, .55)' : 'rgba(255, 255, 255, .55)');
+    vsc.style.setProperty('--td-sw-bg', darkInk ? '#ffffff' : '#15181d');
+    vsc.style.setProperty('--td-sw-fg', darkInk ? '#15181d' : '#ffffff');
 
     var map = [
       ['title', '--td-title-bg', '--td-title-fg', '--td-base-title-bg', '--td-base-title-fg'],
@@ -277,6 +357,9 @@
       vsc.style.setProperty(m[2], wear ? ink : (read(m[4]) || 'inherit'));
     });
     vsc.style.setProperty('--td-accent', on ? state.color : 'transparent');
+    /* Every path that changes a colour, a target or a theme ends here, so this
+       is the one place the session slot has to be written from. */
+    remember();
   }
 
   function anyOn() {
@@ -315,6 +398,20 @@
     vsc.style.setProperty('--td-ed-y', px(ed.top - host.top));
     vsc.style.setProperty('--td-ed-w', px(ed.width));
     vsc.style.setProperty('--td-ed-h', px(ed.height));
+
+    /* AND WHERE THE SWITCH SITS: centred in the empty space under the last line
+       of code, which is the part of the frame that is showing nothing at all.
+
+       Measured off the last line's own box rather than `scrollHeight`, which
+       cannot answer this — it is defined as at least clientHeight, so it
+       reports the container's height exactly when the content does not fill it,
+       which is every case that matters here. Below about 70px of clearance
+       there is no empty space to be centred in and it parks above the note
+       instead; it has a solid fill, so overlapping a line of code costs
+       legibility nothing. */
+    var last = codeEl && codeEl.lastElementChild;
+    var band = last ? ed.bottom - last.getBoundingClientRect().bottom : 0;
+    vsc.style.setProperty('--td-sw-bottom', px(band > 70 ? band / 2 - 15 : 44));
   }
 
   function stashTargets() {
@@ -728,6 +825,21 @@
     return out;
   }
 
+  /* ---------- the hatching switch ----------------------------------------- */
+
+  function paintHatch() {
+    if (deadEl) deadEl.classList.toggle('no-hatch', !hatchOn);
+    if (hatchSw) hatchSw.setAttribute('aria-checked', String(hatchOn));
+  }
+
+  if (hatchSw) {
+    hatchSw.addEventListener('click', function () {
+      hatchOn = !hatchOn;
+      paintHatch();
+      remember();
+    });
+  }
+
   /* ---------- escape ------------------------------------------------------ */
 
   /* INNERMOST FIRST, and the second half of that is not in this file.
@@ -760,10 +872,12 @@
      Free-standing, the page draws its own. Same flag MindSplit uses. */
   if (/(^|[?&])embed=1(&|$)/.test(location.search)) document.body.classList.add('is-embed');
 
+  recall();
   applyTheme();
   paintCode();
   render();
   paint();
+  paintHatch();
   measureDead();
 
   /* The panel column is `minmax(232px, 300px)`, so its box moves whenever the

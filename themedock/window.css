@@ -281,6 +281,20 @@
    lines alone do not read as dead there. The three chrome regions get NO wash:
    they are the extension's paint targets, recolouring them is the whole demo,
    and anything that mutes the fill is muting the thing being demonstrated. */
+/* HATCHING OFF. The wash stays, and that is deliberate: the switch is labelled
+   Hatching and turns off the hatching. The region is still dead either way, the
+   wash is 10-13% and hides nothing, and the `preview only` note is still there
+   — what goes is the pattern, for anyone who wants to look at a theme without
+   diagonals across it. */
+.vsc-dead.no-hatch {
+  background-image:
+    linear-gradient(var(--td-dead-wash, rgba(6, 7, 10, .4)),
+                    var(--td-dead-wash, rgba(6, 7, 10, .4)));
+  background-repeat: no-repeat;
+  background-position: var(--td-ed-x, 0) var(--td-ed-y, 0);
+  background-size: var(--td-ed-w, 0) var(--td-ed-h, 0);
+}
+
 .vsc-dead {
   position: absolute;
   inset: 0;
@@ -296,6 +310,88 @@
   background-position: 0 0, var(--td-ed-x, 0) var(--td-ed-y, 0);
   background-size: auto, var(--td-ed-w, 0) var(--td-ed-h, 0);
   clip-path: var(--td-hatch-clip, none);
+}
+
+/* THE HATCHING SWITCH. A pill with a solid fill so it reads wherever it lands,
+   outlined in the same ink the hatch is drawn in — it is the control for that
+   ink, so it wears it. The switch inside is what the eye goes to; the whole
+   pill is clickable because a 34px target beside a 20px one is not a choice
+   anybody makes on purpose.
+
+   The switch's ON fill is the panel's own accent (`--wc-fill`, with its
+   measured contrasting ink) rather than the hatch ink. The hatch ink is chosen
+   to contrast with the SWATCH and would be invisible here half the time — dark
+   ink on a dark editor — and `tuneAccent` already guarantees `--wc-fill` clears
+   2.2:1 against the panel. Same accent the panel's three target switches use,
+   so the window speaks with one voice.
+
+   `bottom` is set by demo.js: centred in the empty space under the last line of
+   code where there is room for that, parked just above the note where there is
+   not. */
+.vsc-hatchsw {
+  position: absolute;
+  left: 50%;
+  bottom: var(--td-sw-bottom, 96px);
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 6px 0 12px;
+  border-radius: 999px;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 11.5px;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--td-sw-fg, var(--vscode-foreground));
+  background: var(--td-sw-bg, var(--vscode-editor-background));
+  border: 1px solid var(--td-hatch-edge, rgba(255, 255, 255, .55));
+  transition: border-color 120ms ease;
+}
+.vsc-hatchsw:hover { border-color: var(--wc-edge, var(--vscode-focusBorder)); }
+.vsc-hatchsw:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.vsc-hatchsw-lbl { color: inherit; }
+
+.vsc-hatchsw-track {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, .4));
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.vsc-hatchsw-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .5;
+  transition: left 120ms ease, background 120ms ease, opacity 120ms ease;
+}
+.vsc-hatchsw[aria-checked="true"] .vsc-hatchsw-track {
+  background: var(--wc-fill, var(--vscode-button-background));
+  border-color: transparent;
+}
+.vsc-hatchsw[aria-checked="true"] .vsc-hatchsw-knob {
+  left: 14px;
+  background: var(--wc-on-ink, var(--vscode-button-foreground));
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vsc-hatchsw, .vsc-hatchsw-track, .vsc-hatchsw-knob { transition: none; }
 }
 
 /* The pattern should not have to carry the whole message. Bottom-right of the

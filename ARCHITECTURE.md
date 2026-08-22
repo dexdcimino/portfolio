@@ -380,6 +380,44 @@ decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
   zone the most active thing in the frame, which is backwards, and
   `prefers-reduced-motion` is moot only for as long as that stays true.
 
+  **The hatching can be switched off**, and the switch is the ONE live control
+  in the dead half — a child of `.vsc-editor`, which is neither `inert` nor
+  aria-hidden, so it clicks, tabs and announces normally while everything
+  around it does not. demo.js centres it in whatever empty space is left below
+  the last line of code, measured off that line's own box: `scrollHeight`
+  cannot answer this, being defined as at least clientHeight, so it reports the
+  container's height exactly when the content does not fill it, which is every
+  case that matters. Under ~70px of clearance it parks above the note instead.
+  It turns off the HATCH ONLY — the wash, the note and the `inert` stay, because
+  the region is still dead and the switch is labelled Hatching. **Below 760px
+  the editor is `display:none` and the switch goes with it**, so the direct page
+  on a phone has hatched chrome and no way to unhatch it; the overlay itself
+  never opens under 768px, so this is a fallback path rather than a live one.
+
+  **Its fill is the ink's OPPOSITE pole**, which is what makes its outline mean
+  anything. The outline is the hatch ink — it is the control for that ink, so it
+  wears it — and the first cut filled the pill with the editor background, which
+  worked until the two poles met: GitHub Light wearing a dark swatch gives a
+  WHITE ink on a near-white editor and the pill came out with no edge at all.
+  Filling with the other pole makes the edge contrast by construction rather
+  than by luck, out of the same two values the chrome's own text is picked from.
+  The switch inside uses `--wc-fill`/`--wc-on-ink`, the panel's own accent,
+  because `tuneAccent` already guarantees that clears 2.2:1 while the hatch ink
+  would be invisible half the time.
+
+  **The default is Solarized Dark wearing `#074b73`**, in custom slot 0 rather
+  than in the twelve-swatch palette — the custom slots are the half of the panel
+  nobody discovers by looking, so it opens with one filled and worn.
+
+  **State is remembered for the session and not one second longer.** Reopening
+  reloads this page (the site blanks the iframe to `about:blank` on close), so
+  the panel used to reset every time; what should survive is the trip out and
+  back, and what should NOT is a reload of the site, or a preview never shows
+  anyone the default. The slot is a property on the PARENT window, which
+  outlives this document and dies with the page around it. **sessionStorage is
+  the reflex here and it is wrong** — it survives a refresh, which is the one
+  thing that has to clear it; localStorage is wronger still.
+
   The window is **960x875**, down from 1400 at 16:10. At 1400 the editor column
   was 1052px wide against a 518px widest line: 45% of the frame was empty code
   area, which is both nothing to look at and a lot of surface inviting a click.
