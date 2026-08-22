@@ -2085,7 +2085,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    it whispered at 11px and this button is the whole reason the toy is found. */
 .bb-play{
   display:inline-flex;align-items:center;gap:12px;
-  padding:14px 26px;border:2px solid var(--line);border-radius:999px;
+  padding:13px 25px;border:3px solid rgba(255,255,255,.24);border-radius:999px;
   background:none;color:#959ea5;font-family:inherit;font-size:15px;
   font-weight:800;letter-spacing:.18em;cursor:pointer;
   transition:color .2s ease,border-color .2s ease;
@@ -2101,7 +2101,22 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   fill:var(--accent);stroke:var(--accent);
   stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round;
 }
-.bb-play:hover,.bb-play:focus-visible{color:var(--accent);border-color:var(--accent)}
+/* THE RESTING STROKE IS THE THICK ONE and it thins under the pointer, which is
+   backwards from most hovers on purpose: at rest the ring is doing the work of
+   being seen, in a gray of its own rather than --line, which is a hairline meant
+   for dividers and read as almost nothing at this diameter. Under the pointer
+   the accent arrives and carries the emphasis, so the ring can stand down.
+
+   THE PADDING PAYS FOR THE WIDTH CHANGE. 13+3 and 14+2 are both 16, so the pill
+   and the label inside it do not move by a pixel on hover — everything here is
+   border-box and auto-width, and an uncompensated 3px-to-2px swap shifts the box
+   by two and its contents by one. Not animated for the same reason the width is
+   compensated: border-width is not in the transition list, so it snaps while the
+   colour fades. A growing ring at this size reads as a wobble. */
+.bb-play:hover,.bb-play:focus-visible{
+  padding:14px 26px;border-width:2px;
+  color:var(--accent);border-color:var(--accent);
+}
 
 /* In-game control stack: outside the playfield on its right, vertical, shown
    only while the game runs (script toggles [hidden] and sets the top so the
