@@ -1600,7 +1600,36 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .row-go{position:relative;width:21px;height:21px}
 .row-go .icon{position:absolute;inset:0;width:21px;height:21px;color:var(--accent);
   transition:opacity .18s ease,transform .2s ease,color var(--accent-ease)}
-.row-play{opacity:0}
+/* THE PLAY STATE IS A CHIP, NOT A BARE GLYPH: a rounded accent square with dark
+   ink on it, so the row that is actually playable reads as a button rather than
+   as a second arrow. The square is a pseudo-element on the CELL and not a
+   background on the glyph, because the glyph is a mask — a background set on it
+   is painted THROUGH the triangle and there is no square left. ::before sits
+   first in paint order among the cell's positioned children, so both icons stay
+   on top of it without anyone needing a z-index.
+
+   It carries its own opacity rather than being scoped to .is-current, so it
+   cross-fades on the same .18s the two glyphs already do instead of snapping in
+   underneath them. -3.5px puts a 28px square around the 21px cell without
+   touching the row's geometry, which is the entire reason that cell is a fixed
+   size; the glyph drops to 13px so it sits inside the square with air around it
+   rather than filling it corner to corner.
+
+   The ink is --accent-ink, the same contrast-picked value .button.primary and
+   the skip link use, so the triangle stays legible on every accent rather than
+   on the ones a hardcoded black happens to suit. Both the geometry and the
+   colour need .row-go in front of them: `.row-go .icon` above sets all four, and
+   a bare .row-play loses to it on specificity whatever the source order. */
+.row-go::before{
+  content:"";position:absolute;inset:-3.5px;border-radius:8px;
+  background:var(--accent);opacity:0;
+  transition:opacity .18s ease,transform .2s ease,background-color var(--accent-ease);
+}
+.stack-row.is-current .row-go::before{opacity:1}
+.row-go .row-play{
+  opacity:0;inset:4px;width:13px;height:13px;
+  color:var(--accent-ink,#080a0b);
+}
 /* is-current marks the row whose artwork and description are showing —
    persistent, unlike the transient artwork-hover is-linked below. */
 .stack-row.is-current .row-arrow{opacity:0}
@@ -1612,7 +1641,8 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 /* The diagonal nudge is the arrow miming its own direction of travel — on the
    play triangle it reads as a mistake, so that one grows instead. */
 .stack-row:hover .row-arrow,.stack-row.is-linked .row-arrow{transform:translate(2px,-2px)}
-.stack-row:hover .row-play,.stack-row.is-linked .row-play{transform:scale(1.12)}
+.stack-row:hover .row-play,.stack-row.is-linked .row-play,
+.stack-row:hover .row-go::before,.stack-row.is-linked .row-go::before{transform:scale(1.12)}
 
 /* Two-part description: bold lead, gap, body. Sits under the rows inside
    .stack; the rows' border-bottoms and the section grid are unchanged. */
