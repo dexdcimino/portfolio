@@ -1,20 +1,74 @@
+# CLAUDE.md — what is true in this repo
+
+`DOCTRINE.md` beside this file is *how we work*. It is portable, numbered and copies
+verbatim into any project. **This file is *what is true here*, and it does not repeat the
+doctrine** — where a rule below is the local instance of a doctrine rule, it says which
+number, so you can see the general shape behind the specific scar.
+
+Everything in here has already cost time. Nothing is a preference. If this file contradicts
+the repo, the repo wins — say so and it gets fixed.
+
+`ARCHITECTURE.md` is the third file: how the site is put together, module by module. This
+one is the rules; that one is the map.
+
+## The feedback loops
+
+**There is no build and no test runner.** `npm test` is a stub that exits 1 and has never run
+anything — do not read its failure as a broken suite, there is no suite. The gate is the
+checkers below and the commit hooks that fire them. Doctrine rule 23.
+
+| run this | it answers |
+|---|---|
+| `python tools/check_accents.py` | the 7-accent palette is byte-identical in all 5 copies |
+| `python tools/check_cursors.py` | the 3 cursor paths are identical in all 4 copies |
+| `python tools/bake_markup.py --check` | every `<picture>` is current and every reference resolves |
+| `python tools/bake_images.py --check` | every derivative exists and is newer than its master |
+| `python tools/check_sweep.py --cases` | the sweep checker can still refuse — 8 recorded cases |
+| `python tools/check_pack.py --cases` | the pack freshness gate can still refuse |
+| `node tools/check_markdown.mjs` | `renderMarkdown` cannot emit an event handler (needs Chrome) |
+| `python tools/context_pack.py` | rebuilds the context zip in the root, measured not typed |
+
+Every one of them prints the size of what it examined. That is not decoration — see
+**Count the subject** below.
+
+### And the ones that lie
+
+Named next to the honest ones, because a false green is worse than a red (doctrine rule 12):
+
+- **`npm test`** exits 1 while running nothing. It is a stub, not a signal.
+- **`python tools/bake_images.py --check` printed "all derivatives present and current"
+  over an empty walk.** It is in the table above because it is fixed and now prints its
+  counts; it is in this list because it is the reason the rule exists.
+- **A browser harness on a throwaway `--user-data-dir` has empty `localStorage`,** so every
+  returning-visitor path is dark and a bug that only reproduces for a real visitor will not
+  reproduce in it.
+- **`element.click()` across an iframe boundary does not move browser focus.** A test that
+  drives a click and then asserts on focus or on `:hover` passes while reproducing nothing.
+  Drive real input events and assert the state you meant to reach actually arrived.
+- **`Page.captureScreenshot` clips in PAGE coordinates; `getBoundingClientRect()` is
+  viewport.** Forget to add `scrollX/scrollY` and you get flat background, which compares
+  equal to flat background and passes any test that is not looking at bytes.
+- **Polling until two reads agree returns mid-transition** for anything off-screen: Chrome
+  stalls transitions between compositor ticks, so the same in-flight value appears twice.
+  Settle on the site's own reduced-motion path instead of guessing at a sleep.
+
 ## Reporting
 
-- End every report with a block titled **NEEDS DEX** listing only decisions I
-  must make or questions I must answer. One line each, no context, no
-  reasoning. If nothing is needed, write `NEEDS DEX: nothing.`
-- Full detail goes above that block.
+The shape is `DOCTRINE.md` rule 5 and is not restated here. What is local:
 
-### Briefing chat
-
-- A separate AI session receives pasted briefings and replies with ONLY one of:
-  `Paste to Claude Code:` (a copy-ready block, nothing else), `Dex does this:`
-  (numbered steps on his end), `Answer these:` (questions only he can answer),
-  or `All good` (nothing needed, next task). Combine when a briefing needs more
-  than one.
-- One line per item, decision only. Rationale only if Dex asks.
-- Write NEEDS DEX lines so they survive that round trip: each must stand alone
-  as a decision, with no reference to context above it.
+- **The tracker and the `CURRENT:` / `PHASE:` lines are generated from
+  `docs/plan/README.md`, never hand-written.** `tools/context_pack.py` parses that table at
+  pack time. There is no phased plan right now and `PHASE none` is the correct answer;
+  `docs/plan/BACKLOG.md` is the queue instead. Do not add phase rows to fill the shape.
+- **`CURRENT:` is fixed.** Same text in every reply, every phase, every pack. It is the
+  project's arc, not its status.
+- **A session-end report runs in this order:** what shipped (commits, one line each) ->
+  verified vs. inferred, separated, naming the command that ran -> debatable calls -> docs
+  touched, always present, "none" counts -> decision log -> loose ends -> the phase unit,
+  last.
+- **"It compiles" is not "it works," and in this repo there is nothing to compile.** The
+  honest sentence is the name of the checker you ran and what it printed. "I could not run
+  X" is a complete sentence (doctrine rule 14).
 
 ## Git workflow
 
@@ -289,6 +343,72 @@ output.
   `bake_markup --check` expands those `${...}` references across the whole family
   — narrow the hero ladder and it fails loudly instead of 404ing for anyone who
   picks a non-default accent.
+
+## Count the subject, assert the count (four times)
+
+The local instance of doctrine rule 12, and the one this repo has paid for most.
+**A checker that discovers nothing does not fail.** It examines nothing, finds no problems,
+prints whatever it prints when all is well, and exits 0 — byte-identical to a clean run. A
+pattern that silently matches nothing looks exactly like a pattern that matches everything.
+
+Four times, three of them in one afternoon: `glslcheck.mjs` scanned none of the three shader
+bodies it exists for; `lodcheck` observed **zero** of the handoffs it measures for its whole
+life while printing that they were clean; `bake_images.py --check`, which this file names as
+a blocking gate, printed success over an empty walk.
+
+So, for anything new that checks something:
+
+1. **Count what you examined and put the number in the output**, pass or fail.
+2. **Assert the count against an expectation, not against zero.** `bodies.length > 10`
+   passed on seventeen while three were missing.
+3. **Never let a positive claim be reachable with an empty subject.** An empty set is a
+   broken discovery, and it is reported as broken, not as clean.
+4. **A loop that emits checks emits none when its subject is empty**, so the suite total
+   drops silently and everything still passes. Assert the size before the loop.
+
+Only two checkers here can currently prove they still bite: `check_sweep.py --cases` and
+`check_pack.py --cases`. Everything else counts its subject but has no test that fails when
+the checker goes blind. Giving the rest a `--cases` mode is on `docs/plan/BACKLOG.md`.
+Full history in `ARCHITECTURE.md`, "Writing a checker".
+
+## Line endings are per file, and some files are MIXED
+
+Not a style question — a correctness one, and it has already buried a real diff.
+
+`index.html` is 2203 CRLF against 3192 LF. `styles.css` is 4295 against 4308.
+`games/arena1/js/main.js` has three bare-LF lines in a CRLF file. **Read each file's own
+endings before editing it, and patch a mixed file at BYTE level.** A tool that sniffs
+`b"\r\n" in raw`, decides "this file is CRLF" and rewrites it whole will convert every line:
+that turned a 12-line edit to `games/surveyor/js/world/discs.js` into a 1054-line diff, which
+is a diff nobody can review and a `git blame` nobody can use.
+
+Check before you write:
+
+```
+python -c "b=open('styles.css','rb').read(); print(b.count(b'\r\n'), b.count(b'\n'))"
+```
+
+Equal numbers mean uniform CRLF; a zero first number means uniform LF; anything else is
+mixed and gets byte-level replacement only. Never normalise a file as a side effect of
+editing it.
+
+## Two display values that have been broken four-plus times
+
+`.infochip-img-wrap` must stay `display: inline-block` and `.img-zws` must stay
+`display: inline`. Every switch to `block` or a float looks like a tidy-up and breaks the
+same two things: the caret goes full-image-height beside a chip, and a selection that
+crosses one loses the zero-width spaces that make it navigable. **The tall cursor and the
+highlight near images are accepted trade-offs, not bugs to fix** — that is what makes this
+regression so attractive to the next person.
+
+**Where it lives is not obvious, so check before you go looking:** the only code in THIS
+repo that depends on it is `games/stickland/_reference/infochips.js`, which queries both
+classes throughout (`chip.closest('.infochip-img-wrap')`, the `img-zws` sibling handling
+around line 2700). The CSS declaring them is **not in this repo at all** — no `.css`, `.html`
+or `.js` file here contains either selector's rule. So a change here cannot break it and a
+fix here cannot repair it; the rule is recorded because the consumer is vendored in and the
+pairing has to survive the next person who reads that file. If the declarations belong
+anywhere, it is the project `_reference/` was taken from.
 
 ## Architecture docs stay current
 
