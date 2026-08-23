@@ -9,8 +9,16 @@ question, and it does not surface at the moment someone is about to revisit the 
 This file does. Read it before reopening any architectural call (`DOCTRINE.md` rule 18).
 
 Each entry carries four things and nothing else: **what was decided**, **what it replaced**,
-**why**, and what would make it worth reversing. If an entry cannot name what it replaced,
-it was not a decision — it was just the first idea, and it does not belong here.
+**why**, and **what would make it worth reversing**. If an entry cannot name what it
+replaced, it was not a decision — it was just the first idea, and it does not belong here.
+
+**The fourth field is a local extension of doctrine rule 18, which asks for three.** It is
+adopted here and proposed upstream in `docs/doctrine-amendment-01-reverse-it-if.md`;
+`DOCTRINE.md` itself is NOT edited, because it copies verbatim between projects and a local
+edit is a fork. The reversal condition is what keeps this file readable as it grows: without
+it every entry argues for itself forever, and a reader cannot tell a decision that is still
+load-bearing from one whose reason expired. It names a condition, not a date — "nothing
+foreseeable; this follows from X and falls only if X does" is a complete answer.
 
 A call that changes how someone builds gets its entry **in the same scoped commit as the
 change**, so the reasoning cannot drift away from the diff it explains.
