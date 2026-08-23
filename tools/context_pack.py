@@ -225,7 +225,21 @@ def read_plan() -> tuple[str, list[dict], dict | None]:
 
     row_re = re.compile(r"^\|\s*\[(?P<name>[^\]]+)\]\((?P<spec>[^)]+)\)\s*\|"
                         r"(?P<one>[^|]*)\|[^|]*\|(?P<status>[^|]*)\|")
+
+    # FENCED BLOCKS ARE NOT THE TABLE. The first cut of this read the worked EXAMPLE in
+    # README.md's own documentation as three live phases and generated
+    # "PHASE 2/3 — Sync" for a repo with no phased plan at all — a confident, plausible,
+    # entirely invented status, shipped to every session that pasted the pack. It is the
+    # house failure (ARCHITECTURE.md, "Writing a checker"): the parser found A subject and
+    # nobody had asserted it was THE subject. The summary now prints the row count for the
+    # same reason.
+    in_fence = False
     for line in path.read_text(encoding="utf-8").splitlines():
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
         m = re.match(r"^\*\*Current:\*\*\s*(.+?)\s*$", line)
         if m:
             current = m.group(1)
@@ -574,6 +588,10 @@ def main() -> int:
     total_kb = round(sum(s for _, s in kept) / 1024, 1)
 
     if not args.quiet:
+        # Say what the plan parse found. An empty table and a mis-parsed one look identical
+        # in the pack, and the mis-parsed one is the dangerous half.
+        print(f"\nplan: {len(rows)} phase row(s) parsed"
+              + (f", active focus = {focus['name']}" if focus else ", PHASE none"))
         per = Counter()
         for rel, size in kept:
             per[rel.split("/")[0] if "/" in rel else "<root>"] += size
