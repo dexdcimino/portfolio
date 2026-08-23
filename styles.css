@@ -2124,9 +2124,13 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .bb-play{
   display:inline-flex;align-items:center;gap:12px;
   padding:13px 25px;border:3px solid rgba(255,255,255,.24);border-radius:999px;
-  background:none;color:#959ea5;font-family:inherit;font-size:15px;
+  background:transparent;color:#959ea5;font-family:inherit;font-size:15px;
   font-weight:800;letter-spacing:.18em;cursor:pointer;
-  transition:color .2s ease,border-color .2s ease;
+  /* One duration, one curve, one list. Every property the hover touches is in
+     here, which is the whole fix below: anything left out does not ease, it
+     snaps, and it snaps on the frame the class flips while its neighbours are
+     still 200ms from arriving. */
+  transition:color .22s ease,border-color .22s ease,background-color .22s ease;
 }
 /* THE TRIANGLE IS THE ONE SPOT OF COLOUR ON THE PILL, and it is drawn as a
    stroked fill so the corners round. A play glyph is three acute vertices
@@ -2138,22 +2142,41 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   width:18px;height:18px;
   fill:var(--accent);stroke:var(--accent);
   stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round;
+  /* The triangle was the one part of the pill with no transition at all. It is
+     already the accent so the hover does not change it — but an ACCENT SWAP did,
+     and it re-coloured instantly while the ring and the label eased around it.
+     Same var the rest of the site recolours on. */
+  transition:fill var(--accent-ease),stroke var(--accent-ease);
 }
-/* THE RESTING STROKE IS THE THICK ONE and it thins under the pointer, which is
-   backwards from most hovers on purpose: at rest the ring is doing the work of
-   being seen, in a gray of its own rather than --line, which is a hairline meant
-   for dividers and read as almost nothing at this diameter. Under the pointer
-   the accent arrives and carries the emphasis, so the ring can stand down.
+/* THE HOVER CHANGES COLOUR AND NOTHING ELSE, and that is the fix rather than a
+   simplification of one.
 
-   THE PADDING PAYS FOR THE WIDTH CHANGE. 13+3 and 14+2 are both 16, so the pill
-   and the label inside it do not move by a pixel on hover — everything here is
-   border-box and auto-width, and an uncompensated 3px-to-2px swap shifts the box
-   by two and its contents by one. Not animated for the same reason the width is
-   compensated: border-width is not in the transition list, so it snaps while the
-   colour fades. A growing ring at this size reads as a wobble. */
+   It used to thin the ring 3px -> 2px and pay for it with 13px -> 14px of
+   padding, so the box stayed the same size. The geometry was right — the pill
+   and the label measured identically in both states — and it still read as
+   broken, because border-width and padding are not animatable properties in
+   that rule's transition list. They SNAPPED on the frame the pointer arrived
+   while colour and border-colour were still 220ms from finishing. Two things
+   changed on the same gesture at two different speeds, so the triangle looked
+   like it was moving independently of the ring and the text. It was: everything
+   inside the border box jumped one pixel instantly, then the colours faded in
+   after it.
+
+   Making the hover ring 3px — a pixel thicker than it was, and the same as the
+   resting ring — removes the change instead of compensating for it. No width
+   swap, no padding swap, nothing to snap, and the padding compensation goes
+   with it. What is left is three colours easing on one curve.
+
+   The wash is what the ring's thinning used to be for: something that says
+   "under the pointer" beyond the accent arriving. At 7% it is barely a shade on
+   a near-black page, which is the right weight for a control that is already
+   growing a coloured ring, and unlike a border-width change it interpolates.
+
+   The resting ring keeps its own grey rather than --line, which is a hairline
+   meant for dividers and reads as almost nothing at this diameter. */
 .bb-play:hover,.bb-play:focus-visible{
-  padding:14px 26px;border-width:2px;
   color:var(--accent);border-color:var(--accent);
+  background-color:color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
 /* In-game control stack: outside the playfield on its right, vertical, shown
