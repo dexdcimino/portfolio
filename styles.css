@@ -1630,43 +1630,11 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   opacity:0;inset:-1.5px;width:24px;height:24px;
   color:var(--accent-ink,#080a0b);
 }
-/* THE SPECULAR SPECK, and it sits INSIDE the triangle rather than on the chip's
-   corner — the play glyph reading as something with a shine on it, not a button
-   with a badge stuck to it.
-
-   IT IS PLACED FROM THE ICON'S OWN GEOMETRY, not by eye. The mask is a 24-unit
-   viewBox (styles.css, [data-icon="play"]) whose path is `M8.4 5.9 v12.2 L18.2 12
-   Z` under a 3.4 round stroke, so the three vertices are (8.4,5.9), (8.4,18.1)
-   and the tip at (18.2,12). This marks the TOP one. Just below that vertex the
-   interior is a narrow wedge: at y=8.4 the hypotenuse has only reached x=12.4, so
-   the centre goes at (10.2,8.4) where the perpendicular clearance to that edge is
-   1.17 units — plus the 1.7 the stroke paints outward, which is what leaves room
-   for a 2-unit radius without the dot breaking the silhouette. The glyph is 24px
-   wide, so one viewBox unit is one pixel and those numbers are the pixel offsets
-   below, measured from the cell rather than from the glyph so they do not have to
-   be re-derived if the inset moves.
-
-   TRANSFORM-ORIGIN IS NOT DECORATION HERE. The chip and the glyph both scale from
-   the cell's centre on hover, because both are centred on it. This one is not
-   centred, so scaling it about ITSELF would hold it still while the triangle grew
-   underneath and the shine would slide off the corner it marks. The origin is
-   pushed to the cell's centre — 3.8px right and 5.6px down from the speck's own
-   top-left — so all three grow as one object.
-
-   A FLAT GREY IS RIGHT HERE, unlike on the chip. This dot sits on --accent-ink,
-   which is already contrast-picked, so it does not need deriving: --muted reads
-   at about 8.8:1 on the near-black ink six of the seven accents use. On blue,
-   the one accent whose ink is white, it lands around 1.4:1 — faint, which is
-   what a highlight on a white surface should be anyway. */
-.row-go::after{
-  content:"";position:absolute;left:6.7px;top:4.9px;
-  width:4px;height:4px;border-radius:50%;
-  background:var(--muted);
-  transform-origin:3.8px 5.6px;
-  opacity:0;
-  transition:opacity .18s ease,transform .2s ease,background-color var(--accent-ease);
-}
-.stack-row.is-current .row-go::after{opacity:1}
+/* .row-go::after is FREE. It briefly held a grey speck — first on the chip's top
+   corner, then as a shine inside the triangle — and both were removed on
+   2026-08-22. The chip is a plain accent square with a plain dark triangle on it
+   and that is the finished design, not a stage on the way to something. Anyone
+   adding a third thing to this cell should know two were already tried. */
 /* is-current marks the row whose artwork and description are showing —
    persistent, unlike the transient artwork-hover is-linked below. */
 .stack-row.is-current .row-arrow{opacity:0}
@@ -1679,8 +1647,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    play triangle it reads as a mistake, so that one grows instead. */
 .stack-row:hover .row-arrow,.stack-row.is-linked .row-arrow{transform:translate(2px,-2px)}
 .stack-row:hover .row-play,.stack-row.is-linked .row-play,
-.stack-row:hover .row-go::before,.stack-row.is-linked .row-go::before,
-.stack-row:hover .row-go::after,.stack-row.is-linked .row-go::after{transform:scale(1.12)}
+.stack-row:hover .row-go::before,.stack-row.is-linked .row-go::before{transform:scale(1.12)}
 
 /* Two-part description: bold lead, gap, body. Sits under the rows inside
    .stack; the rows' border-bottoms and the section grid are unchanged. */
