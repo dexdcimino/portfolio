@@ -23,11 +23,12 @@ several of these are one commit away from being untrue.
 4. **The `site-work` branch is fully merged and its worktree directory is gone**, and
    `arena1` is merged too. Both are prunable; `site-work` has no remote left.
    Verified: `git branch -a`.
-5. **Give `check_accents.py`, `check_cursors.py` and the two `--check`s a `--cases` mode.**
-   `check_sweep.py` has one and it is the only checker in the repo that can prove it still
-   bites. Everything else counts its subject but has no test that fails when the checker
-   goes blind — which is precisely the shape that has already cost this repo four incidents.
-   See `CLAUDE.md`, "Count the subject".
+5. ~~Give the remaining checkers a `--cases` mode~~ — **done 2026-08-22.** All eight gates
+   have one now. It paid for itself immediately: `bake_markup --check` had no empty-parse
+   guard, so a page whose directives stopped matching would have printed "0 image block(s)
+   current ... all present" and exited 0, and `check_markdown`'s interpolation scan could
+   match nothing and pass vacuously. Both were found by writing the case that should fail.
+   Verified: every `--cases` command in the `CLAUDE.md` table.
    Verified: `grep -l -- --cases tools/*.py` → `check_sweep.py` only.
 
 ## Blocked on Dex

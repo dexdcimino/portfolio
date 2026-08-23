@@ -384,8 +384,19 @@ python tools/check_accents.py        # "accent palette: 5 copies match script.js
 python tools/check_cursors.py        # "cursor set: 4 copies match script.js (3 cursors)"
 python tools/bake_markup.py --check  # "N image block(s) current, M derivative(s) referenced"
 python tools/bake_images.py --check  # "N master(s), M derivative(s), all present and current"
-python tools/check_sweep.py --cases  # "8 of 8 as expected" — the only checker that self-tests
 node   tools/check_markdown.mjs      # XSS payloads through a real parser; needs Chrome
+```
+
+**Every one of them also takes `--cases`**, which drives that checker's own decision
+function through the states it must refuse and asserts how many of those there are. Run it
+after touching a checker; a gate that cannot be shown to fail is the failure shape this
+repo has shipped four times.
+
+```
+python tools/check_sweep.py --cases    python tools/check_accents.py --cases
+python tools/check_pack.py   --cases   python tools/check_cursors.py --cases
+python tools/check_scope.py  --cases   python tools/bake_images.py   --cases
+node   tools/check_markdown.mjs --cases  python tools/bake_markup.py --cases
 ```
 
 - **They run → you are an EXECUTOR.** Start on the active focus below. Run the checks that

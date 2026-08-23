@@ -25,6 +25,12 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/bake_images.py --check` | every derivative exists and is newer than its master |
 | `python tools/check_sweep.py --cases` | the sweep checker can still refuse — 8 recorded cases |
 | `python tools/check_pack.py --cases` | the pack freshness gate can still refuse |
+| `python tools/check_accents.py --cases` | the palette checker can still refuse — 12 cases |
+| `python tools/check_cursors.py --cases` | the cursor checker can still refuse — 12 cases |
+| `python tools/check_scope.py --cases` | the scope checker can still refuse — both incidents |
+| `node   tools/check_markdown.mjs --cases` | the XSS detector fires on a renderer with the original bug |
+| `python tools/bake_images.py --cases` | `--check` fails on an empty walk |
+| `python tools/bake_markup.py --cases` | `--check` fails on an empty parse and a hand edit |
 | `node tools/check_markdown.mjs` | `renderMarkdown` cannot emit an event handler (needs Chrome) |
 | `python tools/context_pack.py` | rebuilds the context zip in the root, measured not typed |
 
@@ -366,10 +372,19 @@ So, for anything new that checks something:
 4. **A loop that emits checks emits none when its subject is empty**, so the suite total
    drops silently and everything still passes. Assert the size before the loop.
 
-Only two checkers here can currently prove they still bite: `check_sweep.py --cases` and
-`check_pack.py --cases`. Everything else counts its subject but has no test that fails when
-the checker goes blind. Giving the rest a `--cases` mode is on `docs/plan/BACKLOG.md`.
-Full history in `ARCHITECTURE.md`, "Writing a checker".
+**Every gate in this repo now has a `--cases` mode, and a new one is not finished without
+it.** Each drives the checker's own decision function — not a copy of it — through the
+states it must refuse, asserts how many of those there are, and asserts the live subject is
+still found. Writing them was worth it twice over: `bake_markup --check` turned out to have
+no empty-parse guard at all, so a page whose directives stopped matching would have printed
+"0 image block(s) current ... all present" and exited 0; and `check_markdown`'s
+interpolation scan could match nothing and pass vacuously. Both were found by writing the
+case that should fail, not by reading the code.
+
+The shape to copy, if you add a gate: a pure `verdict()` / `parse()` / `issues()` the hook
+and the table both call, a table with the refusals marked, an assertion on the table's own
+size, and one control proving the real subject is still discovered. Full history in
+`ARCHITECTURE.md`, "Writing a checker".
 
 ## Line endings are per file, and some files are MIXED
 
