@@ -290,10 +290,23 @@ async function cases() {
   }
 
   // And the detector itself, against a renderer that really is unsafe.
+  //
+  // ONLY THE ABSENCE OF CHROME IS SKIPPABLE. The first cut wrapped the assertions in the
+  // same try, so a detector that threw — or one that found nothing — came back as
+  // "browser: skipped (no Chrome)" and the run stayed green. That is a false green inside
+  // the mode written to abolish false greens, which is funny once and dangerous twice. So
+  // availability is probed first and separately; past that point every throw is a failure.
   let browser = 'skipped (no Chrome)';
+  let cdp = null;
   try {
-    const cdp = await import('../games/surveyor/dev/cdp.mjs');
+    cdp = await import('../games/surveyor/dev/cdp.mjs');
     cdp.findChrome();
+  } catch (e) {
+    cdp = null;
+    console.log(`  --   detector case SKIPPED — ${e.message.split('\n')[0]}`);
+  }
+
+  if (cdp) {
     const chrome = await cdp.launch({ width: 400, height: 300 });
     try {
       const page = await chrome.newPage();
@@ -324,8 +337,6 @@ async function cases() {
                   + `the DETECTOR fires on a renderer with the original bug`.padEnd(70)
                   + ` ${out.flagged} flagged`);
     } finally { await chrome.close(); }
-  } catch (e) {
-    console.log(`  --   detector case SKIPPED — ${e.message.split('\n')[0]}`);
   }
 
   const refuses = table.filter(([, , w]) => w > 0).length;
