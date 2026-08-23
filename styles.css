@@ -1621,40 +1621,48 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    colour need .row-go in front of them: `.row-go .icon` above sets all four, and
    a bare .row-play loses to it on specificity whatever the source order. */
 .row-go::before{
-  content:"";position:absolute;inset:-6px;border-radius:10px;
+  content:"";position:absolute;inset:-9.5px;border-radius:12px;
   background:var(--accent);opacity:0;
   transition:opacity .18s ease,transform .2s ease,background-color var(--accent-ease);
 }
 .stack-row.is-current .row-go::before{opacity:1}
 .row-go .row-play{
-  opacity:0;inset:2px;width:17px;height:17px;
+  opacity:0;inset:-1.5px;width:24px;height:24px;
   color:var(--accent-ink,#080a0b);
 }
-/* THE SPECK IN THE TOP CORNER, and it is not a fixed grey on purpose. Measured
-   against the palette: --muted (#aeb6bd) on the lime chip is a contrast ratio of
-   1.08, which is invisible, and there is no single grey that survives the whole
-   set — a mid grey disappears on red (#E02B2B and #4a5058 are within a point of
-   each other in luminance) and a light one disappears on lime. Every fixed value
-   is legible on some accents and absent on others, which is worse than either.
+/* THE SPECULAR SPECK, and it sits INSIDE the triangle rather than on the chip's
+   corner — the play glyph reading as something with a shine on it, not a button
+   with a badge stuck to it.
 
-   So it is mixed from --accent-ink, the contrast-picked value the chip's own
-   triangle uses, TOWARD A NEUTRAL rather than toward transparent. Both inputs
-   are grey, so the result cannot pick up the accent's hue — the first cut was
-   45% ink over the chip and came out olive on lime, which is a tinted dot and
-   not the grey one asked for. Mixing 60/40 with #808080 instead: ink black ->
-   #333, ink white -> #ccc. Always neutral, and always leaning away from its own
-   accent, because accentInk() already chose dark ink for a light accent and
-   light ink for a dark one. Measured on lime: 3.3:1, a speck you can see and
-   not a second black dot.
+   IT IS PLACED FROM THE ICON'S OWN GEOMETRY, not by eye. The mask is a 24-unit
+   viewBox (styles.css, [data-icon="play"]) whose path is `M8.4 5.9 v12.2 L18.2 12
+   Z` under a 3.4 round stroke, so the three vertices are (8.4,5.9), (8.4,18.1)
+   and the tip at (18.2,12). This marks the TOP one. Just below that vertex the
+   interior is a narrow wedge: at y=8.4 the hypotenuse has only reached x=12.4, so
+   the centre goes at (10.2,8.4) where the perpendicular clearance to that edge is
+   1.17 units — plus the 1.7 the stroke paints outward, which is what leaves room
+   for a 2-unit radius without the dot breaking the silhouette. The glyph is 24px
+   wide, so one viewBox unit is one pixel and those numbers are the pixel offsets
+   below, measured from the cell rather than from the glyph so they do not have to
+   be re-derived if the inset moves.
 
-   The flat --muted underneath is the pre-color-mix fallback (Safari < 16.2). It
-   is the wrong grey on lime, which is the trade: a faint speck on old Safari,
-   against no speck at all. */
+   TRANSFORM-ORIGIN IS NOT DECORATION HERE. The chip and the glyph both scale from
+   the cell's centre on hover, because both are centred on it. This one is not
+   centred, so scaling it about ITSELF would hold it still while the triangle grew
+   underneath and the shine would slide off the corner it marks. The origin is
+   pushed to the cell's centre — 3.8px right and 5.6px down from the speck's own
+   top-left — so all three grow as one object.
+
+   A FLAT GREY IS RIGHT HERE, unlike on the chip. This dot sits on --accent-ink,
+   which is already contrast-picked, so it does not need deriving: --muted reads
+   at about 8.8:1 on the near-black ink six of the seven accents use. On blue,
+   the one accent whose ink is white, it lands around 1.4:1 — faint, which is
+   what a highlight on a white surface should be anyway. */
 .row-go::after{
-  content:"";position:absolute;top:-2px;right:-2px;
-  width:5px;height:5px;border-radius:50%;
+  content:"";position:absolute;left:6.7px;top:4.9px;
+  width:4px;height:4px;border-radius:50%;
   background:var(--muted);
-  background:color-mix(in srgb, var(--accent-ink, #080a0b) 60%, #808080);
+  transform-origin:3.8px 5.6px;
   opacity:0;
   transition:opacity .18s ease,transform .2s ease,background-color var(--accent-ease);
 }
