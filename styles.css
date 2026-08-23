@@ -1752,14 +1752,45 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 
 /* The enlarge view — the wallpaper lightbox's little sibling: image large,
    x/x centred underneath between the two arrows; arrows grey out (disabled)
-   rather than vanish when there is only one shot, per Dex. */
+   rather than vanish when there is only one shot, per Dex.
+
+   THE STAGE IS A DEFINITE BOX, and that is what keeps the arrows still. The
+   image used to size itself — width:auto, height:auto under a max-width/
+   max-height cap — so the stage was exactly as tall as whatever screenshot was
+   in it, and the bar beneath it rode up and down by hundreds of pixels between
+   a wide panel and a tall one. Stepping through a set meant chasing the arrows
+   with the pointer.
+
+   Both of the other overlay galleries already solved this and neither needed
+   saying: .wp-full pins an explicit width and aspect-ratio, .gal-stage pins an
+   aspect-ratio, and in both the arrows live in grid columns beside a box that
+   cannot change size. This is the same fix in the same shape — a fixed stage,
+   the image contained inside it, the controls hung off the stage rather than
+   off the picture. The close button in the shell's corner stops wandering with
+   it, which it also did.
+
+   The cost is honest and small: a short wide screenshot floats centred with air
+   under it instead of sitting tight above the bar. That is the trade for a
+   control that is in the same place every time, which is what was asked for. */
 .app-shot-modal{border:0;padding:0;background:transparent;max-width:none;max-height:none}
 .app-shot-modal::backdrop{background:rgba(3,5,7,.9);backdrop-filter:blur(6px)}
 .app-shot-shell{position:relative;display:grid;justify-items:center;gap:14px}
 .app-shot-close{position:absolute;top:-6px;right:-52px;z-index:4}
 @media (max-width:1200px){.app-shot-close{top:-46px;right:0}}
+.app-shot-stage{
+  width:min(92vw,1400px);height:76vh;
+  display:grid;place-items:center;
+}
+/* The caps stay in VIEWPORT UNITS, matching the stage's own two dimensions,
+   rather than becoming max-width/max-height:100% of it. The percentage form
+   looks equivalent and is not: measured, a 900x900 image came out 904x904
+   inside a 687px-tall stage and a 1835x1167 came out 1363x869 — the percentage
+   never constrained the height at all, so tall shots overflowed the fixed box
+   and would have run under the arrow bar. Same two numbers as before this
+   change; only the stage around them is new. */
 .app-shot-stage img{
-  display:block;width:auto;height:auto;max-width:min(92vw,1400px);max-height:76vh;
+  display:block;width:auto;height:auto;
+  max-width:min(92vw,1400px);max-height:76vh;
   border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);
 }
 .app-shot-bar{display:flex;align-items:center;gap:16px}
