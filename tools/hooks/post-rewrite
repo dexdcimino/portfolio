@@ -1,0 +1,51 @@
+#!/bin/sh
+# Rebuild the context pack after a command that REWROTE history — `git rebase` and
+# `git commit --amend` are the two git fires this for.
+#
+# WHY post-commit IS NOT ENOUGH. A rebase moves HEAD to commits that were never the subject
+# of a `git commit`, so post-commit never runs for them and the pack silently goes on
+# describing a HEAD that no longer exists in the branch. That is the worst shape a stale
+# pack can take: the zip is present, recent, and confidently wrong. `tools/check_pack.py`
+# would catch it on the next commit, but "caught eventually by the gate" is a worse outcome
+# than "never stale in the first place" when closing it costs one hook.
+#
+# THE STDIN MUST BE DRAINED. git writes one `<old-sha> <new-sha>` line per rewritten commit
+# to this hook's stdin. A hook that exits without reading leaves git writing into a closed
+# pipe, and on a long rebase that is a SIGPIPE and a confusing error on an operation that
+# actually succeeded. We do not need the list — HEAD is the only thing that matters here —
+# so it is read and dropped, deliberately, rather than ignored.
+#
+# IT ASKS check_pack RATHER THAN GUESSING whether there is work to do. `git commit --amend`
+# fires post-commit AND post-rewrite, so a naive rebuild here would build the pack twice for
+# every amend, about nine seconds of it. Reusing the gate means this hook does nothing at all
+# when the pack is already current, whatever combination of hooks ran before it — and the
+# one decision about what "current" means stays in one function.
+#
+# Installed by: python tools/bake_images.py --install-hooks
+# POSIX sh on purpose: this has to run under Git Bash on Windows.
+
+cat > /dev/null
+
+PY=python
+command -v python >/dev/null 2>&1 || PY=python3
+
+if ! command -v $PY >/dev/null 2>&1; then
+    printf 'post-rewrite: no python, context pack NOT rebuilt — it is now stale\n' >&2
+    exit 0
+fi
+
+# Already current — post-commit got there first, as it does for an amend. Silent, because a
+# line printed on every amend is a line nobody reads.
+if $PY tools/check_pack.py >/dev/null 2>&1; then
+    exit 0
+fi
+
+if out=$($PY tools/context_pack.py --quiet 2>&1); then
+    printf 'post-rewrite: %s\n' "$(printf '%s\n' "$out" | grep -E 'context-pack[.]zip +[0-9]+ files' | tail -1 | sed 's/^ *//')"
+else
+    printf 'post-rewrite: CONTEXT PACK BUILD FAILED — the pack in the root is now stale\n' >&2
+    printf '%s\n' "$out" >&2
+    printf 'post-rewrite: the next commit will be blocked by check_pack.py until this is fixed\n' >&2
+fi
+
+exit 0
