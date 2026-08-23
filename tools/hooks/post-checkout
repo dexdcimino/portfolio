@@ -1,0 +1,61 @@
+#!/bin/sh
+# Rebuild the context pack after a checkout that moved HEAD to a different commit.
+#
+# WHY THIS ONE EXISTS. It bit for real on 2026-08-22: a scratch branch was created, three
+# commits were made on it, the branch was deleted, and main got its pack back describing
+# 7286dcd — a commit that no longer existed in any branch. check_pack.py refused the next
+# commit, which is the backstop working, but "blocked at the next commit" is a worse outcome
+# than "never stale" when a branch switch is an ordinary thing to do and closing it costs
+# one hook.
+#
+# git passes three arguments: <old-head> <new-head> <flag>, where flag is 1 for a branch
+# checkout and 0 for a file checkout. **The flag matters.** `git checkout -- some/file`
+# fires this hook with flag 0 and HEAD unmoved, and rebuilding a 780 KB zip every time
+# somebody discards one file's changes is five seconds of nothing, several times an hour.
+# Same reasoning for old == new, which is what `git checkout <current-branch>` looks like.
+#
+# It asks check_pack rather than deciding for itself whether the pack is stale, exactly as
+# post-rewrite does: one definition of "current", in one function, and the hook does nothing
+# at all when there is nothing to do.
+#
+# STILL NOT COVERED, and left that way: `git merge` and `git reset`. Both move HEAD without
+# firing any hook here, and check_pack at the next pre-commit remains the backstop. That is
+# the right weight for two operations that are rare in this repo — unlike a branch switch.
+#
+# Installed by: python tools/bake_images.py --install-hooks
+# POSIX sh on purpose: this has to run under Git Bash on Windows.
+
+old_head="$1"
+new_head="$2"
+branch_checkout="$3"
+
+# File checkout, not a branch one. HEAD did not move; there is nothing to be stale against.
+[ "$branch_checkout" = "1" ] || exit 0
+
+# Same commit either side — checking out the branch you are already on, or a checkout that
+# only changed the ref name. Nothing to rebuild.
+[ "$old_head" = "$new_head" ] && exit 0
+
+PY=python
+command -v python >/dev/null 2>&1 || PY=python3
+
+if ! command -v $PY >/dev/null 2>&1; then
+    printf 'post-checkout: no python, context pack NOT rebuilt — it is now stale\n' >&2
+    exit 0
+fi
+
+# Already current — nothing to say, and a line printed on every branch switch is a line
+# nobody reads.
+if $PY tools/check_pack.py >/dev/null 2>&1; then
+    exit 0
+fi
+
+if out=$($PY tools/context_pack.py --quiet 2>&1); then
+    printf 'post-checkout: %s\n' "$(printf '%s\n' "$out" | grep -E 'context-pack[.]zip +[0-9]+ files' | tail -1 | sed 's/^ *//')"
+else
+    printf 'post-checkout: CONTEXT PACK BUILD FAILED — the pack in the root is now stale\n' >&2
+    printf '%s\n' "$out" >&2
+    printf 'post-checkout: the next commit will be blocked by check_pack.py until this is fixed\n' >&2
+fi
+
+exit 0

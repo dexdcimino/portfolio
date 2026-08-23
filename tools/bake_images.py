@@ -247,17 +247,23 @@ def check() -> int:
 def install_hooks() -> int:
     """Copy the versioned hooks into .git/hooks/ and mark them executable.
 
-    Four of them now. pre-commit bakes images and markup and refuses a stale context pack;
+    Five of them now. pre-commit bakes images and markup and refuses a stale context pack;
     commit-msg refuses a commit that reaches across unrelated projects — see
-    tools/check_scope.py; post-commit rebuilds the context pack against the commit that just
-    landed; post-rewrite does the same after a rebase or an amend, which move HEAD to commits
-    `git commit` never ran for. They are separate hooks because they need different things:
-    one runs before the message exists, one cannot work without it, and the last two have to
-    wait until the tree is clean, which is the instant AFTER the commit.
+    tools/check_scope.py; and three keep the context pack honest against every ordinary way
+    HEAD moves — post-commit for a commit, post-rewrite for a rebase or an amend, and
+    post-checkout for a branch switch. They are separate hooks because they need different
+    things: one runs before the message exists, one cannot work without it, and the last
+    three have to wait until the tree is settled.
 
-    Still not covered, and left that way on purpose: `git merge` and `git reset` also move
-    HEAD without firing any of these. check_pack.py at the next pre-commit is the backstop
-    for both, and a backstop is the right weight for two operations nobody does daily here.
+    The three pack hooks all ASK check_pack.py rather than deciding for themselves, so the
+    definition of "current" lives in one function and each of them does nothing at all when
+    there is nothing to do. That matters more than it sounds: an amend fires two of them.
+
+    Still not covered, and left that way on purpose: `git merge` and `git reset` move HEAD
+    without firing any of these. check_pack.py at the next pre-commit is the backstop for
+    both, and a backstop is the right weight for two operations that are rare here — unlike
+    a branch switch, which is not, and which is why post-checkout was added the day one
+    left a stale pack behind on main.
 
     This is deliberately the one installer for all of them. CLAUDE.md and docs/ONBOARDING.md
     both send a fresh clone here, and a second installer script would be a second thing to
@@ -268,7 +274,8 @@ def install_hooks() -> int:
         print("ERROR: .git/hooks not found — run this from inside the repo", file=sys.stderr)
         return 1
 
-    for name in ("pre-commit", "commit-msg", "post-commit", "post-rewrite"):
+    for name in ("pre-commit", "commit-msg", "post-commit", "post-rewrite",
+                 "post-checkout"):
         src = ROOT / "tools" / "hooks" / name
         if not src.exists():
             print(f"ERROR: {src.relative_to(ROOT).as_posix()} not found", file=sys.stderr)
