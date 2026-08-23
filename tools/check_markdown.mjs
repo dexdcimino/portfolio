@@ -95,25 +95,35 @@ function source() {
   return js.slice(start, end === -1 ? js.length : end);
 }
 
-function staticPass() {
-  const fn = source();
-  if (!fn) { fail('renderMarkdown() not found in script.js'); return; }
+/* Every static rejection, as a pure function of the renderer's SOURCE TEXT.
+ * Split out of staticPass() on 2026-08-22 so --cases can feed it renderers that are
+ * deliberately broken. Returns { issues, checks }: issues empty means clean.
+ *
+ * The interpolation scan is the one that needed this most. It is a matchAll over the
+ * function body, and a matchAll that finds NOTHING — because the renderer was rewritten
+ * to build attributes some other way — contributes zero failures and zero checks, which
+ * is indistinguishable from a renderer that interpolates safely. Hence `checks` is
+ * returned and the caller asserts on it. */
+function staticIssues(fn) {
+  const issues = [];
   let checks = 0;
+  if (!fn) return { issues: ['renderMarkdown() not found in script.js'], checks };
 
   // 1. esc() still neutralises both quote characters. Without these the link
   //    target escapes its attribute, which is the original bug.
   const esc = fn.slice(fn.indexOf('const esc'), fn.indexOf('const safeHref'));
   for (const [what, needle] of [['double', '&quot;'], ['single', '&#39;']]) {
     checks++;
-    if (!esc.includes(needle)) fail(`esc() no longer escapes the ${what} quote — a link target can break out of its attribute`);
+    if (!esc.includes(needle)) issues.push(`esc() no longer escapes the ${what} quote — a link target can break out of its attribute`);
   }
 
   // 2. Every attribute the renderer interpolates into is one it is allowed to
   //    emit. This is the one that catches a hole that does not exist yet.
+  let interpolations = 0;
   for (const m of fn.matchAll(/([a-zA-Z-]+)="\$\{/g)) {
-    checks++;
+    checks++; interpolations++;
     if (!ALLOWED_ATTRS.includes(m[1])) {
-      fail(`renderMarkdown interpolates into ${m[1]}="…", which is not in the allowlist `
+      issues.push(`renderMarkdown interpolates into ${m[1]}="…", which is not in the allowlist `
            + `(${ALLOWED_ATTRS.join(', ')}). Add a payload for it here, then widen the list.`);
     }
   }
@@ -122,12 +132,61 @@ function staticPass() {
   //    different function with the same name.
   checks++;
   if (!/safeHref\s*=\s*\(h\)\s*=>\s*\(\s*\/\^\(/.test(fn.replace(/\s+/g, ' '))
-      && !fn.includes('safeHref')) fail('safeHref() is gone — link targets are no longer filtered by scheme');
+      && !fn.includes('safeHref')) issues.push('safeHref() is gone — link targets are no longer filtered by scheme');
+
+  return { issues, checks, interpolations };
+}
+
+function staticPass() {
+  const { issues, checks, interpolations } = staticIssues(source());
+  for (const i of issues) fail(i);
+
+  // The renderer builds at least one attribute by interpolation — it emits links. If that
+  // count is zero the scan above examined nothing and check 2 passed vacuously, which is
+  // the failure shape in CLAUDE.md, "Count the subject".
+  if (!issues.length && !interpolations) {
+    fail('the interpolation scan matched NOTHING — renderMarkdown no longer builds '
+         + 'attributes the way this check knows how to read. It is not passing, it is blind.');
+    return;
+  }
 
   if (!process.exitCode) console.log(`check_markdown: static — ${checks} source invariant(s) hold`);
 }
 
 /* --------------------------------------------------------------- browser ---- */
+
+/* The judgement, as source text so it can run inside the page against ANY renderer.
+ *
+ * It used to be inline in browserPass's template literal, where it could only ever be
+ * pointed at the real renderMarkdown — which meant a clean run proved the renderer safe
+ * and proved nothing at all about the detector. Extracted on 2026-08-22 so `--cases` can
+ * run this same code against a deliberately unsafe renderer and require it to complain.
+ * A detector that cannot be shown to fire is decoration. */
+const DETECTOR = `(render, payloads, attrs, tags) => payloads.map(([name, md]) => {
+  const host = document.createElement('div');
+  host.innerHTML = render(md);
+  const problems = [];
+  for (const el of host.querySelectorAll('*')) {
+    if (!tags.includes(el.tagName)) problems.push('tag <' + el.tagName.toLowerCase() + '>');
+    for (const a of el.attributes) {
+      if (/^on/i.test(a.name)) problems.push('EVENT HANDLER ' + a.name);
+      else if (!attrs.includes(a.name)) problems.push('attribute ' + a.name);
+    }
+    const href = el.getAttribute('href');
+    if (href && /^\\s*(javascript|data|vbscript):/i.test(href)) problems.push('scheme ' + href.slice(0, 30));
+  }
+  return { name, problems };
+})`;
+
+/* A renderer with the ORIGINAL BUG in it: escapes < > &, leaves quotes alone. That is
+ * exactly what shipped on 2026-08-19 — the link target closed its own attribute and what
+ * followed became an event handler. Used only by --cases, as the thing the detector must
+ * catch. Kept beside the detector so the two cannot drift apart. */
+const UNSAFE_RENDER = `(md) => {
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return md.replace(/\\[([^\\]]*)\\]\\(([^)]*)\\)/g,
+                    (_, t, h) => '<a href="' + esc(h) + '">' + esc(t) + '</a>');
+}`;
 
 async function browserPass() {
   let cdp;
@@ -150,24 +209,8 @@ async function browserPass() {
 
     const results = await cdp.evaluate(page, `(() => {
       if (typeof renderMarkdown !== 'function') return 'MISSING';
-      const payloads = ${JSON.stringify(PAYLOADS)};
-      const attrs = ${JSON.stringify(ALLOWED_ATTRS)};
-      const tags = ${JSON.stringify(ALLOWED_TAGS)};
-      return payloads.map(([name, md]) => {
-        const host = document.createElement('div');
-        host.innerHTML = renderMarkdown(md);
-        const problems = [];
-        for (const el of host.querySelectorAll('*')) {
-          if (!tags.includes(el.tagName)) problems.push('tag <' + el.tagName.toLowerCase() + '>');
-          for (const a of el.attributes) {
-            if (/^on/i.test(a.name)) problems.push('EVENT HANDLER ' + a.name);
-            else if (!attrs.includes(a.name)) problems.push('attribute ' + a.name);
-          }
-          const href = el.getAttribute('href');
-          if (href && /^\\s*(javascript|data|vbscript):/i.test(href)) problems.push('scheme ' + href.slice(0, 30));
-        }
-        return { name, problems };
-      });
+      return (${DETECTOR})(renderMarkdown, ${JSON.stringify(PAYLOADS)},
+                           ${JSON.stringify(ALLOWED_ATTRS)}, ${JSON.stringify(ALLOWED_TAGS)});
     })()`);
 
     if (results === 'MISSING') { fail('renderMarkdown() is not reachable on the page'); return; }
@@ -181,6 +224,119 @@ async function browserPass() {
     await chrome.close();
     site.close();
   }
+}
+
+/* ----------------------------------------------------------------- cases ---- */
+
+/* Prove this checker can still refuse. Doctrine rule 12; CLAUDE.md, "Count the subject".
+ *
+ * This is the XSS gate, so "it printed 24 hostile payload(s) and exited 0" is worth
+ * exactly as much as the demonstration that it would have said something else. Both
+ * halves are driven: staticIssues() against renderers broken one invariant at a time,
+ * and — when there is a browser — the real DETECTOR against a renderer carrying the
+ * original 2026-08-19 bug. */
+const GOOD_SRC = `function renderMarkdown(md) {
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const safeHref = (h) => (/^(https?:|mailto:|#|\\/)/i.test(h) ? h : '#');
+  out.push(\`<a href="\${esc(safeHref(h))}" target="_blank" rel="noopener">\${esc(t)}</a>\`);
+  return out.join('');
+}`;
+
+async function cases() {
+  const table = [
+    ['a sound renderer passes', GOOD_SRC, 0],
+    ['THE ORIGINAL BUG: esc() stops escaping the double quote',
+     GOOD_SRC.replace(".replace(/\"/g, '&quot;')", ''), 1],
+    ['esc() stops escaping the single quote',
+     GOOD_SRC.replace(".replace(/'/g, '&#39;')", ''), 1],
+    ['both quote escapes gone is two failures',
+     GOOD_SRC.replace(".replace(/\"/g, '&quot;')", '').replace(".replace(/'/g, '&#39;')", ''), 2],
+    ['interpolating into an EVENT HANDLER is caught',
+     GOOD_SRC.replace('target="_blank"', 'onclick="${h}"'), 1],
+    ['interpolating into src= is caught (a hole that does not exist yet)',
+     GOOD_SRC.replace('target="_blank"', 'src="${h}"'), 1],
+    ['losing safeHref is caught',
+     GOOD_SRC.replace(/const safeHref[^\n]*\n/, '').replace('safeHref(h)', 'h'), 1],
+    ['an EMPTY renderer is refused, never reported clean', '', 1],
+  ];
+
+  let bad = 0;
+  for (const [name, src, want] of table) {
+    const { issues } = staticIssues(src);
+    const ok = issues.length === want;
+    if (!ok) bad++;
+    console.log(`  ${ok ? 'ok  ' : 'WRONG'} ${name.padEnd(64)} ${issues.length} issue(s) (wanted ${want})`);
+    if (!ok) for (const i of issues) console.log(`         -> ${i}`);
+  }
+
+  // The payload list is the browser half's entire subject. A trimmed one still prints a
+  // confident sentence, so its size is asserted rather than reported.
+  if (PAYLOADS.length < 20 || ALLOWED_ATTRS.length === 0 || ALLOWED_TAGS.length === 0) {
+    console.error(`check_markdown --cases: subject gutted — ${PAYLOADS.length} payload(s), `
+                  + `${ALLOWED_ATTRS.length} attr(s), ${ALLOWED_TAGS.length} tag(s)`);
+    return 1;
+  }
+  // Named against the payload list as it actually reads, not against a guess at it —
+  // a "covers the classic vectors" assertion that names vectors nobody used is a check
+  // that fails for the wrong reason and gets deleted rather than fixed.
+  const names = PAYLOADS.map(([n]) => n).join(' ').toLowerCase();
+  for (const vector of ['quote', 'javascript', 'onload', 'script tag', 'data:']) {
+    if (!names.includes(vector)) {
+      console.error(`check_markdown --cases: no payload mentions "${vector}" — the classic `
+                    + `vectors are not all covered any more`);
+      return 1;
+    }
+  }
+
+  // And the detector itself, against a renderer that really is unsafe.
+  let browser = 'skipped (no Chrome)';
+  try {
+    const cdp = await import('../games/surveyor/dev/cdp.mjs');
+    cdp.findChrome();
+    const chrome = await cdp.launch({ width: 400, height: 300 });
+    try {
+      const page = await chrome.newPage();
+      await page.send('Runtime.enable');
+      const out = await cdp.evaluate(page, `(() => {
+        const det = ${DETECTOR};
+        const bad = det(${UNSAFE_RENDER}, ${JSON.stringify(PAYLOADS)},
+                        ${JSON.stringify(ALLOWED_ATTRS)}, ${JSON.stringify(ALLOWED_TAGS)});
+        const safe = det((md) => '<p>' + md.replace(/[&<>"']/g, '') + '</p>',
+                         ${JSON.stringify(PAYLOADS)},
+                         ${JSON.stringify(ALLOWED_ATTRS)}, ${JSON.stringify(ALLOWED_TAGS)});
+        return { flagged: bad.filter(r => r.problems.length).length,
+                 clean: safe.filter(r => r.problems.length).length };
+      })()`);
+      if (!out.flagged) {
+        console.error('check_markdown --cases: the detector found NOTHING wrong with a '
+                      + 'renderer carrying the original bug. It cannot fire.');
+        bad++;
+      }
+      if (out.clean) {
+        console.error(`check_markdown --cases: the detector flagged ${out.clean} payload(s) `
+                      + 'on a renderer that strips every dangerous character — false positives.');
+        bad++;
+      }
+      browser = `unsafe renderer flagged on ${out.flagged}/${PAYLOADS.length} payloads, `
+                + `sound renderer flagged on ${out.clean}`;
+      console.log(`  ${out.flagged && !out.clean ? 'ok  ' : 'WRONG'} `
+                  + `the DETECTOR fires on a renderer with the original bug`.padEnd(70)
+                  + ` ${out.flagged} flagged`);
+    } finally { await chrome.close(); }
+  } catch (e) {
+    console.log(`  --   detector case SKIPPED — ${e.message.split('\n')[0]}`);
+  }
+
+  const refuses = table.filter(([, , w]) => w > 0).length;
+  console.log(`check_markdown --cases: ${table.length - bad} of ${table.length} as expected `
+              + `(${refuses} of them proving it still refuses; ${PAYLOADS.length} payloads; `
+              + `browser: ${browser})`);
+  return bad ? 1 : 0;
+}
+
+if (process.argv.includes('--cases')) {
+  process.exit(await cases());
 }
 
 staticPass();
