@@ -1655,23 +1655,43 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    the two can never drift into two different highlights. */
 .stack-row:hover,.stack-row.is-linked{background:rgba(255,255,255,.04);padding-left:20px}
 /* The diagonal nudge is the arrow miming its own direction of travel — on the
-   play triangle it reads as a mistake, so that one grows instead. */
+   play triangle it reads as a mistake, so that one grows instead. The ARROW
+   still answers to the whole row: it is the row's own affordance, marking a
+   link you follow by clicking anywhere along it. The chip below is not. */
 .stack-row:hover .row-arrow,.stack-row.is-linked .row-arrow{transform:translate(2px,-2px)}
-.stack-row:hover .row-play,.stack-row.is-linked .row-play,
-.stack-row:hover .row-go::before,.stack-row.is-linked .row-go::before{transform:scale(1.12)}
-/* HOVER INVERTS THE CHIP: the accent moves from the fill to the ring and the
-   triangle, and the fill goes to the page's own black. Same silhouette, same
-   12px corners, same 40px box — the border eats inward from the inset rather
-   than growing the outer edge, so nothing around it moves.
+
+/* THE CHIP ANSWERS TO ITSELF, NOT TO THE ROW. Everything below hangs off
+   .row-go:hover rather than .stack-row:hover, so the play button only takes its
+   hovered look when the pointer is actually on the button. Row-wide hover made
+   the whole thing invert whenever the pointer was anywhere in a 600px row,
+   which reads as the button reacting to something that is not a press on it.
+
+   .row-go IS ONLY 21x21 AND THAT IS STILL ENOUGH. The visible chip is 40px,
+   painted by a ::before hanging 9.5px outside the cell on every side — and a
+   pseudo-element is a box belonging to its originator, so hit-testing anywhere
+   on it reports a hover on .row-go. The hoverable area and the painted area are
+   the same 40px without the cell growing and moving the row's layout, which is
+   the whole reason the cell is pinned at 21px. Do not "fix" this by sizing
+   .row-go up to match.
+
+   is-linked is gone from these too. It is the artwork preview reaching back to
+   light its row, which is a statement about the ROW; the button inverting
+   because the pointer is somewhere else entirely on the page is the same wrong
+   answer at longer range. */
+.row-go:hover .row-play,.row-go:hover::before{transform:scale(1.12)}
+/* Accent moves from the fill to the ring and the triangle, and the fill goes to
+   the page's own black. Same silhouette, same 12px corners, same 40px box — the
+   border eats inward from the inset rather than growing the outer edge, so
+   nothing around it moves.
 
    --page-bg rather than --accent-ink for the fill. The ink is contrast-picked
    against the accent, which means it is WHITE on the one dark accent, and
    "inverted" would have come out as a white square there. The page's own black
    is black on all seven. */
-.stack-row:hover .row-go::before,.stack-row.is-linked .row-go::before{
+.row-go:hover::before{
   background-color:var(--page-bg);border-color:var(--accent);
 }
-.stack-row:hover .row-play,.stack-row.is-linked .row-play{color:var(--accent)}
+.row-go:hover .row-play{color:var(--accent)}
 
 /* Two-part description: bold lead, gap, body. Sits under the rows inside
    .stack; the rows' border-bottoms and the section grid are unchanged. */
