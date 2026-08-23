@@ -3065,10 +3065,17 @@ const MediaBus = (() => {
      keep their own clicks, so the scrubber and the chips are unaffected. */
   big.addEventListener('click', () => { video.paused ? play() : video.pause(); });
   toggle.addEventListener('click', () => { video.paused ? play() : video.pause(); });
-  // Two sets of prev/next: the ones on the frame's edges and the ones in the
-  // control bar. Same handler, so they cannot drift.
-  document.querySelectorAll('#clPrev, .cl-prev').forEach(b => b.addEventListener('click', () => select(index - 1)));
-  document.querySelectorAll('#clNext, .cl-next').forEach(b => b.addEventListener('click', () => select(index + 1)));
+  /* Two sets of prev/next: the ones on the frame's edges and the ones in the
+     control bar. Same handler, so they cannot drift.
+
+     THEY AUTOPLAY, like the thumbnails always have. select() has taken an
+     autoplay flag since it was written and these two were the only callers not
+     passing it, so stepping to the next clip landed on a poster and waited for
+     a second click — the thumbnail beside it did not. Nothing new is needed for
+     it to work: a click IS the user gesture the autoplay policy wants, which is
+     why the thumbnail path has never been refused. */
+  document.querySelectorAll('#clPrev, .cl-prev').forEach(b => b.addEventListener('click', () => select(index - 1, true)));
+  document.querySelectorAll('#clNext, .cl-next').forEach(b => b.addEventListener('click', () => select(index + 1, true)));
 
   loopBtn.addEventListener('click', () => {
     loop = !loop;
