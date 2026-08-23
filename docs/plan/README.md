@@ -1,6 +1,6 @@
 # Plan
 
-**Current:** static site is shipped — the open arc is real Work content, then the games' own roadmaps
+**Current:** the site is shipped — next is real Work content, then the games' own roadmaps
 
 The line above is the project's arc in a few words. It is **fixed**: the same text in every
 context pack, every phase and every reply, so it never carries phase status. Change it when
