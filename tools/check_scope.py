@@ -1,6 +1,7 @@
 """Reject a commit that reaches across unrelated parts of the repo.
 
     python tools/check_scope.py <path-to-commit-message>
+    python tools/check_scope.py --cases        # prove it can still refuse
 
 Run from .git/hooks/commit-msg. It reads the staged tree and the message, and
 it exits non-zero if one commit touches more than one PROJECT without saying so.
@@ -89,7 +90,117 @@ def message_text(path: Path) -> str:
     return "\n".join(l for l in raw.splitlines() if not l.lstrip().startswith("#"))
 
 
+def verdict(paths: list[str], message: str) -> tuple[bool, str, list[str]]:
+    """(allowed, why, units). The WHOLE decision, so the hook and --cases share one.
+
+    Lifted out of main() on 2026-08-22 when this checker got a --cases mode. It had no way
+    to prove it still refuses anything — and for a checker whose entire job is refusing,
+    that is the failure shape in CLAUDE.md, "Count the subject". This one guards two
+    incidents that already happened, so a silent regression here is a regression to the
+    state that cost 544 lines.
+    """
+    if not paths:
+        return True, "nothing staged", []
+
+    units = sorted({unit_of(p) for p in paths})
+    if len(units) < 2:
+        return True, "one project", units
+    if exempt(set(units), paths):
+        return True, "the documented add-an-image pairing", units
+
+    spans = [l for l in message.splitlines() if l.strip().lower().startswith("spans:")]
+    if not spans:
+        return False, "reaches across unrelated projects", units
+
+    missing = [u for u in units if u not in spans[0]]
+    if missing:
+        return False, f"the Spans: line does not name {', '.join(missing)}", units
+    return True, "declared with a Spans: line", units
+
+
+# A commit message with the Spans line where a real one sits: after a blank line.
+def msg(subject: str, spans_line: str = "") -> str:
+    return (subject + "\n\n" + spans_line) if spans_line else subject
+
+
+def cases() -> int:
+    """Drive verdict() through every state, with both recorded incidents among them."""
+    G = "games/surveyor/js/main.js"
+    table = [
+        # (name, staged paths, message, allowed?)
+        ("one project passes", ["styles.css", "index.html"], msg("tidy"), True),
+        ("one game passes", [G, "games/surveyor/README.md"], msg("surveyor fix"), True),
+        ("nothing staged passes", [], msg("empty"), True),
+
+        ("INCIDENT 55e52cb: a styles.css commit that also reverted ten surveyor files",
+         ["styles.css", G], msg("AI Lab: stop the thumbnail hover being clipped"), False),
+        ("INCIDENT 2026-08-16: one session sweeping another session's game",
+         ["games/chomp/js/main.js", G], msg("chomp work"), False),
+
+        ("two top-level dirs is refused", ["tools/x.py", "docs/y.md"], msg("both"), False),
+        ("a game plus the root is refused", [G, "script.js"], msg("fix"), False),
+
+        ("Spans naming every unit passes",
+         ["tools/x.py", "docs/y.md"], msg("both", "Spans: docs, tools"), True),
+        ("Spans naming only SOME of them is refused",
+         ["tools/x.py", "docs/y.md"], msg("both", "Spans: tools"), False),
+        ("the Spans key is case-insensitive",
+         ["tools/x.py", "docs/y.md"], msg("both", "spans: docs, tools"), True),
+        ("Spans must name the root unit explicitly",
+         [G, "script.js"], msg("fix", "Spans: games/surveyor"), False),
+        ("Spans naming the root unit passes",
+         [G, "script.js"], msg("fix", "Spans: <root>, games/surveyor"), True),
+
+        ("the add-an-image exemption passes",
+         ["assets/a.png", "assets/derived/a-900.avif", "index.html"], msg("new image"), True),
+        ("the exemption is NARROW: a second root file breaks it",
+         ["assets/a.png", "index.html", "script.js"], msg("new image"), False),
+        ("the exemption does not stretch to another directory",
+         ["assets/a.png", "index.html", "tools/x.py"], msg("new image"), False),
+    ]
+
+    bad = 0
+    for name, paths, message, expect in table:
+        allowed, why, units = verdict(paths, message)
+        ok = allowed is expect
+        bad += 0 if ok else 1
+        print(f"  {'ok  ' if ok else 'WRONG'} {name[:72]:<72} "
+              f"{'pass' if allowed else 'REFUSE'} (wanted {'pass' if expect else 'REFUSE'})")
+        if not ok:
+            print(f"         -> {why}; units={units}")
+
+    # unit_of is the whole reason this catches what "one top-level directory" would not,
+    # so it is pinned directly rather than only through the table above.
+    mapping = [
+        ("styles.css", ROOT_UNIT),
+        ("index.html", ROOT_UNIT),
+        ("games/surveyor/js/main.js", "games/surveyor"),
+        ("games/README.md", "games"),          # not deep enough to be one game
+        ("tools/check_scope.py", "tools"),
+        ("assets/derived/x-900.avif", "assets"),
+    ]
+    for path, want in mapping:
+        got = unit_of(path)
+        if got != want:
+            print(f"  WRONG unit_of({path}) = {got}, wanted {want}")
+            bad += 1
+
+    total = len(table) + len(mapping)
+    refuses = sum(1 for r in table if not r[3])
+    if len(table) < 15 or refuses < 7:
+        print(f"check_scope --cases: table gutted — {len(table)} case(s), "
+              f"{refuses} refusing", file=sys.stderr)
+        return 1
+
+    print(f"check_scope --cases: {total - bad} of {total} as expected ({refuses} of them "
+          f"proving it still refuses, including both recorded incidents)")
+    return 1 if bad else 0
+
+
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "--cases":
+        return cases()
+
     if len(sys.argv) < 2:
         print("check_scope: no message file given", file=sys.stderr)
         return 1
@@ -100,23 +211,12 @@ def main() -> int:
         return 0
 
     paths = staged_paths()
-    if not paths:
+    allowed, why, named = verdict(paths, message_text(Path(sys.argv[1])))
+    if allowed:
         return 0
 
-    units = {unit_of(p) for p in paths}
-    if len(units) < 2 or exempt(units, paths):
-        return 0
-
-    named = sorted(units)
-    text = message_text(Path(sys.argv[1]))
-    spans = [l for l in text.splitlines() if l.strip().lower().startswith("spans:")]
-    if spans:
-        line = spans[0]
-        missing = [u for u in named if u not in line]
-        if not missing:
-            return 0
-        print(f"commit-msg: the Spans: line does not name {', '.join(missing)}",
-              file=sys.stderr)
+    if why.startswith("the Spans:"):
+        print(f"commit-msg: {why}", file=sys.stderr)
     else:
         print("commit-msg: this commit reaches across unrelated projects.",
               file=sys.stderr)
