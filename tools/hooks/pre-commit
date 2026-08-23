@@ -12,6 +12,27 @@
 
 set -e
 
+# THE CONTEXT PACK FRESHNESS GATE, and it runs before the trigger check below because it is
+# the one thing here that is not about what you staged. Every commit moves HEAD, and the
+# pack in the repo root carries a build stamp naming the HEAD it was built at; a pack that
+# is present but stale is worse than no pack, because a session pastes it and works
+# confidently from a state that no longer exists. Absent is fine — a fresh clone has not run
+# post-commit. Present-and-wrong is not.
+#
+# Normally a no-op: post-commit rebuilt the pack after the last commit, so the stamp already
+# names HEAD. It bites after a rebase, a merge, a reset, or a commit made on a machine
+# without the hooks — the cases where a wrong pack is most believable. Silent on pass, so a
+# CSS-only commit still does not notice this hook exists.
+PACKPY=python
+command -v python >/dev/null 2>&1 || PACKPY=python3
+if command -v $PACKPY >/dev/null 2>&1 && [ -f tools/check_pack.py ]; then
+    if ! packout=$($PACKPY tools/check_pack.py 2>&1); then
+        printf 'pre-commit: context pack is STALE, commit blocked\n' >&2
+        printf '%s\n' "$packout" >&2
+        exit 1
+    fi
+fi
+
 # Staged paths only — added/copied/modified/renamed, ignoring deletions.
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 

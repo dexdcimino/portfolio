@@ -1,0 +1,42 @@
+#!/bin/sh
+# Rebuild the context pack in the repo root, so the zip a session gets pasted always
+# describes the commit that just landed.
+#
+# WHY POST-COMMIT AND NOT PRE-COMMIT. The pack carries a build stamp saying clean or dirty,
+# and the instant after a commit is the one moment the tree is reliably clean — which is
+# exactly the state worth packing. Built pre-commit it would stamp the PREVIOUS HEAD and
+# describe a tree still holding the staged change.
+#
+# It cannot fail the commit: the commit already happened by the time this runs. So a
+# failure here has to be LOUD, or the pack silently stops being rebuilt and nobody finds out
+# until a session works from a pack six weeks old. `tools/check_pack.py` on the next
+# pre-commit is the backstop for exactly that.
+#
+# Lives here (versioned, reviewable) rather than in .git/hooks, which git does not track:
+#
+#     python tools/bake_images.py --install-hooks
+#
+# POSIX sh on purpose: this has to run under Git Bash on Windows.
+
+PY=python
+command -v python >/dev/null 2>&1 || PY=python3
+
+if ! command -v $PY >/dev/null 2>&1; then
+    printf 'post-commit: no python, context pack NOT rebuilt — it is now stale\n' >&2
+    exit 0
+fi
+
+# --quiet keeps the per-folder inventory out of every commit; the warnings it can raise (a
+# file dropped for size, a possible secret in a tracked file) go to stderr and are printed
+# regardless, which is the point of them.
+if out=$($PY tools/context_pack.py --quiet 2>&1); then
+    # One line: name, file count, size. Match the SUMMARY line specifically -- 'the last
+    # line naming the zip' is the absolute path it was written to, which is noise.
+    printf 'post-commit: %s\n' "$(printf '%s\n' "$out" | grep -E 'context-pack[.]zip +[0-9]+ files' | tail -1 | sed 's/^ *//')"
+else
+    printf 'post-commit: CONTEXT PACK BUILD FAILED — the pack in the root is now stale\n' >&2
+    printf '%s\n' "$out" >&2
+    printf 'post-commit: the next commit will be blocked by check_pack.py until this is fixed\n' >&2
+fi
+
+exit 0

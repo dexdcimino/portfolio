@@ -691,7 +691,24 @@ So, for anything new that checks something:
 
 ## Commit hooks
 
-`pre-commit` (only fires when rasters/markup/palette/script.js are staged):
+Three of them, installed together by `python tools/bake_images.py --install-hooks`. One
+installer on purpose: CLAUDE.md and docs/ONBOARDING.md both send a fresh clone there, and a
+second installer script is a second thing to remember and the one nobody runs.
+
+`post-commit` rebuilds `context-pack.zip` in the repo root — the artifact a new AI session
+is started from — and writes `.context-pack.stamp` naming the HEAD it packed. It runs AFTER
+the commit because the instant after a commit is the one moment the tree is reliably clean,
+and clean-or-dirty is a line in the pack's own build stamp. It cannot fail the commit, so a
+failure is loud; `tools/check_pack.py` on the next `pre-commit` is the backstop, refusing a
+commit whenever the stamp names a HEAD that is not the current one. Absent is allowed (a
+fresh clone has not run the hook); present-and-wrong is not, because a session pastes a
+stale pack and works confidently from a state that no longer exists. `check_pack --cases`
+drives the same `verdict()` the hook calls through seven states, three of which must refuse
+— a freshness check that cannot fail is the exact shape this repo has shipped four times.
+
+`pre-commit` runs that freshness gate first, before anything about what was staged, since
+every commit moves HEAD. It is silent on pass. Then (only when
+rasters/markup/palette/script.js are staged):
 `check_accents.py` → `check_cursors.py` → `check_markdown.mjs` → bake images
 → bake markup → `bake_markup --check`. The markdown check needs node, and its
 browser half needs Chrome; both degrade to a printed notice rather than a

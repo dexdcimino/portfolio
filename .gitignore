@@ -41,3 +41,12 @@ games/surveyor/dev/shots/sheet*.html
 games/*/dev/shots/gallery/*.png
 games/*/dev/shots/gallery/sheet.html
 games/*/dev/shots/gallery/sheet.css
+
+# The context pack and its freshness stamp. Rebuilt by the post-commit hook against every
+# commit, so a session always has a zip in the root that describes the current HEAD. It is
+# GENERATED — committing it would put a 750 KB binary in the diff of every single commit,
+# and the copy in the tree would be one commit behind itself forever.
+# `tools/check_pack.py` refuses a commit when the stamp names a HEAD that is not the current
+# one; absent is allowed (a fresh clone has not run the hook), present-and-wrong is not.
+context-pack.zip
+.context-pack.stamp
