@@ -33,8 +33,11 @@ That takes 37 MB to about 2.2 MB, which is the difference between an artifact a 
 read and one it cannot.
 
 Everything in START-HERE.md's state section is MEASURED by running this repo's own checkers,
-never typed. `docs/STATUS.md` is the cautionary example: it is hand-written, dated
-2026-08-17, and claims 50 markup blocks and 332 derivatives against today's real 71 and 522.
+never typed. `docs/STATUS.md` was the cautionary example and is now the precedent: it was
+hand-written, and it claimed 50 markup blocks and 332 derivatives against a real 71 and 522.
+It was deleted rather than corrected on 2026-08-22 — see `docs/DECISIONS.md`. If a fact can
+be measured, nothing types it; if it cannot, it belongs in the backlog, not in a status
+section that quietly rots.
 """
 
 from __future__ import annotations
@@ -455,9 +458,10 @@ shape, so you do not have to go and find it:
 3. `ARCHITECTURE.md` — the site shell, module by module, and the traps already paid for.
 4. `docs/plan/README.md` and `docs/plan/BACKLOG.md` — what is next and why.
 
-On demand: `games/<name>/ARCHITECTURE.md` per game; `docs/STATUS.md` for open decisions
-(**its measured numbers are stale — this file's state section supersedes them**);
-`CHANGELOG.md` for the version history.
+**`docs/DECISIONS.md` before reopening any architectural call** — append-only, newest
+first, and it is the only place "we rejected that" and "nobody thought of it" stop looking
+identical. On demand: `games/<name>/ARCHITECTURE.md` per game; `CHANGELOG.md` for the
+version history.
 
 ## What this is
 

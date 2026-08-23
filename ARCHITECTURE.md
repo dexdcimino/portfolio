@@ -11,7 +11,7 @@ Per-subsystem docs: [games/surveyor/](games/surveyor/ARCHITECTURE.md) ·
 [games/arena1/](games/arena1/ARCHITECTURE.md) ·
 [games/chomp/](games/chomp/ARCHITECTURE.md) ·
 [games/stickland/](games/stickland/ARCHITECTURE.md). Current state and open
-decisions: `docs/STATUS.md`. Rules: `CLAUDE.md`.
+decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CLAUDE.md`.
 
 ## Modules
 
@@ -801,4 +801,8 @@ out when it shipped, which is the rule working rather than an edit to it. The Br
 in the bio has no row and never will: the vault holds parked or unstarted
 plans, and that one is built. Its unstarted sibling `docs/bio-invaders.md`
 is exactly what does get a row. See
-`docs/STATUS.md` for the live list and open decisions.
+`docs/plan/BACKLOG.md` for the live list and the open decisions. There is no STATUS.md
+any more: it was hand-maintained, it drifted twice — claiming 50 markup blocks and 332
+derivatives against a real 71 and 522 — and every fact in it was either measurable or
+already in the backlog. The measurable half is generated into the context pack's
+START-HERE.md at pack time now, which is doctrine rule 17 applied rather than quoted.

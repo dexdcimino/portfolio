@@ -15,12 +15,11 @@ several of these are one commit away from being untrue.
 2. **Two `href="#"` placeholders in `index.html`** — the YouTube and Instagram links in the
    sidebar. They need real URLs or removal; a dead link is worse than an absent one.
    Verified: `grep -c 'href="#"' index.html` → 2.
-3. **`docs/STATUS.md` is a hand-maintained status section and has already drifted.** It is
-   dated 2026-08-17 and claims `bake_markup --check` passes at "50 blocks, 332 derivatives";
-   the real numbers today are **71 and 522**. Doctrine rules 16–17 say the measurable half
-   should not be typed at all — `START-HERE.md` now measures it at pack time. The fix is to
-   cut the measurable claims and leave only the open decisions, which cannot be measured.
-   Verified: `python tools/bake_markup.py --check`.
+3. ~~`docs/STATUS.md` has drifted~~ — **done 2026-08-22, by deleting it.** It claimed 50
+   markup blocks and 332 derivatives against a real 71 and 522. Every fact in it was either
+   measurable (now generated into `START-HERE.md` at pack time) or already an item on this
+   list, so there was nothing left to keep. Doctrine rule 17: a hand-maintained status
+   section that has drifted twice will drift again.
 4. **The `site-work` branch is fully merged and its worktree directory is gone**, and
    `arena1` is merged too. Both are prunable; `site-work` has no remote left.
    Verified: `git branch -a`.
@@ -41,7 +40,7 @@ several of these are one commit away from being untrue.
 7. **Every clip poster is Bunny's auto-generated midpoint frame**, not the frame picked in
    the dashboard. The zone caches them for 30 days and no client-side bust reaches them, so
    this is a re-set plus a purge on Bunny's side — a console job, not a repo job.
-8. **Open decisions with no default**, carried from `docs/STATUS.md`: two masters break the
+8. **Open decisions with no default**, inherited from the deleted `docs/STATUS.md`: two masters break the
    lowercase-hyphen slug rule (rename or relax?); re-render clips at 1080p or accept 1280?;
    King Kong stays pillarboxed 9:16 or gets a 16:9 re-export?; keep the V-number scheme in
    `CHANGELOG.md` or log by date?

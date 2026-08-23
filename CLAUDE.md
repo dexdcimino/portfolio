@@ -417,3 +417,29 @@ number quoted in an `ARCHITECTURE.md` must update that file in the same
 commit. A stale architecture doc is worse than none — it is confidently
 wrong. The docs: `ARCHITECTURE.md` (site shell) and one per game under
 `games/<name>/ARCHITECTURE.md`.
+
+## Where each kind of fact lives, and who is allowed to write it
+
+Doctrine rule 16 has three layers; this repo has four files and they do not overlap.
+Putting a fact in the wrong one is how it rots.
+
+| the fact | lives in | written by |
+|---|---|---|
+| how the site is built | `ARCHITECTURE.md`, `games/*/ARCHITECTURE.md` | a person, same commit as the change |
+| the rules and what breaking them cost | `CLAUDE.md` (this file) | a person, once it has cost something twice |
+| **why a call was made, and what it replaced** | **`docs/DECISIONS.md`** | **a person, same scoped commit, append-only** |
+| what is true right now | `START-HERE.md` in the context pack | `tools/context_pack.py`, measured |
+| what to do next | `docs/plan/BACKLOG.md` | a person, each item naming the command that verified it |
+
+**`docs/DECISIONS.md` is append-only and newest-first, and it is read before reopening any
+architectural call.** A commit message is not a substitute: it is filed against the change
+rather than against the question, and it does not surface at the moment someone is about to
+revisit the decision. From the code alone, "we rejected that" and "nobody thought of it"
+look identical.
+
+**There is no STATUS.md any more, and there must not be another one.** It was
+hand-maintained, and by the time it was deleted on 2026-08-22 it claimed 50 markup blocks
+and 332 derivatives against a real 71 and 522 — drift in the one file whose whole job was
+being current. Every fact in it was either measurable, and is now generated into the pack at
+build time, or an open item, and is now in the backlog. If you find yourself about to type a
+number that a command could print, that is the mistake (doctrine rule 17).
