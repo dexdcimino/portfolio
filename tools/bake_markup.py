@@ -19,6 +19,7 @@ Flags:
     (none)     rewrite index.html in place
     --check    exit 1 if the markup is stale, a derivative is missing, or a
                declared size no longer matches its file; writes nothing
+    --cases    prove --check can still refuse (see cases())
 
 Run it after adding an image, or let the pre-commit hook do it.
 """
@@ -318,13 +319,127 @@ def check() -> int:
         print("Run: python tools/bake_markup.py")
         return 1
 
+    # COUNT THE SUBJECT, ASSERT THE COUNT. Everything above reports on what rebuild()
+    # found, and a rebuild that found NOTHING produces no problems at all — so a page
+    # whose directives had stopped matching would print "0 image block(s) current, 0
+    # derivative(s) referenced, all present" and exit 0, which is a healthy-looking
+    # sentence and a completely blind check. bake_images --check shipped exactly that
+    # failure on 2026-08-20 and got this guard; this one did not have it until
+    # 2026-08-22, when --cases was written and went looking. See CLAUDE.md,
+    # "Count the subject, assert the count".
     blocks = len(pairs)
+    if not blocks:
+        print("bake_markup --check: FAIL — parsed index.html and found NO image blocks. "
+              "Discovery is broken (the directive syntax changed, or the wrong file was "
+              "read), not the markup.", file=sys.stderr)
+        return 1
+
     print(f"bake_markup --check: {blocks} image block(s) current, "
           f"{len(set(urls))} derivative(s) referenced, all present")
     return 0
 
 
+def cases() -> int:
+    """Prove --check can still refuse. Doctrine rule 12; CLAUDE.md, "Count the subject".
+
+    Written on 2026-08-22 and it found something immediately: check() had no guard on an
+    empty subject, so a page whose directives stopped matching would have printed
+    "0 image block(s) current ... all present" and exited 0. That guard is above now, and
+    the first case below is the one that keeps it honest.
+
+    Everything here drives the real check() over a real index.html — a copy in a temp
+    directory that the cases are free to vandalise. Nothing is mocked except discovery
+    itself, because discovery failing is the thing being tested.
+    """
+    import contextlib
+    import io as _io
+    import shutil
+    import tempfile
+
+    global HTML, rebuild
+    real_html, real_rebuild = HTML, rebuild
+    bad = 0
+
+    def run() -> tuple[int, str]:
+        out, err = _io.StringIO(), _io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = check()
+        return rc, out.getvalue() + err.getvalue()
+
+    def say(ok, name, detail=""):
+        nonlocal bad
+        bad += 0 if ok else 1
+        print(f"  {'ok  ' if ok else 'WRONG'} {name:<60} {detail}")
+
+    try:
+        # ---- the pristine page, as a control. Without this a table of failures proves
+        # ---- only that the checker can say no, which is easy and useless.
+        rc, text = run()
+        say(rc == 0, "the real index.html passes", f"exit {rc}")
+        live_blocks = re.search(r"(\d+) image block", text)
+        say(bool(live_blocks) and int(live_blocks.group(1)) >= 50,
+            "and it is examining a real number of blocks",
+            live_blocks.group(1) + " blocks" if live_blocks else "NONE REPORTED")
+
+        # ---- discovery broken: the failure this whole mode was written to catch ------
+        rebuild = lambda html: (html, [], [])          # noqa: E731
+        rc, text = run()
+        say(rc == 1, "an EMPTY parse fails", f"exit {rc} (wanted 1)")
+        say("all present" not in text,
+            "an empty parse never prints the healthy sentence",
+            "clean" if "all present" not in text else "IT STILL SAYS IT")
+        say("iscovery is broken" in text, "and it blames discovery, not the markup")
+        rebuild = real_rebuild
+
+        # ---- a derivative the page names but disk does not have ----------------------
+        rebuild = lambda html: (html, ["assets/derived/nope/not-real-900.avif"],
+                                [("assets/x.png", "card")])          # noqa: E731
+        rc, text = run()
+        say(rc == 1 and "missing derivative" in text,
+            "a referenced derivative that does not exist fails", f"exit {rc}")
+        rebuild = real_rebuild
+
+        # ---- a hand-edited generated block, which is THE documented rule -------------
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = Path(tmp) / "index.html"
+            shutil.copyfile(real_html, copy)
+            raw = copy.read_text(encoding="utf-8", newline="")
+
+            # INSIDE a generated block, not merely anywhere in the page. The first
+            # attempt at this case grabbed the first width="" in the file, which sits in
+            # hand-written markup this tool does not own — so check() correctly said
+            # nothing and the case failed for the wrong reason. bake_markup's whole
+            # contract is the region between the directive and its closer; a test that
+            # edits outside it is testing something else.
+            block = re.search(r"<!-- img src=.*?<!-- /img -->", raw, re.S)
+            m = re.search(r'(width=")(\d+)(")', block.group(0)) if block else None
+            say(bool(m), "the page carries a generated width to vandalise",
+                f"block at {block.start()}" if block else "NO GENERATED BLOCK FOUND")
+            if m:
+                at = block.start() + m.start(2)
+                end = block.start() + m.end(2)
+                broken = raw[:at] + str(int(m.group(2)) + 7) + raw[end:]
+                copy.write_text(broken, encoding="utf-8", newline="")
+                HTML = copy
+                rc, text = run()
+                say(rc == 1, "a HAND-EDITED width fails", f"exit {rc} (wanted 1)")
+                say("size mismatch" in text or "stale" in text,
+                    "and it says what was edited", text.strip().splitlines()[-2:][0][:44]
+                    if text.strip() else "")
+                HTML = real_html
+    finally:
+        HTML, rebuild = real_html, real_rebuild
+
+    if bad:
+        print(f"bake_markup --cases: {bad} case(s) WRONG", file=sys.stderr)
+        return 1
+    print("bake_markup --cases: 8 of 8 as expected (5 of them proving it still refuses)")
+    return 0
+
+
 def main() -> int:
+    if "--cases" in sys.argv[1:]:
+        return cases()
     if "--check" in sys.argv[1:]:
         return check()
 

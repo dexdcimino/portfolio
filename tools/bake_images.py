@@ -31,6 +31,7 @@ Flags:
     --prune          delete derivatives no ladder produces any more
     --derived-for    read master paths on stdin, print the derivatives they own
     --install-hooks  copy tools/hooks/* into .git/hooks/
+    --cases          prove --check can still refuse (see cases())
 
 Encoder settings were validated against the source art at 100% crop. They are
 already visually lossless on this material — raising them "to be safe" only
@@ -38,6 +39,7 @@ inflates the payload, so don't.
 """
 
 from pathlib import Path
+import os
 import shutil
 import stat
 import sys
@@ -244,6 +246,89 @@ def check() -> int:
     return 1
 
 
+def cases() -> int:
+    """Prove --check can still refuse. Doctrine rule 12; CLAUDE.md, "Count the subject".
+
+    This checker is the reason that rule is written down. On 2026-08-20 it printed
+    "all derivatives present and current" over an EMPTY WALK: collect() found no masters,
+    so the stale list was empty, so it said what a healthy repo says and exited 0. The
+    guard against that is in check() now — and until this mode existed, nothing anywhere
+    demonstrated that the guard fires. A guard nobody has seen fire is a comment.
+
+    Three things are driven, all of them the real functions:
+      1. check() with discovery broken, which must FAIL rather than congratulate itself.
+      2. is_stale(), the staleness decision, over real files with real mtimes.
+      3. the live walk, which must find the masters this repo actually has.
+    """
+    import contextlib
+    import io as _io
+    import tempfile
+    import time as _time
+
+    bad = 0
+
+    def say(ok, name, detail=""):
+        nonlocal bad
+        bad += 0 if ok else 1
+        print(f"  {'ok  ' if ok else 'WRONG'} {name:<58} {detail}")
+
+    # ---- 1. the incident itself -------------------------------------------------------
+    global collect
+    real_collect = collect
+    try:
+        collect = lambda: []                                  # noqa: E731 — discovery broken
+        out = _io.StringIO()
+        err = _io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = check()
+        text = out.getvalue() + err.getvalue()
+        say(rc == 1, "an EMPTY WALK fails", f"exit {rc} (wanted 1)")
+        say("all present and current" not in text,
+            "an empty walk never prints the healthy sentence",
+            "clean" if "all present and current" not in text else "IT STILL SAYS IT")
+        say("iscovery is broken" in text, "and it says discovery is broken, not the images")
+    finally:
+        collect = real_collect
+
+    # ---- 2. the staleness decision ----------------------------------------------------
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        src = tmp / "master.png"
+        src.write_bytes(b"x")
+        out_file = tmp / "derived.avif"
+
+        say(is_stale(src, out_file), "a MISSING derivative is stale", "no file")
+
+        out_file.write_bytes(b"y")
+        old = src.stat().st_mtime - 100
+        os.utime(out_file, (old, old))
+        say(is_stale(src, out_file), "a derivative OLDER than its master is stale")
+
+        newer = src.stat().st_mtime + 100
+        os.utime(out_file, (newer, newer))
+        say(not is_stale(src, out_file), "a derivative newer than its master is not")
+
+        same = src.stat().st_mtime
+        os.utime(out_file, (same, same))
+        say(is_stale(src, out_file),
+            "EQUAL mtimes count as stale, not fresh",
+            "a rebuild in the same second must not be trusted")
+
+    # ---- 3. the live walk -------------------------------------------------------------
+    masters = real_collect()
+    say(len(masters) >= 50, "the live walk finds this repo's masters", f"{len(masters)} found")
+    rungs = sum(1 for src, widths in masters for _ in expected(src, widths))
+    say(rungs >= len(masters), "and every master resolves to at least one rung",
+        f"{rungs} rung(s)")
+
+    if bad:
+        print(f"bake_images --cases: {bad} case(s) WRONG", file=sys.stderr)
+        return 1
+    print(f"bake_images --cases: 9 of 9 as expected (5 of them proving it still refuses; "
+          f"live walk {len(masters)} masters, {rungs} rungs)")
+    return 0
+
+
 def install_hooks() -> int:
     """Copy the versioned hooks into .git/hooks/ and mark them executable.
 
@@ -346,6 +431,8 @@ def main() -> int:
         return prune()
     if "--derived-for" in sys.argv[1:]:
         return derived_for()
+    if "--cases" in sys.argv[1:]:
+        return cases()
 
     if not features.check("avif"):
         print("ERROR: this Pillow has no AVIF encoder. Upgrade: "
