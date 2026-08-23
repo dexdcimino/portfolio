@@ -2993,8 +2993,15 @@ const MediaBus = (() => {
   });
   const thumbs = [...strip.children];
 
+  /* Is a clip RUNNING right now — not merely loaded, and not merely unpaused.
+     is-live is what separates a source that has actually started from one that
+     is sitting behind its poster, and `ended` is a clip that ran to the end and
+     stopped, which is not the same as one somebody paused. Shared by the paint
+     below and by the step handlers, which carry this state to the next clip. */
+  const isPlaying = () => !video.paused && !video.ended && frame.classList.contains('is-live');
+
   function paintButtons() {
-    const playing = !video.paused && !video.ended && frame.classList.contains('is-live');
+    const playing = isPlaying();
     icon(toggle, playing ? 'pause' : 'play');
     toggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     /* The big control is the whole video surface and stays operable while the
@@ -3068,14 +3075,24 @@ const MediaBus = (() => {
   /* Two sets of prev/next: the ones on the frame's edges and the ones in the
      control bar. Same handler, so they cannot drift.
 
-     THEY AUTOPLAY, like the thumbnails always have. select() has taken an
-     autoplay flag since it was written and these two were the only callers not
-     passing it, so stepping to the next clip landed on a poster and waited for
-     a second click — the thumbnail beside it did not. Nothing new is needed for
-     it to work: a click IS the user gesture the autoplay policy wants, which is
-     why the thumbnail path has never been refused. */
-  document.querySelectorAll('#clPrev, .cl-prev').forEach(b => b.addEventListener('click', () => select(index - 1, true)));
-  document.querySelectorAll('#clNext, .cl-next').forEach(b => b.addEventListener('click', () => select(index + 1, true)));
+     STEPPING CARRIES THE CURRENT CLIP'S PLAY STATE FORWARD. select() has taken
+     an autoplay flag since it was written; these two used to pass nothing, so a
+     step landed on a poster and waited for a second click, and then briefly
+     passed `true`, so a step started playing a clip even when the one before it
+     was deliberately paused. Neither is right — the answer is not a constant.
+     What the reader wants is for the transport to keep doing whatever it was
+     doing, so the flag is isPlaying() read BEFORE select() runs (it pauses the
+     video on its first line, so reading it afterwards would always say false).
+
+     A click IS the user gesture the autoplay policy wants, which is why this
+     path is never refused when it does ask to play.
+
+     The THUMBNAILS still pass an unconditional true, and that is deliberate
+     rather than an oversight: picking one clip out of the strip by name is a
+     statement about that clip, where a chevron is a statement about direction. */
+  const step = (to) => select(to, isPlaying());
+  document.querySelectorAll('#clPrev, .cl-prev').forEach(b => b.addEventListener('click', () => step(index - 1)));
+  document.querySelectorAll('#clNext, .cl-next').forEach(b => b.addEventListener('click', () => step(index + 1)));
 
   loopBtn.addEventListener('click', () => {
     loop = !loop;
