@@ -184,7 +184,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   the `?` is pressed (`TAB_CAT`). Below sit the TITLE field (left-aligned,
   `autocomplete=off` so the browser's own history of past titles stays
   down, its placeholder and aria-label painted by the cycler: Game Title /
-  Movie Title / Song Title / Quote Title) and a `From:` word with the Anon
+  Movie Title / Song Title / The Quote; a TEXTAREA - one row for a title,
+  two on Quote, fitted to the text up to a five-line max-height; Enter sends
+  a title, on a quote Enter is a line break and Ctrl/Cmd+Enter sends) and a
+  `From:` word with the Anon
   field out to the same right edge (`.pk-pop-from`), and SEND holds the
   footer's right edge. Spam, the client-side half: three a minute, a dozen
   a day (`dex-picks-sends`, stamps kept 24h), the same category+title

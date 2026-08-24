@@ -1040,6 +1040,11 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    edge the title field and SEND share. */
 .pk-pop-from{display:flex;align-items:center;gap:10px;margin:0;font-size:13px;font-weight:700;letter-spacing:.04em;color:#98a1a9}
 .pk-pop-from .pk-pop-input{flex:1 1 auto;min-width:0}
+/* The title is a textarea (a quote is lines). One row for a title, two for a
+   quote, growing with the text: script.js sets the height from scrollHeight and
+   this max-height is the ceiling - five 1.4 lines plus the 18px of padding -
+   after which it scrolls. No drag handle: the fit does the expanding. */
+.pk-pop-title{display:block;resize:none;line-height:1.4;min-height:0;max-height:calc(1.4em * 5 + 18px);overflow-y:auto}
 /* Footer: status grows on the left, SEND holds the right edge. */
 .pk-pop-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .pk-pop-status{margin:0;flex:1 1 auto;font-size:12.5px;color:#98a1a9;min-height:1em}

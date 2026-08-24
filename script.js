@@ -5362,16 +5362,40 @@ const PORTRAIT_LABEL = {
   const CATS = ['Game', 'Movie', 'Song', 'Quote'];
   // The title field asks a different question per category, so its
   // placeholder (and accessible name) say which one (Dex, 2026-08-23).
-  const TITLE_HINT = { Game: 'Game Title', Movie: 'Movie Title', Song: 'Song Title', Quote: 'Quote Title' };
+  const TITLE_HINT = { Game: 'Game Title', Movie: 'Movie Title', Song: 'Song Title', Quote: 'The Quote' };
   // The picks tab that is showing when the ? is pressed is the category the
   // visitor means (Dex, 2026-08-23): open on Songs, suggest a song.
   const TAB_CAT = { 'pk-tab-games': 0, 'pk-tab-movies': 1, 'pk-tab-songs': 2, 'pk-tab-quotes': 3 };
   let cat = 0;
+  /* The title field is a textarea so a quote can be lines (Dex, 2026-08-23).
+     It sits at its rows - one for a title, two for a quote - and grows with
+     the text; the CSS max-height is the five-line ceiling, past which it
+     scrolls. Typing a multi-line quote into a one-line box was the complaint. */
+  const fit = () => {
+    suggestion.style.height = '';
+    if (suggestion.scrollHeight <= suggestion.clientHeight) return;
+    const max = parseFloat(getComputedStyle(suggestion).maxHeight) || Infinity;
+    const chrome = suggestion.offsetHeight - suggestion.clientHeight;   // the border, under border-box
+    suggestion.style.height = `${Math.min(suggestion.scrollHeight + chrome, max)}px`;
+  };
+  suggestion.addEventListener('input', fit);
+  // Enter sends a title. On a quote Enter is a line break - that is the
+  // point of the textarea - and Ctrl/Cmd+Enter sends. The emoji picker owns
+  // Enter while it is open: its listener is registered later and inserts.
+  suggestion.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+    if (pop.querySelector('.emoji-pick.open')) return;
+    if (CATS[cat] === 'Quote' && !(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    form.requestSubmit();
+  });
   const paintCat = () => {
     catBtn.textContent = CATS[cat];
     catBtn.setAttribute('aria-label', `Category: ${CATS[cat]} — press to change`);
     suggestion.placeholder = TITLE_HINT[CATS[cat]];
     suggestion.setAttribute('aria-label', TITLE_HINT[CATS[cat]]);
+    suggestion.rows = CATS[cat] === 'Quote' ? 2 : 1;
+    fit();
     dashes.forEach((d, i) => d.classList.toggle('on', i === cat));
   };
   catBtn.addEventListener('click', () => { cat = (cat + 1) % CATS.length; paintCat(); });
