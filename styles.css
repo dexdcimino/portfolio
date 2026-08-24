@@ -144,6 +144,8 @@ img{max-width:100%}
 [data-icon="copy"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M9 9h10v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2'/%3E%3C/svg%3E")} /* src: assets/icons/copy.svg */
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
 [data-icon="eye"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 5.1C7.2 5.1 3.5 7.8 1.4 12c2.1 4.2 5.8 6.9 10.6 6.9s8.5-2.7 10.6-6.9C20.5 7.8 16.8 5.1 12 5.1Zm0 11.2a4.3 4.3 0 1 1 0-8.6 4.3 4.3 0 0 1 0 8.6Z'/%3E%3Ccircle fill='%23fff' cx='12' cy='12' r='2.1'/%3E%3C/svg%3E")} /* src: assets/icons/eye.svg */
+[data-icon="co_flag"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 132'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M132,98V34C132,15.252,116.7476,0,98,0H34C15.2524,0,0,15.252,0,34v64c0,18.748,15.2524,34,34,34h64c18.7476,0,34-15.252,34-34ZM4,98v-10.7292l20.5686.0159c.3456.6726.6898,1.3459,1.0703,2.0046,8.3022,14.3684,23.7731,23.2988,40.3753,23.3066,16.6326,0,32.0905-8.9431,40.363-23.3391.045-.0784.0875-.1584.1271-.2397l.8535-1.75,20.6422.0142v10.7168c0,16.542-13.458,30-30,30H34c-16.542,0-30-13.458-30-30ZM98,4c16.542,0,30,13.458,30,30v10.7183l-20.5724.0088c-.3436-.6709-.683-1.3455-1.0562-1.9937-8.2841-14.3904-23.7444-23.3298-40.3477-23.3298h-.0081c-16.6085.0024-32.0786,8.9282-40.3737,23.2942-.3782.655-.72,1.3247-1.0638,1.9937l-20.5782-.0298v-10.6616c0-16.542,13.458-30,30-30h64ZM66.0358,108.5979h-.0198c-7.6186-.0037-14.9432-2.0356-21.3151-5.7144-1.593-.9197-3.1264-1.9421-4.59-3.0618-4.3907-3.3584-8.1529-7.5894-11.0086-12.5317-.4747-.8215-.9196-1.6553-1.3349-2.5-2.0764-4.2231-3.4105-8.7158-4.0029-13.2861-.237-1.8281-.3552-3.6685-.3549-5.5088.0004-1.8403.1193-3.6809.3569-5.509.2375-1.8281.5937-3.644,1.0685-5.4353.9495-3.5823,2.3733-7.0662,4.271-10.3528,7.6104-13.1802,21.6724-21.2922,36.9097-21.2944h.0068c15.1567-.0005,29.2913,8.1392,36.8823,21.3254.9413,1.6353,1.814,3.4087,2.5804,5.3096l-19.7402,7.9746c-.014-.0344-.0314-.0667-.0455-.1011-.1017-.2476-.2173-.4868-.328-.7297-.1543-.3391-.3129-.6748-.4831-1.0027-.1168-.2241-.2374-.4448-.3618-.6643-.2078-.3677-.427-.7253-.6544-1.0771-.1046-.1614-.2044-.3254-.3132-.4839-.3552-.5183-.7271-1.0215-1.1231-1.502-.0012-.0015-.0026-.0027-.0038-.0042-.3954-.4795-.8154-.9336-1.2484-1.3738-.1172-.1191-.2389-.2332-.3589-.3496-.3324-.3223-.6738-.6328-1.0253-.9319-.1451-.1235-.2889-.2476-.4373-.3674-.3902-.3142-.7911-.613-1.2015-.8984-.1039-.0725-.2023-.1516-.3076-.2224-.4851-.3247-.9857-.6245-1.4953-.9082-.2185-.1221-.4431-.2324-.6662-.3469-.3236-.1655-.6501-.324-.9819-.4729-.2465-.1108-.4932-.2195-.7445-.321-.379-.1531-.7641-.2903-1.1519-.4216-.1945-.0657-.3838-.1414-.5806-.2014-.5679-.1741-1.1458-.3181-1.7288-.4446-.2004-.0432-.4035-.0771-.606-.1145-.46-.0859-.9231-.1567-1.3901-.2122-.1796-.0212-.358-.0444-.539-.061-.6484-.0601-1.3004-.1013-1.9583-.1013-.6986-.0002-1.4012.0378-2.1058.1077-.3839.0376-.7573.1074-1.1349.165-.28.043-.5593.0674-.8396.1218-.0239.0046-.0464.0122-.0703.0168-.3321.0654-.6542.1558-.9806.2363-.3193.0791-.6408.1523-.9537.2451-.3231.0962-.6371.2102-.9536.3208-.3119.1091-.6235.2173-.9281.3398-.2933.1182-.5797.2478-.8664.3787-.3195.1453-.6354.2952-.9456.4556-.2602.1345-.5161.2744-.7699.4192-.3257.1858-.6441.3804-.9583.5823-.2272.1462-.4534.2922-.6745.4465-.3289.2295-.6464.4717-.9609.7188-.1931.1514-.3887.2988-.5764.4568-.3378.2844-.6598.5852-.9787.8894-.1487.1421-.3041.2761-.4487.4224-.4213.4258-.8239.8691-1.2076,1.3286-.0496.0593-.1.1177-.149.1775-.3833.4692-.746.9548-1.0884,1.4556-.1463.2136-.276.4382-.4146.6575-.2042.323-.4084.6455-.5952.9795-.1451.2593-.2758.5266-.4102.7925-.1572.311-.3118.6226-.4538.9419-.1255.2822-.241.5684-.3546.8569-.1269.3223-.2462.6475-.3575.9768-.0981.2905-.192.582-.2778.8779-.1021.3518-.1902.7083-.2743,1.0667-.0661.2825-.1349.563-.1896.8496-.0795.4146-.137.8354-.192,1.2578-.0312.2407-.0726.4778-.0958.7209-.0635.6648-.1011,1.3359-.1018,2.0149,0,.0078-.0012.0156-.0012.0234,0,.0005,0,.001,0,.0015,0,.0007,0,.0015,0,.002.0001.6865.0388,1.3652.1031,2.0374.0231.2429.0647.4797.0959.72.0551.4226.1125.8438.1921,1.2588.0548.2866.1238.5671.19.8496.0842.3589.1722.7153.2744,1.0671.0858.2961.1799.5874.2781.8779.1114.3293.2305.6543.3574.9763.1136.2886.2294.575.3551.8574.142.3188.2964.6306.4536.9414.1345.2659.2654.533.4105.7922.1867.3337.3906.656.5946.9788.1388.2192.2687.4443.4152.6582.3339.4878.6885.9609,1.0614,1.4192.0472.0581.093.1169.1408.1746.394.4741.8097.9297,1.2436,1.3682.1426.144.2961.2764.4427.4165.3211.3066.6454.6091.9857.8958.186.1565.3801.3022.5714.4524.3162.2483.6354.4919.9662.7227.2203.1538.4456.2988.6718.4443.3151.2024.6344.3977.9611.584.2529.1443.5081.2834.7674.4177.3115.1609.6287.3113.9494.4573.2858.1304.5714.2593.8638.3772.3057.123.6185.2317.9315.3408.3152.1101.6281.2236.9498.3193.315.0935.6386.1672.9601.2468.3245.0801.6448.1694.975.2344.0253.0051.0493.0132.0745.0181.2824.0549.564.0793.8463.1226.3741.0569.7441.126,1.1243.1631.7037.0698,1.4055.1077,2.1028.1077.66,0,1.314-.0413,1.9645-.1018.1754-.0161.3483-.0386.5224-.0591.4753-.0562.9466-.1282,1.4145-.2158.1953-.0364.3912-.0688.5847-.1106.5883-.1272,1.1713-.2727,1.7441-.4485.1821-.0557.3571-.126.5369-.1863.4041-.136.8049-.2795,1.1995-.4392.2427-.0981.4809-.2031.719-.3101.3433-.1536.6812-.3176,1.0157-.4893.2137-.1099.429-.2156.6384-.3323.515-.2864,1.0206-.5896,1.5106-.9177.0919-.0618.1777-.1309.2686-.1941.4248-.2942.8389-.6038,1.242-.9287.142-.1147.2796-.2336.4186-.3521.358-.304.7057-.6204,1.0438-.9485.116-.1128.2337-.2231.3471-.3384.8702-.8843,1.6685-1.8472,2.3809-2.8867.1071-.156.2052-.3179.3082-.4766.2289-.354.4495-.7141.6586-1.084.1241-.219.2442-.4395.3607-.6631.1699-.3274.3283-.6626.4824-1.0012.1111-.2439.227-.4841.3291-.7327.0146-.0356.0325-.0688.0469-.1045l19.7413,7.9954-2.58,5.2905c-7.581,13.1929-21.7227,21.332-36.8732,21.332Z'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/flags/co_flag.svg */
+[data-icon="us_flag"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 132'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M98,0H34C15.2524,0,0,15.252,0,34v64c0,18.748,15.2524,34,34,34h64c18.7476,0,34-15.252,34-34V34C132,15.252,116.7476,0,98,0ZM128,34v7.3845h-61.9998v-9.8462h61.8905c.0664.8127.1093,1.6321.1093,2.4617ZM127.8907,100.4614H4.1093c-.0664-.8125-.1093-1.6318-.1093-2.4614v-7.3848h124v7.3848c0,.8296-.0429,1.6489-.1093,2.4614ZM118.2064,120.1538H13.7936c-3.0052-2.7437-5.4456-6.092-7.1418-9.8462h118.6965c-1.6963,3.7542-4.1366,7.1025-7.1418,9.8462ZM4,80.769v-9.8459h124v9.8459H4ZM125.3482,21.6924h-59.348v-9.8462h52.2061c3.0054,2.7434,5.4457,6.0918,7.142,9.8462ZM62.0109,62.3015v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599ZM51.6102,62.3015v2.3201l-2.0092,1.1599-2.0091-1.1599v-2.3201l2.0091-1.1599,2.0092,1.1599ZM41.2097,62.3015v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599ZM30.809,62.3015v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599ZM20.4084,62.3015v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599ZM10.0078,62.3015v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599ZM11.1898,55.6216v-2.3201l2.0091-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0091-1.1599ZM21.5904,55.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM31.991,55.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM42.3917,55.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM56.8105,55.6216l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201ZM5.9895,46.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM16.3901,46.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM26.7907,46.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM37.1913,46.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM47.592,46.6216v-2.3201l2.0091-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0091-1.1599ZM62.0109,46.6216l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201ZM11.1898,37.6216v-2.3201l2.0091-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0091-1.1599ZM21.5904,37.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM31.991,37.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM42.3917,37.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM56.8105,37.6216l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201ZM5.9895,28.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM16.3901,28.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM26.7907,28.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM37.1913,28.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM47.592,28.6216v-2.3201l2.0091-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0091-1.1599ZM62.0109,28.6216l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201ZM26.7907,8.3015l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201ZM37.1913,10.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM47.592,10.6216v-2.3201l2.0091-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0091-1.1599ZM57.9926,10.6216v-2.3201l2.0092-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0092-1.1599ZM56.8105,17.3015v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599ZM46.41,17.3015v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599ZM36.0093,17.3015v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599ZM25.6087,17.3015v2.3201l-2.0092,1.1599-2.0092-1.1599v-2.3201l2.0092-1.1599,2.0092,1.1599ZM11.1898,19.6216v-2.3201l2.0091-1.1599,2.0092,1.1599v2.3201l-2.0092,1.1599-2.0091-1.1599ZM19.475,7.7627l.9334.5388v2.3201l-2.0092,1.1599-2.0092-1.1599v-.8875c.9853-.717,2.0144-1.3767,3.0849-1.9714ZM66.0002,61.0769v-9.8462h61.9998v9.8462h-61.9998Z'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/flags/us_flag.svg */
 [data-icon="fullscreen-exit"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' d='M9 4v3.5A1.5 1.5 0 0 1 7.5 9H4M20 9h-3.5A1.5 1.5 0 0 1 15 7.5V4M15 20v-3.5a1.5 1.5 0 0 1 1.5-1.5H20M4 15h3.5A1.5 1.5 0 0 1 9 16.5V20'/%3E%3C/svg%3E")} /* src: assets/icons/fullscreen-exit.svg */
 [data-icon="fullscreen"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' d='M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15'/%3E%3C/svg%3E")} /* src: assets/icons/fullscreen.svg */
 [data-icon="games"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M8.55 6.4h6.9a6.75 6.75 0 0 1 6.62 5.45l.66 3.36a3.2 3.2 0 0 1-5.72 2.5l-1.4-1.86H8.39l-1.4 1.86a3.2 3.2 0 0 1-5.72-2.5l.66-3.36A6.75 6.75 0 0 1 8.55 6.4Zm-1.4 3.15v1.6h-1.6v1.9h1.6v1.6h1.9v-1.6h1.6v-1.9h-1.6v-1.6h-1.9Zm9.1.3a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Zm2.6 2.75a1.35 1.35 0 1 0 0 2.7 1.35 1.35 0 0 0 0-2.7Z'/%3E%3C/svg%3E")} /* src: assets/icons/games.svg */
@@ -169,7 +171,7 @@ img{max-width:100%}
 [data-icon="youtube"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.54 12 3.54 12 3.54s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/youtube.svg */
 [data-icon="tick-check"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='m5 12.5 4.5 4.5L19 7'/%3E%3C/svg%3E")} /* src: assets/icons/tick-check.svg */
 [data-icon="tick"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15.3841 18.1113'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M7.1872,18.1113H0v-6.3529L11.7584,0h3.6257v7.3476s-5.9188,5.7103-7.2664,7.2664-.9305,3.4973-.9305,3.4973Z' fill='%23fff'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tick_mark.svg */
-[data-icon="vault"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='f' maskUnits='userSpaceOnUse' x='0' y='0' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Cg fill='none' stroke='%23000' stroke-width='1.45' stroke-linecap='round'%3E%3Cpath d='M5.4 10C7.8 8.2 9.4 10.4 11.8 9.2 14 8.1 16 9.6 18.6 8.6'/%3E%3Cpath d='M4.6 14.1C7.2 12.9 8.8 14.9 11.4 13.9 13.9 12.9 16 14.7 19 13.5'/%3E%3C/g%3E%3C/mask%3E%3C/defs%3E%3Cpath mask='url(%23f)' fill='%23fff' d='M11.5 4C15.6 3.8 19.4 5.6 21 8.4 22.2 10.6 21.9 13.2 20.4 14.9 19.4 16.4 17.8 17.4 16 17.7 15.9 19 15.6 20.3 15 21.2 14.3 21.7 13.4 21.5 13.1 20.8 13.2 19.6 13.4 18.5 13.3 17.6 11.4 17.8 9.5 17.6 8 16.9 6.4 17 4.8 16.2 4 14.8 2.6 13.6 2.2 11.4 3 9.6 3.8 6.6 7.2 4.2 11.5 4Z'/%3E%3C/svg%3E")} /* src: assets/icons/vault.svg */
+[data-icon="vault"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='f' maskUnits='userSpaceOnUse' x='0' y='0' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Cg fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4.4 10.4C6.8 8.6 8.8 11.3 11.6 9.7 14 8.3 16.3 10.3 19.2 9.1'/%3E%3Cpath d='M4.6 14.2C7 12.6 8.9 15.2 11.6 13.7 14 12.4 16.2 14.2 18.9 13'/%3E%3C/g%3E%3C/mask%3E%3C/defs%3E%3Cpath mask='url(%23f)' fill='%23fff' d='M3.5 10.6C3.4 7.9 5.1 5.7 7.2 4.9 8.5 4.3 9.7 4.9 10.1 5.9 10.8 4.7 12.2 4.2 13.4 4.6 14.3 4.9 14.9 5.5 15.2 6.2 16 5.1 17.5 4.8 18.7 5.4 20.4 6.2 21.4 7.8 21.5 9.6 21.8 11.6 21.1 13.5 19.6 14.7 18.5 16 16.8 16.8 15.1 16.8 13.9 17.6 12.3 17.9 10.8 17.6 11 18.6 11.1 19.6 11.1 20.4 10.6 21.2 9.4 21.3 8.8 20.6 8.3 19.7 8.1 18.6 8 17.3 6.2 16.8 4.7 15.8 3.9 14.3 3.1 13.1 3.2 11.9 3.5 10.6Z'/%3E%3C/svg%3E")} /* src: assets/icons/vault.svg */
 [data-icon="volume-mute"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='m16 9.5 5 5m0-5-5 5'/%3E%3C/svg%3E")} /* src: assets/icons/volume-mute.svg */
 [data-icon="volume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='M15.4 9.2a4 4 0 0 1 0 5.6M18 6.6a7.6 7.6 0 0 1 0 10.8'/%3E%3C/svg%3E")} /* src: assets/icons/volume.svg */
 [data-icon="work"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z'/%3E%3C/svg%3E")} /* src: assets/icons/work.svg */
@@ -1593,18 +1595,38 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    and nothing else moves. Sized in em off the heading so it rides the
    32-64px clamp. .icon's own transition is transform/opacity; this one
    crossfades colour with the accent like every other tinted mark. */
-.title-mark{display:flex;align-items:center;gap:.22em}
+.title-mark{position:relative}
 /* Grey, not the accent (Dex, 2026-08-24). At the heading's 64px an accent
    mark reads as a second logo competing with the word; --icon-idle is the
    site's own icon grey - what the nav wears at rest - dark enough not to
    glare, light enough to hold its shape against the section fill. Static, so
-   the accent transition that used to ride here is gone with it. */
-.title-icon{width:.88em;height:.88em;color:var(--icon-idle)}
+   the accent transition that used to ride here is gone with it.
+   LEFT of the word and OUT OF FLOW: absolute against the h2 (.title-mark is
+   its containing block) so the mark hangs in the section's own left padding
+   and the heading does not move by a pixel to make room. There is 161px of
+   gutter there at 1440 and never less than the 92px --gutter floor, against
+   a mark of ~41px plus its margin - it fits at every width. */
+.title-icon{
+  position:absolute;right:100%;top:50%;transform:translateY(-50%);
+  margin-right:.2em;width:.72em;height:.72em;color:var(--icon-idle);
+}
 /* The collab mark's artwork sits SHORTER inside its 24-unit box than the
    brain does (about 15 units against 18), so an equal em renders it visibly
    smaller. The larger box lands the two at the same VISUAL weight, which is
    what matters - nobody sees the box. */
-.title-icon[data-icon="collab"]{width:.95em;height:.95em}
+.title-icon[data-icon="collab"]{width:.78em;height:.78em}
+/* Below 760px --gutter collapses to 20px (see the breakpoint block far below)
+   and there is no margin left to hang a mark in: measured at 390 the marks
+   landed on the collapsed rail and the flags fell off the screen entirely. So
+   the mark goes back INTO the line after the word - appending costs no layout
+   shift, which was the whole constraint. The flags have their own pair of
+   breakpoints, down beside their base rule. */
+@media(max-width:760px){
+  .title-icon{
+    position:static;transform:none;
+    display:inline-block;vertical-align:-.12em;margin:0 0 0 .22em;
+  }
+}
 .split-section{padding:110px var(--gutter);display:grid;grid-template-columns:.72fr 1.28fr;gap:clamp(40px,8vw,130px);background:rgba(14,17,20,.91);border-top:1px solid var(--line)}
 .split-section.alt{background:rgba(8,10,12,.96)}
 .statement p:last-child,.about-copy>p:not(.eyebrow){max-width:650px;color:#adb5bb;line-height:1.72;font-size:var(--copy-size)}
@@ -2268,7 +2290,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .bb-mrow{display:flex;align-items:center;gap:8px}
 .bb-ctl{
   display:inline-flex;align-items:center;justify-content:center;
-  width:44px;height:44px;padding:0;border:1px solid var(--line);
+  width:44px;height:44px;padding:0;border:3px solid var(--line);
   border-radius:50%;background:#101418;color:#959ea5;cursor:pointer;
   transition:color .2s ease,border-color .2s ease;
 }
@@ -2821,6 +2843,38 @@ footer small{margin-left:auto}
 
 /* Bot trap: off-screen rather than display:none so headless fillers still see it. */
 .contact-trap{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+
+/* ==========================================================================
+   WHERE HE IS FROM - the two flags at the top right of the bio (Dex,
+   2026-08-24). They sit in the About section's OWN right padding rather than
+   inside the copy column: the pocket between the nowrap h2 and the column's
+   right edge measures ~55px at 1440, so anything parked there collides the
+   moment the heading grows. The padding strip is 161px at 1440 and never
+   narrower than the 92px --gutter floor.
+   Accent-tinted through the shared .icon mask, so they follow the theme like
+   every other tinted mark on the page.
+   ========================================================================== */
+.about-flags{position:absolute;top:0;left:100%;margin-left:22px;display:grid;gap:7px}
+.about-flag{width:26px;height:26px;color:var(--accent);transition:color var(--accent-ease)}
+/* Breakout's in-game control stack claims this exact strip (.bb-stack, also
+   left:100%), so the flags stand down while the game runs - the same
+   treatment .bb-ui already gets. */
+.bb-ui.bb-playing ~ .about-flags{visibility:hidden}
+/* The gutter these hang in shrinks twice on the way down. At 1100 and under
+   it is clamp(28px,5vw,60px) - 45px at 900 - against 22px of margin plus a
+   26px flag, which put them 3px off the screen edge. Trim both. */
+@media(max-width:1100px){
+  .about-flags{margin-left:12px}
+  .about-flag{width:22px;height:22px}
+}
+/* At 760 the gutter is 20px and there is no strip left at all, so the flags
+   come inside and ride the eyebrow's own row - side by side, hard right,
+   where that line is empty to the right of ABOUT and the nowrap h2 below it
+   is not. 18px keeps them inside the eyebrow's 20px line box. */
+@media(max-width:760px){
+  .about-flags{left:auto;right:0;margin-left:0;grid-auto-flow:column;gap:6px}
+  .about-flag{width:18px;height:18px}
+}
 
 /* ==========================================================================
    ":" EMOJI PICKER - Stickland's chat autocomplete, on the two places people

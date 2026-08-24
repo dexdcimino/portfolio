@@ -1331,6 +1331,15 @@
             <span>BREAK THE BIO</span>
           </button>
         </div>
+        <!-- Where he is from. Out in the section's own right padding, not the
+             copy column's top-right pocket - that pocket is ~55px and the
+             nowrap h2 runs into it. AFTER .bb-ui in the DOM on purpose: the
+             stylesheet hides these while the game runs with a sibling
+             selector off .bb-ui.bb-playing. -->
+        <div class="about-flags">
+          <span class="icon about-flag" data-icon="us_flag" role="img" aria-label="United States"></span>
+          <span class="icon about-flag" data-icon="co_flag" role="img" aria-label="Colorado"></span>
+        </div>
         <!-- In-game controls: outside the playfield on its right, shown only
              while the game runs, bottom roughly level with the paddle (script
              sets the top). Order: X (stop), pause, volume at the very bottom.
