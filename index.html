@@ -1742,6 +1742,7 @@
         <button class="pk-tab" type="button" role="tab" id="pk-tab-movies" aria-controls="pk-panel-movies" aria-selected="false" tabindex="-1">Movies</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-songs" aria-controls="pk-panel-songs" aria-selected="false" tabindex="-1">Songs</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-quotes" aria-controls="pk-panel-quotes" aria-selected="false" tabindex="-1">Quotes</button>
+        <button class="pk-tab" type="button" role="tab" id="pk-tab-pods" aria-controls="pk-panel-pods" aria-selected="false" tabindex="-1">Pods</button>
       </div>
       <button class="pk-suggest-btn" id="pkSuggestOpen" type="button"
               aria-label="Suggest a pick">
@@ -1759,7 +1760,7 @@
             <div class="pk-cat">
               <button class="pk-cat-btn" type="button" id="pkCat"
                       aria-label="Category: Game — press to change">Game</button>
-              <span class="pk-cat-dashes" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              <span class="pk-cat-dashes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
             </div>
           </div>
           <!-- Its placeholder follows the cycler (Game Title / Movie Title / Song
@@ -2133,11 +2134,21 @@
               <cite class="pk-quote-cite" data-original="Carl Sagan"></cite>
             </div>
           </li>
-          <li class="pk-quote">
+          <!-- The first card to use the rendition machinery that has sat unused
+               in script.js since it was written: both quotes live in data-* on
+               the one card and swap in place, so a quote and its cite can never
+               drift apart. The pager below is the toggle .has-rendition gates. -->
+          <li class="pk-quote has-rendition">
             <blockquote class="pk-quote-text"
-              data-original="Man suffers only because he takes seriously what the gods made for fun."></blockquote>
+              data-original="You don’t impose your will on the clay, you ask any given lump of clay what it wants to become, and you help it to do that."
+              data-rendition="Man suffers only because he takes seriously what the gods made for fun."></blockquote>
             <div class="pk-quote-foot">
               <cite class="pk-quote-cite" data-original="Alan Watts"></cite>
+              <button class="pk-quote-toggle pk-quote-pager" type="button" aria-pressed="false"
+                      aria-label="Alan Watts, quote 1 of 2 - press to show the other">
+                <span class="pk-q-num" data-n="1" aria-hidden="true">1</span>
+                <span class="pk-q-num" data-n="2" aria-hidden="true">2</span>
+              </button>
             </div>
           </li>
           <li class="pk-quote">
@@ -2161,6 +2172,157 @@
               data-original="The only thing necessary for the triumph of evil is that good men do nothing."></blockquote>
             <div class="pk-quote-foot">
               <cite class="pk-quote-cite" data-original="Author unknown"></cite>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <!-- PODS. Square art like the songs tab - podcast covers are natively 1:1,
+           so they share the song-cover slot rather than the 2:3 pick-cover one -
+           and the same caption pair underneath: name in bold, one line under it.
+           Cover AND caption both go to the show’s YouTube channel; the small row
+           under each is where else to listen.
+           NO AUDIO HERE, deliberately. Playing an episode needs a licence these
+           links do not grant, and the platform links are both the legal way to
+           send someone to a show and the way the creator keeps their own ads and
+           numbers. Only YouTube and Apple are listed because only those two were
+           VERIFIED - the YouTube handles resolve 200 and report the right channel
+           title, the Apple links come from Apple’s own search API. Spotify was left
+           off rather than guessed at. -->
+      <div class="pk-panel" id="pk-panel-pods" role="tabpanel" aria-labelledby="pk-tab-pods" hidden>
+        <ul class="pk-grid">
+          <li class="pk-card pk-pod">
+            <a class="pk-link" href="https://www.youtube.com/@lexfridman" target="_blank" rel="noopener noreferrer" aria-label="Lex Fridman Podcast on YouTube">
+              <!-- img src="assets/about/pods/lex-fridman.jpg" slot="song-cover" alt="Lex Fridman Podcast cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/pods/lex-fridman-800.avif?v=58c9c184 800w,
+                                                  assets/derived/about/pods/lex-fridman-600.avif?v=58c9c184 600w,
+                                                  assets/derived/about/pods/lex-fridman-400.avif?v=58c9c184 400w,
+                                                  assets/derived/about/pods/lex-fridman-200.avif?v=58c9c184 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/pods/lex-fridman-800.webp?v=58c9c184 800w,
+                                                  assets/derived/about/pods/lex-fridman-600.webp?v=58c9c184 600w,
+                                                  assets/derived/about/pods/lex-fridman-400.webp?v=58c9c184 400w,
+                                                  assets/derived/about/pods/lex-fridman-200.webp?v=58c9c184 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/pods/lex-fridman.jpg" alt="Lex Fridman Podcast cover art" width="1200" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+            <a class="pk-song-link" href="https://www.youtube.com/@lexfridman" target="_blank" rel="noopener noreferrer">
+              <strong class="pk-artist">Lex Fridman Podcast</strong>
+              <span class="pk-title">AI, science and power, at length.</span>
+            </a>
+            <div class="pk-pod-links">
+              <a class="pk-pod-link" href="https://www.youtube.com/@lexfridman" target="_blank" rel="noopener noreferrer" aria-label="Lex Fridman Podcast on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-pod-link" href="https://podcasts.apple.com/us/podcast/lex-fridman-podcast/id1434243584" target="_blank" rel="noopener noreferrer" aria-label="Lex Fridman Podcast on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
+            </div>
+          </li>
+          <li class="pk-card pk-pod">
+            <a class="pk-link" href="https://www.youtube.com/@PeterDiamandis" target="_blank" rel="noopener noreferrer" aria-label="Moonshots with Peter Diamandis on YouTube">
+              <!-- img src="assets/about/pods/moonshots.jpg" slot="song-cover" alt="Moonshots with Peter Diamandis cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/pods/moonshots-800.avif?v=1264c48c 800w,
+                                                  assets/derived/about/pods/moonshots-600.avif?v=1264c48c 600w,
+                                                  assets/derived/about/pods/moonshots-400.avif?v=1264c48c 400w,
+                                                  assets/derived/about/pods/moonshots-200.avif?v=1264c48c 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/pods/moonshots-800.webp?v=1264c48c 800w,
+                                                  assets/derived/about/pods/moonshots-600.webp?v=1264c48c 600w,
+                                                  assets/derived/about/pods/moonshots-400.webp?v=1264c48c 400w,
+                                                  assets/derived/about/pods/moonshots-200.webp?v=1264c48c 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/pods/moonshots.jpg" alt="Moonshots with Peter Diamandis cover art" width="1200" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+            <a class="pk-song-link" href="https://www.youtube.com/@PeterDiamandis" target="_blank" rel="noopener noreferrer">
+              <strong class="pk-artist">Moonshots with Peter Diamandis</strong>
+              <span class="pk-title">Exponential tech and the future.</span>
+            </a>
+            <div class="pk-pod-links">
+              <a class="pk-pod-link" href="https://www.youtube.com/@PeterDiamandis" target="_blank" rel="noopener noreferrer" aria-label="Moonshots with Peter Diamandis on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-pod-link" href="https://podcasts.apple.com/us/podcast/moonshots-with-peter-diamandis/id1648228034" target="_blank" rel="noopener noreferrer" aria-label="Moonshots with Peter Diamandis on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
+            </div>
+          </li>
+          <li class="pk-card pk-pod">
+            <a class="pk-link" href="https://www.youtube.com/@ShawnRyanShow" target="_blank" rel="noopener noreferrer" aria-label="The Shawn Ryan Show on YouTube">
+              <!-- img src="assets/about/pods/shawn-ryan-show.jpg" slot="song-cover" alt="The Shawn Ryan Show cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/pods/shawn-ryan-show-800.avif?v=42e9930e 800w,
+                                                  assets/derived/about/pods/shawn-ryan-show-600.avif?v=42e9930e 600w,
+                                                  assets/derived/about/pods/shawn-ryan-show-400.avif?v=42e9930e 400w,
+                                                  assets/derived/about/pods/shawn-ryan-show-200.avif?v=42e9930e 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/pods/shawn-ryan-show-800.webp?v=42e9930e 800w,
+                                                  assets/derived/about/pods/shawn-ryan-show-600.webp?v=42e9930e 600w,
+                                                  assets/derived/about/pods/shawn-ryan-show-400.webp?v=42e9930e 400w,
+                                                  assets/derived/about/pods/shawn-ryan-show-200.webp?v=42e9930e 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/pods/shawn-ryan-show.jpg" alt="The Shawn Ryan Show cover art" width="1200" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+            <a class="pk-song-link" href="https://www.youtube.com/@ShawnRyanShow" target="_blank" rel="noopener noreferrer">
+              <strong class="pk-artist">The Shawn Ryan Show</strong>
+              <span class="pk-title">Special operators, told first-hand.</span>
+            </a>
+            <div class="pk-pod-links">
+              <a class="pk-pod-link" href="https://www.youtube.com/@ShawnRyanShow" target="_blank" rel="noopener noreferrer" aria-label="The Shawn Ryan Show on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-pod-link" href="https://podcasts.apple.com/us/podcast/the-shawn-ryan-show/id1492492083" target="_blank" rel="noopener noreferrer" aria-label="The Shawn Ryan Show on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
+            </div>
+          </li>
+          <li class="pk-card pk-pod">
+            <a class="pk-link" href="https://www.youtube.com/@StarTalk" target="_blank" rel="noopener noreferrer" aria-label="StarTalk Radio on YouTube">
+              <!-- img src="assets/about/pods/startalk.jpg" slot="song-cover" alt="StarTalk Radio cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/pods/startalk-800.avif?v=4ae2619e 800w,
+                                                  assets/derived/about/pods/startalk-600.avif?v=4ae2619e 600w,
+                                                  assets/derived/about/pods/startalk-400.avif?v=4ae2619e 400w,
+                                                  assets/derived/about/pods/startalk-200.avif?v=4ae2619e 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/pods/startalk-800.webp?v=4ae2619e 800w,
+                                                  assets/derived/about/pods/startalk-600.webp?v=4ae2619e 600w,
+                                                  assets/derived/about/pods/startalk-400.webp?v=4ae2619e 400w,
+                                                  assets/derived/about/pods/startalk-200.webp?v=4ae2619e 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/pods/startalk.jpg" alt="StarTalk Radio cover art" width="1200" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+            <a class="pk-song-link" href="https://www.youtube.com/@StarTalk" target="_blank" rel="noopener noreferrer">
+              <strong class="pk-artist">StarTalk Radio</strong>
+              <span class="pk-title">Science next to pop culture.</span>
+            </a>
+            <div class="pk-pod-links">
+              <a class="pk-pod-link" href="https://www.youtube.com/@StarTalk" target="_blank" rel="noopener noreferrer" aria-label="StarTalk Radio on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-pod-link" href="https://podcasts.apple.com/us/podcast/startalk-radio/id325404506" target="_blank" rel="noopener noreferrer" aria-label="StarTalk Radio on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
+            </div>
+          </li>
+          <li class="pk-card pk-pod">
+            <a class="pk-link" href="https://www.youtube.com/@joerogan" target="_blank" rel="noopener noreferrer" aria-label="The Joe Rogan Experience on YouTube">
+              <!-- img src="assets/about/pods/joe-rogan-experience.jpg" slot="song-cover" alt="The Joe Rogan Experience cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/pods/joe-rogan-experience-800.avif?v=4981235e 800w,
+                                                  assets/derived/about/pods/joe-rogan-experience-600.avif?v=4981235e 600w,
+                                                  assets/derived/about/pods/joe-rogan-experience-400.avif?v=4981235e 400w,
+                                                  assets/derived/about/pods/joe-rogan-experience-200.avif?v=4981235e 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/pods/joe-rogan-experience-800.webp?v=4981235e 800w,
+                                                  assets/derived/about/pods/joe-rogan-experience-600.webp?v=4981235e 600w,
+                                                  assets/derived/about/pods/joe-rogan-experience-400.webp?v=4981235e 400w,
+                                                  assets/derived/about/pods/joe-rogan-experience-200.webp?v=4981235e 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/pods/joe-rogan-experience.jpg" alt="The Joe Rogan Experience cover art" width="1200" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+            <a class="pk-song-link" href="https://www.youtube.com/@joerogan" target="_blank" rel="noopener noreferrer">
+              <strong class="pk-artist">The Joe Rogan Experience</strong>
+              <span class="pk-title">Three hours with whoever’s interesting.</span>
+            </a>
+            <div class="pk-pod-links">
+              <a class="pk-pod-link" href="https://www.youtube.com/@joerogan" target="_blank" rel="noopener noreferrer" aria-label="The Joe Rogan Experience on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-pod-link" href="https://podcasts.apple.com/us/podcast/the-joe-rogan-experience/id360084272" target="_blank" rel="noopener noreferrer" aria-label="The Joe Rogan Experience on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
             </div>
           </li>
         </ul>

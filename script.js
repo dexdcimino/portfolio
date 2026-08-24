@@ -5381,13 +5381,13 @@ const PORTRAIT_LABEL = {
   /* The category cycler: whatever shows is what gets sent — no unselected
      state, nothing to validate. Enter/Space advance it natively (it is a
      real button); the aria-label re-announces the value it landed on. */
-  const CATS = ['Game', 'Movie', 'Song', 'Quote'];
+  const CATS = ['Game', 'Movie', 'Song', 'Quote', 'Pod'];
   // The title field asks a different question per category, so its
   // placeholder (and accessible name) say which one (Dex, 2026-08-23).
-  const TITLE_HINT = { Game: 'Game Title', Movie: 'Movie Title', Song: 'Song Title', Quote: 'The Quote' };
+  const TITLE_HINT = { Game: 'Game Title', Movie: 'Movie Title', Song: 'Song Title', Quote: 'The Quote', Pod: 'Podcast Name' };
   // The picks tab that is showing when the ? is pressed is the category the
   // visitor means (Dex, 2026-08-23): open on Songs, suggest a song.
-  const TAB_CAT = { 'pk-tab-games': 0, 'pk-tab-movies': 1, 'pk-tab-songs': 2, 'pk-tab-quotes': 3 };
+  const TAB_CAT = { 'pk-tab-games': 0, 'pk-tab-movies': 1, 'pk-tab-songs': 2, 'pk-tab-quotes': 3, 'pk-tab-pods': 4 };
   let cat = 0;
   /* The title field is a textarea so a quote can be lines (Dex, 2026-08-23).
      It sits at its rows - one for a title, two for a quote - and grows with

@@ -168,9 +168,33 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   excerpt, size, reader, copy and download all read `assets/ai/prompts/*.md`
   at runtime — adding one is a file plus an `<article>`, no JS edit), song
   player, resume overlay, Web3Forms contact (public access key — by design),
+  **TOP PICKS is five tabs** â Games, Movies, Songs, Quotes, Pods â and both the
+  tab machinery (`initTabs`) and the carousel (`initPkCarousel`) derive their
+  tabs and panels FROM THE DOM, so a sixth is markup only, no JS edit. Games
+  and Movies share the 2:3 `pick-cover` slot; Songs and PODS share the 1:1
+  `song-cover` slot, because podcast art is natively square exactly as album
+  art is. A pod card is cover + caption, both linking to the show's YouTube
+  channel, plus a small `.pk-pod-links` row for where else to listen.
+  **NO AUDIO ON THE PODS TAB, and that is a licensing answer, not an oversight.**
+  A podcast's RSS audio is publicly fetchable, but fetching is not a licence to
+  serve it from this page, and doing so would route around the host's own ad
+  insertion and measurement. The legal way to actually play an episode is the
+  platforms' OWN embeds (Spotify / Apple / YouTube iframes), which are licensed
+  for embedding and keep the creator's ads and numbers â the cost is that this
+  site's CSP carries no `frame-src`, so enabling one means letting third-party
+  frames into an otherwise self-contained page. Links only until someone wants
+  to pay that. Only YouTube and Apple are linked because only those two were
+  verifiable (handles resolve 200 with the right channel title; Apple links
+  come from Apple's own search API) â Spotify is absent rather than guessed.
+  QUOTE RENDITIONS finally have a user: the Alan Watts card carries both of his
+  quotes in `data-original` / `data-rendition` and swaps them in place, so the
+  text and its cite can never drift apart. Its toggle is `.pk-quote-pager` â both
+  numerals in ONE button, the active one in the accent, hover previewing and
+  click pinning as the machinery already did. Cards without `.has-rendition`
+  still show no toggle at all.
   and the Top Picks suggestion POPOVER (the `?` sits in `.pk-tabrow` as a
   SIBLING of the picks tablist, never inside it — role=tab there would join
-  the arrow-key cycle and announce as a fifth category; the panel is
+  the arrow-key cycle and announce as a sixth category; the panel is
   `.pk-pop` anchored beside the button — NOT a dialog: no backdrop, no
   modal focus trap; focus enters on open and returns to the `?` on close;
   Escape, outside click, and >24px of scroll close it, and TYPED VALUES
