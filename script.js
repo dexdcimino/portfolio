@@ -1980,10 +1980,15 @@ let flashTip = () => {};
         return;
       }
     }
-    // Above by default; below when there is no room, so it never leaves the
-    // viewport at the top of the page.
-    let top = r.top - t.height - GAP;
-    if (top < 6) top = r.bottom + GAP;
+    /* BELOW by default (Dex, 2026-08-24). Above put the bubble on top of the
+       thing the label belongs to: on a picks card it landed over the title and
+       the line under it, which is the text someone is reading at the moment
+       they go looking for an icon's name. Above is kept as the fallback for a
+       target close to the bottom of the window, and the clamp stops that
+       fallback pushing it off the top on a short viewport. */
+    let top = r.bottom + GAP;
+    if (top + t.height > window.innerHeight - 6) top = r.top - t.height - GAP;
+    if (top < 6) top = 6;
     let left = r.left + r.width / 2 - t.width / 2;
     left = Math.max(6, Math.min(left, window.innerWidth - t.width - 6));
     // left/top, not a transform: transform is animatable and the tip would slide
@@ -5381,13 +5386,13 @@ const PORTRAIT_LABEL = {
   /* The category cycler: whatever shows is what gets sent — no unselected
      state, nothing to validate. Enter/Space advance it natively (it is a
      real button); the aria-label re-announces the value it landed on. */
-  const CATS = ['Game', 'Movie', 'Song', 'Quote', 'Pod'];
+  const CATS = ['Game', 'Movie', 'Show', 'Song', 'Quote', 'Pod'];
   // The title field asks a different question per category, so its
   // placeholder (and accessible name) say which one (Dex, 2026-08-23).
-  const TITLE_HINT = { Game: 'Game Title', Movie: 'Movie Title', Song: 'Song Title', Quote: 'The Quote', Pod: 'Podcast Name' };
+  const TITLE_HINT = { Game: 'Game Title', Movie: 'Movie Title', Show: 'Show Title', Song: 'Song Title', Quote: 'The Quote', Pod: 'Podcast Name' };
   // The picks tab that is showing when the ? is pressed is the category the
   // visitor means (Dex, 2026-08-23): open on Songs, suggest a song.
-  const TAB_CAT = { 'pk-tab-games': 0, 'pk-tab-movies': 1, 'pk-tab-songs': 2, 'pk-tab-quotes': 3, 'pk-tab-pods': 4 };
+  const TAB_CAT = { 'pk-tab-games': 0, 'pk-tab-movies': 1, 'pk-tab-shows': 2, 'pk-tab-songs': 3, 'pk-tab-quotes': 4, 'pk-tab-pods': 5 };
   let cat = 0;
   /* The title field is a textarea so a quote can be lines (Dex, 2026-08-23).
      It sits at its rows - one for a title, two for a quote - and grows with

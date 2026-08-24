@@ -1740,6 +1740,7 @@
       <div class="pk-tabs" role="tablist" aria-label="Top picks categories">
         <button class="pk-tab" type="button" role="tab" id="pk-tab-games" aria-controls="pk-panel-games" aria-selected="true" tabindex="0">Games</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-movies" aria-controls="pk-panel-movies" aria-selected="false" tabindex="-1">Movies</button>
+        <button class="pk-tab" type="button" role="tab" id="pk-tab-shows" aria-controls="pk-panel-shows" aria-selected="false" tabindex="-1">Shows</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-songs" aria-controls="pk-panel-songs" aria-selected="false" tabindex="-1">Songs</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-quotes" aria-controls="pk-panel-quotes" aria-selected="false" tabindex="-1">Quotes</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-pods" aria-controls="pk-panel-pods" aria-selected="false" tabindex="-1">Pods</button>
@@ -1760,7 +1761,7 @@
             <div class="pk-cat">
               <button class="pk-cat-btn" type="button" id="pkCat"
                       aria-label="Category: Game — press to change">Game</button>
-              <span class="pk-cat-dashes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+              <span class="pk-cat-dashes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
             </div>
           </div>
           <!-- Its placeholder follows the cycler (Game Title / Movie Title / Song
@@ -1973,6 +1974,103 @@
                                                   assets/derived/about/movie-covers/the-island-200.webp?v=57a9bd15 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
                 <img class="pk-cover" src="assets/about/movie-covers/the-island.png" alt="The Island cover art" width="800" height="1200" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+        </ul>
+      </div>
+      <!-- SHOWS, between Movies and Songs. Built exactly like the movies tab -
+           the 2:3 pick-cover slot, a bare cover, and a Google search behind it -
+           because it is the same kind of pick and should not look like a
+           different one. That is also why no card carries a caption: the season
+           range Dex asked for on Rick and Morty rides the alt text and the
+           search query instead of a line of type the movies tab does not have.
+           Posters came from TMDB's public pages at w780, which is 780x1170 -
+           the same 2:3 the movie masters are cut to. -->
+      <div class="pk-panel" id="pk-panel-shows" role="tabpanel" aria-labelledby="pk-tab-shows" hidden>
+        <ul class="pk-grid">
+          <li class="pk-card">
+            <a class="pk-link" href="https://www.google.com/search?q=Black+Mirror+series" target="_blank" rel="noopener noreferrer">
+              <!-- img src="assets/about/show-covers/black-mirror.jpg" slot="pick-cover" alt="Black Mirror cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/show-covers/black-mirror-600.avif?v=a4c27ad4 600w,
+                                                  assets/derived/about/show-covers/black-mirror-400.avif?v=a4c27ad4 400w,
+                                                  assets/derived/about/show-covers/black-mirror-200.avif?v=a4c27ad4 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/show-covers/black-mirror-600.webp?v=a4c27ad4 600w,
+                                                  assets/derived/about/show-covers/black-mirror-400.webp?v=a4c27ad4 400w,
+                                                  assets/derived/about/show-covers/black-mirror-200.webp?v=a4c27ad4 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/show-covers/black-mirror.jpg" alt="Black Mirror cover art" width="780" height="1170" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="https://www.google.com/search?q=Severance+2022+series" target="_blank" rel="noopener noreferrer">
+              <!-- img src="assets/about/show-covers/severance.jpg" slot="pick-cover" alt="Severance cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/show-covers/severance-600.avif?v=dc4dbdd8 600w,
+                                                  assets/derived/about/show-covers/severance-400.avif?v=dc4dbdd8 400w,
+                                                  assets/derived/about/show-covers/severance-200.avif?v=dc4dbdd8 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/show-covers/severance-600.webp?v=dc4dbdd8 600w,
+                                                  assets/derived/about/show-covers/severance-400.webp?v=dc4dbdd8 400w,
+                                                  assets/derived/about/show-covers/severance-200.webp?v=dc4dbdd8 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/show-covers/severance.jpg" alt="Severance cover art" width="780" height="1170" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="https://www.google.com/search?q=Rick+and+Morty+seasons+1-5" target="_blank" rel="noopener noreferrer">
+              <!-- img src="assets/about/show-covers/rick-and-morty.jpg" slot="pick-cover" alt="Rick and Morty, seasons 1-5 cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/show-covers/rick-and-morty-600.avif?v=30ae759e 600w,
+                                                  assets/derived/about/show-covers/rick-and-morty-400.avif?v=30ae759e 400w,
+                                                  assets/derived/about/show-covers/rick-and-morty-200.avif?v=30ae759e 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/show-covers/rick-and-morty-600.webp?v=30ae759e 600w,
+                                                  assets/derived/about/show-covers/rick-and-morty-400.webp?v=30ae759e 400w,
+                                                  assets/derived/about/show-covers/rick-and-morty-200.webp?v=30ae759e 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/show-covers/rick-and-morty.jpg" alt="Rick and Morty, seasons 1-5 cover art" width="780" height="1170" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="https://www.google.com/search?q=The+Office+US+2005" target="_blank" rel="noopener noreferrer">
+              <!-- img src="assets/about/show-covers/the-office.jpg" slot="pick-cover" alt="The Office (US) cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/show-covers/the-office-600.avif?v=6e84bcb1 600w,
+                                                  assets/derived/about/show-covers/the-office-400.avif?v=6e84bcb1 400w,
+                                                  assets/derived/about/show-covers/the-office-200.avif?v=6e84bcb1 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/show-covers/the-office-600.webp?v=6e84bcb1 600w,
+                                                  assets/derived/about/show-covers/the-office-400.webp?v=6e84bcb1 400w,
+                                                  assets/derived/about/show-covers/the-office-200.webp?v=6e84bcb1 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/show-covers/the-office.jpg" alt="The Office (US) cover art" width="780" height="1170" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
+            <a class="pk-link" href="https://www.google.com/search?q=Breaking+Bad+2008" target="_blank" rel="noopener noreferrer">
+              <!-- img src="assets/about/show-covers/breaking-bad.jpg" slot="pick-cover" alt="Breaking Bad cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/show-covers/breaking-bad-600.avif?v=fdb50ef1 600w,
+                                                  assets/derived/about/show-covers/breaking-bad-400.avif?v=fdb50ef1 400w,
+                                                  assets/derived/about/show-covers/breaking-bad-200.avif?v=fdb50ef1 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/show-covers/breaking-bad-600.webp?v=fdb50ef1 600w,
+                                                  assets/derived/about/show-covers/breaking-bad-400.webp?v=fdb50ef1 400w,
+                                                  assets/derived/about/show-covers/breaking-bad-200.webp?v=fdb50ef1 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/show-covers/breaking-bad.jpg" alt="Breaking Bad cover art" width="780" height="1170" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
             </a>
@@ -2234,6 +2332,7 @@
             </a>
             <div class="pk-listen">
               <a class="pk-listen-link" href="https://www.youtube.com/@lexfridman" target="_blank" rel="noopener noreferrer" aria-label="Lex Fridman Podcast on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-listen-link" href="https://open.spotify.com/search/Lex%20Fridman%20Podcast" target="_blank" rel="noopener noreferrer" aria-label="Find Lex Fridman Podcast on Spotify" data-tip="Find on Spotify"><span class="icon" data-icon="spotify" aria-hidden="true"></span></a>
               <a class="pk-listen-link" href="https://podcasts.apple.com/us/podcast/lex-fridman-podcast/id1434243584" target="_blank" rel="noopener noreferrer" aria-label="Lex Fridman Podcast on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
             </div>
           </li>
@@ -2261,6 +2360,7 @@
             </a>
             <div class="pk-listen">
               <a class="pk-listen-link" href="https://www.youtube.com/@PeterDiamandis" target="_blank" rel="noopener noreferrer" aria-label="Moonshots with Peter Diamandis on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-listen-link" href="https://open.spotify.com/search/Moonshots%20with%20Peter%20Diamandis" target="_blank" rel="noopener noreferrer" aria-label="Find Moonshots with Peter Diamandis on Spotify" data-tip="Find on Spotify"><span class="icon" data-icon="spotify" aria-hidden="true"></span></a>
               <a class="pk-listen-link" href="https://podcasts.apple.com/us/podcast/moonshots-with-peter-diamandis/id1648228034" target="_blank" rel="noopener noreferrer" aria-label="Moonshots with Peter Diamandis on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
             </div>
           </li>
@@ -2288,6 +2388,7 @@
             </a>
             <div class="pk-listen">
               <a class="pk-listen-link" href="https://www.youtube.com/@ShawnRyanShow" target="_blank" rel="noopener noreferrer" aria-label="The Shawn Ryan Show on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-listen-link" href="https://open.spotify.com/search/The%20Shawn%20Ryan%20Show" target="_blank" rel="noopener noreferrer" aria-label="Find The Shawn Ryan Show on Spotify" data-tip="Find on Spotify"><span class="icon" data-icon="spotify" aria-hidden="true"></span></a>
               <a class="pk-listen-link" href="https://podcasts.apple.com/us/podcast/the-shawn-ryan-show/id1492492083" target="_blank" rel="noopener noreferrer" aria-label="The Shawn Ryan Show on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
             </div>
           </li>
@@ -2315,6 +2416,7 @@
             </a>
             <div class="pk-listen">
               <a class="pk-listen-link" href="https://www.youtube.com/@StarTalk" target="_blank" rel="noopener noreferrer" aria-label="StarTalk Radio on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-listen-link" href="https://open.spotify.com/search/StarTalk%20Radio" target="_blank" rel="noopener noreferrer" aria-label="Find StarTalk Radio on Spotify" data-tip="Find on Spotify"><span class="icon" data-icon="spotify" aria-hidden="true"></span></a>
               <a class="pk-listen-link" href="https://podcasts.apple.com/us/podcast/startalk-radio/id325404506" target="_blank" rel="noopener noreferrer" aria-label="StarTalk Radio on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
             </div>
           </li>
@@ -2342,6 +2444,7 @@
             </a>
             <div class="pk-listen">
               <a class="pk-listen-link" href="https://www.youtube.com/@joerogan" target="_blank" rel="noopener noreferrer" aria-label="The Joe Rogan Experience on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
+              <a class="pk-listen-link" href="https://open.spotify.com/search/The%20Joe%20Rogan%20Experience" target="_blank" rel="noopener noreferrer" aria-label="Find The Joe Rogan Experience on Spotify" data-tip="Find on Spotify"><span class="icon" data-icon="spotify" aria-hidden="true"></span></a>
               <a class="pk-listen-link" href="https://podcasts.apple.com/us/podcast/the-joe-rogan-experience/id360084272" target="_blank" rel="noopener noreferrer" aria-label="The Joe Rogan Experience on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
             </div>
           </li>

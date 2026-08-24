@@ -168,10 +168,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   excerpt, size, reader, copy and download all read `assets/ai/prompts/*.md`
   at runtime — adding one is a file plus an `<article>`, no JS edit), song
   player, resume overlay, Web3Forms contact (public access key — by design),
-  **TOP PICKS is five tabs** â Games, Movies, Songs, Quotes, Pods â and both the
+  **TOP PICKS is six tabs** â Games, Movies, Shows, Songs, Quotes, Pods â and both the
   tab machinery (`initTabs`) and the carousel (`initPkCarousel`) derive their
-  tabs and panels FROM THE DOM, so a sixth is markup only, no JS edit. Games
-  and Movies share the 2:3 `pick-cover` slot; Songs and PODS share the 1:1
+  tabs and panels FROM THE DOM, so a seventh is markup only, no JS edit.
+  Games, Movies and SHOWS share the 2:3 `pick-cover` slot — a show card is a
+  bare cover over a Google search, captionless, exactly like a movie, which is
+  why the season range on Rick and Morty rides its alt text and its query
+  rather than a line of type that tab does not have; Songs and PODS share the 1:1
   `song-cover` slot, because podcast art is natively square exactly as album
   art is. A pod card is cover + caption, both linking to the show's YouTube
   channel, plus a small WHERE-ELSE-TO-LISTEN row. That row is `.pk-listen` /
@@ -202,7 +205,7 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   still show no toggle at all.
   and the Top Picks suggestion POPOVER (the `?` sits in `.pk-tabrow` as a
   SIBLING of the picks tablist, never inside it — role=tab there would join
-  the arrow-key cycle and announce as a sixth category; the panel is
+  the arrow-key cycle and announce as a seventh category; the panel is
   `.pk-pop` anchored beside the button — NOT a dialog: no backdrop, no
   modal focus trap; focus enters on open and returns to the `?` on close;
   Escape, outside click, and >24px of scroll close it, and TYPED VALUES
@@ -408,7 +411,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     inside and ride the eyebrow's own row side by side, which is the only line
     in that column with space to its right. Each carries a `data-tip` ("US
     Based", "Born Colorado") with `data-tip-pos="right"` - the shared tooltip's
-    one placement option, added for these: BESIDE the mark and centred on it,
+    one placement option (the DEFAULT is BELOW the target now, flipping above
+    only when the window bottom is close — above used to be the default and
+    covered the title and the line under it on a picks card, which is the text
+    someone is reading when they go hunting for an icon's name): beside the
+    mark and centred on it,
     right if it fits and left if it does not, with the default above-placement
     kept only as a last resort. In practice it flips left on most screens:
     measured at 1440 there are 81px between the flags and the window edge
