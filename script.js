@@ -4819,25 +4819,27 @@ const LOOP_MODES = ['off', 'all', 'one'];
 })();
 
 /* ==========================================================================
-   PORTRAIT TOGGLE  (photo -> accent line art -> gray line art -> photo)
+   PORTRAIT TOGGLE  (accent line art <-> gray line art; photo parked)
    Two controls, one state. Either button drives every portrait on the page —
    the About hero, the sidebar profile, and the compact avatar the rail shows
    while the profile is collapsed. That third one is easy to miss: leave it out
    and the two portraits disagree the moment somebody hits the chevron.
 
-   THE PHOTO WAS PARKED FOR A DAY AND IS BACK (Dex, out 2026-08-22, in
-   2026-08-22). Worth keeping the note because of how the round trip went: out
-   and back in were each a two-line edit, to PORTRAIT_CYCLE and to the `gray`
-   label, and nothing else moved either way. That is not luck — it is that the
-   photo branches in apply() are all written as `state !== 'photo'` rather than
-   as a photo case, so the state going missing from the cycle leaves them inert
-   instead of leaving them wrong. Anything added here should keep that shape.
+   THE PHOTO IS PARKED AGAIN, NOT REMOVED (Dex: out 2026-08-22, back the same
+   day, out again 2026-08-23). Each trip is the same two-line edit, to
+   PORTRAIT_CYCLE and to the `gray` label, and nothing else moves either way.
+   That is not luck — it is that the photo branches in apply() are all written
+   as `state !== 'photo'` rather than as a photo case, so the state going
+   missing from the cycle leaves them inert instead of leaving them wrong.
+   Anything added here should keep that shape. `assets/about/profile.jpg`
+   stays, all three <img> elements stay in the markup, lazy and at opacity 0
+   under the drawing; restoring the photo is 'photo' back at the front of
+   PORTRAIT_CYCLE and the gray label pointing at it again.
 
-   The one thing to check when it goes out again: a saved 'photo' from a
-   previous visit fails the `includes` test on load and falls back to the
-   accent, so a returning visitor is never stranded on a state the cycle no
-   longer has. Coming back in it simply starts working again — the key is
-   unchanged and nothing was migrated.
+   While it is out: a saved 'photo' from a previous visit fails the `includes`
+   test on load and falls back to the accent, so a returning visitor is never
+   stranded on a state the cycle no longer has. The key is unchanged and
+   nothing is migrated, so coming back in simply starts working again.
 
    No aria-pressed. It is a two-state attribute, and with three states both
    line-art variants would report pressed=true — so stepping from accent to gray
@@ -4852,11 +4854,11 @@ const LOOP_MODES = ['off', 'all', 'one'];
    before first paint rather than swapping in after it.
    ========================================================================== */
 const PORTRAIT_KEY = 'dex-portrait-ink';
-const PORTRAIT_CYCLE = ['photo', 'ink', 'gray'];
+const PORTRAIT_CYCLE = ['ink', 'gray'];          // 'photo' parked again (Dex, 2026-08-23) — see above
 const PORTRAIT_LABEL = {
   photo: 'Portrait: photo. Switch to accent line art.',
   ink: 'Portrait: accent line art. Switch to gray line art.',
-  gray: 'Portrait: gray line art. Switch back to the photo.'
+  gray: 'Portrait: gray line art. Switch back to accent line art.'
 };
 
 (function initPortraitInk() {
