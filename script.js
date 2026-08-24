@@ -1958,6 +1958,28 @@ let flashTip = () => {};
   function place(el) {
     const r = el.getBoundingClientRect();
     const t = tip.getBoundingClientRect();
+    /* Opt-in side placement. data-tip-pos="right" puts the bubble BESIDE the
+       target and centred on it, which is what a small mark parked in a margin
+       wants: the default above-placement sits over the thing it labels, and
+       for a stacked pair the upper bubble covers the upper mark.
+
+       RIGHT IF IT FITS, OTHERWISE LEFT, and only then the default. The marks
+       that ask for this are the bio's flags, which live in the section's own
+       right padding - measured at 1440 there are 81px between them and the
+       window edge against a 105px "Born Colorado", so the preferred side is
+       the one there is least often room on. Flipping to the inside keeps the
+       bubble beside its mark and centred, which is the part that matters;
+       above is kept as the last resort for a viewport too narrow for either. */
+    if (el.dataset.tipPos === 'right') {
+      const fitsRight = r.right + GAP + t.width <= window.innerWidth - 6;
+      const fitsLeft = r.left - GAP - t.width >= 6;
+      if (fitsRight || fitsLeft) {
+        const mid = r.top + r.height / 2 - t.height / 2;
+        tip.style.left = `${Math.round(fitsRight ? r.right + GAP : r.left - GAP - t.width)}px`;
+        tip.style.top = `${Math.round(Math.max(6, Math.min(mid, window.innerHeight - t.height - 6)))}px`;
+        return;
+      }
+    }
     // Above by default; below when there is no room, so it never leaves the
     // viewport at the top of the page.
     let top = r.top - t.height - GAP;

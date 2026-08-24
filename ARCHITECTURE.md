@@ -374,7 +374,14 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     `clamp(20px,3.8vw,44px)` rather than taking a second fixed size that would
     be wrong at one end of the range. Under 760px they come
     inside and ride the eyebrow's own row side by side, which is the only line
-    in that column with space to its right. Hidden while Breakout runs
+    in that column with space to its right. Each carries a `data-tip` ("US
+    Based", "Born Colorado") with `data-tip-pos="right"` - the shared tooltip's
+    one placement option, added for these: BESIDE the mark and centred on it,
+    right if it fits and left if it does not, with the default above-placement
+    kept only as a last resort. In practice it flips left on most screens:
+    measured at 1440 there are 81px between the flags and the window edge
+    against a 104px "Born Colorado". The `aria-label` carries the same words,
+    so the meaning does not depend on a hover. Hidden while Breakout runs
     (`.bb-ui.bb-playing ~ .about-flags`): `.bb-stack` claims the same strip
     at `left:100%`. Sources are `assets/icons/flags/*.svg`, picked up by
     `bake_icons.py` like any other mask - the flag detail is cut into one
