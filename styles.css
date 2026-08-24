@@ -1033,6 +1033,14 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 }
 .pk-pop-input:focus{outline:none;border-color:var(--accent)}
 .pk-pop-input.invalid{border-color:#ff8585}
+/* The title field is the question, so it reads centred - placeholder and typed
+   text alike (Dex, 2026-08-23). Just this field: a centred name looks wrong. */
+#pkSuggestion{text-align:center}
+/* From: as a word beside a NARROWER field rather than a second full-width box.
+   The name is optional and the row should look it; 150px holds a name and
+   still leaves the word its own space on the left. */
+.pk-pop-from{display:flex;align-items:center;gap:10px;margin:0;font-size:13px;font-weight:700;letter-spacing:.04em;color:#98a1a9}
+.pk-pop-from .pk-pop-input{flex:0 1 150px;min-width:0}
 /* Footer: status grows on the left, SEND holds the right edge. */
 .pk-pop-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .pk-pop-status{margin:0;flex:1 1 auto;font-size:12.5px;color:#98a1a9;min-height:1em}
@@ -2799,6 +2807,26 @@ footer small{margin-left:auto}
 
 /* Bot trap: off-screen rather than display:none so headless fillers still see it. */
 .contact-trap{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+
+/* ==========================================================================
+   ":" EMOJI PICKER - Stickland's chat autocomplete, on the two places people
+   write to me: the contact MESSAGE and the Top Picks TITLE. Built by script.js
+   INSIDE its host (.contact-panel / .pk-pop) rather than on <body>: the contact
+   form is a <dialog> in the top layer, and nothing appended to body can paint
+   over that. Same 3-column shape as the game's: six matches, a rule, the three
+   most-used with a small x to forget one.
+   ========================================================================== */
+.emoji-pick{position:absolute;z-index:60;display:none;padding:6px;background:#101418;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.5)}
+.emoji-pick.open{display:block}
+.emoji-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.emoji-cell{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:8px;background:none;color:var(--text);font-family:inherit;font-size:20px;line-height:1;cursor:pointer;transition:background .18s ease}
+.emoji-cell:hover:not(:disabled){background:#232a32}
+.emoji-cell.active{background:#232a32;box-shadow:inset 0 0 0 1.5px var(--accent)}
+.emoji-freq-sep{grid-column:1 / -1;height:1px;margin:4px 2px;background:var(--line)}
+.emoji-freq-empty{opacity:.25;cursor:default}
+.emoji-freq-x{position:absolute;top:-1px;right:1px;font-size:11px;line-height:1;color:#98a1a9;opacity:0;transition:opacity .18s ease}
+.emoji-freq-cell:hover .emoji-freq-x{opacity:1}
+.emoji-freq-x:hover{color:var(--text)}
 
 .contact-status{margin:0;min-height:20px;font-size:14px;line-height:1.45;color:#a4adb5}
 /* Success and error are semantic states, not brand surfaces — they must never

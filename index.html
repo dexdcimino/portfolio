@@ -1753,10 +1753,19 @@
               <span class="pk-cat-dashes" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
             </div>
           </div>
+          <!-- Centred, and its placeholder follows the cycler (Game title / Movie
+               title / Song title / The quote): script.js paints it with the
+               category. ":" opens the emoji picker here, as in Stickland's chat. -->
           <input class="pk-pop-input" id="pkSuggestion" type="text" maxlength="300"
-                 required placeholder="Title" />
-          <input class="pk-pop-input" id="pkFrom" type="text" maxlength="120"
-                 autocomplete="off" placeholder="Anon" />
+                 required placeholder="Game title" aria-label="Game title" />
+          <!-- "From:" as a word beside a narrower field rather than a second
+               full-width box: the name is optional and the row should look it.
+               Anon is a placeholder, never a value - the fallback happens in the
+               payload (see script.js). -->
+          <label class="pk-pop-from" for="pkFrom"><span>From:</span>
+            <input class="pk-pop-input" id="pkFrom" type="text" maxlength="120"
+                   autocomplete="off" placeholder="Anon" />
+          </label>
           <input class="contact-trap" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <input class="contact-trap" type="checkbox" name="botcheck" id="pkBotcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <div class="pk-pop-foot">

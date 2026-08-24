@@ -180,13 +180,28 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   right: one button walking Game→Movie→Song→Quote wrapping, its four
   aria-hidden indicator dots centred UNDER it — deliberately not controls,
   four tab stops would cost more than a four-step cycle pays; whatever
-  shows is what sends. Below sit the two placeholder-labelled inputs
-  (Title / Anon), and SEND holds the
-  footer's right edge. Same Web3Forms relay with a `[Top Picks]` subject
+  shows is what sends. Below sit the TITLE field (centred, its placeholder
+  and aria-label painted by the cycler: Game title / Movie title / Song
+  title / The quote) and a `From:` word beside a narrower Anon field
+  (`.pk-pop-from`, 150px), and SEND holds the footer's right edge. Same Web3Forms relay with a `[Top Picks]` subject
   and a `category` field; the Anon fallback happens in the
   PAYLOAD with a `name_given` flag so a typed "Anon" stays distinguishable
   from a blank; honeypot pattern shared; three sends a minute under
   `dex-picks-sends`; the contact form's own code untouched)
+- `:` emoji picker in `script.js` (`.emoji-pick`) - Stickland's chat autocomplete
+  on the two fields people write to me from: the contact MESSAGE and the Top
+  Picks TITLE. Same shape as the game's (":" + up to 20 letters, six best
+  matches over three most-used, arrows / Enter / Tab / Escape / click). The
+  dataset is NOT copied: it is `import()`ed lazily from
+  `games/stickland/src/emoji-data.js` on the first `:` - the one place the site
+  reads a game's source, recorded in that game's ARCHITECTURE.md; under
+  file:// the import is refused and the picker is simply absent. Built INSIDE
+  its host (`.contact-panel` / `.pk-pop`), never on `<body>`: the contact form
+  is a top-layer `<dialog>` and nothing on body paints over it. Escape closes
+  the picker before the surface (preventDefault on the keydown stops the
+  dialog's cancel; the popover's capture listener steps aside while a picker
+  is open). Frequency under `dex-emoji-freq`, its own key, so a game session's
+  most-used never leaks into a message
 - `MediaBus` in `script.js` — the only arbiter between the two things that
   make sound (the clips player and the song bar). Players register a small
   object, never the media element, because every question it asks — is your

@@ -52,6 +52,12 @@ imports go through the `window.__DEXMODS` registry.
 - `accent.js`, `shims.js`, `storage.js`, `config.js` (`MULTIPLAYER = false`),
   `chat-picker.js` + `emoji-data.js`, `photon-client.js` (vendor-ish, do not
   modify; Photon APP_ID lives here)
+  - **`emoji-data.js` is also read by the SITE.** The portfolio's `script.js`
+    `import()`s it lazily for the `:` emoji picker on the contact message and
+    the Top Picks title, so this is the one file in `src/` with a consumer
+    outside the game. Renaming or moving it breaks that picker SILENTLY (the
+    import is caught and the picker just never opens) - change both, and note
+    it in the root ARCHITECTURE.md
 - `_reference/` — source-to-port-from, never shipped: `emoji.js` and lines
   2835–2950 of `infochips.js` are the only parts that matter
 

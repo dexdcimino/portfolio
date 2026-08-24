@@ -5332,10 +5332,15 @@ const PORTRAIT_LABEL = {
      state, nothing to validate. Enter/Space advance it natively (it is a
      real button); the aria-label re-announces the value it landed on. */
   const CATS = ['Game', 'Movie', 'Song', 'Quote'];
+  // The title field asks a different question per category, so its
+  // placeholder (and accessible name) say which one (Dex, 2026-08-23).
+  const TITLE_HINT = { Game: 'Game title', Movie: 'Movie title', Song: 'Song title', Quote: 'The quote' };
   let cat = 0;
   const paintCat = () => {
     catBtn.textContent = CATS[cat];
     catBtn.setAttribute('aria-label', `Category: ${CATS[cat]} — press to change`);
+    suggestion.placeholder = TITLE_HINT[CATS[cat]];
+    suggestion.setAttribute('aria-label', TITLE_HINT[CATS[cat]]);
     dashes.forEach((d, i) => d.classList.toggle('on', i === cat));
   };
   catBtn.addEventListener('click', () => { cat = (cat + 1) % CATS.length; paintCat(); });
@@ -5364,7 +5369,9 @@ const PORTRAIT_LABEL = {
     if (isOpen() && !pop.contains(e.target) && !openBtn.contains(e.target)) close(false);
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); close(); }
+    // The emoji picker inside the panel takes the first Escape: it listens on
+    // the field, after this capture listener, so this one has to step aside.
+    if (e.key === 'Escape' && isOpen() && !pop.querySelector('.emoji-pick.open')) { e.stopPropagation(); close(); }
   }, true);
   // An anchored panel must not drift away from its anchor — but a nudge of a
   // few pixels must not eat a draft, so the close waits for real travel
@@ -5440,5 +5447,199 @@ const PORTRAIT_LABEL = {
       send.disabled = false;
       say(`Could not send — email me instead at ${CONTACT.to}.`, 'error');
     }
+  });
+})();
+
+/* ---------- ":" emoji autocomplete on the message fields --------------------
+   Stickland's chat picker (games/stickland/src/chat-picker.js), on the two
+   fields people write to me from: the contact MESSAGE and the Top Picks TITLE.
+   Same shape as the game's — ":" plus up to 20 letters, a 3-column grid of the
+   six best matches over the three most-used, arrows move, Enter/Tab insert,
+   Escape closes, click inserts — and the same 1907-emoji dataset, import()ed
+   LAZILY from the game's own module on the first ":" so the page never pays
+   the 130KB for a field nobody types an emoji into. One source, not a copy:
+   games/stickland/src/emoji-data.js is the file, and that game's
+   ARCHITECTURE.md records that this page reads it. (Under file:// a dynamic
+   import is refused, so the picker is simply absent there.)
+
+   The picker is built INSIDE its host — .contact-panel or .pk-pop — not on
+   <body>: the contact form is a <dialog> in the top layer, and nothing
+   appended to body can paint over that; a child of the panel can. Escape is
+   claimed here first (preventDefault on the keydown stops the dialog's own
+   cancel, and the popover's capture listener steps aside while a picker is
+   open), so one Escape closes the picker and the next closes the surface.
+   Frequency lives under its own key: a game session's most-used never leaks
+   into a message, and vice versa. */
+(() => {
+  const DATA = './games/stickland/src/emoji-data.js';
+  const FREQ_KEY = 'dex-emoji-freq';
+  const DEFAULTS = ['😂', '❤️', '👍', '😊', '🔥', '😍', '🎉', '✨', '🙏'];
+  const HOSTS = [
+    ['cfMessage', '.contact-panel'],
+    ['pkSuggestion', '.pk-pop']
+  ];
+
+  let data = null, loading = null, byUnicode = null;
+  const load = () => (loading ??= import(DATA).then(m => {
+    data = m.EMOJI_DATA;
+    byUnicode = new Map(data.map(e => [e.u, e]));
+    return data;
+  }).catch(() => { loading = null; return null; }));
+
+  let freq = {};
+  try { freq = JSON.parse(localStorage.getItem(FREQ_KEY) || '{}') || {}; } catch { freq = {}; }
+  const saveFreq = () => { try { localStorage.setItem(FREQ_KEY, JSON.stringify(freq)); } catch { /* private mode */ } };
+  const topFreq = n => Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, n).map(e => e[0]);
+
+  // Scoring as in the game: exact label > whole word > prefix > word prefix >
+  // substring > tag; ties to the shorter label, then emojibase order.
+  const search = (query, limit) => {
+    if (!query || !data) return [];
+    const q = query.toLowerCase();
+    const scored = [];
+    for (const e of data) {
+      const l = e.l;
+      let s = 0;
+      if (l === q) s = 5;
+      else if (l.split(' ').some(w => w === q)) s = 4.5;
+      else if (l.startsWith(q)) s = 4;
+      else if (l.split(' ').some(w => w.startsWith(q))) s = 3;
+      else if (l.includes(q)) s = 2;
+      else if (e.t && e.t.some(t => t.startsWith(q))) s = 1;
+      if (s > 0) scored.push({ u: e.u, l, s, len: l.length, o: e.o });
+    }
+    scored.sort((a, b) => b.s - a.s || a.len - b.len || a.o - b.o);
+    return scored.slice(0, limit);
+  };
+
+  // ":" plus 0-20 letters immediately before the caret, as in the game.
+  const colonQuery = field => {
+    const pos = field.selectionStart ?? field.value.length;
+    const before = field.value.slice(0, pos);
+    const idx = before.lastIndexOf(':');
+    if (idx === -1) return null;
+    const q = before.slice(idx + 1);
+    if (!/^[a-zA-Z]{0,20}$/.test(q)) return null;
+    return { q, idx, pos };
+  };
+
+  HOSTS.forEach(([fieldId, hostSel]) => {
+    const field = document.getElementById(fieldId);
+    const host = field?.closest(hostSel);
+    if (!field || !host) return;
+
+    const pick = document.createElement('div');
+    pick.className = 'emoji-pick';
+    host.appendChild(pick);
+    let active = -1;
+    let ctx = null;             // the {idx, pos} the open grid was built for
+
+    const cells = () => [...pick.querySelectorAll('.emoji-cell')];
+    const isOpen = () => pick.classList.contains('open');
+    const close = () => { pick.classList.remove('open'); active = -1; ctx = null; };
+
+    const insert = emoji => {
+      const c = ctx || colonQuery(field);
+      if (!c) { close(); return; }
+      const v = field.value;
+      field.value = v.slice(0, c.idx) + emoji + v.slice(c.pos);
+      const at = c.idx + emoji.length;
+      field.setSelectionRange(at, at);
+      freq[emoji] = (freq[emoji] || 0) + 1;
+      saveFreq();
+      close();
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      field.focus();
+    };
+
+    const setActive = i => {
+      const list = cells();
+      if (!list.length) return;
+      list[active]?.classList.remove('active');
+      active = ((i % list.length) + list.length) % list.length;
+      list[active].classList.add('active');
+    };
+
+    const render = (results, used) => {
+      const grid = document.createElement('div');
+      grid.className = 'emoji-grid';
+      const pool = results.length ? results : DEFAULTS.map(u => ({ u, l: byUnicode?.get(u)?.l || '' }));
+      const main = pool.slice(0, 6);
+      main.forEach(r => {
+        const cell = document.createElement('button');
+        cell.type = 'button'; cell.className = 'emoji-cell';
+        cell.textContent = r.u; cell.dataset.emoji = r.u; cell.title = r.l || r.u;
+        grid.appendChild(cell);
+      });
+      const sep = document.createElement('div');
+      sep.className = 'emoji-freq-sep';
+      grid.appendChild(sep);
+      for (let i = 0; i < 3; i++) {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        if (i < used.length) {
+          const em = used[i];
+          cell.className = 'emoji-cell emoji-freq-cell';
+          cell.dataset.emoji = em; cell.textContent = em; cell.title = byUnicode?.get(em)?.l || em;
+          const x = document.createElement('span');
+          x.className = 'emoji-freq-x'; x.textContent = '×';
+          x.addEventListener('mousedown', ev => { ev.preventDefault(); ev.stopPropagation(); });
+          x.addEventListener('click', ev => { ev.stopPropagation(); delete freq[em]; saveFreq(); render(results, topFreq(3)); });
+          cell.appendChild(x);
+        } else {
+          cell.className = 'emoji-cell emoji-freq-cell emoji-freq-empty';
+          cell.disabled = true;
+        }
+        grid.appendChild(cell);
+      }
+      pick.replaceChildren(grid);
+      grid.querySelectorAll('.emoji-cell').forEach(cell => {
+        cell.addEventListener('mousedown', ev => ev.preventDefault());   // the field keeps focus
+        cell.addEventListener('click', ev => {
+          if (ev.target.classList.contains('emoji-freq-x')) return;
+          if (cell.dataset.emoji) insert(cell.dataset.emoji);
+        });
+      });
+      active = -1;
+      // With nothing typed, start on the first most-used rather than a default.
+      setActive(results.length === 0 && used.length > 0 ? main.length : 0);
+    };
+
+    const place = () => {
+      const f = field.getBoundingClientRect();
+      const h = host.getBoundingClientRect();
+      const ph = pick.offsetHeight;
+      pick.style.left = `${f.left - h.left}px`;
+      // Under the field unless that runs off the screen, then above it.
+      const fits = f.bottom + 4 + ph <= window.innerHeight - 8;
+      pick.style.top = `${fits ? f.bottom - h.top + 4 : f.top - h.top - ph - 4}px`;
+    };
+
+    const update = async () => {
+      if (!colonQuery(field)) { close(); return; }
+      if (!data) { await load(); if (!data) return; }
+      const now = colonQuery(field);          // the field may have moved on while the module loaded
+      if (!now) { close(); return; }
+      const results = now.q ? search(now.q, 9) : [];
+      if (now.q && !results.length) { close(); return; }
+      ctx = { idx: now.idx, pos: now.pos };
+      render(results, topFreq(3));
+      pick.classList.add('open');
+      place();
+    };
+
+    field.addEventListener('input', update);
+    field.addEventListener('click', () => { if (isOpen()) update(); });
+    field.addEventListener('blur', close);
+    field.addEventListener('keydown', e => {
+      if (!isOpen()) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); setActive(active + 1); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); setActive(active - 1); }
+      else if (e.key === 'Enter' || e.key === 'Tab') {
+        const em = cells()[active]?.dataset.emoji;
+        if (em) { e.preventDefault(); insert(em); }
+      }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+    });
   });
 })();
