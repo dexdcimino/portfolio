@@ -328,6 +328,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
 - `styles.css` — banner-delimited sections; icon system is baked CSS mask
   data-URIs (`tools/bake_icons.py`); accents are one `--accent` variable,
   never filter chains
+  - `.title-mark` / `.title-icon`: COLLAB and IDEA VAULT wear an enlarged accent
+    mark AFTER the word (`.78em` of the h2, so it rides the 32-64px clamp).
+    After, not before: the column's left edge is the line the eyebrow and copy
+    share. `vault.svg` is the brain-and-padlock; the padlock is cut out of the
+    brain with an SVG-internal `<mask>`, which is the only way two shapes stay
+    distinct inside a single-colour CSS mask
 - Root wrapper folders `surveyor/ chomp/ arena1/ stickland/` — thin pages
   that iframe `/games/<name>/index.html`, focus the frame (so Escape/WASD
   reach the game), forward the query string, and leave the game on refresh

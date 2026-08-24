@@ -169,6 +169,7 @@ img{max-width:100%}
 [data-icon="youtube"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.54 12 3.54 12 3.54s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/youtube.svg */
 [data-icon="tick-check"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='m5 12.5 4.5 4.5L19 7'/%3E%3C/svg%3E")} /* src: assets/icons/tick-check.svg */
 [data-icon="tick"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15.3841 18.1113'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M7.1872,18.1113H0v-6.3529L11.7584,0h3.6257v7.3476s-5.9188,5.7103-7.2664,7.2664-.9305,3.4973-.9305,3.4973Z' fill='%23fff'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tick_mark.svg */
+[data-icon="vault"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='k' maskUnits='userSpaceOnUse' x='0' y='0' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Cg fill='none' stroke='%23000' stroke-width='4.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8.4' y='15.6' width='7.2' height='6' rx='1.5'/%3E%3Cpath d='M10.2 15.6V14a1.8 1.8 0 0 1 3.6 0v1.6'/%3E%3C/g%3E%3C/mask%3E%3C/defs%3E%3Cg mask='url(%23k)'%3E%3Cg transform='translate(-0.24 -3.7) scale(1.02)'%3E%3Cpath fill='%23fff' d='M11.2 4.6C9.3 3.3 6.6 4 5.7 6.1 3.6 6.5 2.4 9 3.6 10.9c-1 1.8-.4 4.2 1.4 5.2.2 2.4 2.4 4 4.6 3.4.6-.1 1.2.1 1.6-.1ZM12.8 4.6c1.9-1.3 4.6-.6 5.5 1.5 2.1.4 3.3 2.9 2.1 4.8 1 1.8.4 4.2-1.4 5.2-.2 2.4-2.4 4-4.6 3.4-.6-.1-1.2.1-1.6-.1Z'/%3E%3C/g%3E%3C/g%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8.4' y='15.6' width='7.2' height='6' rx='1.5'/%3E%3Cpath d='M10.2 15.6V14a1.8 1.8 0 0 1 3.6 0v1.6'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/vault.svg */
 [data-icon="volume-mute"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='m16 9.5 5 5m0-5-5 5'/%3E%3C/svg%3E")} /* src: assets/icons/volume-mute.svg */
 [data-icon="volume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='M15.4 9.2a4 4 0 0 1 0 5.6M18 6.6a7.6 7.6 0 0 1 0 10.8'/%3E%3C/svg%3E")} /* src: assets/icons/volume.svg */
 [data-icon="work"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z'/%3E%3C/svg%3E")} /* src: assets/icons/work.svg */
@@ -1572,6 +1573,16 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    Inline, so it wraps with the rest of the line rather than forcing a break. */
 .title-accent{color:var(--accent);transition:color var(--accent-ease)}
 .section-head h2,.statement h2,.about h2,.resume-strip h2{font-size:clamp(32px,4vw,64px);line-height:.95;margin:0;letter-spacing:-.045em}
+/* A section title that wears its mark (Dex, 2026-08-23): COLLAB and IDEA VAULT
+   carry an enlarged accent icon AFTER the word. After, not before: the left
+   edge of the column is the line the eyebrow and the copy share, so a mark
+   hung to the left would either shove the word off that line or swing out
+   into the gutter — on the right it sits in space the heading was not using
+   and nothing else moves. Sized in em off the heading so it rides the
+   32-64px clamp. .icon's own transition is transform/opacity; this one
+   crossfades colour with the accent like every other tinted mark. */
+.title-mark{display:flex;align-items:center;gap:.22em}
+.title-icon{width:.78em;height:.78em;color:var(--accent);transition:color var(--accent-ease)}
 .split-section{padding:110px var(--gutter);display:grid;grid-template-columns:.72fr 1.28fr;gap:clamp(40px,8vw,130px);background:rgba(14,17,20,.91);border-top:1px solid var(--line)}
 .split-section.alt{background:rgba(8,10,12,.96)}
 .statement p:last-child,.about-copy>p:not(.eyebrow){max-width:650px;color:#adb5bb;line-height:1.72;font-size:var(--copy-size)}
