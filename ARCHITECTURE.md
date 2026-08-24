@@ -174,7 +174,15 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   and Movies share the 2:3 `pick-cover` slot; Songs and PODS share the 1:1
   `song-cover` slot, because podcast art is natively square exactly as album
   art is. A pod card is cover + caption, both linking to the show's YouTube
-  channel, plus a small `.pk-pod-links` row for where else to listen.
+  channel, plus a small WHERE-ELSE-TO-LISTEN row. That row is `.pk-listen` /
+  `.pk-listen-link` — named after what it does rather than after either tab,
+  because SONGS carry it too (Spotify then YouTube; on a song the cover is a
+  play button rather than a link, so the row is that card's only way out to a
+  service). It is pinned to the BOTTOM of the card (`margin-top:auto` on a
+  column card) so a caption that wraps to two lines cannot leave one tab's rows
+  ragged. Three of the five song rows point at a Spotify SEARCH rather than a
+  track — those three could not be verified without guessing an id, so they say
+  "Find on Spotify" and land on a real search instead of a maybe-right track.
   **NO AUDIO ON THE PODS TAB, and that is a licensing answer, not an oversight.**
   A podcast's RSS audio is publicly fetchable, but fetching is not a licence to
   serve it from this page, and doing so would route around the host's own ad

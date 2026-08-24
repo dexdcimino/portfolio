@@ -169,6 +169,7 @@ img{max-width:100%}
 [data-icon="instagram"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16ZM12 0C8.74 0 8.33.01 7.05.07c-1.28.06-2.15.26-2.91.56-.79.3-1.46.72-2.13 1.38C1.35 2.68.93 3.35.63 4.14c-.3.76-.5 1.63-.56 2.91C.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.28.26 2.15.56 2.91.3.79.72 1.46 1.38 2.13.67.67 1.34 1.08 2.13 1.38.76.3 1.63.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.28-.06 2.15-.26 2.91-.56.79-.3 1.46-.71 2.13-1.38.67-.67 1.08-1.34 1.38-2.13.3-.76.5-1.63.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.28-.26-2.15-.56-2.91-.3-.79-.71-1.46-1.38-2.13C21.32 1.35 20.65.93 19.86.63c-.76-.3-1.63-.5-2.91-.56C15.67.01 15.26 0 12 0Zm0 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm7.85-10.41a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/instagram.svg */
 [data-icon="linkedin"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M22.23 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.73V1.73C24 .77 23.21 0 22.23 0ZM7.12 20.45H3.56V9h3.56v11.45ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13Zm15.11 13.02h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.47-.9 1.63-1.85 3.37-1.85 3.6 0 4.26 2.37 4.26 5.46v6.28Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/linkedin.svg */
 [data-icon="podcast"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2.4' width='6' height='11.2' rx='3'/%3E%3Cpath d='M5.6 11.2a6.4 6.4 0 0 0 12.8 0'/%3E%3Cpath d='M12 17.6V21.4'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/social/podcast.svg */
+[data-icon="spotify"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='s' maskUnits='userSpaceOnUse' x='0' y='0' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Cg fill='none' stroke='%23000' stroke-linecap='round'%3E%3Cpath d='M6 9.1C9.4 7 14.6 7.4 18.1 10.1' stroke-width='2.2'/%3E%3Cpath d='M7.1 12.7C10 11 14.2 11.4 17 13.5' stroke-width='1.9'/%3E%3Cpath d='M8.2 16C10.5 14.7 13.7 15 15.8 16.6' stroke-width='1.6'/%3E%3C/g%3E%3C/mask%3E%3C/defs%3E%3Ccircle cx='12' cy='12' r='11' fill='%23fff' mask='url(%23s)'/%3E%3C/svg%3E")} /* src: assets/icons/social/spotify.svg */
 [data-icon="youtube"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.54 12 3.54 12 3.54s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/youtube.svg */
 [data-icon="tick-check"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='m5 12.5 4.5 4.5L19 7'/%3E%3C/svg%3E")} /* src: assets/icons/tick-check.svg */
 [data-icon="tick"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15.3841 18.1113'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M7.1872,18.1113H0v-6.3529L11.7584,0h3.6257v7.3476s-5.9188,5.7103-7.2664,7.2664-.9305,3.4973-.9305,3.4973Z' fill='%23fff'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tick_mark.svg */
@@ -1297,15 +1298,23 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    way album art does. No play button on these: the cover is a link, not a
    transport - see the panel note in index.html for why there is no audio. */
 .pk-pod .pk-cover{aspect-ratio:1}
-/* The platform row is the card's third target. The cover and the caption both
-   go to YouTube; this only says where ELSE to listen, so it is sized as a
-   footnote to the name above it rather than a second row of buttons. */
-.pk-pod-links{display:flex;align-items:center;gap:11px;margin-top:9px}
-.pk-pod-link{display:grid;place-items:center;color:var(--icon-idle);
+/* WHERE ELSE TO LISTEN - shared by Pods and Songs, which is why it is not
+   named after either. On a pod the cover and caption already go to YouTube and
+   this adds Apple; on a song the cover is a PLAY button rather than a link, so
+   this row is the only way out to a streaming service. Either way it is a
+   footnote to the name above it, not a second row of buttons. */
+/* Pinned to the BOTTOM of the card, not floated under the caption: a caption
+   that wraps to two lines (Moonshots, the Mellen remix) pushed its own row",
+   down and left the tab looking ragged. The grid already stretches every card
+   to the tallest in its row, so a column layout plus margin-top:auto lands
+   every row on one line. padding-top keeps the gap the auto margin gives up. */
+.pk-song,.pk-pod{display:flex;flex-direction:column}
+.pk-listen{display:flex;align-items:center;gap:11px;margin-top:auto;padding-top:9px}
+.pk-listen-link{display:grid;place-items:center;color:var(--icon-idle);
   transition:color var(--accent-ease),transform .18s ease}
-.pk-pod-link .icon{width:17px;height:17px}
-.pk-pod-link:hover,.pk-pod-link:focus-visible{color:var(--accent);transform:translateY(-1px)}
-.pk-pod-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
+.pk-listen-link .icon{width:17px;height:17px}
+.pk-listen-link:hover,.pk-listen-link:focus-visible{color:var(--accent);transform:translateY(-1px)}
+.pk-listen-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
 
 /* --- player bar ---------------------------------------------------------- */
 /* Left edge clears the rail rather than sitting under it, so the bar never
