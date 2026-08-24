@@ -1033,14 +1033,13 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 }
 .pk-pop-input:focus{outline:none;border-color:var(--accent)}
 .pk-pop-input.invalid{border-color:#ff8585}
-/* The title field is the question, so it reads centred - placeholder and typed
-   text alike (Dex, 2026-08-23). Just this field: a centred name looks wrong. */
-#pkSuggestion{text-align:center}
-/* From: as a word beside a NARROWER field rather than a second full-width box.
-   The name is optional and the row should look it; 150px holds a name and
-   still leaves the word its own space on the left. */
+/* The title field is left-aligned like every other input (Dex, 2026-08-23 -
+   it was centred for an afternoon, and with the field focused on open the
+   placeholder sat behind the caret). */
+/* From: as a word, then the field out to the row's right edge - the same
+   edge the title field and SEND share. */
 .pk-pop-from{display:flex;align-items:center;gap:10px;margin:0;font-size:13px;font-weight:700;letter-spacing:.04em;color:#98a1a9}
-.pk-pop-from .pk-pop-input{flex:0 1 150px;min-width:0}
+.pk-pop-from .pk-pop-input{flex:1 1 auto;min-width:0}
 /* Footer: status grows on the left, SEND holds the right edge. */
 .pk-pop-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .pk-pop-status{margin:0;flex:1 1 auto;font-size:12.5px;color:#98a1a9;min-height:1em}

@@ -1753,15 +1753,18 @@
               <span class="pk-cat-dashes" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
             </div>
           </div>
-          <!-- Centred, and its placeholder follows the cycler (Game title / Movie
-               title / Song title / The quote): script.js paints it with the
-               category. ":" opens the emoji picker here, as in Stickland's chat. -->
+          <!-- Its placeholder follows the cycler (Game Title / Movie Title / Song
+               Title / Quote Title): script.js paints it with the category, and
+               the category starts on whichever picks tab is showing. Left-aligned
+               on purpose - the field is focused on open, and a centred placeholder
+               sat behind the caret. autocomplete=off: this is not an address, and
+               the browser's own history of past titles was popping up under it.
+               ":" opens the emoji picker here, as in Stickland's chat. -->
           <input class="pk-pop-input" id="pkSuggestion" type="text" maxlength="300"
-                 required placeholder="Game title" aria-label="Game title" />
-          <!-- "From:" as a word beside a narrower field rather than a second
-               full-width box: the name is optional and the row should look it.
-               Anon is a placeholder, never a value - the fallback happens in the
-               payload (see script.js). -->
+                 required autocomplete="off" placeholder="Game Title" aria-label="Game Title" />
+          <!-- "From:" as a word, then the field out to the same right edge as the
+               title and SEND. Anon is a placeholder, never a value - the fallback
+               happens in the payload (see script.js). -->
           <label class="pk-pop-from" for="pkFrom"><span>From:</span>
             <input class="pk-pop-input" id="pkFrom" type="text" maxlength="120"
                    autocomplete="off" placeholder="Anon" />

@@ -5303,19 +5303,47 @@ const PORTRAIT_LABEL = {
   const suggestion = document.getElementById('pkSuggestion');
   const fromField = document.getElementById('pkFrom');
 
+  /* Spam, the client-side half (Dex, 2026-08-23). The relay does the real
+     filtering - Web3Forms drops a filled honeypot and runs its own scoring,
+     and hCaptcha can be switched on there if it ever comes to that. What a
+     browser can refuse BEFORE a request exists: three a minute, a dozen a
+     day, the same title twice in a day, and junk that cannot be a title (no
+     letters, one character run on, a link). All of it is localStorage, so it
+     stops the enthusiastic and the accidental, not the determined - that is
+     the relay's job, and pretending otherwise would be a false green. */
   const PK_RATE_KEY = 'dex-picks-sends';
+  const PK_SEEN_KEY = 'dex-picks-seen';
   const PK_MAX = 3;
-  const PK_WINDOW = 60 * 1000;   // three a minute is plenty of enthusiasm
-  const sends = () => {
+  const PK_WINDOW = 60 * 1000;          // three a minute is plenty of enthusiasm
+  const PK_DAY_MAX = 12;
+  const PK_DAY = 24 * 60 * 60 * 1000;   // stamps are kept this long, so both caps read one list
+  const stampsWithin = window_ => {
     try {
       const stamps = JSON.parse(localStorage.getItem(PK_RATE_KEY) || '[]');
-      const cutoff = Date.now() - PK_WINDOW;
+      const cutoff = Date.now() - window_;
       return (Array.isArray(stamps) ? stamps : []).filter(t => typeof t === 'number' && t > cutoff);
     } catch { return []; }
   };
+  const sends = () => stampsWithin(PK_WINDOW);
   const record = () => {
-    try { localStorage.setItem(PK_RATE_KEY, JSON.stringify([...sends(), Date.now()])); } catch { /* private mode */ }
+    try { localStorage.setItem(PK_RATE_KEY, JSON.stringify([...stampsWithin(PK_DAY), Date.now()])); } catch { /* private mode */ }
   };
+  // Category + title, folded, seen in the last day. The key is what would
+  // land in the mail, so "Halo" and "halo " are the same suggestion.
+  const seenKey = (category, title) => `${category}:${title.toLowerCase().replace(/\s+/g, ' ').trim()}`;
+  const seen = () => {
+    try {
+      const list = JSON.parse(localStorage.getItem(PK_SEEN_KEY) || '[]');
+      const cutoff = Date.now() - PK_DAY;
+      return (Array.isArray(list) ? list : []).filter(x => x && typeof x.t === 'number' && x.t > cutoff);
+    } catch { return []; }
+  };
+  const markSeen = key => {
+    try { localStorage.setItem(PK_SEEN_KEY, JSON.stringify([...seen(), { k: key, t: Date.now() }])); } catch { /* private mode */ }
+  };
+  // What cannot be a title: nothing a language would call a letter, one
+  // character six times running, or a link.
+  const junk = text => !/\p{L}/u.test(text) || /(.)\1{5,}/u.test(text) || /https?:\/\/|www\./i.test(text);
 
   // The contact form's setStatus is bound to ITS status element; this is the
   // same two-node pattern against this popover's own line.
@@ -5334,7 +5362,10 @@ const PORTRAIT_LABEL = {
   const CATS = ['Game', 'Movie', 'Song', 'Quote'];
   // The title field asks a different question per category, so its
   // placeholder (and accessible name) say which one (Dex, 2026-08-23).
-  const TITLE_HINT = { Game: 'Game title', Movie: 'Movie title', Song: 'Song title', Quote: 'The quote' };
+  const TITLE_HINT = { Game: 'Game Title', Movie: 'Movie Title', Song: 'Song Title', Quote: 'Quote Title' };
+  // The picks tab that is showing when the ? is pressed is the category the
+  // visitor means (Dex, 2026-08-23): open on Songs, suggest a song.
+  const TAB_CAT = { 'pk-tab-games': 0, 'pk-tab-movies': 1, 'pk-tab-songs': 2, 'pk-tab-quotes': 3 };
   let cat = 0;
   const paintCat = () => {
     catBtn.textContent = CATS[cat];
@@ -5353,10 +5384,13 @@ const PORTRAIT_LABEL = {
   const open = () => {
     say('');
     suggestion.classList.remove('invalid');
+    const tab = document.querySelector('.pk-tab[aria-selected="true"]');
+    if (tab && tab.id in TAB_CAT) { cat = TAB_CAT[tab.id]; paintCat(); }
     pop.hidden = false;
     openScrollY = window.scrollY;
-    send.disabled = sends().length >= PK_MAX;
-    if (send.disabled) say('Three a minute is the cap — give it a moment.', 'error');
+    send.disabled = sends().length >= PK_MAX || stampsWithin(PK_DAY).length >= PK_DAY_MAX;
+    if (sends().length >= PK_MAX) say('Three a minute is the cap — give it a moment.', 'error');
+    else if (send.disabled) say('That is a dozen today — thank you, really. Tomorrow?', 'error');
     suggestion.focus();
   };
   const close = (refocus = true) => {
@@ -5399,9 +5433,17 @@ const PORTRAIT_LABEL = {
     const suggOk = sugg.length >= 3;
     suggestion.classList.toggle('invalid', !suggOk);
     if (!suggOk) { say('Give me at least a title to chase.', 'error'); suggestion.focus(); return; }
+    if (junk(sugg)) {
+      suggestion.classList.add('invalid');
+      say('That does not look like a title.', 'error'); suggestion.focus(); return;
+    }
 
     if (sends().length >= PK_MAX) {
       say('Three a minute is the cap — give it a moment.', 'error');
+      return;
+    }
+    if (stampsWithin(PK_DAY).length >= PK_DAY_MAX) {
+      say('That is a dozen today — thank you, really. Tomorrow?', 'error');
       return;
     }
 
@@ -5412,6 +5454,11 @@ const PORTRAIT_LABEL = {
     const typed = fromField.value.trim();
     const from = typed || 'Anon';
     const category = CATS[cat];
+    const key = seenKey(category, sugg);
+    if (seen().some(x => x.k === key)) {
+      say('That one is already on the pile.', 'ok', '✓');
+      return;
+    }
 
     send.disabled = true;
     say('Sending…');
@@ -5437,6 +5484,7 @@ const PORTRAIT_LABEL = {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       record();
+      markSeen(key);
       form.reset();          // the one reset: a SENT draft is done with
       cat = 0;
       paintCat();

@@ -180,10 +180,19 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   right: one button walking Game→Movie→Song→Quote wrapping, its four
   aria-hidden indicator dots centred UNDER it — deliberately not controls,
   four tab stops would cost more than a four-step cycle pays; whatever
-  shows is what sends. Below sit the TITLE field (centred, its placeholder
-  and aria-label painted by the cycler: Game title / Movie title / Song
-  title / The quote) and a `From:` word beside a narrower Anon field
-  (`.pk-pop-from`, 150px), and SEND holds the footer's right edge. Same Web3Forms relay with a `[Top Picks]` subject
+  shows is what sends, and it STARTS on whichever picks tab is showing when
+  the `?` is pressed (`TAB_CAT`). Below sit the TITLE field (left-aligned,
+  `autocomplete=off` so the browser's own history of past titles stays
+  down, its placeholder and aria-label painted by the cycler: Game Title /
+  Movie Title / Song Title / Quote Title) and a `From:` word with the Anon
+  field out to the same right edge (`.pk-pop-from`), and SEND holds the
+  footer's right edge. Spam, the client-side half: three a minute, a dozen
+  a day (`dex-picks-sends`, stamps kept 24h), the same category+title
+  twice in a day (`dex-picks-seen`), and junk that cannot be a title (no
+  letters, one character six times running, a link) are refused before a
+  request exists; all localStorage, so it stops the enthusiastic and the
+  accidental - the relay (Web3Forms: honeypot, its own scoring, hCaptcha
+  available) is the real filter. Same Web3Forms relay with a `[Top Picks]` subject
   and a `category` field; the Anon fallback happens in the
   PAYLOAD with a `name_given` flag so a typed "Anon" stays distinguishable
   from a blank; honeypot pattern shared; three sends a minute under
