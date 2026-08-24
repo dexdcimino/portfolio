@@ -202,7 +202,9 @@
      tag in the document is the one thing that cannot wait: Babylon is
      8.2MB of UMD and compiling it blocks the thread that paints, so the
      card above sat parsed and invisible for the whole boot. Measured at
-     6296ms to first contentful paint before this change. See boot.js. -->
+     6296ms to first contentful paint before this change. Inside the site's
+     wrapper it waits for the Begin press as well, so the wrapper's exit chip
+     stays live until the visitor has chosen to stay. See boot.js. -->
 <script type="module" src="js/boot.js"></script>
 <script type="module" src="js/pausemenu.js"></script>
 </body>

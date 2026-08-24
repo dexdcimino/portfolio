@@ -265,6 +265,15 @@ waits for a PAINTED frame before creating the `<script>` for Babylon and
 importing main.js, because an 8.2MB parser-blocking engine means the start card
 cannot go on screen until the whole game has booted (measured at 6296ms to
 first contentful paint before this existed, ~70ms after on a warm load).
+**Framed by the site (`/surveyor`), the engine is not loaded until "Begin
+survey" is pressed** — only prefetched — because a same-origin frame shares
+the wrapper's main thread and the wrapper's exit chip is a link on it: booting
+at paint left the X dead for the whole compile (676ms blocked, one 404ms
+task, on the dev box). The click that loads the engine also starts the
+session: boot.js sets `window.__surveyorAutoBegin`, main.js calls `begin()`
+once it has wired the button. Top-level (direct URL, every dev harness) the
+eager order stands — the harnesses press Begin only after `window.SURVEYOR`
+exists, and would hang on a click-gated boot.
 `js/main.js` boot + the single render loop; `js/tune.js` every number in the
 game (40 exported blocks incl. `PLANETS`, `POST`, `ECONOMY`, `HYPER`);
 `js/babylon.js` re-export used only by the transplanted `js/render/post.js`

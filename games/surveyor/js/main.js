@@ -771,3 +771,16 @@ window.SURVEYOR = {
   // rather than a reimplementation of it. Still gated by DEBUG.warp inside.
   warp: devWarp,
 };
+
+/* Framed by the site (see js/boot.js): the visitor already pressed Begin —
+   that press is what loaded the engine — so start now rather than asking a
+   second time. LAST in the module, deliberately: begin() reads `started`,
+   a let declared halfway down, and calling it from the button-wiring block
+   above threw in the temporal dead zone. Down here everything a click
+   would have found is in place, SURVEYOR included, so a session begun this
+   way is indistinguishable from one begun by hand. The AudioContext inside
+   begin() is fine: the page has sticky activation from that click. */
+if (window.__surveyorAutoBegin) {
+  window.__surveyorAutoBegin = false;
+  begin();
+}

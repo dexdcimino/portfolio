@@ -25,6 +25,37 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-08-23 — framed, Surveyor does not compile its engine until Begin is pressed
+
+**Decided.** `games/surveyor/js/boot.js` checks `window.top !== window`. Framed by
+`/surveyor`, it paints the card with a live Begin button, prefetches `vendor/babylon.js`
+into the HTTP cache, and only loads and compiles the engine on the Begin click (or Enter /
+Space); `main.js` then calls `begin()` itself off `__surveyorAutoBegin`, so the one press
+still starts the session. Top-level the boot is eager, as it has been since the painted-frame
+trick.
+
+**Replaced.** Booting the moment the card painted, framed or not.
+
+**Why.** A same-origin iframe shares the wrapper's main thread, and the wrapper's exit chip
+is a link on that thread. Babylon's compile is ~1s on a fast machine and several on a slow
+one (boot.js's own note), and it ran whether or not the visitor wanted to play — so a
+visitor who took one look and reached for the X found it dead. Measured on the dev box:
+676ms blocked, one 404ms task attributed to the frame, worst input acknowledgement 386ms;
+Stickland, 0 long tasks. The trade is that a visitor who does want to play now waits the
+compile AFTER the click, with the button reading Loading, rather than during the seconds
+they spend reading the card. Dex's call: leaving immediately takes priority.
+
+Top-level stays eager for two reasons. Nothing shares that thread, so there is no X to
+protect; and every dev harness waits for `window.SURVEYOR` before it presses Begin, which a
+click-gated boot would turn into a 40-second hang. Splitting on "framed" keeps the harnesses
+honest without a flag they would have to remember to pass.
+
+**Reverse it if** the games move to their own origin (a subdomain with
+`Origin-Agent-Cluster`, say), at which point the frame gets its own process and the wrapper's
+chip is live whatever the game is doing — the eager boot would then be strictly better.
+
+---
+
 ## 2026-08-23 — the Surveyor exit chip is top-right, like the other three
 
 **Decided.** `/surveyor`'s exit button sits at `top:14px; right:14px` — the same rule
