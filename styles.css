@@ -1595,6 +1595,16 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    and nothing else moves. Sized in em off the heading so it rides the
    32-64px clamp. .icon's own transition is transform/opacity; this one
    crossfades colour with the accent like every other tinted mark. */
+/* ==========================================================================
+   PARKED, NOT REMOVED (Dex, 2026-08-24). COLLAB and IDEA VAULT wore these
+   marks for a day; they may come back, most likely when COLLAB earns its nav
+   link. Nothing below matches an element right now - the two <h2>s lost their
+   `title-mark` class and their <span class="icon title-icon"> - and putting
+   either heading's span back is the WHOLE of restoring it. Same shape as the
+   parked portrait state in script.js: leave the machinery inert rather than
+   delete it and re-derive it later. assets/icons/vault.svg stays with it, and
+   collab.svg is still wanted anyway by the dormant nav link in index.html.
+   ========================================================================== */
 .title-mark{position:relative}
 /* Grey, not the accent (Dex, 2026-08-24). At the heading's 64px an accent
    mark reads as a second logo competing with the word; --icon-idle is the
@@ -2854,18 +2864,21 @@ footer small{margin-left:auto}
    Accent-tinted through the shared .icon mask, so they follow the theme like
    every other tinted mark on the page.
    ========================================================================== */
-.about-flags{position:absolute;top:0;left:100%;margin-left:22px;display:grid;gap:7px}
-.about-flag{width:26px;height:26px;color:var(--accent);transition:color var(--accent-ease)}
+.about-flags{position:absolute;top:0;left:100%;margin-left:22px;display:grid;gap:10px}
+.about-flag{width:52px;height:52px;color:var(--accent);transition:color var(--accent-ease)}
 /* Breakout's in-game control stack claims this exact strip (.bb-stack, also
    left:100%), so the flags stand down while the game runs - the same
    treatment .bb-ui already gets. */
 .bb-ui.bb-playing ~ .about-flags{visibility:hidden}
-/* The gutter these hang in shrinks twice on the way down. At 1100 and under
-   it is clamp(28px,5vw,60px) - 45px at 900 - against 22px of margin plus a
-   26px flag, which put them 3px off the screen edge. Trim both. */
+/* THE GUTTER IS THE CEILING ON THESE, and at 52px they only clear it above
+   1100 where --gutter is 123-161px. Under that it drops to
+   clamp(28px,5vw,60px) - 55px at 1100, 45px at 900, 38px at 761 - so the
+   flag tracks it instead of taking a second fixed size that would be wrong at
+   one end or the other. 3.8vw + 6px of margin stays inside 5vw at every width
+   in the range, which is the whole reason it is a vw and not a px. */
 @media(max-width:1100px){
-  .about-flags{margin-left:12px}
-  .about-flag{width:22px;height:22px}
+  .about-flags{margin-left:6px;gap:8px}
+  .about-flag{width:clamp(20px,3.8vw,44px);height:clamp(20px,3.8vw,44px)}
 }
 /* At 760 the gutter is 20px and there is no strip left at all, so the flags
    come inside and ride the eyebrow's own row - side by side, hard right,
@@ -2873,7 +2886,9 @@ footer small{margin-left:auto}
    is not. 18px keeps them inside the eyebrow's 20px line box. */
 @media(max-width:760px){
   .about-flags{left:auto;right:0;margin-left:0;grid-auto-flow:column;gap:6px}
-  .about-flag{width:18px;height:18px}
+  /* NOT doubled here, deliberately: side by side on the eyebrow's own 20px
+     line, and anything much past this hangs into the nowrap h2 underneath. */
+  .about-flag{width:24px;height:24px}
 }
 
 /* ==========================================================================

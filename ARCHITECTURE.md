@@ -355,29 +355,24 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
 - `styles.css` — banner-delimited sections; icon system is baked CSS mask
   data-URIs (`tools/bake_icons.py`); accents are one `--accent` variable,
   never filter chains
-  - `.title-mark` / `.title-icon`: COLLAB and IDEA VAULT wear a mark to the
-    LEFT of the word, in `--icon-idle` GREY rather than the accent - at the
-    heading's 57.6px an accent mark reads as a second logo competing with the
-    word. It is ABSOLUTE against the h2 (`.title-mark{position:relative}` is
-    its only job), so it hangs in the section's own left padding and the
-    heading does not move a pixel to make room - that constraint is the reason
-    it is out of flow at all. Sized in em off the h2 so they ride the clamp,
-    and the two ems DIFFER on purpose (`.72em`, collab `.78em`): collab's
-    artwork sits shorter inside its 24-unit box than the brain does, so equal
-    boxes render unequal marks - the boxes are matched to the VISUAL weight,
-    not to each other. **Below 760px `--gutter` collapses to 20px and there is
-    no margin to hang in**, so the mark goes back into the line after the word
-    (appending costs no shift); above that the gutter is 38-161px against a
-    ~41px mark. `vault.svg` is a side-view brain FACING RIGHT with the stem on
-    the left; its folds are cut out of the silhouette with an SVG-internal
-    `<mask>`, the only way two shapes stay distinct inside a single-colour CSS
-    mask
+  - `.title-mark` / `.title-icon`: **PARKED (Dex, 2026-08-24) - the rules are
+    live but match nothing.** COLLAB and IDEA VAULT wore grey marks hung in
+    the section's left padding for a day; the two `<h2>`s have since lost
+    their `title-mark` class and their `title-icon` span, and re-adding either
+    span is the whole of restoring it. Likeliest return is when COLLAB earns
+    its nav link. `assets/icons/vault.svg` (a side-view brain facing RIGHT,
+    stem left, folds cut out with an SVG-internal `<mask>`) stays with them,
+    and `collab.svg` is wanted regardless by the dormant nav link. Same
+    park-don't-delete shape as the portrait state in `script.js`
   - `.about-flags` / `.about-flag`: the two flags at the top right of the bio,
     accent-tinted through the same `.icon` mask. They sit in the About
     section's own right padding rather than inside the copy column - the
     pocket between the nowrap h2 and that column's right edge is ~55px at 1440
-    and the heading runs into it. Two breakpoints follow the gutter down (26px
-    at 22px of margin, 22px at 12px under 1100), and under 760px they come
+    and the heading runs into it. **The gutter is the ceiling on their size**:
+    52px clears it only above 1100 (where `--gutter` is 123-161px); under that
+    it drops to `clamp(28px,5vw,60px)` and the flag tracks it as
+    `clamp(20px,3.8vw,44px)` rather than taking a second fixed size that would
+    be wrong at one end of the range. Under 760px they come
     inside and ride the eyebrow's own row side by side, which is the only line
     in that column with space to its right. Hidden while Breakout runs
     (`.bb-ui.bb-playing ~ .about-flags`): `.bb-stack` claims the same strip
