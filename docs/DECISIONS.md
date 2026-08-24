@@ -25,6 +25,30 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-08-23 — the Surveyor exit chip is top-right, like the other three
+
+**Decided.** `/surveyor`'s exit button sits at `top:14px; right:14px` — the same rule
+block as the Stickland, Chomp and Arena wrappers, phones included.
+
+**Replaced.** The mid-left edge (`top:50%; left:14px`, and below 760px a 38×56 tab flush
+to the screen edge), chosen in 269c651 2026-08-17 because the top-right corner was Surveyor's own SOUND
+button and the wrapper, not the game, was the side that should move.
+
+**Why.** The reason expired. Surveyor's sound toggle no longer exists —
+`games/surveyor/css/hud.css` says so at `#survey` ("The sound toggle used to own this
+corner ... It does not exist any more") — and what has the corner now is the survey
+overlay, HELD rather than toggled, invisible until a key is down. One place for the X is
+the convention every returning visitor has already learned across four games; being the
+one wrapper whose X is somewhere else costs more than a chip briefly over a held overlay.
+The old comment's mobile survey (every corner occupied at 390×844) counted that same
+sound button and the DEBUG-only warp column, so it no longer holds either.
+
+**Reverse it if** a PERMANENT Surveyor control moves into the top-right corner — and even
+then the first question is whether the game moves, since the game is the side that can be
+told it lives in a frame.
+
+---
+
 ## 2026-08-22 — the plan parser reads the table, not the file
 
 **Decided.** `tools/context_pack.py` skips fenced code blocks when parsing
