@@ -787,6 +787,16 @@ html.dex-cursor :is(input[type="text"],input[type="email"],input[type="search"],
   input:not([type]),textarea){cursor:var(--dex-cursor-text,text)}
 html.dex-cursor :is(a,button,summary,[role="button"],[role="tab"],.ai-card)
   :is(p,h1,h2,h3,h4,li,blockquote,figcaption,dt,dd){cursor:inherit}
+/* A PREFS card is an <li> wrapping a <p>, so it matched the I-beam rule twice
+   over and offered to select a sentence nobody came here to copy (Dex,
+   2026-08-25). It is not clickable either, so it takes the plain arrow and its
+   text inherits that, exactly the way text inside a button does above.
+   Setting cursor:default on .pk-pref alone does NOT do it: one class loses to
+   `html.dex-cursor :is(...)`, which is why this lives here rather than beside
+   the card's own rules. The two vote buttons are untouched — they match the
+   pointer rule on their own and a cursor is not inherited unless asked for. */
+html.dex-cursor .pk-pref{cursor:var(--dex-cursor-arrow,auto)}
+html.dex-cursor .pk-pref :is(p,h1,h2,h3,h4,li,blockquote,figcaption,dt,dd){cursor:inherit}
 /* The shot zoom says something more specific than "clickable" — keep it
    (the wallpaper magnifier is on .wp-frame, a div, and needs no re-assert).
    `button.` matters: it ties the pointer rule's (0,2,2) so source order wins. */
@@ -1367,7 +1377,12 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    The border stays declared and TRANSPARENT rather than being removed: it is
    what reserves the 1px, so the card cannot change size when something does
    give it a colour. Same trick .ai-card uses, for the same reason. */
+/* cursor:default, because the card IS type and the browser's default over type
+   is an I-beam — which offers to select a sentence nobody came here to copy.
+   The two vote buttons set their own pointer, so the only cursor change left is
+   the one that means something. */
 .pk-pref{
+  cursor:default;
   display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;
   aspect-ratio:1.95;padding:10px 12px;min-width:0;text-align:center;
   container-type:inline-size;
@@ -4419,38 +4434,44 @@ body.modal-open{overflow:hidden}
 
 .cl-arrow{
   flex:0 0 auto;align-self:stretch;box-sizing:border-box;
-  width:clamp(26px,9%,46px);
+  width:clamp(30px,11%,56px);
   display:flex;align-items:center;justify-content:center;
   padding-bottom:var(--caption);
 }
 .cl-arrow svg{width:100%;height:auto;display:block}
-/* A DIM WAVE, AND A BRIGHTER ONE FLOWING ALONG IT. The track is the shape and
-   never moves; the flow is the same path again in full accent, dashed, sliding
-   over it — so what travels is a highlight on a solid line rather than a dashed
-   line pretending to be solid. The head breathes on the same beat.
+/* THE ARROW MOVES. That is the whole idea and it is the first version here that
+   animates the arrow rather than animating a treatment on top of one: no dash
+   marching along a track, no line drawing itself, no head pulsing. One plain
+   glyph glides left to right, fading up as it enters and out as it leaves, and
+   a second identical copy runs half a cycle behind so the row never empties.
 
-   All three numbers here were tuned against the one that shipped first and were
-   the reason it read as a squiggle. `stroke-dasharray:9 13` is a period of 22
-   against a path about 30 long, so roughly ONE bright segment is on the wave at
-   a time — 7/11 put two and a half on it, which marches rather than glides.
-   1.7s rather than 1.15s. And linear, because a travelling dash on any other
-   curve visibly speeds up and slows down inside a single pass. */
-.cl-arrow-track{stroke:color-mix(in srgb,var(--accent) 30%,transparent)}
-.cl-arrow-flow{
-  stroke:var(--accent);stroke-dasharray:9 13;
-  animation:cl-arrow-flow 1.7s linear infinite;
+   linear, because the arrow is meant to travel at one speed; the opacity ramp
+   does the softening at both ends, which is why nothing pops at the loop — each
+   copy is invisible at both 0% and 100%. The -1.1s delay is exactly half the
+   2.2s duration, and negative so the second copy starts already mid-glide
+   rather than after a two-second wait on first paint.
+
+   THE DUTY CYCLE IS WHAT KEEPS IT FROM READING AS TWO ARROWS. Each copy is
+   opaque for a little under half the cycle and parked invisible at the far
+   right for the rest, so when they do overlap they are at OPPOSITE ENDS of the
+   travel — one leaving on the right as the next arrives on the left. An even
+   fade across the whole cycle put both of them lit in the middle at once, which
+   looked like a doubled arrow with a blurred head. */
+.cl-arrow-glyph path{stroke:var(--accent)}
+.cl-arrow-glyph{animation:cl-arrow-glide 2.2s linear infinite}
+.cl-arrow-glyph:nth-of-type(2){animation-delay:-1.1s}
+@keyframes cl-arrow-glide{
+  0%  {transform:translateX(-11px);opacity:0}
+  12% {opacity:1}
+  48% {opacity:1}
+  60% {transform:translateX(11px);opacity:0}
+  100%{transform:translateX(11px);opacity:0}
 }
-.cl-arrow-head{
-  stroke:var(--accent);
-  animation:cl-arrow-nudge 1.7s ease-in-out infinite;
-}
-@keyframes cl-arrow-flow{to{stroke-dashoffset:-22}}
-@keyframes cl-arrow-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(1.4px)}}
 @media(prefers-reduced-motion:reduce){
-  /* Still an arrow, still waved, just not moving. The dashes go with the
-     animation — a static dashed overlay on a solid track is only noise. */
-  .cl-arrow-flow{animation:none;stroke-dasharray:none}
-  .cl-arrow-head{animation:none}
+  /* One arrow, centred and still. The second copy would sit exactly on top of
+     the first, so it goes rather than doubling the stroke weight. */
+  .cl-arrow-glyph{animation:none;opacity:1;transform:none}
+  .cl-arrow-glyph:nth-of-type(2){display:none}
 }
 @media (max-width:700px){
   /* The section is one column here, so the chain has the full width. Only the
@@ -4462,22 +4483,25 @@ body.modal-open{overflow:hidden}
 }
 
 /* --- AI CONCEPTS: the wallpapers' component in a different box ------------ */
-/* Everything about this tab except these three rules is the wallpaper carousel,
+/* Everything about this tab except these rules is the wallpaper carousel,
    driven by a second initGallery() over a second set of ids. What differs is
-   the FRAME: 4:3 rather than 16:10, and the piece is fitted into it rather than
+   the FRAME: 3:2 rather than 16:10, and the piece is fitted into it rather than
    cropped to it.
-   That is the honest answer to an unknown aspect. The wallpapers are all
-   2560x1600 masters and fill their frame exactly; a concept is whatever shape
-   it came out of the model, and the two alternatives are worse — cropping
-   throws away part of the piece, and a frame that changes shape per piece makes
-   the plate and the strip jump on every arrow press, which is the mistake the
-   clips frame and the Work overlay's hero are both already warned about. */
-.cn .wp-frame{aspect-ratio:4/3}
+   3:2 because that is what the art is — all nine masters are 1536x1024 — so in
+   practice nothing letterboxes at all. `contain` stays anyway, and is the point
+   of the pair: it is what lets a tenth concept at some other shape land whole
+   instead of being cropped, without this frame having to change. A frame that
+   tracked each piece's aspect would make the plate, the download and the strip
+   jump on every arrow press, which is the mistake the clips frame and the Work
+   overlay's hero are both already warned about.
+   It was 4:3 while the nine were generated placeholders and the real shape was
+   unknown. */
+.cn .wp-frame{aspect-ratio:3/2}
 .cn .wp-img{object-fit:contain}
-#cnFull{width:min(84vw, calc(76dvh * 4 / 3));aspect-ratio:4/3}
-#cnThumbs .wp-thumb,#cnFullThumbs .wp-thumb{aspect-ratio:4/3}
+#cnFull{width:min(84vw, calc(76dvh * 3 / 2));aspect-ratio:3/2}
+#cnThumbs .wp-thumb,#cnFullThumbs .wp-thumb{aspect-ratio:3/2}
 @media (max-width:900px){
-  #cnFull{width:min(80vw, calc(66dvh * 4 / 3))}
+  #cnFull{width:min(80vw, calc(66dvh * 3 / 2))}
 }
 
 /* ==========================================================================

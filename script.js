@@ -3154,24 +3154,28 @@ const MediaBus = (() => {
     if (origin) origin.hidden = !originFilled || !!videosPanel?.hidden;
   };
 
-  /* THE WAVED ONE, which is the one that stays (Dex, 2026-08-25 — fourth pass,
-     after a square drawn-on version was worse). A dim wave is always there and
-     a brighter dash flows along it, with the head breathing on the same beat.
+  /* A CONVEYOR (Dex, 2026-08-25 — fifth pass, and the simplest of the five).
+     One plain arrow, drawn TWICE, each copy gliding left to right while it
+     fades up and back out. The second runs half a cycle behind the first, so
+     there is always one arrow on screen and it always appears to be travelling
+     — the motion IS the arrow moving, rather than something happening to a
+     shape that stands still.
 
-     THE GEOMETRY IS THE FIRST VERSION'S, UNCHANGED — three humps of nine, the
-     wave ending exactly where the head begins. Widening the humps to two long
-     ones was tried and is worse: the second swoop runs into the chevron and the
-     whole thing reads as a tangle rather than an arrow. What changed is the
-     WEIGHT and the PACE: stroke 4.5 rather than 6, amplitude a touch shallower,
-     and the flow at 1.7s rather than 1.15s.
-
-     The viewBox units are the drawing's own; CSS sizes and colours it. */
-  const WAVE = 'M3 13q4.5-6 9 0t9 0t9 0';
-  const ARROW = '<svg viewBox="0 0 46 26" fill="none" aria-hidden="true" focusable="false">'
-    + `<path class="cl-arrow-track" d="${WAVE}" stroke-width="4.5" stroke-linecap="round"/>`
-    + `<path class="cl-arrow-flow" d="${WAVE}" stroke-width="4.5" stroke-linecap="round"/>`
-    + '<path class="cl-arrow-head" d="M30 5.5L42 13l-12 7.5" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>'
-    + '</svg>';
+     Nothing is dashed, nothing is drawn on, and there is no second static copy
+     underneath. Four earlier versions all animated a treatment ON an arrow; this
+     one animates the arrow. The two copies are identical markup and differ only
+     by an animation-delay in the CSS. */
+  /* The viewBox is 60 wide for a glyph that spans about 32 of it. That margin
+     is the TRAVEL: an <svg> clips at its own edge, so at a 44-wide box the
+     glyph hit the wall while still partly visible and the two copies had to
+     move so little that they simply overlapped and read as one doubled arrow
+     rather than one arrow going somewhere. */
+  const GLYPH = '<g class="cl-arrow-glyph">'
+    + '<path d="M14 12H37" stroke-width="4.6" stroke-linecap="round"/>'
+    + '<path d="M35 6l7 6-7 6" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</g>';
+  const ARROW = '<svg viewBox="0 0 60 24" fill="none" aria-hidden="true" focusable="false">'
+    + GLYPH + GLYPH + '</svg>';
   const arrowNode = () => {
     const span = document.createElement('span');
     span.className = 'cl-arrow';
@@ -5612,13 +5616,13 @@ const PORTRAIT_LABEL = {
   /* The category cycler: whatever shows is what gets sent — no unselected
      state, nothing to validate. Enter/Space advance it natively (it is a
      real button); the aria-label re-announces the value it landed on. */
-  const CATS = ['Game', 'Movie', 'Show', 'Song', 'Quote', 'Pod'];
+  const CATS = ['Game', 'Movie', 'Show', 'Song', 'Toon', 'Quote', 'Pod'];
   // The title field asks a different question per category, so its
   // placeholder (and accessible name) say which one (Dex, 2026-08-23).
-  const TITLE_HINT = { Game: 'Game Title', Movie: 'Movie Title', Show: 'Show Title', Song: 'Song Title', Quote: 'The Quote', Pod: 'Podcast Name' };
+  const TITLE_HINT = { Game: 'Game Title', Movie: 'Movie Title', Show: 'Show Title', Song: 'Song Title', Toon: 'Cartoon Title', Quote: 'The Quote', Pod: 'Podcast Name' };
   // The picks tab that is showing when the ? is pressed is the category the
   // visitor means (Dex, 2026-08-23): open on Songs, suggest a song.
-  const TAB_CAT = { 'pk-tab-games': 0, 'pk-tab-movies': 1, 'pk-tab-shows': 2, 'pk-tab-songs': 3, 'pk-tab-quotes': 4, 'pk-tab-pods': 5 };
+  const TAB_CAT = { 'pk-tab-games': 0, 'pk-tab-movies': 1, 'pk-tab-shows': 2, 'pk-tab-songs': 3, 'pk-tab-toons': 4, 'pk-tab-quotes': 5, 'pk-tab-pods': 6 };
   let cat = 0;
   /* The title field is a textarea so a quote can be lines (Dex, 2026-08-23).
      It sits at its rows - one for a title, two for a quote - and grows with

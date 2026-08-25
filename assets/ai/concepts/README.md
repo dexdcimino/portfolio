@@ -11,12 +11,13 @@ assets/ai/concepts/<slug>.png                the master
 assets/derived/ai/concepts/<slug>-*.avif|webp   generated, never hand-made
 ```
 
-## THE NINE FILES HERE NOW ARE PLACEHOLDERS
+## The nine here now
 
-`concept-01.png` .. `concept-09.png` are generated cards that say
-**PLACEHOLDER — NOT REAL ART** on their own face. They exist so the tab has its
-shape before the art does. The count, the titles and the 4:3 are not decisions
-about the real set — do not build on any of them.
+Real concept sheets, all of them **1536x1024**, which is why the frame is 3:2
+and letterboxes nothing. They arrived in one drop and were picked from a larger
+set on one stated ground: every one of these is exactly 3:2, so the tab has a
+single shape. Four others in that drop were not 3:2 or were weaker as a hero
+image and were left out.
 
 ## Adding or replacing one
 
@@ -31,9 +32,11 @@ Nothing counts the concepts by hand, so a tenth needs no CSS or JS edit.
 
 ## Any shape is fine
 
-Unlike the wallpapers, these are **not** all one size. The frame is a fixed
-**4:3** box and the piece is fitted INSIDE it (`object-fit: contain`), so a
-square, a portrait or a 16:9 concept all land whole.
+The frame is a fixed **3:2** box and the piece is fitted INSIDE it
+(`object-fit: contain`). Today's nine are all exactly 3:2, so nothing
+letterboxes at all — `contain` is there for the TENTH, at whatever shape it
+turns up, which lands whole instead of cropped and without this frame having to
+change.
 
 The frame does not change shape per piece, and that is deliberate: a stage that
 resized itself would make the plate, the download and the thumbnail strip jump
@@ -41,5 +44,5 @@ on every arrow press. It is the same rule the clips frame and the Work
 overlay's hero are held to — see CLAUDE.md.
 
 The `concept` slot shares the wallpaper ladder (1920/1280/900/600/400/240), and
-the ladder skips any rung wider than the master, so a 1600-wide piece simply
-tops out at 1280.
+the ladder skips any rung wider than the master, so these 1536-wide pieces top
+out at 1280.

@@ -238,16 +238,18 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   still show no toggle at all.
   and the Top Picks suggestion POPOVER (the `?` sits in `.pk-tabrow` as a
   SIBLING of the picks tablist, never inside it — role=tab there would join
-  the arrow-key cycle and announce as an eighth category; the panel is
+  the arrow-key cycle and announce as one more category; the panel is
   `.pk-pop` anchored beside the button — NOT a dialog: no backdrop, no
   modal focus trap; focus enters on open and returns to the `?` on close;
   Escape, outside click, and >24px of scroll close it, and TYPED VALUES
   PERSIST across closes — only a successful send resets the form; below
   760px it drops under the row's right edge instead of beside the button.
   The header row is the accent-coloured "Suggestion?" left / the cycler
-  right: one button walking Game→Movie→Song→Quote wrapping, its four
+  right: one button walking Game→Movie→Show→Song→Toon→Quote→Pod wrapping, its
   aria-hidden indicator dots centred UNDER it — deliberately not controls,
-  four tab stops would cost more than a four-step cycle pays; whatever
+  a tab stop each would cost more than the cycle pays. **`CATS` in script.js
+  and the `<i>` dots in `.pk-cat-dashes` are a HAND-KEPT PAIR** — one dot per
+  category, counted by nobody — so a new picks tab touches both; whatever
   shows is what sends, and it STARTS on whichever picks tab is showing when
   the `?` is pressed (`TAB_CAT`). Below sit the TITLE field (left-aligned,
   `autocomplete=off` so the browser's own history of past titles stays
@@ -930,18 +932,18 @@ things already positioned in there (`.about-flags`, the breakout game's
 ## Numbers
 
 7 accents (lime default) · 11 ladders / 18 slots in `image_slots.py` ·
-96 generated markup blocks in index.html · fallback ladder
+101 generated markup blocks in index.html · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
 
 ## Known-outstanding
 
 The Work overlay is a mockup (no `work.json`, filler SVGs — do not build on
-its taxonomy). The **Concepts tab is nine PLACEHOLDERS** — generated cards
-that say so on their own face, there so the tab has its shape before the art
-does. Do not read the count, the titles or the 4:3 frame as a decision about
-the real set; replacing one is a master in `assets/ai/concepts/` and a changed
-`src`/`alt` on its directive, with no JS to touch.
+its taxonomy). The Concepts tab carries nine real sheets now, all of them
+1536x1024, which is why its frame is 3:2 and letterboxes nothing — `contain`
+stays for the tenth at whatever shape it arrives. Top Picks gained a **Toons**
+tab after Songs (five, TMDB posters at w780 like the shows —
+`assets/about/toon-covers/README.md` has the source and why it is that one).
 The Clips tab carries five clips, four of which now show where they came
 from; King Kong's source is a photo of a ceiling and is not published, so it
 is the one with copy and no chain. A clip in the strip now carries the play
