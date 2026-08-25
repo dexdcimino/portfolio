@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## V34
+**Quote cards: the 1/2 pager becomes two dots, and hover no longer touches the text.**
+- The second-version control is a pill of two dots instead of the numerals `1 2`. The active dot takes `var(--accent)`, the other the same `#39424b` the suggestion cycler's dashes use — and it literally shares that rule rather than restating the size and grey, so the two cannot drift apart.
+- **Hover preview is gone.** `pointerenter` / `pointerleave` / `focus` / `blur` previewing the second version have all been deleted; a click or tap is now the only thing that changes a quote. Hover still lights the pill, which is CSS on the control and cannot reach the text.
+- The pill carries ~28px of height around 8px dots so the tap target is honest, with a negative vertical margin so buying that target does not make the card's foot taller.
+- The height lock stays. It was written to stop a flicker that only hover could cause, and that loop is now impossible — but a card that resizes under a click is still worse than one that does not, so it keeps its place on its own merit.
+- Accessibility unchanged in kind: still a real `<button>` carrying `aria-pressed`, now labelled "Show the second version of this quote", with the dots `aria-hidden` as the indicators they are.
+
+**New PREFS tab — ten takes, two votes each.**
+- Last tab in TOP PICKS, ten landscape cards laid out 5 across and 2 down, each one line of type (`Dog > Cat`) over a fire/poop vote row. No images anywhere in the panel; the carousel's decode gate already resolves instantly on an empty image set, so nothing waits on a decode that cannot happen.
+- Votes are **fire** and **poop** icons registered through the existing mask system (`assets/icons/fire.svg`, `poop.svg` — solid single-colour silhouettes), so grey → accent is the same `currentColor` swap every other icon on the site uses. Emoji would have been full-colour and different on every OS.
+- **One browser, one opinion, and that is the ceiling.** There is no server behind this page, so one-vote-per-person is not on the table — that needs something server-side to see who is asking. `localStorage` under `dex.prefs.votes` remembers *your* pick for all ten cards; the number shown is the card's `data-fire` / `data-poop` seed plus your own vote. Nothing is shared between visitors, a private window is a new voter, and the counts are a mood rather than a poll. Every storage call is wrapped — `localStorage` throws outright in some privacy modes and a panel of ten cards must not vanish because a getter raised.
+- One vote per card: picking the other side moves it, pressing the active one takes it back. Real `<button>`s, so Enter and Space work and focus is visible.
+- Seeds live in the markup as attributes so they can be retuned without opening `script.js`.
+- **The suggestion popover was deliberately left at six categories** — PREFS does not join the cycler, because a preference is not something a stranger suggests. That is the "leave it alone" branch of the brief's decision point (3), so there is no `DECISIONS.md` entry to write.
+
+**Shows tab reshuffled.**
+- Devs added at #2, Severance now #3, Rick and Morty dropped. Poster came from TMDB's public pages at w780 like the rest of the tab; the retired master and its six derivatives are pruned, and one `git checkout` away if it comes back.
+
 ## V33
 **Diagonals rebuilt to match the reference exactly.**
 - Scrapped the V32 gradient-shaded bands. New flat composition: navy base, top-left light→medium gray triangle, a fuller semi-light gray band, a barely-lighter gray below it, and a lighter bottom-right corner shape — all theme-constant.

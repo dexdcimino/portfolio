@@ -144,6 +144,7 @@ img{max-width:100%}
 [data-icon="copy"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M9 9h10v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2'/%3E%3C/svg%3E")} /* src: assets/icons/copy.svg */
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
 [data-icon="eye"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 5.1C7.2 5.1 3.5 7.8 1.4 12c2.1 4.2 5.8 6.9 10.6 6.9s8.5-2.7 10.6-6.9C20.5 7.8 16.8 5.1 12 5.1Zm0 11.2a4.3 4.3 0 1 1 0-8.6 4.3 4.3 0 0 1 0 8.6Z'/%3E%3Ccircle fill='%23fff' cx='12' cy='12' r='2.1'/%3E%3C/svg%3E")} /* src: assets/icons/eye.svg */
+[data-icon="fire"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M13.1 1.6c.5 2.7-.5 4.4-1.9 5.9-1.5 1.6-3.3 3-3.3 5.6 0 .9.2 1.7.6 2.4-1-.5-1.8-1.4-2.2-2.5-1 1.3-1.6 2.9-1.6 4.6 0 3.4 3.3 6.1 7.3 6.1s7.3-2.7 7.3-6.1c0-2.9-1.3-4.9-2.7-6.7-.5 1.1-1.3 1.9-2.3 2.2 1.2-3.7-.1-8.2-1.2-11.5Z'/%3E%3C/svg%3E")} /* src: assets/icons/fire.svg */
 [data-icon="co_flag"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 132'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M132,98V34C132,15.252,116.7476,0,98,0H34C15.2524,0,0,15.252,0,34v64c0,18.748,15.2524,34,34,34h64c18.7476,0,34-15.252,34-34ZM4,98v-10.7292l20.5686.0159c.3456.6726.6898,1.3459,1.0703,2.0046,8.3022,14.3684,23.7731,23.2988,40.3753,23.3066,16.6326,0,32.0905-8.9431,40.363-23.3391.045-.0784.0875-.1584.1271-.2397l.8535-1.75,20.6422.0142v10.7168c0,16.542-13.458,30-30,30H34c-16.542,0-30-13.458-30-30ZM98,4c16.542,0,30,13.458,30,30v10.7183l-20.5724.0088c-.3436-.6709-.683-1.3455-1.0562-1.9937-8.2841-14.3904-23.7444-23.3298-40.3477-23.3298h-.0081c-16.6085.0024-32.0786,8.9282-40.3737,23.2942-.3782.655-.72,1.3247-1.0638,1.9937l-20.5782-.0298v-10.6616c0-16.542,13.458-30,30-30h64ZM66.0358,108.5979h-.0198c-7.6186-.0037-14.9432-2.0356-21.3151-5.7144-1.593-.9197-3.1264-1.9421-4.59-3.0618-4.3907-3.3584-8.1529-7.5894-11.0086-12.5317-.4747-.8215-.9196-1.6553-1.3349-2.5-2.0764-4.2231-3.4105-8.7158-4.0029-13.2861-.237-1.8281-.3552-3.6685-.3549-5.5088.0004-1.8403.1193-3.6809.3569-5.509.2375-1.8281.5937-3.644,1.0685-5.4353.9495-3.5823,2.3733-7.0662,4.271-10.3528,7.6104-13.1802,21.6724-21.2922,36.9097-21.2944h.0068c15.1567-.0005,29.2913,8.1392,36.8823,21.3254.9413,1.6353,1.814,3.4087,2.5804,5.3096l-19.7402,7.9746c-.014-.0344-.0314-.0667-.0455-.1011-.1017-.2476-.2173-.4868-.328-.7297-.1543-.3391-.3129-.6748-.4831-1.0027-.1168-.2241-.2374-.4448-.3618-.6643-.2078-.3677-.427-.7253-.6544-1.0771-.1046-.1614-.2044-.3254-.3132-.4839-.3552-.5183-.7271-1.0215-1.1231-1.502-.0012-.0015-.0026-.0027-.0038-.0042-.3954-.4795-.8154-.9336-1.2484-1.3738-.1172-.1191-.2389-.2332-.3589-.3496-.3324-.3223-.6738-.6328-1.0253-.9319-.1451-.1235-.2889-.2476-.4373-.3674-.3902-.3142-.7911-.613-1.2015-.8984-.1039-.0725-.2023-.1516-.3076-.2224-.4851-.3247-.9857-.6245-1.4953-.9082-.2185-.1221-.4431-.2324-.6662-.3469-.3236-.1655-.6501-.324-.9819-.4729-.2465-.1108-.4932-.2195-.7445-.321-.379-.1531-.7641-.2903-1.1519-.4216-.1945-.0657-.3838-.1414-.5806-.2014-.5679-.1741-1.1458-.3181-1.7288-.4446-.2004-.0432-.4035-.0771-.606-.1145-.46-.0859-.9231-.1567-1.3901-.2122-.1796-.0212-.358-.0444-.539-.061-.6484-.0601-1.3004-.1013-1.9583-.1013-.6986-.0002-1.4012.0378-2.1058.1077-.3839.0376-.7573.1074-1.1349.165-.28.043-.5593.0674-.8396.1218-.0239.0046-.0464.0122-.0703.0168-.3321.0654-.6542.1558-.9806.2363-.3193.0791-.6408.1523-.9537.2451-.3231.0962-.6371.2102-.9536.3208-.3119.1091-.6235.2173-.9281.3398-.2933.1182-.5797.2478-.8664.3787-.3195.1453-.6354.2952-.9456.4556-.2602.1345-.5161.2744-.7699.4192-.3257.1858-.6441.3804-.9583.5823-.2272.1462-.4534.2922-.6745.4465-.3289.2295-.6464.4717-.9609.7188-.1931.1514-.3887.2988-.5764.4568-.3378.2844-.6598.5852-.9787.8894-.1487.1421-.3041.2761-.4487.4224-.4213.4258-.8239.8691-1.2076,1.3286-.0496.0593-.1.1177-.149.1775-.3833.4692-.746.9548-1.0884,1.4556-.1463.2136-.276.4382-.4146.6575-.2042.323-.4084.6455-.5952.9795-.1451.2593-.2758.5266-.4102.7925-.1572.311-.3118.6226-.4538.9419-.1255.2822-.241.5684-.3546.8569-.1269.3223-.2462.6475-.3575.9768-.0981.2905-.192.582-.2778.8779-.1021.3518-.1902.7083-.2743,1.0667-.0661.2825-.1349.563-.1896.8496-.0795.4146-.137.8354-.192,1.2578-.0312.2407-.0726.4778-.0958.7209-.0635.6648-.1011,1.3359-.1018,2.0149,0,.0078-.0012.0156-.0012.0234,0,.0005,0,.001,0,.0015,0,.0007,0,.0015,0,.002.0001.6865.0388,1.3652.1031,2.0374.0231.2429.0647.4797.0959.72.0551.4226.1125.8438.1921,1.2588.0548.2866.1238.5671.19.8496.0842.3589.1722.7153.2744,1.0671.0858.2961.1799.5874.2781.8779.1114.3293.2305.6543.3574.9763.1136.2886.2294.575.3551.8574.142.3188.2964.6306.4536.9414.1345.2659.2654.533.4105.7922.1867.3337.3906.656.5946.9788.1388.2192.2687.4443.4152.6582.3339.4878.6885.9609,1.0614,1.4192.0472.0581.093.1169.1408.1746.394.4741.8097.9297,1.2436,1.3682.1426.144.2961.2764.4427.4165.3211.3066.6454.6091.9857.8958.186.1565.3801.3022.5714.4524.3162.2483.6354.4919.9662.7227.2203.1538.4456.2988.6718.4443.3151.2024.6344.3977.9611.584.2529.1443.5081.2834.7674.4177.3115.1609.6287.3113.9494.4573.2858.1304.5714.2593.8638.3772.3057.123.6185.2317.9315.3408.3152.1101.6281.2236.9498.3193.315.0935.6386.1672.9601.2468.3245.0801.6448.1694.975.2344.0253.0051.0493.0132.0745.0181.2824.0549.564.0793.8463.1226.3741.0569.7441.126,1.1243.1631.7037.0698,1.4055.1077,2.1028.1077.66,0,1.314-.0413,1.9645-.1018.1754-.0161.3483-.0386.5224-.0591.4753-.0562.9466-.1282,1.4145-.2158.1953-.0364.3912-.0688.5847-.1106.5883-.1272,1.1713-.2727,1.7441-.4485.1821-.0557.3571-.126.5369-.1863.4041-.136.8049-.2795,1.1995-.4392.2427-.0981.4809-.2031.719-.3101.3433-.1536.6812-.3176,1.0157-.4893.2137-.1099.429-.2156.6384-.3323.515-.2864,1.0206-.5896,1.5106-.9177.0919-.0618.1777-.1309.2686-.1941.4248-.2942.8389-.6038,1.242-.9287.142-.1147.2796-.2336.4186-.3521.358-.304.7057-.6204,1.0438-.9485.116-.1128.2337-.2231.3471-.3384.8702-.8843,1.6685-1.8472,2.3809-2.8867.1071-.156.2052-.3179.3082-.4766.2289-.354.4495-.7141.6586-1.084.1241-.219.2442-.4395.3607-.6631.1699-.3274.3283-.6626.4824-1.0012.1111-.2439.227-.4841.3291-.7327.0146-.0356.0325-.0688.0469-.1045l19.7413,7.9954-2.58,5.2905c-7.581,13.1929-21.7227,21.332-36.8732,21.332Z'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/flags/co_flag.svg */
 [data-icon="us_flag"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' xmlns='http://www.w3.org/2000/svg' version='1.1' viewBox='0 0 132 132'%3E %3C!-- Generator: Adobe Illustrator 30.7.0, SVG Export Plug-In . SVG Version: 2.1.4 Build 114) --%3E %3Cg id='Layer_1-2'%3E %3Cpath d='M98,0H34C15.3,0,0,15.3,0,34v64c0,18.7,15.3,34,34,34h64c18.7,0,34-15.3,34-34V34C132,15.3,116.7,0,98,0ZM128,34v7.4h-62v-9.8h61.9c0,.8.1,1.6.1,2.5ZM127.9,100.5H4.1c0-.8-.1-1.6-.1-2.5v-7.4h124v7.4c0,.8,0,1.6-.1,2.5ZM118.2,120.2H13.8c-3-2.7-5.4-6.1-7.1-9.8h118.7c-1.7,3.8-4.1,7.1-7.1,9.8h0ZM4,80.8v-9.8h124v9.8H4ZM125.3,21.7h-59.3v-9.8h52.2c3,2.7,5.4,6.1,7.1,9.8h0ZM66,61.1v-9.8h62v9.8h-62Z'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/flags/us_flag.svg */
 [data-icon="fullscreen-exit"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round' d='M9 4v3.5A1.5 1.5 0 0 1 7.5 9H4M20 9h-3.5A1.5 1.5 0 0 1 15 7.5V4M15 20v-3.5a1.5 1.5 0 0 1 1.5-1.5H20M4 15h3.5A1.5 1.5 0 0 1 9 16.5V20'/%3E%3C/svg%3E")} /* src: assets/icons/fullscreen-exit.svg */
@@ -158,6 +159,7 @@ img{max-width:100%}
 [data-icon="play-round"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23fff' stroke-width='4.6' stroke-linejoin='round' d='M9.0 6.98v10.04L17.06 12.0Z'/%3E%3C/svg%3E")} /* src: assets/icons/play-round.svg */
 [data-icon="play"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' stroke='%23fff' stroke-width='3.4' stroke-linejoin='round' d='M8.4 5.9v12.2L18.2 12Z'/%3E%3C/svg%3E")} /* src: assets/icons/play.svg */
 [data-icon="plus"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M10.7 4.8h2.6v5.9h5.9v2.6h-5.9v5.9h-2.6v-5.9H4.8v-2.6h5.9Z'/%3E%3C/svg%3E")} /* src: assets/icons/plus.svg */
+[data-icon="poop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='%23fff'%3E%3Cellipse cx='12' cy='18.6' rx='10.4' ry='3.1'/%3E%3Cellipse cx='12' cy='14.2' rx='8.1' ry='2.9'/%3E%3Cellipse cx='12' cy='9.4' rx='5.3' ry='2.7'/%3E%3Cpath d='M12.4 7.1c-1.5 0-2.5-.8-2.5-1.9 0-1.6 2-1.9 2-3.2 0-.4-.1-.8-.4-1.1 2.2.4 3.8 1.9 3.8 3.6 0 1.5-1.2 2.6-2.9 2.6Z'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/poop.svg */
 [data-icon="preview"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.2 12c2.6-3.9 5.8-5.8 9.8-5.8s7.2 1.9 9.8 5.8c-2.6 3.9-5.8 5.8-9.8 5.8S4.8 15.9 2.2 12Z M12 14.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z'/%3E%3C/svg%3E")} /* src: assets/icons/preview.svg */
 [data-icon="resume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linejoin='round' d='M6 2h8l4 4v16H6zm8 0v5h4M9 11h6M9 15h6M9 19h4'/%3E%3C/svg%3E")} /* src: assets/icons/resume.svg */
 [data-icon="shuffle"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M4 7h3.2c1 0 1.9.5 2.5 1.3l4.6 7.4c.6.8 1.5 1.3 2.5 1.3H20M4 17h3.2c1 0 1.9-.5 2.5-1.3l.9-1.4M13.4 9.7l.9-1.4c.6-.8 1.5-1.3 2.5-1.3H20'/%3E%3Cpath fill='%23fff' d='m17.4 4 3 3-3 3zm0 10 3 3-3 3z'/%3E%3C/svg%3E")} /* src: assets/icons/shuffle.svg */
@@ -1020,7 +1022,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .pk-pop-title{font-size:19px;font-weight:900;letter-spacing:.03em;color:var(--accent);padding-top:3px}
 .pk-cat{display:grid;gap:6px;justify-items:center}
 .pk-cat-dashes{display:flex;gap:6px;pointer-events:none}
-.pk-cat-dashes i{width:8px;height:8px;border-radius:50%;background:#39424b;transition:background var(--accent-ease)}
+.pk-cat-dashes i,.pk-quote-dot{width:8px;height:8px;border-radius:50%;background:#39424b;transition:background var(--accent-ease)}
 .pk-cat-dashes i.on{background:var(--accent)}
 .pk-cat-btn{
   min-width:88px;padding:8px 16px;border:0;border-radius:9px;
@@ -1316,6 +1318,43 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .pk-listen-link:hover,.pk-listen-link:focus-visible{color:var(--accent);transform:translateY(-1px)}
 .pk-listen-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
 
+/* --- prefs: a sentence and two votes, no art ----------------------------- */
+/* The grid is the picks grid untouched, so the column count and both of its
+   breakpoints are inherited rather than restated - ten cards simply fill five
+   columns twice, three twice-and-a-bit, two five times. */
+.pk-pref{
+  display:flex;flex-direction:column;justify-content:space-between;gap:8px;
+  aspect-ratio:16/9;padding:12px 13px;min-width:0;
+  container-type:inline-size;
+  border:var(--stroke) solid rgba(255,255,255,.1);border-radius:var(--radius-cover);
+  background:linear-gradient(150deg,rgba(32,38,44,.5),rgba(12,15,18,.5));
+  transition:border-color var(--accent-ease),transform .25s ease,box-shadow var(--accent-ease);
+}
+/* The same hairline-to-accent lift the covers use, so the tab reads as part of
+   the section rather than a panel with its own ideas. */
+.pk-pref:hover{border-color:var(--accent);transform:translateY(-4px);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--accent) 22%,transparent)}
+/* Sized off the CARD, like every other type ramp in this section, so it tracks
+   the column count instead of needing a font size per breakpoint. */
+.pk-pref-line{margin:0;font-size:clamp(12px,10.5cqw,23px);font-weight:800;
+  line-height:1.15;letter-spacing:-.01em;color:var(--text)}
+.pk-pref-gt{color:var(--accent);transition:color var(--accent-ease)}
+.pk-pref-votes{display:flex;align-items:center;gap:4px}
+/* Padding for the finger, negative vertical margin so buying that target does
+   not push the row - and the card - taller. */
+.pk-vote{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 8px;margin:-6px 0;
+  background:none;border:0;border-radius:8px;cursor:pointer;
+  font:inherit;color:var(--icon-idle);
+  transition:color var(--accent-ease);
+}
+.pk-vote:hover{color:var(--text)}
+.pk-vote[aria-pressed="true"],.pk-vote[aria-pressed="true"]:hover{color:var(--accent)}
+.pk-vote:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pk-vote-icon{width:16px;height:16px}
+.pk-vote-count{font-size:clamp(10px,5.5cqw,13px);font-weight:800;font-variant-numeric:tabular-nums}
+
 /* --- player bar ---------------------------------------------------------- */
 /* Left edge clears the rail rather than sitting under it, so the bar never
    covers the sidebar and the collapse behaviour is untouched. */
@@ -1569,21 +1608,22 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .pk-quote-toggle:hover,.pk-quote-toggle:focus-visible,.pk-quote-toggle[aria-pressed="true"]{color:var(--accent)}
 .pk-quote-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
 .pk-quote:not(.has-rendition) .pk-quote-toggle{display:none}
-/* The 1/2 pager (Dex, 2026-08-24), and the first thing to use .has-rendition.
-   BOTH numerals live in the one button and the active one takes the accent, so
-   the card says which of the two you are on and the whole control is a single
-   click target. Heavier and larger than the plain toggle it inherits from -
-   this is a control, not a footnote - and sized by container query like the
-   rest of the card, so it scales with the column instead of one size fitting
-   at 1600px and shouting at 420. NOTE the cqw here is smaller than it looks:
-   container query units resolve against .pk-quote's CONTENT box, which its
-   15px side padding takes to ~168px at the five-column layout - 7cqw landed
-   under a 12px floor and the pager rendered at its minimum. */
-.pk-quote-pager{display:flex;align-items:baseline;gap:.5em;
-  font-size:clamp(15px,9cqw,21px);font-weight:900;letter-spacing:.06em}
-.pk-quote-pager .pk-q-num{color:var(--muted);transition:color var(--accent-ease)}
-.pk-quote-pager[aria-pressed="false"] .pk-q-num[data-n="1"],
-.pk-quote-pager[aria-pressed="true"] .pk-q-num[data-n="2"]{color:var(--accent)}
+/* TWO DOTS, and the pill around them IS the button. Numerals carried the same
+   information but read as type, competing with the cite beside them; a pair of
+   dots says "one of two" as a mark instead of a word. The dot is the
+   suggestion cycler's own - it shares that rule above rather than restating
+   the size and the grey, because the two mean the same thing and should not
+   drift apart. The padding IS the tap target: an 8px dot is a miserable thing
+   to hit, so the pill carries ~28px of height around the pair, and the
+   negative margin keeps that from making the card's foot taller.
+   Hover only lights the pill - it no longer previews the other quote, so
+   nothing here can change the text. */
+.pk-quote-pager{display:flex;align-items:center;align-self:center;gap:6px;
+  padding:10px 12px;margin:-9px -4px -9px 0;border-radius:999px;
+  transition:background var(--accent-ease)}
+.pk-quote-pager:hover,.pk-quote-pager:focus-visible{background:rgba(255,255,255,.06)}
+.pk-quote-pager[aria-pressed="false"] .pk-quote-dot[data-n="1"],
+.pk-quote-pager[aria-pressed="true"] .pk-quote-dot[data-n="2"]{background:var(--accent)}
 
 @media(max-width:1100px){ .pk-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
 /* Hold the eight columns as far down as they fit by shrinking the icon rather

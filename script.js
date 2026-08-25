@@ -1797,9 +1797,11 @@ const tkSelect = initTabs(document.querySelector('.tk-tabs'), (next, tab) => {
 /* Each card holds both versions in data-* and swaps text in place, so a quote
    and its cite can never drift apart. Cards with no rendition have no button —
    the has-rendition class gates it in CSS — so there is nothing to guard here.
-   Hover previews; click pins, because hover alone is dead on touch and the
-   Quotes tab is reachable on a phone. aria-pressed carries the state, which is
-   why this is a real <button>. */
+   CLICK ONLY (Dex, 2026-08-24). Hover used to preview the second version and a
+   click pinned it; the preview is gone, so the text changes on a deliberate
+   press and never on a pointer crossing the card. Hover still lights the pill,
+   which is CSS on the control and cannot touch the quote. aria-pressed carries
+   the state, which is why this is a real <button>. */
 (function initQuoteRenditions() {
   for (const card of document.querySelectorAll('.pk-quote')) {
     const text = card.querySelector('.pk-quote-text');
@@ -1815,18 +1817,20 @@ const tkSelect = initTabs(document.querySelector('.tk-tabs'), (next, tab) => {
     const btn = card.querySelector('.pk-quote-toggle');
     if (!btn) continue;                      // no rendition: original is final
 
-    let pinned = false;
+    let showing = false;                 // false = original, true = rendition
     const set = (on) => {
       paint(on ? 'rendition' : 'original');
       btn.setAttribute('aria-pressed', String(on));
     };
 
-    /* The two versions are different lengths, so swapping changed the card's
-       height and moved the foot — and the button — out from under the pointer,
-       which fired pointerleave, reverted the text, moved the button back, and
-       sat there flickering. The card is locked to its taller version's height,
-       measured only once the panel is actually visible (a hidden tab measures
-       zero), and re-measured on resize because wrapping moves the answer. */
+    /* The two versions are different lengths, so the card is locked to the
+       taller one - measured only once the panel is actually visible (a hidden
+       tab measures zero) and re-measured on resize, because wrapping moves the
+       answer. This began as a flicker fix: a swap changed the height, moved the
+       button out from under the pointer, fired pointerleave and reverted. That
+       loop cannot happen now that hover does nothing, but the lock stays on its
+       own merit - a card that resizes under a click is still worse than one
+       that does not. */
     const lockHeight = () => {
       if (!card.offsetHeight) return;
       const was = btn.getAttribute('aria-pressed') === 'true' ? 'rendition' : 'original';
@@ -1849,14 +1853,67 @@ const tkSelect = initTabs(document.querySelector('.tk-tabs'), (next, tab) => {
       clearTimeout(relock);
       relock = setTimeout(lockHeight, 150);
     });
-    btn.addEventListener('pointerenter', () => { if (!pinned) set(true); });
-    btn.addEventListener('pointerleave', () => { if (!pinned) set(false); });
-    btn.addEventListener('focus', () => { if (!pinned) set(true); });
-    btn.addEventListener('blur', () => { if (!pinned) set(false); });
-    btn.addEventListener('click', () => { pinned = !pinned; set(pinned); });
+    btn.addEventListener('click', () => { showing = !showing; set(showing); });
   }
 })();
 initTabs(document.querySelector('.ai-tabs'));
+/* --- prefs votes ---------------------------------------------------------- */
+/* ONE BROWSER, ONE OPINION, and that is the honest ceiling here: there is no
+   server behind this page, so there is no way to hold one vote per person -
+   that needs something running server-side to see who is asking. What this does
+   instead is remember YOUR pick in localStorage under a single key for all ten
+   cards, and show the seed from the markup plus your own vote. Nothing is
+   shared between visitors, a private window is a new voter, and the numbers are
+   a mood rather than a poll. Say so plainly rather than implying a tally.
+
+   Seeds live on the cards as data-fire / data-poop so they can be retuned in
+   the markup without opening this file.
+
+   Every storage call is wrapped: localStorage THROWS outright in some privacy
+   modes, and a panel of ten cards must not disappear because a getter raised. */
+(function initPrefVotes() {
+  const cards = [...document.querySelectorAll('.pk-pref')];
+  if (!cards.length) return;
+  const KEY = 'dex.prefs.votes';
+
+  let votes = {};
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY) || '{}');
+    if (raw && typeof raw === 'object') votes = raw;
+  } catch { votes = {}; }                       // unreadable or disabled: start clean
+  const save = () => {
+    try { localStorage.setItem(KEY, JSON.stringify(votes)); } catch { /* not persisted */ }
+  };
+
+  for (const card of cards) {
+    const key = card.dataset.key;
+    const seed = { fire: Number(card.dataset.fire) || 0, poop: Number(card.dataset.poop) || 0 };
+    const buttons = [...card.querySelectorAll('.pk-vote')];
+    if (!key || buttons.length !== 2) continue;
+
+    const paint = () => {
+      for (const button of buttons) {
+        const kind = button.dataset.vote;
+        const on = votes[key] === kind;
+        button.setAttribute('aria-pressed', String(on));
+        button.querySelector('.pk-vote-count').textContent = seed[kind] + (on ? 1 : 0);
+      }
+    };
+
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        // Pressing the one already chosen takes the vote back; pressing the
+        // other moves it. There is no way to be for and against at once.
+        const kind = button.dataset.vote;
+        if (votes[key] === kind) delete votes[key];
+        else votes[key] = kind;
+        save();
+        paint();
+      });
+    }
+    paint();
+  }
+})();
 
 /* --- saving a file without a link ---------------------------------------- */
 /* Every download on the site is a <button data-file data-name>, not an <a href

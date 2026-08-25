@@ -1744,6 +1744,7 @@
         <button class="pk-tab" type="button" role="tab" id="pk-tab-songs" aria-controls="pk-panel-songs" aria-selected="false" tabindex="-1">Songs</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-quotes" aria-controls="pk-panel-quotes" aria-selected="false" tabindex="-1">Quotes</button>
         <button class="pk-tab" type="button" role="tab" id="pk-tab-pods" aria-controls="pk-panel-pods" aria-selected="false" tabindex="-1">Pods</button>
+        <button class="pk-tab" type="button" role="tab" id="pk-tab-prefs" aria-controls="pk-panel-prefs" aria-selected="false" tabindex="-1">Prefs</button>
       </div>
       <button class="pk-suggest-btn" id="pkSuggestOpen" type="button"
               aria-label="Suggest a pick">
@@ -2008,6 +2009,23 @@
             </a>
           </li>
           <li class="pk-card">
+            <a class="pk-link" href="https://www.google.com/search?q=Devs+2020+series" target="_blank" rel="noopener noreferrer">
+              <!-- img src="assets/about/show-covers/devs.jpg" slot="pick-cover" alt="Devs cover art" class="pk-cover" -->
+              <picture>
+                <source type="image/avif" srcset="assets/derived/about/show-covers/devs-600.avif?v=2c5cdf4c 600w,
+                                                  assets/derived/about/show-covers/devs-400.avif?v=2c5cdf4c 400w,
+                                                  assets/derived/about/show-covers/devs-200.avif?v=2c5cdf4c 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <source type="image/webp" srcset="assets/derived/about/show-covers/devs-600.webp?v=2c5cdf4c 600w,
+                                                  assets/derived/about/show-covers/devs-400.webp?v=2c5cdf4c 400w,
+                                                  assets/derived/about/show-covers/devs-200.webp?v=2c5cdf4c 200w"
+                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
+                <img class="pk-cover" src="assets/about/show-covers/devs.jpg" alt="Devs cover art" width="780" height="1170" loading="lazy" decoding="async">
+              </picture>
+              <!-- /img -->
+            </a>
+          </li>
+          <li class="pk-card">
             <a class="pk-link" href="https://www.google.com/search?q=Severance+2022+series" target="_blank" rel="noopener noreferrer">
               <!-- img src="assets/about/show-covers/severance.jpg" slot="pick-cover" alt="Severance cover art" class="pk-cover" -->
               <picture>
@@ -2020,23 +2038,6 @@
                                                   assets/derived/about/show-covers/severance-200.webp?v=dc4dbdd8 200w"
                         sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
                 <img class="pk-cover" src="assets/about/show-covers/severance.jpg" alt="Severance cover art" width="780" height="1170" loading="lazy" decoding="async">
-              </picture>
-              <!-- /img -->
-            </a>
-          </li>
-          <li class="pk-card">
-            <a class="pk-link" href="https://www.google.com/search?q=Rick+and+Morty+seasons+1-5" target="_blank" rel="noopener noreferrer">
-              <!-- img src="assets/about/show-covers/rick-and-morty.jpg" slot="pick-cover" alt="Rick and Morty, seasons 1-5 cover art" class="pk-cover" -->
-              <picture>
-                <source type="image/avif" srcset="assets/derived/about/show-covers/rick-and-morty-600.avif?v=30ae759e 600w,
-                                                  assets/derived/about/show-covers/rick-and-morty-400.avif?v=30ae759e 400w,
-                                                  assets/derived/about/show-covers/rick-and-morty-200.avif?v=30ae759e 200w"
-                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <source type="image/webp" srcset="assets/derived/about/show-covers/rick-and-morty-600.webp?v=30ae759e 600w,
-                                                  assets/derived/about/show-covers/rick-and-morty-400.webp?v=30ae759e 400w,
-                                                  assets/derived/about/show-covers/rick-and-morty-200.webp?v=30ae759e 200w"
-                        sizes="(max-width:560px) 42vw, (max-width:1100px) 28vw, 15vw">
-                <img class="pk-cover" src="assets/about/show-covers/rick-and-morty.jpg" alt="Rick and Morty, seasons 1-5 cover art" width="780" height="1170" loading="lazy" decoding="async">
               </picture>
               <!-- /img -->
             </a>
@@ -2263,9 +2264,9 @@
             <div class="pk-quote-foot">
               <cite class="pk-quote-cite" data-original="Alan Watts"></cite>
               <button class="pk-quote-toggle pk-quote-pager" type="button" aria-pressed="false"
-                      aria-label="Alan Watts, quote 1 of 2 - press to show the other">
-                <span class="pk-q-num" data-n="1" aria-hidden="true">1</span>
-                <span class="pk-q-num" data-n="2" aria-hidden="true">2</span>
+                      aria-label="Show the second version of this quote">
+                <i class="pk-quote-dot" data-n="1" aria-hidden="true"></i>
+                <i class="pk-quote-dot" data-n="2" aria-hidden="true"></i>
               </button>
             </div>
           </li>
@@ -2446,6 +2447,152 @@
               <a class="pk-listen-link" href="https://www.youtube.com/@joerogan" target="_blank" rel="noopener noreferrer" aria-label="The Joe Rogan Experience on YouTube" data-tip="YouTube"><span class="icon" data-icon="youtube" aria-hidden="true"></span></a>
               <a class="pk-listen-link" href="https://open.spotify.com/search/The%20Joe%20Rogan%20Experience" target="_blank" rel="noopener noreferrer" aria-label="Find The Joe Rogan Experience on Spotify" data-tip="Find on Spotify"><span class="icon" data-icon="spotify" aria-hidden="true"></span></a>
               <a class="pk-listen-link" href="https://podcasts.apple.com/us/podcast/the-joe-rogan-experience/id360084272" target="_blank" rel="noopener noreferrer" aria-label="The Joe Rogan Experience on Apple Podcasts" data-tip="Apple Podcasts"><span class="icon" data-icon="podcast" aria-hidden="true"></span></a>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <!-- PREFS. No art anywhere in here on purpose: the pick IS the sentence,
+           so the card is one line of type over its two vote controls. The
+           carousel gate copes with that already - warm() awaits Promise.all over
+           the panel's images, and an empty set resolves on the spot, so the swap
+           never waits on a decode that cannot happen.
+           VOTES ARE PER BROWSER, and cannot be anything else without a server:
+           localStorage under dex.prefs.votes holds all ten, the number shown is
+           the data-fire / data-poop seed plus this visitor's own vote, and
+           nothing is shared between visitors. The seeds are attributes so they
+           can be retuned without touching script.js.
+           Deliberately NOT wired to the suggestion cycler - a preference is not
+           something a stranger suggests, so PREFS is the one tab the ? ignores. -->
+      <div class="pk-panel" id="pk-panel-prefs" role="tabpanel" aria-labelledby="pk-tab-prefs" hidden>
+        <ul class="pk-grid">
+          <li class="pk-pref" data-key="dog-cat" data-fire="9" data-poop="4">
+            <p class="pk-pref-line">Dog <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> Cat</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with Dog over Cat">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">9</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with Dog over Cat">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">4</span>
+              </button>
+            </div>
+          </li>
+          <li class="pk-pref" data-key="summer-winter" data-fire="10" data-poop="4">
+            <p class="pk-pref-line">Summer <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> Winter</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with Summer over Winter">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">10</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with Summer over Winter">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">4</span>
+              </button>
+            </div>
+          </li>
+          <li class="pk-pref" data-key="beach-mountains" data-fire="8" data-poop="6">
+            <p class="pk-pref-line">Beach <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> Mountains</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with Beach over Mountains">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">8</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with Beach over Mountains">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">6</span>
+              </button>
+            </div>
+          </li>
+          <li class="pk-pref" data-key="night-owl-early-bird" data-fire="9" data-poop="5">
+            <p class="pk-pref-line">Night Owl <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> Early Bird</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with Night Owl over Early Bird">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">9</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with Night Owl over Early Bird">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">5</span>
+              </button>
+            </div>
+          </li>
+          <li class="pk-pref" data-key="cheesecake-pie" data-fire="7" data-poop="6">
+            <p class="pk-pref-line">Cheesecake <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> Pie</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with Cheesecake over Pie">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">7</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with Cheesecake over Pie">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">6</span>
+              </button>
+            </div>
+          </li>
+          <li class="pk-pref" data-key="waffle-pancake" data-fire="6" data-poop="7">
+            <p class="pk-pref-line">Waffle <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> Pancake</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with Waffle over Pancake">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">6</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with Waffle over Pancake">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">7</span>
+              </button>
+            </div>
+          </li>
+          <li class="pk-pref" data-key="sushi-steak" data-fire="5" data-poop="8">
+            <p class="pk-pref-line">Sushi <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> Steak</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with Sushi over Steak">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">5</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with Sushi over Steak">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">8</span>
+              </button>
+            </div>
+          </li>
+          <li class="pk-pref" data-key="android-iphone" data-fire="5" data-poop="9">
+            <p class="pk-pref-line">Android <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> iPhone</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with Android over iPhone">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">5</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with Android over iPhone">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">9</span>
+              </button>
+            </div>
+          </li>
+          <li class="pk-pref" data-key="sour-candy-chocolate" data-fire="4" data-poop="10">
+            <p class="pk-pref-line">Sour Candy <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> Chocolate</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with Sour Candy over Chocolate">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">4</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with Sour Candy over Chocolate">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">10</span>
+              </button>
+            </div>
+          </li>
+          <li class="pk-pref" data-key="sv-seasoning" data-fire="4" data-poop="9">
+            <p class="pk-pref-line">S&amp;V <span class="pk-pref-gt" aria-hidden="true">&gt;</span> <span class="sr-only">beats</span> Seasoning</p>
+            <div class="pk-pref-votes">
+              <button class="pk-vote" type="button" data-vote="fire" aria-pressed="false" aria-label="Agree with S&V over Seasoning">
+                <span class="icon pk-vote-icon" data-icon="fire" aria-hidden="true"></span>
+                <span class="pk-vote-count">4</span>
+              </button>
+              <button class="pk-vote" type="button" data-vote="poop" aria-pressed="false" aria-label="Disagree with S&V over Seasoning">
+                <span class="icon pk-vote-icon" data-icon="poop" aria-hidden="true"></span>
+                <span class="pk-vote-count">9</span>
+              </button>
             </div>
           </li>
         </ul>
