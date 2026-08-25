@@ -2563,8 +2563,10 @@ let flashTip = () => {};
    you were pointing at, so the pointer has to leave to reach it.
 
    Which handle belongs to which site is data-tag in the markup, next to the
-   link it describes. A link without one shows nothing rather than leaving the
-   previous handle up under a different logo. */
+   link it describes. A link without one reads "No tag" and the row will not
+   copy it. Not the previous handle, which would name the wrong service; and
+   not an empty row, which reads as something failing to load rather than as an
+   answer. It is a real state, for a service with no @mention to give. */
 (function initSocialLinks() {
   const row = document.querySelector('.social-mini');
   if (!row) return;
@@ -2632,14 +2634,21 @@ let flashTip = () => {};
     timer = setTimeout(() => { if (!held) clear(); }, HOLD);
   };
 
+  const NO_TAG = 'No tag';
+
   const show = (a) => {
-    const tag = a.dataset.tag;
-    if (!tag) { clear(); return; }
-    text.textContent = tag;
+    const tag = a.dataset.tag || '';
+    text.textContent = tag || NO_TAG;
+    // The button reads its own dataset on click, so an empty one IS the "do not
+    // copy" state — there is no second flag that could disagree with the label.
     btn.dataset.tag = tag;
+    btn.classList.toggle('is-untagged', !tag);
     // A handle and a glyph, so the outcome has to reach a screen reader through
-    // the button's name.
-    btn.setAttribute('aria-label', `Copy ${tag} to the clipboard`);
+    // the button's name. With nothing to copy it stops claiming to be a button
+    // that does something.
+    btn.setAttribute('aria-label', tag ? `Copy ${tag} to the clipboard`
+                                       : 'This link has no handle to copy');
+    btn.setAttribute('aria-disabled', String(!tag));
     wrap.classList.add('is-on');
     arm();
   };
@@ -3145,19 +3154,23 @@ const MediaBus = (() => {
     if (origin) origin.hidden = !originFilled || !!videosPanel?.hidden;
   };
 
-  /* A shaft and a head, thick — a hairline arrow between two pictures reads as
-     a divider rather than as a direction. The motion is one bright segment
-     running the shaft once and lighting the head as it lands, then a beat; see
-     the keyframes in styles.css, which are solved off `pathLength` rather than
-     tuned. The viewBox units are the drawing's own; CSS sizes and colours it.
-     A waved shaft came first and was replaced (Dex, 2026-08-25): at 46px it
-     read as a squiggle rather than as something drawn on purpose. */
-  const SHAFT = 'M3 12H32';
-  const ARROW = '<svg viewBox="0 0 46 24" fill="none" aria-hidden="true" focusable="false">'
-    + `<path class="cl-arrow-track" d="${SHAFT}" stroke-width="6" stroke-linecap="round"/>`
-    + `<path class="cl-arrow-pulse" d="${SHAFT}" stroke-width="6" stroke-linecap="round" pathLength="100"/>`
-    + '<path class="cl-arrow-head" d="M31 3.5l9 8.5-9 8.5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
-    + '</svg>';
+  /* SQUARE CUT, and drawn rather than swept (Dex, 2026-08-25 — third pass).
+     Butt caps and a mitred point: no rounding anywhere, so it reads as drafted
+     rather than doodled. Two layers of the same two paths — a dim RAIL that is
+     always there, and bright INK that draws itself along it, shaft first and
+     then the head, holds, and dissolves. The keyframes are in styles.css and
+     are exact rather than eyeballed: `pathLength="100"` puts every offset on a
+     0-100 scale whatever the real path length is.
+     Two shapes came before this one and both are gone: a waved shaft (read as a
+     squiggle at 46px) and a rounded shaft with a travelling segment. */
+  const SHAFT = 'M2 12H30';
+  const HEAD = 'M28.5 4.5L37 12l-8.5 7.5';
+  const ARROW = '<svg viewBox="0 0 44 24" fill="none" aria-hidden="true" focusable="false">'
+    + `<g class="cl-arrow-rail"><path d="${SHAFT}" stroke-width="5"/><path d="${HEAD}" stroke-width="5"/></g>`
+    + '<g class="cl-arrow-ink">'
+    + `<path class="cl-arrow-ink-shaft" d="${SHAFT}" stroke-width="5" pathLength="100"/>`
+    + `<path class="cl-arrow-ink-head" d="${HEAD}" stroke-width="5" pathLength="100"/>`
+    + '</g></svg>';
   const arrowNode = () => {
     const span = document.createElement('span');
     span.className = 'cl-arrow';

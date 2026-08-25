@@ -172,6 +172,7 @@ img{max-width:100%}
 [data-icon="linkedin"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M22.23 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.73V1.73C24 .77 23.21 0 22.23 0ZM7.12 20.45H3.56V9h3.56v11.45ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13Zm15.11 13.02h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.47-.9 1.63-1.85 3.37-1.85 3.6 0 4.26 2.37 4.26 5.46v6.28Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/linkedin.svg */
 [data-icon="podcast"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2.4' width='6' height='11.2' rx='3'/%3E%3Cpath d='M5.6 11.2a6.4 6.4 0 0 0 12.8 0'/%3E%3Cpath d='M12 17.6V21.4'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/social/podcast.svg */
 [data-icon="spotify"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='s' maskUnits='userSpaceOnUse' x='0' y='0' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Cg fill='none' stroke='%23000' stroke-linecap='round'%3E%3Cpath d='M6 9.1C9.4 7 14.6 7.4 18.1 10.1' stroke-width='2.2'/%3E%3Cpath d='M7.1 12.7C10 11 14.2 11.4 17 13.5' stroke-width='1.9'/%3E%3Cpath d='M8.2 16C10.5 14.7 13.7 15 15.8 16.6' stroke-width='1.6'/%3E%3C/g%3E%3C/mask%3E%3C/defs%3E%3Ccircle cx='12' cy='12' r='11' fill='%23fff' mask='url(%23s)'/%3E%3C/svg%3E")} /* src: assets/icons/social/spotify.svg */
+[data-icon="x"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z'/%3E%3C/svg%3E")} /* src: assets/icons/social/x.svg */
 [data-icon="youtube"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.54 12 3.54 12 3.54s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/youtube.svg */
 [data-icon="tick-check"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='m5 12.5 4.5 4.5L19 7'/%3E%3C/svg%3E")} /* src: assets/icons/tick-check.svg */
 [data-icon="tick"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15.3841 18.1113'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M7.1872,18.1113H0v-6.3529L11.7584,0h3.6257v7.3476s-5.9188,5.7103-7.2664,7.2664-.9305,3.4973-.9305,3.4973Z' fill='%23fff'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tick_mark.svg */
@@ -633,6 +634,14 @@ button.button{cursor:pointer;font-family:inherit}
   background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);
 }
 .social-tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* A link with no handle. The row still opens — an empty one reads as something
+   failing to load — but it stops pretending to be a control: no copy glyph, no
+   pointer, and the hover state does not light. The type goes italic and dimmer
+   so "No tag" reads as a description of the link rather than as a handle
+   someone might try to paste. */
+.social-tag.is-untagged{cursor:default;color:#6b7278;font-style:italic;padding:0 14px}
+.social-tag.is-untagged:hover{background:transparent;color:#6b7278}
+.social-tag.is-untagged .social-tag-copy{display:none}
 .social-tag-text{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Pinned right and out of flow, so the handle stays centred on the row itself
    rather than on whatever space the glyph leaves. */
@@ -4321,39 +4330,43 @@ body.modal-open{overflow:hidden}
   padding-bottom:var(--caption);
 }
 .cl-arrow svg{width:100%;height:auto;display:block}
-/* ONE PULSE, ONE SHAFT, ONE BEAT BETWEEN. The shaft is a dim rail; a single
-   bright segment runs it once and the head lights as the segment arrives, then
-   the whole thing rests for the last third of the cycle. `pathLength="100"` is
-   what makes that exact rather than tuned by eye: with a dash of 34 against a
-   gap of 100 on a path declared 100 long, only ever ONE segment is on the rail,
-   and the offsets below are read straight off that scale — 34 is the segment
-   parked before the start, -100 is it parked past the end.
-   The tip's 55% is where the segment's leading edge reaches 100, solved rather
-   than nudged: the offset runs 34 to -100 over the first 70%, so it passes -66
-   (leading edge = -offset + 34 = 100) at 0.7 x 100/134. */
-.cl-arrow-track{stroke:color-mix(in srgb,var(--accent) 30%,transparent)}
-.cl-arrow-pulse{
-  stroke:var(--accent);stroke-dasharray:34 100;
-  animation:cl-arrow-pulse 1.7s cubic-bezier(.4,0,.25,1) infinite;
+/* DRAWN, NOT SWEPT. Two layers of the same two paths: a dim RAIL that is always
+   there, so the arrow never blinks out of existence, and bright INK that draws
+   itself along the rail — shaft first, then the head — holds a beat, and
+   dissolves. Square everywhere; the caps are butt and the point is a mitre,
+   which are the SVG defaults and therefore not written on the element.
+
+   `pathLength="100"` is what makes the timings exact rather than nudged: it
+   redeclares each path as 100 units long whatever it really measures, so
+   `stroke-dasharray:100` is one dash the length of the path and the offset runs
+   100 (nothing drawn) to 0 (fully drawn) on both paths on the same scale. The
+   head's 34% start is a hair before the shaft's 36% finish, so the corner joins
+   instead of hesitating.
+
+   NOTHING POPS AT THE LOOP. The ink's opacity returns to 1 at 0%, but both
+   offsets return to 100 in the same frame — the moment it is opaque again is
+   the moment there is nothing drawn to see. */
+.cl-arrow-rail path{stroke:color-mix(in srgb,var(--accent) 26%,transparent)}
+.cl-arrow-ink{animation:cl-arrow-fade 2.1s linear infinite}
+.cl-arrow-ink path{stroke:var(--accent);stroke-dasharray:100}
+.cl-arrow-ink-shaft{animation:cl-arrow-shaft 2.1s cubic-bezier(.22,.61,.36,1) infinite}
+.cl-arrow-ink-head{animation:cl-arrow-head 2.1s cubic-bezier(.22,.61,.36,1) infinite}
+@keyframes cl-arrow-shaft{
+  0%{stroke-dashoffset:100}
+  36%,100%{stroke-dashoffset:0}
 }
-.cl-arrow-head{
-  stroke:var(--accent);opacity:.4;
-  animation:cl-arrow-tip 1.7s cubic-bezier(.4,0,.25,1) infinite;
+@keyframes cl-arrow-head{
+  0%,34%{stroke-dashoffset:100}
+  56%,100%{stroke-dashoffset:0}
 }
-@keyframes cl-arrow-pulse{
-  0%{stroke-dashoffset:34}
-  70%,100%{stroke-dashoffset:-100}
-}
-@keyframes cl-arrow-tip{
-  0%,40%{opacity:.4;transform:translateX(0)}
-  55%{opacity:1;transform:translateX(1.5px)}
-  80%,100%{opacity:.4;transform:translateX(0)}
+@keyframes cl-arrow-fade{
+  0%,70%{opacity:1}
+  90%,100%{opacity:0}
 }
 @media(prefers-reduced-motion:reduce){
-  /* Still an arrow, still thick, just resolved rather than running: the pulse
-     becomes the whole shaft and the head sits lit. */
-  .cl-arrow-pulse{animation:none;stroke-dasharray:none}
-  .cl-arrow-head{animation:none;opacity:1}
+  /* Resolved rather than running: the ink sits fully drawn on the rail. */
+  .cl-arrow-ink{animation:none;opacity:1}
+  .cl-arrow-ink path{animation:none;stroke-dashoffset:0}
 }
 @media (max-width:700px){
   /* The section is one column here, so the chain has the full width. Only the

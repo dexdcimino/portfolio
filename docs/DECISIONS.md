@@ -25,6 +25,29 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-08-25 — a social link with no handle reads "No tag" instead of collapsing the row
+
+**Decided.** `show()` in `initSocialLinks` always opens the handle row. A link
+with no `data-tag` puts the placeholder "No tag" in it, italic and dimmed, with
+the copy glyph hidden, `aria-disabled="true"` and an empty `btn.dataset.tag` —
+which is the same emptiness the click handler already checks, so there is no
+second flag that could disagree with the label.
+
+**Replaced.** `if (!tag) { clear(); return; }` — the row collapsed to zero
+height, and the panel above it slid back down.
+
+**Why.** The original reasoning was only half right. Leaving the PREVIOUS handle
+up is genuinely wrong: it would name the wrong service. But collapsing is not
+the other option, it is a third one, and it reads as something failing to load
+rather than as an answer — plus the rail visibly reflows as the pointer crosses
+that one icon. "No tag" is the honest answer to the question the row exists to
+answer, and it is a real state to design for: a service with no @mention to
+give. LinkedIn is exactly that, and it comes out of the row today but may come
+back (Dex, 2026-08-25).
+
+**Reverse it if** the row ever holds something other than a handle, where "No
+tag" would stop describing what is missing.
+
 ## 2026-08-25 (later) — the origin chain shows SOURCES at native aspect, and the clip is opt-in
 
 **Decided.** Two changes to the block described in the entry below, both from
