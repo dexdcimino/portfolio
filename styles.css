@@ -1358,18 +1358,24 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    to look right on one line overflows those.
    Solid #181d23, the AI Lab rows' own fill, so the two families of card read as
    the same object at different sizes. */
+/* THE HOVER IS A LIGHTEN AND NOTHING ELSE (Dex, 2026-08-25). It used to take
+   the covers' hairline-to-accent treatment — accent border, a 4px lift and an
+   accent glow — which on a card that is type rather than art was three effects
+   fighting over a sentence. These are the AI Lab's rows at a different size and
+   they already share that fill, so they now share its hover too: #181d23 to
+   #1f262e, one property.
+   The border stays declared and TRANSPARENT rather than being removed: it is
+   what reserves the 1px, so the card cannot change size when something does
+   give it a colour. Same trick .ai-card uses, for the same reason. */
 .pk-pref{
   display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;
   aspect-ratio:1.95;padding:10px 12px;min-width:0;text-align:center;
   container-type:inline-size;
-  border:var(--stroke) solid rgba(255,255,255,.1);border-radius:26px;
+  border:var(--stroke) solid transparent;border-radius:26px;
   background:#181d23;
-  transition:border-color var(--accent-ease),transform .25s ease,box-shadow var(--accent-ease);
+  transition:background var(--accent-ease),border-color var(--accent-ease);
 }
-/* The same hairline-to-accent lift the covers use, so the tab reads as part of
-   the section rather than a panel with its own ideas. */
-.pk-pref:hover{border-color:var(--accent);transform:translateY(-4px);
-  box-shadow:0 10px 26px color-mix(in srgb,var(--accent) 22%,transparent)}
+.pk-pref:hover,.pk-pref:focus-within{background:#1f262e}
 /* Sized off the CARD, like every other type ramp in this section, so it tracks
    the column count instead of needing a font size per breakpoint. Tuned DOWN
    from 10.5cqw once the card lost height and the buttons gained it: the two
@@ -2334,12 +2340,19 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    not compete with anything the accent is doing above it. .icon paints in
    currentColor, so this is a `color` and nothing more.
    Height is viewport-relative so it keeps the same presence on a laptop and a
-   4K panel; aspect-ratio comes from the file. */
+   4K panel; aspect-ratio comes from the file.
+
+   BIGGER AND LOWER THAN IT STARTED, and fainter to pay for it (Dex,
+   2026-08-25): 124vh rather than 96, dropped from above the section's top edge
+   to below it, and further right so the extra size goes off the screen rather
+   than into the copy. Opacity comes DOWN as the area goes up — the two move
+   against each other, or a mark twice the size at the same value stops being
+   ground and starts being a picture. */
 .about-yin{
   position:absolute;z-index:-1;pointer-events:none;
-  top:clamp(-90px,-4vh,0px);right:clamp(-320px,-13vw,-120px);
-  height:clamp(620px,96vh,1180px);aspect-ratio:96.092/128;width:auto;
-  color:#aeb7be;opacity:.06;
+  top:clamp(20px,7vh,150px);right:clamp(-430px,-17vw,-150px);
+  height:clamp(760px,124vh,1520px);aspect-ratio:96.092/128;width:auto;
+  color:#aeb7be;opacity:.045;
 }
 @media (prefers-reduced-motion:no-preference){
   /* One slow turn. Nothing about the page depends on it and at 5% opacity it
@@ -2351,7 +2364,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   /* The section is one column here and the copy runs the full width, so the
      mark stops being ground behind a layout and starts being texture under
      paragraphs. Smaller, and further out. */
-  .about-yin{height:clamp(420px,70vh,700px);right:-26vw;opacity:.05}
+  .about-yin{height:clamp(520px,86vh,860px);top:2vh;right:-30vw;opacity:.04}
 }
 /* Top-aligned, not centred: with the second bio paragraph the copy wants to
    start level with the portrait's top and run down inside its height, rather
@@ -2971,7 +2984,7 @@ footer{position:relative;min-height:130px;padding:0 var(--gutter);display:flex;a
 .footer-yin{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   height:28px;aspect-ratio:96.092/128;width:auto;
-  color:#778088;opacity:.85;pointer-events:none;
+  color:#778088;opacity:.34;pointer-events:none;
 }
 @media (max-width:900px){ .footer-yin{display:none} }
 footer strong{color:var(--accent);transition:color var(--accent-ease)}
