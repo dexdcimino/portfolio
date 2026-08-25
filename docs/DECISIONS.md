@@ -25,6 +25,60 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-08-25 — a clip's origin is a CHAIN beside the player, not a caption under it
+
+**Decided.** Each `.cl-item` figure carries `data-origin` (the copy) and, nested
+inside it, a `<figure class="cl-step">` per source image. `paintOrigin()` renders
+them left to right in the statement column with thick waved arrows between,
+appends the clip's own poster as the final link, and puts the copy underneath.
+Source images that already live in the repo are referenced where they are; only
+ones with no other home go in `assets/ai/clips/origins/`.
+
+**Replaced.** Writing the provenance as a paragraph under the player, and
+keeping a second copy of each source image under `clips/`.
+
+**Why.** Every clip in the tab was generated FROM something, and the interesting
+part is the walk — a still, sometimes a revamped still, then the video. That is a
+sequence, and a sequence read as a sentence loses the one thing it has going for
+it. The statement column is empty on this tab (the same argument that put the
+wallpaper thumbnails there), so the chain costs the player no width. Ending the
+chain with the poster rather than a hand-picked frame means it cannot go stale
+against the clip. And the `clip-origin` slot's widths are UNIONED with whatever
+else claims a master, so pointing at `assets/thumbnails/surveyor-art.png` in
+place adds no file at all — a copy would have added six.
+
+**Reverse it if** a clip needs more than three or four links, at which point a
+row across a ~480px column stops being legible and the block wants its own
+layout rather than a wider chain.
+
+## 2026-08-25 — Concepts is the wallpapers' component instantiated twice, in a 4:3 CONTAIN frame
+
+**Decided.** `initWallpapers` became `initGallery({id, root, panel})`: element
+ids are a prefix (`wp` / `cn`) and the arrows are looked up inside the instance's
+own root and its own dialog. Concepts is a second call over its own figures and
+its own lightbox. The only difference between the tabs is the frame — 4:3, with
+the piece fitted inside it rather than cropped to it — and that is three CSS
+rules.
+
+**Replaced.** Copying the ~250-line carousel for the second tab; and giving
+Concepts the wallpapers' 16:10 `cover` frame.
+
+**Why.** Two carousels that look the same should BE the same, and the two things
+that made a copy tempting are exactly the two that break silently: every
+`getElementById` was a literal `wp*` id, and both arrow bindings were
+`document.querySelectorAll('.wp-prev')`, which would have wired the concepts
+arrows to the wallpapers' index as well as their own. On the frame: the
+wallpapers are all 2560x1600 masters and fill 16:10 exactly, but a concept is
+whatever shape it came out of the model. Cropping throws away part of the piece,
+and a frame that tracks each piece's aspect makes the plate, the download and the
+strip jump on every arrow press — the mistake the clips frame and the Work
+overlay's hero are both already warned about. A fixed box that fits the piece
+inside it is the only option that costs nothing and lies about nothing.
+
+**Reverse it if** the real concepts turn out to be a single consistent aspect
+ratio, in which case that frame plus `cover` shows more of each piece than a
+letterboxed 4:3 does.
+
 ## 2026-08-23 — framed, Surveyor does not compile its engine until Begin is pressed
 
 **Decided.** `games/surveyor/js/boot.js` checks `window.top !== window`. Framed by

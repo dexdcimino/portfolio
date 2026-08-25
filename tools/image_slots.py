@@ -180,6 +180,24 @@ SLOTS = {
         ladder="wallpaper",
         sizes="(max-width:1100px) 29vw, min(18vw, 285px)",
     ),
+    # A step in the Clips tab's origin chain — the source image a clip was
+    # generated from, shown in the statement column beside the player. Two or
+    # three of them share the width of that column with the arrows between them,
+    # so a step renders ~110px on a phone, ~150px in a three-step chain and
+    # ~215px in a two-step one. The `art` ladder's 600 is 2x the widest case;
+    # the wallpaper ladder's top rungs could never be selected here.
+    "clip-origin": dict(
+        ladder="art",
+        sizes="(max-width:1100px) 28vw, 215px",
+    ),
+    # AI concepts. Same stage as the wallpapers and therefore the same `sizes`
+    # and the same ladder — only the frame's aspect differs (4:3 against 16:10),
+    # and aspect is a CSS concern, not a width one. The masters are 1600 wide,
+    # so the 1920 rung is simply skipped.
+    "concept": dict(
+        ladder="wallpaper",
+        sizes="(max-width:1100px) 92vw, min(56vw, 900px)",
+    ),
 }
 
 

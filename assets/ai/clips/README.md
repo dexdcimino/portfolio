@@ -6,6 +6,8 @@ poster frame for each one, which is the only local asset a clip needs.
 
 ```
 assets/ai/clips/<slug>.png                     poster  (16:9, clip's native size)
+assets/ai/clips/origins/<name>.png             a source image, if it is not
+                                               already somewhere else in the repo
 assets/derived/ai/clips/<slug>-*.avif|webp     generated, never hand-made
 ```
 
@@ -108,3 +110,45 @@ someone else's CDN, and offering "download" for something we are only linking to
 would be a button that either lies or hotlinks. If clips ever need to be
 downloadable they need real files with real licences behind them, which is a
 different job.
+
+## Where a clip came from
+
+Every clip here was generated FROM something, and the walk from that something
+to the clip is shown beside the player, in the statement column (`#clOrigin`,
+built by `paintOrigin()` in `script.js`). Two things on the figure, and nothing
+else changes:
+
+```html
+<figure class="cl-item" data-title="Spinal Tap"
+        data-origin="A creature head I modelled in 3D a while back, ..."
+        data-note="0:10" data-src="...">
+  <!-- the poster's own <!-- img --> directive, as above -->
+  <div class="cl-origin-src">
+    <figure class="cl-step" data-label="Original sculpt">
+      <!-- img src="assets/ai/clips/origins/spinal-tap-sculpt.png" slot="clip-origin"
+           alt="..." class="cl-step-img" -->
+      <!-- /img -->
+    </figure>
+    <figure class="cl-step" data-label="AI revamp">
+      ...
+    </figure>
+  </div>
+</figure>
+```
+
+- `data-origin` is the copy under the chain. **No copy, no block** — the whole
+  thing hides rather than showing an empty heading.
+- Each `.cl-step` is one link, in markup order, and `data-label` is the word
+  under it. Keep labels to two words: the caption box is two lines at a phone
+  width and a third would overflow it.
+- **The clip itself is the last link and is NOT written here.** `paintOrigin()`
+  clones the poster above and appends it, labelled *Clip*. A chain that ends in
+  a picture of the clip cannot fall out of step with the clip.
+- **Steps are optional.** King Kong has none: its source is a photo of a
+  ceiling and is not published, so that clip is copy alone. That is a real
+  state, not a gap to fill.
+- A source image that already lives somewhere in the repo is **referenced where
+  it is** — the Surveyor step points at `assets/thumbnails/surveyor-art.png` and
+  the Amphibious one at the wallpaper master. Only images with no other home go
+  in `origins/`. The `clip-origin` slot's widths are unioned with whatever else
+  claims the master, so sharing one costs nothing.

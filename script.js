@@ -2680,20 +2680,36 @@ let flashTip = () => {};
    The overlay is not a second component. It shows the SAME index through the
    same select(), with its own plate, download and strip, so walking the set at
    full size and walking it in the panel can never disagree. */
-(function initWallpapers() {
-  const root = document.getElementById('wallpapers');
+/* ONE carousel, TWO instances: Wallpapers and Concepts. They are the same
+   component down to the class names — a stage, a plate on the art, a download,
+   a grid of thumbnails in the statement column and a lightbox — and the only
+   thing that differs between them is the shape of the frame, which is CSS.
+
+   So the ids became a prefix, and the arrows are looked up inside this
+   instance's own root and its own dialog. Both were `document` lookups while
+   there was only one of these, and both are exactly what a second instance
+   cannot share: `document.querySelectorAll('.wp-prev')` would have wired the
+   concepts arrows to the wallpapers' index as well as their own.
+
+     id      the id prefix — 'wp' or 'cn'; every element is `${id}Frame` &c
+     root    the carousel's own container id
+     panel   the tab panel it belongs to, watched so the detached strip in the
+             statement column follows it */
+function initGallery({ id, root: rootId, panel: panelId }) {
+  const root = document.getElementById(rootId);
   if (!root) return;
   const items = [...root.querySelectorAll('.wp-item')];
   if (!items.length) return;
 
-  const frame = document.getElementById('wpFrame');
-  const plate = document.getElementById('wpPlate');
-  const modal = document.getElementById('wpModal');
-  const full = document.getElementById('wpFull');
-  const fullPlate = document.getElementById('wpFullPlate');
+  const el = (suffix) => document.getElementById(id + suffix);
+  const frame = el('Frame');
+  const plate = el('Plate');
+  const modal = el('Modal');
+  const full = el('Full');
+  const fullPlate = el('FullPlate');
   const views = [
-    { host: frame, title: document.getElementById('wpTitle'), dims: document.getElementById('wpDims'),
-      dl: document.getElementById('wpDownload'), strip: document.getElementById('wpThumbs'), sizes: null },
+    { host: frame, title: el('Title'), dims: el('Dims'),
+      dl: el('Download'), strip: el('Thumbs'), sizes: null },
     /* The overlay's `sizes` is rewritten to 90vw on its copy: the panel's value
        describes an ~856px card, and left alone the browser would reuse that
        choice and upscale a 900px file across most of the screen. This is the
@@ -2702,8 +2718,8 @@ let flashTip = () => {};
        90vw, so painting it at load picked the 1920 rung and fetched 167 KB of
        lightbox on every visit to the site — for an overlay nobody had opened,
        in a dialog that was not on screen. It is painted when it opens. */
-    { host: full, title: document.getElementById('wpFullTitle'), dims: document.getElementById('wpFullDims'),
-      dl: document.getElementById('wpFullDl'), strip: document.getElementById('wpFullThumbs'), sizes: '90vw',
+    { host: full, title: el('FullTitle'), dims: el('FullDims'),
+      dl: el('FullDl'), strip: el('FullThumbs'), sizes: '90vw',
       deferred: true },
   ];
   let index = 0;
@@ -2718,10 +2734,14 @@ let flashTip = () => {};
   // Built from the attributes, not from the display string: turning
   // "2560 × 1600" back into "2560x1600" by substitution produced 2560xx1600,
   // because the multiplication sign has a space on each side.
+  /* The extension comes off data-file rather than being typed: every master
+     so far is a PNG, and a JPG concept saved as "concept-04-1600x1200.png"
+     would be a file the OS opens wrong. */
   const fileName = (item) => {
     const img = item.querySelector('img');
+    const ext = (item.dataset.file.match(/\.([a-z0-9]+)$/i) || [, 'png'])[1];
     return item.dataset.title.replace(/\s+/g, '-').toLowerCase()
-      + `-${img.getAttribute('width')}x${img.getAttribute('height')}.png`;
+      + `-${img.getAttribute('width')}x${img.getAttribute('height')}.${ext}`;
   };
 
   /* Thumbnails reuse the SAME <picture> the carousel does, cloned and given a
@@ -2918,17 +2938,16 @@ let flashTip = () => {};
 
   // Both stages drive the same index, so the panel and the overlay walk
   // together and neither needs to know the other exists.
-  document.querySelectorAll('.wp-prev, .wp-fullprev')
-    .forEach(b => b.addEventListener('click', () => select(index - 1)));
-  document.querySelectorAll('.wp-next, .wp-fullnext')
-    .forEach(b => b.addEventListener('click', () => select(index + 1)));
+  const arrows = (sel) => [...root.querySelectorAll(sel), ...modal.querySelectorAll(sel)];
+  arrows('.wp-prev, .wp-fullprev').forEach(b => b.addEventListener('click', () => select(index - 1)));
+  arrows('.wp-next, .wp-fullnext').forEach(b => b.addEventListener('click', () => select(index + 1)));
   // The frame opens the overlay, but not when the click was the download link
   // sitting on top of it.
   frame.addEventListener('click', (event) => {
     if (event.target.closest('.wp-dl')) return;
     openFull();
   });
-  document.getElementById('wpClose').addEventListener('click', () => closeModal(modal));
+  el('Close').addEventListener('click', () => closeModal(modal));
   bindModal(modal);
 
   // Arrows walk the set while the overlay is up.
@@ -2946,18 +2965,25 @@ let flashTip = () => {};
      the thing itself cannot fall out of step with however the panel comes to be
      shown. Strips inside the panel or inside the overlay are left alone — they
      are already hidden with whatever contains them. */
-  const imagesPanel = document.getElementById('ai-panel-images');
+  const panel = document.getElementById(panelId);
   const detached = views.map(v => v.strip)
-    .filter(strip => imagesPanel && strip.closest('#ai') && !imagesPanel.contains(strip));
+    .filter(strip => panel && strip.closest('#ai') && !panel.contains(strip));
   if (detached.length) {
-    const syncStrips = () => detached.forEach(strip => { strip.hidden = imagesPanel.hidden; });
+    const syncStrips = () => detached.forEach(strip => { strip.hidden = panel.hidden; });
     new MutationObserver(syncStrips)
-      .observe(imagesPanel, { attributes: true, attributeFilter: ['hidden'] });
+      .observe(panel, { attributes: true, attributeFilter: ['hidden'] });
     syncStrips();
   }
 
   select(0);
-})();
+}
+
+initGallery({ id: 'wp', root: 'wallpapers', panel: 'ai-panel-images' });
+/* The concepts are PLACEHOLDERS today — nine generated cards that say so on
+   their own face. Nothing here knows that, and nothing here should: the tab is
+   the wallpapers' component over a second set of figures, and swapping the art
+   in is a master and a directive with no JS to touch. */
+initGallery({ id: 'cn', root: 'concepts', panel: 'ai-panel-concepts' });
 
 /* --- shared media transport ------------------------------------------------ */
 /* Two things on this page make sound — the clips player in the AI Lab and the
@@ -3066,7 +3092,10 @@ const MediaBus = (() => {
     btn.className = 'wp-thumb';
     btn.setAttribute('role', 'tab');
     btn.setAttribute('aria-label', item.dataset.title);
-    const pic = item.querySelector('picture').cloneNode(true);
+    /* :scope >, not a bare 'picture': a figure now also carries the origin
+       chain's source images, nested one level down. The poster is the direct
+       child, and saying so is cheaper than relying on it coming first. */
+    const pic = item.querySelector(':scope > picture').cloneNode(true);
     pic.querySelectorAll('source').forEach(s => s.setAttribute('sizes', '180px'));
     const img = pic.querySelector('img');
     img.removeAttribute('class');
@@ -3095,6 +3124,100 @@ const MediaBus = (() => {
     big.setAttribute('aria-label', playing ? 'Pause clip' : 'Play clip');
   }
 
+  /* --- where the clip came from -------------------------------------------
+     Every clip here was generated FROM something, and the walk from that
+     something to the clip is the interesting half of it. The block lives in the
+     statement column, which is OUTSIDE every tab panel and therefore on screen
+     whatever tab is open — the trap .app-info and #wpThumbs both fell into, and
+     this is their fix: watch the Clips panel's own `hidden`, because initTabs
+     owns that attribute and an observer on the panel cannot fall out of step
+     with however the panel comes to be shown.
+
+     Nothing in here is typed twice. The sources are the .cl-step figures inside
+     the .cl-item, in order; the last link is the clip's own poster, cloned, so
+     a chain that ends in a picture of the clip cannot go stale against it; the
+     copy is data-origin. A clip with no steps is copy alone (King Kong), and
+     one with no copy at all hides the block. */
+  const origin = document.getElementById('clOrigin');
+  const videosPanel = document.getElementById('ai-panel-videos');
+  let originFilled = false;
+  const syncOrigin = () => {
+    if (origin) origin.hidden = !originFilled || !!videosPanel?.hidden;
+  };
+
+  /* Thick and waved, per Dex — a hairline arrow between two pictures reads as a
+     divider rather than as a direction. The viewBox units are the drawing's
+     own; CSS sizes the element and colours the three paths. */
+  const WAVE = 'M3 13q4.5-7 9 0t9 0t9 0';
+  const ARROW = '<svg viewBox="0 0 46 26" fill="none" aria-hidden="true" focusable="false">'
+    + `<path class="cl-arrow-track" d="${WAVE}" stroke-width="6" stroke-linecap="round"/>`
+    + `<path class="cl-arrow-flow" d="${WAVE}" stroke-width="6" stroke-linecap="round"/>`
+    + '<path class="cl-arrow-head" d="M30 5.5L42 13l-12 7.5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>';
+  const arrowNode = () => {
+    const span = document.createElement('span');
+    span.className = 'cl-arrow';
+    span.innerHTML = ARROW;                 // a constant; nothing interpolated
+    return span;
+  };
+
+  const stepNode = (pic, label, isClip) => {
+    const fig = document.createElement('figure');
+    fig.className = isClip ? 'cl-step cl-step-clip' : 'cl-step';
+    const img = pic.querySelector('img');
+    img.className = 'cl-step-img';
+    img.loading = 'lazy';
+    fig.appendChild(pic);
+    const cap = document.createElement('figcaption');
+    cap.textContent = label;
+    fig.appendChild(cap);
+    return fig;
+  };
+
+  function paintOrigin(item) {
+    if (!origin) return;
+    const copy = item.dataset.origin || '';
+    origin.textContent = '';
+    originFilled = !!copy;
+    if (!originFilled) { syncOrigin(); return; }
+
+    const eyebrow = document.createElement('p');
+    eyebrow.className = 'cl-origin-eyebrow';
+    eyebrow.textContent = 'How it was made';
+    origin.appendChild(eyebrow);
+
+    const steps = [...item.querySelectorAll('.cl-step')];
+    if (steps.length) {
+      const chain = document.createElement('div');
+      chain.className = 'cl-chain';
+      steps.forEach((step) => {
+        chain.appendChild(stepNode(step.querySelector('picture').cloneNode(true),
+                                   step.dataset.label || '', false));
+        chain.appendChild(arrowNode());
+      });
+      /* The clip itself, cloned from the poster rather than baked a second
+         time. Its `sizes` describes the 900px stage, so it is rewritten for a
+         ~215px cell — left alone the browser reuses the stage's choice and
+         fetches a hero rung to fill a thumbnail. */
+      const pic = item.querySelector(':scope > picture').cloneNode(true);
+      pic.querySelectorAll('source')
+        .forEach(s => s.setAttribute('sizes', '(max-width:1100px) 28vw, 215px'));
+      chain.appendChild(stepNode(pic, 'Clip', true));
+      origin.appendChild(chain);
+    }
+
+    const body = document.createElement('p');
+    body.className = 'cl-origin-copy';
+    body.textContent = copy;
+    origin.appendChild(body);
+    syncOrigin();
+  }
+
+  if (origin && videosPanel && !videosPanel.contains(origin)) {
+    new MutationObserver(syncOrigin)
+      .observe(videosPanel, { attributes: true, attributeFilter: ['hidden'] });
+  }
+
   function select(i, autoplay) {
     index = (i + items.length) % items.length;
     const item = items[index];
@@ -3107,7 +3230,7 @@ const MediaBus = (() => {
     // Poster first, always. The <picture> is cloned rather than referenced so
     // the source figures stay untouched and re-selecting is cheap.
     frame.querySelector('picture')?.remove();
-    frame.insertBefore(item.querySelector('picture').cloneNode(true), frame.firstChild);
+    frame.insertBefore(item.querySelector(':scope > picture').cloneNode(true), frame.firstChild);
 
     /* A clip that is not 16:9 is fitted into the frame rather than cropped to
        it; the frame is shared, so the flag has to travel from the item onto it
@@ -3117,6 +3240,7 @@ const MediaBus = (() => {
 
     title.textContent = item.dataset.title;
     meta.textContent = item.dataset.note || '';
+    paintOrigin(item);
     thumbs.forEach((b, n) => b.setAttribute('aria-selected', String(n === index)));
     scrub.value = 0; setFill(scrub, 0);
     elapsed.textContent = '0:00';

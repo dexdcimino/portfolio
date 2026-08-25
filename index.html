@@ -742,6 +742,28 @@
              cells that finish the last row are added there too — the count is
              not typed anywhere. -->
         <div class="wp-thumbs wp-thumbs-grid" id="wpThumbs" role="tablist" aria-label="Wallpapers" hidden></div>
+
+        <!-- The concepts grid: the wallpapers' twin, in the same column, for
+             the same reason. Both are built by the same initGallery() in
+             script.js and both follow their own panel's `hidden` — see the
+             comment on #wpThumbs above, which is the whole argument. -->
+        <div class="wp-thumbs wp-thumbs-grid" id="cnThumbs" role="tablist" aria-label="Concepts" hidden></div>
+
+        <!-- WHERE A CLIP CAME FROM. The same empty half-column, for a third
+             reason: every clip here was generated FROM something, and the walk
+             from that something to the clip is the interesting part of it. It
+             is a caption, not art, so it must not take width from the player.
+
+             Nothing in here is typed: initClipOrigin() builds it from the
+             .cl-item figures themselves. `data-origin` on a figure is the copy,
+             the <figure class="cl-step"> blocks inside it are the source images
+             in order, and the last link is the clip's OWN poster, cloned — a
+             chain that ends in a picture of the clip cannot fall out of step
+             with the clip.
+             A clip with no steps is copy alone (King Kong: the source is a
+             photo of Dex's ceiling and is not published), and one with no
+             data-origin hides the block entirely. -->
+        <div class="cl-origin" id="clOrigin" hidden></div>
       </div>
       <div class="ai-wrap reveal">
         <!-- Fourth tablist on the site; wired through the same initTabs() as the
@@ -751,6 +773,7 @@
           <button class="ai-tab" type="button" role="tab" id="ai-tab-apps" aria-controls="ai-panel-apps" aria-selected="true" tabindex="0">Apps</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-images" aria-controls="ai-panel-images" aria-selected="false" tabindex="-1">Wallpapers</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-videos" aria-controls="ai-panel-videos" aria-selected="false" tabindex="-1">Clips</button>
+          <button class="ai-tab" type="button" role="tab" id="ai-tab-concepts" aria-controls="ai-panel-concepts" aria-selected="false" tabindex="-1">Concepts</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-prompts" aria-controls="ai-panel-prompts" aria-selected="false" tabindex="-1">Prompts</button>
           <button class="ai-tab" type="button" role="tab" id="ai-tab-madlabs" aria-controls="ai-panel-madlabs" aria-selected="false" tabindex="-1">Madness</button>
         </div>
@@ -1071,7 +1094,7 @@
             <div class="wp-thumbs" id="clThumbs" role="tablist" aria-label="Clips"></div>
 
             <div class="wp-src" hidden>
-              <figure class="cl-item" data-title="Surveyor" data-note="0:10 · loop" data-src="https://vz-f98421b2-da0.b-cdn.net/a0d41a95-b770-4fb7-9e1f-3911c0c0b117/play_720p.mp4">
+              <figure class="cl-item" data-title="Surveyor" data-origin="I dropped the Surveyor key art into Google's Gemini and asked for a mini trailer: the game's three main vehicles crossing a lush, living world and handing off from one to the next." data-note="0:10 · loop" data-src="https://vz-f98421b2-da0.b-cdn.net/a0d41a95-b770-4fb7-9e1f-3911c0c0b117/play_720p.mp4">
                 <!-- img src="assets/ai/clips/surveyor.png" slot="clip-poster" alt="Surveyor — a white survey craft banking over a green river valley, engines trailing cyan light" class="cl-img" -->
                 <picture>
                   <source type="image/avif" srcset="assets/derived/ai/clips/surveyor-1280.avif?v=6bc63c19 1280w,
@@ -1089,8 +1112,27 @@
                   <img class="cl-img" src="assets/ai/clips/surveyor.png" alt="Surveyor — a white survey craft banking over a green river valley, engines trailing cyan light" width="1280" height="720" loading="lazy" decoding="async">
                 </picture>
                 <!-- /img -->
+
+                <!-- Where it came from: the source images, in order. The clip
+                     itself is the last link and is NOT listed here — it is the
+                     poster above, cloned by initClipOrigin(). -->
+                <div class="cl-origin-src">
+                  <figure class="cl-step" data-label="Original art">
+                    <!-- img src="assets/thumbnails/surveyor-art.png" slot="clip-origin" alt="Surveyor key art — a rover, a jet and a boat across an alien valley under a ringed planet" class="cl-step-img" -->
+                    <picture>
+                      <source type="image/avif" srcset="assets/derived/thumbnails/surveyor-art-600.avif?v=e72be1e0 600w,
+                                                        assets/derived/thumbnails/surveyor-art-400.avif?v=e72be1e0 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <source type="image/webp" srcset="assets/derived/thumbnails/surveyor-art-600.webp?v=e72be1e0 600w,
+                                                        assets/derived/thumbnails/surveyor-art-400.webp?v=e72be1e0 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <img class="cl-step-img" src="assets/thumbnails/surveyor-art.png" alt="Surveyor key art — a rover, a jet and a boat across an alien valley under a ringed planet" width="1920" height="1080" loading="lazy" decoding="async">
+                    </picture>
+                    <!-- /img -->
+                  </figure>
+                </div>
               </figure>
-              <figure class="cl-item" data-title="Spinal Tap" data-note="0:10"
+              <figure class="cl-item" data-title="Spinal Tap" data-origin="A creature head I modelled in 3D a while back, handed over with one instruction: turn it into something crazy and creeping, dragging a mace made of a spine with a head on the end. The still came back first, and the clip was made from that." data-note="0:10"
                       data-src="https://vz-f98421b2-da0.b-cdn.net/61368635-02fd-46b1-8781-593589d208c5/play_720p.mp4">
                 <!-- img src="assets/ai/clips/spinal-tap.png" slot="clip-poster" alt="Spinal Tap — a horned creature standing in a wet industrial corridor" class="cl-img" -->
                 <picture>
@@ -1109,8 +1151,40 @@
                   <img class="cl-img" src="assets/ai/clips/spinal-tap.png" alt="Spinal Tap — a horned creature standing in a wet industrial corridor" width="1280" height="720" loading="lazy" decoding="async">
                 </picture>
                 <!-- /img -->
+
+                <!-- Where it came from: the source images, in order. The clip
+                     itself is the last link and is NOT listed here — it is the
+                     poster above, cloned by initClipOrigin(). -->
+                <div class="cl-origin-src">
+                  <figure class="cl-step" data-label="Original sculpt">
+                    <!-- img src="assets/ai/clips/origins/spinal-tap-sculpt.png" slot="clip-origin" alt="The original grey 3D sculpt — a horned, tendrilled creature head, untextured" class="cl-step-img" -->
+                    <picture>
+                      <source type="image/avif" srcset="assets/derived/ai/clips/origins/spinal-tap-sculpt-600.avif?v=920d0d11 600w,
+                                                        assets/derived/ai/clips/origins/spinal-tap-sculpt-400.avif?v=920d0d11 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <source type="image/webp" srcset="assets/derived/ai/clips/origins/spinal-tap-sculpt-600.webp?v=920d0d11 600w,
+                                                        assets/derived/ai/clips/origins/spinal-tap-sculpt-400.webp?v=920d0d11 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <img class="cl-step-img" src="assets/ai/clips/origins/spinal-tap-sculpt.png" alt="The original grey 3D sculpt — a horned, tendrilled creature head, untextured" width="1091" height="1256" loading="lazy" decoding="async">
+                    </picture>
+                    <!-- /img -->
+                  </figure>
+                  <figure class="cl-step" data-label="AI revamp">
+                    <!-- img src="assets/ai/clips/origins/spinal-tap-revamp.png" slot="clip-origin" alt="The AI revamp — the same head on a full creature, painted and lit in a wet industrial corridor" class="cl-step-img" -->
+                    <picture>
+                      <source type="image/avif" srcset="assets/derived/ai/clips/origins/spinal-tap-revamp-600.avif?v=b98ffc30 600w,
+                                                        assets/derived/ai/clips/origins/spinal-tap-revamp-400.avif?v=b98ffc30 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <source type="image/webp" srcset="assets/derived/ai/clips/origins/spinal-tap-revamp-600.webp?v=b98ffc30 600w,
+                                                        assets/derived/ai/clips/origins/spinal-tap-revamp-400.webp?v=b98ffc30 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <img class="cl-step-img" src="assets/ai/clips/origins/spinal-tap-revamp.png" alt="The AI revamp — the same head on a full creature, painted and lit in a wet industrial corridor" width="1193" height="1318" loading="lazy" decoding="async">
+                    </picture>
+                    <!-- /img -->
+                  </figure>
+                </div>
               </figure>
-              <figure class="cl-item" data-title="Amphibious" data-note="0:10 · loop"
+              <figure class="cl-item" data-title="Amphibious" data-origin="The Amphibious wallpaper, told to come alive: swing the mace, jump, bring it down." data-note="0:10 · loop"
                       data-src="https://vz-f98421b2-da0.b-cdn.net/ebf66a76-8a31-463c-9c10-4eca9ce9a6a9/play_720p.mp4">
                 <!-- img src="assets/ai/clips/amphibious.png" slot="clip-poster" alt="Amphibious — an armoured amphibian braced over glowing turquoise water" class="cl-img" -->
                 <picture>
@@ -1129,8 +1203,27 @@
                   <img class="cl-img" src="assets/ai/clips/amphibious.png" alt="Amphibious — an armoured amphibian braced over glowing turquoise water" width="1280" height="720" loading="lazy" decoding="async">
                 </picture>
                 <!-- /img -->
+
+                <!-- Where it came from: the source images, in order. The clip
+                     itself is the last link and is NOT listed here — it is the
+                     poster above, cloned by initClipOrigin(). -->
+                <div class="cl-origin-src">
+                  <figure class="cl-step" data-label="Original wallpaper">
+                    <!-- img src="assets/ai/wallpapers/amphibious.png" slot="clip-origin" alt="The Amphibious wallpaper — an armoured amphibian warrior dragging a chained mace through flooded ruins" class="cl-step-img" -->
+                    <picture>
+                      <source type="image/avif" srcset="assets/derived/ai/wallpapers/amphibious-600.avif?v=4e25ff17 600w,
+                                                        assets/derived/ai/wallpapers/amphibious-400.avif?v=4e25ff17 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <source type="image/webp" srcset="assets/derived/ai/wallpapers/amphibious-600.webp?v=4e25ff17 600w,
+                                                        assets/derived/ai/wallpapers/amphibious-400.webp?v=4e25ff17 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <img class="cl-step-img" src="assets/ai/wallpapers/amphibious.png" alt="The Amphibious wallpaper — an armoured amphibian warrior dragging a chained mace through flooded ruins" width="2560" height="1600" loading="lazy" decoding="async">
+                    </picture>
+                    <!-- /img -->
+                  </figure>
+                </div>
               </figure>
-              <figure class="cl-item" data-title="Clayweld" data-note="0:10"
+              <figure class="cl-item" data-title="Clayweld" data-origin="A character logo I drew for Clayweld. I wanted the character off the plate and smashing the thing he was standing on." data-note="0:10"
                       data-src="https://vz-f98421b2-da0.b-cdn.net/4d235c5d-9915-4853-b58e-1371b0757dd1/play_720p.mp4">
                 <!-- img src="assets/ai/clips/clayweld.png" slot="clip-poster" alt="Clayweld — an orange armoured mascot above the Clayweld wordmark" class="cl-img" -->
                 <picture>
@@ -1149,8 +1242,27 @@
                   <img class="cl-img" src="assets/ai/clips/clayweld.png" alt="Clayweld — an orange armoured mascot above the Clayweld wordmark" width="1280" height="720" loading="lazy" decoding="async">
                 </picture>
                 <!-- /img -->
+
+                <!-- Where it came from: the source images, in order. The clip
+                     itself is the last link and is NOT listed here — it is the
+                     poster above, cloned by initClipOrigin(). -->
+                <div class="cl-origin-src">
+                  <figure class="cl-step" data-label="Original logo">
+                    <!-- img src="assets/ai/clips/origins/clayweld-logo.png" slot="clip-origin" alt="The Clayweld logo — a red armoured figure flanked by two smaller ones above the Clayweld wordmark" class="cl-step-img" -->
+                    <picture>
+                      <source type="image/avif" srcset="assets/derived/ai/clips/origins/clayweld-logo-600.avif?v=0a5a8aed 600w,
+                                                        assets/derived/ai/clips/origins/clayweld-logo-400.avif?v=0a5a8aed 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <source type="image/webp" srcset="assets/derived/ai/clips/origins/clayweld-logo-600.webp?v=0a5a8aed 600w,
+                                                        assets/derived/ai/clips/origins/clayweld-logo-400.webp?v=0a5a8aed 400w"
+                              sizes="(max-width:1100px) 28vw, 215px">
+                      <img class="cl-step-img" src="assets/ai/clips/origins/clayweld-logo.png" alt="The Clayweld logo — a red armoured figure flanked by two smaller ones above the Clayweld wordmark" width="1522" height="1414" loading="lazy" decoding="async">
+                    </picture>
+                    <!-- /img -->
+                  </figure>
+                </div>
               </figure>
-              <figure class="cl-item" data-title="King Kong" data-note="0:10" data-fit="contain"
+              <figure class="cl-item" data-title="King Kong" data-origin="A photo of my own ceiling, and one instruction: have King Kong tear the roof off it and look inside. The source is a snapshot of a room, so this is the one clip with nothing worth putting beside it." data-note="0:10" data-fit="contain"
                       data-src="https://vz-f98421b2-da0.b-cdn.net/c7e5d49b-6a41-4b39-b944-15fb69157a81/play_720p.mp4">
                 <!-- img src="assets/ai/clips/king-kong.png" slot="clip-poster-portrait" alt="King Kong — a gorilla tearing open a ceiling, seen from the room below" class="cl-img" -->
                 <picture>
@@ -1163,6 +1275,212 @@
                                                     assets/derived/ai/clips/king-kong-240.webp?v=89d66cd5 240w"
                           sizes="(max-width:1100px) 29vw, min(18vw, 285px)">
                   <img class="cl-img" src="assets/ai/clips/king-kong.png" alt="King Kong — a gorilla tearing open a ceiling, seen from the room below" width="720" height="1280" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+            </div>
+          </div>
+        </div>
+        <!-- Concepts. The wallpapers' component, second instance: same figures,
+             same carousel, same lightbox, same statement-column grid, all of it
+             from one initGallery() in script.js rather than a copy. What
+             differs is the FRAME and only the frame — 4:3 instead of 16:10, and
+             the piece is fitted into it rather than cropped to it, because a
+             concept is whatever shape it came out of the model and nothing here
+             gets to decide that. See the .cn block in styles.css.
+             THESE NINE ARE PLACEHOLDERS. They are generated cards that say so
+             on their face, and they are here so the tab has its shape before the
+             art does — do not read the count, the titles or the 4:3 as a
+             decision about the real set. Replacing one is: drop the master in
+             assets/ai/concepts/, change the src and alt on its directive,
+             commit. -->
+        <div class="ai-panel" id="ai-panel-concepts" role="tabpanel" aria-labelledby="ai-tab-concepts" hidden>
+          <div class="wp cn" id="concepts">
+            <div class="wp-stage">
+              <button class="wp-arrow wp-prev" type="button" aria-label="Previous concept"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+              <div class="wp-frame" id="cnFrame">
+                <div class="wp-plate" id="cnPlate">
+                  <h3 class="wp-title" id="cnTitle"></h3>
+                  <p class="wp-dims" id="cnDims"></p>
+                </div>
+                <button class="wp-dl" id="cnDownload" type="button"
+                        aria-label="Download concept" data-tip="Download Concept">
+                  <span class="icon" data-icon="download" aria-hidden="true"></span>
+                </button>
+              </div>
+              <button class="wp-arrow wp-next" type="button" aria-label="Next concept"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+            </div>
+
+            <!-- The source set. Hidden; script.js moves these into the frame. -->
+            <div class="wp-src" hidden>
+              <figure class="wp-item" data-title="Concept 01" data-file="assets/ai/concepts/concept-01.png">
+                <!-- img src="assets/ai/concepts/concept-01.png" slot="concept" alt="Concept 01 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/concept-01-1280.avif?v=d55ef623 1280w,
+                                                    assets/derived/ai/concepts/concept-01-900.avif?v=d55ef623 900w,
+                                                    assets/derived/ai/concepts/concept-01-600.avif?v=d55ef623 600w,
+                                                    assets/derived/ai/concepts/concept-01-400.avif?v=d55ef623 400w,
+                                                    assets/derived/ai/concepts/concept-01-240.avif?v=d55ef623 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/concept-01-1280.webp?v=d55ef623 1280w,
+                                                    assets/derived/ai/concepts/concept-01-900.webp?v=d55ef623 900w,
+                                                    assets/derived/ai/concepts/concept-01-600.webp?v=d55ef623 600w,
+                                                    assets/derived/ai/concepts/concept-01-400.webp?v=d55ef623 400w,
+                                                    assets/derived/ai/concepts/concept-01-240.webp?v=d55ef623 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/concept-01.png" alt="Concept 01 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" width="1600" height="1200" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Concept 02" data-file="assets/ai/concepts/concept-02.png">
+                <!-- img src="assets/ai/concepts/concept-02.png" slot="concept" alt="Concept 02 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/concept-02-1280.avif?v=d1c9649c 1280w,
+                                                    assets/derived/ai/concepts/concept-02-900.avif?v=d1c9649c 900w,
+                                                    assets/derived/ai/concepts/concept-02-600.avif?v=d1c9649c 600w,
+                                                    assets/derived/ai/concepts/concept-02-400.avif?v=d1c9649c 400w,
+                                                    assets/derived/ai/concepts/concept-02-240.avif?v=d1c9649c 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/concept-02-1280.webp?v=d1c9649c 1280w,
+                                                    assets/derived/ai/concepts/concept-02-900.webp?v=d1c9649c 900w,
+                                                    assets/derived/ai/concepts/concept-02-600.webp?v=d1c9649c 600w,
+                                                    assets/derived/ai/concepts/concept-02-400.webp?v=d1c9649c 400w,
+                                                    assets/derived/ai/concepts/concept-02-240.webp?v=d1c9649c 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/concept-02.png" alt="Concept 02 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" width="1600" height="1200" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Concept 03" data-file="assets/ai/concepts/concept-03.png">
+                <!-- img src="assets/ai/concepts/concept-03.png" slot="concept" alt="Concept 03 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/concept-03-1280.avif?v=14cc4862 1280w,
+                                                    assets/derived/ai/concepts/concept-03-900.avif?v=14cc4862 900w,
+                                                    assets/derived/ai/concepts/concept-03-600.avif?v=14cc4862 600w,
+                                                    assets/derived/ai/concepts/concept-03-400.avif?v=14cc4862 400w,
+                                                    assets/derived/ai/concepts/concept-03-240.avif?v=14cc4862 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/concept-03-1280.webp?v=14cc4862 1280w,
+                                                    assets/derived/ai/concepts/concept-03-900.webp?v=14cc4862 900w,
+                                                    assets/derived/ai/concepts/concept-03-600.webp?v=14cc4862 600w,
+                                                    assets/derived/ai/concepts/concept-03-400.webp?v=14cc4862 400w,
+                                                    assets/derived/ai/concepts/concept-03-240.webp?v=14cc4862 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/concept-03.png" alt="Concept 03 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" width="1600" height="1200" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Concept 04" data-file="assets/ai/concepts/concept-04.png">
+                <!-- img src="assets/ai/concepts/concept-04.png" slot="concept" alt="Concept 04 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/concept-04-1280.avif?v=b36ed1cf 1280w,
+                                                    assets/derived/ai/concepts/concept-04-900.avif?v=b36ed1cf 900w,
+                                                    assets/derived/ai/concepts/concept-04-600.avif?v=b36ed1cf 600w,
+                                                    assets/derived/ai/concepts/concept-04-400.avif?v=b36ed1cf 400w,
+                                                    assets/derived/ai/concepts/concept-04-240.avif?v=b36ed1cf 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/concept-04-1280.webp?v=b36ed1cf 1280w,
+                                                    assets/derived/ai/concepts/concept-04-900.webp?v=b36ed1cf 900w,
+                                                    assets/derived/ai/concepts/concept-04-600.webp?v=b36ed1cf 600w,
+                                                    assets/derived/ai/concepts/concept-04-400.webp?v=b36ed1cf 400w,
+                                                    assets/derived/ai/concepts/concept-04-240.webp?v=b36ed1cf 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/concept-04.png" alt="Concept 04 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" width="1600" height="1200" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Concept 05" data-file="assets/ai/concepts/concept-05.png">
+                <!-- img src="assets/ai/concepts/concept-05.png" slot="concept" alt="Concept 05 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/concept-05-1280.avif?v=45d0b7e3 1280w,
+                                                    assets/derived/ai/concepts/concept-05-900.avif?v=45d0b7e3 900w,
+                                                    assets/derived/ai/concepts/concept-05-600.avif?v=45d0b7e3 600w,
+                                                    assets/derived/ai/concepts/concept-05-400.avif?v=45d0b7e3 400w,
+                                                    assets/derived/ai/concepts/concept-05-240.avif?v=45d0b7e3 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/concept-05-1280.webp?v=45d0b7e3 1280w,
+                                                    assets/derived/ai/concepts/concept-05-900.webp?v=45d0b7e3 900w,
+                                                    assets/derived/ai/concepts/concept-05-600.webp?v=45d0b7e3 600w,
+                                                    assets/derived/ai/concepts/concept-05-400.webp?v=45d0b7e3 400w,
+                                                    assets/derived/ai/concepts/concept-05-240.webp?v=45d0b7e3 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/concept-05.png" alt="Concept 05 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" width="1600" height="1200" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Concept 06" data-file="assets/ai/concepts/concept-06.png">
+                <!-- img src="assets/ai/concepts/concept-06.png" slot="concept" alt="Concept 06 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/concept-06-1280.avif?v=cb2a4d73 1280w,
+                                                    assets/derived/ai/concepts/concept-06-900.avif?v=cb2a4d73 900w,
+                                                    assets/derived/ai/concepts/concept-06-600.avif?v=cb2a4d73 600w,
+                                                    assets/derived/ai/concepts/concept-06-400.avif?v=cb2a4d73 400w,
+                                                    assets/derived/ai/concepts/concept-06-240.avif?v=cb2a4d73 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/concept-06-1280.webp?v=cb2a4d73 1280w,
+                                                    assets/derived/ai/concepts/concept-06-900.webp?v=cb2a4d73 900w,
+                                                    assets/derived/ai/concepts/concept-06-600.webp?v=cb2a4d73 600w,
+                                                    assets/derived/ai/concepts/concept-06-400.webp?v=cb2a4d73 400w,
+                                                    assets/derived/ai/concepts/concept-06-240.webp?v=cb2a4d73 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/concept-06.png" alt="Concept 06 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" width="1600" height="1200" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Concept 07" data-file="assets/ai/concepts/concept-07.png">
+                <!-- img src="assets/ai/concepts/concept-07.png" slot="concept" alt="Concept 07 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/concept-07-1280.avif?v=71cc6aae 1280w,
+                                                    assets/derived/ai/concepts/concept-07-900.avif?v=71cc6aae 900w,
+                                                    assets/derived/ai/concepts/concept-07-600.avif?v=71cc6aae 600w,
+                                                    assets/derived/ai/concepts/concept-07-400.avif?v=71cc6aae 400w,
+                                                    assets/derived/ai/concepts/concept-07-240.avif?v=71cc6aae 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/concept-07-1280.webp?v=71cc6aae 1280w,
+                                                    assets/derived/ai/concepts/concept-07-900.webp?v=71cc6aae 900w,
+                                                    assets/derived/ai/concepts/concept-07-600.webp?v=71cc6aae 600w,
+                                                    assets/derived/ai/concepts/concept-07-400.webp?v=71cc6aae 400w,
+                                                    assets/derived/ai/concepts/concept-07-240.webp?v=71cc6aae 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/concept-07.png" alt="Concept 07 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" width="1600" height="1200" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Concept 08" data-file="assets/ai/concepts/concept-08.png">
+                <!-- img src="assets/ai/concepts/concept-08.png" slot="concept" alt="Concept 08 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/concept-08-1280.avif?v=ea8988a5 1280w,
+                                                    assets/derived/ai/concepts/concept-08-900.avif?v=ea8988a5 900w,
+                                                    assets/derived/ai/concepts/concept-08-600.avif?v=ea8988a5 600w,
+                                                    assets/derived/ai/concepts/concept-08-400.avif?v=ea8988a5 400w,
+                                                    assets/derived/ai/concepts/concept-08-240.avif?v=ea8988a5 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/concept-08-1280.webp?v=ea8988a5 1280w,
+                                                    assets/derived/ai/concepts/concept-08-900.webp?v=ea8988a5 900w,
+                                                    assets/derived/ai/concepts/concept-08-600.webp?v=ea8988a5 600w,
+                                                    assets/derived/ai/concepts/concept-08-400.webp?v=ea8988a5 400w,
+                                                    assets/derived/ai/concepts/concept-08-240.webp?v=ea8988a5 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/concept-08.png" alt="Concept 08 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" width="1600" height="1200" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Concept 09" data-file="assets/ai/concepts/concept-09.png">
+                <!-- img src="assets/ai/concepts/concept-09.png" slot="concept" alt="Concept 09 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/concept-09-1280.avif?v=6cff9094 1280w,
+                                                    assets/derived/ai/concepts/concept-09-900.avif?v=6cff9094 900w,
+                                                    assets/derived/ai/concepts/concept-09-600.avif?v=6cff9094 600w,
+                                                    assets/derived/ai/concepts/concept-09-400.avif?v=6cff9094 400w,
+                                                    assets/derived/ai/concepts/concept-09-240.avif?v=6cff9094 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/concept-09-1280.webp?v=6cff9094 1280w,
+                                                    assets/derived/ai/concepts/concept-09-900.webp?v=6cff9094 900w,
+                                                    assets/derived/ai/concepts/concept-09-600.webp?v=6cff9094 600w,
+                                                    assets/derived/ai/concepts/concept-09-400.webp?v=6cff9094 400w,
+                                                    assets/derived/ai/concepts/concept-09-240.webp?v=6cff9094 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/concept-09.png" alt="Concept 09 — placeholder: a dashed frame on a dark card, standing in for artwork not added yet" width="1600" height="1200" loading="lazy" decoding="async">
                 </picture>
                 <!-- /img -->
               </figure>
@@ -2831,6 +3149,34 @@
         <button class="wp-arrow wp-fullnext" type="button" aria-label="Next wallpaper"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
       </div>
       <div class="wp-thumbs wp-thumbs-lg" id="wpFullThumbs" role="tablist" aria-label="Wallpapers"></div>
+    </div>
+  </dialog>
+
+  <!-- The concepts lightbox. Same shell, same classes, same handlers as the
+       wallpaper one — a second set of ids is all initGallery() needs to drive
+       it, and sharing ONE dialog between two galleries would mean one of them
+       had to know about the other. -->
+  <dialog class="wp-modal" id="cnModal" aria-labelledby="cn-dialog-title">
+    <div class="wp-shell">
+      <button class="contact-close wp-close" type="button" id="cnClose" aria-label="Close concept">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <h2 class="sr-only" id="cn-dialog-title">Concept at full size</h2>
+      <div class="wp-fullstage cn-fullstage">
+        <button class="wp-arrow wp-fullprev" type="button" aria-label="Previous concept"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+        <div class="wp-full" id="cnFull">
+          <div class="wp-plate wp-plate-lg" id="cnFullPlate">
+            <h3 class="wp-title" id="cnFullTitle"></h3>
+            <p class="wp-dims" id="cnFullDims"></p>
+          </div>
+          <button class="wp-dl wp-dl-lg" id="cnFullDl" type="button"
+                  aria-label="Download concept" data-tip="Download Concept">
+            <span class="icon" data-icon="download" aria-hidden="true"></span>
+          </button>
+        </div>
+        <button class="wp-arrow wp-fullnext" type="button" aria-label="Next concept"><span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
+      </div>
+      <div class="wp-thumbs wp-thumbs-lg" id="cnFullThumbs" role="tablist" aria-label="Concepts"></div>
     </div>
   </dialog>
 

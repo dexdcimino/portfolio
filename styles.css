@@ -4252,6 +4252,118 @@ body.modal-open{overflow:hidden}
 }
 
 /* ==========================================================================
+   WHERE A CLIP CAME FROM — the origin chain in the statement column.
+
+   Every clip in the tab was generated FROM something, and the walk from that
+   something to the clip is the interesting half of it. It lives beside the
+   player rather than under it (#clOrigin, built by initClipOrigin) for the same
+   reason the wallpaper thumbnails do: this column is empty on this tab, and the
+   player must not give up width to a caption.
+
+   Source images, then the clip's own poster, arrows between, a label under each
+   and the copy underneath. The chain is a FLEX ROW at every width and
+   deliberately does not stack — two or three thumbnails is the whole content,
+   and stacked it stops being a progression and becomes a list.
+   ========================================================================== */
+.cl-origin{margin-top:30px;width:min(100%, 560px)}
+/* The same borrowed gap as .wp-thumbs-grid, capped the same way and for the
+   same reason — the argument is written out over there. */
+@media (min-width:1101px){
+  .cl-origin{width:min(100% + clamp(0px,5vw,84px), 560px)}
+}
+.cl-origin[hidden]{display:none}
+.cl-origin-eyebrow{
+  margin:0 0 12px;color:var(--muted);
+  font-size:11px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;
+}
+.cl-origin-copy{margin:16px 0 0;color:#adb5bb;font-size:14px;line-height:1.68}
+
+/* --caption is the exact height of a label block, and it is a variable because
+   the ARROWS are what read it: an arrow is stretched to the row's full height
+   and then given that much bottom padding, which centres it on the IMAGES
+   rather than on the images-plus-labels. Change the label's type and this
+   number changes with it, or every arrow drifts low. 8px margin + 26px box. */
+.cl-chain{--caption:34px;display:flex;align-items:flex-start;gap:6px}
+.cl-step{flex:1 1 0;min-width:0;margin:0}
+.cl-step picture{display:block}
+/* CONTAIN in a fixed 4:3 box. These come from five different places at five
+   different shapes — a 16:9 key art, a portrait sculpt, a 16:10 wallpaper, a
+   logo on transparency — and a chain whose links are different heights is not
+   a chain. Cropping them to a common box would cut the head off the sculpt,
+   which is the one thing the sculpt is there to show. */
+/* height:auto is LOAD-BEARING and is the whole reason this rule is three
+   properties long. The baker writes real width/height ATTRIBUTES onto every
+   <img> (that is what makes a stale dimension impossible), and those map to a
+   presentational `height` that beats `aspect-ratio` — which only applies while
+   height is auto. Without it a 1080-tall master renders 1080px tall in a 213px
+   cell, which is exactly what happened the first time. */
+.cl-step-img{
+  width:100%;height:auto;aspect-ratio:4/3;object-fit:contain;display:block;
+  border-radius:10px;background:#0b0f12;
+  border:var(--stroke) solid rgba(255,255,255,.09);
+}
+.cl-step figcaption{
+  margin-top:8px;height:26px;
+  color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.1em;
+  line-height:13px;text-transform:uppercase;text-align:center;
+}
+/* The last link is the clip itself, so it is marked as the destination rather
+   than as one more source. */
+.cl-step-clip .cl-step-img{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.cl-step-clip figcaption{color:var(--accent)}
+
+.cl-arrow{
+  flex:0 0 auto;align-self:stretch;box-sizing:border-box;
+  width:clamp(30px,11%,58px);
+  display:flex;align-items:center;justify-content:center;
+  padding-bottom:var(--caption);
+}
+.cl-arrow svg{width:100%;height:auto;display:block}
+/* Thick, because a hairline arrow between two pictures reads as a divider. The
+   track is the shape; the flow is the same path again in full accent, dashed,
+   travelling along it — so the motion is a highlight moving down a solid line
+   rather than a dashed line pretending to be solid. */
+.cl-arrow-track{stroke:color-mix(in srgb,var(--accent) 28%,transparent)}
+.cl-arrow-flow{stroke:var(--accent);stroke-dasharray:7 11;animation:cl-arrow-flow 1.15s linear infinite}
+.cl-arrow-head{stroke:var(--accent);animation:cl-arrow-nudge 1.15s ease-in-out infinite}
+@keyframes cl-arrow-flow{to{stroke-dashoffset:-18}}
+@keyframes cl-arrow-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(1.6px)}}
+@media(prefers-reduced-motion:reduce){
+  /* Still an arrow, still thick, just not moving. The dashes go with the
+     animation — a static dashed overlay on a solid track is just noise. */
+  .cl-arrow-flow{animation:none;stroke-dasharray:none;stroke:var(--accent)}
+  .cl-arrow-head{animation:none}
+}
+@media (max-width:700px){
+  /* The section is one column here, so the chain has the full width and the
+     arrows can afford to stay large. Only the type tightens — the label BOX
+     keeps its 26px, because this is the width where a two-word label wraps to
+     two lines, and a shorter box here would overflow exactly where the wrap
+     first happens. */
+  .cl-chain{gap:5px}
+  .cl-step figcaption{font-size:10px;letter-spacing:.08em}
+}
+
+/* --- AI CONCEPTS: the wallpapers' component in a different box ------------ */
+/* Everything about this tab except these three rules is the wallpaper carousel,
+   driven by a second initGallery() over a second set of ids. What differs is
+   the FRAME: 4:3 rather than 16:10, and the piece is fitted into it rather than
+   cropped to it.
+   That is the honest answer to an unknown aspect. The wallpapers are all
+   2560x1600 masters and fill their frame exactly; a concept is whatever shape
+   it came out of the model, and the two alternatives are worse — cropping
+   throws away part of the piece, and a frame that changes shape per piece makes
+   the plate and the strip jump on every arrow press, which is the mistake the
+   clips frame and the Work overlay's hero are both already warned about. */
+.cn .wp-frame{aspect-ratio:4/3}
+.cn .wp-img{object-fit:contain}
+#cnFull{width:min(84vw, calc(76dvh * 4 / 3));aspect-ratio:4/3}
+#cnThumbs .wp-thumb,#cnFullThumbs .wp-thumb{aspect-ratio:4/3}
+@media (max-width:900px){
+  #cnFull{width:min(80vw, calc(66dvh * 4 / 3))}
+}
+
+/* ==========================================================================
    AI PROMPTS — four .md files, shown as the documents they are.
 
    The card reads top-down: what it is called, what it is for, how to take it.
