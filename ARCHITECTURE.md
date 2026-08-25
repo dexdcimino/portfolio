@@ -169,12 +169,17 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `data-invite`; adding a project is one card, no JS edit), vault, the vault
   backlog list (see below), clips — the player plus `paintOrigin()`, which
   builds the Clips tab's origin chain in the statement column (`#clOrigin`)
-  from the `.cl-item` figure itself: `data-origin` is the copy, the nested
-  `<figure class="cl-step">` blocks are the source images in order, and the
-  last link is the clip's OWN poster cloned, so a chain ending in a picture of
-  the clip cannot go stale against it. Steps are optional (King Kong is copy
-  alone). It follows `#ai-panel-videos`'s `hidden` through a MutationObserver
-  for the same reason `#wpThumbs` and `.app-info` do —
+  from the `.cl-item` figure itself: `data-origin` is the copy and the nested
+  `<figure class="cl-step">` blocks are the source images in order.
+  `data-origin-clip` on the figure OPTS IN to the clip's own poster as a final
+  link (cloned, never written twice — Amphibious and Clayweld take it, the rest
+  do not); `data-bare` on a step drops its frame, for a cutout on transparency.
+  Steps are optional (King Kong is copy alone). The row is JUSTIFIED — each
+  step's `flex-grow` is its image's aspect ratio, read off the baker's
+  width/height attributes, so every image is the same height at its own shape
+  and nothing is cropped or letterboxed. It follows `#ai-panel-videos`'s
+  `hidden` through a MutationObserver for the same reason `#wpThumbs` and
+  `.app-info` do —
   ONE markdown loader and ONE reader
   (`loadMd` over a URL-keyed promise cache, `openReader` over `#prModal`)
   serving both document lists — the reader is handed a file, a title and a
@@ -903,7 +908,7 @@ that convention, not this hook, is what covers the adjacent case.
 ## Numbers
 
 7 accents (lime default) · 11 ladders / 18 slots in `image_slots.py` ·
-95 generated markup blocks in index.html · fallback ladder
+96 generated markup blocks in index.html · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
 
@@ -917,7 +922,8 @@ the real set; replacing one is a master in `assets/ai/concepts/` and a changed
 `src`/`alt` on its directive, with no JS to touch.
 The Clips tab carries five clips, four of which now show where they came
 from; King Kong's source is a photo of a ceiling and is not published, so it
-is the one with copy and no chain. Every poster is baked at its
+is the one with copy and no chain. A clip in the strip now carries the play
+state forward the way the chevrons always have — paused stays paused. Every poster is baked at its
 clip's own resolution and never upscaled, so a 720p master simply skips the
 rungs above it — and every poster so far is Bunny's auto-generated midpoint
 frame, not the frame picked in the dashboard (its edge cache holds them for

@@ -4278,69 +4278,89 @@ body.modal-open{overflow:hidden}
 }
 .cl-origin-copy{margin:16px 0 0;color:#adb5bb;font-size:14px;line-height:1.68}
 
-/* --caption is the exact height of a label block, and it is a variable because
+/* THE ROW IS JUSTIFIED, and that is what keeps every image at its NATIVE
+   aspect with no letterbox. Each step gets `flex-basis:0` and a `flex-grow`
+   equal to its image's width/height (set by paintOrigin from the baker's own
+   attributes), so the free width is shared in proportion to aspect — which
+   makes every image exactly the same HEIGHT while each keeps its own shape.
+   A fixed box with object-fit:contain was the first attempt and it padded a
+   portrait sculpt with black on both sides and a 16:9 still with black above
+   and below. Dead space, in a block whose whole job is showing pictures.
+
+   --caption is the exact height of a label block, and it is a variable because
    the ARROWS are what read it: an arrow is stretched to the row's full height
    and then given that much bottom padding, which centres it on the IMAGES
    rather than on the images-plus-labels. Change the label's type and this
    number changes with it, or every arrow drifts low. 8px margin + 26px box. */
-.cl-chain{--caption:34px;display:flex;align-items:flex-start;gap:6px}
-.cl-step{flex:1 1 0;min-width:0;margin:0}
+.cl-chain{--caption:34px;display:flex;align-items:flex-start;gap:8px}
+.cl-step{flex:0 1 0;min-width:0;margin:0}   /* flex-grow is per-image, from JS */
 .cl-step picture{display:block}
-/* CONTAIN in a fixed 4:3 box. These come from five different places at five
-   different shapes — a 16:9 key art, a portrait sculpt, a 16:10 wallpaper, a
-   logo on transparency — and a chain whose links are different heights is not
-   a chain. Cropping them to a common box would cut the head off the sculpt,
-   which is the one thing the sculpt is there to show. */
-/* height:auto is LOAD-BEARING and is the whole reason this rule is three
-   properties long. The baker writes real width/height ATTRIBUTES onto every
-   <img> (that is what makes a stale dimension impossible), and those map to a
-   presentational `height` that beats `aspect-ratio` — which only applies while
-   height is auto. Without it a 1080-tall master renders 1080px tall in a 213px
-   cell, which is exactly what happened the first time. */
-.cl-step-img{
-  width:100%;height:auto;aspect-ratio:4/3;object-fit:contain;display:block;
-  border-radius:10px;background:#0b0f12;
-  border:var(--stroke) solid rgba(255,255,255,.09);
-}
+.cl-step-img{width:100%;height:auto;display:block;border-radius:10px;
+  border:var(--stroke) solid rgba(255,255,255,.09);}
+/* A CUTOUT ON TRANSPARENCY IS NOT A PICTURE IN A FRAME. The Clayweld logo has
+   no edges of its own, so a border draws a box around empty space and a fill
+   puts a card behind art that was drawn to sit on nothing. Declared per step
+   (`data-bare` on the .cl-step) rather than sniffed from the file: whether a
+   thing reads as a cutout is a judgement about the art, not about its alpha
+   channel — plenty of transparent images still want a frame. */
+.cl-step[data-bare] .cl-step-img{border:0;border-radius:0}
 .cl-step figcaption{
   margin-top:8px;height:26px;
   color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.1em;
   line-height:13px;text-transform:uppercase;text-align:center;
 }
-/* The last link is the clip itself, so it is marked as the destination rather
-   than as one more source. */
+/* Where a chain ends in the clip itself, that link is the destination rather
+   than one more source. */
 .cl-step-clip .cl-step-img{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
 .cl-step-clip figcaption{color:var(--accent)}
 
 .cl-arrow{
   flex:0 0 auto;align-self:stretch;box-sizing:border-box;
-  width:clamp(30px,11%,58px);
+  width:clamp(26px,9%,46px);
   display:flex;align-items:center;justify-content:center;
   padding-bottom:var(--caption);
 }
 .cl-arrow svg{width:100%;height:auto;display:block}
-/* Thick, because a hairline arrow between two pictures reads as a divider. The
-   track is the shape; the flow is the same path again in full accent, dashed,
-   travelling along it — so the motion is a highlight moving down a solid line
-   rather than a dashed line pretending to be solid. */
-.cl-arrow-track{stroke:color-mix(in srgb,var(--accent) 28%,transparent)}
-.cl-arrow-flow{stroke:var(--accent);stroke-dasharray:7 11;animation:cl-arrow-flow 1.15s linear infinite}
-.cl-arrow-head{stroke:var(--accent);animation:cl-arrow-nudge 1.15s ease-in-out infinite}
-@keyframes cl-arrow-flow{to{stroke-dashoffset:-18}}
-@keyframes cl-arrow-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(1.6px)}}
+/* ONE PULSE, ONE SHAFT, ONE BEAT BETWEEN. The shaft is a dim rail; a single
+   bright segment runs it once and the head lights as the segment arrives, then
+   the whole thing rests for the last third of the cycle. `pathLength="100"` is
+   what makes that exact rather than tuned by eye: with a dash of 34 against a
+   gap of 100 on a path declared 100 long, only ever ONE segment is on the rail,
+   and the offsets below are read straight off that scale — 34 is the segment
+   parked before the start, -100 is it parked past the end.
+   The tip's 55% is where the segment's leading edge reaches 100, solved rather
+   than nudged: the offset runs 34 to -100 over the first 70%, so it passes -66
+   (leading edge = -offset + 34 = 100) at 0.7 x 100/134. */
+.cl-arrow-track{stroke:color-mix(in srgb,var(--accent) 30%,transparent)}
+.cl-arrow-pulse{
+  stroke:var(--accent);stroke-dasharray:34 100;
+  animation:cl-arrow-pulse 1.7s cubic-bezier(.4,0,.25,1) infinite;
+}
+.cl-arrow-head{
+  stroke:var(--accent);opacity:.4;
+  animation:cl-arrow-tip 1.7s cubic-bezier(.4,0,.25,1) infinite;
+}
+@keyframes cl-arrow-pulse{
+  0%{stroke-dashoffset:34}
+  70%,100%{stroke-dashoffset:-100}
+}
+@keyframes cl-arrow-tip{
+  0%,40%{opacity:.4;transform:translateX(0)}
+  55%{opacity:1;transform:translateX(1.5px)}
+  80%,100%{opacity:.4;transform:translateX(0)}
+}
 @media(prefers-reduced-motion:reduce){
-  /* Still an arrow, still thick, just not moving. The dashes go with the
-     animation — a static dashed overlay on a solid track is just noise. */
-  .cl-arrow-flow{animation:none;stroke-dasharray:none;stroke:var(--accent)}
-  .cl-arrow-head{animation:none}
+  /* Still an arrow, still thick, just resolved rather than running: the pulse
+     becomes the whole shaft and the head sits lit. */
+  .cl-arrow-pulse{animation:none;stroke-dasharray:none}
+  .cl-arrow-head{animation:none;opacity:1}
 }
 @media (max-width:700px){
-  /* The section is one column here, so the chain has the full width and the
-     arrows can afford to stay large. Only the type tightens — the label BOX
-     keeps its 26px, because this is the width where a two-word label wraps to
-     two lines, and a shorter box here would overflow exactly where the wrap
-     first happens. */
-  .cl-chain{gap:5px}
+  /* The section is one column here, so the chain has the full width. Only the
+     type tightens — the label BOX keeps its 26px, because this is the width
+     where a two-word label wraps to two lines, and a shorter box here would
+     overflow exactly where the wrap first happens. */
+  .cl-chain{gap:6px}
   .cl-step figcaption{font-size:10px;letter-spacing:.08em}
 }
 

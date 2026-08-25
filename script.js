@@ -3101,7 +3101,7 @@ const MediaBus = (() => {
     img.removeAttribute('class');
     img.loading = 'lazy';
     btn.appendChild(pic);
-    btn.addEventListener('click', () => select(i, true));
+    btn.addEventListener('click', () => select(i, isPlaying()));
     strip.appendChild(btn);
   });
   const thumbs = [...strip.children];
@@ -3145,14 +3145,18 @@ const MediaBus = (() => {
     if (origin) origin.hidden = !originFilled || !!videosPanel?.hidden;
   };
 
-  /* Thick and waved, per Dex — a hairline arrow between two pictures reads as a
-     divider rather than as a direction. The viewBox units are the drawing's
-     own; CSS sizes the element and colours the three paths. */
-  const WAVE = 'M3 13q4.5-7 9 0t9 0t9 0';
-  const ARROW = '<svg viewBox="0 0 46 26" fill="none" aria-hidden="true" focusable="false">'
-    + `<path class="cl-arrow-track" d="${WAVE}" stroke-width="6" stroke-linecap="round"/>`
-    + `<path class="cl-arrow-flow" d="${WAVE}" stroke-width="6" stroke-linecap="round"/>`
-    + '<path class="cl-arrow-head" d="M30 5.5L42 13l-12 7.5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
+  /* A shaft and a head, thick — a hairline arrow between two pictures reads as
+     a divider rather than as a direction. The motion is one bright segment
+     running the shaft once and lighting the head as it lands, then a beat; see
+     the keyframes in styles.css, which are solved off `pathLength` rather than
+     tuned. The viewBox units are the drawing's own; CSS sizes and colours it.
+     A waved shaft came first and was replaced (Dex, 2026-08-25): at 46px it
+     read as a squiggle rather than as something drawn on purpose. */
+  const SHAFT = 'M3 12H32';
+  const ARROW = '<svg viewBox="0 0 46 24" fill="none" aria-hidden="true" focusable="false">'
+    + `<path class="cl-arrow-track" d="${SHAFT}" stroke-width="6" stroke-linecap="round"/>`
+    + `<path class="cl-arrow-pulse" d="${SHAFT}" stroke-width="6" stroke-linecap="round" pathLength="100"/>`
+    + '<path class="cl-arrow-head" d="M31 3.5l9 8.5-9 8.5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
     + '</svg>';
   const arrowNode = () => {
     const span = document.createElement('span');
@@ -3161,12 +3165,21 @@ const MediaBus = (() => {
     return span;
   };
 
-  const stepNode = (pic, label, isClip) => {
+  /* flex-grow IS the aspect ratio, which is what justifies the row: the free
+     width is shared in proportion to w/h, so every image ends up the same
+     HEIGHT while keeping its own shape and its own edges. Read off the baker's
+     width/height ATTRIBUTES, not naturalWidth — the attributes describe the
+     MASTER, where naturalWidth describes whichever rung the browser picked and
+     would answer differently on a phone. */
+  const stepNode = (pic, label, { isClip = false, bare = false } = {}) => {
     const fig = document.createElement('figure');
     fig.className = isClip ? 'cl-step cl-step-clip' : 'cl-step';
+    if (bare) fig.setAttribute('data-bare', '');
     const img = pic.querySelector('img');
     img.className = 'cl-step-img';
     img.loading = 'lazy';
+    const w = Number(img.getAttribute('width')), h = Number(img.getAttribute('height'));
+    fig.style.flexGrow = String(w > 0 && h > 0 ? w / h : 1);
     fig.appendChild(pic);
     const cap = document.createElement('figcaption');
     cap.textContent = label;
@@ -3186,23 +3199,31 @@ const MediaBus = (() => {
     eyebrow.textContent = 'How it was made';
     origin.appendChild(eyebrow);
 
-    const steps = [...item.querySelectorAll('.cl-step')];
-    if (steps.length) {
-      const chain = document.createElement('div');
-      chain.className = 'cl-chain';
-      steps.forEach((step) => {
-        chain.appendChild(stepNode(step.querySelector('picture').cloneNode(true),
-                                   step.dataset.label || '', false));
-        chain.appendChild(arrowNode());
-      });
-      /* The clip itself, cloned from the poster rather than baked a second
-         time. Its `sizes` describes the 900px stage, so it is rewritten for a
-         ~215px cell — left alone the browser reuses the stage's choice and
-         fetches a hero rung to fill a thumbnail. */
+    /* THE CLIP IS NOT AUTOMATICALLY THE LAST LINK (Dex, 2026-08-25). Most of
+       these chains are about the artwork that went IN — the clip is the thing
+       on screen two inches to the right, and repeating it stole width from the
+       sources without saying anything new. Where the clip IS the payoff worth
+       showing in sequence, the figure says so with `data-origin-clip`. */
+    const links = [...item.querySelectorAll('.cl-step')].map(step => () =>
+      stepNode(step.querySelector('picture').cloneNode(true),
+               step.dataset.label || '', { bare: step.hasAttribute('data-bare') }));
+    if (item.hasAttribute('data-origin-clip')) links.push(() => {
+      /* Cloned from the poster rather than baked a second time. Its `sizes`
+         describes the 900px stage, so it is rewritten for the cell — left alone
+         the browser reuses the stage's choice and fetches a hero rung. */
       const pic = item.querySelector(':scope > picture').cloneNode(true);
       pic.querySelectorAll('source')
-        .forEach(s => s.setAttribute('sizes', '(max-width:1100px) 28vw, 215px'));
-      chain.appendChild(stepNode(pic, 'Clip', true));
+        .forEach(s => s.setAttribute('sizes', '(max-width:1100px) 46vw, 300px'));
+      return stepNode(pic, 'Clip', { isClip: true });
+    });
+
+    if (links.length) {
+      const chain = document.createElement('div');
+      chain.className = 'cl-chain';
+      links.forEach((make, i) => {
+        if (i) chain.appendChild(arrowNode());   // BETWEEN, never trailing
+        chain.appendChild(make());
+      });
       origin.appendChild(chain);
     }
 
@@ -3295,9 +3316,13 @@ const MediaBus = (() => {
      A click IS the user gesture the autoplay policy wants, which is why this
      path is never refused when it does ask to play.
 
-     The THUMBNAILS still pass an unconditional true, and that is deliberate
-     rather than an oversight: picking one clip out of the strip by name is a
-     statement about that clip, where a chevron is a statement about direction. */
+     THE THUMBNAILS DO THE SAME NOW (Dex, 2026-08-25). They used to pass an
+     unconditional true on the argument that picking a clip by name is a
+     statement about that clip where a chevron is one about direction. In use it
+     is not: someone who paused the player and then went looking through the
+     strip gets sound and motion they did not ask for, and the only way to stop
+     it is to pause again. Paused stays paused, playing stays playing, whichever
+     control moved. */
   const step = (to) => select(to, isPlaying());
   document.querySelectorAll('#clPrev, .cl-prev').forEach(b => b.addEventListener('click', () => step(index - 1)));
   document.querySelectorAll('#clNext, .cl-next').forEach(b => b.addEventListener('click', () => step(index + 1)));

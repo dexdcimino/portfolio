@@ -115,8 +115,7 @@ different job.
 
 Every clip here was generated FROM something, and the walk from that something
 to the clip is shown beside the player, in the statement column (`#clOrigin`,
-built by `paintOrigin()` in `script.js`). Two things on the figure, and nothing
-else changes:
+built by `paintOrigin()` in `script.js`). It is all attributes on the figure:
 
 ```html
 <figure class="cl-item" data-title="Spinal Tap"
@@ -124,7 +123,7 @@ else changes:
         data-note="0:10" data-src="...">
   <!-- the poster's own <!-- img --> directive, as above -->
   <div class="cl-origin-src">
-    <figure class="cl-step" data-label="Original sculpt">
+    <figure class="cl-step" data-label="My original sculpt">
       <!-- img src="assets/ai/clips/origins/spinal-tap-sculpt.png" slot="clip-origin"
            alt="..." class="cl-step-img" -->
       <!-- /img -->
@@ -136,19 +135,38 @@ else changes:
 </figure>
 ```
 
-- `data-origin` is the copy under the chain. **No copy, no block** — the whole
-  thing hides rather than showing an empty heading.
-- Each `.cl-step` is one link, in markup order, and `data-label` is the word
-  under it. Keep labels to two words: the caption box is two lines at a phone
-  width and a third would overflow it.
-- **The clip itself is the last link and is NOT written here.** `paintOrigin()`
-  clones the poster above and appends it, labelled *Clip*. A chain that ends in
-  a picture of the clip cannot fall out of step with the clip.
-- **Steps are optional.** King Kong has none: its source is a photo of a
-  ceiling and is not published, so that clip is copy alone. That is a real
-  state, not a gap to fill.
+- **`data-origin`** is the copy under the chain. **No copy, no block** — the
+  whole thing hides rather than showing an empty heading.
+- Each **`.cl-step`** is one link, in markup order, and **`data-label`** is the
+  word under it. Keep labels to two words: the caption box is two lines at a
+  phone width and a third would overflow it.
+- **`data-origin-clip` on the FIGURE** appends the clip's own poster as a final
+  link, labelled *Clip* and marked as the destination. It is opt-in, and most
+  clips do not take it: the clip is already on screen two inches to the right,
+  and repeating it steals width from the sources without saying anything new.
+  Amphibious and Clayweld use it because the payoff is worth reading in
+  sequence. The poster is CLONED, never written here — a chain that ends in a
+  picture of the clip cannot fall out of step with the clip.
+- **`data-bare` on a `.cl-step`** drops the border and the rounded corner. For a
+  cutout on transparency — the Clayweld logo has no edges of its own, so a frame
+  draws a box around empty space. It is declared, not sniffed from the alpha
+  channel: whether a thing reads as a cutout is a judgement about the art.
+- **Steps are optional.** King Kong has none: its source is a photo of a ceiling
+  and is not published, so that clip is copy alone. A real state, not a gap.
 - A source image that already lives somewhere in the repo is **referenced where
   it is** — the Surveyor step points at `assets/thumbnails/surveyor-art.png` and
   the Amphibious one at the wallpaper master. Only images with no other home go
   in `origins/`. The `clip-origin` slot's widths are unioned with whatever else
   claims the master, so sharing one costs nothing.
+
+### Any shape, no letterbox
+
+The row is **justified**: `paintOrigin()` reads each image's width/height
+attributes and sets `flex-grow` to its aspect ratio, so the free width is shared
+in proportion and every image comes out the same HEIGHT while keeping its own
+shape. Nothing is cropped and nothing is padded — a portrait sculpt and a 16:9
+still sit in the same row at their own proportions.
+
+Do not put these in a fixed box with `object-fit: contain`. That was the first
+attempt and it padded the sculpt with black down both sides and the still with
+black above and below, in a block whose whole job is showing pictures.

@@ -25,6 +25,49 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-08-25 (later) — the origin chain shows SOURCES at native aspect, and the clip is opt-in
+
+**Decided.** Two changes to the block described in the entry below, both from
+looking at it on the page. (1) The clip is no longer automatically the last
+link: `data-origin-clip` on the figure opts in, and only Amphibious and Clayweld
+take it. (2) The row is justified instead of gridded — each step's `flex-grow`
+is its image's aspect ratio, so every image is the same height at its own shape.
+`data-bare` on a step drops the frame for a cutout on transparency.
+
+**Replaced.** The clip appended to every chain unconditionally, and each step
+drawn into a fixed 4:3 box with `object-fit: contain`.
+
+**Why.** The clip is already on screen two inches to the right; repeating it in
+the chain took a third of the width and said nothing the player was not already
+saying. Two links instead of three also makes the sources substantially bigger,
+which is the whole point of the block. And the fixed box was worse than useless:
+these sources come from five places at five shapes — a 16:9 key art, a portrait
+sculpt, a 16:10 wallpaper, a logo on transparency — so `contain` padded the
+sculpt with black down both sides and the stills with black above and below. A
+justified row gives every image the same height with no crop and no padding,
+which is the only arrangement that is both tidy and honest about the art.
+
+**Reverse it if** a chain ever needs four or more links, where a single row at a
+common height gets too short to read and the block wants to wrap or scroll.
+
+## 2026-08-25 (later) — a thumbnail click carries the play state, like every other transport control
+
+**Decided.** `#clThumbs` buttons call `select(i, isPlaying())`, the same as the
+chevrons and the skip buttons.
+
+**Replaced.** An unconditional `select(i, true)`, and the reasoning written
+beside it: that picking a clip out of the strip by name is a statement about
+that clip, where a chevron is a statement about direction.
+
+**Why.** That reasoning does not survive use. Someone who deliberately paused
+the player and then browsed the strip got sound and motion they did not ask for,
+once per thumbnail, and the only way to stop it was to pause again. The strip is
+a transport control like the others, and the rule that reads correctly for all
+of them is: paused stays paused, playing stays playing, whichever control moved.
+
+**Reverse it if** the strip ever stops being part of the player — a contact
+sheet that opens clips somewhere else would be a statement about a clip again.
+
 ## 2026-08-25 — a clip's origin is a CHAIN beside the player, not a caption under it
 
 **Decided.** Each `.cl-item` figure carries `data-origin` (the copy) and, nested
