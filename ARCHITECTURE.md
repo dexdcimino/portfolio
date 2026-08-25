@@ -173,8 +173,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `<figure class="cl-step">` blocks are the source images in order.
   `data-origin-clip` on the figure OPTS IN to the clip's own poster as a final
   link (cloned, never written twice — Amphibious and Clayweld take it, the rest
-  do not); `data-bare` on a step drops its frame, for a cutout on transparency.
-  Steps are optional (King Kong is copy alone). The row is JUSTIFIED — each
+  do not), labelled by `data-clip-label` where the plain "Clip" is not enough;
+  `data-bare` on a step drops its frame, for a cutout on transparency. Steps are
+  optional — King Kong is copy alone, and that case carries `.is-copyonly` so
+  the CSS can give back the room the chain would have taken. The row is JUSTIFIED — each
   step's `flex-grow` is its image's aspect ratio, read off the baker's
   width/height attributes, so every image is the same height at its own shape
   and nothing is cropped or letterboxed. It follows `#ai-panel-videos`'s
@@ -904,6 +906,26 @@ into the edit beside it and the check went silent instead. The hook is a
 backstop for the far-apart case; the near case is still on whoever stages.
 One session owns `index.html` and `styles.css` at a time (Dex, 2026-08-19) —
 that convention, not this hook, is what covers the adjacent case.
+
+## The yin-yang mark
+
+`assets/icons/yin-yang.svg`, baked into `styles.css` like every other icon and
+placed twice: `.about-yin`, enormous and at 5.5% behind the About section with
+about a third of it past the right edge, and `.footer-yin`, 46px and centred on
+the footer bar. Both are `.icon` spans, so both retint with the accent picker
+for free.
+
+**Two rules keep the big one working and neither is obvious.** It is cropped by
+`body{overflow-x:hidden}`, NOT by an overflow on `.about` — the country flags
+sit out in that section's right gutter and a clip there would eat them. And it
+sits at `z-index:-1` under `.about{isolation:isolate}`: the isolate is what
+gives the negative index a stacking context to be negative INSIDE, so the mark
+lands above the section's own `#0b0e11` and below every piece of content.
+Without it the nearest context is the root and the mark disappears behind the
+section background — which looks exactly like the mark not being there at all.
+Doing it this way means no content block needs a z-index of its own; the two
+things already positioned in there (`.about-flags`, the breakout game's
+`.bb-keys`) are both inside `.about-copy` and are untouched.
 
 ## Numbers
 

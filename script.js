@@ -3227,8 +3227,14 @@ const MediaBus = (() => {
       const pic = item.querySelector(':scope > picture').cloneNode(true);
       pic.querySelectorAll('source')
         .forEach(s => s.setAttribute('sizes', '(max-width:1100px) 46vw, 300px'));
-      return stepNode(pic, 'Clip', { isClip: true });
+      return stepNode(pic, item.dataset.clipLabel || 'Clip', { isClip: true });
     });
+
+    /* WITH NO CHAIN there is nothing between the eyebrow and the copy, and the
+       block sat hard under the section's own intro with a column of nothing
+       under it. It is not a shorter version of the same block, it is a
+       different shape, so it is marked as one and the CSS gives it the room. */
+    origin.classList.toggle('is-copyonly', !links.length);
 
     if (links.length) {
       const chain = document.createElement('div');

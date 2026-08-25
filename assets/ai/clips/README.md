@@ -146,13 +146,19 @@ built by `paintOrigin()` in `script.js`). It is all attributes on the figure:
   and repeating it steals width from the sources without saying anything new.
   Amphibious and Clayweld use it because the payoff is worth reading in
   sequence. The poster is CLONED, never written here — a chain that ends in a
-  picture of the clip cannot fall out of step with the clip.
+  picture of the clip cannot fall out of step with the clip. Its label is
+  "Clip" unless **`data-clip-label`** on the figure says otherwise, which is
+  where the model that made it goes: both of today's read "Google Omni clip".
 - **`data-bare` on a `.cl-step`** drops the border and the rounded corner. For a
   cutout on transparency — the Clayweld logo has no edges of its own, so a frame
   draws a box around empty space. It is declared, not sniffed from the alpha
   channel: whether a thing reads as a cutout is a judgement about the art.
 - **Steps are optional.** King Kong has none: its source is a photo of a ceiling
-  and is not published, so that clip is copy alone. A real state, not a gap.
+  and is not published, so that clip is copy alone. A real state, not a gap —
+  and a different SHAPE, not a shorter one, so `paintOrigin()` marks the block
+  `.is-copyonly` and the CSS gives back the vertical room the chain would have
+  taken. Without that the eyebrow and two lines sit hard under the section's own
+  intro with a column of nothing beneath them.
 - A source image that already lives somewhere in the repo is **referenced where
   it is** — the Surveyor step points at `assets/thumbnails/surveyor-art.png` and
   the Amphibious one at the wallpaper master. Only images with no other home go

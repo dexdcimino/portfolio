@@ -180,6 +180,7 @@ img{max-width:100%}
 [data-icon="volume-mute"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='m16 9.5 5 5m0-5-5 5'/%3E%3C/svg%3E")} /* src: assets/icons/volume-mute.svg */
 [data-icon="volume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='M15.4 9.2a4 4 0 0 1 0 5.6M18 6.6a7.6 7.6 0 0 1 0 10.8'/%3E%3C/svg%3E")} /* src: assets/icons/volume.svg */
 [data-icon="work"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z'/%3E%3C/svg%3E")} /* src: assets/icons/work.svg */
+[data-icon="yin-yang"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96.092 128'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cg%3E %3Cpath d='M64.0613,0C28.6812,0,0,28.656,0,64.0051c0,35.0728,28.2356,63.5514,63.2336,63.9949-17.3075-.4387-31.203-14.5941-31.203-31.9922,0-17.6746,14.3406-32.0027,32.0306-32.0027s32.0308-14.328,32.0308-32.0026S81.7513,0,64.0613,0ZM64.0613,41.9c-5.3154,0-9.6244-4.3053-9.6244-9.616s4.309-9.616,9.6244-9.616,9.6244,4.3052,9.6244,9.616-4.309,9.616-9.6244,9.616Z'/%3E %3Cellipse cx='64.0613' cy='96.9691' rx='9.6244' ry='9.616'/%3E %3C/g%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/yin-yang.svg */
 [data-icon="zoom-in"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.4 12.9L21 21M10.5 7.5v6m-3-3h6'/%3E%3C/svg%3E")} /* src: assets/icons/zoom-in.svg */
 [data-icon="zoom-out"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.4 12.9L21 21M7.5 10.5h6'/%3E%3C/svg%3E")} /* src: assets/icons/zoom-out.svg */
 /* <<< GENERATED ICONS <<< */
@@ -2290,7 +2291,48 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .collab-people .collab-links a:hover,.collab-people .collab-links a:focus-visible{color:var(--accent)}
 .collab-people .inline-arrow{width:11px;height:11px}
 
-.about{padding:110px var(--gutter) 96px;background:#0b0e11}
+/* position:relative and isolation:isolate are both for .about-yin below.
+
+   relative gives the mark something to be absolute against, and is safe: the
+   two absolutely positioned things in this section — .about-flags and the
+   breakout game's .bb-keys — are both inside .about-copy, which has been
+   position:relative since long before this, so neither one reparents.
+
+   isolate is what lets the mark sit at z-index:-1 and still be VISIBLE. A
+   negative child paints below its stacking context's in-flow content but above
+   that context's background; without a context here the nearest one is the
+   root, and the mark would go behind this section's own #0b0e11 and vanish.
+   Doing it this way rather than giving every content block a z-index means
+   nothing inside has to know the mark exists. */
+.about{position:relative;isolation:isolate;padding:110px var(--gutter) 96px;background:#0b0e11}
+/* THE MARK. Enormous, barely there, and deliberately running off the right
+   edge — about a third of it is past the viewport, which is what stops it
+   reading as a logo dropped on the page and makes it read as ground.
+   Cropped by body{overflow-x:hidden}, NOT by an overflow on this section: the
+   country flags sit out in the right gutter and a clip here would eat them.
+   It takes its colour from .icon's currentColor, so the accent picker retints
+   it with everything else; at this opacity that is a tint on near-black rather
+   than a green shape. Height is viewport-relative so it stays the same
+   presence on a laptop and a 4K panel; aspect-ratio comes from the file. */
+.about-yin{
+  position:absolute;z-index:-1;pointer-events:none;
+  top:clamp(-90px,-4vh,0px);right:clamp(-320px,-13vw,-120px);
+  height:clamp(620px,96vh,1180px);aspect-ratio:96.092/128;width:auto;
+  color:var(--accent);opacity:.055;
+  transition:background-color var(--accent-ease);
+}
+@media (prefers-reduced-motion:no-preference){
+  /* One slow turn. Nothing about the page depends on it and at 5% opacity it
+     is closer to a change of light than to motion. */
+  .about-yin{animation:about-yin-turn 240s linear infinite}
+}
+@keyframes about-yin-turn{to{transform:rotate(360deg)}}
+@media (max-width:900px){
+  /* The section is one column here and the copy runs the full width, so the
+     mark stops being ground behind a layout and starts being texture under
+     paragraphs. Smaller, and further out. */
+  .about-yin{height:clamp(420px,70vh,700px);right:-26vw;opacity:.045}
+}
 /* Top-aligned, not centred: with the second bio paragraph the copy wants to
    start level with the portrait's top and run down inside its height, rather
    than balloon out both ends of a centred block. */
@@ -2898,7 +2940,17 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
   .iv-btn{width:32px;height:32px}
 }
 .resume-actions{display:flex;gap:10px;flex-wrap:wrap}
-footer{min-height:130px;padding:0 var(--gutter);display:flex;align-items:center;gap:24px;color:#778088;background:#080a0c;font-size:13px;letter-spacing:.08em}
+footer{position:relative;min-height:130px;padding:0 var(--gutter);display:flex;align-items:center;gap:24px;color:#778088;background:#080a0c;font-size:13px;letter-spacing:.08em}
+/* Centred on the BAR. As a flex item it would sit between the roles and the
+   year and drift with the length of either, which is not centred, it is just
+   in the middle of the text. Absolute takes it out of that row entirely.
+   Hidden under 900px, where the row closes up and there is no middle left. */
+.footer-yin{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  height:46px;aspect-ratio:96.092/128;width:auto;
+  color:var(--accent);opacity:.5;pointer-events:none;
+}
+@media (max-width:900px){ .footer-yin{display:none} }
 footer strong{color:var(--accent);transition:color var(--accent-ease)}
 footer small{margin-left:auto}
 
@@ -4281,6 +4333,12 @@ body.modal-open{overflow:hidden}
   .cl-origin{width:min(100% + clamp(0px,5vw,84px), 560px)}
 }
 .cl-origin[hidden]{display:none}
+/* A clip whose source is not published has copy and no chain, which is a
+   different shape rather than a shorter one: the eyebrow and two lines of text
+   sat hard under the section's intro with a column of nothing beneath them.
+   The extra room is the chain's, given back. */
+.cl-origin.is-copyonly{margin-top:78px}
+@media (max-width:1100px){ .cl-origin.is-copyonly{margin-top:38px} }
 .cl-origin-eyebrow{
   margin:0 0 12px;color:var(--muted);
   font-size:11px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;
