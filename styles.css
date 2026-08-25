@@ -1322,9 +1322,13 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 /* The grid is the picks grid untouched, so the column count and both of its
    breakpoints are inherited rather than restated - ten cards simply fill five
    columns twice, three twice-and-a-bit, two five times. */
+/* Centred both ways: the card is a two-line composition, not a header over a
+   footer, so the text and the votes read as one centred block. Shorter than
+   16/9 was, which is what pushed the type ramp below down - the vote buttons
+   grew at the same time and both have to fit the shorter box. */
 .pk-pref{
-  display:flex;flex-direction:column;justify-content:space-between;gap:8px;
-  aspect-ratio:16/9;padding:12px 13px;min-width:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+  aspect-ratio:1.95;padding:10px 12px;min-width:0;text-align:center;
   container-type:inline-size;
   border:var(--stroke) solid rgba(255,255,255,.1);border-radius:var(--radius-cover);
   background:linear-gradient(150deg,rgba(32,38,44,.5),rgba(12,15,18,.5));
@@ -1335,25 +1339,38 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .pk-pref:hover{border-color:var(--accent);transform:translateY(-4px);
   box-shadow:0 10px 26px color-mix(in srgb,var(--accent) 22%,transparent)}
 /* Sized off the CARD, like every other type ramp in this section, so it tracks
-   the column count instead of needing a font size per breakpoint. */
-.pk-pref-line{margin:0;font-size:clamp(12px,10.5cqw,23px);font-weight:800;
-  line-height:1.15;letter-spacing:-.01em;color:var(--text)}
+   the column count instead of needing a font size per breakpoint. Tuned DOWN
+   from 10.5cqw once the card lost height and the buttons gained it: the two
+   longest labels wrap to a second line, and both lines plus the button row now
+   have to live inside the shorter box. */
+.pk-pref-line{margin:0;font-size:clamp(11px,9cqw,20px);font-weight:800;
+  line-height:1.14;letter-spacing:-.01em;color:var(--text)}
 .pk-pref-gt{color:var(--accent);transition:color var(--accent-ease)}
-.pk-pref-votes{display:flex;align-items:center;gap:4px}
-/* Padding for the finger, negative vertical margin so buying that target does
-   not push the row - and the card - taller. */
+/* Centred under the line, poop then fire - the disagree side sits left so the
+   pair reads the same direction as the take above it. DOM order, not CSS
+   `order`, so the keyboard walks them the way they look. */
+.pk-pref-votes{display:flex;align-items:center;justify-content:center;gap:10px}
+/* Each vote is a real button now rather than an icon with a number beside it:
+   its own border, fill and radius, so it reads as something to press. The
+   chosen one takes the accent on all three at once. */
 .pk-vote{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:6px 8px;margin:-6px 0;
-  background:none;border:0;border-radius:8px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:5px 11px;
+  border:var(--stroke) solid rgba(255,255,255,.14);border-radius:9px;
+  background:rgba(255,255,255,.03);cursor:pointer;
   font:inherit;color:var(--icon-idle);
-  transition:color var(--accent-ease);
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .18s ease;
 }
-.pk-vote:hover{color:var(--text)}
-.pk-vote[aria-pressed="true"],.pk-vote[aria-pressed="true"]:hover{color:var(--accent)}
+.pk-vote:hover{color:var(--text);border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.07)}
+.pk-vote[aria-pressed="true"],.pk-vote[aria-pressed="true"]:hover{
+  color:var(--accent);border-color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 12%,transparent)}
 .pk-vote:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.pk-vote-icon{width:16px;height:16px}
-.pk-vote-count{font-size:clamp(10px,5.5cqw,13px);font-weight:800;font-variant-numeric:tabular-nums}
+.pk-vote-icon{width:21px;height:21px}
+/* 9cqw, not 7: container units resolve against .pk-pref's CONTENT box, which
+   its padding and border take from 198px to ~170px - 7cqw landed under the
+   floor and the count rendered at its minimum. */
+.pk-vote-count{font-size:clamp(14px,9cqw,18px);font-weight:800;font-variant-numeric:tabular-nums}
 
 /* --- player bar ---------------------------------------------------------- */
 /* Left edge clears the rail rather than sitting under it, so the bar never
