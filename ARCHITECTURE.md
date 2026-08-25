@@ -168,9 +168,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   excerpt, size, reader, copy and download all read `assets/ai/prompts/*.md`
   at runtime — adding one is a file plus an `<article>`, no JS edit), song
   player, resume overlay, Web3Forms contact (public access key — by design),
-  **TOP PICKS is six tabs** â Games, Movies, Shows, Songs, Quotes, Pods â and both the
+  **TOP PICKS is seven tabs** â Games, Movies, Shows, Songs, Quotes, Pods, Prefs â and both the
   tab machinery (`initTabs`) and the carousel (`initPkCarousel`) derive their
-  tabs and panels FROM THE DOM, so a seventh is markup only, no JS edit.
+  tabs and panels FROM THE DOM, so an eighth is markup only, no JS edit.
   Games, Movies and SHOWS share the 2:3 `pick-cover` slot — a show card is a
   bare cover over a Google search, captionless, exactly like a movie, which is
   why the season range on Rick and Morty rides its alt text and its query
@@ -197,15 +197,27 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   to pay that. Only YouTube and Apple are linked because only those two were
   verifiable (handles resolve 200 with the right channel title; Apple links
   come from Apple's own search API) â Spotify is absent rather than guessed.
+  PREFS is the odd one out, deliberately: no art at all (the pick IS the
+  sentence), ten landscape cards on the same grid, a fire/poop vote on each.
+  **Votes are per browser and cannot be otherwise** - there is no server here,
+  so one-vote-per-person is not available. `localStorage` under
+  `dex.prefs.votes` holds this visitor's ten picks and the number shown is the
+  card's `data-fire` / `data-poop` seed plus their own vote, shared with
+  nobody; every storage call is wrapped because it throws outright in some
+  privacy modes. It is also the ONE tab the suggestion `?` ignores - a
+  preference is not something a stranger suggests - so `TAB_CAT` carries no
+  entry for it and the cycler stays at six.
   QUOTE RENDITIONS finally have a user: the Alan Watts card carries both of his
   quotes in `data-original` / `data-rendition` and swaps them in place, so the
   text and its cite can never drift apart. Its toggle is `.pk-quote-pager` â both
-  numerals in ONE button, the active one in the accent, hover previewing and
-  click pinning as the machinery already did. Cards without `.has-rendition`
+  two DOTS in one pill, the active one in the accent, and the dot shares
+  `.pk-cat-dashes i`'s rule rather than restating its size and grey.
+  **CLICK ONLY**: the hover preview the machinery shipped with is deleted, so
+  a pointer crossing a card can never change what it says. Cards without `.has-rendition`
   still show no toggle at all.
   and the Top Picks suggestion POPOVER (the `?` sits in `.pk-tabrow` as a
   SIBLING of the picks tablist, never inside it — role=tab there would join
-  the arrow-key cycle and announce as a seventh category; the panel is
+  the arrow-key cycle and announce as an eighth category; the panel is
   `.pk-pop` anchored beside the button — NOT a dialog: no backdrop, no
   modal focus trap; focus enters on open and returns to the `?` on close;
   Escape, outside click, and >24px of scroll close it, and TYPED VALUES
