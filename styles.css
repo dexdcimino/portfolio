@@ -569,11 +569,29 @@ button.button{cursor:pointer;font-family:inherit}
    reserved height shoves RESUME, CONTACT and the avatar back up the rail.
    A fixed count just makes the tracks narrow instead. Adding a sixth link means
    editing this number. */
-.social-mini{width:100%;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease),transform var(--sidebar-transition-duration) var(--sidebar-transition-ease);pointer-events:none}
+/* AS MANY EQUAL COLUMNS AS THERE ARE LINKS, never a fixed number. This was
+   repeat(5,1fr) while there happened to be five, so taking LinkedIn out left
+   four icons crammed into the left four fifths of the rail with a dead column
+   after them — the row stopped being centred the moment the count changed.
+   grid-auto-flow:column with 1fr auto-columns makes the track list follow the
+   markup, so one link or ten are always evenly spaced and always symmetric
+   about the middle, with no CSS to touch when one is added or removed.
+
+   minmax(0,1fr), NOT 1fr: a bare 1fr floors at the column's min-content, which
+   here is the 17px icon. At ten links that is 10x17 + 9x6 = 224 in a 209px
+   rail, so the track overflowed to the right and the row sat 7.5px off centre —
+   evenly spaced and not centred, which is the half of this that is easy to
+   miss. minmax(0,...) lets the columns shrink instead. */
+.social-mini{width:100%;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);align-items:center;gap:6px;opacity:0;transform:translateY(5px);transition:opacity var(--sidebar-transition-duration) var(--sidebar-transition-ease),transform var(--sidebar-transition-duration) var(--sidebar-transition-ease);pointer-events:none}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .social-mini{opacity:1;transform:none;pointer-events:auto}
 /* cursor:pointer by hand: script.js takes the href off these, and an <a>
    without one is not a link as far as the cursor is concerned. */
-.social-mini a{height:30px;display:grid;place-items:center;border-radius:8px;cursor:pointer;color:var(--icon-idle);transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease}
+/* The hover pill fills its column, up to a cap. Without the cap a row of two
+   would hand each link half the rail and the hover state would be a slab; with
+   it the pills stay a sensible size and sit centred in their own even columns,
+   so the SPACING is still equal whatever the count. At four links a column is
+   just under the cap, which is why the row looks unchanged today. */
+.social-mini a{height:30px;width:100%;min-width:0;max-width:54px;justify-self:center;display:grid;place-items:center;border-radius:8px;cursor:pointer;color:var(--icon-idle);transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease}
 .social-mini a:hover{background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);transform:translateY(-2px)}
 /* Nor is it focusable on its own — the tabindex comes from the same place —
    so the ring it would have had by default has to be drawn here. */
@@ -2310,16 +2328,18 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    reading as a logo dropped on the page and makes it read as ground.
    Cropped by body{overflow-x:hidden}, NOT by an overflow on this section: the
    country flags sit out in the right gutter and a clip here would eat them.
-   It takes its colour from .icon's currentColor, so the accent picker retints
-   it with everything else; at this opacity that is a tint on near-black rather
-   than a green shape. Height is viewport-relative so it stays the same
-   presence on a laptop and a 4K panel; aspect-ratio comes from the file. */
+   GREY, not the accent (Dex, 2026-08-25). It was accent-tinted at first, which
+   retinted with the picker for free — and read as a faint green wash across a
+   third of the section rather than as ground. Grey is the one colour that does
+   not compete with anything the accent is doing above it. .icon paints in
+   currentColor, so this is a `color` and nothing more.
+   Height is viewport-relative so it keeps the same presence on a laptop and a
+   4K panel; aspect-ratio comes from the file. */
 .about-yin{
   position:absolute;z-index:-1;pointer-events:none;
   top:clamp(-90px,-4vh,0px);right:clamp(-320px,-13vw,-120px);
   height:clamp(620px,96vh,1180px);aspect-ratio:96.092/128;width:auto;
-  color:var(--accent);opacity:.055;
-  transition:background-color var(--accent-ease);
+  color:#aeb7be;opacity:.06;
 }
 @media (prefers-reduced-motion:no-preference){
   /* One slow turn. Nothing about the page depends on it and at 5% opacity it
@@ -2331,7 +2351,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   /* The section is one column here and the copy runs the full width, so the
      mark stops being ground behind a layout and starts being texture under
      paragraphs. Smaller, and further out. */
-  .about-yin{height:clamp(420px,70vh,700px);right:-26vw;opacity:.045}
+  .about-yin{height:clamp(420px,70vh,700px);right:-26vw;opacity:.05}
 }
 /* Top-aligned, not centred: with the second bio paragraph the copy wants to
    start level with the portrait's top and run down inside its height, rather
@@ -2945,10 +2965,13 @@ footer{position:relative;min-height:130px;padding:0 var(--gutter);display:flex;a
    year and drift with the length of either, which is not centred, it is just
    in the middle of the text. Absolute takes it out of that row entirely.
    Hidden under 900px, where the row closes up and there is no middle left. */
+/* Grey and small: this is a mark on a footer, not a logo. #778088 is the
+   footer's own text colour, so it sits at exactly the weight of the line it is
+   centred on rather than announcing itself. */
 .footer-yin{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  height:46px;aspect-ratio:96.092/128;width:auto;
-  color:var(--accent);opacity:.5;pointer-events:none;
+  height:28px;aspect-ratio:96.092/128;width:auto;
+  color:#778088;opacity:.85;pointer-events:none;
 }
 @media (max-width:900px){ .footer-yin{display:none} }
 footer strong{color:var(--accent);transition:color var(--accent-ease)}
@@ -4388,43 +4411,33 @@ body.modal-open{overflow:hidden}
   padding-bottom:var(--caption);
 }
 .cl-arrow svg{width:100%;height:auto;display:block}
-/* DRAWN, NOT SWEPT. Two layers of the same two paths: a dim RAIL that is always
-   there, so the arrow never blinks out of existence, and bright INK that draws
-   itself along the rail — shaft first, then the head — holds a beat, and
-   dissolves. Square everywhere; the caps are butt and the point is a mitre,
-   which are the SVG defaults and therefore not written on the element.
+/* A DIM WAVE, AND A BRIGHTER ONE FLOWING ALONG IT. The track is the shape and
+   never moves; the flow is the same path again in full accent, dashed, sliding
+   over it — so what travels is a highlight on a solid line rather than a dashed
+   line pretending to be solid. The head breathes on the same beat.
 
-   `pathLength="100"` is what makes the timings exact rather than nudged: it
-   redeclares each path as 100 units long whatever it really measures, so
-   `stroke-dasharray:100` is one dash the length of the path and the offset runs
-   100 (nothing drawn) to 0 (fully drawn) on both paths on the same scale. The
-   head's 34% start is a hair before the shaft's 36% finish, so the corner joins
-   instead of hesitating.
-
-   NOTHING POPS AT THE LOOP. The ink's opacity returns to 1 at 0%, but both
-   offsets return to 100 in the same frame — the moment it is opaque again is
-   the moment there is nothing drawn to see. */
-.cl-arrow-rail path{stroke:color-mix(in srgb,var(--accent) 26%,transparent)}
-.cl-arrow-ink{animation:cl-arrow-fade 2.1s linear infinite}
-.cl-arrow-ink path{stroke:var(--accent);stroke-dasharray:100}
-.cl-arrow-ink-shaft{animation:cl-arrow-shaft 2.1s cubic-bezier(.22,.61,.36,1) infinite}
-.cl-arrow-ink-head{animation:cl-arrow-head 2.1s cubic-bezier(.22,.61,.36,1) infinite}
-@keyframes cl-arrow-shaft{
-  0%{stroke-dashoffset:100}
-  36%,100%{stroke-dashoffset:0}
+   All three numbers here were tuned against the one that shipped first and were
+   the reason it read as a squiggle. `stroke-dasharray:9 13` is a period of 22
+   against a path about 30 long, so roughly ONE bright segment is on the wave at
+   a time — 7/11 put two and a half on it, which marches rather than glides.
+   1.7s rather than 1.15s. And linear, because a travelling dash on any other
+   curve visibly speeds up and slows down inside a single pass. */
+.cl-arrow-track{stroke:color-mix(in srgb,var(--accent) 30%,transparent)}
+.cl-arrow-flow{
+  stroke:var(--accent);stroke-dasharray:9 13;
+  animation:cl-arrow-flow 1.7s linear infinite;
 }
-@keyframes cl-arrow-head{
-  0%,34%{stroke-dashoffset:100}
-  56%,100%{stroke-dashoffset:0}
+.cl-arrow-head{
+  stroke:var(--accent);
+  animation:cl-arrow-nudge 1.7s ease-in-out infinite;
 }
-@keyframes cl-arrow-fade{
-  0%,70%{opacity:1}
-  90%,100%{opacity:0}
-}
+@keyframes cl-arrow-flow{to{stroke-dashoffset:-22}}
+@keyframes cl-arrow-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(1.4px)}}
 @media(prefers-reduced-motion:reduce){
-  /* Resolved rather than running: the ink sits fully drawn on the rail. */
-  .cl-arrow-ink{animation:none;opacity:1}
-  .cl-arrow-ink path{animation:none;stroke-dashoffset:0}
+  /* Still an arrow, still waved, just not moving. The dashes go with the
+     animation — a static dashed overlay on a solid track is only noise. */
+  .cl-arrow-flow{animation:none;stroke-dasharray:none}
+  .cl-arrow-head{animation:none}
 }
 @media (max-width:700px){
   /* The section is one column here, so the chain has the full width. Only the

@@ -3154,23 +3154,24 @@ const MediaBus = (() => {
     if (origin) origin.hidden = !originFilled || !!videosPanel?.hidden;
   };
 
-  /* SQUARE CUT, and drawn rather than swept (Dex, 2026-08-25 — third pass).
-     Butt caps and a mitred point: no rounding anywhere, so it reads as drafted
-     rather than doodled. Two layers of the same two paths — a dim RAIL that is
-     always there, and bright INK that draws itself along it, shaft first and
-     then the head, holds, and dissolves. The keyframes are in styles.css and
-     are exact rather than eyeballed: `pathLength="100"` puts every offset on a
-     0-100 scale whatever the real path length is.
-     Two shapes came before this one and both are gone: a waved shaft (read as a
-     squiggle at 46px) and a rounded shaft with a travelling segment. */
-  const SHAFT = 'M2 12H30';
-  const HEAD = 'M28.5 4.5L37 12l-8.5 7.5';
-  const ARROW = '<svg viewBox="0 0 44 24" fill="none" aria-hidden="true" focusable="false">'
-    + `<g class="cl-arrow-rail"><path d="${SHAFT}" stroke-width="5"/><path d="${HEAD}" stroke-width="5"/></g>`
-    + '<g class="cl-arrow-ink">'
-    + `<path class="cl-arrow-ink-shaft" d="${SHAFT}" stroke-width="5" pathLength="100"/>`
-    + `<path class="cl-arrow-ink-head" d="${HEAD}" stroke-width="5" pathLength="100"/>`
-    + '</g></svg>';
+  /* THE WAVED ONE, which is the one that stays (Dex, 2026-08-25 — fourth pass,
+     after a square drawn-on version was worse). A dim wave is always there and
+     a brighter dash flows along it, with the head breathing on the same beat.
+
+     THE GEOMETRY IS THE FIRST VERSION'S, UNCHANGED — three humps of nine, the
+     wave ending exactly where the head begins. Widening the humps to two long
+     ones was tried and is worse: the second swoop runs into the chevron and the
+     whole thing reads as a tangle rather than an arrow. What changed is the
+     WEIGHT and the PACE: stroke 4.5 rather than 6, amplitude a touch shallower,
+     and the flow at 1.7s rather than 1.15s.
+
+     The viewBox units are the drawing's own; CSS sizes and colours it. */
+  const WAVE = 'M3 13q4.5-6 9 0t9 0t9 0';
+  const ARROW = '<svg viewBox="0 0 46 26" fill="none" aria-hidden="true" focusable="false">'
+    + `<path class="cl-arrow-track" d="${WAVE}" stroke-width="4.5" stroke-linecap="round"/>`
+    + `<path class="cl-arrow-flow" d="${WAVE}" stroke-width="4.5" stroke-linecap="round"/>`
+    + '<path class="cl-arrow-head" d="M30 5.5L42 13l-12 7.5" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>';
   const arrowNode = () => {
     const span = document.createElement('span');
     span.className = 'cl-arrow';
