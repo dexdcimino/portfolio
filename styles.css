@@ -1322,16 +1322,20 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 /* The grid is the picks grid untouched, so the column count and both of its
    breakpoints are inherited rather than restated - ten cards simply fill five
    columns twice, three twice-and-a-bit, two five times. */
-/* Centred both ways: the card is a two-line composition, not a header over a
-   footer, so the text and the votes read as one centred block. Shorter than
-   16/9 was, which is what pushed the type ramp below down - the vote buttons
-   grew at the same time and both have to fit the shorter box. */
+/* The card is a small composition, not a header over a footer: space-evenly
+   rather than centred, so the free height is shared ABOVE the line, BETWEEN
+   the two, and BELOW the buttons instead of collecting under them. The buttons
+   end up centred in the space they are given, and the split re-balances on its
+   own for the two labels that wrap to a second line - a fixed gap large enough
+   to look right on one line overflows those.
+   Solid #181d23, the AI Lab rows' own fill, so the two families of card read as
+   the same object at different sizes. */
 .pk-pref{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;
   aspect-ratio:1.95;padding:10px 12px;min-width:0;text-align:center;
   container-type:inline-size;
-  border:var(--stroke) solid rgba(255,255,255,.1);border-radius:var(--radius-cover);
-  background:linear-gradient(150deg,rgba(32,38,44,.5),rgba(12,15,18,.5));
+  border:var(--stroke) solid rgba(255,255,255,.1);border-radius:26px;
+  background:#181d23;
   transition:border-color var(--accent-ease),transform .25s ease,box-shadow var(--accent-ease);
 }
 /* The same hairline-to-accent lift the covers use, so the tab reads as part of
@@ -1343,20 +1347,25 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    from 10.5cqw once the card lost height and the buttons gained it: the two
    longest labels wrap to a second line, and both lines plus the button row now
    have to live inside the shorter box. */
-.pk-pref-line{margin:0;font-size:clamp(11px,9cqw,20px);font-weight:800;
-  line-height:1.14;letter-spacing:-.01em;color:var(--text)}
+.pk-pref-line{margin:0;font-size:clamp(11px,8.4cqw,19px);font-weight:800;
+  line-height:1.12;letter-spacing:-.01em;color:var(--text)}
 .pk-pref-gt{color:var(--accent);transition:color var(--accent-ease)}
-/* Centred under the line, poop then fire - the disagree side sits left so the
-   pair reads the same direction as the take above it. DOM order, not CSS
-   `order`, so the keyboard walks them the way they look. */
-.pk-pref-votes{display:flex;align-items:center;justify-content:center;gap:10px}
+/* Centred under the line, fire then poop. DOM order, not CSS `order`, so the
+   keyboard walks them the way they look. */
+/* The margin WEIGHTS one gap. space-evenly alone splits the free height into
+   three equal parts, which left the buttons reading as tucked under the line;
+   a top margin is the only way to make the middle gap larger than the outer
+   two while the outer two stay flexible - and flexible is the point, because
+   the two labels that wrap to a second line have barely any free height to
+   give and a fixed gap would overflow them. */
+.pk-pref-votes{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px}
 /* Each vote is a real button now rather than an icon with a number beside it:
    its own border, fill and radius, so it reads as something to press. The
    chosen one takes the accent on all three at once. */
 .pk-vote{
   display:inline-flex;align-items:center;justify-content:center;gap:7px;
   padding:5px 11px;
-  border:var(--stroke) solid rgba(255,255,255,.14);border-radius:9px;
+  border:var(--stroke) solid rgba(255,255,255,.14);border-radius:14px;
   background:rgba(255,255,255,.03);cursor:pointer;
   font:inherit;color:var(--icon-idle);
   transition:color var(--accent-ease),border-color var(--accent-ease),background .18s ease;
