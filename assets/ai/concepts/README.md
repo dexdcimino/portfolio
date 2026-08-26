@@ -13,11 +13,15 @@ assets/derived/ai/concepts/<slug>-*.avif|webp   generated, never hand-made
 
 ## The nine here now
 
-Real concept sheets, all of them **1536x1024**, which is why the frame is 3:2
-and letterboxes nothing. They arrived in one drop and were picked from a larger
-set on one stated ground: every one of these is exactly 3:2, so the tab has a
-single shape. Four others in that drop were not 3:2 or were weaker as a hero
-image and were left out.
+Nine sheets, in the order Dex numbered them: Frostbane, Cinderborn, Gulper,
+Mossback, Spineling, Dread Knight, Meltdown, Recess, Quiverkin.
+
+**Seven are 1536x1024** and fill the 3:2 frame edge to edge. **Two are not** —
+Cinderborn is 1403x1121 (taller) and Mossback is 1659x948 (wider) — and both are
+fitted inside the frame whole. That is the fixed-frame-plus-`contain` pair
+earning its keep rather than a compromise: the frame cannot change shape per
+piece without making the plate, the download and the strip jump on every arrow
+press, and nothing here is worth cropping to avoid two thin bars.
 
 ## Adding or replacing one
 
@@ -33,10 +37,9 @@ Nothing counts the concepts by hand, so a tenth needs no CSS or JS edit.
 ## Any shape is fine
 
 The frame is a fixed **3:2** box and the piece is fitted INSIDE it
-(`object-fit: contain`). Today's nine are all exactly 3:2, so nothing
-letterboxes at all — `contain` is there for the TENTH, at whatever shape it
-turns up, which lands whole instead of cropped and without this frame having to
-change.
+(`object-fit: contain`). 3:2 because that is what most of the art is; `contain`
+because some of it is not, and an odd shape has to land whole rather than
+cropped or forcing the frame to move.
 
 The frame does not change shape per piece, and that is deliberate: a stage that
 resized itself would make the plate, the download and the thumbnail strip jump
@@ -44,5 +47,4 @@ on every arrow press. It is the same rule the clips frame and the Work
 overlay's hero are held to — see CLAUDE.md.
 
 The `concept` slot shares the wallpaper ladder (1920/1280/900/600/400/240), and
-the ladder skips any rung wider than the master, so these 1536-wide pieces top
-out at 1280.
+the ladder skips any rung wider than the master, so these top out at 1280.

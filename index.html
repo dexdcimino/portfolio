@@ -1315,10 +1315,14 @@
              the piece is fitted into it rather than cropped to it, because a
              concept is whatever shape it came out of the model and nothing here
              gets to decide that. See the .cn block in styles.css.
-             Nine real concept sheets now, all of them 1536x1024, which is why
-             the frame is 3:2 and letterboxes nothing. Replacing one is: drop the
-             master in assets/ai/concepts/, change data-title, data-file and the
-             src and alt on its directive, commit. Nothing counts them. -->
+             Nine concept sheets, in the order Dex numbered them. SEVEN are
+             1536x1024 and fill the 3:2 frame exactly; two are not (Cinderborn is
+             taller, Mossback wider) and are fitted inside it whole rather than
+             cropped. That is the pair working as intended — a fixed frame so
+             nothing jumps between pieces, and `contain` so an odd shape still
+             lands entire. Replacing one is: drop the master in
+             assets/ai/concepts/, change data-title, data-file and the src and
+             alt on its directive, commit. Nothing counts them. -->
         <div class="ai-panel" id="ai-panel-concepts" role="tabpanel" aria-labelledby="ai-tab-concepts" hidden>
           <div class="wp cn" id="concepts">
             <div class="wp-stage">
@@ -1338,6 +1342,120 @@
 
             <!-- The source set. Hidden; script.js moves these into the frame. -->
             <div class="wp-src" hidden>
+              <figure class="wp-item" data-title="Frostbane" data-file="assets/ai/concepts/frostbane.png">
+                <!-- img src="assets/ai/concepts/frostbane.png" slot="concept" alt="Frostbane — a white-maned armoured brute with a huge teal-runed axe, shown with its back view and shield" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/frostbane-1280.avif?v=1e71efac 1280w,
+                                                    assets/derived/ai/concepts/frostbane-900.avif?v=1e71efac 900w,
+                                                    assets/derived/ai/concepts/frostbane-600.avif?v=1e71efac 600w,
+                                                    assets/derived/ai/concepts/frostbane-400.avif?v=1e71efac 400w,
+                                                    assets/derived/ai/concepts/frostbane-240.avif?v=1e71efac 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/frostbane-1280.webp?v=1e71efac 1280w,
+                                                    assets/derived/ai/concepts/frostbane-900.webp?v=1e71efac 900w,
+                                                    assets/derived/ai/concepts/frostbane-600.webp?v=1e71efac 600w,
+                                                    assets/derived/ai/concepts/frostbane-400.webp?v=1e71efac 400w,
+                                                    assets/derived/ai/concepts/frostbane-240.webp?v=1e71efac 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/frostbane.png" alt="Frostbane — a white-maned armoured brute with a huge teal-runed axe, shown with its back view and shield" width="1536" height="1024" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Cinderborn" data-file="assets/ai/concepts/cinderborn.png">
+                <!-- img src="assets/ai/concepts/cinderborn.png" slot="concept" alt="Cinderborn — a demon of blackened rock veined with fire and twin flame horns, shown with a back view and two head studies" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/cinderborn-1280.avif?v=267211d9 1280w,
+                                                    assets/derived/ai/concepts/cinderborn-900.avif?v=267211d9 900w,
+                                                    assets/derived/ai/concepts/cinderborn-600.avif?v=267211d9 600w,
+                                                    assets/derived/ai/concepts/cinderborn-400.avif?v=267211d9 400w,
+                                                    assets/derived/ai/concepts/cinderborn-240.avif?v=267211d9 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/cinderborn-1280.webp?v=267211d9 1280w,
+                                                    assets/derived/ai/concepts/cinderborn-900.webp?v=267211d9 900w,
+                                                    assets/derived/ai/concepts/cinderborn-600.webp?v=267211d9 600w,
+                                                    assets/derived/ai/concepts/cinderborn-400.webp?v=267211d9 400w,
+                                                    assets/derived/ai/concepts/cinderborn-240.webp?v=267211d9 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/cinderborn.png" alt="Cinderborn — a demon of blackened rock veined with fire and twin flame horns, shown with a back view and two head studies" width="1403" height="1121" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Gulper" data-file="assets/ai/concepts/gulper.png">
+                <!-- img src="assets/ai/concepts/gulper.png" slot="concept" alt="Gulper — a purple and orange fanged brute with alternate poses, a roaring head study and a curled form" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/gulper-1280.avif?v=446aea8f 1280w,
+                                                    assets/derived/ai/concepts/gulper-900.avif?v=446aea8f 900w,
+                                                    assets/derived/ai/concepts/gulper-600.avif?v=446aea8f 600w,
+                                                    assets/derived/ai/concepts/gulper-400.avif?v=446aea8f 400w,
+                                                    assets/derived/ai/concepts/gulper-240.avif?v=446aea8f 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/gulper-1280.webp?v=446aea8f 1280w,
+                                                    assets/derived/ai/concepts/gulper-900.webp?v=446aea8f 900w,
+                                                    assets/derived/ai/concepts/gulper-600.webp?v=446aea8f 600w,
+                                                    assets/derived/ai/concepts/gulper-400.webp?v=446aea8f 400w,
+                                                    assets/derived/ai/concepts/gulper-240.webp?v=446aea8f 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/gulper.png" alt="Gulper — a purple and orange fanged brute with alternate poses, a roaring head study and a curled form" width="1536" height="1024" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Mossback" data-file="assets/ai/concepts/mossback.png">
+                <!-- img src="assets/ai/concepts/mossback.png" slot="concept" alt="Mossback — a heavy green tusked brute in bone armour with a curved blade, shown with a back view, a horned head study and its sword" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/mossback-1280.avif?v=8acace2b 1280w,
+                                                    assets/derived/ai/concepts/mossback-900.avif?v=8acace2b 900w,
+                                                    assets/derived/ai/concepts/mossback-600.avif?v=8acace2b 600w,
+                                                    assets/derived/ai/concepts/mossback-400.avif?v=8acace2b 400w,
+                                                    assets/derived/ai/concepts/mossback-240.avif?v=8acace2b 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/mossback-1280.webp?v=8acace2b 1280w,
+                                                    assets/derived/ai/concepts/mossback-900.webp?v=8acace2b 900w,
+                                                    assets/derived/ai/concepts/mossback-600.webp?v=8acace2b 600w,
+                                                    assets/derived/ai/concepts/mossback-400.webp?v=8acace2b 400w,
+                                                    assets/derived/ai/concepts/mossback-240.webp?v=8acace2b 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/mossback.png" alt="Mossback — a heavy green tusked brute in bone armour with a curved blade, shown with a back view, a horned head study and its sword" width="1659" height="948" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Spineling" data-file="assets/ai/concepts/spineling.png">
+                <!-- img src="assets/ai/concepts/spineling.png" slot="concept" alt="Spineling — an orange, purple-spiked creature in three forms over turquoise water, with armour tokens and a plasma lance" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/spineling-1280.avif?v=35b8211e 1280w,
+                                                    assets/derived/ai/concepts/spineling-900.avif?v=35b8211e 900w,
+                                                    assets/derived/ai/concepts/spineling-600.avif?v=35b8211e 600w,
+                                                    assets/derived/ai/concepts/spineling-400.avif?v=35b8211e 400w,
+                                                    assets/derived/ai/concepts/spineling-240.avif?v=35b8211e 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/spineling-1280.webp?v=35b8211e 1280w,
+                                                    assets/derived/ai/concepts/spineling-900.webp?v=35b8211e 900w,
+                                                    assets/derived/ai/concepts/spineling-600.webp?v=35b8211e 600w,
+                                                    assets/derived/ai/concepts/spineling-400.webp?v=35b8211e 400w,
+                                                    assets/derived/ai/concepts/spineling-240.webp?v=35b8211e 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/spineling.png" alt="Spineling — an orange, purple-spiked creature in three forms over turquoise water, with armour tokens and a plasma lance" width="1536" height="1024" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure class="wp-item" data-title="Dread Knight" data-file="assets/ai/concepts/dread-knight.png">
+                <!-- img src="assets/ai/concepts/dread-knight.png" slot="concept" alt="Dread Knight — a jagged dark-armoured warrior with a horned helm, shown with a back view, helmet study and two skull sprites" class="wp-img" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/ai/concepts/dread-knight-1280.avif?v=632c4011 1280w,
+                                                    assets/derived/ai/concepts/dread-knight-900.avif?v=632c4011 900w,
+                                                    assets/derived/ai/concepts/dread-knight-600.avif?v=632c4011 600w,
+                                                    assets/derived/ai/concepts/dread-knight-400.avif?v=632c4011 400w,
+                                                    assets/derived/ai/concepts/dread-knight-240.avif?v=632c4011 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <source type="image/webp" srcset="assets/derived/ai/concepts/dread-knight-1280.webp?v=632c4011 1280w,
+                                                    assets/derived/ai/concepts/dread-knight-900.webp?v=632c4011 900w,
+                                                    assets/derived/ai/concepts/dread-knight-600.webp?v=632c4011 600w,
+                                                    assets/derived/ai/concepts/dread-knight-400.webp?v=632c4011 400w,
+                                                    assets/derived/ai/concepts/dread-knight-240.webp?v=632c4011 240w"
+                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+                  <img class="wp-img" src="assets/ai/concepts/dread-knight.png" alt="Dread Knight — a jagged dark-armoured warrior with a horned helm, shown with a back view, helmet study and two skull sprites" width="1536" height="1024" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
               <figure class="wp-item" data-title="Meltdown" data-file="assets/ai/concepts/meltdown.png">
                 <!-- img src="assets/ai/concepts/meltdown.png" slot="concept" alt="Meltdown — a pitch sheet: three hazmat hero classes, improvised weapons, a four-stage mutant growth chain, and a burning reactor town" class="wp-img" -->
                 <picture>
@@ -1373,120 +1491,6 @@
                                                     assets/derived/ai/concepts/recess-240.webp?v=861542ea 240w"
                           sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
                   <img class="wp-img" src="assets/ai/concepts/recess.png" alt="Recess — a pitch sheet: four schoolyard squads, homemade weapons, buildable forts and classroom arenas" width="1536" height="1024" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="wp-item" data-title="Backpack Buddy" data-file="assets/ai/concepts/backpack-buddy.png">
-                <!-- img src="assets/ai/concepts/backpack-buddy.png" slot="concept" alt="Backpack Buddy — a boy and the blue creature riding his pack, with ability panels for a shield bubble, an energy whip and a grapple" class="wp-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/concepts/backpack-buddy-1280.avif?v=cd741c0f 1280w,
-                                                    assets/derived/ai/concepts/backpack-buddy-900.avif?v=cd741c0f 900w,
-                                                    assets/derived/ai/concepts/backpack-buddy-600.avif?v=cd741c0f 600w,
-                                                    assets/derived/ai/concepts/backpack-buddy-400.avif?v=cd741c0f 400w,
-                                                    assets/derived/ai/concepts/backpack-buddy-240.avif?v=cd741c0f 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/concepts/backpack-buddy-1280.webp?v=cd741c0f 1280w,
-                                                    assets/derived/ai/concepts/backpack-buddy-900.webp?v=cd741c0f 900w,
-                                                    assets/derived/ai/concepts/backpack-buddy-600.webp?v=cd741c0f 600w,
-                                                    assets/derived/ai/concepts/backpack-buddy-400.webp?v=cd741c0f 400w,
-                                                    assets/derived/ai/concepts/backpack-buddy-240.webp?v=cd741c0f 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="wp-img" src="assets/ai/concepts/backpack-buddy.png" alt="Backpack Buddy — a boy and the blue creature riding his pack, with ability panels for a shield bubble, an energy whip and a grapple" width="1536" height="1024" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="wp-item" data-title="Beast Encounter" data-file="assets/ai/concepts/beast-encounter.png">
-                <!-- img src="assets/ai/concepts/beast-encounter.png" slot="concept" alt="Beast Encounter — the same boy and creature facing a huge grey armoured beast, with ability panels and a three-stage growth strip" class="wp-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/concepts/beast-encounter-1280.avif?v=6de0bcc6 1280w,
-                                                    assets/derived/ai/concepts/beast-encounter-900.avif?v=6de0bcc6 900w,
-                                                    assets/derived/ai/concepts/beast-encounter-600.avif?v=6de0bcc6 600w,
-                                                    assets/derived/ai/concepts/beast-encounter-400.avif?v=6de0bcc6 400w,
-                                                    assets/derived/ai/concepts/beast-encounter-240.avif?v=6de0bcc6 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/concepts/beast-encounter-1280.webp?v=6de0bcc6 1280w,
-                                                    assets/derived/ai/concepts/beast-encounter-900.webp?v=6de0bcc6 900w,
-                                                    assets/derived/ai/concepts/beast-encounter-600.webp?v=6de0bcc6 600w,
-                                                    assets/derived/ai/concepts/beast-encounter-400.webp?v=6de0bcc6 400w,
-                                                    assets/derived/ai/concepts/beast-encounter-240.webp?v=6de0bcc6 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="wp-img" src="assets/ai/concepts/beast-encounter.png" alt="Beast Encounter — the same boy and creature facing a huge grey armoured beast, with ability panels and a three-stage growth strip" width="1536" height="1024" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="wp-item" data-title="Spineling" data-file="assets/ai/concepts/spineling.png">
-                <!-- img src="assets/ai/concepts/spineling.png" slot="concept" alt="Spineling — an orange, purple-spiked creature in three forms over turquoise water, with armour tokens and a plasma lance" class="wp-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/concepts/spineling-1280.avif?v=35b8211e 1280w,
-                                                    assets/derived/ai/concepts/spineling-900.avif?v=35b8211e 900w,
-                                                    assets/derived/ai/concepts/spineling-600.avif?v=35b8211e 600w,
-                                                    assets/derived/ai/concepts/spineling-400.avif?v=35b8211e 400w,
-                                                    assets/derived/ai/concepts/spineling-240.avif?v=35b8211e 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/concepts/spineling-1280.webp?v=35b8211e 1280w,
-                                                    assets/derived/ai/concepts/spineling-900.webp?v=35b8211e 900w,
-                                                    assets/derived/ai/concepts/spineling-600.webp?v=35b8211e 600w,
-                                                    assets/derived/ai/concepts/spineling-400.webp?v=35b8211e 400w,
-                                                    assets/derived/ai/concepts/spineling-240.webp?v=35b8211e 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="wp-img" src="assets/ai/concepts/spineling.png" alt="Spineling — an orange, purple-spiked creature in three forms over turquoise water, with armour tokens and a plasma lance" width="1536" height="1024" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="wp-item" data-title="Gulper" data-file="assets/ai/concepts/gulper.png">
-                <!-- img src="assets/ai/concepts/gulper.png" slot="concept" alt="Gulper — a purple and orange fanged brute with alternate poses, a roaring head study and a curled form" class="wp-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/concepts/gulper-1280.avif?v=446aea8f 1280w,
-                                                    assets/derived/ai/concepts/gulper-900.avif?v=446aea8f 900w,
-                                                    assets/derived/ai/concepts/gulper-600.avif?v=446aea8f 600w,
-                                                    assets/derived/ai/concepts/gulper-400.avif?v=446aea8f 400w,
-                                                    assets/derived/ai/concepts/gulper-240.avif?v=446aea8f 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/concepts/gulper-1280.webp?v=446aea8f 1280w,
-                                                    assets/derived/ai/concepts/gulper-900.webp?v=446aea8f 900w,
-                                                    assets/derived/ai/concepts/gulper-600.webp?v=446aea8f 600w,
-                                                    assets/derived/ai/concepts/gulper-400.webp?v=446aea8f 400w,
-                                                    assets/derived/ai/concepts/gulper-240.webp?v=446aea8f 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="wp-img" src="assets/ai/concepts/gulper.png" alt="Gulper — a purple and orange fanged brute with alternate poses, a roaring head study and a curled form" width="1536" height="1024" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="wp-item" data-title="Frostbane" data-file="assets/ai/concepts/frostbane.png">
-                <!-- img src="assets/ai/concepts/frostbane.png" slot="concept" alt="Frostbane — a white-maned armoured brute with a huge teal-runed axe, shown with its back view and shield" class="wp-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/concepts/frostbane-1280.avif?v=1e71efac 1280w,
-                                                    assets/derived/ai/concepts/frostbane-900.avif?v=1e71efac 900w,
-                                                    assets/derived/ai/concepts/frostbane-600.avif?v=1e71efac 600w,
-                                                    assets/derived/ai/concepts/frostbane-400.avif?v=1e71efac 400w,
-                                                    assets/derived/ai/concepts/frostbane-240.avif?v=1e71efac 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/concepts/frostbane-1280.webp?v=1e71efac 1280w,
-                                                    assets/derived/ai/concepts/frostbane-900.webp?v=1e71efac 900w,
-                                                    assets/derived/ai/concepts/frostbane-600.webp?v=1e71efac 600w,
-                                                    assets/derived/ai/concepts/frostbane-400.webp?v=1e71efac 400w,
-                                                    assets/derived/ai/concepts/frostbane-240.webp?v=1e71efac 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="wp-img" src="assets/ai/concepts/frostbane.png" alt="Frostbane — a white-maned armoured brute with a huge teal-runed axe, shown with its back view and shield" width="1536" height="1024" loading="lazy" decoding="async">
-                </picture>
-                <!-- /img -->
-              </figure>
-              <figure class="wp-item" data-title="Dread Knight" data-file="assets/ai/concepts/dread-knight.png">
-                <!-- img src="assets/ai/concepts/dread-knight.png" slot="concept" alt="Dread Knight — a jagged dark-armoured warrior with a horned helm, shown with a back view, helmet study and two skull sprites" class="wp-img" -->
-                <picture>
-                  <source type="image/avif" srcset="assets/derived/ai/concepts/dread-knight-1280.avif?v=632c4011 1280w,
-                                                    assets/derived/ai/concepts/dread-knight-900.avif?v=632c4011 900w,
-                                                    assets/derived/ai/concepts/dread-knight-600.avif?v=632c4011 600w,
-                                                    assets/derived/ai/concepts/dread-knight-400.avif?v=632c4011 400w,
-                                                    assets/derived/ai/concepts/dread-knight-240.avif?v=632c4011 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <source type="image/webp" srcset="assets/derived/ai/concepts/dread-knight-1280.webp?v=632c4011 1280w,
-                                                    assets/derived/ai/concepts/dread-knight-900.webp?v=632c4011 900w,
-                                                    assets/derived/ai/concepts/dread-knight-600.webp?v=632c4011 600w,
-                                                    assets/derived/ai/concepts/dread-knight-400.webp?v=632c4011 400w,
-                                                    assets/derived/ai/concepts/dread-knight-240.webp?v=632c4011 240w"
-                          sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
-                  <img class="wp-img" src="assets/ai/concepts/dread-knight.png" alt="Dread Knight — a jagged dark-armoured warrior with a horned helm, shown with a back view, helmet study and two skull sprites" width="1536" height="1024" loading="lazy" decoding="async">
                 </picture>
                 <!-- /img -->
               </figure>
