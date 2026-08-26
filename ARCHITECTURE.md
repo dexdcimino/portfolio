@@ -384,7 +384,14 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
   MediaBus registration for the BLIPS (short fx are not a player and must
-  not pause the song bar) — but the MUSIC is a player and registers:
+  not pause the song bar). **The bomb is the one fx with a shape worth
+  knowing**: one noise buffer split into a highpassed CRACK (0.14s) and a
+  lowpassed RUMBLE sweeping 1800→90Hz (0.85s), plus two sine drops for the
+  body. Rendered offline it peaks about 4.6x the letter blip with ~3x its
+  high-band energy; the first version was a 0.3s lowpassed knock that
+  measured x1.68 with LESS high content than the blip it landed on, and was
+  inaudible in practice. An armed hit plays the explosion INSTEAD of the
+  letter blip, not on top of it — but the MUSIC is a player and registers:
   Juhani Junkala's Title Screen chiptune (CC0 —
   `assets/audio/breakout-loop.mp3`, row in `assets/audio/CREDITS.md`, the
   one audio credits table), fetched on first start and looped as a WebAudio
@@ -455,9 +462,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     kept only as a last resort. In practice it flips left on most screens:
     measured at 1440 there are 81px between the flags and the window edge
     against a 104px "Born Colorado". The `aria-label` carries the same words,
-    so the meaning does not depend on a hover. Hidden while Breakout runs
-    (`.bb-ui.bb-playing ~ .about-flags`): `.bb-stack` claims the same strip
-    at `left:100%`. Sources are `assets/icons/flags/*.svg`, picked up by
+    so the meaning does not depend on a hover. They STAY UP while Breakout
+    runs (2026-08-26). They used to hide off `.bb-ui.bb-playing ~
+    .about-flags` because `.bb-stack` is also `left:100%` — same column,
+    different strip: measured at every size the toy is offered (it gates
+    itself off below about 1500x900) the flags are y 110-224 and the stack
+    y 368-524, and the overlap is zero. Sources are `assets/icons/flags/*.svg`, picked up by
     `bake_icons.py` like any other mask - the flag detail is cut into one
     path, so a single-colour mask keeps the stars, stripes and bands
 - Root wrapper folders `surveyor/ chomp/ arena1/ stickland/` — thin pages

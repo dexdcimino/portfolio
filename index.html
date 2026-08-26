@@ -1690,9 +1690,11 @@
         </div>
         <!-- Where he is from. Out in the section's own right padding, not the
              copy column's top-right pocket - that pocket is ~55px and the
-             nowrap h2 runs into it. AFTER .bb-ui in the DOM on purpose: the
-             stylesheet hides these while the game runs with a sibling
-             selector off .bb-ui.bb-playing. -->
+             nowrap h2 runs into it. They stay up while the breakout toy
+             runs; the stylesheet used to hide them off a .bb-ui.bb-playing
+             sibling selector and no longer does, which is the only reason
+             they sit after .bb-ui in the DOM. Nothing depends on that
+             order now. -->
         <div class="about-flags">
           <span class="icon about-flag" data-icon="us_flag" role="img" aria-label="US Based" data-tip="US Based" data-tip-pos="right"></span>
           <span class="icon about-flag" data-icon="co_flag" role="img" aria-label="Born Colorado" data-tip="Born Colorado" data-tip-pos="right"></span>

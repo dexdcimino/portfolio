@@ -500,30 +500,68 @@ function createAudio() {
     // Bomb pickup: a bright little two-note "got it".
     arm: () => { blip(660, 0.06, { peak: 0.35 });
       setTimeout(() => blip(990, 0.08, { peak: 0.35 }), 70); },
-    /* The bomb: a filtered noise burst over a pitched thump — synthesised
-     * like everything else, through the same fx bus. */
+    /* The bomb. Synthesised like everything else, through the same fx bus.
+     *
+     * THE FIRST VERSION WAS A THUD AND DEX COULD NOT HEAR IT (2026-08-26).
+     * Rendered offline against a letter blip it measured peak x1.68, a 100ms
+     * tail, and — the actual fault — LESS high-frequency energy than the blip
+     * it lands on top of: 900Hz lowpass over 0.3s is a dull knock, and a dull
+     * knock under a music bed at the same instant as a bright tick is not an
+     * explosion, it is nothing.
+     *
+     * So it is three parts now, and the CRACK is the one that matters: the
+     * same noise buffer taken through a highpass for 120ms is what the ear
+     * reads as a detonation. Under it a lowpass sweeping 1800 -> 90Hz gives
+     * the rumble, and two detuned sine drops give the body a pitch. Nearly a
+     * second long, against 0.3.
+     *
+     * One buffer, three chains: noise is noise, and generating it once and
+     * filtering it twice is both cheaper and more coherent than two sources.
+     *
+     * The levels are set for HEADROOM, not for maximum: rendered offline it
+     * peaks about 0.65 against the letter blip's 0.145, which leaves room for
+     * the music bed underneath without the destination clipping. An earlier
+     * pass at 0.85 was louder and measurably better on every axis except that
+     * one, and clipping is not a trade worth making. */
     explosion: () => {
       try {
         if (!settings.isOn('master') || !settings.isOn('fx')) return;
         const c = ensure();
         const t = c.currentTime;
-        const len = Math.floor(c.sampleRate * 0.3);
+        const len = Math.floor(c.sampleRate * 0.9);
         const buf = c.createBuffer(1, len, c.sampleRate);
         const d = buf.getChannelData(0);
-        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+        // 1.6, not 2: a squarer decay keeps energy in the tail so the rumble
+        // outlives the crack instead of both ending together.
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.6);
         const src = c.createBufferSource();
         src.buffer = buf;
+
+        // the rumble
         const lp = c.createBiquadFilter();
         lp.type = 'lowpass';
-        lp.frequency.setValueAtTime(900, t);
-        lp.frequency.exponentialRampToValueAtTime(120, t + 0.28);
-        const g = c.createGain();
-        g.gain.setValueAtTime(0.9, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-        src.connect(lp).connect(g).connect(graph.fx);
+        lp.frequency.setValueAtTime(1800, t);
+        lp.frequency.exponentialRampToValueAtTime(90, t + 0.7);
+        const body = c.createGain();
+        body.gain.setValueAtTime(0.85, t);
+        body.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+
+        // the crack — short, bright, and the reason this reads as a bomb
+        const hp = c.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.setValueAtTime(2400, t);
+        const crack = c.createGain();
+        crack.gain.setValueAtTime(0.8, t);
+        crack.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+        src.connect(lp).connect(body).connect(graph.fx);
+        src.connect(hp).connect(crack).connect(graph.fx);
         src.start(t);
       } catch { }
-      blip(90, 0.25, { type: 'sine', peak: 0.7, slideTo: 45 });
+      // the body: two sine drops, detuned against each other so the pitch
+      // slides rather than beeps
+      blip(130, 0.45, { type: 'sine', peak: 0.72, slideTo: 34 });
+      blip(78, 0.55, { type: 'sine', peak: 0.45, slideTo: 26 });
     },
     running: () => (ctx ? ctx.state : 'none'),
     // Suspended between games, not closed: the popover panel and the next
@@ -847,8 +885,13 @@ export async function start({ onStop, onPauseChange } = {}) {
         om: (Math.random() - 0.5) * 7,
         alpha: 1,
       });
-      audio.letter(l.w);
+      /* An armed hit is an explosion, not a tap. The letter blip used to fire
+       * first and then the bomb went off in the same millisecond, so the one
+       * sound that should own the moment arrived underneath a bright tick.
+       * Exclusive: one event, one sound. The letters the blast takes are
+       * covered by the explosion too — none of them blips. */
       if (b.armed) { b.armed = false; explode(l.x + l.w / 2, l.y + l.h / 2); }
+      else audio.letter(l.w);
       maybeDrop(l);
       // Reflect off the shallower penetration axis and push out of it.
       const ox = b.r + l.w / 2 - Math.abs(b.x - (l.x + l.w / 2));

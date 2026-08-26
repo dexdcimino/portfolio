@@ -3084,10 +3084,13 @@ footer small{margin-left:auto}
    ========================================================================== */
 .about-flags{position:absolute;top:0;left:100%;margin-left:22px;display:grid;gap:10px}
 .about-flag{width:52px;height:52px;color:var(--accent);transition:color var(--accent-ease)}
-/* Breakout's in-game control stack claims this exact strip (.bb-stack, also
-   left:100%), so the flags stand down while the game runs - the same
-   treatment .bb-ui already gets. */
-.bb-ui.bb-playing ~ .about-flags{visibility:hidden}
+/* THE FLAGS STAY UP WHILE THE GAME RUNS (Dex, 2026-08-26). They used to hide,
+   on the grounds that the in-game control stack "claims this exact strip"
+   (.bb-stack is also left:100%). That is true of the COLUMN and false of the
+   strip: measured at every size the toy is even offered — it gates itself off
+   below about 1500x900 — the flags sit at y 110-224 and the stack at y 368-524,
+   about 144px apart, and the overlap is zero at all of them. So the rule was
+   costing two visible marks to avoid a collision that does not happen. */
 /* THE GUTTER IS THE CEILING ON THESE, and at 52px they only clear it above
    1100 where --gutter is 123-161px. Under that it drops to
    clamp(28px,5vw,60px) - 55px at 1100, 45px at 900, 38px at 761 - so the
