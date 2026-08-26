@@ -335,11 +335,26 @@ function roundedRect(path, x, y, w, h, r) {
 const MIN_VY = 0.25;         // min |vy| as a fraction of speed: no horizontal skims
 const STEP = 4;              // px of ball travel per collision substep
 const MIN_TRAVEL = 56;       // px of clear air the ball needs under the bio
-const SECOND_BALL_AT = 0.3;  // progress where the second ball joins (max two)
+const SECOND_BALL_AT = 0.15; // progress where the second ball joins (max two).
+                             // 0.3 for one round; the back half of a run was
+                             // already the easy half by the time it arrived
+                             // (Dex, 2026-08-26)
 const DROP_EVERY = 0.05;     // a bomb drop falls every 5% of letters cleared
 const DROP_SPEED = 130;      // px/s — readable, catchable
-const DROP_SIZE = 13;        // the flashing rounded square's edge
+const DROP_SIZE = 13;        // the flashing drop's edge
 const BOMB_RADIUS = 52;      // px around an armed hit that goes up with it
+/* The other two powerups, both ONE-SHOTS at a fixed mark rather than on the
+ * bomb's rolling schedule: the turret is the thing you get, and rapid fire is
+ * the thing that makes it matter twice. Only one drop is ever in flight, so
+ * these take priority over a bomb when the marks collide — the rare one
+ * should not be the one that waits. */
+const TURRET_AT = 0.10;      // progress where the turret drop falls, once
+const RAPID_AT = [0.5, 0.95];// and the two rapid-fire drops, once each
+const TURRET_PERIOD = 1.0;   // s between volleys; rapid divides it by 1+rapid,
+                             // so the three rates are 1x, 2x and 3x
+const BULLET_SPEED = 620;    // px/s, straight up
+const BULLET_W = 3;
+const BULLET_H = 9;
 const GRAVITY = 1100;        // px/s^2 on a falling letter
 const FADE = 0.85;           // s for a falling letter to fade out — always
                              // gone before it lands, so there is no pile-up
@@ -500,6 +515,12 @@ function createAudio() {
     // Bomb pickup: a bright little two-note "got it".
     arm: () => { blip(660, 0.06, { peak: 0.35 });
       setTimeout(() => blip(990, 0.08, { peak: 0.35 }), 70); },
+    /* A turret volley. Up to three a second with both rapid pickups, so it
+     * has to sit UNDER the letter blip rather than compete with it: short,
+     * quiet, and high enough to stay out of the bomb's register. One tick per
+     * VOLLEY, not per barrel — two shots leave together and a doubled tick is
+     * just a thicker tick. */
+    shot: () => blip(1250, 0.035, { type: 'square', peak: 0.12 }),
     /* The bomb. Synthesised like everything else, through the same fx bus.
      *
      * THE FIRST VERSION WAS A THUD AND DEX COULD NOT HEAR IT (2026-08-26).
@@ -677,8 +698,13 @@ export async function start({ onStop, onPauseChange } = {}) {
    * serves; that ball's next letter hit explodes a BOMB_RADIUS. */
   let drop = null;
   let nextDropAt = DROP_EVERY;
-  let pendingArm = false;
-  const events = { paddleHits: 0, ceilingHits: 0, wallHits: 0, respawns: 0, breaks: 0, drops: 0, bombs: 0 };
+  let gotTurret = false;
+  const gotRapid = RAPID_AT.map(() => false);
+  let turrets = false;   // the turret drop has been caught
+  let rapid = 0;         // 0, 1 or 2 rapid-fire pickups
+  let fireT = 0;         // s until the next volley
+  const bullets = [];
+  const events = { paddleHits: 0, ceilingHits: 0, wallHits: 0, respawns: 0, breaks: 0, drops: 0, bombs: 0, volleys: 0 };
   let paused = false;
   const state = {
     balls, paddle, alive, events, falling,
@@ -687,7 +713,10 @@ export async function start({ onStop, onPauseChange } = {}) {
     get destroyed() { return destroyed; }, total,
     get paused() { return paused; },
     get drop() { return drop; },
-    get armedPending() { return pendingArm; },
+    get armedBalls() { return balls.filter(b => b.armed).length; },
+    get turrets() { return turrets; },
+    get rapid() { return rapid; },
+    get bulletCount() { return bullets.length; },
     get particleCount() { return particles.length; },
     time: 0,                           // sim seconds actually played
     running: true, won: false,
@@ -811,11 +840,22 @@ export async function start({ onStop, onPauseChange } = {}) {
 
   const launch = (b) => {
     b.attached = false;
-    if (pendingArm) { pendingArm = false; b.armed = true; }
     const a = 0.3 * (launches++ % 2 ? 1 : -1);   // alternate slight angles
     const s = speed();
     b.vx = s * Math.sin(a);
     b.vy = -s * Math.cos(a);
+  };
+
+  /* One letter leaves the wall. THREE things break letters now — a ball, a
+   * blast, a turret round — and they differ only in the velocity and spin they
+   * hand the falling glyph, so that is all they pass and the bookkeeping is
+   * written once instead of three times. */
+  const breakLetter = (i, vx, vy, om = (Math.random() - 0.5) * 7) => {
+    const l = h.letters[i];
+    alive[i] = false;
+    destroyed++;
+    events.breaks++;
+    falling.push({ i, x: l.x + l.w / 2, y: l.y + l.h / 2, rot: 0, vx, vy, om, alpha: 1 });
   };
 
   /* An armed hit takes the neighbourhood with it: every living letter in
@@ -829,31 +869,54 @@ export async function start({ onStop, onPauseChange } = {}) {
       const lx = l.x + l.w / 2, ly = l.y + l.h / 2;
       const dx = lx - cx, dy = ly - cy;
       if (dx * dx + dy * dy > BOMB_RADIUS * BOMB_RADIUS) continue;
-      alive[i] = false;
-      destroyed++;
-      events.breaks++;
       const d = Math.hypot(dx, dy) || 1;
-      falling.push({
-        i, x: lx, y: ly, rot: 0,
-        vx: (dx / d) * (120 + Math.random() * 90),
-        vy: (dy / d) * (120 + Math.random() * 90) - 40,
-        om: (Math.random() - 0.5) * 9,
-        alpha: 1,
-      });
+      breakLetter(i, (dx / d) * (120 + Math.random() * 90),
+                     (dy / d) * (120 + Math.random() * 90) - 40,
+                     (Math.random() - 0.5) * 9);
     }
+  };
+
+  const spawnDrop = (l, kind) => {
+    drop = { x: l.x + l.w / 2, y: l.y + l.h / 2, t: 0, kind };
+    events.drops++;
   };
 
   const maybeDrop = (l) => {
     // One in flight at a time; a threshold crossed while one falls waits
     // for the NEXT broken letter after it resolves.
     if (drop || phase !== 'play') return;
-    if (destroyed / total < nextDropAt) return;
-    drop = { x: l.x + l.w / 2, y: l.y + l.h / 2, t: 0 };
-    events.drops++;
+    const p = destroyed / total;
+    // The one-shots first — see the note on TURRET_AT.
+    if (!gotTurret && p >= TURRET_AT) { gotTurret = true; spawnDrop(l, 'turret'); return; }
+    for (let k = 0; k < RAPID_AT.length; k++) {
+      if (!gotRapid[k] && p >= RAPID_AT[k]) { gotRapid[k] = true; spawnDrop(l, 'rapid'); return; }
+    }
+    if (p < nextDropAt) return;
+    spawnDrop(l, 'bomb');
     // A bomb can jump several thresholds at once; re-anchor to the next one.
-    nextDropAt = (Math.floor((destroyed / total) / DROP_EVERY) + 1) * DROP_EVERY;
+    nextDropAt = (Math.floor(p / DROP_EVERY) + 1) * DROP_EVERY;
   };
 
+  /* A round from a turret: the same wall and the same bookkeeping as a ball
+   * hit, arriving from below and dying on contact. */
+  const hitLetterWithBullet = (s) => {
+    for (let i = 0; i < total; i++) {
+      if (!alive[i]) continue;
+      const l = h.letters[i];
+      if (s.x < l.x || s.x > l.x + l.w) continue;
+      if (s.y < l.y || s.y - BULLET_H > l.y + l.h) continue;
+      breakLetter(i, (Math.random() - 0.5) * 50, -120 - Math.random() * 60);
+      audio.letter(l.w);
+      maybeDrop(l);
+      return true;
+    }
+    return false;
+  };
+
+  /* A miss costs the ball's position, not its charge: `armed` is deliberately
+   * NOT cleared here (Dex, 2026-08-26). Losing a bomb you already caught to a
+   * paddle miss is a second punishment for the same mistake, and the pickup is
+   * rare enough that it would read as the powerup being broken. */
   const respawn = (b) => {
     events.respawns++;
     audio.lost();
@@ -873,18 +936,10 @@ export async function start({ onStop, onPauseChange } = {}) {
       const qy = Math.max(l.y, Math.min(b.y, l.y + l.h));
       const dx = b.x - qx, dy = b.y - qy;
       if (dx * dx + dy * dy > b.r * b.r) continue;
-      alive[i] = false;
-      destroyed++;
-      events.breaks++;
-      falling.push({
-        i, x: l.x + l.w / 2, y: l.y + l.h / 2, rot: 0,
-        // a fraction of the ball's momentum plus a small upward pop — the
-        // letter is knocked off, not dropped
-        vx: b.vx * 0.18 + (Math.random() - 0.5) * 60,
-        vy: Math.min(0, b.vy * 0.15) - 30 - Math.random() * 60,
-        om: (Math.random() - 0.5) * 7,
-        alpha: 1,
-      });
+      // a fraction of the ball's momentum plus a small upward pop — the letter
+      // is knocked off, not dropped
+      breakLetter(i, b.vx * 0.18 + (Math.random() - 0.5) * 60,
+                     Math.min(0, b.vy * 0.15) - 30 - Math.random() * 60);
       /* An armed hit is an explosion, not a tap. The letter blip used to fire
        * first and then the bomb went off in the same millisecond, so the one
        * sound that should own the moment arrived underneath a bright tick.
@@ -1056,8 +1111,6 @@ export async function start({ onStop, onPauseChange } = {}) {
         // already prevents. Give perfect catches a slight angle.
         if (Math.abs(offset) < 0.05) offset = Math.random() < 0.5 ? -0.05 : 0.05;
         audio.paddle(offset);
-        // A caught drop arms the next ball the paddle serves — this one.
-        if (pendingArm) { pendingArm = false; b.armed = true; }
         const a = offset * MAX_AIM;
         const sp = speed();
         b.vx = sp * Math.sin(a);
@@ -1097,12 +1150,48 @@ export async function start({ onStop, onPauseChange } = {}) {
       const half = DROP_SIZE / 2;
       if (drop.y + half >= paddle.y && drop.y - half <= paddle.y + paddle.h + 6 &&
           Math.abs(drop.x - paddle.x) <= paddle.w / 2 + half) {
+        const kind = drop.kind;
         drop = null;
-        pendingArm = true;
+        if (kind === 'turret') {
+          turrets = true;
+          fireT = 0.3;                 // first volley almost at once
+        } else if (kind === 'rapid') {
+          rapid = Math.min(RAPID_AT.length, rapid + 1);
+          // Rapid fire with no gun is nothing, and the turret drop can be
+          // missed. A rapid pickup brings the turrets with it rather than
+          // being a powerup that silently does not apply.
+          if (!turrets) { turrets = true; fireT = 0.3; }
+        } else {
+          /* EVERY ball, right now. It used to set a pendingArm flag that the
+           * next paddle contact spent on ONE ball, so catching a bomb did
+           * nothing visible until that ball came back down — and with two
+           * balls live, the other one never got it at all. */
+          for (const b of balls) b.armed = true;
+        }
         audio.arm();
       } else if (drop.y - half > floor + 20) {
         drop = null;               // missed: no bounce, no second chance
       }
+    }
+
+    /* The turrets: one volley from both barrels on a fixed period, divided by
+     * 1 + rapid. `fireT +=` rather than `=` keeps the cadence steady across a
+     * long frame; dt is clamped upstream, so it can never fire twice in one. */
+    if (turrets) {
+      fireT -= dt;
+      if (fireT <= 0) {
+        fireT += TURRET_PERIOD / (1 + rapid);
+        const bx = paddle.w / 2 - 2;
+        bullets.push({ x: paddle.x - bx, y: paddle.y - 2 },
+                     { x: paddle.x + bx, y: paddle.y - 2 });
+        events.volleys++;
+        audio.shot();
+      }
+    }
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const s = bullets[i];
+      s.y -= BULLET_SPEED * dt;
+      if (s.y - BULLET_H < ceiling || hitLetterWithBullet(s)) bullets.splice(i, 1);
     }
 
     for (let i = 0; i < balls.length; i++) stepBall(balls[i], dt, i);
@@ -1230,14 +1319,47 @@ export async function start({ onStop, onPauseChange } = {}) {
     const pr = new Path2D();
     roundedRect(pr, paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 3);
     ctx.fill(pr);
-    // the bomb drop: a small rounded square, flashing at a chunky rate
+    /* The drop, flashing at a chunky rate. SHAPE tells the three apart, not
+     * colour: the field paints in the one accent over live text, so a second
+     * hue is not available and a dark punch-out would be wrong over a
+     * transparent canvas. A bomb is a block; a turret is one arrow up; rapid
+     * fire is two. */
     if (drop) {
       const on = (drop.t % 0.32) < 0.2;
       ctx.globalAlpha = on ? 1 : 0.35;
       const dp = new Path2D();
-      roundedRect(dp, drop.x - DROP_SIZE / 2, drop.y - DROP_SIZE / 2, DROP_SIZE, DROP_SIZE, 4);
+      const half = DROP_SIZE / 2;
+      if (drop.kind === 'bomb') {
+        roundedRect(dp, drop.x - half, drop.y - half, DROP_SIZE, DROP_SIZE, 4);
+      } else {
+        const tri = (cy, h2) => {
+          dp.moveTo(drop.x - half, cy + h2);
+          dp.lineTo(drop.x, cy - h2);
+          dp.lineTo(drop.x + half, cy + h2);
+          dp.closePath();
+        };
+        if (drop.kind === 'turret') tri(drop.y, half);
+        else { tri(drop.y - 4, 3.5); tri(drop.y + 4, 3.5); }
+      }
       ctx.fill(dp);
       ctx.globalAlpha = 1;
+    }
+    /* The guns, on the paddle's ends, and their rounds. The barrels grow with
+     * rapid fire — the only readout the rate has, and it sits on the thing
+     * doing the firing rather than in a corner. */
+    if (turrets) {
+      const bx = paddle.w / 2 - 2;
+      const bh = 6 + rapid * 2;
+      for (const side of [-1, 1]) {
+        const tp = new Path2D();
+        roundedRect(tp, paddle.x + side * bx - 2, paddle.y - bh, 4, bh, 1.5);
+        ctx.fill(tp);
+      }
+    }
+    for (const s of bullets) {
+      const sp = new Path2D();
+      roundedRect(sp, s.x - BULLET_W / 2, s.y - BULLET_H, BULLET_W, BULLET_H, 1.5);
+      ctx.fill(sp);
     }
     for (const b of balls) {
       if (!b.attached || b.timer < 0.25) {

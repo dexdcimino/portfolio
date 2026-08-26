@@ -376,7 +376,30 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   keys; 14px of triangle plus the caps' padding comes to the same 36px
   min-width the letters take from `.bb-key`, so the row stays one set of
   keys. Muted reads muted: the slider
-  hides and the speaker takes a horizontal slash. **Every `roundRect` goes
+  hides and the speaker takes a 45deg no-sign slash (it was a horizontal bar
+  until 2026-08-26, which read as bold rather than as a prohibition).
+
+  **THREE POWERUPS, ONE DROP SLOT.** Only ever one drop is in flight. The
+  BOMB is the recurring one, every `DROP_EVERY` (5%) of the wall, and on
+  catch it arms EVERY ball immediately — it used to set a `pendingArm` flag
+  that the next paddle contact spent on one ball, so the pickup did nothing
+  visible until that ball came back down and the second ball never got it at
+  all. A charge SURVIVES a miss: `respawn()` deliberately does not clear
+  `armed`, because losing a bomb you already caught to a paddle miss is a
+  second punishment for the same mistake. The TURRET (`TURRET_AT`, 10%) and
+  the two RAPID FIRE pickups (`RAPID_AT`, 50% and 95%) are one-shots at fixed
+  marks and take PRIORITY over a bomb when the marks collide — with one slot,
+  the rare thing should not be the one that waits. Turrets fire a volley from
+  both paddle ends every `TURRET_PERIOD / (1 + rapid)`, so the three rates are
+  1x, 2x, 3x; the barrels grow with the rate, which is the only readout it
+  has. A rapid pickup with no turret ARMS the turret, since rapid fire with no
+  gun is a powerup that silently does nothing. The three drops are told apart
+  by SHAPE, not colour — block, one arrow, two — because the field paints in
+  the one accent over live text and a dark punch-out would be wrong on a
+  transparent canvas. `breakLetter()` is the single place a letter leaves the
+  wall; the three callers differ only in the velocity and spin they hand the
+  falling glyph. The second ball joins at `SECOND_BALL_AT` 0.15, down from
+  0.3. **Every `roundRect` goes
   through `roundedRect()`**: it is Safari 16.4 and Firefox 112, and an engine
   without it does not draw square corners, it THROWS out of the middle of the
   draw — paddle, ball, bomb and veil vanish together and the toy reads as

@@ -5388,7 +5388,7 @@ const PORTRAIT_LABEL = {
   const stopBtn = document.getElementById('bbStopBtn');
   if (!ui || !play || !stack) return;
 
-  const MODULE = './about-breakout.js?v=8';
+  const MODULE = './about-breakout.js?v=9';
   let mod = null;
   const load = async () => (mod ??= await import(MODULE));
 

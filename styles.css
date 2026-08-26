@@ -2512,14 +2512,20 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .bb-ctl svg{width:19px;height:19px;fill:currentColor}
 .bb-ctl:hover,.bb-ctl:focus-visible{color:var(--accent);border-color:var(--accent)}
 /* Muted must READ muted: the speaker keeps most of its weight but takes a
-   horizontal slash at its diameter, and the slider that is not in effect
-   goes away entirely (paintControls toggles .bb-muted on the row). */
+   slash across the button, and the slider that is not in effect goes away
+   entirely (paintControls toggles .bb-muted on the row).
+   A NO-SIGN DIAGONAL, top-left to bottom-right, not the horizontal bar this
+   was (Dex, 2026-08-26): the bar read as bold and bright rather than as a
+   prohibition, so it is thinner (2px against 2.5), dimmer (.55) and rotated
+   45deg — which in screen coordinates lifts the left end and drops the right,
+   the direction a circle-slash goes. 30px spans the 38px inside the button's
+   3px border corner to corner. */
 .bb-ctl[role="switch"]{position:relative}
 .bb-ctl[role="switch"][aria-checked="false"] svg{opacity:.5}
 .bb-ctl[role="switch"][aria-checked="false"]::after{
   content:"";position:absolute;left:50%;top:50%;
-  width:24px;height:2.5px;border-radius:2px;
-  background:currentColor;transform:translate(-50%,-50%);
+  width:30px;height:2px;border-radius:2px;opacity:.55;
+  background:currentColor;transform:translate(-50%,-50%) rotate(45deg);
 }
 .bb-mrow.bb-muted .bb-vol{display:none}
 /* The pause chip swaps its glyph with its state: paused shows play. */
