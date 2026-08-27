@@ -1730,10 +1730,31 @@
              same weight as the lettered caps; the sr-only text is what the
              character used to say out loud. -->
         <div class="bb-keys" id="bbKeys" hidden>
+          <!-- The hints and the track picker share this row and NOTHING else:
+               the hints are a reference at .45, the picker is a control at
+               full strength, so the dimming sits on the hint group rather
+               than on the row. -->
+          <div class="bb-keyhints">
           <span class="bb-keygroup"><kbd class="bb-key">A</kbd><span class="bb-keysep">/</span><kbd class="bb-key">D</kbd></span>
           <span class="bb-keygroup"><kbd class="bb-key"><svg class="bb-key-tri" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M8.5 1.5v9L2 6z"/></svg><span class="sr-only">Left arrow</span></kbd><span class="bb-keysep">/</span><kbd class="bb-key"><svg class="bb-key-tri" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M3.5 1.5v9L10 6z"/></svg><span class="sr-only">Right arrow</span></kbd></span>
           <span class="bb-keygroup"><kbd class="bb-key">Space</kbd></span>
           <span class="bb-keygroup"><kbd class="bb-key">Click</kbd></span>
+          </div>
+          <!-- The track picker, right-aligned under the playfield. Five CC0
+               chiptunes from one pack; the counter is the only label, and the
+               track's NAME rides the shared tooltip so the row stays a row.
+               aria-live on the counter is what makes the change audible to a
+               screen reader — the buttons say what they do, the counter says
+               what happened. -->
+          <div class="bb-track" id="bbTrack">
+            <button class="bb-trk" id="bbTrkPrev" type="button" aria-label="Previous track">
+              <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M8 1.5v9L2.5 6z"/></svg>
+            </button>
+            <span class="bb-trk-count" id="bbTrkCount" aria-live="polite">1 / 5</span>
+            <button class="bb-trk" id="bbTrkNext" type="button" aria-label="Next track">
+              <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M4 1.5v9L9.5 6z"/></svg>
+            </button>
+          </div>
         </div></div>
       </div>
 

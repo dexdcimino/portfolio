@@ -35,6 +35,10 @@ excluded here to keep the rule simple.
 | `games/arena1/assets/audio/music.ogg` | Arena 1 | Background music (38.5s seamless loop) | https://opengameart.org/content/analog-beats-looped | Analog Beats | CC0 |
 | `games/chomp/assets/audio/music.ogg` | Chomp | Background music (54.9s loop) — PLACEHOLDER, not yet wired | https://opengameart.org/content/dark-place-loop | Dark Place | CC0 |
 | `assets/audio/breakout-loop.mp3` | Site — About Breakout | Background music (11.3s seamless loop; "Title Screen" from the 5 Chiptunes (Action) pack, transcoded from the author's WAV to 112kbps MP3 — loop points are set at runtime past the encoder padding, so the MP3 gap cannot break the seam) | https://opengameart.org/content/5-chiptunes-action | Juhani Junkala (SubspaceAudio) | CC0 |
+| `assets/audio/breakout-level1.mp3` | Site — About Breakout | Background music, track 2 of 5 (74.2s loop; "Level 1" from the same pack, same 112kbps transcode) | https://opengameart.org/content/5-chiptunes-action | Juhani Junkala (SubspaceAudio) | CC0 |
+| `assets/audio/breakout-level2.mp3` | Site — About Breakout | Background music, track 3 of 5 (72.8s loop; "Level 2") | https://opengameart.org/content/5-chiptunes-action | Juhani Junkala (SubspaceAudio) | CC0 |
+| `assets/audio/breakout-level3.mp3` | Site — About Breakout | Background music, track 4 of 5 (81.9s loop; "Level 3") | https://opengameart.org/content/5-chiptunes-action | Juhani Junkala (SubspaceAudio) | CC0 |
+| `assets/audio/breakout-ending.mp3` | Site — About Breakout | Background music, track 5 of 5 (44.7s loop; "Ending") | https://opengameart.org/content/5-chiptunes-action | Juhani Junkala (SubspaceAudio) | CC0 |
 
 All nine come from one pack — Kenney "Sci-Fi Sounds" v1.0, CC0, licence text
 bundled in the download and quoted here: *"This content is free to use in
@@ -82,6 +86,20 @@ silence.
 
 **Chomp** has music staged but nothing wired — its audio engine is MD 27, owned
 by another session. No Chomp code was touched here.
+
+**The breakout's five tracks are the whole pack, not a selection.** Juhani
+Junkala released `5 Action Chiptunes` as one set (Title Screen, Level 1-3,
+Ending) and all five now ship, which is why the picker's counter reads `/ 5`
+and why they sit together tonally without anyone having to match them. Licence
+confirmed CC0 on the source page itself, not from a search result. Every one is
+transcoded from the author's WAV at **112kbps / 44.1kHz / joint stereo** — read
+off the frame header of the Title Screen file that shipped first, so the five
+are one encode rather than five. Durations above were measured from the WAV
+frame counts before encoding.
+
+Only the SELECTED track is fetched, and each is cached after its first play, so
+the cold page cost is unchanged and switching to track 4 does not pull the other
+three.
 
 ## Checklist for adding a sound
 

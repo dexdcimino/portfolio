@@ -393,7 +393,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   both paddle ends every `TURRET_PERIOD / (1 + rapid)`, so the three rates are
   1x, 2x, 3x; the barrels grow with the rate, which is the only readout it
   has. A rapid pickup with no turret ARMS the turret, since rapid fire with no
-  gun is a powerup that silently does nothing. The three drops are told apart
+  gun is a powerup that silently does nothing. A turret ROUND landing has its
+  own sound rather than borrowing the ball's letter blip, which made a turret
+  kill and a paddle rally identical. The three drops are told apart
   by SHAPE, not colour — block, one arrow, two — because the field paints in
   the one accent over live text and a dark punch-out would be wrong on a
   transparent canvas. `breakLetter()` is the single place a letter leaves the
@@ -407,7 +409,28 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   (`games/_shared/audio-panel.js`, persisted as `about-breakout-audio`)
   driving synthesized blips through `createBusGraph` — no samples, no
   MediaBus registration for the BLIPS (short fx are not a player and must
-  not pause the song bar). **The bomb is the one fx with a shape worth
+  not pause the song bar).
+
+  **FIVE TRACKS, not one** (2026-08-27): the whole of Juhani Junkala's `5
+  Action Chiptunes` pack, picked with a `‹ n / 5 ›` control on the right of the
+  keys row under the playfield. The module owns the list, the cache and the
+  remembered choice (`about-breakout-track`); `script.js` only paints the
+  counter and turns the 0-based index into a 1-based label. **Only the selected
+  track is fetched**, and the cache holds the decode PROMISE rather than the
+  buffer — caching the result only covers a track that has finished decoding,
+  and a 74s MP3 takes long enough that two clicks through one track fetched it
+  twice, which is what the picker test caught.
+
+  **The music runs through a fixed `MUSIC_TRIM` of 0.7** under the slider.
+  Measured offline, the bed peaked 0.155 against a turret shot's 0.040 — the fx
+  were a quarter of the thing they had to cut through. The shared `DEFAULTS` in
+  `games/_shared` belong to Arena 1 as well and are not this toy's to retune,
+  and moving the slider's default would only move the number the player sees;
+  this is a mix decision about this game's own bed, so it sits on this game's
+  own node. After it: shot 0.151 and turret impact 0.160 against a music peak
+  of 0.109.
+
+  **The bomb is the one fx with a shape worth
   knowing**: one noise buffer split into a highpassed CRACK (0.14s) and a
   lowpassed RUMBLE sweeping 1800→90Hz (0.85s), plus two sine drops for the
   body. Rendered offline it peaks about 4.6x the letter blip with ~3x its

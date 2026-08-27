@@ -2582,9 +2582,34 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    Faded as a whole rather than per-part so the caps keep their internal
    relationship (border to fill to type to triangle); judged against the
    game running, which is the only state it is ever visible in. */
-.bb-keys{position:absolute;display:flex;align-items:center;gap:22px;z-index:2;opacity:.45}
+/* The row under the playfield: hints left, track picker right. It spans the
+   copy column (left and right are both 0; script.js sets only `top`), which is
+   what puts the picker under the game's right edge rather than beside the
+   hints. The .45 lives on the hint group, not here — see the markup. */
+.bb-keys{position:absolute;left:0;right:0;display:flex;align-items:center;
+  justify-content:space-between;gap:22px;z-index:2}
 .bb-keys[hidden]{display:none}
+.bb-keyhints{display:flex;align-items:center;gap:22px;opacity:.45}
 .bb-keygroup{display:inline-flex;align-items:center;gap:7px}
+/* The track picker. Quieter than the control stack on purpose — that column is
+   the game's own controls and this is a preference about the background — so
+   it is text-weight rather than a ring of chips, and it lights on hover like
+   any other control here. */
+.bb-track{display:inline-flex;align-items:center;gap:4px}
+.bb-trk{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;padding:0;border:0;border-radius:7px;
+  background:transparent;color:#7e878e;cursor:pointer;
+  transition:color var(--accent-ease),background .2s ease;
+}
+.bb-trk svg{width:11px;height:11px;fill:currentColor}
+.bb-trk:hover{color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.bb-trk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bb-trk-count{
+  min-width:38px;text-align:center;color:#8f979e;
+  font-family:var(--mono,ui-monospace),ui-monospace,monospace;
+  font-size:12px;font-weight:600;letter-spacing:.04em;
+}
 .bb-key{
   display:inline-flex;align-items:center;justify-content:center;
   min-width:36px;height:34px;padding:0 11px;

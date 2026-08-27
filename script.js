@@ -5388,7 +5388,7 @@ const PORTRAIT_LABEL = {
   const stopBtn = document.getElementById('bbStopBtn');
   if (!ui || !play || !stack) return;
 
-  const MODULE = './about-breakout.js?v=9';
+  const MODULE = './about-breakout.js?v=10';
   let mod = null;
   const load = async () => (mod ??= await import(MODULE));
 
@@ -5500,6 +5500,7 @@ const PORTRAIT_LABEL = {
         keys.style.top = (floorY + slack - copyRect.top) + 'px';
       }
       paintControls();
+      paintTrack();
       MediaBus.solo(me);            // the music began: the songs bar yields
     } catch (e) {
       // Any failure to start leaves the section exactly as it was.
@@ -5512,6 +5513,28 @@ const PORTRAIT_LABEL = {
       starting = false;
     }
   });
+
+  /* The track picker under the playfield. It reads and writes the module's
+     music, which owns the list, the fetch cache and the remembered choice —
+     this only paints what it is told. The label is the only place that turns a
+     0-based index into a human 1-based one. */
+  const trkPrev = document.getElementById('bbTrkPrev');
+  const trkNext = document.getElementById('bbTrkNext');
+  const trkCount = document.getElementById('bbTrkCount');
+  const paintTrack = () => {
+    if (!mod || !trkCount) return;
+    const t = mod.getAudio().music.track;
+    trkCount.textContent = `${t.index + 1} / ${t.count}`;
+    for (const el of [trkPrev, trkNext]) el?.setAttribute('data-tip', t.name);
+  };
+  const step = (dir) => {
+    if (!mod) return;
+    const m = mod.getAudio().music;
+    dir > 0 ? m.next() : m.prev();
+    paintTrack();
+  };
+  trkPrev?.addEventListener('click', () => step(-1));
+  trkNext?.addEventListener('click', () => step(1));
 
   /* The stack: mute + slider write the SHARED mixer (the module's
      createAudioSettings instance — one place writes the level), pause is

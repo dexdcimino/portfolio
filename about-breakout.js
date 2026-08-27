@@ -413,17 +413,49 @@ function createAudio() {
     } catch { /* no audio is never an error worth surfacing */ }
   };
 
-  /* ---- music: Juhani Junkala's Title Screen chiptune (CC0 — see
+  /* ---- music: Juhani Junkala's 5 Action Chiptunes (CC0 — see
    * assets/audio/CREDITS.md) ----
+   * ALL FIVE of the pack now, not just the Title Screen, with a picker under
+   * the playfield. They are the same five files the author released together,
+   * so the set is coherent by construction rather than assembled.
+   *
    * A WebAudio buffer loop rather than an <audio> element: loopStart/loopEnd
    * are set past the MP3 encoder's padding silence, which is the only way a
    * compressed loop is actually seamless, and it decodes everywhere (Safari
-   * cannot decode ogg-vorbis). Fetched on first start — nothing loads before
-   * the first click. Pause is ctx.suspend(): the whole toy goes quiet and
-   * resumes mid-note, which is what "paused" should sound like. */
-  let musicBuffer = null;
+   * cannot decode ogg-vorbis). ONE track is fetched, on first start, and each
+   * is cached after its first play — switching to track 4 does not pull the
+   * other three, and the cold page still costs nothing. Pause is
+   * ctx.suspend(): the whole toy goes quiet and resumes mid-note. */
+  const TRACKS = [
+    { file: 'assets/audio/breakout-loop.mp3',   name: 'Title Screen' },
+    { file: 'assets/audio/breakout-level1.mp3', name: 'Level 1' },
+    { file: 'assets/audio/breakout-level2.mp3', name: 'Level 2' },
+    { file: 'assets/audio/breakout-level3.mp3', name: 'Level 3' },
+    { file: 'assets/audio/breakout-ending.mp3', name: 'Ending' },
+  ];
+  const TRACK_KEY = 'about-breakout-track';
+  /* file -> PROMISE of a decoded buffer, not the buffer. Caching the result
+   * only covers a track already finished decoding, and a 74-second MP3 takes
+   * long enough that two clicks through the same track fetch it twice — which
+   * the picker test caught doing exactly that. Caching the promise makes the
+   * second caller wait on the first fetch instead of starting another. */
+  const buffers = new Map();
+  let trackIndex = 0;
+  try {
+    const n = Number(localStorage.getItem(TRACK_KEY));
+    if (Number.isInteger(n) && n >= 0 && n < TRACKS.length) trackIndex = n;
+  } catch { /* private mode: track 1 it is */ }
   let musicSource = null;
   let musicOn = false;
+  /* A FIXED TRIM UNDER THE MUSIC SLIDER, and the reason it exists rather than
+   * a lower default: rendered offline, the bed's sustained rms was 0.047
+   * against the explosion's 0.027 and the turret shot's 0.0017, and its PEAK
+   * was 0.155 against the shot's 0.040 — the fx were a quarter of the music
+   * they had to cut through. The shared DEFAULTS in games/_shared are used by
+   * Arena 1 too and are not this toy's to retune, and moving the slider's
+   * default would only move the number the player sees. This is a mix
+   * decision about this game's own bed, so it lives on this game's own node. */
+  const MUSIC_TRIM = 0.7;
   const trimPoints = (buf) => {
     const d = buf.getChannelData(0);
     const EPS = 1e-3;
@@ -433,22 +465,43 @@ function createAudio() {
     return { start: a / buf.sampleRate, end: (b + 1) / buf.sampleRate };
   };
   const startMusic = async () => {
+    const wanted = TRACKS[trackIndex].file;
     try {
       const c = ensure();
-      if (!musicBuffer) {
-        const res = await fetch('assets/audio/breakout-loop.mp3');
-        musicBuffer = await c.decodeAudioData(await res.arrayBuffer());
+      if (!buffers.has(wanted)) {
+        buffers.set(wanted, fetch(wanted)
+          .then(r => r.arrayBuffer())
+          .then(b => c.decodeAudioData(b))
+          // A failed fetch must not poison the slot: drop it so a later
+          // selection of the same track can try again.
+          .catch((e) => { buffers.delete(wanted); throw e; }));
       }
-      if (musicSource || !musicOn) return;   // stopped while fetching
-      const { start, end } = trimPoints(musicBuffer);
+      const buf = await buffers.get(wanted);
+      // Stopped, or switched again, while this one was fetching.
+      if (musicSource || !musicOn || TRACKS[trackIndex].file !== wanted) return;
+      const { start, end } = trimPoints(buf);
       musicSource = c.createBufferSource();
-      musicSource.buffer = musicBuffer;
+      musicSource.buffer = buf;
       musicSource.loop = true;
       musicSource.loopStart = start;
       musicSource.loopEnd = end;
-      musicSource.connect(graph.music);
+      const trim = c.createGain();
+      trim.gain.value = MUSIC_TRIM;
+      musicSource.connect(trim).connect(graph.music);
       musicSource.start(0, start);
     } catch { musicSource = null; /* a silent game is still a game */ }
+  };
+  const stopSource = () => {
+    try { musicSource?.stop(); } catch { }
+    try { musicSource?.disconnect(); } catch { }
+    musicSource = null;
+  };
+  const goTo = (i) => {
+    trackIndex = (i + TRACKS.length) % TRACKS.length;
+    try { localStorage.setItem(TRACK_KEY, String(trackIndex)); } catch { }
+    stopSource();
+    if (musicOn) startMusic();
+    return trackIndex;
   };
 
   // With two balls live the letter blips arrive twice as fast; a short
@@ -466,11 +519,13 @@ function createAudio() {
     settings,
     music: {
       start() { if (!musicOn) { musicOn = true; startMusic(); } },
-      stop() {
-        musicOn = false;
-        try { musicSource?.stop(); } catch { }
-        try { musicSource?.disconnect(); } catch { }
-        musicSource = null;
+      stop() { musicOn = false; stopSource(); },
+      next: () => goTo(trackIndex + 1),
+      prev: () => goTo(trackIndex - 1),
+      /* What the picker under the playfield reads. `index` is 0-based; the
+         label that shows it is the only place that adds one. */
+      get track() {
+        return { index: trackIndex, count: TRACKS.length, name: TRACKS[trackIndex].name };
       },
       // "Playing" in the MediaBus sense: a live loop in a running context.
       get playing() { return musicOn && !!ctx && ctx.state === 'running'; },
@@ -515,12 +570,24 @@ function createAudio() {
     // Bomb pickup: a bright little two-note "got it".
     arm: () => { blip(660, 0.06, { peak: 0.35 });
       setTimeout(() => blip(990, 0.08, { peak: 0.35 }), 70); },
-    /* A turret volley. Up to three a second with both rapid pickups, so it
-     * has to sit UNDER the letter blip rather than compete with it: short,
-     * quiet, and high enough to stay out of the bomb's register. One tick per
-     * VOLLEY, not per barrel — two shots leave together and a doubled tick is
-     * just a thicker tick. */
-    shot: () => blip(1250, 0.035, { type: 'square', peak: 0.12 }),
+    /* A turret volley: a short downward chirp, the shape a small gun has.
+     * ONE per volley, not per barrel — two rounds leave together and a doubled
+     * tick is just a thicker tick.
+     *
+     * It was a 1250Hz square at peak 0.12 and it MEASURED peak 0.040 against a
+     * music bed peaking 0.155 — a quarter of the thing it had to cut through,
+     * which is why it could not be heard at all rather than merely being
+     * quiet. A sweep carries further than a fixed tone at the same level, so
+     * this is both louder and pitched down across its 45ms. */
+    shot: () => blip(1500, 0.045, { type: 'square', peak: 0.5, slideTo: 720 }),
+    /* A round LANDING is not the same event as a ball landing, and it used to
+     * borrow the ball's letter blip, so a turret kill and a paddle rally
+     * sounded identical. This is brighter, shorter and sharper: the tick of
+     * something small breaking rather than the pitched knock of a bounce. */
+    bulletHit: () => {
+      blip(2100, 0.05, { type: 'square', peak: 0.34, slideTo: 1100 });
+      blip(560, 0.06, { type: 'triangle', peak: 0.22, slideTo: 320 });
+    },
     /* The bomb. Synthesised like everything else, through the same fx bus.
      *
      * THE FIRST VERSION WAS A THUD AND DEX COULD NOT HEAR IT (2026-08-26).
@@ -906,7 +973,7 @@ export async function start({ onStop, onPauseChange } = {}) {
       if (s.x < l.x || s.x > l.x + l.w) continue;
       if (s.y < l.y || s.y - BULLET_H > l.y + l.h) continue;
       breakLetter(i, (Math.random() - 0.5) * 50, -120 - Math.random() * 60);
-      audio.letter(l.w);
+      audio.bulletHit();
       maybeDrop(l);
       return true;
     }
