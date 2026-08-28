@@ -496,11 +496,16 @@ function createAudio() {
     try { musicSource?.disconnect(); } catch { }
     musicSource = null;
   };
+  /* Choosing a track TURNS THE MUSIC ON. The toy can start silent — it does
+   * whenever a song of the visitor's is already playing — and without this the
+   * picker would change a number and produce no sound, with no way back to the
+   * game's own music at all. */
   const goTo = (i) => {
     trackIndex = (i + TRACKS.length) % TRACKS.length;
     try { localStorage.setItem(TRACK_KEY, String(trackIndex)); } catch { }
     stopSource();
-    if (musicOn) startMusic();
+    musicOn = true;
+    startMusic();
     return trackIndex;
   };
 

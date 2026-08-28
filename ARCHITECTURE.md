@@ -411,6 +411,15 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   MediaBus registration for the BLIPS (short fx are not a player and must
   not pause the song bar).
 
+  **A SONG ALREADY PLAYING SURVIVES THE GAME** (2026-08-28). Starting the toy
+  used to `MediaBus.solo()`, which stopped whatever the visitor had on — they
+  asked to play a game, not to change the music. `MediaBus.busy(who)` is the
+  counterpart to `solo`, and when anything else is sounding the toy starts with
+  its own chiptune off and leaves the bus alone. The track picker is the way
+  back, and `goTo()` turns the music ON for exactly that reason — otherwise the
+  picker would change a number and make no sound, with no route to the game's
+  own music at all. With nothing playing, the old solo stands.
+
   **FIVE TRACKS, not one** (2026-08-27): the whole of Juhani Junkala's `5
   Action Chiptunes` pack, picked with a `‹ n / 5 ›` control on the right of the
   keys row under the playfield. The module owns the list, the cache and the
@@ -972,6 +981,19 @@ placed twice: `.about-yin`, enormous and at 5.5% behind the About section with
 about a third of it past the right edge, and `.footer-yin`, 46px and centred on
 the footer bar. Both are `.icon` spans, so both retint with the accent picker
 for free.
+
+**While Breakout runs the mark goes IN FRONT of the playfield** —
+`.about.bb-live .about-yin{z-index:1}`, the class set by `script.js` on start and
+cleared on stop. The game hides a broken letter by painting the first OPAQUE
+background above the paragraph, this section's `#0b0e11`; once the mark sat
+behind the bio the real ground under a letter became that colour PLUS a 4.5%
+tint, so every patch came out a shade dark and the wall filled with rectangles.
+Raising the mark over the canvas makes the patch correct by construction —
+`#0b0e11` is exactly right underneath, and the tint then passes over patch and
+untouched ground alike. z-index 1 clears the canvas (positioned, auto) and stays
+under `.bb-stack` / `.bb-keys` at 2, which are controls and must not be washed.
+Fading the mark out for the length of a game was the other option and throws the
+art away.
 
 **Two rules keep the big one working and neither is obvious.** It is cropped by
 `body{overflow-x:hidden}`, NOT by an overflow on `.about` — the country flags

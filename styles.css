@@ -2363,6 +2363,20 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    than into the copy. Opacity comes DOWN as the area goes up — the two move
    against each other, or a mark twice the size at the same value stops being
    ground and starts being a picture. */
+/* WHILE THE TOY RUNS THE MARK GOES IN FRONT OF THE PLAYFIELD, and that is what
+   stops the erase patches showing (Dex, 2026-08-28).
+   The game hides a broken letter by painting the first OPAQUE background it
+   finds walking up from the paragraph — this section's own #0b0e11. That was
+   the whole truth until the yin-yang went behind the bio: the real ground under
+   a letter became #0b0e11 PLUS a 4.5% tint, so every patch came out a shade
+   darker than its surroundings and the wall filled up with rectangles.
+   Raising the mark above the canvas makes the patch correct again by
+   construction: #0b0e11 is exactly right underneath, and the same tint then
+   passes over patch and untouched background alike. z-index 1 clears the canvas
+   (positioned, auto, so 0) and stays under .bb-stack and .bb-keys at 2, which
+   are controls and must not be washed. Fading the mark out instead was the
+   other option and throws the art away for the length of a game. */
+.about.bb-live .about-yin{z-index:1}
 .about-yin{
   position:absolute;z-index:-1;pointer-events:none;
   top:clamp(20px,7vh,150px);right:clamp(-430px,-17vw,-150px);

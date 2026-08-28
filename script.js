@@ -3040,6 +3040,12 @@ const MediaBus = (() => {
        event, and an event cannot be forgotten by whoever adds the fifth. */
     solo(who) { for (const p of players) if (p !== who && !p.el.paused) p.pause(); },
 
+    /* Is anyone ELSE already playing? The counterpart to solo, for the one
+       caller that must not take the room: the breakout toy. Starting a game is
+       not a request for the toy's chiptune over the song someone chose — see
+       where this is used. */
+    busy(who) { return players.some(p => p !== who && !p.el.paused); },
+
     /* Who owns the space bar right now, or null for "nobody — let it scroll".
        A player must be on screen to be in the running at all. Of those, one that
        is actually playing beats one that is merely open; if neither is playing
@@ -5388,7 +5394,7 @@ const PORTRAIT_LABEL = {
   const stopBtn = document.getElementById('bbStopBtn');
   if (!ui || !play || !stack) return;
 
-  const MODULE = './about-breakout.js?v=10';
+  const MODULE = './about-breakout.js?v=11';
   let mod = null;
   const load = async () => (mod ??= await import(MODULE));
 
@@ -5454,9 +5460,12 @@ const PORTRAIT_LABEL = {
       const m = await load();
       if (!m.canPlay()) { gate(); return; }
       ui.classList.add('bb-playing');
+      // The section flag the yin-yang reads — see .about.bb-live in styles.css.
+      document.getElementById('about')?.classList.add('bb-live');
       ctl = await m.start({
         onStop: () => {
           ctl = null;
+          document.getElementById('about')?.classList.remove('bb-live');
           stack.hidden = true;
           const keys = document.getElementById('bbKeys');
           if (keys) keys.hidden = true;
@@ -5501,10 +5510,18 @@ const PORTRAIT_LABEL = {
       }
       paintControls();
       paintTrack();
-      MediaBus.solo(me);            // the music began: the songs bar yields
+      /* A SONG ALREADY PLAYING KEEPS PLAYING (Dex, 2026-08-28). Starting the
+         toy used to solo the bus, which stopped the visitor's own track — they
+         asked to play a game, not to change the music. So when anything else is
+         already sounding, the toy starts with its own chiptune off and leaves
+         it alone; the track picker under the playfield is the way back if they
+         do want it. With nothing playing, the old behaviour stands. */
+      if (MediaBus.busy(me)) ctl.audio.music.stop();
+      else MediaBus.solo(me);
     } catch (e) {
       // Any failure to start leaves the section exactly as it was.
       ctl = null;
+      document.getElementById('about')?.classList.remove('bb-live');
       stack.hidden = true;
       const keys = document.getElementById('bbKeys');
       if (keys) keys.hidden = true;
@@ -5532,6 +5549,10 @@ const PORTRAIT_LABEL = {
     const m = mod.getAudio().music;
     dir > 0 ? m.next() : m.prev();
     paintTrack();
+    /* Picking a track IS asking for it, which matters when the game started
+       silent because a song was already playing: this is the way back to the
+       toy's own music, and the one place where it is right to take the room. */
+    MediaBus.solo(me);
   };
   trkPrev?.addEventListener('click', () => step(-1));
   trkNext?.addEventListener('click', () => step(1));
