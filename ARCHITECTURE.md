@@ -496,7 +496,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     stem left, folds cut out with an SVG-internal `<mask>`) stays with them,
     and `collab.svg` is wanted regardless by the dormant nav link. Same
     park-don't-delete shape as the portrait state in `script.js`
-  - `.about-flags` / `.about-flag`: the two flags at the top right of the bio,
+  - `.about-flags` / `.about-flag`: the three marks at the top right of the
+    bio — US flag, Colorado flag, and a travel icon (`assets/icons/travel.svg`,
+    baked like any other mask). The class still says "flag" because it is a
+    size-and-colour rule and the third mark wants exactly the same one;
     accent-tinted through the same `.icon` mask. They sit in the About
     section's own right padding rather than inside the copy column - the
     pocket between the nowrap h2 and that column's right edge is ~55px at 1440
@@ -517,7 +520,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     kept only as a last resort. In practice it flips left on most screens:
     measured at 1440 there are 81px between the flags and the window edge
     against a 104px "Born Colorado". The `aria-label` carries the same words,
-    so the meaning does not depend on a hover. They STAY UP while Breakout
+    so the meaning does not depend on a hover. The travel mark's tip is the
+    first TWO-LINE one: a newline in `data-tip` (`&#10;` in the attribute) is
+    the whole opt-in, and `show()` sets `#tip.is-multi` from the text rather
+    than from the element, which is what keeps every other bubble `nowrap` —
+    a long single-line label must never fold itself. It shows postcodes
+    because the bubble is a 12px label in a margin and five state names would
+    outrun the column beside it; the `aria-label` writes them out. They STAY UP while Breakout
     runs (2026-08-26). They used to hide off `.bb-ui.bb-playing ~
     .about-flags` because `.bb-stack` is also `left:100%` — same column,
     different strip: measured at every size the toy is offered (it gates

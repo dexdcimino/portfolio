@@ -2059,6 +2059,8 @@ let flashTip = () => {};
     const text = el.dataset.tip;
     if (!text) return;
     current = el;
+    // Two-line tips opt in by containing a newline; see #tip.is-multi.
+    tip.classList.toggle('is-multi', text.includes('\n'));
     tip.textContent = text;
     tip.classList.add('is-on');
     // Measure after the text lands, or the first show is positioned off the
