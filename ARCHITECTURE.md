@@ -521,10 +521,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     measured at 1440 there are 81px between the flags and the window edge
     against a 104px "Born Colorado". The `aria-label` carries the same words,
     so the meaning does not depend on a hover. The travel mark's tip is the
-    first TWO-LINE one: a newline in `data-tip` (`&#10;` in the attribute) is
-    the whole opt-in, and `show()` sets `#tip.is-multi` from the text rather
-    than from the element, which is what keeps every other bubble `nowrap` —
-    a long single-line label must never fold itself. It shows postcodes
+    first MULTI-LINE one (three lines): a newline in `data-tip` (`&#10;` in the
+    attribute) is the whole opt-in, and `show()` sets `#tip.is-multi` from the
+    text rather than from the element, which is what keeps every other bubble
+    `nowrap` — a long single-line label must never fold itself. It shows postcodes
     because the bubble is a 12px label in a margin and five state names would
     outrun the column beside it; the `aria-label` writes them out. They STAY UP while Breakout
     runs (2026-08-26). They used to hide off `.bb-ui.bb-playing ~
