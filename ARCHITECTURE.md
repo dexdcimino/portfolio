@@ -88,7 +88,14 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   purpose, with the two arrows OUTSIDE it in their own flex columns and
   wrapping at both ends; the eight featured cards cross-fade five frames each
   on ONE round-robin interval, frame 0 from the markup and 1-4 from the
-  manifest), one `initTabs()`
+  manifest. The sweep is THREE COLUMNS, not five items: the video, then the
+  left pair of thumbnails, then the right pair, `STEP_MS` 300 apart on a
+  15 s hold, so the whole wave crosses the stage in about 600 ms while each
+  `.85s` cross-fade is still running. And a frame LEAVING keeps opacity 1 one
+  layer down (`.is-leaving`) instead of fading out under the new one: two
+  matched ease curves composite to `1-(1-a)(1-b)`, which is 0.75 at the
+  midpoint, and that quarter of panel showing through was the flicker in the
+  middle of every fade), one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +
   lightbox, self-building from `.wp-item` figures, instantiated TWICE:
   Wallpapers (`wp`) and Concepts (`cn`). The ids are a prefix and the arrows

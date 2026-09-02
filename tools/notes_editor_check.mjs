@@ -64,14 +64,37 @@ const SCRATCH = `
    section. The editor saves to the store, so debris survives the run that made
    it: an emptied <div id="md"> from the last pass is still there on the next
    one, getElementById finds that instead of the fresh copy, and the check dies
-   on a null firstChild. Everything the harness creates is tagged
-   data-harness and swept here. */
-const reset = () => page.evaluate((html) => {
+   on a null firstChild.
+
+   AND data-harness alone cannot find that debris. The store's sanitiser drops
+   unknown data-* attributes, so a scratch section that has been through one
+   save comes back untagged -- invisible to the sweep and still holding an
+   #s0. That is not hypothetical: a run that died mid-case left a bolded #s0
+   in current.html, every later run found THAT one first, and the harness then
+   crashed on every invocation for reasons that had nothing to do with the code
+   it was testing. The ids do survive the round trip, so they are what the
+   sweep keys on, and the fresh copy is checked for uniqueness afterwards --
+   a duplicate id means the sweep missed something and everything below it is
+   measuring the wrong element. */
+const HARNESS_IDS = ['scratch', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 'md'];
+const reset = () => page.evaluate((html, ids) => {
   const doc = document.getElementById('notesDoc');
   doc.querySelectorAll('[data-harness]').forEach(el => el.remove());
+  for (let guard = 0; guard < 50; guard++) {
+    const stale = ids.map(id => document.getElementById(id)).find(Boolean);
+    if (!stale) break;
+    (stale.closest('.nv-sec') || stale).remove();
+  }
+  // Untagged, id-less debris: a section holding nothing but one fixture word.
+  const WORDS = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'];
+  doc.querySelectorAll('.nv-sec').forEach(sec => {
+    if (WORDS.includes(sec.textContent.trim())) sec.remove();
+  });
   doc.insertAdjacentHTML('beforeend', html);
+  const dupes = ids.filter(id => document.querySelectorAll(`[id="${id}"]`).length > 1);
+  if (dupes.length) throw new Error(`the sweep left duplicate ids: ${dupes.join(', ')}`);
   document.getElementById('scratch').scrollIntoView({ block: 'center', behavior: 'instant' });
-}, SCRATCH);
+}, SCRATCH, HARNESS_IDS);
 
 /* Found BY TEXT, not by id. execCommand('outdent') unwraps and rebuilds the
    element, so the id is gone the moment the thing under test works -- an
@@ -80,7 +103,15 @@ const reset = () => page.evaluate((html) => {
    survives the rewrite. Returns the tag too, so "became a plain line" is a
    distinguishable outcome rather than an absence. */
 const findByText = (text) => page.evaluate((t) => {
-  const doc = document.getElementById('notesDoc');
+  /* Scoped to the SCRATCH SECTION, not the whole document. The words the
+     fixture uses are ordinary ones and a run that dies mid-case can leave a
+     stray section behind holding one of them -- a bare <section>charlie</section>
+     at depth 0 was sitting in the dev store, and every later run measured THAT
+     charlie instead of the bullet, reporting the indent and Backspace cases as
+     broken while the editor was fine. Debris outside the fixture is now
+     invisible to the lookup rather than merely unlikely to be found first. */
+  const doc = document.getElementById('scratch')?.closest('.nv-sec')
+            || document.getElementById('notesDoc');
   const walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT);
   let node = null;
   while (walker.nextNode()) {
@@ -92,11 +123,12 @@ const findByText = (text) => page.evaluate((t) => {
   // making success and destruction look identical.
   if (!node) return { found: false, depth: -1, tag: null };
   let n = 0;
-  for (let p = node.parentElement; p && p.id !== 'notesDoc'; p = p.parentElement) {
+  for (let p = node.parentElement; p && p.id !== 'notesDoc' && p !== doc; p = p.parentElement) {
     if (/^(UL|OL)$/.test(p.tagName)) n++;
   }
   const parent = node.parentElement;
-  return { found: true, depth: n, tag: parent && parent.id === 'notesDoc' ? 'TEXT' : parent.tagName };
+  const bare = parent && (parent.id === 'notesDoc' || parent === doc);
+  return { found: true, depth: n, tag: bare ? 'TEXT' : parent.tagName };
 }, text);
 
 const depthOf = async (text) => (await findByText(text)).depth;
@@ -376,6 +408,31 @@ const settle = (ms = 150) => new Promise(r => setTimeout(r, ms));
   const spread = Math.max(...gaps) - Math.min(...gaps);
   console.log(`header gaps: ${gaps.join(', ')} (spread ${spread}px)`);
   note(spread <= 1, `header-to-list gaps vary by ${spread}px: ${gaps.join(', ')}`);
+}
+
+/* TAKE THE FIXTURE BACK OUT, and wait for the save that removes it to land.
+   The editor writes to the real dev store, so a SCRATCH section left in there
+   is not this run's problem -- it is the NEXT harness's. notes_check.mjs counts
+   sections and rail buttons, and found 10 of each where the notes have 9, which
+   reads as a product bug and is not one. Waiting for the response matters as
+   much as the removal: browser.close() during a debounce leaves the fixture in
+   the store exactly as before. */
+{
+  const landed = page.waitForResponse(
+    r => /api.notes.save/.test(r.url()) && r.status() === 200, { timeout: 20000 });
+  await page.evaluate((ids) => {
+    const doc = document.getElementById('notesDoc');
+    doc.querySelectorAll('[data-harness]').forEach(el => el.remove());
+    for (let guard = 0; guard < 50; guard++) {
+      const stale = ids.map(id => document.getElementById(id)).find(Boolean);
+      if (!stale) break;
+      (stale.closest('.nv-sec') || stale).remove();
+    }
+    doc.dispatchEvent(new Event('input', { bubbles: true }));
+  }, HARNESS_IDS);
+  await landed.catch(() => fail.push('the fixture never saved back out of the store'));
+  const left = await page.evaluate(() => !!document.getElementById('scratch'));
+  note(!left, 'the SCRATCH fixture is still in the document at teardown');
 }
 
 await browser.close();

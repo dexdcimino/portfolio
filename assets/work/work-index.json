@@ -41,11 +41,11 @@
    "omit": ["ogre-3", "livetale-female-6"],
    "order": [
     "brigadier-bluebeard",
+    "bone-archer",
     "corrupt-sentinel",
     "osseous",
     "mecha-bot",
     "kittens",
-    "bone-archer",
     "low-res-enemies",
     "male-character-high-poly",
     "path-of-percival",
@@ -85,10 +85,25 @@
    "label": "PROPS & WEAPONS",
    "blurb": "Weapons, chests and hero props — high-poly sculpt to in-engine render.",
    "frames": ["grimshot-rifle-1", "gobbler-fish-1", "shard-of-drak-1", "bluebeards-blaster-2", "spearsphere-1"],
+   "order": [
+    "bluebeards-blaster",
+    "shard-of-drak",
+    "grimshot-rifle",
+    "gobbler-fish",
+    "spearsphere",
+    "ironbound-bloodmaul",
+    "tribal-elixir",
+    "digipod",
+    "dragon-chest",
+    "dragon-post",
+    "aa-12-battlebit",
+    "grimshot-rifle-references"
+   ],
    "titles": {
     "aa-12-battlebit": "AA-12 (Battlebit)",
     "bluebeards-blaster": "Bluebeard's Blaster",
     "digipod": "DigiPod",
+    "grimshot-rifle-references": "Grimshot Rifle \u2014 References",
     "shard-of-drak": "Shard of Drak'Tharion",
     "spearsphere": "SpearSphere"
    }
@@ -98,8 +113,20 @@
    "label": "CONCEPT ART",
    "blurb": "Painted concepts and callouts — the pass before anything gets modelled.",
    "frames": ["nyxara-2", "nimp-2", "sandstone-guardian-1", "dark-iron-dwarf-2", "2d-weapons-1"],
+   "order": [
+    "female-concept",
+    "nyxara",
+    "nimp",
+    "sandstone-guardian",
+    "dark-iron-dwarf",
+    "2d-weapons",
+    "male-character-armor-concept",
+    "flat-color-concept",
+    "female-base-mesh"
+   ],
    "titles": {
     "2d-weapons": "2D Weapons",
+    "female-base-mesh": "Female Base Mesh",
     "male-character-armor-concept": "Male Character Armour Concept"
    }
   },

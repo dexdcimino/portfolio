@@ -15,16 +15,16 @@
      "index": 2
     },
     {
-     "index": 5
+     "index": 8
     },
     {
-     "index": 13
-    },
-    {
-     "index": 17
+     "index": 16
     },
     {
      "index": 20
+    },
+    {
+     "index": 23
     }
    ],
    "items": [
@@ -105,6 +105,51 @@
      "srcset": {
       "avif": "assets/derived/work/character/brigadier-bluebeard-5-600.avif?v=f9bd8452 600w, assets/derived/work/character/brigadier-bluebeard-5-400.avif?v=f9bd8452 400w",
       "webp": "assets/derived/work/character/brigadier-bluebeard-5-600.webp?v=f9bd8452 600w, assets/derived/work/character/brigadier-bluebeard-5-400.webp?v=f9bd8452 400w"
+     }
+    },
+    {
+     "stem": "bone-archer-1",
+     "stamp": "6a9b37ab",
+     "title": "Bone Archer",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/bone-archer-1.webp",
+     "w": 1600,
+     "h": 1018,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/bone-archer-1-900.avif?v=6a9b37ab 900w, assets/derived/work/character/bone-archer-1-600.avif?v=6a9b37ab 600w, assets/derived/work/character/bone-archer-1-400.avif?v=6a9b37ab 400w",
+      "webp": "assets/derived/work/character/bone-archer-1-900.webp?v=6a9b37ab 900w, assets/derived/work/character/bone-archer-1-600.webp?v=6a9b37ab 600w, assets/derived/work/character/bone-archer-1-400.webp?v=6a9b37ab 400w"
+     }
+    },
+    {
+     "stem": "bone-archer-2",
+     "stamp": "9d6078d3",
+     "title": "Bone Archer",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/bone-archer-2.webp",
+     "w": 1600,
+     "h": 1012,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/bone-archer-2-900.avif?v=9d6078d3 900w, assets/derived/work/character/bone-archer-2-600.avif?v=9d6078d3 600w, assets/derived/work/character/bone-archer-2-400.avif?v=9d6078d3 400w",
+      "webp": "assets/derived/work/character/bone-archer-2-900.webp?v=9d6078d3 900w, assets/derived/work/character/bone-archer-2-600.webp?v=9d6078d3 600w, assets/derived/work/character/bone-archer-2-400.webp?v=9d6078d3 400w"
+     }
+    },
+    {
+     "stem": "bone-archer-3",
+     "stamp": "865856ee",
+     "title": "Bone Archer",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/bone-archer-3.webp",
+     "w": 743,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/bone-archer-3-600.avif?v=865856ee 600w, assets/derived/work/character/bone-archer-3-400.avif?v=865856ee 400w",
+      "webp": "assets/derived/work/character/bone-archer-3-600.webp?v=865856ee 600w, assets/derived/work/character/bone-archer-3-400.webp?v=865856ee 400w"
      }
     },
     {
@@ -418,51 +463,6 @@
      "srcset": {
       "avif": "assets/derived/work/character/kittens-7-900.avif?v=b8f3dc25 900w, assets/derived/work/character/kittens-7-600.avif?v=b8f3dc25 600w, assets/derived/work/character/kittens-7-400.avif?v=b8f3dc25 400w",
       "webp": "assets/derived/work/character/kittens-7-900.webp?v=b8f3dc25 900w, assets/derived/work/character/kittens-7-600.webp?v=b8f3dc25 600w, assets/derived/work/character/kittens-7-400.webp?v=b8f3dc25 400w"
-     }
-    },
-    {
-     "stem": "bone-archer-1",
-     "stamp": "6a9b37ab",
-     "title": "Bone Archer",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/bone-archer-1.webp",
-     "w": 1600,
-     "h": 1018,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/bone-archer-1-900.avif?v=6a9b37ab 900w, assets/derived/work/character/bone-archer-1-600.avif?v=6a9b37ab 600w, assets/derived/work/character/bone-archer-1-400.avif?v=6a9b37ab 400w",
-      "webp": "assets/derived/work/character/bone-archer-1-900.webp?v=6a9b37ab 900w, assets/derived/work/character/bone-archer-1-600.webp?v=6a9b37ab 600w, assets/derived/work/character/bone-archer-1-400.webp?v=6a9b37ab 400w"
-     }
-    },
-    {
-     "stem": "bone-archer-2",
-     "stamp": "9d6078d3",
-     "title": "Bone Archer",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/bone-archer-2.webp",
-     "w": 1600,
-     "h": 1012,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/bone-archer-2-900.avif?v=9d6078d3 900w, assets/derived/work/character/bone-archer-2-600.avif?v=9d6078d3 600w, assets/derived/work/character/bone-archer-2-400.avif?v=9d6078d3 400w",
-      "webp": "assets/derived/work/character/bone-archer-2-900.webp?v=9d6078d3 900w, assets/derived/work/character/bone-archer-2-600.webp?v=9d6078d3 600w, assets/derived/work/character/bone-archer-2-400.webp?v=9d6078d3 400w"
-     }
-    },
-    {
-     "stem": "bone-archer-3",
-     "stamp": "865856ee",
-     "title": "Bone Archer",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/bone-archer-3.webp",
-     "w": 743,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/bone-archer-3-600.avif?v=865856ee 600w, assets/derived/work/character/bone-archer-3-400.avif?v=865856ee 400w",
-      "webp": "assets/derived/work/character/bone-archer-3-600.webp?v=865856ee 600w, assets/derived/work/character/bone-archer-3-400.webp?v=865856ee 400w"
      }
     },
     {
@@ -1458,22 +1458,78 @@
    "blurb": "Weapons, chests and hero props — high-poly sculpt to in-engine render.",
    "frames": [
     {
-     "index": 0
-    },
-    {
      "index": 4
     },
     {
      "index": 7
     },
     {
-     "index": 10
+     "index": 2
     },
     {
-     "index": 11
+     "index": 1
+    },
+    {
+     "index": 10
     }
    ],
    "items": [
+    {
+     "stem": "bluebeards-blaster-1",
+     "stamp": "895d298a",
+     "title": "Bluebeard's Blaster",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/bluebeards-blaster-1.webp",
+     "w": 1600,
+     "h": 1111,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/bluebeards-blaster-1-900.avif?v=895d298a 900w, assets/derived/work/props/bluebeards-blaster-1-600.avif?v=895d298a 600w, assets/derived/work/props/bluebeards-blaster-1-400.avif?v=895d298a 400w",
+      "webp": "assets/derived/work/props/bluebeards-blaster-1-900.webp?v=895d298a 900w, assets/derived/work/props/bluebeards-blaster-1-600.webp?v=895d298a 600w, assets/derived/work/props/bluebeards-blaster-1-400.webp?v=895d298a 400w"
+     }
+    },
+    {
+     "stem": "bluebeards-blaster-2",
+     "stamp": "16949167",
+     "title": "Bluebeard's Blaster",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/bluebeards-blaster-2.webp",
+     "w": 1600,
+     "h": 1028,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/bluebeards-blaster-2-900.avif?v=16949167 900w, assets/derived/work/props/bluebeards-blaster-2-600.avif?v=16949167 600w, assets/derived/work/props/bluebeards-blaster-2-400.avif?v=16949167 400w",
+      "webp": "assets/derived/work/props/bluebeards-blaster-2-900.webp?v=16949167 900w, assets/derived/work/props/bluebeards-blaster-2-600.webp?v=16949167 600w, assets/derived/work/props/bluebeards-blaster-2-400.webp?v=16949167 400w"
+     }
+    },
+    {
+     "stem": "shard-of-drak-1",
+     "stamp": "de53efcd",
+     "title": "Shard of Drak'Tharion",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/shard-of-drak-1.webp",
+     "w": 1091,
+     "h": 595,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/shard-of-drak-1-900.avif?v=de53efcd 900w, assets/derived/work/props/shard-of-drak-1-600.avif?v=de53efcd 600w, assets/derived/work/props/shard-of-drak-1-400.avif?v=de53efcd 400w",
+      "webp": "assets/derived/work/props/shard-of-drak-1-900.webp?v=de53efcd 900w, assets/derived/work/props/shard-of-drak-1-600.webp?v=de53efcd 600w, assets/derived/work/props/shard-of-drak-1-400.webp?v=de53efcd 400w"
+     }
+    },
+    {
+     "stem": "shard-of-drak-2",
+     "stamp": "e877998e",
+     "title": "Shard of Drak'Tharion",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/shard-of-drak-2.webp",
+     "w": 1091,
+     "h": 680,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/shard-of-drak-2-900.avif?v=e877998e 900w, assets/derived/work/props/shard-of-drak-2-600.avif?v=e877998e 600w, assets/derived/work/props/shard-of-drak-2-400.avif?v=e877998e 400w",
+      "webp": "assets/derived/work/props/shard-of-drak-2-900.webp?v=e877998e 900w, assets/derived/work/props/shard-of-drak-2-600.webp?v=e877998e 600w, assets/derived/work/props/shard-of-drak-2-400.webp?v=e877998e 400w"
+     }
+    },
     {
      "stem": "grimshot-rifle-1",
      "stamp": "034711c0",
@@ -1523,22 +1579,6 @@
      }
     },
     {
-     "stem": "grimshot-rifle-4",
-     "stamp": "a8f844ef",
-     "title": "Grimshot Rifle",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/grimshot-rifle-4.webp",
-     "w": 1400,
-     "h": 950,
-     "pos": {
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/props/grimshot-rifle-4-900.avif?v=a8f844ef 900w, assets/derived/work/props/grimshot-rifle-4-600.avif?v=a8f844ef 600w, assets/derived/work/props/grimshot-rifle-4-400.avif?v=a8f844ef 400w",
-      "webp": "assets/derived/work/props/grimshot-rifle-4-900.webp?v=a8f844ef 900w, assets/derived/work/props/grimshot-rifle-4-600.webp?v=a8f844ef 600w, assets/derived/work/props/grimshot-rifle-4-400.webp?v=a8f844ef 400w"
-     }
-    },
-    {
      "stem": "gobbler-fish-1",
      "stamp": "2dd2c2ab",
      "title": "Gobbler Fish",
@@ -1582,62 +1622,6 @@
      "srcset": {
       "avif": "assets/derived/work/props/gobbler-fish-3-900.avif?v=ae8edbd4 900w, assets/derived/work/props/gobbler-fish-3-600.avif?v=ae8edbd4 600w, assets/derived/work/props/gobbler-fish-3-400.avif?v=ae8edbd4 400w",
       "webp": "assets/derived/work/props/gobbler-fish-3-900.webp?v=ae8edbd4 900w, assets/derived/work/props/gobbler-fish-3-600.webp?v=ae8edbd4 600w, assets/derived/work/props/gobbler-fish-3-400.webp?v=ae8edbd4 400w"
-     }
-    },
-    {
-     "stem": "shard-of-drak-1",
-     "stamp": "de53efcd",
-     "title": "Shard of Drak'Tharion",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/shard-of-drak-1.webp",
-     "w": 1091,
-     "h": 595,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/shard-of-drak-1-900.avif?v=de53efcd 900w, assets/derived/work/props/shard-of-drak-1-600.avif?v=de53efcd 600w, assets/derived/work/props/shard-of-drak-1-400.avif?v=de53efcd 400w",
-      "webp": "assets/derived/work/props/shard-of-drak-1-900.webp?v=de53efcd 900w, assets/derived/work/props/shard-of-drak-1-600.webp?v=de53efcd 600w, assets/derived/work/props/shard-of-drak-1-400.webp?v=de53efcd 400w"
-     }
-    },
-    {
-     "stem": "shard-of-drak-2",
-     "stamp": "e877998e",
-     "title": "Shard of Drak'Tharion",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/shard-of-drak-2.webp",
-     "w": 1091,
-     "h": 680,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/shard-of-drak-2-900.avif?v=e877998e 900w, assets/derived/work/props/shard-of-drak-2-600.avif?v=e877998e 600w, assets/derived/work/props/shard-of-drak-2-400.avif?v=e877998e 400w",
-      "webp": "assets/derived/work/props/shard-of-drak-2-900.webp?v=e877998e 900w, assets/derived/work/props/shard-of-drak-2-600.webp?v=e877998e 600w, assets/derived/work/props/shard-of-drak-2-400.webp?v=e877998e 400w"
-     }
-    },
-    {
-     "stem": "bluebeards-blaster-1",
-     "stamp": "895d298a",
-     "title": "Bluebeard's Blaster",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/bluebeards-blaster-1.webp",
-     "w": 1600,
-     "h": 1111,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/bluebeards-blaster-1-900.avif?v=895d298a 900w, assets/derived/work/props/bluebeards-blaster-1-600.avif?v=895d298a 600w, assets/derived/work/props/bluebeards-blaster-1-400.avif?v=895d298a 400w",
-      "webp": "assets/derived/work/props/bluebeards-blaster-1-900.webp?v=895d298a 900w, assets/derived/work/props/bluebeards-blaster-1-600.webp?v=895d298a 600w, assets/derived/work/props/bluebeards-blaster-1-400.webp?v=895d298a 400w"
-     }
-    },
-    {
-     "stem": "bluebeards-blaster-2",
-     "stamp": "16949167",
-     "title": "Bluebeard's Blaster",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/bluebeards-blaster-2.webp",
-     "w": 1600,
-     "h": 1028,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/bluebeards-blaster-2-900.avif?v=16949167 900w, assets/derived/work/props/bluebeards-blaster-2-600.avif?v=16949167 600w, assets/derived/work/props/bluebeards-blaster-2-400.avif?v=16949167 400w",
-      "webp": "assets/derived/work/props/bluebeards-blaster-2-900.webp?v=16949167 900w, assets/derived/work/props/bluebeards-blaster-2-600.webp?v=16949167 600w, assets/derived/work/props/bluebeards-blaster-2-400.webp?v=16949167 400w"
      }
     },
     {
@@ -1687,107 +1671,6 @@
      "srcset": {
       "avif": "assets/derived/work/props/spearsphere-4-900.avif?v=2b641161 900w, assets/derived/work/props/spearsphere-4-600.avif?v=2b641161 600w, assets/derived/work/props/spearsphere-4-400.avif?v=2b641161 400w",
       "webp": "assets/derived/work/props/spearsphere-4-900.webp?v=2b641161 900w, assets/derived/work/props/spearsphere-4-600.webp?v=2b641161 600w, assets/derived/work/props/spearsphere-4-400.webp?v=2b641161 400w"
-     }
-    },
-    {
-     "stem": "aa-12-battlebit-1",
-     "stamp": "889aa25e",
-     "title": "AA-12 (Battlebit)",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/aa-12-battlebit-1.webp",
-     "w": 1081,
-     "h": 609,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/aa-12-battlebit-1-900.avif?v=889aa25e 900w, assets/derived/work/props/aa-12-battlebit-1-600.avif?v=889aa25e 600w, assets/derived/work/props/aa-12-battlebit-1-400.avif?v=889aa25e 400w",
-      "webp": "assets/derived/work/props/aa-12-battlebit-1-900.webp?v=889aa25e 900w, assets/derived/work/props/aa-12-battlebit-1-600.webp?v=889aa25e 600w, assets/derived/work/props/aa-12-battlebit-1-400.webp?v=889aa25e 400w"
-     }
-    },
-    {
-     "stem": "digipod-1",
-     "stamp": "2b8234c7",
-     "title": "DigiPod",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/digipod-1.webp",
-     "w": 1081,
-     "h": 609,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/digipod-1-900.avif?v=2b8234c7 900w, assets/derived/work/props/digipod-1-600.avif?v=2b8234c7 600w, assets/derived/work/props/digipod-1-400.avif?v=2b8234c7 400w",
-      "webp": "assets/derived/work/props/digipod-1-900.webp?v=2b8234c7 900w, assets/derived/work/props/digipod-1-600.webp?v=2b8234c7 600w, assets/derived/work/props/digipod-1-400.webp?v=2b8234c7 400w"
-     }
-    },
-    {
-     "stem": "digipod-2",
-     "stamp": "8a83b5a1",
-     "title": "DigiPod",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/digipod-2.webp",
-     "w": 1081,
-     "h": 1081,
-     "pos": {
-      "card": "50% 19%",
-      "thumb": "50% 8%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/props/digipod-2-900.avif?v=8a83b5a1 900w, assets/derived/work/props/digipod-2-600.avif?v=8a83b5a1 600w, assets/derived/work/props/digipod-2-400.avif?v=8a83b5a1 400w",
-      "webp": "assets/derived/work/props/digipod-2-900.webp?v=8a83b5a1 900w, assets/derived/work/props/digipod-2-600.webp?v=8a83b5a1 600w, assets/derived/work/props/digipod-2-400.webp?v=8a83b5a1 400w"
-     }
-    },
-    {
-     "stem": "digipod-3",
-     "stamp": "afdf184e",
-     "title": "DigiPod",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/digipod-3.webp",
-     "w": 1081,
-     "h": 522,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/digipod-3-900.avif?v=afdf184e 900w, assets/derived/work/props/digipod-3-600.avif?v=afdf184e 600w, assets/derived/work/props/digipod-3-400.avif?v=afdf184e 400w",
-      "webp": "assets/derived/work/props/digipod-3-900.webp?v=afdf184e 900w, assets/derived/work/props/digipod-3-600.webp?v=afdf184e 600w, assets/derived/work/props/digipod-3-400.webp?v=afdf184e 400w"
-     }
-    },
-    {
-     "stem": "dragon-chest-1",
-     "stamp": "e9b3e41e",
-     "title": "Dragon Chest",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/dragon-chest-1.webp",
-     "w": 1081,
-     "h": 608,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/dragon-chest-1-900.avif?v=e9b3e41e 900w, assets/derived/work/props/dragon-chest-1-600.avif?v=e9b3e41e 600w, assets/derived/work/props/dragon-chest-1-400.avif?v=e9b3e41e 400w",
-      "webp": "assets/derived/work/props/dragon-chest-1-900.webp?v=e9b3e41e 900w, assets/derived/work/props/dragon-chest-1-600.webp?v=e9b3e41e 600w, assets/derived/work/props/dragon-chest-1-400.webp?v=e9b3e41e 400w"
-     }
-    },
-    {
-     "stem": "dragon-post-1",
-     "stamp": "20a5a273",
-     "title": "Dragon Post",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/dragon-post-1.webp",
-     "w": 1081,
-     "h": 609,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/dragon-post-1-900.avif?v=20a5a273 900w, assets/derived/work/props/dragon-post-1-600.avif?v=20a5a273 600w, assets/derived/work/props/dragon-post-1-400.avif?v=20a5a273 400w",
-      "webp": "assets/derived/work/props/dragon-post-1-900.webp?v=20a5a273 900w, assets/derived/work/props/dragon-post-1-600.webp?v=20a5a273 600w, assets/derived/work/props/dragon-post-1-400.webp?v=20a5a273 400w"
-     }
-    },
-    {
-     "stem": "dragon-post-2",
-     "stamp": "196be0f2",
-     "title": "Dragon Post",
-     "desc": "PROPS & WEAPONS",
-     "src": "assets/work/props/dragon-post-2.webp",
-     "w": 1081,
-     "h": 608,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/props/dragon-post-2-900.avif?v=196be0f2 900w, assets/derived/work/props/dragon-post-2-600.avif?v=196be0f2 600w, assets/derived/work/props/dragon-post-2-400.avif?v=196be0f2 400w",
-      "webp": "assets/derived/work/props/dragon-post-2-900.webp?v=196be0f2 900w, assets/derived/work/props/dragon-post-2-600.webp?v=196be0f2 600w, assets/derived/work/props/dragon-post-2-400.webp?v=196be0f2 400w"
      }
     },
     {
@@ -1909,6 +1792,123 @@
       "avif": "assets/derived/work/props/tribal-elixir-2-900.avif?v=0731a164 900w, assets/derived/work/props/tribal-elixir-2-600.avif?v=0731a164 600w, assets/derived/work/props/tribal-elixir-2-400.avif?v=0731a164 400w",
       "webp": "assets/derived/work/props/tribal-elixir-2-900.webp?v=0731a164 900w, assets/derived/work/props/tribal-elixir-2-600.webp?v=0731a164 600w, assets/derived/work/props/tribal-elixir-2-400.webp?v=0731a164 400w"
      }
+    },
+    {
+     "stem": "digipod-1",
+     "stamp": "2b8234c7",
+     "title": "DigiPod",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/digipod-1.webp",
+     "w": 1081,
+     "h": 609,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/digipod-1-900.avif?v=2b8234c7 900w, assets/derived/work/props/digipod-1-600.avif?v=2b8234c7 600w, assets/derived/work/props/digipod-1-400.avif?v=2b8234c7 400w",
+      "webp": "assets/derived/work/props/digipod-1-900.webp?v=2b8234c7 900w, assets/derived/work/props/digipod-1-600.webp?v=2b8234c7 600w, assets/derived/work/props/digipod-1-400.webp?v=2b8234c7 400w"
+     }
+    },
+    {
+     "stem": "digipod-2",
+     "stamp": "8a83b5a1",
+     "title": "DigiPod",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/digipod-2.webp",
+     "w": 1081,
+     "h": 1081,
+     "pos": {
+      "card": "50% 19%",
+      "thumb": "50% 8%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/props/digipod-2-900.avif?v=8a83b5a1 900w, assets/derived/work/props/digipod-2-600.avif?v=8a83b5a1 600w, assets/derived/work/props/digipod-2-400.avif?v=8a83b5a1 400w",
+      "webp": "assets/derived/work/props/digipod-2-900.webp?v=8a83b5a1 900w, assets/derived/work/props/digipod-2-600.webp?v=8a83b5a1 600w, assets/derived/work/props/digipod-2-400.webp?v=8a83b5a1 400w"
+     }
+    },
+    {
+     "stem": "digipod-3",
+     "stamp": "afdf184e",
+     "title": "DigiPod",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/digipod-3.webp",
+     "w": 1081,
+     "h": 522,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/digipod-3-900.avif?v=afdf184e 900w, assets/derived/work/props/digipod-3-600.avif?v=afdf184e 600w, assets/derived/work/props/digipod-3-400.avif?v=afdf184e 400w",
+      "webp": "assets/derived/work/props/digipod-3-900.webp?v=afdf184e 900w, assets/derived/work/props/digipod-3-600.webp?v=afdf184e 600w, assets/derived/work/props/digipod-3-400.webp?v=afdf184e 400w"
+     }
+    },
+    {
+     "stem": "dragon-chest-1",
+     "stamp": "e9b3e41e",
+     "title": "Dragon Chest",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/dragon-chest-1.webp",
+     "w": 1081,
+     "h": 608,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/dragon-chest-1-900.avif?v=e9b3e41e 900w, assets/derived/work/props/dragon-chest-1-600.avif?v=e9b3e41e 600w, assets/derived/work/props/dragon-chest-1-400.avif?v=e9b3e41e 400w",
+      "webp": "assets/derived/work/props/dragon-chest-1-900.webp?v=e9b3e41e 900w, assets/derived/work/props/dragon-chest-1-600.webp?v=e9b3e41e 600w, assets/derived/work/props/dragon-chest-1-400.webp?v=e9b3e41e 400w"
+     }
+    },
+    {
+     "stem": "dragon-post-1",
+     "stamp": "20a5a273",
+     "title": "Dragon Post",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/dragon-post-1.webp",
+     "w": 1081,
+     "h": 609,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/dragon-post-1-900.avif?v=20a5a273 900w, assets/derived/work/props/dragon-post-1-600.avif?v=20a5a273 600w, assets/derived/work/props/dragon-post-1-400.avif?v=20a5a273 400w",
+      "webp": "assets/derived/work/props/dragon-post-1-900.webp?v=20a5a273 900w, assets/derived/work/props/dragon-post-1-600.webp?v=20a5a273 600w, assets/derived/work/props/dragon-post-1-400.webp?v=20a5a273 400w"
+     }
+    },
+    {
+     "stem": "dragon-post-2",
+     "stamp": "196be0f2",
+     "title": "Dragon Post",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/dragon-post-2.webp",
+     "w": 1081,
+     "h": 608,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/dragon-post-2-900.avif?v=196be0f2 900w, assets/derived/work/props/dragon-post-2-600.avif?v=196be0f2 600w, assets/derived/work/props/dragon-post-2-400.avif?v=196be0f2 400w",
+      "webp": "assets/derived/work/props/dragon-post-2-900.webp?v=196be0f2 900w, assets/derived/work/props/dragon-post-2-600.webp?v=196be0f2 600w, assets/derived/work/props/dragon-post-2-400.webp?v=196be0f2 400w"
+     }
+    },
+    {
+     "stem": "aa-12-battlebit-1",
+     "stamp": "889aa25e",
+     "title": "AA-12 (Battlebit)",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/aa-12-battlebit-1.webp",
+     "w": 1081,
+     "h": 609,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/props/aa-12-battlebit-1-900.avif?v=889aa25e 900w, assets/derived/work/props/aa-12-battlebit-1-600.avif?v=889aa25e 600w, assets/derived/work/props/aa-12-battlebit-1-400.avif?v=889aa25e 400w",
+      "webp": "assets/derived/work/props/aa-12-battlebit-1-900.webp?v=889aa25e 900w, assets/derived/work/props/aa-12-battlebit-1-600.webp?v=889aa25e 600w, assets/derived/work/props/aa-12-battlebit-1-400.webp?v=889aa25e 400w"
+     }
+    },
+    {
+     "stem": "grimshot-rifle-references",
+     "stamp": "a8f844ef",
+     "title": "Grimshot Rifle — References",
+     "desc": "PROPS & WEAPONS",
+     "src": "assets/work/props/grimshot-rifle-references.webp",
+     "w": 1400,
+     "h": 950,
+     "pos": {
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/props/grimshot-rifle-references-900.avif?v=a8f844ef 900w, assets/derived/work/props/grimshot-rifle-references-600.avif?v=a8f844ef 600w, assets/derived/work/props/grimshot-rifle-references-400.avif?v=a8f844ef 400w",
+      "webp": "assets/derived/work/props/grimshot-rifle-references-900.webp?v=a8f844ef 900w, assets/derived/work/props/grimshot-rifle-references-600.webp?v=a8f844ef 600w, assets/derived/work/props/grimshot-rifle-references-400.webp?v=a8f844ef 400w"
+     }
     }
    ]
   },
@@ -1918,10 +1918,7 @@
    "blurb": "Painted concepts and callouts — the pass before anything gets modelled.",
    "frames": [
     {
-     "index": 1
-    },
-    {
-     "index": 3
+     "index": 5
     },
     {
      "index": 7
@@ -1930,10 +1927,78 @@
      "index": 11
     },
     {
-     "index": 13
+     "index": 15
+    },
+    {
+     "index": 17
     }
    ],
    "items": [
+    {
+     "stem": "female-concept-1",
+     "stamp": "b9e9f51b",
+     "title": "Female Concept",
+     "desc": "CONCEPT ART",
+     "src": "assets/work/concept/female-concept-1.webp",
+     "w": 1600,
+     "h": 1000,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/concept/female-concept-1-900.avif?v=b9e9f51b 900w, assets/derived/work/concept/female-concept-1-600.avif?v=b9e9f51b 600w, assets/derived/work/concept/female-concept-1-400.avif?v=b9e9f51b 400w",
+      "webp": "assets/derived/work/concept/female-concept-1-900.webp?v=b9e9f51b 900w, assets/derived/work/concept/female-concept-1-600.webp?v=b9e9f51b 600w, assets/derived/work/concept/female-concept-1-400.webp?v=b9e9f51b 400w"
+     }
+    },
+    {
+     "stem": "female-concept-2",
+     "stamp": "bb9ccabe",
+     "title": "Female Concept",
+     "desc": "CONCEPT ART",
+     "src": "assets/work/concept/female-concept-2.webp",
+     "w": 1120,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/concept/female-concept-2-900.avif?v=bb9ccabe 900w, assets/derived/work/concept/female-concept-2-600.avif?v=bb9ccabe 600w, assets/derived/work/concept/female-concept-2-400.avif?v=bb9ccabe 400w",
+      "webp": "assets/derived/work/concept/female-concept-2-900.webp?v=bb9ccabe 900w, assets/derived/work/concept/female-concept-2-600.webp?v=bb9ccabe 600w, assets/derived/work/concept/female-concept-2-400.webp?v=bb9ccabe 400w"
+     }
+    },
+    {
+     "stem": "female-concept-3",
+     "stamp": "ad8ddc58",
+     "title": "Female Concept",
+     "desc": "CONCEPT ART",
+     "src": "assets/work/concept/female-concept-3.webp",
+     "w": 1120,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/concept/female-concept-3-900.avif?v=ad8ddc58 900w, assets/derived/work/concept/female-concept-3-600.avif?v=ad8ddc58 600w, assets/derived/work/concept/female-concept-3-400.avif?v=ad8ddc58 400w",
+      "webp": "assets/derived/work/concept/female-concept-3-900.webp?v=ad8ddc58 900w, assets/derived/work/concept/female-concept-3-600.webp?v=ad8ddc58 600w, assets/derived/work/concept/female-concept-3-400.webp?v=ad8ddc58 400w"
+     }
+    },
+    {
+     "stem": "female-concept-4",
+     "stamp": "b55c9e11",
+     "title": "Female Concept",
+     "desc": "CONCEPT ART",
+     "src": "assets/work/concept/female-concept-4.webp",
+     "w": 1120,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/concept/female-concept-4-900.avif?v=b55c9e11 900w, assets/derived/work/concept/female-concept-4-600.avif?v=b55c9e11 600w, assets/derived/work/concept/female-concept-4-400.avif?v=b55c9e11 400w",
+      "webp": "assets/derived/work/concept/female-concept-4-900.webp?v=b55c9e11 900w, assets/derived/work/concept/female-concept-4-600.webp?v=b55c9e11 600w, assets/derived/work/concept/female-concept-4-400.webp?v=b55c9e11 400w"
+     }
+    },
     {
      "stem": "nyxara-1",
      "stamp": "385b846a",
@@ -2190,25 +2255,11 @@
      }
     },
     {
-     "stem": "female-concept-1",
-     "stamp": "b9e9f51b",
-     "title": "Female Concept",
+     "stem": "male-character-armor-concept-1",
+     "stamp": "9a25ab37",
+     "title": "Male Character Armour Concept",
      "desc": "CONCEPT ART",
-     "src": "assets/work/concept/female-concept-1.webp",
-     "w": 1600,
-     "h": 1000,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/concept/female-concept-1-900.avif?v=b9e9f51b 900w, assets/derived/work/concept/female-concept-1-600.avif?v=b9e9f51b 600w, assets/derived/work/concept/female-concept-1-400.avif?v=b9e9f51b 400w",
-      "webp": "assets/derived/work/concept/female-concept-1-900.webp?v=b9e9f51b 900w, assets/derived/work/concept/female-concept-1-600.webp?v=b9e9f51b 600w, assets/derived/work/concept/female-concept-1-400.webp?v=b9e9f51b 400w"
-     }
-    },
-    {
-     "stem": "female-concept-2",
-     "stamp": "bb9ccabe",
-     "title": "Female Concept",
-     "desc": "CONCEPT ART",
-     "src": "assets/work/concept/female-concept-2.webp",
+     "src": "assets/work/concept/male-character-armor-concept-1.webp",
      "w": 1120,
      "h": 1600,
      "pos": {
@@ -2216,72 +2267,25 @@
       "thumb": "50% 0%"
      },
      "srcset": {
-      "avif": "assets/derived/work/concept/female-concept-2-900.avif?v=bb9ccabe 900w, assets/derived/work/concept/female-concept-2-600.avif?v=bb9ccabe 600w, assets/derived/work/concept/female-concept-2-400.avif?v=bb9ccabe 400w",
-      "webp": "assets/derived/work/concept/female-concept-2-900.webp?v=bb9ccabe 900w, assets/derived/work/concept/female-concept-2-600.webp?v=bb9ccabe 600w, assets/derived/work/concept/female-concept-2-400.webp?v=bb9ccabe 400w"
+      "avif": "assets/derived/work/concept/male-character-armor-concept-1-900.avif?v=9a25ab37 900w, assets/derived/work/concept/male-character-armor-concept-1-600.avif?v=9a25ab37 600w, assets/derived/work/concept/male-character-armor-concept-1-400.avif?v=9a25ab37 400w",
+      "webp": "assets/derived/work/concept/male-character-armor-concept-1-900.webp?v=9a25ab37 900w, assets/derived/work/concept/male-character-armor-concept-1-600.webp?v=9a25ab37 600w, assets/derived/work/concept/male-character-armor-concept-1-400.webp?v=9a25ab37 400w"
      }
     },
     {
-     "stem": "female-concept-3",
-     "stamp": "ad8ddc58",
-     "title": "Female Concept",
+     "stem": "male-character-armor-concept-2",
+     "stamp": "493c8fed",
+     "title": "Male Character Armour Concept",
      "desc": "CONCEPT ART",
-     "src": "assets/work/concept/female-concept-3.webp",
-     "w": 1120,
+     "src": "assets/work/concept/male-character-armor-concept-2.webp",
+     "w": 790,
      "h": 1600,
      "pos": {
       "card": "50% 0%",
       "thumb": "50% 0%"
      },
      "srcset": {
-      "avif": "assets/derived/work/concept/female-concept-3-900.avif?v=ad8ddc58 900w, assets/derived/work/concept/female-concept-3-600.avif?v=ad8ddc58 600w, assets/derived/work/concept/female-concept-3-400.avif?v=ad8ddc58 400w",
-      "webp": "assets/derived/work/concept/female-concept-3-900.webp?v=ad8ddc58 900w, assets/derived/work/concept/female-concept-3-600.webp?v=ad8ddc58 600w, assets/derived/work/concept/female-concept-3-400.webp?v=ad8ddc58 400w"
-     }
-    },
-    {
-     "stem": "female-concept-4",
-     "stamp": "b55c9e11",
-     "title": "Female Concept",
-     "desc": "CONCEPT ART",
-     "src": "assets/work/concept/female-concept-4.webp",
-     "w": 1120,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/concept/female-concept-4-900.avif?v=b55c9e11 900w, assets/derived/work/concept/female-concept-4-600.avif?v=b55c9e11 600w, assets/derived/work/concept/female-concept-4-400.avif?v=b55c9e11 400w",
-      "webp": "assets/derived/work/concept/female-concept-4-900.webp?v=b55c9e11 900w, assets/derived/work/concept/female-concept-4-600.webp?v=b55c9e11 600w, assets/derived/work/concept/female-concept-4-400.webp?v=b55c9e11 400w"
-     }
-    },
-    {
-     "stem": "female-concept-5",
-     "stamp": "5c78e202",
-     "title": "Female Concept",
-     "desc": "CONCEPT ART",
-     "src": "assets/work/concept/female-concept-5.webp",
-     "w": 1600,
-     "h": 1298,
-     "pos": {
-      "thumb": "50% 6%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/concept/female-concept-5-900.avif?v=5c78e202 900w, assets/derived/work/concept/female-concept-5-600.avif?v=5c78e202 600w, assets/derived/work/concept/female-concept-5-400.avif?v=5c78e202 400w",
-      "webp": "assets/derived/work/concept/female-concept-5-900.webp?v=5c78e202 900w, assets/derived/work/concept/female-concept-5-600.webp?v=5c78e202 600w, assets/derived/work/concept/female-concept-5-400.webp?v=5c78e202 400w"
-     }
-    },
-    {
-     "stem": "female-concept-6",
-     "stamp": "3c69f877",
-     "title": "Female Concept",
-     "desc": "CONCEPT ART",
-     "src": "assets/work/concept/female-concept-6.webp",
-     "w": 1600,
-     "h": 1000,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/concept/female-concept-6-900.avif?v=3c69f877 900w, assets/derived/work/concept/female-concept-6-600.avif?v=3c69f877 600w, assets/derived/work/concept/female-concept-6-400.avif?v=3c69f877 400w",
-      "webp": "assets/derived/work/concept/female-concept-6-900.webp?v=3c69f877 900w, assets/derived/work/concept/female-concept-6-600.webp?v=3c69f877 600w, assets/derived/work/concept/female-concept-6-400.webp?v=3c69f877 400w"
+      "avif": "assets/derived/work/concept/male-character-armor-concept-2-600.avif?v=493c8fed 600w, assets/derived/work/concept/male-character-armor-concept-2-400.avif?v=493c8fed 400w",
+      "webp": "assets/derived/work/concept/male-character-armor-concept-2-600.webp?v=493c8fed 600w, assets/derived/work/concept/male-character-armor-concept-2-400.webp?v=493c8fed 400w"
      }
     },
     {
@@ -2316,37 +2320,33 @@
      }
     },
     {
-     "stem": "male-character-armor-concept-1",
-     "stamp": "9a25ab37",
-     "title": "Male Character Armour Concept",
+     "stem": "female-base-mesh-1",
+     "stamp": "5c78e202",
+     "title": "Female Base Mesh",
      "desc": "CONCEPT ART",
-     "src": "assets/work/concept/male-character-armor-concept-1.webp",
-     "w": 1120,
-     "h": 1600,
+     "src": "assets/work/concept/female-base-mesh-1.webp",
+     "w": 1600,
+     "h": 1298,
      "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
+      "thumb": "50% 6%"
      },
      "srcset": {
-      "avif": "assets/derived/work/concept/male-character-armor-concept-1-900.avif?v=9a25ab37 900w, assets/derived/work/concept/male-character-armor-concept-1-600.avif?v=9a25ab37 600w, assets/derived/work/concept/male-character-armor-concept-1-400.avif?v=9a25ab37 400w",
-      "webp": "assets/derived/work/concept/male-character-armor-concept-1-900.webp?v=9a25ab37 900w, assets/derived/work/concept/male-character-armor-concept-1-600.webp?v=9a25ab37 600w, assets/derived/work/concept/male-character-armor-concept-1-400.webp?v=9a25ab37 400w"
+      "avif": "assets/derived/work/concept/female-base-mesh-1-900.avif?v=5c78e202 900w, assets/derived/work/concept/female-base-mesh-1-600.avif?v=5c78e202 600w, assets/derived/work/concept/female-base-mesh-1-400.avif?v=5c78e202 400w",
+      "webp": "assets/derived/work/concept/female-base-mesh-1-900.webp?v=5c78e202 900w, assets/derived/work/concept/female-base-mesh-1-600.webp?v=5c78e202 600w, assets/derived/work/concept/female-base-mesh-1-400.webp?v=5c78e202 400w"
      }
     },
     {
-     "stem": "male-character-armor-concept-2",
-     "stamp": "493c8fed",
-     "title": "Male Character Armour Concept",
+     "stem": "female-base-mesh-2",
+     "stamp": "3c69f877",
+     "title": "Female Base Mesh",
      "desc": "CONCEPT ART",
-     "src": "assets/work/concept/male-character-armor-concept-2.webp",
-     "w": 790,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
+     "src": "assets/work/concept/female-base-mesh-2.webp",
+     "w": 1600,
+     "h": 1000,
+     "pos": {},
      "srcset": {
-      "avif": "assets/derived/work/concept/male-character-armor-concept-2-600.avif?v=493c8fed 600w, assets/derived/work/concept/male-character-armor-concept-2-400.avif?v=493c8fed 400w",
-      "webp": "assets/derived/work/concept/male-character-armor-concept-2-600.webp?v=493c8fed 600w, assets/derived/work/concept/male-character-armor-concept-2-400.webp?v=493c8fed 400w"
+      "avif": "assets/derived/work/concept/female-base-mesh-2-900.avif?v=3c69f877 900w, assets/derived/work/concept/female-base-mesh-2-600.avif?v=3c69f877 600w, assets/derived/work/concept/female-base-mesh-2-400.avif?v=3c69f877 400w",
+      "webp": "assets/derived/work/concept/female-base-mesh-2-900.webp?v=3c69f877 900w, assets/derived/work/concept/female-base-mesh-2-600.webp?v=3c69f877 600w, assets/derived/work/concept/female-base-mesh-2-400.webp?v=3c69f877 400w"
      }
     }
    ]

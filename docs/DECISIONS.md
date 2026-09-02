@@ -25,6 +25,53 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-02 — the leaving frame stays opaque instead of fading out
+
+**Decided.** A card or video frame going off screen keeps `opacity: 1` one
+layer down (`.is-leaving`) while the incoming one fades in over it, and is
+dropped a full cross-fade later, by which time it is completely covered.
+
+**Replaced.** A symmetrical cross-fade — the old frame 1->0 while the new one
+0->1 — which is what everyone writes first and what was there.
+
+**Why.** Stacked layers composite as `1-(1-a)(1-b)`, not as a sum. Two matched
+ease curves therefore cover only 0.75 of the panel at their midpoint, and that
+quarter of dark panel flashing through is the flicker in the middle of every
+fade. No duration fixes it: a slower fade only makes the dip last longer. The
+sum, which is the number you reach for, is exactly 1.0 for the broken case and
+says everything is fine — `work_check.mjs` measures the compositing formula and
+carries a control that withholds `is-leaving` and asserts the cover DOES dip,
+because a number that never moves proves nothing.
+
+**Reverse it if** the frames stop being opaque rectangles that fully overlap.
+The trick is paid for by the outgoing frame being hidden behind the incoming
+one; a transparent PNG, a smaller frame, or a transform on either would show
+the stale image instead of the panel, which is worse.
+
+---
+
+## 2026-09-02 — the featured sweep is three columns, not five items
+
+**Decided.** The stage turns in three steps 300 ms apart — the video, then the
+left pair of thumbnails together, then the right pair — about 600 ms end to end
+under `.85s` fades that are still running when the next step starts.
+
+**Replaced.** Five turns in DOM reading order, one every 260 ms.
+
+**Why.** Item by item reads as five separate events; the eye follows a queue
+being serviced rather than one movement crossing the stage. Grouping by the
+column the eye already sees makes it a wave, and the overlap is what stops it
+being three events instead of five. The grouping is the part that can regress
+silently — five turns in reading order satisfies any count and any timing
+window — so the harness asserts the SHAPE, `1,2,2`, and which items share a
+step.
+
+**Reverse it if** the stage stops being three columns. On a narrow layout where
+the four thumbnails stack, the columns are no longer what the eye groups, and
+the pairing should follow the layout rather than the DOM order.
+
+---
+
 ## 2026-09-02 — the notes scroll indicator is drawn, not the browser's
 
 **Decided.** The native scrollbar is hidden on both engines and replaced by

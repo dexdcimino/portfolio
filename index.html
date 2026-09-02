@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=204" />
+  <link rel="stylesheet" href="styles.css?v=205" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -4401,6 +4401,9 @@
   <dialog class="code-modal keypad" id="codeModal" aria-labelledby="code-dialog-title">
     <div class="code-shell">
       <h2 class="sr-only" id="code-dialog-title">Enter a code</h2>
+      <button class="code-close" type="button" id="codeClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
       <p class="eyebrow code-eyebrow">
         <span id="codeLabel">ENTER CODE</span>
         <span class="icon vault-lock" id="codeLock" data-icon="lock" aria-hidden="true"></span>
@@ -4416,7 +4419,6 @@
         </div>
         <p class="vault-status" id="codeStatus" role="status" aria-live="polite">ENTER CODE</p>
       </div>
-      <p class="code-hint" aria-hidden="true">ESC to close</p>
     </div>
   </dialog>
 
@@ -4542,6 +4544,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=198"></script>
+  <script src="script.js?v=199"></script>
 </body>
 </html>

@@ -1596,7 +1596,17 @@ if (workModal) {
     function show(next) {
       const n = items.length;
       at = ((next % n) + n) % n;      // written to survive a negative index
-      items.forEach((item, i) => item.classList.toggle('is-on', i === at));
+      items.forEach((item, i) => {
+        if (i === at) { item.classList.remove('is-leaving'); item.classList.add('is-on'); }
+        else if (item.classList.contains('is-on')) {
+          /* Same reveal as the cards: the one leaving stays opaque a layer down
+             until the new one has finished arriving, so the panel behind never
+             shows through two half-transparent frames. */
+          item.classList.remove('is-on');
+          item.classList.add('is-leaving');
+          setTimeout(() => item.classList.remove('is-leaving'), 850);
+        }
+      });
       dots.forEach((dot, i) => dot.classList.toggle('is-on', i === at));
       // The label carries the position for anyone not looking at the dots.
       const list = dots[0] && dots[0].parentElement;
@@ -1726,7 +1736,8 @@ if (workModal) {
 {
   const grid = document.querySelector('.home-featured .work-grid');
   const HOLD_MS = 15000;     // how long a card keeps one frame
-  const WAVE_MS = 260;       // gap between one item in a sweep and the next
+  const STEP_MS = 300;       // gap between one COLUMN of the wave and the next
+  const CROSS_MS = 850;      // must match .card-frame's transition
   const FADE_MS = 260;       // must match .card-meta strong's transition
 
   const reels = [];
@@ -1827,7 +1838,14 @@ if (workModal) {
     reel.card.classList.add('is-turning');
     clearTimeout(reel.swap);
     reel.swap = setTimeout(() => {
-      reel.frames[reel.index].classList.remove('is-on');
+      /* The outgoing frame stays OPAQUE one layer down while the new one fades
+         in over it, so the panel behind them is never visible through a pair of
+         half-transparent images. Dropped a full crossfade later, by which time
+         it is completely covered. */
+      const going = reel.frames[reel.index];
+      going.classList.remove('is-on');
+      going.classList.add('is-leaving');
+      setTimeout(() => going.classList.remove('is-leaving'), CROSS_MS);
       reel.frames[next].classList.add('is-on');
       reel.dots[reel.index].classList.remove('is-on');
       reel.dots[next].classList.add('is-on');
@@ -1866,19 +1884,31 @@ if (workModal) {
     waveTimers.forEach(clearTimeout);
     waveTimers = [];
 
-    /* EVERY item swaps at FADE_MS + its place in the queue. The FADE_MS is not
+    /* THREE COLUMNS, not five items. The stage reads as three vertical bands --
+       the video, then the left pair of thumbnails, then the right pair -- so the
+       wave crosses it in three steps and the two cards in a column turn
+       together. Item by item it was five events in a row; by column it is one
+       movement travelling left to right.
+
+       Each step is scheduled at FADE_MS + its place. The FADE_MS is not
        padding: turn() holds a card's frame back that long while its title fades
-       out, so a video dispatched at zero landed 480ms before the first card
-       rather than 200 -- an uneven first step that read as the video jumping
-       early. Giving the video the same delay makes all four gaps WAVE_MS. */
+       out, so a video dispatched at zero landed a whole FADE_MS ahead of the
+       first column instead of STEP_MS. Giving the video the same delay makes
+       both gaps STEP_MS.
+
+       Only the page on screen: turning a hidden card fetches a frame nobody
+       sees and leaves it mid-animation when its page fades in. */
+    const live = reels.filter(reel => onLivePage(reel.card));
+    const columns = [
+      [live[0], live[2]],              // top left + bottom left
+      [live[1], live[3]],              // top right + bottom right
+    ];
     waveTimers.push(setTimeout(
       () => document.dispatchEvent(new CustomEvent('fw:advance-video')), FADE_MS));
-
-    // Only the page on screen. Turning a hidden card fetches a frame nobody
-    // sees and leaves it mid-animation when its page fades in.
-    const live = reels.filter(reel => onLivePage(reel.card));
-    live.forEach((reel, i) => {
-      waveTimers.push(setTimeout(() => turn(reel), (i + 1) * WAVE_MS));
+    columns.forEach((column, step) => {
+      column.filter(Boolean).forEach(reel => {
+        waveTimers.push(setTimeout(() => turn(reel), (step + 1) * STEP_MS));
+      });
     });
   }
 
@@ -3912,9 +3942,20 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
         || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
     };
 
+    document.getElementById('codeClose')?.addEventListener('click',
+      () => closeModal(codeModal));
+
     window.addEventListener('keydown', (event) => {
       if (event.key !== '`' && event.key !== '~') return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
+      // The same key closes it. Anything else would mean the shortcut opens a
+      // thing it cannot put away.
+      if (codeModal.open) { event.preventDefault(); closeModal(codeModal); return; }
+      /* Otherwise only when nothing is being typed into and nothing else is
+         open: a shortcut that swallows a backtick you meant -- in the notes
+         overlay, in the contact form -- is worse than no shortcut. The keypad's
+         own boxes are inputs, so this is also what stops it closing over
+         itself. */
       if (typing() || document.querySelector('dialog[open]')) return;
       event.preventDefault();
       openModal(codeModal, codeModal.querySelector('.code-shell'), null,
