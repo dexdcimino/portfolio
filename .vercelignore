@@ -32,3 +32,8 @@ games/*/public/
 # must never ship to production (ARENA1_STEPS Phase 0).
 games/*/reference/
 games/*/dev/
+
+# The notes overlay's local scratch store and its harness screenshots. Never
+# part of a deployment: on Vercel the notes live in Blob storage, and the
+# dev backend that writes this folder refuses to run in production.
+.notes-dev/

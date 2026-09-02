@@ -1057,6 +1057,110 @@ push one below where the browser would have put it. Results are cached in
 without the version, tuning a constant would leave every cached position stale
 while `--check` reported the manifest as current.
 
+## Live notes overlay (`/#notes`)
+
+A private, password-gated editor for the WorldHop notes. No control anywhere on
+the page opens it -- the address is the only way in.
+
+```
+index.html   #notesModal: one dialog, two panes (keypad, then editor)
+script.js    createKeypad() . the notes block . editing . caret correction
+styles.css   .notes-* for the shell, .nv-* for the document itself
+api/notes/unlock.js   POST {password|token} -> {content, token, savedAt}
+api/notes/save.js     POST {token, content}  -> {savedAt, backups, token}
+lib/notes-store.js    blob I/O, scrypt password check, HMAC session tokens
+lib/notes-seed.js     the starting document, server-side only
+```
+
+**The password is checked on the server, and that is the whole point.** The Idea
+Vault higher up the page ships ciphertext and decrypts it in the browser, which
+is right for something sealed once; these notes are edited daily and cannot be
+re-sealed on every keystroke. So nothing about them -- not the text, not its
+length, not whether anything has ever been saved -- reaches the browser before
+`/api/notes/unlock` returns 200. `tools/notes_check.mjs` asserts that by
+scanning every response body the page received after a wrong password.
+
+**Storage is Vercel Blob, `access: 'private'`.** A public blob has a URL, and a
+fixed pathname plus a store id is one guess away from being the leak the feature
+exists to prevent. `notes/current.html` is the document; `notes/backups/<iso>.html`
+is one copy per save, newest 20 kept. Pruning counts what is actually there and
+deletes the surplus rather than deleting one per save -- a count that drifts
+silently is a count nobody can restore from.
+
+**Tokens are stateless**: an expiry, plus an HMAC of it keyed by
+`NOTES_PASSWORD`. Nothing to store, which matters when every request may reach a
+different instance; and changing the password invalidates every live session,
+which a separate signing secret would not do. Every save returns a fresh one, so
+a tab open across a working day never hits the wall mid-sentence.
+
+**Setup.** Two environment variables, both set in the Vercel project:
+`NOTES_PASSWORD`, and `BLOB_READ_WRITE_TOKEN` (injected automatically when a
+Blob store is connected under Storage). Without either, both routes answer 503
+and the keypad says NOT SET UP rather than pretending the password was wrong.
+
+### The document is CSP-safe markup, not the pasted HTML
+
+The notes arrived as a standalone file: a `<style>` block, `style="color:#hex"`
+on every heading and list, and a sidebar of `onclick="...scrollIntoView..."`
+links. The site ships `script-src 'self'` and `style-src 'self'` with **no**
+`'unsafe-inline'`, so pasted verbatim that renders as an unstyled wall of text
+with a dead sidebar. Loosening the CSP for one private overlay was the wrong
+trade, so the content was converted instead: styles became rules, colours became
+a `data-accent` token per `<section>`, the sidebar became something `buildRail()`
+builds from whatever sections exist, and the nine SVG icons came through
+untouched (presentation attributes are not inline styles). 127 list items were
+asserted identical, word for word, before and after.
+
+Stored content is re-checked through an allowlist on every render, and pasted
+HTML goes through the same one. Unknown tags are UNWRAPPED, never dropped: a
+paste from a web page is far more likely than an attack, and deleting the words
+inside it would lose real notes.
+
+### Editing
+
+Everything goes through `document.execCommand`, deliberately. Hand-rolled DOM
+edits are invisible to the browser's undo stack, so Ctrl+Z either does nothing
+or reverts to a state that never existed; rebuilding undo on top of them means
+snapshotting the document on every keystroke. It is deprecated in the sense that
+no new features are coming, not that it is going away.
+
+- **Tab / Shift+Tab** indent and outdent, one bullet or a whole selection.
+  Always consumed while the caret is in the document, even where there is
+  nothing to indent -- a Tab that does nothing is a small disappointment, a Tab
+  that reaches the browser's own tab cycling loses the caret and the reader's
+  place at once.
+- **Backspace at the very start of a bullet** unwinds before it merges: nested
+  steps out a level, top-level becomes a plain line, and only a plain line
+  merges upward.
+- **Ctrl+B/I/U**, **Ctrl+Y** (Chrome does not bind redo inside a
+  contenteditable), **Ctrl+S** to save now rather than save the web page.
+- **`- ` or `* ` on an empty line** makes a bullet. The marker is removed with
+  `execCommand('delete')`, not a range operation -- the first cut used
+  `deleteContents`, which the undo stack never saw and which left the selection
+  pointing into a text node it had just emptied, so `insertUnorderedList`
+  silently did nothing.
+- **Enter on an empty bullet** steps out a level.
+- `indent`/`outdent` re-wrap the moved text in a `<span>` carrying its computed
+  colour. Here that colour is the section accent, so the wrapper freezes the
+  wrong one and puts an inline style into the saved document;
+  `unwrapCommandSpans()` strips them immediately.
+
+### The click-past-the-end bug
+
+Clicking in the empty space right of a bullet should put the caret at the end of
+that line. It does -- **unless the bullet also contains a nested list**, and then
+Chrome's `caretRangeFromPoint` returns offset 0 of the line's first text node.
+Measured on this document: `Coop` (no nested list) gives 4, the end of its text;
+`Creatures` and `NPCs` (nested `<ul>`) both give 0. Dragging from there therefore
+selects from the beginning of the line, which was the reported symptom on the
+reported bullet.
+
+A drag anchor is fixed at mousedown, so correcting afterwards is too late.
+`correctedCaret()` recomputes the position, and on the affected shape ONLY --
+when Chrome's answer and the corrected one actually differ -- the default is
+prevented, the caret placed, and the drag extended by hand from the same
+function. Every other click is left entirely to the browser.
+
 ## Known-outstanding
 
 The Work overlay is real art now, but its SELECTION is not settled: 350

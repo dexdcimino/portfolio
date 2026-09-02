@@ -25,6 +25,91 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-02 — the notes overlay checks its password on the SERVER
+
+**Decided.** `/#notes` opens a keypad; the password goes to
+`/api/notes/unlock`, which checks it with scrypt and a timing-safe compare and
+only then returns the document. Storage is Vercel Blob with `access: 'private'`.
+Sessions are stateless HMAC tokens keyed by the password itself.
+
+**Replaced.** The Idea Vault's pattern, twenty lines up the same page: ship the
+ciphertext, derive a key from the code, let AES-GCM's tag be the check.
+
+**Why.** That pattern is right for something sealed ONCE. Its whole strength is
+that the plaintext is genuinely absent from the document, and its whole cost is
+that the blob is public and can be ground offline forever. These notes are
+edited every day — re-sealing a document on every keystroke is not a thing that
+can happen, and a vault you have to re-seal to write to is not a notes app. So
+the content lives on the server and the check lives with it. `access: 'private'`
+rather than public because a public blob has a URL, the pathname is fixed, and
+the store id is not really a secret — that is one guess away from being the leak
+the feature exists to prevent.
+
+Keying the token HMAC on `NOTES_PASSWORD` rather than a separate secret is
+deliberate: changing the password then invalidates every live session, which is
+what changing a password should do.
+
+**Reverse it if** the notes ever stop being edited and become something
+published once — at which point the vault's shape is better and this is
+machinery for nothing.
+
+---
+
+## 2026-09-02 — the notes content was converted, not the CSP
+
+**Decided.** The pasted document's `<style>` block became rules in `styles.css`,
+its `style="color:#hex"` became a `data-accent` token per `<section>`, its
+`onclick` sidebar became something `buildRail()` builds at runtime from whatever
+sections exist, and its nine SVG icons came through untouched. A converter
+asserted all 127 list items identical, word for word, before and after.
+
+**Replaced.** Adding `'unsafe-inline'` to `style-src` — one line in
+`vercel.json`, and the pasted HTML would have rendered as-is.
+
+**Why.** The site ships `script-src 'self'` and `style-src 'self'` with no
+`'unsafe-inline'`, so pasted verbatim the document renders as an unstyled wall
+of text with a dead sidebar. Weakening that site-wide, permanently, for one
+private overlay is the wrong direction — this repo has a whole XSS gate
+(`check_markdown.mjs`) defending the same posture. The conversion also turned
+out to be worth more than the CSP: a runtime-built sidebar cannot go stale when
+a section is renamed, and a derived list colour cannot disagree with its
+heading, both of which the original carried as duplicated facts.
+
+**Reverse it if** the notes ever need arbitrary pasted formatting to survive
+exactly — at which point the honest answer is a sandboxed iframe with its own
+CSP, not a weaker one for the whole site.
+
+---
+
+## 2026-09-02 — the notes editor is built on execCommand
+
+**Decided.** Indent, outdent, bold, italic, underline, list creation, the
+marker deletion behind the `- ` shortcut and redo all go through
+`document.execCommand`.
+
+**Replaced.** Moving nodes by hand, which is what the first cut of the `- `
+shortcut did with `Range.deleteContents`.
+
+**Why.** The undo stack. A hand-rolled edit is invisible to it, so Ctrl+Z either
+does nothing or reverts to a state that never existed — and the task asked for
+standard undo. That was not theoretical: the `deleteContents` version could not
+be undone AND left the selection pointing into a text node it had just emptied,
+so `insertUnorderedList` silently did nothing and the line ended up blank. Both
+faults went away when the same deletion became `execCommand('delete')`.
+execCommand is deprecated in the sense that no new features are coming, not in
+the sense that it is going away.
+
+The cost is that Chrome re-wraps moved text in a `<span>` carrying its computed
+colour, which here is the section accent — so the wrapper freezes the wrong
+colour and writes an inline style into the saved document.
+`unwrapCommandSpans()` strips them immediately, and the editor check asserts
+zero remain.
+
+**Reverse it if** a browser actually drops it, or the editor grows past what
+the built-in commands express — tables, real block moves. Then the undo stack
+has to be owned deliberately rather than borrowed.
+---
+
 ## 2026-09-02 — cover-crops are aimed by measurement, vertically only
 
 **Decided.** `tools/focal_point.py` measures the variance within each row of a

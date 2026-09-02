@@ -19,9 +19,9 @@
 // position (type 'back_forward'), which is what those gestures are for.
 if (performance.getEntriesByType('navigation')[0]?.type === 'reload') {
   history.scrollRestoration = 'manual';
-  // #resume survives: the overlay reopens from it, and there is no element
-  // with that id to scroll to, so it cannot drag the page back down.
-  if (location.hash && location.hash !== '#resume') {
+  // #resume and #notes survive: both reopen their overlay from the hash, and
+  // neither names an element to scroll to, so neither can drag the page down.
+  if (location.hash && location.hash !== '#resume' && location.hash !== '#notes') {
     try {
       history.replaceState(null, '', location.pathname + location.search);
     } catch { /* file:// throws in some browsers */ }
@@ -1735,6 +1735,684 @@ if (workModal) {
 }
 
 /* ==========================================================================
+   LIVE NOTES
+   A private overlay at /#notes: keypad, then the document, edited in place and
+   saved to the server on a debounce.
+
+   WHY THE SERVER HOLDS IT. The Idea Vault above ships ciphertext and decrypts
+   it in the browser, which is the right shape for something sealed once. These
+   notes are edited every day, and re-sealing a document on every keystroke is
+   not a thing that can happen — so the password is checked in
+   /api/notes/unlock and the content simply does not exist in this page until
+   that call comes back. Nothing is fetched on load and hidden with CSS: hiding
+   content you already shipped is not a lock.
+
+   THE TOKEN LIVES IN sessionStorage, so a refresh does not demand the password
+   again — which is the difference between a notes app and a puzzle. It is a
+   bearer token with an expiry, it is per-tab, and it dies with the tab.
+   Anything able to read it out of this origin could equally read the document
+   off the screen, so it buys an attacker nothing they did not already have.
+   ========================================================================== */
+{
+  const modal = document.getElementById('notesModal');
+  const gate = document.getElementById('notesGate');
+  const editor = document.getElementById('notesEditor');
+  const doc = document.getElementById('notesDoc');
+  const scroll = document.getElementById('notesScroll');
+  const rail = document.getElementById('notesRail');
+  const statusEl = document.getElementById('notesStatus');
+  const saveEl = document.getElementById('notesSave');
+  const label = document.getElementById('notesLabel');
+  const padlock = document.getElementById('notesLock');
+  const zoomBtn = document.getElementById('notesZoom');
+  const zoomIcon = document.getElementById('notesZoomIcon');
+  const zoomLabel = document.getElementById('notesZoomLabel');
+  const pins = modal ? [...modal.querySelectorAll('.vault-pin')] : [];
+
+  if (modal && pins.length) {
+    const SAVE_DEBOUNCE = 1000;       // the brief: one second after the last key
+    const TOKEN_KEY = 'notes-token';
+    const ZOOM_KEY = 'notes-zoom';
+
+    let token = null;
+    let saveTimer = null;
+    let inFlight = false;
+    let pending = false;              // an edit arrived while a save was running
+    let lastSaved = null;             // the exact string the server last took
+
+    const store = {
+      get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
+      set(k, v) { try { sessionStorage.setItem(k, v); } catch { /* private mode */ } },
+      drop(k) { try { sessionStorage.removeItem(k); } catch { /* private mode */ } },
+    };
+
+    /* ---- the document ---------------------------------------------------- */
+
+    /* The stored HTML is written by Dex, behind Dex's password, and rendered
+       only for Dex. It is still passed through an allowlist on the way in,
+       because "the only person who can write here is trusted" is exactly the
+       assumption that stops being true the day the password leaks — and
+       because the page's CSP is a backstop, not a plan. Anything not on the
+       list is unwrapped, keeping its text; nothing is silently deleted. */
+    const TAGS = new Set(['DIV', 'SECTION', 'H1', 'H2', 'H3', 'H4', 'P', 'UL', 'OL',
+                          'LI', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'CODE', 'PRE',
+                          'BR', 'HR', 'SPAN', 'A', 'BLOCKQUOTE', 'SMALL', 'MARK']);
+    const SVG_TAGS = new Set(['svg', 'path', 'circle', 'ellipse', 'rect', 'line',
+                              'polyline', 'polygon', 'g']);
+    const ATTRS = new Set(['id', 'class', 'data-accent', 'href', 'title',
+                           'viewBox', 'fill', 'stroke', 'stroke-width',
+                           'stroke-linecap', 'stroke-linejoin', 'd', 'cx', 'cy',
+                           'r', 'rx', 'ry', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
+                           'width', 'height', 'points', 'transform']);
+
+    function clean(node) {
+      [...node.children].forEach(el => {
+        const svg = el.namespaceURI === 'http://www.w3.org/2000/svg';
+        const ok = svg ? SVG_TAGS.has(el.localName) : TAGS.has(el.tagName);
+        if (!ok) {
+          // Unwrap rather than remove: a tag this does not know about is far
+          // more likely to be a paste from somewhere than an attack, and
+          // deleting the words inside it would lose real notes.
+          el.replaceWith(...el.childNodes);
+          return;
+        }
+        [...el.attributes].forEach(a => {
+          const name = svg ? a.name : a.name.toLowerCase();
+          if (!ATTRS.has(name) || (name === 'href' && !/^(https?:|#|mailto:)/i.test(a.value))) {
+            el.removeAttribute(a.name);
+          }
+        });
+        clean(el);
+      });
+      return node;
+    }
+
+    /* Drop whitespace-only text nodes that sit BETWEEN block elements. In the
+       seed, `</h2>
+<ul>` is a text node, and a text node is a line box: the
+       sections whose markup happened to carry one rendered a few pixels taller
+       than the ones that did not, which is the uneven gap under some headers.
+       Whitespace inside a block is left alone -- that is real spacing between
+       words. */
+    function squeeze(node) {
+      [...node.childNodes].forEach(child => {
+        if (child.nodeType === 3) {
+          const block = /^(DIV|SECTION|UL|OL|H1|H2|H3|H4|P)$/;
+          const near = (el) => el && el.nodeType === 1 && block.test(el.tagName);
+          if (!child.nodeValue.trim()
+              && (near(child.previousSibling) || near(child.nextSibling)
+                  || block.test(node.tagName))) {
+            child.remove();
+          }
+        } else if (child.nodeType === 1) {
+          squeeze(child);
+        }
+      });
+      return node;
+    }
+
+    function render(html) {
+      const holder = document.createElement('div');
+      holder.innerHTML = html;
+      doc.replaceChildren(...squeeze(clean(holder)).childNodes);
+      buildRail();
+    }
+
+    /* The rail is rebuilt from the document rather than configured, so a new
+       <h2> in the notes becomes a button here with no code change. Each button
+       CLONES that section's own icon: the seed's nine SVGs came through the
+       conversion untouched, and cloning them means the rail can never show an
+       icon the document does not. */
+    function buildRail() {
+      const frag = document.createDocumentFragment();
+      let n = 0;
+      doc.querySelectorAll('.nv-sec').forEach(section => {
+        const heading = section.querySelector('h2');
+        if (!heading) return;
+        const button = document.createElement('button');
+        button.type = 'button';
+        const name = (heading.textContent || '').trim();
+        button.title = name;
+        button.setAttribute('aria-label', `Jump to ${name}`);
+        button.style.setProperty('--nv',
+          getComputedStyle(section).getPropertyValue('--nv') || '#b0b0b0');
+        const icon = heading.querySelector('svg');
+        if (icon) button.appendChild(icon.cloneNode(true));
+        else button.textContent = name.slice(0, 1);
+        button.addEventListener('click', () => {
+          heading.scrollIntoView({ block: 'start' });
+        });
+        frag.appendChild(button);
+        n++;
+      });
+      rail.replaceChildren(frag);
+      rail.hidden = n === 0;
+    }
+
+    /* ---- saving ---------------------------------------------------------- */
+
+    const setSave = (text, state) => {
+      saveEl.textContent = text;
+      saveEl.classList.toggle('is-saving', state === 'saving');
+      saveEl.classList.toggle('is-error', state === 'error');
+    };
+
+    const clock = (iso) => {
+      const d = new Date(iso);
+      return Number.isNaN(+d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    async function save() {
+      if (!token) return;
+      if (inFlight) { pending = true; return; }
+      const content = doc.innerHTML;
+      if (content === lastSaved) return;
+
+      inFlight = true;
+      setSave('SAVING…', 'saving');
+      try {
+        const response = await fetch('/api/notes/save', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ token, content }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          // The session went; the text on screen has not. Say so and stop
+          // pretending saves are happening.
+          token = null;
+          store.drop(TOKEN_KEY);
+          setSave('SESSION EXPIRED — REOPEN TO SAVE', 'error');
+          return;
+        }
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        // Only now: what the SERVER took, not what was on screen when the
+        // request left. An edit made mid-flight must not be recorded as saved.
+        lastSaved = content;
+        if (data.token) { token = data.token; store.set(TOKEN_KEY, token); }
+        setSave(`SAVED ${clock(data.savedAt)}`.trim(), null);
+      } catch (error) {
+        console.warn('notes: save failed', error);
+        setSave('NOT SAVED — RETRYING', 'error');
+        // Nothing is lost by retrying: the next keystroke reschedules, and this
+        // covers the case where there is no next keystroke.
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(save, 4000);
+      } finally {
+        inFlight = false;
+        if (pending) { pending = false; queueSave(); }
+      }
+    }
+
+    function queueSave() {
+      if (!token) return;
+      clearTimeout(saveTimer);
+      setSave('EDITING…', 'saving');
+      saveTimer = setTimeout(save, SAVE_DEBOUNCE);
+    }
+
+    doc.addEventListener('input', queueSave);
+
+    /* ---- editing --------------------------------------------------------
+       Everything here goes through document.execCommand, and that is a
+       deliberate choice rather than an oversight about its deprecation.
+
+       The alternative is moving nodes by hand, and the moment you do that the
+       browser's undo stack no longer describes the document: Ctrl+Z either
+       does nothing or reverts to a state that never existed. Rebuilding undo
+       on top of hand-rolled edits means snapshotting the document on every
+       keystroke and re-implementing selection restoration -- a large amount of
+       machinery, in a notes app, to get back what execCommand gives for free.
+       It is deprecated in the sense that no new features are coming, not in
+       the sense that it is going away; every browser still implements it
+       because a decade of editors are built on it.
+
+       So: indent, outdent, bold, italic, underline, list creation and redo are
+       all commands the browser records, and Ctrl+Z walks back through them the
+       way it walks back through typing. */
+    const exec = (cmd, arg) => document.execCommand(cmd, false, arg);
+
+    /* execCommand('indent') and ('outdent') re-wrap the moved line's text in a
+       <span> carrying the COMPUTED colour it had, which is how Chrome keeps a
+       line looking the same across a structural move. Here that colour comes
+       from the section's accent, so the span is not merely redundant, it is
+       wrong: it freezes one section's colour into the text, and it goes into
+       the saved document -- inline styles being exactly what the seed was
+       converted to get rid of.
+
+       Measured, not assumed. One Shift+Tab produced:
+         <li><span style="color: color(srgb 0.498 0.5 0.508); font-size: 1em;
+             background-color: initial;">two</span></li> */
+    function unwrapCommandSpans() {
+      doc.querySelectorAll('span[style]').forEach(span => {
+        span.replaceWith(...span.childNodes);
+      });
+      doc.normalize();      // rejoin the text nodes the unwrap split
+    }
+
+    const inDoc = (node) => node && doc.contains(node.nodeType === 1 ? node : node.parentNode);
+
+    function liveRange() {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return null;
+      const range = sel.getRangeAt(0);
+      return inDoc(range.startContainer) ? range : null;
+    }
+
+    const closest = (node, sel) => {
+      const el = node && (node.nodeType === 1 ? node : node.parentElement);
+      return el ? el.closest(sel) : null;
+    };
+
+    /* Is the caret before every character of this block? Measured by taking
+       the content from the block's start up to the caret and looking at it,
+       rather than by comparing offsets -- offset 0 of the third text node is
+       not the start of the line, and a line beginning with a <b> would fool
+       any test that only looks at the container. */
+    function atStartOf(block, range) {
+      const probe = document.createRange();
+      probe.selectNodeContents(block);
+      try { probe.setEnd(range.startContainer, range.startOffset); }
+      catch { return false; }
+      const before = probe.cloneContents();
+      return before.textContent.length === 0 && !before.querySelector('img,svg,br');
+    }
+
+    /* ---- Tab / Shift+Tab ---- */
+
+    /* TAB IS ALWAYS CONSUMED while the caret is in the document. The bug this
+       fixes was Tab escaping the page entirely and landing in the browser's own
+       tab cycling, which loses the caret and the reader's place at once. So the
+       key is swallowed whether or not there is a list to indent -- a Tab that
+       does nothing is a small disappointment, a Tab that throws you into the
+       address bar is a lost edit. */
+    function indent(back) {
+      // execCommand('indent') already applies to every block the selection
+      // touches, which is what makes "select three bullets and Tab" work
+      // without walking them here. Outside a list it would wrap the line in a
+      // <blockquote>, which is never what Tab means in a notes document, so
+      // that case is consumed and left alone.
+      const range = liveRange();
+      if (!range) return;
+      const anchor = closest(range.startContainer, 'li');
+      const focus = closest(range.endContainer, 'li');
+      if (!anchor && !focus) return;
+      exec(back ? 'outdent' : 'indent');
+      unwrapCommandSpans();
+      queueSave();
+    }
+
+    /* ---- Backspace at the start of a bullet ---- */
+
+    /* Backspace at the very start of a bullet UNWINDS it before it merges it.
+       The default behaviour merges the line into the one above, which on a
+       nested list is almost never what was meant: the reflex is "this is one
+       level too deep", and the destructive reading of that keystroke throws the
+       line into the middle of another one. So a nested bullet steps out a
+       level, a top-level bullet becomes a plain line, and only a plain line
+       merges -- three presses to do what one used to, each of them visible and
+       each of them undoable. */
+    function backspaceOutdent(event) {
+      const range = liveRange();
+      if (!range || !range.collapsed) return false;
+      const li = closest(range.startContainer, 'li');
+      if (!li || !atStartOf(li, range)) return false;
+      event.preventDefault();
+      exec('outdent');
+      unwrapCommandSpans();
+      queueSave();
+      return true;
+    }
+
+    /* ---- "- " and "* " at the start of a line ---- */
+
+    /* The markdown reflex, and the way back into a list after a Backspace or a
+       Shift+Tab has dropped a line out of one. Only fires on a line whose whole
+       content is the marker, so a hyphen mid-sentence is just a hyphen. */
+    function bulletShortcut(event) {
+      if (event.data !== ' ') return false;
+      const range = liveRange();
+      if (!range || !range.collapsed) return false;
+      if (closest(range.startContainer, 'li')) return false;      // already a bullet
+      const node = range.startContainer;
+      if (node.nodeType !== 3) return false;
+      const before = node.nodeValue.slice(0, range.startOffset);
+      if (!/^\s*[-*]$/.test(before)) return false;                 // marker is the whole line
+
+      event.preventDefault();
+
+      /* SELECT the marker and delete it with a COMMAND, rather than calling
+         deleteContents on a range. Two reasons, both found by testing:
+         deleteContents is invisible to the undo stack, so Ctrl+Z could not put
+         the "- " back; and it leaves the document selection pointing into a
+         text node it just emptied, which insertUnorderedList quietly refuses
+         to act on -- the line ended up empty and un-bulleted. */
+      const from = before.search(/[-*]/);
+      const marker = document.createRange();
+      marker.setStart(node, from);
+      marker.setEnd(node, range.startOffset);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(marker);
+      exec('delete');
+      exec('insertUnorderedList');
+      queueSave();
+      return true;
+    }
+
+    /* ---- Enter on an empty bullet ---- */
+
+    /* Every outliner does this and the muscle memory is universal: Enter on an
+       empty nested bullet steps out one level rather than adding another empty
+       one, so a list can be finished with the same key that built it. */
+    function enterOutdent(event) {
+      const range = liveRange();
+      if (!range || !range.collapsed) return false;
+      const li = closest(range.startContainer, 'li');
+      if (!li || li.textContent.trim() !== '' || li.querySelector('ul,ol')) return false;
+      event.preventDefault();
+      exec('outdent');
+      unwrapCommandSpans();
+      queueSave();
+      return true;
+    }
+
+    /* ---- the key map ---- */
+
+    doc.addEventListener('beforeinput', (event) => {
+      if (event.inputType === 'insertText') bulletShortcut(event);
+    });
+
+    doc.addEventListener('keydown', (event) => {
+      const mod = event.ctrlKey || event.metaKey;
+
+      if (event.key === 'Tab') {
+        // Consumed unconditionally -- see indent().
+        event.preventDefault();
+        indent(event.shiftKey);
+        return;
+      }
+      if (event.key === 'Backspace' && !mod) { backspaceOutdent(event); return; }
+      if (event.key === 'Enter' && !event.shiftKey && !mod) { enterOutdent(event); return; }
+
+      if (!mod) return;
+      const key = event.key.toLowerCase();
+
+      /* Bold, italic and underline are what the browser would mostly do on its
+         own; done explicitly so they behave the same everywhere and so the save
+         is queued, which a native command would not do. */
+      if (key === 'b' || key === 'i' || key === 'u') {
+        event.preventDefault();
+        exec({ b: 'bold', i: 'italic', u: 'underline' }[key]);
+        queueSave();
+        return;
+      }
+      /* Ctrl+Z and Ctrl+Shift+Z are left to the browser, which already does
+         them correctly and knows more about the edit history than this does.
+         Ctrl+Y is the exception: Chrome does not bind it inside a
+         contenteditable, and it is what half of Windows reaches for. */
+      if (key === 'y') {
+        event.preventDefault();
+        exec('redo');
+        queueSave();
+        return;
+      }
+      /* Ctrl+S means save HERE, not "save this web page". Autosave has almost
+         certainly already run, so this is mostly for the reassurance of it --
+         which is exactly why it must not open a download dialog instead. */
+      if (key === 's') {
+        event.preventDefault();
+        clearTimeout(saveTimer);
+        save();
+      }
+    });
+
+    /* Pasted HTML goes through the same allowlist as stored content, so a copy
+       from a web page arrives as text and structure without dragging in its
+       colours, fonts and scripts. insertHTML rather than a DOM insert, so the
+       paste is one undoable step. */
+    doc.addEventListener('paste', (event) => {
+      const data = event.clipboardData;
+      if (!data) return;
+      event.preventDefault();
+      const html = data.getData('text/html');
+      if (html) {
+        const holder = document.createElement('div');
+        holder.innerHTML = html;
+        exec('insertHTML', clean(holder).innerHTML);
+      } else {
+        exec('insertText', data.getData('text/plain'));
+      }
+      queueSave();
+    });
+
+
+    /* A close or a tab-away should not sit on an unsaved second. This is the
+       one place a synchronous-ish send is worth it, and sendBeacon is the only
+       request the browser promises to finish after the page goes. */
+    function flush() {
+      if (!token || doc.innerHTML === lastSaved) return;
+      clearTimeout(saveTimer);
+      const body = new Blob(
+        [JSON.stringify({ token, content: doc.innerHTML })],
+        { type: 'application/json' });
+      if (navigator.sendBeacon) navigator.sendBeacon('/api/notes/save', body);
+      else save();
+    }
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flush();
+    });
+
+
+    /* ---- clicking to the right of a bullet ------------------------------
+       A Chrome hit-testing bug, narrowed down rather than guessed at.
+
+       Click in the empty space to the right of a bullet's text and the caret
+       should land at the END of that line. It does -- unless the bullet also
+       contains a NESTED LIST, and then caretRangeFromPoint returns offset 0 of
+       the line's first text node instead. Measured on this document:
+
+         "Coop"       no nested list   -> offset 4   (end of the text, correct)
+         "Creatures"  nested <ul>      -> offset 0   (the far left, wrong)
+         "NPCs"       nested <ul>      -> offset 0   (the far left, wrong)
+
+       Dragging from there therefore selects from the beginning of the line
+       rather than from where the drag started, which is exactly the reported
+       symptom and exactly the bullet reported ("Creatures"). The nested list
+       splits the item into an anonymous block for its own text plus the child
+       list, and the point lands in neither.
+
+       The fix is to correct the position rather than to trust it. Because a
+       drag ANCHOR is fixed at mousedown, correcting afterwards is too late --
+       so on the affected shape only, the default is prevented, the caret is
+       placed, and the drag is extended by hand from the same corrected
+       function. Everywhere else the browser is left completely alone: this
+       runs only when Chrome's answer and the corrected one actually differ. */
+
+    function lastTextIn(range) {
+      const walker = document.createTreeWalker(range.commonAncestorContainer,
+                                               NodeFilter.SHOW_TEXT);
+      let found = null;
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (range.intersectsNode(node) && node.nodeValue.length) found = node;
+      }
+      return found;
+    }
+
+    function correctedCaret(x, y) {
+      const at = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
+      if (!at) return null;
+      const li = closest(at.startContainer, 'li');
+      if (!li) return at;
+      const nestedAt = [...li.childNodes]
+        .findIndex(n => n.nodeType === 1 && /^(UL|OL)$/.test(n.tagName));
+      if (nestedAt < 0) return at;              // the shape Chrome gets right
+
+      // The item's OWN inline content: everything before the nested list.
+      const own = document.createRange();
+      own.setStart(li, 0);
+      own.setEnd(li, nestedAt);
+      const line = [...own.getClientRects()].find(r => y >= r.top && y <= r.bottom);
+      if (!line || x <= line.right) return at;  // not past the end of that line
+
+      const text = lastTextIn(own);
+      if (!text) return at;
+      const end = document.createRange();
+      end.setStart(text, text.nodeValue.length);
+      end.collapse(true);
+      return end;
+    }
+
+    const samePoint = (a, b) =>
+      a && b && a.startContainer === b.startContainer && a.startOffset === b.startOffset;
+
+    let dragFrom = null;
+    doc.addEventListener('mousedown', (event) => {
+      // Left button, single click only: double- and triple-click select a word
+      // and a line, and the browser is better at both than this is.
+      if (event.button !== 0 || event.detail > 1) return;
+      const raw = document.caretRangeFromPoint
+        ? document.caretRangeFromPoint(event.clientX, event.clientY) : null;
+      const fixed = correctedCaret(event.clientX, event.clientY);
+      if (!raw || !fixed || samePoint(raw, fixed)) return;   // Chrome got it right
+
+      event.preventDefault();
+      doc.focus({ preventScroll: true });
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(fixed);
+      dragFrom = fixed;
+    });
+
+    // On document, not on doc: a drag that leaves the element still has to
+    // extend the selection, and has to end when the button comes up anywhere.
+    document.addEventListener('mousemove', (event) => {
+      if (!dragFrom) return;
+      const to = correctedCaret(event.clientX, event.clientY);
+      const sel = window.getSelection();
+      if (!to || !sel || !sel.extend) return;
+      sel.extend(to.startContainer, to.startOffset);
+    });
+    document.addEventListener('mouseup', () => { dragFrom = null; });
+
+    /* ---- zoom ------------------------------------------------------------ */
+
+    function setZoom(wide) {
+      editor.classList.toggle('is-wide', wide);
+      zoomIcon.dataset.icon = wide ? 'zoom-out' : 'zoom-in';
+      zoomLabel.textContent = wide ? 'WIDE' : 'COMFY';
+      zoomBtn.setAttribute('aria-pressed', String(wide));
+      store.set(ZOOM_KEY, wide ? 'wide' : 'comfy');
+    }
+    zoomBtn.addEventListener('click', () =>
+      setZoom(!editor.classList.contains('is-wide')));
+
+    /* ---- opening --------------------------------------------------------- */
+
+    function opened(data) {
+      if (label) label.textContent = 'OPEN';
+      if (padlock) padlock.dataset.icon = 'lock-open';
+      gate.hidden = true;
+      editor.hidden = false;
+      token = data.token;
+      store.set(TOKEN_KEY, token);
+      render(data.content);
+      lastSaved = doc.innerHTML;   // post-sanitiser, or the first edit re-saves a no-op
+      setZoom(store.get(ZOOM_KEY) === 'wide');
+      setSave(data.seeded ? 'NOT SAVED YET' : `SAVED ${clock(data.savedAt)}`.trim(), null);
+      doc.focus({ preventScroll: true });
+    }
+
+    async function unlock(body) {
+      const response = await fetch('/api/notes/unlock', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (response.status === 401) return null;
+      if (response.status === 503) {
+        // A deploy without its environment variables. Saying "wrong password"
+        // here would send Dex hunting for a typo that is not there.
+        const err = new Error('not configured');
+        err.message503 = true;
+        throw err;
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    }
+
+    const keypad = createKeypad({
+      root: gate, pins, status: statusEl,
+      timer: document.getElementById('notesTimer'),
+      resting: 'ENTER PASSWORD', passed: 'OPEN',
+      async verify(secret) {
+        try {
+          const data = await unlock({ password: secret.toLowerCase() });
+          return data ? { ok: true, payload: data } : { ok: false };
+        } catch (error) {
+          console.warn('notes: unlock failed', error);
+          return { ok: false, message: error.message503 ? 'NOT SET UP' : 'OFFLINE' };
+        }
+      },
+      onPass: opened,
+    });
+
+    function relock() {
+      flush();
+      if (label) label.textContent = 'PRIVATE';
+      if (padlock) padlock.dataset.icon = 'lock';
+      editor.hidden = true;
+      gate.hidden = false;
+      // The document goes with the overlay. Leaving it in the DOM would keep
+      // the notes one devtools panel away for the rest of the visit, which is
+      // the thing the server-side check exists to prevent.
+      doc.replaceChildren();
+      rail.replaceChildren();
+      lastSaved = null;
+      keypad.reset();
+      if (location.hash === '#notes') {
+        try { history.replaceState(null, '', location.pathname + location.search); }
+        catch { /* file:// */ }
+      }
+    }
+
+    bindModal(modal, relock);
+    document.getElementById('notesClose')?.addEventListener('click',
+      () => closeModal(modal));
+
+    async function open(trigger) {
+      openModal(modal, modal.querySelector('.notes-shell'), null, trigger);
+      if (location.hash !== '#notes') {
+        try { history.replaceState(null, '', '#notes'); } catch { /* file:// */ }
+      }
+      // A token from before a refresh gets one silent try. It either opens the
+      // overlay or it is stale, and stale means the keypad — never an error.
+      const saved = store.get(TOKEN_KEY);
+      if (saved) {
+        try {
+          const data = await unlock({ token: saved });
+          if (data) { opened(data); return; }
+        } catch { /* fall through to the keypad */ }
+        store.drop(TOKEN_KEY);
+      }
+      keypad.focus();
+    }
+
+    // No button anywhere on the page: this is Dex's, not a feature of the
+    // portfolio, and the only way in is knowing the address.
+    window.addEventListener('popstate', () => {
+      if (location.hash === '#notes' && !modal.open) open(null);
+      else if (location.hash !== '#notes' && modal.open) closeModal(modal);
+    });
+    if (location.hash === '#notes') {
+      window.addEventListener('load', () => open(null), { once: true });
+    }
+  }
+}
+
+/* ==========================================================================
    TABBED SECTIONS  (Toolkit, Top Picks)
    One helper rather than a fourth hand-rolled tablist. It owns the parts that
    are identical everywhere and easy to get subtly wrong — roving tabindex,
@@ -2288,13 +2966,260 @@ let flashTip = () => {};
   window.addEventListener('resize', hide);
 })();
 
+/* --- keypad ---------------------------------------------------------------
+   A row of one-character boxes with a lockout, shared by the Idea Vault and the
+   notes overlay. It owns everything about TYPING a code and nothing about what
+   the code opens: the caller passes a `verify` and gets told when it passes.
+
+   Extracted when the notes overlay needed the same row. The alternative was a
+   second copy of the stepping, the backspace handling, the paste split and the
+   three-strikes timer -- four fiddly behaviours that are only right because
+   they have been used, and that would have drifted apart the first time one
+   was fixed. Same reasoning as initTabs() and initGallery() further down.
+
+   verify(code) returns { ok: true, payload } to open, { ok: false } for a wrong
+   code that counts toward the lockout, or { ok: false, message: 'NEEDS HTTPS' }
+   to refuse without holding it against anyone -- a browser that cannot do the
+   crypto at all is not a failed guess. */
+function createKeypad({ root, pins, status, timer, resting, verify, onPass,
+                        working = 'CHECKING', passed = 'YEP!', failed = 'NOPE' }) {
+  const TRIES = 3;              // failures allowed...
+  const WINDOW = 15000;         // ...within this
+  const LOCKOUT = 15;           // seconds of waiting once they are spent
+  const ANSWER_HOLD = 5000;     // how long the refusal stays before it fades
+
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const code = () => pins.map(p => p.value).join('').toUpperCase();
+
+  const say = (text, state) => {
+    status.textContent = text;
+    root.classList.toggle('is-wrong', state === 'wrong');
+    root.classList.toggle('is-working', state === 'working');
+    root.classList.toggle('is-open', state === 'open');
+  };
+
+  const fails = [];             // timestamps inside the current window
+  let lockedUntil = 0;
+  let tickTimer = null;
+  let fadeTimer = null;
+  let busy = false;
+
+  const clearBoxes = () =>
+    pins.forEach(p => { p.value = ''; p.classList.remove('is-set'); });
+
+  /* Scripted rather than a CSS keyframe: it has to restart on a number that is
+     already on screen, and re-running a keyframe animation means taking a class
+     off, forcing a reflow and putting it back. The reduced-motion check is
+     explicit because the site's blanket `animation:none` rule does not reach
+     the Web Animations API. */
+  function pop(el) {
+    if (REDUCED.matches || !el || !el.animate) return;
+    el.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }],
+               { duration: 900, easing: 'cubic-bezier(.22,.61,.36,1)' });
+  }
+
+  function fadeAnswer() {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      status.removeEventListener('transitionend', onEnd);
+      clearTimeout(guard);
+      say(resting, null);
+      status.classList.remove('is-fading');
+    };
+    const onEnd = (event) => { if (event.propertyName === 'opacity') finish(); };
+    status.addEventListener('transitionend', onEnd);
+    // A transition that never runs — a backgrounded tab will skip it — would
+    // otherwise leave the answer up for good, which is the thing this fixes.
+    const guard = setTimeout(finish, 900);
+    status.classList.add('is-fading');
+  }
+
+  /* The refusal clears the moment they start over, rather than sitting under a
+     half-typed second attempt still saying NOPE about the first one. */
+  const clearFail = () => {
+    if (!root.classList.contains('is-wrong') || lockedUntil) return;
+    clearTimeout(fadeTimer);
+    status.classList.remove('is-fading');
+    say(resting, null);
+  };
+
+  /* Three wrong codes inside fifteen seconds and the boxes stop listening for
+     fifteen. It is a doorknob, not a vault door: a five-character code is small
+     enough to sweep by hand, and this makes hammering it boring without ever
+     locking out someone who mistyped twice. */
+  function beginLockout() {
+    lockedUntil = Date.now() + LOCKOUT * 1000;
+    clearTimeout(fadeTimer);
+    status.classList.remove('is-fading');
+    say('TOO MANY TRIES', 'wrong');
+    pins.forEach(p => { p.disabled = true; });
+    if (timer) { timer.hidden = false; tick(); }
+  }
+
+  function tick() {
+    const remain = lockedUntil - Date.now();
+    const left = Math.ceil(remain / 1000);
+    if (left <= 0) { endLockout(); return; }
+    timer.textContent = left;
+    pop(timer);
+    /* Aim at the next whole second rather than 1000ms from now. A fixed
+       interval drifts against the clock it is reading and eventually shows the
+       same number twice, or skips one. */
+    tickTimer = setTimeout(tick, remain - (left - 1) * 1000);
+  }
+
+  function endLockout() {
+    clearTimeout(tickTimer);
+    lockedUntil = 0;
+    if (timer) timer.hidden = true;
+    pins.forEach(p => { p.disabled = false; });
+    say(resting, null);
+    // preventScroll: the wait is over whether or not they are still looking at
+    // it, and yanking the page back to a section they scrolled away from is not
+    // the reminder it sounds like.
+    pins[0].focus({ preventScroll: true });
+  }
+
+  function fail() {
+    clearBoxes();
+    /* Off on animationend rather than on a timer that would have to be kept in
+       step with the CSS — and off at all because a class already set does not
+       replay its animation, so a second wrong code would sit there still. */
+    root.classList.add('is-shaking');
+    root.addEventListener('animationend',
+                          () => root.classList.remove('is-shaking'), { once: true });
+
+    const now = Date.now();
+    while (fails.length && now - fails[0] > WINDOW) fails.shift();
+    fails.push(now);
+    if (fails.length >= TRIES) { fails.length = 0; beginLockout(); return; }
+
+    say(failed, 'wrong');
+    pins[0].focus({ preventScroll: true });
+    clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(fadeAnswer, ANSWER_HOLD);
+  }
+
+  async function attempt() {
+    const secret = code();
+    if (busy || lockedUntil || secret.length !== pins.length) return;
+
+    /* Checking is deliberately slow — a key derivation here, a network round
+       trip in the notes overlay — so it has to be visible, or a phone taking
+       half a second looks like a dead control. The boxes lock while it runs so
+       a second attempt cannot overlap the first. */
+    busy = true;
+    pins.forEach(p => { p.disabled = true; });
+    say(working, 'working');
+    /* The vault's scrypt runs on this thread and holds it for a few hundred
+       milliseconds. Yield one frame first or CHECKING never gets painted and
+       the boxes just freeze — the label would arrive with the answer. */
+    await new Promise(requestAnimationFrame);
+
+    let result;
+    try {
+      result = await verify(secret);
+    } catch (error) {
+      console.warn('keypad: verify threw', error);
+      result = { ok: false };
+    }
+
+    busy = false;
+    pins.forEach(p => { p.disabled = false; });
+
+    if (result && result.ok) {
+      say(passed, 'open');
+      // Getting in clears the slate: three old failures should not put someone
+      // who has just proved they know the code one mistype from a lockout.
+      fails.length = 0;
+      onPass(result.payload);
+    } else if (result && result.message) {
+      // A refusal that is not a wrong answer — no shake, nothing counted.
+      say(result.message, 'wrong');
+      clearTimeout(fadeTimer);
+      fadeTimer = setTimeout(fadeAnswer, ANSWER_HOLD);
+    } else {
+      fail();
+    }
+  }
+
+  pins.forEach((pin, i) => {
+    pin.addEventListener('input', () => {
+      clearFail();
+      /* Keep the last character typed, so typing over a filled box replaces it
+         rather than being swallowed by maxlength. Anything printable counts —
+         letters, digits, symbols — and it lands in caps whatever was pressed.
+         Whitespace is dropped: an invisible character in a code you can see is
+         a way to be locked out of your own vault. */
+      const typed = pin.value.replace(/\s/g, '');
+      pin.value = typed.slice(-1).toUpperCase();
+      pin.classList.toggle('is-set', !!pin.value);
+      if (pin.value && i < pins.length - 1) pins[i + 1].focus();
+      // No submit button: filling the last box IS the submit. Deferred a frame
+      // so the character is painted before the boxes lock.
+      if (code().length === pins.length) requestAnimationFrame(attempt);
+    });
+    pin.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace' && !pin.value && i > 0) {
+        // Backspace in an empty box steps back and clears, which is what every
+        // code field does and what the finger expects.
+        event.preventDefault();
+        pins[i - 1].value = '';
+        pins[i - 1].classList.remove('is-set');
+        pins[i - 1].focus();
+      } else if (event.key === 'ArrowLeft' && i > 0) {
+        event.preventDefault(); pins[i - 1].focus();
+      } else if (event.key === 'ArrowRight' && i < pins.length - 1) {
+        event.preventDefault(); pins[i + 1].focus();
+      } else if (event.key === 'Enter') {
+        event.preventDefault(); attempt();
+      }
+    });
+    // Pasting a code should fill the row, not drop five characters into one box.
+    pin.addEventListener('paste', (event) => {
+      const chars = (event.clipboardData || window.clipboardData)
+        .getData('text').replace(/\s/g, '').toUpperCase();
+      if (!chars) return;
+      event.preventDefault();
+      clearFail();
+      pins.slice(i).forEach((box, n) => {
+        if (n >= chars.length) return;
+        box.value = chars[n];
+        box.classList.add('is-set');
+      });
+      const next = Math.min(i + chars.length, pins.length - 1);
+      pins[next].focus();
+      if (code().length === pins.length) requestAnimationFrame(attempt);
+    });
+    // A click anywhere in the row lands on the first empty box, so you cannot
+    // start typing in the middle of a code by accident.
+    pin.addEventListener('focus', () => {
+      const firstEmpty = pins.find(box => !box.value);
+      if (firstEmpty && pins.indexOf(firstEmpty) < i) firstEmpty.focus();
+      else pin.select();
+    });
+  });
+
+  return {
+    clear: clearBoxes,
+    reset() {
+      clearBoxes();
+      say(resting, null);
+      pins[0].focus({ preventScroll: true });
+    },
+    focus() { pins[0].focus({ preventScroll: true }); },
+  };
+}
+
 /* --- idea vault ----------------------------------------------------------- */
 /* A locked section, locked by DECRYPTION rather than by a check.
 
    The usual version of this is a password compared against a string in the
    page, which is theatre: the string is right there, and even a hash of it only
    moves the answer one step away. Here the page ships nothing but ciphertext.
-   The code you type is run through PBKDF2 to derive an AES-GCM key, and AES-GCM
+   The code you type is run through scrypt to derive an AES-GCM key, and AES-GCM
    authenticates what it decrypts — so a wrong code does not fail a comparison,
    it fails to produce plaintext at all. There is no branch to flip in the
    debugger and no secret to read out of the source, because what is sealed is
@@ -2302,10 +3227,16 @@ let flashTip = () => {};
 
    What that buys is bounded, and worth saying out loud: five digits is a
    hundred thousand combinations, and someone who wants in can grind them
-   offline against the blob. The iteration count is what makes that hours rather
+   offline against the blob. The work factor is what makes that hours rather
    than seconds. It is the right lock for half-finished ideas and the wrong one
    for anything that would hurt to lose — tools/seal_vault.mjs will seal a
    passphrase just as happily, and only the input boxes here are numeric.
+
+   THE NOTES OVERLAY DELIBERATELY DOES NOT WORK THIS WAY. Its content is edited
+   every day, and re-sealing a document on every keystroke is not a thing that
+   can happen; so it checks its password on the server and ships nothing until
+   that passes. Same keypad, different lock, for a documented reason —
+   docs/DECISIONS.md has it.
 
    Reseal with:  node tools/seal_vault.mjs --pin 12345 --text "…" */
 (function initVault() {
@@ -2321,10 +3252,6 @@ let flashTip = () => {};
   if (!pins.length || !lockbox || !status || !revealed) return;
 
   const RESTING = 'ENTER CODE';
-  const TRIES = 3;              // failures allowed...
-  const WINDOW = 15000;         // ...within this
-  const LOCKOUT = 15;           // seconds of waiting once they are spent
-  const ANSWER_HOLD = 5000;     // how long NOPE stays before it fades out
 
   /* What a decrypted payload is allowed to ask for. "show:<name>" opens one of
      these; anything else is printed as text. The code does not name the door —
@@ -2332,26 +3259,11 @@ let flashTip = () => {};
      opens a different thing and nothing here changes but this table. */
   const VIEWS = { snail: document.getElementById('snailModal') };
 
-  /* Folded to upper case on the way in, and folded the same way by
-     tools/seal_vault.mjs before it derives its key, so "snail" and "SNAIL" open
-     the same door. The WHOLE string is folded rather than only its letters:
-     digits and symbols come through unchanged, so one call covers every kind of
-     code. */
-  const code = () => pins.map(p => p.value).join('').toUpperCase();
-
-  const say = (text, state) => {
-    status.textContent = text;
-    section.classList.toggle('is-wrong', state === 'wrong');
-    section.classList.toggle('is-working', state === 'working');
-    section.classList.toggle('is-open', state === 'open');
-  };
-
   /* SubtleCrypto only exists in a secure context. Over https or on localhost
      that is everywhere; opened as a file:// double-click it is nowhere, and the
      honest thing is to say so rather than shake at someone typing the right
      code. */
   const canDecrypt = !!(window.crypto && window.crypto.subtle);
-  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   /* ---- scrypt (RFC 7914) --------------------------------------------------
 
@@ -2474,10 +3386,6 @@ let flashTip = () => {};
   function reveal(payload) {
     if (label) label.textContent = 'OPEN';
     if (padlock) padlock.dataset.icon = 'lock-open';
-    say('YEP!', 'open');
-    // Getting in clears the slate: three old failures should not put someone
-    // who has just proved they know the code one mistype from a lockout.
-    fails.length = 0;
 
     const dialog = viewOf(payload);
     if (dialog) {
@@ -2496,220 +3404,35 @@ let flashTip = () => {};
     revealed.textContent = payload;
   }
 
+  /* Every blob is tried, because each is a different code opening a different
+     thing and only its own key can read it. One derivation each, so this is a
+     handful of hundred-millisecond steps — fine for a short list, and the
+     reason to keep the list short. */
+  const keypad = createKeypad({
+    root: section, pins, status, timer, resting: RESTING,
+    async verify(secret) {
+      const blobs = (section.dataset.vault || '').trim().split(/\s+/).filter(Boolean);
+      if (!blobs.length) return { ok: false, message: 'EMPTY' };
+      if (!canDecrypt) return { ok: false, message: 'NEEDS HTTPS' };
+      for (const blob of blobs) {
+        try { return { ok: true, payload: await unseal(blob, secret) }; }
+        catch { /* not this one */ }
+      }
+      return { ok: false };
+    },
+    onPass: reveal,
+  });
+
   /* Put the section back the way it was found. Runs when the overlay closes,
      however it closed — the button, the X, Escape or the backdrop — because it
      hangs off the dialog's own close event rather than off any one of them. */
   function relock() {
-    clearBoxes();
     if (label) label.textContent = 'CLASSIFIED';
     if (padlock) padlock.dataset.icon = 'lock';
-    say(RESTING, null);
     // The overlay hands focus back to the box that opened it — the LAST one,
-    // where typing does nothing useful. Move it to the front of the row.
-    pins[0].focus({ preventScroll: true });
+    // where typing does nothing useful. reset() moves it to the front.
+    keypad.reset();
   }
-
-  /* ---- getting it wrong ---- */
-
-  const fails = [];             // timestamps inside the current window
-  let lockedUntil = 0;
-  let tickTimer = null;
-  let fadeTimer = null;
-
-  const clearBoxes = () =>
-    pins.forEach(p => { p.value = ''; p.classList.remove('is-set'); });
-
-  /* Scripted rather than a CSS keyframe: it has to restart on a number that is
-     already on screen, and re-running a keyframe animation means taking a class
-     off, forcing a reflow and putting it back. The reduced-motion check is
-     explicit because the site's blanket `animation:none` rule does not reach
-     the Web Animations API. */
-  function pop(el) {
-    if (REDUCED.matches || !el.animate) return;
-    el.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }],
-               { duration: 900, easing: 'cubic-bezier(.22,.61,.36,1)' });
-  }
-
-  function fadeAnswer() {
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      status.removeEventListener('transitionend', onEnd);
-      clearTimeout(guard);
-      say(RESTING, null);
-      status.classList.remove('is-fading');
-    };
-    const onEnd = (event) => { if (event.propertyName === 'opacity') finish(); };
-    status.addEventListener('transitionend', onEnd);
-    // A transition that never runs — a backgrounded tab will skip it — would
-    // otherwise leave the answer up for good, which is the thing this fixes.
-    const guard = setTimeout(finish, 900);
-    status.classList.add('is-fading');
-  }
-
-  /* The refusal clears the moment they start over, rather than sitting under a
-     half-typed second attempt still saying NOPE about the first one. */
-  const clearFail = () => {
-    if (!section.classList.contains('is-wrong') || lockedUntil) return;
-    clearTimeout(fadeTimer);
-    status.classList.remove('is-fading');
-    say(RESTING, null);
-  };
-
-  /* Three wrong codes inside fifteen seconds and the boxes stop listening for
-     fifteen. It is a doorknob, not a vault door: a five-character code is small
-     enough to sweep by hand, and this makes hammering it boring without ever
-     locking out someone who mistyped twice. */
-  function beginLockout() {
-    lockedUntil = Date.now() + LOCKOUT * 1000;
-    clearTimeout(fadeTimer);
-    status.classList.remove('is-fading');
-    say('TOO MANY TRIES', 'wrong');
-    pins.forEach(p => { p.disabled = true; });
-    timer.hidden = false;
-    tick();
-  }
-
-  function tick() {
-    const remain = lockedUntil - Date.now();
-    const left = Math.ceil(remain / 1000);
-    if (left <= 0) { endLockout(); return; }
-    timer.textContent = left;
-    pop(timer);
-    /* Aim at the next whole second rather than 1000ms from now. A fixed
-       interval drifts against the clock it is reading and eventually shows the
-       same number twice, or skips one. */
-    tickTimer = setTimeout(tick, remain - (left - 1) * 1000);
-  }
-
-  function endLockout() {
-    clearTimeout(tickTimer);
-    lockedUntil = 0;
-    timer.hidden = true;
-    pins.forEach(p => { p.disabled = false; });
-    say(RESTING, null);
-    // preventScroll: the wait is over whether or not they are still looking at
-    // it, and yanking the page back to a section they scrolled away from is not
-    // the reminder it sounds like.
-    pins[0].focus({ preventScroll: true });
-  }
-
-  function fail() {
-    clearBoxes();
-    /* Off on animationend rather than on a timer that would have to be kept in
-       step with the CSS — and off at all because a class already set does not
-       replay its animation, so a second wrong code would sit there still. */
-    section.classList.add('is-shaking');
-    section.addEventListener('animationend',
-                             () => section.classList.remove('is-shaking'), { once: true });
-
-    const now = Date.now();
-    while (fails.length && now - fails[0] > WINDOW) fails.shift();
-    fails.push(now);
-    if (fails.length >= TRIES) { fails.length = 0; beginLockout(); return; }
-
-    say('NOPE', 'wrong');
-    pins[0].focus({ preventScroll: true });
-    clearTimeout(fadeTimer);
-    fadeTimer = setTimeout(fadeAnswer, ANSWER_HOLD);
-  }
-
-  /* ---- the attempt ---- */
-
-  let busy = false;
-  async function attempt() {
-    const secret = code();
-    if (busy || lockedUntil || secret.length !== pins.length) return;
-    const blobs = (section.dataset.vault || '').trim().split(/\s+/).filter(Boolean);
-    if (!blobs.length) { say('EMPTY', 'wrong'); return; }
-    if (!canDecrypt) { say('NEEDS HTTPS', 'wrong'); return; }
-
-    /* Deriving the key is deliberately slow — that is the whole defence — so it
-       has to be visible, or a phone taking half a second looks like a dead
-       control. The boxes lock while it runs so a second attempt cannot overlap
-       the first. */
-    busy = true;
-    pins.forEach(p => { p.disabled = true; });
-    say('CHECKING', 'working');
-    /* scrypt runs on this thread and holds it for a few hundred milliseconds.
-       Yield one frame first or CHECKING never gets painted and the boxes just
-       freeze — the label would arrive at the same moment as the answer. */
-    await new Promise(requestAnimationFrame);
-
-    /* Every blob is tried, because each is a different code opening a different
-       thing and only its own key can read it. One derivation each, so this is a
-       handful of hundred-millisecond steps — fine for a short list, and the
-       reason to keep the list short. */
-    let payload = null;
-    for (const blob of blobs) {
-      try { payload = await unseal(blob, secret); break; } catch { /* not this one */ }
-    }
-
-    busy = false;
-    pins.forEach(p => { p.disabled = false; });
-    if (payload !== null) reveal(payload);
-    else fail();
-  }
-
-  /* ---- the keypad ---- */
-
-  pins.forEach((pin, i) => {
-    pin.addEventListener('input', () => {
-      clearFail();
-      /* Keep the last character typed, so typing over a filled box replaces it
-         rather than being swallowed by maxlength. Anything printable counts —
-         letters, digits, symbols — and it lands in caps whatever was pressed.
-         Whitespace is dropped: an invisible character in a code you can see is
-         a way to be locked out of your own vault. */
-      const typed = pin.value.replace(/\s/g, '');
-      pin.value = typed.slice(-1).toUpperCase();
-      pin.classList.toggle('is-set', !!pin.value);
-      if (pin.value && i < pins.length - 1) pins[i + 1].focus();
-      // No submit button: filling the last box IS the submit. Deferred a frame
-      // so the character is painted before the boxes lock.
-      if (code().length === pins.length) requestAnimationFrame(attempt);
-    });
-    pin.addEventListener('keydown', (event) => {
-      if (event.key === 'Backspace' && !pin.value && i > 0) {
-        // Backspace in an empty box steps back and clears, which is what every
-        // code field does and what the finger expects.
-        event.preventDefault();
-        pins[i - 1].value = '';
-        pins[i - 1].classList.remove('is-set');
-        pins[i - 1].focus();
-      } else if (event.key === 'ArrowLeft' && i > 0) {
-        event.preventDefault(); pins[i - 1].focus();
-      } else if (event.key === 'ArrowRight' && i < pins.length - 1) {
-        event.preventDefault(); pins[i + 1].focus();
-      } else if (event.key === 'Enter') {
-        event.preventDefault(); attempt();
-      }
-    });
-    // Pasting a code should fill the row, not drop five characters into one box.
-    pin.addEventListener('paste', (event) => {
-      const chars = (event.clipboardData || window.clipboardData)
-        .getData('text').replace(/\s/g, '').toUpperCase();
-      if (!chars) return;
-      event.preventDefault();
-      clearFail();
-      pins.slice(i).forEach((box, n) => {
-        if (n >= chars.length) return;
-        box.value = chars[n];
-        box.classList.add('is-set');
-      });
-      const next = Math.min(i + chars.length, pins.length - 1);
-      pins[next].focus();
-      if (code().length === pins.length) requestAnimationFrame(attempt);
-    });
-    // A click anywhere in the row lands on the first empty box, so you cannot
-    // start typing in the middle of a code by accident.
-    pin.addEventListener('focus', () => {
-      const firstEmpty = pins.find(box => !box.value);
-      if (firstEmpty && pins.indexOf(firstEmpty) < i) firstEmpty.focus();
-      else pin.select();
-    });
-  });
 
   /* Every view is a <dialog> on the site's shared plumbing, so Escape, the
      backdrop, the scroll lock and the focus return are the one implementation

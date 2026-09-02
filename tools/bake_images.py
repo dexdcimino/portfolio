@@ -92,7 +92,12 @@ RASTER_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 # so an archived cover never gets derivatives built for it.
 # games/ ships self-contained builds whose textures are already optimised — see
 # games/README.md. The rest is self-evident.
-SKIP_DIRS = {"derived", "_resources", "_archive", "games", ".git", "node_modules", ".vercel"}
+# .notes-dev/ is the live-notes overlay's local scratch store and the folder its
+# two harnesses screenshot into. It is gitignored, but this walk reads the
+# filesystem rather than git, so without this a harness screenshot is a raster
+# outside assets/ and --check refuses the whole run.
+SKIP_DIRS = {"derived", "_resources", "_archive", "games", ".git", "node_modules",
+             ".vercel", ".notes-dev"}
 
 # Discovery is by extension and repo-wide, so the favicon rasters at the web root
 # would otherwise be treated as masters and blown up into six widths of AVIF/WebP

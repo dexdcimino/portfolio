@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=191" />
+  <link rel="stylesheet" href="styles.css?v=192" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -3221,7 +3221,7 @@
 
          Deliberately not in the nav, and deliberately not in the scroll spy's
          section list in script.js: findable, not advertised. -->
-    <section class="resume-strip vault" id="vault" aria-labelledby="vault-title"
+    <section class="resume-strip vault keypad" id="vault" aria-labelledby="vault-title"
              data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi">
       <div class="vault-head">
         <p class="eyebrow vault-eyebrow">
@@ -4279,6 +4279,68 @@
     </div>
   </dialog>
 
+  <!-- LIVE NOTES. A private overlay: the keypad, then the document itself,
+       editable in place and saved to the server on a debounce so any device
+       with the password sees the same text.
+
+       ONE DIALOG, TWO PANES rather than two dialogs. The keypad is not a step
+       on the way somewhere else -- it IS the overlay until it opens -- and
+       stacking a second dialog on top would put two backdrops and two focus
+       traps in the way of a thing that is conceptually one screen.
+
+       Nothing here holds any note content. The document arrives from
+       /api/notes/unlock only after the password has been checked ON THE
+       SERVER, which is the whole difference between this and the Idea Vault
+       further up the page -- that one ships its ciphertext and decrypts it
+       here, which is right for something sealed once and wrong for something
+       edited every day. -->
+  <dialog class="notes-modal" id="notesModal" aria-labelledby="notes-dialog-title">
+    <div class="notes-shell">
+      <button class="contact-close notes-close" type="button" id="notesClose" aria-label="Close notes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <h2 class="sr-only" id="notes-dialog-title">Live notes</h2>
+
+      <!-- .keypad is what the shared lockout styling hangs off; the Idea
+           Vault section carries the same class for the same rules. -->
+      <div class="notes-gate keypad" id="notesGate">
+        <p class="eyebrow notes-gate-eyebrow">
+          <span id="notesLabel">PRIVATE</span>
+          <span class="icon vault-lock" id="notesLock" data-icon="lock" aria-hidden="true"></span>
+        </p>
+        <div class="vault-lockbox">
+          <p class="vault-timer" id="notesTimer" aria-hidden="true" hidden></p>
+          <div class="vault-pins" id="notesPins" role="group" aria-label="Notes password, 5 characters">
+            <input class="vault-pin" type="password" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Notes password, character 1 of 5">
+            <input class="vault-pin" type="password" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Notes password, character 2 of 5">
+            <input class="vault-pin" type="password" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Notes password, character 3 of 5">
+            <input class="vault-pin" type="password" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Notes password, character 4 of 5">
+            <input class="vault-pin" type="password" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Notes password, character 5 of 5">
+          </div>
+          <p class="vault-status" id="notesStatus" role="status" aria-live="polite">ENTER PASSWORD</p>
+        </div>
+      </div>
+
+      <!-- The editor. Empty in the markup and filled from the manifest the
+           server hands back; nothing is pre-rendered and hidden, because CSS
+           that hides content still shipped the content. -->
+      <div class="notes-editor" id="notesEditor" hidden>
+        <nav class="notes-rail" id="notesRail" aria-label="Jump to a section"></nav>
+        <div class="notes-scroll" id="notesScroll">
+          <div class="notes-doc" id="notesDoc" contenteditable="true" spellcheck="true"
+               role="textbox" aria-multiline="true" aria-label="WorldHop notes"></div>
+        </div>
+        <div class="notes-bar">
+          <button class="notes-zoom" type="button" id="notesZoom" aria-label="Text size">
+            <span class="icon" id="notesZoomIcon" data-icon="zoom-in" aria-hidden="true"></span>
+            <span class="notes-zoom-label" id="notesZoomLabel">COMFY</span>
+          </button>
+          <p class="notes-save" id="notesSave" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Contact modal. <dialog>.showModal() gives focus trapping and Esc-to-close
        for free; the backdrop click is wired in script.js. -->
   <dialog class="contact-modal" id="contactModal" aria-labelledby="contactTitle">
@@ -4321,6 +4383,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=188"></script>
+  <script src="script.js?v=189"></script>
 </body>
 </html>

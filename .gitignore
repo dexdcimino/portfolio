@@ -50,3 +50,9 @@ games/*/dev/shots/gallery/sheet.css
 # one; absent is allowed (a fresh clone has not run the hook), present-and-wrong is not.
 context-pack.zip
 .context-pack.stamp
+
+# tools/notes_dev_server.mjs writes the live-notes store here when it stands
+# in for Vercel Blob locally, and the two notes harnesses drop their
+# screenshots in it. Entirely scratch: delete it and the next run reseeds
+# from lib/notes-seed.js.
+.notes-dev/

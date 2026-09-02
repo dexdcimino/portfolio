@@ -20,5 +20,8 @@
   "homepage": "https://github.com/dexdcimino/portfolio#readme",
   "devDependencies": {
     "puppeteer-core": "^25.7.0"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.0"
   }
 }
