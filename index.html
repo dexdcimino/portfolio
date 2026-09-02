@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=196" />
+  <link rel="stylesheet" href="styles.css?v=198" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -363,192 +363,277 @@
         <button class="view-all" type="button" id="viewAllWork"><span>VIEW ALL WORK</span><span class="icon view-all-arrow" data-icon="play" aria-hidden="true"></span></button>
       </div>
 
-      <!-- Cards are <button>, not <a>: they open the work overlay, and an href
-           would scroll the page before the dialog ever showed. data-work-cat
-           says which tab each one opens; the piece it opens ON is frame 0 of
-           the card's own carousel, which is item 0 of that category by
-           construction (tools/bake_work.py orders the items that way) — which
-           is why there is no data-work-index here any more.
+      <!-- TWO VERTICAL CAROUSELS side by side, each with a pager on its outer
+           edge: one large video on the left, four category thumbnails on the
+           right. Both wrap, so holding one arrow walks round rather than
+           stopping at an end, and both cross-fade rather than sliding -- the
+           two sides move independently and a slide would read as one surface
+           tearing.
+
+           The cards are still <button>, not <a>: they open the work overlay,
+           and an href would scroll the page before the dialog ever showed.
+           data-work-cat says which tab each one opens; the piece it opens ON
+           is frame 0 of its own carousel, which is item 0 of that category by
+           construction (tools/bake_work.py orders the items that way).
 
            ONE FRAME PER CARD IS IN THE MARKUP and the other four are not.
            This one is baked and checked like every other image on the page,
            so a card shows real art with JS off and before work.json lands;
-           the rest arrive from the manifest one turn before they are needed,
-           which is what keeps eight cards from costing forty image fetches.
-           (loading="lazy" alone would NOT: every frame sits in a card that
-           is in the viewport, just at opacity 0.) See CARD CAROUSEL in
-           script.js.
+           the rest arrive from the manifest one turn before they are needed.
+           (loading="lazy" alone would NOT: every frame sits in a card that is
+           in the viewport, just at opacity 0.) See CARD CAROUSEL in
+           script.js. -->
+      <div class="work-stage reveal">
+        <div class="wk-pager">
+          <span class="wk-dots" id="fvDots" role="status" aria-label="video, page 1 of 3">
+            <i class="wk-dot is-on" aria-hidden="true"></i>
+            <i class="wk-dot" aria-hidden="true"></i>
+            <i class="wk-dot" aria-hidden="true"></i>
+          </span>
+          <span class="wk-arrows">
+            <button class="wk-arrow" type="button" data-fv="-1"
+                    aria-label="Previous video"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.6 18 15.4H6Z" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/></svg></button>
+            <button class="wk-arrow wk-down" type="button" data-fv="1"
+                    aria-label="Next video"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.6 18 15.4H6Z" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/></svg></button>
+          </span>
+        </div>
 
-           The reel is aria-hidden and the button carries a complete
-           aria-label, so the title underneath changing every few seconds is a
-           sighted-only affordance and never re-announces the button. -->
-      <div class="work-grid">
-        <button class="work-card reveal" type="button" data-work-cat="character"
-                aria-label="CHARACTERS — open the work gallery">
-          <span class="card-reel" aria-hidden="true">
-            <!-- img src="assets/work/character/brigadier-bluebeard-3.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
-            <picture class="card-frame is-on">
-              <source type="image/avif" srcset="assets/derived/work/character/brigadier-bluebeard-3-900.avif?v=0bd8cee9 900w,
-                                                assets/derived/work/character/brigadier-bluebeard-3-600.avif?v=0bd8cee9 600w,
-                                                assets/derived/work/character/brigadier-bluebeard-3-400.avif?v=0bd8cee9 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <source type="image/webp" srcset="assets/derived/work/character/brigadier-bluebeard-3-900.webp?v=0bd8cee9 900w,
-                                                assets/derived/work/character/brigadier-bluebeard-3-600.webp?v=0bd8cee9 600w,
-                                                assets/derived/work/character/brigadier-bluebeard-3-400.webp?v=0bd8cee9 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <img src="assets/work/character/brigadier-bluebeard-3.webp" alt="" width="1010" height="1600" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
+        <!-- No sources yet, and none are coming from this host: CLAUDE.md
+             keeps video on an external streaming host, so these take URLs
+             when they exist. Until then the frame draws the same matte the
+             work overlay uses and the play button says so. There is no
+             transport bar on purpose -- dead scrubbers and volume sliders are
+             a worse placeholder than none, and the real one is the AI Lab
+             player, to be shared rather than copied when the clips land. -->
+        <div class="fv" id="featVideo">
+          <article class="fv-item is-on" data-video="0">
+            <span class="fv-matte" aria-hidden="true"></span>
+            <button class="fv-info" type="button" aria-expanded="false"
+                    aria-label="About TITLE PLACE HOLDER"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
+            <p class="fv-desc" hidden>The game itself — a world you drop into as a guest, with the two editors below built to feed it. This slot takes the trailer once it is cut.</p>
+            <button class="fv-play" type="button" aria-label="Play TITLE PLACE HOLDER">
+              <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
+            </button>
+            <span class="card-shade"></span>
+            <span class="card-meta"><small>Current Game Project</small><strong>TITLE PLACE HOLDER</strong></span>
+            <!-- The wallpaper download button at its large size. A
+                 <button>, not an <a>: an href makes the browser print the
+                 whole asset URL in its status bubble on every hover, and
+                 that bubble is chrome no page can style. -->
+            <button class="wp-dl wp-dl-lg fv-dl" type="button"
+                    aria-label="Download the game" data-tip="Download">
+              <span class="icon" data-icon="download" aria-hidden="true"></span>
+            </button>
+          </article>
+          <article class="fv-item" data-video="1">
+            <span class="fv-matte" aria-hidden="true"></span>
+            <button class="fv-info" type="button" aria-expanded="false"
+                    aria-label="About CHARACTER EDITOR"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
+            <p class="fv-desc" hidden>The character editor: parts, colours and proportions, built to run inside the game rather than beside it.</p>
+            <button class="fv-play" type="button" aria-label="Play CHARACTER EDITOR">
+              <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
+            </button>
+            <span class="card-shade"></span>
+            <span class="card-meta"><small>In-Game Tool</small><strong>CHARACTER EDITOR</strong></span>
+          </article>
+          <article class="fv-item" data-video="2">
+            <span class="fv-matte" aria-hidden="true"></span>
+            <button class="fv-info" type="button" aria-expanded="false"
+                    aria-label="About WORLD EDITOR"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
+            <p class="fv-desc" hidden>The world editor: terrain, scatter and props, authored in the same client the game runs in.</p>
+            <button class="fv-play" type="button" aria-label="Play WORLD EDITOR">
+              <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
+            </button>
+            <span class="card-shade"></span>
+            <span class="card-meta"><small>In-Game Tool</small><strong>WORLD EDITOR</strong></span>
+          </article>
+        </div>
+
+        <div class="work-grid" id="workGrid">
+          <div class="work-page is-on" data-page="0">
+            <button class="work-card reveal" type="button" data-work-cat="character"
+                    aria-label="CHARACTERS — open the work gallery">
+              <span class="card-reel" aria-hidden="true">
+                <!-- img src="assets/work/character/brigadier-bluebeard-3.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+                <picture class="card-frame is-on">
+                  <source type="image/avif" srcset="assets/derived/work/character/brigadier-bluebeard-3-900.avif?v=0bd8cee9 900w,
+                                                    assets/derived/work/character/brigadier-bluebeard-3-600.avif?v=0bd8cee9 600w,
+                                                    assets/derived/work/character/brigadier-bluebeard-3-400.avif?v=0bd8cee9 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <source type="image/webp" srcset="assets/derived/work/character/brigadier-bluebeard-3-900.webp?v=0bd8cee9 900w,
+                                                    assets/derived/work/character/brigadier-bluebeard-3-600.webp?v=0bd8cee9 600w,
+                                                    assets/derived/work/character/brigadier-bluebeard-3-400.webp?v=0bd8cee9 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <img src="assets/work/character/brigadier-bluebeard-3.webp" alt="" width="1010" height="1600" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </span>
+              <span class="card-shade"></span>
+              <span class="card-meta"><small>CHARACTERS</small><strong>Brigadier Bluebeard</strong></span>
+              <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+            </button>
+            <button class="work-card reveal" type="button" data-work-cat="props"
+                    aria-label="PROPS and WEAPONS — open the work gallery">
+              <span class="card-reel" aria-hidden="true">
+                <!-- img src="assets/work/props/grimshot-rifle-1.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+                <picture class="card-frame is-on">
+                  <source type="image/avif" srcset="assets/derived/work/props/grimshot-rifle-1-900.avif?v=034711c0 900w,
+                                                    assets/derived/work/props/grimshot-rifle-1-600.avif?v=034711c0 600w,
+                                                    assets/derived/work/props/grimshot-rifle-1-400.avif?v=034711c0 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <source type="image/webp" srcset="assets/derived/work/props/grimshot-rifle-1-900.webp?v=034711c0 900w,
+                                                    assets/derived/work/props/grimshot-rifle-1-600.webp?v=034711c0 600w,
+                                                    assets/derived/work/props/grimshot-rifle-1-400.webp?v=034711c0 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <img src="assets/work/props/grimshot-rifle-1.webp" alt="" width="1400" height="1198" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </span>
+              <span class="card-shade"></span>
+              <span class="card-meta"><small>PROPS &amp; WEAPONS</small><strong>Grimshot Rifle</strong></span>
+              <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+            </button>
+            <button class="work-card reveal" type="button" data-work-cat="concept"
+                    aria-label="CONCEPT ART — open the work gallery">
+              <span class="card-reel" aria-hidden="true">
+                <!-- img src="assets/work/concept/nyxara-2.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+                <picture class="card-frame is-on">
+                  <source type="image/avif" srcset="assets/derived/work/concept/nyxara-2-900.avif?v=64dc8780 900w,
+                                                    assets/derived/work/concept/nyxara-2-600.avif?v=64dc8780 600w,
+                                                    assets/derived/work/concept/nyxara-2-400.avif?v=64dc8780 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <source type="image/webp" srcset="assets/derived/work/concept/nyxara-2-900.webp?v=64dc8780 900w,
+                                                    assets/derived/work/concept/nyxara-2-600.webp?v=64dc8780 600w,
+                                                    assets/derived/work/concept/nyxara-2-400.webp?v=64dc8780 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <img src="assets/work/concept/nyxara-2.webp" alt="" width="900" height="1600" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </span>
+              <span class="card-shade"></span>
+              <span class="card-meta"><small>CONCEPT ART</small><strong>Nyxara</strong></span>
+              <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+            </button>
+            <button class="work-card reveal" type="button" data-work-cat="environment"
+                    aria-label="ENVIRONMENTS — open the work gallery">
+              <span class="card-reel" aria-hidden="true">
+                <!-- img src="assets/work/environment/low-res-altar-4.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+                <picture class="card-frame is-on">
+                  <source type="image/avif" srcset="assets/derived/work/environment/low-res-altar-4-600.avif?v=5d8a0919 600w,
+                                                    assets/derived/work/environment/low-res-altar-4-400.avif?v=5d8a0919 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <source type="image/webp" srcset="assets/derived/work/environment/low-res-altar-4-600.webp?v=5d8a0919 600w,
+                                                    assets/derived/work/environment/low-res-altar-4-400.webp?v=5d8a0919 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <img src="assets/work/environment/low-res-altar-4.webp" alt="" width="793" height="485" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </span>
+              <span class="card-shade"></span>
+              <span class="card-meta"><small>ENVIRONMENTS</small><strong>Low-Res Altar</strong></span>
+              <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="work-page" data-page="1">
+            <button class="work-card reveal" type="button" data-work-cat="minecraft"
+                    aria-label="MINECRAFT and HYTALE — open the work gallery">
+              <span class="card-reel" aria-hidden="true">
+                <!-- img src="assets/work/minecraft/creature-001-9.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+                <picture class="card-frame is-on">
+                  <source type="image/avif" srcset="assets/derived/work/minecraft/creature-001-9-900.avif?v=ad1fac4e 900w,
+                                                    assets/derived/work/minecraft/creature-001-9-600.avif?v=ad1fac4e 600w,
+                                                    assets/derived/work/minecraft/creature-001-9-400.avif?v=ad1fac4e 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <source type="image/webp" srcset="assets/derived/work/minecraft/creature-001-9-900.webp?v=ad1fac4e 900w,
+                                                    assets/derived/work/minecraft/creature-001-9-600.webp?v=ad1fac4e 600w,
+                                                    assets/derived/work/minecraft/creature-001-9-400.webp?v=ad1fac4e 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <img src="assets/work/minecraft/creature-001-9.webp" alt="" width="1548" height="993" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </span>
+              <span class="card-shade"></span>
+              <span class="card-meta"><small>MINECRAFT &amp; HYTALE</small><strong>Creature 001</strong></span>
+              <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+            </button>
+            <button class="work-card reveal" type="button" data-work-cat="roblox"
+                    aria-label="ROBLOX and LICENSED IP — open the work gallery">
+              <span class="card-reel" aria-hidden="true">
+                <!-- img src="assets/work/roblox/despicable-me-4-1.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+                <picture class="card-frame is-on">
+                  <source type="image/avif" srcset="assets/derived/work/roblox/despicable-me-4-1-900.avif?v=93c7cdf7 900w,
+                                                    assets/derived/work/roblox/despicable-me-4-1-600.avif?v=93c7cdf7 600w,
+                                                    assets/derived/work/roblox/despicable-me-4-1-400.avif?v=93c7cdf7 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <source type="image/webp" srcset="assets/derived/work/roblox/despicable-me-4-1-900.webp?v=93c7cdf7 900w,
+                                                    assets/derived/work/roblox/despicable-me-4-1-600.webp?v=93c7cdf7 600w,
+                                                    assets/derived/work/roblox/despicable-me-4-1-400.webp?v=93c7cdf7 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <img src="assets/work/roblox/despicable-me-4-1.webp" alt="" width="1400" height="883" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </span>
+              <span class="card-shade"></span>
+              <span class="card-meta"><small>ROBLOX &amp; LICENSED IP</small><strong>Despicable Me 4</strong></span>
+              <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+            </button>
+            <button class="work-card reveal" type="button" data-work-cat="design"
+                    aria-label="DESIGN and UI — open the work gallery">
+              <span class="card-reel" aria-hidden="true">
+                <!-- img src="assets/work/design/clucker-rush-1.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+                <picture class="card-frame is-on">
+                  <source type="image/avif" srcset="assets/derived/work/design/clucker-rush-1-900.avif?v=f7317fbf 900w,
+                                                    assets/derived/work/design/clucker-rush-1-600.avif?v=f7317fbf 600w,
+                                                    assets/derived/work/design/clucker-rush-1-400.avif?v=f7317fbf 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <source type="image/webp" srcset="assets/derived/work/design/clucker-rush-1-900.webp?v=f7317fbf 900w,
+                                                    assets/derived/work/design/clucker-rush-1-600.webp?v=f7317fbf 600w,
+                                                    assets/derived/work/design/clucker-rush-1-400.webp?v=f7317fbf 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <img src="assets/work/design/clucker-rush-1.webp" alt="" width="1600" height="902" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </span>
+              <span class="card-shade"></span>
+              <span class="card-meta"><small>DESIGN &amp; UI</small><strong>Clucker Rush</strong></span>
+              <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+            </button>
+            <button class="work-card reveal" type="button" data-work-cat="archive"
+                    aria-label="EARLIER WORK — open the work gallery">
+              <span class="card-reel" aria-hidden="true">
+                <!-- img src="assets/work/archive/bone-king-2.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+                <picture class="card-frame is-on">
+                  <source type="image/avif" srcset="assets/derived/work/archive/bone-king-2-900.avif?v=63fb1b34 900w,
+                                                    assets/derived/work/archive/bone-king-2-600.avif?v=63fb1b34 600w,
+                                                    assets/derived/work/archive/bone-king-2-400.avif?v=63fb1b34 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <source type="image/webp" srcset="assets/derived/work/archive/bone-king-2-900.webp?v=63fb1b34 900w,
+                                                    assets/derived/work/archive/bone-king-2-600.webp?v=63fb1b34 600w,
+                                                    assets/derived/work/archive/bone-king-2-400.webp?v=63fb1b34 400w"
+                          sizes="(max-width:1100px) 44vw, 19vw">
+                  <img src="assets/work/archive/bone-king-2.webp" alt="" width="1081" height="673" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </span>
+              <span class="card-shade"></span>
+              <span class="card-meta"><small>EARLIER WORK</small><strong>Bone King</strong></span>
+              <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="wk-pager">
+          <span class="wk-arrows">
+            <button class="wk-arrow" type="button" data-wg="-1"
+                    aria-label="Previous thumbnails"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.6 18 15.4H6Z" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/></svg></button>
+            <button class="wk-arrow wk-down" type="button" data-wg="1"
+                    aria-label="Next thumbnails"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.6 18 15.4H6Z" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/></svg></button>
           </span>
-          <span class="card-shade"></span>
-          <span class="card-meta"><small>CHARACTERS</small><strong>Brigadier Bluebeard</strong></span>
-          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </button>
-        <button class="work-card reveal" type="button" data-work-cat="props"
-                aria-label="PROPS and WEAPONS — open the work gallery">
-          <span class="card-reel" aria-hidden="true">
-            <!-- img src="assets/work/props/grimshot-rifle-1.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
-            <picture class="card-frame is-on">
-              <source type="image/avif" srcset="assets/derived/work/props/grimshot-rifle-1-900.avif?v=034711c0 900w,
-                                                assets/derived/work/props/grimshot-rifle-1-600.avif?v=034711c0 600w,
-                                                assets/derived/work/props/grimshot-rifle-1-400.avif?v=034711c0 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <source type="image/webp" srcset="assets/derived/work/props/grimshot-rifle-1-900.webp?v=034711c0 900w,
-                                                assets/derived/work/props/grimshot-rifle-1-600.webp?v=034711c0 600w,
-                                                assets/derived/work/props/grimshot-rifle-1-400.webp?v=034711c0 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <img src="assets/work/props/grimshot-rifle-1.webp" alt="" width="1400" height="1198" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
+          <span class="wk-dots" id="wgDots" role="status" aria-label="thumbnails, page 1 of 2">
+            <i class="wk-dot is-on" aria-hidden="true"></i>
+            <i class="wk-dot" aria-hidden="true"></i>
           </span>
-          <span class="card-shade"></span>
-          <span class="card-meta"><small>PROPS &amp; WEAPONS</small><strong>Grimshot Rifle</strong></span>
-          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </button>
-        <button class="work-card reveal" type="button" data-work-cat="concept"
-                aria-label="CONCEPT ART — open the work gallery">
-          <span class="card-reel" aria-hidden="true">
-            <!-- img src="assets/work/concept/nyxara-2.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
-            <picture class="card-frame is-on">
-              <source type="image/avif" srcset="assets/derived/work/concept/nyxara-2-900.avif?v=64dc8780 900w,
-                                                assets/derived/work/concept/nyxara-2-600.avif?v=64dc8780 600w,
-                                                assets/derived/work/concept/nyxara-2-400.avif?v=64dc8780 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <source type="image/webp" srcset="assets/derived/work/concept/nyxara-2-900.webp?v=64dc8780 900w,
-                                                assets/derived/work/concept/nyxara-2-600.webp?v=64dc8780 600w,
-                                                assets/derived/work/concept/nyxara-2-400.webp?v=64dc8780 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <img src="assets/work/concept/nyxara-2.webp" alt="" width="900" height="1600" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-          </span>
-          <span class="card-shade"></span>
-          <span class="card-meta"><small>CONCEPT ART</small><strong>Nyxara</strong></span>
-          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </button>
-        <button class="work-card reveal" type="button" data-work-cat="environment"
-                aria-label="ENVIRONMENTS — open the work gallery">
-          <span class="card-reel" aria-hidden="true">
-            <!-- img src="assets/work/environment/low-res-altar-4.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
-            <picture class="card-frame is-on">
-              <source type="image/avif" srcset="assets/derived/work/environment/low-res-altar-4-600.avif?v=5d8a0919 600w,
-                                                assets/derived/work/environment/low-res-altar-4-400.avif?v=5d8a0919 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <source type="image/webp" srcset="assets/derived/work/environment/low-res-altar-4-600.webp?v=5d8a0919 600w,
-                                                assets/derived/work/environment/low-res-altar-4-400.webp?v=5d8a0919 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <img src="assets/work/environment/low-res-altar-4.webp" alt="" width="793" height="485" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-          </span>
-          <span class="card-shade"></span>
-          <span class="card-meta"><small>ENVIRONMENTS</small><strong>Low-Res Altar</strong></span>
-          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </button>
-        <button class="work-card reveal" type="button" data-work-cat="minecraft"
-                aria-label="MINECRAFT and HYTALE — open the work gallery">
-          <span class="card-reel" aria-hidden="true">
-            <!-- img src="assets/work/minecraft/creature-001-9.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
-            <picture class="card-frame is-on">
-              <source type="image/avif" srcset="assets/derived/work/minecraft/creature-001-9-900.avif?v=ad1fac4e 900w,
-                                                assets/derived/work/minecraft/creature-001-9-600.avif?v=ad1fac4e 600w,
-                                                assets/derived/work/minecraft/creature-001-9-400.avif?v=ad1fac4e 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <source type="image/webp" srcset="assets/derived/work/minecraft/creature-001-9-900.webp?v=ad1fac4e 900w,
-                                                assets/derived/work/minecraft/creature-001-9-600.webp?v=ad1fac4e 600w,
-                                                assets/derived/work/minecraft/creature-001-9-400.webp?v=ad1fac4e 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <img src="assets/work/minecraft/creature-001-9.webp" alt="" width="1548" height="993" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-          </span>
-          <span class="card-shade"></span>
-          <span class="card-meta"><small>MINECRAFT &amp; HYTALE</small><strong>Creature 001</strong></span>
-          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </button>
-        <button class="work-card reveal" type="button" data-work-cat="roblox"
-                aria-label="ROBLOX and LICENSED IP — open the work gallery">
-          <span class="card-reel" aria-hidden="true">
-            <!-- img src="assets/work/roblox/despicable-me-4-1.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
-            <picture class="card-frame is-on">
-              <source type="image/avif" srcset="assets/derived/work/roblox/despicable-me-4-1-900.avif?v=93c7cdf7 900w,
-                                                assets/derived/work/roblox/despicable-me-4-1-600.avif?v=93c7cdf7 600w,
-                                                assets/derived/work/roblox/despicable-me-4-1-400.avif?v=93c7cdf7 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <source type="image/webp" srcset="assets/derived/work/roblox/despicable-me-4-1-900.webp?v=93c7cdf7 900w,
-                                                assets/derived/work/roblox/despicable-me-4-1-600.webp?v=93c7cdf7 600w,
-                                                assets/derived/work/roblox/despicable-me-4-1-400.webp?v=93c7cdf7 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <img src="assets/work/roblox/despicable-me-4-1.webp" alt="" width="1400" height="883" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-          </span>
-          <span class="card-shade"></span>
-          <span class="card-meta"><small>ROBLOX &amp; LICENSED IP</small><strong>Despicable Me 4</strong></span>
-          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </button>
-        <button class="work-card reveal" type="button" data-work-cat="design"
-                aria-label="DESIGN and UI — open the work gallery">
-          <span class="card-reel" aria-hidden="true">
-            <!-- img src="assets/work/design/clucker-rush-1.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
-            <picture class="card-frame is-on">
-              <source type="image/avif" srcset="assets/derived/work/design/clucker-rush-1-900.avif?v=f7317fbf 900w,
-                                                assets/derived/work/design/clucker-rush-1-600.avif?v=f7317fbf 600w,
-                                                assets/derived/work/design/clucker-rush-1-400.avif?v=f7317fbf 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <source type="image/webp" srcset="assets/derived/work/design/clucker-rush-1-900.webp?v=f7317fbf 900w,
-                                                assets/derived/work/design/clucker-rush-1-600.webp?v=f7317fbf 600w,
-                                                assets/derived/work/design/clucker-rush-1-400.webp?v=f7317fbf 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <img src="assets/work/design/clucker-rush-1.webp" alt="" width="1600" height="902" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-          </span>
-          <span class="card-shade"></span>
-          <span class="card-meta"><small>DESIGN &amp; UI</small><strong>Clucker Rush</strong></span>
-          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </button>
-        <button class="work-card reveal" type="button" data-work-cat="archive"
-                aria-label="EARLIER WORK — open the work gallery">
-          <span class="card-reel" aria-hidden="true">
-            <!-- img src="assets/work/archive/bone-king-2.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
-            <picture class="card-frame is-on">
-              <source type="image/avif" srcset="assets/derived/work/archive/bone-king-2-900.avif?v=63fb1b34 900w,
-                                                assets/derived/work/archive/bone-king-2-600.avif?v=63fb1b34 600w,
-                                                assets/derived/work/archive/bone-king-2-400.avif?v=63fb1b34 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <source type="image/webp" srcset="assets/derived/work/archive/bone-king-2-900.webp?v=63fb1b34 900w,
-                                                assets/derived/work/archive/bone-king-2-600.webp?v=63fb1b34 600w,
-                                                assets/derived/work/archive/bone-king-2-400.webp?v=63fb1b34 400w"
-                      sizes="(max-width:1100px) 44vw, 19vw">
-              <img src="assets/work/archive/bone-king-2.webp" alt="" width="1081" height="673" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-          </span>
-          <span class="card-shade"></span>
-          <span class="card-meta"><small>EARLIER WORK</small><strong>Bone King</strong></span>
-          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
-        </button>
+        </div>
       </div>
     </section>
 
@@ -4401,6 +4486,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=193"></script>
+  <script src="script.js?v=194"></script>
 </body>
 </html>

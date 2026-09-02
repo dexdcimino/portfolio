@@ -977,8 +977,154 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .view-all-arrow{width:14px;height:14px}
 .view-all:hover .view-all-arrow{transform:translateX(4px)}
 
-.work-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.work-card{display:block;width:100%;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;height:clamp(200px,24vh,258px);position:relative;border-radius:14px;overflow:hidden;border:var(--stroke) solid rgba(255,255,255,.18);background:#11161a;isolation:isolate;transition:border-color var(--accent-ease),box-shadow var(--accent-ease),transform .25s ease}
+/* ---- the featured stage --------------------------------------------------
+   One large video and four category thumbnails, side by side, each a vertical
+   carousel with its own pager on the outer edge.
+
+   Four columns: pager, video, thumbnails, pager. The two content columns are
+   equal, so the video is the same width as the 2x2 block beside it and the row
+   reads as one object rather than as a wide thing next to a narrow one. */
+.work-stage{
+  --wk-row:clamp(200px,24vh,258px);
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) minmax(0,1fr) auto;
+  align-items:center;gap:14px;
+}
+
+/* --- the pagers --- */
+.wk-pager{display:flex;align-items:center;gap:10px}
+.wk-arrows{display:flex;flex-direction:column;gap:6px}
+/* The slate of the diagonals behind the hero character, which is the lightest
+   grey already on the page that still reads as background. Lighter on hover,
+   the way the AI Lab's app rows do it, and the arrow itself takes the accent. */
+.wk-arrow{
+  width:50px;height:44px;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:var(--stroke) solid rgba(255,255,255,.09);border-radius:11px;
+  background:#25303d;color:#aeb6bd;
+  transition:background .18s ease,color var(--accent-ease),border-color var(--accent-ease);
+}
+.wk-arrow svg{width:22px;height:22px;display:block}
+/* A solid triangle with rounded corners rather than a chevron: at this size a
+   two-stroke chevron reads as a thin scratch and disappears against the
+   button. The rounding is the stroke, painted in the same colour as the fill. */
+.wk-down svg{transform:rotate(180deg)}
+.wk-arrow:hover,.wk-arrow:focus-visible{background:#2f3d4d;color:var(--accent);border-color:var(--accent)}
+.wk-arrow:active{transform:translateY(1px)}
+.wk-arrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Same dots as the Top Picks quote pager, stacked: which page you are on. */
+.wk-dots{display:flex;flex-direction:column;gap:7px;align-items:center}
+.wk-dot{width:8px;height:8px;border-radius:50%;background:#39424b;
+  transition:background var(--accent-ease)}
+.wk-dot.is-on{background:var(--accent)}
+
+/* --- the video column --- */
+/* Both carousels stack their pages and cross-fade, so the stage never changes
+   height and the two sides can move independently. */
+.fv{position:relative;height:calc(var(--wk-row) * 2 + 14px);isolation:isolate}
+.fv-item{
+  position:absolute;inset:0;overflow:hidden;
+  border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.18);
+  background:#11161a;
+  opacity:0;visibility:hidden;transition:opacity .42s ease,visibility 0s linear .42s;
+}
+.fv-item.is-on{opacity:1;visibility:visible;transition:opacity .42s ease}
+/* The same matte the work overlay's hero uses, so an empty slot reads as an
+   intentional surface rather than as an image that has not loaded. */
+.fv-matte{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(120% 100% at 50% 42%,rgba(255,255,255,.026),transparent 72%),
+    repeating-linear-gradient(45deg,
+      color-mix(in srgb,var(--accent) 3%,transparent) 0 12px,
+      transparent 12px 24px),
+    linear-gradient(160deg,#12171d,#0a0d11);
+}
+.fv-play{
+  position:absolute;inset:0;width:100%;height:100%;padding:0;cursor:pointer;
+  border:0;background:none;display:grid;place-items:center;z-index:2;
+}
+.fv-disc{
+  width:96px;height:96px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(6,9,12,.72);color:#fff;
+  transition:background .2s ease,transform .2s ease;
+}
+.fv-disc .icon{width:34px;height:34px;margin-left:5px}
+.fv-play:hover .fv-disc{background:rgba(6,9,12,.9);transform:scale(1.05)}
+.fv-play:focus-visible{outline:2px solid var(--accent);outline-offset:-6px;border-radius:14px}
+.fv-item .card-shade{inset:56% 0 0}
+.fv-item .card-meta{left:20px;right:96px;bottom:18px;z-index:3}
+.fv-item .card-meta strong{font-size:clamp(20px,2.1vw,30px);letter-spacing:.01em}
+.fv-dl{right:18px;bottom:18px}
+
+/* The description is behind an icon rather than always on: it is a paragraph,
+   and a paragraph laid over artwork is a caption nobody asked for. Top left,
+   opposite the download, and the text lands across the top of the frame where
+   it covers matte instead of covering the subject. */
+.fv-info{
+  position:absolute;top:14px;left:14px;z-index:4;
+  width:38px;height:38px;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:var(--stroke) solid rgba(255,255,255,.16);border-radius:11px;
+  background:rgba(8,11,15,.74);backdrop-filter:blur(5px);color:#e6ebf2;
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
+}
+.fv-info svg{width:21px;height:21px;display:block}
+.fv-info:hover,.fv-info:focus-visible,.fv-info[aria-expanded="true"]{
+  color:var(--accent);border-color:var(--accent);background:rgba(8,11,15,.92)}
+.fv-info:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.fv-desc{
+  position:absolute;top:0;left:0;right:0;z-index:3;margin:0;
+  padding:66px 22px 22px;
+  font-size:14px;line-height:1.55;color:#d7dee8;
+  background:linear-gradient(180deg,rgba(4,6,9,.96) 62%,rgba(4,6,9,0));
+  opacity:0;transform:translateY(-8px);pointer-events:none;
+  transition:opacity .22s ease,transform .22s ease;
+}
+.fv-desc[hidden]{display:block}          /* animated, not toggled out of flow */
+.fv-desc.is-open{opacity:1;transform:none}
+
+/* --- the thumbnail column --- */
+.work-grid{position:relative;height:calc(var(--wk-row) * 2 + 14px)}
+.work-page{
+  position:absolute;inset:0;
+  display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:14px;
+  opacity:0;visibility:hidden;transition:opacity .42s ease,visibility 0s linear .42s;
+}
+.work-page.is-on{opacity:1;visibility:visible;transition:opacity .42s ease}
+/* The card sizes itself to its grid cell now rather than to a fixed height. */
+.work-stage .work-card{height:100%}
+/* The cells are narrower than the old four-across row, so two-word titles
+   wrap. Give them a little more room before the corner arrow and a slightly
+   smaller face, and lift the shade so a second line still lands on it. */
+.work-stage .card-meta{right:34px}
+.work-stage .card-meta strong{font-size:17px;line-height:1.2}
+.work-stage .work-card .card-shade{inset:38% 0 0}
+
+@media(max-width:1100px){
+  /* The pagers move under their own carousel and lie down: at this width there
+     is no outer margin left to hang them in. */
+  .work-stage{grid-template-columns:minmax(0,1fr);gap:12px}
+  .fv,.work-grid{height:auto}
+  .fv{aspect-ratio:16/10}
+  .fv-item{position:absolute}
+  .work-page{position:relative;inset:auto}
+  .work-page:not(.is-on){position:absolute;inset:0}
+  .wk-pager{justify-content:center}
+  .wk-arrows{flex-direction:row}
+  .wk-dots{flex-direction:row}
+  .wk-arrow{width:52px;height:40px}
+}
+@media(max-width:760px){
+  .work-stage{--wk-row:170px}
+  .fv-disc{width:74px;height:74px}
+  .fv-disc .icon{width:26px;height:26px}
+  .fv-item .card-meta{right:78px}
+}
+@media(prefers-reduced-motion:reduce){
+  .fv-item,.work-page,.fv-desc{transition:none}
+}
+
+.work-card{display:block;width:100%;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;position:relative;border-radius:14px;overflow:hidden;border:var(--stroke) solid rgba(255,255,255,.18);background:#11161a;isolation:isolate;transition:border-color var(--accent-ease),box-shadow var(--accent-ease),transform .25s ease}
 /* Ring, not a thicker border — see the note on .button:hover. On a card the
    cost would be worse: the border box is what the image fills, so animating it
    rescales the artwork on every frame. */
@@ -3769,7 +3915,6 @@ body.modal-open{overflow:hidden}
   .hero-art{left:27vw;top:315px;width:78vw;height:auto}
   .bg-front,.hero-archer,.hero-goblin,.hero-note{display:none}
   .home-featured{padding-top:28px}
-  .work-grid{grid-template-columns:1fr 1fr}
   .split-section{grid-template-columns:1fr}
   .about-hero{grid-template-columns:320px 1fr}
 }
@@ -3795,8 +3940,6 @@ body.modal-open{overflow:hidden}
      scrolling to get past the section; two-up is four rows, and a card at
      ~44vw is still large enough to read the art and the label under it.
      (It was one-up while there were four cards, where it was right.) */
-  .home-featured .work-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .home-featured .work-card{height:180px}
   .home-featured .card-meta{left:11px;right:11px;bottom:10px}
   .home-featured .card-meta small{font-size:10px;letter-spacing:.1em}
   .home-featured .card-meta strong{font-size:14px;margin-top:3px}

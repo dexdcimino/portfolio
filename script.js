@@ -1557,6 +1557,128 @@ if (workModal) {
 }
 
 /* ==========================================================================
+   FEATURED STAGE
+   Two vertical carousels: one large video on the left, four category
+   thumbnails on the right, each with a pager on its outer edge.
+
+   ONE HELPER FOR BOTH, because they are the same control twice — a list of
+   pages, a pair of arrows, a column of dots, and wrapping at the ends. The
+   only differences are how many pages there are and what is on them.
+
+   Both WRAP. Holding an arrow at either end walks round rather than stopping,
+   which is what was asked for and also what makes a two-page pager sane: with
+   two pages, "disabled at the end" means one of the two arrows is always dead.
+   ========================================================================== */
+{
+  /* A page carousel over elements that are already stacked by CSS. Nothing
+     here moves anything: it toggles .is-on and the transition does the work,
+     which is why the two sides can be mid-fade at the same time without
+     tearing. */
+  function createPager(root, items, dots, attr) {
+    if (!root || items.length < 1) return null;
+    let at = 0;
+
+    function show(next) {
+      const n = items.length;
+      at = ((next % n) + n) % n;      // written to survive a negative index
+      items.forEach((item, i) => item.classList.toggle('is-on', i === at));
+      dots.forEach((dot, i) => dot.classList.toggle('is-on', i === at));
+      // The label carries the position for anyone not looking at the dots.
+      const list = dots[0] && dots[0].parentElement;
+      if (list) {
+        list.setAttribute('aria-label',
+          `${list.dataset.what || 'page'}, page ${at + 1} of ${n}`);
+      }
+      /* A hidden page must leave the tab order, or Tab walks into four cards
+         nobody can see. inert would be tidier; it is not old enough to rely on
+         here, and this is two lines. */
+      items.forEach((item, i) => {
+        item.querySelectorAll('button,a,[tabindex]').forEach(el => {
+          if (i === at) el.removeAttribute('tabindex');
+          else el.setAttribute('tabindex', '-1');
+        });
+      });
+    }
+
+    root.querySelectorAll(`[data-${attr}]`).forEach(button => {
+      button.addEventListener('click', () => show(at + Number(button.dataset[attr])));
+    });
+
+    show(0);
+    return { show, get at() { return at; } };
+  }
+
+  const stage = document.querySelector('.work-stage');
+  if (stage) {
+    const dotsOf = (id) => {
+      const list = document.getElementById(id);
+      return list ? [...list.querySelectorAll('.wk-dot')] : [];
+    };
+    const label = (id, what) => {
+      const list = document.getElementById(id);
+      if (list) list.dataset.what = what;
+    };
+    label('fvDots', 'video');
+    label('wgDots', 'thumbnails');
+
+    createPager(stage, [...stage.querySelectorAll('.fv-item')], dotsOf('fvDots'), 'fv');
+    createPager(stage, [...stage.querySelectorAll('.work-page')], dotsOf('wgDots'), 'wg');
+
+    /* The description. Click rather than hover alone: hover is not available on
+       a touch screen, and a paragraph that appears while the pointer is merely
+       passing over the corner is a jump scare. Hover opens it too on a device
+       that has one, which is what was asked for. */
+    stage.querySelectorAll('.fv-item').forEach(item => {
+      const button = item.querySelector('.fv-info');
+      const desc = item.querySelector('.fv-desc');
+      if (!button || !desc) return;
+      const set = (open) => {
+        desc.classList.toggle('is-open', open);
+        button.setAttribute('aria-expanded', String(open));
+      };
+      button.addEventListener('click', () =>
+        set(button.getAttribute('aria-expanded') !== 'true'));
+      button.addEventListener('pointerenter', (event) => {
+        if (event.pointerType === 'mouse') set(true);
+      });
+      item.addEventListener('pointerleave', (event) => {
+        if (event.pointerType === 'mouse') set(false);
+      });
+      button.addEventListener('blur', () => {
+        if (!item.matches(':hover')) set(false);
+      });
+    });
+
+    /* No sources yet, so the play button says so instead of doing nothing.
+       CLAUDE.md keeps video off this host; these take streaming URLs when they
+       exist, and at that point the AI Lab's player gets shared rather than
+       copied. */
+    stage.querySelectorAll('.fv-play').forEach(play => {
+      play.addEventListener('click', () => {
+        const item = play.closest('.fv-item');
+        const meta = item && item.querySelector('.card-meta small');
+        if (!meta) return;
+        if (meta.dataset.said) return;
+        meta.dataset.said = '1';
+        const was = meta.textContent;
+        meta.textContent = 'VIDEO COMING SOON';
+        setTimeout(() => { meta.textContent = was; delete meta.dataset.said; }, 2200);
+      });
+    });
+
+    stage.querySelectorAll('.fv-dl').forEach(button => {
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const tip = button.querySelector('.wp-dl-tip');
+        if (tip) return;
+        button.setAttribute('data-tip', 'Build coming soon');
+        setTimeout(() => button.setAttribute('data-tip', 'Download'), 2200);
+      });
+    });
+  }
+}
+
+/* ==========================================================================
    CARD CAROUSEL
    Each featured card rotates through five pieces from its own category.
 
@@ -1685,12 +1807,22 @@ if (workModal) {
     }, FADE_MS);
   }
 
+  const onLivePage = (card) => {
+    const page = card.closest('.work-page');
+    return !page || page.classList.contains('is-on');
+  };
+
   function sync() {
     const run = onScreen && !document.hidden && reels.length && !stopped();
     if (run && !reelTimer) {
       reelTimer = setInterval(() => {
-        turn(reels[reelCursor % reels.length]);
-        reelCursor++;
+        /* Skip a card whose page is not showing. Turning it would fetch the
+           next frame of something nobody can see, and it would be mid-animation
+           when its page faded in. */
+        for (let tries = 0; tries < reels.length; tries++) {
+          const reel = reels[reelCursor++ % reels.length];
+          if (onLivePage(reel.card)) { turn(reel); break; }
+        }
       }, Math.round(TURN_MS / reels.length));
     } else if (!run && reelTimer) {
       clearInterval(reelTimer);
