@@ -1220,103 +1220,89 @@ if (resumeModal) {
    restoration, "never two overlays at once" — comes from openModal/bindModal
    above; nothing here reimplements it.
 
-   MOCKUP STATUS: the images are generated filler, not artwork. The block
-   marked TEMPORARY MOCKUP DATA is the only part that knows that. Everything
-   after it renders a plain list of { title, desc, src, w, h } and does not
-   care where the list came from, so the real build swaps one block for
-   work.json plus the derivatives bake_images.py already writes.
+   The gallery is DATA. 343 pieces across eight categories live in
+   assets/work/work.json, which tools/bake_work.py writes; only the eight
+   featured cards' first frames are in index.html, where bake_markup.py can
+   see and check them.
    ========================================================================== */
 
-/* >>> TEMPORARY MOCKUP DATA — filler only, delete this whole block >>>
-   No files are involved and none should be added: each placeholder is an SVG
-   data URI generated at a real pixel size, which the shipped CSP already
-   allows (img-src 'self' data:, needed by the favicon and the icon masks).
-   The ten shapes are deliberately mixed — landscape, portrait, square and
-   ultrawide — because uniform placeholders hide exactly the layout problems
-   the fixed hero box exists to solve.
-   Replaced by: work.json + a manifest from tools/bake_images.py. */
+/* ---------- the manifest -------------------------------------------------
+   The srcset strings in work.json are FINISHED — written by the same
+   derivative()/stamp() that generates every <picture> block in index.html —
+   so nothing in this file ever concatenates a filename or picks a width.
+   That is how CLAUDE.md's "never build a derivative URL in JS at all"
+   survives a gallery the markup cannot name: the browser is handed strings,
+   not parts. A hand-built URL here would be a second cache entry for
+   identical bytes, and a hand-picked width would go stale against `sizes`.
 
-const MOCK_SHAPES = [
-  [1600, 900], [900, 1600], [1200, 1200], [2000, 850], [1400, 1050],
-  [1080, 1350], [1600, 1000], [1000, 1000], [1500, 844], [1200, 1600]
-];
+   One fetch serves both readers. The card carousel usually starts it, when
+   the featured grid first nears the viewport; whoever asks second awaits the
+   same promise. */
 
-const MOCK_CATS = [
-  { id:'environment', label:'ENVIRONMENT', hue:96,
-    tools:['Maya · Substance', 'Blender · Painter', 'Unreal · Substance'],
-    titles:['Valley Outpost','Ashfall Ridge','Sunken Depot','Kiln District','Frostgate Pass',
-            'Rust Chapel','Terrace Ruins','Dead Signal Bay','Quarry Nine','Verdant Spire'] },
-  { id:'character', label:'CHARACTER', hue:280,
-    tools:['ZBrush · Painter', 'Maya · ZBrush', 'Blender · Painter'],
-    titles:['Bone Archer','Lava Goblin','Slag Runner','Wickerling','Clayweld',
-            'Marrow Knight','Dust Pilgrim','Cinder Twin','Vault Warden','Hex Catalyst'] },
-  { id:'prop', label:'PROP / DESIGN', hue:200,
-    tools:['Maya · Substance', 'ZBrush · Painter', 'Blender · Painter'],
-    titles:['Ember Lantern','Cargo Rig','Grimshot Rifle','Trench Kit','Signal Beacon',
-            'Anvil Drone','Field Radio','Bolt Charm','Salvage Crate','Ration Pack'] },
-  { id:'concept', label:'CONCEPT', hue:22,
-    tools:['Photoshop · Concept', 'Procreate · Photoshop', 'Illustrator · Photoshop'],
-    titles:['Wire Bloom','Nightfall Market','Paper Titan','Circuit Siege','Glass Orchard',
-            'Static Choir','Iron Tide','Low Orbit Diner','Hollow Parade','Nine Lanterns'] },
-  { id:'projects', label:'PROJECTS / GAMES', hue:330,
-    tools:['Unity · Blender', 'Web · Claude Code', 'Roblox Studio'],
-    titles:['Cupcake Gobbler','Stick It','Arena1','DexNote','NodeBlast',
-            'Tilt Tactics','Grid Runner','Pocket Forge','Loop Lander','Sprite Foundry'] }
-];
+let workData = null;
+let workLoading = null;
 
-// A placeholder that shows its own geometry: the frame and centre ticks make
-// the letterboxing obvious, and the printed w×h means a wrong crop is visible
-// at a glance instead of having to be measured. `&#215;` rather than a literal
-// ×, so the data URI stays pure ASCII and needs no charset declaration.
-function mockImage(width, height, label, hue) {
-  const min = Math.min(width, height);
-  const pad = Math.round(min * .035);
-  const tick = Math.round(min * .09);
-  const r = value => Math.round(value * 10) / 10;   // keep 1600*.66 out of the markup
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`
-    + `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">`
-    + `<stop offset="0" stop-color="hsl(${hue},24%,23%)"/><stop offset="1" stop-color="hsl(${hue + 26},32%,9%)"/>`
-    + `</linearGradient></defs>`
-    + `<rect width="${width}" height="${height}" fill="url(#g)"/>`
-    // The diagonal echoes the page background, so a filler still reads as this site.
-    + `<path d="M${r(width * .66)} 0H${width}L${r(width * .34)} ${height}H0Z" fill="hsl(${hue},46%,58%)" fill-opacity=".07"/>`
-    + `<g fill="none" stroke="hsl(${hue},48%,62%)" stroke-opacity=".3" stroke-width="${r(Math.max(2, min * .006))}">`
-    + `<rect x="${pad}" y="${pad}" width="${width - pad * 2}" height="${height - pad * 2}"/>`
-    + `<path d="M${pad} ${r(height / 2)}h${tick}M${width - pad} ${r(height / 2)}h-${tick}`
-    + `M${r(width / 2)} ${pad}v${tick}M${r(width / 2)} ${height - pad}v-${tick}"/></g>`
-    + `<g font-family="ui-monospace,monospace" text-anchor="middle" fill="#fff">`
-    + `<text x="50%" y="47%" font-size="${r(Math.max(17, min * .082))}" fill-opacity=".84">${label}</text>`
-    + `<text x="50%" y="58%" font-size="${r(Math.max(13, min * .052))}" fill-opacity=".44">${width} &#215; ${height}</text>`
-    + `<text x="50%" y="${r(height - pad * 2.2)}" font-size="${r(Math.max(10, min * .026))}" fill-opacity=".3" letter-spacing="${r(Math.max(1, min * .004))}">FILLER — NOT REAL WORK</text>`
-    + `</g></svg>`;
-  return 'data:image/svg+xml,' + encodeURIComponent(svg);
-}
-
-function buildMockWork() {
-  return MOCK_CATS.map((cat, catIndex) => ({
-    id: cat.id,
-    label: cat.label,
-    items: cat.titles.map((title, i) => {
-      // Rotated per category, so every tab carries the same ten aspect ratios
-      // in a different order and no tab can accidentally look uniform.
-      const [w, h] = MOCK_SHAPES[(i + catIndex * 3) % MOCK_SHAPES.length];
-      return {
-        title,
-        desc: `${cat.tools[i % cat.tools.length]} · ${2022 + (i % 4)}`,
-        src: mockImage(w, h, `${cat.label.split(' ')[0]} ${String(i + 1).padStart(2, '0')}`, cat.hue + i * 5),
-        w, h
-      };
+function loadWork() {
+  return (workLoading ||= fetch('assets/work/work.json')
+    .then(response => {
+      if (!response.ok) throw new Error(`work.json: HTTP ${response.status}`);
+      return response.json();
     })
-  }));
+    .then(data => (workData = data))
+    .catch(error => {
+      // Drop the cached promise, so a later click retries instead of being
+      // poisoned for the rest of the session by one failed load.
+      workLoading = null;
+      throw error;
+    }));
 }
 
-// Built on first open, not at load: fifty generated SVGs are cheap but there is
-// no reason for them to compete with the hero image for the first paint.
-let workCategoriesCache = null;
-function workCategories() {
-  return (workCategoriesCache ||= buildMockWork());
+const workCategories = () => workData?.categories ?? [];
+
+// Fill a <picture> from one manifest item. `kind` is which of the three
+// places it is being drawn — 'hero', 'thumb' or 'card' — and it selects only
+// the `sizes` string: all three read one ladder and therefore share one
+// srcset, which bake_work.py asserts rather than assumes.
+function paintPicture(sources, img, item, kind) {
+  const sizes = workData?.sizes?.[kind] ?? '';
+  sources.forEach(source => {
+    const srcset = item.srcset?.[source.type === 'image/avif' ? 'avif' : 'webp'];
+    // A master below the ladder's lowest rung has no derivatives at all —
+    // never upscale — and the <img> fallback is then the whole picture.
+    if (srcset) { source.srcset = srcset; source.sizes = sizes; }
+    else { source.removeAttribute('srcset'); source.removeAttribute('sizes'); }
+  });
+  img.src = item.src;
+  img.width = item.w;              // intrinsic size as attributes, never as style
+  img.height = item.h;
 }
-/* <<< TEMPORARY MOCKUP DATA <<< */
+
+// Build a <picture> with the two <source> rows the manifest fills.
+function makePicture(className) {
+  const picture = document.createElement('picture');
+  if (className) picture.className = className;
+  const sources = ['image/avif', 'image/webp'].map(type => {
+    const source = document.createElement('source');
+    source.type = type;
+    return source;
+  });
+  const img = document.createElement('img');
+  img.alt = '';
+  img.decoding = 'async';
+  picture.append(...sources, img);
+  return { picture, sources, img };
+}
+
+// Warm one item through a DETACHED CLONE of the real <picture>, so the
+// browser runs its own format-and-width negotiation and fetches exactly the
+// file the visible element will use. Same pattern as probeMascot(), for the
+// same reason: picking the URL here would double-fetch.
+function warmPicture(template, item, kind) {
+  const probe = template.cloneNode(true);
+  const img = probe.querySelector('img');
+  paintPicture([...probe.querySelectorAll('source')], img, item, kind);
+  return img;
+}
 
 const workModal = document.getElementById('workModal');
 const workTabsEl = document.getElementById('workTabs');
@@ -1324,6 +1310,8 @@ const workStripEl = document.getElementById('workStrip');
 const workPanel = document.getElementById('workPanel');
 const workHero = document.getElementById('workHero');
 const workHeroImg = document.getElementById('workHeroImg');
+const workHeroPic = document.querySelector('.work-hero-pic');
+const workHeroSources = workHeroPic ? [...workHeroPic.querySelectorAll('source')] : [];
 const workCapTitle = document.getElementById('workCapTitle');
 const workCapDesc = document.getElementById('workCapDesc');
 const workCapIndex = document.getElementById('workCapIndex');
@@ -1397,14 +1385,12 @@ function buildWorkStrip(items) {
     thumb.setAttribute('aria-label', `${i + 1}. ${item.title}`);
     thumb.setAttribute('aria-current', 'false');
 
-    const img = document.createElement('img');
-    img.src = item.src;
-    img.alt = '';
-    img.width = item.w;          // intrinsic size as attributes, never as style
-    img.height = item.h;
+    // A <picture>, not an <img srcset>: an img can choose a width but never a
+    // format, and the AVIF rungs are most of the saving.
+    const { picture, sources, img } = makePicture();
     img.loading = 'lazy';
-    img.decoding = 'async';
-    thumb.appendChild(img);
+    paintPicture(sources, img, item, 'thumb');
+    thumb.appendChild(picture);
 
     thumb.addEventListener('click', () => showWorkItem(i));
     frag.appendChild(thumb);
@@ -1421,13 +1407,10 @@ function paintWorkHero(item) {
   const token = ++workHeroToken;
   workHeroImg.classList.add('is-fading');
 
-  const warm = new Image();
-  warm.src = item.src;
+  const warm = warmPicture(workHeroPic, item, 'hero');
   const show = () => {
     if (token !== workHeroToken) return;
-    workHeroImg.src = item.src;
-    workHeroImg.width = item.w;
-    workHeroImg.height = item.h;
+    paintPicture(workHeroSources, workHeroImg, item, 'hero');
     workHeroImg.alt = item.title;
     // Two frames: the first commits the faded state with the new image in it,
     // the second starts the fade back in. One frame and the browser coalesces
@@ -1440,11 +1423,12 @@ function paintWorkHero(item) {
   else warm.onload = warm.onerror = show;
 }
 
-// Free for data URIs, but this is the shape the real gallery needs: the next
-// image is already decoded by the time the arrow key is pressed.
+// The next image is already fetched and decoded by the time the arrow key is
+// pressed. Through warmPicture(), so the rung it pulls is the one the hero
+// will ask for rather than a second copy at some other width.
 function preloadWorkNeighbours(items, index) {
   [index - 1, index + 1].forEach(i => {
-    if (items[i]) new Image().src = items[i].src;
+    if (items[i]) warmPicture(workHeroPic, items[i], 'hero');
   });
 }
 
@@ -1477,8 +1461,14 @@ function showWorkItem(index) {
 
 /* ---------- open / close ------------------------------------------------- */
 
-function openWork(catId, index, trigger) {
+async function openWork(catId, index, trigger) {
   if (!workModal) return;
+  // The manifest is normally already here — the featured grid starts the
+  // fetch as it nears the viewport, long before anything is clicked. On a
+  // deep link or a cold cache this is the wait, and a failure leaves the
+  // page as it was rather than opening an empty dialog.
+  try { await loadWork(); }
+  catch (error) { console.warn('work gallery unavailable', error); return; }
   if (!workTabButtons.length) buildWorkTabs();
   const cats = workCategories();
   const catIndex = Math.max(0, cats.findIndex(cat => cat.id === catId));   // unknown id -> first tab
@@ -1500,12 +1490,11 @@ if (workModal) {
   workPrevBtn.addEventListener('click', () => showWorkItem(workIdx - 1));
   workNextBtn.addEventListener('click', () => showWorkItem(workIdx + 1));
 
-  // Triggers: the four featured cards land on their own piece, VIEW ALL WORK
-  // opens on the first tab.
+  // Triggers: each featured card opens its own tab on item 0, which is frame 0
+  // of the carousel it was just showing (bake_work.py orders items so). VIEW
+  // ALL WORK opens on the first tab.
   document.querySelectorAll('[data-work-cat]').forEach(card => {
-    card.addEventListener('click', () => {
-      openWork(card.dataset.workCat, Number(card.dataset.workIndex) || 0, card);
-    });
+    card.addEventListener('click', () => openWork(card.dataset.workCat, 0, card));
   });
   document.getElementById('viewAllWork')?.addEventListener('click', event => {
     openWork(null, 0, event.currentTarget);
@@ -1552,6 +1541,186 @@ if (workModal) {
     if (Math.abs(dx) > 45) showWorkItem(workIdx + (dx < 0 ? 1 : -1));
   });
   workHero.addEventListener('pointercancel', () => { swipeFrom = null; });
+}
+
+/* ==========================================================================
+   CARD CAROUSEL
+   Each featured card rotates through five pieces from its own category.
+
+   FRAME 0 IS IN THE MARKUP; frames 1-4 are built here from work.json the
+   first time the grid nears the viewport. That split is the whole design: a
+   card shows real, baked, checked art with JS off and on first paint, and
+   eight cards still cost eight image fetches instead of forty.
+
+   ONE TIMER, ROUND ROBIN. Eight independent timers would drift into step and
+   flip the whole grid at once, which reads as a glitch rather than as motion;
+   staggering eight timers by hand is the same thing plus eight ways to leak
+   one. Instead a single interval advances the NEXT card every TURN_MS/n, so
+   any one card holds a frame for TURN_MS and something on screen is always
+   moving gently.
+
+   It runs only while the grid is on screen and the tab is visible, and not at
+   all under prefers-reduced-motion — where the card is simply frame 0, still
+   a real piece of art rather than a stopped animation.
+   ========================================================================== */
+
+{
+  const grid = document.querySelector('.home-featured .work-grid');
+  const TURN_MS = 6000;      // how long one frame is held on a given card
+  const FADE_MS = 260;       // must match .card-meta strong's transition
+
+  const reels = [];
+  let reelCursor = 0;
+  let reelTimer = null;
+  let onScreen = false;
+  let building = false;
+
+  const stopped = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Frames 1-4 are created EMPTY and filled one turn before they are needed.
+  //
+  // loading="lazy" is not enough here and it took a moment to see why: every
+  // frame is inside a card that IS in the viewport — it is merely at opacity 0
+  // — so lazy loads all five at once and eight cards cost forty fetches, which
+  // is the exact thing keeping frames out of the markup was meant to avoid.
+  // Painting on demand costs one image per turn instead, and a turn is 6
+  // seconds away when its paint starts.
+  function addFrame(reel) {
+    const { picture, sources, img } = makePicture('card-frame');
+    img.loading = 'lazy';
+    reel.reel.appendChild(picture);
+    reel.sources.push(sources);
+    reel.imgs.push(img);
+    return picture;
+  }
+
+  // Idempotent: painting a frame twice would be a second identical fetch.
+  function primeFrame(reel, i) {
+    const img = reel.imgs[i];
+    if (!img || img.src || !reel.items[i]) return;
+    paintPicture(reel.sources[i], img, reel.items[i], 'card');
+    if (reel.positions[i]) img.style.objectPosition = reel.positions[i];
+  }
+
+  function buildReel(card) {
+    const cat = workCategories().find(c => c.id === card.dataset.workCat);
+    const first = card.querySelector('.card-frame');
+    const title = card.querySelector('.card-meta strong');
+    if (!cat || !first || !title) return null;
+
+    const reel = {
+      card,
+      reel: card.querySelector('.card-reel'),
+      title,
+      index: 0,
+      frames: [first],
+      // Parallel to `frames`, all of them. Slot 0 is frame 0's, already
+      // painted by bake_markup, so primeFrame() leaves it alone.
+      items: [],
+      titles: [],
+      positions: [],
+      sources: [null],
+      imgs: [first.querySelector('img')],
+      dots: [],
+      swap: null,
+    };
+
+    cat.frames.forEach((frame, i) => {
+      const item = cat.items[frame.index];
+      if (!item) return;
+      reel.items.push(item);
+      reel.titles.push(item.title);
+      reel.positions.push(frame.pos || '');
+      if (i === 0) {
+        // Frame 0 is already on the page and already fetched; only its
+        // object-position can still need saying.
+        if (frame.pos) reel.imgs[0].style.objectPosition = frame.pos;
+      } else {
+        reel.frames.push(addFrame(reel));
+      }
+    });
+    if (reel.frames.length < 2) return null;
+    primeFrame(reel, 1);            // the one the first turn will want
+
+    const dots = document.createElement('span');
+    dots.className = 'card-dots';
+    reel.frames.forEach((_frame, i) => {
+      const dot = document.createElement('i');
+      dot.className = i === 0 ? 'card-dot is-on' : 'card-dot';
+      dots.appendChild(dot);
+      reel.dots.push(dot);
+    });
+    card.appendChild(dots);
+    return reel;
+  }
+
+  function turn(reel) {
+    const next = (reel.index + 1) % reel.frames.length;
+    primeFrame(reel, next);                                   // usually already done
+    primeFrame(reel, (next + 1) % reel.frames.length);        // one turn of lead time
+    // The title belongs to the frame, so it leaves first and comes back with
+    // the new one — swapping it mid cross-fade is the one hard cut the eye
+    // would catch.
+    reel.card.classList.add('is-turning');
+    clearTimeout(reel.swap);
+    reel.swap = setTimeout(() => {
+      reel.frames[reel.index].classList.remove('is-on');
+      reel.frames[next].classList.add('is-on');
+      reel.dots[reel.index].classList.remove('is-on');
+      reel.dots[next].classList.add('is-on');
+      reel.title.textContent = reel.titles[next] ?? reel.title.textContent;
+      reel.index = next;
+      reel.card.classList.remove('is-turning');
+    }, FADE_MS);
+  }
+
+  function sync() {
+    const run = onScreen && !document.hidden && reels.length && !stopped();
+    if (run && !reelTimer) {
+      reelTimer = setInterval(() => {
+        turn(reels[reelCursor % reels.length]);
+        reelCursor++;
+      }, Math.round(TURN_MS / reels.length));
+    } else if (!run && reelTimer) {
+      clearInterval(reelTimer);
+      reelTimer = null;
+    }
+  }
+
+  function build() {
+    if (building || reels.length) return;
+    building = true;
+    loadWork().then(() => {
+      grid.querySelectorAll('[data-work-cat]').forEach(card => {
+        const reel = buildReel(card);
+        if (reel) reels.push(reel);
+      });
+      sync();
+    }).catch(error => {
+      // The cards keep their markup frame and stay clickable; only the
+      // rotation is lost, and openWork() will retry the fetch on click.
+      console.warn('card carousel: work.json did not load', error);
+    }).finally(() => { building = false; });
+  }
+
+  if (grid) {
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(entries => {
+        onScreen = entries.some(entry => entry.isIntersecting);
+        if (onScreen) build();
+        sync();
+      }, { rootMargin: '200px' });
+      io.observe(grid);
+    } else {
+      onScreen = true;
+      build();
+    }
+    document.addEventListener('visibilitychange', sync);
+    // A visitor who turns the preference on mid-session gets the same answer
+    // as one who had it on at load.
+    window.matchMedia('(prefers-reduced-motion: reduce)')
+      .addEventListener('change', sync);
+  }
 }
 
 /* ==========================================================================

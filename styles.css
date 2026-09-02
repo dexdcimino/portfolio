@@ -1000,6 +1000,39 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .card-go{position:absolute;right:14px;bottom:15px;width:14px;height:14px;color:var(--text);opacity:.75}
 .work-card:hover .card-go{opacity:1;transform:translate(2px,-2px)}
 
+/* ---- the card carousel -------------------------------------------------
+   Frames STACK AND CROSS-FADE rather than slide. A slide would translate the
+   same element the hover rule scales, inside a 14px radius with
+   overflow:hidden, and the two together read as a wobble rather than as two
+   effects. Cross-fading also means a card with only frame 0 — JS off, or
+   work.json not back yet — looks finished instead of empty, which is why
+   frame 0 is the one that lives in the markup.
+
+   .card-frame is the <picture>, not the <img>: bake_markup writes the class
+   there via picture-class=, and .work-card img above already gives the <img>
+   inside it the cover fit and the hover scale. */
+.card-reel{position:absolute;inset:0;display:block}
+.card-frame{position:absolute;inset:0;display:block;opacity:0;transition:opacity .85s ease}
+.card-frame.is-on{opacity:1}
+/* Dots are visible at rest, not only on hover: a card that changes on its own
+   with nothing to explain it reads as a glitch. They say "there is more here",
+   which is also the invitation to click. */
+.card-dots{position:absolute;top:11px;right:12px;display:flex;gap:5px;opacity:.55;transition:opacity var(--accent-ease)}
+.work-card:hover .card-dots,.work-card:focus-visible .card-dots{opacity:1}
+.card-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.45);transition:background var(--accent-ease)}
+.card-dot.is-on{background:var(--accent)}
+/* The title belongs to the frame under it, so it changes with the frame. It
+   fades out first and comes back with the new image rather than swapping mid
+   cross-fade, where a hard text pop is the only thing the eye would catch. */
+.card-meta strong{transition:opacity .26s ease}
+.work-card.is-turning .card-meta strong{opacity:0}
+@media(prefers-reduced-motion:reduce){
+  /* The carousel does not advance at all under this preference (script.js
+     never starts the timer), so these only matter for the one paint that
+     builds the reel. */
+  .card-frame,.card-meta strong{transition:none}
+}
+
 /* ==========================================================================
    TOOLKIT + TOP PICKS
    Two tabbed sections under the About hero. Both use the same tab row shape
@@ -3748,8 +3781,16 @@ body.modal-open{overflow:hidden}
   .dex-wordmark{width:min(72vw,379px)}
   .cimino-wordmark-shell{width:min(57vw,302px);margin-top:26px}
   .hero-art{left:7vw;top:380px;width:100vw;margin:0}
-  .home-featured .work-grid{grid-template-columns:1fr}
-  .home-featured .work-card{height:300px}
+  /* TWO-UP, not one. Eight category cards stacked full-width is 2,500px of
+     scrolling to get past the section; two-up is four rows, and a card at
+     ~44vw is still large enough to read the art and the label under it.
+     (It was one-up while there were four cards, where it was right.) */
+  .home-featured .work-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .home-featured .work-card{height:180px}
+  .home-featured .card-meta{left:11px;right:11px;bottom:10px}
+  .home-featured .card-meta small{font-size:10px;letter-spacing:.1em}
+  .home-featured .card-meta strong{font-size:14px;margin-top:3px}
+  .home-featured .card-go{display:none}
   :root{--gutter:20px}
   .split-section,.section{padding:72px var(--gutter)}
   .about{padding:72px var(--gutter) 64px}

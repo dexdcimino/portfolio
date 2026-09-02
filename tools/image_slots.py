@@ -70,6 +70,25 @@ LADDERS = {
     # thing on offer was the 600 — five of them, ~95 KB, to fill nine boxes the
     # size of a postage stamp. 400 covers a 2x display, 240 a 1x one.
     "wallpaper": (1920, 1280, 900, 600, 400, 240),
+    # The work gallery — CONCEPTING WIDTHS, deliberately short.
+    #
+    # 900 serves the featured card (19vw is 365px at a 1920 viewport, 730 at
+    # 2x) and 400 the overlay filmstrip (~130px, 190 at the widest). The
+    # overlay HERO wants 1600 and is knowingly being served 900: the set is
+    # 350 pieces still being cut down, and the full ladder is six rungs in two
+    # formats over 350 masters — 4200 files to encode for art that is mostly
+    # about to be deleted (Dex, 2026-09-01: "get the images showing and then
+    # we can choose").
+    #
+    # 600 is NOT padding between them: 63 of the 350 masters are under 900px on
+    # their long edge (some as small as 315), and with only 900 and 400 every
+    # one of those served the 400 into a card asking for 730 device px on a 2x
+    # laptop. Soft art is a bad thing to be choosing from.
+    #
+    # Widen to (1600, 1200, 900, 600, 400) once the selection is settled. One
+    # edit here re-bakes every rung and re-writes every reference — that is the
+    # whole reason the ladder lives in one place.
+    "work": (900, 600, 400),
 }
 
 # `sizes` must describe the real rendered slot or the browser picks the wrong
@@ -89,16 +108,10 @@ SLOTS = {
         ladder="accent",
         sizes="min(26vw, 340px)",
     ),
-    "work-card": dict(
-        ladder="card",
-        sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw",
-    ),
-    # Same grid cell, but the mascot is drawn contained rather than cover-cropped,
-    # so it never needs the 900 the photographic cards do.
-    "work-card-art": dict(
-        ladder="art",
-        sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw",
-    ),
+    # `work-card` and `work-card-art` lived here until 2026-09-01. They served
+    # the four placeholder featured cards; the eight real ones use
+    # `work-card-frame` below, on the gallery's own ladder. Removed rather
+    # than left as dead config — an unused slot is a ladder nobody is checking.
     "about-photo": dict(
         ladder="photo",
         sizes="(max-width:760px) min(90vw, 330px), min(32vw, 420px)",
@@ -198,6 +211,30 @@ SLOTS = {
         ladder="wallpaper",
         sizes="(max-width:1100px) 92vw, min(56vw, 900px)",
     ),
+    # The work overlay's hero. Same place in the layout as game-shot, but on
+    # the `work` ladder rather than `gallery`, so the whole gallery moves
+    # together when that ladder widens. Nothing in index.html names this slot —
+    # bake_work.py renders these into work.json.
+    "work-hero": dict(
+        ladder="work",
+        sizes="(max-width:1100px) 92vw, min(1200px, 78vw)",
+    ),
+    # The filmstrip under that hero. ~130px normally, 190 at the widest.
+    "work-thumb": dict(
+        ladder="work",
+        sizes="(max-width:760px) 84px, 130px",
+    ),
+    # Frame 1 of a featured card's carousel — the only frame that is in the
+    # markup, so the card shows real art before work.json arrives and with JS
+    # off. Same grid cell and therefore the same `sizes` as `work-card`; on the
+    # `work` ladder rather than `card` so that every piece in assets/work/ bakes
+    # at one set of widths and widening that ladder moves all of them together.
+    "work-card-frame": dict(
+        ladder="work",
+        # Two-up below 760 as well as between 760 and 1100 — eight cards is
+        # too many to stack one per row on a phone — so 44vw covers both.
+        sizes="(max-width:1100px) 44vw, 19vw",
+    ),
 }
 
 
@@ -218,6 +255,21 @@ SIBLINGS = {
     "assets/mascots/mascot_*.png": "assets/mascots/mascot_limegreen.png",
 }
 
+# A whole FOLDER whose masters the markup never names one by one, because a
+# manifest names them instead. The work gallery is 350 pieces reached through
+# work.json, and only the eight card frames appear in index.html — without this
+# the other 342 would each fall back to DEFAULT_WIDTHS, six rungs in two
+# formats, 4104 files nothing would ever serve.
+#
+# This is not SIBLINGS with a wildcard: SIBLINGS copies a LEADER's slot-derived
+# widths, which only works when one member of the family is in the markup and
+# the rest are swapped in for it by name (the seven mascots). Here there is no
+# leader — the gallery is its own thing and asks for its own ladder directly.
+#   glob of masters -> the ladder they bake at
+FOLDER_LADDERS = {
+    "assets/work/*/*": "work",
+}
+
 
 def widths_for(master_rel: str, used_by: dict[str, set[str]], default: tuple[int, ...]) -> tuple[int, ...]:
     """Widths to BAKE for one master, given which slots reference it.
@@ -229,8 +281,8 @@ def widths_for(master_rel: str, used_by: dict[str, set[str]], default: tuple[int
     An image is baked at exactly the widths its slots ask for. Anything else is
     dead weight: an image in a 19vw grid cell has no use for a 1600px
     derivative, and at a dozen new images that is a lot of files nothing will
-    ever serve. Masters the markup never names fall back to a sibling's ladder
-    if they have one, and to the standard ladder otherwise.
+    ever serve. Masters the markup never names fall back to a sibling's ladder,
+    then to their folder's ladder, then to the standard one.
     """
     from fnmatch import fnmatch
 
@@ -243,4 +295,9 @@ def widths_for(master_rel: str, used_by: dict[str, set[str]], default: tuple[int
             inherited = {w for slot in used_by.get(leader, ()) for w in slot_widths(slot)}
             if inherited:
                 return tuple(sorted(inherited, reverse=True))
+
+    for pattern, ladder in FOLDER_LADDERS.items():
+        if fnmatch(master_rel, pattern):
+            return tuple(sorted(LADDERS[ladder], reverse=True))
+
     return default

@@ -78,7 +78,13 @@ BUDGET_BYTES = 150 * 1024
 # the widths its slot asks for instead; see tools/image_slots.py.
 DEFAULT_WIDTHS = (1600, 1200, 900, 600, 400, 200)
 
-RASTER_EXTS = {".png", ".jpg", ".jpeg"}
+# .webp is a MASTER extension as well as an output one. The work gallery's 350
+# pieces carry real alpha on 213 of them, which rules JPEG out, and PNG at
+# 1600px is 349 MB against WebP's 57 — so those masters are WebP. Two of the
+# files in that drop arrived as .webp already and would have been walked past
+# in silence before this. Safe against baking the bakes because assets/derived/
+# is in SKIP_DIRS, and outputs land in a mirrored folder, never beside a master.
+RASTER_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 
 # derived/ holds this script's own output — walking it would bake the bakes.
 # _resources/ is .ai/.psd working files. _archive/ is songs kept in the repo
@@ -139,7 +145,21 @@ def expected(src: Path, widths: tuple[int, ...]):
     # Mirror the master's folder. A flat namespace collides the moment two
     # masters share a stem — assets/a/cover.png and assets/b/cover.png would
     # both bake to cover-800.avif and one would silently win.
-    rel = src.relative_to(ROOT / "assets").parent
+    #
+    # Discovery is repo-wide but the output layout is anchored at assets/, so a
+    # raster ANYWHERE ELSE has nowhere to go. That used to surface as a bare
+    # ValueError from relative_to() naming two absolute paths and no reason —
+    # which is what a 525 MB folder of art dropped at the repo root produced on
+    # 2026-09-01, after the walk had already done its real work. Say what is
+    # wrong and what to do instead.
+    try:
+        rel = src.relative_to(ROOT / "assets").parent
+    except ValueError:
+        raise SystemExit(
+            f"ERROR: {src.relative_to(ROOT).as_posix()} is a raster master "
+            f"outside assets/, and derived output mirrors assets/. Move it under "
+            f"assets/, or put it somewhere the walk skips "
+            f"({', '.join(sorted(SKIP_DIRS))}).") from None
     for width in widths:
         if width > source_width:      # never upscale — the master is the ceiling
             continue

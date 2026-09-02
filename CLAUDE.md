@@ -22,6 +22,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/check_accents.py` | the 7-accent palette is byte-identical in all 5 copies |
 | `python tools/check_cursors.py` | the 3 cursor paths are identical in all 4 copies |
 | `python tools/bake_markup.py --check` | every `<picture>` is current and every reference resolves |
+| `python tools/bake_work.py --check` | `work.json` matches the masters, the index and the ladder |
 | `python tools/bake_images.py --check` | every derivative exists and is newer than its master |
 | `python tools/check_sweep.py --cases` | the sweep checker can still refuse — 8 recorded cases |
 | `python tools/check_pack.py --cases` | the pack freshness gate can still refuse |
@@ -31,6 +32,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `node   tools/check_markdown.mjs --cases` | the XSS detector fires on a renderer with the original bug |
 | `python tools/bake_images.py --cases` | `--check` fails on an empty walk |
 | `python tools/bake_markup.py --cases` | `--check` fails on an empty parse and a hand edit |
+| `python tools/bake_work.py --cases` | the manifest gate can still refuse — 4 recorded states |
 | `node tools/check_markdown.mjs` | `renderMarkdown` cannot emit an event handler (needs Chrome) |
 | `python tools/context_pack.py` | rebuilds the context zip in the root, measured not typed |
 
@@ -137,22 +139,44 @@ The shape is `DOCTRINE.md` rule 5 and is not restated here. What is local:
   A fresh clone installs both hooks once:
   `python tools/bake_images.py --install-hooks`.
 
-## Work overlay is a MOCKUP (do not mistake it for finished)
+## The work gallery is REAL ART now, but the selection is not settled
 
-- The Work overlay ships with **generated filler images**, not artwork: SVG data
-  URIs built in the `TEMPORARY MOCKUP DATA` block at the bottom of `script.js`.
-  There is no `work.json`, nothing in `assets/media/`, and no real asset was
-  added for it. The `FILLER — NOT REAL WORK` stamp on each image is deliberate.
-- The categories, titles, tool/year lines and counts are placeholders, **not a
-  settled taxonomy**. Do not build on them as if they were.
-- Everything after that block is data-shape-agnostic: it renders a list of
-  `{title, desc, src, w, h}` and does not care where the list came from. The
-  real build replaces one block with `work.json` plus baked derivatives — the
-  tab row, filmstrip, hero and caption need no changes.
-- The hero is a **fixed 3:2 box** (the frame itself on phones) and images
-  letterbox into it with `object-fit:contain`. Do not make the box track each
-  image's aspect ratio: that is what makes the caption and filmstrip jump on
-  every arrow press.
+The SVG filler is gone. `assets/work/<category>/` holds 350 web masters across
+eight categories, and the `TEMPORARY MOCKUP DATA` block in `script.js` has been
+replaced by `assets/work/work.json`. What is still provisional is *which* of
+them ship, not whether they are real.
+
+- **The masters are WEB masters, not originals.** WebP q92, capped at 1600px
+  (the top of the `work` ladder). The untouched originals are 525 MB and live
+  outside the repo in `_resources/gallery-originals/`, which is gitignored. Do
+  not treat `assets/work/` as the only copy, and do not re-export from it.
+- **`.webp` is a master extension now**, not only an output one. Two files in
+  the original drop were already `.webp` and `bake_images.py` walked past them
+  in silence.
+- **The `work` ladder is (900, 600, 400) and that is DELIBERATELY SHORT.** The
+  overlay hero wants 1600 and is being served 900 on purpose, because the full
+  ladder is 4200 files to encode for a set that is mostly about to be cut. One
+  edit in `tools/image_slots.py` widens it once the selection settles.
+- **`work-index.json` is the hand-written half and the pruning tool.** Every
+  file in a category folder is shown unless its stem is in `omit`, so adding
+  art is a drop and removing it is one line. `bake_work.py` prints shown and
+  omitted counts per category on every run.
+- **The categories, the card frames and the titles are a FIRST PASS.** They
+  were chosen by looking at contact sheets of all 377 files, not by a taxonomy
+  anyone has agreed to. Do not build on them as if they were settled.
+- **Nothing is cropped on disk and nothing should be.** The card is a fixed
+  box with `object-fit:cover`; a baked thumbnail would be cropped twice. A
+  badly-framed piece gets a `pos` (`object-position`) string in the index.
+- **27 groups of exact duplicates were collapsed** when the drop was
+  reorganised (The Wild Robot was also Roblox-2..7, Knights of Edengale was
+  also Low-Res-Assets, DigiBitties spanned three folders). A piece lives in
+  exactly one category. If a piece needs to appear in two, the manifest points
+  at it twice — do not copy the file.
+
+The hero is still a **fixed 3:2 box** (the frame itself on phones) and images
+letterbox into it with `object-fit:contain`. Do not make the box track each
+image's aspect ratio: that is what makes the caption and filmstrip jump on
+every arrow press.
 
 ## A constant correct for the average world is wrong for the small ones (five times)
 

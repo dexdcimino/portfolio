@@ -20,7 +20,7 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   Idea Vault (AES-GCM blob in `data-vault`; the overlay it opens carries the
   backlog list — see below), contact. Eight native `<dialog>`
   overlays (app embed, wallpaper lightbox, document reader, vault, shared
-  game/app gallery, work mockup, resume, contact)
+  game/app gallery, work gallery, resume, contact)
 - `script.js` — plain script, feature blocks as IIFEs, executes top-to-bottom
   with `<script>` at the end of body. Major blocks: accent/theme system
   (7 accents; `applyAccent` sets `--accent`, rebuilds the SVG favicon,
@@ -81,9 +81,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   and the pre-commit hook runs it whenever any copy, the source or the
   checker itself is staged), `probeMascot()` (clones the real `<picture>` so the browser
   negotiates the one true file — **never hand-build derivative URLs**), Work
-  overlay (**mockup** — see CLAUDE.md; `TEMPORARY MOCKUP DATA` block, filler
-  SVGs; everything after it renders `{title, desc, src, w, h}` and is
-  data-shape-agnostic; hero is a fixed 3:2 box on purpose), one `initTabs()`
+  overlay + CARD CAROUSEL (343 pieces in eight categories, loaded once from
+  `assets/work/work.json` — written by `tools/bake_work.py`, carrying FINISHED
+  srcset strings so the same rule holds here; `paintPicture()`/`warmPicture()`
+  fill and pre-negotiate every `<picture>`; hero is a fixed 3:2 box on
+  purpose; the eight featured cards cross-fade five frames each on ONE
+  round-robin interval, frame 0 from the markup and 1-4 from the manifest),
+  one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +
   lightbox, self-building from `.wp-item` figures, instantiated TWICE:
   Wallpapers (`wp`) and Concepts (`cn`). The ids are a prefix and the arrows
@@ -1018,15 +1022,19 @@ things already positioned in there (`.about-flags`, the breakout game's
 
 ## Numbers
 
-7 accents (lime default) · 11 ladders / 18 slots in `image_slots.py` ·
-101 generated markup blocks in index.html · fallback ladder
+7 accents (lime default) · 12 ladders / 21 slots in `image_slots.py` ·
+106 generated markup blocks in index.html · 343 gallery pieces in
+`work.json` · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
 
 ## Known-outstanding
 
-The Work overlay is a mockup (no `work.json`, filler SVGs — do not build on
-its taxonomy). The Concepts tab carries nine real sheets now, all of them
+The Work overlay is real art now, but its SELECTION is not settled: 350
+masters went in as a first pass and the categories, the card frames and the
+titles in `assets/work/work-index.json` are there to be cut down, not built
+on. The `work` ladder is deliberately short at (900, 600, 400) until they are
+— the overlay hero is being served 900 where it wants 1600. The Concepts tab carries nine real sheets now, all of them
 1536x1024, which is why its frame is 3:2 and letterboxes nothing — `contain`
 stays for the tenth at whatever shape it arrives. Top Picks gained a **Toons**
 tab after Songs (five, TMDB posters at w780 like the shows —

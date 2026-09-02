@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=189" />
+  <link rel="stylesheet" href="styles.css?v=190" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -364,70 +364,189 @@
       </div>
 
       <!-- Cards are <button>, not <a>: they open the work overlay, and an href
-           would scroll the page before the dialog ever showed. data-work-cat /
-           data-work-index say which tab and which image each one opens on, so a
-           card lands on its own piece instead of the top of the list. -->
+           would scroll the page before the dialog ever showed. data-work-cat
+           says which tab each one opens; the piece it opens ON is frame 0 of
+           the card's own carousel, which is item 0 of that category by
+           construction (tools/bake_work.py orders the items that way) — which
+           is why there is no data-work-index here any more.
+
+           ONE FRAME PER CARD IS IN THE MARKUP and the other four are not.
+           This one is baked and checked like every other image on the page,
+           so a card shows real art with JS off and before work.json lands;
+           the rest arrive from the manifest one turn before they are needed,
+           which is what keeps eight cards from costing forty image fetches.
+           (loading="lazy" alone would NOT: every frame sits in a card that
+           is in the viewport, just at opacity 0.) See CARD CAROUSEL in
+           script.js.
+
+           The reel is aria-hidden and the button carries a complete
+           aria-label, so the title underneath changing every few seconds is a
+           sighted-only affordance and never re-announces the button. -->
       <div class="work-grid">
-        <button class="work-card reveal" type="button" data-work-cat="environment" data-work-index="0"
-                aria-label="Valley Outpost — open in the Environment gallery">
-          <!-- img src="assets/images/featured-bishop-lava.png" slot="work-card" alt="Environment artwork" -->
-          <picture>
-            <source type="image/avif" srcset="assets/derived/images/featured-bishop-lava-900.avif?v=bfbe8fe9 900w,
-                                              assets/derived/images/featured-bishop-lava-600.avif?v=bfbe8fe9 600w,
-                                              assets/derived/images/featured-bishop-lava-400.avif?v=bfbe8fe9 400w"
-                    sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw">
-            <source type="image/webp" srcset="assets/derived/images/featured-bishop-lava-900.webp?v=bfbe8fe9 900w,
-                                              assets/derived/images/featured-bishop-lava-600.webp?v=bfbe8fe9 600w,
-                                              assets/derived/images/featured-bishop-lava-400.webp?v=bfbe8fe9 400w"
-                    sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw">
-            <img src="assets/images/featured-bishop-lava.png" alt="Environment artwork" width="1672" height="941" loading="lazy" decoding="async">
-          </picture>
-          <!-- /img -->
+        <button class="work-card reveal" type="button" data-work-cat="character"
+                aria-label="CHARACTERS — open the work gallery">
+          <span class="card-reel" aria-hidden="true">
+            <!-- img src="assets/work/character/brigadier-bluebeard-3.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+            <picture class="card-frame is-on">
+              <source type="image/avif" srcset="assets/derived/work/character/brigadier-bluebeard-3-900.avif?v=0bd8cee9 900w,
+                                                assets/derived/work/character/brigadier-bluebeard-3-600.avif?v=0bd8cee9 600w,
+                                                assets/derived/work/character/brigadier-bluebeard-3-400.avif?v=0bd8cee9 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <source type="image/webp" srcset="assets/derived/work/character/brigadier-bluebeard-3-900.webp?v=0bd8cee9 900w,
+                                                assets/derived/work/character/brigadier-bluebeard-3-600.webp?v=0bd8cee9 600w,
+                                                assets/derived/work/character/brigadier-bluebeard-3-400.webp?v=0bd8cee9 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <img src="assets/work/character/brigadier-bluebeard-3.webp" alt="" width="1010" height="1600" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+          </span>
           <span class="card-shade"></span>
-          <span class="card-meta"><small>ENVIRONMENT</small><strong>Valley Outpost</strong></span>
+          <span class="card-meta"><small>CHARACTERS</small><strong>Brigadier Bluebeard</strong></span>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
         </button>
-        <button class="work-card reveal" type="button" data-work-cat="prop" data-work-index="2"
-                aria-label="Grimshot Rifle — open in the Prop / Design gallery">
-          <!-- img src="assets/images/featured-bishop.png" slot="work-card" alt="Prop design artwork" -->
-          <picture>
-            <source type="image/avif" srcset="assets/derived/images/featured-bishop-900.avif?v=e3fe72ec 900w,
-                                              assets/derived/images/featured-bishop-600.avif?v=e3fe72ec 600w,
-                                              assets/derived/images/featured-bishop-400.avif?v=e3fe72ec 400w"
-                    sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw">
-            <source type="image/webp" srcset="assets/derived/images/featured-bishop-900.webp?v=e3fe72ec 900w,
-                                              assets/derived/images/featured-bishop-600.webp?v=e3fe72ec 600w,
-                                              assets/derived/images/featured-bishop-400.webp?v=e3fe72ec 400w"
-                    sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw">
-            <img src="assets/images/featured-bishop.png" alt="Prop design artwork" width="1920" height="1080" loading="lazy" decoding="async">
-          </picture>
-          <!-- /img -->
+        <button class="work-card reveal" type="button" data-work-cat="props"
+                aria-label="PROPS and WEAPONS — open the work gallery">
+          <span class="card-reel" aria-hidden="true">
+            <!-- img src="assets/work/props/grimshot-rifle-1.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+            <picture class="card-frame is-on">
+              <source type="image/avif" srcset="assets/derived/work/props/grimshot-rifle-1-900.avif?v=034711c0 900w,
+                                                assets/derived/work/props/grimshot-rifle-1-600.avif?v=034711c0 600w,
+                                                assets/derived/work/props/grimshot-rifle-1-400.avif?v=034711c0 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <source type="image/webp" srcset="assets/derived/work/props/grimshot-rifle-1-900.webp?v=034711c0 900w,
+                                                assets/derived/work/props/grimshot-rifle-1-600.webp?v=034711c0 600w,
+                                                assets/derived/work/props/grimshot-rifle-1-400.webp?v=034711c0 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <img src="assets/work/props/grimshot-rifle-1.webp" alt="" width="1400" height="1198" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+          </span>
           <span class="card-shade"></span>
-          <span class="card-meta"><small>PROP / DESIGN</small><strong>Grimshot Rifle</strong></span>
+          <span class="card-meta"><small>PROPS &amp; WEAPONS</small><strong>Grimshot Rifle</strong></span>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
         </button>
-        <button class="work-card brand-card reveal" type="button" data-work-cat="character" data-work-index="4"
-                aria-label="Clayweld — open in the Character gallery">
-          <!-- img src="assets/mascots/mascot_limegreen.png" slot="work-card-art" alt="Character artwork" data-theme-mascot -->
-          <picture>
-            <source type="image/avif" srcset="assets/derived/mascots/mascot_limegreen-600.avif?v=6edad5f9 600w,
-                                              assets/derived/mascots/mascot_limegreen-400.avif?v=6edad5f9 400w"
-                    sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw">
-            <source type="image/webp" srcset="assets/derived/mascots/mascot_limegreen-600.webp?v=6edad5f9 600w,
-                                              assets/derived/mascots/mascot_limegreen-400.webp?v=6edad5f9 400w"
-                    sizes="(max-width:760px) 88vw, (max-width:1100px) 41vw, 19vw">
-            <img data-theme-mascot src="assets/mascots/mascot_limegreen.png" alt="Character artwork" width="1303" height="1193" loading="lazy" decoding="async">
-          </picture>
-          <!-- /img -->
+        <button class="work-card reveal" type="button" data-work-cat="concept"
+                aria-label="CONCEPT ART — open the work gallery">
+          <span class="card-reel" aria-hidden="true">
+            <!-- img src="assets/work/concept/nyxara-2.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+            <picture class="card-frame is-on">
+              <source type="image/avif" srcset="assets/derived/work/concept/nyxara-2-900.avif?v=64dc8780 900w,
+                                                assets/derived/work/concept/nyxara-2-600.avif?v=64dc8780 600w,
+                                                assets/derived/work/concept/nyxara-2-400.avif?v=64dc8780 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <source type="image/webp" srcset="assets/derived/work/concept/nyxara-2-900.webp?v=64dc8780 900w,
+                                                assets/derived/work/concept/nyxara-2-600.webp?v=64dc8780 600w,
+                                                assets/derived/work/concept/nyxara-2-400.webp?v=64dc8780 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <img src="assets/work/concept/nyxara-2.webp" alt="" width="900" height="1600" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+          </span>
           <span class="card-shade"></span>
-          <span class="card-meta"><small>CHARACTER</small><strong>Clayweld</strong></span>
+          <span class="card-meta"><small>CONCEPT ART</small><strong>Nyxara</strong></span>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
         </button>
-        <button class="work-card concept-card reveal" type="button" data-work-cat="concept" data-work-index="3"
-                aria-label="Circuit Siege — open in the Concept gallery">
-          <span class="icon concept-mark" data-icon="brand" aria-hidden="true"></span>
+        <button class="work-card reveal" type="button" data-work-cat="environment"
+                aria-label="ENVIRONMENTS — open the work gallery">
+          <span class="card-reel" aria-hidden="true">
+            <!-- img src="assets/work/environment/low-res-altar-4.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+            <picture class="card-frame is-on">
+              <source type="image/avif" srcset="assets/derived/work/environment/low-res-altar-4-600.avif?v=5d8a0919 600w,
+                                                assets/derived/work/environment/low-res-altar-4-400.avif?v=5d8a0919 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <source type="image/webp" srcset="assets/derived/work/environment/low-res-altar-4-600.webp?v=5d8a0919 600w,
+                                                assets/derived/work/environment/low-res-altar-4-400.webp?v=5d8a0919 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <img src="assets/work/environment/low-res-altar-4.webp" alt="" width="793" height="485" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+          </span>
           <span class="card-shade"></span>
-          <span class="card-meta"><small>CONCEPT / BRAINSTORM</small><strong>Circuit Siege</strong></span>
+          <span class="card-meta"><small>ENVIRONMENTS</small><strong>Low-Res Altar</strong></span>
+          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+        </button>
+        <button class="work-card reveal" type="button" data-work-cat="minecraft"
+                aria-label="MINECRAFT and HYTALE — open the work gallery">
+          <span class="card-reel" aria-hidden="true">
+            <!-- img src="assets/work/minecraft/creature-001-9.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+            <picture class="card-frame is-on">
+              <source type="image/avif" srcset="assets/derived/work/minecraft/creature-001-9-900.avif?v=ad1fac4e 900w,
+                                                assets/derived/work/minecraft/creature-001-9-600.avif?v=ad1fac4e 600w,
+                                                assets/derived/work/minecraft/creature-001-9-400.avif?v=ad1fac4e 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <source type="image/webp" srcset="assets/derived/work/minecraft/creature-001-9-900.webp?v=ad1fac4e 900w,
+                                                assets/derived/work/minecraft/creature-001-9-600.webp?v=ad1fac4e 600w,
+                                                assets/derived/work/minecraft/creature-001-9-400.webp?v=ad1fac4e 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <img src="assets/work/minecraft/creature-001-9.webp" alt="" width="1548" height="993" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+          </span>
+          <span class="card-shade"></span>
+          <span class="card-meta"><small>MINECRAFT &amp; HYTALE</small><strong>Creature 001</strong></span>
+          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+        </button>
+        <button class="work-card reveal" type="button" data-work-cat="roblox"
+                aria-label="ROBLOX and LICENSED IP — open the work gallery">
+          <span class="card-reel" aria-hidden="true">
+            <!-- img src="assets/work/roblox/despicable-me-4-1.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+            <picture class="card-frame is-on">
+              <source type="image/avif" srcset="assets/derived/work/roblox/despicable-me-4-1-900.avif?v=93c7cdf7 900w,
+                                                assets/derived/work/roblox/despicable-me-4-1-600.avif?v=93c7cdf7 600w,
+                                                assets/derived/work/roblox/despicable-me-4-1-400.avif?v=93c7cdf7 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <source type="image/webp" srcset="assets/derived/work/roblox/despicable-me-4-1-900.webp?v=93c7cdf7 900w,
+                                                assets/derived/work/roblox/despicable-me-4-1-600.webp?v=93c7cdf7 600w,
+                                                assets/derived/work/roblox/despicable-me-4-1-400.webp?v=93c7cdf7 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <img src="assets/work/roblox/despicable-me-4-1.webp" alt="" width="1400" height="883" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+          </span>
+          <span class="card-shade"></span>
+          <span class="card-meta"><small>ROBLOX &amp; LICENSED IP</small><strong>Despicable Me 4</strong></span>
+          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+        </button>
+        <button class="work-card reveal" type="button" data-work-cat="design"
+                aria-label="DESIGN and UI — open the work gallery">
+          <span class="card-reel" aria-hidden="true">
+            <!-- img src="assets/work/design/clucker-rush-1.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+            <picture class="card-frame is-on">
+              <source type="image/avif" srcset="assets/derived/work/design/clucker-rush-1-900.avif?v=f7317fbf 900w,
+                                                assets/derived/work/design/clucker-rush-1-600.avif?v=f7317fbf 600w,
+                                                assets/derived/work/design/clucker-rush-1-400.avif?v=f7317fbf 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <source type="image/webp" srcset="assets/derived/work/design/clucker-rush-1-900.webp?v=f7317fbf 900w,
+                                                assets/derived/work/design/clucker-rush-1-600.webp?v=f7317fbf 600w,
+                                                assets/derived/work/design/clucker-rush-1-400.webp?v=f7317fbf 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <img src="assets/work/design/clucker-rush-1.webp" alt="" width="1600" height="902" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+          </span>
+          <span class="card-shade"></span>
+          <span class="card-meta"><small>DESIGN &amp; UI</small><strong>Clucker Rush</strong></span>
+          <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
+        </button>
+        <button class="work-card reveal" type="button" data-work-cat="archive"
+                aria-label="EARLIER WORK — open the work gallery">
+          <span class="card-reel" aria-hidden="true">
+            <!-- img src="assets/work/archive/bone-king-2.webp" slot="work-card-frame" alt="" picture-class="card-frame is-on" -->
+            <picture class="card-frame is-on">
+              <source type="image/avif" srcset="assets/derived/work/archive/bone-king-2-900.avif?v=63fb1b34 900w,
+                                                assets/derived/work/archive/bone-king-2-600.avif?v=63fb1b34 600w,
+                                                assets/derived/work/archive/bone-king-2-400.avif?v=63fb1b34 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <source type="image/webp" srcset="assets/derived/work/archive/bone-king-2-900.webp?v=63fb1b34 900w,
+                                                assets/derived/work/archive/bone-king-2-600.webp?v=63fb1b34 600w,
+                                                assets/derived/work/archive/bone-king-2-400.webp?v=63fb1b34 400w"
+                      sizes="(max-width:1100px) 44vw, 19vw">
+              <img src="assets/work/archive/bone-king-2.webp" alt="" width="1081" height="673" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+          </span>
+          <span class="card-shade"></span>
+          <span class="card-meta"><small>EARLIER WORK</small><strong>Bone King</strong></span>
           <span class="icon card-go" data-icon="arrow-ne" aria-hidden="true"></span>
         </button>
       </div>
@@ -3952,7 +4071,17 @@
       <div class="work-stage" id="workPanel" role="tabpanel" tabindex="0">
         <div class="work-frame">
           <div class="work-hero" id="workHero">
-            <img class="work-hero-img" id="workHeroImg" src="" alt="" width="16" height="9" decoding="async">
+            <!-- A <picture>, not a bare <img>, so the hero can take the AVIF
+                 rows work.json carries — an <img srcset> can pick a width but
+                 never a format. Both <source> srcsets and the sizes are written
+                 by paintPicture() from strings tools/bake_work.py generated;
+                 nothing here assembles a URL. Empty at rest: the first
+                 showWorkItem() fills all three. -->
+            <picture class="work-hero-pic">
+              <source id="workHeroAvif" type="image/avif">
+              <source id="workHeroWebp" type="image/webp">
+              <img class="work-hero-img" id="workHeroImg" src="" alt="" width="16" height="9" decoding="async">
+            </picture>
             <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
               <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
             </button>
@@ -4180,6 +4309,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=186"></script>
+  <script src="script.js?v=187"></script>
 </body>
 </html>
