@@ -247,6 +247,10 @@ await page.waitForFunction(
      publishes data-work-index, so a hand-flipped frame leaves the card
      advertising its first piece and the check reported a bug that was its own.
      One sweep is HOLD_MS away, hence the long timeout. */
+  // The pointer is parked wherever the last check left it, and a pointer over
+  // the stage DEFERS the sweep -- so waiting for a turn with the mouse resting
+  // on an arrow waits forever, correctly.
+  await page.mouse.move(5, 5);
   const card = await page.evaluateHandle(() =>
     document.querySelector('.work-page.is-on .work-card[data-work-cat="props"]'));
   await page.waitForFunction(() => {

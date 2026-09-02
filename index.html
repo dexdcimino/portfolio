@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=201" />
+  <link rel="stylesheet" href="styles.css?v=204" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -408,6 +408,14 @@
         <div class="fv" id="featVideo">
           <article class="fv-item is-on" data-video="0">
             <span class="fv-matte" aria-hidden="true"></span>
+            <!-- The Collab section's hazard strip, reused rather than redrawn:
+                 these are slots with no video in them yet, and a play button
+                 that does nothing is a worse answer than saying so. -->
+            <div class="fv-soon" aria-hidden="true">
+              <span class="collab-soon-tape"></span>
+              <strong>UNDER CONSTRUCTION</strong>
+              <span class="collab-soon-tape"></span>
+            </div>
             <button class="fv-info" type="button" aria-expanded="false"
                     aria-label="About TITLE PLACE HOLDER"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
             <p class="fv-desc" hidden>The game itself — a world you drop into as a guest, with the two editors below built to feed it. This slot takes the trailer once it is cut.</p>
@@ -427,6 +435,14 @@
           </article>
           <article class="fv-item" data-video="1">
             <span class="fv-matte" aria-hidden="true"></span>
+            <!-- The Collab section's hazard strip, reused rather than redrawn:
+                 these are slots with no video in them yet, and a play button
+                 that does nothing is a worse answer than saying so. -->
+            <div class="fv-soon" aria-hidden="true">
+              <span class="collab-soon-tape"></span>
+              <strong>UNDER CONSTRUCTION</strong>
+              <span class="collab-soon-tape"></span>
+            </div>
             <button class="fv-info" type="button" aria-expanded="false"
                     aria-label="About CHARACTER EDITOR"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
             <p class="fv-desc" hidden>The character editor: parts, colours and proportions, built to run inside the game rather than beside it.</p>
@@ -438,6 +454,14 @@
           </article>
           <article class="fv-item" data-video="2">
             <span class="fv-matte" aria-hidden="true"></span>
+            <!-- The Collab section's hazard strip, reused rather than redrawn:
+                 these are slots with no video in them yet, and a play button
+                 that does nothing is a worse answer than saying so. -->
+            <div class="fv-soon" aria-hidden="true">
+              <span class="collab-soon-tape"></span>
+              <strong>UNDER CONSTRUCTION</strong>
+              <span class="collab-soon-tape"></span>
+            </div>
             <button class="fv-info" type="button" aria-expanded="false"
                     aria-label="About WORLD EDITOR"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
             <p class="fv-desc" hidden>The world editor: terrain, scatter and props, authored in the same client the game runs in.</p>
@@ -4364,6 +4388,38 @@
     </div>
   </dialog>
 
+  <!-- THE TILDE KEYPAD. The same codes the Idea Vault takes, reachable from
+       anywhere on the page without scrolling to the vault first. It is the
+       same lock, not a second one: script.js wires it to the same sealed
+       blobs, the same decryption and the same doors, so a code that opens
+       something here opens the same thing there.
+
+       ` is chosen because nothing on this page uses it and no browser binds
+       it, and it is ignored while a field, a text box or another dialog has
+       focus -- a shortcut that eats a character you were typing is worse than
+       no shortcut. -->
+  <dialog class="code-modal keypad" id="codeModal" aria-labelledby="code-dialog-title">
+    <div class="code-shell">
+      <h2 class="sr-only" id="code-dialog-title">Enter a code</h2>
+      <p class="eyebrow code-eyebrow">
+        <span id="codeLabel">ENTER CODE</span>
+        <span class="icon vault-lock" id="codeLock" data-icon="lock" aria-hidden="true"></span>
+      </p>
+      <div class="vault-lockbox">
+        <p class="vault-timer" id="codeTimer" aria-hidden="true" hidden></p>
+        <div class="vault-pins" id="codePins" role="group" aria-label="Code, 5 characters">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Code, character 1 of 5">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Code, character 2 of 5">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Code, character 3 of 5">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Code, character 4 of 5">
+          <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Code, character 5 of 5">
+        </div>
+        <p class="vault-status" id="codeStatus" role="status" aria-live="polite">ENTER CODE</p>
+      </div>
+      <p class="code-hint" aria-hidden="true">ESC to close</p>
+    </div>
+  </dialog>
+
   <!-- LIVE NOTES. A private overlay: the keypad, then the document itself,
        editable in place and saved to the server on a debounce so any device
        with the password sees the same text.
@@ -4486,6 +4542,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=197"></script>
+  <script src="script.js?v=198"></script>
 </body>
 </html>

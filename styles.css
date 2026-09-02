@@ -1033,11 +1033,15 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv{position:relative;height:calc(var(--wk-row) * 2 + 14px);isolation:isolate}
 .fv-item{
   position:absolute;inset:0;overflow:hidden;
+  /* The caption is measured against the FRAME. A vw size is a guess about
+     the viewport, and this frame is half of a column of it -- at 60px the
+     title wrapped onto the play button. */
+  container-type:inline-size;
   border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.18);
   background:#11161a;
-  opacity:0;visibility:hidden;transition:opacity .55s ease,visibility 0s linear .55s;
+  opacity:0;visibility:hidden;transition:opacity 1.1s ease,visibility 0s linear 1.1s;
 }
-.fv-item.is-on{opacity:1;visibility:visible;transition:opacity .55s ease}
+.fv-item.is-on{opacity:1;visibility:visible;transition:opacity 1.1s ease}
 /* The same matte the work overlay's hero uses, so an empty slot reads as an
    intentional surface rather than as an image that has not loaded. */
 .fv-matte{
@@ -1049,10 +1053,31 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
       transparent 12px 24px),
     linear-gradient(160deg,#12171d,#0a0d11);
 }
+/* The same sign the Collab section carries, for the same reason: these are
+   slots with no video in them yet, and a play button that does nothing is a
+   worse answer than saying so. Reusing .collab-soon-tape rather than a
+   second hazard pattern, so the two stay one thing.
+   Centred in the TOP HALF, clear of both the play disc and the caption. */
+.fv-soon{
+  position:absolute;top:0;left:50%;translate:-50% 0;z-index:3;
+  width:70%;height:44%;display:flex;flex-direction:column;
+  align-items:stretch;justify-content:center;gap:11px;text-align:center;
+  container-type:inline-size;pointer-events:none;
+}
+/* 6.3cqi, not a guess: the Collab rule works out that UNDER CONSTRUCTION at
+   .2em tracking measures 15.25x its own font size, so 6.556cqi would touch
+   both edges exactly and 6.3 stops at 96%. 8.4 clipped the final N. */
+.fv-soon strong{
+  font-size:6.3cqi;line-height:1.1;letter-spacing:.2em;margin-right:-.2em;
+  font-weight:900;color:var(--text);opacity:.9;white-space:nowrap;
+}
 .fv-play{
   position:absolute;inset:0;width:100%;height:100%;padding:0;cursor:pointer;
   border:0;background:none;display:grid;place-items:center;z-index:2;
 }
+/* Below centre, in the band between the strip above it and the caption
+   below. At 22% it landed on the title. */
+.fv-item .fv-disc{margin-top:8%}
 .fv-disc{
   width:96px;height:96px;border-radius:50%;display:grid;place-items:center;
   background:rgba(6,9,12,.72);color:#fff;
@@ -1063,7 +1088,12 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-play:focus-visible{outline:2px solid var(--accent);outline-offset:-6px;border-radius:14px}
 .fv-item .card-shade{inset:56% 0 0}
 .fv-item .card-meta{left:20px;right:96px;bottom:18px;z-index:3}
-.fv-item .card-meta strong{font-size:clamp(20px,2.1vw,30px);letter-spacing:.01em}
+/* Double the card sizes. This is a video the width of two thumbnails and the
+   headline act of the section; at the grid's 12/19px it read as a caption on
+   a thumbnail that happened to be large. */
+.fv-item .card-meta small{font-size:3.9cqi;letter-spacing:.1em}
+.fv-item .card-meta strong{font-size:9.2cqi;line-height:1.06;
+  letter-spacing:.01em;margin-top:8px}
 .fv-dl{right:18px;bottom:18px}
 
 /* The description is behind an icon rather than always on: it is a paragraph,
@@ -1105,8 +1135,8 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 /* The cells are narrower than the old four-across row, so two-word titles
    wrap. Give them a little more room before the corner arrow and a slightly
    smaller face, and lift the shade so a second line still lands on it. */
-.fw-stage .card-meta{right:34px}
-.fw-stage .card-meta strong{font-size:17px;line-height:1.2}
+.fw-stage .work-card .card-meta{right:34px}
+.fw-stage .work-card .card-meta strong{font-size:17px;line-height:1.2}
 .fw-stage .work-card .card-shade{inset:38% 0 0}
 
 @media(max-width:1100px){
@@ -1167,11 +1197,14 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    there via picture-class=, and .work-card img above already gives the <img>
    inside it the cover fit and the hover scale. */
 .card-reel{position:absolute;inset:0;display:block}
-/* Longer than the 200ms the sweep leaves between one card and the next, on
-   purpose: each fade is still running when the one after it starts, so the
-   five items read as one movement crossing the stage rather than as five
-   separate ones taking turns. */
-.card-frame{position:absolute;inset:0;display:block;opacity:0;transition:opacity .55s ease}
+/* MUCH longer than the 260ms the sweep leaves between one item and the next.
+   At .55s the crossfade was quick enough to read as a cut rather than a
+   fade -- the wave arrived as five snaps in a row. At 1.1s each frame is
+   still moving through the next two items' turns, so the whole sweep is one
+   thing travelling across the stage. The gap grows too, but far less: the
+   overlap IS the effect, and matching the gap to the fade would take it
+   straight back to five separate events. */
+.card-frame{position:absolute;inset:0;display:block;opacity:0;transition:opacity 1.1s ease}
 .card-frame.is-on{opacity:1}
 /* Dots are visible at rest, not only on hover: a card that changes on its own
    with nothing to explain it reads as a glitch. They say "there is more here",
@@ -5357,3 +5390,22 @@ body.modal-open{overflow:hidden}
   .notes-doc{padding:0 18px}
   .notes-editor.is-huge .notes-doc{padding:0 18px}
 }
+
+/* --- the tilde keypad ----------------------------------------------------
+   Small and central: it is a prompt, not a place. Everything inside it is the
+   Idea Vault's own keypad markup, so it inherits the lockout, the shake and
+   the refusal styling from .keypad without a second copy of any of it. */
+.code-modal{border:0;padding:0;background:none;max-width:100vw;display:none}
+.code-modal[open]{display:grid;place-items:center}
+.code-modal::backdrop{background:rgba(3,5,7,.86);backdrop-filter:blur(6px)}
+.code-shell{
+  display:grid;justify-items:center;gap:14px;
+  padding:clamp(24px,4vw,38px) clamp(26px,5vw,46px);
+  border:1px solid var(--line);border-radius:16px;
+  background:linear-gradient(160deg,#161923,#0d0e15);
+  box-shadow:0 30px 80px rgba(0,0,0,.6);
+}
+.code-eyebrow{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted)}
+.code-shell .vault-lockbox{display:grid;justify-items:center;gap:12px;position:relative}
+.code-hint{margin:2px 0 0;font-size:10px;font-weight:800;letter-spacing:.16em;
+  color:var(--icon-idle);opacity:.6}

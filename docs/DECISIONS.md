@@ -55,6 +55,33 @@ overlay behaviour AND headless paints it. Both would have to be true: the second
 is what makes the first checkable.
 ---
 
+## 2026-09-02 — the vault hands over the code, it does not hand over the password
+
+**Decided.** When a vault code opens a door that has its own password, the vault
+passes ALONG THE CODE THAT WAS TYPED. The notes overlay tries it against
+`/api/notes/unlock` before showing its keypad, so entering `notes` in the Idea
+Vault opens the document directly. If it does not match, the keypad appears as
+before.
+
+**Replaced.** Sealing the notes password into the vault blob as part of the
+payload, which is the obvious way to make one code open both.
+
+**Why.** That would put a real credential — the one guarding a document edited
+every day, on a server — behind a five-character code that can be ground offline
+forever, because the blob ships in a static page. The vault's own comment says
+it is the right lock for half-finished ideas and the wrong one for anything that
+would hurt to lose, and a notes password is the second thing.
+
+Passing the typed code costs nothing and adds nothing to the page: it works only
+because the two happen to BE the same word, the server check is untouched, and
+the failure mode is the keypad rather than a leak. If they are ever set to
+different words the overlay simply asks, which is correct.
+
+**Reverse it if** the two are deliberately given different secrets and the
+double prompt becomes the normal path. At that point the honest fix is a
+server-issued token the vault can request, not a password baked into ciphertext.
+---
+
 ## 2026-09-02 — the notes overlay checks its password on the SERVER
 
 **Decided.** `/#notes` opens a keypad; the password goes to

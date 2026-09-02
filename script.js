@@ -1726,7 +1726,7 @@ if (workModal) {
 {
   const grid = document.querySelector('.home-featured .work-grid');
   const HOLD_MS = 15000;     // how long a card keeps one frame
-  const WAVE_MS = 200;       // gap between one item in a sweep and the next
+  const WAVE_MS = 260;       // gap between one item in a sweep and the next
   const FADE_MS = 260;       // must match .card-meta strong's transition
 
   const reels = [];
@@ -1862,6 +1862,7 @@ if (workModal) {
      belongs to the FEATURED STAGE block above, which owns its pager, its dots
      and its wrap-around. Nothing here needs to know any of that. */
   function sweep() {
+    if (held) { deferred = true; return; }
     waveTimers.forEach(clearTimeout);
     waveTimers = [];
 
@@ -1879,6 +1880,33 @@ if (workModal) {
     live.forEach((reel, i) => {
       waveTimers.push(setTimeout(() => turn(reel), (i + 1) * WAVE_MS));
     });
+  }
+
+  /* A POINTER OVER THE STAGE DEFERS THE SWEEP. Reading a card, or reaching for
+     the download button on the video, and having the thing swap underneath is
+     the most annoying way a carousel can behave -- and it happens exactly when
+     someone is most interested.
+
+     DEFERRED, not stopped. The 15s interval keeps running: a sweep that comes
+     due during a hover is remembered and runs the moment the pointer leaves,
+     so the stage catches up instead of losing its place. Clearing the timer
+     instead would restart the clock on every stray hover, and a stage that
+     resets its 15 seconds whenever a mouse crosses it never turns at all.
+
+     Mouse only. A touch pointer enters on tap and never leaves, which would
+     freeze the stage for good on a phone. */
+  let held = false;
+  let deferred = false;
+  const stageEl = document.querySelector('.fw-stage');
+  if (stageEl) {
+    stageEl.addEventListener('pointerenter', (event) => {
+      if (event.pointerType === 'mouse') held = true;
+    }, true);
+    stageEl.addEventListener('pointerleave', (event) => {
+      if (event.pointerType !== 'mouse') return;
+      held = false;
+      if (deferred) { deferred = false; sweep(); }
+    }, true);
   }
 
   function sync() {
@@ -2731,20 +2759,29 @@ if (workModal) {
     document.getElementById('notesClose')?.addEventListener('click',
       () => closeModal(modal));
 
-    async function open(trigger) {
+    async function open(trigger, code) {
       openModal(modal, modal.querySelector('.notes-shell'), null, trigger);
       if (location.hash !== '#notes') {
         try { history.replaceState(null, '', '#notes'); } catch { /* file:// */ }
       }
-      // A token from before a refresh gets one silent try. It either opens the
-      // overlay or it is stale, and stale means the keypad — never an error.
+      /* Two silent tries before the keypad, in this order. A token from before
+         a refresh, then a code handed over by whatever opened this -- the Idea
+         Vault passes the one it was typed, and it is the same word. Either
+         opens the document; neither failing is an error, it just means the
+         keypad. */
       const saved = store.get(TOKEN_KEY);
       if (saved) {
         try {
           const data = await unlock({ token: saved });
           if (data) { opened(data); return; }
-        } catch { /* fall through to the keypad */ }
+        } catch { /* fall through */ }
         store.drop(TOKEN_KEY);
+      }
+      if (code) {
+        try {
+          const data = await unlock({ password: String(code).toLowerCase() });
+          if (data) { opened(data); return; }
+        } catch { /* fall through */ }
       }
       keypad.focus();
     }
@@ -2753,7 +2790,8 @@ if (workModal) {
     // which seals "show:notes" against its own code. Neither is a way past the
     // password -- both land on the keypad.
     document.addEventListener('notes:open', (event) => {
-      if (!modal.open) open(event.detail && event.detail.opener);
+      const from = event.detail || {};
+      if (!modal.open) open(from.opener, from.code);
     });
 
     window.addEventListener('popstate', () => {
@@ -3488,7 +3526,9 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       // Getting in clears the slate: three old failures should not put someone
       // who has just proved they know the code one mistype from a lockout.
       fails.length = 0;
-      onPass(result.payload);
+      // The code itself goes through as well: a door that shares it can open
+      // without asking for the same word a second time.
+      onPass(result.payload, secret);
     } else if (result && result.message) {
       /* A refusal that is not a wrong answer — no shake, nothing counted.
          The boxes are still CLEARED, which the first version did not do: five
@@ -3752,14 +3792,26 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   const show = (dialog, opener) =>
     openModal(dialog, dialog.querySelector('.vault-modal-shell'), null, opener);
 
-  function reveal(payload) {
+  function reveal(payload, secret) {
     if (label) label.textContent = 'OPEN';
     if (padlock) padlock.dataset.icon = 'lock-open';
 
     const named = payload.startsWith('show:') ? payload.slice(5).trim() : '';
     if (EVENTS[named]) {
+      /* The CODE goes with it. The notes overlay checks its password on the
+         server and nothing here can change that -- but a visitor who has just
+         typed a code should not be asked to type the same word again, and
+         these two ARE the same word. So the code is offered to the unlock
+         first; it opens straight into the document when it matches and falls
+         back to the keypad when it does not.
+
+         Nothing new ships in the page to make that work. The alternative was
+         sealing the notes password into the vault blob, which would have put a
+         real credential behind a five-character code that can be ground
+         offline -- the vault's own comment says it is the wrong lock for
+         anything that would hurt to lose. */
       document.dispatchEvent(new CustomEvent(EVENTS[named],
-        { detail: { opener: pins[pins.length - 1] } }));
+        { detail: { opener: pins[pins.length - 1], code: secret } }));
       return;
     }
 
@@ -3784,18 +3836,20 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
      thing and only its own key can read it. One derivation each, so this is a
      handful of hundred-millisecond steps — fine for a short list, and the
      reason to keep the list short. */
+  async function tryCode(secret) {
+    const blobs = (section.dataset.vault || '').trim().split(/\s+/).filter(Boolean);
+    if (!blobs.length) return { ok: false, message: 'EMPTY' };
+    if (!canDecrypt) return { ok: false, message: 'NEEDS HTTPS' };
+    for (const blob of blobs) {
+      try { return { ok: true, payload: await unseal(blob, secret) }; }
+      catch { /* not this one */ }
+    }
+    return { ok: false };
+  }
+
   const keypad = createKeypad({
     root: section, pins, status, timer, resting: RESTING,
-    async verify(secret) {
-      const blobs = (section.dataset.vault || '').trim().split(/\s+/).filter(Boolean);
-      if (!blobs.length) return { ok: false, message: 'EMPTY' };
-      if (!canDecrypt) return { ok: false, message: 'NEEDS HTTPS' };
-      for (const blob of blobs) {
-        try { return { ok: true, payload: await unseal(blob, secret) }; }
-        catch { /* not this one */ }
-      }
-      return { ok: false };
-    },
+    verify: tryCode,
     onPass: reveal,
   });
 
@@ -3808,6 +3862,65 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     // The overlay hands focus back to the box that opened it — the LAST one,
     // where typing does nothing useful. reset() moves it to the front.
     keypad.reset();
+  }
+
+  /* ---- the same lock, reachable from anywhere ---- */
+
+  /* ` opens a small keypad in the middle of the screen wired to THESE blobs,
+     THIS decryption and THESE doors. Not a second lock: verify() below is the
+     same closure the section's own keypad uses, so a code that opens something
+     from the vault opens the same thing from here, and adding a code to
+     data-vault adds it to both at once.
+
+     Ignored while anything is being typed into and while another dialog is up.
+     A shortcut that swallows a backtick you meant to type -- in the notes
+     overlay, in the contact form -- is worse than no shortcut. */
+  const codeModal = document.getElementById('codeModal');
+  const codePins = codeModal ? [...codeModal.querySelectorAll('.vault-pin')] : [];
+  if (codeModal && codePins.length) {
+    const codeLabel = document.getElementById('codeLabel');
+    const codeLock = document.getElementById('codeLock');
+
+    const codepad = createKeypad({
+      root: codeModal, pins: codePins,
+      status: document.getElementById('codeStatus'),
+      timer: document.getElementById('codeTimer'),
+      resting: 'ENTER CODE',
+      verify: tryCode,
+      onPass(payload, secret) {
+        if (codeLabel) codeLabel.textContent = 'OPEN';
+        if (codeLock) codeLock.dataset.icon = 'lock-open';
+        /* Close FIRST, then open what was asked for. openModal already refuses
+           to leave two overlays up, but closing here means the door that opens
+           gets this dialog's opener restored to it rather than a control inside
+           a dialog that is on its way out. */
+        closeModal(codeModal);
+        reveal(payload, secret);
+      },
+    });
+
+    bindModal(codeModal, () => {
+      if (codeLabel) codeLabel.textContent = 'ENTER CODE';
+      if (codeLock) codeLock.dataset.icon = 'lock';
+      codepad.reset();
+    });
+
+    const typing = () => {
+      const el = document.activeElement;
+      if (!el) return false;
+      return el.isContentEditable
+        || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+    };
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key !== '`' && event.key !== '~') return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (typing() || document.querySelector('dialog[open]')) return;
+      event.preventDefault();
+      openModal(codeModal, codeModal.querySelector('.code-shell'), null,
+                document.activeElement);
+      codepad.focus();
+    });
   }
 
   /* Every view is a <dialog> on the site's shared plumbing, so Escape, the
