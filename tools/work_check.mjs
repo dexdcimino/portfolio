@@ -101,38 +101,55 @@ await page.waitForFunction(
   note(geo.pagers[0].left >= 0, 'the left pager is off the left edge of the window');
 }
 
-/* ---- 2. the thumbnails turn as a WAVE, slowly ----------------------------
-   FALSELY PASSES IF: only "something changed" were asserted. The complaint was
-   speed and rhythm, so this measures WHEN each card turns and in what order. */
+/* ---- 2. everything sweeps as ONE wave, slowly ----------------------------
+   FALSELY PASSES IF: only "something changed" were asserted, or only the cards
+   were watched. The complaint was speed, rhythm and the video sitting the wave
+   out, so this records WHEN each of the five turns and in what order — the
+   video first, then the four cards in reading order.
+
+   The observation window has to outlast HOLD_MS. At a 15s hold a 13s window
+   sees nothing at all and reports a perfectly calm stage. */
 {
-  const stamps = await page.evaluate(() => new Promise(done => {
+  const seen = await page.evaluate(() => new Promise(done => {
     const cards = [...document.querySelectorAll('.work-page.is-on .work-card')];
-    const src = () => cards.map(c => {
-      const img = c.querySelector('.card-frame.is-on img');
-      return img && img.currentSrc ? img.currentSrc : '';
-    });
-    let last = src();
+    const shown = () => [
+      // Index 0 is the video, which leads the wave.
+      [...document.querySelectorAll('.fv-item')].findIndex(e => e.classList.contains('is-on')),
+      ...cards.map(c => {
+        const img = c.querySelector('.card-frame.is-on img');
+        return img && img.currentSrc ? img.currentSrc : '';
+      }),
+    ];
+    let last = shown();
     const out = [];
     const t0 = performance.now();
     const id = setInterval(() => {
-      const now = src();
-      now.forEach((v, i) => { if (v !== last[i]) out.push({ card: i, at: Math.round(performance.now() - t0) }); });
+      const now = shown();
+      now.forEach((v, i) => {
+        if (v !== last[i]) out.push({ item: i, at: Math.round(performance.now() - t0) });
+      });
       last = now;
-      if (performance.now() - t0 > 13000) { clearInterval(id); done(out); }
-    }, 60);
+      if (performance.now() - t0 > 22000) { clearInterval(id); done(out); }
+    }, 40);
   }));
-  const first = stamps.slice(0, 4);
-  console.log(`turns: ${stamps.map(s => `${s.card}@${s.at}`).join('  ')}`);
-  note(first.length === 4, `${first.length} cards turned in 13s, expected 4`);
-  if (first.length === 4) {
-    note(first.map(s => s.card).join(',') === '0,1,2,3',
-         `the wave ran ${first.map(s => s.card).join(',')}, expected 0,1,2,3 (reading order)`);
+
+  console.log(`sweep: ${seen.map(s => `${s.item === 0 ? 'video' : `card${s.item - 1}`}@${s.at}`).join('  ')}`);
+  const first = seen.slice(0, 5);
+  note(first.length === 5, `${first.length} items turned in 22s, expected 5`);
+  if (first.length === 5) {
+    note(first.map(s => s.item).join(',') === '0,1,2,3,4',
+         `the wave ran ${first.map(s => s.item).join(',')}, expected video then reading order`);
     const gaps = first.slice(1).map((s, i) => s.at - first[i].at);
-    console.log(`wave gaps: ${gaps.join(', ')}ms   first turn at ${first[0].at}ms`);
-    note(gaps.every(g => g > 300 && g < 800), `wave gaps ${gaps.join(', ')}ms, expected ~500`);
-    // The old round robin turned a card every 750ms; nothing should be that fast.
-    note(first[0].at > 4000, `the first turn came after ${first[0].at}ms, far too soon`);
-    note(stamps.length <= 8, `${stamps.length} turns in 13s — the sweep is running too often`);
+    const span = first[4].at - first[0].at;
+    console.log(`gaps: ${gaps.join(', ')}ms   whole sweep ${span}ms   first at ${first[0].at}ms`);
+    note(gaps.every(g => g >= 90 && g <= 380), `gaps ${gaps.join(', ')}ms, expected ~200`);
+    note(span < 1200, `the sweep took ${span}ms end to end, expected under ~1s`);
+    /* The overlap is the point: each fade is .55s and they start .2s apart, so
+       the whole sweep must be SHORTER than five fades run one after another.
+       Without it this is five separate events, which is what it looked like. */
+    note(span < 5 * 550, `the sweep is not overlapping — ${span}ms for five .55s fades`);
+    note(first[0].at > 10000, `the first turn came at ${first[0].at}ms; the hold is 15s`);
+    note(seen.length <= 10, `${seen.length} turns in 22s — the sweep is running too often`);
   }
 }
 
@@ -144,14 +161,19 @@ await page.waitForFunction(
     hiddenTabbable: [...document.querySelectorAll('.work-page:not(.is-on) button')]
       .filter(x => x.getAttribute('tabindex') !== '-1').length,
   }));
+  /* Relative to wherever it IS, not to zero: the video now rides the automatic
+     sweep, so by the time this runs it has usually moved on. Asserting an
+     absolute 0,1,2,0 tests the clock, not the arrows. */
   const seen = [(await at()).video];
   for (let i = 0; i < 3; i++) {
     await page.click('[data-fv="1"]');
-    await new Promise(r => setTimeout(r, 520));
+    await new Promise(r => setTimeout(r, 620));
     seen.push((await at()).video);
   }
-  console.log(`video carousel: ${seen.join(' -> ')}`);
-  note(seen.join(',') === '0,1,2,0', `video went ${seen.join(',')}, expected 0,1,2,0`);
+  const want = seen.map((_, i) => (seen[0] + i) % 3);
+  console.log(`video carousel: ${seen.join(' -> ')} (expected ${want.join(' -> ')})`);
+  note(seen.join(',') === want.join(','),
+       `video went ${seen.join(',')}, expected ${want.join(',')} from where it started`);
 
   await page.click('[data-wg="1"]');
   await new Promise(r => setTimeout(r, 520));

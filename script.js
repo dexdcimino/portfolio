@@ -1621,8 +1621,17 @@ if (workModal) {
     label('fvDots', 'video');
     label('wgDots', 'thumbnails');
 
-    createPager(stage, [...stage.querySelectorAll('.fv-item')], dotsOf('fvDots'), 'fv');
+    const videos = createPager(stage, [...stage.querySelectorAll('.fv-item')],
+                               dotsOf('fvDots'), 'fv');
     createPager(stage, [...stage.querySelectorAll('.work-page')], dotsOf('wgDots'), 'wg');
+
+    /* The video leads the wave the thumbnails travel in. Driven from the card
+       carousel's own timer rather than a second one here: two intervals of the
+       same length drift apart, and the whole point is that these five move as
+       one gesture. */
+    if (videos) {
+      document.addEventListener('fw:advance-video', () => videos.show(videos.at + 1));
+    }
 
     /* The description. Click rather than hover alone: hover is not available on
        a touch screen, and a paragraph that appears while the pointer is merely
@@ -1701,8 +1710,8 @@ if (workModal) {
 
 {
   const grid = document.querySelector('.home-featured .work-grid');
-  const HOLD_MS = 9000;      // how long a card keeps one frame
-  const WAVE_MS = 500;       // gap between the four cards in a sweep
+  const HOLD_MS = 15000;     // how long a card keeps one frame
+  const WAVE_MS = 200;       // gap between one item in a sweep and the next
   const FADE_MS = 260;       // must match .card-meta strong's transition
 
   const reels = [];
@@ -1815,19 +1824,37 @@ if (workModal) {
 
   /* A SWEEP, not a round robin. The round-robin version turned one card every
      HOLD_MS / n, which with eight cards was a change every 750ms -- constant,
-     arrhythmic flicker with no pattern to read. This holds every visible card
-     on its frame for HOLD_MS and then turns them in READING ORDER, WAVE_MS
-     apart: top left, top right, bottom left, bottom right. Same amount of
-     movement, but it arrives as one gesture and then stops, which is what makes
-     it calm enough to read across. */
+     arrhythmic flicker with no pattern to read. Everything on the stage now
+     holds its frame for HOLD_MS and then turns in one pass, WAVE_MS apart:
+     THE VIDEO FIRST, then the four cards in reading order -- top left, top
+     right, bottom left, bottom right.
+
+     WAVE_MS is deliberately shorter than the .55s cross-fade, so each item
+     starts moving while the one before it is still moving. Waiting for one
+     fade to finish before starting the next reads as five separate events; an
+     overlap reads as one thing travelling across the stage, which is the whole
+     point of doing it in an order at all.
+
+     The video is advanced through an event rather than a shared reference: it
+     belongs to the FEATURED STAGE block above, which owns its pager, its dots
+     and its wrap-around. Nothing here needs to know any of that. */
   function sweep() {
     waveTimers.forEach(clearTimeout);
     waveTimers = [];
+
+    /* EVERY item swaps at FADE_MS + its place in the queue. The FADE_MS is not
+       padding: turn() holds a card's frame back that long while its title fades
+       out, so a video dispatched at zero landed 480ms before the first card
+       rather than 200 -- an uneven first step that read as the video jumping
+       early. Giving the video the same delay makes all four gaps WAVE_MS. */
+    waveTimers.push(setTimeout(
+      () => document.dispatchEvent(new CustomEvent('fw:advance-video')), FADE_MS));
+
     // Only the page on screen. Turning a hidden card fetches a frame nobody
     // sees and leaves it mid-animation when its page fades in.
     const live = reels.filter(reel => onLivePage(reel.card));
     live.forEach((reel, i) => {
-      waveTimers.push(setTimeout(() => turn(reel), i * WAVE_MS));
+      waveTimers.push(setTimeout(() => turn(reel), (i + 1) * WAVE_MS));
     });
   }
 
