@@ -1410,6 +1410,12 @@ function buildWorkStrip(items) {
 // Decode before swapping so a half-painted frame can never land in the hero,
 // and token the swap the way swapMascots does: click through the strip quickly
 // and an earlier, slower decode must not finish last and win.
+/* Below this the piece fills the frame's WIDTH and the frame scrolls, rather
+   than being fitted to its height. A 3:2 frame fits a 400x1600 sheet to the
+   height and leaves it 16% of the frame wide; 0.75 is where fitting would start
+   giving a piece half the frame or less, and it catches 49 of the 343. */
+const TALL_RATIO = 0.75;
+
 function paintWorkHero(item) {
   const token = ++workHeroToken;
   workHeroImg.classList.add('is-fading');
@@ -1419,6 +1425,11 @@ function paintWorkHero(item) {
     if (token !== workHeroToken) return;
     paintPicture(workHeroSources, workHeroImg, item, 'hero');
     workHeroImg.alt = item.title;
+    const tall = item.w && item.h && item.w / item.h < TALL_RATIO;
+    workHero.classList.toggle('is-tall', !!tall);
+    // Every piece starts at its top. Carrying the last one's scroll position
+    // into a different image lands somewhere arbitrary in the middle of it.
+    if (tall) workHero.scrollTop = 0;
     // Two frames: the first commits the faded state with the new image in it,
     // the second starts the fade back in. One frame and the browser coalesces
     // both into a single style recalc, so the transition never plays.
@@ -1503,11 +1514,15 @@ if (workModal) {
   workPrevBtn.addEventListener('click', () => showWorkItem(workIdx - 1));
   workNextBtn.addEventListener('click', () => showWorkItem(workIdx + 1));
 
-  // Triggers: each featured card opens its own tab on item 0, which is frame 0
-  // of the carousel it was just showing (bake_work.py orders items so). VIEW
-  // ALL WORK opens on the first tab.
+  /* Each featured card opens its own tab ON THE PIECE IT IS SHOWING, which is
+     what the card carousel writes into data-work-index every time it turns.
+     Item 0 was right only while the frames were sorted to the front of the
+     category; now that items are grouped by project a card's frame can be
+     anywhere in the list, and landing on item 0 meant clicking Gobbler Fish and
+     arriving at Grimshot Rifle. VIEW ALL WORK opens on the first tab. */
   document.querySelectorAll('[data-work-cat]').forEach(card => {
-    card.addEventListener('click', () => openWork(card.dataset.workCat, 0, card));
+    card.addEventListener('click', () =>
+      openWork(card.dataset.workCat, Number(card.dataset.workIndex) || 0, card));
   });
   document.getElementById('viewAllWork')?.addEventListener('click', event => {
     openWork(null, 0, event.currentTarget);
@@ -1762,6 +1777,9 @@ if (workModal) {
       // painted by bake_markup, so primeFrame() leaves it alone.
       items: [],
       titles: [],
+      // Where each frame sits in the category, so a click can open the overlay
+      // on the piece the card is actually showing.
+      indices: [],
       sources: [null],
       imgs: [first.querySelector('img')],
       dots: [],
@@ -1773,6 +1791,7 @@ if (workModal) {
       if (!item) return;
       reel.items.push(item);
       reel.titles.push(item.title);
+      reel.indices.push(frame.index);
       if (i === 0) {
         // Frame 0 is already on the page and already fetched; only where to
         // aim its crop is left to say, because a <picture> block in the
@@ -1784,6 +1803,7 @@ if (workModal) {
     });
     if (reel.frames.length < 2) return null;
     primeFrame(reel, 1);            // the one the first turn will want
+    card.dataset.workIndex = String(reel.indices[0] ?? 0);
 
     const dots = document.createElement('span');
     dots.className = 'card-dots';
@@ -1813,6 +1833,9 @@ if (workModal) {
       reel.dots[next].classList.add('is-on');
       reel.title.textContent = reel.titles[next] ?? reel.title.textContent;
       reel.index = next;
+      // Published on the card itself rather than read back through the reel:
+      // the overlay's opener has no reason to know this block exists.
+      reel.card.dataset.workIndex = String(reel.indices[next] ?? 0);
       reel.card.classList.remove('is-turning');
     }, FADE_MS);
   }

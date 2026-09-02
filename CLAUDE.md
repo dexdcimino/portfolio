@@ -37,7 +37,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `node tools/notes_check.mjs` | the notes overlay: no leak, real persistence, 20 backups (needs the dev server) |
 | `node tools/notes_editor_check.mjs` | the notes editor: Tab, Backspace, shortcuts, the selection bug — 28 checks |
 | `node tools/notes_store_check.mjs` | the notes store against a stubbed Vercel Blob — 30 checks, no server needed |
-| `node tools/work_check.mjs` | featured work and the work overlay — 23 checks, serves the repo itself |
+| `node tools/work_check.mjs` | featured work and the work overlay — 30 checks, serves the repo itself |
 | `node tools/check_markdown.mjs` | `renderMarkdown` cannot emit an event handler (needs Chrome) |
 | `python tools/context_pack.py` | rebuilds the context zip in the root, measured not typed |
 

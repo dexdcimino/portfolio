@@ -230,6 +230,109 @@ await page.waitForFunction(
   await page.screenshot({ path: join(SHOTS, 'work-stage.png') });
 }
 
+/* ---- 5. a card opens the overlay ON THE PIECE IT IS SHOWING ---------------
+   FALSELY PASSES IF: the overlay merely opened on the right CATEGORY, which it
+   always did. The bug was landing on item 0 — click Gobbler Fish, arrive at
+   Grimshot Rifle — so the card's visible image is compared against the hero's.
+   Checked on a card mid-rotation, not on frame 0, or item 0 would be right by
+   accident. */
+{
+  await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.$eval('#work', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForFunction(
+    () => document.querySelectorAll('.work-card .card-dots').length === 8, { timeout: 20000 });
+
+  /* WAIT FOR A REAL TURN rather than flipping the classes by hand. The first
+     version of this did the latter and failed honestly: turn() is what
+     publishes data-work-index, so a hand-flipped frame leaves the card
+     advertising its first piece and the check reported a bug that was its own.
+     One sweep is HOLD_MS away, hence the long timeout. */
+  const card = await page.evaluateHandle(() =>
+    document.querySelector('.work-page.is-on .work-card[data-work-cat="props"]'));
+  await page.waitForFunction(() => {
+    const el = document.querySelector('.work-card[data-work-cat="props"]');
+    return el && el.dataset.workIndex && el.dataset.workIndex !== '0';
+  }, { timeout: 25000 });
+  await new Promise(r => setTimeout(r, 300));
+
+  const showing = await page.evaluate((el) => {
+    const img = el.querySelector('.card-frame.is-on img');
+    return { stem: (img && img.currentSrc || '').split('/').pop().replace(/-\d+\.(avif|webp).*$/, ''),
+             index: el.dataset.workIndex };
+  }, card);
+  await page.evaluate((el) => el.click(), card);
+  await page.waitForFunction(() => document.getElementById('workModal')?.open === true,
+    { timeout: 15000 });
+  await page.waitForFunction(() => {
+    const img = document.getElementById('workHeroImg');
+    return img && img.currentSrc && img.complete && img.naturalWidth > 0;
+  }, { timeout: 20000 });
+  const landed = await page.evaluate(() => ({
+    hero: (document.getElementById('workHeroImg').currentSrc || '')
+      .split('/').pop().replace(/-\d+\.(avif|webp).*$/, ''),
+    index: document.getElementById('workCapIndex').textContent.trim(),
+    tab: document.querySelector('.work-tab[aria-selected="true"]')?.textContent || '',
+  }));
+  console.log(`card showed "${showing.stem}" (index ${showing.index}) -> overlay opened on ` +
+              `"${landed.hero}" at ${landed.index}`);
+  note(!!showing.index && showing.index !== '0',
+       'the test card was still on its first frame, so this proves nothing');
+  note(landed.hero === showing.stem,
+       `the card showed ${showing.stem} and the overlay opened on ${landed.hero}`);
+  note(/PROPS/.test(landed.tab), `the overlay opened on the ${landed.tab} tab`);
+}
+
+/* ---- 6. a very tall piece fills the width and scrolls --------------------
+   FALSELY PASSES IF: only the class were checked. A 400x1600 sheet fitted to a
+   3:2 box still "renders" — it just renders 16% of the frame wide. So this
+   measures the rendered width against the frame, and asks the container
+   whether it can actually scroll. */
+{
+  const tall = await page.evaluate(() => {
+    const strip = [...document.querySelectorAll('.work-thumb')];
+    return strip.findIndex(t => { const i = t.querySelector('img');
+      return i && i.naturalWidth && i.naturalWidth / i.naturalHeight < 0.5; });
+  });
+  await page.evaluate(() => {
+    // Characters holds the tallest sheets in the set.
+    document.querySelector('.work-tab').click();
+  });
+  await new Promise(r => setTimeout(r, 500));
+  const found = await page.evaluate(async () => {
+    const strip = [...document.querySelectorAll('.work-thumb')];
+    for (let i = 0; i < strip.length; i++) {
+      strip[i].click();
+      await new Promise(r => setTimeout(r, 260));
+      const img = document.getElementById('workHeroImg');
+      if (img.naturalWidth && img.naturalWidth / img.naturalHeight < 0.5) {
+        const hero = document.getElementById('workHero');
+        const box = hero.getBoundingClientRect();
+        const pic = img.getBoundingClientRect();
+        return {
+          i, ratio: +(img.naturalWidth / img.naturalHeight).toFixed(2),
+          isTall: hero.classList.contains('is-tall'),
+          widthShare: Math.round(pic.width / box.width * 100),
+          scrollable: hero.scrollHeight > hero.clientHeight + 4,
+          atTop: hero.scrollTop === 0,
+        };
+      }
+    }
+    return null;
+  });
+  if (!found) {
+    fail.push('no piece under 0.5 w/h found in Characters to test the tall path');
+  } else {
+    console.log(`tall piece: ratio ${found.ratio}, is-tall=${found.isTall}, ` +
+                `${found.widthShare}% of the frame width, scrollable=${found.scrollable}, ` +
+                `at top=${found.atTop}`);
+    note(found.isTall, 'a very tall piece did not get the is-tall treatment');
+    note(found.widthShare >= 98, `the tall piece uses ${found.widthShare}% of the frame width`);
+    note(found.scrollable, 'the tall piece does not scroll, so most of it cannot be seen');
+    note(found.atTop, 'the tall piece did not start at its top');
+  }
+  await page.screenshot({ path: join(SHOTS, 'work-tall.png') });
+}
+
 note(missing.length === 0, `404s: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
 
 await browser.close();

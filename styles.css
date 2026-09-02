@@ -3807,6 +3807,34 @@ body.modal-open{overflow:hidden}
   filter:drop-shadow(0 16px 38px rgba(0,0,0,.45));
   transition:opacity .16s ease;
 }
+
+/* A VERY TALL PIECE FILLS THE WIDTH AND SCROLLS instead of being fitted to the
+   height. Fitting a 400x1600 sheet into a 3:2 box leaves it using 16% of the
+   frame width -- a column of unreadable thumbnail in the middle of a large
+   empty box. Above the threshold in script.js (w/h < 0.75, which is every
+   piece that would otherwise get half the frame or less) the image goes full
+   width, the frame scrolls, and each swap starts at the top.
+
+   position:static is the load-bearing part: the fitted rule centres the image
+   with absolute inset and auto margins, and an absolutely positioned child
+   gives its scroll container nothing to scroll. */
+.work-hero.is-tall{overflow-y:auto;overscroll-behavior:contain}
+.work-hero.is-tall .work-hero-img{
+  position:static;margin:0;
+  width:100%;height:auto;max-width:100%;max-height:none;
+}
+/* Thumb only, in the accent, matching the notes overlay's bar. */
+.work-hero.is-tall::-webkit-scrollbar{width:10px;background:transparent}
+.work-hero.is-tall::-webkit-scrollbar-track{background:transparent}
+.work-hero.is-tall::-webkit-scrollbar-button{display:none;width:0;height:0}
+.work-hero.is-tall::-webkit-scrollbar-thumb{
+  background-color:color-mix(in srgb,var(--accent) 55%,#0d1116);border-radius:5px;
+  border:3px solid transparent;background-clip:content-box;
+}
+@supports (scrollbar-width: thin) and (not selector(::-webkit-scrollbar)){
+  .work-hero.is-tall{scrollbar-width:thin;
+    scrollbar-color:color-mix(in srgb,var(--accent) 55%,#0d1116) transparent}
+}
 /* Fade the swap in rather than cutting: at .25 it registers as a change without
    strobing when the arrow key is held down. */
 .work-hero-img.is-fading{opacity:.25}

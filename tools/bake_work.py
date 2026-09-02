@@ -172,16 +172,40 @@ def build() -> tuple[dict, list[str]]:
         if not shown:
             raise SystemExit(f"ERROR: every piece in {spec['id']}/ is omitted")
 
-        # Card frames first and in the order given, then the rest alphabetically.
-        # Frame 1 is the card's thumbnail, so it is also item 0 of the category:
-        # clicking the card lands on the piece it was showing.
         frames = spec["frames"]
         missing = [f for f in frames if not any(p.stem == f for p in shown)]
         if missing:
             raise SystemExit(f"ERROR: {spec['id']} frames name pieces that are not "
                              f"shown: {', '.join(missing)}")
-        order = {stem: i for i, stem in enumerate(frames)}
-        shown.sort(key=lambda p: (order.get(p.stem, len(frames)), p.stem))
+
+        # ORDERED BY PROJECT, and a project is never split. The first cut sorted
+        # the card frames to the front INDIVIDUALLY and everything else
+        # alphabetically, which pulled brigadier-bluebeard-3 to position 0 and
+        # left 1, 2, 4 and 5 stranded in the alphabetical run twenty items
+        # later -- the same model in two places with a gap between them.
+        #
+        # Rank, in order: the projects `order` names, then the projects that own
+        # a card frame, then the rest alphabetically. Within a project, the
+        # sequence number the files already carry.
+        rank = {}
+        for proj in spec.get("order", []):
+            rank.setdefault(proj, len(rank))
+        for stem in frames:
+            rank.setdefault(project_of(stem)[0], len(rank))
+        for proj in sorted({project_of(p.stem)[0] for p in shown}):
+            rank.setdefault(proj, len(rank))
+
+        unknown = [p for p in spec.get("order", [])
+                   if p not in {project_of(q.stem)[0] for q in shown}]
+        if unknown:
+            raise SystemExit(f"ERROR: {spec['id']} order names projects that are "
+                             f"not there: {', '.join(unknown)}")
+
+        def place(path):
+            proj, seq = project_of(path.stem)
+            return (rank[proj], seq, path.stem)
+
+        shown.sort(key=place)
 
         items = []
         for p in shown:
@@ -326,11 +350,27 @@ def cases() -> int:
 
     ok = sum(refuses(m, w) for m, w in checks)
 
+    # A PROJECT IS NEVER SPLIT. This is the property the ordering exists for and
+    # it cannot be seen in a count: the old sort produced a perfectly valid
+    # manifest with brigadier-bluebeard-3 at position 0 and its other four
+    # twenty items later, and nothing anywhere said so.
+    manifest, _ = build()
+    split = []
+    for cat in manifest["categories"]:
+        seen, last = {}, None
+        for i, item in enumerate(cat["items"]):
+            proj = project_of(item["stem"])[0]
+            if proj in seen and last != proj:
+                split.append(f"{cat['id']}/{proj}")
+            seen[proj] = i
+            last = proj
+    if split:
+        print(f"  PROJECTS SPLIT: {', '.join(sorted(set(split)))}", file=sys.stderr)
+
     # ...and one control, proving the live subject is still discovered. Without
     # this the four above would pass just as happily against an empty repo.
-    manifest, _ = build()
     total = sum(len(c["items"]) for c in manifest["categories"])
-    live = len(manifest["categories"]) >= 4 and total >= 100
+    live = len(manifest["categories"]) >= 4 and total >= 100 and not split
     if not live:
         print(f"  CONTROL FAILED: only {len(manifest['categories'])} categor(ies) "
               f"and {total} piece(s) found", file=sys.stderr)
