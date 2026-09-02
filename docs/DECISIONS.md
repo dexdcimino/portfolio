@@ -25,6 +25,82 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-02 — cover-crops are aimed by measurement, vertically only
+
+**Decided.** `tools/focal_point.py` measures the variance within each row of a
+240px thumbnail, takes the first row reaching 22% of the strongest as the top of
+the subject, and returns an `object-position` that puts the crop window just
+above it. `bake_work.py` writes one per piece per box (card and filmstrip thumb)
+into `work.json`, cached against the master's content stamp and the module's own
+VERSION. `work-index.json`'s `pos` overrides it by stem.
+
+**Replaced.** A plain centred crop, which showed Brigadier Bluebeard's belt
+buckle and beheaded Nyxara, Nimp, Osseous, Mecha-Bot and Sandstone Guardian. Two
+other candidates were built and measured before this one:
+
+- **Difference from the border-ring median.** Found the figures on flat dark
+  plates and missed three of the reported cases outright, because a graded plate
+  is a different colour on every row while staying flat across each one. Row
+  variance does not care what colour the plate is.
+- **FIND_EDGES plus a one-pixel resize**, taken up because it runs entirely in
+  Pillow's C code and therefore looked obviously faster. Measured: 52s against
+  35s over the set — the filter cost more than the arithmetic it saved — and it
+  left kittens-3 at y=.36 and roblox-pets-1 at y=.42, which still cuts both
+  their faces.
+
+**Why vertical only.** A version that also re-centred horizontally was measured
+against all 40 card frames: not one landscape frame had a framing problem to
+fix, and the rule produced gobbler-fish-2 at 92% and bluebeards-blaster-2 pinned
+to 100%, both worse than the centre they replaced. The geometry says the same
+thing — these boxes are landscape and this art is portrait, so the vertical axis
+is where everything is lost.
+
+**Why no "is there a plate" gate.** The first cut had one and refused to move
+anything that failed it, which was eleven of the fifteen vertically-cropped card
+frames — a gold border, a wide subject and a painted backdrop each put energy at
+the edges. Measuring all fifteen instead: aiming at the subject's top is right
+on fourteen. The one it costs is knights-of-edengale-3, an interior where the
+top of the picture is ceiling, and that is a one-line `pos` override. A gate
+that silently declines to fix three-quarters of a reported problem is worse than
+a rule with one written-down exception.
+
+**Reverse it if** the gallery grows a lot of work whose subject is at the BOTTOM
+of the frame — a skyline, a cutaway, a floor plan. The y clamp keeps that merely
+unhelpful rather than broken today (it can only raise a crop, never lower one),
+but at that point the rule is guessing more often than it is right.
+
+---
+
+## 2026-09-02 — the gallery arrows move outside the picture, and wrap
+
+**Decided.** `.work-frame` is a three-column flex row — arrow, picture, arrow —
+with `.work-hero-area` as the new container-query element the 3:2 hero measures
+itself against. `showWorkItem` takes its index modulo the item count, so both
+ends wrap, and neither button is ever `disabled`.
+
+**Replaced.** Both arrows absolutely positioned inside `#workHero` at
+`left:14px` / `right:14px`, over the artwork, each disabled at its end of the
+list.
+
+**Why.** The hero is a FIXED box that letterboxes every shape into itself, so
+the edge of the picture moves on every press while an arrow pinned to the box
+does not — the arrow kept landing on a different part of a different image and
+became hard to track (Dex, 2026-09-02). Giving them their own columns reserves
+the space at every width instead of only at the wide ones where the matte
+happened to leave a gutter, and it puts them at a stable position that no image
+can move.
+
+The wrap is the same problem from the other side: with the arrows outside the
+picture there is nothing left to explain why one of them stopped working, and a
+93-piece category with a dead end asks the visitor to go find the other arrow.
+The counter still reads `01 / 93`, so position stays legible without the ends
+having to be walls.
+
+**Reverse it if** a category ever gets small enough that wrapping is
+disorienting rather than convenient — three or four pieces, where returning to
+the start is indistinguishable from not having moved.
+---
+
 ## 2026-09-01 — the work gallery is a manifest, not markup, and its masters are WebP
 
 **Decided.** `assets/work/<category>/*.webp` holds 350 web masters capped at

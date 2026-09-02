@@ -13,8 +13,11 @@
   "          thumbnail AND item 0 of the category, so clicking the card lands",
   "          on the piece it was showing. Add or remove freely; five is not a",
   "          rule. Frame 0 is the only one that also appears in index.html.",
-  "  pos     object-position for a frame whose subject is off-centre in the",
-  "          card's 3:2 crop, e.g. \"50% 25%\". Nothing is cropped on disk.",
+  "  pos     stem -> object-position, overriding the one tools/focal_point.py",
+  "          measures. Nothing is cropped on disk, ever. You should rarely need",
+  "          this: the measured value keeps heads in frame automatically, and",
+  "          the one entry here is knights-of-edengale-3, an interior where the",
+  "          top of the picture is ceiling rather than a subject.",
   "  titles  project stem -> display title, where the stem does not title-case",
   "          cleanly. A project is the stem minus its trailing -N, so all five",
   "          brigadier-bluebeard files share one title.",
@@ -73,6 +76,9 @@
    "label": "ENVIRONMENTS",
    "blurb": "Modular kits, set dressing and level blockouts built to be reused.",
    "frames": ["low-res-altar-4", "forest-maze-1", "knights-of-edengale-3", "low-res-altar-1", "dumpster-1"],
+   "pos": {
+    "knights-of-edengale-3": "50% 50%"
+   },
    "titles": {
     "knights-of-edengale": "Knights of Edengale",
     "low-res-altar": "Low-Res Altar"

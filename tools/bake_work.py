@@ -31,8 +31,9 @@ import re
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from bake_markup import derivative, usable_widths                  # noqa: E402
+from bake_markup import derivative, stamp, usable_widths           # noqa: E402
 from image_slots import SLOTS                                      # noqa: E402
+import focal_point                                                 # noqa: E402
 
 try:
     from PIL import Image
@@ -62,6 +63,34 @@ def titlecase(project: str) -> str:
     """Fallback title for a project with no override in work-index.json."""
     return " ".join(w.upper() if len(w) <= 2 and w.isalpha() else w.capitalize()
                     for w in project.split("-"))
+
+
+def cached_focus() -> dict[str, dict]:
+    """Focal points already measured, keyed by stem, from the last manifest.
+
+    Measuring one piece means decoding it and walking every row and column, and
+    343 of them is half a minute -- fine once, far too slow for a --check that
+    runs in a commit hook. So the manifest is its own cache: an item carries the
+    `stamp` of the master it was measured from, and is re-measured only when
+    those bytes change.
+
+    The FOCAL VERSION is the other half of that key, and the important half.
+    Without it, tuning a constant in focal_point.py would leave every cached
+    position stale while --check went on reporting the manifest as current --
+    a checker agreeing with a stale answer it produced itself.
+    """
+    if not MANIFEST.exists():
+        return {}
+    try:
+        old = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if old.get("focalVersion") != focal_point.VERSION:
+        return {}
+    return {item["stem"]: item
+            for cat in old.get("categories", ())
+            for item in cat.get("items", ())
+            if "stamp" in item}
 
 
 def load_index() -> dict:
@@ -104,6 +133,8 @@ def build() -> tuple[dict, list[str]]:
     """Return (manifest, notes). Raises on anything that would ship broken."""
     index = load_index()
     notes, cats = [], []
+    cache = cached_focus()
+    measured = 0
 
     # COUNT THE SUBJECT before the loop, not after it (CLAUDE.md). A loop over
     # an empty list emits nothing, finds nothing wrong, and returns a manifest
@@ -133,6 +164,10 @@ def build() -> tuple[dict, list[str]]:
         omit = set(spec.get("omit", ()))
         titles = spec.get("titles", {})
         notes_by = spec.get("notes", {})
+        # A hand-written object-position wins over the measured one. Written per
+        # STEM rather than per frame, because how a picture wants to be cropped
+        # belongs to the picture, not to the box it lands in.
+        aimed = spec.get("pos", {})
         shown = [p for p in on_disk if p.stem not in omit]
         if not shown:
             raise SystemExit(f"ERROR: every piece in {spec['id']}/ is omitted")
@@ -153,8 +188,17 @@ def build() -> tuple[dict, list[str]]:
             project, _n = project_of(p.stem)
             with Image.open(p) as im:
                 w, h = im.size
+            st = stamp(p)
+            prior = cache.get(p.stem)
+            pos = (prior["pos"] if prior and prior.get("stamp") == st
+                   else focal_point.positions(str(p), w, h))
+            if p.stem in aimed:
+                pos = {name: aimed[p.stem] for name in focal_point.ASPECTS}
+            measured += 0 if (prior and prior.get("stamp") == st) else 1
+
             items.append({
                 "stem": p.stem,
+                "stamp": st,
                 "title": titles.get(project, titlecase(project)),
                 "desc": notes_by.get(project, spec["label"]),
                 # The <img> fallback, and the whole picture for a master too
@@ -163,6 +207,10 @@ def build() -> tuple[dict, list[str]]:
                 # reaches people on its own.
                 "src": p.relative_to(ROOT).as_posix(),
                 "w": w, "h": h,
+                # Absent means "the browser default is right", which is true of
+                # most pieces -- writing "50% 50%" 686 times would bury the ones
+                # that actually needed aiming.
+                "pos": pos,
                 "srcset": srcsets(p),
             })
 
@@ -177,19 +225,24 @@ def build() -> tuple[dict, list[str]]:
             # written into index.html, and the JS leaves that one alone — it
             # reads the markup's own <picture>, so the card's first paint is
             # one file and one cache entry either way.
-            "frames": [{"index": by_stem[f], "pos": spec.get("pos", {}).get(f, "")}
-                       for f in frames],
+            "frames": [{"index": by_stem[f]} for f in frames],
             "items": items,
         })
 
         skipped = len(on_disk) - len(shown)
+        aimed_here = sum(1 for it in items if it["pos"])
         notes.append(f"  {spec['id']:12s} {len(shown):3d} shown, {skipped:2d} omitted, "
-                     f"{len(frames)} card frame(s)")
+                     f"{len(frames)} card frame(s), {aimed_here:3d} re-aimed")
 
     if len(cats) != len(index["categories"]):
         raise SystemExit("ERROR: built fewer categories than the index declares")
 
-    return {"sizes": {k: SLOTS[s]["sizes"] for k, s in SLOT_FOR.items()},
+    if measured:
+        notes.append(f"  focal points measured this run: {measured} "
+                     f"(the rest were cached against their master's stamp)")
+
+    return {"focalVersion": focal_point.VERSION,
+            "sizes": {k: SLOTS[s]["sizes"] for k, s in SLOT_FOR.items()},
             "categories": cats}, notes
 
 

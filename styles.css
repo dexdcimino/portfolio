@@ -3601,7 +3601,21 @@ body.modal-open{overflow:hidden}
    A browser without container queries drops the two min() declarations, the
    hero falls back to inset:0 and simply fills the frame: still a fixed box,
    just not exactly 3:2. */
-.work-frame{position:relative;min-height:0;container-type:size}
+/* THREE COLUMNS: arrow, picture, arrow. The arrows used to be absolutely
+   positioned on top of the artwork, where they were easy to lose track of --
+   the hero letterboxes every shape into one fixed box, so the edge of the
+   picture moves under them on every press while they stay put (Dex,
+   2026-09-02). Giving them their own columns reserves the space at every
+   width, rather than only at the wide ones where the matte happened to leave
+   a gutter.
+   align-items:stretch, not center: .work-hero-area needs a definite height
+   for container-type:size to resolve against, and a centred flex item has
+   none. The arrows centre themselves instead. */
+.work-frame{position:relative;min-height:0;display:flex;align-items:stretch;gap:clamp(4px,1.1vw,14px)}
+/* The container the hero measures itself in. It has to be this rather than
+   .work-frame: cqw on the row would include both arrow columns, and the 3:2
+   box would overhang them. */
+.work-hero-area{position:relative;flex:1 1 auto;min-width:0;min-height:0;container-type:size}
 .work-hero{
   --hero-ar:1.5;
   position:absolute;inset:0;margin:auto;
@@ -3639,7 +3653,7 @@ body.modal-open{overflow:hidden}
 .work-hero-img.is-fading{opacity:.25}
 
 .work-nav{
-  position:absolute;top:50%;translate:0 -50%;z-index:2;
+  flex:0 0 auto;align-self:center;
   width:46px;height:46px;display:grid;place-items:center;padding:0;cursor:pointer;
   border:var(--stroke) solid var(--line);border-radius:50%;
   background:rgba(8,11,15,.74);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
@@ -3647,15 +3661,13 @@ body.modal-open{overflow:hidden}
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease,transform .2s ease,opacity .2s ease;
 }
 .work-nav .icon{width:19px;height:19px}
-.work-nav.prev{left:14px}
-.work-nav.next{right:14px}
 /* One arrow mask, mirrored — no second icon to bake. */
 .work-nav.prev .icon{transform:scaleX(-1)}
-.work-nav:hover:not(:disabled){color:var(--accent);border-color:var(--accent);background:rgba(8,11,15,.92)}
-.work-nav.prev:hover:not(:disabled){transform:translateX(-2px)}
-.work-nav.next:hover:not(:disabled){transform:translateX(2px)}
+.work-nav:hover{color:var(--accent);border-color:var(--accent);background:rgba(8,11,15,.92)}
+.work-nav.prev:hover{transform:translateX(-2px)}
+.work-nav.next:hover{transform:translateX(2px)}
 .work-nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.work-nav:disabled{opacity:.2;cursor:default}
+/* No :disabled rule: the ends wrap now, so neither arrow is ever dead. */
 
 /* --- caption ------------------------------------------------------------- */
 .work-cap{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;min-height:24px}
@@ -3711,10 +3723,8 @@ body.modal-open{overflow:hidden}
      filmstrip still, just without the wasted band. */
   .work-hero{width:100%;height:100%}
   .work-cap-title{font-size:14px}
-  .work-nav{width:38px;height:38px}
-  .work-nav .icon{width:16px;height:16px}
-  .work-nav.prev{left:8px}
-  .work-nav.next{right:8px}
+  .work-nav{width:34px;height:34px}
+  .work-nav .icon{width:15px;height:15px}
   .work-thumb{width:74px;height:52px}
 }
 

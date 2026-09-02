@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=190" />
+  <link rel="stylesheet" href="styles.css?v=191" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -4069,26 +4069,38 @@
       <!-- One panel serves all five tabs, so every tab aria-controls it and its
            label follows whichever tab is selected. -->
       <div class="work-stage" id="workPanel" role="tabpanel" tabindex="0">
+        <!-- The arrows are SIBLINGS of the image box, not children of it.
+             Sitting on top of the artwork they were easy to lose: the hero
+             letterboxes every shape into one fixed box, so the picture edge
+             moves under them on every press while they do not (Dex,
+             2026-09-02). A three-column flex row gives them their own
+             gutters at every width instead of only at wide ones.
+
+             .work-hero-area, not .work-frame, is the container the hero
+             measures itself against now -- the frame is the row, and cqw
+             there would include the arrows. -->
         <div class="work-frame">
-          <div class="work-hero" id="workHero">
-            <!-- A <picture>, not a bare <img>, so the hero can take the AVIF
-                 rows work.json carries — an <img srcset> can pick a width but
-                 never a format. Both <source> srcsets and the sizes are written
-                 by paintPicture() from strings tools/bake_work.py generated;
-                 nothing here assembles a URL. Empty at rest: the first
-                 showWorkItem() fills all three. -->
-            <picture class="work-hero-pic">
-              <source id="workHeroAvif" type="image/avif">
-              <source id="workHeroWebp" type="image/webp">
-              <img class="work-hero-img" id="workHeroImg" src="" alt="" width="16" height="9" decoding="async">
-            </picture>
-            <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
-              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-            </button>
-            <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
-              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-            </button>
+          <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
+            <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+          </button>
+          <div class="work-hero-area">
+            <div class="work-hero" id="workHero">
+              <!-- A <picture>, not a bare <img>, so the hero can take the AVIF
+                   rows work.json carries — an <img srcset> can pick a width but
+                   never a format. Both <source> srcsets and the sizes are written
+                   by paintPicture() from strings tools/bake_work.py generated;
+                   nothing here assembles a URL. Empty at rest: the first
+                   showWorkItem() fills all three. -->
+              <picture class="work-hero-pic">
+                <source id="workHeroAvif" type="image/avif">
+                <source id="workHeroWebp" type="image/webp">
+                <img class="work-hero-img" id="workHeroImg" src="" alt="" width="16" height="9" decoding="async">
+              </picture>
+            </div>
           </div>
+          <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
+            <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+          </button>
         </div>
 
         <p class="work-cap" aria-live="polite">
@@ -4309,6 +4321,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=187"></script>
+  <script src="script.js?v=188"></script>
 </body>
 </html>

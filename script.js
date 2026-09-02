@@ -1265,6 +1265,13 @@ const workCategories = () => workData?.categories ?? [];
 // srcset, which bake_work.py asserts rather than assumes.
 function paintPicture(sources, img, item, kind) {
   const sizes = workData?.sizes?.[kind] ?? '';
+  // Where to aim the cover-crop. tools/focal_point.py measured it off the
+  // picture itself: these boxes are landscape and most of this art is
+  // portrait, so a centred crop takes the head off every standing figure.
+  // Absent means the browser default is already right.
+  const pos = item.pos?.[kind];
+  if (pos) img.style.objectPosition = pos;
+  else img.style.removeProperty('object-position');
   sources.forEach(source => {
     const srcset = item.srcset?.[source.type === 'image/avif' ? 'avif' : 'webp'];
     // A master below the ladder's lowest rung has no derivatives at all —
@@ -1427,15 +1434,23 @@ function paintWorkHero(item) {
 // pressed. Through warmPicture(), so the rung it pulls is the one the hero
 // will ask for rather than a second copy at some other width.
 function preloadWorkNeighbours(items, index) {
-  [index - 1, index + 1].forEach(i => {
+  const n = items.length;
+  // Wrapped, like the arrows: at the last piece the NEXT one is item 0, and
+  // that is exactly the press most likely to come.
+  [(index - 1 + n) % n, (index + 1) % n].forEach(i => {
     if (items[i]) warmPicture(workHeroPic, items[i], 'hero');
   });
 }
 
+// WRAPS at both ends rather than stopping. A gallery of 93 pieces with a dead
+// arrow at each end makes the visitor find the other arrow to keep going, and
+// with the arrows outside the picture there is nothing to say WHY one stopped
+// working. The counter still reads 01 / 93, so where you are stays legible.
+// The modulo is written to survive a negative index, which -1 from item 0 is.
 function showWorkItem(index) {
   const items = workItems();
   if (!items.length) return;
-  workIdx = Math.max(0, Math.min(items.length - 1, index));
+  workIdx = ((index % items.length) + items.length) % items.length;
   const item = items[workIdx];
 
   paintWorkHero(item);
@@ -1446,11 +1461,9 @@ function showWorkItem(index) {
   position.textContent = pad2(workIdx + 1);
   workCapIndex.replaceChildren(position, ` / ${pad2(items.length)}`);
 
-  workPrevBtn.disabled = workIdx === 0;
-  workNextBtn.disabled = workIdx === items.length - 1;
-  // Reaching an end must not strand focus on a button that just went disabled.
-  if (document.activeElement === workNextBtn && workNextBtn.disabled) workPrevBtn.focus();
-  else if (document.activeElement === workPrevBtn && workPrevBtn.disabled) workNextBtn.focus();
+  // Neither arrow is ever disabled now, so nothing can strand focus on one
+  // that just went dead -- which is what the two lines that used to be here
+  // existed to rescue.
 
   [...workStripEl.children].forEach((thumb, i) => thumb.setAttribute('aria-current', String(i === workIdx)));
   // behavior:'auto' defers to the strip's CSS scroll-behavior, which the
@@ -1599,7 +1612,6 @@ if (workModal) {
     const img = reel.imgs[i];
     if (!img || img.src || !reel.items[i]) return;
     paintPicture(reel.sources[i], img, reel.items[i], 'card');
-    if (reel.positions[i]) img.style.objectPosition = reel.positions[i];
   }
 
   function buildReel(card) {
@@ -1618,7 +1630,6 @@ if (workModal) {
       // painted by bake_markup, so primeFrame() leaves it alone.
       items: [],
       titles: [],
-      positions: [],
       sources: [null],
       imgs: [first.querySelector('img')],
       dots: [],
@@ -1630,11 +1641,11 @@ if (workModal) {
       if (!item) return;
       reel.items.push(item);
       reel.titles.push(item.title);
-      reel.positions.push(frame.pos || '');
       if (i === 0) {
-        // Frame 0 is already on the page and already fetched; only its
-        // object-position can still need saying.
-        if (frame.pos) reel.imgs[0].style.objectPosition = frame.pos;
+        // Frame 0 is already on the page and already fetched; only where to
+        // aim its crop is left to say, because a <picture> block in the
+        // markup carries no object-position.
+        if (item.pos?.card) reel.imgs[0].style.objectPosition = item.pos.card;
       } else {
         reel.frames.push(addFrame(reel));
       }

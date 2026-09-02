@@ -33,6 +33,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/bake_images.py --cases` | `--check` fails on an empty walk |
 | `python tools/bake_markup.py --cases` | `--check` fails on an empty parse and a hand edit |
 | `python tools/bake_work.py --cases` | the manifest gate can still refuse — 4 recorded states |
+| `python tools/focal_point.py` | the crop-aiming rule still keeps heads in frame — 8 cases |
 | `node tools/check_markdown.mjs` | `renderMarkdown` cannot emit an event handler (needs Chrome) |
 | `python tools/context_pack.py` | rebuilds the context zip in the root, measured not typed |
 
@@ -164,9 +165,18 @@ them ship, not whether they are real.
 - **The categories, the card frames and the titles are a FIRST PASS.** They
   were chosen by looking at contact sheets of all 377 files, not by a taxonomy
   anyone has agreed to. Do not build on them as if they were settled.
-- **Nothing is cropped on disk and nothing should be.** The card is a fixed
-  box with `object-fit:cover`; a baked thumbnail would be cropped twice. A
-  badly-framed piece gets a `pos` (`object-position`) string in the index.
+- **Nothing is cropped on disk and nothing should be.** The card and the
+  filmstrip thumb are landscape boxes and most of this art is portrait, so a
+  centred cover-crop takes the head off every standing figure — which is
+  exactly what shipped first. `tools/focal_point.py` measures where the
+  subject starts and `bake_work.py` writes an `object-position` per piece per
+  box. A baked thumbnail would be cropped twice and would still be wrong at
+  the next breakpoint.
+- **The measured crop is cached in `work.json` against the master's stamp AND
+  `focal_point.VERSION`.** Change a constant in that module and bump the
+  version, or `--check` will keep agreeing with positions it computed under
+  the old rule. A hand override goes in `work-index.json`'s `pos`, keyed by
+  stem; there is exactly one today and it names why.
 - **27 groups of exact duplicates were collapsed** when the drop was
   reorganised (The Wild Robot was also Roblox-2..7, Knights of Edengale was
   also Low-Res-Assets, DigiBitties spanned three folders). A piece lives in

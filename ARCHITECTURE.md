@@ -85,9 +85,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `assets/work/work.json` — written by `tools/bake_work.py`, carrying FINISHED
   srcset strings so the same rule holds here; `paintPicture()`/`warmPicture()`
   fill and pre-negotiate every `<picture>`; hero is a fixed 3:2 box on
-  purpose; the eight featured cards cross-fade five frames each on ONE
-  round-robin interval, frame 0 from the markup and 1-4 from the manifest),
-  one `initTabs()`
+  purpose, with the two arrows OUTSIDE it in their own flex columns and
+  wrapping at both ends; the eight featured cards cross-fade five frames each
+  on ONE round-robin interval, frame 0 from the markup and 1-4 from the
+  manifest), one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +
   lightbox, self-building from `.wp-item` figures, instantiated TWICE:
   Wallpapers (`wp`) and Concepts (`cn`). The ids are a prefix and the arrows
@@ -1022,11 +1023,39 @@ things already positioned in there (`.about-flags`, the breakout game's
 
 ## Numbers
 
-7 accents (lime default) · 12 ladders / 21 slots in `image_slots.py` ·
+7 accents (lime default) · 12 ladders / 19 slots in `image_slots.py` ·
 106 generated markup blocks in index.html · 343 gallery pieces in
 `work.json` · fallback ladder
 1600/1200/900/600/400/200 · cache stamp = 8 hex of sha256(master) ·
 `styles.css?v=` / `script.js?v=` bumped by hand.
+
+### Aiming a cover-crop (`tools/focal_point.py`)
+
+The featured card and the filmstrip thumb are both `object-fit:cover` in a
+LANDSCAPE box (about 1.175:1 and exactly 1.5:1) and most of this art is
+PORTRAIT, so the default centre crop takes the head off every standing figure.
+The module measures the variance WITHIN each row and column of a 240px
+thumbnail, takes the first row that reaches 22% of the strongest as the top of
+the subject, and puts the crop window just above it.
+
+Three things it deliberately does not do, each because measuring said so:
+
+- **It does not compare pixels to a background colour.** That version found
+  figures on flat dark plates and missed three of the four reported cases,
+  because a graded plate is a different colour on every row while staying flat
+  across each one.
+- **It does not gate on "is there an empty plate".** Of the fifteen
+  vertically-cropped card frames, aiming at the subject's top is right on
+  fourteen; the gate refused to move eleven of them. The one it costs is an
+  interior, and that takes a `pos` override in `work-index.json`.
+- **It does not aim horizontally.** No landscape frame had a framing problem,
+  and the rule produced two crops worse than the centre they replaced.
+
+`y` is clamped to 0.5, so this can only ever raise a crop toward a head, never
+push one below where the browser would have put it. Results are cached in
+`work.json` against the master's content stamp AND `focal_point.VERSION` —
+without the version, tuning a constant would leave every cached position stale
+while `--check` reported the manifest as current.
 
 ## Known-outstanding
 
