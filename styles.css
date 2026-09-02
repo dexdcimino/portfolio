@@ -984,15 +984,22 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    Four columns: pager, video, thumbnails, pager. The two content columns are
    equal, so the video is the same width as the 2x2 block beside it and the row
    reads as one object rather than as a wide thing next to a narrow one. */
-.work-stage{
+.fw-stage{
   --wk-row:clamp(200px,24vh,258px);
+  --fw-pager:70px;
   display:grid;
-  grid-template-columns:auto minmax(0,1fr) minmax(0,1fr) auto;
+  grid-template-columns:var(--fw-pager) minmax(0,1fr) minmax(0,1fr) var(--fw-pager);
   align-items:center;gap:14px;
+  /* The pagers hang OUTSIDE the content, in the page gutter, so the video and
+     the four thumbnails keep the full width the section has -- putting them in
+     the row squeezed both content columns by 84px each. --gutter is
+     clamp(92px,11.2vw,190px) here, so a 70px column plus the gap still lands
+     inside the page rather than off the edge of it. */
+  margin-inline:calc((var(--fw-pager) + 14px) * -1);
 }
 
 /* --- the pagers --- */
-.wk-pager{display:flex;align-items:center;gap:10px}
+.wk-pager{display:flex;align-items:center;justify-content:center;gap:9px}
 .wk-arrows{display:flex;flex-direction:column;gap:6px}
 /* The slate of the diagonals behind the hero character, which is the lightest
    grey already on the page that still reads as background. Lighter on hover,
@@ -1092,18 +1099,18 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 }
 .work-page.is-on{opacity:1;visibility:visible;transition:opacity .42s ease}
 /* The card sizes itself to its grid cell now rather than to a fixed height. */
-.work-stage .work-card{height:100%}
+.fw-stage .work-card{height:100%}
 /* The cells are narrower than the old four-across row, so two-word titles
    wrap. Give them a little more room before the corner arrow and a slightly
    smaller face, and lift the shade so a second line still lands on it. */
-.work-stage .card-meta{right:34px}
-.work-stage .card-meta strong{font-size:17px;line-height:1.2}
-.work-stage .work-card .card-shade{inset:38% 0 0}
+.fw-stage .card-meta{right:34px}
+.fw-stage .card-meta strong{font-size:17px;line-height:1.2}
+.fw-stage .work-card .card-shade{inset:38% 0 0}
 
 @media(max-width:1100px){
   /* The pagers move under their own carousel and lie down: at this width there
      is no outer margin left to hang them in. */
-  .work-stage{grid-template-columns:minmax(0,1fr);gap:12px}
+  .fw-stage{grid-template-columns:minmax(0,1fr);gap:12px;margin-inline:0}
   .fv,.work-grid{height:auto}
   .fv{aspect-ratio:16/10}
   .fv-item{position:absolute}
@@ -1115,7 +1122,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   .wk-arrow{width:52px;height:40px}
 }
 @media(max-width:760px){
-  .work-stage{--wk-row:170px}
+  .fw-stage{--wk-row:170px}
   .fv-disc{width:74px;height:74px}
   .fv-disc .icon{width:26px;height:26px}
   .fv-item .card-meta{right:78px}
@@ -1158,7 +1165,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    there via picture-class=, and .work-card img above already gives the <img>
    inside it the cover fit and the hover scale. */
 .card-reel{position:absolute;inset:0;display:block}
-.card-frame{position:absolute;inset:0;display:block;opacity:0;transition:opacity .85s ease}
+.card-frame{position:absolute;inset:0;display:block;opacity:0;transition:opacity .55s ease}
 .card-frame.is-on{opacity:1}
 /* Dots are visible at rest, not only on hover: a card that changes on its own
    with nothing to explain it reads as a glitch. They say "there is more here",

@@ -1608,7 +1608,7 @@ if (workModal) {
     return { show, get at() { return at; } };
   }
 
-  const stage = document.querySelector('.work-stage');
+  const stage = document.querySelector('.fw-stage');
   if (stage) {
     const dotsOf = (id) => {
       const list = document.getElementById(id);
@@ -1701,12 +1701,13 @@ if (workModal) {
 
 {
   const grid = document.querySelector('.home-featured .work-grid');
-  const TURN_MS = 6000;      // how long one frame is held on a given card
+  const HOLD_MS = 9000;      // how long a card keeps one frame
+  const WAVE_MS = 500;       // gap between the four cards in a sweep
   const FADE_MS = 260;       // must match .card-meta strong's transition
 
   const reels = [];
-  let reelCursor = 0;
   let reelTimer = null;
+  let waveTimers = [];
   let onScreen = false;
   let building = false;
 
@@ -1812,21 +1813,35 @@ if (workModal) {
     return !page || page.classList.contains('is-on');
   };
 
+  /* A SWEEP, not a round robin. The round-robin version turned one card every
+     HOLD_MS / n, which with eight cards was a change every 750ms -- constant,
+     arrhythmic flicker with no pattern to read. This holds every visible card
+     on its frame for HOLD_MS and then turns them in READING ORDER, WAVE_MS
+     apart: top left, top right, bottom left, bottom right. Same amount of
+     movement, but it arrives as one gesture and then stops, which is what makes
+     it calm enough to read across. */
+  function sweep() {
+    waveTimers.forEach(clearTimeout);
+    waveTimers = [];
+    // Only the page on screen. Turning a hidden card fetches a frame nobody
+    // sees and leaves it mid-animation when its page fades in.
+    const live = reels.filter(reel => onLivePage(reel.card));
+    live.forEach((reel, i) => {
+      waveTimers.push(setTimeout(() => turn(reel), i * WAVE_MS));
+    });
+  }
+
   function sync() {
     const run = onScreen && !document.hidden && reels.length && !stopped();
     if (run && !reelTimer) {
-      reelTimer = setInterval(() => {
-        /* Skip a card whose page is not showing. Turning it would fetch the
-           next frame of something nobody can see, and it would be mid-animation
-           when its page faded in. */
-        for (let tries = 0; tries < reels.length; tries++) {
-          const reel = reels[reelCursor++ % reels.length];
-          if (onLivePage(reel.card)) { turn(reel); break; }
-        }
-      }, Math.round(TURN_MS / reels.length));
+      reelTimer = setInterval(sweep, HOLD_MS);
     } else if (!run && reelTimer) {
       clearInterval(reelTimer);
       reelTimer = null;
+      // A sweep already scheduled would otherwise still land after the timer
+      // that owns it has been stopped.
+      waveTimers.forEach(clearTimeout);
+      waveTimers = [];
     }
   }
 
