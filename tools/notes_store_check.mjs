@@ -38,10 +38,31 @@ const stub = {
     if (!options || options.access !== 'private') {
       throw new Error(`get() called without access:'private' (${JSON.stringify(options)})`);
     }
-    // "@returns A promise that resolves to { stream, blob } or null if not found."
+    /* The REAL shape, from the GetBlobResult type: a discriminated union on
+       statusCode, where the CONTENT is `stream` (a ReadableStream) and `blob`
+       is METADATA -- url, pathname, etag, contentType, size. The first version
+       of this stub returned `blob: { text() }`, which is what the caller
+       happened to expect, so it agreed with the bug and shipped it. A stub
+       written from the caller proves nothing; this one is written from the
+       type definition. */
     if (!store.has(pathname)) return null;
     const body = store.get(pathname);
-    return { stream: null, blob: { text: async () => body } };
+    return {
+      statusCode: 200,
+      stream: new Response(body).body,
+      headers: new Headers(),
+      blob: {
+        url: `https://stub/${pathname}`,
+        downloadUrl: `https://stub/${pathname}`,
+        pathname,
+        contentType: 'text/html',
+        contentDisposition: 'inline',
+        cacheControl: 'no-store',
+        uploadedAt: new Date(),
+        etag: 'stub',
+        size: Buffer.byteLength(body),
+      },
+    };
   },
   async put(pathname, body, options) {
     if (!options || options.access !== 'private') throw new Error("put() without access:'private'");
@@ -119,13 +140,27 @@ const check = (ok, why) => { if (ok) pass++; else fail.push(why); };
   check(seeded === true, 'a BlobNotFoundError was not treated as an empty store');
 }
 
+/* ---- 3b. a 304 with no stream is an error, not an empty store -----------
+   The other half of the discriminated union. Returning null here would reseed
+   the seed over real notes, which is the one unrecoverable outcome. */
+{
+  store.clear();
+  stub.get = async () => ({ statusCode: 304, stream: null, blob: { pathname: 'x' } });
+  let threw = false;
+  try { await notes.readNotes(); } catch { threw = true; }
+  check(threw, 'a 304 with no stream was treated as an empty store');
+  console.log(`304 with no stream: threw=${threw}`);
+}
+
 /* ---- 4. a save writes both copies, and the backup FIRST ------------------
    Order matters: a save that dies between the two should leave a spare copy,
    not a current with nothing behind it. */
 {
   store.clear();
   const order = [];
-  stub.get = async (p) => (store.has(p) ? { blob: { text: async () => store.get(p) } } : null);
+  stub.get = async (p) => (store.has(p)
+    ? { statusCode: 200, stream: new Response(store.get(p)).body, blob: { pathname: p } }
+    : null);
   const realPut = stub.put;
   stub.put = async (p, b, o) => { order.push(p); return realPut(p, b, o); };
   const { savedAt, backups } = await notes.writeNotes('<p>hello</p>');
