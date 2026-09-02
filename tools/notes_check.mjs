@@ -35,7 +35,10 @@ const note = (ok, why) => { if (!ok) fail.push(why); };
 
 const browser = await puppeteer.launch({
   executablePath: CHROME, headless: 'new',
-  args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars'],
+  // NOT --hide-scrollbars: the scrollbar is a feature here (it takes the colour
+  // of the section beside it), and a flag that hides it would leave every
+  // screenshot unable to show the thing being checked.
+  args: ['--no-first-run', '--no-default-browser-check'],
 });
 
 async function newPage(context, allow) {
@@ -233,13 +236,194 @@ const marker = `harness-${Date.now()}`;
   note(shape.handlers === 0, 'an onclick survived into the document');
 
   await page.screenshot({ path: join(SHOTS, 'notes-editor.png') });
+
+  /* The panel should be nearly the whole screen. The matte around it was the
+     complaint, so it is measured rather than eyeballed. */
+  const fill = await page.evaluate(() => {
+    const r = document.querySelector('.notes-shell').getBoundingClientRect();
+    return { w: r.width / innerWidth, h: r.height / innerHeight,
+             top: Math.round(r.top), bottom: Math.round(innerHeight - r.bottom) };
+  });
+  console.log(`panel fills ${(fill.w * 100).toFixed(0)}% x ${(fill.h * 100).toFixed(0)}% ` +
+              `of the viewport, gaps ${fill.top}px top / ${fill.bottom}px bottom`);
+  note(fill.h >= 0.93, `panel is only ${(fill.h * 100).toFixed(0)}% of the viewport height`);
+  note(fill.w >= 0.90, `panel is only ${(fill.w * 100).toFixed(0)}% of the viewport width`);
+
+  /* The close button and the save line moved OUT of the panel. Asserted by
+     GEOMETRY: being a child of the frame proves nothing about where they draw. */
+  const outside = await page.evaluate(() => {
+    const shell = document.querySelector('.notes-shell').getBoundingClientRect();
+    const x = document.getElementById('notesClose').getBoundingClientRect();
+    const save = document.getElementById('notesSave').getBoundingClientRect();
+    return { closeLeft: Math.round(x.left - shell.right),
+             saveTop: Math.round(save.top - shell.bottom),
+             bar: document.querySelectorAll('.notes-bar').length };
+  });
+  console.log(`close is ${outside.closeLeft}px right of the panel, ` +
+              `save is ${outside.saveTop}px below it, bottom bars: ${outside.bar}`);
+  note(outside.closeLeft >= 0, 'the close button still overlaps the panel');
+  /* POSITIONED IS NOT PAINTED. The first version of this passed while the
+     button was invisible: <dialog> carries overflow:auto from the UA
+     stylesheet, so an element placed outside the frame is clipped and draws
+     nothing while still reporting a perfectly good bounding box. Ask the
+     document what is actually at that point. */
+  const hit = await page.evaluate(() => {
+    const b = document.getElementById('notesClose');
+    const r = b.getBoundingClientRect();
+    const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { found: !!at && (at === b || b.contains(at)), what: at ? at.tagName : null };
+  });
+  note(hit.found, `the close button is positioned but not hittable (found ${hit.what})`);
+  note(outside.saveTop >= 0, 'the save line is still inside the panel');
+  note(outside.bar === 0, 'the bottom bar is still there');
+
+  const zoom = await page.evaluate(() => {
+    const b = document.getElementById('notesZoom');
+    const r = b.getBoundingClientRect();
+    return { inRail: !!b.closest('.notes-rail-wrap'),
+             label: (b.textContent || '').trim(),
+             square: Math.abs(r.width - r.height) < 2 };
+  });
+  note(zoom.inRail, 'the zoom button is not in the rail');
+  note(zoom.label === '', `the zoom button still carries the text "${zoom.label}"`);
+  note(zoom.square, 'the zoom button is not square');
+
+  /* Two sizes, and the DEFAULT is the larger of the old pair -- the small
+     default was the complaint. Read off the rendered size, not a number typed
+     here. */
+  const before = await page.evaluate(() =>
+    parseFloat(getComputedStyle(document.querySelector('#notesDoc ul')).fontSize));
   await page.click('#notesZoom');
   await new Promise(r => setTimeout(r, 250));
-  const wide = await page.$eval('#notesEditor', el => el.classList.contains('is-wide'));
-  note(wide, 'the zoom toggle did not switch to wide');
-  await page.screenshot({ path: join(SHOTS, 'notes-editor-wide.png') });
+  const huge = await page.$eval('#notesEditor', el => el.classList.contains('is-huge'));
+  const after = await page.evaluate(() =>
+    parseFloat(getComputedStyle(document.querySelector('#notesDoc ul')).fontSize));
+  console.log(`zoom: ${before}px default -> ${after}px stepped up (is-huge=${huge})`);
+  note(huge, 'the zoom toggle did not step up');
+  note(before >= 16, `the default body size is ${before}px, no bigger than the old default`);
+  note(after > before, `zoom did not grow the text (${before} -> ${after})`);
+  await page.screenshot({ path: join(SHOTS, 'notes-editor-huge.png') });
   await page.click('#notesZoom');
+
+  const spell = await page.evaluate(() => {
+    const named = document.getElementById('names') &&
+                  document.getElementById('names').closest('.nv-sec');
+    const other = document.getElementById('urgent') &&
+                  document.getElementById('urgent').closest('.nv-sec');
+    return { names: named && named.spellcheck, urgent: other && other.spellcheck };
+  });
+  console.log(`spellcheck: names=${spell.names}, urgent=${spell.urgent}`);
+  note(spell.names === false, 'spellcheck is still on in the Names section');
+  note(spell.urgent !== false, 'spellcheck was switched off everywhere, not just Names');
+
+  /* The scrollbar takes the colour of the section beside it. Three different
+     sections must give three different colours, or it is a constant. */
+  /* The bar is a DRAWN element, so it can be measured rather than admired: it
+     must exist, sit at the right edge, be a proportional length, MOVE as the
+     document scrolls, and be hittable. A coloured div that never moves is not a
+     scroll indicator, and it would sail through a colour-only check. */
+  const barAt = (id) => page.evaluate((i) => {
+    document.getElementById(i).scrollIntoView({ block: 'center', behavior: 'instant' });
+  }, id);
+  const barState = () => page.evaluate(() => {
+    const t = document.getElementById('notesThumb');
+    const s = document.getElementById('notesScroll');
+    const r = t.getBoundingClientRect();
+    const sr = s.getBoundingClientRect();
+    const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return {
+      hidden: t.hidden,
+      top: Math.round(r.top - sr.top),
+      height: Math.round(r.height),
+      rightGap: Math.round(sr.right - r.right),
+      colour: getComputedStyle(t).backgroundColor,
+      hittable: at === t,
+    };
+  });
+
+  const colours = [];
+  const tops = [];
+  // NOT the first section: it sits at the top of the document and cannot be
+  // scrolled to the middle, so asking it to dominate the viewport is asking
+  // for something the scroll container cannot do -- a test failing on its own
+  // impossible setup, not on the feature.
+  for (const id of ['world-design', 'creatures-npcs', 'names']) {
+    await barAt(id);
+    await new Promise(r => setTimeout(r, 340));
+    const bar = await barState();
+    colours.push(bar.colour);
+    tops.push(bar.top);
+    if (id === 'creatures-npcs') {
+      console.log(`bar: ${bar.height}px tall, ${bar.rightGap}px from the right edge, ` +
+                  `hittable=${bar.hittable}, hidden=${bar.hidden}`);
+      note(!bar.hidden, 'the scroll indicator is hidden on an overflowing document');
+      note(bar.hittable, 'the indicator is drawn but not hittable, so it cannot be dragged');
+      note(bar.rightGap >= 0 && bar.rightGap < 20,
+           `the indicator is ${bar.rightGap}px from the right edge`);
+      note(bar.height > 20 && bar.height < 400,
+           `the indicator is ${bar.height}px tall, which is not a proportional thumb`);
+    }
+  }
+  console.log(`bar colours: ${colours.join(' | ')}`);
+  console.log(`bar offsets: ${tops.join(' | ')}`);
+  note(new Set(colours).size === colours.length,
+       `the bar colour did not follow the section: ${colours.join(', ')}`);
+  const blank = /^(|none|rgba\(0, 0, 0, 0\))$/;
+  note(colours.every(c => !blank.test(c)), `the bar colour was never set: ${colours.join(', ')}`);
+  note(new Set(tops).size === tops.length,
+       `the bar did not move as the document scrolled: ${tops.join(', ')}`);
+
+  /* ...and it must actually scroll when dragged. Hiding the native bar took
+     that away, and a coloured div you cannot grab is worse than the bar it
+     replaced. */
+  const dragged = await page.evaluate(() => {
+    const t = document.getElementById('notesThumb');
+    const s = document.getElementById('notesScroll');
+    const r = t.getBoundingClientRect();
+    const before = s.scrollTop;
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const make = (type, clientY) =>
+      new PointerEvent(type, { bubbles: true, pointerId: 1, clientX: x, clientY });
+    t.dispatchEvent(make('pointerdown', y));
+    t.dispatchEvent(make('pointermove', y + 140));
+    t.dispatchEvent(make('pointerup', y + 140));
+    return { before, after: s.scrollTop };
+  });
+  console.log(`drag the bar: scrollTop ${Math.round(dragged.before)} -> ${Math.round(dragged.after)}`);
+  note(dragged.after > dragged.before + 50, 'dragging the indicator did not scroll the document');
+
   await page.screenshot({ path: join(SHOTS, 'notes-gate.png') });
+  await page.close();
+}
+
+/* ---- 6. the Idea Vault opens it ------------------------------------------
+   FALSELY PASSES IF: the overlay were opened by URL instead. This types the
+   code into the VAULT's own keypad and waits for the notes dialog. */
+{
+  const page = await newPage();
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.$eval('#vault', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForSelector('#vaultPins .vault-pin', { visible: true, timeout: 10000 });
+  await page.focus('#vaultPins .vault-pin');
+  for (const c of 'notes') { await page.keyboard.type(c); await new Promise(r => setTimeout(r, 60)); }
+  const opened = await page.waitForFunction(
+    () => document.getElementById('notesModal') &&
+          document.getElementById('notesModal').open === true, { timeout: 40000 })
+    .then(() => true).catch(() => false);
+  const gate = await page.evaluate(() => ({
+    keypad: !document.getElementById('notesGate').hidden,
+    editorHidden: document.getElementById('notesEditor').hidden,
+    inDom: document.documentElement.outerHTML.includes('Pick a new game name'),
+  }));
+  console.log(`vault code NOTES: opened=${opened}, on the keypad=${gate.keypad}, ` +
+              `editor hidden=${gate.editorHidden}`);
+  note(opened, 'the vault code did not open the notes overlay');
+  // It opens the DOOR, not the notes: the server check still stands.
+  note(gate.keypad && gate.editorHidden,
+       'the vault opened the overlay past its own password');
+  note(!gate.inDom, 'the vault opening leaked the notes into the page');
+  await page.screenshot({ path: join(SHOTS, 'notes-from-vault.png') });
   await page.close();
 }
 

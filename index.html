@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=194" />
+  <link rel="stylesheet" href="styles.css?v=196" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -3222,7 +3222,7 @@
          Deliberately not in the nav, and deliberately not in the scroll spy's
          section list in script.js: findable, not advertised. -->
     <section class="resume-strip vault keypad" id="vault" aria-labelledby="vault-title"
-             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi">
+             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi v2.32768.8.1.0vddRKfHTuGOBDXw3eohuqfJn9gawqxlzsrNC5PAlMBOxGYWDeQM2r2xODwNSXCMXK9HGhC2">
       <div class="vault-head">
         <p class="eyebrow vault-eyebrow">
           <span id="vaultLabel">CLASSIFIED</span>
@@ -4295,10 +4295,10 @@
        here, which is right for something sealed once and wrong for something
        edited every day. -->
   <dialog class="notes-modal" id="notesModal" aria-labelledby="notes-dialog-title">
+    <!-- The shell is wrapped so the close button and the save line can sit
+         OUTSIDE the panel while still being positioned against its edges. -->
+    <div class="notes-frame">
     <div class="notes-shell">
-      <button class="contact-close notes-close" type="button" id="notesClose" aria-label="Close notes">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      </button>
       <h2 class="sr-only" id="notes-dialog-title">Live notes</h2>
 
       <!-- .keypad is what the shared lockout styling hangs off; the Idea
@@ -4325,19 +4325,37 @@
            server hands back; nothing is pre-rendered and hidden, because CSS
            that hides content still shipped the content. -->
       <div class="notes-editor" id="notesEditor" hidden>
-        <nav class="notes-rail" id="notesRail" aria-label="Jump to a section"></nav>
+        <!-- The rail holds a LIST that is rebuilt from the document plus a
+             zoom button that is not. buildRail() replaces the children of
+             #notesRail only, so the button below it survives every rebuild. -->
+        <nav class="notes-rail-wrap" aria-label="Jump to a section">
+          <div class="notes-rail" id="notesRail"></div>
+          <button class="notes-zoom" type="button" id="notesZoom"
+                  aria-label="Text size" aria-pressed="false">
+            <span class="icon" id="notesZoomIcon" data-icon="zoom-in" aria-hidden="true"></span>
+          </button>
+        </nav>
+        <!-- The scroll indicator is DRAWN, not the browser own bar. A native
+             one cannot be styled to this consistently: setting scrollbar-width
+             or scrollbar-color makes Chrome ignore ::-webkit-scrollbar and
+             fall back to an OVERLAY bar that takes no layout space and fades
+             out a second after you stop, and headless paints neither kind, so
+             the look could not be captured and checked. This one is a div. -->
+        <div class="notes-thumb" id="notesThumb" hidden></div>
         <div class="notes-scroll" id="notesScroll">
           <div class="notes-doc" id="notesDoc" contenteditable="true" spellcheck="true"
                role="textbox" aria-multiline="true" aria-label="WorldHop notes"></div>
         </div>
-        <div class="notes-bar">
-          <button class="notes-zoom" type="button" id="notesZoom" aria-label="Text size">
-            <span class="icon" id="notesZoomIcon" data-icon="zoom-in" aria-hidden="true"></span>
-            <span class="notes-zoom-label" id="notesZoomLabel">COMFY</span>
-          </button>
-          <p class="notes-save" id="notesSave" role="status" aria-live="polite"></p>
-        </div>
       </div>
+    </div>
+
+      <!-- Both outside the panel: the close button clear of the artwork on
+           the right, the save line under it where it cannot take a row of
+           the document to say one word. -->
+      <button class="notes-close" type="button" id="notesClose" aria-label="Close notes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <p class="notes-save" id="notesSave" role="status" aria-live="polite"></p>
     </div>
   </dialog>
 
@@ -4383,6 +4401,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=191"></script>
+  <script src="script.js?v=193"></script>
 </body>
 </html>

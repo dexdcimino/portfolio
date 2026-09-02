@@ -1760,13 +1760,13 @@ if (workModal) {
   const doc = document.getElementById('notesDoc');
   const scroll = document.getElementById('notesScroll');
   const rail = document.getElementById('notesRail');
+  const thumb = document.getElementById('notesThumb');
   const statusEl = document.getElementById('notesStatus');
   const saveEl = document.getElementById('notesSave');
   const label = document.getElementById('notesLabel');
   const padlock = document.getElementById('notesLock');
   const zoomBtn = document.getElementById('notesZoom');
   const zoomIcon = document.getElementById('notesZoomIcon');
-  const zoomLabel = document.getElementById('notesZoomLabel');
   const pins = modal ? [...modal.querySelectorAll('.vault-pin')] : [];
 
   if (modal && pins.length) {
@@ -1803,7 +1803,8 @@ if (workModal) {
                            'viewBox', 'fill', 'stroke', 'stroke-width',
                            'stroke-linecap', 'stroke-linejoin', 'd', 'cx', 'cy',
                            'r', 'rx', 'ry', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
-                           'width', 'height', 'points', 'transform']);
+                           'width', 'height', 'points', 'transform',
+                           'data-nospell']);
 
     function clean(node) {
       [...node.children].forEach(el => {
@@ -1851,11 +1852,33 @@ if (workModal) {
       return node;
     }
 
+    /* Sections whose contents are deliberately not English. The Names section
+       is a list of invented words -- Voodoobits, Hexnomads, Portalzyn -- and a
+       red underline under every one of them is noise that hides the two real
+       typos in the document.
+
+       Keyed on the heading id AND on a data-nospell attribute, so a section
+       added later can opt out without a code change; the attribute is on the
+       allowlist so it survives a save. */
+    const NO_SPELLCHECK = new Set(['names']);
+
+    function applySpellcheck() {
+      doc.querySelectorAll('.nv-sec').forEach(section => {
+        const id = section.querySelector('h2')?.id || '';
+        section.spellcheck = !(NO_SPELLCHECK.has(id) || section.hasAttribute('data-nospell'));
+      });
+    }
+
     function render(html) {
       const holder = document.createElement('div');
       holder.innerHTML = html;
       doc.replaceChildren(...squeeze(clean(holder)).childNodes);
       buildRail();
+      applySpellcheck();
+      /* Next frame, not now: the editor was unhidden a moment ago and the
+         scroll container has no height yet, so a paint here reads a zero-height
+         viewport and colours the bar off the wrong section. */
+      requestAnimationFrame(paintScrollbar);
     }
 
     /* The rail is rebuilt from the document rather than configured, so a new
@@ -1876,6 +1899,7 @@ if (workModal) {
         button.setAttribute('aria-label', `Jump to ${name}`);
         button.style.setProperty('--nv',
           getComputedStyle(section).getPropertyValue('--nv') || '#b0b0b0');
+        button.dataset.for = heading.id || '';
         const icon = heading.querySelector('svg');
         if (icon) button.appendChild(icon.cloneNode(true));
         else button.textContent = name.slice(0, 1);
@@ -1888,6 +1912,116 @@ if (workModal) {
       rail.replaceChildren(frag);
       rail.hidden = n === 0;
     }
+
+    /* ---- the scrollbar's colour ------------------------------------------
+       The bar takes the accent of whatever section the reader is currently
+       beside, which makes it a second, quieter position indicator next to the
+       rail -- and tells you which part of the document you are in when the
+       heading has scrolled off the top.
+
+       "Beside" means the section covering the MIDDLE of the viewport, not the
+       first one visible: at any scroll position two or three sections are
+       partly on screen, and the topmost is usually the one being scrolled away
+       from. One rAF-coalesced read of offsetTop per scroll, no geometry
+       flush -- offsetTop is already known to the layout engine and the
+       comparison is against the container's own scrollTop. */
+    let scrollFrame = 0;
+    let railCurrent = null;
+
+    /* The bar's own geometry. Drawn rather than styled, because a native one
+       cannot be made to look like this reliably: setting scrollbar-width or
+       scrollbar-color makes Chrome ignore ::-webkit-scrollbar and fall back to
+       an overlay bar that occupies no layout space and fades out shortly after
+       you stop scrolling. Measured here: offsetWidth - clientWidth was 0 either
+       way, and no headless run paints either kind, so the result could not be
+       captured and looked at -- which is the bar this repo sets for anything
+       visual. A div can be. */
+    function paintThumb() {
+      const view = scroll.clientHeight;
+      const full = scroll.scrollHeight;
+      if (!view || full <= view + 1) { thumb.hidden = true; return; }
+      thumb.hidden = false;
+      const height = Math.max(40, Math.round(view * (view / full)));
+      const travel = view - height;
+      const progress = scroll.scrollTop / (full - view);
+      thumb.style.height = `${height}px`;
+      thumb.style.top = `${Math.round(Math.min(1, Math.max(0, progress)) * travel)}px`;
+    }
+
+    /* Dragging it scrolls, because hiding the native bar took that away and a
+       decoration you cannot grab is worse than the bar it replaced. Pointer
+       capture, so a drag that leaves the element keeps working. */
+    let dragFromY = 0;
+    let dragFromTop = 0;
+    thumb.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      dragFromY = event.clientY;
+      dragFromTop = scroll.scrollTop;
+      thumb.classList.add('is-dragging');
+      thumb.setPointerCapture(event.pointerId);
+    });
+    thumb.addEventListener('pointermove', (event) => {
+      if (!thumb.classList.contains('is-dragging')) return;
+      const view = scroll.clientHeight;
+      const full = scroll.scrollHeight;
+      const travel = view - Math.max(40, view * (view / full));
+      if (travel <= 0) return;
+      // scroll-behavior is smooth on this container, which lags a drag badly.
+      scroll.style.scrollBehavior = 'auto';
+      scroll.scrollTop = dragFromTop +
+        ((event.clientY - dragFromY) / travel) * (full - view);
+    });
+    const endDrag = () => {
+      if (!thumb.classList.contains('is-dragging')) return;
+      thumb.classList.remove('is-dragging');
+      scroll.style.removeProperty('scroll-behavior');
+    };
+    thumb.addEventListener('pointerup', endDrag);
+    thumb.addEventListener('pointercancel', endDrag);
+
+    function paintScrollbar() {
+      scrollFrame = 0;
+      paintThumb();
+      const sections = [...doc.querySelectorAll('.nv-sec')];
+      if (!sections.length) return;
+      /* The section covering the MOST of the visible area, not the one under
+         the middle of it. The middle rule looked equivalent and is not: at the
+         top of the document the first section cannot be scrolled to the middle
+         at all, so it could never colour the bar however far you scrolled up.
+         Largest share is also what was actually asked for -- "whatever takes up
+         most of the page". */
+      const top = scroll.scrollTop;
+      const bottom = top + scroll.clientHeight;
+      let here = sections[0];
+      let best = -1;
+      for (const section of sections) {
+        const a = section.offsetTop;
+        const seen = Math.min(bottom, a + section.offsetHeight) - Math.max(top, a);
+        if (seen > best) { best = seen; here = section; }
+      }
+      const colour = getComputedStyle(here).getPropertyValue('--nv').trim();
+      if (colour) thumb.style.setProperty('--nv-thumb', colour);
+
+      // The rail marks the same section, so the two agree about where you are.
+      const heading = here.querySelector('h2');
+      if (heading && heading.id !== railCurrent) {
+        railCurrent = heading.id;
+        rail.querySelectorAll('button').forEach(button =>
+          button.classList.toggle('is-here', button.dataset.for === heading.id));
+      }
+    }
+
+    if (typeof ResizeObserver === 'function') {
+      // The zoom toggle changes the document height without any scrolling, so
+      // a scroll listener alone would leave the thumb the wrong length.
+      new ResizeObserver(() => paintScrollbar()).observe(scroll);
+    }
+
+    scroll.addEventListener('scroll', () => {
+      // Coalesced to one paint: a scroll fires far more often than the screen
+      // updates, and this is decoration.
+      if (!scrollFrame) scrollFrame = requestAnimationFrame(paintScrollbar);
+    }, { passive: true });
 
     /* ---- saving ---------------------------------------------------------- */
 
@@ -2299,15 +2433,18 @@ if (workModal) {
 
     /* ---- zoom ------------------------------------------------------------ */
 
-    function setZoom(wide) {
-      editor.classList.toggle('is-wide', wide);
-      zoomIcon.dataset.icon = wide ? 'zoom-out' : 'zoom-in';
-      zoomLabel.textContent = wide ? 'WIDE' : 'COMFY';
-      zoomBtn.setAttribute('aria-pressed', String(wide));
-      store.set(ZOOM_KEY, wide ? 'wide' : 'comfy');
+    /* Two sizes, and the smaller of them is what used to be the WIDE setting.
+       The old default sat below both and was too small to read, so it is gone
+       rather than kept as a third stop nobody would choose. */
+    function setZoom(huge) {
+      editor.classList.toggle('is-huge', huge);
+      zoomIcon.dataset.icon = huge ? 'zoom-out' : 'zoom-in';
+      zoomBtn.setAttribute('aria-pressed', String(huge));
+      zoomBtn.title = huge ? 'Smaller text' : 'Larger text';
+      store.set(ZOOM_KEY, huge ? 'huge' : 'normal');
     }
     zoomBtn.addEventListener('click', () =>
-      setZoom(!editor.classList.contains('is-wide')));
+      setZoom(!editor.classList.contains('is-huge')));
 
     /* ---- opening --------------------------------------------------------- */
 
@@ -2320,7 +2457,7 @@ if (workModal) {
       store.set(TOKEN_KEY, token);
       render(data.content);
       lastSaved = doc.innerHTML;   // post-sanitiser, or the first edit re-saves a no-op
-      setZoom(store.get(ZOOM_KEY) === 'wide');
+      setZoom(store.get(ZOOM_KEY) === 'huge');
       setSave(data.seeded ? 'NOT SAVED YET' : `SAVED ${clock(data.savedAt)}`.trim(), null);
       doc.focus({ preventScroll: true });
     }
@@ -2415,8 +2552,13 @@ if (workModal) {
       keypad.focus();
     }
 
-    // No button anywhere on the page: this is Dex's, not a feature of the
-    // portfolio, and the only way in is knowing the address.
+    // Two ways in and no button on the page: the address, and the Idea Vault,
+    // which seals "show:notes" against its own code. Neither is a way past the
+    // password -- both land on the keypad.
+    document.addEventListener('notes:open', (event) => {
+      if (!modal.open) open(event.detail && event.detail.opener);
+    });
+
     window.addEventListener('popstate', () => {
       if (location.hash === '#notes' && !modal.open) open(null);
       else if (location.hash !== '#notes' && modal.open) closeModal(modal);
@@ -3280,6 +3422,15 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
      opens a different thing and nothing here changes but this table. */
   const VIEWS = { snail: document.getElementById('snailModal') };
 
+  /* Some doors are not a dialog this block should open itself. The notes
+     overlay has its own opener -- it checks for a saved session, talks to the
+     server and decides between the keypad and the editor -- so the vault asks
+     for it by EVENT rather than reaching in. That also keeps the two blocks
+     independent of the order they appear in this file.
+     Opening it is not a way past its password: it lands on the keypad, and the
+     content still comes from the server or not at all. */
+  const EVENTS = { notes: 'notes:open' };
+
   /* SubtleCrypto only exists in a secure context. Over https or on localhost
      that is everywhere; opened as a file:// double-click it is nowhere, and the
      honest thing is to say so rather than shake at someone typing the right
@@ -3408,6 +3559,13 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     if (label) label.textContent = 'OPEN';
     if (padlock) padlock.dataset.icon = 'lock-open';
 
+    const named = payload.startsWith('show:') ? payload.slice(5).trim() : '';
+    if (EVENTS[named]) {
+      document.dispatchEvent(new CustomEvent(EVENTS[named],
+        { detail: { opener: pins[pins.length - 1] } }));
+      return;
+    }
+
     const dialog = viewOf(payload);
     if (dialog) {
       /* The keypad stays exactly where it is. Closing the overlay relocks the
@@ -3465,6 +3623,11 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     () => closeModal(VIEWS.snail));
   document.getElementById('snailOk')?.addEventListener('click',
     () => closeModal(VIEWS.snail));
+
+  /* A plain close listener rather than bindModal: the notes overlay binds
+     itself, and binding it twice would register a second cancel handler and a
+     second teardown. All the vault needs is to relock when that door shuts. */
+  document.getElementById('notesModal')?.addEventListener('close', relock);
 })();
 
 /* --- social links --------------------------------------------------------- */

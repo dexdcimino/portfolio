@@ -25,6 +25,36 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-02 — the notes scroll indicator is drawn, not the browser's
+
+**Decided.** The native scrollbar is hidden on both engines and replaced by
+`.notes-thumb`, a div positioned from the scroll ratio, draggable, coloured by
+whichever section fills most of the view.
+
+**Replaced.** Styling the real one — first with `scrollbar-width` /
+`scrollbar-color`, then with `::-webkit-scrollbar` and its pseudo-elements.
+
+**Why.** Neither works. Setting the standard properties makes Chrome ignore the
+webkit ones and fall back to an OVERLAY scrollbar: measured here as
+`offsetWidth - clientWidth === 0`, occupying no layout space and fading out a
+second after scrolling stops — not the always-visible bar that was asked for.
+Using only the webkit pseudo-elements is supposed to opt back into a classic
+bar; it did not, in headless, even with `--disable-features=OverlayScrollbar`
+and `Emulation.setScrollbarsHidden({hidden:false})`.
+
+That last part is the decisive one. **No headless run paints a scrollbar of
+either kind**, so the look could not be captured and looked at — and this repo's
+rule is that no visual item is done without a captured frame. A native bar here
+would have shipped on the strength of a computed style agreeing with itself. A
+div can be measured: its length, its offset, its colour and whether it is
+hittable are all in the check, and dragging it is asserted to move the
+document.
+
+**Reverse it if** `scrollbar-color` ever becomes styleable without opting into
+overlay behaviour AND headless paints it. Both would have to be true: the second
+is what makes the first checkable.
+---
+
 ## 2026-09-02 — the notes overlay checks its password on the SERVER
 
 **Decided.** `/#notes` opens a keypad; the password goes to
