@@ -68,7 +68,14 @@ module.exports = async function handler(req, res) {
       seeded,
     });
   } catch (err) {
+    /* Names the failure, because by here the password has ALREADY been checked
+       -- this is only ever reachable by Dex. "could not read the notes" on its
+       own sent a session to the Vercel logs to find a TypeError it could have
+       been told about; the overlay shows this on the keypad. */
     console.error('notes/unlock: read failed', err);
-    return res.status(502).json({ error: 'could not read the notes' });
+    return res.status(502).json({
+      error: 'could not read the notes',
+      detail: `${(err && err.name) || 'Error'}: ${(err && err.message) || ''}`.slice(0, 200),
+    });
   }
 };

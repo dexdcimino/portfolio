@@ -2339,7 +2339,15 @@ if (workModal) {
         err.message503 = true;
         throw err;
       }
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        // Carry the server's own description through to the console. It only
+        // ever fills that in once the password has been accepted, so there is
+        // nothing here to leak to someone guessing.
+        const body = await response.json().catch(() => ({}));
+        const err = new Error(`HTTP ${response.status}: ${body.detail || body.error || ''}`);
+        err.detail = body.detail || body.error || '';
+        throw err;
+      }
       return response.json();
     }
 
@@ -2352,8 +2360,15 @@ if (workModal) {
           const data = await unlock({ password: secret.toLowerCase() });
           return data ? { ok: true, payload: data } : { ok: false };
         } catch (error) {
+          /* OFFLINE was the wrong word for what actually happened on the first
+             deploy: the password was right, the routes were up, and the blob
+             read threw — the overlay reported a network problem for a storage
+             one and sent the session looking in the wrong place. The server
+             names the failure now (the password is already checked by then),
+             so show that instead of guessing. */
           console.warn('notes: unlock failed', error);
-          return { ok: false, message: error.message503 ? 'NOT SET UP' : 'OFFLINE' };
+          if (error.message503) return { ok: false, message: 'NOT SET UP' };
+          return { ok: false, message: error.detail ? 'SERVER ERROR' : 'OFFLINE' };
         }
       },
       onPass: opened,
@@ -3136,8 +3151,14 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       fails.length = 0;
       onPass(result.payload);
     } else if (result && result.message) {
-      // A refusal that is not a wrong answer — no shake, nothing counted.
+      /* A refusal that is not a wrong answer — no shake, nothing counted.
+         The boxes are still CLEARED, which the first version did not do: five
+         filled boxes under a refusal look like a control that has stopped
+         listening, and typing into the last one re-fires the same attempt
+         against the same five characters. */
+      clearBoxes();
       say(result.message, 'wrong');
+      pins[0].focus({ preventScroll: true });
       clearTimeout(fadeTimer);
       fadeTimer = setTimeout(fadeAnswer, ANSWER_HOLD);
     } else {
