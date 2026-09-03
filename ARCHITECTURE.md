@@ -95,7 +95,14 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   layer down (`.is-leaving`) instead of fading out under the new one: two
   matched ease curves composite to `1-(1-a)(1-b)`, which is 0.75 at the
   midpoint, and that quarter of panel showing through was the flicker in the
-  middle of every fade), one `initTabs()`
+  middle of every fade. The frames' stacking is why `.card-shade`/`.card-meta`/
+  `.card-go` carry `z-index:4`: an element with a z-index paints over a sibling
+  without one whatever the source order, and the eight captions went dark the
+  day the reel got its layers. A card's crop can also be TIGHTENED, not only
+  aimed -- `zoom` in `work-index.json`, a number or `{scale, pos}`, applied as
+  the `scale` property so the hover rule's `transform` cannot replace it, and
+  ONLY in the card: a filmstrip thumb has to look like the piece it opens),
+  one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +
   lightbox, self-building from `.wp-item` figures, instantiated TWICE:
   Wallpapers (`wp`) and Concepts (`cn`). The ids are a prefix and the arrows

@@ -481,6 +481,174 @@ await page.waitForFunction(
        'the X did not close the modal');
 }
 
+/* ---- 8. every card still says what it is ---------------------------------
+   FALSELY PASSES IF: the elements were merely found, or their text read. The
+   caption did not move, empty or disappear -- it was PAINTED OVER. Giving the
+   reel's frames a z-index for the cross-fade put them above three siblings that
+   had none, and all eight titles went dark while the DOM, the text and every
+   computed style except the stacking stayed exactly as before. So this asks the
+   document what is actually on top at the caption's own coordinates. */
+{
+  await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.$eval('#work', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForFunction(
+    () => document.querySelectorAll('.work-card .card-dots').length === 8, { timeout: 20000 });
+  const caps = await page.evaluate(() => [...document.querySelectorAll('.work-card')].map(card => {
+    const strong = card.querySelector('.card-meta strong');
+    const small = card.querySelector('.card-meta small');
+    const r = strong.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + 3, r.top + r.height / 2);
+    return {
+      cat: card.dataset.workCat || '(video)',
+      text: (small?.textContent || '').trim() + ' / ' + (strong.textContent || '').trim(),
+      onTop: !!(hit && hit.closest('.card-meta')),
+      covered: hit ? `${hit.tagName}.${(hit.className || '').toString().split(' ')[0]}` : 'nothing',
+    };
+  }));
+  console.log(`captions: ${caps.length} cards, on top: ${caps.filter(c => c.onTop).length}` +
+              (caps.some(c => !c.onTop) ? `, covered by ${caps.find(c => !c.onTop).covered}` : ''));
+  note(caps.length === 8, `${caps.length} work cards, expected 8`);
+  note(caps.every(c => c.text.length > 4), 'a card caption is empty');
+  note(caps.every(c => c.onTop),
+       `the caption is painted over on ${caps.filter(c => !c.onTop).map(c => c.cat).join(', ')}`);
+}
+
+/* ---- 9. the card crop can be TIGHTENED, and only on the card -------------
+   FALSELY PASSES IF: work.json were read instead of the page. The manifest
+   carrying a zoom proves nothing about whether anything applies it, and writing
+   it into `transform` -- the obvious way -- would be replaced by the card's own
+   hover rule, so the crop would spring back the moment the pointer arrived.
+   Read off the live element, and checked against the aim it is supposed to
+   tighten around. */
+{
+  const shown = await page.evaluate(() => {
+    const card = document.querySelector('.work-card[data-work-cat="character"]');
+    const img = [...card.querySelectorAll('.card-frame img')]
+      .find(i => (i.currentSrc || i.src || '').includes('bone-archer-1'));
+    if (!img) return null;
+    const cs = getComputedStyle(img);
+    // transform-origin computes to px and object-position to %, so the two are
+    // compared through the element's own box rather than as strings.
+    // offsetWidth/Height, not the bounding rect: the rect is the box AFTER the
+    // zoom, so measuring against it compares the origin to a box 1.9x too big.
+    const px = cs.transformOrigin.split(' ').map(parseFloat);
+    const pc = cs.objectPosition.split(' ').map(parseFloat);
+    return { scale: cs.scale, origin: cs.transformOrigin, pos: cs.objectPosition,
+             offBy: [Math.abs(px[0] - img.offsetWidth * pc[0] / 100),
+                     Math.abs(px[1] - img.offsetHeight * pc[1] / 100)] };
+  });
+  if (!shown) {
+    // Frames are primed one turn ahead; on a cold page the zoomed one may not
+    // be fetched yet. Saying so is the honest outcome, not a silent skip.
+    fail.push('bone-archer-1 was not among the character card frames');
+  } else {
+    console.log(`zoom: scale ${shown.scale}, origin ${shown.origin}, object-position ${shown.pos}`);
+    note(parseFloat(shown.scale) > 1.5, `the card zoom did not apply (scale ${shown.scale})`);
+    note(Math.max(...shown.offBy) < 2,
+         `the zoom happens around ${shown.origin} but the crop aims at ${shown.pos} ` +
+         `(${shown.offBy.map(n => n.toFixed(1)).join('/')}px apart)`);
+  }
+  const inStrip = await page.evaluate(async () => {
+    document.querySelector('.work-card[data-work-cat="character"]').click();
+    await new Promise(r => setTimeout(r, 900));
+    const thumb = [...document.querySelectorAll('.work-thumb img')]
+      .find(i => (i.currentSrc || i.src || '').includes('bone-archer-1'));
+    return thumb ? getComputedStyle(thumb).scale : 'no thumb';
+  });
+  console.log(`the same piece in the filmstrip: scale ${inStrip}`);
+  note(inStrip === 'none' || parseFloat(inStrip) === 1,
+       `the zoom leaked into the filmstrip thumb (scale ${inStrip})`);
+}
+
+/* ---- 10. a piece exactly at the threshold fills the width ----------------
+   FALSELY PASSES IF: a comfortably tall piece were used. osseous-2 is 1200x1600
+   -- w/h of exactly 0.75, exactly half the frame -- and the comparison was `<`
+   while the rule it implements reads "half or less", so it sat on the wrong
+   side of its own boundary and letterboxed with half the frame empty. A
+   boundary case is the only case that tests a boundary. */
+{
+  const at = await page.evaluate(async () => {
+    const thumbs = [...document.querySelectorAll('.work-thumb')];
+    const i = thumbs.findIndex(t => ((t.querySelector('img') || {}).currentSrc || '').includes('osseous-2'));
+    if (i < 0) return null;
+    thumbs[i].click();
+    await new Promise(r => setTimeout(r, 900));
+    const hero = document.getElementById('workHero');
+    const img = document.getElementById('workHeroImg');
+    const box = hero.getBoundingClientRect(), pic = img.getBoundingClientRect();
+    return { ratio: +(img.naturalWidth / img.naturalHeight).toFixed(4),
+             isTall: hero.classList.contains('is-tall'),
+             widthShare: Math.round(pic.width / box.width * 100),
+             scrollable: hero.scrollHeight > hero.clientHeight + 4 };
+  });
+  if (!at) fail.push('osseous-2 was not in the Characters filmstrip');
+  else {
+    console.log(`threshold piece osseous-2: ratio ${at.ratio}, is-tall=${at.isTall}, ` +
+                `${at.widthShare}% of the frame width, scrollable=${at.scrollable}`);
+    note(at.ratio === 0.75, `osseous-2 is ${at.ratio}, not the 0.75 boundary this tests`);
+    note(at.isTall, 'a piece exactly at TALL_RATIO was fitted instead of filled');
+    note(at.widthShare >= 98, `it uses ${at.widthShare}% of the frame width`);
+    note(at.scrollable, 'it fills the width but cannot be scrolled');
+  }
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+}
+
+/* ---- 11. the lockout countdown, and what it must not do ------------------
+   FALSELY PASSES IF: only the number were checked. Two separate faults, both
+   only visible while it counts: it hung out of flow exactly where the eyebrow
+   sits, printing over "ENTER CODE" and its padlock; and the per-second pop
+   scales it 1.35x, which on a full-width number escaped the <dialog> and gave
+   it a horizontal scrollbar that flickered under the panel on every tick.
+   Overflow is sampled ACROSS a whole tick, since the pop lasts 900ms of it. */
+{
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'), { timeout: 5000 });
+  await page.keyboard.press('Backquote');
+  await page.waitForFunction(() => document.getElementById('codeModal')?.open === true,
+    { timeout: 5000 });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.evaluate(() =>
+      document.querySelectorAll('#codePins .vault-pin').forEach(p => { p.value = ''; }));
+    await page.focus('#codePins .vault-pin');
+    for (const c of 'ZZZZZ') { await page.keyboard.type(c); await new Promise(r => setTimeout(r, 40)); }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  const locked = await page.waitForFunction(
+    () => !document.getElementById('codeTimer').hidden, { timeout: 12000 })
+    .then(() => true).catch(() => false);
+  note(locked, 'three wrong codes did not start the countdown');
+  if (locked) {
+    const state = await page.evaluate(() => {
+      const t = document.getElementById('codeTimer'), e = document.querySelector('.code-eyebrow');
+      const tb = t.getBoundingClientRect(), eb = e.getBoundingClientRect();
+      return {
+        number: t.textContent.trim(),
+        width: Math.round(tb.width),
+        eyebrow: getComputedStyle(e).visibility,
+        /* The eyebrow keeps its BOX on purpose -- visibility, not display, so
+           the panel does not change height for fifteen seconds and back. What
+           must not be true is that both are legible in the same place. */
+        bothVisible: getComputedStyle(e).visibility === 'visible' &&
+          !(tb.right < eb.left || tb.left > eb.right || tb.bottom < eb.top || tb.top > eb.bottom),
+      };
+    });
+    let peak = 0;
+    for (let i = 0; i < 26; i++) {
+      peak = Math.max(peak, await page.evaluate(() => {
+        const d = document.getElementById('codeModal');
+        return Math.max(d.scrollWidth - d.clientWidth, d.scrollHeight - d.clientHeight);
+      }));
+      await new Promise(r => setTimeout(r, 90));
+    }
+    console.log(`lockout: "${state.number}" ${state.width}px wide, eyebrow ${state.eyebrow}, ` +
+                `dialog overflow peak ${peak}px`);
+    note(/^[0-9]+$/.test(state.number), `the countdown reads "${state.number}"`);
+    note(!state.bothVisible, 'the countdown is printing over the ENTER CODE line');
+    note(state.width < 160, `the countdown is ${state.width}px wide; the pop scales it 1.35x`);
+    note(peak === 0, `the dialog gained ${peak}px of scrollable overflow during the countdown`);
+  }
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+}
+
 note(missing.length === 0, `404s: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
 
 await browser.close();

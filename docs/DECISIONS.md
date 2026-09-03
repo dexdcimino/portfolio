@@ -25,6 +25,35 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-02 — a card's crop can be tightened, in the card only
+
+**Decided.** `zoom` in `work-index.json` — a number, or `{scale, pos}` to
+tighten around a point of its own — baked into `work.json` and applied as the
+CSS `scale` property with `transform-origin` at the aim point. Two pieces use
+it. It applies to the card and to nothing else.
+
+**Replaced.** Aiming alone (`pos` / `focal_point.py`), which can only PAN a
+cover-crop, and the alternative of cropping a second master on disk.
+
+**Why.** Some pieces cannot be aimed into a good thumbnail: osseous-2 carries a
+painted gold border that a cover-crop leaves as a strip down each side, and
+bone-archer-1 is a three-view turnaround where the character is a fifth of the
+width. Cropping on disk would answer both and is refused elsewhere in this repo
+for good reasons — a second master to keep in sync, and a crop that is wrong at
+the next breakpoint. `scale` rather than `transform: scale()` because the card's
+hover rule already owns `transform` and the two are separate properties that
+compose; written into `transform` the crop would spring back on mouseover. Card
+only because the two boxes answer different questions: the card is a poster and
+may show the best part of a picture, while a thumb in a strip of 93 has to look
+like the piece it opens.
+
+**Reverse it if** the ladder ever serves the card a rung whose pixels the zoom
+outruns. This throws pixels away — 1.9x on a 900px rung is a 474px source in a
+282px box, still comfortable, but a wider card or a shorter ladder changes that
+arithmetic and the answer becomes a tighter master, not a bigger number.
+
+---
+
 ## 2026-09-02 — the leaving frame stays opaque instead of fading out
 
 **Decided.** A card or video frame going off screen keeps `opacity: 1` one

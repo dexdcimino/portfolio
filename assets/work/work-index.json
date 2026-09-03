@@ -18,6 +18,14 @@
   "          this: the measured value keeps heads in frame automatically, and",
   "          the one entry here is knights-of-edengale-3, an interior where the",
   "          top of the picture is ceiling rather than a subject.",
+  "  zoom    stem -> how far to tighten the CARD's cover-crop: a number, or",
+  "          { scale, pos } to tighten around a point of its own rather than",
+  "          around the measured one. object-position can",
+  "          only PAN a crop, and a piece with a painted border, or a",
+  "          turnaround sheet where the character is a fifth of the width,",
+  "          needs it tightened instead. Not the filmstrip thumb -- a thumb",
+  "          has to look like the piece it opens -- and not the hero, which",
+  "          fits the whole picture. Use sparingly: this throws away pixels.",
   "  order   projects, best first. A PROJECT is a stem minus its trailing -N,",
   "          so all five brigadier-bluebeard files move together -- the gallery",
   "          never splits one. Anything not named here follows alphabetically,",
@@ -37,7 +45,11 @@
    "id": "character",
    "label": "CHARACTERS",
    "blurb": "Game-ready characters and creatures, sculpted through to textured low-poly.",
-   "frames": ["brigadier-bluebeard-3", "corrupt-sentinel-1", "osseous-2", "mecha-bot-3", "kittens-3"],
+   "frames": ["brigadier-bluebeard-3", "bone-archer-1", "osseous-2", "mecha-bot-3", "kittens-3"],
+   "zoom": {
+    "bone-archer-1": { "scale": 1.9, "pos": "3% 64%" },
+    "osseous-2": 1.3
+   },
    "omit": ["ogre-3", "livetale-female-6"],
    "order": [
     "brigadier-bluebeard",

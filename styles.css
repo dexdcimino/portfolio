@@ -1178,6 +1178,13 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .concept-card{background:linear-gradient(150deg,#1b212a 0%,#0e1216 70%)}
 .concept-mark{position:absolute;inset:0;margin:auto;width:74px;height:74px;color:var(--accent);opacity:.4;transition:color var(--accent-ease),transform .55s cubic-bezier(.22,.61,.36,1)}
 .concept-card:hover .concept-mark{transform:scale(1.08)}
+/* ABOVE THE FRAMES. The reel's frames carry a z-index now -- the incoming one
+   at 3, the one leaving at 2, so a cross-fade never shows the panel between
+   them -- and these three are ordinary siblings after it, which used to be
+   enough. It is not any more: an element with a z-index paints over one
+   without, whatever the source order, and the titles vanished off all eight
+   cards the moment the reel got its stacking. */
+.card-shade,.card-meta,.card-go{z-index:4}
 .card-shade{position:absolute;inset:42% 0 0;background:linear-gradient(transparent,rgba(2,3,4,.94))}
 .card-meta{position:absolute;left:16px;right:40px;bottom:14px}
 .card-meta small{display:block;color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
@@ -3150,7 +3157,17 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
    down and let it back up every fifteen seconds would be worse than the wait
    it is announcing. bottom:100% puts its baseline just above the lockbox. */
 .vault-timer{
-  position:absolute;left:0;right:0;bottom:calc(100% + 6px);margin:0;
+  /* SHRINK-WRAPPED and centred with `translate`, not stretched left:0/right:0.
+     Two reasons, both measured. The per-second pop scales it 1.35x, and a
+     stretched number is as wide as the lockbox, so the scaled box escaped the
+     dialog -- which is overflow:auto by default -- and Chrome put a horizontal
+     scrollbar under the panel that flickered in on every tick. Shrink-wrapped
+     the number is about 50px, and 1.35 of that is well inside.
+     And `translate:` rather than `transform:translateX(-50%)` because the pop
+     animates `transform`: separate properties compose, where one transform
+     would replace the other and throw the number off centre. */
+  position:absolute;left:50%;right:auto;translate:-50% 0;width:max-content;
+  bottom:calc(100% + 6px);margin:0;
   text-align:center;pointer-events:none;
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
   font-size:clamp(34px,4.4vw,48px);font-weight:800;line-height:1;
@@ -3161,10 +3178,20 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
   transition:color var(--accent-ease);
 }
 .vault-timer[hidden]{display:none}
+
+/* WHILE THE COUNTDOWN IS UP IT IS THE ONLY THING ABOVE THE BOXES. It hangs out
+   of flow at bottom:100%, which in the two STACKED keypads -- the code prompt
+   and the notes gate -- is exactly where the eyebrow already sits, so the
+   number was printing straight over "ENTER CODE" and its padlock. The Idea
+   Vault is a strip: its eyebrow is BESIDE the boxes, not above, so it keeps it.
+   visibility, not display: the eyebrow holds its space, or the panel would
+   shrink for fifteen seconds and grow back. */
+.is-locked .code-eyebrow,
+.is-locked .notes-gate-eyebrow{visibility:hidden}
 @media(max-width:760px){
   /* Stacked, there is no room above the boxes to hang it in — the heading is
      there. It takes a line of its own instead. */
-  .vault-timer{position:static;margin:0 0 2px}
+  .vault-timer{position:static;translate:none;width:auto;margin:0 0 2px}
 }
 .keypad.is-open .vault-status{color:var(--accent)}
 .vault.is-open .vault-lock{color:var(--accent)}
@@ -3853,9 +3880,9 @@ body.modal-open{overflow:hidden}
 /* A VERY TALL PIECE FILLS THE WIDTH AND SCROLLS instead of being fitted to the
    height. Fitting a 400x1600 sheet into a 3:2 box leaves it using 16% of the
    frame width -- a column of unreadable thumbnail in the middle of a large
-   empty box. Above the threshold in script.js (w/h < 0.75, which is every
-   piece that would otherwise get half the frame or less) the image goes full
-   width, the frame scrolls, and each swap starts at the top.
+   empty box. At or past the threshold in script.js (w/h <= 0.75, which is
+   every piece that would otherwise get half the frame or less) the image
+   goes full width, the frame scrolls, and each swap starts at the top.
 
    position:static is the load-bearing part: the fitted rule centres the image
    with absolute inset and auto margins, and an absolutely positioned child

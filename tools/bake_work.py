@@ -168,6 +168,23 @@ def build() -> tuple[dict, list[str]]:
         # STEM rather than per frame, because how a picture wants to be cropped
         # belongs to the picture, not to the box it lands in.
         aimed = spec.get("pos", {})
+        # ZOOM, and THE CARD BOX ONLY. object-position can only PAN a
+        # cover-crop; it cannot tighten one. Two pieces need tightening and
+        # neither can be solved by aiming: osseous-2 carries a painted gold
+        # border that a cover-crop leaves as a strip down each side of the card,
+        # and bone-archer-1 is a three-view turnaround where the character is a
+        # fifth of the width.
+        #
+        # Not the filmstrip thumb, because those two boxes answer different
+        # questions. The card is a poster and may show the best part of a
+        # picture; a thumb in a strip of 93 has to look like the piece it opens,
+        # and a 2x crop into one head does not.
+        #
+        # A number is the scale. An object carries an aim with it -- {"scale":
+        # 2, "pos": "4% 10%"} -- because tightening around the measured centre
+        # is the wrong place as often as not: on a turnaround sheet the middle
+        # of the picture is the gap between two views.
+        zoomed = spec.get("zoom", {})
         shown = [p for p in on_disk if p.stem not in omit]
         if not shown:
             raise SystemExit(f"ERROR: every piece in {spec['id']}/ is omitted")
@@ -218,6 +235,17 @@ def build() -> tuple[dict, list[str]]:
                    else focal_point.positions(str(p), w, h))
             if p.stem in aimed:
                 pos = {name: aimed[p.stem] for name in focal_point.ASPECTS}
+            spun = zoomed.get(p.stem)
+            zoom = None
+            if spun is not None:
+                if isinstance(spun, dict):
+                    scale, aim = float(spun["scale"]), spun.get("pos")
+                else:
+                    scale, aim = float(spun), None
+                if not 1 < scale <= 4:
+                    raise SystemExit(f"ERROR: {spec['id']} zoom for {p.stem} is "
+                                     f"{scale}; 1 is untouched and 4 is absurd")
+                zoom = {"scale": scale, "pos": aim or pos.get("card")}
             measured += 0 if (prior and prior.get("stamp") == st) else 1
 
             items.append({
@@ -235,6 +263,9 @@ def build() -> tuple[dict, list[str]]:
                 # most pieces -- writing "50% 50%" 686 times would bury the ones
                 # that actually needed aiming.
                 "pos": pos,
+                # Absent, like an absent pos, means "nothing to do here" -- and
+                # the renderer reads a missing zoom as 1.
+                **({"zoom": zoom} if zoom else {}),
                 "srcset": srcsets(p),
             })
 
@@ -255,8 +286,14 @@ def build() -> tuple[dict, list[str]]:
 
         skipped = len(on_disk) - len(shown)
         aimed_here = sum(1 for it in items if it["pos"])
+        zoomed_here = sum(1 for it in items if it.get("zoom"))
+        unknown_zoom = [k for k in zoomed if k not in {p.stem for p in shown}]
+        if unknown_zoom:
+            raise SystemExit(f"ERROR: {spec['id']} zoom names pieces that are not "
+                             f"shown: {', '.join(sorted(unknown_zoom))}")
         notes.append(f"  {spec['id']:12s} {len(shown):3d} shown, {skipped:2d} omitted, "
-                     f"{len(frames)} card frame(s), {aimed_here:3d} re-aimed")
+                     f"{len(frames)} card frame(s), {aimed_here:3d} re-aimed, "
+                     f"{zoomed_here} zoomed")
 
     if len(cats) != len(index["categories"]):
         raise SystemExit("ERROR: built fewer categories than the index declares")
@@ -343,10 +380,18 @@ def cases() -> int:
          "a category with every piece omitted"),
         (lambda i: i.__setitem__("categories", []),
          "an index that declares no categories at all"),
+        (lambda i: i["categories"][0].update(zoom={"nope-99": 2}),
+         "a zoom naming a piece that is not there"),
+        (lambda i: i["categories"][0].update(
+            zoom={i["categories"][0]["frames"][0]: 9}),
+         "a zoom of 9x"),
+        (lambda i: i["categories"][0].update(
+            zoom={i["categories"][0]["frames"][0]: 1}),
+         "a zoom of 1, which is a no-op written as if it were a setting"),
     ]
     # The size of the table is itself asserted: a loop that emits checks emits
     # none when its subject is empty, and everything still passes.
-    assert len(checks) == 4, "the refusal table lost a case"
+    assert len(checks) == 7, "the refusal table lost a case"
 
     ok = sum(refuses(m, w) for m, w in checks)
 
@@ -370,13 +415,21 @@ def cases() -> int:
     # ...and one control, proving the live subject is still discovered. Without
     # this the four above would pass just as happily against an empty repo.
     total = sum(len(c["items"]) for c in manifest["categories"])
-    live = len(manifest["categories"]) >= 4 and total >= 100 and not split
+    # ...and the zooms are counted, not just permitted. Every refusal above
+    # passes just as happily against a manifest where the feature does nothing.
+    zooms = sum(1 for c in manifest["categories"] for it in c["items"] if it.get("zoom"))
+    declared = sum(len(c.get("zoom", {})) for c in real["categories"])
+    if zooms != declared:
+        print(f"  ZOOMS LOST: {declared} declared, {zooms} in the manifest",
+              file=sys.stderr)
+    live = (len(manifest["categories"]) >= 4 and total >= 100 and not split
+            and zooms == declared)
     if not live:
         print(f"  CONTROL FAILED: only {len(manifest['categories'])} categor(ies) "
               f"and {total} piece(s) found", file=sys.stderr)
 
     print(f"bake_work --cases: {ok}/{len(checks)} refusals, control "
-          f"{'ok' if live else 'FAILED'} ({total} live pieces)")
+          f"{'ok' if live else 'FAILED'} ({total} live pieces, {zooms} zoomed)")
     return 0 if ok == len(checks) and live else 1
 
 

@@ -1259,6 +1259,33 @@ function loadWork() {
 
 const workCategories = () => workData?.categories ?? [];
 
+/* TIGHTEN the cover-crop, for the few pieces that need it. object-position can
+   only pan, and a piece with a painted border round it (osseous) or a
+   three-view turnaround sheet (bone-archer) cannot be fixed by aiming: the
+   thing you want bigger has to actually get bigger.
+
+   `scale`, not `transform: scale()`. The card's hover rule already owns
+   `transform`, and the two are separate properties that compose -- writing the
+   zoom into `transform` would mean the hover replaced it and the crop jumped
+   back on mouseover. The origin is the aim point, so tightening happens AROUND
+   what focal_point.py picked rather than around the middle of the box.
+
+   Hero is excluded by the caller's `kind`: it fits the whole piece and has
+   nothing to crop. */
+function aimCrop(img, item, kind) {
+  const zoom = kind === 'card' ? item.zoom : null;
+  if (zoom) {
+    img.style.scale = String(zoom.scale);
+    // The aim is BOTH where the crop looks and what the zoom happens around.
+    // Two different points would fight each other.
+    if (zoom.pos) img.style.objectPosition = zoom.pos;
+    img.style.transformOrigin = zoom.pos || item.pos?.card || '50% 50%';
+  } else {
+    img.style.removeProperty('scale');
+    img.style.removeProperty('transform-origin');
+  }
+}
+
 // Fill a <picture> from one manifest item. `kind` is which of the three
 // places it is being drawn — 'hero', 'thumb' or 'card' — and it selects only
 // the `sizes` string: all three read one ladder and therefore share one
@@ -1272,6 +1299,7 @@ function paintPicture(sources, img, item, kind) {
   const pos = item.pos?.[kind];
   if (pos) img.style.objectPosition = pos;
   else img.style.removeProperty('object-position');
+  aimCrop(img, item, kind);
   sources.forEach(source => {
     const srcset = item.srcset?.[source.type === 'image/avif' ? 'avif' : 'webp'];
     // A master below the ladder's lowest rung has no derivatives at all —
@@ -1410,10 +1438,18 @@ function buildWorkStrip(items) {
 // Decode before swapping so a half-painted frame can never land in the hero,
 // and token the swap the way swapMascots does: click through the strip quickly
 // and an earlier, slower decode must not finish last and win.
-/* Below this the piece fills the frame's WIDTH and the frame scrolls, rather
-   than being fitted to its height. A 3:2 frame fits a 400x1600 sheet to the
-   height and leaves it 16% of the frame wide; 0.75 is where fitting would start
-   giving a piece half the frame or less, and it catches 49 of the 343. */
+/* At or below this the piece fills the frame's WIDTH and the frame scrolls,
+   rather than being fitted to its height. A 3:2 frame fits a 400x1600 sheet to
+   the height and leaves it 16% of the frame wide; 0.75 is where fitting starts
+   giving a piece HALF THE FRAME OR LESS, and it catches 51 of the 343.
+
+   AT OR BELOW, not below. The comparison used to be `<` while the sentence
+   above it said "half or less", and the two osseous pieces are 1200x1600 --
+   exactly 0.75, exactly half the frame -- so they sat on the wrong side of a
+   boundary the rule was written to include, fitted to the height with half the
+   frame empty either side. A threshold that is a stated rule has to be
+   inclusive of the rule's own boundary case, or the boundary is where it is
+   wrong. */
 const TALL_RATIO = 0.75;
 
 function paintWorkHero(item) {
@@ -1425,7 +1461,7 @@ function paintWorkHero(item) {
     if (token !== workHeroToken) return;
     paintPicture(workHeroSources, workHeroImg, item, 'hero');
     workHeroImg.alt = item.title;
-    const tall = item.w && item.h && item.w / item.h < TALL_RATIO;
+    const tall = item.w && item.h && item.w / item.h <= TALL_RATIO;
     workHero.classList.toggle('is-tall', !!tall);
     // Every piece starts at its top. Carrying the last one's scroll position
     // into a different image lands somewhere arbitrary in the middle of it.
@@ -1808,6 +1844,7 @@ if (workModal) {
         // aim its crop is left to say, because a <picture> block in the
         // markup carries no object-position.
         if (item.pos?.card) reel.imgs[0].style.objectPosition = item.pos.card;
+        aimCrop(reel.imgs[0], item, 'card');
       } else {
         reel.frames.push(addFrame(reel));
       }
@@ -3477,6 +3514,10 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     status.classList.remove('is-fading');
     say('TOO MANY TRIES', 'wrong');
     pins.forEach(p => { p.disabled = true; });
+    /* The countdown hangs out of flow above the boxes, which in the stacked
+       keypads is where the eyebrow is; is-locked is what lets the CSS stand
+       that eyebrow down rather than print the number over it. */
+    root.classList.add('is-locked');
     if (timer) { timer.hidden = false; tick(); }
   }
 
@@ -3495,6 +3536,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   function endLockout() {
     clearTimeout(tickTimer);
     lockedUntil = 0;
+    root.classList.remove('is-locked');
     if (timer) timer.hidden = true;
     pins.forEach(p => { p.disabled = false; });
     say(resting, null);

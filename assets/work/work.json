@@ -15,7 +15,7 @@
      "index": 2
     },
     {
-     "index": 8
+     "index": 5
     },
     {
      "index": 16
@@ -116,6 +116,10 @@
      "w": 1600,
      "h": 1018,
      "pos": {},
+     "zoom": {
+      "scale": 1.9,
+      "pos": "3% 64%"
+     },
      "srcset": {
       "avif": "assets/derived/work/character/bone-archer-1-900.avif?v=6a9b37ab 900w, assets/derived/work/character/bone-archer-1-600.avif?v=6a9b37ab 600w, assets/derived/work/character/bone-archer-1-400.avif?v=6a9b37ab 400w",
       "webp": "assets/derived/work/character/bone-archer-1-900.webp?v=6a9b37ab 900w, assets/derived/work/character/bone-archer-1-600.webp?v=6a9b37ab 600w, assets/derived/work/character/bone-archer-1-400.webp?v=6a9b37ab 400w"
@@ -284,6 +288,10 @@
      "pos": {
       "card": "50% 6%",
       "thumb": "50% 4%"
+     },
+     "zoom": {
+      "scale": 1.3,
+      "pos": "50% 6%"
      },
      "srcset": {
       "avif": "assets/derived/work/character/osseous-2-900.avif?v=d17d1db0 900w, assets/derived/work/character/osseous-2-600.avif?v=d17d1db0 600w, assets/derived/work/character/osseous-2-400.avif?v=d17d1db0 400w",
