@@ -18,13 +18,13 @@
      "index": 5
     },
     {
-     "index": 16
-    },
-    {
-     "index": 20
+     "index": 19
     },
     {
      "index": 23
+    },
+    {
+     "index": 10
     }
    ],
    "items": [
@@ -154,6 +154,61 @@
      "srcset": {
       "avif": "assets/derived/work/character/bone-archer-3-600.avif?v=865856ee 600w, assets/derived/work/character/bone-archer-3-400.avif?v=865856ee 400w",
       "webp": "assets/derived/work/character/bone-archer-3-600.webp?v=865856ee 600w, assets/derived/work/character/bone-archer-3-400.webp?v=865856ee 400w"
+     }
+    },
+    {
+     "stem": "male-character-high-poly-1",
+     "stamp": "2714e148",
+     "title": "Male Character (High Poly)",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/male-character-high-poly-1.webp",
+     "w": 655,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/male-character-high-poly-1-600.avif?v=2714e148 600w, assets/derived/work/character/male-character-high-poly-1-400.avif?v=2714e148 400w",
+      "webp": "assets/derived/work/character/male-character-high-poly-1-600.webp?v=2714e148 600w, assets/derived/work/character/male-character-high-poly-1-400.webp?v=2714e148 400w"
+     }
+    },
+    {
+     "stem": "male-character-high-poly-2",
+     "stamp": "1fcb05a7",
+     "title": "Male Character (High Poly)",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/male-character-high-poly-2.webp",
+     "w": 1244,
+     "h": 1600,
+     "pos": {
+      "card": "50% 24%",
+      "thumb": "50% 17%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/male-character-high-poly-2-900.avif?v=1fcb05a7 900w, assets/derived/work/character/male-character-high-poly-2-600.avif?v=1fcb05a7 600w, assets/derived/work/character/male-character-high-poly-2-400.avif?v=1fcb05a7 400w",
+      "webp": "assets/derived/work/character/male-character-high-poly-2-900.webp?v=1fcb05a7 900w, assets/derived/work/character/male-character-high-poly-2-600.webp?v=1fcb05a7 600w, assets/derived/work/character/male-character-high-poly-2-400.webp?v=1fcb05a7 400w"
+     }
+    },
+    {
+     "stem": "male-character-high-poly-3",
+     "stamp": "b4875841",
+     "title": "Male Character (High Poly)",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/male-character-high-poly-3.webp",
+     "w": 1471,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "zoom": {
+      "scale": 1.75,
+      "pos": "100% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/male-character-high-poly-3-900.avif?v=b4875841 900w, assets/derived/work/character/male-character-high-poly-3-600.avif?v=b4875841 600w, assets/derived/work/character/male-character-high-poly-3-400.avif?v=b4875841 400w",
+      "webp": "assets/derived/work/character/male-character-high-poly-3-900.webp?v=b4875841 900w, assets/derived/work/character/male-character-high-poly-3-600.webp?v=b4875841 600w, assets/derived/work/character/male-character-high-poly-3-400.webp?v=b4875841 400w"
      }
     },
     {
@@ -563,57 +618,6 @@
      "srcset": {
       "avif": "assets/derived/work/character/low-res-enemies-6-900.avif?v=76b5f966 900w, assets/derived/work/character/low-res-enemies-6-600.avif?v=76b5f966 600w, assets/derived/work/character/low-res-enemies-6-400.avif?v=76b5f966 400w",
       "webp": "assets/derived/work/character/low-res-enemies-6-900.webp?v=76b5f966 900w, assets/derived/work/character/low-res-enemies-6-600.webp?v=76b5f966 600w, assets/derived/work/character/low-res-enemies-6-400.webp?v=76b5f966 400w"
-     }
-    },
-    {
-     "stem": "male-character-high-poly-1",
-     "stamp": "2714e148",
-     "title": "Male Character (High Poly)",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/male-character-high-poly-1.webp",
-     "w": 655,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/male-character-high-poly-1-600.avif?v=2714e148 600w, assets/derived/work/character/male-character-high-poly-1-400.avif?v=2714e148 400w",
-      "webp": "assets/derived/work/character/male-character-high-poly-1-600.webp?v=2714e148 600w, assets/derived/work/character/male-character-high-poly-1-400.webp?v=2714e148 400w"
-     }
-    },
-    {
-     "stem": "male-character-high-poly-2",
-     "stamp": "1fcb05a7",
-     "title": "Male Character (High Poly)",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/male-character-high-poly-2.webp",
-     "w": 1244,
-     "h": 1600,
-     "pos": {
-      "card": "50% 24%",
-      "thumb": "50% 17%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/male-character-high-poly-2-900.avif?v=1fcb05a7 900w, assets/derived/work/character/male-character-high-poly-2-600.avif?v=1fcb05a7 600w, assets/derived/work/character/male-character-high-poly-2-400.avif?v=1fcb05a7 400w",
-      "webp": "assets/derived/work/character/male-character-high-poly-2-900.webp?v=1fcb05a7 900w, assets/derived/work/character/male-character-high-poly-2-600.webp?v=1fcb05a7 600w, assets/derived/work/character/male-character-high-poly-2-400.webp?v=1fcb05a7 400w"
-     }
-    },
-    {
-     "stem": "male-character-high-poly-3",
-     "stamp": "b4875841",
-     "title": "Male Character (High Poly)",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/male-character-high-poly-3.webp",
-     "w": 1471,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/male-character-high-poly-3-900.avif?v=b4875841 900w, assets/derived/work/character/male-character-high-poly-3-600.avif?v=b4875841 600w, assets/derived/work/character/male-character-high-poly-3-400.avif?v=b4875841 400w",
-      "webp": "assets/derived/work/character/male-character-high-poly-3-900.webp?v=b4875841 900w, assets/derived/work/character/male-character-high-poly-3-600.webp?v=b4875841 600w, assets/derived/work/character/male-character-high-poly-3-400.webp?v=b4875841 400w"
      }
     },
     {

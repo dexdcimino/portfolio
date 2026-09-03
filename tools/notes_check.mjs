@@ -397,32 +397,72 @@ const marker = `harness-${Date.now()}`;
   await page.close();
 }
 
-/* ---- 6. the Idea Vault opens it ------------------------------------------
+/* ---- 6. the Idea Vault opens it, and the SERVER still decides -------------
    FALSELY PASSES IF: the overlay were opened by URL instead. This types the
-   code into the VAULT's own keypad and waits for the notes dialog. */
+   code into the VAULT's own keypad and waits for the notes dialog.
+
+   WHAT IT ASSERTS, AND WHY IT IS NOT "the keypad is still up". The vault hands
+   the code it was given to the notes overlay, which tries it as the notes
+   password AGAINST THE SERVER (script.js reveal() -> notes:code). In production
+   the two are different strings and the gate stands. Under this harness they
+   are the same one -- the dev server is started with NOTES_PASSWORD=notes and
+   NOTES is also the vault code -- so the attempt SUCCEEDS, and the old
+   assertion that the keypad is still showing was really asserting that the
+   round trip had not landed yet. It passed or failed on the speed of a fetch:
+   green most runs, red the ones where the response beat the assertion.
+
+   The property worth protecting is not "the notes stay locked" -- it is that
+   nothing decides that locally. So: the unlock must go to /api/notes/unlock,
+   and the notes must not be in the page before that response. Both hold
+   whichever way the server answers, and the case reports which configuration
+   it ran under rather than depending on one. */
 {
   const page = await newPage();
+  const unlocks = [];
+  page.on('response', (res) => {
+    if (/\/api\/notes\/unlock/.test(res.url())) unlocks.push(res.status());
+  });
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle2', timeout: 60000 });
   await page.$eval('#vault', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await page.waitForSelector('#vaultPins .vault-pin', { visible: true, timeout: 10000 });
+
+  const leakedEarly = [];
   await page.focus('#vaultPins .vault-pin');
   for (const c of 'notes') { await page.keyboard.type(c); await new Promise(r => setTimeout(r, 60)); }
   const opened = await page.waitForFunction(
     () => document.getElementById('notesModal') &&
           document.getElementById('notesModal').open === true, { timeout: 40000 })
     .then(() => true).catch(() => false);
+  // Sampled the moment it opens, BEFORE any hand-off can have been answered.
+  if (await page.evaluate(() => document.documentElement.outerHTML.includes('Pick a new game name'))) {
+    leakedEarly.push('at open');
+  }
+  // Then let the hand-off settle, so what is measured next is a finished state
+  // rather than whichever half of it the clock landed in.
+  await new Promise(r => setTimeout(r, 2500));
   const gate = await page.evaluate(() => ({
     keypad: !document.getElementById('notesGate').hidden,
     editorHidden: document.getElementById('notesEditor').hidden,
     inDom: document.documentElement.outerHTML.includes('Pick a new game name'),
   }));
-  console.log(`vault code NOTES: opened=${opened}, on the keypad=${gate.keypad}, ` +
-              `editor hidden=${gate.editorHidden}`);
+  const coincide = unlocks.some(s => s === 200);
+  console.log(`vault code NOTES: opened=${opened}, ${unlocks.length} unlock request(s) ` +
+              `${unlocks.join('/') || '-'}, on the keypad=${gate.keypad}, ` +
+              `editor hidden=${gate.editorHidden} ` +
+              `(this server's notes password ${coincide ? 'IS' : 'is not'} the vault code)`);
   note(opened, 'the vault code did not open the notes overlay');
-  // It opens the DOOR, not the notes: the server check still stands.
-  note(gate.keypad && gate.editorHidden,
-       'the vault opened the overlay past its own password');
-  note(!gate.inDom, 'the vault opening leaked the notes into the page');
+  note(unlocks.length > 0,
+       'the vault opened the notes with no request to /api/notes/unlock — something local decided');
+  note(leakedEarly.length === 0,
+       'the notes were already in the page when the overlay opened, before any server answer');
+  /* And the outcome has to MATCH what the server said, in both directions: a
+     200 and a keypad still up would mean the answer was ignored, and a refusal
+     with the editor open would be the bypass this whole design exists to
+     prevent. */
+  note(coincide ? (!gate.keypad && !gate.editorHidden) : (gate.keypad && gate.editorHidden),
+       `the server ${coincide ? 'accepted' : 'refused'} the code but the overlay is ` +
+       `${gate.keypad ? 'on the keypad' : 'in the editor'}`);
+  note(coincide || !gate.inDom, 'the vault opening leaked the notes into the page');
   await page.screenshot({ path: join(SHOTS, 'notes-from-vault.png') });
   await page.close();
 }

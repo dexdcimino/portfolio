@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=206" />
+  <link rel="stylesheet" href="styles.css?v=208" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -417,19 +417,20 @@
               <span class="collab-soon-tape"></span>
             </div>
             <button class="fv-info" type="button" aria-expanded="false"
-                    aria-label="About TITLE PLACE HOLDER"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
+                    aria-label="About TITLE COMING!"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
             <p class="fv-desc" hidden>The game itself — a world you drop into as a guest, with the two editors below built to feed it. This slot takes the trailer once it is cut.</p>
-            <button class="fv-play" type="button" aria-label="Play TITLE PLACE HOLDER">
+            <button class="fv-play" type="button" aria-label="Play TITLE COMING!">
               <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
             </button>
             <span class="card-shade"></span>
-            <span class="card-meta"><small>Current Game Project</small><strong>TITLE PLACE HOLDER</strong></span>
+            <span class="card-meta"><small>Current Game Project</small><strong>TITLE COMING!</strong></span>
             <!-- The wallpaper download button at its large size. A
                  <button>, not an <a>: an href makes the browser print the
                  whole asset URL in its status bubble on every hover, and
                  that bubble is chrome no page can style. -->
             <button class="wp-dl wp-dl-lg fv-dl" type="button"
-                    aria-label="Download the game" data-tip="Download">
+                    aria-label="Download the game" data-tip="Download the Game&#10;Placeholder"
+                    data-tip-pos="above" data-tip-kind="loud">
               <span class="icon" data-icon="download" aria-hidden="true"></span>
             </button>
           </article>
@@ -671,6 +672,15 @@
              Artwork is named for what it depicts, not for the game, so a row
              points at its file through data-art rather than by slug. -->
         <a class="game-art" id="gameArt" aria-hidden="true">
+          <!-- No picture, because there is nothing to show yet. Without a
+               shot of its own showArt() leaves the previous game's artwork
+               up, so hovering TITLE COMING! would show Surveyor. The hazard
+               strip is the featured stage's, reused rather than redrawn. -->
+          <span class="game-art-shot game-art-soon" data-art="soon-art" hidden>
+            <span class="collab-soon-tape"></span>
+            <strong>UNDER CONSTRUCTION</strong>
+            <span class="collab-soon-tape"></span>
+          </span>
           <span class="game-art-shot" data-art="stickland-art" hidden>
             <!-- img src="assets/thumbnails/stickland-art.png" slot="game-art" alt="" class="game-art-img" -->
             <picture>
@@ -799,6 +809,20 @@
            data-genre="EXPLORATION" data-dim="3D" data-players="SOLO"
            data-desc-lead="One transforming craft surveys an uncharted system by land, sea, and air."
            data-desc-body="Drive over dunes, skim oceans, then climb until altitude doubles your speed and the next of six worlds is thirty seconds out. Claim geysers with colonizers and hold them against raiders. Built in Babylon.js with an x-ray survey overlay."><span>04</span><strong>SURVEYOR</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play-round"></span></span></a>
+        <!-- 05 IS A PLACEHOLDER and says so in every field rather than
+             leaving holes: TBD in all three tag slots (added to GAME_TAGS,
+             so it is a value the vocabulary knows rather than one it
+             shouts about), the hazard strip instead of artwork, and no
+             gallery key at all -- which paints GALLERY (0) and greys the
+             button through the same .is-empty path every empty game uses.
+             A <div>, not an <a>: there is nowhere to go yet, and an anchor
+             with no href is a link that does nothing. tabindex keeps it
+             reachable, because the row IS the control that shows the copy. -->
+        <div class="stack-row stack-row-soon" data-game="title-coming"
+           data-art="soon-art" tabindex="0"
+           data-genre="TBD" data-dim="TBD" data-players="TBD"
+           data-desc-lead="The one being built now — a multiplayer sandbox you drop into with friends."
+           data-desc-body="Placeholder. The name, the tags and the shots all land here once there is something worth showing; the two editors in the AI Lab are being built to feed it."><span>05</span><strong>TITLE COMING!</strong><small>Multiplayer Sandbox</small></div>
         <div class="game-desc" id="gameDesc">
           <strong class="game-desc-lead"></strong>
           <p class="game-desc-body"></p>
@@ -854,6 +878,28 @@
                MindSplit, DexNote, NodeBlast, dexddc. The icon block in each
                card is generated from the one-line directive by
                tools/bake_markup.py; never typed. -->
+          <!-- PLACEHOLDER, and the only card with nowhere to go: no
+               data-app-modal, no gallery key, and a <span> where the others
+               carry an <a>. An anchor with no href is a link that does
+               nothing, and a disabled-looking eyeball chip would read as a
+               control that is broken rather than one that does not exist
+               yet -- so the eye here is an OUTLINE with no chip behind it,
+               which is a mark, and the icon plate carries a "?" in the
+               accent at the same size and radius as the real ones.
+               It leads the list because it is the next thing; the panel
+               still RESTS on the first real app (see initAppInfo). -->
+          <article class="ai-card ai-card-soon is-wip"
+             data-kind="TBD" data-stack="TBD"
+             data-desc-lead="The two editors below, as one tool."
+             data-desc-body="Placeholder. Avatar and world building in a single editor, feeding the game above it. Nothing to open yet — this row is a stand-in for the shape of the thing.">
+            <span class="ai-card-iconwrap ai-card-iconwrap-soon" aria-hidden="true">
+              <span class="icon" data-icon="question"></span>
+            </span>
+            <span class="ai-card-link"><strong>Avatar / World Editor</strong><small>In progress</small></span>
+            <span class="ai-card-eye ai-card-eye-soon" aria-hidden="true">
+              <span class="icon" data-icon="eye-outline"></span>
+            </span>
+          </article>
           <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The
                title link is the LISTING, not the demo — it is also the phone
                path, and a mock VS Code window is not something to hand a
@@ -4544,6 +4590,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=200"></script>
+  <script src="script.js?v=202"></script>
 </body>
 </html>

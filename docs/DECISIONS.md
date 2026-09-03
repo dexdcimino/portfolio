@@ -25,6 +25,32 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-03 — the vault case asserts the request, not the lock
+
+**Decided.** `notes_check.mjs` case 6 asserts that the vault's hand-off goes to
+`/api/notes/unlock`, that the notes are not in the page before that response,
+and that the overlay's state MATCHES whatever the server answered — in both
+directions. It reports which configuration it ran under.
+
+**Replaced.** Asserting that the notes keypad is still showing after the vault
+opens the overlay.
+
+**Why.** That assertion was really asserting that a fetch had not landed yet.
+The vault hands its code to the notes overlay to try as the notes password
+(`reveal()` -> `notes:code`), and under this harness the two strings are the
+same one — the dev server runs with `NOTES_PASSWORD=notes` and NOTES is also
+the vault code — so the attempt succeeds and the keypad goes away. Measured at
+two failures in three runs, which is what sent a session chasing a product bug
+that was not there. The property worth protecting was never "the notes stay
+locked": it is that nothing local decides, and that survives either answer.
+
+**Reverse it if** the harness ever runs the dev server with a notes password
+that is not the vault code. Then the strict form is meaningful again and should
+come back — but as an assertion that reads the configuration rather than
+assuming it, because assuming it is what broke this the first time.
+
+---
+
 ## 2026-09-02 — a card's crop can be tightened, in the card only
 
 **Decided.** `zoom` in `work-index.json` — a number, or `{scale, pos}` to

@@ -101,8 +101,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   day the reel got its layers. A card's crop can also be TIGHTENED, not only
   aimed -- `zoom` in `work-index.json`, a number or `{scale, pos}`, applied as
   the `scale` property so the hover rule's `transform` cannot replace it, and
-  ONLY in the card: a filmstrip thumb has to look like the piece it opens),
-  one `initTabs()`
+  ONLY in the card: a filmstrip thumb has to look like the piece it opens.
+  Inside a `.fv-item` the fade is put BACK under everything at `z-index:1` --
+  there the frames are the items themselves, and 4 landed it on top of the
+  caption and the download button), one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +
   lightbox, self-building from `.wp-item` figures, instantiated TWICE:
   Wallpapers (`wp`) and Concepts (`cn`). The ids are a prefix and the arrows

@@ -1741,8 +1741,13 @@ if (workModal) {
         event.stopPropagation();
         const tip = button.querySelector('.wp-dl-tip');
         if (tip) return;
-        button.setAttribute('data-tip', 'Build coming soon');
-        setTimeout(() => button.setAttribute('data-tip', 'Download'), 2200);
+        const had = { tip: button.dataset.tip, kind: button.dataset.tipKind };
+        button.dataset.tip = 'Build coming soon';
+        delete button.dataset.tipKind;          // the answer is one plain line
+        setTimeout(() => {
+          button.dataset.tip = had.tip;
+          if (had.kind) button.dataset.tipKind = had.kind;
+        }, 2200);
       });
     });
   }
@@ -3344,6 +3349,20 @@ let flashTip = () => {};
        the one there is least often room on. Flipping to the inside keeps the
        bubble beside its mark and centred, which is the part that matters;
        above is kept as the last resort for a viewport too narrow for either. */
+    /* Opt-in ABOVE. The default below-placement is right for a mark in a
+       column of text, but this button sits in the bottom-right corner of a
+       card, where below is off the card and often off the window -- the
+       fallback would fire every time, and a bubble that is sometimes above and
+       sometimes below reads as a bug. Above with a fallback to below is the
+       same rule the other way round, for a control that lives at the bottom. */
+    if (el.dataset.tipPos === 'above') {
+      const above = r.top - t.height - GAP;
+      const at = above >= 6 ? above : r.bottom + GAP;
+      const mid = r.left + r.width / 2 - t.width / 2;
+      tip.style.left = `${Math.round(Math.max(6, Math.min(mid, window.innerWidth - t.width - 6)))}px`;
+      tip.style.top = `${Math.round(at)}px`;
+      return;
+    }
     if (el.dataset.tipPos === 'right') {
       const fitsRight = r.right + GAP + t.width <= window.innerWidth - 6;
       const fitsLeft = r.left - GAP - t.width >= 6;
@@ -3378,7 +3397,25 @@ let flashTip = () => {};
     current = el;
     // Two-line tips opt in by containing a newline; see #tip.is-multi.
     tip.classList.toggle('is-multi', text.includes('\n'));
-    tip.textContent = text;
+    /* LOUD: a headline in the accent with a quieter line under it, for the one
+       or two controls that are announcing something rather than labelling
+       themselves. Built from nodes, like flashTip below and for the same
+       reason -- the text is the page's and never goes near the parser. */
+    const loud = el.dataset.tipKind === 'loud';
+    tip.classList.toggle('is-loud', loud);
+    if (loud) {
+      const [lead, ...rest] = text.split('\n');
+      const line = (cls, words) => {
+        const el2 = document.createElement('span');
+        el2.className = cls;
+        el2.textContent = words;
+        return el2;
+      };
+      tip.replaceChildren(line('tip-lead', lead),
+                          ...(rest.length ? [line('tip-sub', rest.join(' '))] : []));
+    } else {
+      tip.textContent = text;
+    }
     tip.classList.add('is-on');
     // Measure after the text lands, or the first show is positioned off the
     // previous label's width.
@@ -3397,6 +3434,7 @@ let flashTip = () => {};
      innerHTML — the word is the caller's and never touches the parser. */
   flashTip = (el, word, bang = '!') => {
     clearTimeout(flashing);
+    tip.classList.remove('is-loud');
     tip.textContent = word;
     if (bang) {
       const mark = document.createElement('span');
@@ -5482,7 +5520,12 @@ let openReader = () => {};
      the panel back to whatever was last clicked — seeded on the first row, so
      with nothing ever clicked the section rests on the top app. Keyboard
      gets the same deal through focusout on the list. */
-  let selected = cards[0];
+  /* The list RESTS on the first real app, not on cards[0]. The placeholder
+     leads the list because it is the next thing being built, but a panel whose
+     resting state is "nothing to show yet" describes the section as empty when
+     four apps under it are live. */
+  let selected = cards.find(c => !c.classList.contains('ai-card-soon')) || cards[0];
+  current = selected;
   const setSelected = (card) => {
     selected = card;
     for (const c of cards) c.classList.toggle('is-current', c === selected);
@@ -5637,7 +5680,7 @@ let openReader = () => {};
      not exist yet and the button kept the bare "GALLERY" it ships with. A
      microtask runs after the whole script has finished, which is the earliest
      moment every module on the page is listening. */
-  queueMicrotask(() => { setSelected(cards[0]); show(cards[0]); reserve(); });
+  queueMicrotask(() => { setSelected(selected); show(selected); reserve(); });
 })();
 
 /* --- Collab project info -------------------------------------------------- */
@@ -6442,10 +6485,15 @@ const LOOP_MODES = ['off', 'all', 'one'];
      A value outside this is rendered anyway (a slightly-off word beats a hole
      in the row) but shouted about, so it is caught in the session that
      introduced it rather than three games later. */
+  /* TBD is in all three, deliberately. The fifth row is a placeholder and has
+     to fill every slot -- a blank tag reads as a bug, and a made-up genre for a
+     game that has none is worse than saying so. Putting it in the vocabulary is
+     what stops the console warning below firing on a value that is correct. */
   const GAME_TAGS = {
-    genre:   v => ['SURVIVAL', 'SANDBOX', 'SHOOTER', 'PLATFORMER', 'PUZZLE', 'EXPLORATION'].includes(v),
-    dim:     v => ['2D', '3D'].includes(v),
-    players: v => v === 'SOLO' || /^\d+-\d+P$/.test(v),
+    genre:   v => ['SURVIVAL', 'SANDBOX', 'SHOOTER', 'PLATFORMER', 'PUZZLE',
+                   'EXPLORATION', 'TBD'].includes(v),
+    dim:     v => ['2D', '3D', 'TBD'].includes(v),
+    players: v => v === 'SOLO' || v === 'TBD' || /^\d+-\d+P$/.test(v),
   };
   const tagSlots = [...document.querySelectorAll('#gameTags .game-tag')];
 
@@ -6511,8 +6559,15 @@ const LOOP_MODES = ['off', 'all', 'one'];
     const rel = row.getAttribute('rel');
     if (rel) art.setAttribute('rel', rel); else art.removeAttribute('rel');
 
-    art.setAttribute('aria-label', `Open ${gameName(row)}`);
-    art.removeAttribute('aria-hidden');
+    /* A row with no destination leaves the frame decorative. Labelling it
+       "Open TITLE COMING!" would announce a link that is not there. */
+    if (href && href !== '#') {
+      art.setAttribute('aria-label', `Open ${gameName(row)}`);
+      art.removeAttribute('aria-hidden');
+    } else {
+      art.removeAttribute('aria-label');
+      art.setAttribute('aria-hidden', 'true');
+    }
   }
 
   for (const row of rows) {

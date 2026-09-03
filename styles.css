@@ -143,6 +143,7 @@ img{max-width:100%}
 [data-icon="contact"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M4 5h16v11H8l-4 3V5Zm3 4h10M7 12h7'/%3E%3C/svg%3E")} /* src: assets/icons/contact.svg */
 [data-icon="copy"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' d='M9 9h10v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2'/%3E%3C/svg%3E")} /* src: assets/icons/copy.svg */
 [data-icon="download"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M12 3v12m-5-5 5 5 5-5M5 20h14'/%3E%3C/svg%3E")} /* src: assets/icons/download.svg */
+[data-icon="eye-outline"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.7' d='M12 5.1C7.2 5.1 3.5 7.8 1.4 12c2.1 4.2 5.8 6.9 10.6 6.9s8.5-2.7 10.6-6.9C20.5 7.8 16.8 5.1 12 5.1Z'/%3E%3Ccircle fill='none' stroke='%23fff' stroke-width='1.7' cx='12' cy='12' r='4.3'/%3E%3C/svg%3E")} /* src: assets/icons/eye-outline.svg */
 [data-icon="eye"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 5.1C7.2 5.1 3.5 7.8 1.4 12c2.1 4.2 5.8 6.9 10.6 6.9s8.5-2.7 10.6-6.9C20.5 7.8 16.8 5.1 12 5.1Zm0 11.2a4.3 4.3 0 1 1 0-8.6 4.3 4.3 0 0 1 0 8.6Z'/%3E%3Ccircle fill='%23fff' cx='12' cy='12' r='2.1'/%3E%3C/svg%3E")} /* src: assets/icons/eye.svg */
 [data-icon="fire"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M13.1 1.6c.5 2.7-.5 4.4-1.9 5.9-1.5 1.6-3.3 3-3.3 5.6 0 .9.2 1.7.6 2.4-1-.5-1.8-1.4-2.2-2.5-1 1.3-1.6 2.9-1.6 4.6 0 3.4 3.3 6.1 7.3 6.1s7.3-2.7 7.3-6.1c0-2.9-1.3-4.9-2.7-6.7-.5 1.1-1.3 1.9-2.3 2.2 1.2-3.7-.1-8.2-1.2-11.5Z'/%3E%3C/svg%3E")} /* src: assets/icons/fire.svg */
 [data-icon="co_flag"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 132'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M132,98V34C132,15.252,116.7476,0,98,0H34C15.2524,0,0,15.252,0,34v64c0,18.748,15.2524,34,34,34h64c18.7476,0,34-15.252,34-34ZM4,98v-10.7292l20.5686.0159c.3456.6726.6898,1.3459,1.0703,2.0046,8.3022,14.3684,23.7731,23.2988,40.3753,23.3066,16.6326,0,32.0905-8.9431,40.363-23.3391.045-.0784.0875-.1584.1271-.2397l.8535-1.75,20.6422.0142v10.7168c0,16.542-13.458,30-30,30H34c-16.542,0-30-13.458-30-30ZM98,4c16.542,0,30,13.458,30,30v10.7183l-20.5724.0088c-.3436-.6709-.683-1.3455-1.0562-1.9937-8.2841-14.3904-23.7444-23.3298-40.3477-23.3298h-.0081c-16.6085.0024-32.0786,8.9282-40.3737,23.2942-.3782.655-.72,1.3247-1.0638,1.9937l-20.5782-.0298v-10.6616c0-16.542,13.458-30,30-30h64ZM66.0358,108.5979h-.0198c-7.6186-.0037-14.9432-2.0356-21.3151-5.7144-1.593-.9197-3.1264-1.9421-4.59-3.0618-4.3907-3.3584-8.1529-7.5894-11.0086-12.5317-.4747-.8215-.9196-1.6553-1.3349-2.5-2.0764-4.2231-3.4105-8.7158-4.0029-13.2861-.237-1.8281-.3552-3.6685-.3549-5.5088.0004-1.8403.1193-3.6809.3569-5.509.2375-1.8281.5937-3.644,1.0685-5.4353.9495-3.5823,2.3733-7.0662,4.271-10.3528,7.6104-13.1802,21.6724-21.2922,36.9097-21.2944h.0068c15.1567-.0005,29.2913,8.1392,36.8823,21.3254.9413,1.6353,1.814,3.4087,2.5804,5.3096l-19.7402,7.9746c-.014-.0344-.0314-.0667-.0455-.1011-.1017-.2476-.2173-.4868-.328-.7297-.1543-.3391-.3129-.6748-.4831-1.0027-.1168-.2241-.2374-.4448-.3618-.6643-.2078-.3677-.427-.7253-.6544-1.0771-.1046-.1614-.2044-.3254-.3132-.4839-.3552-.5183-.7271-1.0215-1.1231-1.502-.0012-.0015-.0026-.0027-.0038-.0042-.3954-.4795-.8154-.9336-1.2484-1.3738-.1172-.1191-.2389-.2332-.3589-.3496-.3324-.3223-.6738-.6328-1.0253-.9319-.1451-.1235-.2889-.2476-.4373-.3674-.3902-.3142-.7911-.613-1.2015-.8984-.1039-.0725-.2023-.1516-.3076-.2224-.4851-.3247-.9857-.6245-1.4953-.9082-.2185-.1221-.4431-.2324-.6662-.3469-.3236-.1655-.6501-.324-.9819-.4729-.2465-.1108-.4932-.2195-.7445-.321-.379-.1531-.7641-.2903-1.1519-.4216-.1945-.0657-.3838-.1414-.5806-.2014-.5679-.1741-1.1458-.3181-1.7288-.4446-.2004-.0432-.4035-.0771-.606-.1145-.46-.0859-.9231-.1567-1.3901-.2122-.1796-.0212-.358-.0444-.539-.061-.6484-.0601-1.3004-.1013-1.9583-.1013-.6986-.0002-1.4012.0378-2.1058.1077-.3839.0376-.7573.1074-1.1349.165-.28.043-.5593.0674-.8396.1218-.0239.0046-.0464.0122-.0703.0168-.3321.0654-.6542.1558-.9806.2363-.3193.0791-.6408.1523-.9537.2451-.3231.0962-.6371.2102-.9536.3208-.3119.1091-.6235.2173-.9281.3398-.2933.1182-.5797.2478-.8664.3787-.3195.1453-.6354.2952-.9456.4556-.2602.1345-.5161.2744-.7699.4192-.3257.1858-.6441.3804-.9583.5823-.2272.1462-.4534.2922-.6745.4465-.3289.2295-.6464.4717-.9609.7188-.1931.1514-.3887.2988-.5764.4568-.3378.2844-.6598.5852-.9787.8894-.1487.1421-.3041.2761-.4487.4224-.4213.4258-.8239.8691-1.2076,1.3286-.0496.0593-.1.1177-.149.1775-.3833.4692-.746.9548-1.0884,1.4556-.1463.2136-.276.4382-.4146.6575-.2042.323-.4084.6455-.5952.9795-.1451.2593-.2758.5266-.4102.7925-.1572.311-.3118.6226-.4538.9419-.1255.2822-.241.5684-.3546.8569-.1269.3223-.2462.6475-.3575.9768-.0981.2905-.192.582-.2778.8779-.1021.3518-.1902.7083-.2743,1.0667-.0661.2825-.1349.563-.1896.8496-.0795.4146-.137.8354-.192,1.2578-.0312.2407-.0726.4778-.0958.7209-.0635.6648-.1011,1.3359-.1018,2.0149,0,.0078-.0012.0156-.0012.0234,0,.0005,0,.001,0,.0015,0,.0007,0,.0015,0,.002.0001.6865.0388,1.3652.1031,2.0374.0231.2429.0647.4797.0959.72.0551.4226.1125.8438.1921,1.2588.0548.2866.1238.5671.19.8496.0842.3589.1722.7153.2744,1.0671.0858.2961.1799.5874.2781.8779.1114.3293.2305.6543.3574.9763.1136.2886.2294.575.3551.8574.142.3188.2964.6306.4536.9414.1345.2659.2654.533.4105.7922.1867.3337.3906.656.5946.9788.1388.2192.2687.4443.4152.6582.3339.4878.6885.9609,1.0614,1.4192.0472.0581.093.1169.1408.1746.394.4741.8097.9297,1.2436,1.3682.1426.144.2961.2764.4427.4165.3211.3066.6454.6091.9857.8958.186.1565.3801.3022.5714.4524.3162.2483.6354.4919.9662.7227.2203.1538.4456.2988.6718.4443.3151.2024.6344.3977.9611.584.2529.1443.5081.2834.7674.4177.3115.1609.6287.3113.9494.4573.2858.1304.5714.2593.8638.3772.3057.123.6185.2317.9315.3408.3152.1101.6281.2236.9498.3193.315.0935.6386.1672.9601.2468.3245.0801.6448.1694.975.2344.0253.0051.0493.0132.0745.0181.2824.0549.564.0793.8463.1226.3741.0569.7441.126,1.1243.1631.7037.0698,1.4055.1077,2.1028.1077.66,0,1.314-.0413,1.9645-.1018.1754-.0161.3483-.0386.5224-.0591.4753-.0562.9466-.1282,1.4145-.2158.1953-.0364.3912-.0688.5847-.1106.5883-.1272,1.1713-.2727,1.7441-.4485.1821-.0557.3571-.126.5369-.1863.4041-.136.8049-.2795,1.1995-.4392.2427-.0981.4809-.2031.719-.3101.3433-.1536.6812-.3176,1.0157-.4893.2137-.1099.429-.2156.6384-.3323.515-.2864,1.0206-.5896,1.5106-.9177.0919-.0618.1777-.1309.2686-.1941.4248-.2942.8389-.6038,1.242-.9287.142-.1147.2796-.2336.4186-.3521.358-.304.7057-.6204,1.0438-.9485.116-.1128.2337-.2231.3471-.3384.8702-.8843,1.6685-1.8472,2.3809-2.8867.1071-.156.2052-.3179.3082-.4766.2289-.354.4495-.7141.6586-1.084.1241-.219.2442-.4395.3607-.6631.1699-.3274.3283-.6626.4824-1.0012.1111-.2439.227-.4841.3291-.7327.0146-.0356.0325-.0688.0469-.1045l19.7413,7.9954-2.58,5.2905c-7.581,13.1929-21.7227,21.332-36.8732,21.332Z'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/flags/co_flag.svg */
@@ -161,6 +162,7 @@ img{max-width:100%}
 [data-icon="plus"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M10.7 4.8h2.6v5.9h5.9v2.6h-5.9v5.9h-2.6v-5.9H4.8v-2.6h5.9Z'/%3E%3C/svg%3E")} /* src: assets/icons/plus.svg */
 [data-icon="poop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='%23fff'%3E%3Cellipse cx='12' cy='18.6' rx='10.4' ry='3.1'/%3E%3Cellipse cx='12' cy='14.2' rx='8.1' ry='2.9'/%3E%3Cellipse cx='12' cy='9.4' rx='5.3' ry='2.7'/%3E%3Cpath d='M12.4 7.1c-1.5 0-2.5-.8-2.5-1.9 0-1.6 2-1.9 2-3.2 0-.4-.1-.8-.4-1.1 2.2.4 3.8 1.9 3.8 3.6 0 1.5-1.2 2.6-2.9 2.6Z'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/poop.svg */
 [data-icon="preview"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.2 12c2.6-3.9 5.8-5.8 9.8-5.8s7.2 1.9 9.8 5.8c-2.6 3.9-5.8 5.8-9.8 5.8S4.8 15.9 2.2 12Z M12 14.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z'/%3E%3C/svg%3E")} /* src: assets/icons/preview.svg */
+[data-icon="question"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' d='M8.3 8.7a3.75 3.75 0 1 1 5 3.54c-.95.36-1.4 1.1-1.4 2.06v.85'/%3E%3Ccircle fill='%23fff' cx='11.9' cy='18.7' r='1.55'/%3E%3C/svg%3E")} /* src: assets/icons/question.svg */
 [data-icon="resume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linejoin='round' d='M6 2h8l4 4v16H6zm8 0v5h4M9 11h6M9 15h6M9 19h4'/%3E%3C/svg%3E")} /* src: assets/icons/resume.svg */
 [data-icon="shuffle"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M4 7h3.2c1 0 1.9.5 2.5 1.3l4.6 7.4c.6.8 1.5 1.3 2.5 1.3H20M4 17h3.2c1 0 1.9-.5 2.5-1.3l.9-1.4M13.4 9.7l.9-1.4c.6-.8 1.5-1.3 2.5-1.3H20'/%3E%3Cpath fill='%23fff' d='m17.4 4 3 3-3 3zm0 10 3 3-3 3z'/%3E%3C/svg%3E")} /* src: assets/icons/shuffle.svg */
 [data-icon="skip-back"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M7 5h2.4v14H7zm12 .8v12.4L10.4 12z'/%3E%3C/svg%3E")} /* src: assets/icons/skip-back.svg */
@@ -1087,13 +1089,18 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-disc .icon{width:34px;height:34px;margin-left:5px}
 .fv-play:hover .fv-disc{background:rgba(6,9,12,.9);transform:scale(1.05)}
 .fv-play:focus-visible{outline:2px solid var(--accent);outline-offset:-6px;border-radius:14px}
-.fv-item .card-shade{inset:56% 0 0}
+/* AND UNDER EVERYTHING IT SHADES. The shared rule lifts .card-shade to 4 so
+   it clears the reel's frames on a work card; in here the frames are the
+   .fv-items themselves and the shade's only job is to sit over the artwork,
+   so 4 put it on top of the caption AND the download button -- a dark
+   gradient over the two things it exists to make readable. */
+.fv-item .card-shade{inset:56% 0 0;z-index:1}
 .fv-item .card-meta{left:20px;right:96px;bottom:18px;z-index:3}
 /* Double the card sizes. This is a video the width of two thumbnails and the
    headline act of the section; at the grid's 12/19px it read as a caption on
    a thumbnail that happened to be large. */
-.fv-item .card-meta small{font-size:3.3cqi;letter-spacing:.1em}
-.fv-item .card-meta strong{font-size:8.3cqi;line-height:1.06;
+.fv-item .card-meta small{font-size:2.65cqi;letter-spacing:.1em}
+.fv-item .card-meta strong{font-size:6.65cqi;line-height:1.06;
   letter-spacing:.01em;margin-top:8px}
 .fv-dl{right:18px;bottom:18px}
 
@@ -2051,8 +2058,32 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    mechanism; only the paint changes.
    Accent-outlined rather than filled: it has to say "not done" without
    competing with the row title for attention. */
-.stack-row.is-wip small{
-  color:var(--accent);
+/* THE PLACEHOLDER ROW. What comes off it is what says "this goes somewhere":
+   the pointer cursor and the arrow, and the number and title step back to a
+   muted grey so it reads as the next slot rather than as a game you have not
+   noticed. What STAYS is the hover and is-current lighting -- the row is
+   still what puts its own copy in the panel below, and a row that drives
+   something while looking inert is worse than one that looks clickable. */
+.stack-row-soon{cursor:default}
+.stack-row-soon span{color:#7d868d}
+.stack-row-soon strong{color:#c4ccd2}
+/* The hazard strip, where the artwork goes. Same tape as the featured
+   stage's empty video slots, so the site has one way of saying "not yet". */
+/* Compound with .game-art-shot on purpose: that rule sets display:block and
+   sits 2000 lines further down, so a single-class rule here loses to it and
+   the flex column never applies -- which is exactly what happened: the tape
+   and the words printed on top of each other at the top of the frame. */
+.game-art-shot.game-art-soon{
+  display:flex;flex-direction:column;
+  align-items:stretch;justify-content:center;gap:12px;
+  padding:0 12%;text-align:center;background:#0e1217;
+}
+.game-art-shot.game-art-soon[hidden]{display:none}
+.game-art-soon strong{
+  font-size:clamp(13px,2.1vw,20px);line-height:1.1;letter-spacing:.2em;
+  margin-right:-.2em;font-weight:900;color:var(--text);opacity:.9;white-space:nowrap;
+}
+.stack-row.is-wip small{  color:var(--accent);
   font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
   border:1px solid color-mix(in srgb, var(--accent) 55%, transparent);
   border-radius:999px;padding:4px 10px;
@@ -2436,8 +2467,32 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   border-radius:999px;padding:3px 9px;align-self:flex-start;
   font-size:10.5px;letter-spacing:.16em;
 }
-@media (max-width:700px){.ai-card-iconwrap{width:48px;height:48px}}
-.ai-card:hover .inline-arrow,.ai-card:focus-within .inline-arrow{transform:translate(2px,-2px)}
+/* THE PLACEHOLDER CARD. Same plate, same 60px icon box, same WIP pill -- the
+   only differences are the three that say there is nothing behind it: no
+   pointer cursor, a "?" on the plate instead of an app mark, and an eye that
+   is an OUTLINE with no chip under it. A greyed-out copy of the real chip
+   would read as a control that is broken; a bare outline reads as a slot. */
+.ai-card-soon{cursor:default}
+.ai-card-soon .ai-card-link{display:flex;flex-direction:column;gap:5px}
+/* One line, like every other card. At 18px the two words wrap and the row
+   stands 98px against the others' 80 -- a placeholder that is the biggest
+   thing in the list is claiming the wrong amount of attention. */
+.ai-card-soon .ai-card-link strong{color:#c4ccd2;font-size:15.5px;white-space:nowrap}
+.ai-card-iconwrap-soon{
+  display:grid;place-items:center;
+  /* 31.25% is the radius three of the four app marks ship with; ThemeDock's
+     own plate is squarer, and matching the majority keeps the column's left
+     edge reading as one stack of plates. */
+  border-radius:31.25%;background:#0e1217;
+  border:var(--stroke) solid rgba(255,255,255,.09);
+}
+.ai-card-iconwrap-soon .icon{
+  width:52%;height:52%;color:var(--accent);transition:color var(--accent-ease);
+}
+.ai-card-eye-soon{
+  background:none;border:0;box-shadow:none;cursor:default;color:#8b939a;
+}
+@media (max-width:700px){.ai-card-iconwrap{width:48px;height:48px}}.ai-card:hover .inline-arrow,.ai-card:focus-within .inline-arrow{transform:translate(2px,-2px)}
 
 /* ==========================================================================
    COLLAB — shared-build project cards, plus the contributor panel in the
@@ -4324,6 +4379,23 @@ body.modal-open{overflow:hidden}
    A shade larger and heavier, because "Copied!" is an answer to something the
    visitor just did and a 12px label reads as chrome they are meant to ignore. */
 #tip.is-flash{font-size:13px;font-weight:700;letter-spacing:.01em}
+/* LOUD: a headline in the accent with a quieter line under it. The plain
+   bubble is a label and is meant to be ignorable; this one is for a control
+   that is announcing something -- the game download, which is a placeholder
+   and has to say so before anyone clicks it rather than after. */
+#tip.is-loud{
+  padding:12px 18px;border-radius:12px;text-align:center;white-space:pre-line;
+  box-shadow:0 12px 34px rgba(0,0,0,.55);
+}
+#tip.is-loud .tip-lead{
+  display:block;color:var(--accent);font-size:15px;font-weight:900;
+  letter-spacing:.08em;line-height:1.15;text-transform:uppercase;
+  transition:color var(--accent-ease);
+}
+#tip.is-loud .tip-sub{
+  display:block;margin-top:4px;color:var(--muted);font-size:11px;font-weight:800;
+  letter-spacing:.2em;line-height:1.15;text-transform:uppercase;
+}
 /* The one accent mark on it. The word stays the tooltip's own colour so the
    emphasis lands on the punctuation, which is the part that reads as a reaction. */
 .tip-bang{color:var(--accent);transition:color var(--accent-ease)}

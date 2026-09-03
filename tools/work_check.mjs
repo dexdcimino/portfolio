@@ -12,6 +12,12 @@
  * opening the page, which is the wrong person to be the check.
  *
  * So the hero is measured here, and a collapsed one is a failure.
+ *
+ * It has since grown to cover the rest of this page's stateful chrome —
+ * the code prompt, the games stack and the AI Lab list — for the same
+ * reason: they are all states of one page, they all only exist once the
+ * browser has run the script, and a second harness would have to boot the
+ * same page a second time to look at them.
  */
 import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -569,7 +575,14 @@ await page.waitForFunction(
 {
   const at = await page.evaluate(async () => {
     const thumbs = [...document.querySelectorAll('.work-thumb')];
-    const i = thumbs.findIndex(t => ((t.querySelector('img') || {}).currentSrc || '').includes('osseous-2'));
+    /* currentSrc OR src: a thumb below the strip's lazy horizon has no
+       currentSrc at all, so matching on it alone finds nothing the moment the
+       piece moves further down the category -- which is what reordering the
+       projects did. src is set by paintPicture whether or not it has loaded. */
+    const i = thumbs.findIndex(t => {
+      const img = t.querySelector('img');
+      return img && (img.currentSrc || img.src || '').includes('osseous-2');
+    });
     if (i < 0) return null;
     thumbs[i].click();
     await new Promise(r => setTimeout(r, 900));
@@ -647,6 +660,178 @@ await page.waitForFunction(
     note(peak === 0, `the dialog gained ${peak}px of scrollable overflow during the countdown`);
   }
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+}
+
+/* ---- 12. the video card: caption, fade and title -------------------------
+   FALSELY PASSES IF: the z-index values were read instead of the paint. The
+   shared .card-shade rule lifted the fade to 4 to clear the reel's frames on a
+   work card; inside the video item the caption and the download button carry an
+   explicit 3, so the fade landed on TOP of both -- a dark gradient over the two
+   things it exists to make readable, with every element present and correct. */
+{
+  await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.$eval('#work', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForFunction(
+    () => document.querySelectorAll('.work-card .card-dots').length === 8, { timeout: 20000 });
+  const card = await page.evaluate(() => {
+    const item = document.querySelector('.fv-item.is-on') || document.querySelector('.fv-item');
+    const hitOf = (el, dx, dy) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width * dx, r.top + r.height * dy);
+      return hit ? `${hit.tagName}.${(hit.className || '').toString().split(' ')[0]}` : 'nothing';
+    };
+    const strong = item.querySelector('.card-meta strong');
+    return {
+      title: strong.textContent.trim(),
+      strongPx: parseFloat(getComputedStyle(strong).fontSize),
+      onTitle: hitOf(strong, 0.1, 0.5),
+      onDownload: hitOf(item.querySelector('.fv-dl'), 0.5, 0.5),
+    };
+  });
+  console.log(`video card: "${card.title}" at ${card.strongPx}px; ` +
+              `over the title ${card.onTitle}, over the download ${card.onDownload}`);
+  note(card.title === 'TITLE COMING!', `the video card reads "${card.title}"`);
+  note(card.strongPx < 42 && card.strongPx > 24,
+       `the caption is ${card.strongPx}px; it was 47.6 and came down a fifth`);
+  note(!card.onTitle.includes('card-shade'), 'the fade is painted over the caption');
+  note(!card.onDownload.includes('card-shade'), 'the fade is painted over the download button');
+}
+
+/* ---- 13. the loud tooltip ------------------------------------------------
+   FALSELY PASSES IF: the attribute were read rather than the bubble hovered.
+   Three separate things have to be true at once and none is visible in markup:
+   the bubble must be ABOVE the button (the default is below, which for a
+   control in the bottom-right corner of a card falls off the window), the two
+   lines must be coloured differently, and the click answer must hand the
+   button back the tip it had rather than the hard-coded "Download" it used to
+   restore -- which would silently flatten this into one plain line. */
+{
+  await page.hover('.fv-item.is-on .fv-dl');
+  await new Promise(r => setTimeout(r, 400));
+  const tip = await page.evaluate(() => {
+    const t = document.getElementById('tip');
+    const b = document.querySelector('.fv-item.is-on .fv-dl');
+    const tb = t.getBoundingClientRect(), r = b.getBoundingClientRect();
+    const lead = t.querySelector('.tip-lead'), sub = t.querySelector('.tip-sub');
+    return { on: t.classList.contains('is-on'), loud: t.classList.contains('is-loud'),
+             lead: lead && lead.textContent, sub: sub && sub.textContent,
+             leadColor: lead && getComputedStyle(lead).color,
+             subColor: sub && getComputedStyle(sub).color,
+             gap: Math.round(r.top - tb.bottom),
+             offCentre: Math.round((tb.left + tb.right) / 2 - (r.left + r.right) / 2) };
+  });
+  console.log(`tip: "${tip.lead}" / "${tip.sub}", ${tip.gap}px above, ` +
+              `${tip.offCentre}px off centre, lead ${tip.leadColor}`);
+  note(tip.on && tip.loud, 'the download button did not raise the loud tooltip');
+  note(!!tip.lead && !!tip.sub, 'the tooltip did not split into two lines');
+  note(tip.leadColor !== tip.subColor, 'both tooltip lines are the same colour');
+  note(tip.gap >= 0 && tip.gap < 40, `the bubble sits ${tip.gap}px above the button`);
+  note(Math.abs(tip.offCentre) <= 2, `the bubble is ${tip.offCentre}px off centre`);
+
+  // The click answer, and what it gives back afterwards.
+  await page.click('.fv-item.is-on .fv-dl');
+  await new Promise(r => setTimeout(r, 250));
+  const during = await page.evaluate(() => document.querySelector('.fv-item.is-on .fv-dl').dataset.tip);
+  await new Promise(r => setTimeout(r, 2400));
+  const after = await page.evaluate(() => {
+    const b = document.querySelector('.fv-item.is-on .fv-dl');
+    return { tip: b.dataset.tip, kind: b.dataset.tipKind };
+  });
+  console.log(`after the click: "${during}" -> "${after.tip}" (${after.kind})`);
+  note(during === 'Build coming soon', `the click answered "${during}"`);
+  note(after.tip.includes('\n') && after.kind === 'loud',
+       `the button came back with "${after.tip}" (${after.kind}), not the tip it had`);
+}
+
+/* ---- 14. the fifth game is a placeholder in every field ------------------
+   FALSELY PASSES IF: the row were only found. The point of the row is that it
+   has NO HOLES -- a blank tag or a bare "GALLERY" reads as a bug rather than as
+   a slot -- and that hovering it does not leave the previous game's artwork up,
+   which is what showArt() does by design for a row with no art of its own. */
+{
+  await page.$eval('#games', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await new Promise(r => setTimeout(r, 400));
+  await page.hover('.stack-row-soon');
+  await new Promise(r => setTimeout(r, 450));
+  const row = await page.evaluate(() => {
+    const el = document.querySelector('.stack-row-soon');
+    const art = document.getElementById('gameArt');
+    return {
+      exists: !!el, tag: el && el.tagName, href: el && el.getAttribute('href'),
+      n: el && el.querySelector('span').textContent,
+      name: el && el.querySelector('strong').textContent,
+      kind: el && el.querySelector('small').textContent,
+      tags: [...document.querySelectorAll('#gameTags .game-tag')].map(t => t.textContent.trim()),
+      lead: document.querySelector('.game-desc-lead').textContent.trim(),
+      body: document.querySelector('.game-desc-body').textContent.trim(),
+      gallery: document.getElementById('galleryOpen').textContent.trim(),
+      greyed: document.getElementById('galleryOpen').classList.contains('is-empty'),
+      shot: [...document.querySelectorAll('.game-art-shot')].filter(s => !s.hidden)
+        .map(s => s.dataset.art).join(','),
+      artLinks: art.hasAttribute('href'),
+    };
+  });
+  console.log(`row 05: ${row.tag} "${row.name}" / ${row.kind}, tags ${row.tags.join('/')}, ` +
+              `${row.gallery} greyed=${row.greyed}, preview ${row.shot}`);
+  note(row.exists && row.tag === 'DIV', `the placeholder row is a ${row.tag}, expected a DIV`);
+  note(!row.href, `the placeholder row links to ${row.href}`);
+  note(row.tags.every(t => t === 'TBD') && row.tags.length === 3,
+       `its tags read ${row.tags.join('/')}, expected three TBD`);
+  note(row.lead.length > 20 && row.body.length > 40, 'the placeholder row has no copy');
+  note(row.gallery === 'GALLERY (0)', `the gallery button says "${row.gallery}"`);
+  note(row.greyed, 'the empty gallery button is not greyed');
+  note(row.shot === 'soon-art',
+       `hovering the placeholder shows "${row.shot}", not its own hazard strip`);
+  note(!row.artLinks, 'the preview frame is still a link while showing a game with no page');
+}
+
+/* ---- 15. the AI Lab placeholder ------------------------------------------
+   FALSELY PASSES IF: only its presence were checked. It leads the list, and
+   initAppInfo seeds the description panel from cards[0] -- so adding it at the
+   top silently made the whole section rest on "nothing to show yet" while four
+   live apps sat under it. That resting state is asserted here, not the card. */
+{
+  await page.$eval('#aiApps', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await new Promise(r => setTimeout(r, 500));
+  const app = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('#aiApps .ai-card')];
+    const soon = document.querySelector('.ai-card-soon');
+    const eye = soon && soon.querySelector('.ai-card-eye-soon');
+    const q = soon && soon.querySelector('.ai-card-iconwrap-soon .icon');
+    const plate = soon && soon.querySelector('.ai-card-iconwrap-soon');
+    const real = document.querySelector('#aiApps .ai-card:not(.ai-card-soon) .ai-card-iconwrap');
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    return {
+      first: cards[0] === soon,
+      name: soon && soon.querySelector('strong').textContent,
+      linkTag: soon && soon.querySelector('.ai-card-link').tagName,
+      resting: document.getElementById('appInfoTitle').textContent.trim(),
+      eyeBg: eye && getComputedStyle(eye).backgroundColor,
+      eyeBorder: eye && parseFloat(getComputedStyle(eye).borderTopWidth),
+      qPaint: q && getComputedStyle(q).backgroundColor,   // masks paint with background-color
+      qMask: q && getComputedStyle(q).maskImage.slice(0, 24),
+      plateBox: plate && [Math.round(plate.getBoundingClientRect().width),
+                          Math.round(plate.getBoundingClientRect().height)],
+      realBox: real && [Math.round(real.getBoundingClientRect().width),
+                        Math.round(real.getBoundingClientRect().height)],
+      heights: cards.map(c => Math.round(c.getBoundingClientRect().height)),
+      accent,
+    };
+  });
+  console.log(`ai placeholder: "${app.name}" first=${app.first}, panel rests on ` +
+              `"${app.resting}", eye bg ${app.eyeBg}, plate ${app.plateBox} vs ${app.realBox}, ` +
+              `rows ${app.heights.join('/')}`);
+  note(app.first, 'the placeholder is not the first app card');
+  note(app.linkTag === 'SPAN', `its title block is a <${app.linkTag}>, which links somewhere`);
+  note(app.resting !== app.name,
+       `the section rests on the placeholder ("${app.resting}") instead of a real app`);
+  note(/rgba\(0, 0, 0, 0\)|transparent/.test(app.eyeBg) && app.eyeBorder === 0,
+       `the placeholder eye still has a chip behind it (${app.eyeBg})`);
+  note(app.qMask.startsWith('url('), 'the "?" plate has no icon in it');
+  note(app.plateBox[0] === app.realBox[0] && app.plateBox[1] === app.realBox[1],
+       `the "?" plate is ${app.plateBox} against the real icons' ${app.realBox}`);
+  note(new Set(app.heights).size === 1,
+       `the app rows are ${app.heights.join('/')} tall — the placeholder changes the rhythm`);
 }
 
 note(missing.length === 0, `404s: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
