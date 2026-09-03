@@ -564,6 +564,37 @@ await page.waitForFunction(
   console.log(`the same piece in the filmstrip: scale ${inStrip}`);
   note(inStrip === 'none' || parseFloat(inStrip) === 1,
        `the zoom leaked into the filmstrip thumb (scale ${inStrip})`);
+
+  /* knights-of-edengale-3 is TWO renders stacked in one file, and the card was
+     landing on the seam -- the lower shot's blue sky through the middle of the
+     thumbnail. Its zoom exists to keep the card inside the upper render, so
+     what is asserted is the arithmetic that does it: cover shows h/w scaled to
+     the box, and the visible band must end above the seam at 0.545. */
+  const band = await page.evaluate(async () => {
+    const res = await fetch('assets/work/work.json');
+    const data = await res.json();
+    const cat = data.categories.find(c => c.id === 'environment');
+    const item = cat.items.find(i => i.stem === 'knights-of-edengale-3');
+    if (!item || !item.zoom) return null;
+    const card = document.querySelector('.work-card[data-work-cat="environment"]');
+    const box = card.getBoundingClientRect();
+    const boxRatio = box.width / box.height;
+    const imgRatio = item.w / item.h;
+    // Cover on a picture narrower than the box fills the width; this is the
+    // fraction of the picture's HEIGHT that survives, before the zoom.
+    const visible = imgRatio / boxRatio;
+    const top = parseFloat((item.zoom.pos || '50% 50%').split(' ')[1]) / 100;
+    const shown = visible / item.zoom.scale;
+    return { scale: item.zoom.scale, top, from: top * (1 - visible), to: top * (1 - visible) + shown };
+  });
+  if (!band) fail.push('knights-of-edengale-3 carries no zoom, so the card sits on the seam');
+  else {
+    console.log(`knights-of-edengale-3: ${band.scale}x from the top, shows ` +
+                `${band.from.toFixed(3)}-${band.to.toFixed(3)} of the picture (seam at 0.545)`);
+    note(band.to <= 0.545,
+         `the card reaches ${band.to.toFixed(3)} down, past the seam between the two renders`);
+    note(band.to > 0.40, `the card only reaches ${band.to.toFixed(3)}; the upper render is wasted`);
+  }
 }
 
 /* ---- 10. a piece exactly at the threshold fills the width ----------------
@@ -695,6 +726,42 @@ await page.waitForFunction(
        `the caption is ${card.strongPx}px; it was 47.6 and came down a fifth`);
   note(!card.onTitle.includes('card-shade'), 'the fade is painted over the caption');
   note(!card.onDownload.includes('card-shade'), 'the fade is painted over the download button');
+
+  /* The info popover sits BESIDE its icon. Measured against the hazard strip's
+     TAPE, not against .fv-soon's box: that box is 44% of the frame tall and
+     mostly empty at the top, so a box-to-box test calls a clean layout a
+     collision. What the complaint was about is ink on ink. */
+  await page.hover('.fv-item.is-on .fv-info');
+  await new Promise(r => setTimeout(r, 420));
+  const desc = await page.evaluate(() => {
+    const item = document.querySelector('.fv-item.is-on');
+    const d = item.querySelector('.fv-desc');
+    const i = item.querySelector('.fv-info');
+    const tape = [...item.querySelectorAll('.fv-soon .collab-soon-tape, .fv-soon strong')];
+    const db = d.getBoundingClientRect(), ib = i.getBoundingClientRect();
+    const hits = (a, b) => !(a.right < b.left || a.left > b.right ||
+                             a.bottom < b.top || a.top > b.bottom);
+    return {
+      open: d.classList.contains('is-open'),
+      opacity: +getComputedStyle(d).opacity,
+      rightOfIcon: Math.round(db.left - ib.right),
+      offCentre: Math.round((db.top + db.bottom) / 2 - (ib.top + ib.bottom) / 2),
+      onTape: tape.some(t => hits(db, t.getBoundingClientRect())),
+      widthShare: Math.round(db.width / item.getBoundingClientRect().width * 100),
+      texts: [...document.querySelectorAll('.fv-desc')].map(p => p.textContent.trim()),
+    };
+  });
+  console.log(`info popover: ${desc.rightOfIcon}px right of the icon, ${desc.offCentre}px off ` +
+              `its centre, ${desc.widthShare}% of the frame, over the tape=${desc.onTape}`);
+  note(desc.open && desc.opacity > 0.9, 'hovering the info icon did not raise the description');
+  note(desc.rightOfIcon >= 0 && desc.rightOfIcon < 30,
+       `the description starts ${desc.rightOfIcon}px from the icon`);
+  note(Math.abs(desc.offCentre) <= 3,
+       `the description is ${desc.offCentre}px off the icon's centre line`);
+  note(!desc.onTape, 'the description is printed over the UNDER CONSTRUCTION strip');
+  note(desc.widthShare < 70, `the description spans ${desc.widthShare}% of the frame`);
+  note(new Set(desc.texts).size === 1 && desc.texts.length === 3,
+       `the three slots say ${new Set(desc.texts).size} different things, expected one`);
 }
 
 /* ---- 13. the loud tooltip ------------------------------------------------

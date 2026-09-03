@@ -2535,6 +2535,10 @@
       "card": "50% 50%",
       "thumb": "50% 50%"
      },
+     "zoom": {
+      "scale": 1.4,
+      "pos": "50% 0%"
+     },
      "srcset": {
       "avif": "assets/derived/work/environment/knights-of-edengale-3-900.avif?v=2f2075bc 900w, assets/derived/work/environment/knights-of-edengale-3-600.avif?v=2f2075bc 600w, assets/derived/work/environment/knights-of-edengale-3-400.avif?v=2f2075bc 400w",
       "webp": "assets/derived/work/environment/knights-of-edengale-3-900.webp?v=2f2075bc 900w, assets/derived/work/environment/knights-of-edengale-3-600.webp?v=2f2075bc 600w, assets/derived/work/environment/knights-of-edengale-3-400.webp?v=2f2075bc 400w"

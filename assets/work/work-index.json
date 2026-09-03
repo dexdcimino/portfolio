@@ -151,6 +151,9 @@
    "pos": {
     "knights-of-edengale-3": "50% 50%"
    },
+   "zoom": {
+    "knights-of-edengale-3": { "scale": 1.4, "pos": "50% 0%" }
+   },
    "titles": {
     "knights-of-edengale": "Knights of Edengale",
     "low-res-altar": "Low-Res Altar"
