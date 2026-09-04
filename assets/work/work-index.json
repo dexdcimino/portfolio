@@ -125,7 +125,7 @@
    "id": "concept",
    "label": "CONCEPT ART",
    "blurb": "Painted concepts and callouts — the pass before anything gets modelled.",
-   "frames": ["nyxara-2", "nimp-2", "sandstone-guardian-1", "dark-iron-dwarf-2", "2d-weapons-1"],
+   "frames": ["nyxara-2", "nimp-2", "female-concept-4", "dark-iron-dwarf-2", "2d-weapons-3"],
    "order": [
     "female-concept",
     "nyxara",
