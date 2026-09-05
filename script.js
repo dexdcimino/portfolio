@@ -5581,10 +5581,23 @@ const MediaBus = (() => {
 
   const setFill = (el, pct) => el.style.setProperty('--fill', `${pct}%`);
 
+  let shownSecond = -1, shownDuration = -1;
+
   function paintTime(current) {
     // Never paint over a handle someone is holding: the value under their
     // finger is the one that matters until they let go.
     if (scrubbing) return;
+    /* The embed volunteers a time several times a second and the BAR only
+       changes once a second. Rewriting the same two strings and re-painting the
+       same track position in between is work with nothing on the other side of
+       it, and it lands on the main thread while the page is being scrolled. The
+       thumb moves in whole seconds now, which over a three-minute track is
+       about three pixels a step. */
+    const sec = Math.floor(current);
+    if (sec === shownSecond && duration === shownDuration) return;
+    shownSecond = sec;
+    shownDuration = duration;
+
     durationEl.textContent = mmss(duration);
     elapsedEl.textContent = mmss(current);
     const at = duration > 0 ? Math.min(1, current / duration) : 0;
@@ -5595,6 +5608,9 @@ const MediaBus = (() => {
   function resetTime() {
     duration = 0;
     scrubbing = false;
+    // ...or the new track's first second would be swallowed as a no-op.
+    shownSecond = -1;
+    shownDuration = -1;
     elapsedEl.textContent = '0:00';
     durationEl.textContent = '--:--';
     scrubEl.value = 0;
