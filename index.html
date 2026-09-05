@@ -3467,27 +3467,30 @@
         </span>
       </div>
 
+      <!-- SYMMETRIC ABOUT PLAY: shuffle, prev, PLAY, next, repeat. The two
+           modes used to sit in the group on the right, which left that side
+           carrying five controls and the middle carrying three — and centring
+           the GROUP then left the play button itself off centre. Splitting the
+           modes around the transport balances both. Same order as the music
+           overlay's bar, because it is the same set of controls. -->
       <div class="player-transport">
+        <button class="player-btn player-shuffle" type="button" id="playerShuffle"
+                aria-label="Shuffle off" aria-pressed="false">
+          <span class="icon" data-icon="shuffle" aria-hidden="true"></span></button>
         <button class="player-btn" type="button" id="playerPrev" aria-label="Previous track">
           <span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
         <button class="player-btn is-primary" type="button" id="playerToggle" aria-label="Pause">
           <span class="icon" data-icon="pause" aria-hidden="true"></span></button>
         <button class="player-btn" type="button" id="playerNext" aria-label="Next track">
           <span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
-      </div>
-
-      <div class="player-modes">
-        <!-- Shuffle sits with loop because it is the same kind of control: a
-             MODE that changes how playback behaves, not a transport button that
-             drives it. aria-pressed rather than a data attribute — it is a
-             plain two-state toggle, unlike loop's three-state cycle. -->
-        <button class="player-btn player-shuffle" type="button" id="playerShuffle"
-                aria-label="Shuffle off" aria-pressed="false">
-          <span class="icon" data-icon="shuffle" aria-hidden="true"></span></button>
+        <!-- Three states, not two, so data-loop rather than aria-pressed. -->
         <button class="player-btn player-loop" type="button" id="playerLoop"
                 aria-label="Loop off" data-loop="off">
           <span class="icon" data-icon="loop" aria-hidden="true"></span>
           <span class="player-loop-one" aria-hidden="true">1</span></button>
+      </div>
+
+      <div class="player-modes">
         <div class="player-volume">
           <button class="player-btn player-volbtn" type="button" id="playerMute" aria-label="Mute">
             <span class="icon" data-icon="volume" aria-hidden="true"></span></button>
@@ -4726,6 +4729,16 @@
         </div>
       </div>
 
+      <!-- The expand tab. Only ever visible while the bar is docked in the
+           corner: a triangle in the shell's own border colour, half out of the
+           top edge above the duration, that puts the full list back WITHOUT
+           asking for the code again. Anyone looking at it has already typed it
+           — that is the only way the bar can exist.
+
+           In .music-frame rather than .music-shell because the shell clips its
+           overflow, and this deliberately sticks out of it. -->
+      <button class="music-expand" type="button" id="musicExpand"
+              aria-label="Expand the music list" data-tip="Expand" hidden></button>
       <button class="music-close" type="button" id="musicClose" aria-label="Close music">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>

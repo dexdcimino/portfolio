@@ -1301,6 +1301,51 @@ track driven by `--fill`, the 22px hit area behind a 5px bar, and the white thum
 that reads against both halves are decisions already made and already fixed once.
 Volume is remembered in `music-volume`, default 0.4 like everywhere else.
 
+### Docking — the music outlives the list
+
+Closing the overlay with a track playing does not stop it. The SAME dialog is
+re-shown non-modally as a bar in the bottom-right corner, `.is-docked`, matching
+`.player`'s position and measurements because it is standing in the same place
+doing the same job.
+
+**Two constraints force that shape, and both obvious alternatives fail.** A
+second bar elsewhere cannot work: the player is a cross-origin `<iframe>`, and
+moving an iframe in the DOM RELOADS it, so the track would restart on every open
+and close. Nothing may reparent it, so whatever shows the player has to BE the
+element it already lives in. And `showModal()` cannot stay, because a modal
+dialog makes the rest of the page inert — which is the exact thing that has to
+stop. `close()` + `show()` is the non-modal form, and it never takes the iframe
+out of the document. Verified rather than assumed: a same-origin frame's inner
+`window` keeps a property stamped on it across the swap, with no load event
+(`.notes-dev/probe.mjs`, and `music_check.mjs` asserts the src and load count on
+the real one).
+
+**A docked dialog is open but is not an overlay**, and four places had to learn
+the difference or the bar would lock the page scroll, swallow the `` ` ``
+shortcut and be closed by the next overlay that opened. They share one selector,
+`OVERLAY_OPEN` (`dialog[open]:not(.is-docked)`), and one predicate,
+`isDockedBar()` — the accent picker already owns a zero-argument `isDocked()`
+that means something else entirely.
+
+**Docking releases focus.** The overlay's X goes `display:none` as the bar docks,
+so the browser hands focus to the next focusable thing in it — the scrub or the
+volume slider, both `<input>`, which makes the `` ` `` shortcut correctly refuse
+to fire. Nothing in a bar whose list just closed should hold the caret.
+
+**Three things can close it and the close handler is the only place that sees
+all of them**, so `closeMode` names them rather than inferring from state:
+`dock` (the default), `stop` (the bar's X, the one control that ends playback)
+and `expand` (on the way back to the full overlay).
+
+**The expand tab** is a triangle in the shell's own border colour, half out of
+the top edge and centred above the duration, that puts the list back with no
+code asked for. That is not a hole in the lock: the bar only exists because
+someone typed the code, and it dies with the tab.
+
+KNOWN: the docked bar and the Top Picks songs bar occupy the same corner. Only
+one can play at a time (`MediaBus`), but both can be on screen at once, and then
+they overlap.
+
 **The clock is read, not polled.** There is no `getCurrentTime` to call across an
 origin, but the embed volunteers `currentTime` and `duration` in its
 `infoDelivery` messages several times a second — the same feed the official API

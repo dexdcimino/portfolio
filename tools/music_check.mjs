@@ -64,6 +64,15 @@ const fail = [];
 let pass = 0;
 const note = (ok, why) => { if (ok) pass++; else fail.push(why); };
 
+/* The overlay's own X DOCKS whenever a track is playing — that is the feature,
+   not a bug — so a check that wants it properly shut has to use the bar's X,
+   which is the one control that means stop. Works from either state. */
+const shutMusic = async () => {
+  await page.click('#musicStop');
+  await page.waitForFunction(() => document.getElementById('musicModal').open !== true,
+                             { timeout: 5000 });
+};
+
 const browser = await puppeteer.launch({
   executablePath: CHROME, headless: 'new',
   args: ['--no-first-run', '--no-default-browser-check', '--mute-audio'],
@@ -507,9 +516,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
      later track therefore reads the earlier one, which is exactly what this
      check did once the bar became permanent and nothing stopped playback
      between here and 3c. */
-  await page.click('#musicClose');
-  await page.waitForFunction(() => document.getElementById('musicModal').open !== true,
-                             { timeout: 5000 });
+  await shutMusic();
   await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
   await page.waitForFunction(() => document.getElementById('musicModal').open === true,
                              { timeout: 5000 });
@@ -658,9 +665,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(back.icon === 'volume', 'unmuting did not put the speaker back');
 
   // ...and it is remembered, like every other volume on the site.
-  await page.click('#musicClose');
-  await page.waitForFunction(() => document.getElementById('musicModal').open !== true,
-                             { timeout: 5000 });
+  await shutMusic();
   await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
   await page.waitForFunction(() => document.getElementById('musicModal').open === true,
                              { timeout: 5000 });
@@ -858,9 +863,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
    down the document. Asserted against where the reader was parked in check 2,
    which is nowhere near the vault. */
 {
-  await page.click('#musicClose');
-  await page.waitForFunction(() => document.getElementById('musicModal').open !== true,
-                             { timeout: 5000 });
+  await shutMusic();
   const after = await page.evaluate(() => ({
     src: document.getElementById('musicVideo').getAttribute('src'),
     scrollY: Math.round(window.scrollY),
@@ -932,9 +935,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
       { timeout: 5000 });
     const v = await page.evaluate(() =>
       document.querySelector('#musicRows .music-row.is-playing').dataset.v);
-    await page.click('#musicClose');
-    await page.waitForFunction(() => document.getElementById('musicModal').open !== true,
-                               { timeout: 5000 });
+    await shutMusic();
     return v;
   };
   const first = await spin();
@@ -971,6 +972,184 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   }));
   note(!closed.open, 'the X in the player bar does not close the overlay');
   note(closed.src === null, 'closing with the X left the embed holding a src');
+}
+
+/* ---- 8c. closing with music playing DOCKS it ---------------------------
+   The brief: close the list, keep the music, carry on reading the site, and
+   come back without typing the code again.
+
+   The implementation is close()+show() on the SAME dialog and that is forced,
+   not chosen. Moving a cross-origin <iframe> in the DOM reloads it, so a
+   second bar elsewhere would restart the track on every open and close; and a
+   modal dialog makes the page inert, which is the exact thing that has to
+   stop. So the checks here are: the element never reloads, the page is left
+   interactive, and the overlay comes back.
+
+   FALSELY PASSES IF: only `open` and the class were read. A dialog can be
+   marked docked while the iframe silently reloaded underneath it, which is the
+   failure this shape exists to avoid — so the src and the load count are
+   asserted too. */
+{
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 10000 });
+
+  // Start something, then watch the frame for any navigation at all.
+  await page.evaluate(() =>
+    document.querySelectorAll('#musicRows .music-row')[6].querySelector('.music-play').click());
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+    { timeout: 5000 });
+  /* The counter starts AFTER the frame has settled. YouTube is unreachable
+     from here, and the aborted navigation fires a load event of its own —
+     counted from the click, that lands in the middle of the dock and reads as
+     a reload that never happened. Verified with a same-origin frame in
+     .notes-dev/probe.mjs: close()+show() keeps the inner window alive and
+     fires nothing. */
+  const before = await page.evaluate(async () => {
+    const f = document.getElementById('musicVideo');
+    window.__ytLoads = 0;
+    f.addEventListener('load', () => { window.__ytLoads++; });
+    await new Promise(r => setTimeout(r, 500));
+    window.__ytLoads = 0;                       // whatever the abort did, it is done
+    return { src: f.getAttribute('src'),
+             v: document.querySelector('.music-row.is-playing').dataset.v };
+  });
+
+  // Close the LIST. The music must not go with it.
+  await page.click('#musicClose');
+  await page.waitForFunction(() => document.getElementById('musicModal')
+                                     .classList.contains('is-docked'), { timeout: 5000 });
+  const docked = await page.evaluate(() => ({
+    open: document.getElementById('musicModal').open,
+    barHidden: document.getElementById('musicBar').hidden,
+    src: document.getElementById('musicVideo').getAttribute('src'),
+    loads: window.__ytLoads,
+    scrollLocked: document.body.classList.contains('modal-open'),
+    listShown: document.getElementById('musicBody')
+      ? true : getComputedStyle(document.querySelector('.music-body')).display !== 'none',
+    expandShown: document.getElementById('musicExpand').hidden === false,
+    playing: document.querySelectorAll('#musicRows .music-row.is-playing').length,
+  }));
+  note(docked.open, 'closing the overlay with music playing closed it outright');
+  note(docked.src === before.src,
+       'the embed was re-pointed while docking — the track would restart');
+  note(docked.loads === 0,
+       `the frame navigated ${docked.loads} time(s) while docking — the track restarts`);
+  note(!docked.barHidden, 'the docked bar is not showing');
+  note(docked.expandShown, 'the expand tab is not showing on the docked bar');
+  note(!docked.listShown, 'the docked bar is still showing the whole list');
+  note(docked.playing === 1, 'the docked player lost the track it was playing');
+  // A non-modal dialog is not an overlay: the page has to be usable again.
+  note(!docked.scrollLocked, 'the page is still scroll-locked behind the docked bar');
+
+  /* The page really is interactive: the ` shortcut is the strictest test of it,
+     because it refuses to fire while ANY overlay is up. */
+  const scrolled = await page.evaluate(() => {
+    window.scrollTo({ top: 1200, behavior: 'instant' });
+    return Math.round(window.scrollY);
+  });
+  note(scrolled > 900, `the page would not scroll behind the docked bar (${scrolled})`);
+  /* Nothing in the docked bar may be holding focus. The overlay's X goes
+     display:none as it docks, and the browser then hands focus to the next
+     focusable thing in the bar — the scrub or the volume slider, both <input>,
+     which makes the ` shortcut refuse to fire. */
+  const held = await page.evaluate(() => {
+    const el = document.activeElement;
+    return el && document.getElementById('musicModal').contains(el)
+      ? `${el.tagName}#${el.id}` : null;
+  });
+  note(held === null, `the docked bar is still holding focus on ${held}`);
+  await page.keyboard.press('Backquote');
+  note(await page.evaluate(() => document.getElementById('codeModal').open === true),
+       'the ` shortcut is swallowed while the bar is docked');
+  await page.keyboard.press('Backquote');
+  await page.waitForFunction(() => document.getElementById('codeModal').open !== true,
+                             { timeout: 5000 });
+
+  // ...and another overlay opening must not take the music with it.
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent('notes:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('notesModal').open === true,
+                             { timeout: 5000 });
+  const survived = await page.evaluate(() => ({
+    stillDocked: document.getElementById('musicModal').classList.contains('is-docked')
+                 && document.getElementById('musicModal').open,
+    src: document.getElementById('musicVideo').getAttribute('src'),
+  }));
+  note(survived.stillDocked, 'opening another overlay closed the docked music bar');
+  note(survived.src === before.src, 'opening another overlay restarted the music');
+  /* Closing that overlay must give the scroll back rather than leave it locked
+     on the docked bar's account. WAITED for, not read: a dialog's close event
+     is queued, so reading the class on the next line reads it before the
+     handler that clears it has run. */
+  await page.evaluate(() => document.getElementById('notesModal').close());
+  await page.waitForFunction(() => !document.body.classList.contains('modal-open'),
+                             { timeout: 5000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false,
+      'the page stayed scroll-locked after an overlay closed over the docked bar'));
+
+  /* THE EXPAND TAB. A triangle out of the top edge, over the duration, and it
+     puts the list back with no code asked for. */
+  const tab = await page.evaluate(() => {
+    const b = document.getElementById('musicExpand');
+    const r = b.getBoundingClientRect();
+    const shell = document.querySelector('.music-shell').getBoundingClientRect();
+    const dur = document.getElementById('musicDuration').getBoundingClientRect();
+    const cs = getComputedStyle(b);
+    return {
+      w: Math.round(r.width), h: Math.round(r.height),
+      offCentre: Math.round((r.left + r.width / 2) - (dur.left + dur.width / 2)),
+      abovePanel: Math.round(shell.top - r.top),
+      clipped: cs.clipPath,
+      origin: cs.transformOrigin,
+      tip: b.dataset.tip,
+    };
+  });
+  note(tab.w >= 20 && tab.h >= 10, `the expand tab is only ${tab.w}x${tab.h}`);
+  note(Math.abs(tab.offCentre) <= 3,
+       `the expand tab sits ${tab.offCentre}px off the centre of the duration`);
+  note(tab.abovePanel > 0, 'the expand tab does not stick out above the bar');
+  note(/polygon/.test(tab.clipped), 'the expand tab is not a triangle');
+  /* It grows UPWARD out of the border on hover, so the origin is its base.
+     Compared as numbers: getComputedStyle resolves the percentages to px, so
+     'bottom' and '100%' never appear in the value however it was authored. */
+  const [ox, oy] = tab.origin.trim().split(/\s+/).map(parseFloat);
+  note(Math.abs(ox - tab.w / 2) <= 1 && Math.abs(oy - tab.h) <= 1,
+       `the expand tab scales from ${tab.origin}, not from the middle of its base `
+       + `(${tab.w / 2}px ${tab.h}px)`);
+  note(tab.tip === 'Expand', `the expand tab's tooltip reads "${tab.tip}"`);
+
+  await page.click('#musicExpand');
+  await page.waitForFunction(() => {
+    const m = document.getElementById('musicModal');
+    return m.open && !m.classList.contains('is-docked');
+  }, { timeout: 5000 });
+  const back = await page.evaluate(() => ({
+    rows: document.querySelectorAll('#musicRows .music-row').length,
+    src: document.getElementById('musicVideo').getAttribute('src'),
+    loads: window.__ytLoads,
+    expandShown: document.getElementById('musicExpand').hidden === false,
+    playing: document.querySelectorAll('#musicRows .music-row.is-playing').length,
+  }));
+  note(back.rows > 100, `expanding came back with ${back.rows} rows`);
+  note(back.src === before.src, 'expanding re-pointed the embed — the track would restart');
+  note(back.loads === 0, `the frame navigated ${back.loads} time(s) across dock and expand`);
+  note(!back.expandShown, 'the expand tab is still showing on the full overlay');
+  note(back.playing === 1, 'expanding lost the track that was playing');
+
+  // And the bar's X still ends everything from either state.
+  await shutMusic();
+  const ended = await page.evaluate(() => ({
+    open: document.getElementById('musicModal').open,
+    docked: document.getElementById('musicModal').classList.contains('is-docked'),
+    src: document.getElementById('musicVideo').getAttribute('src'),
+  }));
+  note(!ended.open && !ended.docked, 'the bar\'s X did not close the player');
+  note(ended.src === null, 'the bar\'s X left the embed holding a src');
 }
 
 /* ---- 9. the keypad flash ------------------------------------------------
@@ -1033,7 +1212,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 155) {
+if (TOTAL < 175) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

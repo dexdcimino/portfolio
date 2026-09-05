@@ -5868,6 +5868,89 @@ body.modal-open{overflow:hidden}
   .music-div{margin:0 2px}
 }
 
+/* --- DOCKED: the same corner and the same shape as the songs bar ---------
+   Closing the overlay with music playing does not stop it. The SAME dialog is
+   re-shown non-modally as a bar in the bottom-right, which is why this is a
+   state of #musicModal rather than a second bar somewhere else: moving an
+   <iframe> in the DOM reloads it, and a reload restarts the track.
+
+   Every measurement here matches .player up the page, because it is standing
+   in the same place doing the same job. The transport comes back down to that
+   bar's 38px — 50px buttons are right for a full-screen list and too loud for
+   a corner. */
+.music-modal.is-docked[open]{
+  position:fixed;z-index:41;inset:auto;
+  bottom:0;left:calc(var(--sidebar-open) + 20px);right:20px;
+  display:block;width:auto;max-width:760px;height:auto;max-height:none;
+  margin:0 0 0 auto;padding:0;border:0;background:none;overflow:visible;
+}
+.music-modal.is-docked .music-frame{display:block}
+.music-modal.is-docked .music-shell{
+  width:100%;height:auto;overflow:visible;
+  border:2px solid color-mix(in srgb,var(--accent) 42%,transparent);
+  border-bottom:0;border-radius:16px 16px 0 0;
+  background:color-mix(in srgb,var(--sidebar-bg) 94%,black);
+  box-shadow:0 -12px 30px rgba(0,0,0,.42);
+}
+/* The list, the head and the overlay's own X are the overlay. What is left is
+   the bar, which is the whole of the docked state. */
+.music-modal.is-docked .music-head,
+.music-modal.is-docked .music-body,
+.music-modal.is-docked .music-close,
+.music-modal.is-docked .music-mark{display:none}
+.music-modal.is-docked .music-bar{
+  border-top:0;background:none;border-radius:16px 16px 0 0;
+  padding:8px 14px 10px;gap:4px;
+}
+.music-modal.is-docked .music-screen{width:104px}
+.music-modal.is-docked .music-screen-icon{width:22px;height:22px}
+.music-modal.is-docked .music-now-title{font-size:13.5px}
+.music-modal.is-docked .music-now-artist{font-size:12px}
+.music-modal.is-docked .music-time{font-size:12px;min-width:38px}
+.music-modal.is-docked .music-seek{gap:10px}
+.music-modal.is-docked .music-btn{width:38px;height:38px;border-radius:10px}
+.music-modal.is-docked .music-btn .icon{width:22px;height:22px}
+.music-modal.is-docked .music-btn.is-primary{width:46px;height:46px}
+.music-modal.is-docked .music-btn.is-primary .icon{width:24px;height:24px}
+.music-modal.is-docked .music-tail .music-btn{width:34px;height:34px}
+.music-modal.is-docked .music-tail .music-btn svg{width:15px;height:15px}
+.music-modal.is-docked .music-volbtn{width:34px;height:34px}
+.music-modal.is-docked .music-volbtn .icon{width:19px;height:19px}
+.music-modal.is-docked .music-vol{width:76px}
+.music-modal.is-docked .music-div{height:22px;margin:0 4px}
+
+/* --- the expand tab ------------------------------------------------------
+   A triangle half out of the shell's top edge, in the shell's own border
+   colour so it reads as part of the frame rather than as something sitting on
+   it. Centred above the duration on the right, which is the one part of that
+   row with nothing above it.
+
+   transform-origin is the BOTTOM edge, so hovering grows it upward out of the
+   border rather than sliding it off. clip-path means no outline can show, so
+   focus is carried by the same growth plus the solid accent. */
+.music-expand{
+  position:absolute;z-index:6;right:19px;top:-14px;
+  width:32px;height:15px;padding:0;border:0;cursor:pointer;
+  background:color-mix(in srgb,var(--accent) 42%,transparent);
+  clip-path:polygon(50% 0,100% 100%,0 100%);
+  transform-origin:50% 100%;
+  transition:transform .16s cubic-bezier(.22,.61,.36,1),
+             background-color var(--accent-ease);
+}
+.music-expand[hidden]{display:none}
+.music-expand:hover{transform:scale(1.3);background-color:var(--accent)}
+.music-expand:focus-visible{
+  outline:none;transform:scale(1.45);background-color:var(--accent);
+}
+@media(prefers-reduced-motion:reduce){.music-expand{transition:none}}
+
+@media(max-width:900px){
+  /* No sidebar gutter to sit beside, and the corner is the whole width. */
+  .music-modal.is-docked[open]{left:10px;right:10px;max-width:none}
+  .music-modal.is-docked .music-screen{width:84px}
+  .music-modal.is-docked .music-vol{display:none}
+}
+
 /* --- the tilde keypad ----------------------------------------------------
    Small and central: it is a prompt, not a place. Everything inside it is the
    Idea Vault's own keypad markup, so it inherits the lockout, the shake and

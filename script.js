@@ -784,6 +784,15 @@ function setStatus(message, kind = '', lead = '') {
 // useless — compare the pointer against the visible panel), and making sure the
 // two can never be open at once.
 const openDialogs = new Set();
+
+/* A DOCKED dialog is open but is not an overlay. The music player, closed with
+   a track still going, is re-shown non-modally as a bar in the corner: no
+   backdrop, nothing inert, the page carries on around it. Every place that
+   asks "is an overlay up?" has to mean the modal kind, or the docked bar locks
+   the page scroll, swallows the ` shortcut and gets closed by the next overlay
+   that opens. One selector, so those four answers cannot drift apart. */
+const OVERLAY_OPEN = 'dialog[open]:not(.is-docked)';
+const isDockedBar = (el) => el.classList.contains('is-docked');
 const openerFor = new WeakMap();
 // Which of them were opened OVER another rather than in place of it — see
 // openModal's `stack`. It changes one thing on the way out: where focus goes.
@@ -848,7 +857,9 @@ function openModal(dialog, panel, onOpen, opener, stack) {
   // Read the trigger before closing anything: closing a dialog synchronously
   // hands focus back to *its* opener, so activeElement would name the wrong one.
   const trigger = opener || document.activeElement;
-  if (!stack) openDialogs.forEach(closeModal);      // never two overlays at once
+  // Never two overlays at once — but the docked music bar is not one of them,
+  // and closing it here would stop the music every time anything else opened.
+  if (!stack) openDialogs.forEach(d => { if (!isDockedBar(d)) closeModal(d); });
   openerFor.set(dialog, trigger);
   if (stack) stackedOn.add(dialog); else stackedOn.delete(dialog);
   document.body.classList.add('modal-open');
@@ -874,7 +885,7 @@ function bindModal(dialog, onClose) {
     const opener = openerFor.get(dialog);
     openerFor.delete(dialog);
     const wasStacked = stackedOn.delete(dialog);
-    if ([...openDialogs].some(d => d.open)) {
+    if ([...openDialogs].some(d => d.open && !isDockedBar(d))) {
       /* One overlay still open, two ways to get here. A HAND-OFF — a
          replacement overlay took this one's place — must not pull focus back
          out of the thing the user is now looking at. A STACKED overlay closing
@@ -4101,7 +4112,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
          overlay, in the contact form -- is worse than no shortcut. The keypad's
          own boxes are inputs, so this is also what stops it closing over
          itself. */
-      if (typing() || document.querySelector('dialog[open]')) return;
+      if (typing() || document.querySelector(OVERLAY_OPEN)) return;
       event.preventDefault();
       codeOpener = document.activeElement;
       openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener);
@@ -4643,7 +4654,7 @@ const MediaBus = (() => {
     claimant() {
       /* A modal covers the page. Whatever is behind it is not what the space bar
          is addressing — the overlay's own scrolling is. */
-      if (document.querySelector('dialog[open]')) return null;
+      if (document.querySelector(OVERLAY_OPEN)) return null;
       const live = players.filter(p => p.onScreen());
       return live.find(p => !p.el.paused) || live.find(p => p.touched()) || null;
     },
@@ -5083,7 +5094,7 @@ const MediaBus = (() => {
   const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
   const btnPrev = $('musicPrev'), btnToggle = $('musicToggle'), btnNext = $('musicNext');
   const btnShuffle = $('musicShuffle'), btnLoop = $('musicLoop'), btnStop = $('musicStop');
-  const btnMute = $('musicMute'), volEl = $('musicVol');
+  const btnMute = $('musicMute'), volEl = $('musicVol'), expandBtn = $('musicExpand');
   const scrubEl = $('musicScrub'), elapsedEl = $('musicElapsed'), durationEl = $('musicDuration');
   if (!rowsEl || !frame) return;
 
@@ -5118,6 +5129,14 @@ const MediaBus = (() => {
   let duration = 0;           // of the current track, as the embed reports it
   let scrubbing = false;      // a finger is on the handle: stop painting over it
   let armed = false;          // the iframe has a src and will take commands
+
+  /* WHAT A close() MEANS. Three different things end up here and the close
+     handler is the only place that sees all of them, so they are named rather
+     than guessed at from state:
+       'dock'    the default — put the list away, leave the music in the corner
+       'stop'    the bar's X — end playback and put everything away
+       'expand'  the docked bar is on its way back to being the full overlay */
+  let closeMode = 'dock';
 
   /* The ticks are a PREFERENCE, not a document: they say how this browser
      wants to listen, they are worth nothing to anyone else, and there is no
@@ -5519,7 +5538,12 @@ const MediaBus = (() => {
      anyone could see. Closing stops playback on the way out (see bindModal
      below), so nothing is lost by giving it the more useful job, and a second
      way out of a full-screen overlay is worth having. */
-  btnStop.addEventListener('click', () => closeModal(modal));
+  // The bar's X is the only control that ENDS it: everything else that closes
+  // the overlay hands the music to the corner instead.
+  btnStop.addEventListener('click', () => {
+    closeMode = 'stop';
+    closeModal(modal);
+  });
 
   function paintShuffle() {
     btnShuffle.setAttribute('aria-pressed', String(shuffle));
@@ -5688,6 +5712,38 @@ const MediaBus = (() => {
     pause,
   });
 
+  /* ---- docking --------------------------------------------------------- */
+
+  /* THE SAME DIALOG, shown again without the modal. Two constraints force this
+     shape and it is worth writing them down, because the obvious alternatives
+     both fail:
+
+     A SECOND BAR cannot work. The player is a cross-origin <iframe> and moving
+     an iframe in the DOM RELOADS it — the track would restart every time the
+     list opened or closed. Nothing may reparent it, so whatever shows the
+     player has to BE the element the player already lives in.
+
+     showModal() cannot stay. A modal dialog makes the rest of the page inert,
+     which is exactly what has to stop: the point is to read the site while the
+     music plays. show() is the non-modal form — no backdrop, nothing inert,
+     positioned by ordinary CSS — and close()+show() never takes the iframe out
+     of the document, so the audio does not even blink. */
+  function redock() {
+    modal.classList.add('is-docked');
+    modal.show();
+    if (expandBtn) expandBtn.hidden = false;
+    // A non-modal dialog is not an overlay: give the page its scroll back.
+    document.body.classList.remove('modal-open');
+    /* And let go of focus. The overlay's X goes display:none as this runs, so
+       the browser hands focus to the next focusable thing in the bar — which
+       is the scrub or the volume slider, both <input>. The ` shortcut then
+       refuses to fire, correctly, because something is being typed into, and
+       the reader is left unable to reopen the list with the key that opens
+       everything else. Nothing in a bar whose list just closed should be
+       holding the caret. */
+    if (modal.contains(document.activeElement)) document.activeElement.blur();
+  }
+
   /* ---- opening --------------------------------------------------------- */
 
   async function fetchTracks() {
@@ -5717,6 +5773,15 @@ const MediaBus = (() => {
   }
 
   async function open(trigger) {
+    /* Coming back from the corner. The close() is what lets showModal() run —
+       a dialog cannot be promoted from non-modal to modal in place — and
+       'expand' is what stops the close handler reading it as an ending. */
+    if (modal.open && isDockedBar(modal)) {
+      closeMode = 'expand';
+      modal.close();
+      modal.classList.remove('is-docked');
+    }
+    if (expandBtn) expandBtn.hidden = true;
     openModal(modal, modal.querySelector('.music-shell'), null, trigger);
     if (!loaded && !(await fetchTracks())) return;
     render();
@@ -5731,10 +5796,22 @@ const MediaBus = (() => {
     (viewAll || modal).focus({ preventScroll: true });
   }
 
+  /* Every way out of the overlay lands here — the X, Escape, the backdrop —
+     which is why the decision is made here rather than three times over. */
   bindModal(modal, () => {
-    /* Everything stops with the overlay. A player left running behind a closed
-       dialog is sound coming from nowhere with no control anywhere to reach
-       it — the same rule MediaBus applies to a hidden tab. */
+    const mode = closeMode;
+    closeMode = 'dock';
+
+    // open() is already re-showing it modally; there is nothing to do.
+    if (mode === 'expand') return;
+
+    /* Closing the LIST is not stopping the MUSIC. A track still playing keeps
+       playing, in the corner, and the page carries on around it. Only the
+       bar's own X ends it. */
+    if (mode === 'dock' && armed) { redock(); return; }
+
+    modal.classList.remove('is-docked');
+    if (expandBtn) expandBtn.hidden = true;
     stop();
     searchEl.value = '';
     query = '';
@@ -5742,11 +5819,16 @@ const MediaBus = (() => {
   });
   $('musicClose')?.addEventListener('click', () => closeModal(modal));
 
+  /* The tab on the docked bar's top edge. No code is asked for: the bar only
+     exists because someone typed it, and it dies with the tab. */
+  expandBtn?.addEventListener('click', () => open(expandBtn));
+
   /* Opened by EVENT rather than from the vault's VIEWS table, for the same
      reason the notes overlay is: it has its own opener, which has to fetch the
      manifest before there is anything to show. */
   document.addEventListener('music:open', (event) => {
-    if (!modal.open) open((event.detail || {}).opener);
+    // Docked counts as closed for this: the code should put the list back.
+    if (!modal.open || isDockedBar(modal)) open((event.detail || {}).opener);
   });
 
   // Absent means never set, which is not the same as off: the default is on.

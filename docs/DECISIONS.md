@@ -25,6 +25,51 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-05 — the music docks by re-showing the same dialog non-modally
+
+**Decided.** Closing the music overlay with a track playing calls `close()` then
+`show()` on the same `<dialog>`, which becomes a bar in the corner. An expand
+tab puts the list back. Four shared checks now read
+`dialog[open]:not(.is-docked)` instead of `dialog[open]`.
+
+**Replaced.** Closing the overlay stopping playback outright.
+
+**Why.** Two constraints ruled out everything else. The player is a cross-origin
+`<iframe>`, and moving an iframe in the DOM reloads it — so a second bar
+elsewhere on the page would restart the track every time the list opened or
+closed, and no amount of state syncing fixes that. And a modal dialog makes the
+page inert, which is precisely what has to stop for the music to play while the
+site is read. `close()`+`show()` is the only combination that keeps the iframe in
+place and gives the page back. Confirmed with a same-origin frame before it was
+built on: the inner `window` keeps a stamped property across the swap and no
+load event fires.
+
+**Reverse it if** the player ever stops being an iframe — a self-hosted audio
+source would make the bar an ordinary element that can live anywhere, and then a
+single bar outside any dialog is simpler than a dialog with two personalities.
+
+---
+
+## 2026-09-05 — the songs bar takes the music bar's control order
+
+**Decided.** `.player-transport` is shuffle, prev, PLAY, next, repeat, with the
+two modes moved out of `.player-modes`. Volume and close stay on the right.
+
+**Replaced.** prev/play/next centred, with shuffle and repeat grouped on the
+right beside volume and close.
+
+**Why.** The right-hand group carried five controls against the middle's three,
+which is what made that end look crowded, and centring an asymmetric transport
+leaves the play button itself off centre — the same fault found in the music bar
+one commit earlier. Splitting the modes around the transport balances the row
+and makes the two bars one control layout instead of two.
+
+**Reverse it if** the bar ever narrows enough that five centred controls stop
+fitting; the modes going back to their own group is the right collapse, and the
+existing max-width:900px rules are where it would go.
+
+---
+
 ## 2026-09-04 — the transport is symmetric about the play button
 
 **Decided.** The five controls run shuffle, prev, PLAY, next, repeat, and
