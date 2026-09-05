@@ -25,6 +25,51 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-04 — the repeat defaults are a field in tracklist.txt
+
+**Decided.** A track marked `|R` as an optional fourth field in `tracklist.txt`
+starts in the repeat playlist. `bake_music.py` refuses any other value in that
+position.
+
+**Replaced.** `Repeat_Tracks_Only.md`, a separate list of 56 `Title — Artist`
+lines, which is how the set arrived.
+
+**Why.** Two lists of the same songs drift. The reference file already disagreed
+with the tracklist on the artist field — it credits every artist where the
+tracklist names the primary one — so matching had to be by title, and a title
+edited in one file and not the other would go silently unmatched. The only
+symptom would be a track that quietly stopped being a default, which is
+invisible: nothing errors, the playlist is just one song shorter than someone
+remembers. One master, one edit, and a mark that is refused if it is typo'd.
+
+**Reverse it if** the defaults ever need to be more than a flag — several named
+playlists rather than one. Then the fourth field is the wrong shape and the
+right answer is a manifest beside the tracklist, keyed by video id rather than
+by title, so it cannot drift the way the .md would have.
+
+---
+
+## 2026-09-04 — seeding the repeat playlist applies a delta, not a snapshot
+
+**Decided.** The overlay stores the set of defaults it last saw
+(`music-repeat-seed`). On open it adds tracks marked since then and removes ones
+unmarked since, and leaves everything else the listener has done alone. A
+browser with no stored ticks takes the current defaults whole.
+
+**Replaced.** Seeding once, on the first visit, and never again.
+
+**Why.** Seed-once is invisible in exactly the case that matters: a song marked
+`|R` after someone's first visit can never reach them, and nothing anywhere says
+so. Seeding every time is the opposite failure — it keeps restoring what they
+deliberately unticked. The delta is the only version where both editing the
+tracklist and unticking a row keep working.
+
+**Reverse it if** the ticks ever move off `localStorage` onto a server. Then
+there is one authoritative list per person rather than one per browser, and the
+merge belongs there instead of being re-derived on every open.
+
+---
+
 ## 2026-09-04 — the music embed is driven by hand, not by YouTube's API script
 
 **Decided.** The music overlay talks to its YouTube embed with raw postMessage —

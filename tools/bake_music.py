@@ -56,6 +56,13 @@ def parse(text: str) -> tuple[list[dict], list[str]]:
     Blank lines are skipped rather than reported — a trailing newline is not a mistake
     and neither is a gap someone left while pasting. Everything else that is not
     `Title|Artist|URL` with a real video id is a problem, named by line number.
+
+    A FOURTH FIELD, `R`, marks a track as one of the repeat playlist's defaults.
+    It lives here rather than in a second file because two lists of songs drift:
+    a title edited in one and not the other goes silently unmatched, and the only
+    symptom is a track that quietly stops being a default. One master, one edit.
+    Anything else in that field is a problem rather than a shrug — a typo'd mark
+    that did nothing would be invisible.
     """
     tracks: list[dict] = []
     problems: list[str] = []
@@ -67,12 +74,18 @@ def parse(text: str) -> tuple[list[dict], list[str]]:
             continue
 
         parts = line.split("|")
-        if len(parts) != 3:
+        if len(parts) not in (3, 4):
             problems.append(f"line {n}: {len(parts)} field(s), expected "
-                            f"Title|Artist|URL -> {line[:60]}")
+                            f"Title|Artist|URL or Title|Artist|URL|R -> {line[:60]}")
             continue
 
-        title, artist, url = (p.strip() for p in parts)
+        mark = parts[3].strip().upper() if len(parts) == 4 else ""
+        if mark not in ("", "R"):
+            problems.append(f"line {n}: the fourth field is {mark!r}, expected R "
+                            f"or nothing -> {line[:60]}")
+            continue
+
+        title, artist, url = (p.strip() for p in parts[:3])
         if not title:
             problems.append(f"line {n}: no title -> {line[:60]}")
             continue
@@ -95,7 +108,12 @@ def parse(text: str) -> tuple[list[dict], list[str]]:
         # `u` is kept as well as `v` because the LINK column shows a link someone
         # copies and pastes, and rebuilding it from the id would quietly rewrite a
         # youtu.be short link into the long form nobody typed.
-        tracks.append({"t": title, "a": artist, "u": url, "v": vid})
+        row = {"t": title, "a": artist, "u": url, "v": vid}
+        # Written only when true, so an unmarked track costs nothing in the
+        # manifest and the flag reads as a mark rather than as a field.
+        if mark == "R":
+            row["r"] = 1
+        tracks.append(row)
 
     # An empty subject is a BROKEN parse, never a clean one. A tracklist that stopped
     # matching would otherwise write an empty manifest and report success over it,
@@ -108,18 +126,26 @@ def parse(text: str) -> tuple[list[dict], list[str]]:
 
 
 def render(tracks: list[dict]) -> str:
-    """The manifest, byte-for-byte. Deterministic, so --check is an exact comparison."""
-    return json.dumps({"count": len(tracks), "tracks": tracks},
+    """The manifest, byte-for-byte. Deterministic, so --check is an exact comparison.
+
+    `repeat` is the count of defaults, carried so the page can tell "nothing is
+    marked" from "the flags stopped being written" without walking the list.
+    """
+    return json.dumps({"count": len(tracks),
+                       "repeat": sum(1 for t in tracks if t.get("r")),
+                       "tracks": tracks},
                       ensure_ascii=False, indent=1) + "\n"
 
 
-def build() -> tuple[str | None, list[str], int]:
+def build() -> tuple[str | None, list[str], int, int]:
+    """(manifest text or None, problems, tracks seen, repeat defaults marked)."""
     if not SOURCE.exists():
-        return None, [f"{SOURCE.name} is missing — nothing to bake"], 0
+        return None, [f"{SOURCE.name} is missing — nothing to bake"], 0, 0
     tracks, problems = parse(SOURCE.read_text(encoding="utf-8"))
+    marked = sum(1 for t in tracks if t.get("r"))
     if problems:
-        return None, problems, len(tracks)
-    return render(tracks), [], len(tracks)
+        return None, problems, len(tracks), marked
+    return render(tracks), [], len(tracks), marked
 
 
 def cases() -> int:
@@ -132,7 +158,10 @@ def cases() -> int:
         ("one good line",                 OK,                                 1, False),
         ("two lines, mixed url forms",    TWO,                                2, False),
         ("blank lines are not errors",    f"\n{OK}\n\n",                      1, False),
-        ("a pipe is allowed nowhere else", "A|B|C|D",                         0, True),
+        ("a repeat mark",                 OK + "|R",                          1, False),
+        ("a lower-case repeat mark",      OK + "|r",                          1, False),
+        ("a fourth field that is not R",  OK + "|X",                          0, True),
+        ("five fields",                   "A|B|C|D|E",                        0, True),
         ("EMPTY FILE",                    "",                                 0, True),
         ("whitespace only",               "\n  \n\t\n",                       0, True),
         ("missing artist",                "Song||https://youtu.be/IB1MlSvHq58", 0, True),
@@ -153,26 +182,46 @@ def cases() -> int:
         if not agreed and problems:
             print(f"         -> {problems[0]}")
 
+    # The table above only counts tracks and problems, so a mark that parsed without
+    # complaining but set nothing would pass every row of it. Read the flag itself.
+    marked, _ = parse(OK + "|R")
+    plain, _ = parse(OK)
+    if marked[0].get("r") != 1:
+        print("bake_music --cases: |R parsed cleanly but set no repeat flag",
+              file=sys.stderr)
+        return 1
+    if "r" in plain[0]:
+        print("bake_music --cases: an unmarked track came back with a repeat flag",
+              file=sys.stderr)
+        return 1
+
     # Assert the table's own size, or a table that stopped being driven looks exactly
     # like a table that passed.
     must_fail = sum(1 for row in table if row[3])
-    if len(table) < 10 or must_fail < 6:
+    if len(table) < 13 or must_fail < 8:
         print(f"bake_music --cases: only {len(table)} case(s), {must_fail} of them "
               f"refusing — the table has been gutted", file=sys.stderr)
         return 1
 
     # ...and one control on the REAL file, or the whole table could be passing against
-    # a parser that no longer sees the subject it exists for.
+    # a parser that no longer sees the subject it exists for. The repeat defaults are
+    # counted here too: they are set by a mark that is easy to lose in an edit and
+    # whose absence looks exactly like "nobody has ticked anything yet".
     live, live_problems = parse(SOURCE.read_text(encoding="utf-8")) if SOURCE.exists() else ([], ["missing"])
+    live_repeat = sum(1 for t in live if t.get("r"))
     if len(live) < 100 or live_problems:
         print(f"bake_music --cases: the live tracklist parsed to {len(live)} track(s) "
               f"with {len(live_problems)} problem(s) — the real subject is not being "
               f"found", file=sys.stderr)
         return 1
+    if live_repeat < 1:
+        print("bake_music --cases: not one track in the live tracklist carries |R — "
+              "the repeat defaults have been lost", file=sys.stderr)
+        return 1
 
     print(f"bake_music --cases: {len(table) - bad} of {len(table)} as expected "
           f"({must_fail} of them proving it still refuses); "
-          f"live tracklist parses to {len(live)} tracks")
+          f"live tracklist parses to {len(live)} tracks, {live_repeat} marked |R")
     return 1 if bad else 0
 
 
@@ -180,7 +229,7 @@ def main(argv: list[str]) -> int:
     if argv and argv[0] == "--cases":
         return cases()
 
-    want, problems, seen = build()
+    want, problems, seen, marked = build()
     if problems:
         print(f"bake_music: {SOURCE.name} has {len(problems)} problem(s) "
               f"({seen} track(s) parsed before them):", file=sys.stderr)
@@ -202,17 +251,19 @@ def main(argv: list[str]) -> int:
                   f"{SOURCE.name} ({seen} track(s) in the source). Rebuild: {REBUILD}",
                   file=sys.stderr)
             return 1
-        print(f"bake_music --check: {seen} track(s), manifest current")
+        print(f"bake_music --check: {seen} track(s), {marked} marked |R, "
+              f"manifest current")
         return 0
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     if have == want:
-        print(f"bake_music: {seen} track(s), {OUT.relative_to(ROOT)} already current")
+        print(f"bake_music: {seen} track(s), {marked} marked |R, "
+              f"{OUT.relative_to(ROOT)} already current")
         return 0
     # Newline as written: the manifest is generated, so it is uniform LF and stays
     # that way. Nothing here ever touches a file with mixed endings.
     OUT.write_text(want, encoding="utf-8", newline="\n")
-    print(f"bake_music: {seen} track(s) -> {OUT.relative_to(ROOT)} "
+    print(f"bake_music: {seen} track(s), {marked} marked |R -> {OUT.relative_to(ROOT)} "
           f"({len(want.encode('utf-8')) / 1024:.1f} KB)")
     return 0
 

@@ -1,5 +1,6 @@
 {
  "count": 311,
+ "repeat": 56,
  "tracks": [
   {
    "t": "25 To Life",
@@ -29,7 +30,8 @@
    "t": "Alive (Nightmare)",
    "a": "Kid Cudi",
    "u": "https://www.youtube.com/watch?v=1NI2-QZK_NU",
-   "v": "1NI2-QZK_NU"
+   "v": "1NI2-QZK_NU",
+   "r": 1
   },
   {
    "t": "All Eyes on You",
@@ -77,7 +79,8 @@
    "t": "Angel",
    "a": "Shaggy",
    "u": "https://www.youtube.com/watch?v=XWJrPzAUzAs",
-   "v": "XWJrPzAUzAs"
+   "v": "XWJrPzAUzAs",
+   "r": 1
   },
   {
    "t": "Anoana",
@@ -89,7 +92,8 @@
    "t": "Another Day in Paradise (2016 Remaster)",
    "a": "Phil Collins",
    "u": "https://www.youtube.com/watch?v=sXAqwZt0aEI",
-   "v": "sXAqwZt0aEI"
+   "v": "sXAqwZt0aEI",
+   "r": 1
   },
   {
    "t": "Around the World (La La La La La)",
@@ -137,7 +141,8 @@
    "t": "Be the One",
    "a": "Moby",
    "u": "https://www.youtube.com/watch?v=Fp-xd43JKJ8",
-   "v": "Fp-xd43JKJ8"
+   "v": "Fp-xd43JKJ8",
+   "r": 1
   },
   {
    "t": "Beautiful",
@@ -197,7 +202,8 @@
    "t": "Blue Strips",
    "a": "Jessie Murph",
    "u": "https://www.youtube.com/watch?v=aFpfY-EZwFo",
-   "v": "aFpfY-EZwFo"
+   "v": "aFpfY-EZwFo",
+   "r": 1
   },
   {
    "t": "Bohemian Rhapsody (Remastered 2011)",
@@ -281,7 +287,8 @@
    "t": "Chlorine",
    "a": "Twenty One Pilots",
    "u": "https://www.youtube.com/watch?v=eJnQBXmZ7Ek",
-   "v": "eJnQBXmZ7Ek"
+   "v": "eJnQBXmZ7Ek",
+   "r": 1
   },
   {
    "t": "Circles",
@@ -383,7 +390,8 @@
    "t": "Different World (feat. CORSAK)",
    "a": "Alan Walker",
    "u": "https://www.youtube.com/watch?v=m-PJmmvyP10",
-   "v": "m-PJmmvyP10"
+   "v": "m-PJmmvyP10",
+   "r": 1
   },
   {
    "t": "Don't Leave Me Now",
@@ -407,13 +415,15 @@
    "t": "Dreams pt. II (Slowed)",
    "a": "Lost Sky",
    "u": "https://www.youtube.com/watch?v=ai8r6fXV9Pw",
-   "v": "ai8r6fXV9Pw"
+   "v": "ai8r6fXV9Pw",
+   "r": 1
   },
   {
    "t": "Echo",
    "a": "Yves V",
    "u": "https://www.youtube.com/watch?v=bHKRIWZoX0Y",
-   "v": "bHKRIWZoX0Y"
+   "v": "bHKRIWZoX0Y",
+   "r": 1
   },
   {
    "t": "Elastic Heart",
@@ -425,25 +435,29 @@
    "t": "emotions",
    "a": "iann dior",
    "u": "https://www.youtube.com/watch?v=6TsnAZLYu0A",
-   "v": "6TsnAZLYu0A"
+   "v": "6TsnAZLYu0A",
+   "r": 1
   },
   {
    "t": "End of Time",
    "a": "K-391",
    "u": "https://www.youtube.com/watch?v=CaZXdZGZfb0",
-   "v": "CaZXdZGZfb0"
+   "v": "CaZXdZGZfb0",
+   "r": 1
   },
   {
    "t": "Everything is Right",
    "a": "Skeler",
    "u": "https://www.youtube.com/watch?v=iTuJvuGWn00",
-   "v": "iTuJvuGWn00"
+   "v": "iTuJvuGWn00",
+   "r": 1
   },
   {
    "t": "Eyes on Fire (Skeler Remix) - Re-Recorded",
    "a": "Skeler",
    "u": "https://www.youtube.com/watch?v=WQzG7A60PPI",
-   "v": "WQzG7A60PPI"
+   "v": "WQzG7A60PPI",
+   "r": 1
   },
   {
    "t": "Fade",
@@ -467,7 +481,8 @@
    "t": "Falling Apart",
    "a": "Michael FK",
    "u": "https://www.youtube.com/watch?v=qtNSLNUd1VE",
-   "v": "qtNSLNUd1VE"
+   "v": "qtNSLNUd1VE",
+   "r": 1
   },
   {
    "t": "Family Affair",
@@ -479,7 +494,8 @@
    "t": "Fearless Pt. II",
    "a": "Lost Sky",
    "u": "https://www.youtube.com/watch?v=S19UcWdOA-I",
-   "v": "S19UcWdOA-I"
+   "v": "S19UcWdOA-I",
+   "r": 1
   },
   {
    "t": "Feelings Undercover (Instrumental)",
@@ -491,13 +507,15 @@
    "t": "FLAAKLYPA",
    "a": "K-391",
    "u": "https://www.youtube.com/watch?v=rCn2ghjakEw",
-   "v": "rCn2ghjakEw"
+   "v": "rCn2ghjakEw",
+   "r": 1
   },
   {
    "t": "Flower Dance",
    "a": "DJ Okawari",
    "u": "https://www.youtube.com/watch?v=3ZIFNKYQj7g",
-   "v": "3ZIFNKYQj7g"
+   "v": "3ZIFNKYQj7g",
+   "r": 1
   },
   {
    "t": "Flowers",
@@ -521,7 +539,8 @@
    "t": "Friendships",
    "a": "Pascal Letoublon",
    "u": "https://www.youtube.com/watch?v=mPmoojB54xI",
-   "v": "mPmoojB54xI"
+   "v": "mPmoojB54xI",
+   "r": 1
   },
   {
    "t": "Game of Thrones Medley",
@@ -539,7 +558,8 @@
    "t": "Gasoline",
    "a": "Halsey",
    "u": "https://www.youtube.com/watch?v=Z5-NDdyVBJw",
-   "v": "Z5-NDdyVBJw"
+   "v": "Z5-NDdyVBJw",
+   "r": 1
   },
   {
    "t": "Gayatri Mantra",
@@ -593,7 +613,8 @@
    "t": "Headlights (feat. KIDDO)",
    "a": "Alok",
    "u": "https://www.youtube.com/watch?v=kyLuzKbgXAs",
-   "v": "kyLuzKbgXAs"
+   "v": "kyLuzKbgXAs",
+   "r": 1
   },
   {
    "t": "Headlights (feat. KIDDO) - Slowed Version",
@@ -617,7 +638,8 @@
    "t": "Heathens",
    "a": "Twenty One Pilots",
    "u": "https://www.youtube.com/watch?v=UprcpdwuwCg",
-   "v": "UprcpdwuwCg"
+   "v": "UprcpdwuwCg",
+   "r": 1
   },
   {
    "t": "Helvegen",
@@ -635,7 +657,8 @@
    "t": "Heroes Tonight",
    "a": "Janji",
    "u": "https://www.youtube.com/watch?v=3nQNiWdeH2Q",
-   "v": "3nQNiWdeH2Q"
+   "v": "3nQNiWdeH2Q",
+   "r": 1
   },
   {
    "t": "Hey Brother",
@@ -653,19 +676,22 @@
    "t": "High Right Now",
    "a": "Tyla Yaweh",
    "u": "https://www.youtube.com/watch?v=CAInhM9pSFk",
-   "v": "CAInhM9pSFk"
+   "v": "CAInhM9pSFk",
+   "r": 1
   },
   {
    "t": "Hislerim",
    "a": "Serhat Durmus",
    "u": "https://www.youtube.com/watch?v=Mc2-YM9Bhu4",
-   "v": "Mc2-YM9Bhu4"
+   "v": "Mc2-YM9Bhu4",
+   "r": 1
   },
   {
    "t": "Hoar Frost",
    "a": "A Tergo Lupi",
    "u": "https://www.youtube.com/watch?v=Uf7u-h47HWE",
-   "v": "Uf7u-h47HWE"
+   "v": "Uf7u-h47HWE",
+   "r": 1
   },
   {
    "t": "Home",
@@ -695,7 +721,8 @@
    "t": "I Like Me Better",
    "a": "LAUV",
    "u": "https://www.youtube.com/watch?v=a7fzkqLozwA",
-   "v": "a7fzkqLozwA"
+   "v": "a7fzkqLozwA",
+   "r": 1
   },
   {
    "t": "I Think I'm OKAY (with YUNGBLUD & Travis Barker)",
@@ -749,7 +776,8 @@
    "t": "Immortals",
    "a": "Fall Out Boy",
    "u": "https://www.youtube.com/watch?v=l9PxOanFjxQ",
-   "v": "l9PxOanFjxQ"
+   "v": "l9PxOanFjxQ",
+   "r": 1
   },
   {
    "t": "In Hell I'll Be in Good Company",
@@ -785,19 +813,22 @@
    "t": "In The End (Mellen Gi Remix)",
    "a": "Tommee Profitt",
    "u": "https://www.youtube.com/watch?v=WNeLUngb-Xg",
-   "v": "WNeLUngb-Xg"
+   "v": "WNeLUngb-Xg",
+   "r": 1
   },
   {
    "t": "In Your Eyes (feat. Alida)",
    "a": "Robin Schulz",
    "u": "https://www.youtube.com/watch?v=mDLiAs5k1oI",
-   "v": "mDLiAs5k1oI"
+   "v": "mDLiAs5k1oI",
+   "r": 1
   },
   {
    "t": "It Wasn't Me",
    "a": "Shaggy",
    "u": "https://www.youtube.com/watch?v=2g5Hz17C4is",
-   "v": "2g5Hz17C4is"
+   "v": "2g5Hz17C4is",
+   "r": 1
   },
   {
    "t": "Jericho",
@@ -827,7 +858,8 @@
    "t": "Kominn Heim",
    "a": "A Tergo Lupi",
    "u": "https://www.youtube.com/watch?v=pd6trxdYWWc",
-   "v": "pd6trxdYWWc"
+   "v": "pd6trxdYWWc",
+   "r": 1
   },
   {
    "t": "Last Night",
@@ -845,7 +877,8 @@
    "t": "Let Her Go",
    "a": "Azimov",
    "u": "https://www.youtube.com/watch?v=fFrzHWCLe58",
-   "v": "fFrzHWCLe58"
+   "v": "fFrzHWCLe58",
+   "r": 1
   },
   {
    "t": "Let Me Down Slowly",
@@ -863,7 +896,8 @@
    "t": "Let You Down",
    "a": "NF",
    "u": "https://www.youtube.com/watch?v=fbHbTBP_u7U",
-   "v": "fbHbTBP_u7U"
+   "v": "fbHbTBP_u7U",
+   "r": 1
   },
   {
    "t": "Levels (Radio Edit)",
@@ -905,13 +939,15 @@
    "t": "Lost Control",
    "a": "Alan Walker",
    "u": "https://www.youtube.com/watch?v=gRC30wQG79A",
-   "v": "gRC30wQG79A"
+   "v": "gRC30wQG79A",
+   "r": 1
   },
   {
    "t": "Love Again (feat. Alida)",
    "a": "Alok",
    "u": "https://www.youtube.com/watch?v=bhU_DEM-7Yc",
-   "v": "bhU_DEM-7Yc"
+   "v": "bhU_DEM-7Yc",
+   "r": 1
   },
   {
    "t": "Love The Way You Lie",
@@ -953,7 +989,8 @@
    "t": "Minefield",
    "a": "Nic D",
    "u": "https://www.youtube.com/watch?v=QNX9_JgbWis",
-   "v": "QNX9_JgbWis"
+   "v": "QNX9_JgbWis",
+   "r": 1
   },
   {
    "t": "Misery Business",
@@ -971,7 +1008,8 @@
    "t": "Monster (Robin Schulz Remix)",
    "a": "LUM!X",
    "u": "https://www.youtube.com/watch?v=eOEsCf4OzO4",
-   "v": "eOEsCf4OzO4"
+   "v": "eOEsCf4OzO4",
+   "r": 1
   },
   {
    "t": "Mood (feat. iann dior)",
@@ -995,19 +1033,22 @@
    "t": "Mortals",
    "a": "Warriyo",
    "u": "https://www.youtube.com/watch?v=zFXl1sjTdms",
-   "v": "zFXl1sjTdms"
+   "v": "zFXl1sjTdms",
+   "r": 1
   },
   {
    "t": "Mourning",
    "a": "Post Malone",
    "u": "https://www.youtube.com/watch?v=DAOZJPquY_w",
-   "v": "DAOZJPquY_w"
+   "v": "DAOZJPquY_w",
+   "r": 1
   },
   {
    "t": "Move Your Body (Alan Walker Remix)",
    "a": "Sia",
    "u": "https://www.youtube.com/watch?v=bZxrIoCPsOc",
-   "v": "bZxrIoCPsOc"
+   "v": "bZxrIoCPsOc",
+   "r": 1
   },
   {
    "t": "Mr. Brightside",
@@ -1055,19 +1096,22 @@
    "t": "New Beginning",
    "a": "Far Out",
    "u": "https://www.youtube.com/watch?v=frX8kNaPeKU",
-   "v": "frX8kNaPeKU"
+   "v": "frX8kNaPeKU",
+   "r": 1
   },
   {
    "t": "No Broke Boys",
    "a": "Disco Lines",
    "u": "https://www.youtube.com/watch?v=nS-fOh1CfhQ",
-   "v": "nS-fOh1CfhQ"
+   "v": "nS-fOh1CfhQ",
+   "r": 1
   },
   {
    "t": "No Broke Boys (Remix)",
    "a": "Hiko",
    "u": "https://www.youtube.com/watch?v=DUbE57HtcXw",
-   "v": "DUbE57HtcXw"
+   "v": "DUbE57HtcXw",
+   "r": 1
   },
   {
    "t": "No Love",
@@ -1097,7 +1141,8 @@
    "t": "Now We Are Free",
    "a": "Hans Zimmer",
    "u": "https://www.youtube.com/watch?v=mQQKZ5cgybU",
-   "v": "mQQKZ5cgybU"
+   "v": "mQQKZ5cgybU",
+   "r": 1
   },
   {
    "t": "Now We are Free",
@@ -1217,7 +1262,8 @@
    "t": "parents",
    "a": "YUNGBLUD",
    "u": "https://www.youtube.com/watch?v=oOWBsmgjmPo",
-   "v": "oOWBsmgjmPo"
+   "v": "oOWBsmgjmPo",
+   "r": 1
   },
   {
    "t": "Payphone",
@@ -1265,7 +1311,8 @@
    "t": "Prayer in C (Robin Schulz Radio Edit)",
    "a": "Lilly Wood and The Prick",
    "u": "https://www.youtube.com/watch?v=fiore9Z5iUg",
-   "v": "fiore9Z5iUg"
+   "v": "fiore9Z5iUg",
+   "r": 1
   },
   {
    "t": "Psycho (feat. Ty Dolla $ign)",
@@ -1373,7 +1420,8 @@
    "t": "Royalty",
    "a": "Egzod",
    "u": "https://www.youtube.com/watch?v=lW9ep22YmlM",
-   "v": "lW9ep22YmlM"
+   "v": "lW9ep22YmlM",
+   "r": 1
   },
   {
    "t": "Ruff Ryders' Anthem",
@@ -1421,7 +1469,8 @@
    "t": "Set Fire to the Rain",
    "a": "Adele",
    "u": "https://www.youtube.com/watch?v=uJdu4Lfy8aI",
-   "v": "uJdu4Lfy8aI"
+   "v": "uJdu4Lfy8aI",
+   "r": 1
   },
   {
    "t": "Shape of You",
@@ -1445,7 +1494,8 @@
    "t": "Shy Girl",
    "a": "Kedam",
    "u": "https://www.youtube.com/watch?v=uScZ8WZMjhs",
-   "v": "uScZ8WZMjhs"
+   "v": "uScZ8WZMjhs",
+   "r": 1
   },
   {
    "t": "Silence",
@@ -1529,7 +1579,8 @@
    "t": "Sugar (feat. Francesco Yates)",
    "a": "Robin Schulz",
    "u": "https://www.youtube.com/watch?v=bvC_0foemLY",
-   "v": "bvC_0foemLY"
+   "v": "bvC_0foemLY",
+   "r": 1
   },
   {
    "t": "Summertime Sadness",
@@ -1595,7 +1646,8 @@
    "t": "The Hanging Tree (From \"The Hunger Games: Mockingjay\" Soundtrack)",
    "a": "James Newton Howard",
    "u": "https://www.youtube.com/watch?v=F3hTW9e20d8",
-   "v": "F3hTW9e20d8"
+   "v": "F3hTW9e20d8",
+   "r": 1
   },
   {
    "t": "The Nights",
@@ -1613,7 +1665,8 @@
    "t": "The Sound of Silence",
    "a": "Disturbed",
    "u": "https://www.youtube.com/watch?v=u9Dg-g7t2l4",
-   "v": "u9Dg-g7t2l4"
+   "v": "u9Dg-g7t2l4",
+   "r": 1
   },
   {
    "t": "The Spectre",
@@ -1625,7 +1678,8 @@
    "t": "Thunder",
    "a": "Gabry Ponte",
    "u": "https://www.youtube.com/watch?v=yCTxqM-aLtE",
-   "v": "yCTxqM-aLtE"
+   "v": "yCTxqM-aLtE",
+   "r": 1
   },
   {
    "t": "Thunder (Imagine Dragons)",
@@ -1649,7 +1703,8 @@
    "t": "Trampoline",
    "a": "SHAED",
    "u": "https://www.youtube.com/watch?v=4h26oYuE2h0",
-   "v": "4h26oYuE2h0"
+   "v": "4h26oYuE2h0",
+   "r": 1
   },
   {
    "t": "Trellabundin",
@@ -1811,7 +1866,8 @@
    "t": "Without Me",
    "a": "Eminem",
    "u": "https://www.youtube.com/watch?v=YVkUvmDQ3HY",
-   "v": "YVkUvmDQ3HY"
+   "v": "YVkUvmDQ3HY",
+   "r": 1
   },
   {
    "t": "Without You (feat. Sandro Cavazza)",
@@ -1847,7 +1903,8 @@
    "t": "Yggdrasill",
    "a": "Runes of the North",
    "u": "https://www.youtube.com/watch?v=-XdcWgdvois",
-   "v": "-XdcWgdvois"
+   "v": "-XdcWgdvois",
+   "r": 1
   },
   {
    "t": "Ymir",

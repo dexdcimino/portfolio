@@ -216,40 +216,84 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        `the columns are not in the order tick, play, title, link: ${order.join(' < ')}`);
 }
 
-/* ---- 5. ticking moves a track into REPEAT, and it survives a reload ------
+/* ---- 5. the defaults are seeded, and ticking still owns the list --------
+   The tracks marked |R in tracklist.txt arrive already ticked in a browser
+   that has never opened this. That is the state under test here: a fresh
+   profile, so localStorage is empty and the seed path is the one that runs.
+
    FALSELY PASSES IF: only the checkbox's own state were read back. What the
-   tick is FOR is the second playlist, so the check is that the rail count
-   moves and that the REPEAT view holds exactly the ticked track. */
+   tick is FOR is the second playlist, so what is checked is the rail count,
+   the REPEAT view's contents, and that a row leaves when it is unticked. */
 {
+  const SEEDED = manifest.repeat;
+  note(SEEDED > 0, 'the manifest marks no repeat defaults at all — nothing to seed');
+
+  const seeded = await page.evaluate(() => ({
+    checked: document.querySelectorAll('#musicRows .music-check:checked').length,
+    railN: document.getElementById('musicNRepeat').textContent,
+  }));
+  note(seeded.checked === SEEDED,
+       `${seeded.checked} rows arrived ticked, the manifest marks ${SEEDED}`);
+  note(seeded.railN === String(SEEDED),
+       `the REPEAT rail reads "${seeded.railN}", the manifest marks ${SEEDED}`);
+  console.log(`  seeded: ${seeded.checked} of ${manifest.count} arrive on repeat`);
+
+  // Every seeded row must be one the manifest actually marked, not just the
+  // right NUMBER of rows — a seed that ticked the first 56 would pass a count.
+  const wrong = await page.evaluate((marked) => {
+    const on = [...document.querySelectorAll('#musicRows .music-row')]
+      .filter(r => r.querySelector('.music-check').checked).map(r => r.dataset.v);
+    return on.filter(v => !marked.includes(v)).length;
+  }, manifest.tracks.filter(t => t.r).map(t => t.v));
+  note(wrong === 0, `${wrong} ticked row(s) are not marked |R in the manifest`);
+
   const ticked = await page.evaluate(() => {
-    const row = document.querySelector('#musicRows .music-row');
-    const v = row.dataset.v;
+    const row = [...document.querySelectorAll('#musicRows .music-row')]
+      .find(r => !r.querySelector('.music-check').checked);
     const box = row.querySelector('.music-check');
     box.click();
-    return { v, checked: box.checked, railN: document.getElementById('musicNRepeat').textContent };
+    return { v: row.dataset.v, checked: box.checked,
+             railN: document.getElementById('musicNRepeat').textContent };
   });
-  note(ticked.checked, 'clicking the tick did not check it');
-  note(ticked.railN === '1', `the REPEAT count reads "${ticked.railN}" after one tick`);
+  note(ticked.checked, 'clicking an unticked row did not check it');
+  note(ticked.railN === String(SEEDED + 1),
+       `the REPEAT count reads "${ticked.railN}" after one more tick`);
 
   await page.click('#musicViewRepeat');
-  const inRepeat = await page.evaluate(() => {
+  const inRepeat = await page.evaluate((v) => {
     const rows = [...document.querySelectorAll('#musicRows .music-row')];
-    return { n: rows.length, v: rows[0]?.dataset.v,
+    return { n: rows.length, has: rows.some(r => r.dataset.v === v),
+             allChecked: rows.every(r => r.querySelector('.music-check').checked),
              pressed: document.getElementById('musicViewRepeat').getAttribute('aria-pressed') };
-  });
-  note(inRepeat.n === 1, `the REPEAT playlist shows ${inRepeat.n} track(s), expected 1`);
-  note(inRepeat.v === ticked.v, 'the REPEAT playlist is showing the wrong track');
+  }, ticked.v);
+  note(inRepeat.n === SEEDED + 1,
+       `the REPEAT playlist shows ${inRepeat.n} track(s), expected ${SEEDED + 1}`);
+  note(inRepeat.has, 'the track just ticked is not in the REPEAT playlist');
+  note(inRepeat.allChecked, 'the REPEAT playlist is showing an unticked row');
   note(inRepeat.pressed === 'true', 'the REPEAT rail button does not read as pressed');
 
   // Untick from inside REPEAT: the row has to leave, or the tick means nothing
   // in the one place it matters most.
-  await page.evaluate(() => document.querySelector('#musicRows .music-check').click());
-  const emptied = await page.evaluate(() => ({
-    n: document.querySelectorAll('#musicRows .music-row').length,
-    said: document.getElementById('musicEmpty').hidden === false,
-  }));
-  note(emptied.n === 0, `unticking inside REPEAT left ${emptied.n} row(s) behind`);
-  note(emptied.said, 'an empty REPEAT playlist says nothing at all');
+  const after = await page.evaluate((v) => {
+    document.querySelector(`.music-row[data-v="${v}"] .music-check`).click();
+    const rows = [...document.querySelectorAll('#musicRows .music-row')];
+    return { n: rows.length, has: rows.some(r => r.dataset.v === v) };
+  }, ticked.v);
+  note(after.n === SEEDED, `unticking inside REPEAT left ${after.n} row(s), expected ${SEEDED}`);
+  note(!after.has, 'the unticked row is still in the REPEAT playlist');
+
+  // Empty it entirely: an empty list must say so rather than look broken.
+  const drained = await page.evaluate(() => {
+    let guard = 0;
+    let box;
+    while ((box = document.querySelector('#musicRows .music-check')) && guard++ < 2000) box.click();
+    return { n: document.querySelectorAll('#musicRows .music-row').length,
+             said: document.getElementById('musicEmpty').hidden === false,
+             railN: document.getElementById('musicNRepeat').textContent };
+  });
+  note(drained.n === 0, `emptying REPEAT left ${drained.n} row(s) behind`);
+  note(drained.said, 'an empty REPEAT playlist says nothing at all');
+  note(drained.railN === '0', `the rail reads "${drained.railN}" with nothing ticked`);
 
   await page.click('#musicViewAll');
 }
@@ -346,6 +390,113 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(embedRequests > 0, 'the page never even asked for the embed');
 }
 
+/* ---- 7b. the repeat button cycles through three states -----------------
+   The brief: repeat off, repeat the playlist, repeat this one track. Two
+   states would be an aria-pressed toggle; three cannot be, which is why this
+   reads data-loop. The 1 badge must appear on the third and only the third. */
+{
+  /* The badge FADES, so a read taken straight after the click that turns it on
+     catches the transition in flight and comes back near zero — which is what
+     this check reported the first time it ran, as a fault in the button.
+     Settle on the animation's own completion rather than guessing at a sleep:
+     headless paints on demand and a mid-flight opacity is not a state anyone
+     ever sees. An element with nothing running returns no animations and this
+     reads the value it already holds. */
+  const read = () => page.evaluate(async () => {
+    const b = document.getElementById('musicLoop');
+    const badge = b.querySelector('.music-loop-one');
+    await Promise.all(badge.getAnimations().map(a => a.finished.catch(() => {})));
+    return { state: b.dataset.loop, label: b.getAttribute('aria-label'),
+             badge: parseFloat(getComputedStyle(badge).opacity) };
+  });
+
+  // Three clicks, four reads: the cycle has to come back to where it started.
+  const seen = [await read()];
+  for (let i = 0; i < 3; i++) {
+    await page.click('#musicLoop');
+    seen.push(await read());
+  }
+  note(seen.map(s => s.state).join(',') === 'off,all,one,off',
+       `the repeat button cycles ${seen.map(s => s.state).join(',')}, expected off,all,one,off`);
+  note(seen[2].badge === 1, 'the 1 badge is not shown on repeat-one');
+  note(seen[0].badge === 0 && seen[1].badge === 0,
+       'the 1 badge is showing on a state that is not repeat-one');
+  note(new Set(seen.slice(0, 3).map(s => s.label)).size === 3,
+       'the three repeat states do not have three different labels');
+}
+
+/* ---- 7c. the transport is centred in the BAR --------------------------
+   FALSELY PASSES IF: the transport's own centring were read off its style.
+   It is centred inside its column either way — what the brief asks for is
+   that the GROUP sits in the middle of the bar, which only holds while the
+   outer columns stay equal. Measured against the bar, and measured again
+   with a long title in the corner, which is what a flex row would drift on. */
+{
+  const centre = await page.evaluate(async () => {
+    const mid = (el) => { const r = el.getBoundingClientRect(); return r.left + r.width / 2; };
+    const bar = document.getElementById('musicBar');
+    const group = document.querySelector('.music-transport');
+    const now = document.getElementById('musicNowTitle');
+
+    const short = Math.round(mid(group) - mid(bar));
+    const before = now.textContent;
+    now.textContent = 'A title very much longer than the one that was there before it';
+    await new Promise(r => requestAnimationFrame(r));
+    const long = Math.round(mid(group) - mid(bar));
+    now.textContent = before;
+    return { short, long };
+  });
+  note(Math.abs(centre.short) <= 2,
+       `the transport sits ${centre.short}px off the centre of the bar`);
+  note(centre.short === centre.long,
+       `the transport moves ${Math.abs(centre.long - centre.short)}px when the title grows`);
+}
+
+/* ---- 7d. nothing has been quietly shrunk back -------------------------
+   The whole interface was sized UP on purpose: this is a list read at arm's
+   length, not a caption. Every one of these was smaller before and each is a
+   thing a tidy-up would reach for first, so the floors are written down.
+   Measured, not read off the stylesheet — a rule that loses to a later one
+   still looks right in the source. */
+{
+  const px = await page.evaluate(() => {
+    const size = (sel) => parseFloat(getComputedStyle(document.querySelector(sel)).fontSize);
+    const wide = (sel) => Math.round(document.querySelector(sel).getBoundingClientRect().width);
+    return {
+      title: size('.music-title'), artist: size('.music-artist'),
+      link: size('.music-link'), count: size('#musicCount'),
+      rail: size('#musicViewAll'), railN: size('#musicNAll'),
+      sort: size('#musicSortTitle'), search: size('#musicSearch'),
+      nowTitle: size('#musicNowTitle'), nowArtist: size('#musicNowArtist'),
+      railIcon: wide('#musicViewAll .icon'), playIcon: wide('.music-play .icon'),
+      copyIcon: wide('.music-copy .icon'),
+      prev: wide('#musicPrev'), prevIcon: wide('#musicPrev .icon'),
+      toggle: wide('#musicToggle'), toggleIcon: wide('#musicToggle .icon'),
+      shuffleIcon: wide('#musicShuffle .icon'), loopIcon: wide('#musicLoop .icon'),
+      check: wide('.music-check'),
+    };
+  });
+  // (what, measured, floor) — the floor is the value it was raised TO, so a
+  // half-hearted revert fails as loudly as a full one.
+  const floors = [
+    ['the track title', px.title, 19], ['the artist', px.artist, 15],
+    ['the link', px.link, 15], ['the count', px.count, 14],
+    ['the rail label', px.rail, 14], ['the rail count', px.railN, 13],
+    ['the sort buttons', px.sort, 14], ['the search box', px.search, 16],
+    ['the now-playing title', px.nowTitle, 16], ['the now-playing artist', px.nowArtist, 14],
+    ['the rail icon', px.railIcon, 22], ['the row play icon', px.playIcon, 20],
+    ['the copy icon', px.copyIcon, 19], ['the prev/next button', px.prev, 44],
+    ['the prev/next icon', px.prevIcon, 22], ['the play button', px.toggle, 52],
+    ['the play icon', px.toggleIcon, 26], ['the shuffle icon', px.shuffleIcon, 22],
+    ['the repeat icon', px.loopIcon, 22], ['the row checkbox', px.check, 27],
+  ];
+  for (const [what, got, floor] of floors) {
+    note(got >= floor, `${what} is ${got}px, and must not go below ${floor}px`);
+  }
+  note(floors.length >= 20,
+       `only ${floors.length} size floors are being checked — the table has been gutted`);
+}
+
 /* ---- 8. closing the overlay stops the player --------------------------- */
 {
   await page.click('#musicClose');
@@ -420,7 +571,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 40) {
+if (TOTAL < 80) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

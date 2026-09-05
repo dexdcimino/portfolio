@@ -5531,6 +5531,12 @@ body.modal-open{overflow:hidden}
    however long a title runs. The middle column is the only one that takes the
    slack; the link column is capped because a URL is not what anyone is
    reading down the list for.
+
+   SIZES. Everything here was a step larger than the site's own chrome and is
+   now two: this is a list read at arm's length and scrubbed through with a
+   pointer, not a caption. The controls are sized to be HIT rather than to be
+   tidy — 44px transport buttons, a 52px primary, 40px row cells. Do not tune
+   these back toward the site's compact defaults; they are the point.
    ========================================================================== */
 .music-modal{border:0;padding:0;background:none;max-width:100vw;max-height:100vh;display:none}
 /* overflow VISIBLE for the same reason the notes overlay needs it: the close
@@ -5557,72 +5563,75 @@ body.modal-open{overflow:hidden}
 
 /* --- the head ------------------------------------------------------------ */
 .music-head{
-  flex:0 0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  padding:14px 18px;border-bottom:1px solid var(--line);background:#0b0c12;
+  flex:0 0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:16px 20px;border-bottom:1px solid var(--line);background:#0b0c12;
 }
-.music-eyebrow{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted)}
+/* Overrides the site's .eyebrow, which is sized for a section label read once
+   on the way past rather than for a header on a surface being worked in. */
+.music-eyebrow{display:flex;align-items:center;gap:9px;margin:0;color:var(--muted);font-size:15px}
+.music-eyebrow .vault-lock{width:19px;height:19px}
 /* Pushes everything after it to the right edge. */
 .music-head-gap{flex:1 1 auto}
 .music-search{
-  width:min(280px,42vw);padding:8px 12px;
-  border:1px solid var(--line);border-radius:9px;
-  background:#12141c;color:inherit;font:inherit;font-size:13px;
+  width:min(320px,44vw);padding:10px 14px;
+  border:1px solid var(--line);border-radius:10px;
+  background:#12141c;color:inherit;font:inherit;font-size:16px;
   transition:border-color var(--accent-ease);
 }
 .music-search::placeholder{color:var(--muted);opacity:.7}
 .music-search:focus{outline:none;border-color:var(--accent)}
 /* The sort control is two buttons, not a <select>: there are exactly two
    answers and a dropdown to choose between two is a click nobody needs. */
-.music-sort{display:flex;gap:2px;padding:2px;border:1px solid var(--line);border-radius:9px;background:#12141c}
+.music-sort{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px;background:#12141c}
 .music-sort button{
-  padding:6px 11px;cursor:pointer;border:0;border-radius:7px;background:none;
-  color:var(--muted);font:inherit;font-size:11px;font-weight:800;letter-spacing:.11em;
+  padding:8px 14px;cursor:pointer;border:0;border-radius:8px;background:none;
+  color:var(--muted);font:inherit;font-size:14px;font-weight:800;letter-spacing:.1em;
   transition:color var(--accent-ease),background .18s ease;
 }
 .music-sort button:hover{color:#fff}
 .music-sort button[aria-pressed="true"]{background:rgba(255,255,255,.09);color:#fff}
 .music-sort button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.music-count{margin:0;font-size:11px;font-weight:800;letter-spacing:.13em;color:var(--muted);opacity:.7;white-space:nowrap}
+.music-count{margin:0;font-size:14px;font-weight:800;letter-spacing:.1em;color:var(--muted);opacity:.75;white-space:nowrap}
 
 /* --- the body: rail + list ------------------------------------------------ */
 .music-body{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr)}
 .music-rail{
-  display:flex;flex-direction:column;gap:4px;
-  width:132px;padding:14px 10px;
+  display:flex;flex-direction:column;gap:5px;
+  width:158px;padding:16px 11px;
   background:#0b0c12;border-right:1px solid var(--line);
 }
 .music-rail button{
-  display:flex;align-items:center;gap:9px;width:100%;padding:10px 11px;cursor:pointer;
-  border:0;border-radius:10px;background:none;color:var(--muted);
-  font:inherit;font-size:11px;font-weight:800;letter-spacing:.11em;text-align:left;
+  display:flex;align-items:center;gap:11px;width:100%;padding:12px 12px;cursor:pointer;
+  border:0;border-radius:11px;background:none;color:var(--muted);
+  font:inherit;font-size:14px;font-weight:800;letter-spacing:.1em;text-align:left;
   transition:color var(--accent-ease),background .18s ease;
 }
 .music-rail button:hover{background:rgba(255,255,255,.07);color:#fff}
 .music-rail button[aria-pressed="true"]{background:rgba(255,255,255,.09);color:var(--accent)}
 .music-rail button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.music-rail .icon{width:17px;height:17px;flex:0 0 auto}
-.music-rail-n{margin-left:auto;font-size:10px;opacity:.65;letter-spacing:.06em}
+.music-rail .icon{width:22px;height:22px;flex:0 0 auto}
+.music-rail-n{margin-left:auto;font-size:13px;opacity:.7;letter-spacing:.04em}
 
 .music-list{
   min-width:0;overflow-y:auto;overscroll-behavior:contain;
-  padding:6px 10px 10px;scrollbar-width:thin;
+  padding:6px 12px 12px;scrollbar-width:thin;
 }
-.music-list::-webkit-scrollbar{width:10px}
+.music-list::-webkit-scrollbar{width:11px}
 .music-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
 .music-list::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.26);background-clip:padding-box;border:3px solid transparent}
 
 /* Shown in place of the rows when a search matches nothing, so an empty list
    never reads as a broken overlay. */
-.music-empty{margin:38px auto;text-align:center;color:var(--muted);font-size:13px}
+.music-empty{margin:40px auto;text-align:center;color:var(--muted);font-size:16px}
 .music-empty[hidden]{display:none}
 
 /* --- a row --------------------------------------------------------------- */
-/* 34px 34px are the two square cells the brief asks for; the link column is
-   capped rather than free so a long URL cannot squeeze the title. */
+/* The two 40px cells are the square blocks the brief asks for; the link column
+   is capped rather than free so a long URL cannot squeeze the title. */
 .music-row{
-  display:grid;grid-template-columns:34px 34px minmax(0,1fr) minmax(0,.85fr);
-  align-items:center;gap:10px;
-  padding:7px 8px;border-radius:10px;
+  display:grid;grid-template-columns:40px 40px minmax(0,1fr) minmax(0,.85fr);
+  align-items:center;gap:12px;
+  padding:9px 10px;border-radius:11px;
   border-bottom:1px solid rgba(255,255,255,.045);
 }
 .music-row:hover{background:rgba(255,255,255,.045)}
@@ -5633,9 +5642,9 @@ body.modal-open{overflow:hidden}
    label association and the tab order, none of which a div reimplements
    correctly on the first try. */
 .music-check{
-  width:22px;height:22px;margin:0 auto;cursor:pointer;
+  width:27px;height:27px;margin:0 auto;cursor:pointer;
   appearance:none;-webkit-appearance:none;
-  border:1.5px solid var(--line);border-radius:6px;background:#12141c;
+  border:1.5px solid var(--line);border-radius:7px;background:#12141c;
   display:grid;place-items:center;
   transition:border-color var(--accent-ease),background var(--accent-ease);
 }
@@ -5644,30 +5653,30 @@ body.modal-open{overflow:hidden}
 /* The tick is drawn rather than an icon mask: it is two lines, and a mask
    would be a second image request for a shape this simple. */
 .music-check:checked::after{
-  content:"";width:11px;height:6px;margin-top:-2px;
-  border-left:2.2px solid #0b0c12;border-bottom:2.2px solid #0b0c12;
+  content:"";width:13px;height:7px;margin-top:-3px;
+  border-left:2.6px solid #0b0c12;border-bottom:2.6px solid #0b0c12;
   transform:rotate(-45deg);
 }
 .music-check:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 .music-play{
-  width:30px;height:30px;margin:0 auto;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:1px solid transparent;border-radius:8px;background:none;color:var(--muted);
+  width:36px;height:36px;margin:0 auto;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:1px solid transparent;border-radius:9px;background:none;color:var(--muted);
   transition:color var(--accent-ease),background .18s ease,border-color var(--accent-ease);
 }
-.music-play .icon{width:15px;height:15px}
+.music-play .icon{width:20px;height:20px}
 .music-play:hover{background:rgba(255,255,255,.09);color:var(--accent);border-color:var(--line)}
 .music-play:focus-visible{outline:2px solid var(--accent);outline-offset:-1px}
 .music-row.is-playing .music-play{color:var(--accent)}
 
 .music-meta{min-width:0}
 .music-title{
-  display:block;font-size:15px;font-weight:700;color:#fff;
+  display:block;font-size:19px;font-weight:700;color:#fff;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   transition:color var(--accent-ease);
 }
 .music-artist{
-  display:block;margin-top:1px;font-size:12px;color:var(--muted);
+  display:block;margin-top:2px;font-size:15px;color:var(--muted);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 
@@ -5675,86 +5684,120 @@ body.modal-open{overflow:hidden}
    around the pair is for — the button is the far end of the link, not a
    control that happens to sit next to it. */
 .music-linkcell{
-  display:flex;align-items:center;gap:4px;min-width:0;
-  border:1px solid var(--line);border-radius:9px;background:#12141c;
+  display:flex;align-items:center;gap:5px;min-width:0;
+  border:1px solid var(--line);border-radius:10px;background:#12141c;
   transition:border-color var(--accent-ease);
 }
 .music-linkcell:hover{border-color:rgba(255,255,255,.22)}
 .music-link{
-  flex:1 1 auto;min-width:0;padding:7px 2px 7px 10px;
-  font-size:11.5px;color:var(--muted);text-decoration:none;
+  flex:1 1 auto;min-width:0;padding:9px 2px 9px 13px;
+  font-size:15px;color:var(--muted);text-decoration:none;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   transition:color var(--accent-ease);
 }
 .music-link:hover{color:var(--accent);text-decoration:underline}
-.music-link:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:8px}
+.music-link:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:9px}
 .music-copy{
-  flex:0 0 auto;width:28px;height:28px;margin-right:3px;
+  flex:0 0 auto;width:34px;height:34px;margin-right:3px;
   display:grid;place-items:center;padding:0;cursor:pointer;
-  border:0;border-radius:7px;background:none;color:var(--muted);
+  border:0;border-radius:8px;background:none;color:var(--muted);
   transition:color var(--accent-ease),background .18s ease;
 }
-.music-copy .icon{width:14px;height:14px}
+.music-copy .icon{width:19px;height:19px}
 .music-copy:hover{background:rgba(255,255,255,.09);color:var(--accent)}
 .music-copy:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .music-copy.is-done{color:var(--accent)}
 
 /* --- the player bar ------------------------------------------------------- */
 /* Inside the shell rather than the page's own bottom bar, because the queue it
-   is playing only exists while this overlay is open. It mirrors .player's
-   grouping on purpose: transport centred, modes to the right. */
+   is playing only exists while this overlay is open.
+
+   THREE COLUMNS, and the middle one is what the layout is for: the transport
+   is centred in the BAR, not in the space left over after the now-playing
+   text. A flex row cannot do that — the group would sit wherever the title
+   before it happened to end, and drift every time the title changed. The outer
+   columns are equal and free, so the centre stays put whatever is in them. */
 .music-bar{
-  flex:0 0 auto;display:flex;align-items:center;gap:14px;
-  padding:10px 14px;border-top:1px solid var(--line);background:#0b0c12;
+  flex:0 0 auto;display:grid;align-items:center;gap:14px;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  padding:12px 16px;border-top:1px solid var(--line);background:#0b0c12;
 }
 .music-bar[hidden]{display:none}
+.music-nowwrap{display:flex;align-items:center;gap:14px;min-width:0}
 /* The video is VISIBLE and stays visible. A YouTube embed played with the
    picture hidden is against the terms the embed ships under, and a 16:9 box
    this size costs one row of the list. */
 .music-video{
-  flex:0 0 auto;width:132px;aspect-ratio:16/9;
-  border:0;border-radius:8px;background:#000;
+  flex:0 0 auto;width:150px;aspect-ratio:16/9;
+  border:0;border-radius:9px;background:#000;
 }
-.music-now{min-width:0;flex:1 1 auto}
-.music-now-title{display:block;font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.music-now-artist{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.music-transport{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+.music-now{min-width:0}
+.music-now-title{display:block;font-size:16px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.music-now-artist{display:block;margin-top:1px;font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.music-transport{display:flex;align-items:center;justify-content:center;gap:6px}
+/* The close-the-player X, alone in the last column and pushed to the far edge.
+   It is the least important control in the bar and is the only one that is not
+   in the centred group, which is what says so. */
+.music-tail{display:flex;align-items:center;justify-content:flex-end}
 .music-btn{
-  width:34px;height:34px;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:0;border-radius:9px;background:none;color:var(--muted);
+  width:44px;height:44px;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:0;border-radius:11px;background:none;color:var(--muted);
   transition:color var(--accent-ease),background .18s ease;
 }
-.music-btn .icon{width:16px;height:16px}
+.music-btn .icon{width:22px;height:22px}
 .music-btn:hover{background:rgba(255,255,255,.09);color:#fff}
 .music-btn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.music-btn.is-primary{width:38px;height:38px;background:var(--accent);color:#0b0c12}
-.music-btn.is-primary .icon{width:18px;height:18px}
+.music-btn.is-primary{width:52px;height:52px;background:var(--accent);color:#0b0c12}
+.music-btn.is-primary .icon{width:26px;height:26px}
 .music-btn.is-primary:hover{background:var(--accent);color:#0b0c12;filter:brightness(1.12)}
 .music-btn[aria-pressed="true"]{color:var(--accent);background:rgba(255,255,255,.07)}
-.music-div{width:1px;height:22px;background:var(--line);margin:0 4px}
+.music-div{width:1px;height:26px;background:var(--line);margin:0 6px}
+
+/* One button, three states: off (muted), loop-all (accent), loop-one (accent
+   plus the 1 badge) — the same cycle and the same badge as the songs bar
+   further up the page, because it is the same control and learning it twice
+   is a cost with nothing on the other side of it. */
+.music-loop{position:relative}
+.music-loop[data-loop="all"],.music-loop[data-loop="one"]{color:var(--accent);background:rgba(255,255,255,.07)}
+.music-loop-one{
+  position:absolute;right:7px;bottom:6px;
+  font-size:11px;font-weight:800;line-height:1;color:var(--accent);
+  opacity:0;transition:opacity .15s ease;
+}
+.music-loop[data-loop="one"] .music-loop-one{opacity:1}
 
 @media(max-width:900px){
   .music-shell{width:100vw;height:100dvh;border-radius:0;border:0}
   .music-close{top:10px;left:auto;right:10px;margin-left:0}
-  .music-head{padding:12px 12px 12px 14px;gap:9px}
-  .music-search{width:min(200px,38vw)}
+  .music-head{padding:12px 12px 12px 14px;gap:10px}
+  .music-search{width:min(210px,38vw);font-size:15px}
   /* The rail loses its labels and becomes an icon column — at this width the
      two words were taking a third of the row from the titles. */
-  .music-rail{width:52px;padding:10px 6px}
-  .music-rail button{justify-content:center;padding:10px 0;gap:0}
+  .music-rail{width:56px;padding:10px 6px}
+  .music-rail button{justify-content:center;padding:11px 0;gap:0}
   .music-rail-label,.music-rail-n{display:none}
   .music-list{padding:4px 6px 8px}
   /* The link column goes: on a phone it can only ever show the first few
      characters of a URL, and the copy button is what it was there for. The
      button moves into the row as its own square cell. */
-  .music-row{grid-template-columns:30px 30px minmax(0,1fr) 30px;gap:7px}
+  .music-row{grid-template-columns:34px 34px minmax(0,1fr) 34px;gap:8px}
   .music-link{display:none}
   .music-linkcell{border:0;background:none;justify-content:flex-end}
   .music-copy{margin-right:0}
-  .music-title{font-size:14px}
-  .music-video{width:96px}
+  .music-title{font-size:17px}
+  .music-artist{font-size:14px}
+  /* The now-playing TEXT is what there is no room for, not the controls: the
+     video and the X keep their columns and the transport keeps the centre. */
+  .music-bar{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;padding:10px}
+  .music-video{width:104px}
   .music-now{display:none}
+  .music-btn{width:40px;height:40px}
+  .music-btn .icon{width:20px;height:20px}
+  .music-btn.is-primary{width:46px;height:46px}
+  .music-btn.is-primary .icon{width:23px;height:23px}
+  .music-div{margin:0 2px}
 }
+
 /* --- the tilde keypad ----------------------------------------------------
    Small and central: it is a prompt, not a place. Everything inside it is the
    Idea Vault's own keypad markup, so it inherits the lockout, the shake and

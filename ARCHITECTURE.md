@@ -1183,7 +1183,7 @@ A playlist of 311 YouTube links behind the same door as the notes: type `MUSIC`
 into the tilde keypad or the Idea Vault. Not in the nav, not linked anywhere.
 
 ```
-tracklist.txt            the master. one line per track: Title|Artist|URL
+tracklist.txt            the master. one line per track: Title|Artist|URL[|R]
 tools/bake_music.py      the only writer of the manifest. --check, --cases
 assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
@@ -1194,16 +1194,54 @@ tools/music_check.mjs    50 checks in a real browser, serves the repo itself
 
 **The row is a four-column grid**: a tick, a play button, the title over the
 artist, and the link with a copy button on the end of it. The two thin columns
-are fixed 34px squares so they line up down all 311 rows however long a title
+are fixed 40px squares so they line up down all 311 rows however long a title
 runs — `music_check.mjs` asserts that by measuring the column edges on the
 longest-titled row against the shortest, which is the only pair where a column
 that tracks its content instead of the grid would show up.
+
+**Everything here is sized larger than the site's own chrome, on purpose.** This
+is a list read at arm's length and scrubbed through with a pointer, not a
+caption: 19px titles, 15px artists and links, 44px transport buttons, a 52px
+primary. `music_check.mjs` holds 20 measured size FLOORS for exactly this
+reason — every one of those numbers was smaller once, and each is the first
+thing a tidy-up reaches for. They are measured in the browser rather than read
+off the stylesheet, because a rule that loses to a later one still looks right
+in the source.
+
+**The transport is centred in the bar by a three-column grid**
+(`1fr auto 1fr`), not by flex. In a flex row the group sits wherever the
+now-playing title before it happens to end and shifts every time the title
+changes; the outer columns being equal and free is what holds it still. The
+close-the-player X is alone in the third column, which is what says it is the
+least important control in the bar.
 
 **Two playlists and no way to make a third.** ALL is the file; REPEAT is
 whatever is ticked. The rail's selection is also the queue the transport walks,
 so Next never leaves the list being looked at. Ticks are a per-browser
 preference in `localStorage` (`music-repeat`), not a document — there is no
 server behind this overlay and nothing here is worth anything to anyone else.
+
+**The repeat playlist has DEFAULTS, and they are a fourth field.** A track whose
+line ends `|R` starts ticked; 56 of the 311 do. The marks live in
+`tracklist.txt` rather than in a second list of song titles because two lists
+drift — a title edited in one and not the other goes silently unmatched, and the
+only symptom is a track that quietly stops being a default.
+
+Seeding is a **delta, not a one-off**. A browser that has never opened the
+overlay takes the defaults whole. One that has gets only what CHANGED since it
+last looked (`music-repeat-seed` holds the previous set): newly marked tracks
+are added, newly unmarked ones removed, and everything ticked or unticked by
+hand is left alone. Seeding once would mean a song marked `|R` next month never
+reaching anyone who has already visited; seeding every time would keep putting
+back what they took off.
+
+**The repeat BUTTON in the bar is a different control from the REPEAT rail**,
+and it is a three-state cycle — off, the whole list, this one track — carrying
+the same `data-loop` attribute and the same `1` badge as the songs bar further
+up the page. `aria-pressed` cannot say three things, which is why it is not
+used. Repeat-one governs what happens when a track ENDS; Next and Previous
+still move, because a mode that made a button stop working would read as
+broken.
 
 **The list is not in the page.** 311 rows of markup is ~40 KB every visitor
 downloads to look at the hero and none of them can see. The manifest is fetched

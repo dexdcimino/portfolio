@@ -40,7 +40,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `node tools/notes_editor_check.mjs` | the notes editor: Tab, Backspace, shortcuts, the selection bug — 29 checks |
 | `node tools/notes_store_check.mjs` | the notes store against a stubbed Vercel Blob — 30 checks, no server needed |
 | `node tools/work_check.mjs` | featured work, the work overlay, the code prompt, the games stack and the AI Lab — 93 checks, serves the repo itself |
-| `node tools/music_check.mjs` | the music overlay: the four columns, the repeat list, the embed URL and the notes keypad flash — 50 checks, serves the repo itself |
+| `node tools/music_check.mjs` | the music overlay: the four columns, the seeded repeat list, the three-state repeat, the centred transport, 20 size floors, the embed URL and the notes keypad flash — 85 checks, serves the repo itself |
 | `node tools/check_markdown.mjs` | `renderMarkdown` cannot emit an event handler (needs Chrome) |
 | `python tools/context_pack.py` | rebuilds the context zip in the root, measured not typed |
 

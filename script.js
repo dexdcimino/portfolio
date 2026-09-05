@@ -5045,6 +5045,12 @@ const MediaBus = (() => {
   const MANIFEST = 'assets/music/tracks.json';
   const ORIGIN = 'https://www.youtube-nocookie.com';
   const TICKS_KEY = 'music-repeat';
+  /* What the manifest's defaults were LAST time this browser looked. Without
+     it a track marked |R after someone's first visit could never reach them:
+     seeding once and never again is invisible, and seeding every time would
+     keep putting back what they took off by hand. */
+  const SEED_KEY = 'music-repeat-seed';
+  const LOOPS = ['off', 'all', 'one'];
 
   let tracks = [];            // everything, in the order tracklist.txt names them
   let queue = [];             // what is rendered, which is also what Next walks
@@ -5055,7 +5061,7 @@ const MediaBus = (() => {
   let index = -1;             // into `queue`
   let playing = false;
   let shuffle = false;
-  let loop = false;
+  let loop = 'off';           // 'off' | 'all' | 'one'
   let armed = false;          // the iframe has a src and will take commands
 
   /* The ticks are a PREFERENCE, not a document: they say how this browser
@@ -5063,11 +5069,41 @@ const MediaBus = (() => {
      server behind this overlay to put them on. localStorage, wrapped, because
      a private window throws on the property access rather than on the call. */
   const ticked = new Set();
-  function loadTicks() {
+
+  const read = (key) => {
     try {
-      const raw = localStorage.getItem(TICKS_KEY);
-      if (raw) for (const v of JSON.parse(raw)) ticked.add(v);
-    } catch { /* private mode, or someone hand-edited it into nonsense */ }
+      const raw = localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) ? parsed : null;
+    } catch { return null; }   // private mode, or hand-edited into nonsense
+  };
+
+  /* The repeat playlist starts as whatever tracklist.txt marks |R, and then it
+     belongs to whoever is listening.
+
+     A browser that has never opened this takes the defaults whole. One that has
+     gets only the DELTA — tracks marked since it last looked are added, tracks
+     unmarked since are removed, and everything it did by hand is left alone.
+     The alternative was seeding once, which means a song marked |R next month
+     never reaches anyone who has already visited. */
+  function seedTicks() {
+    const seed = tracks.filter(t => t.r).map(t => t.v);
+    const stored = read(TICKS_KEY);
+
+    ticked.clear();
+    if (!stored) {
+      for (const v of seed) ticked.add(v);
+    } else {
+      for (const v of stored) ticked.add(v);
+      const was = new Set(read(SEED_KEY) || []);
+      const now = new Set(seed);
+      for (const v of now) if (!was.has(v)) ticked.add(v);
+      for (const v of was) if (!now.has(v)) ticked.delete(v);
+    }
+
+    try { localStorage.setItem(SEED_KEY, JSON.stringify(seed)); }
+    catch { /* the delta is a nicety; the ticks below are the thing that matters */ }
+    saveTicks();
   }
   function saveTicks() {
     try { localStorage.setItem(TICKS_KEY, JSON.stringify([...ticked])); }
@@ -5248,8 +5284,8 @@ const MediaBus = (() => {
       return;
     }
     const next = index + delta;
-    if (next >= queue.length) { if (loop) load(0, true); else stop(); return; }
-    if (next < 0) { load(loop ? queue.length - 1 : 0, true); return; }
+    if (next >= queue.length) { if (loop === 'off') stop(); else load(0, true); return; }
+    if (next < 0) { load(loop === 'off' ? 0 : queue.length - 1, true); return; }
     load(next, true);
   }
 
@@ -5357,10 +5393,14 @@ const MediaBus = (() => {
     btnShuffle.setAttribute('aria-pressed', String(shuffle));
     btnShuffle.setAttribute('aria-label', shuffle ? 'Shuffle on' : 'Shuffle off');
   });
+  const LOOP_LABEL = { off: 'Repeat off', all: 'Repeat the playlist',
+                       one: 'Repeat this track' };
   btnLoop.addEventListener('click', () => {
-    loop = !loop;
-    btnLoop.setAttribute('aria-pressed', String(loop));
-    btnLoop.setAttribute('aria-label', loop ? 'Loop on' : 'Loop off');
+    loop = LOOPS[(LOOPS.indexOf(loop) + 1) % LOOPS.length];
+    // The CSS reads data-loop for both the accent and the 1 badge; the label is
+    // the only thing that says which of the three states this is out loud.
+    btnLoop.dataset.loop = loop;
+    btnLoop.setAttribute('aria-label', LOOP_LABEL[loop]);
   });
 
   /* The embed will not speak until it is spoken to, and the handshake has to be
@@ -5385,7 +5425,13 @@ const MediaBus = (() => {
       : (data.info && typeof data.info.playerState === 'number' ? data.info.playerState : null);
     if (state === null) return;
 
-    if (state === 0) { step(1); return; }             // ended -> the next one
+    if (state === 0) {                                // ended
+      /* Repeat-one is about what happens on its own. Next and Previous still
+         move: a mode that made a button stop working would read as broken. */
+      if (loop === 'one') { cmd('seekTo', [0, true]); cmd('playVideo'); return; }
+      step(1);
+      return;
+    }
     const wasPlaying = playing;
     if (state === 1) playing = true;                  // playing
     if (state === 2) playing = false;                 // paused
@@ -5425,6 +5471,7 @@ const MediaBus = (() => {
       tracks = list.filter(t => t && t.v && t.t && t.u);
       if (!tracks.length) throw new Error('no usable rows in the manifest');
       loaded = true;
+      seedTicks();
       return true;
     } catch (error) {
       console.warn('music: could not load the track list', error);
@@ -5462,7 +5509,6 @@ const MediaBus = (() => {
     if (!modal.open) open((event.detail || {}).opener);
   });
 
-  loadTicks();
 })();
 
 /* --- markdown ------------------------------------------------------------- */
