@@ -1107,9 +1107,19 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
       clipped: cs.clipPath,
       origin: cs.transformOrigin,
       tip: b.dataset.tip,
+      pos: b.dataset.tipPos,
     };
   });
-  note(tab.w >= 20 && tab.h >= 10, `the expand tab is only ${tab.w}x${tab.h}`);
+  /* Big enough to hit, small enough not to be a handle. It shipped at 32x15,
+     which read as a flag stuck to the bar rather than a notch in its edge. */
+  note(tab.w >= 18 && tab.h >= 8, `the expand tab is only ${tab.w}x${tab.h}`);
+  note(tab.w <= 26 && tab.h <= 12, `the expand tab has grown back to ${tab.w}x${tab.h}`);
+  /* ABOVE, not below. The bar lives on the bottom edge of the window, so the
+     default below-placement puts the bubble off-screen and the fallback fires
+     every time — a tooltip that is sometimes above and sometimes below reads
+     as a bug. data-tip-pos="above" is the existing opt-in for exactly this. */
+  note(tab.pos === 'above',
+       `the expand tooltip is placed "${tab.pos || 'below'}" — it must be above the tab`);
   note(Math.abs(tab.offCentre) <= 3,
        `the expand tab sits ${tab.offCentre}px off the centre of the duration`);
   note(tab.abovePanel > 0, 'the expand tab does not stick out above the bar');
@@ -1140,6 +1150,50 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(back.loads === 0, `the frame navigated ${back.loads} time(s) across dock and expand`);
   note(!back.expandShown, 'the expand tab is still showing on the full overlay');
   note(back.playing === 1, 'expanding lost the track that was playing');
+
+  /* THE REPORTED BUG, and it is the invariant worth stating on its own: while a
+     track is playing there is ALWAYS a control box on screen — the overlay's,
+     or the docked bar's. Never neither.
+
+     Expanding and then closing used to land on neither. 'expand' was a flag
+     that had to survive the queued close event, and bindModal skips its onClose
+     whenever another dialog is already open — exactly the state expand leaves
+     behind — so the flag was never cleared and the NEXT close read a stale
+     'expand' and did nothing at all. Music playing, no bar, no way back. */
+  await page.click('#musicClose');
+  await page.waitForFunction(() => document.getElementById('musicModal')
+                                     .classList.contains('is-docked'), { timeout: 5000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false,
+      'closing again after expanding did not dock — the music plays with no bar'));
+  const again = await page.evaluate(() => ({
+    open: document.getElementById('musicModal').open,
+    docked: document.getElementById('musicModal').classList.contains('is-docked'),
+    barHidden: document.getElementById('musicBar').hidden,
+    expandShown: document.getElementById('musicExpand').hidden === false,
+    src: document.getElementById('musicVideo').getAttribute('src'),
+    loads: window.__ytLoads,
+  }));
+  note(again.open && again.docked && !again.barHidden,
+       'the second close left no control box on screen while a track was playing');
+  note(again.expandShown, 'the expand tab is missing after the second dock');
+  note(again.src === before.src, 'the second dock re-pointed the embed');
+  note(again.loads === 0,
+       `the frame navigated ${again.loads} time(s) across dock, expand and dock again`);
+
+  // ...and the cycle has to keep working, not just survive one lap.
+  await page.click('#musicExpand');
+  await page.waitForFunction(() => {
+    const m = document.getElementById('musicModal');
+    return m.open && !m.classList.contains('is-docked');
+  }, { timeout: 5000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false, 'the expand tab stopped working on the second lap'));
+  await page.click('#musicClose');
+  await page.waitForFunction(() => document.getElementById('musicModal')
+                                     .classList.contains('is-docked'), { timeout: 5000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false, 'the third close did not dock'));
 
   // And the bar's X still ends everything from either state.
   await shutMusic();
@@ -1212,7 +1266,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 175) {
+if (TOTAL < 185) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

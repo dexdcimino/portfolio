@@ -1332,10 +1332,20 @@ so the browser hands focus to the next focusable thing in it — the scrub or th
 volume slider, both `<input>`, which makes the `` ` `` shortcut correctly refuse
 to fire. Nothing in a bar whose list just closed should hold the caret.
 
-**Three things can close it and the close handler is the only place that sees
-all of them**, so `closeMode` names them rather than inferring from state:
-`dock` (the default), `stop` (the bar's X, the one control that ends playback)
-and `expand` (on the way back to the full overlay).
+**WHILE A TRACK IS PLAYING THERE IS ALWAYS A CONTROL BOX ON SCREEN** — the
+overlay's, or the docked bar's, never neither. That is the invariant, and it is
+asserted across a dock/expand/close/expand/close cycle rather than at one point,
+because it broke on the second lap.
+
+**How it broke is the lesson.** Closing was decided by a `closeMode` flag with
+three values, and `expand` had to survive the queued `close` event to be read.
+`bindModal` SKIPS its `onClose` whenever another dialog is already open — which
+is exactly the state expanding leaves behind — so the flag was never cleared,
+the NEXT close read a stale `expand` and did nothing at all, and the music
+played on with no bar and no way back. A flag set beside `close()` can outlive
+the close that set it. Whether the overlay came back is now read off
+`modal.open`, which cannot go stale; only `stopping` remains, set and consumed
+in the same turn by the bar's X — the one control that ends playback.
 
 **The expand tab** is a triangle in the shell's own border colour, half out of
 the top edge and centred above the duration, that puts the list back with no

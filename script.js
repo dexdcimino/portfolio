@@ -5130,13 +5130,18 @@ const MediaBus = (() => {
   let scrubbing = false;      // a finger is on the handle: stop painting over it
   let armed = false;          // the iframe has a src and will take commands
 
-  /* WHAT A close() MEANS. Three different things end up here and the close
-     handler is the only place that sees all of them, so they are named rather
-     than guessed at from state:
-       'dock'    the default — put the list away, leave the music in the corner
-       'stop'    the bar's X — end playback and put everything away
-       'expand'  the docked bar is on its way back to being the full overlay */
-  let closeMode = 'dock';
+  /* The bar's X, and only the bar's X, means END IT. Everything else that
+     closes the overlay hands the music to the corner.
+
+     This is a boolean and not a three-state mode any more, and the reason is a
+     bug worth keeping: 'expand' had to survive the queued close event to be
+     read, and bindModal SKIPS its onClose when another dialog is already open —
+     which is exactly the state expand leaves behind. So the flag was never
+     cleared, the NEXT close read a stale 'expand', and closing the overlay
+     after expanding left the music playing with no bar anywhere. Whether the
+     overlay came back is now read off the dialog itself, which cannot go
+     stale. */
+  let stopping = false;
 
   /* The ticks are a PREFERENCE, not a document: they say how this browser
      wants to listen, they are worth nothing to anyone else, and there is no
@@ -5541,7 +5546,7 @@ const MediaBus = (() => {
   // The bar's X is the only control that ENDS it: everything else that closes
   // the overlay hands the music to the corner instead.
   btnStop.addEventListener('click', () => {
-    closeMode = 'stop';
+    stopping = true;
     closeModal(modal);
   });
 
@@ -5777,7 +5782,6 @@ const MediaBus = (() => {
        a dialog cannot be promoted from non-modal to modal in place — and
        'expand' is what stops the close handler reading it as an ending. */
     if (modal.open && isDockedBar(modal)) {
-      closeMode = 'expand';
       modal.close();
       modal.classList.remove('is-docked');
     }
@@ -5799,16 +5803,18 @@ const MediaBus = (() => {
   /* Every way out of the overlay lands here — the X, Escape, the backdrop —
      which is why the decision is made here rather than three times over. */
   bindModal(modal, () => {
-    const mode = closeMode;
-    closeMode = 'dock';
+    /* Already open again: expand() re-showed it modally before this queued
+       handler ran, so nothing ended. Read off the DIALOG rather than a flag —
+       a flag set beside close() can outlive the close that set it, because
+       bindModal skips onClose whenever another dialog is up. */
+    if (modal.open) return;
 
-    // open() is already re-showing it modally; there is nothing to do.
-    if (mode === 'expand') return;
+    const ending = stopping;
+    stopping = false;
 
     /* Closing the LIST is not stopping the MUSIC. A track still playing keeps
-       playing, in the corner, and the page carries on around it. Only the
-       bar's own X ends it. */
-    if (mode === 'dock' && armed) { redock(); return; }
+       playing, in the corner, and the page carries on around it. */
+    if (!ending && armed) { redock(); return; }
 
     modal.classList.remove('is-docked');
     if (expandBtn) expandBtn.hidden = true;

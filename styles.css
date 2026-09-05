@@ -5929,8 +5929,8 @@ body.modal-open{overflow:hidden}
    border rather than sliding it off. clip-path means no outline can show, so
    focus is carried by the same growth plus the solid accent. */
 .music-expand{
-  position:absolute;z-index:6;right:19px;top:-14px;
-  width:32px;height:15px;padding:0;border:0;cursor:pointer;
+  position:absolute;z-index:6;right:24px;top:-10px;
+  width:22px;height:10px;padding:0;border:0;cursor:pointer;
   background:color-mix(in srgb,var(--accent) 42%,transparent);
   clip-path:polygon(50% 0,100% 100%,0 100%);
   transform-origin:50% 100%;
