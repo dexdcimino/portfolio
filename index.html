@@ -4610,6 +4610,11 @@
             </button>
           </nav>
 
+          <!-- The tick on the scroll track: where in the list the playing
+               track is. The row highlight only helps once you have scrolled to
+               it; this is the part that can be seen from anywhere. Absolutely
+               positioned, so it takes no column of the grid it sits in. -->
+          <span class="music-mark" id="musicMark" aria-hidden="true" hidden></span>
           <div class="music-list" id="musicList">
             <div id="musicRows" role="list"></div>
             <!-- Said out loud rather than left blank: an empty list with no
@@ -4674,7 +4679,7 @@
             <!-- Stop, not close: the bar is permanent now. A small glyph in a
                  target big enough to hit — it is the only destructive control
                  in the bar and should not be mistaken for the transport. -->
-            <button class="music-btn music-stop" type="button" id="musicStop" aria-label="Stop">
+            <button class="music-btn music-stop" type="button" id="musicStop" aria-label="Close music">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
           </div>
         </div>

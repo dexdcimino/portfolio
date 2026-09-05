@@ -245,19 +245,55 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(started.live && !started.videoHidden,
        'play from idle did not put the picture on screen');
   note(started.title !== 'Nothing playing', 'the bar still says nothing is playing');
+}
 
-  // ...and stopping goes back to the idle state rather than taking the bar away.
-  await page.click('#musicStop');
-  const stopped = await page.evaluate(() => ({
-    barHidden: document.getElementById('musicBar').hidden,
-    src: document.getElementById('musicVideo').getAttribute('src'),
-    title: document.getElementById('musicNowTitle').textContent,
-    rows: document.querySelectorAll('#musicRows .music-row.is-playing').length,
-  }));
-  note(stopped.barHidden === false, 'stopping put the whole bar away — it is permanent now');
-  note(stopped.src === null, 'stopping left the embed holding a src');
-  note(stopped.title === 'Nothing playing', 'stopping did not return the bar to its idle line');
-  note(stopped.rows === 0, 'a row is still marked as playing after stop');
+/* ---- 3d. the playing track can actually be FOUND -----------------------
+   With shuffle on, play starts one of 311 rows and nothing else says which.
+   Three things have to be true: the row is scrolled to, it is marked loudly
+   enough to pick out, and the tick on the scroll track says where in the list
+   it sits — the last being the only one that is visible from anywhere.
+
+   FALSELY PASSES IF: only the is-playing class were checked. A class on a row
+   a thousand pixels below the fold is not the reader finding their song. */
+{
+  const found = await page.evaluate(() => {
+    const list = document.getElementById('musicList');
+    const row = document.querySelector('#musicRows .music-row.is-playing');
+    if (!row) return null;
+    const rows = [...document.querySelectorAll('#musicRows .music-row')];
+    const cs = getComputedStyle(row);
+    const mark = document.getElementById('musicMark');
+    return {
+      at: rows.indexOf(row), total: rows.length,
+      v: row.dataset.v,
+      src: document.getElementById('musicVideo').getAttribute('src') || '',
+      inView: row.offsetTop >= list.scrollTop
+              && row.offsetTop + row.offsetHeight <= list.scrollTop + list.clientHeight,
+      tinted: cs.backgroundColor,
+      edge: cs.boxShadow,
+      markHidden: mark.hidden,
+      markTop: parseFloat(mark.style.top),
+      markWide: Math.round(mark.getBoundingClientRect().width),
+    };
+  });
+  note(found !== null, 'no row is marked as playing at all');
+  if (found) {
+    note(found.inView, `the playing row (${found.at} of ${found.total}) was not scrolled into view`);
+    // A tint that is still the hover colour is not a highlight anyone can find.
+    note(found.tinted !== 'rgba(0, 0, 0, 0)', 'the playing row has no tint of its own');
+    note(/inset/.test(found.edge), 'the playing row has no accent edge to pick it out');
+    note(found.markHidden === false, 'the scroll-track tick is hidden while a track plays');
+    note(found.markWide >= 4, `the scroll-track tick is only ${found.markWide}px wide`);
+    // The tick says where in the LIST the track is, not where the list is
+    // scrolled to — so it has to track the index, not the scroll position.
+    const want = ((found.at + 0.5) / found.total) * 100;
+    note(Math.abs(found.markTop - want) < 0.5,
+         `the tick sits at ${found.markTop.toFixed(1)}%, the track is ${want.toFixed(1)}% down the list`);
+    // The first track of a session is the one that navigates the frame, so this
+    // is where the built URL can be read against the row that is playing.
+    note(found.src.includes(`/embed/${found.v}?`),
+         'the embed URL does not name the row that started playing');
+  }
 }
 
 /* ---- 4. the four columns, and the two thin ones are square ---------------
@@ -463,6 +499,25 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
    row that was clicked, and enablejsapi, without which every transport button
    below is inert. */
 {
+  /* Closed and reopened first, and this is the whole reason: only the FIRST
+     track of a session navigates the frame. Every one after it is handed to a
+     live player by loadVideoById and the src attribute keeps naming the first —
+     deliberately, because re-pointing src would throw away the gesture that
+     permits sound and flash a black box between songs. Reading src after a
+     later track therefore reads the earlier one, which is exactly what this
+     check did once the bar became permanent and nothing stopped playback
+     between here and 3c. */
+  await page.click('#musicClose');
+  await page.waitForFunction(() => document.getElementById('musicModal').open !== true,
+                             { timeout: 5000 });
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 5000 });
+  note(await page.evaluate(() => document.getElementById('musicVideo').getAttribute('src') === null),
+       'reopening the overlay left the previous track loaded in the frame');
+
   const track = await page.evaluate(() => {
     const row = document.querySelectorAll('#musicRows .music-row')[3];
     row.querySelector('.music-play').click();
@@ -645,6 +700,97 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        `the Idea Vault still reads "${after.label}" after the overlay closed`);
   note(after.padlock === 'lock',
        'the Idea Vault padlock is still undone after the overlay closed');
+
+  /* THE REPORTED BUG, and it is a focus bug rather than a scroll one. relock()
+     used to call keypad.reset() unconditionally, which parks focus in the Idea
+     Vault's first box after ANY overlay closes. The ` shortcut then correctly
+     refuses to fire — something is being typed into — so the next ` went in as
+     a CHARACTER, and typing into a focused input the reader cannot see scrolls
+     it into view. Hence "tilde jumps me to the Idea Vault", only ever on the
+     second press. */
+  const parked = await page.evaluate(() => {
+    const el = document.activeElement;
+    return { inVault: !!el && el.classList.contains('vault-pin'),
+             where: el ? (el.id || el.className || el.tagName) : 'none' };
+  });
+  note(!parked.inVault,
+       `focus is parked in the Idea Vault keypad after the overlay closed (${parked.where})`);
+
+  await page.keyboard.press('Backquote');
+  const again = await page.evaluate(() => ({
+    open: document.getElementById('codeModal').open === true,
+    vault: [...document.querySelectorAll('#vault .vault-pin')].map(p => p.value).join(''),
+    tilde: [...document.querySelectorAll('#codeModal .vault-pin')].map(p => p.value).join(''),
+    scrollY: Math.round(window.scrollY),
+  }));
+  note(again.open, 'pressing ` after closing an overlay did not reopen the keypad');
+  note(again.vault === '', `pressing \` typed "${again.vault}" into the Idea Vault instead`);
+  note(again.tilde === '', `pressing \` typed "${again.tilde}" into the keypad it opened`);
+  note(again.scrollY === parkedAt,
+       `pressing \` a second time scrolled the page to ${again.scrollY}, not ${parkedAt}`);
+
+  await page.keyboard.press('Backquote');   // the same key closes it
+  await page.waitForFunction(() => document.getElementById('codeModal').open !== true,
+                             { timeout: 5000 });
+}
+
+/* ---- 8b. play from idle serves a different track each time -------------
+   Not a probabilistic check: startFresh() excludes the track music-last names,
+   so two fresh plays in a row MUST differ. Reported as "it keeps playing the
+   same song" — the first version resumed the last track on purpose, which in a
+   shuffled list of 311 reads as a broken button rather than as a bookmark. */
+{
+  const spin = async () => {
+    await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+    await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                               { timeout: 5000 });
+    await page.waitForFunction(() => document.getElementById('musicBar').hidden === false,
+                               { timeout: 5000 });
+    await page.click('#musicToggle');
+    await page.waitForFunction(
+      () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+      { timeout: 5000 });
+    const v = await page.evaluate(() =>
+      document.querySelector('#musicRows .music-row.is-playing').dataset.v);
+    await page.click('#musicClose');
+    await page.waitForFunction(() => document.getElementById('musicModal').open !== true,
+                               { timeout: 5000 });
+    return v;
+  };
+  const first = await spin();
+  const second = await spin();
+  note(first !== second,
+       `play from idle served ${first} twice running — it must not repeat the last track`);
+
+  /* Shuffle OFF is the one case that is not random. Someone who turned shuffle
+     off and pressed play is asking for the top of the list, not a surprise. */
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
+  await page.click('#musicShuffle');
+  note(await page.evaluate(() =>
+       document.getElementById('musicShuffle').getAttribute('aria-pressed') === 'false'),
+       'clicking shuffle did not turn it off');
+  await page.click('#musicToggle');
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+    { timeout: 5000 });
+  note(await page.evaluate(() => {
+         const rows = [...document.querySelectorAll('#musicRows .music-row')];
+         return rows.indexOf(document.querySelector('.music-row.is-playing')) === 0;
+       }), 'with shuffle off, play from idle did not start at the top of the list');
+  await page.click('#musicShuffle');   // leave it as it was found
+
+  /* ---- and the X closes the overlay. It used to put the bar away, which is
+     not a thing that can happen now the bar is permanent, so it was left doing
+     nothing anyone could see. */
+  await page.click('#musicStop');
+  const closed = await page.evaluate(() => ({
+    open: document.getElementById('musicModal').open === true,
+    src: document.getElementById('musicVideo').getAttribute('src'),
+  }));
+  note(!closed.open, 'the X in the player bar does not close the overlay');
+  note(closed.src === null, 'closing with the X left the embed holding a src');
 }
 
 /* ---- 9. the keypad flash ------------------------------------------------
@@ -707,7 +853,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 100) {
+if (TOTAL < 120) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

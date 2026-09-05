@@ -809,9 +809,23 @@ passes its own box, the tilde keypad passes whatever had focus when \` was
 pressed. Every focus call inside `createKeypad` carries `preventScroll` as well,
 because that listener fires on focus the code did not ask for.
 
+**That fix was half of it.** `relock()` still called `keypad.reset()`
+unconditionally, which parks focus in the vault's FIRST box after any overlay
+closes. The ` shortcut then correctly refuses to fire — something is being typed
+into — so the next ` went in as a character, and typing into a focused input the
+reader cannot see scrolls it into view. Same symptom, different cause, and only
+ever on the SECOND press, which is why the first fix looked complete.
+`reset(moveFocus)` now leaves focus alone unless it is already in these boxes,
+which it is exactly when the section's own keypad opened the overlay.
+
+Worth stating plainly because it cost a round trip: `preventScroll` could never
+have fixed that one. The scroll came from the keystroke, not from the focus.
+
 `music_check.mjs` parks the page at 900px before typing the code and asserts the
 scroll position is unchanged through opening, entering and closing — the bug is
-invisible from the top of the document, which is where a harness starts.
+invisible from the top of the document, which is where a harness starts — and
+then presses ` a second time and asserts it opens the keypad rather than typing
+a character into the vault.
 
 ## The image pipeline (full rules in CLAUDE.md — the short version)
 
@@ -1243,10 +1257,25 @@ not, at the same size either way, so starting a track does not resize the row it
 sits in. The now-playing line names the queue instead (`311 in ALL`). Stop
 returns to that state rather than putting the bar away.
 
-**Press play with nothing playing and something starts**: the track this browser
-last played if it is still in the list being looked at, else a random one when
-shuffle is on, else the top. Which track it is matters far less than that the
-button does something — it is on screen from the moment the overlay opens.
+**Press play with nothing playing and something starts.** With shuffle on that
+is a random track that is NOT the one `music-last` names, so two presses running
+cannot serve the same song; with shuffle off it is the top of the list, which is
+the only answer that is not a surprise to someone who turned shuffle off. An
+earlier version resumed the last played track and that was wrong: in a shuffled
+list of 311, the same song every session reads as a broken button.
+
+**The playing track has to be findable**, which is three things and not one.
+`showRow()` scrolls it into view when it is not already (via `scrollTop`, never
+`scrollIntoView`, which would walk up to the page behind the dialog); the row
+carries an accent tint and an inset edge loud enough to pick out while scrolling
+past; and `#musicMark` is a tick on the scroll track at `(index + 0.5) / length`
+of the way down — the only one of the three that can be seen from anywhere in
+the list.
+
+**The X in the bar closes the overlay.** It used to stop playback and hide the
+bar; with the bar permanent it was left doing nothing anyone could see. Closing
+stops playback on the way out, so nothing is lost, and a second way out of a
+full-screen overlay is worth having.
 
 **Shuffle starts ON** and is remembered in `music-shuffle`. 311 tracks in
 alphabetical order is a filing cabinet, not a playlist. Absent is not the same as

@@ -3750,10 +3750,13 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
 
   return {
     clear: clearBoxes,
-    reset() {
+    /* moveFocus is a choice the CALLER has to make, because only the caller
+       knows whether these boxes are where the reader is. Relocking after an
+       overlay closes is the case that must not take focus — see initVault. */
+    reset(moveFocus = true) {
       clearBoxes();
       say(resting, null);
-      pins[0].focus({ preventScroll: true });
+      if (moveFocus) pins[0].focus({ preventScroll: true });
     },
     focus() { pins[0].focus({ preventScroll: true }); },
   };
@@ -4017,9 +4020,20 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   function relock() {
     if (label) label.textContent = 'CLASSIFIED';
     if (padlock) padlock.dataset.icon = 'lock';
-    // The overlay hands focus back to the box that opened it — the LAST one,
-    // where typing does nothing useful. reset() moves it to the front.
-    keypad.reset();
+    /* Clear and relabel always; take focus ONLY if focus is already in these
+       boxes — which it is when the section's own keypad opened the overlay
+       (the overlay hands it back to the LAST box, where typing does nothing,
+       and this moves it to the front).
+
+       It is NOT when the tilde keypad opened it, and grabbing focus anyway is
+       what made ` stop working afterwards: focus sat in a vault box halfway
+       down the page, the shortcut correctly refuses to fire while something is
+       being typed into, so the next ` went in as a CHARACTER — and typing into
+       a focused input the reader cannot see scrolls it into view. That is the
+       whole of the "tilde jumps me to the Idea Vault" bug, and preventScroll
+       could never have fixed it, because the scroll came from the keystroke
+       rather than from the focus. */
+    keypad.reset(pins.includes(document.activeElement));
   }
 
   /* ---- the same lock, reachable from anywhere ---- */
@@ -5065,6 +5079,7 @@ const MediaBus = (() => {
   const viewAll = $('musicViewAll'), viewRepeat = $('musicViewRepeat');
   const nAll = $('musicNAll'), nRepeat = $('musicNRepeat');
   const bar = $('musicBar'), frame = $('musicVideo'), screen = $('musicScreen');
+  const markEl = $('musicMark');
   const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
   const btnPrev = $('musicPrev'), btnToggle = $('musicToggle'), btnNext = $('musicNext');
   const btnShuffle = $('musicShuffle'), btnLoop = $('musicLoop'), btnStop = $('musicStop');
@@ -5243,9 +5258,12 @@ const MediaBus = (() => {
     countEl.textContent = `${queue.length} OF ${tracks.length}`;
     nAll.textContent = String(tracks.length);
     nRepeat.textContent = String(ticked.size);
-    // The idle line names the list it would play from, so it has to be redrawn
-    // whenever that list changes — a search or a rail switch, not just a track.
-    if (index < 0) idle();
+    /* The idle line names the list it would play from, so it has to be redrawn
+       whenever that list changes — a search or a rail switch, not just a track.
+       `armed`, not `index`: a search can filter the playing track out of the
+       list, which sets index to -1 while the audio carries on, and saying
+       "Nothing playing" over a song you can hear is worse than saying nothing. */
+    if (!armed) idle();
     paint();
   }
 
@@ -5259,6 +5277,33 @@ const MediaBus = (() => {
     frame.hidden = true;
   }
 
+  /* Put the playing row on screen, but only when it is not already. With
+     shuffle on, the track that starts is somewhere in 311 rows and there is
+     otherwise nothing to say where — and yanking the list under a reader who
+     can already see the row is worse than doing nothing.
+
+     scrollTop rather than scrollIntoView: that walks up every scrollable
+     ancestor, and this one sits inside a <dialog> over a page that must not
+     move. .music-list is position:relative so offsetTop is measured from it. */
+  function showRow(i) {
+    const row = rowsEl.children[i];
+    if (!row || !listEl) return;
+    const top = row.offsetTop;
+    const bottom = top + row.offsetHeight;
+    if (top >= listEl.scrollTop && bottom <= listEl.scrollTop + listEl.clientHeight) return;
+    listEl.scrollTop = top - (listEl.clientHeight - row.offsetHeight) / 2;
+  }
+
+  /* A tick on the scroll track saying where in the list the playing track is.
+     The row highlight only helps once you have scrolled to it; this is the
+     part that is visible from anywhere, which is the point of it. */
+  function mark() {
+    if (!markEl) return;
+    if (index < 0 || !queue.length) { markEl.hidden = true; return; }
+    markEl.hidden = false;
+    markEl.style.top = `${((index + 0.5) / queue.length) * 100}%`;
+  }
+
   function paint() {
     const rows = rowsEl.children;
     for (let i = 0; i < rows.length; i++) {
@@ -5267,6 +5312,7 @@ const MediaBus = (() => {
       const icon = rows[i].querySelector('.music-play .icon');
       if (icon) icon.dataset.icon = (on && playing) ? 'pause' : 'play';
     }
+    mark();
     const icon = btnToggle.querySelector('.icon');
     if (icon) icon.dataset.icon = playing ? 'pause' : 'play';
     btnToggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
@@ -5320,20 +5366,25 @@ const MediaBus = (() => {
     // when the embed gets round to saying so. onStateChange corrects it.
     playing = true;
     paint();
+    showRow(i);
     if (fromClick) MediaBus.solo(me);
   }
 
-  /* Press play with nothing going: pick up where this browser left off, and
-     failing that let shuffle decide. Which track it is matters far less than
-     that SOMETHING starts — the button is on screen from the moment the overlay
-     opens and has to do something when it is pressed. */
+  /* Press play with nothing going. Shuffle on means a DIFFERENT track each
+     time — including different from the last one this browser played, which is
+     what music-last is for. Resuming that track instead was the first version
+     and it was wrong: pressing play in a shuffled list of 311 songs and getting
+     the same one every session reads as a broken button, not as a bookmark.
+     Shuffle off means the top, which is the only answer that is not a surprise
+     when someone has deliberately turned shuffle off. */
   function startFresh() {
     if (!queue.length) return;
+    if (!shuffle) { load(0, true); return; }
     let last = null;
     try { last = localStorage.getItem(LAST_KEY); } catch { /* private mode */ }
-    const at = last ? queue.findIndex(t => t.v === last) : -1;
-    if (at >= 0) { load(at, true); return; }
-    load(shuffle && queue.length > 1 ? Math.floor(Math.random() * queue.length) : 0, true);
+    let n = Math.floor(Math.random() * queue.length);
+    if (queue.length > 1 && queue[n].v === last) n = (n + 1) % queue.length;
+    load(n, true);
   }
 
   function step(delta) {
@@ -5451,7 +5502,12 @@ const MediaBus = (() => {
     else if (playing) pause();
     else resume();
   });
-  btnStop.addEventListener('click', stop);
+  /* The X closes the OVERLAY. It used to put the bar away, which is not a
+     thing that can happen now the bar is permanent — it was left doing nothing
+     anyone could see. Closing stops playback on the way out (see bindModal
+     below), so nothing is lost by giving it the more useful job, and a second
+     way out of a full-screen overlay is worth having. */
+  btnStop.addEventListener('click', () => closeModal(modal));
 
   function paintShuffle() {
     btnShuffle.setAttribute('aria-pressed', String(shuffle));

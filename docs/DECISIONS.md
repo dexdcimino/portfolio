@@ -25,6 +25,67 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-04 — relocking the vault must not take focus
+
+**Decided.** `createKeypad`'s `reset()` takes a `moveFocus` argument, and
+`initVault`'s `relock()` passes `pins.includes(document.activeElement)` — clear
+and relabel always, take focus only if focus is already in these boxes.
+
+**Replaced.** `relock()` calling `reset()` unconditionally, which was correct
+only for the case where the vault's own keypad opened the overlay.
+
+**Why.** It parked focus in the Idea Vault's first box after ANY overlay closed.
+The ` shortcut then refused to fire, correctly — it must not eat a character
+someone is typing — so the next ` went in as a character instead, and typing
+into a focused input below the fold scrolls it into view. That is the second
+half of the "tilde jumps me to the Idea Vault" report, and the entry above did
+not fix it: `preventScroll` cannot help when the scroll comes from the keystroke
+rather than from the focus. It only ever showed on the SECOND press, which is
+why the first fix looked complete.
+
+**Reverse it if** nothing. Taking focus the reader did not ask for is the bug in
+every version of this; the argument makes the one legitimate case explicit.
+
+---
+
+## 2026-09-04 — play from idle does not resume, it varies
+
+**Decided.** Pressing play with nothing going picks a random track that is not
+the one `music-last` names, or the top of the list when shuffle is off.
+
+**Replaced.** Resuming the last played track, decided one round earlier in this
+same file.
+
+**Why.** Reported as "it keeps playing the same song". Resuming reads as a
+bookmark in a list you work through in order, and this is not one: it is 311
+songs with shuffle on by default, where pressing play and getting the same track
+every session reads as a button that does not work. `music-last` is still
+written on every load, but it is now used to EXCLUDE rather than to resume,
+which is what makes "a different one each time" deterministic rather than
+merely likely.
+
+**Reverse it if** the overlay ever grows a real position memory — resuming a
+track part-way through, rather than restarting it. Resuming from the beginning
+was never the useful half of that idea.
+
+---
+
+## 2026-09-04 — the bar's X closes the overlay
+
+**Decided.** `#musicStop` closes the music overlay.
+
+**Replaced.** Stopping playback and hiding the player bar.
+
+**Why.** The bar is permanent now, so half of that button's job no longer
+exists, and the other half — stopping — is something closing already does. It
+was a control that appeared to do nothing. A second way out of a full-screen
+overlay is worth more than a stop button next to a pause button.
+
+**Reverse it if** the bar ever leaves the overlay and plays on across the page.
+Then stopping is a real thing to want and closing is not what the X means.
+
+---
+
 ## 2026-09-04 — a code clears the instant it is accepted
 
 **Decided.** `createKeypad`'s `attempt()` calls `clearBoxes()` on the success

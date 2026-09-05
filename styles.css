@@ -5594,7 +5594,16 @@ body.modal-open{overflow:hidden}
 .music-count{margin:0;font-size:14px;font-weight:800;letter-spacing:.1em;color:var(--muted);opacity:.75;white-space:nowrap}
 
 /* --- the body: rail + list ------------------------------------------------ */
-.music-body{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr)}
+.music-body{position:relative;flex:1 1 auto;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr)}
+/* The playing tick, on the scroll track. Its top is a percentage of the list,
+   set in paint(), so it says where the track sits among all of them rather than
+   where it happens to be scrolled to. */
+.music-mark{
+  position:absolute;right:1px;width:9px;height:3px;z-index:2;
+  border-radius:2px;background:var(--accent);pointer-events:none;
+  box-shadow:0 0 0 1px rgba(0,0,0,.55);
+}
+.music-mark[hidden]{display:none}
 .music-rail{
   display:flex;flex-direction:column;gap:5px;
   width:158px;padding:16px 11px;
@@ -5612,8 +5621,11 @@ body.modal-open{overflow:hidden}
 .music-rail .icon{width:22px;height:22px;flex:0 0 auto}
 .music-rail-n{margin-left:auto;font-size:13px;opacity:.7;letter-spacing:.04em}
 
+/* position:relative so a row's offsetTop is measured from HERE — showRow()
+   sets scrollTop from it rather than calling scrollIntoView, which would walk
+   up to the page behind the dialog. */
 .music-list{
-  min-width:0;overflow-y:auto;overscroll-behavior:contain;
+  position:relative;min-width:0;overflow-y:auto;overscroll-behavior:contain;
   padding:6px 12px 12px;scrollbar-width:thin;
 }
 .music-list::-webkit-scrollbar{width:11px}
@@ -5635,7 +5647,13 @@ body.modal-open{overflow:hidden}
   border-bottom:1px solid rgba(255,255,255,.045);
 }
 .music-row:hover{background:rgba(255,255,255,.045)}
-.music-row.is-playing{background:rgba(255,255,255,.075)}
+/* Loud on purpose. With shuffle on, the track that starts is one of 311 rows
+   and the reader has to be able to find it at a glance — a hover-weight tint
+   was not enough to pick out while scrolling past. */
+.music-row.is-playing{
+  background:color-mix(in srgb,var(--accent) 13%,transparent);
+  box-shadow:inset 3px 0 0 var(--accent);
+}
 .music-row.is-playing .music-title{color:var(--accent)}
 
 /* A real checkbox, restyled. The native control keeps the space bar, the
