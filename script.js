@@ -2064,6 +2064,7 @@ if (workModal) {
   const padlock = document.getElementById('notesLock');
   const zoomBtn = document.getElementById('notesZoom');
   const zoomIcon = document.getElementById('notesZoomIcon');
+  const wait = document.getElementById('notesWait');
   const pins = modal ? [...modal.querySelectorAll('.vault-pin')] : [];
 
   if (modal && pins.length) {
@@ -2813,6 +2814,7 @@ if (workModal) {
       if (label) label.textContent = 'PRIVATE';
       if (padlock) padlock.dataset.icon = 'lock';
       editor.hidden = true;
+      if (wait) wait.hidden = true;
       gate.hidden = false;
       // The document goes with the overlay. Leaving it in the DOM would keep
       // the notes one devtools panel away for the rest of the visit, which is
@@ -2832,29 +2834,49 @@ if (workModal) {
       () => closeModal(modal));
 
     async function open(trigger, code) {
+      /* Two silent tries before the keypad, in this order. A token from before
+         a refresh, then a code handed over by whatever opened this -- the Idea
+         Vault and the tilde keypad both pass the one they were typed, and it is
+         the same word. Either opens the document; neither failing is an error,
+         it just means the keypad after all.
+
+         WHICH IS WHY THE GATE STARTS HIDDEN whenever there is something to try.
+         It used to be on screen for the whole round trip, so opening the notes
+         with the code showed a password box to someone who had just typed that
+         password -- and since a saved token or a passed code is how this is
+         almost always opened, that flash was what the overlay looked like on
+         nearly every open. It is not a step anyone has to take, so it is not a
+         step anyone should see. UNLOCKING stands in its place, and the keypad
+         appears only once both tries have come back empty. */
+      const saved = store.get(TOKEN_KEY);
+      const silent = !!(saved || code);
+      gate.hidden = silent;
+      if (wait) wait.hidden = !silent;
+
       openModal(modal, modal.querySelector('.notes-shell'), null, trigger);
       if (location.hash !== '#notes') {
         try { history.replaceState(null, '', '#notes'); } catch { /* file:// */ }
       }
-      /* Two silent tries before the keypad, in this order. A token from before
-         a refresh, then a code handed over by whatever opened this -- the Idea
-         Vault passes the one it was typed, and it is the same word. Either
-         opens the document; neither failing is an error, it just means the
-         keypad. */
-      const saved = store.get(TOKEN_KEY);
+
+      /* opened() shows the editor and hides the gate itself; all this has to do
+         is take the stand-in away, on every one of the three ways out. */
+      const settle = () => { if (wait) wait.hidden = true; };
+
       if (saved) {
         try {
           const data = await unlock({ token: saved });
-          if (data) { opened(data); return; }
+          if (data) { settle(); opened(data); return; }
         } catch { /* fall through */ }
         store.drop(TOKEN_KEY);
       }
       if (code) {
         try {
           const data = await unlock({ password: String(code).toLowerCase() });
-          if (data) { opened(data); return; }
+          if (data) { settle(); opened(data); return; }
         } catch { /* fall through */ }
       }
+      settle();
+      gate.hidden = false;
       keypad.focus();
     }
 
@@ -3771,12 +3793,16 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
 
   /* Some doors are not a dialog this block should open itself. The notes
      overlay has its own opener -- it checks for a saved session, talks to the
-     server and decides between the keypad and the editor -- so the vault asks
-     for it by EVENT rather than reaching in. That also keeps the two blocks
-     independent of the order they appear in this file.
-     Opening it is not a way past its password: it lands on the keypad, and the
-     content still comes from the server or not at all. */
-  const EVENTS = { notes: 'notes:open' };
+     server and decides between the keypad and the editor -- and the music
+     overlay has one too, because it has to fetch its track list before there
+     is anything to show. So the vault asks for both by EVENT rather than
+     reaching in. That also keeps the blocks independent of the order they
+     appear in this file.
+     Opening the notes is not a way past its password: it lands on the keypad,
+     and the content still comes from the server or not at all. The music
+     overlay has no password to be past: it is a list of public links, and the
+     code is a doorway rather than a lock. */
+  const EVENTS = { notes: 'notes:open', music: 'music:open' };
 
   /* SubtleCrypto only exists in a secure context. Over https or on localhost
      that is everywhere; opened as a file:// double-click it is nowhere, and the
@@ -4970,6 +4996,473 @@ const MediaBus = (() => {
 
   setFill(vol, 40);
   select(0);
+})();
+
+/* ==========================================================================
+   MUSIC OVERLAY
+   311 songs, reached by typing MUSIC into the tilde keypad or the Idea Vault.
+   Four columns: tick, play, title over artist, and the link with a copy button
+   on the end of it. Two playlists on the rail — ALL, and whatever is ticked.
+
+   WHY IT SITS HERE rather than beside the notes overlay it is a sibling of.
+   MediaBus is a module-level `const` further up this file, and a block that
+   called MediaBus.add() before that line had run would throw on the temporal
+   dead zone. Every other player in this file is below the bus for the same
+   reason, so this is where the players live, not where the overlays do.
+
+   WHY AN IFRAME AND NOT <audio>. These are YouTube links. There is no audio
+   URL to hand an <audio> element that is not a scrape, and a scrape breaks the
+   week YouTube changes anything. The embed is the supported way to play one,
+   and the video stays VISIBLE because playing it hidden is against the terms
+   the embed ships under.
+
+   WHY NO YOUTUBE API SCRIPT. The IFrame API is a postMessage wrapper around
+   the same embed, and loading it would mean widening script-src past 'self' —
+   the one thing the page's CSP is strictest about. So the handshake is done by
+   hand: `listening` on load, commands out, `infoDelivery` back. frame-src is
+   widened for the embed and nothing else. See docs/DECISIONS.md.
+
+   THE LIST IS NOT IN THE PAGE. assets/music/tracks.json is fetched on the
+   first open and cached for the tab. Generated from tracklist.txt by
+   tools/bake_music.py — add a line there, re-run it, and the row appears.
+   ========================================================================== */
+(function initMusic() {
+  const modal = document.getElementById('musicModal');
+  if (!modal) return;
+
+  const $ = (id) => document.getElementById(id);
+  const rowsEl = $('musicRows'), listEl = $('musicList'), emptyEl = $('musicEmpty');
+  const countEl = $('musicCount'), searchEl = $('musicSearch');
+  const sortTitle = $('musicSortTitle'), sortArtist = $('musicSortArtist');
+  const viewAll = $('musicViewAll'), viewRepeat = $('musicViewRepeat');
+  const nAll = $('musicNAll'), nRepeat = $('musicNRepeat');
+  const bar = $('musicBar'), frame = $('musicVideo');
+  const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
+  const btnPrev = $('musicPrev'), btnToggle = $('musicToggle'), btnNext = $('musicNext');
+  const btnShuffle = $('musicShuffle'), btnLoop = $('musicLoop'), btnStop = $('musicStop');
+  if (!rowsEl || !frame) return;
+
+  const MANIFEST = 'assets/music/tracks.json';
+  const ORIGIN = 'https://www.youtube-nocookie.com';
+  const TICKS_KEY = 'music-repeat';
+
+  let tracks = [];            // everything, in the order tracklist.txt names them
+  let queue = [];             // what is rendered, which is also what Next walks
+  let loaded = false;
+  let view = 'all';           // 'all' | 'repeat'
+  let sort = 't';             // 't' | 'a'
+  let query = '';
+  let index = -1;             // into `queue`
+  let playing = false;
+  let shuffle = false;
+  let loop = false;
+  let armed = false;          // the iframe has a src and will take commands
+
+  /* The ticks are a PREFERENCE, not a document: they say how this browser
+     wants to listen, they are worth nothing to anyone else, and there is no
+     server behind this overlay to put them on. localStorage, wrapped, because
+     a private window throws on the property access rather than on the call. */
+  const ticked = new Set();
+  function loadTicks() {
+    try {
+      const raw = localStorage.getItem(TICKS_KEY);
+      if (raw) for (const v of JSON.parse(raw)) ticked.add(v);
+    } catch { /* private mode, or someone hand-edited it into nonsense */ }
+  }
+  function saveTicks() {
+    try { localStorage.setItem(TICKS_KEY, JSON.stringify([...ticked])); }
+    catch { /* nothing to do — the session still works, it just will not persist */ }
+  }
+
+  /* ---- the list -------------------------------------------------------- */
+
+  const fold = (s) => s.toLowerCase();
+
+  function visible() {
+    const q = fold(query.trim());
+    let out = view === 'repeat' ? tracks.filter(t => ticked.has(t.v)) : tracks.slice();
+    if (q) out = out.filter(t => fold(t.t).includes(q) || fold(t.a).includes(q));
+    /* localeCompare with numeric so "Track 2" sorts before "Track 10", and a
+       stable tiebreak on the other field so the order does not shuffle itself
+       between two songs by the same artist. */
+    const cmp = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    out.sort((x, y) => (sort === 'a' ? cmp(x.a, y.a) || cmp(x.t, y.t)
+                                     : cmp(x.t, y.t) || cmp(x.a, y.a)));
+    return out;
+  }
+
+  /* Built with DOM calls rather than an innerHTML string: a title with an
+     ampersand or a quote in it is a lot of this list, and escaping by hand is
+     the bug that ships. 311 rows is a few milliseconds either way. */
+  function buildRow(track) {
+    const row = document.createElement('div');
+    row.className = 'music-row';
+    row.setAttribute('role', 'listitem');
+    row.dataset.v = track.v;
+
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.className = 'music-check';
+    check.checked = ticked.has(track.v);
+    check.setAttribute('aria-label', `Add ${track.t} to the repeat playlist`);
+
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'music-play';
+    play.setAttribute('aria-label', `Play ${track.t} by ${track.a}`);
+    const playIcon = document.createElement('span');
+    playIcon.className = 'icon';
+    playIcon.dataset.icon = 'play';
+    playIcon.setAttribute('aria-hidden', 'true');
+    play.append(playIcon);
+
+    const meta = document.createElement('span');
+    meta.className = 'music-meta';
+    const title = document.createElement('span');
+    title.className = 'music-title';
+    title.textContent = track.t;
+    const artist = document.createElement('span');
+    artist.className = 'music-artist';
+    artist.textContent = track.a;
+    meta.append(title, artist);
+
+    const cell = document.createElement('span');
+    cell.className = 'music-linkcell';
+    const link = document.createElement('a');
+    link.className = 'music-link';
+    link.href = track.u;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    // The scheme is noise on every row and the same on all 311 of them.
+    link.textContent = track.u.replace(/^https?:\/\/(www\.)?/, '');
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'music-copy';
+    copy.setAttribute('aria-label', `Copy the link to ${track.t}`);
+    const copyIcon = document.createElement('span');
+    copyIcon.className = 'icon';
+    copyIcon.dataset.icon = 'copy';
+    copyIcon.setAttribute('aria-hidden', 'true');
+    copy.append(copyIcon);
+    cell.append(link, copy);
+
+    row.append(check, play, meta, cell);
+    return row;
+  }
+
+  function render() {
+    const wasPlaying = index >= 0 ? queue[index] : null;
+    queue = visible();
+
+    const frag = document.createDocumentFragment();
+    for (const track of queue) frag.append(buildRow(track));
+    rowsEl.replaceChildren(frag);
+
+    /* Follow the track across the re-render rather than resetting to -1. The
+       list is re-sorted and re-filtered under a player that is still going,
+       and losing its place would make Next jump somewhere unrelated. */
+    index = wasPlaying ? queue.findIndex(t => t.v === wasPlaying.v) : -1;
+
+    const none = queue.length === 0;
+    emptyEl.hidden = !none;
+    if (none) {
+      emptyEl.textContent = query.trim()
+        ? `Nothing matches "${query.trim()}".`
+        : 'Nothing ticked yet — tick a track in ALL to build the repeat playlist.';
+    }
+
+    countEl.textContent = `${queue.length} OF ${tracks.length}`;
+    nAll.textContent = String(tracks.length);
+    nRepeat.textContent = String(ticked.size);
+    paint();
+  }
+
+  function paint() {
+    const rows = rowsEl.children;
+    for (let i = 0; i < rows.length; i++) {
+      const on = i === index;
+      rows[i].classList.toggle('is-playing', on);
+      const icon = rows[i].querySelector('.music-play .icon');
+      if (icon) icon.dataset.icon = (on && playing) ? 'pause' : 'play';
+    }
+    const icon = btnToggle.querySelector('.icon');
+    if (icon) icon.dataset.icon = playing ? 'pause' : 'play';
+    btnToggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  }
+
+  /* ---- the player ------------------------------------------------------ */
+
+  /* The embed only answers a window that has said hello, and only over its own
+     origin. Everything below goes through here so there is one place that
+     knows the protocol. */
+  function post(message) {
+    if (!frame.contentWindow) return;
+    try { frame.contentWindow.postMessage(JSON.stringify(message), ORIGIN); }
+    catch { /* not loaded yet, or navigated away — the next command re-sends */ }
+  }
+  const cmd = (func, args = []) => post({ event: 'command', func, args });
+
+  function srcFor(v) {
+    const params = new URLSearchParams({
+      enablejsapi: '1', autoplay: '1', rel: '0',
+      modestbranding: '1', playsinline: '1',
+    });
+    // A file:// page has origin "null", which the embed rejects outright. On a
+    // served page this is always set, which is every way anyone reaches this.
+    if (/^https?:/.test(location.origin)) params.set('origin', location.origin);
+    return `${ORIGIN}/embed/${encodeURIComponent(v)}?${params}`;
+  }
+
+  function load(i, fromClick) {
+    const track = queue[i];
+    if (!track) return;
+    index = i;
+    nowTitle.textContent = track.t;
+    nowArtist.textContent = track.a;
+    bar.hidden = false;
+
+    /* First track of the session navigates the frame; every one after it is a
+       command to a player that is already alive. Reloading the iframe each
+       time would throw away the gesture that permits sound and flash a black
+       box between songs. */
+    if (!armed) {
+      frame.src = srcFor(track.v);
+      armed = true;
+    } else {
+      cmd('loadVideoById', [track.v]);
+    }
+    // Optimistic, so the row lights up on the click rather than a beat later
+    // when the embed gets round to saying so. onStateChange corrects it.
+    playing = true;
+    paint();
+    if (fromClick) MediaBus.solo(me);
+  }
+
+  function step(delta) {
+    if (!queue.length) return;
+    if (shuffle && delta > 0) {
+      if (queue.length < 2) { load(0, true); return; }
+      let n = index;
+      while (n === index) n = Math.floor(Math.random() * queue.length);
+      load(n, true);
+      return;
+    }
+    const next = index + delta;
+    if (next >= queue.length) { if (loop) load(0, true); else stop(); return; }
+    if (next < 0) { load(loop ? queue.length - 1 : 0, true); return; }
+    load(next, true);
+  }
+
+  function pause() { cmd('pauseVideo'); playing = false; paint(); }
+  function resume() { cmd('playVideo'); playing = true; paint(); MediaBus.solo(me); }
+
+  /* Stop is not pause: it puts the bar away, and the frame has to actually
+     stop rather than sit paused, or a closed overlay leaves a player holding
+     the last frame of a video nobody can see. */
+  function stop() {
+    cmd('stopVideo');
+    frame.removeAttribute('src');
+    armed = false;
+    playing = false;
+    index = -1;
+    bar.hidden = true;
+    paint();
+  }
+
+  /* ---- wiring ---------------------------------------------------------- */
+
+  /* One listener for 311 rows, not 933. Delegation also means the handlers
+     survive every re-render without being reattached. */
+  rowsEl.addEventListener('click', (event) => {
+    const row = event.target.closest('.music-row');
+    if (!row) return;
+    const i = [...rowsEl.children].indexOf(row);
+
+    if (event.target.closest('.music-play')) {
+      // The row already playing toggles; any other row starts from the top.
+      if (i !== index) load(i, true);
+      else if (playing) pause();
+      else resume();
+      return;
+    }
+
+    const copyBtn = event.target.closest('.music-copy');
+    if (copyBtn) {
+      const track = queue[i];
+      if (!track) return;
+      copyText(track.u).then(ok => {
+        const icon = copyBtn.querySelector('.icon');
+        if (!icon) return;
+        // The icon IS the feedback: the button has no label to change.
+        icon.dataset.icon = ok ? 'tick-check' : 'copy';
+        copyBtn.classList.toggle('is-done', ok);
+        setTimeout(() => {
+          icon.dataset.icon = 'copy';
+          copyBtn.classList.remove('is-done');
+        }, 1800);
+      });
+    }
+  });
+
+  rowsEl.addEventListener('change', (event) => {
+    const check = event.target.closest('.music-check');
+    if (!check) return;
+    const row = check.closest('.music-row');
+    if (!row) return;
+    if (check.checked) ticked.add(row.dataset.v); else ticked.delete(row.dataset.v);
+    saveTicks();
+    nRepeat.textContent = String(ticked.size);
+    // Unticking while LOOKING at the repeat list has to take the row away, or
+    // the tick means nothing where it matters most. Anywhere else, re-rendering
+    // would scroll the list out from under the pointer for no reason.
+    if (view === 'repeat') render();
+  });
+
+  const setView = (next) => {
+    view = next;
+    viewAll.setAttribute('aria-pressed', String(next === 'all'));
+    viewRepeat.setAttribute('aria-pressed', String(next === 'repeat'));
+    render();
+  };
+  viewAll.addEventListener('click', () => setView('all'));
+  viewRepeat.addEventListener('click', () => setView('repeat'));
+
+  const setSort = (next) => {
+    sort = next;
+    sortTitle.setAttribute('aria-pressed', String(next === 't'));
+    sortArtist.setAttribute('aria-pressed', String(next === 'a'));
+    render();
+  };
+  sortTitle.addEventListener('click', () => setSort('t'));
+  sortArtist.addEventListener('click', () => setSort('a'));
+
+  let searchTimer = null;
+  searchEl.addEventListener('input', () => {
+    // A re-sort and a 311-row rebuild on every keystroke is work nobody sees;
+    // one frame after they stop typing is indistinguishable and costs nothing.
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { query = searchEl.value; render(); }, 120);
+  });
+
+  btnPrev.addEventListener('click', () => step(-1));
+  btnNext.addEventListener('click', () => step(1));
+  btnToggle.addEventListener('click', () => {
+    if (index < 0) load(0, true);
+    else if (playing) pause();
+    else resume();
+  });
+  btnStop.addEventListener('click', stop);
+  btnShuffle.addEventListener('click', () => {
+    shuffle = !shuffle;
+    btnShuffle.setAttribute('aria-pressed', String(shuffle));
+    btnShuffle.setAttribute('aria-label', shuffle ? 'Shuffle on' : 'Shuffle off');
+  });
+  btnLoop.addEventListener('click', () => {
+    loop = !loop;
+    btnLoop.setAttribute('aria-pressed', String(loop));
+    btnLoop.setAttribute('aria-label', loop ? 'Loop on' : 'Loop off');
+  });
+
+  /* The embed will not speak until it is spoken to, and the handshake has to be
+     re-sent on every navigation — which is only the first load here, because
+     everything after it is loadVideoById. */
+  frame.addEventListener('load', () => {
+    if (armed) post({ event: 'listening', id: 1, channel: 'widget' });
+  });
+
+  window.addEventListener('message', (event) => {
+    if (event.origin !== ORIGIN) return;
+    if (!frame.contentWindow || event.source !== frame.contentWindow) return;
+    let data;
+    try { data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; }
+    catch { return; }
+    if (!data || typeof data !== 'object') return;
+
+    /* The embed reports its state two ways depending on which message it is:
+       onStateChange carries the number itself, infoDelivery wraps it. Reading
+       only one of them works right up until it does not. */
+    const state = typeof data.info === 'number' ? data.info
+      : (data.info && typeof data.info.playerState === 'number' ? data.info.playerState : null);
+    if (state === null) return;
+
+    if (state === 0) { step(1); return; }             // ended -> the next one
+    const wasPlaying = playing;
+    if (state === 1) playing = true;                  // playing
+    if (state === 2) playing = false;                 // paused
+    if (state === 1 && !wasPlaying) MediaBus.solo(me);
+    if (state === 1 || state === 2) paint();
+  });
+
+  /* Registered with the bus so starting a song here silences the Top Picks bar
+     and the clips player. `el` is a shim: the bus only ever asks a player
+     whether it is paused, and an iframe cannot answer that — this can.
+     keepPlayingHidden for the same reason the songs bar has it: this is music
+     someone deliberately put on, and cutting it when the tab goes to the
+     background is not protecting them from anything. */
+  const me = MediaBus.add({
+    el: { get paused() { return !playing; } },
+    keepPlayingHidden: true,
+    onScreen: () => modal.open,
+    touched: () => index >= 0,
+    toggle: () => btnToggle.click(),
+    pause,
+  });
+
+  /* ---- opening --------------------------------------------------------- */
+
+  async function fetchTracks() {
+    countEl.textContent = 'LOADING';
+    try {
+      const response = await fetch(MANIFEST, { cache: 'no-cache' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const list = Array.isArray(data && data.tracks) ? data.tracks : [];
+      /* An empty manifest is a BROKEN manifest, never an empty playlist: it
+         means the bake wrote nothing or the fetch got a 200 from a rewrite
+         rule. Reporting "0 tracks" as a normal state is the exact failure
+         CLAUDE.md has four scars from. */
+      if (!list.length) throw new Error('the manifest is empty');
+      tracks = list.filter(t => t && t.v && t.t && t.u);
+      if (!tracks.length) throw new Error('no usable rows in the manifest');
+      loaded = true;
+      return true;
+    } catch (error) {
+      console.warn('music: could not load the track list', error);
+      countEl.textContent = 'UNAVAILABLE';
+      emptyEl.hidden = false;
+      emptyEl.textContent = 'The track list could not be loaded.';
+      return false;
+    }
+  }
+
+  async function open(trigger) {
+    openModal(modal, modal.querySelector('.music-shell'), null, trigger);
+    if (!loaded && !(await fetchTracks())) return;
+    render();
+    // Not the search box: a keyboard landing in a text field means the first
+    // thing typed disappears into a filter nobody asked for.
+    (viewAll || modal).focus({ preventScroll: true });
+  }
+
+  bindModal(modal, () => {
+    /* Everything stops with the overlay. A player left running behind a closed
+       dialog is sound coming from nowhere with no control anywhere to reach
+       it — the same rule MediaBus applies to a hidden tab. */
+    stop();
+    searchEl.value = '';
+    query = '';
+    if (view !== 'all') setView('all');
+  });
+  $('musicClose')?.addEventListener('click', () => closeModal(modal));
+
+  /* Opened by EVENT rather than from the vault's VIEWS table, for the same
+     reason the notes overlay is: it has its own opener, which has to fetch the
+     manifest before there is anything to show. */
+  document.addEventListener('music:open', (event) => {
+    if (!modal.open) open((event.detail || {}).opener);
+  });
+
+  loadTicks();
 })();
 
 /* --- markdown ------------------------------------------------------------- */

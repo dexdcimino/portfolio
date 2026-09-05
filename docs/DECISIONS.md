@@ -25,6 +25,77 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-04 — the music embed is driven by hand, not by YouTube's API script
+
+**Decided.** The music overlay talks to its YouTube embed with raw postMessage —
+`{event:'listening'}` on load, `{event:'command',func,args}` out, `infoDelivery`
+back — and `vercel.json` gains a `frame-src` for
+`https://www.youtube-nocookie.com https://www.youtube.com` and nothing else.
+`script-src` stays `'self'`.
+
+**Replaced.** Loading `https://www.youtube.com/iframe_api` and using
+`YT.Player`, which is the documented way and about fifteen lines shorter.
+
+**Why.** The API script is a postMessage wrapper around the same embed. Taking
+it would mean widening `script-src` — the one directive this page is strictest
+about, and the one that makes the notes overlay's XSS allowlist a backstop
+rather than the whole plan — to buy fifteen lines. The protocol is stable,
+public, and already what the wrapper sends. There was also a real cost to NOT
+touching the CSP at all: with no `frame-src`, an iframe falls back to
+`default-src 'self'` and the embed is refused with nothing anywhere to say so,
+which is the silent false-green this repo has four scars from.
+
+**Reverse it if** YouTube changes the postMessage protocol under the embed, or
+adds something the overlay needs that only the API exposes. The failure would be
+loud — the transport buttons stop working and `music_check.mjs`'s embed-URL and
+state checks are the place it shows up — so this does not need watching, only
+answering when it happens.
+
+---
+
+## 2026-09-04 — the music code is a doorway, the notes code is a lock
+
+**Decided.** The music overlay has no gate. Typing `MUSIC` opens straight into
+the list.
+
+**Replaced.** Giving it the same keypad-then-content shape as the notes overlay,
+which is what it visually copies in every other respect.
+
+**Why.** A lock has to be protecting something. The notes hold a private
+document and the password is checked on the server precisely so that nothing
+about it reaches the browser first. This holds public YouTube links; the only
+thing a gate would protect is the fact that Dex likes these songs, and it would
+do that badly, since the manifest is a static file anyone can request. Shipping
+a password box in front of nothing teaches that the password boxes on this site
+are decoration, which is the opposite of what the notes one needs to mean.
+
+**Reverse it if** the overlay ever holds something that is actually private —
+unreleased work, anything with a name in it. Then it needs the notes' shape:
+server-checked, content fetched only after, not a gate over a file that is
+already public.
+
+---
+
+## 2026-09-04 — the notes keypad is hidden while a code in hand is checked
+
+**Decided.** `#notesGate` starts hidden and `#notesWait` ("UNLOCKING") stands in
+its place whenever the overlay opens with a saved token or a passed code. The
+keypad appears only once both silent tries have come back empty.
+
+**Replaced.** The gate being on screen from the first frame, always.
+
+**Why.** A saved token or a code handed over by the vault is how the notes are
+almost always opened, so for the length of that round trip the overlay asked for
+a password that had just been typed. It reads as the code having failed. Nothing
+about the lock changed — the content still comes from `/api/notes/unlock` or not
+at all, and a wrong code still lands on the keypad.
+
+**Reverse it if** the round trip ever becomes slow enough that UNLOCKING is
+itself the thing on screen for seconds. Then the answer is a real progress
+state, not going back to showing a keypad nobody has to touch.
+
+---
+
 ## 2026-09-03 — the vault case asserts the request, not the lock
 
 **Decided.** `notes_check.mjs` case 6 asserts that the vault's hand-off goes to

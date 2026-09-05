@@ -23,6 +23,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/check_cursors.py` | the 3 cursor paths are identical in all 4 copies |
 | `python tools/bake_markup.py --check` | every `<picture>` is current and every reference resolves |
 | `python tools/bake_work.py --check` | `work.json` matches the masters, the index and the ladder |
+| `python tools/bake_music.py --check` | `assets/music/tracks.json` matches `tracklist.txt` |
 | `python tools/bake_images.py --check` | every derivative exists and is newer than its master |
 | `python tools/check_sweep.py --cases` | the sweep checker can still refuse — 8 recorded cases |
 | `python tools/check_pack.py --cases` | the pack freshness gate can still refuse |
@@ -33,11 +34,13 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/bake_images.py --cases` | `--check` fails on an empty walk |
 | `python tools/bake_markup.py --cases` | `--check` fails on an empty parse and a hand edit |
 | `python tools/bake_work.py --cases` | the manifest gate can still refuse — 4 recorded states |
+| `python tools/bake_music.py --cases` | the track-list gate can still refuse — 10 cases |
 | `python tools/focal_point.py` | the crop-aiming rule still keeps heads in frame — 8 cases |
 | `node tools/notes_check.mjs` | the notes overlay: no leak, real persistence, 20 backups (needs the dev server) |
 | `node tools/notes_editor_check.mjs` | the notes editor: Tab, Backspace, shortcuts, the selection bug — 29 checks |
 | `node tools/notes_store_check.mjs` | the notes store against a stubbed Vercel Blob — 30 checks, no server needed |
 | `node tools/work_check.mjs` | featured work, the work overlay, the code prompt, the games stack and the AI Lab — 93 checks, serves the repo itself |
+| `node tools/music_check.mjs` | the music overlay: the four columns, the repeat list, the embed URL and the notes keypad flash — 50 checks, serves the repo itself |
 | `node tools/check_markdown.mjs` | `renderMarkdown` cannot emit an event handler (needs Chrome) |
 | `python tools/context_pack.py` | rebuilds the context zip in the root, measured not typed |
 

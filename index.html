@@ -3377,7 +3377,7 @@
          Deliberately not in the nav, and deliberately not in the scroll spy's
          section list in script.js: findable, not advertised. -->
     <section class="resume-strip vault keypad" id="vault" aria-labelledby="vault-title"
-             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi v2.32768.8.1.0vddRKfHTuGOBDXw3eohuqfJn9gawqxlzsrNC5PAlMBOxGYWDeQM2r2xODwNSXCMXK9HGhC2">
+             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi v2.32768.8.1.0vddRKfHTuGOBDXw3eohuqfJn9gawqxlzsrNC5PAlMBOxGYWDeQM2r2xODwNSXCMXK9HGhC2 v2.32768.8.1.GG3gPYqj8ruPKgW1JdjfQbHkEtBPmIh27xuAfgPudjHf17yDbhoe/Xlir71gT9v5rcoWcTF2">
       <div class="vault-head">
         <p class="eyebrow vault-eyebrow">
           <span id="vaultLabel">CLASSIFIED</span>
@@ -4510,6 +4510,13 @@
         </div>
       </div>
 
+      <!-- Shown INSTEAD of the keypad while a code already in hand is being
+           checked. Typing MYNOTES into the tilde keypad or the Idea Vault hands
+           that code straight to /api/notes/unlock, and for the length of that
+           round trip the gate below used to sit there asking for a password
+           that had just been typed. It is not a step anyone has to take, so it
+           is not a step anyone should see. -->
+      <p class="notes-wait" id="notesWait" hidden>UNLOCKING</p>
       <!-- The editor. Empty in the markup and filled from the manifest the
            server hands back; nothing is pre-rendered and hidden, because CSS
            that hides content still shipped the content. -->
@@ -4545,6 +4552,113 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
       <p class="notes-save" id="notesSave" role="status" aria-live="polite"></p>
+    </div>
+  </dialog>
+
+  <!-- MUSIC. The same shell as the notes overlay, reached the same two ways:
+       the tilde keypad and the Idea Vault, both sealed against the code MUSIC.
+
+       NO GATE, and that is the one real difference. The notes hold a private
+       document and check their password on the server before a byte of it
+       exists in the page. This holds 311 public YouTube links; there is
+       nothing here to protect, so the code is a doorway rather than a lock and
+       the overlay opens straight into the list.
+
+       EMPTY IN THE MARKUP. The rows are built from assets/music/tracks.json,
+       fetched once on the first open. 311 rows of markup is ~40 KB every
+       visitor downloads to look at the hero and none of them can see. The
+       manifest is generated from tracklist.txt by tools/bake_music.py — never
+       edit it by hand, and never edit the rows here, because there are none. -->
+  <dialog class="music-modal" id="musicModal" aria-labelledby="music-dialog-title">
+    <!-- Wrapped for the same reason the notes overlay is: the close button
+         sits OUTSIDE the panel and still lines up with its top-right corner. -->
+    <div class="music-frame">
+      <div class="music-shell">
+        <h2 class="sr-only" id="music-dialog-title">Music</h2>
+
+        <div class="music-head">
+          <p class="eyebrow music-eyebrow">
+            <span>MUSIC</span>
+            <span class="icon vault-lock" data-icon="lock-open" aria-hidden="true"></span>
+          </p>
+          <p class="music-count" id="musicCount" role="status" aria-live="polite">LOADING</p>
+          <span class="music-head-gap" aria-hidden="true"></span>
+          <!-- Two buttons, not a <select>: there are exactly two answers. -->
+          <div class="music-sort" role="group" aria-label="Sort the list">
+            <button type="button" id="musicSortTitle" aria-pressed="true">TITLE</button>
+            <button type="button" id="musicSortArtist" aria-pressed="false">ARTIST</button>
+          </div>
+          <input class="music-search" id="musicSearch" type="search"
+                 placeholder="Search title or artist" aria-label="Search tracks"
+                 autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="music-body">
+          <!-- Two playlists and no way to make a third. ALL is the file; REPEAT
+               is whatever is ticked. Which one is showing is also which one the
+               transport walks, so Next never leaves the list being looked at. -->
+          <nav class="music-rail" aria-label="Playlists">
+            <button type="button" id="musicViewAll" aria-pressed="true">
+              <span class="icon" data-icon="play" aria-hidden="true"></span>
+              <span class="music-rail-label">ALL</span>
+              <span class="music-rail-n" id="musicNAll" aria-hidden="true"></span>
+            </button>
+            <button type="button" id="musicViewRepeat" aria-pressed="false">
+              <span class="icon" data-icon="loop" aria-hidden="true"></span>
+              <span class="music-rail-label">REPEAT</span>
+              <span class="music-rail-n" id="musicNRepeat" aria-hidden="true"></span>
+            </button>
+          </nav>
+
+          <div class="music-list" id="musicList">
+            <div id="musicRows" role="list"></div>
+            <!-- Said out loud rather than left blank: an empty list with no
+                 explanation reads as an overlay that failed to load. -->
+            <p class="music-empty" id="musicEmpty" hidden></p>
+          </div>
+        </div>
+
+        <!-- THE PLAYER. Inside the shell, not the page's own bottom bar: the
+             queue it is playing only exists while this overlay is open, and
+             the site's bar drives an <audio> element that cannot be handed a
+             YouTube video.
+
+             The picture is VISIBLE and stays visible. Playing a YouTube embed
+             with the video hidden is against the terms the embed ships under,
+             and at this size it costs one row of the list. -->
+        <div class="music-bar" id="musicBar" hidden>
+          <iframe class="music-video" id="musicVideo" title="Now playing"
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                  allowfullscreen></iframe>
+          <div class="music-now">
+            <strong class="music-now-title" id="musicNowTitle"></strong>
+            <span class="music-now-artist" id="musicNowArtist"></span>
+          </div>
+          <div class="music-transport">
+            <button class="music-btn" type="button" id="musicPrev" aria-label="Previous track">
+              <span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
+            <button class="music-btn is-primary" type="button" id="musicToggle" aria-label="Pause">
+              <span class="icon" data-icon="pause" aria-hidden="true"></span></button>
+            <button class="music-btn" type="button" id="musicNext" aria-label="Next track">
+              <span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
+            <span class="music-div" aria-hidden="true"></span>
+            <button class="music-btn" type="button" id="musicShuffle"
+                    aria-label="Shuffle off" aria-pressed="false">
+              <span class="icon" data-icon="shuffle" aria-hidden="true"></span></button>
+            <button class="music-btn" type="button" id="musicLoop"
+                    aria-label="Loop off" aria-pressed="false">
+              <span class="icon" data-icon="loop" aria-hidden="true"></span></button>
+            <span class="music-div" aria-hidden="true"></span>
+            <button class="music-btn" type="button" id="musicStop" aria-label="Stop and close the player">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <button class="music-close" type="button" id="musicClose" aria-label="Close music">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
     </div>
   </dialog>
 

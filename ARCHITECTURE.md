@@ -1177,6 +1177,84 @@ when Chrome's answer and the corrected one actually differ -- the default is
 prevented, the caret placed, and the drag extended by hand from the same
 function. Every other click is left entirely to the browser.
 
+## Music overlay (code `MUSIC`)
+
+A playlist of 311 YouTube links behind the same door as the notes: type `MUSIC`
+into the tilde keypad or the Idea Vault. Not in the nav, not linked anywhere.
+
+```
+tracklist.txt            the master. one line per track: Title|Artist|URL
+tools/bake_music.py      the only writer of the manifest. --check, --cases
+assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
+index.html               #musicModal: head, rail, list, player bar. NO ROWS
+script.js                initMusic() - below MediaBus, see why in its header
+styles.css               .music-*
+tools/music_check.mjs    50 checks in a real browser, serves the repo itself
+```
+
+**The row is a four-column grid**: a tick, a play button, the title over the
+artist, and the link with a copy button on the end of it. The two thin columns
+are fixed 34px squares so they line up down all 311 rows however long a title
+runs — `music_check.mjs` asserts that by measuring the column edges on the
+longest-titled row against the shortest, which is the only pair where a column
+that tracks its content instead of the grid would show up.
+
+**Two playlists and no way to make a third.** ALL is the file; REPEAT is
+whatever is ticked. The rail's selection is also the queue the transport walks,
+so Next never leaves the list being looked at. Ticks are a per-browser
+preference in `localStorage` (`music-repeat`), not a document — there is no
+server behind this overlay and nothing here is worth anything to anyone else.
+
+**The list is not in the page.** 311 rows of markup is ~40 KB every visitor
+downloads to look at the hero and none of them can see. The manifest is fetched
+on the first open and cached for the tab. An empty manifest is treated as a
+BROKEN one, never as an empty playlist — the same rule the checkers follow.
+
+**Adding a song is one line in `tracklist.txt`**, then `python
+tools/bake_music.py`. Never edit `tracks.json`; `--check` fails on a hand edit
+because the output is deterministic and the check is a byte comparison against
+a rebuild.
+
+### The embed, and why script-src did not move
+
+These are YouTube links, so there is no audio URL to hand an `<audio>` element
+that is not a scrape. The embed is the supported way to play one, and it is an
+iframe — which the site CSP had no `frame-src` for, so it fell back to
+`default-src 'self'` and was refused silently. `vercel.json` now allows exactly
+`https://www.youtube-nocookie.com https://www.youtube.com` and nothing else.
+
+**`script-src` is unchanged, and that was the point.** YouTube's IFrame API is a
+postMessage wrapper around the same embed; loading it would mean widening the
+one directive this page is strictest about, for convenience. So the handshake is
+done by hand — `listening` on load, `{event:'command',func,args}` out,
+`infoDelivery` back — in about fifteen lines. State 0 is the end of a track and
+advances the queue.
+
+The video is **visible and stays visible**. Playing an embed with the picture
+hidden is against the terms it ships under, and at 132px it costs one row of the
+list.
+
+**The first track navigates the frame; every one after it is `loadVideoById`.**
+Re-pointing `src` per track would throw away the user gesture that permits sound
+and flash a black box between songs.
+
+`initMusic()` sits with the other players rather than beside the notes overlay
+it is a sibling of, because `MediaBus` is a module-level `const` further up the
+file and calling `MediaBus.add()` above that line throws on the temporal dead
+zone. It registers with a shim `el` whose `paused` getter reads the overlay's
+own state, so starting a song here silences the Top Picks bar and the clips
+player through the same one rule as everything else.
+
+### The keypad no longer flashes
+
+Opening the notes with a code already in hand — which is how it is almost always
+opened — used to show the password keypad for the length of the unlock round
+trip, asking for a password that had just been typed. `#notesWait` stands in for
+the gate while a saved token or a passed code is being tried, and the keypad
+appears only once both silent tries come back empty. Asserted synchronously in
+`music_check.mjs` (the state exists for one frame), in both directions: with no
+code and no token the keypad is still what shows immediately.
+
 ## Known-outstanding
 
 The Work overlay is real art now, but its SELECTION is not settled: 350
