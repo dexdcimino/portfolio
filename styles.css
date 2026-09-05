@@ -5724,13 +5724,23 @@ body.modal-open{overflow:hidden}
 }
 .music-bar[hidden]{display:none}
 .music-nowwrap{display:flex;align-items:center;gap:14px;min-width:0}
-/* The video is VISIBLE and stays visible. A YouTube embed played with the
-   picture hidden is against the terms the embed ships under, and a 16:9 box
-   this size costs one row of the list. */
-.music-video{
-  flex:0 0 auto;width:150px;aspect-ratio:16/9;
-  border:0;border-radius:9px;background:#000;
+/* One box, two states. The bar is on screen the whole time the overlay is open,
+   so there has to be something here before anything is playing — and it has to
+   be exactly the size of what replaces it, or starting a track resizes the row
+   it sits in. */
+.music-screen{
+  position:relative;flex:0 0 auto;width:170px;aspect-ratio:16/9;
+  display:grid;place-items:center;overflow:hidden;
+  border:1px solid var(--line);border-radius:9px;background:#12141c;
 }
+.music-screen.is-live{border-color:transparent;background:#000}
+/* The video is VISIBLE and stays visible whenever there is one. A YouTube embed
+   played with the picture hidden is against the terms the embed ships under,
+   and a 16:9 box this size costs one row of the list. */
+.music-video{position:absolute;inset:0;width:100%;height:100%;border:0}
+.music-video[hidden]{display:none}
+.music-screen-icon{width:30px;height:30px;color:var(--muted);opacity:.4}
+.music-screen.is-live .music-screen-icon{display:none}
 .music-now{min-width:0}
 .music-now-title{display:block;font-size:16px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .music-now-artist{display:block;margin-top:1px;font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -5740,15 +5750,26 @@ body.modal-open{overflow:hidden}
    in the centred group, which is what says so. */
 .music-tail{display:flex;align-items:center;justify-content:flex-end}
 .music-btn{
-  width:44px;height:44px;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:0;border-radius:11px;background:none;color:var(--muted);
+  width:50px;height:50px;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:0;border-radius:12px;background:none;color:var(--muted);
   transition:color var(--accent-ease),background .18s ease;
 }
-.music-btn .icon{width:22px;height:22px}
+.music-btn .icon{width:29px;height:29px}
 .music-btn:hover{background:rgba(255,255,255,.09);color:#fff}
 .music-btn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.music-btn.is-primary{width:52px;height:52px;background:var(--accent);color:#0b0c12}
-.music-btn.is-primary .icon{width:26px;height:26px}
+/* A CIRCLE, and the only one in the bar. Round is what says primary here —
+   every other control is a rounded square, so the shape carries the hierarchy
+   without the size having to do all of it. */
+.music-btn.is-primary{
+  width:62px;height:62px;border-radius:50%;
+  background:var(--accent);color:#0b0c12;
+}
+.music-btn.is-primary .icon{width:32px;height:32px}
+/* The stop X: a full-size target with a deliberately small glyph. It is the
+   only destructive control in the bar, and a big X next to the transport reads
+   as another transport button. */
+.music-tail .music-btn{width:42px;height:42px;border-radius:11px}
+.music-tail .music-btn svg{width:17px;height:17px}
 .music-btn.is-primary:hover{background:var(--accent);color:#0b0c12;filter:brightness(1.12)}
 .music-btn[aria-pressed="true"]{color:var(--accent);background:rgba(255,255,255,.07)}
 .music-div{width:1px;height:26px;background:var(--line);margin:0 6px}
@@ -5788,13 +5809,15 @@ body.modal-open{overflow:hidden}
   .music-artist{font-size:14px}
   /* The now-playing TEXT is what there is no room for, not the controls: the
      video and the X keep their columns and the transport keeps the centre. */
-  .music-bar{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;padding:10px}
-  .music-video{width:104px}
+  .music-bar{grid-template-columns:auto minmax(0,1fr) auto;gap:8px;padding:10px 8px}
+  .music-screen{width:96px}
+  .music-screen-icon{width:22px;height:22px}
   .music-now{display:none}
-  .music-btn{width:40px;height:40px}
-  .music-btn .icon{width:20px;height:20px}
-  .music-btn.is-primary{width:46px;height:46px}
-  .music-btn.is-primary .icon{width:23px;height:23px}
+  .music-btn{width:44px;height:44px}
+  .music-btn .icon{width:25px;height:25px}
+  .music-btn.is-primary{width:52px;height:52px}
+  .music-btn.is-primary .icon{width:27px;height:27px}
+  .music-tail .music-btn{width:38px;height:38px}
   .music-div{margin:0 2px}
 }
 

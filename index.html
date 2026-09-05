@@ -4628,10 +4628,17 @@
              and at this size it costs one row of the list. -->
         <div class="music-bar" id="musicBar" hidden>
           <div class="music-nowwrap">
-            <iframe class="music-video" id="musicVideo" title="Now playing"
-                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                    referrerpolicy="strict-origin-when-cross-origin"
-                    allowfullscreen></iframe>
+            <!-- The screen is the same box whether or not anything is playing:
+                 the embed fills it when there is one, an idle glyph sits in it
+                 when there is not, and the bar does not resize when a track
+                 starts. -->
+            <div class="music-screen" id="musicScreen">
+              <iframe class="music-video" id="musicVideo" title="Now playing"
+                      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                      referrerpolicy="strict-origin-when-cross-origin"
+                      allowfullscreen hidden></iframe>
+              <span class="icon music-screen-icon" data-icon="play" aria-hidden="true"></span>
+            </div>
             <div class="music-now">
               <strong class="music-now-title" id="musicNowTitle"></strong>
               <span class="music-now-artist" id="musicNowArtist"></span>
@@ -4664,7 +4671,10 @@
           </div>
 
           <div class="music-tail">
-            <button class="music-btn" type="button" id="musicStop" aria-label="Stop and close the player">
+            <!-- Stop, not close: the bar is permanent now. A small glyph in a
+                 target big enough to hit — it is the only destructive control
+                 in the bar and should not be mistaken for the transport. -->
+            <button class="music-btn music-stop" type="button" id="musicStop" aria-label="Stop">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
           </div>
         </div>

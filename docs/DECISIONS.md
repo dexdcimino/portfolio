@@ -25,6 +25,72 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-04 — a code clears the instant it is accepted
+
+**Decided.** `createKeypad`'s `attempt()` calls `clearBoxes()` on the success
+branch, beside the two refusal branches that already did.
+
+**Replaced.** Leaving it to `bindModal`'s `onClose` teardown, which calls
+`keypad.reset()`.
+
+**Why.** That teardown never ran for the case that matters. `bindModal`'s close
+handler returns early when another overlay is already open, because that is a
+HAND-OFF and pulling focus or resetting state out from under the replacement is
+wrong — and a code opening a door is exactly that hand-off. So an accepted code
+stayed in the boxes for the rest of the visit, in both the tilde keypad and the
+Idea Vault's, readable by anyone who walked past afterwards. Clearing at the
+moment of acceptance also puts all three outcomes in one place instead of two.
+
+**Reverse it if** a keypad ever needs to show the code that worked — a
+confirmation step, say. Nothing suggests one, and the boxes are five characters
+with no label, which is the wrong place to confirm anything.
+
+---
+
+## 2026-09-04 — the door remembers who opened it
+
+**Decided.** `reveal(payload, secret, from)` takes the element to hand focus back
+to. The vault's own keypad passes its last box; the tilde keypad passes whatever
+had focus when the shortcut fired. Every `focus()` inside `createKeypad` carries
+`preventScroll`.
+
+**Replaced.** Every door being handed `pins[pins.length - 1]`, the Idea Vault's
+last box, whoever had opened it.
+
+**Why.** Restoring focus to a vault box fires the pins' own `focus` listener,
+which moves focus to the first empty box — and that call had no `preventScroll`,
+so the browser scrolled the vault into view. Closing an overlay opened with the
+tilde shortcut therefore dragged the reader from wherever they were down to a
+section they had not asked for. Two independent things had to be wrong for it to
+happen, which is why it read as a mystery scroll rather than a focus bug.
+
+**Reverse it if** nothing: an overlay handing focus back to the control that
+opened it is the rule everywhere else on this page, and this was the one place
+that had it hard-coded to the wrong control.
+
+---
+
+## 2026-09-04 — the music bar is permanent and shuffle starts on
+
+**Decided.** The player bar shows the whole time the music overlay is open, with
+an idle state of its own; pressing play with nothing going starts the last
+played track, or a random one. Shuffle defaults to on and is remembered.
+
+**Replaced.** A bar that appeared on the first play and was hidden again by
+Stop, and shuffle defaulting off.
+
+**Why.** The bar appearing only after a successful click makes the transport
+something you discover rather than something you use — there was no way to just
+press play. And 311 tracks in alphabetical order is a filing cabinet: shuffle
+off means the same song every time the overlay opens, which is not how anyone
+listens to a list this long. Both are remembered rather than imposed, so turning
+shuffle off sticks.
+
+**Reverse it if** the list ever gets short enough to read top to bottom, where
+alphabetical order is a feature and shuffle is noise.
+
+---
+
 ## 2026-09-04 — the repeat defaults are a field in tracklist.txt
 
 **Decided.** A track marked `|R` as an optional fourth field in `tracklist.txt`

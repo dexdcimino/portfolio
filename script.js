@@ -3655,6 +3655,14 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
 
     if (result && result.ok) {
       say(passed, 'open');
+      /* The boxes empty the moment the code lands, not when whatever it opened
+         closes. It cannot wait, for a reason that is easy to miss: the teardown
+         that was supposed to do it is bindModal's onClose, and that
+         DELIBERATELY does not run when one overlay hands off to another --
+         which is exactly what opening a door is. So the code stayed in the
+         boxes, and walking back to the keypad after closing the overlay showed
+         it still sitting there for the rest of the visit. */
+      clearBoxes();
       // Getting in clears the slate: three old failures should not put someone
       // who has just proved they know the code one mistype from a lockout.
       fails.length = 0;
@@ -3688,7 +3696,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       const typed = pin.value.replace(/\s/g, '');
       pin.value = typed.slice(-1).toUpperCase();
       pin.classList.toggle('is-set', !!pin.value);
-      if (pin.value && i < pins.length - 1) pins[i + 1].focus();
+      if (pin.value && i < pins.length - 1) pins[i + 1].focus({ preventScroll: true });
       // No submit button: filling the last box IS the submit. Deferred a frame
       // so the character is painted before the boxes lock.
       if (code().length === pins.length) requestAnimationFrame(attempt);
@@ -3700,11 +3708,11 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
         event.preventDefault();
         pins[i - 1].value = '';
         pins[i - 1].classList.remove('is-set');
-        pins[i - 1].focus();
+        pins[i - 1].focus({ preventScroll: true });
       } else if (event.key === 'ArrowLeft' && i > 0) {
-        event.preventDefault(); pins[i - 1].focus();
+        event.preventDefault(); pins[i - 1].focus({ preventScroll: true });
       } else if (event.key === 'ArrowRight' && i < pins.length - 1) {
-        event.preventDefault(); pins[i + 1].focus();
+        event.preventDefault(); pins[i + 1].focus({ preventScroll: true });
       } else if (event.key === 'Enter') {
         event.preventDefault(); attempt();
       }
@@ -3722,14 +3730,20 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
         box.classList.add('is-set');
       });
       const next = Math.min(i + chars.length, pins.length - 1);
-      pins[next].focus();
+      pins[next].focus({ preventScroll: true });
       if (code().length === pins.length) requestAnimationFrame(attempt);
     });
-    // A click anywhere in the row lands on the first empty box, so you cannot
-    // start typing in the middle of a code by accident.
+    /* A click anywhere in the row lands on the first empty box, so you cannot
+       start typing in the middle of a code by accident.
+
+       preventScroll matters more here than anywhere else in this file, because
+       this one fires on focus this code did not ask for. Restoring focus to the
+       Idea Vault's last box -- which is what closing an overlay used to do --
+       ran this, which bounced focus to box one WITHOUT it, and the page jumped
+       to the vault from wherever the reader actually was. */
     pin.addEventListener('focus', () => {
       const firstEmpty = pins.find(box => !box.value);
-      if (firstEmpty && pins.indexOf(firstEmpty) < i) firstEmpty.focus();
+      if (firstEmpty && pins.indexOf(firstEmpty) < i) firstEmpty.focus({ preventScroll: true });
       else pin.select();
     });
   });
@@ -3928,9 +3942,17 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   const show = (dialog, opener) =>
     openModal(dialog, dialog.querySelector('.vault-modal-shell'), null, opener);
 
-  function reveal(payload, secret) {
+  function reveal(payload, secret, from) {
     if (label) label.textContent = 'OPEN';
     if (padlock) padlock.dataset.icon = 'lock-open';
+
+    /* Who the overlay hands focus back to when it closes. The section's own
+       keypad answers with its last box, which is where you already were. The
+       tilde keypad answers with whatever you were looking at when you pressed
+       ` -- NOT a box halfway down the page, which is what every door used to
+       get regardless of where it was opened from. Closing the overlay then put
+       focus in the Idea Vault and took the page with it. */
+    const opener = from || pins[pins.length - 1];
 
     const named = payload.startsWith('show:') ? payload.slice(5).trim() : '';
     if (EVENTS[named]) {
@@ -3947,7 +3969,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
          offline -- the vault's own comment says it is the wrong lock for
          anything that would hurt to lose. */
       document.dispatchEvent(new CustomEvent(EVENTS[named],
-        { detail: { opener: pins[pins.length - 1], code: secret } }));
+        { detail: { opener, code: secret } }));
       return;
     }
 
@@ -3957,7 +3979,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
          section (see relock), so getting back in means typing the code again —
          a door that stands open for the rest of the visit is not a locked
          section, it is a section with a lock on the front of it. */
-      show(dialog, pins[pins.length - 1]);
+      show(dialog, opener);
       return;
     }
     /* Not a door, or a door this build does not have: whatever was sealed, as
@@ -4016,6 +4038,9 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   if (codeModal && codePins.length) {
     const codeLabel = document.getElementById('codeLabel');
     const codeLock = document.getElementById('codeLock');
+    // Whatever had focus when ` was pressed. Held so the door this opens can
+    // hand focus back THERE rather than into the vault section.
+    let codeOpener = null;
 
     const codepad = createKeypad({
       root: codeModal, pins: codePins,
@@ -4031,7 +4056,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
            gets this dialog's opener restored to it rather than a control inside
            a dialog that is on its way out. */
         closeModal(codeModal);
-        reveal(payload, secret);
+        reveal(payload, secret, codeOpener);
       },
     });
 
@@ -4064,8 +4089,8 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
          itself. */
       if (typing() || document.querySelector('dialog[open]')) return;
       event.preventDefault();
-      openModal(codeModal, codeModal.querySelector('.code-shell'), null,
-                document.activeElement);
+      codeOpener = document.activeElement;
+      openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener);
       codepad.focus();
     });
   }
@@ -4085,6 +4110,9 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
      itself, and binding it twice would register a second cancel handler and a
      second teardown. All the vault needs is to relock when that door shuts. */
   document.getElementById('notesModal')?.addEventListener('close', relock);
+  // The music overlay is the same shape of door and was missing this one, so
+  // the section stayed reading OPEN with its padlock undone after it closed.
+  document.getElementById('musicModal')?.addEventListener('close', relock);
 })();
 
 /* --- social links --------------------------------------------------------- */
@@ -5036,7 +5064,7 @@ const MediaBus = (() => {
   const sortTitle = $('musicSortTitle'), sortArtist = $('musicSortArtist');
   const viewAll = $('musicViewAll'), viewRepeat = $('musicViewRepeat');
   const nAll = $('musicNAll'), nRepeat = $('musicNRepeat');
-  const bar = $('musicBar'), frame = $('musicVideo');
+  const bar = $('musicBar'), frame = $('musicVideo'), screen = $('musicScreen');
   const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
   const btnPrev = $('musicPrev'), btnToggle = $('musicToggle'), btnNext = $('musicNext');
   const btnShuffle = $('musicShuffle'), btnLoop = $('musicLoop'), btnStop = $('musicStop');
@@ -5050,6 +5078,8 @@ const MediaBus = (() => {
      seeding once and never again is invisible, and seeding every time would
      keep putting back what they took off by hand. */
   const SEED_KEY = 'music-repeat-seed';
+  const SHUFFLE_KEY = 'music-shuffle';
+  const LAST_KEY = 'music-last';
   const LOOPS = ['off', 'all', 'one'];
 
   let tracks = [];            // everything, in the order tracklist.txt names them
@@ -5060,7 +5090,10 @@ const MediaBus = (() => {
   let query = '';
   let index = -1;             // into `queue`
   let playing = false;
-  let shuffle = false;
+  /* Shuffle starts ON. 311 tracks in alphabetical order is a filing cabinet,
+     not a playlist, and pressing play in one should not mean hearing the same
+     song first every time. Remembered either way, so turning it off sticks. */
+  let shuffle = true;
   let loop = 'off';           // 'off' | 'all' | 'one'
   let armed = false;          // the iframe has a src and will take commands
 
@@ -5210,7 +5243,20 @@ const MediaBus = (() => {
     countEl.textContent = `${queue.length} OF ${tracks.length}`;
     nAll.textContent = String(tracks.length);
     nRepeat.textContent = String(ticked.size);
+    // The idle line names the list it would play from, so it has to be redrawn
+    // whenever that list changes — a search or a rail switch, not just a track.
+    if (index < 0) idle();
     paint();
+  }
+
+  /* What the bar says when nothing is playing. The bar is on screen the whole
+     time the overlay is open, so this is a real state with a real reader, not a
+     blank waiting to be filled. */
+  function idle() {
+    nowTitle.textContent = 'Nothing playing';
+    nowArtist.textContent = `${queue.length} in ${view === 'repeat' ? 'REPEAT' : 'ALL'}`;
+    if (screen) screen.classList.remove('is-live');
+    frame.hidden = true;
   }
 
   function paint() {
@@ -5256,6 +5302,9 @@ const MediaBus = (() => {
     nowTitle.textContent = track.t;
     nowArtist.textContent = track.a;
     bar.hidden = false;
+    frame.hidden = false;
+    if (screen) screen.classList.add('is-live');
+    try { localStorage.setItem(LAST_KEY, track.v); } catch { /* private mode */ }
 
     /* First track of the session navigates the frame; every one after it is a
        command to a player that is already alive. Reloading the iframe each
@@ -5272,6 +5321,19 @@ const MediaBus = (() => {
     playing = true;
     paint();
     if (fromClick) MediaBus.solo(me);
+  }
+
+  /* Press play with nothing going: pick up where this browser left off, and
+     failing that let shuffle decide. Which track it is matters far less than
+     that SOMETHING starts — the button is on screen from the moment the overlay
+     opens and has to do something when it is pressed. */
+  function startFresh() {
+    if (!queue.length) return;
+    let last = null;
+    try { last = localStorage.getItem(LAST_KEY); } catch { /* private mode */ }
+    const at = last ? queue.findIndex(t => t.v === last) : -1;
+    if (at >= 0) { load(at, true); return; }
+    load(shuffle && queue.length > 1 ? Math.floor(Math.random() * queue.length) : 0, true);
   }
 
   function step(delta) {
@@ -5292,16 +5354,18 @@ const MediaBus = (() => {
   function pause() { cmd('pauseVideo'); playing = false; paint(); }
   function resume() { cmd('playVideo'); playing = true; paint(); MediaBus.solo(me); }
 
-  /* Stop is not pause: it puts the bar away, and the frame has to actually
-     stop rather than sit paused, or a closed overlay leaves a player holding
-     the last frame of a video nobody can see. */
+  /* Stop is not pause: the frame has to actually stop and let go of its src,
+     or a closed overlay leaves a player holding the last frame of a video
+     nobody can see. What it no longer does is put the BAR away — the bar is
+     part of this overlay now, not something that appears once you have found
+     the first track. It goes back to its idle state instead. */
   function stop() {
     cmd('stopVideo');
     frame.removeAttribute('src');
     armed = false;
     playing = false;
     index = -1;
-    bar.hidden = true;
+    idle();
     paint();
   }
 
@@ -5383,15 +5447,21 @@ const MediaBus = (() => {
   btnPrev.addEventListener('click', () => step(-1));
   btnNext.addEventListener('click', () => step(1));
   btnToggle.addEventListener('click', () => {
-    if (index < 0) load(0, true);
+    if (index < 0) startFresh();
     else if (playing) pause();
     else resume();
   });
   btnStop.addEventListener('click', stop);
-  btnShuffle.addEventListener('click', () => {
-    shuffle = !shuffle;
+
+  function paintShuffle() {
     btnShuffle.setAttribute('aria-pressed', String(shuffle));
     btnShuffle.setAttribute('aria-label', shuffle ? 'Shuffle on' : 'Shuffle off');
+  }
+  btnShuffle.addEventListener('click', () => {
+    shuffle = !shuffle;
+    paintShuffle();
+    try { localStorage.setItem(SHUFFLE_KEY, shuffle ? '1' : '0'); }
+    catch { /* the session still works, it just will not be remembered */ }
   });
   const LOOP_LABEL = { off: 'Repeat off', all: 'Repeat the playlist',
                        one: 'Repeat this track' };
@@ -5486,6 +5556,12 @@ const MediaBus = (() => {
     openModal(modal, modal.querySelector('.music-shell'), null, trigger);
     if (!loaded && !(await fetchTracks())) return;
     render();
+    /* The bar is up before anything is playing, so the transport is somewhere
+       to press rather than somewhere that appears once you have found a track
+       to click. It only becomes visible here, not in the markup, because until
+       the manifest lands there is nothing for it to play. */
+    bar.hidden = false;
+    if (index < 0) idle();
     // Not the search box: a keyboard landing in a text field means the first
     // thing typed disappears into a filter nobody asked for.
     (viewAll || modal).focus({ preventScroll: true });
@@ -5508,6 +5584,12 @@ const MediaBus = (() => {
   document.addEventListener('music:open', (event) => {
     if (!modal.open) open((event.detail || {}).opener);
   });
+
+  // Absent means never set, which is not the same as off: the default is on.
+  let storedShuffle = null;
+  try { storedShuffle = localStorage.getItem(SHUFFLE_KEY); } catch { /* private mode */ }
+  if (storedShuffle !== null) shuffle = storedShuffle === '1';
+  paintShuffle();
 
 })();
 

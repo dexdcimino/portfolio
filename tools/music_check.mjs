@@ -125,11 +125,26 @@ await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle2', timeout: 6000
    Typed into the tilde keypad exactly as a person would. This is the only
    check that proves the blob in data-vault is the one that says show:music —
    a wrong seal cannot be seen in the source, only in a door that fails to
-   open. scrypt at 32 MiB takes a moment, hence the generous timeout. */
+   open. scrypt at 32 MiB takes a moment, hence the generous timeout.
+
+   The page is PARKED somewhere first, on purpose. Two bugs lived in this
+   sequence and both are invisible unless the reader starts somewhere that is
+   not the top: the code stayed in the boxes after it was accepted, and closing
+   the overlay put focus in the Idea Vault and dragged the page down to it. */
+let parkedAt = 0;
 {
+  parkedAt = await page.evaluate(() => {
+    window.scrollTo({ top: 900, behavior: 'instant' });
+    return Math.round(window.scrollY);
+  });
+  note(parkedAt > 100, `the page did not park anywhere to scroll away from (${parkedAt})`);
+
   await page.keyboard.press('Backquote');
   await page.waitForFunction(() => document.getElementById('codeModal')?.open === true,
                              { timeout: 5000 });
+  note(Math.round(await page.evaluate(() => window.scrollY)) === parkedAt,
+       'merely opening the tilde keypad scrolled the page');
+
   await page.focus('#codeModal .vault-pin');
   await page.keyboard.type('MUSIC', { delay: 30 });
 
@@ -142,6 +157,23 @@ await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle2', timeout: 6000
 
   const closed = await page.evaluate(() => document.getElementById('codeModal')?.open !== true);
   note(closed, 'the tilde keypad is still open behind the overlay it opened');
+
+  /* THE CODE MUST BE GONE. It used to survive, because the teardown that
+     cleared it is bindModal's onClose and that deliberately does not run when
+     one overlay hands off to another — which is exactly what this is. Both
+     keypads are checked: the tilde one that was typed into, and the vault's,
+     which shares the same createKeypad and the same bug. */
+  const boxes = await page.evaluate(() => {
+    const read = (sel) => [...document.querySelectorAll(sel)].map(p => p.value).join('');
+    return { tilde: read('#codeModal .vault-pin'), vault: read('#vault .vault-pin') };
+  });
+  note(boxes.tilde === '',
+       `the tilde keypad still shows "${boxes.tilde}" after the code was accepted`);
+  note(boxes.vault === '',
+       `the Idea Vault keypad still shows "${boxes.vault}" after the code was accepted`);
+
+  note(Math.round(await page.evaluate(() => window.scrollY)) === parkedAt,
+       'entering the code scrolled the page away from where the reader was');
 }
 
 await page.waitForFunction(
@@ -156,6 +188,76 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(rows === manifest.count,
        `${rows} row(s) rendered for ${manifest.count} track(s) in the manifest`);
   console.log(`  subject: ${rows} rows built from ${manifest.count} manifest entries`);
+}
+
+/* ---- 3b. the player bar is up before anything is playing ---------------
+   The brief: the bar shows the whole time the overlay is open, so the play
+   button is somewhere to press rather than somewhere that appears once you
+   have found a track to click. Which means it needs a real idle state — a
+   screen box the same size as the video that replaces it, so starting a track
+   does not resize the row.
+
+   FALSELY PASSES IF: only `hidden` were read. A bar that is present but says
+   nothing, or whose screen collapses to nothing until a video arrives, is the
+   thing this is guarding against. */
+{
+  const rest = await page.evaluate(() => {
+    const box = (sel) => { const r = document.querySelector(sel).getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height) }; };
+    return {
+      barHidden: document.getElementById('musicBar').hidden,
+      title: document.getElementById('musicNowTitle').textContent,
+      artist: document.getElementById('musicNowArtist').textContent,
+      screen: box('#musicScreen'),
+      videoHidden: document.getElementById('musicVideo').hidden,
+      live: document.getElementById('musicScreen').classList.contains('is-live'),
+      shufflePressed: document.getElementById('musicShuffle').getAttribute('aria-pressed'),
+    };
+  });
+  note(rest.barHidden === false, 'the player bar is not showing when the overlay opens');
+  note(rest.title.trim().length > 0, 'the idle bar says nothing at all');
+  note(/\d/.test(rest.artist), `the idle bar does not name the queue: "${rest.artist}"`);
+  note(rest.videoHidden === true, 'the embed is on screen before anything is playing');
+  note(!rest.live, 'the screen claims to be live with nothing playing');
+  note(rest.screen.w > 80 && rest.screen.h > 40,
+       `the idle screen is ${rest.screen.w}x${rest.screen.h} — it collapses before a video arrives`);
+  // Shuffle defaults ON: 311 tracks in alphabetical order is a filing cabinet.
+  note(rest.shufflePressed === 'true',
+       'shuffle is not on by default in a browser that has never set it');
+}
+
+/* ---- 3c. play with nothing playing starts something --------------------
+   FALSELY PASSES IF: the button's own icon were checked. What the brief asks
+   is that pressing play when nothing is going PLAYS something — the track it
+   picks matters far less than that a track is picked at all. */
+{
+  await page.click('#musicToggle');
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+    { timeout: 5000 });
+  const started = await page.evaluate(() => ({
+    src: document.getElementById('musicVideo').getAttribute('src') || '',
+    live: document.getElementById('musicScreen').classList.contains('is-live'),
+    videoHidden: document.getElementById('musicVideo').hidden,
+    title: document.getElementById('musicNowTitle').textContent,
+  }));
+  note(started.src.includes('/embed/'), 'play from idle loaded no video');
+  note(started.live && !started.videoHidden,
+       'play from idle did not put the picture on screen');
+  note(started.title !== 'Nothing playing', 'the bar still says nothing is playing');
+
+  // ...and stopping goes back to the idle state rather than taking the bar away.
+  await page.click('#musicStop');
+  const stopped = await page.evaluate(() => ({
+    barHidden: document.getElementById('musicBar').hidden,
+    src: document.getElementById('musicVideo').getAttribute('src'),
+    title: document.getElementById('musicNowTitle').textContent,
+    rows: document.querySelectorAll('#musicRows .music-row.is-playing').length,
+  }));
+  note(stopped.barHidden === false, 'stopping put the whole bar away — it is permanent now');
+  note(stopped.src === null, 'stopping left the embed holding a src');
+  note(stopped.title === 'Nothing playing', 'stopping did not return the bar to its idle line');
+  note(stopped.rows === 0, 'a row is still marked as playing after stop');
 }
 
 /* ---- 4. the four columns, and the two thin ones are square ---------------
@@ -474,8 +576,24 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
       toggle: wide('#musicToggle'), toggleIcon: wide('#musicToggle .icon'),
       shuffleIcon: wide('#musicShuffle .icon'), loopIcon: wide('#musicLoop .icon'),
       check: wide('.music-check'),
+      stop: wide('#musicStop'), stopGlyph: wide('#musicStop svg'),
+      round: getComputedStyle(document.getElementById('musicToggle')).borderRadius,
     };
   });
+
+  // The play button is the only CIRCLE in the bar; round is what carries the
+  // hierarchy so the size does not have to do all of it.
+  note(/50%|9999px|31px/.test(px.round) || parseFloat(px.round) >= px.toggle / 2,
+       `the play button is not a circle (border-radius ${px.round} on ${px.toggle}px)`);
+  // The X is a small glyph in a target big enough to hit: it is the only
+  // destructive control in the bar and must not read as another transport
+  // button. Both halves matter, so both are asserted.
+  note(px.stopGlyph <= 19,
+       `the stop glyph is ${px.stopGlyph}px — it should be well under the transport icons`);
+  note(px.stop >= 36,
+       `the stop button is only ${px.stop}px — the target is too small to hit`);
+  note(px.stopGlyph < px.prevIcon,
+       'the stop glyph is not smaller than the transport icons');
   // (what, measured, floor) — the floor is the value it was raised TO, so a
   // half-hearted revert fails as loudly as a full one.
   const floors = [
@@ -485,10 +603,10 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
     ['the sort buttons', px.sort, 14], ['the search box', px.search, 16],
     ['the now-playing title', px.nowTitle, 16], ['the now-playing artist', px.nowArtist, 14],
     ['the rail icon', px.railIcon, 22], ['the row play icon', px.playIcon, 20],
-    ['the copy icon', px.copyIcon, 19], ['the prev/next button', px.prev, 44],
-    ['the prev/next icon', px.prevIcon, 22], ['the play button', px.toggle, 52],
-    ['the play icon', px.toggleIcon, 26], ['the shuffle icon', px.shuffleIcon, 22],
-    ['the repeat icon', px.loopIcon, 22], ['the row checkbox', px.check, 27],
+    ['the copy icon', px.copyIcon, 19], ['the prev/next button', px.prev, 50],
+    ['the prev/next icon', px.prevIcon, 29], ['the play button', px.toggle, 62],
+    ['the play icon', px.toggleIcon, 32], ['the shuffle icon', px.shuffleIcon, 29],
+    ['the repeat icon', px.loopIcon, 29], ['the row checkbox', px.check, 27],
   ];
   for (const [what, got, floor] of floors) {
     note(got >= floor, `${what} is ${got}px, and must not go below ${floor}px`);
@@ -497,18 +615,36 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        `only ${floors.length} size floors are being checked — the table has been gutted`);
 }
 
-/* ---- 8. closing the overlay stops the player --------------------------- */
+/* ---- 8. closing stops the player and LEAVES THE PAGE ALONE -------------
+   The reported bug: closing the overlay scrolled to the Idea Vault. It was two
+   things at once — every door was handed the vault's last pin as its opener
+   whatever had opened it, and the keypad's own focus handler bounced focus to
+   box one without preventScroll. Restoring focus therefore walked the page
+   down the document. Asserted against where the reader was parked in check 2,
+   which is nowhere near the vault. */
 {
   await page.click('#musicClose');
   await page.waitForFunction(() => document.getElementById('musicModal').open !== true,
                              { timeout: 5000 });
   const after = await page.evaluate(() => ({
     src: document.getElementById('musicVideo').getAttribute('src'),
-    barHidden: document.getElementById('musicBar').hidden,
+    scrollY: Math.round(window.scrollY),
+    vaultBoxes: [...document.querySelectorAll('#vault .vault-pin')].map(p => p.value).join(''),
+    label: document.getElementById('vaultLabel')?.textContent,
+    padlock: document.getElementById('vaultLock')?.dataset.icon,
   }));
   note(after.src === null,
        'the embed still has a src after the overlay closed — sound from nowhere');
-  note(after.barHidden === true, 'the player bar is still showing after the overlay closed');
+  note(after.scrollY === parkedAt,
+       `closing the overlay scrolled the page from ${parkedAt} to ${after.scrollY}`);
+  note(after.vaultBoxes === '',
+       `the Idea Vault keypad shows "${after.vaultBoxes}" after the overlay closed`);
+  // The vault relocks when its door shuts. The music overlay was missing the
+  // close listener that does it, so the section sat there reading OPEN.
+  note(after.label === 'CLASSIFIED',
+       `the Idea Vault still reads "${after.label}" after the overlay closed`);
+  note(after.padlock === 'lock',
+       'the Idea Vault padlock is still undone after the overlay closed');
 }
 
 /* ---- 9. the keypad flash ------------------------------------------------
@@ -571,7 +707,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 80) {
+if (TOTAL < 100) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

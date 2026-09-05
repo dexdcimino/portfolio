@@ -785,6 +785,34 @@ close. `bindModal`'s close handler tells a stacked overlay from a hand-off (a
 replacement overlay taking the old one's place) and restores focus only for the
 first. Nothing opened from outside another overlay may pass `stack`.
 
+### The keypad clears when the code lands, and nothing scrolls
+
+Two bugs that looked unrelated and were not: both came from doing keypad
+teardown in the wrong place.
+
+**The code used to survive being accepted.** `createKeypad` cleared its boxes on
+a wrong code but not on a right one, leaving that to `bindModal`'s `onClose`.
+That teardown deliberately does not run when one overlay hands off to another —
+see the paragraph above — and opening a door IS that hand-off, so the boxes were
+never cleared at all. Walking back to either keypad after closing the overlay
+showed the code still sitting in it for the rest of the visit. `attempt()` now
+clears on the success branch, next to the two refusal branches that already did.
+
+**And closing an overlay used to scroll to the Idea Vault.** `reveal()` handed
+every door `pins[pins.length - 1]` — the vault section's last box — as the
+element to restore focus to, whatever had opened it. Restoring focus there fired
+the pins' own `focus` listener, which bounces focus to the first empty box, and
+that call had no `preventScroll`. So closing an overlay opened from the tilde
+keypad walked the page down to the vault from wherever the reader actually was.
+`reveal(payload, secret, from)` now takes the opener: the section's keypad
+passes its own box, the tilde keypad passes whatever had focus when \` was
+pressed. Every focus call inside `createKeypad` carries `preventScroll` as well,
+because that listener fires on focus the code did not ask for.
+
+`music_check.mjs` parks the page at 900px before typing the code and asserts the
+scroll position is unchanged through opening, entering and closing — the bug is
+invisible from the top of the document, which is where a harness starts.
+
 ## The image pipeline (full rules in CLAUDE.md — the short version)
 
 Masters under `assets/`, derivatives generated into `assets/derived/`
@@ -1207,6 +1235,23 @@ reason — every one of those numbers was smaller once, and each is the first
 thing a tidy-up reaches for. They are measured in the browser rather than read
 off the stylesheet, because a rule that loses to a later one still looks right
 in the source.
+
+**The bar is permanent while the overlay is open**, not something that appears
+once you have found a track to click. That needs a real idle state: `#musicScreen`
+is one box that holds the embed when there is one and a play glyph when there is
+not, at the same size either way, so starting a track does not resize the row it
+sits in. The now-playing line names the queue instead (`311 in ALL`). Stop
+returns to that state rather than putting the bar away.
+
+**Press play with nothing playing and something starts**: the track this browser
+last played if it is still in the list being looked at, else a random one when
+shuffle is on, else the top. Which track it is matters far less than that the
+button does something — it is on screen from the moment the overlay opens.
+
+**Shuffle starts ON** and is remembered in `music-shuffle`. 311 tracks in
+alphabetical order is a filing cabinet, not a playlist. Absent is not the same as
+off: only an explicit `0` turns it off, so the default survives a browser that
+has never touched the control.
 
 **The transport is centred in the bar by a three-column grid**
 (`1fr auto 1fr`), not by flex. In a flex row the group sits wherever the
