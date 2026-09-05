@@ -1347,10 +1347,34 @@ the close that set it. Whether the overlay came back is now read off
 `modal.open`, which cannot go stale; only `stopping` remains, set and consumed
 in the same turn by the bar's X — the one control that ends playback.
 
+**The docked bar is ONE WIDTH**, whatever is playing. It was growing and
+shrinking with every track title, and that took two fixes rather than one: a
+`<dialog>` is `width:fit-content` in the UA stylesheet, so the auto width
+resolved against the content instead of the gap; and `.music-frame` was STILL
+being shrink-wrapped inside the now-fixed dialog, because `.music-modal[open]`
+carries `place-items:center`. Both are pinned explicitly now. A control surface
+that resizes when the thing it controls changes is the one thing it must never
+do, and `music_check.mjs` compares the width across a short title and a long
+one — asserting the long one actually overflows first, or the comparison proves
+nothing. Overflow is left to the column's own ellipsis rather than a character
+count, so the cut lands where the column really ends.
+
 **The expand tab** is a triangle in the shell's own border colour, half out of
 the top edge and centred above the duration, that puts the list back with no
 code asked for. That is not a hole in the lock: the bar only exists because
 someone typed the code, and it dies with the tab.
+
+**The tab's target is a box; the triangle is its `::before`.** `clip-path` clips
+hit testing as well as paint, so a button that WAS the triangle could only be
+hit on the triangle — 22x10 of slanted edges. The mark stays 22x10 and the
+target around it is 44x32, and both are asserted so neither drifts into the
+other.
+
+**Shuffle and repeat both start ON and are remembered** (`music-shuffle`,
+`music-loop`). Repeat's first toggle up from off is the whole playlist, which is
+the sensible resting state for a list someone deliberately put on; a stored
+repeat value is only honoured if it is one of the three, so a hand-edited key
+cannot strand the button somewhere the cycle never reaches.
 
 KNOWN: the docked bar and the Top Picks songs bar occupy the same corner. Only
 one can play at a time (`MediaBus`), but both can be on screen at once, and then

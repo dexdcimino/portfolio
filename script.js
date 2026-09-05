@@ -5107,6 +5107,7 @@ const MediaBus = (() => {
      keep putting back what they took off by hand. */
   const SEED_KEY = 'music-repeat-seed';
   const SHUFFLE_KEY = 'music-shuffle';
+  const LOOP_KEY = 'music-loop';
   const VOLUME_KEY = 'music-volume';
   const LAST_KEY = 'music-last';
   const LOOPS = ['off', 'all', 'one'];
@@ -5123,7 +5124,11 @@ const MediaBus = (() => {
      not a playlist, and pressing play in one should not mean hearing the same
      song first every time. Remembered either way, so turning it off sticks. */
   let shuffle = true;
-  let loop = 'off';           // 'off' | 'all' | 'one'
+  /* Repeat starts on the WHOLE PLAYLIST. Reaching the end of a list you put on
+     deliberately and having it stop is not what anyone means by pressing play;
+     the first toggle up from off is the sensible resting state. Remembered
+     either way, so turning it off sticks. */
+  let loop = 'all';           // 'off' | 'all' | 'one'
   let volume = 0.4;           // the site's default everywhere
   let lastVolume = 0.4;       // what unmuting goes back to
   let duration = 0;           // of the current track, as the embed reports it
@@ -5644,12 +5649,17 @@ const MediaBus = (() => {
 
   const LOOP_LABEL = { off: 'Repeat off', all: 'Repeat the playlist',
                        one: 'Repeat this track' };
-  btnLoop.addEventListener('click', () => {
-    loop = LOOPS[(LOOPS.indexOf(loop) + 1) % LOOPS.length];
+  function paintLoop() {
     // The CSS reads data-loop for both the accent and the 1 badge; the label is
     // the only thing that says which of the three states this is out loud.
     btnLoop.dataset.loop = loop;
     btnLoop.setAttribute('aria-label', LOOP_LABEL[loop]);
+  }
+  btnLoop.addEventListener('click', () => {
+    loop = LOOPS[(LOOPS.indexOf(loop) + 1) % LOOPS.length];
+    paintLoop();
+    try { localStorage.setItem(LOOP_KEY, loop); }
+    catch { /* private mode — the session still works */ }
   });
 
   /* The embed will not speak until it is spoken to, and the handshake has to be
@@ -5842,6 +5852,14 @@ const MediaBus = (() => {
   try { storedShuffle = localStorage.getItem(SHUFFLE_KEY); } catch { /* private mode */ }
   if (storedShuffle !== null) shuffle = storedShuffle === '1';
   paintShuffle();
+
+  // Same rule for repeat, and the stored value is only honoured if it is one of
+  // the three — a hand-edited key must not leave the button in a state the
+  // cycle can never reach.
+  let storedLoop = null;
+  try { storedLoop = localStorage.getItem(LOOP_KEY); } catch { /* private mode */ }
+  if (LOOPS.includes(storedLoop)) loop = storedLoop;
+  paintLoop();
 
   // Same shape and the same 0.4 default as the songs bar and the clips player.
   let storedVolume = null;

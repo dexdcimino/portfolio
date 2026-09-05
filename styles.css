@@ -5880,11 +5880,21 @@ body.modal-open{overflow:hidden}
    a corner. */
 .music-modal.is-docked[open]{
   position:fixed;z-index:41;inset:auto;
-  bottom:0;left:calc(var(--sidebar-open) + 20px);right:20px;
-  display:block;width:auto;max-width:760px;height:auto;max-height:none;
-  margin:0 0 0 auto;padding:0;border:0;background:none;overflow:visible;
+  bottom:0;right:20px;left:auto;
+  /* AN EXPLICIT WIDTH, not left+right+max-width. A <dialog> is width:fit-content
+     in the UA stylesheet, and the auto width was resolving against the content
+     rather than the gap — so the bar grew and shrank with every track title,
+     which is the one thing a fixed control surface must never do. The clamp is
+     only there so it still fits beside the sidebar on a narrow window. */
+  display:block;height:auto;max-height:none;
+  width:min(760px, calc(100vw - var(--sidebar-open) - 40px));
+  margin:0;padding:0;border:0;background:none;overflow:visible;
 }
-.music-modal.is-docked .music-frame{display:block}
+/* width:100% as well as display:block. The dialog carries place-items:center
+   from .music-modal[open], and the frame was still being shrink-wrapped to
+   its content inside a 760px dialog - so the BAR tracked the track title
+   even though the dialog itself never moved. */
+.music-modal.is-docked .music-frame{display:block;width:100%}
 .music-modal.is-docked .music-shell{
   width:100%;height:auto;overflow:visible;
   border:2px solid color-mix(in srgb,var(--accent) 42%,transparent);
@@ -5904,6 +5914,11 @@ body.modal-open{overflow:hidden}
 }
 .music-modal.is-docked .music-screen{width:104px}
 .music-modal.is-docked .music-screen-icon{width:22px;height:22px}
+/* The column is already minmax(0,1fr) so a long title ellipsises rather than
+   growing — but only once the BAR has a width of its own, which it now has.
+   These two carry overflow:hidden and text-overflow:ellipsis from the rules
+   above; nothing here needs a character count, because the cut lands wherever
+   the column actually ends instead of at a number someone guessed. */
 .music-modal.is-docked .music-now-title{font-size:13.5px}
 .music-modal.is-docked .music-now-artist{font-size:12px}
 .music-modal.is-docked .music-time{font-size:12px;min-width:38px}
@@ -5928,21 +5943,31 @@ body.modal-open{overflow:hidden}
    transform-origin is the BOTTOM edge, so hovering grows it upward out of the
    border rather than sliding it off. clip-path means no outline can show, so
    focus is carried by the same growth plus the solid accent. */
+/* THE BUTTON IS A BOX; the triangle is drawn inside it. clip-path clips hit
+   testing as well as paint, so a button that WAS the triangle could only be hit
+   on the triangle — 22x10 of slanted edges, which is a pain to land on. The box
+   is 44x32 of ordinary rectangle around it and invisible. */
 .music-expand{
-  position:absolute;z-index:6;right:24px;top:-10px;
-  width:22px;height:10px;padding:0;border:0;cursor:pointer;
+  position:absolute;z-index:6;right:13px;top:-22px;
+  width:44px;height:32px;padding:0;border:0;background:none;cursor:pointer;
+}
+.music-expand[hidden]{display:none}
+.music-expand:focus-visible{outline:none}
+/* The triangle itself: 22x10 with its base on the shell's top edge, centred in
+   the target box. margin:auto rather than a translate, so the only transform on
+   it is the scale and the origin can be its base. */
+.music-expand::before{
+  content:"";position:absolute;top:12px;left:0;right:0;margin:0 auto;
+  width:22px;height:10px;
   background:color-mix(in srgb,var(--accent) 42%,transparent);
   clip-path:polygon(50% 0,100% 100%,0 100%);
   transform-origin:50% 100%;
   transition:transform .16s cubic-bezier(.22,.61,.36,1),
              background-color var(--accent-ease);
 }
-.music-expand[hidden]{display:none}
-.music-expand:hover{transform:scale(1.3);background-color:var(--accent)}
-.music-expand:focus-visible{
-  outline:none;transform:scale(1.45);background-color:var(--accent);
-}
-@media(prefers-reduced-motion:reduce){.music-expand{transition:none}}
+.music-expand:hover::before{transform:scale(1.3);background-color:var(--accent)}
+.music-expand:focus-visible::before{transform:scale(1.45);background-color:var(--accent)}
+@media(prefers-reduced-motion:reduce){.music-expand::before{transition:none}}
 
 @media(max-width:900px){
   /* No sidebar gutter to sit beside, and the corner is the whole width. */

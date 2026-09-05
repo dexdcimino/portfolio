@@ -221,6 +221,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
       videoHidden: document.getElementById('musicVideo').hidden,
       live: document.getElementById('musicScreen').classList.contains('is-live'),
       shufflePressed: document.getElementById('musicShuffle').getAttribute('aria-pressed'),
+      loop: document.getElementById('musicLoop').dataset.loop,
     };
   });
   note(rest.barHidden === false, 'the player bar is not showing when the overlay opens');
@@ -233,6 +234,10 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   // Shuffle defaults ON: 311 tracks in alphabetical order is a filing cabinet.
   note(rest.shufflePressed === 'true',
        'shuffle is not on by default in a browser that has never set it');
+  /* And repeat defaults to the whole playlist: reaching the end of a list you
+     put on deliberately and having it stop is not what pressing play means. */
+  note(rest.loop === 'all',
+       `repeat defaults to "${rest.loop}" in a browser that has never set it`);
 }
 
 /* ---- 3c. play with nothing playing starts something --------------------
@@ -580,11 +585,20 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
     await page.click('#musicLoop');
     seen.push(await read());
   }
-  note(seen.map(s => s.state).join(',') === 'off,all,one,off',
-       `the repeat button cycles ${seen.map(s => s.state).join(',')}, expected off,all,one,off`);
-  note(seen[2].badge === 1, 'the 1 badge is not shown on repeat-one');
-  note(seen[0].badge === 0 && seen[1].badge === 0,
-       'the 1 badge is showing on a state that is not repeat-one');
+  /* The cycle is asserted as a ROTATION rather than a fixed string, because
+     where it starts is a preference now — repeat defaults to the whole playlist
+     and is remembered. What must hold is the order and that it comes back. */
+  const ORDER = ['off', 'all', 'one'];
+  const from = ORDER.indexOf(seen[0].state);
+  const want = [0, 1, 2, 3].map(i => ORDER[(from + i) % 3]);
+  note(from !== -1, `the repeat button starts in an unknown state "${seen[0].state}"`);
+  note(seen.map(s => s.state).join(',') === want.join(','),
+       `the repeat button cycles ${seen.map(s => s.state).join(',')}, expected ${want.join(',')}`);
+  // The 1 badge belongs to repeat-one and to nothing else, in every state.
+  for (const s of seen) {
+    note((s.badge === 1) === (s.state === 'one'),
+         `the 1 badge reads ${s.badge} while repeat is "${s.state}"`);
+  }
   note(new Set(seen.slice(0, 3).map(s => s.label)).size === 3,
        'the three repeat states do not have three different labels');
 }
@@ -1099,21 +1113,37 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
     const r = b.getBoundingClientRect();
     const shell = document.querySelector('.music-shell').getBoundingClientRect();
     const dur = document.getElementById('musicDuration').getBoundingClientRect();
+    // The BUTTON is the hit area; the triangle is its ::before. They are
+    // measured separately because they are deliberately different sizes.
     const cs = getComputedStyle(b);
+    const mark = getComputedStyle(b, '::before');
     return {
       w: Math.round(r.width), h: Math.round(r.height),
+      markW: parseFloat(mark.width), markH: parseFloat(mark.height),
       offCentre: Math.round((r.left + r.width / 2) - (dur.left + dur.width / 2)),
       abovePanel: Math.round(shell.top - r.top),
-      clipped: cs.clipPath,
-      origin: cs.transformOrigin,
+      clipped: mark.clipPath,
+      buttonClipped: cs.clipPath,
+      origin: mark.transformOrigin,
       tip: b.dataset.tip,
       pos: b.dataset.tipPos,
     };
   });
-  /* Big enough to hit, small enough not to be a handle. It shipped at 32x15,
-     which read as a flag stuck to the bar rather than a notch in its edge. */
-  note(tab.w >= 18 && tab.h >= 8, `the expand tab is only ${tab.w}x${tab.h}`);
-  note(tab.w <= 26 && tab.h <= 12, `the expand tab has grown back to ${tab.w}x${tab.h}`);
+  /* THE TARGET and THE TRIANGLE are different sizes on purpose. clip-path
+     clips hit testing as well as paint, so a button that WAS the triangle could
+     only be hit on the triangle — 22x10 of slanted edges, which is a pain to
+     land on. The mark stays small; the box around it does not. */
+  note(tab.markW >= 18 && tab.markH >= 8,
+       `the triangle is only ${tab.markW}x${tab.markH}`);
+  note(tab.markW <= 26 && tab.markH <= 12,
+       `the triangle has grown back to ${tab.markW}x${tab.markH}`);
+  note(tab.w >= 40 && tab.h >= 28,
+       `the expand target is only ${tab.w}x${tab.h} — too fiddly to hit`);
+  note(tab.w >= tab.markW * 1.7 && tab.h >= tab.markH * 2.5,
+       `the target (${tab.w}x${tab.h}) is barely bigger than the triangle `
+       + `(${tab.markW}x${tab.markH})`);
+  note(!/polygon/.test(tab.buttonClipped),
+       'the button itself is clipped to the triangle again — only the mark may be');
   /* ABOVE, not below. The bar lives on the bottom edge of the window, so the
      default below-placement puts the bubble off-screen and the fallback fires
      every time — a tooltip that is sometimes above and sometimes below reads
@@ -1128,10 +1158,50 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
      Compared as numbers: getComputedStyle resolves the percentages to px, so
      'bottom' and '100%' never appear in the value however it was authored. */
   const [ox, oy] = tab.origin.trim().split(/\s+/).map(parseFloat);
-  note(Math.abs(ox - tab.w / 2) <= 1 && Math.abs(oy - tab.h) <= 1,
+  note(Math.abs(ox - tab.markW / 2) <= 1 && Math.abs(oy - tab.markH) <= 1,
        `the expand tab scales from ${tab.origin}, not from the middle of its base `
-       + `(${tab.w / 2}px ${tab.h}px)`);
+       + `(${tab.markW / 2}px ${tab.markH}px)`);
   note(tab.tip === 'Expand', `the expand tab's tooltip reads "${tab.tip}"`);
+
+  /* THE BAR IS ONE WIDTH. It was growing and shrinking with every track,
+     because a <dialog> is width:fit-content in the UA stylesheet and the auto
+     width resolved against the content rather than the gap. A control surface
+     that changes size when the thing it is controlling changes is the one thing
+     this must never do.
+
+     FALSELY PASSES IF: two ordinary titles were compared. They both fit, so the
+     width would match whatever the rule was — which is why the long one is
+     asserted to actually OVERFLOW its column before the widths are compared. */
+  const width = await page.evaluate(async () => {
+    const shell = document.querySelector('.music-shell');
+    const t = document.getElementById('musicNowTitle');
+    const a = document.getElementById('musicNowArtist');
+    const keep = { t: t.textContent, a: a.textContent };
+    const read = () => Math.round(shell.getBoundingClientRect().width);
+    const frame = () => new Promise(r => requestAnimationFrame(r));
+
+    t.textContent = 'Hi'; a.textContent = 'Yo';
+    await frame();
+    const short = read();
+
+    t.textContent = 'A Preposterously Long Track Title Nobody Would Ever Give A Song';
+    a.textContent = 'And An Equally Preposterous Artist Name Of Considerable Length';
+    await frame();
+    const long = read();
+    const overflowed = t.scrollWidth > t.clientWidth;
+    const clip = getComputedStyle(t).textOverflow;
+    const inside = t.getBoundingClientRect().right <= shell.getBoundingClientRect().right;
+
+    t.textContent = keep.t; a.textContent = keep.a;
+    await frame();
+    return { short, long, overflowed, clip, inside };
+  });
+  note(width.overflowed,
+       'the long title did not overflow its column — the width check proves nothing');
+  note(width.short === width.long,
+       `the docked bar is ${width.short}px on a short title and ${width.long}px on a long one`);
+  note(width.clip === 'ellipsis', `a clipped title ends with "${width.clip}", not an ellipsis`);
+  note(width.inside, 'a long title runs outside the bar instead of being clipped');
 
   await page.click('#musicExpand');
   await page.waitForFunction(() => {
@@ -1266,7 +1336,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 185) {
+if (TOTAL < 195) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }
