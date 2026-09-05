@@ -5090,7 +5090,7 @@ const MediaBus = (() => {
   const viewAll = $('musicViewAll'), viewRepeat = $('musicViewRepeat');
   const nAll = $('musicNAll'), nRepeat = $('musicNRepeat');
   const bar = $('musicBar'), frame = $('musicVideo'), screen = $('musicScreen');
-  const markEl = $('musicMark');
+  const markEl = $('musicMark'), thumbEl = $('musicThumb');
   const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
   const btnPrev = $('musicPrev'), btnToggle = $('musicToggle'), btnNext = $('musicNext');
   const btnShuffle = $('musicShuffle'), btnLoop = $('musicLoop'), btnStop = $('musicStop');
@@ -5311,6 +5311,7 @@ const MediaBus = (() => {
     nowArtist.textContent = `${queue.length} in ${view === 'repeat' ? 'REPEAT' : 'ALL'}`;
     if (screen) screen.classList.remove('is-live');
     frame.hidden = true;
+    if (thumbEl) thumbEl.removeAttribute('src');
     resetTime();
   }
 
@@ -5396,6 +5397,13 @@ const MediaBus = (() => {
     resetTime();
     frame.hidden = false;
     if (screen) screen.classList.add('is-live');
+    /* The artwork behind the docked bar's stood-down player. Built here rather
+       than baked, because it is YouTube's own thumbnail for a video id — the
+       "never build a derivative URL in JS" rule is about assets/derived/, where
+       a hand-built URL is a second cache entry for our own bytes and a
+       hand-picked width goes stale against `sizes`. Neither applies to a remote
+       thumbnail with one canonical name. */
+    if (thumbEl) thumbEl.src = `https://i.ytimg.com/vi/${encodeURIComponent(track.v)}/mqdefault.jpg`;
     try { localStorage.setItem(LAST_KEY, track.v); } catch { /* private mode */ }
 
     /* First track of the session navigates the frame; every one after it is a

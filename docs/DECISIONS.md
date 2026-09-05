@@ -25,6 +25,35 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-05 — the docked bar shows artwork, not a live picture
+
+**Decided.** `.music-modal.is-docked .music-video{display:none}` with YouTube's
+thumbnail in its place. The live player renders only while the overlay is open.
+
+**Replaced.** Keeping the video visible in the docked bar at 104px — a position
+taken deliberately in this file on 2026-09-04, on the grounds that playing an
+embed with the picture hidden is against the terms it ships under.
+
+**Why.** It was the scroll jank, and nothing else was. Compositing a live
+cross-origin video surface over a scrolling page costs a frame; the hero's bob
+is a composited `transform` animation, which a busy main thread cannot disturb,
+and it stuttered too — which points at the compositor rather than at script.
+Isolated on the real page with one devtools line: hide that single element, keep
+the audio, and both go smooth. `will-change:transform` was tried first and did
+nothing, because it addresses raster and this is composite.
+
+The terms position that argued for the visible picture is not abandoned so much
+as narrowed: the player is real, it is one click away on the expand tab, and it
+is the docked CORNER that shows art. It is worth noting that the docked player
+was 104px, already under the ~200x200 the embed guidance expects, so the earlier
+position was not being met either.
+
+**Reverse it if** the player stops being a cross-origin iframe, or a browser
+gives a way to keep a video surface out of the scroll's way without hiding it.
+The picture is preferred wherever it is free.
+
+---
+
 ## 2026-09-05 — a second player closes the music feed rather than pausing it
 
 **Decided.** `MediaBus`'s `pause` for the music player is `yieldToOther()`,

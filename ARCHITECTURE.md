@@ -1392,14 +1392,31 @@ what let the drift hide, because a feed the bus thinks is already paused is a
 feed it will never pause again. It is also what the two players mean: starting a
 Top Picks song is not a request to hold the playlist's place.
 
-**A LIVE CROSS-ORIGIN VIDEO OVER A SCROLLING PAGE NEEDS ITS OWN LAYER.** The
-docked bar and the iframe both carry `will-change:transform`. Without it, every
-scroll frame re-composites the video's texture with whatever moved behind it,
-across a region the 30px shadow makes large — which showed up as the page
-catching and the hero's bob stuttering, and only ever while music played. The
-Top Picks bar never did this because an `<audio>` element has no picture to
-composite. The embed is also asked for the smallest stream (`vq`,
-`setPlaybackQuality`); both are advisory and cost nothing when ignored.
+**THE PICTURE IS STOOD DOWN WHILE DOCKED**, and that is the scroll fix.
+Compositing a live cross-origin video surface over a scrolling page costs a
+frame: the page caught and the hero's bob — a composited `transform` animation,
+which a busy main thread cannot touch — stuttered, and only ever while music
+played. The Top Picks bar never did it, because an `<audio>` element has no
+picture to composite.
+
+`.music-modal.is-docked .music-video{display:none}`, with YouTube's own
+thumbnail standing in. `display:none` and not opacity or an offscreen
+transform: those still composite, which is the entire cost. The iframe is not
+reparented and its src is not cleared, so the audio does not blink and the
+player keeps its place — standing the PICTURE down is not stopping the player.
+The real one is a click away on the expand tab, where an open overlay means
+there is no page scrolling behind it to compete with. `img-src` in
+`vercel.json` gains `https://i.ytimg.com` for the artwork.
+
+**`will-change:transform` on the bar and the iframe was tried first and did not
+help**, because it addresses raster and the cost here is composite. It is gone;
+a layer pinned for nothing is memory for nothing.
+
+HOW IT WAS FOUND, because three measurements missed it: layout, style and
+script are all cheap (~1.2ms/frame) and none of them is the problem, and the
+harness cannot reach YouTube at all — a run with it unblocked never got the
+player past state `-1`. It took one line in devtools on the real page,
+`#musicVideo{display:none}` with the audio still going, to isolate it.
 
 KNOWN: the docked bar and the Top Picks songs bar occupy the same corner. Since
 starting either now closes the other's feed, they can no longer both be live —

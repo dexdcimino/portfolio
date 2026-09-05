@@ -102,7 +102,7 @@ page.on('console', m => {
   const text = m.text();
   // The embed is never reachable from here and is not what this checks. Its own
   // load failure is expected, and so is the 404 above; anything else is not.
-  if (/youtube|ERR_|net::/i.test(text)) return;
+  if (/youtube|ytimg|ERR_|net::/i.test(text)) return;
   if (/Failed to load resource/i.test(text)) return;
   fail.push(`console: ${text}`);
 });
@@ -111,7 +111,8 @@ page.on('console', m => {
 let embedRequests = 0;
 await page.setRequestInterception(true);
 page.on('request', (req) => {
-  if (/youtube(-nocookie)?\.com/.test(req.url())) { embedRequests++; req.abort().catch(() => {}); return; }
+  // ytimg is the thumbnail host the docked bar's artwork comes from.
+  if (/youtube(-nocookie)?\.com|ytimg\.com/.test(req.url())) { embedRequests++; req.abort().catch(() => {}); return; }
   req.continue().catch(() => {});
 });
 
@@ -1063,6 +1064,36 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   // A non-modal dialog is not an overlay: the page has to be usable again.
   note(!docked.scrollLocked, 'the page is still scroll-locked behind the docked bar');
 
+  /* THE SCROLL FIX. Compositing a live cross-origin video surface over a
+     scrolling page costs a frame — confirmed by hiding this one element in
+     devtools, which made the scroll and the hero's bob smooth again with the
+     audio untouched. So the picture is stood down while docked and the
+     artwork stands in.
+
+     display:none is the assertion, not `hidden` or opacity: those still
+     composite, which is the whole cost. And the iframe must keep its src —
+     standing the PICTURE down is not stopping the player. */
+  const shown = await page.evaluate(() => {
+    const f = document.getElementById('musicVideo');
+    const t = document.getElementById('musicThumb');
+    return {
+      video: getComputedStyle(f).display,
+      videoSrc: f.getAttribute('src'),
+      thumb: getComputedStyle(t).display,
+      thumbSrc: t.getAttribute('src') || '',
+      thumbBox: Math.round(t.getBoundingClientRect().width),
+    };
+  });
+  note(shown.video === 'none',
+       `the video is "${shown.video}" while docked — a live video surface over a `
+       + 'scrolling page is what makes it catch');
+  note(shown.videoSrc === before.src,
+       'standing the picture down also dropped the embed — that stops the audio');
+  note(shown.thumb === 'block', `the artwork is "${shown.thumb}" in the docked bar`);
+  note(shown.thumbSrc.includes(before.v),
+       `the artwork does not name the track that is playing (${shown.thumbSrc.slice(0, 60)})`);
+  note(shown.thumbBox > 60, `the artwork is only ${shown.thumbBox}px wide`);
+
   /* The page really is interactive: the ` shortcut is the strictest test of it,
      because it refuses to fire while ANY overlay is up. */
   const scrolled = await page.evaluate(() => {
@@ -1224,6 +1255,18 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(back.loads === 0, `the frame navigated ${back.loads} time(s) across dock and expand`);
   note(!back.expandShown, 'the expand tab is still showing on the full overlay');
   note(back.playing === 1, 'expanding lost the track that was playing');
+  /* The real player is one click away, and that is what makes standing it down
+     in the corner a reasonable trade: there is no page scrolling behind an open
+     overlay for it to compete with. */
+  const expanded = await page.evaluate(() => ({
+    video: getComputedStyle(document.getElementById('musicVideo')).display,
+    thumb: getComputedStyle(document.getElementById('musicThumb')).display,
+    src: document.getElementById('musicVideo').getAttribute('src'),
+  }));
+  note(expanded.video !== 'none', 'the video does not come back when the overlay opens');
+  note(expanded.thumb === 'none', 'the artwork is still covering the player in the overlay');
+  note(expanded.src === before.src,
+       'showing the picture again re-pointed the embed — the track would restart');
 
   /* THE REPORTED BUG, and it is the invariant worth stating on its own: while a
      track is playing there is ALWAYS a control box on screen — the overlay's,
@@ -1409,7 +1452,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 200) {
+if (TOTAL < 210) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

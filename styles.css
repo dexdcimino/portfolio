@@ -5769,15 +5769,13 @@ body.modal-open{overflow:hidden}
 /* The video is VISIBLE and stays visible whenever there is one. A YouTube embed
    played with the picture hidden is against the terms the embed ships under,
    and a 16:9 box this size costs one row of the list. */
-/* The frame gets its own layer too: the video surface is the expensive thing
-   in the bar, and this is what stops it being re-rastered with the rest of it. */
-.music-video{
-  position:absolute;inset:0;width:100%;height:100%;border:0;
-  will-change:transform;
-}
+.music-video{position:absolute;inset:0;width:100%;height:100%;border:0}
 .music-video[hidden]{display:none}
 .music-screen-icon{width:30px;height:30px;color:var(--muted);opacity:.4}
 .music-screen.is-live .music-screen-icon{display:none}
+/* The artwork. Only ever visible in the docked bar, and only with a track
+   loaded — in the overlay the real player is right there. */
+.music-thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
 .music-now{min-width:0}
 .music-now-title{display:block;font-size:16px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .music-now-artist{display:block;margin-top:1px;font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -5894,15 +5892,6 @@ body.modal-open{overflow:hidden}
   display:block;height:auto;max-height:none;
   width:min(760px, calc(100vw - var(--sidebar-open) - 40px));
   margin:0;padding:0;border:0;background:none;overflow:visible;
-  /* ITS OWN COMPOSITOR LAYER, and this is a performance fix rather than a
-     visual one. A fixed bar with a live cross-origin video inside it sits over
-     a scrolling page: without a layer of its own, every scroll frame has to
-     re-composite the video's texture together with whatever just moved behind
-     it, and the 30px shadow means that region is large. The Top Picks bar
-     never showed this because an <audio> element has no picture to composite.
-     Promoting it costs one layer's memory and takes the video out of the
-     scroll's way entirely. */
-  will-change:transform;
 }
 /* width:100% as well as display:block. The dialog carries place-items:center
    from .music-modal[open], and the frame was still being shrink-wrapped to
@@ -5916,6 +5905,21 @@ body.modal-open{overflow:hidden}
   background:color-mix(in srgb,var(--sidebar-bg) 94%,black);
   box-shadow:0 -12px 30px rgba(0,0,0,.42);
 }
+/* THE PICTURE IS STOOD DOWN WHILE DOCKED, and this is the scroll fix.
+   Compositing a live cross-origin video surface over a scrolling page costs a
+   frame: the page caught and the hero's bob stuttered, only ever while music
+   played, and the Top Picks bar — an <audio> element with no picture — never
+   did it. Confirmed by hiding this one element in devtools, which made both
+   smooth with the audio untouched.
+
+   display:none rather than opacity or an offscreen transform: those still
+   composite, which is the entire cost. The iframe is NOT reparented and its src
+   is NOT cleared, so the audio does not blink and the player keeps its place.
+   The artwork stands in, and the real player is one click away on the tab —
+   there is no scrolling behind the overlay for it to compete with. */
+.music-modal.is-docked .music-video{display:none}
+.music-modal.is-docked .music-screen.is-live .music-thumb{display:block}
+
 /* The list, the head and the overlay's own X are the overlay. What is left is
    the bar, which is the whole of the docked state. */
 .music-modal.is-docked .music-head,
