@@ -582,31 +582,211 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        'the three repeat states do not have three different labels');
 }
 
-/* ---- 7c. the transport is centred in the BAR --------------------------
-   FALSELY PASSES IF: the transport's own centring were read off its style.
-   It is centred inside its column either way — what the brief asks for is
-   that the GROUP sits in the middle of the bar, which only holds while the
-   outer columns stay equal. Measured against the bar, and measured again
-   with a long title in the corner, which is what a flex row would drift on. */
+/* ---- 7b2. volume behaves like every other volume on this site ---------
+   Reused rather than reimplemented: the input carries .player-range, the same
+   class the songs bar and the clips player use, so the painted track, the 22px
+   hit area behind a 5px bar and the white thumb come with it. What is checked
+   here is the behaviour that is this overlay's own — the mute round trip, the
+   painted fill, and that it survives the overlay closing.
+
+   FALSELY PASSES IF: only the input's value were read. The fill is a CSS
+   custom property the shared rules paint from, and a value that moves without
+   it is a slider that does not look like it moved. */
+{
+  const shape = await page.evaluate(() => {
+    const vol = document.getElementById('musicVol');
+    const mute = document.getElementById('musicMute');
+    const loop = document.getElementById('musicLoop');
+    const mid = (el) => { const r = el.getBoundingClientRect(); return r.left + r.width / 2; };
+    return {
+      exists: !!vol && !!mute,
+      shared: vol.classList.contains('player-range'),
+      type: vol.type, max: vol.max,
+      value: Number(vol.value),
+      fill: vol.style.getPropertyValue('--fill'),
+      icon: mute.querySelector('.icon').dataset.icon,
+      label: mute.getAttribute('aria-label'),
+      rightOfRepeat: mid(vol) > mid(loop) && mid(mute) > mid(loop),
+      wide: Math.round(vol.getBoundingClientRect().width),
+    };
+  });
+  note(shape.exists, 'the music overlay has no volume control');
+  note(shape.shared,
+       'the volume slider does not use the site .player-range — it is a second copy');
+  note(shape.type === 'range' && shape.max === '100',
+       'the volume control is not a 0-100 range input');
+  note(shape.rightOfRepeat, 'the volume control is not to the right of the repeat button');
+  note(shape.wide >= 60, `the volume track is only ${shape.wide}px wide`);
+  // The site default everywhere else is 0.4, and this is a browser that has
+  // never set it.
+  note(shape.value === 40, `volume starts at ${shape.value}, the site default is 40`);
+  note(shape.fill.trim() === '40%', `the track is painted to "${shape.fill}", not 40%`);
+  note(shape.icon === 'volume', `the speaker shows "${shape.icon}" while unmuted`);
+
+  // Drag it somewhere, then mute, then unmute: unmuting has to come back to
+  // where it was and not to the default, which would be a second surprise.
+  await page.evaluate(() => {
+    const vol = document.getElementById('musicVol');
+    vol.value = 70;
+    vol.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const moved = await page.evaluate(() => ({
+    value: Number(document.getElementById('musicVol').value),
+    fill: document.getElementById('musicVol').style.getPropertyValue('--fill').trim(),
+  }));
+  note(moved.value === 70 && moved.fill === '70%',
+       `moving the slider left it at ${moved.value} / "${moved.fill}"`);
+
+  await page.click('#musicMute');
+  const muted = await page.evaluate(() => ({
+    value: Number(document.getElementById('musicVol').value),
+    fill: document.getElementById('musicVol').style.getPropertyValue('--fill').trim(),
+    icon: document.getElementById('musicMute').querySelector('.icon').dataset.icon,
+    label: document.getElementById('musicMute').getAttribute('aria-label'),
+  }));
+  note(muted.value === 0, `muting left the slider at ${muted.value}`);
+  note(muted.fill === '0%', `muting left the track painted to "${muted.fill}"`);
+  note(muted.icon === 'volume-mute', `the speaker shows "${muted.icon}" while muted`);
+  note(muted.label === 'Unmute', `the muted button still reads "${muted.label}"`);
+
+  await page.click('#musicMute');
+  const back = await page.evaluate(() => ({
+    value: Number(document.getElementById('musicVol').value),
+    icon: document.getElementById('musicMute').querySelector('.icon').dataset.icon,
+  }));
+  note(back.value === 70, `unmuting went to ${back.value}, not back to 70`);
+  note(back.icon === 'volume', 'unmuting did not put the speaker back');
+
+  // ...and it is remembered, like every other volume on the site.
+  await page.click('#musicClose');
+  await page.waitForFunction(() => document.getElementById('musicModal').open !== true,
+                             { timeout: 5000 });
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
+  const kept = await page.evaluate(() => Number(document.getElementById('musicVol').value));
+  note(kept === 70, `volume came back as ${kept} after reopening, not 70`);
+}
+
+/* ---- 7b3. the seek row is above the transport and has real width ------
+   The recorded scar this guards: on the songs bar up the page, five groups on
+   one line gave the scrub the same width as the VOLUME slider — about 50px for
+   a three-minute track. It is not a sizing bug to patch, it is a layout that
+   cannot give a scrubber room, and the fix was its own row. So what is checked
+   is not that a scrub exists but that it got the row: above the play button,
+   and far wider than the volume control it used to lose to.
+
+   FALSELY PASSES IF: only presence and class were checked. A 50px scrub passes
+   every one of those. */
+{
+  const seek = await page.evaluate(() => {
+    const box = (sel) => { const r = document.querySelector(sel).getBoundingClientRect();
+      return { x: r.left, w: r.width, top: r.top, bottom: r.bottom,
+               mid: r.left + r.width / 2 }; };
+    const scrub = document.getElementById('musicScrub');
+    return {
+      exists: !!scrub,
+      shared: scrub.classList.contains('player-range'),
+      type: scrub.type, max: scrub.max,
+      s: box('#musicScrub'), v: box('#musicVol'),
+      play: box('#musicToggle'), bar: box('#musicBar'),
+      elapsed: document.getElementById('musicElapsed').textContent,
+      duration: document.getElementById('musicDuration').textContent,
+      tabular: getComputedStyle(document.getElementById('musicElapsed')).fontVariantNumeric,
+      fill: scrub.style.getPropertyValue('--fill').trim(),
+    };
+  });
+  note(seek.exists, 'the music overlay has no seek control');
+  note(seek.shared,
+       'the scrub does not use the site .player-range — it is a second copy');
+  note(seek.type === 'range' && seek.max === '1000',
+       'the scrub is not a 0-1000 range input');
+  // ABOVE the play button, which is what "its own row" means geometrically.
+  note(seek.s.bottom <= seek.play.top + 1,
+       `the scrub overlaps the transport (bottom ${Math.round(seek.s.bottom)} vs play top ${Math.round(seek.play.top)})`);
+  // ...and centred over it, which follows from the row spanning the bar.
+  note(Math.abs(seek.s.mid - seek.bar.mid) <= 2,
+       `the seek row is ${Math.round(seek.s.mid - seek.bar.mid)}px off the centre of the bar`);
+  // THE SCAR: it must not be volume-slider-sized.
+  note(seek.s.w > seek.v.w * 4,
+       `the scrub is ${Math.round(seek.s.w)}px against a ${Math.round(seek.v.w)}px volume slider`);
+  note(seek.s.w > seek.bar.w * 0.6,
+       `the scrub is only ${Math.round(seek.s.w)}px of a ${Math.round(seek.bar.w)}px bar`);
+  // Idle: a clock with nothing to say says so, rather than showing 0:00 / 0:00.
+  note(seek.duration === '--:--' || /\d/.test(seek.duration),
+       `the duration reads "${seek.duration}"`);
+  note(/tabular-nums/.test(seek.tabular),
+       'the times are not tabular figures — the seconds will nudge the track');
+
+  // Dragging paints the track, which is the half a value change alone does not do.
+  await page.evaluate(() => {
+    const s = document.getElementById('musicScrub');
+    s.value = 500;
+    s.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  note(await page.evaluate(() =>
+       document.getElementById('musicScrub').style.getPropertyValue('--fill').trim() === '50%'),
+       'moving the scrub did not paint its track');
+
+  // A new track clears the old one's clock rather than leaving it under the
+  // new title until the embed's first message lands.
+  await page.evaluate(() =>
+    document.querySelectorAll('#musicRows .music-row')[9].querySelector('.music-play').click());
+  const fresh = await page.evaluate(() => ({
+    elapsed: document.getElementById('musicElapsed').textContent,
+    duration: document.getElementById('musicDuration').textContent,
+    value: Number(document.getElementById('musicScrub').value),
+    fill: document.getElementById('musicScrub').style.getPropertyValue('--fill').trim(),
+  }));
+  note(fresh.elapsed === '0:00' && fresh.duration === '--:--',
+       `a new track kept the old clock (${fresh.elapsed} / ${fresh.duration})`);
+  note(fresh.value === 0 && fresh.fill === '0%',
+       `a new track kept the old scrub position (${fresh.value} / "${fresh.fill}")`);
+}
+
+/* ---- 7c. the PLAY BUTTON is centred in the bar -------------------------
+   Asserting the GROUP is the weaker half and it hid a real fault: with the
+   order prev, play, next, shuffle, repeat, the group is centred while the play
+   button sits 65px left of centre, because the two modes hang off one end.
+   Nothing noticed until the scrub had to be centred above the play button.
+
+   So the button is what is measured, and the symmetry that makes it true is
+   asserted next to it — shuffle, prev, PLAY, next, repeat. Measured again with
+   a long title in the corner, which is what a flex row would drift on. */
 {
   const centre = await page.evaluate(async () => {
     const mid = (el) => { const r = el.getBoundingClientRect(); return r.left + r.width / 2; };
     const bar = document.getElementById('musicBar');
     const group = document.querySelector('.music-transport');
+    const play = document.getElementById('musicToggle');
+    const scrub = document.getElementById('musicScrub');
     const now = document.getElementById('musicNowTitle');
 
-    const short = Math.round(mid(group) - mid(bar));
+    const shortGroup = Math.round(mid(group) - mid(bar));
+    const shortPlay = Math.round(mid(play) - mid(bar));
     const before = now.textContent;
     now.textContent = 'A title very much longer than the one that was there before it';
     await new Promise(r => requestAnimationFrame(r));
-    const long = Math.round(mid(group) - mid(bar));
+    const longPlay = Math.round(mid(play) - mid(bar));
     now.textContent = before;
-    return { short, long };
+    return {
+      shortGroup, shortPlay, longPlay,
+      overScrub: Math.round(mid(play) - mid(scrub)),
+      order: [...group.children].map(el => el.id || el.className),
+    };
   });
-  note(Math.abs(centre.short) <= 2,
-       `the transport sits ${centre.short}px off the centre of the bar`);
-  note(centre.short === centre.long,
-       `the transport moves ${Math.abs(centre.long - centre.short)}px when the title grows`);
+  note(Math.abs(centre.shortGroup) <= 2,
+       `the transport group sits ${centre.shortGroup}px off the centre of the bar`);
+  note(Math.abs(centre.shortPlay) <= 2,
+       `the PLAY button sits ${centre.shortPlay}px off the centre of the bar`);
+  note(Math.abs(centre.overScrub) <= 2,
+       `the play button sits ${centre.overScrub}px off the centre of the scrub above it`);
+  note(centre.shortPlay === centre.longPlay,
+       `the play button moves ${Math.abs(centre.longPlay - centre.shortPlay)}px when the title grows`);
+  // The symmetry is the reason the button lands where it does, so it is stated
+  // rather than left to be re-derived from a pixel measurement next time.
+  note(centre.order.join(',') === 'musicShuffle,musicPrev,musicToggle,musicNext,musicLoop',
+       `the transport order is ${centre.order.join(',')} — it must be symmetric about the play button`);
 }
 
 /* ---- 7d. nothing has been quietly shrunk back -------------------------
@@ -853,7 +1033,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 120) {
+if (TOTAL < 155) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

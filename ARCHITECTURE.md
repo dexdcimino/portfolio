@@ -1282,12 +1282,34 @@ alphabetical order is a filing cabinet, not a playlist. Absent is not the same a
 off: only an explicit `0` turns it off, so the default survives a browser that
 has never touched the control.
 
-**The transport is centred in the bar by a three-column grid**
-(`1fr auto 1fr`), not by flex. In a flex row the group sits wherever the
-now-playing title before it happens to end and shifts every time the title
-changes; the outer columns being equal and free is what holds it still. The
-close-the-player X is alone in the third column, which is what says it is the
-least important control in the bar.
+**The bar is two rows.** The seek row spans it; the controls keep three columns
+(`1fr auto 1fr`) underneath. Both halves matter: a flex row would put the
+transport wherever the now-playing title happened to end and move it every time
+the title changed, and the songs bar up the page already learned that five
+groups on one line gives the scrub the same width as the volume slider — about
+50px for a three-minute track, which is a layout that cannot give a scrubber
+room rather than a size to patch.
+
+**The transport is symmetric about the play button**: shuffle, prev, PLAY, next,
+repeat. Centring the GROUP is not the same as centring the button — with the
+modes hanging off one end the play button sat 65px left of centre while every
+check passed, and it only became visible once the scrub had to sit above it.
+Volume and the close X are in the third column, out of the centred group.
+
+**Volume and seek reuse `.player-range`**, the site's own slider: the painted
+track driven by `--fill`, the 22px hit area behind a 5px bar, and the white thumb
+that reads against both halves are decisions already made and already fixed once.
+Volume is remembered in `music-volume`, default 0.4 like everywhere else.
+
+**The clock is read, not polled.** There is no `getCurrentTime` to call across an
+origin, but the embed volunteers `currentTime` and `duration` in its
+`infoDelivery` messages several times a second — the same feed the official API
+caches to answer `getCurrentTime` synchronously. Those are read BEFORE the
+handler's playerState early-return, because plenty of those messages carry a
+time and no state, and returning on them would freeze the scrubber for the whole
+of a track. Seeking goes back as `seekTo`, and volume has to be re-pushed on
+every load and on every play, since a player in another origin has no idea what
+the last one was set to.
 
 **Two playlists and no way to make a third.** ALL is the file; REPEAT is
 whatever is ticked. The rail's selection is also the queue the transport walks,

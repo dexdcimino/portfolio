@@ -25,6 +25,28 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-04 — the transport is symmetric about the play button
+
+**Decided.** The five controls run shuffle, prev, PLAY, next, repeat, and
+`music_check.mjs` asserts the play button's own centre against the bar as well
+as the group's.
+
+**Replaced.** prev, play, next, divider, shuffle, repeat — a group that was
+centred while the button was not.
+
+**Why.** Centring the GROUP and centring the PLAY BUTTON are different things
+once the group is asymmetric, and the check only asserted the first. The button
+sat 65px left of the bar's centre for two rounds with everything green. It
+became visible the moment the seek row had to be centred above it, which is the
+useful lesson: the weaker assertion held for exactly as long as nothing else
+depended on the stronger one.
+
+**Reverse it if** the modes ever leave the transport for their own group, the
+way the songs bar up the page has them. Then prev/play/next is symmetric on its
+own and the ordering question goes away.
+
+---
+
 ## 2026-09-04 — relocking the vault must not take focus
 
 **Decided.** `createKeypad`'s `reset()` takes a `moveFocus` argument, and

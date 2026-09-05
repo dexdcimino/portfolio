@@ -5735,12 +5735,26 @@ body.modal-open{overflow:hidden}
    text. A flex row cannot do that — the group would sit wherever the title
    before it happened to end, and drift every time the title changed. The outer
    columns are equal and free, so the centre stays put whatever is in them. */
+/* TWO ROWS. The seek row spans the bar; the controls keep the three columns
+   underneath it, so the transport is still centred and the scrubber still gets
+   the full width — the two things that were in tension. */
 .music-bar{
-  flex:0 0 auto;display:grid;align-items:center;gap:14px;
-  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
-  padding:12px 16px;border-top:1px solid var(--line);background:#0b0c12;
+  flex:0 0 auto;display:flex;flex-direction:column;gap:6px;
+  padding:10px 16px 12px;border-top:1px solid var(--line);background:#0b0c12;
 }
 .music-bar[hidden]{display:none}
+.music-controls{
+  display:grid;align-items:center;gap:14px;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+}
+.music-seek{display:flex;align-items:center;gap:12px;min-width:0}
+.music-scrub{flex:1 1 auto;min-width:0}
+/* Tabular figures, or every tick of the seconds nudges the track sideways. */
+.music-time{
+  flex:none;min-width:46px;font-size:14px;font-weight:700;
+  color:var(--muted);font-variant-numeric:tabular-nums;
+}
+.music-time:last-child{text-align:right}
 .music-nowwrap{display:flex;align-items:center;gap:14px;min-width:0}
 /* One box, two states. The bar is on screen the whole time the overlay is open,
    so there has to be something here before anything is playing — and it has to
@@ -5766,7 +5780,13 @@ body.modal-open{overflow:hidden}
 /* The close-the-player X, alone in the last column and pushed to the far edge.
    It is the least important control in the bar and is the only one that is not
    in the centred group, which is what says so. */
-.music-tail{display:flex;align-items:center;justify-content:flex-end}
+.music-tail{display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.music-volume{display:flex;align-items:center;gap:8px}
+.music-vol{width:88px}
+/* The mute button is a control, not a transport button: same target, smaller
+   glyph, so the centred group stays the loudest thing in the bar. */
+.music-volbtn{width:42px;height:42px;border-radius:11px}
+.music-volbtn .icon{width:21px;height:21px}
 .music-btn{
   width:50px;height:50px;display:grid;place-items:center;padding:0;cursor:pointer;
   border:0;border-radius:12px;background:none;color:var(--muted);
@@ -5827,7 +5847,10 @@ body.modal-open{overflow:hidden}
   .music-artist{font-size:14px}
   /* The now-playing TEXT is what there is no room for, not the controls: the
      video and the X keep their columns and the transport keeps the centre. */
-  .music-bar{grid-template-columns:auto minmax(0,1fr) auto;gap:8px;padding:10px 8px}
+  .music-bar{gap:4px;padding:8px 10px 10px}
+  .music-controls{grid-template-columns:auto minmax(0,1fr) auto;gap:8px}
+  .music-seek{gap:8px}
+  .music-time{font-size:12px;min-width:38px}
   .music-screen{width:96px}
   .music-screen-icon{width:22px;height:22px}
   .music-now{display:none}
@@ -5836,6 +5859,12 @@ body.modal-open{overflow:hidden}
   .music-btn.is-primary{width:52px;height:52px}
   .music-btn.is-primary .icon{width:27px;height:27px}
   .music-tail .music-btn{width:38px;height:38px}
+  /* The slider goes, the mute button stays. At this width there is no room for
+     a 88px track beside the transport, and mute is the half that matters on a
+     phone — the hardware keys do the rest. */
+  .music-vol{display:none}
+  .music-volbtn{width:38px;height:38px}
+  .music-volbtn .icon{width:19px;height:19px}
   .music-div{margin:0 2px}
 }
 

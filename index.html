@@ -4632,6 +4632,24 @@
              with the video hidden is against the terms the embed ships under,
              and at this size it costs one row of the list. -->
         <div class="music-bar" id="musicBar" hidden>
+          <!-- ROW ONE, the full inner width of the bar, and that is the whole
+               point of it being a row. The songs bar up the page learned this
+               the hard way: five groups on one line gave the scrub the same
+               width as the volume slider, about 50px for a three-minute track,
+               which is not a sizing bug to patch but a layout that cannot give
+               a scrubber room. The play button is centred in the bar, so a row
+               spanning the bar is centred over it.
+
+               The times flank the track because that is where a reader looks
+               for them, and tabular figures stop the seconds jittering. -->
+          <div class="music-seek">
+            <span class="music-time" id="musicElapsed">0:00</span>
+            <input class="player-range music-scrub" id="musicScrub" type="range"
+                   min="0" max="1000" value="0" step="1" aria-label="Seek">
+            <span class="music-time" id="musicDuration">--:--</span>
+          </div>
+
+          <div class="music-controls">
           <div class="music-nowwrap">
             <!-- The screen is the same box whether or not anything is playing:
                  the embed fills it when there is one, an idle glyph sits in it
@@ -4653,17 +4671,22 @@
           <!-- The centred group. It is its own grid column rather than the
                middle of a flex row, so it stays put whatever the title beside
                it happens to say. -->
+          <!-- SYMMETRIC AROUND PLAY: shuffle, prev, PLAY, next, repeat. The
+               group is centred in the bar, so an asymmetric order centres the
+               GROUP while leaving the play button off to one side — it sat 65px
+               left of centre when the two modes hung off the right end, which
+               is visible the moment anything is centred above it. Two modes,
+               two transports, one primary in the middle. -->
           <div class="music-transport">
+            <button class="music-btn" type="button" id="musicShuffle"
+                    aria-label="Shuffle off" aria-pressed="false">
+              <span class="icon" data-icon="shuffle" aria-hidden="true"></span></button>
             <button class="music-btn" type="button" id="musicPrev" aria-label="Previous track">
               <span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
             <button class="music-btn is-primary" type="button" id="musicToggle" aria-label="Pause">
               <span class="icon" data-icon="pause" aria-hidden="true"></span></button>
             <button class="music-btn" type="button" id="musicNext" aria-label="Next track">
               <span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
-            <span class="music-div" aria-hidden="true"></span>
-            <button class="music-btn" type="button" id="musicShuffle"
-                    aria-label="Shuffle off" aria-pressed="false">
-              <span class="icon" data-icon="shuffle" aria-hidden="true"></span></button>
             <!-- Three states, not two: off, the whole list, or this one track.
                  data-loop rather than aria-pressed, which can only say two
                  things. Same cycle and same 1 badge as the songs bar up the
@@ -4676,11 +4699,29 @@
           </div>
 
           <div class="music-tail">
+            <!-- Volume, in the right-hand group rather than in the transport.
+                 It is to the right of repeat either way, and the transport is
+                 centred in the BAR — dropping a 76px slider into that group
+                 would push the play button off the middle, which is the thing
+                 the three-column grid exists to hold.
+
+                 .player-range is the site's own slider, reused rather than
+                 copied: the painted track, the 22px hit area behind a 5px bar
+                 and the white thumb that reads against both halves are all
+                 decisions already made and already fixed once. -->
+            <div class="music-volume">
+              <button class="music-btn music-volbtn" type="button" id="musicMute" aria-label="Mute">
+                <span class="icon" data-icon="volume" aria-hidden="true"></span></button>
+              <input class="player-range music-vol" id="musicVol" type="range"
+                     min="0" max="100" value="40" step="1" aria-label="Volume">
+            </div>
+            <span class="music-div" aria-hidden="true"></span>
             <!-- Stop, not close: the bar is permanent now. A small glyph in a
                  target big enough to hit — it is the only destructive control
                  in the bar and should not be mistaken for the transport. -->
             <button class="music-btn music-stop" type="button" id="musicStop" aria-label="Close music">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+          </div>
           </div>
         </div>
       </div>

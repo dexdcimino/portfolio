@@ -5083,6 +5083,8 @@ const MediaBus = (() => {
   const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
   const btnPrev = $('musicPrev'), btnToggle = $('musicToggle'), btnNext = $('musicNext');
   const btnShuffle = $('musicShuffle'), btnLoop = $('musicLoop'), btnStop = $('musicStop');
+  const btnMute = $('musicMute'), volEl = $('musicVol');
+  const scrubEl = $('musicScrub'), elapsedEl = $('musicElapsed'), durationEl = $('musicDuration');
   if (!rowsEl || !frame) return;
 
   const MANIFEST = 'assets/music/tracks.json';
@@ -5094,6 +5096,7 @@ const MediaBus = (() => {
      keep putting back what they took off by hand. */
   const SEED_KEY = 'music-repeat-seed';
   const SHUFFLE_KEY = 'music-shuffle';
+  const VOLUME_KEY = 'music-volume';
   const LAST_KEY = 'music-last';
   const LOOPS = ['off', 'all', 'one'];
 
@@ -5110,6 +5113,10 @@ const MediaBus = (() => {
      song first every time. Remembered either way, so turning it off sticks. */
   let shuffle = true;
   let loop = 'off';           // 'off' | 'all' | 'one'
+  let volume = 0.4;           // the site's default everywhere
+  let lastVolume = 0.4;       // what unmuting goes back to
+  let duration = 0;           // of the current track, as the embed reports it
+  let scrubbing = false;      // a finger is on the handle: stop painting over it
   let armed = false;          // the iframe has a src and will take commands
 
   /* The ticks are a PREFERENCE, not a document: they say how this browser
@@ -5275,6 +5282,7 @@ const MediaBus = (() => {
     nowArtist.textContent = `${queue.length} in ${view === 'repeat' ? 'REPEAT' : 'ALL'}`;
     if (screen) screen.classList.remove('is-live');
     frame.hidden = true;
+    resetTime();
   }
 
   /* Put the playing row on screen, but only when it is not already. With
@@ -5348,6 +5356,9 @@ const MediaBus = (() => {
     nowTitle.textContent = track.t;
     nowArtist.textContent = track.a;
     bar.hidden = false;
+    // The old track's clock must not sit under the new one's title even for the
+    // frame before the embed's first infoDelivery lands.
+    resetTime();
     frame.hidden = false;
     if (screen) screen.classList.add('is-live');
     try { localStorage.setItem(LAST_KEY, track.v); } catch { /* private mode */ }
@@ -5361,6 +5372,7 @@ const MediaBus = (() => {
       armed = true;
     } else {
       cmd('loadVideoById', [track.v]);
+      pushVolume();
     }
     // Optimistic, so the row lights up on the click rather than a beat later
     // when the embed gets round to saying so. onStateChange corrects it.
@@ -5519,6 +5531,88 @@ const MediaBus = (() => {
     try { localStorage.setItem(SHUFFLE_KEY, shuffle ? '1' : '0'); }
     catch { /* the session still works, it just will not be remembered */ }
   });
+  /* TIME. There is no getCurrentTime to call across an origin — but the embed
+     VOLUNTEERS both numbers in its infoDelivery messages, roughly every quarter
+     second while it plays, and that is the same feed the official API caches to
+     answer getCurrentTime synchronously. So this reads what already arrives
+     rather than polling for it. Seeking goes back the other way as seekTo. */
+  const mmss = (t) => Number.isFinite(t) && t >= 0
+    ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '--:--';
+
+  const setFill = (el, pct) => el.style.setProperty('--fill', `${pct}%`);
+
+  function paintTime(current) {
+    // Never paint over a handle someone is holding: the value under their
+    // finger is the one that matters until they let go.
+    if (scrubbing) return;
+    durationEl.textContent = mmss(duration);
+    elapsedEl.textContent = mmss(current);
+    const at = duration > 0 ? Math.min(1, current / duration) : 0;
+    scrubEl.value = Math.round(at * 1000);
+    setFill(scrubEl, at * 100);
+  }
+
+  function resetTime() {
+    duration = 0;
+    scrubbing = false;
+    elapsedEl.textContent = '0:00';
+    durationEl.textContent = '--:--';
+    scrubEl.value = 0;
+    setFill(scrubEl, 0);
+  }
+
+  scrubEl.addEventListener('pointerdown', () => { scrubbing = true; });
+  /* Not conditional on `scrubbing`: a keyboard seek fires input and change with
+     no pointer anywhere near it, and a commit that only ran after a drag would
+     leave the arrow keys moving a handle that seeks nothing. */
+  const commitSeek = () => {
+    scrubbing = false;
+    if (duration > 0) cmd('seekTo', [(scrubEl.value / 1000) * duration, true]);
+  };
+  scrubEl.addEventListener('pointerup', commitSeek);
+  scrubEl.addEventListener('change', commitSeek);
+  scrubEl.addEventListener('input', () => {
+    setFill(scrubEl, scrubEl.value / 10);
+    if (duration > 0) elapsedEl.textContent = mmss((scrubEl.value / 1000) * duration);
+  });
+
+  /* VOLUME. The embed takes 0-100 over the same postMessage channel as
+     everything else, and only once it has been handshaken — so it is pushed on
+     every load and on every state change rather than set once and trusted. An
+     <audio> element would have kept the value across a source change; a player
+     in another origin has no idea what the last one was set to. */
+  function pushVolume() {
+    if (!armed) return;
+    cmd('setVolume', [Math.round(volume * 100)]);
+    if (volume === 0) cmd('mute'); else cmd('unMute');
+  }
+
+  function applyVolume(v, persist) {
+    volume = Math.min(1, Math.max(0, v));
+    volEl.value = Math.round(volume * 100);
+    // --fill is what paints the accent portion of the track; the shared
+    // .player-range rules read it and nothing else sets it.
+    volEl.style.setProperty('--fill', `${volume * 100}%`);
+    const ic = btnMute.querySelector('.icon');
+    if (ic) ic.dataset.icon = volume === 0 ? 'volume-mute' : 'volume';
+    btnMute.setAttribute('aria-label', volume === 0 ? 'Unmute' : 'Mute');
+    if (persist) {
+      try { localStorage.setItem(VOLUME_KEY, String(volume)); }
+      catch { /* private mode — the session still works */ }
+    }
+    pushVolume();
+  }
+
+  volEl.addEventListener('input', () => {
+    const v = volEl.value / 100;
+    if (v > 0) lastVolume = v;
+    applyVolume(v, true);
+  });
+  // Clicking the speaker mutes, clicking again comes back to where it was —
+  // not to the default, which would be a second surprise after the first.
+  btnMute.addEventListener('click', () =>
+    applyVolume(volume === 0 ? (lastVolume || 0.4) : 0, true));
+
   const LOOP_LABEL = { off: 'Repeat off', all: 'Repeat the playlist',
                        one: 'Repeat this track' };
   btnLoop.addEventListener('click', () => {
@@ -5533,7 +5627,9 @@ const MediaBus = (() => {
      re-sent on every navigation — which is only the first load here, because
      everything after it is loadVideoById. */
   frame.addEventListener('load', () => {
-    if (armed) post({ event: 'listening', id: 1, channel: 'widget' });
+    if (!armed) return;
+    post({ event: 'listening', id: 1, channel: 'widget' });
+    pushVolume();
   });
 
   window.addEventListener('message', (event) => {
@@ -5543,6 +5639,16 @@ const MediaBus = (() => {
     try { data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; }
     catch { return; }
     if (!data || typeof data !== 'object') return;
+
+    /* The clock, and it has to be read BEFORE the early return below: plenty of
+       infoDelivery messages carry currentTime and no playerState at all, and
+       returning on those would leave the scrubber frozen between state changes
+       — which is to say, for the whole of a track. */
+    const info = data.info;
+    if (info && typeof info === 'object') {
+      if (Number.isFinite(info.duration) && info.duration > 0) duration = info.duration;
+      if (Number.isFinite(info.currentTime)) paintTime(info.currentTime);
+    }
 
     /* The embed reports its state two ways depending on which message it is:
        onStateChange carries the number itself, infoDelivery wraps it. Reading
@@ -5559,7 +5665,9 @@ const MediaBus = (() => {
       return;
     }
     const wasPlaying = playing;
-    if (state === 1) playing = true;                  // playing
+    // A fresh video starts at whatever the embed's own default is, so the
+    // volume has to be re-asserted rather than assumed to have carried over.
+    if (state === 1) { playing = true; pushVolume(); }  // playing
     if (state === 2) playing = false;                 // paused
     if (state === 1 && !wasPlaying) MediaBus.solo(me);
     if (state === 1 || state === 2) paint();
@@ -5646,6 +5754,15 @@ const MediaBus = (() => {
   try { storedShuffle = localStorage.getItem(SHUFFLE_KEY); } catch { /* private mode */ }
   if (storedShuffle !== null) shuffle = storedShuffle === '1';
   paintShuffle();
+
+  // Same shape and the same 0.4 default as the songs bar and the clips player.
+  let storedVolume = null;
+  try { storedVolume = localStorage.getItem(VOLUME_KEY); } catch { /* private mode */ }
+  const parsedVolume = storedVolume === null ? 0.4 : parseFloat(storedVolume);
+  const startVolume = Number.isFinite(parsedVolume)
+    ? Math.min(1, Math.max(0, parsedVolume)) : 0.4;
+  lastVolume = startVolume || 0.4;
+  applyVolume(startVolume, false);
 
 })();
 
