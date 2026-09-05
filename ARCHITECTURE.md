@@ -1376,9 +1376,34 @@ the sensible resting state for a list someone deliberately put on; a stored
 repeat value is only honoured if it is one of the three, so a hand-edited key
 cannot strand the button somewhere the cycle never reaches.
 
-KNOWN: the docked bar and the Top Picks songs bar occupy the same corner. Only
-one can play at a time (`MediaBus`), but both can be on screen at once, and then
-they overlap.
+**ANOTHER PLAYER TAKING THE ROOM CLOSES THIS FEED**, it does not pause it, and
+that is one fix for two symptoms. `pause()` is a postMessage to another origin
+with no acknowledgement, and it set `playing = false` the moment it was sent —
+so when the message did not land, the video played on while the bus believed it
+was paused, the bus never reached it again, and pausing a Top Picks song simply
+uncovered music that had never stopped. It also meant two things decoding audio
+at once, which a scroll frame was paying for.
+
+So the bus's `pause` for this player is `yieldToOther()`, which closes the feed:
+`stop()` removes the iframe's `src`, and nothing can play from a src that is not
+there. And `el.paused` answers "is this feed live at all" (`!armed`) rather than
+"is it rolling" (`!playing`) — reading it off the optimistic flag is exactly
+what let the drift hide, because a feed the bus thinks is already paused is a
+feed it will never pause again. It is also what the two players mean: starting a
+Top Picks song is not a request to hold the playlist's place.
+
+**A LIVE CROSS-ORIGIN VIDEO OVER A SCROLLING PAGE NEEDS ITS OWN LAYER.** The
+docked bar and the iframe both carry `will-change:transform`. Without it, every
+scroll frame re-composites the video's texture with whatever moved behind it,
+across a region the 30px shadow makes large — which showed up as the page
+catching and the hero's bob stuttering, and only ever while music played. The
+Top Picks bar never did this because an `<audio>` element has no picture to
+composite. The embed is also asked for the smallest stream (`vq`,
+`setPlaybackQuality`); both are advisory and cost nothing when ignored.
+
+KNOWN: the docked bar and the Top Picks songs bar occupy the same corner. Since
+starting either now closes the other's feed, they can no longer both be live —
+but a paused songs bar can still be on screen under the music bar.
 
 **The clock is read, not polled.** There is no `getCurrentTime` to call across an
 origin, but the embed volunteers `currentTime` and `duration` in its

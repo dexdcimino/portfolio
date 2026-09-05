@@ -75,7 +75,11 @@ const shutMusic = async () => {
 
 const browser = await puppeteer.launch({
   executablePath: CHROME, headless: 'new',
-  args: ['--no-first-run', '--no-default-browser-check', '--mute-audio'],
+  // The Top Picks player is driven for real in check 8d, and a scripted click
+  // is not a user gesture — without this the <audio> refuses to start and the
+  // hand-off check would pass against a player that never played.
+  args: ['--no-first-run', '--no-default-browser-check', '--mute-audio',
+         '--autoplay-policy=no-user-gesture-required'],
 });
 const page = await browser.newPage();
 const cdp = await page.createCDPSession();
@@ -1276,6 +1280,75 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(ended.src === null, 'the bar\'s X left the embed holding a src');
 }
 
+/* ---- 8d. the two players are two things --------------------------------
+   THE REPORTED BUG: play a Top Picks song, pause it, and a track from the
+   music playlist started up. It had not started — it had never stopped.
+
+   pause() is a postMessage to another origin with no acknowledgement, and it
+   set `playing = false` the moment it was sent. When the message did not land
+   the video played on, inaudible under the song; the bus, reading that flag,
+   believed it was already paused and never reached it again; and pausing the
+   song simply uncovered it. Two things also decoded audio at once, which is
+   what a scroll frame was paying for.
+
+   FALSELY PASSES IF: only the flag were read back. What has to be true is that
+   the iframe no longer HAS a src — the one state that cannot lie, because
+   nothing can play from it. */
+{
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 10000 });
+  await page.evaluate(() =>
+    document.querySelectorAll('#musicRows .music-row')[3].querySelector('.music-play').click());
+  await page.click('#musicClose');
+  await page.waitForFunction(() => document.getElementById('musicModal')
+                                     .classList.contains('is-docked'), { timeout: 5000 });
+  const live = await page.evaluate(() => ({
+    src: document.getElementById('musicVideo').getAttribute('src'),
+    docked: document.getElementById('musicModal').classList.contains('is-docked'),
+  }));
+  note(!!live.src && live.docked,
+       'the music feed did not come up, so the hand-off check would prove nothing');
+
+  /* Start a Top Picks song the way a click does: MediaBus.solo fires off the
+     <audio> element's own play event. */
+  const started = await page.evaluate(async () => {
+    const btn = document.querySelector('.pk-song .pk-play[data-audio]');
+    if (!btn) return 'no song button in the page';
+    btn.click();
+    const audio = document.getElementById('songAudio');
+    try { await audio.play(); } catch { /* the click above usually has it going */ }
+    await new Promise(r => setTimeout(r, 300));
+    return audio.paused ? 'the audio would not start' : 'playing';
+  });
+  note(started === 'playing', `the Top Picks player did not start (${started})`);
+
+  const after = await page.evaluate(() => ({
+    open: document.getElementById('musicModal').open,
+    docked: document.getElementById('musicModal').classList.contains('is-docked'),
+    src: document.getElementById('musicVideo').getAttribute('src'),
+    songPaused: document.getElementById('songAudio').paused,
+  }));
+  note(!after.open && !after.docked,
+       'starting a Top Picks song left the music bar on screen');
+  note(after.src === null,
+       'starting a Top Picks song left the music embed loaded — it plays on under '
+       + 'the song and comes back the moment the song is paused');
+  note(!after.songPaused, 'the music hand-off stopped the Top Picks song as well');
+
+  // ...and pausing the song must bring nothing back.
+  await page.evaluate(() => document.getElementById('songAudio').pause());
+  await new Promise(r => setTimeout(r, 300));
+  const paused = await page.evaluate(() => ({
+    src: document.getElementById('musicVideo').getAttribute('src'),
+    open: document.getElementById('musicModal').open,
+  }));
+  note(paused.src === null && !paused.open,
+       'pausing the Top Picks song brought the music feed back');
+}
+
 /* ---- 9. the keypad flash ------------------------------------------------
    THE BUG: opening the notes with a code already in hand showed the password
    keypad for the length of the unlock round trip. Asserted SYNCHRONOUSLY —
@@ -1336,7 +1409,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 195) {
+if (TOTAL < 200) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

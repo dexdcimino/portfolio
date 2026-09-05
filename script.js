@@ -5371,6 +5371,12 @@ const MediaBus = (() => {
     const params = new URLSearchParams({
       enablejsapi: '1', autoplay: '1', rel: '0',
       modestbranding: '1', playsinline: '1',
+      /* The picture is 104px wide and nobody is watching it — what this player
+         is for is the sound. A smaller stream is less to decode and less to
+         hand the compositor on every frame of every scroll. Both of these are
+         ADVISORY: YouTube picks its own quality and may ignore either. They
+         cost nothing when ignored, so they are set anyway. */
+      vq: 'small',
     });
     // A file:// page has origin "null", which the embed rejects outright. On a
     // served page this is always set, which is every way anyone reaches this.
@@ -5619,6 +5625,8 @@ const MediaBus = (() => {
     if (!armed) return;
     cmd('setVolume', [Math.round(volume * 100)]);
     if (volume === 0) cmd('mute'); else cmd('unMute');
+    // Advisory, and re-sent with the volume because a new video resets it.
+    cmd('setPlaybackQuality', ['small']);
   }
 
   function applyVolume(v, persist) {
@@ -5712,19 +5720,38 @@ const MediaBus = (() => {
     if (state === 1 || state === 2) paint();
   });
 
-  /* Registered with the bus so starting a song here silences the Top Picks bar
-     and the clips player. `el` is a shim: the bus only ever asks a player
-     whether it is paused, and an iframe cannot answer that — this can.
-     keepPlayingHidden for the same reason the songs bar has it: this is music
-     someone deliberately put on, and cutting it when the tab goes to the
-     background is not protecting them from anything. */
+  /* ANOTHER PLAYER TAKING THE ROOM CLOSES THIS FEED. It does not pause it, and
+     the difference is the whole of a bug that looked like two:
+
+     pause() is a postMessage to another origin with no acknowledgement, and it
+     sets `playing = false` the moment it is sent. When the message did not
+     land, the video played on while the bus believed it was paused — so the
+     bus never reached it again, two things decoded audio at once, and the
+     moment the Top Picks song was paused the music became audible and looked
+     like it had just started. It had never stopped. stop() removes the
+     iframe's src, which cannot fail to silence it.
+
+     `paused` therefore answers "is this feed live at all", not "is it rolling".
+     Reporting it off the optimistic `playing` flag is what let the drift hide:
+     a feed the bus thinks is already paused is a feed it will never pause
+     again. `armed` is only false once the src is gone, which is a fact rather
+     than a hope.
+
+     It is also what the two players MEAN. They are separate things: starting a
+     song from Top Picks is not a request to hold the playlist's place, it is a
+     request to listen to that instead. */
+  function yieldToOther() {
+    if (modal.open && isDockedBar(modal)) { stopping = true; closeModal(modal); return; }
+    stop();
+  }
+
   const me = MediaBus.add({
-    el: { get paused() { return !playing; } },
+    el: { get paused() { return !armed; } },
     keepPlayingHidden: true,
     onScreen: () => modal.open,
     touched: () => index >= 0,
     toggle: () => btnToggle.click(),
-    pause,
+    pause: yieldToOther,
   });
 
   /* ---- docking --------------------------------------------------------- */

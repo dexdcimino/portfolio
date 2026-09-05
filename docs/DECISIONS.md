@@ -25,6 +25,53 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-05 — a second player closes the music feed rather than pausing it
+
+**Decided.** `MediaBus`'s `pause` for the music player is `yieldToOther()`,
+which stops it and puts the bar away, and its `el.paused` reports `!armed`
+rather than `!playing`.
+
+**Replaced.** `pause()`, which sends `pauseVideo` over postMessage and sets
+`playing = false` immediately.
+
+**Why.** Reported as "pausing a Top Picks song starts a music track". It was not
+starting; it had never stopped. postMessage to another origin has no
+acknowledgement, and the optimistic flag meant that when a message did not land
+the bus believed the feed was already paused — and a feed the bus thinks is
+paused is one it never pauses again. Two things then decoded audio at once,
+which is also what the scroll jank was paying for. `stop()` removes the iframe's
+src, which cannot fail. Closing rather than pausing is also what the two players
+mean: they are separate things.
+
+**Reverse it if** the player ever gains a reliable state channel — an
+acknowledged command, or a same-origin element whose `paused` is a fact. Then
+pausing is honest again and holding the playlist's place is worth something.
+
+---
+
+## 2026-09-05 — the docked bar gets its own compositor layer
+
+**Decided.** `will-change:transform` on the docked dialog and on the iframe, and
+the embed is asked for the smallest stream.
+
+**Replaced.** Neither, on the grounds that the layout worked.
+
+**Why.** Scrolling caught and the hero's bob stuttered, but ONLY while music
+played — and the Top Picks player, which is an `<audio>` element, never did it.
+That difference is the whole diagnosis: a live cross-origin video in a
+`position:fixed` bar over a scrolling page has to be re-composited with
+everything that moves behind it, over a region the shadow makes large. A layer
+of its own takes it out of the scroll's way. Worth recording because the first
+investigation measured layout, style and script — all cheap — and concluded the
+page was healthy, which it is; the cost was in compositing, which those metrics
+do not see.
+
+**Reverse it if** the bar stops holding a video. `will-change` pins a layer's
+worth of memory for as long as it applies, and it buys nothing for a bar that
+is only text and buttons.
+
+---
+
 ## 2026-09-05 — the music docks by re-showing the same dialog non-modally
 
 **Decided.** Closing the music overlay with a track playing calls `close()` then

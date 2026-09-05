@@ -5769,7 +5769,12 @@ body.modal-open{overflow:hidden}
 /* The video is VISIBLE and stays visible whenever there is one. A YouTube embed
    played with the picture hidden is against the terms the embed ships under,
    and a 16:9 box this size costs one row of the list. */
-.music-video{position:absolute;inset:0;width:100%;height:100%;border:0}
+/* The frame gets its own layer too: the video surface is the expensive thing
+   in the bar, and this is what stops it being re-rastered with the rest of it. */
+.music-video{
+  position:absolute;inset:0;width:100%;height:100%;border:0;
+  will-change:transform;
+}
 .music-video[hidden]{display:none}
 .music-screen-icon{width:30px;height:30px;color:var(--muted);opacity:.4}
 .music-screen.is-live .music-screen-icon{display:none}
@@ -5889,6 +5894,15 @@ body.modal-open{overflow:hidden}
   display:block;height:auto;max-height:none;
   width:min(760px, calc(100vw - var(--sidebar-open) - 40px));
   margin:0;padding:0;border:0;background:none;overflow:visible;
+  /* ITS OWN COMPOSITOR LAYER, and this is a performance fix rather than a
+     visual one. A fixed bar with a live cross-origin video inside it sits over
+     a scrolling page: without a layer of its own, every scroll frame has to
+     re-composite the video's texture together with whatever just moved behind
+     it, and the 30px shadow means that region is large. The Top Picks bar
+     never showed this because an <audio> element has no picture to composite.
+     Promoting it costs one layer's memory and takes the video out of the
+     scroll's way entirely. */
+  will-change:transform;
 }
 /* width:100% as well as display:block. The dialog carries place-items:center
    from .music-modal[open], and the frame was still being shrink-wrapped to
