@@ -18,13 +18,13 @@
      "index": 5
     },
     {
-     "index": 19
+     "index": 33
     },
     {
-     "index": 23
+     "index": 72
     },
     {
-     "index": 10
+     "index": 22
     }
    ],
    "items": [
@@ -157,6 +157,189 @@
      }
     },
     {
+     "stem": "bone-archer-4",
+     "stamp": "d503cdbd",
+     "title": "Bone Archer",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/bone-archer-4.webp",
+     "w": 1600,
+     "h": 900,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/bone-archer-4-900.avif?v=d503cdbd 900w, assets/derived/work/character/bone-archer-4-600.avif?v=d503cdbd 600w, assets/derived/work/character/bone-archer-4-400.avif?v=d503cdbd 400w",
+      "webp": "assets/derived/work/character/bone-archer-4-900.webp?v=d503cdbd 900w, assets/derived/work/character/bone-archer-4-600.webp?v=d503cdbd 600w, assets/derived/work/character/bone-archer-4-400.webp?v=d503cdbd 400w"
+     }
+    },
+    {
+     "stem": "bone-archer-5",
+     "stamp": "b9e93d17",
+     "title": "Bone Archer",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/bone-archer-5.webp",
+     "w": 815,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/bone-archer-5-600.avif?v=b9e93d17 600w, assets/derived/work/character/bone-archer-5-400.avif?v=b9e93d17 400w",
+      "webp": "assets/derived/work/character/bone-archer-5-600.webp?v=b9e93d17 600w, assets/derived/work/character/bone-archer-5-400.webp?v=b9e93d17 400w"
+     }
+    },
+    {
+     "stem": "bone-archer-6",
+     "stamp": "8776f366",
+     "title": "Bone Archer",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/bone-archer-6.webp",
+     "w": 753,
+     "h": 972,
+     "pos": {
+      "card": "50% 23%",
+      "thumb": "50% 16%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/bone-archer-6-600.avif?v=8776f366 600w, assets/derived/work/character/bone-archer-6-400.avif?v=8776f366 400w",
+      "webp": "assets/derived/work/character/bone-archer-6-600.webp?v=8776f366 600w, assets/derived/work/character/bone-archer-6-400.webp?v=8776f366 400w"
+     }
+    },
+    {
+     "stem": "bone-archer-7",
+     "stamp": "48d7dd58",
+     "title": "Bone Archer",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/bone-archer-7.webp",
+     "w": 1600,
+     "h": 1078,
+     "pos": {
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/bone-archer-7-900.avif?v=48d7dd58 900w, assets/derived/work/character/bone-archer-7-600.avif?v=48d7dd58 600w, assets/derived/work/character/bone-archer-7-400.avif?v=48d7dd58 400w",
+      "webp": "assets/derived/work/character/bone-archer-7-900.webp?v=48d7dd58 900w, assets/derived/work/character/bone-archer-7-600.webp?v=48d7dd58 600w, assets/derived/work/character/bone-archer-7-400.webp?v=48d7dd58 400w"
+     }
+    },
+    {
+     "stem": "low-res-character-1",
+     "stamp": "1b6af195",
+     "title": "Low-Res Character",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-character-1.webp",
+     "w": 1574,
+     "h": 852,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-character-1-900.avif?v=1b6af195 900w, assets/derived/work/character/low-res-character-1-600.avif?v=1b6af195 600w, assets/derived/work/character/low-res-character-1-400.avif?v=1b6af195 400w",
+      "webp": "assets/derived/work/character/low-res-character-1-900.webp?v=1b6af195 900w, assets/derived/work/character/low-res-character-1-600.webp?v=1b6af195 600w, assets/derived/work/character/low-res-character-1-400.webp?v=1b6af195 400w"
+     }
+    },
+    {
+     "stem": "low-res-character-2",
+     "stamp": "27f540b3",
+     "title": "Low-Res Character",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-character-2.webp",
+     "w": 1081,
+     "h": 429,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-character-2-900.avif?v=27f540b3 900w, assets/derived/work/character/low-res-character-2-600.avif?v=27f540b3 600w, assets/derived/work/character/low-res-character-2-400.avif?v=27f540b3 400w",
+      "webp": "assets/derived/work/character/low-res-character-2-900.webp?v=27f540b3 900w, assets/derived/work/character/low-res-character-2-600.webp?v=27f540b3 600w, assets/derived/work/character/low-res-character-2-400.webp?v=27f540b3 400w"
+     }
+    },
+    {
+     "stem": "low-res-character-3",
+     "stamp": "e9658b62",
+     "title": "Low-Res Character",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-character-3.webp",
+     "w": 1081,
+     "h": 1076,
+     "pos": {
+      "card": "50% 8%",
+      "thumb": "50% 4%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-character-3-900.avif?v=e9658b62 900w, assets/derived/work/character/low-res-character-3-600.avif?v=e9658b62 600w, assets/derived/work/character/low-res-character-3-400.avif?v=e9658b62 400w",
+      "webp": "assets/derived/work/character/low-res-character-3-900.webp?v=e9658b62 900w, assets/derived/work/character/low-res-character-3-600.webp?v=e9658b62 600w, assets/derived/work/character/low-res-character-3-400.webp?v=e9658b62 400w"
+     }
+    },
+    {
+     "stem": "low-res-character-4",
+     "stamp": "cbeb260b",
+     "title": "Low-Res Character",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-character-4.webp",
+     "w": 1081,
+     "h": 692,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-character-4-900.avif?v=cbeb260b 900w, assets/derived/work/character/low-res-character-4-600.avif?v=cbeb260b 600w, assets/derived/work/character/low-res-character-4-400.avif?v=cbeb260b 400w",
+      "webp": "assets/derived/work/character/low-res-character-4-900.webp?v=cbeb260b 900w, assets/derived/work/character/low-res-character-4-600.webp?v=cbeb260b 600w, assets/derived/work/character/low-res-character-4-400.webp?v=cbeb260b 400w"
+     }
+    },
+    {
+     "stem": "low-res-character-5",
+     "stamp": "6fe0b364",
+     "title": "Low-Res Character",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-character-5.webp",
+     "w": 1081,
+     "h": 475,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-character-5-900.avif?v=6fe0b364 900w, assets/derived/work/character/low-res-character-5-600.avif?v=6fe0b364 600w, assets/derived/work/character/low-res-character-5-400.avif?v=6fe0b364 400w",
+      "webp": "assets/derived/work/character/low-res-character-5-900.webp?v=6fe0b364 900w, assets/derived/work/character/low-res-character-5-600.webp?v=6fe0b364 600w, assets/derived/work/character/low-res-character-5-400.webp?v=6fe0b364 400w"
+     }
+    },
+    {
+     "stem": "low-res-character-6",
+     "stamp": "bd38cf5f",
+     "title": "Low-Res Character",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-character-6.webp",
+     "w": 1081,
+     "h": 914,
+     "pos": {
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-character-6-900.avif?v=bd38cf5f 900w, assets/derived/work/character/low-res-character-6-600.avif?v=bd38cf5f 600w, assets/derived/work/character/low-res-character-6-400.avif?v=bd38cf5f 400w",
+      "webp": "assets/derived/work/character/low-res-character-6-900.webp?v=bd38cf5f 900w, assets/derived/work/character/low-res-character-6-600.webp?v=bd38cf5f 600w, assets/derived/work/character/low-res-character-6-400.webp?v=bd38cf5f 400w"
+     }
+    },
+    {
+     "stem": "skully-1",
+     "stamp": "8fd50128",
+     "title": "Skully",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/skully-1.webp",
+     "w": 1400,
+     "h": 1023,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/skully-1-900.avif?v=8fd50128 900w, assets/derived/work/character/skully-1-600.avif?v=8fd50128 600w, assets/derived/work/character/skully-1-400.avif?v=8fd50128 400w",
+      "webp": "assets/derived/work/character/skully-1-900.webp?v=8fd50128 900w, assets/derived/work/character/skully-1-600.webp?v=8fd50128 600w, assets/derived/work/character/skully-1-400.webp?v=8fd50128 400w"
+     }
+    },
+    {
+     "stem": "skully-2",
+     "stamp": "416fba80",
+     "title": "Skully",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/skully-2.webp",
+     "w": 1400,
+     "h": 1023,
+     "pos": {
+      "thumb": "50% 31%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/skully-2-900.avif?v=416fba80 900w, assets/derived/work/character/skully-2-600.avif?v=416fba80 600w, assets/derived/work/character/skully-2-400.avif?v=416fba80 400w",
+      "webp": "assets/derived/work/character/skully-2-900.webp?v=416fba80 900w, assets/derived/work/character/skully-2-600.webp?v=416fba80 600w, assets/derived/work/character/skully-2-400.webp?v=416fba80 400w"
+     }
+    },
+    {
      "stem": "male-character-high-poly-1",
      "stamp": "2714e148",
      "title": "Male Character (High Poly)",
@@ -209,6 +392,48 @@
      "srcset": {
       "avif": "assets/derived/work/character/male-character-high-poly-3-900.avif?v=b4875841 900w, assets/derived/work/character/male-character-high-poly-3-600.avif?v=b4875841 600w, assets/derived/work/character/male-character-high-poly-3-400.avif?v=b4875841 400w",
       "webp": "assets/derived/work/character/male-character-high-poly-3-900.webp?v=b4875841 900w, assets/derived/work/character/male-character-high-poly-3-600.webp?v=b4875841 600w, assets/derived/work/character/male-character-high-poly-3-400.webp?v=b4875841 400w"
+     }
+    },
+    {
+     "stem": "thunderjaw-1",
+     "stamp": "d72850dc",
+     "title": "Thunderjaw",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/thunderjaw-1.webp",
+     "w": 1400,
+     "h": 890,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/thunderjaw-1-900.avif?v=d72850dc 900w, assets/derived/work/character/thunderjaw-1-600.avif?v=d72850dc 600w, assets/derived/work/character/thunderjaw-1-400.avif?v=d72850dc 400w",
+      "webp": "assets/derived/work/character/thunderjaw-1-900.webp?v=d72850dc 900w, assets/derived/work/character/thunderjaw-1-600.webp?v=d72850dc 600w, assets/derived/work/character/thunderjaw-1-400.webp?v=d72850dc 400w"
+     }
+    },
+    {
+     "stem": "thunderjaw-2",
+     "stamp": "8ae62767",
+     "title": "Thunderjaw",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/thunderjaw-2.webp",
+     "w": 1400,
+     "h": 890,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/thunderjaw-2-900.avif?v=8ae62767 900w, assets/derived/work/character/thunderjaw-2-600.avif?v=8ae62767 600w, assets/derived/work/character/thunderjaw-2-400.avif?v=8ae62767 400w",
+      "webp": "assets/derived/work/character/thunderjaw-2-900.webp?v=8ae62767 900w, assets/derived/work/character/thunderjaw-2-600.webp?v=8ae62767 600w, assets/derived/work/character/thunderjaw-2-400.webp?v=8ae62767 400w"
+     }
+    },
+    {
+     "stem": "thunderjaw-3",
+     "stamp": "6c5c7532",
+     "title": "Thunderjaw",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/thunderjaw-3.webp",
+     "w": 1600,
+     "h": 1077,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/thunderjaw-3-900.avif?v=6c5c7532 900w, assets/derived/work/character/thunderjaw-3-600.avif?v=6c5c7532 600w, assets/derived/work/character/thunderjaw-3-400.avif?v=6c5c7532 400w",
+      "webp": "assets/derived/work/character/thunderjaw-3-900.webp?v=6c5c7532 900w, assets/derived/work/character/thunderjaw-3-600.webp?v=6c5c7532 600w, assets/derived/work/character/thunderjaw-3-400.webp?v=6c5c7532 400w"
      }
     },
     {
@@ -319,434 +544,6 @@
      }
     },
     {
-     "stem": "osseous-1",
-     "stamp": "36d34c61",
-     "title": "Osseous",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/osseous-1.webp",
-     "w": 1600,
-     "h": 1034,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/osseous-1-900.avif?v=36d34c61 900w, assets/derived/work/character/osseous-1-600.avif?v=36d34c61 600w, assets/derived/work/character/osseous-1-400.avif?v=36d34c61 400w",
-      "webp": "assets/derived/work/character/osseous-1-900.webp?v=36d34c61 900w, assets/derived/work/character/osseous-1-600.webp?v=36d34c61 600w, assets/derived/work/character/osseous-1-400.webp?v=36d34c61 400w"
-     }
-    },
-    {
-     "stem": "osseous-2",
-     "stamp": "d17d1db0",
-     "title": "Osseous",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/osseous-2.webp",
-     "w": 1200,
-     "h": 1600,
-     "pos": {
-      "card": "50% 6%",
-      "thumb": "50% 4%"
-     },
-     "zoom": {
-      "scale": 1.3,
-      "pos": "50% 6%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/osseous-2-900.avif?v=d17d1db0 900w, assets/derived/work/character/osseous-2-600.avif?v=d17d1db0 600w, assets/derived/work/character/osseous-2-400.avif?v=d17d1db0 400w",
-      "webp": "assets/derived/work/character/osseous-2-900.webp?v=d17d1db0 900w, assets/derived/work/character/osseous-2-600.webp?v=d17d1db0 600w, assets/derived/work/character/osseous-2-400.webp?v=d17d1db0 400w"
-     }
-    },
-    {
-     "stem": "osseous-3",
-     "stamp": "3f88267b",
-     "title": "Osseous",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/osseous-3.webp",
-     "w": 1200,
-     "h": 1600,
-     "pos": {
-      "card": "50% 2%",
-      "thumb": "50% 2%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/osseous-3-900.avif?v=3f88267b 900w, assets/derived/work/character/osseous-3-600.avif?v=3f88267b 600w, assets/derived/work/character/osseous-3-400.avif?v=3f88267b 400w",
-      "webp": "assets/derived/work/character/osseous-3-900.webp?v=3f88267b 900w, assets/derived/work/character/osseous-3-600.webp?v=3f88267b 600w, assets/derived/work/character/osseous-3-400.webp?v=3f88267b 400w"
-     }
-    },
-    {
-     "stem": "mecha-bot-1",
-     "stamp": "11124e9d",
-     "title": "Mecha-Bot",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/mecha-bot-1.webp",
-     "w": 1081,
-     "h": 608,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/mecha-bot-1-900.avif?v=11124e9d 900w, assets/derived/work/character/mecha-bot-1-600.avif?v=11124e9d 600w, assets/derived/work/character/mecha-bot-1-400.avif?v=11124e9d 400w",
-      "webp": "assets/derived/work/character/mecha-bot-1-900.webp?v=11124e9d 900w, assets/derived/work/character/mecha-bot-1-600.webp?v=11124e9d 600w, assets/derived/work/character/mecha-bot-1-400.webp?v=11124e9d 400w"
-     }
-    },
-    {
-     "stem": "mecha-bot-2",
-     "stamp": "4569c943",
-     "title": "Mecha-Bot",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/mecha-bot-2.webp",
-     "w": 1081,
-     "h": 591,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/mecha-bot-2-900.avif?v=4569c943 900w, assets/derived/work/character/mecha-bot-2-600.avif?v=4569c943 600w, assets/derived/work/character/mecha-bot-2-400.avif?v=4569c943 400w",
-      "webp": "assets/derived/work/character/mecha-bot-2-900.webp?v=4569c943 900w, assets/derived/work/character/mecha-bot-2-600.webp?v=4569c943 600w, assets/derived/work/character/mecha-bot-2-400.webp?v=4569c943 400w"
-     }
-    },
-    {
-     "stem": "mecha-bot-3",
-     "stamp": "b24c2e19",
-     "title": "Mecha-Bot",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/mecha-bot-3.webp",
-     "w": 1081,
-     "h": 1536,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/mecha-bot-3-900.avif?v=b24c2e19 900w, assets/derived/work/character/mecha-bot-3-600.avif?v=b24c2e19 600w, assets/derived/work/character/mecha-bot-3-400.avif?v=b24c2e19 400w",
-      "webp": "assets/derived/work/character/mecha-bot-3-900.webp?v=b24c2e19 900w, assets/derived/work/character/mecha-bot-3-600.webp?v=b24c2e19 600w, assets/derived/work/character/mecha-bot-3-400.webp?v=b24c2e19 400w"
-     }
-    },
-    {
-     "stem": "kittens-1",
-     "stamp": "c50b26af",
-     "title": "Kittens",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/kittens-1.webp",
-     "w": 1080,
-     "h": 602,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/kittens-1-900.avif?v=c50b26af 900w, assets/derived/work/character/kittens-1-600.avif?v=c50b26af 600w, assets/derived/work/character/kittens-1-400.avif?v=c50b26af 400w",
-      "webp": "assets/derived/work/character/kittens-1-900.webp?v=c50b26af 900w, assets/derived/work/character/kittens-1-600.webp?v=c50b26af 600w, assets/derived/work/character/kittens-1-400.webp?v=c50b26af 400w"
-     }
-    },
-    {
-     "stem": "kittens-2",
-     "stamp": "d22fd8ae",
-     "title": "Kittens",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/kittens-2.webp",
-     "w": 1032,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/kittens-2-900.avif?v=d22fd8ae 900w, assets/derived/work/character/kittens-2-600.avif?v=d22fd8ae 600w, assets/derived/work/character/kittens-2-400.avif?v=d22fd8ae 400w",
-      "webp": "assets/derived/work/character/kittens-2-900.webp?v=d22fd8ae 900w, assets/derived/work/character/kittens-2-600.webp?v=d22fd8ae 600w, assets/derived/work/character/kittens-2-400.webp?v=d22fd8ae 400w"
-     }
-    },
-    {
-     "stem": "kittens-3",
-     "stamp": "b0b58788",
-     "title": "Kittens",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/kittens-3.webp",
-     "w": 586,
-     "h": 662,
-     "pos": {
-      "card": "50% 3%",
-      "thumb": "50% 2%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/kittens-3-400.avif?v=b0b58788 400w",
-      "webp": "assets/derived/work/character/kittens-3-400.webp?v=b0b58788 400w"
-     }
-    },
-    {
-     "stem": "kittens-4",
-     "stamp": "abf3fd4f",
-     "title": "Kittens",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/kittens-4.webp",
-     "w": 1600,
-     "h": 890,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/kittens-4-900.avif?v=abf3fd4f 900w, assets/derived/work/character/kittens-4-600.avif?v=abf3fd4f 600w, assets/derived/work/character/kittens-4-400.avif?v=abf3fd4f 400w",
-      "webp": "assets/derived/work/character/kittens-4-900.webp?v=abf3fd4f 900w, assets/derived/work/character/kittens-4-600.webp?v=abf3fd4f 600w, assets/derived/work/character/kittens-4-400.webp?v=abf3fd4f 400w"
-     }
-    },
-    {
-     "stem": "kittens-5",
-     "stamp": "54f75853",
-     "title": "Kittens",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/kittens-5.webp",
-     "w": 1033,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/kittens-5-900.avif?v=54f75853 900w, assets/derived/work/character/kittens-5-600.avif?v=54f75853 600w, assets/derived/work/character/kittens-5-400.avif?v=54f75853 400w",
-      "webp": "assets/derived/work/character/kittens-5-900.webp?v=54f75853 900w, assets/derived/work/character/kittens-5-600.webp?v=54f75853 600w, assets/derived/work/character/kittens-5-400.webp?v=54f75853 400w"
-     }
-    },
-    {
-     "stem": "kittens-6",
-     "stamp": "79e1ed22",
-     "title": "Kittens",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/kittens-6.webp",
-     "w": 757,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/kittens-6-600.avif?v=79e1ed22 600w, assets/derived/work/character/kittens-6-400.avif?v=79e1ed22 400w",
-      "webp": "assets/derived/work/character/kittens-6-600.webp?v=79e1ed22 600w, assets/derived/work/character/kittens-6-400.webp?v=79e1ed22 400w"
-     }
-    },
-    {
-     "stem": "kittens-7",
-     "stamp": "b8f3dc25",
-     "title": "Kittens",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/kittens-7.webp",
-     "w": 1593,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/kittens-7-900.avif?v=b8f3dc25 900w, assets/derived/work/character/kittens-7-600.avif?v=b8f3dc25 600w, assets/derived/work/character/kittens-7-400.avif?v=b8f3dc25 400w",
-      "webp": "assets/derived/work/character/kittens-7-900.webp?v=b8f3dc25 900w, assets/derived/work/character/kittens-7-600.webp?v=b8f3dc25 600w, assets/derived/work/character/kittens-7-400.webp?v=b8f3dc25 400w"
-     }
-    },
-    {
-     "stem": "low-res-enemies-1",
-     "stamp": "00e1e499",
-     "title": "Low-Res Enemies",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-enemies-1.webp",
-     "w": 850,
-     "h": 1535,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-enemies-1-600.avif?v=00e1e499 600w, assets/derived/work/character/low-res-enemies-1-400.avif?v=00e1e499 400w",
-      "webp": "assets/derived/work/character/low-res-enemies-1-600.webp?v=00e1e499 600w, assets/derived/work/character/low-res-enemies-1-400.webp?v=00e1e499 400w"
-     }
-    },
-    {
-     "stem": "low-res-enemies-2",
-     "stamp": "dc017ce6",
-     "title": "Low-Res Enemies",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-enemies-2.webp",
-     "w": 1081,
-     "h": 956,
-     "pos": {
-      "card": "50% 46%",
-      "thumb": "50% 7%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-enemies-2-900.avif?v=dc017ce6 900w, assets/derived/work/character/low-res-enemies-2-600.avif?v=dc017ce6 600w, assets/derived/work/character/low-res-enemies-2-400.avif?v=dc017ce6 400w",
-      "webp": "assets/derived/work/character/low-res-enemies-2-900.webp?v=dc017ce6 900w, assets/derived/work/character/low-res-enemies-2-600.webp?v=dc017ce6 600w, assets/derived/work/character/low-res-enemies-2-400.webp?v=dc017ce6 400w"
-     }
-    },
-    {
-     "stem": "low-res-enemies-3",
-     "stamp": "18b859d0",
-     "title": "Low-Res Enemies",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-enemies-3.webp",
-     "w": 1081,
-     "h": 446,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-enemies-3-900.avif?v=18b859d0 900w, assets/derived/work/character/low-res-enemies-3-600.avif?v=18b859d0 600w, assets/derived/work/character/low-res-enemies-3-400.avif?v=18b859d0 400w",
-      "webp": "assets/derived/work/character/low-res-enemies-3-900.webp?v=18b859d0 900w, assets/derived/work/character/low-res-enemies-3-600.webp?v=18b859d0 600w, assets/derived/work/character/low-res-enemies-3-400.webp?v=18b859d0 400w"
-     }
-    },
-    {
-     "stem": "low-res-enemies-4",
-     "stamp": "fa735a2b",
-     "title": "Low-Res Enemies",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-enemies-4.webp",
-     "w": 1081,
-     "h": 738,
-     "pos": {
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-enemies-4-900.avif?v=fa735a2b 900w, assets/derived/work/character/low-res-enemies-4-600.avif?v=fa735a2b 600w, assets/derived/work/character/low-res-enemies-4-400.avif?v=fa735a2b 400w",
-      "webp": "assets/derived/work/character/low-res-enemies-4-900.webp?v=fa735a2b 900w, assets/derived/work/character/low-res-enemies-4-600.webp?v=fa735a2b 600w, assets/derived/work/character/low-res-enemies-4-400.webp?v=fa735a2b 400w"
-     }
-    },
-    {
-     "stem": "low-res-enemies-5",
-     "stamp": "9061cac8",
-     "title": "Low-Res Enemies",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-enemies-5.webp",
-     "w": 1081,
-     "h": 389,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-enemies-5-900.avif?v=9061cac8 900w, assets/derived/work/character/low-res-enemies-5-600.avif?v=9061cac8 600w, assets/derived/work/character/low-res-enemies-5-400.avif?v=9061cac8 400w",
-      "webp": "assets/derived/work/character/low-res-enemies-5-900.webp?v=9061cac8 900w, assets/derived/work/character/low-res-enemies-5-600.webp?v=9061cac8 600w, assets/derived/work/character/low-res-enemies-5-400.webp?v=9061cac8 400w"
-     }
-    },
-    {
-     "stem": "low-res-enemies-6",
-     "stamp": "76b5f966",
-     "title": "Low-Res Enemies",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-enemies-6.webp",
-     "w": 1062,
-     "h": 679,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-enemies-6-900.avif?v=76b5f966 900w, assets/derived/work/character/low-res-enemies-6-600.avif?v=76b5f966 600w, assets/derived/work/character/low-res-enemies-6-400.avif?v=76b5f966 400w",
-      "webp": "assets/derived/work/character/low-res-enemies-6-900.webp?v=76b5f966 900w, assets/derived/work/character/low-res-enemies-6-600.webp?v=76b5f966 600w, assets/derived/work/character/low-res-enemies-6-400.webp?v=76b5f966 400w"
-     }
-    },
-    {
-     "stem": "path-of-percival-1",
-     "stamp": "bb6e2960",
-     "title": "Path of Percival",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/path-of-percival-1.webp",
-     "w": 730,
-     "h": 361,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/path-of-percival-1-600.avif?v=bb6e2960 600w, assets/derived/work/character/path-of-percival-1-400.avif?v=bb6e2960 400w",
-      "webp": "assets/derived/work/character/path-of-percival-1-600.webp?v=bb6e2960 600w, assets/derived/work/character/path-of-percival-1-400.webp?v=bb6e2960 400w"
-     }
-    },
-    {
-     "stem": "path-of-percival-2",
-     "stamp": "df3ceda4",
-     "title": "Path of Percival",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/path-of-percival-2.webp",
-     "w": 731,
-     "h": 411,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/path-of-percival-2-600.avif?v=df3ceda4 600w, assets/derived/work/character/path-of-percival-2-400.avif?v=df3ceda4 400w",
-      "webp": "assets/derived/work/character/path-of-percival-2-600.webp?v=df3ceda4 600w, assets/derived/work/character/path-of-percival-2-400.webp?v=df3ceda4 400w"
-     }
-    },
-    {
-     "stem": "path-of-percival-3",
-     "stamp": "6ee4ed37",
-     "title": "Path of Percival",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/path-of-percival-3.webp",
-     "w": 731,
-     "h": 301,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/path-of-percival-3-600.avif?v=6ee4ed37 600w, assets/derived/work/character/path-of-percival-3-400.avif?v=6ee4ed37 400w",
-      "webp": "assets/derived/work/character/path-of-percival-3-600.webp?v=6ee4ed37 600w, assets/derived/work/character/path-of-percival-3-400.webp?v=6ee4ed37 400w"
-     }
-    },
-    {
-     "stem": "path-of-percival-4",
-     "stamp": "61d4f1f7",
-     "title": "Path of Percival",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/path-of-percival-4.webp",
-     "w": 731,
-     "h": 363,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/path-of-percival-4-600.avif?v=61d4f1f7 600w, assets/derived/work/character/path-of-percival-4-400.avif?v=61d4f1f7 400w",
-      "webp": "assets/derived/work/character/path-of-percival-4-600.webp?v=61d4f1f7 600w, assets/derived/work/character/path-of-percival-4-400.webp?v=61d4f1f7 400w"
-     }
-    },
-    {
-     "stem": "path-of-percival-5",
-     "stamp": "cb78ef94",
-     "title": "Path of Percival",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/path-of-percival-5.webp",
-     "w": 726,
-     "h": 339,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/path-of-percival-5-600.avif?v=cb78ef94 600w, assets/derived/work/character/path-of-percival-5-400.avif?v=cb78ef94 400w",
-      "webp": "assets/derived/work/character/path-of-percival-5-600.webp?v=cb78ef94 600w, assets/derived/work/character/path-of-percival-5-400.webp?v=cb78ef94 400w"
-     }
-    },
-    {
-     "stem": "path-of-percival-6",
-     "stamp": "4d5a08f9",
-     "title": "Path of Percival",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/path-of-percival-6.webp",
-     "w": 726,
-     "h": 430,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/path-of-percival-6-600.avif?v=4d5a08f9 600w, assets/derived/work/character/path-of-percival-6-400.avif?v=4d5a08f9 400w",
-      "webp": "assets/derived/work/character/path-of-percival-6-600.webp?v=4d5a08f9 600w, assets/derived/work/character/path-of-percival-6-400.webp?v=4d5a08f9 400w"
-     }
-    },
-    {
-     "stem": "path-of-percival-7",
-     "stamp": "312fa98a",
-     "title": "Path of Percival",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/path-of-percival-7.webp",
-     "w": 731,
-     "h": 411,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/path-of-percival-7-600.avif?v=312fa98a 600w, assets/derived/work/character/path-of-percival-7-400.avif?v=312fa98a 400w",
-      "webp": "assets/derived/work/character/path-of-percival-7-600.webp?v=312fa98a 600w, assets/derived/work/character/path-of-percival-7-400.webp?v=312fa98a 400w"
-     }
-    },
-    {
-     "stem": "path-of-percival-8",
-     "stamp": "04c5ad7a",
-     "title": "Path of Percival",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/path-of-percival-8.webp",
-     "w": 1600,
-     "h": 900,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/path-of-percival-8-900.avif?v=04c5ad7a 900w, assets/derived/work/character/path-of-percival-8-600.avif?v=04c5ad7a 600w, assets/derived/work/character/path-of-percival-8-400.avif?v=04c5ad7a 400w",
-      "webp": "assets/derived/work/character/path-of-percival-8-900.webp?v=04c5ad7a 900w, assets/derived/work/character/path-of-percival-8-600.webp?v=04c5ad7a 600w, assets/derived/work/character/path-of-percival-8-400.webp?v=04c5ad7a 400w"
-     }
-    },
-    {
-     "stem": "path-of-percival-9",
-     "stamp": "fcd5ba88",
-     "title": "Path of Percival",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/path-of-percival-9.webp",
-     "w": 1408,
-     "h": 917,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/path-of-percival-9-900.avif?v=fcd5ba88 900w, assets/derived/work/character/path-of-percival-9-600.avif?v=fcd5ba88 600w, assets/derived/work/character/path-of-percival-9-400.avif?v=fcd5ba88 400w",
-      "webp": "assets/derived/work/character/path-of-percival-9-900.webp?v=fcd5ba88 900w, assets/derived/work/character/path-of-percival-9-600.webp?v=fcd5ba88 600w, assets/derived/work/character/path-of-percival-9-400.webp?v=fcd5ba88 400w"
-     }
-    },
-    {
      "stem": "robo-owl-1",
      "stamp": "6fed7042",
      "title": "Robo-Owl",
@@ -803,123 +600,88 @@
      }
     },
     {
-     "stem": "skully-1",
-     "stamp": "8fd50128",
-     "title": "Skully",
+     "stem": "livetale-female-1",
+     "stamp": "c15bbfdd",
+     "title": "LiveTale Female",
      "desc": "CHARACTERS",
-     "src": "assets/work/character/skully-1.webp",
-     "w": 1400,
-     "h": 1023,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/skully-1-900.avif?v=8fd50128 900w, assets/derived/work/character/skully-1-600.avif?v=8fd50128 600w, assets/derived/work/character/skully-1-400.avif?v=8fd50128 400w",
-      "webp": "assets/derived/work/character/skully-1-900.webp?v=8fd50128 900w, assets/derived/work/character/skully-1-600.webp?v=8fd50128 600w, assets/derived/work/character/skully-1-400.webp?v=8fd50128 400w"
-     }
-    },
-    {
-     "stem": "skully-2",
-     "stamp": "416fba80",
-     "title": "Skully",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/skully-2.webp",
-     "w": 1400,
-     "h": 1023,
+     "src": "assets/work/character/livetale-female-1.webp",
+     "w": 429,
+     "h": 1600,
      "pos": {
-      "thumb": "50% 31%"
+      "card": "50% 5%",
+      "thumb": "50% 4%"
      },
      "srcset": {
-      "avif": "assets/derived/work/character/skully-2-900.avif?v=416fba80 900w, assets/derived/work/character/skully-2-600.avif?v=416fba80 600w, assets/derived/work/character/skully-2-400.avif?v=416fba80 400w",
-      "webp": "assets/derived/work/character/skully-2-900.webp?v=416fba80 900w, assets/derived/work/character/skully-2-600.webp?v=416fba80 600w, assets/derived/work/character/skully-2-400.webp?v=416fba80 400w"
+      "avif": "assets/derived/work/character/livetale-female-1-400.avif?v=c15bbfdd 400w",
+      "webp": "assets/derived/work/character/livetale-female-1-400.webp?v=c15bbfdd 400w"
      }
     },
     {
-     "stem": "thunderjaw-1",
-     "stamp": "d72850dc",
-     "title": "Thunderjaw",
+     "stem": "livetale-female-2",
+     "stamp": "edd7ec5e",
+     "title": "LiveTale Female",
      "desc": "CHARACTERS",
-     "src": "assets/work/character/thunderjaw-1.webp",
-     "w": 1400,
-     "h": 890,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/thunderjaw-1-900.avif?v=d72850dc 900w, assets/derived/work/character/thunderjaw-1-600.avif?v=d72850dc 600w, assets/derived/work/character/thunderjaw-1-400.avif?v=d72850dc 400w",
-      "webp": "assets/derived/work/character/thunderjaw-1-900.webp?v=d72850dc 900w, assets/derived/work/character/thunderjaw-1-600.webp?v=d72850dc 600w, assets/derived/work/character/thunderjaw-1-400.webp?v=d72850dc 400w"
-     }
-    },
-    {
-     "stem": "thunderjaw-2",
-     "stamp": "8ae62767",
-     "title": "Thunderjaw",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/thunderjaw-2.webp",
-     "w": 1400,
-     "h": 890,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/thunderjaw-2-900.avif?v=8ae62767 900w, assets/derived/work/character/thunderjaw-2-600.avif?v=8ae62767 600w, assets/derived/work/character/thunderjaw-2-400.avif?v=8ae62767 400w",
-      "webp": "assets/derived/work/character/thunderjaw-2-900.webp?v=8ae62767 900w, assets/derived/work/character/thunderjaw-2-600.webp?v=8ae62767 600w, assets/derived/work/character/thunderjaw-2-400.webp?v=8ae62767 400w"
-     }
-    },
-    {
-     "stem": "thunderjaw-3",
-     "stamp": "6c5c7532",
-     "title": "Thunderjaw",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/thunderjaw-3.webp",
-     "w": 1600,
-     "h": 1077,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/thunderjaw-3-900.avif?v=6c5c7532 900w, assets/derived/work/character/thunderjaw-3-600.avif?v=6c5c7532 600w, assets/derived/work/character/thunderjaw-3-400.avif?v=6c5c7532 400w",
-      "webp": "assets/derived/work/character/thunderjaw-3-900.webp?v=6c5c7532 900w, assets/derived/work/character/thunderjaw-3-600.webp?v=6c5c7532 600w, assets/derived/work/character/thunderjaw-3-400.webp?v=6c5c7532 400w"
-     }
-    },
-    {
-     "stem": "viper-1",
-     "stamp": "528d0ec8",
-     "title": "Viper",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/viper-1.webp",
-     "w": 1081,
-     "h": 647,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/viper-1-900.avif?v=528d0ec8 900w, assets/derived/work/character/viper-1-600.avif?v=528d0ec8 600w, assets/derived/work/character/viper-1-400.avif?v=528d0ec8 400w",
-      "webp": "assets/derived/work/character/viper-1-900.webp?v=528d0ec8 900w, assets/derived/work/character/viper-1-600.webp?v=528d0ec8 600w, assets/derived/work/character/viper-1-400.webp?v=528d0ec8 400w"
-     }
-    },
-    {
-     "stem": "viper-2",
-     "stamp": "5abe9ef5",
-     "title": "Viper",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/viper-2.webp",
-     "w": 882,
+     "src": "assets/work/character/livetale-female-2.webp",
+     "w": 634,
      "h": 1600,
      "pos": {
       "card": "50% 0%",
       "thumb": "50% 0%"
      },
      "srcset": {
-      "avif": "assets/derived/work/character/viper-2-600.avif?v=5abe9ef5 600w, assets/derived/work/character/viper-2-400.avif?v=5abe9ef5 400w",
-      "webp": "assets/derived/work/character/viper-2-600.webp?v=5abe9ef5 600w, assets/derived/work/character/viper-2-400.webp?v=5abe9ef5 400w"
+      "avif": "assets/derived/work/character/livetale-female-2-600.avif?v=edd7ec5e 600w, assets/derived/work/character/livetale-female-2-400.avif?v=edd7ec5e 400w",
+      "webp": "assets/derived/work/character/livetale-female-2-600.webp?v=edd7ec5e 600w, assets/derived/work/character/livetale-female-2-400.webp?v=edd7ec5e 400w"
      }
     },
     {
-     "stem": "viper-3",
-     "stamp": "2ee290ce",
-     "title": "Viper",
+     "stem": "livetale-female-3",
+     "stamp": "d89d6026",
+     "title": "LiveTale Female",
      "desc": "CHARACTERS",
-     "src": "assets/work/character/viper-3.webp",
-     "w": 862,
+     "src": "assets/work/character/livetale-female-3.webp",
+     "w": 400,
      "h": 1600,
      "pos": {
       "card": "50% 0%",
       "thumb": "50% 0%"
      },
      "srcset": {
-      "avif": "assets/derived/work/character/viper-3-600.avif?v=2ee290ce 600w, assets/derived/work/character/viper-3-400.avif?v=2ee290ce 400w",
-      "webp": "assets/derived/work/character/viper-3-600.webp?v=2ee290ce 600w, assets/derived/work/character/viper-3-400.webp?v=2ee290ce 400w"
+      "avif": "assets/derived/work/character/livetale-female-3-400.avif?v=d89d6026 400w",
+      "webp": "assets/derived/work/character/livetale-female-3-400.webp?v=d89d6026 400w"
+     }
+    },
+    {
+     "stem": "livetale-female-4",
+     "stamp": "022fef7b",
+     "title": "LiveTale Female",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/livetale-female-4.webp",
+     "w": 1100,
+     "h": 971,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/livetale-female-4-900.avif?v=022fef7b 900w, assets/derived/work/character/livetale-female-4-600.avif?v=022fef7b 600w, assets/derived/work/character/livetale-female-4-400.avif?v=022fef7b 400w",
+      "webp": "assets/derived/work/character/livetale-female-4-900.webp?v=022fef7b 900w, assets/derived/work/character/livetale-female-4-600.webp?v=022fef7b 600w, assets/derived/work/character/livetale-female-4-400.webp?v=022fef7b 400w"
+     }
+    },
+    {
+     "stem": "livetale-female-5",
+     "stamp": "b3f2a7cd",
+     "title": "LiveTale Female",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/livetale-female-5.webp",
+     "w": 1101,
+     "h": 941,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/livetale-female-5-900.avif?v=b3f2a7cd 900w, assets/derived/work/character/livetale-female-5-600.avif?v=b3f2a7cd 600w, assets/derived/work/character/livetale-female-5-400.avif?v=b3f2a7cd 400w",
+      "webp": "assets/derived/work/character/livetale-female-5-900.webp?v=b3f2a7cd 900w, assets/derived/work/character/livetale-female-5-600.webp?v=b3f2a7cd 600w, assets/derived/work/character/livetale-female-5-400.webp?v=b3f2a7cd 400w"
      }
     },
     {
@@ -976,6 +738,88 @@
      "srcset": {
       "avif": "assets/derived/work/character/valheim-art-4-900.avif?v=783704b4 900w, assets/derived/work/character/valheim-art-4-600.avif?v=783704b4 600w, assets/derived/work/character/valheim-art-4-400.avif?v=783704b4 400w",
       "webp": "assets/derived/work/character/valheim-art-4-900.webp?v=783704b4 900w, assets/derived/work/character/valheim-art-4-600.webp?v=783704b4 600w, assets/derived/work/character/valheim-art-4-400.webp?v=783704b4 400w"
+     }
+    },
+    {
+     "stem": "osseous-1",
+     "stamp": "36d34c61",
+     "title": "Osseous",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/osseous-1.webp",
+     "w": 1600,
+     "h": 1034,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/osseous-1-900.avif?v=36d34c61 900w, assets/derived/work/character/osseous-1-600.avif?v=36d34c61 600w, assets/derived/work/character/osseous-1-400.avif?v=36d34c61 400w",
+      "webp": "assets/derived/work/character/osseous-1-900.webp?v=36d34c61 900w, assets/derived/work/character/osseous-1-600.webp?v=36d34c61 600w, assets/derived/work/character/osseous-1-400.webp?v=36d34c61 400w"
+     }
+    },
+    {
+     "stem": "osseous-2",
+     "stamp": "d17d1db0",
+     "title": "Osseous",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/osseous-2.webp",
+     "w": 1200,
+     "h": 1600,
+     "pos": {
+      "card": "50% 6%",
+      "thumb": "50% 4%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/osseous-2-900.avif?v=d17d1db0 900w, assets/derived/work/character/osseous-2-600.avif?v=d17d1db0 600w, assets/derived/work/character/osseous-2-400.avif?v=d17d1db0 400w",
+      "webp": "assets/derived/work/character/osseous-2-900.webp?v=d17d1db0 900w, assets/derived/work/character/osseous-2-600.webp?v=d17d1db0 600w, assets/derived/work/character/osseous-2-400.webp?v=d17d1db0 400w"
+     }
+    },
+    {
+     "stem": "osseous-3",
+     "stamp": "3f88267b",
+     "title": "Osseous",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/osseous-3.webp",
+     "w": 1200,
+     "h": 1600,
+     "pos": {
+      "card": "50% 2%",
+      "thumb": "50% 2%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/osseous-3-900.avif?v=3f88267b 900w, assets/derived/work/character/osseous-3-600.avif?v=3f88267b 600w, assets/derived/work/character/osseous-3-400.avif?v=3f88267b 400w",
+      "webp": "assets/derived/work/character/osseous-3-900.webp?v=3f88267b 900w, assets/derived/work/character/osseous-3-600.webp?v=3f88267b 600w, assets/derived/work/character/osseous-3-400.webp?v=3f88267b 400w"
+     }
+    },
+    {
+     "stem": "rps-characters-1",
+     "stamp": "8ce66c3c",
+     "title": "RPS Characters",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/rps-characters-1.webp",
+     "w": 1081,
+     "h": 1081,
+     "pos": {
+      "card": "50% 5%",
+      "thumb": "50% 2%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/rps-characters-1-900.avif?v=8ce66c3c 900w, assets/derived/work/character/rps-characters-1-600.avif?v=8ce66c3c 600w, assets/derived/work/character/rps-characters-1-400.avif?v=8ce66c3c 400w",
+      "webp": "assets/derived/work/character/rps-characters-1-900.webp?v=8ce66c3c 900w, assets/derived/work/character/rps-characters-1-600.webp?v=8ce66c3c 600w, assets/derived/work/character/rps-characters-1-400.webp?v=8ce66c3c 400w"
+     }
+    },
+    {
+     "stem": "rps-characters-2",
+     "stamp": "58ae00ec",
+     "title": "RPS Characters",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/rps-characters-2.webp",
+     "w": 1081,
+     "h": 1048,
+     "pos": {
+      "card": "50% 21%",
+      "thumb": "50% 8%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/rps-characters-2-900.avif?v=58ae00ec 900w, assets/derived/work/character/rps-characters-2-600.avif?v=58ae00ec 600w, assets/derived/work/character/rps-characters-2-400.avif?v=58ae00ec 400w",
+      "webp": "assets/derived/work/character/rps-characters-2-900.webp?v=58ae00ec 900w, assets/derived/work/character/rps-characters-2-600.webp?v=58ae00ec 600w, assets/derived/work/character/rps-characters-2-400.webp?v=58ae00ec 400w"
      }
     },
     {
@@ -1135,6 +979,430 @@
      }
     },
     {
+     "stem": "path-of-percival-1",
+     "stamp": "bb6e2960",
+     "title": "Path of Percival",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/path-of-percival-1.webp",
+     "w": 730,
+     "h": 361,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/path-of-percival-1-600.avif?v=bb6e2960 600w, assets/derived/work/character/path-of-percival-1-400.avif?v=bb6e2960 400w",
+      "webp": "assets/derived/work/character/path-of-percival-1-600.webp?v=bb6e2960 600w, assets/derived/work/character/path-of-percival-1-400.webp?v=bb6e2960 400w"
+     }
+    },
+    {
+     "stem": "path-of-percival-2",
+     "stamp": "df3ceda4",
+     "title": "Path of Percival",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/path-of-percival-2.webp",
+     "w": 731,
+     "h": 411,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/path-of-percival-2-600.avif?v=df3ceda4 600w, assets/derived/work/character/path-of-percival-2-400.avif?v=df3ceda4 400w",
+      "webp": "assets/derived/work/character/path-of-percival-2-600.webp?v=df3ceda4 600w, assets/derived/work/character/path-of-percival-2-400.webp?v=df3ceda4 400w"
+     }
+    },
+    {
+     "stem": "path-of-percival-3",
+     "stamp": "6ee4ed37",
+     "title": "Path of Percival",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/path-of-percival-3.webp",
+     "w": 731,
+     "h": 301,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/path-of-percival-3-600.avif?v=6ee4ed37 600w, assets/derived/work/character/path-of-percival-3-400.avif?v=6ee4ed37 400w",
+      "webp": "assets/derived/work/character/path-of-percival-3-600.webp?v=6ee4ed37 600w, assets/derived/work/character/path-of-percival-3-400.webp?v=6ee4ed37 400w"
+     }
+    },
+    {
+     "stem": "path-of-percival-4",
+     "stamp": "61d4f1f7",
+     "title": "Path of Percival",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/path-of-percival-4.webp",
+     "w": 731,
+     "h": 363,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/path-of-percival-4-600.avif?v=61d4f1f7 600w, assets/derived/work/character/path-of-percival-4-400.avif?v=61d4f1f7 400w",
+      "webp": "assets/derived/work/character/path-of-percival-4-600.webp?v=61d4f1f7 600w, assets/derived/work/character/path-of-percival-4-400.webp?v=61d4f1f7 400w"
+     }
+    },
+    {
+     "stem": "path-of-percival-5",
+     "stamp": "cb78ef94",
+     "title": "Path of Percival",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/path-of-percival-5.webp",
+     "w": 726,
+     "h": 339,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/path-of-percival-5-600.avif?v=cb78ef94 600w, assets/derived/work/character/path-of-percival-5-400.avif?v=cb78ef94 400w",
+      "webp": "assets/derived/work/character/path-of-percival-5-600.webp?v=cb78ef94 600w, assets/derived/work/character/path-of-percival-5-400.webp?v=cb78ef94 400w"
+     }
+    },
+    {
+     "stem": "path-of-percival-6",
+     "stamp": "4d5a08f9",
+     "title": "Path of Percival",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/path-of-percival-6.webp",
+     "w": 726,
+     "h": 430,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/path-of-percival-6-600.avif?v=4d5a08f9 600w, assets/derived/work/character/path-of-percival-6-400.avif?v=4d5a08f9 400w",
+      "webp": "assets/derived/work/character/path-of-percival-6-600.webp?v=4d5a08f9 600w, assets/derived/work/character/path-of-percival-6-400.webp?v=4d5a08f9 400w"
+     }
+    },
+    {
+     "stem": "path-of-percival-7",
+     "stamp": "312fa98a",
+     "title": "Path of Percival",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/path-of-percival-7.webp",
+     "w": 731,
+     "h": 411,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/path-of-percival-7-600.avif?v=312fa98a 600w, assets/derived/work/character/path-of-percival-7-400.avif?v=312fa98a 400w",
+      "webp": "assets/derived/work/character/path-of-percival-7-600.webp?v=312fa98a 600w, assets/derived/work/character/path-of-percival-7-400.webp?v=312fa98a 400w"
+     }
+    },
+    {
+     "stem": "path-of-percival-8",
+     "stamp": "04c5ad7a",
+     "title": "Path of Percival",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/path-of-percival-8.webp",
+     "w": 1600,
+     "h": 900,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/path-of-percival-8-900.avif?v=04c5ad7a 900w, assets/derived/work/character/path-of-percival-8-600.avif?v=04c5ad7a 600w, assets/derived/work/character/path-of-percival-8-400.avif?v=04c5ad7a 400w",
+      "webp": "assets/derived/work/character/path-of-percival-8-900.webp?v=04c5ad7a 900w, assets/derived/work/character/path-of-percival-8-600.webp?v=04c5ad7a 600w, assets/derived/work/character/path-of-percival-8-400.webp?v=04c5ad7a 400w"
+     }
+    },
+    {
+     "stem": "path-of-percival-9",
+     "stamp": "fcd5ba88",
+     "title": "Path of Percival",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/path-of-percival-9.webp",
+     "w": 1408,
+     "h": 917,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/path-of-percival-9-900.avif?v=fcd5ba88 900w, assets/derived/work/character/path-of-percival-9-600.avif?v=fcd5ba88 600w, assets/derived/work/character/path-of-percival-9-400.avif?v=fcd5ba88 400w",
+      "webp": "assets/derived/work/character/path-of-percival-9-900.webp?v=fcd5ba88 900w, assets/derived/work/character/path-of-percival-9-600.webp?v=fcd5ba88 600w, assets/derived/work/character/path-of-percival-9-400.webp?v=fcd5ba88 400w"
+     }
+    },
+    {
+     "stem": "mecha-bot-1",
+     "stamp": "11124e9d",
+     "title": "Mecha-Bot",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/mecha-bot-1.webp",
+     "w": 1081,
+     "h": 608,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/mecha-bot-1-900.avif?v=11124e9d 900w, assets/derived/work/character/mecha-bot-1-600.avif?v=11124e9d 600w, assets/derived/work/character/mecha-bot-1-400.avif?v=11124e9d 400w",
+      "webp": "assets/derived/work/character/mecha-bot-1-900.webp?v=11124e9d 900w, assets/derived/work/character/mecha-bot-1-600.webp?v=11124e9d 600w, assets/derived/work/character/mecha-bot-1-400.webp?v=11124e9d 400w"
+     }
+    },
+    {
+     "stem": "mecha-bot-2",
+     "stamp": "4569c943",
+     "title": "Mecha-Bot",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/mecha-bot-2.webp",
+     "w": 1081,
+     "h": 591,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/mecha-bot-2-900.avif?v=4569c943 900w, assets/derived/work/character/mecha-bot-2-600.avif?v=4569c943 600w, assets/derived/work/character/mecha-bot-2-400.avif?v=4569c943 400w",
+      "webp": "assets/derived/work/character/mecha-bot-2-900.webp?v=4569c943 900w, assets/derived/work/character/mecha-bot-2-600.webp?v=4569c943 600w, assets/derived/work/character/mecha-bot-2-400.webp?v=4569c943 400w"
+     }
+    },
+    {
+     "stem": "mecha-bot-3",
+     "stamp": "b24c2e19",
+     "title": "Mecha-Bot",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/mecha-bot-3.webp",
+     "w": 1081,
+     "h": 1536,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/mecha-bot-3-900.avif?v=b24c2e19 900w, assets/derived/work/character/mecha-bot-3-600.avif?v=b24c2e19 600w, assets/derived/work/character/mecha-bot-3-400.avif?v=b24c2e19 400w",
+      "webp": "assets/derived/work/character/mecha-bot-3-900.webp?v=b24c2e19 900w, assets/derived/work/character/mecha-bot-3-600.webp?v=b24c2e19 600w, assets/derived/work/character/mecha-bot-3-400.webp?v=b24c2e19 400w"
+     }
+    },
+    {
+     "stem": "low-res-enemies-1",
+     "stamp": "00e1e499",
+     "title": "Low-Res Enemies",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-enemies-1.webp",
+     "w": 850,
+     "h": 1535,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-enemies-1-600.avif?v=00e1e499 600w, assets/derived/work/character/low-res-enemies-1-400.avif?v=00e1e499 400w",
+      "webp": "assets/derived/work/character/low-res-enemies-1-600.webp?v=00e1e499 600w, assets/derived/work/character/low-res-enemies-1-400.webp?v=00e1e499 400w"
+     }
+    },
+    {
+     "stem": "low-res-enemies-2",
+     "stamp": "dc017ce6",
+     "title": "Low-Res Enemies",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-enemies-2.webp",
+     "w": 1081,
+     "h": 956,
+     "pos": {
+      "card": "50% 46%",
+      "thumb": "50% 7%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-enemies-2-900.avif?v=dc017ce6 900w, assets/derived/work/character/low-res-enemies-2-600.avif?v=dc017ce6 600w, assets/derived/work/character/low-res-enemies-2-400.avif?v=dc017ce6 400w",
+      "webp": "assets/derived/work/character/low-res-enemies-2-900.webp?v=dc017ce6 900w, assets/derived/work/character/low-res-enemies-2-600.webp?v=dc017ce6 600w, assets/derived/work/character/low-res-enemies-2-400.webp?v=dc017ce6 400w"
+     }
+    },
+    {
+     "stem": "low-res-enemies-3",
+     "stamp": "18b859d0",
+     "title": "Low-Res Enemies",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-enemies-3.webp",
+     "w": 1081,
+     "h": 446,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-enemies-3-900.avif?v=18b859d0 900w, assets/derived/work/character/low-res-enemies-3-600.avif?v=18b859d0 600w, assets/derived/work/character/low-res-enemies-3-400.avif?v=18b859d0 400w",
+      "webp": "assets/derived/work/character/low-res-enemies-3-900.webp?v=18b859d0 900w, assets/derived/work/character/low-res-enemies-3-600.webp?v=18b859d0 600w, assets/derived/work/character/low-res-enemies-3-400.webp?v=18b859d0 400w"
+     }
+    },
+    {
+     "stem": "low-res-enemies-4",
+     "stamp": "fa735a2b",
+     "title": "Low-Res Enemies",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-enemies-4.webp",
+     "w": 1081,
+     "h": 738,
+     "pos": {
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-enemies-4-900.avif?v=fa735a2b 900w, assets/derived/work/character/low-res-enemies-4-600.avif?v=fa735a2b 600w, assets/derived/work/character/low-res-enemies-4-400.avif?v=fa735a2b 400w",
+      "webp": "assets/derived/work/character/low-res-enemies-4-900.webp?v=fa735a2b 900w, assets/derived/work/character/low-res-enemies-4-600.webp?v=fa735a2b 600w, assets/derived/work/character/low-res-enemies-4-400.webp?v=fa735a2b 400w"
+     }
+    },
+    {
+     "stem": "low-res-enemies-5",
+     "stamp": "9061cac8",
+     "title": "Low-Res Enemies",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-enemies-5.webp",
+     "w": 1081,
+     "h": 389,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-enemies-5-900.avif?v=9061cac8 900w, assets/derived/work/character/low-res-enemies-5-600.avif?v=9061cac8 600w, assets/derived/work/character/low-res-enemies-5-400.avif?v=9061cac8 400w",
+      "webp": "assets/derived/work/character/low-res-enemies-5-900.webp?v=9061cac8 900w, assets/derived/work/character/low-res-enemies-5-600.webp?v=9061cac8 600w, assets/derived/work/character/low-res-enemies-5-400.webp?v=9061cac8 400w"
+     }
+    },
+    {
+     "stem": "low-res-enemies-6",
+     "stamp": "76b5f966",
+     "title": "Low-Res Enemies",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/low-res-enemies-6.webp",
+     "w": 1062,
+     "h": 679,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/low-res-enemies-6-900.avif?v=76b5f966 900w, assets/derived/work/character/low-res-enemies-6-600.avif?v=76b5f966 600w, assets/derived/work/character/low-res-enemies-6-400.avif?v=76b5f966 400w",
+      "webp": "assets/derived/work/character/low-res-enemies-6-900.webp?v=76b5f966 900w, assets/derived/work/character/low-res-enemies-6-600.webp?v=76b5f966 600w, assets/derived/work/character/low-res-enemies-6-400.webp?v=76b5f966 400w"
+     }
+    },
+    {
+     "stem": "viper-1",
+     "stamp": "528d0ec8",
+     "title": "Viper",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/viper-1.webp",
+     "w": 1081,
+     "h": 647,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/viper-1-900.avif?v=528d0ec8 900w, assets/derived/work/character/viper-1-600.avif?v=528d0ec8 600w, assets/derived/work/character/viper-1-400.avif?v=528d0ec8 400w",
+      "webp": "assets/derived/work/character/viper-1-900.webp?v=528d0ec8 900w, assets/derived/work/character/viper-1-600.webp?v=528d0ec8 600w, assets/derived/work/character/viper-1-400.webp?v=528d0ec8 400w"
+     }
+    },
+    {
+     "stem": "viper-2",
+     "stamp": "5abe9ef5",
+     "title": "Viper",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/viper-2.webp",
+     "w": 882,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/viper-2-600.avif?v=5abe9ef5 600w, assets/derived/work/character/viper-2-400.avif?v=5abe9ef5 400w",
+      "webp": "assets/derived/work/character/viper-2-600.webp?v=5abe9ef5 600w, assets/derived/work/character/viper-2-400.webp?v=5abe9ef5 400w"
+     }
+    },
+    {
+     "stem": "viper-3",
+     "stamp": "2ee290ce",
+     "title": "Viper",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/viper-3.webp",
+     "w": 862,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/viper-3-600.avif?v=2ee290ce 600w, assets/derived/work/character/viper-3-400.avif?v=2ee290ce 400w",
+      "webp": "assets/derived/work/character/viper-3-600.webp?v=2ee290ce 600w, assets/derived/work/character/viper-3-400.webp?v=2ee290ce 400w"
+     }
+    },
+    {
+     "stem": "kittens-1",
+     "stamp": "c50b26af",
+     "title": "Kittens",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/kittens-1.webp",
+     "w": 1080,
+     "h": 602,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/kittens-1-900.avif?v=c50b26af 900w, assets/derived/work/character/kittens-1-600.avif?v=c50b26af 600w, assets/derived/work/character/kittens-1-400.avif?v=c50b26af 400w",
+      "webp": "assets/derived/work/character/kittens-1-900.webp?v=c50b26af 900w, assets/derived/work/character/kittens-1-600.webp?v=c50b26af 600w, assets/derived/work/character/kittens-1-400.webp?v=c50b26af 400w"
+     }
+    },
+    {
+     "stem": "kittens-2",
+     "stamp": "d22fd8ae",
+     "title": "Kittens",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/kittens-2.webp",
+     "w": 1032,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/kittens-2-900.avif?v=d22fd8ae 900w, assets/derived/work/character/kittens-2-600.avif?v=d22fd8ae 600w, assets/derived/work/character/kittens-2-400.avif?v=d22fd8ae 400w",
+      "webp": "assets/derived/work/character/kittens-2-900.webp?v=d22fd8ae 900w, assets/derived/work/character/kittens-2-600.webp?v=d22fd8ae 600w, assets/derived/work/character/kittens-2-400.webp?v=d22fd8ae 400w"
+     }
+    },
+    {
+     "stem": "kittens-3",
+     "stamp": "b0b58788",
+     "title": "Kittens",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/kittens-3.webp",
+     "w": 586,
+     "h": 662,
+     "pos": {
+      "card": "50% 3%",
+      "thumb": "50% 2%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/kittens-3-400.avif?v=b0b58788 400w",
+      "webp": "assets/derived/work/character/kittens-3-400.webp?v=b0b58788 400w"
+     }
+    },
+    {
+     "stem": "kittens-4",
+     "stamp": "abf3fd4f",
+     "title": "Kittens",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/kittens-4.webp",
+     "w": 1600,
+     "h": 890,
+     "pos": {},
+     "srcset": {
+      "avif": "assets/derived/work/character/kittens-4-900.avif?v=abf3fd4f 900w, assets/derived/work/character/kittens-4-600.avif?v=abf3fd4f 600w, assets/derived/work/character/kittens-4-400.avif?v=abf3fd4f 400w",
+      "webp": "assets/derived/work/character/kittens-4-900.webp?v=abf3fd4f 900w, assets/derived/work/character/kittens-4-600.webp?v=abf3fd4f 600w, assets/derived/work/character/kittens-4-400.webp?v=abf3fd4f 400w"
+     }
+    },
+    {
+     "stem": "kittens-5",
+     "stamp": "54f75853",
+     "title": "Kittens",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/kittens-5.webp",
+     "w": 1033,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/kittens-5-900.avif?v=54f75853 900w, assets/derived/work/character/kittens-5-600.avif?v=54f75853 600w, assets/derived/work/character/kittens-5-400.avif?v=54f75853 400w",
+      "webp": "assets/derived/work/character/kittens-5-900.webp?v=54f75853 900w, assets/derived/work/character/kittens-5-600.webp?v=54f75853 600w, assets/derived/work/character/kittens-5-400.webp?v=54f75853 400w"
+     }
+    },
+    {
+     "stem": "kittens-6",
+     "stamp": "79e1ed22",
+     "title": "Kittens",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/kittens-6.webp",
+     "w": 757,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/kittens-6-600.avif?v=79e1ed22 600w, assets/derived/work/character/kittens-6-400.avif?v=79e1ed22 400w",
+      "webp": "assets/derived/work/character/kittens-6-600.webp?v=79e1ed22 600w, assets/derived/work/character/kittens-6-400.webp?v=79e1ed22 400w"
+     }
+    },
+    {
+     "stem": "kittens-7",
+     "stamp": "b8f3dc25",
+     "title": "Kittens",
+     "desc": "CHARACTERS",
+     "src": "assets/work/character/kittens-7.webp",
+     "w": 1593,
+     "h": 1600,
+     "pos": {
+      "card": "50% 0%",
+      "thumb": "50% 0%"
+     },
+     "srcset": {
+      "avif": "assets/derived/work/character/kittens-7-900.avif?v=b8f3dc25 900w, assets/derived/work/character/kittens-7-600.avif?v=b8f3dc25 600w, assets/derived/work/character/kittens-7-400.avif?v=b8f3dc25 400w",
+      "webp": "assets/derived/work/character/kittens-7-900.webp?v=b8f3dc25 900w, assets/derived/work/character/kittens-7-600.webp?v=b8f3dc25 600w, assets/derived/work/character/kittens-7-400.webp?v=b8f3dc25 400w"
+     }
+    },
+    {
      "stem": "canaman-girl-1",
      "stamp": "e9b7124d",
      "title": "Canaman Girl",
@@ -1146,193 +1414,6 @@
      "srcset": {
       "avif": "assets/derived/work/character/canaman-girl-1-900.avif?v=e9b7124d 900w, assets/derived/work/character/canaman-girl-1-600.avif?v=e9b7124d 600w, assets/derived/work/character/canaman-girl-1-400.avif?v=e9b7124d 400w",
       "webp": "assets/derived/work/character/canaman-girl-1-900.webp?v=e9b7124d 900w, assets/derived/work/character/canaman-girl-1-600.webp?v=e9b7124d 600w, assets/derived/work/character/canaman-girl-1-400.webp?v=e9b7124d 400w"
-     }
-    },
-    {
-     "stem": "low-res-character-1",
-     "stamp": "1b6af195",
-     "title": "Low-Res Character",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-character-1.webp",
-     "w": 1574,
-     "h": 852,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-character-1-900.avif?v=1b6af195 900w, assets/derived/work/character/low-res-character-1-600.avif?v=1b6af195 600w, assets/derived/work/character/low-res-character-1-400.avif?v=1b6af195 400w",
-      "webp": "assets/derived/work/character/low-res-character-1-900.webp?v=1b6af195 900w, assets/derived/work/character/low-res-character-1-600.webp?v=1b6af195 600w, assets/derived/work/character/low-res-character-1-400.webp?v=1b6af195 400w"
-     }
-    },
-    {
-     "stem": "low-res-character-2",
-     "stamp": "27f540b3",
-     "title": "Low-Res Character",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-character-2.webp",
-     "w": 1081,
-     "h": 429,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-character-2-900.avif?v=27f540b3 900w, assets/derived/work/character/low-res-character-2-600.avif?v=27f540b3 600w, assets/derived/work/character/low-res-character-2-400.avif?v=27f540b3 400w",
-      "webp": "assets/derived/work/character/low-res-character-2-900.webp?v=27f540b3 900w, assets/derived/work/character/low-res-character-2-600.webp?v=27f540b3 600w, assets/derived/work/character/low-res-character-2-400.webp?v=27f540b3 400w"
-     }
-    },
-    {
-     "stem": "low-res-character-3",
-     "stamp": "e9658b62",
-     "title": "Low-Res Character",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-character-3.webp",
-     "w": 1081,
-     "h": 1076,
-     "pos": {
-      "card": "50% 8%",
-      "thumb": "50% 4%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-character-3-900.avif?v=e9658b62 900w, assets/derived/work/character/low-res-character-3-600.avif?v=e9658b62 600w, assets/derived/work/character/low-res-character-3-400.avif?v=e9658b62 400w",
-      "webp": "assets/derived/work/character/low-res-character-3-900.webp?v=e9658b62 900w, assets/derived/work/character/low-res-character-3-600.webp?v=e9658b62 600w, assets/derived/work/character/low-res-character-3-400.webp?v=e9658b62 400w"
-     }
-    },
-    {
-     "stem": "low-res-character-4",
-     "stamp": "cbeb260b",
-     "title": "Low-Res Character",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-character-4.webp",
-     "w": 1081,
-     "h": 692,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-character-4-900.avif?v=cbeb260b 900w, assets/derived/work/character/low-res-character-4-600.avif?v=cbeb260b 600w, assets/derived/work/character/low-res-character-4-400.avif?v=cbeb260b 400w",
-      "webp": "assets/derived/work/character/low-res-character-4-900.webp?v=cbeb260b 900w, assets/derived/work/character/low-res-character-4-600.webp?v=cbeb260b 600w, assets/derived/work/character/low-res-character-4-400.webp?v=cbeb260b 400w"
-     }
-    },
-    {
-     "stem": "low-res-character-5",
-     "stamp": "6fe0b364",
-     "title": "Low-Res Character",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-character-5.webp",
-     "w": 1081,
-     "h": 475,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-character-5-900.avif?v=6fe0b364 900w, assets/derived/work/character/low-res-character-5-600.avif?v=6fe0b364 600w, assets/derived/work/character/low-res-character-5-400.avif?v=6fe0b364 400w",
-      "webp": "assets/derived/work/character/low-res-character-5-900.webp?v=6fe0b364 900w, assets/derived/work/character/low-res-character-5-600.webp?v=6fe0b364 600w, assets/derived/work/character/low-res-character-5-400.webp?v=6fe0b364 400w"
-     }
-    },
-    {
-     "stem": "low-res-character-6",
-     "stamp": "bd38cf5f",
-     "title": "Low-Res Character",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/low-res-character-6.webp",
-     "w": 1081,
-     "h": 914,
-     "pos": {
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/low-res-character-6-900.avif?v=bd38cf5f 900w, assets/derived/work/character/low-res-character-6-600.avif?v=bd38cf5f 600w, assets/derived/work/character/low-res-character-6-400.avif?v=bd38cf5f 400w",
-      "webp": "assets/derived/work/character/low-res-character-6-900.webp?v=bd38cf5f 900w, assets/derived/work/character/low-res-character-6-600.webp?v=bd38cf5f 600w, assets/derived/work/character/low-res-character-6-400.webp?v=bd38cf5f 400w"
-     }
-    },
-    {
-     "stem": "rps-characters-1",
-     "stamp": "8ce66c3c",
-     "title": "RPS Characters",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/rps-characters-1.webp",
-     "w": 1081,
-     "h": 1081,
-     "pos": {
-      "card": "50% 5%",
-      "thumb": "50% 2%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/rps-characters-1-900.avif?v=8ce66c3c 900w, assets/derived/work/character/rps-characters-1-600.avif?v=8ce66c3c 600w, assets/derived/work/character/rps-characters-1-400.avif?v=8ce66c3c 400w",
-      "webp": "assets/derived/work/character/rps-characters-1-900.webp?v=8ce66c3c 900w, assets/derived/work/character/rps-characters-1-600.webp?v=8ce66c3c 600w, assets/derived/work/character/rps-characters-1-400.webp?v=8ce66c3c 400w"
-     }
-    },
-    {
-     "stem": "rps-characters-2",
-     "stamp": "58ae00ec",
-     "title": "RPS Characters",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/rps-characters-2.webp",
-     "w": 1081,
-     "h": 1048,
-     "pos": {
-      "card": "50% 21%",
-      "thumb": "50% 8%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/rps-characters-2-900.avif?v=58ae00ec 900w, assets/derived/work/character/rps-characters-2-600.avif?v=58ae00ec 600w, assets/derived/work/character/rps-characters-2-400.avif?v=58ae00ec 400w",
-      "webp": "assets/derived/work/character/rps-characters-2-900.webp?v=58ae00ec 900w, assets/derived/work/character/rps-characters-2-600.webp?v=58ae00ec 600w, assets/derived/work/character/rps-characters-2-400.webp?v=58ae00ec 400w"
-     }
-    },
-    {
-     "stem": "texture-variations-1",
-     "stamp": "d503cdbd",
-     "title": "Texture Variations",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/texture-variations-1.webp",
-     "w": 1600,
-     "h": 900,
-     "pos": {},
-     "srcset": {
-      "avif": "assets/derived/work/character/texture-variations-1-900.avif?v=d503cdbd 900w, assets/derived/work/character/texture-variations-1-600.avif?v=d503cdbd 600w, assets/derived/work/character/texture-variations-1-400.avif?v=d503cdbd 400w",
-      "webp": "assets/derived/work/character/texture-variations-1-900.webp?v=d503cdbd 900w, assets/derived/work/character/texture-variations-1-600.webp?v=d503cdbd 600w, assets/derived/work/character/texture-variations-1-400.webp?v=d503cdbd 400w"
-     }
-    },
-    {
-     "stem": "texture-variations-2",
-     "stamp": "b9e93d17",
-     "title": "Texture Variations",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/texture-variations-2.webp",
-     "w": 815,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/texture-variations-2-600.avif?v=b9e93d17 600w, assets/derived/work/character/texture-variations-2-400.avif?v=b9e93d17 400w",
-      "webp": "assets/derived/work/character/texture-variations-2-600.webp?v=b9e93d17 600w, assets/derived/work/character/texture-variations-2-400.webp?v=b9e93d17 400w"
-     }
-    },
-    {
-     "stem": "texture-variations-3",
-     "stamp": "8776f366",
-     "title": "Texture Variations",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/texture-variations-3.webp",
-     "w": 753,
-     "h": 972,
-     "pos": {
-      "card": "50% 23%",
-      "thumb": "50% 16%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/texture-variations-3-600.avif?v=8776f366 600w, assets/derived/work/character/texture-variations-3-400.avif?v=8776f366 400w",
-      "webp": "assets/derived/work/character/texture-variations-3-600.webp?v=8776f366 600w, assets/derived/work/character/texture-variations-3-400.webp?v=8776f366 400w"
-     }
-    },
-    {
-     "stem": "texture-variations-4",
-     "stamp": "48d7dd58",
-     "title": "Texture Variations",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/texture-variations-4.webp",
-     "w": 1600,
-     "h": 1078,
-     "pos": {
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/texture-variations-4-900.avif?v=48d7dd58 900w, assets/derived/work/character/texture-variations-4-600.avif?v=48d7dd58 600w, assets/derived/work/character/texture-variations-4-400.avif?v=48d7dd58 400w",
-      "webp": "assets/derived/work/character/texture-variations-4-900.webp?v=48d7dd58 900w, assets/derived/work/character/texture-variations-4-600.webp?v=48d7dd58 600w, assets/derived/work/character/texture-variations-4-400.webp?v=48d7dd58 400w"
      }
     },
     {
@@ -1361,91 +1442,6 @@
      "srcset": {
       "avif": "assets/derived/work/character/ogre-2-900.avif?v=f789245f 900w, assets/derived/work/character/ogre-2-600.avif?v=f789245f 600w, assets/derived/work/character/ogre-2-400.avif?v=f789245f 400w",
       "webp": "assets/derived/work/character/ogre-2-900.webp?v=f789245f 900w, assets/derived/work/character/ogre-2-600.webp?v=f789245f 600w, assets/derived/work/character/ogre-2-400.webp?v=f789245f 400w"
-     }
-    },
-    {
-     "stem": "livetale-female-1",
-     "stamp": "c15bbfdd",
-     "title": "LiveTale Female",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/livetale-female-1.webp",
-     "w": 429,
-     "h": 1600,
-     "pos": {
-      "card": "50% 5%",
-      "thumb": "50% 4%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/livetale-female-1-400.avif?v=c15bbfdd 400w",
-      "webp": "assets/derived/work/character/livetale-female-1-400.webp?v=c15bbfdd 400w"
-     }
-    },
-    {
-     "stem": "livetale-female-2",
-     "stamp": "edd7ec5e",
-     "title": "LiveTale Female",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/livetale-female-2.webp",
-     "w": 634,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/livetale-female-2-600.avif?v=edd7ec5e 600w, assets/derived/work/character/livetale-female-2-400.avif?v=edd7ec5e 400w",
-      "webp": "assets/derived/work/character/livetale-female-2-600.webp?v=edd7ec5e 600w, assets/derived/work/character/livetale-female-2-400.webp?v=edd7ec5e 400w"
-     }
-    },
-    {
-     "stem": "livetale-female-3",
-     "stamp": "d89d6026",
-     "title": "LiveTale Female",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/livetale-female-3.webp",
-     "w": 400,
-     "h": 1600,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/livetale-female-3-400.avif?v=d89d6026 400w",
-      "webp": "assets/derived/work/character/livetale-female-3-400.webp?v=d89d6026 400w"
-     }
-    },
-    {
-     "stem": "livetale-female-4",
-     "stamp": "022fef7b",
-     "title": "LiveTale Female",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/livetale-female-4.webp",
-     "w": 1100,
-     "h": 971,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/livetale-female-4-900.avif?v=022fef7b 900w, assets/derived/work/character/livetale-female-4-600.avif?v=022fef7b 600w, assets/derived/work/character/livetale-female-4-400.avif?v=022fef7b 400w",
-      "webp": "assets/derived/work/character/livetale-female-4-900.webp?v=022fef7b 900w, assets/derived/work/character/livetale-female-4-600.webp?v=022fef7b 600w, assets/derived/work/character/livetale-female-4-400.webp?v=022fef7b 400w"
-     }
-    },
-    {
-     "stem": "livetale-female-5",
-     "stamp": "b3f2a7cd",
-     "title": "LiveTale Female",
-     "desc": "CHARACTERS",
-     "src": "assets/work/character/livetale-female-5.webp",
-     "w": 1101,
-     "h": 941,
-     "pos": {
-      "card": "50% 0%",
-      "thumb": "50% 0%"
-     },
-     "srcset": {
-      "avif": "assets/derived/work/character/livetale-female-5-900.avif?v=b3f2a7cd 900w, assets/derived/work/character/livetale-female-5-600.avif?v=b3f2a7cd 600w, assets/derived/work/character/livetale-female-5-400.avif?v=b3f2a7cd 400w",
-      "webp": "assets/derived/work/character/livetale-female-5-900.webp?v=b3f2a7cd 900w, assets/derived/work/character/livetale-female-5-600.webp?v=b3f2a7cd 600w, assets/derived/work/character/livetale-female-5-400.webp?v=b3f2a7cd 400w"
      }
     },
     {
