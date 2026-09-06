@@ -3361,6 +3361,28 @@ let flashTip = () => {};
   tip.setAttribute('role', 'presentation');
   document.body.appendChild(tip);
 
+  /* A MODAL <dialog> IS IN THE TOP LAYER, which is above every z-index on the
+     page — so this bubble, parked on <body>, is painted BEHIND any overlay it
+     is labelling. Not a stacking bug to out-bid with a bigger number: the top
+     layer is not part of the z-index ordering at all. The only fix is to be in
+     it, so the bubble moves into whichever dialog the target lives in.
+
+     position:fixed still measures from the viewport in there — no dialog here
+     carries a transform, a filter or a contain, which are the things that would
+     make it measure from the dialog instead — so place() is untouched. It is
+     re-homed on every show rather than moved back on hide, because a dialog
+     that closes takes the bubble out of view with it, which is what should
+     happen anyway.
+
+     Found by the flag column: the mark that says a track would not play had a
+     tooltip nobody could see. It also fixes the same silent problem for the
+     Idea Vault's buttons and the work overlay's copy and download tips, which
+     have been labelling themselves to an empty room. */
+  const rehome = (el) => {
+    const host = el.closest?.('dialog[open]') || document.body;
+    if (tip.parentNode !== host) host.append(tip);
+  };
+
   let current = null;
   const GAP = 10;
   // Non-null while the bubble is being used as a confirmation rather than a
@@ -3428,6 +3450,7 @@ let flashTip = () => {};
     const text = el.dataset.tip;
     if (!text) return;
     current = el;
+    rehome(el);
     // Two-line tips opt in by containing a newline; see #tip.is-multi.
     tip.classList.toggle('is-multi', text.includes('\n'));
     /* LOUD: a headline in the accent with a quieter line under it, for the one
@@ -3467,6 +3490,7 @@ let flashTip = () => {};
      innerHTML — the word is the caller's and never touches the parser. */
   flashTip = (el, word, bang = '!') => {
     clearTimeout(flashing);
+    rehome(el);
     tip.classList.remove('is-loud');
     tip.textContent = word;
     if (bang) {
@@ -5110,6 +5134,11 @@ const MediaBus = (() => {
   const LOOP_KEY = 'music-loop';
   const VOLUME_KEY = 'music-volume';
   const LAST_KEY = 'music-last';
+  /* Which video ids would not play, and why. Kept per browser rather than in
+     the manifest because it is a record of what THIS browser was told: a video
+     blocked in one country plays in the next one, and baking one visitor's
+     answer into tracklist.txt would take the track away from everybody. */
+  const FLAGS_KEY = 'music-flags';
   const LOOPS = ['off', 'all', 'one'];
 
   let tracks = [];            // everything, in the order tracklist.txt names them
@@ -5134,6 +5163,15 @@ const MediaBus = (() => {
   let duration = 0;           // of the current track, as the embed reports it
   let scrubbing = false;      // a finger is on the handle: stop painting over it
   let armed = false;          // the iframe has a src and will take commands
+  let current = null;         // the track LOAD asked for, which index can lose
+  /* How many tracks in a row have failed since anything last actually played.
+     The auto-skip has to be able to give up: with every track failing -- no
+     network, or a search filtered down to one dead song -- an unbounded skip
+     is an infinite loop that walks the whole list at a track a second. */
+  let deadRun = 0;
+  /* Armed only while skipping past dead tracks, and cleared the moment
+     anything plays. See stalled() for why it is not always on. */
+  let watchdog = 0;
 
   /* The bar's X, and only the bar's X, means END IT. Everything else that
      closes the overlay hands the music to the corner.
@@ -5153,6 +5191,30 @@ const MediaBus = (() => {
      server behind this overlay to put them on. localStorage, wrapped, because
      a private window throws on the property access rather than on the call. */
   const ticked = new Set();
+
+  /* v -> { code, at }. Written when the embed refuses a track, read when the
+     row is built, and cleared by clicking the flag. Same storage argument as
+     the ticks above: worth nothing to anyone else, and no server behind it. */
+  const flagged = new Map();
+
+  /* The reasons, in the player's own numbers. These are the codes the embed
+     posts back, and they say the same thing tools/music_probe.mjs says about
+     them -- one wording, so the tooltip and the audit cannot disagree.
+
+     150 IS NOT ONLY "EMBEDDING DISABLED", whatever the published table says: a
+     video id that does not exist comes back 150 from this embed too. The text
+     says both rather than picking one and being wrong half the time. */
+  const REASONS = {
+    /* Not one of YouTube's codes -- ours, for the case it has no code for.
+       See the watchdog below: a video the embed simply never starts. */
+    0:   'it never started playing',
+    2:   'the link is malformed',
+    5:   'this browser could not play it',
+    100: 'removed, private, or never existed',
+    101: 'the owner blocks embedding, or it is gone',
+    150: 'the owner blocks embedding, or it is gone',
+  };
+  const reasonFor = (code) => REASONS[code] || `the player refused it (error ${code})`;
 
   const read = (key) => {
     try {
@@ -5192,6 +5254,68 @@ const MediaBus = (() => {
   function saveTicks() {
     try { localStorage.setItem(TICKS_KEY, JSON.stringify([...ticked])); }
     catch { /* nothing to do — the session still works, it just will not persist */ }
+  }
+
+  /* ---- the flags ------------------------------------------------------- */
+
+  function loadFlags() {
+    flagged.clear();
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem(FLAGS_KEY) || 'null'); }
+    catch { return; }        // private mode, or hand-edited into nonsense
+    if (!Array.isArray(stored)) return;
+    /* Stored as triples rather than objects: 300 of them would be a lot of
+       repeated key names in a value that is rewritten on every failure. */
+    for (const row of stored) {
+      if (Array.isArray(row) && typeof row[0] === 'string') {
+        flagged.set(row[0], { code: row[1], at: row[2] });
+      }
+    }
+  }
+  function saveFlags() {
+    const rows = [...flagged].map(([v, f]) => [v, f.code, f.at]);
+    try { localStorage.setItem(FLAGS_KEY, JSON.stringify(rows)); }
+    catch { /* the flag still shows for this session, it just will not persist */ }
+  }
+
+  /* What the flag says on hover, and it has to answer "what was this for?"
+     months later -- which is the whole reason the mark is not just a red dot.
+     So: what happened, why, and when, plus how to take it off again. */
+  function flagTip(track) {
+    const f = flagged.get(track.v);
+    if (!f) return '';
+    const when = Number.isFinite(f.at)
+      ? new Date(f.at).toLocaleDateString(undefined,
+          { day: 'numeric', month: 'short', year: 'numeric' })
+      : 'an earlier session';
+    return `WOULD NOT PLAY\nSkipped on ${when} — ${reasonFor(f.code)}. `
+         + `The link still opens on YouTube. Click the flag to clear it.`;
+  }
+
+  /* One row's flag, so the click handler and the re-render agree. The cell is
+     always in the grid and only the mark comes and goes: a column that appears
+     when the first track fails would re-lay-out all 311 rows under whoever is
+     reading them. */
+  function paintFlag(btn, track) {
+    const on = flagged.has(track.v);
+    btn.hidden = !on;
+    if (!on) return;
+    btn.dataset.tip = flagTip(track);
+    btn.dataset.tipKind = 'loud';
+    btn.setAttribute('aria-label',
+      `${track.t} would not play: ${reasonFor(flagged.get(track.v).code)}. `
+      + `Activate to clear this flag.`);
+  }
+
+  // After a flag is set or cleared, repaint the rows without rebuilding them:
+  // render() would re-sort and re-scroll the list under a reader mid-skip.
+  function paintFlags() {
+    const rows = rowsEl.children;
+    for (let i = 0; i < rows.length; i++) {
+      const track = queue[i];
+      const btn = rows[i].querySelector('.music-flag');
+      if (track && btn) paintFlag(btn, track);
+    }
   }
 
   /* ---- the list -------------------------------------------------------- */
@@ -5266,7 +5390,23 @@ const MediaBus = (() => {
     copy.append(copyIcon);
     cell.append(link, copy);
 
-    row.append(check, play, meta, cell);
+    /* THE FLAG, and it is the last column on purpose: it is empty for almost
+       every row almost always, so anywhere else in the grid it would be a gap
+       running down the middle of the list. */
+    const flagCell = document.createElement('span');
+    flagCell.className = 'music-flagcell';
+    const flag = document.createElement('button');
+    flag.type = 'button';
+    flag.className = 'music-flag';
+    const flagIcon = document.createElement('span');
+    flagIcon.className = 'icon';
+    flagIcon.dataset.icon = 'flag';
+    flagIcon.setAttribute('aria-hidden', 'true');
+    flag.append(flagIcon);
+    paintFlag(flag, track);
+    flagCell.append(flag);
+
+    row.append(check, play, meta, cell, flagCell);
     return row;
   }
 
@@ -5389,6 +5529,11 @@ const MediaBus = (() => {
     const track = queue[i];
     if (!track) return;
     index = i;
+    /* A search can filter the playing track out of the list, which sets index
+       to -1 while the audio carries on -- so the thing that failed cannot be
+       looked up as queue[index] when the failure arrives. This is what the
+       flag is hung on. */
+    current = track;
     nowTitle.textContent = track.t;
     nowArtist.textContent = track.a;
     bar.hidden = false;
@@ -5471,8 +5616,91 @@ const MediaBus = (() => {
     armed = false;
     playing = false;
     index = -1;
+    current = null;
+    deadRun = 0;
+    calm();
     idle();
     paint();
+  }
+
+  /* ---- a track that will not play -------------------------------------- */
+
+  /* A SECOND DEAD TRACK IN A ROW REPORTS NOTHING, and that is measured, not
+     feared: the first bad video navigates the iframe and posts onError, but
+     every track after it arrives by loadVideoById on a player that is already
+     sitting in an error state, and that player stays silent. So a list with
+     two dead tracks in it stalled on the SECOND one -- the same stop, one
+     song later, which is the bug wearing a hat.
+
+     Re-navigating the frame instead would get a fresh player and a fresh
+     error, and it is the wrong fix: the navigation that permits sound is the
+     one made under the opening click, and throwing it away means the next song
+     comes back silent. So the answer is a clock. A track that has not reported
+     a playing state in this long did not play, whatever the embed did or did
+     not say about it.
+
+     ONLY ARMED DURING A DEAD RUN. On a slow connection a track can legitimately
+     take a while to start, and a watchdog running over ordinary playback would
+     flag it. This one only exists between a refusal and the next thing that
+     actually plays, which is exactly the window where silence means failure. */
+  const STALL = 12000;
+
+  function stalled(track) {
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => {
+      /* Only the track it was armed for: a click on another row while this
+         was pending is not a failure of anything, and clicking calls calm()
+         anyway. NOT gated on `playing` -- that flag is optimistic, set the
+         moment load() sends the command and long before the embed answers,
+         so reading it here meant the clock could never fire. Anything that
+         really played has already called calm(); this timer surviving IS
+         the evidence that nothing did. */
+      if (current === track) refused(0);
+    }, STALL);
+  }
+  function calm() {
+    clearTimeout(watchdog);
+    watchdog = 0;
+  }
+
+  /* THE BUG THIS EXISTS FOR. An unplayable video posts back
+   * {"event":"onError","info":150} and nothing else, ever. The handler below
+   * used to read `info` as a player state, and 150 is not 0, 1 or 2, so every
+   * branch fell through: no error, no advance, no message. The playlist simply
+   * stopped on a song that was never going to start, which is exactly what a
+   * broken Next button looks like. Bohemian Rhapsody, 2026-09-05.
+   *
+   * So: mark it, say why, and keep going. The mark is the point -- a silent
+   * skip past a track someone deliberately put in the list is the same bug
+   * with better manners. */
+  function refused(code) {
+    const track = current;
+    if (track) {
+      flagged.set(track.v, { code, at: Date.now() });
+      saveFlags();
+      paintFlags();
+    }
+
+    deadRun++;
+    /* Give up rather than walk the whole list. Ten in a row is not a run of bad
+       links, it is the network being down or a filtered list with nothing
+       playable in it, and a skip that cannot stop is a page that pins a core
+       for as long as it is open. The queue length caps it too, so a REPEAT
+       playlist of three dead tracks stops after three rather than after ten. */
+    const limit = Math.max(1, Math.min(queue.length || 1, 10));
+    if (deadRun >= limit) {
+      const n = deadRun;
+      stop();                                   // which calls calm()
+      nowTitle.textContent = 'Nothing here would play';
+      nowArtist.textContent = `${n} track${n === 1 ? '' : 's'} in a row refused — `
+                            + `flagged in the list`;
+      return;
+    }
+    /* step(1) and not the ended path: repeat-one on a dead track is the
+       infinite loop this whole function exists to avoid. */
+    step(1);
+    // ...and watch whatever it landed on, because it may say nothing at all.
+    if (current && current !== track) stalled(current);
   }
 
   /* ---- wiring ---------------------------------------------------------- */
@@ -5485,10 +5713,28 @@ const MediaBus = (() => {
     const i = [...rowsEl.children].indexOf(row);
 
     if (event.target.closest('.music-play')) {
+      /* Any press is a deliberate start, so the skip's clock and its counter
+         both go: whatever was refused before this is not this track's fault,
+         and a stall armed for the old one must not fire over the new. */
+      calm();
+      deadRun = 0;
       // The row already playing toggles; any other row starts from the top.
       if (i !== index) load(i, true);
       else if (playing) pause();
       else resume();
+      return;
+    }
+
+    /* Clearing is a click on the flag itself. A flag that could only ever be
+       set would eventually be a column of marks nobody trusts -- a link fixed
+       in tracklist.txt gets a new video id and drops its flag with it, but a
+       video that comes back on the same id would stay marked forever. */
+    if (event.target.closest('.music-flag')) {
+      const track = queue[i];
+      if (track && flagged.delete(track.v)) {
+        saveFlags();
+        paintFlags();
+      }
       return;
     }
 
@@ -5711,6 +5957,15 @@ const MediaBus = (() => {
     catch { return; }
     if (!data || typeof data !== 'object') return;
 
+    /* READ THIS BEFORE THE STATE BELOW. An onError also carries a NUMBER in
+       `info` -- the error code -- so it is indistinguishable from a state
+       message by shape alone, and letting it reach the state reader is how a
+       dead track used to stop the playlist in silence. */
+    if (data.event === 'onError') {
+      refused(typeof data.info === 'number' ? data.info : 0);
+      return;
+    }
+
     /* The clock, and it has to be read BEFORE the early return below: plenty of
        infoDelivery messages carry currentTime and no playerState at all, and
        returning on those would leave the scrubber frozen between state changes
@@ -5738,6 +5993,17 @@ const MediaBus = (() => {
     const wasPlaying = playing;
     // A fresh video starts at whatever the embed's own default is, so the
     // volume has to be re-asserted rather than assumed to have carried over.
+    /* Something PLAYED, so whatever came before it was a run of bad links
+       and not a broken network. This is the only thing that clears the
+       counter and the stall clock.
+
+       PLAYING (1) AND NOT BUFFERING (3). Buffering was in here first and it
+       broke the whole watchdog: a dead video loaded by loadVideoById posts
+       buffering, sits there, and never posts anything again -- so counting
+       it as success called off the clock that was the only thing left
+       watching it. Buffering is a track TRYING. Playing is a track that
+       did. */
+    if (state === 1) { deadRun = 0; calm(); }
     if (state === 1) { playing = true; pushVolume(); }  // playing
     if (state === 2) playing = false;                 // paused
     if (state === 1 && !wasPlaying) MediaBus.solo(me);
@@ -5828,6 +6094,9 @@ const MediaBus = (() => {
       if (!tracks.length) throw new Error('no usable rows in the manifest');
       loaded = true;
       seedTicks();
+      // Read before the first render, or the rows are built with no flags
+      // on them and a track marked last week comes back looking fine.
+      loadFlags();
       return true;
     } catch (error) {
       console.warn('music: could not load the track list', error);

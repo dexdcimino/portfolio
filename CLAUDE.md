@@ -24,6 +24,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/bake_markup.py --check` | every `<picture>` is current and every reference resolves |
 | `python tools/bake_work.py --check` | `work.json` matches the masters, the index and the ladder |
 | `python tools/bake_music.py --check` | `assets/music/tracks.json` matches `tracklist.txt` |
+| `node   tools/music_probe.mjs` | every link in `tracklist.txt` still plays in an embed — needs the network |
 | `python tools/bake_images.py --check` | every derivative exists and is newer than its master |
 | `python tools/check_sweep.py --cases` | the sweep checker can still refuse — 8 recorded cases |
 | `python tools/check_pack.py --cases` | the pack freshness gate can still refuse |
@@ -40,7 +41,8 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `node tools/notes_editor_check.mjs` | the notes editor: Tab, Backspace, shortcuts, the selection bug — 29 checks |
 | `node tools/notes_store_check.mjs` | the notes store against a stubbed Vercel Blob — 30 checks, no server needed |
 | `node tools/work_check.mjs` | featured work, the work overlay, the code prompt, the games stack and the AI Lab — 93 checks, serves the repo itself |
-| `node tools/music_check.mjs` | the music overlay: the four columns, the seeded repeat list, the three-state repeat, the centred transport, 20 size floors, the permanent bar, the cleared code boxes, the page that must not scroll, ` still working after a close, the found playing row, volume, the seek row, and docking (the iframe must not reload, the bar keeps one width, a playing track always has a control box, starting the Top Picks player closes the music feed, and the docked bar shows artwork rather than a live video) — 218 checks, serves the repo itself |
+| `node tools/music_check.mjs` | the music overlay: the four columns, the seeded repeat list, the three-state repeat, the centred transport, 20 size floors, the permanent bar, the cleared code boxes, the page that must not scroll, ` still working after a close, the found playing row, volume, the seek row, and docking (the iframe must not reload, the bar keeps one width, a playing track always has a control box, starting the Top Picks player closes the music feed, and the docked bar shows artwork rather than a live video), the five columns, and the dead-track flag — 241 checks, serves the repo itself |
+| `node tools/music_flag_check.mjs` | the auto-skip and the flag against a REAL embed refusing a real video — 15 checks, needs the network |
 | `node tools/check_markdown.mjs` | `renderMarkdown` cannot emit an event handler (needs Chrome) |
 | `python tools/context_pack.py` | rebuilds the context zip in the root, measured not typed |
 
@@ -64,6 +66,18 @@ Named next to the honest ones, because a false green is worse than a red (doctri
 - **`Page.captureScreenshot` clips in PAGE coordinates; `getBoundingClientRect()` is
   viewport.** Forget to add `scrollX/scrollY` and you get flat background, which compares
   equal to flat background and passes any test that is not looking at bytes.
+- **A harness served over plain `http://127.0.0.1` cannot test a YouTube embed.**
+  YouTube refuses every rights-managed video to an insecure origin with error 150 —
+  the same code it uses for a video that does not exist — so a good link and a dead
+  one come back identical and the check passes while distinguishing nothing. It also
+  refuses a browser that announces itself as automated, the same way. `music_probe`
+  and `music_flag_check` serve https on a throwaway cert and launch with
+  `--disable-blink-features=AutomationControlled` for exactly this; both were
+  measured, not guessed.
+- **`document.elementFromPoint` cannot see anything with `pointer-events:none`.**
+  A visibility check written on it reports the element as covered whether it is or
+  not — which is how the tooltip check passed over a bubble rendering behind a modal
+  dialog. Compare pixels, or assert the mechanism, or both.
 - **Polling until two reads agree returns mid-transition** for anything off-screen: Chrome
   stalls transitions between compositor ticks, so the same in-flight value appears twice.
   Settle on the site's own reduced-motion path instead of guessing at a sleep.

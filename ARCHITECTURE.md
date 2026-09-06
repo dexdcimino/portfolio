@@ -1231,15 +1231,22 @@ assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
 script.js                initMusic() - below MediaBus, see why in its header
 styles.css               .music-*
-tools/music_check.mjs    50 checks in a real browser, serves the repo itself
+tools/music_check.mjs    241 checks in a real browser, serves the repo itself,
+                         reaches NO network — the embed is intercepted
+tools/music_flag_check.mjs  15 checks that DO reach YouTube: a real embed
+                         refusing a real video, over https, see below
+tools/music_probe.mjs    asks YouTube whether every link still plays. --cases
 ```
 
-**The row is a four-column grid**: a tick, a play button, the title over the
-artist, and the link with a copy button on the end of it. The two thin columns
-are fixed 40px squares so they line up down all 311 rows however long a title
-runs — `music_check.mjs` asserts that by measuring the column edges on the
+**The row is a five-column grid**: a tick, a play button, the title over the
+artist, the link with a copy button on the end of it, and a flag. The two thin
+columns are fixed 40px squares so they line up down all 311 rows however long a
+title runs — `music_check.mjs` asserts that by measuring the column edges on the
 longest-titled row against the shortest, which is the only pair where a column
-that tracks its content instead of the grid would show up.
+that tracks its content instead of the grid would show up. The flag column is
+measured the same way and for a sharper reason: it is EMPTY on almost every row,
+so the cell has to be in the grid from the start. A column that appeared the
+first time a track failed would re-lay-out all 311 rows under the reader.
 
 **Everything here is sized larger than the site's own chrome, on purpose.** This
 is a list read at arm's length and scrubbed through with a pointer, not a
@@ -1271,6 +1278,89 @@ carries an accent tint and an inset edge loud enough to pick out while scrolling
 past; and `#musicMark` is a tick on the scroll track at `(index + 0.5) / length`
 of the way down — the only one of the three that can be seen from anywhere in
 the list.
+
+### A track that will not play
+
+**An unplayable video posts `{"event":"onError","info":<code>}` and then nothing,
+ever.** The handler read `info` as a player state, and 150 is not 0, 1 or 2, so
+every branch fell through: no error, no advance, no message. The playlist stopped
+on a song that was never going to start, which is indistinguishable from a broken
+Next button. Found by listening, not by any gate here (Bohemian Rhapsody,
+2026-09-05). `onError` is now read BEFORE the state, because an error and a state
+are both a bare number in `info` and cannot be told apart by shape.
+
+**`refused(code)` marks the track, then moves on.** The mark is the point: a
+silent skip past a song someone deliberately put in the list is the same bug with
+better manners. It steps with `step(1)` and never through the ended path, because
+repeat-one on a dead track is the infinite loop the whole function exists to
+avoid.
+
+**The mark is a red flag in the last column, and it is per browser.** `music-flags`
+in localStorage, `[[v, code, at], …]` — triples rather than objects because 300 of
+them would be a lot of repeated key names in a value rewritten on every failure.
+It is NOT baked into `tracklist.txt`: a video blocked in one country plays in the
+next, and one visitor's answer must not take the track away from everybody. Red
+and not the accent — it is the one mark in the overlay that is not decoration, and
+an accent would make it another themed tick. The tooltip is the `loud` kind and
+carries what happened, why and when, plus how to clear it; clicking the flag
+clears it, or a mark could only ever be set and would become a column nobody
+trusts.
+
+**A SECOND dead track in a row reports nothing at all**, and that is measured. The
+first bad video navigates the iframe and posts `onError`; every track after it
+arrives by `loadVideoById` on a player already sitting in an error state, and that
+player stays silent — so a list with two dead tracks stalled on the second one,
+the same bug one song later. Re-navigating the frame would get a fresh player and
+a fresh error and is the WRONG fix: the navigation that permits sound is the one
+made under the opening click. The answer is a 12-second stall clock, armed only
+between a refusal and the next thing that actually plays. Ordinary playback never
+carries it, so a slow connection is never flagged for being slow.
+
+**Only a PLAYING state (1) calls the clock off — not buffering (3).** Buffering was
+in there first and it broke the whole watchdog: a dead video loaded by
+`loadVideoById` posts buffering, sits there and never speaks again, so counting it
+as success cancelled the only thing still watching it. Buffering is a track
+trying; playing is a track that did.
+
+**The skip gives up.** `deadRun` counts consecutive refusals and is capped at
+`min(queue.length, 10)`; past it the player stops and the bar says how many
+refused. Ten in a row is not a run of bad links, it is the network being down, and
+a skip that cannot stop is a page pinning a core for as long as it is open.
+
+**`music_check.mjs` cannot test any of this and does not pretend to.** It
+intercepts every YouTube request by design, so it seeds a flag into localStorage
+and checks the column, the tooltip and the clearing. `music_flag_check.mjs` is the
+one that earns a flag: it serves the repo over HTTPS with a throwaway cert and
+plays ids that have never named a video. HTTPS is not a nicety — over plain http
+on 127.0.0.1 YouTube refuses EVERY rights-managed video with the same 150 it uses
+for a dead one, so a good track and a dead track become indistinguishable and the
+harness would pass while proving nothing.
+
+**`tools/music_probe.mjs` is the audit**, and it exists because three cheaper
+checks all lie: oEmbed answers 200 for a video that exists but will not embed (the
+Bohemian Rhapsody link answered 200 with the right title on it); the InnerTube
+player endpoint answers ERROR 152 for every id when there is no browser behind it;
+and `GET /embed/<id>` no longer inlines a playerResponse to read. Only the player
+knows. Same https requirement, same reason.
+
+### The tooltip and the top layer
+
+**A modal `<dialog>` is in the TOP LAYER, which is not part of the z-index
+ordering at all**, so `#tip` — a div on `<body>` with `z-index:300` — was painted
+behind every overlay it labelled. Not a stacking bug to out-bid with a bigger
+number. `show()` now re-homes the bubble into `el.closest('dialog[open]')`;
+`position:fixed` still measures from the viewport in there, because no dialog here
+carries a transform, a filter or a `contain`, so the placement maths is untouched.
+
+Found by the flag column, and it had been silently true for the Idea Vault's
+buttons and the work overlay's copy and download tips as well. The regression is
+caught two ways, because neither is sufficient alone: the bubble's parent is
+asserted to be the dialog, and a screenshot with it up is compared against one
+with it down. `elementFromPoint` was the first attempt and can NEVER work here —
+`#tip` is `pointer-events:none` and so is not hit-testable, and the check reported
+"covered" whether it was or not. The pixel half alone is not enough either:
+`::backdrop` is `rgba(3,5,7,.9)` rather than opaque, so a mis-parented bubble
+still tints pixels, unreadably but not to nothing.
 
 **The X in the bar closes the overlay.** It used to stop playback and hide the
 bar; with the bar permanent it was left doing nothing anyone could see. Closing

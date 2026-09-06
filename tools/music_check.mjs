@@ -315,11 +315,16 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   }
 }
 
-/* ---- 4. the four columns, and the two thin ones are square ---------------
+/* ---- 4. the five columns, and the two thin ones are square ---------------
    FALSELY PASSES IF: only the cells' existence were checked. The brief is a
    grid that lines up down the whole list, so what is measured is the LEFT
    EDGE of each column on a short-titled row and a long-titled one — a column
-   that tracks its content instead of the grid drifts between them. */
+   that tracks its content instead of the grid drifts between them.
+
+   THE FLAG CELL IS COUNTED HERE EVEN THOUGH IT IS EMPTY, and that is the point
+   of it: the mark is hidden on a row that plays, but the CELL is always in the
+   grid. Were it added only when a track failed, the first failure would
+   re-lay-out all 311 rows under whoever was reading them. */
 {
   const geo = await page.evaluate(() => {
     const rows = [...document.querySelectorAll('#musicRows .music-row')];
@@ -332,8 +337,11 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
         play: box(row.querySelector('.music-play')),
         title: box(row.querySelector('.music-title')),
         link: box(row.querySelector('.music-linkcell')),
+        flag: box(row.querySelector('.music-flagcell')),
         hasLink: !!row.querySelector('a.music-link')?.href,
         hasCopy: !!row.querySelector('.music-copy'),
+        hasFlag: !!row.querySelector('.music-flag'),
+        flagShown: row.querySelector('.music-flag')?.hidden === false,
         titleSize: parseFloat(getComputedStyle(row.querySelector('.music-title')).fontSize),
         titleWeight: getComputedStyle(row.querySelector('.music-title')).fontWeight,
         artistSize: parseFloat(getComputedStyle(row.querySelector('.music-artist')).fontSize),
@@ -347,8 +355,13 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
     return { short: read(byLen[0]), long: read(byLen[byLen.length - 1]), n: rows.length };
   });
 
-  note(geo.short.cells === 4, `a row has ${geo.short.cells} cells, expected 4`);
+  note(geo.short.cells === 5, `a row has ${geo.short.cells} cells, expected 5`);
   note(geo.short.hasLink && geo.short.hasCopy, 'the link cell is missing its link or its copy button');
+  note(geo.short.hasFlag && geo.long.hasFlag, 'the flag column has no button in it');
+  // Nothing in the shipped list has failed for THIS browser, so every flag must
+  // be down. A mark that is on by default is a mark nobody will ever read.
+  note(!geo.short.flagShown && !geo.long.flagShown,
+       'a flag is showing on a track that has never failed');
 
   for (const [name, cell] of [['check', 'check'], ['play', 'play']]) {
     const a = geo.short[cell], b = geo.long[cell];
@@ -360,6 +373,10 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        `the title column moves between rows (${geo.short.title.x} vs ${geo.long.title.x})`);
   note(geo.short.link.x === geo.long.link.x,
        `the link column moves between rows (${geo.short.link.x} vs ${geo.long.link.x})`);
+  note(geo.short.flag.x === geo.long.flag.x,
+       `the flag column moves between rows (${geo.short.flag.x} vs ${geo.long.flag.x})`);
+  note(geo.short.flag.w >= 20,
+       `the flag column is ${geo.short.flag.w}px wide — too narrow to hit`);
 
   // The brief: the name big and bold, the artist under it.
   note(Number(geo.short.titleWeight) >= 600,
@@ -367,10 +384,12 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(geo.short.titleSize > geo.short.artistSize,
        `the title (${geo.short.titleSize}px) is not larger than the artist (${geo.short.artistSize}px)`);
 
-  // Left to right: tick, play, title, link. Asserted rather than assumed.
-  const order = [geo.short.check.x, geo.short.play.x, geo.short.title.x, geo.short.link.x];
+  // Left to right: tick, play, title, link, flag. Asserted rather than assumed
+  // — the brief puts the flag at the FAR RIGHT, past the link.
+  const order = [geo.short.check.x, geo.short.play.x, geo.short.title.x,
+                 geo.short.link.x, geo.short.flag.x];
   note(order.every((v, i) => i === 0 || v > order[i - 1]),
-       `the columns are not in the order tick, play, title, link: ${order.join(' < ')}`);
+       `the columns are not in the order tick, play, title, link, flag: ${order.join(' < ')}`);
 }
 
 /* ---- 5. the defaults are seeded, and ticking still owns the list --------
@@ -1435,6 +1454,150 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   await page.evaluate(() => document.getElementById('notesModal').close());
 }
 
+/* ---- 10. a flag remembered from a previous session ---------------------
+   LAST ON PURPOSE. This one RELOADS THE PAGE — that is the point of it, the
+   mark is in localStorage precisely so it survives one — and a reload in the
+   middle of the run drops every check after it into a fresh session with
+   nothing playing. It was written as 4b, beside the column geometry it
+   belongs with, and the very next check failed on a button that was no
+   longer on screen.
+   The mark exists so a track that would not play STAYS marked, and "stays"
+   means across a reload — the whole reason it is in localStorage rather than
+   in a variable. Seeded here rather than earned, because earning one needs
+   YouTube to refuse a real embed and this harness deliberately reaches no
+   network. tools/music_flag_check.mjs is the one that earns it.
+
+   FALSELY PASSES IF: only the mark's visibility were checked. It is meant to
+   answer "what was this for?" months later, so the TOOLTIP TEXT is read, and
+   read for the three things it has to carry: what happened, why, and when. */
+{
+  const v = manifest.tracks[0].v;
+  await page.evaluate((id) => {
+    localStorage.setItem('music-flags',
+      JSON.stringify([[id, 150, Date.parse('2026-01-15T12:00:00Z')]]));
+  }, v);
+  await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
+
+  /* REOPENED BY THE EVENT, not by typing the code again. Check 2 above is what
+     proves the sealed door works and it only needs to prove it once; this
+     block is about the mark, and driving the keypad a second time made the run
+     flaky twice — Backquote TOGGLES the keypad, so a press whose 5-second wait
+     expired on a slow scrypt was closed again by the retry that followed it,
+     and the run died on a dialog nobody had asked to shut. */
+  const reopened = await page.evaluate(() => {
+    document.dispatchEvent(new CustomEvent('music:open', { detail: {} }));
+    return document.getElementById('musicModal')?.open === true;
+  });
+  note(reopened, 'the music:open event did not reopen the overlay after the reload');
+  const relisted = await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 40000 })
+    .then(() => true).catch(() => false);
+  note(relisted, 'the track list did not come back after the reload');
+  if (!relisted) throw new Error('music_check: cannot check the flag without the list');
+
+  const seen = await page.evaluate((id) => {
+    const row = document.querySelector('#musicRows .music-row[data-v="' + id + '"]');
+    const btn = row?.querySelector('.music-flag');
+    const lit = [...document.querySelectorAll('#musicRows .music-flag')]
+      .filter(b => b.hidden === false).length;
+    return { found: !!btn, shown: btn?.hidden === false, lit,
+             tip: btn?.dataset.tip || '', kind: btn?.dataset.tipKind || '',
+             label: btn?.getAttribute('aria-label') || '',
+             red: btn ? getComputedStyle(btn).color : '' };
+  }, v);
+
+  note(seen.found, 'the flagged track has no flag button at all');
+  note(seen.shown, 'a flag stored in localStorage did not survive a reload');
+  note(seen.lit === 1, `${seen.lit} flags are lit — exactly one was stored`);
+  note(seen.tip.includes('WOULD NOT PLAY'),
+       `the flag tooltip does not say what happened: "${seen.tip}"`);
+  note(/embed|gone|removed|refused|malformed|play/i.test(seen.tip),
+       `the flag tooltip does not say WHY: "${seen.tip}"`);
+  note(/2026/.test(seen.tip), `the flag tooltip does not say WHEN: "${seen.tip}"`);
+  note(seen.tip.includes('\n'), 'the flag tooltip is one line — the bubble is set up for two');
+  note(seen.kind === 'loud', 'the flag tooltip is not the loud kind a warning wants');
+  note(seen.label.length > 20, `the flag has no useful accessible name: "${seen.label}"`);
+  // Red, not the accent: this is the one mark in the overlay that is not
+  // decoration, and an accent would make it another themed tick.
+  const rgb = (seen.red.match(/\d+/g) || []).map(Number);
+  note(rgb[0] > 180 && rgb[1] < 140 && rgb[2] < 140, `the flag is not red (${seen.red})`);
+
+  /* ...AND THE TOOLTIP HAS TO BE VISIBLE. The overlay is a modal <dialog>, so
+     it renders in the top layer, above every z-index on the page — and #tip is
+     a div on <body>. A bubble painted behind the thing it labels is the same
+     as no bubble, and nothing else in this file hovers a tip inside a dialog. */
+  const box = await page.evaluate((id) => {
+    const btn = document.querySelector(
+      '#musicRows .music-row[data-v="' + id + '"] .music-flag');
+    const r = btn.getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  }, v);
+  await page.mouse.move(box.x, box.y);
+  await page.waitForFunction(() => document.getElementById('tip')?.classList.contains('is-on'),
+                             { timeout: 3000 }).catch(() => {});
+  const tip = await page.evaluate(() => {
+    const t = document.getElementById('tip');
+    if (!t) return { on: false, text: '', w: 0, h: 0, inDialog: false };
+    const r = t.getBoundingClientRect();
+    return { on: t.classList.contains('is-on'), text: t.textContent,
+             w: Math.round(r.width), h: Math.round(r.height),
+             // The mechanism: parked on <body> it is painted behind the
+             // overlay, because a modal dialog is in the top layer.
+             inDialog: t.parentElement?.tagName === 'DIALOG' };
+  });
+  note(tip.on, 'hovering the flag showed no tooltip');
+  note(tip.w > 40 && tip.h > 10, `the tooltip has no size (${tip.w}x${tip.h})`);
+  note(tip.inDialog, 'the tooltip is still parked outside the dialog it is labelling in');
+  note(/WOULD NOT PLAY/.test(tip.text), `the bubble says something else: "${tip.text}"`);
+
+  /* ...AND THAT IT IS ACTUALLY PAINTED. The parent assertion above is the
+     mechanism, not the effect, and the effect cannot be read from the DOM:
+     elementFromPoint was the first attempt and it can never work here, because
+     #tip is pointer-events:none and therefore not hit-testable at all — it
+     reported the bubble as covered whether it was or not.
+
+     So: photograph the screen with the bubble up, take it down, photograph
+     again. Nothing else on screen is moving — the pointer is held still on the
+     flag, so even its hover state is the same in both frames — which makes any
+     difference the bubble.
+
+     WHAT THIS HALF DOES NOT CATCH, measured by putting the bug back: a bubble
+     parked outside the dialog still tints pixels, because ::backdrop is
+     rgba(3,5,7,.9) rather than opaque, so the mis-parented tooltip shows
+     through it, dimmed to the point of being unreadable but not to nothing.
+     That is what the parent assertion is for, and why both are here. This one
+     catches the other failure — a bubble that renders nowhere at all. */
+  const shot = () => page.screenshot({ encoding: 'binary' });
+  const withTip = await shot();
+  await page.evaluate(() => document.getElementById('tip').classList.remove('is-on'));
+  // The bubble fades over .13s, so a shot taken straight away catches it
+  // half-way and differs for the wrong reason.
+  await page.waitForFunction(
+    () => Number(getComputedStyle(document.getElementById('tip')).opacity) === 0,
+    { timeout: 3000 }).catch(() => {});
+  const without = await shot();
+  note(!withTip.equals(without),
+       'THE TOOLTIP IS BEHIND THE OVERLAY — showing and hiding it changed no pixel '
+       + '(a modal dialog renders in the top layer, above every z-index)');
+  // Re-shown for the click below, which is what takes the flag off.
+  await page.mouse.move(box.x - 200, box.y);
+  await page.mouse.move(box.x, box.y);
+
+  // Clicking it takes it off, and that has to persist too — a flag that could
+  // only ever be set becomes a column of marks nobody trusts.
+  await page.mouse.click(box.x, box.y);
+  const cleared = await page.evaluate((id) => ({
+    shown: document.querySelector(
+      '#musicRows .music-row[data-v="' + id + '"] .music-flag')?.hidden === false,
+    stored: JSON.parse(localStorage.getItem('music-flags') || '[]').length,
+  }), v);
+  note(!cleared.shown, 'clicking the flag did not take it off');
+  note(cleared.stored === 0, `the cleared flag is still in storage (${cleared.stored} left)`);
+
+  await shutMusic();
+  await page.evaluate(() => { try { localStorage.removeItem('music-flags'); } catch {} });
+}
+
 /* Every 404 this run produced, named. The notes unlock is the only one that is
    supposed to happen — anything else is a real missing file that the blanket
    console filter above would otherwise have swallowed. */
@@ -1452,7 +1615,7 @@ server.close();
    subject would drop checks silently and still print a green total — the
    failure this repo has shipped four times. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 210) {
+if (TOTAL < 230) {
   console.error(`music_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

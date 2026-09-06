@@ -25,6 +25,85 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-05 — a dead track is flagged in the browser that hit it, not in the tracklist
+
+**Decided.** When the embed refuses a video, the overlay marks it with a red flag in
+a fifth column and remembers that in `music-flags` in localStorage. The mark is
+per browser, clearable by clicking it, and `tracklist.txt` learns nothing.
+
+**Replaced.** A fifth field on the tracklist line — an `X` beside the existing `R`
+— baked into the manifest, so a known-dead track would arrive already marked for
+everyone and the flag would be one fact in one place.
+
+**Why.** The flag is a record of what THIS browser was told, and that is not a
+property of the link. A video blocked in Germany plays in Colorado; one that is
+age-gated fails for a signed-out visitor and plays for a signed-in one. Baking one
+visitor's refusal into the master would take the track away from everybody who
+could have played it, and the failure mode is silent — the song simply stops being
+offered. The right permanent fix for a genuinely dead link is a NEW LINK, which is
+a tracklist edit anyone can make and `tools/music_probe.mjs` can find; the flag is
+for the window between the rot and the fix, and for telling the owner which line
+to edit.
+
+**Reverse it if** the same video id starts coming back flagged for many different
+visitors and there is somewhere to collect that. A per-browser mark cannot see a
+pattern; a server that counted refusals could, and then baking a warning into the
+manifest would be worth the false positives.
+
+---
+
+## 2026-09-05 — a stall clock, not a re-navigation, catches the second dead track
+
+**Decided.** After a refusal, the overlay watches the track it skips to for 12
+seconds; a track that has not reported a PLAYING state by then is treated as
+refused too. The clock is armed only between a refusal and the next thing that
+actually plays.
+
+**Replaced.** Clearing `armed` in `refused()` so the next track re-navigates the
+iframe — which gets a fresh player and therefore a fresh, real `onError`, and needs
+no clock and no guesswork.
+
+**Why.** Measured: only the FIRST dead track posts an error. Everything after it
+arrives by `loadVideoById` on a player already sitting in an error state, and that
+player never speaks again, so two dead tracks in a row stalled on the second one.
+Re-navigating fixes that and breaks something worse — the navigation that permits
+sound is the one made under the opening click, and a fresh iframe made without a
+gesture comes back muted or refuses to start. The site would trade a rare stall
+for a common silence. A clock costs nothing when nothing is wrong, and it is armed
+narrowly enough that ordinary slow buffering is never flagged: outside a dead run
+there is no clock at all.
+
+**Reverse it if** the embed ever reports `onError` for a `loadVideoById` failure.
+Then the event is available at the moment it matters and the clock is dead weight —
+check by putting two impossible ids next to each other in
+`tools/music_flag_check.mjs` and seeing whether the second one flags before the
+12 seconds are up.
+
+---
+
+## 2026-09-05 — the availability probe serves its harness over https
+
+**Decided.** `tools/music_probe.mjs` and `tools/music_flag_check.mjs` mint a
+throwaway self-signed cert and serve over `https://localhost`, and launch Chrome
+with `--disable-blink-features=AutomationControlled`.
+
+**Replaced.** The plain `http://127.0.0.1` server every other harness in `tools/`
+uses, which needs no cert, no openssl and no flag.
+
+**Why.** Over http the probe reported EVERY track as blocked — the Rick Astley
+video, Queen's own official upload and a garbage id all came back error 150, which
+is one verdict for everything and therefore no verdict at all. Serve the identical
+harness over https and the three real ones play while the garbage id still fails.
+The automation flag is the same shape of problem measured separately: with it
+absent, YouTube refuses rights-managed video to a browser that announces itself as
+automated, again with 150. Neither is a preference; without both the tool is a
+rubber stamp, and a green rubber stamp is worse than no tool.
+
+**Reverse it if** YouTube starts serving rights-managed embeds to insecure origins
+again. Check by pointing the probe at a plain-http server and running it against
+one known-good and one impossible id: if they come back different, the cert can go.
+
+
 ## 2026-09-05 — the docked bar shows artwork, not a live picture
 
 **Decided.** `.music-modal.is-docked .music-video{display:none}` with YouTube's
