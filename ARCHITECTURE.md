@@ -1208,6 +1208,7 @@ notes/          the app, ES modules, fetched only after the password passes
   schema.js       what a body may contain: clean() in, serialize() out, scrub() between
   history.js      the undo stack: text transactions and structural ones
   editor.js       typing: lists, Enter, Backspace, Tab, triggers, paste, copy
+  dictate.js      the microphone: the caret as insertion point, the commit diff
   render.js       sidebar, rail, canvas, sessions, archive, drag-reorder, scroll spy
   chips.js        link chips, markdown nodes, images (upload, size, menus)
   spell.js        Highlight API marks, the right-click menu, autocorrect
@@ -1391,14 +1392,97 @@ carry the category's colour as `--c` on the element; `--c-text` is that colour
 as text, darkened on the light theme. The scroll spy marks the category that
 fills most of the view and paints the scrollbar with its colour.
 
+### Dictation
+
+A microphone in the bottom-right of every text box (`notes/dictate.js`). Press
+it and talk; the words land at the caret and keep landing until it is pressed
+again. Ten minutes with nothing said ends it, and any result at all puts the
+full ten minutes back, so a brain dump lasts as long as there is talking to
+do. Ctrl+Shift+M is the same switch from the keyboard.
+
+**The caret is the insertion point, always.** Click elsewhere mid-sentence and
+the next words go there; type a word and dictation continues after it; click
+into another category and the session follows. There is no second cursor kept
+in step with the real one -- the machinery DexNote spent six numbered fixes on
+and still lost across a re-render. The only fallback is for when the caret is
+genuinely gone (focus left the app): the last place it was, and failing that
+the end of the last line. It is never the body's own root, because a bare text
+node between two blocks is not in the schema and would come back as a
+paragraph on the next load -- what was saved and what was on screen would
+differ.
+
+**Provisional words are visible but not in the document.** What the engine has
+not committed to shows as grey italic text in `<span class="nt-interim">`,
+`contenteditable=false` so the browser will not type into it and the caret
+sits in front of it. `clearInterim()` is called at the top of `transact()` and
+of `beforeinput`, and `serialize()` strips the span, so provisional text can
+never be undone into, saved, or spell-checked. Nothing pulls it out from under
+the engine mid-utterance either: the save path clones the body rather than
+editing it, which is the half DexNote got wrong.
+
+**Committing is a diff, not a sweep.** Chrome returns a growing list in which
+an interim can turn final later, and engines disagree about what a final is:
+desktop Chrome sends the NEW words, Android re-sends the WHOLE utterance.
+`reduceFinals()` takes the last slot when each starts with the one before it
+and the concatenation otherwise; `unwritten()` returns only the part beyond
+what is already on the page. Both are exported and both shapes are driven
+through them in the harness.
+
+**A click cuts the utterance off.** Move the caret with words still
+provisional and they are committed where they were said, then the recognizer
+is `abort()`ed and respawned with its handlers detached. Without that, the
+engine's own final for those words arrives a moment later and lands again at
+the new caret -- the same sentence, twice. `stop()` would flush that final;
+`abort()` discards it.
+
+**The pill.** Scroll the box out of sight and a pill appears at the top-left
+of the canvas, just clear of the sidebar: what is being dictated into, how
+long for, a click back to it, and a stop. A session running three screens up
+is otherwise invisible and still writing.
+
+Restarts are expected, not exceptional: `continuous` does not mean forever, so
+`onend` spawns a fresh recognizer unless the stop was deliberate. A monotonic
+session id makes a late `onend` from a dead recognizer inert, and six empty
+restarts inside eight seconds is a wedged engine rather than a quiet room, so
+it gives up and says so. `not-allowed`, `audio-capture` and a wedged engine
+each get their own message -- DexNote showed nothing at all, so a denied
+permission looked exactly like a dead button.
+
+**The microphone has to be allowed by the page.** `vercel.json` sent
+`Permissions-Policy: microphone=()`, which forbids it to every origin
+including this one; SpeechRecognition is gated on that policy and fails with
+`not-allowed` before any prompt appears. It is `microphone=(self)` now.
+
+### The AI Lab sandbox
+
+The eyeball on the DexNote card opens this same app with `format: 'demo'` and
+**no token** (`openDemo()` in script.js, `demoDoc()` in `notes/state.js`). It
+is the one preview in the AI Lab that points at no iframe: the app is already
+on the page, so the preview IS the editor rather than a screenshot or a second
+copy.
+
+Nothing is switched off in it -- typing, dictation, undo, images, sessions all
+work -- and the save loop is the only thing absent. **The absence of a token
+is what makes it safe, not a flag it checks:** with no token there is no
+request to `/api/notes/*` that would be answered, so a visitor cannot read,
+write or flood the real notes, and cannot reach the keypad from here. The
+document is built in memory, closing the overlay unmounts the app and empties
+the container, and images live in `ctx.demoAssets` as object URLs that are
+revoked on unmount. `notes_dictate_check.mjs` counts every request the page
+makes while the sandbox is open and asserts the real document on disk is
+byte-identical afterwards.
+
 ### The dev loop
 
 `tools/notes_dev_server.mjs` serves the repo with the shipped CSP header and
 routes `/api/notes/*` to the real handlers with `NOTES_DEV_DIR` on disk.
 `notes_check.mjs` resets that store to the pre-rebuild state at the start of
 every run and walks the migration. `notes_editor_check.mjs` drives real keys
-through a scratch category it deletes at the end. `notes_store_check.mjs`
-needs no server.
+through a scratch category it deletes at the end. `notes_dictate_check.mjs`
+installs a fake SpeechRecognition and a fake clock before any page script runs,
+so the whole dictation pipeline is exercised for real -- the restart loop and
+both engines' result shapes included -- and the ten-minute cap is tested in a
+second. `notes_store_check.mjs` needs no server.
 
 ## Music overlay (code `MUSIC`)
 

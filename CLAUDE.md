@@ -39,6 +39,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/focal_point.py` | the crop-aiming rule still keeps heads in frame — 8 cases |
 | `node tools/notes_check.mjs` | the notes overlay: no leak (content OR code) before the password, the migration of the pre-rebuild HTML, an edit surviving reload and a second browser, two devices merging on a 409, tiered backups, the app-filled shell, the vault door — 39 checks, needs the dev server |
 | `node tools/notes_editor_check.mjs` | the notes editor through real keys: bullets, nesting, multi-line indent that keeps the selection, Enter and Backspace unwinding, word-level undo with the caret, todo, triggers, formatting as tags, paste hygiene, links, the emoji and slash pickers, autocorrect and its Backspace revert, spell marks, an image drop stored by key, sessions, archive/restore/undo-delete, theme, rail, and what reaches the store — 85 checks, needs the dev server |
+| `node tools/notes_dictate_check.mjs` | dictation and the AI Lab sandbox, against a FAKE SpeechRecognition and a fake clock installed before any page script: the button, both engines' result shapes, the caret as insertion point, a click cutting the utterance off, undo, auto-restart, the pill, the ten-minute silence cap, a refused microphone, and a sandbox that makes zero API calls and leaves the real notes byte-identical — 71 checks, needs the dev server |
 | `node tools/notes_store_check.mjs` | the notes store against a stubbed Vercel Blob: seeding, the legacy read order, refusals that must not reseed, the rev check writing nothing on a conflict, the ten-minute and daily tiers on a synthetic clock, assets by sha — 63 checks, no server needed |
 | `node tools/work_check.mjs` | featured work, the work overlay, the code prompt, the games stack and the AI Lab — 93 checks, serves the repo itself |
 | `node tools/music_check.mjs` | the music overlay: the four columns, the seeded repeat list, the three-state repeat, the centred transport, 20 size floors, the permanent bar, the cleared code boxes, the page that must not scroll, ` still working after a close, the found playing row, a Previous that never shuffles or leaves a track you are into, the code that starts the music, volume, the seek row, and docking (the iframe must not reload, the bar keeps one width, a playing track always has a control box, starting the Top Picks player closes the music feed, and the docked bar shows artwork rather than a live video), the five columns, the dead-track flag, the Top Picks bar being the same design and the same transport, and the arrow keys skipping tracks without taking them from anything else, the silent hold, and the remote extension's relay and its two copies of the site list — 352 checks, serves the repo itself |
@@ -90,6 +91,24 @@ Named next to the honest ones, because a false green is worse than a red (doctri
   parses first and strips second passes its own assertions while filling the
   console with errors a harness rightly counts. `notes/schema.js` renames
   `style=` in the text before anything parses it.
+- **A feature that needs a browser permission can be forbidden by our OWN
+  headers, and it looks exactly like the user denying it.** `vercel.json` sent
+  `Permissions-Policy: microphone=()`, which forbids the microphone to every
+  origin *including this one*; SpeechRecognition is gated on that policy and
+  fails with `not-allowed` before any prompt appears. The console says nothing
+  a search would find. Check the Permissions-Policy header before debugging
+  any getUserMedia, geolocation, or speech failure.
+- **`page.click(selector)` aims at a viewport coordinate.** For an element
+  below the fold puppeteer scrolls first and can then click stale coordinates
+  — silently hitting whatever is now there, or nothing. It reads exactly like
+  a dead button, and it cost an afternoon here: the click landed on the
+  microphone in the corner of a text box and stopped the session the check was
+  about to test. Click programmatically, or scroll and re-measure, and assert
+  `elementFromPoint` is what you meant to hit.
+- **A harness that speaks into a dead recognizer asserts nothing.** The stub's
+  "say" returns a string when there is no live session; without checking it,
+  every downstream assertion passes for the wrong reason. Anything that drives
+  a stub must fail loudly when the stub had nothing to drive.
 - **Polling until two reads agree returns mid-transition** for anything off-screen: Chrome
   stalls transitions between compositor ticks, so the same in-flight value appears twice.
   Settle on the site's own reduced-motion path instead of guessing at a sleep.

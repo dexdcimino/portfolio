@@ -32,7 +32,7 @@ const scanTimers = new WeakMap();
 const HAS_HIGHLIGHT = typeof Highlight === 'function' && !!(window.CSS && CSS.highlights);
 
 const WORD = /[A-Za-z][A-Za-z'’]*[A-Za-z]|[A-Za-z]/g;
-const SKIP = 'code, pre, a, .chip, [data-nospell]';
+const SKIP = 'code, pre, a, .chip, .nt-interim, [data-nospell]';
 
 // Words this dictionary lacks that these notes use constantly.
 const BUILTIN = new Set(['dex', 'dexnote', 'worldhop', 'roblox', 'youtube', 'vercel', 'github', 'discord', 'twitch',

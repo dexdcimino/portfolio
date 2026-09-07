@@ -18,7 +18,7 @@
 import { el, escapeHtml, debounce, caretToEnd } from './dom.js';
 import { clean, serialize, toText } from './schema.js';
 import { History } from './history.js';
-import { normalize, migrateHtml, activeSession, catOf, touch, restore as restoreSession, FONTS, SIZES, emptyDoc } from './state.js';
+import { normalize, migrateHtml, demoDoc, activeSession, catOf, touch, restore as restoreSession, FONTS, SIZES, emptyDoc } from './state.js';
 import { initEditor, capture, format, align, toggleList, indent, stateAt, insertInline } from './editor.js';
 import * as chips from './chips.js';
 import * as emoji from './emoji.js';
@@ -27,6 +27,7 @@ import * as spell from './spell.js';
 import * as search from './search.js';
 import * as slash from './slash.js';
 import * as render from './render.js';
+import * as dictate from './dictate.js';
 import { setRoot, toast, confirm, menu, initTooltips, closePanel, ICON } from './ui.js';
 import { restoreSelection } from './dom.js';
 
@@ -36,16 +37,25 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   await ensureCss();
 
   /* ---- the document ---- */
+  /* THE DEMO IS THE SAME APP WITH NOTHING BEHIND IT. `demo` is not a reduced
+     mode with features switched off -- everything works, including images --
+     it is the save loop and only the save loop that is absent. There is no
+     token, so no request to /api/notes/* can be made or would be answered,
+     which is also the whole of the answer to "can a visitor reach, spam or
+     see the real notes": there is nothing here to reach them with. The
+     document is a local variable and dies with the overlay. */
   let doc;
   let migrated = false;
-  if (payload.format === 'json') doc = normalize(payload.content);
+  const demo = payload.format === 'demo';
+  if (demo) doc = demoDoc();
+  else if (payload.format === 'json') doc = normalize(payload.content);
   else { doc = migrateHtml(payload.content); migrated = true; }
   let rev = Number(payload.rev) || 0;
   let currentToken = token;
   const loadedStamps = new Map(doc.sessions.map((s) => [s.id, s.updated]));
 
   /* ---- the layout ---- */
-  const root = el('div', { class: 'nt-app', 'data-theme': doc.ui.theme });
+  const root = el('div', { class: `nt-app ${demo ? 'is-demo' : ''}`, 'data-theme': doc.ui.theme });
   const header = el('header', { class: 'nt-header' });
   const sidebar = el('aside', { class: 'nt-sidebar', 'aria-label': 'Categories' });
   const canvas = el('div', { class: 'nt-canvas', tabindex: '-1' });
@@ -62,6 +72,12 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     history: null,
     token: () => currentToken,
     api: { uploadAsset },
+    demo,
+    // In the demo an image has nowhere to be uploaded to, so it is kept in
+    // memory under the same kind of key and resolved by hydrate(). It works
+    // exactly like the real thing until the overlay closes, and then it is
+    // gone with everything else.
+    demoAssets: new Map(),
     clean, toText,
     bodyFor: (id) => canvas.querySelector(`.nt-body[data-cat="${CSS.escape(id)}"]`),
     changed,           // a body changed
@@ -73,8 +89,10 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     insertText: (body, text) => insertInline(body, document.createTextNode(text)),
     filterSidebar: (hits) => render.filterSidebar(hits),
     expandCat: (id) => render.expandCat(id),
-    chips, emoji, slash, spell, search,
+    chips, emoji, slash, spell, search, dictate,
     color: { open: color.openColor },
+    catTitle: (id) => { const c = catOf(activeSession(doc), id); return c ? c.title : 'Notes'; },
+    scrollToCat: (id) => render.jumpTo(id),
   };
 
   /* ---- history ---- */
@@ -109,6 +127,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   color.initColor(ctx);
   slash.initSlash(ctx);
   spell.initSpell(ctx);
+  dictate.initDictate(ctx);
 
   /* ---- header ---- */
   const btn = (cls, tip, icon, onClick, extra = {}) => el('button', { type: 'button', class: `nt-icon-btn ${cls}`, 'data-tip': tip, html: icon, 'aria-label': tip, onclick: onClick, ...extra });
@@ -210,6 +229,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   canvas.append(
     el('div', { class: 'nt-canvas-inner' },
       el('div', { class: 'nt-session-head' }, sessionEmoji, sessionTitleEl, addTop, sessionColor),
+      demo ? el('p', { class: 'nt-demo-note', html: 'This is a <strong>live sandbox</strong> of the notes app \u2014 type, dictate, drag, undo, break it. Nothing is saved, and closing this window throws it all away.' }) : null,
       el('div', { class: 'nt-cats' }),
       el('button', { type: 'button', class: 'nt-add-bottom', html: `${ICON.plus}<span>New category</span>`, onclick: () => render.addCat('bottom') })));
   canvas.addEventListener('scroll', render.onCanvasScroll, { passive: true });
@@ -300,6 +320,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
 
   function docChanged() {
     dirty = true;
+    if (demo) { setStatus('SANDBOX — NOT SAVED', null); return; }
     setStatus('EDITING…', 'saving');
     clearTimeout(saveTimer);
     saveTimer = setTimeout(save, SAVE_DEBOUNCE);
@@ -324,6 +345,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
 
   async function save() {
     clearTimeout(saveTimer);
+    if (demo) { dirty = false; setStatus('SANDBOX — NOT SAVED', null); return; }
     if (!currentToken) return;
     if (inFlight) { pendingSave = true; return; }
     flushBodies();
@@ -384,7 +406,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
 
   /* When the tab comes back, ask whether the store moved on. */
   async function refresh() {
-    if (!currentToken || dirty || inFlight) return;
+    if (demo || !currentToken || dirty || inFlight) return;
     try {
       const res = await fetch('/api/notes/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: currentToken }) });
       if (res.status === 401) { currentToken = null; onLocked && onLocked(); return; }
@@ -402,7 +424,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   /* A close or a tab-away should not sit on an unsaved second. sendBeacon is
    * the only request the browser promises to finish after the page goes. */
   function flush() {
-    if (!currentToken) return;
+    if (demo || !currentToken) return;
     flushBodies();
     const body = JSON.stringify(doc);
     if (body === lastSaved) return;
@@ -415,6 +437,11 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   window.addEventListener('pagehide', flush);
 
   async function uploadAsset(blob, type) {
+    if (demo) {
+      const key = `${'d'.repeat(63)}${ctx.demoAssets.size % 10}.${type === 'image/png' ? 'png' : 'webp'}`;
+      ctx.demoAssets.set(key, URL.createObjectURL(blob));
+      return key;
+    }
     const data = await new Promise((resolve, reject) => {
       const fr = new FileReader();
       fr.onload = () => resolve(String(fr.result).split(',')[1]);
@@ -457,6 +484,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
     if (mod && e.key === '\\') { e.preventDefault(); setSidebar(doc.ui.sidebar === 'open' ? 'rail' : 'open'); return; }
     if (e.altKey && e.key.toLowerCase() === 'n' && !mod) { e.preventDefault(); render.addCat('bottom'); return; }
+    if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); dictate.toggleHere(); return; }
     if (mod && e.key.toLowerCase() === 'z' && !inBody && !inField) { e.preventDefault(); if (e.shiftKey) ctx.history.redo(); else ctx.history.undo(); return; }
     if (mod && e.key.toLowerCase() === 'y' && !inBody && !inField) { e.preventDefault(); ctx.history.redo(); }
   }
@@ -477,7 +505,10 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   render.renderAll();
   syncUndoButtons();
   lastSaved = migrated ? '' : JSON.stringify(doc);
-  if (migrated) {
+  if (demo) {
+    setStatus('SANDBOX — NOT SAVED', null);
+    toast('A sandbox copy. Nothing here is saved, and nothing here can see anyone else\u2019s notes.');
+  } else if (migrated) {
     setStatus('MIGRATED — SAVING…', 'saving');
     toast('Your notes were moved into the new editor. The old copy is kept on the server.');
     dirty = true;
@@ -494,6 +525,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     save,
     get doc() { return doc; },
     unmount() {
+      dictate.shutdown();
       flush();
       clearTimeout(saveTimer);
       clearTimeout(retryTimer);
@@ -501,6 +533,8 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('pagehide', flush);
       closePanel();
+      for (const url of ctx.demoAssets.values()) URL.revokeObjectURL(url);
+      ctx.demoAssets.clear();
       if (window.CSS && CSS.highlights) { CSS.highlights.delete('nt-spell'); CSS.highlights.delete('nt-search'); CSS.highlights.delete('nt-search-current'); CSS.highlights.delete('nt-fix'); }
       root.remove();
     },

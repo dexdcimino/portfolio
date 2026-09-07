@@ -286,6 +286,7 @@ export function renderAll() {
   renderSessionHeader();
   renderCanvas();
   renderSidebar();
+  ctx.dictate.paintButtons();
   ctx.spell.rescanAll();
   ctx.search.refresh();
 }
@@ -351,7 +352,10 @@ function buildSection(cat) {
   body.innerHTML = ctx.clean(cat.body);
   body.spellcheck = false;
   ctx.chips.hydrate(body);
-  sec.append(head, el('div', { class: 'nt-cat-body' }, body));
+  // The microphone sits in the box's bottom-right corner, in the wrapper
+  // rather than inside the contenteditable: a button inside the text is a
+  // thing the caret can land on.
+  sec.append(head, el('div', { class: 'nt-cat-body' }, body, ctx.dictate.micButton(cat.id)));
   fillHeader(sec, cat);
   wireTitle(head.querySelector('.nt-cat-title'), cat.id);
   return sec;

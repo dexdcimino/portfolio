@@ -330,7 +330,7 @@ export function scrub(root) {
     styled.removeAttribute('style');
     changed = true;
   }
-  for (const font of root.querySelectorAll('font, span:not(.chip), div, strong, em, strike, del')) {
+  for (const font of root.querySelectorAll('font, span:not(.chip):not(.nt-interim), div, strong, em, strike, del')) {
     if (font.tagName === 'DIV') {
       const p = document.createElement('p');
       while (font.firstChild) p.append(font.firstChild);
@@ -364,6 +364,9 @@ export function scrub(root) {
  * compare strings to know whether anything changed. */
 export function serialize(root) {
   const copy = root.cloneNode(true);
+  // Words the speech engine has not committed to yet. They are in the DOM
+  // so they can be seen; they are not in the document.
+  for (const n of copy.querySelectorAll('.nt-interim')) n.remove();
   for (const img of copy.querySelectorAll('img')) {
     if (!img.getAttribute('data-key')) { img.remove(); continue; }   // still uploading
     img.removeAttribute('src');

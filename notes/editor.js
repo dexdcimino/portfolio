@@ -69,6 +69,10 @@ export function capture(body) {
 /* Run a change to `body` as one undoable step. */
 export function transact(body, mutate) {
   const catId = catIdOf(body);
+  // Provisional dictation is in the DOM but is not part of the document;
+  // taking it out before the `before` snapshot is what keeps it out of the
+  // history, and out of anything undo can put back.
+  ctx.dictate.clearInterim();
   return ctx.history.text(catId, () => capture(body), () => {
     const r = mutate();
     ctx.changed(body);
@@ -83,6 +87,7 @@ let pending = null;   // { body, before, key, seal } captured at beforeinput
 function onBeforeInput(e) {
   const body = bodyFrom(e.target);
   if (!body) return;
+  ctx.dictate.clearInterim();          // same reason as in transact()
   const type = e.inputType || '';
 
   // The browser's own undo is switched off in favour of the app's.

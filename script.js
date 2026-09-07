@@ -2106,14 +2106,21 @@ if (workModal) {
     /* ---- opening --------------------------------------------------------- */
 
     async function opened(data) {
-      const mine = ++opening;
       if (label) label.textContent = 'OPEN';
       if (padlock) padlock.dataset.icon = 'lock-open';
       gate.hidden = true;
-      editor.hidden = false;
       if (frame) frame.classList.add('is-app');
       token = data.token;
       store.set(TOKEN_KEY, token);
+      await mountApp(data, token);
+    }
+
+    /* Shared by the real notes and the sandbox. Everything below this line is
+       the same app either way; the only difference is whether a token came
+       with it, and a mount with no token can reach nothing. */
+    async function mountApp(payload, sessionToken) {
+      const mine = ++opening;
+      editor.hidden = false;
       setSave('LOADING…', 'saving');
       try {
         /* The app is an ES module and this is a classic script, and that is
@@ -2122,8 +2129,8 @@ if (workModal) {
         const mod = await import('/notes/app.js');
         if (mine !== opening || !modal.open) return;     // closed while loading
         app = await mod.mount(editor, {
-          payload: data,
-          token,
+          payload,
+          token: sessionToken,
           onToken: (fresh) => { token = fresh; store.set(TOKEN_KEY, fresh); },
           onLocked: () => { token = null; store.drop(TOKEN_KEY); },
           onStatus: setSave,
@@ -2133,6 +2140,31 @@ if (workModal) {
         setSave('EDITOR FAILED TO LOAD — SEE CONSOLE', 'error');
       }
     }
+
+    /* THE SANDBOX, opened by the eyeball on the DexNote card in the AI Lab.
+
+       It is the same app, mounted with `format: 'demo'` and NO TOKEN, and
+       that is what makes it safe rather than any check inside it: with no
+       token there is no request it could make to /api/notes/* that would be
+       answered, so a visitor cannot read, write or flood the real notes, and
+       cannot reach the keypad from here either. The document it opens is
+       built in memory, and closing the overlay unmounts the app and empties
+       the container, so nothing a visitor typed outlives the window.
+
+       No `#notes` in the address: this is not the notes, and a link someone
+       shares must land on the portfolio rather than on a password box. */
+    async function openDemo(trigger) {
+      gate.hidden = true;
+      if (wait) wait.hidden = true;
+      editor.hidden = true;
+      openModal(modal, modal.querySelector('.notes-shell'), null, trigger);
+      if (frame) frame.classList.add('is-app');
+      await mountApp({ format: 'demo' }, null);
+    }
+
+    document.addEventListener('notes:demo', (event) => {
+      if (!modal.open) openDemo((event.detail || {}).opener);
+    });
 
     async function unlock(body) {
       const response = await fetch('/api/notes/unlock', {
@@ -2278,6 +2310,22 @@ if (workModal) {
     }
   }
 }
+
+/* The AI Lab's DexNote card opens the notes app as a SANDBOX. It is the one
+   eyeball that points at no iframe: the app is already on this page, behind
+   the same overlay the real notes use, so the preview IS the editor with
+   nothing behind it rather than a screenshot or a second copy. The notes
+   block above owns what that means; this only knocks on the door.
+
+   Below 768px the CSS hides every .ai-card-eye and the card's title link
+   goes to dexnote.dev, which is the better destination on a phone anyway. */
+(function initNotesDemo() {
+  const eye = document.querySelector('[data-notes-demo]');
+  if (!eye) return;
+  eye.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('notes:demo', { detail: { opener: eye } }));
+  });
+})();
 
 /* ==========================================================================
    TABBED SECTIONS  (Toolkit, Top Picks)

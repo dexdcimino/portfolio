@@ -42,7 +42,8 @@ export function initChips(context) {
 export function hydrate(body) {
   const token = ctx.token();
   for (const img of body.querySelectorAll('img.nt-img[data-key]')) {
-    const want = `/api/notes/asset?key=${encodeURIComponent(img.dataset.key)}&t=${encodeURIComponent(token)}`;
+    const local = ctx.demoAssets.get(img.dataset.key);
+    const want = local || `/api/notes/asset?key=${encodeURIComponent(img.dataset.key)}&t=${encodeURIComponent(token)}`;
     if (img.getAttribute('src') !== want && !img.src.startsWith('data:')) img.src = want;
     img.setAttribute('draggable', 'false');
     img.style.width = `${img.dataset.w || 50}%`;
@@ -285,7 +286,7 @@ export async function insertImageFile(body, file) {
     if (!target) return;
     target.dataset.key = key;
     target.classList.remove('is-pending');
-    target.src = `/api/notes/asset?key=${encodeURIComponent(key)}&t=${encodeURIComponent(ctx.token())}`;
+    target.src = ctx.demoAssets.get(key) || `/api/notes/asset?key=${encodeURIComponent(key)}&t=${encodeURIComponent(ctx.token())}`;
     ctx.changed(live);
     ctx.history.seal();
   } catch (err) {

@@ -25,6 +25,41 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — dictation writes at the caret, and the preview is the app itself
+
+**Decided.** Two things, both in `notes/`. A microphone per text box
+(`dictate.js`) whose insertion point is the live caret rather than a tracked
+one, whose provisional words live in a span that no save and no history
+capture can see, and which commits by diffing against what it has already
+written. And the AI Lab's DexNote eyeball opens the real app with
+`format: 'demo'` and no token, rather than an iframe or a screenshot.
+
+**Replaced.** DexNote's speech-to-text, which kept a second cursor
+(`_sttInsertionPoint`) in step with the real one through a locked target, a
+roving mic, a serialize-and-restore across every re-render, and four
+overlapping de-duplication trackers of which three were dead code by the end.
+And, for the preview, the pattern every other AI Lab card uses: an iframe
+pointed at a deployed URL, which for this app would have meant deploying a
+second copy of it.
+
+**Why.** The tracked cursor is the feature's whole bug surface: every one of
+its numbered fixes was the tracker disagreeing with the caret after a click, a
+type, a restart or a rebuild. The caret cannot disagree with itself, and the
+browser maintains it for free through all four. The commit diff stays because
+that scar is real and not ours -- desktop Chrome and Android genuinely
+disagree about what a final result contains, and both shapes are asserted. For
+the preview: the app is already on the page behind the notes overlay, so an
+iframe would ship it twice, and a token-less mount is a stronger guarantee
+than any check the demo could make about itself -- there is nothing to reach
+the real notes WITH.
+
+**Reverse it if.** Chrome ever exposes a real dictation surface (an
+`EditContext`-style API that owns the insertion point itself), at which point
+the commit diff and the provisional span both belong to the platform. The
+sandbox reverses only if the notes app moves off this page.
+
+---
+
 ## 2026-09-07 — the notes are an app of their own, mounted behind the same door
 
 **Decided.** The notes overlay is `notes/`, a set of ES modules that script.js

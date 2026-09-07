@@ -252,6 +252,40 @@ function mergeSession(mine, theirs) {
   return { ...newer, cats, archived, updated: newer.updated };
 }
 
+/* ---- the sandbox document ------------------------------------------------- */
+
+/* What the AI Lab preview opens with. It is a demonstration, so it is short
+ * and it shows the shapes: a heading, nested bullets, bold, a to-do list with
+ * something already ticked, two categories, and a second colour that is not
+ * the session's -- which is the thing a screenshot of an empty editor cannot
+ * show. Nothing here is ever saved anywhere. */
+export function demoDoc() {
+  const green = '#68d121';
+  const session = newSession('Brainstorm', {
+    emoji: '\u{1F47D}', color: green,
+    cats: [
+      newCat('First Contact', {
+        emoji: '\u{1F6F8}', color: green,
+        body: '<h3>Before we land</h3>'
+            + '<ul><li>Find a field nobody is watching'
+            + '<ul><li>Kansas \u2014 traditional, low risk</li>'
+            + '<li>Times Square \u2014 maximum reach, maximum questions</li></ul></li>'
+            + '<li>Learn what <b>brb</b> means before the broadcast</li></ul>'
+            + '<ul class="todo"><li data-checked="1">Park the saucer somewhere legal</li>'
+            + '<li>Practise the handshake</li></ul>',
+      }),
+      newCat('Snacks For The Trip', {
+        emoji: '\u{1F32E}', color: '#ffb85c',
+        body: '<p>Nine light years is a long time to be hungry.</p>'
+            + '<ul><li>Tacos. Non-negotiable.</li>'
+            + '<li>Something that survives re-entry</li></ul>'
+            + '<ul class="todo"><li>Work out why they put pineapple on pizza</li></ul>',
+      }),
+    ],
+  });
+  return normalize({ v: 2, active: session.id, sessions: [session], ui: defaultUi() });
+}
+
 /* ---- migration from the pre-rebuild HTML --------------------------------- */
 
 /* The old document was one HTML string: a .nv-title, then <section

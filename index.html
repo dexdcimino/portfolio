@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=210" />
+  <link rel="stylesheet" href="styles.css?v=211" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -973,6 +973,16 @@
               <img class="ai-card-icon" src="assets/icons/apps/dexnote.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
+            <!-- The one eyeball that opens no iframe: initNotesDemo in
+                 script.js asks the notes overlay to mount its app as a
+                 SANDBOX, so the preview is the editor itself, with an
+                 in-memory document and no token. It cannot see or touch
+                 the real notes behind the passcode, and everything typed
+                 into it dies with the window. -->
+            <button class="ai-card-eye" type="button" data-notes-demo data-tip="Functional preview"
+                    aria-label="Open a functional preview of the notes app">
+              <span class="icon" data-icon="eye" aria-hidden="true"></span>
+            </button>
           </article>
           <article class="ai-card" data-gallery="nodeblast" data-kind="WEB APP" data-stack="PLATFORM"
              data-desc-lead="A creator and gaming platform, front to back."
@@ -4772,6 +4782,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=203"></script>
+  <script src="script.js?v=204"></script>
 </body>
 </html>

@@ -46,7 +46,12 @@ and `grep -c "autolist\|split" notes/*.js` → 0.
     already persists correctly (`data-w`); do it when a width in between is missed.
 11. **Drag-reorder on the canvas.** The sidebar reorders by grip drag and the header
     menu moves up/down/top/bottom; the canvas has the menu only.
-12. **A session per blob.** One JSON document holds every session; `state.merge`
+12. **Dictation is Chrome-only, and the button hides itself elsewhere.** The Web
+    Speech API is `webkitSpeechRecognition` in Chrome and Edge and absent in Firefox
+    and Safari. A server-side transcription route is the only other shape, and it
+    costs money per minute for a feature used on one machine.
+    Verified: `grep -n "SpeechRecognition" notes/dictate.js`.
+13. **A session per blob.** One JSON document holds every session; `state.merge`
     already merges per session and per category, so the client end would not change.
     Worth it only if the document nears the 4 MB ceiling — `notes_store_check`
     names the number.
