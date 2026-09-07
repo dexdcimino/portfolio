@@ -25,6 +25,36 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — Previous walks a play history, and never shuffles
+
+**Decided.** The music player keeps `history`, a capped list of the video ids it has
+actually played, and the Previous button pops that list in both modes. At the bottom
+of it with shuffle on, the current track restarts; with shuffle off, the row above
+stays the fallback. A track the embed refused is popped back off the history.
+
+**Replaced.** `index - 1` in every mode — the list position, one row up.
+
+**Why.** Reported by Dex: with shuffle on, pressing back to hear the last song again
+served a third song. That is not a bug in the back button so much as a category
+error in it — with shuffle on, `index` is a random pick and the row above it is
+another arbitrary track, so Previous was a second shuffle wearing the back button's
+clothes. Shuffle is a statement about what comes NEXT; there is no reading of it
+under which the past is also random, and "the song I just heard" is the only thing
+anyone presses that button for. Two smaller calls sit inside it. Ids and not indices,
+because a search or a re-sort renumbers the queue under a live player and `render()`
+already re-finds the playing track by id for exactly that reason; an id no longer in
+the visible list is skipped rather than followed. And history wins over `index - 1`
+even with shuffle OFF, where the two normally agree — they diverge only after the
+listener clicks rows out of order, and there the history is the more honest answer to
+"what did I just hear".
+
+**Reverse it if.** A listener asks for Previous to walk the LIST while shuffle is off
+after clicking around by hand — the one case where the two rules disagree. Nothing
+else foreseeable: the rest follows from Previous meaning the past, and falls only if
+that does.
+
+---
+
 ## 2026-09-05 — a dead track is flagged in the browser that hit it, not in the tracklist
 
 **Decided.** When the embed refuses a video, the overlay marks it with a red flag in

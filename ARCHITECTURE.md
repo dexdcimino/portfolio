@@ -1231,7 +1231,7 @@ assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
 script.js                initMusic() - below MediaBus, see why in its header
 styles.css               .music-*
-tools/music_check.mjs    241 checks in a real browser, serves the repo itself,
+tools/music_check.mjs    253 checks in a real browser, serves the repo itself,
                          reaches NO network — the embed is intercepted
 tools/music_flag_check.mjs  15 checks that DO reach YouTube: a real embed
                          refusing a real video, over https, see below
@@ -1371,6 +1371,25 @@ full-screen overlay is worth having.
 alphabetical order is a filing cabinet, not a playlist. Absent is not the same as
 off: only an explicit `0` turns it off, so the default survives a browser that
 has never touched the control.
+
+**PREVIOUS NEVER SHUFFLES.** Shuffle decides what comes NEXT; back is always the
+song you just heard, which is the only reason anyone presses it. So the player
+keeps `history`, a capped list of the video ids it has actually played, and
+Previous pops that rather than reading `index - 1` — which with shuffle on is
+the row ALPHABETICALLY above a random pick, a second shuffle wearing the back
+button's clothes (reported by Dex, 2026-09-07). Ids and not indices, for the same
+reason `render()` re-finds the playing track by id: a search or a re-sort
+renumbers the queue under a live player, and an id no longer in the visible list
+is skipped rather than followed. `load()` records the outgoing track except on a
+rewind — recording there would ping-pong between the last two songs instead of
+walking back — `stop()` clears the list with the player, and a track the embed
+REFUSED is popped back off, because going back to a dead link only skips forward
+again and lands somewhere new. At the bottom of the history with shuffle on the
+current track restarts, which is what every other player does at the top of a
+queue; with shuffle off the list order is the play order, so the row above stays
+the fallback. One transport serves both the overlay and the docked corner bar, so
+this is one fix in both places. `music_check.mjs` 7e drives it three presses deep
+and refuses the old code.
 
 **The bar is two rows.** The seek row spans it; the controls keep three columns
 (`1fr auto 1fr`) underneath. Both halves matter: a flex row would put the

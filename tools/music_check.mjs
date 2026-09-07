@@ -893,6 +893,108 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        `only ${floors.length} size floors are being checked — the table has been gutted`);
 }
 
+/* ---- 7e. PREVIOUS NEVER SHUFFLES ---------------------------------------
+   The reported bug (Dex, 2026-09-07): with shuffle on, pressing back to hear
+   the last song again shuffled to a third song instead. Shuffle decides what
+   comes NEXT; Previous is the one control whose whole meaning is "the song I
+   just heard", and `index - 1` cannot mean that when `index` is a random pick
+   — it is the row ALPHABETICALLY above a random pick, which is a second
+   shuffle wearing the back button's clothes.
+
+   FALSELY PASSES IF: it only asserted that Previous changed the track, or that
+   it landed somewhere other than index-1. With 311 rows almost any wrong
+   answer satisfies both. What is asserted is the exact video id of the track
+   that actually played before, twice deep, and that the walk does not
+   ping-pong between the last two.
+
+   One transport serves both the overlay and the docked corner bar — the same
+   #musicPrev element in the same permanent bar — so this covers both places
+   the bug was seen. */
+{
+  await shutMusic();                    // stop() clears the history it built
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 5000 });
+
+  const rows = await page.evaluate(() =>
+    document.querySelectorAll('#musicRows .music-row').length);
+  note(rows === manifest.count,
+       `check 7e is walking ${rows} rows, not the manifest's ${manifest.count}`);
+  note(await page.evaluate(() =>
+       document.getElementById('musicShuffle').getAttribute('aria-pressed') === 'true'),
+       'check 7e needs shuffle ON and it is not — the bug only exists there');
+
+  // Three tracks, played in a known order, none of them adjacent in the list.
+  const playRow = async (n) => {
+    const v = await page.evaluate((i) => {
+      const row = document.querySelectorAll('#musicRows .music-row')[i];
+      row.querySelector('.music-play').click();
+      return row.dataset.v;
+    }, n);
+    await page.waitForFunction(
+      (want) => document.querySelector('#musicRows .music-row.is-playing')?.dataset.v === want,
+      { timeout: 5000 }, v);
+    return v;
+  };
+  const nowV = () => page.evaluate(() => ({
+    v: document.querySelector('#musicRows .music-row.is-playing')?.dataset.v ?? null,
+    lit: document.querySelectorAll('#musicRows .music-row.is-playing').length,
+  }));
+
+  const a = await playRow(4), b = await playRow(40), c = await playRow(120);
+  note(new Set([a, b, c]).size === 3, 'check 7e played the same row twice — it proves nothing');
+  note((await nowV()).v === c, 'the third click did not leave the third track playing');
+
+  await page.click('#musicPrev');
+  const one = await nowV();
+  note(one.v === b, `Previous landed on ${one.v}, not the track that just played (${b})`);
+  note(one.lit === 1, `${one.lit} rows are lit after Previous, expected 1`);
+
+  /* Twice deep. This is the check that catches a back button which pushes the
+     track it is leaving: that walks A, B, A, B forever and looks fine for one
+     press. */
+  await page.click('#musicPrev');
+  const two = await nowV();
+  note(two.v === a, `a second Previous landed on ${two.v}, not ${a} — the history ping-ponged`);
+
+  /* The bottom of the history. There is no "row above" that means anything
+     with shuffle on, so the current track restarts — what every other player
+     does at the top of a queue. The failure being ruled out is a jump to a
+     random row, which is the original bug with fewer presses. */
+  await page.click('#musicPrev');
+  const floor = await nowV();
+  note(floor.v === a,
+       `Previous with nothing behind it jumped to ${floor.v} — it must restart ${a}`);
+
+  /* Shuffle OFF, from an empty history: the list order IS the play order, so
+     the row above is the right answer and stays the fallback. */
+  await shutMusic();
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
+  await page.click('#musicShuffle');
+  note(await page.evaluate(() =>
+       document.getElementById('musicShuffle').getAttribute('aria-pressed') === 'false'),
+       'clicking shuffle did not turn it off for the list-walk half of check 7e');
+  const at20 = await playRow(20);
+  await page.click('#musicPrev');
+  const above = await page.evaluate(() => {
+    const list = [...document.querySelectorAll('#musicRows .music-row')];
+    const now = document.querySelector('#musicRows .music-row.is-playing');
+    return { i: list.indexOf(now), v: now?.dataset.v ?? null, want: list[19]?.dataset.v ?? null };
+  });
+  note(above.i === 19,
+       `with shuffle off and nothing played before it, Previous went to row ${above.i}, not 19`);
+  note(above.v === above.want && above.v !== at20,
+       'with shuffle off, Previous did not land on the row above');
+  await page.click('#musicShuffle');            // leave it as it was found
+  note(await page.evaluate(() =>
+       document.getElementById('musicShuffle').getAttribute('aria-pressed') === 'true'),
+       'check 7e left shuffle off for the checks after it');
+}
+
 /* ---- 8. closing stops the player and LEAVES THE PAGE ALONE -------------
    The reported bug: closing the overlay scrolled to the Idea Vault. It was two
    things at once — every door was handed the vault's last pin as its opener

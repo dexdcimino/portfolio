@@ -5148,6 +5148,15 @@ const MediaBus = (() => {
   let sort = 't';             // 't' | 'a'
   let query = '';
   let index = -1;             // into `queue`
+  /* WHAT WAS ACTUALLY PLAYED, oldest last, as video ids. Previous walks THIS
+     and never the list, because with shuffle on `index - 1` is the row above a
+     random pick -- so pressing back to hear the last song again shuffled you
+     somewhere else again (Dex, 2026-09-07). Ids and not indices because a
+     search or a re-sort renumbers the queue under a player that is still
+     going; `render()` already re-finds the playing track by id for the same
+     reason. Capped because a long session should not grow a list forever. */
+  const history = [];
+  const HISTORY_MAX = 200;
   let playing = false;
   /* Shuffle starts ON. 311 tracks in alphabetical order is a filing cabinet,
      not a playlist, and pressing play in one should not mean hearing the same
@@ -5525,9 +5534,16 @@ const MediaBus = (() => {
     return `${ORIGIN}/embed/${encodeURIComponent(v)}?${params}`;
   }
 
-  function load(i, fromClick) {
+  function load(i, fromClick, rewind) {
     const track = queue[i];
     if (!track) return;
+    /* Remember what we are leaving, before index moves. Not on a rewind --
+       Previous would push the track it is walking away from and two presses
+       would ping-pong between the same pair instead of walking back. */
+    if (!rewind && current && current.v !== track.v) {
+      history.push(current.v);
+      if (history.length > HISTORY_MAX) history.shift();
+    }
     index = i;
     /* A search can filter the playing track out of the list, which sets index
        to -1 while the audio carries on -- so the thing that failed cannot be
@@ -5587,8 +5603,36 @@ const MediaBus = (() => {
     load(n, true);
   }
 
+  /* PREVIOUS NEVER SHUFFLES, in either mode. Shuffle decides what comes NEXT;
+     back is always the song you just heard, which is the only reason anyone
+     presses it. This is the one control the bar and the docked corner share,
+     so fixing it here fixes both. */
+  function back() {
+    while (history.length) {
+      const v = history.pop();
+      const i = queue.findIndex(t => t.v === v);
+      // Searched or filtered out of the list since it played -- keep walking.
+      if (i >= 0) { load(i, true, true); return; }
+    }
+    /* Nothing behind us. With shuffle on there is no "row above" that means
+       anything, so restart the current track: that is what every other player
+       does at the top of a queue, and it beats both a dead button and a back
+       that picks at random -- which is the bug this replaced. */
+    if (shuffle) {
+      if (index < 0) { startFresh(); return; }
+      cmd('seekTo', [0, true]);
+      // resume() and not a bare playVideo: pressing a transport control is a
+      // claim on the page's audio, and that is the thing that tells the bus.
+      resume();
+      return;
+    }
+    const next = index - 1;
+    load(next < 0 ? (loop === 'off' ? 0 : queue.length - 1) : next, true, true);
+  }
+
   function step(delta) {
     if (!queue.length) return;
+    if (delta < 0) { back(); return; }
     if (shuffle && delta > 0) {
       if (queue.length < 2) { load(0, true); return; }
       let n = index;
@@ -5617,6 +5661,7 @@ const MediaBus = (() => {
     playing = false;
     index = -1;
     current = null;
+    history.length = 0;
     deadRun = 0;
     calm();
     idle();
@@ -5699,6 +5744,11 @@ const MediaBus = (() => {
     /* step(1) and not the ended path: repeat-one on a dead track is the
        infinite loop this whole function exists to avoid. */
     step(1);
+    /* ...and the track that refused does not belong in the back history: going
+       back to it would just skip forward again, landing somewhere new, which
+       is the shuffling Previous wearing a hat. load() pushed it a moment ago
+       because from its side this was an ordinary advance. */
+    if (history[history.length - 1] === track?.v) history.pop();
     // ...and watch whatever it landed on, because it may say nothing at all.
     if (current && current !== track) stalled(current);
   }
