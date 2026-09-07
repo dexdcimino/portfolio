@@ -18,7 +18,93 @@ import { confirm, toast, menu, panel, closePanel, ICON } from './ui.js';
 import { contrastOn, tints } from './color.js';
 
 let ctx = null;
-export function initRender(context) { ctx = context; }
+export function initRender(context) {
+  ctx = context;
+  // The one grab edge between the list and the archive. Delegated, because
+  // the sidebar's insides are rebuilt and the edge is not.
+  ctx.sidebar.addEventListener('pointerdown', onGripDown);
+}
+
+/* ---- the split between the list and the archive ----------------------------
+ * They are welded: one drag decides how the leftover height is shared, and
+ * the number is saved, because a sidebar that forgets how you sized it is a
+ * sidebar you resize every time you open it. */
+export function applySplit() {
+  const share = Math.max(20, Math.min(80, Number(ctx.doc.ui.archSplit) || 72));
+  ctx.root.style.setProperty('--list-flex', String(share));
+  ctx.root.style.setProperty('--arch-flex', String(100 - share));
+}
+
+function onGripDown(e) {
+  const grip = e.target.closest('.nt-archive-grip');
+  if (!grip || e.button !== 0) return;
+  e.preventDefault();
+  grip.setPointerCapture(e.pointerId);
+  const rows = ctx.sidebar.querySelector('.nt-rows');
+  const foot = ctx.sidebar.querySelector('.nt-sidebar-foot');
+  const top = rows.getBoundingClientRect().top;
+  const span = foot.getBoundingClientRect().top - top;
+  ctx.sidebar.classList.add('is-splitting');
+  const move = (ev) => {
+    if (span < 120) return;
+    const share = Math.max(20, Math.min(80, ((ev.clientY - top) / span) * 100));
+    ctx.doc.ui.archSplit = Math.round(share);
+    applySplit();
+  };
+  const up = () => {
+    grip.removeEventListener('pointermove', move);
+    grip.removeEventListener('pointerup', up);
+    grip.removeEventListener('pointercancel', up);
+    ctx.sidebar.classList.remove('is-splitting');
+    ctx.uiChanged();
+  };
+  grip.addEventListener('pointermove', move);
+  grip.addEventListener('pointerup', up);
+  grip.addEventListener('pointercancel', up);
+}
+
+/* ---- renaming in place -----------------------------------------------------
+ * A title in the sidebar is renamed IN the sidebar. Double-click turns the
+ * text into a field with everything selected, Enter or clicking away keeps
+ * it, Escape puts back what was there. Used by the session's name at the top
+ * and by every category row under it. */
+export function wireInlineTitle(node, { get, set, max = 80 }) {
+  const start = () => {
+    if (node.isContentEditable) return;
+    node.textContent = get();
+    node.contentEditable = 'true';
+    node.spellcheck = false;
+    node.classList.add('is-editing');
+    node.focus();
+    selectAll(node);
+  };
+  const stop = (keep) => {
+    if (!node.isContentEditable) return;
+    const text = node.textContent;
+    // Cleared BEFORE set(), because set() re-renders and a re-entrant blur
+    // would otherwise commit the same edit twice.
+    node.contentEditable = 'false';
+    node.classList.remove('is-editing');
+    const sel = window.getSelection();
+    if (sel && node.contains(sel.anchorNode)) sel.removeAllRanges();
+    if (keep) set(text.slice(0, max)); else node.textContent = get();
+  };
+  node.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); start(); });
+  node.addEventListener('mousedown', (e) => { if (node.isContentEditable) e.stopPropagation(); });
+  node.addEventListener('keydown', (e) => {
+    if (!node.isContentEditable) return;
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); stop(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); stop(false); }
+  });
+  node.addEventListener('blur', () => stop(true));
+  node.addEventListener('paste', (e) => {
+    e.preventDefault();
+    document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s+/g, ' '));
+  });
+  node.startEdit = start;
+  return start;
+}
 
 /* ---- helpers ---------------------------------------------------------------- */
 
@@ -194,7 +280,14 @@ export function renameCat(id, title) {
   const clean = title.replace(/\s+/g, ' ').trim().slice(0, 80) || 'New Category';
   if (clean === cat.title) return;
   structure('rename', () => { cat.title = clean; touch(S(), cat); });
-  // The title element already shows the text; only the sidebar needs it.
+  /* A rename can start in either place now, so both are written. Whichever
+     one is being typed in is skipped -- rewriting the element under the
+     caret would collapse the selection and eat the next keystroke. */
+  const sec = sectionFor(id);
+  const onCanvas = sec && sec.querySelector('.nt-cat-title');
+  if (onCanvas && document.activeElement !== onCanvas) onCanvas.textContent = clean;
+  const body = ctx.bodyFor(id);
+  if (body) body.setAttribute('aria-label', `${clean} notes`);
   renderSidebar();
 }
 
@@ -316,6 +409,7 @@ export function renderAll() {
   renderSessionHeader();
   renderCanvas();
   renderSidebar();
+  if (ctx.sidebar.classList.contains('show-sessions')) renderSessionList();
   ctx.dictate.paintButtons();
   ctx.spell.rescanAll();
   ctx.search.refresh();
@@ -346,6 +440,11 @@ function renderSessionHeader() {
 
 function renderCanvas() {
   const s = S();
+  /* replaceChildren detaches every section, which resets the scroll to the
+     top; restoring it is what stops archiving a category throwing the view
+     back to wherever it was before. An explicit scroll (jumpTo, addCat) runs
+     after this and still wins. */
+  const keepScroll = ctx.canvas.scrollTop;
   const list = ctx.canvas.querySelector('.nt-cats');
   const existing = new Map([...list.children].map((n) => [n.dataset.cat, n]));
   const frag = document.createDocumentFragment();
@@ -366,6 +465,13 @@ function renderCanvas() {
   for (const gone of existing.values()) { ctx.spell.forget(gone.querySelector('.nt-body')); gone.remove(); }
   list.replaceChildren(frag);
   ctx.canvas.classList.toggle('is-empty', !s.cats.length);
+  if (keepScroll && ctx.canvas.scrollTop !== keepScroll) {
+    // Directly, not smoothly: the canvas scrolls smoothly by default and an
+    // animated restore is a visible lurch.
+    ctx.canvas.style.scrollBehavior = 'auto';
+    ctx.canvas.scrollTop = keepScroll;
+    ctx.canvas.style.removeProperty('scroll-behavior');
+  }
 }
 
 function buildSection(cat) {
@@ -494,7 +600,11 @@ export function renderSidebar() {
     row.append(grip, badge, title, color, x);
     row.addEventListener('click', (e) => { if (e.target.closest('button,.nt-row-grip')) return; jumpTo(cat.id); });
     row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jumpTo(cat.id); } });
-    row.addEventListener('dblclick', (e) => { if (e.target.closest('button')) return; const t = sectionFor(cat.id)?.querySelector('.nt-cat-title'); if (t) { jumpTo(cat.id); t.focus(); selectAll(t); } });
+    wireInlineTitle(title, {
+      get: () => (catOf(S(), cat.id) || cat).title,
+      set: (t) => renameCat(cat.id, t),
+    });
+    title.setAttribute('data-tip', 'Double-click to rename');
     wireDrag(row, grip, cat.id);
     return row;
   });
@@ -509,6 +619,29 @@ export function renderSidebar() {
 
   renderArchive();
   spy();
+}
+
+/* The sessions as a list, under the sidebar's own button. The grid behind the
+ * badge is the same set; this is the one you can read the names in. */
+export function renderSessionList() {
+  const wrap = ctx.sidebar.querySelector('.nt-sesslist');
+  if (!wrap) return;
+  const out = ctx.doc.sessions.map((s) => {
+    const g = glyph(s);
+    const row = el('div', { class: `nt-sess-row ${s.id === ctx.doc.active ? 'is-active' : ''}`, 'data-sess': s.id, role: 'button', tabindex: '0' });
+    paintColor(row, s.color);
+    row.append(
+      el('span', { class: `nt-row-badge ${g.emoji ? 'is-emoji' : ''}`, text: g.text }),
+      el('span', { class: 'nt-row-title', text: s.title }),
+      el('span', { class: 'nt-sess-count', text: String(s.cats.length) }));
+    const go = () => { switchSession(s.id); renderSessionList(); };
+    row.addEventListener('click', go);
+    row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    row.addEventListener('contextmenu', (e) => { e.preventDefault(); sessionMenu(s, row); });
+    return row;
+  });
+  out.push(el('button', { type: 'button', class: 'nt-sess-row is-add', html: `${ICON.plus}<span>New session</span>`, onclick: () => addSession() }));
+  wrap.replaceChildren(...out);
 }
 
 function renderArchive() {

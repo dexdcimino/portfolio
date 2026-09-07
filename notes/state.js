@@ -98,6 +98,9 @@ export function defaultUi() {
     sidebar: 'open',
     spell: true,
     autocorrect: true,
+    // How the sidebar's leftover height is split between the category list
+    // and the archive, as the list's percentage. Dragged, so it is saved.
+    archSplit: 72,
     slots: Array(16).fill(''),
   };
 }
@@ -124,6 +127,7 @@ export function normalize(input) {
   if (out.ui.sidebar !== 'rail') out.ui.sidebar = 'open';
   out.ui.spell = out.ui.spell !== false;
   out.ui.autocorrect = out.ui.autocorrect !== false;
+  out.ui.archSplit = Math.max(20, Math.min(80, Number(out.ui.archSplit) || 72));
   if (!Array.isArray(out.ui.slots) || out.ui.slots.length !== 16) out.ui.slots = Array(16).fill('');
   out.ui.slots = out.ui.slots.map((s) => (typeof s === 'string' && HEX.test(s) ? s.toLowerCase() : ''));
   if (!out.sessions.length) out.sessions.push(newSession('Notes'));

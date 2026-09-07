@@ -129,19 +129,28 @@ function place(node, anchor, align, below) {
  * null entries as separators. Arrow keys move, Enter runs. */
 export function menu(anchor, items, opts = {}) {
   const list = el('div', { class: 'nt-menu', role: 'menu' });
-  const buttons = [];
-  for (const item of items) {
-    if (!item) { list.append(el('div', { class: 'nt-menu-sep' })); continue; }
-    const b = el('button', {
-      type: 'button', role: 'menuitem', class: `nt-menu-item ${item.danger ? 'is-danger' : ''}`,
-      disabled: item.disabled ? true : null,
-      onclick: () => { closePanel(); item.run(); },
-    }, item.icon ? el('span', { class: 'nt-menu-icon', html: item.icon }) : null,
-    el('span', { class: 'nt-menu-label', text: item.label }),
-    item.hint ? el('span', { class: 'nt-menu-hint', text: item.hint }) : null);
-    list.append(b);
-    if (!item.disabled) buttons.push(b);
-  }
+  let buttons = [];
+  /* Rebuildable, because some menus have to be SHOWN before they are
+     finished: the spelling menu cannot wait on a dictionary worker before it
+     paints anything, or the right-click reads as a dead click. */
+  const build = (rows) => {
+    buttons = [];
+    const frag = document.createDocumentFragment();
+    for (const item of rows) {
+      if (!item) { frag.append(el('div', { class: 'nt-menu-sep' })); continue; }
+      const b = el('button', {
+        type: 'button', role: 'menuitem', class: `nt-menu-item ${item.danger ? 'is-danger' : ''}`,
+        disabled: item.disabled ? true : null,
+        onclick: () => { closePanel(); item.run(); },
+      }, item.icon ? el('span', { class: 'nt-menu-icon', html: item.icon }) : null,
+      el('span', { class: 'nt-menu-label', text: item.label }),
+      item.hint ? el('span', { class: 'nt-menu-hint', text: item.hint }) : null);
+      frag.append(b);
+      if (!item.disabled) buttons.push(b);
+    }
+    list.replaceChildren(frag);
+  };
+  build(items);
   let idx = -1;
   const focus = (i) => { idx = (i + buttons.length) % buttons.length; buttons[idx].focus(); };
   const h = panel({
@@ -152,6 +161,7 @@ export function menu(anchor, items, opts = {}) {
     },
   });
   if (opts.focusFirst !== false && buttons.length) setTimeout(() => focus(0), 0);
+  h.update = (rows) => { build(rows); idx = -1; h.reposition(); };
   return h;
 }
 
@@ -244,6 +254,14 @@ export const ICON = {
   collapse: S('<rect x="6" y="6" width="12" height="12" rx="1.5"/>'),
   palette: S('<circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10" r="1.3" fill="currentColor"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="10" r="1.3" fill="currentColor"/><path d="M12 21c-1.5-2-.5-4 1-4h2a3 3 0 0 0 0-6"/>'),
   archive: S('<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/>'),
+  /* The DexNote mark, from the app this borrows from: two strokes of one
+     colour, the lower one darker. It is the session's colour swatch, in the
+     sidebar and on the canvas -- clicking it recolours the session. */
+  logo: `<svg viewBox="0 0 256 256" aria-hidden="true"><path class="nt-logo-bottom" d="M237.8,62.5c-5.2-8.6-18.5-4.8-18.4,5.3.1,25.2.2,47.9.3,60h0c0,23-12.5,42.4-31.8,49.5-17,6.2-35.3,1.1-47.6-13.5l-45.7-53.8c-4.9-5.7-10.9-7.7-17-5.4-6.3,2.3-13.7,9.8-13.7,23.4v64.3c.2,34.9,28.3,63.5,63.2,63.7.3,0,.6,0,.9,0h0c70.4,0,128-57.6,128-128h0c0-23.9-6.6-46.3-18.2-65.5Z"/><path class="nt-logo-top" d="M36.2,128.1c0-23,12.5-42.3,31.8-49.4,17-6.2,35.3-1.1,47.6,13.5l45.7,53.8c4.9,5.7,10.9,7.7,17,5.4,6.3-2.3,13.7-9.8,13.7-23.4l-.2-64.3C191.7,28.8,163.6.2,128.7,0c-.2,0-.5,0-.7,0h0C57.6,0,0,57.6,0,128h0c0,23.7,6.6,46,17.9,65.1s18.6,5.1,18.6-5c0-25.1-.2-47.7-.3-59.9Z"/></svg>`,
+  /* DexNote's list mark: a dot and a bar, twice. One list button, not three. */
+  autolist: `<svg viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><circle cx="2" cy="4" r="1.5"/><rect x="5" y="3" width="7" height="2" rx="1"/><circle cx="2" cy="10" r="1.5"/><rect x="5" y="9" width="7" height="2" rx="1"/></svg>`,
+  /* Two arms that swing into a chevron when the archive is folded away. */
+  archArms: `<svg viewBox="0 0 14 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line class="nt-arm-l" x1="1" y1="5" x2="7" y2="5"/><line class="nt-arm-r" x1="7" y1="5" x2="13" y2="5"/></svg>`,
   mic: S('<path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M19 11a7 7 0 0 1-14 0"/><line x1="12" y1="18" x2="12" y2="22"/>'),
   micStop: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2.5" fill="currentColor"/></svg>`,
 };

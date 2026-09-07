@@ -33,10 +33,27 @@ export function hexToHsb(hex) {
   return { h: Math.round(h * 360), s: Math.round(max ? (d / max) * 100 : 0), b: Math.round(max * 100) };
 }
 
-export function contrastOn(hex) {
+function relLum(hex) {
   const n = parseInt(hex.slice(1), 16);
-  const r = ((n >> 16) & 255) / 255; const g = ((n >> 8) & 255) / 255; const b = (n & 255) / 255;
-  return (0.299 * r + 0.587 * g + 0.114 * b) > 0.55 ? '#000000' : '#ffffff';
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const x = v / 255;
+    return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+
+export function contrast(a, b) {
+  const la = relLum(a);
+  const lb = relLum(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/* Black or white on a fill of `hex`, whichever is actually more readable.
+ * The old weighted-average-over-0.55 rule is a rule of thumb and it gets
+ * mid-tones wrong: a light blue came out white-on-blue, which is what the
+ * plus in the New category button looked like. This measures both. */
+export function contrastOn(hex) {
+  return contrast(hex, '#000000') >= contrast(hex, '#ffffff') ? '#000000' : '#ffffff';
 }
 
 
@@ -72,21 +89,6 @@ const GROUND = {
   darkBox: '#1a1e26', darkPage: '#0b0d11',      // --bg3 (the focused box), --bg
   lightBox: '#d3d7dc', lightPage: '#c8ccd3',    // .45 and .30 white over --bg
 };
-
-function relLum(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
-    const x = v / 255;
-    return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
-}
-
-export function contrast(a, b) {
-  const la = relLum(a);
-  const lb = relLum(b);
-  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-}
 
 /* One step away from the background. Brightness first; once that is spent,
  * saturation -- because "lighter" past full brightness means toward white,

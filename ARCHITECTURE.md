@@ -1376,7 +1376,15 @@ the stylesheet paints with a wavy underline -- so the document is never
 rewritten to show them; the caret, the history and the saved HTML never see a
 mark. The dictionary (Hunspell en_US via typo.js) is parsed in a Worker.
 Right-click on a marked word: suggestions, Ignore, Add to dictionary; both
-lists live in the document and follow Dex between devices. **Autocorrect**
+lists live in the document and follow Dex between devices. **The menu opens on
+the click, not on the dictionary.** It used to `await` the worker for
+suggestions and only then build anything, so a right-click did nothing visible
+for as long as that took and the natural response -- clicking again -- closed
+the menu that had just appeared and started another wait. It read as a button
+that worked one time in three. The two actions that need no dictionary are
+there in the first frame, a placeholder row is replaced in place when the
+suggestions land, and `pointerdown` starts the lookup before `contextmenu`
+even fires. Measured at 18ms in the harness, against a target of 120. **Autocorrect**
 runs when a word is finished: a contraction table, a table of the usual
 transpositions, and otherwise the dictionary's suggestions filtered to
 Damerau-Levenshtein distance 1 that keep the first letter. A correction is its
@@ -1392,6 +1400,44 @@ moves the caret. The sidebar row, the rail letter and the canvas header all
 carry the category's colour as `--c` on the element; `--c-text` is that colour
 as text, darkened on the light theme. The scroll spy marks the category that
 fills most of the view and paints the scrollbar with its colour.
+
+### The shell
+
+The sidebar is a column of the WINDOW, not of the area under a bar: it runs
+from the top of the screen to the bottom, and the header spans only the
+column beside it. That is what puts the session's emoji, its name and its
+colour at the very top-left, and it is why the sidebar toggle and the type
+pickers sit in the header's middle group -- there is no left group left for
+them. The middle group is centred in its column; the search on the right
+shrinks before any button does, so nothing there can be squeezed to nothing.
+
+**Renaming happens where the name is read.** Double-click a category row or
+the session's name in the sidebar and it becomes a field with everything
+selected; Enter or clicking away keeps it, Escape puts back what was there.
+`wireInlineTitle()` is the whole of it, and `renameCat()` writes BOTH the
+sidebar and the canvas -- skipping whichever one is being typed in, because
+rewriting the element under the caret collapses the selection and eats the
+next keystroke.
+
+**The list and the archive are welded.** One grab edge between them decides
+how the leftover height is shared (`--list-flex` / `--arch-flex`, saved as
+`ui.archSplit`), and the archive header carries two arms that lie flat while
+it is open and fold into a chevron when it is shut -- one mark doing both
+jobs, so the header never grows a second control.
+
+**The sessions have two faces.** The badge at the top-left opens the grid;
+the button under New category lists them by name with their category counts,
+and only while the sidebar is wide enough to read one.
+
+The **DexNote mark** is the session's colour swatch, in the sidebar head and
+at the end of the canvas title. Clicking either opens the picker. Its lower
+stroke is the same colour mixed toward black, which is how the mark is drawn.
+
+**A rebuild keeps the scroll.** `replaceChildren` detaches every section,
+which resets the canvas to the top -- so archiving a category threw the view
+back to wherever it had been. `renderCanvas` restores `scrollTop` directly
+(the canvas scrolls smoothly by default and an animated restore is a visible
+lurch); an explicit scroll runs after and still wins.
 
 ### Colour: the session accents the page, a category colours its text
 

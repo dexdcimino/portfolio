@@ -60,7 +60,13 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   const sidebar = el('aside', { class: 'nt-sidebar', 'aria-label': 'Categories' });
   const canvas = el('div', { class: 'nt-canvas', tabindex: '-1' });
   const main = el('main', { class: 'nt-main' }, canvas);
-  root.append(header, el('div', { class: 'nt-frame' }, sidebar, main));
+  /* The sidebar is a column of the WINDOW, not of the area under a bar: it
+     reaches the top of the screen and the header spans only what is beside
+     it. That is what puts the session's name, its emoji and its colour at the
+     very top-left, and it is why the sidebar toggle and the type controls
+     moved into the header's middle group -- there is no left group any more
+     for them to sit in. */
+  root.append(el('div', { class: 'nt-frame' }, sidebar, el('div', { class: 'nt-col' }, header, main)));
   container.replaceChildren(root);
   setRoot(root);
   initTooltips(root);
@@ -162,9 +168,9 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     left: btn('nt-fmt', 'Align left (Ctrl+Shift+L)', ICON.alignLeft, () => withBody((b) => align(b, 'left'))),
     center: btn('nt-fmt', 'Align centre (Ctrl+Shift+E)', ICON.alignCenter, () => withBody((b) => align(b, 'center'))),
     right: btn('nt-fmt', 'Align right (Ctrl+Shift+R)', ICON.alignRight, () => withBody((b) => align(b, 'right'))),
-    ul: btn('nt-fmt', 'Bullet list (Ctrl+Shift+8)', ICON.ul, () => withBody((b) => toggleList(b, 'ul'))),
-    ol: btn('nt-fmt', 'Numbered list (Ctrl+Shift+7)', ICON.ol, () => withBody((b) => toggleList(b, 'ol'))),
-    todo: btn('nt-fmt', 'To-do list (Ctrl+Shift+9)', ICON.todo, () => withBody((b) => toggleList(b, 'todo'))),
+    /* ONE list button. Numbered and to-do are still a keystroke and still in
+       the slash menu; three buttons for one idea was three buttons. */
+    ul: btn('nt-fmt nt-fmt-list', 'Auto list', ICON.autolist, () => withBody((b) => toggleList(b, 'ul'))),
   };
   for (const b of Object.values(fmt)) b.addEventListener('mousedown', (e) => e.preventDefault());
   const spellBtn = btn('nt-spell-btn', 'Spell check', ICON.spell, () => { spell.setEnabled(!spell.enabled()); syncSettings(); });
@@ -183,30 +189,73 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   const closeBtn = btn('nt-close', 'Close (Esc)', ICON.close, () => container.dispatchEvent(new CustomEvent('notes:close', { bubbles: true })));
   const searchMount = el('div', { class: 'nt-header-search' });
   header.append(
-    el('div', { class: 'nt-header-left' }, sidebarBtn, sep(), fontBtn, sizeBtn),
-    el('div', { class: 'nt-header-mid' }, fmt.bold, fmt.italic, fmt.underline, fmt.strike, fmt.code, sep(), fmt.left, fmt.center, fmt.right, sep(), fmt.ul, fmt.ol, fmt.todo, sep(), nodeBtn, spellBtn, sep(), undoBtn, redoBtn),
+    el('div', { class: 'nt-header-left' }),
+    el('div', { class: 'nt-header-mid' }, sidebarBtn, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, fmt.code, sep(), fmt.left, fmt.center, fmt.right, sep(), fmt.ul, nodeBtn, spellBtn, sep(), undoBtn, redoBtn),
     el('div', { class: 'nt-header-right' }, searchMount, status, themeBtn, closeBtn));
   search.initSearch(ctx, searchMount);
 
   /* ---- sidebar ---- */
   const sessionBtn = el('button', { type: 'button', class: 'nt-session-btn', 'aria-label': 'Sessions', onclick: (e) => render.openSessions(e.currentTarget) });
-  const sessionTitle = el('span', { class: 'nt-sidebar-session-title' });
+  const sessionTitle = el('span', { class: 'nt-sidebar-session-title', 'data-tip': 'Double-click to rename' });
+  render.wireInlineTitle(sessionTitle, {
+    get: () => ctx.session.title,
+    set: (t) => {
+      const s = ctx.session;
+      const clean = t.replace(/\s+/g, ' ').trim().slice(0, 60) || 'Session';
+      if (clean === s.title) return;
+      s.title = clean;
+      touch(s);
+      docChanged();
+      render.applySessionColor();
+      const canvasTitle = canvas.querySelector('.nt-session-title');
+      if (canvasTitle && document.activeElement !== canvasTitle) canvasTitle.textContent = clean;
+    },
+  });
+  const sessionSwatch = el('button', {
+    type: 'button', class: 'nt-logo-btn', 'data-tip': 'Session colour', 'aria-label': 'Session colour',
+    html: ICON.logo,
+    onclick: (e) => color.openColor(e.currentTarget, {
+      title: 'Session colour', value: ctx.session.color,
+      onChange: (c) => { const s = ctx.session; s.color = c; touch(s); docChanged(); render.applySessionColor(); },
+    }),
+  });
   const rows = el('div', { class: 'nt-rows', role: 'list' });
+  /* The archive is welded to the list above it: one grab edge between them
+     sets how the leftover height is shared, and the header's two arms fold
+     into a chevron when it is closed. Both come from the app this borrows
+     from, and both were missed the moment they were gone. */
   const archive = el('div', { class: 'nt-archive' },
-    el('button', { type: 'button', class: 'nt-archive-head', 'aria-expanded': 'false', onclick: (e) => { const open = archive.classList.toggle('is-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); } },
-      el('span', { class: 'nt-archive-chev', html: ICON.chevron }), el('span', { text: 'Archive' }), el('span', { class: 'nt-archive-count' })),
+    el('div', { class: 'nt-archive-grip', 'aria-hidden': 'true' }),
+    el('button', { type: 'button', class: 'nt-archive-head', 'aria-expanded': 'false',
+      onclick: (e) => { const open = archive.classList.toggle('is-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); if (open) render.renderSidebar(); } },
+      el('span', { text: 'Archive' }), el('span', { class: 'nt-archive-count' }),
+      el('span', { class: 'nt-archive-arms', html: ICON.archArms })),
     el('div', { class: 'nt-archive-list' }));
-  const addBtn = el('button', { type: 'button', class: 'nt-add-btn', html: `${ICON.plus}<span>New category</span>`, onclick: () => render.addCat('bottom') });
+  const addBtn = el('button', { type: 'button', class: 'nt-add-btn', html: `<span class="nt-add-plus">${ICON.plus}</span><span>New category</span>`, onclick: () => render.addCat('bottom') });
+  /* The sessions, as a list rather than a grid, and only where there is room
+     to read one: the collapsed rail has the same thing behind its badge. */
+  const sessList = el('div', { class: 'nt-sesslist' });
+  const sessBtn = el('button', {
+    type: 'button', class: 'nt-add-btn nt-sessions-btn', 'aria-expanded': 'false',
+    html: `${ICON.sessions}<span>Sessions</span>`,
+    onclick: () => {
+      const open = !sidebar.classList.contains('show-sessions');
+      sidebar.classList.toggle('show-sessions', open);
+      sessBtn.setAttribute('aria-expanded', String(open));
+      if (open) render.renderSessionList();
+    },
+  });
   const railCats = el('div', { class: 'nt-rail-cats' });
   const railSession = el('button', { type: 'button', class: 'nt-rail-session', 'aria-label': 'Sessions', 'data-tip-pos': 'right', onclick: (e) => render.openSessions(e.currentTarget) });
   const railAdd = el('button', { type: 'button', class: 'nt-rail-add', 'data-tip': 'New category (Alt+N)', 'data-tip-pos': 'right', html: ICON.plus, 'aria-label': 'New category', onclick: () => render.addCat('bottom') });
-  const railExpand = el('button', { type: 'button', class: 'nt-rail-expand', 'data-tip': 'Expand sidebar', 'data-tip-pos': 'right', html: ICON.sidebar, 'aria-label': 'Expand sidebar', onclick: () => setSidebar('open') });
+  // No expand button down here: the toggle lives in the header now, and the
+  // rail's own badge and add button are what it is for.
   sidebar.append(
     el('div', { class: 'nt-sidebar-panel' },
-      el('div', { class: 'nt-sidebar-top' }, sessionBtn, sessionTitle),
-      rows, archive,
-      el('div', { class: 'nt-sidebar-foot' }, addBtn)),
-    el('div', { class: 'nt-rail' }, railSession, railCats, railAdd, railExpand));
+      el('div', { class: 'nt-sidebar-top' }, sessionBtn, sessionTitle, sessionSwatch),
+      rows, sessList, archive,
+      el('div', { class: 'nt-sidebar-foot' }, addBtn, sessBtn)),
+    el('div', { class: 'nt-rail' }, railSession, railCats, railAdd));
 
   /* ---- canvas ---- */
   const sessionEmoji = el('button', { type: 'button', class: 'nt-session-emoji', 'data-tip': 'Session emoji', 'aria-label': 'Session emoji', onclick: (e) => emoji.openFull(e.currentTarget, (u) => { const s = ctx.session; s.emoji = u; touch(s); docChanged(); render.renderAll(); }) });
@@ -224,7 +273,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     if (t !== s.title) { s.title = t; touch(s); docChanged(); render.applySessionColor(); }
   });
   sessionTitleEl.addEventListener('paste', (e) => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s+/g, ' ')); });
-  const sessionColor = el('button', { type: 'button', class: 'nt-session-color', 'data-tip': 'Session colour', 'aria-label': 'Session colour', onclick: (e) => color.openColor(e.currentTarget, { title: 'Session colour', value: ctx.session.color, onChange: (c) => { const s = ctx.session; s.color = c; touch(s); docChanged(); render.applySessionColor(); } }) });
+  const sessionColor = el('button', { type: 'button', class: 'nt-session-color nt-logo-btn', 'data-tip': 'Session colour', 'aria-label': 'Session colour', html: ICON.logo, onclick: (e) => color.openColor(e.currentTarget, { title: 'Session colour', value: ctx.session.color, onChange: (c) => { const s = ctx.session; s.color = c; touch(s); docChanged(); render.applySessionColor(); } }) });
   const addTop = btn('nt-session-addtop', 'Add a category at the top', ICON.plus, () => render.addCat('top'));
   canvas.append(
     el('div', { class: 'nt-canvas-inner' },
@@ -274,9 +323,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     fmt.left.classList.toggle('is-on', s.align === 'left');
     fmt.center.classList.toggle('is-on', s.align === 'center');
     fmt.right.classList.toggle('is-on', s.align === 'right');
-    fmt.ul.classList.toggle('is-on', s.list === 'ul');
-    fmt.ol.classList.toggle('is-on', s.list === 'ol');
-    fmt.todo.classList.toggle('is-on', s.list === 'todo');
+    fmt.ul.classList.toggle('is-on', !!s.list);
   }
   function syncUndoButtons() {
     undoBtn.disabled = !ctx.history.canUndo;
@@ -502,6 +549,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     sizeBtn.textContent = String(doc.ui.fs);
     root.classList.toggle('is-rail', doc.ui.sidebar === 'rail');
     sidebarBtn.setAttribute('aria-pressed', String(doc.ui.sidebar === 'open'));
+    render.applySplit();
     syncSettings();
   }
   applyUi();

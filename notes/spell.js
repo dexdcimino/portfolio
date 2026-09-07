@@ -18,7 +18,7 @@
 
 import { closest, liveRange, collapseAt } from './dom.js';
 import { transact, bodyFrom } from './editor.js';
-import { menu, toast, ICON } from './ui.js';
+import { menu, currentPanel, toast, ICON } from './ui.js';
 
 let ctx = null;
 let worker = null;
@@ -27,6 +27,7 @@ let workerFailed = false;
 let seq = 0;
 const waiting = new Map();
 const cache = new Map();            // word -> bool (true = fine)
+const suggestions = new Map();      // word -> [string], once the worker has said
 const marks = new Map();            // body -> Range[]
 const scanTimers = new WeakMap();
 const HAS_HIGHLIGHT = typeof Highlight === 'function' && !!(window.CSS && CSS.highlights);
@@ -47,7 +48,26 @@ export function initSpell(context) {
   ctx = context;
   ctx.canvas.addEventListener('contextmenu', onContextMenu);
   ctx.canvas.addEventListener('keydown', onKeydown, true);
+  /* pointerdown lands before contextmenu, so the worker is already thinking
+     by the time the menu paints. Free, and usually enough that the
+     suggestions are in the first frame. */
+  ctx.canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 2 || !enabled()) return;
+    const hit = wordAt(e.clientX, e.clientY);
+    if (hit && cache.get(hit.word) === false) warm(hit.word);
+  }, true);
   applyEnabled();
+}
+
+/* Ask for a word's suggestions once, and remember them. */
+function warm(word) {
+  const key = word.toLowerCase();
+  if (suggestions.has(key)) return Promise.resolve(suggestions.get(key));
+  return ask({ op: 'suggest', word, limit: 6 }).then((found) => {
+    const list = found || [];
+    suggestions.set(key, list);
+    return list;
+  });
 }
 
 function boot() {
@@ -203,7 +223,16 @@ function wordAt(x, y) {
   return null;
 }
 
-async function onContextMenu(e) {
+/* THE MENU OPENS ON THE CLICK, not on the worker.
+ *
+ * It used to `await` the dictionary for suggestions and only then build the
+ * menu, so a right-click did nothing visible for as long as that took -- and
+ * the natural response is to right-click again, which closes the menu that
+ * had just appeared and starts another wait. It read as a button that works
+ * one time in three. Nothing is worth waiting on before showing a menu: the
+ * two actions that need no dictionary are there immediately, and the
+ * suggestions replace a placeholder row in place when they land. */
+function onContextMenu(e) {
   const body = bodyFrom(e.target);
   if (!body || !enabled()) return;
   if (e.target.closest('.chip, img')) return;
@@ -212,7 +241,7 @@ async function onContextMenu(e) {
   if (known(hit.word) === true) return;
   if (cache.get(hit.word) !== false) return;    // not marked: native menu
   e.preventDefault();
-  const suggestions = (await ask({ op: 'suggest', word: hit.word, limit: 6 })) || [];
+
   const replace = (with_) => transact(body, () => {
     const r = document.createRange();
     r.setStart(hit.node, hit.start);
@@ -223,12 +252,26 @@ async function onContextMenu(e) {
     collapseAt(t, t.nodeValue.length);
     body.normalize();
   });
-  const items = suggestions.map((s) => ({ label: s, run: () => { replace(s); rescan(body, 0); } }));
-  if (!items.length) items.push({ label: 'No suggestions', disabled: true, run: () => {} });
-  items.push(null,
+
+  const rows = (list) => [
+    ...(list
+      ? (list.length
+        ? list.map((s) => ({ label: s, run: () => { replace(s); rescan(body, 0); } }))
+        : [{ label: 'No suggestions', disabled: true, run: () => {} }])
+      : [{ label: 'Looking\u2026', disabled: true, run: () => {} }]),
+    null,
     { label: `Ignore "${hit.word}"`, run: () => { addWord('ignore', hit.word); } },
-    { label: 'Add to dictionary', icon: ICON.plus, run: () => { addWord('custom', hit.word); } });
-  menu({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY, width: 0, height: 0 }, items, { focusFirst: false });
+    { label: 'Add to dictionary', icon: ICON.plus, run: () => { addWord('custom', hit.word); } },
+  ];
+
+  const known_ = suggestions.get(hit.word.toLowerCase());
+  const at = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY, width: 0, height: 0 };
+  const handle = menu(at, rows(known_ || null), { focusFirst: false });
+  if (known_) return;
+  warm(hit.word).then((list) => {
+    // Only if this menu is still the one on screen.
+    if (currentPanel() === handle) handle.update(rows(list));
+  });
 }
 
 function addWord(list, word) {

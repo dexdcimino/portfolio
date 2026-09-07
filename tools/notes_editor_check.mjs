@@ -72,6 +72,7 @@ note(catsBefore >= 2, `only ${catsBefore} categories — is the store the migrat
 
 /* ---- the scratch category --------------------------------------------- */
 const scratch = `Scratch ${Date.now().toString(36)}`;
+let scratchName = scratch;   // 17d renames it; the tidy-up looks for the new one
 await page.keyboard.down('Alt'); await page.keyboard.press('n'); await page.keyboard.up('Alt');
 await page.waitForFunction((n) => document.querySelectorAll('.nt-cat').length === n + 1, {}, catsBefore);
 await sleep(150);
@@ -351,7 +352,7 @@ console.log('sessions: add, switch, switch back held');
 
 /* ---- 16. archive, restore, undo an archive ------------------------------------- */
 const archivedBefore = Number(await page.$eval('.nt-archive-count', e => e.textContent) || 0);
-await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t).querySelector('.nt-row-x').click(); }, scratch);
+await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t).querySelector('.nt-row-x').click(); }, scratchName);
 await page.waitForSelector('.nt-modal');
 await press('Enter');
 await sleep(200);
@@ -367,7 +368,7 @@ await sleep(200);
 note((await page.$$eval('.nt-cat', els => els.length)) === catsBefore + 1, 'restore did not bring the category back');
 note(await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); return !!b && /pic/.test(b.textContent) && !!b.querySelector('img.nt-img[data-key]'); }, catId), 'the restored category lost its body');
 // Delete outright, then Ctrl+Z.
-await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t).querySelector('.nt-row-x').click(); }, scratch);
+await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t).querySelector('.nt-row-x').click(); }, scratchName);
 await page.waitForSelector('.nt-modal');
 await page.click('.nt-modal .nt-btn.is-left');
 await sleep(200);
@@ -520,9 +521,10 @@ await chord(['Control'], '\\');
   await sleep(150);
   const fresh = await page.evaluate(() => {
     const sec = [...document.querySelectorAll('.nt-cat')].pop();
+    const cs = (el) => getComputedStyle(el).getPropertyValue('--c').trim();
     return {
-      dot: getComputedStyle(sec.querySelector('.nt-cat-color')).backgroundColor,
-      session: getComputedStyle(document.querySelector('.nt-session-color')).backgroundColor,
+      dot: cs(sec),
+      session: cs(document.querySelector('.nt-app')),
       title: getComputedStyle(sec.querySelector('.nt-cat-title')).color,
       sessionTitle: getComputedStyle(document.querySelector('.nt-session-title')).color,
       id: sec.dataset.cat,
@@ -542,13 +544,219 @@ await chord(['Control'], '\\');
   note(!(await page.$(`.nt-cat[data-cat="${fresh.id}"]`)), 'undo did not remove the category the check added');
 }
 
+/* ---- 17d. the sidebar is where you rename things -------------------------
+   Renaming used to send you to the canvas title. The name is read in the
+   sidebar, so it is edited in the sidebar. */
+{
+  const row = () => page.evaluate((t) => {
+    const r = [...document.querySelectorAll('.nt-row')].find((n) => n.querySelector('.nt-row-title').textContent === t);
+    return r ? r.dataset.cat : null;
+  }, scratch);
+  const id = await row();
+  note(!!id, 'the scratch category is not in the sidebar');
+  const titleSel = `.nt-row[data-cat="${id}"] .nt-row-title`;
+  await page.$eval(titleSel, (el) => el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
+  await sleep(120);
+  const editing = await page.$eval(titleSel, (el) => ({
+    editable: el.isContentEditable,
+    marked: el.classList.contains('is-editing'),
+    // Everything selected, so typing replaces rather than appends.
+    selected: (getSelection().toString() || '').length === el.textContent.length && el.textContent.length > 0,
+    focused: document.activeElement === el,
+  }));
+  note(editing.editable, 'double-clicking a sidebar row did not make its name editable');
+  note(editing.marked, 'the row being renamed is not marked as such');
+  note(editing.focused, 'the row name did not take focus');
+  note(editing.selected, 'the row name is editable but nothing is selected');
+  const renamed = `Renamed ${Date.now().toString(36).slice(-4)}`;
+  await page.keyboard.type(renamed);
+  await page.keyboard.press('Enter');
+  await sleep(250);
+  const both = await page.evaluate((cid) => ({
+    row: document.querySelector(`.nt-row[data-cat="${cid}"] .nt-row-title`).textContent,
+    canvas: document.querySelector(`.nt-cat[data-cat="${cid}"] .nt-cat-title`).textContent,
+    editable: document.querySelector(`.nt-row[data-cat="${cid}"] .nt-row-title`).isContentEditable,
+  }), id);
+  note(both.row === renamed, `the sidebar name did not commit: "${both.row}"`);
+  note(both.canvas === renamed, `the canvas title did not follow the sidebar rename: "${both.canvas}"`);
+  note(!both.editable, 'the row stayed editable after Enter');
+
+  // Escape puts back what was there.
+  await page.$eval(`.nt-row[data-cat="${id}"] .nt-row-title`, (el) => el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
+  await sleep(100);
+  await page.keyboard.type('discard me');
+  await page.keyboard.press('Escape');
+  await sleep(200);
+  note((await page.$eval(`.nt-row[data-cat="${id}"] .nt-row-title`, (el) => el.textContent)) === renamed,
+       'Escape did not put the old name back');
+
+  // The session's own name, in the same place, the same way.
+  const sessSel = '.nt-sidebar-session-title';
+  const was = await page.$eval(sessSel, (el) => el.textContent);
+  await page.$eval(sessSel, (el) => el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
+  await sleep(120);
+  note(await page.$eval(sessSel, (el) => el.isContentEditable), 'the session name is not renameable from the sidebar');
+  await page.keyboard.type('Renamed session');
+  await page.keyboard.press('Enter');
+  await sleep(250);
+  const sess = await page.evaluate(() => ({
+    side: document.querySelector('.nt-sidebar-session-title').textContent,
+    canvas: document.querySelector('.nt-session-title').textContent,
+  }));
+  note(sess.side === 'Renamed session' && sess.canvas === 'Renamed session',
+       `the session rename did not reach both places (${sess.side} / ${sess.canvas})`);
+  // Put it back.
+  await page.$eval(sessSel, (el) => el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
+  await sleep(120);
+  await page.keyboard.type(was);
+  await page.keyboard.press('Enter');
+  await sleep(200);
+  console.log(`rename in place: category and session, commit and cancel`);
+  scratchName = renamed;
+}
+
+/* ---- 17e. the archive is welded to the list, and draggable ---------------- */
+{
+  const open = async () => { await page.evaluate(() => { const a = document.querySelector('.nt-archive'); if (!a.classList.contains('is-open')) a.querySelector('.nt-archive-head').click(); }); await sleep(250); };
+  await open();
+  const grip = await page.$('.nt-archive-grip');
+  note(!!grip, 'the archive has no grab edge');
+  const before = await page.evaluate(() => document.querySelector('.nt-archive').getBoundingClientRect().height);
+  const box = await page.evaluate(() => { const r = document.querySelector('.nt-archive-grip').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x, box.y - 160, { steps: 8 });
+  await page.mouse.up();
+  await sleep(250);
+  const after = await page.evaluate(() => document.querySelector('.nt-archive').getBoundingClientRect().height);
+  note(after > before + 80, `dragging the edge did not resize the archive (${Math.round(before)} -> ${Math.round(after)})`);
+  const split = await page.evaluate(() => Number(getComputedStyle(document.querySelector('.nt-app')).getPropertyValue('--list-flex')));
+  note(split >= 20 && split <= 80, `the split escaped its bounds (${split})`);
+  // The arms fold into a chevron when it is shut, and it is the same mark.
+  const armsOpen = await page.$eval('.nt-arm-l', (el) => getComputedStyle(el).transform);
+  await page.click('.nt-archive-head');
+  await sleep(300);
+  const armsShut = await page.$eval('.nt-arm-l', (el) => getComputedStyle(el).transform);
+  note(armsOpen !== armsShut, 'the archive arms do not move when it closes');
+  note(armsOpen === 'none' || armsOpen === 'matrix(1, 0, 0, 1, 0, 0)', `the arms are not flat while the archive is open (${armsOpen})`);
+  console.log(`archive: ${Math.round(before)}px -> ${Math.round(after)}px by drag, split ${split}%, arms fold`);
+}
+
+/* ---- 17f. the sessions, listed ------------------------------------------- */
+{
+  note(!(await page.$('.nt-sesslist .nt-sess-row')), 'the session list is populated before it is opened');
+  await page.click('.nt-sessions-btn');
+  await sleep(250);
+  const list = await page.evaluate(() => {
+    const wrap = document.querySelector('.nt-sesslist');
+    return {
+      shown: getComputedStyle(wrap).display !== 'none',
+      rows: [...wrap.querySelectorAll('.nt-sess-row:not(.is-add)')].map((r) => r.querySelector('.nt-row-title').textContent),
+      active: wrap.querySelectorAll('.nt-sess-row.is-active').length,
+      add: !!wrap.querySelector('.nt-sess-row.is-add'),
+    };
+  });
+  note(list.shown, 'the Sessions button did not show the list');
+  note(list.rows.length >= 1, 'the session list is empty');
+  note(list.active === 1, `${list.active} sessions are marked active, expected 1`);
+  note(list.add, 'the session list has no way to add one');
+  console.log(`sessions listed: ${list.rows.join(', ')}`);
+  await page.click('.nt-sessions-btn');
+  await sleep(200);
+  note(!(await page.$eval('.nt-sesslist', (el) => getComputedStyle(el).display !== 'none')), 'the Sessions button does not close the list');
+}
+
+/* ---- 17g. one list button, and the spelling menu opens on the click ------- */
+{
+  const listBtns = await page.$$eval('.nt-header-mid .nt-fmt', (els) => els.filter((e) => /list/i.test(e.getAttribute('data-tip') || '')).map((e) => e.getAttribute('data-tip')));
+  note(listBtns.length === 1, `${listBtns.length} list buttons in the header, expected 1 (${listBtns.join(', ')})`);
+  note(listBtns[0] === 'Auto list', `the list button is called "${listBtns[0]}"`);
+
+  /* THE MENU MUST NOT WAIT ON THE DICTIONARY. It used to await suggestions
+     before building anything, so a right-click did nothing visible for as
+     long as the worker took and read as a dead button. Measured from the
+     event to the panel being in the DOM. */
+  /* APPENDED, not assigned: this body carries the image and the text that
+     check 18 reads back out of the store, and overwriting it made four
+     later assertions fail on the harness rather than on the app. */
+  await page.evaluate((id) => {
+    const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+    const p = document.createElement('p');
+    p.id = 'spellprobe';
+    p.textContent = 'qzxvbn wurble';
+    b.append(p);
+    b.dispatchEvent(new Event('input', { bubbles: true }));
+  }, catId);
+  await sleep(1200);                                   // let the scan mark them
+  await page.evaluate((id) => document.querySelector(`.nt-cat[data-cat="${id}"]`).scrollIntoView({ block: 'center', behavior: 'instant' }), catId);
+  await sleep(300);
+  const spot = await page.evaluate((id) => {
+    const t = document.querySelector(`.nt-body[data-cat="${id}"] #spellprobe`).firstChild;
+    const r = document.createRange(); r.setStart(t, 0); r.setEnd(t, 6);
+    const b = r.getBoundingClientRect();
+    return { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) };
+  }, catId);
+  const took = await page.evaluate(async (pt) => {
+    const el = document.elementFromPoint(pt.x, pt.y);
+    const t0 = performance.now();
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: pt.x, clientY: pt.y, button: 2 }));
+    // One frame is all a menu that does not wait should need.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return { ms: performance.now() - t0, open: !!document.querySelector('.nt-menu-panel') };
+  }, spot);
+  note(took.open, 'the spelling menu did not open within two frames of the right-click');
+  note(took.ms < 120, `the spelling menu took ${took.ms.toFixed(0)}ms to appear`);
+  const filled = await page.waitForFunction(
+    () => { const p = document.querySelector('.nt-menu-panel'); return p && !/Looking/.test(p.textContent); },
+    { timeout: 8000 }).then(() => true).catch(() => false);
+  note(filled, 'the suggestions never replaced the placeholder');
+  const items = await page.$$eval('.nt-menu-panel .nt-menu-item', (els) => els.map((e) => e.textContent));
+  note(items.some((i) => /Ignore/.test(i)) && items.some((i) => /Add to dictionary/.test(i)),
+       `the spelling menu is missing its actions: ${items.join(' | ')}`);
+  console.log(`spelling menu: open in ${took.ms.toFixed(0)}ms, ${items.length} rows`);
+  await page.keyboard.press('Escape');
+  await sleep(150);
+  await page.evaluate((id) => {
+    const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+    b.querySelector('#spellprobe').remove();
+    b.dispatchEvent(new Event('input', { bubbles: true }));
+  }, catId);
+  await sleep(200);
+}
+
+/* ---- 17h. archiving does not move the canvas ------------------------------ */
+{
+  /* Its OWN throwaway. Deleting the shared scratch category here took the
+     store assertions in check 18 down with it. */
+  await page.keyboard.down('Alt'); await page.keyboard.press('n'); await page.keyboard.up('Alt');
+  await sleep(250);
+  await page.keyboard.type('Throwaway');
+  await page.keyboard.press('Enter');
+  await sleep(150);
+  await page.keyboard.type('delete me');
+  await sleep(250);
+  const victim = await page.evaluate(() => [...document.querySelectorAll('.nt-cat')].pop().dataset.cat);
+  await page.evaluate(() => document.querySelector('.nt-canvas').scrollTo({ top: 900, behavior: 'instant' }));
+  await sleep(350);
+  const before = await page.evaluate(() => document.querySelector('.nt-canvas').scrollTop);
+  note(before > 400, `could not scroll the canvas far enough to test (${before})`);
+  await page.evaluate((id) => document.querySelector(`.nt-cat[data-cat="${id}"] .nt-cat-x`).click(), victim);
+  await page.waitForSelector('.nt-modal');
+  await page.click('.nt-modal .nt-btn.is-left');
+  await sleep(350);
+  const after = await page.evaluate(() => document.querySelector('.nt-canvas').scrollTop);
+  note(!(await page.$(`.nt-cat[data-cat="${victim}"]`)), 'the throwaway category was not deleted');
+  note(Math.abs(after - before) < 40, `deleting a category moved the canvas (${before} -> ${after})`);
+  console.log(`scroll held through a delete: ${before} -> ${after}`);
+}
+
 /* ---- 18. what reached the store ---------------------------------------------------- */
 await chord(['Control'], 's');
 await page.waitForFunction(() => /^SAVED/.test(document.querySelector('.nt-status').textContent), { timeout: 15000 });
 const stored = JSON.parse(await readFile(join(STORE, 'notes/current.json'), 'utf8'));
 const s0 = stored.doc.sessions.find(s => s.title === 'WorldHop');
-const cat = s0 && s0.cats.find(c => c.title === scratch);
-note(!!cat, 'the scratch category is not in the store');
+const cat = s0 && s0.cats.find(c => c.title === scratchName);   // 17d renames it
+note(!!cat, `the scratch category is not in the store (looked for "${scratchName}" in: ${s0 ? s0.cats.map(c => c.title).join(' | ') : 'no such session'})`);
 note(cat && /pic/.test(cat.body) && /<img [^>]*data-key="[0-9a-f]{64}[.](png|webp)"[^>]*>/.test(cat.body) && /class="nt-img"/.test(cat.body), `the scratch body in the store is not the text and the keyed image: ${cat && cat.body.slice(0, 200)}`);
 note(cat && !/style=|\u200b|is-selected|src=/.test(cat.body), `the stored body carries transient markup: ${cat && cat.body.slice(0, 200)}`);
 /* The colour is a saved property, not a paint. "I recoloured it and it did
@@ -560,7 +768,7 @@ note(stored.doc.ui.theme === 'dark' && stored.doc.ui.sidebar === 'open', 'ui set
 console.log(`store: rev ${stored.rev}, ${stored.doc.sessions.length} sessions, scratch body ${cat ? cat.body.length : 0} chars`);
 
 /* ---- tidy up: delete the scratch category and the session this run made -------------- */
-await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t).querySelector('.nt-row-x').click(); }, scratch);
+await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t).querySelector('.nt-row-x').click(); }, scratchName);
 await page.waitForSelector('.nt-modal');
 await page.click('.nt-modal .nt-btn.is-left');
 await sleep(100);

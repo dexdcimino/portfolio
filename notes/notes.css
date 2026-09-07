@@ -58,16 +58,19 @@
 
 /* ---- header ------------------------------------------------------------- */
 .nt-header {
-  height: var(--hdr); flex: 0 0 auto; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+  height: var(--hdr); flex: 0 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px;
   padding: 0 10px 0 8px; background: var(--bg2); border-bottom: 1px solid var(--bdr); box-shadow: 0 2px 8px rgba(0,0,0,.12); z-index: 5;
 }
 .nt-app[data-theme="light"] .nt-header { background: rgba(255,255,255,.42); border-color: rgba(255,255,255,.35); }
 .nt-header-left, .nt-header-mid, .nt-header-right { display: flex; align-items: center; gap: 2px; min-width: 0; }
-.nt-header-mid { justify-content: center; }
+.nt-header-mid { justify-content: center; flex-wrap: nowrap; }
+.nt-header-left { min-width: 0; }
 .nt-header-right { justify-content: flex-end; gap: 6px; }
+.nt-header-right > * { flex: 0 0 auto; }
+.nt-header-right .nt-header-search { flex: 0 1 auto; min-width: 0; }
 .nt-sep { width: 1px; height: 22px; background: var(--bdr); margin: 0 5px; flex: 0 0 auto; }
 .nt-icon-btn {
-  width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: none; color: var(--tx2);
+  width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: none; color: var(--tx2);
   transition: color var(--ease), background var(--ease);
 }
 .nt-icon-btn:hover { color: var(--tx); background: var(--bg3); }
@@ -76,6 +79,7 @@
 .nt-icon-btn.is-danger:hover { color: var(--danger); }
 .nt-icon-btn.is-up svg { transform: rotate(180deg); }
 .nt-app:not(.in-body) .nt-fmt { opacity: .55; }
+.nt-fmt-list svg { width: 15px; height: 15px; }
 .nt-pick {
   height: 30px; padding: 0 22px 0 10px; border: 1px solid var(--bdr); border-radius: 7px; background: var(--bg3); color: var(--tx); font-size: 13px;
   position: relative; white-space: nowrap; min-width: 88px; text-align: left;
@@ -90,18 +94,31 @@
 .nt-app[data-theme="light"] .nt-theme svg:first-child { transform: translate(0,0); opacity: 1; }
 .nt-app[data-theme="light"] .nt-theme svg:last-child { transform: translate(22px, 22px); opacity: 0; }
 .nt-status {
-  font-size: 10.5px; font-weight: 800; letter-spacing: .12em; color: var(--tx3); white-space: nowrap; margin: 0 6px; min-width: 80px; text-align: right;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .12em; color: var(--tx3); white-space: nowrap; margin: 0 6px; text-align: right; overflow: hidden; text-overflow: ellipsis;
   transition: color .2s ease;
 }
 .nt-status.is-saving { color: var(--tx2); }
 .nt-status.is-error { color: var(--danger); }
 .nt-close:hover { color: var(--danger); }
 
+/* The DexNote mark as the session's colour swatch: in the sidebar head and
+   on the canvas title, and clicking either opens the picker. Two strokes of
+   the one colour, the lower one darker, which is how the mark is drawn. */
+.nt-logo-btn { flex: 0 0 auto; display: grid; place-items: center; border: 0; background: none; padding: 0; transition: transform var(--ease); }
+.nt-logo-btn:hover { transform: scale(1.12); }
+.nt-logo-btn svg { width: 100%; height: 100%; }
+.nt-logo-top { fill: var(--c); }
+.nt-logo-bottom { fill: color-mix(in srgb, var(--c) 58%, #000); }
+.nt-app[data-theme="light"] .nt-logo-bottom { fill: color-mix(in srgb, var(--c) 66%, #000); }
+
 /* search */
 .nt-header-search { display: flex; align-items: center; }
 .nt-search {
   display: flex; align-items: center; gap: 4px; height: 32px; padding: 0 6px 0 10px; border-radius: 20px; background: var(--bg3); border: 1.5px solid transparent;
-  width: 250px; transition: border-color var(--ease);
+  /* Shrinks before the buttons do, but not past being usable: the middle
+     group gives up dead centre by a few dozen pixels rather than the search
+     giving up its field. */
+  flex: 0 1 250px; min-width: 148px; transition: border-color var(--ease);
 }
 .nt-search:focus-within { border-color: var(--c-title); box-shadow: 0 0 0 1px var(--c-title); }
 .nt-search-icon { color: var(--tx2); display: grid; } .nt-search-icon svg { width: 15px; height: 15px; }
@@ -113,7 +130,11 @@
 .nt-search .nt-icon-btn { flex: 0 0 auto; }
 
 /* ---- frame -------------------------------------------------------------- */
+/* The sidebar runs the full height of the window and the header spans only
+   the column beside it -- which is what puts the session's name, emoji and
+   colour at the very top-left of the screen. */
 .nt-frame { flex: 1 1 auto; min-height: 0; display: flex; }
+.nt-col { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 
 /* ---- sidebar ------------------------------------------------------------ */
 .nt-sidebar {
@@ -124,15 +145,30 @@
 .nt-app.is-rail .nt-sidebar { flex-basis: var(--rail); width: var(--rail); }
 .nt-sidebar-panel { flex: 1 1 auto; min-width: var(--sb); display: flex; flex-direction: column; transition: opacity .18s ease, transform .22s ease; }
 .nt-app.is-rail .nt-sidebar-panel { opacity: 0; pointer-events: none; transform: translateX(-100%); position: absolute; inset: 0; }
-.nt-sidebar-top { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 12px 0 10px; border-bottom: 1px solid var(--bdr); }
+.nt-sidebar-top { display: flex; align-items: center; gap: 9px; height: var(--hdr); padding: 0 10px; border-bottom: 1px solid var(--bdr); }
+.nt-sidebar-top .nt-logo-btn { width: 26px; height: 26px; }
 .nt-session-btn, .nt-rail-session {
   width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 18%, transparent);
   color: var(--c-title); font-weight: 800; font-size: 15px; padding: 0; transition: transform var(--ease), background var(--ease);
 }
 .nt-session-btn.is-emoji, .nt-rail-session.is-emoji { font-size: 19px; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
 .nt-session-btn:hover, .nt-rail-session:hover { transform: scale(1.08); background: color-mix(in srgb, var(--c) 30%, transparent); }
-.nt-sidebar-session-title { flex: 1; min-width: 0; font-size: 17px; font-weight: 800; color: var(--c-title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nt-rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 6px 20px 6px; scrollbar-width: thin; scrollbar-color: var(--bdr) transparent; }
+/* Renamed where it is read. Double-click, and it is a field. */
+.nt-sidebar-session-title {
+  flex: 1; min-width: 0; font-size: 17px; font-weight: 800; color: var(--c-title);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 3px 5px; border-radius: 6px;
+  cursor: default; caret-color: var(--tx);
+}
+.nt-sidebar-session-title:hover { background: color-mix(in srgb, var(--c) 10%, transparent); }
+.nt-sidebar-session-title.is-editing,
+.nt-row-title.is-editing {
+  cursor: text; user-select: text; background: color-mix(in srgb, var(--c) 16%, transparent);
+  outline: 1.5px solid var(--c-title); overflow: visible; text-overflow: clip;
+}
+.nt-row-title.is-editing { border-radius: 5px; padding: 1px 4px; margin: -1px -4px; }
+/* The list and the archive share the leftover height, and the number is
+   dragged on the edge between them (--list-flex / --arch-flex, saved). */
+.nt-rows { flex: var(--list-flex, 72) 1 0; min-height: 0; overflow-y: auto; padding: 8px 6px 20px 6px; scrollbar-width: thin; scrollbar-color: var(--bdr) transparent; }
 .nt-row {
   display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 3px 4px 3px 2px; margin: 1px 0; border-radius: var(--r); cursor: pointer;
   color: var(--c-title); position: relative; transition: background var(--ease), opacity var(--ease);
@@ -163,28 +199,67 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-row-x:hover { opacity: 1 !important; color: var(--danger); background: var(--bg4); }
 .nt-drop-marker { height: 2px; margin: 0 6px; background: var(--c-title); border-radius: 1px; }
 
-.nt-archive { flex: 0 0 auto; border-top: 1px solid var(--bdr); display: flex; flex-direction: column; max-height: 40%; }
-.nt-archive-head { display: flex; align-items: center; gap: 6px; padding: 9px 12px; border: 0; background: none; color: var(--tx2); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; text-align: left; }
+.nt-archive { flex: 0 0 auto; border-top: 1px solid var(--bdr); display: flex; flex-direction: column; position: relative; }
+.nt-archive.is-open { flex: var(--arch-flex, 28) 1 0; min-height: 92px; }
+/* The grab edge. Invisible until the sidebar is under the pointer, because a
+   handle you are not reaching for is furniture. */
+.nt-archive-grip { position: absolute; top: -5px; left: 0; right: 0; height: 10px; cursor: ns-resize; z-index: 3; }
+.nt-archive:not(.is-open) .nt-archive-grip { display: none; }
+.nt-archive-grip::after { content: ""; position: absolute; left: 14px; right: 14px; top: 4px; height: 2px; border-radius: 1px; background: transparent; transition: background var(--ease); }
+.nt-sidebar:hover .nt-archive-grip::after { background: color-mix(in srgb, var(--bdr) 90%, transparent); }
+.nt-archive-grip:hover::after, .nt-sidebar.is-splitting .nt-archive-grip::after { background: var(--c-title); }
+.nt-sidebar.is-splitting { cursor: ns-resize; user-select: none; }
+.nt-archive-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 0; background: none; color: var(--tx2); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; text-align: left; }
 .nt-archive-head:hover { color: var(--tx); }
-.nt-archive-chev { display: grid; transition: transform .2s ease; transform: rotate(-90deg); }
-.nt-archive-chev svg { width: 14px; height: 14px; }
-.nt-archive.is-open .nt-archive-chev { transform: rotate(0); }
-.nt-archive-count { margin-left: auto; font-size: 11px; color: var(--tx3); }
-.nt-archive-list { display: none; overflow-y: auto; padding: 0 6px 8px; }
-.nt-archive.is-open .nt-archive-list { display: block; }
+.nt-archive-count { font-size: 11px; color: var(--tx3); font-weight: 600; letter-spacing: 0; }
+/* Two arms, flat while the archive is open and folded into a chevron when it
+   is not -- the same mark doing both jobs, so the header never grows a
+   second control. */
+.nt-archive-arms { margin-left: auto; display: grid; color: var(--tx3); }
+.nt-archive-arms svg { width: 14px; height: 10px; }
+.nt-arm-l, .nt-arm-r { transition: transform .2s ease; transform-origin: 7px 5px; }
+.nt-archive:not(.is-open) .nt-arm-l { transform: rotate(-40deg); }
+.nt-archive:not(.is-open) .nt-arm-r { transform: rotate(40deg); }
+.nt-archive-head:hover .nt-archive-arms { color: var(--tx); }
+.nt-archive-list { display: none; overflow-y: auto; padding: 0 6px 8px; scrollbar-width: thin; }
+.nt-archive.is-open .nt-archive-list { display: block; flex: 1 1 auto; min-height: 0; }
 .nt-archive.is-empty .nt-archive-list::after { content: "Nothing archived"; display: block; padding: 4px 10px 6px; font-size: 12px; font-style: italic; color: var(--tx3); }
 .nt-arch-row { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 6px; color: var(--tx2); }
 .nt-arch-row:hover { background: var(--bg3); }
 .nt-arch-row .nt-row-badge { width: 22px; height: 22px; font-size: 11px; opacity: .7; }
 .nt-arch-row .nt-row-badge.is-emoji { font-size: 14px; }
 .nt-arch-row .nt-row-title { font-size: 13px; font-weight: 500; }
-.nt-sidebar-foot { padding: 8px 10px 10px; border-top: 1px solid var(--bdr); }
+.nt-sidebar-foot { padding: 8px 10px 10px; border-top: 1px solid var(--bdr); display: flex; flex-direction: column; gap: 6px; }
 .nt-add-btn, .nt-add-bottom {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; border: 1.5px solid color-mix(in srgb, var(--tx3) 60%, transparent); border-radius: var(--r);
   background: none; color: var(--tx); font-size: 14px; font-weight: 600; opacity: .75; transition: all var(--ease);
 }
 .nt-add-btn:hover, .nt-add-bottom:hover { opacity: 1; color: var(--c-title); border-color: var(--c-title); box-shadow: inset 0 0 0 1px var(--c-title); }
 .nt-add-btn svg, .nt-add-bottom svg { width: 16px; height: 16px; }
+/* The plus sits ON the session's colour, so whether it is drawn black or
+   white is measured (contrastOn in color.js compares both) rather than
+   guessed -- a light blue session used to get a white plus on it. */
+.nt-add-plus { width: 22px; height: 22px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 6px; background: var(--c); color: var(--c-on); }
+.nt-add-plus svg { width: 14px; height: 14px; }
+.nt-sessions-btn svg { width: 15px; height: 15px; }
+
+/* The sessions, listed, under their own toggle. Only where there is room to
+   read a name: the rail has the same set behind its badge. */
+.nt-sesslist { display: none; flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 4px 6px 8px; border-top: 1px solid var(--bdr); scrollbar-width: thin; }
+.nt-sidebar.show-sessions .nt-sesslist { display: block; }
+.nt-sess-row {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 3px 6px; margin: 1px 0;
+  border: 0; border-radius: var(--r); background: none; color: var(--c-title); cursor: pointer; text-align: left;
+}
+.nt-sess-row:hover { background: var(--bg3); }
+.nt-sess-row.is-active { background: color-mix(in srgb, var(--c) 14%, transparent); box-shadow: inset 3px 0 0 var(--c); }
+.nt-sess-row .nt-row-badge { width: 24px; height: 24px; font-size: 12px; }
+.nt-sess-row .nt-row-badge.is-emoji { font-size: 15px; }
+.nt-sess-row .nt-row-title { font-size: 14px; font-weight: 600; }
+.nt-sess-count { font-size: 11px; color: var(--tx3); font-variant-numeric: tabular-nums; }
+.nt-sess-row.is-add { color: var(--tx2); font-size: 13px; font-weight: 600; }
+.nt-sess-row.is-add:hover { color: var(--c-title); }
+.nt-sess-row.is-add svg { width: 15px; height: 15px; margin: 0 4px; }
 
 /* the rail */
 .nt-rail { position: absolute; inset: 0; width: var(--rail); display: none; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0 8px; }
@@ -197,14 +272,11 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-rail-cat:hover { background: color-mix(in srgb, var(--c) 18%, transparent); transform: scale(1.1); }
 .nt-rail-cat.is-here { box-shadow: 0 0 0 1.5px var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); transform: scale(1.12); }
 .nt-rail-cat.is-dim { opacity: .3; }
-.nt-rail-add, .nt-rail-expand { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 10px; padding: 0; }
-.nt-rail-add { background: var(--c); color: var(--c-on); }
+.nt-rail-add { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 10px; padding: 0; background: var(--c); color: var(--c-on); }
 .nt-rail-add:hover { filter: brightness(1.1); }
-.nt-rail-expand { background: none; color: var(--tx3); }
-.nt-rail-expand:hover { color: var(--tx); background: var(--bg3); }
 
 /* ---- canvas --------------------------------------------------------------- */
-.nt-main { flex: 1 1 auto; min-width: 0; display: flex; }
+.nt-main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; }
 .nt-canvas { flex: 1 1 auto; min-width: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--here) 55%, transparent) transparent; outline: none; }
 .nt-canvas::-webkit-scrollbar { width: 8px; }
 .nt-canvas::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--here) 55%, transparent); border-radius: 4px; }
@@ -226,8 +298,7 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-session-title:focus { background: color-mix(in srgb, var(--c) 12%, transparent); white-space: normal; text-overflow: clip; }
 .nt-session-addtop { opacity: 0; transition: opacity var(--ease); }
 .nt-session-head:hover .nt-session-addtop { opacity: 1; }
-.nt-session-color { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--c) 40%, transparent); background: var(--c); padding: 0; transition: transform var(--ease); }
-.nt-session-color:hover { transform: scale(1.15); }
+.nt-session-color { width: 32px; height: 32px; }
 .nt-canvas.is-empty .nt-cats::before { content: "Add a category to get started."; display: block; text-align: center; color: var(--tx3); padding: 40px 0; }
 
 /* category */
@@ -288,7 +359,9 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-body ul, .nt-body ol { padding-left: 26px; }
 .nt-body ul ul, .nt-body ol ol, .nt-body ul ol, .nt-body ol ul { padding-left: 24px; }
 .nt-body li { margin: 0; padding-left: 2px; }
-.nt-body li::marker { color: color-mix(in srgb, var(--c-body) 78%, transparent); }
+/* A shade lighter than the words, so the marks read as structure and the
+   text reads as text. --c-bold is already the lighter tier. */
+.nt-body li::marker { color: color-mix(in srgb, var(--c-bold) 88%, transparent); }
 .nt-body ul { list-style: disc; }
 .nt-body ul ul { list-style: circle; }
 .nt-body ul ul ul { list-style: square; }

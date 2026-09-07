@@ -38,7 +38,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/bake_music.py --cases` | the track-list gate can still refuse — 10 cases |
 | `python tools/focal_point.py` | the crop-aiming rule still keeps heads in frame — 8 cases |
 | `node tools/notes_check.mjs` | the notes overlay: no leak (content OR code) before the password, the migration of the pre-rebuild HTML, an edit surviving reload and a second browser, two devices merging on a 409, tiered backups, the app-filled shell, the vault door — 39 checks, needs the dev server |
-| `node tools/notes_editor_check.mjs` | the notes editor through real keys: bullets, nesting, multi-line indent that keeps the selection, Enter and Backspace unwinding, word-level undo with the caret, todo, triggers, formatting as tags, paste hygiene, links, the emoji and slash pickers, autocorrect and its Backspace revert, spell marks, an image drop stored by key, sessions, archive/restore/undo-delete, theme, rail, the three text tiers a category colour paints (and that the session's does not), a dark pick lifted to readable, and what reaches the store — 108 checks, needs the dev server |
+| `node tools/notes_editor_check.mjs` | the notes editor through real keys: bullets, nesting, multi-line indent that keeps the selection, Enter and Backspace unwinding, word-level undo with the caret, todo, triggers, formatting as tags, paste hygiene, links, the emoji and slash pickers, autocorrect and its Backspace revert, spell marks, an image drop stored by key, sessions, archive/restore/undo-delete, theme, rail, the three text tiers a category colour paints (and that the session's does not), a dark pick lifted to readable, renaming in place from the sidebar, the archive's draggable edge and folding arms, the session list, one list button, a spelling menu that opens inside two frames, a delete that does not move the canvas, and what reaches the store — 139 checks, needs the dev server |
 | `node tools/notes_dictate_check.mjs` | dictation and the AI Lab sandbox, against a FAKE SpeechRecognition and a fake clock installed before any page script: the button, both engines' result shapes, the caret as insertion point, a click cutting the utterance off, undo, auto-restart, the pill, the ten-minute silence cap, a refused microphone, and a sandbox that makes zero API calls and leaves the real notes byte-identical — 71 checks, needs the dev server |
 | `node tools/notes_store_check.mjs` | the notes store against a stubbed Vercel Blob: seeding, the legacy read order, refusals that must not reseed, the rev check writing nothing on a conflict, the ten-minute and daily tiers on a synthetic clock, assets by sha — 63 checks, no server needed |
 | `node tools/work_check.mjs` | featured work, the work overlay, the code prompt, the games stack and the AI Lab — 93 checks, serves the repo itself |
@@ -109,6 +109,17 @@ Named next to the honest ones, because a false green is worse than a red (doctri
   "say" returns a string when there is no live session; without checking it,
   every downstream assertion passes for the wrong reason. Anything that drives
   a stub must fail loudly when the stub had nothing to drive.
+- **A handler that `await`s before it renders looks like a dead control.**
+  The spelling menu fetched suggestions from a worker and only then built
+  itself, so a right-click did nothing for a few hundred milliseconds — and
+  the natural response, clicking again, closed the menu that had just
+  appeared and restarted the wait. It read as "works one time in three".
+  Render what needs nothing immediately; fill the rest in when it arrives.
+- **A flex child in a column needs `min-height: 0` or its overflow never
+  scrolls.** Wrapping the header and the canvas in a column made the canvas
+  grow to its full content height instead of scrolling, and `overflow:hidden`
+  on the app silently clipped everything past the first screen. There is no
+  error and the page looks fine until you try to reach the bottom.
 - **A `var()` chain is substituted where it is DECLARED, not where it is
   used.** `--c-title: var(--c)` on the app root resolves once, there, against
   the root's `--c`; every descendant inherits that finished colour, and

@@ -25,6 +25,35 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the sidebar owns the window's left edge, and no menu waits to open
+
+**Decided.** The sidebar runs the full height of the window with the session's
+emoji, name and colour at the top of it; the header spans only the column
+beside it and holds one centred group. Names are renamed in place in the
+sidebar. The archive is welded to the list above it by a draggable edge and
+folds under two arms. Any menu opens on the click and fills itself in
+afterwards.
+
+**Replaced.** A header across the whole window with a left group of its own,
+renaming that sent you to the canvas, a fixed 40%-tall archive under a plain
+chevron, and a spelling menu that awaited the dictionary worker before
+building a single row.
+
+**Why.** The sidebar is the thing being navigated, so it gets the edge; the
+session is the outermost fact about the document, so it goes at the outermost
+corner. Renaming somewhere other than where the name is read is a detour.
+The archive's size is a preference that differs by how much is in it, so it
+is dragged and saved. And nothing is worth waiting on before showing a menu:
+the actions that need no async are always available immediately, which turns
+a control that felt broken into one that feels instant even when the answer
+is slow.
+
+**Reverse it if.** The header ever needs a per-document control that cannot be
+centred with the rest (a breadcrumb, a share state), at which point the left
+group comes back and the sidebar toggle goes back into it.
+
+---
+
 ## 2026-09-07 — a category's colour is its text, and the tiers are computed in JS
 
 **Decided.** One hex per category becomes three colours -- body, bold, title --
