@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Dex music remote",
+  "version": "1.0",
+  "description": "Media keys drive the music on the portfolio site from anywhere on the machine.",
+  "permissions": ["tabs"],
+  "host_permissions": [
+    "https://*.vercel.app/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.vercel.app/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "commands": {
+    "next": {
+      "suggested_key": { "default": "MediaNextTrack" },
+      "description": "Next track",
+      "global": true
+    },
+    "prev": {
+      "suggested_key": { "default": "MediaPrevTrack" },
+      "description": "Previous track",
+      "global": true
+    },
+    "toggle": {
+      "suggested_key": { "default": "MediaPlayPause" },
+      "description": "Play or pause",
+      "global": true
+    }
+  }
+}

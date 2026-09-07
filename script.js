@@ -4743,14 +4743,31 @@ const MediaBus = (() => {
       try { navigator.mediaSession.setActionHandler(action, fn); }
       catch { /* this browser does not have that one */ }
     };
-    /* toggle() for both, and never pause(): pause() on the bus means "yield
-       the room", which for the music player is a full stop that tears the
-       embed down. The OS pause key means pause. Which way toggle goes is
-       decided by lastState, the players' own reported state. */
-    on('play', () => { const p = target(); if (p && !lastState) p.toggle(); });
-    on('pause', () => { const p = target(); if (p && lastState) p.toggle(); });
-    on('nexttrack', () => { const p = target(); if (p && p.next) p.next(); });
-    on('previoustrack', () => { const p = target(); if (p && p.prev) p.prev(); });
+    on('play', () => act('play'));
+    on('pause', () => act('pause'));
+    on('nexttrack', () => act('next'));
+    on('previoustrack', () => act('prev'));
+  }
+
+  /* WHAT A REMOTE MEANS, wherever the key was caught: the OS media session
+     above, or the browser extension in remote/ arriving as a DOM event. One
+     function so the two cannot drift, and so a third catcher is a call rather
+     than a rewrite.
+
+     toggle() for play and pause, and NEVER the bus's pause(): on the bus,
+     `pause` means "yield the room", which for the music player is a full stop
+     that tears the embed down. A pause key means pause. Which way toggle goes
+     is decided by lastState -- the players' own reported state -- because the
+     iframe player's el.paused answers "is a track loaded" and stays false all
+     the way through a pause. */
+  function act(action) {
+    const p = target();
+    if (!p) return;
+    if (action === 'next') { if (p.next) p.next(); return; }
+    if (action === 'prev') { if (p.prev) p.prev(); return; }
+    if (action === 'toggle') { p.toggle(); return; }
+    if (action === 'play' && !lastState) p.toggle();
+    if (action === 'pause' && lastState) p.toggle();
   }
 
   return {
@@ -4861,6 +4878,9 @@ const MediaBus = (() => {
        swallowed on purpose: if a browser refuses to play it, the media keys go
        back to doing what they did before this existed, which is the state the
        page shipped in for a year. */
+    /* For a catcher that is not the media session: see remote/. */
+    remote(action) { act(action); },
+
     holdSession(on) {
       let el;
       try { el = holdElement(); } catch { return; }
@@ -7909,6 +7929,26 @@ const LOOP_MODES = ['off', 'all', 'one'];
     if (event.repeat) return;
     player.toggle();
   });
+})();
+
+/* --- the remote ----------------------------------------------------------- */
+/* The browser extension in remote/ catches the media keys ahead of any page --
+   which is the point of it, since the OS media session goes to whatever is
+   really making the sound and that is YouTube's iframe -- and relays them here
+   as DOM events. See remote/background.js for the two simpler things that were
+   tried and measured first.
+
+   MediaBus.remote() and not the arrow transport: a key pressed from the desktop
+   has no focus, no overlay and no opinion about what is on screen, so the rule
+   is the media session's -- whoever is playing, else whoever was last
+   announced. Nothing cross-origin can reach these: an iframe dispatches on its
+   own document, not on this one. */
+(function initRemoteEvents() {
+  const ACTIONS = { 'music:remote-next': 'next', 'music:remote-prev': 'prev',
+                    'music:remote-toggle': 'toggle' };
+  for (const name of Object.keys(ACTIONS)) {
+    document.addEventListener(name, () => MediaBus.remote(ACTIONS[name]));
+  }
 })();
 
 /* --- the arrow keys skip tracks ------------------------------------------- */

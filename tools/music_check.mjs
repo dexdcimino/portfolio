@@ -1976,6 +1976,43 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(held && !held.muted && held.volume > 0,
        'the hold is muted or silent at the element \u2014 Chrome ignores those for the session');
 
+  /* ---- the remote's page end ------------------------------------------
+     The extension in remote/ catches the media keys and relays them here as
+     DOM events. Chrome's key registration cannot be driven from a harness, but
+     the half that lives in this repo can: dispatch what the content script
+     dispatches and assert the player answers.
+
+     MediaBus.remote() and NOT the arrow rule: a key pressed from the desktop
+     has no focus and no overlay, so this deliberately runs with focus sitting
+     on a button, where the arrows would correctly refuse. */
+  /* The bar's own play button: a focused button, and one still on screen while
+     the bar is docked -- the list is not, so a row's button cannot take focus
+     here and the page would be left claiming the arrows from <body>. */
+  await page.evaluate(() => document.getElementById('musicToggle').focus());
+  note(!(await claims()), 'check 8f wanted focus somewhere the arrows refuse');
+  const remoteFrom = await nowV();
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent('music:remote-next')));
+  const remoteNext = await nowV();
+  note(remoteNext !== remoteFrom && !!remoteNext,
+       'the remote\u2019s next did not move to another track');
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent('music:remote-prev')));
+  note(await nowV() === remoteFrom, 'the remote\u2019s previous did not come back');
+  const wasLit = await page.evaluate(() =>
+    document.getElementById('musicToggle').getAttribute('aria-label'));
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent('music:remote-toggle')));
+  const nowLit = await page.evaluate(() =>
+    document.getElementById('musicToggle').getAttribute('aria-label'));
+  note(nowLit !== wasLit, `the remote\u2019s play/pause did nothing (${wasLit} -> ${nowLit})`);
+  /* ...and it must PAUSE rather than stop: pause() on the bus means "yield the
+     room", which for this player tears the embed down and closes the bar. */
+  note(await page.evaluate(() => document.getElementById('musicVideo').getAttribute('src') !== null),
+       'the remote\u2019s play/pause stopped the player instead of pausing it');
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent('music:remote-toggle')));
+
   await shutMusic();
 
   /* ---- and the same keys drive the Top Picks bar --------------------- */
@@ -2007,6 +2044,44 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
     document.getElementById('songAudio').pause();
     document.getElementById('playerStop').click();
   });
+}
+
+/* ---- 8g. the remote extension agrees with itself -----------------------
+   remote/ is loaded by Chrome, not served by this harness, so nothing here can
+   press a real media key -- Chrome registers those with the OS and there is no
+   way in from a page. What CAN be checked is the half that goes stale: the site
+   URL list lives in TWO places (the manifest's permissions and matches, and
+   SITE in background.js) and they have to be the same list. A drift there is
+   silent -- the extension loads, the key fires, and the tab query matches
+   nothing -- which is the failure this repo keeps paying for.
+
+   COUNT THE SUBJECT: the lists are asserted to be non-empty before they are
+   compared, or two missing lists would agree perfectly. */
+{
+  const manifestText = await readFile(join(ROOT, 'remote/manifest.json'), 'utf8');
+  const ext = JSON.parse(manifestText);
+  const bg = await readFile(join(ROOT, 'remote/background.js'), 'utf8');
+
+  const hosts = ext.host_permissions || [];
+  const matches = (ext.content_scripts && ext.content_scripts[0].matches) || [];
+  const site = [...bg.matchAll(/'(https?:\/\/[^']+)'/g)].map(m => m[1]);
+
+  note(hosts.length >= 2, `the extension asks for ${hosts.length} host(s) \u2014 the list is gone`);
+  note(JSON.stringify(hosts) === JSON.stringify(matches),
+       'host_permissions and the content script matches are different lists');
+  note(JSON.stringify(hosts) === JSON.stringify(site),
+       'background.js SITE and the manifest name different sites, so the key fires '
+       + 'and finds no tab');
+
+  const commands = Object.keys(ext.commands || {});
+  note(commands.length === 3, `the extension binds ${commands.length} commands, expected 3`);
+  note(commands.every(c => ext.commands[c].global === true),
+       'a command is not global, so it only fires while Chrome is the focused app');
+  const keys = commands.map(c => ext.commands[c].suggested_key.default);
+  note(keys.every(k => /^Media/.test(k)),
+       `a command is bound to ${keys.join(', ')} \u2014 Chrome refuses Ctrl+Alt on Windows, `
+       + 'so these have to be the media keys');
+  note(ext.manifest_version === 3, 'the extension is not manifest v3');
 }
 
 /* ---- 9. the keypad flash ------------------------------------------------

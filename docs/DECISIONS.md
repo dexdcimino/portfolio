@@ -25,6 +25,33 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the media keys are caught in an extension, not in the page
+
+**Decided.** `remote/`, a three-file Chrome extension: `global` commands on the three
+media keys, a content script that relays them to the site as DOM events, and
+`MediaBus.remote()` at the page end. `Ctrl+Alt+Arrow` stays a PowerToys remap onto
+those media keys, because Chrome refuses `Ctrl+Alt+<key>` on Windows — that is AltGr.
+
+**Replaced.** Two page-only routes, both built and both measured on the real machine
+before this: `navigator.mediaSession` handlers, and then a near-silent track played in
+the top document to hold the session against the embed.
+
+**Why.** With the music overlay playing, the play/pause key worked from the desktop
+and next and previous did nothing anywhere — not a broken handler, the wrong
+document. The OS controls attach to whoever is really making sound, YouTube's iframe
+answers play/pause, and a single video has no next or previous. Making our own sound
+did not take the session off it. An extension does not compete for the session at
+all: Chrome registers global commands with the OS itself, ahead of every page. The
+cost is honest and is written on the tin — one unpacked install, and the media keys
+stop reaching Spotify while it is on.
+
+**Reverse it if.** Chrome's media session ever routes to the top frame (then the
+extension is dead weight and deletes cleanly — the page end stays, since
+`MediaBus.remote()` is what a media-session handler calls too), or the remote needs to
+reach a phone, at which point the endpoint version is the only shape that works.
+
+---
+
 ## 2026-09-07 — the page holds the OS media session with a silent track
 
 **Decided.** While the music overlay is playing, the page loops a near-silent

@@ -375,6 +375,23 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   already. `holdState()` exists to be checked: a wrong byte in that header
   leaves `duration` NaN and nothing on the page looks different, which is this
   repo's favourite shape of bug. `music_check.mjs` 8f asserts the decode.
+- **AND IT DID NOT WORK, so the keys are caught in an extension instead.**
+  Measured twice on the real machine: with the overlay playing, the play/pause
+  key worked from the desktop and next and previous did nothing anywhere, and
+  the silent hold did not take the session off the embed either. `remote/` is a
+  three-file Chrome extension whose `global` commands are registered with the OS
+  by Chrome itself, ahead of any page, so it never competes for the session at
+  all; its content script relays them to the page as DOM events, which
+  `initRemoteEvents()` turns into `MediaBus.remote()`. `Ctrl+Alt+<key>` is NOT
+  bound there and cannot be — Chrome refuses that combination on Windows
+  because it is AltGr — so it stays a PowerToys remap onto the media keys. The
+  price, written down in `remote/README.md`: while it is enabled the media keys
+  belong to it and stop reaching Spotify. **The hold is kept for now and is on
+  probation**: it can only be shown to be pointless by a measurement nobody has
+  made (whether the flyout carries our metadata), and it costs one silent audio
+  element. `music_check.mjs` 8f drives the relay end to end and 8g asserts the
+  extension's two copies of the site list agree — a drift there is silent, the
+  key fires and the tab query matches nothing.
 - **The media-key handlers call `toggle()`, never the bus's `pause()`.** On the
   bus, `pause` means "yield the room", which for the music player is a full stop
   that tears the embed down; the OS pause key means pause. Which way toggle goes
@@ -1290,7 +1307,7 @@ assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
 script.js                initMusic() - below MediaBus, see why in its header
 styles.css               .music-*
-tools/music_check.mjs    340 checks in a real browser, serves the repo itself,
+tools/music_check.mjs    352 checks in a real browser, serves the repo itself,
                          reaches NO network — the embed is intercepted
 tools/music_flag_check.mjs  21 checks that DO reach YouTube: a real embed
                          refusing a real video, over https, see below
