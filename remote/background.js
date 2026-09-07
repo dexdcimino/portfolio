@@ -37,10 +37,23 @@ const SITE = [
   'http://127.0.0.1/*',
 ];
 
+/* SAY WHAT HAPPENED, in the service worker's own console (the "service worker"
+   link on the extension's card). Three things can go wrong and they look
+   identical from the outside -- the key never reached the extension, no tab
+   matched, or the tab had no content script -- and each line below tells the
+   three apart in one press. This is a locally loaded extension for one machine;
+   the log is the whole diagnostic surface it has. */
 chrome.commands.onCommand.addListener(async (command) => {
   let tabs = [];
-  try { tabs = await chrome.tabs.query({ url: SITE }); } catch { return; }
-  if (!tabs.length) return;
+  try { tabs = await chrome.tabs.query({ url: SITE }); } catch (e) {
+    console.log('remote:', command, '- tabs.query failed', e);
+    return;
+  }
+  console.log('remote:', command, '-', tabs.length, 'matching tab(s)');
+  if (!tabs.length) {
+    console.log('remote: no tab matches', SITE.join(' '), '- is the site open?');
+    return;
+  }
 
   /* THE TAB MAKING SOUND, not the first one found. Two copies of the site open
      is ordinary -- one being read, one playing in another window -- and a
@@ -53,7 +66,11 @@ chrome.commands.onCommand.addListener(async (command) => {
     || tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
   if (!tab) return;
 
-  // Failures are swallowed: a tab whose content script has not loaded yet (or
-  // that was navigated away) is not an error, it is just not the one.
-  chrome.tabs.sendMessage(tab.id, { command }).catch(() => {});
+  /* A tab whose content script has not loaded yet (or that was navigated away)
+     is not an error, it is just not the one -- but it IS the third failure, so
+     it says so rather than being swallowed in silence. */
+  chrome.tabs.sendMessage(tab.id, { command })
+    .then(() => console.log('remote: delivered to', tab.url))
+    .catch((e) => console.log('remote: tab', tab.id, 'did not take it -', e.message,
+                              '- reload the site tab'));
 });
