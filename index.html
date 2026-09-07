@@ -27,7 +27,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=209" />
+  <link rel="stylesheet" href="styles.css?v=210" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -4520,32 +4520,12 @@
            that had just been typed. It is not a step anyone has to take, so it
            is not a step anyone should see. -->
       <p class="notes-wait" id="notesWait" hidden>UNLOCKING</p>
-      <!-- The editor. Empty in the markup and filled from the manifest the
-           server hands back; nothing is pre-rendered and hidden, because CSS
-           that hides content still shipped the content. -->
-      <div class="notes-editor" id="notesEditor" hidden>
-        <!-- The rail holds a LIST that is rebuilt from the document plus a
-             zoom button that is not. buildRail() replaces the children of
-             #notesRail only, so the button below it survives every rebuild. -->
-        <nav class="notes-rail-wrap" aria-label="Jump to a section">
-          <div class="notes-rail" id="notesRail"></div>
-          <button class="notes-zoom" type="button" id="notesZoom"
-                  aria-label="Text size" aria-pressed="false">
-            <span class="icon" id="notesZoomIcon" data-icon="zoom-in" aria-hidden="true"></span>
-          </button>
-        </nav>
-        <!-- The scroll indicator is DRAWN, not the browser own bar. A native
-             one cannot be styled to this consistently: setting scrollbar-width
-             or scrollbar-color makes Chrome ignore ::-webkit-scrollbar and
-             fall back to an OVERLAY bar that takes no layout space and fades
-             out a second after you stop, and headless paints neither kind, so
-             the look could not be captured and checked. This one is a div. -->
-        <div class="notes-thumb" id="notesThumb" hidden></div>
-        <div class="notes-scroll" id="notesScroll">
-          <div class="notes-doc" id="notesDoc" contenteditable="true" spellcheck="true"
-               role="textbox" aria-multiline="true" aria-label="WorldHop notes"></div>
-        </div>
-      </div>
+      <!-- The editor. Empty in the markup: notes/app.js mounts the whole notes
+           app in here once the password has passed, and script.js empties it
+           again on close. Nothing is pre-rendered and hidden, because CSS
+           that hides content still shipped the content -- and that goes for
+           the app's own code too, which is a dynamic import() after unlock. -->
+      <div class="notes-editor" id="notesEditor" hidden></div>
     </div>
 
       <!-- Both outside the panel: the close button clear of the artwork on
@@ -4792,6 +4772,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=202"></script>
+  <script src="script.js?v=203"></script>
 </body>
 </html>

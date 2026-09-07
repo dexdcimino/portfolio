@@ -31,6 +31,26 @@ several of these are one commit away from being untrue.
    Verified: every `--cases` command in the `CLAUDE.md` table.
    Verified: `grep -l -- --cases tools/*.py` → `check_sweep.py` only.
 
+## Notes app — held off on purpose (2026-09-07)
+
+The notes overlay was rebuilt as `notes/`; these were in the old DexNote app and are NOT
+carried over yet, each by a decision rather than an oversight. Verified: `ls notes/`
+and `grep -c "autolist\|split" notes/*.js` → 0.
+
+9. **Column split (2/3 columns per category) and the autolist (checkbox/letter/number
+   rows).** Dex said hold them; one body per category is how the notes are written.
+   Both would be a per-category field plus a render branch — the schema is ready for
+   neither and should not grow them speculatively.
+10. **Image resize by handle.** Images take four widths (25/50/75/100%) from a bar
+    that appears on click. A drag handle is a nicety on top of a mechanism that
+    already persists correctly (`data-w`); do it when a width in between is missed.
+11. **Drag-reorder on the canvas.** The sidebar reorders by grip drag and the header
+    menu moves up/down/top/bottom; the canvas has the menu only.
+12. **A session per blob.** One JSON document holds every session; `state.merge`
+    already merges per session and per category, so the client end would not change.
+    Worth it only if the document nears the 4 MB ceiling — `notes_store_check`
+    names the number.
+
 ## Blocked on Dex
 
 6. **The Work overlay is still a mockup** — filler SVG data URIs from the

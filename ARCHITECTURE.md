@@ -1193,17 +1193,41 @@ while `--check` reported the manifest as current.
 
 ## Live notes overlay (`/#notes`)
 
-A private, password-gated editor for the WorldHop notes. No control anywhere on
-the page opens it -- the address is the only way in.
+A private, password-gated notes app. No control anywhere on the page opens it
+-- the address, the tilde keypad and the Idea Vault are the only ways in. It
+was rebuilt on 2026-09-07 from a single-document editor into a notes app
+with sessions, categories, a sidebar and its own undo; the door is the same.
 
 ```
-index.html   #notesModal: one dialog, two panes (keypad, then editor)
-script.js    createKeypad() . the notes block . editing . caret correction
-styles.css   .notes-* for the shell, .nv-* for the document itself
-api/notes/unlock.js   POST {password|token} -> {content, token, savedAt}
-api/notes/save.js     POST {token, content}  -> {savedAt, backups, token}
-lib/notes-store.js    blob I/O, scrypt password check, HMAC session tokens
-lib/notes-seed.js     the starting document, server-side only
+index.html      #notesModal: the keypad pane, then an EMPTY #notesEditor
+script.js       the DOOR: createKeypad() . the token . open/close . import('/notes/app.js')
+styles.css      .notes-* for the shell only; nothing inside the app
+notes/          the app, ES modules, fetched only after the password passes
+  app.js          mount()/unmount(); layout, the shared ctx, the save loop, sync
+  state.js        the document shape, normalize(), merge(), migrateHtml()
+  schema.js       what a body may contain: clean() in, serialize() out, scrub() between
+  history.js      the undo stack: text transactions and structural ones
+  editor.js       typing: lists, Enter, Backspace, Tab, triggers, paste, copy
+  render.js       sidebar, rail, canvas, sessions, archive, drag-reorder, scroll spy
+  chips.js        link chips, markdown nodes, images (upload, size, menus)
+  spell.js        Highlight API marks, the right-click menu, autocorrect
+  spell-worker.js the Hunspell dictionary, off the main thread
+  emoji.js        the ":" picker (3x3) and the full picker
+  color.js        the HSB picker with sixteen document-level slots
+  search.js       Highlight API matches, Enter/arrows, sidebar dimming
+  slash.js        the "/" menu
+  md.js           the markdown renderer for nodes (escaping first, hrefs allow-listed)
+  ui.js           toast, confirm, panels, menus, tooltips, the icon set
+  dom.js          selection as data, block helpers
+  notes.css       every rule, scoped under .nt-app; the five self-hosted faces
+  emoji.json      1907 emoji as [unicode, label, tags, group]
+  vendor/         typo.js and en_US.aff/.dic
+  fonts/          Outfit, Raleway, Inter, JetBrains Mono, Space Mono (latin, woff2)
+api/notes/unlock.js   POST {password|token} -> {content, format, rev, savedAt, token}
+api/notes/save.js     POST {token, doc, baseRev} -> 200 {rev, savedAt, token} | 409 {doc, rev}
+api/notes/asset.js    POST {token, type, data} -> {key};  GET ?key&t -> the image
+lib/notes-store.js    blob I/O, scrypt, HMAC tokens, the rev check, backup tiers, assets
+lib/notes-seed.js     the pre-rebuild document, read once if nothing was ever saved
 ```
 
 **The password is checked on the server, and that is the whole point.** The Idea
@@ -1211,89 +1235,170 @@ Vault higher up the page ships ciphertext and decrypts it in the browser, which
 is right for something sealed once; these notes are edited daily and cannot be
 re-sealed on every keystroke. So nothing about them -- not the text, not its
 length, not whether anything has ever been saved -- reaches the browser before
-`/api/notes/unlock` returns 200. `tools/notes_check.mjs` asserts that by
-scanning every response body the page received after a wrong password.
+`/api/notes/unlock` returns 200, **and neither does the app's own code**: script.js
+holds only the keypad and a dynamic `import('/notes/app.js')` that runs after
+the 200. `tools/notes_check.mjs` asserts both by scanning every response the
+page received after a wrong password. Closing the overlay unmounts the app and
+empties `#notesEditor`, for the same reason the old document was removed: a
+document left in the DOM is one devtools panel away for the rest of the visit.
 
-**Storage is Vercel Blob, `access: 'private'`.** A public blob has a URL, and a
-fixed pathname plus a store id is one guess away from being the leak the feature
-exists to prevent. `notes/current.html` is the document; `notes/backups/<iso>.html`
-is one copy per save, newest 20 kept. Pruning counts what is actually there and
-deletes the surplus rather than deleting one per save -- a count that drifts
-silently is a count nobody can restore from.
+**Storage is Vercel Blob, `access: 'private'`.** `notes/current.json` is the
+document as `{ rev, savedAt, doc }`. `notes/current.html` is the document the
+overlay wrote BEFORE the rebuild: read once when there is no JSON yet, handed to
+the browser as `format: 'html'`, migrated there (`state.migrateHtml`: each
+`.nv-sec` becomes a category, its accent becomes the colour, its icon becomes an
+emoji), and never written again -- it is the permanent safety net under the
+migration, and `notes_check` asserts it stays byte-identical. The server never
+converts; it has no DOM and the browser that wrote the HTML is the only thing
+that can parse it the same way.
+
+**The rev is what stops two devices wiping each other.** Every save carries the
+rev it was built on. A save on a stale rev is answered 409 with the current
+document attached and NOTHING is written; the client merges category by
+category (`state.merge`: each category from whichever side stamped it last, a
+category only one side has is kept) and retries on the new rev. Before this the
+later save silently won the whole document. A tab coming back from the
+background asks `/api/notes/unlock` with its token and adopts the store's copy
+if the rev moved and nothing local is dirty. Asserted in `notes_check` with two
+incognito contexts editing two categories: B's save answers 409 then 200, and
+both edits are in the store.
+
+**Backups are tiered, not one per keystroke.** `notes/backups/<iso>.json`, one
+per ten-minute window, newest 20; `notes/daily/<date>.json`, one per day,
+newest 14. Before this every save wrote a copy, so twenty copies covered the
+last thirty seconds of typing. The spacing rule is `backupPlan()`, a pure
+function of the names already there and the clock, driven through
+`notes_store_check` on a synthetic clock. The pre-rebuild `.html` backups are
+never counted and never pruned.
+
+**Images are assets, not data URIs.** A pasted or dropped image is scaled to
+1600px WebP in the browser (a small PNG stays PNG, a GIF keeps its frames),
+posted as base64 to `/api/notes/asset`, and stored under its sha256:
+`notes/assets/<sha>.<ext>`, private. The body holds `<img data-key data-w>`;
+the `src` is built at render time from the session token and stripped again by
+`serialize()`, so a token never reaches the store. While the upload is in
+flight the image shows its data: preview and has no key, so a save in that
+window simply leaves it out and the next one has it.
 
 **Tokens are stateless**: an expiry, plus an HMAC of it keyed by
-`NOTES_PASSWORD`. Nothing to store, which matters when every request may reach a
-different instance; and changing the password invalidates every live session,
-which a separate signing secret would not do. Every save returns a fresh one, so
-a tab open across a working day never hits the wall mid-sentence.
+`NOTES_PASSWORD`. Every save returns a fresh one, so a tab open across a
+working day never hits the wall mid-sentence. The token lives in
+sessionStorage: per tab, dies with the tab.
 
-**Setup.** Two environment variables, both set in the Vercel project:
-`NOTES_PASSWORD`, and `BLOB_READ_WRITE_TOKEN` (injected automatically when a
-Blob store is connected under Storage). Without either, both routes answer 503
-and the keypad says NOT SET UP rather than pretending the password was wrong.
+**Setup.** `NOTES_PASSWORD` and `BLOB_READ_WRITE_TOKEN` in the Vercel project.
+Without either, every route answers 503 and the keypad says NOT SET UP.
 
-### The document is CSP-safe markup, not the pasted HTML
+### The document
 
-The notes arrived as a standalone file: a `<style>` block, `style="color:#hex"`
-on every heading and list, and a sidebar of `onclick="...scrollIntoView..."`
-links. The site ships `script-src 'self'` and `style-src 'self'` with **no**
-`'unsafe-inline'`, so pasted verbatim that renders as an unstyled wall of text
-with a dead sidebar. Loosening the CSP for one private overlay was the wrong
-trade, so the content was converted instead: styles became rules, colours became
-a `data-accent` token per `<section>`, the sidebar became something `buildRail()`
-builds from whatever sections exist, and the nine SVG icons came through
-untouched (presentation attributes are not inline styles). 127 list items were
-asserted identical, word for word, before and after.
+```
+doc      { v: 2, active, sessions: [session], ui, spell: {ignore, custom}, emojiFreq }
+session  { id, title, emoji, color, created, updated, cats: [cat], archived: [cat] }
+cat      { id, title, emoji, color, collapsed, body, updated, archivedAt? }
+ui       { theme, font, fs, sidebar, spell, autocorrect, slots[16] }
+```
 
-Stored content is re-checked through an allowlist on every render, and pasted
-HTML goes through the same one. Unknown tags are UNWRAPPED, never dropped: a
-paste from a web page is far more likely than an attack, and deleting the words
-inside it would lose real notes.
+One body per category, no subcategories -- the notes were never written any
+other way, and flat is what keeps every operation simple. `updated` on a
+category is what the merge compares; every mutation goes through `touch()`.
+`normalize()` runs on every document that arrives from anywhere, so an older
+shape or a hand-edited blob cannot crash the app.
+
+### What a body may contain
+
+`schema.js` is the contract: root blocks `p h3 ul ol pre blockquote hr`; items
+hold inline content then at most one nested list at the end; inline is
+`b i u s code a br img` plus `span.chip`. Alignment is a class (`al-c`, `al-r`),
+todo state is `data-checked` on the item, images are `data-key`/`data-w`.
+**No style attribute anywhere**: the site's CSP has no `'unsafe-inline'` for
+styles, so an inline style is not untidy, it is silently ignored on reload.
+`clean()` runs on every string on its way in (server, paste, undo) -- in a
+DOMParser document with `style=` renamed first, because even an inert
+document reports a CSP violation per style attribute -- unknown tags are
+UNWRAPPED rather than dropped, and `scrub()` after every native input pulls
+what Chrome added (styles when merging lines, `<div>`s, `<span>`s) back into
+the schema before it can compound. `serialize()` on the way out strips the
+transient: image srcs, selection classes. A save and a reload are
+byte-identical, which is what lets the save loop compare strings.
 
 ### Editing
 
-Everything goes through `document.execCommand`, deliberately. Hand-rolled DOM
-edits are invisible to the browser's undo stack, so Ctrl+Z either does nothing
-or reverts to a state that never existed; rebuilding undo on top of them means
-snapshotting the document on every keystroke. It is deprecated in the sense that
-no new features are coming, not that it is going away.
+The browser types, deletes and applies bold; `editor.js` does lists and blocks,
+because a contenteditable's own ideas about lists are the source of nearly
+every scar in the two editors this replaces. One set of listeners on the
+canvas, delegated to whichever body the event came from.
 
-- **Tab / Shift+Tab** indent and outdent, one bullet or a whole selection.
-  Always consumed while the caret is in the document, even where there is
-  nothing to indent -- a Tab that does nothing is a small disappointment, a Tab
-  that reaches the browser's own tab cycling loses the caret and the reader's
-  place at once.
-- **Backspace at the very start of a bullet** unwinds before it merges: nested
-  steps out a level, top-level becomes a plain line, and only a plain line
-  merges upward.
-- **Ctrl+B/I/U**, **Ctrl+Y** (Chrome does not bind redo inside a
-  contenteditable), **Ctrl+S** to save now rather than save the web page.
-- **`- ` or `* ` on an empty line** makes a bullet. The marker is removed with
-  `execCommand('delete')`, not a range operation -- the first cut used
-  `deleteContents`, which the undo stack never saw and which left the selection
-  pointing into a text node it had just emptied, so `insertUnorderedList`
-  silently did nothing.
-- **Enter on an empty bullet** steps out a level.
-- `indent`/`outdent` re-wrap the moved text in a `<span>` carrying its computed
-  colour. Here that colour is the section accent, so the wrapper freezes the
-  wrong one and puts an inline style into the saved document;
-  `unwrapCommandSpans()` strips them immediately.
+- **Tab / Shift+Tab** indent and outdent, one item or a whole selection, and
+  the selection survives (`keepSelection`: structural moves never recreate
+  text nodes, so the nodes it sits on are still the right ones). An item
+  cannot go deeper than the item above it, so a selection never becomes a
+  staircase. Tab in a paragraph makes it a bullet.
+- **Enter** splits an item (its children travel with the tail), steps an empty
+  nested item out, turns an empty top-level item into a paragraph, and leaves
+  a heading, quote or code block on an empty last line. Ctrl+Enter toggles a
+  todo. Quotes are one block per line (consecutive ones draw as one); code
+  takes newline characters, never `<br>` -- Chrome treats a trailing `<br>`
+  as a placeholder it may remove or move, which is what trapped the caret in a
+  quote on the first build.
+- **Backspace at the start** unwinds before it merges: nested out, top-level to
+  a paragraph, a paragraph into the last item of the list above. Backspace
+  right after a chip removes the chip.
+- **Markdown triggers** `- * + 1. [] [x] # > ---` and three backticks. Decided
+  at beforeinput, applied at input after the space has landed, so the native
+  keystroke is its own history step and Ctrl+Z after `- ` gives back `- `.
+- **Chips are atoms with a real character after them**, a no-break space when
+  they end a line. The old editor bracketed every chip in zero-width spaces
+  and then needed arrow hops, delete guards and a hydration pass to keep them
+  paired; none of that exists here.
+- **Paste** goes through `clean()`; plain text with `- `/`1. `/`[ ]` lines
+  becomes real lists (a change of kind at the same depth starts a new list); a
+  bare URL becomes a link chip; an image becomes an asset.
 
-### The click-past-the-end bug
+### Undo
 
-Clicking in the empty space right of a bullet should put the caret at the end of
-that line. It does -- **unless the bullet also contains a nested list**, and then
-Chrome's `caretRangeFromPoint` returns offset 0 of the line's first text node.
-Measured on this document: `Coop` (no nested list) gives 4, the end of its text;
-`Creatures` and `NPCs` (nested `<ul>`) both give 0. Dragging from there therefore
-selects from the beginning of the line, which was the reported symptom on the
-reported bullet.
+`history.js` is one stack for everything. A **text** entry is one body's HTML
+before and after plus the serialized selection either side (child-index paths
+from the body root), applied by setting innerHTML and putting the caret back.
+A **structure** entry is the session as JSON before and after, applied by
+swapping the session and re-rendering -- so a deleted category comes back with
+its body. Native typing is captured from beforeinput/input and coalesced by
+word: a space after letters seals the group, a space that opens one stays open
+so `" fox"` undoes as one. The browser's own stack is switched off (Ctrl+Z/Y,
+Ctrl+Shift+Z, and the `historyUndo` input type the context menu produces),
+because two stacks that both think they own the document was the failure mode
+this replaces.
 
-A drag anchor is fixed at mousedown, so correcting afterwards is too late.
-`correctedCaret()` recomputes the position, and on the affected shape ONLY --
-when Chrome's answer and the corrected one actually differ -- the default is
-prevented, the caret placed, and the drag extended by hand from the same
-function. Every other click is left entirely to the browser.
+### Spelling, marks and autocorrect
+
+Misspellings are drawn with the **CSS Custom Highlight API** -- a set of ranges
+the stylesheet paints with a wavy underline -- so the document is never
+rewritten to show them; the caret, the history and the saved HTML never see a
+mark. The dictionary (Hunspell en_US via typo.js) is parsed in a Worker.
+Right-click on a marked word: suggestions, Ignore, Add to dictionary; both
+lists live in the document and follow Dex between devices. **Autocorrect**
+runs when a word is finished: a contraction table, a table of the usual
+transpositions, and otherwise the dictionary's suggestions filtered to
+Damerau-Levenshtein distance 1 that keep the first letter. A correction is its
+own undo step; Backspace straight after it restores the original and stops
+that word being corrected again this session. Search uses the same API for
+its matches, with the current one brighter.
+
+### Rendering
+
+`render.js` rebuilds only what changed: a canvas render keeps any section whose
+body stamp is unchanged, so an autosave, a rename or a sidebar change never
+moves the caret. The sidebar row, the rail letter and the canvas header all
+carry the category's colour as `--c` on the element; `--c-text` is that colour
+as text, darkened on the light theme. The scroll spy marks the category that
+fills most of the view and paints the scrollbar with its colour.
+
+### The dev loop
+
+`tools/notes_dev_server.mjs` serves the repo with the shipped CSP header and
+routes `/api/notes/*` to the real handlers with `NOTES_DEV_DIR` on disk.
+`notes_check.mjs` resets that store to the pre-rebuild state at the start of
+every run and walks the migration. `notes_editor_check.mjs` drives real keys
+through a scratch category it deletes at the end. `notes_store_check.mjs`
+needs no server.
 
 ## Music overlay (code `MUSIC`)
 

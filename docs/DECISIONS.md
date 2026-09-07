@@ -25,6 +25,44 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the notes are an app of their own, mounted behind the same door
+
+**Decided.** The notes overlay is `notes/`, a set of ES modules that script.js
+imports only after `/api/notes/unlock` returns 200. Sessions, categories with a
+body each, a sidebar and rail, emoji and colour per category, a transactional
+undo stack, spell marks through the CSS Highlight API, autocorrect, link chips,
+markdown nodes, images as private assets. The store is JSON with a rev; a
+save on a stale rev is refused and merged category by category. Backups are
+tiered (ten-minute and daily) instead of one per keystroke. The pre-rebuild
+HTML document is migrated in the browser on first open and never rewritten.
+
+**Replaced.** The single-document editor in script.js: one contenteditable
+over the converted HTML, `execCommand` for every edit, the browser's own undo,
+a rail built from the `<h2>`s, and a save that overwrote the whole document on
+every keystroke -- and, further back, the DexNote app that this borrows its
+layout and pickers from, which kept chips paired with zero-width spaces,
+aligned text with inline styles, indented with `margin-left`, and undid by
+re-rendering everything from an eighty-deep stack of the whole state.
+
+**Why.** The overlay was asked to become the primary way of taking notes, and
+its editing was the thing in the way: Tab/Shift+Tab on more than one line,
+smart bullets, undo across structural edits, and anything per category
+(colour, emoji, archive) were either absent or built on `execCommand`'s idea
+of a list. Doing lists and blocks in code, with the browser left to type
+characters, is what makes every one of those correct by construction; doing
+undo as transactions with a serialized caret is what makes Ctrl+Z step back a
+word rather than a re-render. The rev check exists because two devices with
+the overlay open were already wiping each other's edits, silently. The app is
+a separate directory and a dynamic import so script.js stays the door and a
+visitor who never unlocks never downloads an editor.
+
+**Reverse it if.** The CSS Highlight API is withdrawn from Chrome (marks would
+need a wrapping fallback, which is the thing the design avoids), or the notes
+outgrow one JSON document -- a session per blob is the next shape, and
+`state.merge` already works per session so the client end would not change.
+
+---
+
 ## 2026-09-07 — the media keys are caught in an extension, not in the page
 
 **Decided.** `remote/`, a three-file Chrome extension: `global` commands on the three

@@ -8,19 +8,27 @@
  * proves nothing. "Refresh and the text is still there" is true of
  * localStorage. "The second browser sees it" is the only one that actually
  * says the server holds it.
+ *
+ * THE RUN STARTS FROM THE PRE-REBUILD STORE: it writes the seed into
+ * notes/current.html and removes current.json, so the first unlock exercises
+ * the migration every real device goes through once. The dev server reads
+ * the disk per request, so this is safe to do under it.
  */
 import { existsSync } from 'node:fs';
-import { readdir, readFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
 
+const require = createRequire(import.meta.url);
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > -1 ? process.argv[i + 1] : d; };
 const BASE = `http://127.0.0.1:${arg('--port', 8123)}`;
 const SHOTS = resolve(arg('--shots', join(ROOT, '.notes-dev/shots')));
 const STORE = resolve(arg('--dir', join(ROOT, '.notes-dev')));
 const PASSWORD = 'notes';
+const SEED = require(join(ROOT, 'lib/notes-seed.js'));
 
 const CHROME = [
   process.env.CHROME,
@@ -31,13 +39,23 @@ const CHROME = [
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
 
 const fail = [];
-const note = (ok, why) => { if (!ok) fail.push(why); };
+let pass = 0;
+const note = (ok, why) => { if (ok) pass++; else fail.push(why); };
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+/* ---- 0. the store as every device finds it on the first open after the rebuild */
+{
+  const dir = join(STORE, 'notes');
+  await mkdir(dir, { recursive: true });
+  for (const sub of ['backups', 'daily', 'assets']) await rm(join(dir, sub), { recursive: true, force: true });
+  await rm(join(dir, 'current.json'), { force: true });
+  await writeFile(join(dir, 'current.html'), SEED, 'utf8');
+  await mkdir(SHOTS, { recursive: true });
+  console.log(`store reset: current.html is the seed (${SEED.length} chars), no current.json`);
+}
 
 const browser = await puppeteer.launch({
   executablePath: CHROME, headless: 'new',
-  // NOT --hide-scrollbars: the scrollbar is a feature here (it takes the colour
-  // of the section beside it), and a flag that hides it would leave every
-  // screenshot unable to show the thing being checked.
   args: ['--no-first-run', '--no-default-browser-check'],
 });
 
@@ -62,44 +80,56 @@ async function newPage(context, allow) {
 }
 
 /* Focus the first box and let the KEYPAD move focus, exactly as a person's
- * typing does. Re-selecting a box per character instead lands every character
- * in the same one -- the row advances focus on input, so a selector evaluated
- * fresh each time keeps finding box 0. */
+ * typing does. */
 async function type(page, word) {
   await page.waitForSelector('#notesPins .vault-pin', { visible: true, timeout: 10000 });
   await page.focus('#notesPins .vault-pin');
   for (const ch of word) {
     await page.keyboard.type(ch);
-    await new Promise(r => setTimeout(r, 40));
+    await sleep(40);
   }
 }
 
 const unlocked = (page) => page.waitForFunction(
   () => !document.getElementById('notesEditor').hidden
-     && document.querySelectorAll('#notesDoc .nv-sec').length > 0,
+     && document.querySelectorAll('.nt-cat').length > 0,
   { timeout: 20000 }).catch(async (err) => {
-    // A bare timeout here says nothing about why. Report what the keypad
-    // actually shows before giving up.
     const why = await page.evaluate(() => ({
       status: document.getElementById('notesStatus')?.textContent,
-      typed: [...document.querySelectorAll('#notesPins .vault-pin')].map(p => p.value).join(''),
+      save: document.getElementById('notesSave')?.textContent,
       editorHidden: document.getElementById('notesEditor')?.hidden,
     })).catch(() => ({}));
-    throw new Error(`${err.message} — keypad says ${JSON.stringify(why)}`);
+    throw new Error(`${err.message} — overlay says ${JSON.stringify(why)}`);
   });
 
 const savedOnce = (page) => page.waitForFunction(
-  () => /^SAVED/.test(document.getElementById('notesSave').textContent || ''),
+  () => /^SAVED/.test(document.querySelector('.nt-status')?.textContent || ''),
   { timeout: 20000 });
+
+/* Type into the first body through real keys. */
+async function typeInto(page, marker, nth = 0) {
+  await page.evaluate((n) => {
+    const b = document.querySelectorAll('.nt-body')[n];
+    b.focus();
+    const r = document.createRange(); r.selectNodeContents(b); r.collapse(false);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  }, nth);
+  await page.keyboard.press('Enter');
+  await page.keyboard.type(marker);
+}
 
 /* ---- 1. a wrong password must leak nothing -------------------------------
    FALSELY PASSES IF: the content were fetched on load and merely hidden with
    CSS until unlock. So this looks at the whole document and at every response
-   body the page received, not at what is visible. */
+   body the page received, not at what is visible. It also asserts the app's
+   own code was not fetched: an editor downloaded before the password is a
+   different kind of leak, but a leak. */
 {
   const page = await newPage(null, /401 \(Unauthorized\)/);
   const bodies = [];
+  const urls = [];
   page.on('response', async (r) => {
+    urls.push(r.url());
     try {
       if (r.request().resourceType() === 'image') return;
       bodies.push(await r.text());
@@ -117,42 +147,76 @@ const savedOnce = (page) => page.waitForFunction(
   note(!inDom.includes(marker), 'the notes are in the DOM before any unlock');
   note(!anywhere, 'the notes came down the wire before any unlock');
   note(await page.$eval('#notesEditor', el => el.hidden), 'the editor is not hidden after a wrong password');
-  console.log(`wrong-password leak check: ${bodies.length} response bodies scanned, marker found: ${anywhere}`);
+  note(!urls.some(u => /\/notes\/app\.js/.test(u)), 'the notes app was downloaded before the password passed');
+  console.log(`wrong-password leak check: ${bodies.length} response bodies scanned, marker found: ${anywhere}, app fetched: ${urls.some(u => /\/notes\/app\.js/.test(u))}`);
   await page.close();
 }
 
-/* ---- 2. an edit survives a hard refresh ---------------------------------
-   FALSELY PASSES IF: the save went to localStorage. Guarded two ways: the
-   marker is checked in the STORE ON DISK before the reload, and check 3 loads
-   it in a browser that shares nothing with this one. */
-const marker = `harness-${Date.now()}`;
+/* ---- 2. the migration: the old HTML becomes the new document, once --------
+   FALSELY PASSES IF: it only counted categories. The seed's 127 items are
+   asserted, the legacy file is asserted untouched, and the JSON is asserted
+   to exist with the first rev. */
 {
   const page = await newPage();
   await page.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
   await type(page, PASSWORD);
   await unlocked(page);
-
-  await page.evaluate((m) => {
-    const doc = document.getElementById('notesDoc');
-    const li = document.createElement('li');
-    li.textContent = m;
-    doc.querySelector('ul').prepend(li);
-    doc.dispatchEvent(new Event('input', { bubbles: true }));
-  }, marker);
   await savedOnce(page);
+  const shape = await page.evaluate(() => ({
+    cats: document.querySelectorAll('.nt-cat').length,
+    items: document.querySelectorAll('.nt-body li').length,
+    emojis: [...document.querySelectorAll('.nt-cat-emoji')].filter(e => e.classList.contains('is-emoji')).length,
+    rows: document.querySelectorAll('.nt-row').length,
+    rail: document.querySelectorAll('.nt-rail-cat').length,
+    title: document.querySelector('.nt-session-title').textContent,
+    styles: document.querySelectorAll('.nt-body [style]').length,
+    handlers: document.querySelectorAll('.nt-body [onclick]').length,
+    words: document.querySelector('.nt-body').textContent.slice(0, 40),
+  }));
+  console.log('migrated:', JSON.stringify(shape));
+  note(shape.cats === 9, `${shape.cats} categories after migration, expected 9`);
+  note(shape.items === 127, `${shape.items} list items after migration, expected 127`);
+  note(shape.emojis === 9, `${shape.emojis} categories got an emoji, expected 9`);
+  note(shape.rows === 9 && shape.rail === 9, 'the sidebar and rail do not list the nine categories');
+  note(shape.title === 'WorldHop', `the session title is "${shape.title}"`);
+  note(shape.styles === 0, 'an inline style survived into a body');
+  note(shape.handlers === 0, 'an onclick survived into a body');
+  note(shape.words.startsWith('Pick a new game name'), 'the first body does not start with the seed');
 
-  const onDisk = await readFile(join(STORE, 'notes/current.html'), 'utf8');
+  const json = JSON.parse(await readFile(join(STORE, 'notes/current.json'), 'utf8'));
+  note(json.rev === 1, `current.json is at rev ${json.rev} after the migration save, expected 1`);
+  note(json.doc.v === 2 && json.doc.sessions.length === 1 && json.doc.sessions[0].cats.length === 9, 'current.json does not hold the migrated document');
+  const legacy = await readFile(join(STORE, 'notes/current.html'), 'utf8');
+  note(legacy === SEED, 'current.html was rewritten by the migration -- it must stay as the safety net');
+  await page.screenshot({ path: join(SHOTS, 'notes-migrated.png') });
+  await page.close();
+}
+
+/* ---- 3. an edit survives a hard refresh ---------------------------------
+   FALSELY PASSES IF: the save went to localStorage. Guarded two ways: the
+   marker is checked in the STORE ON DISK before the reload, and check 4 loads
+   it in a browser that shares nothing with this one. */
+const marker = `harness-${Date.now().toString(36)}`;
+{
+  const page = await newPage();
+  await page.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await type(page, PASSWORD);
+  await unlocked(page);
+  await typeInto(page, marker);
+  await savedOnce(page);
+  await sleep(200);
+  const onDisk = await readFile(join(STORE, 'notes/current.json'), 'utf8');
   note(onDisk.includes(marker), 'the edit never reached the server-side store');
 
   await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
   await unlocked(page);                              // token in sessionStorage
-  const after = await page.$eval('#notesDoc', el => el.textContent);
+  const after = await page.$eval('.nt-canvas', el => el.textContent);
   note(after.includes(marker), 'the edit did not survive a reload');
   console.log(`reload check: marker in store=${onDisk.includes(marker)}, on screen after reload=${after.includes(marker)}`);
   await page.close();
 }
 
-/* ---- 3. a SECOND browser sees it ----------------------------------------
+/* ---- 4. a SECOND browser sees it ----------------------------------------
    This is the only check that proves the server holds the document. An
    incognito context shares no storage of any kind with the one above, so a
    localStorage implementation cannot pass it. */
@@ -162,17 +226,56 @@ const marker = `harness-${Date.now()}`;
   await page.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
   await type(page, PASSWORD);
   await unlocked(page);
-  const seen = await page.$eval('#notesDoc', el => el.textContent);
+  const seen = await page.$eval('.nt-canvas', el => el.textContent);
   note(seen.includes(marker), 'a second browser did not see the first browser\'s edit');
   console.log(`second-browser check: marker visible=${seen.includes(marker)}`);
   await page.close();
   await context.close();
 }
 
-/* ---- 4. backups rotate at twenty ----------------------------------------
-   FALSELY PASSES IF: backups accumulated forever, or only one ever existed.
-   Both are silent until a restore is actually needed, so this asserts a RANGE
-   with a floor as well as a ceiling, and drives more saves than the limit. */
+/* ---- 5. two devices, two categories, both edits survive ---------------------
+   FALSELY PASSES IF: only one device ever saved. B is opened BEFORE A saves
+   so B's rev is stale; B's save must come back 409, merge, and retry -- and
+   A's edit and B's edit must both be in the store afterwards. Before the
+   rebuild the later save silently won the whole document. */
+{
+  const ctxA = await browser.createBrowserContext();
+  const ctxB = await browser.createBrowserContext();
+  // B's stale save is MEANT to be answered 409; the browser logs that as an error.
+  const A = await newPage(ctxA, /409 \(Conflict\)/);
+  const B = await newPage(ctxB, /409 \(Conflict\)/);
+  const statuses = [];
+  B.on('response', (r) => { if (/\/api\/notes\/save/.test(r.url())) statuses.push(r.status()); });
+  await A.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await type(A, PASSWORD); await unlocked(A);
+  await B.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await type(B, PASSWORD); await unlocked(B);
+  const mA = `device-a-${Date.now().toString(36)}`;
+  const mB = `device-b-${Date.now().toString(36)}`;
+  await typeInto(A, mA, 0);
+  await savedOnce(A);
+  await sleep(300);
+  await typeInto(B, mB, 1);
+  await savedOnce(B);
+  await sleep(500);
+  const store = await readFile(join(STORE, 'notes/current.json'), 'utf8');
+  console.log(`two devices: B's save statuses ${statuses.join('/')}, A in store=${store.includes(mA)}, B in store=${store.includes(mB)}`);
+  note(statuses.includes(409), 'B saved on a stale rev and was NOT told -- the conflict check is not running');
+  note(statuses[statuses.length - 1] === 200, `B's retry after the conflict did not succeed (${statuses.join('/')})`);
+  note(store.includes(mA), 'device A\'s edit was lost to device B\'s later save');
+  note(store.includes(mB), 'device B\'s edit was lost in the merge');
+  const merged = await B.evaluate(() => document.querySelector('.nt-canvas').textContent);
+  note(merged.includes(mA), 'device B does not show device A\'s edit after merging');
+  await A.close(); await B.close();
+  await ctxA.close(); await ctxB.close();
+}
+
+/* ---- 6. backups are tiered, not one per keystroke ---------------------------
+   FALSELY PASSES IF: it only counted after one save. Twenty-five saves inside
+   one ten-minute window must leave ONE ten-minute copy and ONE daily copy,
+   and current must hold the newest edit. The spacing rule itself is driven
+   through a clock in notes_store_check.mjs; this proves the live route
+   honours it. */
 {
   const page = await newPage();
   await page.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
@@ -180,242 +283,73 @@ const marker = `harness-${Date.now()}`;
   await unlocked(page);
   for (let i = 0; i < 25; i++) {
     await page.evaluate((n) => {
-      const doc = document.getElementById('notesDoc');
-      doc.querySelector('li').textContent = `edit ${n}`;
-      doc.dispatchEvent(new Event('input', { bubbles: true }));
+      const b = document.querySelector('.nt-body');
+      b.querySelector('li').textContent = `edit ${n}`;
+      b.dispatchEvent(new Event('input', { bubbles: true }));
     }, i);
+    await page.keyboard.down('Control'); await page.keyboard.press('s'); await page.keyboard.up('Control');
     await savedOnce(page);
-    await new Promise(r => setTimeout(r, 40));   // distinct ISO timestamps
+    await sleep(40);
   }
-  const files = (await readdir(join(STORE, 'notes/backups'))).filter(f => f.endsWith('.html'));
-  note(files.length === 20, `${files.length} backups kept, expected exactly 20`);
-  const newest = files.sort().at(-1);
-  const body = await readFile(join(STORE, 'notes/backups', newest), 'utf8');
-  note(body.includes('edit 24'), 'the newest backup is not the newest save');
-  console.log(`backup check: ${files.length} kept after 25 saves, newest=${newest}`);
+  const backups = (await readdir(join(STORE, 'notes/backups'))).filter(f => f.endsWith('.json'));
+  const daily = (await readdir(join(STORE, 'notes/daily'))).filter(f => f.endsWith('.json'));
+  const current = await readFile(join(STORE, 'notes/current.json'), 'utf8');
+  note(backups.length === 1, `${backups.length} ten-minute backups after 25 saves in one window, expected 1`);
+  note(daily.length === 1, `${daily.length} daily backups, expected 1`);
+  note(current.includes('edit 24'), 'current does not hold the newest save');
+  note(daily[0] === `${new Date().toISOString().slice(0, 10)}.json`, `the daily copy is named ${daily[0]}`);
+  console.log(`backup check: ${backups.length} ten-minute, ${daily.length} daily, current has edit 24=${current.includes('edit 24')}`);
   await page.close();
 }
 
-/* ---- 5. the frame, looked at ---------------------------------------------- */
+/* ---- 7. the frame, looked at ------------------------------------------------ */
 {
   const page = await newPage();
   await page.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
   await type(page, PASSWORD);
   await unlocked(page);
-  const shape = await page.evaluate(() => {
-    const shell = document.querySelector('.notes-shell').getBoundingClientRect();
-    return {
-      shell: `${Math.round(shell.width)}x${Math.round(shell.height)}`,
-      viewport: `${innerWidth}x${innerHeight}`,
-      railButtons: document.querySelectorAll('#notesRail button').length,
-      railIcons: document.querySelectorAll('#notesRail svg').length,
-      sections: document.querySelectorAll('#notesDoc .nv-sec').length,
-      items: document.querySelectorAll('#notesDoc li').length,
-      headingColour: getComputedStyle(document.querySelector('#notesDoc h2')).color,
-      listColour: getComputedStyle(document.querySelector('#notesDoc ul')).color,
-      inlineStyles: document.querySelectorAll('#notesDoc [style]').length,
-      handlers: document.querySelectorAll('#notesDoc [onclick]').length,
-    };
-  });
-  console.log('rendered:', JSON.stringify(shape));
-  note(shape.sections === 9, `${shape.sections} sections rendered, expected 9`);
-  // Not `=== 127`: the checks above deliberately edit the document and the
-  // store keeps those edits, so the seed's own count is a floor here, not an
-  // equality. Pinning it to 127 would make this check pass only when run
-  // first, which is the kind of order dependence that goes unnoticed until it
-  // fails for a reason that has nothing to do with the feature.
-  note(shape.items >= 127, `${shape.items} list items rendered, expected at least 127`);
-  note(shape.railButtons === 9, `${shape.railButtons} rail buttons, expected 9`);
-  note(shape.railIcons === 9, `${shape.railIcons} rail icons, expected 9`);
-  // The whole reason the content was converted: if these came back as the
-  // browser default grey, the CSS is not reaching the document.
-  note(shape.headingColour !== 'rgb(201, 206, 222)',
-       `heading colour is ${shape.headingColour} — the accent is not applying`);
-  note(shape.listColour !== shape.headingColour,
-       'list colour equals heading colour — the derived tone is not applying');
-  note(shape.handlers === 0, 'an onclick survived into the document');
-
-  await page.screenshot({ path: join(SHOTS, 'notes-editor.png') });
-
-  /* The panel should be nearly the whole screen. The matte around it was the
-     complaint, so it is measured rather than eyeballed. */
   const fill = await page.evaluate(() => {
     const r = document.querySelector('.notes-shell').getBoundingClientRect();
-    return { w: r.width / innerWidth, h: r.height / innerHeight,
-             top: Math.round(r.top), bottom: Math.round(innerHeight - r.bottom) };
+    const app = document.querySelector('.nt-app').getBoundingClientRect();
+    return { w: r.width / innerWidth, h: r.height / innerHeight, appW: app.width / innerWidth, appH: app.height / innerHeight,
+             header: document.querySelector('.nt-header').getBoundingClientRect().height,
+             sidebar: document.querySelector('.nt-sidebar').getBoundingClientRect().width,
+             closeOut: document.querySelectorAll('#notesClose').length && getComputedStyle(document.getElementById('notesClose')).display,
+             font: getComputedStyle(document.querySelector('.nt-body')).fontFamily };
   });
-  console.log(`panel fills ${(fill.w * 100).toFixed(0)}% x ${(fill.h * 100).toFixed(0)}% ` +
-              `of the viewport, gaps ${fill.top}px top / ${fill.bottom}px bottom`);
-  note(fill.h >= 0.93, `panel is only ${(fill.h * 100).toFixed(0)}% of the viewport height`);
-  note(fill.w >= 0.90, `panel is only ${(fill.w * 100).toFixed(0)}% of the viewport width`);
+  console.log(`frame: shell ${(fill.w * 100).toFixed(0)}%x${(fill.h * 100).toFixed(0)}%, app ${(fill.appW * 100).toFixed(0)}%x${(fill.appH * 100).toFixed(0)}%, header ${fill.header}px, sidebar ${fill.sidebar}px, body font ${fill.font}`);
+  note(fill.w >= 0.99 && fill.h >= 0.99, 'the shell is not the whole viewport with the app open');
+  note(fill.appW >= 0.99 && fill.appH >= 0.9, 'the app does not fill the shell');
+  note(fill.closeOut === 'none', 'the old outside close button is still drawn beside the app');
+  note(/Outfit/.test(fill.font), `the body is not in Outfit: ${fill.font}`);
+  // Faces load lazily on first use, so ASK for it rather than sampling: a
+  // check() the instant after unlock is a race, and it lost once.
+  const fonts = await page.evaluate(() => document.fonts.load("16px 'Outfit'").then(f => f.length > 0).catch(() => false));
+  note(fonts, 'the Outfit face did not load from the site itself');
+  await page.screenshot({ path: join(SHOTS, 'notes-app.png') });
 
-  /* The close button and the save line moved OUT of the panel. Asserted by
-     GEOMETRY: being a child of the frame proves nothing about where they draw. */
-  const outside = await page.evaluate(() => {
-    const shell = document.querySelector('.notes-shell').getBoundingClientRect();
-    const x = document.getElementById('notesClose').getBoundingClientRect();
-    const save = document.getElementById('notesSave').getBoundingClientRect();
-    return { closeLeft: Math.round(x.left - shell.right),
-             saveTop: Math.round(save.top - shell.bottom),
-             bar: document.querySelectorAll('.notes-bar').length };
-  });
-  console.log(`close is ${outside.closeLeft}px right of the panel, ` +
-              `save is ${outside.saveTop}px below it, bottom bars: ${outside.bar}`);
-  note(outside.closeLeft >= 0, 'the close button still overlaps the panel');
-  /* POSITIONED IS NOT PAINTED. The first version of this passed while the
-     button was invisible: <dialog> carries overflow:auto from the UA
-     stylesheet, so an element placed outside the frame is clipped and draws
-     nothing while still reporting a perfectly good bounding box. Ask the
-     document what is actually at that point. */
-  const hit = await page.evaluate(() => {
-    const b = document.getElementById('notesClose');
-    const r = b.getBoundingClientRect();
-    const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    return { found: !!at && (at === b || b.contains(at)), what: at ? at.tagName : null };
-  });
-  note(hit.found, `the close button is positioned but not hittable (found ${hit.what})`);
-  note(outside.saveTop >= 0, 'the save line is still inside the panel');
-  note(outside.bar === 0, 'the bottom bar is still there');
-
-  const zoom = await page.evaluate(() => {
-    const b = document.getElementById('notesZoom');
-    const r = b.getBoundingClientRect();
-    return { inRail: !!b.closest('.notes-rail-wrap'),
-             label: (b.textContent || '').trim(),
-             square: Math.abs(r.width - r.height) < 2 };
-  });
-  note(zoom.inRail, 'the zoom button is not in the rail');
-  note(zoom.label === '', `the zoom button still carries the text "${zoom.label}"`);
-  note(zoom.square, 'the zoom button is not square');
-
-  /* Two sizes, and the DEFAULT is the larger of the old pair -- the small
-     default was the complaint. Read off the rendered size, not a number typed
-     here. */
-  const before = await page.evaluate(() =>
-    parseFloat(getComputedStyle(document.querySelector('#notesDoc ul')).fontSize));
-  await page.click('#notesZoom');
-  await new Promise(r => setTimeout(r, 250));
-  const huge = await page.$eval('#notesEditor', el => el.classList.contains('is-huge'));
-  const after = await page.evaluate(() =>
-    parseFloat(getComputedStyle(document.querySelector('#notesDoc ul')).fontSize));
-  console.log(`zoom: ${before}px default -> ${after}px stepped up (is-huge=${huge})`);
-  note(huge, 'the zoom toggle did not step up');
-  note(before >= 16, `the default body size is ${before}px, no bigger than the old default`);
-  note(after > before, `zoom did not grow the text (${before} -> ${after})`);
-  await page.screenshot({ path: join(SHOTS, 'notes-editor-huge.png') });
-  await page.click('#notesZoom');
-
-  const spell = await page.evaluate(() => {
-    const named = document.getElementById('names') &&
-                  document.getElementById('names').closest('.nv-sec');
-    const other = document.getElementById('urgent') &&
-                  document.getElementById('urgent').closest('.nv-sec');
-    return { names: named && named.spellcheck, urgent: other && other.spellcheck };
-  });
-  console.log(`spellcheck: names=${spell.names}, urgent=${spell.urgent}`);
-  note(spell.names === false, 'spellcheck is still on in the Names section');
-  note(spell.urgent !== false, 'spellcheck was switched off everywhere, not just Names');
-
-  /* The scrollbar takes the colour of the section beside it. Three different
-     sections must give three different colours, or it is a constant. */
-  /* The bar is a DRAWN element, so it can be measured rather than admired: it
-     must exist, sit at the right edge, be a proportional length, MOVE as the
-     document scrolls, and be hittable. A coloured div that never moves is not a
-     scroll indicator, and it would sail through a colour-only check. */
-  const barAt = (id) => page.evaluate((i) => {
-    document.getElementById(i).scrollIntoView({ block: 'center', behavior: 'instant' });
-  }, id);
-  const barState = () => page.evaluate(() => {
-    const t = document.getElementById('notesThumb');
-    const s = document.getElementById('notesScroll');
-    const r = t.getBoundingClientRect();
-    const sr = s.getBoundingClientRect();
-    const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    return {
-      hidden: t.hidden,
-      top: Math.round(r.top - sr.top),
-      height: Math.round(r.height),
-      rightGap: Math.round(sr.right - r.right),
-      colour: getComputedStyle(t).backgroundColor,
-      hittable: at === t,
-    };
-  });
-
-  const colours = [];
-  const tops = [];
-  // NOT the first section: it sits at the top of the document and cannot be
-  // scrolled to the middle, so asking it to dominate the viewport is asking
-  // for something the scroll container cannot do -- a test failing on its own
-  // impossible setup, not on the feature.
-  for (const id of ['world-design', 'creatures-npcs', 'names']) {
-    await barAt(id);
-    await new Promise(r => setTimeout(r, 340));
-    const bar = await barState();
-    colours.push(bar.colour);
-    tops.push(bar.top);
-    if (id === 'creatures-npcs') {
-      console.log(`bar: ${bar.height}px tall, ${bar.rightGap}px from the right edge, ` +
-                  `hittable=${bar.hittable}, hidden=${bar.hidden}`);
-      note(!bar.hidden, 'the scroll indicator is hidden on an overflowing document');
-      note(bar.hittable, 'the indicator is drawn but not hittable, so it cannot be dragged');
-      note(bar.rightGap >= 0 && bar.rightGap < 20,
-           `the indicator is ${bar.rightGap}px from the right edge`);
-      note(bar.height > 20 && bar.height < 400,
-           `the indicator is ${bar.height}px tall, which is not a proportional thumb`);
-    }
-  }
-  console.log(`bar colours: ${colours.join(' | ')}`);
-  console.log(`bar offsets: ${tops.join(' | ')}`);
-  note(new Set(colours).size === colours.length,
-       `the bar colour did not follow the section: ${colours.join(', ')}`);
-  const blank = /^(|none|rgba\(0, 0, 0, 0\))$/;
-  note(colours.every(c => !blank.test(c)), `the bar colour was never set: ${colours.join(', ')}`);
-  note(new Set(tops).size === tops.length,
-       `the bar did not move as the document scrolled: ${tops.join(', ')}`);
-
-  /* ...and it must actually scroll when dragged. Hiding the native bar took
-     that away, and a coloured div you cannot grab is worse than the bar it
-     replaced. */
-  const dragged = await page.evaluate(() => {
-    const t = document.getElementById('notesThumb');
-    const s = document.getElementById('notesScroll');
-    const r = t.getBoundingClientRect();
-    const before = s.scrollTop;
-    const x = r.left + r.width / 2;
-    const y = r.top + r.height / 2;
-    const make = (type, clientY) =>
-      new PointerEvent(type, { bubbles: true, pointerId: 1, clientX: x, clientY });
-    t.dispatchEvent(make('pointerdown', y));
-    t.dispatchEvent(make('pointermove', y + 140));
-    t.dispatchEvent(make('pointerup', y + 140));
-    return { before, after: s.scrollTop };
-  });
-  console.log(`drag the bar: scrollTop ${Math.round(dragged.before)} -> ${Math.round(dragged.after)}`);
-  note(dragged.after > dragged.before + 50, 'dragging the indicator did not scroll the document');
-
-  await page.screenshot({ path: join(SHOTS, 'notes-gate.png') });
+  // Close relocks and removes the document from the page.
+  await page.click('.nt-close');
+  await sleep(300);
+  const gone = await page.evaluate(() => ({
+    open: document.getElementById('notesModal').open,
+    app: document.querySelectorAll('.nt-app').length,
+    text: document.documentElement.outerHTML.includes('Pick a new game name'),
+    gate: !document.getElementById('notesGate').hidden,
+  }));
+  note(!gone.open, 'the app close button did not close the overlay');
+  note(gone.app === 0, 'the app is still in the DOM after closing');
+  note(!gone.text, 'the notes are still in the page after closing');
   await page.close();
 }
 
-/* ---- 6. the Idea Vault opens it, and the SERVER still decides -------------
+/* ---- 8. the Idea Vault opens it, and the SERVER still decides -------------
    FALSELY PASSES IF: the overlay were opened by URL instead. This types the
-   code into the VAULT's own keypad and waits for the notes dialog.
-
-   WHAT IT ASSERTS, AND WHY IT IS NOT "the keypad is still up". The vault hands
-   the code it was given to the notes overlay, which tries it as the notes
-   password AGAINST THE SERVER (script.js reveal() -> notes:code). In production
-   the two are different strings and the gate stands. Under this harness they
-   are the same one -- the dev server is started with NOTES_PASSWORD=notes and
-   NOTES is also the vault code -- so the attempt SUCCEEDS, and the old
-   assertion that the keypad is still showing was really asserting that the
-   round trip had not landed yet. It passed or failed on the speed of a fetch:
-   green most runs, red the ones where the response beat the assertion.
-
-   The property worth protecting is not "the notes stay locked" -- it is that
-   nothing decides that locally. So: the unlock must go to /api/notes/unlock,
-   and the notes must not be in the page before that response. Both hold
-   whichever way the server answers, and the case reports which configuration
-   it ran under rather than depending on one. */
+   code into the VAULT's own keypad and waits for the notes dialog. Under this
+   harness the vault code and the notes password are the same word, so the
+   hand-off succeeds; in production they differ and the keypad stands. Both
+   outcomes are accepted, and what is asserted is that a request went to
+   /api/notes/unlock and nothing was in the page before it answered. */
 {
   const page = await newPage();
   const unlocks = [];
@@ -425,49 +359,30 @@ const marker = `harness-${Date.now()}`;
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle2', timeout: 60000 });
   await page.$eval('#vault', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await page.waitForSelector('#vaultPins .vault-pin', { visible: true, timeout: 10000 });
-
-  const leakedEarly = [];
   await page.focus('#vaultPins .vault-pin');
-  for (const c of 'notes') { await page.keyboard.type(c); await new Promise(r => setTimeout(r, 60)); }
+  for (const c of 'notes') { await page.keyboard.type(c); await sleep(60); }
   const opened = await page.waitForFunction(
-    () => document.getElementById('notesModal') &&
-          document.getElementById('notesModal').open === true, { timeout: 40000 })
+    () => document.getElementById('notesModal') && document.getElementById('notesModal').open === true, { timeout: 40000 })
     .then(() => true).catch(() => false);
-  // Sampled the moment it opens, BEFORE any hand-off can have been answered.
-  if (await page.evaluate(() => document.documentElement.outerHTML.includes('Pick a new game name'))) {
-    leakedEarly.push('at open');
-  }
-  // Then let the hand-off settle, so what is measured next is a finished state
-  // rather than whichever half of it the clock landed in.
-  await new Promise(r => setTimeout(r, 2500));
+  const leakedEarly = await page.evaluate(() => document.documentElement.outerHTML.includes('Pick a new game name'));
+  await sleep(3000);
   const gate = await page.evaluate(() => ({
     keypad: !document.getElementById('notesGate').hidden,
     editorHidden: document.getElementById('notesEditor').hidden,
-    inDom: document.documentElement.outerHTML.includes('Pick a new game name'),
+    app: document.querySelectorAll('.nt-cat').length,
   }));
   const coincide = unlocks.some(s => s === 200);
-  console.log(`vault code NOTES: opened=${opened}, ${unlocks.length} unlock request(s) ` +
-              `${unlocks.join('/') || '-'}, on the keypad=${gate.keypad}, ` +
-              `editor hidden=${gate.editorHidden} ` +
-              `(this server's notes password ${coincide ? 'IS' : 'is not'} the vault code)`);
+  console.log(`vault code NOTES: opened=${opened}, ${unlocks.length} unlock request(s) ${unlocks.join('/') || '-'}, keypad=${gate.keypad}, app categories=${gate.app} (this server's notes password ${coincide ? 'IS' : 'is not'} the vault code)`);
   note(opened, 'the vault code did not open the notes overlay');
-  note(unlocks.length > 0,
-       'the vault opened the notes with no request to /api/notes/unlock — something local decided');
-  note(leakedEarly.length === 0,
-       'the notes were already in the page when the overlay opened, before any server answer');
-  /* And the outcome has to MATCH what the server said, in both directions: a
-     200 and a keypad still up would mean the answer was ignored, and a refusal
-     with the editor open would be the bypass this whole design exists to
-     prevent. */
-  note(coincide ? (!gate.keypad && !gate.editorHidden) : (gate.keypad && gate.editorHidden),
-       `the server ${coincide ? 'accepted' : 'refused'} the code but the overlay is ` +
-       `${gate.keypad ? 'on the keypad' : 'in the editor'}`);
-  note(coincide || !gate.inDom, 'the vault opening leaked the notes into the page');
+  note(unlocks.length > 0, 'the vault opened the notes with no request to /api/notes/unlock — something local decided');
+  note(!leakedEarly, 'the notes were already in the page when the overlay opened, before any server answer');
+  note(coincide ? (!gate.keypad && !gate.editorHidden && gate.app > 0) : (gate.keypad && gate.editorHidden),
+       `the server ${coincide ? 'accepted' : 'refused'} the code but the overlay is ${gate.keypad ? 'on the keypad' : 'in the editor'}`);
   await page.screenshot({ path: join(SHOTS, 'notes-from-vault.png') });
   await page.close();
 }
 
 await browser.close();
-console.log(fail.length ? `\nFAIL (${fail.length}):\n  ${fail.join('\n  ')}`
-                        : '\nPASS — every notes check held');
+console.log(`\n${pass} checks passed`);
+console.log(fail.length ? `FAIL (${fail.length}):\n  ${fail.join('\n  ')}` : 'PASS — every notes check held');
 process.exit(fail.length ? 1 : 0);

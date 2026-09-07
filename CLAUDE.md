@@ -37,9 +37,9 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/bake_work.py --cases` | the manifest gate can still refuse — 4 recorded states |
 | `python tools/bake_music.py --cases` | the track-list gate can still refuse — 10 cases |
 | `python tools/focal_point.py` | the crop-aiming rule still keeps heads in frame — 8 cases |
-| `node tools/notes_check.mjs` | the notes overlay: no leak, real persistence, 20 backups (needs the dev server) |
-| `node tools/notes_editor_check.mjs` | the notes editor: Tab, Backspace, shortcuts, the selection bug — 29 checks |
-| `node tools/notes_store_check.mjs` | the notes store against a stubbed Vercel Blob — 30 checks, no server needed |
+| `node tools/notes_check.mjs` | the notes overlay: no leak (content OR code) before the password, the migration of the pre-rebuild HTML, an edit surviving reload and a second browser, two devices merging on a 409, tiered backups, the app-filled shell, the vault door — 39 checks, needs the dev server |
+| `node tools/notes_editor_check.mjs` | the notes editor through real keys: bullets, nesting, multi-line indent that keeps the selection, Enter and Backspace unwinding, word-level undo with the caret, todo, triggers, formatting as tags, paste hygiene, links, the emoji and slash pickers, autocorrect and its Backspace revert, spell marks, an image drop stored by key, sessions, archive/restore/undo-delete, theme, rail, and what reaches the store — 85 checks, needs the dev server |
+| `node tools/notes_store_check.mjs` | the notes store against a stubbed Vercel Blob: seeding, the legacy read order, refusals that must not reseed, the rev check writing nothing on a conflict, the ten-minute and daily tiers on a synthetic clock, assets by sha — 63 checks, no server needed |
 | `node tools/work_check.mjs` | featured work, the work overlay, the code prompt, the games stack and the AI Lab — 93 checks, serves the repo itself |
 | `node tools/music_check.mjs` | the music overlay: the four columns, the seeded repeat list, the three-state repeat, the centred transport, 20 size floors, the permanent bar, the cleared code boxes, the page that must not scroll, ` still working after a close, the found playing row, a Previous that never shuffles or leaves a track you are into, the code that starts the music, volume, the seek row, and docking (the iframe must not reload, the bar keeps one width, a playing track always has a control box, starting the Top Picks player closes the music feed, and the docked bar shows artwork rather than a live video), the five columns, the dead-track flag, the Top Picks bar being the same design and the same transport, and the arrow keys skipping tracks without taking them from anything else, the silent hold, and the remote extension's relay and its two copies of the site list — 352 checks, serves the repo itself |
 | `node tools/music_flag_check.mjs` | the auto-skip, the flag, and Previous restarting a track you are 7 seconds into, against a REAL embed playing and refusing real videos — 21 checks, needs the network |
@@ -78,6 +78,18 @@ Named next to the honest ones, because a false green is worse than a red (doctri
   A visibility check written on it reports the element as covered whether it is or
   not — which is how the tooltip check passed over a bubble rendering behind a modal
   dialog. Compare pixels, or assert the mechanism, or both.
+- **A trailing space typed at the end of a line is U+00A0, not U+0020.** Chrome
+  writes a no-break space there so it does not collapse, and a plain space set
+  into the DOM by a harness collapses and is DROPPED when the next character
+  is typed. A check that sets `<p>hot </p>` and then types `:fire` is testing a
+  document no person can produce; type the space through the keyboard, and
+  compare text with `\u00a0` read as a space.
+- **A style attribute in pasted HTML is reported by the CSP even in an inert
+  document.** `DOMParser.parseFromString` inherits the page's CSP and logs an
+  "Applying inline style violates" error per attribute, so a sanitiser that
+  parses first and strips second passes its own assertions while filling the
+  console with errors a harness rightly counts. `notes/schema.js` renames
+  `style=` in the text before anything parses it.
 - **Polling until two reads agree returns mid-transition** for anything off-screen: Chrome
   stalls transitions between compositor ticks, so the same in-flight value appears twice.
   Settle on the site's own reduced-motion path instead of guessing at a sleep.

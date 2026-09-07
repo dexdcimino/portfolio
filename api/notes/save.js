@@ -1,8 +1,15 @@
-/* POST /api/notes/save  { token, content }  ->  { savedAt, backups, token }
+/* POST /api/notes/save  { token, doc, baseRev }
+ *                    ->  200 { rev, savedAt, backups, daily, token }
+ *                    ->  409 { conflict, rev, savedAt, doc }
  *
- * Autosave lands here about once a second while Dex is typing, so it does the
- * least it can: verify the token (an HMAC check, no storage round trip), write
- * the document and a timestamped copy, prune the copies past the limit.
+ * Autosave lands here a second or two after the last keystroke, so it does the
+ * least it can: verify the token (an HMAC check, no storage round trip), check
+ * the rev, write the document, and keep the backup tiers in step.
+ *
+ * A 409 is not an error to the client. It means another device saved first,
+ * and the current document rides along so the client can merge and try again
+ * on the new rev -- rather than what used to happen, which was the later save
+ * silently winning the whole document.
  *
  * A FRESH TOKEN COMES BACK on every save. Sessions last eight hours, and
  * without renewal a tab left open across a working day would hit the wall
@@ -39,13 +46,24 @@ module.exports = async function handler(req, res) {
     // again, which is what an expired session needs it to do.
     return res.status(401).json({ error: 'session expired' });
   }
-  if (typeof body.content !== 'string') {
-    return res.status(400).json({ error: 'content must be a string' });
+  if (!body.doc || typeof body.doc !== 'object' || Array.isArray(body.doc)) {
+    return res.status(400).json({ error: 'doc must be an object' });
+  }
+  const baseRev = body.baseRev === undefined || body.baseRev === null
+    ? undefined
+    : Number(body.baseRev);
+  if (baseRev !== undefined && !Number.isInteger(baseRev)) {
+    return res.status(400).json({ error: 'baseRev must be an integer' });
   }
 
   try {
-    const { savedAt, backups } = await store.writeNotes(body.content);
-    return res.status(200).json({ savedAt, backups, token: store.mintToken() });
+    const result = await store.writeNotes(body.doc, baseRev);
+    if (result.conflict) {
+      return res.status(409).json({
+        conflict: true, rev: result.rev, savedAt: result.savedAt, doc: result.doc,
+      });
+    }
+    return res.status(200).json({ ...result, token: store.mintToken() });
   } catch (err) {
     if (err && err.tooLarge) {
       return res.status(413).json({ error: err.message });

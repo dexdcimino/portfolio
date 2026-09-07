@@ -1,4 +1,5 @@
-/* POST /api/notes/unlock  { password }  ->  { content, token, savedAt }
+/* POST /api/notes/unlock  { password | token }
+ *                      ->  { content, format, rev, savedAt, token, seeded }
  *
  * The only door. Nothing about the notes -- not the text, not its length, not
  * whether anything has ever been saved -- comes back before the password is
@@ -8,6 +9,11 @@
  * A wrong password gets one word and nothing else. No "no notes yet", no byte
  * count, no timing difference worth measuring: the scrypt in passwordOk() runs
  * to completion either way.
+ *
+ * `format` is 'json' for the live document and 'html' for the one the
+ * pre-rebuild overlay wrote, which the client migrates on first open. The
+ * server never converts: it has no DOM, and the client is the only thing that
+ * can parse that HTML the way the browser that wrote it did.
  */
 
 'use strict';
@@ -57,15 +63,17 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { content, seeded } = await store.readNotes();
+    const { content, format, rev, savedAt, seeded } = await store.readNotes();
     return res.status(200).json({
       content,
-      token: store.mintToken(),
+      format,
+      rev,
       // Null rather than a made-up timestamp: the seed has never been saved,
       // and saying otherwise would put a save time on the screen that no save
       // produced.
-      savedAt: seeded ? null : undefined,
-      seeded,
+      savedAt: savedAt || null,
+      seeded: !!seeded,
+      token: store.mintToken(),
     });
   } catch (err) {
     /* Names the failure, because by here the password has ALREADY been checked

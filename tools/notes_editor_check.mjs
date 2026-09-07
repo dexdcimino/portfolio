@@ -1,19 +1,23 @@
-/* Drive the notes EDITOR in a real browser: indenting, backspace, shortcuts,
- * and the selection bug.
+/* Drive the notes EDITOR in a real browser: lists, indenting, Enter and
+ * Backspace, markdown triggers, undo and redo with the caret, todo items,
+ * autocorrect, spelling marks, the emoji and slash pickers, links, paste
+ * hygiene, sessions, archive and restore, search, and what reaches the store.
  *
  *   node tools/notes_dev_server.mjs &
- *   node tools/notes_editor_check.mjs
+ *   node tools/notes_editor_check.mjs [--port 8123]
  *
  * Every check drives real keys and a real mouse through CDP. None of them call
- * the page's own functions, because a check that calls indent() proves indent()
- * runs, not that Tab reaches it -- and "Tab never reaches the browser" is half
- * of what is being tested.
+ * the editor's own functions, because a check that calls indent() proves
+ * indent() runs, not that Tab reaches it -- and "Tab never reaches the
+ * browser" is half of what is being tested.
  *
- * The nesting checks work on a SCRATCH section appended to the document rather
- * than on the notes themselves, so a run cannot quietly rewrite Dex's list
- * structure into whatever the last assertion left behind.
+ * Everything happens in a SCRATCH category the run creates and archives at
+ * the end, so a run cannot rewrite the notes it is testing against. The run
+ * refuses to start if the store has no current.json: the migration case is
+ * notes_check.mjs's, and this one needs the document it produces.
  */
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
@@ -21,6 +25,7 @@ import puppeteer from 'puppeteer-core';
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > -1 ? process.argv[i + 1] : d; };
 const BASE = `http://127.0.0.1:${arg('--port', 8123)}`;
+const STORE = resolve(arg('--dir', join(ROOT, '.notes-dev')));
 const SHOTS = resolve(arg('--shots', join(ROOT, '.notes-dev/shots')));
 
 const CHROME = [
@@ -32,411 +37,375 @@ const CHROME = [
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
 
 const fail = [];
-const note = (ok, why) => { if (!ok) fail.push(why); else pass++; };
 let pass = 0;
+const note = (ok, why) => { if (ok) pass++; else fail.push(why); };
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({
   executablePath: CHROME, headless: 'new',
   args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars'],
 });
 const page = await browser.newPage();
-await page.createCDPSession().then(s =>
-  s.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {}));
+await page.createCDPSession().then(s => s.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {}));
 await page.setViewport({ width: 1500, height: 950 });
 page.on('pageerror', e => fail.push(`pageerror: ${e.message}`));
+page.on('console', m => { if (m.type() === 'error' && !/favicon|401/.test(m.text())) fail.push(`console: ${m.text()}`); });
 
 await page.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
 await page.waitForSelector('#notesPins .vault-pin', { visible: true });
 await page.focus('#notesPins .vault-pin');
-for (const c of 'notes') { await page.keyboard.type(c); await new Promise(r => setTimeout(r, 40)); }
-await page.waitForFunction(() => !document.getElementById('notesEditor').hidden, { timeout: 20000 });
+for (const c of 'notes') { await page.keyboard.type(c); await sleep(40); }
+await page.waitForFunction(() => document.querySelectorAll('.nt-cat').length > 0, { timeout: 20000 });
+const catsBefore = await page.$$eval('.nt-cat', els => els.length);
+console.log(`unlocked: ${catsBefore} categories on screen`);
+note(catsBefore >= 2, `only ${catsBefore} categories — is the store the migrated document?`);
 
-/* A known list to work on: three bullets at three different depths, which is
-   what the multi-select check needs and what a same-depth-only test would
-   quietly fail to cover. */
-const SCRATCH = `
-<section class="nv-sec" data-harness data-accent="cyan"><h2 id="scratch">SCRATCH</h2>
-<ul><li id="s0">alpha</li><li id="s1">bravo<ul><li id="s2">charlie</li>
-<li id="s3">delta<ul><li id="s4">echo</li></ul></li></ul></li>
-<li id="s5">foxtrot</li><li id="s6"></li></ul></section>`;
+/* ---- the scratch category --------------------------------------------- */
+const scratch = `Scratch ${Date.now().toString(36)}`;
+await page.keyboard.down('Alt'); await page.keyboard.press('n'); await page.keyboard.up('Alt');
+await page.waitForFunction((n) => document.querySelectorAll('.nt-cat').length === n + 1, {}, catsBefore);
+await sleep(150);
+note(await page.evaluate(() => document.activeElement.classList.contains('nt-cat-title')), 'Alt+N did not focus the new category title');
+await page.keyboard.type(scratch);
+await page.keyboard.press('Enter');
+await sleep(60);
+const inBody = await page.evaluate(() => document.activeElement.classList.contains('nt-body'));
+note(inBody, 'Enter on the title did not move the caret into the body');
+const sidebarHas = await page.evaluate((t) => [...document.querySelectorAll('.nt-row-title')].some(r => r.textContent === t), scratch);
+note(sidebarHas, 'the new title did not reach the sidebar');
+const catId = await page.evaluate(() => document.activeElement.dataset.cat);
+const body = () => page.evaluate((id) => document.querySelector(`.nt-body[data-cat="${id}"]`).innerHTML, catId);
+// Chrome writes a trailing space at the end of a line as U+00A0; read both as a space.
+const text = () => page.evaluate((id) => document.querySelector(`.nt-body[data-cat="${id}"]`).textContent.replace(/\u00a0/g, ' '), catId);
+const shape = () => page.evaluate((id) => {
+  const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+  const walk = (n, d) => [...n.children].filter(c => c.tagName !== 'BR').map(c => (c.tagName === 'LI' ? `${'  '.repeat(d)}${c.tagName}${c.dataset.checked ? '*' : ''}:${[...c.childNodes].filter(x => x.nodeType === 3 || !/^(UL|OL)$/.test(x.tagName)).map(x => x.textContent).join('').trim()}\n${walk(c, d + 1)}` : /^(UL|OL)$/.test(c.tagName) ? `${'  '.repeat(d)}${c.tagName}${c.className ? '.' + c.className : ''}\n${walk(c, d + 1)}` : `${'  '.repeat(d)}${c.tagName}${c.className ? '.' + c.className : ''}:${c.textContent.trim()}\n`)).join('');
+  return walk(b, 0).replace(/\n+/g, '\n').trim();
+}, catId);
+const caret = () => page.evaluate(() => { const s = getSelection(); const b = s.anchorNode && (s.anchorNode.nodeType === 3 ? s.anchorNode.parentElement : s.anchorNode).closest('p,li,h3,pre,blockquote'); return { tag: b && b.tagName, text: b && b.textContent.slice(0, 20), offset: s.anchorOffset, node: s.anchorNode && s.anchorNode.nodeType === 3 ? s.anchorNode.nodeValue : `<${s.anchorNode && s.anchorNode.nodeName}>` }; });
+const press = async (key, times = 1) => { for (let i = 0; i < times; i++) { await page.keyboard.press(key); await sleep(25); } };
+const chord = async (mods, key) => { for (const m of mods) await page.keyboard.down(m); await page.keyboard.press(key); for (const m of [...mods].reverse()) await page.keyboard.up(m); await sleep(40); };
 
-/* Clears EVERY node a previous check left behind, not just the scratch
-   section. The editor saves to the store, so debris survives the run that made
-   it: an emptied <div id="md"> from the last pass is still there on the next
-   one, getElementById finds that instead of the fresh copy, and the check dies
-   on a null firstChild.
+/* ---- 1. bullets from "- ", nesting with Tab, out with Shift+Tab ---------- */
+await page.keyboard.type('- alpha');
+await sleep(50);
+note(/^UL\n\s*LI:alpha$/.test(await shape()), `"- " did not make a bullet: ${await shape()}`);
+await press('Enter'); await page.keyboard.type('bravo'); await press('Tab');
+note((await shape()) === 'UL\n  LI:alpha\n    UL\n      LI:bravo', `Tab did not nest bravo under alpha:\n${await shape()}`);
+note((await caret()).text === 'bravo', 'the caret left bravo after Tab');
+await press('Enter'); await page.keyboard.type('charlie'); await press('Tab');
+note((await shape()) === 'UL\n  LI:alpha\n    UL\n      LI:bravo\n        UL\n          LI:charlie', `second Tab did not nest charlie under bravo:\n${await shape()}`);
+await chord(['Shift'], 'Tab');
+note((await shape()) === 'UL\n  LI:alpha\n    UL\n      LI:bravo\n      LI:charlie', `Shift+Tab did not bring charlie beside bravo:\n${await shape()}`);
+// Tab with nothing above at this level does nothing (no staircase).
+await press('Home');
+const before = await shape();
+await page.evaluate((id) => { const li = document.querySelector(`.nt-body[data-cat="${id}"] li li`); const r = document.createRange(); r.setStart(li.firstChild, 0); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }, catId);
+await press('Tab');
+note((await shape()) === before, `Tab on the first item at its level changed the structure:\n${await shape()}`);
+console.log('lists: bullet, nest, un-nest held');
 
-   AND data-harness alone cannot find that debris. The store's sanitiser drops
-   unknown data-* attributes, so a scratch section that has been through one
-   save comes back untagged -- invisible to the sweep and still holding an
-   #s0. That is not hypothetical: a run that died mid-case left a bolded #s0
-   in current.html, every later run found THAT one first, and the harness then
-   crashed on every invocation for reasons that had nothing to do with the code
-   it was testing. The ids do survive the round trip, so they are what the
-   sweep keys on, and the fresh copy is checked for uniqueness afterwards --
-   a duplicate id means the sweep missed something and everything below it is
-   measuring the wrong element. */
-const HARNESS_IDS = ['scratch', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 'md'];
-const reset = () => page.evaluate((html, ids) => {
-  const doc = document.getElementById('notesDoc');
-  doc.querySelectorAll('[data-harness]').forEach(el => el.remove());
-  for (let guard = 0; guard < 50; guard++) {
-    const stale = ids.map(id => document.getElementById(id)).find(Boolean);
-    if (!stale) break;
-    (stale.closest('.nv-sec') || stale).remove();
-  }
-  // Untagged, id-less debris: a section holding nothing but one fixture word.
-  const WORDS = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'];
-  doc.querySelectorAll('.nv-sec').forEach(sec => {
-    if (WORDS.includes(sec.textContent.trim())) sec.remove();
-  });
-  doc.insertAdjacentHTML('beforeend', html);
-  const dupes = ids.filter(id => document.querySelectorAll(`[id="${id}"]`).length > 1);
-  if (dupes.length) throw new Error(`the sweep left duplicate ids: ${dupes.join(', ')}`);
-  document.getElementById('scratch').scrollIntoView({ block: 'center', behavior: 'instant' });
-}, SCRATCH, HARNESS_IDS);
+/* ---- 2. Enter on an empty bullet steps out; twice leaves the list ------- */
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); const li = b.querySelectorAll('li')[2]; const r = document.createRange(); r.selectNodeContents(li); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }, catId);
+await press('Enter'); await press('Enter');
+note((await shape()).endsWith('LI:charlie\n  LI:'), `Enter on an empty nested bullet did not step out a level:\n${await shape()}`);
+await press('Enter');
+note((await shape()).endsWith('LI:charlie\nP:'), `Enter on an empty top-level bullet did not leave the list:\n${await shape()}`);
+note((await caret()).tag === 'P', 'the caret is not in the new paragraph');
 
-/* Found BY TEXT, not by id. execCommand('outdent') unwraps and rebuilds the
-   element, so the id is gone the moment the thing under test works -- an
-   id-based lookup reports "vanished" for a successful outdent and cannot tell
-   that apart from a real failure. Text is what the reader sees and what
-   survives the rewrite. Returns the tag too, so "became a plain line" is a
-   distinguishable outcome rather than an absence. */
-const findByText = (text) => page.evaluate((t) => {
-  /* Scoped to the SCRATCH SECTION, not the whole document. The words the
-     fixture uses are ordinary ones and a run that dies mid-case can leave a
-     stray section behind holding one of them -- a bare <section>charlie</section>
-     at depth 0 was sitting in the dev store, and every later run measured THAT
-     charlie instead of the bullet, reporting the indent and Backspace cases as
-     broken while the editor was fine. Debris outside the fixture is now
-     invisible to the lookup rather than merely unlikely to be found first. */
-  const doc = document.getElementById('scratch')?.closest('.nv-sec')
-            || document.getElementById('notesDoc');
-  const walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT);
-  let node = null;
-  while (walker.nextNode()) {
-    if (walker.currentNode.nodeValue.trim() === t) { node = walker.currentNode; break; }
-  }
-  // Walks TEXT NODES, not elements. The last Shift+Tab out of a list leaves the
-  // text as a direct child of the document -- a plain line, which is the
-  // desired end state -- and an element-only search reports that as "vanished",
-  // making success and destruction look identical.
-  if (!node) return { found: false, depth: -1, tag: null };
-  let n = 0;
-  for (let p = node.parentElement; p && p.id !== 'notesDoc' && p !== doc; p = p.parentElement) {
-    if (/^(UL|OL)$/.test(p.tagName)) n++;
-  }
-  const parent = node.parentElement;
-  const bare = parent && (parent.id === 'notesDoc' || parent === doc);
-  return { found: true, depth: n, tag: bare ? 'TEXT' : parent.tagName };
-}, text);
+/* ---- 3. Backspace at the start unwinds, then merges ---------------------- */
+await page.keyboard.type('delta');
+await press('Home');
+await press('Backspace');
+note((await shape()).endsWith('LI:charliedelta'), `Backspace at the start of a paragraph after a list did not merge it into the last item:\n${await shape()}`);
+note((await text()).includes('charliedelta'), 'the merged text is wrong');
+await press('Home');
+await press('Backspace');
+note((await shape()).includes('LI:charlie\n  LI:delta') || (await shape()).endsWith('LI:charliedelta'), `Backspace at the start of a nested item did not outdent it:\n${await shape()}`);
+console.log('enter/backspace: step-out, leave-list, merge, outdent held');
 
-const depthOf = async (text) => (await findByText(text)).depth;
+/* ---- 4. multi-line indent keeps the shape ------------------------------- */
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<ul><li>one</li><li>two</li><li>three</li><li>four</li></ul>'; b.dispatchEvent(new Event('input', { bubbles: true })); const lis = b.querySelectorAll('li'); const s = getSelection(); s.setBaseAndExtent(lis[1].firstChild, 0, lis[2].firstChild, 5); }, catId);
+await press('Tab');
+note((await shape()) === 'UL\n  LI:one\n    UL\n      LI:two\n      LI:three\n  LI:four', `indenting two selected items did not keep them together:\n${await shape()}`);
+const selAfter = await page.evaluate(() => getSelection().toString());
+note(/two/.test(selAfter) && /three/.test(selAfter), `the selection was lost after a multi-line indent: "${selAfter}"`);
+await chord(['Shift'], 'Tab');
+note((await shape()) === 'UL\n  LI:one\n  LI:two\n  LI:three\n  LI:four', `outdenting the same two did not restore the list:\n${await shape()}`);
+console.log('multi-line indent and outdent held');
 
-/* Put the caret at the END of a bullet's text, the way a click would. */
-const caretIn = (id, atStart) => page.evaluate((i, start) => {
-  const el = document.getElementById(i);
-  const node = [...el.childNodes].find(n => n.nodeType === 3) || el;
-  const r = document.createRange();
-  const len = node.nodeType === 3 ? node.nodeValue.length : 0;
-  r.setStart(node, start ? 0 : len);
-  r.collapse(true);
-  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-  document.getElementById('notesDoc').focus({ preventScroll: true });
-}, id, !!atStart);
+/* ---- 5. undo is by word, redo puts it back, the caret follows ------------ */
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p>start</p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild.firstChild, 5); }, catId);
+await page.keyboard.type(' quick brown');
+await sleep(1000);                          // a pause seals the group
+await page.keyboard.type(' fox');
+await chord(['Control'], 'z');
+note((await text()) === 'start quick brown', `Ctrl+Z did not remove exactly the last word: "${await text()}"`);
+note((await caret()).offset === 'start quick brown'.length, `caret after undo is at ${(await caret()).offset}, expected the end`);
+await chord(['Control'], 'z');
+note((await text()).trim() === 'start quick', `second Ctrl+Z: "${await text()}"`);
+await chord(['Control'], 'y');
+await chord(['Control', 'Shift'], 'z');
+note((await text()) === 'start quick brown fox', `redo did not put the words back: "${await text()}"`);
+// A structural edit undoes as one step.
+await press('Home'); await page.keyboard.type('- ');
+note((await shape()).startsWith('UL'), 'the bullet trigger did not fire mid-test');
+await chord(['Control'], 'z');
+note((await shape()) === 'P:- start quick brown fox', `undoing the bullet trigger did not give back the typed marker: ${await shape()}`);
+await chord(['Control'], 'z');
+// "- " was typed as one word group, so the second undo takes both characters.
+note((await shape()) === 'P:start quick brown fox', `the second undo did not remove the typed marker: ${await shape()}`);
+console.log('undo/redo: word groups, caret, structural step held');
 
-const settle = (ms = 150) => new Promise(r => setTimeout(r, ms));
+/* ---- 6. todo items --------------------------------------------------------- */
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p><br></p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild, 0); }, catId);
+await page.keyboard.type('[] buy milk');
+note((await shape()) === 'UL.todo\n  LI:buy milk', `"[] " did not make a todo: ${await shape()}`);
+await chord(['Control'], 'Enter');
+note((await shape()) === 'UL.todo\n  LI*:buy milk', `Ctrl+Enter did not check the item: ${await shape()}`);
+const box = await page.evaluate((id) => { const li = document.querySelector(`.nt-body[data-cat="${id}"] li`); const r = li.getBoundingClientRect(); return { x: r.left - 14, y: r.top + 12 }; }, catId);
+await page.mouse.click(box.x, box.y);
+await sleep(60);
+note((await shape()) === 'UL.todo\n  LI:buy milk', `clicking the checkbox did not uncheck it: ${await shape()}`);
+await press('End'); await press('Enter'); await page.keyboard.type('1. numbered');
+note((await shape()).includes('OL\n  LI:numbered'), `"1. " inside an empty todo did not switch to a numbered list: ${await shape()}`);
+console.log('todo and numbered held');
 
-/* ---- 1. Shift+Tab walks OUT one level at a time -------------------------
-   FALSELY PASSES IF: tested once at one nesting level. "echo" starts three
-   lists deep, so this asserts the whole walk: 3 -> 2 -> 1 -> not a bullet. */
-{
-  await reset();
-  await caretIn('s4');
-  const seen = [await findByText('echo')];
-  for (let i = 0; i < 3; i++) {
-    await page.keyboard.down('Shift'); await page.keyboard.press('Tab'); await page.keyboard.up('Shift');
-    await settle();
-    seen.push(await findByText('echo'));
-  }
-  const shape = seen.map(s => `${s.tag || 'gone'}@${s.depth}`).join(' -> ');
-  console.log(`outdent walk: ${shape}`);
-  note(seen[0].depth === 3, `"echo" started at depth ${seen[0].depth}, expected 3`);
-  note(seen[1].depth === 2, `first Shift+Tab gave depth ${seen[1].depth}, expected 2`);
-  note(seen[2].depth === 1, `second Shift+Tab gave depth ${seen[2].depth}, expected 1`);
-  note(seen.every(s => s.found), 'the bullet vanished during the walk');
-  note(seen[3].tag !== 'LI' || seen[3].depth === 0,
-       `third Shift+Tab left ${seen[3].tag}@${seen[3].depth}, expected a plain line or depth 0`);
+/* ---- 7. headings, quotes, code, dividers --------------------------------- */
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p><br></p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild, 0); }, catId);
+await page.keyboard.type('# Title'); await press('Enter'); await page.keyboard.type('> quoted'); await press('Enter'); await press('Enter'); await page.keyboard.type('---'); await press('Enter'); await page.keyboard.type('```'); await page.keyboard.type('code line');
+const blocks = await page.evaluate((id) => [...document.querySelector(`.nt-body[data-cat="${id}"]`).children].map(c => c.tagName).join(','), catId);
+note(blocks === 'H3,BLOCKQUOTE,P,HR,PRE' || blocks === 'H3,BLOCKQUOTE,HR,PRE' || blocks === 'H3,BLOCKQUOTE,HR,P,PRE', `block triggers produced ${blocks}`);
+console.log(`block triggers: ${blocks}`);
+
+/* ---- 8. inline formatting is tags, never styles -------------------------- */
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p>make this bold now</p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const t = b.firstChild.firstChild; const s = getSelection(); s.setBaseAndExtent(t, 5, t, 9); }, catId);
+await chord(['Control'], 'b');
+note(/<b>this<\/b>/.test(await body()), `Ctrl+B did not produce <b>: ${await body()}`);
+await chord(['Control'], 'i');
+note(/<i>/.test(await body()), `Ctrl+I did not produce <i>: ${await body()}`);
+note(!/style=/.test(await body()), `an inline style crept in: ${await body()}`);
+const onState = await page.$eval('.nt-fmt.is-on', () => true).catch(() => false);
+note(onState, 'the toolbar does not show the bold state');
+
+/* ---- 9. paste hygiene ------------------------------------------------------ */
+await page.evaluate((id) => {
+  const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p>x</p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild.firstChild, 1);
+  const dt = new DataTransfer();
+  dt.setData('text/html', '<meta charset="utf-8"><div style="color:red"><span style="font-weight:700">Bold</span> and <font color="blue">plain</font><script>alert(1)</script></div><ul><li style="margin-left:24px">item<div>nested</div></li></ul>');
+  dt.setData('text/plain', 'Bold and plain\n- item');
+  b.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+}, catId);
+await sleep(80);
+const pasted = await body();
+note(!/style=|<font|<script|<div/.test(pasted), `paste kept something it should not: ${pasted}`);
+note(/<b>Bold<\/b>/.test(pasted), `a bold span was not turned into <b>: ${pasted}`);
+note(/<ul><li>item/.test(pasted), `the pasted list did not survive as a list: ${pasted}`);
+// Plain markdown-ish text becomes structure, not a chip.
+await page.evaluate((id) => {
+  const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p><br></p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild, 0);
+  const dt = new DataTransfer(); dt.setData('text/plain', 'Heading line\n- one\n- two\n  - two b\n1. first\n[ ] todo');
+  b.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+}, catId);
+await sleep(80);
+const md = await shape();
+note(/UL\n  LI:one\n  LI:two\n    UL\n      LI:two b/.test(md) && /OL\n  LI:first/.test(md) && /UL\.todo\n  LI:todo/.test(md), `plain-text lists did not become lists:\n${md}`);
+console.log('paste: styles stripped, lists kept, text lists built');
+
+/* ---- 10. links: paste a URL, type a URL ------------------------------------ */
+await page.evaluate((id) => {
+  const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p>see </p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild.firstChild, 4);
+  const dt = new DataTransfer(); dt.setData('text/plain', 'https://example.com/docs/page');
+  b.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+}, catId);
+await sleep(80);
+note(/<a class="chip chip-link" href="https:\/\/example\.com\/docs\/page"/.test(await body()), `a pasted URL did not become a chip: ${await body()}`);
+await page.keyboard.type('and www.google.com then');
+note(/href="https:\/\/www\.google\.com"[^>]*>google\.com<\/a>/.test(await body()), `a typed URL did not become a chip on space: ${await body()}`);
+note((await text()).endsWith(' then'), `text after the auto-link is wrong: "${await text()}"`);
+// Backspace right after a chip removes the chip.
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); const chip = b.querySelector('.chip-link'); const s = getSelection(); s.collapse(chip.nextSibling, 0); }, catId);
+await press('Backspace');
+note((await page.evaluate((id) => document.querySelectorAll(`.nt-body[data-cat="${id}"] .chip-link`).length, catId)) === 1, 'Backspace after a chip did not remove it');
+console.log('links held');
+
+/* ---- 11. emoji picker on ":" ------------------------------------------------ */
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p><br></p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild, 0); }, catId);
+// Typed, not set: a space typed at the end of a line is what a person's
+// colon follows, and it is not the same character as a space in a string.
+await page.keyboard.type('hot :fir');
+const picker = await page.waitForSelector('.nt-emoji-panel', { timeout: 5000 }).then(() => true).catch(() => false);
+note(picker, 'the emoji picker did not open on ":fir"');
+if (picker) {
+  const cells = await page.$$eval('.nt-emoji-panel .nt-emoji-cell', els => els.map(e => e.textContent));
+  note(cells.includes('🔥'), `the picker did not offer 🔥 for "fir": ${cells.join(' ')}`);
+  await press('Enter');
+  note((await text()) === 'hot 🔥', `Enter did not insert the emoji in place of ":fir": "${await text()}"`);
+  note(!(await page.$('.nt-emoji-panel')), 'the picker stayed open after inserting');
+}
+console.log('emoji picker held');
+
+/* ---- 12. slash menu ---------------------------------------------------------- */
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p><br></p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild, 0); }, catId);
+await page.keyboard.type('/num');
+const slashOpen = await page.waitForSelector('.nt-slash-panel', { timeout: 3000 }).then(() => true).catch(() => false);
+note(slashOpen, 'the slash menu did not open');
+await press('Enter');
+await page.keyboard.type('first');
+note((await shape()) === 'OL\n  LI:first', `"/num" + Enter did not make a numbered list: ${await shape()}`);
+console.log('slash menu held');
+
+/* ---- 13. autocorrect and spelling marks ------------------------------------- */
+const dictReady = await page.waitForFunction(() => window.CSS && CSS.highlights, { timeout: 5000 }).then(() => true).catch(() => false);
+note(dictReady, 'the Highlight API is not available in this Chrome');
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p><br></p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild, 0); }, catId);
+await page.keyboard.type('teh cat ');
+note((await text()) === 'the cat ', `"teh " was not corrected: "${await text()}"`);
+// Wait for the dictionary worker, then a dictionary-driven fix.
+let ready = false;
+for (let i = 0; i < 40 && !ready; i++) {
+  await page.keyboard.type('recieve ');
+  await sleep(250);
+  ready = /receive/.test(await text());
+  if (!ready) { await press('Backspace', 8); }
+}
+note(ready, `"recieve" was never corrected — dictionary not ready or suggestion rejected: "${await text()}"`);
+if (ready) {
+  await press('Backspace');
+  note(/recieve/.test(await text()), `Backspace right after a correction did not restore the original: "${await text()}"`);
+  await page.keyboard.type(' recieve ');
+  note(/recieve\s+recieve/.test(await text()), `a reverted word was corrected again: "${await text()}"`);
+}
+// A word that is not a word gets a wavy mark and no correction.
+await page.keyboard.type('qzxvbn ');
+await sleep(900);
+const marks = await page.evaluate(() => { const h = CSS.highlights.get('nt-spell'); return h ? h.size : 0; });
+note(marks >= 1, `no spelling mark on "qzxvbn" (${marks} marks)`);
+note(/qzxvbn/.test(await text()), 'a nonsense word was "corrected" into something');
+note(!/style=|<span/.test(await body()), `spell marks touched the document: ${await body()}`);
+console.log(`autocorrect: teh->the, recieve->receive=${ready}, marks=${marks}`);
+
+/* ---- 14. search ------------------------------------------------------------- */
+await chord(['Control'], 'f');
+note(await page.evaluate(() => document.activeElement.classList.contains('nt-search-input')), 'Ctrl+F did not focus the search');
+await page.keyboard.type('qzxvbn');
+await sleep(400);
+const count = await page.$eval('.nt-search-count', e => e.textContent);
+note(/^1\/1$|^1\/\d+$/.test(count), `search count reads "${count}"`);
+await press('Escape');
+
+/* ---- 14b. an image dropped on the body is uploaded and stored by key ------- */
+await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); b.innerHTML = '<p>pic</p>'; b.dispatchEvent(new Event('input', { bubbles: true })); const s = getSelection(); s.collapse(b.firstChild.firstChild, 3); }, catId);
+await page.evaluate(async (id) => {
+  const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+  const c = document.createElement('canvas'); c.width = 300; c.height = 200;
+  const g = c.getContext('2d'); g.fillStyle = '#c33'; g.fillRect(0, 0, 300, 200); g.fillStyle = '#fff'; g.fillRect(40, 40, 120, 80);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  const file = new File([blob], 'shot.png', { type: 'image/png' });
+  const dt = new DataTransfer(); dt.items.add(file);
+  const r = b.getBoundingClientRect();
+  b.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true, clientX: r.left + 40, clientY: r.top + 12 }));
+}, catId);
+const uploaded = await page.waitForFunction((id) => { const i = document.querySelector(`.nt-body[data-cat="${id}"] img.nt-img`); return i && i.dataset.key && !i.classList.contains('is-pending'); }, { timeout: 15000 }, catId).then(() => true).catch(() => false);
+note(uploaded, 'a dropped image was not uploaded and keyed');
+if (uploaded) {
+  const img = await page.evaluate((id) => { const i = document.querySelector(`.nt-body[data-cat="${id}"] img.nt-img`); return { key: i.dataset.key, src: i.getAttribute('src'), w: i.dataset.w, natural: i.naturalWidth }; }, catId);
+  note(/^[0-9a-f]{64}\.(png|webp)$/.test(img.key), `asset key looks wrong: ${img.key}`);
+  note(/^\/api\/notes\/asset\?key=/.test(img.src), `the image src is not the asset route: ${img.src}`);
+  await page.waitForFunction((id) => document.querySelector(`.nt-body[data-cat="${id}"] img.nt-img`).naturalWidth > 0, { timeout: 10000 }, catId).catch(() => {});
+  const natural = await page.evaluate((id) => document.querySelector(`.nt-body[data-cat="${id}"] img.nt-img`).naturalWidth, catId);
+  note(natural === 300, `the served image is ${natural}px wide, expected 300`);
+  const onDisk = existsSync(join(STORE, 'notes/assets', img.key));
+  note(onDisk, `the asset ${img.key} is not in the store`);
+  console.log(`image: ${img.key.slice(0, 12)}… ${natural}px, on disk=${onDisk}`);
 }
 
-/* ---- 2. Tab is captured, in all three states ----------------------------
-   FALSELY PASSES IF: only tested with the cursor in a filled bullet. Focus
-   leaving #notesDoc is the failure -- that is the shape of "Tab reached the
-   browser", and it is what sent the caret into Chrome's own UI. */
-{
-  await reset();
-  for (const [id, what] of [['s5', 'filled bullet'], ['s6', 'empty bullet']]) {
-    await caretIn(id);
-    await page.keyboard.press('Tab');
-    await settle();
-    const focused = await page.evaluate(() =>
-      document.activeElement?.id || document.activeElement?.tagName);
-    note(focused === 'notesDoc', `Tab in a ${what} moved focus to ${focused}`);
-    console.log(`tab capture (${what}): focus stayed on ${focused}`);
-  }
-  // ...and on a plain line, which has no list for Tab to act on at all.
-  await page.evaluate(() => {
-    const doc = document.getElementById('notesDoc');
-    doc.insertAdjacentHTML('beforeend', '<div id="plain" data-harness>plain line</div>');
-    const node = document.getElementById('plain').firstChild;
-    const r = document.createRange(); r.setStart(node, 5); r.collapse(true);
-    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-    doc.focus({ preventScroll: true });
-  });
-  await page.keyboard.press('Tab');
-  await settle();
-  const focused = await page.evaluate(() => document.activeElement?.id);
-  note(focused === 'notesDoc', `Tab on a plain line moved focus to ${focused}`);
-  const blockquotes = await page.evaluate(() => document.querySelectorAll('#notesDoc blockquote').length);
-  note(blockquotes === 0, 'Tab on a plain line produced a <blockquote>');
-  console.log(`tab capture (plain line): focus stayed on ${focused}, blockquotes ${blockquotes}`);
-}
+/* ---- 15. sessions ------------------------------------------------------------- */
+await page.click('.nt-session-btn');
+await page.waitForSelector('.nt-sess-panel');
+const cardsBefore = await page.$$eval('.nt-sess-card:not(.is-add)', els => els.length);
+const sessionsBefore = cardsBefore;
+await page.click('.nt-sess-card.is-add');
+await sleep(300);
+const newTitle = await page.$eval('.nt-session-title', e => e.textContent);
+note(newTitle === 'New Session', `a new session did not open: title is "${newTitle}"`);
+note((await page.$$eval('.nt-cat', els => els.length)) === 1, 'a new session did not start with one category');
+await page.click('.nt-session-btn');
+await page.waitForSelector('.nt-sess-panel');
+note((await page.$$eval('.nt-sess-card:not(.is-add)', els => els.length)) === cardsBefore + 1, 'the sessions grid did not gain a card');
+await page.click('.nt-sess-card:not(.is-add)');
+await sleep(300);
+note((await page.$eval('.nt-session-title', e => e.textContent)) === 'WorldHop', 'switching back did not restore the first session');
+note((await page.$$eval('.nt-cat', els => els.length)) === catsBefore + 1, 'the first session lost categories on the round trip');
+console.log('sessions: add, switch, switch back held');
 
-/* ---- 3. multi-line indent across DIFFERENT depths ------------------------
-   FALSELY PASSES IF: the three bullets were already at the same level, which
-   is the easy case. bravo(1) charlie(2) delta(2) span two depths, and all
-   three must move together and keep their relative order. */
-{
-  await reset();
-  await page.evaluate(() => {
-    const from = document.getElementById('s1').firstChild;      // "bravo"
-    const to = document.getElementById('s3').firstChild;        // "delta"
-    const r = document.createRange();
-    r.setStart(from, 1); r.setEnd(to, 3);
-    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-    document.getElementById('notesDoc').focus({ preventScroll: true });
-  });
-  const trio = ['bravo', 'charlie', 'delta'];
-  const before = [];
-  for (const t of trio) before.push(await depthOf(t));
-  await page.keyboard.press('Tab');
-  await settle(250);
-  const after = [];
-  for (const t of trio) after.push(await depthOf(t));
-  // Order by TEXT, for the same reason the depths are: the ids do not survive.
-  const order = await page.evaluate(() => [...document.querySelectorAll('#notesDoc li')]
-    .map(l => (l.firstChild?.textContent || '').trim())
-    .filter(t => ['alpha','bravo','charlie','delta','echo','foxtrot'].includes(t)).join(','));
-  console.log(`multi indent: ${before.join(',')} -> ${after.join(',')}  order ${order}`);
-  note(after.every((d, i) => d === before[i] + 1),
-       `indent moved ${before.join(',')} to ${after.join(',')}, expected each +1`);
-  note(order === 'alpha,bravo,charlie,delta,echo,foxtrot', `order became ${order}`);
+/* ---- 16. archive, restore, undo an archive ------------------------------------- */
+await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t).querySelector('.nt-row-x').click(); }, scratch);
+await page.waitForSelector('.nt-modal');
+await press('Enter');
+await sleep(200);
+note((await page.$$eval('.nt-cat', els => els.length)) === catsBefore, 'archiving did not remove the category');
+note((await page.$eval('.nt-archive-count', e => e.textContent)) === '1', 'the archive count did not read 1');
+await page.click('.nt-archive-head');
+await page.click('.nt-arch-row .nt-icon-btn');   // restore
+await sleep(200);
+note((await page.$$eval('.nt-cat', els => els.length)) === catsBefore + 1, 'restore did not bring the category back');
+note(await page.evaluate((id) => { const b = document.querySelector(`.nt-body[data-cat="${id}"]`); return !!b && /pic/.test(b.textContent) && !!b.querySelector('img.nt-img[data-key]'); }, catId), 'the restored category lost its body');
+// Delete outright, then Ctrl+Z.
+await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t).querySelector('.nt-row-x').click(); }, scratch);
+await page.waitForSelector('.nt-modal');
+await page.click('.nt-modal .nt-btn.is-left');
+await sleep(200);
+note((await page.$$eval('.nt-cat', els => els.length)) === catsBefore, 'delete did not remove the category');
+await page.focus('.nt-canvas');
+await chord(['Control'], 'z');
+await sleep(200);
+note((await page.$$eval('.nt-cat', els => els.length)) === catsBefore + 1, 'Ctrl+Z did not undo the delete');
+console.log('archive, restore, delete, undo-delete held');
 
-  await page.keyboard.down('Shift'); await page.keyboard.press('Tab'); await page.keyboard.up('Shift');
-  await settle(250);
-  const back = [];
-  for (const t of trio) back.push(await depthOf(t));
-  console.log(`multi outdent: ${after.join(',')} -> ${back.join(',')}`);
-  note(back.every((d, i) => d === before[i]),
-       `outdent left ${back.join(',')}, expected ${before.join(',')}`);
-  // execCommand preserves appearance by wrapping the moved text in a styled
-  // <span>. That colour is the section accent, so the wrapper both freezes the
-  // wrong colour and puts an inline style into the saved document.
-  const spans = await page.evaluate(() =>
-    document.querySelectorAll('#notesDoc span[style]').length);
-  console.log(`styled spans after indent/outdent: ${spans}`);
-  note(spans === 0, `${spans} styled <span> wrappers left behind by indent/outdent`);
-}
+/* ---- 17. theme and sidebar ------------------------------------------------------ */
+await page.click('.nt-theme');
+note((await page.$eval('.nt-app', e => e.dataset.theme)) === 'light', 'the theme toggle did not go light');
+await page.click('.nt-theme');
+await chord(['Control'], '\\');
+note(await page.$eval('.nt-app', e => e.classList.contains('is-rail')), 'Ctrl+\\ did not collapse the sidebar to the rail');
+await sleep(350);                              // the width animates
+const railW = await page.$eval('.nt-sidebar', e => e.getBoundingClientRect().width);
+note(railW < 80, `the rail is ${railW}px wide`);
+await chord(['Control'], '\\');
 
-/* ---- 4. Backspace at the start unwinds before it merges ------------------ */
-{
-  await reset();
-  await caretIn('s2', true);                    // "charlie", depth 2
-  const b0 = await findByText('charlie');
-  await page.keyboard.press('Backspace');
-  await settle();
-  const b1 = await findByText('charlie');
-  await page.keyboard.press('Backspace');
-  await settle();
-  const b2 = await findByText('charlie');
-  const merged = await page.evaluate(() =>
-    !![...document.querySelectorAll('#notesDoc li')]
-      .find(l => /bravocharlie/.test(l.textContent.replace(/\s+/g, ''))));
-  console.log(`backspace: ${b0.tag}@${b0.depth} -> ${b1.tag}@${b1.depth} -> ${b2.tag}@${b2.depth}, merged: ${merged}`);
-  note(b1.depth === b0.depth - 1, `first Backspace went ${b0.depth} -> ${b1.depth}, expected one level out`);
-  note(b1.found && b2.found, 'the bullet was destroyed by Backspace');
-  note(!merged, 'Backspace merged into the line above instead of unwinding');
-}
+/* ---- 18. what reached the store ---------------------------------------------------- */
+await chord(['Control'], 's');
+await page.waitForFunction(() => /^SAVED/.test(document.querySelector('.nt-status').textContent), { timeout: 15000 });
+const stored = JSON.parse(await readFile(join(STORE, 'notes/current.json'), 'utf8'));
+const s0 = stored.doc.sessions.find(s => s.title === 'WorldHop');
+const cat = s0 && s0.cats.find(c => c.title === scratch);
+note(!!cat, 'the scratch category is not in the store');
+note(cat && /pic/.test(cat.body) && /<img [^>]*data-key="[0-9a-f]{64}[.](png|webp)"[^>]*>/.test(cat.body) && /class="nt-img"/.test(cat.body), `the scratch body in the store is not the text and the keyed image: ${cat && cat.body.slice(0, 200)}`);
+note(cat && !/style=|\u200b|is-selected|src=/.test(cat.body), `the stored body carries transient markup: ${cat && cat.body.slice(0, 200)}`);
+note(stored.doc.sessions.length === sessionsBefore + 1, `${stored.doc.sessions.length} sessions in the store, expected ${sessionsBefore + 1}`);
+note(stored.doc.ui.theme === 'dark' && stored.doc.ui.sidebar === 'open', 'ui settings did not round-trip');
+console.log(`store: rev ${stored.rev}, ${stored.doc.sessions.length} sessions, scratch body ${cat ? cat.body.length : 0} chars`);
 
-/* ---- 5. bold / italic / underline --------------------------------------- */
-{
-  await reset();
-  await page.evaluate(() => {
-    const node = document.getElementById('s0').firstChild;
-    const r = document.createRange(); r.setStart(node, 0); r.setEnd(node, 5);
-    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-    document.getElementById('notesDoc').focus({ preventScroll: true });
-  });
-  for (const [key, tag] of [['b', 'B'], ['i', 'I'], ['u', 'U']]) {
-    await page.keyboard.down('Control'); await page.keyboard.press(key); await page.keyboard.up('Control');
-    await settle(80);
-  }
-  const marks = await page.evaluate(() => {
-    const li = document.getElementById('s0');
-    return ['b', 'i', 'u'].map(t => li.querySelector(t) ? t : '').filter(Boolean).join('');
-  });
-  console.log(`formatting: ${marks || '(none)'}`);
-  note(marks.includes('b') && marks.includes('i') && marks.includes('u'),
-       `Ctrl+B/I/U produced "${marks}", expected all three`);
-}
-
-/* ---- 6. undo and redo --------------------------------------------------- */
-{
-  await reset();
-  await caretIn('s0');
-  await page.keyboard.type('XYZ');
-  await settle(120);
-  const typed = await page.evaluate(() => document.getElementById('s0').textContent);
-  await page.keyboard.down('Control'); await page.keyboard.press('z'); await page.keyboard.up('Control');
-  await settle(150);
-  const undone = await page.evaluate(() => document.getElementById('s0').textContent);
-  await page.keyboard.down('Control'); await page.keyboard.press('y'); await page.keyboard.up('Control');
-  await settle(150);
-  const redone = await page.evaluate(() => document.getElementById('s0').textContent);
-  console.log(`undo/redo: "${typed}" -> undo "${undone}" -> redo "${redone}"`);
-  note(typed.includes('XYZ'), 'typing did not land');
-  note(!undone.includes('XYZ'), 'Ctrl+Z did not undo the typing');
-  note(redone.includes('XYZ'), 'Ctrl+Y did not redo it');
-}
-
-/* ---- 7. "- " turns a plain line into a bullet ---------------------------- */
-{
-  await reset();
-  await page.evaluate(() => {
-    const doc = document.getElementById('notesDoc');
-    doc.insertAdjacentHTML('beforeend', '<div id="md" data-harness><br></div>');
-    const el = document.getElementById('md');
-    el.scrollIntoView({ block: 'center', behavior: 'instant' });
-    const r = document.createRange(); r.setStart(el, 0); r.collapse(true);
-    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-    doc.focus({ preventScroll: true });
-  });
-  await settle(150);
-  await page.keyboard.type('- ');
-  await settle(200);
-  const became = await page.evaluate(() => {
-    const sel = getSelection();
-    const el = sel.anchorNode?.nodeType === 1 ? sel.anchorNode : sel.anchorNode?.parentElement;
-    return { inList: !!el?.closest('li'), text: el?.closest('li')?.textContent ?? null };
-  });
-  console.log(`markdown bullet: inList=${became.inList} text=${JSON.stringify(became.text)}`);
-  note(became.inList, '"- " did not convert the line into a bullet');
-  note(!(became.text || '').includes('-'), 'the "-" was left in the new bullet');
-  // The first cut deleted the marker with a raw range operation, which the
-  // undo stack never saw -- Ctrl+Z could not put it back.
-  await page.keyboard.down('Control'); await page.keyboard.press('z'); await page.keyboard.up('Control');
-  await settle(200);
-  const undoneList = await page.evaluate(() => {
-    const sel = getSelection();
-    const el = sel.anchorNode?.nodeType === 1 ? sel.anchorNode : sel.anchorNode?.parentElement;
-    return !!el?.closest('li');
-  });
-  console.log(`markdown bullet undo: still a bullet after Ctrl+Z = ${undoneList}`);
-  note(!undoneList, 'Ctrl+Z did not undo the "- " conversion');
-}
-
-/* ---- 8. the selection bug ------------------------------------------------
-   FALSELY PASSES IF: run on a long line, where the drag start is near the left
-   edge anyway, or on a bullet with no nested list -- Chrome gets that shape
-   right and always did. "Creatures" is short AND has a nested list, which is
-   the exact combination that failed. */
-{
-  await reset();
-  const cases = [
-    ['Creatures', 'short bullet WITH a nested list'],
-    ['Coop', 'short bullet with no nested list'],
-  ];
-  for (const [want, what] of cases) {
-    const geom = await page.evaluate((w) => {
-      const li = [...document.querySelectorAll('#notesDoc li')]
-        .find(l => (l.firstChild?.textContent || '').trim() === w);
-      if (!li) return null;
-      li.scrollIntoView({ block: 'center', behavior: 'instant' });
-      const node = [...li.childNodes].find(n => n.nodeType === 3 && n.nodeValue.trim());
-      const r = document.createRange(); r.selectNodeContents(node);
-      const t = r.getBoundingClientRect(), b = li.getBoundingClientRect();
-      return { tx: t.x, tw: t.width, ty: t.y, th: t.height, bx: b.x, bw: b.width,
-               len: node.nodeValue.length };
-    }, want);
-    if (!geom) { fail.push(`selection check: no bullet "${want}"`); continue; }
-    await settle(250);
-    const y = geom.ty + geom.th / 2;
-    // Start the drag in the empty space to the RIGHT of the text, then move
-    // left into it — the reported gesture.
-    await page.mouse.move(geom.bx + geom.bw - 40, y);
-    await page.mouse.down();
-    await page.mouse.move(geom.tx + geom.tw * 0.45, y, { steps: 12 });
-    await page.mouse.up();
-    const sel = await page.evaluate(() => {
-      const s = getSelection();
-      return { text: s.toString(), anchorOffset: s.anchorOffset };
-    });
-    console.log(`drag from the right (${what}): anchor=${sel.anchorOffset} of ${geom.len}, selected "${sel.text}"`);
-    note(sel.anchorOffset === geom.len,
-         `${what}: drag anchored at ${sel.anchorOffset}, expected ${geom.len} (the end of the text)`);
-    note(sel.text.length > 0 && !sel.text.startsWith(want[0]),
-         `${what}: selection "${sel.text}" started at the beginning of the line`);
-  }
-}
-
-/* ---- 9. the frame, looked at -------------------------------------------- */
-{
-  await reset();
-  await caretIn('s4');
-  await page.evaluate(() => document.getElementById('scratch')
-    .scrollIntoView({ block: 'center', behavior: 'instant' }));
-  await settle(300);
-  await page.screenshot({ path: join(SHOTS, 'notes-editor-nesting.png') });
-
-  // The header gap: every section's h2-to-list distance should be the same.
-  const gaps = await page.evaluate(() => [...document.querySelectorAll('#notesDoc .nv-sec')]
-    .map(s => {
-      const h = s.querySelector('h2'), u = s.querySelector('ul');
-      if (!h || !u) return null;
-      return Math.round(u.getBoundingClientRect().top - h.getBoundingClientRect().bottom);
-    }).filter(v => v !== null));
-  const spread = Math.max(...gaps) - Math.min(...gaps);
-  console.log(`header gaps: ${gaps.join(', ')} (spread ${spread}px)`);
-  note(spread <= 1, `header-to-list gaps vary by ${spread}px: ${gaps.join(', ')}`);
-}
-
-/* TAKE THE FIXTURE BACK OUT, and wait for the save that removes it to land.
-   The editor writes to the real dev store, so a SCRATCH section left in there
-   is not this run's problem -- it is the NEXT harness's. notes_check.mjs counts
-   sections and rail buttons, and found 10 of each where the notes have 9, which
-   reads as a product bug and is not one. Waiting for the response matters as
-   much as the removal: browser.close() during a debounce leaves the fixture in
-   the store exactly as before. */
-{
-  const landed = page.waitForResponse(
-    r => /api.notes.save/.test(r.url()) && r.status() === 200, { timeout: 20000 });
-  await page.evaluate((ids) => {
-    const doc = document.getElementById('notesDoc');
-    doc.querySelectorAll('[data-harness]').forEach(el => el.remove());
-    for (let guard = 0; guard < 50; guard++) {
-      const stale = ids.map(id => document.getElementById(id)).find(Boolean);
-      if (!stale) break;
-      (stale.closest('.nv-sec') || stale).remove();
-    }
-    doc.dispatchEvent(new Event('input', { bubbles: true }));
-  }, HARNESS_IDS);
-  await landed.catch(() => fail.push('the fixture never saved back out of the store'));
-  const left = await page.evaluate(() => !!document.getElementById('scratch'));
-  note(!left, 'the SCRATCH fixture is still in the document at teardown');
-}
+/* ---- tidy up: delete the scratch category and the session this run made -------------- */
+await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t).querySelector('.nt-row-x').click(); }, scratch);
+await page.waitForSelector('.nt-modal');
+await page.click('.nt-modal .nt-btn.is-left');
+await sleep(100);
+await page.click('.nt-session-btn');
+await page.waitForSelector('.nt-sess-panel');
+await page.evaluate(() => { const cards = [...document.querySelectorAll('.nt-sess-card:not(.is-add)')]; cards[cards.length - 1].querySelector('.nt-sess-x').click(); });
+await page.waitForSelector('.nt-modal');
+await press('Enter');
+await sleep(200);
+note((await page.$eval('.nt-session-title', e => e.textContent)) === 'WorldHop', 'deleting the extra session did not land back on the first');
+await chord(['Control'], 's');
+await page.waitForFunction(() => /^SAVED/.test(document.querySelector('.nt-status').textContent), { timeout: 15000 });
+const after = JSON.parse(await readFile(join(STORE, 'notes/current.json'), 'utf8'));
+note(after.doc.sessions.length === sessionsBefore, `${after.doc.sessions.length} sessions left in the store after tidy-up, expected ${sessionsBefore}`);
+await page.screenshot({ path: join(SHOTS, 'notes-editor-v2.png') }).catch(() => {});
 
 await browser.close();
 console.log(`\n${pass} checks passed`);
-console.log(fail.length ? `FAIL (${fail.length}):\n  ${fail.join('\n  ')}`
-                        : 'PASS — every editor check held');
+console.log(fail.length ? `FAIL (${fail.length}):\n  ${fail.join('\n  ')}` : 'PASS — every editor check held');
 process.exit(fail.length ? 1 : 0);

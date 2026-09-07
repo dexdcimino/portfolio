@@ -2044,8 +2044,8 @@ if (workModal) {
 
 /* ==========================================================================
    LIVE NOTES
-   A private overlay at /#notes: keypad, then the document, edited in place and
-   saved to the server on a debounce.
+   A private overlay at /#notes: keypad, then the notes app, which lives in
+   notes/ as ES modules and is imported only once the password has passed.
 
    WHY THE SERVER HOLDS IT. The Idea Vault above ships ciphertext and decrypts
    it in the browser, which is the right shape for something sealed once. These
@@ -2053,41 +2053,42 @@ if (workModal) {
    not a thing that can happen — so the password is checked in
    /api/notes/unlock and the content simply does not exist in this page until
    that call comes back. Nothing is fetched on load and hidden with CSS: hiding
-   content you already shipped is not a lock.
+   content you already shipped is not a lock. The app's own code is not fetched
+   until then either — a dynamic import(), so a visitor who never unlocks never
+   downloads the editor.
 
    THE TOKEN LIVES IN sessionStorage, so a refresh does not demand the password
    again — which is the difference between a notes app and a puzzle. It is a
    bearer token with an expiry, it is per-tab, and it dies with the tab.
    Anything able to read it out of this origin could equally read the document
    off the screen, so it buys an attacker nothing they did not already have.
+
+   WHAT LIVES HERE AND WHAT DOES NOT. This block is the DOOR: the keypad, the
+   token, opening and closing, and handing the unlocked document to
+   notes/app.js. Everything about editing — categories, sessions, undo, spell
+   check, the lot — is that module's, and it is unmounted (and its DOM
+   removed) the moment the overlay closes, for the same reason the old
+   document was: leaving it in the page keeps the notes one devtools panel
+   away for the rest of the visit.
    ========================================================================== */
 {
   const modal = document.getElementById('notesModal');
   const gate = document.getElementById('notesGate');
   const editor = document.getElementById('notesEditor');
-  const doc = document.getElementById('notesDoc');
-  const scroll = document.getElementById('notesScroll');
-  const rail = document.getElementById('notesRail');
-  const thumb = document.getElementById('notesThumb');
+  const frame = modal ? modal.querySelector('.notes-frame') : null;
   const statusEl = document.getElementById('notesStatus');
   const saveEl = document.getElementById('notesSave');
   const label = document.getElementById('notesLabel');
   const padlock = document.getElementById('notesLock');
-  const zoomBtn = document.getElementById('notesZoom');
-  const zoomIcon = document.getElementById('notesZoomIcon');
   const wait = document.getElementById('notesWait');
   const pins = modal ? [...modal.querySelectorAll('.vault-pin')] : [];
 
   if (modal && pins.length) {
-    const SAVE_DEBOUNCE = 1000;       // the brief: one second after the last key
     const TOKEN_KEY = 'notes-token';
-    const ZOOM_KEY = 'notes-zoom';
 
     let token = null;
-    let saveTimer = null;
-    let inFlight = false;
-    let pending = false;              // an edit arrived while a save was running
-    let lastSaved = null;             // the exact string the server last took
+    let app = null;               // the mounted notes app, while the overlay is open
+    let opening = 0;              // which open() is current; a stale one must not mount
 
     const store = {
       get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
@@ -2095,680 +2096,42 @@ if (workModal) {
       drop(k) { try { sessionStorage.removeItem(k); } catch { /* private mode */ } },
     };
 
-    /* ---- the document ---------------------------------------------------- */
-
-    /* The stored HTML is written by Dex, behind Dex's password, and rendered
-       only for Dex. It is still passed through an allowlist on the way in,
-       because "the only person who can write here is trusted" is exactly the
-       assumption that stops being true the day the password leaks — and
-       because the page's CSP is a backstop, not a plan. Anything not on the
-       list is unwrapped, keeping its text; nothing is silently deleted. */
-    const TAGS = new Set(['DIV', 'SECTION', 'H1', 'H2', 'H3', 'H4', 'P', 'UL', 'OL',
-                          'LI', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'CODE', 'PRE',
-                          'BR', 'HR', 'SPAN', 'A', 'BLOCKQUOTE', 'SMALL', 'MARK']);
-    const SVG_TAGS = new Set(['svg', 'path', 'circle', 'ellipse', 'rect', 'line',
-                              'polyline', 'polygon', 'g']);
-    const ATTRS = new Set(['id', 'class', 'data-accent', 'href', 'title',
-                           'viewBox', 'fill', 'stroke', 'stroke-width',
-                           'stroke-linecap', 'stroke-linejoin', 'd', 'cx', 'cy',
-                           'r', 'rx', 'ry', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
-                           'width', 'height', 'points', 'transform',
-                           'data-nospell']);
-
-    function clean(node) {
-      [...node.children].forEach(el => {
-        const svg = el.namespaceURI === 'http://www.w3.org/2000/svg';
-        const ok = svg ? SVG_TAGS.has(el.localName) : TAGS.has(el.tagName);
-        if (!ok) {
-          // Unwrap rather than remove: a tag this does not know about is far
-          // more likely to be a paste from somewhere than an attack, and
-          // deleting the words inside it would lose real notes.
-          el.replaceWith(...el.childNodes);
-          return;
-        }
-        [...el.attributes].forEach(a => {
-          const name = svg ? a.name : a.name.toLowerCase();
-          if (!ATTRS.has(name) || (name === 'href' && !/^(https?:|#|mailto:)/i.test(a.value))) {
-            el.removeAttribute(a.name);
-          }
-        });
-        clean(el);
-      });
-      return node;
-    }
-
-    /* Drop whitespace-only text nodes that sit BETWEEN block elements. In the
-       seed, `</h2>
-<ul>` is a text node, and a text node is a line box: the
-       sections whose markup happened to carry one rendered a few pixels taller
-       than the ones that did not, which is the uneven gap under some headers.
-       Whitespace inside a block is left alone -- that is real spacing between
-       words. */
-    function squeeze(node) {
-      [...node.childNodes].forEach(child => {
-        if (child.nodeType === 3) {
-          const block = /^(DIV|SECTION|UL|OL|H1|H2|H3|H4|P)$/;
-          const near = (el) => el && el.nodeType === 1 && block.test(el.tagName);
-          if (!child.nodeValue.trim()
-              && (near(child.previousSibling) || near(child.nextSibling)
-                  || block.test(node.tagName))) {
-            child.remove();
-          }
-        } else if (child.nodeType === 1) {
-          squeeze(child);
-        }
-      });
-      return node;
-    }
-
-    /* Sections whose contents are deliberately not English. The Names section
-       is a list of invented words -- Voodoobits, Hexnomads, Portalzyn -- and a
-       red underline under every one of them is noise that hides the two real
-       typos in the document.
-
-       Keyed on the heading id AND on a data-nospell attribute, so a section
-       added later can opt out without a code change; the attribute is on the
-       allowlist so it survives a save. */
-    const NO_SPELLCHECK = new Set(['names']);
-
-    function applySpellcheck() {
-      doc.querySelectorAll('.nv-sec').forEach(section => {
-        const id = section.querySelector('h2')?.id || '';
-        section.spellcheck = !(NO_SPELLCHECK.has(id) || section.hasAttribute('data-nospell'));
-      });
-    }
-
-    function render(html) {
-      const holder = document.createElement('div');
-      holder.innerHTML = html;
-      doc.replaceChildren(...squeeze(clean(holder)).childNodes);
-      buildRail();
-      applySpellcheck();
-      /* Next frame, not now: the editor was unhidden a moment ago and the
-         scroll container has no height yet, so a paint here reads a zero-height
-         viewport and colours the bar off the wrong section. */
-      requestAnimationFrame(paintScrollbar);
-    }
-
-    /* The rail is rebuilt from the document rather than configured, so a new
-       <h2> in the notes becomes a button here with no code change. Each button
-       CLONES that section's own icon: the seed's nine SVGs came through the
-       conversion untouched, and cloning them means the rail can never show an
-       icon the document does not. */
-    function buildRail() {
-      const frag = document.createDocumentFragment();
-      let n = 0;
-      doc.querySelectorAll('.nv-sec').forEach(section => {
-        const heading = section.querySelector('h2');
-        if (!heading) return;
-        const button = document.createElement('button');
-        button.type = 'button';
-        const name = (heading.textContent || '').trim();
-        button.title = name;
-        button.setAttribute('aria-label', `Jump to ${name}`);
-        button.style.setProperty('--nv',
-          getComputedStyle(section).getPropertyValue('--nv') || '#b0b0b0');
-        button.dataset.for = heading.id || '';
-        const icon = heading.querySelector('svg');
-        if (icon) button.appendChild(icon.cloneNode(true));
-        else button.textContent = name.slice(0, 1);
-        button.addEventListener('click', () => {
-          heading.scrollIntoView({ block: 'start' });
-        });
-        frag.appendChild(button);
-        n++;
-      });
-      rail.replaceChildren(frag);
-      rail.hidden = n === 0;
-    }
-
-    /* ---- the scrollbar's colour ------------------------------------------
-       The bar takes the accent of whatever section the reader is currently
-       beside, which makes it a second, quieter position indicator next to the
-       rail -- and tells you which part of the document you are in when the
-       heading has scrolled off the top.
-
-       "Beside" means the section covering the MIDDLE of the viewport, not the
-       first one visible: at any scroll position two or three sections are
-       partly on screen, and the topmost is usually the one being scrolled away
-       from. One rAF-coalesced read of offsetTop per scroll, no geometry
-       flush -- offsetTop is already known to the layout engine and the
-       comparison is against the container's own scrollTop. */
-    let scrollFrame = 0;
-    let railCurrent = null;
-
-    /* The bar's own geometry. Drawn rather than styled, because a native one
-       cannot be made to look like this reliably: setting scrollbar-width or
-       scrollbar-color makes Chrome ignore ::-webkit-scrollbar and fall back to
-       an overlay bar that occupies no layout space and fades out shortly after
-       you stop scrolling. Measured here: offsetWidth - clientWidth was 0 either
-       way, and no headless run paints either kind, so the result could not be
-       captured and looked at -- which is the bar this repo sets for anything
-       visual. A div can be. */
-    function paintThumb() {
-      const view = scroll.clientHeight;
-      const full = scroll.scrollHeight;
-      if (!view || full <= view + 1) { thumb.hidden = true; return; }
-      thumb.hidden = false;
-      const height = Math.max(40, Math.round(view * (view / full)));
-      const travel = view - height;
-      const progress = scroll.scrollTop / (full - view);
-      thumb.style.height = `${height}px`;
-      thumb.style.top = `${Math.round(Math.min(1, Math.max(0, progress)) * travel)}px`;
-    }
-
-    /* Dragging it scrolls, because hiding the native bar took that away and a
-       decoration you cannot grab is worse than the bar it replaced. Pointer
-       capture, so a drag that leaves the element keeps working. */
-    let dragFromY = 0;
-    let dragFromTop = 0;
-    thumb.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      dragFromY = event.clientY;
-      dragFromTop = scroll.scrollTop;
-      thumb.classList.add('is-dragging');
-      thumb.setPointerCapture(event.pointerId);
-    });
-    thumb.addEventListener('pointermove', (event) => {
-      if (!thumb.classList.contains('is-dragging')) return;
-      const view = scroll.clientHeight;
-      const full = scroll.scrollHeight;
-      const travel = view - Math.max(40, view * (view / full));
-      if (travel <= 0) return;
-      // scroll-behavior is smooth on this container, which lags a drag badly.
-      scroll.style.scrollBehavior = 'auto';
-      scroll.scrollTop = dragFromTop +
-        ((event.clientY - dragFromY) / travel) * (full - view);
-    });
-    const endDrag = () => {
-      if (!thumb.classList.contains('is-dragging')) return;
-      thumb.classList.remove('is-dragging');
-      scroll.style.removeProperty('scroll-behavior');
-    };
-    thumb.addEventListener('pointerup', endDrag);
-    thumb.addEventListener('pointercancel', endDrag);
-
-    function paintScrollbar() {
-      scrollFrame = 0;
-      paintThumb();
-      const sections = [...doc.querySelectorAll('.nv-sec')];
-      if (!sections.length) return;
-      /* The section covering the MOST of the visible area, not the one under
-         the middle of it. The middle rule looked equivalent and is not: at the
-         top of the document the first section cannot be scrolled to the middle
-         at all, so it could never colour the bar however far you scrolled up.
-         Largest share is also what was actually asked for -- "whatever takes up
-         most of the page". */
-      const top = scroll.scrollTop;
-      const bottom = top + scroll.clientHeight;
-      let here = sections[0];
-      let best = -1;
-      for (const section of sections) {
-        const a = section.offsetTop;
-        const seen = Math.min(bottom, a + section.offsetHeight) - Math.max(top, a);
-        if (seen > best) { best = seen; here = section; }
-      }
-      const colour = getComputedStyle(here).getPropertyValue('--nv').trim();
-      if (colour) thumb.style.setProperty('--nv-thumb', colour);
-
-      // The rail marks the same section, so the two agree about where you are.
-      const heading = here.querySelector('h2');
-      if (heading && heading.id !== railCurrent) {
-        railCurrent = heading.id;
-        rail.querySelectorAll('button').forEach(button =>
-          button.classList.toggle('is-here', button.dataset.for === heading.id));
-      }
-    }
-
-    if (typeof ResizeObserver === 'function') {
-      // The zoom toggle changes the document height without any scrolling, so
-      // a scroll listener alone would leave the thumb the wrong length.
-      new ResizeObserver(() => paintScrollbar()).observe(scroll);
-    }
-
-    scroll.addEventListener('scroll', () => {
-      // Coalesced to one paint: a scroll fires far more often than the screen
-      // updates, and this is decoration.
-      if (!scrollFrame) scrollFrame = requestAnimationFrame(paintScrollbar);
-    }, { passive: true });
-
-    /* ---- saving ---------------------------------------------------------- */
-
     const setSave = (text, state) => {
+      if (!saveEl) return;
       saveEl.textContent = text;
       saveEl.classList.toggle('is-saving', state === 'saving');
       saveEl.classList.toggle('is-error', state === 'error');
     };
 
-    const clock = (iso) => {
-      const d = new Date(iso);
-      return Number.isNaN(+d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
-
-    async function save() {
-      if (!token) return;
-      if (inFlight) { pending = true; return; }
-      const content = doc.innerHTML;
-      if (content === lastSaved) return;
-
-      inFlight = true;
-      setSave('SAVING…', 'saving');
-      try {
-        const response = await fetch('/api/notes/save', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ token, content }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-          // The session went; the text on screen has not. Say so and stop
-          // pretending saves are happening.
-          token = null;
-          store.drop(TOKEN_KEY);
-          setSave('SESSION EXPIRED — REOPEN TO SAVE', 'error');
-          return;
-        }
-        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-        // Only now: what the SERVER took, not what was on screen when the
-        // request left. An edit made mid-flight must not be recorded as saved.
-        lastSaved = content;
-        if (data.token) { token = data.token; store.set(TOKEN_KEY, token); }
-        setSave(`SAVED ${clock(data.savedAt)}`.trim(), null);
-      } catch (error) {
-        console.warn('notes: save failed', error);
-        setSave('NOT SAVED — RETRYING', 'error');
-        // Nothing is lost by retrying: the next keystroke reschedules, and this
-        // covers the case where there is no next keystroke.
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(save, 4000);
-      } finally {
-        inFlight = false;
-        if (pending) { pending = false; queueSave(); }
-      }
-    }
-
-    function queueSave() {
-      if (!token) return;
-      clearTimeout(saveTimer);
-      setSave('EDITING…', 'saving');
-      saveTimer = setTimeout(save, SAVE_DEBOUNCE);
-    }
-
-    doc.addEventListener('input', queueSave);
-
-    /* ---- editing --------------------------------------------------------
-       Everything here goes through document.execCommand, and that is a
-       deliberate choice rather than an oversight about its deprecation.
-
-       The alternative is moving nodes by hand, and the moment you do that the
-       browser's undo stack no longer describes the document: Ctrl+Z either
-       does nothing or reverts to a state that never existed. Rebuilding undo
-       on top of hand-rolled edits means snapshotting the document on every
-       keystroke and re-implementing selection restoration -- a large amount of
-       machinery, in a notes app, to get back what execCommand gives for free.
-       It is deprecated in the sense that no new features are coming, not in
-       the sense that it is going away; every browser still implements it
-       because a decade of editors are built on it.
-
-       So: indent, outdent, bold, italic, underline, list creation and redo are
-       all commands the browser records, and Ctrl+Z walks back through them the
-       way it walks back through typing. */
-    const exec = (cmd, arg) => document.execCommand(cmd, false, arg);
-
-    /* execCommand('indent') and ('outdent') re-wrap the moved line's text in a
-       <span> carrying the COMPUTED colour it had, which is how Chrome keeps a
-       line looking the same across a structural move. Here that colour comes
-       from the section's accent, so the span is not merely redundant, it is
-       wrong: it freezes one section's colour into the text, and it goes into
-       the saved document -- inline styles being exactly what the seed was
-       converted to get rid of.
-
-       Measured, not assumed. One Shift+Tab produced:
-         <li><span style="color: color(srgb 0.498 0.5 0.508); font-size: 1em;
-             background-color: initial;">two</span></li> */
-    function unwrapCommandSpans() {
-      doc.querySelectorAll('span[style]').forEach(span => {
-        span.replaceWith(...span.childNodes);
-      });
-      doc.normalize();      // rejoin the text nodes the unwrap split
-    }
-
-    const inDoc = (node) => node && doc.contains(node.nodeType === 1 ? node : node.parentNode);
-
-    function liveRange() {
-      const sel = window.getSelection();
-      if (!sel || !sel.rangeCount) return null;
-      const range = sel.getRangeAt(0);
-      return inDoc(range.startContainer) ? range : null;
-    }
-
-    const closest = (node, sel) => {
-      const el = node && (node.nodeType === 1 ? node : node.parentElement);
-      return el ? el.closest(sel) : null;
-    };
-
-    /* Is the caret before every character of this block? Measured by taking
-       the content from the block's start up to the caret and looking at it,
-       rather than by comparing offsets -- offset 0 of the third text node is
-       not the start of the line, and a line beginning with a <b> would fool
-       any test that only looks at the container. */
-    function atStartOf(block, range) {
-      const probe = document.createRange();
-      probe.selectNodeContents(block);
-      try { probe.setEnd(range.startContainer, range.startOffset); }
-      catch { return false; }
-      const before = probe.cloneContents();
-      return before.textContent.length === 0 && !before.querySelector('img,svg,br');
-    }
-
-    /* ---- Tab / Shift+Tab ---- */
-
-    /* TAB IS ALWAYS CONSUMED while the caret is in the document. The bug this
-       fixes was Tab escaping the page entirely and landing in the browser's own
-       tab cycling, which loses the caret and the reader's place at once. So the
-       key is swallowed whether or not there is a list to indent -- a Tab that
-       does nothing is a small disappointment, a Tab that throws you into the
-       address bar is a lost edit. */
-    function indent(back) {
-      // execCommand('indent') already applies to every block the selection
-      // touches, which is what makes "select three bullets and Tab" work
-      // without walking them here. Outside a list it would wrap the line in a
-      // <blockquote>, which is never what Tab means in a notes document, so
-      // that case is consumed and left alone.
-      const range = liveRange();
-      if (!range) return;
-      const anchor = closest(range.startContainer, 'li');
-      const focus = closest(range.endContainer, 'li');
-      if (!anchor && !focus) return;
-      exec(back ? 'outdent' : 'indent');
-      unwrapCommandSpans();
-      queueSave();
-    }
-
-    /* ---- Backspace at the start of a bullet ---- */
-
-    /* Backspace at the very start of a bullet UNWINDS it before it merges it.
-       The default behaviour merges the line into the one above, which on a
-       nested list is almost never what was meant: the reflex is "this is one
-       level too deep", and the destructive reading of that keystroke throws the
-       line into the middle of another one. So a nested bullet steps out a
-       level, a top-level bullet becomes a plain line, and only a plain line
-       merges -- three presses to do what one used to, each of them visible and
-       each of them undoable. */
-    function backspaceOutdent(event) {
-      const range = liveRange();
-      if (!range || !range.collapsed) return false;
-      const li = closest(range.startContainer, 'li');
-      if (!li || !atStartOf(li, range)) return false;
-      event.preventDefault();
-      exec('outdent');
-      unwrapCommandSpans();
-      queueSave();
-      return true;
-    }
-
-    /* ---- "- " and "* " at the start of a line ---- */
-
-    /* The markdown reflex, and the way back into a list after a Backspace or a
-       Shift+Tab has dropped a line out of one. Only fires on a line whose whole
-       content is the marker, so a hyphen mid-sentence is just a hyphen. */
-    function bulletShortcut(event) {
-      if (event.data !== ' ') return false;
-      const range = liveRange();
-      if (!range || !range.collapsed) return false;
-      if (closest(range.startContainer, 'li')) return false;      // already a bullet
-      const node = range.startContainer;
-      if (node.nodeType !== 3) return false;
-      const before = node.nodeValue.slice(0, range.startOffset);
-      if (!/^\s*[-*]$/.test(before)) return false;                 // marker is the whole line
-
-      event.preventDefault();
-
-      /* SELECT the marker and delete it with a COMMAND, rather than calling
-         deleteContents on a range. Two reasons, both found by testing:
-         deleteContents is invisible to the undo stack, so Ctrl+Z could not put
-         the "- " back; and it leaves the document selection pointing into a
-         text node it just emptied, which insertUnorderedList quietly refuses
-         to act on -- the line ended up empty and un-bulleted. */
-      const from = before.search(/[-*]/);
-      const marker = document.createRange();
-      marker.setStart(node, from);
-      marker.setEnd(node, range.startOffset);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(marker);
-      exec('delete');
-      exec('insertUnorderedList');
-      queueSave();
-      return true;
-    }
-
-    /* ---- Enter on an empty bullet ---- */
-
-    /* Every outliner does this and the muscle memory is universal: Enter on an
-       empty nested bullet steps out one level rather than adding another empty
-       one, so a list can be finished with the same key that built it. */
-    function enterOutdent(event) {
-      const range = liveRange();
-      if (!range || !range.collapsed) return false;
-      const li = closest(range.startContainer, 'li');
-      if (!li || li.textContent.trim() !== '' || li.querySelector('ul,ol')) return false;
-      event.preventDefault();
-      exec('outdent');
-      unwrapCommandSpans();
-      queueSave();
-      return true;
-    }
-
-    /* ---- the key map ---- */
-
-    doc.addEventListener('beforeinput', (event) => {
-      if (event.inputType === 'insertText') bulletShortcut(event);
-    });
-
-    doc.addEventListener('keydown', (event) => {
-      const mod = event.ctrlKey || event.metaKey;
-
-      if (event.key === 'Tab') {
-        // Consumed unconditionally -- see indent().
-        event.preventDefault();
-        indent(event.shiftKey);
-        return;
-      }
-      if (event.key === 'Backspace' && !mod) { backspaceOutdent(event); return; }
-      if (event.key === 'Enter' && !event.shiftKey && !mod) { enterOutdent(event); return; }
-
-      if (!mod) return;
-      const key = event.key.toLowerCase();
-
-      /* Bold, italic and underline are what the browser would mostly do on its
-         own; done explicitly so they behave the same everywhere and so the save
-         is queued, which a native command would not do. */
-      if (key === 'b' || key === 'i' || key === 'u') {
-        event.preventDefault();
-        exec({ b: 'bold', i: 'italic', u: 'underline' }[key]);
-        queueSave();
-        return;
-      }
-      /* Ctrl+Z and Ctrl+Shift+Z are left to the browser, which already does
-         them correctly and knows more about the edit history than this does.
-         Ctrl+Y is the exception: Chrome does not bind it inside a
-         contenteditable, and it is what half of Windows reaches for. */
-      if (key === 'y') {
-        event.preventDefault();
-        exec('redo');
-        queueSave();
-        return;
-      }
-      /* Ctrl+S means save HERE, not "save this web page". Autosave has almost
-         certainly already run, so this is mostly for the reassurance of it --
-         which is exactly why it must not open a download dialog instead. */
-      if (key === 's') {
-        event.preventDefault();
-        clearTimeout(saveTimer);
-        save();
-      }
-    });
-
-    /* Pasted HTML goes through the same allowlist as stored content, so a copy
-       from a web page arrives as text and structure without dragging in its
-       colours, fonts and scripts. insertHTML rather than a DOM insert, so the
-       paste is one undoable step. */
-    doc.addEventListener('paste', (event) => {
-      const data = event.clipboardData;
-      if (!data) return;
-      event.preventDefault();
-      const html = data.getData('text/html');
-      if (html) {
-        const holder = document.createElement('div');
-        holder.innerHTML = html;
-        exec('insertHTML', clean(holder).innerHTML);
-      } else {
-        exec('insertText', data.getData('text/plain'));
-      }
-      queueSave();
-    });
-
-
-    /* A close or a tab-away should not sit on an unsaved second. This is the
-       one place a synchronous-ish send is worth it, and sendBeacon is the only
-       request the browser promises to finish after the page goes. */
-    function flush() {
-      if (!token || doc.innerHTML === lastSaved) return;
-      clearTimeout(saveTimer);
-      const body = new Blob(
-        [JSON.stringify({ token, content: doc.innerHTML })],
-        { type: 'application/json' });
-      if (navigator.sendBeacon) navigator.sendBeacon('/api/notes/save', body);
-      else save();
-    }
-    window.addEventListener('pagehide', flush);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') flush();
-    });
-
-
-    /* ---- clicking to the right of a bullet ------------------------------
-       A Chrome hit-testing bug, narrowed down rather than guessed at.
-
-       Click in the empty space to the right of a bullet's text and the caret
-       should land at the END of that line. It does -- unless the bullet also
-       contains a NESTED LIST, and then caretRangeFromPoint returns offset 0 of
-       the line's first text node instead. Measured on this document:
-
-         "Coop"       no nested list   -> offset 4   (end of the text, correct)
-         "Creatures"  nested <ul>      -> offset 0   (the far left, wrong)
-         "NPCs"       nested <ul>      -> offset 0   (the far left, wrong)
-
-       Dragging from there therefore selects from the beginning of the line
-       rather than from where the drag started, which is exactly the reported
-       symptom and exactly the bullet reported ("Creatures"). The nested list
-       splits the item into an anonymous block for its own text plus the child
-       list, and the point lands in neither.
-
-       The fix is to correct the position rather than to trust it. Because a
-       drag ANCHOR is fixed at mousedown, correcting afterwards is too late --
-       so on the affected shape only, the default is prevented, the caret is
-       placed, and the drag is extended by hand from the same corrected
-       function. Everywhere else the browser is left completely alone: this
-       runs only when Chrome's answer and the corrected one actually differ. */
-
-    function lastTextIn(range) {
-      const walker = document.createTreeWalker(range.commonAncestorContainer,
-                                               NodeFilter.SHOW_TEXT);
-      let found = null;
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        if (range.intersectsNode(node) && node.nodeValue.length) found = node;
-      }
-      return found;
-    }
-
-    function correctedCaret(x, y) {
-      const at = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
-      if (!at) return null;
-      const li = closest(at.startContainer, 'li');
-      if (!li) return at;
-      const nestedAt = [...li.childNodes]
-        .findIndex(n => n.nodeType === 1 && /^(UL|OL)$/.test(n.tagName));
-      if (nestedAt < 0) return at;              // the shape Chrome gets right
-
-      // The item's OWN inline content: everything before the nested list.
-      const own = document.createRange();
-      own.setStart(li, 0);
-      own.setEnd(li, nestedAt);
-      const line = [...own.getClientRects()].find(r => y >= r.top && y <= r.bottom);
-      if (!line || x <= line.right) return at;  // not past the end of that line
-
-      const text = lastTextIn(own);
-      if (!text) return at;
-      const end = document.createRange();
-      end.setStart(text, text.nodeValue.length);
-      end.collapse(true);
-      return end;
-    }
-
-    const samePoint = (a, b) =>
-      a && b && a.startContainer === b.startContainer && a.startOffset === b.startOffset;
-
-    let dragFrom = null;
-    doc.addEventListener('mousedown', (event) => {
-      // Left button, single click only: double- and triple-click select a word
-      // and a line, and the browser is better at both than this is.
-      if (event.button !== 0 || event.detail > 1) return;
-      const raw = document.caretRangeFromPoint
-        ? document.caretRangeFromPoint(event.clientX, event.clientY) : null;
-      const fixed = correctedCaret(event.clientX, event.clientY);
-      if (!raw || !fixed || samePoint(raw, fixed)) return;   // Chrome got it right
-
-      event.preventDefault();
-      doc.focus({ preventScroll: true });
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(fixed);
-      dragFrom = fixed;
-    });
-
-    // On document, not on doc: a drag that leaves the element still has to
-    // extend the selection, and has to end when the button comes up anywhere.
-    document.addEventListener('mousemove', (event) => {
-      if (!dragFrom) return;
-      const to = correctedCaret(event.clientX, event.clientY);
-      const sel = window.getSelection();
-      if (!to || !sel || !sel.extend) return;
-      sel.extend(to.startContainer, to.startOffset);
-    });
-    document.addEventListener('mouseup', () => { dragFrom = null; });
-
-    /* ---- zoom ------------------------------------------------------------ */
-
-    /* Two sizes, and the smaller of them is what used to be the WIDE setting.
-       The old default sat below both and was too small to read, so it is gone
-       rather than kept as a third stop nobody would choose. */
-    function setZoom(huge) {
-      editor.classList.toggle('is-huge', huge);
-      zoomIcon.dataset.icon = huge ? 'zoom-out' : 'zoom-in';
-      zoomBtn.setAttribute('aria-pressed', String(huge));
-      zoomBtn.title = huge ? 'Smaller text' : 'Larger text';
-      store.set(ZOOM_KEY, huge ? 'huge' : 'normal');
-    }
-    zoomBtn.addEventListener('click', () =>
-      setZoom(!editor.classList.contains('is-huge')));
-
     /* ---- opening --------------------------------------------------------- */
 
-    function opened(data) {
+    async function opened(data) {
+      const mine = ++opening;
       if (label) label.textContent = 'OPEN';
       if (padlock) padlock.dataset.icon = 'lock-open';
       gate.hidden = true;
       editor.hidden = false;
+      if (frame) frame.classList.add('is-app');
       token = data.token;
       store.set(TOKEN_KEY, token);
-      render(data.content);
-      lastSaved = doc.innerHTML;   // post-sanitiser, or the first edit re-saves a no-op
-      setZoom(store.get(ZOOM_KEY) === 'huge');
-      setSave(data.seeded ? 'NOT SAVED YET' : `SAVED ${clock(data.savedAt)}`.trim(), null);
-      doc.focus({ preventScroll: true });
+      setSave('LOADING…', 'saving');
+      try {
+        /* The app is an ES module and this is a classic script, and that is
+           fine: import() works from either. The path is absolute because the
+           module resolves its own workers and stylesheet the same way. */
+        const mod = await import('/notes/app.js');
+        if (mine !== opening || !modal.open) return;     // closed while loading
+        app = await mod.mount(editor, {
+          payload: data,
+          token,
+          onToken: (fresh) => { token = fresh; store.set(TOKEN_KEY, fresh); },
+          onLocked: () => { token = null; store.drop(TOKEN_KEY); },
+          onStatus: setSave,
+        });
+      } catch (error) {
+        console.error('notes: the editor failed to load', error);
+        setSave('EDITOR FAILED TO LOAD — SEE CONSOLE', 'error');
+      }
     }
 
     async function unlock(body) {
@@ -2821,18 +2184,23 @@ if (workModal) {
     });
 
     function relock() {
-      flush();
+      opening++;
+      if (app) {
+        // unmount() flushes an unsaved second through sendBeacon first.
+        try { app.unmount(); } catch (error) { console.warn('notes: unmount threw', error); }
+        app = null;
+      }
       if (label) label.textContent = 'PRIVATE';
       if (padlock) padlock.dataset.icon = 'lock';
       editor.hidden = true;
       if (wait) wait.hidden = true;
       gate.hidden = false;
+      if (frame) frame.classList.remove('is-app');
       // The document goes with the overlay. Leaving it in the DOM would keep
       // the notes one devtools panel away for the rest of the visit, which is
       // the thing the server-side check exists to prevent.
-      doc.replaceChildren();
-      rail.replaceChildren();
-      lastSaved = null;
+      editor.replaceChildren();
+      setSave('', null);
       keypad.reset();
       if (location.hash === '#notes') {
         try { history.replaceState(null, '', location.pathname + location.search); }
@@ -2843,6 +2211,8 @@ if (workModal) {
     bindModal(modal, relock);
     document.getElementById('notesClose')?.addEventListener('click',
       () => closeModal(modal));
+    // The app's own close button, in its header.
+    editor.addEventListener('notes:close', () => closeModal(modal));
 
     async function open(trigger, code) {
       /* Two silent tries before the keypad, in this order. A token from before

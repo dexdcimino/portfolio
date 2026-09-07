@@ -5406,105 +5406,19 @@ body.modal-open{overflow:hidden}
 .notes-wait[hidden]{display:none}
 
 /* --- the editor ---------------------------------------------------------- */
-.notes-editor{position:relative;flex:1 1 auto;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr)}
+/* An empty container: notes/app.js mounts the whole notes app into it once
+   the password has passed, and script.js empties it again on close. The app
+   brings its own stylesheet (notes/notes.css); nothing below styles anything
+   inside it. */
+.notes-editor{position:relative;flex:1 1 auto;min-height:0}
 .notes-editor[hidden]{display:none}
-
-/* The rail is built at runtime from whatever sections the document holds, so
-   adding an <h2> to the notes adds a button here and nothing needs editing.
-   Wider than a normal icon column on purpose: at nine sections it is the only
-   navigation in a very long document, and each icon carries the accent that
-   says which section it is. */
-.notes-rail-wrap{
-  display:flex;flex-direction:column;align-items:center;
-  width:68px;padding:14px 0 12px;
-  background:#0b0c12;border-right:1px solid var(--line);
-}
-.notes-rail{
-  flex:1 1 auto;min-height:0;width:100%;
-  display:flex;flex-direction:column;align-items:center;gap:3px;
-  overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;
-}
-.notes-rail::-webkit-scrollbar{display:none}
-.notes-rail button,.notes-zoom{
-  width:48px;height:48px;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:0;background:none;border-radius:11px;color:var(--nv,#b0b0b0);opacity:.75;
-  transition:opacity .18s ease,background .18s ease,color var(--accent-ease);
-}
-.notes-rail button:hover,.notes-rail button.is-here{opacity:1;background:rgba(255,255,255,.07)}
-.notes-rail button:focus-visible,.notes-zoom:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.notes-rail svg{width:26px;height:26px}
-/* The zoom toggle: a square button at the foot of the rail, no label. Two
-   sizes rather than three -- this is a reading-comfort control, not a design
-   tool -- and the smaller of the two is what used to be the WIDE setting. The
-   old default sat below both and was simply too small to read. */
-.notes-zoom{flex:0 0 auto;margin-top:8px;color:var(--muted);opacity:.8}
-.notes-zoom:hover{opacity:1;background:rgba(255,255,255,.07);color:var(--accent)}
-.notes-zoom .icon{width:22px;height:22px}
-
-/* The scrollbar is the THUMB and nothing else -- no track, no buttons. Its
-   colour follows whichever section the reader is beside, which costs one custom
-   property updated on scroll and turns the bar into a second, quieter position
-   indicator next to the rail. */
-.notes-scroll{
-  overflow-y:auto;overscroll-behavior:contain;scroll-behavior:smooth;padding:30px 0 44px;
-}
-/* The native bar is hidden on BOTH engines and replaced by .notes-thumb.
-   Styling it in place does not work: setting scrollbar-width or
-   scrollbar-color makes Chrome ignore ::-webkit-scrollbar and fall back to an
-   overlay bar that takes no layout space (measured: offsetWidth - clientWidth
-   = 0) and fades a second after you stop scrolling -- and no headless run
-   paints either kind, so the result could never be captured and looked at. */
-.notes-scroll{scrollbar-width:none}
-.notes-scroll::-webkit-scrollbar{width:0;height:0;display:none}
-/* Thumb only: no track, no buttons. It takes the accent of whichever section
-   fills most of the view, which makes it a second, quieter position indicator
-   opposite the rail. */
-.notes-thumb{
-  position:absolute;right:5px;width:7px;border-radius:4px;z-index:2;
-  background:var(--nv-thumb,#5c6070);opacity:.5;cursor:grab;
-  transition:opacity .2s ease,background-color .35s ease,width .12s ease;
-}
-.notes-thumb[hidden]{display:none}
-.notes-editor:hover .notes-thumb{opacity:.78}
-.notes-thumb:hover,.notes-thumb.is-dragging{opacity:1;width:9px;right:4px}
-.notes-thumb.is-dragging{cursor:grabbing}
-@media(prefers-reduced-motion:reduce){ .notes-thumb{transition:none} }
-.notes-doc{
-  --nv-body:17px;
-  max-width:min(1180px,100%);margin:0 auto;padding:0 44px;
-  font-family:Arial,Helvetica,sans-serif;color:#c9cede;outline:none;
-}
-.notes-doc:focus-visible{outline:none}
-/* One step BEYOND the old wide setting, for leaning back. */
-.notes-editor.is-huge .notes-doc{--nv-body:21px;max-width:min(1400px,100%);padding:0 52px}
-@media(prefers-reduced-motion:reduce){ .notes-scroll{scroll-behavior:auto} }
-
-/* --- the document itself ------------------------------------------------- */
-.notes-doc .nv-title{font-size:clamp(30px,3.6vw,46px);font-weight:700;color:#fff;margin:0 0 26px}
-.notes-doc .nv-sec{margin:0 0 24px}
-/* One colour per section, named by the converter. The list colour is DERIVED
-   rather than stored beside it: the original document carried both as separate
-   hex values, which is two facts that can disagree. */
-.notes-doc .nv-sec[data-accent="red"]{--nv:#ff5c5c}
-.notes-doc .nv-sec[data-accent="blue"]{--nv:#5cc8ff}
-.notes-doc .nv-sec[data-accent="green"]{--nv:#7cffb2}
-.notes-doc .nv-sec[data-accent="orange"]{--nv:#ffb85c}
-.notes-doc .nv-sec[data-accent="purple"]{--nv:#d59cff}
-.notes-doc .nv-sec[data-accent="yellow"]{--nv:#ffe45c}
-.notes-doc .nv-sec[data-accent="cyan"]{--nv:#5cf0ff}
-.notes-doc .nv-sec[data-accent="pink"]{--nv:#ff9ccb}
-.notes-doc .nv-sec[data-accent="grey"]{--nv:#b0b0b0}
-.notes-doc h2{
-  display:flex;align-items:center;gap:9px;margin:0 0 6px;
-  font-size:calc(var(--nv-body) + 8px);font-weight:700;color:var(--nv,#b0b0b0);
-  scroll-margin-top:22px;
-}
-.notes-doc h2 svg{width:1em;height:1em;flex:0 0 auto}
-.notes-doc ul{margin:0 0 4px;padding-left:24px;font-size:var(--nv-body);line-height:1.55;
-  color:color-mix(in srgb,var(--nv,#b0b0b0) 70%,#0d0e15)}
-.notes-doc ul ul{margin:2px 0 6px;font-size:1em}
-.notes-doc li{margin:0 0 2px}
-.notes-doc li::marker{color:color-mix(in srgb,var(--nv,#b0b0b0) 45%,#0d0e15)}
+/* With the app mounted the shell is the WHOLE viewport: a notes app wants
+   every row it can get, and the matte that framed the old reading surface
+   would only take rows from the sidebar. The close button and the save line
+   hang outside the panel and have nowhere to hang, so the app's header
+   carries both instead. */
+.notes-frame.is-app .notes-shell{width:100vw;height:100dvh;border-radius:0;border:0;background:#0B0D11}
+.notes-frame.is-app .notes-close,.notes-frame.is-app .notes-save{display:none}
 
 /* --- the save line ------------------------------------------------------- */
 /* Under the panel rather than inside it: it says one word most of the time, and
@@ -5523,11 +5437,6 @@ body.modal-open{overflow:hidden}
   .notes-shell{width:100vw;height:100dvh;border-radius:0;border:0}
   .notes-close{top:10px;left:auto;right:10px;margin-left:0}
   .notes-save{position:absolute;bottom:8px;left:12px;margin:0;text-align:left}
-  .notes-rail-wrap{width:54px}
-  .notes-rail button,.notes-zoom{width:42px;height:42px}
-  .notes-rail svg{width:22px;height:22px}
-  .notes-doc{padding:0 18px}
-  .notes-editor.is-huge .notes-doc{padding:0 18px}
 }
 
 /* ==========================================================================
