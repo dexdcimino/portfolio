@@ -3164,7 +3164,7 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
   --pin-shadow:0 4px 12px rgba(0,0,0,.6);
   width:clamp(46px,10.5vw,66px);aspect-ratio:1;
   border-radius:16px;border:var(--stroke) solid #222a31;
-  background:#0c1013;color:var(--text);text-align:center;
+  background:#0c1013;color:var(--accent);text-align:center;
   box-shadow:var(--pin-shadow);
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
   font-size:clamp(22px,5vw,30px);font-weight:700;line-height:1;text-transform:uppercase;
@@ -3187,7 +3187,14 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
    already says the slot is filled, and this only has to keep a row of
    entered-but-unfocused pins from reading as empty. */
 .vault-pin.is-set{border-color:rgba(255,255,255,.16)}
-.vault-pin:disabled{opacity:.6}
+/* A DISABLED PIN DIMS THE BOX, NEVER THE CHARACTER. opacity on the field
+   faded the code you had just typed at the moment the last box was filled:
+   the boxes lock while the key derivation runs, so the answer greyed out
+   under CHECKING and read as the field losing what you wrote. The recess
+   loses its light instead and the accent characters stay lit. */
+.vault-pin:disabled{background:#080b0e;
+  border-color:color-mix(in srgb,#222a31 55%,transparent);
+  box-shadow:0 3px 9px rgba(0,0,0,.5)}
 
 /* min-height holds the line whether or not there is anything on it, so the row
    of boxes does not jump the moment it is told NOPE. */
