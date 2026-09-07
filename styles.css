@@ -5968,7 +5968,12 @@ body.modal-open{overflow:hidden}
 .music-modal.is-docked .music-seek{gap:10px}
 .music-modal.is-docked .music-btn{width:38px;height:38px;border-radius:10px}
 .music-modal.is-docked .music-btn .icon{width:22px;height:22px}
-.music-modal.is-docked .music-btn.is-primary{width:46px;height:46px}
+/* Round in the corner too. The docked width/height rule above is three
+   classes deep and was quietly beating .music-btn.is-primary's 50%, so the
+   one control that says PRIMARY by being a circle turned back into a
+   rounded square the moment the bar docked -- which is where most people
+   see it. */
+.music-modal.is-docked .music-btn.is-primary{width:46px;height:46px;border-radius:50%}
 .music-modal.is-docked .music-btn.is-primary .icon{width:24px;height:24px}
 .music-modal.is-docked .music-tail .music-btn{width:34px;height:34px}
 .music-modal.is-docked .music-tail .music-btn svg{width:15px;height:15px}

@@ -1231,9 +1231,9 @@ assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
 script.js                initMusic() - below MediaBus, see why in its header
 styles.css               .music-*
-tools/music_check.mjs    253 checks in a real browser, serves the repo itself,
+tools/music_check.mjs    273 checks in a real browser, serves the repo itself,
                          reaches NO network — the embed is intercepted
-tools/music_flag_check.mjs  15 checks that DO reach YouTube: a real embed
+tools/music_flag_check.mjs  21 checks that DO reach YouTube: a real embed
                          refusing a real video, over https, see below
 tools/music_probe.mjs    asks YouTube whether every link still plays. --cases
 ```
@@ -1371,6 +1371,42 @@ full-screen overlay is worth having.
 alphabetical order is a filing cabinet, not a playlist. Absent is not the same as
 off: only an explicit `0` turns it off, so the default survives a browser that
 has never touched the control.
+
+**THE CODE STARTS THE MUSIC.** Typing MUSIC into the keypad opens the list
+with a track already playing: that was a request to HEAR the songs, not to look
+at a list of them, and making the reader find a second control after getting a
+password right was a step doing no work (Dex, 2026-09-07). `open()` calls the
+same `startFresh()` the play button used to, so shuffle on means a track that is
+not the one `music-last` names and shuffle off means the top of the list.
+Nothing auto-starts over something already going — coming back from the docked
+bar leaves `index` set and lands on `idle()` instead. Autoplay is not a gamble
+here: the code was typed, so the page has sticky user activation, and the frame
+carries `allow="autoplay"`; a browser that refuses anyway leaves the track
+sitting in the bar with a play button, which is where a refused click landed
+before, and the stall watchdog is not armed outside a dead run so nothing is
+flagged for it.
+
+**AND A CLICK THAT LANDS BEFORE THE EMBED HAS SPOKEN NAVIGATES THE FRAME
+AGAIN.** `loadVideoById` posted into a player that has not answered yet is
+simply gone, so the click did nothing and the auto-started song carried on — a
+race that was theoretical while the first track of a session was always a
+click, and the normal case once the code starts one. `ready` is set by the
+first message the embed sends BACK, not by the iframe's `load` event: measured
+against a real embed, the frame fires load, we post `listening`, and a command
+sent in that same turn is still dropped. Until then `load()` re-points `src`,
+which is the path the first track always took and is made under the reader's
+own click.
+
+**PAST THE FIRST FEW SECONDS, PREVIOUS RESTARTS THE TRACK.** `RESTART_AFTER` is
+5 seconds against `position`, the embed's own clock kept beside the painted one
+(`paintTime()` is a cache that skips its work mid-drag, and Previous has to know
+the position even then). Long enough to reach deliberately, short enough that
+two quick presses still get you to the previous song. Zero — the value before
+the embed has said anything — falls through to the history, because a track that
+has not started cannot be restarted. Only `music_flag_check.mjs` can test this:
+there is no `getCurrentTime` across an origin, the player volunteers the number
+in its `infoDelivery` messages, so a harness that intercepts YouTube has a clock
+that never moves and a rule that can never fire.
 
 **PREVIOUS NEVER SHUFFLES.** Shuffle decides what comes NEXT; back is always the
 song you just heard, which is the only reason anyone presses it. So the player

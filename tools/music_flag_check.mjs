@@ -58,7 +58,11 @@ const GOOD = [
 ];
 // Well-formed, and have never named a video.
 const DEAD = [
-  { t: 'Nothing At All', a: 'Nobody', v: 'aaaaaaaaaaa' },
+  /* 'A ...' so it SORTS FIRST. The list is alphabetical by title and the code
+     auto-starts the top of it with shuffle off, which is how this file reaches
+     a dead track without pressing anything. Rename it and check 1 starts on a
+     real song instead, and proves nothing. */
+  { t: 'A Dead Link', a: 'Nobody', v: 'aaaaaaaaaaa' },
   { t: 'Also Nothing', a: 'Nobody', v: 'bbbbbbbbbbb' },
   { t: 'Still Nothing', a: 'Nobody', v: 'ccccccccccc' },
 ];
@@ -134,10 +138,20 @@ await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => 
 await page.setViewport({ width: 1600, height: 1000 });
 
 /* The overlay is behind a scrypt decryption of a blob in the markup, so it is
-   opened the way a person opens it: type MUSIC into the tilde keypad. */
+   opened the way a person opens it: type MUSIC into the tilde keypad. Which is
+   also what STARTS a track now — nothing below presses play, because a reader
+   does not have to either.
+
+   SHUFFLE IS TURNED OFF FIRST, in storage, before the page that reads it. With
+   it on, the auto-start picks a random row of the fixture and the walk can
+   visit the same dead track twice — which is how "3 dead tracks, 3 refusals,
+   all 3 marked" stopped being implied by giving up. Off, the walk is row 0,
+   row 1, row 2, and every assertion below is about a known track. */
 async function openMusic() {
   await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle2', timeout: 60000 });
-  await page.evaluate(() => { try { localStorage.clear(); } catch {} });
+  await page.evaluate(() => {
+    try { localStorage.clear(); localStorage.setItem('music-shuffle', '0'); } catch {}
+  });
   await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
   await page.keyboard.press('Backquote');
   await page.waitForFunction(() => document.getElementById('codeModal')?.open === true,
@@ -146,21 +160,13 @@ async function openMusic() {
   await page.keyboard.type('MUSIC', { delay: 30 });
   await page.waitForFunction(
     () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 40000 });
-}
-
-// Click the play button on the row for this video id, as a person would.
-async function playRow(v) {
-  const box = await page.evaluate((id) => {
-    const btn = document.querySelector(
-      '#musicRows .music-row[data-v="' + id + '"] .music-play');
-    if (!btn) return null;
-    btn.scrollIntoView({ block: 'center', behavior: 'instant' });
-    const r = btn.getBoundingClientRect();
-    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
-  }, v);
-  if (!box) { note(false, `no row for ${v} to press play on`); return false; }
-  await page.mouse.click(box.x, box.y);
-  return true;
+  /* THE CODE STARTS A TRACK NOW, so settle on that before anything here presses
+     anything: a click that lands mid-navigation is held until the embed says
+     hello, and a check that raced it would be measuring the hold rather than
+     the skip it came for. */
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+    { timeout: 40000 });
 }
 
 const read = () => page.evaluate(() => ({
@@ -182,8 +188,15 @@ const read = () => page.evaluate(() => ({
   serve([DEAD[0], ...GOOD]);
   await openMusic();
 
-  const started = await playRow(DEAD[0].v);
-  note(started, 'the dead track had no row to start');
+  /* Not clicked. With shuffle off the CODE starts the top of the list, and the
+     top of this list is the dead one — so the failure is reached the way a
+     reader reaches it, by typing the password and touching nothing. */
+  const startedOn = await page.evaluate(() => {
+    const lit = document.querySelector('#musicRows .music-row.is-playing');
+    return lit ? lit.dataset.v : null;
+  });
+  note(startedOn === DEAD[0].v,
+       `the code started ${startedOn}, not the dead track at the top of the list`);
 
   // The flag is what says the error was seen at all, so it is what is waited
   // for. Generous: this is a real embed doing a real round trip to YouTube.
@@ -258,7 +271,6 @@ const read = () => page.evaluate(() => ({
 {
   serve(DEAD);
   await openMusic();
-  await playRow(DEAD[0].v);
 
   /* Slow on purpose. Only the FIRST dead track posts an onError: it is the one
      that navigates the frame, and every track after it arrives by
@@ -272,7 +284,13 @@ const read = () => page.evaluate(() => ({
       () => /would play/i.test(document.getElementById('musicNowTitle')?.textContent || ''),
       { timeout: 120000 });
   } catch { gaveUp = false; }
-  note(gaveUp, 'THE AUTO-SKIP NEVER STOPPED on a list with nothing playable in it');
+  /* The failure message names what the bar was showing when it timed out,
+     because the two ways this fails look identical in a boolean: the skip ran
+     and stopped nowhere, or the first embed never spoke at all and nothing
+     ever started. The second is a network state, not a bug in the skip. */
+  const stuck = await read();
+  note(gaveUp, 'THE AUTO-SKIP NEVER STOPPED on a list with nothing playable in it '
+             + `(the bar reads "${stuck.now}", ${stuck.lit.length} flag(s) lit)`);
 
   const end = await read();
   note(end.lit.length === DEAD.length,
@@ -281,13 +299,83 @@ const read = () => page.evaluate(() => ({
   note(end.src === '', 'the frame is still holding a src after giving up');
 }
 
+/* ---- 3. PREVIOUS RESTARTS A TRACK YOU ARE INTO ---------------------------
+   The rule: past the first few seconds, back means "play this from the top",
+   the way every media player made has worked; before that, it means the
+   previous song. Reported by Dex, 2026-09-07.
+
+   THIS FILE AND NOT music_check.mjs, and that is forced rather than chosen.
+   The position comes from the embed's own clock — there is no getCurrentTime
+   to call across an origin, the player VOLUNTEERS the number in its
+   infoDelivery messages — so a harness that intercepts every YouTube request
+   has a clock that never moves and a rule that can never fire. Here the video
+   is real and the seconds are real ones.
+
+   FALSELY PASSES IF: only the first press were checked. "Previous does not
+   change the track" is also what a broken Previous does, so the second press
+   — taken while the restart has put the clock back near zero — has to MOVE. */
+{
+  serve(GOOD);
+  await openMusic();
+
+  const elapsed = () => page.evaluate(() => {
+    const [m, s] = (document.getElementById('musicElapsed').textContent || '0:00').split(':');
+    return (Number(m) || 0) * 60 + (Number(s) || 0);
+  });
+  const lit = () => page.evaluate(() => {
+    const row = document.querySelector('#musicRows .music-row.is-playing');
+    return row ? row.dataset.v : null;
+  });
+
+  const first = await lit();
+  note(first === GOOD[0].v,
+       `the code started ${first}, not the real track at the top of the list`);
+
+  /* The control, and it is the whole check: if the clock never passes the
+     threshold then everything below is measuring a rule that never fired. */
+  let ran = true;
+  try {
+    await page.waitForFunction(() => {
+      const [m, s] = (document.getElementById('musicElapsed').textContent || '0:00').split(':');
+      return (Number(m) || 0) * 60 + (Number(s) || 0) >= 7;
+    }, { timeout: 90000 });
+  } catch { ran = false; }
+  note(ran, 'THE CONTROL FAILED: the track never played 7 seconds, so nothing below '
+          + 'is about the restart rule — check the network');
+
+  const deep = await elapsed();
+  await page.click('#musicPrev');
+  await page.waitForFunction(() => {
+    const [m, s] = (document.getElementById('musicElapsed').textContent || '0:00').split(':');
+    return (Number(m) || 0) * 60 + (Number(s) || 0) < 4;
+  }, { timeout: 15000 }).catch(() => {});
+  const after = { v: await lit(), at: await elapsed() };
+  note(after.v === first,
+       `Previous ${deep}s into a track left ${after.v} playing, not ${first} — it went back a song`);
+  note(after.at < deep,
+       `Previous ${deep}s in left the clock at ${after.at}s — the track did not restart`);
+  note(after.at <= 4, `the restart left the clock at ${after.at}s, not at the top of the track`);
+
+  /* And now the other half, from the top of the same track: nothing is behind
+     it in this session but the list, so Previous has to leave it. */
+  await page.click('#musicPrev');
+  let moved = true;
+  try {
+    await page.waitForFunction((v) => {
+      const row = document.querySelector('#musicRows .music-row.is-playing');
+      return !!row && row.dataset.v !== v;
+    }, { timeout: 15000 }, first);
+  } catch { moved = false; }
+  note(moved, 'Previous at the top of a track restarted it again instead of moving');
+}
+
 await browser.close();
 server.close();
 
 /* Assert the size of the run itself. A harness that stopped reaching its
    subject would drop checks silently and still print a green total. */
 const TOTAL = pass + fail.length;
-if (TOTAL < 15) {
+if (TOTAL < 20) {
   console.error(`music_flag_check: only ${TOTAL} checks ran — the harness has lost its subject`);
   process.exit(1);
 }

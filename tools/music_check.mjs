@@ -204,20 +204,29 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   console.log(`  subject: ${rows} rows built from ${manifest.count} manifest entries`);
 }
 
-/* ---- 3b. the player bar is up before anything is playing ---------------
+/* ---- 3b. the bar is up, and the CODE HAS ALREADY STARTED THE MUSIC -----
    The brief: the bar shows the whole time the overlay is open, so the play
    button is somewhere to press rather than somewhere that appears once you
-   have found a track to click. Which means it needs a real idle state — a
-   screen box the same size as the video that replaces it, so starting a track
-   does not resize the row.
+   have found a track to click — and typing MUSIC into the keypad starts a
+   track, because that was a request to HEAR the songs, not to look at a list
+   of them (Dex, 2026-09-07).
+
+   THE IDLE BAR IS NO LONGER OBSERVABLE HERE, and that is a consequence of the
+   auto-start rather than a check quietly dropped: `open()` renders, shows the
+   bar and starts a track in one tick, so nothing paints in between. It is
+   asserted where it still happens — after a stop — at the top of check 7.
+   The invariant the idle screen box was guarding, that the bar does not resize
+   when the picture comes and goes, is 8c's business now: the docked bar stands
+   the video down for artwork and is asserted to keep one width.
 
    FALSELY PASSES IF: only `hidden` were read. A bar that is present but says
-   nothing, or whose screen collapses to nothing until a video arrives, is the
+   nothing, or a track that is "playing" with no picture and no lit row, is the
    thing this is guarding against. */
 {
   const rest = await page.evaluate(() => {
     const box = (sel) => { const r = document.querySelector(sel).getBoundingClientRect();
       return { w: Math.round(r.width), h: Math.round(r.height) }; };
+    const lit = document.querySelector('#musicRows .music-row.is-playing');
     return {
       barHidden: document.getElementById('musicBar').hidden,
       title: document.getElementById('musicNowTitle').textContent,
@@ -225,17 +234,26 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
       screen: box('#musicScreen'),
       videoHidden: document.getElementById('musicVideo').hidden,
       live: document.getElementById('musicScreen').classList.contains('is-live'),
+      src: document.getElementById('musicVideo').getAttribute('src') || '',
+      litCount: document.querySelectorAll('#musicRows .music-row.is-playing').length,
+      litTitle: lit ? lit.querySelector('.music-title').textContent : '',
       shufflePressed: document.getElementById('musicShuffle').getAttribute('aria-pressed'),
       loop: document.getElementById('musicLoop').dataset.loop,
     };
   });
   note(rest.barHidden === false, 'the player bar is not showing when the overlay opens');
-  note(rest.title.trim().length > 0, 'the idle bar says nothing at all');
-  note(/\d/.test(rest.artist), `the idle bar does not name the queue: "${rest.artist}"`);
-  note(rest.videoHidden === true, 'the embed is on screen before anything is playing');
-  note(!rest.live, 'the screen claims to be live with nothing playing');
+  note(rest.title.trim().length > 0, 'the bar says nothing at all');
+  note(rest.title !== 'Nothing playing',
+       'the code opened the list without starting anything — the auto-start is gone');
+  note(rest.litCount === 1,
+       `${rest.litCount} rows are lit when the overlay opens, expected exactly 1`);
+  note(rest.title === rest.litTitle,
+       `the bar says "${rest.title}" and the lit row says "${rest.litTitle}"`);
+  note(rest.src.includes('/embed/'), 'the overlay opened without navigating the embed');
+  note(rest.videoHidden === false, 'the picture is not on screen for the track that started');
+  note(rest.live, 'the screen is not live for the track the code started');
   note(rest.screen.w > 80 && rest.screen.h > 40,
-       `the idle screen is ${rest.screen.w}x${rest.screen.h} — it collapses before a video arrives`);
+       `the screen is ${rest.screen.w}x${rest.screen.h} — it has collapsed`);
   // Shuffle defaults ON: 311 tracks in alphabetical order is a filing cabinet.
   note(rest.shufflePressed === 'true',
        'shuffle is not on by default in a browser that has never set it');
@@ -245,25 +263,39 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        `repeat defaults to "${rest.loop}" in a browser that has never set it`);
 }
 
-/* ---- 3c. play with nothing playing starts something --------------------
-   FALSELY PASSES IF: the button's own icon were checked. What the brief asks
-   is that pressing play when nothing is going PLAYS something — the track it
-   picks matters far less than that a track is picked at all. */
+/* ---- 3c. the big button pauses and resumes what the code started -------
+   It used to be the thing that started a track from idle; the auto-start above
+   is what does that now, so what is left for this button — and what was never
+   checked while it had the other job — is the pause/resume pair.
+
+   FALSELY PASSES IF: the button's own icon were checked, which is the state it
+   THINKS it is in. The track must stay loaded and stay lit across a pause: a
+   pause that dropped the src or the row would be a stop wearing a pause's
+   label. */
 {
-  await page.click('#musicToggle');
-  await page.waitForFunction(
-    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
-    { timeout: 5000 });
-  const started = await page.evaluate(() => ({
+  const label = () => page.evaluate(() => ({
+    aria: document.getElementById('musicToggle').getAttribute('aria-label'),
+    icon: document.getElementById('musicToggle').querySelector('.icon').dataset.icon,
     src: document.getElementById('musicVideo').getAttribute('src') || '',
-    live: document.getElementById('musicScreen').classList.contains('is-live'),
-    videoHidden: document.getElementById('musicVideo').hidden,
+    lit: document.querySelectorAll('#musicRows .music-row.is-playing').length,
     title: document.getElementById('musicNowTitle').textContent,
   }));
-  note(started.src.includes('/embed/'), 'play from idle loaded no video');
-  note(started.live && !started.videoHidden,
-       'play from idle did not put the picture on screen');
-  note(started.title !== 'Nothing playing', 'the bar still says nothing is playing');
+  const going = await label();
+  note(going.aria === 'Pause', `the button says "${going.aria}" over a playing track`);
+
+  await page.click('#musicToggle');
+  const paused = await label();
+  note(paused.aria === 'Play', `pausing left the button saying "${paused.aria}"`);
+  note(paused.icon === 'play', `pausing left the ${paused.icon} icon on the button`);
+  note(paused.src === going.src, 'pausing dropped the embed — that is a stop, not a pause');
+  note(paused.title === going.title, 'pausing changed the track in the bar');
+  note(paused.lit === 1, `${paused.lit} rows are lit after a pause, expected 1`);
+
+  await page.click('#musicToggle');
+  const back = await label();
+  note(back.aria === 'Pause', `resuming left the button saying "${back.aria}"`);
+  note(back.title === going.title, 'resuming came back on a different track');
+  note(back.src.includes('/embed/'), 'resuming loaded no video');
 }
 
 /* ---- 3d. the playing track can actually be FOUND -----------------------
@@ -544,19 +576,37 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
      permits sound and flash a black box between songs. Reading src after a
      later track therefore reads the earlier one, which is exactly what this
      check did once the bar became permanent and nothing stopped playback
-     between here and 3c. */
+     between here and 3c. Since the code auto-starts a track, the first of the
+     session is the one the OVERLAY picked, not one this file clicked — so
+     that is the one the src has to name. */
   await shutMusic();
+
+  /* AND THIS IS WHERE THE IDLE BAR IS ASSERTED, because a stop is the only
+     thing that produces it now: open() shows the bar and starts a track in one
+     tick, so the state never survives an opening. The dialog is shut here and
+     has no layout, which is why these are the four things idle() actually
+     writes and not the geometry that used to sit beside them. */
+  const idle = await page.evaluate(() => ({
+    title: document.getElementById('musicNowTitle').textContent,
+    artist: document.getElementById('musicNowArtist').textContent,
+    src: document.getElementById('musicVideo').getAttribute('src'),
+    videoHidden: document.getElementById('musicVideo').hidden,
+    live: document.getElementById('musicScreen').classList.contains('is-live'),
+  }));
+  note(idle.src === null, 'stopping left the previous track loaded in the frame');
+  note(idle.title === 'Nothing playing', `the stopped bar says "${idle.title}"`);
+  note(/\d/.test(idle.artist), `the idle bar does not name the queue: "${idle.artist}"`);
+  note(idle.videoHidden === true, 'the embed is still on screen after a stop');
+  note(!idle.live, 'the screen still claims to be live after a stop');
+
   await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
   await page.waitForFunction(() => document.getElementById('musicModal').open === true,
                              { timeout: 5000 });
   await page.waitForFunction(
     () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 5000 });
-  note(await page.evaluate(() => document.getElementById('musicVideo').getAttribute('src') === null),
-       'reopening the overlay left the previous track loaded in the frame');
 
   const track = await page.evaluate(() => {
-    const row = document.querySelectorAll('#musicRows .music-row')[3];
-    row.querySelector('.music-play').click();
+    const row = document.querySelector('#musicRows .music-row.is-playing');
     return { v: row.dataset.v, title: row.querySelector('.music-title').textContent };
   });
   await page.waitForFunction(() => document.getElementById('musicBar').hidden === false,
@@ -571,7 +621,8 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
 
   note(bar.src.startsWith('https://www.youtube-nocookie.com/embed/'),
        `the embed is not on the nocookie host: ${bar.src.slice(0, 60)}`);
-  note(bar.src.includes(`/embed/${track.v}?`), 'the embed URL names the wrong video');
+  note(bar.src.includes(`/embed/${track.v}?`),
+       'the embed URL names a different video from the row that is lit');
   note(bar.src.includes('enablejsapi=1'),
        'the embed has no enablejsapi — every transport button would be inert');
   note(bar.now === track.title, `the bar says "${bar.now}", the row says "${track.title}"`);
@@ -916,7 +967,8 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   await page.waitForFunction(() => document.getElementById('musicModal').open === true,
                              { timeout: 5000 });
   await page.waitForFunction(
-    () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 5000 });
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+    { timeout: 5000 });
 
   const rows = await page.evaluate(() =>
     document.querySelectorAll('#musicRows .music-row').length);
@@ -943,8 +995,13 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
     lit: document.querySelectorAll('#musicRows .music-row.is-playing').length,
   }));
 
+  /* The track the CODE started, which is the bottom of this session's history
+     and therefore where walking back has to end up. */
+  const z = (await nowV()).v;
+
   const a = await playRow(4), b = await playRow(40), c = await playRow(120);
-  note(new Set([a, b, c]).size === 3, 'check 7e played the same row twice — it proves nothing');
+  note(new Set([z, a, b, c]).size === 4,
+       'check 7e played the same row twice — it proves nothing');
   note((await nowV()).v === c, 'the third click did not leave the third track playing');
 
   await page.click('#musicPrev');
@@ -959,36 +1016,79 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   const two = await nowV();
   note(two.v === a, `a second Previous landed on ${two.v}, not ${a} — the history ping-ponged`);
 
+  /* All the way down: the track the CODE started is the oldest thing in the
+     history and the last stop before the bottom. */
+  await page.click('#musicPrev');
+  const third = await nowV();
+  note(third.v === z,
+       `the third Previous landed on ${third.v}, not the track the code started (${z})`);
+
   /* The bottom of the history. There is no "row above" that means anything
      with shuffle on, so the current track restarts — what every other player
      does at the top of a queue. The failure being ruled out is a jump to a
      random row, which is the original bug with fewer presses. */
   await page.click('#musicPrev');
   const floor = await nowV();
-  note(floor.v === a,
-       `Previous with nothing behind it jumped to ${floor.v} — it must restart ${a}`);
+  note(floor.v === z,
+       `Previous with nothing behind it jumped to ${floor.v} — it must restart ${z}`);
 
-  /* Shuffle OFF, from an empty history: the list order IS the play order, so
-     the row above is the right answer and stays the fallback. */
-  await shutMusic();
-  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
-  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
-                             { timeout: 5000 });
+  /* A HISTORY THAT IS NO LONGER IN THE LIST. The queue is re-filtered under a
+     live player all the time — that is what the search box does — and an id
+     that has been filtered out cannot be loaded by index. Walking past those
+     rather than following them is why the history holds ids and not positions,
+     and this is the only check that reaches that branch. */
+  const d = await playRow(200);
+  const dTitle = await page.evaluate((v) => document.querySelector(
+    `#musicRows .music-row[data-v="${v}"] .music-title`).textContent, d);
+  await page.type('#musicSearch', dTitle);
+  await page.waitForFunction((v, all) => {
+    const list = [...document.querySelectorAll('#musicRows .music-row')];
+    return list.length > 0 && list.length < all && list.some(r => r.dataset.v === v);
+  }, { timeout: 5000 }, d, rows);
+  const filtered = await page.evaluate((gone) => {
+    const rows = [...document.querySelectorAll('#musicRows .music-row')].map(r => r.dataset.v);
+    return { n: rows.length, carries: gone.filter(v => rows.includes(v)) };
+  }, [z, a, b, c]);
+  note(filtered.carries.length === 0,
+       `the search left ${filtered.carries.length} of the played tracks in the list — `
+       + 'this check needs them gone to mean anything');
+  await page.click('#musicPrev');
+  const stranded = await nowV();
+  note(stranded.v === d,
+       `Previous followed a history that is no longer in the list, landing on ${stranded.v}`);
+  note(stranded.lit === 1, `${stranded.lit} rows are lit, expected 1`);
+  await page.evaluate(() => {
+    const s = document.getElementById('musicSearch');
+    s.value = '';
+    s.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForFunction((n) =>
+    document.querySelectorAll('#musicRows .music-row').length === n, { timeout: 5000 }, rows);
+
+  /* SHUFFLE OFF walks the list once the history runs out, and it wraps rather
+     than stopping, because repeat defaults to the whole playlist. Thrown before
+     the overlay is reopened so the auto-start is the deterministic one — the
+     top of the list — and the history is empty behind it. */
   await page.click('#musicShuffle');
   note(await page.evaluate(() =>
        document.getElementById('musicShuffle').getAttribute('aria-pressed') === 'false'),
        'clicking shuffle did not turn it off for the list-walk half of check 7e');
-  const at20 = await playRow(20);
+  await shutMusic();
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+    { timeout: 5000 });
+  const top = await page.evaluate(() => [...document.querySelectorAll('#musicRows .music-row')]
+    .indexOf(document.querySelector('#musicRows .music-row.is-playing')));
+  note(top === 0, `with shuffle off the code started row ${top}, not the top of the list`);
   await page.click('#musicPrev');
-  const above = await page.evaluate(() => {
-    const list = [...document.querySelectorAll('#musicRows .music-row')];
-    const now = document.querySelector('#musicRows .music-row.is-playing');
-    return { i: list.indexOf(now), v: now?.dataset.v ?? null, want: list[19]?.dataset.v ?? null };
-  });
-  note(above.i === 19,
-       `with shuffle off and nothing played before it, Previous went to row ${above.i}, not 19`);
-  note(above.v === above.want && above.v !== at20,
-       'with shuffle off, Previous did not land on the row above');
+  const wrapped = await page.evaluate(() => [...document.querySelectorAll('#musicRows .music-row')]
+    .indexOf(document.querySelector('#musicRows .music-row.is-playing')));
+  note(wrapped === rows - 1,
+       `with shuffle off and nothing behind it, Previous from the top went to row ${wrapped}, `
+       + `not round to ${rows - 1}`);
   await page.click('#musicShuffle');            // leave it as it was found
   note(await page.evaluate(() =>
        document.getElementById('musicShuffle').getAttribute('aria-pressed') === 'true'),
@@ -1057,11 +1157,13 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
                              { timeout: 5000 });
 }
 
-/* ---- 8b. play from idle serves a different track each time -------------
+/* ---- 8b. two goes at the code serve two different tracks ---------------
    Not a probabilistic check: startFresh() excludes the track music-last names,
-   so two fresh plays in a row MUST differ. Reported as "it keeps playing the
+   so two fresh starts in a row MUST differ. Reported as "it keeps playing the
    same song" — the first version resumed the last track on purpose, which in a
-   shuffled list of 311 reads as a broken button rather than as a bookmark. */
+   shuffled list of 311 reads as a broken button rather than as a bookmark. The
+   auto-start runs the same startFresh(), so this now measures what a reader
+   actually does: type the code, hear a song, come back later, hear another. */
 {
   const spin = async () => {
     await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
@@ -1069,7 +1171,6 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
                                { timeout: 5000 });
     await page.waitForFunction(() => document.getElementById('musicBar').hidden === false,
                                { timeout: 5000 });
-    await page.click('#musicToggle');
     await page.waitForFunction(
       () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
       { timeout: 5000 });
@@ -1081,10 +1182,16 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   const first = await spin();
   const second = await spin();
   note(first !== second,
-       `play from idle served ${first} twice running — it must not repeat the last track`);
+       `two goes at the code served ${first} twice — it must not repeat the last track`);
 
   /* Shuffle OFF is the one case that is not random. Someone who turned shuffle
-     off and pressed play is asking for the top of the list, not a surprise. */
+     off is asking for the top of the list, not a surprise — so the switch is
+     thrown, the overlay is shut, and the NEXT opening is the one measured. The
+     setting is remembered in localStorage, which is what makes that possible
+     and is also the thing being relied on.
+
+     Reopened first: spin() above ends on a shut overlay, and a control inside a
+     closed <dialog> has no box for a click to land in. */
   await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
   await page.waitForFunction(() => document.getElementById('musicModal').open === true,
                              { timeout: 5000 });
@@ -1092,14 +1199,20 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(await page.evaluate(() =>
        document.getElementById('musicShuffle').getAttribute('aria-pressed') === 'false'),
        'clicking shuffle did not turn it off');
-  await page.click('#musicToggle');
+  await shutMusic();
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
   await page.waitForFunction(
     () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
     { timeout: 5000 });
+  note(await page.evaluate(() =>
+       document.getElementById('musicShuffle').getAttribute('aria-pressed') === 'false'),
+       'shuffle did not stay off across a close and reopen');
   note(await page.evaluate(() => {
          const rows = [...document.querySelectorAll('#musicRows .music-row')];
          return rows.indexOf(document.querySelector('.music-row.is-playing')) === 0;
-       }), 'with shuffle off, play from idle did not start at the top of the list');
+       }), 'with shuffle off, the code did not start at the top of the list');
   await page.click('#musicShuffle');   // leave it as it was found
 
   /* ---- and the X closes the overlay. It used to put the bar away, which is
@@ -1182,6 +1295,24 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(docked.expandShown, 'the expand tab is not showing on the docked bar');
   note(!docked.listShown, 'the docked bar is still showing the whole list');
   note(docked.playing === 1, 'the docked player lost the track it was playing');
+
+  /* THE PLAY BUTTON STAYS A CIRCLE IN THE CORNER. Round is what says primary
+     in this bar — every other control is a rounded square — and the docked
+     size rule is three classes deep, so it quietly out-specifics
+     .music-btn.is-primary and had been serving a rounded square in the one
+     place most people see the bar (Dex, 2026-09-07). Measured, not read off
+     the stylesheet: a rule that loses to a later one still looks right in the
+     source, which is exactly how this got through. */
+  const round = await page.evaluate(() => {
+    const b = document.getElementById('musicToggle');
+    const r = b.getBoundingClientRect();
+    return { radius: getComputedStyle(b).borderRadius, w: Math.round(r.width),
+             h: Math.round(r.height) };
+  });
+  note(/50%/.test(round.radius) || parseFloat(round.radius) >= round.w / 2,
+       `the docked play button is not a circle (border-radius ${round.radius} on ${round.w}px)`);
+  note(round.w === round.h && round.w > 30,
+       `the docked play button is ${round.w}x${round.h} — a circle needs a square box`);
   // A non-modal dialog is not an overlay: the page has to be usable again.
   note(!docked.scrollLocked, 'the page is still scroll-locked behind the docked bar');
 
@@ -1628,9 +1759,15 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
      it renders in the top layer, above every z-index on the page — and #tip is
      a div on <body>. A bubble painted behind the thing it labels is the same
      as no bubble, and nothing else in this file hovers a tip inside a dialog. */
+  /* SCROLLED TO FIRST, and that is not tidiness. The code auto-starts a track
+     now, and load() puts the playing row on screen — which with shuffle on is
+     somewhere in 311 rows and is not this one. A rect taken without this is a
+     position outside the list's own box, so the pointer lands on nothing and
+     the tooltip check reports a missing bubble as a bug in the tooltip. */
   const box = await page.evaluate((id) => {
     const btn = document.querySelector(
       '#musicRows .music-row[data-v="' + id + '"] .music-flag');
+    btn.scrollIntoView({ block: 'center', behavior: 'instant' });
     const r = btn.getBoundingClientRect();
     return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
   }, v);

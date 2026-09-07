@@ -25,6 +25,62 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the code starts the music, and a click that beats the embed navigates again
+
+**Decided.** `open()` auto-starts a track through the same `startFresh()` the play
+button used to call, so typing MUSIC into the keypad opens a list with something
+already playing. Nothing auto-starts over something already going: coming back from
+the docked bar leaves `index` set and lands on `idle()`. And because the reader's
+first click now lands a fraction of a second after a fresh navigation, `load()`
+re-points `src` rather than posting `loadVideoById` whenever the embed has not
+spoken yet — with `ready` set by the first message the embed sends BACK, not by the
+iframe's own `load` event.
+
+**Replaced.** An overlay that opened idle, with the bar waiting to be pressed; and a
+`load()` that always commanded a player it assumed was listening.
+
+**Why.** Getting a password right is already the request. Asked for by Dex, and the
+step it removes was doing no work — nobody types MUSIC to look at a list of song
+titles. The second half is not a separate idea, it is the bill for the first: a
+command posted into a window that has not answered is silently dropped, so the click
+did nothing and the auto-started song carried on. The iframe's `load` event looked
+like the right moment to flush it and is not — measured against a real embed, the
+frame fires load, we post `listening`, and a command sent in that same turn is still
+lost. Re-navigating is not a new risk either: it is the path the first track of a
+session always took, and it is made under the reader's own click, which is the
+strongest case autoplay has.
+
+**Reverse it if.** A browser starts refusing the auto-start often enough that
+readers land on a bar that says a track is playing and is silent. The signal is
+reports of "it opens paused", not a measurement anything here can make. The
+re-navigation half falls only if the embed gains a way to queue a command before it
+is listening.
+
+---
+
+## 2026-09-07 — past five seconds, Previous restarts the track
+
+**Decided.** `back()` restarts the current track when `position >= RESTART_AFTER`
+(5 seconds), in both shuffle modes, before it looks at the history at all.
+
+**Replaced.** A Previous that always moved — first to the row above, then, from the
+entry above it, to the previously played track.
+
+**Why.** Asked for by Dex, and it is what every media player made does: you notice
+you have missed the opening, you press back, you hear the opening. Five seconds
+rather than three because it has to be reachable deliberately, and rather than ten
+because two quick presses still have to reach the previous song. The threshold reads
+`position`, kept beside the painted clock rather than off it, because `paintTime()`
+is a cache that skips its work while a scrub handle is held and back has to know
+where it is even then. Zero — the value before the embed has volunteered a time —
+falls through to the history rather than restarting nothing.
+
+**Reverse it if.** Nothing foreseeable; this is the most conventional behaviour a
+transport control has. The NUMBER is worth revisiting if anyone finds five seconds
+too short to reach or too long to walk past, and it is one constant.
+
+---
+
 ## 2026-09-07 — Previous walks a play history, and never shuffles
 
 **Decided.** The music player keeps `history`, a capped list of the video ids it has

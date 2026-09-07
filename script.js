@@ -5170,6 +5170,13 @@ const MediaBus = (() => {
   let volume = 0.4;           // the site's default everywhere
   let lastVolume = 0.4;       // what unmuting goes back to
   let duration = 0;           // of the current track, as the embed reports it
+  /* WHERE WE ARE IN IT, in seconds, as the embed reports it. Kept beside the
+     painted clock rather than read off it: paintTime() is a cache that skips
+     its work while a handle is being dragged, and Previous has to know the
+     position even then. Zero until something says otherwise, which is the
+     honest answer when the embed has not spoken -- and it makes Previous fall
+     through to walking the history rather than restarting nothing. */
+  let position = 0;
   let scrubbing = false;      // a finger is on the handle: stop painting over it
   let armed = false;          // the iframe has a src and will take commands
   let current = null;         // the track LOAD asked for, which index can lose
@@ -5181,6 +5188,20 @@ const MediaBus = (() => {
   /* Armed only while skipping past dead tracks, and cleared the moment
      anything plays. See stalled() for why it is not always on. */
   let watchdog = 0;
+  /* HAS THE EMBED SPOKEN YET. A player that is still coming up cannot hear
+     loadVideoById -- the message is posted into a window that is not listening
+     and is simply gone. That was a theoretical race while the first track of a
+     session was always a click; the code auto-starts one now, so a reader's
+     first click lands a fraction of a second after a fresh navigation and the
+     race is the normal case.
+
+     THE IFRAME'S OWN load EVENT IS NOT THE SIGNAL, measured against a real
+     embed: the frame fires load, we post `listening`, and the player still
+     drops a command sent in that same turn -- it is not listening until it has
+     answered. So the flag is set by the first message that comes BACK, which
+     is the only proof there is something on the other end. Until then a load()
+     navigates the frame instead of commanding it. */
+  let ready = false;
 
   /* The bar's X, and only the bar's X, means END IT. Everything else that
      closes the overlay hands the music to the corner.
@@ -5574,6 +5595,15 @@ const MediaBus = (() => {
     if (!armed) {
       frame.src = srcFor(track.v);
       armed = true;
+      ready = false;
+    } else if (!ready) {
+      /* NAVIGATE AGAIN. The player has never spoken, so there is no playback to
+         interrupt and no permission to lose -- and this is exactly the path the
+         first track of a session has always taken, made under the reader's own
+         click, which is the strongest case autoplay has. Posting a command
+         instead puts it into a window that is not listening, where it is gone:
+         the click does nothing and the auto-started song keeps playing. */
+      frame.src = srcFor(track.v);
     } else {
       cmd('loadVideoById', [track.v]);
       pushVolume();
@@ -5603,11 +5633,22 @@ const MediaBus = (() => {
     load(n, true);
   }
 
+  /* PAST THE FIRST FEW SECONDS, BACK MEANS RESTART THIS TRACK. Every media
+     player made works this way, and it is the half of Previous people use most
+     -- you notice you have missed the opening, you press back, you hear the
+     opening. Five seconds because it has to be long enough to be reachable
+     deliberately and short enough that two quick presses still get you to the
+     previous song, which is the other thing that button is for. */
+  const RESTART_AFTER = 5;
+
   /* PREVIOUS NEVER SHUFFLES, in either mode. Shuffle decides what comes NEXT;
      back is always the song you just heard, which is the only reason anyone
      presses it. This is the one control the bar and the docked corner share,
      so fixing it here fixes both. */
   function back() {
+    /* Zero means the embed has said nothing yet -- a track that has not
+       started cannot be restarted, so that falls through to the history. */
+    if (index >= 0 && position >= RESTART_AFTER) { restart(); return; }
     while (history.length) {
       const v = history.pop();
       const i = queue.findIndex(t => t.v === v);
@@ -5620,14 +5661,23 @@ const MediaBus = (() => {
        that picks at random -- which is the bug this replaced. */
     if (shuffle) {
       if (index < 0) { startFresh(); return; }
-      cmd('seekTo', [0, true]);
-      // resume() and not a bare playVideo: pressing a transport control is a
-      // claim on the page's audio, and that is the thing that tells the bus.
-      resume();
+      restart();
       return;
     }
     const next = index - 1;
     load(next < 0 ? (loop === 'off' ? 0 : queue.length - 1) : next, true, true);
+  }
+
+  /* resume() and not a bare playVideo: pressing a transport control is a claim
+     on the page's audio, and that is the thing that tells the bus. `position`
+     is zeroed here rather than waited for, or a second press inside the same
+     second would read the old time and restart again instead of stepping back
+     a track. */
+  function restart() {
+    cmd('seekTo', [0, true]);
+    position = 0;
+    paintTime(0);
+    resume();
   }
 
   function step(delta) {
@@ -5658,6 +5708,7 @@ const MediaBus = (() => {
     cmd('stopVideo');
     frame.removeAttribute('src');
     armed = false;
+    ready = false;
     playing = false;
     index = -1;
     current = null;
@@ -5911,6 +5962,7 @@ const MediaBus = (() => {
 
   function resetTime() {
     duration = 0;
+    position = 0;
     scrubbing = false;
     // ...or the new track's first second would be swallowed as a no-op.
     shownSecond = -1;
@@ -5927,7 +5979,9 @@ const MediaBus = (() => {
      leave the arrow keys moving a handle that seeks nothing. */
   const commitSeek = () => {
     scrubbing = false;
-    if (duration > 0) cmd('seekTo', [(scrubEl.value / 1000) * duration, true]);
+    if (duration <= 0) return;
+    position = (scrubEl.value / 1000) * duration;
+    cmd('seekTo', [position, true]);
   };
   scrubEl.addEventListener('pointerup', commitSeek);
   scrubEl.addEventListener('change', commitSeek);
@@ -6007,6 +6061,9 @@ const MediaBus = (() => {
     catch { return; }
     if (!data || typeof data !== 'object') return;
 
+    // It spoke, so it is listening: from here a command will be heard.
+    ready = true;
+
     /* READ THIS BEFORE THE STATE BELOW. An onError also carries a NUMBER in
        `info` -- the error code -- so it is indistinguishable from a state
        message by shape alone, and letting it reach the state reader is how a
@@ -6023,7 +6080,7 @@ const MediaBus = (() => {
     const info = data.info;
     if (info && typeof info === 'object') {
       if (Number.isFinite(info.duration) && info.duration > 0) duration = info.duration;
-      if (Number.isFinite(info.currentTime)) paintTime(info.currentTime);
+      if (Number.isFinite(info.currentTime)) { position = info.currentTime; paintTime(info.currentTime); }
     }
 
     /* The embed reports its state two ways depending on which message it is:
@@ -6174,7 +6231,21 @@ const MediaBus = (() => {
        to click. It only becomes visible here, not in the markup, because until
        the manifest lands there is nothing for it to play. */
     bar.hidden = false;
-    if (index < 0) idle();
+    /* THE CODE STARTS THE MUSIC. Typing MUSIC into the keypad is not a request
+       to look at a list of songs; it is a request to hear them, and making the
+       reader find and press a second control after getting a password right is
+       a step that was never doing any work. Nothing is playing means nothing is
+       interrupted -- coming back to a docked bar leaves `index` set and lands
+       on idle() below, which is the case where a reader HAS something going and
+       auto-starting would talk over it.
+
+       AUTOPLAY: the code was typed, so the page has been interacted with, and
+       the frame carries allow="autoplay". If a browser refuses anyway the bar
+       shows the track sitting there with a play button, which is the same place
+       a refused click lands -- no worse than before, and the watchdog is not
+       armed outside a dead run, so nothing gets flagged for it. */
+    if (index < 0 && queue.length) startFresh();
+    else if (index < 0) idle();
     // Not the search box: a keyboard landing in a text field means the first
     // thing typed disappears into a filter nobody asked for.
     (viewAll || modal).focus({ preventScroll: true });
