@@ -3,38 +3,54 @@
   "name": "Dex music remote",
   "version": "1.0",
   "description": "Media keys drive the music on the portfolio site from anywhere on the machine.",
-  "permissions": ["tabs"],
+  "permissions": [
+    "tabs"
+  ],
   "host_permissions": [
+    "https://dexcimino.com/*",
+    "https://www.dexcimino.com/*",
     "https://*.vercel.app/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
-  "background": { "service_worker": "background.js" },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [
+        "https://dexcimino.com/*",
+        "https://www.dexcimino.com/*",
         "https://*.vercel.app/*",
         "http://localhost/*",
         "http://127.0.0.1/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
   ],
   "commands": {
     "next": {
-      "suggested_key": { "default": "MediaNextTrack" },
+      "suggested_key": {
+        "default": "MediaNextTrack"
+      },
       "description": "Next track",
       "global": true
     },
     "prev": {
-      "suggested_key": { "default": "MediaPrevTrack" },
+      "suggested_key": {
+        "default": "MediaPrevTrack"
+      },
       "description": "Previous track",
       "global": true
     },
     "toggle": {
-      "suggested_key": { "default": "MediaPlayPause" },
+      "suggested_key": {
+        "default": "MediaPlayPause"
+      },
       "description": "Play or pause",
       "global": true
     }

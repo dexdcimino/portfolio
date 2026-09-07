@@ -1307,6 +1307,10 @@ assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
 script.js                initMusic() - below MediaBus, see why in its header
 styles.css               .music-*
+remote/                  the media-key extension. THE SITE IS SERVED AT
+                         https://dexcimino.com -- written here because it was
+                         recorded nowhere in this repo at all, and remote/
+                         needs it in two files
 tools/music_check.mjs    352 checks in a real browser, serves the repo itself,
                          reaches NO network — the embed is intercepted
 tools/music_flag_check.mjs  21 checks that DO reach YouTube: a real embed

@@ -30,6 +30,8 @@
 
 /* The same list as manifest.json's matches. Edit BOTH when the site moves. */
 const SITE = [
+  'https://dexcimino.com/*',
+  'https://www.dexcimino.com/*',
   'https://*.vercel.app/*',
   'http://localhost/*',
   'http://127.0.0.1/*',

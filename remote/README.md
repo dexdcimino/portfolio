@@ -31,9 +31,15 @@ While this is enabled **the media keys belong to it**, so they stop reaching
 Spotify and anything else. That is what "override everything" asked for. Turning
 it off in `chrome://extensions` gives them back immediately.
 
-## When the site moves to its own domain
+## The sites it acts on
 
-Two files, same list, and they must match:
+`https://dexcimino.com` (and `www.`), plus `*.vercel.app` and localhost for
+previews and local runs.
+
+## When that changes
+
+Two files, same list, in the same order, and they must match — `music_check.mjs`
+8g fails the build if they drift:
 
 - `manifest.json` — `host_permissions` and `content_scripts[0].matches`
 - `background.js` — `SITE`
