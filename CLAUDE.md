@@ -38,7 +38,7 @@ checkers below and the commit hooks that fire them. Doctrine rule 23.
 | `python tools/bake_music.py --cases` | the track-list gate can still refuse — 10 cases |
 | `python tools/focal_point.py` | the crop-aiming rule still keeps heads in frame — 8 cases |
 | `node tools/notes_check.mjs` | the notes overlay: no leak (content OR code) before the password, the migration of the pre-rebuild HTML, an edit surviving reload and a second browser, two devices merging on a 409, tiered backups, the app-filled shell, the vault door — 39 checks, needs the dev server |
-| `node tools/notes_editor_check.mjs` | the notes editor through real keys: bullets, nesting, multi-line indent that keeps the selection, Enter and Backspace unwinding, word-level undo with the caret, todo, triggers, formatting as tags, paste hygiene, links, the emoji and slash pickers, autocorrect and its Backspace revert, spell marks, an image drop stored by key, sessions, archive/restore/undo-delete, theme, rail, and what reaches the store — 85 checks, needs the dev server |
+| `node tools/notes_editor_check.mjs` | the notes editor through real keys: bullets, nesting, multi-line indent that keeps the selection, Enter and Backspace unwinding, word-level undo with the caret, todo, triggers, formatting as tags, paste hygiene, links, the emoji and slash pickers, autocorrect and its Backspace revert, spell marks, an image drop stored by key, sessions, archive/restore/undo-delete, theme, rail, the three text tiers a category colour paints (and that the session's does not), a dark pick lifted to readable, and what reaches the store — 108 checks, needs the dev server |
 | `node tools/notes_dictate_check.mjs` | dictation and the AI Lab sandbox, against a FAKE SpeechRecognition and a fake clock installed before any page script: the button, both engines' result shapes, the caret as insertion point, a click cutting the utterance off, undo, auto-restart, the pill, the ten-minute silence cap, a refused microphone, and a sandbox that makes zero API calls and leaves the real notes byte-identical — 71 checks, needs the dev server |
 | `node tools/notes_store_check.mjs` | the notes store against a stubbed Vercel Blob: seeding, the legacy read order, refusals that must not reseed, the rev check writing nothing on a conflict, the ten-minute and daily tiers on a synthetic clock, assets by sha — 63 checks, no server needed |
 | `node tools/work_check.mjs` | featured work, the work overlay, the code prompt, the games stack and the AI Lab — 93 checks, serves the repo itself |
@@ -109,6 +109,25 @@ Named next to the honest ones, because a false green is worse than a red (doctri
   "say" returns a string when there is no live session; without checking it,
   every downstream assertion passes for the wrong reason. Anything that drives
   a stub must fail loudly when the stub had nothing to drive.
+- **A `var()` chain is substituted where it is DECLARED, not where it is
+  used.** `--c-title: var(--c)` on the app root resolves once, there, against
+  the root's `--c`; every descendant inherits that finished colour, and
+  overriding `--c` further down cannot reach it. It looks like a live
+  derivation and is a constant. A value that must differ per element is set on
+  that element — `paintColor()` in `notes/render.js` writes literal colours.
+- **A reset with a type selector outranks a single-class rule.**
+  `.nt-app button { color: inherit }` is (0,1,1) and beat `.nt-cat-emoji`
+  (0,1,0), so every deliberate accent colour on a button silently lost to the
+  reset. Wrap resets in `:where()` — zero specificity — so a rule written on
+  purpose always wins.
+- **A check whose fixture colour matches the default proves nothing.** The
+  first colour check tinted a category green on a session that was already
+  green: every assertion passed while the feature was completely broken. Pick
+  a fixture value nothing else on the page could produce.
+- **The theme is a SAVED setting, so a harness does not start where you think.**
+  A screenshot script left the store on light and took four "on the dark
+  theme..." assertions down with it — failing on the previous run's state, not
+  on the code. Put the run in a known state and assert you got there.
 - **Polling until two reads agree returns mid-transition** for anything off-screen: Chrome
   stalls transitions between compositor ticks, so the same in-flight value appears twice.
   Settle on the site's own reduced-motion path instead of guessing at a sleep.

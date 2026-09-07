@@ -1209,6 +1209,7 @@ notes/          the app, ES modules, fetched only after the password passes
   history.js      the undo stack: text transactions and structural ones
   editor.js       typing: lists, Enter, Backspace, Tab, triggers, paste, copy
   dictate.js      the microphone: the caret as insertion point, the commit diff
+  color.js        the picker, and tints(): one hex -> the three text tiers
   render.js       sidebar, rail, canvas, sessions, archive, drag-reorder, scroll spy
   chips.js        link chips, markdown nodes, images (upload, size, menus)
   spell.js        Highlight API marks, the right-click menu, autocorrect
@@ -1391,6 +1392,59 @@ moves the caret. The sidebar row, the rail letter and the canvas header all
 carry the category's colour as `--c` on the element; `--c-text` is that colour
 as text, darkened on the light theme. The scroll spy marks the category that
 fills most of the view and paints the scrollbar with its colour.
+
+### Colour: the session accents the page, a category colours its text
+
+Two colours, two jobs, and they were tangled.
+
+**The session's colour is the page's accent** -- buttons, focus rings, the
+search field, the session title, the scrollbar -- and it is the colour a NEW
+category is born with. Nothing else.
+
+**A category's colour is that category's TEXT.** `tints()` in `notes/color.js`
+turns one hex into three, and they are a hierarchy rather than a palette:
+
+| tier | where | how it is made |
+|---|---|---|
+| `--c-body` | everything in the note box | the colour as picked |
+| `--c-bold` | bold text and `<h3>` | a step further from the background, saturation x 0.88 |
+| `--c-title` | the category header, its sidebar row, its rail letter | one more step, at the bold tier's saturation |
+
+"A step further from the background" is lighter on the dark theme and darker
+on the light one. Lighter is what was asked for, but on a light ground lighter
+is *less* prominent, and the point of the tiers is that the title reads as the
+most prominent thing -- so the direction flips with the theme and the ranking
+never does. `repaintColors()` re-derives everything on a theme flip for exactly
+that reason; it is cheaper than a re-render and, unlike one, it cannot move the
+caret out of a focused box.
+
+Each tier is then walked away from its own background until it clears a WCAG
+contrast target -- 4.6:1 for the body against the note box, 5.6:1 for bold,
+6:1 for the title against the canvas. Brightness moves first; once that is
+spent, saturation, because "lighter" past full brightness means toward white.
+**Without this a category picked dark navy paints its own notes invisible**,
+and the picker is a free-form HSB field, so that is one drag away rather than
+a hypothetical. A near-black pick comes back as a readable mid-blue.
+
+**Why JS and not CSS.** `--c-title: var(--c)` written on `.nt-app` is
+substituted **once, there**, against the session's colour. Every category then
+inherits that finished value, and overriding `--c` on a section cannot reach
+it -- a var() chain does not re-resolve per element. A category recoloured
+green kept a blue title for exactly that reason, and it read as the colour not
+having saved. `paintColor()` sets all four as literal colours on the element
+that owns them, so there is no chain to resolve.
+
+**Two specificity traps, both paid for.** `.nt-app button { color: inherit }`
+is one class plus a type and outranks a plain `.nt-cat-emoji`, so every
+deliberate accent on a button lost to the reset -- the category badge's letter
+was neutral grey whatever the category's colour. The reset is wrapped in
+`:where()` now, which has no specificity, because a reset must never beat a
+rule written on purpose. And code blocks and quotes stay neutral on purpose: a
+snippet should not change colour because the category around it did.
+
+**The badge with no emoji** is a dark square ringed 2px in the note box's own
+line, with the letter in the category's colour -- so an uncoloured category
+and a green one are told apart from the badge alone.
 
 ### Dictation
 

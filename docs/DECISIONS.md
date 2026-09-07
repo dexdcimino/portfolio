@@ -25,6 +25,32 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — a category's colour is its text, and the tiers are computed in JS
+
+**Decided.** One hex per category becomes three colours -- body, bold, title --
+derived in `tints()` and written onto the element as literal values by
+`paintColor()`. The session's colour is the page's accent and the colour a new
+category inherits; it is not the colour of any category's text. Every tier is
+pushed until it clears a contrast target against the surface it sits on.
+
+**Replaced.** `--c-text: var(--c)` declared once on the app root, with every
+category's text reading `--tx` or that one inherited accent. A category
+recoloured green kept a blue title, white body text and a grey badge letter.
+
+**Why.** A var() chain is substituted where it is DECLARED, not where it is
+used, so `--c-text` resolved against the session's colour on `.nt-app` and no
+per-category `--c` could ever reach it. CSS has no way to derive a value per
+element from an inherited one; `color-mix()` can lighten but cannot enforce
+readability, and the picker is a free-form HSB field where a dark pick would
+otherwise paint a category's own notes invisible. Computing the tiers in JS
+buys the derivation, the contrast floor and the theme flip in one place.
+
+**Reverse it if.** CSS gains relative colour syntax with a contrast function
+(`color-contrast()` reached CR and was pulled once); at that point the three
+tiers are three lines of CSS and `paintColor` sets only `--c`.
+
+---
+
 ## 2026-09-07 — dictation writes at the caret, and the preview is the app itself
 
 **Decided.** Two things, both in `notes/`. A microphone per text box

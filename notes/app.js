@@ -235,7 +235,10 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   canvas.addEventListener('scroll', render.onCanvasScroll, { passive: true });
 
   /* ---- settings that live in the doc ---- */
-  function setTheme(t) { doc.ui.theme = t; root.dataset.theme = t; docChanged(); }
+  /* The tiers are derived against the theme's own backgrounds -- lighter than
+     a dark box, darker than a light one -- so flipping the theme has to derive
+     them again or every category keeps colours computed for the other one. */
+  function setTheme(t) { doc.ui.theme = t; root.dataset.theme = t; render.repaintColors(); docChanged(); }
   function setFont(k) { doc.ui.font = k; root.style.setProperty('--font', FONTS[k].stack); fontBtn.textContent = FONTS[k].label; docChanged(); }
   function setSize(n) { doc.ui.fs = n; root.style.setProperty('--fs', `${n}px`); sizeBtn.textContent = `${n}`; docChanged(); }
   function setSidebar(mode) { doc.ui.sidebar = mode; root.classList.toggle('is-rail', mode === 'rail'); sidebarBtn.setAttribute('aria-pressed', String(mode === 'open')); docChanged(); }

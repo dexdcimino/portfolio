@@ -15,7 +15,7 @@
 import { el, closest, caretToEnd } from './dom.js';
 import { newCat, newSession, catOf, archivedOf, touch, snapshot, restore, PALETTE, SESSION_PALETTE, now } from './state.js';
 import { confirm, toast, menu, panel, closePanel, ICON } from './ui.js';
-import { contrastOn } from './color.js';
+import { contrastOn, tints } from './color.js';
 
 let ctx = null;
 export function initRender(context) { ctx = context; }
@@ -33,9 +33,37 @@ export function glyph(item) {
   return { text: t ? [...t][0].toUpperCase() : '?', emoji: false };
 }
 
+/* Every element that carries a colour carries its THREE TEXT TIERS with it,
+ * as literal values.
+ *
+ * They cannot be derived in CSS. `--c-title: var(--c)` declared on the app
+ * root is substituted once, THERE, against the session's colour -- and every
+ * category inherits that already-resolved value, so no per-category `--c`
+ * could ever change the title's colour. That was the bug: a category recoloured
+ * green kept a blue title, because the title was reading the session's. */
 function paintColor(node, color) {
+  const t = tints(color, (ctx.root.dataset.theme || 'dark') !== 'light');
   node.style.setProperty('--c', color);
-  node.style.setProperty('--c-on', contrastOn(color));
+  node.style.setProperty('--c-on', t.on);
+  node.style.setProperty('--c-body', t.body);
+  node.style.setProperty('--c-bold', t.bold);
+  node.style.setProperty('--c-title', t.title);
+}
+
+/* The tiers are derived against the theme's own backgrounds, so a theme flip
+ * has to derive them again. Cheaper than a re-render and it cannot move the
+ * caret, which a re-render of a focused box can. */
+export function repaintColors() {
+  const s = S();
+  paintColor(ctx.root, s.color);
+  for (const sec of ctx.canvas.querySelectorAll('.nt-cat')) {
+    const cat = catOf(s, sec.dataset.cat);
+    if (cat) paintColor(sec, cat.color);
+  }
+  for (const row of ctx.sidebar.querySelectorAll('.nt-row, .nt-rail-cat, .nt-arch-row')) {
+    const cat = catOf(s, row.dataset.cat) || archivedOf(s, row.dataset.cat);
+    if (cat) paintColor(row, cat.color);
+  }
 }
 
 const S = () => ctx.session;
@@ -142,7 +170,9 @@ export function addCat(where) {
   const s = S();
   let cat;
   structure('add category', () => {
-    cat = newCat('New Category', { color: PALETTE[s.cats.length % (PALETTE.length - 1)] });
+    // A new category is the session's colour until it is given its own. The
+    // session colour is the page's accent; a category's is its text.
+    cat = newCat('New Category', { color: s.color });
     if (where === 'top') s.cats.unshift(cat);
     else if (where && where.after) { const i = s.cats.findIndex((c) => c.id === where.after); s.cats.splice(i + 1, 0, cat); }
     else s.cats.push(cat);
@@ -419,7 +449,9 @@ function openCatColor(id, anchor) {
   ctx.color.open(anchor, {
     title: 'Category colour', value: cat.color,
     onChange: (c) => setCatColor(id, c),
-    onClear: () => setCatColor(id, PALETTE[8]),
+    // "Use default" hands the category back to the session's colour, which
+    // is what a category that has never been given one already shows.
+    onClear: () => setCatColor(id, S().color),
   });
   // One undo step for the whole picker session.
   const seal = () => { if (cat.color !== before) { const after = cat.color; cat.color = before; structure('colour', () => { cat.color = after; }); } };

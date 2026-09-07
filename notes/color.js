@@ -39,6 +39,99 @@ export function contrastOn(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) > 0.55 ? '#000000' : '#ffffff';
 }
 
+
+/* ---- the text a colour becomes -------------------------------------------
+ *
+ * A category's colour is not just a dot: it is the text of that category.
+ * Three tiers, and the order is a hierarchy rather than a palette --
+ *
+ *   body   the colour as picked. What most of the box is.
+ *   bold   bold text and headings: a step further from the background and a
+ *          little less saturated, so a whole line of it does not shout.
+ *   title  the category's name in the header, its sidebar row and its rail
+ *          letter: one more step, at the bold tier's saturation.
+ *
+ * "A step further from the background" is lighter on the dark theme and
+ * darker on the light one. Lighter is what was asked for, but lighter on a
+ * light ground is less prominent, not more, and the point of the tiers is
+ * that the title reads as the most prominent thing. So the direction flips
+ * with the theme and the ranking never does.
+ *
+ * EVERY TIER IS THEN PUSHED UNTIL IT IS ACTUALLY READABLE on the surface it
+ * sits on (WCAG contrast against the note box for the first two, against the
+ * canvas for the title). Without that, picking a dark navy for a category
+ * paints its own notes invisible -- and the colour picker is a free-form HSB
+ * field, so that is one drag away, not a hypothetical.
+ */
+
+/* What each tier sits on. The note box is the flat colour under the text
+ * being read; the canvas is what the title sits on. Both light values are
+ * the theme's translucent layer already composited over its background,
+ * because contrast maths cannot see through alpha. */
+const GROUND = {
+  darkBox: '#1a1e26', darkPage: '#0b0d11',      // --bg3 (the focused box), --bg
+  lightBox: '#d3d7dc', lightPage: '#c8ccd3',    // .45 and .30 white over --bg
+};
+
+function relLum(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const x = v / 255;
+    return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+
+export function contrast(a, b) {
+  const la = relLum(a);
+  const lb = relLum(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/* One step away from the background. Brightness first; once that is spent,
+ * saturation -- because "lighter" past full brightness means toward white,
+ * and a fully-bright colour has nowhere else to go. */
+function step(h, s, b, amount, dark) {
+  if (dark) {
+    const room = 100 - b;
+    const use = Math.min(amount, room);
+    return { h, s: Math.max(0, s - (amount - use) * 1.6), b: b + use };
+  }
+  const room = b;
+  const use = Math.min(amount, room);
+  return { h, s: Math.min(100, s + (amount - use)), b: b - use };
+}
+
+/* Walk away from `ground` until the contrast target is met, or until there
+ * is nowhere left to walk. */
+function readable(h, s, b, ground, target, dark) {
+  let cur = { h, s, b };
+  for (let i = 0; i < 60; i++) {
+    const hex = hsbToHex(cur.h, cur.s, cur.b);
+    if (contrast(hex, ground) >= target) return hex;
+    const next = step(cur.h, cur.s, cur.b, 2, dark);
+    if (next.s === cur.s && next.b === cur.b) return hex;
+    cur = next;
+  }
+  return hsbToHex(cur.h, cur.s, cur.b);
+}
+
+export function tints(hex, dark) {
+  const { h, s, b } = hexToHsb(hex);
+  const box = dark ? GROUND.darkBox : GROUND.lightBox;
+  const page = dark ? GROUND.darkPage : GROUND.lightPage;
+
+  const body = readable(h, s, b, box, 4.6, dark);
+  const bh = hexToHsb(body);
+  const two = step(bh.h, bh.s * 0.88, bh.b, 8, dark);
+  const bold = readable(two.h, two.s, two.b, box, 5.6, dark);
+  const th = hexToHsb(bold);
+  const three = step(th.h, th.s, th.b, 7, dark);
+  const title = readable(three.h, three.s, three.b, page, 6, dark);
+
+  return { body, bold, title, on: contrastOn(hex) };
+}
+
 const HEX = /^#?([0-9a-f]{6})$/i;
 const SHORT = /^#?([0-9a-f]{3})$/i;
 function parseHex(s) {
