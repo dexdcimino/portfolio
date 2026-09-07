@@ -18,7 +18,7 @@
   --bg: #0B0D11; --bg2: #14171D; --bg3: #1A1E26; --bg4: #222732; --bdr: #292E38;
   --tx: #E8EAF0; --tx2: #82848f; --tx3: #666D79; --tx-body: #C7CBD3;
   --c: #68d121; --c-on: #000; --here: var(--c);
-  --c-title: var(--c); --c-bold: var(--tx); --c-body: var(--tx-body);
+  --c-title: var(--c); --c-bold: var(--tx); --c-body: var(--tx-body); --c-sel: #2a3550;
   --font: 'Outfit', sans-serif; --fs: 17px;
   --hdr: 52px; --sb: 280px; --rail: 50px; --r: 8px;
   --ease: .15s ease;
@@ -33,7 +33,7 @@
   --bg: #B0B7C0; --bg2: #BCC3CB; --bg3: #C5CCD4; --bg4: #CDD4DC; --bdr: #A0A8B2;
   --tx: #1C1F24; --tx2: #3E4550; --tx3: #6A7280; --tx-body: #2b3138;
   --c-title: color-mix(in srgb, var(--c) 62%, #000);
-  --c-bold: var(--tx); --c-body: var(--tx-body);
+  --c-bold: var(--tx); --c-body: var(--tx-body); --c-sel: #b9c6dd;
   --shadow: 0 10px 40px rgba(0,0,0,.22);
 }
 .nt-app *, .nt-app *::before, .nt-app *::after { box-sizing: border-box; }
@@ -46,6 +46,12 @@
 :where(.nt-app button:disabled) { cursor: default; opacity: .35; }
 .nt-app :focus-visible { outline: 2px solid var(--c-title); outline-offset: 2px; }
 .nt-app [contenteditable]:focus-visible { outline: none; }
+/* The caret and the highlight belong to whatever is being written in, like
+   everything else in a category. ::selection reads the custom properties of
+   the element it is over, so a body, a title and the sidebar each get their
+   own without a rule per place. */
+.nt-app ::selection { background: var(--c-sel); }
+.nt-app ::-moz-selection { background: var(--c-sel); }
 .nt-app svg { width: 18px; height: 18px; display: block; }
 .nt-app [hidden] { display: none !important; }
 
@@ -58,13 +64,18 @@
 
 /* ---- header ------------------------------------------------------------- */
 .nt-header {
-  height: var(--hdr); flex: 0 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px;
+  height: var(--hdr); flex: 0 0 auto; position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 0 10px 0 8px; background: var(--bg2); border-bottom: 1px solid var(--bdr); box-shadow: 0 2px 8px rgba(0,0,0,.12); z-index: 5;
 }
 .nt-app[data-theme="light"] .nt-header { background: rgba(255,255,255,.42); border-color: rgba(255,255,255,.35); }
 .nt-header-left, .nt-header-mid, .nt-header-right { display: flex; align-items: center; gap: 2px; min-width: 0; }
-.nt-header-mid { justify-content: center; flex-wrap: nowrap; }
-.nt-header-left { min-width: 0; }
+/* ABSOLUTELY centred, not centred by a grid track. The header spans the same
+   column as the canvas, so the middle of it is the middle of the text below
+   -- and nothing put in the left or right slot can shift it off that. A grid
+   only centres the middle when the two sides weigh the same, and they never
+   will: one of them has the search in it. */
+.nt-header-mid { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; }
+.nt-header-left, .nt-header-right { min-width: 0; }
 .nt-header-right { justify-content: flex-end; gap: 6px; }
 .nt-header-right > * { flex: 0 0 auto; }
 .nt-header-right .nt-header-search { flex: 0 1 auto; min-width: 0; }
@@ -113,21 +124,50 @@
 
 /* search */
 .nt-header-search { display: flex; align-items: center; }
+/* Rests as its own icon and opens on a click. A 250px field parked in the
+   header is 250px of pressure on where everything else sits; as an icon it is
+   34, and the group above the text stays above the text. */
 .nt-search {
-  display: flex; align-items: center; gap: 4px; height: 32px; padding: 0 6px 0 10px; border-radius: 20px; background: var(--bg3); border: 1.5px solid transparent;
-  /* Shrinks before the buttons do, but not past being usable: the middle
-     group gives up dead centre by a few dozen pixels rather than the search
-     giving up its field. */
-  flex: 0 1 250px; min-width: 148px; transition: border-color var(--ease);
+  display: flex; align-items: center; gap: 4px; height: 34px; width: 34px; padding: 0;
+  border-radius: 20px; background: var(--bg3); border: 1.5px solid transparent; overflow: hidden;
+  transition: width .18s ease, padding .18s ease, border-color var(--ease);
 }
-.nt-search:focus-within { border-color: var(--c-title); box-shadow: 0 0 0 1px var(--c-title); }
-.nt-search-icon { color: var(--tx2); display: grid; } .nt-search-icon svg { width: 15px; height: 15px; }
+.nt-search.is-open { width: 254px; padding: 0 6px 0 0; }
+.nt-search.is-open:focus-within { border-color: var(--c-title); box-shadow: 0 0 0 1px var(--c-title); }
+.nt-search-btn { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--tx2); padding: 0; transition: color var(--ease); }
+.nt-search-btn svg { width: 15px; height: 15px; }
+.nt-search-btn:hover { color: var(--tx); }
+.nt-search.is-open .nt-search-btn { color: var(--c-title); }
+/* display:none rather than clipped, so nothing in a shut field can be tabbed
+   into or read out. */
+.nt-search:not(.is-open) .nt-search-input,
+.nt-search:not(.is-open) .nt-search-count,
+.nt-search:not(.is-open) .nt-icon-btn { display: none; }
+/* No ring of its own: the pill around it already shows the focus, and two
+   rings one inside the other read as a mistake. */
 .nt-search-input { flex: 1; min-width: 0; border: 0; background: none; color: var(--tx); font: inherit; font-size: 13.5px; outline: none; }
+.nt-search-input:focus-visible { outline: none; }
 .nt-search-input::placeholder { color: var(--tx3); }
 .nt-search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
 .nt-search-count { font-size: 11px; color: var(--tx2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .nt-search-count.is-none { color: var(--danger); }
 .nt-search .nt-icon-btn { flex: 0 0 auto; }
+
+/* The tab that folds the sidebar away, level with the top of the archive --
+   a tab ON that divider rather than a control floating on an edge. It lives
+   outside the sidebar because the sidebar clips its own overflow, and
+   render.syncTab() keeps --tab-y level with the archive as it moves. */
+.nt-sb-tab {
+  position: absolute; left: var(--sb); top: var(--tab-y, 50%); z-index: 22;
+  width: 19px; height: 52px; display: grid; place-items: center; padding: 0;
+  background: var(--bg2); border: 1px solid var(--bdr); border-left: 0; border-radius: 0 11px 11px 0;
+  color: var(--tx3); transition: left .22s ease, color var(--ease), background var(--ease);
+}
+.nt-app.is-rail .nt-sb-tab { left: var(--rail); }
+.nt-sb-tab svg { width: 11px; height: 11px; transition: transform .22s ease; }
+.nt-app.is-rail .nt-sb-tab svg { transform: scaleX(-1); }
+.nt-sb-tab:hover { color: var(--c-title); background: var(--bg3); }
+.nt-app[data-theme="light"] .nt-sb-tab { background: rgba(255,255,255,.5); }
 
 /* ---- frame -------------------------------------------------------------- */
 /* The sidebar runs the full height of the window and the header spans only
@@ -157,7 +197,7 @@
 .nt-sidebar-session-title {
   flex: 1; min-width: 0; font-size: 17px; font-weight: 800; color: var(--c-title);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 3px 5px; border-radius: 6px;
-  cursor: default; caret-color: var(--tx);
+  cursor: default; caret-color: var(--c-title);
 }
 .nt-sidebar-session-title:hover { background: color-mix(in srgb, var(--c) 10%, transparent); }
 .nt-sidebar-session-title.is-editing,
@@ -182,7 +222,9 @@
 .nt-row.is-ghost { position: fixed; z-index: 60; pointer-events: none; background: var(--bg4); box-shadow: var(--shadow); opacity: .92; }
 .nt-row-grip { width: 16px; height: 28px; display: grid; place-items: center; color: var(--tx3); opacity: 0; cursor: grab; flex: 0 0 auto; touch-action: none; }
 .nt-row-grip svg { width: 14px; height: 14px; }
-.nt-row:hover .nt-row-grip { opacity: .7; }
+/* On hover, and on the category you are actually in: a handle that appears
+   only under the pointer is a handle you have to go looking for. */
+.nt-row:hover .nt-row-grip, .nt-row.is-here .nt-row-grip, .nt-row:focus-within .nt-row-grip { opacity: .7; }
 .nt-row-grip:active { cursor: grabbing; }
 .nt-row-badge, .nt-rail-cat {
   width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 8px; border: 0; padding: 0;
@@ -198,6 +240,10 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-row:hover .nt-row-x { opacity: .5; }
 .nt-row-x:hover { opacity: 1 !important; color: var(--danger); background: var(--bg4); }
 .nt-drop-marker { height: 2px; margin: 0 6px; background: var(--c-title); border-radius: 1px; }
+.nt-drop-marker.is-rail { margin: 0 7px; }
+.nt-rail-cat.is-dragging { opacity: .3; }
+.nt-rail-cat.is-ghost { position: fixed; z-index: 60; pointer-events: none; box-shadow: var(--shadow); opacity: .92; }
+.nt-rail-cat { touch-action: none; }
 
 .nt-archive { flex: 0 0 auto; border-top: 1px solid var(--bdr); display: flex; flex-direction: column; position: relative; }
 .nt-archive.is-open { flex: var(--arch-flex, 28) 1 0; min-height: 92px; }
@@ -292,7 +338,7 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-session-emoji:hover { background: color-mix(in srgb, var(--c) 30%, transparent); }
 .nt-session-title {
   flex: 1; min-width: 0; margin: 0; padding: 2px 8px; border-radius: 6px; font-size: 34px; font-weight: 700; line-height: 1.2; color: var(--c-title); user-select: text;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; caret-color: var(--tx);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; caret-color: var(--c-title);
 }
 .nt-session-title:hover { background: color-mix(in srgb, var(--c) 8%, transparent); }
 .nt-session-title:focus { background: color-mix(in srgb, var(--c) 12%, transparent); white-space: normal; text-overflow: clip; }
@@ -324,7 +370,7 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-cat-emoji:hover { background: color-mix(in srgb, var(--c) 26%, var(--bg)); border-color: color-mix(in srgb, var(--c) 40%, var(--bg3)); }
 .nt-cat-title {
   flex: 1; min-width: 0; margin: 0; padding: 3px 8px; border-radius: 6px; font-size: calc(var(--fs) + 8px); font-weight: 700; line-height: 1.25; color: var(--c-title);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; caret-color: var(--tx);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; caret-color: var(--c-title);
 }
 .nt-cat-title:empty::before { content: "Category name…"; color: var(--tx3); }
 .nt-cat-title:hover { background: color-mix(in srgb, var(--c) 7%, transparent); }
@@ -343,7 +389,7 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 /* ---- the body: what is typed ------------------------------------------------ */
 .nt-body {
   min-height: 44px; padding: 10px 14px; border-radius: 10px; border: 1.5px solid color-mix(in srgb, var(--bdr) 70%, transparent); background: var(--bg2);
-  color: var(--c-body); font-size: var(--fs); line-height: 1.7; user-select: text; cursor: text; caret-color: var(--tx);
+  color: var(--c-body); font-size: var(--fs); line-height: 1.7; user-select: text; cursor: text; caret-color: var(--c-title);
   transition: background var(--ease), border-color var(--ease); word-wrap: break-word; overflow-wrap: anywhere;
 }
 .nt-body:hover { background: var(--bg3); }
@@ -638,9 +684,9 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 
 /* ---- narrow screens ----------------------------------------------------------- */
 @media (max-width: 980px) {
-  .nt-header { grid-template-columns: auto 1fr auto; padding: 0 6px; gap: 4px; }
-  .nt-header-mid .nt-sep, .nt-header-mid .nt-fmt:nth-child(n+6):nth-child(-n+9), .nt-pick:not(.nt-pick-size) { display: none; }
-  .nt-search { width: 150px; }
+  .nt-header { padding: 0 6px; gap: 4px; }
+  .nt-header-mid .nt-sep, .nt-header-mid .nt-fmt:nth-child(n+8):nth-child(-n+11), .nt-pick:not(.nt-pick-size) { display: none; }
+  .nt-search.is-open { width: 190px; }
   .nt-status { display: none; }
   .nt-canvas-inner { padding: 20px 14px 40vh; }
   .nt-cat-body { padding-left: 8px; }

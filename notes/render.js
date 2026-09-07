@@ -23,6 +23,13 @@ export function initRender(context) {
   // The one grab edge between the list and the archive. Delegated, because
   // the sidebar's insides are rebuilt and the edge is not.
   ctx.sidebar.addEventListener('pointerdown', onGripDown);
+  /* The tab is welded to the archive, so it moves whenever the archive does:
+     the split drag, the fold, a window resize, the sidebar collapsing. One
+     observer covers all four without a listener per cause. */
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => syncTab()).observe(ctx.sidebar);
+  }
+  window.addEventListener('resize', syncTab);
 }
 
 /* ---- the split between the list and the archive ----------------------------
@@ -50,12 +57,14 @@ function onGripDown(e) {
     const share = Math.max(20, Math.min(80, ((ev.clientY - top) / span) * 100));
     ctx.doc.ui.archSplit = Math.round(share);
     applySplit();
+    syncTab();
   };
   const up = () => {
     grip.removeEventListener('pointermove', move);
     grip.removeEventListener('pointerup', up);
     grip.removeEventListener('pointercancel', up);
     ctx.sidebar.classList.remove('is-splitting');
+    syncTab();
     ctx.uiChanged();
   };
   grip.addEventListener('pointermove', move);
@@ -134,6 +143,7 @@ function paintColor(node, color) {
   node.style.setProperty('--c-body', t.body);
   node.style.setProperty('--c-bold', t.bold);
   node.style.setProperty('--c-title', t.title);
+  node.style.setProperty('--c-sel', t.sel);
 }
 
 /* The tiers are derived against the theme's own backgrounds, so a theme flip
@@ -612,13 +622,34 @@ export function renderSidebar() {
 
   rail.replaceChildren(...s.cats.map((cat) => {
     const g = glyph(cat);
-    const b = el('button', { type: 'button', class: `nt-rail-cat ${g.emoji ? 'is-emoji' : ''}`, text: g.text, 'data-cat': cat.id, 'data-tip': cat.title, 'data-tip-pos': 'right', onclick: () => jumpTo(cat.id) });
+    const b = el('button', {
+      type: 'button', class: `nt-rail-cat ${g.emoji ? 'is-emoji' : ''}`, text: g.text,
+      'data-cat': cat.id, 'data-tip': cat.title, 'data-tip-pos': 'right',
+      // A drag that ended here is not a jump.
+      onclick: () => { if (!b.dataset.dragged) jumpTo(cat.id); },
+    });
     paintColor(b, cat.color);
+    // The letter IS the handle when there is no room for a grip beside it.
+    wireDrag(b, b, cat.id, { list: '.nt-rail-cats', item: '.nt-rail-cat', markerClass: 'is-rail' });
     return b;
   }));
 
   renderArchive();
+  syncTab();
   spy();
+}
+
+/* The sidebar's collapse tab is welded to the archive's top edge -- it is a
+ * tab ON that divider, not a control floating on the sidebar's outer edge. It
+ * lives outside the sidebar (which clips its own overflow) and is told where
+ * to sit, because the archive's position moves with the split and with the
+ * window. */
+export function syncTab() {
+  const tab = ctx.root.querySelector('.nt-sb-tab');
+  const arch = ctx.sidebar.querySelector('.nt-archive');
+  if (!tab || !arch) return;
+  const y = arch.getBoundingClientRect().top - ctx.root.getBoundingClientRect().top;
+  tab.style.setProperty('--tab-y', `${Math.round(y)}px`);
 }
 
 /* The sessions as a list, under the sidebar's own button. The grid behind the
@@ -717,49 +748,56 @@ function setActive(id) {
 
 /* ---- drag to reorder in the sidebar ----------------------------------------------------- */
 
-function wireDrag(row, grip, id) {
+/* ONE reorder, two places to do it from: the grip on a sidebar row, and the
+ * letter itself when the sidebar is collapsed to the rail. Both show the same
+ * line between the two categories the drop would land between; only the
+ * container and the item selector differ. */
+function wireDrag(node, handle, id, opts = {}) {
+  const listSel = opts.list || '.nt-rows';
+  const itemSel = opts.item || '.nt-row';
   let dragging = false;
   let ghost = null;
   let marker = null;
   let target = -1;
-  const list = () => ctx.sidebar.querySelector('.nt-rows');
-  grip.addEventListener('pointerdown', (e) => {
+  const list = () => ctx.sidebar.querySelector(listSel);
+  handle.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    grip.setPointerCapture(e.pointerId);
+    handle.setPointerCapture(e.pointerId);
     const startY = e.clientY;
     const onMove = (ev) => {
       if (!dragging) {
         if (Math.abs(ev.clientY - startY) < 4) return;
         dragging = true;
-        ghost = row.cloneNode(true);
+        node.dataset.dragged = '1';
+        ghost = node.cloneNode(true);
         ghost.classList.add('is-ghost');
-        ghost.style.width = `${row.offsetWidth}px`;
+        ghost.style.width = `${node.offsetWidth}px`;
         ctx.root.append(ghost);
-        marker = el('div', { class: 'nt-drop-marker' });
-        row.classList.add('is-dragging');
+        marker = el('div', { class: `nt-drop-marker ${opts.markerClass || ''}` });
+        node.classList.add('is-dragging');
       }
-      ghost.style.left = `${row.getBoundingClientRect().left}px`;
+      ghost.style.left = `${node.getBoundingClientRect().left}px`;
       ghost.style.top = `${ev.clientY - 16}px`;
-      const rows = [...list().querySelectorAll('.nt-row:not(.is-dragging)')];
-      target = rows.length;
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i].getBoundingClientRect();
+      const items = [...list().querySelectorAll(`${itemSel}:not(.is-dragging)`)];
+      target = items.length;
+      for (let i = 0; i < items.length; i++) {
+        const r = items[i].getBoundingClientRect();
         if (ev.clientY < r.top + r.height / 2) { target = i; break; }
       }
-      if (target < rows.length) rows[target].before(marker); else list().append(marker);
-      // Auto-scroll the list near its edges.
+      if (target < items.length) items[target].before(marker); else list().append(marker);
+      // Auto-scroll near the container's edges.
       const lr = list().getBoundingClientRect();
       if (ev.clientY < lr.top + 30) list().scrollTop -= 8;
       else if (ev.clientY > lr.bottom - 30) list().scrollTop += 8;
     };
     const onUp = () => {
-      grip.removeEventListener('pointermove', onMove);
-      grip.removeEventListener('pointerup', onUp);
-      grip.removeEventListener('pointercancel', onUp);
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
       if (!dragging) return;
       dragging = false;
-      row.classList.remove('is-dragging');
+      node.classList.remove('is-dragging');
       if (ghost) ghost.remove();
       if (marker) marker.remove();
       const s = S();
@@ -768,10 +806,12 @@ function wireDrag(row, grip, id) {
       const before = target < others.length ? others[target] : null;
       const to = before ? s.cats.indexOf(before) - (s.cats.indexOf(before) > from ? 1 : 0) : s.cats.length - 1;
       moveCat(id, to);
+      // The click that ends the drag must not also be taken as a jump.
+      setTimeout(() => { delete node.dataset.dragged; }, 0);
     };
-    grip.addEventListener('pointermove', onMove);
-    grip.addEventListener('pointerup', onUp);
-    grip.addEventListener('pointercancel', onUp);
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
   });
 }
 

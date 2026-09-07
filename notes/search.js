@@ -17,25 +17,63 @@ let matches = [];      // [{ range, catId }]
 let current = -1;
 const HAS_HIGHLIGHT = typeof Highlight === 'function' && !!(window.CSS && CSS.highlights);
 
+let wrap = null;
+
+/* A CIRCLE UNTIL IT IS WANTED. Expanded, the field is as wide as the whole
+ * formatting group is off-centre -- and the formatting group is supposed to
+ * sit squarely above the text it formats. So the search rests as its own icon
+ * at the far left of the header, and opening it does not move anything:
+ * the middle group is centred absolutely and the field grows underneath it. */
 export function initSearch(context, mount) {
   ctx = context;
-  input = el('input', { type: 'search', class: 'nt-search-input', placeholder: 'Search', 'aria-label': 'Search notes', spellcheck: 'false', autocomplete: 'off' });
+  input = el('input', { type: 'search', class: 'nt-search-input', placeholder: 'Search', 'aria-label': 'Search notes', spellcheck: 'false', autocomplete: 'off', tabindex: '-1' });
   countEl = el('span', { class: 'nt-search-count', hidden: true });
-  const prev = el('button', { type: 'button', class: 'nt-icon-btn is-small', 'data-tip': 'Previous (Shift+Enter)', html: ICON.chevron, onclick: () => step(-1) });
+  const prev = el('button', { type: 'button', class: 'nt-icon-btn is-small', 'data-tip': 'Previous (Shift+Enter)', html: ICON.chevron, tabindex: '-1', onclick: () => step(-1) });
   prev.classList.add('is-up');
-  const next = el('button', { type: 'button', class: 'nt-icon-btn is-small', 'data-tip': 'Next (Enter)', html: ICON.chevron, onclick: () => step(1) });
-  const wrap = el('div', { class: 'nt-search' }, el('span', { class: 'nt-search-icon', html: ICON.search }), input, countEl, prev, next);
+  const next = el('button', { type: 'button', class: 'nt-icon-btn is-small', 'data-tip': 'Next (Enter)', html: ICON.chevron, tabindex: '-1', onclick: () => step(1) });
+  const toggle = el('button', {
+    type: 'button', class: 'nt-search-btn', 'data-tip': 'Search (Ctrl+F)', 'aria-label': 'Search notes',
+    'aria-expanded': 'false', html: ICON.search,
+    onclick: () => (wrap.classList.contains('is-open') ? close() : open()),
+  });
+  wrap = el('div', { class: 'nt-search' }, toggle, input, countEl, prev, next);
   mount.append(wrap);
   const run = debounce(() => search(input.value), 150);
   input.addEventListener('input', run);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); run.flush(); if (!matches.length) search(input.value); step(e.shiftKey ? -1 : 1); }
-    else if (e.key === 'Escape') { e.preventDefault(); clear(); input.blur(); }
+    /* stopPropagation, or Escape reaches the <dialog> and shuts the whole
+       overlay. Escape is a ladder: it closes the innermost thing that is
+       open, and only the last one closes the notes. */
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
   });
   wrap.classList.toggle('no-highlight', !HAS_HIGHLIGHT);
 }
 
-export function focus() { input.focus(); input.select(); }
+function open() {
+  wrap.classList.add('is-open');
+  wrap.querySelector('.nt-search-btn').setAttribute('aria-expanded', 'true');
+  input.tabIndex = 0;
+  input.focus();
+  input.select();
+}
+
+/* Closing clears: a collapsed field still filtering the sidebar is a filter
+ * with nothing on screen to explain it. */
+function close() {
+  clear();
+  wrap.classList.remove('is-open');
+  wrap.querySelector('.nt-search-btn').setAttribute('aria-expanded', 'false');
+  input.tabIndex = -1;
+  input.blur();
+  // Back to the text, not to <body>: focus is what decides where the next
+  // keystroke goes, and nowhere is the wrong answer.
+  const body = ctx.canvas.querySelector('.nt-body');
+  if (body) body.focus({ preventScroll: true });
+}
+
+export function focus() { open(); }
+export const isOpen = () => !!wrap && wrap.classList.contains('is-open');
 
 export function clear() {
   input.value = '';

@@ -25,6 +25,27 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — shortcuts bind to the document, and Escape closes one thing at a time
+
+**Decided.** The notes app's keyboard shortcuts listen on `document` while it
+is mounted, and every handler that consumes Escape stops it propagating.
+
+**Replaced.** Listening on the app's own root element, and letting Escape
+bubble from wherever it landed.
+
+**Why.** A keydown bubbles from the focused element, and focus is often NOT
+inside the app -- the `<dialog>` itself, or `<body>` after a field blurred.
+The app's root is not an ancestor of either, so Ctrl+F, Ctrl+S, Alt+N and the
+rest silently stopped working after closing anything, and the Escape that
+usually followed reached the dialog and shut the notes. Both halves read as
+one flaky bug. The harness found it as "the whole app disappeared mid-run".
+
+**Reverse it if.** The notes ever run somewhere that is not a modal dialog
+owning the whole viewport, at which point a document-level listener would be
+reaching outside its own surface and the root binding is right again.
+
+---
+
 ## 2026-09-07 — the sidebar owns the window's left edge, and no menu waits to open
 
 **Decided.** The sidebar runs the full height of the window with the session's

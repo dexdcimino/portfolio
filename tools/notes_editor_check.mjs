@@ -750,6 +750,172 @@ await chord(['Control'], '\\');
   console.log(`scroll held through a delete: ${before} -> ${after}`);
 }
 
+/* ---- 17i. the formatting group sits above the text it formats ------------
+   Not "roughly centred": the header spans the same column as the canvas, so
+   the middle of one must be the middle of the other, and NOTHING put beside
+   it may move that. A grid centres the middle only while the two sides weigh
+   the same, which they never did -- the search was on one of them. */
+{
+  const centres = () => page.evaluate(() => {
+    const m = document.querySelector('.nt-header-mid').getBoundingClientRect();
+    const c = document.querySelector('.nt-canvas-inner').getBoundingClientRect();
+    return { mid: Math.round(m.left + m.width / 2), text: Math.round(c.left + c.width / 2) };
+  });
+  const shut = await centres();
+  note(Math.abs(shut.mid - shut.text) <= 1, `the formatting group is ${shut.mid - shut.text}px off the text below it`);
+
+  const box = await page.$eval('.nt-search', (el) => { const r = el.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; });
+  note(box.w <= 40 && Math.abs(box.w - box.h) <= 2, `the search does not rest as a circle (${box.w}x${box.h})`);
+  note(await page.$eval('.nt-search-input', (el) => getComputedStyle(el).display === 'none'), 'the shut search still shows its field');
+  note(await page.$eval('.nt-search', (el) => el.getBoundingClientRect().left < document.querySelector('.nt-header-mid').getBoundingClientRect().left),
+       'the search is not on the left of the header');
+
+  await page.click('.nt-search-btn');
+  await sleep(400);
+  const open = await centres();
+  note(await page.$eval('.nt-search', (el) => el.getBoundingClientRect().width > 180), 'the search did not open');
+  note(await page.evaluate(() => document.activeElement.classList.contains('nt-search-input')), 'opening the search did not focus it');
+  note(Math.abs(open.mid - open.text) <= 1, `opening the search moved the formatting group by ${open.mid - shut.mid}px`);
+  await page.keyboard.press('Escape');
+  await sleep(300);
+  note(await page.$eval('.nt-search', (el) => el.getBoundingClientRect().width < 40), 'Escape did not shut the search');
+  // Ctrl+F opens it too.
+  await chord(['Control'], 'f');
+  await sleep(300);
+  note(await page.$eval('.nt-search', (el) => el.classList.contains('is-open')), 'Ctrl+F did not open the search');
+  await page.keyboard.press('Escape');
+  await sleep(250);
+  console.log(`header: formatting group centred on the text (${shut.mid} vs ${shut.text}), search ${box.w}px shut`);
+}
+
+/* ---- 17j. the tab is welded to the archive ------------------------------- */
+{
+  const level = () => page.evaluate(() => {
+    if (!document.querySelector('.nt-sb-tab')) {
+      return { missing: true, app: !!document.querySelector('.nt-app'), kids: [...(document.querySelector('.nt-app')?.children || [])].map((c) => c.className) };
+    }
+    const t = document.querySelector('.nt-sb-tab').getBoundingClientRect();
+    const a = document.querySelector('.nt-archive').getBoundingClientRect();
+    const s = document.querySelector('.nt-sidebar').getBoundingClientRect();
+    return { drift: Math.round(t.top - a.top), outside: Math.round(t.left - s.right), visible: t.width > 0 };
+  });
+  const at = await level();
+  note(!at.missing, `there is no collapse tab (app present: ${at.missing ? at.app : 'n/a'}, children: ${at.missing ? at.kids : 'n/a'})`);
+  if (at.missing) { console.log('TAB GONE:', JSON.stringify(at)); throw new Error('the app is not mounted — see the line above'); }
+  note(at.visible, 'the collapse tab has no size');
+  note(Math.abs(at.drift) <= 2, `the tab is ${at.drift}px off the archive's top edge`);
+  note(Math.abs(at.outside) <= 2, `the tab is not sitting on the sidebar's edge (${at.outside}px)`);
+
+  // It follows the archive when the split is dragged.
+  await page.evaluate(() => { const a = document.querySelector('.nt-archive'); if (!a.classList.contains('is-open')) a.querySelector('.nt-archive-head').click(); });
+  await sleep(300);
+  const g = await page.evaluate(() => { const r = document.querySelector('.nt-archive-grip').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(g.x, g.y);
+  await page.mouse.down();
+  await page.mouse.move(g.x, g.y - 120, { steps: 6 });
+  await page.mouse.up();
+  await sleep(350);
+  note(Math.abs((await level()).drift) <= 2, 'the tab did not follow the archive when the split moved');
+
+  // And it folds the sidebar.
+  await page.click('.nt-sb-tab');
+  await sleep(400);
+  note(await page.$eval('.nt-app', (e) => e.classList.contains('is-rail')), 'the tab did not collapse the sidebar');
+  note(await page.evaluate(() => {
+    const t = document.querySelector('.nt-sb-tab').getBoundingClientRect();
+    const s = document.querySelector('.nt-sidebar').getBoundingClientRect();
+    return Math.abs(t.left - s.right) <= 2;
+  }), 'the tab did not move to the collapsed sidebar edge');
+  console.log(`tab: level with the archive, ${at.outside}px outside the sidebar, folds it`);
+}
+
+/* ---- 17k. the rail reorders, the same way the list does ------------------- */
+{
+  // Still collapsed from the check above.
+  const order = () => page.$$eval('.nt-rail-cat', (els) => els.map((e) => e.dataset.cat));
+  const was = await order();
+  note(was.length >= 3, `only ${was.length} rail letters to reorder`);
+  const from = await page.evaluate(() => { const r = document.querySelectorAll('.nt-rail-cat')[0].getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  const to = await page.evaluate(() => { const r = document.querySelectorAll('.nt-rail-cat')[2].getBoundingClientRect(); return { y: Math.round(r.bottom - 2) }; });
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x, from.y + 12, { steps: 3 });
+  const marker = await page.$('.nt-drop-marker');
+  note(!!marker, 'dragging a rail letter shows no line where it would land');
+  await page.mouse.move(from.x, to.y, { steps: 8 });
+  await page.mouse.up();
+  await sleep(400);
+  const now = await order();
+  note(now[0] !== was[0], `dragging the first rail letter down did not move it (${was.slice(0, 3)} -> ${now.slice(0, 3)})`);
+  note(now.includes(was[0]) && now.length === was.length, 'the rail drag lost or duplicated a category');
+  // A plain click still jumps rather than being eaten by the drag handler.
+  await page.evaluate(() => document.querySelectorAll('.nt-rail-cat')[1].click());
+  await sleep(400);
+  note(true, 'a rail click after a drag did not throw');
+  console.log(`rail reorder: ${was.slice(0, 3).join(',')} -> ${now.slice(0, 3).join(',')}`);
+  // Put the sidebar back.
+  await page.click('.nt-sb-tab');
+  await sleep(400);
+  await page.evaluate(() => { const a = document.querySelector('.nt-archive'); if (a.classList.contains('is-open')) a.querySelector('.nt-archive-head').click(); });
+  await sleep(250);
+}
+
+/* ---- 17l. the caret and the highlight belong to the category too ---------- */
+{
+  const seen = await page.evaluate(() => {
+    const out = [];
+    for (const sec of [...document.querySelectorAll('.nt-cat')].slice(0, 3)) {
+      const body = sec.querySelector('.nt-body');
+      const cs = getComputedStyle(body);
+      out.push({
+        cat: sec.dataset.cat,
+        caret: cs.caretColor,
+        title: cs.getPropertyValue('--c-title').trim(),
+        sel: cs.getPropertyValue('--c-sel').trim(),
+        body: cs.color,
+      });
+    }
+    return out;
+  });
+  const hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const rgb = (c) => c.match(/\d+/g).slice(0, 3).map(Number);
+  const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 2);
+  for (const c of seen) {
+    note(c.caret !== 'rgb(232, 234, 240)' && near(rgb(c.caret), hex(c.title)),
+         `the caret in ${c.cat} is ${c.caret}, not the category's own ${c.title}`);
+    note(/^#[0-9a-f]{6}$/i.test(c.sel), `${c.cat} has no selection colour (${c.sel})`);
+  }
+  note(new Set(seen.map((c) => c.sel)).size === seen.length, 'two categories share a selection colour');
+  // Readable: what is selected must not disappear into its own highlight.
+  const relLum = (v) => { const [r, g, b] = v.map((x) => { const y = x / 255; return y <= 0.04045 ? y / 12.92 : ((y + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  for (const c of seen) {
+    const la = relLum(rgb(c.body)); const lb = relLum(hex(c.sel));
+    const ratio = (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    note(ratio >= 2.8, `${c.cat}: selected text is ${ratio.toFixed(1)}:1 against its own highlight`);
+  }
+  console.log(`caret and highlight: ${seen.map((c) => `${c.caret.replace(/\s/g, '')}/${c.sel}`).join('  ')}`);
+}
+
+/* ---- 17m. the drag handle is on the category you are in ------------------- */
+{
+  // The pointer parked well away, so hover cannot be what makes it visible.
+  await page.mouse.move(1400, 700);
+  await sleep(300);
+  const grip = await page.evaluate(() => {
+    const here = document.querySelector('.nt-row.is-here');
+    if (!here) return null;
+    const other = [...document.querySelectorAll('.nt-row:not(.is-here)')][0];
+    return {
+      here: Number(getComputedStyle(here.querySelector('.nt-row-grip')).opacity),
+      other: Number(getComputedStyle(other.querySelector('.nt-row-grip')).opacity),
+    };
+  });
+  note(!!grip, 'no row is marked as the one being read');
+  note(grip && grip.here > 0.3, `the current row's drag handle is invisible (opacity ${grip && grip.here})`);
+  note(grip && grip.other === 0, `every row shows its drag handle (${grip && grip.other})`);
+  console.log(`grip: ${grip && grip.here} on the current row, ${grip && grip.other} on the rest`);
+}
+
 /* ---- 18. what reached the store ---------------------------------------------------- */
 await chord(['Control'], 's');
 await page.waitForFunction(() => /^SAVED/.test(document.querySelector('.nt-status').textContent), { timeout: 15000 });

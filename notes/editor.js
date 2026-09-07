@@ -172,7 +172,10 @@ function onKeydown(e) {
     return;
   }
   if (key === 'Backspace' && !mod && !e.altKey) { if (onBackspace(body)) e.preventDefault(); return; }
-  if (key === 'Escape') { body.blur(); return; }
+  /* Blur, and stop there. Without stopPropagation this also reached the
+     <dialog> and shut the overlay, so one Escape both left the box and left
+     the notes. A second Escape, with nothing focused, still closes. */
+  if (key === 'Escape') { e.stopPropagation(); body.blur(); return; }
 
   if (!mod) return;
   const k = key.toLowerCase();

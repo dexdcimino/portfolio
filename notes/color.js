@@ -123,6 +123,12 @@ export function tints(hex, dark) {
   const box = dark ? GROUND.darkBox : GROUND.lightBox;
   const page = dark ? GROUND.darkPage : GROUND.lightPage;
 
+  /* The selection behind the words, and the caret between them. A selection
+   * is the one place the colour is a BACKGROUND, so it goes the other way:
+   * deep on the dark theme, pale on the light one, always far enough from the
+   * body text to leave it legible. */
+  const sel = dark ? hsbToHex(h, Math.min(100, s * 0.95), 24) : hsbToHex(h, Math.min(100, s * 0.5), 88);
+
   const body = readable(h, s, b, box, 4.6, dark);
   const bh = hexToHsb(body);
   const two = step(bh.h, bh.s * 0.88, bh.b, 8, dark);
@@ -131,7 +137,15 @@ export function tints(hex, dark) {
   const three = step(th.h, th.s, th.b, 7, dark);
   const title = readable(three.h, three.s, three.b, page, 6, dark);
 
-  return { body, bold, title, on: contrastOn(hex) };
+  /* If the pick leaves the words too close to their own highlight, push the
+   * highlight rather than the words: what is being read must not change
+   * colour because some of it is selected. */
+  let selection = sel;
+  for (let i = 0; i < 24 && contrast(body, selection) < 3; i++) {
+    const c = hexToHsb(selection);
+    selection = hsbToHex(c.h, Math.max(0, c.s - 3), dark ? Math.max(0, c.b - 3) : Math.min(100, c.b + 3));
+  }
+  return { body, bold, title, sel: selection, on: contrastOn(hex) };
 }
 
 const HEX = /^#?([0-9a-f]{6})$/i;

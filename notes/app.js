@@ -66,7 +66,16 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
      very top-left, and it is why the sidebar toggle and the type controls
      moved into the header's middle group -- there is no left group any more
      for them to sit in. */
-  root.append(el('div', { class: 'nt-frame' }, sidebar, el('div', { class: 'nt-col' }, header, main)));
+  /* The tab that folds the sidebar away. It sits OUTSIDE the sidebar because
+     the sidebar clips its own overflow, and render.syncTab() keeps it level
+     with the archive's top edge -- it is a tab on that divider, not a control
+     floating on an edge. */
+  const sbTab = el('button', {
+    type: 'button', class: 'nt-sb-tab', 'aria-label': 'Collapse sidebar', 'data-tip': 'Collapse sidebar', 'data-tip-pos': 'right',
+    html: ICON.chevronLeft,
+    onclick: () => setSidebar(doc.ui.sidebar === 'open' ? 'rail' : 'open'),
+  });
+  root.append(el('div', { class: 'nt-frame' }, sidebar, el('div', { class: 'nt-col' }, header, main)), sbTab);
   container.replaceChildren(root);
   setRoot(root);
   initTooltips(root);
@@ -189,9 +198,9 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   const closeBtn = btn('nt-close', 'Close (Esc)', ICON.close, () => container.dispatchEvent(new CustomEvent('notes:close', { bubbles: true })));
   const searchMount = el('div', { class: 'nt-header-search' });
   header.append(
-    el('div', { class: 'nt-header-left' }),
+    el('div', { class: 'nt-header-left' }, searchMount),
     el('div', { class: 'nt-header-mid' }, sidebarBtn, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, fmt.code, sep(), fmt.left, fmt.center, fmt.right, sep(), fmt.ul, nodeBtn, spellBtn, sep(), undoBtn, redoBtn),
-    el('div', { class: 'nt-header-right' }, searchMount, status, themeBtn, closeBtn));
+    el('div', { class: 'nt-header-right' }, status, themeBtn, closeBtn));
   search.initSearch(ctx, searchMount);
 
   /* ---- sidebar ---- */
@@ -290,7 +299,20 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   function setTheme(t) { doc.ui.theme = t; root.dataset.theme = t; render.repaintColors(); docChanged(); }
   function setFont(k) { doc.ui.font = k; root.style.setProperty('--font', FONTS[k].stack); fontBtn.textContent = FONTS[k].label; docChanged(); }
   function setSize(n) { doc.ui.fs = n; root.style.setProperty('--fs', `${n}px`); sizeBtn.textContent = `${n}`; docChanged(); }
-  function setSidebar(mode) { doc.ui.sidebar = mode; root.classList.toggle('is-rail', mode === 'rail'); sidebarBtn.setAttribute('aria-pressed', String(mode === 'open')); docChanged(); }
+  function setSidebar(mode) {
+    doc.ui.sidebar = mode;
+    root.classList.toggle('is-rail', mode === 'rail');
+    sidebarBtn.setAttribute('aria-pressed', String(mode === 'open'));
+    const tab = root.querySelector('.nt-sb-tab');
+    if (tab) {
+      const label = mode === 'open' ? 'Collapse sidebar' : 'Expand sidebar';
+      tab.setAttribute('aria-label', label);
+      tab.setAttribute('data-tip', label);
+    }
+    // The sidebar's width animates, so the tab is level again a beat later.
+    setTimeout(() => render.syncTab(), 260);
+    docChanged();
+  }
   function syncSettings() {
     spellBtn.classList.toggle('is-on', spell.enabled());
     spellBtn.setAttribute('aria-pressed', String(spell.enabled()));
@@ -528,8 +550,9 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   /* ---- keys that are not about typing ---- */
   function onRootKey(e) {
     const mod = e.ctrlKey || e.metaKey;
-    const inBody = e.target.closest && e.target.closest('.nt-body');
-    const inField = e.target.closest && e.target.closest('input, textarea, [contenteditable="true"]');
+    const t = e.target;
+    const inBody = t && t.closest && t.closest('.nt-body');
+    const inField = t && t.closest && t.closest('input, textarea, [contenteditable="true"]');
     if (mod && e.key.toLowerCase() === 'f' && !e.shiftKey) { e.preventDefault(); search.focus(); return; }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
     if (mod && e.key === '\\') { e.preventDefault(); setSidebar(doc.ui.sidebar === 'open' ? 'rail' : 'open'); return; }
@@ -538,7 +561,14 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     if (mod && e.key.toLowerCase() === 'z' && !inBody && !inField) { e.preventDefault(); if (e.shiftKey) ctx.history.redo(); else ctx.history.undo(); return; }
     if (mod && e.key.toLowerCase() === 'y' && !inBody && !inField) { e.preventDefault(); ctx.history.redo(); }
   }
-  root.addEventListener('keydown', onRootKey);
+  /* ON THE DOCUMENT, not on the app's own root. A keydown bubbles from
+     whatever has focus, and focus is regularly NOT inside the app -- the
+     dialog itself, or <body> after something blurred. The app's root is not
+     an ancestor of those, so every shortcut here silently stopped working
+     the moment you closed a field: Ctrl+F did nothing, and the Escape that
+     followed it went to the <dialog> and shut the notes. */
+  const onDocKey = (e) => { if (root.isConnected) onRootKey(e); };
+  document.addEventListener('keydown', onDocKey);
 
   /* ---- first paint ---- */
   function applyUi() {
@@ -580,6 +610,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       flush();
       clearTimeout(saveTimer);
       clearTimeout(retryTimer);
+      document.removeEventListener('keydown', onDocKey);
       document.removeEventListener('selectionchange', onSelection);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('pagehide', flush);

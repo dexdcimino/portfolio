@@ -1423,7 +1423,40 @@ next keystroke.
 how the leftover height is shared (`--list-flex` / `--arch-flex`, saved as
 `ui.archSplit`), and the archive header carries two arms that lie flat while
 it is open and fold into a chevron when it is shut -- one mark doing both
-jobs, so the header never grows a second control.
+jobs, so the header never grows a second control. The tab that folds the
+sidebar away rides the same divider: `syncTab()` keeps it level with the
+archive's top edge through the split drag, the fold and a resize. It lives
+outside the sidebar because the sidebar clips its own overflow.
+
+**The formatting group is centred absolutely, not by a grid track.** The
+header spans the same column as the canvas, so the middle of one is the
+middle of the text below -- and a grid only centres its middle track while
+the two sides weigh the same, which they never do. The search is the reason
+they never do, so it rests as a 34px circle at the far left and opens to a
+field that changes nothing else's position.
+
+**Reordering has two handles.** The grip on a sidebar row, and the letter
+itself on the rail when the sidebar is folded. `wireDrag()` takes the
+container and item selectors, so both draw the same line between the two
+categories a drop would land between. The grip shows on hover AND on the
+category you are currently in -- a handle only visible under the pointer is
+one you have to go looking for.
+
+**The caret and the selection are the category's colour too.** `tints()`
+returns a fourth value, `--c-sel`, which is the hue taken deep on the dark
+theme and pale on the light one, then pushed until the body text clears 3:1
+against it -- what is being read must not change legibility because some of
+it is selected. `::selection` reads the custom properties of the element it
+is over, so one rule gives every body, title and row its own.
+
+**Escape is a ladder, not a trapdoor.** Every handler that consumes it stops
+it propagating: the search closes, a rename cancels, a panel shuts, a body
+blurs. Only an Escape nothing claimed reaches the `<dialog>` and closes the
+notes. And the app's shortcuts are bound to the DOCUMENT, not to its own
+root: a keydown bubbles from whatever has focus, focus is regularly on the
+dialog or on `<body>`, and the app's root is not an ancestor of those -- so
+bound to the root, every shortcut stopped working the moment a field
+blurred.
 
 **The sessions have two faces.** The badge at the top-left opens the grid;
 the button under New category lists them by name with their category counts,
