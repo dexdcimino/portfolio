@@ -4645,6 +4645,11 @@ const MediaBus = (() => {
      on showing it. */
   let last = null;
   let installed = false;
+  /* Whether the thing the OS is showing is PLAYING. Not readable off `el`: the
+     iframe player's `el.paused` answers "is a track loaded", which is what the
+     solo and busy rules need and is true throughout a pause. The players
+     already report the truth to playbackState(); this is that value kept. */
+  let lastState = false;
 
   /* A player left running in a background tab is audio coming from nowhere, and
      nobody can find the tab it is coming from. So a player stops the moment the
@@ -4676,6 +4681,59 @@ const MediaBus = (() => {
      someone paused twenty minutes ago rather than doing nothing. */
   const target = () => players.find(p => !p.el.paused) || last;
 
+  /* ---- holding the OS session against the embed ------------------------
+     MEASURED, NOT FEARED (Dex, 2026-09-07): with the music overlay playing,
+     fn+F6 paused it from the desktop and fn+F5 and fn+F7 did nothing at all,
+     anywhere. That is not a broken handler, it is the wrong document: the OS
+     controls attach to whoever is really making sound, which is YouTube's
+     <iframe>. Their player answers play/pause -- hence F6 -- and a single
+     video has no next or previous, so those keys land on a session that
+     genuinely has nothing to do. Ours were never asked.
+
+     So the page makes a sound of its own. A near-silent WAV, looped in THIS
+     document alongside the embed, gives Chrome an audio element here to build
+     the session around, and the session it builds is the one carrying the
+     handlers above. It is a real trick with real reasons behind every number:
+
+       - TEN SECONDS, because Chrome treats very short media as a sound effect
+         and gives it no session at all.
+       - NOT MUTED and full volume: a muted element is not a candidate either.
+         Inaudibility comes from the SAMPLES -- one LSB of 16-bit, about -90
+         dBFS, which is below the noise floor of any playback chain.
+       - BUILT HERE rather than shipped: 160KB of PCM as a base64 data URI
+         would be a real download for a file whose entire content is a
+         description of silence. A Blob URL costs the bytes once, in memory.
+       - PAUSED WITH THE MUSIC, so the flyout says paused when the music is
+         paused instead of claiming something is playing that is not.
+
+     ONLY THE IFRAME PLAYER NEEDS THIS. The songs bar is an <audio> in this
+     document and already owns the session on its own; a second element would
+     be noise in both senses. */
+  let hold = null;
+  function holdElement() {
+    if (hold) return hold;
+    const RATE = 8000, SECONDS = 10;
+    const frames = RATE * SECONDS;
+    const size = 44 + frames * 2;
+    const view = new DataView(new ArrayBuffer(size));
+    const tag = (at, s) => { for (let i = 0; i < s.length; i++) view.setUint8(at + i, s.charCodeAt(i)); };
+    tag(0, 'RIFF'); view.setUint32(4, size - 8, true); tag(8, 'WAVEfmt ');
+    view.setUint32(16, 16, true);              // the fmt chunk's own length
+    view.setUint16(20, 1, true);               // PCM, uncompressed
+    view.setUint16(22, 1, true);               // mono
+    view.setUint32(24, RATE, true);
+    view.setUint32(28, RATE * 2, true);        // bytes per second
+    view.setUint16(32, 2, true);               // bytes per frame
+    view.setUint16(34, 16, true);              // bits per sample
+    tag(36, 'data'); view.setUint32(40, frames * 2, true);
+    // Alternating +/- 1: a signal, which is what makes it a real audio track,
+    // at an amplitude nothing can hear.
+    for (let i = 0; i < frames; i++) view.setInt16(44 + i * 2, i % 2 ? 1 : -1, true);
+    hold = new Audio(URL.createObjectURL(new Blob([view.buffer], { type: 'audio/wav' })));
+    hold.loop = true;
+    return hold;
+  }
+
   function install() {
     if (installed) return;
     installed = true;
@@ -4685,8 +4743,12 @@ const MediaBus = (() => {
       try { navigator.mediaSession.setActionHandler(action, fn); }
       catch { /* this browser does not have that one */ }
     };
-    on('play', () => { const p = target(); if (p && p.el.paused) p.toggle(); });
-    on('pause', () => { const p = target(); if (p && !p.el.paused) p.pause(); });
+    /* toggle() for both, and never pause(): pause() on the bus means "yield
+       the room", which for the music player is a full stop that tears the
+       embed down. The OS pause key means pause. Which way toggle goes is
+       decided by lastState, the players' own reported state. */
+    on('play', () => { const p = target(); if (p && !lastState) p.toggle(); });
+    on('pause', () => { const p = target(); if (p && lastState) p.toggle(); });
     on('nexttrack', () => { const p = target(); if (p && p.next) p.next(); });
     on('previoustrack', () => { const p = target(); if (p && p.prev) p.prev(); });
   }
@@ -4781,6 +4843,7 @@ const MediaBus = (() => {
        being ignored, which would take the rest of the handlers with it. */
     nowPlaying(who, meta) {
       last = who;
+      lastState = true;
       if (!('mediaSession' in navigator)) return;
       install();
       try {
@@ -4792,11 +4855,35 @@ const MediaBus = (() => {
       } catch { /* no MediaMetadata here — the handlers above still stand */ }
     },
 
+    /* Keep (or let go of) the OS session on behalf of a player whose sound is
+       made somewhere this document cannot reach. See holdElement() above for
+       what this is and why it is not as silly as it looks. Failures are
+       swallowed on purpose: if a browser refuses to play it, the media keys go
+       back to doing what they did before this existed, which is the state the
+       page shipped in for a year. */
+    holdSession(on) {
+      let el;
+      try { el = holdElement(); } catch { return; }
+      if (on) el.play().catch(() => {});
+      else el.pause();
+    },
+
+    /* What the hold is doing, and it exists to be CHECKED. A wrong byte in
+       that header leaves duration NaN and play() rejecting, and nothing on the
+       page looks any different -- the media keys just go on quietly failing,
+       which is the exact shape of bug this repo keeps paying for. */
+    holdState() {
+      return hold ? { playing: !hold.paused, duration: hold.duration, loop: hold.loop,
+                      muted: hold.muted, volume: hold.volume } : null;
+    },
+
     /* Only the player the OS is currently showing may repaint that state, or
        the songs bar painting itself paused would tell Windows the music stopped
        while it was still going. */
     playbackState(who, playing) {
-      if (who !== last || !('mediaSession' in navigator)) return;
+      if (who !== last) return;
+      lastState = playing;
+      if (!('mediaSession' in navigator)) return;
       try { navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'; }
       catch { /* older engines */ }
     },
@@ -5643,6 +5730,9 @@ const MediaBus = (() => {
     if (icon) icon.dataset.icon = playing ? 'pause' : 'play';
     btnToggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     MediaBus.playbackState(me, playing);
+    /* The sound is inside a cross-origin iframe, so this document has to make
+       one of its own to be the thing the OS media keys are pointed at. */
+    MediaBus.holdSession(armed && playing);
   }
 
   /* ---- the player ------------------------------------------------------ */
@@ -5829,6 +5919,7 @@ const MediaBus = (() => {
   function stop() {
     cmd('stopVideo');
     frame.removeAttribute('src');
+    MediaBus.holdSession(false);
     armed = false;
     ready = false;
     playing = false;

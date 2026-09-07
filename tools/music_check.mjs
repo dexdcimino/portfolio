@@ -1951,6 +1951,31 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(meta && meta.state === 'playing',
        `the OS is being told the state is "${meta && meta.state}"`);
 
+  /* ---- the silent hold ------------------------------------------------
+     The music is made inside a cross-origin iframe, so the OS media controls
+     attach to YOUTUBE's document, not ours: measured on the real machine, the
+     play/pause key worked and next/previous did nothing anywhere, because
+     YouTube's session answers one and has no use for the others. The page
+     therefore plays a near-silent track of its own to be the thing the session
+     is built around.
+
+     FALSELY PASSES IF: only `paused` were read. A WAV with a wrong byte in its
+     header plays for zero seconds and reports NaN, which is indistinguishable
+     from working right up until the media key does nothing \u2014 and there is no
+     API that answers "do I own the session", so the duration IS the check. */
+  await page.waitForFunction(
+    () => { const h = MediaBus.holdState(); return h && h.duration > 0; }, { timeout: 5000 })
+    .catch(() => {});
+  const held = await page.evaluate(() => MediaBus.holdState());
+  note(!!held, 'the session hold was never built, so the OS controls stay YouTube\u2019s');
+  note(held && held.playing, 'the session hold is not playing while the music is');
+  note(held && held.duration > 5,
+       `the hold decodes to ${held && held.duration}s \u2014 Chrome gives no session to media `
+       + 'that short, and a NaN here is a malformed header');
+  note(held && held.loop, 'the hold does not loop, so the session dies after one pass');
+  note(held && !held.muted && held.volume > 0,
+       'the hold is muted or silent at the element \u2014 Chrome ignores those for the session');
+
   await shutMusic();
 
   /* ---- and the same keys drive the Top Picks bar --------------------- */

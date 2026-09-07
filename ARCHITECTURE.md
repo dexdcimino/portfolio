@@ -358,7 +358,29 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   is really playing, so the keys may reach YouTube's handlers instead of ours.
   The Top Picks songs are an `<audio>` in this document and are not in doubt.
   There is no API that answers "do I own the session" — it is measured by
-  pressing the key.
+  pressing the key, and it WAS measured: with the overlay playing, the play/pause
+  key worked from the desktop and next/previous did nothing anywhere, which is
+  YouTube's session answering the one action it has.
+- **So the page holds the session with a sound of its own.**
+  `MediaBus.holdSession()` loops a near-silent 10-second WAV, built at runtime
+  into a Blob URL, in THIS document alongside the embed — which gives Chrome an
+  audio element here to build the session around, and that session carries our
+  handlers. Every number is load-bearing: ten seconds because Chrome gives very
+  short media no session at all; not muted and full volume because a muted
+  element is not a candidate, with the inaudibility coming from the SAMPLES (one
+  LSB of 16-bit, about -90 dBFS); built rather than shipped because 160KB of
+  base64 would be a real download describing silence; and paused with the music
+  so the flyout never claims something is playing that is not. Only the iframe
+  player needs it — the songs bar is an `<audio>` here and owns the session
+  already. `holdState()` exists to be checked: a wrong byte in that header
+  leaves `duration` NaN and nothing on the page looks different, which is this
+  repo's favourite shape of bug. `music_check.mjs` 8f asserts the decode.
+- **The media-key handlers call `toggle()`, never the bus's `pause()`.** On the
+  bus, `pause` means "yield the room", which for the music player is a full stop
+  that tears the embed down; the OS pause key means pause. Which way toggle goes
+  is decided by the state the players report to `playbackState()`, because the
+  iframe player's `el.paused` answers "is a track loaded" and stays false
+  throughout a pause.
 - The clips player's play control **is the whole video surface**: `#clBig` is
   positioned `inset:0` with the disc drawn inside it, so clicking the picture
   toggles playback and the click target is the same `<button>` the keyboard
@@ -1268,7 +1290,7 @@ assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
 script.js                initMusic() - below MediaBus, see why in its header
 styles.css               .music-*
-tools/music_check.mjs    335 checks in a real browser, serves the repo itself,
+tools/music_check.mjs    340 checks in a real browser, serves the repo itself,
                          reaches NO network — the embed is intercepted
 tools/music_flag_check.mjs  21 checks that DO reach YouTube: a real embed
                          refusing a real video, over https, see below

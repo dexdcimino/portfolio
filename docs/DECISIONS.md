@@ -25,6 +25,34 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the page holds the OS media session with a silent track
+
+**Decided.** While the music overlay is playing, the page loops a near-silent
+10-second WAV of its own, built at runtime into a Blob URL, so Chrome builds the OS
+media session around an element in THIS document rather than around the YouTube
+iframe. The media-key handlers then reach our player. Only the iframe player uses
+it; the songs bar is an `<audio>` here and owns the session already.
+
+**Replaced.** Registering handlers and assuming they would be asked.
+
+**Why.** Measured on the real machine, which is the only place this can be measured:
+with the overlay playing, the play/pause key worked from the desktop and next and
+previous did nothing anywhere. That is not a broken handler, it is the wrong
+document — the session belongs to whoever is really making sound, YouTube's embed
+answers play/pause, and a single video has no next or previous, so those keys landed
+on a session with nothing to do. There is no API that reassigns a session and none
+that even reports who owns it; making a sound is the only lever a page has. The
+alternative was the resident-script-and-endpoint version, which is more code, more
+moving parts, and a thing to keep running.
+
+**Reverse it if.** Chrome starts refusing to build a session around it (the checks
+would go on passing — they can only prove the audio decodes and plays, not that the
+OS listened), or the media keys turn out to work without it. The tell is the same
+one that found it: press the key and see. If it fails, the endpoint version is still
+there, and this deletes cleanly — one method on the bus and two call sites.
+
+---
+
 ## 2026-09-07 — the arrows skip tracks, and the OS media keys are the remote
 
 **Decided.** Left and right are Previous and Next while the site is open, decided by
