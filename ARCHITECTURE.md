@@ -1406,10 +1406,25 @@ fills most of the view and paints the scrollbar with its colour.
 The sidebar is a column of the WINDOW, not of the area under a bar: it runs
 from the top of the screen to the bottom, and the header spans only the
 column beside it. That is what puts the session's emoji, its name and its
-colour at the very top-left, and it is why the sidebar toggle and the type
-pickers sit in the header's middle group -- there is no left group left for
-them. The middle group is centred in its column; the search on the right
-shrinks before any button does, so nothing there can be squeezed to nothing.
+colour at the very top-left, and it is why the type pickers sit in the
+header's middle group -- there is no left group left for them. The middle
+group is centred in its column; the search on the right shrinks before any
+button does, so nothing there can be squeezed to nothing.
+
+**There is no sidebar toggle in the header.** The chevron tab is on the
+sidebar's own edge, welded to the archive, which is where a control that
+folds the sidebar belongs -- and the header's middle group is supposed to be
+the formatting controls for the text under it. `Ctrl+\` still does it, and so
+does pressing the session badge (below).
+
+**The session badge is two controls on one target, split by gesture.**
+Resting on it opens the sessions popup; pressing it folds the outliner. That
+pairing is what lets it be the only thing in the corner: the sessions are
+what you want to SEE from there and folding is what you want to DO. A press
+disarms the hover until a real `pointermove` arrives -- folding the sidebar
+moves a different badge under a stationary pointer, and Chrome re-evaluates
+hover on a layout change, so the leave/enter pair the fold produces is
+exactly the one that must be ignored.
 
 **Renaming happens where the name is read.** Double-click a category row or
 the session's name in the sidebar and it becomes a field with everything
@@ -1428,6 +1443,30 @@ sidebar away rides the same divider: `syncTab()` keeps it level with the
 archive's top edge through the split drag, the fold and a resize. It lives
 outside the sidebar because the sidebar clips its own overflow.
 
+`syncTab()` watches **the archive**, not the sidebar. A `ResizeObserver` on
+the sidebar cannot see the fold at all -- the sidebar is exactly the same
+size with the archive open or shut -- so the one action that moves that
+divider furthest was the one that left the tab behind. The observer is
+attached lazily, because the archive does not exist yet when `initRender()`
+runs, and the archive's own handler calls `syncTab()` on both branches.
+
+**The sessions are three surfaces onto one list.** The popup on the badge
+(cards, `openSessions()`), the list under the foot button
+(`renderSessionList()`) and the rail's badge all read `doc.sessions`.
+The popup's row is options / the word / close, and the word is placed
+ABSOLUTELY at the popup's centre -- centring it over the cards puts it in the
+corner whenever there is only one session. The foot list is a sheet pinned to
+the top edge of its own button (`.nt-sess-dock`), not a block in the column:
+as a block it pushed the archive down on open and pulled it back on close, so
+asking what the sessions were rearranged the sidebar twice.
+
+**Nothing in the sessions answers a right-click.** The cards reorder on a
+drag, and a press-and-hold that begins a drag and a press that opens a
+context menu are the same gesture -- the menu won, and closed the popup it
+was opened from on the way. `wireSessionDrag()` does NOT `preventDefault()`
+its `pointerdown`: cancelling that cancels the compatibility mouse events
+after it, `click` included, and the card stops switching sessions.
+
 **The formatting group is centred absolutely, not by a grid track.** The
 header spans the same column as the canvas, so the middle of one is the
 middle of the text below -- and a grid only centres its middle track while
@@ -1441,6 +1480,29 @@ container and item selectors, so both draw the same line between the two
 categories a drop would land between. The grip shows on hover AND on the
 category you are currently in -- a handle only visible under the pointer is
 one you have to go looking for.
+
+**Switching sessions slides.** `beginSlide()` clones `.nt-canvas-inner`,
+freezes the outgoing session's colour tiers onto the copy as literal values
+(`--c` and everything derived from it is about to be repainted on the root),
+and pushes it off in the direction of the session picked while the real one
+comes in from the other side. **The copy is mounted in a layer over
+`.nt-canvas`, never inside it**: every category and body lookup in the app
+goes through the canvas, and a second set of them in there for the length of
+an animation is a scroll spy counting sections twice and a flush walking
+bodies that belong to a session nobody is in. `prefers-reduced-motion` skips
+it and the function returns a no-op.
+
+**One place holds every keystroke: the information panel** behind the ⓘ in
+the header, opened by resting on it and grouped by where you would be
+standing when you wanted one (Everywhere / Outliner / Canvas / Editor). That
+is what let the tooltips stop carrying keybinds -- a shortcut that lives only
+in a tooltip can be found only by hovering the button you were about to press
+anyway, and thirty of them is thirty places for the same fact to go stale.
+Which controls keep a tooltip is a decision, not an oversight: bold, italic,
+underline, the alignments, undo, redo, the chevron, the emoji and colour
+buttons, the archive X, the theme, the close and the search carry none;
+strikethrough, the auto list, the spell check and the nodes menu do, because
+none of those four is obvious from its mark alone.
 
 **The caret and the selection are the category's colour too.** `tints()`
 returns a fourth value, `--c-sel`, which is the hue taken deep on the dark

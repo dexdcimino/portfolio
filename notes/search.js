@@ -28,11 +28,11 @@ export function initSearch(context, mount) {
   ctx = context;
   input = el('input', { type: 'search', class: 'nt-search-input', placeholder: 'Search', 'aria-label': 'Search notes', spellcheck: 'false', autocomplete: 'off', tabindex: '-1' });
   countEl = el('span', { class: 'nt-search-count', hidden: true });
-  const prev = el('button', { type: 'button', class: 'nt-icon-btn is-small', 'data-tip': 'Previous (Shift+Enter)', html: ICON.chevron, tabindex: '-1', onclick: () => step(-1) });
+  const prev = el('button', { type: 'button', class: 'nt-icon-btn is-small', 'data-tip': 'Previous', html: ICON.chevron, tabindex: '-1', onclick: () => step(-1) });
   prev.classList.add('is-up');
-  const next = el('button', { type: 'button', class: 'nt-icon-btn is-small', 'data-tip': 'Next (Enter)', html: ICON.chevron, tabindex: '-1', onclick: () => step(1) });
+  const next = el('button', { type: 'button', class: 'nt-icon-btn is-small', 'data-tip': 'Next', html: ICON.chevron, tabindex: '-1', onclick: () => step(1) });
   const toggle = el('button', {
-    type: 'button', class: 'nt-search-btn', 'data-tip': 'Search (Ctrl+F)', 'aria-label': 'Search notes',
+    type: 'button', class: 'nt-search-btn', 'aria-label': 'Search notes',
     'aria-expanded': 'false', html: ICON.search,
     onclick: () => (wrap.classList.contains('is-open') ? close() : open()),
   });

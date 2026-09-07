@@ -332,23 +332,174 @@ if (uploaded) {
 }
 
 /* ---- 15. sessions ------------------------------------------------------------- */
-await page.click('.nt-session-btn');
-await page.waitForSelector('.nt-sess-panel');
+/* THE BADGE IS TWO CONTROLS ON ONE TARGET, split by gesture: resting on it
+   opens the sessions, pressing it folds the outliner. So this rests. A
+   page.click() here folds the sidebar, and the second one then lands on a
+   button inside a panel that is pointer-events:none -- which is exactly how
+   this check failed the moment the behaviour changed, and is worth having
+   said out loud so the next person does not "fix" it back to a click.
+   The pointer is parked in the canvas first, because pointerenter does not
+   fire for a pointer that is already on the element. */
+const rest = async (sel) => {
+  await page.mouse.move(900, 500);
+  const box = await page.evaluate((s) => { const r = document.querySelector(s).getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; }, sel);
+  await page.mouse.move(box.x, box.y, { steps: 6 });
+  await page.waitForSelector('.nt-sess-panel', { timeout: 5000 });
+  /* PAST THE HOVER TIMER, not just past the panel appearing. A panel left
+     open by the block before is still on screen when this arrives, so
+     waitForSelector returns on the OLD one -- and 260ms later the hover fires
+     and replaces it, detaching every card handle taken in between. */
+  await sleep(420);
+};
+await rest('.nt-session-btn');
 const cardsBefore = await page.$$eval('.nt-sess-card:not(.is-add)', els => els.length);
 const sessionsBefore = cardsBefore;
+
+/* The row across the top: options at the left end, the word centred ON THE
+   POPUP however many cards there are, close at the right, and no paragraph of
+   instructions under the grid. The centring is measured against the panel,
+   not against the grid -- with one session those two are 200px apart. */
+{
+  const bar = await page.evaluate(() => {
+    const panel = document.querySelector('.nt-sess-panel');
+    const head = panel.querySelector('.nt-sess-head');
+    const opts = panel.querySelector('.nt-sess-opts');
+    const close = panel.querySelector('.nt-sess-close');
+    const p = panel.getBoundingClientRect();
+    const h = head.getBoundingClientRect();
+    return {
+      text: head.textContent,
+      size: parseFloat(getComputedStyle(head).fontSize),
+      off: Math.round((h.left + h.width / 2) - (p.left + p.width / 2)),
+      optsLeft: Math.round(opts.getBoundingClientRect().left - p.left),
+      closeRight: Math.round(p.right - close.getBoundingClientRect().right),
+      hint: !!panel.querySelector('.nt-sess-hint'),
+      menus: [...panel.querySelectorAll('[data-tip]')].length,
+    };
+  });
+  note(bar.text === 'Sessions', `the popup's title is "${bar.text}"`);
+  note(bar.size >= 13, `the Sessions label is ${bar.size}px, expected two points up from 11`);
+  note(Math.abs(bar.off) <= 2, `the label is ${bar.off}px off the popup's centre`);
+  note(bar.optsLeft < bar.closeRight + 30 && bar.optsLeft < 40, `the options button is not at the left end (${bar.optsLeft}px in)`);
+  note(bar.closeRight < 40, `the close button is not at the right end (${bar.closeRight}px in)`);
+  note(!bar.hint, 'the click-to-switch hint is still under the grid');
+  console.log(`sessions bar: "${bar.text}" ${bar.size}px, ${bar.off}px off centre, hamburger ${bar.optsLeft}px in, close ${bar.closeRight}px in`);
+}
+/* Right-click opens nothing here any more. It closed the popup it was fired
+   from, and a press-and-hold is now the start of a reorder drag. */
+{
+  const card = await page.$('.nt-sess-card:not(.is-add)');
+  const r = await card.boundingBox();
+  await page.mouse.click(r.x + r.width / 2, r.y + r.height / 2, { button: 'right' });
+  await sleep(250);
+  note(!(await page.$('.nt-menu-panel')), 'right-clicking a session card still opens a menu');
+  await page.waitForSelector('.nt-sess-panel', { timeout: 3000 }).catch(() => {});
+}
+
+await rest('.nt-session-btn');
 await page.click('.nt-sess-card.is-add');
-await sleep(300);
+await sleep(600);
 const newTitle = await page.$eval('.nt-session-title', e => e.textContent);
 note(newTitle === 'New Session', `a new session did not open: title is "${newTitle}"`);
 note((await page.$$eval('.nt-cat', els => els.length)) === 1, 'a new session did not start with one category');
-await page.click('.nt-session-btn');
-await page.waitForSelector('.nt-sess-panel');
+note(!(await page.$('.nt-slide-layer')), 'the slide ghost outlived the switch');
+await rest('.nt-session-btn');
 note((await page.$$eval('.nt-sess-card:not(.is-add)', els => els.length)) === cardsBefore + 1, 'the sessions grid did not gain a card');
 await page.click('.nt-sess-card:not(.is-add)');
-await sleep(300);
+await sleep(600);
 note((await page.$eval('.nt-session-title', e => e.textContent)) === 'WorldHop', 'switching back did not restore the first session');
 note((await page.$$eval('.nt-cat', els => els.length)) === catsBefore + 1, 'the first session lost categories on the round trip');
 console.log('sessions: add, switch, switch back held');
+
+/* ---- 15b. the switch SLIDES, and the ghost is never in the canvas --------- */
+/* The copy of the outgoing page has to live outside .nt-canvas: every lookup
+   in the app finds categories and bodies through the canvas, and a second set
+   of them in there for the length of an animation is a scroll spy counting
+   sections twice. Caught mid-flight, on purpose. */
+{
+  await rest('.nt-session-btn');
+  const cards = await page.$$('.nt-sess-card:not(.is-add)');
+  await cards[cards.length - 1].click();
+  await sleep(90);
+  const mid = await page.evaluate(() => {
+    const layer = document.querySelector('.nt-slide-layer');
+    const inner = document.querySelector('.nt-canvas-inner');
+    return {
+      layer: !!layer,
+      inCanvas: !!document.querySelector('.nt-canvas .nt-slide-layer'),
+      ghostCats: layer ? layer.querySelectorAll('.nt-cat').length : -1,
+      canvasCats: document.querySelectorAll('.nt-canvas .nt-cat').length,
+      appCats: document.querySelectorAll('.nt-app .nt-cat').length,
+      moving: !!inner && getComputedStyle(inner).transform !== 'none',
+      editable: layer ? layer.querySelectorAll('[contenteditable]').length : -1,
+    };
+  });
+  note(mid.layer, 'switching sessions did not put up a slide layer');
+  note(!mid.inCanvas, 'the slide ghost is inside .nt-canvas, where every category lookup will find it');
+  note(mid.ghostCats >= 1, `the ghost carries ${mid.ghostCats} categories — it is not a copy of the page`);
+  note(mid.canvasCats < mid.appCats, 'the ghost is not outside the canvas after all');
+  note(mid.editable === 0, `${mid.editable} editable nodes in the ghost — a copy is not typed into`);
+  await sleep(600);
+  note(!(await page.$('.nt-slide-layer')), 'the slide layer was not cleaned up');
+  console.log(`slide: layer outside the canvas, ${mid.ghostCats} ghost categories, ${mid.editable} editable, cleaned up`);
+  // Back to the first session for everything below.
+  await rest('.nt-session-btn');
+  await page.click('.nt-sess-card:not(.is-add)');
+  await sleep(600);
+  note((await page.$eval('.nt-session-title', e => e.textContent)) === 'WorldHop', 'the slide check did not land back on the first session');
+}
+
+/* ---- 15c. the cards reorder on a drag ------------------------------------ */
+{
+  await rest('.nt-session-btn');
+  const order = () => page.$$eval('.nt-sess-card:not(.is-add)', (els) => els.map((e) => e.dataset.sess));
+  const was = await order();
+  note(was.length >= 2 && was.every(Boolean), `${was.length} session cards, and each must carry its id`);
+  const from = await page.evaluate(() => { const r = document.querySelectorAll('.nt-sess-card:not(.is-add)')[0].getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  const to = await page.evaluate(() => { const c = document.querySelectorAll('.nt-sess-card:not(.is-add)'); const r = c[c.length - 1].getBoundingClientRect(); return { x: Math.round(r.right - 2), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 14, from.y, { steps: 3 });
+  note(!!(await page.$('.nt-sess-marker')), 'dragging a session card shows no line where it would land');
+  await page.mouse.move(to.x, to.y, { steps: 8 });
+  await page.mouse.up();
+  await sleep(300);
+  const now = await order();
+  note(now.length === was.length && was.every((id) => now.includes(id)), 'the session drag lost or duplicated a session');
+  note(now[0] !== was[0], `dragging the first card to the end did not move it (${was.join(',')} -> ${now.join(',')})`);
+  note((await page.$eval('.nt-session-title', e => e.textContent)) === 'WorldHop', 'the drag was also taken as a click and switched sessions');
+  console.log(`session reorder: ${was.length} cards, ${was[0].slice(0, 6)} moved to ${now.indexOf(was[0])}`);
+  // Put it back, so nothing below depends on the order this left behind.
+  const back = await page.evaluate(() => { const c = document.querySelectorAll('.nt-sess-card:not(.is-add)'); const r = c[c.length - 1].getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  const head = await page.evaluate(() => { const r = document.querySelectorAll('.nt-sess-card:not(.is-add)')[0].getBoundingClientRect(); return { x: Math.round(r.left + 2), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(back.x, back.y);
+  await page.mouse.down();
+  await page.mouse.move(back.x - 14, back.y, { steps: 3 });
+  await page.mouse.move(head.x, head.y, { steps: 8 });
+  await page.mouse.up();
+  await sleep(300);
+  note((await order())[0] === was[0], 'the session order was not restored');
+  await page.click('.nt-sess-close');
+  await sleep(200);
+  note(!(await page.$('.nt-sess-panel')), 'the popup’s own X does not close it');
+}
+
+/* ---- 15d. pressing the badge folds the outliner -------------------------- */
+{
+  const railed = () => page.$eval('.nt-app', (e) => e.classList.contains('is-rail'));
+  const wasRail = await railed();
+  await page.click('.nt-session-btn');
+  await sleep(400);
+  note((await railed()) !== wasRail, 'pressing the session badge did not fold the outliner');
+  note(!(await page.$('.nt-sess-panel')), 'the press left the sessions popup up over a sidebar that was sliding away');
+  // The rail badge does the same two jobs, and is what is reachable now.
+  await rest('.nt-rail-session');
+  note(!!(await page.$('.nt-sess-panel')), 'resting on the rail badge does not open the sessions');
+  await page.click('.nt-rail-session');
+  await sleep(400);
+  note((await railed()) === wasRail, 'pressing the rail badge did not unfold the outliner');
+  console.log('session badge: rest opens the sessions, press folds the outliner, both badges');
+}
 
 /* ---- 16. archive, restore, undo an archive ------------------------------------- */
 const archivedBefore = Number(await page.$eval('.nt-archive-count', e => e.textContent) || 0);
@@ -642,28 +793,222 @@ await chord(['Control'], '\\');
   console.log(`archive: ${Math.round(before)}px -> ${Math.round(after)}px by drag, split ${split}%, arms fold`);
 }
 
-/* ---- 17f. the sessions, listed ------------------------------------------- */
+/* ---- 17f. the sessions, listed, AS A SHEET OVER THE PANEL ----------------- */
+/* It used to be a block inserted between the categories and the archive, so
+   asking what the sessions were pushed everything below it down and shutting
+   it pulled everything back up. The measurement that says it is a sheet is
+   that the archive and the New Category button do not move -- and that the
+   list is drawn over them rather than above them. */
 {
   note(!(await page.$('.nt-sesslist .nt-sess-row')), 'the session list is populated before it is opened');
+  const anchors = () => page.evaluate(() => ({
+    arch: Math.round(document.querySelector('.nt-archive').getBoundingClientRect().top),
+    add: Math.round(document.querySelector('.nt-add-btn:not(.nt-sessions-btn)').getBoundingClientRect().top),
+  }));
+  const shut = await anchors();
   await page.click('.nt-sessions-btn');
-  await sleep(250);
+  await sleep(280);
   const list = await page.evaluate(() => {
     const wrap = document.querySelector('.nt-sesslist');
+    const w = wrap.getBoundingClientRect();
+    const btn = document.querySelector('.nt-sessions-btn').getBoundingClientRect();
+    const add = document.querySelector('.nt-add-btn:not(.nt-sessions-btn)').getBoundingClientRect();
     return {
       shown: getComputedStyle(wrap).display !== 'none',
+      floating: getComputedStyle(wrap).position === 'absolute',
+      gap: Math.round(btn.top - w.bottom),
+      overAdd: w.bottom > add.top,
       rows: [...wrap.querySelectorAll('.nt-sess-row:not(.is-add)')].map((r) => r.querySelector('.nt-row-title').textContent),
       active: wrap.querySelectorAll('.nt-sess-row.is-active').length,
       add: !!wrap.querySelector('.nt-sess-row.is-add'),
     };
   });
+  const open = await anchors();
   note(list.shown, 'the Sessions button did not show the list');
+  note(list.floating, 'the session list is still in the flow of the sidebar');
+  note(list.gap >= 0 && list.gap <= 14, `the list is ${list.gap}px off the top of its own button`);
+  note(list.overAdd, 'the list does not reach over the New Category button');
+  note(open.arch === shut.arch, `opening the list moved the archive ${open.arch - shut.arch}px`);
+  note(open.add === shut.add, `opening the list moved the New Category button ${open.add - shut.add}px`);
   note(list.rows.length >= 1, 'the session list is empty');
   note(list.active === 1, `${list.active} sessions are marked active, expected 1`);
   note(list.add, 'the session list has no way to add one');
-  console.log(`sessions listed: ${list.rows.join(', ')}`);
+  console.log(`sessions listed: ${list.rows.join(', ')} — a sheet ${list.gap}px above its button, nothing under it moved`);
+  // Escape shuts it, and stops there: the overlay behind must survive.
+  await page.keyboard.press('Escape');
+  await sleep(220);
+  note(!(await page.$eval('.nt-sesslist', (el) => getComputedStyle(el).display !== 'none')), 'Escape does not close the session list');
+  note(!!(await page.$('.nt-app')), 'the Escape that closed the list also closed the notes');
+  // And so does the button that opened it.
+  await page.click('.nt-sessions-btn');
+  await sleep(250);
   await page.click('.nt-sessions-btn');
   await sleep(200);
   note(!(await page.$eval('.nt-sesslist', (el) => getComputedStyle(el).display !== 'none')), 'the Sessions button does not close the list');
+}
+
+/* ---- 17f2. the header's own cull ----------------------------------------- */
+/* Every one of these was a decision, and every one of them is the kind that
+   gets quietly undone: a tooltip is one attribute to add back. What is
+   asserted is the SHAPE -- universal marks carry no tip, the four that are
+   not obvious do, no tip anywhere still carries a keystroke, and the
+   keystrokes are all in the panel instead. */
+{
+  const head = await page.evaluate(() => {
+    const mid = document.querySelector('.nt-header-mid');
+    const tipped = [...document.querySelectorAll('.nt-app [data-tip]')].map((e) => e.getAttribute('data-tip'));
+    return {
+      sidebarToggle: !!document.querySelector('.nt-sidebar-toggle'),
+      code: !!mid.querySelector('.nt-fmt svg path[d^="m8 8-4 4"]'),
+      buttons: [...mid.children].map((c) => c.className.replace(/nt-icon-btn ?/, '').trim()),
+      tips: Object.fromEntries(['.nt-fmt', '.nt-theme', '.nt-close', '.nt-search-btn', '.nt-node-btn', '.nt-spell-btn', '.nt-undo', '.nt-redo']
+        .map((s) => [s, [...document.querySelectorAll(s)].map((e) => e.getAttribute('data-tip'))])),
+      withKeys: tipped.filter((t) => /Ctrl\+|Alt\+|Shift\+/.test(t)),
+      spell: (() => { const r = document.querySelector('.nt-spell-btn svg').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })(),
+      info: !!document.querySelector('.nt-info'),
+      infoBeforeTheme: (() => {
+        const kids = [...document.querySelector('.nt-header-right').children];
+        return kids.findIndex((k) => k.classList.contains('nt-info')) < kids.findIndex((k) => k.classList.contains('nt-theme'));
+      })(),
+    };
+  });
+  note(!head.sidebarToggle, 'the sidebar toggle is still in the header — the chevron tab replaced it');
+  note(!head.code, 'the inline-code button is still in the formatting group');
+  note(head.tips['.nt-fmt'].filter(Boolean).length === 2, `${head.tips['.nt-fmt'].filter(Boolean).length} formatting buttons carry a tooltip, expected 2 (strikethrough and the list)`);
+  note(head.tips['.nt-fmt'].includes('Strikethrough') && head.tips['.nt-fmt'].includes('Auto list'), `the two tipped formatting buttons are ${JSON.stringify(head.tips['.nt-fmt'].filter(Boolean))}`);
+  note(head.tips['.nt-node-btn'][0] === 'Nodes', `the nodes button is called "${head.tips['.nt-node-btn'][0]}"`);
+  note(!(await page.$('.nt-cat-toggle[data-tip], .nt-cat-emoji[data-tip], .nt-cat-color[data-tip], .nt-cat-x[data-tip], .nt-row-badge[data-tip], .nt-row-color[data-tip], .nt-row-x[data-tip], .nt-session-btn[data-tip], .nt-session-emoji[data-tip]')),
+       'a chevron, emoji, colour, archive X or session badge still carries a tooltip');
+  note(head.tips['.nt-spell-btn'][0] === 'Spell check', `the spell button's tip is "${head.tips['.nt-spell-btn'][0]}"`);
+  for (const sel of ['.nt-theme', '.nt-close', '.nt-search-btn', '.nt-undo', '.nt-redo']) {
+    note(!head.tips[sel].filter(Boolean).length, `${sel} still carries a tooltip: ${head.tips[sel]}`);
+  }
+  note(!head.withKeys.length, `${head.withKeys.length} tooltips still carry a keystroke: ${head.withKeys.join(' | ')}`);
+  note(head.spell.w > head.spell.h + 6, `the spell mark is ${head.spell.w}x${head.spell.h} — the blanket square rule has squashed it`);
+  note(head.info, 'there is no information button');
+  note(head.infoBeforeTheme, 'the information button is not to the left of the light/dark toggle');
+  console.log(`header: no sidebar toggle, no code button, ${head.withKeys.length} tips with keys, spell mark ${head.spell.w}x${head.spell.h}`);
+}
+
+/* ---- 17f3. the information panel ----------------------------------------- */
+/* THE ONE PLACE THE KEYSTROKES LIVE, which is what let the tooltips drop
+   them. It opens on a REST, not a press -- so this rests. */
+{
+  await page.mouse.move(900, 500);
+  const box = await page.evaluate(() => { const r = document.querySelector('.nt-info').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(box.x, box.y, { steps: 6 });
+  await page.waitForSelector('.nt-help-panel', { timeout: 5000 });
+  await sleep(160);
+  const help = await page.evaluate(() => {
+    const p = document.querySelector('.nt-help-panel');
+    return {
+      heads: [...p.querySelectorAll('.nt-help-head')].map((h) => h.textContent),
+      rows: p.querySelectorAll('.nt-help-row').length,
+      keys: [...p.querySelectorAll('.nt-help-val')].map((v) => v.textContent).filter((t) => /Ctrl\+|Alt\+|Shift\+|Tab/.test(t)).length,
+      onScreen: (() => { const r = p.getBoundingClientRect(); return r.right <= window.innerWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1; })(),
+      /* NOTHING RUNS OUT OF THE PANEL. This is a hand-written list that
+         nobody measures again after adding a row to it, and one long value
+         under white-space:nowrap ran clean off the right edge and off the
+         screen with it. Measured per row, against the panel's own box. */
+      spill: (() => {
+        const box = p.getBoundingClientRect();
+        return [...p.querySelectorAll('.nt-help-val, .nt-help-key')]
+          .filter((v) => v.getBoundingClientRect().right > box.right - 8)
+          .map((v) => v.textContent);
+      })(),
+    };
+  });
+  note(!help.spill.length, `${help.spill.length} rows run out of the information panel: ${help.spill.join(' | ')}`);
+  note(help.heads.length >= 3, `the panel has ${help.heads.length} sections, expected at least three places`);
+  note(help.heads.includes('Outliner') && help.heads.includes('Canvas'), `the sections are ${help.heads.join(', ')} — they are supposed to be places`);
+  note(help.rows >= 20, `only ${help.rows} rows in the panel — the tooltips gave up more than that`);
+  note(help.keys >= 15, `only ${help.keys} rows carry a keystroke`);
+  note(help.onScreen, 'the information panel hangs off the window');
+  // Leaving it closes it; it was never pinned by a press.
+  await page.mouse.move(900, 500);
+  await sleep(450);
+  note(!(await page.$('.nt-help-panel')), 'the information panel stays up after the pointer leaves it');
+  console.log(`info: ${help.heads.join(' / ')} — ${help.rows} rows, ${help.keys} with keys`);
+}
+
+/* ---- 17f4. shift-click a chevron folds or unfolds every category ---------- */
+{
+  const state = () => page.$$eval('.nt-cat', (els) => els.map((e) => e.classList.contains('is-collapsed')));
+  // From a known state: everything open, and the canvas at the top.
+  await page.evaluate(() => { for (const s of document.querySelectorAll('.nt-cat.is-collapsed')) s.querySelector('.nt-cat-toggle').click(); });
+  await sleep(250);
+  const opened = await state();
+  note(opened.length >= 3 && opened.every((c) => !c), `could not put every category open first (${opened.length} sections, ${opened.filter(Boolean).length} still shut)`);
+  /* THE CANVAS IS SCROLLED BY EVERYTHING ABOVE THIS CHECK, and a real mouse
+     click aims at a VIEWPORT coordinate: without this the first chevron's
+     rect was off the top of the window and both clicks landed on nothing,
+     which read exactly like a dead control. Scrolled without the smooth
+     behaviour the canvas has by default, or the rect is read mid-flight. */
+  await page.evaluate(() => { const c = document.querySelector('.nt-canvas'); c.style.scrollBehavior = 'auto'; c.scrollTop = 0; c.style.removeProperty('scroll-behavior'); });
+  await sleep(250);
+  const chev = await page.evaluate(() => {
+    const t = document.querySelector('.nt-cat .nt-cat-toggle');
+    const r = t.getBoundingClientRect();
+    const p = { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+    // Assert the point is the thing, rather than trusting the arithmetic.
+    return { ...p, hit: document.elementFromPoint(p.x, p.y) === t || t.contains(document.elementFromPoint(p.x, p.y)) };
+  });
+  note(chev.hit, `the point aimed at the first chevron (${chev.x},${chev.y}) is not on it`);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(chev.x, chev.y);
+  await page.keyboard.up('Shift');
+  await sleep(300);
+  const shutAll = await state();
+  note(shutAll.every(Boolean), `shift-clicking an open chevron shut ${shutAll.filter(Boolean).length} of ${shutAll.length} categories`);
+  // And the same gesture on a shut one opens everything.
+  await page.keyboard.down('Shift');
+  await page.mouse.click(chev.x, chev.y);
+  await page.keyboard.up('Shift');
+  await sleep(300);
+  const openAll = await state();
+  note(openAll.every((c) => !c), `shift-clicking a shut chevron left ${openAll.filter(Boolean).length} of ${openAll.length} categories shut`);
+  // A plain click is still one category.
+  await page.mouse.click(chev.x, chev.y);
+  await sleep(250);
+  const one = await state();
+  note(one[0] && one.slice(1).every((c) => !c), `a plain click folded ${one.filter(Boolean).length} categories, expected 1`);
+  await page.mouse.click(chev.x, chev.y);
+  await sleep(250);
+  console.log(`chevron: plain click is one, shift is all ${openAll.length}, both directions`);
+}
+
+/* ---- 17f5. the category header's order ----------------------------------- */
+/* Options, then colour, then the X. The X removes something, so it is the one
+   on the outside with nothing reached past it. */
+{
+  const order = await page.$$eval('.nt-cat .nt-cat-head', (heads) => {
+    const h = heads[0];
+    const pick = (s) => Math.round(h.querySelector(s).getBoundingClientRect().left);
+    return { more: pick('.nt-cat-more'), color: pick('.nt-cat-color'), x: pick('.nt-cat-x'), title: pick('.nt-cat-title') };
+  });
+  note(order.title < order.more, 'the title is not first');
+  note(order.more < order.color, `the options button is not before the colour (${order.more} vs ${order.color})`);
+  note(order.color < order.x, `the colour is not before the archive X (${order.color} vs ${order.x})`);
+  console.log(`category head: title ${order.title} < more ${order.more} < colour ${order.color} < X ${order.x}`);
+}
+
+/* ---- 17f6. a focused category title is a ring, not a wash ---------------- */
+/* The fill was 12% of the category's colour and the selection highlight is
+   --c-sel; on a coloured category those two are close enough that you could
+   not see what you had selected. */
+{
+  await page.evaluate(() => document.querySelector('.nt-cat .nt-cat-title').focus());
+  await sleep(200);
+  const look = await page.$eval('.nt-cat .nt-cat-title', (el) => {
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, shadow: cs.boxShadow, radius: cs.borderRadius };
+  });
+  note(/rgba\(0, 0, 0, 0\)|transparent/.test(look.bg), `the focused title is still filled (${look.bg})`);
+  note(look.shadow && look.shadow !== 'none', 'the focused title has no ring to say it is being typed in');
+  note(parseFloat(look.radius) >= 4, `the ring is not rounded (${look.radius})`);
+  await page.evaluate(() => document.querySelector('.nt-cat .nt-cat-title').blur());
+  await sleep(150);
+  console.log(`category title focus: ${look.bg} fill, ring ${look.shadow.split(')')[0]})`);
 }
 
 /* ---- 17g. one list button, and the spelling menu opens on the click ------- */
@@ -817,6 +1162,22 @@ await chord(['Control'], '\\');
   await sleep(350);
   note(Math.abs((await level()).drift) <= 2, 'the tab did not follow the archive when the split moved');
 
+  /* AND WHEN THE ARCHIVE IS FOLDED SHUT. This is the one that was broken:
+     only the open branch of the archive's own handler reached syncTab, and
+     the sidebar's ResizeObserver could not stand in for it because the
+     sidebar is exactly the same size either way. So folding the archive --
+     the single action that moves that divider furthest -- left the tab
+     hanging where the open archive's top edge had been. The fold happens
+     twice here because the bug only showed on the way SHUT. */
+  await page.evaluate(() => document.querySelector('.nt-archive-head').click());
+  await sleep(350);
+  const shutDrift = (await level()).drift;
+  note(Math.abs(shutDrift) <= 2, `folding the archive left the tab ${shutDrift}px off its top edge`);
+  await page.evaluate(() => document.querySelector('.nt-archive-head').click());
+  await sleep(350);
+  note(Math.abs((await level()).drift) <= 2, 'unfolding the archive left the tab behind');
+  console.log(`tab: welded through the fold (${shutDrift}px drift shut)`);
+
   // And it folds the sidebar.
   await page.click('.nt-sb-tab');
   await sleep(400);
@@ -938,8 +1299,7 @@ await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r =>
 await page.waitForSelector('.nt-modal');
 await page.click('.nt-modal .nt-btn.is-left');
 await sleep(100);
-await page.click('.nt-session-btn');
-await page.waitForSelector('.nt-sess-panel');
+await rest('.nt-session-btn');
 await page.evaluate(() => { const cards = [...document.querySelectorAll('.nt-sess-card:not(.is-add)')]; cards[cards.length - 1].querySelector('.nt-sess-x').click(); });
 await page.waitForSelector('.nt-modal');
 await press('Enter');

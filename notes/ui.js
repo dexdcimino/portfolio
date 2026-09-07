@@ -223,7 +223,16 @@ export const ICON = {
   ul: S('<line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/>'),
   ol: S('<line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/><path d="M4 4.5h1.5v4M3.8 10.8c.3-.6 2-.8 2 .3 0 .9-2 1.4-2 2.4h2.4M3.8 16.5h1.6c.9 0 1 1.1.2 1.3.9.2.9 1.5-.2 1.5H3.8" stroke-width="1.4"/>'),
   todo: S('<rect x="3" y="4" width="7" height="7" rx="1.5"/><path d="M5 7.5l1.5 1.5L9 6"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><line x1="13" y1="7.5" x2="21" y2="7.5"/><line x1="13" y1="17.5" x2="21" y2="17.5"/>'),
-  spell: S('<path d="M4 15l3.5-9 3.5 9M5.2 12h4.6"/><path d="M13 6v9M13 9.5c1.2-1 4.5-1.2 4.5 1.3v4.2M13 13.2c0 2 4.5 2.4 4.5-.3"/><path d="M4 20l3 2 6-5" stroke-width="2.2"/>'),
+  /* DexNote's spell mark, lifted whole: the word "abc" with a tick through
+     the end of it. The drawn-letterforms version this replaced was three
+     glyphs hand-built out of strokes at 18px square, and at that size it was
+     not readable as letters at all -- it read as a smudge. Real text in the
+     SVG is legible because it is text. It is WIDER THAN IT IS TALL, which is
+     why .nt-spell-btn has to size it: the app's blanket `svg { 18px }` would
+     squash it back into a square. */
+  spell: `<svg viewBox="0 0 30 16" fill="none" aria-hidden="true"><text x="0" y="12.5" font-family="inherit" font-size="13.5" font-weight="800" fill="currentColor">abc</text><polyline points="21,10 23.5,13 28,5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  menu: S('<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>'),
+  info: S('<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="17"/><circle cx="12" cy="7.6" r=".9" fill="currentColor" stroke="none"/>'),
   link: S('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>'),
   md: S('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M6.5 15V9l2.5 3 2.5-3v6M16.5 9v6M14.5 13l2 2 2-2"/>'),
   image: S('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-8 8"/>'),

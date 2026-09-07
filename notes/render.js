@@ -179,19 +179,89 @@ export function addSession() {
   const used = ctx.doc.sessions.length;
   const s = newSession('New Session', { color: SESSION_PALETTE[used % SESSION_PALETTE.length] });
   ctx.doc.sessions.push(s);
-  switchSession(s.id);
+  // A new session is always to the RIGHT of every existing one, so the page
+  // you were on leaves to the left and the blank one arrives from the right.
+  switchSession(s.id, 1);
   ctx.docChanged();
   setTimeout(() => editSessionTitle(), 60);
 }
 
-export function switchSession(id) {
+export function switchSession(id, forceDir) {
   if (!ctx.doc.sessions.some((s) => s.id === id) || id === ctx.doc.active) return;
+  const from = ctx.doc.sessions.findIndex((s) => s.id === ctx.doc.active);
+  const to = ctx.doc.sessions.findIndex((s) => s.id === id);
+  const dir = forceDir === undefined ? (to > from ? 1 : -1) : forceDir;
+  const finish = beginSlide(dir);
   ctx.flushBodies();
   ctx.doc.active = id;
   ctx.history.clear();
   ctx.docChanged();
   renderAll();
   ctx.canvas.scrollTop = 0;
+  finish();
+}
+
+export function moveSession(id, target) {
+  const list = ctx.doc.sessions;
+  const from = list.findIndex((s) => s.id === id);
+  if (from < 0) return;
+  const [s] = list.splice(from, 1);
+  // `target` indexes the list WITHOUT the dragged session, which is exactly
+  // what the array is once the splice above has run.
+  list.splice(Math.max(0, Math.min(list.length, target)), 0, s);
+  ctx.docChanged();
+}
+
+/* ---- the slide between sessions ---------------------------------------------
+ * Switching sessions is a move sideways through a row, so it looks like one:
+ * the page you are leaving is cloned where it stands and pushed off in the
+ * direction of the one you picked, while the new one arrives from the other
+ * side. Left when the session you picked is further down the list, right when
+ * it is further up -- the same order the cards are in.
+ *
+ * THE CLONE IS MOUNTED OUTSIDE .nt-canvas, in a layer over it. That is not a
+ * styling choice: half this file and app.js reach for `.nt-cat`, `.nt-cats`
+ * and `.nt-body` through ctx.canvas, and a second copy of every one of them
+ * living inside it for the length of an animation is a scroll spy counting
+ * sections twice and a flush walking bodies that belong to a session nobody
+ * is in any more.
+ *
+ * The clone also carries the outgoing session's colour tiers as literal
+ * values, because --c and everything derived from it is about to be
+ * repainted on the root -- a live clone would change colour halfway across. */
+const SLIDE_MS = 380;
+const TIERS = ['--c', '--c-on', '--c-body', '--c-bold', '--c-title', '--c-sel', '--here'];
+const stillness = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function beginSlide(dir) {
+  const inner = ctx.canvas.querySelector('.nt-canvas-inner');
+  const main = ctx.canvas.parentNode;
+  if (!inner || !main || !dir || stillness()) return () => {};
+  const ghost = inner.cloneNode(true);
+  ghost.className = 'nt-slide-ghost';
+  ghost.removeAttribute('id');
+  // Nothing in a copy is typed in, tabbed to or read out.
+  ghost.setAttribute('aria-hidden', 'true');
+  for (const node of ghost.querySelectorAll('[contenteditable]')) node.removeAttribute('contenteditable');
+  ghost.style.top = `${-ctx.canvas.scrollTop}px`;
+  const now = getComputedStyle(ctx.root);
+  for (const v of TIERS) ghost.style.setProperty(v, now.getPropertyValue(v));
+  const layer = el('div', { class: 'nt-slide-layer', 'aria-hidden': 'true' }, ghost);
+  main.append(layer);
+  return () => {
+    inner.classList.add(dir > 0 ? 'is-from-right' : 'is-from-left');
+    // Read the layout back, so the starting offset is committed before the
+    // transition is armed. Without it both classes land in one style pass and
+    // there is nothing to animate FROM.
+    void inner.offsetWidth;
+    inner.classList.add('is-sliding');
+    inner.classList.remove('is-from-right', 'is-from-left');
+    ghost.classList.add(dir > 0 ? 'is-out-left' : 'is-out-right');
+    setTimeout(() => {
+      layer.remove();
+      inner.classList.remove('is-sliding');
+    }, SLIDE_MS + 40);
+  };
 }
 
 export async function deleteSession(id) {
@@ -213,27 +283,105 @@ export async function deleteSession(id) {
   toast(`"${s.title}" deleted`);
 }
 
+/* The sessions, as a popup on the badge.
+ *
+ * ONE ROW ACROSS THE TOP, and the word in it is centred on the POPUP rather
+ * than on the cards: with one session the grid is 44px wide and a label
+ * centred over it sits in the corner, which is not where a title goes. The
+ * options are at the left end of that row and the close at the right, so the
+ * middle is genuinely free -- it is placed absolutely for the same reason the
+ * header's formatting group is, because two arms of unequal width cannot
+ * centre anything between them.
+ *
+ * NOTHING HERE ANSWERS A RIGHT-CLICK ANY MORE. The cards reorder on a drag,
+ * and a press-and-hold that is the beginning of a drag and a press that is a
+ * context menu are the same gesture -- the menu was winning, and it closed
+ * the popup it was opened from on the way. The row's own options button does
+ * that job now. */
 export function openSessions(anchor) {
   const grid = el('div', { class: 'nt-sess-grid' });
   const draw = () => {
+    const add = el('button', { type: 'button', class: 'nt-sess-card is-add', 'data-tip': 'New session', html: ICON.plus, onclick: () => { closePanel(); addSession(); } });
     grid.replaceChildren(...ctx.doc.sessions.map((s) => {
       const g = glyph(s);
-      const card = el('button', { type: 'button', class: `nt-sess-card ${s.id === ctx.doc.active ? 'is-active' : ''} ${g.emoji ? 'is-emoji' : ''}`, 'data-tip': s.title, text: g.text });
+      const card = el('button', { type: 'button', class: `nt-sess-card ${s.id === ctx.doc.active ? 'is-active' : ''} ${g.emoji ? 'is-emoji' : ''}`, 'data-sess': s.id, 'data-tip': s.title, text: g.text });
       paintColor(card, s.color);
-      card.addEventListener('click', () => { switchSession(s.id); draw(); });
-      card.addEventListener('contextmenu', (e) => { e.preventDefault(); sessionMenu(s, card); });
+      // A drag that ended on this card is not a click on it.
+      card.addEventListener('click', () => { if (!card.dataset.dragged) { switchSession(s.id); draw(); } });
       const x = el('span', { class: 'nt-sess-x', html: ICON.close, title: 'Delete session' });
       x.addEventListener('click', (e) => { e.stopPropagation(); closePanel(); deleteSession(s.id); });
       card.append(x);
+      wireSessionDrag(card, s.id, draw);
       return card;
-    }), el('button', { type: 'button', class: 'nt-sess-card is-add', 'data-tip': 'New session', html: ICON.plus, onclick: () => { closePanel(); addSession(); } }));
+    }), add);
   };
   draw();
   const box = el('div', { class: 'nt-sess' },
-    el('div', { class: 'nt-sess-head', text: 'Sessions' }),
-    grid,
-    el('p', { class: 'nt-sess-hint', text: 'Click to switch · right-click for options' }));
+    el('div', { class: 'nt-sess-bar' },
+      el('button', {
+        type: 'button', class: 'nt-sess-opts', 'aria-label': 'Session options', html: ICON.menu,
+        onclick: (e) => { const s = ctx.doc.sessions.find((x) => x.id === ctx.doc.active); if (s) sessionMenu(s, e.currentTarget); },
+      }),
+      el('div', { class: 'nt-sess-head', text: 'Sessions' }),
+      el('button', { type: 'button', class: 'nt-sess-close', 'aria-label': 'Close', html: ICON.close, onclick: () => closePanel() })),
+    grid);
   panel({ className: 'nt-sess-panel', content: box, anchor, align: 'left' });
+}
+
+/* Reordering the cards. The grid wraps, so "which gap is the pointer in" is
+ * not a list of tops the way the sidebar's is: a card counts as after the
+ * pointer when the pointer is above its bottom edge AND left of its middle,
+ * which reads rows top to bottom and each row left to right. */
+function wireSessionDrag(card, id, redraw) {
+  card.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.target.closest('.nt-sess-x')) return;
+    const grid = card.parentNode;
+    /* NO preventDefault ON THE POINTERDOWN. Cancelling it also cancels the
+       compatibility mouse events the browser would have sent after it --
+       mousedown, mouseup AND click -- so the card stopped switching sessions
+       the moment it learned to be dragged. There is nothing to suppress here
+       anyway: the app sets user-select:none, so a press cannot start a text
+       selection. The click is suppressed by dataset.dragged instead, and only
+       when a drag actually happened. */
+    card.setPointerCapture(e.pointerId);
+    const x0 = e.clientX; const y0 = e.clientY;
+    let dragging = false;
+    let marker = null;
+    let target = -1;
+    const onMove = (ev) => {
+      if (!dragging) {
+        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+        dragging = true;
+        card.dataset.dragged = '1';
+        card.classList.add('is-dragging');
+        marker = el('div', { class: 'nt-sess-marker' });
+      }
+      const items = [...grid.querySelectorAll('.nt-sess-card:not(.is-dragging):not(.is-add)')];
+      target = items.length;
+      for (let i = 0; i < items.length; i++) {
+        const r = items[i].getBoundingClientRect();
+        if (ev.clientY < r.bottom && ev.clientX < r.left + r.width / 2) { target = i; break; }
+      }
+      if (target < items.length) items[target].before(marker);
+      else grid.querySelector('.nt-sess-card.is-add').before(marker);
+    };
+    const onUp = () => {
+      card.removeEventListener('pointermove', onMove);
+      card.removeEventListener('pointerup', onUp);
+      card.removeEventListener('pointercancel', onUp);
+      if (!dragging) return;
+      dragging = false;
+      card.classList.remove('is-dragging');
+      if (marker) marker.remove();
+      moveSession(id, target);
+      redraw();
+      // The click that ends the drag must not also be taken as a switch.
+      setTimeout(() => { delete card.dataset.dragged; }, 0);
+    };
+    card.addEventListener('pointermove', onMove);
+    card.addEventListener('pointerup', onUp);
+    card.addEventListener('pointercancel', onUp);
+  });
 }
 
 function sessionMenu(s, anchor) {
@@ -320,13 +468,22 @@ export function setCatColor(id, color) {
   renderSidebar();
 }
 
-export function toggleCollapse(id, force) {
+/* `all` folds or unfolds every category in the session rather than this one.
+ * Which way is decided by the category that was clicked, not by a majority:
+ * shift-clicking an OPEN chevron shuts everything, shift-clicking a shut one
+ * opens everything, so the same gesture on the same arrow always does the
+ * thing that arrow was already pointing at. */
+export function toggleCollapse(id, force, all = false) {
   const cat = catOf(S(), id);
   if (!cat) return;
-  cat.collapsed = force === undefined ? !cat.collapsed : !!force;
+  const next = force === undefined ? !cat.collapsed : !!force;
+  const list = all ? S().cats : [cat];
+  for (const c of list) {
+    c.collapsed = next;
+    const sec = sectionFor(c.id);
+    if (sec) sec.classList.toggle('is-collapsed', next);
+  }
   ctx.docChanged();
-  const sec = sectionFor(id);
-  if (sec) sec.classList.toggle('is-collapsed', cat.collapsed);
   renderSidebar();
 }
 
@@ -428,10 +585,13 @@ export function renderAll() {
 export function applySessionColor() {
   const s = S();
   paintColor(ctx.root, s.color);
+  /* No tooltip on either badge. Resting the pointer on one opens the sessions
+     popup, which says every session's name including this one -- a tip that
+     appears at the same moment as the thing it duplicates. */
   const btn = ctx.root.querySelector('.nt-session-btn');
-  if (btn) { const g = glyph(s); btn.textContent = g.text; btn.classList.toggle('is-emoji', g.emoji); paintColor(btn, s.color); btn.setAttribute('data-tip', `${s.title} · sessions`); }
+  if (btn) { const g = glyph(s); btn.textContent = g.text; btn.classList.toggle('is-emoji', g.emoji); paintColor(btn, s.color); }
   const railBtn = ctx.root.querySelector('.nt-rail-session');
-  if (railBtn) { const g = glyph(s); railBtn.textContent = g.text; railBtn.classList.toggle('is-emoji', g.emoji); paintColor(railBtn, s.color); railBtn.setAttribute('data-tip', `${s.title} · sessions`); }
+  if (railBtn) { const g = glyph(s); railBtn.textContent = g.text; railBtn.classList.toggle('is-emoji', g.emoji); paintColor(railBtn, s.color); }
   const title = ctx.root.querySelector('.nt-sidebar-session-title');
   if (title) title.textContent = s.title;
 }
@@ -487,13 +647,18 @@ function renderCanvas() {
 function buildSection(cat) {
   const sec = el('section', { class: `nt-cat ${cat.collapsed ? 'is-collapsed' : ''}`, 'data-cat': cat.id });
   paintColor(sec, cat.color);
+  /* Options, then colour, then archive. The X is the one that removes
+     something, so it is the one on the outside where nothing else is reached
+     past it. */
   const head = el('div', { class: 'nt-cat-head' },
-    el('button', { type: 'button', class: 'nt-cat-toggle', 'data-tip': 'Collapse', html: ICON.chevron, 'aria-label': 'Collapse category', onclick: () => toggleCollapse(cat.id) }),
-    el('button', { type: 'button', class: 'nt-cat-emoji', 'data-tip': 'Emoji', 'aria-label': 'Choose an emoji', onclick: (e) => ctx.emoji.openFull(e.currentTarget, (u) => setCatEmoji(cat.id, u)) }),
+    // No tip. A chevron says fold, and the shift-for-all trick is in the
+    // information panel with every other thing you have to be told once.
+    el('button', { type: 'button', class: 'nt-cat-toggle', html: ICON.chevron, 'aria-label': 'Collapse category', onclick: (e) => toggleCollapse(cat.id, undefined, e.shiftKey) }),
+    el('button', { type: 'button', class: 'nt-cat-emoji', 'aria-label': 'Choose an emoji', onclick: (e) => ctx.emoji.openFull(e.currentTarget, (u) => setCatEmoji(cat.id, u)) }),
     el('h2', { class: 'nt-cat-title', contenteditable: 'true', spellcheck: 'false', 'data-cat': cat.id, 'aria-label': 'Category title' }),
-    el('button', { type: 'button', class: 'nt-cat-color', 'data-tip': 'Colour', 'aria-label': 'Choose a colour', onclick: (e) => openCatColor(cat.id, e.currentTarget) }),
     el('button', { type: 'button', class: 'nt-cat-more nt-icon-btn', 'data-tip': 'More', 'aria-label': 'Category options', html: ICON.more, onclick: (e) => catMenu(cat.id, e.currentTarget) }),
-    el('button', { type: 'button', class: 'nt-cat-x nt-icon-btn', 'data-tip': 'Archive', 'aria-label': 'Archive category', html: ICON.close, onclick: () => archiveCat(cat.id) }));
+    el('button', { type: 'button', class: 'nt-cat-color', 'aria-label': 'Choose a colour', onclick: (e) => openCatColor(cat.id, e.currentTarget) }),
+    el('button', { type: 'button', class: 'nt-cat-x nt-icon-btn', 'aria-label': 'Archive category', html: ICON.close, onclick: () => archiveCat(cat.id) }));
   const body = el('div', { class: 'nt-body', contenteditable: 'true', role: 'textbox', 'aria-multiline': 'true', 'data-cat': cat.id, 'data-rev': cat.updated, 'aria-label': `${cat.title} notes` });
   body.innerHTML = ctx.clean(cat.body);
   body.spellcheck = false;
@@ -603,10 +768,10 @@ export function renderSidebar() {
     const row = el('div', { class: `nt-row ${cat.collapsed ? 'is-collapsed' : ''}`, 'data-cat': cat.id, role: 'button', tabindex: '0' });
     paintColor(row, cat.color);
     const grip = el('span', { class: 'nt-row-grip', html: ICON.grip, 'data-tip': 'Drag to reorder', 'data-tip-pos': 'right' });
-    const badge = el('button', { type: 'button', class: `nt-row-badge ${g.emoji || cat.emoji ? 'is-emoji' : ''}`, text: cat.emoji || g.text, 'data-tip': 'Emoji', tabindex: '-1', onclick: (e) => { e.stopPropagation(); ctx.emoji.openFull(e.currentTarget, (u) => setCatEmoji(cat.id, u)); } });
+    const badge = el('button', { type: 'button', class: `nt-row-badge ${g.emoji || cat.emoji ? 'is-emoji' : ''}`, text: cat.emoji || g.text, tabindex: '-1', 'aria-label': 'Emoji', onclick: (e) => { e.stopPropagation(); ctx.emoji.openFull(e.currentTarget, (u) => setCatEmoji(cat.id, u)); } });
     const title = el('span', { class: 'nt-row-title', text: cat.title });
-    const color = el('button', { type: 'button', class: 'nt-row-color', 'data-tip': 'Colour', tabindex: '-1', 'aria-label': 'Colour', onclick: (e) => { e.stopPropagation(); openCatColor(cat.id, e.currentTarget); } });
-    const x = el('button', { type: 'button', class: 'nt-row-x', 'data-tip': 'Archive', tabindex: '-1', 'aria-label': 'Archive', html: ICON.close, onclick: (e) => { e.stopPropagation(); archiveCat(cat.id); } });
+    const color = el('button', { type: 'button', class: 'nt-row-color', tabindex: '-1', 'aria-label': 'Colour', onclick: (e) => { e.stopPropagation(); openCatColor(cat.id, e.currentTarget); } });
+    const x = el('button', { type: 'button', class: 'nt-row-x', tabindex: '-1', 'aria-label': 'Archive', html: ICON.close, onclick: (e) => { e.stopPropagation(); archiveCat(cat.id); } });
     row.append(grip, badge, title, color, x);
     row.addEventListener('click', (e) => { if (e.target.closest('button,.nt-row-grip')) return; jumpTo(cat.id); });
     row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jumpTo(cat.id); } });
@@ -644,10 +809,24 @@ export function renderSidebar() {
  * lives outside the sidebar (which clips its own overflow) and is told where
  * to sit, because the archive's position moves with the split and with the
  * window. */
+let archWatch = null;
 export function syncTab() {
   const tab = ctx.root.querySelector('.nt-sb-tab');
   const arch = ctx.sidebar.querySelector('.nt-archive');
   if (!tab || !arch) return;
+  /* THE ARCHIVE IS WHAT THE TAB IS WELDED TO, SO THE ARCHIVE IS WHAT IS
+     WATCHED. Observing the sidebar alone -- which is all initRender could do,
+     because the archive is not built yet when it runs -- missed the one thing
+     that moves the divider without changing the sidebar's own box: folding
+     the archive shut. The sidebar is the same size either way, the observer
+     never fired, and the tab stayed level with where the open archive's top
+     edge had been. */
+  if (archWatch && archWatch.node !== arch) { archWatch.ro.disconnect(); archWatch = null; }
+  if (!archWatch && typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(() => syncTab());
+    ro.observe(arch);
+    archWatch = { ro, node: arch };
+  }
   const y = arch.getBoundingClientRect().top - ctx.root.getBoundingClientRect().top;
   tab.style.setProperty('--tab-y', `${Math.round(y)}px`);
 }

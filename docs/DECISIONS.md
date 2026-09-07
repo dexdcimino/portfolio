@@ -25,6 +25,58 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the keystrokes leave the tooltips and live in one panel
+
+**Decided.** Tooltips in the notes app carry a short label or nothing, never a
+keybind. Every keystroke lives in one information panel behind the ⓘ in the
+header, grouped by where you would be standing when you wanted it. The
+controls whose mark is universal — bold, italic, underline, the alignments,
+undo, redo, the fold chevron, the emoji and colour buttons, the archive X, the
+theme, the close, the search, the session badges — carry no tooltip at all.
+Strikethrough, the auto list, the spell check and the nodes menu keep one.
+
+**It replaced** a tooltip on very nearly every control, most of them with the
+keystroke appended: `Bold (Ctrl+B)`, `Search (Ctrl+F)`, `Dictate
+(Ctrl+Shift+M)`, `New category (Alt+N)` and twenty-odd more.
+
+**Why.** A keybind that exists only inside a tooltip can be found only by
+hovering the control you were already about to click — the one moment you do
+not need to be told there is a shortcut. And a tip that names what everyone
+already knows is not neutral: it trains you to ignore the ones that say
+something, which is how `Auto list` and the spell mark ended up invisible
+among thirty of them. Thirty tooltips is also thirty copies of the same fact
+to keep in step with `editor.js`.
+
+**Reverse it if** the panel stops being the first place anyone looks — if
+people are found hunting the header by hover for a shortcut, the panel has
+failed to be discoverable and the tips were carrying more than noise.
+
+---
+
+## 2026-09-07 — the session badge is two controls on one target
+
+**Decided.** Resting on the session badge (in the outliner's corner, and on
+the rail) opens the sessions popup; pressing it folds the outliner. The header
+lost its sidebar toggle entirely; `Ctrl+\` and the chevron tab on the
+sidebar's edge are the other two ways.
+
+**It replaced** a badge that opened the popup on a click, plus a separate
+sidebar-toggle button sitting inside the header's formatting group.
+
+**Why.** The corner has room for one control and two jobs, and the two jobs
+split cleanly by gesture: the sessions are what you want to SEE from there,
+folding is what you want to DO. The toggle in the header was in the wrong
+group — that group is the formatting controls for the text below it, and it
+is centred absolutely on that text, so anything in it that is not about the
+text is pressure on the one thing it exists to line up with.
+
+**Reverse it if** hover proves to be the wrong channel on a touch screen. It
+already is, strictly: there is no hover on a phone, and the popup is reachable
+there only through the foot button's list. If the phone layout ever needs the
+popup itself, the badge needs a second target rather than a second gesture.
+
+---
+
 ## 2026-09-07 — shortcuts bind to the document, and Escape closes one thing at a time
 
 **Decided.** The notes app's keyboard shortcuts listen on `document` while it

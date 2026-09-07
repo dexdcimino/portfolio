@@ -28,7 +28,7 @@ import * as search from './search.js';
 import * as slash from './slash.js';
 import * as render from './render.js';
 import * as dictate from './dictate.js';
-import { setRoot, toast, confirm, menu, initTooltips, closePanel, ICON } from './ui.js';
+import { setRoot, toast, confirm, menu, panel, currentPanel, initTooltips, closePanel, ICON } from './ui.js';
 import { restoreSelection } from './dom.js';
 
 const SAVE_DEBOUNCE = 1200;
@@ -148,7 +148,10 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   const btn = (cls, tip, icon, onClick, extra = {}) => el('button', { type: 'button', class: `nt-icon-btn ${cls}`, 'data-tip': tip, html: icon, 'aria-label': tip, onclick: onClick, ...extra });
   const sep = () => el('span', { class: 'nt-sep' });
 
-  const sidebarBtn = btn('nt-sidebar-toggle', 'Toggle sidebar (Ctrl+\\)', ICON.sidebar, () => setSidebar(doc.ui.sidebar === 'open' ? 'rail' : 'open'));
+  /* No sidebar toggle up here any more. The chevron tab is ON the sidebar's
+     own edge, welded to the archive, which is where a control that folds the
+     sidebar belongs -- and this one sat inside the group that is supposed to
+     be the formatting controls for the text below it. Ctrl+\ still does it. */
   const fontBtn = el('button', { type: 'button', class: 'nt-pick', 'data-tip': 'Font', 'aria-haspopup': 'menu' });
   fontBtn.addEventListener('click', () => menu(fontBtn, Object.entries(FONTS).map(([k, f]) => ({
     label: f.label, run: () => setFont(k),
@@ -168,15 +171,29 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   });
   const sizeBtn = el('button', { type: 'button', class: 'nt-pick nt-pick-size', 'data-tip': 'Text size', 'aria-haspopup': 'menu' });
   sizeBtn.addEventListener('click', () => menu(sizeBtn, SIZES.map((n) => ({ label: `${n}px`, run: () => setSize(n) }))));
+  /* WHICH OF THESE CARRY A TOOLTIP IS A DECISION, NOT AN OVERSIGHT.
+     A tip that names what everyone already knows is noise that trains you to
+     ignore the ones that say something -- so bold, italic, underline, the
+     three alignments and undo/redo carry none. Strikethrough, the auto list
+     (our own word for it), the spell check and the nodes menu do, because
+     none of those four is obvious from its mark alone.
+     The keystrokes used to ride along in every one of these. They live in the
+     information panel now, in one place, where they can be read rather than
+     hunted for one hover at a time. */
   const fmt = {
-    bold: btn('nt-fmt', 'Bold (Ctrl+B)', ICON.bold, () => format('bold')),
-    italic: btn('nt-fmt', 'Italic (Ctrl+I)', ICON.italic, () => format('italic')),
-    underline: btn('nt-fmt', 'Underline (Ctrl+U)', ICON.underline, () => format('underline')),
-    strike: btn('nt-fmt', 'Strikethrough (Ctrl+Shift+D)', ICON.strike, () => format('strikeThrough')),
-    code: btn('nt-fmt', 'Code (Ctrl+E)', ICON.code, () => format('code')),
-    left: btn('nt-fmt', 'Align left (Ctrl+Shift+L)', ICON.alignLeft, () => withBody((b) => align(b, 'left'))),
-    center: btn('nt-fmt', 'Align centre (Ctrl+Shift+E)', ICON.alignCenter, () => withBody((b) => align(b, 'center'))),
-    right: btn('nt-fmt', 'Align right (Ctrl+Shift+R)', ICON.alignRight, () => withBody((b) => align(b, 'right'))),
+    bold: btn('nt-fmt', null, ICON.bold, () => format('bold'), { 'aria-label': 'Bold' }),
+    italic: btn('nt-fmt', null, ICON.italic, () => format('italic'), { 'aria-label': 'Italic' }),
+    underline: btn('nt-fmt', null, ICON.underline, () => format('underline'), { 'aria-label': 'Underline' }),
+    strike: btn('nt-fmt', 'Strikethrough', ICON.strike, () => format('strikeThrough')),
+    /* PARKED, not deleted. The button is built so syncToolbar keeps working
+       and so bringing it back is one entry in the header's append list, but
+       it is not in the header: an inline-code run inside a note is a thing
+       almost nothing here wanted, and the control read as unexplained.
+       Ctrl+E and the slash menu still make one. */
+    code: btn('nt-fmt', null, ICON.code, () => format('code'), { 'aria-label': 'Code' }),
+    left: btn('nt-fmt', null, ICON.alignLeft, () => withBody((b) => align(b, 'left')), { 'aria-label': 'Align left' }),
+    center: btn('nt-fmt', null, ICON.alignCenter, () => withBody((b) => align(b, 'center')), { 'aria-label': 'Align centre' }),
+    right: btn('nt-fmt', null, ICON.alignRight, () => withBody((b) => align(b, 'right')), { 'aria-label': 'Align right' }),
     /* ONE list button. Numbered and to-do are still a keystroke and still in
        the slash menu; three buttons for one idea was three buttons. */
     ul: btn('nt-fmt nt-fmt-list', 'Auto list', ICON.autolist, () => withBody((b) => toggleList(b, 'ul'))),
@@ -184,27 +201,39 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   for (const b of Object.values(fmt)) b.addEventListener('mousedown', (e) => e.preventDefault());
   const spellBtn = btn('nt-spell-btn', 'Spell check', ICON.spell, () => { spell.setEnabled(!spell.enabled()); syncSettings(); });
   spellBtn.addEventListener('contextmenu', (e) => { e.preventDefault(); settingsMenu(spellBtn); });
-  const nodeBtn = btn('nt-node-btn', 'Insert a link, markdown node or image', ICON.link, () => menu(nodeBtn, [
+  const nodeBtn = btn('nt-node-btn', 'Nodes', ICON.link, () => menu(nodeBtn, [
     { label: 'Link', icon: ICON.link, hint: 'Ctrl+K', run: () => withBody((b) => chips.promptLink(b)) },
     { label: 'Markdown node', icon: ICON.md, run: () => withBody((b) => chips.insertMd(b)) },
     { label: 'Image', icon: ICON.image, hint: 'or paste', run: () => withBody((b) => chips.pickImage(b)) },
   ]));
   nodeBtn.addEventListener('mousedown', (e) => e.preventDefault());
-  const undoBtn = btn('nt-undo', 'Undo (Ctrl+Z)', ICON.undo, () => ctx.history.undo());
-  const redoBtn = btn('nt-redo', 'Redo (Ctrl+Y)', ICON.redo, () => ctx.history.redo());
+  const undoBtn = btn('nt-undo', null, ICON.undo, () => ctx.history.undo(), { 'aria-label': 'Undo' });
+  const redoBtn = btn('nt-redo', null, ICON.redo, () => ctx.history.redo(), { 'aria-label': 'Redo' });
   for (const b of [undoBtn, redoBtn]) b.addEventListener('mousedown', (e) => e.preventDefault());
-  const themeBtn = btn('nt-theme', 'Light / dark', `${ICON.sun}${ICON.moon}`, () => setTheme(doc.ui.theme === 'dark' ? 'light' : 'dark'));
+  const infoBtn = btn('nt-info', null, ICON.info, () => toggleHelp(), { 'aria-label': 'Keys and tips', 'aria-haspopup': 'dialog' });
+  const themeBtn = btn('nt-theme', null, `${ICON.sun}${ICON.moon}`, () => setTheme(doc.ui.theme === 'dark' ? 'light' : 'dark'), { 'aria-label': 'Light / dark' });
   const status = el('span', { class: 'nt-status', role: 'status', 'aria-live': 'polite' });
-  const closeBtn = btn('nt-close', 'Close (Esc)', ICON.close, () => container.dispatchEvent(new CustomEvent('notes:close', { bubbles: true })));
+  const closeBtn = btn('nt-close', null, ICON.close, () => container.dispatchEvent(new CustomEvent('notes:close', { bubbles: true })), { 'aria-label': 'Close' });
   const searchMount = el('div', { class: 'nt-header-search' });
   header.append(
     el('div', { class: 'nt-header-left' }, searchMount),
-    el('div', { class: 'nt-header-mid' }, sidebarBtn, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, fmt.code, sep(), fmt.left, fmt.center, fmt.right, sep(), fmt.ul, nodeBtn, spellBtn, sep(), undoBtn, redoBtn),
-    el('div', { class: 'nt-header-right' }, status, themeBtn, closeBtn));
+    el('div', { class: 'nt-header-mid' }, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, sep(), fmt.left, fmt.center, fmt.right, sep(), fmt.ul, nodeBtn, spellBtn, sep(), undoBtn, redoBtn),
+    el('div', { class: 'nt-header-right' }, status, infoBtn, themeBtn, closeBtn));
   search.initSearch(ctx, searchMount);
+  wireHelp(infoBtn);
 
   /* ---- sidebar ---- */
-  const sessionBtn = el('button', { type: 'button', class: 'nt-session-btn', 'aria-label': 'Sessions', onclick: (e) => render.openSessions(e.currentTarget) });
+  /* THE BADGE IS TWO CONTROLS ON ONE TARGET, split by gesture rather than by
+     area. Resting on it opens the sessions; pressing it folds the outliner.
+     That pairing is why it can be the only thing in the corner: the sessions
+     are what you want to SEE from here and folding is what you want to DO,
+     and neither needs a second button beside the name.
+     The press closes the popup the hover opened -- leaving it up over a
+     sidebar that is sliding away reads as a control that did two things. */
+  const sessionBtn = el('button', {
+    type: 'button', class: 'nt-session-btn', 'aria-label': 'Sessions · click to fold the outliner',
+    onclick: () => { closePanel(); setSidebar(doc.ui.sidebar === 'open' ? 'rail' : 'open'); },
+  });
   const sessionTitle = el('span', { class: 'nt-sidebar-session-title', 'data-tip': 'Double-click to rename' });
   render.wireInlineTitle(sessionTitle, {
     get: () => ctx.session.title,
@@ -236,38 +265,86 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   const archive = el('div', { class: 'nt-archive' },
     el('div', { class: 'nt-archive-grip', 'aria-hidden': 'true' }),
     el('button', { type: 'button', class: 'nt-archive-head', 'aria-expanded': 'false',
-      onclick: (e) => { const open = archive.classList.toggle('is-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); if (open) render.renderSidebar(); } },
+      /* syncTab UNCONDITIONALLY. Only the open branch used to reach it, via
+         renderSidebar, so folding the archive left the collapse tab hanging
+         where the archive's top edge had been -- the one control that is
+         supposed to be welded to that edge, unwelded by the one action that
+         moves it furthest. */
+      onclick: (e) => { const open = archive.classList.toggle('is-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); if (open) render.renderSidebar(); render.syncTab(); } },
       el('span', { text: 'Archive' }), el('span', { class: 'nt-archive-count' }),
       el('span', { class: 'nt-archive-arms', html: ICON.archArms })),
     el('div', { class: 'nt-archive-list' }));
   const addBtn = el('button', { type: 'button', class: 'nt-add-btn', html: `<span class="nt-add-plus">${ICON.plus}</span><span>New category</span>`, onclick: () => render.addCat('bottom') });
   /* The sessions, as a list rather than a grid, and only where there is room
      to read one: the collapsed rail has the same thing behind its badge. */
+  /* A SHEET OVER THE PANEL, NOT A SECTION IN IT. Opening it used to insert a
+     block between the categories and the archive, so everything below the
+     categories moved down the moment you asked what the sessions were -- the
+     archive you were looking at went off the bottom, and shutting it again
+     put the page back a second time. It is a small overlay now, pinned to the
+     top edge of the button that opens it, lying over the New Category button
+     and as much of the archive as it needs. Nothing under it moves.
+     .nt-sess-dock is what it is pinned TO: the button's own box, so the two
+     stay together whatever the foot's padding does. */
   const sessList = el('div', { class: 'nt-sesslist' });
   const sessBtn = el('button', {
     type: 'button', class: 'nt-add-btn nt-sessions-btn', 'aria-expanded': 'false',
     html: `${ICON.sessions}<span>Sessions</span>`,
-    onclick: () => {
-      const open = !sidebar.classList.contains('show-sessions');
-      sidebar.classList.toggle('show-sessions', open);
-      sessBtn.setAttribute('aria-expanded', String(open));
-      if (open) render.renderSessionList();
-    },
+    onclick: () => (sidebar.classList.contains('show-sessions') ? closeSessionList() : openSessionList()),
   });
+  const sessDock = el('div', { class: 'nt-sess-dock' }, sessList, sessBtn);
+  function openSessionList() {
+    sidebar.classList.add('show-sessions');
+    sessBtn.setAttribute('aria-expanded', 'true');
+    render.renderSessionList();
+    // Deferred, or the pointerdown that opened it is the one that shuts it.
+    setTimeout(() => document.addEventListener('pointerdown', onSessListDown, true), 0);
+  }
+  function closeSessionList() {
+    if (!sidebar.classList.contains('show-sessions')) return;
+    sidebar.classList.remove('show-sessions');
+    sessBtn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', onSessListDown, true);
+  }
+  const onSessListDown = (e) => { if (!sessDock.contains(e.target)) closeSessionList(); };
   const railCats = el('div', { class: 'nt-rail-cats' });
-  const railSession = el('button', { type: 'button', class: 'nt-rail-session', 'aria-label': 'Sessions', 'data-tip-pos': 'right', onclick: (e) => render.openSessions(e.currentTarget) });
-  const railAdd = el('button', { type: 'button', class: 'nt-rail-add', 'data-tip': 'New category (Alt+N)', 'data-tip-pos': 'right', html: ICON.plus, 'aria-label': 'New category', onclick: () => render.addCat('bottom') });
+  const railSession = el('button', {
+    type: 'button', class: 'nt-rail-session', 'aria-label': 'Sessions · click to unfold the outliner', 'data-tip-pos': 'right',
+    onclick: () => { closePanel(); setSidebar('open'); },
+  });
+  /* Rest on either badge and the sessions come up. A delay, because the badge
+     is in the corner every pointer crosses on its way somewhere else, and a
+     panel that opens on the way past is a panel in the way. */
+  /* A PRESS DISARMS THE HOVER UNTIL THE POINTER ACTUALLY MOVES AGAIN.
+     Without it the popup came straight back after a fold: you press, the
+     sidebar collapses under a hand that has not moved, and the badge that
+     lands under the pointer is the rail's -- which is a fresh pointerenter,
+     because Chrome re-evaluates hover when the layout moves even though no
+     pointer moved. So the sessions reopened over a sidebar mid-slide and the
+     press read as doing two things.
+     Disarming on a MOVE rather than on a leave is what makes that work: the
+     leave and enter the fold produces are exactly the pair that has to be
+     ignored, and only a real hand can produce a pointermove. */
+  let sessHover = 0;
+  let sessArmed = true;
+  root.addEventListener('pointermove', () => { sessArmed = true; });
+  for (const badge of [sessionBtn, railSession]) {
+    badge.addEventListener('pointerenter', () => { clearTimeout(sessHover); if (sessArmed) sessHover = setTimeout(() => render.openSessions(badge), 260); });
+    badge.addEventListener('pointerleave', () => clearTimeout(sessHover));
+    badge.addEventListener('pointerdown', () => { clearTimeout(sessHover); sessArmed = false; });
+  }
+  const railAdd = el('button', { type: 'button', class: 'nt-rail-add', 'data-tip': 'New category', 'data-tip-pos': 'right', html: ICON.plus, 'aria-label': 'New category', onclick: () => render.addCat('bottom') });
   // No expand button down here: the toggle lives in the header now, and the
   // rail's own badge and add button are what it is for.
   sidebar.append(
     el('div', { class: 'nt-sidebar-panel' },
       el('div', { class: 'nt-sidebar-top' }, sessionBtn, sessionTitle, sessionSwatch),
-      rows, sessList, archive,
-      el('div', { class: 'nt-sidebar-foot' }, addBtn, sessBtn)),
+      rows, archive,
+      el('div', { class: 'nt-sidebar-foot' }, addBtn, sessDock)),
     el('div', { class: 'nt-rail' }, railSession, railCats, railAdd));
 
   /* ---- canvas ---- */
-  const sessionEmoji = el('button', { type: 'button', class: 'nt-session-emoji', 'data-tip': 'Session emoji', 'aria-label': 'Session emoji', onclick: (e) => emoji.openFull(e.currentTarget, (u) => { const s = ctx.session; s.emoji = u; touch(s); docChanged(); render.renderAll(); }) });
+  const sessionEmoji = el('button', { type: 'button', class: 'nt-session-emoji', 'aria-label': 'Session emoji', onclick: (e) => emoji.openFull(e.currentTarget, (u) => { const s = ctx.session; s.emoji = u; touch(s); docChanged(); render.renderAll(); }) });
   const sessionTitleEl = el('h1', { class: 'nt-session-title', contenteditable: 'true', spellcheck: 'false', 'aria-label': 'Session title' });
   sessionTitleEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); sessionTitleEl.blur(); const first = canvas.querySelector('.nt-body'); if (first) { first.focus(); caretToEnd(first); } }
@@ -302,7 +379,9 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   function setSidebar(mode) {
     doc.ui.sidebar = mode;
     root.classList.toggle('is-rail', mode === 'rail');
-    sidebarBtn.setAttribute('aria-pressed', String(mode === 'open'));
+    // Folding the outliner takes the sessions overlay with it: it is a sheet
+    // laid over the panel that is about to slide out from under it.
+    closeSessionList();
     const tab = root.querySelector('.nt-sb-tab');
     if (tab) {
       const label = mode === 'open' ? 'Collapse sidebar' : 'Expand sidebar';
@@ -330,6 +409,99 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       ...doc.spell.ignore.map((w) => ({ label: w, hint: 'ignored', run: () => spell.removeWord('ignore', w) }))];
     if (!items.length) { toast('Right-click a marked word to add or ignore it'); return; }
     menu(anchor, [{ label: 'Click a word to remove it', disabled: true, run: () => {} }, null, ...items]);
+  }
+
+  /* ---- the information panel ----------------------------------------------
+   * ONE PLACE FOR EVERY KEYSTROKE, which is what let the tooltips stop
+   * carrying them. A keybind that only exists inside a tooltip can only be
+   * found by hovering the control you were already going to click, which is
+   * the one moment you do not need to be told about the shortcut; and thirty
+   * of them, one per button, is thirty places for the same fact to go stale.
+   *
+   * Grouped by WHERE, because that is how you look for one: things that work
+   * anywhere, then the outliner, the canvas and the text itself. Nothing in
+   * here explains bold. */
+  const HELP = [
+    ['Everywhere', [
+      ['Search', 'Ctrl+F'],
+      ['Save now', 'Ctrl+S'],
+      ['Fold the outliner', 'Ctrl+\\'],
+      ['New category', 'Alt+N'],
+      ['Dictate here', 'Ctrl+Shift+M'],
+      ['Undo / redo', 'Ctrl+Z / Ctrl+Y'],
+      ['Back out of anything', 'Esc'],
+    ]],
+    ['Outliner', [
+      ['See the sessions', 'Hover the badge'],
+      ['Fold the outliner', 'Press the badge'],
+      ['Jump to a category', 'Click its row'],
+      ['Rename in place', 'Double-click the name'],
+      ['Reorder', 'Drag the grip'],
+      ['Resize the archive', 'Drag the line above it'],
+    ]],
+    ['Canvas', [
+      ['Fold a category', 'Click its chevron'],
+      ['Fold or unfold ALL', 'Shift+click a chevron'],
+      ['Move a category', 'Alt+↑ / Alt+↓ in its title'],
+      ['Leave the title, start typing', 'Enter'],
+      ['Tick a to-do', 'Click the box · Ctrl+Enter'],
+    ]],
+    ['Editor', [
+      ['Bold · italic · underline', 'Ctrl+B / I / U'],
+      ['Strikethrough', 'Ctrl+Shift+D'],
+      ['Inline code', 'Ctrl+E'],
+      ['Align', 'Ctrl+Shift+L / E / R'],
+      ['Auto list', 'Ctrl+Shift+8'],
+      ['Numbered · to-do', 'Ctrl+Shift+7 / 9'],
+      ['Indent / outdent', 'Tab / Shift+Tab'],
+      ['Heading · plain', 'Ctrl+Alt+1 / 0'],
+      ['Link', 'Ctrl+K · or paste a URL'],
+      ['Emoji · commands', 'Type : · type /'],
+      ['Line break, no new block', 'Shift+Enter'],
+    ]],
+  ];
+
+  let helpHandle = null;
+  let helpTimer = 0;
+  let helpPinned = false;
+
+  function helpCard() {
+    return el('div', { class: 'nt-help' },
+      el('div', { class: 'nt-help-title', text: 'Keys and tips' }),
+      ...HELP.map(([name, rows]) => el('div', { class: 'nt-help-section' },
+        el('div', { class: 'nt-help-head', text: name }),
+        ...rows.map(([k, v]) => el('div', { class: 'nt-help-row' },
+          el('span', { class: 'nt-help-key', text: k }),
+          el('span', { class: 'nt-help-val', text: v }))))));
+  }
+
+  function openHelp(anchor, pinned) {
+    clearTimeout(helpTimer);
+    if (helpHandle && currentPanel() === helpHandle) { helpPinned = helpPinned || pinned; return; }
+    helpPinned = !!pinned;
+    helpHandle = panel({
+      className: 'nt-help-panel', content: helpCard(), anchor, align: 'right',
+      onClose: () => { helpHandle = null; helpPinned = false; },
+    });
+    // Reading it means having the pointer in it, so being in it holds it open.
+    helpHandle.el.addEventListener('pointerenter', () => clearTimeout(helpTimer));
+    helpHandle.el.addEventListener('pointerleave', () => { if (!helpPinned) helpTimer = setTimeout(closeHelp, 220); });
+  }
+  function closeHelp() {
+    clearTimeout(helpTimer);
+    if (!helpHandle) return;
+    // Something else may have taken the one open panel since; only close ours.
+    if (currentPanel() === helpHandle) closePanel();
+    else helpHandle = null;
+  }
+  function toggleHelp() {
+    clearTimeout(helpTimer);
+    if (!helpHandle) { openHelp(infoBtn, true); return; }
+    if (helpPinned) closeHelp(); else helpPinned = true;
+  }
+  function wireHelp(anchor) {
+    anchor.addEventListener('pointerenter', () => { clearTimeout(helpTimer); helpTimer = setTimeout(() => openHelp(anchor, false), 180); });
+    anchor.addEventListener('pointerleave', () => { clearTimeout(helpTimer); if (!helpPinned) helpTimer = setTimeout(closeHelp, 220); });
   }
 
   /* ---- toolbar state ---- */
@@ -553,6 +725,11 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     const t = e.target;
     const inBody = t && t.closest && t.closest('.nt-body');
     const inField = t && t.closest && t.closest('input, textarea, [contenteditable="true"]');
+    /* Escape is a ladder and these are two more rungs on it: the sessions
+       sheet and the information panel each take the key that closed them and
+       stop it, so one press never also reaches the <dialog> behind. */
+    if (e.key === 'Escape' && sidebar.classList.contains('show-sessions')) { e.preventDefault(); e.stopPropagation(); closeSessionList(); return; }
+    if (e.key === 'Escape' && helpHandle) { e.preventDefault(); e.stopPropagation(); closeHelp(); return; }
     if (mod && e.key.toLowerCase() === 'f' && !e.shiftKey) { e.preventDefault(); search.focus(); return; }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
     if (mod && e.key === '\\') { e.preventDefault(); setSidebar(doc.ui.sidebar === 'open' ? 'rail' : 'open'); return; }
@@ -578,7 +755,6 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     fontBtn.textContent = FONTS[doc.ui.font].label;
     sizeBtn.textContent = String(doc.ui.fs);
     root.classList.toggle('is-rail', doc.ui.sidebar === 'rail');
-    sidebarBtn.setAttribute('aria-pressed', String(doc.ui.sidebar === 'open'));
     render.applySplit();
     syncSettings();
   }
@@ -607,6 +783,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     get doc() { return doc; },
     unmount() {
       dictate.shutdown();
+      closeSessionList();
       flush();
       clearTimeout(saveTimer);
       clearTimeout(retryTimer);

@@ -116,7 +116,7 @@ export const isRecording = (catId) => !!session && (catId === undefined || sessi
 export function micButton(catId) {
   const b = el('button', {
     type: 'button', class: 'nt-mic', 'data-cat': catId,
-    'data-tip': 'Dictate (Ctrl+Shift+M)', 'aria-label': 'Dictate into this text box',
+    'data-tip': 'Dictate', 'aria-label': 'Dictate into this text box',
     html: ICON.mic,
     onclick: (e) => { e.preventDefault(); toggle(catId); },
   });
@@ -135,7 +135,7 @@ export function paintButtons() {
     const live = isRecording(b.dataset.cat);
     b.classList.toggle('is-live', live);
     b.innerHTML = live ? ICON.micStop : ICON.mic;
-    b.setAttribute('data-tip', live ? 'Stop dictating' : 'Dictate (Ctrl+Shift+M)');
+    b.setAttribute('data-tip', live ? 'Stop dictating' : 'Dictate');
     b.setAttribute('aria-pressed', String(live));
   }
   ctx.root.classList.toggle('is-dictating', !!session);
