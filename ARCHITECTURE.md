@@ -322,6 +322,43 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   a button or link, never behind an open `dialog`, and `preventDefault()` is
   reached at exactly one point, after a claimant is found. A third player
   registers, it does not rewrite this.
+- **The arrow keys are Previous and Next** (Dex, 2026-09-07), and
+  `MediaBus.transport()` is that decision the way `claimant()` is the space
+  bar's. It differs in three places, each earned: only a player that declares
+  `next`/`prev` is in the running, so the clips player's carousel keeps its own
+  arrows; an open overlay does NOT disqualify the player that OWNS it, because
+  the music list is where someone is most likely to press an arrow at the music,
+  though a foreign overlay still takes them; and the brick breaker takes them
+  outright while it runs, declared as `ownsArrows` on its registration rather
+  than named in the bus. The toy's own listener does call `preventDefault`, but
+  it is attached when the game starts and the transport's at load, so the flag
+  is the transport asking first rather than finding out too late. The
+  focus test lives in `transport()` too — `KEY_FIELD` and `KEY_CONTROL`, shared
+  with the space bar — so the whole rule is one function that can be ASKED, which
+  is what `music_check.mjs` 8f does instead of opening six overlays. The range
+  sliders are covered by `KEY_FIELD` as plain `input`, which is what keeps arrows
+  seeking the scrubber and moving the volume.
+- **Opening the music list focuses the DIALOG, not the rail button.** A focused
+  button owns its own arrow keys, so the list used to open with left and right
+  doing nothing until you clicked away from it — which is the feature above not
+  working on the one press a reader actually makes first.
+- **`MediaBus.nowPlaying()` and `playbackState()` are the OS media controls.**
+  `navigator.mediaSession` puts the page on the keyboard's media keys, in
+  Windows' media flyout and behind Chrome's media button, all of which keep
+  working while the tab is in the background and the browser is not focused —
+  which is the point: a remote for the music from anywhere on the machine, with
+  nothing installed. Handlers are installed once and route to whatever is
+  playing (or, for `play`, whatever was last announced), so a fourth player gets
+  them by registering; metadata is per track. Each handler is set in its own
+  `try`, because an action name a browser does not know THROWS and would take
+  every handler after it down. Only the last-announced player may repaint the
+  state, or the songs bar painting itself paused tells Windows the music stopped
+  while it is still going. **KNOWN LIMIT:** the music overlay plays through a
+  cross-origin YouTube `<iframe>` and the session belongs to the document that
+  is really playing, so the keys may reach YouTube's handlers instead of ours.
+  The Top Picks songs are an `<audio>` in this document and are not in doubt.
+  There is no API that answers "do I own the session" — it is measured by
+  pressing the key.
 - The clips player's play control **is the whole video surface**: `#clBig` is
   positioned `inset:0` with the disc drawn inside it, so clicking the picture
   toggles playback and the click target is the same `<button>` the keyboard
@@ -1231,7 +1268,7 @@ assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
 script.js                initMusic() - below MediaBus, see why in its header
 styles.css               .music-*
-tools/music_check.mjs    314 checks in a real browser, serves the repo itself,
+tools/music_check.mjs    335 checks in a real browser, serves the repo itself,
                          reaches NO network — the embed is intercepted
 tools/music_flag_check.mjs  21 checks that DO reach YouTube: a real embed
                          refusing a real video, over https, see below

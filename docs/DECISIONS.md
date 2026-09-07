@@ -25,6 +25,38 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the arrows skip tracks, and the OS media keys are the remote
+
+**Decided.** Left and right are Previous and Next while the site is open, decided by
+`MediaBus.transport()` — focus test included, so the whole rule is one function that
+can be asked rather than half a rule in a listener. Opening the music list now
+focuses the dialog rather than the rail button. And `navigator.mediaSession` gets
+handlers and per-track metadata, which is what puts the page on the keyboard's media
+keys and in Windows' media flyout while the tab is in the background.
+
+**Replaced.** Nothing for the arrows — they scrolled. For the remote: the alternatives
+were a Chrome extension (`chrome.commands` shortcuts only fire while Chrome is the
+focused app, so it cannot cover "on my desktop") and a resident script posting to an
+`api/` endpoint the page subscribes to.
+
+**Why.** Dex wanted next/previous from another tab or from the desktop. The media
+session is the only route that needs nothing installed in the browser and keeps
+working when Chrome is not focused, because Windows routes media keys to whatever
+owns the media session. The user-chosen `Ctrl+Alt+Arrow` is then a two-minute remap
+in PowerToys or AutoHotkey, outside the browser, where a global hotkey actually
+lives: a web page cannot register one, and pretending otherwise is how this would
+have turned into an extension nobody maintains. The endpoint version stays the
+fallback because it is unambiguous — media keys go to whichever app played last, so
+an open Spotify can take them.
+
+**Reverse it if.** The media keys turn out to reach YouTube's embed rather than this
+page — which is measurable only by pressing one, and only for the music overlay; the
+Top Picks songs are an `<audio>` in this document and are not in doubt. If they do,
+the answer is not to fight the session but to fall back to the resident-script
+endpoint, which was always the precise option.
+
+---
+
 ## 2026-09-07 — the Top Picks bar and the docked music bar are one design
 
 **Decided.** `.player` takes the docked music bar's measurements — 46px play disc,

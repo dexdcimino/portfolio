@@ -4617,6 +4617,18 @@ initGallery({ id: 'wp', root: 'wallpapers', panel: 'ai-panel-images' });
    in is a master and a directive with no JS to touch. */
 initGallery({ id: 'cn', root: 'concepts', panel: 'ai-panel-concepts' });
 
+/* WHAT A KEY IS ALREADY FOR. Shared by the space bar, the arrow keys and
+   MediaBus.transport(), because they ask the same question and a second copy of
+   this list is a second copy that goes stale. FIELD is where a key is TEXT;
+   CONTROL is where a key is that control's own -- and the range sliders are in
+   FIELD as plain `input`, which is what keeps the arrows seeking the scrubber
+   and moving the volume rather than skipping tracks. */
+const KEY_FIELD = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+const KEY_CONTROL = 'button, a[href], summary, audio[controls], video[controls],'
+  + ' [role="button"], [role="link"], [role="tab"], [role="checkbox"], [role="switch"],'
+  + ' [role="radio"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"],'
+  + ' [role="option"], [role="slider"], [role="spinbutton"], [role="combobox"], [role="textbox"]';
+
 /* --- shared media transport ------------------------------------------------ */
 /* Two things on this page make sound — the clips player in the AI Lab and the
    songs bar — and neither knows the other exists. This is the only place that
@@ -4628,6 +4640,11 @@ initGallery({ id: 'cn', root: 'concepts', panel: 'ai-panel-concepts' });
    frame still on screen — and an <audio> cannot answer any of them. */
 const MediaBus = (() => {
   const players = [];
+  /* Who the OS media controls are pointed at. Not "who is playing": a paused
+     track is still the thing the media keys should resume, and the flyout goes
+     on showing it. */
+  let last = null;
+  let installed = false;
 
   /* A player left running in a background tab is audio coming from nowhere, and
      nobody can find the tab it is coming from. So a player stops the moment the
@@ -4653,6 +4670,26 @@ const MediaBus = (() => {
     if (!document.hidden) return;
     for (const p of players) if (!p.keepPlayingHidden && !p.el.paused) p.pause();
   });
+
+  /* The player a media key means. Whoever is actually playing, else whoever
+     was last announced -- which is what makes the PLAY key resume a bar that
+     someone paused twenty minutes ago rather than doing nothing. */
+  const target = () => players.find(p => !p.el.paused) || last;
+
+  function install() {
+    if (installed) return;
+    installed = true;
+    /* Each in its own try: an action a browser does not know throws, and one
+       throw inside a shared block takes every handler after it down with it. */
+    const on = (action, fn) => {
+      try { navigator.mediaSession.setActionHandler(action, fn); }
+      catch { /* this browser does not have that one */ }
+    };
+    on('play', () => { const p = target(); if (p && p.el.paused) p.toggle(); });
+    on('pause', () => { const p = target(); if (p && !p.el.paused) p.pause(); });
+    on('nexttrack', () => { const p = target(); if (p && p.next) p.next(); });
+    on('previoustrack', () => { const p = target(); if (p && p.prev) p.prev(); });
+  }
 
   return {
     add(p) { players.push(p); return p; },
@@ -4681,6 +4718,87 @@ const MediaBus = (() => {
       if (document.querySelector(OVERLAY_OPEN)) return null;
       const live = players.filter(p => p.onScreen());
       return live.find(p => !p.el.paused) || live.find(p => p.touched()) || null;
+    },
+
+    /* Who owns the ARROW keys right now, or null for "nobody — leave them
+       alone". Nearly claimant(), and the three differences are why it is its
+       own function rather than a flag on that one:
+
+       1. Only a player that can SKIP is in the running. The clips player has no
+          next track — its arrows walk the carousel — so it never appears here
+          and its own arrow keys go on working.
+       2. An open overlay does not disqualify its OWN player. For the space bar
+          a modal means the page behind it is not what is being addressed; the
+          music list is the one place someone is most likely to press an arrow
+          AT the music. A FOREIGN overlay still takes the keys, because the work
+          overlay's arrows are its filmstrip's.
+       3. The toy takes them outright while it is running: the arrows steer the
+          paddle, and that is the whole game. It declares `ownsArrows` rather
+          than being named here, so the next thing that needs the arrows says so
+          itself.
+
+       Everything else is claimant()'s rule, for claimant()'s reasons: on screen
+       to be in the running, playing beats merely open, and null means the key
+       was never ours. */
+    transport() {
+      if (players.some(p => p.ownsArrows && p.onScreen())) return null;
+      /* Where the key already means something else. Read off activeElement
+         rather than an event's target so that the WHOLE decision can be asked
+         as a question -- one rule in one place, which is also what lets a
+         harness check the refusals without opening six overlays first. A
+         keydown targets the focused element, so the two agree. */
+      const on = document.activeElement;
+      if (on instanceof Element
+          && (on.closest(KEY_FIELD) || on.closest(KEY_CONTROL))) return null;
+      const able = players.filter(p => p.next && p.prev);
+      const overlay = document.querySelector(OVERLAY_OPEN);
+      if (overlay) return able.find(p => p.overlay && p.overlay() === overlay) || null;
+      const live = able.filter(p => p.onScreen());
+      return live.find(p => !p.el.paused) || live.find(p => p.touched()) || null;
+    },
+
+    /* ---- the OS media controls ----------------------------------------
+       `navigator.mediaSession` is what puts this page on the keyboard's media
+       keys, in Windows' own media flyout and behind Chrome's media button —
+       all of which keep working while the tab is in the background and while
+       the browser is not the focused application. That is the whole point of
+       it: a remote for the music from anywhere on the machine, with nothing to
+       install and no extension.
+
+       THE HANDLERS ARE INSTALLED ONCE and route to whatever is actually
+       playing, so a fourth player gets them by registering. The metadata is
+       per track and is what the OS draws.
+
+       KNOWN LIMIT, and it is not ours to fix: the music overlay plays through a
+       cross-origin YouTube <iframe>, and the session belongs to the document
+       that is really playing. The keys may therefore reach YouTube's own
+       handlers instead of these. The Top Picks songs are an <audio> in THIS
+       document and are not in any doubt. Measured by pressing the key, because
+       there is no API that answers "do I own the session".
+
+       Wrapped in a support test rather than assumed: Safari and older Chrome
+       have no mediaSession, and an unknown action name THROWS rather than
+       being ignored, which would take the rest of the handlers with it. */
+    nowPlaying(who, meta) {
+      last = who;
+      if (!('mediaSession' in navigator)) return;
+      install();
+      try {
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: meta.title || '', artist: meta.artist || '', album: 'dexcimino.com',
+          artwork: meta.artwork ? [{ src: meta.artwork, sizes: '320x180' }] : [],
+        });
+        navigator.mediaSession.playbackState = 'playing';
+      } catch { /* no MediaMetadata here — the handlers above still stand */ }
+    },
+
+    /* Only the player the OS is currently showing may repaint that state, or
+       the songs bar painting itself paused would tell Windows the music stopped
+       while it was still going. */
+    playbackState(who, playing) {
+      if (who !== last || !('mediaSession' in navigator)) return;
+      try { navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'; }
+      catch { /* older engines */ }
     },
   };
 })();
@@ -5524,6 +5642,7 @@ const MediaBus = (() => {
     const icon = btnToggle.querySelector('.icon');
     if (icon) icon.dataset.icon = playing ? 'pause' : 'play';
     btnToggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    MediaBus.playbackState(me, playing);
   }
 
   /* ---- the player ------------------------------------------------------ */
@@ -5585,7 +5704,10 @@ const MediaBus = (() => {
        a hand-built URL is a second cache entry for our own bytes and a
        hand-picked width goes stale against `sizes`. Neither applies to a remote
        thumbnail with one canonical name. */
-    if (thumbEl) thumbEl.src = `https://i.ytimg.com/vi/${encodeURIComponent(track.v)}/mqdefault.jpg`;
+    const thumb = `https://i.ytimg.com/vi/${encodeURIComponent(track.v)}/mqdefault.jpg`;
+    if (thumbEl) thumbEl.src = thumb;
+    // ...and the same picture goes to Windows' media flyout and the media keys.
+    MediaBus.nowPlaying(me, { title: track.t, artist: track.a, artwork: thumb });
     try { localStorage.setItem(LAST_KEY, track.v); } catch { /* private mode */ }
 
     /* First track of the session navigates the frame; every one after it is a
@@ -6149,6 +6271,14 @@ const MediaBus = (() => {
     touched: () => index >= 0,
     toggle: () => btnToggle.click(),
     pause: yieldToOther,
+    /* Through the BUTTONS and not through step(), so the arrow keys and the
+       media keys go the same way a press goes -- one path to keep working, and
+       a Previous that restarts a track you are into rather than two. */
+    next: () => btnNext.click(),
+    prev: () => btnPrev.click(),
+    /* The dialog this player owns, so the arrows still reach it while its own
+       list is up. See MediaBus.transport(). */
+    overlay: () => modal,
   });
 
   /* ---- docking --------------------------------------------------------- */
@@ -6246,9 +6376,15 @@ const MediaBus = (() => {
        armed outside a dead run, so nothing gets flagged for it. */
     if (index < 0 && queue.length) startFresh();
     else if (index < 0) idle();
-    // Not the search box: a keyboard landing in a text field means the first
-    // thing typed disappears into a filter nobody asked for.
-    (viewAll || modal).focus({ preventScroll: true });
+    /* THE DIALOG ITSELF, not a control inside it. Not the search box, because a
+       keyboard landing in a text field means the first thing typed disappears
+       into a filter nobody asked for -- and not the rail button either, which
+       is where this used to land: a focused button owns the arrow keys, so the
+       list opened with left and right doing nothing until you clicked away
+       from it. On the dialog they skip tracks from the first press, which is
+       the whole point of having them. Escape and Tab are unaffected; a dialog
+       that refuses focus leaves it on <body>, which claims them too. */
+    modal.focus({ preventScroll: true });
   }
 
   /* Every way out of the overlay lands here — the X, Escape, the backdrop —
@@ -7399,6 +7535,7 @@ const LOOP_MODES = ['off', 'all', 'one'];
     });
     icon(toggle, playing ? 'pause' : 'play');
     toggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    MediaBus.playbackState(me, playing);
   }
 
   function load(i, play, rewind) {
@@ -7419,6 +7556,9 @@ const LOOP_MODES = ['off', 'all', 'one'];
     art.alt = '';
     title.textContent = card.dataset.title;
     artist.textContent = card.dataset.artist;
+    // The OS media controls get the same cover the bar just took.
+    MediaBus.nowPlaying(me, { title: card.dataset.title, artist: card.dataset.artist,
+                              artwork: art.src });
     total.textContent = '--:--';
     elapsed.textContent = '0:00';
     scrub.value = 0; setFill(scrub, 0);
@@ -7619,6 +7759,12 @@ const LOOP_MODES = ['off', 'all', 'one'];
     touched: () => index >= 0,
     toggle: () => { audio.paused ? audio.play().catch(paint) : audio.pause(); },
     pause: () => audio.pause(),
+    /* `next` and `prev` here are the BUTTONS in the bar, captured above. Going
+       through them rather than through step() is deliberate: one path for a
+       click, an arrow key and a media key, so the five-second restart cannot
+       end up on some of them and not others. */
+    next: () => next.click(),
+    prev: () => prev.click(),
   });
   audio.addEventListener('play', () => MediaBus.solo(me));
 
@@ -7649,11 +7795,7 @@ const LOOP_MODES = ['off', 'all', 'one'];
    preventDefault() is called at ONE point, after a claimant is found. Calling
    it any earlier is how a feature like this quietly eats the page's scroll. */
 (function initSpaceTransport() {
-  const FIELD = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
-  const CONTROL = 'button, a[href], summary, audio[controls], video[controls],'
-    + ' [role="button"], [role="link"], [role="tab"], [role="checkbox"], [role="switch"],'
-    + ' [role="radio"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"],'
-    + ' [role="option"], [role="slider"], [role="spinbutton"], [role="combobox"], [role="textbox"]';
+  const FIELD = KEY_FIELD, CONTROL = KEY_CONTROL;
 
   window.addEventListener('keydown', (event) => {
     if (event.key !== ' ' && event.code !== 'Space') return;
@@ -7675,6 +7817,53 @@ const LOOP_MODES = ['off', 'all', 'one'];
     // repeat, but toggling on each one would strobe the player.
     if (event.repeat) return;
     player.toggle();
+  });
+})();
+
+/* --- the arrow keys skip tracks ------------------------------------------- */
+/* Left and right are Previous and Next while the site is what you are looking
+   at (Dex, 2026-09-07). The same discipline as the space bar above, for the
+   same reason -- the arrows are the busiest keys on this page, and a transport
+   that grabs them is a page whose tab rows, filmstrips, keypads, carousels and
+   sliders quietly stop working.
+
+   WHO ELSE HAS THEM, all of which keep them:
+     - text fields and sliders, via KEY_FIELD -- the music search, the notes
+       editor, and the scrub and volume ranges, where arrows seek and adjust
+     - tab rows, cards, links and every other focused control, via KEY_CONTROL
+   ...both of which MediaBus.transport() checks, so the rule is one function
+   rather than half a rule here and half over there.
+     - the work overlay, the app-shot lightbox, the wallpaper and clip
+       carousels, the Idea Vault keypad: all of them handle the arrows on their
+       own element or dialog, which bubbles BEFORE this one and lands on the
+       defaultPrevented check below
+     - the brick breaker, which steers a paddle with them and says so on its
+       MediaBus registration rather than being named here
+
+   And the fall-through, which is the case that most has to keep working: if
+   nothing claims the key the page does exactly what it did before. Every early
+   return lands there, and preventDefault() is reached at ONE point, after a
+   claimant is found.
+
+   NO MODIFIERS. Ctrl+Alt+Arrow is the global shortcut, handled outside the
+   browser entirely and arriving here as a media key; if it ever reaches the
+   page as itself, it is not this. */
+(function initArrowTransport() {
+  window.addEventListener('keydown', (event) => {
+    const back = event.key === 'ArrowLeft';
+    if (!back && event.key !== 'ArrowRight') return;
+    if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.defaultPrevented) return;
+
+    const player = MediaBus.transport();
+    if (!player) return;                  // the arrows were never ours
+
+    event.preventDefault();
+    /* Held down, the arrows repeat. Stopping the scroll on every repeat is
+       right; walking a track per repeat is not -- a leaned-on key would run
+       the whole playlist. */
+    if (event.repeat) return;
+    if (back) player.prev(); else player.next();
   });
 })();
 
@@ -8395,6 +8584,12 @@ const PORTRAIT_LABEL = {
     touched: () => !!ctl,
     toggle: () => ctl?.toggle(),
     pause: () => ctl?.pause(),
+    /* While a game is running the arrows steer the PADDLE and nothing else may
+       have them. The toy's own listener does call preventDefault, but it is
+       attached when the game starts and the transport's is attached at load —
+       so the transport would already have eaten the key by the time the paddle
+       saw it. This flag is the transport asking first. */
+    ownsArrows: true,
   });
 
   const paintControls = () => {

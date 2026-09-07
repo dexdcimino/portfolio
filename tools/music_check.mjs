@@ -1844,6 +1844,146 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   });
 }
 
+/* ---- 8f. THE ARROW KEYS SKIP TRACKS, AND STAND ASIDE -------------------
+   Left and right are Previous and Next while the site is what you are looking
+   at (Dex, 2026-09-07). The feature is one line; the RISK is entirely in the
+   standing aside, because the arrows are the busiest keys on this page — tab
+   rows, filmstrips, carousels, the vault keypad, the search box and both range
+   sliders all want them. So this drives the claim once and the refusals five
+   times.
+
+   FALSELY PASSES IF: it only checked that an arrow skips a track. A transport
+   that took the key unconditionally passes that and breaks six other things,
+   which is the failure this is written against. */
+{
+  // 8e left both bars shut, so this opens rather than closing first.
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+    { timeout: 10000 });
+
+  /* MediaBus is a top-level const in a classic script, so it is reachable by
+     bare name here even though it is not on `window`. transport() is the whole
+     decision and asking it directly is how the refusals get checked without
+     six different overlays being opened first. */
+  const claims = () => page.evaluate(() => !!MediaBus.transport());
+  const nowV = () => page.evaluate(() => {
+    const row = document.querySelector('#musicRows .music-row.is-playing');
+    return row ? row.dataset.v : null;
+  });
+  const loose = () => page.evaluate(() => { document.activeElement?.blur(); });
+
+  /* Straight after opening, with focus wherever open() put it: this is the
+     press a reader actually makes first, and it used to do nothing because
+     focus landed on the rail button and a focused button owns its own arrows. */
+  note(await claims(), 'nothing claims the arrows with the music list just opened');
+
+  const before = await nowV();
+  await page.keyboard.press('ArrowRight');
+  const next = await nowV();
+  note(next !== before && !!next, 'ArrowRight did not move to another track');
+  await page.keyboard.press('ArrowLeft');
+  note(await nowV() === before,
+       'ArrowLeft did not come back to the track that was playing');
+
+  /* ---- and now everything that must keep them ------------------------- */
+
+  // The search box. A key here is text, and 311 rows are filtered by it.
+  await page.focus('#musicSearch');
+  note(!(await claims()), 'the transport claims the arrows from inside the search box');
+  const typedFrom = await nowV();
+  await page.keyboard.press('ArrowRight');
+  note(await nowV() === typedFrom, 'an arrow in the search box skipped a track');
+  await page.evaluate(() => { document.getElementById('musicSearch').blur(); });
+
+  /* The sliders. Arrows SEEK the scrubber and move the volume — they are
+     plain <input>, which is why the field selector covers them, and this is
+     the check that says so out loud. */
+  await page.focus('#musicVol');
+  note(!(await claims()), 'the transport claims the arrows from the volume slider');
+  const vol = await page.evaluate(() => Number(document.getElementById('musicVol').value));
+  await page.keyboard.press('ArrowLeft');
+  const volAfter = await page.evaluate(() =>
+    Number(document.getElementById('musicVol').value));
+  note(volAfter < vol, `the volume slider did not move on an arrow (${vol} -> ${volAfter})`);
+  await page.evaluate(() => { document.getElementById('musicVol').blur(); });
+  await page.focus('#musicScrub');
+  note(!(await claims()), 'the transport claims the arrows from the scrubber');
+  await page.evaluate(() => { document.getElementById('musicScrub').blur(); });
+
+  /* A row's play button, and by extension every button, link and tab on the
+     page: the arrows there are that control's own. */
+  await page.evaluate(() => document.querySelector('#musicRows .music-play').focus());
+  note(!(await claims()), 'the transport claims the arrows from a focused button');
+  await loose();
+  note(await claims(), 'the transport stopped claiming after focus was let go');
+
+  /* A FOREIGN overlay takes them outright — the work overlay's arrows walk its
+     filmstrip. The music player is docked underneath and still playing. */
+  await page.click('#musicClose');
+  await page.waitForFunction(() => document.getElementById('musicModal')
+                                     .classList.contains('is-docked'), { timeout: 5000 });
+  note(await claims(), 'the docked bar does not claim the arrows');
+  const docked = await nowV();
+  await page.evaluate(() => document.getElementById('workModal')?.showModal());
+  note(!(await claims()), 'the transport claims the arrows out from under the work overlay');
+  await page.keyboard.press('ArrowRight');
+  note(await nowV() === docked, 'an arrow inside the work overlay skipped a music track');
+  await page.evaluate(() => document.getElementById('workModal')?.close());
+
+  /* ---- what the OS media controls are being told ---------------------- */
+  const meta = await page.evaluate(() => {
+    const m = navigator.mediaSession && navigator.mediaSession.metadata;
+    return m ? { title: m.title, artist: m.artist, art: (m.artwork[0] || {}).src || '',
+                 state: navigator.mediaSession.playbackState } : null;
+  });
+  note(!!meta, 'nothing was handed to navigator.mediaSession — the media keys have no track');
+  const shown = await page.evaluate(() => ({
+    t: document.getElementById('musicNowTitle').textContent,
+    a: document.getElementById('musicNowArtist').textContent,
+  }));
+  note(meta && meta.title === shown.t,
+       `the media flyout says "${meta && meta.title}" and the bar says "${shown.t}"`);
+  note(meta && meta.artist === shown.a,
+       `the media flyout's artist is "${meta && meta.artist}", not "${shown.a}"`);
+  note(meta && /i\.ytimg\.com/.test(meta.art),
+       `the media flyout has no artwork for the track (${meta && meta.art})`);
+  note(meta && meta.state === 'playing',
+       `the OS is being told the state is "${meta && meta.state}"`);
+
+  await shutMusic();
+
+  /* ---- and the same keys drive the Top Picks bar --------------------- */
+  /* One transport, two listings: the arrows are the bus's decision, not the
+     music overlay's, so a song playing in the corner answers them too. */
+  await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('.pk-song')]
+      .filter(c => c.querySelector('.pk-play[data-audio]'));
+    cards[0].querySelector('.pk-play').click();
+  });
+  await page.waitForFunction(() => !document.getElementById('player').hidden,
+                             { timeout: 5000 });
+  await loose();
+  note(await claims(), 'the songs bar does not claim the arrows while it is up');
+  await page.keyboard.press('ArrowRight');
+  const song = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('.pk-song')]
+      .filter(c => c.querySelector('.pk-play[data-audio]'));
+    return cards.findIndex(c => c.classList.contains('is-playing'));
+  });
+  note(song === 1, `ArrowRight on the songs bar went to card ${song}, not the next one`);
+  const songMeta = await page.evaluate(() => {
+    const m = navigator.mediaSession && navigator.mediaSession.metadata;
+    return m ? m.title : null;
+  });
+  note(!!songMeta && !/i\.ytimg/.test(songMeta),
+       'the media flyout still shows the music track rather than the song');
+  await page.evaluate(() => {
+    document.getElementById('songAudio').pause();
+    document.getElementById('playerStop').click();
+  });
+}
+
 /* ---- 9. the keypad flash ------------------------------------------------
    THE BUG: opening the notes with a code already in hand showed the password
    keypad for the length of the unlock round trip. Asserted SYNCHRONOUSLY —
