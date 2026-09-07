@@ -25,6 +25,39 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the Top Picks bar and the docked music bar are one design
+
+**Decided.** `.player` takes the docked music bar's measurements — 46px play disc,
+22px transport icons, 24px play glyph, 34px mute and close, 13.5px title, the bar's
+padding and gaps, and a 59px artwork box that makes both bars the same 105px height.
+Its Previous becomes the music bar's Previous: a history of what was actually
+played, a five-second restart, and no shuffling backwards. Shuffle and repeat are
+remembered (`dex-song-shuffle`, `dex-song-loop`) with their existing defaults kept.
+`music_check.mjs` 8e puts both bars on screen at once and compares the boxes.
+
+**Replaced.** Two players built to the same sketch and then maintained separately:
+44px against 46, 20px icons against 22, a 100px bar against 105, a Previous handed
+straight to the shuffle picker, and two modes that forgot themselves on reload.
+
+**Why.** Asked for by Dex, who found the drift by using both: "they should be the
+same just accessing different song / music listings". The docked bar's own comment
+already said every measurement matched `.player` "because it is standing in the same
+place doing the same job" — which was true when it was written and had stopped being
+true, in the way a number copied between two files always stops being true. The
+songs bar is the one that moved, because the docked bar's numbers are the newer and
+more considered set. What is NOT copied is the artwork box's width: 16:9 for a video
+thumbnail, square for album art, because cover-fitting a square cover into 16:9
+takes the top and bottom off every one. And what is not copied is the defaults —
+shuffle on and repeat all are right for 311 tracks you cannot see and wrong for five
+cards on the page.
+
+**Reverse it if.** The two players stop doing the same job — if one grows a queue
+view, a cast button or anything else the other has no use for, a shared measurement
+becomes a constraint rather than a convenience. Until then 8e is what keeps them
+honest, and it fails on the drift rather than on the intent.
+
+---
+
 ## 2026-09-07 — the code starts the music, and a click that beats the embed navigates again
 
 **Decided.** `open()` auto-starts a track through the same `startFresh()` the play

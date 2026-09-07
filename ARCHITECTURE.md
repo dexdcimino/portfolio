@@ -1231,7 +1231,7 @@ assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
 script.js                initMusic() - below MediaBus, see why in its header
 styles.css               .music-*
-tools/music_check.mjs    273 checks in a real browser, serves the repo itself,
+tools/music_check.mjs    314 checks in a real browser, serves the repo itself,
                          reaches NO network — the embed is intercepted
 tools/music_flag_check.mjs  21 checks that DO reach YouTube: a real embed
                          refusing a real video, over https, see below
@@ -1566,6 +1566,28 @@ player past state `-1`. It took one line in devtools on the real page,
 KNOWN: the docked bar and the Top Picks songs bar occupy the same corner. Since
 starting either now closes the other's feed, they can no longer both be live —
 but a paused songs bar can still be on screen under the music bar.
+
+**AND THEY ARE ONE DESIGN, MEASURED AGAINST EACH OTHER.** Two players over two
+listings, one transport: a reader who has learned one has learned the other
+(Dex, 2026-09-07). The docked bar was built to `.player`'s measurements and the
+two had since drifted — 44px play against 46, 20px icons against 22, a 100px
+bar against 105 — so `.player` now takes the docked bar's numbers, including
+the 59px artwork that makes both bars the same height. The ONE deliberate
+difference is that box's width: 104px and 16:9 for a video thumbnail, square
+for album art, because `object-fit:cover` into 16:9 takes the top and bottom off
+every cover. `music_check.mjs` 8e puts both bars on screen at once and compares
+the boxes — not the stylesheets, which both declared the right numbers while the
+docked play button was a rounded square.
+
+**The songs bar's Previous is the music bar's Previous**: the same history of
+what was actually played, the same five-second restart, the same refusal to
+shuffle backwards. It was worse here before — Previous was handed straight to
+the shuffle picker, so back while shuffled served a random song. Indices and not
+video ids, because `cards` is built once from the grid and never re-sorted,
+where the music queue is re-filtered under a live player. Shuffle and repeat are
+remembered too (`dex-song-shuffle`, `dex-song-loop`); the DEFAULTS stay off,
+against the music list's shuffle-on and repeat-all, because five cards you can
+see on the page are not 311 you cannot.
 
 **The clock is read, not polled.** There is no `getCurrentTime` to call across an
 origin, but the embed volunteers `currentTime` and `duration` in its

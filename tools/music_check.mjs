@@ -1644,6 +1644,206 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        'pausing the Top Picks song brought the music feed back');
 }
 
+/* ---- 8e. THE TWO BARS ARE ONE DESIGN -----------------------------------
+   Two players over two lists — the music overlay's 311 tracks and Top Picks'
+   five songs — and one transport between them. The brief (Dex, 2026-09-07):
+   they should be the same thing pointed at different listings, not two
+   entities that drifted. So this asserts both halves of that.
+
+   BEHAVIOUR first: the songs bar's Previous had the same bug the music bar's
+   did, and worse — it was handed straight to the shuffle picker, so pressing
+   back while shuffled served a random song.
+
+   THEN GEOMETRY: every measurement of the two bars, compared. The art box is
+   the ONE deliberate difference — square for a cover, 16:9 for a video
+   thumbnail — so its HEIGHT is compared and its width is not. A 1px tolerance
+   on the vertical: the docked bar is a <dialog> pinned to bottom:0 and comes
+   out one pixel lower than the fixed div, which nothing can see.
+
+   FALSELY PASSES IF: the CSS were read instead of the boxes. Both files
+   declare numbers that look right; what matters is the number that wins, and
+   the docked play button spent weeks as a rounded square with a 50% rule
+   sitting in the stylesheet above it. */
+{
+  const songs = () => page.evaluate(() => {
+    const cards = [...document.querySelectorAll('.pk-song')]
+      .filter(c => c.querySelector('.pk-play[data-audio]'));
+    const audio = document.getElementById('songAudio');
+    return {
+      n: cards.length,
+      at: cards.findIndex(c => c.classList.contains('is-playing')),
+      time: Math.round(audio.currentTime),
+      paused: audio.paused,
+      shuffle: document.getElementById('playerShuffle').getAttribute('aria-pressed'),
+    };
+  });
+  const playSong = async (i) => {
+    await page.evaluate((n) => {
+      const cards = [...document.querySelectorAll('.pk-song')]
+        .filter(c => c.querySelector('.pk-play[data-audio]'));
+      cards[n].querySelector('.pk-play').click();
+    }, i);
+    await page.waitForFunction((n) => {
+      const cards = [...document.querySelectorAll('.pk-song')]
+        .filter(c => c.querySelector('.pk-play[data-audio]'));
+      return cards[n].classList.contains('is-playing');
+    }, { timeout: 5000 }, i);
+  };
+
+  const have = (await songs()).n;
+  note(have >= 3, `only ${have} playable song cards — check 8e needs three to walk`);
+
+  await playSong(0);
+  await playSong(2);
+  note((await songs()).at === 2, 'the second song did not take over the bar');
+
+  /* A fresh track is at the top of itself, so this press is the history and not
+     the restart. */
+  note((await songs()).time < 5, 'the second song did not start at the top of itself');
+  await page.click('#playerPrev');
+  note((await songs()).at === 0,
+       'Previous on the songs bar did not go back to the song that just played');
+
+  /* PAST FIVE SECONDS IT RESTARTS, and this one is WAITED OUT rather than
+     seeked. Seeking looks like the obvious shortcut and does nothing here:
+     this harness's server answers with the whole file and no Accept-Ranges, so
+     the audio has no seekable range and `currentTime = 20` is silently
+     dropped. The check would then press Previous at 0 seconds and pass while
+     testing the opposite rule. Six real seconds, and the wait is asserted. */
+  await playSong(2);
+  let deep = true;
+  try {
+    await page.waitForFunction(() => document.getElementById('songAudio').currentTime >= 6,
+                               { timeout: 30000 });
+  } catch { deep = false; }
+  note(deep, 'THE CONTROL FAILED: the song never played 6 seconds, so the restart rule '
+           + 'below was never reached');
+  const at = (await songs()).time;
+  await page.click('#playerPrev');
+  const restarted = await songs();
+  /* CARD 2 AND NOT CARD 0, and the difference is the whole check: the old
+     Previous walked to the card above, which from here is 1, and any rule that
+     merely "did not move to 1" could still have gone anywhere. */
+  note(restarted.at === 2,
+       `Previous ${at}s into card 2 left card ${restarted.at} playing — it left the song`);
+  note(restarted.time < at,
+       `Previous ${at}s in left the clock at ${restarted.time}s — it did not restart the song`);
+  note(restarted.time <= 3,
+       `the restart left the clock at ${restarted.time}s, not at the top of the song`);
+
+  /* PAUSED from here, so the clock stops advancing and the two presses below
+     are both inside the five seconds they are meant to test. A wall-clock race
+     against real playback is the kind of flake that gets a real check deleted. */
+  await page.evaluate(() => document.getElementById('songAudio').pause());
+  note((await songs()).time <= 3, 'the pause did not land at the top of the restarted song');
+  await page.click('#playerPrev');
+  note((await songs()).at === 0,
+       'Previous under the threshold did not walk back to the song before it');
+
+  /* AND IT NEVER SHUFFLES. Bottom of the history with shuffle on: the song
+     restarts rather than jumping somewhere random, which is what it did. */
+  await page.click('#playerShuffle');
+  note((await songs()).shuffle === 'true', 'the songs shuffle button did not turn on');
+  await page.evaluate(() => { document.getElementById('songAudio').currentTime = 0; });
+  await page.click('#playerPrev');
+  const shuffled = await songs();
+  note(shuffled.at === 0,
+       `with shuffle on, Previous jumped to card ${shuffled.at} instead of staying put`);
+  await page.click('#playerShuffle');            // leave it as it was found
+
+  /* ...and both modes are remembered now, like the music bar's. */
+  const remembered = await page.evaluate(() => {
+    const s = { shuffle: null, loop: null };
+    try { s.shuffle = localStorage.getItem('dex-song-shuffle');
+          s.loop = localStorage.getItem('dex-song-loop'); } catch {}
+    return s;
+  });
+  note(remembered.shuffle === '0',
+       `the songs bar did not remember shuffle (${remembered.shuffle})`);
+
+  await page.click('#playerLoop');
+  const loop = await page.evaluate(() => {
+    let stored = null;
+    try { stored = localStorage.getItem('dex-song-loop'); } catch {}
+    return { stored, shown: document.getElementById('playerLoop').dataset.loop };
+  });
+  note(loop.stored === loop.shown && loop.stored !== null,
+       `the songs bar shows repeat "${loop.shown}" and remembered "${loop.stored}"`);
+
+  /* ---- and now the two boxes, side by side --------------------------- */
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+    { timeout: 10000 });
+  await page.click('#musicClose');
+  await page.waitForFunction(() => document.getElementById('musicModal')
+                                     .classList.contains('is-docked'), { timeout: 5000 });
+  /* The songs bar is still up behind the docked one — both on screen at once,
+     which is the only way to measure them against each other. */
+  const pair = await page.evaluate(() => {
+    const read = (sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+      return { w: Math.round(r.width), h: Math.round(r.height), top: Math.round(r.top),
+               right: Math.round(window.innerWidth - r.right),
+               radius: cs.borderRadius, font: cs.fontSize };
+    };
+    const one = (bar, art, primary, btn, icon, pIcon, title, time, vol, scrub) =>
+      ({ bar: read(bar), art: read(art), primary: read(primary), btn: read(btn),
+         icon: read(icon), pIcon: read(pIcon), title: read(title), time: read(time),
+         vol: read(vol), scrub: read(scrub) });
+    return {
+      songs: one('#player', '.player-art', '#playerToggle', '#playerPrev',
+                 '#playerPrev .icon', '#playerToggle .icon', '.player-title',
+                 '.player-time', '.player-vol', '.player-scrub'),
+      music: one('.music-shell', '.music-screen', '#musicToggle', '#musicPrev',
+                 '#musicPrev .icon', '#musicToggle .icon', '.music-now-title',
+                 '.music-time', '.music-vol', '.music-scrub'),
+    };
+  });
+
+  note(!!pair.songs.bar && !!pair.music.bar,
+       'check 8e could not get both bars on screen at once, so it compared nothing');
+
+  const near = (a, b) => Math.abs(a - b) <= 1;
+  const sameBox = [
+    ['the bar', 'bar', ['w', 'h', 'right']],
+    ['the play button', 'primary', ['w', 'h', 'right']],
+    ['a transport button', 'btn', ['w', 'h']],
+    ['a transport icon', 'icon', ['w', 'h']],
+    ['the play icon', 'pIcon', ['w', 'h']],
+    ['the clock', 'time', ['w', 'h']],
+    ['the volume slider', 'vol', ['w', 'h', 'right']],
+    ['the scrubber', 'scrub', ['w', 'h', 'right']],
+    ['the artwork', 'art', ['h']],           // width is the one difference
+  ];
+  for (const [what, key, fields] of sameBox) {
+    for (const f of fields) {
+      const s = pair.songs[key][f], m = pair.music[key][f];
+      note(near(s, m), `${what} is ${f}=${s} on the songs bar and ${f}=${m} on the music bar`);
+    }
+  }
+  note(sameBox.length >= 9,
+       `only ${sameBox.length} parts of the two bars are being compared — the table has been gutted`);
+  note(pair.songs.bar.radius === pair.music.bar.radius,
+       `the bars are cut differently: ${pair.songs.bar.radius} against ${pair.music.bar.radius}`);
+  note(pair.songs.title.font === pair.music.title.font,
+       `the track titles are ${pair.songs.title.font} and ${pair.music.title.font}`);
+  note(/50%/.test(pair.songs.primary.radius),
+       `the songs play button is not a circle (${pair.songs.primary.radius})`);
+  note(/50%/.test(pair.music.primary.radius),
+       `the docked play button is not a circle (${pair.music.primary.radius})`);
+
+  // Put both away.
+  await shutMusic();
+  await page.evaluate(() => {
+    const a = document.getElementById('songAudio');
+    a.pause();
+    document.getElementById('playerStop').click();
+  });
+}
+
 /* ---- 9. the keypad flash ------------------------------------------------
    THE BUG: opening the notes with a code already in hand showed the password
    keypad for the length of the unlock round trip. Asserted SYNCHRONOUSLY —

@@ -1704,8 +1704,8 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   max-width:760px;margin-left:auto;
   /* Two rows: seek, then controls. The old five-column single row is what
      squeezed the scrubber to volume-slider width. */
-  display:grid;gap:6px;
-  padding:10px 16px 12px;
+  display:grid;gap:4px;
+  padding:8px 14px 10px;
   background:color-mix(in srgb,var(--sidebar-bg) 94%,black);
   border:2px solid color-mix(in srgb,var(--accent) 42%,transparent);
   border-bottom:0;
@@ -1724,13 +1724,19 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    are min-width:0 so a long title ellipsises instead of shoving it off centre. */
 .player-controls{
   display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
-  align-items:center;gap:12px;
+  align-items:center;gap:14px;
 }
-.player-now{display:flex;align-items:center;gap:11px;min-width:0}
-.player-art{width:48px;height:48px;flex:none;border-radius:9px;object-fit:cover;
+.player-now{display:flex;align-items:center;gap:14px;min-width:0}
+/* 59px because that is how tall the music bar's screen box comes out, and the
+   two bars stand in the same corner doing the same job -- a reader should not
+   be able to tell which one is up by its height. SQUARE, where that one is
+   16:9, and that is the one measurement deliberately not copied: this holds
+   album art and object-fit:cover into a 16:9 box takes the top and bottom off
+   every cover. Measured with both bars on screen, not read off either file. */
+.player-art{width:59px;height:59px;flex:none;border-radius:9px;object-fit:cover;
   border:1px solid var(--line);background:#0e1217}
 .player-meta{display:grid;gap:1px;min-width:0}
-.player-title{font-size:14px;font-weight:800;color:var(--text);
+.player-title{font-size:13.5px;font-weight:800;color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .player-artist{font-size:12px;color:var(--muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1739,18 +1745,18 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 /* Modes, not transport: loop and mute change how playback behaves rather than
    driving it. Close trails behind a divider — it is the least important control
    in the bar and used to carry the same weight as everything else. */
-.player-modes{display:flex;align-items:center;gap:6px;justify-self:end;min-width:0}
+.player-modes{display:flex;align-items:center;gap:4px;justify-self:end;min-width:0}
 .player-div{
-  width:1px;height:22px;flex:none;margin:0 2px;
+  width:1px;height:22px;flex:none;margin:0 4px;
   background:rgba(255,255,255,.14);
 }
 .player-btn{
-  display:grid;place-items:center;width:38px;height:38px;flex:none;
+  display:grid;place-items:center;width:38px;height:38px;flex:none;padding:0;
   background:none;border:0;border-radius:10px;cursor:pointer;
   color:var(--icon-idle);
   transition:color var(--accent-ease),background var(--accent-ease);
 }
-.player-btn .icon{width:20px;height:20px}
+.player-btn .icon{width:22px;height:22px}
 .player-btn svg{width:18px;height:18px}
 .player-btn:hover{color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}
 .player-btn:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
@@ -1759,18 +1765,24 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    else. --accent-ink is the same contrast-picked label colour the buttons use,
    so the glyph stays legible on all seven accents. */
 .player-btn.is-primary{
-  width:44px;height:44px;border-radius:50%;
+  width:46px;height:46px;border-radius:50%;
   background:var(--accent);color:var(--accent-ink,#080a0b);
   transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease;
 }
-.player-btn.is-primary .icon{width:22px;height:22px}
+.player-btn.is-primary .icon{width:24px;height:24px}
 .player-btn.is-primary:hover{background:var(--accent);color:var(--accent-ink,#080a0b);transform:scale(1.06)}
 .player-btn.is-primary:focus-visible{outline-offset:3px}
 /* Least important thing in the bar, so it reads quietest — and it is the one
    button whose hover is a warning colour rather than the accent. */
-.player-close{color:#78828b}
+/* The two quiet controls come down to the music bar's sizes: mute and close
+   are not transport, and 38px squares beside a 46px disc read as three more
+   buttons rather than as the edge of the group. Same numbers as
+   .music-modal.is-docked's volbtn and tail, measured against it. */
+.player-volbtn{width:34px;height:34px}
+.player-volbtn .icon{width:19px;height:19px}
+.player-close{color:#78828b;width:34px;height:34px}
 .player-close:hover{color:#ff8f6d;background:rgba(255,143,109,.1)}
-.player-close svg{width:16px;height:16px}
+.player-close svg{width:15px;height:15px}
 .player-btn:disabled{opacity:.35;cursor:default}
 .player-btn:disabled:hover{color:var(--icon-idle);background:none}
 

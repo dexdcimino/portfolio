@@ -7324,6 +7324,8 @@ const PROFILE_KEY = 'dex-profile-collapsed';
    whatever was playing — "no overlap, no resume where you left off" is then a
    property of the markup rather than something the script has to police. */
 const VOLUME_KEY = 'dex-song-volume';
+const SHUFFLE_KEY = 'dex-song-shuffle';
+const LOOP_KEY = 'dex-song-loop';
 const LOOP_MODES = ['off', 'all', 'one'];
 
 (function initSongPlayer() {
@@ -7346,6 +7348,20 @@ const LOOP_MODES = ['off', 'all', 'one'];
   const muteBtn = $('playerMute'), stopBtn = $('playerStop');
 
   let index = -1, loop = 'off', scrubbing = false, lastVolume = 0.4, shuffle = false;
+
+  /* THE SAME PREVIOUS AS THE MUSIC OVERLAY'S BAR, and deliberately the same
+     shape rather than the same idea written twice: these are two players over
+     two lists, and a reader who learns one transport has learned the other.
+     See initMusic() for the reasoning in full -- in short, shuffle decides what
+     comes NEXT, back is always the song you just heard, and past the first few
+     seconds back means restart this one.
+
+     Indices and not ids here, where the music player keeps ids: `cards` is
+     built once from the grid and never re-sorted or re-filtered, so an index
+     into it cannot go stale. */
+  const history = [];
+  const HISTORY_MAX = 200;
+  const RESTART_AFTER = 5;
 
   /* Shuffle picks the next track at random rather than reordering the list: the
      grid on the page IS the queue, and quietly re-sorting it under the reader
@@ -7385,9 +7401,15 @@ const LOOP_MODES = ['off', 'all', 'one'];
     toggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
   }
 
-  function load(i, play) {
+  function load(i, play, rewind) {
     const card = cards[i];
     if (!card) return;
+    // What we are leaving, before index moves. Never on a rewind, or two
+    // presses of Previous ping-pong between the last pair instead of walking.
+    if (!rewind && index >= 0 && index !== i) {
+      history.push(index);
+      if (history.length > HISTORY_MAX) history.shift();
+    }
     index = i;
     audio.src = card.querySelector('.pk-play').getAttribute('data-audio');
     // The bar's thumbnail reuses whatever the grid already decoded, so showing
@@ -7413,8 +7435,37 @@ const LOOP_MODES = ['off', 'all', 'one'];
     requestAnimationFrame(() => requestAnimationFrame(() => bar.classList.add('is-up')));
   }
 
+  /* PREVIOUS NEVER SHUFFLES, and past five seconds it does not leave the track
+     at all. The old version handed Previous to the same random picker as Next,
+     so pressing back to hear a song again served a different one -- the same
+     bug the music overlay had, reported in the same breath (Dex, 2026-09-07). */
+  function back() {
+    if (index >= 0 && audio.currentTime >= RESTART_AFTER) {
+      audio.currentTime = 0;
+      audio.play().catch(paint);
+      paint();
+      return;
+    }
+    while (history.length) {
+      const n = history.pop();
+      if (cards[n]) { load(n, true, true); return; }
+    }
+    /* Nothing behind us. With shuffle on there is no "card before this one"
+       that means anything, so the track restarts -- what every other player
+       does at the top of a queue, and what the music bar does. */
+    if (shuffle) {
+      if (index < 0) return;
+      audio.currentTime = 0;
+      audio.play().catch(paint);
+      paint();
+      return;
+    }
+    load(index - 1 < 0 ? cards.length - 1 : index - 1, true, true);
+  }
+
   function step(delta, auto) {
     if (loop === 'one' && auto) { audio.currentTime = 0; audio.play(); return; }
+    if (delta < 0 && !auto) { back(); return; }
     /* Shuffle owns next-track selection, whether the track ended on its own or
        you pressed skip. Loop still has the last word on whether playback stops:
        with loop off, an ended track in shuffle keeps going only as far as the
@@ -7448,19 +7499,36 @@ const LOOP_MODES = ['off', 'all', 'one'];
   prev.addEventListener('click', () => step(-1, false));
   next.addEventListener('click', () => step(1, false));
 
+  /* Both modes are REMEMBERED, the way the music bar remembers its own. They
+     were the one part of this transport that forgot itself on every reload,
+     which is a smaller version of the same complaint: two players that behave
+     differently are two things to learn. The DEFAULTS stay as they were --
+     shuffle off and repeat off over five cards you can see on the page, rather
+     than the music list's on/all over 311 you cannot. */
+  function paintShuffle() {
+    shuffleBtn.setAttribute('aria-pressed', String(shuffle));
+    shuffleBtn.setAttribute('aria-label', shuffle ? 'Shuffle on' : 'Shuffle off');
+  }
+  function paintLoop() {
+    loopBtn.dataset.loop = loop;
+    loopBtn.setAttribute('aria-label',
+      loop === 'off' ? 'Loop off' : loop === 'all' ? 'Loop all tracks' : 'Loop this track');
+  }
+
   shuffleBtn.addEventListener('click', () => {
     shuffle = !shuffle;
     played.clear();
     if (shuffle && index >= 0) played.add(index);
-    shuffleBtn.setAttribute('aria-pressed', String(shuffle));
-    shuffleBtn.setAttribute('aria-label', shuffle ? 'Shuffle on' : 'Shuffle off');
+    paintShuffle();
+    try { localStorage.setItem(SHUFFLE_KEY, shuffle ? '1' : '0'); }
+    catch { /* private mode - the session still works */ }
   });
 
   loopBtn.addEventListener('click', () => {
     loop = LOOP_MODES[(LOOP_MODES.indexOf(loop) + 1) % LOOP_MODES.length];
-    loopBtn.dataset.loop = loop;
-    loopBtn.setAttribute('aria-label',
-      loop === 'off' ? 'Loop off' : loop === 'all' ? 'Loop all tracks' : 'Loop this track');
+    paintLoop();
+    try { localStorage.setItem(LOOP_KEY, loop); }
+    catch { /* private mode - the session still works */ }
   });
 
   stopBtn.addEventListener('click', () => {
@@ -7468,6 +7536,7 @@ const LOOP_MODES = ['off', 'all', 'one'];
     audio.removeAttribute('src');
     audio.load();
     index = -1;
+    history.length = 0;
     bar.classList.remove('is-up');
     const done = () => { bar.hidden = true; bar.removeEventListener('transitionend', done); };
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
@@ -7515,6 +7584,19 @@ const LOOP_MODES = ['off', 'all', 'one'];
   muteBtn.addEventListener('click', () => {
     applyVolume(audio.volume === 0 ? (lastVolume || 0.4) : 0, true);
   });
+
+  /* Read back before anything is painted. A stored repeat mode is only
+     honoured if it is one of the three: a hand-edited key must not leave the
+     button in a state the cycle can never reach. */
+  let storedShuffle = null, storedLoop = null;
+  try {
+    storedShuffle = localStorage.getItem(SHUFFLE_KEY);
+    storedLoop = localStorage.getItem(LOOP_KEY);
+  } catch { /* private mode */ }
+  if (storedShuffle !== null) shuffle = storedShuffle === '1';
+  if (LOOP_MODES.includes(storedLoop)) loop = storedLoop;
+  paintShuffle();
+  paintLoop();
 
   let stored = null;
   try { stored = localStorage.getItem(VOLUME_KEY); } catch { /* private mode */ }
