@@ -107,11 +107,14 @@
    these are its proportions, scaled up rather than reshaped. */
 .nt-spell-btn { width: 42px; }
 .nt-spell-btn svg { width: 33px; height: 17.6px; }
-/* ON is a RING, not only a tint. This is a toggle sitting in a row of
-   momentary buttons, so its state has to be readable without comparing it to
-   its neighbours -- and the ring is the accent the mark itself is drawn in,
-   which is what makes it read as the same control lit up. */
-.nt-spell-btn.is-on { box-shadow: inset 0 0 0 2px var(--c-title); }
+/* THE RING IS GONE (Dex, 2026-09-08). It said ON without anyone having to
+   compare this button to its neighbours, which is what it was for -- but a
+   2px accent box drawn around the one rectangular control in the header read
+   as the loudest thing in a row of quiet ones, and it is on nearly all the
+   time. What is left is .nt-icon-btn.is-on, the same accent letters and faint
+   accent wash every other toggle in the header wears: the mark itself is the
+   accent, and that is enough to see at a glance. Deliberately NOT replaced
+   with a thinner ring -- the ask was to take it off, not to soften it. */
 .nt-pick {
   height: 30px; padding: 0 22px 0 10px; border: 1px solid var(--bdr); border-radius: 7px; background: var(--bg3); color: var(--tx); font-size: 13px;
   position: relative; white-space: nowrap; min-width: 88px; text-align: left;

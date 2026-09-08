@@ -216,6 +216,77 @@ const marker = `harness-${Date.now().toString(36)}`;
   await page.close();
 }
 
+/* ---- 3b. the archive comes back the way it was left ---------------------
+   THE REPORTED BUG (Dex, 2026-09-08): the archive was shut on every single
+   open. Half of this state has been saved since it was built -- ui.archSplit,
+   the height the grab edge was dragged to -- and the other half, whether it
+   was folded open at all, was not. So the height was faithfully restored for
+   something that was always closed, and nobody could see it.
+
+   FALSELY PASSES IF: only the class were read back. A fold restored from a
+   variable that never reached the server is a fold that lasts until the tab
+   is closed, so the flag is checked in the STORE ON DISK before the reload --
+   the same guard check 3 uses on an edit. And the split is asserted with it:
+   they are two halves of one piece of state, and the check that only ever
+   watched one of them is exactly what shipped. */
+{
+  const page = await newPage();
+  await page.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await type(page, PASSWORD);
+  await unlocked(page);
+  const shut = await page.$eval('.nt-archive', el => el.classList.contains('is-open'));
+  await page.evaluate(() => {
+    const a = document.querySelector('.nt-archive');
+    if (!a.classList.contains('is-open')) a.querySelector('.nt-archive-head').click();
+  });
+  await sleep(350);
+  /* A DIFFERENT SPLIT FROM THE DEFAULT, or the check proves nothing: 72 is
+     what a document with no archSplit at all comes back as, so restoring it
+     and never having saved it look identical. See CLAUDE.md on fixtures that
+     match the default. Dragged with a REAL mouse, because the drag is a
+     pointer-capture handler and a synthesised one is a different code path. */
+  const grip = await page.evaluate(() => {
+    const r = document.querySelector('.nt-archive-grip').getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  });
+  await page.mouse.move(grip.x, grip.y);
+  await page.mouse.down();
+  await page.mouse.move(grip.x, grip.y - 140, { steps: 8 });
+  await page.mouse.up();
+  await sleep(300);
+  await savedOnce(page);
+  await sleep(200);
+  const stored = JSON.parse(await readFile(join(STORE, 'notes/current.json'), 'utf8'));
+  const ui = stored.doc.ui || {};
+  note(ui.archOpen === true, 'the archive fold never reached the server-side store');
+  note(Number.isFinite(ui.archSplit) && ui.archSplit !== 72,
+       `the split in the store is ${ui.archSplit} — the drag did not move it off the default`);
+
+  await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
+  await unlocked(page);
+  await sleep(300);
+  const back = await page.evaluate(() => ({
+    open: document.querySelector('.nt-archive').classList.contains('is-open'),
+    expanded: document.querySelector('.nt-archive-head').getAttribute('aria-expanded'),
+    split: Number(getComputedStyle(document.querySelector('.nt-app')).getPropertyValue('--list-flex')),
+    /* The collapse tab is welded to the archive's top edge, and that edge is
+       in a different place depending on the fold -- restoring one without
+       telling the other leaves the tab where the shut archive's edge was. */
+    drift: Math.round(
+      document.querySelector('.nt-sb-tab').getBoundingClientRect().top
+      - document.querySelector('.nt-archive').getBoundingClientRect().top),
+  }));
+  note(back.open, 'the archive came back shut after a reload');
+  note(back.expanded === 'true', `the archive head says aria-expanded="${back.expanded}" while open`);
+  note(back.split === ui.archSplit,
+       `the split came back at ${back.split}, the store says ${ui.archSplit}`);
+  note(Math.abs(back.drift) <= 24,
+       `the collapse tab is ${back.drift}px off the restored archive's top edge`);
+  console.log(`archive restored: open=${back.open} split=${back.split}% `
+              + `(was shut on open before this: ${!shut})`);
+  await page.close();
+}
+
 /* ---- 4. a SECOND browser sees it ----------------------------------------
    This is the only check that proves the server holds the document. An
    incognito context shares no storage of any kind with the one above, so a

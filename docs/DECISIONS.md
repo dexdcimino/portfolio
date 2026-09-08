@@ -25,6 +25,70 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-08 — the music remote is one element that is MOVED, and owns no state
+
+**Decided.** A vertical transport pill (`#musicRemote`) lives at the end of
+`<body>` and is appended into whichever `dialog[data-music-remote]` is open,
+whenever `<html>` carries `music-live`. Every button on it calls `.click()` on
+the real control in the music bar, and every value it draws is read back off
+that bar through a `MutationObserver`. It holds no copy of playing, shuffle,
+repeat, volume, the track or the artwork.
+
+**It replaced** two shapes that both look more obvious. A SECOND transport with
+its own state, synced from the player — and a pill built and destroyed inside
+each host overlay, per host.
+
+**Why.** The problem is narrow and worth stating exactly: closing the music
+list with a track playing re-shows the dialog non-modally as a bar in the
+corner (`redock()`), and `show()` does not put a dialog in the top layer.
+So the moment any overlay opens with `showModal()`, the bar is painted under
+its backdrop — still playing, still holding the OS media session, and
+completely unreachable. The notes app is the overlay someone sits in for an
+hour, which is where that bites.
+
+Being a DESCENDANT of the open modal is the only way to share its top layer,
+which forces either one element that moves or one element per host. It moves,
+because the reason the PLAYER can never move — an `<iframe>` reloads when it is
+reparented, restarting the track — does not apply to a row of buttons, and two
+copies would mean the invisible one is the one that goes stale.
+
+Owning no state follows from the same rule the bus already lives by:
+`MediaBus` presses Next with `btnNext.click()` rather than calling `step()`,
+because the rules about what Previous means live in that handler. A remote that
+kept `playing`, `shuffle`, `loop` and `volume` would be four values to keep in
+step with a player that writes them from six places, and the copy is always the
+half that drifts. Reading them back means there is nothing that can.
+
+**Reverse it if** a host needs the remote somewhere that is not the top layer,
+or two hosts need it at once — then it becomes a component with a render
+function, and the state question comes back with it. Nothing foreseeable: only
+one modal is ever open, which is enforced in `openModal`.
+
+---
+
+## 2026-09-08 — the accent drop-glow under a filled button is commented out, not deleted
+
+**Decided.** `.button.primary`'s `box-shadow: 0 12px 32px …` is commented out
+in place, with the declaration kept verbatim beside the rule. VIEW WORK,
+GALLERY and VIEW RESUME are flat accent plates now.
+
+**It replaced** deleting the line, which is what "we do not want this any more"
+usually means.
+
+**Why.** This is a look Dex asked to SEE, not a decision he has made — the ask
+was "I wanna see what it looks like without that glow". A deleted line has to
+be re-derived to come back, and the value in it is not obvious: 32px of blur at
+22% of the accent was picked against the hero art. Kept as a comment, putting
+it back is an uncomment. The hover ring on `.button` is a different thing and
+stays: a crisp 2px outline says "this is the target"; a blurred halo under a
+resting button does not.
+
+**Reverse it if** the flat version is kept — then the comment goes, in the
+commit that says so. Leaving a commented-out declaration in the sheet forever
+is the failure mode this is one step away from.
+
+---
+
 ## 2026-09-08 — a table is flat, rectangular, and 8 x 50
 
 **Decided.** The notes editor gets a table block whose cells hold inline

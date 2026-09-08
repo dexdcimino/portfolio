@@ -1382,6 +1382,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   }));
   note(survived.stillDocked, 'opening another overlay closed the docked music bar');
   note(survived.src === before.src, 'opening another overlay restarted the music');
+
   /* Closing that overlay must give the scroll back rather than leave it locked
      on the docked bar's account. WAITED for, not read: a dialog's close event
      is queued, so reading the class on the next line reads it before the
@@ -1392,6 +1393,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
     .then(() => note(true, ''))
     .catch(() => note(false,
       'the page stayed scroll-locked after an overlay closed over the docked bar'));
+
 
   /* THE EXPAND TAB. A triangle out of the top edge, over the duration, and it
      puts the list back with no code asked for. */
@@ -1573,6 +1575,212 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   }));
   note(!ended.open && !ended.docked, 'the bar\'s X did not close the player');
   note(ended.src === null, 'the bar\'s X left the embed holding a src');
+}
+
+/* ---- 8c-2. the remote pill ---------------------------------------------
+   THE PROBLEM IT SOLVES, stated as the state it is checked in: a track is
+   playing, the list has been closed so the bar is docked, and a full-screen
+   overlay is open over the top. A modal <dialog> is in the top layer and the
+   docked bar -- shown with show(), non-modally, on purpose -- is not, so the
+   bar is painted under the backdrop. The music is playing where nothing can
+   reach it.
+
+   ITS OWN PLAYER, and that is not tidiness. With YouTube unreachable from
+   here the embed never handshakes, so `ready` stays false and every track
+   change re-navigates the frame -- which is exactly what 8c counts across its
+   whole length. Pressing Next from the pill inside that block failed four of
+   its assertions, correctly. The pill needs a player it is allowed to move.
+
+   FALSELY PASSES IF: only the DOM were read. A pill that is present, unhidden
+   and correctly positioned is still useless if it is painted under the
+   backdrop, so the centre of its play button is hit-tested and pressed with a
+   real click; and a pill that draws the right icons is still useless if the
+   buttons reach nothing, so every control is driven and read back off the BAR
+   rather than off the pill. */
+{
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true,
+                             { timeout: 5000 });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 10000 });
+  await page.evaluate(() =>
+    document.querySelectorAll('#musicRows .music-row')[4].querySelector('.music-play').click());
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1,
+    { timeout: 5000 });
+  // Close the list so the bar docks, then put an overlay over the top of it.
+  await page.click('#musicClose');
+  await page.waitForFunction(() => document.getElementById('musicModal')
+                                     .classList.contains('is-docked'), { timeout: 5000 });
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent('notes:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('notesModal').open === true,
+                             { timeout: 5000 });
+
+  /* ---- the remote pill ---------------------------------------------------
+     The bar survived, and that is exactly the problem this pill exists for: a
+     modal <dialog> is in the top layer and the docked bar is not, so the music
+     is still playing under the backdrop where nothing can reach it. Checked
+     HERE rather than in its own section because this is the state it is for —
+     docked, and an overlay over the top of it. */
+  const remote = await page.evaluate(() => {
+    const p = document.getElementById('musicRemote');
+    if (!p) return null;
+    const r = p.getBoundingClientRect();
+    const play = document.getElementById('musicRemoteToggle').getBoundingClientRect();
+    /* What is actually AT the play button's centre. A pill that is in the DOM,
+       unhidden and correctly positioned is still unreachable if it is painted
+       under the backdrop — which is the entire bug — and only a hit test says
+       so. See CLAUDE.md on element.click() proving nothing about what is on
+       top; this is the answer to the same question asked properly. */
+    const at = document.elementFromPoint(play.left + play.width / 2, play.top + play.height / 2);
+    return {
+      inHost: document.getElementById('notesModal').contains(p),
+      hidden: p.hidden,
+      top: Math.round(r.top), right: Math.round(r.right), width: Math.round(r.width),
+      viewW: window.innerWidth, viewH: window.innerHeight, bottom: Math.round(r.bottom),
+      hit: at ? (at.closest('#musicRemoteToggle') ? 'play' : at.id || at.className) : null,
+      title: document.getElementById('musicRemoteTipTitle').textContent,
+      artist: document.getElementById('musicRemoteTipArtist').textContent,
+      wantTitle: document.getElementById('musicNowTitle').textContent,
+      wantArtist: document.getElementById('musicNowArtist').textContent,
+      art: document.getElementById('musicRemoteThumb').getAttribute('src'),
+      wantArt: document.getElementById('musicThumb').getAttribute('src'),
+      icon: document.getElementById('musicRemoteToggle').querySelector('.icon').dataset.icon,
+      wantIcon: document.getElementById('musicToggle').querySelector('.icon').dataset.icon,
+      live: document.documentElement.classList.contains('music-live'),
+    };
+  });
+  note(!!remote, 'there is no #musicRemote in the page at all');
+  note(!!remote && remote.live, 'the music is docked and playing but <html> is not marked music-live');
+  note(!!remote && remote.inHost,
+       'the remote is not inside the notes dialog — outside it, it is under the backdrop');
+  note(!!remote && !remote.hidden, 'the remote is hidden while an opted-in overlay is open over the music');
+  note(!!remote && remote.hit === 'play',
+       `the remote's play button is covered — the hit at its centre is ${remote && remote.hit}`);
+  /* Clear of the notes header (52px) and inside the window on all four sides.
+     A pill fixed to the viewport can only be wrong in one of those two ways. */
+  note(!!remote && remote.top >= 52,
+       `the remote sits at ${remote && remote.top}px, on top of the 52px notes header`);
+  note(!!remote && remote.right <= remote.viewW && remote.bottom <= remote.viewH,
+       `the remote runs off the window: right ${remote && remote.right}/${remote && remote.viewW}, `
+       + `bottom ${remote && remote.bottom}/${remote && remote.viewH}`);
+  note(!!remote && remote.width >= 44 && remote.width <= 70,
+       `the remote is ${remote && remote.width}px wide, wanted 44 to 70`);
+  note(!!remote && remote.icon === remote.wantIcon,
+       `the remote shows ${remote && remote.icon} while the bar shows ${remote && remote.wantIcon}`);
+  note(!!remote && !!remote.title && remote.title === remote.wantTitle
+       && remote.artist === remote.wantArtist,
+       `the remote's tip says "${remote && remote.title} / ${remote && remote.artist}", `
+       + `the bar says "${remote && remote.wantTitle} / ${remote && remote.wantArtist}"`);
+  note(!!remote && !!remote.art && remote.art === remote.wantArt,
+       'the remote artwork is not the thumbnail the docked bar is showing');
+
+  /* A REAL CLICK on the play button, not el.click(). The whole point of the
+     pill is that a pointer can reach it through the overlay, and a scripted
+     click reaches an element whether anything is over it or not. */
+  await page.click('#musicRemoteToggle');
+  /* Waited FOR, not slept through. The proxy is one click and one observer
+     callback, so the state it produces is the thing to settle on -- and a
+     press that never landed fails here with "the remote never reached the
+     player" rather than passing a sleep and failing three lines down. */
+  await page.waitForFunction(() =>
+    document.getElementById('musicToggle').querySelector('.icon').dataset.icon === 'play',
+    { timeout: 5000 })
+    .catch(() => note(false, 'a real click on the remote never reached the player'));
+  const pressed = await page.evaluate(() => ({
+    mine: document.getElementById('musicRemoteToggle').querySelector('.icon').dataset.icon,
+    bar: document.getElementById('musicToggle').querySelector('.icon').dataset.icon,
+    rows: document.querySelectorAll('#musicRows .music-row.is-playing').length,
+  }));
+  note(pressed.bar === 'play', 'a real click on the remote did not pause the player');
+  note(pressed.mine === pressed.bar,
+       `after the press the remote shows ${pressed.mine} and the bar shows ${pressed.bar}`);
+  note(pressed.rows === 1, `${pressed.rows} rows are lit after the remote paused, expected 1`);
+  await page.click('#musicRemoteToggle');
+  await page.waitForFunction(() =>
+    document.getElementById('musicToggle').querySelector('.icon').dataset.icon === 'pause',
+    { timeout: 5000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false, 'a second press on the remote did not start it again'));
+
+  /* The three modes, each driven from the pill and each read back off the BAR:
+     one press has to reach the real control, and the pill has to end up saying
+     what that control says. Nothing here keeps its own copy of the state. */
+  const modes = await page.evaluate(async () => {
+    const wait = () => new Promise(r => setTimeout(r, 120));
+    const out = {};
+    const bar = { shuffle: document.getElementById('musicShuffle'), loop: document.getElementById('musicLoop') };
+    const mine = { shuffle: document.getElementById('musicRemoteShuffle'), loop: document.getElementById('musicRemoteLoop') };
+    const was = bar.shuffle.getAttribute('aria-pressed');
+    mine.shuffle.click(); await wait();
+    out.shuffleMoved = bar.shuffle.getAttribute('aria-pressed') !== was;
+    out.shuffleMirrored = mine.shuffle.getAttribute('aria-pressed') === bar.shuffle.getAttribute('aria-pressed');
+    mine.shuffle.click(); await wait();     // put it back
+    const loopWas = bar.loop.dataset.loop;
+    mine.loop.click(); await wait();
+    out.loopMoved = bar.loop.dataset.loop !== loopWas;
+    out.loopMirrored = mine.loop.dataset.loop === bar.loop.dataset.loop;
+    out.loopState = bar.loop.dataset.loop;
+    /* Back round the cycle to where it started, however many presses that
+       takes -- the next section reads the repeat state and must not inherit
+       one this check set. */
+    let guard = 0;
+    while (bar.loop.dataset.loop !== loopWas && guard++ < 4) { mine.loop.click(); await wait(); }
+    out.loopRestored = bar.loop.dataset.loop === loopWas;
+
+    /* Volume goes the other way: the pill's slider hands its value to the
+       real one and fires the event that slider's listener is bound to. */
+    const vol = document.getElementById('musicVol'), my = document.getElementById('musicRemoteVol');
+    const volWas = vol.value;
+    my.value = String(Math.max(0, Math.min(100, Number(volWas) === 25 ? 60 : 25)));
+    my.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait();
+    out.volMoved = vol.value === my.value;
+    out.volStored = localStorage.getItem('music-volume');
+    out.volFill = my.style.getPropertyValue('--fill');
+    vol.value = volWas;
+    vol.dispatchEvent(new Event('input', { bubbles: true }));
+    return out;
+  });
+  note(modes.shuffleMoved, 'the remote shuffle button did not reach the real one');
+  note(modes.shuffleMirrored, 'the remote did not follow the shuffle state it just set');
+  note(modes.loopMoved, 'the remote repeat button did not reach the real one');
+  note(modes.loopMirrored, `the remote says repeat ${modes.loopState} and the bar does not`);
+  note(modes.loopRestored, 'the repeat cycle was left somewhere else by this check');
+  note(modes.volMoved, 'the remote volume slider did not move the real volume');
+  note(modes.volStored !== null, 'a volume set from the remote was not persisted');
+  note(modes.volFill !== '', 'the remote slider paints no --fill, so its track is blank');
+
+  /* Skipping from the pill walks the queue, which is the one control that has
+     to go through the real BUTTON rather than through step(): a Previous that
+     restarts a track you are into is a rule that lives in that handler. */
+  const skipped = await page.evaluate(async () => {
+    const lit = () => [...document.querySelectorAll('#musicRows .music-row')]
+      .findIndex(r => r.classList.contains('is-playing'));
+    const before = lit();
+    document.getElementById('musicRemoteNext').click();
+    await new Promise(r => setTimeout(r, 300));
+    return { before, after: lit(), n: document.querySelectorAll('#musicRows .music-row.is-playing').length };
+  });
+  note(skipped.after !== skipped.before,
+       `Next on the remote left the playing row at ${skipped.after}`);
+  note(skipped.n === 1, `${skipped.n} rows are lit after a remote skip, expected 1`);
+
+  await page.evaluate(() => document.getElementById('notesModal').close());
+  await page.waitForFunction(() => document.getElementById('notesModal').open !== true,
+                             { timeout: 5000 });
+  /* AND THE PILL GOES WITH THE OVERLAY. It only ever stands in for a bar that
+     cannot be reached; with the overlay gone the bar is right there, and a
+     second transport floating over the page would be one too many. */
+  const gone = await page.evaluate(() => {
+    const p = document.getElementById('musicRemote');
+    return { hidden: p.hidden, inHost: document.getElementById('notesModal').contains(p) };
+  });
+  note(gone.hidden, 'the remote is still showing after the overlay hosting it closed');
+  note(!gone.inHost, 'the remote was left parented inside the closed overlay');
+
+  await shutMusic();
 }
 
 /* ---- 8d. the two players are two things --------------------------------
@@ -2275,6 +2483,26 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
 
   await shutMusic();
   await page.evaluate(() => { try { localStorage.removeItem('music-flags'); } catch {} });
+}
+
+/* THE REMOTE WITH NOTHING TO CONTROL. music-live is the whole gate, and a
+   check that only ever watched the pill APPEAR would pass over one that never
+   goes away — an empty transport floating over the notes with no player behind
+   it. Run last, because it needs the music properly stopped. */
+{
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent('notes:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('notesModal').open === true,
+                             { timeout: 5000 });
+  const idle = await page.evaluate(() => ({
+    musicOpen: document.getElementById('musicModal').open === true,
+    live: document.documentElement.classList.contains('music-live'),
+    hidden: document.getElementById('musicRemote').hidden,
+  }));
+  note(!idle.musicOpen, 'the music was still open — this check never reached its subject');
+  note(!idle.live, '<html> is still marked music-live with the player torn down');
+  note(idle.hidden, 'the remote is showing with no music to control');
+  await page.evaluate(() => document.getElementById('notesModal').close());
 }
 
 /* Every 404 this run produced, named. The notes unlock is the only one that is

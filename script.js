@@ -5171,6 +5171,14 @@ const MediaBus = (() => {
     /* The sound is inside a cross-origin iframe, so this document has to make
        one of its own to be the thing the OS media keys are pointed at. */
     MediaBus.holdSession(armed && playing);
+    /* THE ONE SIGNAL A REMOTE READS. `armed` means the embed is holding a
+       track -- playing or paused -- which is exactly "there is music to
+       control", and it is already the flag every other answer in here is
+       derived from. A class on <html> rather than a callback because a remote
+       is drawn inside whatever overlay is up and torn down with it: a class is
+       a fact anything can observe without either side keeping a reference to
+       the other. See initMusicRemote(). */
+    document.documentElement.classList.toggle('music-live', armed);
   }
 
   /* ---- the player ------------------------------------------------------ */
@@ -5976,6 +5984,169 @@ const MediaBus = (() => {
   lastVolume = startVolume || 0.4;
   applyVolume(startVolume, false);
 
+})();
+
+
+/* --- the music remote ------------------------------------------------------
+   THE SAME TRANSPORT AS A VERTICAL PILL, drawn inside a full-screen overlay.
+   (Dex, 2026-09-08)
+
+   WHY IT HAS TO EXIST. Closing the music list with a track still going re-shows
+   the dialog non-modally as a bar in the corner -- see redock(), and the whole
+   point of show() over showModal() is that the page stays live around it. A
+   non-modal dialog is NOT in the top layer, so the moment anything opens
+   modally the bar is painted underneath its backdrop: still playing, still
+   holding the OS session, and completely unreachable. The notes app is the
+   overlay someone sits inside for an hour, which is where that bites.
+
+   IT OWNS NO STATE, AND THAT IS THE WHOLE DESIGN. Every button clicks the real
+   control in the bar, and every value is read back off the bar -- the same
+   trick MediaBus already uses to press Next (`next: () => btnNext.click()`).
+   A second copy of playing/shuffle/loop/volume would be four things to keep in
+   step with a player that changes them from six places, and the copy is always
+   the one that goes stale. There is nothing here that can.
+
+   ONE ELEMENT, MOVED, never one per host. It has to be a DESCENDANT of the
+   open modal to share its top layer, and this is plain DOM with no iframe in
+   it -- the reason the PLAYER can never be moved does not apply to a row of
+   buttons. A host opts in with data-music-remote and says where its header
+   ends in CSS; nothing here names a host.
+
+   WHAT IT DOES NOT CARRY: the stop X and the scrub. Ending the music from
+   inside another overlay is something you would only ever do by accident, and
+   a seek bar three centimetres tall is one nobody can land on. Both are one
+   press of the expand tab away, in the bar that has room for them. */
+(function initMusicRemote() {
+  const pill = document.getElementById('musicRemote');
+  if (!pill) return;
+
+  const $ = (id) => document.getElementById(id);
+  /* The real controls. Every one of these is CLICKED, never re-implemented. */
+  const src = {
+    toggle: $('musicToggle'), next: $('musicNext'), prev: $('musicPrev'),
+    shuffle: $('musicShuffle'), loop: $('musicLoop'), mute: $('musicMute'),
+  };
+  const vol = $('musicVol'), thumb = $('musicThumb');
+  const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
+  const mine = {
+    toggle: $('musicRemoteToggle'), next: $('musicRemoteNext'), prev: $('musicRemotePrev'),
+    shuffle: $('musicRemoteShuffle'), loop: $('musicRemoteLoop'), mute: $('musicRemoteMute'),
+  };
+  const myVol = $('musicRemoteVol'), art = $('musicRemoteArt'), artImg = $('musicRemoteThumb');
+  const tipTitle = $('musicRemoteTipTitle'), tipArtist = $('musicRemoteTipArtist');
+  /* Every piece or none. A pill missing one button is a pill that lies about
+     what it can do, and there is a working bar one tab press away. */
+  const parts = [...Object.values(src), ...Object.values(mine),
+                 vol, thumb, nowTitle, nowArtist, myVol, art, artImg, tipTitle, tipArtist];
+  if (parts.some(el => !el)) return;
+
+  for (const name of Object.keys(mine)) {
+    mine[name].addEventListener('click', () => src[name].click());
+  }
+  /* The slider hands its value to the real slider and fires the event that
+     slider's own listener is already bound to. Assigning .value alone changes
+     a property nothing is watching -- the handle would move here and the
+     volume would not move at all. */
+  myVol.addEventListener('input', () => {
+    vol.value = myVol.value;
+    vol.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  /* A THUMBNAIL THAT WILL NOT LOAD FALLS BACK TO THE GLYPH. It is a remote
+     file on YouTube's CDN, so it can 404 for a video whose art was never
+     generated, and it is blocked outright on a machine with no network -- and
+     a browser's broken-image mark inside a 38px circle is worse than the idle
+     play triangle that was there before it. `dead` is cleared on every new
+     src, or one bad thumbnail would take the artwork off for the session. */
+  let deadArt = '';
+  artImg.addEventListener('error', () => {
+    deadArt = artImg.getAttribute('src') || '';
+    artImg.hidden = true;
+    art.classList.remove('is-live');
+  });
+
+  const iconOf = (btn) => { const i = btn.querySelector('.icon'); return i ? i.dataset.icon : ''; };
+  const setIcon = (btn, name) => {
+    const i = btn.querySelector('.icon');
+    if (i && name && i.dataset.icon !== name) i.dataset.icon = name;
+  };
+  const copyLabel = (from, to) => {
+    const l = from.getAttribute('aria-label');
+    if (l) to.setAttribute('aria-label', l);
+  };
+
+  function paint() {
+    setIcon(mine.toggle, iconOf(src.toggle));
+    setIcon(mine.mute, iconOf(src.mute));
+    mine.shuffle.setAttribute('aria-pressed', src.shuffle.getAttribute('aria-pressed') || 'false');
+    mine.loop.dataset.loop = src.loop.dataset.loop || 'off';
+    for (const name of Object.keys(mine)) copyLabel(src[name], mine[name]);
+    myVol.value = vol.value;
+    myVol.style.setProperty('--fill', `${vol.value}%`);
+
+    /* The artwork is the same remote thumbnail the docked bar stands the
+       player down to, read off that <img> rather than rebuilt from the video
+       id -- one URL, one cache entry, and nothing here has to know how
+       YouTube names a thumbnail. */
+    const url = thumb.getAttribute('src') || '';
+    if (url && artImg.getAttribute('src') !== url) { artImg.setAttribute('src', url); deadArt = ''; }
+    if (!url) artImg.removeAttribute('src');
+    const shown = !!url && url !== deadArt;
+    artImg.hidden = !shown;
+    art.classList.toggle('is-live', shown);
+
+    const title = nowTitle.textContent || '';
+    const artist = nowArtist.textContent || '';
+    tipTitle.textContent = title;
+    tipArtist.textContent = artist;
+    art.setAttribute('aria-label', title ? `Now playing: ${title} — ${artist}` : 'Nothing playing');
+  }
+
+  /* WHERE IT GOES: into the open host, or back out to the body and hidden.
+     Read off the DOM every time rather than remembered -- an overlay can be
+     closed by Escape, by its X, by the backdrop or by another overlay opening
+     in its place, and a flag set beside one of those four is a flag the other
+     three walk past. */
+  const hosts = [...document.querySelectorAll('dialog[data-music-remote]')];
+  if (!hosts.length) return;
+
+  function place() {
+    const live = document.documentElement.classList.contains('music-live');
+    const host = live ? hosts.find(d => d.open && !d.classList.contains('is-docked')) : null;
+    if (!host) {
+      pill.hidden = true;
+      if (pill.parentNode !== document.body) document.body.appendChild(pill);
+      return;
+    }
+    if (pill.parentNode !== host) host.appendChild(pill);
+    pill.hidden = false;
+    paint();
+  }
+
+  for (const d of hosts) new MutationObserver(place).observe(d, { attributeFilter: ['open'] });
+  new MutationObserver(place).observe(document.documentElement, { attributeFilter: ['class'] });
+
+  /* WATCHED PIECE BY PIECE, not the whole bar. The embed volunteers a time
+     several times a second, so the scrub's --fill and the elapsed text change
+     constantly -- and neither is drawn here. One observer over .music-bar
+     would repaint this pill four times a second for two values it does not
+     have. These eight are the whole of what it draws.
+
+     The volume is in the list because applyVolume() writes --fill into the
+     style ATTRIBUTE every time it runs: a property assignment nothing else
+     could report arrives here as an attribute change. */
+  const watch = new MutationObserver(() => { if (!pill.hidden) paint(); });
+  watch.observe(src.toggle, { attributes: true, subtree: true });
+  watch.observe(src.mute, { attributes: true, subtree: true });
+  watch.observe(src.shuffle, { attributes: true });
+  watch.observe(src.loop, { attributes: true });
+  watch.observe(vol, { attributes: true, attributeFilter: ['style'] });
+  watch.observe(thumb, { attributes: true, attributeFilter: ['src'] });
+  const text = { childList: true, characterData: true, subtree: true };
+  watch.observe(nowTitle, text);
+  watch.observe(nowArtist, text);
+
+  place();
 })();
 
 /* --- markdown ------------------------------------------------------------- */

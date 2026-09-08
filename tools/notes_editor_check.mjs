@@ -577,7 +577,16 @@ note((await page.$$eval('.nt-cat', els => els.length)) === catsBefore, 'archivin
    archive fails on the previous run's crash rather than on this run's code. */
 note(Number(await page.$eval('.nt-archive-count', e => e.textContent) || 0) === archivedBefore + 1,
      `the archive count did not go up by one (${archivedBefore} -> ${await page.$eval('.nt-archive-count', e => e.textContent)})`);
-await page.click('.nt-archive-head');
+/* OPEN IT, do not TOGGLE it. The fold is a saved setting now (ui.archOpen),
+   so this run starts wherever the last one left it -- and a plain click on an
+   archive that was already open shut it, taking the restore button off screen
+   and killing the run on a click that could not land. The same trap the theme
+   set, and the same fix: put it in a known state instead of assuming one. */
+await page.evaluate(() => {
+  const a = document.querySelector('.nt-archive');
+  if (!a.classList.contains('is-open')) a.querySelector('.nt-archive-head').click();
+});
+await sleep(250);
 await page.click('.nt-arch-row .nt-icon-btn');   // restore
 await sleep(200);
 note((await page.$$eval('.nt-cat', els => els.length)) === catsBefore + 1, 'restore did not bring the category back');
@@ -2490,16 +2499,44 @@ await chord(['Control'], '\\');
   note(!!strip && strip.btnW >= 29, `a strip button is ${strip && strip.btnW}px, wanted at least 29`);
   console.log(`strip controls: ${strip && strip.more} at ${strip && strip.svgW}px`);
 
-  /* i. the spell toggle says it is on with a ring, and its mark is a
+  /* i. the spell toggle says it is on WITHOUT a ring -- the 2px accent box
+     was taken off on 2026-09-08 and the assertion is inverted rather than
+     deleted, because "no ring" is now the thing that can regress. The state
+     still has to be visible, so the tint every other header toggle wears is
+     asserted in its place: accent letters on a faint accent wash, which is
+     also what proves the button did not simply go dead. Its mark is a
      rectangle again rather than the oversized one that replaced it. */
   const spellState = await page.evaluate(() => {
     const b = document.querySelector('.nt-spell-btn');
     const wasOn = b.classList.contains('is-on');
     if (!wasOn) b.click();
     const svg = b.querySelector('svg').getBoundingClientRect();
-    return { wasOn, ring: getComputedStyle(b).boxShadow, w: svg.width, h: svg.height };
+    /* SETTLED, NOT MID-TRANSITION. .nt-icon-btn transitions colour and
+       background over 150ms, and getComputedStyle hands back the value the
+       animation is currently AT -- so reading straight after a class change
+       returns the state you just left. It returned the accent for both halves
+       of this comparison and the check failed on a feature that works.
+       Finishing the button's own transitions is the fix, and it needs no
+       clock: there is nothing here to watch move, only a value to land on. */
+    const settle = () => { for (const a of b.getAnimations()) a.finish(); };
+    settle();
+    const lit = getComputedStyle(b);
+    const on = { ring: lit.boxShadow, color: lit.color, bg: lit.backgroundColor };
+    /* The OFF appearance of the SAME button, read by taking the class off and
+       putting it straight back. Comparing against a neighbour would compare
+       two different rules; this compares the one rule with and without. */
+    b.classList.remove('is-on');
+    settle();
+    const dark = getComputedStyle(b);
+    const off = { color: dark.color, bg: dark.backgroundColor };
+    b.classList.add('is-on');
+    return { wasOn, ...on, offColor: off.color, offBg: off.bg, w: svg.width, h: svg.height };
   });
-  note(spellState.ring !== 'none', 'the spell button shows no ring while it is on');
+  note(spellState.ring === 'none', `the spell button still draws a ring while it is on: ${spellState.ring}`);
+  note(spellState.color !== spellState.offColor,
+    `the spell button's ON colour is its OFF colour (${spellState.color}) — the state is invisible`);
+  note(spellState.bg !== spellState.offBg,
+    `the spell button's ON background is its OFF background (${spellState.bg}) — the state is invisible`);
   note(spellState.w > spellState.h, `the spell mark is not a rectangle: ${spellState.w}x${spellState.h}`);
   note(spellState.w >= 30 && spellState.w <= 35, `the spell mark is ${spellState.w}px wide, wanted 30 to 35`);
   await page.evaluate((was) => { if (!was) document.querySelector('.nt-spell-btn').click(); }, spellState.wasOn);

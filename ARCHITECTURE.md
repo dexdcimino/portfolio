@@ -1333,7 +1333,8 @@ Without either, every route answers 503 and the keypad says NOT SET UP.
 doc      { v: 2, active, sessions: [session], ui, spell: {ignore, custom}, emojiFreq }
 session  { id, title, emoji, color, created, updated, cats: [cat], archived: [cat] }
 cat      { id, title, emoji, color, collapsed, body, updated, archivedAt? }
-ui       { theme, font, fs, sidebar, spell, autocorrect, slots[16] }
+ui       { theme, font, fs, sidebar, node, spell, autocorrect,
+           archSplit, archOpen, slots[16] }
 ```
 
 One body per category, no subcategories -- the notes were never written any
@@ -1689,7 +1690,20 @@ next keystroke.
 how the leftover height is shared (`--list-flex` / `--arch-flex`, saved as
 `ui.archSplit`), and the archive header carries two arms that lie flat while
 it is open and fold into a chevron when it is shut -- one mark doing both
-jobs, so the header never grows a second control. The tab that folds the
+jobs, so the header never grows a second control.
+
+**Both halves of that state are saved, and for a while only one was.** The
+height was restored on every load (`applySplit()` from `ui.archSplit`) while
+the fold was not, so an archive left open came back shut every single time and
+the height was faithfully restored for something nobody could see. `ui.archOpen`
+is the other half: written by the header's click, applied in `applyUi()`
+alongside the split, and followed by `syncTab()` because the tab is welded to
+an edge that is in a different place depending on it. Checked in
+`notes_check.mjs` (3b) across a real reload, with the flag asserted in the
+store on disk first -- a fold restored from a variable that never reached the
+server lasts until the tab closes.
+
+The tab that folds the
 sidebar away rides the same divider: `syncTab()` keeps it level with the
 archive's top edge through the split drag, the fold and a resize. It lives
 outside the sidebar because the sidebar clips its own overflow.
@@ -2511,6 +2525,62 @@ BROKEN one, never as an empty playlist — the same rule the checkers follow.
 tools/bake_music.py`. Never edit `tracks.json`; `--check` fails on a hand edit
 because the output is deterministic and the check is a byte comparison against
 a rebuild.
+
+### The remote pill — the transport inside another overlay
+
+Docking has one gap, and it is a direct consequence of what makes docking work.
+`show()` is the non-modal form, which is the whole point — nothing inert, the
+page live around the bar — and a non-modal dialog is **not in the top layer**.
+So the moment anything opens with `showModal()`, the docked bar is painted under
+that dialog's backdrop: playing, holding the OS media session, unreachable.
+
+`#musicRemote` is the answer: the same transport as a vertical pill, drawn
+inside the overlay that is covering the bar. `initMusicRemote()` in `script.js`,
+`.music-remote*` in `styles.css`, markup at the end of `<body>`.
+
+**It is ONE element, and it MOVES.** Being a descendant of the open modal is the
+only way to share its top layer. The reason the PLAYER can never move — an
+iframe reloads when it is reparented — does not apply to a row of buttons, so
+this is appended into the host and taken back out to `<body>` when there is no
+host. Two copies would mean the hidden one is the one that goes stale.
+
+**It owns no state.** Every button calls `.click()` on the real control in the
+bar; every value it draws is read back off that bar. That is the rule `MediaBus`
+already follows (`next: () => btnNext.click()`, so a Previous that restarts a
+track you are into stays one implementation). A `MutationObserver` watches eight
+specific nodes — the two toggle buttons' subtrees, shuffle, repeat, the volume
+input's `style` attribute, the thumbnail's `src`, and the two now-playing text
+nodes. Deliberately **not** the whole `.music-bar`: the embed volunteers a time
+several times a second, so the scrub and the clock change constantly and neither
+is drawn here.
+
+**Two signals, both facts rather than callbacks.** `<html>` carries `music-live`
+whenever `armed` is true, toggled in `paint()` — `armed` means the embed is
+holding a track, playing or paused, which is exactly "there is music to
+control". And a host declares itself with `data-music-remote` on its `<dialog>`
+(the notes overlay is the only one today) and says where its own header ends in
+CSS: `.notes-modal .music-remote{top:66px}`, clearing the app's 52px header.
+Nothing in the pill names a host, and nothing in a host reaches into the pill.
+
+**Order, top to bottom:** artwork, shuffle, next, PLAY, previous, repeat, a
+vertical volume slider, mute. Symmetric around the one circular button, the same
+rule the wide bar's transport follows. The slider is `.player-range` rotated
+-90deg — the painted `--fill` track, the white thumb that reads against both
+halves and the 22px hit area are decisions already made once. Zero ends up at
+the bottom, which is the only direction in which up can mean louder. The title
+and artist are a two-line tooltip out to the left of the artwork: a 54px column
+cannot carry a song title.
+
+**No stop and no seek.** Ending the music from inside another overlay is
+something you would only do by accident, and a seek bar three centimetres tall
+is one nobody can land on. Both are one press of the expand tab away.
+
+`music_check.mjs` block 8c-2 drives it, in its own player: with YouTube
+unreachable the embed never handshakes, so every track change re-navigates the
+frame — which is exactly what block 8c counts across its whole length. It also
+hit-tests the centre of the play button with `elementFromPoint` and presses it
+with a real click, because a pill that is present, unhidden and correctly
+positioned is still useless if it is painted under the backdrop.
 
 ### The embed, and why script-src did not move
 

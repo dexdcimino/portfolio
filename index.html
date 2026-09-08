@@ -4496,7 +4496,11 @@
        further up the page -- that one ships its ciphertext and decrypts it
        here, which is right for something sealed once and wrong for something
        edited every day. -->
-  <dialog class="notes-modal" id="notesModal" aria-labelledby="notes-dialog-title">
+  <!-- data-music-remote: this overlay takes the music remote pill while it
+       is open. It is the overlay someone sits inside for an hour, which is
+       where a docked bar buried under a backdrop actually bites. -->
+  <dialog class="notes-modal" id="notesModal" data-music-remote
+          aria-labelledby="notes-dialog-title">
     <!-- The shell is wrapped so the close button and the save line can sit
          OUTSIDE the panel while still being positioned against its edges. -->
     <div class="notes-frame">
@@ -4739,6 +4743,66 @@
       </button>
     </div>
   </dialog>
+
+
+  <!-- THE MUSIC REMOTE. A vertical pill of the same transport, drawn INSIDE
+       whichever full-screen overlay is up so the music stays reachable from in
+       there. It lives at the end of <body> and is MOVED into the open host --
+       it has to be a descendant of the modal to be in the top layer with it,
+       and a dialog opened with showModal() puts everything else underneath its
+       backdrop. See initMusicRemote() in script.js for why that matters and
+       why this owns no state of its own.
+
+       Top to bottom: the artwork, then shuffle and next, then play in the
+       middle, then previous and repeat, then the volume. Symmetric around the
+       one circular button, which is the same rule the wide bar's transport
+       follows -- the primary control is in the centre and the shape says so.
+
+       NO STOP AND NO SEEK. Ending the music from inside another overlay is a
+       thing you would only ever do by accident, and a scrub bar three
+       centimetres tall is a scrub bar nobody can land on. Both are one press
+       of the expand tab away, in the bar that has room for them. -->
+  <div class="music-remote" id="musicRemote" role="group" aria-label="Music" hidden>
+    <!-- The artwork wrapper is the tooltip's anchor. The artwork itself clips
+         its own overflow to a circle, so a tip inside it would be clipped. -->
+    <div class="music-remote-head">
+      <div class="music-remote-art" id="musicRemoteArt" role="img" tabindex="0" aria-label="Nothing playing">
+        <img id="musicRemoteThumb" alt="" width="320" height="180" decoding="async" referrerpolicy="no-referrer" hidden>
+        <span class="icon" data-icon="play" aria-hidden="true"></span>
+      </div>
+      <!-- Two lines, out to the LEFT and centred on the artwork: there is
+           nothing to the right of the pill but the edge of the window. The
+           title and the artist are only ever here -- a 54px column cannot
+           carry a song title, and every other control in it is a glyph. -->
+      <p class="music-remote-tip" aria-hidden="true">
+        <strong id="musicRemoteTipTitle"></strong>
+        <span id="musicRemoteTipArtist"></span>
+      </p>
+    </div>
+    <button class="music-remote-btn" type="button" id="musicRemoteShuffle"
+            aria-label="Shuffle off" aria-pressed="false">
+      <span class="icon" data-icon="shuffle" aria-hidden="true"></span></button>
+    <button class="music-remote-btn" type="button" id="musicRemoteNext" aria-label="Next track">
+      <span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
+    <button class="music-remote-btn is-primary" type="button" id="musicRemoteToggle" aria-label="Play">
+      <span class="icon" data-icon="play" aria-hidden="true"></span></button>
+    <button class="music-remote-btn" type="button" id="musicRemotePrev" aria-label="Previous track">
+      <span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
+    <!-- .music-loop as well as the remote class: the three-state colour and
+         the 1 badge are that class's rules, and copying them would be a second
+         copy of a cycle that has already been got wrong once. -->
+    <button class="music-remote-btn music-loop music-remote-loop" type="button"
+            id="musicRemoteLoop" aria-label="Repeat off" data-loop="off">
+      <span class="icon" data-icon="loop" aria-hidden="true"></span>
+      <span class="music-loop-one" aria-hidden="true">1</span></button>
+    <span class="music-remote-div" aria-hidden="true"></span>
+    <div class="music-remote-vol">
+      <input class="player-range music-remote-range" id="musicRemoteVol" type="range"
+             min="0" max="100" value="40" step="1" aria-label="Volume" aria-orientation="vertical">
+    </div>
+    <button class="music-remote-btn music-remote-mute" type="button" id="musicRemoteMute" aria-label="Mute">
+      <span class="icon" data-icon="volume" aria-hidden="true"></span></button>
+  </div>
 
   <!-- Contact modal. <dialog>.showModal() gives focus trapping and Esc-to-close
        for free; the backdrop click is wired in script.js. -->

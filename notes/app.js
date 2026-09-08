@@ -330,7 +330,18 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
          where the archive's top edge had been -- the one control that is
          supposed to be welded to that edge, unwelded by the one action that
          moves it furthest. */
-      onclick: (e) => { const open = archive.classList.toggle('is-open'); e.currentTarget.setAttribute('aria-expanded', String(open)); if (open) render.renderSidebar(); render.syncTab(); } },
+      /* AND THE FOLD IS SAVED. The height this thing was dragged to has been
+         saved since it was built (ui.archSplit), so leaving it open and
+         coming back to it shut was the split being honoured for an archive
+         nobody could see. It is one flag and it belongs beside the other. */
+      onclick: (e) => {
+        const open = archive.classList.toggle('is-open');
+        e.currentTarget.setAttribute('aria-expanded', String(open));
+        doc.ui.archOpen = open;
+        docChanged();
+        if (open) render.renderSidebar();
+        render.syncTab();
+      } },
       el('span', { text: 'Archive' }), el('span', { class: 'nt-archive-count' }),
       el('span', { class: 'nt-archive-arms', html: ICON.archArms })),
     el('div', { class: 'nt-archive-list' }));
@@ -899,6 +910,18 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     sizeBtn.textContent = String(doc.ui.fs);
     root.classList.toggle('is-rail', doc.ui.sidebar === 'rail');
     render.applySplit();
+    /* The archive comes back the way it was left, open or shut. applySplit
+       above only decides how TALL it is; without this it was always shut, so
+       the height was restored for something folded away. syncTab because the
+       collapse tab is welded to the archive's top edge and that edge is in a
+       different place depending on this line. */
+    const arch = sidebar.querySelector('.nt-archive');
+    if (arch) {
+      arch.classList.toggle('is-open', doc.ui.archOpen);
+      const head = arch.querySelector('.nt-archive-head');
+      if (head) head.setAttribute('aria-expanded', String(doc.ui.archOpen));
+    }
+    render.syncTab();
     syncSettings();
   }
   applyUi();

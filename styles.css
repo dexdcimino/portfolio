@@ -887,7 +887,15 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    which is what read as jitter and a snap at the end. box-shadow paints on top
    of the existing layout and costs nothing to animate. */
 .button:hover{border-color:var(--accent);box-shadow:0 0 0 var(--stroke-ring) var(--accent);transform:translateY(-2px)}
-.button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink,#080a0b);box-shadow:0 12px 32px color-mix(in srgb,var(--accent) 22%,transparent)}
+/* THE DROP-GLOW IS COMMENTED OUT, NOT DELETED (Dex, 2026-09-08). Every filled
+   button on the page wears the same one -- VIEW WORK, GALLERY, VIEW RESUME --
+   so it is one declaration, and he wants to look at them flat before deciding
+   whether it comes back. The line is kept verbatim beside the rule so putting
+   it back is an uncomment rather than a colour anyone has to re-derive:
+     box-shadow:0 12px 32px color-mix(in srgb,var(--accent) 22%,transparent)
+   The HOVER ring on .button above is a different thing and stays: it is a
+   crisp 2px outline that says "this is the target", not a blurred halo. */
+.button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink,#080a0b)}
 .button.ghost{background:transparent}
 .btn-icon{width:16px;height:16px;transition:transform .2s ease}
 /* The eye runs a size up. Its glyph is wide and short — the lid spans the
@@ -5951,6 +5959,107 @@ body.modal-open{overflow:hidden}
   .music-modal.is-docked .music-screen{width:84px}
   .music-modal.is-docked .music-vol{display:none}
 }
+
+/* --- the remote pill -----------------------------------------------------
+   The docked bar, folded into a column, for overlays that cover it. A modal
+   <dialog> is in the top layer and the docked bar -- which is shown with
+   show(), non-modally, on purpose -- is not, so the moment a full-screen
+   overlay opens the bar is painted under its backdrop: still playing, still
+   driving the media keys, completely unreachable.
+
+   IT IS FIXED TO THE VIEWPORT, not to the host. Every host that wants it
+   covers the whole screen (that is why it is needed at all), so there is one
+   coordinate system and a host only has to say how tall its own header is.
+
+   The same vocabulary as the bar throughout -- .player-range for the slider,
+   .music-loop for the three repeat states, a circle for the primary control --
+   because it is the same transport and learning it twice is a cost with
+   nothing on the other side of it. */
+.music-remote{
+  position:fixed;z-index:6;top:14px;right:14px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:8px 7px 7px;
+  border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);
+  border-radius:999px;
+  background:color-mix(in srgb,var(--sidebar-bg) 92%,black);
+  box-shadow:0 14px 34px rgba(0,0,0,.5);
+}
+.music-remote[hidden]{display:none}
+/* WHERE IT SITS IN EACH HOST. The notes app fills the viewport once it is
+   mounted and carries a 52px header of its own (--hdr in notes/notes.css), so
+   the pill clears it rather than landing on the theme and close buttons. A
+   second host adds a line here; nothing in the pill names a host. */
+.notes-modal .music-remote{top:66px}
+
+.music-remote-head{position:relative;flex:0 0 auto}
+/* A CROPPED CIRCLE. YouTube's thumbnail is 16:9 and this is 1:1, so the sides
+   go -- which is the right crop for cover art that is usually centred, and the
+   only shape that does not read as a second button in a column of buttons. */
+.music-remote-art{
+  position:relative;width:38px;height:38px;
+  display:grid;place-items:center;overflow:hidden;
+  border-radius:50%;background:#12141c;color:var(--muted);
+  border:1px solid var(--line);
+}
+.music-remote-art:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.music-remote-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.music-remote-art img[hidden]{display:none}
+.music-remote-art .icon{width:15px;height:15px;opacity:.45}
+.music-remote-art.is-live .icon{display:none}
+.music-remote-tip{
+  position:absolute;top:50%;right:calc(100% + 11px);transform:translateY(-50%);
+  margin:0;max-width:240px;padding:7px 11px;
+  border:1px solid var(--line);border-radius:9px;
+  background:#12141c;box-shadow:0 10px 26px rgba(0,0,0,.5);
+  opacity:0;visibility:hidden;transition:opacity .14s ease,visibility .14s;
+  pointer-events:none;
+}
+.music-remote-head:hover .music-remote-tip,
+.music-remote-art:focus-visible + .music-remote-tip{opacity:1;visibility:visible}
+/* One line each, ellipsised. Two lines is the shape; a title that wrapped to
+   four would be a panel rather than a tip. */
+.music-remote-tip strong,.music-remote-tip span{
+  display:block;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.music-remote-tip strong{font-size:13px;font-weight:700;color:#fff}
+.music-remote-tip span{font-size:12px;color:var(--muted)}
+
+.music-remote-btn{
+  position:relative;flex:0 0 auto;
+  width:34px;height:34px;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:0;border-radius:10px;background:none;color:var(--muted);
+  transition:color var(--accent-ease),background .18s ease;
+}
+.music-remote-btn .icon{width:19px;height:19px}
+.music-remote-btn:hover{background:rgba(255,255,255,.09);color:#fff}
+.music-remote-btn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.music-remote-btn[aria-pressed="true"]{color:var(--accent);background:rgba(255,255,255,.07)}
+/* The one circle in the column, for the same reason it is the one circle in
+   the bar: round is what says primary here, so the shape carries the hierarchy
+   and the size does not have to do all of it. */
+.music-remote-btn.is-primary{
+  width:42px;height:42px;border-radius:50%;margin:3px 0;
+  background:var(--accent);color:#0b0c12;
+}
+.music-remote-btn.is-primary .icon{width:22px;height:22px}
+.music-remote-btn.is-primary:hover{background:var(--accent);color:#0b0c12;filter:brightness(1.12)}
+/* The 1 badge is positioned for a 50px button up in .music-loop-one; this one
+   is 34px, so it comes in from the corner rather than sitting off the glyph. */
+.music-remote-loop .music-loop-one{right:4px;bottom:3px;font-size:10px}
+.music-remote-div{width:20px;height:1px;background:var(--line);margin:5px 0;flex:0 0 auto}
+/* THE SITE'S OWN SLIDER, ROTATED. .player-range already carries the track
+   painted from --fill, the white thumb that reads against both halves of it
+   and a 22px hit area behind a 5px bar -- three decisions already made and
+   already fixed once. A second, vertical implementation would be a second copy
+   of all three. -90deg puts zero at the BOTTOM, which is the only direction in
+   which up can mean louder. */
+.music-remote-vol{position:relative;flex:0 0 auto;width:34px;height:86px;margin:2px 0 3px}
+.music-remote-range{
+  position:absolute;left:50%;top:50%;width:86px;
+  transform:translate(-50%,-50%) rotate(-90deg);
+}
+.music-remote-mute{width:30px;height:30px;border-radius:9px}
+.music-remote-mute .icon{width:17px;height:17px}
 
 /* --- the tilde keypad ----------------------------------------------------
    Small and central: it is a prompt, not a place. Everything inside it is the
