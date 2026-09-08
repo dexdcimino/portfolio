@@ -46,6 +46,14 @@
 :where(.nt-app button:disabled) { cursor: default; opacity: .35; }
 .nt-app :focus-visible { outline: 2px solid var(--c-title); outline-offset: 2px; }
 .nt-app [contenteditable]:focus-visible { outline: none; }
+/* ONE RING, NOT TWO. A field that paints its own focus was getting the
+   blanket outline as well, 2px out from its own 2px edge -- and the 2px of
+   panel showing between them read as a dark line drawn through the middle of
+   a too-thick stroke. It is the one thing the header's search got right
+   (.nt-search-input, below) and every other field got wrong. Anything that
+   draws its own focus turns this one off; anything that does not still has
+   it. */
+.nt-app .nt-input:focus, .nt-app .nt-input:focus-visible { outline: none; }
 /* The caret and the highlight belong to whatever is being written in, like
    everything else in a category. ::selection reads the custom properties of
    the element it is over, so a body, a title and the sidebar each get their
@@ -97,8 +105,13 @@
    button is, the glyphs came out too small to read as letters at all -- so
    the BUTTON widens as well as the mark. 30x16 is DexNote's own viewBox and
    these are its proportions, scaled up rather than reshaped. */
-.nt-spell-btn { width: 48px; }
-.nt-spell-btn svg { width: 40px; height: 21px; }
+.nt-spell-btn { width: 42px; }
+.nt-spell-btn svg { width: 33px; height: 17.6px; }
+/* ON is a RING, not only a tint. This is a toggle sitting in a row of
+   momentary buttons, so its state has to be readable without comparing it to
+   its neighbours -- and the ring is the accent the mark itself is drawn in,
+   which is what makes it read as the same control lit up. */
+.nt-spell-btn.is-on { box-shadow: inset 0 0 0 2px var(--c-title); }
 .nt-pick {
   height: 30px; padding: 0 22px 0 10px; border: 1px solid var(--bdr); border-radius: 7px; background: var(--bg3); color: var(--tx); font-size: 13px;
   position: relative; white-space: nowrap; min-width: 88px; text-align: left;
@@ -126,9 +139,11 @@
 .nt-logo-btn { flex: 0 0 auto; display: grid; place-items: center; border: 0; background: none; padding: 0; transition: transform var(--ease); }
 .nt-logo-btn:hover { transform: scale(1.12); }
 .nt-logo-btn svg { width: 100%; height: 100%; }
-.nt-logo-top { fill: var(--c); }
-.nt-logo-bottom { fill: color-mix(in srgb, var(--c) 58%, #000); }
-.nt-app[data-theme="light"] .nt-logo-bottom { fill: color-mix(in srgb, var(--c) 66%, #000); }
+/* BOTH STROKES, ONE COLOUR. The mark is drawn as two paths and DexNote
+   shades the lower one, but as a session's colour swatch that shading reads
+   as two different sessions rather than as one mark with depth -- and the
+   thing it is a swatch OF is a single colour. */
+.nt-logo-top, .nt-logo-bottom { fill: var(--c); }
 
 /* search */
 .nt-header-search { display: flex; align-items: center; }
@@ -339,7 +354,11 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
    white is measured (contrastOn in color.js compares both) rather than
    guessed -- a light blue session used to get a white plus on it. */
 .nt-add-plus { background: var(--c); color: var(--c-on); }
-.nt-add-plus svg { width: 16px; height: 16px; }
+/* Heavier than the 2px every other icon is drawn at, and a size up. At 16px
+   and hairline weight it read as a faint cross on a colour rather than as
+   the button's verb. */
+.nt-add-plus svg { width: 19px; height: 19px; stroke-width: 3; }
+.nt-rail-add svg { width: 21px; height: 21px; stroke-width: 3; }
 .nt-add-logo svg { width: 23px; height: 23px; }
 
 /* The sessions, listed, over their own button. Only where there is room to
@@ -389,9 +408,13 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 /* ALWAYS THERE, dim, and red under the pointer. Hidden until hover it left a
    row ending in a bare number -- the count of its categories, floating with
    nothing beside it -- and the row looked unfinished rather than tidy. */
-.nt-sess-row-x { width: 26px; height: 26px; flex: 0 0 auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--tx3); opacity: .55; transition: opacity var(--ease), color var(--ease); }
-.nt-sess-row-x svg { width: 14px; height: 14px; }
-.nt-sess-row:hover .nt-sess-row-x { opacity: .8; }
+/* THE ROW'S OWN COLOUR. paintColor() writes --c-title per row, so the count
+   and the X are the same colour as the name beside them -- the session's.
+   In the shared grey they disappeared into the tinted ground of whichever
+   row was active, which is the same complaint the category strip had. */
+.nt-sess-row-x { width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--c-title); opacity: .75; transition: opacity var(--ease), color var(--ease); }
+.nt-sess-row-x svg { width: 16px; height: 16px; }
+.nt-sess-row:hover .nt-sess-row-x { opacity: 1; }
 .nt-sess-row-x:hover { opacity: 1; color: var(--danger); background: var(--bg4); }
 .nt-sess-row {
   display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 3px 6px; margin: 1px 0;
@@ -401,8 +424,8 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-sess-row.is-active { background: color-mix(in srgb, var(--c) 14%, transparent); box-shadow: inset 3px 0 0 var(--c); }
 .nt-sess-row .nt-row-badge { width: 24px; height: 24px; font-size: 12px; }
 .nt-sess-row .nt-row-badge.is-emoji { font-size: 15px; }
-.nt-sess-row .nt-row-title { font-size: 16px; font-weight: 600; }
-.nt-sess-count { font-size: 13px; color: var(--tx3); font-variant-numeric: tabular-nums; }
+.nt-sess-row .nt-row-title { font-size: 18px; font-weight: 600; }
+.nt-sess-count { font-size: 15px; color: var(--c-title); opacity: .85; font-variant-numeric: tabular-nums; }
 
 
 /* the rail */
@@ -589,12 +612,16 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-cat-color { width: 15px; height: 15px; flex: 0 0 auto; border-radius: 50%; border: 0; padding: 0; background: var(--c); opacity: .7; margin: 0 4px; transition: transform var(--ease), opacity var(--ease); }
 .nt-cat-shell:hover .nt-cat-color { opacity: 1; }
 .nt-cat-color:hover { transform: scale(1.25); }
-.nt-cat-more, .nt-cat-x { opacity: 0; transition: opacity var(--ease), color var(--ease), background var(--ease); width: 28px; height: 28px; }
-.nt-cat-more svg, .nt-cat-x svg { width: 15px; height: 15px; }
+/* THE CATEGORY'S OWN COLOUR, because the strip they sit on is tinted with
+   it: drawn in the body text's grey they were all but invisible against it,
+   which is a control you have to already know is there before you can find
+   it. Bigger with it -- three 2px dots at 15px square is three specks. */
+.nt-cat-more, .nt-cat-x { opacity: 0; color: var(--c-title); transition: opacity var(--ease), color var(--ease), background var(--ease); width: 30px; height: 30px; }
+.nt-cat-more svg, .nt-cat-x svg { width: 18px; height: 18px; }
 /* Off the head, on to the whole shell: the head is a 36px strip now, and
    controls that appear only while the pointer is on that strip are controls
    you have to aim for before you can see them. */
-.nt-cat-shell:hover .nt-cat-more, .nt-cat-shell:hover .nt-cat-x, .nt-cat:focus-within .nt-cat-more, .nt-cat:focus-within .nt-cat-x { opacity: .6; }
+.nt-cat-shell:hover .nt-cat-more, .nt-cat-shell:hover .nt-cat-x, .nt-cat:focus-within .nt-cat-more, .nt-cat:focus-within .nt-cat-x { opacity: .9; }
 .nt-cat-more:hover, .nt-cat-x:hover { opacity: 1 !important; }
 .nt-cat-x:hover { color: var(--danger); }
 .nt-cat.is-collapsed .nt-cat-body { display: none; }
@@ -695,6 +722,68 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-chip-mark.h10 { --site: hsl(296 52% 64%); }
 .nt-chip-mark.h11 { --site: hsl(330 62% 64%); }
 .nt-chip-mark svg { width: .78em; height: .78em; }
+/* ---- known sites, drawn here ------------------------------------------
+   A brand's colours are a CLASS for the same reason the hue buckets are:
+   scrub() takes every style attribute out of a body after each keystroke,
+   so a colour written onto the mark would last exactly one character. The
+   table that picks between these lives in nodes.js. A glyph fills 84% of
+   the circle -- edge to edge reads as a sticker rather than as an icon. */
+.nt-chip-mark.is-brand { background: var(--brand-bg); color: var(--brand-fg); opacity: 1; }
+.nt-chip-mark.is-brand::before { content: attr(data-l); }
+.nt-chip-mark.is-brand svg { width: 84%; height: 84%; }
+.nt-chip-mark.b-google { --brand-bg: #fff; --brand-fg: #4285f4; }
+.nt-chip-mark.b-youtube { --brand-bg: #fff; --brand-fg: #ff0000; }
+.nt-chip-mark.b-x { --brand-bg: #000; --brand-fg: #fff; }
+.nt-chip-mark.b-vercel { --brand-bg: #000; --brand-fg: #fff; }
+.nt-chip-mark.b-spotify { --brand-bg: #1db954; --brand-fg: #fff; }
+.nt-chip-mark.b-facebook { --brand-bg: #1877f2; --brand-fg: #fff; }
+.nt-chip-mark.b-linkedin { --brand-bg: #0a66c2; --brand-fg: #fff; }
+.nt-chip-mark.b-reddit { --brand-bg: #ff4500; --brand-fg: #fff; }
+.nt-chip-mark.b-twitch { --brand-bg: #9146ff; --brand-fg: #fff; }
+.nt-chip-mark.b-dropbox { --brand-bg: #0061ff; --brand-fg: #fff; }
+.nt-chip-mark.b-npm { --brand-bg: #cb3837; --brand-fg: #fff; }
+.nt-chip-mark.b-github { --brand-bg: #181717; --brand-fg: #fff; }
+.nt-chip-mark.b-gitlab { --brand-bg: #fc6d26; --brand-fg: #fff; }
+.nt-chip-mark.b-stackoverflow { --brand-bg: #f48024; --brand-fg: #fff; }
+.nt-chip-mark.b-wikipedia { --brand-bg: #fff; --brand-fg: #111; }
+.nt-chip-mark.b-amazon { --brand-bg: #232f3e; --brand-fg: #ff9900; }
+.nt-chip-mark.b-netflix { --brand-bg: #141414; --brand-fg: #e50914; }
+.nt-chip-mark.b-instagram { --brand-bg: #e1306c; --brand-fg: #fff; }
+.nt-chip-mark.b-tiktok { --brand-bg: #010101; --brand-fg: #25f4ee; }
+.nt-chip-mark.b-pinterest { --brand-bg: #e60023; --brand-fg: #fff; }
+.nt-chip-mark.b-discord { --brand-bg: #5865f2; --brand-fg: #fff; }
+.nt-chip-mark.b-slack { --brand-bg: #4a154b; --brand-fg: #fff; }
+.nt-chip-mark.b-notion { --brand-bg: #fff; --brand-fg: #111; }
+.nt-chip-mark.b-figma { --brand-bg: #f24e1e; --brand-fg: #fff; }
+.nt-chip-mark.b-apple { --brand-bg: #000; --brand-fg: #fff; }
+.nt-chip-mark.b-microsoft { --brand-bg: #f25022; --brand-fg: #fff; }
+.nt-chip-mark.b-openai { --brand-bg: #10a37f; --brand-fg: #fff; }
+.nt-chip-mark.b-claude { --brand-bg: #d97757; --brand-fg: #fff; }
+.nt-chip-mark.b-steam { --brand-bg: #171a21; --brand-fg: #66c0f4; }
+.nt-chip-mark.b-itch { --brand-bg: #fa5c5c; --brand-fg: #fff; }
+.nt-chip-mark.b-unity { --brand-bg: #222c37; --brand-fg: #fff; }
+.nt-chip-mark.b-unreal { --brand-bg: #0e1128; --brand-fg: #fff; }
+.nt-chip-mark.b-roblox { --brand-bg: #e2231a; --brand-fg: #fff; }
+.nt-chip-mark.b-epic { --brand-bg: #2a2a2a; --brand-fg: #fff; }
+.nt-chip-mark.b-medium { --brand-bg: #000; --brand-fg: #fff; }
+.nt-chip-mark.b-substack { --brand-bg: #ff6719; --brand-fg: #fff; }
+.nt-chip-mark.b-paypal { --brand-bg: #003087; --brand-fg: #fff; }
+.nt-chip-mark.b-ebay { --brand-bg: #e53238; --brand-fg: #fff; }
+.nt-chip-mark.b-etsy { --brand-bg: #f1641e; --brand-fg: #fff; }
+.nt-chip-mark.b-shopify { --brand-bg: #7ab55c; --brand-fg: #fff; }
+.nt-chip-mark.b-wordpress { --brand-bg: #21759b; --brand-fg: #fff; }
+.nt-chip-mark.b-vimeo { --brand-bg: #1ab7ea; --brand-fg: #fff; }
+.nt-chip-mark.b-soundcloud { --brand-bg: #ff5500; --brand-fg: #fff; }
+.nt-chip-mark.b-bandcamp { --brand-bg: #629aa9; --brand-fg: #fff; }
+.nt-chip-mark.b-artstation { --brand-bg: #13aff0; --brand-fg: #fff; }
+.nt-chip-mark.b-behance { --brand-bg: #1769ff; --brand-fg: #fff; }
+.nt-chip-mark.b-dribbble { --brand-bg: #ea4c89; --brand-fg: #fff; }
+.nt-chip-mark.b-deviantart { --brand-bg: #05cc47; --brand-fg: #fff; }
+.nt-chip-mark.b-mozilla { --brand-bg: #ff9500; --brand-fg: #fff; }
+.nt-chip-mark.b-hackernews { --brand-bg: #ff6600; --brand-fg: #fff; }
+.nt-chip-mark.b-chrome { --brand-bg: #fff; --brand-fg: #4285f4; }
+.nt-chip-mark.b-cloudflare { --brand-bg: #f38020; --brand-fg: #fff; }
+.nt-chip-mark.b-zoom { --brand-bg: #2d8cff; --brand-fg: #fff; }
 .nt-chip-mark:hover { transform: scale(1.14); opacity: 1; }
 /* FOLDED: the chip is its mark and nothing else.
    THE LABEL IS A TEXT NODE, so `display: none` on the chip's element children
@@ -702,12 +791,19 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
    looked broken. font-size: 0 is what collapses a text node, and the mark
    then has to be sized in absolute units because its own em would collapse
    with it. */
+/* FOLDED IS STILL FULL SIZE. The circle stands in for the whole pill, so it
+   is drawn at the pill's own height and a shade over -- 27px against the
+   ~26px an open chip occupies at the default text size. The first version
+   dropped to 19px inside the chip's own border and padding, which made a
+   folded node a speck in the line rather than a node you had folded. The
+   border goes with the label: the mark is the whole control now. */
 .nt-body .chip.is-min {
-  max-width: none; padding: 1px; border-radius: 50%; gap: 0;
+  max-width: none; padding: 0; border-width: 0; border-radius: 50%; gap: 0;
   font-size: 0; line-height: 0; vertical-align: middle;
 }
-.nt-body .chip.is-min .nt-chip-mark { width: 19px; height: 19px; font-size: 11px; line-height: 1; }
-.nt-body .chip.is-min .nt-chip-mark svg { width: 12px; height: 12px; }
+.nt-body .chip.is-min .nt-chip-mark { width: 27px; height: 27px; font-size: 15px; line-height: 1; }
+.nt-body .chip.is-min .nt-chip-mark svg { width: 18px; height: 18px; }
+.nt-body .chip.is-min .nt-chip-mark.is-brand svg { width: 84%; height: 84%; }
 .nt-body .chip.is-dragging { opacity: .35; }
 .nt-body .chip-link { --node: #67A2FF; color: var(--node); border-color: color-mix(in srgb, var(--node) 55%, transparent); background: color-mix(in srgb, var(--node) 12%, transparent); }
 .nt-body .chip-md { --node: #9ACB5A; color: var(--node); border-color: color-mix(in srgb, var(--node) 55%, transparent); background: color-mix(in srgb, var(--node) 12%, transparent); }
@@ -748,12 +844,15 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
   animation: nt-pop .1s ease-out;
 }
 @media (prefers-reduced-motion: reduce) { .nt-chip-bar { animation: none; } }
+/* Bigger buttons and much bigger marks in them. This bar floats over a line
+   of text and is aimed at in a hurry; 15px icons rattling around in 28px
+   boxes gave it neither a target worth aiming at nor a legible icon. */
 .nt-chip-btn {
-  width: 28px; height: 28px; display: grid; place-items: center; padding: 0;
-  border: 0; border-radius: 6px; background: none; color: var(--tx2);
+  width: 33px; height: 33px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 7px; background: none; color: var(--tx2);
   transition: color var(--ease), background var(--ease);
 }
-.nt-chip-btn svg { width: 15px; height: 15px; }
+.nt-chip-btn svg { width: 21px; height: 21px; }
 .nt-chip-btn:hover { color: var(--tx); background: var(--bg4); }
 .nt-chip-btn.is-danger:hover { color: var(--danger); }
 /* ARMED. The first press turns it into what it is about to do; the second

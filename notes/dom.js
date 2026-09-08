@@ -23,7 +23,12 @@ export function el(tag, attrs, ...children) {
       else if (k === 'html') node.innerHTML = v;
       else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
       else if (k === 'dataset') Object.assign(node.dataset, v);
-      else if (k === 'style') Object.assign(node.style, v);
+      /* A CUSTOM PROPERTY NEEDS setProperty. Object.assign onto a
+         CSSStyleDeclaration silently drops any key starting `--` -- it is not
+         a member of the object -- so `style: { '--node': ... }` set nothing at
+         all. That is why the node drag ghost came out white: its whole paint
+         hangs off --node, and --node was never there. */
+      else if (k === 'style') { for (const [prop, val] of Object.entries(v)) { if (prop.startsWith('--')) node.style.setProperty(prop, val); else node.style[prop] = val; } }
       else node.setAttribute(k, v === true ? '' : v);
     }
   }

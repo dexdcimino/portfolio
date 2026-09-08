@@ -139,9 +139,16 @@ export function menu(anchor, items, opts = {}) {
     for (const item of rows) {
       if (!item) { frag.append(el('div', { class: 'nt-menu-sep' })); continue; }
       const b = el('button', {
-        type: 'button', role: 'menuitem', class: `nt-menu-item ${item.danger ? 'is-danger' : ''} ${item.tint ? 'is-tinted' : ''}`,
+        type: 'button', role: 'menuitem', class: `nt-menu-item ${item.danger ? 'is-danger' : ''} ${item.tint ? 'is-tinted' : ''} ${item.drag ? 'is-draggable' : ''}`,
         disabled: item.disabled ? true : null,
         onclick: () => { closePanel(); item.run(); },
+        /* A ROW CAN BE DRAGGED OUT OF THE MENU as well as pressed. The drag
+           only begins past a threshold (see beginDrag), so a plain press is
+           still a plain press -- and a press that becomes a drag lands its
+           pointerup somewhere else, which is why no click follows it and no
+           guard is needed here. The menu is closed from onStart, not from
+           pointerdown: closing on the press would close it on a click too. */
+        onpointerdown: item.drag ? (e) => item.drag(e, closePanel) : null,
       }, item.icon ? el('span', { class: 'nt-menu-icon', html: item.icon, style: item.tint ? { color: item.tint } : null }) : null,
       el('span', { class: 'nt-menu-label', text: item.label }),
       item.hint ? el('span', { class: 'nt-menu-hint', text: item.hint }) : null);
@@ -257,7 +264,7 @@ export const ICON = {
   redo: S('<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>'),
   sidebar: S('<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/>'),
   sessions: S('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
-  more: `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></g></svg>`,
+  more: `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="4.6" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19.4" cy="12" r="2.5"/></g></svg>`,
   quote: S('<path d="M7 7h4v4H8v3H6V9a2 2 0 0 1 1-2zM15 7h4v4h-3v3h-2V9a2 2 0 0 1 1-2z"/>'),
   code: S('<path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>'),
   heading: S('<path d="M5 5v14M15 5v14M5 12h10"/><path d="M18 14.5c.5-.6 2.5-.6 2.5.5S18.5 17 18.5 18.5H21" stroke-width="1.6"/>'),

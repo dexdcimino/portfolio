@@ -177,6 +177,10 @@ export function nodeMenu(anchor, withBody) {
   const rows = NODES.map((n) => ({
     label: n.label, hint: n.hint, icon: n.icon(), tint: n.color,
     run: () => withBody((b) => insertNode(b, n.key)),
+    /* The menu is a place to drag FROM, not only to pick from: the kind you
+       want is often not the one on the button, and reaching for it should not
+       cost a press to change the button and a second drag to place it. */
+    drag: (e, close) => dragNewNode(e, n.key, close),
   }));
   menu(anchor, rows, { align: 'right', title: 'Nodes', tinted: true });
 }
@@ -185,10 +189,15 @@ export function nodeMenu(anchor, withBody) {
  * the caret and then opens that kind's own maker, so a link asks for its
  * address at the point it is going to live rather than at the caret you had
  * before you reached for the button. */
-export function dragNewNode(e, key) {
+export function dragNewNode(e, key, onStart) {
   const n = nodeKind(key);
   beginDrag(e, {
-    ghost: () => el('span', { class: 'chip chip-ghost', style: { '--node': n.color } },
+    onStart,
+    /* The ghost wears the kind's own colour -- blue link, green markdown,
+       purple image -- so what you are carrying already looks like what it
+       will be when you let go. `--node` is what every one of those rules
+       reads; see the setProperty note in dom.js for why it used to be white. */
+    ghost: () => el('span', { class: `chip chip-ghost chip-${key}`, style: { '--node': n.color } },
       el('span', { class: 'nt-chip-mark', html: n.icon() }), n.label),
     onDrop: (body, range) => {
       body.focus({ preventScroll: true });

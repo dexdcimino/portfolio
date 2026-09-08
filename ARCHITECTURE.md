@@ -1399,14 +1399,28 @@ and `nodes.js` owns everything around that.
 it folds the chip down to just that mark (`data-min="1"`, so a note you folded
 comes back folded) and pressing it again unfolds it. For a link the mark is
 the site's own initial on one of twelve colours derived from the hostname, so
-the same site is the same circle in every note.
+the same site is the same circle in every note -- unless the site is one the
+`BRANDS` table knows, in which case it wears its own.
 
-**There are no remote favicons, deliberately.** The app ships under
-`img-src 'self' data:`, so one fetched from Google would be blocked outright
--- and widening that header would mean every render of a private page telling
-a third party which domains are in it. The mark is computed from the hostname
-and sent nowhere. A real favicon would need a same-origin proxy, and that is
-a decision about what the server fetches on your behalf, not a CSS change.
+**THE BRANDS ARE BUNDLED, NOT FETCHED.** `BRANDS` in `nodes.js` maps a
+hostname to a brand: the rows worth drawing carry a real glyph (Google's
+four-arc ring, YouTube's play button, a handful more), and the rest carry the
+brand's OWN colours behind the site's initial -- Netflix red, Spotify green,
+Amazon orange. `brandOf()` resolves `docs.google.com` and `google.co.uk` to
+the same row as `google.com` without a row for each. Anything the table has
+never heard of keeps the hashed mark, so an unknown link is never blank.
+
+A glyph is only drawn where it can be drawn honestly. A logo rendered from
+memory at eighteen pixels is worse than no logo -- it reads as the WRONG mark
+rather than as a generic one -- so a site gets a glyph or it gets its colours,
+and there is no third state that half-guesses.
+
+**Still no remote favicons.** The app ships under `img-src 'self' data:`, so
+one fetched from Google's icon service would be blocked outright -- and
+widening that header would mean every render of a private page telling a third
+party which domains are in it. Nothing here reaches the network. A favicon for
+a site not in the table would need a same-origin proxy, and that is a decision
+about what the server fetches on your behalf, not a CSS change.
 
 **The mark is never stored and never counted as text.** `serialize()` strips
 it, `clean()` removes one that arrives through a paste, and `scrub()` -- which
@@ -1421,7 +1435,15 @@ writing a chip's words goes through `chipLabel()` / `setChipLabel()`, never
 **The colour on the mark is a CLASS, not a style.** `scrub()` strips every
 style attribute in a body after each input -- that is its whole job -- so a
 computed colour would survive exactly until the next keystroke. Twelve
-buckets, twelve rules.
+buckets, twelve rules -- and one rule per brand, for the same reason. A brand
+GLYPH is safe as real SVG inside the mark, because a multi-colour `fill` is a
+plain attribute and it is `style=` that gets stripped.
+
+**Folded, a chip is drawn at the size of the pill it replaced** -- 27px
+against the ~26px an open chip occupies at the default text size, with the
+chip's own border and padding dropped so the mark is the whole control. The
+first version folded to 19px INSIDE that border, which made a folded node a
+speck in the line rather than a node you had folded.
 
 **Resting on a chip raises a toolbar over it**: open, edit, copy, fold,
 delete. It is NOT a `panel()` -- there is one of those at a time and it closes

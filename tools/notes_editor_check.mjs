@@ -291,7 +291,11 @@ note(chipMarks.every((m) => m.marks === 1), `a chip has ${JSON.stringify(chipMar
 note(chipMarks.every((m) => !m.label.startsWith(m.label[0] + m.label[0])), `a mark's letter leaked into the label: ${JSON.stringify(chipMarks.map((m) => m.label))}`);
 note(chipMarks.every((m) => !m.styled), 'a mark carries an inline style, which scrub strips on the next keystroke');
 console.log(`chip marks: ${chipMarks.length} chips, one mark each, labels ${JSON.stringify(chipMarks.map((m) => m.label))}`);
-note(/<a class="chip chip-link" href="https:\/\/www\.google\.com"[^>]*>(<span class="nt-chip-mark[^>]*>[^<]*<\/span>)?google\.com<\/a>/.test(await body()),
+/* The mark's own content is anything or nothing: a hashed mark draws its
+   letter from an attribute and is empty, and a KNOWN site's mark holds a
+   bundled glyph, which is elements rather than text. What this is asserting
+   is the SHAPE -- one mark, then the label, then the end of the chip. */
+note(/<a class="chip chip-link" href="https:\/\/www\.google\.com"[^>]*>(<span class="nt-chip-mark[^>]*>[\s\S]*?<\/span>)?google\.com<\/a>/.test(await body()),
      `the chip is not its mark followed by its label: ${await body()}`);
 note((await text()).endsWith(' then'), `text after the auto-link is wrong: "${await text()}"`);
 // Backspace right after a chip removes the chip.
@@ -1246,6 +1250,22 @@ await chord(['Control'], '\\');
     };
   }, id);
 
+  /* THE LAST-USED KIND IS A SAVED SETTING, so this run starts on whatever
+     the last one left in the store -- and "dropping a link node" out of a
+     button sitting on Markdown tests something else entirely while reading
+     as a dead drop. It cost a round of hunting a bug that was not there.
+     Put it on Link through the menu, which is the only thing that sets it,
+     and dismiss the form that choosing it raises. */
+  await page.evaluate((id) => document.querySelector(`.nt-body[data-cat="${id}"]`).focus(), catId);
+  await page.evaluate(() => document.querySelector('.nt-node-arrow').click());
+  await sleep(320);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('.nt-menu-item')].find((x) => /Link/.test(x.textContent)); if (b) b.click(); });
+  await page.waitForSelector('.nt-form-panel', { timeout: 4000 }).catch(() => {});
+  await page.keyboard.press('Escape');
+  await sleep(280);
+  note(await page.evaluate(() => /^Link/.test(document.querySelector('.nt-node-main').getAttribute('data-tip') || '')),
+       `could not put the node button on Link: ${await page.evaluate(() => document.querySelector('.nt-node-main').getAttribute('data-tip'))}`);
+
   // Out of the header: the drop opens that kind's maker where it landed.
   const from = await page.evaluate(() => { const r = document.querySelector('.nt-node-main').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
   let at = await layout(catId);
@@ -1381,8 +1401,12 @@ await chord(['Control'], '\\');
      glyph. Both are measured because fixing one without the other is what
      happened the first time. */
   note(head.spell.w > head.spell.h + 6, `the spell mark is ${head.spell.w}x${head.spell.h} — the blanket square rule has squashed it`);
-  note(head.spell.btnW > head.spell.btnH + 8, `the spell BUTTON is ${head.spell.btnW}x${head.spell.btnH} — still a square`);
-  note(head.spell.w >= 34, `the spell mark is only ${head.spell.w}px wide`);
+  note(head.spell.btnW >= head.spell.btnH + 6, `the spell BUTTON is ${head.spell.btnW}x${head.spell.btnH} — still a square`);
+  /* A RANGE, NOT A FLOOR. The first pass at making this readable overshot --
+     a 40px mark in a 48px button was the loudest thing in the header, for a
+     toggle -- so the size is bounded at BOTH ends now. Wide enough to read
+     "abc", narrow enough to sit in a row of 34px controls. */
+  note(head.spell.w >= 30 && head.spell.w <= 36, `the spell mark is ${head.spell.w}px wide, wanted 30 to 36`);
   note(head.info, 'there is no information button');
   note(head.infoBeforeTheme, 'the information button is not to the left of the light/dark toggle');
   console.log(`header: no sidebar toggle, no code button, ${head.withKeys.length} tips with keys, spell mark ${head.spell.w}x${head.spell.h}`);
@@ -2252,6 +2276,279 @@ await chord(['Control'], '\\');
     note(ratio >= 2.8, `${c.cat}: selected text is ${ratio.toFixed(1)}:1 against its own highlight`);
   }
   console.log(`caret and highlight: ${seen.map((c) => `${c.caret.replace(/\s/g, '')}/${c.sel}`).join('  ')}`);
+}
+
+/* ---- 17n. the polish pass: marks, rings, ghosts and the controls you
+   could not see -------------------------------------------------------------
+   Everything here was reported as looking wrong rather than as being broken,
+   which is exactly the class of thing that comes back if nothing measures it.
+   The body is captured and put back at the end so section 19 still sees the
+   document the earlier checks built. */
+{
+  const kept = await page.evaluate((id) => document.querySelector(`.nt-body[data-cat="${id}"]`).innerHTML, catId);
+
+  /* a. a KNOWN site wears its own colours; an unknown one still gets a mark.
+     Pasted rather than typed: the auto-link trigger wants a scheme or a www.,
+     and what is under test is the mark a href gets, not how the href was made. */
+  for (const url of ['https://www.google.com', 'https://docs.google.com/document/d/1', 'https://example.com/page']) {
+    await page.evaluate((id, u) => {
+      const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+      b.focus();
+      const s2 = getSelection();
+      s2.selectAllChildren(b.lastElementChild);
+      s2.collapseToEnd();
+      const dt = new DataTransfer();
+      dt.setData('text/plain', u);
+      b.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    }, catId, url);
+    await sleep(140);
+    await page.keyboard.type(' and ');
+    await sleep(110);
+  }
+  const marks = await page.evaluate((id) => [...document.querySelectorAll(`.nt-body[data-cat="${id}"] .chip-link`)].map((c) => {
+    const m = c.querySelector('.nt-chip-mark');
+    return { href: c.getAttribute('href'), cls: m ? m.className : null, svg: !!(m && m.querySelector('svg')), bg: m ? getComputedStyle(m).backgroundColor : null, text: c.textContent };
+  }), catId);
+  /* The scratch body already holds chips from check 10, so count MINE --
+     the three this block pasted -- rather than everything in the box. */
+  const WANT = ['https://www.google.com', 'https://docs.google.com/document/d/1', 'https://example.com/page'];
+  const mine = marks.filter((m) => WANT.includes(m.href));
+  note(mine.length === 3, `expected the 3 pasted link chips, found ${mine.length} of them among ${marks.length}`);
+  const gg = marks.find((m) => m.href === 'https://www.google.com');
+  const sub = marks.find((m) => m.href && m.href.includes('docs.google.com'));
+  const unknown = marks.find((m) => m.href && m.href.includes('example.com'));
+  note(!!gg && /\bis-brand\b/.test(gg.cls) && /\bb-google\b/.test(gg.cls), `google.com did not get its brand mark: ${gg && gg.cls}`);
+  note(!!gg && gg.svg, 'the google mark carries no glyph');
+  note(!!gg && gg.bg === 'rgb(255, 255, 255)', `the google mark is not on white: ${gg && gg.bg}`);
+  note(!!sub && /\bb-google\b/.test(sub.cls), `a subdomain did not resolve to its brand: ${sub && sub.cls}`);
+  note(!!unknown && /\bis-site\b/.test(unknown.cls) && !/is-brand/.test(unknown.cls), `an unknown site should keep the hashed mark: ${unknown && unknown.cls}`);
+  /* THE GLYPH IS NOT TEXT, the same way the hashed letter is not: a brand mark
+     that reached textContent would put "G" in front of every google link for
+     the spell checker, the search and copy-as-text. */
+  note(!!gg && gg.text === 'google.com', `the brand mark leaked into the chip's text: "${gg && gg.text}"`);
+  console.log(`brand marks: ${mine.map((m) => m.cls.replace('nt-chip-mark ', '')).join(', ')}`);
+
+  /* b. folded, a chip is a circle the size of the pill it replaced. */
+  const fold = await page.evaluate((id) => {
+    const c = document.querySelector(`.nt-body[data-cat="${id}"] .chip-link`);
+    const open = c.getBoundingClientRect().height;
+    c.querySelector('.nt-chip-mark').click();
+    return new Promise((r) => setTimeout(() => {
+      const box = c.getBoundingClientRect();
+      r({ open, min: c.dataset.min, w: box.width, h: box.height });
+    }, 140));
+  }, catId);
+  note(fold.min === '1', 'clicking the mark did not fold the chip');
+  note(fold.w >= fold.open, `the folded circle is ${fold.w.toFixed(1)}px across, narrower than the ${fold.open.toFixed(1)}px pill it replaced`);
+  note(Math.abs(fold.w - fold.h) < 1.5, `the folded chip is not round: ${fold.w.toFixed(1)}x${fold.h.toFixed(1)}`);
+  console.log(`folded chip: ${fold.w}px circle for a ${fold.open.toFixed(1)}px pill`);
+  await page.evaluate((id) => document.querySelector(`.nt-body[data-cat="${id}"] .chip-link .nt-chip-mark`).click(), catId);
+  await sleep(160);
+
+  /* c. the hover toolbar is worth aiming at. A REAL mouse move: the bar opens
+     on a rest, and a synthetic pointerenter never moves the browser's own
+     pointer, so the timer never starts and it reads as a dead toolbar. */
+  const box = await page.evaluate((id) => {
+    const r = document.querySelector(`.nt-body[data-cat="${id}"] .chip-link`).getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  }, catId);
+  await page.mouse.move(box.x - 40, box.y - 40);
+  await page.mouse.move(box.x, box.y, { steps: 8 });
+  await sleep(700);
+  const bar = await page.evaluate(() => {
+    const b = document.querySelector('.nt-chip-btn');
+    return b ? { n: document.querySelectorAll('.nt-chip-btn').length, w: b.getBoundingClientRect().width, sw: b.querySelector('svg').getBoundingClientRect().width } : null;
+  });
+  note(!!bar && bar.n >= 3, `the chip's hover toolbar did not open (${bar && bar.n} buttons)`);
+  note(!!bar && bar.w >= 32, `a toolbar button is ${bar && bar.w}px, wanted at least 32`);
+  note(!!bar && bar.sw >= 20, `a toolbar icon is ${bar && bar.sw}px, wanted at least 20`);
+  console.log(`chip toolbar: ${bar && bar.n} buttons at ${bar && bar.w}px, ${bar && bar.sw}px marks`);
+  await page.mouse.move(20, 600);
+  await sleep(300);
+
+  /* d. ONE focus ring. A field that paints its own focus was getting the
+     blanket :focus-visible outline as well, 2px out from its own edge, and
+     the gap between the two read as a dark line drawn through a too-thick
+     stroke. The header's search never had it; nothing else should either. */
+  await page.evaluate((id) => document.querySelector(`.nt-body[data-cat="${id}"]`).focus(), catId);
+  await chord(['Control'], 'k');
+  await page.waitForSelector('.nt-form-panel .nt-input', { timeout: 5000 });
+  await sleep(220);
+  const ring = await page.evaluate(() => {
+    const i = document.querySelector('.nt-form-panel .nt-input');
+    i.focus();
+    const cs = getComputedStyle(i);
+    return { outline: cs.outlineStyle, shadow: cs.boxShadow };
+  });
+  note(ring.outline === 'none', `the link field still draws a second outline: ${ring.outline}`);
+  note(ring.shadow !== 'none', 'the link field lost the focus ring it draws itself');
+  await page.keyboard.press('Escape');
+  await sleep(220);
+  note(await page.$('.nt-app') !== null, 'Escape on the link form closed the whole overlay');
+
+  await page.evaluate(() => document.querySelector('.nt-cat-emoji').click());
+  await sleep(600);
+  const eRing = await page.evaluate(() => {
+    const i = document.querySelector('.nt-emoji-search');
+    if (!i) return null;
+    i.focus();
+    const cs = getComputedStyle(i);
+    return { outline: cs.outlineStyle, shadow: cs.boxShadow };
+  });
+  note(!!eRing, 'the emoji sheet did not open from a category badge');
+  note(!eRing || eRing.outline === 'none', `the emoji search still draws a second outline: ${eRing && eRing.outline}`);
+  await page.keyboard.press('Escape');
+  await sleep(300);
+  note(await page.$('.nt-app') !== null, 'Escape on the emoji sheet closed the whole overlay');
+  console.log(`focus rings: link ${ring.outline}, emoji ${eRing && eRing.outline}`);
+
+  /* e. the drag ghost is the node it is about to become. --node is a CUSTOM
+     property, and Object.assign onto a style object drops those silently, so
+     the ghost used to come out white and only took its colour once dropped. */
+  const ghost = await page.evaluate(() => {
+    const b = document.querySelector('.nt-node-main');
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, button: 0, pointerId: 1 }));
+    window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 60, clientY: r.y + 120, button: 0, pointerId: 1 }));
+    return new Promise((res) => setTimeout(() => {
+      const g2 = document.querySelector('.nt-node-ghost .chip-ghost');
+      const out = g2 ? { node: getComputedStyle(g2).getPropertyValue('--node').trim(), color: getComputedStyle(g2).color } : null;
+      /* RELEASED OVER NOTHING, deliberately: a drop inside a text box would
+         make a node AND move the saved last-used kind on, which is a setting
+         the next run inherits. What is under test is the ghost, not the drop. */
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 4, clientY: 4, button: 0, pointerId: 1 }));
+      res(out);
+    }, 240));
+  });
+  note(!!ghost, 'dragging the header node button raised no ghost');
+  note(!!ghost && ghost.node !== '', 'the ghost carries no --node, so it renders white');
+  note(!!ghost && ghost.color !== 'rgb(255, 255, 255)', `the drag ghost is white: ${ghost && ghost.color}`);
+  await sleep(250);
+
+  /* f. and a row of the nodes menu can be dragged out of the menu, not only
+     pressed -- the kind you want is often not the one on the button. */
+  const menuDrag = await page.evaluate(() => {
+    const arrow = document.querySelector('.nt-node-arrow');
+    if (!arrow) return { rows: 0, draggable: 0, node: null, open: true };
+    arrow.click();
+    return new Promise((res) => setTimeout(() => {
+      const rows = [...document.querySelectorAll('.nt-menu-item')];
+      const md = rows[1];
+      if (!md) return res({ rows: rows.length, draggable: 0, node: null, open: true });
+      const draggable = rows.filter((r) => r.classList.contains('is-draggable')).length;
+      const r = md.getBoundingClientRect();
+      md.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 30, clientY: r.y + 10, button: 0, pointerId: 2 }));
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 130, clientY: r.y + 150, button: 0, pointerId: 2 }));
+      setTimeout(() => {
+        const g2 = document.querySelector('.nt-node-ghost .chip-ghost');
+        const out = { rows: rows.length, draggable, node: g2 ? getComputedStyle(g2).getPropertyValue('--node').trim() : null, open: !!document.querySelector('.nt-menu-item') };
+        window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 4, clientY: 4, button: 0, pointerId: 2 }));
+        res(out);
+      }, 240);
+    }, 420));
+  });
+  note(menuDrag.rows === 3, `the nodes menu should list three kinds, it lists ${menuDrag.rows}`);
+  note(menuDrag.draggable === 3, `all three rows should be draggable, ${menuDrag.draggable} are`);
+  note(menuDrag.node === '#9ACB5A', `the markdown row's ghost is ${menuDrag.node}, wanted the markdown green`);
+  note(menuDrag.open === false, 'the menu stayed open underneath the drag');
+  console.log(`node drags: header ghost ${ghost && ghost.node}, menu ghost ${menuDrag.node}`);
+  await sleep(260);
+
+  /* g. the session mark is ONE colour. DexNote shades the lower stroke; as a
+     colour swatch that reads as two sessions rather than as one mark. */
+  const logo = await page.evaluate(() => {
+    const t = document.querySelector('.nt-logo-top');
+    const b = document.querySelector('.nt-logo-bottom');
+    return t && b ? { top: getComputedStyle(t).fill, bottom: getComputedStyle(b).fill } : null;
+  });
+  note(!!logo, 'no session mark on screen to check');
+  note(!!logo && logo.top === logo.bottom, `the mark is still two shades: ${logo && logo.top} against ${logo && logo.bottom}`);
+
+  /* h. the strip's own controls, in the category's own colour. In the shared
+     grey they were invisible against the tint the strip is painted with. */
+  const strip = await page.evaluate((id) => {
+    const cat = document.querySelector(`.nt-cat[data-cat="${id}"]`) || document.querySelector('.nt-cat');
+    const more = cat.querySelector('.nt-cat-more');
+    const xb = cat.querySelector('.nt-cat-x');
+    if (!more || !xb) return null;
+    (cat.closest('.nt-cat-shell') || cat).dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    return {
+      want: getComputedStyle(cat).getPropertyValue('--c-title').trim(),
+      more: getComputedStyle(more).color, x: getComputedStyle(xb).color,
+      svgW: more.querySelector('svg').getBoundingClientRect().width,
+      btnW: more.getBoundingClientRect().width,
+    };
+  }, catId);
+  note(!!strip, 'no category strip controls found');
+  note(!!strip && strip.more === strip.x, `the three dots and the X are different colours: ${strip && strip.more} against ${strip && strip.x}`);
+  note(!!strip && strip.svgW >= 17, `the three-dots mark is ${strip && strip.svgW}px, wanted at least 17`);
+  note(!!strip && strip.btnW >= 29, `a strip button is ${strip && strip.btnW}px, wanted at least 29`);
+  console.log(`strip controls: ${strip && strip.more} at ${strip && strip.svgW}px`);
+
+  /* i. the spell toggle says it is on with a ring, and its mark is a
+     rectangle again rather than the oversized one that replaced it. */
+  const spellState = await page.evaluate(() => {
+    const b = document.querySelector('.nt-spell-btn');
+    const wasOn = b.classList.contains('is-on');
+    if (!wasOn) b.click();
+    const svg = b.querySelector('svg').getBoundingClientRect();
+    return { wasOn, ring: getComputedStyle(b).boxShadow, w: svg.width, h: svg.height };
+  });
+  note(spellState.ring !== 'none', 'the spell button shows no ring while it is on');
+  note(spellState.w > spellState.h, `the spell mark is not a rectangle: ${spellState.w}x${spellState.h}`);
+  note(spellState.w >= 30 && spellState.w <= 35, `the spell mark is ${spellState.w}px wide, wanted 30 to 35`);
+  await page.evaluate((was) => { if (!was) document.querySelector('.nt-spell-btn').click(); }, spellState.wasOn);
+  await sleep(150);
+
+  /* j. the plus on New Category, heavier than the icons around it. */
+  const plus = await page.evaluate(() => {
+    const s2 = document.querySelector('.nt-add-plus svg');
+    return s2 ? { w: s2.getBoundingClientRect().width, stroke: getComputedStyle(s2).strokeWidth } : null;
+  });
+  note(!!plus, 'no New Category plus found');
+  note(!!plus && plus.w >= 18, `the plus is ${plus && plus.w}px, wanted at least 18`);
+  note(!!plus && parseFloat(plus.stroke) >= 2.6, `the plus is drawn at ${plus && plus.stroke}, wanted at least 2.6`);
+  console.log(`plus: ${plus && plus.w}px at ${plus && plus.stroke}`);
+
+  /* k. the sessions sheet: the count and the X are the session's own colour,
+     the same as the name they sit beside, and both are readable sizes. */
+  const sess = await page.evaluate(() => {
+    const b = document.querySelector('.nt-sessions-btn');
+    if (b) b.click();
+    return new Promise((res) => setTimeout(() => {
+      const row = document.querySelector('.nt-sess-row');
+      if (!row) return res(null);
+      const count = row.querySelector('.nt-sess-count');
+      const xb = row.querySelector('.nt-sess-row-x');
+      const title = row.querySelector('.nt-row-title');
+      res({
+        rows: document.querySelectorAll('.nt-sess-row').length,
+        count: count && getComputedStyle(count).color,
+        countSize: count && getComputedStyle(count).fontSize,
+        x: xb && getComputedStyle(xb).color,
+        titleSize: title && getComputedStyle(title).fontSize,
+      });
+    }, 520));
+  });
+  note(!!sess && sess.rows >= 1, 'the sessions sheet did not open from its own button');
+  note(!!sess && sess.count === sess.x, `the count and the X are different colours: ${sess && sess.count} against ${sess && sess.x}`);
+  note(!!sess && parseFloat(sess.countSize) >= 15, `the count is ${sess && sess.countSize}, wanted at least 15px`);
+  note(!!sess && parseFloat(sess.titleSize) >= 18, `the session name is ${sess && sess.titleSize}, wanted at least 18px`);
+  console.log(`sessions sheet: ${sess && sess.rows} row(s), count ${sess && sess.countSize} in ${sess && sess.count}`);
+  await page.evaluate(() => { const b = document.querySelector('.nt-sessions-btn'); if (b) b.click(); });
+  await sleep(320);
+
+  /* put the body back: section 19 asserts on the document the earlier checks
+     built, and three link chips are not part of it. */
+  await page.evaluate((id, html) => {
+    const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+    b.innerHTML = html;
+    b.dispatchEvent(new Event('input', { bubbles: true }));
+  }, catId, kept);
+  await sleep(220);
+  const restored = await page.evaluate((id) => document.querySelector(`.nt-body[data-cat="${id}"]`).innerHTML, catId);
+  note(restored === kept, 'the polish section did not put the body back the way it found it');
 }
 
 /* ---- 17m. the drag handle is on the category you are in ------------------- */

@@ -25,6 +25,66 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-08 — known sites get bundled brand marks; unknown ones keep the hash
+
+**Decided.** `BRANDS` in `notes/nodes.js` is a table of about fifty sites.
+The dozen whose marks can be drawn honestly at eighteen pixels carry a real
+glyph built into the bundle; the rest carry the brand's own two colours behind
+the site's initial. Everything not in the table keeps the hashed mark. Nothing
+is fetched.
+
+**It replaced** the entry below this one, which said a link's mark is derived
+from the hostname and nothing else. That is still the fallback and still the
+default; what changed is that "no remote favicon" was being read as "no brand
+mark at all", and those are not the same claim.
+
+**Why.** The privacy argument was never against showing Google's G -- it was
+against ASKING Google for it. A glyph compiled into the bundle costs no
+request, leaks no link graph, works under `img-src 'self' data:` untouched,
+and renders identically offline. The reason the first pass stopped short was
+that it treated the CSP as the constraint, when the CSP only forbids the
+fetch.
+
+The table has two kinds of row on purpose. A logo reconstructed from memory at
+this size reads as a wrong mark rather than as a generic one, which is worse
+than the hash it replaced -- so a site gets a true glyph or it gets its
+colours, and there is no half-drawn middle. Each brand's colours are a CSS
+class, not an inline style, for the same reason the twelve hue buckets are:
+`scrub()` strips every style attribute in a body after each keystroke.
+
+**Reverse it if** the table starts needing maintenance faster than it earns
+its keep -- a brand refresh nobody notices for months is a worse mark than an
+honest initial. The fallback already handles every site, so rows can be
+deleted one at a time without anything else changing.
+
+---
+
+## 2026-09-08 — a field that paints its own focus turns the blanket ring off
+
+**Decided.** `.nt-app :focus-visible` still draws a 2px accent outline at 2px
+offset for everything, but `.nt-input` opts out of it and keeps only the ring
+it draws itself (a 1px border plus a 1px shadow in the same colour).
+
+**It replaced** both rings being drawn at once, which is what shipped: a
+field's own 2px edge, a 2px gap showing the panel behind it, and then the
+blanket outline 2px further out. Read as a single too-thick stroke with a dark
+line down the middle of it.
+
+**Why.** The blanket rule exists so a control nobody styled is still reachable
+by keyboard, which is worth keeping. A control that DOES style its focus does
+not need a second opinion drawn around it, and two concentric rings separated
+by background is not a stronger signal than one -- it is a rendering artefact
+that looks like a bug, because it is one. The header's search field already
+opted out (`.nt-search-input:focus-visible { outline: none }`) and was the one
+field nobody complained about, which is the measurement.
+
+**Reverse it if** a field is ever added that sets `outline: none` and then
+forgets to draw anything of its own. The rule to keep is "one ring, and every
+field has one", not "no outlines on inputs" -- a field with neither is a
+keyboard trap and is worse than the doubled ring this replaced.
+
+---
+
 ## 2026-09-08 — old note pages are imported by a tool, not pasted or retyped
 
 **Decided.** The three standalone HTML note pages become sessions through
