@@ -56,3 +56,14 @@ context-pack.zip
 # screenshots in it. Entirely scratch: delete it and the next run reseeds
 # from lib/notes-seed.js.
 .notes-dev/
+
+# The blob token, and anything else pulled out of Vercel. `vercel env pull`
+# writes a LIVE read-write credential for the notes store into .env.local, and
+# this repo is public: an untracked secrets file one `git add .` away from the
+# world is not a risk worth carrying for a file that is regenerated in one
+# command. tools/notes_import.mjs and tools/notes_rescue.mjs read the token
+# from the SHELL, never from a file, so nothing needs this to be tracked.
+.env
+.env.local
+.env.*.local
+*.env.local
