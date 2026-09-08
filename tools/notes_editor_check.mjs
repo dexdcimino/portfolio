@@ -49,7 +49,15 @@ const page = await browser.newPage();
 await page.createCDPSession().then(s => s.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {}));
 await page.setViewport({ width: 1500, height: 950 });
 page.on('pageerror', e => fail.push(`pageerror: ${e.message}`));
-page.on('console', m => { if (m.type() === 'error' && !/favicon|401/.test(m.text())) fail.push(`console: ${m.text()}`); });
+/* WITH THE LOCATION. A bare "Applying inline style violates..." names no file
+   and no line, and a CSP message you cannot trace is a message you cannot act
+   on -- it cost a round of guessing at which of three clones was doing it. */
+page.on('console', m => {
+  if (m.type() !== 'error' || /favicon|401/.test(m.text())) return;
+  const at = m.stackTrace().find((f) => f.url) || m.location() || {};
+  const where = at.url ? ` @ ${String(at.url).split('/').pop()}:${at.lineNumber ?? '?'}` : '';
+  fail.push(`console: ${m.text()}${where}`);
+});
 
 await page.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2', timeout: 60000 });
 await page.waitForSelector('#notesPins .vault-pin', { visible: true });
@@ -355,15 +363,16 @@ await rest('.nt-session-btn');
 const cardsBefore = await page.$$eval('.nt-sess-card:not(.is-add)', els => els.length);
 const sessionsBefore = cardsBefore;
 
-/* The row across the top: options at the left end, the word centred ON THE
-   POPUP however many cards there are, close at the right, and no paragraph of
-   instructions under the grid. The centring is measured against the panel,
-   not against the grid -- with one session those two are 200px apart. */
+/* The row across the top: the word centred ON THE POPUP however many cards
+   there are, a close at the right, and NO OPTIONS BUTTON -- everything it
+   held is reachable from inside the session it would act on, so it was a
+   fifth control duplicating four you are looking at. The centring is measured
+   against the panel, not against the grid: with one session those two are
+   200px apart, which is the whole reason it is placed absolutely. */
 {
   const bar = await page.evaluate(() => {
     const panel = document.querySelector('.nt-sess-panel');
     const head = panel.querySelector('.nt-sess-head');
-    const opts = panel.querySelector('.nt-sess-opts');
     const close = panel.querySelector('.nt-sess-close');
     const p = panel.getBoundingClientRect();
     const h = head.getBoundingClientRect();
@@ -371,19 +380,18 @@ const sessionsBefore = cardsBefore;
       text: head.textContent,
       size: parseFloat(getComputedStyle(head).fontSize),
       off: Math.round((h.left + h.width / 2) - (p.left + p.width / 2)),
-      optsLeft: Math.round(opts.getBoundingClientRect().left - p.left),
       closeRight: Math.round(p.right - close.getBoundingClientRect().right),
+      opts: !!panel.querySelector('.nt-sess-opts'),
       hint: !!panel.querySelector('.nt-sess-hint'),
-      menus: [...panel.querySelectorAll('[data-tip]')].length,
     };
   });
   note(bar.text === 'Sessions', `the popup's title is "${bar.text}"`);
   note(bar.size >= 13, `the Sessions label is ${bar.size}px, expected two points up from 11`);
   note(Math.abs(bar.off) <= 2, `the label is ${bar.off}px off the popup's centre`);
-  note(bar.optsLeft < bar.closeRight + 30 && bar.optsLeft < 40, `the options button is not at the left end (${bar.optsLeft}px in)`);
   note(bar.closeRight < 40, `the close button is not at the right end (${bar.closeRight}px in)`);
+  note(!bar.opts, 'the options hamburger is back in the sessions popup');
   note(!bar.hint, 'the click-to-switch hint is still under the grid');
-  console.log(`sessions bar: "${bar.text}" ${bar.size}px, ${bar.off}px off centre, hamburger ${bar.optsLeft}px in, close ${bar.closeRight}px in`);
+  console.log(`sessions bar: "${bar.text}" ${bar.size}px, ${bar.off}px off centre, close ${bar.closeRight}px in, no hamburger`);
 }
 /* Right-click opens nothing here any more. It closed the popup it was fired
    from, and a press-and-hold is now the start of a reorder drag. */
@@ -565,6 +573,31 @@ await chord(['Control'], '\\');
   /* Read the colours a category actually paints, from getComputedStyle -- not
      from the custom properties, which would only prove JS set a variable. */
   const paint = (id) => page.evaluate((cid) => {
+    /* THE COLOUR BEHIND THE TEXT IS NOT ONE DECLARED VALUE. This used to read
+       getComputedStyle(body).backgroundColor, and that was only ever right by
+       accident: the body's own fill moved on to .nt-cat-box when the title
+       row went inside it, so the read came back rgba(0,0,0,0) -- which scores
+       as black, passes every dark-theme assertion for the wrong reason, and
+       inverts every light-theme one. Composite the ancestors down to the
+       first opaque background instead, which is what a reader's eye does. */
+    const behind = (node) => {
+      const layers = [];
+      for (let n = node; n && n !== document.documentElement; n = n.parentElement) {
+        const m = (getComputedStyle(n).backgroundColor || '').match(/[\d.]+/g);
+        if (!m) continue;
+        const a = m.length > 3 ? parseFloat(m[3]) : 1;
+        if (a <= 0) continue;
+        layers.push([+m[0], +m[1], +m[2], a]);
+        if (a >= 1) break;
+      }
+      if (!layers.length) return 'rgb(0, 0, 0)';
+      let [r, g, b] = layers[layers.length - 1];
+      for (let i = layers.length - 2; i >= 0; i--) {
+        const [sr, sg, sb, sa] = layers[i];
+        r = sr * sa + r * (1 - sa); g = sg * sa + g * (1 - sa); b = sb * sa + b * (1 - sa);
+      }
+      return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+    };
     const sec = document.querySelector(`.nt-cat[data-cat="${cid}"]`);
     const body = sec.querySelector('.nt-body');
     let bold = body.querySelector('b, strong, h3');
@@ -576,7 +609,7 @@ await chord(['Control'], '\\');
       body: getComputedStyle(body).color,
       bold: getComputedStyle(bold).color,
       row: row ? getComputedStyle(row).color : null,
-      boxBg: getComputedStyle(body).backgroundColor,
+      boxBg: behind(body),
       badgeText: getComputedStyle(badge).color,
       badgeRing: getComputedStyle(badge).borderTopWidth,
       session: getComputedStyle(document.querySelector('.nt-session-title')).color,
@@ -658,7 +691,7 @@ await chord(['Control'], '\\');
   note(ratio(onLight.body, onLight.boxBg) >= 4.4, `body text is not readable on the light theme (${ratio(onLight.body, onLight.boxBg).toFixed(1)}:1)`);
   note(relLum(onLight.bold) < relLum(onLight.body) && relLum(onLight.title) < relLum(onLight.bold),
        `on the light theme each tier must be darker than the last: ${onLight.body} / ${onLight.bold} / ${onLight.title}`);
-  console.log(`light theme: body ${onLight.body}, bold ${onLight.bold}, title ${onLight.title}`);
+  console.log(`light theme: body ${onLight.body}, bold ${onLight.bold}, title ${onLight.title}, on ${onLight.boxBg}`);
   await page.click('.nt-theme');
   await sleep(300);
 }
@@ -772,8 +805,20 @@ await chord(['Control'], '\\');
   await open();
   const grip = await page.$('.nt-archive-grip');
   note(!!grip, 'the archive has no grab edge');
+  const gripAt = () => page.evaluate(() => { const r = document.querySelector('.nt-archive-grip').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  /* THE SPLIT IS A SAVED SETTING, so this run starts wherever the last one
+     left it -- and the last one left it against the 80% ceiling, where
+     dragging the edge up cannot grow anything and the check failed on the
+     previous run's state rather than on today's code. Put it in a known
+     state first, with the same real drag the check is about. */
+  const floor = await gripAt();
+  await page.mouse.move(floor.x, floor.y);
+  await page.mouse.down();
+  await page.mouse.move(floor.x, floor.y + 400, { steps: 10 });
+  await page.mouse.up();
+  await sleep(250);
   const before = await page.evaluate(() => document.querySelector('.nt-archive').getBoundingClientRect().height);
-  const box = await page.evaluate(() => { const r = document.querySelector('.nt-archive-grip').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  const box = await gripAt();
   await page.mouse.move(box.x, box.y);
   await page.mouse.down();
   await page.mouse.move(box.x, box.y - 160, { steps: 8 });
@@ -1011,6 +1056,293 @@ await chord(['Control'], '\\');
   console.log(`category title focus: ${look.bg} fill, ring ${look.shadow.split(')')[0]})`);
 }
 
+/* ---- 17f7. the title row is INSIDE the text box ------------------------- */
+/* The box carries the body's fill and 3px of padding, and that padding is the
+   "outline the colour of the text box": the frame is the box showing through
+   around a head painted the canvas's colour. Measured rather than described,
+   because the whole effect is four numbers agreeing -- if the head ever takes
+   the box's own fill again the frame vanishes and nothing errors. */
+{
+  const shape = await page.evaluate(() => {
+    const sec = document.querySelector('.nt-cat');
+    const r = (n) => n.getBoundingClientRect();
+    const shell = sec.querySelector('.nt-cat-shell');
+    const aside = sec.querySelector('.nt-cat-aside');
+    const box = sec.querySelector('.nt-cat-box');
+    const head = sec.querySelector('.nt-cat-head');
+    const title = sec.querySelector('.nt-cat-title');
+    const body = sec.querySelector('.nt-body');
+    const x = sec.querySelector('.nt-cat-x');
+    return {
+      titleIn: box.contains(title),
+      xIn: box.contains(x),
+      colourIn: box.contains(sec.querySelector('.nt-cat-color')),
+      chevronOut: !box.contains(sec.querySelector('.nt-cat-toggle')) && shell.contains(aside),
+      emojiOut: !box.contains(sec.querySelector('.nt-cat-emoji')),
+      asideLeftOfBox: Math.round(r(box).left - r(aside).right),
+      frameL: Math.round(r(head).left - r(box).left),
+      frameR: Math.round(r(box).right - r(head).right),
+      frameT: Math.round(r(head).top - r(box).top),
+      frameB: Math.round(r(box).bottom - r(body).bottom),
+      boxFill: getComputedStyle(box).backgroundColor,
+      headFill: getComputedStyle(head).backgroundColor,
+      bodyFill: getComputedStyle(body).backgroundColor,
+      radius: parseFloat(getComputedStyle(box).borderTopLeftRadius),
+      level: Math.abs((r(aside).top + r(aside).height / 2) - (r(head).top + r(head).height / 2)),
+      xInset: Math.round(r(box).right - r(x).right),
+    };
+  });
+  note(shape.titleIn && shape.xIn && shape.colourIn, 'the title, the colour and the X are not all inside the text box');
+  note(shape.chevronOut && shape.emojiOut, 'the chevron and the emoji are not outside the box');
+  note(shape.asideLeftOfBox >= 0 && shape.asideLeftOfBox <= 14, `the chevron/emoji aside is ${shape.asideLeftOfBox}px from the box, expected it tucked to its left`);
+  note(shape.level <= 2, `the aside is ${shape.level.toFixed(1)}px off level with the title row`);
+  for (const [side, v] of [['left', shape.frameL], ['right', shape.frameR], ['top', shape.frameT], ['bottom', shape.frameB]]) {
+    note(v >= 2 && v <= 4, `the frame is ${v}px on the ${side}, expected the 2-3px outline`);
+  }
+  note(shape.boxFill !== shape.headFill, `the title strip is the same colour as the box (${shape.headFill}) — there is no frame to see`);
+  note(/rgba\(0, 0, 0, 0\)|transparent/.test(shape.bodyFill), `the body has a fill of its own (${shape.bodyFill}) — that is a second edge inside the frame`);
+  note(shape.radius >= 14, `the box is ${shape.radius}px round, expected rounder than the 10px it was`);
+  note(shape.xInset >= 2 && shape.xInset <= 14, `the archive X is ${shape.xInset}px from the box's right edge`);
+  console.log(`category box: frame ${shape.frameL}/${shape.frameT}/${shape.frameR}/${shape.frameB}px, radius ${shape.radius}, head ${shape.headFill} in box ${shape.boxFill}`);
+}
+
+/* ---- 17f8. New category lands where you are looking --------------------- */
+{
+  const scrollTo = (frac) => page.evaluate((f) => {
+    const c = document.querySelector('.nt-canvas');
+    c.style.scrollBehavior = 'auto';
+    c.scrollTop = (c.scrollHeight - c.clientHeight) * f;
+    c.style.removeProperty('scroll-behavior');
+  }, frac);
+  const titles = () => page.$$eval('.nt-cat .nt-cat-title', (els) => els.map((e) => e.textContent));
+  const was = await titles();
+  await scrollTo(0.02);
+  await sleep(250);
+  await page.keyboard.down('Alt'); await page.keyboard.press('n'); await page.keyboard.up('Alt');
+  await sleep(400);
+  const atTop = await titles();
+  note(atTop.length === was.length + 1, `Alt+N near the top added ${atTop.length - was.length} categories`);
+  note(atTop[0] === 'New Category', `near the top a new category went to position ${atTop.indexOf('New Category')}, not the top`);
+  await chord(['Control'], 'z');
+  await sleep(400);
+  note((await titles()).length === was.length, 'undo did not take the top category back off');
+  await scrollTo(0.98);
+  await sleep(250);
+  await page.keyboard.down('Alt'); await page.keyboard.press('n'); await page.keyboard.up('Alt');
+  await sleep(400);
+  const atBottom = await titles();
+  note(atBottom.length === was.length + 1, `Alt+N near the bottom added ${atBottom.length - was.length} categories`);
+  note(atBottom[atBottom.length - 1] === 'New Category', `past halfway a new category went to position ${atBottom.indexOf('New Category')} of ${atBottom.length}, not the end`);
+  await chord(['Control'], 'z');
+  await sleep(400);
+  note((await titles()).length === was.length, 'undo did not take the bottom category back off');
+  await scrollTo(0);
+  await sleep(200);
+  console.log(`new category: top of the canvas -> first, past halfway -> last`);
+}
+
+/* ---- 17f9. picking several rows, and acting on all of them -------------- */
+{
+  const rowAt = (i) => page.evaluate((n) => { const r = document.querySelectorAll('.nt-row')[n].getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; }, i);
+  const clickRow = async (i, mods = []) => {
+    const b = await rowAt(i);
+    for (const m of mods) await page.keyboard.down(m);
+    await page.mouse.click(b.x, b.y);
+    for (const m of mods) await page.keyboard.up(m);
+    await sleep(160);
+  };
+  const pickedIds = () => page.$$eval('.nt-row.is-picked', (els) => els.map((e) => e.dataset.cat));
+  const allIds = () => page.$$eval('.nt-row', (els) => els.map((e) => e.dataset.cat));
+
+  const ids = await allIds();
+  note(ids.length >= 6, `only ${ids.length} rows to pick from`);
+
+  // Ctrl adds one at a time, anywhere in the list.
+  await clickRow(1, ['Control']);
+  await clickRow(4, ['Control']);
+  let now = await pickedIds();
+  note(now.length === 2 && now.includes(ids[1]) && now.includes(ids[4]), `Ctrl+click picked ${now.length}, expected the two clicked`);
+  // Ctrl again on a picked row takes it back out.
+  await clickRow(4, ['Control']);
+  note((await pickedIds()).length === 1, 'Ctrl+click on a picked row did not unpick it');
+
+  // Shift takes the run from the last one to this one, and REPLACES the pick.
+  await clickRow(1, ['Control']);
+  await clickRow(4, ['Shift']);
+  now = await pickedIds();
+  note(now.length === 4 && now.join() === ids.slice(1, 5).join(), `Shift+click took ${JSON.stringify(now)}, expected the run ${JSON.stringify(ids.slice(1, 5))}`);
+
+  // A plain click is the way out, and it still jumps.
+  await clickRow(0);
+  note((await pickedIds()).length === 0, 'a plain click did not drop the pick');
+  // So is Escape.
+  await clickRow(1, ['Control']);
+  await clickRow(3, ['Control']);
+  note((await pickedIds()).length === 2, 'could not re-pick two rows');
+  await page.keyboard.press('Escape');
+  await sleep(200);
+  note((await pickedIds()).length === 0, 'Escape did not drop the pick');
+  note(!!(await page.$('.nt-app')), 'the Escape that dropped the pick also closed the notes');
+
+  /* ONE COLOUR ON THE WHOLE PICK. The dot on any picked row opens the picker
+     for all of them, and one undo takes all of them back. */
+  await clickRow(1, ['Control']);
+  await clickRow(3, ['Control']);
+  const two = await pickedIds();
+  const before = await page.evaluate((sel) => sel.map((id) => getComputedStyle(document.querySelector(`.nt-row[data-cat="${id}"]`)).getPropertyValue('--c').trim()), two);
+  await page.evaluate((id) => document.querySelector(`.nt-row[data-cat="${id}"] .nt-row-color`).click(), two[0]);
+  await page.waitForSelector('.nt-clr-panel', { timeout: 4000 });
+  await sleep(200);
+  await page.evaluate(() => { const f = document.querySelector('.nt-clr-hex'); f.focus(); f.select(); });
+  await page.keyboard.type('12e0c8');
+  await page.keyboard.press('Enter');
+  await sleep(300);
+  const after = await page.evaluate((sel) => sel.map((id) => getComputedStyle(document.querySelector(`.nt-row[data-cat="${id}"]`)).getPropertyValue('--c').trim()), two);
+  note(after.every((c) => /^#?12e0c8$/i.test(c) || c === 'rgb(18, 224, 200)'), `one colour did not reach both picked rows: ${JSON.stringify(after)}`);
+  note(before[0] !== after[0] && before[1] !== after[1], 'the picked rows were already that colour — the check proves nothing');
+  // Every other row is untouched.
+  const other = await page.evaluate((skip) => {
+    const row = [...document.querySelectorAll('.nt-row')].find((r) => !skip.includes(r.dataset.cat));
+    return getComputedStyle(row).getPropertyValue('--c').trim();
+  }, two);
+  note(!/12e0c8/i.test(other) && other !== 'rgb(18, 224, 200)', `recolouring the pick also recoloured a row outside it (${other})`);
+  /* ESCAPE IS A LADDER AND THIS RUNG IS SPENT. Entering the hex closed the
+     colour panel already, so this Escape is the one that drops the PICK --
+     and a third one, with nothing left open, closes the notes. The first
+     draft of this check pressed it once more out of habit and spent the rest
+     of the run against an unmounted app. Clear a pick by clicking a row. */
+  await page.keyboard.press('Escape');
+  await sleep(400);
+  note(!(await page.$('.nt-row.is-picked')), 'Escape did not drop the pick after the colour panel had gone');
+  await chord(['Control'], 'z');
+  await sleep(400);
+  const undone = await page.evaluate((sel) => sel.map((id) => getComputedStyle(document.querySelector(`.nt-row[data-cat="${id}"]`)).getPropertyValue('--c').trim()), two);
+  note(undone[0] !== after[0] && undone[1] !== after[1], `one undo did not take both colours back (${JSON.stringify(undone)})`);
+  console.log(`pick: Ctrl adds, Shift runs, one colour on ${two.length}, one undo takes both back`);
+
+  /* DRAGGING ONE CARRIES THE PICK, and the drag starts anywhere on the row
+     rather than on the grip. */
+  note(!!(await page.$('.nt-app')), 'the notes closed before the multi-drag check');
+  await clickRow(1, ['Control']);
+  await clickRow(2, ['Control']);
+  const carried = await pickedIds();
+  const orderBefore = await allIds();
+  const from = await rowAt(1);
+  const to = await page.evaluate(() => { const els = document.querySelectorAll('.nt-row'); const r = els[els.length - 1].getBoundingClientRect(); return { y: Math.round(r.bottom - 3) }; });
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x, from.y + 10, { steps: 3 });
+  const ghost = await page.$eval('.nt-row.is-ghost', (g) => g.dataset.carry).catch(() => null);
+  note(ghost === String(carried.length), `the drag ghost says it is carrying ${ghost}, expected ${carried.length}`);
+  note((await page.$$('.nt-rows .nt-row.is-dragging')).length === carried.length, 'only one row was marked as being carried');
+  await page.mouse.move(from.x, to.y, { steps: 10 });
+  await page.mouse.up();
+  await sleep(500);
+  const orderAfter = await allIds();
+  note(orderAfter.length === orderBefore.length, 'the multi-drag lost or duplicated a row');
+  note(orderAfter.slice(-2).join() === carried.join(), `dragging two picked rows to the end left ${JSON.stringify(orderAfter.slice(-2))}, expected ${JSON.stringify(carried)}`);
+  console.log(`multi-drag: ${carried.length} rows carried from the middle to the end, in order`);
+
+  /* ARCHIVING A PICK IS ONE DIALOG, and the archive picks the same way. */
+  await clickRow(0);
+  note(!(await page.$('.nt-row.is-picked')), 'a plain click did not drop the pick before the archive check');
+  const archBefore = Number(await page.$eval('.nt-archive-count', (e) => e.textContent) || 0);
+  const rows = await allIds();
+  await clickRow(rows.length - 2, ['Control']);
+  await clickRow(rows.length - 1, ['Control']);
+  const doomed = await pickedIds();
+  await page.evaluate((id) => document.querySelector(`.nt-row[data-cat="${id}"] .nt-row-x`).click(), doomed[0]);
+  await page.waitForSelector('.nt-modal', { timeout: 4000 });
+  const msg = await page.$eval('.nt-modal-msg', (e) => e.textContent);
+  note(/2 categories/.test(msg), `the archive dialog says "${msg}" — it should name the whole pick`);
+  await press('Enter');
+  await sleep(500);
+  note((await page.$$('.nt-modal')).length === 0, 'a second dialog opened — the pick was archived one at a time');
+  note(Number(await page.$eval('.nt-archive-count', (e) => e.textContent) || 0) === archBefore + 2,
+       `the archive count did not go up by two (${archBefore} -> ${await page.$eval('.nt-archive-count', (e) => e.textContent)})`);
+  // And back out again, picked in the archive this time.
+  await page.evaluate(() => { const a = document.querySelector('.nt-archive'); if (!a.classList.contains('is-open')) a.querySelector('.nt-archive-head').click(); });
+  await sleep(300);
+  for (const id of doomed) {
+    const b = await page.evaluate((cid) => { const r = document.querySelector(`.nt-arch-row[data-cat="${cid}"]`).getBoundingClientRect(); return { x: Math.round(r.left + 30), y: Math.round(r.top + r.height / 2) }; }, id);
+    await page.keyboard.down('Control');
+    await page.mouse.click(b.x, b.y);
+    await page.keyboard.up('Control');
+    await sleep(150);
+  }
+  note((await page.$$('.nt-arch-row.is-picked')).length === 2, 'the archive does not pick the way the list above it does');
+  await page.evaluate((id) => document.querySelector(`.nt-arch-row[data-cat="${id}"] .nt-icon-btn`).click(), doomed[0]);
+  await sleep(500);
+  note(Number(await page.$eval('.nt-archive-count', (e) => e.textContent) || 0) === archBefore,
+       'restoring a picked pair did not take both back out of the archive');
+  note((await allIds()).length === rows.length, 'the restore did not put both categories back in the list');
+  await page.evaluate(() => { const a = document.querySelector('.nt-archive'); if (a.classList.contains('is-open')) a.querySelector('.nt-archive-head').click(); });
+  await sleep(250);
+  console.log(`pick: one dialog archived 2, the archive picked them, one restore brought both back`);
+}
+
+/* ---- 17f10. undo and redo are widgets in the panel ---------------------- */
+/* They left the header: Ctrl+Z is the whole of how they are used, so two
+   permanent slots above the text were paying for a gesture that never
+   happens. In the panel they are a row that NAMES the keystroke and a button
+   that does it -- which only counts if the button still works. */
+{
+  const body = await page.$(`.nt-body[data-cat="${catId}"]`);
+  await body.click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' widgetprobe');
+  await sleep(500);
+  const withProbe = await page.$eval(`.nt-body[data-cat="${catId}"]`, (b) => b.textContent);
+  note(/widgetprobe/.test(withProbe), 'the probe text was not typed');
+
+  await page.mouse.move(900, 500);
+  await sleep(300);
+  const info = await page.evaluate(() => { const r = document.querySelector('.nt-info').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(info.x, info.y, { steps: 6 });
+  await page.waitForSelector('.nt-help-panel', { timeout: 5000 });
+  await sleep(300);
+  const where = await page.evaluate(() => ({
+    inHeader: !!document.querySelector('.nt-header-mid .nt-undo, .nt-header-mid .nt-redo'),
+    inPanel: !!document.querySelector('.nt-help-panel .nt-undo') && !!document.querySelector('.nt-help-panel .nt-redo'),
+    widgets: document.querySelectorAll('.nt-help-panel .nt-help-row.is-widget').length,
+    firstHead: document.querySelector('.nt-help-panel .nt-help-head').textContent,
+    keys: [...document.querySelectorAll('.nt-help-panel .nt-help-row.is-widget .nt-help-val')].map((v) => v.textContent),
+  }));
+  note(!where.inHeader, 'undo and redo are still in the header');
+  note(where.inPanel, 'undo and redo are not in the information panel');
+  note(where.widgets === 2, `${where.widgets} widget rows in the panel, expected 2`);
+  note(where.firstHead === 'Widgets', `the first section is "${where.firstHead}", expected the widgets at the top`);
+  note(where.keys.join(' / ') === 'Ctrl+Z / Ctrl+Shift+Z', `the widget rows name ${JSON.stringify(where.keys)}`);
+
+  // The button, not the keystroke.
+  await page.click('.nt-help-panel .nt-undo');
+  await sleep(500);
+  note(!/widgetprobe/.test(await page.$eval(`.nt-body[data-cat="${catId}"]`, (b) => b.textContent)), 'the undo button in the panel did nothing');
+  await page.click('.nt-help-panel .nt-redo');
+  await sleep(500);
+  note(/widgetprobe/.test(await page.$eval(`.nt-body[data-cat="${catId}"]`, (b) => b.textContent)), 'the redo button in the panel did nothing');
+  await page.click('.nt-help-panel .nt-undo');
+  await sleep(500);
+  note(!/widgetprobe/.test(await page.$eval(`.nt-body[data-cat="${catId}"]`, (b) => b.textContent)), 'the probe survived the second undo');
+  await page.mouse.move(900, 500);
+  await sleep(450);
+
+  /* AND THE PICTURE SURVIVED ALL THAT. An image carries its width as an
+     inline style, set through CSSOM where this app's CSP does not reach --
+     but a history snapshot is put back through innerHTML, where it does, and
+     the browser blocked the attribute on every undo in a category holding a
+     picture. The width is stored in data-w and hydrate() reapplies it, so the
+     symptom was only a console full of blocked operations; the fix is that
+     capture() carries no style attribute at all. Measured, not assumed. */
+  const img = await page.evaluate((cid) => {
+    const i = document.querySelector(`.nt-body[data-cat="${cid}"] img.nt-img`);
+    return i ? { w: i.style.width, key: !!i.dataset.key, styleAttr: i.getAttribute('style') } : null;
+  }, catId);
+  note(!!img, 'the image is gone from the scratch category after three undos');
+  note(img && /%$/.test(img.w), `the image lost its width across undo and redo (${img && img.w})`);
+  console.log(`widgets: undo and redo out of the header, in the panel, both work from it, image still ${img && img.w}`);
+}
+
 /* ---- 17g. one list button, and the spelling menu opens on the click ------- */
 {
   const listBtns = await page.$$eval('.nt-header-mid .nt-fmt', (els) => els.filter((e) => /list/i.test(e.getAttribute('data-tip') || '')).map((e) => e.getAttribute('data-tip')));
@@ -1209,10 +1541,23 @@ await chord(['Control'], '\\');
   const now = await order();
   note(now[0] !== was[0], `dragging the first rail letter down did not move it (${was.slice(0, 3)} -> ${now.slice(0, 3)})`);
   note(now.includes(was[0]) && now.length === was.length, 'the rail drag lost or duplicated a category');
-  // A plain click still jumps rather than being eaten by the drag handler.
-  await page.evaluate(() => document.querySelectorAll('.nt-rail-cat')[1].click());
-  await sleep(400);
-  note(true, 'a rail click after a drag did not throw');
+  /* A REAL MOUSE CLICK still jumps. This used to be an element.click(), which
+     is a programmatic dispatch and would have passed happily through the bug
+     it was supposed to be watching: the drag handler called preventDefault on
+     its pointerdown, and cancelling pointerdown cancels the compatibility
+     mouse events after it -- `click` included. Every rail letter was a dead
+     button to an actual pointer, and no check said so. */
+  const railHit = await page.evaluate(() => {
+    const b = document.querySelectorAll('.nt-rail-cat')[1];
+    const r = b.getBoundingClientRect();
+    const p = { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), id: b.dataset.cat };
+    return { ...p, on: document.elementFromPoint(p.x, p.y) === b };
+  });
+  note(railHit.on, 'the point aimed at a rail letter is not on it');
+  await page.mouse.click(railHit.x, railHit.y);
+  await sleep(600);
+  note(await page.evaluate((id) => document.querySelector('.nt-rail-cat.is-here')?.dataset.cat === id, railHit.id),
+       'a real mouse click on a rail letter did not jump to its category');
   console.log(`rail reorder: ${was.slice(0, 3).join(',')} -> ${now.slice(0, 3).join(',')}`);
   // Put the sidebar back.
   await page.click('.nt-sb-tab');

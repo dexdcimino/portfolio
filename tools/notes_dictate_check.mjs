@@ -349,7 +349,17 @@ const micState = () => page.evaluate((id) => {
 
 /* ---- 10. the pill appears when the box is scrolled away ------------------ */
 {
-  await page.evaluate(() => { document.querySelector('.nt-canvas').scrollTo({ top: 0, behavior: 'instant' }); });
+  /* AWAY FROM THE BOX, not to the top. Alt+N puts a new category wherever
+     you are looking now -- at the top of the canvas it lands FIRST -- so
+     scrolling to 0 is as likely to bring the dictated box into view as to
+     take it out of it, which is how this check started failing on a layout
+     change rather than on dictation. Scroll to whichever end it is not at. */
+  await page.evaluate(() => {
+    const c = document.querySelector('.nt-canvas');
+    const sec = document.querySelector('.nt-mic.is-live')?.closest('.nt-cat') || document.querySelector('.nt-cat');
+    const mid = sec.offsetTop + sec.offsetHeight / 2;
+    c.scrollTo({ top: mid > c.scrollHeight / 2 ? 0 : c.scrollHeight, behavior: 'instant' });
+  });
   await sleep(300);
   const p = await page.evaluate(() => {
     const el = document.querySelector('.nt-pill');
@@ -369,7 +379,12 @@ const micState = () => page.evaluate((id) => {
 
   // Clicking it goes back to the box, and the pill stands down.
   await page.evaluate(() => document.querySelector('.nt-pill-main').click());
-  await sleep(800);
+  /* WAIT FOR THE STATE, not for a guess at how long the scroll takes. The
+     canvas scrolls smoothly and the distance depends on where the dictated
+     box ended up in the list, which is not fixed -- 800ms was enough while
+     that box was always the last one and stopped being enough the day a new
+     category could land first. */
+  await page.waitForFunction(() => !document.querySelector('.nt-pill').classList.contains('is-on'), { timeout: 6000 }).catch(() => {});
   note(!(await page.$eval('.nt-pill', e => e.classList.contains('is-on'))), 'the pill stayed up after scrolling back to the box');
 }
 

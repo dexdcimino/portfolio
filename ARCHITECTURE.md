@@ -1369,6 +1369,16 @@ Ctrl+Shift+Z, and the `historyUndo` input type the context menu produces),
 because two stacks that both think they own the document was the failure mode
 this replaces.
 
+**A snapshot carries no `style` attribute.** `capture()` strips them from a
+clone before reading the HTML, because putting a snapshot back is putting it
+back through `innerHTML` -- and this app ships under `style-src 'self'` with
+no `unsafe-inline`, where an inline style attribute applied that way is
+blocked. An image in a body has `style="width: 50%"` on it, set through CSSOM
+where the policy does not reach, and the moment that width rode into a
+snapshot every undo in a category holding a picture logged a blocked
+operation. Nothing is lost: `data-w` is the stored form of the width and
+`chips.hydrate()` reapplies it through CSSOM after the HTML lands.
+
 ### Spelling, marks and autocorrect
 
 Misspellings are drawn with the **CSS Custom Highlight API** -- a set of ranges
@@ -1453,12 +1463,17 @@ runs, and the archive's own handler calls `syncTab()` on both branches.
 **The sessions are three surfaces onto one list.** The popup on the badge
 (cards, `openSessions()`), the list under the foot button
 (`renderSessionList()`) and the rail's badge all read `doc.sessions`.
-The popup's row is options / the word / close, and the word is placed
-ABSOLUTELY at the popup's centre -- centring it over the cards puts it in the
-corner whenever there is only one session. The foot list is a sheet pinned to
-the top edge of its own button (`.nt-sess-dock`), not a block in the column:
-as a block it pushed the archive down on open and pulled it back on close, so
-asking what the sessions were rearranged the sidebar twice.
+The popup's row is the word and a close, and the word is placed ABSOLUTELY at
+the popup's centre -- centring it over the cards puts it in the corner
+whenever there is only one session. There is **no options menu** on it:
+everything such a menu would hold is already reachable from inside the
+session it would act on (the name renames on a double-click in two places,
+the emoji and the colour are the controls beside it, a card's own X deletes),
+so it was a fifth control duplicating four you are looking at. The foot list
+is a sheet pinned to the top edge of its own button (`.nt-sess-dock`), not a
+block in the column: as a block it pushed the archive down on open and pulled
+it back on close, so asking what the sessions were rearranged the sidebar
+twice.
 
 **Nothing in the sessions answers a right-click.** The cards reorder on a
 drag, and a press-and-hold that begins a drag and a press that opens a
@@ -1474,12 +1489,51 @@ the two sides weigh the same, which they never do. The search is the reason
 they never do, so it rests as a 34px circle at the far left and opens to a
 field that changes nothing else's position.
 
-**Reordering has two handles.** The grip on a sidebar row, and the letter
-itself on the rail when the sidebar is folded. `wireDrag()` takes the
-container and item selectors, so both draw the same line between the two
-categories a drop would land between. The grip shows on hover AND on the
-category you are currently in -- a handle only visible under the pointer is
-one you have to go looking for.
+**Reordering has two handles, and one of them is the whole row.** A sidebar
+row drags from anywhere on it (`wireDrag(row, row, id, {anywhere: true})`,
+which lets go of the buttons and of a title being renamed), and the letter
+itself is the handle on the rail. `wireDrag()` takes the container and item
+selectors, so both draw the same line between the two categories a drop would
+land between. The grip stays as the thing that SAYS the row is draggable, and
+as the touch handle -- it is the one part of the row with
+`touch-action: none`, so a finger can drag from there while the rest of the
+row still scrolls the list.
+
+**`wireDrag` must never `preventDefault()` its `pointerdown`.** Cancelling
+that cancels the compatibility mouse events after it, `click` included, so
+the row stops jumping and the rail letters become dead buttons to a real
+pointer. It went unnoticed for a while because the harness clicked the rail
+programmatically, which is not subject to it; `dataset.dragged` suppresses
+the click instead, and only when a drag actually happened. Nothing needs
+suppressing anyway: the app is `user-select: none`.
+
+**A category is a framed box with its title row inside it.** `.nt-cat-box`
+carries the body's fill and 3px of padding, `.nt-cat-head` sits inside that
+painted the canvas's ground, and the body sits under the head with no
+background of its own -- so the "outline the colour of the text box" is the
+box showing through around the head. As a real border it would have to be
+restated on every hover and focus rule the fill has and would drift out of
+step the first time one was missed; this cannot drift, because it is the same
+paint. The chevron and the emoji are outside the box in `.nt-cat-aside`,
+level with the head row.
+
+**Picking more than one.** `picked` is one Set of ids and `pickIn` says which
+list it belongs to -- the live categories or the archive -- because a pick
+spanning both would mean "archive these and un-archive those", which is not
+an action. Ctrl/Cmd toggles one, Shift replaces the run from the anchor.
+`targets(id, list)` is what every row action asks: it returns the whole pick
+when the row is in one and two or more are picked, and `[id]` otherwise, so
+clicking the X on an UNpicked row is never a request to archive four others.
+Archiving, recolouring and dragging a pick are each one undo step and one
+dialog. `paintPicks()` prunes ids that no longer exist before it paints:
+a stale id would keep counting toward `picked.size` and make a single row act
+as if it had company.
+
+**`addCat('auto')` puts a new category where you are looking** -- past
+halfway down the canvas it goes to the end, above halfway to the top. The two
+buttons that are themselves positional (the plus in the session header, the
+New category at the very end of the canvas) stay `'top'` and `'bottom'` and
+mean it.
 
 **Switching sessions slides.** `beginSlide()` clones `.nt-canvas-inner`,
 freezes the outgoing session's colour tiers onto the copy as literal values
@@ -1494,7 +1548,13 @@ it and the function returns a no-op.
 
 **One place holds every keystroke: the information panel** behind the ⓘ in
 the header, opened by resting on it and grouped by where you would be
-standing when you wanted one (Everywhere / Outliner / Canvas / Editor). That
+standing when you wanted one (Widgets / Everywhere / Outliner / Canvas /
+Editor). A row is `[label, keystroke]`, or `[label, keystroke, () => node]`
+which makes it a WIDGET -- the real control goes in at the right end. Undo
+and redo are the two widgets, moved out of the header entirely: `Ctrl+Z` is
+the whole of how they are used, so two permanent slots above the text were
+paying for a gesture that never happens. They are the real buttons, not
+copies, so `syncUndoButtons()` still has one of each to find. That
 is what let the tooltips stop carrying keybinds -- a shortcut that lives only
 in a tooltip can be found only by hovering the button you were about to press
 anyway, and thirty of them is thirty places for the same fact to go stale.

@@ -25,6 +25,53 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the category's title row moved inside its text box
+
+**Decided.** A category is `.nt-cat-box`: one rounded box carrying the body's
+fill and 3px of padding, with the title, the options, the colour and the
+archive X on a strip inside it painted the canvas's own ground, and the text
+under that. The chevron and the emoji are the only two things left outside,
+in an aside to the left.
+
+**It replaced** a title row sitting above the text box, in the canvas's own
+space, with the body indented 42px so it lined up past the emoji.
+
+**Why.** The old shape had two separate objects — a bar and a box — that had
+to be read as one category, and the only thing tying them together was that
+indent. As one framed box the strip reads as part of the thing it names. The
+frame being the box's own padding rather than a border is the load-bearing
+half: a border would have to be restated on every hover and focus rule the
+fill has, and would go out of step the first time one was missed.
+
+**Reverse it if** the 36px strip proves too small for what has to sit on it.
+Everything on that row is an icon today; a control with a word in it would
+crowd the title, and at that point the row wants to be outside again.
+
+---
+
+## 2026-09-07 — a row is picked with Ctrl and Shift, and every row control follows the pick
+
+**Decided.** The sidebar list and the archive select like lists: Ctrl/Cmd
+adds one, Shift takes the run. Everything a row can already do to itself —
+archive, recolour, drag, restore, delete — does it to the whole pick instead
+when the row is in one. No new toolbar, no checkboxes, no "select mode".
+
+**It replaced** one row at a time, and nothing else: there was no way to
+recolour four categories except to open the picker four times.
+
+**Why.** The alternative shape — a selection toolbar that appears when
+something is picked — is a second set of controls for actions that already
+have controls, and it has to be somewhere, which on a 280px sidebar means on
+top of the list you are selecting in. Routing through `targets(id, list)`
+means there is exactly one archive path, one colour path and one move path,
+and the multi case is a parameter rather than a branch.
+
+**Reverse it if** renaming several at once is ever wanted. That is the one
+operation this shape cannot express — there is no per-row control for it to
+follow — and it would need the toolbar this decision rejected.
+
+---
+
 ## 2026-09-07 — the keystrokes leave the tooltips and live in one panel
 
 **Decided.** Tooltips in the notes app carry a short label or nothing, never a

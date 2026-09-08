@@ -215,9 +215,16 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   const status = el('span', { class: 'nt-status', role: 'status', 'aria-live': 'polite' });
   const closeBtn = btn('nt-close', null, ICON.close, () => container.dispatchEvent(new CustomEvent('notes:close', { bubbles: true })), { 'aria-label': 'Close' });
   const searchMount = el('div', { class: 'nt-header-search' });
+  /* UNDO AND REDO LIVE IN THE INFORMATION PANEL, not in the header. They are
+     the two controls almost nobody reaches for with a pointer -- Ctrl+Z is
+     the whole of how they are used -- so they were two permanent slots above
+     the text paying for a gesture that never happens. In the panel they are
+     the row that names the keystroke AND the button that does it, which is
+     also what the Widgets section is for: the rows in it are not only
+     descriptions. */
   header.append(
     el('div', { class: 'nt-header-left' }, searchMount),
-    el('div', { class: 'nt-header-mid' }, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, sep(), fmt.left, fmt.center, fmt.right, sep(), fmt.ul, nodeBtn, spellBtn, sep(), undoBtn, redoBtn),
+    el('div', { class: 'nt-header-mid' }, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, sep(), fmt.left, fmt.center, fmt.right, sep(), fmt.ul, nodeBtn, spellBtn),
     el('div', { class: 'nt-header-right' }, status, infoBtn, themeBtn, closeBtn));
   search.initSearch(ctx, searchMount);
   wireHelp(infoBtn);
@@ -274,7 +281,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       el('span', { text: 'Archive' }), el('span', { class: 'nt-archive-count' }),
       el('span', { class: 'nt-archive-arms', html: ICON.archArms })),
     el('div', { class: 'nt-archive-list' }));
-  const addBtn = el('button', { type: 'button', class: 'nt-add-btn', html: `<span class="nt-add-plus">${ICON.plus}</span><span>New category</span>`, onclick: () => render.addCat('bottom') });
+  const addBtn = el('button', { type: 'button', class: 'nt-add-btn', html: `<span class="nt-add-plus">${ICON.plus}</span><span>New category</span>`, onclick: () => render.addCat('auto') });
   /* The sessions, as a list rather than a grid, and only where there is room
      to read one: the collapsed rail has the same thing behind its badge. */
   /* A SHEET OVER THE PANEL, NOT A SECTION IN IT. Opening it used to insert a
@@ -333,7 +340,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     badge.addEventListener('pointerleave', () => clearTimeout(sessHover));
     badge.addEventListener('pointerdown', () => { clearTimeout(sessHover); sessArmed = false; });
   }
-  const railAdd = el('button', { type: 'button', class: 'nt-rail-add', 'data-tip': 'New category', 'data-tip-pos': 'right', html: ICON.plus, 'aria-label': 'New category', onclick: () => render.addCat('bottom') });
+  const railAdd = el('button', { type: 'button', class: 'nt-rail-add', 'data-tip': 'New category', 'data-tip-pos': 'right', html: ICON.plus, 'aria-label': 'New category', onclick: () => render.addCat('auto') });
   // No expand button down here: the toggle lives in the header now, and the
   // rail's own badge and add button are what it is for.
   sidebar.append(
@@ -421,14 +428,20 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
    * Grouped by WHERE, because that is how you look for one: things that work
    * anywhere, then the outliner, the canvas and the text itself. Nothing in
    * here explains bold. */
+  /* A row is [label, keystroke] or [label, keystroke, node]. The third makes
+     it a WIDGET: the real control goes in at the right end, so the panel is
+     somewhere you can act rather than only read. */
   const HELP = [
+    ['Widgets', [
+      ['Undo', 'Ctrl+Z', () => undoBtn],
+      ['Redo', 'Ctrl+Shift+Z', () => redoBtn],
+    ]],
     ['Everywhere', [
       ['Search', 'Ctrl+F'],
       ['Save now', 'Ctrl+S'],
       ['Fold the outliner', 'Ctrl+\\'],
       ['New category', 'Alt+N'],
       ['Dictate here', 'Ctrl+Shift+M'],
-      ['Undo / redo', 'Ctrl+Z / Ctrl+Y'],
       ['Back out of anything', 'Esc'],
     ]],
     ['Outliner', [
@@ -436,7 +449,10 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       ['Fold the outliner', 'Press the badge'],
       ['Jump to a category', 'Click its row'],
       ['Rename in place', 'Double-click the name'],
-      ['Reorder', 'Drag the grip'],
+      ['Reorder', 'Drag a row'],
+      ['Pick several', 'Ctrl+click · Shift+click'],
+      ['Act on the pick', 'Its own X, dot or drag'],
+      ['Drop the pick', 'Esc, or click one row'],
       ['Resize the archive', 'Drag the line above it'],
     ]],
     ['Canvas', [
@@ -466,13 +482,18 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   let helpPinned = false;
 
   function helpCard() {
+    /* The widget rows take the REAL buttons, not copies: they carry their own
+       handlers and their own disabled state, and a copy would be a second
+       thing for syncUndoButtons to find. Rebuilding the card detaches them
+       and re-appends them next time, which a plain element survives. */
     return el('div', { class: 'nt-help' },
       el('div', { class: 'nt-help-title', text: 'Keys and tips' }),
       ...HELP.map(([name, rows]) => el('div', { class: 'nt-help-section' },
         el('div', { class: 'nt-help-head', text: name }),
-        ...rows.map(([k, v]) => el('div', { class: 'nt-help-row' },
+        ...rows.map(([k, v, widget]) => el('div', { class: `nt-help-row ${widget ? 'is-widget' : ''}` },
           el('span', { class: 'nt-help-key', text: k }),
-          el('span', { class: 'nt-help-val', text: v }))))));
+          el('span', { class: 'nt-help-val', text: v }),
+          widget ? widget() : null)))));
   }
 
   function openHelp(anchor, pinned) {
@@ -730,10 +751,11 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
        stop it, so one press never also reaches the <dialog> behind. */
     if (e.key === 'Escape' && sidebar.classList.contains('show-sessions')) { e.preventDefault(); e.stopPropagation(); closeSessionList(); return; }
     if (e.key === 'Escape' && helpHandle) { e.preventDefault(); e.stopPropagation(); closeHelp(); return; }
+    if (e.key === 'Escape' && render.pickCount()) { e.preventDefault(); e.stopPropagation(); render.clearPicks(); return; }
     if (mod && e.key.toLowerCase() === 'f' && !e.shiftKey) { e.preventDefault(); search.focus(); return; }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
     if (mod && e.key === '\\') { e.preventDefault(); setSidebar(doc.ui.sidebar === 'open' ? 'rail' : 'open'); return; }
-    if (e.altKey && e.key.toLowerCase() === 'n' && !mod) { e.preventDefault(); render.addCat('bottom'); return; }
+    if (e.altKey && e.key.toLowerCase() === 'n' && !mod) { e.preventDefault(); render.addCat('auto'); return; }
     if (mod && e.shiftKey && e.key.toLowerCase() === 'm') { e.preventDefault(); dictate.toggleHere(); return; }
     if (mod && e.key.toLowerCase() === 'z' && !inBody && !inField) { e.preventDefault(); if (e.shiftKey) ctx.history.redo(); else ctx.history.undo(); return; }
     if (mod && e.key.toLowerCase() === 'y' && !inBody && !inField) { e.preventDefault(); ctx.history.redo(); }

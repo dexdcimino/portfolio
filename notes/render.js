@@ -193,6 +193,8 @@ export function switchSession(id, forceDir) {
   const dir = forceDir === undefined ? (to > from ? 1 : -1) : forceDir;
   const finish = beginSlide(dir);
   ctx.flushBodies();
+  // A pick is a set of ids in the session you were in. It does not travel.
+  clearPicks();
   ctx.doc.active = id;
   ctx.history.clear();
   ctx.docChanged();
@@ -316,12 +318,13 @@ export function openSessions(anchor) {
     }), add);
   };
   draw();
+  /* NO OPTIONS BUTTON. Everything it held is already reachable from inside
+     the session it would have acted on: the name renames on a double-click
+     in the sidebar or on the canvas, the emoji and the colour are the two
+     controls beside it, and a card's own X deletes. A menu that duplicates
+     four controls you are looking at is a fifth thing to maintain. */
   const box = el('div', { class: 'nt-sess' },
     el('div', { class: 'nt-sess-bar' },
-      el('button', {
-        type: 'button', class: 'nt-sess-opts', 'aria-label': 'Session options', html: ICON.menu,
-        onclick: (e) => { const s = ctx.doc.sessions.find((x) => x.id === ctx.doc.active); if (s) sessionMenu(s, e.currentTarget); },
-      }),
       el('div', { class: 'nt-sess-head', text: 'Sessions' }),
       el('button', { type: 'button', class: 'nt-sess-close', 'aria-label': 'Close', html: ICON.close, onclick: () => closePanel() })),
     grid);
@@ -384,16 +387,6 @@ function wireSessionDrag(card, id, redraw) {
   });
 }
 
-function sessionMenu(s, anchor) {
-  menu(anchor, [
-    { label: 'Rename', icon: ICON.edit, run: () => { switchSession(s.id); setTimeout(editSessionTitle, 50); } },
-    { label: 'Emoji…', run: () => ctx.emoji.openFull(anchor, (u) => { s.emoji = u; touch(s); ctx.docChanged(); renderAll(); }) },
-    { label: 'Colour…', icon: ICON.palette, run: () => ctx.color.open(anchor, { title: 'Session colour', value: s.color, onChange: (c) => { s.color = c; touch(s); ctx.docChanged(); applySessionColor(); } }) },
-    null,
-    { label: 'Delete session', icon: ICON.trash, danger: true, run: () => deleteSession(s.id) },
-  ]);
-}
-
 function editSessionTitle() {
   const t = ctx.root.querySelector('.nt-session-title');
   if (t) { t.focus(); selectAll(t); }
@@ -407,11 +400,97 @@ function selectAll(node) {
   sel.addRange(r);
 }
 
+/* ---- picking more than one ---------------------------------------------------
+ * The sidebar list and the archive list are LISTS, so they select like lists:
+ * Ctrl (or Cmd) adds one anywhere, Shift takes the run between the last one
+ * and this one. Everything a row can do to itself -- archive, recolour, drag,
+ * restore, delete -- does it to the whole pick instead when the row is in one.
+ *
+ * ONE SET, NOT TWO. A pick that spanned the live list and the archive would
+ * mean "archive these and also un-archive those", which is not an action, so
+ * picking in one list clears the other. `pickIn` is which list is live. */
+const picked = new Set();
+let pickIn = 'cats';
+let pickAnchor = null;
+
+const pickedList = () => (pickIn === 'archived' ? S().archived : S().cats);
+/* In LIST order, never in click order: everything downstream of this splices
+ * an array, and a move that took them out in the order they were clicked
+ * would reorder them against each other on the way. */
+const picks = () => pickedList().filter((c) => picked.has(c.id)).map((c) => c.id);
+
+/* What an action on `id` should actually act on. A row that is not in the
+ * pick acts on itself even when a pick exists -- clicking the X on an
+ * unpicked row is not a request to archive four others. */
+function targets(id, list = 'cats') {
+  if (pickIn !== list || !picked.has(id) || picked.size < 2) return [id];
+  return picks();
+}
+
+export function clearPicks() {
+  if (!picked.size) return false;
+  picked.clear();
+  pickAnchor = null;
+  paintPicks();
+  return true;
+}
+
+export const pickCount = () => picked.size;
+
+function paintPicks() {
+  /* PRUNE FIRST. A pick is a set of ids, and archiving, deleting or an undo
+     can take one out from under it -- a stale id would keep counting toward
+     picked.size and make a single row act as if it had company. */
+  if (picked.size) {
+    const live = new Set(pickedList().map((c) => c.id));
+    for (const id of [...picked]) if (!live.has(id)) picked.delete(id);
+    if (pickAnchor && !live.has(pickAnchor)) pickAnchor = null;
+  }
+  for (const n of ctx.sidebar.querySelectorAll('.nt-row, .nt-arch-row')) {
+    n.classList.toggle('is-picked', picked.has(n.dataset.cat));
+  }
+  ctx.root.classList.toggle('has-picks', picked.size > 1);
+}
+
+/* Ctrl/Cmd toggles one; Shift takes the run from the anchor to here. Returns
+ * true when the click was a pick, so the caller knows not to also jump. */
+function onPickClick(e, id, list) {
+  const mod = e.ctrlKey || e.metaKey;
+  if (!mod && !e.shiftKey) return false;
+  if (pickIn !== list) { picked.clear(); pickIn = list; pickAnchor = null; }
+  const order = pickedList().map((c) => c.id);
+  if (e.shiftKey && pickAnchor && order.includes(pickAnchor)) {
+    const a = order.indexOf(pickAnchor);
+    const b = order.indexOf(id);
+    // Shift REPLACES the run rather than adding to it, the way a file list
+    // does: dragging the far end of a range should not leave the old one on.
+    if (!mod) picked.clear();
+    for (let i = Math.min(a, b); i <= Math.max(a, b); i++) picked.add(order[i]);
+  } else if (picked.has(id) && mod) {
+    picked.delete(id);
+    pickAnchor = id;
+  } else {
+    picked.add(id);
+    pickAnchor = id;
+  }
+  paintPicks();
+  return true;
+}
+
 /* ---- categories ---------------------------------------------------------------- */
 
 export function addCat(where) {
-  // where: 'top' | 'bottom' | { after: id }
+  // where: 'top' | 'bottom' | 'auto' | { after: id }
   const s = S();
+  /* 'auto' PUTS IT WHERE YOU ARE LOOKING. Past halfway down the canvas the
+     bottom of the list is what is on screen, so that is where a new category
+     belongs; above halfway it is the top. The two buttons that are themselves
+     positional -- the plus in the session header and the New category at the
+     very end of the canvas -- stay 'top' and 'bottom' and mean it. */
+  if (where === 'auto') {
+    const range = ctx.canvas.scrollHeight - ctx.canvas.clientHeight;
+    where = range > 0 && ctx.canvas.scrollTop / range > 0.5 ? 'bottom' : 'top';
+  }
   let cat;
   structure('add category', () => {
     // A new category is the session's colour until it is given its own. The
@@ -504,15 +583,40 @@ export function moveCat(id, to) {
   if (sec) sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
+/* Several at once, landing in front of `beforeId` (or at the end for null).
+ * They keep their order relative to each other -- a drop is a relocation, not
+ * a reshuffle -- which is what `picks()` returning list order is for. */
+export function moveCats(ids, beforeId) {
+  const s = S();
+  const set = new Set(ids);
+  const moving = s.cats.filter((c) => set.has(c.id));
+  if (!moving.length) return;
+  structure('move', () => {
+    const rest = s.cats.filter((c) => !set.has(c.id));
+    const at = beforeId ? rest.findIndex((c) => c.id === beforeId) : -1;
+    rest.splice(at < 0 ? rest.length : at, 0, ...moving);
+    s.cats = rest;
+  });
+  renderAll();
+  const sec = sectionFor(moving[0].id);
+  if (sec) sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
 export async function archiveCat(id) {
-  const cat = catOf(S(), id);
-  if (!cat) return;
-  const empty = !ctx.toText(cat.body).trim();
+  const ids = targets(id, 'cats');
+  const cats = ids.map((x) => catOf(S(), x)).filter(Boolean);
+  if (!cats.length) return;
+  const many = cats.length > 1;
+  const empty = cats.every((c) => !ctx.toText(c.body).trim());
+  const name = many ? `${cats.length} categories` : `<strong>${esc(cats[0].title)}</strong>`;
   let choice = 'ok';
-  if (!empty) {
+  // One dialog for the whole pick: four confirmations in a row is four
+  // chances to answer the wrong one.
+  if (!empty || many) {
     choice = await confirm({
-      title: 'Archive category', msg: `Archive <strong>${esc(cat.title)}</strong>?`,
-      sub: 'It moves to the archive at the bottom of the sidebar and can be restored any time. Ctrl+Z also brings it back.',
+      title: many ? `Archive ${cats.length} categories` : 'Archive category',
+      msg: many ? `Archive ${name}?` : `Archive ${name}?`,
+      sub: 'They move to the archive at the bottom of the sidebar and can be restored any time. Ctrl+Z also brings them back.',
       ok: 'Archive', alt: 'Delete', altDanger: true,
     });
   }
@@ -520,35 +624,48 @@ export async function archiveCat(id) {
   ctx.flushBodies();
   structure(choice === 'alt' ? 'delete' : 'archive', () => {
     const s = S();
-    s.cats = s.cats.filter((c) => c.id !== id);
-    if (choice !== 'alt') { cat.archivedAt = now(); s.archived.unshift(cat); }
+    const set = new Set(ids);
+    s.cats = s.cats.filter((c) => !set.has(c.id));
+    if (choice !== 'alt') for (const cat of [...cats].reverse()) { cat.archivedAt = now(); s.archived.unshift(cat); }
     if (!s.cats.length) s.cats.push(newCat('New Category'));
   });
+  clearPicks();
   renderAll();
-  toast(choice === 'alt' ? `"${cat.title}" deleted (Ctrl+Z to undo)` : `"${cat.title}" archived`);
+  const what = many ? `${cats.length} categories` : `"${cats[0].title}"`;
+  toast(choice === 'alt' ? `${what} deleted (Ctrl+Z to undo)` : `${what} archived`);
 }
 
 export function restoreCat(id) {
-  const cat = archivedOf(S(), id);
-  if (!cat) return;
+  const ids = targets(id, 'archived');
+  const cats = ids.map((x) => archivedOf(S(), x)).filter(Boolean);
+  if (!cats.length) return;
   structure('restore', () => {
     const s = S();
-    s.archived = s.archived.filter((c) => c.id !== id);
-    delete cat.archivedAt;
-    s.cats.push(cat);
+    const set = new Set(ids);
+    s.archived = s.archived.filter((c) => !set.has(c.id));
+    for (const cat of cats) { delete cat.archivedAt; s.cats.push(cat); }
   });
+  clearPicks();
   renderAll();
-  const sec = sectionFor(id);
+  const sec = sectionFor(cats[0].id);
   if (sec) sec.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  toast(`"${cat.title}" restored`);
+  toast(cats.length > 1 ? `${cats.length} categories restored` : `"${cats[0].title}" restored`);
 }
 
 export async function deleteArchived(id) {
-  const cat = archivedOf(S(), id);
-  if (!cat) return;
-  const ok = await confirm({ title: 'Delete permanently?', msg: `Delete <strong>${esc(cat.title)}</strong> from the archive?`, sub: 'Ctrl+Z can still bring it back until you close the notes.', ok: 'Delete', danger: true });
+  const ids = targets(id, 'archived');
+  const cats = ids.map((x) => archivedOf(S(), x)).filter(Boolean);
+  if (!cats.length) return;
+  const many = cats.length > 1;
+  const ok = await confirm({
+    title: 'Delete permanently?',
+    msg: many ? `Delete ${cats.length} categories from the archive?` : `Delete <strong>${esc(cats[0].title)}</strong> from the archive?`,
+    sub: 'Ctrl+Z can still bring it back until you close the notes.', ok: 'Delete', danger: true,
+  });
   if (ok !== 'ok') return;
-  structure('delete archived', () => { S().archived = S().archived.filter((c) => c.id !== id); });
+  const set = new Set(ids);
+  structure('delete archived', () => { S().archived = S().archived.filter((c) => !set.has(c.id)); });
+  clearPicks();
   renderSidebar();
 }
 
@@ -644,17 +761,31 @@ function renderCanvas() {
   }
 }
 
+/* THE TITLE ROW IS INSIDE THE TEXT BOX, and the chevron and the emoji are
+ * outside it to the left.
+ *
+ * .nt-cat-box carries the body's own fill and 3px of padding, so the "outline
+ * the colour of the box" is the box itself showing through around a head that
+ * is painted the canvas's colour -- a frame that cannot drift out of step
+ * with the fill it is supposed to match, which a real border of its own would
+ * on every hover and focus. The head and the body are the two things inside
+ * that frame, and the head reads as a shelf recessed into it.
+ *
+ * The aside is the chevron and the emoji together, aligned with the head row
+ * so the four things on that line -- fold, emoji, title, and the controls at
+ * the right end -- all sit level whether the box is open or shut. */
 function buildSection(cat) {
   const sec = el('section', { class: `nt-cat ${cat.collapsed ? 'is-collapsed' : ''}`, 'data-cat': cat.id });
   paintColor(sec, cat.color);
+  const aside = el('div', { class: 'nt-cat-aside' },
+    // No tip. A chevron says fold, and the shift-for-all trick is in the
+    // information panel with every other thing you have to be told once.
+    el('button', { type: 'button', class: 'nt-cat-toggle', html: ICON.chevron, 'aria-label': 'Collapse category', onclick: (e) => toggleCollapse(cat.id, undefined, e.shiftKey) }),
+    el('button', { type: 'button', class: 'nt-cat-emoji', 'aria-label': 'Choose an emoji', onclick: (e) => ctx.emoji.openFull(e.currentTarget, (u) => setCatEmoji(cat.id, u)) }));
   /* Options, then colour, then archive. The X is the one that removes
      something, so it is the one on the outside where nothing else is reached
      past it. */
   const head = el('div', { class: 'nt-cat-head' },
-    // No tip. A chevron says fold, and the shift-for-all trick is in the
-    // information panel with every other thing you have to be told once.
-    el('button', { type: 'button', class: 'nt-cat-toggle', html: ICON.chevron, 'aria-label': 'Collapse category', onclick: (e) => toggleCollapse(cat.id, undefined, e.shiftKey) }),
-    el('button', { type: 'button', class: 'nt-cat-emoji', 'aria-label': 'Choose an emoji', onclick: (e) => ctx.emoji.openFull(e.currentTarget, (u) => setCatEmoji(cat.id, u)) }),
     el('h2', { class: 'nt-cat-title', contenteditable: 'true', spellcheck: 'false', 'data-cat': cat.id, 'aria-label': 'Category title' }),
     el('button', { type: 'button', class: 'nt-cat-more nt-icon-btn', 'data-tip': 'More', 'aria-label': 'Category options', html: ICON.more, onclick: (e) => catMenu(cat.id, e.currentTarget) }),
     el('button', { type: 'button', class: 'nt-cat-color', 'aria-label': 'Choose a colour', onclick: (e) => openCatColor(cat.id, e.currentTarget) }),
@@ -666,7 +797,9 @@ function buildSection(cat) {
   // The microphone sits in the box's bottom-right corner, in the wrapper
   // rather than inside the contenteditable: a button inside the text is a
   // thing the caret can land on.
-  sec.append(head, el('div', { class: 'nt-cat-body' }, body, ctx.dictate.micButton(cat.id)));
+  sec.append(el('div', { class: 'nt-cat-shell' }, aside,
+    el('div', { class: 'nt-cat-box' }, head,
+      el('div', { class: 'nt-cat-body' }, body, ctx.dictate.micButton(cat.id)))));
   fillHeader(sec, cat);
   wireTitle(head.querySelector('.nt-cat-title'), cat.id);
   return sec;
@@ -724,18 +857,29 @@ function wireTitle(title, id) {
 }
 
 function openCatColor(id, anchor) {
-  const cat = catOf(S(), id);
-  if (!cat) return;
-  const before = cat.color;
+  const ids = targets(id, 'cats');
+  const cats = ids.map((x) => catOf(S(), x)).filter(Boolean);
+  if (!cats.length) return;
+  // The picker opens on the colour of the one that was CLICKED, not on some
+  // average of the pick: that is the swatch the pointer is on.
+  const clicked = catOf(S(), id) || cats[0];
+  const before = new Map(cats.map((c) => [c.id, c.color]));
+  const paint = (c) => { for (const cat of cats) setCatColor(cat.id, c); };
   ctx.color.open(anchor, {
-    title: 'Category colour', value: cat.color,
-    onChange: (c) => setCatColor(id, c),
+    title: cats.length > 1 ? `Colour · ${cats.length} categories` : 'Category colour',
+    value: clicked.color,
+    onChange: paint,
     // "Use default" hands the category back to the session's colour, which
     // is what a category that has never been given one already shows.
-    onClear: () => setCatColor(id, S().color),
+    onClear: () => paint(S().color),
   });
-  // One undo step for the whole picker session.
-  const seal = () => { if (cat.color !== before) { const after = cat.color; cat.color = before; structure('colour', () => { cat.color = after; }); } };
+  // One undo step for the whole picker session, however many it painted.
+  const seal = () => {
+    const after = new Map(cats.map((c) => [c.id, c.color]));
+    if (cats.every((c) => before.get(c.id) === after.get(c.id))) return;
+    for (const c of cats) c.color = before.get(c.id);
+    structure('colour', () => { for (const c of cats) c.color = after.get(c.id); });
+  };
   const check = setInterval(() => { if (!ctx.root.querySelector('.nt-clr-panel')) { clearInterval(check); seal(); } }, 300);
 }
 
@@ -765,22 +909,31 @@ export function renderSidebar() {
   const rail = ctx.sidebar.querySelector('.nt-rail-cats');
   const rows = s.cats.map((cat) => {
     const g = glyph(cat);
-    const row = el('div', { class: `nt-row ${cat.collapsed ? 'is-collapsed' : ''}`, 'data-cat': cat.id, role: 'button', tabindex: '0' });
+    const row = el('div', { class: `nt-row ${cat.collapsed ? 'is-collapsed' : ''} ${picked.has(cat.id) ? 'is-picked' : ''}`, 'data-cat': cat.id, role: 'button', tabindex: '0' });
     paintColor(row, cat.color);
-    const grip = el('span', { class: 'nt-row-grip', html: ICON.grip, 'data-tip': 'Drag to reorder', 'data-tip-pos': 'right' });
+    // The grip stays as the thing that SAYS the row is draggable, but the
+    // whole row is the handle now -- see wireDrag's `anywhere`.
+    const grip = el('span', { class: 'nt-row-grip', html: ICON.grip, 'data-tip-pos': 'right' });
     const badge = el('button', { type: 'button', class: `nt-row-badge ${g.emoji || cat.emoji ? 'is-emoji' : ''}`, text: cat.emoji || g.text, tabindex: '-1', 'aria-label': 'Emoji', onclick: (e) => { e.stopPropagation(); ctx.emoji.openFull(e.currentTarget, (u) => setCatEmoji(cat.id, u)); } });
     const title = el('span', { class: 'nt-row-title', text: cat.title });
     const color = el('button', { type: 'button', class: 'nt-row-color', tabindex: '-1', 'aria-label': 'Colour', onclick: (e) => { e.stopPropagation(); openCatColor(cat.id, e.currentTarget); } });
     const x = el('button', { type: 'button', class: 'nt-row-x', tabindex: '-1', 'aria-label': 'Archive', html: ICON.close, onclick: (e) => { e.stopPropagation(); archiveCat(cat.id); } });
     row.append(grip, badge, title, color, x);
-    row.addEventListener('click', (e) => { if (e.target.closest('button,.nt-row-grip')) return; jumpTo(cat.id); });
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      // A drag that ended on this row is not a click on it.
+      if (row.dataset.dragged) return;
+      if (onPickClick(e, cat.id, 'cats')) return;
+      clearPicks();
+      jumpTo(cat.id);
+    });
     row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jumpTo(cat.id); } });
     wireInlineTitle(title, {
       get: () => (catOf(S(), cat.id) || cat).title,
       set: (t) => renameCat(cat.id, t),
     });
     title.setAttribute('data-tip', 'Double-click to rename');
-    wireDrag(row, grip, cat.id);
+    wireDrag(row, row, cat.id, { anywhere: true });
     return row;
   });
   list.replaceChildren(...rows);
@@ -800,6 +953,7 @@ export function renderSidebar() {
   }));
 
   renderArchive();
+  paintPicks();
   syncTab();
   spy();
 }
@@ -847,7 +1001,6 @@ export function renderSessionList() {
     const go = () => { switchSession(s.id); renderSessionList(); };
     row.addEventListener('click', go);
     row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
-    row.addEventListener('contextmenu', (e) => { e.preventDefault(); sessionMenu(s, row); });
     return row;
   });
   out.push(el('button', { type: 'button', class: 'nt-sess-row is-add', html: `${ICON.plus}<span>New session</span>`, onclick: () => addSession() }));
@@ -863,13 +1016,22 @@ function renderArchive() {
   wrap.classList.toggle('is-empty', !s.archived.length);
   list.replaceChildren(...s.archived.map((cat) => {
     const g = glyph(cat);
-    const row = el('div', { class: 'nt-arch-row', 'data-cat': cat.id });
+    const row = el('div', { class: `nt-arch-row ${picked.has(cat.id) ? 'is-picked' : ''}`, 'data-cat': cat.id });
     paintColor(row, cat.color);
     row.append(
       el('span', { class: `nt-row-badge ${g.emoji ? 'is-emoji' : ''}`, text: g.text }),
       el('span', { class: 'nt-row-title', text: cat.title, title: cat.title }),
       el('button', { type: 'button', class: 'nt-icon-btn is-small', 'data-tip': 'Restore', html: ICON.restore, 'aria-label': 'Restore', onclick: () => restoreCat(cat.id) }),
       el('button', { type: 'button', class: 'nt-icon-btn is-small is-danger', 'data-tip': 'Delete forever', html: ICON.trash, 'aria-label': 'Delete forever', onclick: () => deleteArchived(cat.id) }));
+    /* The archive picks exactly the way the list above it does, so restoring
+       or deleting ten is ten of one gesture rather than ten of the whole
+       cycle. A plain click here selects nothing -- there is nowhere to jump
+       to -- so it is the way OUT of a pick. */
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      if (onPickClick(e, cat.id, 'archived')) return;
+      clearPicks();
+    });
     return row;
   }));
 }
@@ -938,23 +1100,40 @@ function wireDrag(node, handle, id, opts = {}) {
   let ghost = null;
   let marker = null;
   let target = -1;
+  let carrying = [id];
   const list = () => ctx.sidebar.querySelector(listSel);
   handle.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    e.preventDefault();
+    /* THE WHOLE ROW IS THE HANDLE, so this has to let go of everything on the
+       row that is not the row: the buttons, and the title while it is being
+       renamed. A grip you have to find first is a grip you have to find. */
+    if (opts.anywhere && (e.target.closest('button') || e.target.closest('[contenteditable="true"]'))) return;
+    /* NO preventDefault. Cancelling pointerdown cancels the compatibility
+       mouse events after it, `click` included -- which silently killed the
+       jump on a sidebar row and the jump on a rail letter, and went unnoticed
+       because the harness clicked the rail programmatically. Nothing needs
+       suppressing: the app is user-select:none, so a press cannot start a
+       text selection. dataset.dragged stops the click instead, and only when
+       a drag actually happened. */
     handle.setPointerCapture(e.pointerId);
     const startY = e.clientY;
     const onMove = (ev) => {
       if (!dragging) {
         if (Math.abs(ev.clientY - startY) < 4) return;
         dragging = true;
+        // A drag that starts on a picked row carries the whole pick.
+        carrying = opts.anywhere ? targets(id, 'cats') : [id];
         node.dataset.dragged = '1';
         ghost = node.cloneNode(true);
         ghost.classList.add('is-ghost');
         ghost.style.width = `${node.offsetWidth}px`;
+        if (carrying.length > 1) ghost.dataset.carry = String(carrying.length);
         ctx.root.append(ghost);
         marker = el('div', { class: `nt-drop-marker ${opts.markerClass || ''}` });
-        node.classList.add('is-dragging');
+        for (const c of carrying) {
+          const n = list().querySelector(`${itemSel}[data-cat="${CSS.escape(c)}"]`);
+          if (n) n.classList.add('is-dragging');
+        }
       }
       ghost.style.left = `${node.getBoundingClientRect().left}px`;
       ghost.style.top = `${ev.clientY - 16}px`;
@@ -976,15 +1155,15 @@ function wireDrag(node, handle, id, opts = {}) {
       handle.removeEventListener('pointercancel', onUp);
       if (!dragging) return;
       dragging = false;
-      node.classList.remove('is-dragging');
+      for (const n of list().querySelectorAll('.is-dragging')) n.classList.remove('is-dragging');
       if (ghost) ghost.remove();
       if (marker) marker.remove();
-      const s = S();
-      const from = s.cats.findIndex((c) => c.id === id);
-      const others = s.cats.filter((c) => c.id !== id);
-      const before = target < others.length ? others[target] : null;
-      const to = before ? s.cats.indexOf(before) - (s.cats.indexOf(before) > from ? 1 : 0) : s.cats.length - 1;
-      moveCat(id, to);
+      // `target` indexes the rows that were NOT being carried, which is the
+      // same list the move is about to splice into.
+      const set = new Set(carrying);
+      const others = S().cats.filter((c) => !set.has(c.id));
+      moveCats(carrying, target < others.length ? others[target].id : null);
+      carrying = [id];
       // The click that ends the drag must not also be taken as a jump.
       setTimeout(() => { delete node.dataset.dragged; }, 0);
     };

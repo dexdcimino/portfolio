@@ -62,8 +62,18 @@ function here() {
 }
 
 /* What the history records for a body. */
+/* A SNAPSHOT CARRIES NO style ATTRIBUTE, because putting one back is putting
+ * it back through innerHTML -- and the CSP this app ships under (style-src
+ * 'self', no unsafe-inline) blocks an inline style attribute applied that
+ * way. An image in a body has `style="width:50%"` on it, set through CSSOM
+ * where the policy does not apply; the moment that width rode into a history
+ * snapshot, every undo in a category holding a picture logged a blocked
+ * operation. The width is not lost: `data-w` is the stored form of it and
+ * chips.hydrate() puts it back through CSSOM after the html lands. */
 export function capture(body) {
-  return { html: body.innerHTML, sel: serializeSelection(body) };
+  const copy = body.cloneNode(true);
+  for (const styled of copy.querySelectorAll('[style]')) styled.removeAttribute('style');
+  return { html: copy.innerHTML, sel: serializeSelection(body) };
 }
 
 /* Run a change to `body` as one undoable step. */
