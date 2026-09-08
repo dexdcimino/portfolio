@@ -245,7 +245,7 @@
 /* While a pick is up, the controls on its rows are permanently visible: they
    are about to act on all of them, and a control that appears only under the
    pointer cannot say that it is aimed at four rows. */
-.nt-app.has-picks .nt-row.is-picked .nt-row-x { opacity: .8; }
+.nt-app.has-picks .nt-row.is-picked .nt-row-x { width: 24px; margin-left: 0; opacity: .8; }
 .nt-row-grip { width: 16px; height: 28px; display: grid; place-items: center; color: var(--tx3); opacity: 0; cursor: grab; flex: 0 0 auto; touch-action: none; }
 .nt-row-grip svg { width: 14px; height: 14px; }
 /* On hover, and on the category you are actually in: a handle that appears
@@ -259,11 +259,26 @@
 .nt-row-badge.is-emoji, .nt-rail-cat.is-emoji { font-size: 17px; text-transform: none; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
 button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transparent); }
 .nt-row-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
-.nt-row-color { width: 13px; height: 13px; flex: 0 0 auto; border-radius: 50%; border: 0; padding: 0; background: var(--c); opacity: .8; margin: 0 2px; transition: transform var(--ease); }
+/* THE DOT SITS AT THE RIGHT EDGE AND SCOOTS LEFT to let the X out. At rest a
+   row is its mark, its name and its colour, in that order, with nothing else
+   on it; the archive button only exists while you are pointing at the row it
+   would archive, or while the row is part of a pick that one is about to act
+   on. Animating the X's WIDTH is what moves the dot -- an X that was merely
+   invisible still held its 24px, so the dot never sat at the edge at all. */
+.nt-row-color { width: 13px; height: 13px; flex: 0 0 auto; border-radius: 50%; border: 0; padding: 0; background: var(--c); opacity: .8; margin: 0 3px 0 2px; transition: transform var(--ease); }
 .nt-row-color:hover { transform: scale(1.3); opacity: 1; }
-.nt-row-x { width: 24px; height: 24px; flex: 0 0 auto; display: grid; place-items: center; border: 0; border-radius: 6px; background: none; color: var(--tx); opacity: 0; padding: 0; }
+.nt-row-x {
+  width: 0; height: 24px; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden;
+  border: 0; border-radius: 6px; background: none; color: var(--tx); opacity: 0; padding: 0;
+  /* The row's own 6px gap applies between EVERY pair of children, a
+     zero-width one included, so a collapsed X still held the dot 6px off the
+     edge it is supposed to be sitting on. The negative margin cancels the gap
+     while there is nothing there to be separated from. */
+  margin-left: -6px;
+  transition: width var(--ease), opacity var(--ease), margin-left var(--ease);
+}
 .nt-row-x svg { width: 14px; height: 14px; }
-.nt-row:hover .nt-row-x { opacity: .5; }
+.nt-row:hover .nt-row-x, .nt-row:focus-within .nt-row-x { width: 24px; margin-left: 0; opacity: .5; }
 .nt-row-x:hover { opacity: 1 !important; color: var(--danger); background: var(--bg4); }
 .nt-drop-marker { height: 2px; margin: 0 6px; background: var(--c-title); border-radius: 1px; }
 .nt-drop-marker.is-rail { margin: 0 7px; }
@@ -354,10 +369,10 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-sesslist-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 9px 8px 9px 14px; border-bottom: 1px solid var(--bdr);
-  font-size: 14px; font-weight: 700; color: var(--tx);
+  font-size: 16px; font-weight: 700; color: var(--tx);
 }
-.nt-sesslist-x { width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--tx3); }
-.nt-sesslist-x svg { width: 15px; height: 15px; }
+.nt-sesslist-x { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--tx3); }
+.nt-sesslist-x svg { width: 16px; height: 16px; }
 .nt-sesslist-x:hover { color: var(--danger); background: var(--bg4); }
 .nt-sesslist-rows { max-height: 40vh; overflow-y: auto; padding: 5px; scrollbar-width: thin; }
 .nt-sesslist-foot { padding: 6px 8px 8px; border-top: 1px solid var(--bdr); }
@@ -368,9 +383,12 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 }
 .nt-sesslist-new svg { width: 16px; height: 16px; }
 .nt-sesslist-new:hover { color: var(--c-title); border-color: var(--c-title); box-shadow: inset 0 0 0 1px var(--c-title); }
-.nt-sess-row-x { width: 24px; height: 24px; flex: 0 0 auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--tx3); opacity: 0; transition: opacity var(--ease), color var(--ease); }
-.nt-sess-row-x svg { width: 13px; height: 13px; }
-.nt-sess-row:hover .nt-sess-row-x { opacity: .7; }
+/* ALWAYS THERE, dim, and red under the pointer. Hidden until hover it left a
+   row ending in a bare number -- the count of its categories, floating with
+   nothing beside it -- and the row looked unfinished rather than tidy. */
+.nt-sess-row-x { width: 26px; height: 26px; flex: 0 0 auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--tx3); opacity: .55; transition: opacity var(--ease), color var(--ease); }
+.nt-sess-row-x svg { width: 14px; height: 14px; }
+.nt-sess-row:hover .nt-sess-row-x { opacity: .8; }
 .nt-sess-row-x:hover { opacity: 1; color: var(--danger); background: var(--bg4); }
 .nt-sess-row {
   display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 3px 6px; margin: 1px 0;
@@ -380,8 +398,8 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-sess-row.is-active { background: color-mix(in srgb, var(--c) 14%, transparent); box-shadow: inset 3px 0 0 var(--c); }
 .nt-sess-row .nt-row-badge { width: 24px; height: 24px; font-size: 12px; }
 .nt-sess-row .nt-row-badge.is-emoji { font-size: 15px; }
-.nt-sess-row .nt-row-title { font-size: 14px; font-weight: 600; }
-.nt-sess-count { font-size: 11px; color: var(--tx3); font-variant-numeric: tabular-nums; }
+.nt-sess-row .nt-row-title { font-size: 16px; font-weight: 600; }
+.nt-sess-count { font-size: 13px; color: var(--tx3); font-variant-numeric: tabular-nums; }
 
 
 /* the rail */
@@ -491,13 +509,20 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
   margin: 3px 8px 0 0;
   display: flex; align-items: center; gap: 2px; height: 36px;
 }
+/* NEUTRAL, and it stays neutral on hover: the strip is what lights when a
+   category is pointed at. It takes the theme's lighter state only while
+   something inside it has focus, which is about typing rather than pointing. */
 .nt-cat-box {
-  padding: 3px; border-radius: 16px; background: var(--c-fill);
-  transition: background var(--ease);
+  padding: 3px; border-radius: 16px; background: var(--bg2);
+  transition: background var(--ease), box-shadow var(--ease);
 }
-/* The strip is the same tint one step more prominent than the field, and the
-   3px of box padding around it is the frame. Both come from the category's
-   own colour -- see tints() in color.js. */
+.nt-cat-box:focus-within { background: var(--bg3); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--c) 35%, transparent); }
+.nt-app[data-theme="light"] .nt-cat-box { background: rgba(255,255,255,.45); }
+.nt-app[data-theme="light"] .nt-cat-box:focus-within { background: rgba(255,255,255,.62); }
+/* The strip is a faint wash of the category's colour and the 3px of box
+   padding around it is the frame -- see tints() in color.js. The wash is
+   deliberately weak: it says which category the bar belongs to, and the name
+   printed on it is the thing meant to carry the colour. */
 .nt-cat-head {
   display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 6px 0 12px;
   border-radius: 13px 13px 0 0; background: var(--c-head);
@@ -522,12 +547,12 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
    green one are told apart at a glance, from the badge alone. */
 .nt-cat-emoji {
   width: 36px; height: 36px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; padding: 0;
-  border: 2px solid var(--c-fill); background: var(--c-head-hi);
+  border: 2px solid var(--bg3); background: color-mix(in srgb, var(--c) 12%, var(--bg));
   color: var(--c-title); font-weight: 800; font-size: 16px; text-transform: uppercase;
   transition: background var(--ease), border-color var(--ease);
 }
 .nt-cat-emoji.is-emoji { font-size: 22px; text-transform: none; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
-.nt-cat-emoji:hover { background: color-mix(in srgb, var(--c) 30%, var(--c-head-hi)); border-color: color-mix(in srgb, var(--c-title) 45%, var(--c-fill)); }
+.nt-cat-emoji:hover { background: color-mix(in srgb, var(--c) 26%, var(--bg)); border-color: color-mix(in srgb, var(--c) 40%, var(--bg3)); }
 .nt-cat-title {
   flex: 1; min-width: 0; margin: 0; padding: 3px 8px; border-radius: 6px; font-size: calc(var(--fs) + 8px); font-weight: 700; line-height: 1.25; color: var(--c-title);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; caret-color: var(--c-title);

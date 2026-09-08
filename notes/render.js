@@ -23,6 +23,19 @@ export function initRender(context) {
   // The one grab edge between the list and the archive. Delegated, because
   // the sidebar's insides are rebuilt and the edge is not.
   ctx.sidebar.addEventListener('pointerdown', onGripDown);
+  /* CLICKING OFF A PICK DROPS IT. A plain click on another row already
+     replaces the pick, but clicking the empty space under the list, the
+     canvas, or anything else left four rows ringed with no way to tell
+     whether the next X would take one or all of them.
+     What is EXEMPT is anything acting on the pick: a row (which handles its
+     own click), a floating panel -- the colour picker is opened from a picked
+     row and clicking in it must not clear what it is painting -- and a modal,
+     which is the archive confirmation asking about the pick. */
+  ctx.root.addEventListener('pointerdown', (e) => {
+    if (!picked.size) return;
+    if (e.target.closest('.nt-row, .nt-arch-row, .nt-panel, .nt-modal')) return;
+    clearPicks();
+  }, true);
   /* The tab is welded to the archive, so it moves whenever the archive does:
      the split drag, the fold, a window resize, the sidebar collapsing. One
      observer covers all four without a listener per cause. */
@@ -144,9 +157,8 @@ function paintColor(node, color) {
   node.style.setProperty('--c-bold', t.bold);
   node.style.setProperty('--c-title', t.title);
   node.style.setProperty('--c-sel', t.sel);
-  // The surfaces are derived from the colour too now: the box is a faded
-  // version of it and the title strip is one step more prominent than that.
-  node.style.setProperty('--c-fill', t.fill);
+  // The title strip is derived from the colour too: a faint wash of it, and
+  // one step further when the category is under the pointer.
   node.style.setProperty('--c-head', t.head);
   node.style.setProperty('--c-head-hi', t.headHi);
 }
@@ -810,9 +822,12 @@ function buildSection(cat) {
      past it. */
   const head = el('div', { class: 'nt-cat-head' },
     el('h2', { class: 'nt-cat-title', contenteditable: 'true', spellcheck: 'false', 'data-cat': cat.id, 'aria-label': 'Category title' }),
-    el('button', { type: 'button', class: 'nt-cat-more nt-icon-btn', 'data-tip': 'More', 'aria-label': 'Category options', html: ICON.more, onclick: (e) => catMenu(cat.id, e.currentTarget) }),
-    el('button', { type: 'button', class: 'nt-cat-color', 'aria-label': 'Choose a colour', onclick: (e) => openCatColor(cat.id, e.currentTarget) }),
-    el('button', { type: 'button', class: 'nt-cat-x nt-icon-btn', 'aria-label': 'Archive category', html: ICON.close, onclick: () => archiveCat(cat.id) }));
+    /* These three keep a tip, and it opens ABOVE them: the strip is a 36px
+       bar with the text of the category directly under it, so a tip below
+       lands on the words it is meant to be explaining nothing about. */
+    el('button', { type: 'button', class: 'nt-cat-more nt-icon-btn', 'data-tip': 'More', 'data-tip-pos': 'above', 'aria-label': 'Category options', html: ICON.more, onclick: (e) => catMenu(cat.id, e.currentTarget) }),
+    el('button', { type: 'button', class: 'nt-cat-color', 'data-tip': 'Category colour', 'data-tip-pos': 'above', 'aria-label': 'Choose a colour', onclick: (e) => openCatColor(cat.id, e.currentTarget) }),
+    el('button', { type: 'button', class: 'nt-cat-x nt-icon-btn', 'data-tip': 'Archive', 'data-tip-pos': 'above', 'aria-label': 'Archive category', html: ICON.close, onclick: () => archiveCat(cat.id) }));
   const body = el('div', { class: 'nt-body', contenteditable: 'true', role: 'textbox', 'aria-multiline': 'true', 'data-cat': cat.id, 'data-rev': cat.updated, 'aria-label': `${cat.title} notes` });
   body.innerHTML = ctx.clean(cat.body);
   body.spellcheck = false;
@@ -845,6 +860,12 @@ function renderCatHeader(id) {
 }
 
 function wireTitle(title, id) {
+  /* A NAME IS A WAY IN. Clicking the title of a folded category unfolds it --
+     the chevron beside it was the only way, and aiming at a 26px arrow to
+     read something whose name you are already pointing at is a step that does
+     not need to exist. It only ever opens: clicking into a title to edit it
+     must not shut the box you are about to look at. */
+  title.addEventListener('click', () => expandCat(id));
   title.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();

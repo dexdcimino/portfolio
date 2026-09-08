@@ -25,6 +25,29 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — the note box is neutral; only the title strip is tinted
+
+**Decided.** The field the words sit on is the theme's grey (`--bg2`, `--bg3`
+while something in it has focus). The category's colour appears on the title
+strip as a faint wash, on the strip under the pointer, and in the three text
+tiers. `--c-fill` is gone.
+
+**It replaced** a note box painted a faded version of the category's colour,
+shipped earlier the same day.
+
+**Why.** It was tried, looked at, and is worse: a wash of colour behind a
+whole screen of text is a lot of colour to read on, and eight categories of
+it made the app read as a set of coloured cards rather than a set of notes.
+The strip alone says which category a box belongs to, and the text tiers
+already carry the colour into the box without staining the ground under it.
+
+**Reverse it if** the strip stops being enough to tell two categories apart
+at a glance — on a long unbroken page of one colour the strips are far apart,
+and if that reads as one undifferentiated column the fill was doing work the
+strip cannot.
+
+---
+
 ## 2026-09-07 — a colour is the whole category, and the title is the hex itself
 
 **Decided.** `tints()` derives six values from one pick. The box is a faded

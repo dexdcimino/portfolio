@@ -1410,12 +1410,13 @@ moves the caret. The sidebar row, the rail letter and the canvas header all
 carry the category's colour as `--c` on the element. The scroll spy marks the
 category that fills most of the view and paints the scrollbar with its colour.
 
-**A colour is the whole category: its surfaces as well as its text.**
-`tints()` in `color.js` derives six values from one hex. `--c-fill` is the
-box, a faded version of the colour rather than a neutral grey; `--c-head` is
-the title strip, one step more prominent than the field under it (lighter on
-dark, darker on light) so it reads as the bar carrying the name rather than a
-hole cut in the box; `--c-head-hi` is that strip under the pointer.
+**A colour is the category's title strip and its text. The note box itself
+stays neutral.** `tints()` in `color.js` derives five values from one hex.
+`--c-head` is the title strip, a FAINT wash of the colour -- enough to say
+which category the bar belongs to, not enough to compete with the name
+printed on it -- and `--c-head-hi` is that strip under the pointer, which is
+the only thing that lights when a category is hovered. A tinted note box was
+tried and taken back out; see `docs/DECISIONS.md`.
 
 The text is three tiers and **the hierarchy is carried by SATURATION**:
 `--c-title` is THE COLOUR ITSELF, byte for byte, because the whole point of
@@ -1536,6 +1537,13 @@ the two sides weigh the same, which they never do. The search is the reason
 they never do, so it rests as a 34px circle at the far left and opens to a
 field that changes nothing else's position.
 
+**A sidebar row at rest is its mark, its name and its colour**, with the dot
+against the right edge; the archive X opens out of zero width on hover or
+while the row is part of a pick, and the dot scoots left to let it through.
+Animating the X's WIDTH is what moves the dot -- an X that was merely
+invisible still held its 24px -- and its left margin cancels the row's own
+flex gap while it is closed, or the gap alone held the dot 6px off the edge.
+
 **Reordering has two handles, and one of them is the whole row.** A sidebar
 row drags from anywhere on it (`wireDrag(row, row, id, {anywhere: true})`,
 which lets go of the buttons and of a title being renamed), and the letter
@@ -1583,6 +1591,18 @@ text field, which is not what you are pointing at when you point at a
 category; and not the title alone, which was a rectangle inside a rectangle
 fighting the name it framed.
 
+**Clicking a title opens what it names**, and only ever opens: clicking into
+a title to edit it must not shut the box you were about to look at. The
+chevron was the only way in, and aiming at a 26px arrow to read something
+whose name is already under the pointer is a step that need not exist.
+
+**Three controls on the strip keep a tooltip, and it opens ABOVE them** --
+More, Category colour, Archive. The strip is a 36px bar with the category's
+own text directly under it, so a tip below lands on the words. They were
+culled with the rest of the header's tips and asked for back by name; which
+controls are tipped is a decision either way, and it is recorded in the code
+beside them.
+
 **Picking more than one.** `picked` is one Set of ids and `pickIn` says which
 list it belongs to -- the live categories or the archive -- because a pick
 spanning both would mean "archive these and un-archive those", which is not an
@@ -1595,7 +1615,11 @@ from the anchor and leaves the anchor where it is, so the far end of a range
 can be dragged rather than restarted. A pick of ONE is not drawn -- that row
 already shows as the one being read -- but `data-picks` on the root carries
 the count, because "one picked" and "none picked" are different states and
-nothing else can tell them apart from the outside.
+nothing else can tell them apart from the outside. **Clicking anywhere that
+is not a row drops the pick**, with three exemptions: a row (which handles
+its own click), a floating panel (the colour picker is opened FROM a picked
+row and clicking in it must not clear what it is painting) and a modal (the
+archive confirmation, which is asking about the pick).
 `targets(id, list)` is what every row action asks: it returns the whole pick
 when the row is in one and two or more are picked, and `[id]` otherwise, so
 clicking the X on an UNpicked row is never a request to archive four others.

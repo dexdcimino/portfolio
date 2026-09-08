@@ -61,11 +61,12 @@ export function contrastOn(hex) {
  *
  * A category's colour is the whole category: its surfaces AND its text.
  *
- * THE SURFACES. The box is a faded version of the colour rather than a
- * neutral grey, and the title strip inside it is one step MORE prominent than
- * the field under it -- lighter on the dark theme, darker on the light one --
- * so it reads as the bar carrying the name rather than as a hole cut in the
- * box. `headHi` is that strip under the pointer.
+ * THE SURFACE. One of them: the title strip. It is a FAINT wash of the
+ * colour, a step from the field under it rather than a statement -- enough to
+ * say which category the bar belongs to, not enough to compete with the name
+ * printed on it. `headHi` is that strip under the pointer, and the strip is
+ * the only thing that lights when a category is hovered: the text field is
+ * not what you are pointing at when you point at a category.
  *
  * THE TEXT, as a hierarchy of three:
  *
@@ -91,12 +92,20 @@ export function contrastOn(hex) {
  * because it appears on three: its own strip, the canvas, and the sidebar.
  */
 
-/* The neutral grounds a tier can land on, with the light values already
- * composited over their background -- contrast maths cannot see through
- * alpha. The BOX is no longer in here: it is derived per colour now. */
+/* The grounds a tier can land on, with the light values already composited
+ * over their background -- contrast maths cannot see through alpha.
+ *
+ * THE BOX IS NEUTRAL AND STAYS NEUTRAL. A tinted note box was tried and taken
+ * back out: a wash of the category's colour behind a whole screen of text is
+ * a lot of colour to read on, and it left the app looking like a set of
+ * coloured cards rather than a set of notes. The colour lives on the title
+ * strip and in the text; the field the words sit on is the theme's.
+ *
+ * darkBox is --bg3 rather than --bg2 -- the LIGHTER of the two states the box
+ * can be in, which is the harder one for light text to be read on. */
 const GROUND = {
-  darkPage: '#0b0d11', darkSide: '#11141a',     // --bg, the sidebar
-  lightPage: '#c8ccd3', lightSide: '#c9ced5',   // .30 and .34 white over --bg
+  darkBox: '#1a1e26', darkPage: '#0b0d11', darkSide: '#11141a',
+  lightBox: '#d3d7dc', lightPage: '#c8ccd3', lightSide: '#c9ced5',
 };
 
 /* One step away from the background. Brightness first; once that is spent,
@@ -137,16 +146,15 @@ export function tints(hex, dark) {
   const page = dark ? GROUND.darkPage : GROUND.lightPage;
   const side = dark ? GROUND.darkSide : GROUND.lightSide;
 
-  /* The surfaces. Saturation is capped rather than scaled alone: a fully
-     saturated pick at 12% brightness is still a readable ground, but at the
-     picked saturation a pastel would come out grey and a neon would come out
-     as a colour in its own right rather than as a tint of one. */
-  const fill = dark ? hsbToHex(h, Math.min(72, s * 0.85), 12)
-    : hsbToHex(h, Math.min(38, s * 0.34), 95);
-  const head = dark ? hsbToHex(h, Math.min(66, s * 0.8), 18)
-    : hsbToHex(h, Math.min(46, s * 0.42), 89);
-  const headHi = dark ? hsbToHex(h, Math.min(64, s * 0.78), 24)
-    : hsbToHex(h, Math.min(52, s * 0.48), 83);
+  const box = dark ? GROUND.darkBox : GROUND.lightBox;
+  /* The strip. Saturation is CAPPED rather than merely scaled: at the picked
+     saturation a pastel would come out grey and a neon would come out as a
+     colour in its own right rather than as a wash of one. The cap is low --
+     this is a tint under a title, and the title is the thing to be read. */
+  const head = dark ? hsbToHex(h, Math.min(40, s * 0.5), 14)
+    : hsbToHex(h, Math.min(26, s * 0.26), 90);
+  const headHi = dark ? hsbToHex(h, Math.min(38, s * 0.48), 20)
+    : hsbToHex(h, Math.min(30, s * 0.3), 84);
 
   /* The selection behind the words, and the caret between them. A selection
    * is the one place the colour is a BACKGROUND, so it goes the other way:
@@ -169,8 +177,8 @@ export function tints(hex, dark) {
      invisible -- and on the light theme, where a pastel on a pale ground has
      to darken to be read at all. */
   const title = floor(h, s, b, [head, page, side], 5, dark, hex);
-  const bold = floor(h, dull(0.58, 24), lift(6), [fill], 5.2, dark);
-  const body = floor(h, dull(0.30, 15), lift(14), [fill], 5.4, dark);
+  const bold = floor(h, dull(0.58, 24), lift(6), [box], 5.2, dark);
+  const body = floor(h, dull(0.30, 15), lift(14), [box], 5.4, dark);
 
   /* If the pick leaves the words too close to their own highlight, push the
    * highlight rather than the words: what is being read must not change
@@ -180,7 +188,7 @@ export function tints(hex, dark) {
     const c = hexToHsb(selection);
     selection = hsbToHex(c.h, Math.max(0, c.s - 3), dark ? Math.max(0, c.b - 3) : Math.min(100, c.b + 3));
   }
-  return { body, bold, title, fill, head, headHi, sel: selection, on: contrastOn(hex) };
+  return { body, bold, title, head, headHi, sel: selection, on: contrastOn(hex) };
 }
 
 const HEX = /^#?([0-9a-f]{6})$/i;

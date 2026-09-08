@@ -914,6 +914,17 @@ await chord(['Control'], '\\');
   note(list.title === 'My Sessions', `the sheet is titled "${list.title}"`);
   note(list.shut, 'the sheet cannot be closed from inside itself');
   note(list.del === list.rows.length, `${list.del} of ${list.rows.length} session rows can be deleted from the sheet`);
+  /* SHOWN AT REST, not on hover. Hidden until hover, a row ended in a bare
+     number -- the count of its categories, floating with nothing beside it --
+     and read as unfinished rather than tidy. */
+  const seen = await page.$eval('.nt-sess-row .nt-sess-row-x', (e) => Number(getComputedStyle(e).opacity));
+  note(seen > 0.2, `the delete on a session row is invisible until hovered (opacity ${seen})`);
+  const sizes = await page.evaluate(() => ({
+    head: parseFloat(getComputedStyle(document.querySelector('.nt-sesslist-head')).fontSize),
+    title: parseFloat(getComputedStyle(document.querySelector('.nt-sess-row .nt-row-title')).fontSize),
+    count: parseFloat(getComputedStyle(document.querySelector('.nt-sess-count')).fontSize),
+  }));
+  note(sizes.head >= 16 && sizes.title >= 16 && sizes.count >= 13, `the sheet still reads small: ${JSON.stringify(sizes)}`);
   console.log(`sessions listed: ${list.rows.join(', ')} — a sheet ${list.gap}px above its button, nothing under it moved`);
   // Escape shuts it, and stops there: the overlay behind must survive.
   await page.keyboard.press('Escape');
@@ -1059,8 +1070,16 @@ await chord(['Control'], '\\');
   note(head.tips['.nt-fmt'].filter(Boolean).length === 2, `${head.tips['.nt-fmt'].filter(Boolean).length} formatting buttons carry a tooltip, expected 2 (strikethrough and the list)`);
   note(head.tips['.nt-fmt'].includes('Strikethrough') && head.tips['.nt-fmt'].includes('Auto list'), `the two tipped formatting buttons are ${JSON.stringify(head.tips['.nt-fmt'].filter(Boolean))}`);
   note(head.tips['.nt-node-btn'][0] === 'Nodes', `the nodes button is called "${head.tips['.nt-node-btn'][0]}"`);
-  note(!(await page.$('.nt-cat-toggle[data-tip], .nt-cat-emoji[data-tip], .nt-cat-color[data-tip], .nt-cat-x[data-tip], .nt-row-badge[data-tip], .nt-row-color[data-tip], .nt-row-x[data-tip], .nt-session-btn[data-tip], .nt-session-emoji[data-tip]')),
-       'a chevron, emoji, colour, archive X or session badge still carries a tooltip');
+  note(!(await page.$('.nt-cat-toggle[data-tip], .nt-cat-emoji[data-tip], .nt-row-badge[data-tip], .nt-row-color[data-tip], .nt-row-x[data-tip], .nt-session-btn[data-tip], .nt-session-emoji[data-tip]')),
+       'a chevron, emoji, sidebar dot or session badge still carries a tooltip');
+  /* THE THREE ON THE STRIP KEEP THEIRS, and open ABOVE. The strip is a 36px
+     bar with the category's own text directly under it, so a tip below lands
+     on the words. Which controls are tipped is a decision either way -- these
+     three were culled with the rest and asked for back by name. */
+  const strip = await page.$eval('.nt-cat .nt-cat-head', (head) => [...head.querySelectorAll('[data-tip]')].map((e) => [e.className.replace(/ ?nt-icon-btn/, ''), e.getAttribute('data-tip'), e.getAttribute('data-tip-pos')]));
+  note(strip.length === 3, `${strip.length} tipped controls on the title strip, expected 3`);
+  note(strip.every(([, , pos]) => pos === 'above'), `a tip on the strip opens below the words it sits over: ${JSON.stringify(strip)}`);
+  note(strip.map(([, t]) => t).join('|') === 'More|Category colour|Archive', `the strip's tips read ${JSON.stringify(strip.map(([, t]) => t))}`);
   note(head.tips['.nt-spell-btn'][0] === 'Spell check', `the spell button's tip is "${head.tips['.nt-spell-btn'][0]}"`);
   for (const sel of ['.nt-theme', '.nt-close', '.nt-search-btn', '.nt-undo', '.nt-redo']) {
     note(!head.tips[sel].filter(Boolean).length, `${sel} still carries a tooltip: ${head.tips[sel]}`);
@@ -1292,6 +1311,91 @@ await chord(['Control'], '\\');
   note(shape.radius >= 14, `the box is ${shape.radius}px round, expected rounder than the 10px it was`);
   note(shape.xInset >= 2 && shape.xInset <= 14, `the archive X is ${shape.xInset}px from the box's right edge`);
   console.log(`category box: frame ${shape.frameL}/${shape.frameT}/${shape.frameR}/${shape.frameB}px, radius ${shape.radius}, head ${shape.headFill} in box ${shape.boxFill}`);
+}
+
+/* ---- 17f7b. clicking a name opens what it names ------------------------- */
+/* The chevron was the only way in. Aiming at a 26px arrow to read something
+   whose title you are already pointing at is a step that does not need to
+   exist -- and the click must only ever OPEN, or clicking into a title to
+   edit it would shut the box you were about to look at. */
+{
+  const first = await page.$eval('.nt-cat', (e) => e.dataset.cat);
+  await page.evaluate((id) => document.querySelector(`.nt-cat[data-cat="${id}"] .nt-cat-toggle`).click(), first);
+  await sleep(250);
+  note(await page.$eval('.nt-cat', (e) => e.classList.contains('is-collapsed')), 'could not fold the first category to test the title click');
+  const t = await page.evaluate((id) => { const r = document.querySelector(`.nt-cat[data-cat="${id}"] .nt-cat-title`).getBoundingClientRect(); return { x: Math.round(r.left + 40), y: Math.round(r.top + r.height / 2) }; }, first);
+  await page.mouse.click(t.x, t.y);
+  await sleep(300);
+  note(!(await page.$eval('.nt-cat', (e) => e.classList.contains('is-collapsed'))), 'clicking a category title did not open it');
+  // And clicking it again leaves it open rather than toggling it shut.
+  await page.mouse.click(t.x, t.y);
+  await sleep(300);
+  note(!(await page.$eval('.nt-cat', (e) => e.classList.contains('is-collapsed'))), 'clicking the title of an OPEN category folded it — the click only ever opens');
+  await page.evaluate(() => document.activeElement.blur());
+  await sleep(150);
+  console.log('title click: opens a folded category, never folds an open one');
+}
+
+/* ---- 17f7c. the dot sits at the edge and scoots left for the X ---------- */
+{
+  const away = await page.evaluate(() => { const r = document.querySelector('.nt-sidebar-top').getBoundingClientRect(); return { x: Math.round(r.right - 10), y: Math.round(r.bottom + 4) }; });
+  await page.mouse.move(900, 700);
+  await sleep(300);
+  const measure = () => page.evaluate(() => {
+    const row = document.querySelectorAll('.nt-row')[2];
+    const r = row.getBoundingClientRect();
+    const dot = row.querySelector('.nt-row-color').getBoundingClientRect();
+    const x = row.querySelector('.nt-row-x').getBoundingClientRect();
+    return { dotFromRight: Math.round(r.right - dot.right), xWidth: Math.round(x.width) };
+  });
+  const rest = await measure();
+  note(rest.xWidth === 0, `the archive X still takes ${rest.xWidth}px at rest, so the dot cannot reach the edge`);
+  note(rest.dotFromRight <= 10, `the colour dot is ${rest.dotFromRight}px from the row's right edge at rest`);
+  const on = await page.evaluate(() => { const r = document.querySelectorAll('.nt-row')[2].getBoundingClientRect(); return { x: Math.round(r.left + 90), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(on.x, on.y);
+  await sleep(350);
+  const hover = await measure();
+  note(hover.xWidth > 15, `hovering a row did not open the archive X (${hover.xWidth}px)`);
+  note(hover.dotFromRight > rest.dotFromRight + 10, `the dot did not scoot left for the X (${rest.dotFromRight} -> ${hover.dotFromRight})`);
+  await page.mouse.move(900, 700);
+  await sleep(300);
+  console.log(`row: dot ${rest.dotFromRight}px from the edge at rest, ${hover.dotFromRight}px with the X out`);
+  void away;
+}
+
+/* ---- 17f7d. clicking off a pick drops it -------------------------------- */
+{
+  const pickCount = () => page.$eval('.nt-app', (e) => Number(e.dataset.picks || 0));
+  const clickRow = async (i, mods = []) => {
+    const b = await page.evaluate((n) => { const r = document.querySelectorAll('.nt-row')[n].getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; }, i);
+    for (const m of mods) await page.keyboard.down(m);
+    await page.mouse.click(b.x, b.y);
+    for (const m of mods) await page.keyboard.up(m);
+    await sleep(160);
+  };
+  await clickRow(1);
+  await clickRow(3, ['Control']);
+  note((await pickCount()) === 2, 'could not pick two rows for the click-off check');
+  /* The empty space under the list is the obvious place to click to mean
+     "none of these", and it used to mean nothing at all -- four rows stayed
+     ringed with no way to tell whether the next X would take one or all. */
+  const empty = await page.evaluate(() => {
+    const rows = document.querySelector('.nt-rows').getBoundingClientRect();
+    const last = [...document.querySelectorAll('.nt-row')].pop().getBoundingClientRect();
+    return { x: Math.round(rows.left + rows.width / 2), y: Math.round(Math.min(last.bottom + 30, rows.bottom - 10)) };
+  });
+  note(await page.evaluate((e) => !document.elementFromPoint(e.x, e.y)?.closest('.nt-row'), empty), 'the click-off point is on a row');
+  await page.mouse.click(empty.x, empty.y);
+  await sleep(250);
+  note((await pickCount()) === 0, 'clicking the empty space under the list did not drop the pick');
+  // And so does clicking out on the canvas.
+  await clickRow(1);
+  await clickRow(3, ['Control']);
+  note((await pickCount()) === 2, 'could not re-pick two rows');
+  await page.mouse.click(900, 700);
+  await sleep(250);
+  note((await pickCount()) === 0, 'clicking out on the canvas did not drop the pick');
+  console.log('pick: clicking off it — under the list or out on the canvas — drops it');
 }
 
 /* ---- 17f8. New category lands where you are looking --------------------- */
