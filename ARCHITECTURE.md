@@ -1951,6 +1951,25 @@ once it has passed, so that message means the password was accepted and
 three causes it was without deploying a change, which is the worst possible
 moment to be deploying changes.
 
+**`tools/notes_import.mjs` is the other tool that writes to the live store**,
+and it carries the same guards: no `NOTES_DEV_DIR` unless `--dev` says so, no
+run without `BLOB_READ_WRITE_TOKEN`, dry run unless `--write`. It appends
+whole sessions from a JSON seed and touches nothing that is already there --
+it refuses outright if a session title already exists, so a second run cannot
+duplicate an import. The write goes through `writeNotes(doc, rev)` with the
+rev it read, so a save from a notes tab left open comes back as a conflict and
+nothing is written; that is the tool's own guard and it has been raced.
+
+**Its body check is the part worth keeping.** A category `body` is schema HTML
+(`notes/schema.js`), and a body that `clean()` rewrites looks different after
+the first reload than it did going in -- which reads as the import being
+broken rather than as the body being wrong. `clean()` needs a DOM, so the tool
+loads the shipped module in a real browser against `notes_dev_server.mjs` and
+asserts `clean(body) === body` **and** that a `clean()` → `serialize()` round
+trip comes back byte-identical, because a body that survives one and not the
+other still drifts on the first edit. No dev server, no `--write`; the count
+checked is printed and asserted against the number of bodies there are.
+
 ## Music overlay (code `MUSIC`)
 
 A playlist of 311 YouTube links behind the same door as the notes: type `MUSIC`

@@ -25,6 +25,45 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-08 — old note pages are imported by a tool, not pasted or retyped
+
+**Decided.** The three standalone HTML note pages become sessions through
+`tools/notes_import.mjs`: the content is authored as a JSON seed, every
+category body is verified against the real `clean()` in a browser, and the
+tool appends the sessions to the live document with the rev it read. The seed
+itself lives outside the repo and is not committed.
+
+**It replaced** two things. Pasting each page into the editor, which is what
+the paste path is for -- and which flattens the whole page into one category,
+because a category is a row in the sidebar and not a heading in a body, so
+every boundary that made the page readable would have had to be rebuilt by
+hand afterwards. And retyping, which is hours and gets the structure wrong in
+different places than pasting does.
+
+**Why.** The structure IS the content here. A page of thirteen h3 blocks of
+name ideas is worth importing only if it arrives as one category with thirteen
+headings; arriving as thirteen categories, or as one wall of text, is worse
+than not importing it. A seed file makes that mapping explicit and reviewable
+before anything is written, and re-runnable if it is wrong.
+
+The body check is the half that earns the tool. `body` is schema HTML, and
+`clean()` runs on every load: a body it rewrites looks different after the
+first reload than it did going in, which reads as a broken import rather than
+as a wrong body. `clean()` needs a DOM, so the check drives the shipped module
+in a real browser and asserts byte identity through `clean()` and through a
+`clean()` → `serialize()` round trip. All 17 bodies of sessions 2 and 4 passed
+on the first run, which is only meaningful because the check would have said
+so if they had not.
+
+**Reverse it if** the editor ever grows a real importer -- a paste path that
+understands `<section>`/`<h2>` boundaries and offers to split them into
+categories. Then this is a worse version of a feature, and the tool should go
+rather than be maintained alongside it. Nothing else makes it worth removing:
+it is a few hundred lines that run three times and then sit there, and the
+guards on it are the same ones `notes_rescue.mjs` needs anyway.
+
+---
+
 ## 2026-09-08 — the backup schedule rides in the wrapper, not in a listing
 
 **Decided.** `notes/current.json` carries a ledger —
