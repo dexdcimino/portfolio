@@ -1899,6 +1899,24 @@ so the whole dictation pipeline is exercised for real -- the restart loop and
 both engines' result shapes included -- and the ten-minute cap is tested in a
 second. `notes_store_check.mjs` needs no server.
 
+**`tools/notes_rescue.mjs` is for the LIVE store, and is not part of that
+set.** It requires `BLOB_READ_WRITE_TOKEN` and refuses to run with
+`NOTES_DEV_DIR` set, because a tool for looking at production that quietly
+looks at a scratch directory instead is worse than no tool. It reads
+`notes/current.json` through `lib/notes-store.js`'s own code path, says which
+way it is broken if it is -- the blob call threw, the bytes are not JSON, the
+shape is wrong -- checks every backup rather than merely listing them, and
+`--restore` puts one back. It writes only on `--restore`, and keeps the
+current bytes first whatever state they are in: a restore that throws away
+the only copy of a damaged document throws away the evidence.
+
+It exists because **SERVER ERROR on the notes gate is never a wrong
+password.** `unlock.js` checks the password first and only fills in `detail`
+once it has passed, so that message means the password was accepted and
+`readNotes()` then threw. Before this there was no way to see which of the
+three causes it was without deploying a change, which is the worst possible
+moment to be deploying changes.
+
 ## Music overlay (code `MUSIC`)
 
 A playlist of 311 YouTube links behind the same door as the notes: type `MUSIC`
