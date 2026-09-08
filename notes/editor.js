@@ -25,6 +25,7 @@ import {
   rectOfCaret, keepSelection,
 } from './dom.js';
 import { clean, scrub, serialize } from './schema.js';
+import * as tables from './table.js';
 import { toast } from './ui.js';
 
 let ctx = null;
@@ -173,6 +174,12 @@ function onKeydown(e) {
   // Pickers get the navigation keys while they are open.
   if (ctx.emoji.isOpen() && ctx.emoji.onKey(e)) return;
   if (ctx.slash.isOpen() && ctx.slash.onKey(e)) return;
+
+  /* A CELL FIRST. Tab, Enter and Backspace all mean something different
+     inside a table, and every rule below this line assumes a block that can
+     be split or a list item that can be outdented -- neither of which a cell
+     is. table.js answers for the cell or says it did not. */
+  if (tables.onKey(body, e)) return;
 
   if (key === 'Tab') { e.preventDefault(); indent(body, e.shiftKey); return; }
   if (key === 'Enter') {
@@ -1086,12 +1093,21 @@ export function insertBlockAfterCaret(body, node) {
   if (!range) return;
   const block = blockOf(body, range.startContainer);
   transact(body, () => {
-    if (!block) { body.append(node); return; }
+    const p = document.createElement('p');
+    p.append(document.createElement('br'));
+    if (!block) {
+      // The caret was on the body itself rather than in a block, which is
+      // where it sits after a programmatic selectNodeContents. The trailing
+      // line still has to be made: normalizeRoot puts one after a table at
+      // the end of a body, but not until the next scrub, and until then the
+      // block has nothing under it to click on.
+      body.append(node, p);
+      caretToStart(p);
+      return;
+    }
     const top = topBlockOf(body, block);
     if (ownIsEmpty(block) && block.tagName === 'P') top.replaceWith(node);
     else top.after(node);
-    const p = document.createElement('p');
-    p.append(document.createElement('br'));
     node.after(p);
     caretToStart(p);
   });

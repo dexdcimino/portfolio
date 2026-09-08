@@ -131,7 +131,7 @@ const shape = () => page.evaluate((id) => {
   const walk = (n, d) => [...n.children].filter(c => c.tagName !== 'BR').map(c => (c.tagName === 'LI' ? `${'  '.repeat(d)}${c.tagName}${c.dataset.checked ? '*' : ''}:${[...c.childNodes].filter(x => x.nodeType === 3 || !/^(UL|OL)$/.test(x.tagName)).map(x => x.textContent).join('').trim()}\n${walk(c, d + 1)}` : /^(UL|OL)$/.test(c.tagName) ? `${'  '.repeat(d)}${c.tagName}${c.className ? '.' + c.className : ''}\n${walk(c, d + 1)}` : `${'  '.repeat(d)}${c.tagName}${c.className ? '.' + c.className : ''}:${c.textContent.trim()}\n`)).join('');
   return walk(b, 0).replace(/\n+/g, '\n').trim();
 }, catId);
-const caret = () => page.evaluate(() => { const s = getSelection(); const b = s.anchorNode && (s.anchorNode.nodeType === 3 ? s.anchorNode.parentElement : s.anchorNode).closest('p,li,h3,pre,blockquote'); return { tag: b && b.tagName, text: b && b.textContent.slice(0, 20), offset: s.anchorOffset, node: s.anchorNode && s.anchorNode.nodeType === 3 ? s.anchorNode.nodeValue : `<${s.anchorNode && s.anchorNode.nodeName}>` }; });
+const caret = () => page.evaluate(() => { const s = getSelection(); const b = s.anchorNode && (s.anchorNode.nodeType === 3 ? s.anchorNode.parentElement : s.anchorNode).closest('p,li,h3,pre,blockquote,td,th'); return { tag: b && b.tagName, text: b && b.textContent.slice(0, 20), offset: s.anchorOffset, node: s.anchorNode && s.anchorNode.nodeType === 3 ? s.anchorNode.nodeValue : `<${s.anchorNode && s.anchorNode.nodeName}>` }; });
 const press = async (key, times = 1) => { for (let i = 0; i < times; i++) { await page.keyboard.press(key); await sleep(25); } };
 const chord = async (mods, key) => { for (const m of mods) await page.keyboard.down(m); await page.keyboard.press(key); for (const m of [...mods].reverse()) await page.keyboard.up(m); await sleep(40); };
 
@@ -1365,7 +1365,11 @@ await chord(['Control'], '\\');
   });
   note(!head.sidebarToggle, 'the sidebar toggle is still in the header — the chevron tab replaced it');
   note(!head.code, 'the inline-code button is still in the formatting group');
-  note(head.tips['.nt-fmt'].filter(Boolean).length === 2, `${head.tips['.nt-fmt'].filter(Boolean).length} formatting buttons carry a tooltip, expected 2 (strikethrough and the list)`);
+  /* THREE now, not two: the table joined strikethrough and the autolist. The
+     rule the count encodes is unchanged -- a tip goes on a mark that does not
+     say what it does -- and a grid icon says "table" without saying that it
+     makes a three-by-three you then grow from the table itself. */
+  note(head.tips['.nt-fmt'].filter(Boolean).length === 3, `${head.tips['.nt-fmt'].filter(Boolean).length} formatting buttons carry a tooltip, expected 3 (strikethrough, the list and the table)`);
   note(head.tips['.nt-fmt'].includes('Strikethrough') && head.tips['.nt-fmt'].includes('Autolist'), `the two tipped formatting buttons are ${JSON.stringify(head.tips['.nt-fmt'].filter(Boolean))}`);
   /* THE NODE CONTROL IS A SPLIT BUTTON now: the left half inserts the kind
      used last and is the drag handle, the chevron opens the list. Its tip
@@ -2590,7 +2594,363 @@ await chord(['Control'], '\\');
   console.log(`here-mark: still on ${still.id ? still.id.slice(0, 8) : 'nothing'} after a rebuild`);
 }
 
-/* ---- 18. what reached the store ---------------------------------------------------- */
+/* ---- 18. tables --------------------------------------------------------------------
+   FALSELY PASSES IF: it called insertTable() and read the DOM back. The whole
+   question is whether the KEYS reach the table -- Tab, Enter and Backspace all
+   mean something different inside a cell than they do in the paragraph rules
+   that would otherwise catch them -- so every one of these drives a real key or
+   a real mouse. The schema half is driven through clean() directly, because
+   what a PASTED table must become cannot be typed. */
+{
+  const cap = await page.evaluate(async () => {
+    const m = await import('/notes/schema.js');
+    return { cols: m.MAX_COLS, rows: m.MAX_ROWS };
+  });
+  note(cap.cols === 8 && cap.rows === 50, `the cap is ${cap.cols}x${cap.rows}, expected 8x50`);
+
+  // The table's shape, read the way a person would describe it.
+  const tbl = () => page.evaluate((id) => {
+    const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+    const t = b.querySelector('table');
+    if (!t) return null;
+    const rows = [...t.querySelectorAll(':scope > tbody > tr')];
+    return {
+      rows: rows.length,
+      cols: rows.length ? rows[0].children.length : 0,
+      tbodies: t.querySelectorAll(':scope > tbody').length,
+      headTags: rows[0] ? [...rows[0].children].map(c => c.tagName).join(',') : '',
+      bodyTags: rows[1] ? [...rows[1].children].map(c => c.tagName).join(',') : '',
+      cells: rows.map(r => [...r.children].map(c => c.textContent).join('|')).join(' / '),
+      before: t.previousElementSibling && t.previousElementSibling.tagName,
+      after: t.nextElementSibling && t.nextElementSibling.tagName,
+      html: t.outerHTML,
+    };
+  }, catId);
+  // Where the caret is, in table terms.
+  const inCell = () => page.evaluate(() => {
+    const s = getSelection();
+    const n = s.anchorNode && (s.anchorNode.nodeType === 3 ? s.anchorNode.parentElement : s.anchorNode);
+    const c = n && n.closest('td,th');
+    if (!c) return { cell: null, block: n && n.closest('p,li,h3,pre,blockquote') && n.closest('p,li,h3,pre,blockquote').tagName };
+    const tr = c.parentElement;
+    return { cell: c.tagName, row: [...tr.parentElement.children].indexOf(tr), col: [...tr.children].indexOf(c), text: c.textContent };
+  });
+  /* A REAL pointer over the middle of a cell, after putting it on screen --
+     and then ASKING what is under it. `page.mouse.move` aims at a viewport
+     coordinate: if the cell was measured before a scroll settled, or it is
+     behind the header, the move lands on something else and every handle
+     assertion after it fails for a reason that has nothing to do with the
+     handles. The move is nudged away first so a second hover on the same
+     cell is still a MOVE and still fires pointermove. */
+  const hover = async (row, col) => {
+    const box = await page.evaluate((id, r, c) => {
+      const t = document.querySelector(`.nt-body[data-cat="${id}"] table`);
+      const cell = t.querySelectorAll(':scope > tbody > tr')[r].children[c];
+      cell.scrollIntoView({ block: 'center', behavior: 'instant' });
+      const b = cell.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }, catId, row, col);
+    await page.mouse.move(box.x - 40, box.y);
+    await sleep(30);
+    await page.mouse.move(box.x, box.y);
+    await sleep(180);
+    const hit = await page.evaluate((x, y) => {
+      const e = document.elementFromPoint(x, y);
+      return e ? `${e.tagName}${e.className ? '.' + e.className : ''}` : 'nothing';
+    }, box.x, box.y);
+    note(/^(TD|TH)/.test(hit), `hovering row ${row} column ${col} landed on ${hit}, not on the cell`);
+    return box;
+  };
+  /* Clicking a handle with the REAL mouse, and asserting the pointer is on it
+     before pressing. A handle sits outside the table's own box, so the travel
+     crosses canvas that is not a cell -- and a click that lands on the canvas
+     instead reads exactly like a control that does nothing. */
+  const clickHandle = async (sel) => {
+    const b = await page.evaluate((s) => {
+      const e = document.querySelector(s);
+      if (!e) return null;
+      const r = e.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, on: e.classList.contains('is-on') };
+    }, sel);
+    note(!!b && b.w > 0 && b.on, `${sel} is not on screen to be clicked: ${JSON.stringify(b)}`);
+    if (!b) return;
+    await page.mouse.move(b.x, b.y);
+    await sleep(60);
+    const hit = await page.evaluate((x, y, s) => {
+      const e = document.elementFromPoint(x, y);
+      return { tag: e ? `${e.tagName}${e.className ? '.' + e.className : ''}` : 'nothing', mine: !!(e && e.closest(s)) };
+    }, b.x, b.y, sel);
+    note(hit.mine, `the pointer over ${sel} is on ${hit.tag} instead`);
+    await page.mouse.down();
+    await page.mouse.up();
+    await sleep(220);
+  };
+
+  // A clean paragraph at the end of the scratch body to insert from.
+  await page.evaluate((id) => {
+    const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+    b.focus();
+    const p = document.createElement('p'); p.append(document.createElement('br'));
+    b.append(p);
+    const r = document.createRange(); r.selectNodeContents(p); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  }, catId);
+  await sleep(80);
+
+  /* the button, and where it sits */
+  const btn = await page.evaluate(() => {
+    const b = document.querySelector('.nt-fmt-table');
+    if (!b) return null;
+    const group = [...document.querySelectorAll('.nt-header-mid > *')];
+    return { tip: b.getAttribute('data-tip'), last: group[group.length - 1] === b, svg: !!b.querySelector('svg') };
+  });
+  note(!!btn, 'there is no table button in the header');
+  note(btn && btn.last, 'the table button is not the last control in the formatting group');
+  note(btn && btn.tip === 'Table', `the table button's tip is ${btn && JSON.stringify(btn.tip)}, expected "Table"`);
+
+  /* inserting one */
+  await page.evaluate(() => document.querySelector('.nt-fmt-table').click());
+  await sleep(220);
+  let t = await tbl();
+  note(t && t.rows === 3 && t.cols === 3, `the table button made a ${t && t.rows}x${t && t.cols}, expected 3x3`);
+  note(t && t.tbodies === 1, `${t && t.tbodies} tbody elements, expected exactly 1`);
+  note(t && t.headTags === 'TH,TH,TH', `the first row is ${t && t.headTags}, expected three TH`);
+  note(t && t.bodyTags === 'TD,TD,TD', `the second row is ${t && t.bodyTags}, expected three TD`);
+  note(t && t.after === 'P', `there is no paragraph after the table (${t && t.after}) -- the caret could not get past it`);
+  let where = await inCell();
+  note(where.cell === 'TH' && where.row === 0 && where.col === 0, `after inserting, the caret is at ${JSON.stringify(where)}, expected the first header cell`);
+
+  /* typing across it with Tab */
+  await page.keyboard.type('Service');
+  await press('Tab'); await page.keyboard.type('Cost');
+  await press('Tab'); await page.keyboard.type('Charged');
+  await press('Tab'); await page.keyboard.type('Adobe');
+  await sleep(120);
+  t = await tbl();
+  note(t.cells.startsWith('Service|Cost|Charged / Adobe||'), `Tab did not walk across the cells: ${t.cells}`);
+  where = await inCell();
+  note(where.cell === 'TD' && where.row === 1 && where.col === 0, `Tab out of the header did not land in the first body cell: ${JSON.stringify(where)}`);
+  await chord(['Shift'], 'Tab');
+  where = await inCell();
+  note(where.cell === 'TH' && where.col === 2, `Shift+Tab did not step back to the last header cell: ${JSON.stringify(where)}`);
+
+  /* Enter stays in the cell */
+  await page.evaluate((id) => {
+    const c = document.querySelectorAll(`.nt-body[data-cat="${id}"] table td`)[0];
+    const r = document.createRange(); r.selectNodeContents(c); r.collapse(false);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  }, catId);
+  const rowsBeforeEnter = (await tbl()).rows;
+  await press('Enter');
+  await page.keyboard.type('Systems');
+  await sleep(120);
+  t = await tbl();
+  const cellHtml = await page.evaluate((id) => document.querySelector(`.nt-body[data-cat="${id}"] table td`).innerHTML, catId);
+  note(cellHtml === 'Adobe<br>Systems', `Enter in a cell gave ${JSON.stringify(cellHtml)}, expected a <br> inside the cell`);
+  note(t.rows === rowsBeforeEnter, `Enter in a cell changed the row count ${rowsBeforeEnter} -> ${t.rows}`);
+  note((await inCell()).cell === 'TD', 'Enter in a cell moved the caret out of the table');
+
+  /* Tab in the LAST cell adds a row */
+  await page.evaluate((id) => {
+    const cells = document.querySelectorAll(`.nt-body[data-cat="${id}"] table td`);
+    const c = cells[cells.length - 1];
+    const r = document.createRange(); r.selectNodeContents(c); r.collapse(false);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  }, catId);
+  const rowsBeforeTab = (await tbl()).rows;
+  await press('Tab');
+  await sleep(180);
+  t = await tbl();
+  note(t.rows === rowsBeforeTab + 1, `Tab in the last cell did not add a row (${rowsBeforeTab} -> ${t.rows})`);
+  where = await inCell();
+  note(where.cell === 'TD' && where.row === t.rows - 1 && where.col === 0, `Tab past the end did not land in the new row: ${JSON.stringify(where)}`);
+  note(t.headTags === 'TH,TH,TH', 'adding a row changed the header row');
+  await chord(['Control'], 'z');
+  await sleep(220);
+  note((await tbl()).rows === rowsBeforeTab, `ONE undo did not take the added row back (${(await tbl()).rows} rows)`);
+
+  /* Backspace: never merges cells, and escapes from the first one */
+  await page.evaluate((id) => {
+    const c = document.querySelectorAll(`.nt-body[data-cat="${id}"] table td`)[1];
+    const r = document.createRange(); r.setStart(c, 0); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  }, catId);
+  const beforeBack = (await tbl()).html;
+  await press('Backspace');
+  await sleep(150);
+  note((await tbl()).html === beforeBack, 'Backspace at the start of a cell changed the table -- cells must never merge');
+  await page.evaluate((id) => {
+    const c = document.querySelector(`.nt-body[data-cat="${id}"] table th`);
+    const r = document.createRange(); r.setStart(c.firstChild, 0); r.collapse(true);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  }, catId);
+  await press('Backspace');
+  await sleep(180);
+  const escaped = await inCell();
+  note(escaped.cell === null, `Backspace at the start of the first cell left the caret in the table: ${JSON.stringify(escaped)}`);
+  note((await tbl()) !== null, 'Backspace at the start of a filled table DELETED it');
+
+  /* the handles, on a real hover */
+  await hover(1, 1);
+  const handles = await page.evaluate(() => ({
+    row: !!document.querySelector('.nt-tbl-grip.is-row.is-on'),
+    col: !!document.querySelector('.nt-tbl-grip.is-col.is-on'),
+    addRow: !!document.querySelector('.nt-tbl-add.is-row.is-on'),
+    addCol: !!document.querySelector('.nt-tbl-add.is-col.is-on'),
+    inBody: !!document.querySelector('.nt-body .nt-tbl-grip, .nt-body .nt-tbl-add'),
+  }));
+  note(handles.row && handles.col, 'the row and column grips did not appear on hover');
+  note(handles.addRow && handles.addCol, 'the add-row and add-column buttons did not appear on hover');
+  /* THE HANDLES ARE NOT CONTENT. Inside the body they would be serialized,
+     snapshotted by undo, and reachable by the caret and by Backspace. */
+  note(!handles.inBody, 'a table handle is inside the contenteditable body');
+
+  /* add a column with the mouse, take it back with one undo */
+  const colsBefore = (await tbl()).cols;
+  await clickHandle('.nt-tbl-add.is-col');
+  t = await tbl();
+  note(t.cols === colsBefore + 1, `the add-column button did not add one (${colsBefore} -> ${t.cols})`);
+  note(t.headTags === 'TH,'.repeat(t.cols).slice(0, -1), `the new header cell is not a TH: ${t.headTags}`);
+  note(t.bodyTags === 'TD,'.repeat(t.cols).slice(0, -1), `the new body cell is not a TD: ${t.bodyTags}`);
+  await chord(['Control'], 'z');
+  await sleep(220);
+  note((await tbl()).cols === colsBefore, `ONE undo did not take the added column back (${(await tbl()).cols} columns)`);
+
+  /* the menus say what they can and cannot do */
+  await hover(0, 0);
+  await clickHandle('.nt-tbl-grip.is-row');
+  const headMenu = await page.evaluate(() => [...document.querySelectorAll('.nt-menu-item')].map(b => ({ label: b.textContent, off: b.disabled })));
+  note(headMenu.length === 4, `the header row menu has ${headMenu.length} entries, expected 4`);
+  note(headMenu[0] && /above/.test(headMenu[0].label) && headMenu[0].off, 'insert-row-above is offered on the HEADER row');
+  note(headMenu.some(i => /header row stays/i.test(i.label) && i.off), 'the header row can be deleted');
+  await press('Escape'); await sleep(150);
+  await hover(1, 0);
+  await clickHandle('.nt-tbl-grip.is-row');
+  const rowMenu = await page.evaluate(() => [...document.querySelectorAll('.nt-menu-item')].map(b => ({ label: b.textContent, off: b.disabled })));
+  note(rowMenu.some(i => /above/.test(i.label) && !i.off), 'insert-row-above is refused on the first BODY row, where it is legal');
+  note(rowMenu.some(i => /Delete row/.test(i.label) && !i.off), 'delete-row is refused on a body row');
+  await press('Escape'); await sleep(150);
+
+  /* delete a column through its menu */
+  const colsBeforeDelete = (await tbl()).cols;
+  await hover(1, 1);
+  await clickHandle('.nt-tbl-grip.is-col');
+  await page.evaluate(() => [...document.querySelectorAll('.nt-menu-item')].find(b => /Delete column/.test(b.textContent)).click());
+  await sleep(220);
+  note((await tbl()).cols === colsBeforeDelete - 1, `deleting a column left ${(await tbl()).cols}, expected ${colsBeforeDelete - 1}`);
+
+  /* THE CAP, through the button that has to refuse */
+  let guard = 0;
+  let disabled = false;
+  while (guard++ < 12) {
+    await hover(1, 0);
+    disabled = await page.evaluate(() => document.querySelector('.nt-tbl-add.is-col').disabled);
+    if (disabled) break;
+    await clickHandle('.nt-tbl-add.is-col');
+  }
+  t = await tbl();
+  note(disabled, `the add-column button never disabled (stopped at ${t.cols} columns)`);
+  note(t.cols === cap.cols, `columns stopped at ${t.cols}, expected the cap of ${cap.cols}`);
+  const capTip = await page.evaluate(() => document.querySelector('.nt-tbl-add.is-col').getAttribute('data-tip'));
+  note(/8 columns is the most/.test(capTip || ''), `the capped button's tip is ${JSON.stringify(capTip)} -- it must say why it is off`);
+  await clickHandle('.nt-tbl-add.is-col');
+  note((await tbl()).cols === cap.cols, 'clicking the disabled add-column button still added one');
+
+  /* what a PASTED table becomes -- driven through clean(), because these
+     shapes cannot be typed */
+  const shapes = await page.evaluate(async (max) => {
+    const { clean } = await import('/notes/schema.js');
+    const row = (n, tag) => `<tr>${`<${tag}>x</${tag}>`.repeat(n)}</tr>`;
+    const grid = (cols, rows) => `<table><tbody>${row(cols, 'th')}${row(cols, 'td').repeat(rows - 1)}</tbody></table>`;
+    const out = {};
+    out.atCap = clean(grid(max.cols, max.rows));
+    out.overCols = clean(grid(max.cols + 1, 3));
+    out.overRows = clean(grid(3, max.rows + 1));
+    out.spans = clean('<table><tr><td colspan="2" rowspan="3" style="color:red">a</td><td>b</td></tr></table>');
+    out.ragged = clean('<table><tr><th>a</th><th>b</th></tr><tr><td>c</td></tr></table>');
+    out.nested = clean('<table><tr><td>outer<table><tr><td>in1</td><td>in2</td></tr></table></td></tr></table>');
+    out.blocks = clean('<table><tr><td><p>a</p><ul><li>b</li><li>c</li></ul></td></tr></table>');
+    out.thead = clean('<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>d</td></tr></tbody></table>');
+    out.evil = clean('<table><tr><td onclick="x()"><script>alert(1)<\/script>ok</td></tr></table>');
+    out.twice = clean(clean(grid(3, 3))) === clean(grid(3, 3));
+    return out;
+  }, cap);
+  note(shapes.atCap.includes('<table>'), `a table exactly at the cap was refused: ${shapes.atCap.slice(0, 120)}`);
+  note(!shapes.overCols.includes('<table>'), `a ${cap.cols + 1}-column table survived as a table`);
+  note(!shapes.overRows.includes('<table>'), `a ${cap.rows + 1}-row table survived as a table`);
+  /* AN OVER-CAP TABLE MUST NOT LOSE WORDS. Truncating to the cap deletes
+     cells, and a pasted table is exactly the case where nobody would notice
+     which ones. It becomes lines instead, the way every pasted table did
+     before tables existed. */
+  note((shapes.overCols.match(/x/g) || []).length === (cap.cols + 1) * 3, `the over-cap table lost cells: ${shapes.overCols.slice(0, 160)}`);
+  note(shapes.overCols.includes(' · '), 'the over-cap table did not become " · " lines');
+  note(shapes.spans === '<p><br></p><table><tbody><tr><th>a</th><th>b</th></tr></tbody></table><p><br></p>', `colspan/rowspan/style survived: ${shapes.spans}`);
+  note(/<tr><td>c<\/td><td><br><\/td><\/tr>/.test(shapes.ragged), `a ragged row was not padded to a rectangle: ${shapes.ragged}`);
+  note(shapes.nested.includes('outerin1 · in2') && (shapes.nested.match(/<table>/g) || []).length === 1, `a nested table survived: ${shapes.nested}`);
+  note(/<th>a<br>b<br>c<\/th>/.test(shapes.blocks), `blocks in a cell did not flatten to one line each: ${shapes.blocks}`);
+  note((shapes.thead.match(/<tbody>/g) || []).length === 1 && /<th>h<\/th>/.test(shapes.thead), `thead and tbody did not merge into one: ${shapes.thead}`);
+  note(!/onclick|script|alert/.test(shapes.evil) && /ok/.test(shapes.evil), `a handler or a script survived a cell: ${shapes.evil}`);
+  note(shapes.twice, 'clean() is not idempotent on a table -- the body would change on every load');
+  note(shapes.atCap.startsWith('<p><br></p><table') && shapes.atCap.endsWith('</table><p><br></p>'),
+    `a table is not fenced by paragraphs, so the caret cannot be put before or after it: ${shapes.atCap.slice(0, 60)}`);
+
+  /* the round trip a save actually makes */
+  /* THE TABLE'S OWN round trip, not the whole body's. The body also holds the
+     link chips section 11 typed, and a chip carries draggable="false" that
+     serialize() keeps and clean() drops -- true in this repo before tables
+     existed, harmless because hydrate() puts it straight back, and not a
+     thing a table check should be failing on. What IS this check's business
+     is that a table survives the trip a save actually makes: out through
+     serialize(), back in through clean(), and out again unchanged. */
+  const round = await page.evaluate(async (id) => {
+    const { clean, serialize } = await import('/notes/schema.js');
+    const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+    const saved = serialize(b);
+    const only = (html) => { const d = document.createElement('div'); d.innerHTML = html; const t = d.querySelector('table'); return t ? t.outerHTML : null; };
+    const holder = document.createElement('div');
+    holder.innerHTML = clean(saved);
+    const was = only(saved);
+    const now = only(serialize(holder));
+    let at = 0;
+    while (was && now && at < was.length && was[at] === now[at]) at++;
+    return { same: !!was && was === now, saved, was, now, at };
+  }, catId);
+  note(round.same, `the table is not byte-identical through serialize() then clean(); they part at ${round.at}:
+      was: ${(round.was || '').slice(Math.max(0, round.at - 50), round.at + 70)}
+      now: ${(round.now || '').slice(Math.max(0, round.at - 50), round.at + 70)}`);
+  note(round.saved.includes('<table>'), 'serialize() dropped the table');
+  note(!/nt-tbl|is-on/.test(round.saved), `a handle reached the saved body: ${round.saved.slice(0, 200)}`);
+
+  /* and what actually reached the store */
+  await chord(['Control'], 's');
+  await page.waitForFunction(() => /^SAVED/.test(document.querySelector('.nt-status').textContent), { timeout: 15000 });
+  const stored = JSON.parse(await readFile(join(STORE, 'notes/current.json'), 'utf8'));
+  const storedCat = stored.doc.sessions.flatMap(s => s.cats).find(c => c.id === catId);
+  note(storedCat && storedCat.body.includes('<table><tbody><tr><th>Service</th>'), `the table did not reach the store as schema HTML: ${storedCat && storedCat.body.slice(-260)}`);
+  note(storedCat && !/colspan|rowspan|style=|nt-tbl/.test(storedCat.body), 'the stored table carries markup the schema does not allow');
+  const storedCols = (storedCat.body.match(/<th>/g) || []).length;
+  note(storedCols === cap.cols, `${storedCols} header cells in the store, expected ${cap.cols}`);
+
+  /* COUNT THE SUBJECT. Every assertion above is about one table; if the
+     insert had silently made nothing, most of them would have compared
+     null to null. */
+  const seen = await page.evaluate((id) => {
+    const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+    return { tables: b.querySelectorAll('table').length, cells: b.querySelectorAll('td,th').length };
+  }, catId);
+  note(seen.tables === 1, `${seen.tables} tables in the scratch body, expected exactly 1`);
+  note(seen.cells >= cap.cols * 3, `${seen.cells} cells examined, expected at least ${cap.cols * 3}`);
+
+  /* delete it, so the checks after this one see the body they expect */
+  await hover(1, 0);
+  await clickHandle('.nt-tbl-grip.is-row');
+  await page.evaluate(() => [...document.querySelectorAll('.nt-menu-item')].find(b => /Delete table/.test(b.textContent)).click());
+  await sleep(250);
+  note((await tbl()) === null, 'Delete table left a table behind');
+  console.log(`tables: 3x3 inserted, Tab walked ${seen.cells} cells, cap held at ${cap.cols} columns, ${cap.rows} rows; store agrees`);
+}
+
+/* ---- 19. what reached the store ---------------------------------------------------- */
 await chord(['Control'], 's');
 await page.waitForFunction(() => /^SAVED/.test(document.querySelector('.nt-status').textContent), { timeout: 15000 });
 const stored = JSON.parse(await readFile(join(STORE, 'notes/current.json'), 'utf8'));

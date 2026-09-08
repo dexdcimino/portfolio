@@ -25,6 +25,54 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-08 — a table is flat, rectangular, and 8 x 50
+
+**Decided.** The notes editor gets a table block whose cells hold inline
+content and nothing else: no blocks, no lists, no nested tables, no `colspan`
+or `rowspan`, every row the same width, one `tbody`, and the first row is the
+header. It is capped at 8 columns and 50 rows, and a table that arrives over
+the cap is turned into one line per row rather than truncated.
+
+**It replaced** the two things a table could have been. A full table model with
+spans and per-cell blocks, which is what a word processor has. And nothing --
+`clean()` already turned every pasted table into ` · ` lines, and Dex's bills
+table had been living as a paragraph.
+
+**Why.** Spans are where a table editor's hard bugs live. With them, "the cell
+to the right" and "the column under this one" stop being the same question, so
+Tab, insert-column, delete-column and the caret rules each have to answer both,
+and a ragged table makes every one of those answers conditional. Flat and
+rectangular means a cell is one line box of inline content -- a shape the
+existing caret machinery in `editor.js` already handles, because it is the same
+shape as a paragraph. That is what kept this to one new module rather than a
+second editor.
+
+The cap is measured, not chosen. **8 columns** is what the widest writing area
+holds at a readable width: the body is 948px at 1440px and above, 8 columns of
+that is 118px, and "Progressive" -- the widest word in the table this was built
+for -- is 88px at the default 17px. A ninth column puts every cell under 105px
+and ordinary words wrap. **50 rows** is editorial rather than technical, and
+the measurement is what says so: an 8x50 table costs 1.4ms of the per-keystroke
+body clone (`capture()` plus `serialize()`, both on every keystroke) against
+0.05ms empty, 8x400 is still 7.2ms, and 8x50 is 0.2% of the 4 MB document
+ceiling. So 50 is where a note stops being a note, with about eight times that
+much headroom underneath it.
+
+**Over the cap becomes lines, not a truncated table.** Truncating deletes
+cells, and a pasted table is exactly the case where nobody would notice which
+ones; lines lose the grid and keep every word, which is what `clean()` did with
+every table before this.
+
+**Reverse it if** a real table turns up that needs a merged cell -- a header
+spanning two columns is the usual one -- and living without it is worse than
+the conditional logic. That is a schema change plus a rewrite of every
+add/remove/Tab path, so it is worth doing once, deliberately, and not worth
+half-doing. Raise the row cap instead of reversing anything if 50 becomes the
+constraint: the measurement above says the headroom is there, and it is one
+constant in `notes/schema.js`.
+
+---
+
 ## 2026-09-08 — known sites get bundled brand marks; unknown ones keep the hash
 
 **Decided.** `BRANDS` in `notes/nodes.js` is a table of about fifty sites.

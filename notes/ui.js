@@ -269,6 +269,7 @@ export const ICON = {
   code: S('<path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>'),
   heading: S('<path d="M5 5v14M15 5v14M5 12h10"/><path d="M18 14.5c.5-.6 2.5-.6 2.5.5S18.5 17 18.5 18.5H21" stroke-width="1.6"/>'),
   hr: S('<line x1="4" y1="12" x2="20" y2="12"/>'),
+  table: S('<rect x="3" y="4.5" width="18" height="15" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="3" y1="14.5" x2="21" y2="14.5"/><line x1="9" y1="4.5" x2="9" y2="19.5"/><line x1="15" y1="4.5" x2="15" y2="19.5"/>'),
   copy: S('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>'),
   check: S('<path d="M5 12l4.5 4.5L19 7"/>'),
   eye: S('<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),

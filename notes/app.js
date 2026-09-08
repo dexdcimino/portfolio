@@ -19,8 +19,9 @@ import { el, escapeHtml, debounce, caretToEnd } from './dom.js';
 import { clean, serialize, toText } from './schema.js';
 import { History } from './history.js';
 import { normalize, migrateHtml, demoDoc, activeSession, catOf, touch, restore as restoreSession, FONTS, SIZES, emptyDoc } from './state.js';
-import { initEditor, capture, format, align, toggleList, indent, stateAt, insertInline, transact as editorTransact } from './editor.js';
+import { initEditor, capture, format, align, toggleList, indent, stateAt, insertInline, insertBlockAfterCaret, transact as editorTransact } from './editor.js';
 import * as chips from './chips.js';
+import * as tables from './table.js';
 import * as nodes from './nodes.js';
 import * as emoji from './emoji.js';
 import * as color from './color.js';
@@ -135,7 +136,8 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     filterSidebar: (hits) => render.filterSidebar(hits),
     expandCat: (id) => render.expandCat(id),
     chips, emoji, slash, spell, search, dictate, nodes,
-    editor: { transact: editorTransact },
+    tables: { insert: (b) => tables.insertTable(b) },
+    editor: { transact: editorTransact, insertBlockAfterCaret },
     color: { open: color.openColor },
     catTitle: (id) => { const c = catOf(activeSession(doc), id); return c ? c.title : 'Notes'; },
     scrollToCat: (id) => render.jumpTo(id),
@@ -169,6 +171,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   render.initRender(ctx);
   initEditor(ctx);
   nodes.initNodes(ctx);
+  tables.initTables(ctx);
   chips.initChips(ctx);
   emoji.initEmoji(ctx);
   color.initColor(ctx);
@@ -229,6 +232,11 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     /* ONE list button. Numbered and to-do are still a keystroke and still in
        the slash menu; three buttons for one idea was three buttons. */
     ul: btn('nt-fmt nt-fmt-list', 'Autolist', ICON.autolist, () => withBody((b) => toggleList(b, 'ul'))),
+    /* A TABLE CARRIES A TIP by the rule three comments up: the mark is a
+       grid, which says "table" and says nothing about the three-by-three it
+       actually makes or that the rows and columns are added from the table
+       itself afterwards. */
+    table: btn('nt-fmt nt-fmt-table', 'Table', ICON.table, () => withBody((b) => tables.insertTable(b))),
   };
   for (const b of Object.values(fmt)) b.addEventListener('mousedown', (e) => e.preventDefault());
   const spellBtn = btn('nt-spell-btn', 'Spellcheck', ICON.spell, () => { spell.setEnabled(!spell.enabled()); syncSettings(); });
@@ -268,7 +276,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
      descriptions. */
   header.append(
     el('div', { class: 'nt-header-left' }, searchMount),
-    el('div', { class: 'nt-header-mid' }, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, sep(), fmt.left, fmt.center, fmt.right, sep(), spellBtn, fmt.ul, nodeBtn),
+    el('div', { class: 'nt-header-mid' }, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, sep(), fmt.left, fmt.center, fmt.right, sep(), spellBtn, fmt.ul, nodeBtn, fmt.table),
     el('div', { class: 'nt-header-right' }, status, infoBtn, themeBtn, closeBtn));
   search.initSearch(ctx, searchMount);
   wireHelp(infoBtn);

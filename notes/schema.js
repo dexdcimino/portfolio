@@ -9,15 +9,31 @@
  * back into the schema before it can compound.
  *
  * THE SCHEMA
- *   root      p | h3 | ul | ol | pre | blockquote | hr
+ *   root      p | h3 | ul | ol | pre | blockquote | hr | table
  *   ul, ol    li+            ul may carry class "todo"; ol may carry type 1|a|i
  *   li        inline*, then at most one ul|ol at the very end; data-checked
  *   p, h3, blockquote   inline*; class al-c | al-r for alignment
  *   pre       text and br only
+ *   table     exactly one tbody; tbody tr+; tr th+ in the FIRST row, td+ after
+ *   th, td    inline* only -- no blocks, no lists, no nested tables, and no
+ *             colspan or rowspan. Every row is the same width.
  *   inline    text | b | i | u | s | code | a | br | img | span.chip
  *   a         href http(s)/mailto only. class "chip chip-link" for a chip.
  *   img       class nt-img, data-key <sha>.<ext>, data-w 25|50|75|100
  *   span      class "chip chip-md" with data-md; nothing else survives
+ *
+ * A TABLE IS RECTANGULAR AND FLAT, and both halves of that are enforced here
+ * rather than trusted. Ragged rows and spans are where every table editor's
+ * hard bugs live: with them, "the cell to the right" and "the column under
+ * this one" stop being the same question, and every add, remove and Tab has
+ * to answer both. Flat cells mean a cell is one line box holding inline
+ * content, which is a shape the caret rules in editor.js already know.
+ *
+ * A table OVER THE CAP is not a table. `MAX_COLS` x `MAX_ROWS` is what the
+ * editor can add up to; anything larger arriving from a paste or an older
+ * document becomes one paragraph per row, cells joined by " · ", which is
+ * exactly what every pasted table did before tables existed. Nothing is lost
+ * and the invariant holds.
  *
  * No style attribute anywhere. The site's CSP has no 'unsafe-inline' for
  * styles, so an inline style is not merely untidy -- it is silently ignored
@@ -25,11 +41,39 @@
  * that looks different after a reload than it did while typing.
  */
 
-import { isEl, isText, isList } from './dom.js';
+import { isEl, isText, isList, isCell } from './dom.js';
 
-const ROOT_BLOCKS = new Set(['P', 'H3', 'UL', 'OL', 'PRE', 'BLOCKQUOTE', 'HR']);
+const ROOT_BLOCKS = new Set(['P', 'H3', 'UL', 'OL', 'PRE', 'BLOCKQUOTE', 'HR', 'TABLE']);
+const TABLE_PARTS = new Set(['TBODY', 'TR', 'TD', 'TH']);
 const INLINE = new Set(['B', 'I', 'U', 'S', 'CODE', 'A', 'BR', 'IMG', 'SPAN']);
-const ALIAS = { STRONG: 'B', EM: 'I', STRIKE: 'S', DEL: 'S', H1: 'H3', H2: 'H3', H4: 'H3', H5: 'H3', H6: 'H3', DIV: 'P' };
+// THEAD and TFOOT fold into the one tbody: a header row is the FIRST row,
+// not a second container to keep in step with the first.
+const ALIAS = { STRONG: 'B', EM: 'I', STRIKE: 'S', DEL: 'S', H1: 'H3', H2: 'H3', H4: 'H3', H5: 'H3', H6: 'H3', DIV: 'P', THEAD: 'TBODY', TFOOT: 'TBODY' };
+
+/* THE CAP, and where the numbers came from.
+ *
+ * EIGHT COLUMNS is what the app's WIDEST writing area holds at a readable
+ * width. Measured: a category body is 948px at 1440px and wider, and 8
+ * columns of that is 118px each -- enough for "Progressive", the widest word
+ * in the bills table this was built for, which is 88px at the default 17px.
+ * A ninth column puts every cell under 105px and ordinary words start
+ * wrapping. The NARROWEST body the layout produces is 368px (at a 780px
+ * window, the last width before the sidebar stops being docked), and 8
+ * columns cannot be readable in that -- so the table scrolls sideways inside
+ * its own box below `--nt-col-min` per column rather than being squeezed.
+ *
+ * FIFTY ROWS is an editorial cap, not a technical one, and the measurement
+ * is what says so. Every keystroke in a category clones the whole body twice
+ * -- capture() for the history and serialize() for the save comparison -- and
+ * an 8x50 table costs 1.4ms of that, against 0.05ms for an empty one; 8x400
+ * is still only 7.2ms, well inside a frame. In the store an 8x50 filled table
+ * is 8.4 KB, 0.2% of the 4 MB document ceiling. So 50 is where a note stops
+ * being a note, chosen with roughly eight times that much headroom measured
+ * underneath it -- which is the number to look at before moving it, rather
+ * than re-deriving whether it is safe.
+ */
+export const MAX_COLS = 8;
+export const MAX_ROWS = 50;
 const BLOCK_CLASSES = new Set(['al-c', 'al-r']);
 const IMG_WIDTHS = new Set(['25', '50', '75', '100']);
 
@@ -90,14 +134,21 @@ function cleanTree(node) {
       unwrap(child); cleanTree(node); return;
     }
 
-    const allowed = ROOT_BLOCKS.has(tag) || tag === 'LI' || INLINE.has(tag);
+    const allowed = ROOT_BLOCKS.has(tag) || tag === 'LI' || TABLE_PARTS.has(tag) || INLINE.has(tag);
     if (!allowed) {
       // Unwrap rather than remove: a tag this does not know about is far
       // more likely to be a paste from somewhere than an attack, and deleting
-      // the words inside it would lose real notes. Tables become their
-      // cells' text, one after another.
-      if (tag === 'TR' || tag === 'TABLE' || tag === 'TBODY' || tag === 'THEAD') {
-        unwrapAsLines(child);
+      // the words inside it would lose real notes. A table part with no table
+      // around it is one of those -- the parser drops it anyway, but a
+      // <caption> or a <colgroup> arrives intact and is not content.
+      if (tag === 'CAPTION') {
+        const p = document.createElement('p');
+        while (child.firstChild) p.append(child.firstChild);
+        child.replaceWith(p);
+        cleanTree(node);
+        return;
+      } else if (tag === 'COLGROUP' || tag === 'COL') {
+        child.remove();
       } else if (tag === 'STYLE' || tag === 'SCRIPT' || tag === 'HEAD' || tag === 'META' || tag === 'LINK' || tag === 'TITLE') {
         child.remove();
       } else {
@@ -224,7 +275,10 @@ export function normalizeRoot(root) {
   for (const list of root.querySelectorAll('ul,ol')) fixList(list);
   for (const li of root.querySelectorAll('li')) fixItem(li);
   for (const pre of root.querySelectorAll('pre')) fixPre(pre);
-  for (const block of root.querySelectorAll('p,h3,blockquote,li')) {
+  // Innermost first: a table inside a cell is flattened by the cell it is in,
+  // so the outer table's own shape is settled after its cells are.
+  for (const table of [...root.querySelectorAll('table')].reverse()) fixTable(table, root);
+  for (const block of root.querySelectorAll('p,h3,blockquote,li,td,th')) {
     // A block with nothing in it keeps a <br> so it has a line box to click.
     if (!block.childNodes.length) block.append(document.createElement('br'));
     // No nested blocks inside a paragraph: <p><p>x</p></p> cannot exist in
@@ -240,11 +294,120 @@ export function normalizeRoot(root) {
       list.remove();
     }
   }
-  if (!root.childNodes.length) {
-    const p = document.createElement('p');
-    p.append(document.createElement('br'));
-    root.append(p);
+  /* A TABLE IS NEVER THE FIRST OR LAST BLOCK IN A BODY. Without this there
+   * is no line to put the caret on above a table at the top of a note, or
+   * below one at the bottom, and no key that can make one -- the caret has
+   * nowhere to go, so the table cannot be escaped in that direction and a
+   * paragraph cannot be typed there. Doing it here rather than in a key
+   * handler is what makes it true for a body that arrived from the store,
+   * from a paste and from undo, and it is idempotent, so clean() still
+   * agrees with itself. */
+  if (root.firstElementChild && root.firstElementChild.tagName === 'TABLE') root.prepend(emptyP());
+  if (root.lastElementChild && root.lastElementChild.tagName === 'TABLE') root.append(emptyP());
+  if (!root.childNodes.length) root.append(emptyP());
+}
+
+function emptyP() {
+  const p = document.createElement('p');
+  p.append(document.createElement('br'));
+  return p;
+}
+
+/* ---- tables --------------------------------------------------------------- */
+
+/* Make a table rectangular, flat and inside the cap, or make it not a table.
+ * `root` is the body it lives in, so an over-cap table can be replaced by the
+ * lines it becomes. */
+function fixTable(table, root) {
+  // Anything that is not a row container gets lifted OUT rather than dropped:
+  // a <caption> has already become a paragraph by now, and a paragraph inside
+  // a <table> is content standing in the wrong place, not decoration.
+  for (const child of [...table.childNodes]) {
+    if (isEl(child) && child.tagName === 'TBODY') continue;
+    if (isEl(child) && child.tagName === 'TR') continue;      // moved below
+    if (isText(child) && !child.nodeValue.trim()) { child.remove(); continue; }
+    table.before(child);
   }
+  // One tbody. Rows sitting directly on the table, or spread over several
+  // bodies (a thead and a tbody, both aliased to TBODY above), come together.
+  let body = table.querySelector(':scope > tbody');
+  if (!body) { body = document.createElement('tbody'); table.prepend(body); }
+  for (const child of [...table.children]) {
+    if (child === body) continue;
+    if (child.tagName === 'TBODY' || child.tagName === 'TR') {
+      const rows = child.tagName === 'TR' ? [child] : [...child.children];
+      for (const tr of rows) if (tr.tagName === 'TR') body.append(tr);
+      if (child !== body) child.remove();
+    }
+  }
+  const rows = [...body.children].filter((n) => n.tagName === 'TR');
+  for (const tr of body.children) if (tr.tagName !== 'TR') tr.remove();
+
+  // Cells hold inline content only, and a cell's own nested table is flattened
+  // before anything is counted -- otherwise the width of this table depends on
+  // a table inside it.
+  for (const tr of rows) {
+    for (const child of [...tr.childNodes]) {
+      if (isCell(child)) { fixCell(child); continue; }
+      if (isText(child) && !child.nodeValue.trim()) { child.remove(); continue; }
+      // Loose content in a row: give it a cell rather than lose it.
+      const td = document.createElement('td');
+      child.replaceWith(td);
+      td.append(child);
+      fixCell(td);
+    }
+  }
+
+  const width = rows.reduce((n, tr) => Math.max(n, tr.children.length), 0);
+  if (!rows.length || !width) { table.remove(); return; }
+
+  /* OVER THE CAP IS NOT A TABLE. The alternative -- truncating to the cap --
+   * silently deletes cells, and a table that arrives from a paste is exactly
+   * the case where nobody would notice which ones. Lines lose the grid and
+   * keep every word. */
+  if (width > MAX_COLS || rows.length > MAX_ROWS) { unwrapAsLines(table); void root; return; }
+
+  // Rectangular: every row is `width` cells, and the first row is the header.
+  rows.forEach((tr, r) => {
+    const want = r === 0 ? 'TH' : 'TD';
+    for (const cell of [...tr.children]) {
+      if (cell.tagName === want) continue;
+      const swap = document.createElement(want.toLowerCase());
+      while (cell.firstChild) swap.append(cell.firstChild);
+      cell.replaceWith(swap);
+    }
+    while (tr.children.length < width) tr.append(document.createElement(want.toLowerCase()));
+  });
+}
+
+/* A cell is one line box of inline content. Blocks inside it flatten to lines
+ * the way they do inside an <li>, and a nested table becomes its own cells'
+ * text -- the same answer clean() gave every pasted table before this. */
+function fixCell(cell) {
+  const isBr = (n) => isEl(n) && n.tagName === 'BR';
+  // One break between two flattened things, never two. A <p> followed by a
+  // <ul> would otherwise earn a break from each of them and land in the cell
+  // as a blank line nobody typed.
+  const breakBefore = (node) => { if (node.previousSibling && !isBr(node.previousSibling)) node.before(document.createElement('br')); };
+  const breakAfter = (node) => { if (node.nextSibling && !isBr(node.nextSibling)) node.after(document.createElement('br')); };
+  for (const inner of [...cell.querySelectorAll('table')]) unwrapAsLines(inner);
+  for (const list of [...cell.querySelectorAll('ul,ol')]) {
+    for (const li of [...list.querySelectorAll('li')]) {
+      // The FIRST item needs no break of its own: whatever the list follows
+      // has already earned one from breakAfter below.
+      breakBefore(li);
+      unwrap(li);
+    }
+    unwrap(list);
+  }
+  for (const child of [...cell.childNodes]) {
+    if (isEl(child) && (ROOT_BLOCKS.has(child.tagName) || child.tagName === 'LI')) {
+      breakAfter(child);
+      if (child.tagName === 'HR') { child.remove(); continue; }
+      unwrap(child);
+    }
+  }
+  cell.removeAttribute('class');
 }
 
 function wrapInline(root, tag) {
@@ -365,6 +528,26 @@ export function scrub(root) {
       break;
     }
   }
+  /* A TABLE THE BROWSER HAS BEEN IN. Everything above looks at the root's own
+   * children, so a <p> Chrome put inside a cell -- which is what it does on
+   * Enter, on a paste and on a merge across cells -- is invisible to it and
+   * compounds until the next reload rewrites the note under Dex. The gate is
+   * cheap because it only runs where there is a table at all, and it asks the
+   * three questions normalizeRoot answers: blocks in a cell, a ragged row,
+   * and a table sitting at an edge of the body with no line beside it. */
+  if (root.querySelector('table')) {
+    const ragged = [...root.querySelectorAll('table')].some((t) => {
+      const rows = [...t.querySelectorAll(':scope > tbody > tr')];
+      return t.children.length !== 1 || !rows.length
+        || rows.some((tr) => tr.children.length !== rows[0].children.length);
+    });
+    const edge = (root.firstElementChild && root.firstElementChild.tagName === 'TABLE')
+      || (root.lastElementChild && root.lastElementChild.tagName === 'TABLE');
+    if (ragged || edge || root.querySelector('td > p, th > p, td > div, th > div, td > h3, th > h3, td > ul, th > ul, td > ol, th > ol, td > table, th > table, td > li, th > li')) {
+      normalizeRoot(root);
+      changed = true;
+    }
+  }
   if (!root.childNodes.length) { normalizeRoot(root); changed = true; }
   return changed;
 }
@@ -421,6 +604,16 @@ export function toText(html) {
         continue;
       }
       if (t === 'UL' || t === 'OL') { walk(child, depth); continue; }
+      // A table reads as one line per row, the way a pasted one always has.
+      // Search matches a phrase inside a cell; it should not match one that
+      // spans two, so the rows are lines and the cells are separated.
+      if (t === 'TABLE' || t === 'TBODY') { walk(child, depth); continue; }
+      if (t === 'TR') { lines.push('  '.repeat(depth)); walk(child, depth); continue; }
+      if (t === 'TD' || t === 'TH') {
+        if (child.previousElementSibling) lines[lines.length - 1] += ' · ';
+        walk(child, depth);
+        continue;
+      }
       if (t === 'P' || t === 'H3' || t === 'PRE' || t === 'BLOCKQUOTE') {
         lines.push('  '.repeat(depth) + (t === 'BLOCKQUOTE' ? '> ' : ''));
         walk(child, depth);

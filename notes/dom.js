@@ -5,13 +5,22 @@
  * a re-render, and how to put it back.
  */
 
-export const BLOCKS = new Set(['P', 'H3', 'UL', 'OL', 'LI', 'PRE', 'BLOCKQUOTE', 'HR']);
+export const BLOCKS = new Set(['P', 'H3', 'UL', 'OL', 'LI', 'PRE', 'BLOCKQUOTE', 'HR', 'TABLE', 'TR', 'TD', 'TH']);
 export const LISTS = new Set(['UL', 'OL']);
+/* CONTAINERS, not lines. A list and a table hold blocks rather than being
+ * one, so `blockOf` walks past them to the LI or the cell the caret is
+ * actually in. Getting this wrong means every caret rule -- start of block,
+ * end of block, what Backspace unwinds -- answers about the table instead of
+ * about the cell, which looks like the keys doing nothing. */
+export const CONTAINERS = new Set(['UL', 'OL', 'TABLE', 'TBODY', 'TR']);
+export const CELLS = new Set(['TD', 'TH']);
 
 export const isEl = (n) => !!n && n.nodeType === 1;
 export const isText = (n) => !!n && n.nodeType === 3;
 export const isList = (n) => isEl(n) && LISTS.has(n.tagName);
 export const isBlock = (n) => isEl(n) && BLOCKS.has(n.tagName);
+export const isContainer = (n) => isEl(n) && CONTAINERS.has(n.tagName);
+export const isCell = (n) => isEl(n) && CELLS.has(n.tagName);
 
 export function el(tag, attrs, ...children) {
   const node = document.createElement(tag);
@@ -169,7 +178,7 @@ export function restoreSelection(root, saved) {
 export function blockOf(root, node) {
   let n = elOf(node);
   while (n && n !== root) {
-    if (isBlock(n) && !isList(n)) return n;
+    if (isBlock(n) && !isContainer(n)) return n;
     n = n.parentElement;
   }
   return null;
@@ -183,7 +192,7 @@ export function blocksIn(root, range) {
   const last = blockOf(root, range.endContainer);
   if (!first) return out;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
-    acceptNode: (n) => (isBlock(n) && !isList(n) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+    acceptNode: (n) => (isBlock(n) && !isContainer(n) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
   });
   let started = false;
   while (walker.nextNode()) {

@@ -22,6 +22,7 @@ const COMMANDS = () => [
   { key: 'quote', label: 'Quote', hint: '> ', icon: ICON.quote, run: (b) => setBlock(b, 'blockquote') },
   { key: 'code', label: 'Code block', hint: '```', icon: ICON.code, run: (b) => setBlock(b, 'pre') },
   { key: 'divider', label: 'Divider', hint: '---', icon: ICON.hr, run: (b) => insertDivider(b) },
+  { key: 'table', label: 'Table', hint: '', icon: ICON.table, run: (b) => ctx.tables.insert(b) },
   { key: 'link', label: 'Link', hint: 'Ctrl+K', icon: ICON.link, run: (b) => ctx.chips.promptLink(b) },
   { key: 'markdown', label: 'Markdown node', hint: '', icon: ICON.md, run: (b) => ctx.chips.insertMd(b) },
   { key: 'image', label: 'Image', hint: 'paste or drop', icon: ICON.image, run: (b) => ctx.chips.pickImage(b) },

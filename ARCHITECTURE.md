@@ -1212,6 +1212,7 @@ notes/          the app, ES modules, fetched only after the password passes
   color.js        the picker, and tints(): one hex -> the three text tiers
   render.js       sidebar, rail, canvas, sessions, archive, drag-reorder, scroll spy
   chips.js        link chips, markdown nodes, images (upload, size, menus)
+  table.js        tables: make one, Tab/Enter/Backspace in a cell, the handles
   spell.js        Highlight API marks, the right-click menu, autocorrect
   spell-worker.js the Hunspell dictionary, off the main thread
   emoji.js        the ":" picker (3x3) and the full picker
@@ -1341,10 +1342,43 @@ shape or a hand-edited blob cannot crash the app.
 
 ### What a body may contain
 
-`schema.js` is the contract: root blocks `p h3 ul ol pre blockquote hr`; items
-hold inline content then at most one nested list at the end; inline is
+`schema.js` is the contract: root blocks `p h3 ul ol pre blockquote hr table`;
+items hold inline content then at most one nested list at the end; inline is
 `b i u s code a br img` plus `span.chip`. Alignment is a class (`al-c`, `al-r`),
 todo state is `data-checked` on the item, images are `data-key`/`data-w`.
+
+**A TABLE IS RECTANGULAR AND FLAT**, and both halves are enforced by `clean()`
+rather than trusted: exactly one `tbody`, every row the same width, the FIRST
+row's cells are `th` and the rest are `td`, and a cell holds inline content
+only -- no blocks, no lists, no nested tables, no `colspan` or `rowspan`. With
+spans, "the cell to the right" and "the column under this one" stop being the
+same question and every add, remove and Tab has to answer both; flat cells are
+a shape `editor.js`'s caret rules already know. `thead` and `tfoot` fold into
+the one `tbody` -- a header row is the first row, not a second container to
+keep in step. **A table over the cap is not a table**: `MAX_COLS` x `MAX_ROWS`
+is what the editor can build, and anything larger arriving from a paste or an
+older document becomes one paragraph per row with cells joined by ` · `, which
+is what every pasted table became before tables existed. Nothing is lost and
+the invariant holds. **A table is never the first or last block in a body** --
+`normalizeRoot` fences it with an empty paragraph, so there is always a line to
+put the caret on above and below one.
+
+**The cap is 8 columns x 50 rows, and both numbers were measured.** Eight
+columns is what the app's widest writing area holds at a readable width: a
+category body is 948px at 1440px and above, so 8 columns is 118px each, and
+"Progressive" -- the widest word in the bills table this was built for -- is
+88px at the default 17px. A ninth puts every cell under 105px and ordinary
+words start wrapping. The narrowest body the layout produces is 368px (at a
+780px window, the last width before the sidebar stops being docked), where the
+table scrolls sideways inside its own box rather than squeezing: `--nt-col-min`
+is 92px and the `overflow-x` is on the table itself. Fifty rows is an
+EDITORIAL cap and the measurement is what says so -- every keystroke in a
+category clones the whole body twice, `capture()` for the history and
+`serialize()` for the save comparison, and an 8x50 table costs 1.4ms of that
+against 0.05ms for an empty one; 8x400 is still 7.2ms, well inside a frame,
+and an 8x50 filled table is 8.4 KB, 0.2% of the 4 MB document ceiling. So the
+row cap has roughly eight times its own headroom measured underneath it, which
+is the number to look at before moving it.
 **No style attribute anywhere**: the site's CSP has no `'unsafe-inline'` for
 styles, so an inline style is not untidy, it is silently ignored on reload.
 `clean()` runs on every string on its way in (server, paste, undo) -- in a
@@ -1357,6 +1391,25 @@ transient: image srcs, selection classes. A save and a reload are
 byte-identical, which is what lets the save loop compare strings.
 
 ### Editing
+
+**Inside a table, `table.js` answers the keys first.** Tab and Shift+Tab move
+between cells and Tab in the LAST cell adds a row and lands in it, which is how
+a table gets filled in without reaching for the mouse; at the row cap it does
+nothing and says why. Enter inserts a line break and stays in the cell -- a
+cell holds inline content, so there is no second block to split into, and
+moving down instead would leave no way at all to write two lines in a cell when
+Tab and the arrows already move. Backspace at the start of a cell never merges
+cells; at the start of the FIRST cell it deletes the table if every cell is
+empty and otherwise hands the caret to the line above, which is the only way
+out of a table to the left. The row and column handles are appended to the app
+root and positioned over the table, the way `nodes.js`'s chip toolbar is: a
+control rendered inside the body would be serialized, snapshotted by undo,
+reachable by the caret and deletable by Backspace. They hide on a delay rather
+than on the canvas's `pointerleave`, because reaching for one leaves the canvas
+-- hiding immediately took the button away in the same event the pointer
+arrived on it, and the press landed on the category box underneath. Every
+structural change goes through `editor.transact`, so adding a row is one undo
+step.
 
 The browser types, deletes and applies bold; `editor.js` does lists and blocks,
 because a contenteditable's own ideas about lists are the source of nearly

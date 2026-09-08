@@ -678,6 +678,55 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-body pre b, .nt-body pre strong, .nt-body code b, .nt-body code strong { color: inherit; }
 .nt-body code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .88em; background: color-mix(in srgb, var(--tx3) 22%, transparent); border-radius: 4px; padding: .08em .35em; }
 .nt-body hr { border: 0; border-top: 2px solid color-mix(in srgb, var(--c) 45%, transparent); margin: 12px 0; }
+/* ---- tables ---------------------------------------------------------------
+   The category's colour, the same way every other block takes it: var(--c)
+   read HERE, on the element that uses it. A --c-table declared on the app
+   root would be substituted there, against the root's --c, and every category
+   would get the session's colour instead of its own.
+
+   The table SCROLLS SIDEWAYS rather than squeezing. Eight columns are
+   readable in the 948px body the widest layout gives; the narrowest is 368px,
+   where eight columns would be 46px each. --nt-col-min is the floor a column
+   may not go under, and the wrapper carries the overflow so the page itself
+   never scrolls horizontally. */
+.nt-body table {
+  --nt-col-min: 92px;
+  display: block; overflow-x: auto; overflow-y: hidden;
+  border-collapse: collapse; margin: 8px 0; max-width: 100%;
+  scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--c) 45%, transparent) transparent;
+}
+.nt-body table::-webkit-scrollbar { height: 7px; }
+.nt-body table::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--c) 45%, transparent); border-radius: 4px; }
+/* AUTO layout, not fixed. `table-layout: fixed` ignores a cell's min-width,
+   which is the whole mechanism here: the columns have to be able to push the
+   table wider than its container so the container can scroll. */
+.nt-body table tbody { display: table; width: 100%; border-collapse: collapse; }
+.nt-body table th, .nt-body table td {
+  border: 1px solid color-mix(in srgb, var(--c) 34%, var(--bdr));
+  padding: 5px 9px; text-align: left; vertical-align: top;
+  min-width: var(--nt-col-min); overflow-wrap: anywhere;
+}
+/* The header row is the category's colour as TEXT, on the faintest wash of
+   it -- the same pairing the category title strip uses, so a table reads as
+   part of its category rather than as a component dropped into it. */
+.nt-body table th { background: color-mix(in srgb, var(--c) 11%, transparent); color: var(--c-title); font-weight: 700; }
+.nt-body table td { color: var(--c-body); }
+.nt-body table tr:nth-child(even) td { background: color-mix(in srgb, var(--tx3) 7%, transparent); }
+
+/* The handles. They are appended to the app root, not to the body, so they
+   are positioned in the root's coordinates by table.js and are hidden until
+   the pointer is over a table. */
+.nt-tbl-grip, .nt-tbl-add {
+  position: absolute; z-index: 40; width: 22px; height: 22px; padding: 0;
+  display: none; place-items: center; border-radius: 6px;
+  border: 1px solid var(--bdr); background: var(--bg3); color: var(--tx3);
+  transition: background var(--ease), color var(--ease), border-color var(--ease);
+}
+.nt-tbl-grip.is-on, .nt-tbl-add.is-on { display: grid; }
+.nt-tbl-grip svg, .nt-tbl-add svg { width: 14px; height: 14px; }
+.nt-tbl-grip.is-col svg { transform: rotate(90deg); }
+.nt-tbl-grip:hover, .nt-tbl-add:hover:not(:disabled) { background: var(--bg4); color: var(--c-title); border-color: color-mix(in srgb, var(--c) 55%, var(--bdr)); }
+.nt-tbl-add:disabled { opacity: .3; }
 /* The second tier. A heading and a bold line are the same thing in these
    notes -- the top of a list, the name of the group under it. */
 .nt-body b, .nt-body strong { font-weight: 700; color: var(--c-bold); }
