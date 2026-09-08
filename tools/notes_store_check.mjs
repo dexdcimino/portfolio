@@ -37,9 +37,27 @@ delete process.env.VERCEL_ENV;
  * to match the caller would have agreed with the bug. */
 const store = new Map();
 let getCalls = [];
+
+/* THE OPERATION TALLY. The 2026-09-08 lockout was not a correctness bug --
+ * every tier worked -- it was a COST bug: writeNotes listed both backup
+ * folders on every single save, and a list is an "advanced" blob operation.
+ * So the calls are counted here and the counts are asserted against numbers.
+ *
+ * `ops` is reset around a case; `opsEver` never is, and exists so an
+ * "expected 0" assertion cannot pass because a counter was never wired up at
+ * all -- the last block asserts every one of the four kinds was really seen.
+ */
+const ops = { get: 0, put: 0, list: 0, del: 0 };
+const opsEver = { get: 0, put: 0, list: 0, del: 0 };
+const tally = (k) => { ops[k]++; opsEver[k]++; };
+const resetOps = () => { ops.get = 0; ops.put = 0; ops.list = 0; ops.del = 0; };
+// What Vercel meters as an advanced operation: everything but a plain read.
+const advanced = () => ops.list + ops.put + ops.del;
+
 const stub = {
   async get(pathname, options) {
     getCalls.push({ pathname, options });
+    tally('get');
     if (!options || options.access !== 'private') {
       throw new Error(`get() called without access:'private' (${JSON.stringify(options)})`);
     }
@@ -56,16 +74,18 @@ const stub = {
     };
   },
   async put(pathname, body, options) {
+    tally('put');
     if (!options || options.access !== 'private') throw new Error("put() without access:'private'");
     if (store.has(pathname) && !options.allowOverwrite) throw new Error('blob exists and allowOverwrite was not set');
     store.set(pathname, Buffer.isBuffer(body) ? body : String(body));
     return { pathname, url: `https://stub/${pathname}` };
   },
   async list({ prefix } = {}) {
+    tally('list');
     const blobs = [...store.keys()].filter(k => !prefix || k.startsWith(prefix)).map(pathname => ({ pathname }));
     return { blobs, cursor: undefined, hasMore: false };
   },
-  async del(keys) { for (const k of [].concat(keys)) store.delete(k); },
+  async del(keys) { tally('del'); for (const k of [].concat(keys)) store.delete(k); },
 };
 
 const sdkPath = require.resolve('@vercel/blob');
@@ -217,7 +237,163 @@ const wrapped = (key = notes.CURRENT) => JSON.parse(store.get(key));
   console.log(`live tiers: ${tens.length} ten-minute, ${days2.length} daily after 17 days`);
 }
 
-/* ---- 9. the size ceiling refuses rather than truncating ------------------ */
+/* ---- 9. WHAT A SAVE COSTS, counted -----------------------------------------
+   FALSELY PASSES IF: it asserted the tiers still work and stopped there. They
+   always worked. What broke on 2026-09-08 was the COST: every save list()ed
+   both backup folders to decide whether a copy was due, which is two ADVANCED
+   blob operations on top of the write, and an hour of typing spent a month of
+   the Hobby allowance. So this counts the calls and asserts them against
+   numbers -- not against "fewer than before", which any refactor satisfies. */
+{
+  store.clear();
+  const t0 = Date.parse('2026-09-10T09:00:00.000Z');
+
+  // The first save has no ledger to gate on, so it does exactly what every
+  // save used to do: list both folders, write both tiers.
+  resetOps();
+  await notes.writeNotes({ v: 2, n: 0 }, undefined, t0);
+  check(ops.list === 2, `the first save on an empty store made ${ops.list} list() calls, expected 2`);
+  check(ops.put === 3, `the first save made ${ops.put} put() calls, expected 3 (backup, daily, current)`);
+  check(ops.get === 1, `the first save made ${ops.get} get() calls, expected 1`);
+
+  // ...and the next one, inside both windows, lists NOTHING.
+  resetOps();
+  const r2 = await notes.writeNotes({ v: 2, n: 1 }, 1, t0 + 20 * 1000);
+  check(!r2.conflict && r2.rev === 2, 'the second save was refused');
+  check(ops.list === 0, `a steady save made ${ops.list} list() calls, expected 0 -- the ledger is supposed to answer this`);
+  check(ops.put === 1, `a steady save made ${ops.put} put() calls, expected 1 (current)`);
+  check(ops.get === 1, `a steady save made ${ops.get} get() calls, expected 1 (the rev check)`);
+  check(ops.del === 0, `a steady save made ${ops.del} del() calls, expected 0`);
+  check(advanced() === 1, `a steady save cost ${advanced()} advanced operations, expected exactly 1`);
+
+  // A hundred of them cost a hundred. Asserted over a RUN rather than over one
+  // save, because "one per save" is the claim the quota actually depends on.
+  resetOps();
+  let rev = 2;
+  for (let i = 0; i < 100; i++) rev = (await notes.writeNotes({ v: 2, n: i }, rev, t0 + 30 * 1000 + i * 1000)).rev;
+  check(rev === 102, `100 saves ended at rev ${rev}, expected 102`);
+  check(advanced() === 100, `100 saves inside one window cost ${advanced()} advanced operations, expected 100`);
+  check(ops.list === 0, `100 steady saves made ${ops.list} list() calls, expected 0`);
+  console.log(`operation count: ${advanced()} advanced ops for 100 saves in one window (three per save before this)`);
+
+  // A refused save costs the read and nothing else.
+  resetOps();
+  const c = await notes.writeNotes({ v: 2, n: 'stale' }, 1, t0 + 200 * 1000);
+  check(c.conflict === true, 'the stale save was not refused');
+  check(advanced() === 0 && ops.get === 1, `a refused save cost ${advanced()} advanced operations and ${ops.get} reads, expected 0 and 1`);
+
+  // The window closing costs the one list and the one copy, and nothing more.
+  resetOps();
+  const due = await notes.writeNotes({ v: 2, n: 'due' }, rev, t0 + 11 * 60 * 1000);
+  check(ops.list === 1, `the save that closed the ten-minute window made ${ops.list} list() calls, expected 1 (the backups only)`);
+  check(ops.put === 2, `it made ${ops.put} put() calls, expected 2 (the copy and current)`);
+  check(advanced() === 3, `it cost ${advanced()} advanced operations, expected 3`);
+  check([...store.keys()].filter(k => k.startsWith(notes.BACKUP_DIR)).length === 2, 'the ten-minute copy was not written when its window closed');
+  check(due.backups === 2, `the save reported ${due.backups} backups, expected 2`);
+
+  // A new day costs both lists and both copies.
+  resetOps();
+  const day2 = await notes.writeNotes({ v: 2, n: 'tomorrow' }, due.rev, t0 + 26 * 60 * 60 * 1000);
+  check(ops.list === 2, `the first save of a new day made ${ops.list} list() calls, expected 2`);
+  check(ops.put === 3, `the first save of a new day made ${ops.put} put() calls, expected 3`);
+  check(day2.daily === 2, `the save reported ${day2.daily} dailies, expected 2`);
+  console.log(`a due copy costs 3 advanced ops, a new day 5; everything between costs 1`);
+}
+
+/* ---- 10. the upgrade: a wrapper with NO ledger in it ------------------------
+   FALSELY PASSES IF: it started from a store this file had already written.
+   Every wrapper in the live store was written before the ledger existed, so
+   the first save after this change reads one without it -- and must neither
+   skip a copy that is due nor add a second one that is not. Both directions
+   are driven from a store built by hand, plus a ledger that is garbage. */
+{
+  const legacy = (rev, savedAt, doc) => JSON.stringify({ rev, savedAt, doc });
+  const stampAt = (ms) => `${notes.BACKUP_DIR}${new Date(ms).toISOString().replace(/[:.]/g, '-')}.json`;
+  const t0 = Date.parse('2026-09-12T14:00:00.000Z');
+  const tens = () => [...store.keys()].filter(k => k.startsWith(notes.BACKUP_DIR)).length;
+  const dailies = () => [...store.keys()].filter(k => k.startsWith(notes.DAILY_DIR)).length;
+
+  // (a) a copy was made two minutes ago. The first save must NOT add another.
+  store.clear();
+  store.set(notes.CURRENT, legacy(41, new Date(t0 - 120000).toISOString(), { v: 2, old: true }));
+  store.set(stampAt(t0 - 120000), legacy(41, '', {}));
+  store.set(`${notes.DAILY_DIR}2026-09-12.json`, legacy(41, '', {}));
+  resetOps();
+  const a = await notes.writeNotes({ v: 2, first: true }, 41, t0);
+  check(ops.list === 2, `the first save after the upgrade made ${ops.list} list() calls, expected 2 -- a missing ledger has to be rebuilt from the folders`);
+  check(tens() === 1, `${tens()} ten-minute copies after the upgrade save, expected 1 -- it DUPLICATED one`);
+  check(dailies() === 1, `${dailies()} dailies after the upgrade save, expected 1`);
+  check(a.rev === 42, `the upgrade save reported rev ${a.rev}, expected 42`);
+  const led = wrapped().tiers;
+  check(!!led && led.backupAt === new Date(t0 - 120000).toISOString(),
+    `the ledger was not seeded from the copy that is really there (${led && led.backupAt})`);
+  check(led.dailyDate === '2026-09-12' && led.backups === 1 && led.dailies === 1, `the ledger reads ${JSON.stringify(led)}`);
+  // ...and the save after it is back to one advanced operation.
+  resetOps();
+  await notes.writeNotes({ v: 2, second: true }, 42, t0 + 5000);
+  check(advanced() === 1, `the save after the upgrade cost ${advanced()} advanced operations, expected 1`);
+
+  // (b) the newest copy is half an hour old. The first save must write one.
+  store.clear();
+  store.set(notes.CURRENT, legacy(41, new Date(t0 - 1800000).toISOString(), { v: 2, old: true }));
+  store.set(stampAt(t0 - 1800000), legacy(41, '', {}));
+  store.set(`${notes.DAILY_DIR}2026-09-12.json`, legacy(41, '', {}));
+  await notes.writeNotes({ v: 2, first: true }, 41, t0);
+  check(tens() === 2, `${tens()} ten-minute copies, expected 2 -- the upgrade save LOST the copy that was due`);
+  check(wrapped().tiers.backupAt === new Date(t0).toISOString(), 'the ledger did not take the copy it had just written');
+
+  // (c) a ledger that is garbage is read as "due", never trusted.
+  store.set(notes.CURRENT, JSON.stringify({
+    rev: 50, savedAt: new Date(t0).toISOString(), doc: { v: 2 },
+    tiers: { backupAt: 'not a time', dailyDate: 7 },
+  }));
+  resetOps();
+  await notes.writeNotes({ v: 2, c: true }, 50, t0 + 60000);
+  check(ops.list === 2, `a garbage ledger made ${ops.list} list() calls, expected 2 -- it must not be believed`);
+  check(tens() === 2, `${tens()} ten-minute copies, expected 2 -- a garbage ledger wrote a duplicate instead of re-counting`);
+  check(notes.tierLedger({ tiers: { backupAt: 'not a time' } }).backupAt === null, 'tierLedger accepted an unparseable time');
+  check(notes.tierLedger({}) === null, 'tierLedger invented a ledger for a wrapper that has none');
+  check(notes.tierLedger({ tiers: { backupAt: new Date(t0).toISOString(), backups: 3, dailyDate: '2026-09-12', dailies: 2 } }).backups === 3,
+    'tierLedger did not read a well-formed ledger back');
+  console.log('ledger upgrade: nothing duplicated, nothing lost, and a bad ledger re-counts');
+}
+
+/* ---- 11. pruning still holds with the ledger in play ------------------------
+   FALSELY PASSES IF: it only drove backupPlan. The prune list is now computed
+   inside the branch the ledger gates, so it is the LIVE route that has to be
+   walked past the keep count. This is also the only case that makes a del()
+   happen, which is what stops the "expected 0 del()" assertions above from
+   passing on a counter that was never wired. */
+{
+  store.clear();
+  const t0 = Date.parse('2026-09-14T08:00:00.000Z');
+  const ten = 10 * 60 * 1000;
+  let rev = 0;
+  for (let i = 0; i < 26; i++) rev = (await notes.writeNotes({ v: 2, i }, i === 0 ? undefined : rev, t0 + i * ten)).rev;
+  const kept = [...store.keys()].filter(k => k.startsWith(notes.BACKUP_DIR)).sort();
+  check(kept.length === notes.BACKUP_KEEP, `${kept.length} ten-minute copies after 26 spaced saves, expected ${notes.BACKUP_KEEP}`);
+  check(kept[0] === `${notes.BACKUP_DIR}${new Date(t0 + 6 * ten).toISOString().replace(/[:.]/g, '-')}.json`,
+    `the oldest surviving copy is ${kept[0]}, expected the seventh`);
+  check(wrapped().tiers.backups === notes.BACKUP_KEEP, `the ledger reports ${wrapped().tiers.backups} copies, expected ${notes.BACKUP_KEEP}`);
+
+  // One more spaced save: list, copy, current, prune. Four advanced ops, and
+  // the count stays put.
+  resetOps();
+  const more = await notes.writeNotes({ v: 2, i: 26 }, rev, t0 + 26 * ten);
+  check(ops.del === 1, `the pruning save made ${ops.del} del() calls, expected 1`);
+  check(advanced() === 4, `the pruning save cost ${advanced()} advanced operations, expected 4 (list, copy, current, prune)`);
+  check([...store.keys()].filter(k => k.startsWith(notes.BACKUP_DIR)).length === notes.BACKUP_KEEP,
+    'the prune did not hold at the keep count');
+  check(more.backups === notes.BACKUP_KEEP, `the save reported ${more.backups} backups, expected ${notes.BACKUP_KEEP}`);
+
+  // The ledger is the server's own bookkeeping and is not handed to the browser.
+  const seen = await notes.readNotes();
+  check(!('tiers' in seen), 'readNotes handed the backup ledger to the client');
+  check(seen.rev === more.rev && seen.content.i === 26, 'the newest save did not read back');
+  console.log(`prune with the ledger: ${notes.BACKUP_KEEP} kept of 27, ledger agrees, client never sees it`);
+}
+
+/* ---- 12. the size ceiling refuses rather than truncating ------------------ */
 {
   let tooLarge = false;
   try { await notes.writeNotes({ x: 'x'.repeat(notes.MAX_BYTES + 1) }, undefined); }
@@ -228,7 +404,7 @@ const wrapped = (key = notes.CURRENT) => JSON.parse(store.get(key));
   check(notObject, 'a string document was accepted');
 }
 
-/* ---- 10. password and token ---------------------------------------------- */
+/* ---- 13. password and token ---------------------------------------------- */
 {
   check(await notes.passwordOk('notes'), 'the correct password was rejected');
   check(!await notes.passwordOk('Notes'), 'the password check is case-insensitive');
@@ -246,7 +422,7 @@ const wrapped = (key = notes.CURRENT) => JSON.parse(store.get(key));
   console.log('password and token cases held');
 }
 
-/* ---- 11. assets: content-addressed, typed, bounded --------------------------- */
+/* ---- 14. assets: content-addressed, typed, bounded --------------------------- */
 {
   store.clear();
   const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
@@ -269,7 +445,7 @@ const wrapped = (key = notes.CURRENT) => JSON.parse(store.get(key));
   console.log(`assets: ${a.key.slice(0, 12)}… deduplicated, typed, bounded`);
 }
 
-/* ---- 12. the dev backend can never run in production --------------------- */
+/* ---- 15. the dev backend can never run in production --------------------- */
 {
   process.env.NOTES_DEV_DIR = join(ROOT, '.notes-dev');
   process.env.VERCEL_ENV = 'production';
@@ -280,7 +456,7 @@ const wrapped = (key = notes.CURRENT) => JSON.parse(store.get(key));
   delete process.env.NOTES_DEV_DIR;
 }
 
-/* ---- 13. a missing config is reported, not guessed ------------------------ */
+/* ---- 16. a missing config is reported, not guessed ------------------------ */
 {
   const keep = process.env.BLOB_READ_WRITE_TOKEN;
   delete process.env.BLOB_READ_WRITE_TOKEN;
@@ -291,6 +467,20 @@ const wrapped = (key = notes.CURRENT) => JSON.parse(store.get(key));
   check(/NOTES_PASSWORD/.test(notes.configError() || ''), 'a missing password was not reported by configError');
   process.env.NOTES_PASSWORD = keepPw;
   check(notes.configError() === null, 'a complete config was reported as broken');
+}
+
+/* ---- 17. the tally itself was live ------------------------------------------
+   COUNT THE SUBJECT (CLAUDE.md). Every "expected 0 list() calls" above passes
+   for free if the counter was never wired to the stub, which is the exact
+   shape of failure this repo has paid for four times. So: assert each of the
+   four call kinds was really observed somewhere in this run, against a
+   number, not against zero. */
+{
+  check(opsEver.get > 100, `the tally saw ${opsEver.get} get() calls across the run, expected well over 100`);
+  check(opsEver.put > 100, `the tally saw ${opsEver.put} put() calls, expected well over 100`);
+  check(opsEver.list > 10, `the tally saw ${opsEver.list} list() calls, expected more than 10`);
+  check(opsEver.del > 0, 'the tally never saw a del() -- every "expected 0 del()" assertion above is vacuous');
+  console.log(`\ntally saw ${opsEver.get} read, ${opsEver.list} list, ${opsEver.put} write, ${opsEver.del} remove across the run`);
 }
 
 console.log(`\n${pass} checks passed`);

@@ -32,7 +32,36 @@ import * as dictate from './dictate.js';
 import { setRoot, toast, confirm, menu, panel, currentPanel, initTooltips, closePanel, ICON } from './ui.js';
 import { restoreSelection } from './dom.js';
 
-const SAVE_DEBOUNCE = 1200;
+/* HOW OFTEN A SAVE MAY COST A NETWORK WRITE.
+ *
+ * The debounce was 1200ms, which is the right number for a save that costs
+ * nothing and the wrong one for a save that costs a metered blob write. At
+ * 1.2s a pause, sustained typing produced about fifty saves a minute; on
+ * 2026-09-08 that spent a month's Vercel Blob allowance and locked the live
+ * store out.
+ *
+ * Two numbers now. SAVE_DEBOUNCE is how long typing has to stop before a save
+ * is worth making -- five seconds, which still lands the save well inside the
+ * time it takes to look away. SAVE_MIN_GAP is a floor UNDER SUSTAINED TYPING:
+ * a save is never scheduled sooner than fifteen seconds after the last one
+ * went out, so an hour of unbroken writing costs 240 saves rather than 3000.
+ * The floor is a floor on the AUTOMATIC path only.
+ *
+ * WHAT THIS COSTS is at most fifteen seconds of typing, and only if the tab
+ * dies without telling anyone. Everything that knows the document is about to
+ * stop being watched already saves immediately and is unaffected: Ctrl+S,
+ * flush() on pagehide and on the tab going to the background (sendBeacon,
+ * which the browser promises to finish), and the retry after a failure.
+ */
+const SAVE_DEBOUNCE = 5000;
+const SAVE_MIN_GAP = 15000;
+
+/* And a failed save backs OFF rather than hammering. A store that is refusing
+ * writes -- out of quota, out of network -- was being retried every four
+ * seconds for as long as the tab stayed open, which is the one situation
+ * where a fixed retry makes the problem it is reacting to worse. */
+const RETRY_FIRST = 4000;
+const RETRY_MAX = 60000;
 
 export async function mount(container, { payload, token, onToken, onLocked, onStatus }) {
   await ensureCss();
@@ -644,6 +673,8 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   let lastSaved = '';
   let saveTimer = 0;
   let retryTimer = 0;
+  let lastSaveAt = 0;      // when the last request went out, for SAVE_MIN_GAP
+  let retryIn = RETRY_FIRST;
 
   function changed(body) {
     const catId = body.dataset.cat;
@@ -667,7 +698,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     if (demo) { setStatus('SANDBOX — NOT SAVED', null); return; }
     setStatus('EDITING…', 'saving');
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, SAVE_DEBOUNCE);
+    saveTimer = setTimeout(save, Math.max(SAVE_DEBOUNCE, lastSaveAt + SAVE_MIN_GAP - Date.now()));
   }
 
   function flushBodies() {
@@ -696,6 +727,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     const body = JSON.stringify(doc);
     if (body === lastSaved) { dirty = false; setStatus(status.textContent.replace('EDITING…', 'SAVED'), null); return; }
     inFlight = true;
+    lastSaveAt = Date.now();
     setStatus('SAVING…', 'saving');
     try {
       const res = await fetch('/api/notes/save', {
@@ -720,12 +752,14 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       rev = data.rev;
       for (const s of doc.sessions) loadedStamps.set(s.id, s.updated);
       if (data.token) { currentToken = data.token; onToken && onToken(data.token); }
+      retryIn = RETRY_FIRST;
       setStatus(`SAVED ${clock(data.savedAt)}`.trim(), null);
     } catch (err) {
       console.warn('notes: save failed', err);
       setStatus('NOT SAVED — RETRYING', 'error');
       clearTimeout(retryTimer);
-      retryTimer = setTimeout(save, 4000);
+      retryTimer = setTimeout(save, retryIn);
+      retryIn = Math.min(retryIn * 2, RETRY_MAX);
     } finally {
       inFlight = false;
       if (pendingSave) { pendingSave = false; save(); }
@@ -775,7 +809,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     clearTimeout(saveTimer);
     if (inFlight) return;
     const blob = new Blob([JSON.stringify({ token: currentToken, doc, baseRev: rev })], { type: 'application/json' });
-    if (navigator.sendBeacon && navigator.sendBeacon('/api/notes/save', blob)) { lastSaved = body; dirty = false; }
+    if (navigator.sendBeacon && navigator.sendBeacon('/api/notes/save', blob)) { lastSaved = body; dirty = false; lastSaveAt = Date.now(); }
     else save();
   }
   window.addEventListener('pagehide', flush);

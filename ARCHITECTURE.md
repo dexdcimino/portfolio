@@ -1248,7 +1248,9 @@ empties `#notesEditor`, for the same reason the old document was removed: a
 document left in the DOM is one devtools panel away for the rest of the visit.
 
 **Storage is Vercel Blob, `access: 'private'`.** `notes/current.json` is the
-document as `{ rev, savedAt, doc }`. `notes/current.html` is the document the
+document as `{ rev, savedAt, doc, tiers }`, where `tiers` is the backup ledger
+below and is dropped by `readNotes()` — the browser never sees it.
+`notes/current.html` is the document the
 overlay wrote BEFORE the rebuild: read once when there is no JSON yet, handed to
 the browser as `format: 'html'`, migrated there (`state.migrateHtml`: each
 `.nv-sec` becomes a category, its accent becomes the colour, its icon becomes an
@@ -1275,6 +1277,35 @@ last thirty seconds of typing. The spacing rule is `backupPlan()`, a pure
 function of the names already there and the clock, driven through
 `notes_store_check` on a synthetic clock. The pre-rebuild `.html` backups are
 never counted and never pruned.
+
+**A STEADY SAVE COSTS ONE ADVANCED BLOB OPERATION, and that is a number the
+checker asserts.** It used to cost three: `writeNotes` listed *both* backup
+folders on every save purely to work out whether a copy was due, and a list is
+metered as an advanced operation. At a 1.2 s autosave debounce that is roughly
+one hour of typing per month on the Hobby plan, and on 2026-09-08 the store hit
+the wall and locked out. The two facts those lists were read for now ride in
+the wrapper every save already reads — `tiers: { backupAt, backups, dailyDate,
+dailies }` — and the ledger is a **gate, not the decision**: a save it says
+nothing is due for lists nothing at all, and a save it says something *is* due
+for lists the folder and hands the real names to `backupPlan()`, which decides.
+So counting-then-deciding still runs, on the one save in many that writes a
+copy. A missing or garbage ledger reads as "due", so the first save after this
+change — and every wrapper in the live store predates it — rebuilds the ledger
+from a real listing and neither duplicates nor skips a copy. The worst drift a
+half-finished save can leave is one extra list and one window's delay. Costs:
+1 advanced op for a steady save, 3 when a ten-minute copy is due, 5 on the
+first save of a day, 0 for a save refused on a stale rev. `notes_store_check`
+tallies the stub's calls and asserts each of those against a number, plus that
+100 saves in one window cost exactly 100.
+
+**The client half of the same bill.** `SAVE_DEBOUNCE` is 5 s and `SAVE_MIN_GAP`
+is 15 s in `notes/app.js`: a save is never *scheduled* sooner than fifteen
+seconds after the last one went out, so unbroken typing costs ~240 saves an
+hour instead of ~3000. The floor is on the automatic path only — Ctrl+S, the
+`pagehide`/`visibilitychange` `sendBeacon` flush and the post-conflict retry all
+save immediately. A failed save now backs off 4 s → 60 s rather than retrying
+every four seconds forever, which is the one situation where a fixed retry
+makes the problem it is reacting to worse.
 
 **Images are assets, not data URIs.** A pasted or dropped image is scaled to
 1600px WebP in the browser (a small PNG stays PNG, a GIF keeps its frames),
@@ -1897,7 +1928,10 @@ through a scratch category it deletes at the end. `notes_dictate_check.mjs`
 installs a fake SpeechRecognition and a fake clock before any page script runs,
 so the whole dictation pipeline is exercised for real -- the restart loop and
 both engines' result shapes included -- and the ten-minute cap is tested in a
-second. `notes_store_check.mjs` needs no server.
+second. `notes_store_check.mjs` needs no server, and its stub tallies every
+`get`/`list`/`put`/`del` so the cost of a save is asserted as a count rather
+than as "fewer than before"; a last block asserts each of the four kinds was
+really seen, so an "expected 0" cannot pass on a counter nobody wired up.
 
 **`tools/notes_rescue.mjs` is for the LIVE store, and is not part of that
 set.** It requires `BLOB_READ_WRITE_TOKEN` and refuses to run with

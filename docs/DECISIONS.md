@@ -25,6 +25,59 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-08 — the backup schedule rides in the wrapper, not in a listing
+
+**Decided.** `notes/current.json` carries a ledger —
+`tiers: { backupAt, backups, dailyDate, dailies }` — written by every save and
+read by the next one. It decides whether a ten-minute copy or a daily is due.
+A save it says nothing is due for makes no `list()` call at all, which takes a
+steady save from three metered blob operations to one.
+
+**It replaced** listing both backup folders on every single save and deciding
+from the names found there. That was itself a deliberate call, written into
+the code as a comment: counting-then-deciding was chosen over a counter
+because a counter "drifts the moment a save fails halfway, and drifts
+silently: too many backups and too few both look like a working system until
+someone needs a restore."
+
+**Why.** The reasoning behind that comment was right and is not being thrown
+away — the cost accounting was simply never done. Two lists per save is two
+*advanced* blob operations on top of the write, the editor autosaved on a
+1.2 s debounce, and Vercel's Hobby plan allows about 10,000 advanced
+operations a month. That is roughly one hour of typing per month for one
+person, and on 2026-09-08 it ran out and locked the live store.
+
+So the ledger is a **gate, not the decision**. A save it says something *is*
+due for still lists the folder and still hands the real names to
+`backupPlan()`, which decides exactly as before — the counting simply happens
+on the one save in many that writes a copy, instead of on all of them. That is
+what keeps the drift the original comment warned about from being possible:
+every state the ledger can be wrong in resolves itself. No ledger, or a
+garbage one, reads as "due" and rebuilds from a real listing, so the first save
+after this change against the live store — where no wrapper has a ledger —
+neither duplicates a copy nor skips one. A save that died after writing a
+backup never advanced the ledger, so the next one lists, sees the copy, and
+refuses. The reverse cannot happen, because the backup is written before
+current and a failure there throws first. Worst case is one extra list and one
+window's delay, and the next backup-writing save rewrites the ledger from
+truth regardless.
+
+The client half went with it: a 5 s debounce with a 15 s floor between
+automatic saves, in place of 1.2 s with no floor. The floor is only on the
+automatic path — Ctrl+S, the `pagehide` beacon and the post-conflict retry are
+untouched — so what it costs is at most fifteen seconds of typing, and only if
+the tab dies without telling anyone.
+
+**Reverse it if** the store stops being metered per operation — a paid plan
+where a list is free would make the ledger a complication with nothing to buy,
+and deleting it would restore the simpler shape the comment argued for. Or if
+the ledger is ever found to have drifted in a way the "due" path did not heal,
+which would mean the self-healing argument above is wrong rather than merely
+inconvenient; that is a correctness failure and the listing goes back on the
+hot path the same day.
+
+---
+
 ## 2026-09-08 — a link's mark is derived, not fetched
 
 **Decided.** The circle at the head of a link chip is the site's initial on
