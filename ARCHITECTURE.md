@@ -1407,9 +1407,37 @@ its matches, with the current one brighter.
 `render.js` rebuilds only what changed: a canvas render keeps any section whose
 body stamp is unchanged, so an autosave, a rename or a sidebar change never
 moves the caret. The sidebar row, the rail letter and the canvas header all
-carry the category's colour as `--c` on the element; `--c-text` is that colour
-as text, darkened on the light theme. The scroll spy marks the category that
-fills most of the view and paints the scrollbar with its colour.
+carry the category's colour as `--c` on the element. The scroll spy marks the
+category that fills most of the view and paints the scrollbar with its colour.
+
+**A colour is the whole category: its surfaces as well as its text.**
+`tints()` in `color.js` derives six values from one hex. `--c-fill` is the
+box, a faded version of the colour rather than a neutral grey; `--c-head` is
+the title strip, one step more prominent than the field under it (lighter on
+dark, darker on light) so it reads as the bar carrying the name rather than a
+hole cut in the box; `--c-head-hi` is that strip under the pointer.
+
+The text is three tiers and **the hierarchy is carried by SATURATION**:
+`--c-title` is THE COLOUR ITSELF, byte for byte, because the whole point of
+choosing one is to see it on the name -- the session's title, its badge
+letter, every category name and every sidebar row wear the value you picked.
+`--c-bold` is duller and a step further from the box; `--c-body`, the lines
+being read, duller and further again. A paragraph in a fully saturated colour
+is tiring and competes with the name above it, so the reading text ends up
+nearly neutral and still unmistakably this category's, and all of the colour
+lands where the eye is meant to.
+
+Every tier is then floored until it is readable on every surface it appears
+on -- the title against three of them, because it appears on three. That is
+the only thing that moves it, and on the dark theme it moves almost nothing:
+a near-black pick is one drag away in a free-form HSB field and would
+otherwise paint its own category invisible. On the light theme a pastel has
+to darken to be read on a pale ground, so the title is exact there only when
+the pick is already dark. Each lower tier also keeps a saturation FLOOR,
+capped at the picked saturation: without it a pick at full brightness spent
+the whole difference on saturation and the reading text came out plain white
+with no trace of the category in it -- and a deliberately grey pick must
+still give grey text.
 
 ### The shell
 
@@ -1460,6 +1488,25 @@ divider furthest was the one that left the tab behind. The observer is
 attached lazily, because the archive does not exist yet when `initRender()`
 runs, and the archive's own handler calls `syncTab()` on both branches.
 
+**The two foot buttons are one panel.** New Category and My Sessions each
+centre their label and pin their mark to the right edge, so the words line up
+with each other down the column and the marks line up with each other down
+the right. Placed absolutely rather than with `space-between`, because with
+`space-between` the label's centre moves with the mark's width and the plus
+and the logo are not the same width. The rail's foot is the same pair in
+miniature and in the same order: folding the outliner takes a label away, not
+a door.
+
+**The sessions sheet has two docks and one element.** It is MOVED into
+whichever dock is on screen -- above the foot button while the outliner is
+open, out to the side of the rail while it is folded. Two copies would be two
+things to keep rendered and the invisible one would be the one that went
+stale. **The rail's dock lives outside the sidebar** and is told where to sit,
+the same arrangement and for the same reason as the collapse tab: the sidebar
+clips its own overflow, so a sheet opening to the right of a 50px rail would
+never be seen. `show-sessions` is therefore a class on the ROOT, not on the
+sidebar.
+
 **The sessions are three surfaces onto one list.** The popup on the badge
 (cards, `openSessions()`), the list under the foot button
 (`renderSessionList()`) and the rail's badge all read `doc.sessions`.
@@ -1499,28 +1546,56 @@ as the touch handle -- it is the one part of the row with
 `touch-action: none`, so a finger can drag from there while the rest of the
 row still scrolls the list.
 
-**`wireDrag` must never `preventDefault()` its `pointerdown`.** Cancelling
-that cancels the compatibility mouse events after it, `click` included, so
-the row stops jumping and the rail letters become dead buttons to a real
-pointer. It went unnoticed for a while because the harness clicked the rail
-programmatically, which is not subject to it; `dataset.dragged` suppresses
-the click instead, and only when a drag actually happened. Nothing needs
-suppressing anyway: the app is `user-select: none`.
+**`wireDrag` must never `preventDefault()` its `pointerdown`, and must not
+capture the pointer until a drag has actually begun.** Cancelling pointerdown
+cancels the compatibility mouse events after it, `click` included, so the row
+stops jumping and the rail letters become dead buttons to a real pointer --
+unnoticed for a while because the harness clicked the rail programmatically,
+which is not subject to it. **Capturing** a pointer retargets those same
+events, `dblclick` among them, so a row that grabbed the pointer the moment
+it was touched swallowed the double-click that renames its own title. The
+capture is taken in the move handler once the threshold is crossed, and the
+move/up listeners live on the `window` so the pointer can leave the row
+before then. `dataset.dragged` suppresses the click, and only when a drag
+actually happened. Nothing needs suppressing anyway: the app is
+`user-select: none`.
 
 **A category is a framed box with its title row inside it.** `.nt-cat-box`
-carries the body's fill and 3px of padding, `.nt-cat-head` sits inside that
-painted the canvas's ground, and the body sits under the head with no
-background of its own -- so the "outline the colour of the text box" is the
-box showing through around the head. As a real border it would have to be
-restated on every hover and focus rule the fill has and would drift out of
-step the first time one was missed; this cannot drift, because it is the same
-paint. The chevron and the emoji are outside the box in `.nt-cat-aside`,
-level with the head row.
+carries the box's fill and 3px of padding, `.nt-cat-head` sits inside that a
+step more prominent, and the body sits under the head with no background of
+its own -- so the "outline the colour of the text box" is the box showing
+through around the head. As a real border it would have to be restated on
+every hover and focus rule the fill has and would drift out of step the first
+time one was missed; this cannot drift, because it is the same paint.
+
+**The chevron and the emoji are OUT OF FLOW to the left** (`.nt-cat-aside`,
+`position: absolute; right: 100%`), and the room they sit in is the canvas
+column's own left padding (`--gutter`). In flow they pushed the box in by
+their own 70px and the text boxes stopped sharing a left edge with the New
+Category button under them, which is the one thing that says the canvas is
+one column. Under 980px there is no room for a gutter, so the aside goes back
+into the flow and the box gives up the width -- squeezed is worse than off
+the left edge, but only just, and off the edge is unreachable.
+
+**Hovering a category lights the STRIP, and typing in its title rings the
+strip too** -- corner to corner, behind the controls at its right end. Not the
+text field, which is not what you are pointing at when you point at a
+category; and not the title alone, which was a rectangle inside a rectangle
+fighting the name it framed.
 
 **Picking more than one.** `picked` is one Set of ids and `pickIn` says which
 list it belongs to -- the live categories or the archive -- because a pick
-spanning both would mean "archive these and un-archive those", which is not
-an action. Ctrl/Cmd toggles one, Shift replaces the run from the anchor.
+spanning both would mean "archive these and un-archive those", which is not an
+action. **Every click on a row is a selection, a plain one included**: the row
+you clicked first IS the first one selected, so the Ctrl+click after it gives
+you two and the Shift+click after it gives you the run from there, with no
+separate "start a selection" gesture to perform. A plain click replaces the
+pick with itself and still jumps; Ctrl toggles one; Shift replaces the run
+from the anchor and leaves the anchor where it is, so the far end of a range
+can be dragged rather than restarted. A pick of ONE is not drawn -- that row
+already shows as the one being read -- but `data-picks` on the root carries
+the count, because "one picked" and "none picked" are different states and
+nothing else can tell them apart from the outside.
 `targets(id, list)` is what every row action asks: it returns the whole pick
 when the row is in one and two or more are picked, and `[id]` otherwise, so
 clicking the X on an UNpicked row is never a request to archive four others.

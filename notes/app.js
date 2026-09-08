@@ -241,7 +241,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     type: 'button', class: 'nt-session-btn', 'aria-label': 'Sessions · click to fold the outliner',
     onclick: () => { closePanel(); setSidebar(doc.ui.sidebar === 'open' ? 'rail' : 'open'); },
   });
-  const sessionTitle = el('span', { class: 'nt-sidebar-session-title', 'data-tip': 'Double-click to rename' });
+  const sessionTitle = el('span', { class: 'nt-sidebar-session-title' });
   render.wireInlineTitle(sessionTitle, {
     get: () => ctx.session.title,
     set: (t) => {
@@ -256,13 +256,14 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       if (canvasTitle && document.activeElement !== canvasTitle) canvasTitle.textContent = clean;
     },
   });
+  const openSessionColor = (anchor) => color.openColor(anchor, {
+    title: 'Session colour', value: ctx.session.color,
+    onChange: (c) => { const s = ctx.session; s.color = c; touch(s); docChanged(); render.applySessionColor(); },
+  });
   const sessionSwatch = el('button', {
     type: 'button', class: 'nt-logo-btn', 'data-tip': 'Session colour', 'aria-label': 'Session colour',
     html: ICON.logo,
-    onclick: (e) => color.openColor(e.currentTarget, {
-      title: 'Session colour', value: ctx.session.color,
-      onChange: (c) => { const s = ctx.session; s.color = c; touch(s); docChanged(); render.applySessionColor(); },
-    }),
+    onclick: (e) => openSessionColor(e.currentTarget),
   });
   const rows = el('div', { class: 'nt-rows', role: 'list' });
   /* The archive is welded to the list above it: one grab edge between them
@@ -281,7 +282,17 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       el('span', { text: 'Archive' }), el('span', { class: 'nt-archive-count' }),
       el('span', { class: 'nt-archive-arms', html: ICON.archArms })),
     el('div', { class: 'nt-archive-list' }));
-  const addBtn = el('button', { type: 'button', class: 'nt-add-btn', html: `<span class="nt-add-plus">${ICON.plus}</span><span>New category</span>`, onclick: () => render.addCat('auto') });
+  /* THE MARK IS ON THE RIGHT AND THE LABEL IS CENTRED IN THE BUTTON, which
+     is the shape these two have in the app this borrows from: the words line
+     up with each other down the column and the marks line up with each other
+     down the right edge, so the pair reads as one control panel rather than
+     as two buttons that happen to be adjacent. Title Case for the same
+     reason -- these are the names of two places, not two sentences. */
+  const addBtn = el('button', {
+    type: 'button', class: 'nt-add-btn',
+    html: `<span>New Category</span><span class="nt-add-mark nt-add-plus">${ICON.plus}</span>`,
+    onclick: () => render.addCat('auto'),
+  });
   /* The sessions, as a list rather than a grid, and only where there is room
      to read one: the collapsed rail has the same thing behind its badge. */
   /* A SHEET OVER THE PANEL, NOT A SECTION IN IT. Opening it used to insert a
@@ -294,26 +305,63 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
      .nt-sess-dock is what it is pinned TO: the button's own box, so the two
      stay together whatever the foot's padding does. */
   const sessList = el('div', { class: 'nt-sesslist' });
+  const toggleSessions = () => (root.classList.contains('show-sessions') ? closeSessionList() : openSessionList());
   const sessBtn = el('button', {
     type: 'button', class: 'nt-add-btn nt-sessions-btn', 'aria-expanded': 'false',
-    html: `${ICON.sessions}<span>Sessions</span>`,
-    onclick: () => (sidebar.classList.contains('show-sessions') ? closeSessionList() : openSessionList()),
+    html: `<span>My Sessions</span><span class="nt-add-mark nt-add-logo">${ICON.logo}</span>`,
+    onclick: toggleSessions,
+  });
+  /* THE SAME SHEET, FROM TWO PLACES. There is one list element and it is
+     MOVED into whichever dock is on screen -- above the foot button while the
+     outliner is open, out to the side of the rail while it is folded. Two
+     copies would be two things to keep rendered, and the one that was not
+     visible would be the one that went stale. */
+  const railSessBtn = el('button', {
+    type: 'button', class: 'nt-rail-sessions', 'data-tip': 'My Sessions', 'data-tip-pos': 'right',
+    'aria-label': 'My Sessions', 'aria-expanded': 'false', html: ICON.logo,
+    onclick: toggleSessions,
   });
   const sessDock = el('div', { class: 'nt-sess-dock' }, sessList, sessBtn);
+  /* THE RAIL'S DOCK LIVES OUTSIDE THE SIDEBAR, and is told where to sit --
+     the same arrangement, and for the same reason, as the collapse tab: the
+     sidebar clips its own overflow, so a sheet that opens to the RIGHT of a
+     50px rail is a sheet you would never see. It is positioned against the
+     rail button's own rect, so the two stay together through a resize. */
+  const railDock = el('div', { class: 'nt-sess-dock is-rail' });
+  const railed = () => root.classList.contains('is-rail');
+  const liveDock = () => (railed() ? railDock : sessDock);
+  function placeRailDock() {
+    const b = railSessBtn.getBoundingClientRect();
+    const r = root.getBoundingClientRect();
+    if (!b.width) return;
+    railDock.style.left = `${Math.round(b.right - r.left + 10)}px`;
+    railDock.style.bottom = `${Math.round(r.bottom - b.bottom)}px`;
+  }
   function openSessionList() {
-    sidebar.classList.add('show-sessions');
+    const dock = liveDock();
+    dock.prepend(sessList);
+    root.classList.add('show-sessions');
     sessBtn.setAttribute('aria-expanded', 'true');
+    railSessBtn.setAttribute('aria-expanded', 'true');
+    if (dock === railDock) placeRailDock();
     render.renderSessionList();
     // Deferred, or the pointerdown that opened it is the one that shuts it.
     setTimeout(() => document.addEventListener('pointerdown', onSessListDown, true), 0);
+    window.addEventListener('resize', placeRailDock);
   }
   function closeSessionList() {
-    if (!sidebar.classList.contains('show-sessions')) return;
-    sidebar.classList.remove('show-sessions');
+    if (!root.classList.contains('show-sessions')) return;
+    root.classList.remove('show-sessions');
     sessBtn.setAttribute('aria-expanded', 'false');
+    railSessBtn.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onSessListDown, true);
+    window.removeEventListener('resize', placeRailDock);
   }
-  const onSessListDown = (e) => { if (!sessDock.contains(e.target)) closeSessionList(); };
+  const onSessListDown = (e) => {
+    if (liveDock().contains(e.target) || railSessBtn.contains(e.target) || sessBtn.contains(e.target)) return;
+    closeSessionList();
+  };
+  ctx.closeSessionList = closeSessionList;
   const railCats = el('div', { class: 'nt-rail-cats' });
   const railSession = el('button', {
     type: 'button', class: 'nt-rail-session', 'aria-label': 'Sessions · click to unfold the outliner', 'data-tip-pos': 'right',
@@ -340,15 +388,28 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     badge.addEventListener('pointerleave', () => clearTimeout(sessHover));
     badge.addEventListener('pointerdown', () => { clearTimeout(sessHover); sessArmed = false; });
   }
-  const railAdd = el('button', { type: 'button', class: 'nt-rail-add', 'data-tip': 'New category', 'data-tip-pos': 'right', html: ICON.plus, 'aria-label': 'New category', onclick: () => render.addCat('auto') });
-  // No expand button down here: the toggle lives in the header now, and the
-  // rail's own badge and add button are what it is for.
+  const railAdd = el('button', { type: 'button', class: 'nt-rail-add', 'data-tip': 'New Category', 'data-tip-pos': 'right', html: ICON.plus, 'aria-label': 'New Category', onclick: () => render.addCat('auto') });
+  /* The rail's foot is the panel's foot in miniature and in the same order:
+     New Category, then My Sessions under it. Folding the outliner should not
+     take a door away, only its label. */
   sidebar.append(
     el('div', { class: 'nt-sidebar-panel' },
       el('div', { class: 'nt-sidebar-top' }, sessionBtn, sessionTitle, sessionSwatch),
       rows, archive,
       el('div', { class: 'nt-sidebar-foot' }, addBtn, sessDock)),
-    el('div', { class: 'nt-rail' }, railSession, railCats, railAdd));
+    el('div', { class: 'nt-rail' }, railSession, railCats, el('div', { class: 'nt-rail-foot' }, railAdd, railSessBtn)));
+  root.append(railDock);
+
+  /* Resting on either logo mark opens the session's colour, the way resting
+     on the badge opens the sessions. Same delay and the same disarm-on-press
+     as the badge: a panel that opens on the way past is a panel in the way. */
+  let clrHover = 0;
+  function wireColorHover(mark) {
+    mark.addEventListener('pointerenter', () => { clearTimeout(clrHover); if (sessArmed) clrHover = setTimeout(() => openSessionColor(mark), 320); });
+    mark.addEventListener('pointerleave', () => clearTimeout(clrHover));
+    mark.addEventListener('pointerdown', () => { clearTimeout(clrHover); sessArmed = false; });
+  }
+  wireColorHover(sessionSwatch);
 
   /* ---- canvas ---- */
   const sessionEmoji = el('button', { type: 'button', class: 'nt-session-emoji', 'aria-label': 'Session emoji', onclick: (e) => emoji.openFull(e.currentTarget, (u) => { const s = ctx.session; s.emoji = u; touch(s); docChanged(); render.renderAll(); }) });
@@ -367,13 +428,14 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   });
   sessionTitleEl.addEventListener('paste', (e) => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s+/g, ' ')); });
   const sessionColor = el('button', { type: 'button', class: 'nt-session-color nt-logo-btn', 'data-tip': 'Session colour', 'aria-label': 'Session colour', html: ICON.logo, onclick: (e) => color.openColor(e.currentTarget, { title: 'Session colour', value: ctx.session.color, onChange: (c) => { const s = ctx.session; s.color = c; touch(s); docChanged(); render.applySessionColor(); } }) });
+  wireColorHover(sessionColor);
   const addTop = btn('nt-session-addtop', 'Add a category at the top', ICON.plus, () => render.addCat('top'));
   canvas.append(
     el('div', { class: 'nt-canvas-inner' },
       el('div', { class: 'nt-session-head' }, sessionEmoji, sessionTitleEl, addTop, sessionColor),
       demo ? el('p', { class: 'nt-demo-note', html: 'This is a <strong>live sandbox</strong> of the notes app \u2014 type, dictate, drag, undo, break it. Nothing is saved, and closing this window throws it all away.' }) : null,
       el('div', { class: 'nt-cats' }),
-      el('button', { type: 'button', class: 'nt-add-bottom', html: `${ICON.plus}<span>New category</span>`, onclick: () => render.addCat('bottom') })));
+      el('button', { type: 'button', class: 'nt-add-bottom', html: `${ICON.plus}<span>New Category</span>`, onclick: () => render.addCat('bottom') })));
   canvas.addEventListener('scroll', render.onCanvasScroll, { passive: true });
 
   /* ---- settings that live in the doc ---- */
@@ -386,8 +448,10 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   function setSidebar(mode) {
     doc.ui.sidebar = mode;
     root.classList.toggle('is-rail', mode === 'rail');
-    // Folding the outliner takes the sessions overlay with it: it is a sheet
-    // laid over the panel that is about to slide out from under it.
+    /* Folding the outliner takes the sessions sheet with it. It is pinned to
+       a button that is about to be replaced by a different one on the other
+       side of the fold, and re-homing a live overlay mid-slide is a worse
+       answer than shutting it. */
     closeSessionList();
     const tab = root.querySelector('.nt-sb-tab');
     if (tab) {
@@ -749,7 +813,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     /* Escape is a ladder and these are two more rungs on it: the sessions
        sheet and the information panel each take the key that closed them and
        stop it, so one press never also reaches the <dialog> behind. */
-    if (e.key === 'Escape' && sidebar.classList.contains('show-sessions')) { e.preventDefault(); e.stopPropagation(); closeSessionList(); return; }
+    if (e.key === 'Escape' && root.classList.contains('show-sessions')) { e.preventDefault(); e.stopPropagation(); closeSessionList(); return; }
     if (e.key === 'Escape' && helpHandle) { e.preventDefault(); e.stopPropagation(); closeHelp(); return; }
     if (e.key === 'Escape' && render.pickCount()) { e.preventDefault(); e.stopPropagation(); render.clearPicks(); return; }
     if (mod && e.key.toLowerCase() === 'f' && !e.shiftKey) { e.preventDefault(); search.focus(); return; }

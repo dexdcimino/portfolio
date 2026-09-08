@@ -144,6 +144,11 @@ function paintColor(node, color) {
   node.style.setProperty('--c-bold', t.bold);
   node.style.setProperty('--c-title', t.title);
   node.style.setProperty('--c-sel', t.sel);
+  // The surfaces are derived from the colour too now: the box is a faded
+  // version of it and the title strip is one step more prominent than that.
+  node.style.setProperty('--c-fill', t.fill);
+  node.style.setProperty('--c-head', t.head);
+  node.style.setProperty('--c-head-hi', t.headHi);
 }
 
 /* The tiers are derived against the theme's own backgrounds, so a theme flip
@@ -446,17 +451,32 @@ function paintPicks() {
     for (const id of [...picked]) if (!live.has(id)) picked.delete(id);
     if (pickAnchor && !live.has(pickAnchor)) pickAnchor = null;
   }
+  /* A pick of one is not DRAWN -- that row already shows as the one being
+     read, and a ring on top of that is a second mark saying the same thing.
+     The count goes on the root all the same, because "one is picked" and
+     "none is picked" are different states and nothing else can tell them
+     apart from the outside. */
+  const many = picked.size > 1;
   for (const n of ctx.sidebar.querySelectorAll('.nt-row, .nt-arch-row')) {
-    n.classList.toggle('is-picked', picked.has(n.dataset.cat));
+    n.classList.toggle('is-picked', many && picked.has(n.dataset.cat));
   }
-  ctx.root.classList.toggle('has-picks', picked.size > 1);
+  ctx.root.classList.toggle('has-picks', many);
+  ctx.root.dataset.picks = String(picked.size);
 }
 
-/* Ctrl/Cmd toggles one; Shift takes the run from the anchor to here. Returns
- * true when the click was a pick, so the caller knows not to also jump. */
+/* EVERY CLICK ON A ROW IS A SELECTION, including a plain one. That is what
+ * makes Ctrl and Shift work the way a file list does: the row you clicked
+ * first IS the first one selected, so the next Ctrl+click gives you two and
+ * the next Shift+click gives you the run from it -- with no separate "start a
+ * selection" gesture to perform first. A plain click still replaces whatever
+ * was picked and still jumps to the category; only Ctrl and Shift build.
+ *
+ * A pick of one is not painted (see paintPicks): a single row already shows
+ * as the one being read, and a ring on top of that is a second mark saying
+ * the same thing. It is a real pick all the same -- targets() ignores a pick
+ * of one, so a lone selected row acts on itself and nothing else. */
 function onPickClick(e, id, list) {
   const mod = e.ctrlKey || e.metaKey;
-  if (!mod && !e.shiftKey) return false;
   if (pickIn !== list) { picked.clear(); pickIn = list; pickAnchor = null; }
   const order = pickedList().map((c) => c.id);
   if (e.shiftKey && pickAnchor && order.includes(pickAnchor)) {
@@ -466,15 +486,18 @@ function onPickClick(e, id, list) {
     // does: dragging the far end of a range should not leave the old one on.
     if (!mod) picked.clear();
     for (let i = Math.min(a, b); i <= Math.max(a, b); i++) picked.add(order[i]);
-  } else if (picked.has(id) && mod) {
+    // The anchor does NOT move: shift-clicking again re-measures from the
+    // same end, which is how a range is adjusted rather than restarted.
+  } else if (mod && picked.has(id)) {
     picked.delete(id);
-    pickAnchor = id;
+    pickAnchor = picked.size ? pickAnchor : null;
   } else {
+    if (!mod) picked.clear();
     picked.add(id);
     pickAnchor = id;
   }
   paintPicks();
-  return true;
+  return mod || e.shiftKey;
 }
 
 /* ---- categories ---------------------------------------------------------------- */
@@ -693,7 +716,7 @@ export function renderAll() {
   renderSessionHeader();
   renderCanvas();
   renderSidebar();
-  if (ctx.sidebar.classList.contains('show-sessions')) renderSessionList();
+  if (ctx.root.classList.contains('show-sessions')) renderSessionList();
   ctx.dictate.paintButtons();
   ctx.spell.rescanAll();
   ctx.search.refresh();
@@ -923,8 +946,8 @@ export function renderSidebar() {
       if (e.target.closest('button')) return;
       // A drag that ended on this row is not a click on it.
       if (row.dataset.dragged) return;
+      // A plain click picks this row AND jumps; Ctrl and Shift only pick.
       if (onPickClick(e, cat.id, 'cats')) return;
-      clearPicks();
       jumpTo(cat.id);
     });
     row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jumpTo(cat.id); } });
@@ -932,7 +955,6 @@ export function renderSidebar() {
       get: () => (catOf(S(), cat.id) || cat).title,
       set: (t) => renameCat(cat.id, t),
     });
-    title.setAttribute('data-tip', 'Double-click to rename');
     wireDrag(row, row, cat.id, { anywhere: true });
     return row;
   });
@@ -988,23 +1010,35 @@ export function syncTab() {
 /* The sessions as a list, under the sidebar's own button. The grid behind the
  * badge is the same set; this is the one you can read the names in. */
 export function renderSessionList() {
-  const wrap = ctx.sidebar.querySelector('.nt-sesslist');
+  const wrap = ctx.root.querySelector('.nt-sesslist');
   if (!wrap) return;
-  const out = ctx.doc.sessions.map((s) => {
+  const rows = ctx.doc.sessions.map((s) => {
     const g = glyph(s);
     const row = el('div', { class: `nt-sess-row ${s.id === ctx.doc.active ? 'is-active' : ''}`, 'data-sess': s.id, role: 'button', tabindex: '0' });
     paintColor(row, s.color);
+    const x = el('button', { type: 'button', class: 'nt-sess-row-x', html: ICON.close, tabindex: '-1', 'aria-label': `Delete ${s.title}` });
+    x.addEventListener('click', (e) => { e.stopPropagation(); deleteSession(s.id); });
     row.append(
       el('span', { class: `nt-row-badge ${g.emoji ? 'is-emoji' : ''}`, text: g.text }),
       el('span', { class: 'nt-row-title', text: s.title }),
-      el('span', { class: 'nt-sess-count', text: String(s.cats.length) }));
-    const go = () => { switchSession(s.id); renderSessionList(); };
+      el('span', { class: 'nt-sess-count', text: String(s.cats.length) }),
+      x);
+    const go = (e) => { if (e.target.closest('button')) return; switchSession(s.id); renderSessionList(); };
     row.addEventListener('click', go);
-    row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchSession(s.id); renderSessionList(); } });
     return row;
   });
-  out.push(el('button', { type: 'button', class: 'nt-sess-row is-add', html: `${ICON.plus}<span>New session</span>`, onclick: () => addSession() }));
-  wrap.replaceChildren(...out);
+  /* A HEADER AND A FOOTER, so the sheet is a window rather than a list that
+     appeared: it says what it is, it can be shut from inside itself, and the
+     one thing you might want that is not a row in it -- another session --
+     is a button of its own rather than a row pretending to be one. */
+  wrap.replaceChildren(
+    el('div', { class: 'nt-sesslist-head' },
+      el('span', { text: 'My Sessions' }),
+      el('button', { type: 'button', class: 'nt-sesslist-x', html: ICON.close, 'aria-label': 'Close', onclick: () => ctx.closeSessionList && ctx.closeSessionList() })),
+    el('div', { class: 'nt-sesslist-rows' }, ...rows),
+    el('div', { class: 'nt-sesslist-foot' },
+      el('button', { type: 'button', class: 'nt-sesslist-new', html: `${ICON.plus}<span>New</span>`, onclick: () => addSession() })));
 }
 
 function renderArchive() {
@@ -1027,11 +1061,7 @@ function renderArchive() {
        or deleting ten is ten of one gesture rather than ten of the whole
        cycle. A plain click here selects nothing -- there is nowhere to jump
        to -- so it is the way OUT of a pick. */
-    row.addEventListener('click', (e) => {
-      if (e.target.closest('button')) return;
-      if (onPickClick(e, cat.id, 'archived')) return;
-      clearPicks();
-    });
+    row.addEventListener('click', (e) => { if (!e.target.closest('button')) onPickClick(e, cat.id, 'archived'); });
     return row;
   }));
 }
@@ -1115,12 +1145,20 @@ function wireDrag(node, handle, id, opts = {}) {
        suppressing: the app is user-select:none, so a press cannot start a
        text selection. dataset.dragged stops the click instead, and only when
        a drag actually happened. */
-    handle.setPointerCapture(e.pointerId);
     const startY = e.clientY;
     const onMove = (ev) => {
       if (!dragging) {
         if (Math.abs(ev.clientY - startY) < 4) return;
         dragging = true;
+        /* CAPTURE HERE, NOT ON THE PRESS. Capturing a pointer retargets the
+           compatibility mouse events that come with it, dblclick included --
+           so a row that grabbed the pointer the moment it was touched
+           swallowed the double-click that renames its own title, and
+           double-click-to-rename simply stopped working in the outliner.
+           Nothing needs the capture until there is a drag to keep hold of;
+           the move and up listeners are on the window so the pointer can
+           leave the row before then. */
+        try { handle.setPointerCapture(e.pointerId); } catch { /* gone */ }
         // A drag that starts on a picked row carries the whole pick.
         carrying = opts.anywhere ? targets(id, 'cats') : [id];
         node.dataset.dragged = '1';
@@ -1150,9 +1188,9 @@ function wireDrag(node, handle, id, opts = {}) {
       else if (ev.clientY > lr.bottom - 30) list().scrollTop += 8;
     };
     const onUp = () => {
-      handle.removeEventListener('pointermove', onMove);
-      handle.removeEventListener('pointerup', onUp);
-      handle.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
       if (!dragging) return;
       dragging = false;
       for (const n of list().querySelectorAll('.is-dragging')) n.classList.remove('is-dragging');
@@ -1167,9 +1205,9 @@ function wireDrag(node, handle, id, opts = {}) {
       // The click that ends the drag must not also be taken as a jump.
       setTimeout(() => { delete node.dataset.dragged; }, 0);
     };
-    handle.addEventListener('pointermove', onMove);
-    handle.addEventListener('pointerup', onUp);
-    handle.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   });
 }
 

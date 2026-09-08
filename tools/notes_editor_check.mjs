@@ -74,6 +74,15 @@ await page.evaluate(() => {
 });
 await sleep(350);
 note(await page.$eval('.nt-app', (e) => e.dataset.theme === 'dark'), 'could not put the run on the dark theme');
+/* AND SO IS THE OUTLINER'S FOLD. Same trap, one line further on: the run
+   starts folded if the last thing to touch this store left it folded, and
+   every check that reaches for something in the panel then fails on the
+   previous run's state rather than on today's code. It cost a round of
+   debugging a sessions popup that was working fine -- the badge it rests on
+   was at x = -253. */
+await page.evaluate(() => { if (document.querySelector('.nt-app').classList.contains('is-rail')) document.querySelector('.nt-sb-tab').click(); });
+await sleep(400);
+note(!(await page.$eval('.nt-app', (e) => e.classList.contains('is-rail'))), 'could not put the run on an unfolded outliner');
 const catsBefore = await page.$$eval('.nt-cat', els => els.length);
 console.log(`unlocked: ${catsBefore} categories on screen`);
 note(catsBefore >= 2, `only ${catsBefore} categories — is the store the migrated document?`);
@@ -569,6 +578,13 @@ await chord(['Control'], '\\');
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
   const ratio = (a, b) => { const la = relLum(a); const lb = relLum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+  /* HSB saturation, because that is the axis the hierarchy is built on now:
+     the title is the picked colour and each tier under it is duller. */
+  const sat = (rgb) => {
+    const [r, g, b] = rgb.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+    const max = Math.max(r, g, b);
+    return max ? (max - Math.min(r, g, b)) / max : 0;
+  };
 
   /* Read the colours a category actually paints, from getComputedStyle -- not
      from the custom properties, which would only prove JS set a variable. */
@@ -661,8 +677,17 @@ await chord(['Control'], '\\');
   // Three tiers, three colours, in that order of prominence.
   note(after.body !== after.bold && after.bold !== after.title,
        `the three tiers are not three colours: body ${after.body}, bold ${after.bold}, title ${after.title}`);
-  note(relLum(after.bold) > relLum(after.body) && relLum(after.title) > relLum(after.bold),
-       `on the dark theme each tier must be lighter than the last: ${after.body} / ${after.bold} / ${after.title}`);
+  /* THE TITLE IS THE PICKED COLOUR, and the tiers get DULLER below it -- the
+     opposite of the old ranking, which lightened its way UP to the title.
+     Saturation is what carries the hierarchy now, so saturation is what is
+     asserted; on the dark theme lightness runs the other way, which is what
+     keeps a paragraph of it readable. */
+  note(sat(after.title) > sat(after.bold) && sat(after.bold) > sat(after.body),
+       `each tier must be duller than the last: ${after.title} / ${after.bold} / ${after.body}`);
+  note(relLum(after.body) > relLum(after.bold) && relLum(after.bold) > relLum(after.title),
+       `on the dark theme each tier below the title must be lighter: ${after.title} / ${after.bold} / ${after.body}`);
+  note(after.title === 'rgb(255, 59, 208)' || after.title === 'rgb(255, 59, 209)',
+       `the title is not the colour that was picked (#ff3bd0): ${after.title}`);
 
   // Readable, not merely coloured.
   note(ratio(after.body, after.boxBg) >= 4.4, `body text is not readable on its box (${ratio(after.body, after.boxBg).toFixed(1)}:1)`);
@@ -689,8 +714,8 @@ await chord(['Control'], '\\');
   note(onLight.body !== onDark.body, 'the theme flip did not re-derive the category colours');
   note(relLum(onLight.body) < relLum(onLight.boxBg), 'the light theme is painting light text on a light box');
   note(ratio(onLight.body, onLight.boxBg) >= 4.4, `body text is not readable on the light theme (${ratio(onLight.body, onLight.boxBg).toFixed(1)}:1)`);
-  note(relLum(onLight.bold) < relLum(onLight.body) && relLum(onLight.title) < relLum(onLight.bold),
-       `on the light theme each tier must be darker than the last: ${onLight.body} / ${onLight.bold} / ${onLight.title}`);
+  note(sat(onLight.title) > sat(onLight.bold) && sat(onLight.bold) > sat(onLight.body),
+       `on the light theme each tier must still be duller than the last: ${onLight.title} / ${onLight.bold} / ${onLight.body}`);
   console.log(`light theme: body ${onLight.body}, bold ${onLight.bold}, title ${onLight.title}, on ${onLight.boxBg}`);
   await page.click('.nt-theme');
   await sleep(300);
@@ -863,9 +888,16 @@ await chord(['Control'], '\\');
       floating: getComputedStyle(wrap).position === 'absolute',
       gap: Math.round(btn.top - w.bottom),
       overAdd: w.bottom > add.top,
-      rows: [...wrap.querySelectorAll('.nt-sess-row:not(.is-add)')].map((r) => r.querySelector('.nt-row-title').textContent),
+      rows: [...wrap.querySelectorAll('.nt-sess-row')].map((r) => r.querySelector('.nt-row-title').textContent),
       active: wrap.querySelectorAll('.nt-sess-row.is-active').length,
-      add: !!wrap.querySelector('.nt-sess-row.is-add'),
+      /* A WINDOW, not a list that appeared: a header that says what it is and
+         can shut it, and a New button of its own in the footer rather than a
+         row pretending to be a session. */
+      title: wrap.querySelector('.nt-sesslist-head span')?.textContent,
+      shut: !!wrap.querySelector('.nt-sesslist-x'),
+      add: !!wrap.querySelector('.nt-sesslist-new'),
+      addIsRow: !!wrap.querySelector('.nt-sess-row.is-add'),
+      del: wrap.querySelectorAll('.nt-sess-row .nt-sess-row-x').length,
     };
   });
   const open = await anchors();
@@ -877,7 +909,11 @@ await chord(['Control'], '\\');
   note(open.add === shut.add, `opening the list moved the New Category button ${open.add - shut.add}px`);
   note(list.rows.length >= 1, 'the session list is empty');
   note(list.active === 1, `${list.active} sessions are marked active, expected 1`);
-  note(list.add, 'the session list has no way to add one');
+  note(list.add, 'the session list has no New button in its footer');
+  note(!list.addIsRow, 'the New button is still a row pretending to be a session');
+  note(list.title === 'My Sessions', `the sheet is titled "${list.title}"`);
+  note(list.shut, 'the sheet cannot be closed from inside itself');
+  note(list.del === list.rows.length, `${list.del} of ${list.rows.length} session rows can be deleted from the sheet`);
   console.log(`sessions listed: ${list.rows.join(', ')} — a sheet ${list.gap}px above its button, nothing under it moved`);
   // Escape shuts it, and stops there: the overlay behind must survive.
   await page.keyboard.press('Escape');
@@ -890,6 +926,107 @@ await chord(['Control'], '\\');
   await page.click('.nt-sessions-btn');
   await sleep(200);
   note(!(await page.$eval('.nt-sesslist', (el) => getComputedStyle(el).display !== 'none')), 'the Sessions button does not close the list');
+}
+
+/* ---- 17f1b. the two foot buttons are one panel -------------------------- */
+/* Label centred in the button, mark pinned to its right edge -- so the two
+   words line up down the column and the two marks line up down the right.
+   Measured, because "centred" done with space-between drifts with the mark's
+   width and the plus and the logo are not the same width. */
+{
+  const foot = await page.evaluate(() => {
+    const add = document.querySelector('.nt-add-btn:not(.nt-sessions-btn)');
+    const sess = document.querySelector('.nt-sessions-btn');
+    const mid = (b) => { const r = b.getBoundingClientRect(); const t = b.querySelector('span:not(.nt-add-mark)').getBoundingClientRect(); return Math.round((t.left + t.width / 2) - (r.left + r.width / 2)); };
+    const markRight = (b) => { const r = b.getBoundingClientRect(); const m = b.querySelector('.nt-add-mark').getBoundingClientRect(); return Math.round(r.right - m.right); };
+    return {
+      labels: [add.querySelector('span').textContent, sess.querySelector('span').textContent],
+      offsets: [mid(add), mid(sess)],
+      marks: [markRight(add), markRight(sess)],
+      logo: !!sess.querySelector('.nt-add-logo svg .nt-logo-top'),
+      plus: !!add.querySelector('.nt-add-plus svg'),
+      sameWidth: Math.abs(add.getBoundingClientRect().width - sess.getBoundingClientRect().width) < 1,
+    };
+  });
+  note(foot.labels[0] === 'New Category', `the add button reads "${foot.labels[0]}"`);
+  note(foot.labels[1] === 'My Sessions', `the sessions button reads "${foot.labels[1]}"`);
+  note(foot.offsets.every((o) => Math.abs(o) <= 2), `the labels are ${foot.offsets.join(' and ')}px off their buttons' centres`);
+  note(foot.marks[0] === foot.marks[1], `the marks are ${foot.marks.join(' and ')}px from their right edges — they must line up with each other`);
+  note(foot.plus && foot.logo, 'the marks are not the plus and the logo');
+  note(foot.sameWidth, 'the two foot buttons are not the same width');
+  console.log(`foot: "${foot.labels.join('" / "')}", labels centred, marks ${foot.marks[0]}px in`);
+}
+
+/* ---- 17f1c. the sessions sheet also opens from the rail ----------------- */
+/* Folding the outliner takes a label away, not a door. The rail's sheet has
+   to live OUTSIDE the sidebar -- the sidebar clips its own overflow, so a
+   sheet opening to the right of a 50px rail would never be seen -- which is
+   the one thing worth measuring here. */
+{
+  await page.evaluate(() => document.querySelector('.nt-sb-tab').click());
+  await sleep(450);
+  note(await page.$eval('.nt-app', (e) => e.classList.contains('is-rail')), 'could not fold the outliner for the rail check');
+  const btn = await page.$('.nt-rail-sessions');
+  note(!!btn, 'the rail has no My Sessions button');
+  const order = await page.evaluate(() => {
+    const add = document.querySelector('.nt-rail-add').getBoundingClientRect();
+    const ses = document.querySelector('.nt-rail-sessions').getBoundingClientRect();
+    return { under: ses.top >= add.bottom - 1, gap: Math.round(ses.top - add.bottom) };
+  });
+  note(order.under, 'the rail\'s My Sessions is not under its New Category');
+  await page.click('.nt-rail-sessions');
+  await sleep(450);
+  const sheet = await page.evaluate(() => {
+    const wrap = document.querySelector('.nt-sesslist');
+    const r = wrap.getBoundingClientRect();
+    const rail = document.querySelector('.nt-rail').getBoundingClientRect();
+    return {
+      shown: getComputedStyle(wrap).display !== 'none',
+      inSidebar: !!document.querySelector('.nt-sidebar .nt-sesslist'),
+      toTheSide: Math.round(r.left - rail.right),
+      onScreen: r.left >= 0 && r.right <= window.innerWidth && r.width > 150,
+      title: wrap.querySelector('.nt-sesslist-head span')?.textContent,
+      add: !!wrap.querySelector('.nt-sesslist-new'),
+    };
+  });
+  note(sheet.shown, 'the rail button did not open the sessions sheet');
+  note(!sheet.inSidebar, 'the rail sheet is inside the sidebar, which clips its own overflow — it would never be seen');
+  note(sheet.toTheSide >= 0 && sheet.toTheSide < 30, `the rail sheet is ${sheet.toTheSide}px from the rail's edge, expected just beside it`);
+  note(sheet.onScreen, 'the rail sheet is off the window');
+  note(sheet.title === 'My Sessions' && sheet.add, 'the rail sheet is not the same window as the foot one');
+  await page.keyboard.press('Escape');
+  await sleep(250);
+  note(!(await page.$eval('.nt-sesslist', (el) => getComputedStyle(el).display !== 'none')), 'Escape did not close the rail sheet');
+  // And back, so everything below runs on the unfolded outliner.
+  await page.evaluate(() => document.querySelector('.nt-sb-tab').click());
+  await sleep(450);
+  note(!(await page.$eval('.nt-app', (e) => e.classList.contains('is-rail'))), 'could not unfold the outliner again');
+  /* The sheet is MOVED between docks when it opens, not when the sidebar
+     folds: in between it is hidden, and re-homing an overlay nobody can see
+     is work for its own sake. So this opens it to find out where it went. */
+  await page.click('.nt-sessions-btn');
+  await sleep(350);
+  note(!!(await page.$('.nt-sidebar .nt-sesslist')), 'opening from the foot did not bring the sheet back into the panel');
+  await page.keyboard.press('Escape');
+  await sleep(250);
+  console.log(`rail: My Sessions under New Category, sheet ${sheet.toTheSide}px to the side, outside the sidebar`);
+}
+
+/* ---- 17f1d. resting on the logo mark opens the session's colour --------- */
+{
+  await page.mouse.move(900, 500);
+  await sleep(250);
+  const m = await page.evaluate(() => { const r = document.querySelector('.nt-sidebar-top .nt-logo-btn').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(m.x, m.y, { steps: 5 });
+  await page.waitForSelector('.nt-clr-panel', { timeout: 5000 }).catch(() => {});
+  note(!!(await page.$('.nt-clr-panel')), 'resting on the session logo does not open its colour');
+  note((await page.$eval('.nt-clr-title', (e) => e.textContent)) === 'Session colour', 'the panel that opened is not the session colour');
+  await page.keyboard.press('Escape');
+  await sleep(300);
+  note(!(await page.$('.nt-clr-panel')), 'Escape did not close the colour panel');
+  await page.mouse.move(900, 500);
+  await sleep(200);
+  console.log('logo: rest opens the session colour');
 }
 
 /* ---- 17f2. the header's own cull ----------------------------------------- */
@@ -1037,23 +1174,64 @@ await chord(['Control'], '\\');
   console.log(`category head: title ${order.title} < more ${order.more} < colour ${order.color} < X ${order.x}`);
 }
 
-/* ---- 17f6. a focused category title is a ring, not a wash ---------------- */
-/* The fill was 12% of the category's colour and the selection highlight is
-   --c-sel; on a coloured category those two are close enough that you could
-   not see what you had selected. */
+/* ---- 17f6. typing in a title rings the WHOLE strip ---------------------- */
+/* Not the title alone. A ring around the name was a rectangle inside a
+   rectangle, and it fought the text it framed; the strip is the thing being
+   edited, so the strip is what is marked -- at its own radius, corner to
+   corner, behind the controls at its right end. The title itself keeps no
+   fill: a wash of the category's colour there sat close enough to --c-sel
+   that you could not see what you had selected. */
 {
   await page.evaluate(() => document.querySelector('.nt-cat .nt-cat-title').focus());
-  await sleep(200);
-  const look = await page.$eval('.nt-cat .nt-cat-title', (el) => {
-    const cs = getComputedStyle(el);
-    return { bg: cs.backgroundColor, shadow: cs.boxShadow, radius: cs.borderRadius };
+  await sleep(250);
+  const look = await page.evaluate(() => {
+    const sec = document.querySelector('.nt-cat');
+    const title = sec.querySelector('.nt-cat-title');
+    const head = sec.querySelector('.nt-cat-head');
+    const other = document.querySelectorAll('.nt-cat')[1].querySelector('.nt-cat-head');
+    return {
+      titleBg: getComputedStyle(title).backgroundColor,
+      titleShadow: getComputedStyle(title).boxShadow,
+      headShadow: getComputedStyle(head).boxShadow,
+      headRadius: getComputedStyle(head).borderTopLeftRadius,
+      restShadow: getComputedStyle(other).boxShadow,
+      spans: Math.round(head.getBoundingClientRect().width - title.getBoundingClientRect().width) > 40,
+    };
   });
-  note(/rgba\(0, 0, 0, 0\)|transparent/.test(look.bg), `the focused title is still filled (${look.bg})`);
-  note(look.shadow && look.shadow !== 'none', 'the focused title has no ring to say it is being typed in');
-  note(parseFloat(look.radius) >= 4, `the ring is not rounded (${look.radius})`);
+  note(/rgba\(0, 0, 0, 0\)|transparent/.test(look.titleBg), `the focused title is still filled (${look.titleBg})`);
+  note(look.titleShadow === 'none', `the title still has a ring of its own (${look.titleShadow})`);
+  note(look.headShadow && look.headShadow !== 'none', 'typing in a title does not mark the strip it is on');
+  note(/inset/.test(look.headShadow), `the strip's ring is not drawn inside it (${look.headShadow})`);
+  note(look.restShadow === 'none', 'every strip is marked, not just the one being typed in');
+  note(parseFloat(look.headRadius) >= 10, `the strip's ring is not rounded (${look.headRadius})`);
+  note(look.spans, 'the mark does not reach past the title to the controls at the end of the strip');
   await page.evaluate(() => document.querySelector('.nt-cat .nt-cat-title').blur());
   await sleep(150);
-  console.log(`category title focus: ${look.bg} fill, ring ${look.shadow.split(')')[0]})`);
+  console.log(`title focus: the strip rings at ${look.headRadius}, the title itself has ${look.titleShadow}`);
+}
+
+/* ---- 17f6b. hover lights the whole top chunk, not the text field --------- */
+{
+  const away = await page.evaluate(() => { const r = document.querySelector('.nt-session-head').getBoundingClientRect(); return { x: Math.round(r.right - 60), y: Math.round(r.top + r.height / 2) }; });
+  await page.mouse.move(away.x, away.y);
+  await sleep(250);
+  note(await page.evaluate((a) => !document.elementFromPoint(a.x, a.y)?.closest('.nt-cat'), away), 'the resting point for the hover check is on a category');
+  const secBox = await page.evaluate(() => { const r = document.querySelectorAll('.nt-cat')[1].querySelector('.nt-cat-head').getBoundingClientRect(); return { x: Math.round(r.right - 90), y: Math.round(r.top + r.height / 2) }; });
+  const before = await page.evaluate(() => {
+    const sec = document.querySelectorAll('.nt-cat')[1];
+    return { head: getComputedStyle(sec.querySelector('.nt-cat-head')).backgroundColor, box: getComputedStyle(sec.querySelector('.nt-cat-box')).backgroundColor };
+  });
+  await page.mouse.move(secBox.x, secBox.y);
+  await sleep(300);
+  const after = await page.evaluate(() => {
+    const sec = document.querySelectorAll('.nt-cat')[1];
+    return { head: getComputedStyle(sec.querySelector('.nt-cat-head')).backgroundColor, box: getComputedStyle(sec.querySelector('.nt-cat-box')).backgroundColor };
+  });
+  note(after.head !== before.head, 'hovering a category does not light its title strip');
+  note(after.box === before.box, 'hovering a category lights the text field, which is not what is being pointed at');
+  await page.mouse.move(away.x, away.y);
+  await sleep(200);
+  console.log(`hover: the strip ${before.head} -> ${after.head}, the field unchanged`);
 }
 
 /* ---- 17f7. the title row is INSIDE the text box ------------------------- */
@@ -1090,8 +1268,18 @@ await chord(['Control'], '\\');
       radius: parseFloat(getComputedStyle(box).borderTopLeftRadius),
       level: Math.abs((r(aside).top + r(aside).height / 2) - (r(head).top + r(head).height / 2)),
       xInset: Math.round(r(box).right - r(x).right),
+      /* THE COLUMN HAS ONE LEFT EDGE. The aside is out of flow so the box
+         spans the whole column: in flow it pushed the box in by its own 70px
+         and the text boxes stopped lining up with the New category button
+         under them, which is the one thing that says this is one column. */
+      leftGap: Math.round(r(box).left - document.querySelector('.nt-add-bottom').getBoundingClientRect().left),
+      rightGap: Math.round(r(box).right - document.querySelector('.nt-add-bottom').getBoundingClientRect().right),
+      asideInside: Math.round(r(aside).left - document.querySelector('.nt-canvas').getBoundingClientRect().left),
     };
   });
+  note(Math.abs(shape.leftGap) <= 1, `the box's left edge is ${shape.leftGap}px off the New category button's`);
+  note(Math.abs(shape.rightGap) <= 1, `the box's right edge is ${shape.rightGap}px off the New category button's`);
+  note(shape.asideInside >= 0, `the chevron and emoji hang ${-shape.asideInside}px off the left of the canvas`);
   note(shape.titleIn && shape.xIn && shape.colourIn, 'the title, the colour and the X are not all inside the text box');
   note(shape.chevronOut && shape.emojiOut, 'the chevron and the emoji are not outside the box');
   note(shape.asideLeftOfBox >= 0 && shape.asideLeftOfBox <= 14, `the chevron/emoji aside is ${shape.asideLeftOfBox}px from the box, expected it tucked to its left`);
@@ -1153,42 +1341,56 @@ await chord(['Control'], '\\');
   };
   const pickedIds = () => page.$$eval('.nt-row.is-picked', (els) => els.map((e) => e.dataset.cat));
   const allIds = () => page.$$eval('.nt-row', (els) => els.map((e) => e.dataset.cat));
+  /* A PICK OF ONE IS NOT DRAWN -- the row already shows as the one being read
+     -- so the painted rows cannot tell "one picked" from "none picked". The
+     count on the root can, and it is the model rather than a rendering of it,
+     which is what these assertions are actually about. */
+  const pickCount = () => page.$eval('.nt-app', (e) => Number(e.dataset.picks || 0));
 
   const ids = await allIds();
   note(ids.length >= 6, `only ${ids.length} rows to pick from`);
 
-  // Ctrl adds one at a time, anywhere in the list.
-  await clickRow(1, ['Control']);
-  await clickRow(4, ['Control']);
-  let now = await pickedIds();
-  note(now.length === 2 && now.includes(ids[1]) && now.includes(ids[4]), `Ctrl+click picked ${now.length}, expected the two clicked`);
-  // Ctrl again on a picked row takes it back out.
-  await clickRow(4, ['Control']);
-  note((await pickedIds()).length === 1, 'Ctrl+click on a picked row did not unpick it');
-
-  // Shift takes the run from the last one to this one, and REPLACES the pick.
-  await clickRow(1, ['Control']);
+  /* A PLAIN CLICK IS THE FIRST SELECTION. That is the whole point of it:
+     the row you clicked first IS selected, so a Shift+click after it takes
+     the run from there with no separate "start selecting" gesture in
+     between, and a Ctrl+click after it gives you two rather than one. */
+  await clickRow(1);
+  note((await pickCount()) === 1, `a plain click left ${await pickCount()} rows picked, expected the one clicked`);
+  note((await pickedIds()).length === 0, 'a pick of one is being drawn — that row already shows as the one being read');
   await clickRow(4, ['Shift']);
-  now = await pickedIds();
-  note(now.length === 4 && now.join() === ids.slice(1, 5).join(), `Shift+click took ${JSON.stringify(now)}, expected the run ${JSON.stringify(ids.slice(1, 5))}`);
+  let now = await pickedIds();
+  note(now.length === 4 && now.join() === ids.slice(1, 5).join(), `Shift after a plain click took ${JSON.stringify(now)}, expected the run ${JSON.stringify(ids.slice(1, 5))}`);
 
-  // A plain click is the way out, and it still jumps.
+  // Ctrl adds one at a time, anywhere in the list.
   await clickRow(0);
-  note((await pickedIds()).length === 0, 'a plain click did not drop the pick');
-  // So is Escape.
-  await clickRow(1, ['Control']);
   await clickRow(3, ['Control']);
-  note((await pickedIds()).length === 2, 'could not re-pick two rows');
+  now = await pickedIds();
+  note(now.length === 2 && now.includes(ids[0]) && now.includes(ids[3]), `Ctrl+click after a plain click picked ${JSON.stringify(now)}, expected two`);
+  await clickRow(5, ['Control']);
+  note((await pickCount()) === 3, `a third Ctrl+click gave ${await pickCount()}, expected 3`);
+  // Ctrl again on a picked row takes it back out.
+  await clickRow(5, ['Control']);
+  note((await pickCount()) === 2, 'Ctrl+click on a picked row did not unpick it');
+
+  // A plain click starts over, and it still jumps.
+  await clickRow(0);
+  note((await pickCount()) === 1, 'a plain click did not replace the pick with itself');
+  note((await pickedIds()).length === 0, 'a plain click left rows drawn as picked');
+  // Escape drops it entirely.
+  await clickRow(1);
+  await clickRow(3, ['Control']);
+  note((await pickCount()) === 2, 'could not re-pick two rows');
   await page.keyboard.press('Escape');
   await sleep(200);
-  note((await pickedIds()).length === 0, 'Escape did not drop the pick');
+  note((await pickCount()) === 0, 'Escape did not drop the pick');
   note(!!(await page.$('.nt-app')), 'the Escape that dropped the pick also closed the notes');
 
   /* ONE COLOUR ON THE WHOLE PICK. The dot on any picked row opens the picker
      for all of them, and one undo takes all of them back. */
-  await clickRow(1, ['Control']);
+  await clickRow(1);
   await clickRow(3, ['Control']);
   const two = await pickedIds();
+  note(two.length === 2, `expected two picked rows for the colour check, got ${two.length}`);
   const before = await page.evaluate((sel) => sel.map((id) => getComputedStyle(document.querySelector(`.nt-row[data-cat="${id}"]`)).getPropertyValue('--c').trim()), two);
   await page.evaluate((id) => document.querySelector(`.nt-row[data-cat="${id}"] .nt-row-color`).click(), two[0]);
   await page.waitForSelector('.nt-clr-panel', { timeout: 4000 });
@@ -1223,9 +1425,10 @@ await chord(['Control'], '\\');
   /* DRAGGING ONE CARRIES THE PICK, and the drag starts anywhere on the row
      rather than on the grip. */
   note(!!(await page.$('.nt-app')), 'the notes closed before the multi-drag check');
-  await clickRow(1, ['Control']);
+  await clickRow(1);
   await clickRow(2, ['Control']);
   const carried = await pickedIds();
+  note(carried.length === 2, `expected two picked rows to drag, got ${carried.length}`);
   const orderBefore = await allIds();
   const from = await rowAt(1);
   const to = await page.evaluate(() => { const els = document.querySelectorAll('.nt-row'); const r = els[els.length - 1].getBoundingClientRect(); return { y: Math.round(r.bottom - 3) }; });
@@ -1244,13 +1447,15 @@ await chord(['Control'], '\\');
   console.log(`multi-drag: ${carried.length} rows carried from the middle to the end, in order`);
 
   /* ARCHIVING A PICK IS ONE DIALOG, and the archive picks the same way. */
-  await clickRow(0);
-  note(!(await page.$('.nt-row.is-picked')), 'a plain click did not drop the pick before the archive check');
+  await page.keyboard.press('Escape');
+  await sleep(200);
+  note((await pickCount()) === 0, 'Escape did not clear the pick before the archive check');
   const archBefore = Number(await page.$eval('.nt-archive-count', (e) => e.textContent) || 0);
   const rows = await allIds();
-  await clickRow(rows.length - 2, ['Control']);
+  await clickRow(rows.length - 2);
   await clickRow(rows.length - 1, ['Control']);
   const doomed = await pickedIds();
+  note(doomed.length === 2, `expected two picked rows to archive, got ${doomed.length}`);
   await page.evaluate((id) => document.querySelector(`.nt-row[data-cat="${id}"] .nt-row-x`).click(), doomed[0]);
   await page.waitForSelector('.nt-modal', { timeout: 4000 });
   const msg = await page.$eval('.nt-modal-msg', (e) => e.textContent);
@@ -1263,11 +1468,12 @@ await chord(['Control'], '\\');
   // And back out again, picked in the archive this time.
   await page.evaluate(() => { const a = document.querySelector('.nt-archive'); if (!a.classList.contains('is-open')) a.querySelector('.nt-archive-head').click(); });
   await sleep(300);
-  for (const id of doomed) {
+  for (const [i, id] of doomed.entries()) {
     const b = await page.evaluate((cid) => { const r = document.querySelector(`.nt-arch-row[data-cat="${cid}"]`).getBoundingClientRect(); return { x: Math.round(r.left + 30), y: Math.round(r.top + r.height / 2) }; }, id);
-    await page.keyboard.down('Control');
+    // The first is a plain click, exactly as it is in the list above.
+    if (i) await page.keyboard.down('Control');
     await page.mouse.click(b.x, b.y);
-    await page.keyboard.up('Control');
+    if (i) await page.keyboard.up('Control');
     await sleep(150);
   }
   note((await page.$$('.nt-arch-row.is-picked')).length === 2, 'the archive does not pick the way the list above it does');
@@ -1555,7 +1761,12 @@ await chord(['Control'], '\\');
   });
   note(railHit.on, 'the point aimed at a rail letter is not on it');
   await page.mouse.click(railHit.x, railHit.y);
-  await sleep(600);
+  /* WAIT FOR THE STATE. A jump is a SMOOTH scroll and the mark that follows
+     it is set by the scroll spy, so how long it takes depends on how far the
+     category is from where the drag just left the canvas -- which is not a
+     number this check can know. A fixed sleep passed while the reorder above
+     it was short and started failing the day the drag moved further. */
+  await page.waitForFunction((id) => document.querySelector('.nt-rail-cat.is-here')?.dataset.cat === id, { timeout: 6000 }, railHit.id).catch(() => {});
   note(await page.evaluate((id) => document.querySelector('.nt-rail-cat.is-here')?.dataset.cat === id, railHit.id),
        'a real mouse click on a rail letter did not jump to its category');
   console.log(`rail reorder: ${was.slice(0, 3).join(',')} -> ${now.slice(0, 3).join(',')}`);

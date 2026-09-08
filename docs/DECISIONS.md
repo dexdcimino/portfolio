@@ -25,6 +25,56 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-07 — a colour is the whole category, and the title is the hex itself
+
+**Decided.** `tints()` derives six values from one pick. The box is a faded
+version of the colour, the title strip is one step more prominent than that,
+and the three text tiers run title / bold / body with **saturation** carrying
+the hierarchy: the title is the picked hex byte for byte, and each tier below
+it is duller and one step further from the box.
+
+**It replaced** a neutral grey box with three tiers that got LIGHTER on the
+way up to the title -- so the title was the most washed-out of the three and
+the reading text was the closest to the colour that had been chosen.
+
+**Why.** The ranking was backwards for what a category colour is for: you
+choose it to recognise a category by its name, and the name was the one place
+the colour had been diluted. Putting the pick on the title and draining
+saturation downward also fixes the readability problem the old direction
+created — a paragraph in a fully saturated colour is tiring, and now the
+lines being read end up nearly neutral while still unmistakably tinted.
+
+**Reverse it if** the readability floors start moving the title often enough
+to matter. They exist because a free-form HSB field can produce a colour that
+is invisible on its own surfaces, and every time one fires the promise "the
+title is what you picked" is broken for that pick. On the dark theme today it
+almost never fires; if a palette change made it common, the honest answer
+would be to constrain the picker rather than to keep quietly correcting it.
+
+---
+
+## 2026-09-07 — every click on a row is a selection
+
+**Decided.** A plain click on a sidebar row picks that row (and jumps to it).
+Ctrl adds, Shift takes the run from it. A pick of one is not drawn.
+
+**It replaced** a plain click that CLEARED the pick, so building a selection
+meant Ctrl+clicking the first row as well as the rest — and the row you had
+just clicked normally counted for nothing.
+
+**Why.** It is how every list of files behaves, and the alternative made the
+common path worse for no gain: click a row to read it, decide you want its
+neighbours too, and you had to go back and re-click the one you were already
+on. Not drawing a pick of one is what makes it free: that row already shows
+as the one being read, so nothing new appears on screen until there is
+actually something to say.
+
+**Reverse it if** a pick of one ever needs to be visible — if some action
+gains a "does this apply to one or to many" ambiguity, the invisible state
+becomes a state you cannot check before acting.
+
+---
+
 ## 2026-09-07 — the category's title row moved inside its text box
 
 **Decided.** A category is `.nt-cat-box`: one rounded box carrying the body's
