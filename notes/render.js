@@ -14,6 +14,7 @@
 
 import { el, closest, caretToEnd } from './dom.js';
 import { newCat, newSession, catOf, archivedOf, touch, snapshot, restore, PALETTE, SESSION_PALETTE, now } from './state.js';
+import { openImport, buildSessions, exportSession } from './transfer.js';
 import { confirm, toast, menu, panel, closePanel, ICON } from './ui.js';
 import { contrastOn, tints } from './color.js';
 
@@ -191,6 +192,18 @@ function structure(label, mutate) {
 }
 
 /* ---- sessions ----------------------------------------------------------------- */
+
+/* The import's one callback. transfer.js builds nothing into the document
+   itself -- it hands back what it parsed, and this decides what that means:
+   appended after everything, the first one opened, one save. */
+export function importSessions(parsed) {
+  const made = buildSessions(parsed, ctx.doc.sessions.length);
+  ctx.doc.sessions.push(...made);
+  switchSession(made[0].id, 1);
+  ctx.docChanged();
+  renderSessionList();
+  return made;
+}
 
 export function addSession() {
   const used = ctx.doc.sessions.length;
@@ -1077,8 +1090,24 @@ export function renderSessionList() {
       el('span', { text: 'My Sessions' }),
       el('button', { type: 'button', class: 'nt-sesslist-x', html: ICON.close, 'aria-label': 'Close', onclick: () => ctx.closeSessionList && ctx.closeSessionList() })),
     el('div', { class: 'nt-sesslist-rows' }, ...rows),
+    /* ONE ROW: out on the left, New in the middle, in on the right. All three
+       answer the same question -- where a session comes from -- and the two
+       square ones are the same gesture in opposite directions, so the arrow
+       is the only thing that has to be read. Neither needs a terminal, a
+       token, or a person who knows what those are: an import is an ordinary
+       edit and rides the same save every keystroke does. */
     el('div', { class: 'nt-sesslist-foot' },
-      el('button', { type: 'button', class: 'nt-sesslist-new', html: `${ICON.plus}<span>New</span>`, onclick: () => addSession() })));
+      el('button', {
+        type: 'button', class: 'nt-sesslist-io is-down', 'data-tip': 'Download',
+        html: ICON.download, 'aria-label': 'Download this session as markdown',
+        onclick: () => exportSession(S()),
+      }),
+      el('button', { type: 'button', class: 'nt-sesslist-new', html: `${ICON.plus}<span>New</span>`, onclick: () => addSession() }),
+      el('button', {
+        type: 'button', class: 'nt-sesslist-io is-up', 'data-tip': 'Upload',
+        html: ICON.upload, 'aria-label': 'Upload markdown as a session',
+        onclick: (e) => openImport(e.currentTarget, importSessions),
+      })));
 }
 
 function renderArchive() {

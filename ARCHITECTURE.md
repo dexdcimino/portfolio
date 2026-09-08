@@ -1220,6 +1220,8 @@ notes/          the app, ES modules, fetched only after the password passes
   search.js       Highlight API matches, Enter/arrows, sidebar dimming
   slash.js        the "/" menu
   md.js           the markdown renderer for nodes (escaping first, hrefs allow-listed)
+  transfer.js     a session in and out as markdown: the Upload and Download
+                  buttons in the sessions sheet
   ui.js           toast, confirm, panels, menus, tooltips, the icon set
   nodes.js        what a chip looks like and what you can do to one: the mark,
                   the hover toolbar, and the ONE drag that creates, moves and
@@ -1391,6 +1393,49 @@ transient: image srcs, selection classes. A save and a reload are
 byte-identical, which is what lets the save loop compare strings.
 
 ### Editing
+
+### Sessions in and out
+
+**`notes/transfer.js` is how a session arrives and leaves, and it is markdown
+because markdown already has a word for both halves of a session.** `#` is a
+session, `##` is a category, everything under a `##` is that category's body,
+and `###` and deeper are headings inside it. Several `#` in one file are
+several sessions, so a whole backup restores in one press. A file with no `#`
+is one session named after the file.
+
+**The Upload and Download buttons live in the sessions sheet's foot**, either
+side of New: out on the left, in on the right. All three answer the same
+question -- where a session comes from -- and the two square ones are one
+gesture in opposite directions.
+
+**AN IMPORT IS AN ORDINARY EDIT.** It builds sessions, pushes them onto the
+document and calls `docChanged()`, which is the same path a keystroke takes.
+There is no token, no endpoint and no privileged mode: whatever may write a
+note may write a session. `tools/notes_import.mjs` does the same job from a
+terminal and needs the blob token in a shell, a dev server to borrow a DOM
+from, and a person who knows what those are -- it is still the right tool for
+a scripted or bulk restore, and the wrong one for a person with a file.
+
+**The body is right by CONSTRUCTION, not by a checker.** What gets stored is
+`clean(renderMarkdown(md))` -- `renderMarkdown` decides what the markdown
+means, `clean()` decides what a body may contain, and running them in that
+order leaves nothing for a body check to disagree with. That is the whole
+reason the terminal importer needed a browser: `clean()` needs a DOM, and in
+the app it is already loaded.
+
+**A title's leading emoji is the title's emoji.** `\p{Extended_Pictographic}`
+alone is not enough to find one: U+275D, the quote ornament already on the
+Quotes category, is not in that property and neither is a star, so an export
+and a re-import welded the mark onto the front of the title. The class is
+widened with the Dingbats and Miscellaneous Symbols ranges. Arrows are
+deliberately excluded -- "-> Next steps" is a title, all of it.
+
+**What does not survive a round trip is images**, and it is said in the module
+header rather than discovered: they are stored by content hash against the
+account, not inside the note, so markdown can only carry a reference. Export
+writes `![image](key)`. Everything else -- both list kinds, todo boxes with
+their ticks, quotes, fences, rules, tables, links and the inline marks -- goes
+out and comes back the same.
 
 **Inside a table, `table.js` answers the keys first.** Tab and Shift+Tab move
 between cells and Tab in the LAST cell adds a row and lands in it, which is how

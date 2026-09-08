@@ -73,6 +73,43 @@ constant in `notes/schema.js`.
 
 ---
 
+## 2026-09-08 — a session is imported from inside the app, not from a terminal
+
+**Decided.** The sessions sheet has Download and Upload either side of New.
+Upload takes a markdown file or pasted text, shows what it found, and on one
+press appends the sessions to the document. Download writes the session you
+are in back out as markdown. `notes/transfer.js` owns both.
+
+**It replaced** `tools/notes_import.mjs` being the only way in. That tool is
+correct and it stays -- for a scripted restore it is still the right thing --
+but as the ONLY route it made a fifteen-minute content job into: install a
+CLI, log into it, pull a live read-write credential into a file, export it
+into a shell, start a dev server, run a dry run, read the output, run it
+again with a flag. Every one of those is a place to stop, and the person who
+wanted the notes is not an engineer.
+
+**Why.** The terminal tool needs a token because it writes to the store from
+outside the app; it needs a dev server because `clean()` needs a DOM and it
+has none. Both problems are artefacts of running outside the app, and both
+vanish inside it. An import there is an ordinary edit on the same
+authenticated save every keystroke uses, and `clean()` is already loaded --
+so `clean(renderMarkdown(md))` is not merely verified, it is what gets
+stored. The safety argument runs the same way: the tool needed a rev check,
+a duplicate-title refusal and a dry run because it could clobber a document
+it could not see. In the app there is no document it cannot see.
+
+Markdown rather than the JSON the seeds used, because the point is that
+anything can produce it. "Turn these notes into # session / ## category
+markdown" is a sentence you can say to any assistant, and the answer is a
+file that imports.
+
+**Reverse it if** a session ever needs to carry something markdown cannot
+express and a reference is not good enough -- images are the standing example.
+The answer then is a second format beside this one, not the loss of this one:
+a person with a file should never need a terminal.
+
+---
+
 ## 2026-09-08 — known sites get bundled brand marks; unknown ones keep the hash
 
 **Decided.** `BRANDS` in `notes/nodes.js` is a table of about fifty sites.

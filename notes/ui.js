@@ -278,6 +278,11 @@ export const ICON = {
   collapse: S('<rect x="6" y="6" width="12" height="12" rx="1.5"/>'),
   palette: S('<circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10" r="1.3" fill="currentColor"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="10" r="1.3" fill="currentColor"/><path d="M12 21c-1.5-2-.5-4 1-4h2a3 3 0 0 0 0-6"/>'),
   archive: S('<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/>'),
+  /* In and out of the app: the tray is the same in both, and the arrow
+     says which way. Drawn as a pair so they read as one control split in
+     two rather than as two unrelated buttons. */
+  upload: S('<path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/>'),
+  download: S('<path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/><path d="M12 4v11"/><path d="M8 11l4 4 4-4"/>'),
   /* The DexNote mark, from the app this borrows from: two strokes of one
      colour, the lower one darker. It is the session's colour swatch, in the
      sidebar and on the canvas -- clicking it recolours the session. */

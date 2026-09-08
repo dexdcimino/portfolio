@@ -2555,6 +2555,207 @@ await chord(['Control'], '\\');
   note(restored === kept, 'the polish section did not put the body back the way it found it');
 }
 
+/* ---- 17o. a session goes in and out as markdown -------------------------
+   The point of this feature is that it needs NO terminal, no token and no
+   dev server, so the check drives exactly what a person drives: the sessions
+   sheet, the upload button, the panel, the Import press. The pure transforms
+   are called directly at the end, on the body the UI actually stored. */
+{
+  const sessionsAtStart = await page.$$eval('.nt-sess-row', (e) => e.length).catch(() => 0);
+  await page.evaluate(() => { const b = document.querySelector('.nt-sessions-btn'); if (b) b.click(); });
+  await sleep(520);
+
+  /* a. the row: out on the left, New in the middle, in on the right. */
+  const row = await page.evaluate(() => {
+    const foot = document.querySelector('.nt-sesslist-foot');
+    if (!foot) return null;
+    const kids = [...foot.children];
+    const box = (n) => { const r = n.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
+    return {
+      n: kids.length,
+      cls: kids.map((k) => k.className),
+      tips: kids.map((k) => k.getAttribute('data-tip')),
+      boxes: kids.map(box),
+      footW: foot.getBoundingClientRect().width,
+    };
+  });
+  note(!!row && row.n === 3, `the sessions foot should hold three buttons, it holds ${row && row.n}`);
+  note(!!row && /is-down/.test(row.cls[0]) && /nt-sesslist-new/.test(row.cls[1]) && /is-up/.test(row.cls[2]),
+       `the foot is in the wrong order: ${row && row.cls.join(' | ')}`);
+  note(!!row && row.tips[0] === 'Download' && row.tips[2] === 'Upload', `the tips read ${JSON.stringify(row && row.tips)}`);
+  /* ONE ROW, measured rather than assumed: three buttons in a column also
+     satisfies "download, new, upload" in order. */
+  note(!!row && Math.abs(row.boxes[0].y - row.boxes[1].y) < 2 && Math.abs(row.boxes[2].y - row.boxes[1].y) < 2,
+       `the three buttons are not on one row: ${JSON.stringify(row && row.boxes.map((b) => Math.round(b.y)))}`);
+  note(!!row && row.boxes[0].x < row.boxes[1].x && row.boxes[1].x < row.boxes[2].x, 'download is not left of New, or upload is not right of it');
+  note(!!row && Math.abs(row.boxes[0].w - row.boxes[0].h) < 3 && Math.abs(row.boxes[2].w - row.boxes[2].h) < 3,
+       `the two side buttons are not square: ${JSON.stringify(row && [row.boxes[0], row.boxes[2]].map((b) => `${Math.round(b.w)}x${Math.round(b.h)}`))}`);
+  /* AND IT FITS. flex-basis 100% on the middle button overflows a row with
+     two squares and two gaps in it, and a flex item will not shrink below
+     its content without min-width: 0. */
+  const spans = row ? (row.boxes[2].x + row.boxes[2].w) - row.boxes[0].x : 0;
+  note(!!row && spans <= row.footW + 1, `the foot row overflows its sheet: ${Math.round(spans)}px of ${Math.round(row && row.footW)}px`);
+  console.log(`sessions foot: ${row && row.cls.length} buttons, one row, squares ${row && Math.round(row.boxes[0].w)}px`);
+
+  /* b. the upload button opens the panel. */
+  await page.evaluate(() => document.querySelector('.nt-sesslist-io.is-up').click());
+  await page.waitForSelector('.nt-io-text', { timeout: 4000 }).catch(() => {});
+  note(!!(await page.$('.nt-io-text')), 'the upload button did not open the import panel');
+  note(!!(await page.$('.nt-io-drop input[type="file"]')), 'the import panel offers no file to choose');
+
+  /* c. typing markdown reports what it found, before anything is created. */
+  const MD = [
+    '# 🍣 Imported Food',
+    '',
+    '## Staples',
+    'The regular rotation.',
+    '',
+    '### Drinks',
+    '- tea',
+    '- coffee',
+    '',
+    '## Recipes',
+    '### Quick',
+    '1. mix',
+    '2. bake',
+    '',
+    '## Notes',
+    '> a quote',
+  ].join('\n');
+  await page.evaluate((md) => {
+    const t = document.querySelector('.nt-io-text');
+    t.value = md;
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  }, MD);
+  await sleep(200);
+  const summary = await page.evaluate(() => {
+    const s2 = document.querySelector('.nt-io-summary');
+    return { text: s2.textContent, ready: s2.classList.contains('is-ready'), go: !document.querySelector('.nt-io-go').disabled };
+  });
+  note(summary.ready && summary.go, `the panel did not accept the markdown: ${JSON.stringify(summary)}`);
+  note(/1 session/.test(summary.text) && /3 categories/.test(summary.text), `the preview miscounted: "${summary.text}"`);
+  console.log(`import preview: ${summary.text}`);
+
+  /* d. and the press makes it. */
+  const before = await page.evaluate(() => document.querySelectorAll('.nt-sess-row').length);
+  await page.evaluate(() => document.querySelector('.nt-io-go').click());
+  await sleep(700);
+  const made = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('.nt-sess-row')];
+    const cats = [...document.querySelectorAll('.nt-cat')];
+    const badge = document.querySelector('.nt-sess-row.is-active .nt-row-badge');
+    return {
+      rows: rows.length,
+      active: document.querySelector('.nt-sess-row.is-active .nt-row-title')?.textContent,
+      emoji: badge ? badge.textContent : '',
+      cats: cats.map((c) => c.querySelector('.nt-cat-title')?.textContent),
+      bodies: cats.map((c) => c.querySelector('.nt-body')?.innerHTML),
+    };
+  });
+  note(made.rows === before + 1, `importing should add one session: ${before} -> ${made.rows}`);
+  note(made.active === 'Imported Food', `the imported session is named "${made.active}"`);
+  note(made.emoji === '🍣', `the leading emoji did not become the session's badge: "${made.emoji}"`);
+  note(JSON.stringify(made.cats) === JSON.stringify(['Staples', 'Recipes', 'Notes']),
+       `the categories came in as ${JSON.stringify(made.cats)}`);
+  /* THE BODY IS SCHEMA HTML, which is the whole reason this runs clean()
+     rather than trusting renderMarkdown: a heading is an H3 because H3 is
+     the only heading a body may hold. */
+  note(/<h3>Drinks<\/h3>/.test(made.bodies[0]) && /<ul>/.test(made.bodies[0]) && /<li>tea<\/li>/.test(made.bodies[0]),
+       `the first body is not the markdown's shape: ${made.bodies[0]}`);
+  note(/<ol>/.test(made.bodies[1]), `an ordered list did not survive: ${made.bodies[1]}`);
+  note(/<blockquote>/.test(made.bodies[2]), `a quote did not survive: ${made.bodies[2]}`);
+  console.log(`imported: ${made.active} ${made.emoji}, ${made.cats.length} categories`);
+
+  /* e. what is stored is already clean: clean(body) === body, so the first
+     reload cannot look different from the import. This is the property the
+     terminal importer needed a whole browser and a dev server to check. */
+  const stable = await page.evaluate(async (bodies) => {
+    const { clean } = await import('/notes/schema.js');
+    return bodies.every((b) => clean(b) === b);
+  }, made.bodies);
+  note(stable, 'an imported body is rewritten by clean(), so it would change on the first reload');
+
+  /* f. and back out again, on the body the UI actually stored. */
+  const round = await page.evaluate(async (bodies) => {
+    const t = await import('/notes/transfer.js');
+    return { md: t.bodyToMarkdown(bodies[0]), second: t.parseSessions('# X\n## Y\n' + t.bodyToMarkdown(bodies[0])) };
+  }, made.bodies);
+  note(/^### Drinks$/m.test(round.md), `export lost the heading: ${JSON.stringify(round.md)}`);
+  note(/^- tea$/m.test(round.md) && /^- coffee$/m.test(round.md), `export lost the bullets: ${JSON.stringify(round.md)}`);
+  note(round.second.length === 1 && round.second[0].cats.length === 1, 'exported markdown does not parse back into a session');
+  console.log(`round trip: ${JSON.stringify(round.md.split('\n').slice(0, 3))}`);
+
+  /* g. the parse rules that are not about the happy path. */
+  const rules = await page.evaluate(async () => {
+    const { parseSessions } = await import('/notes/transfer.js');
+    return {
+      noHeading: parseSessions('just some text', 'My File'),
+      fenced: parseSessions('# A\n## B\n```\n# not a session\n```\n'),
+      stray: parseSessions('# A\nloose line\n## B\nx'),
+      empty: parseSessions(''),
+    };
+  });
+  note(rules.noHeading.length === 1 && rules.noHeading[0].title === 'My File',
+       `a file with no heading should take the file's name: ${JSON.stringify(rules.noHeading)}`);
+  note(rules.fenced.length === 1 && rules.fenced[0].cats.length === 1, `a heading inside a fence split the file: ${JSON.stringify(rules.fenced.map((x) => x.cats.length))}`);
+  note(rules.stray[0].cats.length === 2 && rules.stray[0].cats[0].title === 'Notes',
+       `content before the first ## should become a Notes category: ${JSON.stringify(rules.stray[0].cats.map((c) => c.title))}`);
+  note(rules.empty.length === 0, 'an empty file produced a session');
+
+  /* AN EMOJI IS MORE THAN \p{Extended_Pictographic}. U+275D -- the quote
+     ornament this app already puts on a Quotes category -- is not in that
+     property, so exporting it and reading it back left the ornament welded
+     to the front of the title and the category came back named "<mark>
+     Quotes". A round trip that corrupts a title quietly is worse than one
+     that fails, which is why this is a check and not a comment. Arrows are
+     the other side of it: "-> Next steps" is a title, all of it. */
+  const emoji = await page.evaluate(async () => {
+    const { parseSessions } = await import('/notes/transfer.js');
+    const one = (line) => {
+      const c = parseSessions(`# S\n${line}\nx`)[0].cats[0];
+      return [c.emoji, c.title];
+    };
+    return {
+      ornament: one('## \u275d Quotes'),
+      star: one('## \u2605 Picks'),
+      pictographic: one('## \ud83c\udf63 Food'),
+      joined: one('## \ud83d\uddc2\ufe0f General'),
+      arrow: one('## \u2192 Next steps'),
+      plain: one('## Staples'),
+      bare: one('## \ud83c\udfae'),
+    };
+  });
+  note(JSON.stringify(emoji.ornament) === JSON.stringify(['\u275d', 'Quotes']), `an ornament emoji did not split off: ${JSON.stringify(emoji.ornament)}`);
+  note(JSON.stringify(emoji.star) === JSON.stringify(['\u2605', 'Picks']), `a star did not split off: ${JSON.stringify(emoji.star)}`);
+  note(JSON.stringify(emoji.pictographic) === JSON.stringify(['\ud83c\udf63', 'Food']), `a plain emoji did not split off: ${JSON.stringify(emoji.pictographic)}`);
+  /* The variation selector rides WITH the mark. Split off without it, the
+     badge draws the base character plus a stray box. */
+  note(JSON.stringify(emoji.joined) === JSON.stringify(['\ud83d\uddc2\ufe0f', 'General']), `a mark with a variation selector was cut in half: ${JSON.stringify(emoji.joined)}`);
+  note(JSON.stringify(emoji.arrow) === JSON.stringify(['', '\u2192 Next steps']), `an arrow was taken for an emoji: ${JSON.stringify(emoji.arrow)}`);
+  note(JSON.stringify(emoji.plain) === JSON.stringify(['', 'Staples']), `a plain title lost its first word: ${JSON.stringify(emoji.plain)}`);
+  note(emoji.bare[0] === '\ud83c\udfae' && !!emoji.bare[1], `an emoji-only title left nothing to call it: ${JSON.stringify(emoji.bare)}`);
+  console.log(`title emojis: ornament and star split, arrow kept, emoji-only falls back to "${emoji.bare[1]}"`);
+  console.log(`parse rules: filename fallback, fences held, stray -> ${rules.stray[0].cats[0].title}`);
+
+  /* h. take it back out, so the tidy-up still finds the store it expects. */
+  page.once('dialog', (d) => d.accept().catch(() => {}));
+  await page.evaluate(() => {
+    const r = [...document.querySelectorAll('.nt-sess-row')].find((x) => x.querySelector('.nt-row-title')?.textContent === 'Imported Food');
+    if (r) r.querySelector('.nt-sess-row-x').click();
+  });
+  await sleep(400);
+  await page.evaluate(() => {
+    const ok = [...document.querySelectorAll('.nt-confirm button, .nt-dialog button, button')].find((b) => /^Delete$/.test(b.textContent.trim()));
+    if (ok) ok.click();
+  });
+  await sleep(600);
+  const left = await page.evaluate(() => [...document.querySelectorAll('.nt-sess-row')].map((r) => r.querySelector('.nt-row-title')?.textContent));
+  note(!left.includes('Imported Food'), `the imported session was not cleaned up: ${JSON.stringify(left)}`);
+  note(left.length === sessionsAtStart || left.length === before, `session count did not come back: ${left.length} vs ${before}`);
+  await page.evaluate(() => { const b = document.querySelector('.nt-sessions-btn'); if (b) b.click(); });
+  await sleep(320);
+}
+
 /* ---- 17m. the drag handle is on the category you are in ------------------- */
 {
   // The pointer parked well away, so hover cannot be what makes it visible.
