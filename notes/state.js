@@ -96,6 +96,8 @@ export function defaultUi() {
     font: 'outfit',
     fs: 17,
     sidebar: 'open',
+    // The node kind the header's button inserts, i.e. the one used last.
+    node: 'link',
     spell: true,
     autocorrect: true,
     // How the sidebar's leftover height is split between the category list

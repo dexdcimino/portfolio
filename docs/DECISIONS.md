@@ -25,6 +25,32 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-08 — a link's mark is derived, not fetched
+
+**Decided.** The circle at the head of a link chip is the site's initial on
+one of twelve colours hashed from its hostname, computed in the browser from
+the URL that is already in the note.
+
+**It replaced** the plan to show the real favicon, the way the app this
+borrows from does -- `google.com/s2/favicons?domain=…`.
+
+**Why.** Two reasons, and the second is the one that decides it. The app
+ships under `img-src 'self' data:`, so a remote favicon is blocked outright
+and the header would have to be widened. And widening it would mean that
+every render of a private, password-gated page tells Google which domains are
+in it -- one request per distinct site, on every open. A notes app whose whole
+premise is that the content is nobody else's business should not leak its
+link graph to fetch decorations.
+
+**Reverse it if** the marks stop being distinguishable enough to be useful
+and a same-origin favicon proxy is worth building: `/api/notes/favicon` could
+fetch and cache them server-side, which keeps `img-src 'self'` and keeps the
+request off the reader's machine. That is a server feature with a cache and
+an eviction policy, not a CSS change, which is why it is not what shipped
+first.
+
+---
+
 ## 2026-09-07 — the note box is neutral; only the title strip is tinted
 
 **Decided.** The field the words sit on is the theme's grey (`--bg2`, `--bg3`

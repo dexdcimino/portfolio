@@ -566,7 +566,8 @@ export function renameCat(id, title) {
 export function setCatEmoji(id, emoji) {
   const cat = catOf(S(), id);
   if (!cat) return;
-  structure('emoji', () => { cat.emoji = emoji; touch(S(), cat); });
+  // '' clears it, and the badge falls back to the title's first letter.
+  structure('emoji', () => { if (emoji) cat.emoji = emoji; else delete cat.emoji; touch(S(), cat); });
   renderCatHeader(id);
   renderSidebar();
 }
@@ -816,7 +817,7 @@ function buildSection(cat) {
     // No tip. A chevron says fold, and the shift-for-all trick is in the
     // information panel with every other thing you have to be told once.
     el('button', { type: 'button', class: 'nt-cat-toggle', html: ICON.chevron, 'aria-label': 'Collapse category', onclick: (e) => toggleCollapse(cat.id, undefined, e.shiftKey) }),
-    el('button', { type: 'button', class: 'nt-cat-emoji', 'aria-label': 'Choose an emoji', onclick: (e) => ctx.emoji.openFull(e.currentTarget, (u) => setCatEmoji(cat.id, u)) }));
+    emojiButton(cat));
   /* Options, then colour, then archive. The X is the one that removes
      something, so it is the one on the outside where nothing else is reached
      past it. */
@@ -843,11 +844,29 @@ function buildSection(cat) {
   return sec;
 }
 
+/* THE BADGE AND THE WAY OUT OF IT. Setting an emoji was one click and
+ * clearing it was nothing at all -- the picker only ever sets. The X is the
+ * same mark and the same gesture the session cards use, on the same corner,
+ * and it is only there when there is an emoji to take off: with none, the
+ * badge is already the category's first letter and there is nothing to undo.
+ * The glyph lives in its own span so fillHeader can rewrite it without
+ * wiping the X out from under itself. */
+function emojiButton(cat) {
+  const btn = el('button', { type: 'button', class: 'nt-cat-emoji', 'aria-label': 'Choose an emoji',
+    onclick: (e) => ctx.emoji.openFull(e.currentTarget, (u) => setCatEmoji(cat.id, u)) },
+  el('span', { class: 'nt-cat-emoji-g' }));
+  const x = el('span', { class: 'nt-cat-emoji-x', html: ICON.close, title: 'Remove emoji' });
+  x.addEventListener('click', (e) => { e.stopPropagation(); setCatEmoji(cat.id, ''); });
+  btn.append(x);
+  return btn;
+}
+
 function fillHeader(sec, cat) {
   const g = glyph(cat);
   const emojiBtn = sec.querySelector('.nt-cat-emoji');
-  emojiBtn.textContent = cat.emoji || g.text;
+  emojiBtn.querySelector('.nt-cat-emoji-g').textContent = cat.emoji || g.text;
   emojiBtn.classList.toggle('is-emoji', !!cat.emoji || g.emoji);
+  emojiBtn.classList.toggle('has-emoji', !!cat.emoji);
   const title = sec.querySelector('.nt-cat-title');
   if (document.activeElement !== title && title.textContent !== cat.title) title.textContent = cat.title;
   sec.querySelector('.nt-body').dataset.rev = cat.updated;
@@ -1128,10 +1147,19 @@ function spy() {
   setActive(best ? best.dataset.cat : null);
 }
 
+/* THE MARK IS REPAINTED EVERY TIME, and only the rest of this is skipped when
+ * nothing changed. `activeId` is a module variable that survives a re-render;
+ * the rows and the rail letters do not, because renderSidebar builds them
+ * fresh and a fresh one has no is-here on it. So an early return on
+ * `id === activeId` meant that after any rebuild -- a reorder, an archive, a
+ * colour -- the category you were reading stopped being marked at all, in
+ * both lists, until you moved to a different one. A classList.toggle over a
+ * dozen nodes is not worth guarding against. */
 function setActive(id) {
-  if (id === activeId) return;
+  const same = id === activeId;
   activeId = id;
   for (const n of ctx.sidebar.querySelectorAll('.nt-row, .nt-rail-cat')) n.classList.toggle('is-here', n.dataset.cat === id);
+  if (same) return;
   const here = ctx.sidebar.querySelector('.nt-rail-cat.is-here');
   if (here) here.scrollIntoView({ block: 'nearest' });
   const cat = id && catOf(S(), id);

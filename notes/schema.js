@@ -146,6 +146,13 @@ function unwrapAsLines(node) {
 
 function cleanAttributes(el) {
   const tag = el.tagName;
+  /* THE MARK GOES FIRST, before the class filter below runs -- `nt-chip-mark`
+     is not in the allowed class set, so by the time the SPAN rule at the
+     bottom of this function looks for it the class has already been stripped
+     and the span is unwrapped instead of removed, leaving its letter loose in
+     the middle of the chip's label. A chip pasted from one note into another
+     came out reading "Ggoogle.com". */
+  if (tag === 'SPAN' && el.classList.contains('nt-chip-mark')) { el.remove(); return; }
   for (const attr of [...el.attributes]) {
     const name = attr.name.toLowerCase();
     let keep = false;
@@ -157,6 +164,8 @@ function cleanAttributes(el) {
     else if (name === 'data-w' && tag === 'IMG') keep = IMG_WIDTHS.has(attr.value);
     else if (name === 'alt' && tag === 'IMG') keep = true;
     else if (name === 'data-md' && tag === 'SPAN') keep = true;
+    // Folded. Only the one value: a chip is folded or it is not.
+    else if (name === 'data-min' && (tag === 'A' || tag === 'SPAN')) keep = attr.value === '1';
     else if (name === 'title' && (tag === 'A' || tag === 'SPAN')) keep = true;
     if (!keep) el.removeAttribute(attr.name);
   }
@@ -330,7 +339,12 @@ export function scrub(root) {
     styled.removeAttribute('style');
     changed = true;
   }
-  for (const font of root.querySelectorAll('font, span:not(.chip):not(.nt-interim), div, strong, em, strike, del')) {
+  /* .nt-chip-mark is the third span this is not about. It is a rendering the
+     app puts inside a chip on every hydrate -- not something Chrome left
+     behind -- and unwrapping it dropped its letter loose into the middle of
+     the chip's label, which is how a link came out reading "Ggoogle.com".
+     The other two exclusions are here for the same reason. */
+  for (const font of root.querySelectorAll('font, span:not(.chip):not(.nt-interim):not(.nt-chip-mark), div, strong, em, strike, del')) {
     if (font.tagName === 'DIV') {
       const p = document.createElement('p');
       while (font.firstChild) p.append(font.firstChild);
@@ -377,6 +391,8 @@ export function serialize(root) {
     img.className = 'nt-img';
   }
   for (const sel of copy.querySelectorAll('.is-selected, .is-active')) sel.classList.remove('is-selected', 'is-active');
+  // The mark is a rendering of the chip, not part of it.
+  for (const mark of copy.querySelectorAll('.nt-chip-mark')) mark.remove();
   for (const styled of copy.querySelectorAll('[style]')) styled.removeAttribute('style');
   for (const el of copy.querySelectorAll('[contenteditable]')) {
     if (!(el.classList.contains('chip'))) el.removeAttribute('contenteditable');

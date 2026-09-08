@@ -71,6 +71,25 @@ and `grep -c "autolist\|split" notes/*.js` → 0.
    King Kong stays pillarboxed 9:16 or gets a 16:9 re-export?; keep the V-number scheme in
    `CHANGELOG.md` or log by date?
 
+9. **Nodes: the pieces not yet built.** The mark, the fold, the hover toolbar
+   and the one drag that creates, moves and copies are in (`notes/nodes.js`).
+   What was asked for and is not here yet:
+   - **A multi-image node.** One node holding several pictures, with an
+     overlay to add and reorder them and the existing 25/50/75/100 zoom row
+     applying inside it. That is a new node KIND with its own stored shape
+     (a list of asset keys rather than one `<img>`), not a change to the
+     image handling that exists.
+   - **Dropping a node into a category TITLE.** A title is a plain string in
+     the model (`cat.title`) and `wireTitle` flattens any element typed into
+     it on the next input. Supporting a chip there means the title becomes
+     rich text, which is a data-shape change and a merge-conflict question,
+     not a drag-target question.
+   - **A real favicon.** Blocked by `img-src 'self' data:` and, more to the
+     point, by not wanting a private page to tell a third party its link
+     graph. `docs/DECISIONS.md` has the reasoning and the shape of the
+     server-side answer if it is ever wanted.
+   Verified: `grep -c 'chip-image' notes/*.js` → 0.
+
 ## Written but unbuilt
 
 Not here. Those live in the **Idea Vault** — the five `.iv-row` entries in `index.html`,

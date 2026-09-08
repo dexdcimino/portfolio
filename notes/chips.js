@@ -19,12 +19,40 @@ import { el, closest, collapseAt, liveRange, setRange } from './dom.js';
 import { insertInline, insertBlockAfterCaret, transact, bodyFrom } from './editor.js';
 import { renderMarkdown, titleOf } from './md.js';
 import { panel, closePanel, menu, toast, confirm, ICON } from './ui.js';
+import { NODES, nodeKind, kindOf, paintMark, showToolbar, hideToolbar, beginDrag } from './nodes.js';
 
 let ctx = null;
 
 export function initChips(context) {
   ctx = context;
   ctx.canvas.addEventListener('contextmenu', onContextMenu);
+  /* THE CHIP SURFACE IS DELEGATED, all of it. Chips are rebuilt by every
+     render, every undo and every paste; a listener per chip would be a
+     listener per chip per rebuild, and the ones on chips that had gone would
+     be the ones still holding a toolbar open. */
+  ctx.canvas.addEventListener('pointerover', (e) => {
+    const chip = e.target.closest && e.target.closest('.chip');
+    const body = chip && bodyFrom(chip);
+    if (chip && body) showToolbar(chip, body);
+  });
+  ctx.canvas.addEventListener('pointerout', (e) => {
+    if (e.target.closest && e.target.closest('.chip')) setTimeout(() => hideToolbar(), 160);
+  });
+  ctx.canvas.addEventListener('scroll', () => hideToolbar(true), true);
+  /* Dragging a chip MOVES it, and Shift leaves a copy behind. The mark at its
+     head is not a drag handle -- that is the fold toggle -- so a press there
+     is left alone. */
+  ctx.canvas.addEventListener('pointerdown', (e) => {
+    const chip = e.target.closest && e.target.closest('.chip');
+    if (!chip || e.target.closest('.nt-chip-mark')) return;
+    const from = bodyFrom(chip);
+    if (!from) return;
+    beginDrag(e, {
+      source: chip,
+      ghost: () => chipGhost(chip),
+      onDrop: (body, range, copy) => dropChip(chip, from, body, range, copy),
+    });
+  });
   document.addEventListener('selectionchange', () => {
     // Clicking away from a selected image deselects it.
     if (selected && !selected.isConnected) selected = null;
@@ -49,13 +77,125 @@ export function hydrate(body) {
     img.style.width = `${img.dataset.w || 50}%`;
   }
   for (const chip of body.querySelectorAll('.chip-md')) {
-    if (!chip.textContent.trim()) chip.textContent = titleOf(decode(chip.dataset.md));
+    if (!chipLabel(chip).trim()) setChipLabel(chip, titleOf(decode(chip.dataset.md)));
     chip.setAttribute('contenteditable', 'false');
+    paintMark(chip);
   }
   for (const chip of body.querySelectorAll('a.chip-link')) {
     chip.setAttribute('contenteditable', 'false');
-    if (!chip.textContent.trim()) chip.textContent = labelFor(chip.getAttribute('href'));
+    if (!chipLabel(chip).trim()) setChipLabel(chip, labelFor(chip.getAttribute('href')));
+    paintMark(chip);
   }
+}
+
+/* A CHIP'S LABEL IS NOT ITS textContent ANY MORE. The mark at its head is an
+ * element inside it, so `chip.textContent` reads "Ggoogle.com" -- and writing
+ * to it would take the mark out again. Every read and write of a chip's words
+ * goes through these two, which touch the text nodes and nothing else. */
+export function chipLabel(chip) {
+  let out = '';
+  for (const n of chip.childNodes) if (n.nodeType === 3) out += n.nodeValue;
+  return out;
+}
+export function setChipLabel(chip, text) {
+  for (const n of [...chip.childNodes]) if (n.nodeType === 3) n.remove();
+  chip.append(document.createTextNode(text));
+}
+
+/* ---- one chip, dragged ---------------------------------------------------- */
+
+function chipGhost(chip) {
+  const copy = chip.cloneNode(true);
+  copy.removeAttribute('contenteditable');
+  copy.removeAttribute('href');
+  return copy;
+}
+
+/* Moving between two bodies is TWO history entries, one per body, because a
+ * text entry is one body's HTML before and after -- that is the shape of the
+ * undo stack and it is the right shape for everything else. Undoing a
+ * cross-box move therefore takes two presses, which is honest about what
+ * happened rather than pretending one body changed. */
+function dropChip(chip, from, body, range, copy) {
+  const node = copy ? chip.cloneNode(true) : chip;
+  // The clone is taken after the drag has flagged its source, so it inherits
+  // the flag that suppresses the click that ends a drag -- and the copy's
+  // FIRST click would then do nothing.
+  if (copy) node.removeAttribute('data-dragged');
+  body.focus({ preventScroll: true });
+  /* THE DROP POINT IS PINNED BEFORE ANYTHING MOVES. Taking the chip out first
+     shifts every offset after it, and the range this was aiming at is one of
+     them -- a chip dragged a few words along its own line landed somewhere
+     else entirely. An empty text node holds the spot; it serialises to
+     nothing and is swapped for the chip a line later.
+     insertInline is deliberately NOT used here: it opens a transaction of its
+     own, and nesting one inside this one silently dropped the whole insert. */
+  const drop = () => {
+    const pin = document.createTextNode('');
+    range.insertNode(pin);
+    if (!copy && from === body) chip.remove();
+    const space = document.createTextNode(' ');
+    pin.replaceWith(node, space);
+    collapseAt(space, 1);
+  };
+  if (!copy && from !== body) { transact(from, () => chip.remove()); transact(body, drop); }
+  else transact(body, drop);
+  hydrate(body);
+  ctx.changed(body);
+  if (from !== body) ctx.changed(from);
+}
+
+/* What the toolbar's Edit and Copy do, per kind. Kept here rather than in
+ * nodes.js because they are about what a chip IS. */
+export function editChip(chip, body) {
+  if (kindOf(chip) === 'link') promptLink(body, chip);
+  else openMd(chip, body);
+}
+export function copyChip(chip) {
+  const isLink = kindOf(chip) === 'link';
+  const text = isLink ? chip.getAttribute('href') : decode(chip.dataset.md);
+  navigator.clipboard.writeText(text).then(() => toast(isLink ? 'Link copied' : 'Markdown copied')).catch(() => toast('Could not copy'));
+}
+
+/* ---- the nodes menu --------------------------------------------------------
+ * The header's node control is a split button: pressing the left half inserts
+ * the kind you used last -- and DRAGGING it puts one wherever you let go --
+ * while the chevron opens the list. The kind you used last is the one on the
+ * button, so the common case is one press and the menu is for changing your
+ * mind rather than for every single insert. */
+export function lastKind() { return nodeKind(ctx.doc.ui.node || 'link').key; }
+
+export function insertNode(body, key) {
+  ctx.doc.ui.node = key;
+  ctx.uiChanged();
+  if (key === 'link') promptLink(body);
+  else if (key === 'md') insertMd(body);
+  else pickImage(body);
+}
+
+export function nodeMenu(anchor, withBody) {
+  const rows = NODES.map((n) => ({
+    label: n.label, hint: n.hint, icon: n.icon(), tint: n.color,
+    run: () => withBody((b) => insertNode(b, n.key)),
+  }));
+  menu(anchor, rows, { align: 'right', title: 'Nodes', tinted: true });
+}
+
+/* Dragging the header button makes a node WHERE YOU LET GO: the drop places
+ * the caret and then opens that kind's own maker, so a link asks for its
+ * address at the point it is going to live rather than at the caret you had
+ * before you reached for the button. */
+export function dragNewNode(e, key) {
+  const n = nodeKind(key);
+  beginDrag(e, {
+    ghost: () => el('span', { class: 'chip chip-ghost', style: { '--node': n.color } },
+      el('span', { class: 'nt-chip-mark', html: n.icon() }), n.label),
+    onDrop: (body, range) => {
+      body.focus({ preventScroll: true });
+      setRange(range);
+      insertNode(body, key);
+    },
+  });
 }
 
 /* When the token is renewed, image URLs are rebuilt on the next hydrate;
@@ -65,12 +205,28 @@ export function hydrate(body) {
 
 export const URL_RE = /^(https?:\/\/|www\.)[^\s<>"']+$/i;
 
+/* WHAT COUNTS AS A LINK. `google.com` does, and so does `www.google.com`,
+ * `mail@example.com` and anything already carrying a scheme. What does not is
+ * a bare word with no dot in it -- `notes` is a thing you typed, not a host --
+ * and anything with a space in the middle. Chrome's own url validator refused
+ * `google.com` outright, which is the common case and not a mistake. */
+const HOSTISH = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?::\d+)?(?:[/?#]\S*)?$/i;
+const MAILISH = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function looksLikeUrl(u) {
+  const s = String(u || '').trim();
+  if (!s || /\s/.test(s)) return false;
+  if (/^(https?:\/\/|mailto:)/i.test(s)) return s.length > 8 || /^mailto:/i.test(s);
+  if (MAILISH.test(s)) return true;
+  return HOSTISH.test(s);
+}
+
 function normalizeUrl(u) {
   let s = String(u || '').trim();
   if (!s) return '';
-  if (/^www\./i.test(s)) s = `https://${s}`;
-  if (!/^(https?:\/\/|mailto:)/i.test(s)) s = `https://${s}`;
-  return s;
+  if (/^(https?:\/\/|mailto:)/i.test(s)) return s;
+  if (MAILISH.test(s)) return `mailto:${s}`;
+  return `https://${s}`;
 }
 
 export function labelFor(url) {
@@ -86,10 +242,14 @@ export function labelFor(url) {
 }
 
 function makeLink(url, label) {
-  return el('a', {
+  const chip = el('a', {
     class: 'chip chip-link', href: normalizeUrl(url), contenteditable: 'false',
     target: '_blank', rel: 'noopener', text: label || labelFor(normalizeUrl(url)),
   });
+  // Marked at BIRTH as well as at hydrate: hydrate runs after an innerHTML
+  // assignment, and a chip inserted straight into the document never sees one.
+  paintMark(chip);
+  return chip;
 }
 
 export function insertLink(body, url, label) {
@@ -151,24 +311,40 @@ function lastTextNode(el) {
 export function promptLink(body, existing) {
   const range = liveRange(body);
   const selText = range && !range.collapsed ? range.toString().trim() : '';
-  const url = el('input', { type: 'url', class: 'nt-input', placeholder: 'https://', value: existing ? existing.getAttribute('href') : '', spellcheck: 'false' });
-  const label = el('input', { type: 'text', class: 'nt-input', placeholder: 'Label (optional)', value: existing ? existing.textContent : selText });
+  /* type=text, NOT type=url. A url-typed input inside a form hands the refusal
+     to the browser: Chrome draws an orange-and-white bubble in its own style,
+     in its own corner, saying "Please enter a URL" about `google.com` -- which
+     is a link, and the most common way anyone types one. The form validates
+     itself now and says so on its own line, in this app's voice. */
+  const url = el('input', { type: 'text', class: 'nt-input', placeholder: 'google.com', autocomplete: 'off',
+    value: existing ? existing.getAttribute('href') : '', spellcheck: 'false' });
+  const label = el('input', { type: 'text', class: 'nt-input', placeholder: 'Label (optional)', value: existing ? chipLabel(existing) : selText });
+  const err = el('p', { class: 'nt-form-err' }, el('span', { html: ICON.warn }), el('span', { text: '' }));
+  const complain = (why) => {
+    err.lastChild.textContent = why;
+    err.classList.add('is-on');
+    url.classList.add('is-bad');
+    url.focus();
+    url.select();
+  };
+  url.addEventListener('input', () => { err.classList.remove('is-on'); url.classList.remove('is-bad'); });
   const saved = range ? range.cloneRange() : null;
   const submit = () => {
+    if (!url.value.trim()) { complain('Type an address, like google.com'); return; }
+    if (!looksLikeUrl(url.value)) { complain(`"${url.value.trim().slice(0, 30)}" is not an address`); return; }
     const u = normalizeUrl(url.value);
-    if (!u || !/^(https?:\/\/|mailto:)/.test(u)) { toast('That is not a link'); url.focus(); return; }
     closePanel();
     body.focus({ preventScroll: true });
     if (existing) {
-      transact(body, () => { existing.setAttribute('href', u); existing.textContent = label.value.trim() || labelFor(u); });
+      transact(body, () => { existing.setAttribute('href', u); setChipLabel(existing, label.value.trim() || labelFor(u)); paintMark(existing); });
       return;
     }
     if (saved) setRange(saved);
     insertLink(body, u, label.value.trim());
   };
-  const form = el('form', { class: 'nt-form', onsubmit: (e) => { e.preventDefault(); submit(); } },
+  const form = el('form', { class: 'nt-form', novalidate: true, onsubmit: (e) => { e.preventDefault(); submit(); } },
     el('div', { class: 'nt-form-title', text: existing ? 'Edit link' : 'Insert link' }),
-    url, label,
+    url, label, err,
     el('div', { class: 'nt-form-btns' },
       el('button', { type: 'button', class: 'nt-btn', text: 'Cancel', onclick: () => { closePanel(); body.focus({ preventScroll: true }); } }),
       el('button', { type: 'submit', class: 'nt-btn is-primary', text: existing ? 'Save' : 'Insert' })));
@@ -189,7 +365,9 @@ const encode = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 const decode = (b) => { try { return new TextDecoder().decode(Uint8Array.from(atob(b || ''), (c) => c.charCodeAt(0))); } catch { return ''; } };
 
 function makeMd(text) {
-  return el('span', { class: 'chip chip-md', 'data-md': encode(text), contenteditable: 'false', text: titleOf(text) });
+  const chip = el('span', { class: 'chip chip-md', 'data-md': encode(text), contenteditable: 'false', text: titleOf(text) });
+  paintMark(chip);
+  return chip;
 }
 
 export function insertMd(body) {
@@ -214,7 +392,7 @@ export function openMd(chip, body) {
   const save = () => {
     const text = area.value;
     if (text === original) return;
-    transact(body, () => { chip.dataset.md = encode(text); chip.textContent = titleOf(text); });
+    transact(body, () => { chip.dataset.md = encode(text); setChipLabel(chip, titleOf(text)); paintMark(chip); });
   };
   const copy = () => navigator.clipboard.writeText(area.value).then(() => toast('Markdown copied')).catch(() => toast('Could not copy'));
   let mode = 'split';
@@ -339,6 +517,14 @@ function removeImage(img, body) {
 /* ---- clicks and menus ----------------------------------------------------------- */
 
 export function activate(chip, body, e) {
+  // A drag that ended on this chip is not a click on it.
+  if (chip.dataset.dragged) return;
+  // The mark at the head folds the chip down to itself and back.
+  if (e.target.closest && e.target.closest('.nt-chip-mark')) {
+    const { toggleMin } = ctx.nodes;
+    toggleMin(chip, body);
+    return;
+  }
   if (chip.classList.contains('chip-link')) {
     const href = chip.getAttribute('href');
     if (e.altKey) { chipMenu(chip, body); return; }
@@ -364,7 +550,7 @@ function chipMenu(chip, body, at) {
     { label: 'Open link', icon: ICON.link, run: () => window.open(chip.getAttribute('href'), '_blank', 'noopener') },
     { label: 'Copy link', icon: ICON.copy, run: () => navigator.clipboard.writeText(chip.getAttribute('href')).then(() => toast('Link copied')) },
     { label: 'Edit link…', icon: ICON.edit, run: () => promptLink(body, chip) },
-    { label: 'Unlink (keep text)', run: () => transact(body, () => { chip.replaceWith(document.createTextNode(chip.textContent)); body.normalize(); }) },
+    { label: 'Unlink (keep text)', run: () => transact(body, () => { chip.replaceWith(document.createTextNode(chipLabel(chip))); body.normalize(); }) },
     null,
     { label: 'Delete', icon: ICON.trash, danger: true, run: () => transact(body, () => chip.remove()) },
   ] : [
@@ -397,5 +583,9 @@ function fragmentFromMarkdown(text) {
   }
   return frag;
 }
+
+/* The node table travels with chips: app.js builds the header control from it
+   and has no other reason to know nodes.js exists. */
+export { NODES, nodeKind, kindOf };
 
 export { confirm };

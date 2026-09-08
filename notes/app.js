@@ -19,8 +19,9 @@ import { el, escapeHtml, debounce, caretToEnd } from './dom.js';
 import { clean, serialize, toText } from './schema.js';
 import { History } from './history.js';
 import { normalize, migrateHtml, demoDoc, activeSession, catOf, touch, restore as restoreSession, FONTS, SIZES, emptyDoc } from './state.js';
-import { initEditor, capture, format, align, toggleList, indent, stateAt, insertInline } from './editor.js';
+import { initEditor, capture, format, align, toggleList, indent, stateAt, insertInline, transact as editorTransact } from './editor.js';
 import * as chips from './chips.js';
+import * as nodes from './nodes.js';
 import * as emoji from './emoji.js';
 import * as color from './color.js';
 import * as spell from './spell.js';
@@ -104,7 +105,8 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     insertText: (body, text) => insertInline(body, document.createTextNode(text)),
     filterSidebar: (hits) => render.filterSidebar(hits),
     expandCat: (id) => render.expandCat(id),
-    chips, emoji, slash, spell, search, dictate,
+    chips, emoji, slash, spell, search, dictate, nodes,
+    editor: { transact: editorTransact },
     color: { open: color.openColor },
     catTitle: (id) => { const c = catOf(activeSession(doc), id); return c ? c.title : 'Notes'; },
     scrollToCat: (id) => render.jumpTo(id),
@@ -137,6 +139,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   /* ---- modules ---- */
   render.initRender(ctx);
   initEditor(ctx);
+  nodes.initNodes(ctx);
   chips.initChips(ctx);
   emoji.initEmoji(ctx);
   color.initColor(ctx);
@@ -196,17 +199,29 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     right: btn('nt-fmt', null, ICON.alignRight, () => withBody((b) => align(b, 'right')), { 'aria-label': 'Align right' }),
     /* ONE list button. Numbered and to-do are still a keystroke and still in
        the slash menu; three buttons for one idea was three buttons. */
-    ul: btn('nt-fmt nt-fmt-list', 'Auto list', ICON.autolist, () => withBody((b) => toggleList(b, 'ul'))),
+    ul: btn('nt-fmt nt-fmt-list', 'Autolist', ICON.autolist, () => withBody((b) => toggleList(b, 'ul'))),
   };
   for (const b of Object.values(fmt)) b.addEventListener('mousedown', (e) => e.preventDefault());
-  const spellBtn = btn('nt-spell-btn', 'Spell check', ICON.spell, () => { spell.setEnabled(!spell.enabled()); syncSettings(); });
+  const spellBtn = btn('nt-spell-btn', 'Spellcheck', ICON.spell, () => { spell.setEnabled(!spell.enabled()); syncSettings(); });
   spellBtn.addEventListener('contextmenu', (e) => { e.preventDefault(); settingsMenu(spellBtn); });
-  const nodeBtn = btn('nt-node-btn', 'Nodes', ICON.link, () => menu(nodeBtn, [
-    { label: 'Link', icon: ICON.link, hint: 'Ctrl+K', run: () => withBody((b) => chips.promptLink(b)) },
-    { label: 'Markdown node', icon: ICON.md, run: () => withBody((b) => chips.insertMd(b)) },
-    { label: 'Image', icon: ICON.image, hint: 'or paste', run: () => withBody((b) => chips.pickImage(b)) },
-  ]));
-  nodeBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  /* A SPLIT BUTTON. The left half inserts the kind you used last and is the
+     handle you DRAG a new node out of; the chevron opens the list. The mark on
+     it is that kind's own mark in that kind's own colour, so the control says
+     which node it is about to make before you press it. */
+  const nodeMark = el('span', { class: 'nt-node-mark' });
+  const nodeMain = el('button', { type: 'button', class: 'nt-node-main', 'data-tip': 'Nodes · drag one out', 'aria-label': 'Insert node' }, nodeMark);
+  const nodeArrow = el('button', { type: 'button', class: 'nt-node-arrow', 'data-tip': 'Choose a node', 'aria-label': 'Choose a node type', html: ICON.chevron });
+  const nodeBtn = el('div', { class: 'nt-node-btn' }, nodeMain, nodeArrow);
+  const syncNode = () => {
+    const k = chips.nodeKind(doc.ui.node || 'link');
+    nodeMark.innerHTML = k.icon();
+    nodeMark.style.color = k.color;
+    nodeMain.setAttribute('data-tip', `${k.label} · drag one out`);
+  };
+  nodeMain.addEventListener('click', () => { if (!nodeMain.dataset.dragged) withBody((b) => chips.insertNode(b, chips.lastKind())); syncNode(); });
+  nodeMain.addEventListener('pointerdown', (e) => chips.dragNewNode(e, chips.lastKind()));
+  nodeArrow.addEventListener('click', () => chips.nodeMenu(nodeArrow, (fn) => { withBody(fn); setTimeout(syncNode, 0); }));
+  for (const b of [nodeMain, nodeArrow]) b.addEventListener('mousedown', (e) => e.preventDefault());
   const undoBtn = btn('nt-undo', null, ICON.undo, () => ctx.history.undo(), { 'aria-label': 'Undo' });
   const redoBtn = btn('nt-redo', null, ICON.redo, () => ctx.history.redo(), { 'aria-label': 'Redo' });
   for (const b of [undoBtn, redoBtn]) b.addEventListener('mousedown', (e) => e.preventDefault());
@@ -224,7 +239,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
      descriptions. */
   header.append(
     el('div', { class: 'nt-header-left' }, searchMount),
-    el('div', { class: 'nt-header-mid' }, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, sep(), fmt.left, fmt.center, fmt.right, sep(), fmt.ul, nodeBtn, spellBtn),
+    el('div', { class: 'nt-header-mid' }, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, sep(), fmt.left, fmt.center, fmt.right, sep(), spellBtn, fmt.ul, nodeBtn),
     el('div', { class: 'nt-header-right' }, status, infoBtn, themeBtn, closeBtn));
   search.initSearch(ctx, searchMount);
   wireHelp(infoBtn);
@@ -845,6 +860,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     syncSettings();
   }
   applyUi();
+  syncNode();
   render.renderAll();
   syncUndoButtons();
   lastSaved = migrated ? '' : JSON.stringify(doc);

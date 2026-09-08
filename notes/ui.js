@@ -139,16 +139,20 @@ export function menu(anchor, items, opts = {}) {
     for (const item of rows) {
       if (!item) { frag.append(el('div', { class: 'nt-menu-sep' })); continue; }
       const b = el('button', {
-        type: 'button', role: 'menuitem', class: `nt-menu-item ${item.danger ? 'is-danger' : ''}`,
+        type: 'button', role: 'menuitem', class: `nt-menu-item ${item.danger ? 'is-danger' : ''} ${item.tint ? 'is-tinted' : ''}`,
         disabled: item.disabled ? true : null,
         onclick: () => { closePanel(); item.run(); },
-      }, item.icon ? el('span', { class: 'nt-menu-icon', html: item.icon }) : null,
+      }, item.icon ? el('span', { class: 'nt-menu-icon', html: item.icon, style: item.tint ? { color: item.tint } : null }) : null,
       el('span', { class: 'nt-menu-label', text: item.label }),
       item.hint ? el('span', { class: 'nt-menu-hint', text: item.hint }) : null);
+      // The row's own accent, for a menu whose entries are things with colours.
+      if (item.tint) b.style.setProperty('--row', item.tint);
       frag.append(b);
       if (!item.disabled) buttons.push(b);
     }
-    list.replaceChildren(frag);
+    // A titled menu says what it is a list OF. Only where that is not obvious
+    // from the control it opened under -- most menus need nothing.
+    list.replaceChildren(...(opts.title ? [el('div', { class: 'nt-menu-head', text: opts.title }), frag] : [frag]));
   };
   build(items);
   let idx = -1;
@@ -230,8 +234,11 @@ export const ICON = {
      SVG is legible because it is text. It is WIDER THAN IT IS TALL, which is
      why .nt-spell-btn has to size it: the app's blanket `svg { 18px }` would
      squash it back into a square. */
-  spell: `<svg viewBox="0 0 30 16" fill="none" aria-hidden="true"><text x="0" y="12.5" font-family="inherit" font-size="13.5" font-weight="800" fill="currentColor">abc</text><polyline points="21,10 23.5,13 28,5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  spell: `<svg viewBox="0 0 30 16" fill="none" aria-hidden="true"><text x="0" y="12" font-family="inherit" font-size="13" font-weight="700" fill="currentColor">abc</text><polyline points="21,10 23.5,13 28,5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   menu: S('<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>'),
+  /* Ours, not the browser's. A form that refuses something has to look like
+     the rest of this app while it does it. */
+  warn: S('<circle cx="12" cy="12" r="9"/><line x1="12" y1="7.5" x2="12" y2="13"/><circle cx="12" cy="16.4" r=".9" fill="currentColor" stroke="none"/>'),
   info: S('<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="17"/><circle cx="12" cy="7.6" r=".9" fill="currentColor" stroke="none"/>'),
   link: S('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>'),
   md: S('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M6.5 15V9l2.5 3 2.5-3v6M16.5 9v6M14.5 13l2 2 2-2"/>'),

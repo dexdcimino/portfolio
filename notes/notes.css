@@ -91,11 +91,14 @@
 .nt-icon-btn.is-up svg { transform: rotate(180deg); }
 .nt-app:not(.in-body) .nt-fmt { opacity: .55; }
 .nt-fmt-list svg { width: 15px; height: 15px; }
-/* The only wide mark in the header. "abc" with a tick through it is readable
-   because it is real text, and real text needs the width the letters take --
-   the blanket `svg { 18px }` above would squash it back into a square and
-   undo the whole point of it. */
-.nt-spell-btn svg { width: 27px; height: 15px; }
+/* THE ONE RECTANGULAR CONTROL IN THE HEADER, and it has to be: "abc" with a
+   tick through it is readable because it is real text, and real text needs
+   the width the letters take. Squeezed into the 34px square every other
+   button is, the glyphs came out too small to read as letters at all -- so
+   the BUTTON widens as well as the mark. 30x16 is DexNote's own viewBox and
+   these are its proportions, scaled up rather than reshaped. */
+.nt-spell-btn { width: 48px; }
+.nt-spell-btn svg { width: 40px; height: 21px; }
 .nt-pick {
   height: 30px; padding: 0 22px 0 10px; border: 1px solid var(--bdr); border-radius: 7px; background: var(--bg3); color: var(--tx); font-size: 13px;
   position: relative; white-space: nowrap; min-width: 88px; text-align: left;
@@ -552,6 +555,20 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
   transition: background var(--ease), border-color var(--ease);
 }
 .nt-cat-emoji.is-emoji { font-size: 22px; text-transform: none; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
+/* overflow:visible so the X can sit on the corner rather than inside it --
+   the badge is 36px and the mark is meant to overhang, the way it does on a
+   session card. */
+.nt-cat-emoji { position: relative; overflow: visible; }
+.nt-cat-emoji-x {
+  position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; display: none; place-items: center;
+  border-radius: 50%; background: var(--bg4); color: var(--tx2); cursor: pointer;
+  transition: color var(--ease), background var(--ease);
+}
+.nt-cat-emoji-x svg { width: 11px; height: 11px; }
+/* Only when there IS an emoji: with none the badge is already the title's
+   first letter, and there is nothing for the X to take off. */
+.nt-cat-emoji.has-emoji:hover .nt-cat-emoji-x, .nt-cat-emoji.has-emoji:focus-within .nt-cat-emoji-x { display: grid; }
+.nt-cat-emoji-x:hover { color: #fff; background: var(--danger); }
 .nt-cat-emoji:hover { background: color-mix(in srgb, var(--c) 26%, var(--bg)); border-color: color-mix(in srgb, var(--c) 40%, var(--bg3)); }
 .nt-cat-title {
   flex: 1; min-width: 0; margin: 0; padding: 3px 8px; border-radius: 6px; font-size: calc(var(--fs) + 8px); font-weight: 700; line-height: 1.25; color: var(--c-title);
@@ -650,7 +667,48 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
   border: 1.5px solid; border-radius: 999px; font-size: .92em; font-weight: 600; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   cursor: pointer; user-select: none; text-decoration: none; transition: background var(--ease);
 }
-.nt-body .chip::before { content: ""; width: .75em; height: .75em; flex: 0 0 auto; border-radius: 50%; background: currentColor; opacity: .7; }
+/* THE MARK IS A REAL ELEMENT, not a ::before, because it is a control: it is
+   what you press to fold the chip down to itself. For a link it is the site's
+   own initial on a colour derived from the hostname (nodes.js), so the same
+   site is the same circle everywhere and no third party is asked what that
+   site's icon looks like. */
+.nt-chip-mark {
+  width: 1.25em; height: 1.25em; flex: 0 0 auto; display: inline-grid; place-items: center;
+  border-radius: 50%; background: currentColor; color: inherit; opacity: .85; cursor: pointer;
+  font-size: .72em; font-weight: 800; line-height: 1; user-select: none;
+  transition: transform var(--ease), opacity var(--ease);
+}
+.nt-chip-mark.is-site { background: var(--site, #7aa2f7); color: #0b0d11; }
+.nt-chip-mark.is-site::before { content: attr(data-l); }
+/* Twelve buckets, written out. A hue computed into a style attribute would be
+   stripped by scrub() on the next keystroke -- see nodes.js. */
+.nt-chip-mark.h0 { --site: hsl(0 62% 60%); }
+.nt-chip-mark.h1 { --site: hsl(30 62% 58%); }
+.nt-chip-mark.h2 { --site: hsl(52 62% 56%); }
+.nt-chip-mark.h3 { --site: hsl(84 52% 56%); }
+.nt-chip-mark.h4 { --site: hsl(128 48% 56%); }
+.nt-chip-mark.h5 { --site: hsl(160 52% 54%); }
+.nt-chip-mark.h6 { --site: hsl(184 58% 56%); }
+.nt-chip-mark.h7 { --site: hsl(206 68% 62%); }
+.nt-chip-mark.h8 { --site: hsl(232 66% 68%); }
+.nt-chip-mark.h9 { --site: hsl(266 58% 68%); }
+.nt-chip-mark.h10 { --site: hsl(296 52% 64%); }
+.nt-chip-mark.h11 { --site: hsl(330 62% 64%); }
+.nt-chip-mark svg { width: .78em; height: .78em; }
+.nt-chip-mark:hover { transform: scale(1.14); opacity: 1; }
+/* FOLDED: the chip is its mark and nothing else.
+   THE LABEL IS A TEXT NODE, so `display: none` on the chip's element children
+   hides nothing -- the first version of this shrank a 119px chip to 112px and
+   looked broken. font-size: 0 is what collapses a text node, and the mark
+   then has to be sized in absolute units because its own em would collapse
+   with it. */
+.nt-body .chip.is-min {
+  max-width: none; padding: 1px; border-radius: 50%; gap: 0;
+  font-size: 0; line-height: 0; vertical-align: middle;
+}
+.nt-body .chip.is-min .nt-chip-mark { width: 19px; height: 19px; font-size: 11px; line-height: 1; }
+.nt-body .chip.is-min .nt-chip-mark svg { width: 12px; height: 12px; }
+.nt-body .chip.is-dragging { opacity: .35; }
 .nt-body .chip-link { --node: #67A2FF; color: var(--node); border-color: color-mix(in srgb, var(--node) 55%, transparent); background: color-mix(in srgb, var(--node) 12%, transparent); }
 .nt-body .chip-md { --node: #9ACB5A; color: var(--node); border-color: color-mix(in srgb, var(--node) 55%, transparent); background: color-mix(in srgb, var(--node) 12%, transparent); }
 .nt-body .chip:hover { background: color-mix(in srgb, var(--node) 24%, transparent); }
@@ -669,15 +727,87 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 @keyframes nt-pop { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-panel, .nt-cat.is-new { animation: none; } }
 .nt-menu { display: flex; flex-direction: column; min-width: 190px; padding: 5px; }
-.nt-menu-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 12px; border: 0; border-radius: 7px; background: none; color: var(--tx); font-size: 13.5px; text-align: left; }
+.nt-menu-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 12px; border: 0; border-radius: 7px; background: none; color: var(--tx); font-size: 15px; text-align: left; }
 .nt-menu-item:hover, .nt-menu-item:focus-visible { background: var(--bg4); outline: none; }
 .nt-menu-item.is-on { color: var(--c-title); font-weight: 600; }
 .nt-menu-item.is-danger { color: var(--danger); }
 .nt-menu-item:disabled { opacity: .45; }
-.nt-menu-icon { display: grid; color: var(--tx2); } .nt-menu-icon svg { width: 16px; height: 16px; }
+.nt-menu-icon { display: grid; color: var(--tx2); } .nt-menu-icon svg { width: 17px; height: 17px; }
 .nt-menu-label { flex: 1; }
-.nt-menu-hint { font-size: 11px; color: var(--tx3); margin-left: 12px; }
+.nt-menu-hint { font-size: 12.5px; color: var(--tx3); margin-left: 12px; }
 .nt-menu-sep { height: 1px; background: var(--bdr); margin: 4px 6px; }
+
+/* ---- nodes: the toolbar, the ghost and the drop caret ----------------------
+   The toolbar is NOT a .nt-panel: there is one of those at a time and it
+   closes on any outside press, so hovering a chip would shut the colour
+   picker and opening the colour picker would shut this. It is its own small
+   floating thing that never takes focus. */
+.nt-chip-bar {
+  position: absolute; z-index: 75; display: flex; align-items: center; gap: 2px; padding: 3px;
+  border: 1px solid var(--bdr); border-radius: 9px; background: var(--bg2); box-shadow: var(--shadow);
+  animation: nt-pop .1s ease-out;
+}
+@media (prefers-reduced-motion: reduce) { .nt-chip-bar { animation: none; } }
+.nt-chip-btn {
+  width: 28px; height: 28px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 6px; background: none; color: var(--tx2);
+  transition: color var(--ease), background var(--ease);
+}
+.nt-chip-btn svg { width: 15px; height: 15px; }
+.nt-chip-btn:hover { color: var(--tx); background: var(--bg4); }
+.nt-chip-btn.is-danger:hover { color: var(--danger); }
+/* ARMED. The first press turns it into what it is about to do; the second
+   does it. Red and filled, so an armed delete cannot be mistaken for the
+   quiet one it was a moment ago. */
+.nt-chip-btn.is-armed { color: #fff; background: var(--danger); }
+.nt-chip-btn.is-armed:hover { color: #fff; background: var(--danger); filter: brightness(1.1); }
+
+/* What follows the pointer while a node is being dragged, and the line where
+   it would land. Both are absolutely positioned over the app and neither is
+   ever inserted into a body -- a marker put into a live contenteditable
+   splits its text nodes and invalidates the range the drop is aiming at. */
+.nt-app.is-node-dragging, .nt-app.is-node-dragging * { cursor: grabbing !important; }
+.nt-node-ghost {
+  position: absolute; z-index: 90; pointer-events: none; opacity: .95;
+  font-size: var(--fs); filter: drop-shadow(0 6px 14px rgba(0,0,0,.45));
+}
+.nt-node-ghost.is-copy::after {
+  content: "+"; position: absolute; top: -8px; right: -10px;
+  width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--c); color: var(--c-on); font-size: 13px; font-weight: 800;
+}
+.nt-node-caret {
+  position: absolute; z-index: 89; width: 2px; border-radius: 1px; background: var(--c-title);
+  display: none; pointer-events: none; box-shadow: 0 0 6px var(--c-title);
+}
+.nt-node-caret.is-on { display: block; }
+.chip-ghost {
+  display: inline-flex; align-items: center; gap: .3em; padding: .02em .55em .02em .45em;
+  border: 1.5px solid; border-radius: 999px; font-size: .92em; font-weight: 600; line-height: 1.45;
+  color: var(--node); border-color: color-mix(in srgb, var(--node) 55%, transparent);
+  background: color-mix(in srgb, var(--node) 16%, var(--bg2));
+}
+
+/* The header's node control: a split button. The left half inserts the kind
+   you used last and is the handle a new node is dragged out of; the chevron
+   opens the list. */
+.nt-node-btn { display: flex; align-items: center; flex: 0 0 auto; border-radius: 7px; overflow: hidden; }
+.nt-node-main, .nt-node-arrow {
+  height: 34px; display: grid; place-items: center; padding: 0; border: 0; background: none;
+  color: var(--tx2); transition: color var(--ease), background var(--ease);
+}
+.nt-node-main { width: 32px; cursor: grab; }
+.nt-node-main:active { cursor: grabbing; }
+.nt-node-arrow { width: 18px; }
+.nt-node-arrow svg { width: 12px; height: 12px; }
+.nt-node-main:hover, .nt-node-arrow:hover { background: var(--bg3); }
+.nt-node-mark { display: grid; place-items: center; }
+.nt-node-mark svg { width: 18px; height: 18px; }
+
+/* A menu that lists things WITH COLOURS says so: the icon keeps the node's
+   own colour and the row picks it up on hover. */
+.nt-menu-head { padding: 7px 12px 8px; margin-bottom: 3px; border-bottom: 1px solid var(--bdr); font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--tx2); text-align: center; }
+.nt-menu-item.is-tinted:hover, .nt-menu-item.is-tinted:focus-visible { background: color-mix(in srgb, var(--row) 16%, transparent); color: var(--tx); }
 
 /* ---- the information panel -------------------------------------------------
    Every keystroke in the app, in one place, grouped by where you would be
@@ -709,31 +839,39 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-help-row.is-widget .nt-icon-btn:hover:not(:disabled) { color: var(--c-title); border-color: var(--c-title); background: var(--bg4); }
 .nt-help-row.is-widget .nt-icon-btn svg { width: 15px; height: 15px; }
 
-.nt-tip { position: fixed; z-index: 90; pointer-events: none; background: var(--bg4); color: var(--tx); font-size: 12px; padding: 5px 9px; border-radius: 6px; border: 1px solid var(--bdr); box-shadow: 0 2px 8px rgba(0,0,0,.25); opacity: 0; transition: opacity .12s ease; white-space: nowrap; max-width: 320px; }
+.nt-tip { position: fixed; z-index: 90; pointer-events: none; background: var(--bg4); color: var(--tx); font-size: 13.5px; padding: 5px 9px; border-radius: 6px; border: 1px solid var(--bdr); box-shadow: 0 2px 8px rgba(0,0,0,.25); opacity: 0; transition: opacity .12s ease; white-space: nowrap; max-width: 320px; }
 .nt-tip.is-on { opacity: 1; }
-.nt-toast { position: absolute; bottom: 20px; right: 22px; z-index: 80; background: var(--bg4); color: var(--tx); border: 1px solid var(--bdr); border-radius: 10px; padding: 9px 16px; font-size: 13px; opacity: 0; transform: translateY(6px); transition: opacity .18s ease, transform .18s ease; pointer-events: none; max-width: 420px; }
+.nt-toast { position: absolute; bottom: 20px; right: 22px; z-index: 80; background: var(--bg4); color: var(--tx); border: 1px solid var(--bdr); border-radius: 10px; padding: 11px 18px; font-size: 15px; opacity: 0; transform: translateY(6px); transition: opacity .18s ease, transform .18s ease; pointer-events: none; max-width: 420px; }
 .nt-toast.is-on { opacity: 1; transform: none; }
 .nt-toast.is-error { border-color: var(--danger); color: var(--danger); }
 
 .nt-modal { position: absolute; inset: 0; z-index: 85; display: grid; place-items: center; background: rgba(0,0,0,.45); backdrop-filter: blur(5px); }
 .nt-modal-card { background: var(--bg2); border: 1px solid var(--bdr); border-radius: 16px; padding: 30px 34px 24px; width: min(440px, 92%); box-shadow: var(--shadow); animation: nt-fadeup .18s ease-out; }
-.nt-modal-title { margin: 0 0 10px; font-size: 19px; font-weight: 700; }
-.nt-modal-msg { margin: 0; font-size: 15px; color: var(--tx2); line-height: 1.6; }
+.nt-modal-title { margin: 0 0 10px; font-size: 21px; font-weight: 700; }
+.nt-modal-msg { margin: 0; font-size: 16.5px; color: var(--tx2); line-height: 1.6; }
 .nt-modal-msg strong { color: var(--tx); font-weight: 600; }
-.nt-modal-sub { margin: 8px 0 0; font-size: 13px; color: var(--tx3); }
+.nt-modal-sub { margin: 8px 0 0; font-size: 14px; color: var(--tx3); }
 .nt-modal-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
-.nt-btn { padding: 9px 18px; border: 0; border-radius: 9px; background: var(--bg4); color: var(--tx); font-size: 14px; font-weight: 600; }
+.nt-btn { padding: 9px 18px; border: 0; border-radius: 9px; background: var(--bg4); color: var(--tx); font-size: 15px; font-weight: 600; }
 .nt-btn:hover { filter: brightness(1.12); }
 .nt-btn.is-primary { background: var(--c); color: var(--c-on); }
 .nt-btn.is-danger { background: #b03c3c; color: #fff; }
 .nt-btn.is-left { margin-right: auto; }
-.nt-btn.is-small { padding: 5px 10px; font-size: 12px; border-radius: 7px; }
+.nt-btn.is-small { padding: 5px 11px; font-size: 13px; border-radius: 7px; }
 .nt-btn.is-on { background: var(--c); color: var(--c-on); }
-.nt-input { width: 100%; padding: 8px 10px; border: 1px solid var(--bdr); border-radius: 8px; background: var(--bg); color: var(--tx); font: inherit; font-size: 14px; outline: none; }
+.nt-input { width: 100%; padding: 9px 11px; border: 1px solid var(--bdr); border-radius: 8px; background: var(--bg); color: var(--tx); font: inherit; font-size: 15.5px; outline: none; }
 .nt-input:focus { border-color: var(--c-title); box-shadow: 0 0 0 1px var(--c-title); }
 .nt-form { display: flex; flex-direction: column; gap: 8px; padding: 14px; width: 340px; }
-.nt-form-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--tx2); }
+.nt-form-title { font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--tx2); }
 .nt-form-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+/* THE FORM ANSWERS FOR ITSELF. A url-typed input inside a form hands the
+   refusal to Chrome, which draws an orange-and-white bubble in its own style,
+   in its own place, with its own words -- "Please enter a URL" for a perfectly
+   good `google.com`. The inputs are plain text now and this says why. */
+.nt-form-err { display: none; align-items: center; gap: 7px; margin: -2px 0 0; font-size: 13.5px; color: var(--danger); }
+.nt-form-err.is-on { display: flex; }
+.nt-form-err svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.nt-input.is-bad { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
 
 /* emoji */
 .nt-emoji-box { display: flex; align-items: flex-end; gap: 6px; padding: 6px; }
@@ -761,7 +899,7 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 /* colour */
 .nt-clr { width: 262px; display: flex; flex-direction: column; gap: 9px; padding: 14px; }
 .nt-clr-head { display: flex; align-items: center; justify-content: space-between; }
-.nt-clr-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--tx2); }
+.nt-clr-title { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--tx2); }
 .nt-clr-field { position: relative; width: 100%; height: 140px; border-radius: 8px; overflow: hidden; cursor: crosshair; touch-action: none; }
 .nt-clr-field canvas { width: 100%; height: 100%; display: block; }
 .nt-clr-cursor { position: absolute; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.6); transform: translate(-50%, -50%); pointer-events: none; }
@@ -780,21 +918,21 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-clr-slot svg { width: 10px; height: 10px; }
 .nt-clr-slot:hover { transform: scale(1.12); }
 .nt-clr-slot.is-full { box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
-.nt-clr-hint { margin: 0; font-size: 11px; color: var(--tx3); line-height: 1.4; }
+.nt-clr-hint { margin: 0; font-size: 12.5px; color: var(--tx3); line-height: 1.4; }
 
 /* slash */
 .nt-slash { display: flex; flex-direction: column; min-width: 240px; max-height: 320px; overflow-y: auto; padding: 5px; }
-.nt-slash-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 0; border-radius: 7px; background: none; color: var(--tx); font-size: 13.5px; text-align: left; }
+.nt-slash-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 7px; background: none; color: var(--tx); font-size: 15px; text-align: left; }
 .nt-slash-item.is-active, .nt-slash-item:hover { background: var(--bg4); }
 .nt-slash-icon { width: 22px; display: grid; place-items: center; color: var(--tx2); font-size: 16px; }
 .nt-slash-icon svg { width: 16px; height: 16px; }
 .nt-slash-label { flex: 1; }
-.nt-slash-hint { font-size: 11px; color: var(--tx3); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.nt-slash-hint { font-size: 12.5px; color: var(--tx3); font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
 /* markdown editor */
 .nt-md-editor { width: min(900px, 92vw); display: flex; flex-direction: column; }
 .nt-md-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--bdr); }
-.nt-md-title { flex: 1; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--tx2); }
+.nt-md-title { flex: 1; font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--tx2); }
 .nt-md-modes { display: flex; gap: 2px; background: var(--bg); border-radius: 8px; padding: 2px; }
 .nt-md-modes .nt-btn { background: none; }
 .nt-md-editor.is-edit .nt-md-modes .nt-btn:nth-child(1), .nt-md-editor.is-split .nt-md-modes .nt-btn:nth-child(2), .nt-md-editor.is-preview .nt-md-modes .nt-btn:nth-child(3) { background: var(--bg4); }

@@ -1220,6 +1220,9 @@ notes/          the app, ES modules, fetched only after the password passes
   slash.js        the "/" menu
   md.js           the markdown renderer for nodes (escaping first, hrefs allow-listed)
   ui.js           toast, confirm, panels, menus, tooltips, the icon set
+  nodes.js        what a chip looks like and what you can do to one: the mark,
+                  the hover toolbar, and the ONE drag that creates, moves and
+                  copies them
   dom.js          selection as data, block helpers
   notes.css       every rule, scoped under .nt-app; the five self-hosted faces
   emoji.json      1907 emoji as [unicode, label, tags, group]
@@ -1354,6 +1357,64 @@ canvas, delegated to whichever body the event came from.
 - **Paste** goes through `clean()`; plain text with `- `/`1. `/`[ ]` lines
   becomes real lists (a change of kind at the same depth starts a new list); a
   bare URL becomes a link chip; an image becomes an asset.
+
+### Nodes
+
+A node is an inline atom in a body: a link chip, a markdown chip, an image.
+`chips.js` owns what each one IS -- how it is made, edited and stored --
+and `nodes.js` owns everything around that.
+
+**Every chip carries a MARK at its head**, and the mark is a control: pressing
+it folds the chip down to just that mark (`data-min="1"`, so a note you folded
+comes back folded) and pressing it again unfolds it. For a link the mark is
+the site's own initial on one of twelve colours derived from the hostname, so
+the same site is the same circle in every note.
+
+**There are no remote favicons, deliberately.** The app ships under
+`img-src 'self' data:`, so one fetched from Google would be blocked outright
+-- and widening that header would mean every render of a private page telling
+a third party which domains are in it. The mark is computed from the hostname
+and sent nowhere. A real favicon would need a same-origin proxy, and that is
+a decision about what the server fetches on your behalf, not a CSS change.
+
+**The mark is never stored and never counted as text.** `serialize()` strips
+it, `clean()` removes one that arrives through a paste, and `scrub()` -- which
+unwraps stray spans in a live body after every native input -- has it in its
+exclusion list, because unwrapping it dropped its letter loose into the label
+and a link came out reading "Ggoogle.com". Its letter is drawn from an
+attribute by CSS rather than being a text node, so the spell checker, the
+search, `toText()` and "copy as text" all see the label alone. Reading or
+writing a chip's words goes through `chipLabel()` / `setChipLabel()`, never
+`textContent`.
+
+**The colour on the mark is a CLASS, not a style.** `scrub()` strips every
+style attribute in a body after each input -- that is its whole job -- so a
+computed colour would survive exactly until the next keystroke. Twelve
+buckets, twelve rules.
+
+**Resting on a chip raises a toolbar over it**: open, edit, copy, fold,
+delete. It is NOT a `panel()` -- there is one of those at a time and it closes
+on any outside press, so hovering a chip would shut the colour picker and
+opening the colour picker would shut this. Delete ARMS on the first press and
+acts on the second: a chip is one press from gone, and a confirm dialog for
+something Ctrl+Z brings straight back is heavier than what it protects.
+
+**One drag, three jobs** (`beginDrag`): out of the header's node button to
+make one where you let go, from a chip to move it, and Shift to leave a copy
+behind. **Pointer events, not HTML5 drag-and-drop** -- a contenteditable is
+already a drop target with its own opinions about ranges and markup, and
+there is no event you can cancel on every path. Nothing is written until the
+pointer comes up; the ghost and the drop caret are absolutely positioned over
+the app and are never inserted into a body, because a marker put into a live
+contenteditable splits its text nodes and invalidates the very range the drop
+is aiming at. The drop point is then pinned with an empty text node BEFORE
+the chip is taken out, or removing it shifts every offset after it. Moving
+between two bodies is two history entries, one per body, because that is what
+a text entry is.
+
+**The header's node control is a split button.** The left half inserts the
+kind used last (`ui.node`) and is the drag handle; the chevron opens the list.
+The mark on it is that kind's own mark in that kind's own colour.
 
 ### Undo
 
