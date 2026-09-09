@@ -5976,31 +5976,65 @@ body.modal-open{overflow:hidden}
    because it is the same transport and learning it twice is a cost with
    nothing on the other side of it. */
 .music-remote{
-  position:fixed;z-index:6;top:14px;right:14px;
+  position:fixed;z-index:6;top:var(--remote-top,14px);right:14px;
   display:flex;flex-direction:column;align-items:center;gap:2px;
   padding:8px 7px 7px;
-  border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);
+  /* 3px, up from 1px (Dex, 2026-09-09). It is the only edge this thing has
+     against the app underneath it, and a hairline over a dark canvas read as
+     a shadow rather than as the boundary of a control. */
+  border:3px solid color-mix(in srgb,var(--accent) 34%,transparent);
   border-radius:999px;
   background:color-mix(in srgb,var(--sidebar-bg) 92%,black);
   box-shadow:0 14px 34px rgba(0,0,0,.5);
 }
 .music-remote[hidden]{display:none}
-/* WHERE IT SITS IN EACH HOST. The notes app fills the viewport once it is
-   mounted and carries a 52px header of its own (--hdr in notes/notes.css), so
-   the pill clears it rather than landing on the theme and close buttons. A
-   second host adds a line here; nothing in the pill names a host. */
-.notes-modal .music-remote{top:66px}
+/* WHERE IT SITS IN EACH HOST, as a VARIABLE and not as a `top`. The bottom
+   corner has to clear `top` outright, and a host rule setting `top` directly
+   would tie on specificity with .at-bottom and be decided by which came last
+   in the file -- which is not a thing anyone should have to know. The notes
+   app fills the viewport once it is mounted and carries a 52px header of its
+   own (--hdr in notes/notes.css), so the pill clears it rather than landing on
+   the theme and close buttons. A second host adds a line here; nothing in the
+   pill names a host. */
+.notes-modal .music-remote{--remote-top:66px}
+
+/* THE BOTTOM CORNER REVERSES THE COLUMN. The pill reads OUTWARD from whichever
+   corner it is anchored to: cover nearest the corner, then the volume, then
+   the transport running away from it. Anchoring it at the bottom without
+   reversing would put the cover furthest from the corner and the mute button
+   in it, which is the same list upside down rather than the same object moved.
+   column-reverse and not a second DOM order, so there is one markup and one
+   tab order to keep right. */
+.music-remote.at-bottom{top:auto;bottom:14px;flex-direction:column-reverse}
+
+/* FOLDED: the cover, the edge, and the tab that moves it. Everything else is
+   display:none rather than hidden by width, because a 0px flex column still
+   pays for its children's layout and the point of the fold is to get out of
+   the way. Even padding all round is what makes the circle a circle -- the
+   expanded pill is 1px heavier at the top to sit the cover off the edge. */
+.music-remote.is-folded{padding:7px}
+.music-remote.is-folded > :not(.music-remote-head):not(.music-remote-move){display:none}
 
 .music-remote-head{position:relative;flex:0 0 auto}
 /* A CROPPED CIRCLE. YouTube's thumbnail is 16:9 and this is 1:1, so the sides
    go -- which is the right crop for cover art that is usually centred, and the
    only shape that does not read as a second button in a column of buttons. */
+/* A BUTTON, because it folds the pill. It was a div with role="img" when its
+   only job was carrying the artwork and the tooltip; giving it an action makes
+   it a control, and a control that is a <button> gets the keyboard, the focus
+   ring and the pressed state without any of them being re-implemented. */
 .music-remote-art{
-  position:relative;width:38px;height:38px;
+  position:relative;width:38px;height:38px;flex:0 0 auto;padding:0;cursor:pointer;
   display:grid;place-items:center;overflow:hidden;
   border-radius:50%;background:#12141c;color:var(--muted);
   border:1px solid var(--line);
+  transition:transform .16s cubic-bezier(.22,.61,.36,1),border-color var(--accent-ease);
 }
+/* Grows a little under the pointer, which is the whole of the affordance: it
+   is the one round thing in a column of squares and it has to say it is
+   pressable without a label. */
+.music-remote-art:hover{transform:scale(1.1);border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
+@media(prefers-reduced-motion:reduce){.music-remote-art{transition:none}}
 .music-remote-art:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .music-remote-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .music-remote-art img[hidden]{display:none}
@@ -6060,6 +6094,29 @@ body.modal-open{overflow:hidden}
 }
 .music-remote-mute{width:30px;height:30px;border-radius:9px}
 .music-remote-mute .icon{width:17px;height:17px}
+/* The corner tab. On the pill's own edge, away from the corner it is anchored
+   to, pointing at where pressing it will send the pill. Absolutely positioned
+   rather than a flex child so column-reverse cannot carry it into the stack,
+   and it overlaps the border by 2px so it reads as attached rather than as
+   something floating beside it. */
+.music-remote-move{
+  position:absolute;left:50%;transform:translateX(-50%);
+  width:26px;height:26px;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:3px solid color-mix(in srgb,var(--accent) 34%,transparent);
+  border-radius:50%;
+  background:color-mix(in srgb,var(--sidebar-bg) 92%,black);
+  color:var(--muted);
+  transition:color var(--accent-ease),border-color var(--accent-ease);
+}
+.music-remote-move:hover{color:#fff;border-color:var(--accent)}
+.music-remote-move:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.music-remote-move .icon{width:15px;height:15px}
+.music-remote:not(.at-bottom) .music-remote-move{top:calc(100% - 2px)}
+/* The chevron is drawn pointing DOWN, so the top corner needs no rotation and
+   the bottom one is a half turn. The mark always points at the corner the
+   press will move it to. */
+.music-remote.at-bottom .music-remote-move{bottom:calc(100% - 2px)}
+.music-remote.at-bottom .music-remote-move .icon{transform:rotate(180deg)}
 
 /* --- the tilde keypad ----------------------------------------------------
    Small and central: it is a prompt, not a place. Everything inside it is the

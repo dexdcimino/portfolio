@@ -2630,14 +2630,52 @@ control". And a host declares itself with `data-music-remote` on its `<dialog>`
 CSS: `.notes-modal .music-remote{top:66px}`, clearing the app's 52px header.
 Nothing in the pill names a host, and nothing in a host reaches into the pill.
 
-**Order, top to bottom:** artwork, shuffle, next, PLAY, previous, repeat, a
-vertical volume slider, mute. Symmetric around the one circular button, the same
-rule the wide bar's transport follows. The slider is `.player-range` rotated
--90deg — the painted `--fill` track, the white thumb that reads against both
-halves and the 22px hit area are decisions already made once. Zero ends up at
-the bottom, which is the only direction in which up can mean louder. The title
-and artist are a two-line tooltip out to the left of the artwork: a 54px column
-cannot carry a song title.
+**Order, outward from the corner:** artwork, shuffle, next, PLAY, previous,
+repeat, a vertical volume slider, mute. Symmetric around the one circular
+button, the same rule the wide bar's transport follows. The slider is
+`.player-range` rotated -90deg — the painted `--fill` track, the white thumb
+that reads against both halves and the 22px hit area are decisions already made
+once. Zero ends up at the bottom, which is the only direction in which up can
+mean louder. The title and artist are a two-line tooltip out to the left of the
+artwork: a 54px column cannot carry a song title.
+
+**THE ARTWORK IS ALSO THE FOLD.** Pressing it collapses the column to the cover
+alone — one circle, same 3px edge — and pressing it again brings the transport
+back. It is the right control for the job because it is the one part of the pill
+that is not a transport button: nothing is lost by giving it a second meaning,
+and a fold arrow of its own would be a tenth thing in a column that is already
+tall. It is a `<button>` rather than the `role="img"` div it started as, so the
+keyboard, the focus ring and `aria-expanded` come for free. Folding is
+`display:none` on everything but the cover and the corner tab, not a width
+collapse — a 0px flex column still pays for its children's layout, and getting
+out of the way is the whole point.
+
+**AND IT CHANGES CORNERS.** A tab on the end away from the anchor moves it
+between the top-right and the bottom-right, with the chevron pointing at where
+it will go. At the bottom the column REVERSES (`flex-direction:
+column-reverse`), so the cover stays the end nearest the corner and the volume
+stays beside it: the pill reads outward from whichever corner it is anchored
+to. Anchoring without reversing would be the same list upside down rather than
+the same object moved. The tab is absolutely positioned on the pill rather than
+being a flex child, so `column-reverse` cannot carry it into the stack, and it
+shows folded as well as expanded — a circle in the wrong corner is exactly when
+you want to move it.
+
+**The corner is remembered and the fold is not.** `music-remote-side` in
+localStorage, beside the shuffle, repeat and volume the music player already
+keeps: a placement someone chose is not a placement they should choose again
+every visit. A fold is the opposite — something you do to get the pill out of
+the way for a minute — so `place()` clears it whenever the pill is put away,
+and every appearance opens showing the transport. Clearing it on the way OUT
+and not on the way in matters: `place()` runs on every state change while the
+pill is up, so clearing there would unfold it under the reader's hand the next
+time a track changed.
+
+**Where it sits in a host is a VARIABLE, not a `top`.** The bottom corner has to
+clear `top` outright, and a host rule setting `top` directly would tie with
+`.at-bottom` on specificity and be decided by file order. `.notes-modal
+.music-remote` sets `--remote-top: 66px` (clearing the notes app's 52px header)
+and the pill reads `top: var(--remote-top, 14px)`.
 
 **No stop and no seek.** Ending the music from inside another overlay is
 something you would only do by accident, and a seek bar three centimetres tall
@@ -2648,7 +2686,11 @@ unreachable the embed never handshakes, so every track change re-navigates the
 frame — which is exactly what block 8c counts across its whole length. It also
 hit-tests the centre of the play button with `elementFromPoint` and presses it
 with a real click, because a pill that is present, unhidden and correctly
-positioned is still useless if it is painted under the backdrop.
+positioned is still useless if it is painted under the backdrop. The fold and
+the corner are pressed with a real pointer too, and every point is re-measured
+before every press: the pill moves in that block, and a stale click on a pill
+that has gone does not miss quietly — it lands on the host `<dialog>` itself,
+whose backdrop handler closes the overlay.
 
 ### The embed, and why script-src did not move
 

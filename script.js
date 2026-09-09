@@ -6034,11 +6034,50 @@ const MediaBus = (() => {
   };
   const myVol = $('musicRemoteVol'), art = $('musicRemoteArt'), artImg = $('musicRemoteThumb');
   const tipTitle = $('musicRemoteTipTitle'), tipArtist = $('musicRemoteTipArtist');
+  const moveBtn = $('musicRemoteMove');
   /* Every piece or none. A pill missing one button is a pill that lies about
      what it can do, and there is a working bar one tab press away. */
   const parts = [...Object.values(src), ...Object.values(mine),
-                 vol, thumb, nowTitle, nowArtist, myVol, art, artImg, tipTitle, tipArtist];
+                 vol, thumb, nowTitle, nowArtist, myVol, art, artImg, tipTitle, tipArtist, moveBtn];
   if (parts.some(el => !el)) return;
+
+  /* ---- the fold and the corner ---------------------------------------- */
+
+  /* THE ARTWORK FOLDS THE PILL. It is the one part of the column that is not
+     a transport button, so it is the one that can carry a second meaning
+     without taking anything away -- and a fold arrow of its own would be a
+     tenth control in a stack that is already tall.
+
+     NOT REMEMBERED, deliberately (Dex, 2026-09-09: "it would obviously always
+     start as expanded"). A fold is a thing you do to get something out of the
+     way for a minute, not a setting; place() clears it every time the pill is
+     put away, so every appearance opens with the transport showing. */
+  const setFolded = (on) => {
+    pill.classList.toggle('is-folded', on);
+    art.setAttribute('aria-expanded', String(!on));
+  };
+  art.addEventListener('click', () => setFolded(!pill.classList.contains('is-folded')));
+
+  /* THE CORNER *IS* REMEMBERED, in the same localStorage the music player
+     already keeps shuffle, repeat and volume in -- a placement someone chose
+     is not a placement they should choose again on every visit. Only the two
+     values it can be are honoured, so a hand-edited key cannot leave the pill
+     somewhere the button can never move it back from; the same rule the loop
+     key follows for the same reason. */
+  const SIDE_KEY = 'music-remote-side';
+  const setSide = (side, persist) => {
+    const bottom = side === 'bottom';
+    pill.classList.toggle('at-bottom', bottom);
+    moveBtn.setAttribute('aria-label', bottom ? 'Move the player to the top' : 'Move the player to the bottom');
+    if (!persist) return;
+    try { localStorage.setItem(SIDE_KEY, bottom ? 'bottom' : 'top'); }
+    catch { /* private mode — it still moves, it just will not be remembered */ }
+  };
+  let storedSide = null;
+  try { storedSide = localStorage.getItem(SIDE_KEY); } catch { /* private mode */ }
+  setSide(storedSide === 'bottom' ? 'bottom' : 'top', false);
+  moveBtn.addEventListener('click', () =>
+    setSide(pill.classList.contains('at-bottom') ? 'top' : 'bottom', true));
 
   for (const name of Object.keys(mine)) {
     mine[name].addEventListener('click', () => src[name].click());
@@ -6099,7 +6138,13 @@ const MediaBus = (() => {
     const artist = nowArtist.textContent || '';
     tipTitle.textContent = title;
     tipArtist.textContent = artist;
-    art.setAttribute('aria-label', title ? `Now playing: ${title} — ${artist}` : 'Nothing playing');
+    /* The track AND what pressing it does. aria-expanded carries the state, so
+       the label only has to name the action once -- and a button whose whole
+       label is a song title tells a screen reader nothing about what it is
+       for, which is the half a sighted reader gets from the shape. */
+    art.setAttribute('aria-label', title
+      ? `Now playing: ${title} — ${artist}. Fold the player.`
+      : 'Nothing playing. Fold the player.');
   }
 
   /* WHERE IT GOES: into the open host, or back out to the body and hidden.
@@ -6115,6 +6160,13 @@ const MediaBus = (() => {
     const host = live ? hosts.find(d => d.open && !d.classList.contains('is-docked')) : null;
     if (!host) {
       pill.hidden = true;
+      /* Put away expanded, so the next appearance opens showing the transport
+         rather than as a circle someone folded twenty minutes ago and has
+         since forgotten about. Cleared on the way OUT rather than on the way
+         in, because place() runs on every state change while the pill is up --
+         clearing it there would unfold the pill under the reader's hand the
+         next time a track changed. */
+      setFolded(false);
       if (pill.parentNode !== document.body) document.body.appendChild(pill);
       return;
     }

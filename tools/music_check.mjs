@@ -63,6 +63,10 @@ const BASE = `http://127.0.0.1:${server.address().port}`;
 const fail = [];
 let pass = 0;
 const note = (ok, why) => { if (ok) pass++; else fail.push(why); };
+/* Used only where what is being waited for is a TRANSITION settling or a class
+   landing after a real click -- everything with a state to name waits for that
+   state instead. See the notes on waitForFunction below. */
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* The overlay's own X DOCKS whenever a track is playing — that is the feature,
    not a bug — so a check that wants it properly shut has to use the bar's X,
@@ -1766,6 +1770,158 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(skipped.after !== skipped.before,
        `Next on the remote left the playing row at ${skipped.after}`);
   note(skipped.n === 1, `${skipped.n} rows are lit after a remote skip, expected 1`);
+
+  /* ---- the fold, the corner, and the edge ------------------------------
+     THE ARTWORK IS THE FOLD and the tab on the pill's end is the corner
+     switch. Both are driven with a REAL pointer, because both are about a
+     pointer being able to reach them: a scripted click lands on an element
+     whether it is display:none, covered or 3px tall, and `cursor: pointer`
+     and the hover growth are only true under a real hover.
+
+     FALSELY PASSES IF: the fold were read off the class alone. A class that
+     hides nothing is a class, so what is asserted is that the transport is
+     GONE from layout, that the cover and the corner tab are still there, and
+     that what is left is square enough to be the circle it claims to be. */
+  const edge = await page.evaluate(() => {
+    const px = (s) => Math.round(parseFloat(s) || 0);
+    const p = document.getElementById('musicRemote');
+    const s = getComputedStyle(p);
+    /* THE KEYWORD AT THE END, not the whole value. The site ships its own
+       cursor art (see applyCursorPref and .dex-cursor), so `cursor: pointer`
+       computes to `url(...) 13 3, pointer` -- the custom hand IS the pointer
+       here, and an equality test would be reporting the cursor pack as a bug. */
+    const c = getComputedStyle(document.getElementById('musicRemoteArt')).cursor;
+    return { border: px(s.borderTopWidth), radius: s.borderTopLeftRadius,
+             cursor: c.split(',').pop().trim() };
+  });
+  note(edge.border >= 3, `the remote's border is ${edge.border}px, wanted at least 3`);
+  note(edge.cursor === 'pointer', `the cover's cursor resolves to "${edge.cursor}", not a pointer`);
+
+  /* It grows under a real hover. Settled by waiting for the transform to
+     actually change rather than by sleeping: a transition read on the frame
+     the pointer arrives still reports the value it is leaving. */
+  /* MEASURED EVERY TIME, never once. The pill moves corners in this block and
+     folds in it too, so a point taken at the top is a point somewhere else
+     entirely by the time the pill is at the bottom -- and a stale click there
+     does not miss quietly: it lands on the host <dialog> itself, whose
+     backdrop handler closes the overlay. That is the CLAUDE.md scar about
+     page.click aiming at a viewport coordinate, wearing a different hat. */
+  const artPoint = () => page.evaluate(() => {
+    const r = document.getElementById('musicRemoteArt').getBoundingClientRect();
+    const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+    return { x, y, hit: !!document.elementFromPoint(x, y)?.closest('#musicRemoteArt') };
+  });
+  const clickArt = async () => {
+    const at = await artPoint();
+    note(at.hit, 'the cover is not at the point a click is aimed at');
+    await page.mouse.click(at.x, at.y);
+    await sleep(220);
+  };
+  const artAt = await artPoint();
+  note(artAt.hit, 'the cover is covered — a pointer cannot reach it');
+  await page.mouse.move(artAt.x, artAt.y);
+  const grew = await page.waitForFunction(() => {
+    const t = getComputedStyle(document.getElementById('musicRemoteArt')).transform;
+    return t !== 'none' && t !== 'matrix(1, 0, 0, 1, 0, 0)' ? t : false;
+  }, { timeout: 3000 }).then((h) => h.jsonValue()).catch(() => '');
+  note(/^matrix\(1\.[0-9]/.test(grew), `the cover does not grow on hover (transform ${grew || 'none'})`);
+
+  /* A REAL CLICK folds it. */
+  await page.mouse.click(artAt.x, artAt.y);
+  await page.waitForFunction(() => document.getElementById('musicRemote').classList.contains('is-folded'),
+                             { timeout: 3000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false, 'clicking the cover did not fold the remote'));
+  const folded = await page.evaluate(() => {
+    const px = (s) => Math.round(parseFloat(s) || 0);
+    const p = document.getElementById('musicRemote');
+    const r = p.getBoundingClientRect();
+    const shown = (id) => {
+      const el = document.getElementById(id);
+      const b = el.getBoundingClientRect();
+      return b.width > 0 && b.height > 0;
+    };
+    return { w: Math.round(r.width), h: Math.round(r.height),
+             cover: shown('musicRemoteArt'), move: shown('musicRemoteMove'),
+             play: shown('musicRemoteToggle'), vol: shown('musicRemoteVol'),
+             border: px(getComputedStyle(p).borderTopWidth),
+             expanded: document.getElementById('musicRemoteArt').getAttribute('aria-expanded') };
+  });
+  note(folded.cover, 'the folded remote lost its cover');
+  note(folded.move, 'the corner tab disappeared when the remote folded — it is exactly then you want it');
+  note(!folded.play && !folded.vol, 'the transport is still taking layout inside a folded remote');
+  note(Math.abs(folded.w - folded.h) <= 4, `the folded remote is ${folded.w}x${folded.h}, not a circle`);
+  note(folded.w >= 44 && folded.w <= 74, `the folded remote is ${folded.w}px across, wanted 44 to 74`);
+  note(folded.border >= 3, `the folded remote lost its edge (${folded.border}px)`);
+  note(folded.expanded === 'false', `the folded cover says aria-expanded="${folded.expanded}"`);
+  console.log(`folded: ${folded.w}x${folded.h}, ${folded.border}px edge, cover+tab only`);
+
+  // ...and a second press brings the whole thing back. The cover has not
+  // moved -- folding takes the column away BELOW it -- so the same point
+  // still lands on it, and clickArt would re-measure to the same place.
+  await page.mouse.click(artAt.x, artAt.y);
+  await page.waitForFunction(() => !document.getElementById('musicRemote').classList.contains('is-folded'),
+                             { timeout: 3000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false, 'a second press on the cover did not expand the remote'));
+  note(await page.evaluate(() => document.getElementById('musicRemoteToggle').getBoundingClientRect().height > 0),
+       'the transport did not come back when the remote expanded');
+
+  /* THE CORNER. At the bottom the column reverses, so the cover stays the end
+     nearest the corner -- which is the whole difference between moving the
+     object and turning the list upside down. */
+  const corner = async () => page.evaluate(() => {
+    const p = document.getElementById('musicRemote');
+    const r = p.getBoundingClientRect();
+    const art = document.getElementById('musicRemoteArt').getBoundingClientRect();
+    const play = document.getElementById('musicRemoteToggle').getBoundingClientRect();
+    const mark = getComputedStyle(document.querySelector('#musicRemoteMove .icon')).transform;
+    let side = null;
+    try { side = localStorage.getItem('music-remote-side'); } catch { /* private mode */ }
+    return { top: Math.round(r.top), gapBelow: Math.round(window.innerHeight - r.bottom),
+             coverBelowPlay: art.top > play.top, mark, side,
+             at: p.classList.contains('at-bottom'),
+             label: document.getElementById('musicRemoteMove').getAttribute('aria-label') };
+  });
+  const wasTop = await corner();
+  note(!wasTop.at && !wasTop.coverBelowPlay, 'the remote did not start at the top with the cover above the play button');
+  note(/bottom/i.test(wasTop.label), `the tab at the top reads "${wasTop.label}" — it should offer the bottom`);
+  await page.click('#musicRemoteMove');
+  await sleep(250);
+  const atBottom = await corner();
+  note(atBottom.at, 'the corner tab did not move the remote to the bottom');
+  note(atBottom.gapBelow >= 0 && atBottom.gapBelow < 40,
+       `at the bottom the remote sits ${atBottom.gapBelow}px off the bottom of the window`);
+  note(atBottom.coverBelowPlay, 'at the bottom the cover is still above the transport — the column did not reverse');
+  note(/matrix\(-1/.test(atBottom.mark), `the tab's chevron did not turn round (${atBottom.mark})`);
+  note(/top/i.test(atBottom.label), `the tab at the bottom reads "${atBottom.label}" — it should offer the top`);
+  note(atBottom.side === 'bottom', `the corner was not remembered (music-remote-side=${atBottom.side})`);
+  console.log(`corner: bottom at ${atBottom.gapBelow}px, cover below the transport, stored "${atBottom.side}"`);
+  // The tab is reachable while folded, which is when it matters most.
+  await clickArt();
+  note(await page.evaluate(() => {
+    const r = document.getElementById('musicRemoteMove').getBoundingClientRect();
+    return r.height > 0 && r.bottom <= window.innerHeight && r.top >= 0;
+  }), 'the corner tab is off screen while the remote is folded at the bottom');
+  await clickArt();
+  // Put it back where the rest of the run expects it.
+  await page.click('#musicRemoteMove');
+  await sleep(250);
+  note(!(await corner()).at, 'the corner tab would not move the remote back to the top');
+
+  /* IT ALWAYS OPENS EXPANDED. The fold is a thing you do for a minute, not a
+     setting -- so it is cleared when the pill is put away, and a check that
+     only ever folded and unfolded in one sitting would never see that. */
+  await clickArt();
+  note(await page.evaluate(() => document.getElementById('musicRemote').classList.contains('is-folded')),
+       'the remote would not fold for the reopen check');
+  await page.evaluate(() => document.getElementById('notesModal').close());
+  await sleep(300);
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('notes:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('notesModal').open === true, { timeout: 5000 });
+  await sleep(300);
+  note(!(await page.evaluate(() => document.getElementById('musicRemote').classList.contains('is-folded'))),
+       'the remote came back folded — it must open expanded every time');
 
   await page.evaluate(() => document.getElementById('notesModal').close());
   await page.waitForFunction(() => document.getElementById('notesModal').open !== true,

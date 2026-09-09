@@ -4758,6 +4758,23 @@
        one circular button, which is the same rule the wide bar's transport
        follows -- the primary control is in the centre and the shape says so.
 
+       THE ARTWORK IS ALSO THE FOLD. Pressing it collapses the column to the
+       cover alone -- one circle, same edge -- and pressing it again brings the
+       transport back. It is the right control for the job because it is the
+       one part of the pill that is not a transport button: nothing is lost by
+       giving it a second meaning, and a fold arrow of its own would be a tenth
+       thing in a column that is already tall. The fold is NOT remembered; the
+       pill opens expanded every time.
+
+       AND IT CAN CHANGE CORNERS. The tab on the end away from the anchor moves
+       it between the top-right and the bottom-right, and the chevron points at
+       where it will go. At the bottom the column REVERSES, so the cover stays
+       the end nearest the corner and the volume stays next to it -- the pill
+       reads outward from the corner it is anchored to, whichever that is. That
+       one IS remembered, in localStorage beside the shuffle and volume the
+       music player already keeps: a placement you chose is not a placement you
+       want to choose again every time.
+
        NO STOP AND NO SEEK. Ending the music from inside another overlay is a
        thing you would only ever do by accident, and a scrub bar three
        centimetres tall is a scrub bar nobody can land on. Both are one press
@@ -4766,10 +4783,11 @@
     <!-- The artwork wrapper is the tooltip's anchor. The artwork itself clips
          its own overflow to a circle, so a tip inside it would be clipped. -->
     <div class="music-remote-head">
-      <div class="music-remote-art" id="musicRemoteArt" role="img" tabindex="0" aria-label="Nothing playing">
+      <button class="music-remote-art" type="button" id="musicRemoteArt"
+              aria-expanded="true" aria-label="Nothing playing">
         <img id="musicRemoteThumb" alt="" width="320" height="180" decoding="async" referrerpolicy="no-referrer" hidden>
         <span class="icon" data-icon="play" aria-hidden="true"></span>
-      </div>
+      </button>
       <!-- Two lines, out to the LEFT and centred on the artwork: there is
            nothing to the right of the pill but the edge of the window. The
            title and the artist are only ever here -- a 54px column cannot
@@ -4802,6 +4820,14 @@
     </div>
     <button class="music-remote-btn music-remote-mute" type="button" id="musicRemoteMute" aria-label="Mute">
       <span class="icon" data-icon="volume" aria-hidden="true"></span></button>
+    <!-- The corner tab. Absolutely positioned on the pill rather than being a
+         flex child, so column-reverse cannot carry it along with the controls
+         -- it belongs to the pill's EDGE, not to the stack inside it. It shows
+         folded as well as expanded: a circle in the wrong corner is exactly
+         when you want to move it. -->
+    <button class="music-remote-move" type="button" id="musicRemoteMove"
+            aria-label="Move the player to the bottom">
+      <span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
   </div>
 
   <!-- Contact modal. <dialog>.showModal() gives focus trapping and Esc-to-close

@@ -25,6 +25,41 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-09 — the remote's corner is remembered, its fold is not
+
+**Decided.** The music remote pill folds to its cover circle when the cover is
+pressed, and moves between the top-right and bottom-right corners from a tab on
+its far edge. The corner is saved (`music-remote-side` in localStorage); the
+fold is cleared every time the pill is put away.
+
+**It replaced** saving both, which is what the rest of this pill's neighbours
+do — shuffle, repeat and volume are all remembered in exactly that storage —
+and it replaced giving the fold a control of its own rather than hanging it on
+the artwork.
+
+**Why.** The two states are different kinds of thing. A corner is a
+PLACEMENT: someone decided the pill was in the way at the top, and making them
+decide it again on every visit is the same failure `ui.archSplit` exists to
+avoid. A fold is a GESTURE — get this out of my way for a minute — and a
+player that comes back as an anonymous circle days later is a player whose
+controls have gone missing. Dex asked for exactly this split ("it would
+obviously always start as expanded"), and it is worth writing down because the
+consistent-looking choice is to save both.
+
+The artwork carries the fold because it is the one part of the column that is
+not a transport button: giving it a second meaning takes nothing away, while a
+tenth control in a stack that is already 380px tall costs a row and a decision
+every time someone reads it. The corner tab could not be folded into anything
+the same way — it has to be visible while the pill is a circle, which is
+exactly when the pill is most likely to be in the wrong place — so it is the
+one control that was added.
+
+**Reverse it if** the fold turns out to be how someone leaves it most of the
+time. That is a real signal and it would mean the pill is too big expanded,
+which is the thing to fix rather than the thing to remember.
+
+---
+
 ## 2026-09-09 — Ctrl+Shift+R goes back to the browser, and is not rebound
 
 **Decided.** The notes editor no longer binds `Ctrl+Shift+R`. Align-right is
