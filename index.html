@@ -4745,6 +4745,28 @@
   </dialog>
 
 
+  <!-- THE RECORDING CHIP. The one thing on the page that says the microphone
+       is still on after the notes have been closed.
+
+       It has to exist for the same reason the dictation pill inside the app
+       does: a session nobody can see is a session still writing. That pill
+       lives inside the notes and goes dark with them, so leaving the overlay
+       with dictation running would otherwise be a hot microphone with no
+       indicator and no way to stop it. This is that indicator and that stop.
+
+       Body level, not inside any overlay: the notes dialog is CLOSED while
+       this is up, and a child of a closed <dialog> is display:none. -->
+  <div class="notes-rec" id="notesRec" role="status" aria-live="polite" hidden>
+    <span class="notes-rec-dot" aria-hidden="true"></span>
+    <button class="notes-rec-main" type="button" id="notesRecOpen">
+      <span class="notes-rec-name" id="notesRecName"></span>
+      <span class="notes-rec-time" id="notesRecTime">00:00</span>
+    </button>
+    <button class="notes-rec-stop" type="button" id="notesRecStop" aria-label="Stop dictating">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>
+    </button>
+  </div>
+
   <!-- THE MUSIC REMOTE. A vertical pill of the same transport, drawn INSIDE
        whichever full-screen overlay is up so the music stays reachable from in
        there. It lives at the end of <body> and is MOVED into the open host --

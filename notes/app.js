@@ -951,6 +951,20 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     flush,
     save,
     get doc() { return doc; },
+    /* WHAT THE OVERLAY AROUND THIS NEEDS TO KNOW ABOUT DICTATION. script.js
+       owns the <dialog> and the teardown; it cannot throw the document away
+       while a microphone is still writing into it, and it cannot know that
+       from outside. Four questions and one subscription, no more: the app
+       does not learn that an overlay exists. */
+    dictating: () => dictate.isRecording(),
+    dictatingIn() {
+      const id = dictate.liveCat();
+      return id ? ctx.catTitle(id) : '';
+    },
+    dictatingSince: () => dictate.liveSince(),
+    stopDictation: () => dictate.stop('button'),
+    onDictationEnd: (fn) => dictate.onEnd(fn),
+    demo,
     unmount() {
       dictate.shutdown();
       closeSessionList();

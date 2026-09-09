@@ -25,6 +25,51 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-09 — a live microphone keeps the notes in the DOM, and says so
+
+**Decided.** Closing the notes overlay with a dictation session running does
+NOT unmount the app or empty its container. It parks: the document stays in the
+DOM, a red chip at the bottom-left of the page names the box being written
+into, and the whole thing is torn down the instant dictation ends by any route.
+
+**It replaced** the unconditional teardown — "the document goes with the
+overlay; leaving it in the DOM would keep the notes one devtools panel away for
+the rest of the visit, which is the thing the server-side check exists to
+prevent" — and it replaced the alternative that keeps that rule intact:
+buffering the recognizer's output in a variable and flushing it when the notes
+are reopened.
+
+**Why.** Dex asked to be able to leave the notes and keep talking, and the
+buffering version is worse than it looks: nothing reaches the store until the
+overlay is reopened, so a tab closed after five minutes of dictation loses five
+minutes of dictation. Silent data loss to protect a document is protecting the
+wrong thing.
+
+What the teardown rule actually buys is that the notes are not recoverable from
+the page after the overlay closes, **for the rest of the visit**. Parking
+narrows that to **for exactly as long as a microphone is running** — a window
+the reader opened on purpose, can see the whole time, and closes with one
+press. The chip is not decoration, it is the other half of the trade: without a
+visible indicator and a stop this would be a hot microphone with the notes
+sitting behind it and nothing on screen admitting either.
+
+The subscription is what makes it safe rather than the intent. `park()`
+registers `dictate.onEnd()` before it does anything else, and every ending goes
+through `stop()` — the chip, the ten-minute cap, a refused microphone, another
+tab claiming the microphone, `unmount()` itself. There is no exit path that
+leaves the document parked.
+
+The AI Lab sandbox is excluded. It is the same app with nothing behind it, and
+a recording chip over the portfolio for a demo someone clicked an eyeball on is
+a chip nobody asked for.
+
+**Reverse it if** the notes ever hold something where "recoverable from the
+page while a recording runs" is too long a window — a second document class
+with a stricter rule, say. Then dictation cannot outlive the overlay for that
+class, and the honest answer is to refuse to park rather than to buffer.
+
+---
+
 ## 2026-09-09 — the remote's corner is remembered, its fold is not
 
 **Decided.** The music remote pill folds to its cover circle when the cover is

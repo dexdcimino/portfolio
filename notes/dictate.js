@@ -110,6 +110,24 @@ const onScroll = () => { if (session) queuePill(); };
 const onChannel = (e) => { if (e.data && e.data.claim && session) stop('taken'); };
 
 export const isRecording = (catId) => !!session && (catId === undefined || session.catId === catId);
+/* Which box, for anyone outside the app that has to name it. */
+export const liveCat = () => (session ? session.catId : null);
+/* When it started, so a clock outside the app counts the same seconds the
+   pill inside it does rather than restarting when the overlay closed. */
+export const liveSince = () => (session ? session.startedAt : 0);
+
+/* WHO ELSE NEEDS TO KNOW A SESSION ENDED. script.js keeps the whole app
+ * mounted while dictation runs -- the words land at a caret in a body, and a
+ * body that has been thrown away has no caret -- so it has to tear the app
+ * down the moment dictation stops, whatever stopped it: the button, the ten
+ * minute cap, a refused microphone, another tab claiming the microphone.
+ * Returns its own unsubscribe, because unmount() ends the session too and a
+ * listener that outlived its app would fire into a torn-down one. */
+const enders = new Set();
+export function onEnd(fn) {
+  enders.add(fn);
+  return () => enders.delete(fn);
+}
 
 /* ---- the button on a text box ------------------------------------------- */
 
@@ -337,6 +355,10 @@ export function stop(why) {
   if (why === 'nomic') toast('No microphone found.', 'error');
   if (why === 'dead') toast('Speech recognition stopped responding. Try again.', 'error');
   if (why === 'taken') toast('Dictation moved to another tab.');
+  /* LAST, and each in its own try. A subscriber that throws must not stop the
+     next one, and none of them may run before the session is actually over --
+     one of them tears the app down. */
+  for (const fn of [...enders]) { try { fn(why); } catch (e) { console.warn('dictate: onEnd threw', e); } }
 }
 
 function spawn() {

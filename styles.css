@@ -6133,6 +6133,59 @@ body.modal-open{overflow:hidden}
 .music-remote.at-bottom .music-remote-move{bottom:calc(100% - 2px)}
 .music-remote.at-bottom .music-remote-move .icon{transform:rotate(180deg)}
 
+/* --- the recording chip -------------------------------------------------
+   Shown only while the notes overlay is CLOSED and a dictation session is
+   still running. Bottom-left, which is the one corner nothing else on this
+   page claims: the docked music bar and the remote pill are both on the
+   right, and the top-left is the sidebar.
+
+   The same red as the notes app's own microphone and pill (#d6423f), because
+   it is the same state being reported -- a reader who has seen one has seen
+   the other. It is NOT the accent: the accent is what this site uses for
+   "here" and "on", and a live microphone is a warning. */
+.notes-rec{
+  position:fixed;z-index:60;left:16px;bottom:16px;
+  display:flex;align-items:center;gap:4px;padding:5px 5px 5px 12px;
+  border:3px solid #d6423f;border-radius:999px;
+  background:color-mix(in srgb,var(--sidebar-bg) 92%,black);
+  box-shadow:0 14px 34px rgba(0,0,0,.5);
+}
+.notes-rec[hidden]{display:none}
+.notes-rec-dot{
+  width:9px;height:9px;flex:0 0 auto;border-radius:50%;background:#d6423f;
+  animation:notes-rec-pulse 1.6s ease-in-out infinite;
+}
+@keyframes notes-rec-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(214,66,63,.55)}
+  50%{box-shadow:0 0 0 7px rgba(214,66,63,0)}
+}
+@media(prefers-reduced-motion:reduce){.notes-rec-dot{animation:none}}
+/* The label is the way BACK IN. Pressing it reopens the notes on the box the
+   words are landing in -- with the app still mounted, no password is asked
+   for, which is the whole point of not having torn it down. */
+.notes-rec-main{
+  display:flex;align-items:baseline;gap:9px;padding:3px 6px;
+  border:0;background:none;color:#e6ebf2;cursor:pointer;font:inherit;
+  max-width:280px;min-width:0;
+}
+.notes-rec-name{
+  font-size:13px;font-weight:700;letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.notes-rec-main:hover .notes-rec-name{color:var(--accent)}
+.notes-rec-time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;flex:0 0 auto}
+/* A SQUARE, not an X. This ends a recording; the X on everything else on this
+   page closes a window, and the two must not look like the same press. */
+.notes-rec-stop{
+  width:28px;height:28px;flex:0 0 auto;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:0;border-radius:50%;background:none;color:#d6423f;
+  transition:background .18s ease,color var(--accent-ease);
+}
+.notes-rec-stop svg{width:15px;height:15px}
+.notes-rec-stop:hover{background:color-mix(in srgb,#d6423f 22%,transparent);color:#fff}
+.notes-rec-main:focus-visible,.notes-rec-stop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:760px){.notes-rec{left:10px;bottom:10px}.notes-rec-main{max-width:150px}}
+
 /* --- the tilde keypad ----------------------------------------------------
    Small and central: it is a prompt, not a place. Everything inside it is the
    Idea Vault's own keypad markup, so it inherits the lockout, the shake and

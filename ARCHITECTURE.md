@@ -2134,6 +2134,32 @@ from a fake `AudioContext` in the stub, which also catches the case where a
 suspended context is resumed after `currentTime` is read and the pair lands as
 a chord.
 
+**YOU CAN LEAVE THE NOTES WITH THE MICROPHONE STILL ON.** Closing the overlay
+normally throws the document out of the DOM — `teardown()` in script.js empties
+the container on purpose, so the notes are not one devtools panel away for the
+rest of the visit. Dictation is the one exception, and it cannot work any other
+way: dictated words land at a caret in a body, and a body that has been thrown
+away has no caret. Buffering them in a variable instead would mean nothing
+reaches the store until the notes are reopened, so a tab closed after five
+minutes of talking loses five minutes of talking — worse than the thing being
+protected against.
+
+So `relock()` splits. With a session live it calls `park()`: the app stays
+mounted inside the closed `<dialog>`, and `#notesRec` — a chip at the
+bottom-left of the page, body level because a child of a closed dialog is
+`display:none` — names the box, counts the session's own clock, opens the notes
+again with no password (nothing was locked; the document never left), and
+stops the recording. The moment dictation ends by ANY route — the chip's stop,
+the ten-minute cap, a refused microphone, another tab claiming it — `finish()`
+runs `teardown()`. That is what `dictate.onEnd()` is for, and `park()`
+subscribes before doing anything else so no exit path can skip it.
+
+The exception is therefore open for exactly as long as a microphone is running,
+which is a window the reader opened deliberately, can see the whole time, and
+can close with one press. The AI Lab sandbox does not park (`demoMode`): a
+"recording" chip over the portfolio for a demo someone clicked an eyeball on is
+a chip nobody asked for. See docs/DECISIONS.md.
+
 **The session ends by itself after ten minutes with nothing heard**
 (`SILENCE_MS`), checked once a second by the same interval that paints the
 pill. Any result at all resets it — including an interim the engine later

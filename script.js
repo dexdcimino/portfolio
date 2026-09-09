@@ -2089,6 +2089,15 @@ if (workModal) {
     let token = null;
     let app = null;               // the mounted notes app, while the overlay is open
     let opening = 0;              // which open() is current; a stale one must not mount
+    let demoMode = false;         // this mount is the AI Lab sandbox, not the notes
+    /* Set while the overlay is CLOSED and the app is deliberately still
+       mounted because dictation is running. Holds the unsubscribe for the
+       session-ended callback, so it doubles as the flag. See park(). */
+    let parked = null;
+    let recTimer = 0;
+    const rec = document.getElementById('notesRec');
+    const recName = document.getElementById('notesRecName');
+    const recTime = document.getElementById('notesRecTime');
 
     const store = {
       get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
@@ -2106,6 +2115,7 @@ if (workModal) {
     /* ---- opening --------------------------------------------------------- */
 
     async function opened(data) {
+      demoMode = false;
       if (label) label.textContent = 'OPEN';
       if (padlock) padlock.dataset.icon = 'lock-open';
       gate.hidden = true;
@@ -2154,6 +2164,7 @@ if (workModal) {
        No `#notes` in the address: this is not the notes, and a link someone
        shares must land on the portfolio rather than on a password box. */
     async function openDemo(trigger) {
+      demoMode = true;
       gate.hidden = true;
       if (wait) wait.hidden = true;
       editor.hidden = true;
@@ -2215,8 +2226,96 @@ if (workModal) {
       onPass: opened,
     });
 
+    /* ---- leaving with the microphone on ---------------------------------
+       THE ONE CASE WHERE THE DOCUMENT OUTLIVES THE OVERLAY, and it bends the
+       rule teardown() states two paragraphs down. It is worth being exact
+       about what is traded.
+
+       WHY IT CANNOT WORK ANY OTHER WAY. Dictated words land at a caret in a
+       body; a body that has been thrown away has no caret. Buffering them in
+       a variable instead would mean nothing reaches the store until the notes
+       are reopened -- so a tab closed after five minutes of talking loses five
+       minutes of talking, which is worse than the thing being protected
+       against.
+
+       WHAT THE TRADE ACTUALLY IS. teardown() empties the container so the
+       notes are not one devtools panel away FOR THE REST OF THE VISIT. Here
+       they are one devtools panel away for exactly as long as a microphone is
+       running, which is a window the reader opened on purpose, can see the
+       whole time (the chip, bottom-left), and can close with one press. The
+       moment dictation ends -- the chip's stop, the ten minute cap, a refused
+       microphone, another tab claiming it -- teardown() runs. That is what
+       onDictationEnd is for, and it is subscribed BEFORE anything else so no
+       exit path can skip it.
+
+       NOT FOR THE SANDBOX. The AI Lab preview is the same app with nothing
+       behind it, and a "recording" chip over the portfolio for a demo someone
+       clicked an eyeball on is a chip nobody asked for. It tears down. */
+    function park() {
+      parked = app.onDictationEnd(() => finish());
+      rec.hidden = false;
+      paintRec();
+      clearInterval(recTimer);
+      recTimer = setInterval(paintRec, 1000);
+      // The overlay is shut, so the address should not still claim it is open.
+      dropHash();
+    }
+
+    function paintRec() {
+      if (!app || !app.dictating()) return;
+      recName.textContent = app.dictatingIn() || 'Notes';
+      /* The SESSION's own clock, not the time since the overlay closed: this
+         and the pill inside the app are reporting the same recording, and two
+         readings of one thing that disagree are worse than one of them. */
+      const since = app.dictatingSince() || Date.now();
+      const secs = Math.max(0, Math.round((Date.now() - since) / 1000));
+      recTime.textContent = `${String(Math.floor(secs / 60)).padStart(2, '0')}:`
+                          + `${String(secs % 60).padStart(2, '0')}`;
+    }
+
+    /* Stop watching and take the chip down, WITHOUT tearing anything down.
+       Both ways out of the parked state come through here first: the reader
+       going back in, and the session ending. */
+    function unpark() {
+      if (parked) { parked(); parked = null; }
+      clearInterval(recTimer);
+      recTimer = 0;
+      rec.hidden = true;
+    }
+
+    // The session ended while the overlay was closed: now the document goes.
+    function finish() {
+      unpark();
+      teardown();
+    }
+
+    rec?.querySelector('#notesRecStop')?.addEventListener('click', () => {
+      /* Through the APP's own stop, not through a flag here: it is the path
+         that ends the recognizer, puts the caret back and fires onDictationEnd
+         -- which is what runs the teardown. */
+      if (app) app.stopDictation();
+    });
+    document.getElementById('notesRecOpen')?.addEventListener('click', (e) => open(e.currentTarget));
+
+    function dropHash() {
+      if (location.hash !== '#notes') return;
+      try { history.replaceState(null, '', location.pathname + location.search); }
+      catch { /* file:// */ }
+    }
+
     function relock() {
       opening++;
+      /* Still writing? Then the document stays and the chip goes up instead.
+         Read off the app rather than remembered, because every way out of the
+         overlay lands here -- the X, Escape, the backdrop, another overlay
+         opening over the top -- and a flag set beside one of them is a flag
+         the other three walk past. */
+      if (app && !demoMode && app.dictating()) { park(); return; }
+      teardown();
+    }
+
+    function teardown() {
+      unpark();
       if (app) {
         // unmount() flushes an unsaved second through sendBeacon first.
         try { app.unmount(); } catch (error) { console.warn('notes: unmount threw', error); }
@@ -2234,10 +2333,7 @@ if (workModal) {
       editor.replaceChildren();
       setSave('', null);
       keypad.reset();
-      if (location.hash === '#notes') {
-        try { history.replaceState(null, '', location.pathname + location.search); }
-        catch { /* file:// */ }
-      }
+      dropHash();
     }
 
     bindModal(modal, relock);
@@ -2261,6 +2357,20 @@ if (workModal) {
          nearly every open. It is not a step anyone has to take, so it is not a
          step anyone should see. UNLOCKING stands in its place, and the keypad
          appears only once both tries have come back empty. */
+      /* BACK INTO A PARKED APP, with no password asked for. There is nothing
+         to unlock: the document never left, and the reader never left either
+         -- they stepped out of a window that is still open behind them. Asking
+         again would be asking for a password to see the words they can hear
+         themselves dictating. */
+      if (parked) {
+        unpark();
+        openModal(modal, modal.querySelector('.notes-shell'), null, trigger);
+        if (location.hash !== '#notes') {
+          try { history.replaceState(null, '', '#notes'); } catch { /* file:// */ }
+        }
+        return;
+      }
+
       const saved = store.get(TOKEN_KEY);
       const silent = !!(saved || code);
       gate.hidden = silent;

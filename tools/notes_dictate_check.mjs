@@ -692,6 +692,118 @@ const clearTones = () => page.evaluate(() => { window.__tones.length = 0; });
               + `${wave.on.secs.toFixed(2)}s each`);
 }
 
+/* ---- 12c. leaving the notes with the microphone on -----------------------
+   Closing the overlay normally throws the document out of the DOM -- that is
+   deliberate and the comment on teardown() says why. Dictation is the one
+   exception, because the words land at a caret in a body and a body that has
+   been thrown away has no caret.
+
+   FALSELY PASSES IF: only the chip were looked at. What has to be true is the
+   whole trade: the app is STILL MOUNTED (so the words have somewhere to go),
+   there is a visible indicator naming the box (so it is not a hot microphone
+   nobody can see), going back in asks for NO password, and the document is
+   torn out the instant dictation ends -- which is what keeps the window open
+   for the length of a recording rather than for the rest of the visit. */
+{
+  await clickMic();
+  await sleep(150);
+  note(await page.evaluate(() => window.__mic.live()), 'could not start dictation for the leave-open check');
+  await say([['before I left', true]]);
+  await sleep(200);
+  await page.evaluate(() => document.getElementById('notesClose').click());
+  await page.waitForFunction(() => document.getElementById('notesModal').open !== true, { timeout: 5000 });
+  await sleep(400);
+  const left = await page.evaluate(() => ({
+    open: document.getElementById('notesModal').open === true,
+    live: window.__mic.live(),
+    mounted: !!document.querySelector('.nt-app'),
+    chip: document.getElementById('notesRec').hidden === false,
+    name: document.getElementById('notesRecName').textContent,
+    time: document.getElementById('notesRecTime').textContent,
+    hash: location.hash,
+  }));
+  note(!left.open, 'the overlay did not close');
+  note(left.live, 'closing the overlay stopped the dictation session');
+  note(left.mounted, 'the app was unmounted while dictation was still running — the words have nowhere to land');
+  note(left.chip, 'nothing on the page says the microphone is still on');
+  note(left.name === 'Dictation scratch', `the chip names "${left.name}", expected the box being dictated into`);
+  note(/^\d\d:\d\d$/.test(left.time), `the chip's clock reads "${left.time}"`);
+  note(left.hash !== '#notes', 'the address still claims the notes are open');
+
+  /* ...and the words keep landing in the box that is no longer on screen. */
+  await say([['after I left', true]]);
+  await sleep(250);
+  const kept = await page.evaluate((id) =>
+    document.querySelector(`.nt-body[data-cat="${id}"]`).textContent, catId);
+  note(/after I left/.test(kept), `words spoken after the overlay closed did not reach the box: "${kept.slice(-60)}"`);
+
+  /* Back in, with no password. The document never left and neither did the
+     reader -- asking again would be asking for a password to see words they
+     can hear themselves dictating. */
+  await page.evaluate(() => document.getElementById('notesRecOpen').click());
+  await page.waitForFunction(() => document.getElementById('notesModal').open === true, { timeout: 5000 });
+  await sleep(300);
+  const back = await page.evaluate(() => ({
+    gate: document.getElementById('notesGate').hidden === false,
+    live: window.__mic.live(),
+    chip: document.getElementById('notesRec').hidden === false,
+    body: !!document.querySelector('.nt-app'),
+  }));
+  note(!back.gate, 'coming back into a parked session showed the password keypad');
+  note(back.body && back.live, 'coming back lost the app or the session');
+  note(!back.chip, 'the chip is still up with the overlay open — two indicators for one recording');
+
+  /* THE DOCUMENT GOES THE MOMENT THE RECORDING DOES. Leave again, then stop
+     from the chip: that is the exit path the whole exception rests on. */
+  await page.evaluate(() => document.getElementById('notesClose').click());
+  await page.waitForFunction(() => document.getElementById('notesRec').hidden === false, { timeout: 5000 });
+  await page.evaluate(() => document.getElementById('notesRecStop').click());
+  await sleep(500);
+  const ended = await page.evaluate(() => ({
+    live: window.__mic.live(),
+    chip: document.getElementById('notesRec').hidden === false,
+    mounted: !!document.querySelector('.nt-app'),
+    editor: document.getElementById('notesEditor').childElementCount,
+  }));
+  note(!ended.live, 'the chip\'s stop button did not end the session');
+  note(!ended.chip, 'the chip stayed up after the recording ended');
+  note(!ended.mounted && ended.editor === 0,
+       'the document was left in the DOM after the recording ended — the exception outlived its reason');
+  console.log(`left open: "${left.name}" ${left.time}, words kept landing, back in with no keypad, torn down on stop`);
+
+  /* ...and the same must hold when the session ends BY ITSELF. The silence cap
+     is the ending nobody is watching, which makes it the one that would leave
+     the document sitting there. */
+  await page.evaluate(() => document.getElementById('notesRec').hidden === true);
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('notes:open', { detail: { code: 'notes' } })));
+  await page.waitForFunction(() => !!document.querySelector('.nt-app'), { timeout: 20000 });
+  await sleep(400);
+  await page.evaluate((id) => document.querySelector(`.nt-mic[data-cat="${id}"]`).click(), catId);
+  await sleep(200);
+  note(await page.evaluate(() => window.__mic.live()), 'could not restart dictation for the silence-cap teardown check');
+  await page.evaluate(() => document.getElementById('notesClose').click());
+  await page.waitForFunction(() => document.getElementById('notesRec').hidden === false, { timeout: 5000 });
+  await page.evaluate(() => { window.__skew = 30 * 60 * 1000; });
+  await page.waitForFunction(() => document.getElementById('notesRec').hidden === true, { timeout: 8000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false, 'the silence cap left the chip up with the notes closed'));
+  await page.evaluate(() => { window.__skew = 0; });
+  const capped2 = await page.evaluate(() => ({
+    live: window.__mic.live(),
+    mounted: !!document.querySelector('.nt-app'),
+    editor: document.getElementById('notesEditor').childElementCount,
+  }));
+  note(!capped2.live, 'the silence cap did not end the parked session');
+  note(!capped2.mounted && capped2.editor === 0,
+       'the silence cap left the document in the DOM — nobody was watching, which is the point');
+  console.log('parked session: the silence cap tears it down too');
+
+  // Back in for the store check below, which needs the app.
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('notes:open', { detail: { code: 'notes' } })));
+  await page.waitForFunction(() => !!document.querySelector('.nt-app'), { timeout: 20000 });
+  await sleep(400);
+}
+
 /* ---- 13. nothing provisional ever reached the store ---------------------- */
 {
   await page.keyboard.down('Control'); await page.keyboard.press('s'); await page.keyboard.up('Control');
