@@ -67,6 +67,48 @@ const STUB = `
   window.SpeechRecognition = FakeRecognition;
   window.webkitSpeechRecognition = FakeRecognition;
 
+  /* A FAKE AudioContext, for the same reason as the fake recognizer: what the
+     start and stop sounds ARE cannot be heard from here, but every note they
+     schedule can be written down. Installed before any page script, so the
+     app's own lazy construction picks this up and never touches the real one
+     -- a headless run has no output device and a real context would sit
+     suspended forever, which reads as "no sound was made" whether or not the
+     code asked for any.
+
+     It records what a listener would hear: one entry per oscillator, with the
+     frequency, the waveform and when it was scheduled. */
+  window.__tones = [];
+  const graph = () => ({ connect() {} });
+  class FakeAudioContext {
+    constructor() { this.state = 'running'; this._t = 0; FakeAudioContext.made++; }
+    get currentTime() { return this._t; }
+    get destination() { return graph(); }
+    resume() { this.state = 'running'; return Promise.resolve(); }
+    suspend() { this.state = 'suspended'; return Promise.resolve(); }
+    createGain() {
+      const g = { gain: { value: 1, _peak: 0,
+        setValueAtTime(v) { this._peak = Math.max(this._peak, v); },
+        exponentialRampToValueAtTime(v) { this._peak = Math.max(this._peak, v); },
+        linearRampToValueAtTime(v) { this._peak = Math.max(this._peak, v); } },
+        connect() {} };
+      FakeAudioContext.gains.push(g);
+      return g;
+    }
+    createBiquadFilter() { return { type: '', frequency: { value: 0 }, connect() {} }; }
+    createOscillator() {
+      const o = { type: 'sine', frequency: { value: 0 }, connect() {},
+                  start(at) { window.__tones.push({ hz: o.frequency.value, type: o.type, at: at || 0 }); },
+                  stop() {} };
+      return o;
+    }
+  }
+  FakeAudioContext.made = 0;
+  FakeAudioContext.gains = [];
+  window.__audio = FakeAudioContext;
+  window.AudioContext = FakeAudioContext;
+  window.webkitAudioContext = FakeAudioContext;
+  window.__peakGain = () => FakeAudioContext.gains.reduce((m, g) => Math.max(m, g.gain._peak || 0), 0);
+
   // slots: [[text, isFinal], ...] -- the whole results list, as the engine
   // would hand it over.
   window.__say = (slots) => {
@@ -147,6 +189,31 @@ const micState = () => page.evaluate((id) => {
   const b = document.querySelector(`.nt-mic[data-cat="${id}"]`);
   return { live: b.classList.contains('is-live'), pressed: b.getAttribute('aria-pressed') };
 }, catId);
+
+/* What the start and stop sounds ARE, read off the fake AudioContext in the
+   stub. Every note schedules two oscillators -- a sine at the fundamental and
+   a quiet triangle an octave up -- so they are grouped by the instant they
+   were scheduled for, and each group is reported by its fundamental. */
+const notesOf = (raw) => {
+  const by = new Map();
+  for (const t of raw) {
+    const k = t.at.toFixed(4);
+    if (!by.has(k)) by.set(k, []);
+    by.get(k).push(t);
+  }
+  return [...by.entries()]
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([at, list]) => ({ at: Number(at), hz: Math.min(...list.map((t) => t.hz)),
+                            types: [...new Set(list.map((t) => t.type))].sort().join('+') }));
+};
+/* Waited for, not slept through: a suspended context resumes on a promise, so
+   every blip after the first is scheduled a microtask after the click. */
+const heard = async (n) => {
+  await page.waitForFunction((want) => window.__tones.length >= want, { timeout: 4000 }, n * 2)
+    .catch(() => {});
+  return notesOf(await page.evaluate(() => window.__tones));
+};
+const clearTones = () => page.evaluate(() => { window.__tones.length = 0; });
 
 /* ---- 1. the button is there, and starting configures the engine ---------- */
 {
@@ -482,9 +549,17 @@ const micState = () => page.evaluate((id) => {
   await page.evaluate(() => { window.__skew = 18 * 60 * 1000; });
   await sleep(1200);
   note(await page.evaluate(() => window.__mic.live()), 'speech did not reset the silence clock');
+  /* The cap is an ending like any other, and it is the one nobody is watching
+     when it happens -- so it is the ending most worth a sound. Cleared here so
+     what is counted is the cap's own blip and not the session's start. */
+  await clearTones();
   await page.evaluate(() => { window.__skew = 30 * 60 * 1000; });
   await sleep(1300);
   note(!(await page.evaluate(() => window.__mic.live())), 'dictation did not stop after ten minutes without a word');
+  const capped = await heard(2);
+  note(capped.length === 2, `the silence cap played ${capped.length} note(s) — it ended the session in silence`);
+  note(capped.length === 2 && capped[1].hz < capped[0].hz,
+       `the silence cap did not play the falling pair (${capped.map((x) => Math.round(x.hz)).join(' -> ')})`);
   note(!(await micState()).live, 'the button still shows as listening after the silence cap');
   note(!/nt-interim/.test(await html()), 'provisional words were left on screen when the silence cap fired');
   /* AND THE RING GOES WITH IT. A ring that appears is half the feature; one
@@ -509,6 +584,112 @@ const micState = () => page.evaluate((id) => {
   const said = await page.$eval('.nt-toast', e => e.textContent).catch(() => '');
   note(/microphone/i.test(said), `nothing told the user the microphone was refused (toast said "${said}")`);
   console.log(`refusal: "${said}"`);
+}
+
+/* ---- 12b. the two earcons ------------------------------------------------
+   One sound with a direction: a rising pair opens the session and the same
+   pair falling closes it. What can be asserted from here is every note the
+   app scheduled -- its frequency, its waveform and WHEN -- which is the whole
+   of what a listener would hear.
+
+   FALSELY PASSES IF: only the note count were checked. Two notes at the same
+   instant are a chord, not a pair, and that is the exact shape the bug takes
+   when the context is resumed after the times are read (currentTime is frozen
+   while a context is suspended, so everything scheduled off it lands on the
+   same stamp). So the ORDER in time is asserted, not just the pitches. */
+{
+  note(await page.evaluate(() => window.__audio.made > 0),
+       'no AudioContext was ever built — nothing here made a sound at all');
+  await clearTones();
+  await clickMic();
+  const on = await heard(2);
+  note(on.length === 2, `starting dictation played ${on.length} note(s), expected 2`);
+  note(on.length === 2 && on[1].at > on[0].at,
+       'the two start notes are scheduled at the same instant — that is a chord, not a pair');
+  note(on.length === 2 && on[1].hz > on[0].hz,
+       `the start sound does not rise (${on.map((x) => Math.round(x.hz)).join(' -> ')})`);
+  note(on.every((x) => x.types === 'sine+triangle'),
+       `a start note is not the sine+triangle voice (${on.map((x) => x.types).join(', ')})`);
+  note(on.length === 2 && on[1].at - on[0].at < 0.4,
+       `the start pair takes ${on.length === 2 ? on[1].at - on[0].at : '?'}s — too long to be one sound`);
+
+  await clearTones();
+  await clickMic();                                   // stop, from the button
+  const off = await heard(2);
+  note(off.length === 2, `stopping dictation played ${off.length} note(s), expected 2`);
+  note(off.length === 2 && off[1].hz < off[0].hz,
+       `the stop sound does not fall (${off.map((x) => Math.round(x.hz)).join(' -> ')})`);
+  /* THE SAME SOUND, REVERSED, and this is the assertion that says so. Same
+     two pitches, same voice, same spacing -- only the direction differs. */
+  note(off.length === 2 && on.length === 2
+       && Math.abs(Math.max(...off.map((x) => x.hz)) - Math.max(...on.map((x) => x.hz))) < 0.5
+       && Math.abs(Math.min(...off.map((x) => x.hz)) - Math.min(...on.map((x) => x.hz))) < 0.5,
+       'the stop sound is not the start sound reversed — it uses different notes');
+  note(off.every((x) => x.types === 'sine+triangle'), 'the stop notes use a different voice from the start notes');
+  /* Quiet. It fires in the moment before someone starts talking, and the
+     microphone is about to be listening to whatever the room does next. */
+  const peak = await page.evaluate(() => window.__peakGain());
+  note(peak > 0 && peak <= 0.2, `the earcon peaks at ${peak} of full scale, wanted something quiet and non-zero`);
+  console.log(`earcons: on ${on.map((x) => Math.round(x.hz)).join('->')}, off ${off.map((x) => Math.round(x.hz)).join('->')}, peak ${peak}`);
+
+  /* MOVING BETWEEN BOXES IS NOT AN ENDING. toggle() stops one session and
+     starts the next in the same breath; two blips back to back would be
+     reporting the machinery rather than the move. One rising pair, no fall. */
+  const other = await page.evaluate((mine) => {
+    const b = [...document.querySelectorAll('.nt-body')].find((x) => x.dataset.cat !== mine);
+    return b ? b.dataset.cat : null;
+  }, catId);
+  note(!!other, 'only one category on the canvas — the switch case has no second box');
+  await clickMic();                                   // start in the scratch box
+  await clearTones();
+  await page.evaluate((id) => document.querySelector(`.nt-mic[data-cat="${id}"]`).click(), other);
+  const moved = await heard(2);
+  note(moved.length === 2, `switching boxes played ${moved.length} note(s), expected the one start pair`);
+  note(moved.length === 2 && moved[1].hz > moved[0].hz,
+       'switching boxes played a falling pair — the box it left was reported as an ending');
+  await page.evaluate((id) => document.querySelector(`.nt-mic[data-cat="${id}"]`).click(), other);
+  await sleep(200);
+  note(!(await page.evaluate(() => window.__mic.live())), 'the switch check left dictation running');
+  console.log(`switch: ${moved.map((x) => Math.round(x.hz)).join('->')}, one pair for two boxes`);
+
+  /* AND IT ACTUALLY MAKES A SOUND. Everything above is read off a spy, and a
+     spy cannot tell whether the nodes were connected to anything: a missing
+     connect() schedules every note correctly and renders silence. So the real
+     graph is rendered through a REAL OfflineAudioContext (the stub replaces
+     AudioContext, not that one) and the samples are looked at -- two bursts
+     of energy, in order, and quiet again afterwards. */
+  const wave = await page.evaluate(async () => {
+    const mod = await import('/notes/dictate.js');
+    const rate = 44100;
+    const out = {};
+    for (const kind of ['on', 'off']) {
+      const ctx = new OfflineAudioContext(1, Math.round(rate * 0.6), rate);
+      const secs = mod.earconGraph(ctx, kind, 0);
+      const buf = await ctx.startRendering();
+      const d = buf.getChannelData(0);
+      const rms = (from, to) => {
+        let sum = 0;
+        const a = Math.max(0, Math.round(from * rate)), b = Math.min(d.length, Math.round(to * rate));
+        for (let i = a; i < b; i++) sum += d[i] * d[i];
+        return b > a ? Math.sqrt(sum / (b - a)) : 0;
+      };
+      let peak = 0;
+      for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+      out[kind] = { secs, peak, first: rms(0.01, 0.06), second: rms(0.1, 0.15), after: rms(0.45, 0.6) };
+    }
+    return out;
+  });
+  for (const kind of ['on', 'off']) {
+    const w = wave[kind];
+    note(w.peak > 0.01, `the ${kind} sound renders silence (peak ${w.peak}) — the graph reaches no output`);
+    note(w.peak < 0.5, `the ${kind} sound renders at ${w.peak} of full scale — far too loud for a UI blip`);
+    note(w.first > 0.001 && w.second > 0.001,
+         `the ${kind} sound is not two bursts (${w.first.toFixed(4)} then ${w.second.toFixed(4)})`);
+    note(w.after < w.first / 20, `the ${kind} sound is still ringing at 450ms (${w.after.toFixed(5)})`);
+    note(w.secs > 0.1 && w.secs < 0.5, `the ${kind} sound claims to last ${w.secs}s`);
+  }
+  console.log(`rendered: on peak ${wave.on.peak.toFixed(3)}, off peak ${wave.off.peak.toFixed(3)}, `
+              + `${wave.on.secs.toFixed(2)}s each`);
 }
 
 /* ---- 13. nothing provisional ever reached the store ---------------------- */

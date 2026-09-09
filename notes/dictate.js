@@ -153,6 +153,100 @@ export function paintButtons() {
   ctx.root.classList.toggle('is-dictating', !!session);
 }
 
+/* ---- the earcons ---------------------------------------------------------
+ * Two notes on the way in, and the same two on the way out reversed. That is
+ * the whole design and it is the point of it: one sound with a direction, so
+ * "it started" and "it stopped" are not two things to learn. A rising perfect
+ * fifth opens, a falling one closes.
+ *
+ * SHORT AND QUIET, because of when it fires. The start sound plays in the
+ * moment before someone begins talking, so anything with a tail is something
+ * the microphone hears; anything loud is a jolt at the exact moment they were
+ * about to speak. ~250ms end to end, peaking under a tenth of full scale.
+ *
+ * SYNTHESISED, AND THAT IS A CSP FACT RATHER THAN A PREFERENCE. The site
+ * ships `media-src 'self' https://vz-...`, so an <audio> pointed at a data:
+ * or blob: URI is refused outright -- MediaBus's silent hold logs exactly
+ * that error on the dev server. A file under assets/ would pass 'self', but
+ * then two sine waves cost bytes on the wire, a licence to keep track of and
+ * an asset the image pipeline knows nothing about. A WebAudio graph never
+ * goes through media-src at all.
+ *
+ * ONE CONTEXT, BUILT LATE AND SUSPENDED BETWEEN BLIPS. Constructing an
+ * AudioContext before a gesture gets it suspended by the browser anyway, and
+ * the first sound this can ever make follows a click on the microphone -- so
+ * it is built on first use, which is always after one. */
+const TONES = { on: [587.33, 880], off: [880, 587.33] };   // D5 and A5
+const GAP = 0.085;          // seconds between the two notes
+const RING = 0.17;          // how long one note takes to die away
+let audio = null;
+let quietTimer = 0;
+
+function earcon(kind) {
+  const notes = TONES[kind];
+  if (!notes) return;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    audio = audio || new Ctx();
+    /* SCHEDULED AFTER THE RESUME SETTLES, never before it. currentTime is
+       frozen while a context is suspended, so notes scheduled off it are all
+       stamped with the same instant -- they resume as a CHORD rather than as
+       a rising pair, which is the one thing this sound is made of. */
+    const play = () => {
+      earconGraph(audio, kind, audio.currentTime);
+      clearTimeout(quietTimer);
+      quietTimer = setTimeout(() => {
+        try { if (audio && audio.state === 'running') audio.suspend(); } catch { /* gone */ }
+      }, (GAP * notes.length + RING) * 1000 + 250);
+    };
+    if (audio.state === 'suspended') audio.resume().then(play).catch(() => {});
+    else play();
+  } catch { /* no WebAudio, or it refused to start: silence is a fine failure */ }
+}
+
+/* THE GRAPH, ON ANY CONTEXT, so it can be RENDERED rather than only watched.
+ * A spy that records what the app asked for cannot tell whether the nodes were
+ * connected to anything -- a `connect()` left out is a graph that schedules
+ * every note correctly and makes no sound, which is this repo's favourite
+ * shape of bug. notes_dictate_check renders this into an OfflineAudioContext
+ * and looks at the samples. Returns how long the sound lasts. */
+export function earconGraph(ctx, kind, t0) {
+  const notes = TONES[kind];
+  if (!notes) return 0;
+  notes.forEach((hz, i) => voice(ctx, hz, t0 + i * GAP));
+  return GAP * (notes.length - 1) + RING;
+}
+
+function voice(audio, hz, at) {
+  const gain = audio.createGain();
+  /* An EXPONENTIAL tail. A linear fade to zero clicks audibly at this length;
+     an exponential ramp cannot reach zero, so it stops just above silence and
+     the note is simply over. */
+  gain.gain.setValueAtTime(0.0001, at);
+  gain.gain.exponentialRampToValueAtTime(0.09, at + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + RING);
+  /* Takes the edge off the triangle's upper partials. Without it the pair
+     reads as a hardware beep rather than as something the app said. */
+  const tame = audio.createBiquadFilter();
+  tame.type = 'lowpass';
+  tame.frequency.value = 3800;
+  tame.connect(gain);
+  gain.connect(audio.destination);
+  // A sine for the body, a quiet octave of triangle for the edge of it.
+  for (const [type, mul, level] of [['sine', 1, 1], ['triangle', 2, 0.3]]) {
+    const osc = audio.createOscillator();
+    osc.type = type;
+    osc.frequency.value = hz * mul;
+    const mix = audio.createGain();
+    mix.gain.value = level;
+    osc.connect(mix);
+    mix.connect(tame);
+    osc.start(at);
+    osc.stop(at + RING + 0.02);
+  }
+}
+
 /* ---- start and stop ------------------------------------------------------ */
 
 export function toggle(catId) {
@@ -199,6 +293,12 @@ function start(catId) {
   showPill();
   tick = setInterval(() => { paintPill(); checkSilence(); }, 1000);
   if (channel) channel.postMessage({ claim: Date.now() });
+  /* ONCE PER SESSION, HERE, and not in spawn(). A session outlives its
+     recognizer -- onend spawns a fresh one every minute or so, and on a bad
+     connection several in a row -- so a sound hung on the recognizer starting
+     would chirp at someone mid-sentence for reasons that are none of their
+     business. This is the one place a session begins. */
+  earcon('on');
 }
 
 export function stop(why) {
@@ -225,6 +325,13 @@ export function stop(why) {
   }
   hidePill();
   paintButtons();
+  /* EVERY WAY OUT EXCEPT ONE. The button, the silence cap, a refused
+     microphone, a wedged engine, another tab taking the microphone -- they all
+     end the session and they all say so. 'switch' is the exception because it
+     is not an ending: toggle() stops one box and starts the next in the same
+     breath, and the start's own sound follows a few milliseconds later. Two
+     blips back to back would be reporting the machinery rather than the move. */
+  if (why !== 'switch') earcon('off');
   if (why === 'silence') toast('Dictation stopped — ten minutes without a word.');
   if (why === 'denied') toast('Microphone blocked. Allow it for this site in the address bar, then try again.', 'error');
   if (why === 'nomic') toast('No microphone found.', 'error');

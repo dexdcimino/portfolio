@@ -2101,6 +2101,46 @@ permission looked exactly like a dead button.
 including this one; SpeechRecognition is gated on that policy and fails with
 `not-allowed` before any prompt appears. It is `microphone=(self)` now.
 
+**TWO EARCONS: one sound with a direction.** A rising perfect fifth (D5 → A5)
+opens a session and the same two notes falling close it, so "it started" and
+"it stopped" are not two things to learn. About 250ms end to end and peaking
+under a tenth of full scale, because the start sound plays in the moment
+before someone begins talking — anything with a tail is something the
+microphone then hears.
+
+They are SYNTHESISED, and that is a CSP fact rather than a preference. The
+site ships `media-src 'self' https://vz-...`, so an `<audio>` pointed at a
+`data:` or `blob:` URI is refused outright — MediaBus's silent hold logs
+exactly that on the dev server. A file under `assets/` would pass `'self'`,
+but then two sine waves cost bytes on the wire, a licence to track and an
+asset the image pipeline knows nothing about. A WebAudio graph never goes
+through `media-src` at all.
+
+The ON sound fires in `start()`, ONCE PER SESSION — never in `spawn()`. A
+session outlives its recognizer (`onend` spawns a fresh one every minute or
+so), so a sound hung on the recognizer starting would chirp at someone
+mid-sentence about machinery that is none of their business. The OFF sound
+fires in `stop()` for every reason except `'switch'`: moving between boxes
+stops one session and starts the next in the same breath, and two blips back
+to back would report the machinery rather than the move.
+
+`earconGraph(ctx, kind, t0)` is exported so the sound can be RENDERED rather
+than only watched. A spy that records what the app scheduled cannot tell
+whether the nodes were connected to anything — a missing `connect()` schedules
+every note correctly and makes silence — so `notes_dictate_check` renders the
+real graph through an `OfflineAudioContext` and reads the samples: two bursts
+of energy, in order, quiet again afterwards. The note-by-note assertions come
+from a fake `AudioContext` in the stub, which also catches the case where a
+suspended context is resumed after `currentTime` is read and the pair lands as
+a chord.
+
+**The session ends by itself after ten minutes with nothing heard**
+(`SILENCE_MS`), checked once a second by the same interval that paints the
+pill. Any result at all resets it — including an interim the engine later
+discards — so the clock measures silence, not sentences. Separately, six empty
+restarts inside eight seconds (`DEAD_RESTARTS` / `DEAD_WINDOW_MS`) is a wedged
+engine rather than a quiet room, and ends it with a different message.
+
 ### The AI Lab sandbox
 
 The eyeball on the DexNote card opens this same app with `format: 'demo'` and
