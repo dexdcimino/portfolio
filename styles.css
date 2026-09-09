@@ -1175,6 +1175,21 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   .fv-item{position:absolute}
   .work-page{position:relative;inset:auto}
   .work-page:not(.is-on){position:absolute;inset:0}
+  /* THE FOUR THUMBNAILS NEED A HEIGHT OF THEIR OWN HERE, and without these two
+     lines they had none: .work-grid goes height:auto above, .work-page becomes
+     a relative 2x2 whose rows are `1fr 1fr`, and a fraction of nothing is
+     nothing. Everything inside a card is absolutely positioned -- the reel,
+     the shade, the meta -- so there is no content to fall back on either, and
+     the cards resolved to FOUR PIXELS. Measured at 1500px: 263x216; at 790px:
+     313x4. Reported as "my thumbnails are all collapsed in split view".
+
+     16/10 per card rather than a row height, because it is the one number that
+     makes this block match the video above it: two rows of half-width 16/10
+     cards plus the gap comes to the same height as one full-width 16/10 stage,
+     which is the same "the video and the 2x2 are one object" the wide layout
+     gets from its two equal grid columns. */
+  .work-page{grid-template-rows:auto auto}
+  .fw-stage .work-card{height:auto;aspect-ratio:16/10}
   .wk-pager{justify-content:center}
   .wk-arrows{flex-direction:row}
   .wk-dots{flex-direction:row}

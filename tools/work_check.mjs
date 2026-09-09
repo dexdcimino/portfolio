@@ -901,6 +901,57 @@ await page.waitForFunction(
        `the app rows are ${app.heights.join('/')} tall — the placeholder changes the rhythm`);
 }
 
+/* ---- 16. the four thumbnails have a height at every width -----------------
+   THE REPORTED BUG (Dex, 2026-09-09): a browser window dragged to half a
+   screen showed the video but four flat lines where the thumbnails should be.
+
+   Below 1100px the stage goes to one column: .work-grid takes height:auto and
+   .work-page becomes a relative 2x2 whose rows are `1fr 1fr` -- and a fraction
+   of nothing is nothing. Everything inside a card is absolutely positioned, so
+   there is no content to fall back on either. The cards resolved to FOUR
+   PIXELS while the video above them, which has an aspect-ratio of its own, was
+   fine. That is why it read as "the big one works and the small ones do not".
+
+   FALSELY PASSES IF: only one width were driven, or only the DESKTOP width --
+   which is what every other check in this file uses, and is exactly why this
+   went unseen. Four widths across both sides of the breakpoint, and the height
+   is asserted against the card's own WIDTH rather than against a number, so a
+   change to the ladder cannot quietly turn this into a tautology. */
+{
+  const shapes = [];
+  for (const w of [1500, 1000, 790, 520]) {
+    await page.setViewport({ width: w, height: 950 });
+    await new Promise(r => setTimeout(r, 400));
+    shapes.push(await page.evaluate((width) => {
+      const on = document.querySelector('.work-page.is-on');
+      const cards = [...on.querySelectorAll('.work-card')].map(c => c.getBoundingClientRect());
+      const fv = document.querySelector('.fv').getBoundingClientRect();
+      return {
+        width,
+        n: cards.length,
+        min: Math.round(Math.min(...cards.map(r => r.height))),
+        ratio: Math.min(...cards.map(r => r.height / Math.max(1, r.width))),
+        block: Math.round(on.getBoundingClientRect().height),
+        fv: Math.round(fv.height),
+      };
+    }, w));
+  }
+  note(shapes.length === 4, `only ${shapes.length} width(s) measured — this check lost its subject`);
+  for (const s of shapes) {
+    note(s.n === 4, `at ${s.width}px the page holds ${s.n} thumbnails, expected 4`);
+    /* Not "taller than 4px". A thumbnail is a picture, and a picture that is a
+       tenth as tall as it is wide is still collapsed, just less obviously. */
+    note(s.ratio > 0.35, `at ${s.width}px a thumbnail is ${Math.round(s.ratio * 100)}% as tall as it is wide (${s.min}px) — collapsed`);
+    /* The 2x2 block and the video are meant to be one object: two rows of
+       half-width 16/10 cards plus the gap is one full-width 16/10 stage. */
+    note(Math.abs(s.block - s.fv) < s.fv * 0.25,
+         `at ${s.width}px the thumbnail block is ${s.block}px against the video's ${s.fv}px`);
+  }
+  console.log(`thumbnails: ${shapes.map(s => `${s.width}->${s.min}px`).join('  ')}`);
+  await page.setViewport({ width: 1600, height: 1000 });
+  await new Promise(r => setTimeout(r, 300));
+}
+
 note(missing.length === 0, `404s: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
 
 await browser.close();
