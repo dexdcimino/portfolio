@@ -159,13 +159,30 @@ await page.focus('#notesPins .vault-pin');
 for (const c of 'notes') { await page.keyboard.type(c); await sleep(40); }
 await page.waitForFunction(() => document.querySelectorAll('.nt-cat').length > 0, { timeout: 20000 });
 
-/* A scratch category to talk into. */
+/* A scratch category to talk into.
+
+   WAITED FOR, AND ASSERTED. Alt+N focuses the new category's title and the
+   name is typed into it -- but a 200ms sleep is a guess, and when it lost the
+   race the keystrokes went nowhere and the category kept its default name.
+   Nothing here noticed: the run carried on and failed two checks much later
+   with "the pill names New Category", which is a true statement about a
+   category this file was supposed to have named. Settle on the focus, then
+   assert the name landed. */
 await page.keyboard.down('Alt'); await page.keyboard.press('n'); await page.keyboard.up('Alt');
-await sleep(200);
+await page.waitForFunction(
+  () => document.activeElement && document.activeElement.classList.contains('nt-cat-title'),
+  { timeout: 5000 })
+  .then(() => note(true, ''))
+  .catch(() => note(false, 'Alt+N did not focus the new category title'));
 await page.keyboard.type('Dictation scratch');
 await page.keyboard.press('Enter');
 await sleep(80);
 const catId = await page.evaluate(() => document.activeElement.dataset.cat);
+note(!!catId, 'Enter on the new title did not land the caret in its body');
+note(await page.evaluate((id) => {
+  const row = [...document.querySelectorAll('.nt-row')].find((r) => r.dataset.cat === id);
+  return !!row && row.querySelector('.nt-row-title').textContent === 'Dictation scratch';
+}, catId), 'the scratch category is not named "Dictation scratch" — everything downstream would name the wrong box');
 const sel = `.nt-body[data-cat="${catId}"]`;
 const text = () => page.$eval(sel, (b) => b.textContent.replace(/\u00a0/g, ' '));
 const html = () => page.$eval(sel, (b) => b.innerHTML);
@@ -730,6 +747,61 @@ const clearTones = () => page.evaluate(() => { window.__tones.length = 0; });
   note(/^\d\d:\d\d$/.test(left.time), `the chip's clock reads "${left.time}"`);
   note(left.hash !== '#notes', 'the address still claims the notes are open');
 
+  /* WHERE IT SITS. Top-left, clear of the nav rail and never over it, and it
+     travels with the rail when the rail opens. Driven with a REAL hover: the
+     rail expands on :hover, and element.click() or a dispatched event moves no
+     pointer -- see CLAUDE.md. */
+  const spot = () => page.evaluate(() => {
+    const r = document.getElementById('notesRec').getBoundingClientRect();
+    const s = document.getElementById('sidebar').getBoundingClientRect();
+    return { left: Math.round(r.left), top: Math.round(r.top), rail: Math.round(s.right),
+             hit: !!document.elementFromPoint(r.left + 6, r.top + r.height / 2)?.closest('#notesRec') };
+  });
+  const rest = await spot();
+  note(rest.top < 120, `the chip is ${rest.top}px down the page — it should be in the top-left corner`);
+  note(rest.left >= rest.rail, `the chip starts at ${rest.left} and the rail ends at ${rest.rail} — it is over the nav`);
+  note(rest.hit, 'the chip is positioned but something is painted over it');
+  await page.mouse.move(rest.rail - 20, 400);
+  /* SETTLE ON THE RAIL, then read the chip. Waiting for the chip to have moved
+     "far enough" measures it MID-TRANSITION, which is exactly where a chip
+     that chases instead of travelling looks fine -- the first version of this
+     read left 150 against a rail edge at 209 and was right to. What has to be
+     true is the invariant, at rest AND on the way there, so the wait is for
+     the rail to stop and the assertion is the invariant. */
+  await page.waitForFunction(() => {
+    const s = document.getElementById('sidebar');
+    const w = s.getBoundingClientRect().width;
+    if (s.dataset.lastW === String(Math.round(w))) return w > 120;
+    s.dataset.lastW = String(Math.round(w));
+    return false;
+  }, { polling: 'raf', timeout: 4000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false, 'hovering the nav rail did not open it'));
+  const open2 = await spot();
+  note(open2.left > rest.left + 40, `hovering the rail did not push the chip across (${rest.left} -> ${open2.left})`);
+  note(open2.left >= open2.rail,
+       `with the rail open the chip starts at ${open2.left} and the rail ends at ${open2.rail} — it is over the nav`);
+  /* AND ON THE WAY BACK, every frame of it. The overlap this is guarding
+     against only exists while the rail is moving, so the whole retraction is
+     sampled rather than its endpoint. */
+  const sampling = page.evaluate(() => new Promise((done) => {
+    let over = 0;
+    const id = setInterval(() => {
+      const r = document.getElementById('notesRec').getBoundingClientRect();
+      const s = document.getElementById('sidebar').getBoundingClientRect();
+      over = Math.max(over, Math.round(s.right - r.left));
+    }, 16);
+    setTimeout(() => { clearInterval(id); done(over); }, 900);
+  }));
+  // Started BEFORE the pointer leaves, or it samples a rail that has already
+  // finished moving and reports the one state that was never in doubt.
+  await page.mouse.move(900, 400);
+  const worst = await sampling;
+  const shut = await spot();
+  note(shut.left < open2.left - 40, `the chip did not come back when the rail closed (${open2.left} -> ${shut.left})`);
+  note(worst <= 2, `mid-transition the chip overlapped the rail by ${worst}px`);
+  console.log(`chip: left ${rest.left} beside a ${rest.rail}px rail, ${open2.left} with it open, worst overlap ${worst}px`);
+
   /* ...and the words keep landing in the box that is no longer on screen. */
   await say([['after I left', true]]);
   await sleep(250);
@@ -740,7 +812,22 @@ const clearTones = () => page.evaluate(() => { window.__tones.length = 0; });
   /* Back in, with no password. The document never left and neither did the
      reader -- asking again would be asking for a password to see words they
      can hear themselves dictating. */
-  await page.evaluate(() => document.getElementById('notesRecOpen').click());
+  /* THROUGH THE EXPAND BUTTON, not the label. Both go back in, but the button
+     is the one that SAYS so -- a name that happens to be clickable is not an
+     affordance -- so the button is what the check drives. */
+  const backBtn = await page.evaluate(() => {
+    const b = document.getElementById('notesRecBack');
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    return { w: Math.round(r.width), tip: b.getAttribute('data-tip'),
+             icon: b.querySelector('.icon')?.dataset.icon,
+             hit: !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('#notesRecBack') };
+  });
+  note(!!backBtn, 'the chip has no way back into the notes but its label');
+  note(backBtn && backBtn.w >= 24, `the back button is ${backBtn && backBtn.w}px across, wanted at least 24`);
+  note(backBtn && backBtn.hit, 'the back button is positioned but something is painted over it');
+  note(backBtn && /notes/i.test(backBtn.tip || ''), `the back button's tip reads "${backBtn && backBtn.tip}"`);
+  await page.evaluate(() => document.getElementById('notesRecBack').click());
   await page.waitForFunction(() => document.getElementById('notesModal').open === true, { timeout: 5000 });
   await sleep(300);
   const back = await page.evaluate(() => ({

@@ -844,14 +844,19 @@ function closeModal(dialog) {
   dialog.close();                               // the 'close' listener clears the lock
 }
 
-/* `stack` is the one exception to "never two overlays at once", and it is here
-   for exactly one case: a document opened FROM inside another overlay, where
-   closing the reader has to put you back in the list you opened it from. The
-   Idea Vault is that case — its section relocks the moment its overlay closes,
-   so replacing the overlay would leave the keypad on screen still reading OPEN
-   with nothing to close. Native <dialog> stacks correctly by itself: the top
-   layer orders them, Escape closes the topmost, the one underneath is inert.
-   Nothing opened from OUTSIDE another overlay may pass it. */
+/* `stack` is the exception to "never two overlays at once", and it is for one
+   SHAPE rather than one caller: something opened FROM INSIDE another overlay,
+   where backing out of it has to put you back in what you were looking at.
+   Two things have that shape. The Idea Vault — its section relocks the moment
+   its overlay closes, so replacing the overlay would leave the keypad on
+   screen still reading OPEN with nothing to close. And the tilde keypad, which
+   is reachable from anywhere including from on top of another overlay: closing
+   that overlay on the way IN would mean a code you decided not to type had
+   already cost you the list you were reading.
+
+   Native <dialog> stacks correctly by itself: the top layer orders them,
+   Escape closes the topmost, the one underneath is inert. Nothing opened from
+   OUTSIDE another overlay may pass it. */
 function openModal(dialog, panel, onOpen, opener, stack) {
   if (!dialog) return;
   // Read the trigger before closing anything: closing a dialog synchronously
@@ -2254,6 +2259,7 @@ if (workModal) {
     function park() {
       parked = app.onDictationEnd(() => finish());
       rec.hidden = false;
+      watchRail(true);
       paintRec();
       clearInterval(recTimer);
       recTimer = setInterval(paintRec, 1000);
@@ -2280,6 +2286,7 @@ if (workModal) {
       if (parked) { parked(); parked = null; }
       clearInterval(recTimer);
       recTimer = 0;
+      watchRail(false);
       rec.hidden = true;
     }
 
@@ -2295,7 +2302,31 @@ if (workModal) {
          -- which is what runs the teardown. */
       if (app) app.stopDictation();
     });
-    document.getElementById('notesRecOpen')?.addEventListener('click', (e) => open(e.currentTarget));
+    for (const id of ['notesRecOpen', 'notesRecBack']) {
+      document.getElementById(id)?.addEventListener('click', (e) => open(e.currentTarget));
+    }
+
+    /* THE CHIP SITS BESIDE THE RAIL AND TRAVELS WITH IT. The sidebar expands
+       on hover and on real keyboard focus, guarded by .no-focus-expand -- a
+       CSS copy of that condition beside the chip would be a second copy of a
+       rule to keep in step, and it would be the copy nobody remembers. This
+       reports the width the sidebar ACTUALLY has, on every frame of its
+       transition, so the chip moves with it rather than after it.
+       Only while the chip is up: an observer running for the rest of the visit
+       is a callback per frame of every rail hover, for a chip that is not on
+       screen. */
+    let railWatch = null;
+    function watchRail(on) {
+      if (!on) {
+        if (railWatch) { railWatch.disconnect(); railWatch = null; }
+        return;
+      }
+      if (railWatch || typeof ResizeObserver !== 'function' || !sidebar || !rec) return;
+      railWatch = new ResizeObserver(() => {
+        rec.style.setProperty('--rail-w', `${Math.round(sidebar.getBoundingClientRect().width)}px`);
+      });
+      railWatch.observe(sidebar);
+    }
 
     function dropHash() {
       if (location.hash !== '#notes') return;
@@ -3607,9 +3638,15 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
      from the vault opens the same thing from here, and adding a code to
      data-vault adds it to both at once.
 
-     Ignored while anything is being typed into and while another dialog is up.
-     A shortcut that swallows a backtick you meant to type -- in the notes
-     overlay, in the contact form -- is worse than no shortcut. */
+     IGNORED ONLY WHILE SOMETHING IS BEING TYPED INTO. A shortcut that
+     swallows a backtick you meant to type -- in the notes, in the contact
+     form -- is worse than no shortcut, and that is the whole of the
+     exception. It used to also stand down whenever any overlay was open,
+     which made "reachable from anywhere" untrue exactly where it was most
+     useful: from the music list you had to close the music before you could
+     ask for anything else. It opens STACKED over whatever is up now, so
+     Escape puts you back where you were and a code replaces the overlay the
+     way it always did. */
   const codeModal = document.getElementById('codeModal');
   const codePins = codeModal ? [...codeModal.querySelectorAll('.vault-pin')] : [];
   if (codeModal && codePins.length) {
@@ -3623,7 +3660,12 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       root: codeModal, pins: codePins,
       status: document.getElementById('codeStatus'),
       timer: document.getElementById('codeTimer'),
-      resting: 'ENTER CODE',
+      /* BLANK AT REST. The eyebrow above the boxes already says ENTER CODE,
+         and the same three words twice on a panel this size is one of them
+         too many. The line stays for what it is actually for -- the refusals
+         and the lockout clock -- and keeps its height so filling it in does
+         not move the boxes. */
+      resting: '',
       verify: tryCode,
       onPass(payload, secret) {
         if (codeLabel) codeLabel.textContent = 'OPEN';
@@ -3664,10 +3706,17 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
          overlay, in the contact form -- is worse than no shortcut. The keypad's
          own boxes are inputs, so this is also what stops it closing over
          itself. */
-      if (typing() || document.querySelector(OVERLAY_OPEN)) return;
+      if (typing()) return;
       event.preventDefault();
       codeOpener = document.activeElement;
-      openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener);
+      /* STACKED when something is already up, plain when nothing is. Stacking
+         is what makes cancelling safe: Escape closes this and leaves the
+         overlay underneath exactly as it was, rather than having closed it on
+         the way in for a code that was never typed. Anything the code then
+         opens is opened un-stacked, so it replaces what was there -- which is
+         what "go somewhere else from here" means. */
+      openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener,
+                !!document.querySelector(OVERLAY_OPEN));
       codepad.focus();
     });
   }

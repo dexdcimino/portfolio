@@ -179,6 +179,7 @@ img{max-width:100%}
 [data-icon="youtube"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.54 12 3.54 12 3.54s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/youtube.svg */
 [data-icon="tick-check"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='m5 12.5 4.5 4.5L19 7'/%3E%3C/svg%3E")} /* src: assets/icons/tick-check.svg */
 [data-icon="tick"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15.3841 18.1113'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cpath d='M7.1872,18.1113H0v-6.3529L11.7584,0h3.6257v7.3476s-5.9188,5.7103-7.2664,7.2664-.9305,3.4973-.9305,3.4973Z' fill='%23fff'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tick_mark.svg */
+[data-icon="tilde"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' xmlns='http://www.w3.org/2000/svg' version='1.1' viewBox='0 0 86.5 38'%3E %3C!-- Generator: Adobe Illustrator 30.8.1, SVG Export Plug-In . SVG Version: 2.1.4 Build 1) --%3E %3Cdefs%3E %3Cstyle%3E .st0 %7B fill: %23fff; %7D %3C/style%3E %3C/defs%3E %3Cg id='Layer_1-2'%3E %3Cpath class='st0' d='M84,25.9c-4.1,10.5-15.1,14.6-25.2,10.6-13-5.2-21.1-13.4-34.3-19-1.7-.7-6.5.4-7.2,2-1.5,3.2-1.8,6.7-2,10.5H0c-.3-5.9,0-11.3,1.8-16.7C5.1,3.6,14.9-2,24.9.7c12.6,3.4,21.8,12.6,35,19,2.7,1.3,8.1,1.1,9.5-1.7,1.6-3.1,1.5-6.5,1.7-10.4l15.3.2c.2,6.3-.2,12-2.5,18.1h0Z'/%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/tilde.svg */
 [data-icon="travel"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 132'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cg%3E %3Cpath d='M98,4H34c-16.542,0-30,13.458-30,30v64c0,16.542,13.458,30,30,30h64c16.542,0,30-13.458,30-30V34c0-16.542-13.458-30-30-30ZM116.2014,20.2385c-1.0227,6.3875-3.9855,12.2632-8.3043,17.2004-4.741,5.4199-9.643,10.2644-14.7654,15.448-.2595.2627-.3625.6462-.2666,1.0027l.6418,2.3845c.2031.7544,1.1358,1.0223,1.7083.4905,1.1978-1.1125,3.1278-1.0813,4.2889.0696l3.0778,3.051c1.1064,1.0967,1.0447,2.7495-.0338,3.8157l-5.062,5.0034c-.2659.2627-.3699.6482-.2722,1.009l1.3782,5.0922c.1987.7343,1.093,1.0087,1.6714.5148,1.0677-.9117,2.3221-1.3289,3.3084-.3833l3.9703,3.8059c1.0858,1.0408.8846,2.7117-.1064,3.708l-4.8918,4.918c-.2609.2622-.3624.6436-.2665,1.0007l6.4009,23.8499c.096.3578-.006.7395-.2676,1.0018l-2.1803,2.1857c-.4664.4675-1.245.3864-1.6048-.1674l-24.4984-37.6967c-.0329-.0507-.0702-.0984-.1114-.1426l-5.3901-5.7766c-.3778-.4049-1.007-.4418-1.4295-.0837l-26.078,22.0942c-.3165.2682-.4429.6992-.3214,1.0958l6.7905,22.1542c.1118.3647.0144.7616-.2537,1.0332l-3.3235,3.3665c-.4727.4789-1.269.3882-1.6219-.1846l-11.4606-18.6001c-.3027-.4912-.9493-.6387-1.4377-.3318-3.194,2.0076-6.2873,3.8666-9.7321,5.4354-.8717.3971-1.7797-.5131-1.3832-1.385,1.5865-3.4893,3.4251-6.5647,5.4147-9.7289.3069-.4883.16-1.1343-.3305-1.4373l-18.6065-11.4934c-.5682-.351-.6617-1.1395-.1913-1.6136l3.2747-3.3007c.271-.2732.6708-.3739,1.0388-.262l22.3071,6.7888c.3965.1206.8267-.0061,1.0944-.3225l22.0608-26.0784c.3582-.4233.3201-1.0535-.0864-1.4308l-5.8713-5.4484c-.0421-.0391-.0875-.0746-.1354-.1062L16.3867,26.8079c-.5421-.3567-.6275-1.1179-.1779-1.5858l2.0991-2.1847c.2634-.2742.6555-.3823,1.0222-.282l23.689,6.4816c.3606.0986.7463-.0043,1.0099-.2694l4.9464-4.9768c1.0743-1.0811,2.7043-1.1138,3.825.0171,1.2571,1.2683,2.687,2.5975,3.7783,4.002.8345,1.074.3303,2.2805-.5621,3.2739-.5137.5718-.2729,1.4785.4641,1.6969l4.9217,1.4581c.3646.1082.759.0081,1.028-.2606l5.2989-5.2915c1.0575-1.056,2.6196-1.1981,3.7294-.0951l3.6145,3.5923c.5941.5903.8963,2.3579.3343,2.9585l-1.0482,1.12c-.5312.5676-.2726,1.4963.4756,1.7076l3.2383.9148c.3578.101.7448.0015,1.0108-.2583,5.2377-5.1147,10.17-10.1201,15.6456-14.9014,4.8194-4.2083,15.2141-9.6366,19.9532-7.8219,1.5748.603,1.7664,2.5892,1.5188,4.1354Z' fill='none'/%3E %3Cpath d='M98,0H34C15.2524,0,0,15.252,0,34v64c0,18.748,15.2524,34,34,34h64c18.7476,0,34-15.252,34-34V34C132,15.252,116.7476,0,98,0ZM128,98c0,16.542-13.458,30-30,30H34c-16.542,0-30-13.458-30-30V34c0-16.542,13.458-30,30-30h64c16.542,0,30,13.458,30,30v64Z'/%3E %3Cpath d='M114.6826,16.1031c-4.7391-1.8147-15.1339,3.6136-19.9532,7.8219-5.4756,4.7812-10.4079,9.7866-15.6456,14.9014-.2661.2598-.653.3593-1.0108.2583l-3.2383-.9148c-.7482-.2113-1.0068-1.14-.4756-1.7076l1.0482-1.12c.562-.6006.2598-2.3682-.3343-2.9585l-3.6145-3.5923c-1.1099-1.103-2.6719-.9609-3.7294.0951l-5.2989,5.2915c-.269.2687-.6635.3688-1.028.2606l-4.9217-1.4581c-.737-.2184-.9778-1.1251-.4641-1.6969.8925-.9934,1.3967-2.2.5621-3.2739-1.0913-1.4044-2.5212-2.7336-3.7783-4.002-1.1206-1.1309-2.7506-1.0981-3.825-.0171l-4.9464,4.9768c-.2635.2651-.6493.368-1.0099.2694l-23.689-6.4816c-.3666-.1003-.7588.0078-1.0222.282l-2.0991,2.1847c-.4496.4679-.3642,1.2291.1779,1.5858l37.9572,24.9768c.048.0316.0933.0671.1354.1062l5.8713,5.4484c.4065.3773.4446,1.0074.0864,1.4308l-22.0608,26.0784c-.2676.3164-.6979.4431-1.0944.3225l-22.3071-6.7888c-.368-.1119-.7678-.0112-1.0388.262l-3.2747,3.3007c-.4704.4741-.3769,1.2627.1913,1.6136l18.6065,11.4934c.4905.303.6375.949.3305,1.4373-1.9896,3.1642-3.8282,6.2396-5.4147,9.7289-.3965.8719.5115,1.7821,1.3832,1.385,3.4448-1.5688,6.538-3.4279,9.7321-5.4354.4885-.3069,1.1351-.1594,1.4377.3318l11.4606,18.6001c.353.5728,1.1493.6635,1.6219.1846l3.3235-3.3665c.2681-.2716.3655-.6685.2537-1.0332l-6.7905-22.1542c-.1216-.3966.0048-.8276.3214-1.0958l26.078-22.0942c.4225-.358,1.0517-.3212,1.4295.0837l5.3901,5.7766c.0412.0442.0785.0919.1114.1426l24.4984,37.6967c.3598.5537,1.1384.6349,1.6048.1674l2.1803-2.1857c.2616-.2623.3636-.644.2676-1.0018l-6.4009-23.8499c-.0959-.3572.0057-.7385.2665-1.0007l4.8918-4.918c.9911-.9963,1.1923-2.6672.1064-3.708l-3.9703-3.8059c-.9863-.9456-2.2407-.5284-3.3084.3833-.5784.4939-1.4728.2195-1.6714-.5148l-1.3782-5.0922c-.0977-.3608.0063-.7463.2722-1.009l5.062-5.0034c1.0786-1.0662,1.1402-2.719.0338-3.8157l-3.0778-3.051c-1.1611-1.1509-3.0911-1.1821-4.2889-.0696-.5725.5319-1.5052.2639-1.7083-.4905l-.6418-2.3845c-.0959-.3564.0071-.74.2666-1.0027,5.1224-5.1836,10.0244-10.0281,14.7654-15.448,4.3188-4.9373,7.2816-10.813,8.3043-17.2004.2476-1.5461.056-3.5323-1.5188-4.1354Z'/%3E %3C/g%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/travel.svg */
 [data-icon="vault"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='f' maskUnits='userSpaceOnUse' x='0' y='0' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Cg fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4.4 10.4C6.8 8.6 8.8 11.3 11.6 9.7 14 8.3 16.3 10.3 19.2 9.1'/%3E%3Cpath d='M4.6 14.2C7 12.6 8.9 15.2 11.6 13.7 14 12.4 16.2 14.2 18.9 13'/%3E%3C/g%3E%3C/mask%3E%3C/defs%3E%3Cpath mask='url(%23f)' fill='%23fff' d='M3.5 10.6C3.4 7.9 5.1 5.7 7.2 4.9 8.5 4.3 9.7 4.9 10.1 5.9 10.8 4.7 12.2 4.2 13.4 4.6 14.3 4.9 14.9 5.5 15.2 6.2 16 5.1 17.5 4.8 18.7 5.4 20.4 6.2 21.4 7.8 21.5 9.6 21.8 11.6 21.1 13.5 19.6 14.7 18.5 16 16.8 16.8 15.1 16.8 13.9 17.6 12.3 17.9 10.8 17.6 11 18.6 11.1 19.6 11.1 20.4 10.6 21.2 9.4 21.3 8.8 20.6 8.3 19.7 8.1 18.6 8 17.3 6.2 16.8 4.7 15.8 3.9 14.3 3.1 13.1 3.2 11.9 3.5 10.6Z'/%3E%3C/svg%3E")} /* src: assets/icons/vault.svg */
 [data-icon="volume-mute"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='m16 9.5 5 5m0-5-5 5'/%3E%3C/svg%3E")} /* src: assets/icons/volume-mute.svg */
@@ -6114,23 +6115,29 @@ body.modal-open{overflow:hidden}
    rather than a flex child so column-reverse cannot carry it into the stack,
    and it overlaps the border by 2px so it reads as attached rather than as
    something floating beside it. */
+/* THE MARK ALONE (Dex, 2026-09-09). It was a circle in the pill's own
+   background and border, which made it read as a tenth control bolted to the
+   end of nine -- and the pill already has one circle, the play button, whose
+   whole job is being the only one. A bare chevron in the accent is a mark on
+   the pill's edge rather than an object beside it. The target stays 26px; only
+   the paint went. */
 .music-remote-move{
   position:absolute;left:50%;transform:translateX(-50%);
-  width:26px;height:26px;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:3px solid color-mix(in srgb,var(--accent) 34%,transparent);
-  border-radius:50%;
-  background:color-mix(in srgb,var(--sidebar-bg) 92%,black);
-  color:var(--muted);
-  transition:color var(--accent-ease),border-color var(--accent-ease);
+  width:26px;height:22px;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:0;background:none;color:var(--accent);
+  transition:color var(--accent-ease),transform .16s cubic-bezier(.22,.61,.36,1),opacity .16s ease;
+  opacity:.85;
 }
-.music-remote-move:hover{color:#fff;border-color:var(--accent)}
-.music-remote-move:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.music-remote-move .icon{width:15px;height:15px}
-.music-remote:not(.at-bottom) .music-remote-move{top:calc(100% - 2px)}
+.music-remote-move:hover{opacity:1;transform:translateX(-50%) scale(1.2)}
+.music-remote.at-bottom .music-remote-move:hover{transform:translateX(-50%) scale(1.2)}
+.music-remote-move:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.music-remote-move .icon{width:18px;height:18px}
+@media(prefers-reduced-motion:reduce){.music-remote-move{transition:color var(--accent-ease)}}
+.music-remote:not(.at-bottom) .music-remote-move{top:calc(100% + 1px)}
 /* The chevron is drawn pointing DOWN, so the top corner needs no rotation and
    the bottom one is a half turn. The mark always points at the corner the
    press will move it to. */
-.music-remote.at-bottom .music-remote-move{bottom:calc(100% - 2px)}
+.music-remote.at-bottom .music-remote-move{bottom:calc(100% + 1px)}
 .music-remote.at-bottom .music-remote-move .icon{transform:rotate(180deg)}
 
 /* --- the recording chip -------------------------------------------------
@@ -6143,12 +6150,30 @@ body.modal-open{overflow:hidden}
    it is the same state being reported -- a reader who has seen one has seen
    the other. It is NOT the accent: the accent is what this site uses for
    "here" and "on", and a live microphone is a warning. */
+/* TOP-LEFT, BESIDE THE RAIL AND NEVER OVER IT, and it MOVES WITH the rail
+   when the rail opens. --rail-w is written by script.js from a ResizeObserver
+   on the sidebar: the rail expands on hover AND on real keyboard focus,
+   guarded by .no-focus-expand, and a CSS copy of that condition beside the
+   chip would be a second copy of a rule to keep in step -- the copy nobody
+   remembers. The observer reports the width the sidebar actually has, every
+   frame of its transition, so the chip travels with it instead of arriving
+   after it. The fallback is the collapsed width, which is where it belongs
+   before the observer has said anything.
+
+   The easing is the SIDEBAR'S OWN, not a number picked to look similar. Two
+   things moving together on two curves read as one thing chasing another. */
 .notes-rec{
-  position:fixed;z-index:60;left:16px;bottom:16px;
+  position:fixed;z-index:60;top:16px;left:calc(var(--rail-w,var(--sidebar)) + 16px);
   display:flex;align-items:center;gap:4px;padding:5px 5px 5px 12px;
   border:3px solid #d6423f;border-radius:999px;
   background:color-mix(in srgb,var(--sidebar-bg) 92%,black);
   box-shadow:0 14px 34px rgba(0,0,0,.5);
+  /* NO TRANSITION ON `left`, deliberately. --rail-w is rewritten on every
+     frame of the rail's own transition, so this position is already animated;
+     a second easing on top made the chip CHASE the rail instead of travelling
+     with it -- and for the length of that chase it was sitting on top of the
+     nav, which is the one thing it must never do. Measured: mid-expansion the
+     chip's left was 150 against a rail edge at 209. */
 }
 .notes-rec[hidden]{display:none}
 .notes-rec-dot{
@@ -6183,8 +6208,20 @@ body.modal-open{overflow:hidden}
 }
 .notes-rec-stop svg{width:15px;height:15px}
 .notes-rec-stop:hover{background:color-mix(in srgb,#d6423f 22%,transparent);color:#fff}
-.notes-rec-main:focus-visible,.notes-rec-stop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-@media(max-width:760px){.notes-rec{left:10px;bottom:10px}.notes-rec-main{max-width:150px}}
+/* The way back in, as a control rather than as a name that happens to be
+   clickable. Same red as the rest of the chip -- it belongs to the recording,
+   not to the site's accent -- and the same round target as the stop, so the
+   two read as one pair with two jobs rather than as a button and an oddity. */
+.notes-rec-open{
+  width:28px;height:28px;flex:0 0 auto;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:0;border-radius:50%;background:none;color:#d6423f;
+  transition:background .18s ease,color var(--accent-ease),transform .16s ease;
+}
+.notes-rec-open .icon{width:16px;height:16px}
+.notes-rec-open:hover{background:color-mix(in srgb,#d6423f 22%,transparent);color:#fff;transform:scale(1.08)}
+@media(prefers-reduced-motion:reduce){.notes-rec-open{transition:background .18s ease}}
+.notes-rec-main:focus-visible,.notes-rec-stop:focus-visible,.notes-rec-open:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:760px){.notes-rec{top:10px;left:calc(var(--rail-w,var(--sidebar)) + 10px)}.notes-rec-main{max-width:150px}}
 
 /* --- the tilde keypad ----------------------------------------------------
    Small and central: it is a prompt, not a place. Everything inside it is the
@@ -6193,16 +6230,31 @@ body.modal-open{overflow:hidden}
 .code-modal{border:0;padding:0;background:none;max-width:100vw;display:none}
 .code-modal[open]{display:grid;place-items:center}
 .code-modal::backdrop{background:rgba(3,5,7,.86);backdrop-filter:blur(6px)}
+/* TIGHTER THAN IT WAS (Dex, 2026-09-09). At 44px top and bottom plus a 14px
+   gap either side of the boxes, a five-character prompt was 224px tall for
+   66px of input -- most of a panel that exists to hold one word. The bottom
+   is lighter than the top on purpose: the eyebrow sits above the boxes and
+   the status line below them is blank until something goes wrong, so equal
+   padding reads bottom-heavy. */
 .code-shell{
   position:relative;
-  display:grid;justify-items:center;gap:14px;
-  padding:clamp(30px,4.4vw,44px) clamp(34px,5.4vw,54px);
+  display:grid;justify-items:center;gap:12px;
+  padding:26px clamp(30px,4.4vw,44px) 12px;
   /* No border and one flat colour: at this size a stroke around a small panel
      reads as a dialog box rather than as a prompt, and the gradient was doing
      nothing a solid could not. */
   border:0;border-radius:26px;
   background:#171b25;
   box-shadow:0 30px 80px rgba(0,0,0,.6);
+}
+/* Mirrors .code-close, on the other corner and at the same inset. The art is
+   86.5x38 in its own viewBox, so a 15px cap height comes out 34 wide -- it is
+   set as a box rather than scaled by one dimension because the mask is
+   `contain` and would letterbox inside anything else. */
+.code-tilde{
+  position:absolute;top:16px;left:16px;
+  width:34px;height:15px;color:var(--accent);
+  transition:background-color var(--accent-ease);
 }
 .code-close{
   position:absolute;top:12px;right:12px;
@@ -6214,4 +6266,9 @@ body.modal-open{overflow:hidden}
 .code-close:hover{color:var(--accent);background:rgba(255,255,255,.06)}
 .code-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .code-eyebrow{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted)}
-.code-shell .vault-lockbox{display:grid;justify-items:center;gap:12px;position:relative}
+.code-shell .vault-lockbox{display:grid;justify-items:center;gap:10px;position:relative}
+/* HOLDS ITS LINE WHILE IT IS EMPTY. The status is blank at rest and fills in
+   on a refusal; without a reserved height the panel would grow by a line the
+   moment it had something to say, and the five boxes -- the thing a hand is
+   already aimed at -- would jump upward as they were being typed into. */
+.code-shell .vault-status{min-height:1.35em}

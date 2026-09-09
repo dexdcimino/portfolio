@@ -4460,6 +4460,12 @@
   <dialog class="code-modal keypad" id="codeModal" aria-labelledby="code-dialog-title">
     <div class="code-shell">
       <h2 class="sr-only" id="code-dialog-title">Enter a code</h2>
+      <!-- The key that opens this, drawn on it. Top LEFT, mirroring the close
+           button on the right: in the middle it would push the five boxes off
+           the centre of the panel, which is the one thing this layout is. It
+           is decoration and says so -- the eyebrow underneath it carries the
+           words, and this carries the fact that ` is what got you here. -->
+      <span class="icon code-tilde" data-icon="tilde" aria-hidden="true"></span>
       <button class="code-close" type="button" id="codeClose" aria-label="Close">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
@@ -4476,7 +4482,13 @@
           <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Code, character 4 of 5">
           <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Code, character 5 of 5">
         </div>
-        <p class="vault-status" id="codeStatus" role="status" aria-live="polite">ENTER CODE</p>
+        <!-- EMPTY AT REST. It said ENTER CODE and so does the eyebrow two
+             lines up, which is the same three words twice on a panel with
+             five boxes on it. This line's real job is the refusals -- a wrong
+             code, the lockout clock -- so it keeps its height (see
+             .code-shell .vault-status) and stays blank until it has something
+             to say. -->
+        <p class="vault-status" id="codeStatus" role="status" aria-live="polite"></p>
       </div>
     </div>
   </dialog>
@@ -4761,6 +4773,15 @@
     <button class="notes-rec-main" type="button" id="notesRecOpen">
       <span class="notes-rec-name" id="notesRecName"></span>
       <span class="notes-rec-time" id="notesRecTime">00:00</span>
+    </button>
+    <!-- BACK IN. The label beside it does the same thing, but a name that
+         happens to be clickable is not an affordance -- this is the one that
+         says so. The mark is `fullscreen` rather than an arrow: what it does
+         is make this small thing big again, and an arrow out of a chip at the
+         top-left would be pointing at nothing in particular. -->
+    <button class="notes-rec-open" type="button" id="notesRecBack"
+            data-tip="Open the notes" aria-label="Open the notes">
+      <span class="icon" data-icon="fullscreen" aria-hidden="true"></span>
     </button>
     <button class="notes-rec-stop" type="button" id="notesRecStop" aria-label="Stop dictating">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>

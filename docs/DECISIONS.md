@@ -25,6 +25,41 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-09 — the ` keypad reaches over an overlay, stacked
+
+**Decided.** `` ` `` opens the code prompt from anywhere, including from on top
+of another overlay, and it opens STACKED — the overlay underneath stays open
+and Escape puts you back in it. The only thing that still stands the shortcut
+down is a field with the caret in it.
+
+**It replaced** the original guard, which was "ignored while anything is being
+typed into AND while another dialog is up".
+
+**Why.** The second half made "the same lock, reachable from anywhere" untrue
+in the place it was most useful. From the music list you had to close the music
+before you could ask for anything else, which is the opposite of what a global
+shortcut is for — and Dex asked for exactly the missing case: tilde from inside
+music, type a different code, go somewhere else.
+
+Stacking rather than replacing is the part worth writing down. `openModal`
+closes whatever is open before it shows, so the obvious change — drop the guard
+and open normally — would mean pressing `` ` `` by reflex and losing the list
+you were reading before you had typed a character. Stacked, cancelling costs
+nothing. Anything the code then opens is still opened un-stacked, so it
+replaces what was there, which is what going somewhere else means.
+
+This widens `openModal`'s `stack` from one named caller to one SHAPE: something
+opened from inside another overlay, where backing out has to put you back. The
+Idea Vault was the first instance; this is the second, and the comment on
+`openModal` now describes the shape rather than the caller.
+
+**Reverse it if** two stacked overlays ever turn out to confuse the things that
+ask "is an overlay up?" — `OVERLAY_OPEN` returns the first in document order,
+which is fine while the only stacked thing is a keypad you are typing into, and
+would not be if a stacked overlay could own the space bar or the arrow keys.
+
+---
+
 ## 2026-09-09 — a live microphone keeps the notes in the DOM, and says so
 
 **Decided.** Closing the notes overlay with a dictation session running does

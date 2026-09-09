@@ -874,6 +874,30 @@ never cleared at all. Walking back to either keypad after closing the overlay
 showed the code still sitting in it for the rest of the visit. `attempt()` now
 clears on the success branch, next to the two refusal branches that already did.
 
+**THE ` KEYPAD REACHES OVER AN OVERLAY.** It used to stand down whenever any
+dialog was open, which made "reachable from anywhere" untrue in exactly the
+place it was most useful: from the music list you had to close the music before
+you could ask for anything else. The only exception left is a field with the
+caret in it — a backtick you meant as a character is a character — which is
+also what keeps it out of the way inside the notes, where the caret almost
+always is.
+
+It opens STACKED when something is already up (`openModal`'s fifth argument),
+and that is the half that makes cancelling safe: Escape closes the keypad and
+leaves the overlay underneath exactly as it was, rather than having closed it
+on the way in for a code that was never typed. Whatever the code then opens is
+opened un-stacked, so it replaces what was there — which is what "go somewhere
+else from here" means.
+
+**The panel wears the key that opens it.** `.code-tilde` is the site's own
+`tilde` icon at the top left, mirroring the close button's inset on the right;
+in the middle it would push the five boxes off the centre of the panel, which
+is the one thing that layout is. The status line under the boxes is BLANK at
+rest — the eyebrow above them already says ENTER CODE, and the same three words
+twice on a panel with five boxes on it is one of them too many — but it keeps
+its height, so filling it in with a refusal does not move the boxes someone is
+typing into.
+
 **And closing an overlay used to scroll to the Idea Vault.** `reveal()` handed
 every door `pins[pins.length - 1]` — the vault section's last box — as the
 element to restore focus to, whatever had opened it. Restoring focus there fired
@@ -2145,11 +2169,24 @@ minutes of talking loses five minutes of talking — worse than the thing being
 protected against.
 
 So `relock()` splits. With a session live it calls `park()`: the app stays
-mounted inside the closed `<dialog>`, and `#notesRec` — a chip at the
-bottom-left of the page, body level because a child of a closed dialog is
-`display:none` — names the box, counts the session's own clock, opens the notes
-again with no password (nothing was locked; the document never left), and
-stops the recording. The moment dictation ends by ANY route — the chip's stop,
+mounted inside the closed `<dialog>`, and `#notesRec` — a chip at the top-left
+of the page, body level because a child of a closed dialog is `display:none` —
+names the box, counts the session's own clock, opens the notes again with no
+password (nothing was locked; the document never left), and stops the
+recording. The way back in is a button with the `fullscreen` mark on it as well
+as the label: a name that happens to be clickable is not an affordance.
+
+**It sits beside the nav rail and travels with it.** `--rail-w` is written from
+a `ResizeObserver` on the sidebar, only while the chip is up. The rail expands
+on hover AND on real keyboard focus, guarded by `.no-focus-expand`; a CSS copy
+of that condition beside the chip would be a second copy of a rule to keep in
+step, and it would be the copy nobody remembers. The observer reports the width
+the sidebar actually has, on every frame of its transition. The chip therefore
+has NO transition of its own — a second easing on top made it chase the rail
+instead of travelling with it, and for the length of that chase it sat on top
+of the nav, which is the one thing it must never do. `notes_dictate_check`
+samples the whole retraction rather than its endpoint, because that overlap
+only exists while the rail is moving. The moment dictation ends by ANY route — the chip's stop,
 the ten-minute cap, a refused microphone, another tab claiming it — `finish()`
 runs `teardown()`. That is what `dictate.onEnd()` is for, and `park()`
 subscribes before doing anything else so no exit path can skip it.
@@ -2725,7 +2762,11 @@ to. Anchoring without reversing would be the same list upside down rather than
 the same object moved. The tab is absolutely positioned on the pill rather than
 being a flex child, so `column-reverse` cannot carry it into the stack, and it
 shows folded as well as expanded — a circle in the wrong corner is exactly when
-you want to move it.
+you want to move it. It is the MARK ALONE, in the accent: it was drawn in the
+pill's own background and border, which made it read as a tenth control bolted
+to the end of nine, and the pill already has one circle — the play button —
+whose whole job is being the only one. The target stayed 26px; only the paint
+went.
 
 **The corner is remembered and the fold is not.** `music-remote-side` in
 localStorage, beside the shuffle, repeat and volume the music player already

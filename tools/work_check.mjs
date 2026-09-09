@@ -421,9 +421,9 @@ await page.waitForFunction(
    declared somewhere else, or a background the shell inherits rather than sets,
    both look right in the CSS and wrong on the screen. */
 {
-  /* Case 6 left the work overlay open, and the shortcut deliberately stands
-     down while any dialog is up. Closing it here is not tidying -- without it
-     this whole section measures a modal that never opened. */
+  /* Case 6 left the work overlay open. The shortcut reaches over an overlay
+     now (see 7b), so this closes it to measure the keypad's own chrome
+     against the page rather than against another dialog's backdrop. */
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
   await page.waitForFunction(() => !document.querySelector('dialog[open]'), { timeout: 5000 });
 
@@ -451,6 +451,24 @@ await page.waitForFunction(
       xRight: xb ? Math.round(box.right - xb.right) : null,
       xHit: xb ? document.elementFromPoint(
         (xb.left + xb.right) / 2, (xb.top + xb.bottom) / 2)?.closest('#codeClose') !== null : false,
+      /* THE KEY THAT OPENS IT, DRAWN ON IT, mirroring the X on the other
+         corner. The mask is what proves the art arrived: a data-icon nothing
+         was baked for resolves to no --icon at all and paints an empty box
+         that measures exactly like a full one. */
+      tilde: (() => {
+        const t = document.querySelector('.code-tilde');
+        if (!t) return null;
+        const r = t.getBoundingClientRect();
+        const s = getComputedStyle(t);
+        return { left: Math.round(r.left - box.left), top: Math.round(r.top - box.top),
+                 w: Math.round(r.width), mask: (s.maskImage || s.webkitMaskImage || '').slice(0, 12),
+                 paint: s.backgroundColor };
+      })(),
+      /* ...and the words appear ONCE. The status line under the boxes used to
+         rest on the same three words the eyebrow above them carries. */
+      labels: [...shell.querySelectorAll('*')]
+        .filter(e => !e.children.length && /enter\s*code/i.test(e.textContent || '')).length,
+      statusH: Math.round(document.getElementById('codeStatus').getBoundingClientRect().height),
     };
   });
   console.log(`code modal: radius ${chrome.radius}px, border ${chrome.border}, ` +
@@ -466,6 +484,18 @@ await page.waitForFunction(
        `the X sits ${chrome.xTop}/${chrome.xRight} from the top right corner`);
   note(chrome.xHit, 'the X is positioned but something else is painted over it');
   note(chrome.focused, 'the keypad did not take focus, so the toggle below proves nothing');
+  note(!!chrome.tilde, 'the code prompt does not wear the tilde that opens it');
+  note(chrome.tilde && chrome.tilde.left < 24 && chrome.tilde.top < 24,
+       `the tilde sits ${chrome.tilde && chrome.tilde.left}/${chrome.tilde && chrome.tilde.top} from the top left — it should mirror the X`);
+  note(chrome.tilde && chrome.tilde.mask.startsWith('url('),
+       `the tilde has no mask (${chrome.tilde && chrome.tilde.mask}) — the icon was never baked`);
+  note(chrome.tilde && chrome.tilde.w >= 20, `the tilde is ${chrome.tilde && chrome.tilde.w}px wide`);
+  note(chrome.labels === 1, `"ENTER CODE" appears ${chrome.labels} times on a panel with five boxes on it`);
+  /* Blank but still holding its line: filling it in on a refusal must not move
+     the boxes someone is typing into. */
+  note(chrome.statusH >= 14, `the status line collapsed to ${chrome.statusH}px — a refusal would move the boxes`);
+  console.log(`tilde mark: ${chrome.tilde && chrome.tilde.w}px at ${chrome.tilde && chrome.tilde.left}/${chrome.tilde && chrome.tilde.top}, `
+              + `${chrome.labels} label, status ${chrome.statusH}px`);
 
   // Tilde again, from inside the keypad, closes it.
   await page.keyboard.press('Backquote');
@@ -485,6 +515,80 @@ await page.waitForFunction(
   await new Promise(r => setTimeout(r, 400));
   note(await page.evaluate(() => document.getElementById('codeModal').open) === false,
        'the X did not close the modal');
+}
+
+/* ---- 7b. tilde reaches over an overlay ----------------------------------
+   THE ASK (Dex, 2026-09-09): the code prompt from anywhere, including from on
+   top of something else -- "if I'm already on music I still want to hit tilde
+   and go somewhere else". It used to stand down whenever any dialog was open,
+   which made "reachable from anywhere" untrue exactly where it was most
+   useful.
+
+   FALSELY PASSES IF: only the open were checked. It has to open OVER the
+   overlay and not instead of it, or backing out of a code you decided not to
+   type costs you the thing you were reading -- so the overlay underneath is
+   asserted still open, and Escape is driven to prove it is still there
+   afterwards. And the one exception has to survive: a backtick meant as a
+   character, in a field, is still a character. */
+{
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'), { timeout: 5000 });
+  await page.evaluate(() => document.querySelector('.work-page.is-on .work-card').click());
+  await page.waitForFunction(() => document.getElementById('workModal')?.open === true, { timeout: 5000 });
+  await new Promise(r => setTimeout(r, 400));
+
+  await page.keyboard.press('Backquote');
+  await page.waitForFunction(() => document.getElementById('codeModal')?.open === true, { timeout: 5000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false, 'tilde did nothing with an overlay open'));
+  const over = await page.evaluate(() => ({
+    code: document.getElementById('codeModal').open,
+    under: document.getElementById('workModal').open,
+    /* Both in the top layer, and the keypad on top of it -- a dialog that is
+       "open" underneath another is only useful if it is still THERE. */
+    onTop: (() => {
+      const s = document.querySelector('#codeModal .code-shell').getBoundingClientRect();
+      const el = document.elementFromPoint((s.left + s.right) / 2, s.top + 6);
+      return !!el && !!el.closest('#codeModal');
+    })(),
+    focused: !!(document.activeElement && document.activeElement.closest('#codeModal')),
+  }));
+  note(over.code, 'the code prompt did not open over the work overlay');
+  note(over.under, 'the code prompt closed the overlay it opened over — backing out would lose it');
+  note(over.onTop, 'the code prompt is open but painted under the overlay it opened over');
+  note(over.focused, 'the code prompt opened over an overlay without taking focus');
+
+  // Escape closes the topmost and leaves what was underneath.
+  await page.keyboard.press('Escape');
+  await new Promise(r => setTimeout(r, 400));
+  const backed = await page.evaluate(() => ({
+    code: document.getElementById('codeModal').open,
+    under: document.getElementById('workModal').open,
+  }));
+  note(!backed.code, 'Escape did not close the code prompt');
+  note(backed.under, 'Escape took the overlay underneath with it — the stack did not hold');
+
+  /* THE ONE EXCEPTION. A backtick typed into a field is a backtick. The work
+     overlay has no text field, so this uses the notes gate's pins, which are
+     inputs and are reachable without a password. */
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'), { timeout: 5000 });
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('notes:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('notesModal')?.open === true, { timeout: 5000 });
+  await page.waitForFunction(() => document.getElementById('notesGate')?.hidden === false, { timeout: 8000 })
+    .catch(() => {});
+  await page.evaluate(() => document.querySelector('#notesPins .vault-pin').focus());
+  await new Promise(r => setTimeout(r, 200));
+  const typingIn = await page.evaluate(() =>
+    !!(document.activeElement && document.activeElement.closest('#notesPins')));
+  note(typingIn, 'could not put the caret in a field — the exception below proves nothing');
+  await page.keyboard.press('Backquote');
+  await new Promise(r => setTimeout(r, 400));
+  note(await page.evaluate(() => document.getElementById('codeModal').open) === false,
+       'tilde opened the code prompt while a field had the caret');
+  console.log('tilde: opens over an overlay, Escape leaves the overlay, refused in a field');
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'), { timeout: 5000 });
 }
 
 /* ---- 8. every card still says what it is ---------------------------------
