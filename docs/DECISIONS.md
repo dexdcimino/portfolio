@@ -25,6 +25,35 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-09 — Ctrl+Shift+R goes back to the browser, and is not rebound
+
+**Decided.** The notes editor no longer binds `Ctrl+Shift+R`. Align-right is
+the header button only; `Ctrl+Shift+L` and `Ctrl+Shift+E` keep left and centre.
+
+**It replaced** the Google Docs alignment triad, taken whole — and it replaced
+the obvious repair, which is moving align-right to a third chord that nothing
+else uses.
+
+**Why.** `Ctrl+Shift+R` is Chrome's hard reload. A page can `preventDefault`
+it and this one did, so reaching for a force-refresh inside a text box
+silently right-aligned a paragraph instead — and the way out of a wedged page
+stopped existing in the one place someone sits typing for an hour. That is a
+bad trade at any price, and the price here is one keystroke for the least used
+of three alignments, with its button two inches away in the header.
+
+Not rebound, because a replacement chord is worse than none: nobody asked for
+one, nobody would remember it, and every free `Ctrl+Shift+<letter>` is free
+only until a browser wants it. The general rule this instances is in
+ARCHITECTURE.md under Editing — the browser's own escape hatches are not ours
+to take, and a new chord gets checked against them before it is added.
+
+**Reverse it if** align-right turns out to be reached for often enough to want
+a key. Then it takes one that is not a browser shortcut, and the triad becomes
+three keys that do not read as a set — which is the cost, and is smaller than
+the one being paid here.
+
+---
+
 ## 2026-09-08 — the music remote is one element that is MOVED, and owns no state
 
 **Decided.** A vertical transport pill (`#musicRemote`) lives at the end of

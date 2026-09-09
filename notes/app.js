@@ -593,7 +593,10 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       ['Bold · italic · underline', 'Ctrl+B / I / U'],
       ['Strikethrough', 'Ctrl+Shift+D'],
       ['Inline code', 'Ctrl+E'],
-      ['Align', 'Ctrl+Shift+L / E / R'],
+      ['Align left · centre', 'Ctrl+Shift+L / E'],
+      /* Right has no key on purpose: Ctrl+Shift+R is the browser's hard
+         reload, and a page must not take that. See editor.js. */
+      ['Align right', 'The toolbar button'],
       ['Auto list', 'Ctrl+Shift+8'],
       ['Numbered · to-do', 'Ctrl+Shift+7 / 9'],
       ['Indent / outdent', 'Tab / Shift+Tab'],

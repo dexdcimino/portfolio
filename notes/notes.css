@@ -1253,8 +1253,26 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 /* Scroll the box being dictated into out of sight and this appears at the
    top-left of the canvas, clear of the sidebar. Without it a session left
    running three screens up is invisible and still writing. */
+/* LEFT AT EVERY WIDTH, AND NEVER STRETCHED (Dex, 2026-09-09). It used to
+   flip to `right: 12px` under 980px and to `left:12px; right:12px` under
+   720 -- so a browser window dragged to half a screen showed it hard right,
+   and half a screen at 175% Windows scaling is under 720 CSS px, where BOTH
+   offsets being set stretched it the full width of the canvas. A status chip
+   that changes corner and then becomes a banner is three different objects.
+
+   The 720 rule had a real reason, which is why it is replaced rather than
+   deleted: below that width the sidebar is a full-width drawer (--sb: 82vw)
+   and `left: calc(var(--sb) + 14px)` puts the pill off the right edge. The
+   answer is a smaller LEFT, not a right edge -- the drawer is an overlay
+   there, so the canvas starts at 0 and 12px is the correct margin.
+
+   max-width instead of a right offset. Only one offset is ever set, so the
+   box stays shrink-to-fit and a long category name ellipsises inside its own
+   cap (.nt-pill-main, which needs min-width:0 to be allowed to shrink)
+   rather than pushing the pill off the screen. */
 .nt-pill {
   position: absolute; top: calc(var(--hdr) + 12px); left: calc(var(--sb) + 14px); z-index: 40;
+  right: auto; max-width: calc(100% - var(--sb) - 26px);
   display: none; align-items: center; gap: 4px; padding: 4px 4px 4px 10px;
   /* 3px, double the old 1.5 (Dex, 2026-09-09) -- this is the one thing on
      screen saying a microphone is live, and at a hairline it read as a
@@ -1265,12 +1283,12 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
   border: 3px solid #d6423f; border-radius: 999px; background: var(--bg2); box-shadow: var(--shadow);
   animation: nt-pill-in .18s ease-out;
 }
-.nt-app.is-rail .nt-pill { left: calc(var(--rail) + 14px); }
+.nt-app.is-rail .nt-pill { left: calc(var(--rail) + 14px); max-width: calc(100% - var(--rail) - 26px); }
 .nt-pill.is-on { display: flex; }
 @keyframes nt-pill-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-pill { animation: none; } }
 .nt-pill-dot { width: 9px; height: 9px; border-radius: 50%; background: #d6423f; flex: 0 0 auto; animation: nt-mic-pulse 1.6s ease-in-out infinite; }
-.nt-pill-main { display: flex; align-items: baseline; gap: 8px; border: 0; background: none; padding: 2px 4px; color: var(--tx); max-width: 320px; }
+.nt-pill-main { display: flex; align-items: baseline; gap: 8px; border: 0; background: none; padding: 2px 4px; color: var(--tx); max-width: 320px; min-width: 0; }
 .nt-pill-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nt-pill-time { font-size: 12px; color: var(--tx2); font-variant-numeric: tabular-nums; }
 .nt-pill-main:hover .nt-pill-name { color: var(--c-title); }
@@ -1306,13 +1324,17 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
   .nt-cat-shell { display: flex; align-items: flex-start; gap: 6px; }
   .nt-cat-aside { position: static; margin-right: 0; flex: 0 0 auto; }
   .nt-cat-box { flex: 1 1 auto; min-width: 0; }
-  .nt-pill { left: auto; right: 12px; }
+  /* The pill does NOT move here. The sidebar is still in flow at this width,
+     so the base `left: calc(var(--sb) + 14px)` is still the left edge of the
+     canvas, and there is room for a 380px chip in the 700px beside it. */
 }
 @media (max-width: 720px) {
   .nt-app { --sb: 82vw; }
-  /* No room beside a full-width drawer, and the mic is worth keeping visible
-     on a phone, where hover does not exist. */
-  .nt-pill { left: 12px; right: 12px; }
+  /* The sidebar is an overlaid drawer here, so the canvas starts at 0 and the
+     pill's usual `--sb + 14` would put it off the right edge. A smaller LEFT,
+     not a right edge -- setting both stretched it into a banner. The mic is
+     worth keeping visible on a phone, where hover does not exist. */
+  .nt-pill { left: 12px; max-width: calc(100% - 24px); }
   .nt-mic { opacity: .75; }
   .nt-sidebar { position: absolute; top: 0; bottom: 0; left: 0; z-index: 20; box-shadow: 8px 0 30px rgba(0,0,0,.4); }
   .nt-app.is-rail .nt-sidebar { box-shadow: none; }

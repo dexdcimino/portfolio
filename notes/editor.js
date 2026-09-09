@@ -130,7 +130,50 @@ function onBeforeInput(e) {
   } else if (type === 'insertCompositionText') {
     key = 'type';
   }
-  pending = { body, before: capture(body), key, seal, type, data: e.data, trigger };
+  /* HOW TALL THE BOX IS, but only for an edit that could collapse it. Reading
+     offsetHeight forces a layout, and doing that on every keystroke of a long
+     document is a cost with nothing on the other side of it -- a typed
+     character cannot shrink a box. A deletion can, and so can typing OVER a
+     selection, which is the same event with a range that is not collapsed.
+     See keepBoxInView() for what the number is for. */
+  const live = liveRange(body);
+  const shrinkable = type.startsWith('delete') || !!(live && !live.collapsed);
+  pending = { body, before: capture(body), key, seal, type, data: e.data, trigger,
+              tall: shrinkable ? body.offsetHeight : 0 };
+}
+
+/* THE BOX YOU CLEARED STAYS ON SCREEN (Dex, 2026-09-09).
+ *
+ * The case is a long brain dump: you scroll to the middle of a 2000px box,
+ * Ctrl+A, and cut it to paste somewhere else. Nothing ABOVE the box changed,
+ * so the canvas keeps its scrollTop -- but the box is 30px tall now, its
+ * bottom has come up two thousand pixels, and you are left looking at
+ * whichever category used to be far below it. The one you were working in is
+ * off the top of the screen and is now too small to find by eye.
+ *
+ * So: if an edit took real height out of a box and left that box out of view,
+ * put it back. Scroll to the SECTION, not the caret -- the caret is in a box
+ * with nothing in it, and the thing that tells you where you are is the
+ * category's title strip above it.
+ *
+ * INSTANT, not smooth. .nt-canvas is scroll-behavior:smooth, which is right
+ * for a jump you asked for; this is a correction to a jump you did not, and
+ * watching the page glide is the same disorientation with a longer runtime.
+ *
+ * Both guards are load-bearing. Without the shrink test this would fire on an
+ * ordinary backspace; without the visibility test it would yank a box that is
+ * already perfectly readable back up to the top edge. */
+const SHRANK = 120;                    // px of lost height worth reacting to
+
+function keepBoxInView(body, tall) {
+  if (!tall) return;
+  const sec = body.closest('.nt-cat');
+  if (!sec) return;
+  if (tall - body.offsetHeight < SHRANK) return;
+  const box = sec.getBoundingClientRect();
+  const view = ctx.canvas.getBoundingClientRect();
+  if (box.top >= view.top && box.bottom <= view.bottom) return;
+  ctx.canvas.scrollBy({ top: box.top - view.top - 18, behavior: 'instant' });
 }
 
 function onInput(e) {
@@ -156,6 +199,7 @@ function onInput(e) {
     ctx.history.seal();
   }
   ctx.changed(body);
+  if (p && p.body === body) keepBoxInView(body, p.tall);
   if (p && p.trigger && p.body === body) { ctx.history.seal(); applyTrigger(body, p.trigger); return; }
   if (p && p.type === 'insertText' && p.seal) ctx.spell.wordDone(body, p.data);
   if (p && (p.type === 'insertText' || p.type === 'insertParagraph')) ctx.chips.autoLink(body, p.type === 'insertParagraph');
@@ -210,7 +254,17 @@ function onKeydown(e) {
   if (e.shiftKey && (k === '9' || k === '(')) { e.preventDefault(); toggleList(body, 'todo'); return; }
   if (e.shiftKey && k === 'l') { e.preventDefault(); align(body, 'left'); return; }
   if (e.shiftKey && k === 'e') { e.preventDefault(); align(body, 'center'); return; }
-  if (e.shiftKey && k === 'r') { e.preventDefault(); align(body, 'right'); return; }
+  /* NO Ctrl+Shift+R (Dex, 2026-09-09). It was align-right, taken from Google
+     Docs along with L and E -- and it is also Chrome's HARD RELOAD, which a
+     page can preventDefault and this one did. Reaching for a force-refresh
+     inside a text box silently right-aligned a paragraph instead, and the
+     way out of a wedged page stopped existing in the one place someone types
+     for an hour.
+
+     Deliberately NOT rebound to a third chord. Align-right is the least used
+     of the three, it has a button in the header two inches away, and a
+     replacement nobody asked for is a keystroke nobody will remember. The
+     escape hatches a browser owns are worth more than a shortcut. */
   if (e.altKey && k === '1') { e.preventDefault(); setBlock(body, 'h3'); return; }
   if (e.altKey && k === '0') { e.preventDefault(); setBlock(body, 'p'); return; }
 }

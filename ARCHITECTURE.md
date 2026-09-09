@@ -1395,6 +1395,38 @@ byte-identical, which is what lets the save loop compare strings.
 
 ### Editing
 
+**THE BROWSER'S OWN ESCAPE HATCHES ARE NOT OURS TO TAKE.** `Ctrl+Shift+R` was
+align-right, lifted from Google Docs along with `Ctrl+Shift+L` and `E`. It is
+also Chrome's hard reload, a page can `preventDefault` it, and this one did --
+so reaching for a force-refresh inside a text box silently right-aligned a
+paragraph, and the way out of a wedged page stopped existing in the one place
+someone types for an hour. It is unbound, and deliberately not rebound to a
+third chord: align-right is the least used of the three, it has a button in
+the header, and a replacement nobody asked for is a keystroke nobody will
+remember. Before adding a chord, check it is not the browser's.
+
+**CLEARING A BOX DOES NOT LOSE IT.** The case is a long brain dump: you scroll
+into the middle of a 2000px box, `Ctrl+A`, and cut it to paste elsewhere.
+Nothing above the box changed, so the canvas keeps its `scrollTop` -- but the
+box is 30px tall now, its bottom has come up two thousand pixels, and you are
+left looking at whatever used to be far below it, with the box you were
+working in off the top of the screen and too small to find by eye.
+
+`keepBoxInView()` in `editor.js` answers it: `onBeforeInput` records the body's
+height, `onInput` compares, and if real height was lost AND the section is no
+longer fully in view it scrolls the SECTION back -- not the caret, which is now
+sitting in an empty box, while the thing that tells you where you are is the
+category's title strip above it. Both guards are load-bearing: without the
+shrink test it fires on an ordinary backspace, without the visibility test it
+yanks a perfectly readable box up to the top edge.
+
+The height is only measured when the edit could actually shrink the box -- a
+deletion, or typing over a selection that is not collapsed. `offsetHeight`
+forces a layout, and paying that on every keystroke of a long document buys
+nothing: a typed character cannot shrink a box. The scroll is `instant`, not
+the canvas's usual smooth: this is a correction to a jump you did not ask for,
+and watching the page glide is the same disorientation with a longer runtime.
+
 ### Sessions in and out
 
 **`notes/transfer.js` is how a session arrives and leaves, and it is markdown
@@ -2021,6 +2053,21 @@ long for, a click back to it, and a stop. A session running three screens up
 is otherwise invisible and still writing. Its border is 3px of the dictation
 red (`#d6423f`) -- at the original 1.5px hairline it read as a tooltip rather
 than as something live.
+
+**It is on the left at every width, and only one offset is ever set.** It used
+to flip to `right: 12px` under 980px and to `left: 12px; right: 12px` under
+720 -- and setting both offsets on an absolutely positioned box stretches it,
+so a window dragged to half a screen showed the chip hard right, and half a
+screen at 175% display scaling (under 720 CSS px) showed it as a banner across
+the whole canvas. A status chip that changes corner and then changes shape is
+three different objects. The 720 rule had a real reason and is replaced rather
+than deleted: below that width the sidebar is a full-width drawer (`--sb:
+82vw`) and the base `left: calc(var(--sb) + 14px)` would put the pill off the
+right edge -- but the answer is a smaller LEFT, since the drawer is an overlay
+there and the canvas starts at 0. A `max-width` does the job a right offset was
+doing, so the box stays shrink-to-fit and a long category name ellipsises
+inside `.nt-pill-main` (which needs `min-width: 0` to be allowed to shrink).
+`notes_dictate_check` drives all three bands.
 
 **And the live box wears a ring of the same red**, on `.nt-cat-box` and on the
 emoji badge beside it. The microphone is a 30px circle in one corner of one

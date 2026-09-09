@@ -377,6 +377,41 @@ const micState = () => page.evaluate((id) => {
   note(p && /^\d\d:\d\d$/.test(p.time), `the pill's timer reads "${p && p.time}"`);
   console.log(`pill: "${p.name}" ${p.time}, ${p.leftOfSidebar}px right of the sidebar, ${p.belowHeader}px below the header`);
 
+  /* THE SAME CORNER AT EVERY WIDTH, AND NEVER A BANNER. The pill used to flip
+     to the right edge under 980px and to set BOTH offsets under 720, which
+     stretches an absolutely positioned box to the full width of the canvas --
+     so a window dragged to half a screen showed it hard right, and half a
+     screen at 175% display scaling (under 720 CSS px) showed it as a bar
+     across the top. A status chip that changes corner and then changes shape
+     is three different objects.
+
+     Both breakpoints are driven, because one rule was in each. The widths are
+     picked to sit clearly inside each band rather than on its edge. */
+  const at = async (w) => {
+    await page.setViewport({ width: w, height: 950 });
+    await sleep(350);
+    return page.evaluate(() => {
+      const p = document.querySelector('.nt-pill');
+      const app = document.querySelector('.nt-app');
+      const r = p.getBoundingClientRect(), a = app.getBoundingClientRect();
+      return { left: Math.round(r.left - a.left), width: Math.round(r.width),
+               app: Math.round(a.width), on: p.classList.contains('is-on') };
+    });
+  };
+  for (const [w, band] of [[1500, 'wide'], [860, 'under 980'], [700, 'under 720']]) {
+    const box = await at(w);
+    note(box.on, `the pill stood down at ${w}px — this check lost its subject`);
+    /* LEFT HALF, always. At 1500 it clears a 280px sidebar; at 700 the
+       sidebar is an overlaid drawer and it sits at the canvas's own margin. */
+    note(box.left < box.app / 2,
+         `at ${w}px (${band}) the pill starts at ${box.left} of ${box.app} — it is not on the left`);
+    note(box.width < box.app * 0.62,
+         `at ${w}px (${band}) the pill is ${box.width} of ${box.app} wide — it stretched into a banner`);
+    console.log(`pill at ${w}px: left ${box.left}, ${box.width}px of ${box.app}`);
+  }
+  await page.setViewport({ width: 1500, height: 950 });
+  await sleep(350);
+
   // Clicking it goes back to the box, and the pill stands down.
   await page.evaluate(() => document.querySelector('.nt-pill-main').click());
   /* WAIT FOR THE STATE, not for a guess at how long the scroll takes. The

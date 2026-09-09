@@ -1172,6 +1172,18 @@ await chord(['Control'], '\\');
   // Resting on a chip raises its toolbar.
   await page.mouse.move(900, 700);
   await sleep(250);
+  /* SCROLL FIRST, HOVER SECOND, AND LET THE SCROLL EVENT LAND IN BETWEEN.
+     chips.js hides the toolbar on any scroll of the canvas -- correctly; a
+     bar pinned over a chip that has moved is worse than no bar. But a scroll
+     EVENT is dispatched a frame after the scrollIntoView that caused it, so
+     doing both in one breath raced: the pointer arrived, the bar came up, and
+     then the scroll from the measurement a moment earlier took it straight
+     back down. It read as a dead hover about one run in three. Two rAFs is
+     the guarantee -- scroll events fire before rAF in the same frame -- and
+     the second chipAt() re-measures on a canvas that has stopped. */
+  await chipAt();
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await sleep(120);
   let at = await chipAt();
   note(at.onLabel, `the point aimed at the chip is not on it: ${JSON.stringify(at)}`);
   await page.mouse.move(at.x, at.y);
@@ -3187,6 +3199,141 @@ await chord(['Control'], '\\');
   note((await tbl()) === null, 'Delete table left a table behind');
   console.log(`tables: 3x3 inserted, Tab walked ${seen.cells} cells, cap held at ${cap.cols} columns, ${cap.rows} rows; store agrees`);
 }
+
+/* ---- 17p. Ctrl+Shift+R is the browser's, and a cleared box stays on screen
+   Two things, one fixture: both need a TALL category, and it gets its own
+   rather than borrowing the scratch one, because the second half ends by
+   emptying whatever box it is given and check 19 asserts the scratch body's
+   exact contents.
+
+   FALSELY PASSES IF: the alignment half only checked that the paragraph did
+   not move. A handler could still be calling preventDefault and doing nothing
+   else, which leaves the reload just as dead -- so `defaultPrevented` is read
+   off the real keydown, and Ctrl+Shift+L and E are pressed as a control to
+   prove the alignment machinery is alive rather than removed wholesale.
+
+   And the scroll half falsely passes if it only looks at the end state: a box
+   that was never out of view is a box nothing had to rescue, so the setup
+   asserts the section really is off the top before the delete. */
+const tempCat = `Longbox ${Date.now().toString(36)}`;
+{
+  await page.evaluate(() => document.querySelector('.nt-canvas').scrollTo({ top: 0, behavior: 'instant' }));
+  await sleep(200);
+  const before = await page.$$eval('.nt-cat', els => els.length);
+  await page.keyboard.down('Alt'); await page.keyboard.press('n'); await page.keyboard.up('Alt');
+  await page.waitForFunction((n) => document.querySelectorAll('.nt-cat').length === n + 1, {}, before);
+  await sleep(150);
+  await page.keyboard.type(tempCat);
+  await page.keyboard.press('Enter');
+  await sleep(80);
+  const tempId = await page.evaluate(() => document.activeElement.dataset.cat);
+  note(!!tempId, 'Enter on the temp category title did not land in its body');
+  // 28 paragraphs of real keys — tall enough that losing it is the bug.
+  for (let i = 0; i < 28; i++) {
+    await page.keyboard.type(`brain dump line ${i}`);
+    await page.keyboard.press('Enter');
+  }
+  await sleep(200);
+  const geo = () => page.evaluate((id) => {
+    const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+    const sec = b.closest('.nt-cat');
+    const canvas = document.querySelector('.nt-canvas');
+    const s = sec.getBoundingClientRect(), v = canvas.getBoundingClientRect();
+    return { h: Math.round(b.offsetHeight), top: Math.round(s.top - v.top),
+             bottom: Math.round(s.bottom - v.top), view: Math.round(v.height),
+             blocks: b.children.length, text: b.textContent.trim().length };
+  }, tempId);
+
+  /* --- Ctrl+Shift+R --- */
+  const tall = await geo();
+  note(tall.h > 500, `the fixture box is only ${tall.h}px tall — nothing here is being tested`);
+  const align = () => page.evaluate((id) => {
+    const p = document.querySelector(`.nt-body[data-cat="${id}"]`).lastElementChild;
+    return p ? p.className : '(no block)';
+  }, tempId);
+  await page.evaluate(() => {
+    window.__reload = null;
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'r') window.__reload = e.defaultPrevented;
+    });
+  });
+  await chord(['Control', 'Shift'], 'r');
+  await sleep(120);
+  const prevented = await page.evaluate(() => window.__reload);
+  note(prevented === false, `Ctrl+Shift+R is still being swallowed (defaultPrevented=${prevented}) — the hard reload cannot work in a text box`);
+  note(!/al-r/.test(await align()), 'Ctrl+Shift+R still right-aligns the paragraph');
+  // The control: the two alignments that ARE ours still work, and come back.
+  await chord(['Control', 'Shift'], 'e');
+  await sleep(120);
+  note(/al-c/.test(await align()), 'Ctrl+Shift+E stopped centring — the alignment keys were removed wholesale');
+  await chord(['Control', 'Shift'], 'l');
+  await sleep(120);
+  note(!/al-c|al-r/.test(await align()), 'Ctrl+Shift+L did not put the paragraph back to the left');
+
+  /* --- clearing it keeps it on screen --- */
+  // Look at the MIDDLE of the box, which is where a brain dump is read from.
+  await page.evaluate((id) => {
+    const sec = document.querySelector(`.nt-body[data-cat="${id}"]`).closest('.nt-cat');
+    const canvas = document.querySelector('.nt-canvas');
+    const s = sec.getBoundingClientRect(), v = canvas.getBoundingClientRect();
+    canvas.scrollBy({ top: (s.top - v.top) + 380, behavior: 'instant' });
+  }, tempId);
+  await sleep(250);
+  const away = await geo();
+  note(away.top < -200, `the setup did not scroll into the box (its top is ${away.top}px from the view top)`);
+  await page.evaluate((id) => {
+    const b = document.querySelector(`.nt-body[data-cat="${id}"]`);
+    b.focus();
+    const r = document.createRange(); r.selectNodeContents(b);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  }, tempId);
+  await chord(['Control'], 'a');
+  await press('Delete');
+  await sleep(300);
+  const back = await geo();
+  note(back.text === 0, `the box was not cleared (${back.text} chars left)`);
+  note(back.top >= 0 && back.top < back.view,
+       `the cleared box is at ${back.top}px in a ${back.view}px view — it was left off screen`);
+  note(back.bottom <= back.view + 40, `the cleared box runs past the bottom of the view (${back.bottom} of ${back.view})`);
+  console.log(`cleared box: ${tall.h}px tall, ${away.top}px above the view, back at ${back.top}px`);
+
+  /* --- and the same for a CUT, which is a different inputType --- */
+  for (let i = 0; i < 24; i++) {
+    await page.keyboard.type(`second dump ${i}`);
+    await page.keyboard.press('Enter');
+  }
+  await sleep(200);
+  const tall2 = await geo();
+  note(tall2.h > 400, `the second fixture is only ${tall2.h}px tall`);
+  await page.evaluate((id) => {
+    const sec = document.querySelector(`.nt-body[data-cat="${id}"]`).closest('.nt-cat');
+    const canvas = document.querySelector('.nt-canvas');
+    const s = sec.getBoundingClientRect(), v = canvas.getBoundingClientRect();
+    canvas.scrollBy({ top: (s.top - v.top) + 320, behavior: 'instant' });
+  }, tempId);
+  await sleep(250);
+  note((await geo()).top < -180, 'the setup did not scroll into the box for the cut check');
+  await chord(['Control'], 'a');
+  await chord(['Control'], 'x');
+  await sleep(300);
+  const cut = await geo();
+  note(cut.text === 0, `Ctrl+X did not clear the box (${cut.text} chars left)`);
+  note(cut.top >= 0 && cut.top < cut.view,
+       `after a cut the box is at ${cut.top}px in a ${cut.view}px view — it was left off screen`);
+  console.log(`cut box: ${tall2.h}px tall, back at ${cut.top}px`);
+}
+/* Tidy the fixture away before check 19 counts what is in the store. One
+   character back in it first: an EMPTY category is archived with no dialog
+   (see archiveCat), so the row X on the box this block just cleared silently
+   filed it away and the wait for a confirm never returned. */
+await page.keyboard.type('x');
+await sleep(150);
+await page.evaluate((t) => { [...document.querySelectorAll('.nt-row')].find(r => r.querySelector('.nt-row-title').textContent === t)?.querySelector('.nt-row-x').click(); }, tempCat);
+await page.waitForSelector('.nt-modal');
+await page.click('.nt-modal .nt-btn.is-left');
+await sleep(200);
+note(!(await page.evaluate((t) => [...document.querySelectorAll('.nt-row-title')].some(r => r.textContent === t), tempCat)),
+     'the temp category for 17p was left behind');
 
 /* ---- 19. what reached the store ---------------------------------------------------- */
 await chord(['Control'], 's');
