@@ -892,7 +892,20 @@ else from here" means.
 **The panel wears the key that opens it.** `.code-tilde` is the site's own
 `tilde` icon at the top left, mirroring the close button's inset on the right;
 in the middle it would push the five boxes off the centre of the panel, which
-is the one thing that layout is. The status line under the boxes is BLANK at
+is the one thing that layout is. The BOX and the INK are sized separately, and
+that is the whole trick: `.icon` paints `center / contain`, so sizing the
+element alone scales the art to fill it — a 32px box put a 32x14 tilde in the
+corner beside a 17px X. The box matches the close button's 32x32 at the same
+12px inset, and `mask-size` draws the mark at 18x8 inside it, so the two share
+a centre line and carry about the same weight.
+
+**The Idea Vault's keypad wears it too** — same lock, same codes, same mark.
+There are no corners to mirror down there, so it sits at the head of the row of
+boxes: `aspect-ratio` is the art's own 86.5x38 and the width is the pins' own
+clamp, so it stays scaled to them at every window size rather than being a
+number that was right once. It is inside `.vault-pins` so the row's own
+`align-items:center` keeps it level with the boxes, and it is decorative —
+`script.js` reads `.vault-pin`, so nothing counts it as a sixth cell. The status line under the boxes is BLANK at
 rest — the eyebrow above them already says ENTER CODE, and the same three words
 twice on a panel with five boxes on it is one of them too many — but it keeps
 its height, so filling it in with a refusal does not move the boxes someone is

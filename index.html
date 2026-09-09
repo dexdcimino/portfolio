@@ -3411,6 +3411,15 @@
              stacks and there is no room above it to borrow. -->
         <p class="vault-timer" id="vaultTimer" aria-hidden="true" hidden></p>
         <div class="vault-pins" id="vaultPins" role="group" aria-label="Vault code, 5 digits">
+          <!-- The key that opens this, drawn beside the boxes. Same lock and
+               same codes as the ` keypad, so it wears the same mark -- here it
+               is at the head of the row rather than in a corner, because this
+               keypad has no corners to mirror. Inside the row so it is centred
+               against the boxes by the row's own alignment rather than by a
+               number that would have to be re-derived every time the pins
+               change size. Decorative: nothing here counts it as a pin, and
+               script.js reads .vault-pin. -->
+          <span class="icon vault-tilde" data-icon="tilde" aria-hidden="true"></span>
           <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Vault code, character 1 of 5">
           <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Vault code, character 2 of 5">
           <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Vault code, character 3 of 5">

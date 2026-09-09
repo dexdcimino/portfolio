@@ -457,12 +457,29 @@ await page.waitForFunction(
          that measures exactly like a full one. */
       tilde: (() => {
         const t = document.querySelector('.code-tilde');
-        if (!t) return null;
+        if (!t || !xb) return null;
         const r = t.getBoundingClientRect();
         const s = getComputedStyle(t);
-        return { left: Math.round(r.left - box.left), top: Math.round(r.top - box.top),
-                 w: Math.round(r.width), mask: (s.maskImage || s.webkitMaskImage || '').slice(0, 12),
-                 paint: s.backgroundColor };
+        const ink = (s.maskSize || s.webkitMaskSize || '').split(' ').map(parseFloat);
+        return {
+          left: Math.round(r.left - box.left), top: Math.round(r.top - box.top),
+          w: Math.round(r.width), h: Math.round(r.height),
+          mask: (s.maskImage || s.webkitMaskImage || '').slice(0, 12),
+          /* THE MIRROR, asserted as a mirror. Same box, same inset from its own
+             corner, and the two centres on one line -- an eyeballed "looks
+             about right" is what put a 34px mark in a corner beside a 17px
+             one. The INK is measured separately from the box, because a mask
+             painted `contain` fills whatever box it is given: sizing the
+             element alone is exactly how the first version came out twice the
+             weight of the X it was supposed to mirror. */
+          boxMatchesX: Math.round(r.width) === Math.round(xb.width)
+                    && Math.round(r.height) === Math.round(xb.height),
+          insetMatchesX: Math.round(r.left - box.left) === Math.round(box.right - xb.right)
+                      && Math.round(r.top - box.top) === Math.round(xb.top - box.top),
+          level: Math.round((r.top + r.bottom) / 2) === Math.round((xb.top + xb.bottom) / 2),
+          inkW: ink[0] || 0,
+          paint: s.backgroundColor,
+        };
       })(),
       /* ...and the words appear ONCE. The status line under the boxes used to
          rest on the same three words the eyebrow above them carries. */
@@ -485,16 +502,24 @@ await page.waitForFunction(
   note(chrome.xHit, 'the X is positioned but something else is painted over it');
   note(chrome.focused, 'the keypad did not take focus, so the toggle below proves nothing');
   note(!!chrome.tilde, 'the code prompt does not wear the tilde that opens it');
-  note(chrome.tilde && chrome.tilde.left < 24 && chrome.tilde.top < 24,
-       `the tilde sits ${chrome.tilde && chrome.tilde.left}/${chrome.tilde && chrome.tilde.top} from the top left — it should mirror the X`);
   note(chrome.tilde && chrome.tilde.mask.startsWith('url('),
        `the tilde has no mask (${chrome.tilde && chrome.tilde.mask}) — the icon was never baked`);
-  note(chrome.tilde && chrome.tilde.w >= 20, `the tilde is ${chrome.tilde && chrome.tilde.w}px wide`);
+  note(chrome.tilde && chrome.tilde.boxMatchesX,
+       `the tilde's box is ${chrome.tilde && chrome.tilde.w}x${chrome.tilde && chrome.tilde.h}, the X's is different`);
+  note(chrome.tilde && chrome.tilde.insetMatchesX,
+       `the tilde sits ${chrome.tilde && chrome.tilde.left}/${chrome.tilde && chrome.tilde.top} from its corner and the X does not mirror it`);
+  note(chrome.tilde && chrome.tilde.level, 'the tilde and the X are not on the same centre line');
+  /* The INK, and it is the assertion that actually failed the first time: a
+     mark 2.3x wider than it is tall reads far heavier than an X of the same
+     box, so it is drawn at about the X's own 17px rather than at the box's. */
+  note(chrome.tilde && chrome.tilde.inkW >= 14 && chrome.tilde.inkW <= 22,
+       `the tilde's ink is ${chrome.tilde && chrome.tilde.inkW}px wide against the X's ${chrome.xInk || 17} — wanted about the same`);
   note(chrome.labels === 1, `"ENTER CODE" appears ${chrome.labels} times on a panel with five boxes on it`);
   /* Blank but still holding its line: filling it in on a refusal must not move
      the boxes someone is typing into. */
   note(chrome.statusH >= 14, `the status line collapsed to ${chrome.statusH}px — a refusal would move the boxes`);
-  console.log(`tilde mark: ${chrome.tilde && chrome.tilde.w}px at ${chrome.tilde && chrome.tilde.left}/${chrome.tilde && chrome.tilde.top}, `
+  console.log(`tilde mark: ${chrome.tilde && chrome.tilde.inkW}px of ink in a ${chrome.tilde && chrome.tilde.w}px box `
+              + `at ${chrome.tilde && chrome.tilde.left}/${chrome.tilde && chrome.tilde.top}, `
               + `${chrome.labels} label, status ${chrome.statusH}px`);
 
   // Tilde again, from inside the keypad, closes it.
@@ -515,6 +540,43 @@ await page.waitForFunction(
   await new Promise(r => setTimeout(r, 400));
   note(await page.evaluate(() => document.getElementById('codeModal').open) === false,
        'the X did not close the modal');
+
+  /* AND ON THE VAULT'S OWN KEYPAD, which is the same lock and the same codes,
+     so it wears the same mark. No corners to mirror down there -- it sits at
+     the head of the row of boxes, scaled to them and centred against them.
+
+     LAST IN THIS BLOCK, and it blurs on the way. Closing the code modal parks
+     focus in the vault's first box (see relock/keypad.reset), so a check that
+     scrolled down here and then pressed ` would be pressing it into a field --
+     which the shortcut correctly refuses. It cost a run to find, in the two
+     checks above that were here first. */
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.evaluate(() => document.getElementById('vault').scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await new Promise(r => setTimeout(r, 600));
+  const vt = await page.evaluate(() => {
+    const t = document.querySelector('.vault-tilde');
+    if (!t) return null;
+    const r = t.getBoundingClientRect();
+    const p = document.querySelector('#vaultPins .vault-pin').getBoundingClientRect();
+    const s = getComputedStyle(t);
+    return { w: Math.round(r.width), h: Math.round(r.height), pin: Math.round(p.width),
+             gap: Math.round(p.left - r.right),
+             level: Math.abs(Math.round((r.top + r.bottom) / 2) - Math.round((p.top + p.bottom) / 2)) <= 1,
+             leftOf: r.right <= p.left,
+             mask: (s.maskImage || s.webkitMaskImage || '').slice(0, 12),
+             pins: document.querySelectorAll('#vaultPins .vault-pin').length };
+  });
+  note(!!vt, 'the Idea Vault keypad does not wear the tilde');
+  note(vt && vt.pins === 5, `the vault keypad has ${vt && vt.pins} pins — the mark was counted as one of them`);
+  note(vt && vt.leftOf, 'the vault tilde is not to the left of the boxes');
+  note(vt && vt.level, 'the vault tilde is not centred against the row of boxes');
+  note(vt && vt.mask.startsWith('url('), 'the vault tilde has no mask — the icon was never baked');
+  /* Scaled to the PINS, so it stays a mark on the row at every step of their
+     clamp rather than a number that was right at one window width. */
+  note(vt && vt.w === vt.pin, `the vault tilde is ${vt && vt.w}px against a ${vt && vt.pin}px box — it is not scaled to them`);
+  note(vt && vt.gap > 12, `the vault tilde is ${vt && vt.gap}px from the first box — too close to read as separate from the row`);
+  console.log(`vault tilde: ${vt && vt.w}x${vt && vt.h} beside ${vt && vt.pin}px boxes, ${vt && vt.gap}px gap`);
+
 }
 
 /* ---- 7b. tilde reaches over an overlay ----------------------------------

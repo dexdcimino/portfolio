@@ -3157,7 +3157,17 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
    class above it, so hiding the keypad on unlock did nothing at all until this
    said so explicitly. Anything given display: by a class needs this. */
 .vault-lockbox[hidden]{display:none}
-.vault-pins{display:flex;gap:clamp(6px,1.4vw,12px)}
+.vault-pins{display:flex;align-items:center;gap:clamp(6px,1.4vw,12px)}
+/* Scaled to the PINS, not to a number: aspect-ratio is the art's own 86.5x38,
+   so `contain` fills the box exactly and the mark stays the same shape at
+   every step of the pins' clamp. A little more air than the gap between two
+   boxes, or it reads as a sixth cell rather than as a mark on the row. */
+.vault-tilde{
+  flex:0 0 auto;
+  width:clamp(46px,10.5vw,66px);aspect-ratio:86.5/38;
+  margin-right:clamp(8px,1.6vw,16px);
+  color:var(--accent);
+}
 /* Square by construction, not by two numbers that have to agree. The width
    tracks the viewport so five of them and their gaps always fit a phone
    without a second set of rules for it.
@@ -6247,13 +6257,21 @@ body.modal-open{overflow:hidden}
   background:#171b25;
   box-shadow:0 30px 80px rgba(0,0,0,.6);
 }
-/* Mirrors .code-close, on the other corner and at the same inset. The art is
-   86.5x38 in its own viewBox, so a 15px cap height comes out 34 wide -- it is
-   set as a box rather than scaled by one dimension because the mask is
-   `contain` and would letterbox inside anything else. */
+/* MIRRORS .code-close PROPERLY: the same 32x32 box at the same 12px inset, so
+   the two marks share a centre line and the air above and outside each of them
+   is the same air. What differs is only the INK inside that box -- the X draws
+   a 17px glyph in it, and this draws an 18px one, which is as close to the
+   same weight as a mark 2.3 times wider than it is tall gets.
+
+   The box is sized and the MASK is sized separately, and that is the whole
+   trick. .icon paints `center / contain`, so sizing the element alone scales
+   the art to fill it -- a 32px box would put a 32x14 tilde in the corner,
+   which is what "way too large" was. mask-size draws the art at 18x8 and
+   leaves it centred in a box that matches the X's. */
 .code-tilde{
-  position:absolute;top:16px;left:16px;
-  width:34px;height:15px;color:var(--accent);
+  position:absolute;top:12px;left:12px;
+  width:32px;height:32px;color:var(--accent);
+  -webkit-mask-size:18px 8px;mask-size:18px 8px;
   transition:background-color var(--accent-ease);
 }
 .code-close{
