@@ -388,6 +388,54 @@ const micState = () => page.evaluate((id) => {
   note(!(await page.$eval('.nt-pill', e => e.classList.contains('is-on'))), 'the pill stayed up after scrolling back to the box');
 }
 
+/* ---- 10b. the live box wears a red ring, and only that box ---------------
+   The mic is a 30px circle in one corner of one box; the question while
+   dictating is which BOX the words are landing in, asked from anywhere on the
+   canvas. So the box and its emoji carry a ring in the dictation red, and the
+   pill's own border is thick enough to read as a warning rather than a tip.
+
+   FALSELY PASSES IF: only the ringed box were looked at. A class painted onto
+   every category looks identical from the one that is live, so the count is
+   asserted -- exactly one -- and it is asserted to be the box whose mic is
+   lit. See CLAUDE.md, "Count the subject". */
+{
+  const ring = await page.evaluate(() => {
+    const px = (s) => Math.round(parseFloat(s) || 0);
+    const lit = [...document.querySelectorAll('.nt-cat.is-dictating')];
+    const live = document.querySelector('.nt-mic.is-live')?.closest('.nt-cat') || null;
+    const box = lit[0]?.querySelector('.nt-cat-box');
+    const emoji = lit[0]?.querySelector('.nt-cat-emoji');
+    const cold = [...document.querySelectorAll('.nt-cat:not(.is-dictating) .nt-cat-box')][0];
+    const pill = document.querySelector('.nt-pill');
+    return {
+      n: lit.length,
+      isLive: !!live && lit[0] === live,
+      cats: document.querySelectorAll('.nt-cat').length,
+      box: box ? getComputedStyle(box).boxShadow : '',
+      emoji: emoji ? getComputedStyle(emoji).boxShadow : '',
+      cold: cold ? getComputedStyle(cold).boxShadow : '(no second category)',
+      /* The box must not MOVE when the ring lands -- .nt-cat-box's 3px of
+         padding is the frame around the head strip, so a real border there
+         would shove every word in the category sideways. */
+      pad: box ? px(getComputedStyle(box).paddingLeft) : -1,
+      pillBorder: pill ? px(getComputedStyle(pill).borderTopWidth) : -1,
+      pillColour: pill ? getComputedStyle(pill).borderTopColor : '',
+    };
+  });
+  const RED = /214,\s*66,\s*63/;                      // #d6423f, the dictation red
+  note(ring.cats >= 2, `only ${ring.cats} categor(ies) on the canvas — nothing to tell the ring apart from`);
+  note(ring.n === 1, `${ring.n} categories are marked as being dictated into, expected exactly 1`);
+  note(ring.isLive, 'the ringed category is not the one whose microphone is lit');
+  note(RED.test(ring.box), `the live box's ring is not the dictation red: ${ring.box}`);
+  note(/\b3px\b/.test(ring.box), `the live box's ring is not 3px: ${ring.box}`);
+  note(RED.test(ring.emoji), `the live category's emoji has no red ring: ${ring.emoji}`);
+  note(!RED.test(ring.cold), `a category that is NOT being dictated into wears the ring too: ${ring.cold}`);
+  note(ring.pad === 3, `the ringed box's padding is ${ring.pad}px, not the 3px frame — the ring moved the text`);
+  note(ring.pillBorder >= 3, `the pill's border is ${ring.pillBorder}px, wanted at least 3`);
+  note(RED.test(ring.pillColour), `the pill's border is not the dictation red: ${ring.pillColour}`);
+  console.log(`ring: 1 of ${ring.cats} boxes lit, ${ring.box}; pill border ${ring.pillBorder}px`);
+}
+
 /* ---- 11. ten minutes of silence, on a fake clock ------------------------- */
 {
   note(await page.evaluate(() => window.__mic.live()), 'not recording going into the silence check');
@@ -404,8 +452,14 @@ const micState = () => page.evaluate((id) => {
   note(!(await page.evaluate(() => window.__mic.live())), 'dictation did not stop after ten minutes without a word');
   note(!(await micState()).live, 'the button still shows as listening after the silence cap');
   note(!/nt-interim/.test(await html()), 'provisional words were left on screen when the silence cap fired');
+  /* AND THE RING GOES WITH IT. A ring that appears is half the feature; one
+     that stays is a box permanently claiming to be recording. Checked on the
+     cap rather than on a button press, because the cap is the exit path
+     nobody is watching when it happens. */
+  const still = await page.evaluate(() => document.querySelectorAll('.nt-cat.is-dictating').length);
+  note(still === 0, `${still} box(es) still wear the recording ring after the session ended`);
   await page.evaluate(() => { window.__skew = 0; });
-  console.log('silence cap: survived 9 minutes, reset by a word, stopped after 10');
+  console.log('silence cap: survived 9 minutes, reset by a word, stopped after 10; ring cleared');
 }
 
 /* ---- 12. a refused microphone says so and stops -------------------------- */

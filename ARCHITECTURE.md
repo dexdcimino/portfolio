@@ -2018,7 +2018,28 @@ the new caret -- the same sentence, twice. `stop()` would flush that final;
 **The pill.** Scroll the box out of sight and a pill appears at the top-left
 of the canvas, just clear of the sidebar: what is being dictated into, how
 long for, a click back to it, and a stop. A session running three screens up
-is otherwise invisible and still writing.
+is otherwise invisible and still writing. Its border is 3px of the dictation
+red (`#d6423f`) -- at the original 1.5px hairline it read as a tooltip rather
+than as something live.
+
+**And the live box wears a ring of the same red**, on `.nt-cat-box` and on the
+emoji badge beside it. The microphone is a 30px circle in one corner of one
+box on a canvas of them, and "which box are my words going into" is a question
+asked from anywhere on that canvas -- so the answer is drawn at the size of the
+box. `paintButtons()` toggles `.nt-cat.is-dictating` from the same `live` the
+mic reads, in the same pass, because the button and the box are one state and
+two places computing it is two places for it to disagree.
+
+It is a **box-shadow ring, not a border**: `.nt-cat-box`'s 3px of padding IS
+the frame around the head strip, so a real border would shove every word in the
+category sideways the moment recording started. `notes_dictate_check` asserts
+the padding is still 3px for exactly that reason, that precisely ONE category
+carries the ring and that it is the one whose mic is lit, and that the ring is
+gone after the silence cap fires -- a ring that appears is half the feature.
+
+Widths are written as whole pixels because Chrome snaps a border width to
+layout pixels: `3.5px` is drawn as `3px`, and a stylesheet naming a width the
+browser will not use is a stylesheet that lies.
 
 Restarts are expected, not exceptional: `continuous` does not mean forever, so
 `onend` spawns a fresh recognizer unless the stop was deliberate. A monotonic

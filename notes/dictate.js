@@ -137,6 +137,18 @@ export function paintButtons() {
     b.innerHTML = live ? ICON.micStop : ICON.mic;
     b.setAttribute('data-tip', live ? 'Stop dictating' : 'Dictate');
     b.setAttribute('aria-pressed', String(live));
+    /* AND THE BOX THE WORDS ARE LANDING IN (Dex, 2026-09-09). The mic says
+       which BUTTON is lit -- a 30px circle in a corner -- and the question
+       actually being asked while dictating is which text box is being
+       written into, from anywhere on the canvas. `.nt-cat.is-dictating` is
+       what the red ring in notes.css hangs off.
+
+       Painted from this same pass, and from the mic's own `live` rather than
+       from a second lookup: the button and the box are one state, and two
+       places computing it is two places for it to disagree. The elements are
+       new after any render, which is why any of this is painted rather than
+       remembered. */
+    b.closest('.nt-cat')?.classList.toggle('is-dictating', live);
   }
   ctx.root.classList.toggle('is-dictating', !!session);
 }

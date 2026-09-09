@@ -1223,6 +1223,25 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 }
 @media (prefers-reduced-motion: reduce) { .nt-mic.is-live { animation: none; box-shadow: 0 0 0 3px rgba(214,66,63,.4); } }
 
+/* THE BOX BEING DICTATED INTO WEARS THE RING (Dex, 2026-09-09). The mic is a
+   30px circle in the bottom-right corner of one box on a canvas of them, and
+   "which box are my words going into" is a question you ask from anywhere on
+   that canvas -- so the answer is drawn at the size of the box, in the same
+   red as the pill and the mic.
+
+   A box-shadow ring, not a border: .nt-cat-box's 3px of padding IS the frame
+   around the head strip (see the note above it), so a real border would move
+   every word in the category by 3px the moment recording started. A ring is
+   painted outside the box and costs no layout.
+
+   It beats :focus-within's ring on specificity, which is the right way round:
+   the box being dictated into is also the focused one, and the accent hairline
+   under a 3px red ring would only muddy it. The EMOJI gets the same ring --
+   it sits outside the box, in the aside, so without it the one part of the
+   category hanging off to the left is the part that does not say it is live. */
+.nt-cat.is-dictating .nt-cat-box { box-shadow: 0 0 0 3px #d6423f; }
+.nt-cat.is-dictating .nt-cat-emoji { box-shadow: 0 0 0 3px #d6423f; }
+
 /* Words the engine is still deciding on. In the DOM so they can be read,
    never in the document: stripped by serialize() and by every history
    capture. */
@@ -1237,7 +1256,13 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-pill {
   position: absolute; top: calc(var(--hdr) + 12px); left: calc(var(--sb) + 14px); z-index: 40;
   display: none; align-items: center; gap: 4px; padding: 4px 4px 4px 10px;
-  border: 1.5px solid #d6423f; border-radius: 999px; background: var(--bg2); box-shadow: var(--shadow);
+  /* 3px, double the old 1.5 (Dex, 2026-09-09) -- this is the one thing on
+     screen saying a microphone is live, and at a hairline it read as a
+     tooltip. Written as 3 and not as 1.5+2: Chrome snaps a border width to
+     whole layout pixels, so 3.5px is DRAWN as 3px, and a stylesheet that
+     names a width the browser will not use is a stylesheet that lies. The
+     ring on the live box below is the same 3px for the same reason. */
+  border: 3px solid #d6423f; border-radius: 999px; background: var(--bg2); box-shadow: var(--shadow);
   animation: nt-pill-in .18s ease-out;
 }
 .nt-app.is-rail .nt-pill { left: calc(var(--rail) + 14px); }
