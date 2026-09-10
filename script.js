@@ -899,6 +899,19 @@ function bindModal(dialog, onClose) {
          that opened this one, or it lands on <body> and the list is gone from
          under the keyboard. */
       if (wasStacked) restoreFocusQuietly(opener);
+      /* ONLY THE FOCUS IS SKIPPED. onClose used to be skipped too, and that
+         is where a song playing with no controller came from (Dex,
+         2026-09-10): the music player's onClose is what re-shows its bar in
+         the corner, so an overlay opening OVER a playing music list closed
+         that list, took this early return, and left the embed running with
+         nothing on screen to stop it. armed stayed true, the iframe kept its
+         src, and modal.open was false -- audio from nowhere.
+         The notes' onClose had the same hole: replaced by another overlay, the
+         document stayed mounted and unlocked. Every onClose in this file is
+         about ENDING something -- relock, redock, reset a keypad -- and none
+         of them is about the overlay that replaced it. The scroll lock stays
+         with the replacement, which still owns it. */
+      onClose?.();
       return;
     }
     document.body.classList.remove('modal-open');
@@ -4258,6 +4271,50 @@ const MediaBus = (() => {
      someone paused twenty minutes ago rather than doing nothing. */
   const target = () => players.find(p => !p.el.paused) || last;
 
+  /* ---- NO SOUND WITHOUT A CONTROL ---------------------------------------
+     THE RULE, and it is a hard one (Dex, 2026-09-10): if something on this
+     page is making noise, there is a control for it on screen. Not "usually",
+     and not "unless a bug". Three times now a song has been left playing with
+     nothing to stop it -- once traced (see bindModal's hand-off, fixed in the
+     same commit as this) and twice not, which is exactly why the rule needs a
+     backstop and not only a fix.
+
+     WHAT "AUDIBLE" MEANS PER PLAYER. `el.paused` is the truth for a real
+     <audio> or <video>, and a lie for the music embed, whose el.paused
+     answers "is a track loaded" and stays false through a pause. Players that
+     report to playbackState() get believed; the rest are read off the element.
+
+     WHAT IT DOES, in order: ask the player whether a control for it is
+     reachable; if not, ask it to put one up; then ASK AGAIN, because a reveal
+     that did not work is the failure this exists for. Only if there is still
+     no control does it pause -- silence is the worst outcome except for the
+     one it replaces. */
+  const audible = (p) => (typeof p.live === 'boolean' ? p.live : !p.el.paused);
+  const reachable = (p) => (p.control ? p.control() : p.onScreen());
+
+  function guard(why) {
+    for (const p of players) {
+      if (!audible(p) || reachable(p)) continue;
+      if (p.reveal) { try { p.reveal(); } catch { /* it tried */ } }
+      if (reachable(p)) {
+        console.warn(`MediaBus: put a control back on screen (${why})`);
+        continue;
+      }
+      try { p.pause(); } catch { /* nothing left to try */ }
+      console.warn(`MediaBus: silenced a player with no control on screen (${why})`);
+    }
+  }
+
+  /* A POLL, and it is on purpose. Every event that could produce this state is
+     an event somebody has to have remembered to fire it from -- which is the
+     same class of mistake it is here to catch. Three seconds is far below
+     "how long can a mystery noise play" and the body costs four property reads
+     when nothing is playing. pageshow covers the back/forward cache, where the
+     document comes back with its audio and its JS state restored together. */
+  setInterval(() => guard('poll'), 3000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) guard('tab shown'); });
+  window.addEventListener('pageshow', () => guard('pageshow'));
+
   /* ---- holding the OS session against the embed ------------------------
      MEASURED, NOT FEARED (Dex, 2026-09-07): with the music overlay playing,
      fn+F6 paused it from the desktop and fn+F5 and fn+F7 did nothing at all,
@@ -4458,6 +4515,18 @@ const MediaBus = (() => {
     /* For a catcher that is not the media session: see remote/. */
     remote(action) { act(action); },
 
+    /* The backstop, on demand. Exported so a harness can drive it rather than
+       waiting three seconds for the poll, and so anything that knowingly moves
+       a control can ask for the check immediately. */
+    guard(why) { guard(why || 'asked'); },
+    /* What it can see, for the same reason holdState() exists: a rule nobody
+       can inspect is a rule nobody can prove still works. */
+    audit() {
+      return players.map((p, i) => ({
+        i, audible: audible(p), reachable: reachable(p), canReveal: !!p.reveal,
+      }));
+    },
+
     holdSession(on) {
       let el;
       try { el = holdElement(); } catch { return; }
@@ -4478,6 +4547,20 @@ const MediaBus = (() => {
        the songs bar painting itself paused would tell Windows the music stopped
        while it was still going. */
     playbackState(who, playing) {
+      /* RECORDED ON THE PLAYER FIRST, before the "only the announced one may
+         repaint the OS session" rule below returns. The guard needs to know
+         whether THIS player is making noise whoever the OS is showing, and a
+         player that never reports falls back to its element.
+
+         AND THE GUARD IS NOT RUN FROM HERE, which it was for one afternoon.
+         A player reporting that it has started is the exact moment ANOTHER
+         one is being silenced by solo(), and the two are not ordered: the
+         guard fired mid-hand-off, found the outgoing player still audible
+         with its overlay already gone, and REVEALED it -- putting a music bar
+         back up around a track that was two lines from being stopped, and
+         handing it the arrow keys the new player had just claimed. The
+         backstop is for states that PERSIST. The poll is what sees those. */
+      who.live = playing;
       if (who !== last) return;
       lastState = playing;
       if (!('mediaSession' in navigator)) return;
@@ -4866,6 +4949,18 @@ const MediaBus = (() => {
       if (!panel || panel.hidden) return false;
       const r = frame.getBoundingClientRect();
       return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+    },
+    /* SEPARATE FROM onScreen, and the difference is the viewport test. The
+       space bar wants "is the reader looking at this"; the no-sound-without-a-
+       control guard wants "could they reach the pause button", and scrolling
+       past a playing clip does not take its controls away -- scrolling back is
+       one gesture. Switching the AI Lab to another tab DOES: the panel is
+       hidden, the player is gone, and the sound is coming from nowhere. There
+       is no reveal here on purpose; changing someone's open tab to explain a
+       noise is worse than stopping the noise. */
+    control: () => {
+      const panel = document.getElementById('ai-panel-videos');
+      return !!panel && !panel.hidden;
     },
     touched: () => touched,
     toggle: () => { video.paused ? play() : video.pause(); },
@@ -5964,6 +6059,11 @@ const MediaBus = (() => {
     el: { get paused() { return !armed; } },
     keepPlayingHidden: true,
     onScreen: () => modal.open,
+    /* The bar in the corner IS the control, and putting it back is what this
+       player's close handler already does -- so the guard's reveal is that
+       same path rather than a second one. `armed` is the condition because a
+       docked bar with no track in it is a bar with nothing to control. */
+    reveal: () => { if (!modal.open && armed) redock(); },
     touched: () => index >= 0,
     toggle: () => btnToggle.click(),
     pause: yieldToOther,
@@ -7667,6 +7767,10 @@ const LOOP_MODES = ['off', 'all', 'one'];
     // and do something else to.
     keepPlayingHidden: true,
     onScreen: () => !bar.hidden,
+    // The bar is fixed to the bottom of the window, so showing it is the whole
+    // of putting a control back -- and reveal() is the same one a track start
+    // uses, animation and all.
+    reveal,
     touched: () => index >= 0,
     toggle: () => { audio.paused ? audio.play().catch(paint) : audio.pause(); },
     pause: () => audio.pause(),

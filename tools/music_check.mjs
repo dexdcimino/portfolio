@@ -1939,6 +1939,106 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   await shutMusic();
 }
 
+/* ---- 8c-3. NO SOUND WITHOUT A CONTROL -----------------------------------
+   THE REPORTED BUG, three times, once traced (Dex, 2026-09-10): a song playing
+   and nothing on screen to stop it.
+
+   THE CAUSE, and it is reproduced here rather than described: bindModal's
+   close handler took an early return whenever another overlay was already
+   open -- the hand-off branch -- and that return skipped onClose. The music
+   player's onClose is the thing that re-shows its bar in the corner. So
+   opening any overlay OVER a playing music LIST (not a docked bar, which
+   openModal skips) closed the list, skipped the redock, and left the embed
+   armed with its src, playing, with modal.open false. 8c only ever covered
+   the docked case, which is why this went unseen.
+
+   THE BACKSTOP is asserted separately below, because a fix and a guarantee
+   are different claims: the guard is driven directly with a player that has
+   been forced into the bad state, and what is asserted is that it comes back
+   out of it.
+
+   FALSELY PASSES IF: only modal.open were read. A dialog can be open and
+   still be the wrong answer -- what has to be true is that a control is
+   REACHABLE, which is what MediaBus.audit() reports and what the guard acts
+   on. */
+{
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('musicModal').open === true, { timeout: 5000 });
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row').length > 0, { timeout: 10000 });
+  await page.evaluate(() =>
+    document.querySelectorAll('#musicRows .music-row')[7].querySelector('.music-play').click());
+  await page.waitForFunction(
+    () => document.querySelectorAll('#musicRows .music-row.is-playing').length === 1, { timeout: 5000 });
+  const playingList = await page.evaluate(() => ({
+    open: document.getElementById('musicModal').open,
+    docked: document.getElementById('musicModal').classList.contains('is-docked'),
+    src: !!document.getElementById('musicVideo').getAttribute('src'),
+  }));
+  note(playingList.open && !playingList.docked && playingList.src,
+       'the fixture is not a playing music LIST — the hand-off case is not being reproduced');
+
+  /* Another overlay, over the top. openModal closes whatever is open first,
+     and that close is the one that used to skip the redock. */
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('notes:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('notesModal').open === true, { timeout: 5000 });
+  await sleep(500);
+  const after = await page.evaluate(() => ({
+    src: !!document.getElementById('musicVideo').getAttribute('src'),
+    open: document.getElementById('musicModal').open,
+    docked: document.getElementById('musicModal').classList.contains('is-docked'),
+  }));
+  note(after.src, 'the hand-off stopped the music outright — that is a different bug, not this one');
+  note(after.open && after.docked,
+       'a playing music LIST replaced by another overlay left no control on screen — the hand-off skipped the redock');
+
+  /* AND THE BACKSTOP, driven rather than waited for. The player is forced into
+     exactly the state the bug produced -- playing, dialog closed, no bar --
+     and the guard is asked to fix it. Without a reveal that works it would
+     pause instead, which is also a pass for the RULE but not for this player,
+     so both halves are asserted. */
+  /* FORCED AND MEASURED IN ONE TICK. The guard also runs on a three second
+     poll, and a sleep between forcing the state and reading it is a sleep the
+     poll can land in -- which it did, and the check then reported that it
+     could not force a state the guard had already repaired. Nothing can
+     intervene inside one evaluate. */
+  const broken = await page.evaluate(() => {
+    const m = document.getElementById('musicModal');
+    m.classList.remove('is-docked');
+    /* THE ATTRIBUTE, not close(). close() fires the close event, which now
+       reaches the player's own handler and re-docks it -- the fix above doing
+       its job, and no way to reach the state the backstop is for. Removing
+       `open` shuts the dialog with no event at all, which is the shape of
+       every arrival at this state that nobody has been able to trace. */
+    m.removeAttribute('open');
+    return { src: !!document.getElementById('musicVideo').getAttribute('src'), open: m.open };
+  });
+  note(broken.src && !broken.open,
+       'could not force the no-control state, so the guard below is not being tested');
+  /* MediaBus is a top-level `const` in a classic script, so it lives in the
+     page's global LEXICAL scope -- reachable as a bare identifier from an
+     evaluated function, and not a property on window. Nothing extra is shipped
+     to a visitor to make this check possible. */
+  await page.evaluate(() => MediaBus.guard('check'));
+  await sleep(300);
+  const fixed = await page.evaluate(() => ({
+    open: document.getElementById('musicModal').open,
+    docked: document.getElementById('musicModal').classList.contains('is-docked'),
+    src: !!document.getElementById('musicVideo').getAttribute('src'),
+    audit: MediaBus.audit(),
+  }));
+  note(fixed.open && fixed.docked, 'the guard did not put a control back for a playing embed');
+  note(fixed.src, 'the guard stopped the music instead of showing its bar — reveal() did not work');
+  note(!!fixed.audit && fixed.audit.every(p => !p.audible || p.reachable),
+       `the guard left a player audible with no control: ${JSON.stringify(fixed.audit)}`);
+  console.log(`no-sound-without-a-control: hand-off docks, guard recovers, `
+              + `${(fixed.audit || []).filter(p => p.audible).length} audible player(s), all reachable`);
+
+  await page.evaluate(() => document.getElementById('notesModal').close());
+  await sleep(300);
+  await shutMusic();
+}
+
 /* ---- 8d. the two players are two things --------------------------------
    THE REPORTED BUG: play a Top Picks song, pause it, and a track from the
    music playlist started up. It had not started — it had never stopped.
@@ -2397,7 +2497,18 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
       .filter(c => c.querySelector('.pk-play[data-audio]'));
     return cards.findIndex(c => c.classList.contains('is-playing'));
   });
-  note(song === 1, `ArrowRight on the songs bar went to card ${song}, not the next one`);
+  /* WHO ANSWERED, when the answer is wrong. The arrows go to whoever
+     MediaBus.transport() picks, and "went to card 0" is the same sentence
+     whether the key did nothing or whether another player took it -- which is
+     two very different bugs. */
+  const claimant = await page.evaluate(() => ({
+    audit: MediaBus.audit(),
+    dialogs: [...document.querySelectorAll('dialog[open]')].map(d => d.id + (d.classList.contains('is-docked') ? ':docked' : '')),
+    active: document.activeElement ? document.activeElement.tagName + (document.activeElement.id ? '#' + document.activeElement.id : '') : null,
+  }));
+  note(song === 1, `ArrowRight on the songs bar went to card ${song}, not the next one `
+                 + `(open: ${claimant.dialogs.join(',') || 'none'}; focus ${claimant.active}; `
+                 + `bus ${JSON.stringify(claimant.audit)})`);
   const songMeta = await page.evaluate(() => {
     const m = navigator.mediaSession && navigator.mediaSession.metadata;
     return m ? m.title : null;

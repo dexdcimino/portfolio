@@ -25,6 +25,48 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-10 — no sound without a control, enforced by a poll
+
+**Decided.** Anything on this page that is making noise must have a control for
+it on screen. `MediaBus.guard()` checks every three seconds: a player that is
+audible with no reachable control is asked to put one up, asked again, and
+paused if it still has none. And `bindModal`'s hand-off branch stops skipping
+`onClose` — only the focus restoration is skipped now.
+
+**It replaced** nothing, which is the point: there was no rule, only four
+players each assumed to keep their own control on screen. And the hand-off
+branch replaced a deliberate skip whose comment said it must not "undo state
+the replacement just set".
+
+**Why.** A song was found playing with no controller three times. One was
+traced — the hand-off skipping `onClose` meant an overlay opening over a
+playing music list closed the list and never re-showed the bar — and two were
+not. A cause you cannot reproduce is a cause you cannot fix, and "we found one
+of the three" is not an answer to "make sure this cannot happen".
+
+So both: the traced cause is fixed, and the class is guarded. The guard's order
+matters — reveal, RE-CHECK, then pause. A reveal that silently did nothing
+would otherwise leave exactly the state being guarded against, and the
+re-check is what turns "we tried" into "there is one".
+
+Pausing is the last resort rather than the first because a control appearing is
+what the reader actually wants; but audio with no control is worse than
+silence, so the fallback is unconditional.
+
+**A POLL, not an event.** It was run from `playbackState()` for one afternoon
+and that was wrong in a way worth recording: a player reporting that it has
+started is the exact moment `solo()` is silencing another, and the two are not
+ordered. The guard fired mid-hand-off, found the outgoing player still audible
+with its overlay gone, and revealed it — resurrecting a bar around a track two
+lines from being stopped and handing it the arrow keys the new player had just
+claimed. A backstop is for states that PERSIST.
+
+**Reverse it if** a player ever legitimately needs to make sound with no
+control on screen. Nothing does today, and a fifth player that thinks it does
+should be asked why before the rule is bent.
+
+---
+
 ## 2026-09-09 — the ` keypad reaches over an overlay, stacked
 
 **Decided.** `` ` `` opens the code prompt from anywhere, including from on top

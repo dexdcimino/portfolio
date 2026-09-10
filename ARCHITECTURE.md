@@ -901,13 +901,13 @@ a centre line and carry about the same weight.
 
 **The Idea Vault's keypad wears it too** — same lock, same codes, same mark.
 There are no corners to mirror down there, so it sits at the head of the row of
-boxes: `aspect-ratio` is the art's own 86.5x38 and the width is two fifths of
+boxes: `aspect-ratio` is the art's own 86.5x38 and the width is 0.36 of
 the pins' own clamp, so it stays scaled to them at every window size rather
 than being a number that was right once. The RATIO is the point — at 1:1 a
 solid accent mark was exactly as wide as an empty outlined box, and a filled
 shape at the same span as an outline reads far heavier than it, so it arrived
 as a sixth cell rather than as a mark on the row. Half was still too much of
-one; 0.4 is where it settled. It is inside `.vault-pins` so the row's own
+one, 0.4 was another 10% too much, and 0.36 is where it settled. It is inside `.vault-pins` so the row's own
 `align-items:center` keeps it level with the boxes, and it is decorative —
 `script.js` reads `.vault-pin`, so nothing counts it as a sixth cell. The status line under the boxes is BLANK at
 rest — the eyebrow above them already says ENTER CODE, and the same three words
@@ -2522,6 +2522,66 @@ Volume and the close X are in the third column, out of the centred group.
 track driven by `--fill`, the 22px hit area behind a 5px bar, and the white thumb
 that reads against both halves are decisions already made and already fixed once.
 Volume is remembered in `music-volume`, default 0.4 like everywhere else.
+
+### No sound without a control
+
+**THE RULE IS HARD (Dex, 2026-09-10): if something on this page is making
+noise, there is a control for it on screen.** Not "usually", and not "unless a
+bug". A song was found playing three times with nothing to stop it — once
+traced, twice not, and "twice not" is exactly why the rule needs a backstop and
+not only a fix.
+
+**The traced cause was `bindModal`'s hand-off branch.** Its close handler took
+an early return whenever another overlay was already open, and that return
+skipped `onClose` as well as the focus restoration. The music player's
+`onClose` is what re-shows its bar in the corner — so opening any overlay OVER
+a playing music LIST closed the list, skipped the redock, and left the embed
+`armed` with its `src`, playing, with `modal.open` false. Audio from nowhere.
+The notes' `onClose` had the same hole in a different shape: replaced by
+another overlay, the document stayed mounted and unlocked. Only the FOCUS is
+skipped on a hand-off now. Every `onClose` in the file is about ENDING
+something — relock, redock, reset a keypad — and none of them is about the
+overlay that replaced it.
+
+**The backstop is `MediaBus.guard()`.** For each registered player: is it
+audible, and is a control for it reachable? If not, ask it to put one up —
+then **ask again**, because a reveal that did not work is the failure this
+exists for — and only then pause it. Silence is the worst outcome except for
+the one it replaces.
+
+- `audible` is `p.live` for a player that reports to `playbackState()`, and
+  `!el.paused` for one that does not. The distinction is load-bearing: the
+  music embed's `el.paused` answers "is a track loaded" and stays false all the
+  way through a pause.
+- `reachable` is the player's own `control()`, falling back to `onScreen()`.
+  They are not the same question. The space bar wants "is the reader looking at
+  this"; the guard wants "could they reach the pause button" — so the clips
+  player's `control` is its panel being the open tab, without `onScreen`'s
+  viewport test, because scrolling past a playing clip does not take its
+  controls away.
+- `reveal()` is optional and is the player's OWN path back on screen: the music
+  player's is `redock()`, the songs bar's is the same `reveal()` a track start
+  uses. The clips player has none on purpose — changing someone's open tab to
+  explain a noise is worse than stopping the noise.
+
+**IT IS A POLL, AND IT IS NOT RUN FROM `playbackState`.** Running it there for
+one afternoon looked tidier and was wrong: a player reporting that it has
+started is the exact moment another one is being silenced by `solo()`, and the
+two are not ordered. The guard fired mid-hand-off, found the outgoing player
+still audible with its overlay already gone, and REVEALED it — putting a music
+bar back up around a track that was two lines from being stopped, and handing
+it the arrow keys the new player had just claimed. `music_check` caught it as
+"ArrowRight on the songs bar went to card 0". **A backstop is for states that
+PERSIST**; three seconds is far below "how long can a mystery noise play", and
+the body costs four property reads when nothing is playing. `visibilitychange`
+and `pageshow` cover coming back to the tab and the back/forward cache.
+
+`MediaBus.audit()` reports what the guard can see, for the same reason
+`holdState()` exists: a rule nobody can inspect is a rule nobody can prove
+still works. `music_check` block 8c-3 reproduces the traced cause, then forces
+the state again with `removeAttribute('open')` — no event at all, which is the
+shape of every arrival nobody has been able to trace — and asserts the guard
+comes back out of it.
 
 ### Docking — the music outlives the list
 
