@@ -578,8 +578,8 @@ await page.waitForFunction(
      heavier than it, and it came back as "way wayyy too big". So the ratio is
      what is asserted, not just that it tracks. */
   const ratio = vt ? vt.w / vt.pin : 0;
-  note(ratio > 0.35 && ratio < 0.65,
-       `the vault tilde is ${vt && vt.w}px against a ${vt && vt.pin}px box (${Math.round(ratio * 100)}%) — wanted about half`);
+  note(ratio > 0.28 && ratio < 0.5,
+       `the vault tilde is ${vt && vt.w}px against a ${vt && vt.pin}px box (${Math.round(ratio * 100)}%) — wanted about two fifths`);
   note(vt && vt.gap > 12, `the vault tilde is ${vt && vt.gap}px from the first box — too close to read as separate from the row`);
   console.log(`vault tilde: ${vt && vt.w}x${vt && vt.h} (${Math.round(ratio * 100)}% of a ${vt && vt.pin}px box), ${vt && vt.gap}px gap`);
 

@@ -901,12 +901,13 @@ a centre line and carry about the same weight.
 
 **The Idea Vault's keypad wears it too** — same lock, same codes, same mark.
 There are no corners to mirror down there, so it sits at the head of the row of
-boxes: `aspect-ratio` is the art's own 86.5x38 and the width is HALF the pins'
-own clamp, so it stays scaled to them at every window size rather than being a
-number that was right once. Half, and the halving is the point — at 1:1 a solid
-accent mark was exactly as wide as an empty outlined box, and a filled shape at
-the same span as an outline reads far heavier than it. At half it is a mark on
-the row; at full it was a sixth cell. It is inside `.vault-pins` so the row's own
+boxes: `aspect-ratio` is the art's own 86.5x38 and the width is two fifths of
+the pins' own clamp, so it stays scaled to them at every window size rather
+than being a number that was right once. The RATIO is the point — at 1:1 a
+solid accent mark was exactly as wide as an empty outlined box, and a filled
+shape at the same span as an outline reads far heavier than it, so it arrived
+as a sixth cell rather than as a mark on the row. Half was still too much of
+one; 0.4 is where it settled. It is inside `.vault-pins` so the row's own
 `align-items:center` keeps it level with the boxes, and it is decorative —
 `script.js` reads `.vault-pin`, so nothing counts it as a sixth cell. The status line under the boxes is BLANK at
 rest — the eyebrow above them already says ENTER CODE, and the same three words

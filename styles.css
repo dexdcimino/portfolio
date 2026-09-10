@@ -3158,20 +3158,20 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
    said so explicitly. Anything given display: by a class needs this. */
 .vault-lockbox[hidden]{display:none}
 .vault-pins{display:flex;align-items:center;gap:clamp(6px,1.4vw,12px)}
-/* HALF A BOX WIDE, and that number is the whole of the fix. Scaled to the pins
-   is right -- it has to hold its proportion at every step of their clamp -- but
-   scaled to the pins at 1:1 made a solid accent mark exactly as wide as an
+/* TWO FIFTHS OF A BOX WIDE, and that number is the whole of the fix. Scaled to
+   the pins is right -- it has to hold its proportion at every step of their
+   clamp -- but scaled at 1:1 made a solid accent mark exactly as wide as an
    empty outlined box, and a filled shape at the same span as an outline reads
-   far heavier than it. At half it is a mark on the row; at full it was a sixth
-   cell. The pins' own clamp is the source, multiplied, so there is one number
-   to change and not two to keep in step.
+   far heavier than it: it arrived as a sixth cell rather than as a mark on the
+   row. Half was still 20% too much of one. The pins' own clamp is the source,
+   multiplied, so there is one number to change and not two to keep in step.
 
    aspect-ratio is the art's own 86.5x38, so `contain` fills the box exactly
    and the shape cannot letterbox. A little more air than the gap between two
    boxes, or it joins the row rather than sitting beside it. */
 .vault-tilde{
   flex:0 0 auto;
-  width:calc(clamp(46px,10.5vw,66px) * .5);aspect-ratio:86.5/38;
+  width:calc(clamp(46px,10.5vw,66px) * .4);aspect-ratio:86.5/38;
   margin-right:clamp(8px,1.6vw,16px);
   color:var(--accent);
 }
