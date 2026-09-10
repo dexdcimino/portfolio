@@ -571,11 +571,17 @@ await page.waitForFunction(
   note(vt && vt.leftOf, 'the vault tilde is not to the left of the boxes');
   note(vt && vt.level, 'the vault tilde is not centred against the row of boxes');
   note(vt && vt.mask.startsWith('url('), 'the vault tilde has no mask — the icon was never baked');
-  /* Scaled to the PINS, so it stays a mark on the row at every step of their
-     clamp rather than a number that was right at one window width. */
-  note(vt && vt.w === vt.pin, `the vault tilde is ${vt && vt.w}px against a ${vt && vt.pin}px box — it is not scaled to them`);
+  /* SCALED TO THE PINS, AND ABOUT HALF OF ONE. Scaled is right -- it has to
+     hold its proportion at every step of their clamp -- but the first version
+     was scaled 1:1, which made a solid accent mark exactly as wide as an empty
+     outlined box. A filled shape at the same span as an outline reads far
+     heavier than it, and it came back as "way wayyy too big". So the ratio is
+     what is asserted, not just that it tracks. */
+  const ratio = vt ? vt.w / vt.pin : 0;
+  note(ratio > 0.35 && ratio < 0.65,
+       `the vault tilde is ${vt && vt.w}px against a ${vt && vt.pin}px box (${Math.round(ratio * 100)}%) — wanted about half`);
   note(vt && vt.gap > 12, `the vault tilde is ${vt && vt.gap}px from the first box — too close to read as separate from the row`);
-  console.log(`vault tilde: ${vt && vt.w}x${vt && vt.h} beside ${vt && vt.pin}px boxes, ${vt && vt.gap}px gap`);
+  console.log(`vault tilde: ${vt && vt.w}x${vt && vt.h} (${Math.round(ratio * 100)}% of a ${vt && vt.pin}px box), ${vt && vt.gap}px gap`);
 
 }
 
