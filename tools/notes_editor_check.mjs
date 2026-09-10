@@ -1682,9 +1682,27 @@ await chord(['Control'], '\\');
   console.log('title click: opens a folded category, never folds an open one');
 }
 
-/* ---- 17f7c. the dot sits at the edge and scoots left for the X ---------- */
+/* ---- 17f7c. the dot HOLDS ITS PLACE and the X is a tab beside the row ----
+   THE REPORTED PROBLEM (Dex, 2026-09-10): the archive X used to animate its
+   own width open inside the row, which pushed the colour dot left -- so the
+   one control you aim at deliberately slid out from under the pointer on its
+   way to being clicked. A button that moves while you are reaching for it is a
+   button you miss.
+
+   The X left the flow: it is absolutely positioned on the row's right EDGE
+   now, clipped to nothing at rest and growing outward. What this asserts is
+   therefore the opposite of what it used to: the dot must NOT move.
+
+   FALSELY PASSES IF: only the dot were measured. A tab that never appears
+   also never moves the dot, so the tab is measured too -- and it is measured
+   as PAINTED (clip-path) rather than as present, because at rest it is
+   present at full size and showing none of itself.
+
+   AND IT OPENS FROM THE GUTTER. .nt-row::after extends the row's hover area
+   past its right edge so the tab comes out while the pointer is beside the
+   row, on its way to where the tab will be. That is driven with a real
+   pointer at a point that is NOT over the row itself. */
 {
-  const away = await page.evaluate(() => { const r = document.querySelector('.nt-sidebar-top').getBoundingClientRect(); return { x: Math.round(r.right - 10), y: Math.round(r.bottom + 4) }; });
   await page.mouse.move(900, 700);
   await sleep(300);
   const measure = () => page.evaluate(() => {
@@ -1692,29 +1710,52 @@ await chord(['Control'], '\\');
     row.scrollIntoView({ block: 'nearest' });
     const r = row.getBoundingClientRect();
     const dot = row.querySelector('.nt-row-color').getBoundingClientRect();
-    const x = row.querySelector('.nt-row-x').getBoundingClientRect();
-    return { dotFromRight: Math.round(r.right - dot.right), xWidth: Math.round(x.width) };
+    const x = row.querySelector('.nt-row-x');
+    const xb = x.getBoundingClientRect();
+    const cs = getComputedStyle(x);
+    return {
+      dotFromRight: Math.round(r.right - dot.right),
+      xLeft: Math.round(xb.left - r.right),
+      shown: cs.clipPath === 'none' || /inset\(0(px)? 0(px)? 0(px)? 0(px)?\)|inset\(0px\)|inset\(0\)/.test(cs.clipPath),
+      clickable: cs.pointerEvents !== 'none',
+      radius: cs.borderTopRightRadius + '/' + cs.borderTopLeftRadius,
+      rowRight: Math.round(r.right),
+    };
   });
   const rest = await measure();
-  note(rest.xWidth === 0, `the archive X still takes ${rest.xWidth}px at rest, so the dot cannot reach the edge`);
+  note(!rest.shown, 'the archive tab is showing on a row nobody is pointing at');
+  note(!rest.clickable, 'the archive tab is clickable while it is invisible — that is one twitch from archiving');
   note(rest.dotFromRight <= 10, `the colour dot is ${rest.dotFromRight}px from the row's right edge at rest`);
-  const on = await page.evaluate(() => {
+  note(rest.xLeft >= -1 && rest.xLeft <= 2, `the tab starts ${rest.xLeft}px from the row's right edge — it is not on the edge`);
+  note(/^0px\//.test(rest.radius) === false && rest.radius.endsWith('/0px'),
+       `the tab is rounded ${rest.radius} — it should be square where it meets the row and round on the outside`);
+
+  /* HOVERED FROM THE GUTTER, past the row's own right edge. */
+  const beside = await page.evaluate(() => {
     const row = document.querySelectorAll('.nt-row')[2];
-    row.scrollIntoView({ block: 'nearest' });
     const r = row.getBoundingClientRect();
-    const p = { x: Math.round(r.left + 90), y: Math.round(r.top + r.height / 2) };
-    return { ...p, on: document.elementFromPoint(p.x, p.y)?.closest('.nt-row') === row };
+    const p = { x: Math.round(r.right + 10), y: Math.round(r.top + r.height / 2) };
+    /* PAST THE PAINTED BOX AND STILL THE ROW'S. A pseudo-element hit-tests as
+       the element it belongs to, so elementFromPoint returning the row from a
+       point OUTSIDE the row's own rect is exactly the proof that ::after is
+       there and doing its job -- and the only proof available, since the strip
+       paints nothing to look at. */
+    return { ...p, past: p.x > Math.round(r.right),
+             ownedByRow: document.elementFromPoint(p.x, p.y)?.closest('.nt-row') === row };
   });
-  note(on.on, 'the point aimed at the row to hover is not on it');
-  await page.mouse.move(on.x, on.y);
+  note(beside.past, 'the point is not past the row, so nothing about the gutter is being tested');
+  note(beside.ownedByRow,
+       'the strip beside the row does not belong to it — the tab cannot come out from the gutter');
+  await page.mouse.move(beside.x, beside.y);
   await sleep(350);
-  const hover = await measure();
-  note(hover.xWidth > 15, `hovering a row did not open the archive X (${hover.xWidth}px)`);
-  note(hover.dotFromRight > rest.dotFromRight + 10, `the dot did not scoot left for the X (${rest.dotFromRight} -> ${hover.dotFromRight})`);
+  const out = await measure();
+  note(out.shown, 'hovering the gutter beside a row did not bring its archive tab out');
+  note(out.clickable, 'the tab came out but is not clickable');
+  note(out.dotFromRight === rest.dotFromRight,
+       `the dot moved when the tab came out (${rest.dotFromRight} -> ${out.dotFromRight})`);
   await page.mouse.move(900, 700);
   await sleep(300);
-  console.log(`row: dot ${rest.dotFromRight}px from the edge at rest, ${hover.dotFromRight}px with the X out`);
-  void away;
+  console.log(`row: dot ${rest.dotFromRight}px from the edge, unmoved; tab out from the gutter at +${out.xLeft}px`);
 }
 
 /* ---- 17f7d. clicking off a pick drops it -------------------------------- */

@@ -1759,6 +1759,28 @@ sidebar and the canvas -- skipping whichever one is being typed in, because
 rewriting the element under the caret collapses the selection and eats the
 next keystroke.
 
+**THE ARCHIVE X IS A TAB ON THE ROW'S EDGE, and the colour dot does not move.**
+It used to animate its own width open inside the row, which pushed the dot
+left -- so the one control you aim at deliberately slid out from under the
+pointer on its way to being clicked. A button that moves while you are reaching
+for it is a button you miss. The X is absolutely positioned now, square where
+it meets the row and rounded on the outside, clipped to nothing at rest and
+growing outward; nothing in the row's layout changes when it appears.
+
+`.nt-rows` carries a 26px right padding to hang it in. Padding rather than
+margin because that column scrolls and **overflow clips at the PADDING box** --
+a tab inside the padding is painted and a tab outside it is not. The rows give
+up that width, which is what a control that lives beside them rather than
+inside them costs.
+
+**It opens from the gutter too.** `.nt-row::after` is an invisible strip past
+the row's right edge that belongs to the row for `:hover` purposes, so the tab
+comes out while the pointer is beside the row rather than only on it -- you can
+go straight to where the tab is going to be. `pointer-events` follow the paint:
+the tab is always present at full size and clipped to nothing, so it can
+animate on the compositor, but a 22px invisible button beside every row would
+be 22px of accidental archiving.
+
 **The list and the archive are welded.** One grab edge between them decides
 how the leftover height is shared (`--list-flex` / `--arch-flex`, saved as
 `ui.archSplit`), and the archive header carries two arms that lie flat while
@@ -2235,10 +2257,36 @@ is what makes it safe, not a flag it checks:** with no token there is no
 request to `/api/notes/*` that would be answered, so a visitor cannot read,
 write or flood the real notes, and cannot reach the keypad from here. The
 document is built in memory, closing the overlay unmounts the app and empties
-the container, and images live in `ctx.demoAssets` as object URLs that are
-revoked on unmount. `notes_dictate_check.mjs` counts every request the page
-makes while the sandbox is open and asserts the real document on disk is
+the container, and images live in `ctx.demoAssets` -- object URLs for anything
+dropped in, revoked on unmount, and the preview's own picture as a data URI,
+which `revokeObjectURL` is not called on because that would be a no-op with a
+misleading name. `notes_dictate_check.mjs` counts every request the page makes
+while the sandbox is open and asserts the real document on disk is
 byte-identical afterwards.
+
+**IT HAS ONE JOB BEYOND BEING HARMLESS: show what a note can hold.** Between
+its three categories the preview carries every shape the schema allows --
+headings, bullets, nesting, a numbered list, to-dos ticked and not, a quote,
+inline code, a link chip, a markdown chip, an image and a table -- plus one
+archived category, so the archive it opens with has something in it rather than
+the words "Nothing archived". `notes_dictate_check` counts each of those,
+because a preview that quietly stopped rendering its chips or its picture would
+still pass every assertion about its titles and colours.
+
+**It opens with the outliner and the archive BOTH EXPANDED.** A visitor gets
+one look, and a folded sidebar and a folded archive are two of the app's
+features hidden behind two gestures nobody knows are there. The real notes keep
+whatever they were left at (`ui.sidebar`, `ui.archOpen`, both saved); the
+preview is a fresh document every time, so it can simply start right.
+
+**The picture is a real PNG and its data-key is the real hash of it.** The
+schema keeps an image only if the key matches `<64 hex>.<png|jpg|webp|gif>` --
+a key IS the sha-256 of the bytes, which is what makes an asset
+content-addressed and what stops anything smuggling a made-up one in. An SVG
+data URI was written first and was refused, correctly: the allowlist has no
+`svg` in it because an SVG asset is a script-execution surface. So the preview
+ships 2650 bytes of PNG inline, the key is really its hash, and the extension
+is really its format.
 
 ### The dev loop
 

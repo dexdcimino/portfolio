@@ -272,6 +272,79 @@ function mergeSession(mine, theirs) {
  * something already ticked, two categories, and a second colour that is not
  * the session's -- which is the thing a screenshot of an empty editor cannot
  * show. Nothing here is ever saved anywhere. */
+/* ---- the AI Lab preview -------------------------------------------------
+ * A document with nothing behind it, shown to anyone who clicks the eyeball on
+ * the DexNote card. It has one job beyond being harmless: SHOW WHAT A NOTE CAN
+ * HOLD. So between them these three categories carry every shape the schema
+ * allows -- headings, bullets, nesting, numbered lists, to-dos ticked and not,
+ * a quote, inline code, a link chip, a markdown chip, an image and a table --
+ * and one archived category, so the archive that opens with it has something
+ * in it rather than the words "Nothing archived".
+ *
+ * THE PICTURE IS AN SVG DATA URI, and it goes through demoAssets like every
+ * other image in the preview: chips.hydrate() resolves an image's data-key
+ * against that map first and only then against the asset endpoint, which is
+ * the path a picture dropped into the sandbox already takes. Nothing here can
+ * reach the server, and nothing here needs to.
+ *
+ * Kept deliberately silly. It is a demo of an editor, not a portfolio piece,
+ * and a page of lorem ipsum tells a visitor less about the app than a list of
+ * snacks for a nine-light-year flight does. */
+
+/* A REAL PNG AND ITS REAL HASH. The schema keeps an image only if its
+ * data-key is <64 hex>.<png|jpg|webp|gif> -- a key IS the sha-256 of the
+ * bytes, which is what makes an asset content-addressed and what stops
+ * anything smuggling a made-up one in. So this is a real PNG, the key below
+ * is really its hash, and the extension is really its format. An SVG was
+ * written first and refused, correctly: the allowlist has no svg in it
+ * because an SVG asset is a script-execution surface.
+ *
+ * 2650 bytes, drawn once by tools/ -- see the commit that added it. Inline
+ * rather than a file under assets/ because it is the preview's only picture
+ * and a fetch for it would be a request that can fail on the one screen a
+ * visitor gets. */
+const DEMO_IMG_KEY = '1cac60d88248870bd6676c65bd163e4c87b1cceec581c7a83bc303a23f2718c6.png';
+const DEMO_IMG = 'data:image/png;base64,'
+  + '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';
+
+export const demoAssets = () => new Map([[DEMO_IMG_KEY, DEMO_IMG]]);
+
 export function demoDoc() {
   const green = '#68d121';
   const session = newSession('Brainstorm', {
@@ -284,19 +357,72 @@ export function demoDoc() {
             + '<ul><li>Kansas \u2014 traditional, low risk</li>'
             + '<li>Times Square \u2014 maximum reach, maximum questions</li></ul></li>'
             + '<li>Learn what <b>brb</b> means before the broadcast</li></ul>'
+            + '<p>The whole plan, pasted in as markdown and folded up: '
+            + '<span class="chip chip-md" data-md="'
+            + 'IyBMYW5kaW5nIENoZWNrbGlzdAoKMS4gUmVkdWNlIHNwZWVkIGJlbG93IHRoZSBzb3VuZCBiYXJyaWVyLgoy'
+            + 'LiBBaW0gZm9yIGEgZmllbGQsIG5vdCBhIHN0YWRpdW0uCjMuIFR1cm4gb2ZmIHRoZSBsaWdodHMgKmJlZm9y'
+            + 'ZSogdGhlIGRlc2NlbnQuCgo+IEEgc2F1Y2VyIGFycml2aW5nIHF1aWV0bHkgaXMgYSBzYXVjZXIgbm9ib2R5'
+            + 'IGZpbG1zLgo=" contenteditable="false">Landing Checklist</span></p>'
             + '<ul class="todo"><li data-checked="1">Park the saucer somewhere legal</li>'
             + '<li>Practise the handshake</li></ul>',
       }),
-      newCat('Snacks For The Trip', {
-        emoji: '\u{1F32E}', color: '#ffb85c',
-        body: '<p>Nine light years is a long time to be hungry.</p>'
-            + '<ul><li>Tacos. Non-negotiable.</li>'
-            + '<li>Something that survives re-entry</li></ul>'
-            + '<ul class="todo"><li>Work out why they put pineapple on pizza</li></ul>',
+      newCat('Blending In', {
+        emoji: '\u{1F576}\uFE0F', color: '#d59cff',
+        body: '<h3>Things humans do that we do not</h3>'
+            + '<ul><li>Queue. Apparently on purpose.</li>'
+            + '<li>Say <i>"we should get coffee"</i> and then never do it</li>'
+            + '<li>Apologise to furniture</li></ul>'
+            + '<p>Field notes on the local idiom, straight from the source: '
+            + '<a class="chip chip-link" href="https://en.wikipedia.org/wiki/Small_talk" '
+            + 'contenteditable="false" target="_blank" rel="noopener">Small talk</a></p>'
+            + '<blockquote>Nobody has asked what planet I am from. '
+            + 'They keep asking what I do for work.</blockquote>'
+            + '<p>The disguise runs on <code>sunglasses + confidence</code>. '
+            + 'Do not overthink it.</p>'
+            + '<ul class="todo"><li data-checked="1">Buy a coat</li>'
+            + '<li data-checked="1">Learn three opinions about the weather</li>'
+            + '<li>Stop hovering when nervous</li></ul>',
+      }),
+      newCat('Souvenirs', {
+        emoji: '\u{1F4E6}', color: '#ffb85c',
+        body: '<h3>What to take home</h3>'
+            + '<p>The site as photographed on arrival. Nine light years is a long '
+            + 'way to come and not bring anything back.</p>'
+            /* IN A PARAGRAPH. An image is INLINE content in this schema, and a
+               bare one at the root of a body is not a block clean() will keep
+               where it was put. */
+            + '<p><img class="nt-img" data-key="' + DEMO_IMG_KEY + '" data-w="75" draggable="false"></p>'
+            + '<table><tbody>'
+            + '<tr><td>Item</td><td>Mass</td><td>Legal?</td></tr>'
+            + '<tr><td>Tacos, frozen</td><td>4 kg</td><td>Yes</td></tr>'
+            + '<tr><td>One traffic cone</td><td>2 kg</td><td>Unclear</td></tr>'
+            + '<tr><td>A goose</td><td>5 kg</td><td>Absolutely not</td></tr>'
+            + '</tbody></table>'
+            + '<ol><li>Weigh everything twice</li>'
+            + '<li>Leave the goose</li>'
+            + '<li>Take the goose</li></ol>',
       }),
     ],
   });
-  return normalize({ v: 2, active: session.id, sessions: [session], ui: defaultUi() });
+  /* One in the archive, because the preview opens with the archive expanded
+     and an expanded archive with nothing in it demonstrates a label. */
+  session.archived = [newCat('Abandoned Plans', {
+    emoji: '\u{1F5FF}', color: '#5cc8ff',
+    body: '<h3>Rejected on review</h3>'
+        + '<ul><li>Land on the roof of the tallest building</li>'
+        + '<li>Introduce ourselves during a live sports broadcast</li>'
+        + '<li>Simply explain everything</li></ul>',
+    archivedAt: now(),
+  })];
+  /* THE OUTLINER AND THE ARCHIVE BOTH OPEN. A visitor gets one look at this,
+     and a folded sidebar and a folded archive are two of the app's features
+     hidden behind two gestures nobody knows are there. The real notes keep
+     whatever Dex left them at -- ui.archOpen and ui.sidebar are saved -- and
+     this is a fresh document every time, so it can simply start right. */
+  return normalize({
+    v: 2, active: session.id, sessions: [session],
+    ui: { ...defaultUi(), sidebar: 'open', archOpen: true },
+  });
 }
 
 /* ---- migration from the pre-rebuild HTML --------------------------------- */

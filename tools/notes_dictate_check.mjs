@@ -945,12 +945,28 @@ await sleep(300);
     checked: document.querySelectorAll('.nt-body ul.todo li[data-checked]').length,
     nested: document.querySelectorAll('.nt-body li ul li').length,
     mics: document.querySelectorAll('.nt-mic').length,
+    /* WHAT THE PREVIEW IS FOR: showing what a note can hold. Every one of
+       these is a shape the schema allows and a visitor gets one look at. */
+    chips: document.querySelectorAll('.nt-body a.chip-link').length,
+    mdChips: document.querySelectorAll('.nt-body span.chip-md').length,
+    images: [...document.querySelectorAll('.nt-body img.nt-img')]
+      .filter((i) => /^data:/.test(i.src)).length,
+    tables: document.querySelectorAll('.nt-body table').length,
+    code: document.querySelectorAll('.nt-body code').length,
+    quotes: document.querySelectorAll('.nt-body blockquote').length,
+    ordered: document.querySelectorAll('.nt-body ol li').length,
+    /* ...and it opens with both folds OPEN. A visitor gets one look, and a
+       folded outliner and a folded archive are two features hidden behind two
+       gestures nobody knows are there. */
+    rail: document.querySelector('.nt-app').classList.contains('is-rail'),
+    archOpen: document.querySelector('.nt-archive').classList.contains('is-open'),
+    archived: document.querySelectorAll('.nt-arch-row').length,
   }));
   console.log('sandbox:', JSON.stringify(shape));
   note(shape.demo, 'the sandbox is not marked as a demo');
   note(shape.session === 'Brainstorm', `the sandbox session is "${shape.session}", expected Brainstorm`);
   note(shape.sessionEmoji === '\u{1F47D}', `the sandbox session icon is "${shape.sessionEmoji}", expected the alien`);
-  note(shape.cats.length === 2, `${shape.cats.length} categories in the sandbox, expected 2`);
+  note(shape.cats.length === 3, `${shape.cats.length} categories in the sandbox, expected 3`);
   note(shape.cats[0] && shape.cats[0].colour === shape.sessionColour, 'the first category is not the session colour');
   note(shape.cats[1] && shape.cats[1].colour !== shape.sessionColour, 'the second category is the same colour as the session — the point is to show two');
   note(shape.cats.every(c => c.emoji && c.emoji.trim()), 'a sandbox category has no emoji');
@@ -958,7 +974,19 @@ await sleep(300);
   note(shape.nested >= 2, `the sandbox does not show nested bullets (${shape.nested})`);
   note(shape.note, 'the sandbox does not say it is a sandbox');
   note(/SANDBOX/.test(shape.status), `the save status reads "${shape.status}"`);
-  note(shape.mics === 2, `${shape.mics} microphones in the sandbox, expected one per box`);
+  note(shape.mics === shape.cats.length, `${shape.mics} microphones for ${shape.cats.length} boxes, expected one each`);
+  /* COUNTED, not spot-checked. A preview that quietly stopped rendering its
+     chips or its picture would still pass every assertion above it. */
+  note(shape.chips >= 1, 'the preview shows no link chip');
+  note(shape.mdChips >= 1, 'the preview shows no markdown chip');
+  note(shape.images >= 1, 'the preview shows no image, or its data: URI did not resolve through demoAssets');
+  note(shape.tables >= 1, 'the preview shows no table');
+  note(shape.code >= 1, 'the preview shows no inline code');
+  note(shape.quotes >= 1, 'the preview shows no block quote');
+  note(shape.ordered >= 2, `the preview shows no numbered list (${shape.ordered} items)`);
+  note(!shape.rail, 'the preview opens with the outliner folded away');
+  note(shape.archOpen, 'the preview opens with the archive folded shut');
+  note(shape.archived >= 1, 'the preview opens an archive with nothing in it, which demonstrates a label');
 
   // It is a real editor: type, and it behaves.
   await page.evaluate(() => {

@@ -18,7 +18,7 @@
 import { el, escapeHtml, debounce, caretToEnd } from './dom.js';
 import { clean, serialize, toText } from './schema.js';
 import { History } from './history.js';
-import { normalize, migrateHtml, demoDoc, activeSession, catOf, touch, restore as restoreSession, FONTS, SIZES, emptyDoc } from './state.js';
+import { normalize, migrateHtml, demoDoc, demoAssets, activeSession, catOf, touch, restore as restoreSession, FONTS, SIZES, emptyDoc } from './state.js';
 import { initEditor, capture, format, align, toggleList, indent, stateAt, insertInline, insertBlockAfterCaret, transact as editorTransact } from './editor.js';
 import * as chips from './chips.js';
 import * as tables from './table.js';
@@ -123,7 +123,12 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     // memory under the same kind of key and resolved by hydrate(). It works
     // exactly like the real thing until the overlay closes, and then it is
     // gone with everything else.
-    demoAssets: new Map(),
+    /* SEEDED FOR THE PREVIEW. The demo document ships a picture, and an image
+       in a body is a data-key that hydrate() resolves against this map before
+       it tries the asset endpoint -- the same path a picture dropped into the
+       sandbox takes. Empty for the real notes, where every key is on the
+       server. */
+    demoAssets: demo ? demoAssets() : new Map(),
     clean, toText,
     bodyFor: (id) => canvas.querySelector(`.nt-body[data-cat="${CSS.escape(id)}"]`),
     changed,           // a body changed
@@ -976,7 +981,9 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('pagehide', flush);
       closePanel();
-      for (const url of ctx.demoAssets.values()) URL.revokeObjectURL(url);
+      // Only the blob: ones were ever created here; the preview's own picture
+      // is a data: URI and revoking it is a no-op with a misleading name.
+      for (const url of ctx.demoAssets.values()) if (/^blob:/.test(url)) URL.revokeObjectURL(url);
       ctx.demoAssets.clear();
       if (window.CSS && CSS.highlights) { CSS.highlights.delete('nt-spell'); CSS.highlights.delete('nt-search'); CSS.highlights.delete('nt-search-current'); CSS.highlights.delete('nt-fix'); }
       root.remove();
