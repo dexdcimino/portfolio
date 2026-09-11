@@ -1,0 +1,110 @@
+# THE SOUND LIBRARY, hand-written. One line per TRACK.
+#
+#     Category | Item | Variant | File
+#
+# A CATEGORY is a section in the overlay and a row in its sidebar. An ITEM is
+# one card in that section -- "Bow, draw" -- and every line sharing a category
+# and an item is one option in that card's dropdown. The number beside the
+# dropdown is how many of those there are; nothing counts them by hand.
+#
+# THE FILE is a path under assets/sfx/, or "-" for a sound that is wanted and
+# not sourced yet. A dash is not a failure: this file is the WISHLIST as much
+# as the manifest, and a card with nothing behind it says so on its face
+# rather than being left out and forgotten. `python tools/bake_sfx.py` prints
+# how many of each there are on every run.
+#
+# ORDER MATTERS and is the order here: categories appear in the order they are
+# first mentioned, items in the order they are first mentioned inside one.
+#
+# Blank lines and lines starting with # are ignored. After editing, run
+#
+#     python tools/bake_sfx.py
+#
+# which rewrites assets/sfx/sfx.json. Never edit that file; --check fails on a
+# hand edit because the output is a byte comparison against a rebuild.
+
+# ---------------------------------------------------------------- Player ---
+Player|Footsteps, grass|Soft walk|-
+Player|Footsteps, grass|Run|-
+Player|Footsteps, grass|Heavy landing|-
+Player|Footsteps, hard|Concrete walk|-
+Player|Footsteps, hard|Concrete run|-
+Player|Footsteps, hard|Metal walk|-
+Player|Footsteps, hard|Wood walk|-
+Player|Death splat|Wet burst|-
+Player|Death splat|Thick splatter|-
+Player|Death splat|Splat with drips|-
+Player|Death splat|Comic squelch|-
+Player|Hurt|Short grunt|-
+Player|Hurt|Heavy hit|-
+Player|Hurt|Scraped|-
+
+# ----------------------------------------------------------------- Items ---
+Items|Bow, draw|Slow creak|-
+Items|Bow, draw|Quick pull|-
+Items|Bow, draw|Heavy longbow|-
+Items|Bow, release|Sharp twang|-
+Items|Bow, release|Deep thrum|-
+Items|Bow, release|Whoosh away|-
+Items|Arrow, impact|Into flesh|-
+Items|Arrow, impact|Into wood|-
+Items|Arrow, impact|Into stone|-
+Items|Arrow, impact|Shield clang|-
+Items|Terraformer, raise|Rising rumble|-
+Items|Terraformer, raise|Stone grind|-
+Items|Terraformer, raise|Magic swell|-
+Items|Terraformer, carve|Scooping earth|-
+Items|Terraformer, carve|Deep gouge|-
+Items|Terraformer, carve|Crumble|-
+Items|Terraformer, water|Fill and splash|-
+Items|Terraformer, water|Gentle flood|-
+Items|Terraformer, water|Rushing in|-
+
+# --------------------------------------------------------------- Weapons ---
+Weapons|SMG, fire|Short burst|-
+Weapons|SMG, fire|Full auto loop|-
+Weapons|SMG, fire|Single shot|-
+Weapons|SMG, impact|Into dirt|-
+Weapons|SMG, impact|Into metal|-
+Weapons|SMG, impact|Ricochet|-
+Weapons|Pistol, fire|Crisp shot|-
+Weapons|Pistol, fire|Suppressed|-
+Weapons|Pistol, fire|Heavy revolver|-
+Weapons|Pistol, impact|Into wood|-
+Weapons|Pistol, impact|Into glass|-
+Weapons|Pistol, impact|Into body|-
+Weapons|Reload|Magazine out|-
+Weapons|Reload|Magazine in|-
+Weapons|Reload|Slide rack|-
+
+# -------------------------------------------------------------- Vehicles ---
+Vehicles|Scooter|Idle loop|-
+Vehicles|Scooter|Accelerate|-
+Vehicles|Scooter|Skid stop|-
+Vehicles|Bike|Pedalling|-
+Vehicles|Bike|Freewheel tick|-
+Vehicles|Bike|Brake squeal|-
+Vehicles|Hoverboard|Hum loop|-
+Vehicles|Hoverboard|Boost|-
+Vehicles|Hoverboard|Power down|-
+Vehicles|Tank, machine gun|Short burst|-
+Vehicles|Tank, machine gun|Sustained|-
+Vehicles|Tank, machine gun|Spin up|-
+Vehicles|Tank, rocket|Launch|-
+Vehicles|Tank, rocket|Travel whoosh|-
+Vehicles|Tank, rocket|Explosion|-
+Vehicles|Tank, tracks|Rolling loop|-
+Vehicles|Tank, tracks|Turn in place|-
+
+# ----------------------------------------------------------------- Music ---
+Music|Main theme|Full mix|-
+Music|Main theme|Intro only|-
+Music|Main theme|Loop|-
+Music|Build mode|Calm loop|-
+Music|Build mode|Busy loop|-
+Music|Combat|Low tension|-
+Music|Combat|Full combat|-
+Music|Combat|Victory sting|-
+Music|Menu|Title loop|-
+Music|Menu|Click|-
+Music|Menu|Back|-

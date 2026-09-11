@@ -3387,7 +3387,7 @@
          Deliberately not in the nav, and deliberately not in the scroll spy's
          section list in script.js: findable, not advertised. -->
     <section class="resume-strip vault keypad" id="vault" aria-labelledby="vault-title"
-             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi v2.32768.8.1.0vddRKfHTuGOBDXw3eohuqfJn9gawqxlzsrNC5PAlMBOxGYWDeQM2r2xODwNSXCMXK9HGhC2 v2.32768.8.1.GG3gPYqj8ruPKgW1JdjfQbHkEtBPmIh27xuAfgPudjHf17yDbhoe/Xlir71gT9v5rcoWcTF2">
+             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi v2.32768.8.1.0vddRKfHTuGOBDXw3eohuqfJn9gawqxlzsrNC5PAlMBOxGYWDeQM2r2xODwNSXCMXK9HGhC2 v2.32768.8.1.GG3gPYqj8ruPKgW1JdjfQbHkEtBPmIh27xuAfgPudjHf17yDbhoe/Xlir71gT9v5rcoWcTF2 v2.32768.8.1./pYfnuqy3ZUN4fWie2OG7EKtfMuym3NtF0c6JRkcGLNjI3LK8ZvzuA8KvSmQDkQmTwEfrg==">
       <div class="vault-head">
         <p class="eyebrow vault-eyebrow">
           <span id="vaultLabel">CLASSIFIED</span>
@@ -4881,6 +4881,54 @@
             aria-label="Move the player to the bottom">
       <span class="icon" data-icon="chevron" aria-hidden="true"></span></button>
   </div>
+
+  <!-- THE SOUND LIBRARY (code FOLEY — the trade's own word for sourced sound
+       effects, and five letters, which is how many boxes the keypad has).
+
+       A shopping list as much as a player: every sound the game needs, in
+       categories, each card a thing that makes a noise and each card's
+       dropdown the takes of it. A track with no file yet is still a card —
+       that is the point, it is the wishlist — and it says so on its face
+       rather than being left out and forgotten about.
+
+       EMPTY IN THE MARKUP. The rows are built from assets/sfx/sfx.json,
+       generated from assets/sfx/sfx.txt by tools/bake_sfx.py. Add a line
+       there, re-run it, and the card appears. See initSfx() in script.js. -->
+  <dialog class="sfx-modal" id="sfxModal" aria-labelledby="sfx-dialog-title">
+    <div class="sfx-frame">
+      <div class="sfx-shell">
+        <h2 class="sr-only" id="sfx-dialog-title">Sound library</h2>
+
+        <div class="sfx-head">
+          <p class="eyebrow sfx-eyebrow">
+            <span class="icon" data-icon="volume" aria-hidden="true"></span>
+            <span>SOUND LIBRARY</span>
+          </p>
+          <p class="sfx-count" id="sfxCount" role="status" aria-live="polite">LOADING</p>
+          <span class="sfx-head-gap" aria-hidden="true"></span>
+          <input class="sfx-search" id="sfxSearch" type="search"
+                 placeholder="Search" aria-label="Search the library"
+                 autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="sfx-body">
+          <!-- The same shape as the notes outliner, and preset: it is a table
+               of contents, not something to customise. Clicking a row jumps to
+               that section; the count beside it is how many cards are in it. -->
+          <nav class="sfx-rail" id="sfxRail" aria-label="Categories"></nav>
+          <div class="sfx-list" id="sfxList" tabindex="-1"></div>
+        </div>
+      </div>
+
+      <!-- ONE audio element for the whole library. See initSfx: a second one is
+           a second thing that can be left playing. -->
+      <audio id="sfxAudio" preload="none"></audio>
+
+      <button class="sfx-close" type="button" id="sfxClose" aria-label="Close the sound library">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </dialog>
 
   <!-- Contact modal. <dialog>.showModal() gives focus trapping and Esc-to-close
        for free; the backdrop click is wired in script.js. -->

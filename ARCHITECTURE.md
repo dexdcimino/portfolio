@@ -2340,6 +2340,64 @@ trip comes back byte-identical, because a body that survives one and not the
 other still drifts on the first edit. No dev server, no `--write`; the count
 checked is printed and asserted against the number of bodies there are.
 
+## Sound library (code `FOLEY`)
+
+Every sound the game needs, as cards in categories: a name, a dropdown of the
+takes of it, how many of those there are, and a play button. **A shopping list
+as much as a player** — a track with no file yet is still a card, and it says
+so on its face rather than being left out and forgotten about. The code is the
+trade's own word for sourced sound effects, and it is five letters, which is
+how many boxes the keypad has.
+
+**The list is not in the page.** `assets/sfx/sfx.json` is fetched on the first
+open and kept for the tab, generated from `assets/sfx/sfx.txt` by
+`tools/bake_sfx.py`. One line adds a sound:
+
+    Category | Item | Variant | File
+
+A CATEGORY is a section and a row in the sidebar. An ITEM is one card. Every
+line sharing a category and an item is one option in that card's dropdown, and
+the number beside it is how many of those there are — nothing counts them by
+hand. The file is a path under `assets/sfx/` or `-` for one that is wanted and
+not sourced yet; `--check` is a byte comparison against a rebuild, so a hand
+edit to the JSON fails rather than being silently thrown away on the next bake.
+
+**ONE `<audio>` AND ONE TRANSPORT FOR THE WHOLE LIBRARY, and the transport is
+MOVED into whichever card is playing.** Seventy-six scrub bars would be
+seventy-six things to keep in step with one element, and the one that is not on
+screen is the one that goes stale — the same reason the music remote owns no
+state. The card it lands in grows to make room; nothing else moves. Switching
+the dropdown on the card that is playing plays the new take.
+
+**Three columns, then two, then one, at widths that are stated.** `auto-fit`
+with a `minmax` floor was tried first and is the wrong tool here: the column
+count then depends on the list's width, which depends on whether the sidebar is
+showing, so "how many across is it" had no answer anyone could give without
+measuring. One column is the answer below 901px, which is the same width at
+which the sidebar goes and the shell goes full-screen.
+
+**It registers with `MediaBus`** like everything else that makes a noise, so
+starting a sound stops the music and the no-sound-without-a-control guard can
+see it. Its `control` is the overlay being open, because that is where the
+transport lives — there is no docked form of this one, so closing the overlay
+stops the sound rather than revealing anything. `bindModal`'s `onClose` does
+that immediately; the guard would silence it up to three seconds later anyway,
+and "immediately" is the better answer when the window has just been shut.
+
+**Folded categories are remembered** (`sfx-shut` in localStorage), and so is the
+volume (`sfx-volume`). A search filters cards by category, item and take name,
+and rebuilds the list — if something is playing, the transport is put back on
+the card it belongs to rather than silently orphaned, because the `<audio>`
+never moved.
+
+**WHAT IS NOT HERE YET: the sounds.** Every track in the manifest is `-`. The
+files are a sourcing job — free-for-commercial-use, high quality, not
+synthesised — and they drop into `assets/sfx/` with one manifest line each.
+`tools/sfx_check.mjs` writes its own two-second tone, adds it to the manifest,
+bakes it with the real baker, drives it and takes both away again: a player
+that has never played anything is a player nothing has been proved about, and a
+synthesised fixture in a harness is not a synthesised sound shipping.
+
 ## Music overlay (code `MUSIC`)
 
 A playlist of 311 YouTube links behind the same door as the notes: type `MUSIC`

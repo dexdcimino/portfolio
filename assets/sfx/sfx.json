@@ -1,0 +1,385 @@
+{
+ "count": 76,
+ "items": 25,
+ "sourced": 0,
+ "categories": [
+  {
+   "name": "Player",
+   "items": [
+    {
+     "name": "Footsteps, grass",
+     "tracks": [
+      {
+       "name": "Soft walk"
+      },
+      {
+       "name": "Run"
+      },
+      {
+       "name": "Heavy landing"
+      }
+     ]
+    },
+    {
+     "name": "Footsteps, hard",
+     "tracks": [
+      {
+       "name": "Concrete walk"
+      },
+      {
+       "name": "Concrete run"
+      },
+      {
+       "name": "Metal walk"
+      },
+      {
+       "name": "Wood walk"
+      }
+     ]
+    },
+    {
+     "name": "Death splat",
+     "tracks": [
+      {
+       "name": "Wet burst"
+      },
+      {
+       "name": "Thick splatter"
+      },
+      {
+       "name": "Splat with drips"
+      },
+      {
+       "name": "Comic squelch"
+      }
+     ]
+    },
+    {
+     "name": "Hurt",
+     "tracks": [
+      {
+       "name": "Short grunt"
+      },
+      {
+       "name": "Heavy hit"
+      },
+      {
+       "name": "Scraped"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Items",
+   "items": [
+    {
+     "name": "Bow, draw",
+     "tracks": [
+      {
+       "name": "Slow creak"
+      },
+      {
+       "name": "Quick pull"
+      },
+      {
+       "name": "Heavy longbow"
+      }
+     ]
+    },
+    {
+     "name": "Bow, release",
+     "tracks": [
+      {
+       "name": "Sharp twang"
+      },
+      {
+       "name": "Deep thrum"
+      },
+      {
+       "name": "Whoosh away"
+      }
+     ]
+    },
+    {
+     "name": "Arrow, impact",
+     "tracks": [
+      {
+       "name": "Into flesh"
+      },
+      {
+       "name": "Into wood"
+      },
+      {
+       "name": "Into stone"
+      },
+      {
+       "name": "Shield clang"
+      }
+     ]
+    },
+    {
+     "name": "Terraformer, raise",
+     "tracks": [
+      {
+       "name": "Rising rumble"
+      },
+      {
+       "name": "Stone grind"
+      },
+      {
+       "name": "Magic swell"
+      }
+     ]
+    },
+    {
+     "name": "Terraformer, carve",
+     "tracks": [
+      {
+       "name": "Scooping earth"
+      },
+      {
+       "name": "Deep gouge"
+      },
+      {
+       "name": "Crumble"
+      }
+     ]
+    },
+    {
+     "name": "Terraformer, water",
+     "tracks": [
+      {
+       "name": "Fill and splash"
+      },
+      {
+       "name": "Gentle flood"
+      },
+      {
+       "name": "Rushing in"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Weapons",
+   "items": [
+    {
+     "name": "SMG, fire",
+     "tracks": [
+      {
+       "name": "Short burst"
+      },
+      {
+       "name": "Full auto loop"
+      },
+      {
+       "name": "Single shot"
+      }
+     ]
+    },
+    {
+     "name": "SMG, impact",
+     "tracks": [
+      {
+       "name": "Into dirt"
+      },
+      {
+       "name": "Into metal"
+      },
+      {
+       "name": "Ricochet"
+      }
+     ]
+    },
+    {
+     "name": "Pistol, fire",
+     "tracks": [
+      {
+       "name": "Crisp shot"
+      },
+      {
+       "name": "Suppressed"
+      },
+      {
+       "name": "Heavy revolver"
+      }
+     ]
+    },
+    {
+     "name": "Pistol, impact",
+     "tracks": [
+      {
+       "name": "Into wood"
+      },
+      {
+       "name": "Into glass"
+      },
+      {
+       "name": "Into body"
+      }
+     ]
+    },
+    {
+     "name": "Reload",
+     "tracks": [
+      {
+       "name": "Magazine out"
+      },
+      {
+       "name": "Magazine in"
+      },
+      {
+       "name": "Slide rack"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Vehicles",
+   "items": [
+    {
+     "name": "Scooter",
+     "tracks": [
+      {
+       "name": "Idle loop"
+      },
+      {
+       "name": "Accelerate"
+      },
+      {
+       "name": "Skid stop"
+      }
+     ]
+    },
+    {
+     "name": "Bike",
+     "tracks": [
+      {
+       "name": "Pedalling"
+      },
+      {
+       "name": "Freewheel tick"
+      },
+      {
+       "name": "Brake squeal"
+      }
+     ]
+    },
+    {
+     "name": "Hoverboard",
+     "tracks": [
+      {
+       "name": "Hum loop"
+      },
+      {
+       "name": "Boost"
+      },
+      {
+       "name": "Power down"
+      }
+     ]
+    },
+    {
+     "name": "Tank, machine gun",
+     "tracks": [
+      {
+       "name": "Short burst"
+      },
+      {
+       "name": "Sustained"
+      },
+      {
+       "name": "Spin up"
+      }
+     ]
+    },
+    {
+     "name": "Tank, rocket",
+     "tracks": [
+      {
+       "name": "Launch"
+      },
+      {
+       "name": "Travel whoosh"
+      },
+      {
+       "name": "Explosion"
+      }
+     ]
+    },
+    {
+     "name": "Tank, tracks",
+     "tracks": [
+      {
+       "name": "Rolling loop"
+      },
+      {
+       "name": "Turn in place"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Music",
+   "items": [
+    {
+     "name": "Main theme",
+     "tracks": [
+      {
+       "name": "Full mix"
+      },
+      {
+       "name": "Intro only"
+      },
+      {
+       "name": "Loop"
+      }
+     ]
+    },
+    {
+     "name": "Build mode",
+     "tracks": [
+      {
+       "name": "Calm loop"
+      },
+      {
+       "name": "Busy loop"
+      }
+     ]
+    },
+    {
+     "name": "Combat",
+     "tracks": [
+      {
+       "name": "Low tension"
+      },
+      {
+       "name": "Full combat"
+      },
+      {
+       "name": "Victory sting"
+      }
+     ]
+    },
+    {
+     "name": "Menu",
+     "tracks": [
+      {
+       "name": "Title loop"
+      },
+      {
+       "name": "Click"
+      },
+      {
+       "name": "Back"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

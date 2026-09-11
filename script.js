@@ -3426,7 +3426,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
      and the content still comes from the server or not at all. The music
      overlay has no password to be past: it is a list of public links, and the
      code is a doorway rather than a lock. */
-  const EVENTS = { notes: 'notes:open', music: 'music:open' };
+  const EVENTS = { notes: 'notes:open', music: 'music:open', sfx: 'sfx:open' };
 
   /* SubtleCrypto only exists in a secure context. Over https or on localhost
      that is everywhere; opened as a file:// double-click it is nowhere, and the
@@ -6458,6 +6458,438 @@ const MediaBus = (() => {
   watch.observe(nowArtist, text);
 
   place();
+})();
+
+
+/* --- the sound library (code FOLEY) ----------------------------------------
+   Every sound the game needs, as cards in categories: a name, a dropdown of
+   the takes of it, how many of those there are, and a play button. A shopping
+   list as much as a player -- a track with no file yet is still a card, and it
+   says so on its face rather than being left out and forgotten about.
+
+   ONE <audio> AND ONE TRANSPORT FOR THE WHOLE LIBRARY, and the transport is
+   MOVED into whichever card is playing. Seventy-six scrub bars would be
+   seventy-six things to keep in step with one element, and the one that is not
+   on screen is the one that goes stale -- the same reason the music remote
+   owns no state. The card it lands in grows to make room; nothing else moves.
+
+   THE LIST IS NOT IN THE PAGE. assets/sfx/sfx.json is fetched on the first
+   open and kept for the tab. Generated from assets/sfx/sfx.txt by
+   tools/bake_sfx.py -- add a line there, re-run it, and the card appears.
+
+   IT REGISTERS WITH MediaBus like everything else that makes a noise, so
+   starting a sound stops the music, the arrow keys stay with whoever owns
+   them, and the no-sound-without-a-control guard can see it. */
+(function initSfx() {
+  const modal = document.getElementById('sfxModal');
+  if (!modal) return;
+
+  const $ = (id) => document.getElementById(id);
+  const listEl = $('sfxList'), railEl = $('sfxRail'), countEl = $('sfxCount');
+  const searchEl = $('sfxSearch'), audio = $('sfxAudio');
+  if (!listEl || !railEl || !audio) return;
+
+  const MANIFEST = 'assets/sfx/sfx.json';
+  const VOLUME_KEY = 'sfx-volume';
+  const SHUT_KEY = 'sfx-shut';          // which categories are folded
+
+  let library = null;                   // the fetched manifest, once
+  let loading = null;                   // the in-flight fetch, so two opens share one
+  let playing = null;                   // the card element that has the transport
+  let volume = 0.7;
+  let repeat = false;
+  let scrubbing = false;
+
+  /* ---- the transport, built once ---------------------------------------- */
+  /* In JS rather than in the markup because there is exactly one and it has no
+     home until something plays. Everything in it is the site's own: the slider
+     is .player-range, the marks are the icon system's. */
+  const tr = document.createElement('div');
+  tr.className = 'sfx-transport';
+  tr.innerHTML =
+    '<div class="sfx-seek">'
+    + '<span class="sfx-time" data-el="at">0:00</span>'
+    + '<input class="player-range sfx-scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">'
+    + '<span class="sfx-time" data-el="dur">--:--</span>'
+    + '</div>'
+    + '<div class="sfx-tail">'
+    + '<button class="sfx-btn" type="button" data-el="toggle" aria-label="Pause">'
+    + '<span class="icon" data-icon="pause" aria-hidden="true"></span></button>'
+    + '<button class="sfx-btn" type="button" data-el="loop" aria-label="Repeat off" aria-pressed="false">'
+    + '<span class="icon" data-icon="loop" aria-hidden="true"></span></button>'
+    + '<span class="sfx-tail-gap" aria-hidden="true"></span>'
+    + '<button class="sfx-btn" type="button" data-el="mute" aria-label="Mute">'
+    + '<span class="icon" data-icon="volume" aria-hidden="true"></span></button>'
+    + '<input class="player-range sfx-vol" type="range" min="0" max="100" value="70" step="1" aria-label="Volume">'
+    + '<button class="sfx-btn" type="button" data-el="stop" aria-label="Stop">'
+    + '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>'
+    + '</button>'
+    + '</div>';
+  const part = (name) => tr.querySelector(`[data-el="${name}"]`);
+  const atEl = part('at'), durEl = part('dur'), scrub = tr.querySelector('.sfx-scrub');
+  const volEl = tr.querySelector('.sfx-vol');
+  const toggleBtn = part('toggle'), loopBtn = part('loop'), muteBtn = part('mute'), stopBtn = part('stop');
+
+  const setFill = (el, pct) => el.style.setProperty('--fill', `${pct}%`);
+  const mmss = (t) => (Number.isFinite(t) && t >= 0
+    ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '--:--');
+
+  /* ---- building the list ------------------------------------------------ */
+
+  async function fetchLibrary() {
+    countEl.textContent = 'LOADING';
+    try {
+      const response = await fetch(MANIFEST, { cache: 'no-cache' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const cats = Array.isArray(data && data.categories) ? data.categories : [];
+      /* An empty manifest is a BROKEN manifest, never an empty library: it
+         means the bake wrote nothing or a rewrite rule answered 200 with
+         something else. Reporting "0 sounds" as a normal state is the exact
+         failure CLAUDE.md has four scars from. */
+      if (!cats.length) throw new Error('the manifest holds no categories');
+      library = data;
+      return true;
+    } catch (error) {
+      console.warn('sfx: could not load the library', error);
+      countEl.textContent = 'UNAVAILABLE';
+      listEl.replaceChildren(Object.assign(document.createElement('p'),
+        { className: 'sfx-empty', textContent: 'The sound library could not be loaded.' }));
+      return false;
+    }
+  }
+
+  const shutSet = () => {
+    try { return new Set(JSON.parse(localStorage.getItem(SHUT_KEY) || '[]')); }
+    catch { return new Set(); }
+  };
+  const saveShut = (set) => {
+    try { localStorage.setItem(SHUT_KEY, JSON.stringify([...set])); }
+    catch { /* private mode — it still folds, it just will not be remembered */ }
+  };
+
+  function render() {
+    const shut = shutSet();
+    const q = searchEl.value.trim().toLowerCase();
+    const sections = [];
+    const railRows = [];
+    let shown = 0;
+
+    for (const cat of library.categories) {
+      const items = q
+        ? cat.items.filter(it => (cat.name + ' ' + it.name + ' '
+            + it.tracks.map(t => t.name).join(' ')).toLowerCase().includes(q))
+        : cat.items;
+      if (!items.length) continue;
+      shown += items.length;
+
+      const sec = document.createElement('section');
+      sec.className = `sfx-cat${shut.has(cat.name) && !q ? ' is-shut' : ''}`;
+      sec.dataset.cat = cat.name;
+
+      const head = document.createElement('button');
+      head.type = 'button';
+      head.className = 'sfx-cat-head';
+      head.setAttribute('aria-expanded', String(!sec.classList.contains('is-shut')));
+      head.innerHTML = '<span class="icon sfx-cat-chev" data-icon="chevron" aria-hidden="true"></span>'
+        + `<span class="sfx-cat-name"></span><span class="sfx-cat-n"></span>`;
+      head.querySelector('.sfx-cat-name').textContent = cat.name;
+      head.querySelector('.sfx-cat-n').textContent = String(items.length);
+      head.addEventListener('click', () => {
+        const nowShut = sec.classList.toggle('is-shut');
+        head.setAttribute('aria-expanded', String(!nowShut));
+        const set = shutSet();
+        if (nowShut) set.add(cat.name); else set.delete(cat.name);
+        saveShut(set);
+      });
+
+      const grid = document.createElement('div');
+      grid.className = 'sfx-grid';
+      for (const item of items) grid.append(card(cat, item));
+
+      sec.append(head, grid);
+      sections.push(sec);
+
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.innerHTML = '<span class="sfx-rail-name"></span><span class="sfx-rail-n"></span>';
+      row.querySelector('.sfx-rail-name').textContent = cat.name;
+      row.querySelector('.sfx-rail-n').textContent = String(items.length);
+      row.addEventListener('click', () => {
+        sec.classList.remove('is-shut');
+        head.setAttribute('aria-expanded', 'true');
+        listEl.scrollTo({ top: sec.offsetTop - 12 });
+      });
+      railRows.push(row);
+    }
+
+    listEl.replaceChildren(...sections);
+    railEl.replaceChildren(...railRows);
+    if (!sections.length) {
+      listEl.replaceChildren(Object.assign(document.createElement('p'),
+        { className: 'sfx-empty', textContent: q ? `Nothing matches "${searchEl.value.trim()}".` : 'The library is empty.' }));
+    }
+    const total = library.count || 0;
+    countEl.textContent = q
+      ? `${shown} OF ${library.items} ITEMS`
+      : `${library.items} ITEMS · ${total} TRACKS · ${library.sourced} WITH A FILE`;
+    /* The transport went with the old DOM. Whatever was playing is still
+       playing -- the <audio> never moved -- so it is put back on the card it
+       belongs to rather than silently orphaned. */
+    if (playing) {
+      const again = listEl.querySelector(`[data-cat="${CSS.escape(playing.dataset.cat)}"] `
+        + `[data-item="${CSS.escape(playing.dataset.item)}"]`);
+      if (again) { adopt(again); } else { stop(); }
+    }
+  }
+
+  function card(cat, item) {
+    const el = document.createElement('div');
+    el.className = 'sfx-card';
+    el.dataset.cat = cat.name;
+    el.dataset.item = item.name;
+
+    const top = document.createElement('div');
+    top.className = 'sfx-card-top';
+    top.innerHTML = '<span class="sfx-card-name"></span><span class="sfx-card-n"></span>';
+    top.querySelector('.sfx-card-name').textContent = item.name;
+    top.querySelector('.sfx-card-n').textContent = `${item.tracks.length}`;
+    top.querySelector('.sfx-card-n').title = `${item.tracks.length} take(s)`;
+
+    const row = document.createElement('div');
+    row.className = 'sfx-card-row';
+    const pick = document.createElement('select');
+    pick.className = 'sfx-pick';
+    pick.setAttribute('aria-label', `Take of ${item.name}`);
+    item.tracks.forEach((t, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      /* The dropdown says which takes are still to be sourced, because
+         choosing one and finding the play button dead is a worse answer than
+         being told before you press it. */
+      opt.textContent = t.file ? t.name : `${t.name} — no file yet`;
+      pick.append(opt);
+    });
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'sfx-play';
+    play.innerHTML = '<span class="icon" data-icon="play" aria-hidden="true"></span>';
+    play.setAttribute('aria-label', `Play ${item.name}`);
+
+    const sourced = item.tracks.some(t => t.file);
+    if (!sourced) el.classList.add('is-empty');
+
+    const syncPlay = () => {
+      const t = item.tracks[Number(pick.value) || 0];
+      play.disabled = !t || !t.file;
+    };
+    syncPlay();
+    pick.addEventListener('change', () => {
+      syncPlay();
+      // Switching take on the card that is playing plays the new one.
+      if (playing === el) start(el, item);
+    });
+    play.addEventListener('click', () => {
+      if (playing === el && !audio.paused) { audio.pause(); paint(); return; }
+      if (playing === el && audio.paused) { audio.play().catch(paint); paint(); return; }
+      start(el, item);
+    });
+
+    row.append(pick, play);
+    el.append(top, row);
+    if (!sourced) {
+      const wait = document.createElement('p');
+      wait.className = 'sfx-wait';
+      wait.textContent = 'TO SOURCE';
+      el.append(wait);
+    }
+    el._item = item;
+    el._pick = pick;
+    el._play = play;
+    return el;
+  }
+
+  /* ---- the bus ----------------------------------------------------------
+     Registered like every other player on this page: starting a sound stops
+     the music, and the no-sound-without-a-control guard can see it. `control`
+     is the overlay being open, because that is where the transport lives --
+     there is no docked form of this one, so with the overlay shut the guard
+     pauses it rather than revealing anything.
+
+     DECLARED BEFORE ANYTHING CAN PAINT. paint() reports to the bus, the
+     volume is restored at the bottom of this block and calls paint() on its
+     way, and `const me` further down was therefore read in its temporal dead
+     zone -- a ReferenceError at load that took the whole overlay with it,
+     including the listener that opens it. It looked exactly like a code that
+     does nothing. */
+  const me = MediaBus.add({
+    el: audio,
+    onScreen: () => modal.open,
+    control: () => modal.open,
+    touched: () => !!playing,
+    toggle: () => toggleBtn.click(),
+    pause: () => audio.pause(),
+  });
+
+  /* ---- playing ---------------------------------------------------------- */
+
+  function adopt(el) {
+    playing = el;
+    for (const c of listEl.querySelectorAll('.sfx-card.is-playing')) {
+      if (c !== el) c.classList.remove('is-playing');
+    }
+    el.classList.add('is-playing');
+    el.append(tr);
+    tr.hidden = false;
+    paint();
+  }
+
+  function start(el, item) {
+    const track = item.tracks[Number(el._pick.value) || 0];
+    if (!track || !track.file) return;
+    audio.src = `assets/sfx/${track.file}`;
+    audio.currentTime = 0;
+    audio.loop = repeat;
+    audio.volume = volume;
+    adopt(el);
+    audio.play().then(() => MediaBus.solo(me)).catch(paint);
+    paint();
+  }
+
+  function stop() {
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    if (playing) playing.classList.remove('is-playing');
+    playing = null;
+    tr.hidden = true;
+    if (tr.parentNode) tr.remove();
+    MediaBus.playbackState(me, false);
+  }
+
+  function paint() {
+    const live = !!playing && !audio.paused;
+    const icon = toggleBtn.querySelector('.icon');
+    if (icon) icon.dataset.icon = live ? 'pause' : 'play';
+    toggleBtn.setAttribute('aria-label', live ? 'Pause' : 'Play');
+    for (const c of listEl.querySelectorAll('.sfx-card')) {
+      const i = c._play && c._play.querySelector('.icon');
+      if (i) i.dataset.icon = (c === playing && live) ? 'pause' : 'play';
+    }
+    loopBtn.setAttribute('aria-pressed', String(repeat));
+    loopBtn.setAttribute('aria-label', repeat ? 'Repeat on' : 'Repeat off');
+    const mi = muteBtn.querySelector('.icon');
+    if (mi) mi.dataset.icon = volume === 0 ? 'volume-mute' : 'volume';
+    muteBtn.setAttribute('aria-label', volume === 0 ? 'Unmute' : 'Mute');
+    MediaBus.playbackState(me, live);
+  }
+
+  function paintTime() {
+    if (scrubbing) return;
+    durEl.textContent = mmss(audio.duration);
+    atEl.textContent = mmss(audio.currentTime);
+    const at = audio.duration > 0 ? Math.min(1, audio.currentTime / audio.duration) : 0;
+    scrub.value = Math.round(at * 1000);
+    setFill(scrub, at * 100);
+  }
+
+  audio.addEventListener('timeupdate', paintTime);
+  audio.addEventListener('loadedmetadata', paintTime);
+  audio.addEventListener('play', () => { paint(); MediaBus.solo(me); });
+  audio.addEventListener('pause', paint);
+  audio.addEventListener('ended', () => { if (!repeat) paint(); });
+  audio.addEventListener('error', () => {
+    /* A file named in the manifest that will not play is a real failure and
+       says so: the card goes back to its resting state rather than sitting
+       with a transport that never moves. */
+    console.warn('sfx: could not play', audio.currentSrc);
+    stop();
+  });
+
+  scrub.addEventListener('pointerdown', () => { scrubbing = true; });
+  const commit = () => {
+    scrubbing = false;
+    if (audio.duration > 0) audio.currentTime = (scrub.value / 1000) * audio.duration;
+  };
+  scrub.addEventListener('pointerup', commit);
+  scrub.addEventListener('change', commit);
+  scrub.addEventListener('input', () => {
+    setFill(scrub, scrub.value / 10);
+    if (audio.duration > 0) atEl.textContent = mmss((scrub.value / 1000) * audio.duration);
+  });
+
+  function applyVolume(v, persist) {
+    volume = Math.min(1, Math.max(0, v));
+    audio.volume = volume;
+    volEl.value = Math.round(volume * 100);
+    setFill(volEl, volume * 100);
+    if (persist) {
+      try { localStorage.setItem(VOLUME_KEY, String(volume)); } catch { /* private mode */ }
+    }
+    paint();
+  }
+  let lastVolume = 0.7;
+  volEl.addEventListener('input', () => {
+    const v = volEl.value / 100;
+    if (v > 0) lastVolume = v;
+    applyVolume(v, true);
+  });
+  muteBtn.addEventListener('click', () => applyVolume(volume === 0 ? (lastVolume || 0.7) : 0, true));
+  toggleBtn.addEventListener('click', () => {
+    if (audio.paused) audio.play().catch(paint); else audio.pause();
+    paint();
+  });
+  loopBtn.addEventListener('click', () => {
+    repeat = !repeat;
+    audio.loop = repeat;
+    paint();
+  });
+  stopBtn.addEventListener('click', stop);
+
+  let stored = null;
+  try { stored = localStorage.getItem(VOLUME_KEY); } catch { /* private mode */ }
+  const parsed = stored === null ? 0.7 : parseFloat(stored);
+  applyVolume(Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : 0.7, false);
+  lastVolume = volume || 0.7;
+
+  /* ---- opening ---------------------------------------------------------- */
+
+  /* Debounced by hand: there is no shared debounce in this file, and a
+     rebuild of seventy-six cards per keystroke is a rebuild per keystroke. */
+  let searchTimer = 0;
+  searchEl.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { if (library) render(); }, 160);
+  });
+
+  async function open(trigger) {
+    openModal(modal, modal.querySelector('.sfx-shell'), null, trigger);
+    if (!library) {
+      loading = loading || fetchLibrary();
+      if (!(await loading)) { loading = null; return; }
+      loading = null;
+    }
+    render();
+    listEl.focus({ preventScroll: true });
+  }
+
+  bindModal(modal, () => {
+    /* The overlay closing STOPS the sound. There is no docked form of this
+       player and no control outside the overlay, so anything still going here
+       would be a noise with nothing to stop it -- see MediaBus.guard, which
+       would silence it a moment later anyway. Doing it here means it stops
+       when the window shuts rather than up to three seconds afterwards. */
+    stop();
+    searchEl.value = '';
+  });
+  $('sfxClose')?.addEventListener('click', () => closeModal(modal));
+
+  /* Opened by EVENT rather than from the vault's VIEWS table, for the same
+     reason the notes and the music are: it has to fetch its manifest before
+     there is anything to show. */
+  document.addEventListener('sfx:open', (event) => {
+    if (!modal.open) open((event.detail || {}).opener);
+  });
 })();
 
 /* --- markdown ------------------------------------------------------------- */
