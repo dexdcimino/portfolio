@@ -6286,6 +6286,21 @@ body.modal-open{overflow:hidden}
   font:inherit;font-size:14px;
 }
 .sfx-search:focus{outline:none;border-color:var(--accent)}
+/* The library's own controls, not a card's. Divided off from the search with
+   a rule rather than a gap: at this width a gap reads as a wrap. */
+.sfx-master{display:flex;align-items:center;gap:7px;padding-right:14px;margin-right:2px;
+  border-right:1px solid rgba(255,255,255,.09)}
+.sfx-master .sfx-vol{width:96px;flex:0 0 auto}
+.sfx-stop{
+  display:flex;align-items:center;gap:6px;height:32px;padding:0 11px 0 8px;
+  border:1px solid rgba(255,255,255,.12);border-radius:9px;background:none;color:var(--muted);
+  font:inherit;font-size:12px;font-weight:800;letter-spacing:.04em;cursor:pointer;
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .18s ease;
+}
+.sfx-stop svg{width:13px;height:13px}
+.sfx-stop:hover:not(:disabled){color:#fff;border-color:var(--accent);background:rgba(255,255,255,.06)}
+.sfx-stop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sfx-stop:disabled{opacity:.35;cursor:default}
 
 .sfx-body{flex:1 1 auto;min-height:0;display:flex}
 /* The table of contents. Preset and not customisable -- it names the sections
@@ -6367,7 +6382,7 @@ body.modal-open{overflow:hidden}
    One colour for both bands rather than one per band: the cards are the
    constant and the ground behind them is what alternates. */
 .sfx-card{
-  display:grid;gap:9px;padding:13px 14px;
+  display:grid;gap:10px;padding:13px 14px 12px;
   border:1px solid rgba(255,255,255,.07);border-radius:16px;background:#0a0d12;
   transition:border-color var(--accent-ease),background .18s ease;
 }
@@ -6386,7 +6401,15 @@ body.modal-open{overflow:hidden}
   background:rgba(255,255,255,.07);color:var(--muted);
   font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;
 }
-.sfx-card-row{display:flex;align-items:center;gap:8px;min-width:0}
+/* ---- THE STAGE: play, the picture, the length -------------------------
+   The waveform IS the scrub bar, which is what removed the second play
+   button. There used to be ONE transport that was MOVED into whichever card
+   was playing -- right for a music player with one bar along the bottom, wrong
+   for a grid of 25 cards, because the card already has a play button and the
+   transport arrived carrying another one. */
+.sfx-stage{display:flex;align-items:center;gap:11px;min-width:0}
+/* ---- the take bar: previous, which take, next, loop, save -------------- */
+.sfx-take{display:flex;align-items:center;gap:6px;min-width:0}
 /* appearance:none IS THE WHOLE FIX. Left alone, a <select> is painted by the
    operating system: a grey bevel and a Windows 95 triangle, on a panel that is
    neither. Only the CLOSED control can be styled -- the popup list belongs to
@@ -6399,14 +6422,51 @@ body.modal-open{overflow:hidden}
    fills it, the mark is laid over the right end with pointer-events:none so
    every click still reaches the control underneath. The padding-right is what
    keeps a long take name from running under it. */
-.sfx-pickwrap{position:relative;flex:1 1 auto;min-width:0;display:flex}
-.sfx-pickwrap .sfx-chev{
-  position:absolute;right:11px;top:50%;transform:translateY(-50%);
-  width:13px;height:13px;color:var(--muted);pointer-events:none;
+/* ---- the waveform ------------------------------------------------------
+   40 bars, measured by tools/bake_sfx.py and shipped as 40 characters in the
+   manifest -- so it paints on the first frame, with no fetch and no decode.
+   Two layers of the same path: the dim one is the take, the accent one is how
+   far into it you are, revealed by clipping to --at. Clip rather than width,
+   because a width animation on an SVG re-lays-it-out every frame. */
+.sfx-wave{
+  position:relative;flex:1 1 auto;min-width:0;height:42px;
+  border-radius:8px;background:rgba(255,255,255,.028);
+  cursor:pointer;overflow:hidden;touch-action:none;
+  transition:background .18s ease;
 }
-.sfx-pickwrap:hover .sfx-chev{color:#cfd6de}
+.sfx-wave:hover{background:rgba(255,255,255,.05)}
+.sfx-wave:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sfx-wave.is-empty{cursor:default;background:rgba(255,255,255,.02)}
+.sfx-wave svg{position:absolute;inset:4px 5px;width:calc(100% - 10px);height:calc(100% - 8px);display:block}
+.sfx-wave-off path{fill:rgba(255,255,255,.22)}
+.sfx-card:hover .sfx-wave-off path{fill:rgba(255,255,255,.3)}
+.sfx-wave-on{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--at,0%)) 0 0);
+  will-change:clip-path}
+.sfx-wave-hot path{fill:var(--accent)}
+@media(prefers-reduced-motion:no-preference){
+  .sfx-wave-on{transition:clip-path .08s linear}
+}
+/* The length of the take, from the manifest -- so it says 0.78s before
+   anything has been fetched, and "0.31s / 0.78s" once it is running. */
+.sfx-dur{
+  flex:0 0 auto;min-width:74px;text-align:right;
+  font-size:11px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;
+}
+.sfx-card.is-playing .sfx-dur{color:#cfd6de}
+/* ---- previous and next take ------------------------------------------- */
+/* A dropdown is random access and these two are the ones you actually use:
+   press play, then walk the takes with one finger. */
+.sfx-step{
+  flex:0 0 auto;width:30px;height:34px;display:grid;place-items:center;
+  border:1px solid rgba(255,255,255,.09);border-radius:9px;background:none;color:var(--muted);
+  cursor:pointer;transition:color var(--accent-ease),border-color var(--accent-ease),background .18s ease;
+}
+.sfx-step .icon{width:14px;height:14px}
+.sfx-step:hover:not(:disabled){color:#fff;border-color:var(--accent);background:rgba(255,255,255,.06)}
+.sfx-step:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sfx-step:disabled{opacity:.3;cursor:default}
 .sfx-pick{
-  flex:1 1 auto;min-width:0;height:36px;padding:0 32px 0 11px;
+  flex:1 1 auto;min-width:0;height:34px;padding:0 9px;text-align:center;
   -webkit-appearance:none;-moz-appearance:none;appearance:none;
   border:1px solid rgba(255,255,255,.1);border-radius:10px;
   background-color:#12171f;color:#dbe2ea;
@@ -6419,12 +6479,17 @@ body.modal-open{overflow:hidden}
 /* The popup is the OS's, but Chrome does take these two from the element. */
 .sfx-pick option{background:#12171f;color:#dbe2ea}
 .sfx-pick:disabled{cursor:default;opacity:.55}
+/* THE ONE PLAY BUTTON, and the biggest thing on the card. Round, filled with
+   the accent, and 42px to match the waveform beside it: the two of them are
+   the card, and everything under them is about which take they are pointed
+   at. */
 .sfx-play{
-  flex:0 0 auto;width:34px;height:34px;display:grid;place-items:center;padding:0;cursor:pointer;
+  flex:0 0 auto;width:42px;height:42px;display:grid;place-items:center;padding:0;cursor:pointer;
   border:0;border-radius:50%;background:var(--accent);color:#0b0c12;
-  transition:filter .18s ease,background .18s ease;
+  transition:filter .18s ease,background .18s ease,transform .12s ease;
 }
-.sfx-play .icon{width:17px;height:17px}
+.sfx-play:active:not(:disabled){transform:scale(.94)}
+.sfx-play .icon{width:19px;height:19px}
 .sfx-play:hover{filter:brightness(1.12)}
 .sfx-play:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sfx-play:disabled{background:rgba(255,255,255,.08);color:var(--muted);cursor:default;filter:none}
@@ -6433,6 +6498,20 @@ body.modal-open{overflow:hidden}
    re-fetches it to hand it back is a second copy of that for no reason. It is
    the quieter of the two marks on the row -- playing is what you came for,
    saving is what you do once. */
+/* CLICK LATCHES, HOLD AUDITIONS. Holding it loops the take for as long as the
+   button is down -- the way to find out whether a jetpack or a held trigger
+   loops cleanly is to listen to it go round for as long as you care to. The
+   card says which of the two is happening: pressed for the latch, a pulsing
+   ring for the hold. */
+.sfx-loop{flex:0 0 auto;width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.09)}
+.sfx-loop:disabled{opacity:.3;cursor:default}
+.sfx-card.is-holding{border-color:var(--accent);background:#0d1512}
+.sfx-card.is-holding .sfx-loop{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+@media(prefers-reduced-motion:no-preference){
+  .sfx-card.is-holding .sfx-loop{animation:sfxHold 1.1s ease-in-out infinite}
+}
+@keyframes sfxHold{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent)}
+  50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 0%,transparent)}}
 .sfx-get{
   flex:0 0 auto;width:34px;height:34px;display:grid;place-items:center;
   border:1px solid rgba(255,255,255,.1);border-radius:10px;
@@ -6445,13 +6524,6 @@ body.modal-open{overflow:hidden}
 .sfx-get[aria-disabled="true"]{opacity:.4;pointer-events:none}
 
 /* The one transport, wherever it currently is. */
-.sfx-transport{display:grid;gap:7px;padding-top:2px}
-.sfx-transport[hidden]{display:none}
-.sfx-seek{display:flex;align-items:center;gap:9px;min-width:0}
-.sfx-time{flex:none;min-width:38px;font-size:11px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
-.sfx-time:last-child{text-align:right}
-.sfx-scrub{flex:1 1 auto;min-width:0}
-.sfx-tail{display:flex;align-items:center;gap:6px}
 .sfx-btn{
   width:30px;height:30px;flex:0 0 auto;display:grid;place-items:center;padding:0;cursor:pointer;
   border:0;border-radius:8px;background:none;color:var(--muted);
@@ -6463,10 +6535,18 @@ body.modal-open{overflow:hidden}
 .sfx-btn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .sfx-btn[aria-pressed="true"]{color:var(--accent);background:rgba(255,255,255,.07)}
 .sfx-vol{width:76px;flex:0 0 auto}
-.sfx-tail-gap{flex:1 1 auto}
 
+@media(max-width:1100px){
+  /* The stop button is the first thing to go: the space bar is not bound here
+     and closing the overlay stops everything anyway. */
+  .sfx-stop span{display:none}
+  .sfx-stop{padding:0 9px}
+}
 @media(max-width:900px){
   .sfx-shell{width:100vw;height:100dvh;border-radius:0;border:0}
+  .sfx-head{flex-wrap:wrap}
+  .sfx-master{order:3;border-right:0;padding-right:0}
+  .sfx-search{order:4;flex:1 1 auto}
   .sfx-close{top:10px;left:auto;right:10px;margin-left:0}
   /* No room for a table of contents beside the list at this width, and the
      sections are still named by their own heads. */

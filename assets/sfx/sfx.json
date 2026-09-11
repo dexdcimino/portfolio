@@ -2,6 +2,7 @@
  "count": 122,
  "items": 25,
  "sourced": 96,
+ "bars": 40,
  "categories": [
   {
    "name": "Player",
@@ -11,23 +12,33 @@
      "tracks": [
       {
        "name": "Step 1",
-       "file": "player/footstep-grass-1.ogg"
+       "file": "player/footstep-grass-1.ogg",
+       "d": 0.78,
+       "w": "_dSMIIDA98888888888888888888888888888888"
       },
       {
        "name": "Step 2",
-       "file": "player/footstep-grass-2.ogg"
+       "file": "player/footstep-grass-2.ogg",
+       "d": 0.67,
+       "w": "_oeTXSSNDAA99999999999999999999999999999"
       },
       {
        "name": "Step 3",
-       "file": "player/footstep-grass-3.ogg"
+       "file": "player/footstep-grass-3.ogg",
+       "d": 0.69,
+       "w": "_mcVWSNMD8888888888888888888888888888887"
       },
       {
        "name": "Step 4",
-       "file": "player/footstep-grass-4.ogg"
+       "file": "player/footstep-grass-4.ogg",
+       "d": 0.67,
+       "w": "_cULKFFC99999999999999999999999999999998"
       },
       {
        "name": "Step 5",
-       "file": "player/footstep-grass-5.ogg"
+       "file": "player/footstep-grass-5.ogg",
+       "d": 0.59,
+       "w": "_dUNLKHDA9A999999999999999999999999999A9"
       }
      ]
     },
@@ -36,27 +47,39 @@
      "tracks": [
       {
        "name": "Concrete 1",
-       "file": "player/footstep-concrete-1.ogg"
+       "file": "player/footstep-concrete-1.ogg",
+       "d": 0.11,
+       "w": "_gikZPRPOKLLJKFKKKKIJIJJJJJJJJJJJJJJJJJJ"
       },
       {
        "name": "Concrete 2",
-       "file": "player/footstep-concrete-2.ogg"
+       "file": "player/footstep-concrete-2.ogg",
+       "d": 0.11,
+       "w": "_lmYSZVUPOVPONNOROMKHKMILLLLLLKKKKKKKLKK"
       },
       {
        "name": "Concrete 3",
-       "file": "player/footstep-concrete-3.ogg"
+       "file": "player/footstep-concrete-3.ogg",
+       "d": 0.11,
+       "w": "_mlXUXTQRMTLLPNQOLJGJLIKKKKJKJKJJJJJJJJK"
       },
       {
        "name": "Wood 1",
-       "file": "player/footstep-wood-1.ogg"
+       "file": "player/footstep-wood-1.ogg",
+       "d": 0.25,
+       "w": "_mhfWKIIFGEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"
       },
       {
        "name": "Wood 2",
-       "file": "player/footstep-wood-2.ogg"
+       "file": "player/footstep-wood-2.ogg",
+       "d": 0.25,
+       "w": "_pliSHKEFCBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
       },
       {
        "name": "Carpet",
-       "file": "player/footstep-carpet-1.ogg"
+       "file": "player/footstep-carpet-1.ogg",
+       "d": 0.14,
+       "w": "q_qYlegjWWaTRUKJNJHDAA999999999999999999"
       }
      ]
     },
@@ -65,39 +88,57 @@
      "tracks": [
       {
        "name": "Soft heavy burst",
-       "file": "player/splat-heavy-1.ogg"
+       "file": "player/splat-heavy-1.ogg",
+       "d": 0.51,
+       "w": "_utrpllhdedYWVTRRMMLIJGEDFECCCCCBBBCBBBB"
       },
       {
        "name": "Soft heavy, wetter",
-       "file": "player/splat-heavy-2.ogg"
+       "file": "player/splat-heavy-2.ogg",
+       "d": 0.57,
+       "w": "_vpromjhgfZWZXTRQPNKKLHEFFDCDCACBABBABAB"
       },
       {
        "name": "Soft heavy, dull",
-       "file": "player/splat-heavy-3.ogg"
+       "file": "player/splat-heavy-3.ogg",
+       "d": 0.54,
+       "w": "_vrrpmkjhbbcYVUSQPOLJIIHFFEEDDDCCCCCCCCC"
       },
       {
        "name": "Punch through",
-       "file": "player/splat-punch-1.ogg"
+       "file": "player/splat-punch-1.ogg",
+       "d": 0.65,
+       "w": "Ux_ywtqnlghgbaXXTUPMOIGFDAA9432000000000"
       },
       {
        "name": "Slice",
-       "file": "player/splat-slice-1.ogg"
+       "file": "player/splat-slice-1.ogg",
+       "d": 0.6,
+       "w": "00000srnmmkppsu-_-__qjdXTOKE930000000000"
       },
       {
        "name": "Slice, longer",
-       "file": "player/splat-slice-2.ogg"
+       "file": "player/splat-slice-2.ogg",
+       "d": 0.57,
+       "w": "0ztiaVQQWacffeirvw_-_yoidYVPLFB600000000"
       },
       {
        "name": "Chop",
-       "file": "player/splat-chop-1.ogg"
+       "file": "player/splat-chop-1.ogg",
+       "d": 0.24,
+       "w": "248GIJLJ__xrqiifcYaZYURRTRNNKLKIHHHBAF35"
       },
       {
        "name": "Wet splatter",
-       "file": "player/splat-wet-1.ogg"
+       "file": "player/splat-wet-1.ogg",
+       "d": 2.42,
+       "w": "cnmx_xwamrdbXVPNQmpYaUONRLQaGuxwsqopqrre"
       },
       {
        "name": "Wet splatter, again",
-       "file": "player/splat-wet-2.ogg"
+       "file": "player/splat-wet-2.ogg",
+       "d": 2.22,
+       "w": "It_zxytwrdgVTTRRPDCLE893StxpsndrfqmmkeWM"
       },
       {
        "name": "The real one, aggressive and wet"
@@ -109,27 +150,39 @@
      "tracks": [
       {
        "name": "Punch, medium",
-       "file": "player/hurt-punch-1.ogg"
+       "file": "player/hurt-punch-1.ogg",
+       "d": 0.43,
+       "w": "gw__txrsolgeZWSRLFLGAA100440000000000000"
       },
       {
        "name": "Punch, sharper",
-       "file": "player/hurt-punch-2.ogg"
+       "file": "player/hurt-punch-2.ogg",
+       "d": 0.54,
+       "w": "bu_zstqnjibbTSNNGEID86000000000000000000"
       },
       {
        "name": "Soft hit",
-       "file": "player/hurt-soft-1.ogg"
+       "file": "player/hurt-soft-1.ogg",
+       "d": 0.12,
+       "w": "v_vtnhoiklecbS6LWINT9OOIMMLJOKKOLKMMKLML"
       },
       {
        "name": "Soft hit, duller",
-       "file": "player/hurt-soft-2.ogg"
+       "file": "player/hurt-soft-2.ogg",
+       "d": 0.14,
+       "w": "w_tulpqllfbKQaTPWFKOOCOR9MPKGNNHMNLKMMKL"
       },
       {
        "name": "Scrape 1",
-       "file": "player/hurt-scrape-1.ogg"
+       "file": "player/hurt-scrape-1.ogg",
+       "d": 0.66,
+       "w": "0AOMbctywngw_vnjwidaXbVijrqmieYUMHD53300"
       },
       {
        "name": "Scrape 2",
-       "file": "player/hurt-scrape-2.ogg"
+       "file": "player/hurt-scrape-2.ogg",
+       "d": 0.48,
+       "w": "BRYWlw-ssqpnnw_ruxqlcZWUmuspnjkYXWUPKMMQ"
       }
      ]
     }
@@ -143,31 +196,45 @@
      "tracks": [
       {
        "name": "Longbow, slow draw",
-       "file": "items/bow-draw-longbow-1.ogg"
+       "file": "items/bow-draw-longbow-1.ogg",
+       "d": 3.43,
+       "w": "ttutyz_zzxutw_pusvz-txwvz-txyvsytwyzzzy-"
       },
       {
        "name": "Longbow, again",
-       "file": "items/bow-draw-longbow-2.ogg"
+       "file": "items/bow-draw-longbow-2.ogg",
+       "d": 2.63,
+       "w": "yxztrvwxttsromjlssvsppvyvx_rgvxswwpz__wq"
       },
       {
        "name": "Recurve, quick pull",
-       "file": "items/bow-draw-recurve-1.ogg"
+       "file": "items/bow-draw-recurve-1.ogg",
+       "d": 1.63,
+       "w": "sihmruvtqqruqtrtrtwzyzsyx_xusuuvyutkqute"
       },
       {
        "name": "Recurve, longer pull",
-       "file": "items/bow-draw-recurve-2.ogg"
+       "file": "items/bow-draw-recurve-2.ogg",
+       "d": 2.43,
+       "w": "zyy__-yuuttrsuuvzzzuxuzzx_zwwtjqloiojklm"
       },
       {
        "name": "Crossbow, nut against the sear",
-       "file": "items/bow-draw-crossbow-1.ogg"
+       "file": "items/bow-draw-crossbow-1.ogg",
+       "d": 0.31,
+       "w": "LNU_maibZPVOKOLKIOKGRPAALTQJPJMPLIMTSB80"
       },
       {
        "name": "Arrow nocked",
-       "file": "items/bow-nock-1.ogg"
+       "file": "items/bow-nock-1.ogg",
+       "d": 0.65,
+       "w": "pz-_ssollfjkhncjcggiYfZnkhknoqpqptsmqofc"
       },
       {
        "name": "Arrow nocked, again",
-       "file": "items/bow-nock-2.ogg"
+       "file": "items/bow-nock-2.ogg",
+       "d": 0.48,
+       "w": "8Ll_-vsrokgecaaYWXWTOPPLKKLJIILGKFAMA460"
       }
      ]
     },
@@ -176,31 +243,45 @@
      "tracks": [
       {
        "name": "Longbow, sharp twang",
-       "file": "items/bow-shoot-longbow-1.ogg"
+       "file": "items/bow-shoot-longbow-1.ogg",
+       "d": 0.35,
+       "w": "42bn_ukcRNIKBAEGCAFIG7EEF7A3CD0002472100"
       },
       {
        "name": "Longbow, deeper",
-       "file": "items/bow-shoot-longbow-2.ogg"
+       "file": "items/bow-shoot-longbow-2.ogg",
+       "d": 1.03,
+       "w": "r_dWVQMQOMMNONNHHBEFORRPUTLOSVWWSVURTTPE"
       },
       {
        "name": "Recurve, thrum",
-       "file": "items/bow-shoot-recurve-1.ogg"
+       "file": "items/bow-shoot-recurve-1.ogg",
+       "d": 0.5,
+       "w": "Aex_ZWTPNLMIGKAHHCFJABHBCJDGFBEG00002000"
       },
       {
        "name": "Recurve, again",
-       "file": "items/bow-shoot-recurve-2.ogg"
+       "file": "items/bow-shoot-recurve-2.ogg",
+       "d": 0.49,
+       "w": "8i_rcYSOMFIKFHGAF7AK8BA959647843A0870000"
       },
       {
        "name": "Crossbow, snap",
-       "file": "items/bow-shoot-crossbow-1.ogg"
+       "file": "items/bow-shoot-crossbow-1.ogg",
+       "d": 0.24,
+       "w": "00r_rmmfccZZTTNQQNOIFFI50020000000000000"
       },
       {
        "name": "Arrow away",
-       "file": "items/arrow-pass-1.ogg"
+       "file": "items/arrow-pass-1.ogg",
+       "d": 0.45,
+       "w": "Hs_yxsmnlnqtyzxuqnkkjhhfeedcbaaZYZXYWSMB"
       },
       {
        "name": "Heavy arrow away",
-       "file": "items/arrow-pass-heavy-1.ogg"
+       "file": "items/arrow-pass-heavy-1.ogg",
+       "d": 0.43,
+       "w": "GRbiZabWWUSTRWWUUVZfltz_xpicYVVTTSQOHB90"
       }
      ]
     },
@@ -209,19 +290,27 @@
      "tracks": [
       {
        "name": "Into flesh",
-       "file": "items/arrow-impact-flesh-1.ogg"
+       "file": "items/arrow-impact-flesh-1.ogg",
+       "d": 0.57,
+       "w": "_utrooihiccaXXSUROOLJLIGFEFCACCABBABBABA"
       },
       {
        "name": "Into wood",
-       "file": "items/arrow-impact-wood-1.ogg"
+       "file": "items/arrow-impact-wood-1.ogg",
+       "d": 0.31,
+       "w": "_mpcYbeZPBOFLHNKGHIIGGCEEDDEDDEDDDDDDDDD"
       },
       {
        "name": "Into stone",
-       "file": "items/arrow-impact-stone-1.ogg"
+       "file": "items/arrow-impact-stone-1.ogg",
+       "d": 0.49,
+       "w": "_zpnogkehdXRYVdTTPIVLRVQKD04H0FBB9893555"
       },
       {
        "name": "Shield clang",
-       "file": "items/arrow-impact-shield-1.ogg"
+       "file": "items/arrow-impact-shield-1.ogg",
+       "d": 0.17,
+       "w": "_mhfcZXVTSQPONNMNMMMMMMMMMMMMMMMMMMMMMMM"
       }
      ]
     },
@@ -230,19 +319,27 @@
      "tracks": [
       {
        "name": "Rising rumble",
-       "file": "items/terra-raise-rumble-1.ogg"
+       "file": "items/terra-raise-rumble-1.ogg",
+       "d": 3.03,
+       "w": "wuxww_tqppurpsqmooqoppqnqpqptwuvwwxwvxtu"
       },
       {
        "name": "Rumble, moving",
-       "file": "items/terra-raise-rumble-2.ogg"
+       "file": "items/terra-raise-rumble-2.ogg",
+       "d": 2.63,
+       "w": "x-wyz-x_zy-xy--wuyyuvxtutuvttvvutuzzyywt"
       },
       {
        "name": "Thunder roll",
-       "file": "items/terra-raise-thunder-1.ogg"
+       "file": "items/terra-raise-thunder-1.ogg",
+       "d": 3.03,
+       "w": "Ylrv_xupxpjormhpqdYbYVWWRORMUSUZTRSYTKTW"
       },
       {
        "name": "Stone grind",
-       "file": "items/terra-raise-grind-1.ogg"
+       "file": "items/terra-raise-grind-1.ogg",
+       "d": 0.46,
+       "w": "8N_zgwpwUQONSQUSMcEAR964QK40A0T900000000"
       },
       {
        "name": "Magic swell"
@@ -254,23 +351,33 @@
      "tracks": [
       {
        "name": "Scooping earth",
-       "file": "items/terra-carve-scoop-1.ogg"
+       "file": "items/terra-carve-scoop-1.ogg",
+       "d": 0.87,
+       "w": "_rrogdcZYTHEGPMZcSTKGID47400000000000000"
       },
       {
        "name": "Scooping, again",
-       "file": "items/terra-carve-scoop-2.ogg"
+       "file": "items/terra-carve-scoop-2.ogg",
+       "d": 0.83,
+       "w": "_zvrofefeXMILTVdfdTPMKHC8830000000000000"
       },
       {
        "name": "Deep gouge",
-       "file": "items/terra-carve-gouge-1.ogg"
+       "file": "items/terra-carve-gouge-1.ogg",
+       "d": 0.99,
+       "w": "_umnjbXbYMJEFJQaYYSIGHD55300000000000000"
       },
       {
        "name": "Crumble",
-       "file": "items/terra-carve-crumble-1.ogg"
+       "file": "items/terra-carve-crumble-1.ogg",
+       "d": 0.48,
+       "w": "0_sxxaXaOGLDIB9868RKHCcgJKGI9CM720000000"
       },
       {
        "name": "Crumble, drier",
-       "file": "items/terra-carve-crumble-2.ogg"
+       "file": "items/terra-carve-crumble-2.ogg",
+       "d": 0.5,
+       "w": "t_oLD50kjncdccBCC6bQFSQ8qaA300nS70000000"
       }
      ]
     },
@@ -279,19 +386,27 @@
      "tracks": [
       {
        "name": "Fill and splash",
-       "file": "items/terra-water-splash-1.ogg"
+       "file": "items/terra-water-splash-1.ogg",
+       "d": 1.22,
+       "w": "g_ppYXmcVUYXUSYabbdjhllrsknpWaOKDCKeE000"
       },
       {
        "name": "Splash, smaller",
-       "file": "items/terra-water-splash-2.ogg"
+       "file": "items/terra-water-splash-2.ogg",
+       "d": 1.13,
+       "w": "jizhecdln_lcXTYRWcYhlmZfcssdYcZZNONBQBI0"
       },
       {
        "name": "Gentle flood",
-       "file": "items/terra-water-flood-1.ogg"
+       "file": "items/terra-water-flood-1.ogg",
+       "d": 3.38,
+       "w": "tlswrwssqormqnqqsnkrpnsonstrsgln_vmrkquj"
       },
       {
        "name": "Rushing in",
-       "file": "items/terra-water-rush-1.ogg"
+       "file": "items/terra-water-rush-1.ogg",
+       "d": 4.0,
+       "w": "yywux-yvxwyy-wvywz-ywxy_xwy_ywvyyyxxxyzx"
       }
      ]
     }
@@ -305,35 +420,51 @@
      "tracks": [
       {
        "name": "Single shot",
-       "file": "weapons/smg-single-1.ogg"
+       "file": "weapons/smg-single-1.ogg",
+       "d": 0.57,
+       "w": "8J_nQRC1000CNVVQOLNKHDHFE8E9976672000000"
       },
       {
        "name": "Single shot, again",
-       "file": "weapons/smg-single-2.ogg"
+       "file": "weapons/smg-single-2.ogg",
+       "d": 0.57,
+       "w": "9B_rWI20000DLUXOTMPKHEHFFACA898A74001000"
       },
       {
        "name": "Short burst",
-       "file": "weapons/smg-burst-1.ogg"
+       "file": "weapons/smg-burst-1.ogg",
+       "d": 0.74,
+       "w": "5_qOHuxgUTZVSRWYUQSNMKKIGEDAD87446831200"
       },
       {
        "name": "Short burst, longer",
-       "file": "weapons/smg-burst-2.ogg"
+       "file": "weapons/smg-burst-2.ogg",
+       "d": 0.88,
+       "w": "7_r-pxub-iabYbYbbYVROOOJJGECDC9A8A586220"
       },
       {
        "name": "Full auto",
-       "file": "weapons/smg-auto-1.ogg"
+       "file": "weapons/smg-auto-1.ogg",
+       "d": 1.67,
+       "w": "_vzzv---_----v--_----uz-eddcYUSNLHGEDCA3"
       },
       {
        "name": "9mm, single shot",
-       "file": "weapons/smg-9mm-single-1.ogg"
+       "file": "weapons/smg-9mm-single-1.ogg",
+       "d": 0.49,
+       "w": "8_nbOGGUQ400BIQTNOHLIHBEDACA545745241000"
       },
       {
        "name": "9mm, short burst",
-       "file": "weapons/smg-9mm-burst-1.ogg"
+       "file": "weapons/smg-9mm-burst-1.ogg",
+       "d": 0.89,
+       "w": "_rQD8-iRXyuXVYSRzmUQVKMSXSONJIIFDECA6720"
       },
       {
        "name": "9mm, full auto",
-       "file": "weapons/smg-9mm-auto-1.ogg"
+       "file": "weapons/smg-9mm-auto-1.ogg",
+       "d": 1.34,
+       "w": "_fDzgWzeXyfWygWyfXyhXygXyfYTRWSQLLIEDA80"
       }
      ]
     },
@@ -342,19 +473,27 @@
      "tracks": [
       {
        "name": "Into dirt",
-       "file": "weapons/impact-dirt-1.ogg"
+       "file": "weapons/impact-dirt-1.ogg",
+       "d": 0.94,
+       "w": "_usnjgabZSJGHOTZbaRLJIC96300000000000000"
       },
       {
        "name": "Into dirt, deeper",
-       "file": "weapons/impact-dirt-2.ogg"
+       "file": "weapons/impact-dirt-2.ogg",
+       "d": 0.8,
+       "w": "_rsmehWdVPMDJIPYXZRIIDE75500000000000000"
       },
       {
        "name": "Into metal",
-       "file": "weapons/impact-metal-1.ogg"
+       "file": "weapons/impact-metal-1.ogg",
+       "d": 0.35,
+       "w": "_yvtromjhebZWUSPMKHFDB865321100000000000"
       },
       {
        "name": "Into metal, heavier",
-       "file": "weapons/impact-metal-3.ogg"
+       "file": "weapons/impact-metal-3.ogg",
+       "d": 0.14,
+       "w": "_zvssnkjjbbaWTUQOOLJKJIIIIHHIHHHHHHHHIHH"
       },
       {
        "name": "Ricochet"
@@ -366,27 +505,39 @@
      "tracks": [
       {
        "name": "Crisp shot",
-       "file": "weapons/pistol-9mm-1.ogg"
+       "file": "weapons/pistol-9mm-1.ogg",
+       "d": 0.45,
+       "w": "0_mXNLHDB600018INLIF8C9A9A75558603000000"
       },
       {
        "name": "Crisp shot, again",
-       "file": "weapons/pistol-9mm-2.ogg"
+       "file": "weapons/pistol-9mm-2.ogg",
+       "d": 0.52,
+       "w": "H_iSOKEA73008JNMID8EBCB966B7150140100000"
       },
       {
        "name": ".45, heavier",
-       "file": "weapons/pistol-45-1.ogg"
+       "file": "weapons/pistol-45-1.ogg",
+       "d": 0.63,
+       "w": "s_hOF70016MUUQMLJMRMGMLECJEB97A757272400"
       },
       {
        "name": "Suppressed",
-       "file": "weapons/pistol-suppressed-1.ogg"
+       "file": "weapons/pistol-suppressed-1.ogg",
+       "d": 0.25,
+       "w": "y-w_wvwwspoolgeZWULFBA570100000000000000"
       },
       {
        "name": "Heavy revolver",
-       "file": "weapons/pistol-revolver-1.ogg"
+       "file": "weapons/pistol-revolver-1.ogg",
+       "d": 0.45,
+       "w": "0_jTOLJGC950043CJDBB7A925942205400000000"
       },
       {
        "name": "Revolver, again",
-       "file": "weapons/pistol-revolver-2.ogg"
+       "file": "weapons/pistol-revolver-2.ogg",
+       "d": 0.45,
+       "w": "0_kVPNKHEA61043DJFBA6A936952116501000000"
       }
      ]
     },
@@ -395,27 +546,39 @@
      "tracks": [
       {
        "name": "Into wood",
-       "file": "weapons/impact-wood-1.ogg"
+       "file": "weapons/impact-wood-1.ogg",
+       "d": 0.27,
+       "w": "_pjegcXSUKGAA086200000000000000000000000"
       },
       {
        "name": "Into wood, heavier",
-       "file": "weapons/impact-wood-2.ogg"
+       "file": "weapons/impact-wood-2.ogg",
+       "d": 0.33,
+       "w": "_pndjkhYTaROHJFBIECDBB999998989888888888"
       },
       {
        "name": "Into glass",
-       "file": "weapons/impact-glass-1.ogg"
+       "file": "weapons/impact-glass-1.ogg",
+       "d": 0.21,
+       "w": "_zxurnnkhecZXURONLHEEB965432211111111100"
       },
       {
        "name": "Into glass, thicker",
-       "file": "weapons/impact-glass-2.ogg"
+       "file": "weapons/impact-glass-2.ogg",
+       "d": 0.54,
+       "w": "_okifdbZXVUSQPNLKJHHGFEEDDDDDDDDDDDDDDDD"
       },
       {
        "name": "Into metal",
-       "file": "weapons/impact-metal-2.ogg"
+       "file": "weapons/impact-metal-2.ogg",
+       "d": 0.24,
+       "w": "_zwusomjhecZWUSPNKIGDBA87655444444444444"
       },
       {
        "name": "Into body",
-       "file": "weapons/impact-body-1.ogg"
+       "file": "weapons/impact-body-1.ogg",
+       "d": 0.5,
+       "w": "_usromlibedXXVSRSMKMJHHGFFECCCCBBCCCCCCB"
       }
      ]
     },
@@ -424,27 +587,39 @@
      "tracks": [
       {
        "name": "Magazine out",
-       "file": "weapons/reload-latch-1.ogg"
+       "file": "weapons/reload-latch-1.ogg",
+       "d": 0.26,
+       "w": "02OIJM-_okhfcZWVTTQNNKIHFC96533000000000"
       },
       {
        "name": "Magazine in",
-       "file": "weapons/reload-click-1.ogg"
+       "file": "weapons/reload-click-1.ogg",
+       "d": 0.45,
+       "w": "VOLGJNVbqzgaUQFB6302EFQT_ldZaXOF95000000"
       },
       {
        "name": "Belt handle",
-       "file": "weapons/reload-handle-1.ogg"
+       "file": "weapons/reload-handle-1.ogg",
+       "d": 0.28,
+       "w": "00kdcUJDOMBWmfWRy_pnfaTTUSSTTNHDB4B61000"
       },
       {
        "name": "Slide rack",
-       "file": "weapons/reload-slide-1.ogg"
+       "file": "weapons/reload-slide-1.ogg",
+       "d": 1.52,
+       "w": "LSbfSP7000000000O40MF02NGLD0000I_-kbSKB0"
       },
       {
        "name": "Rifle magazine",
-       "file": "weapons/reload-rifle-1.ogg"
+       "file": "weapons/reload-rifle-1.ogg",
+       "d": 1.42,
+       "w": "NIOgiLC000G00000000000000qrgSWrk_nfVNE50"
       },
       {
        "name": "Shotgun cocked",
-       "file": "weapons/reload-shotgun-1.ogg"
+       "file": "weapons/reload-shotgun-1.ogg",
+       "d": 0.43,
+       "w": "5jTjeot-tmkgfefiku__uplifaZWTRPMJGDA6000"
       }
      ]
     }
@@ -500,15 +675,21 @@
      "tracks": [
       {
        "name": "Short burst",
-       "file": "vehicles/tank-mg-burst-1.ogg"
+       "file": "vehicles/tank-mg-burst-1.ogg",
+       "d": 0.91,
+       "w": "_xYRwvWUwuZXwtYVXSSVXTSOKIICEBBB95684000"
       },
       {
        "name": "Sustained",
-       "file": "vehicles/tank-mg-auto-1.ogg"
+       "file": "vehicles/tank-mg-auto-1.ogg",
+       "d": 1.26,
+       "w": "_fC-hSyfTxeSxdRxbSxVVyUttRvqRTOPRNJFD970"
       },
       {
        "name": "Single round",
-       "file": "vehicles/tank-mg-single-1.ogg"
+       "file": "vehicles/tank-mg-single-1.ogg",
+       "d": 0.56,
+       "w": "L_nVMJHO70BJRUNOHNHDEECFC785695341000000"
       },
       {
        "name": "Spin up"
@@ -520,27 +701,39 @@
      "tracks": [
       {
        "name": "Launch",
-       "file": "vehicles/tank-rocket-launch-1.ogg"
+       "file": "vehicles/tank-rocket-launch-1.ogg",
+       "d": 0.88,
+       "w": "s_qutpqxrommlhgcbaZYVTSUQNLHJHGEBB861100"
       },
       {
        "name": "Travel whoosh",
-       "file": "vehicles/tank-rocket-whoosh-1.ogg"
+       "file": "vehicles/tank-rocket-whoosh-1.ogg",
+       "d": 0.19,
+       "w": "035Keqvxwx-_xrqchcVNJMPMLKKC000000000000"
       },
       {
        "name": "Whoosh, shorter",
-       "file": "vehicles/tank-rocket-whoosh-2.ogg"
+       "file": "vehicles/tank-rocket-whoosh-2.ogg",
+       "d": 0.13,
+       "w": "0000Ogorw-zz_zyz_xtsqccXQSWUSMEDAB400000"
       },
       {
        "name": "Explosion",
-       "file": "vehicles/tank-rocket-boom-1.ogg"
+       "file": "vehicles/tank-rocket-boom-1.ogg",
+       "d": 1.15,
+       "w": "_-vtonpogdcYYaUTWTVWQPOPKIHGHKJHKFKF9640"
       },
       {
        "name": "Explosion, bigger",
-       "file": "vehicles/tank-rocket-boom-2.ogg"
+       "file": "vehicles/tank-rocket-boom-2.ogg",
+       "d": 2.33,
+       "w": "wohor_umfefbceeeeVtgdffiggbZYhXQMUTaRJA0"
       },
       {
        "name": "Explosion, mid",
-       "file": "vehicles/tank-rocket-boom-3.ogg"
+       "file": "vehicles/tank-rocket-boom-3.ogg",
+       "d": 0.93,
+       "w": "KUY_xsyrtwursrrnplkigedbaUTSOOIKHFF97630"
       }
      ]
     },

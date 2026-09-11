@@ -172,6 +172,18 @@ try {
     counts: [...document.querySelectorAll('.sfx-card-n')].map(e => Number(e.textContent)),
     empty: document.querySelectorAll('.sfx-card.is-empty').length,
     transports: document.querySelectorAll('.sfx-transport').length,
+    plays: document.querySelectorAll('.sfx-play').length,
+    /* .sfx-wave-off, not .sfx-wave svg: every picture is drawn TWICE, dim and
+       bright, and counting both says there are two waveforms per card. */
+    waves: document.querySelectorAll('.sfx-card:not(.is-empty) .sfx-wave-off').length,
+    /* THE PICTURE IS THE MANIFEST'S, not something decoded here. Every bar is
+       one <path> subpath, so counting the M commands counts the bars -- and a
+       waveform drawn from nothing would be a valid, empty, invisible <svg>
+       that every "is it there" assertion passes over. */
+    bars: (() => {
+      const p = document.querySelector('.sfx-card:not(.is-empty) .sfx-wave-off path');
+      return p ? (p.getAttribute('d').match(/M/g) || []).length : 0;
+    })(),
     countLine: document.getElementById('sfxCount').textContent,
   }));
   note(built.cats === onDisk.categories.length,
@@ -186,10 +198,19 @@ try {
   const wantCounts = onDisk.categories.flatMap(c => c.items.map(i => i.tracks.length));
   note(JSON.stringify(built.counts) === JSON.stringify(wantCounts),
        'a card\'s take count does not match its dropdown');
-  /* ONE transport for the library, not one per card. */
-  note(built.transports <= 1, `${built.transports} transports in the DOM, expected at most one`);
+  /* NO TRANSPORT AT ALL ANY MORE. It used to be one element moved into
+     whichever card was playing, and it arrived carrying a second play button
+     -- which is what Dex reported on 2026-09-11: "we have two play buttons".
+     The card is the transport now, so there must be exactly one play button
+     per card and no transport anywhere. */
+  note(built.transports === 0, `${built.transports} transport(s) in the DOM — the card is the transport now`);
+  note(built.plays === built.cards, `${built.plays} play buttons for ${built.cards} cards`);
+  note(built.waves === built.cards - built.empty,
+       `${built.waves} waveforms for ${built.cards - built.empty} cards with a file`);
+  note(built.bars === (onDisk.bars || 40),
+       `a waveform is drawn with ${built.bars} bars, the manifest ships ${onDisk.bars}`);
   console.log(`library: ${built.cats} categories, ${built.cards} cards, ${built.options} takes, `
-              + `${built.empty} still to source — "${built.countLine}"`);
+              + `${built.empty} still to source, ${built.bars}-bar waveforms — "${built.countLine}"`);
 
   /* ---- 2. a card with no file says so and cannot be played --------------
      The saying-so is the DROPDOWN, which is the place you were about to read
@@ -205,6 +226,9 @@ try {
       says: /no file yet/i.test(c.querySelector('.sfx-pick').options[0].textContent),
       getOff: get.getAttribute('aria-disabled') === 'true' && !get.getAttribute('href'),
       caption: !!c.querySelector('.sfx-wait'),
+      /* No file, no picture, and it says so where the length would be. */
+      wave: !!c.querySelector('.sfx-wave svg'),
+      dur: c.querySelector('.sfx-dur').textContent.trim(),
     };
   });
   note(!!unsourced, 'no unsourced card to check — the manifest has a file for everything?');
@@ -212,6 +236,9 @@ try {
   note(unsourced && unsourced.says, 'the dropdown does not say which takes have no file yet');
   note(unsourced && unsourced.getOff, 'a card with no file behind it still offers a download');
   note(unsourced && !unsourced.caption, 'the TO SOURCE caption is back — the dropdown already says it');
+  note(unsourced && !unsourced.wave, 'a card with no file behind it drew a waveform of nothing');
+  note(unsourced && /no file/i.test(unsourced.dur),
+       `an unsourced card's length reads "${unsourced && unsourced.dur}"`);
 
   /* ---- 2b. a card WITH a file offers the take you are looking at --------- */
   const dl = await page.evaluate(() => {
@@ -236,6 +263,33 @@ try {
        'switching take did not move the download with it');
   console.log(`download: "${dl.first.name}" -> "${dl.second.name}"`);
 
+  /* ---- 2c. the length is known BEFORE anything is fetched ----------------
+     tools/bake_sfx.py measures every take, so a card can say 0.78s on the
+     first frame. Read it against the manifest on disk rather than against
+     itself: a card showing whatever it last decoded would pass that. */
+  const lengths = await page.evaluate(() => {
+    const out = [];
+    for (const c of document.querySelectorAll('.sfx-card:not(.is-empty)')) {
+      out.push({ cat: c.dataset.cat, item: c.dataset.item,
+                 take: Number(c.querySelector('.sfx-pick').value) || 0,
+                 says: c.querySelector('.sfx-dur').textContent.trim() });
+    }
+    return out;
+  });
+  const wantLength = (row) => {
+    const cat = onDisk.categories.find(c => c.name === row.cat);
+    const item = cat && cat.items.find(i => i.name === row.item);
+    const t = item && item.tracks[row.take];
+    return t && typeof t.d === 'number'
+      ? (t.d < 10 ? `${t.d.toFixed(2)}s` : null) : null;
+  };
+  const wrongLength = lengths.filter(r => r.says !== wantLength(r));
+  note(lengths.length > 10, `only ${lengths.length} cards had a length to check`);
+  note(!wrongLength.length,
+       `${wrongLength.length} card(s) show a length the manifest does not agree with`
+       + (wrongLength[0] ? ` — ${wrongLength[0].item} says "${wrongLength[0].says}"` : ''));
+  console.log(`lengths: ${lengths.length} cards say how long their take is with nothing fetched`);
+
   /* ---- 3. the fixture PLAYS, for real ----------------------------------- */
   const fixtureCard = await page.evaluate(() => {
     const c = [...document.querySelectorAll('.sfx-card')].find(x => x.dataset.cat === 'Harness');
@@ -252,6 +306,7 @@ try {
     .then(() => note(true, ''))
     .catch(() => note(false, 'pressing play did not start the audio'));
 
+  await sleep(400);
   const live = await page.evaluate(() => {
     const a = document.getElementById('sfxAudio');
     const card = document.querySelector('.sfx-card.is-playing');
@@ -261,10 +316,11 @@ try {
       src: (a.currentSrc || '').split('/').pop(),
       dur: Math.round(a.duration * 10) / 10,
       cards: document.querySelectorAll('.sfx-card.is-playing').length,
-      /* THE TRANSPORT IS IN THE CARD, which is the whole design -- one
-         element, moved. Asserting it exists somewhere would pass with it
-         parked at the end of the document. */
-      inCard: !!card && !!tr && card.contains(tr),
+      /* THE PROGRESS IS ON THE CARD, which is the whole design now. --at is
+         what clips the bright half of the waveform, so a card that is playing
+         and showing 0% is a picture that never fills. */
+      at: card ? parseFloat(card.style.getPropertyValue('--at')) : -1,
+      onlyPlay: card ? card.querySelectorAll('.sfx-play').length : -1,
       transports: document.querySelectorAll('.sfx-transport').length,
       icon: card && card.querySelector('.sfx-play .icon').dataset.icon,
     };
@@ -273,28 +329,52 @@ try {
   note(live.src === 'harness-tone.wav', `playing "${live.src}", expected the fixture`);
   note(live.dur > 1.5 && live.dur < 2.5, `the fixture reports ${live.dur}s, expected about 2`);
   note(live.cards === 1, `${live.cards} cards are marked as playing, expected exactly 1`);
-  note(live.inCard, 'the transport is not inside the card that is playing');
-  note(live.transports === 1, `${live.transports} transports exist while one card is playing`);
+  note(live.at > 0, `the playing card's waveform is filled to ${live.at}% — it is not following the sound`);
+  note(live.onlyPlay === 1, `the playing card has ${live.onlyPlay} play buttons — there must be exactly one`);
+  note(live.transports === 0, `${live.transports} transports appeared when something started playing`);
   note(live.icon === 'pause', `the playing card's button shows "${live.icon}"`);
 
   /* ---- 4. seek, repeat, volume and stop --------------------------------- */
-  const seeked = await page.evaluate(async () => {
-    const a = document.getElementById('sfxAudio');
-    const s = document.querySelector('.sfx-scrub');
-    s.value = '500';
-    s.dispatchEvent(new Event('change', { bubbles: true }));
-    await new Promise(r => setTimeout(r, 250));
-    return { at: a.currentTime, dur: a.duration };
+  /* THE WAVEFORM IS THE SCRUB BAR. Driven with a real pointer at a real
+     coordinate, because the whole mechanism is "where in this box did you
+     press" -- a synthetic event with no clientX would seek to the left edge
+     and pass a test written against any number. */
+  /* SETTLE FIRST. .sfx-list scrolls smoothly, so a rect read straight after
+     scrollIntoView is the rect from before the scroll -- the click then lands
+     somewhere else entirely and the seek reads as broken. */
+  await page.evaluate(() => document.querySelector('.sfx-card.is-playing')
+    .scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await sleep(400);
+  const waveBox = await page.evaluate(() => {
+    const w = document.querySelector('.sfx-card.is-playing .sfx-wave').getBoundingClientRect();
+    return { x: Math.round(w.left + w.width * 0.55), y: Math.round(w.top + w.height / 2),
+             left: Math.round(w.left), width: Math.round(w.width) };
   });
-  note(seeked.at > seeked.dur * 0.3, `seeking to the middle landed at ${seeked.at.toFixed(2)}s of ${seeked.dur}s`);
+  await page.mouse.click(waveBox.x, waveBox.y);
+  await sleep(300);
+  const seeked = await page.evaluate(() => {
+    const a = document.getElementById('sfxAudio');
+    const card = document.querySelector('.sfx-card.is-playing');
+    return { at: a.currentTime, dur: a.duration,
+             fill: parseFloat(card.style.getPropertyValue('--at')),
+             aria: Number(card.querySelector('.sfx-wave').getAttribute('aria-valuenow')) };
+  });
+  note(seeked.at > seeked.dur * 0.3, `pressing 55% across the waveform landed at ${seeked.at.toFixed(2)}s of ${seeked.dur}s`);
+  note(seeked.fill > 30, `the waveform is filled to ${seeked.fill}% after seeking to the middle`);
+  note(seeked.aria > 30, `the waveform reports aria-valuenow ${seeked.aria} after seeking to the middle`);
 
   const looped = await page.evaluate(() => {
-    const b = document.querySelector('.sfx-transport [data-el="loop"]');
+    const b = document.querySelector('.sfx-card.is-playing [data-el="loop"]');
     b.click();
-    return { loop: document.getElementById('sfxAudio').loop, pressed: b.getAttribute('aria-pressed') };
+    return { loop: document.getElementById('sfxAudio').loop, pressed: b.getAttribute('aria-pressed'),
+             everywhere: [...document.querySelectorAll('.sfx-card [data-el="loop"]')]
+               .every(x => x.getAttribute('aria-pressed') === 'true') };
   });
   note(looped.loop === true && looped.pressed === 'true', 'the repeat toggle did not reach the audio element');
-  await page.evaluate(() => document.querySelector('.sfx-transport [data-el="loop"]').click());
+  /* ONE LATCH FOR THE LIBRARY, not one per card: there is one <audio>, and 25
+     buttons disagreeing about whether it repeats is 24 of them lying. */
+  note(looped.everywhere, 'repeat is on but only the card that is playing says so');
+  await page.evaluate(() => document.querySelector('.sfx-card.is-playing [data-el="loop"]').click());
 
   const vol = await page.evaluate(() => {
     const v = document.querySelector('.sfx-vol');
@@ -307,18 +387,25 @@ try {
   note(vol.audio === 30, `the volume slider set the element to ${vol.audio}, expected 30`);
   note(vol.stored !== null, 'the volume was not remembered');
 
-  await page.evaluate(() => document.querySelector('.sfx-transport [data-el="stop"]').click());
+  /* STOP IS IN THE HEADER, because it is the library's and not a card's --
+     and it is dead while nothing is playing, which is the only honest state
+     for a button that stops things. */
+  await page.evaluate(() => document.getElementById('sfxStop').click());
   await sleep(250);
   const stopped = await page.evaluate(() => ({
     paused: document.getElementById('sfxAudio').paused,
     src: document.getElementById('sfxAudio').getAttribute('src'),
     playing: document.querySelectorAll('.sfx-card.is-playing').length,
-    transportInList: !!document.querySelector('.sfx-list .sfx-transport'),
+    stopDead: document.getElementById('sfxStop').disabled,
+    fills: [...document.querySelectorAll('.sfx-card')]
+      .map(c => parseFloat(c.style.getPropertyValue('--at')) || 0)
+      .filter(v => v > 0).length,
   }));
   note(stopped.paused, 'stop did not pause the audio');
   note(stopped.src === null, 'stop left the element holding a src');
   note(stopped.playing === 0, 'a card is still marked as playing after stop');
-  note(!stopped.transportInList, 'the transport was left in a card after stop');
+  note(stopped.stopDead, 'the stop button is still live with nothing playing');
+  note(stopped.fills === 0, `${stopped.fills} card(s) still show a filled waveform after stop`);
 
   /* ---- 5. one at a time -------------------------------------------------- */
   const swapped = await page.evaluate(async () => {
@@ -339,9 +426,99 @@ try {
     };
   });
   note(swapped.playingNow === 1, `${swapped.playingNow} cards playing after switching take, expected 1`);
-  note(swapped.transports === 1, `${swapped.transports} transports after switching take`);
-  console.log(`transport: one element, moved; take "${swapped.take}" after a dropdown change`);
-  await page.evaluate(() => document.querySelector('.sfx-transport [data-el="stop"]')?.click());
+  note(swapped.transports === 0, `${swapped.transports} transports after switching take`);
+  console.log(`one at a time: take "${swapped.take}" after a dropdown change, ${swapped.playingNow} card playing`);
+  await page.evaluate(() => document.getElementById('sfxStop').click());
+
+  /* ---- 5b. previous and next walk the takes ------------------------------
+     The point of the pair: press play, then audition the rest with one finger
+     instead of opening a dropdown per take. On the card that is SOUNDING they
+     have to play what they moved to, and they have to wrap -- a library you
+     cycle is a library you can go round. */
+  const stepped = await page.evaluate(async () => {
+    const c = [...document.querySelectorAll('.sfx-card')]
+      .find(x => x.dataset.cat !== 'Harness' && !x.classList.contains('is-empty')
+                 && x.querySelector('.sfx-pick').options.length > 2);
+    if (!c) return null;
+    c.scrollIntoView({ block: 'center' });
+    const pick = c.querySelector('.sfx-pick');
+    const wave = () => c.querySelector('.sfx-wave-off path').getAttribute('d');
+    /* FROM THE FIRST TAKE, deliberately. The download check earlier leaves
+       this same card on take 1, and a wrap test that starts wherever the last
+       test left it is a wrap test that never reaches the wrap. */
+    pick.value = '0';
+    pick.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 120));
+    const start = { i: Number(pick.value), d: wave() };
+    c.querySelector('[data-el="next"]').click();
+    await new Promise(r => setTimeout(r, 120));
+    const next = { i: Number(pick.value), d: wave() };
+    c.querySelector('[data-el="prev"]').click();
+    c.querySelector('[data-el="prev"]').click();
+    await new Promise(r => setTimeout(r, 120));
+    const back = { i: Number(pick.value), n: pick.options.length };
+    return { item: c.dataset.item, start, next, back };
+  });
+  note(!!stepped, 'no card with three takes to step through');
+  note(stepped && stepped.next.i === stepped.start.i + 1,
+       `next went from take ${stepped && stepped.start.i} to ${stepped && stepped.next.i}`);
+  /* THE PICTURE MOVES WITH IT. A next button that changes the dropdown and
+     leaves the waveform of the previous take on screen is the same bug the
+     download had before it was wired to every change. */
+  note(stepped && stepped.next.d !== stepped.start.d, 'the waveform did not change with the take');
+  note(stepped && stepped.back.i === stepped.back.n - 1,
+       `previous past the first take landed on ${stepped && stepped.back.i}, expected it to wrap to `
+       + `${stepped && stepped.back.n - 1}`);
+  console.log(`takes: "${stepped.item}" stepped forward, back, and wrapped round ${stepped.back.n}`);
+
+  /* ---- 5c. holding the loop button auditions a loop ----------------------
+     Asked for by name (Dex, 2026-09-11) for the sounds that repeat in the
+     game -- a jetpack, tracks, a held trigger. Click latches; press and HOLD
+     plays it round for as long as the button is down and stops on release.
+     Driven with a real pointer held down, because the whole mechanism is the
+     gap between pointerdown and pointerup. */
+  await page.evaluate(() => [...document.querySelectorAll('.sfx-card')]
+    .find(x => x.dataset.cat !== 'Harness' && !x.classList.contains('is-empty'))
+    .scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await sleep(400);
+  const holdBox = await page.evaluate(() => {
+    const c = [...document.querySelectorAll('.sfx-card')]
+      .find(x => x.dataset.cat !== 'Harness' && !x.classList.contains('is-empty'));
+    const b = c.querySelector('[data-el="loop"]').getBoundingClientRect();
+    const at = document.elementFromPoint(Math.round(b.left + b.width / 2),
+                                         Math.round(b.top + b.height / 2));
+    return { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2),
+             item: c.dataset.item, onIt: !!at?.closest('[data-el="loop"]') };
+  });
+  note(holdBox.onIt, 'the point the hold is driven at is not on the loop button');
+  await page.mouse.move(holdBox.x, holdBox.y);
+  await page.mouse.down();
+  await sleep(700);
+  const held = await page.evaluate(() => {
+    const a = document.getElementById('sfxAudio');
+    const c = document.querySelector('.sfx-card.is-holding');
+    return { holding: !!c, item: c && c.dataset.item, loop: a.loop, playing: !a.paused,
+             pressed: document.querySelector('.sfx-card.is-playing [data-el="loop"]')
+               ?.getAttribute('aria-pressed') };
+  });
+  await page.mouse.up();
+  await sleep(350);
+  const letGo = await page.evaluate(() => {
+    const a = document.getElementById('sfxAudio');
+    return { holding: !!document.querySelector('.sfx-card.is-holding'),
+             paused: a.paused, loop: a.loop, src: a.getAttribute('src'),
+             pressed: [...document.querySelectorAll('.sfx-card [data-el="loop"]')]
+               .some(b => b.getAttribute('aria-pressed') === 'true') };
+  });
+  note(held.holding, 'holding the loop button did not put the card into its held state');
+  note(held.playing && held.loop, `held: playing ${held.playing}, looping ${held.loop}`);
+  /* A HOLD IS NOT A LATCH. If the press also toggled repeat on, letting go
+     would leave the library latched to loop for every take after it. */
+  note(held.pressed === 'false', 'holding the loop button latched repeat as well');
+  note(!letGo.holding, 'the card is still held after the button came up');
+  note(letGo.paused && letGo.src === null, 'letting go of the loop button did not stop the sound');
+  note(!letGo.pressed, 'letting go of a hold left repeat latched on');
+  console.log(`hold: "${holdBox.item}" looped while the button was down, stopped when it came up`);
 
   /* ---- 6. folding a category, and it is remembered ---------------------- */
   const folded = await page.evaluate(() => {

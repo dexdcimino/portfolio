@@ -1689,9 +1689,15 @@ await chord(['Control'], '\\');
    way to being clicked. A button that moves while you are reaching for it is a
    button you miss.
 
-   The X left the flow: it is absolutely positioned on the row's right EDGE
-   now, clipped to nothing at rest and growing outward. What this asserts is
-   therefore the opposite of what it used to: the dot must NOT move.
+   The X left the flow: it is a tab, clipped to nothing at rest and growing
+   outward. What this asserts is therefore the opposite of what it used to: the
+   dot must NOT move.
+
+   AND (Dex, 2026-09-11) IT COMES OUT OUTSIDE THE PANEL. It used to open into a
+   gutter reserved inside the column -- still the same box as the names, and
+   26px of every row's width to pay for it. It is position:fixed past the
+   SIDEBAR's right edge now, over the canvas. So what is measured here is
+   against the sidebar's edge, not the row's.
 
    FALSELY PASSES IF: only the dot were measured. A tab that never appears
    also never moves the dot, so the tab is measured too -- and it is measured
@@ -1713,9 +1719,14 @@ await chord(['Control'], '\\');
     const x = row.querySelector('.nt-row-x');
     const xb = x.getBoundingClientRect();
     const cs = getComputedStyle(x);
+    const side = document.querySelector('.nt-sidebar').getBoundingClientRect();
     return {
       dotFromRight: Math.round(r.right - dot.right),
       xLeft: Math.round(xb.left - r.right),
+      /* THE WHOLE POINT: a tab inside the panel has a negative number here. */
+      xFromSide: Math.round(xb.left - side.right),
+      xWidth: Math.round(xb.width),
+      fixed: cs.position === 'fixed',
       shown: cs.clipPath === 'none' || /inset\(0(px)? 0(px)? 0(px)? 0(px)?\)|inset\(0px\)|inset\(0\)/.test(cs.clipPath),
       clickable: cs.pointerEvents !== 'none',
       radius: cs.borderTopRightRadius + '/' + cs.borderTopLeftRadius,
@@ -1726,36 +1737,54 @@ await chord(['Control'], '\\');
   note(!rest.shown, 'the archive tab is showing on a row nobody is pointing at');
   note(!rest.clickable, 'the archive tab is clickable while it is invisible — that is one twitch from archiving');
   note(rest.dotFromRight <= 10, `the colour dot is ${rest.dotFromRight}px from the row's right edge at rest`);
-  note(rest.xLeft >= -1 && rest.xLeft <= 2, `the tab starts ${rest.xLeft}px from the row's right edge — it is not on the edge`);
+  note(rest.fixed, `the tab is position:${rest.fixed ? 'fixed' : 'something else'} — inside a scroller it would be clipped`);
+  /* -2 and not 0: the tab tucks two pixels under the panel's edge so there is
+     no hairline of canvas between them for the pointer to fall into. */
+  note(rest.xFromSide >= -3 && rest.xFromSide <= 1,
+       `the tab starts ${rest.xFromSide}px from the sidebar's right edge — it is not coming out of it`);
+  note(rest.xLeft > 0, `the tab starts ${rest.xLeft}px from the row's right edge — it is inside the row's own box`);
   note(/^0px\//.test(rest.radius) === false && rest.radius.endsWith('/0px'),
        `the tab is rounded ${rest.radius} — it should be square where it meets the row and round on the outside`);
 
-  /* HOVERED FROM THE GUTTER, past the row's own right edge. */
-  const beside = await page.evaluate(() => {
-    const row = document.querySelectorAll('.nt-row')[2];
-    const r = row.getBoundingClientRect();
-    const p = { x: Math.round(r.right + 10), y: Math.round(r.top + r.height / 2) };
-    /* PAST THE PAINTED BOX AND STILL THE ROW'S. A pseudo-element hit-tests as
-       the element it belongs to, so elementFromPoint returning the row from a
-       point OUTSIDE the row's own rect is exactly the proof that ::after is
-       there and doing its job -- and the only proof available, since the strip
-       paints nothing to look at. */
-    return { ...p, past: p.x > Math.round(r.right),
-             ownedByRow: document.elementFromPoint(p.x, p.y)?.closest('.nt-row') === row };
+  /* HOVERING THE ROW BRINGS IT OUT, and then hovering THE TAB -- which is
+     over the canvas, outside the panel the row lives in -- keeps it out. That
+     second half is the one that would break silently: the tab is fixed and
+     paints nowhere near its parent, so if it ever stopped being the row's
+     CHILD, :hover would drop the moment the pointer crossed the edge and the
+     button would vanish from under it. */
+  const onRow = await page.evaluate(() => {
+    const r = document.querySelectorAll('.nt-row')[2].getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
   });
-  note(beside.past, 'the point is not past the row, so nothing about the gutter is being tested');
-  note(beside.ownedByRow,
-       'the strip beside the row does not belong to it — the tab cannot come out from the gutter');
-  await page.mouse.move(beside.x, beside.y);
+  await page.mouse.move(onRow.x, onRow.y);
   await sleep(350);
   const out = await measure();
-  note(out.shown, 'hovering the gutter beside a row did not bring its archive tab out');
+  note(out.shown, 'hovering a row did not bring its archive tab out');
   note(out.clickable, 'the tab came out but is not clickable');
   note(out.dotFromRight === rest.dotFromRight,
        `the dot moved when the tab came out (${rest.dotFromRight} -> ${out.dotFromRight})`);
-  await page.mouse.move(900, 700);
-  await sleep(300);
-  console.log(`row: dot ${rest.dotFromRight}px from the edge, unmoved; tab out from the gutter at +${out.xLeft}px`);
+
+  const onTab = await page.evaluate(() => {
+    const b = document.querySelectorAll('.nt-row')[2].querySelector('.nt-row-x').getBoundingClientRect();
+    const p = { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) };
+    const side = document.querySelector('.nt-sidebar').getBoundingClientRect();
+    /* closest(), not className: the point lands on the <svg> inside the
+       button, and an SVG's className is an SVGAnimatedString rather than a
+       string — it stringifies to [object Object] and matches nothing. */
+    const at = document.elementFromPoint(p.x, p.y);
+    return { ...p, outside: p.x > side.right,
+             onTab: !!at?.closest('.nt-row-x'),
+             hit: at ? (at.closest('[class]')?.getAttribute('class') || at.tagName) : 'nothing' };
+  });
+  note(onTab.outside, 'the tab\'s middle is not past the sidebar — it is not outside the outliner');
+  note(onTab.onTab, `the point on the tab hits "${onTab.hit}" — something is painted over it`);
+  await page.mouse.move(onTab.x, onTab.y);
+  await sleep(250);
+  const held = await measure();
+  note(held.shown && held.clickable, 'moving onto the tab itself made it go away');
+
+  console.log(`row: dot ${rest.dotFromRight}px from the edge, unmoved; `
+              + `${out.xWidth}px tab outside the panel at ${out.xFromSide}px from its edge`);
 }
 
 /* ---- 17f7d. clicking off a pick drops it -------------------------------- */

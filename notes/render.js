@@ -1030,7 +1030,68 @@ export function renderSidebar() {
   renderArchive();
   paintPicks();
   syncTab();
+  wireRowTabs();
+  placeRowTabs();
   spy();
+}
+
+/* WHERE EACH ARCHIVE TAB SITS. The tabs are position:fixed -- they have to be,
+ * because the list scrolls and the sidebar clips -- which means they have no
+ * position of their own and every one of them has to be told.
+ *
+ * EVERY ROW, NOT JUST THE HOVERED ONE. Visibility stays CSS's: the tab is
+ * painted by .nt-row:hover and by the pick rules, and a pick shows several at
+ * once. Placing only the hovered one would leave the rest at stale
+ * coordinates, which is invisible right up until a pick is up.
+ *
+ * A ROW SCROLLED OUT OF THE LIST IS HIDDEN OUTRIGHT. Its tab is outside the
+ * panel now, so nothing clips it any more: without this, half a row under the
+ * archive divider would still paint a tab beside the archive.
+ *
+ * NOT IN RAIL MODE. The folded panel carries a transform, and a transformed
+ * ancestor becomes the containing block for a fixed child -- the coordinates
+ * would mean something else there. Nothing is hoverable while it is folded
+ * anyway. */
+export function placeRowTabs() {
+  const list = ctx.sidebar && ctx.sidebar.querySelector('.nt-rows');
+  if (!list) return;
+  const rail = ctx.root.classList.contains('is-rail');
+  const side = ctx.sidebar.getBoundingClientRect();
+  const band = list.getBoundingClientRect();
+  for (const row of list.querySelectorAll('.nt-row')) {
+    const tab = row.querySelector('.nt-row-x');
+    if (!tab) continue;
+    const r = row.getBoundingClientRect();
+    const mid = r.top + r.height / 2;
+    const out = rail || mid < band.top + 4 || mid > band.bottom - 4;
+    tab.style.display = out ? 'none' : '';
+    if (out) continue;
+    /* Two pixels UNDER the sidebar's edge, so there is no hairline of canvas
+       between the panel and the tab for the pointer to fall into. */
+    tab.style.left = `${Math.round(side.right - 2)}px`;
+    tab.style.top = `${Math.round(mid)}px`;
+  }
+}
+
+/* The list scrolls, the window resizes, and the split between the list and the
+ * archive is draggable -- all three move rows without re-rendering anything.
+ * rAF, because a scroll handler that reads a rect per row per event is a
+ * scroll handler you can feel. */
+let tabsWired = false;
+let tabsQueued = false;
+export function wireRowTabs() {
+  if (tabsWired || !ctx.sidebar) return;
+  const list = ctx.sidebar.querySelector('.nt-rows');
+  if (!list) return;
+  const soon = () => {
+    if (tabsQueued) return;
+    tabsQueued = true;
+    requestAnimationFrame(() => { tabsQueued = false; placeRowTabs(); });
+  };
+  list.addEventListener('scroll', soon, { passive: true });
+  window.addEventListener('resize', soon);
+  if (typeof ResizeObserver === 'function') new ResizeObserver(soon).observe(list);
+  tabsWired = true;
 }
 
 /* The sidebar's collapse tab is welded to the archive's top edge -- it is a

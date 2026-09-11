@@ -6487,7 +6487,8 @@ const MediaBus = (() => {
   const $ = (id) => document.getElementById(id);
   const listEl = $('sfxList'), railEl = $('sfxRail'), countEl = $('sfxCount');
   const searchEl = $('sfxSearch'), audio = $('sfxAudio');
-  if (!listEl || !railEl || !audio) return;
+  const volEl = $('sfxVol'), muteBtn = $('sfxMute'), stopBtn = $('sfxStop');
+  if (!listEl || !railEl || !audio || !volEl) return;
 
   const MANIFEST = 'assets/sfx/sfx.json';
   const VOLUME_KEY = 'sfx-volume';
@@ -6495,44 +6496,46 @@ const MediaBus = (() => {
 
   let library = null;                   // the fetched manifest, once
   let loading = null;                   // the in-flight fetch, so two opens share one
-  let playing = null;                   // the card element that has the transport
+  let playing = null;                   // the card element that is sounding
   let volume = 0.7;
-  let repeat = false;
-  let scrubbing = false;
-
-  /* ---- the transport, built once ---------------------------------------- */
-  /* In JS rather than in the markup because there is exactly one and it has no
-     home until something plays. Everything in it is the site's own: the slider
-     is .player-range, the marks are the icon system's. */
-  const tr = document.createElement('div');
-  tr.className = 'sfx-transport';
-  tr.innerHTML =
-    '<div class="sfx-seek">'
-    + '<span class="sfx-time" data-el="at">0:00</span>'
-    + '<input class="player-range sfx-scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">'
-    + '<span class="sfx-time" data-el="dur">--:--</span>'
-    + '</div>'
-    + '<div class="sfx-tail">'
-    + '<button class="sfx-btn" type="button" data-el="toggle" aria-label="Pause">'
-    + '<span class="icon" data-icon="pause" aria-hidden="true"></span></button>'
-    + '<button class="sfx-btn" type="button" data-el="loop" aria-label="Repeat off" aria-pressed="false">'
-    + '<span class="icon" data-icon="loop" aria-hidden="true"></span></button>'
-    + '<span class="sfx-tail-gap" aria-hidden="true"></span>'
-    + '<button class="sfx-btn" type="button" data-el="mute" aria-label="Mute">'
-    + '<span class="icon" data-icon="volume" aria-hidden="true"></span></button>'
-    + '<input class="player-range sfx-vol" type="range" min="0" max="100" value="70" step="1" aria-label="Volume">'
-    + '<button class="sfx-btn" type="button" data-el="stop" aria-label="Stop">'
-    + '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>'
-    + '</button>'
-    + '</div>';
-  const part = (name) => tr.querySelector(`[data-el="${name}"]`);
-  const atEl = part('at'), durEl = part('dur'), scrub = tr.querySelector('.sfx-scrub');
-  const volEl = tr.querySelector('.sfx-vol');
-  const toggleBtn = part('toggle'), loopBtn = part('loop'), muteBtn = part('mute'), stopBtn = part('stop');
+  let repeat = false;                   // the latch, one for the library
+  let heldCard = null;                  // a card being auditioned by holding its loop
 
   const setFill = (el, pct) => el.style.setProperty('--fill', `${pct}%`);
-  const mmss = (t) => (Number.isFinite(t) && t >= 0
-    ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '--:--');
+  /* A one-shot is 0.78 seconds long and "0:00 / 0:00" says nothing about it.
+     Seconds with two decimals under ten, clock above -- a library of footsteps
+     and a three-minute loop both have to read off the same label. */
+  const secs = (t) => (!Number.isFinite(t) || t < 0 ? '--'
+    : t < 10 ? `${t.toFixed(2)}s`
+    : `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`);
+
+  /* ---- the waveform -----------------------------------------------------
+     MEASURED AT BAKE TIME, not here. tools/bake_sfx.py writes 40 levels per
+     take as one character each; decoding the library in the browser to draw a
+     picture would be a megabyte of audio and 96 decodes on every open.
+
+     Two layers of the same path: the dim one is the take, the bright one is
+     how far into it you are, clipped by --at. One path each rather than 40
+     rects each, because there are 25 cards on screen and this is furniture. */
+  const LEVELS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_';
+  const H = 40;
+  function wavePath(w) {
+    const n = w.length;
+    if (!n) return '';
+    const step = 100 / n;
+    const bw = Math.max(step * 0.58, 0.6);
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const v = Math.max(0, LEVELS.indexOf(w[i])) / 63;
+      const h = Math.max(1.6, v * H);
+      d += `M${(i * step).toFixed(2)} ${((H - h) / 2).toFixed(2)}h${bw.toFixed(2)}v${h.toFixed(2)}h${(-bw).toFixed(2)}z`;
+    }
+    return d;
+  }
+  function waveSvg(cls, d) {
+    return `<svg class="${cls}" viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true">`
+      + `<path d="${d}"/></svg>`;
+  }
 
   /* ---- building the list ------------------------------------------------ */
 
@@ -6633,21 +6636,36 @@ const MediaBus = (() => {
     countEl.textContent = q
       ? `${shown} OF ${library.items} ITEMS`
       : `${library.items} ITEMS · ${total} TRACKS · ${library.sourced} WITH A FILE`;
-    /* The transport went with the old DOM. Whatever was playing is still
-       playing -- the <audio> never moved -- so it is put back on the card it
-       belongs to rather than silently orphaned. */
+    /* The card that was playing went with the old DOM. The sound did not --
+       the <audio> never moved -- so the new card for the same item takes it
+       over rather than leaving a noise with nothing attached to it. */
     if (playing) {
-      const again = listEl.querySelector(`[data-cat="${CSS.escape(playing.dataset.cat)}"] `
+      const again = listEl.querySelector(`.sfx-card[data-cat="${CSS.escape(playing.dataset.cat)}"]`
         + `[data-item="${CSS.escape(playing.dataset.item)}"]`);
-      if (again) { adopt(again); } else { stop(); }
+      if (again) {
+        again._pick.value = playing._pick.value;
+        again._sync();
+        adopt(again);
+      } else { stop(); }
     }
   }
 
+  /* ---- one card ----------------------------------------------------------
+     Three rows and no more:
+
+       the name, and how many takes of it there are
+       PLAY, the waveform (which is also the scrub bar), how long the take is
+       previous, which take, next, loop, download
+
+     The waveform doing double duty is what removed the second play button:
+     there is no transport to move into the card because the card IS the
+     transport. */
   function card(cat, item) {
     const el = document.createElement('div');
     el.className = 'sfx-card';
     el.dataset.cat = cat.name;
     el.dataset.item = item.name;
+    const many = item.tracks.length > 1;
 
     const top = document.createElement('div');
     top.className = 'sfx-card-top';
@@ -6656,53 +6674,70 @@ const MediaBus = (() => {
     top.querySelector('.sfx-card-n').textContent = `${item.tracks.length}`;
     top.querySelector('.sfx-card-n').title = `${item.tracks.length} take(s)`;
 
-    const row = document.createElement('div');
-    row.className = 'sfx-card-row';
-    const pick = document.createElement('select');
-    pick.className = 'sfx-pick';
-    pick.setAttribute('aria-label', `Take of ${item.name}`);
-    item.tracks.forEach((t, i) => {
-      const opt = document.createElement('option');
-      opt.value = String(i);
-      /* The dropdown says which takes are still to be sourced, because
-         choosing one and finding the play button dead is a worse answer than
-         being told before you press it. */
-      opt.textContent = t.file ? t.name : `${t.name} — no file yet`;
-      pick.append(opt);
-    });
+    /* --- the stage: play, waveform, length --- */
+    const stage = document.createElement('div');
+    stage.className = 'sfx-stage';
+
     const play = document.createElement('button');
     play.type = 'button';
     play.className = 'sfx-play';
     play.innerHTML = '<span class="icon" data-icon="play" aria-hidden="true"></span>';
     play.setAttribute('aria-label', `Play ${item.name}`);
 
-    const sourced = item.tracks.some(t => t.file);
-    if (!sourced) el.classList.add('is-empty');
+    const wave = document.createElement('div');
+    wave.className = 'sfx-wave';
+    wave.setAttribute('role', 'slider');
+    wave.setAttribute('aria-label', `Seek ${item.name}`);
+    wave.setAttribute('aria-valuemin', '0');
+    wave.setAttribute('aria-valuemax', '100');
+    wave.setAttribute('aria-valuenow', '0');
+    wave.title = 'Press anywhere to play from there';
+    wave.tabIndex = 0;
 
-    const syncPlay = () => {
-      const t = item.tracks[Number(pick.value) || 0];
-      play.disabled = !t || !t.file;
+    const dur = document.createElement('span');
+    dur.className = 'sfx-dur';
+
+    stage.append(play, wave, dur);
+
+    /* --- the take: previous, the picker, next --- */
+    const bar = document.createElement('div');
+    bar.className = 'sfx-take';
+
+    const step = (dir, label, icon) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sfx-step';
+      b.dataset.el = dir;
+      b.setAttribute('aria-label', label);
+      b.title = label;
+      b.innerHTML = `<span class="icon" data-icon="${icon}" aria-hidden="true"></span>`;
+      if (!many) b.disabled = true;
+      return b;
     };
-    syncPlay();
-    pick.addEventListener('change', () => {
-      syncPlay();
-      // Switching take on the card that is playing plays the new one.
-      if (playing === el) start(el, item);
-    });
-    play.addEventListener('click', () => {
-      if (playing === el && !audio.paused) { audio.pause(); paint(); return; }
-      if (playing === el && audio.paused) { audio.play().catch(paint); paint(); return; }
-      start(el, item);
+    const prev = step('prev', `Previous take of ${item.name}`, 'skip-back');
+    const next = step('next', `Next take of ${item.name}`, 'skip-forward');
+
+    /* STILL A <select>. It is the one control that gives random access to
+       eleven takes without inventing a menu, it is keyboard-navigable for
+       free, and it says which takes have no file. The chevron beside it is
+       gone: ‹ and › are on either side of it now and a third mark in the same
+       12px would be three arrows saying two things. */
+    const pick = document.createElement('select');
+    pick.className = 'sfx-pick';
+    pick.setAttribute('aria-label', `Take of ${item.name}`);
+    item.tracks.forEach((t, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = t.file ? t.name : `${t.name} — no file yet`;
+      pick.append(opt);
     });
 
-    /* The mark goes OVER the select rather than in it: see .sfx-pickwrap. */
-    const wrap = document.createElement('span');
-    wrap.className = 'sfx-pickwrap';
-    const chev = document.createElement('span');
-    chev.className = 'icon sfx-chev';
-    chev.dataset.icon = 'chevron';
-    chev.setAttribute('aria-hidden', 'true');
-    wrap.append(pick, chev);
+    const loop = document.createElement('button');
+    loop.type = 'button';
+    loop.className = 'sfx-btn sfx-loop';
+    loop.dataset.el = 'loop';
+    loop.title = 'Repeat — click to latch it on, hold to audition a loop';
+    loop.innerHTML = '<span class="icon" data-icon="loop" aria-hidden="true"></span>';
 
     /* SAVE THE TAKE YOU ARE LOOKING AT. An <a download> and not a button: the
        browser already knows how to save a file it can reach. The name it saves
@@ -6711,36 +6746,165 @@ const MediaBus = (() => {
     const get = document.createElement('a');
     get.className = 'sfx-get';
     get.innerHTML = '<span class="icon" data-icon="download" aria-hidden="true"></span>';
-    const syncGet = () => {
-      const t = item.tracks[Number(pick.value) || 0];
-      if (t && t.file) {
+
+    bar.append(prev, pick, next, loop, get);
+    el.append(top, stage, bar);
+
+    const sourced = item.tracks.some(t => t.file);
+    if (!sourced) el.classList.add('is-empty');
+
+    const take = () => item.tracks[Number(pick.value) || 0];
+
+    /* Everything that depends on WHICH take is showing, in one place: the
+       picture, the length, the download and whether play is dead. Wiring four
+       listeners to four halves of this is how one of them gets forgotten --
+       the download was wired once and handed over the first take forever. */
+    function sync() {
+      const t = take();
+      const has = !!(t && t.file);
+      play.disabled = !has;
+      loop.disabled = !has;
+      wave.classList.toggle('is-empty', !has);
+      const d = wavePath(has && t.w ? t.w : '');
+      wave.innerHTML = has && d
+        ? waveSvg('sfx-wave-off', d) + `<span class="sfx-wave-on">${waveSvg('sfx-wave-hot', d)}</span>`
+        : '';
+      dur.textContent = has ? secs(t.d) : 'no file';
+      if (has) {
         get.href = `assets/sfx/${t.file}`;
         const ext = t.file.slice(t.file.lastIndexOf('.'));
-        get.download = `${cat.name} - ${item.name} - ${t.name}${ext}`
-          .replace(/[\/:*?"<>|]/g, '-');
+        get.download = `${cat.name} - ${item.name} - ${t.name}${ext}`.replace(/[\/:*?"<>|]/g, '-');
         get.removeAttribute('aria-disabled');
         get.setAttribute('aria-label', `Download ${item.name} — ${t.name}`);
+      get.title = `Download "${t.name}"`;
       } else {
         get.removeAttribute('href');
         get.setAttribute('aria-disabled', 'true');
         get.setAttribute('aria-label', `${item.name} has no file to download yet`);
       }
-    };
-    syncGet();
-    pick.addEventListener('change', syncGet);
+      if (playing === el) paintTime();
+    }
 
-    row.append(wrap, play, get);
-    el.append(top, row);
+    const cycle = (by) => {
+      const n = item.tracks.length;
+      pick.value = String((((Number(pick.value) || 0) + by) % n + n) % n);
+      sync();
+      // Cycling on the card that is sounding plays what you moved to. On any
+      // other card it only changes what play would do, which is what pressing
+      // an arrow on a silent card looks like it should mean.
+      if (playing === el) start(el, item);
+    };
+    prev.addEventListener('click', () => cycle(-1));
+    next.addEventListener('click', () => cycle(1));
+    pick.addEventListener('change', () => { sync(); if (playing === el) start(el, item); });
+
+    play.addEventListener('click', () => {
+      if (playing === el && !audio.paused) { audio.pause(); paint(); return; }
+      if (playing === el && audio.paused && audio.currentSrc) { audio.play().catch(paint); paint(); return; }
+      start(el, item);
+    });
+
+    /* ---- the loop button is two controls in one gesture -------------------
+       CLICK LATCHES. Press and HOLD auditions: the take loops for as long as
+       the button is down and stops when you let go. That is the "hold to
+       gather" a jetpack, a tank or a held trigger needs -- the thing you want
+       to hear is whether the seam is audible, and the way you find that out is
+       by listening to it go round for as long as you care to.
+
+       One button rather than two, because the two would be a latch and a
+       momentary switch sitting side by side wearing the same icon. Momentary
+       is what the gesture already means: a foot pedal you hold is on while you
+       hold it. */
+    let holdTimer = 0, held = false, ateClick = false;
+    const startHold = () => {
+      held = true;
+      heldCard = el;
+      el.classList.add('is-holding');
+      audio.loop = true;
+      start(el, item);
+    };
+    loop.addEventListener('pointerdown', (e) => {
+      if (loop.disabled || e.button !== 0) return;
+      held = false;
+      /* CLEARED ON THE WAY IN. A hold that ends with the pointer off the
+         button fires no click at all, so a flag set on the way out is still
+         sitting there when the next real click arrives -- and that click is
+         the one that gets swallowed. */
+      ateClick = false;
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(startHold, 260);
+    });
+    const letGo = () => {
+      clearTimeout(holdTimer);
+      if (!held) return;
+      held = false;
+      ateClick = true;
+      heldCard = null;
+      el.classList.remove('is-holding');
+      audio.loop = repeat;
+      stop();
+    };
+    loop.addEventListener('pointerup', letGo);
+    loop.addEventListener('pointercancel', letGo);
+    loop.addEventListener('pointerleave', letGo);
+    loop.addEventListener('click', () => {
+      // The click that ends a hold is the hold ending, not a latch.
+      if (ateClick) { ateClick = false; return; }
+      repeat = !repeat;
+      if (!heldCard) audio.loop = repeat;
+      paint();
+    });
+
+    /* ---- the waveform is the scrub bar ---------------------------------- */
+    const seekTo = (e) => {
+      const r = wave.getBoundingClientRect();
+      if (!r.width) return;
+      const at = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      if (playing === el && audio.duration > 0) {
+        audio.currentTime = at * audio.duration;
+        paintTime();
+      } else if (!play.disabled) {
+        // Pressing a silent card's waveform starts it THERE, which is what
+        // pointing at the middle of a picture of a sound means.
+        start(el, item, at);
+      }
+    };
+    wave.addEventListener('pointerdown', (e) => {
+      if (play.disabled || e.button !== 0) return;
+      wave.setPointerCapture(e.pointerId);
+      wave.dataset.dragging = '1';
+      seekTo(e);
+    });
+    wave.addEventListener('pointermove', (e) => { if (wave.dataset.dragging) seekTo(e); });
+    const dropSeek = () => { delete wave.dataset.dragging; };
+    wave.addEventListener('pointerup', dropSeek);
+    wave.addEventListener('pointercancel', dropSeek);
+    wave.addEventListener('keydown', (e) => {
+      if (play.disabled) return;
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play.click(); return; }
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      if (playing !== el || !(audio.duration > 0)) return;
+      audio.currentTime = Math.min(audio.duration,
+        Math.max(0, audio.currentTime + (e.key === 'ArrowRight' ? 0.1 : -0.1)));
+      paintTime();
+    });
+
     el._item = item;
     el._pick = pick;
     el._play = play;
+    el._wave = wave;
+    el._dur = dur;
+    el._loop = loop;
+    el._sync = sync;
+    sync();
     return el;
   }
 
   /* ---- the bus ----------------------------------------------------------
      Registered like every other player on this page: starting a sound stops
      the music, and the no-sound-without-a-control guard can see it. `control`
-     is the overlay being open, because that is where the transport lives --
+     is the overlay being open, because that is where every control lives --
      there is no docked form of this one, so with the overlay shut the guard
      pauses it rather than revealing anything.
 
@@ -6755,7 +6919,7 @@ const MediaBus = (() => {
     onScreen: () => modal.open,
     control: () => modal.open,
     touched: () => !!playing,
-    toggle: () => toggleBtn.click(),
+    toggle: () => { if (playing) playing._play.click(); },
     pause: () => audio.pause(),
   });
 
@@ -6767,17 +6931,26 @@ const MediaBus = (() => {
       if (c !== el) c.classList.remove('is-playing');
     }
     el.classList.add('is-playing');
-    el.append(tr);
-    tr.hidden = false;
     paint();
+    /* AND THE PICTURE, NOW. --at is written on `timeupdate`, which does not
+       fire for the first quarter of a second -- so a card that had just
+       started showed an empty waveform for the one moment you are certainly
+       looking at it. */
+    paintTime();
   }
 
-  function start(el, item) {
+  function start(el, item, at) {
     const track = item.tracks[Number(el._pick.value) || 0];
     if (!track || !track.file) return;
-    audio.src = `assets/sfx/${track.file}`;
-    audio.currentTime = 0;
-    audio.loop = repeat;
+    const src = `assets/sfx/${track.file}`;
+    const from = Math.min(0.999, Math.max(0, at || 0));
+    if (audio.getAttribute('src') !== src) { audio.src = src; audio.load(); }
+    audio.currentTime = from && audio.duration > 0 ? from * audio.duration : 0;
+    if (from && !(audio.duration > 0)) {
+      audio.addEventListener('loadedmetadata',
+        () => { audio.currentTime = from * audio.duration; }, { once: true });
+    }
+    audio.loop = repeat || !!heldCard;
     audio.volume = volume;
     adopt(el);
     audio.play().then(() => MediaBus.solo(me)).catch(paint);
@@ -6789,63 +6962,77 @@ const MediaBus = (() => {
     audio.removeAttribute('src');
     audio.load();
     if (playing) playing.classList.remove('is-playing');
+    for (const c of listEl.querySelectorAll('.sfx-card.is-holding')) c.classList.remove('is-holding');
+    heldCard = null;
     playing = null;
-    tr.hidden = true;
-    if (tr.parentNode) tr.remove();
+    paint();
     MediaBus.playbackState(me, false);
   }
 
   function paint() {
     const live = !!playing && !audio.paused;
-    const icon = toggleBtn.querySelector('.icon');
-    if (icon) icon.dataset.icon = live ? 'pause' : 'play';
-    toggleBtn.setAttribute('aria-label', live ? 'Pause' : 'Play');
     for (const c of listEl.querySelectorAll('.sfx-card')) {
       const i = c._play && c._play.querySelector('.icon');
       if (i) i.dataset.icon = (c === playing && live) ? 'pause' : 'play';
+      if (c._play) c._play.setAttribute('aria-label', (c === playing && live) ? 'Pause' : `Play ${c.dataset.item}`);
+      if (c._loop) {
+        c._loop.setAttribute('aria-pressed', String(repeat));
+        c._loop.setAttribute('aria-label', repeat
+          ? 'Repeat on — click to turn it off, hold to audition a loop'
+          : 'Repeat off — click to latch it on, hold to audition a loop');
+      }
+      if (c !== playing) {
+        c.style.setProperty('--at', '0%');
+        if (c._wave) c._wave.setAttribute('aria-valuenow', '0');
+      }
     }
-    loopBtn.setAttribute('aria-pressed', String(repeat));
-    loopBtn.setAttribute('aria-label', repeat ? 'Repeat on' : 'Repeat off');
-    const mi = muteBtn.querySelector('.icon');
+    const mi = muteBtn && muteBtn.querySelector('.icon');
     if (mi) mi.dataset.icon = volume === 0 ? 'volume-mute' : 'volume';
-    muteBtn.setAttribute('aria-label', volume === 0 ? 'Unmute' : 'Mute');
+    if (muteBtn) muteBtn.setAttribute('aria-label', volume === 0 ? 'Unmute' : 'Mute');
+    if (stopBtn) stopBtn.disabled = !playing;
     MediaBus.playbackState(me, live);
   }
 
   function paintTime() {
-    if (scrubbing) return;
-    durEl.textContent = mmss(audio.duration);
-    atEl.textContent = mmss(audio.currentTime);
-    const at = audio.duration > 0 ? Math.min(1, audio.currentTime / audio.duration) : 0;
-    scrub.value = Math.round(at * 1000);
-    setFill(scrub, at * 100);
+    if (!playing) return;
+    const d = audio.duration;
+    const at = d > 0 ? Math.min(1, audio.currentTime / d) : 0;
+    playing.style.setProperty('--at', `${(at * 100).toFixed(2)}%`);
+    playing._wave.setAttribute('aria-valuenow', String(Math.round(at * 100)));
+    const t = playing._item.tracks[Number(playing._pick.value) || 0];
+    const total = d > 0 ? d : (t && t.d);
+    playing._dur.textContent = `${secs(audio.currentTime)} / ${secs(total)}`;
   }
 
   audio.addEventListener('timeupdate', paintTime);
   audio.addEventListener('loadedmetadata', paintTime);
   audio.addEventListener('play', () => { paint(); MediaBus.solo(me); });
   audio.addEventListener('pause', paint);
-  audio.addEventListener('ended', () => { if (!repeat) paint(); });
+  audio.addEventListener('ended', () => {
+    /* A one-shot that has finished is not a card mid-playback: the progress
+       goes back to the start so the next press reads as a press rather than
+       as a resume from the end. */
+    if (repeat || heldCard) return;
+    if (playing) {
+      playing.style.setProperty('--at', '0%');
+      const t = playing._item.tracks[Number(playing._pick.value) || 0];
+      playing._dur.textContent = secs(audio.duration > 0 ? audio.duration : (t && t.d));
+    }
+    paint();
+  });
   audio.addEventListener('error', () => {
     /* A file named in the manifest that will not play is a real failure and
        says so: the card goes back to its resting state rather than sitting
-       with a transport that never moves. */
+       with a picture that never fills. */
+    if (!audio.getAttribute('src')) return;
     console.warn('sfx: could not play', audio.currentSrc);
     stop();
   });
 
-  scrub.addEventListener('pointerdown', () => { scrubbing = true; });
-  const commit = () => {
-    scrubbing = false;
-    if (audio.duration > 0) audio.currentTime = (scrub.value / 1000) * audio.duration;
-  };
-  scrub.addEventListener('pointerup', commit);
-  scrub.addEventListener('change', commit);
-  scrub.addEventListener('input', () => {
-    setFill(scrub, scrub.value / 10);
-    if (audio.duration > 0) atEl.textContent = mmss((scrub.value / 1000) * audio.duration);
-  });
-
+  /* ---- the library-wide controls, in the header --------------------------
+     Volume, mute and stop are properties of the PLAYER, and there is one
+     player. On the card they were 25 copies of one number, and they were the
+     reason the card needed a second row of transport at all. */
   function applyVolume(v, persist) {
     volume = Math.min(1, Math.max(0, v));
     audio.volume = volume;
@@ -6862,17 +7049,8 @@ const MediaBus = (() => {
     if (v > 0) lastVolume = v;
     applyVolume(v, true);
   });
-  muteBtn.addEventListener('click', () => applyVolume(volume === 0 ? (lastVolume || 0.7) : 0, true));
-  toggleBtn.addEventListener('click', () => {
-    if (audio.paused) audio.play().catch(paint); else audio.pause();
-    paint();
-  });
-  loopBtn.addEventListener('click', () => {
-    repeat = !repeat;
-    audio.loop = repeat;
-    paint();
-  });
-  stopBtn.addEventListener('click', stop);
+  muteBtn?.addEventListener('click', () => applyVolume(volume === 0 ? (lastVolume || 0.7) : 0, true));
+  stopBtn?.addEventListener('click', stop);
 
   let stored = null;
   try { stored = localStorage.getItem(VOLUME_KEY); } catch { /* private mode */ }
@@ -6883,7 +7061,7 @@ const MediaBus = (() => {
   /* ---- opening ---------------------------------------------------------- */
 
   /* Debounced by hand: there is no shared debounce in this file, and a
-     rebuild of seventy-six cards per keystroke is a rebuild per keystroke. */
+     rebuild of twenty-five cards per keystroke is a rebuild per keystroke. */
   let searchTimer = 0;
   searchEl.addEventListener('input', () => {
     clearTimeout(searchTimer);

@@ -19,6 +19,14 @@ COUNT THE SUBJECT. Every run prints categories, items, tracks and how many of
 those tracks have a file behind them, and the parser REFUSES an empty result --
 a manifest that stopped matching would otherwise bake an empty library and
 report success, which is the failure this repo has paid for four times.
+
+IT ALSO MEASURES THE AUDIO. Each sourced track carries its duration and a
+40-value envelope, so the card can draw a waveform and say how long a take is
+without fetching a byte. The alternative was decoding the whole library in the
+browser on every open -- a megabyte of audio and 96 decodes, for a picture.
+This needs `soundfile` (pip install soundfile), and REFUSES rather than baking
+a library with no waveforms in it: a silently picture-less manifest looks
+exactly like a working one until you open the overlay.
 """
 
 from __future__ import annotations
@@ -35,6 +43,49 @@ OUT = ROOT / "assets" / "sfx" / "sfx.json"
 NONE = "-"
 # Anything the browser will play and the CSP allows from 'self'.
 EXTS = (".mp3", ".ogg", ".wav", ".m4a", ".webm", ".flac")
+
+# How many bars a card's waveform is drawn with. 40 across a ~230px card is
+# about 4px a bar with its gap -- fine enough to tell a burst from a one-shot,
+# coarse enough that the whole library's envelopes are under 4 KB.
+BARS = 40
+# One character per bar, 64 levels. Plain digits would be three characters a
+# bar and the manifest would be three times the size for no more picture.
+ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
+
+
+def measure(path: Path) -> tuple[float, str]:
+    """(seconds, envelope). The envelope is normalised to the take's own peak,
+    so every card fills its box -- this is a picture of the SHAPE, not a meter,
+    and a quiet take drawn as a flat line says nothing about what it is.
+
+    IN DECIBELS, floored at -48. A linear plot of a gunshot is one full bar and
+    39 bars at 3% -- the same picture as a footstep, a splash and every other
+    percussive sound in the library, because a tail 40 dB down is 1% of the
+    peak and invisible. Hearing is logarithmic and so is every waveform an
+    audio editor has ever drawn. This was measured, not guessed: the first pass
+    used a 0.7 power curve and the whole library came out as a spike and a
+    flat line."""
+    import numpy as np
+    import soundfile as sf
+
+    x, rate = sf.read(str(path), always_2d=True)
+    mono = x.mean(axis=1)
+    if not len(mono):
+        return 0.0, ALPHABET[0] * BARS
+    # Fixed-width buckets, the last one short: which is why it is an average
+    # and not a sum.
+    edges = [round(i * len(mono) / BARS) for i in range(BARS + 1)]
+    rms = np.array([float(np.sqrt(np.mean(np.square(mono[a:b])))) if b > a else 0.0
+                    for a, b in zip(edges, edges[1:])])
+    top = rms.max()
+    if top > 0:
+        floor = -48.0
+        db = 20 * np.log10(np.maximum(rms / top, 1e-6))
+        shape = np.clip((db - floor) / -floor, 0.0, 1.0)
+    else:
+        shape = rms
+    chars = "".join(ALPHABET[min(63, int(round(v * 63)))] for v in shape)
+    return round(len(mono) / rate, 2), chars
 
 
 def parse(text: str) -> tuple[list[dict], list[str]]:
@@ -117,9 +168,27 @@ def counts(cats: list[dict]) -> tuple[int, int, int, int]:
     return len(cats), items, tracks, sourced
 
 
+def draw(cats: list[dict]) -> int:
+    """Put a duration and an envelope on every track that has a file. Returns
+    how many it measured, which main() asserts against how many it should
+    have -- a measurement pass that quietly measured nothing is the exact
+    shape of failure this file exists to refuse."""
+    done = 0
+    for cat in cats:
+        for item in cat["items"]:
+            for track in item["tracks"]:
+                if not track.get("file"):
+                    continue
+                seconds, envelope = measure(SRC.parent / track["file"])
+                track["d"] = seconds
+                track["w"] = envelope
+                done += 1
+    return done
+
+
 def render(cats: list[dict]) -> str:
     nc, ni, nt, ns = counts(cats)
-    doc = {"count": nt, "items": ni, "sourced": ns, "categories": cats}
+    doc = {"count": nt, "items": ni, "sourced": ns, "bars": BARS, "categories": cats}
     return json.dumps(doc, indent=1, ensure_ascii=False) + "\n"
 
 
@@ -137,10 +206,22 @@ def main(argv: list[str]) -> int:
             print("  " + p)
         return 1
 
-    text = render(cats)
     nc, ni, nt, ns = counts(cats)
+    try:
+        drawn = draw(cats)
+    except ImportError as exc:
+        print(f"bake_sfx: cannot measure the audio ({exc}). "
+              f"pip install soundfile — the cards draw a waveform from these "
+              f"numbers and a manifest without them is not a manifest.")
+        return 1
+    if drawn != ns:
+        print(f"bake_sfx: measured {drawn} take(s) but {ns} have a file")
+        return 1
+
+    text = render(cats)
     summary = (f"{nc} categor{'y' if nc == 1 else 'ies'}, {ni} item(s), "
-               f"{nt} track(s), {ns} with a file, {nt - ns} still to source")
+               f"{nt} track(s), {ns} with a file ({drawn} measured, {BARS} bars "
+               f"each), {nt - ns} still to source")
 
     if "--check" in argv:
         if not OUT.exists():
@@ -208,6 +289,32 @@ def cases() -> int:
         print(f"  FAIL the live manifest parses to {nt} track(s) "
               f"({len(live_problems)} problem(s))")
         bad += 1
+
+    # AND THE MEASUREMENT IS DRIVEN, not assumed. A draw() that returned early
+    # would leave every card with a flat line and nothing here would notice:
+    # parse() does not touch the audio, so the cases above all pass either way.
+    try:
+        drawn = draw(live)
+    except ImportError as exc:
+        print(f"  FAIL cannot measure the audio ({exc}) — pip install soundfile")
+        return 1
+    shapes = [t["w"] for c in live for i in c["items"] for t in i["tracks"] if t.get("w")]
+    flat = sum(1 for w in shapes if len(set(w)) == 1)
+    if drawn != ns or len(shapes) != ns:
+        print(f"  FAIL measured {drawn} and kept {len(shapes)} envelope(s) for "
+              f"{ns} sourced track(s)")
+        bad += 1
+    elif any(len(w) != BARS for w in shapes):
+        print(f"  FAIL an envelope is not {BARS} bars long")
+        bad += 1
+    elif flat:
+        # A file that reads as a single level is silence, or a decode that
+        # gave back nothing. Neither is a sound.
+        print(f"  FAIL {flat} take(s) measured as one flat level")
+        bad += 1
+    else:
+        print(f"  ok   every sourced take measured                "
+              f"{len(shapes)} envelope(s) of {BARS} bars, none flat")
 
     print(f"bake_sfx --cases: {len(table) - bad} of {len(table)} as expected "
           f"({refusals} of them proving it still refuses); live manifest parses "

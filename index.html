@@ -4906,6 +4906,23 @@
           </p>
           <p class="sfx-count" id="sfxCount" role="status" aria-live="polite">LOADING</p>
           <span class="sfx-head-gap" aria-hidden="true"></span>
+
+          <!-- VOLUME, MUTE AND STOP BELONG TO THE PLAYER, and there is one
+               player for the whole library. On the card they were 25 copies of
+               one number, and they are the reason the card used to need a
+               second row of transport at all. -->
+          <div class="sfx-master">
+            <button class="sfx-btn" type="button" id="sfxMute" aria-label="Mute">
+              <span class="icon" data-icon="volume" aria-hidden="true"></span>
+            </button>
+            <input class="player-range sfx-vol" id="sfxVol" type="range"
+                   min="0" max="100" value="70" step="1" aria-label="Preview volume">
+            <button class="sfx-stop" type="button" id="sfxStop" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>
+              <span>Stop</span>
+            </button>
+          </div>
+
           <input class="sfx-search" id="sfxSearch" type="search"
                  placeholder="Search" aria-label="Search the library"
                  autocomplete="off" spellcheck="false">

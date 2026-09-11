@@ -1767,19 +1767,31 @@ for it is a button you miss. The X is absolutely positioned now, square where
 it meets the row and rounded on the outside, clipped to nothing at rest and
 growing outward; nothing in the row's layout changes when it appears.
 
-`.nt-rows` carries a 26px right padding to hang it in. Padding rather than
-margin because that column scrolls and **overflow clips at the PADDING box** --
-a tab inside the padding is painted and a tab outside it is not. The rows give
-up that width, which is what a control that lives beside them rather than
-inside them costs.
+**And it opens OUTSIDE THE PANEL** (Dex, 2026-09-11). For one pass it opened
+into a 26px gutter reserved inside the column -- still the same box as the
+names, and every row 26px narrower to pay for it, which also pushed the colour
+dot in from the edge it had always sat on. It comes out past the sidebar's
+right edge now, over the canvas, as though it had been behind the panel all
+along, and the dot is back where it was.
 
-**It opens from the gutter too.** `.nt-row::after` is an invisible strip past
-the row's right edge that belongs to the row for `:hover` purposes, so the tab
-comes out while the pointer is beside the row rather than only on it -- you can
-go straight to where the tab is going to be. `pointer-events` follow the paint:
-the tab is always present at full size and clipped to nothing, so it can
-animate on the compositor, but a 22px invisible button beside every row would
-be 22px of accidental archiving.
+`position: fixed`, because **both ancestors clip**: `.nt-rows` scrolls, and
+`overflow-y` on a box makes `overflow-x` clip as well, while `.nt-sidebar` is
+`overflow:hidden` outright. Out of both, the tab has no layout position left to
+inherit, so it is told where to sit -- `placeRowTabs()` in `render.js`, which is
+the same arrangement `syncTab()` has always used for the collapse tab. It runs
+after every sidebar render and on the list's scroll, its resize and the
+window's, and it hides a tab whose row has scrolled out of the list's own band:
+nothing clips these any more, so a half-scrolled row would otherwise paint a
+button beside the archive. It also stands down in rail mode, where the folded
+panel carries a transform and a transformed ancestor becomes the containing
+block for a fixed child.
+
+**The tab is still a CHILD of its row.** That is what keeps `.nt-row:hover`
+true while the pointer is on the tab itself -- `:hover` walks the DOM, not the
+painted boxes -- so crossing the panel's edge to reach it does not make it
+vanish on the way. `pointer-events` follow the paint: the tab is always present
+at full size and clipped to nothing, so it can animate on the compositor, but a
+24px invisible button beside every row would be 24px of accidental archiving.
 
 **The list and the archive are welded.** One grab edge between them decides
 how the leftover height is shared (`--list-flex` / `--arch-flex`, saved as
@@ -2364,12 +2376,46 @@ hand. The file is a path under `assets/sfx/` or `-` for one that is wanted and
 not sourced yet; `--check` is a byte comparison against a rebuild, so a hand
 edit to the JSON fails rather than being silently thrown away on the next bake.
 
-**ONE `<audio>` AND ONE TRANSPORT FOR THE WHOLE LIBRARY, and the transport is
-MOVED into whichever card is playing.** A scrub bar per take would be ninety-odd
-things to keep in step with one element, and the one that is not on
-screen is the one that goes stale — the same reason the music remote owns no
-state. The card it lands in grows to make room; nothing else moves. Switching
-the dropdown on the card that is playing plays the new take.
+**ONE `<audio>` FOR THE WHOLE LIBRARY, AND THE CARD IS ITS OWN TRANSPORT.**
+There was a transport for a while — one element, moved into whichever card was
+playing — and it was the right shape for a music player with one bar along the
+bottom and the wrong one here: the card already has a play button, so the
+transport arrived carrying a second one. **"We have two play buttons"** (Dex,
+2026-09-11) was the report, and the fix was to delete the transport rather than
+to hide one of them.
+
+What the card holds instead, in three rows:
+
+    the name, and how many takes of it there are
+    PLAY, the waveform (which is also the scrub bar), how long the take is
+    previous, which take, next, loop, download
+
+The waveform doing double duty is what removed the second button. Volume, mute
+and Stop went the other way, to the HEADER: they belong to the player and there
+is one player, so on the card they were 25 copies of one number.
+
+**The waveform is measured at BAKE time.** `tools/bake_sfx.py` writes 40 levels
+per take as one character each (and the take's duration), so a card paints its
+picture and says `0.78s` on the first frame with nothing fetched and nothing
+decoded — the alternative was decoding the whole library in the browser on
+every open, a megabyte of audio for a picture. **In decibels, floored at -48:**
+a linear plot of a gunshot is one full bar and 39 at three per cent, which is
+the same picture as a footstep, a splash and everything else percussive in
+here. That was measured, not guessed; the first pass used a power curve and the
+whole library came out as a spike and a flat line.
+
+**The loop button is two controls in one gesture.** Click latches it on; press
+and HOLD auditions — the take loops for as long as the button is down and stops
+when you let go. That is what a jetpack, a set of tracks or a held trigger
+needs, because the question is whether the seam is audible and the way to
+answer it is to listen to it go round. One button rather than two, since
+momentary is what the gesture already means. The flag that swallows the click
+after a hold is cleared on `pointerdown`, not on the way out: a hold that ends
+with the pointer off the button fires no click at all, and a flag left set eats
+the next real one.
+
+Switching take — by the dropdown or by previous/next, which wrap — plays the
+new one if that card is the one sounding, and only re-points it if not.
 
 **The download is an `<a download>`, not a button**, pointed at the take the
 dropdown is showing and renamed to `Category - Item - Take.ogg` on the way out.
