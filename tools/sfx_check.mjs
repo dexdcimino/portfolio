@@ -100,6 +100,10 @@ const MIME = {
   '.webp': 'image/webp', '.avif': 'image/avif', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
   '.woff2': 'font/woff2', '.wav': 'audio/wav', '.mp3': 'audio/mpeg',
+  /* The library ships .ogg. Served as application/octet-stream a browser may
+     still sniff it and play, which is exactly the kind of accidental pass this
+     file exists to avoid -- Vercel sends audio/ogg, so this does too. */
+  '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.webm': 'audio/webm', '.flac': 'audio/flac',
 };
 const server = createServer(async (req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
@@ -402,6 +406,42 @@ try {
   await sleep(400);
   note(await page.evaluate(() => document.querySelectorAll('.sfx-card').length) === onDisk.items,
        'clearing the search did not bring every card back');
+
+  /* ---- 8b. a take that SHIPS plays, not only the fixture ----------------
+     The fixture is a WAV this file wrote and then deletes. Everything the
+     library actually holds is an .ogg on disk, and while every track was a
+     dash there was nothing to prove that half with. A pass here means the
+     manifest's path, the server's content type and the decoder all agree. */
+  const real = await page.evaluate(async () => {
+    const c = [...document.querySelectorAll('.sfx-card')]
+      .find(x => x.dataset.cat !== 'Harness' && !x.classList.contains('is-empty'));
+    if (!c) return null;
+    c.scrollIntoView({ block: 'center' });
+    c.querySelector('.sfx-play').click();
+    /* 120ms, not 900: these are ONE-SHOTS and the shortest is 0.13s long.
+       Reading `paused` a second later reports a take that finished, which is
+       the sound working, not failing. */
+    await new Promise(r => setTimeout(r, 120));
+    const a = document.getElementById('sfxAudio');
+    const mid = { playing: !a.paused, at: a.currentTime, dur: a.duration };
+    await new Promise(r => setTimeout(r, 900));
+    return {
+      cat: c.dataset.cat, item: c.dataset.item,
+      src: decodeURIComponent((a.currentSrc || '').split('/').pop()),
+      ...mid, over: a.ended || a.paused,
+    };
+  });
+  note(!!real, 'no card with a real file behind it — is every track still a dash?');
+  note(real && real.playing, `pressing play on "${real && real.item}" did not start it`);
+  note(real && /\.ogg$/i.test(real.src || ''), `the shipped take came back as "${real && real.src}"`);
+  note(real && real.dur > 0.1 && real.dur < 10,
+       `the shipped take reports ${real && real.dur}s, expected a one-shot`);
+  note(real && real.at > 0, 'the shipped take never advanced past zero');
+  note(real && real.over, 'a one-shot was still playing a second later — is it looping?');
+  console.log(`shipped: ${real.cat} / ${real.item} -> ${real.src}, ${real.dur.toFixed(2)}s, `
+              + `${real.at.toFixed(2)}s in after 120ms`);
+  await page.evaluate(() => document.querySelector('.sfx-transport [data-el="stop"]')?.click());
+  await sleep(200);
 
   /* ---- 9. the overlay closing stops the sound --------------------------- */
   await page.evaluate(() => {

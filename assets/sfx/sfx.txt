@@ -45,6 +45,8 @@ Player|Death splat|Punch through|player/splat-punch-1.ogg
 Player|Death splat|Slice|player/splat-slice-1.ogg
 Player|Death splat|Slice, longer|player/splat-slice-2.ogg
 Player|Death splat|Chop|player/splat-chop-1.ogg
+Player|Death splat|Wet splatter|player/splat-wet-1.ogg
+Player|Death splat|Wet splatter, again|player/splat-wet-2.ogg
 Player|Death splat|The real one, aggressive and wet|-
 Player|Hurt|Punch, medium|player/hurt-punch-1.ogg
 Player|Hurt|Punch, sharper|player/hurt-punch-2.ogg
@@ -54,48 +56,76 @@ Player|Hurt|Scrape 1|player/hurt-scrape-1.ogg
 Player|Hurt|Scrape 2|player/hurt-scrape-2.ogg
 
 # ----------------------------------------------------------------- Items ---
-Items|Bow, draw|Slow creak|-
-Items|Bow, draw|Quick pull|-
-Items|Bow, draw|Heavy longbow|-
-Items|Bow, release|Sharp twang|-
-Items|Bow, release|Deep thrum|-
-Items|Bow, release|Whoosh away|-
-Items|Arrow, impact|Into flesh|-
-Items|Arrow, impact|Into wood|-
-Items|Arrow, impact|Into stone|-
-Items|Arrow, impact|Shield clang|-
-Items|Terraformer, raise|Rising rumble|-
-Items|Terraformer, raise|Stone grind|-
+# The bow is an English longbow, a Scythian recurve and a crossbow, recorded in
+# a field at 192kHz. The terraformer is earth, stone, thunder and water; the
+# "magic swell" has no recording behind it and stays a dash.
+Items|Bow, draw|Longbow, slow draw|items/bow-draw-longbow-1.ogg
+Items|Bow, draw|Longbow, again|items/bow-draw-longbow-2.ogg
+Items|Bow, draw|Recurve, quick pull|items/bow-draw-recurve-1.ogg
+Items|Bow, draw|Recurve, longer pull|items/bow-draw-recurve-2.ogg
+Items|Bow, draw|Crossbow, nut against the sear|items/bow-draw-crossbow-1.ogg
+Items|Bow, draw|Arrow nocked|items/bow-nock-1.ogg
+Items|Bow, draw|Arrow nocked, again|items/bow-nock-2.ogg
+Items|Bow, release|Longbow, sharp twang|items/bow-shoot-longbow-1.ogg
+Items|Bow, release|Longbow, deeper|items/bow-shoot-longbow-2.ogg
+Items|Bow, release|Recurve, thrum|items/bow-shoot-recurve-1.ogg
+Items|Bow, release|Recurve, again|items/bow-shoot-recurve-2.ogg
+Items|Bow, release|Crossbow, snap|items/bow-shoot-crossbow-1.ogg
+Items|Bow, release|Arrow away|items/arrow-pass-1.ogg
+Items|Bow, release|Heavy arrow away|items/arrow-pass-heavy-1.ogg
+Items|Arrow, impact|Into flesh|items/arrow-impact-flesh-1.ogg
+Items|Arrow, impact|Into wood|items/arrow-impact-wood-1.ogg
+Items|Arrow, impact|Into stone|items/arrow-impact-stone-1.ogg
+Items|Arrow, impact|Shield clang|items/arrow-impact-shield-1.ogg
+Items|Terraformer, raise|Rising rumble|items/terra-raise-rumble-1.ogg
+Items|Terraformer, raise|Rumble, moving|items/terra-raise-rumble-2.ogg
+Items|Terraformer, raise|Thunder roll|items/terra-raise-thunder-1.ogg
+Items|Terraformer, raise|Stone grind|items/terra-raise-grind-1.ogg
 Items|Terraformer, raise|Magic swell|-
-Items|Terraformer, carve|Scooping earth|-
-Items|Terraformer, carve|Deep gouge|-
-Items|Terraformer, carve|Crumble|-
-Items|Terraformer, water|Fill and splash|-
-Items|Terraformer, water|Gentle flood|-
-Items|Terraformer, water|Rushing in|-
+Items|Terraformer, carve|Scooping earth|items/terra-carve-scoop-1.ogg
+Items|Terraformer, carve|Scooping, again|items/terra-carve-scoop-2.ogg
+Items|Terraformer, carve|Deep gouge|items/terra-carve-gouge-1.ogg
+Items|Terraformer, carve|Crumble|items/terra-carve-crumble-1.ogg
+Items|Terraformer, carve|Crumble, drier|items/terra-carve-crumble-2.ogg
+Items|Terraformer, water|Fill and splash|items/terra-water-splash-1.ogg
+Items|Terraformer, water|Splash, smaller|items/terra-water-splash-2.ogg
+Items|Terraformer, water|Gentle flood|items/terra-water-flood-1.ogg
+Items|Terraformer, water|Rushing in|items/terra-water-rush-1.ogg
 
 # --------------------------------------------------------------- Weapons ---
-Weapons|SMG, fire|Short burst|-
-Weapons|SMG, fire|Full auto loop|-
-Weapons|SMG, fire|Single shot|-
+# A PPSh (7.62 Tokarev) and a Carl Gustav M45 (9mm), both real, both close.
+Weapons|SMG, fire|Single shot|weapons/smg-single-1.ogg
+Weapons|SMG, fire|Single shot, again|weapons/smg-single-2.ogg
+Weapons|SMG, fire|Short burst|weapons/smg-burst-1.ogg
+Weapons|SMG, fire|Short burst, longer|weapons/smg-burst-2.ogg
+Weapons|SMG, fire|Full auto|weapons/smg-auto-1.ogg
+Weapons|SMG, fire|9mm, single shot|weapons/smg-9mm-single-1.ogg
+Weapons|SMG, fire|9mm, short burst|weapons/smg-9mm-burst-1.ogg
+Weapons|SMG, fire|9mm, full auto|weapons/smg-9mm-auto-1.ogg
 Weapons|SMG, impact|Into dirt|weapons/impact-dirt-1.ogg
 Weapons|SMG, impact|Into dirt, deeper|weapons/impact-dirt-2.ogg
 Weapons|SMG, impact|Into metal|weapons/impact-metal-1.ogg
 Weapons|SMG, impact|Into metal, heavier|weapons/impact-metal-3.ogg
 Weapons|SMG, impact|Ricochet|-
-Weapons|Pistol, fire|Crisp shot|-
-Weapons|Pistol, fire|Suppressed|-
-Weapons|Pistol, fire|Heavy revolver|-
+# A Walther PPQ, a 1911 and a Smith & Wesson 642.
+Weapons|Pistol, fire|Crisp shot|weapons/pistol-9mm-1.ogg
+Weapons|Pistol, fire|Crisp shot, again|weapons/pistol-9mm-2.ogg
+Weapons|Pistol, fire|.45, heavier|weapons/pistol-45-1.ogg
+Weapons|Pistol, fire|Suppressed|weapons/pistol-suppressed-1.ogg
+Weapons|Pistol, fire|Heavy revolver|weapons/pistol-revolver-1.ogg
+Weapons|Pistol, fire|Revolver, again|weapons/pistol-revolver-2.ogg
 Weapons|Pistol, impact|Into wood|weapons/impact-wood-1.ogg
 Weapons|Pistol, impact|Into wood, heavier|weapons/impact-wood-2.ogg
 Weapons|Pistol, impact|Into glass|weapons/impact-glass-1.ogg
 Weapons|Pistol, impact|Into glass, thicker|weapons/impact-glass-2.ogg
 Weapons|Pistol, impact|Into metal|weapons/impact-metal-2.ogg
-Weapons|Pistol, impact|Into body|-
+Weapons|Pistol, impact|Into body|weapons/impact-body-1.ogg
 Weapons|Reload|Magazine out|weapons/reload-latch-1.ogg
 Weapons|Reload|Magazine in|weapons/reload-click-1.ogg
 Weapons|Reload|Belt handle|weapons/reload-handle-1.ogg
-Weapons|Reload|Slide rack|-
+Weapons|Reload|Slide rack|weapons/reload-slide-1.ogg
+Weapons|Reload|Rifle magazine|weapons/reload-rifle-1.ogg
+Weapons|Reload|Shotgun cocked|weapons/reload-shotgun-1.ogg
 
 # -------------------------------------------------------------- Vehicles ---
 Vehicles|Scooter|Idle loop|-
@@ -107,12 +137,18 @@ Vehicles|Bike|Brake squeal|-
 Vehicles|Hoverboard|Hum loop|-
 Vehicles|Hoverboard|Boost|-
 Vehicles|Hoverboard|Power down|-
-Vehicles|Tank, machine gun|Short burst|-
-Vehicles|Tank, machine gun|Sustained|-
+# An AK-47 stands in for the coaxial gun -- a real automatic rifle, not a
+# tank gun, and the take says so.
+Vehicles|Tank, machine gun|Short burst|vehicles/tank-mg-burst-1.ogg
+Vehicles|Tank, machine gun|Sustained|vehicles/tank-mg-auto-1.ogg
+Vehicles|Tank, machine gun|Single round|vehicles/tank-mg-single-1.ogg
 Vehicles|Tank, machine gun|Spin up|-
-Vehicles|Tank, rocket|Launch|-
-Vehicles|Tank, rocket|Travel whoosh|-
-Vehicles|Tank, rocket|Explosion|-
+Vehicles|Tank, rocket|Launch|vehicles/tank-rocket-launch-1.ogg
+Vehicles|Tank, rocket|Travel whoosh|vehicles/tank-rocket-whoosh-1.ogg
+Vehicles|Tank, rocket|Whoosh, shorter|vehicles/tank-rocket-whoosh-2.ogg
+Vehicles|Tank, rocket|Explosion|vehicles/tank-rocket-boom-1.ogg
+Vehicles|Tank, rocket|Explosion, bigger|vehicles/tank-rocket-boom-2.ogg
+Vehicles|Tank, rocket|Explosion, mid|vehicles/tank-rocket-boom-3.ogg
 Vehicles|Tank, tracks|Rolling loop|-
 Vehicles|Tank, tracks|Turn in place|-
 

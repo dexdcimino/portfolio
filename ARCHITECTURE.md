@@ -2416,16 +2416,32 @@ and rebuilds the list — if something is playing, the transport is put back on
 the card it belongs to rather than silently orphaned, because the `<audio>`
 never moved.
 
-**The audio that ships is a FIRST DRAFT and is recorded as one.** Footsteps,
-impacts, hurts and a reload come from Kenney.nl's `Impact Sounds` and
-`RPG Audio` packs, both CC0 — real recordings, free for commercial use, credit
-optional. `assets/sfx/README.md` is the provenance record and the only place
-the source is named; nothing on the page claims it. They are a good free game
-pack rather than bespoke foley, which is why
-`Player|Death splat|The real one, aggressive and wet` is deliberately still `-`
-next to seven takes that do have files. Everything else in the manifest is
-still `-`: wanted, and not sourced. **`.ogg` does not play in Safari** and
-every file here is one, because that is what the packs ship.
+**EVERYTHING IN `assets/sfx/` IS CC0, AND THAT IS A RULE.** A CC-BY sound is
+free too, but the attribution it asks for is an obligation on the *game*, and a
+library where some files carry strings and some do not is a trap to ship from
+— so several better-sounding CC-BY packs were passed over. `assets/sfx/README.md`
+is the provenance record and the only place any source is named; nothing on the
+page claims one. Today: Kenney for footsteps and impacts, *The Free Firearm
+Sound Library* for the pistols and SMGs, a medieval weapons pack for the
+longbow, recurve and crossbow, and a handful of single-purpose CC0 uploads for
+water, stone, thunder, whooshes, cannon bangs and a wet splatter.
+
+**The takes are CUT from the source recordings, and the cut is measured.** The
+packs hold five or ten takes in one file at 96 or 192 kHz with seconds of air
+between them, so each one here was sliced at an onset read off the waveform,
+summed to MONO (positional audio wants a mono source), resampled down to a
+48 kHz ceiling, trimmed, faded and normalised to −0.5 dBFS. The first pass at
+the bow swallowed the take *after* the one it wanted — six shots in four
+seconds, and a hold long enough for a tail is long enough to catch the next
+one — so every cut now asserts how many event groups it contains before it is
+kept.
+
+**It is a first draft and the weak corners are named rather than hidden.** The
+tank's coaxial gun is an AK-47, the rocket explosions are cannon and firework
+bangs, and anything with no honest CC0 source — the magic swell, the minigun
+spin-up, the ricochet, the bespoke death splat — is still `-`. **`.ogg` does
+not play in Safari** and every file here is one, because that is what the packs
+ship.
 
 `tools/sfx_check.mjs` writes its own two-second tone, adds it to the manifest,
 bakes it with the real baker, drives it and takes both away again: a player

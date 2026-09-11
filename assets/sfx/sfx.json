@@ -1,7 +1,7 @@
 {
- "count": 93,
+ "count": 122,
  "items": 25,
- "sourced": 36,
+ "sourced": 96,
  "categories": [
   {
    "name": "Player",
@@ -92,6 +92,14 @@
        "file": "player/splat-chop-1.ogg"
       },
       {
+       "name": "Wet splatter",
+       "file": "player/splat-wet-1.ogg"
+      },
+      {
+       "name": "Wet splatter, again",
+       "file": "player/splat-wet-2.ogg"
+      },
+      {
        "name": "The real one, aggressive and wet"
       }
      ]
@@ -134,13 +142,32 @@
      "name": "Bow, draw",
      "tracks": [
       {
-       "name": "Slow creak"
+       "name": "Longbow, slow draw",
+       "file": "items/bow-draw-longbow-1.ogg"
       },
       {
-       "name": "Quick pull"
+       "name": "Longbow, again",
+       "file": "items/bow-draw-longbow-2.ogg"
       },
       {
-       "name": "Heavy longbow"
+       "name": "Recurve, quick pull",
+       "file": "items/bow-draw-recurve-1.ogg"
+      },
+      {
+       "name": "Recurve, longer pull",
+       "file": "items/bow-draw-recurve-2.ogg"
+      },
+      {
+       "name": "Crossbow, nut against the sear",
+       "file": "items/bow-draw-crossbow-1.ogg"
+      },
+      {
+       "name": "Arrow nocked",
+       "file": "items/bow-nock-1.ogg"
+      },
+      {
+       "name": "Arrow nocked, again",
+       "file": "items/bow-nock-2.ogg"
       }
      ]
     },
@@ -148,13 +175,32 @@
      "name": "Bow, release",
      "tracks": [
       {
-       "name": "Sharp twang"
+       "name": "Longbow, sharp twang",
+       "file": "items/bow-shoot-longbow-1.ogg"
       },
       {
-       "name": "Deep thrum"
+       "name": "Longbow, deeper",
+       "file": "items/bow-shoot-longbow-2.ogg"
       },
       {
-       "name": "Whoosh away"
+       "name": "Recurve, thrum",
+       "file": "items/bow-shoot-recurve-1.ogg"
+      },
+      {
+       "name": "Recurve, again",
+       "file": "items/bow-shoot-recurve-2.ogg"
+      },
+      {
+       "name": "Crossbow, snap",
+       "file": "items/bow-shoot-crossbow-1.ogg"
+      },
+      {
+       "name": "Arrow away",
+       "file": "items/arrow-pass-1.ogg"
+      },
+      {
+       "name": "Heavy arrow away",
+       "file": "items/arrow-pass-heavy-1.ogg"
       }
      ]
     },
@@ -162,16 +208,20 @@
      "name": "Arrow, impact",
      "tracks": [
       {
-       "name": "Into flesh"
+       "name": "Into flesh",
+       "file": "items/arrow-impact-flesh-1.ogg"
       },
       {
-       "name": "Into wood"
+       "name": "Into wood",
+       "file": "items/arrow-impact-wood-1.ogg"
       },
       {
-       "name": "Into stone"
+       "name": "Into stone",
+       "file": "items/arrow-impact-stone-1.ogg"
       },
       {
-       "name": "Shield clang"
+       "name": "Shield clang",
+       "file": "items/arrow-impact-shield-1.ogg"
       }
      ]
     },
@@ -179,10 +229,20 @@
      "name": "Terraformer, raise",
      "tracks": [
       {
-       "name": "Rising rumble"
+       "name": "Rising rumble",
+       "file": "items/terra-raise-rumble-1.ogg"
       },
       {
-       "name": "Stone grind"
+       "name": "Rumble, moving",
+       "file": "items/terra-raise-rumble-2.ogg"
+      },
+      {
+       "name": "Thunder roll",
+       "file": "items/terra-raise-thunder-1.ogg"
+      },
+      {
+       "name": "Stone grind",
+       "file": "items/terra-raise-grind-1.ogg"
       },
       {
        "name": "Magic swell"
@@ -193,13 +253,24 @@
      "name": "Terraformer, carve",
      "tracks": [
       {
-       "name": "Scooping earth"
+       "name": "Scooping earth",
+       "file": "items/terra-carve-scoop-1.ogg"
       },
       {
-       "name": "Deep gouge"
+       "name": "Scooping, again",
+       "file": "items/terra-carve-scoop-2.ogg"
       },
       {
-       "name": "Crumble"
+       "name": "Deep gouge",
+       "file": "items/terra-carve-gouge-1.ogg"
+      },
+      {
+       "name": "Crumble",
+       "file": "items/terra-carve-crumble-1.ogg"
+      },
+      {
+       "name": "Crumble, drier",
+       "file": "items/terra-carve-crumble-2.ogg"
       }
      ]
     },
@@ -207,13 +278,20 @@
      "name": "Terraformer, water",
      "tracks": [
       {
-       "name": "Fill and splash"
+       "name": "Fill and splash",
+       "file": "items/terra-water-splash-1.ogg"
       },
       {
-       "name": "Gentle flood"
+       "name": "Splash, smaller",
+       "file": "items/terra-water-splash-2.ogg"
       },
       {
-       "name": "Rushing in"
+       "name": "Gentle flood",
+       "file": "items/terra-water-flood-1.ogg"
+      },
+      {
+       "name": "Rushing in",
+       "file": "items/terra-water-rush-1.ogg"
       }
      ]
     }
@@ -226,13 +304,36 @@
      "name": "SMG, fire",
      "tracks": [
       {
-       "name": "Short burst"
+       "name": "Single shot",
+       "file": "weapons/smg-single-1.ogg"
       },
       {
-       "name": "Full auto loop"
+       "name": "Single shot, again",
+       "file": "weapons/smg-single-2.ogg"
       },
       {
-       "name": "Single shot"
+       "name": "Short burst",
+       "file": "weapons/smg-burst-1.ogg"
+      },
+      {
+       "name": "Short burst, longer",
+       "file": "weapons/smg-burst-2.ogg"
+      },
+      {
+       "name": "Full auto",
+       "file": "weapons/smg-auto-1.ogg"
+      },
+      {
+       "name": "9mm, single shot",
+       "file": "weapons/smg-9mm-single-1.ogg"
+      },
+      {
+       "name": "9mm, short burst",
+       "file": "weapons/smg-9mm-burst-1.ogg"
+      },
+      {
+       "name": "9mm, full auto",
+       "file": "weapons/smg-9mm-auto-1.ogg"
       }
      ]
     },
@@ -264,13 +365,28 @@
      "name": "Pistol, fire",
      "tracks": [
       {
-       "name": "Crisp shot"
+       "name": "Crisp shot",
+       "file": "weapons/pistol-9mm-1.ogg"
       },
       {
-       "name": "Suppressed"
+       "name": "Crisp shot, again",
+       "file": "weapons/pistol-9mm-2.ogg"
       },
       {
-       "name": "Heavy revolver"
+       "name": ".45, heavier",
+       "file": "weapons/pistol-45-1.ogg"
+      },
+      {
+       "name": "Suppressed",
+       "file": "weapons/pistol-suppressed-1.ogg"
+      },
+      {
+       "name": "Heavy revolver",
+       "file": "weapons/pistol-revolver-1.ogg"
+      },
+      {
+       "name": "Revolver, again",
+       "file": "weapons/pistol-revolver-2.ogg"
       }
      ]
     },
@@ -298,7 +414,8 @@
        "file": "weapons/impact-metal-2.ogg"
       },
       {
-       "name": "Into body"
+       "name": "Into body",
+       "file": "weapons/impact-body-1.ogg"
       }
      ]
     },
@@ -318,7 +435,16 @@
        "file": "weapons/reload-handle-1.ogg"
       },
       {
-       "name": "Slide rack"
+       "name": "Slide rack",
+       "file": "weapons/reload-slide-1.ogg"
+      },
+      {
+       "name": "Rifle magazine",
+       "file": "weapons/reload-rifle-1.ogg"
+      },
+      {
+       "name": "Shotgun cocked",
+       "file": "weapons/reload-shotgun-1.ogg"
       }
      ]
     }
@@ -373,10 +499,16 @@
      "name": "Tank, machine gun",
      "tracks": [
       {
-       "name": "Short burst"
+       "name": "Short burst",
+       "file": "vehicles/tank-mg-burst-1.ogg"
       },
       {
-       "name": "Sustained"
+       "name": "Sustained",
+       "file": "vehicles/tank-mg-auto-1.ogg"
+      },
+      {
+       "name": "Single round",
+       "file": "vehicles/tank-mg-single-1.ogg"
       },
       {
        "name": "Spin up"
@@ -387,13 +519,28 @@
      "name": "Tank, rocket",
      "tracks": [
       {
-       "name": "Launch"
+       "name": "Launch",
+       "file": "vehicles/tank-rocket-launch-1.ogg"
       },
       {
-       "name": "Travel whoosh"
+       "name": "Travel whoosh",
+       "file": "vehicles/tank-rocket-whoosh-1.ogg"
       },
       {
-       "name": "Explosion"
+       "name": "Whoosh, shorter",
+       "file": "vehicles/tank-rocket-whoosh-2.ogg"
+      },
+      {
+       "name": "Explosion",
+       "file": "vehicles/tank-rocket-boom-1.ogg"
+      },
+      {
+       "name": "Explosion, bigger",
+       "file": "vehicles/tank-rocket-boom-2.ogg"
+      },
+      {
+       "name": "Explosion, mid",
+       "file": "vehicles/tank-rocket-boom-3.ogg"
       }
      ]
     },
