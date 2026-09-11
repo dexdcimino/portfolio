@@ -6304,7 +6304,10 @@ body.modal-open{overflow:hidden}
 .sfx-rail button:hover{color:#fff;background:rgba(255,255,255,.06)}
 .sfx-rail button[aria-current="true"]{color:var(--accent);background:rgba(255,255,255,.07)}
 .sfx-rail-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sfx-rail-n{flex:0 0 auto;font-size:12px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+/* Two points up from the 12px everything else in a rail uses: this is a
+   COUNT, the one thing on the row a reader is scanning for, and at 12px it
+   was losing to the name beside it. */
+.sfx-rail-n{flex:0 0 auto;font-size:14px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
 
 /* tabindex=-1 so opening the overlay can put the keyboard on the list rather
    than on the search box -- but it is a scroll container and not a control,
@@ -6315,13 +6318,27 @@ body.modal-open{overflow:hidden}
 .sfx-empty{margin:40px 0;text-align:center;color:var(--muted)}
 .sfx-empty[hidden]{display:none}
 
-.sfx-cat{margin:0 0 26px}
+/* EVERY OTHER SECTION SITS ON A DIFFERENT GROUND, which is the cheapest way
+   to tell five stacked lists apart: no rule, no gap, no extra label -- the eye
+   gets the boundary for free. Subtle on purpose, a couple of per cent either
+   side of the shell's own colour; any louder and the sections read as being
+   in two different states rather than as two sections. Painted OUTWARD past
+   the list's padding with a negative margin so the band reaches the edges of
+   the panel rather than floating in the middle of it. */
+.sfx-cat{
+  margin:0 0 4px;padding:14px 20px 18px;
+  margin-inline:-20px;
+  background:rgba(255,255,255,.022);
+}
+.sfx-cat:nth-child(even){background:rgba(0,0,0,.22)}
+.sfx-cat:first-child{border-radius:10px 10px 0 0}
+.sfx-cat:last-child{border-radius:0 0 10px 10px;margin-bottom:0}
 /* The whole head is the fold: a chevron that is only 20px of target is a
    chevron you aim at, and there is nothing else on this row to press. */
 .sfx-cat-head{
   display:flex;align-items:center;gap:10px;width:100%;
-  padding:8px 6px;margin:0 0 10px;cursor:pointer;
-  border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;
+  padding:4px 2px 10px;margin:0 0 12px;cursor:pointer;
+  border:0;border-bottom:1px solid rgba(255,255,255,.09);border-radius:0;background:none;
   color:#e6ebf2;font:inherit;text-align:left;
 }
 .sfx-cat-head:hover{color:var(--accent)}
@@ -6329,7 +6346,7 @@ body.modal-open{overflow:hidden}
 .sfx-cat-chev{width:16px;height:16px;flex:0 0 auto;color:var(--accent);transition:transform .2s ease}
 .sfx-cat.is-shut .sfx-cat-chev{transform:rotate(-90deg)}
 .sfx-cat-name{flex:1 1 auto;font-size:16px;font-weight:800;letter-spacing:.02em}
-.sfx-cat-n{font-size:12px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+.sfx-cat-n{font-size:14px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
 .sfx-cat.is-shut .sfx-grid{display:none}
 
 /* THREE, TWO, ONE, at widths that are stated rather than fallen into.
@@ -6344,32 +6361,64 @@ body.modal-open{overflow:hidden}
 @media(min-width:901px){.sfx-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(min-width:1200px){.sfx-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
+/* SOLID AND DARKER THAN WHAT IT SITS ON, in both bands. A card that is a
+   lighter panel on a dark page reads as a raised tile; darker reads as a well
+   cut into the section, which is what a list of things inside a section is.
+   One colour for both bands rather than one per band: the cards are the
+   constant and the ground behind them is what alternates. */
 .sfx-card{
-  display:grid;gap:8px;padding:11px 12px;
-  border:1px solid var(--line);border-radius:12px;background:#11151c;
+  display:grid;gap:9px;padding:13px 14px;
+  border:1px solid rgba(255,255,255,.07);border-radius:16px;background:#0a0d12;
   transition:border-color var(--accent-ease),background .18s ease;
 }
-.sfx-card:hover{border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
-.sfx-card.is-playing{border-color:var(--accent);background:#131a1b}
-/* A card with nothing behind it yet. It stays in the list on purpose -- this
-   is the wishlist -- and says what it is waiting for. */
-.sfx-card.is-empty{opacity:.62}
+.sfx-card:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:#0c1016}
+.sfx-card.is-playing{border-color:var(--accent);background:#0c1411}
+/* A card with nothing behind it yet stays in the list on purpose -- this is
+   the wishlist. It does not need a label saying so any more: every take in
+   its dropdown already ends in "no file yet", which is the same sentence in
+   the place you were about to read anyway. */
+.sfx-card.is-empty{opacity:.6}
 .sfx-card-top{display:flex;align-items:center;gap:9px;min-width:0}
 .sfx-card-name{flex:1 1 auto;min-width:0;font-size:14px;font-weight:700;color:#e6ebf2;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sfx-card-n{
-  flex:0 0 auto;padding:2px 7px;border-radius:999px;
+  flex:0 0 auto;padding:2px 8px;border-radius:999px;
   background:rgba(255,255,255,.07);color:var(--muted);
-  font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;
+  font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;
 }
 .sfx-card-row{display:flex;align-items:center;gap:8px;min-width:0}
-.sfx-pick{
-  flex:1 1 auto;min-width:0;height:32px;padding:0 8px;
-  border:1px solid var(--line);border-radius:8px;background:#0c1013;color:#cfd6de;
-  font:inherit;font-size:13px;cursor:pointer;
+/* appearance:none IS THE WHOLE FIX. Left alone, a <select> is painted by the
+   operating system: a grey bevel and a Windows 95 triangle, on a panel that is
+   neither. Only the CLOSED control can be styled -- the popup list belongs to
+   the OS and no CSS reaches it -- so that is where all of this happens.
+
+   THE CHEVRON IS A SIBLING, not a background-image. A select is a replaced
+   element and grows no pseudo-element to hang one on, and painting the mark as
+   a background would mean a second copy of an icon the icon system already
+   bakes, free to drift from it. So the pair sits in a wrapper: the select
+   fills it, the mark is laid over the right end with pointer-events:none so
+   every click still reaches the control underneath. The padding-right is what
+   keeps a long take name from running under it. */
+.sfx-pickwrap{position:relative;flex:1 1 auto;min-width:0;display:flex}
+.sfx-pickwrap .sfx-chev{
+  position:absolute;right:11px;top:50%;transform:translateY(-50%);
+  width:13px;height:13px;color:var(--muted);pointer-events:none;
 }
-.sfx-pick:focus{outline:none;border-color:var(--accent)}
-.sfx-pick:disabled{cursor:default;opacity:.6}
+.sfx-pickwrap:hover .sfx-chev{color:#cfd6de}
+.sfx-pick{
+  flex:1 1 auto;min-width:0;height:36px;padding:0 32px 0 11px;
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  border:1px solid rgba(255,255,255,.1);border-radius:10px;
+  background-color:#12171f;color:#dbe2ea;
+  font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  text-overflow:ellipsis;
+  transition:border-color var(--accent-ease),background-color .18s ease;
+}
+.sfx-pick:hover{background-color:#161c26;border-color:rgba(255,255,255,.18)}
+.sfx-pick:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+/* The popup is the OS's, but Chrome does take these two from the element. */
+.sfx-pick option{background:#12171f;color:#dbe2ea}
+.sfx-pick:disabled{cursor:default;opacity:.55}
 .sfx-play{
   flex:0 0 auto;width:34px;height:34px;display:grid;place-items:center;padding:0;cursor:pointer;
   border:0;border-radius:50%;background:var(--accent);color:#0b0c12;
@@ -6379,7 +6428,21 @@ body.modal-open{overflow:hidden}
 .sfx-play:hover{filter:brightness(1.12)}
 .sfx-play:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sfx-play:disabled{background:rgba(255,255,255,.08);color:var(--muted);cursor:default;filter:none}
-.sfx-wait{margin:0;font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--muted)}
+/* The take you are looking at, on disk. An <a download> and not a button: the
+   browser already knows how to save a file it can reach, and a script that
+   re-fetches it to hand it back is a second copy of that for no reason. It is
+   the quieter of the two marks on the row -- playing is what you came for,
+   saving is what you do once. */
+.sfx-get{
+  flex:0 0 auto;width:34px;height:34px;display:grid;place-items:center;
+  border:1px solid rgba(255,255,255,.1);border-radius:10px;
+  background:none;color:var(--muted);text-decoration:none;
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .18s ease;
+}
+.sfx-get .icon{width:16px;height:16px}
+.sfx-get:hover{color:#fff;border-color:var(--accent);background:rgba(255,255,255,.06)}
+.sfx-get:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sfx-get[aria-disabled="true"]{opacity:.4;pointer-events:none}
 
 /* The one transport, wherever it currently is. */
 .sfx-transport{display:grid;gap:7px;padding-top:2px}

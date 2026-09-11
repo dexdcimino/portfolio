@@ -6695,14 +6695,42 @@ const MediaBus = (() => {
       start(el, item);
     });
 
-    row.append(pick, play);
+    /* The mark goes OVER the select rather than in it: see .sfx-pickwrap. */
+    const wrap = document.createElement('span');
+    wrap.className = 'sfx-pickwrap';
+    const chev = document.createElement('span');
+    chev.className = 'icon sfx-chev';
+    chev.dataset.icon = 'chevron';
+    chev.setAttribute('aria-hidden', 'true');
+    wrap.append(pick, chev);
+
+    /* SAVE THE TAKE YOU ARE LOOKING AT. An <a download> and not a button: the
+       browser already knows how to save a file it can reach. The name it saves
+       under is the card's, not the file's, so a folder of these reads as the
+       library rather than as whatever the source pack called them. */
+    const get = document.createElement('a');
+    get.className = 'sfx-get';
+    get.innerHTML = '<span class="icon" data-icon="download" aria-hidden="true"></span>';
+    const syncGet = () => {
+      const t = item.tracks[Number(pick.value) || 0];
+      if (t && t.file) {
+        get.href = `assets/sfx/${t.file}`;
+        const ext = t.file.slice(t.file.lastIndexOf('.'));
+        get.download = `${cat.name} - ${item.name} - ${t.name}${ext}`
+          .replace(/[\/:*?"<>|]/g, '-');
+        get.removeAttribute('aria-disabled');
+        get.setAttribute('aria-label', `Download ${item.name} — ${t.name}`);
+      } else {
+        get.removeAttribute('href');
+        get.setAttribute('aria-disabled', 'true');
+        get.setAttribute('aria-label', `${item.name} has no file to download yet`);
+      }
+    };
+    syncGet();
+    pick.addEventListener('change', syncGet);
+
+    row.append(wrap, play, get);
     el.append(top, row);
-    if (!sourced) {
-      const wait = document.createElement('p');
-      wait.className = 'sfx-wait';
-      wait.textContent = 'TO SOURCE';
-      el.append(wait);
-    }
     el._item = item;
     el._pick = pick;
     el._play = play;

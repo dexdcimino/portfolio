@@ -2343,9 +2343,11 @@ checked is printed and asserted against the number of bodies there are.
 ## Sound library (code `FOLEY`)
 
 Every sound the game needs, as cards in categories: a name, a dropdown of the
-takes of it, how many of those there are, and a play button. **A shopping list
-as much as a player** — a track with no file yet is still a card, and it says
-so on its face rather than being left out and forgotten about. The code is the
+takes of it, how many of those there are, a play button and a download. **A
+shopping list as much as a player** — a track with no file yet is still a card,
+and every take in its dropdown says `no file yet`, which is the same sentence
+in the place you were about to read anyway. It carried a `TO SOURCE` caption as
+well for one pass; two ways of saying it is one too many. The code is the
 trade's own word for sourced sound effects, and it is five letters, which is
 how many boxes the keypad has.
 
@@ -2363,11 +2365,35 @@ not sourced yet; `--check` is a byte comparison against a rebuild, so a hand
 edit to the JSON fails rather than being silently thrown away on the next bake.
 
 **ONE `<audio>` AND ONE TRANSPORT FOR THE WHOLE LIBRARY, and the transport is
-MOVED into whichever card is playing.** Seventy-six scrub bars would be
-seventy-six things to keep in step with one element, and the one that is not on
+MOVED into whichever card is playing.** A scrub bar per take would be ninety-odd
+things to keep in step with one element, and the one that is not on
 screen is the one that goes stale — the same reason the music remote owns no
 state. The card it lands in grows to make room; nothing else moves. Switching
 the dropdown on the card that is playing plays the new take.
+
+**The download is an `<a download>`, not a button**, pointed at the take the
+dropdown is showing and renamed to `Category - Item - Take.ogg` on the way out.
+The browser already knows how to save a file it can reach; a script that
+re-fetches it to hand it back is a second copy of that for no reason. It is
+re-pointed on every `change`, so the file you save is always the one you just
+heard. A card with no file behind it keeps the button and marks it
+`aria-disabled` with no `href` — the affordance stays where it will be.
+
+**Every other section sits on a different ground** (`rgba(255,255,255,.022)`
+against `rgba(0,0,0,.22)`), painted outward past the list's padding with a
+negative inline margin so the band reaches the panel's edges. It is the
+cheapest way to tell five stacked lists apart: no rule, no gap, no extra label.
+The cards on top of them are ONE colour in both bands and darker than either,
+so they read as wells cut into the section rather than as tiles raised off it.
+
+**The take dropdown is `appearance:none`.** Left alone a `<select>` is painted
+by the operating system — a grey bevel and a Windows 95 triangle, on a panel
+that is neither. The popup list belongs to the OS and no CSS reaches it, so the
+closed control is where all of the styling has to happen. The chevron is the
+site's own icon in a `<span class="icon">` laid over the box with
+`pointer-events:none` rather than a background image: there is no
+`--icon-chevron` to reference (the icon system sets `--icon` per element), and
+a hand-inlined data URI would be a second copy of a mask that already ships.
 
 **Three columns, then two, then one, at widths that are stated.** `auto-fit`
 with a `minmax` floor was tried first and is the wrong tool here: the column
@@ -2390,9 +2416,17 @@ and rebuilds the list — if something is playing, the transport is put back on
 the card it belongs to rather than silently orphaned, because the `<audio>`
 never moved.
 
-**WHAT IS NOT HERE YET: the sounds.** Every track in the manifest is `-`. The
-files are a sourcing job — free-for-commercial-use, high quality, not
-synthesised — and they drop into `assets/sfx/` with one manifest line each.
+**The audio that ships is a FIRST DRAFT and is recorded as one.** Footsteps,
+impacts, hurts and a reload come from Kenney.nl's `Impact Sounds` and
+`RPG Audio` packs, both CC0 — real recordings, free for commercial use, credit
+optional. `assets/sfx/README.md` is the provenance record and the only place
+the source is named; nothing on the page claims it. They are a good free game
+pack rather than bespoke foley, which is why
+`Player|Death splat|The real one, aggressive and wet` is deliberately still `-`
+next to seven takes that do have files. Everything else in the manifest is
+still `-`: wanted, and not sourced. **`.ogg` does not play in Safari** and
+every file here is one, because that is what the packs ship.
+
 `tools/sfx_check.mjs` writes its own two-second tone, adds it to the manifest,
 bakes it with the real baker, drives it and takes both away again: a player
 that has never played anything is a player nothing has been proved about, and a

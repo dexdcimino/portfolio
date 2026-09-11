@@ -187,20 +187,50 @@ try {
   console.log(`library: ${built.cats} categories, ${built.cards} cards, ${built.options} takes, `
               + `${built.empty} still to source — "${built.countLine}"`);
 
-  /* ---- 2. a card with no file says so and cannot be played -------------- */
+  /* ---- 2. a card with no file says so and cannot be played --------------
+     The saying-so is the DROPDOWN, which is the place you were about to read
+     anyway -- there was a "TO SOURCE" caption under the card as well and it
+     was the same sentence twice. What has to hold is that neither control
+     lies: nothing to play, nothing to download. */
   const unsourced = await page.evaluate(() => {
     const c = [...document.querySelectorAll('.sfx-card.is-empty')][0];
     if (!c) return null;
+    const get = c.querySelector('.sfx-get');
     return {
       disabled: c.querySelector('.sfx-play').disabled,
       says: /no file yet/i.test(c.querySelector('.sfx-pick').options[0].textContent),
-      label: (c.querySelector('.sfx-wait') || {}).textContent || '',
+      getOff: get.getAttribute('aria-disabled') === 'true' && !get.getAttribute('href'),
+      caption: !!c.querySelector('.sfx-wait'),
     };
   });
   note(!!unsourced, 'no unsourced card to check — the manifest has a file for everything?');
   note(unsourced && unsourced.disabled, 'a card with no file behind it still offers a play button');
   note(unsourced && unsourced.says, 'the dropdown does not say which takes have no file yet');
-  note(unsourced && /SOURCE/i.test(unsourced.label), `an unsourced card is not labelled (${unsourced && unsourced.label})`);
+  note(unsourced && unsourced.getOff, 'a card with no file behind it still offers a download');
+  note(unsourced && !unsourced.caption, 'the TO SOURCE caption is back — the dropdown already says it');
+
+  /* ---- 2b. a card WITH a file offers the take you are looking at --------- */
+  const dl = await page.evaluate(() => {
+    const c = [...document.querySelectorAll('.sfx-card')].find(x => !x.classList.contains('is-empty'));
+    if (!c) return null;
+    const get = c.querySelector('.sfx-get');
+    const pick = c.querySelector('.sfx-pick');
+    const first = { href: get.getAttribute('href'), name: get.getAttribute('download') };
+    pick.value = String(Math.min(1, pick.options.length - 1));
+    pick.dispatchEvent(new Event('change', { bubbles: true }));
+    return { first, second: { href: get.getAttribute('href'), name: get.getAttribute('download') },
+             takes: pick.options.length, item: c.dataset.item };
+  });
+  note(!!dl && /^assets\/sfx\//.test(dl.first.href || ''), `the download points at "${dl && dl.first.href}"`);
+  note(!!dl && /\.(ogg|mp3|wav|m4a|webm|flac)$/i.test(dl.first.name || ''),
+       `the download would save as "${dl && dl.first.name}" — no extension`);
+  note(!!dl && dl.first.name.includes(dl.item), 'the saved name does not say which item it is');
+  /* CHANGING THE TAKE CHANGES THE DOWNLOAD. A link wired once is a link that
+     hands over the first take forever, which is the same bug as a play button
+     that ignores the dropdown. */
+  note(!!dl && dl.takes > 1 && dl.second.href !== dl.first.href,
+       'switching take did not move the download with it');
+  console.log(`download: "${dl.first.name}" -> "${dl.second.name}"`);
 
   /* ---- 3. the fixture PLAYS, for real ----------------------------------- */
   const fixtureCard = await page.evaluate(() => {

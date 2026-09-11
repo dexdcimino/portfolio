@@ -1,7 +1,7 @@
 {
- "count": 76,
+ "count": 93,
  "items": 25,
- "sourced": 0,
+ "sourced": 36,
  "categories": [
   {
    "name": "Player",
@@ -10,13 +10,24 @@
      "name": "Footsteps, grass",
      "tracks": [
       {
-       "name": "Soft walk"
+       "name": "Step 1",
+       "file": "player/footstep-grass-1.ogg"
       },
       {
-       "name": "Run"
+       "name": "Step 2",
+       "file": "player/footstep-grass-2.ogg"
       },
       {
-       "name": "Heavy landing"
+       "name": "Step 3",
+       "file": "player/footstep-grass-3.ogg"
+      },
+      {
+       "name": "Step 4",
+       "file": "player/footstep-grass-4.ogg"
+      },
+      {
+       "name": "Step 5",
+       "file": "player/footstep-grass-5.ogg"
       }
      ]
     },
@@ -24,16 +35,28 @@
      "name": "Footsteps, hard",
      "tracks": [
       {
-       "name": "Concrete walk"
+       "name": "Concrete 1",
+       "file": "player/footstep-concrete-1.ogg"
       },
       {
-       "name": "Concrete run"
+       "name": "Concrete 2",
+       "file": "player/footstep-concrete-2.ogg"
       },
       {
-       "name": "Metal walk"
+       "name": "Concrete 3",
+       "file": "player/footstep-concrete-3.ogg"
       },
       {
-       "name": "Wood walk"
+       "name": "Wood 1",
+       "file": "player/footstep-wood-1.ogg"
+      },
+      {
+       "name": "Wood 2",
+       "file": "player/footstep-wood-2.ogg"
+      },
+      {
+       "name": "Carpet",
+       "file": "player/footstep-carpet-1.ogg"
       }
      ]
     },
@@ -41,16 +64,35 @@
      "name": "Death splat",
      "tracks": [
       {
-       "name": "Wet burst"
+       "name": "Soft heavy burst",
+       "file": "player/splat-heavy-1.ogg"
       },
       {
-       "name": "Thick splatter"
+       "name": "Soft heavy, wetter",
+       "file": "player/splat-heavy-2.ogg"
       },
       {
-       "name": "Splat with drips"
+       "name": "Soft heavy, dull",
+       "file": "player/splat-heavy-3.ogg"
       },
       {
-       "name": "Comic squelch"
+       "name": "Punch through",
+       "file": "player/splat-punch-1.ogg"
+      },
+      {
+       "name": "Slice",
+       "file": "player/splat-slice-1.ogg"
+      },
+      {
+       "name": "Slice, longer",
+       "file": "player/splat-slice-2.ogg"
+      },
+      {
+       "name": "Chop",
+       "file": "player/splat-chop-1.ogg"
+      },
+      {
+       "name": "The real one, aggressive and wet"
       }
      ]
     },
@@ -58,13 +100,28 @@
      "name": "Hurt",
      "tracks": [
       {
-       "name": "Short grunt"
+       "name": "Punch, medium",
+       "file": "player/hurt-punch-1.ogg"
       },
       {
-       "name": "Heavy hit"
+       "name": "Punch, sharper",
+       "file": "player/hurt-punch-2.ogg"
       },
       {
-       "name": "Scraped"
+       "name": "Soft hit",
+       "file": "player/hurt-soft-1.ogg"
+      },
+      {
+       "name": "Soft hit, duller",
+       "file": "player/hurt-soft-2.ogg"
+      },
+      {
+       "name": "Scrape 1",
+       "file": "player/hurt-scrape-1.ogg"
+      },
+      {
+       "name": "Scrape 2",
+       "file": "player/hurt-scrape-2.ogg"
       }
      ]
     }
@@ -183,10 +240,20 @@
      "name": "SMG, impact",
      "tracks": [
       {
-       "name": "Into dirt"
+       "name": "Into dirt",
+       "file": "weapons/impact-dirt-1.ogg"
       },
       {
-       "name": "Into metal"
+       "name": "Into dirt, deeper",
+       "file": "weapons/impact-dirt-2.ogg"
+      },
+      {
+       "name": "Into metal",
+       "file": "weapons/impact-metal-1.ogg"
+      },
+      {
+       "name": "Into metal, heavier",
+       "file": "weapons/impact-metal-3.ogg"
       },
       {
        "name": "Ricochet"
@@ -211,10 +278,24 @@
      "name": "Pistol, impact",
      "tracks": [
       {
-       "name": "Into wood"
+       "name": "Into wood",
+       "file": "weapons/impact-wood-1.ogg"
       },
       {
-       "name": "Into glass"
+       "name": "Into wood, heavier",
+       "file": "weapons/impact-wood-2.ogg"
+      },
+      {
+       "name": "Into glass",
+       "file": "weapons/impact-glass-1.ogg"
+      },
+      {
+       "name": "Into glass, thicker",
+       "file": "weapons/impact-glass-2.ogg"
+      },
+      {
+       "name": "Into metal",
+       "file": "weapons/impact-metal-2.ogg"
       },
       {
        "name": "Into body"
@@ -225,10 +306,16 @@
      "name": "Reload",
      "tracks": [
       {
-       "name": "Magazine out"
+       "name": "Magazine out",
+       "file": "weapons/reload-latch-1.ogg"
       },
       {
-       "name": "Magazine in"
+       "name": "Magazine in",
+       "file": "weapons/reload-click-1.ogg"
+      },
+      {
+       "name": "Belt handle",
+       "file": "weapons/reload-handle-1.ogg"
       },
       {
        "name": "Slide rack"
