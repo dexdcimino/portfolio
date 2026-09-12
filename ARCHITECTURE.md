@@ -1793,6 +1793,24 @@ vanish on the way. `pointer-events` follow the paint: the tab is always present
 at full size and clipped to nothing, so it can animate on the compositor, but a
 24px invisible button beside every row would be 24px of accidental archiving.
 
+**`.nt-row::after` bridges the gap between the two.** Being the row's child is
+not enough on its own: the row ends at the column's padding edge and the tab
+starts at the panel's, and those measured **8px belong to `.nt-rows` and to
+nothing else**. The pointer crossing them dropped `:hover`, and because
+`pointer-events` follow the paint the X was not merely fading -- it was
+unreachable, which is what Dex reported on 2026-09-12. The strip is an
+invisible pseudo-element hanging off the row's right edge, clipped by the
+column's own padding box, which is exactly the width it has to cover. It costs
+no layout and paints nothing; what it does is make the path from the name to
+the X continuous.
+
+It is also how "show the X when I hover the space beside a category" works: the
+strip IS the row as far as `:hover` is concerned, so pointing at that gap lights
+the row and brings its tab out without the pointer ever touching the row. The
+check for it walks a real pointer the whole way in 3px steps and asserts at
+every one of them -- the two ENDS of that journey both passed while the 8px in
+the middle were broken.
+
 **The list and the archive are welded.** One grab edge between them decides
 how the leftover height is shared (`--list-flex` / `--arch-flex`, saved as
 `ui.archSplit`), and the archive header carries two arms that lie flat while

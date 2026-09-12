@@ -1783,6 +1783,68 @@ await chord(['Control'], '\\');
   const held = await measure();
   note(held.shown && held.clickable, 'moving onto the tab itself made it go away');
 
+  /* AND EVERY PIXEL IN BETWEEN (Dex, 2026-09-12). The two assertions above are
+     the two ENDS of the journey, and the bug lived in the middle of it: the
+     row stops at the column's padding edge, the tab starts at the panel's, and
+     the 8px between belong to .nt-rows and to nothing else. The pointer
+     crossing them dropped :hover, and pointer-events went with the paint -- so
+     the X was not merely fading, it was unreachable. `.nt-row::after` bridges
+     it, and what proves the bridge is walking the whole way rather than
+     sampling the ends.
+
+     COUNT THE STEPS. A walk that took one step passes every assertion in the
+     loop while crossing nothing. */
+  const walk = await page.evaluate(() => {
+    const row = document.querySelectorAll('.nt-row')[2];
+    const r = row.getBoundingClientRect();
+    const t = row.querySelector('.nt-row-x').getBoundingClientRect();
+    return { from: Math.round(r.left + 40), to: Math.round(t.left + t.width / 2),
+             y: Math.round(r.top + r.height / 2), rowRight: Math.round(r.right),
+             sideRight: Math.round(document.querySelector('.nt-sidebar').getBoundingClientRect().right) };
+  });
+  /* The gap is real and small; if it ever becomes zero this check is testing
+     nothing and should say so rather than passing. */
+  note(walk.sideRight - walk.rowRight > 2,
+       `there is no gap between the row's edge and the panel's (${walk.sideRight - walk.rowRight}px) — `
+       + 'this check is proving nothing');
+  /* The strip beside the row belongs to the ROW. That is the mechanism, and it
+     is the only way to see it: the pseudo-element paints nothing. */
+  const ownsGap = await page.evaluate((w) => {
+    const row = document.querySelectorAll('.nt-row')[2];
+    const at = document.elementFromPoint(w.rowRight + 3, w.y);
+    return at ? at.closest('.nt-row') === row : false;
+  }, walk);
+  note(ownsGap, 'the gap beside the row does not belong to it — the pointer falls out of hover crossing it');
+
+  await page.mouse.move(walk.from, walk.y);
+  await sleep(320);
+  let steps = 0, dark = 0, gone = 0;
+  for (let x = walk.from; x <= walk.to; x += 3) {
+    await page.mouse.move(x, walk.y);
+    await sleep(40);
+    const at = await page.evaluate(() => {
+      const row = document.querySelectorAll('.nt-row')[2];
+      const x = row.querySelector('.nt-row-x');
+      const cs = getComputedStyle(x);
+      return {
+        shown: cs.clipPath === 'none' || /inset\(0(px)?( 0(px)?){0,3}\)/.test(cs.clipPath),
+        clickable: cs.pointerEvents !== 'none',
+        lit: getComputedStyle(row).backgroundColor,
+      };
+    });
+    steps++;
+    if (!at.shown || !at.clickable) gone++;
+    if (/rgba\(0, 0, 0, 0\)|transparent/.test(at.lit)) dark++;
+  }
+  note(steps > 12, `the walk took ${steps} steps — too few to cross anything`);
+  note(gone === 0, `the tab went away (or stopped being clickable) at ${gone} of ${steps} points on the way to it`);
+  note(dark === 0, `the row lost its highlight at ${dark} of ${steps} points — hovering beside a category `
+       + 'must count as hovering it');
+  console.log(`reach: ${steps} steps from the name to the tab, ${walk.sideRight - walk.rowRight}px of it `
+              + `outside the row, never losing the tab`);
+  await page.mouse.move(900, 700);
+  await sleep(250);
+
   console.log(`row: dot ${rest.dotFromRight}px from the edge, unmoved; `
               + `${out.xWidth}px tab outside the panel at ${out.xFromSide}px from its edge`);
 }
