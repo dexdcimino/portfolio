@@ -1,8 +1,8 @@
 /* A local stand-in for Vercel, so the notes overlay can be driven end to end
  * on this machine.
  *
- * It serves the repo as static files and routes /api/notes/* to THE REAL
- * HANDLERS in api/notes/. Nothing about the password check, the token, the
+ * It serves the repo as static files and routes /api/notes/* and
+ * /api/chess/table to THE REAL HANDLERS in api/. Nothing about the password check, the token, the
  * seeding, the revision check, the backup tiers or the asset store is
  * re-implemented here — those are the shipped modules, required directly.
  * What is different is only where the bytes land: NOTES_DEV_DIR puts them on
@@ -50,6 +50,7 @@ if (process.argv.includes('--legacy')) {
 const unlock = require(join(ROOT, 'api/notes/unlock.js'));
 const save = require(join(ROOT, 'api/notes/save.js'));
 const asset = require(join(ROOT, 'api/notes/asset.js'));
+const chessTable = require(join(ROOT, 'api/chess/table.js'));
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -83,10 +84,11 @@ const server = createServer(async (req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
   shim(res);
 
-  if (url.startsWith('/api/notes/')) {
+  if (url.startsWith('/api/notes/') || url.startsWith('/api/chess/')) {
     const route = url === '/api/notes/unlock' ? unlock
                 : url === '/api/notes/save' ? save
-                : url === '/api/notes/asset' ? asset : null;
+                : url === '/api/notes/asset' ? asset
+                : url === '/api/chess/table' ? chessTable : null;
     if (!route) return res.status(404).json({ error: 'no such route' });
     const raw = await readBody(req);
     try { req.body = raw ? JSON.parse(raw) : null; } catch { req.body = null; }

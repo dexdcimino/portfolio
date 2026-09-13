@@ -3426,7 +3426,8 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
      and the content still comes from the server or not at all. The music
      overlay has no password to be past: it is a list of public links, and the
      code is a doorway rather than a lock. */
-  const EVENTS = { notes: 'notes:open', music: 'music:open', sfx: 'sfx:open' };
+  const EVENTS = { notes: 'notes:open', music: 'music:open', sfx: 'sfx:open',
+                   chess: 'chess:open' };
 
   /* SubtleCrypto only exists in a secure context. Over https or on localhost
      that is everywhere; opened as a file:// double-click it is nowhere, and the
@@ -7094,6 +7095,64 @@ const MediaBus = (() => {
      reason the notes and the music are: it has to fetch its manifest before
      there is anything to show. */
   document.addEventListener('sfx:open', (event) => {
+    if (!modal.open) open((event.detail || {}).opener);
+  });
+})();
+
+
+/* --- the chess table (code CHESS) -------------------------------------------
+   A LIVE game: two seats, whoever is sitting in them, and everyone else
+   watching. Type CHESS into the tilde keypad or the Idea Vault.
+
+   NOTHING OF THE GAME IS IN THIS FILE. The board, the rules and the room are
+   chess/app.mjs, imported the first time the overlay opens -- a visitor who
+   never types the code never fetches a byte of it, which is the same
+   arrangement the notes editor has.
+
+   "LIVE" IS POLLING, and that is not a compromise. There is no server here to
+   hold a socket open -- Vercel's functions are serverless -- and a game where
+   the state changes twice a minute does not need one. The table is a small
+   JSON document behind /api/chess/table; see lib/chess-store.js.
+
+   The overlay UNMOUNTS on close, which also gives up the seat: the app tells
+   the table on its way out rather than leaving the next person to wait for a
+   heartbeat to expire. */
+(function initChess() {
+  const modal = document.getElementById('chessModal');
+  const mount = document.getElementById('chessMount');
+  if (!modal || !mount) return;
+
+  let app = null;
+  let opening = 0;
+
+  async function open(trigger) {
+    openModal(modal, modal.querySelector('.chess-shell'), null, trigger);
+    const mine = ++opening;
+    try {
+      /* An ES module from a classic script, which import() is fine with. The
+         path is absolute because the module resolves its own stylesheet and
+         its rules the same way. */
+      const mod = await import('/chess/app.mjs');
+      if (mine !== opening || !modal.open) return;   // closed while it loaded
+      app = await mod.mount(mount, {});
+    } catch (error) {
+      console.error('chess: the table failed to load', error);
+      mount.replaceChildren(Object.assign(document.createElement('p'),
+        { className: 'chess-fail', textContent: 'The chess table failed to load — see the console.' }));
+    }
+  }
+
+  bindModal(modal, () => {
+    opening++;
+    if (app) { app.destroy(); app = null; }
+    mount.replaceChildren();
+  });
+  document.getElementById('chessClose')?.addEventListener('click', () => closeModal(modal));
+
+  /* By EVENT rather than from the vault's VIEWS table, for the same reason the
+     notes, the music and the sound library are: there is nothing to show until
+     something has been fetched. */
+  document.addEventListener('chess:open', (event) => {
     if (!modal.open) open((event.detail || {}).opener);
   });
 })();

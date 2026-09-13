@@ -1,0 +1,226 @@
+/* The chess table.
+ *
+ * Loaded by chess/app.mjs on the first mount, the way the notes editor loads
+ * its own stylesheet -- none of this is on the page for a visitor who never
+ * types the code.
+ *
+ * THE TWO PIECE COLOURS ARE CUSTOM PROPERTIES, --w-piece and --b-piece, set on
+ * .ch-app by the app. They are the two players' OWN accents, not white and
+ * black, and they change when somebody sits down. Every rule below that paints
+ * a piece reads them rather than a literal.
+ */
+
+.ch-app {
+  --line: rgba(255,255,255,.09);
+  /* A REAL BOARD, not two shades of the overlay. The first pass used the
+     panel's own greys and a classic black piece on them was invisible -- and
+     "classic black" is what a seat falls back to whenever an accent is
+     missing or both players picked the same one, so it has to work. Mid greys
+     take an accent of any hue on top of them. */
+  --sq-light: #b4bdca;
+  --sq-dark: #6a7686;
+  --w-piece: #e9edf4;
+  --b-piece: #0e1218;
+  --w-rim: rgba(0,0,0,.55);
+  --b-rim: rgba(255,255,255,.45);
+  display: flex; flex-direction: column; gap: 14px;
+  height: 100%; min-height: 0; padding: 16px 18px 18px;
+  color: #e6ebf2;
+}
+
+/* ---- the room, top left ---------------------------------------------------
+   Asked for by name: how many people are at this board right now. It is the
+   first thing on the first line because a lobby you cannot see the size of is
+   a lobby you assume is empty. */
+.ch-top { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.ch-room {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted);
+}
+.ch-room-n {
+  min-width: 26px; height: 26px; padding: 0 7px; display: grid; place-items: center;
+  border-radius: 8px; background: var(--accent); color: var(--accent-ink, #080a0b);
+  font-size: 14px; font-weight: 900; letter-spacing: 0; font-variant-numeric: tabular-nums;
+}
+/* One dot per person, in the colour they are playing in. Cheaper to read than
+   a list of names and it says the thing the names would: who is here. */
+.ch-who { display: flex; align-items: center; gap: 4px; }
+.ch-who-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
+.ch-top-gap { flex: 1 1 auto; }
+.ch-name input {
+  width: 150px; height: 32px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 9px; background: #12171f; color: #dbe2ea;
+  font: inherit; font-size: 13px;
+}
+.ch-name input:focus { outline: none; border-color: var(--accent); }
+
+/* ---- the board ------------------------------------------------------------ */
+
+/* A GRID, NOT A FLEX ROW. The board is sized as a percentage of its column
+   and a flex item's width is shrink-to-fit -- so "100% of my parent" resolved
+   against a parent whose width came from the board, and the whole thing
+   collapsed to nothing. A grid track has a definite width before its contents
+   are measured, which is what the percentage needs. */
+.ch-body { flex: 1 1 auto; min-height: 0; display: grid; gap: 18px; align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 330px); }
+/* The wrap IS the board plus its two coordinate strips. Sizing the board
+   inside a wider wrap put the letters under the wrap rather than under the
+   files -- a-h spread across empty space beside a board they did not line up
+   with. */
+.ch-board-wrap { position: relative; width: min(62vh, 100%); margin-inline: auto; padding: 0 0 18px 18px; }
+.ch-board {
+  display: grid; grid-template-columns: repeat(8, 1fr);
+  width: 100%; aspect-ratio: 1;
+  border-radius: 10px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.45);
+}
+/* FLIPPED FOR BLACK, by rotating the board and rotating every square back.
+   Re-ordering 64 cells would work too and would move the DOM under the pointer
+   every time somebody sits down; this moves nothing. */
+.ch-app.is-flipped .ch-board { transform: rotate(180deg); }
+.ch-app.is-flipped .ch-sq { transform: rotate(180deg); }
+.ch-app.is-flipped .ch-files { flex-direction: row-reverse; }
+.ch-app.is-flipped .ch-ranks { flex-direction: column-reverse; }
+
+.ch-sq {
+  position: relative; display: grid; place-items: center;
+  border: 0; padding: 0; background: var(--sq-light); cursor: default;
+  transition: background .12s ease;
+}
+.ch-sq.is-dark { background: var(--sq-dark); }
+.ch-app.is-my-turn .ch-sq { cursor: pointer; }
+/* WHERE THE LAST MOVE WENT. The one thing a player coming back to the board
+   needs and cannot work out: what just happened. */
+.ch-sq.is-last::before {
+  content: ""; position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.ch-sq.is-from::before {
+  content: ""; position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+/* A DOT FOR AN EMPTY SQUARE, A RING FOR A CAPTURE -- the two say different
+   things and one mark for both is how you take a piece you meant to walk past. */
+.ch-sq.is-to::after {
+  content: ""; position: absolute; width: 26%; height: 26%; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.ch-sq.is-take::after {
+  content: ""; position: absolute; inset: 6%;
+  border: 3px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: 50%;
+}
+.ch-sq.is-mate::before {
+  content: ""; position: absolute; inset: 0; background: rgba(224,72,72,.45);
+}
+.ch-sq:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; z-index: 2; }
+
+/* THE PIECE IS A MASK, so it takes whatever colour it is given -- which is the
+   whole reason the pieces are drawn this way rather than as two PNG sets. The
+   rim is a pair of drop-shadows on the alpha shape: a mask cannot carry a
+   stroke, and without an edge a dark piece on a dark square disappears. */
+.ch-pc {
+  width: 82%; height: 82%;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+  pointer-events: none;
+}
+.ch-pc.is-w { color: var(--w-piece); filter: drop-shadow(0 0 1px var(--w-rim)) drop-shadow(0 0 1px var(--w-rim)); }
+.ch-pc.is-b { color: var(--b-piece); filter: drop-shadow(0 0 1px var(--b-rim)) drop-shadow(0 0 1px var(--b-rim)); }
+.ch-pc[hidden] { display: none; }
+
+.ch-files, .ch-ranks {
+  position: absolute; display: flex; color: var(--muted);
+  font-size: 11px; font-weight: 800; text-transform: uppercase;
+}
+.ch-files { left: 18px; right: 0; bottom: 0; height: 16px; }
+.ch-files span { flex: 1 1 0; text-align: center; }
+.ch-ranks { left: 0; top: 0; bottom: 18px; width: 16px; flex-direction: column; }
+.ch-ranks span { flex: 1 1 0; display: grid; place-items: center; }
+
+/* ---- promotion ------------------------------------------------------------ */
+.ch-promo {
+  position: absolute; inset: 0; display: grid; place-items: center; grid-auto-flow: column; gap: 10px;
+  background: rgba(6,9,13,.86); border-radius: 10px; z-index: 3;
+}
+.ch-promo[hidden] { display: none; }
+.ch-promo-pick {
+  width: 64px; height: 64px; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 12px; background: #141a23; cursor: pointer;
+}
+.ch-promo-pick:hover { border-color: var(--accent); background: #1a212c; }
+.ch-promo-pick .ch-pc { width: 46px; height: 46px; }
+
+/* ---- the side ------------------------------------------------------------- */
+
+.ch-side {
+  min-width: 0; align-self: stretch; height: 100%;
+  display: flex; flex-direction: column; gap: 10px; min-height: 0;
+}
+.ch-seat {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: #0e131a;
+}
+.ch-seat.is-mine { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+/* THE OPPONENT SITS ACROSS THE TABLE, in the panel as on the board: whoever
+   you are playing is at the top and you are at the bottom. Black's panel was
+   upside down against black's board, which is the one place the two have to
+   agree. */
+.ch-app.is-flipped .ch-seat[data-seat="b"] { order: 3; }
+.ch-app.is-flipped .ch-seat[data-seat="w"] { order: -1; }
+.ch-seat.is-turn { background: #101821; box-shadow: inset 3px 0 0 var(--accent); }
+.ch-seat.is-empty .ch-seat-name { color: var(--muted); font-weight: 600; }
+.ch-seat-dot { width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+.ch-seat-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.ch-seat-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-seat-role { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.ch-sit {
+  flex: 0 0 auto; height: 30px; padding: 0 11px;
+  border: 1px solid var(--line); border-radius: 9px; background: none; color: #dbe2ea;
+  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.ch-sit:hover { border-color: var(--accent); color: #fff; }
+.ch-sit[hidden] { display: none; }
+
+.ch-state { margin: 0; font-size: 14px; font-weight: 700; color: var(--muted); }
+.ch-state.is-you { color: var(--accent); }
+.ch-state.is-over { color: #e6ebf2; }
+.ch-check {
+  margin: 0; font-size: 11px; font-weight: 900; letter-spacing: .14em; color: #ff6b6b;
+}
+.ch-check[hidden] { display: none; }
+
+.ch-moves {
+  flex: 1 1 auto; min-height: 60px; overflow-y: auto; margin: 0; padding: 8px 10px;
+  list-style: none; border: 1px solid var(--line); border-radius: 12px; background: #0a0d12;
+  font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.ch-moves li { display: grid; grid-template-columns: 34px 1fr 1fr; gap: 6px; padding: 2px 0; }
+.ch-moves li.is-last { color: #fff; font-weight: 700; }
+.ch-no { color: var(--muted); }
+.ch-taken { margin: 0; min-height: 14px; font-size: 11px; font-weight: 800; letter-spacing: .12em; color: var(--muted); }
+
+.ch-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.ch-btn {
+  height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px;
+  background: none; color: #dbe2ea; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+.ch-btn:hover { border-color: var(--accent); color: #fff; background: rgba(255,255,255,.05); }
+.ch-btn.is-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #080a0b); }
+.ch-btn[hidden] { display: none; }
+
+.ch-toast {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+  margin: 0; padding: 8px 14px; border-radius: 10px;
+  background: #1b2029; color: #fff; font-size: 13px; font-weight: 700;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+.ch-toast[hidden] { display: none; }
+
+@media (max-width: 900px) {
+  .ch-body { grid-template-columns: minmax(0, 1fr); }
+  .ch-board { width: 100%; }
+  .ch-side { max-width: none; }
+  .ch-moves { max-height: 140px; }
+}

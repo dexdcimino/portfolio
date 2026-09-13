@@ -3387,7 +3387,7 @@
          Deliberately not in the nav, and deliberately not in the scroll spy's
          section list in script.js: findable, not advertised. -->
     <section class="resume-strip vault keypad" id="vault" aria-labelledby="vault-title"
-             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi v2.32768.8.1.0vddRKfHTuGOBDXw3eohuqfJn9gawqxlzsrNC5PAlMBOxGYWDeQM2r2xODwNSXCMXK9HGhC2 v2.32768.8.1.GG3gPYqj8ruPKgW1JdjfQbHkEtBPmIh27xuAfgPudjHf17yDbhoe/Xlir71gT9v5rcoWcTF2 v2.32768.8.1./pYfnuqy3ZUN4fWie2OG7EKtfMuym3NtF0c6JRkcGLNjI3LK8ZvzuA8KvSmQDkQmTwEfrg==">
+             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi v2.32768.8.1.0vddRKfHTuGOBDXw3eohuqfJn9gawqxlzsrNC5PAlMBOxGYWDeQM2r2xODwNSXCMXK9HGhC2 v2.32768.8.1.GG3gPYqj8ruPKgW1JdjfQbHkEtBPmIh27xuAfgPudjHf17yDbhoe/Xlir71gT9v5rcoWcTF2 v2.32768.8.1./pYfnuqy3ZUN4fWie2OG7EKtfMuym3NtF0c6JRkcGLNjI3LK8ZvzuA8KvSmQDkQmTwEfrg== v2.32768.8.1.KItrmBzvG+0VbyY8ecpqjmOA47m9CqewvjGnKUzaJcsKAnJkbgOGMcJlqG7lZ9oAbxEbvnlJ">
       <div class="vault-head">
         <p class="eyebrow vault-eyebrow">
           <span id="vaultLabel">CLASSIFIED</span>
@@ -4894,6 +4894,28 @@
        EMPTY IN THE MARKUP. The rows are built from assets/sfx/sfx.json,
        generated from assets/sfx/sfx.txt by tools/bake_sfx.py. Add a line
        there, re-run it, and the card appears. See initSfx() in script.js. -->
+  <!-- THE CHESS TABLE, behind the code CHESS.
+
+       A live game: two seats, whoever is in them, and everyone else watching.
+       The board, the room and the rules are all in chess/app.mjs, which is
+       imported the first time this opens -- a visitor who never types the code
+       never fetches a byte of it. The container below is deliberately empty for
+       the same reason the notes editor's is.
+
+       The number top-left is how many people have this board open, which is
+       the thing a lobby has to say before anything else. -->
+  <dialog class="chess-modal" id="chessModal" aria-labelledby="chess-dialog-title">
+    <div class="chess-frame">
+      <div class="chess-shell">
+        <h2 class="sr-only" id="chess-dialog-title">Chess</h2>
+        <div class="chess-mount" id="chessMount"></div>
+      </div>
+      <button class="sfx-close chess-close" type="button" id="chessClose" aria-label="Close the chess table">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </dialog>
+
   <dialog class="sfx-modal" id="sfxModal" aria-labelledby="sfx-dialog-title">
     <div class="sfx-frame">
       <div class="sfx-shell">

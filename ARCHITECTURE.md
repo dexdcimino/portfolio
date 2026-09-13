@@ -2512,6 +2512,82 @@ bakes it with the real baker, drives it and takes both away again: a player
 that has never played anything is a player nothing has been proved about, and a
 synthesised fixture in a harness is not a synthesised sound shipping.
 
+## Chess table (code `CHESS`)
+
+A LIVE game behind a vault code: two seats, whoever is sitting in them, and
+everyone else watching. Type `CHESS` into the tilde keypad or the Idea Vault.
+
+```
+chess/rules.mjs          the rules. No screen, no network, no lobby
+chess/app.mjs            the board, the room and the poll. mount(host)
+chess/chess.css          loaded by the app on its first mount
+api/chess/table.js       one route, because it is one document
+lib/chess-store.js       the table, and where its bytes go
+assets/icons/chess/*.svg six mask silhouettes, baked like every other icon
+tools/chess_check.mjs    perft, the server, and two browsers playing -- 63 checks
+```
+
+**ONE RULES MODULE, USED BY BOTH SIDES.** The browser imports `chess/rules.mjs`
+and so does the API, which validates every move before it writes one. The API
+is CommonJS and the rules are an ES module, so it reaches them through a
+dynamic `import()` -- that is the whole reason that file has no dependencies. A
+second implementation of "legal" is two things that will disagree eventually,
+and the one that matters is the one nobody can edit from a console.
+
+**WHAT PROVES THE RULES IS PERFT.** Count every leaf node at a fixed depth from
+six published positions and compare with numbers the chess programming world
+settled decades ago: 20 / 400 / 8902 / 197281 from the opening, 48 / 2039 /
+97862 from Kiwipete, and four more. It is the one test a nearly-right move
+generator cannot pass -- castling through check, en passant that exposes a
+king, a promotion that gives mate and a hundred other corners all change the
+count, and being 99% right is being wrong by thousands.
+
+**"LIVE" IS POLLING, AND THAT IS NOT A COMPROMISE.** Vercel's functions are
+serverless; there is no process here to hold a socket open. A game whose state
+changes twice a minute does not need one. The table is a small JSON document --
+under 2 KB -- and a poll is one small read. It slows from 1.4s to 5s when you
+are alone at an empty board, and stops entirely while the tab is hidden,
+because the poll is the whole running cost of this feature.
+
+**THE MOVE LIST IS THE ONLY STATE.** `game.moves` is UCI strings and nothing
+else: no board, no FEN, no turn. The position is what you get by replaying them
+through the shared rules, which both sides do -- so there is no board state to
+drift, and a client that has fallen behind catches up by replaying rather than
+by being told. A move carries the `ply` it was played at, so a double click, a
+retry after a slow reply and a stale tab all arrive as a move for a ply that is
+already played, and all three are refused rather than applied twice.
+
+**EVERY PIECE IS PAINTED IN ITS PLAYER'S OWN ACCENT** (Dex, 2026-09-13). Your
+pieces are the accent you picked for the site; your opponent's are the accent
+THEY picked, which travels with them in the room. Both screens agree -- this is
+not "mine are highlighted", it is one board with two people's colours on it.
+The pieces are `mask` SVGs for exactly this reason: a mask takes whatever colour
+it is given, and two PNG sets could not. A seat nobody is in, a player with no
+accent, and two players who picked the SAME accent all fall back to classic
+white and black; a board you cannot tell the sides apart on is not a board.
+The edge on a piece is a pair of `drop-shadow`s on the alpha shape, light on a
+dark piece and dark on a light one, because a mask cannot carry a stroke.
+
+**A SEAT IS HELD BY PRESENCE AND NOTHING ELSE.** Everyone who has synced inside
+30 seconds is in the room; a seat whose holder is gone is free. Closing the
+overlay sends `leave`, which takes you out of the room rather than merely off
+the seat -- without that the count in the corner kept someone who had shut the
+window for another half minute, and that count is the thing the corner exists
+for. An empty room with a FINISHED game in it is cleared, so nobody walks in on
+somebody else's checkmate with a Rematch button they may not press; an
+unfinished game is kept, because both players' tabs being hidden for thirty
+seconds is a thing that happens.
+
+**WALKING IN GETS YOU A SIDE AT RANDOM.** Whichever seat is free, or a coin toss
+between them if both are; a rematch swaps the colours.
+
+**THIS ROUTE IS NOT A SECRET.** The overlay is behind a vault code, but that
+code is client-side -- it decrypts a blob that ships in the page -- so
+`/api/chess/table` is open to anyone who finds it. That is the right call for a
+chess lobby, which holds nothing to leak, and it means the caps in
+`lib/chess-store.js` are the whole defence: 24 players, 24 characters of name,
+600 moves, and a table that is thrown away when it is six hours old.
+
 ## Music overlay (code `MUSIC`)
 
 A playlist of 311 YouTube links behind the same door as the notes: type `MUSIC`
