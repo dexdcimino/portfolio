@@ -42,6 +42,11 @@ if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to th
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  /* .mjs BY NAME. A module script is refused outright on the wrong MIME type
+     -- "Expected a JavaScript-or-Wasm module script" -- so a server that falls
+     back to application/octet-stream serves a page whose modules never load,
+     which is how this file first met the chess overlay. */
+  '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.webp': 'image/webp', '.avif': 'image/avif', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
@@ -1936,7 +1941,80 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(gone.hidden, 'the remote is still showing after the overlay hosting it closed');
   note(!gone.inHost, 'the remote was left parented inside the closed overlay');
 
-  await shutMusic();
+  /* ---- AND THE CHESS TABLE HOSTS IT TOO (Dex, 2026-09-13) ----------------
+     A second host is one attribute and one CSS line, and nothing in the pill
+     names a host -- so what has to be proved is that this really is the whole
+     story. It fails subtly if it fails: parented correctly and painted under
+     the board, or sitting on top of that overlay's own top row.
+
+     FALSELY PASSES IF: only the parent were checked. A pill inside the dialog
+     but hidden, or covered by the board, is a pill nobody can press -- so the
+     assertion is a HIT TEST at the middle of its play button, which is the
+     same thing the notes host is held to. */
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('chess:open', { detail: {} })));
+  await page.waitForFunction(() => document.getElementById('chessModal').open === true, { timeout: 5000 });
+  await sleep(600);
+  const atChess = await page.evaluate(() => {
+    const p = document.getElementById('musicRemote');
+    const r = p.getBoundingClientRect();
+    const btn = document.getElementById('musicRemoteToggle').getBoundingClientRect();
+    const at = document.elementFromPoint(Math.round(btn.left + btn.width / 2),
+                                         Math.round(btn.top + btn.height / 2));
+    /* OVERLAP, not "is it below". The pill is fixed to the VIEWPORT and the
+       chess shell is centred with a margin around it, so the pill can clear
+       the table's top row by being beside the shell rather than above the row
+       -- a "top >= rowBottom" test would call that a failure. What actually
+       matters is that it covers neither the room count nor the close button. */
+    const hits = (a, b) => !(a.right <= b.left || a.left >= b.right
+                             || a.bottom <= b.top || a.top >= b.bottom);
+    const row = document.querySelector('.ch-top');
+    const x = document.getElementById('chessClose');
+    return {
+      inHost: document.getElementById('chessModal').contains(p),
+      hidden: p.hidden,
+      hit: at ? (at.closest('#musicRemoteToggle') ? 'toggle' : (at.id || String(at.className))) : 'nothing',
+      onRow: !!row && hits(r, row.getBoundingClientRect()),
+      onX: !!x && hits(r, x.getBoundingClientRect()),
+      where: `${Math.round(r.left)},${Math.round(r.top)}`,
+    };
+  });
+  note(atChess.inHost, 'the remote did not move into the chess overlay');
+  note(!atChess.hidden, 'the remote is hidden while the chess overlay is open over the music');
+  note(atChess.hit === 'toggle',
+       `the remote's play button is covered in the chess overlay — the hit is "${atChess.hit}"`);
+  note(!atChess.onRow, `the remote at ${atChess.where} covers the table's top row — the player count is under it`);
+  note(!atChess.onX, `the remote at ${atChess.where} covers the close button`);
+
+  /* ONLY WHILE THERE IS MUSIC, which is the other half of what was asked for.
+     The player is stopped with the BOARD STILL OPEN: the pill has to go on its
+     own, because it stands in for a control that no longer exists. Stopped
+     through the element rather than with a real click -- #musicStop is under
+     the chess overlay's backdrop, which is the whole reason the pill is
+     there. */
+  await page.evaluate(() => document.getElementById('musicStop').click());
+  await page.waitForFunction(() => !document.documentElement.classList.contains('music-live'),
+                             { timeout: 5000 })
+    .then(() => note(true, ''))
+    .catch(() => note(false, 'stopping the player did not clear music-live'));
+  await sleep(400);
+  const quiet = await page.evaluate(() => ({
+    open: document.getElementById('chessModal').open,
+    hidden: document.getElementById('musicRemote').hidden,
+    inHost: document.getElementById('chessModal').contains(document.getElementById('musicRemote')),
+  }));
+  note(quiet.open, 'the chess overlay closed by itself during the no-music check');
+  note(quiet.hidden, 'the remote is still showing with nothing playing');
+  note(!quiet.inHost, 'the remote was left inside the chess overlay with nothing playing');
+  console.log('remote: hosted by the notes AND the chess table, and gone when the music is');
+  await page.evaluate(() => document.getElementById('chessModal').close());
+  await sleep(200);
+
+  /* NO shutMusic() HERE. The no-music check above is the thing that stopped
+     the player, so the button it clicks is already gone and the call threw on
+     a stale handle. What shutMusic() is for -- leaving the music shut for the
+     next section -- is asserted instead of assumed. */
+  note(await page.evaluate(() => document.getElementById('musicModal').open !== true),
+       'the music overlay is still open after the player was stopped');
 }
 
 /* ---- 8c-3. NO SOUND WITHOUT A CONTROL -----------------------------------
@@ -2776,7 +2854,12 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
    supposed to happen — anything else is a real missing file that the blanket
    console filter above would otherwise have swallowed. */
 {
-  const unexpected = [...new Set(notFound)].filter(p => p !== '/api/notes/unlock');
+  /* /api/chess/table joins it: this server is the repo as static files and has
+     no API at all. The chess overlay is opened here only to prove the music
+     pill moves into it, and its table is chess_check's subject, not this
+     file's. */
+  const unexpected = [...new Set(notFound)]
+    .filter(p => p !== '/api/notes/unlock' && p !== '/api/chess/table');
   note(unexpected.length === 0, `unexpected 404(s): ${unexpected.join(', ')}`);
   note(notFound.includes('/api/notes/unlock'),
        'the notes unlock was never attempted — check 9 did not exercise the silent try');

@@ -4904,7 +4904,12 @@
 
        The number top-left is how many people have this board open, which is
        the thing a lobby has to say before anything else. -->
-  <dialog class="chess-modal" id="chessModal" aria-labelledby="chess-dialog-title">
+  <!-- data-music-remote: the pill comes with you into the game, but only when
+       something is playing -- the placer checks for `music-live` and puts the
+       pill away when nothing is. A board is the other place someone sits for an
+       hour with a docked bar buried under a backdrop. -->
+  <dialog class="chess-modal" id="chessModal" data-music-remote
+          aria-labelledby="chess-dialog-title">
     <div class="chess-frame">
       <div class="chess-shell">
         <h2 class="sr-only" id="chess-dialog-title">Chess</h2>

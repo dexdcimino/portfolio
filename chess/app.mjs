@@ -21,7 +21,11 @@ import {
 } from './rules.mjs';
 
 const KIND = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
-const CLASSIC = { w: '#e9edf4', b: '#0e1218' };
+/* The two fallbacks, for a seat nobody is in, a player with no accent, and two
+ * players who picked the same one. Lifted a shade off true black: on the dark
+ * board it is the rim that makes this side readable, and a rim needs something
+ * to sit around. */
+const CLASSIC = { w: '#e9edf4', b: '#121821' };
 const ID_KEY = 'chess-id';
 const NAME_KEY = 'chess-name';
 
@@ -511,7 +515,7 @@ function rim(hex) {
   if (!m) return 'rgba(0,0,0,.55)';
   const [r, g, b] = [1, 2, 3].map((i) => parseInt(m[i], 16) / 255);
   const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return lum > 0.45 ? 'rgba(0,0,0,.6)' : 'rgba(255,255,255,.5)';
+  return lum > 0.45 ? 'rgba(0,0,0,.7)' : 'rgba(255,255,255,.7)';
 }
 
 /* The accent as a hex string, whatever the visitor has the site set to. It is

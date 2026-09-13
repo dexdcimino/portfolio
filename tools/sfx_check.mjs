@@ -96,6 +96,11 @@ if (baked.status !== 0) {
 /* ---- the server ---------------------------------------------------------- */
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  /* .mjs BY NAME. A module script is refused outright on the wrong MIME type
+     -- "Expected a JavaScript-or-Wasm module script" -- so a server that falls
+     back to application/octet-stream serves a page whose modules never load,
+     which is how this file first met the chess overlay. */
+  '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.webp': 'image/webp', '.avif': 'image/avif', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',

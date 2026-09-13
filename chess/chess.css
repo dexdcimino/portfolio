@@ -12,17 +12,21 @@
 
 .ch-app {
   --line: rgba(255,255,255,.09);
-  /* A REAL BOARD, not two shades of the overlay. The first pass used the
-     panel's own greys and a classic black piece on them was invisible -- and
-     "classic black" is what a seat falls back to whenever an accent is
-     missing or both players picked the same one, so it has to work. Mid greys
-     take an accent of any hue on top of them. */
-  --sq-light: #b4bdca;
-  --sq-dark: #6a7686;
+  /* DARK, like the rest of the site (Dex, 2026-09-13). The bright board was
+     the second attempt: the first used the panel's own near-blacks and a
+     classic black piece on them was invisible, which is a real problem because
+     "classic black" is where a seat lands whenever an accent is missing or
+     both players picked the same one.
+
+     What makes dark work is the RIM. Two slate greys a step apart read as a
+     board, a light piece reads on both of them, and a near-black piece reads
+     because it is outlined rather than because it is lighter -- see .ch-pc. */
+  --sq-light: #3a4657;
+  --sq-dark: #28323f;
   --w-piece: #e9edf4;
   --b-piece: #0e1218;
-  --w-rim: rgba(0,0,0,.55);
-  --b-rim: rgba(255,255,255,.45);
+  --w-rim: rgba(0,0,0,.7);
+  --b-rim: rgba(255,255,255,.7);
   display: flex; flex-direction: column; gap: 14px;
   height: 100%; min-height: 0; padding: 16px 18px 18px;
   color: #e6ebf2;
@@ -115,9 +119,13 @@
 .ch-sq:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; z-index: 2; }
 
 /* THE PIECE IS A MASK, so it takes whatever colour it is given -- which is the
-   whole reason the pieces are drawn this way rather than as two PNG sets. The
-   rim is a pair of drop-shadows on the alpha shape: a mask cannot carry a
-   stroke, and without an edge a dark piece on a dark square disappears. */
+   whole reason the pieces are drawn this way rather than as two PNG sets.
+
+   THE RIM IS FOUR DROP-SHADOWS, one per direction, because a mask cannot carry
+   a stroke and this is what an outline is made of without one. A pair of
+   centred blurs was enough on a light board and is not enough on a dark one:
+   the dark side is now readable BECAUSE it is outlined rather than because it
+   is lighter than the square, so the outline has to be an outline. */
 .ch-pc {
   width: 82%; height: 82%;
   background-color: currentColor;
@@ -125,8 +133,16 @@
   mask: var(--icon) center / contain no-repeat;
   pointer-events: none;
 }
-.ch-pc.is-w { color: var(--w-piece); filter: drop-shadow(0 0 1px var(--w-rim)) drop-shadow(0 0 1px var(--w-rim)); }
-.ch-pc.is-b { color: var(--b-piece); filter: drop-shadow(0 0 1px var(--b-rim)) drop-shadow(0 0 1px var(--b-rim)); }
+.ch-pc.is-w {
+  color: var(--w-piece);
+  filter: drop-shadow(1.2px 0 0 var(--w-rim)) drop-shadow(-1.2px 0 0 var(--w-rim))
+          drop-shadow(0 1.2px 0 var(--w-rim)) drop-shadow(0 -1.2px 0 var(--w-rim));
+}
+.ch-pc.is-b {
+  color: var(--b-piece);
+  filter: drop-shadow(1.2px 0 0 var(--b-rim)) drop-shadow(-1.2px 0 0 var(--b-rim))
+          drop-shadow(0 1.2px 0 var(--b-rim)) drop-shadow(0 -1.2px 0 var(--b-rim));
+}
 .ch-pc[hidden] { display: none; }
 
 .ch-files, .ch-ranks {

@@ -2557,6 +2557,24 @@ by being told. A move carries the `ply` it was played at, so a double click, a
 retry after a slow reply and a stale tab all arrive as a move for a ply that is
 already played, and all three are refused rather than applied twice.
 
+**THE BOARD IS DARK** (Dex, 2026-09-13), two slate greys a step apart. It was
+bright for one pass, which was itself a correction of a first pass that used
+the panel's own near-blacks and made a classic black piece invisible. What
+makes dark work is the RIM: a near-black piece reads because it is OUTLINED,
+not because it is lighter than the square it stands on. The outline is four
+`drop-shadow`s, one per direction -- a mask cannot carry a stroke, and the pair
+of centred blurs that was enough on a light board is not an outline.
+
+**THE MUSIC REMOTE HOSTS HERE TOO.** `data-music-remote` on the dialog and one
+`--remote-top` line in `styles.css`; nothing in the pill names a host. A board
+is the other place someone sits for an hour with the docked bar buried under a
+backdrop. It appears only while the player is holding a track -- the pill reads
+the `music-live` class and nothing else -- so a chess table with no music has
+no pill. Note the pill is fixed to the VIEWPORT and this shell is centred with
+a margin, so it lands beside the shell rather than over it; what
+`tools/music_check.mjs` asserts is therefore an overlap test against the room
+count and the close button, not "is it below the header".
+
 **EVERY PIECE IS PAINTED IN ITS PLAYER'S OWN ACCENT** (Dex, 2026-09-13). Your
 pieces are the accent you picked for the site; your opponent's are the accent
 THEY picked, which travels with them in the room. Both screens agree -- this is
