@@ -433,30 +433,44 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        `the columns are not in the order tick, play, title, link, flag: ${order.join(' < ')}`);
 }
 
-/* ---- 5. the defaults are seeded, and ticking still owns the list --------
-   The tracks marked |R in tracklist.txt arrive already ticked in a browser
-   that has never opened this. That is the state under test here: a fresh
-   profile, so localStorage is empty and the seed path is the one that runs.
+/* ---- 5. the REPEAT playlist is shared, and READ-ONLY through MUSIC ------
+   (Dex, 2026-09-15) The ticks used to belong to each browser. They are the
+   live playlist's `r` flags now, curated through TUNES and only READ here --
+   and this file serves the repo as static files, so there is no playlist API
+   and the overlay falls back to the baked manifest: exactly the MUSIC door.
+   The editing half is tools/music_admin_check.mjs.
 
-   FALSELY PASSES IF: only the checkbox's own state were read back. What the
-   tick is FOR is the second playlist, so what is checked is the rail count,
-   the REPEAT view's contents, and that a row leaves when it is unticked. */
+   FALSELY PASSES IF: only `disabled` were read. A disabled box that a click
+   still flips -- a handler that ignores the attribute -- is an editable list,
+   so the proof is a REAL CLICK, then the box, the rail and the REPEAT view read
+   back. */
 {
   const SEEDED = manifest.repeat;
-  note(SEEDED > 0, 'the manifest marks no repeat defaults at all — nothing to seed');
+  note(SEEDED > 0, 'the manifest marks no repeat tracks at all — nothing to show');
 
   const seeded = await page.evaluate(() => ({
+    boxes: document.querySelectorAll('#musicRows .music-check').length,
+    disabled: document.querySelectorAll('#musicRows .music-check:disabled').length,
     checked: document.querySelectorAll('#musicRows .music-check:checked').length,
     railN: document.getElementById('musicNRepeat').textContent,
+    del: document.querySelectorAll('#musicRows .music-del').length,
+    add: document.getElementById('musicAdd').hidden,
+    backups: document.getElementById('musicBackups').hidden,
+    admin: document.getElementById('musicModal').classList.contains('is-admin'),
+    title: document.getElementById('musicTitle').textContent.trim(),
   }));
-  note(seeded.checked === SEEDED,
-       `${seeded.checked} rows arrived ticked, the manifest marks ${SEEDED}`);
-  note(seeded.railN === String(SEEDED),
-       `the REPEAT rail reads "${seeded.railN}", the manifest marks ${SEEDED}`);
-  console.log(`  seeded: ${seeded.checked} of ${manifest.count} arrive on repeat`);
+  note(seeded.boxes > 300 && seeded.disabled === seeded.boxes,
+       `${seeded.disabled} of ${seeded.boxes} ticks are disabled through MUSIC`);
+  note(seeded.checked === SEEDED, `${seeded.checked} rows arrive ticked, the manifest marks ${SEEDED}`);
+  note(seeded.railN === String(SEEDED), `the REPEAT rail reads "${seeded.railN}", the manifest marks ${SEEDED}`);
+  note(seeded.del === 0, `${seeded.del} delete buttons are in the rows through MUSIC`);
+  note(seeded.add && seeded.backups, 'the Add song or Backups button is showing through MUSIC');
+  note(!seeded.admin, 'the overlay is in editing mode through MUSIC');
+  note(seeded.title === 'MUSIC', `the header says "${seeded.title}" through MUSIC`);
+  console.log(`  read-only: ${seeded.checked} of ${manifest.count} on repeat, all ${seeded.boxes} ticks disabled`);
 
-  // Every seeded row must be one the manifest actually marked, not just the
-  // right NUMBER of rows — a seed that ticked the first 56 would pass a count.
+  // Every ticked row must be one the manifest actually marked, not just the
+  // right NUMBER -- a seed that ticked the first 56 would pass a count.
   const wrong = await page.evaluate((marked) => {
     const on = [...document.querySelectorAll('#musicRows .music-row')]
       .filter(r => r.querySelector('.music-check').checked).map(r => r.dataset.v);
@@ -464,53 +478,37 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   }, manifest.tracks.filter(t => t.r).map(t => t.v));
   note(wrong === 0, `${wrong} ticked row(s) are not marked |R in the manifest`);
 
-  const ticked = await page.evaluate(() => {
+  // A REAL CLICK on an unticked box. Scrolled and settled first: the list
+  // scrolls smoothly, and a rect read beside the scroll is the old one.
+  const v = await page.evaluate(() => {
     const row = [...document.querySelectorAll('#musicRows .music-row')]
       .find(r => !r.querySelector('.music-check').checked);
-    const box = row.querySelector('.music-check');
-    box.click();
-    return { v: row.dataset.v, checked: box.checked,
-             railN: document.getElementById('musicNRepeat').textContent };
+    row.scrollIntoView({ block: 'center', behavior: 'instant' });
+    return row.dataset.v;
   });
-  note(ticked.checked, 'clicking an unticked row did not check it');
-  note(ticked.railN === String(SEEDED + 1),
-       `the REPEAT count reads "${ticked.railN}" after one more tick`);
+  await sleep(350);
+  const at = await page.evaluate((id) => {
+    const r = document.querySelector(`.music-row[data-v="${id}"] .music-check`).getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  }, v);
+  await page.mouse.click(at.x, at.y);
+  await sleep(200);
+  const after = await page.evaluate((id) => ({
+    checked: document.querySelector(`.music-row[data-v="${id}"] .music-check`).checked,
+    railN: document.getElementById('musicNRepeat').textContent,
+  }), v);
+  note(!after.checked, 'a real click ticked a box through MUSIC — the list is editable');
+  note(after.railN === String(SEEDED), `the REPEAT count moved to "${after.railN}" after a click through MUSIC`);
 
   await page.click('#musicViewRepeat');
-  const inRepeat = await page.evaluate((v) => {
+  const inRepeat = await page.evaluate(() => {
     const rows = [...document.querySelectorAll('#musicRows .music-row')];
-    return { n: rows.length, has: rows.some(r => r.dataset.v === v),
-             allChecked: rows.every(r => r.querySelector('.music-check').checked),
+    return { n: rows.length, allChecked: rows.every(r => r.querySelector('.music-check').checked),
              pressed: document.getElementById('musicViewRepeat').getAttribute('aria-pressed') };
-  }, ticked.v);
-  note(inRepeat.n === SEEDED + 1,
-       `the REPEAT playlist shows ${inRepeat.n} track(s), expected ${SEEDED + 1}`);
-  note(inRepeat.has, 'the track just ticked is not in the REPEAT playlist');
+  });
+  note(inRepeat.n === SEEDED, `the REPEAT playlist shows ${inRepeat.n} track(s), expected ${SEEDED}`);
   note(inRepeat.allChecked, 'the REPEAT playlist is showing an unticked row');
   note(inRepeat.pressed === 'true', 'the REPEAT rail button does not read as pressed');
-
-  // Untick from inside REPEAT: the row has to leave, or the tick means nothing
-  // in the one place it matters most.
-  const after = await page.evaluate((v) => {
-    document.querySelector(`.music-row[data-v="${v}"] .music-check`).click();
-    const rows = [...document.querySelectorAll('#musicRows .music-row')];
-    return { n: rows.length, has: rows.some(r => r.dataset.v === v) };
-  }, ticked.v);
-  note(after.n === SEEDED, `unticking inside REPEAT left ${after.n} row(s), expected ${SEEDED}`);
-  note(!after.has, 'the unticked row is still in the REPEAT playlist');
-
-  // Empty it entirely: an empty list must say so rather than look broken.
-  const drained = await page.evaluate(() => {
-    let guard = 0;
-    let box;
-    while ((box = document.querySelector('#musicRows .music-check')) && guard++ < 2000) box.click();
-    return { n: document.querySelectorAll('#musicRows .music-row').length,
-             said: document.getElementById('musicEmpty').hidden === false,
-             railN: document.getElementById('musicNRepeat').textContent };
-  });
-  note(drained.n === 0, `emptying REPEAT left ${drained.n} row(s) behind`);
-  note(drained.said, 'an empty REPEAT playlist says nothing at all');
-  note(drained.railN === '0', `the rail reads "${drained.railN}" with nothing ticked`);
 
   await page.click('#musicViewAll');
 }
@@ -2859,7 +2857,10 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
      pill moves into it, and its table is chess_check's subject, not this
      file's. */
   const unexpected = [...new Set(notFound)]
-    .filter(p => p !== '/api/notes/unlock' && p !== '/api/chess/table');
+    .filter(p => p !== '/api/notes/unlock' && p !== '/api/chess/table'
+              /* No playlist API on a static server either: MUSIC falls
+                 back to the baked manifest, which is what section 5 checks. */
+              && p !== '/api/music/playlist');
   note(unexpected.length === 0, `unexpected 404(s): ${unexpected.join(', ')}`);
   note(notFound.includes('/api/notes/unlock'),
        'the notes unlock was never attempted — check 9 did not exercise the silent try');

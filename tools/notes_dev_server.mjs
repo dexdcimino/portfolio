@@ -38,6 +38,9 @@ const PORT = Number(arg('--port', 8123));
 
 process.env.NOTES_DEV_DIR = resolve(arg('--dir', join(ROOT, '.notes-dev')));
 process.env.NOTES_PASSWORD = process.env.NOTES_PASSWORD || 'notes';
+// The playlist's edit password, for the TUNES code. The vault folds codes to
+// upper case and so does the check, so this matches whatever case is typed.
+process.env.TUNES_PASSWORD = process.env.TUNES_PASSWORD || 'tunes';
 delete process.env.VERCEL_ENV;
 
 if (process.argv.includes('--legacy')) {
@@ -51,6 +54,7 @@ const unlock = require(join(ROOT, 'api/notes/unlock.js'));
 const save = require(join(ROOT, 'api/notes/save.js'));
 const asset = require(join(ROOT, 'api/notes/asset.js'));
 const chessTable = require(join(ROOT, 'api/chess/table.js'));
+const musicPlaylist = require(join(ROOT, 'api/music/playlist.js'));
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -84,11 +88,12 @@ const server = createServer(async (req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
   shim(res);
 
-  if (url.startsWith('/api/notes/') || url.startsWith('/api/chess/')) {
+  if (url.startsWith('/api/notes/') || url.startsWith('/api/chess/') || url.startsWith('/api/music/')) {
     const route = url === '/api/notes/unlock' ? unlock
                 : url === '/api/notes/save' ? save
                 : url === '/api/notes/asset' ? asset
-                : url === '/api/chess/table' ? chessTable : null;
+                : url === '/api/chess/table' ? chessTable
+                : url === '/api/music/playlist' ? musicPlaylist : null;
     if (!route) return res.status(404).json({ error: 'no such route' });
     const raw = await readBody(req);
     try { req.body = raw ? JSON.parse(raw) : null; } catch { req.body = null; }
@@ -123,5 +128,6 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`notes dev server: http://127.0.0.1:${PORT}/#notes`);
   console.log(`  password: ${process.env.NOTES_PASSWORD}`);
+  console.log(`  tunes:    ${process.env.TUNES_PASSWORD}`);
   console.log(`  storage : ${process.env.NOTES_DEV_DIR}`);
 });

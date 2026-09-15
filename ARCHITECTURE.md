@@ -2608,11 +2608,12 @@ chess lobby, which holds nothing to leak, and it means the caps in
 
 ## Music overlay (code `MUSIC`)
 
-A playlist of 311 YouTube links behind the same door as the notes: type `MUSIC`
-into the tilde keypad or the Idea Vault. Not in the nav, not linked anywhere.
+A playlist of YouTube links behind the same door as the notes: type `MUSIC`
+into the tilde keypad or the Idea Vault to listen, or `TUNES` to edit it. Not in
+the nav, not linked anywhere.
 
 ```
-tracklist.txt            the master. one line per track: Title|Artist|URL[|R]
+tracklist.txt            the SEED and the copy in git: Title|Artist|URL[|R]
 tools/bake_music.py      the only writer of the manifest. --check, --cases
 assets/music/tracks.json generated. {count, tracks:[{t,a,u,v}]}
 index.html               #musicModal: head, rail, list, player bar. NO ROWS
@@ -2622,12 +2623,56 @@ remote/                  the media-key extension. THE SITE IS SERVED AT
                          https://dexcimino.com -- written here because it was
                          recorded nowhere in this repo at all, and remote/
                          needs it in two files
-tools/music_check.mjs    352 checks in a real browser, serves the repo itself,
+lib/music-store.js       the LIVE list in Vercel Blob, its backups, TUNES_PASSWORD
+api/music/playlist.js    GET is public; every edit needs a token TUNES earned
+tools/music_check.mjs    427 checks in a real browser, serves the repo itself,
                          reaches NO network — the embed is intercepted
+tools/music_admin_check.mjs  67 checks: the store, the API, and TUNES editing
+                         while a MUSIC screen watches it change
 tools/music_flag_check.mjs  21 checks that DO reach YouTube: a real embed
                          refusing a real video, over https, see below
 tools/music_probe.mjs    asks YouTube whether every link still plays. --cases
 ```
+
+**THE LIST IS LIVE, AND ONLY `TUNES` EDITS IT** (Dex, 2026-09-15). The playlist
+is one JSON document in the same Blob store the notes use, `music/playlist.json`,
+seeded from the baked `tracks.json` the first time it is read. Both codes open
+the SAME overlay: `MUSIC` reads it, `TUNES` also sends the typed code to
+`/api/music/playlist`, which checks it against `TUNES_PASSWORD` with scrypt and
+hands back a twelve-hour token. Admin is that token and nothing else -- the
+vault code only chooses the door, and the page's source is public, so the
+server is the only place a "may this edit" answer can live. Without the token
+every tick is `disabled`, the Add and Backups buttons are hidden and the rows
+have no minus; with it the row grows a sixth column. An open overlay polls every
+20 seconds (and on focus), so an edit in TUNES reaches an open MUSIC without a
+reload. On a host with no API -- a harness serving the repo as files -- the
+overlay falls back to the baked manifest, read-only.
+
+**THE REPEAT PLAYLIST IS SHARED NOW.** It was a tick per browser, seeded from
+the `|R` marks and then owned by whoever was listening. A track's `r` flag in
+the live list IS the tick, for everyone; nothing about it is kept in
+localStorage any more.
+
+**EVERY EDIT IS BACKED UP FIRST.** `store.write()` copies the list it is about
+to replace to `music/backups/<stamp>_<count>.json` BEFORE overwriting anything,
+and refuses the edit if that copy fails. The newest 40 are kept, plus the list as each day
+started in `music/daily/` for 60 days, so a mistake noticed a week
+later is still a restore away after the per-edit copies have rolled over. The
+count is in the file name so the Backups panel can say "313 tracks" without
+opening forty files. Restoring is itself an edit, so it backs up the list it
+replaces and can be undone. A playlist file that does not parse is an ERROR, not
+a fall back to the seed -- that fall back would silently undo every edit ever
+made, which is the one loss the backups cannot help with because nobody would
+know to use them. **Download the list** writes the whole thing as
+`tracklist.txt` -- the copy that needs nothing but a disk, and the one to commit.
+
+**Adding** is a pasted link: the server looks the video up on YouTube's oEmbed,
+guesses artist and title from "Artist - Song (Official Video) | slogan", and the
+form shows the guess for a person to correct before anything is written. A video
+whose owner blocks embedding is refused at the lookup rather than discovered on
+the first press. **Deleting** is two presses: the minus becomes a red DELETE pill
+that grows leftward over the row, absolutely positioned so arming moves nothing
+under the pointer, and stands down on a press elsewhere or after 3.5 seconds.
 
 **The row is a five-column grid**: a tick, a play button, the title over the
 artist, the link with a copy button on the end of it, and a flag. The two thin

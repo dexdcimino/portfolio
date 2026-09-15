@@ -5724,6 +5724,120 @@ body.modal-open{overflow:hidden}
 .music-flag:hover{background:rgba(255,92,92,.15);transform:scale(1.09)}
 .music-flag:focus-visible{outline:2px solid #ff5c5c;outline-offset:1px}
 
+/* --- TUNES: the edit controls ---------------------------------------------
+   Only on screen when the server has handed out an edit token (.is-admin on
+   the dialog). Through MUSIC the tick is disabled and none of this exists. */
+.music-modal.is-admin .music-row{grid-template-columns:40px 40px minmax(0,1fr) minmax(0,.85fr) 30px 34px}
+.music-check:disabled{cursor:default}
+.music-check:disabled:not(:checked){opacity:.4}
+.music-delcell{position:relative;display:grid;place-items:center;min-width:0;height:30px}
+/* THE MINUS, quiet until its row is under the pointer: 313 red marks down the
+   right edge would be a column of alarms for a control used twice a week. */
+.music-del{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:30px;height:30px;padding:0;border:1px solid transparent;border-radius:9px;
+  background:none;color:rgba(255,255,255,.28);font:inherit;font-size:12px;font-weight:900;
+  letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;cursor:pointer;
+  transition:color .16s ease,background .16s ease,border-color .16s ease,box-shadow .18s ease;
+}
+.music-del-minus{width:18px;height:18px;flex:0 0 auto}
+.music-del-word{display:none}
+.music-row:hover .music-del{color:#ff8a8a;border-color:rgba(255,122,122,.35)}
+.music-del:hover{background:rgba(255,92,92,.14)}
+.music-del:focus-visible{outline:2px solid #ff5c5c;outline-offset:1px;color:#ff8a8a}
+/* ARMED: the minus becomes a red DELETE pill anchored to the row's right edge
+   and growing LEFT over the flag and link cells. Absolute, so arming a row
+   moves nothing under the pointer that is about to press again. */
+.music-del.is-armed{
+  position:absolute;right:0;top:0;z-index:2;width:auto;padding:0 12px 0 8px;
+  background:#e5484d;border-color:#e5484d;color:#fff;
+  box-shadow:0 6px 18px rgba(229,72,77,.4);
+}
+.music-del.is-armed .music-del-word{display:inline}
+@media(prefers-reduced-motion:no-preference){
+  .music-del.is-armed{animation:musicArm .18s ease-out}
+  @keyframes musicArm{from{transform:scale(.8);opacity:.4}to{transform:none;opacity:1}}
+}
+.music-row.is-arming{background:rgba(229,72,77,.08)}
+.music-row.is-leaving{opacity:.3;pointer-events:none;transition:opacity .2s ease}
+.music-row.is-new{animation:musicNew 2.4s ease}
+@keyframes musicNew{0%,45%{background:color-mix(in srgb,var(--accent) 24%,transparent)}100%{background:transparent}}
+
+.music-admin-btn{
+  display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 15px;
+  border:1px solid var(--line);border-radius:10px;background:#12141c;color:#e6ebf2;
+  font:inherit;font-size:14px;font-weight:800;cursor:pointer;
+  transition:border-color var(--accent-ease),background .16s ease,filter .16s ease;
+}
+.music-admin-btn[hidden]{display:none}
+.music-admin-btn .icon{width:16px;height:16px}
+.music-admin-btn:hover,.music-admin-btn[aria-expanded="true"]{border-color:var(--accent)}
+.music-admin-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.music-admin-btn.is-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink,#080a0b)}
+.music-admin-btn.is-primary:hover{filter:brightness(1.08)}
+/* The header says which door you came through. */
+.music-modal.is-admin .music-eyebrow{color:var(--accent)}
+.music-modal.is-admin .music-eyebrow::after{
+  content:"EDITING";padding:3px 8px;border-radius:6px;
+  background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);
+  font-size:11px;font-weight:900;letter-spacing:.14em;
+}
+
+.music-add,.music-backups{
+  flex:0 0 auto;display:grid;gap:12px;padding:16px 20px;
+  border-bottom:1px solid var(--line);background:#0e1017;
+}
+.music-add[hidden],.music-backups[hidden]{display:none}
+.music-add label{display:grid;gap:6px;min-width:0}
+.music-add label span{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.music-add input{
+  height:42px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;
+  background:#12141c;color:inherit;font:inherit;font-size:15px;
+}
+.music-add input:focus{outline:none;border-color:var(--accent)}
+.music-add-found{display:grid;grid-template-columns:128px minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:end}
+.music-add-found[hidden]{display:none}
+.music-add-thumb{width:128px;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#000}
+.music-add-note{margin:0;min-height:18px;font-size:13px;color:var(--muted)}
+.music-add-note[data-tone="bad"]{color:#ff8a8a}
+.music-add-acts{display:flex;justify-content:flex-end;gap:8px}
+.music-add-cancel,.music-add-save{height:40px;padding:0 18px;border-radius:10px;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.music-add-cancel{border:1px solid var(--line);background:none;color:#e6ebf2}
+.music-add-cancel:hover{border-color:rgba(255,255,255,.3)}
+.music-add-save{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink,#080a0b)}
+.music-add-save:disabled{opacity:.35;cursor:default}
+
+.music-backups-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.music-backups-head b{font-size:15px}
+.music-backups-note{flex:1 1 280px;font-size:13px;color:var(--muted)}
+.music-backups-dl{
+  height:36px;padding:0 13px;border:1px solid var(--line);border-radius:9px;
+  background:none;color:#e6ebf2;font:inherit;font-size:13px;font-weight:800;cursor:pointer;
+}
+.music-backups-dl:hover{border-color:var(--accent)}
+.music-backups-list{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-height:230px;overflow-y:auto}
+.music-backups-list li{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:14px;
+  padding:6px 8px;border-radius:8px;font-size:14px;
+}
+.music-backups-list li:hover{background:rgba(255,255,255,.04)}
+.music-backups-list li.music-bk-empty{display:block;color:var(--muted)}
+.music-bk-kind{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.music-bk-count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.music-bk-restore{
+  height:30px;padding:0 12px;border:1px solid var(--line);border-radius:8px;
+  background:none;color:#e6ebf2;font:inherit;font-size:12px;font-weight:800;cursor:pointer;
+}
+.music-bk-restore:hover{border-color:var(--accent)}
+.music-bk-restore.is-armed{background:#e5484d;border-color:#e5484d;color:#fff}
+
+.music-toast{
+  position:fixed;left:50%;top:26px;transform:translateX(-50%);z-index:20;margin:0;
+  padding:10px 16px;border-radius:10px;background:#1b2029;color:#fff;
+  font-size:14px;font-weight:700;box-shadow:0 12px 30px rgba(0,0,0,.5);pointer-events:none;
+}
+.music-toast[hidden]{display:none}
+
 /* --- the player bar ------------------------------------------------------- */
 /* Inside the shell rather than the page's own bottom bar, because the queue it
    is playing only exists while this overlay is open.
@@ -5841,6 +5955,9 @@ body.modal-open{overflow:hidden}
      characters of a URL, and the copy button is what it was there for. The
      button moves into the row as its own square cell. */
   .music-row{grid-template-columns:34px 34px minmax(0,1fr) 34px 24px;gap:8px}
+  .music-modal.is-admin .music-row{grid-template-columns:34px 34px minmax(0,1fr) 34px 24px 30px}
+  .music-add-found{grid-template-columns:minmax(0,1fr)}
+  .music-add-thumb{display:none}
   .music-link{display:none}
   .music-linkcell{border:0;background:none;justify-content:flex-end}
   .music-copy{margin-right:0}

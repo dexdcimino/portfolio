@@ -25,6 +25,40 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-15 — the playlist is live, and only TUNES edits it
+
+**Decided.** The music playlist lives in Vercel Blob (`music/playlist.json`) and
+is edited from the page through the code `TUNES`, which the server checks
+against `TUNES_PASSWORD` before handing out a twelve-hour edit token. `MUSIC`
+opens the same overlay read-only. Every edit copies the list it replaces to a
+backup first (40 kept, plus one per day for 60 days), and the REPEAT ticks are
+the shared list's `r` flags rather than a per-browser preference.
+
+**It replaced** a static `tracklist.txt` baked into `tracks.json` and shipped
+with the site, changed only by a commit and a deploy, with REPEAT ticks kept in
+each visitor's localStorage.
+
+**Why.** Dex wanted to add and remove songs from the page, keep everyone else
+from doing it, see the edits live on the listening side, and have backups he
+could find. A static file cannot be written by a request; the notes already
+proved the Blob store and the server-checked password pattern on this site, so
+this reuses both rather than adding a service. The password is checked on the
+SERVER because a vault code is only a door: the page source is public, and a
+client-side "admin" flag is a flag anyone can set. Backups go first in the write
+so no failure can leave a replaced list with no copy.
+
+**Not chosen: committing every edit to git from the server.** It would put a
+copy in the repo automatically, but it needs a GitHub token in Vercel and makes
+every playlist edit an outward push. The Download button and `tracklist.txt`
+cover the repo copy by hand instead; this is the call to revisit if he wants it
+automatic.
+
+**Reverse it if** the playlist stops being edited from the page, or the Blob
+store goes -- in which case `tracklist.txt` from the last download is the list,
+and the static manifest path is still in the code as the fallback.
+
+---
+
 ## 2026-09-10 — no sound without a control, enforced by a poll
 
 **Decided.** Anything on this page that is making noise must have a control for

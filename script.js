@@ -3426,8 +3426,11 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
      and the content still comes from the server or not at all. The music
      overlay has no password to be past: it is a list of public links, and the
      code is a doorway rather than a lock. */
+  /* TUNES opens the same music overlay as MUSIC, with editing. The code goes
+     with the event (see reveal) and the overlay hands it to the SERVER, which
+     is what decides -- this table only chooses the door. */
   const EVENTS = { notes: 'notes:open', music: 'music:open', sfx: 'sfx:open',
-                   chess: 'chess:open' };
+                   chess: 'chess:open', tunes: 'tunes:open' };
 
   /* SubtleCrypto only exists in a secure context. Over https or on localhost
      that is everywhere; opened as a file:// double-click it is nowhere, and the
@@ -5021,6 +5024,33 @@ const MediaBus = (() => {
   if (!rowsEl || !frame) return;
 
   const MANIFEST = 'assets/music/tracks.json';
+  /* THE LIVE LIST (Dex, 2026-09-15). The playlist is edited from the page now,
+     through the TUNES code, so it is read from the API first and from the
+     baked manifest only when there is no API to ask -- a static host, or a
+     harness serving the repo as files. See lib/music-store.js. */
+  const API = '/api/music/playlist';
+  const SYNC_MS = 20000;
+  const titleEl = $('musicTitle'), addBtn = $('musicAdd'), backupsBtn = $('musicBackups');
+  const addPanel = $('musicAddPanel'), backupsPanel = $('musicBackupsPanel'), toastEl = $('musicToast');
+  const addUrl = $('musicAddUrl'), addFound = $('musicAddFound'), addThumb = $('musicAddThumb');
+  const addTitle = $('musicAddTitle'), addArtist = $('musicAddArtist');
+  const addNote = $('musicAddNote'), addSave = $('musicAddSave'), addCancel = $('musicAddCancel');
+  const backupsList = $('musicBackupsList'), downloadBtn = $('musicDownload');
+  /* ADMIN IS A SERVER ANSWER, not a code typed into this page. It is true only
+     after /api/music/playlist has traded the TUNES code for a token, and it is
+     dropped the moment the server refuses that token. The token lives in this
+     closure and nowhere else: a refresh, or opening through MUSIC, is back to
+     read-only. */
+  let admin = false;
+  let token = null;
+  let rev = -1;
+  let live = false;           // the list came from the API, so there is something to poll
+  let syncTimer = 0;
+  let arming = null;          // the minus button waiting for its second press
+  let armTimer = 0;
+  let toastTimer = 0;
+  let lookSeq = 0;
+  let lookTimer = 0;
   const ORIGIN = 'https://www.youtube-nocookie.com';
   const TICKS_KEY = 'music-repeat';
   /* What the manifest's defaults were LAST time this browser looked. Without
@@ -5152,36 +5182,14 @@ const MediaBus = (() => {
     } catch { return null; }   // private mode, or hand-edited into nonsense
   };
 
-  /* The repeat playlist starts as whatever tracklist.txt marks |R, and then it
-     belongs to whoever is listening.
-
-     A browser that has never opened this takes the defaults whole. One that has
-     gets only the DELTA — tracks marked since it last looked are added, tracks
-     unmarked since are removed, and everything it did by hand is left alone.
-     The alternative was seeding once, which means a song marked |R next month
-     never reaches anyone who has already visited. */
+  /* THE REPEAT PLAYLIST IS SHARED (Dex, 2026-09-15). It used to be a tick per
+     browser, seeded from tracklist.txt's |R marks and then owned by whoever was
+     listening. It is curated in TUNES and read everywhere else now, so a
+     track's `r` flag IS the tick -- for everyone, off the live list -- and
+     nothing about it is kept in this browser any more. */
   function seedTicks() {
-    const seed = tracks.filter(t => t.r).map(t => t.v);
-    const stored = read(TICKS_KEY);
-
     ticked.clear();
-    if (!stored) {
-      for (const v of seed) ticked.add(v);
-    } else {
-      for (const v of stored) ticked.add(v);
-      const was = new Set(read(SEED_KEY) || []);
-      const now = new Set(seed);
-      for (const v of now) if (!was.has(v)) ticked.add(v);
-      for (const v of was) if (!now.has(v)) ticked.delete(v);
-    }
-
-    try { localStorage.setItem(SEED_KEY, JSON.stringify(seed)); }
-    catch { /* the delta is a nicety; the ticks below are the thing that matters */ }
-    saveTicks();
-  }
-  function saveTicks() {
-    try { localStorage.setItem(TICKS_KEY, JSON.stringify([...ticked])); }
-    catch { /* nothing to do — the session still works, it just will not persist */ }
+    for (const t of tracks) if (t.r) ticked.add(t.v);
   }
 
   /* ---- the flags ------------------------------------------------------- */
@@ -5277,6 +5285,10 @@ const MediaBus = (() => {
     check.className = 'music-check';
     check.checked = ticked.has(track.v);
     check.setAttribute('aria-label', `Add ${track.t} to the repeat playlist`);
+    /* READ-ONLY OUTSIDE TUNES. The tick still SAYS which tracks are on repeat;
+       it cannot be changed. Disabled rather than hidden, so the column keeps
+       its square and the grid is the same grid through either door. */
+    check.disabled = !admin;
 
     const play = document.createElement('button');
     play.type = 'button';
@@ -5335,6 +5347,7 @@ const MediaBus = (() => {
     flagCell.append(flag);
 
     row.append(check, play, meta, cell, flagCell);
+    if (admin) row.append(deleteCell(track));
     return row;
   }
 
@@ -5356,7 +5369,8 @@ const MediaBus = (() => {
     if (none) {
       emptyEl.textContent = query.trim()
         ? `Nothing matches "${query.trim()}".`
-        : 'Nothing ticked yet — tick a track in ALL to build the repeat playlist.';
+        : admin ? 'Nothing on repeat yet — tick a track in ALL to add it.'
+        : 'Nothing on the REPEAT playlist.';
     }
 
     countEl.textContent = `${queue.length} OF ${tracks.length}`;
@@ -5727,6 +5741,9 @@ const MediaBus = (() => {
     if (!row) return;
     const i = [...rowsEl.children].indexOf(row);
 
+    const del = event.target.closest('.music-del');
+    if (del) { onDelete(row, del); return; }
+
     if (event.target.closest('.music-play')) {
       /* Any press is a deliberate start, so the skip's clock and its counter
          both go: whatever was refused before this is not this track's fault,
@@ -5771,18 +5788,28 @@ const MediaBus = (() => {
     }
   });
 
-  rowsEl.addEventListener('change', (event) => {
+  rowsEl.addEventListener('change', async (event) => {
     const check = event.target.closest('.music-check');
     if (!check) return;
     const row = check.closest('.music-row');
     if (!row) return;
-    if (check.checked) ticked.add(row.dataset.v); else ticked.delete(row.dataset.v);
-    saveTicks();
+    /* A tick is an EDIT now, and only TUNES edits. The box is disabled
+       everywhere else, so this is belt and braces for a box someone enabled in
+       the inspector: the server would refuse it anyway, and the screen should
+       not pretend otherwise until it does. */
+    if (!admin) { check.checked = ticked.has(row.dataset.v); return; }
+    const on = check.checked;
+    if (on) ticked.add(row.dataset.v); else ticked.delete(row.dataset.v);
     nRepeat.textContent = String(ticked.size);
+    const done = await edit('repeat', { v: row.dataset.v, on });
+    if (!done || done.error) {
+      check.checked = !on;
+      if (on) ticked.delete(row.dataset.v); else ticked.add(row.dataset.v);
+      nRepeat.textContent = String(ticked.size);
+      return;
+    }
     // Unticking while LOOKING at the repeat list has to take the row away, or
-    // the tick means nothing where it matters most. Anywhere else, re-rendering
-    // would scroll the list out from under the pointer for no reason.
-    if (view === 'repeat') render();
+    // the tick means nothing where it matters most. edit() re-rendered already.
   });
 
   const setView = (next) => {
@@ -6110,14 +6137,348 @@ const MediaBus = (() => {
     if (modal.contains(document.activeElement)) document.activeElement.blur();
   }
 
+  /* ---- the live list, and TUNES ------------------------------------------ */
+
+  async function pullList() {
+    try {
+      const response = await fetch(API, { cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        if (data && Array.isArray(data.tracks) && data.tracks.length) {
+          rev = Number(data.rev) || 0;
+          live = true;
+          return data;
+        }
+      }
+    } catch { /* no API on this host -- the baked file below is the same list */ }
+    live = false;
+    const response = await fetch(MANIFEST, { cache: 'no-cache' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  }
+
+  /* A new list, from an edit's reply or from a poll. render() follows the
+     playing track by id, so a track removed while it plays keeps playing and
+     Next carries on from the list as it now is. */
+  function adoptList(data) {
+    const list = data.tracks.filter(t => t && t.v && t.t && t.u);
+    if (!list.length) return;
+    tracks = list;
+    rev = Number(data.rev) || 0;
+    seedTicks();
+    render();
+  }
+
+  function startSync() { clearInterval(syncTimer); if (live) syncTimer = setInterval(syncNow, SYNC_MS); }
+  function stopSync() { clearInterval(syncTimer); syncTimer = 0; }
+  async function syncNow() {
+    if (!live || document.hidden || !modal.open) return;
+    // Not under a pending delete: a re-render would throw away the armed pill.
+    if (arming) return;
+    try {
+      const response = await fetch(API, { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data && Array.isArray(data.tracks) && data.tracks.length && Number(data.rev) !== rev) adoptList(data);
+    } catch { /* the next poll will ask again */ }
+  }
+
+  const capital = (text) => String(text || '').replace(/^./, (c) => c.toUpperCase());
+
+  function toast(text) {
+    if (!toastEl) return;
+    toastEl.textContent = text;
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3000);
+  }
+
+  function setAdmin(on) {
+    admin = !!on && !!token;
+    if (!admin) token = null;
+    modal.classList.toggle('is-admin', admin);
+    if (titleEl) titleEl.textContent = admin ? 'TUNES' : 'MUSIC';
+    if (addBtn) addBtn.hidden = !admin;
+    if (backupsBtn) backupsBtn.hidden = !admin;
+    if (!admin) { closeAdd(); closeBackups(); disarm(); }
+  }
+
+  async function unlock(code) {
+    let response;
+    try {
+      response = await fetch(API, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'unlock', code: String(code || '') }),
+      });
+    } catch {
+      toast('Editing is offline — the list is read-only.');
+      return false;
+    }
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data.token) {
+      token = data.token;
+      setAdmin(true);
+      if (loaded) render();
+      toast('TUNES — editing is on.');
+      return true;
+    }
+    toast(response.status === 503
+      ? 'Editing is not set up on this deploy.'
+      : response.status === 404 ? 'There is no playlist server here — read-only.'
+      : 'That code does not unlock editing.');
+    return false;
+  }
+
+  /* EVERY EDIT GOES THROUGH HERE. A refused token ends editing on screen at
+     once, rather than leaving + and minus up for a session that no longer
+     exists. `quiet` is for the add form, which says its own errors in place. */
+  async function edit(action, extra = {}, { quiet = false } = {}) {
+    if (!admin || !token) return null;
+    let response;
+    try {
+      response = await fetch(API, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action, token, ...extra }),
+      });
+    } catch {
+      if (!quiet) toast('Could not reach the playlist — nothing was changed.');
+      return quiet ? { error: 'could not reach the playlist' } : null;
+    }
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      setAdmin(false);
+      render();
+      toast('Editing session expired — enter TUNES again.');
+      return null;
+    }
+    if (!response.ok) {
+      if (!quiet) toast(data.error ? `${capital(data.error)}.` : `The playlist said ${response.status}.`);
+      return { error: data.error || `status ${response.status}`, status: response.status, data };
+    }
+    if (Array.isArray(data.tracks)) adoptList(data);
+    return data;
+  }
+
+  /* ---- minus: two presses ----
+     The first press turns the minus into a red DELETE pill that grows leftward
+     over the row; the second press removes the track. Anything else -- a press
+     elsewhere, or 3.5 seconds -- puts the minus back. Absolutely positioned
+     when armed, so arming a row re-lays-out nothing under the pointer. */
+  function deleteCell(track) {
+    const cell = document.createElement('span');
+    cell.className = 'music-delcell';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'music-del';
+    btn.setAttribute('aria-label', `Remove ${track.t} from the playlist`);
+    btn.innerHTML = '<svg class="music-del-minus" viewBox="0 0 24 24" aria-hidden="true">'
+      + '<path d="M6.5 12h11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>'
+      + '<span class="music-del-word">Delete</span>';
+    cell.append(btn);
+    return cell;
+  }
+
+  function disarm() {
+    clearTimeout(armTimer);
+    if (arming) {
+      arming.classList.remove('is-armed');
+      arming.closest('.music-row')?.classList.remove('is-arming');
+      if (arming.dataset.label) arming.setAttribute('aria-label', arming.dataset.label);
+    }
+    arming = null;
+  }
+
+  async function onDelete(row, btn) {
+    if (!admin) return;
+    if (arming !== btn) {
+      disarm();
+      arming = btn;
+      btn.dataset.label = btn.getAttribute('aria-label');
+      btn.classList.add('is-armed');
+      row.classList.add('is-arming');
+      btn.setAttribute('aria-label', 'Press again to delete this track');
+      armTimer = setTimeout(disarm, 3500);
+      return;
+    }
+    clearTimeout(armTimer);
+    arming = null;
+    const gone = tracks.find(t => t.v === row.dataset.v);
+    btn.disabled = true;
+    row.classList.add('is-leaving');
+    const done = await edit('remove', { v: row.dataset.v });
+    if (!done || done.error) {
+      row.classList.remove('is-leaving', 'is-arming');
+      btn.classList.remove('is-armed');
+      btn.disabled = false;
+      return;
+    }
+    if (gone) toast(`Removed “${gone.t}”.`);
+  }
+
+  /* ---- plus: paste a link, check what came back, add ---- */
+  function openAdd() {
+    closeBackups();
+    addPanel.hidden = false;
+    addBtn.setAttribute('aria-expanded', 'true');
+    addUrl.value = '';
+    addTitle.value = '';
+    addArtist.value = '';
+    addFound.hidden = true;
+    addNote.textContent = 'Paste a YouTube link.';
+    delete addNote.dataset.tone;
+    delete addPanel.dataset.v;
+    addSave.disabled = true;
+    lookSeq++;
+    addUrl.focus();
+  }
+  function closeAdd() {
+    if (!addPanel) return;
+    addPanel.hidden = true;
+    addBtn?.setAttribute('aria-expanded', 'false');
+    lookSeq++;
+  }
+  function syncSave() {
+    addSave.disabled = !(addPanel.dataset.v && addTitle.value.trim() && addArtist.value.trim());
+  }
+  async function lookup() {
+    const value = addUrl.value.trim();
+    const seq = ++lookSeq;
+    delete addPanel.dataset.v;
+    addFound.hidden = true;
+    addSave.disabled = true;
+    delete addNote.dataset.tone;
+    if (!value) { addNote.textContent = 'Paste a YouTube link.'; return; }
+    addNote.textContent = 'Looking it up…';
+    const data = await edit('lookup', { url: value }, { quiet: true });
+    if (seq !== lookSeq || !data) return;
+    if (data.error) { addNote.textContent = `${capital(data.error)}.`; addNote.dataset.tone = 'bad'; return; }
+    if (data.already) { addNote.textContent = 'That one is already in the playlist.'; addNote.dataset.tone = 'bad'; return; }
+    addPanel.dataset.v = data.v;
+    addThumb.src = `https://i.ytimg.com/vi/${data.v}/mqdefault.jpg`;
+    addTitle.value = data.t || '';
+    addArtist.value = data.a || '';
+    addFound.hidden = false;
+    addNote.textContent = data.t ? 'Check the title and artist, then add it.' : 'No title came back — type one in.';
+    syncSave();
+    (data.t ? addSave : addTitle).focus();
+  }
+  async function submitAdd(event) {
+    event.preventDefault();
+    if (addSave.disabled) return;
+    addSave.disabled = true;
+    addNote.textContent = 'Adding…';
+    delete addNote.dataset.tone;
+    const v = addPanel.dataset.v;
+    const t = addTitle.value.trim(), a = addArtist.value.trim();
+    const data = await edit('add', { url: v, t, a }, { quiet: true });
+    if (!data) return;
+    if (data.error) { addNote.textContent = `${capital(data.error)}.`; addNote.dataset.tone = 'bad'; syncSave(); return; }
+    closeAdd();
+    toast(`Added “${t}” by ${a}.`);
+    /* THE NEW ROW, SHOWN. Added to a 313-row list sorted by title, it lands
+       wherever its name puts it -- so it is scrolled to and lit, or the only
+       proof it worked is a count going up by one. */
+    const row = rowsEl.querySelector(`.music-row[data-v="${CSS.escape(v)}"]`);
+    if (row) {
+      row.scrollIntoView({ block: 'center', behavior: 'instant' });
+      row.classList.add('is-new');
+      setTimeout(() => row.classList.remove('is-new'), 2400);
+    }
+  }
+
+  /* ---- backups ---- */
+  function closeBackups() {
+    if (!backupsPanel) return;
+    backupsPanel.hidden = true;
+    backupsBtn?.setAttribute('aria-expanded', 'false');
+  }
+  async function openBackups() {
+    closeAdd();
+    backupsPanel.hidden = false;
+    backupsBtn.setAttribute('aria-expanded', 'true');
+    backupsList.replaceChildren(Object.assign(document.createElement('li'),
+      { className: 'music-bk-empty', textContent: 'Loading…' }));
+    const data = await edit('backups', {}, { quiet: true });
+    if (!data || data.error) {
+      backupsList.replaceChildren(Object.assign(document.createElement('li'),
+        { className: 'music-bk-empty', textContent: data ? `${capital(data.error)}.` : '' }));
+      return;
+    }
+    const rows = (data.backups || []).map((b) => {
+      const li = document.createElement('li');
+      const when = document.createElement('span');
+      when.className = 'music-bk-when';
+      const iso = b.kind === 'daily' ? `${b.label}T00:00:00Z`
+        : b.label.replace(/T(\d\d)-(\d\d)-(\d\d)-(\d{3})Z$/, 'T$1:$2:$3.$4Z');
+      const d = new Date(iso);
+      when.textContent = Number.isFinite(d.getTime())
+        /* UTC for the day label: it IS a UTC date, and printed in local time a
+           backup made on the 15th reads as the 14th anywhere west of Greenwich. */
+        ? d.toLocaleString(undefined, b.kind === 'daily'
+          ? { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }
+          : { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+        : b.label;
+      const kind = document.createElement('span');
+      kind.className = 'music-bk-kind';
+      kind.textContent = b.kind === 'daily' ? 'Start of day' : 'Before an edit';
+      const count = document.createElement('span');
+      count.className = 'music-bk-count';
+      count.textContent = `${b.count} tracks`;
+      const restore = document.createElement('button');
+      restore.type = 'button';
+      restore.className = 'music-bk-restore';
+      restore.textContent = 'Restore';
+      restore.addEventListener('click', async () => {
+        /* Two presses, like the minus: restoring replaces the whole list. It
+           is undoable -- the list being replaced is backed up first -- but a
+           mis-click should still cost a second press rather than a restore. */
+        if (!restore.classList.contains('is-armed')) {
+          for (const other of backupsList.querySelectorAll('.music-bk-restore.is-armed')) {
+            other.classList.remove('is-armed');
+            other.textContent = 'Restore';
+          }
+          restore.classList.add('is-armed');
+          restore.textContent = 'Replace list?';
+          setTimeout(() => { restore.classList.remove('is-armed'); restore.textContent = 'Restore'; }, 3500);
+          return;
+        }
+        restore.disabled = true;
+        const done = await edit('restore', { name: b.name });
+        if (done && !done.error) {
+          toast(`Restored — ${done.count} tracks. The list it replaced is backed up too.`);
+          openBackups();
+        } else {
+          restore.disabled = false;
+        }
+      });
+      li.append(when, kind, count, restore);
+      return li;
+    });
+    backupsList.replaceChildren(...(rows.length ? rows : [Object.assign(document.createElement('li'),
+      { className: 'music-bk-empty', textContent: 'No backups yet — the first edit makes one.' })]));
+  }
+
+  /* The whole list, as tracklist.txt. The file anyone can open in Notepad and
+     put back in the repo, which is the one backup that does not depend on this
+     site or its storage being alive. */
+  function downloadList() {
+    const lines = tracks.map(t => `${t.t}|${t.a}|${t.u}${t.r ? '|R' : ''}`);
+    const blob = new Blob([`${lines.join('\n')}\n`], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `tracklist-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+  }
+
   /* ---- opening --------------------------------------------------------- */
 
   async function fetchTracks() {
     countEl.textContent = 'LOADING';
     try {
-      const response = await fetch(MANIFEST, { cache: 'no-cache' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      const data = await pullList();
       const list = Array.isArray(data && data.tracks) ? data.tracks : [];
       /* An empty manifest is a BROKEN manifest, never an empty playlist: it
          means the bake wrote nothing or the fetch got a 200 from a rewrite
@@ -6153,6 +6514,10 @@ const MediaBus = (() => {
     openModal(modal, modal.querySelector('.music-shell'), null, trigger);
     if (!loaded && !(await fetchTracks())) return;
     render();
+    /* Live while it is open (docked counts): an edit made in TUNES reaches an
+       open MUSIC within one poll, and reopening asks straight away. */
+    startSync();
+    syncNow();
     /* The bar is up before anything is playing, so the transport is somewhere
        to press rather than somewhere that appears once you have found a track
        to click. It only becomes visible here, not in the markup, because until
@@ -6203,6 +6568,9 @@ const MediaBus = (() => {
     modal.classList.remove('is-docked');
     if (expandBtn) expandBtn.hidden = true;
     stop();
+    stopSync();
+    // Editing ends with the overlay. The next open is through a code again.
+    setAdmin(false);
     searchEl.value = '';
     query = '';
     if (view !== 'all') setView('all');
@@ -6217,9 +6585,49 @@ const MediaBus = (() => {
      reason the notes overlay is: it has its own opener, which has to fetch the
      manifest before there is anything to show. */
   document.addEventListener('music:open', (event) => {
+    /* MUSIC is the read-only door, whatever was open before it: typing MUSIC
+       after TUNES in the same tab is asking for the listener's view. */
+    if (admin) { setAdmin(false); if (loaded) render(); }
     // Docked counts as closed for this: the code should put the list back.
     if (!modal.open || isDockedBar(modal)) open((event.detail || {}).opener);
   });
+
+  /* TUNES: the same overlay, then the code is traded for an edit token. It
+     opens first and unlocks second, so a server that says no still leaves a
+     working music player on screen rather than nothing. */
+  document.addEventListener('tunes:open', async (event) => {
+    const detail = event.detail || {};
+    if (!modal.open || isDockedBar(modal)) await open(detail.opener);
+    await unlock(detail.code);
+  });
+
+  addBtn?.addEventListener('click', () => (addPanel.hidden ? openAdd() : closeAdd()));
+  backupsBtn?.addEventListener('click', () => (backupsPanel.hidden ? openBackups() : closeBackups()));
+  addCancel?.addEventListener('click', closeAdd);
+  addUrl?.addEventListener('input', () => {
+    clearTimeout(lookTimer);
+    lookTimer = setTimeout(lookup, 350);
+  });
+  addTitle?.addEventListener('input', syncSave);
+  addArtist?.addEventListener('input', syncSave);
+  addPanel?.addEventListener('submit', submitAdd);
+  /* ESCAPE CLOSES THE PANEL, AND ONLY THE PANEL. Consumed here, or the same
+     key reaches the dialog and takes the whole overlay -- and the music with
+     it -- which is the ladder CLAUDE.md names. */
+  for (const panel of [addPanel, backupsPanel]) {
+    panel?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (panel === addPanel) closeAdd(); else closeBackups();
+      (panel === addPanel ? addBtn : backupsBtn)?.focus();
+    });
+  }
+  downloadBtn?.addEventListener('click', downloadList);
+  document.addEventListener('pointerdown', (e) => {
+    if (arming && !e.target.closest('.music-del')) disarm();
+  }, true);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
 
   // Absent means never set, which is not the same as off: the default is on.
   let storedShuffle = null;

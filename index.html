@@ -3387,7 +3387,7 @@
          Deliberately not in the nav, and deliberately not in the scroll spy's
          section list in script.js: findable, not advertised. -->
     <section class="resume-strip vault keypad" id="vault" aria-labelledby="vault-title"
-             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi v2.32768.8.1.0vddRKfHTuGOBDXw3eohuqfJn9gawqxlzsrNC5PAlMBOxGYWDeQM2r2xODwNSXCMXK9HGhC2 v2.32768.8.1.GG3gPYqj8ruPKgW1JdjfQbHkEtBPmIh27xuAfgPudjHf17yDbhoe/Xlir71gT9v5rcoWcTF2 v2.32768.8.1./pYfnuqy3ZUN4fWie2OG7EKtfMuym3NtF0c6JRkcGLNjI3LK8ZvzuA8KvSmQDkQmTwEfrg== v2.32768.8.1.KItrmBzvG+0VbyY8ecpqjmOA47m9CqewvjGnKUzaJcsKAnJkbgOGMcJlqG7lZ9oAbxEbvnlJ">
+             data-vault="v2.32768.8.1.9UUjyNQRTyaeFz5DX2N4t22eRjiPnm3kI3/QW5eFR16koIbzD0I52xlKeUHPYNwk8olCViCi v2.32768.8.1.0vddRKfHTuGOBDXw3eohuqfJn9gawqxlzsrNC5PAlMBOxGYWDeQM2r2xODwNSXCMXK9HGhC2 v2.32768.8.1.GG3gPYqj8ruPKgW1JdjfQbHkEtBPmIh27xuAfgPudjHf17yDbhoe/Xlir71gT9v5rcoWcTF2 v2.32768.8.1./pYfnuqy3ZUN4fWie2OG7EKtfMuym3NtF0c6JRkcGLNjI3LK8ZvzuA8KvSmQDkQmTwEfrg== v2.32768.8.1.KItrmBzvG+0VbyY8ecpqjmOA47m9CqewvjGnKUzaJcsKAnJkbgOGMcJlqG7lZ9oAbxEbvnlJ v2.32768.8.1.nXdHo6ci9gnCKQRXfqwX1s8PX+ntqimqRab9K9RlE3EtOlbkuA2OaAVdVepnqZOfR1QaAQJL">
       <div class="vault-head">
         <p class="eyebrow vault-eyebrow">
           <span id="vaultLabel">CLASSIFIED</span>
@@ -4596,10 +4596,21 @@
 
         <div class="music-head">
           <p class="eyebrow music-eyebrow">
-            <span>MUSIC</span>
+            <span id="musicTitle">MUSIC</span>
             <span class="icon vault-lock" data-icon="lock-open" aria-hidden="true"></span>
           </p>
           <p class="music-count" id="musicCount" role="status" aria-live="polite">LOADING</p>
+          <!-- TUNES ONLY. Hidden through MUSIC, and hidden is not the lock: the
+               server refuses every edit without a token the TUNES code earned.
+               See api/music/playlist.js. -->
+          <button type="button" class="music-admin-btn is-primary" id="musicAdd"
+                  aria-expanded="false" aria-controls="musicAddPanel" hidden>
+            <span class="icon" data-icon="plus" aria-hidden="true"></span><span>Add song</span>
+          </button>
+          <button type="button" class="music-admin-btn" id="musicBackups"
+                  aria-expanded="false" aria-controls="musicBackupsPanel" hidden>
+            <span class="icon" data-icon="resume" aria-hidden="true"></span><span>Backups</span>
+          </button>
           <span class="music-head-gap" aria-hidden="true"></span>
           <!-- Two buttons, not a <select>: there are exactly two answers. -->
           <div class="music-sort" role="group" aria-label="Sort the list">
@@ -4610,6 +4621,40 @@
                  placeholder="Search title or artist" aria-label="Search tracks"
                  autocomplete="off" spellcheck="false">
         </div>
+
+        <!-- ADD A SONG: paste a link, the server looks up the title, you check
+             it and add it. Nothing is written without a person seeing it. -->
+        <form class="music-add" id="musicAddPanel" hidden autocomplete="off">
+          <label class="music-add-url">
+            <span>YouTube link</span>
+            <input id="musicAddUrl" type="url" inputmode="url" spellcheck="false"
+                   placeholder="https://youtu.be/…">
+          </label>
+          <div class="music-add-found" id="musicAddFound" hidden>
+            <img class="music-add-thumb" id="musicAddThumb" alt="" width="320" height="180">
+            <label><span>Title</span><input id="musicAddTitle" maxlength="200"></label>
+            <label><span>Artist</span><input id="musicAddArtist" maxlength="200"></label>
+          </div>
+          <p class="music-add-note" id="musicAddNote" role="status"></p>
+          <div class="music-add-acts">
+            <button type="button" class="music-add-cancel" id="musicAddCancel">Cancel</button>
+            <button type="submit" class="music-add-save" id="musicAddSave" disabled>Add to playlist</button>
+          </div>
+        </form>
+
+        <!-- BACKUPS: a copy is saved before every edit and at the start of each
+             day, on the server. Restoring backs up the list it replaces, so it
+             can be undone. Download is the copy that needs nothing but a disk. -->
+        <div class="music-backups" id="musicBackupsPanel" hidden>
+          <div class="music-backups-head">
+            <b>Backups</b>
+            <span class="music-backups-note">Saved automatically before every change and at the start of each day. Restoring saves the current list first.</span>
+            <button type="button" class="music-backups-dl" id="musicDownload">Download the list (.txt)</button>
+          </div>
+          <ol class="music-backups-list" id="musicBackupsList"></ol>
+        </div>
+
+        <p class="music-toast" id="musicToast" role="status" aria-live="polite" hidden></p>
 
         <div class="music-body">
           <!-- Two playlists and no way to make a third. ALL is the file; REPEAT
