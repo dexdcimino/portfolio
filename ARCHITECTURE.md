@@ -2674,6 +2674,32 @@ the first press. **Deleting** is two presses: the minus becomes a red DELETE pil
 that grows leftward over the row, absolutely positioned so arming moves nothing
 under the pointer, and stands down on a press elsewhere or after 3.5 seconds.
 
+**SHUFFLE IS A CYCLE, NOT A COIN TOSS** (Dex, 2026-09-23). `heard` is the set
+of video ids played this cycle; Next picks at random from the tracks NOT in it,
+so nothing can come round again until everything else in the list has played.
+When the set is empty the cycle is over -- with repeat OFF that is the end of
+the list, and otherwise a new cycle starts holding back only the track that is
+playing, so the join between two cycles is never the same song twice running.
+Whatever reaches a track counts as heard: Next, the ended event, a row clicked
+by hand.
+
+It used to pick an independent random row per press, refusing only the one
+playing. With ~300 tracks that is a repeat inside fifteen songs about a third
+of the time, which is exactly what it looked like -- the check that replaced it
+plays a whole 56-track REPEAT list with Next and asserts 56 DIFFERENT tracks,
+and that same check reports 28 of 56 against the old code.
+
+**PREVIOUS AND NEXT WALK ONE TRAIL.** `trail` is the ids actually played,
+oldest first, with a cursor `at`. Previous moves the cursor back; Next moves it
+forward while there is anything ahead of it and only then asks the cycle for
+something new. It was a stack that Previous POPPED, so walking back three songs
+and pressing Next gave a fresh random pick rather than the song just left --
+the forward half had been thrown away by the walk. A new destination (a clicked
+row, a fresh start) truncates whatever is ahead of the cursor, because you
+cannot go forward to songs you chose not to hear. Entries filtered out of the
+list since they played are stepped over rather than dropped: the search that
+hid them may be cleared.
+
 **The row is a five-column grid**: a tick, a play button, the title over the
 artist, the link with a copy button on the end of it, and a flag. The two thin
 columns are fixed 40px squares so they line up down all 311 rows however long a

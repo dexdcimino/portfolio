@@ -25,6 +25,38 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-09-23 — shuffle is a cycle, and one trail serves both directions
+
+**Decided.** With shuffle on, Next picks at random from the tracks not yet
+heard this cycle (`heard`, a set of ids), so no track repeats until every other
+track in the list has played; an exhausted cycle ends the list with repeat off
+and otherwise starts again holding back only the track playing. Previous and
+Next move a CURSOR along one trail of what actually played, so walking back and
+forward replays the same songs in the same order before the shuffle chooses
+again.
+
+**It replaced** an independent random pick per press that refused only the
+track currently playing, and a history STACK that Previous popped as it walked.
+
+**Why.** Dex reported the same song three times inside fifteen minutes, and
+going back a few songs then forward landing somewhere new. Both were real: with
+~300 tracks, an independent pick repeats inside fifteen presses about a third
+of the time -- the old code was working as written and the writing was wrong --
+and popping the history deletes the forward half by definition. A shuffle that
+can play a song twice in ten minutes reads as broken because it nearly is.
+
+**Not chosen: a pre-shuffled bag array.** Same guarantee, but it has to be
+rebuilt whenever the list changes -- a search, a rail switch, a track added in
+TUNES -- and each rebuild is a decision about what the half-walked order meant.
+A set of what has been heard survives all of those without a rule for any of
+them.
+
+**Reverse it if** a list ever wants weighted or biased play (a "play more of
+what I skip less" mode), which is a different feature and would need its own
+state rather than a bent version of this one.
+
+---
+
 ## 2026-09-15 — the playlist is live, and only TUNES edits it
 
 **Decided.** The music playlist lives in Vercel Blob (`music/playlist.json`) and

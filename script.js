@@ -5076,15 +5076,37 @@ const MediaBus = (() => {
   let sort = 't';             // 't' | 'a'
   let query = '';
   let index = -1;             // into `queue`
-  /* WHAT WAS ACTUALLY PLAYED, oldest last, as video ids. Previous walks THIS
-     and never the list, because with shuffle on `index - 1` is the row above a
-     random pick -- so pressing back to hear the last song again shuffled you
-     somewhere else again (Dex, 2026-09-07). Ids and not indices because a
-     search or a re-sort renumbers the queue under a player that is still
-     going; `render()` already re-finds the playing track by id for the same
-     reason. Capped because a long session should not grow a list forever. */
-  const history = [];
-  const HISTORY_MAX = 200;
+  /* THE TRAIL: what was actually played, oldest first, as video ids, and a
+     CURSOR into it. Previous walks this and never the list, because with
+     shuffle on `index - 1` is the row above a random pick -- so pressing back
+     to hear the last song again shuffled you somewhere else again (Dex,
+     2026-09-07).
+
+     A CURSOR AND NOT A STACK (Dex, 2026-09-23). Previous used to POP, which
+     threw the forward half away: go back three songs, press Next, and you got a
+     fresh random pick instead of the song you had just come from. A cursor
+     keeps both directions -- back three and forward three replays exactly those
+     songs in that order, and the press after that carries on where the shuffle
+     had got to.
+
+     Ids and not indices because a search or a re-sort renumbers the queue under
+     a player that is still going; `render()` already re-finds the playing track
+     by id for the same reason. Capped because a long session should not grow a
+     list forever. */
+  const trail = [];
+  let at = -1;
+  const TRAIL_MAX = 200;
+
+  /* WHAT HAS BEEN HEARD THIS CYCLE. Shuffle picks at random from the tracks
+     NOT in here, so nothing comes round twice until everything else in the list
+     has played; when the set is empty the cycle is over and a new one starts.
+
+     THE OLD ONE PICKED AT RANDOM EVERY TIME, refusing only the track that was
+     playing, and that is the whole of the bug Dex reported: with ~300 tracks
+     and an independent pick per press, hearing the same song twice inside
+     fifteen is about a one-in-three event. A shuffle that can do that reads as
+     broken because it nearly is. */
+  const heard = new Set();
   let playing = false;
   /* Shuffle starts ON. 311 tracks in alphabetical order is a filing cabinet,
      not a playlist, and pressing play in one should not mean hearing the same
@@ -5479,16 +5501,26 @@ const MediaBus = (() => {
     return `${ORIGIN}/embed/${encodeURIComponent(v)}?${params}`;
   }
 
-  function load(i, fromClick, rewind) {
+  function load(i, fromClick, walking) {
     const track = queue[i];
     if (!track) return;
-    /* Remember what we are leaving, before index moves. Not on a rewind --
-       Previous would push the track it is walking away from and two presses
-       would ping-pong between the same pair instead of walking back. */
-    if (!rewind && current && current.v !== track.v) {
-      history.push(current.v);
-      if (history.length > HISTORY_MAX) history.shift();
+    /* WALKING -- Previous, or the Next that replays what Previous walked back
+       through -- moves the cursor and leaves the trail alone. Anything else is
+       a new destination, and a new destination abandons whatever was ahead of
+       the cursor: you cannot go "forward" to songs you chose not to hear. */
+    if (!walking) {
+      trail.length = at + 1;
+      if (trail[trail.length - 1] !== track.v) trail.push(track.v);
+      at = trail.length - 1;
+      if (trail.length > TRAIL_MAX) {
+        const drop = trail.length - TRAIL_MAX;
+        trail.splice(0, drop);
+        at -= drop;
+      }
     }
+    /* HEARD, however it was reached. A row clicked by hand is a song that has
+       played, and the cycle has to know that or the click is a free repeat. */
+    heard.add(track.v);
     index = i;
     /* A search can filter the playing track out of the list, which sets index
        to -1 while the audio carries on -- so the thing that failed cannot be
@@ -5543,6 +5575,25 @@ const MediaBus = (() => {
     if (fromClick) MediaBus.solo(me);
   }
 
+  /* ---- the cycle ---------------------------------------------------------
+     The rule, in one place, because three controls ask for it: a track already
+     heard this cycle is not a candidate. When nothing is left the cycle is
+     over -- which with repeat OFF is the end of the list, and otherwise starts
+     again holding back only the track that is playing, so the join between two
+     cycles is never the same song twice in a row. */
+  const unheard = () => queue.filter(t => !heard.has(t.v));
+
+  function nextShuffled() {
+    let left = unheard();
+    if (!left.length) {
+      heard.clear();
+      if (current) heard.add(current.v);
+      left = unheard();
+      if (!left.length) left = queue.slice();      // a list of one
+    }
+    return left[Math.floor(Math.random() * left.length)];
+  }
+
   /* Press play with nothing going. Shuffle on means a DIFFERENT track each
      time — including different from the last one this browser played, which is
      what music-last is for. Resuming that track instead was the first version
@@ -5555,9 +5606,12 @@ const MediaBus = (() => {
     if (!shuffle) { load(0, true); return; }
     let last = null;
     try { last = localStorage.getItem(LAST_KEY); } catch { /* private mode */ }
-    let n = Math.floor(Math.random() * queue.length);
-    if (queue.length > 1 && queue[n].v === last) n = (n + 1) % queue.length;
-    load(n, true);
+    let pick = nextShuffled();
+    if (queue.length > 1 && pick.v === last) {
+      const other = unheard().filter(t => t.v !== last);
+      if (other.length) pick = other[Math.floor(Math.random() * other.length)];
+    }
+    load(queue.indexOf(pick), true);
   }
 
   /* PAST THE FIRST FEW SECONDS, BACK MEANS RESTART THIS TRACK. Every media
@@ -5576,11 +5630,12 @@ const MediaBus = (() => {
     /* Zero means the embed has said nothing yet -- a track that has not
        started cannot be restarted, so that falls through to the history. */
     if (index >= 0 && position >= RESTART_AFTER) { restart(); return; }
-    while (history.length) {
-      const v = history.pop();
-      const i = queue.findIndex(t => t.v === v);
-      // Searched or filtered out of the list since it played -- keep walking.
-      if (i >= 0) { load(i, true, true); return; }
+    /* WALK THE CURSOR BACK, never pop: everything ahead of it is what Next
+       replays. A track filtered out of the list since it played is stepped
+       over rather than dropped -- the search that hid it may be cleared. */
+    for (let k = at - 1; k >= 0; k--) {
+      const i = queue.findIndex(t => t.v === trail[k]);
+      if (i >= 0) { at = k; load(i, true, true); return; }
     }
     /* Nothing behind us. With shuffle on there is no "row above" that means
        anything, so restart the current track: that is what every other player
@@ -5611,10 +5666,17 @@ const MediaBus = (() => {
     if (!queue.length) return;
     if (delta < 0) { back(); return; }
     if (shuffle && delta > 0) {
+      /* FORWARD OVER THE SAME GROUND FIRST. If Previous walked back, Next has
+         to come back up those songs in that order before the shuffle is asked
+         for anything new. */
+      for (let k = at + 1; k < trail.length; k++) {
+        const i = queue.findIndex(t => t.v === trail[k]);
+        if (i >= 0) { at = k; load(i, true, true); return; }
+      }
       if (queue.length < 2) { load(0, true); return; }
-      let n = index;
-      while (n === index) n = Math.floor(Math.random() * queue.length);
-      load(n, true);
+      // Nothing unheard left and repeat is off: that is the end of the list.
+      if (!unheard().length && loop === 'off') { stop(); return; }
+      load(queue.indexOf(nextShuffled()), true);
       return;
     }
     const next = index + delta;
@@ -5640,7 +5702,9 @@ const MediaBus = (() => {
     playing = false;
     index = -1;
     current = null;
-    history.length = 0;
+    trail.length = 0;
+    at = -1;
+    heard.clear();
     deadRun = 0;
     calm();
     idle();
@@ -5723,11 +5787,13 @@ const MediaBus = (() => {
     /* step(1) and not the ended path: repeat-one on a dead track is the
        infinite loop this whole function exists to avoid. */
     step(1);
-    /* ...and the track that refused does not belong in the back history: going
-       back to it would just skip forward again, landing somewhere new, which
-       is the shuffling Previous wearing a hat. load() pushed it a moment ago
-       because from its side this was an ordinary advance. */
-    if (history[history.length - 1] === track?.v) history.pop();
+    /* ...and the track that refused does not belong in the trail: going back
+       to it would just skip forward again, landing somewhere new, which is the
+       shuffling Previous wearing a hat. load() put it there a moment ago,
+       because from its side this was an ordinary advance. It stays in `heard`
+       so this cycle does not try it a second time. */
+    const dead = trail.lastIndexOf(track ? track.v : '');
+    if (dead >= 0) { trail.splice(dead, 1); if (dead <= at) at--; }
     // ...and watch whatever it landed on, because it may say nothing at all.
     if (current && current !== track) stalled(current);
   }

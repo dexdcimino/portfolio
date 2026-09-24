@@ -513,6 +513,65 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   await page.click('#musicViewAll');
 }
 
+/* ---- 5b. SHUFFLE IS A CYCLE, AND PREVIOUS/NEXT WALK ONE TRAIL -----------
+   THE REPORTED BUG (Dex, 2026-09-23): the same song three times inside fifteen
+   minutes, and going back a few songs then forward again landing somewhere new.
+   Next picked an independent random row per press and refused only the one
+   playing -- with ~300 tracks that is a repeat inside fifteen about a third of
+   the time -- and Previous POPPED its history, so the forward half was thrown
+   away as it walked.
+
+   Driven in the REPEAT view: long enough that an independent pick would repeat
+   inside it with near-certainty, short enough to walk twice in a harness.
+
+   FALSELY PASSES IF: only a handful of presses were counted. What is asserted
+   is a FULL cycle -- every track in the list, each exactly once -- and then
+   that the press after it starts a new one rather than continuing to refuse. */
+{
+  await page.click('#musicViewRepeat');
+  await sleep(300);
+  const n = await page.$$eval('#musicRows .music-row', (rows) => rows.length);
+  note(n > 20, `the REPEAT view holds ${n} tracks — too few to prove a cycle`);
+
+  const lit = () => page.evaluate(() =>
+    document.querySelector('#musicRows .music-row.is-playing')?.dataset.v || '');
+  const press = async (id) => { await page.click(id); await sleep(80); return lit(); };
+  const next = () => press('#musicNext');
+  const prev = () => press('#musicPrev');
+
+  await page.evaluate(() => document.querySelector('#musicRows .music-row .music-play').click());
+  await sleep(250);
+  const seen = [await lit()];
+  for (let i = 1; i < n; i++) seen.push(await next());
+  note(!seen.includes(''), 'a press left nothing playing');
+  const unique = new Set(seen);
+  note(unique.size === n,
+       `${n} presses played ${unique.size} different tracks — nothing may come round twice in a cycle`);
+
+  const again = await next();
+  note(seen.includes(again), `the new cycle opened on ${again}, which is not in this list`);
+  note(again !== seen[seen.length - 1], 'the new cycle opened with the song that had just played');
+  console.log(`  shuffle: ${unique.size} of ${n} tracks, each exactly once, before anything repeated`);
+
+  /* BACK AND FORWARD OVER THE SAME GROUND. Three presses each way: the songs
+     have to come back in reverse, then forward in the order they first played,
+     and only then may the shuffle choose again. */
+  const forward = [again, await next(), await next(), await next()];
+  const backwards = [await prev(), await prev(), await prev()];
+  note(backwards.join(' ') === forward.slice(0, 3).reverse().join(' '),
+       `Previous walked "${backwards.join(' ')}" back over "${forward.join(' ')}"`);
+  const replay = [await next(), await next(), await next()];
+  note(replay.join(' ') === forward.slice(1).join(' '),
+       `Next replayed "${replay.join(' ')}" where the trail says "${forward.slice(1).join(' ')}"`);
+  const beyond = await next();
+  note(!replay.includes(beyond) && beyond !== forward[0],
+       `the press past the trail landed on ${beyond}, which it had just played`);
+  console.log(`  trail: back over ${backwards.length}, forward over the same ${replay.length}, then on`);
+
+  await page.click('#musicViewAll');
+  await sleep(250);
+}
+
 /* ---- 6. search and sort ------------------------------------------------- */
 {
   const first = await page.evaluate(() =>
