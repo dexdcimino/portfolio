@@ -3158,12 +3158,19 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
 .vault-eyebrow{display:flex;align-items:center;gap:6px;margin:0}
 .vault-lock{width:17px;height:17px}
 
-.vault-lockbox{position:relative;display:grid;justify-items:center;gap:14px}
+/* THE TILDE'S FOOTPRINT, DECLARED ONCE. The mark is drawn from these two
+   numbers and the status line below is corrected by the same two -- plus the
+   row's own gap, which sits between the mark and the first box as well as
+   between the boxes, and is 6px of the offset on its own. One place to change
+   each, rather than two to keep in step. */
+.vault-lockbox{position:relative;display:grid;justify-items:center;gap:14px;
+  --tilde-w:calc(clamp(46px,10.5vw,66px) * .36);--tilde-gap:clamp(8px,1.6vw,16px);
+  --pin-gap:clamp(6px,1.4vw,12px)}
 /* The UA sheet's [hidden]{display:none} is a type selector and loses to the
    class above it, so hiding the keypad on unlock did nothing at all until this
    said so explicitly. Anything given display: by a class needs this. */
 .vault-lockbox[hidden]{display:none}
-.vault-pins{display:flex;align-items:center;gap:clamp(6px,1.4vw,12px)}
+.vault-pins{display:flex;align-items:center;gap:var(--pin-gap)}
 /* A THIRD OF A BOX WIDE, and that number is the whole of the fix. Scaled to
    the pins is right -- it has to hold its proportion at every step of their
    clamp -- but scaled at 1:1 made a solid accent mark exactly as wide as an
@@ -3177,8 +3184,8 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
    boxes, or it joins the row rather than sitting beside it. */
 .vault-tilde{
   flex:0 0 auto;
-  width:calc(clamp(46px,10.5vw,66px) * .36);aspect-ratio:86.5/38;
-  margin-right:clamp(8px,1.6vw,16px);
+  width:var(--tilde-w);aspect-ratio:86.5/38;
+  margin-right:var(--tilde-gap);
   color:var(--accent);
 }
 /* Square by construction, not by two numbers that have to agree. The width
@@ -3252,6 +3259,21 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
   font-family:var(--mono,ui-monospace),ui-monospace,monospace;
   font-size:14px;font-weight:700;letter-spacing:.18em;color:#7f878e;
   transition:color var(--accent-ease),opacity .4s ease;
+}
+/* CENTRED UNDER THE BOXES, which is not the same as centred in the lockbox.
+   The tilde is the first thing in the pins row, so the row is wider than the
+   five boxes on its left-hand side and its centre sits to the RIGHT of
+   theirs. justify-items centres both the row and this line on the same
+   column, which left ENTER CODE / CHECKING / NOPE / YEP! reading a mark and
+   a gap left of the middle box -- visible, and reported as such. The padding
+   is on the line rather than the mark being taken out of flow, because out
+   of flow it would hang off the left edge of the stacked layout below 760px,
+   where the lockbox aligns to start and there is no room to the left to hang
+   into. :has() rather than an id, so the correction belongs to any keypad
+   that wears the mark -- the tilde prompt and the notes gate carry theirs in
+   a corner and are untouched. */
+.vault-lockbox:has(.vault-tilde) .vault-status{
+  padding-left:calc(var(--tilde-w) + var(--tilde-gap) + var(--pin-gap));
 }
 /* The ANSWER is bigger than the prompt. "ENTER CODE" is a label and should sit
    quietly under the boxes; NOPE and YEP! are replies to something you just did

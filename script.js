@@ -3556,6 +3556,10 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   const show = (dialog, opener) =>
     openModal(dialog, dialog.querySelector('.vault-modal-shell'), null, opener);
 
+  /* How long YEP! stays before the section puts itself back. Long enough to
+     have been read, short enough that nobody comes back to a stale answer. */
+  const ANSWER_SEEN = 2000;
+
   function reveal(payload, secret, from) {
     if (label) label.textContent = 'OPEN';
     if (padlock) padlock.dataset.icon = 'lock-open';
@@ -3584,6 +3588,18 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
          anything that would hurt to lose. */
       document.dispatchEvent(new CustomEvent(EVENTS[named],
         { detail: { opener, code: secret } }));
+      /* AND THE KEYPAD GOES BACK TO RESTING ON ITS OWN, a couple of seconds
+         later. Every other door here is a <dialog> and relocks on its close
+         event; these ones are a dispatched event, so there was nothing to
+         hang that on and the section was left reading OPEN with YEP! under
+         the boxes for the rest of the visit. Two overlays had been patched
+         one at a time (notesModal, musicModal) and the three added since --
+         sfx, chess, tunes -- were not, which is the shape of a fix that has
+         to be remembered. A timer here covers every event door at once,
+         including the next one. The answer still gets its moment: YEP! is a
+         reply to something you just did, and blanking it in the same frame
+         as the overlay opens would mean nobody ever saw it. */
+      setTimeout(relock, ANSWER_SEEN);
       return;
     }
 
@@ -3755,6 +3771,9 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   document.getElementById('notesModal')?.addEventListener('close', relock);
   // The music overlay is the same shape of door and was missing this one, so
   // the section stayed reading OPEN with its padlock undone after it closed.
+  // Patching them one at a time is what reveal()'s timer replaced: the label
+  // and the padlock are its job now, and these two are here for the focus
+  // hand-off reset(moveFocus) does on the way out.
   document.getElementById('musicModal')?.addEventListener('close', relock);
 })();
 

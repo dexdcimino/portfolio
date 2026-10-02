@@ -588,6 +588,53 @@ await page.waitForFunction(
   note(vt && vt.gap > 12, `the vault tilde is ${vt && vt.gap}px from the first box — too close to read as separate from the row`);
   console.log(`vault tilde: ${vt && vt.w}x${vt && vt.h} (${Math.round(ratio * 100)}% of a ${vt && vt.pin}px box), ${vt && vt.gap}px gap`);
 
+  /* AND THE LINE UNDER THE BOXES IS CENTRED ON THE BOXES (Dex, 2026-10-02:
+     "it's not perfectly centered underneath the like third text field box").
+     The mark is the first thing in the pins row, so the row is wider on its
+     left than the five boxes are and justify-items centres BOTH the row and
+     this line on the same column -- which put every answer a mark and a gap
+     left of the middle box. 20px at this width, and plainly visible.
+
+     MEASURED OFF THE TEXT, NOT THE <p>: the correction is padding on the
+     element, so its own box is deliberately not centred and reading its rect
+     would assert nothing. A Range over the text node is what the eye sees.
+     The tolerance is 4px rather than 1 because the line is tracked out at
+     .18em and that trailing space after the last letter is still in the rect;
+     the fault it has to catch is five times that. */
+  const centred = async () => page.evaluate(() => {
+    const p = document.getElementById('vaultStatus');
+    const r = document.createRange();
+    r.selectNodeContents(p);
+    const t = r.getBoundingClientRect();
+    const mid = document.querySelectorAll('#vaultPins .vault-pin')[2].getBoundingClientRect();
+    return { text: p.textContent.trim(),
+             off: Math.round(((t.left + t.right) / 2 - (mid.left + mid.right) / 2) * 10) / 10 };
+  });
+  const rest = await centred();
+  console.log(`vault status: "${rest.text}" sits ${rest.off}px off the middle box`);
+  note(Math.abs(rest.off) <= 4, `"${rest.text}" is ${rest.off}px off the centre of the middle box`);
+
+  /* THE ANSWER TOO, which is a bigger font on the same line -- 17px against
+     the prompt's 14 -- and was reported in the same breath ("whether it says
+     checking, nope, or yep, none of those texts are centered"). One wrong
+     code, not three: the third starts a lockout and replaces the answer. */
+  await page.focus('#vaultPins .vault-pin');
+  for (const c of 'ZZZZZ') { await page.keyboard.type(c); await new Promise(r => setTimeout(r, 40)); }
+  /* WAITED FOR, NOT SLEPT THROUGH. This lock derives a key per sealed blob on
+     the main thread, so CHECKING can stand for several seconds here -- a fixed
+     delay measured the wrong word and read as a centring failure. Then past
+     the shake, which moves the row being measured against. */
+  await page.waitForFunction(
+    () => document.getElementById('vaultStatus').textContent.trim() === 'NOPE',
+    { timeout: 30000 }).catch(() => {});
+  await new Promise(r => setTimeout(r, 600));
+  const answer = await centred();
+  console.log(`vault status: "${answer.text}" sits ${answer.off}px off the middle box`);
+  note(answer.text === 'NOPE', `a wrong code said "${answer.text}"`);
+  note(Math.abs(answer.off) <= 4, `"${answer.text}" is ${answer.off}px off the centre of the middle box`);
+  /* Focus OUT of the boxes before anything else runs: ` is refused while
+     something is being typed into, and 7b and 11 both press it. */
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
 }
 
 /* ---- 7b. tilde reaches over an overlay ----------------------------------
@@ -826,13 +873,38 @@ await page.waitForFunction(
   await page.keyboard.press('Backquote');
   await page.waitForFunction(() => document.getElementById('codeModal')?.open === true,
     { timeout: 5000 });
+  const tries = [];
   for (let attempt = 0; attempt < 3; attempt++) {
+    const began = Date.now();
     await page.evaluate(() =>
       document.querySelectorAll('#codePins .vault-pin').forEach(p => { p.value = ''; }));
     await page.focus('#codePins .vault-pin');
     for (const c of 'ZZZZZ') { await page.keyboard.type(c); await new Promise(r => setTimeout(r, 40)); }
-    await new Promise(r => setTimeout(r, 500));
+    /* WAIT FOR THE REFUSAL ITSELF -- the only thing that proves the attempt was
+       counted. The boxes are DISABLED while the key derivation runs and a
+       second attempt is refused outright while one is in flight, so a fixed
+       delay the scrypt outlasts means the next two codes go nowhere: no third
+       failure, no countdown, and a red in a check about something else. Three
+       of these take about 6.5 seconds on this machine, and the 500ms sleep this
+       replaces covered one of them.
+
+       "Not CHECKING" is not enough either: it is already true in the moment
+       between the last keystroke and the attempt starting, which is how the
+       first of the three used to be skipped in 306ms. The first character typed
+       clears the previous NOPE (see clearFail), so a stale one cannot satisfy
+       this. */
+    await page.waitForFunction(() => {
+      const said = document.getElementById('codeStatus').textContent.trim();
+      return said === 'NOPE' || said === 'TOO MANY TRIES';
+    }, { timeout: 30000 }).catch(() => {});
+    tries.push(Date.now() - began);
   }
+  /* PRINTED, because the window that has to hold them is 15 SECONDS and each
+     one of these is a key derivation on the main thread. Three attempts slower
+     than five seconds each cannot lock out at all -- the first failure ages out
+     of the window before the third arrives -- and that reads as a dead lockout
+     rather than as a slow machine. */
+  console.log(`three wrong codes took ${tries.join(' + ')}ms = ${tries.reduce((a, b) => a + b, 0)}ms (the window is 15000ms)`);
   const locked = await page.waitForFunction(
     () => !document.getElementById('codeTimer').hidden, { timeout: 12000 })
     .then(() => true).catch(() => false);

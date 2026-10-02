@@ -909,7 +909,25 @@ shape at the same span as an outline reads far heavier than it, so it arrived
 as a sixth cell rather than as a mark on the row. Half was still too much of
 one, 0.4 was another 10% too much, and 0.36 is where it settled. It is inside `.vault-pins` so the row's own
 `align-items:center` keeps it level with the boxes, and it is decorative —
-`script.js` reads `.vault-pin`, so nothing counts it as a sixth cell. The status line under the boxes is BLANK at
+`script.js` reads `.vault-pin`, so nothing counts it as a sixth cell.
+
+**Being in that row is what the status line has to be corrected for.** The
+mark, its margin and the row's own gap make the pins row wider on its left
+than the five boxes are, and `.vault-lockbox` is a grid with
+`justify-items:center` — so the row and the line under it are centred on the
+same column, and the line lands a mark and a gap left of the middle box.
+26px at a desktop width, and it was reported as exactly that. The invariant
+is **the status line is centred on the MIDDLE BOX, not on the row**:
+`.vault-lockbox:has(.vault-tilde) .vault-status` carries a `padding-left` of
+the mark's whole footprint — `--tilde-w + --tilde-gap + --pin-gap`, all three
+declared once on the lockbox and used by the mark itself. The mark is NOT
+taken out of flow instead, which is the tidier-looking fix: below 760px the
+lockbox aligns to start and an absolutely positioned mark would hang off the
+left edge of the page. `:has()` rather than an id, so the correction belongs
+to any keypad wearing the mark in its row — the tilde prompt and the notes
+gate wear theirs in a corner and are untouched. `work_check` measures it off
+a Range over the text node, because the padding means the `<p>`'s own box is
+deliberately not centred and its rect would assert nothing. The status line under the boxes is BLANK at
 rest — the eyebrow above them already says ENTER CODE, and the same three words
 twice on a panel with five boxes on it is one of them too many — but it keeps
 its height, so filling it in with a refusal does not move the boxes someone is
@@ -934,6 +952,21 @@ reader cannot see scrolls it into view. Same symptom, different cause, and only
 ever on the SECOND press, which is why the first fix looked complete.
 `reset(moveFocus)` now leaves focus alone unless it is already in these boxes,
 which it is exactly when the section's own keypad opened the overlay.
+
+**And a door that is not a `<dialog>` relocks on a timer.** `relock` hangs off
+a dialog's own `close` event, which covers every `VIEWS` door; the `EVENTS`
+doors — notes, music, sfx, chess, tunes — are a dispatched `CustomEvent` and
+`reveal()` returns straight after dispatching, so nothing put the section
+back: it stayed reading OPEN with its padlock undone and `YEP!` under the
+boxes for the rest of the visit. Two of the five had been patched one at a
+time with their own `close` listeners and the three added since were not,
+which is the shape of a fix that has to be remembered. `reveal()` now calls
+`setTimeout(relock, ANSWER_SEEN)` on that branch — 2000ms, long enough for
+`YEP!` to have been read and short enough that nobody comes back to a stale
+answer — which covers every event door at once, including the next one. It
+relocks while the overlay is still up, and must: the keypad is behind it, and
+the overlay is not closed by being relocked. The per-overlay `close`
+listeners stay for the focus hand-off `reset(moveFocus)` does.
 
 Worth stating plainly because it cost a round trip: `preventScroll` could never
 have fixed that one. The scroll came from the keystroke, not from the focus.

@@ -3414,10 +3414,15 @@
           <!-- The key that opens this, drawn beside the boxes. Same lock and
                same codes as the ` keypad, so it wears the same mark -- here it
                is at the head of the row rather than in a corner, because this
-               keypad has no corners to mirror. Inside the row so it is centred
-               against the boxes by the row's own alignment rather than by a
-               number that would have to be re-derived every time the pins
-               change size. Decorative: nothing here counts it as a pin, and
+               keypad has no corners to mirror. Inside the row, so the row's own
+               align-items keeps it level with the boxes at every step of
+               their clamp -- and the price of being in the row is that it
+               widens the row on its left, so the status line below has to
+               be corrected by the mark's whole footprint to stay centred on
+               the MIDDLE BOX. See .vault-lockbox:has(.vault-tilde)
+               .vault-status, which is where that number lives; it is not a
+               free hand-off, it was reported as an offset line.
+               Decorative: nothing here counts it as a pin, and
                script.js reads .vault-pin. -->
           <span class="icon vault-tilde" data-icon="tilde" aria-hidden="true"></span>
           <input class="vault-pin" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="1" aria-label="Vault code, character 1 of 5">

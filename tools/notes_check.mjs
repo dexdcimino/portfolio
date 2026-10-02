@@ -436,7 +436,32 @@ const marker = `harness-${Date.now().toString(36)}`;
     () => document.getElementById('notesModal') && document.getElementById('notesModal').open === true, { timeout: 40000 })
     .then(() => true).catch(() => false);
   const leakedEarly = await page.evaluate(() => document.documentElement.outerHTML.includes('Pick a new game name'));
+  /* THE ANSWER IS STILL ON THE KEYPAD AT THIS POINT, and it must not be two
+     seconds later. Every other door in the vault is a <dialog> and puts the
+     section back on its close event; these five are a dispatched event, so
+     nothing did -- and "YEP!" sat under the boxes with the padlock undone for
+     the rest of the visit (Dex, 2026-10-02: "it's stuck just saying yep...
+     that needs to revert back to enter code"). Read BOTH ends: a keypad that
+     never said YEP! at all would pass an assertion about ENTER CODE. */
+  const said = await page.evaluate(() => ({
+    status: document.getElementById('vaultStatus').textContent.trim(),
+    label: document.getElementById('vaultLabel').textContent.trim(),
+  }));
   await sleep(3000);
+  const back = await page.evaluate(() => ({
+    status: document.getElementById('vaultStatus').textContent.trim(),
+    lock: document.getElementById('vaultLock').dataset.icon,
+    open: document.getElementById('notesModal').open === true,
+    boxes: [...document.querySelectorAll('#vaultPins .vault-pin')].map(p => p.value).join(''),
+  }));
+  console.log(`vault keypad: said "${said.status}" / ${said.label}, ` +
+              `then "${back.status}" / ${back.lock}, overlay still open=${back.open}`);
+  note(said.status === 'YEP!', `the keypad said "${said.status}" when the code landed`);
+  note(said.label === 'OPEN', `the eyebrow read "${said.label}" when the code landed`);
+  note(back.status === 'ENTER CODE', `two seconds later it still says "${back.status}"`);
+  note(back.lock === 'lock', `the padlock is "${back.lock}" with the keypad back at rest`);
+  note(back.open, 'putting the keypad back closed the overlay it had just opened');
+  note(back.boxes === '', `the code is still in the boxes ("${back.boxes}")`);
   const gate = await page.evaluate(() => ({
     keypad: !document.getElementById('notesGate').hidden,
     editorHidden: document.getElementById('notesEditor').hidden,
