@@ -3294,6 +3294,78 @@ before every press: the pill moves in that block, and a stale click on a pill
 that has gone does not miss quietly — it lands on the host `<dialog>` itself,
 whose backdrop handler closes the overlay.
 
+### Full screen
+
+The embed plays a video and the box in the bar is 170px of it, so the bar
+carries a full-screen button -- in the tail, beside the volume, because it is a
+control of the PICTURE rather than of the queue (Dex, 2026-10-03). One button
+for both directions: `fullscreenchange` flips its glyph to `fullscreen-exit`,
+and it is driven off that event rather than off the press because Escape and
+the browser's own control both leave without ever reaching it.
+
+**WHAT GOES FULL SCREEN IS `.music-screen`, never the `<iframe>`.** Two
+constraints and they point the same way. A fullscreen element is rendered in
+the top layer with its own subtree and *nothing else*, so a control bar that is
+not a descendant of it cannot be on screen at all -- and fullscreening the
+iframe hands the reader YouTube's chrome and drops ours. The second is the
+player's one hard rule: the iframe may never be moved, and nothing here moves
+it. The AI Lab clips panel fullscreens its frame for the first reason alone.
+
+So the chrome lives INSIDE `.music-screen` (`#musicFs` in the markup) and is
+`display:none` until that box is the fullscreen element: at rest it cannot take
+part in the 170px layout, be tabbed into, or be hit.
+
+**It owns no state, by the same rule as the remote pill.** Every button clicks
+the real control in the bar, every slider hands its value to the real slider
+and fires the event that slider is already bound to, and every value on screen
+is painted off the bar by `paintFs()` -- which the seven painters that already
+paint the bar call, and which returns immediately unless it is on screen. What
+the pill leaves out and this must have is the scrub: a seek bar across the foot
+of a full-screen video is the control people reach for first.
+
+Three smaller things, each with a reason that is not obvious:
+
+- **`controls=0` on the embed.** Our own bar is drawn over the picture, and two
+  control bars along the same edge is not a layout anyone chose. At 170px
+  YouTube's own controls were unusable anyway, and every transport button here
+  goes through the API, so nothing is lost.
+- **A pointer catcher over the video** (`.music-fs-catch`). The embed is
+  cross-origin: a pointer moving across it is invisible to this page, and
+  controls that fade need to know the pointer moved to come back. Without that
+  layer the bar fades once and never returns while the pointer sits on the
+  video, which is where it sits. A click on it is play/pause and a double-click
+  leaves -- except for a tap that woke the controls, which only wakes them.
+- **`setPlaybackQuality` follows the size of the box.** `small` is deliberate
+  while the picture is 170px -- less to decode and less to hand the compositor
+  on every frame of every scroll -- and `hd1080` while it is the screen. Both
+  are hints; YouTube decides.
+
+**A modal overlay makes everything outside it INERT, and full screen does not
+lift that.** This is the measured fact that decided where the button can be, so
+it is written down rather than rediscovered: with the notes overlay open and
+the picture full screen from the docked bar, `document.elementFromPoint` over
+this chrome's own exit button returned `#notesModal` -- the host's backdrop,
+whose handler closes that overlay. Telling the backdrop to stop taking the
+pointer (`html.music-fullscreen dialog[open]:not(.music-modal)`, which is still
+there and still right) only moved the answer to `<html>`: nothing in an inert
+subtree is hittable at all. The remote pill therefore does NOT carry a
+full-screen button -- `docs/DECISIONS.md` has the whole of it -- and the way in
+from inside another overlay is the expand tab, one press, which puts the music
+overlay on top where its own button works.
+
+The flag on `<html>` is `music-fullscreen` and not `music-fs`: `.music-fs` is
+the chrome's own class and is `display:none`, so the first version of that line
+hid the entire document and every measurement in the harness came back 0x0.
+
+`music_check` section 7f drives all of it with REAL clicks, because
+`requestFullscreen` needs user activation and a scripted `.click()` is refused.
+It asserts the box fills the viewport, that the embed inside it is not
+`display:none` (which is what the docked bar's scroll fix would otherwise
+serve -- a black rectangle that passes every `fullscreenElement` check), that
+the chrome is HITTABLE rather than merely painted, that each mirrored button
+moves the bar's own control, that the bar fades and comes back, and the same
+again from the docked state.
+
 ### The embed, and why script-src did not move
 
 These are YouTube links, so there is no audio URL to hand an `<audio>` element

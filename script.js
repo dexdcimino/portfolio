@@ -5040,7 +5040,24 @@ const MediaBus = (() => {
   const btnShuffle = $('musicShuffle'), btnLoop = $('musicLoop'), btnStop = $('musicStop');
   const btnMute = $('musicMute'), volEl = $('musicVol'), expandBtn = $('musicExpand');
   const scrubEl = $('musicScrub'), elapsedEl = $('musicElapsed'), durationEl = $('musicDuration');
+  /* FULL SCREEN. The chrome is inside .music-screen because that is the
+     element that goes full screen; the lookups are up here with the rest
+     because paintFs() is reached from painters that run during start-up. */
+  const fullBtn = $('musicFull'), fsWrap = $('musicFs'), fsCatch = $('musicFsCatch');
+  const fsScrubEl = $('musicFsScrub'), fsElapsedEl = $('musicFsElapsed');
+  const fsDurationEl = $('musicFsDuration'), fsVolEl = $('musicFsVol');
+  const fsTitleEl = $('musicFsTitle'), fsArtistEl = $('musicFsArtist'), fsExitBtn = $('musicFsExit');
+  const fsBtns = { shuffle: $('musicFsShuffle'), prev: $('musicFsPrev'),
+                   toggle: $('musicFsToggle'), next: $('musicFsNext'),
+                   loop: $('musicFsLoop'), mute: $('musicFsMute') };
   if (!rowsEl || !frame) return;
+  /* EVERY PIECE OR NONE, the rule the remote pill follows for the same
+     reason: a bar missing one control is a bar that lies about what it can
+     do, and the button that opens it would open a dead end. */
+  const fsReady = !!(screen && fullBtn && fsWrap && fsCatch && fsScrubEl && fsElapsedEl
+    && fsDurationEl && fsVolEl && fsTitleEl && fsArtistEl && fsExitBtn
+    && Object.values(fsBtns).every(Boolean));
+  let fsOn = false;
 
   const MANIFEST = 'assets/music/tracks.json';
   /* THE LIVE LIST (Dex, 2026-09-15). The playlist is edited from the page now,
@@ -5478,6 +5495,7 @@ const MediaBus = (() => {
     if (icon) icon.dataset.icon = playing ? 'pause' : 'play';
     btnToggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     MediaBus.playbackState(me, playing);
+    paintFs();
     /* The sound is inside a cross-origin iframe, so this document has to make
        one of its own to be the thing the OS media keys are pointed at. */
     MediaBus.holdSession(armed && playing);
@@ -5507,6 +5525,11 @@ const MediaBus = (() => {
     const params = new URLSearchParams({
       enablejsapi: '1', autoplay: '1', rel: '0',
       modestbranding: '1', playsinline: '1',
+      /* NO YOUTUBE CHROME. At 170px wide its controls are unusable, and full
+         screen draws this site's own bar over the picture -- two control bars
+         along the same edge is not a layout anyone chose. Every transport
+         button here goes through the API, so nothing is lost with it off. */
+      controls: '0',
       /* The picture is 104px wide and nobody is watching it — what this player
          is for is the sound. A smaller stream is less to decode and less to
          hand the compositor on every frame of every scroll. Both of these are
@@ -5945,6 +5968,7 @@ const MediaBus = (() => {
   function paintShuffle() {
     btnShuffle.setAttribute('aria-pressed', String(shuffle));
     btnShuffle.setAttribute('aria-label', shuffle ? 'Shuffle on' : 'Shuffle off');
+    paintFs();
   }
   btnShuffle.addEventListener('click', () => {
     shuffle = !shuffle;
@@ -5984,6 +6008,7 @@ const MediaBus = (() => {
     const at = duration > 0 ? Math.min(1, current / duration) : 0;
     scrubEl.value = Math.round(at * 1000);
     setFill(scrubEl, at * 100);
+    paintFs();
   }
 
   function resetTime() {
@@ -5997,6 +6022,7 @@ const MediaBus = (() => {
     durationEl.textContent = '--:--';
     scrubEl.value = 0;
     setFill(scrubEl, 0);
+    paintFs();
   }
 
   scrubEl.addEventListener('pointerdown', () => { scrubbing = true; });
@@ -6025,8 +6051,12 @@ const MediaBus = (() => {
     if (!armed) return;
     cmd('setVolume', [Math.round(volume * 100)]);
     if (volume === 0) cmd('mute'); else cmd('unMute');
-    // Advisory, and re-sent with the volume because a new video resets it.
-    cmd('setPlaybackQuality', ['small']);
+    /* Advisory, and re-sent with the volume because a new video resets it.
+       IT FOLLOWS THE SIZE OF THE PICTURE: `small` is deliberate while the box
+       is 170px -- less to decode and less to hand the compositor on every
+       frame of every scroll -- and would be a joke full screen. Both values
+       are hints; YouTube picks its own and may ignore either. */
+    cmd('setPlaybackQuality', [fsOn ? 'hd1080' : 'small']);
   }
 
   function applyVolume(v, persist) {
@@ -6043,6 +6073,7 @@ const MediaBus = (() => {
       catch { /* private mode — the session still works */ }
     }
     pushVolume();
+    paintFs();
   }
 
   volEl.addEventListener('input', () => {
@@ -6055,6 +6086,141 @@ const MediaBus = (() => {
   btnMute.addEventListener('click', () =>
     applyVolume(volume === 0 ? (lastVolume || 0.4) : 0, true));
 
+  /* ---- full screen ------------------------------------------------------ */
+  /* THE SAME TRANSPORT OVER THE PICTURE. Nothing in here holds state: every
+     button clicks the real control in the bar, every slider hands its value to
+     the real slider and fires the event that slider is already bound to, and
+     every value on screen is painted off the bar. The remote pill is built the
+     same way and says why: a second copy of playing/shuffle/loop/volume is
+     four things to keep in step with a player that changes them from six
+     places, and the copy is always the one that goes stale.
+
+     WHAT THE PILL LEAVES OUT AND THIS MUST HAVE: the scrub. Three centimetres
+     of vertical slider is one nobody can land on; a seek bar across the foot
+     of a full-screen video is the control people reach for first. */
+  function paintFs() {
+    if (!fsReady || !fsOn) return;
+    for (const name of Object.keys(fsBtns)) {
+      const from = fsReal[name], to = fsBtns[name];
+      const a = from.querySelector('.icon'), b = to.querySelector('.icon');
+      if (a && b && b.dataset.icon !== a.dataset.icon) b.dataset.icon = a.dataset.icon;
+      const label = from.getAttribute('aria-label');
+      if (label) to.setAttribute('aria-label', label);
+      const pressed = from.getAttribute('aria-pressed');
+      if (pressed !== null) to.setAttribute('aria-pressed', pressed);
+      if (from.dataset.loop) to.dataset.loop = from.dataset.loop;
+    }
+    fsTitleEl.textContent = nowTitle.textContent;
+    fsArtistEl.textContent = nowArtist.textContent;
+    fsElapsedEl.textContent = elapsedEl.textContent;
+    fsDurationEl.textContent = durationEl.textContent;
+    // Never over a handle someone is holding -- the same rule paintTime obeys.
+    if (!scrubbing) {
+      fsScrubEl.value = scrubEl.value;
+      setFill(fsScrubEl, scrubEl.value / 10);
+    }
+    fsVolEl.value = volEl.value;
+    setFill(fsVolEl, volEl.value);
+  }
+
+  const fsReal = { shuffle: btnShuffle, prev: btnPrev, toggle: btnToggle,
+                   next: btnNext, loop: btnLoop, mute: btnMute };
+
+  if (fsReady) {
+    for (const name of Object.keys(fsBtns)) {
+      fsBtns[name].addEventListener('click', () => fsReal[name].click());
+    }
+    /* Assigning .value alone changes a property nothing is watching: the handle
+       would move here and the volume would not move at all. */
+    fsVolEl.addEventListener('input', () => {
+      volEl.value = fsVolEl.value;
+      volEl.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    /* Seeking goes through the real slider's own handlers -- pointerdown stops
+       the painter writing over the handle, input previews the time, and the
+       commit is its change listener. One seek, implemented once. */
+    fsScrubEl.addEventListener('pointerdown', () => { scrubbing = true; });
+    fsScrubEl.addEventListener('input', () => {
+      setFill(fsScrubEl, fsScrubEl.value / 10);
+      scrubEl.value = fsScrubEl.value;
+      scrubEl.dispatchEvent(new Event('input', { bubbles: true }));
+      fsElapsedEl.textContent = elapsedEl.textContent;
+    });
+    const fsCommit = () => {
+      scrubEl.value = fsScrubEl.value;
+      scrubEl.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    fsScrubEl.addEventListener('pointerup', fsCommit);
+    fsScrubEl.addEventListener('change', fsCommit);
+
+    /* NOTHING TO SHOW BEFORE A TRACK IS LOADED. `armed` is the one flag that
+       means the embed is holding something -- playing or paused -- and a black
+       rectangle over the whole screen is not a feature. */
+    fullBtn.addEventListener('click', () => {
+      if (document.fullscreenElement === screen) { document.exitFullscreen?.(); return; }
+      if (!armed) return;
+      /* A refused request is not an error worth printing: a browser or a policy
+         is allowed to say no, and the bar is still right there. */
+      try { screen.requestFullscreen?.()?.catch(() => {}); } catch { /* refused */ }
+    });
+    fsExitBtn.addEventListener('click', () => document.exitFullscreen?.());
+
+    /* A CLICK ON THE PICTURE IS PLAY/PAUSE and a double-click leaves, which is
+       what a click on a video is everywhere else. It lands on the catcher
+       because the embed is cross-origin: this page never sees a click inside
+       it, and its own controls are off. */
+    let tapWasIdle = false;
+    fsCatch.addEventListener('pointerdown', () => {
+      tapWasIdle = fsWrap.classList.contains('is-idle');
+    });
+    fsCatch.addEventListener('click', () => {
+      /* A TAP THAT WOKE THE CONTROLS ONLY WAKES THEM. On a touch screen there
+         is no pointermove to bring the bar back first, so the tap that asks
+         for it would otherwise also pause the track. */
+      if (tapWasIdle) return;
+      btnToggle.click();
+    });
+    fsCatch.addEventListener('dblclick', () => document.exitFullscreen?.());
+
+    /* IDLE. The pointer is watched on the chrome, which includes the catcher,
+       because a cross-origin iframe swallows every event over itself -- without
+       that layer the bar would fade and never come back while the pointer sat
+       on the video, which is exactly where it sits. */
+    let idleTimer = 0;
+    const IDLE_MS = 2600;
+    const stir = () => {
+      if (!fsOn) return;
+      fsWrap.classList.remove('is-idle');
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => fsWrap.classList.add('is-idle'), IDLE_MS);
+    };
+    for (const name of ['pointermove', 'pointerdown', 'keydown', 'wheel']) {
+      fsWrap.addEventListener(name, stir);
+    }
+
+    /* DRIVEN OFF THE EVENT, not off the press. Escape, the browser's own
+       control and a second element taking full screen all leave without ever
+       reaching a button in here. */
+    document.addEventListener('fullscreenchange', () => {
+      fsOn = document.fullscreenElement === screen;
+      /* A CLASS ON <html>, because the fix it drives is not about this
+         subtree: see the music-fs rules in styles.css. Another overlay's
+         backdrop hit-tests above this element and has to be told to stop. */
+      /* NOT 'music-fs': that is the chrome's own class, and .music-fs is
+         display:none at rest -- putting it on <html> hid the whole document
+         and every measurement in the harness came back 0x0. */
+      document.documentElement.classList.toggle('music-fullscreen', fsOn);
+      const ic = fullBtn.querySelector('.icon');
+      if (ic) ic.dataset.icon = fsOn ? 'fullscreen-exit' : 'fullscreen';
+      fullBtn.setAttribute('aria-label', fsOn ? 'Exit full screen' : 'Full screen');
+      clearTimeout(idleTimer);
+      fsWrap.classList.remove('is-idle');
+      if (fsOn) { paintFs(); stir(); }
+      // The stream is asked for a picture that suits its new size. See pushVolume.
+      pushVolume();
+    });
+  }
+
   const LOOP_LABEL = { off: 'Repeat off', all: 'Repeat the playlist',
                        one: 'Repeat this track' };
   function paintLoop() {
@@ -6062,6 +6228,7 @@ const MediaBus = (() => {
     // the only thing that says which of the three states this is out loud.
     btnLoop.dataset.loop = loop;
     btnLoop.setAttribute('aria-label', LOOP_LABEL[loop]);
+    paintFs();
   }
   btnLoop.addEventListener('click', () => {
     loop = LOOPS[(LOOPS.indexOf(loop) + 1) % LOOPS.length];
@@ -6768,7 +6935,20 @@ const MediaBus = (() => {
    WHAT IT DOES NOT CARRY: the stop X and the scrub. Ending the music from
    inside another overlay is something you would only ever do by accident, and
    a seek bar three centimetres tall is one nobody can land on. Both are one
-   press of the expand tab away, in the bar that has room for them. */
+   press of the expand tab away, in the bar that has room for them.
+
+   AND IT DOES NOT CARRY FULL SCREEN, which was built and taken back out
+   again (2026-10-03). It is not a judgement, it is a measurement: a dialog
+   opened with showModal() makes everything outside it INERT, and going full
+   screen does not lift that. The picture arrives, the chrome over it is
+   painted, and not one of its buttons can be pressed -- elementFromPoint
+   over the exit button came back with the host dialog, and then with <html>
+   once its backdrop was told to stop taking the pointer. The only way round
+   it is to close and re-open the music dialog MODALLY so it is the last
+   thing in the top layer, and the music dialog's close event is wired to the
+   player's own teardown -- a dance that can stop the music to get a bigger
+   picture. The expand tab is one press and leaves the player reachable.
+   docs/DECISIONS.md has it. */
 (function initMusicRemote() {
   const pill = document.getElementById('musicRemote');
   if (!pill) return;

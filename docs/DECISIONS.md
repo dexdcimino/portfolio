@@ -25,6 +25,46 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-03 — full screen belongs to the bar, and the remote pill cannot have it
+
+**Decided.** The music player gets a full-screen button in the bar's tail,
+beside the volume, and the element that goes full screen is `.music-screen`
+with this site's own chrome drawn inside it. The remote pill — the vertical
+transport drawn inside another overlay — does **not** get one.
+
+**What it replaced.** Two things. Fullscreening the `<iframe>` itself, which is
+the one-line version: it hands the reader YouTube's chrome, and nothing of
+ours can be drawn over it, because a fullscreen element is rendered in the top
+layer with its own subtree and nothing else. And a full-screen button ON the
+pill, which was built, wired, driven in the harness, and taken back out.
+
+**Why.** The pill version is not a judgement call, it is a measurement. A
+dialog opened with `showModal()` makes everything outside it INERT, and going
+full screen does not lift that — the pill's whole reason for existing is that
+the docked bar is painted under that dialog's backdrop, and this is the same
+fact one layer up. With the notes overlay open and the picture full screen,
+`document.elementFromPoint` over the chrome's own exit button returned
+`#notesModal`: the first press on Exit hit that overlay's backdrop and closed
+the notes, with the video still full screen. Making the backdrop stop taking
+the pointer only moved the answer to `<html>` — nothing in an inert subtree is
+hittable. A full-screen picture whose controls are painted and dead is worse
+than no button, and "every piece or none" is the rule the pill itself is built
+on.
+
+The only way round it is to close the music dialog and re-open it MODALLY so it
+is the last thing in the top layer. That dialog's `close` event is wired to the
+player's own teardown, so the dance risks stopping the music to get a bigger
+picture — and the expand tab is already one press away and leaves the player
+reachable.
+
+**Reverse it if** the pill ever needs full screen badly enough to pay for the
+modality dance, or if a browser lifts inertness for a fullscreen subtree (the
+spec does not require it today). The assertion in `music_check`'s pill section
+says the button is absent on purpose; the first thing to do is delete that and
+watch the exit button get swallowed again.
+
+---
+
 ## 2026-09-23 — shuffle is a cycle, and one trail serves both directions
 
 **Decided.** With shuffle on, Next picks at random from the tracks not yet

@@ -5881,14 +5881,14 @@ body.modal-open{overflow:hidden}
   display:grid;align-items:center;gap:14px;
   grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
 }
-.music-seek{display:flex;align-items:center;gap:12px;min-width:0}
-.music-scrub{flex:1 1 auto;min-width:0}
+.music-seek,.music-fs-seek{display:flex;align-items:center;gap:12px;min-width:0}
+.music-scrub,.music-fs-scrub{flex:1 1 auto;min-width:0}
 /* Tabular figures, or every tick of the seconds nudges the track sideways. */
-.music-time{
+.music-time,.music-fs-time{
   flex:none;min-width:46px;font-size:14px;font-weight:700;
   color:var(--muted);font-variant-numeric:tabular-nums;
 }
-.music-time:last-child{text-align:right}
+.music-time:last-child,.music-fs-time:last-child{text-align:right}
 .music-nowwrap{display:flex;align-items:center;gap:14px;min-width:0}
 /* One box, two states. The bar is on screen the whole time the overlay is open,
    so there has to be something here before anything is playing — and it has to
@@ -5913,7 +5913,7 @@ body.modal-open{overflow:hidden}
 .music-now{min-width:0}
 .music-now-title{display:block;font-size:16px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .music-now-artist{display:block;margin-top:1px;font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.music-transport{display:flex;align-items:center;justify-content:center;gap:6px}
+.music-transport,.music-fs-transport{display:flex;align-items:center;justify-content:center;gap:6px}
 /* The close-the-player X, alone in the last column and pushed to the far edge.
    It is the least important control in the bar and is the only one that is not
    in the centred group, which is what says so. */
@@ -5922,8 +5922,8 @@ body.modal-open{overflow:hidden}
 .music-vol{width:88px}
 /* The mute button is a control, not a transport button: same target, smaller
    glyph, so the centred group stays the loudest thing in the bar. */
-.music-volbtn{width:42px;height:42px;border-radius:11px}
-.music-volbtn .icon{width:21px;height:21px}
+.music-volbtn,.music-fullbtn{width:42px;height:42px;border-radius:11px}
+.music-volbtn .icon,.music-fullbtn .icon{width:21px;height:21px}
 .music-btn{
   width:50px;height:50px;display:grid;place-items:center;padding:0;cursor:pointer;
   border:0;border-radius:12px;background:none;color:var(--muted);
@@ -6091,8 +6091,10 @@ body.modal-open{overflow:hidden}
 .music-modal.is-docked .music-btn.is-primary .icon{width:24px;height:24px}
 .music-modal.is-docked .music-tail .music-btn{width:34px;height:34px}
 .music-modal.is-docked .music-tail .music-btn svg{width:15px;height:15px}
-.music-modal.is-docked .music-volbtn{width:34px;height:34px}
-.music-modal.is-docked .music-volbtn .icon{width:19px;height:19px}
+.music-modal.is-docked .music-volbtn,
+.music-modal.is-docked .music-fullbtn{width:34px;height:34px}
+.music-modal.is-docked .music-volbtn .icon,
+.music-modal.is-docked .music-fullbtn .icon{width:19px;height:19px}
 .music-modal.is-docked .music-vol{width:76px}
 .music-modal.is-docked .music-div{height:22px;margin:0 4px}
 
@@ -6137,6 +6139,95 @@ body.modal-open{overflow:hidden}
   .music-modal.is-docked .music-screen{width:84px}
   .music-modal.is-docked .music-vol{display:none}
 }
+
+/* --- full screen ---------------------------------------------------------
+   THE PICTURE FULL SCREEN WITH THIS SITE'S OWN CONTROLS OVER IT
+   (Dex, 2026-10-03: "make those videos full screen so I can stream them on
+   site in the modal ... the typical overlay controls for a video that match
+   the styling of our regular controls").
+
+   WHAT GOES FULL SCREEN IS .music-screen, never the <iframe>. A fullscreen
+   element is rendered in the top layer with its own subtree and NOTHING else,
+   so a bar that is not a descendant of it cannot be on screen at all -- and
+   the iframe's own chrome is not ours to style. It is also the only choice
+   that obeys the player's one hard rule: moving the iframe reloads it, and
+   nothing here moves it.
+
+   AT REST EVERY PART OF THIS IS display:none, so the 170px box in the bar is
+   exactly the box it was: nothing in here can take part in that layout, be
+   tabbed into, or be hit. */
+.music-fs{display:none}
+/* WHILE THE PICTURE IS FULL SCREEN, NOTHING ELSE TAKES THE POINTER, and this
+   is not a tidy-up -- without it the controls are painted and dead.
+
+   MEASURED: with the notes overlay open and the picture full screen,
+   document.elementFromPoint over this bar's own exit button returned
+   #notesModal. A modal <dialog>'s ::backdrop hit-tests ABOVE a fullscreen
+   element that lives in a different dialog, so every press on the chrome
+   landed on that backdrop -- which is the overlay's own close-on-backdrop
+   gesture, so the first click on Exit closed the notes and left the video
+   full screen. It is the same fact the remote pill exists for, one layer up:
+   the docked bar is painted UNDER that backdrop.
+
+   Nothing but the fullscreen element is on screen, so nothing but the
+   fullscreen element should be hittable. The music overlay itself is
+   excluded by class, because the chrome is inside it. */
+html.music-fullscreen dialog[open]:not(.music-modal),
+html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:none}
+.music-screen:fullscreen{
+  display:block;width:100%;height:100%;aspect-ratio:auto;
+  border:0;border-radius:0;background:#000;
+}
+.music-screen:fullscreen::backdrop{background:#000}
+/* THE TWO RULES THAT HAVE TO WIN AGAINST THE DOCKED BAR. Docked, the embed is
+   display:none and the artwork stands in for it -- that is the scroll fix
+   above, and the docked bar is where most of this will be pressed from. Both
+   selectors are deliberately long enough to win on specificity rather than on
+   source order, which a later edit could reshuffle. */
+.music-modal .music-screen:fullscreen .music-video:not([hidden]){display:block}
+.music-modal.is-docked .music-screen:fullscreen .music-thumb{display:none}
+.music-screen:fullscreen .music-screen-icon{display:none}
+.music-screen:fullscreen .music-fs{
+  display:flex;flex-direction:column;justify-content:flex-end;
+  position:absolute;inset:0;z-index:2;
+}
+/* The pointer catcher, over the video and under the bar. */
+.music-fs-catch{
+  position:absolute;inset:0;z-index:0;
+  border:0;padding:0;margin:0;background:none;cursor:pointer;
+}
+.music-fs-catch:focus-visible{outline:none}
+.music-fs-bar{
+  position:relative;z-index:1;display:flex;flex-direction:column;gap:8px;
+  padding:18px clamp(14px,3vw,36px) clamp(14px,2.6vh,28px);
+  background:linear-gradient(to top,rgba(4,5,8,.94),rgba(4,5,8,.72) 62%,transparent);
+  transition:opacity .28s ease;
+}
+/* IT FADES WITH THE POINTER, like every other video on the web. 2.6 seconds
+   of no pointer and no key and the bar goes with the cursor; anything at all
+   brings both back. opacity rather than display, so nothing reflows on the
+   way out and the fade can be a fade. */
+.music-fs.is-idle .music-fs-bar{opacity:0;pointer-events:none}
+.music-fs.is-idle .music-fs-catch{cursor:none}
+.music-fs-now{margin:0;display:flex;align-items:baseline;gap:10px;min-width:0}
+.music-fs-now strong{
+  font-size:clamp(15px,2.2vh,21px);font-weight:700;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.music-fs-now span{
+  font-size:clamp(13px,1.7vh,16px);color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* The same three columns as the bar, for the same reason: the transport is
+   centred on the SCREEN, not in the space left over beside the volume. */
+.music-fs-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;gap:14px;
+}
+.music-fs-transport{grid-column:2}
+.music-fs-tail{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.music-fs-vol{width:clamp(90px,10vw,130px)}
+@media(prefers-reduced-motion:reduce){.music-fs-bar{transition:none}}
 
 /* --- the remote pill -----------------------------------------------------
    The docked bar, folded into a column, for overlays that cover it. A modal

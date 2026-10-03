@@ -4733,6 +4733,78 @@
               <img class="music-thumb" id="musicThumb" alt="" width="320" height="180"
                    decoding="async" referrerpolicy="no-referrer">
               <span class="icon music-screen-icon" data-icon="play" aria-hidden="true"></span>
+              <!-- THE FULL-SCREEN CHROME, and it lives in here because THIS BOX
+                   is what goes full screen. A fullscreen element is rendered in
+                   the top layer with its own subtree and nothing else, so a
+                   control bar that is not a descendant of it cannot be on screen
+                   at all -- and fullscreening the <iframe> instead would hand the
+                   reader YouTube's chrome and drop ours. The AI Lab clips panel
+                   fullscreens its frame for the same reason.
+
+                   IT OWNS NO STATE. Every button clicks the real control in the
+                   bar and every value is painted off it -- the rule the remote
+                   pill is built on, for the reason given there: a second copy of
+                   playing/shuffle/loop/volume is four things to keep in step, and
+                   the copy is always the one that goes stale.
+
+                   The classes are the bar's own, so this is the same transport
+                   wearing the same shapes -- but the four the harnesses address
+                   by class (scrub, vol, time, transport) carry -fs- names, or a
+                   querySelector for the real one would land in here instead. -->
+              <div class="music-fs" id="musicFs">
+                <!-- Over the video, under the bar. The embed is cross-origin, so
+                     a pointer moving across it is invisible to this page -- and
+                     controls that fade need to know the pointer moved to come
+                     back. This catches that, and a click on it is play/pause,
+                     which is what a click on a video is everywhere else. There is
+                     nothing underneath to argue with: the embed is loaded with
+                     controls=0 (see srcFor). -->
+                <button class="music-fs-catch" type="button" id="musicFsCatch"
+                        tabindex="-1" aria-label="Play or pause"></button>
+                <div class="music-fs-bar" id="musicFsBar">
+                  <p class="music-fs-now">
+                    <strong id="musicFsTitle"></strong>
+                    <span id="musicFsArtist"></span>
+                  </p>
+                  <div class="music-fs-seek">
+                    <span class="music-fs-time" id="musicFsElapsed">0:00</span>
+                    <input class="player-range music-fs-scrub" id="musicFsScrub" type="range"
+                           min="0" max="1000" value="0" step="1" aria-label="Seek">
+                    <span class="music-fs-time" id="musicFsDuration">--:--</span>
+                  </div>
+                  <div class="music-fs-row">
+                    <!-- Symmetric around play, the same five in the same order as
+                         the bar. Learning the transport twice is a cost with
+                         nothing on the other side of it. -->
+                    <div class="music-fs-transport">
+                      <button class="music-btn" type="button" id="musicFsShuffle"
+                              aria-label="Shuffle off" aria-pressed="false">
+                        <span class="icon" data-icon="shuffle" aria-hidden="true"></span></button>
+                      <button class="music-btn" type="button" id="musicFsPrev" aria-label="Previous track">
+                        <span class="icon" data-icon="skip-back" aria-hidden="true"></span></button>
+                      <button class="music-btn is-primary" type="button" id="musicFsToggle" aria-label="Pause">
+                        <span class="icon" data-icon="pause" aria-hidden="true"></span></button>
+                      <button class="music-btn" type="button" id="musicFsNext" aria-label="Next track">
+                        <span class="icon" data-icon="skip-forward" aria-hidden="true"></span></button>
+                      <button class="music-btn music-loop" type="button" id="musicFsLoop"
+                              aria-label="Repeat off" data-loop="off">
+                        <span class="icon" data-icon="loop" aria-hidden="true"></span>
+                        <span class="music-loop-one" aria-hidden="true">1</span></button>
+                    </div>
+                    <div class="music-fs-tail">
+                      <div class="music-volume">
+                        <button class="music-btn music-volbtn" type="button" id="musicFsMute" aria-label="Mute">
+                          <span class="icon" data-icon="volume" aria-hidden="true"></span></button>
+                        <input class="player-range music-fs-vol" id="musicFsVol" type="range"
+                               min="0" max="100" value="40" step="1" aria-label="Volume">
+                      </div>
+                      <button class="music-btn music-fullbtn" type="button" id="musicFsExit"
+                              aria-label="Exit full screen">
+                        <span class="icon" data-icon="fullscreen-exit" aria-hidden="true"></span></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="music-now">
               <strong class="music-now-title" id="musicNowTitle"></strong>
@@ -4787,6 +4859,17 @@
               <input class="player-range music-vol" id="musicVol" type="range"
                      min="0" max="100" value="40" step="1" aria-label="Volume">
             </div>
+            <!-- FULL SCREEN, to the right of the volume (Dex, 2026-10-03).
+                 A control of the PICTURE rather than of the queue, which is
+                 why it is in the tail beside the volume and not in the
+                 centred transport. One button for both states: the glyph
+                 flips to fullscreen-exit while it is on, driven off the
+                 fullscreenchange event rather than off this press, because
+                 Escape and the browser's own control both leave full screen
+                 without ever reaching it. -->
+            <button class="music-btn music-fullbtn" type="button" id="musicFull"
+                    aria-label="Full screen">
+              <span class="icon" data-icon="fullscreen" aria-hidden="true"></span></button>
             <span class="music-div" aria-hidden="true"></span>
             <!-- Stop, not close: the bar is permanent now. A small glyph in a
                  target big enough to hit — it is the only destructive control

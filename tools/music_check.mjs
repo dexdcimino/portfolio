@@ -1161,6 +1161,244 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        'check 7e left shuffle off for the checks after it');
 }
 
+/* ---- 7f. FULL SCREEN, WITH THIS SITE'S OWN CONTROLS OVER IT -------------
+   THE ASK (Dex, 2026-10-03): "make those videos full screen so I can stream
+   them on site in the modal ... a full screen button ... and make sure when
+   it's on full screen, we have the typical overlay controls for a video that
+   match the styling of our regular controls for our audio."
+
+   WHAT CAN GO WRONG HERE IS NOT THE BUTTON. It is that the thing that goes
+   full screen is .music-screen rather than the <iframe>, and everything the
+   feature is for follows from that: controls that are not descendants of the
+   fullscreen element are not rendered AT ALL, and the embed must not be
+   reparented or it reloads. So this drives a REAL click (requestFullscreen
+   needs a user gesture -- el.click() from evaluate is refused), then asserts
+   what is actually on screen and that the copy is wired to the real bar.
+
+   FALSELY PASSES IF: only `document.fullscreenElement` were checked. A
+   fullscreen element with a display:none iframe inside it is a black
+   rectangle, which is exactly what the docked bar's own scroll fix would have
+   served -- and a bar whose buttons do nothing looks identical to one that
+   works until something is pressed. Both are checked below. */
+{
+  // At rest: the chrome is in the DOM and takes part in nothing.
+  const rest = await page.evaluate(() => {
+    const box = (id) => { const r = document.getElementById(id).getBoundingClientRect();
+      return { x: r.left, w: r.width, mid: r.left + r.width / 2 }; };
+    const chrome = document.getElementById('musicFs');
+    const full = document.getElementById('musicFull');
+    const r = full.getBoundingClientRect();
+    return {
+      display: getComputedStyle(chrome).display,
+      chromeW: Math.round(document.getElementById('musicFsBar').getBoundingClientRect().width),
+      icon: full.querySelector('.icon').dataset.icon,
+      label: full.getAttribute('aria-label'),
+      screenW: Math.round(document.getElementById('musicScreen').getBoundingClientRect().width),
+      full: box('musicFull'), vol: box('musicVol'), stop: box('musicStop'),
+      hit: (() => { const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                    return el === full || full.contains(el); })(),
+      controls: document.getElementById('musicVideo').src.includes('controls=0'),
+    };
+  });
+  note(rest.display === 'none',
+       `the full-screen chrome is "${rest.display}" at rest — it must take part in nothing`);
+  note(rest.chromeW === 0, `the chrome is ${rest.chromeW}px wide inside a 170px box at rest`);
+  note(rest.icon === 'fullscreen', `the button wears "${rest.icon}" at rest`);
+  // TO THE RIGHT OF THE VOLUME, which is where it was asked for, and still
+  // inside the tail rather than off past the stop X.
+  note(rest.full.x > rest.vol.x + rest.vol.w,
+       `the full-screen button is not to the right of the volume slider (${Math.round(rest.full.x)} vs ${Math.round(rest.vol.x + rest.vol.w)})`);
+  note(rest.full.x < rest.stop.x,
+       'the full-screen button is to the right of the stop X — the destructive control must stay last');
+  note(rest.hit, 'the full-screen button is covered at its own centre');
+  note(rest.controls,
+       'the embed still carries YouTube\'s controls — two control bars would meet along the same edge');
+  console.log(`full screen: button at ${Math.round(rest.full.x)}, volume ends ${Math.round(rest.vol.x + rest.vol.w)}, ` +
+              `stop at ${Math.round(rest.stop.x)}, chrome display ${rest.display}`);
+
+  await page.click('#musicFull');
+  await new Promise(r => setTimeout(r, 700));
+  const on = await page.evaluate(() => {
+    const screen = document.getElementById('musicScreen');
+    const vid = document.getElementById('musicVideo');
+    const sr = screen.getBoundingClientRect(), vr = vid.getBoundingClientRect();
+    const bar = document.getElementById('musicFsBar').getBoundingClientRect();
+    const scrub = document.getElementById('musicFsScrub').getBoundingClientRect();
+    return {
+      isFs: document.fullscreenElement === screen,
+      fills: Math.round(sr.width) === window.innerWidth && Math.round(sr.height) === window.innerHeight,
+      size: `${Math.round(sr.width)}x${Math.round(sr.height)}`,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      // THE HALF A fullscreenElement CHECK MISSES: a picture that is there.
+      video: getComputedStyle(vid).display,
+      videoFills: Math.round(vr.width) === Math.round(sr.width) && vr.width > 600,
+      icon: document.getElementById('musicFull').querySelector('.icon').dataset.icon,
+      label: document.getElementById('musicFull').getAttribute('aria-label'),
+      // The chrome, and that it is painted from the bar rather than from a copy.
+      barVisible: getComputedStyle(document.getElementById('musicFsBar')).opacity === '1',
+      barAtFoot: bar.bottom > window.innerHeight - 4,
+      scrubWide: scrub.width > window.innerWidth * 0.5,
+      transport: [...document.querySelector('.music-fs-transport').children].map(el => el.id),
+      title: document.getElementById('musicFsTitle').textContent,
+      realTitle: document.getElementById('musicNowTitle').textContent,
+      elapsed: document.getElementById('musicFsElapsed').textContent,
+      realElapsed: document.getElementById('musicElapsed').textContent,
+      vol: document.getElementById('musicFsVol').value,
+      realVol: document.getElementById('musicVol').value,
+      shared: document.getElementById('musicFsScrub').classList.contains('player-range')
+        && document.getElementById('musicFsToggle').classList.contains('music-btn'),
+      /* HITTABLE, not merely painted. This is the assertion that found the real
+         fault in the version of this the remote pill was going to carry: inside
+         a modal host, elementFromPoint over the exit button returns the HOST,
+         because showModal() makes everything outside it inert and going full
+         screen does not lift that. Here the music overlay is the top overlay,
+         so the answer has to be the button itself. */
+      hits: ['musicFsExit', 'musicFsToggle', 'musicFsScrub'].map((id) => {
+        const el = document.getElementById(id);
+        const r = el.getBoundingClientRect();
+        const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return (at === el || (at && at.closest('#' + id)))
+          ? id : `${id}->${at ? (at.id || at.className || at.tagName) : 'nothing'}`;
+      }),
+    };
+  });
+  note(on.isFs, 'a real click on the button did not put .music-screen full screen');
+  note(on.fills, `the full-screen box is ${on.size} in a ${on.viewport} viewport`);
+  note(on.video !== 'none',
+       'the embed is display:none inside the full-screen box — the docked bar\'s scroll fix is winning');
+  note(on.videoFills, 'the embed does not fill the full-screen box');
+  note(on.icon === 'fullscreen-exit' && on.label === 'Exit full screen',
+       `the button still reads "${on.label}" / "${on.icon}" while full screen`);
+  note(on.barVisible && on.barAtFoot, 'there is no control bar along the foot of the picture');
+  note(on.scrubWide, 'the seek bar is not the width of the picture — the one control people reach for first');
+  note(on.transport.join(',') === 'musicFsShuffle,musicFsPrev,musicFsToggle,musicFsNext,musicFsLoop',
+       `the full-screen transport is ${on.transport.join(',')} — same five, same order as the bar`);
+  note(on.shared,
+       'the full-screen controls do not use the bar\'s own classes — they are a second set of shapes');
+  note(on.hits.join(',') === 'musicFsExit,musicFsToggle,musicFsScrub',
+       `the full-screen controls are painted but not hittable: ${on.hits.join(', ')}`);
+  // PAINTED OFF THE BAR. A copy that holds its own state is the thing this is
+  // built to avoid, so what is asserted is that the two agree.
+  note(on.title === on.realTitle && on.title.length > 0,
+       `the full-screen title is "${on.title}" against the bar's "${on.realTitle}"`);
+  note(on.elapsed === on.realElapsed, `the clock reads "${on.elapsed}" against the bar's "${on.realElapsed}"`);
+  note(on.vol === on.realVol, `the volume reads ${on.vol} against the bar's ${on.realVol}`);
+  console.log(`full screen: ${on.size} of ${on.viewport}, embed ${on.video}, ` +
+              `"${on.title}" ${on.elapsed}, bar at the foot=${on.barAtFoot}`);
+
+  /* THE BUTTONS GO THROUGH THE REAL ONES. Pressed for real, and read back off
+     the BAR -- a mirror that paints itself and tells the player nothing passes
+     every assertion about its own icon. */
+  const before = await page.evaluate(() => ({
+    icon: document.getElementById('musicToggle').querySelector('.icon').dataset.icon,
+    loop: document.getElementById('musicLoop').dataset.loop,
+  }));
+  await page.click('#musicFsToggle');
+  await new Promise(r => setTimeout(r, 500));
+  const after = await page.evaluate(() => ({
+    icon: document.getElementById('musicToggle').querySelector('.icon').dataset.icon,
+    mine: document.getElementById('musicFsToggle').querySelector('.icon').dataset.icon,
+  }));
+  note(after.icon !== before.icon,
+       `the full-screen play button left the bar's own button on "${after.icon}"`);
+  note(after.mine === after.icon,
+       `the two play buttons disagree (${after.mine} vs ${after.icon})`);
+  await page.click('#musicFsToggle');            // put the track back as it was
+  await page.click('#musicFsLoop');
+  const loop = await page.evaluate(() => ({
+    real: document.getElementById('musicLoop').dataset.loop,
+    mine: document.getElementById('musicFsLoop').dataset.loop,
+  }));
+  note(loop.real !== before.loop && loop.mine === loop.real,
+       `repeat went ${before.loop} -> ${loop.real} on the bar and ${loop.mine} here`);
+  await page.click('#musicFsLoop');
+  await page.click('#musicFsLoop');              // three states, back to where it was
+  note(await page.evaluate(() => document.getElementById('musicLoop').dataset.loop) === before.loop,
+       'check 7f left the repeat state somewhere else');
+
+  // The sliders hand their value to the real slider and fire its own event.
+  await page.evaluate(() => {
+    const v = document.getElementById('musicFsVol');
+    v.value = 73;
+    v.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  note(await page.evaluate(() => document.getElementById('musicVol').value) === '73',
+       'the full-screen volume did not reach the real one');
+  await page.evaluate(() => {
+    const s = document.getElementById('musicFsScrub');
+    s.value = 420;
+    s.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  note(await page.evaluate(() => document.getElementById('musicScrub').value) === '420',
+       'the full-screen scrub did not reach the real one');
+
+  /* IT FADES, AND IT COMES BACK. The pointer is caught on a layer over the
+     embed because a cross-origin iframe swallows every event over itself: with
+     that layer missing the bar fades once and never returns while the pointer
+     sits on the video, which is where it sits. 2600ms + the 280ms fade. */
+  await new Promise(r => setTimeout(r, 3300));
+  const idle = await page.evaluate(() => ({
+    cls: document.getElementById('musicFs').classList.contains('is-idle'),
+    opacity: getComputedStyle(document.getElementById('musicFsBar')).opacity,
+  }));
+  note(idle.cls && idle.opacity === '0',
+       `the controls did not fade on their own (is-idle=${idle.cls}, opacity ${idle.opacity})`);
+  await page.mouse.move(400, 300);
+  await page.mouse.move(420, 320);
+  await new Promise(r => setTimeout(r, 450));
+  const woke = await page.evaluate(() => ({
+    cls: document.getElementById('musicFs').classList.contains('is-idle'),
+    opacity: getComputedStyle(document.getElementById('musicFsBar')).opacity,
+  }));
+  note(!woke.cls && woke.opacity === '1',
+       `a pointer over the picture did not bring the controls back (is-idle=${woke.cls}, opacity ${woke.opacity})`);
+
+  // Out, by the button in the bar it drew.
+  await page.click('#musicFsExit');
+  await new Promise(r => setTimeout(r, 700));
+  const off = await page.evaluate(() => ({
+    fs: document.fullscreenElement === null,
+    display: getComputedStyle(document.getElementById('musicFs')).display,
+    icon: document.getElementById('musicFull').querySelector('.icon').dataset.icon,
+    screenW: Math.round(document.getElementById('musicScreen').getBoundingClientRect().width),
+  }));
+  note(off.fs, 'the exit button did not leave full screen');
+  note(off.display === 'none', `the chrome is still "${off.display}" after leaving`);
+  note(off.icon === 'fullscreen', `the button still wears "${off.icon}" after leaving`);
+  note(off.screenW === rest.screenW,
+       `the screen came back ${off.screenW}px wide, was ${rest.screenW}px`);
+
+  /* AND FROM THE DOCKED BAR, which is where most of this will be pressed from
+     and the one state that can break it on its own: docked, the embed is
+     display:none -- the scroll fix -- and the artwork stands in for it. Two
+     CSS rules have to win against that from inside full screen. The class is
+     set directly rather than through redock(), whose own behaviour check 8c
+     covers; what is under test here is the specificity, and the class is what
+     carries it. */
+  await page.evaluate(() => document.getElementById('musicModal').classList.add('is-docked'));
+  await page.click('#musicFull');
+  await new Promise(r => setTimeout(r, 700));
+  const docked = await page.evaluate(() => ({
+    isFs: document.fullscreenElement === document.getElementById('musicScreen'),
+    video: getComputedStyle(document.getElementById('musicVideo')).display,
+    thumb: getComputedStyle(document.getElementById('musicThumb')).display,
+    bar: getComputedStyle(document.getElementById('musicFsBar')).opacity,
+  }));
+  note(docked.isFs, 'the docked bar\'s button did not go full screen');
+  note(docked.video !== 'none',
+       'full screen from the docked bar shows no picture — the docked display:none is winning');
+  note(docked.thumb === 'none', `the stand-in artwork is still "${docked.thumb}" over the picture`);
+  note(docked.bar === '1', 'the controls are not on screen full screen from the docked bar');
+  await page.click('#musicFsExit');
+  await new Promise(r => setTimeout(r, 600));
+  await page.evaluate(() => document.getElementById('musicModal').classList.remove('is-docked'));
+  note(await page.evaluate(() =>
+       !document.getElementById('musicModal').classList.contains('is-docked')
+       && document.fullscreenElement === null),
+       'check 7f left the overlay docked or full screen');
+  console.log(`full screen from the docked bar: embed ${docked.video}, artwork ${docked.thumb}`);
+}
+
 /* ---- 8. closing stops the player and LEAVES THE PAGE ALONE -------------
    The reported bug: closing the overlay scrolled to the Idea Vault. It was two
    things at once — every door was handed the vault's last pin as its opener
@@ -1833,6 +2071,29 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
        `Next on the remote left the playing row at ${skipped.after}`);
   note(skipped.n === 1, `${skipped.n} rows are lit after a remote skip, expected 1`);
 
+  /* AND IT DELIBERATELY DOES NOT CARRY FULL SCREEN, which is asserted rather
+     than left as an absence -- the same way the stop X and the scrub are.
+
+     It was built, driven, and taken back out again on what the harness
+     measured (2026-10-03): a dialog opened with showModal() makes everything
+     outside it INERT, and going full screen does not lift that. The picture
+     arrived and the chrome over it was painted, and elementFromPoint over its
+     own exit button returned the HOST dialog -- so the first press on Exit hit
+     that overlay's backdrop and closed the notes instead, with the video still
+     full screen. Telling the backdrop to stop taking the pointer only moved
+     the answer to <html>: nothing in an inert subtree is hittable.
+
+     So what is checked here is that the button is NOT in the pill, and the
+     next person to add it finds this instead of the afternoon. The way in from
+     inside an overlay is the expand tab, one press, which puts the music
+     overlay on top where its own button works. */
+  note(await page.evaluate(() => !document.getElementById('musicRemoteFull')
+       && !document.querySelector('#musicRemote [data-icon="fullscreen"]')),
+       'the pill has a full-screen button again — a modal host makes the chrome inert, see the comment');
+  note(await page.evaluate(() => !!document.getElementById('musicExpand')
+       && !document.getElementById('musicExpand').hidden),
+       'the expand tab is not on screen, so there is no way to the full-screen button from in here');
+
   /* ---- the fold, the corner, and the edge ------------------------------
      THE ARTWORK IS THE FOLD and the tab on the pill's end is the corner
      switch. Both are driven with a REAL pointer, because both are about a
@@ -2399,6 +2660,13 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
       music: one('.music-shell', '.music-screen', '#musicToggle', '#musicPrev',
                  '#musicPrev .icon', '#musicToggle .icon', '.music-now-title',
                  '.music-time', '.music-vol', '.music-scrub'),
+      // The one control only the music bar can have, and the two stop buttons
+      // it must not have moved. See the divergence note below.
+      full: read('#musicFull'),
+      songsFull: read('#player .music-fullbtn, #player [data-icon="fullscreen"]'),
+      stop: read('#musicStop'),
+      songsStop: read('#playerStop'),
+      tailGap: Math.round(parseFloat(getComputedStyle(document.querySelector('.music-tail')).columnGap) || 0),
     };
   });
 
@@ -2413,7 +2681,9 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
     ['a transport icon', 'icon', ['w', 'h']],
     ['the play icon', 'pIcon', ['w', 'h']],
     ['the clock', 'time', ['w', 'h']],
-    ['the volume slider', 'vol', ['w', 'h', 'right']],
+    // `right` is NOT compared for the volume any more, and the reason is
+    // asserted on its own below rather than dropped.
+    ['the volume slider', 'vol', ['w', 'h']],
     ['the scrubber', 'scrub', ['w', 'h', 'right']],
     ['the artwork', 'art', ['h']],           // width is the one difference
   ];
@@ -2425,6 +2695,27 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   }
   note(sameBox.length >= 9,
        `only ${sameBox.length} parts of the two bars are being compared — the table has been gutted`);
+
+  /* THE ONE DIVERGENCE, NAMED RATHER THAN DROPPED (2026-10-03). The music bar
+     has a FULL-SCREEN button between its volume and its X and the songs bar
+     cannot have one: it plays an <audio> element, and there is no picture to
+     open. So the volume sits further from the right edge over there, which is
+     why `right` left its tuple above — and what replaces it is stronger than
+     the field it lost. The gap has to BE that button: the volume moved left,
+     the button is in the strip it vacated, and the stop X on both bars has not
+     moved at all. A tail that drifted for any other reason fails all three. */
+  note(!pair.songsFull, 'the songs bar has grown a full-screen button — it has no picture to open');
+  note(pair.music.vol.right > pair.songs.vol.right,
+       `the music bar's volume is not inset further than the songs bar's (${pair.music.vol.right} vs ${pair.songs.vol.right})`);
+  note(!!pair.full && near(pair.music.vol.right - pair.songs.vol.right, pair.full.w + pair.tailGap),
+       `the volume moved ${pair.music.vol.right - pair.songs.vol.right}px, which is not the ${pair.full && pair.full.w}px button plus the tail's ${pair.tailGap}px gap`);
+  note(!!pair.full && pair.full.right < pair.music.vol.right && pair.full.right > pair.stop.right,
+       `the full-screen button is not between the volume and the X (right=${pair.full && pair.full.right}, volume ${pair.music.vol.right}, X ${pair.stop.right})`);
+  note(near(pair.songsStop.right, pair.stop.right),
+       `the stop X is right=${pair.songsStop.right} on the songs bar and right=${pair.stop.right} on the music bar`);
+  console.log(`the two tails: volume right=${pair.songs.vol.right}/${pair.music.vol.right}, ` +
+              `full screen ${pair.full && pair.full.w}px at right=${pair.full && pair.full.right} ` +
+              `(+${pair.tailGap}px gap), stop right=${pair.songsStop.right}/${pair.stop.right}`);
   note(pair.songs.bar.radius === pair.music.bar.radius,
        `the bars are cut differently: ${pair.songs.bar.radius} against ${pair.music.bar.radius}`);
   note(pair.songs.title.font === pair.music.title.font,
