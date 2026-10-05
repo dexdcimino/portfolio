@@ -5784,6 +5784,7 @@ body.modal-open{overflow:hidden}
   border-bottom:1px solid rgba(255,255,255,.045);
 }
 .music-row:hover{background:rgba(255,255,255,.045)}
+.music-row:hover .music-play{color:var(--accent)}
 /* The title/artist area is clickable to play — show the custom pointer. */
 html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 .music-meta{cursor:pointer}
@@ -5842,7 +5843,7 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
    around the pair is for — the button is the far end of the link, not a
    control that happens to sit next to it. */
 .music-linkcell{
-  display:flex;align-items:center;gap:2px;min-width:0;
+  display:flex;align-items:center;gap:8px;min-width:0;
   border:1px solid var(--line);border-radius:10px;background:#12141c;
   transition:border-color var(--accent-ease);
   justify-content:flex-end;
