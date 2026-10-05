@@ -7428,7 +7428,7 @@ const MediaBus = (() => {
   /* Opened by EVENT rather than from the vault's VIEWS table, for the same
      reason the notes overlay is: it has its own opener, which has to fetch the
      manifest before there is anything to show. */
-  document.addEventListener('music:open', (event) => {
+  document.addEventListener('music:open', async (event) => {
     /* MUSIC is the read-only door, whatever was open before it: typing MUSIC
        after TUNES in the same tab is asking for the listener's view. */
     if (admin) { setAdmin(false); if (loaded) render(); }
@@ -7439,6 +7439,23 @@ const MediaBus = (() => {
       d !== modal && d.id !== 'codeModal' &&
       !d.classList.contains('is-docked') && !d.classList.contains('is-hidden-bar'));
     if (otherOpen) {
+      // If the player isn't armed (no track loaded), load the first track
+      // so the pill has something to control and music starts. (Dex, 2026-10-05)
+      if (!armed) {
+        try {
+          if (!loaded) await fetchTracks();
+          // Try last track from storage, else first in queue
+          let idx = 0;
+          try {
+            const lastV = localStorage.getItem(LAST_KEY);
+            if (lastV && queue.length) {
+              const found = queue.findIndex(t => t.v === lastV);
+              if (found >= 0) idx = found;
+            }
+          } catch {}
+          if (queue.length) load(idx, false, false);
+        } catch (e) { /* player stays unarmed, pill stays hidden */ }
+      }
       // Ensure the pill is showing (it's the controller in the other modal).
       if (window.dexMusicPill) window.dexMusicPill.refresh();
       return;
