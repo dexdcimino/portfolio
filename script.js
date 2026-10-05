@@ -4727,9 +4727,15 @@ const MediaBus = (() => {
          overlay: spacebar must toggle music even when the music overlay is
          open (Dex request). */
       const openOverlay = document.querySelector(OVERLAY_OPEN);
-      if (openOverlay && openOverlay.id !== 'musicModal') return null;
+      if (openOverlay && openOverlay.id !== 'musicModal') {
+        console.log('claimant: blocked by overlay', openOverlay.id);
+        return null;
+      }
       const live = players.filter(p => p.onScreen());
-      return live.find(p => !p.el.paused) || live.find(p => p.touched()) || null;
+      console.log('claimant: live players', live.length, 'openOverlay', openOverlay ? openOverlay.id : 'none');
+      const found = live.find(p => !p.el.paused) || live.find(p => p.touched()) || null;
+      console.log('claimant: returning', found ? 'player' : 'null');
+      return found;
     },
 
     /* Who owns the ARROW keys right now, or null for "nobody — leave them
