@@ -5946,11 +5946,6 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 .music-admin-btn.is-primary:hover{filter:brightness(1.08)}
 /* The header says which door you came through. */
 .music-modal.is-admin .music-eyebrow{color:var(--accent)}
-.music-modal.is-admin .music-eyebrow::after{
-  content:"EDITING";padding:3px 8px;border-radius:6px;
-  background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);
-  font-size:11px;font-weight:900;letter-spacing:.14em;
-}
 
 .music-add,.music-backups{
   flex:0 0 auto;display:grid;gap:12px;padding:16px 20px;
