@@ -3322,10 +3322,12 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       if (pin.value && i < pins.length - 1) pins[i + 1].focus({ preventScroll: true });
       // No submit button: filling the last box IS the submit. Deferred a frame
       // so the character is painted before the boxes lock.
-      if (SHORT_KEYWORDS.has(code().toLowerCase())) {
-        // A short keyword like `work` submits the moment it's complete.
-        requestAnimationFrame(() => attempt(true));
-      } else if (code().length === pins.length) requestAnimationFrame(attempt);
+      const cur = code().toLowerCase();
+      if (SHORT_KEYWORDS.has(cur) || cur.length === pins.length) {
+        // Keyword or full-length code: submit immediately, no Enter needed.
+        // Immediate, not via rAF, so there's no perceptible delay.
+        attempt(true);
+      }
     });
     pin.addEventListener('keydown', (event) => {
       if (event.key === 'Backspace' && !pin.value && i > 0) {
@@ -3363,10 +3365,12 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       });
       const next = Math.min(i + chars.length, pins.length - 1);
       pins[next].focus({ preventScroll: true });
-      if (SHORT_KEYWORDS.has(code().toLowerCase())) {
-        // A short keyword like `work` submits the moment it's complete.
-        requestAnimationFrame(() => attempt(true));
-      } else if (code().length === pins.length) requestAnimationFrame(attempt);
+      const cur = code().toLowerCase();
+      if (SHORT_KEYWORDS.has(cur) || cur.length === pins.length) {
+        // Keyword or full-length code: submit immediately, no Enter needed.
+        // Immediate, not via rAF, so there's no perceptible delay.
+        attempt(true);
+      }
     });
     /* A click anywhere in the row lands on the first empty box, so you cannot
        start typing in the middle of a code by accident.
