@@ -357,6 +357,10 @@ function applyAccent(name, persist = true) {
   paintSwatches();
   if (persist) {
     try { localStorage.setItem(STORAGE_KEY, theme.name); } catch { /* private mode */ }
+    // Mirror the accent pick into a .dexcimino.com cookie so sibling
+    // subdomains (e.g. work.dexcimino.com) can match the site theme.
+    try { document.cookie = 'dex-accent-name=' + encodeURIComponent(theme.name) +
+      '; domain=.dexcimino.com; path=/; max-age=31536000; SameSite=Lax'; } catch { /* ignore */ }
   }
 }
 
