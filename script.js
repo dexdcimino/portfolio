@@ -6653,9 +6653,13 @@ const MediaBus = (() => {
   async function unlock(code) {
     let response;
     try {
+      var unlockBody = { action: 'unlock', code: String(code || '') };
+      if (window.DexAuth && window.DexAuth.isUnlocked()) {
+        unlockBody.jwt = window.DexAuth.getToken();
+      }
       response = await fetch(API, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'unlock', code: String(code || '') }),
+        body: JSON.stringify(unlockBody),
       });
     } catch {
       toast('Editing is offline — the list is read-only.');
