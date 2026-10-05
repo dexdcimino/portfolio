@@ -6876,7 +6876,7 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 /* Public code hints above the five boxes: same voice as ENTER CODE,
    but in the accent color so they read as live options. */
 .code-hints{margin:2px 0 0;color:var(--accent);font-size:15px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;text-align:center;transition:color var(--accent-ease)}
-.vault-hints{margin:0 0 14px}
+.vault-hints{margin:0 0 14px;width:100%;text-align:center}
 .code-shell .vault-lockbox{display:grid;justify-items:center;gap:10px;position:relative}
 /* HOLDS ITS LINE WHILE IT IS EMPTY. The status is blank at rest and fills in
    on a refusal; without a reserved height the panel would grow by a line the
@@ -6891,6 +6891,7 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .dash-frame{position:relative;display:grid;justify-items:stretch}
 .dash-shell{position:relative;width:min(1480px,94vw);height:min(1000px,92vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:linear-gradient(160deg,#161923,#0d0e15);box-shadow:0 30px 80px rgba(0,0,0,.6)}
 .dash-head{display:flex;align-items:center;justify-content:space-between;padding:10px 10px 10px 20px;border-bottom:1px solid var(--line)}
+.dash-head-min{justify-content:flex-end;padding:10px;border-bottom:0}
 .dash-head .eyebrow{margin:0}
 .dash-chrome{display:flex;flex-direction:row;gap:8px;align-items:center}
 .ov-lock-static{position:static;right:auto;top:auto}
