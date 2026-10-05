@@ -6445,8 +6445,15 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
    Two chevrons always show, positioned on the edges that allow movement. */
 .music-remote.at-tl{top:var(--remote-top,14px);left:14px;right:auto}
 .music-remote.at-tr{top:var(--remote-top,14px);right:14px;left:auto}
-.music-remote.at-bl{top:auto;bottom:14px;left:14px;right:auto}
-.music-remote.at-br{top:auto;bottom:14px;right:14px;left:auto}
+.music-remote.at-bl{top:auto;bottom:14px;left:14px;right:auto;flex-direction:column-reverse}
+.music-remote.at-br{top:auto;bottom:14px;right:14px;left:auto;flex-direction:column-reverse}
+/* When reversed, next/prev swap. Swap them back so next stays above play.
+   With column-reverse, higher order = top. */
+.music-remote.at-bl #musicRemoteLoop,.music-remote.at-br #musicRemoteLoop{order:5}
+.music-remote.at-bl #musicRemoteNext,.music-remote.at-br #musicRemoteNext{order:4}
+.music-remote.at-bl #musicRemoteToggle,.music-remote.at-br #musicRemoteToggle{order:3}
+.music-remote.at-bl #musicRemotePrev,.music-remote.at-br #musicRemotePrev{order:2}
+.music-remote.at-bl #musicRemoteShuffle,.music-remote.at-br #musicRemoteShuffle{order:1}
 
 /* FOLDED: the cover, the edge, and the tab that moves it. Everything else is
    display:none rather than hidden by width, because a 0px flex column still
