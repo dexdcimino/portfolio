@@ -5803,11 +5803,12 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 .music-check{
   width:23px;height:23px;margin:0 auto;cursor:pointer;
   appearance:none;-webkit-appearance:none;
-  border:1.5px solid rgba(255,255,255,.25);border-radius:7px;
-  background:rgba(0,0,0,.5);
+  border:1px solid rgba(255,255,255,.16);border-radius:7px;
+  background:rgba(0,0,0,.35);
   display:grid;place-items:center;
   transition:border-color var(--accent-ease),background var(--accent-ease);
 }
+.music-check:hover{border-color:rgba(255,255,255,.35)}
 .music-check:hover{border-color:var(--accent)}
 .music-check:checked{background:var(--accent);border-color:var(--accent)}
 /* The tick is drawn rather than an icon mask: it is two lines, and a mask
@@ -5921,7 +5922,7 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
    right edge would be a column of alarms for a control used twice a week. */
 .music-del{
   display:flex;align-items:center;justify-content:center;gap:6px;
-  width:30px;height:30px;padding:0;border:1px solid transparent;border-radius:9px;
+  width:30px;height:30px;padding:0;border:1px solid transparent;border-radius:4px;
   background:none;color:rgba(255,255,255,.28);font:inherit;font-size:12px;font-weight:900;
   letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;cursor:pointer;
   transition:color .16s ease,background .16s ease,border-color .16s ease,box-shadow .18s ease;
