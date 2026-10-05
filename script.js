@@ -873,6 +873,12 @@ function openModal(dialog, panel, onOpen, opener, stack) {
   if (stack) stackedOn.add(dialog); else stackedOn.delete(dialog);
   document.body.classList.add('modal-open');
   dialog.showModal();
+  /* Notes: don't let showModal() autofocus the first text box (Dex, 2026-10-05).
+     It steals the tilde key and pops the keyboard on mobile. Applies to all
+     notes stores (public, private, future). */
+  if (dialog.id === 'notesModal' && document.activeElement) {
+    try { document.activeElement.blur(); } catch (e) {}
+  }
   onOpen?.();
 }
 
