@@ -5640,8 +5640,14 @@ body.modal-open{overflow:hidden}
    bordered, not just text — but subtle until hovered. Same height as the
    ALL/REPEAT buttons. */
 .music-rail-add{
-  border:1px dashed rgba(255,255,255,.22)!important;
+  border:2px dashed rgba(255,255,255,.22)!important;
+  border-radius:16px!important;
   color:var(--muted);
+  justify-content:center;
+}
+.music-rail-add .music-rail-label{
+  font-size:16px;
+  letter-spacing:.08em;
 }
 .music-rail-add:hover{
   border-color:var(--accent)!important;
@@ -5659,12 +5665,13 @@ body.modal-open{overflow:hidden}
 .music-playlist-form input:focus{outline:none;border-color:var(--accent)}
 .music-playlist-form-btns{display:flex;gap:8px}
 .music-playlist-form-btns button{
-  flex:1;padding:8px 0;font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+  flex:1;display:flex;align-items:center;justify-content:center;
+  padding:8px 0;font:inherit;font-size:13px;font-weight:700;cursor:pointer;
   border:1px solid var(--line);border-radius:14px;background:none;color:var(--muted);
-  text-align:center;
 }
-.music-playlist-ok{color:var(--accent)!important;border-color:var(--accent)!important}
-.music-playlist-form-btns button:hover{background:rgba(255,255,255,.07);color:#fff}
+.music-playlist-form-btns button:hover{
+  background:rgba(255,255,255,.07);color:var(--accent);border-color:var(--accent);
+}
 
 /* position:relative so a row's offsetTop is measured from HERE — showRow()
    sets scrollTop from it rather than calling scrollIntoView, which would walk
