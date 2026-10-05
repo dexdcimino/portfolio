@@ -7332,3 +7332,21 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
     flex: 0 0 auto !important;
   }
 }
+
+/* Fallback: if the lock is still in .notes-frame (app wiped the shell),
+   show it at the top-right. (Dex, 2026-10-05) */
+.notes-frame > .ov-lock {
+  position: absolute !important;
+  top: 7px !important;
+  right: 58px !important;
+  z-index: 10 !important;
+  width: 38px !important;
+  height: 38px !important;
+  display: grid !important;
+  place-items: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.notes-frame {
+  position: relative;
+}
