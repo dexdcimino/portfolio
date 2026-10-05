@@ -5699,11 +5699,10 @@ const MediaBus = (() => {
     paintFlag(flag, track);
     flagCell.append(flag);
 
-    row.append(play, meta, cell, flagCell, check);
-    if (admin) {
-      row.append(deleteCell(track));
-      row.append(renameCell(track, title));
-    }
+    row.append(play, meta, cell, flagCell);
+    if (admin) row.append(renameCell(track, title));
+    row.append(check);
+    if (admin) row.append(deleteCell(track));
     return row;
   }
 
