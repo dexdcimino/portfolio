@@ -41,7 +41,8 @@ module.exports = async function handler(req, res) {
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = null; }
   }
-  if (!body || !store.tokenOk(body.token)) {
+  const storeId = body ? store.tokenOk(body.token) : null;
+  if (!storeId) {
     // 401 rather than 403: the client's answer is to ask for the password
     // again, which is what an expired session needs it to do.
     return res.status(401).json({ error: 'session expired' });
@@ -57,7 +58,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const result = await store.writeNotes(body.doc, baseRev);
+    const result = await store.writeNotes(body.doc, baseRev, Date.now(), storeId);
     if (result.conflict) {
       return res.status(409).json({
         conflict: true, rev: result.rev, savedAt: result.savedAt, doc: result.doc,
