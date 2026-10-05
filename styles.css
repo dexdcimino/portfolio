@@ -6573,7 +6573,7 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
   position:absolute;display:grid;place-items:center;padding:0;cursor:pointer;
   width:32px;height:28px;border:0;background:none;color:var(--accent);
   transition:color var(--accent-ease),transform .16s cubic-bezier(.22,.61,.36,1),opacity .16s ease;
-  opacity:.85;
+  opacity:.85;z-index:10;
 }
 .music-remote-move:hover{opacity:1;transform:scale(1.2)}
 .music-remote-move:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
