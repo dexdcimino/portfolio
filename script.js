@@ -11281,63 +11281,81 @@ const PORTRAIT_LABEL = {
 })();
 
 /* ============================================================
-   MOBILE SWIPE-TO-CLOSE (Dex, 2026-10-05)
-   Swipe from the right edge to the left closes the topmost modal.
-   Only triggers from the screen edge (first 32px) so it doesn't
-   interfere with horizontal scrollers inside modals.
+   MOBILE BACK GESTURE (Dex, 2026-10-05)
+   Trap the Android system back gesture (swipe from edge) so it
+   closes the topmost overlay instead of exiting the browser.
+   Uses the History API: opening a modal pushes a state, the
+   system back pops it, we close the modal.
    ============================================================ */
 (function() {
   // Only on touch devices
   if (!('ontouchstart' in window)) return;
 
-  let startX = 0;
-  let startY = 0;
-  let tracking = false;
-  const EDGE = 32; // px from right edge to start the gesture
-  const MIN_SWIPE = 80; // px leftward to trigger close
-  const MAX_VERTICAL = 60; // px vertical tolerance
+  let modalStatePushed = false;
 
-  document.addEventListener('touchstart', (e) => {
-    // Only if a modal is open
-    const openModal = document.querySelector('dialog[open]');
-    if (!openModal) return;
+  // When any dialog opens, push a history state to trap the back gesture
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.attributeName !== 'open') continue;
+      const dialog = m.target;
+      if (dialog.tagName !== 'DIALOG') continue;
 
-    const touch = e.touches[0];
-    const fromRightEdge = window.innerWidth - touch.clientX < EDGE;
-
-    if (fromRightEdge) {
-      tracking = true;
-      startX = touch.clientX;
-      startY = touch.clientY;
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (e) => {
-    if (!tracking) return;
-    // If they move too far vertically, cancel (it's a scroll)
-    const touch = e.touches[0];
-    if (Math.abs(touch.clientY - startY) > MAX_VERTICAL) {
-      tracking = false;
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchend', (e) => {
-    if (!tracking) return;
-    tracking = false;
-
-    const touch = e.changedTouches[0];
-    const dx = startX - touch.clientX; // positive = swiped left
-    const dy = Math.abs(touch.clientY - startY);
-
-    if (dx > MIN_SWIPE && dy < MAX_VERTICAL) {
-      // Find the topmost open modal and close it
-      const modals = [...document.querySelectorAll('dialog[open]')];
-      if (modals.length) {
-        const top = modals[modals.length - 1];
-        // Don't close the tilde keypad with a swipe (it's small, has its own X)
-        if (top.id === 'codeModal') return;
-        if (typeof top.close === 'function') top.close();
+      if (dialog.hasAttribute('open')) {
+        // Modal opened: push state (if not already)
+        if (!modalStatePushed) {
+          try {
+            history.pushState({ dexModal: true }, '');
+            modalStatePushed = true;
+          } catch {}
+        }
+      } else {
+        // Modal closed: if we pushed, go back to clean up
+        // (but don't trigger another popstate loop)
+        if (modalStatePushed) {
+          modalStatePushed = false;
+          // The state was already popped by the back gesture, or
+          // closed via X -- if via X, we need to remove our pushed state
+          try {
+            if (history.state && history.state.dexModal) {
+              history.back();
+            }
+          } catch {}
+        }
       }
     }
-  }, { passive: true });
+  });
+
+  // Observe all dialogs for open attribute changes
+  document.querySelectorAll('dialog').forEach(d => {
+    observer.observe(d, { attributes: true, attributeFilter: ['open'] });
+  });
+
+  // System back gesture: close the topmost modal instead of exiting
+  window.addEventListener('popstate', (e) => {
+    const modals = [...document.querySelectorAll('dialog[open]')];
+    if (modals.length) {
+      // Prevent the browser from going back/exiting
+      e.preventDefault?.();
+      // Close the topmost modal
+      const top = modals[modals.length - 1];
+      // Don't trap the tilde keypad -- it's small, has its own X
+      if (top.id === 'codeModal') {
+        modalStatePushed = false;
+        return;
+      }
+      modalStatePushed = false;
+      if (typeof top.close === 'function') top.close();
+      // Push a new state so the next back gesture is also trapped
+      // (if another modal is still open)
+      const remaining = [...document.querySelectorAll('dialog[open]')];
+      if (remaining.length) {
+        try {
+          history.pushState({ dexModal: true }, '');
+          modalStatePushed = true;
+        } catch {}
+      }
+    } else {
+      modalStatePushed = false;
+    }
+  });
 })();
