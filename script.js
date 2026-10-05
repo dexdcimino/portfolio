@@ -7439,21 +7439,26 @@ const MediaBus = (() => {
       d !== modal && d.id !== 'codeModal' &&
       !d.classList.contains('is-docked') && !d.classList.contains('is-hidden-bar'));
     if (otherOpen) {
-      // If the player isn't armed (no track loaded), load the first track
-      // so the pill has something to control and music starts. (Dex, 2026-10-05)
+      // If the player isn't armed (no track loaded), load a track so the
+      // pill has something to control and music starts. (Dex, 2026-10-05)
       if (!armed) {
         try {
           if (!loaded) await fetchTracks();
-          // Try last track from storage, else first in queue
+          // fetchTracks populates `tracks`; queue is only set by render().
+          // Use tracks directly.
+          const list = (typeof tracks !== 'undefined' && tracks.length) ? tracks : [];
           let idx = 0;
           try {
             const lastV = localStorage.getItem(LAST_KEY);
-            if (lastV && queue.length) {
-              const found = queue.findIndex(t => t.v === lastV);
+            if (lastV && list.length) {
+              const found = list.findIndex(t => t.v === lastV);
               if (found >= 0) idx = found;
             }
           } catch {}
-          if (queue.length) load(idx, false, false);
+          if (list.length) {
+            queue = list;
+            load(idx, false, false);
+          }
         } catch (e) { /* player stays unarmed, pill stays hidden */ }
       }
       // Ensure the pill is showing (it's the controller in the other modal).
