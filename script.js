@@ -3897,17 +3897,28 @@ const codeModal = document.getElementById('codeModal');
         return tryCode(secret);
       },
       onPass(payload, secret) {
-        /* Phase 2: an upgrade keeps the overlay underneath as the destination.
-           Close the keypad and stop; the music overlay is already in edit mode,
-           and other overlays have no editor to upgrade to. */
-        if (payload === 'upgraded:music' || payload === 'noop:overlay') {
+        /* Music was already unlocked in verify() via DexAuth + dexMusic.unlock.
+           Just close the keypad. */
+        if (payload === 'upgraded:music') {
           closeModal(codeModal);
-          /* Universal auth: unlock the work overlay via DexAuth */
+          return;
+        }
+        /* Other overlays (work, etc.): unlock via DexAuth and apply. */
+        if (payload === 'noop:overlay') {
+          closeModal(codeModal);
           (async function() {
+            var overlay = document.querySelector(OVERLAY_OPEN);
+            var overlayId = overlay ? overlay.id : '';
             var ok = await window.DexAuth.unlock('snail');
             if (ok) {
-              window.DexAuth.applyTo('work');
-              window.setModeTag('dashModeTag', true);
+              if (overlayId === 'dashModal') {
+                window.DexAuth.applyTo('work');
+                window.setModeTag('dashModeTag', true);
+              } else if (overlayId === 'musicModal') {
+                window.setModeTag('musicModeTag', true);
+              } else if (overlayId === 'notesModal') {
+                window.setModeTag('notesModeTag', true);
+              }
             }
           })();
           return;
@@ -9434,14 +9445,19 @@ const LOOP_MODES = ['off', 'all', 'one'];
     if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.defaultPrevented) return;
 
-    // Rules 1 and 2. `closest` rather than a tag test, because focus can sit on
-    // a <span class="icon"> inside the button that actually owns the key.
     const target = event.target;
-    if (target instanceof Element && (target.closest(FIELD) || target.closest(CONTROL))) return;
+    // Rule 1: In a text field, space types a space. Always.
+    if (target instanceof Element && target.closest(FIELD)) return;
 
-    // Rules 3 and 4.
+    // Dex request: if music is playing (or was started), spacebar ALWAYS
+    // toggles it, even when focus is on a button/control. Only when no
+    // player is active does the control get the spacebar.
     const player = MediaBus.claimant();
-    if (!player) return;                  // rule 5 — the page scrolls, untouched
+    if (!player) {
+      // No active player: control gets spacebar (rule 2), else page scrolls.
+      if (target instanceof Element && target.closest(CONTROL)) return;
+      return;  // rule 5 — the page scrolls, untouched
+    }
 
     event.preventDefault();               // only now is the scroll ours to stop
     // Held down, space repeats. The scroll still has to be stopped on every
