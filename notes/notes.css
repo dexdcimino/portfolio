@@ -1387,3 +1387,10 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
   .nt-session-title { font-size: 26px; }
   .nt-header-mid .nt-fmt:nth-child(n+4) { display: none; }
 }
+
+/* Force native live scrollbar dragging (Dex, 2026-10-05).
+   smooth behavior breaks drag-scrubbing in Chrome. */
+.nt-canvas,
+.nt-canvas * {
+  scroll-behavior: auto !important;
+}
