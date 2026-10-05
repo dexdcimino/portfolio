@@ -5487,7 +5487,9 @@ body.modal-open{overflow:hidden}
 }
 .notes-close svg{width:19px;height:19px}
 /* Bulletproof notes lock positioning - matches music exactly */
-.notes-shell .ov-lock{position:absolute !important;top:7px !important;right:60px !important;left:auto !important;bottom:auto !important;transform:none !important;}
+.notes-shell .ov-lock{position:absolute;top:7px;right:60px;z-index:4;width:38px;height:38px;}
+/* When moved into the Notes app's header via JS, let flexbox position it. */
+.nt-header-right .ov-lock{position:static;top:auto;right:auto;}
 .notes-close:hover{color:var(--accent);border-color:var(--accent)}
 .notes-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
