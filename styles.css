@@ -5636,21 +5636,32 @@ body.modal-open{overflow:hidden}
 .music-rail button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .music-rail .icon{width:22px;height:22px;flex:0 0 auto}
 .music-rail-n{margin-left:auto;font-size:13px;opacity:.7;letter-spacing:.04em}
-/* New Playlist button: only in editor mode, subtle. */
-.music-rail-add{opacity:.6}
-.music-modal.is-admin .music-rail-add{opacity:1}
-.music-rail-add:hover{opacity:1}
+/* New Playlist button: only in editor mode. Looks like a real button —
+   bordered, not just text — but subtle until hovered. Same height as the
+   ALL/REPEAT buttons. */
+.music-rail-add{
+  border:1px dashed rgba(255,255,255,.22)!important;
+  color:var(--muted);
+}
+.music-rail-add:hover{
+  border-color:var(--accent)!important;
+  border-style:solid;
+  color:var(--accent);
+  background:rgba(255,255,255,.05);
+}
 /* New playlist form: same width as the rail, compact. */
 .music-playlist-form{padding:8px 4px;display:flex;flex-direction:column;gap:8px}
 .music-playlist-form input{
-  width:100%;padding:8px 10px;font:inherit;font-size:14px;
-  border:1px solid var(--line);border-radius:8px;background:#12141c;color:inherit;
+  width:100%;padding:9px 14px;font:inherit;font-size:14px;
+  border:1px solid var(--line);border-radius:14px;background:#12141c;color:inherit;
 }
+.music-playlist-form input::placeholder{color:var(--muted);opacity:.55}
 .music-playlist-form input:focus{outline:none;border-color:var(--accent)}
-.music-playlist-form-btns{display:flex;gap:6px}
+.music-playlist-form-btns{display:flex;gap:8px}
 .music-playlist-form-btns button{
-  flex:1;padding:7px 0;font:inherit;font-size:13px;font-weight:700;cursor:pointer;
-  border:1px solid var(--line);border-radius:8px;background:none;color:var(--muted);
+  flex:1;padding:8px 0;font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+  border:1px solid var(--line);border-radius:14px;background:none;color:var(--muted);
+  text-align:center;
 }
 .music-playlist-ok{color:var(--accent)!important;border-color:var(--accent)!important}
 .music-playlist-form-btns button:hover{background:rgba(255,255,255,.07);color:#fff}
