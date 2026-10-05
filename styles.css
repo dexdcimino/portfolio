@@ -5495,6 +5495,12 @@ body.modal-open{overflow:hidden}
    carries both instead. */
 .notes-frame.is-app .notes-shell{width:100vw;height:100dvh;border-radius:0;border:0;background:#0B0D11}
 .notes-frame.is-app .notes-close,.notes-frame.is-app .notes-save{display:none}
+/* Mobile: the notes close button moves inside the panel like music's does.
+   Without this it sits at left:100% -- off-screen on a full-width frame --
+   leaving the lock floating at right:60px with no partner. */
+@media(max-width:760px){
+  .notes-close{top:10px;left:auto;right:10px;margin-left:0}
+}
 
 /* --- the save line ------------------------------------------------------- */
 /* Under the panel rather than inside it: it says one word most of the time, and
@@ -6867,6 +6873,9 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .code-close:hover{color:var(--accent);background:rgba(255,255,255,.06)}
 .code-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .code-eyebrow{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted)}
+/* Public code hints above the five boxes: same voice as ENTER CODE,
+   but in the accent color so they read as live options. */
+.code-hints{margin:2px 0 0;color:var(--accent);font-size:15px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;text-align:center;transition:color var(--accent-ease)}
 .code-shell .vault-lockbox{display:grid;justify-items:center;gap:10px;position:relative}
 /* HOLDS ITS LINE WHILE IT IS EMPTY. The status is blank at rest and fills in
    on a refusal; without a reserved height the panel would grow by a line the
