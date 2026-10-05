@@ -5494,6 +5494,10 @@ body.modal-open{overflow:hidden}
 .nt-header-right .ov-lock{position:static;top:auto;right:auto;}
 /* Match info button to lock/X dimensions for even spacing */
 #notesEditor .nt-header-right .nt-info{width:38px;height:38px;display:flex;align-items:center;justify-content:center;padding:0;}
+/* Smooth light/dark theme transition (0.5s fade instead of instant flash) */
+#notesEditor .nt-app,
+#notesEditor .nt-app .nt-header,
+#notesEditor .nt-header-right .ov-lock{transition:background-color .5s ease,color .5s ease,border-color .5s ease;}
 /* Lock adapts to Notes app light mode: plain like other buttons, no dark box */
 .nt-app[data-theme="light"] .nt-header-right .ov-lock,
 #notesEditor[data-theme="light"] .ov-lock{background:transparent !important;border-color:transparent !important;color:#2a2d34 !important;}
