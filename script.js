@@ -5700,8 +5700,52 @@ const MediaBus = (() => {
     flagCell.append(flag);
 
     row.append(play, meta, cell, flagCell, check);
-    if (admin) row.append(deleteCell(track));
+    if (admin) {
+      row.append(renameCell(track, title));
+      row.append(deleteCell(track));
+    }
     return row;
+  }
+
+  /* Rename: pencil button turns the title into an inline input.
+     Enter saves, Escape cancels. */
+  function renameCell(track, titleEl) {
+    const cell = document.createElement('span');
+    cell.className = 'music-renamecell';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'music-rename';
+    btn.setAttribute('aria-label', `Rename ${track.t}`);
+    btn.innerHTML = '<span class="icon" data-icon="pencil" aria-hidden="true"></span>';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Replace title with input
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'music-rename-input';
+      input.value = track.t;
+      input.setAttribute('aria-label', 'New title');
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+      const save = async () => {
+        const newTitle = input.value.trim();
+        if (newTitle && newTitle !== track.t) {
+          const data = await edit('rename', { v: track.v, t: newTitle });
+          if (data && !data.error) toast(`Renamed to "${newTitle}".`);
+        }
+        render();
+      };
+      const cancel = () => render();
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); save(); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); cancel(); }
+        ev.stopPropagation();
+      });
+      input.addEventListener('blur', save);
+    });
+    cell.append(btn);
+    return cell;
   }
 
   function render() {
