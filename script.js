@@ -4056,6 +4056,14 @@ const codeModal = document.getElementById('codeModal');
               if (overlayId === 'dashModal') {
                 window.DexAuth.applyTo('work');
                 window.setModeTag('dashModeTag', true);
+                /* The dashboard is an iframe with its own passcode gate.
+                   Tell it to unlock editing via postMessage. */
+                try {
+                  var dashFrame = document.getElementById('dashFrame');
+                  if (dashFrame && dashFrame.contentWindow) {
+                    dashFrame.contentWindow.postMessage({type:'dex-unlock', code:'snail'}, '*');
+                  }
+                } catch(e) {}
               } else if (overlayId === 'musicModal') {
                 /* Actually unlock music (not just the tag) so editor
                    buttons appear. */
