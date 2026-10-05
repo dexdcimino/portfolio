@@ -2144,6 +2144,7 @@ if (workModal) {
       if (frame) frame.classList.add('is-app');
       token = data.token;
       store.set(TOKEN_KEY, token);
+      if (window.setModeTag) window.setModeTag('notesModeTag', true);
       await mountApp(data, token);
     }
 
@@ -2387,6 +2388,13 @@ if (workModal) {
     bindModal(modal, relock);
     document.getElementById('notesClose')?.addEventListener('click',
       () => closeModal(modal));
+    /* Clear the edit token when the overlay closes, so the password is
+       required again next time. The mode tag resets to Viewer. */
+    modal?.addEventListener('close', () => {
+      store.drop(TOKEN_KEY);
+      token = null;
+      if (window.setModeTag) window.setModeTag('notesModeTag', false);
+    });
     // The app's own close button, in its header.
     editor.addEventListener('notes:close', () => closeModal(modal));
 
