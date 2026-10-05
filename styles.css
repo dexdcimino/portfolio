@@ -7206,3 +7206,97 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:none}
 /* X button 20% smaller (20px → 16px icon). */
 .music-remote-close svg{width:16px;height:16px}
+
+/* ============================================================
+   MOBILE CLEANUP (Dex, 2026-10-05)
+   Targeted fixes for mobile: no horizontal scroll, full-screen
+   modals, mobile-native overlay behavior. Appended, not edited,
+   so desktop styles are untouched.
+   ============================================================ */
+
+@media (max-width: 760px) {
+
+  /* ---- 1. Kill horizontal scroll on the main page ---- */
+  html {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    /* Prevent overscroll bounce from revealing horizontal gap */
+    overscroll-behavior-x: none;
+  }
+  /* Any fixed/absolute element that sticks out gets clipped */
+  body > * {
+    max-width: 100vw;
+  }
+
+  /* ---- 2. All modals go full-screen on mobile ---- */
+  dialog[open] {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    /* Fallback for browsers without dvh */
+    height: 100vh !important;
+    max-height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+  }
+  /* The inner shells should also fill */
+  .notes-shell,
+  .music-shell,
+  .work-shell,
+  .dash-shell {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  /* ---- 3. Notes overlay mobile layout ---- */
+  .notes-shell {
+    /* Stack sidebar above content on mobile, or hide it behind a toggle */
+    flex-direction: column !important;
+  }
+  /* Notes header: keep controls reachable */
+  .nt-header-right {
+    gap: 8px !important;
+  }
+  /* Make the notes text areas comfortable to tap */
+  .notes-shell button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* ---- 4. Prevent modal content from causing horizontal scroll ---- */
+  dialog[open] * {
+    max-width: 100%;
+  }
+  /* But allow intentional horizontal scrollers (tab bars, etc.) */
+  dialog[open] .tk-tabs,
+  dialog[open] .pk-tabs,
+  dialog[open] .ai-tabs,
+  dialog[open] .iv-tabs,
+  dialog[open] .gal-film {
+    max-width: none;
+  }
+
+  /* ---- 5. Music pill: keep it reachable on mobile ---- */
+  .music-remote {
+    /* Ensure pill doesn't go off-screen on small viewports */
+    max-width: calc(100vw - 28px) !important;
+  }
+
+  /* ---- 6. Code keypads: bigger tap targets ---- */
+  .keypad .pin {
+    min-height: 48px;
+  }
+}
