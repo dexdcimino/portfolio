@@ -7186,8 +7186,8 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 .music-remote.at-tr .music-remote-expand svg{transform:rotate(180deg)}
 .music-remote.at-bl .music-remote-expand svg{transform:rotate(0deg)}
 .music-remote.at-tl .music-remote-expand svg{transform:rotate(90deg)}
-/* Pill at top-right: hide the accent picker instead of offsetting.
-   The picker would overlap the pill; it returns when the pill moves. */
-body:has(> .music-remote.at-tr:not([hidden])) .accent-picker{display:none}
+/* Pill at top-right: hide the accent dropdown instead of offsetting.
+   Only the compact (floating) version; the inline one is unaffected. */
+body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:none}
 /* X button 20% smaller (20px → 16px icon). */
 .music-remote-close svg{width:16px;height:16px}
