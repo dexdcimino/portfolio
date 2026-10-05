@@ -2479,6 +2479,14 @@ if (workModal) {
       window.addEventListener('load', () => open(null), { once: true });
     }
   }
+
+  // Exposed for the universal padlock: actually unlock Notes (get edit token),
+  // not just flip the mode tag. Mirrors window.dexMusic.unlock.
+  window.dexNotes = window.dexNotes || {};
+  window.dexNotes.unlock = async (password) => {
+    const data = await unlock({ password });
+    return !!data;
+  };
 }
 
 /* The AI Lab's DexNote card opens the notes app as a SANDBOX. It is the one
@@ -3941,7 +3949,9 @@ const codeModal = document.getElementById('codeModal');
                 var musicOk = await window.dexMusic?.unlock('snail');
                 if (!musicOk) window.setModeTag('musicModeTag', true);
               } else if (overlayId === 'notesModal') {
-                window.setModeTag('notesModeTag', true);
+                /* Actually unlock Notes (not just the tag) so editing works. */
+                var notesOk = await window.dexNotes?.unlock('snail');
+                if (!notesOk) window.setModeTag('notesModeTag', true);
               }
             }
           })();
