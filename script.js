@@ -9490,9 +9490,10 @@ let openReader = () => {};
          to a blank page. */
       const isCrossOrigin = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
       if (isCrossOrigin) {
-        // Trusted cross-origin (Inko): full sandbox including same-origin
-        // so localStorage works. It's Dex's app, not untrusted third-party.
-        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+        /* Inko is Dex's own trusted app on a different subdomain. The sandbox
+           was causing Chrome's "content blocked" error. Since it's trusted,
+           remove sandbox restrictions entirely for cross-origin apps. */
+        frame.removeAttribute('sandbox');
       } else {
         frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
       }
