@@ -37,12 +37,13 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     const query = req.query || parseQuery(req.url);
-    if (!store.tokenOk(query.t)) {
+    const getStoreId = store.tokenOk(query.t);
+    if (!getStoreId) {
       res.setHeader('Cache-Control', 'no-store');
       return res.status(401).json({ error: 'session expired' });
     }
     try {
-      const found = await store.getAsset(query.key);
+      const found = await store.getAsset(query.key, getStoreId);
       if (!found) {
         res.setHeader('Cache-Control', 'no-store');
         return res.status(404).json({ error: 'no such asset' });
@@ -72,7 +73,8 @@ module.exports = async function handler(req, res) {
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = null; }
   }
-  if (!body || !store.tokenOk(body.token)) {
+  const postStoreId = body ? store.tokenOk(body.token) : null;
+  if (!postStoreId) {
     return res.status(401).json({ error: 'session expired' });
   }
   if (typeof body.data !== 'string' || typeof body.type !== 'string') {
@@ -87,7 +89,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const result = await store.putAsset(bytes, body.type);
+    const result = await store.putAsset(bytes, body.type, postStoreId);
     return res.status(200).json(result);
   } catch (err) {
     if (err && err.tooLarge) return res.status(413).json({ error: err.message });
