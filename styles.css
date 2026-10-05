@@ -6453,7 +6453,6 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
    pays for its children's layout and the point of the fold is to get out of
    the way. Even padding all round is what makes the circle a circle -- the
    expanded pill is 1px heavier at the top to sit the cover off the edge. */
-.music-remote.is-folded{padding:7px}
 .music-remote.is-folded > :not(.music-remote-head):not(.music-remote-move){display:none}
 
 .music-remote-head{position:relative;flex:0 0 auto}
@@ -6571,18 +6570,18 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .music-remote.at-bl .music-remote-move-v:hover,.music-remote.at-br .music-remote-move-v:hover{
   transform:translateX(-50%) rotate(180deg) scale(1.2);
 }
-/* Horizontal chevron: left edge when at right, right edge when at left */
+/* Horizontal chevron: left edge when at right (points left), right edge when at left (points right) */
 .music-remote.at-tr .music-remote-move-h,.music-remote.at-br .music-remote-move-h{
-  top:50%;transform:translateY(-50%) rotate(-90deg);right:calc(100% + 1px);
+  top:50%;transform:translateY(-50%) rotate(90deg);right:calc(100% + 1px);
 }
 .music-remote.at-tr .music-remote-move-h:hover,.music-remote.at-br .music-remote-move-h:hover{
-  transform:translateY(-50%) rotate(-90deg) scale(1.2);
+  transform:translateY(-50%) rotate(90deg) scale(1.2);
 }
 .music-remote.at-tl .music-remote-move-h,.music-remote.at-bl .music-remote-move-h{
-  top:50%;transform:translateY(-50%) rotate(90deg);left:calc(100% + 1px);
+  top:50%;transform:translateY(-50%) rotate(-90deg);left:calc(100% + 1px);
 }
 .music-remote.at-tl .music-remote-move-h:hover,.music-remote.at-bl .music-remote-move-h:hover{
-  transform:translateY(-50%) rotate(90deg) scale(1.2);
+  transform:translateY(-50%) rotate(-90deg) scale(1.2);
 }
 /* The chevron is drawn pointing DOWN, so the top corner needs no rotation and
    the bottom one is a half turn. The mark always points at the corner the
@@ -7121,3 +7120,9 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .mode-tag .icon{width:14px;height:14px}
 .mode-tag.is-viewer{color:var(--muted)}
 .mode-tag.is-editor{color:var(--accent) !important;border-color:var(--accent) !important;background:color-mix(in srgb,var(--accent) 12%,#161923) !important}
+
+/* The pill is the only audio controller (Dex, 2026-10-05). The square bar's
+   controls are hidden; the iframe stays in the DOM for audio. */
+.music-seek,.music-transport,.music-tail{display:none!important}
+.music-bar{padding:0!important;gap:0!important}
+.music-nowwrap{display:none!important}
