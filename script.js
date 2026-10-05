@@ -3963,6 +3963,23 @@ const codeModal = document.getElementById('codeModal');
         const normalized = secret.trim().toLowerCase();
         console.log('codepad verify:', normalized);
         if (normalized === 'work') return { ok: true, payload: 'show:dash' };
+        /* Notes password: if it's a valid notes password, open notes directly. */
+        const trimmed = secret.trim();
+        if (trimmed.length === 5) {
+          try {
+            const resp = await fetch('/api/notes/unlock', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: trimmed }),
+            });
+            if (resp.ok) {
+              document.dispatchEvent(new CustomEvent('notes:open', {
+                detail: { opener: codeModal, code: trimmed }
+              }));
+              return { ok: true, payload: 'notes:direct' };
+            }
+          } catch (e) { /* not a notes password */ }
+        }
         /* Phase 2: the universal code upgrades the overlay underneath instead
            of opening the vault, when there is one. Main page + snail still
            opens the markdown vault as before. */
@@ -3999,6 +4016,12 @@ const codeModal = document.getElementById('codeModal');
         return tryCode(secret);
       },
       onPass(payload, secret) {
+        /* Notes password: overlay is already opening, just close keypad. */
+        if (payload === 'notes:direct') {
+          closeModal(codeModal);
+          window._padlockOverlay = null;
+          return;
+        }
         /* Music was already unlocked in verify() via DexAuth + dexMusic.unlock.
            Just close the keypad. */
         if (payload === 'upgraded:music') {
