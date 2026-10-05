@@ -2506,11 +2506,14 @@ if (workModal) {
 
   /* Move portfolio buttons INTO the shell so they're positioned relative
      to it (stable), not the frame (shifts when app loads). */
-  const shell = document.querySelector('.notes-shell');
-  const frameLock = document.querySelector('.notes-frame > .ov-lock');
-  const frameClose = document.querySelector('.notes-frame > .notes-close');
-  if (shell && frameLock) shell.appendChild(frameLock);
-  if (shell && frameClose) shell.appendChild(frameClose);
+  /* Lock/X stay in .notes-frame permanently (Dex, 2026-10-05).
+     Moving them into the shell/header lets the Notes app delete them on
+     re-render. CSS positions them to look like they're in the header. */
+  // const shell = document.querySelector('.notes-shell');
+  // const frameLock = document.querySelector('.notes-frame > .ov-lock');
+  // const frameClose = document.querySelector('.notes-frame > .notes-close');
+  // if (shell && frameLock) shell.appendChild(frameLock);
+  // if (shell && frameClose) shell.appendChild(frameClose);
 
   /* Show buttons only after layout is stable. Prevents flash of mispositioned
      buttons when the modal first opens. */
@@ -2536,14 +2539,10 @@ if (workModal) {
   /* When the Notes app loads, move the lock INTO its header (nt-header-right)
      so it's in the flex layout. Order: info, theme, lock, close.
      (Lock to the RIGHT of the sun/moon theme button.) */
-  const moveLockToAppHeader = () => {
-    const lock = document.querySelector('.notes-shell > .ov-lock');
-    const headerRight = document.querySelector('#notesEditor .nt-header-right');
-    if (!lock || !headerRight || lock.parentElement === headerRight) return;
-    const appClose = headerRight.querySelector('.nt-close');
-    if (appClose) headerRight.insertBefore(lock, appClose);
-    else headerRight.appendChild(lock);
-  };
+  /* DISABLED (Dex, 2026-10-05): Moving the lock into the app header lets
+     the app delete it on re-render. The lock stays in .notes-frame and CSS
+     positions it to look like it's in the header. */
+  const moveLockToAppHeader = () => {};
   const editorEl = document.getElementById('notesEditor');
   if (editorEl) {
     new MutationObserver(() => moveLockToAppHeader())
