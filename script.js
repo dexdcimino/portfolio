@@ -6572,6 +6572,7 @@ const MediaBus = (() => {
     if (response.ok && data.token) {
       token = data.token;
       setAdmin(true);
+      if (window.setModeTag) window.setModeTag('musicModeTag', true);
       if (loaded) render();
       toast('TUNES — editing is on.');
       return true;
@@ -6930,6 +6931,10 @@ const MediaBus = (() => {
     if (view !== 'all') setView('all');
   });
   $('musicClose')?.addEventListener('click', () => closeModal(modal));
+  /* Reset mode tag on close */
+  modal?.addEventListener('close', () => {
+    if (window.setModeTag) window.setModeTag('musicModeTag', false);
+  });
 
   /* The tab on the docked bar's top edge. No code is asked for: the bar only
      exists because someone typed it, and it dies with the tab. */
