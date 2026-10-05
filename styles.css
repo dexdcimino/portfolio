@@ -7300,3 +7300,35 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
     min-height: 48px;
   }
 }
+
+/* Work overlay mobile: ensure iframe fills and scrolls properly */
+@media (max-width: 760px) {
+  #dashModal[open] {
+    padding: 0 !important;
+    /* Use grid to center, but shell is full-screen so it's moot */
+    display: block !important;
+  }
+  #dashModal .dash-shell {
+    /* Already 100vw/100dvh from earlier, ensure no padding */
+    padding: 0 !important;
+    margin: 0 !important;
+    /* Allow the shell to scroll if dashboard content overflows */
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  #dashModal .dash-iframe {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    /* Critical: allow the iframe to scroll internally */
+    overflow: auto !important;
+  }
+  /* Work modal header (if any) stays fixed */
+  #dashModal .dash-header {
+    flex: 0 0 auto !important;
+  }
+}
