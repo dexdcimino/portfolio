@@ -7173,6 +7173,5 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
 .music-remote-close{color:var(--muted)}
 .music-remote-close:hover{color:var(--accent);background:rgba(255,255,255,.07)}
 .music-remote-close svg{width:20px;height:20px}
-/* Fullscreen and close at the end (bottom for top positions, top for bottom). */
-.music-remote.at-bl #musicRemoteFull,.music-remote.at-br #musicRemoteFull{order:8}
+/* Close at the end (bottom for top positions, top for bottom). */
 .music-remote.at-bl #musicRemoteClose,.music-remote.at-br #musicRemoteClose{order:7}
