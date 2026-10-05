@@ -6936,4 +6936,4 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
   border:2px solid var(--line);background:#161923;color:var(--muted)}
 .mode-tag .icon{width:14px;height:14px}
 .mode-tag.is-viewer{color:var(--muted)}
-.mode-tag.is-editor{color:var(--acc);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,#161923)}
+.mode-tag.is-editor{color:var(--acc) !important;border-color:var(--acc) !important;background:color-mix(in srgb,var(--acc) 12%,#161923) !important}
