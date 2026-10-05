@@ -7176,12 +7176,13 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
 /* Close at the end (bottom for top positions, top for bottom). */
 .music-remote.at-bl #musicRemoteClose,.music-remote.at-br #musicRemoteClose{order:7}
 
-/* Expand button: arrow points toward page center, rotated per corner. */
+/* Expand button: arrow points toward page center, rotated per corner.
+   Base arrow is ↗. */
 .music-remote-expand svg{transition:transform .2s ease}
-.music-remote.at-br .music-remote-expand svg{transform:rotate(180deg)}
-.music-remote.at-tr .music-remote-expand svg{transform:rotate(90deg)}
+.music-remote.at-br .music-remote-expand svg{transform:rotate(-90deg)}
+.music-remote.at-tr .music-remote-expand svg{transform:rotate(180deg)}
 .music-remote.at-bl .music-remote-expand svg{transform:rotate(0deg)}
-.music-remote.at-tl .music-remote-expand svg{transform:rotate(-90deg)}
+.music-remote.at-tl .music-remote-expand svg{transform:rotate(90deg)}
 /* Pill at top-right: shift down to clear the accent picker. */
 .music-remote.at-tr{top:74px}
 /* X button 20% smaller (20px → 16px icon). */
