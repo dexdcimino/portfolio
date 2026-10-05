@@ -5636,22 +5636,32 @@ body.modal-open{overflow:hidden}
 .music-rail button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .music-rail .icon{width:22px;height:22px;flex:0 0 auto}
 .music-rail-n{margin-left:auto;font-size:13px;opacity:.7;letter-spacing:.04em}
+/* Custom playlist delete X: hidden until hover, slides in from right. */
+.music-rail-pl{position:relative}
+.music-rail-del{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%) translateX(8px);
+  width:24px;height:24px;display:grid;place-items:center;padding:0;
+  border:0;border-radius:6px;background:none;color:var(--muted);cursor:pointer;
+  opacity:0;transition:opacity .15s ease,transform .15s ease,color .15s ease;
+  font-size:16px;font-weight:700;line-height:1;
+}
+.music-rail-pl:hover .music-rail-del{opacity:1;transform:translateY(-50%) translateX(0)}
+.music-rail-del:hover{color:#ff8a8a;background:rgba(255,92,92,.14)}
 /* New Playlist button: only in editor mode. Looks like a real button —
    bordered, not just text — but subtle until hovered. Same height as the
    ALL/REPEAT buttons. */
 .music-rail-add{
-  border:2px dashed rgba(255,255,255,.22)!important;
+  border:2px solid rgba(255,255,255,.22)!important;
   border-radius:16px!important;
   color:var(--muted);
   justify-content:center;
 }
 .music-rail-add .music-rail-label{
-  font-size:16px;
+  font-size:19px;
   letter-spacing:.08em;
 }
 .music-rail-add:hover{
   border-color:var(--accent)!important;
-  border-style:solid;
   color:var(--accent);
   background:rgba(255,255,255,.05);
 }
