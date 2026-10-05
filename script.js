@@ -3989,9 +3989,17 @@ const codeModal = document.getElementById('codeModal');
            of opening the vault, when there is one. Main page + snail still
            opens the markdown vault as before. */
         if (normalized === 'snail') {
-          // Use the stored overlay ID (the keypad itself is now topmost)
+          // Use the stored overlay ID (the keypad itself is now topmost).
+          // If no stored ID (tilde pressed directly), find the open dialog
+          // that is NOT the keypad itself.
           var overlayId = window._padlockOverlay;
-          var overlay = overlayId ? document.getElementById(overlayId) : document.querySelector(OVERLAY_OPEN);
+          var overlay;
+          if (overlayId) {
+            overlay = document.getElementById(overlayId);
+          } else {
+            var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
+            overlay = allOpen.find(d => d.id !== 'codeModal') || null;
+          }
           var oid = overlay ? overlay.id : 'none';
           console.log('snail: overlay found:', oid, '(stored:', overlayId + ')');
           if (oid === 'musicModal') {
@@ -4039,7 +4047,9 @@ const codeModal = document.getElementById('codeModal');
           closeModal(codeModal);
           window._padlockOverlay = null;
           (async function() {
-            var overlay = document.querySelector(OVERLAY_OPEN);
+            // Exclude the keypad itself (in case close hasn't applied yet)
+            var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
+            var overlay = allOpen.find(d => d.id !== 'codeModal') || null;
             var overlayId = overlay ? overlay.id : '';
             var ok = await window.DexAuth.unlock('snail');
             if (ok) {
