@@ -5655,18 +5655,26 @@ body.modal-open{overflow:hidden}
   border-radius:16px!important;
   color:var(--muted);
   justify-content:center;
+  /* Same height as ALL/REPEAT: match their padding exactly. */
+  padding:12px 12px!important;
 }
 .music-rail-add .music-rail-label{
-  font-size:19px;
+  font-size:13px;
   letter-spacing:.08em;
+}
+.music-rail-plus{
+  font-size:130%;
+  font-weight:900;
 }
 .music-rail-add:hover{
   border-color:var(--accent)!important;
   color:var(--accent);
   background:rgba(255,255,255,.05);
 }
-/* New playlist form: same width as the rail, compact. */
+/* New playlist form: same width as the rail, compact. Hidden until the
+   + Playlist button is clicked — the hidden attribute must beat display:flex. */
 .music-playlist-form{padding:8px 4px;display:flex;flex-direction:column;gap:8px}
+.music-playlist-form[hidden]{display:none}
 .music-playlist-form input{
   width:100%;padding:9px 14px;font:inherit;font-size:14px;
   border:1px solid var(--line);border-radius:14px;background:#12141c;color:inherit;
