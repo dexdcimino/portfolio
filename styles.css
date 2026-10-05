@@ -5933,7 +5933,7 @@ body.modal-open{overflow:hidden}
    the full width — the two things that were in tension. */
 .music-bar{
   flex:0 0 auto;display:flex;flex-direction:column;gap:6px;
-  padding:10px 16px 12px;border-top:1px solid var(--line);background:#0b0c12;
+  padding:10px 16px 12px;border-top:1px solid var(--line);
 }
 .music-bar[hidden]{display:none}
 .music-controls{
