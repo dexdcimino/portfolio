@@ -3864,9 +3864,38 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       /* Same plain keyword as the tilde keypad: `work` opens Mission Control
          from here too, not just from the overlay. */
       if (secret.trim().toLowerCase() === 'work') return { ok: true, payload: 'show:dash' };
+      /* If it's a valid notes password, open notes directly with it.
+         This lets Dex type his password here to go straight to his notes. */
+      const trimmed = secret.trim();
+      if (trimmed.length === 5) {
+        try {
+          const resp = await fetch('/api/notes/unlock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: trimmed }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            // Valid notes password: open notes overlay with the data
+            document.dispatchEvent(new CustomEvent('notes:open', {
+              detail: { opener: section, code: trimmed, unlockedData: data }
+            }));
+            return { ok: true, payload: 'notes:direct' };
+          }
+        } catch (e) {
+          // Not a notes password, fall through to vault
+        }
+      }
       return tryCode(secret);
     },
-    onPass: reveal,
+    onPass: (payload, secret) => {
+      // If it was a notes password, the overlay is already opening; just reset
+      if (payload === 'notes:direct') {
+        keypad.reset(true);
+        return;
+      }
+      reveal(payload, secret);
+    },
   });
 
   /* Put the section back the way it was found. Runs when the overlay closes,
