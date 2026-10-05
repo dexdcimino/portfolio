@@ -7467,7 +7467,7 @@ const MediaBus = (() => {
   /* Every piece or none. A pill missing one button is a pill that lies about
      what it can do, and there is a working bar one tab press away. */
   const parts = [...Object.values(src), ...Object.values(mine),
-                 vol, thumb, nowTitle, nowArtist, myVol, art, artImg, tipTitle, tipArtist, moveBtnV, moveBtnH, expandBtn, fullBtn, closeBtn];
+                 vol, thumb, nowTitle, nowArtist, myVol, art, artImg, tipTitle, tipArtist, moveBtnV, moveBtnH];
   if (parts.some(el => !el)) return;
 
   /* ---- the fold and the corner ---------------------------------------- */
