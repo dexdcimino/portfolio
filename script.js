@@ -3642,7 +3642,17 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       var h = overlays[id];
       if (!h) return;
       if (h.onLock) h.onLock();
-      // Note: we keep the token (it's valid for 24h), just lock this overlay
+      // Post lock message to iframe if present
+      if (h.iframe) {
+        try {
+          h.iframe.contentWindow.postMessage({ type: 'dex-lock' }, '*');
+        } catch (e) {}
+      }
+    }
+    
+    function clearToken() {
+      token = null;
+      tier = null;
     }
     
     function getToken() { return token; }
@@ -3650,7 +3660,8 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     function isUnlocked() { return !!token; }
     
     return { unlock: unlock, register: register, applyTo: applyTo,
-             lock: lock, getToken: getToken, getTier: getTier,
+             lock: lock, clearToken: clearToken,
+             getToken: getToken, getTier: getTier,
              isUnlocked: isUnlocked };
   })();
   
@@ -3964,6 +3975,15 @@ const codeModal = document.getElementById('codeModal');
   // and the padlock are its job now, and these two are here for the focus
   // hand-off reset(moveFocus) does on the way out.
   document.getElementById('musicModal')?.addEventListener('close', relock);
+  /* Work overlay: when it closes, lock it, clear the token, and tell the
+     iframe to revert to viewer. Password must be re-entered next time. */
+  document.getElementById('dashModal')?.addEventListener('close', function() {
+    if (window.DexAuth) {
+      window.DexAuth.lock('work');
+      window.DexAuth.clearToken();
+    }
+    window.setModeTag('dashModeTag', false);
+  });
 })();
 
 /* --- social links --------------------------------------------------------- */
