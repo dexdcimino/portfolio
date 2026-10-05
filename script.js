@@ -3591,17 +3591,11 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   });
   /* ============================================================
      DexAuth: universal overlay unlock system.
-     
      One password (snail) unlocks editing across ALL overlays.
      To add a new overlay:
        1. Add a padlock button with data-ovlock in the overlay HTML
-       2. Register it: DexAuth.register('myoverlay', {
-            onUnlock: (token) => { /* enable editing, store token */ },
-            onLock: () => { /* disable editing, clear token */ },
-            iframe: document.getElementById('myFrame'), // optional, for iframe overlays
-          });
+       2. Call DexAuth.register('myoverlay', { onUnlock, onLock, iframe })
        3. Backend verifies the JWT using AUTH_SECRET (shared env var).
-     
      That's it. No per-overlay auth code needed.
      ============================================================ */
   window.DexAuth = (function() {
