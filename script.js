@@ -3936,7 +3936,10 @@ const codeModal = document.getElementById('codeModal');
                 window.DexAuth.applyTo('work');
                 window.setModeTag('dashModeTag', true);
               } else if (overlayId === 'musicModal') {
-                window.setModeTag('musicModeTag', true);
+                /* Actually unlock music (not just the tag) so editor
+                   buttons appear. */
+                var musicOk = await window.dexMusic?.unlock('snail');
+                if (!musicOk) window.setModeTag('musicModeTag', true);
               } else if (overlayId === 'notesModal') {
                 window.setModeTag('notesModeTag', true);
               }
