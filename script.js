@@ -9322,6 +9322,16 @@ let openReader = () => {};
     function open(opener) {
       const url = card.dataset.appModal;
       const title = card.dataset.appTitle || 'App';
+      /* Cross-origin apps (Inko) get blocked by the strict sandbox.
+         Same-origin apps (MindSplit) keep the full sandbox. */
+      const isCrossOrigin = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
+      if (isCrossOrigin) {
+        // Minimal sandbox for trusted cross-origin apps: scripts only.
+        // No allow-same-origin (opaque origin is safer cross-origin).
+        frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups');
+      } else {
+        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+      }
       /* Phone unless the card says otherwise. Set on every open, not once: the
          overlay is shared, so a window-shaped app must not leave the next
          phone-shaped one stretched into a monitor. */
