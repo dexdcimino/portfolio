@@ -4723,8 +4723,11 @@ const MediaBus = (() => {
        stronger evidence of what someone is actually looking at. */
     claimant() {
       /* A modal covers the page. Whatever is behind it is not what the space bar
-         is addressing — the overlay's own scrolling is. */
-      if (document.querySelector(OVERLAY_OPEN)) return null;
+         is addressing — the overlay's own scrolling is. EXCEPT the music
+         overlay: spacebar must toggle music even when the music overlay is
+         open (Dex request). */
+      const openOverlay = document.querySelector(OVERLAY_OPEN);
+      if (openOverlay && openOverlay.id !== 'musicModal') return null;
       const live = players.filter(p => p.onScreen());
       return live.find(p => !p.el.paused) || live.find(p => p.touched()) || null;
     },
