@@ -5773,16 +5773,20 @@ body.modal-open{overflow:hidden}
   flex:1 1 auto;min-width:0;padding:9px 2px 9px 13px;
   font-size:15px;color:var(--muted);text-decoration:none;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  transition:color var(--accent-ease);
+  opacity:.7;
+  transition:color var(--accent-ease),opacity .18s ease;
 }
+.music-linkcell:hover .music-link{opacity:1}
 .music-link:hover{color:var(--accent);text-decoration:underline}
 .music-link:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:9px}
 .music-copy{
   flex:0 0 auto;width:34px;height:34px;margin-right:3px;
   display:grid;place-items:center;padding:0;cursor:pointer;
   border:0;border-radius:8px;background:none;color:var(--muted);
-  transition:color var(--accent-ease),background .18s ease;
+  opacity:0;
+  transition:color var(--accent-ease),background .18s ease,opacity .18s ease;
 }
+.music-row:hover .music-copy,.music-copy:focus-visible{opacity:1}
 .music-copy .icon{width:19px;height:19px}
 .music-copy:hover{background:rgba(255,255,255,.09);color:var(--accent)}
 .music-copy:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
