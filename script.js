@@ -7458,11 +7458,11 @@ const MediaBus = (() => {
   };
   const myVol = $('musicRemoteVol'), art = $('musicRemoteArt'), artImg = $('musicRemoteThumb');
   const tipTitle = $('musicRemoteTipTitle'), tipArtist = $('musicRemoteTipArtist');
-  const moveBtn = $('musicRemoteMove');
+  const moveBtnV = $('musicRemoteMoveV'), moveBtnH = $('musicRemoteMoveH');
   /* Every piece or none. A pill missing one button is a pill that lies about
      what it can do, and there is a working bar one tab press away. */
   const parts = [...Object.values(src), ...Object.values(mine),
-                 vol, thumb, nowTitle, nowArtist, myVol, art, artImg, tipTitle, tipArtist, moveBtn];
+                 vol, thumb, nowTitle, nowArtist, myVol, art, artImg, tipTitle, tipArtist, moveBtnV, moveBtnH];
   if (parts.some(el => !el)) return;
 
   /* ---- the fold and the corner ---------------------------------------- */
@@ -7488,20 +7488,38 @@ const MediaBus = (() => {
      values it can be are honoured, so a hand-edited key cannot leave the pill
      somewhere the button can never move it back from; the same rule the loop
      key follows for the same reason. */
-  const SIDE_KEY = 'music-remote-side';
-  const setSide = (side, persist) => {
-    const bottom = side === 'bottom';
-    pill.classList.toggle('at-bottom', bottom);
-    moveBtn.setAttribute('aria-label', bottom ? 'Move the player to the top' : 'Move the player to the bottom');
+  /* Four corners: at-tl, at-tr, at-bl, at-br. Two chevrons always show —
+     vertical moves top<->bottom, horizontal moves left<->right. */
+  const CORNER_KEY = 'music-remote-corner';
+  const CORNERS = ['at-tr', 'at-br', 'at-bl', 'at-tl']; // clockwise from top-right
+  const setCorner = (corner, persist) => {
+    for (const c of CORNERS) pill.classList.toggle(c, c === corner);
+    const isTop = corner === 'at-tl' || corner === 'at-tr';
+    const isLeft = corner === 'at-tl' || corner === 'at-bl';
+    moveBtnV.setAttribute('aria-label', isTop ? 'Move the player to the bottom' : 'Move the player to the top');
+    moveBtnH.setAttribute('aria-label', isLeft ? 'Move the player to the right' : 'Move the player to the left');
     if (!persist) return;
-    try { localStorage.setItem(SIDE_KEY, bottom ? 'bottom' : 'top'); }
+    try { localStorage.setItem(CORNER_KEY, corner); }
     catch { /* private mode — it still moves, it just will not be remembered */ }
   };
-  let storedSide = null;
-  try { storedSide = localStorage.getItem(SIDE_KEY); } catch { /* private mode */ }
-  setSide(storedSide === 'bottom' ? 'bottom' : 'top', false);
-  moveBtn.addEventListener('click', () =>
-    setSide(pill.classList.contains('at-bottom') ? 'top' : 'bottom', true));
+  const getCorner = () => CORNERS.find(c => pill.classList.contains(c)) || 'at-tr';
+  let storedCorner = null;
+  try { storedCorner = localStorage.getItem(CORNER_KEY); } catch { /* private mode */ }
+  setCorner(CORNERS.includes(storedCorner) ? storedCorner : 'at-tr', false);
+  moveBtnV.addEventListener('click', () => {
+    const cur = getCorner();
+    // Toggle top<->bottom, keep left/right: tl<->bl, tr<->br
+    const v = cur === 'at-tl' ? 'at-bl' : cur === 'at-bl' ? 'at-tl' :
+              cur === 'at-tr' ? 'at-br' : 'at-tr';
+    setCorner(v, true);
+  });
+  moveBtnH.addEventListener('click', () => {
+    const cur = getCorner();
+    // Toggle left<->right, keep top/bottom
+    const h = cur === 'at-tl' ? 'at-tr' : cur === 'at-tr' ? 'at-tl' :
+              cur === 'at-bl' ? 'at-br' : 'at-bl';
+    setCorner(h, true);
+  });
 
   for (const name of Object.keys(mine)) {
     mine[name].addEventListener('click', () => src[name].click());
