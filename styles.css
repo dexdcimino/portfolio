@@ -5772,6 +5772,8 @@ body.modal-open{overflow:hidden}
   border-bottom:1px solid rgba(255,255,255,.045);
 }
 .music-row:hover{background:rgba(255,255,255,.045)}
+/* The title/artist area is clickable to play — show the pointer. */
+.music-meta{cursor:pointer}
 /* Loud on purpose. With shuffle on, the track that starts is one of 311 rows
    and the reader has to be able to find it at a glance — a hover-weight tint
    was not enough to pick out while scrolling past. */
@@ -5827,13 +5829,14 @@ body.modal-open{overflow:hidden}
    around the pair is for — the button is the far end of the link, not a
    control that happens to sit next to it. */
 .music-linkcell{
-  display:flex;align-items:center;gap:5px;min-width:0;
+  display:flex;align-items:center;gap:2px;min-width:0;
   border:1px solid var(--line);border-radius:10px;background:#12141c;
   transition:border-color var(--accent-ease);
+  justify-content:flex-start;
 }
 .music-linkcell:hover{border-color:rgba(255,255,255,.22)}
 .music-link{
-  flex:1 1 auto;min-width:0;padding:9px 2px 9px 13px;
+  flex:0 0 auto;width:180px;min-width:0;padding:9px 2px 9px 13px;
   font-size:15px;color:var(--muted);text-decoration:none;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   opacity:.7;
