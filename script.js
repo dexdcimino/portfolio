@@ -7324,6 +7324,15 @@ const MediaBus = (() => {
     /* MUSIC is the read-only door, whatever was open before it: typing MUSIC
        after TUNES in the same tab is asking for the listener's view. */
     if (admin) { setAdmin(false); if (loaded) render(); }
+    // If another modal is open, don't close it. The pill is the music interface
+    // there (Dex, 2026-10-05) — typing music in Notes/Work/etc keeps you there.
+    const otherOpen = [...document.querySelectorAll('dialog[open]')].some(d =>
+      d !== modal && !d.classList.contains('is-docked') && !d.classList.contains('is-hidden-bar'));
+    if (otherOpen) {
+      // Ensure the pill is showing (it's the controller in the other modal).
+      if (window.dexMusicPill) window.dexMusicPill.refresh();
+      return;
+    }
     // Docked or hidden-bar counts as closed: the code should put the list back.
     // Hidden-bar means the pill is showing; opening the modal takes over from it.
     const hiddenBar = modal.classList.contains('is-hidden-bar');
