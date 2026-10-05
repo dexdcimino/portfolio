@@ -5464,6 +5464,8 @@ body.modal-open{overflow:hidden}
   transition:color var(--accent-ease),border-color var(--accent-ease);
 }
 .notes-close svg{width:19px;height:19px}
+/* Bulletproof notes lock positioning - matches music exactly */
+.notes-shell .ov-lock{position:absolute !important;top:14px !important;right:60px !important;left:auto !important;bottom:auto !important;transform:none !important;}
 .notes-close:hover{color:var(--accent);border-color:var(--accent)}
 .notes-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
