@@ -6831,19 +6831,14 @@ const MediaBus = (() => {
      positioned by ordinary CSS — and close()+show() never takes the iframe out
      of the document, so the audio does not even blink. */
   function redock() {
-    modal.classList.add('is-docked');
-    modal.show();
-    if (expandBtn) expandBtn.hidden = false;
-    // A non-modal dialog is not an overlay: give the page its scroll back.
+    // The pill is the only controller now (Dex, 2026-10-05). No docked bar —
+    // just close the modal and let the pill take over.
+    modal.classList.remove('is-docked');
+    if (expandBtn) expandBtn.hidden = true;
     document.body.classList.remove('modal-open');
-    /* And let go of focus. The overlay's X goes display:none as this runs, so
-       the browser hands focus to the next focusable thing in the bar — which
-       is the scrub or the volume slider, both <input>. The ` shortcut then
-       refuses to fire, correctly, because something is being typed into, and
-       the reader is left unable to reopen the list with the key that opens
-       everything else. Nothing in a bar whose list just closed should be
-       holding the caret. */
     if (modal.contains(document.activeElement)) document.activeElement.blur();
+    // Show the pill (it's the controller now).
+    if (window.dexMusicPill) window.dexMusicPill.refresh();
   }
 
   /* ---- the live list, and TUNES ------------------------------------------ */
@@ -7599,8 +7594,7 @@ const MediaBus = (() => {
 
   function place() {
     const live = document.documentElement.classList.contains('music-live');
-    const host = live ? hosts.find(d => d.open && !d.classList.contains('is-docked')) : null;
-    if (!host) {
+    if (!live) {
       pill.hidden = true;
       /* Put away expanded, so the next appearance opens showing the transport
          rather than as a circle someone folded twenty minutes ago and has
@@ -7612,7 +7606,14 @@ const MediaBus = (() => {
       if (pill.parentNode !== document.body) document.body.appendChild(pill);
       return;
     }
-    if (pill.parentNode !== host) host.appendChild(pill);
+    // Pill is the only controller: always visible when music is live.
+    // In an overlay, attach to the host; otherwise, float on the body.
+    const host = hosts.find(d => d.open && !d.classList.contains('is-docked'));
+    if (host) {
+      if (pill.parentNode !== host) host.appendChild(pill);
+    } else {
+      if (pill.parentNode !== document.body) document.body.appendChild(pill);
+    }
     pill.hidden = false;
     paint();
   }
@@ -7640,7 +7641,16 @@ const MediaBus = (() => {
   watch.observe(nowTitle, text);
   watch.observe(nowArtist, text);
 
+  const expandBtn = $('musicRemoteExpand');
+  if (expandBtn) {
+    expandBtn.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('music:open', { detail: { opener: expandBtn } }));
+    });
+  }
+
   place();
+  // Expose for the music modal to trigger when it closes (pill takes over).
+  window.dexMusicPill = { refresh: place };
 })();
 
 
