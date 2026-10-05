@@ -5680,6 +5680,8 @@ body.modal-open{overflow:hidden}
   color:var(--accent);
   background:rgba(255,255,255,.05);
 }
+/* The hidden attribute must beat the rail's display:flex, or viewers see it. */
+.music-rail-add[hidden]{display:none}
 /* New playlist form: same width as the rail, compact. Hidden until the
    + Playlist button is clicked — the hidden attribute must beat display:flex. */
 .music-playlist-form{padding:8px 4px;display:flex;flex-direction:column;gap:8px}
@@ -5698,6 +5700,15 @@ body.modal-open{overflow:hidden}
 }
 .music-playlist-form-btns button:hover{
   background:rgba(255,255,255,.07);color:var(--accent);border-color:var(--accent);
+}
+/* OK is the primary action: accent fill with contrast-picked ink. */
+.music-playlist-ok{
+  background:var(--accent)!important;
+  border-color:var(--accent)!important;
+  color:var(--accent-ink,#080a0b)!important;
+}
+.music-playlist-ok:hover{
+  filter:brightness(1.1);
 }
 
 /* position:relative so a row's offsetTop is measured from HERE — showRow()
