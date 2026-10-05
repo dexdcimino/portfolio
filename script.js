@@ -7667,6 +7667,12 @@ const MediaBus = (() => {
       if (window.dexMusic && window.dexMusic.stopAll) window.dexMusic.stopAll();
     });
   }
+  const expandBtn2 = $('musicRemoteExpandBtn');
+  if (expandBtn2) {
+    expandBtn2.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('music:open', { detail: { opener: expandBtn2 } }));
+    });
+  }
 
   place();
   // Expose for the music modal to trigger when it closes (pill takes over).
