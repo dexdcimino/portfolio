@@ -948,9 +948,10 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   } else {
     setStatus(payload.savedAt ? `SAVED ${clock(payload.savedAt)}` : 'NOT SAVED YET', null);
   }
-  // Focus the first body so typing can start.
-  const first = canvas.querySelector('.nt-body');
-  if (first) { first.focus({ preventScroll: true }); caretToEnd(first); }
+  /* Don't autofocus the first body (Dex, 2026-10-05): it steals the tilde
+     key and pops the keyboard on mobile. User taps when ready. */
+  // const first = canvas.querySelector('.nt-body');
+  // if (first) { first.focus({ preventScroll: true }); caretToEnd(first); }
 
   return {
     flush,
