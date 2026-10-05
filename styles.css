@@ -7120,3 +7120,10 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .mode-tag .icon{width:14px;height:14px}
 .mode-tag.is-viewer{color:var(--muted)}
 .mode-tag.is-editor{color:var(--accent) !important;border-color:var(--accent) !important;background:color-mix(in srgb,var(--accent) 12%,#161923) !important}
+
+/* Hidden bar: dialog stays open non-modally so the YouTube iframe keeps
+   playing, but it's invisible. The pill is the controller. */
+.music-modal.is-hidden-bar{
+  position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;
+  opacity:0;pointer-events:none;overflow:hidden;
+}
