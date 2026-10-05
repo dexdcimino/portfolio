@@ -6268,8 +6268,8 @@ const MediaBus = (() => {
 
   /* Delete playlist confirmation: custom modal matching site style. */
   function confirmDeletePlaylist(pl) {
-    // Build modal
-    const overlay = document.createElement('div');
+    // Build modal as a <dialog> so it's in the top layer above the music overlay.
+    const overlay = document.createElement('dialog');
     overlay.className = 'music-confirm-overlay';
     const dialog = document.createElement('div');
     dialog.className = 'music-confirm-dialog';
@@ -6287,9 +6287,11 @@ const MediaBus = (() => {
       </div>`;
     overlay.append(dialog);
     document.body.append(overlay);
-    const close = () => overlay.remove();
+    overlay.showModal();
+    const close = () => overlay.close();
     dialog.querySelector('.music-confirm-cancel').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.addEventListener('close', () => overlay.remove());
     dialog.querySelector('.music-confirm-ok').addEventListener('click', () => {
       customPlaylists = customPlaylists.filter(p => p.id !== pl.id);
       savePlaylists();
@@ -6298,11 +6300,6 @@ const MediaBus = (() => {
       close();
       toast(`Deleted playlist "${pl.name}".`);
     });
-    // Escape closes
-    const onKey = (e) => {
-      if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); }
-    };
-    document.addEventListener('keydown', onKey);
     dialog.querySelector('.music-confirm-cancel').focus();
   }
 
