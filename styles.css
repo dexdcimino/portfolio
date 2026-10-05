@@ -6409,8 +6409,8 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
    nothing on the other side of it. */
 .music-remote{
   position:fixed;z-index:6;top:var(--remote-top,14px);right:14px;
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:8px 7px 7px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:10px 9px 9px;
   /* 3px, up from 1px (Dex, 2026-09-09). It is the only edge this thing has
      against the app underneath it, and a hairline over a dark canvas read as
      a shadow rather than as the boundary of a control. */
@@ -6441,7 +6441,12 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
    in it, which is the same list upside down rather than the same object moved.
    column-reverse and not a second DOM order, so there is one markup and one
    tab order to keep right. */
-.music-remote.at-bottom{top:auto;bottom:14px;flex-direction:column-reverse}
+/* Four corners: top-left, top-right, bottom-left, bottom-right.
+   Two chevrons always show, positioned on the edges that allow movement. */
+.music-remote.at-tl{top:var(--remote-top,14px);left:14px;right:auto}
+.music-remote.at-tr{top:var(--remote-top,14px);right:14px;left:auto}
+.music-remote.at-bl{top:auto;bottom:14px;left:14px;right:auto;flex-direction:column-reverse}
+.music-remote.at-br{top:auto;bottom:14px;right:14px;left:auto;flex-direction:column-reverse}
 
 /* FOLDED: the cover, the edge, and the tab that moves it. Everything else is
    display:none rather than hidden by width, because a 0px flex column still
@@ -6541,24 +6546,48 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
    whole job is being the only one. A bare chevron in the accent is a mark on
    the pill's edge rather than an object beside it. The target stays 26px; only
    the paint went. */
+/* Two chevrons: one for vertical move, one for horizontal. Positioned on
+   the pill's edges based on current corner, pointing in the move direction. */
 .music-remote-move{
-  position:absolute;left:50%;transform:translateX(-50%);
-  width:26px;height:22px;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:0;background:none;color:var(--accent);
+  position:absolute;display:grid;place-items:center;padding:0;cursor:pointer;
+  width:26px;height:22px;border:0;background:none;color:var(--accent);
   transition:color var(--accent-ease),transform .16s cubic-bezier(.22,.61,.36,1),opacity .16s ease;
   opacity:.85;
 }
-.music-remote-move:hover{opacity:1;transform:translateX(-50%) scale(1.2)}
-.music-remote.at-bottom .music-remote-move:hover{transform:translateX(-50%) scale(1.2)}
+.music-remote-move:hover{opacity:1;transform:scale(1.2)}
 .music-remote-move:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 .music-remote-move .icon{width:18px;height:18px}
 @media(prefers-reduced-motion:reduce){.music-remote-move{transition:color var(--accent-ease)}}
-.music-remote:not(.at-bottom) .music-remote-move{top:calc(100% + 1px)}
+/* Vertical chevron: top edge when at bottom, bottom edge when at top */
+.music-remote.at-tl .music-remote-move-v,.music-remote.at-tr .music-remote-move-v{
+  left:50%;transform:translateX(-50%);top:calc(100% + 1px);
+}
+.music-remote.at-tl .music-remote-move-v:hover,.music-remote.at-tr .music-remote-move-v:hover{
+  transform:translateX(-50%) scale(1.2);
+}
+.music-remote.at-bl .music-remote-move-v,.music-remote.at-br .music-remote-move-v{
+  left:50%;transform:translateX(-50%) rotate(180deg);bottom:calc(100% + 1px);
+}
+.music-remote.at-bl .music-remote-move-v:hover,.music-remote.at-br .music-remote-move-v:hover{
+  transform:translateX(-50%) rotate(180deg) scale(1.2);
+}
+/* Horizontal chevron: left edge when at right, right edge when at left */
+.music-remote.at-tr .music-remote-move-h,.music-remote.at-br .music-remote-move-h{
+  top:50%;transform:translateY(-50%) rotate(-90deg);right:calc(100% + 1px);
+}
+.music-remote.at-tr .music-remote-move-h:hover,.music-remote.at-br .music-remote-move-h:hover{
+  transform:translateY(-50%) rotate(-90deg) scale(1.2);
+}
+.music-remote.at-tl .music-remote-move-h,.music-remote.at-bl .music-remote-move-h{
+  top:50%;transform:translateY(-50%) rotate(90deg);left:calc(100% + 1px);
+}
+.music-remote.at-tl .music-remote-move-h:hover,.music-remote.at-bl .music-remote-move-h:hover{
+  transform:translateY(-50%) rotate(90deg) scale(1.2);
+}
 /* The chevron is drawn pointing DOWN, so the top corner needs no rotation and
    the bottom one is a half turn. The mark always points at the corner the
    press will move it to. */
-.music-remote.at-bottom .music-remote-move{bottom:calc(100% + 1px)}
-.music-remote.at-bottom .music-remote-move .icon{transform:rotate(180deg)}
+
 
 /* --- the recording chip -------------------------------------------------
    Shown only while the notes overlay is CLOSED and a dictation session is
