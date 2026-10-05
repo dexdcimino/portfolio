@@ -6875,8 +6875,8 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .code-eyebrow{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted)}
 /* Public code hints above the five boxes: same voice as ENTER CODE,
    but in the accent color so they read as live options. */
-.code-hints{margin:2px 0 0;color:var(--accent);font-size:15px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;text-align:center;transition:color var(--accent-ease)}
-.vault-hints{margin:0 0 14px;width:100%;text-align:center}
+.code-hints{margin:2px 0 0;color:var(--accent);font-size:14px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;text-align:center;transition:color var(--accent-ease)}
+.vault-hints{margin:0 0 6px;width:100%;text-align:center}
 .code-shell .vault-lockbox{display:grid;justify-items:center;gap:10px;position:relative}
 /* HOLDS ITS LINE WHILE IT IS EMPTY. The status is blank at rest and fills in
    on a refusal; without a reserved height the panel would grow by a line the
