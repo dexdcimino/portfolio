@@ -5306,6 +5306,19 @@ const MediaBus = (() => {
   const sortTitle = $('musicSortTitle'), sortArtist = $('musicSortArtist');
   const viewAll = $('musicViewAll'), viewRepeat = $('musicViewRepeat');
   const nAll = $('musicNAll'), nRepeat = $('musicNRepeat');
+  const customListEl = $('musicCustomPlaylists'), addPlaylistBtn = $('musicAddPlaylist');
+  const playlistForm = $('musicPlaylistForm'), playlistName = $('musicPlaylistName');
+  const playlistCancel = $('musicPlaylistCancel');
+  /* Custom playlists: client-side only (localStorage), a first pass. Each is
+     {id, name, tracks:[videoId,...]}. */
+  let customPlaylists = [];
+  try {
+    customPlaylists = JSON.parse(localStorage.getItem('dex-music-playlists') || '[]');
+    if (!Array.isArray(customPlaylists)) customPlaylists = [];
+  } catch { customPlaylists = []; }
+  const savePlaylists = () => {
+    try { localStorage.setItem('dex-music-playlists', JSON.stringify(customPlaylists)); } catch {}
+  };
   const bar = $('musicBar'), frame = $('musicVideo'), screen = $('musicScreen');
   const markEl = $('musicMark'), thumbEl = $('musicThumb');
   const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
@@ -5591,7 +5604,13 @@ const MediaBus = (() => {
 
   function visible() {
     const q = fold(query.trim());
-    let out = view === 'repeat' ? tracks.filter(t => ticked.has(t.v)) : tracks.slice();
+    let out;
+    if (view === 'repeat') out = tracks.filter(t => ticked.has(t.v));
+    else if (view.startsWith('pl:')) {
+      const pl = customPlaylists.find(p => 'pl:' + p.id === view);
+      const ids = new Set(pl ? pl.tracks : []);
+      out = tracks.filter(t => ids.has(t.v));
+    } else out = tracks.slice();
     if (q) out = out.filter(t => fold(t.t).includes(q) || fold(t.a).includes(q));
     /* localeCompare with numeric so "Track 2" sorts before "Track 10", and a
        stable tiebreak on the other field so the order does not shuffle itself
@@ -5678,9 +5697,78 @@ const MediaBus = (() => {
     flagCell.append(flag);
 
     row.append(check, play, meta, cell, flagCell);
-    if (admin) row.append(deleteCell(track));
+    if (admin) {
+      row.append(addToPlaylistCell(track));
+      row.append(deleteCell(track));
+    }
     return row;
   }
+
+  /* Add-to-playlist: a small list button on each row (editor only). Clicking
+     opens a dropdown with REPEAT + custom playlists; picking one adds the
+     song. A first pass — Dex will refine the UX. */
+  let plDropdown = null;
+  function closePlDropdown() {
+    if (plDropdown) { plDropdown.remove(); plDropdown = null; }
+  }
+  function addToPlaylistCell(track) {
+    const cell = document.createElement('span');
+    cell.className = 'music-plcell';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'music-pladd';
+    btn.setAttribute('aria-label', `Add ${track.t} to a playlist`);
+    btn.innerHTML = '<span class="icon" data-icon="list" aria-hidden="true"></span>';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (plDropdown && plDropdown.dataset.v === track.v) { closePlDropdown(); return; }
+      closePlDropdown();
+      plDropdown = document.createElement('div');
+      plDropdown.className = 'music-pl-dropdown';
+      plDropdown.dataset.v = track.v;
+      const addOption = (label, fn) => {
+        const opt = document.createElement('button');
+        opt.type = 'button';
+        opt.textContent = label;
+        opt.addEventListener('click', () => { fn(); closePlDropdown(); });
+        plDropdown.append(opt);
+      };
+      addOption('REPEAT', () => {
+        if (!ticked.has(track.v)) {
+          ticked.add(track.v);
+          edit('tick', { v: track.v, on: true });
+          render();
+        }
+      });
+      for (const pl of customPlaylists) {
+        addOption(pl.name.toUpperCase(), () => {
+          if (!pl.tracks.includes(track.v)) {
+            pl.tracks.push(track.v);
+            savePlaylists();
+            renderCustomPlaylists();
+            toast(`Added to “${pl.name}”.`);
+          } else {
+            toast(`Already in “${pl.name}”.`);
+          }
+        });
+      }
+      if (customPlaylists.length === 0) {
+        const hint = document.createElement('span');
+        hint.className = 'music-pl-hint';
+        hint.textContent = 'No custom playlists yet';
+        plDropdown.append(hint);
+      }
+      document.body.append(plDropdown);
+      const r = btn.getBoundingClientRect();
+      plDropdown.style.top = (r.bottom + 4 + window.scrollY) + 'px';
+      plDropdown.style.left = Math.max(8, r.left + window.scrollX - 40) + 'px';
+    });
+    cell.append(btn);
+    return cell;
+  }
+  document.addEventListener('click', (e) => {
+    if (plDropdown && !plDropdown.contains(e.target)) closePlDropdown();
+  });
 
   function render() {
     const wasPlaying = index >= 0 ? queue[index] : null;
@@ -5695,6 +5783,7 @@ const MediaBus = (() => {
        and losing its place would make Next jump somewhere unrelated. */
     index = wasPlaying ? queue.findIndex(t => t.v === wasPlaying.v) : -1;
 
+    renderCustomPlaylists();
     const none = queue.length === 0;
     emptyEl.hidden = !none;
     if (none) {
@@ -6197,10 +6286,62 @@ const MediaBus = (() => {
     view = next;
     viewAll.setAttribute('aria-pressed', String(next === 'all'));
     viewRepeat.setAttribute('aria-pressed', String(next === 'repeat'));
+    renderCustomPlaylists();
     render();
   };
   viewAll.addEventListener('click', () => setView('all'));
   viewRepeat.addEventListener('click', () => setView('repeat'));
+
+  /* Custom playlist buttons in the rail. */
+  function renderCustomPlaylists() {
+    if (!customListEl) return;
+    customListEl.innerHTML = '';
+    for (const pl of customPlaylists) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('aria-pressed', String(view === 'pl:' + pl.id));
+      const label = document.createElement('span');
+      label.className = 'music-rail-label';
+      label.textContent = pl.name.toUpperCase();
+      const n = document.createElement('span');
+      n.className = 'music-rail-n';
+      n.setAttribute('aria-hidden', 'true');
+      n.textContent = pl.tracks.length;
+      btn.append(label, n);
+      btn.addEventListener('click', () => setView('pl:' + pl.id));
+      customListEl.append(btn);
+    }
+    if (nAll) nAll.textContent = tracks.length;
+    if (nRepeat) nRepeat.textContent = [...ticked].length;
+  }
+
+  /* New playlist form. */
+  function openPlaylistForm() {
+    if (!admin) return;
+    playlistForm.hidden = false;
+    playlistName.value = '';
+    playlistName.focus();
+  }
+  function closePlaylistForm() {
+    if (!playlistForm) return;
+    playlistForm.hidden = true;
+  }
+  addPlaylistBtn?.addEventListener('click', () => {
+    playlistForm.hidden ? openPlaylistForm() : closePlaylistForm();
+  });
+  playlistCancel?.addEventListener('click', closePlaylistForm);
+  playlistForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = playlistName.value.trim();
+    if (!name) return;
+    const id = 'c' + Date.now().toString(36);
+    customPlaylists.push({ id, name, tracks: [] });
+    savePlaylists();
+    closePlaylistForm();
+    renderCustomPlaylists();
+    setView('pl:' + id);
+    toast(`Playlist “${name}” created.`);
+  });
 
   const setSort = (next) => {
     sort = next;
@@ -6725,7 +6866,8 @@ const MediaBus = (() => {
     if (titleEl) titleEl.textContent = 'MUSIC';
     if (addBtn) addBtn.hidden = !admin;
     if (backupsBtn) backupsBtn.hidden = !admin;
-    if (!admin) { closeAdd(); closeBackups(); disarm(); }
+    if (addPlaylistBtn) addPlaylistBtn.hidden = !admin;
+    if (!admin) { closeAdd(); closeBackups(); disarm(); closePlaylistForm(); }
   }
 
   async function unlock(code) {
@@ -6749,7 +6891,6 @@ const MediaBus = (() => {
       setAdmin(true);
       if (window.setModeTag) window.setModeTag('musicModeTag', true);
       if (loaded) render();
-      toast('Editing is on.');
       return true;
     }
     toast(response.status === 503
@@ -6803,7 +6944,7 @@ const MediaBus = (() => {
     btn.setAttribute('aria-label', `Remove ${track.t} from the playlist`);
     btn.innerHTML = '<svg class="music-del-minus" viewBox="0 0 24 24" aria-hidden="true">'
       + '<path d="M6.5 12h11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>'
-      + '<span class="music-del-word">Delete</span>';
+      + '<span class="music-del-word">SURE?</span>';
     cell.append(btn);
     return cell;
   }
@@ -6818,6 +6959,9 @@ const MediaBus = (() => {
     arming = null;
   }
 
+  /* Undo: remembers the last deleted track so Ctrl+Z can bring it back.
+     One song of memory, as requested. */
+  let lastDeleted = null;
   async function onDelete(row, btn) {
     if (!admin) return;
     if (arming !== btn) {
@@ -6835,6 +6979,8 @@ const MediaBus = (() => {
     const gone = tracks.find(t => t.v === row.dataset.v);
     btn.disabled = true;
     row.classList.add('is-leaving');
+    // Remember for undo BEFORE the delete.
+    if (gone) lastDeleted = { v: gone.v, t: gone.t, a: gone.a, u: gone.u };
     const done = await edit('remove', { v: row.dataset.v });
     if (!done || done.error) {
       row.classList.remove('is-leaving', 'is-arming');
@@ -6842,8 +6988,26 @@ const MediaBus = (() => {
       btn.disabled = false;
       return;
     }
-    if (gone) toast(`Removed “${gone.t}”.`);
+    if (gone) toast(`Removed “${gone.t}”. Press Ctrl+Z to undo.`);
   }
+
+  /* Ctrl+Z undo for the last deleted track. Only when the music overlay is
+     open, in editor mode, and not typing in an input. */
+  document.addEventListener('keydown', (e) => {
+    if (!admin || !modal.open) return;
+    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
+    if (e.shiftKey) return; // Ctrl+Shift+Z is redo, not our undo
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+    if (!lastDeleted) return;
+    e.preventDefault();
+    const { v, t, a } = lastDeleted;
+    lastDeleted = null;
+    edit('add', { url: v, t, a }, { quiet: true }).then((data) => {
+      if (data && !data.error) toast(`Restored “${t}”.`);
+      else if (data?.error) toast(`Could not restore: ${data.error}.`);
+    });
+  });
 
   /* ---- plus: paste a link, check what came back, add ---- */
   function openAdd() {
