@@ -3417,7 +3417,8 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
      these; anything else is printed as text. The code does not name the door —
      the sealed text does — so a second code sealed against a different name
      opens a different thing and nothing here changes but this table. */
-  const VIEWS = { snail: document.getElementById('snailModal') };
+  const VIEWS = { snail: document.getElementById('snailModal'),
+                  dash: document.getElementById('dashModal') };
 
   /* Some doors are not a dialog this block should open itself. The notes
      overlay has its own opener -- it checks for a saved session, talks to the
@@ -3703,7 +3704,12 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
          and the lockout clock -- and keeps its height so filling it in does
          not move the boxes. */
       resting: '',
-      verify: tryCode,
+      verify: async (secret) => {
+        /* Plain keyword: `work` opens the Mission Control dashboard overlay.
+           Everything else goes through the vault as before. */
+        if (secret.trim().toLowerCase() === 'work') return { ok: true, payload: 'show:dash' };
+        return tryCode(secret);
+      },
       onPass(payload, secret) {
         if (codeLabel) codeLabel.textContent = 'OPEN';
         if (codeLock) codeLock.dataset.icon = 'lock-open';
@@ -3766,6 +3772,8 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   }
   document.getElementById('snailClose')?.addEventListener('click',
     () => closeModal(VIEWS.snail));
+  document.getElementById('dashClose')?.addEventListener('click',
+    () => closeModal(VIEWS.dash));
   document.getElementById('snailOk')?.addEventListener('click',
     () => closeModal(VIEWS.snail));
 
