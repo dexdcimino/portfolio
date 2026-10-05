@@ -6443,10 +6443,18 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
    tab order to keep right. */
 /* Four corners: top-left, top-right, bottom-left, bottom-right.
    Two chevrons always show, positioned on the edges that allow movement. */
-.music-remote.at-tl{top:var(--remote-top,14px);left:14px;right:auto}
-.music-remote.at-tr{top:var(--remote-top,14px);right:14px;left:auto}
-.music-remote.at-bl{top:auto;bottom:14px;left:14px;right:auto;flex-direction:column-reverse}
+.music-remote.at-tl{top:14px;left:calc(var(--sidebar) + 14px);right:auto}
+.music-remote.at-tr{top:14px;right:14px;left:auto}
+.music-remote.at-bl{top:auto;bottom:14px;left:calc(var(--sidebar) + 14px);right:auto;flex-direction:column-reverse}
 .music-remote.at-br{top:auto;bottom:14px;right:14px;left:auto;flex-direction:column-reverse}
+/* Pill stays outside the sidebar and shifts when it expands on hover. */
+.music-remote.at-tl,.music-remote.at-bl{
+  transition:left var(--sidebar-transition-duration) var(--sidebar-transition-ease);
+}
+body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-tl,
+body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
+  left:calc(var(--sidebar-open) + 14px);
+}
 /* When reversed, next/prev swap. Swap them back so next stays above play.
    With column-reverse, higher order = top. */
 .music-remote.at-bl #musicRemoteLoop,.music-remote.at-br #musicRemoteLoop{order:5}
