@@ -2496,6 +2496,27 @@ if (workModal) {
   if (shell && frameLock) shell.appendChild(frameLock);
   if (shell && frameClose) shell.appendChild(frameClose);
 
+  /* Show buttons only after layout is stable. Prevents flash of mispositioned
+     buttons when the modal first opens. */
+  const notesModal = document.getElementById('notesModal');
+  if (notesModal) {
+    notesModal.addEventListener('transitionend', () => {
+      requestAnimationFrame(() => notesModal.classList.add('layout-ready'));
+    });
+    // Fallback: if no transition, add after open
+    new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.attributeName === 'open' && notesModal.hasAttribute('open')) {
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            notesModal.classList.add('layout-ready');
+          }));
+        } else if (m.attributeName === 'open' && !notesModal.hasAttribute('open')) {
+          notesModal.classList.remove('layout-ready');
+        }
+      }
+    }).observe(notesModal, { attributes: true });
+  }
+
   /* When the Notes app loads, move the lock INTO its header (nt-header-right)
      so it's in the flex layout, evenly spaced with info and X.
      Insert AFTER info, BEFORE theme: order should be info, lock, theme, close. */
