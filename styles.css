@@ -778,6 +778,15 @@ button.button{cursor:pointer;font-family:inherit}
    hide-above-the-paddle rule is a game rule, not a site rule.
    ========================================================================== */
 html.dex-cursor{cursor:var(--dex-cursor-arrow,auto)}
+/* Scrollbars must not revert to the OS cursor. The browser renders scrollbar
+   parts outside the element's cursor inheritance, so set it explicitly on
+   every scrollbar pseudo-element. Covers work, music, notes, and the page. */
+html.dex-cursor ::-webkit-scrollbar,
+html.dex-cursor ::-webkit-scrollbar-thumb,
+html.dex-cursor ::-webkit-scrollbar-track,
+html.dex-cursor ::-webkit-scrollbar-button{
+  cursor:var(--dex-cursor-arrow,auto);
+}
 /* Everything clickable takes the pointing hand. The :is list carries every
    element family the stylesheet gives cursor:pointer, plus .ai-card — the
    one clickable div. Specificity here (0,2,1) outranks every plain
