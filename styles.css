@@ -5832,12 +5832,12 @@ body.modal-open{overflow:hidden}
   display:flex;align-items:center;gap:2px;min-width:0;
   border:1px solid var(--line);border-radius:10px;background:#12141c;
   transition:border-color var(--accent-ease);
-  justify-content:flex-start;
+  justify-content:flex-end;
 }
 .music-linkcell:hover{border-color:rgba(255,255,255,.22)}
 .music-link{
-  flex:0 0 auto;width:180px;min-width:0;padding:9px 2px 9px 13px;
-  font-size:15px;color:var(--muted);text-decoration:none;
+  flex:0 0 auto;width:220px;min-width:0;padding:9px 2px 9px 13px;
+  font-size:15px;color:var(--muted);text-decoration:none;text-align:right;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   opacity:.7;
   transition:color var(--accent-ease),opacity .18s ease;
