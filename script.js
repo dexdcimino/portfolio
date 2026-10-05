@@ -4727,15 +4727,9 @@ const MediaBus = (() => {
          overlay: spacebar must toggle music even when the music overlay is
          open (Dex request). */
       const openOverlay = document.querySelector(OVERLAY_OPEN);
-      if (openOverlay && openOverlay.id !== 'musicModal') {
-        console.log('claimant: blocked by overlay', openOverlay.id);
-        return null;
-      }
+      if (openOverlay && openOverlay.id !== 'musicModal') return null;
       const live = players.filter(p => p.onScreen());
-      console.log('claimant: live players', live.length, 'openOverlay', openOverlay ? openOverlay.id : 'none');
-      const found = live.find(p => !p.el.paused) || live.find(p => p.touched()) || null;
-      console.log('claimant: returning', found ? 'player' : 'null');
-      return found;
+      return live.find(p => !p.el.paused) || live.find(p => p.touched()) || null;
     },
 
     /* Who owns the ARROW keys right now, or null for "nobody — leave them
@@ -6306,6 +6300,8 @@ const MediaBus = (() => {
     if (!customListEl) return;
     customListEl.innerHTML = '';
     for (const pl of customPlaylists) {
+      const wrap = document.createElement('div');
+      wrap.className = 'music-rail-pl';
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.setAttribute('aria-pressed', String(view === 'pl:' + pl.id));
@@ -6318,10 +6314,35 @@ const MediaBus = (() => {
       n.textContent = pl.tracks.length;
       btn.append(label, n);
       btn.addEventListener('click', () => setView('pl:' + pl.id));
-      customListEl.append(btn);
+      wrap.append(btn);
+      // Delete X (editor only, custom playlists only — ALL/REPEAT are permanent)
+      if (admin) {
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'music-rail-del';
+        del.setAttribute('aria-label', `Delete playlist ${pl.name}`);
+        del.textContent = '×';
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          confirmDeletePlaylist(pl);
+        });
+        wrap.append(del);
+      }
+      customListEl.append(wrap);
     }
     if (nAll) nAll.textContent = tracks.length;
     if (nRepeat) nRepeat.textContent = [...ticked].length;
+  }
+
+  /* Delete playlist confirmation. */
+  function confirmDeletePlaylist(pl) {
+    const ok = confirm(`Are you sure you want to delete "${pl.name}" playlist?`);
+    if (!ok) return;
+    customPlaylists = customPlaylists.filter(p => p.id !== pl.id);
+    savePlaylists();
+    if (view === 'pl:' + pl.id) setView('all');
+    else renderCustomPlaylists();
+    toast(`Deleted playlist “${pl.name}”.`);
   }
 
   /* New playlist form. */
@@ -6336,9 +6357,13 @@ const MediaBus = (() => {
     playlistForm.hidden = true;
   }
   addPlaylistBtn?.addEventListener('click', () => {
-    playlistForm.hidden ? openPlaylistForm() : closePlaylistForm();
+    addPlaylistBtn.hidden = true;
+    openPlaylistForm();
   });
-  playlistCancel?.addEventListener('click', closePlaylistForm);
+  playlistCancel?.addEventListener('click', () => {
+    closePlaylistForm();
+    if (admin) addPlaylistBtn.hidden = false;
+  });
   playlistForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const name = playlistName.value.trim();
@@ -6347,6 +6372,7 @@ const MediaBus = (() => {
     customPlaylists.push({ id, name, tracks: [] });
     savePlaylists();
     closePlaylistForm();
+    if (admin) addPlaylistBtn.hidden = false;
     renderCustomPlaylists();
     setView('pl:' + id);
     toast(`Playlist “${name}” created.`);
