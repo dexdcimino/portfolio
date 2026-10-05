@@ -3743,6 +3743,16 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
 
     document.getElementById('codeClose')?.addEventListener('click',
       () => closeModal(codeModal));
+    /* Overlay lock buttons ([lock][x] chrome): open the tilde keypad stacked
+       over the open overlay, exactly as if the user had pressed `. The
+       editor-upgrade step (the universal code unlocking the overlay beneath)
+       is phase 2. */
+    document.querySelectorAll('[data-ovlock]').forEach((btn)=>{
+      btn.addEventListener('click',()=>{
+        window.dispatchEvent(new KeyboardEvent('keydown',{key:'`'}));
+      });
+    });
+
 
     window.addEventListener('keydown', (event) => {
       if (event.key !== '`' && event.key !== '~') return;
