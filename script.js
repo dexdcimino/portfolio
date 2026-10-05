@@ -3721,10 +3721,30 @@ const codeModal = document.getElementById('codeModal');
       verify: async (secret) => {
         /* Plain keyword: `work` opens the Mission Control dashboard overlay.
            Everything else goes through the vault as before. */
-        if (secret.trim().toLowerCase() === 'work') return { ok: true, payload: 'show:dash' };
+        const normalized = secret.trim().toLowerCase();
+        if (normalized === 'work') return { ok: true, payload: 'show:dash' };
+        /* Phase 2: the universal code upgrades the overlay underneath instead
+           of opening the vault, when there is one. Main page + snail still
+           opens the markdown vault as before. */
+        if (normalized === 'snail') {
+          const overlay = document.querySelector(OVERLAY_OPEN);
+          if (overlay && overlay.id === 'musicModal') {
+            const ok = await window.dexMusic?.unlock('snail');
+            if (ok) return { ok: true, payload: 'upgraded:music' };
+            return { ok: false };
+          }
+          if (overlay) return { ok: true, payload: 'noop:overlay' };
+        }
         return tryCode(secret);
       },
       onPass(payload, secret) {
+        /* Phase 2: an upgrade keeps the overlay underneath as the destination.
+           Close the keypad and stop; the music overlay is already in edit mode,
+           and other overlays have no editor to upgrade to. */
+        if (payload === 'upgraded:music' || payload === 'noop:overlay') {
+          closeModal(codeModal);
+          return;
+        }
         if (codeLabel) codeLabel.textContent = 'OPEN';
         if (codeLock) codeLock.dataset.icon = 'lock-open';
         /* Close FIRST, then open what was asked for. openModal already refuses
@@ -6939,6 +6959,11 @@ const MediaBus = (() => {
     ? Math.min(1, Math.max(0, parsedVolume)) : 0.4;
   lastVolume = startVolume || 0.4;
   applyVolume(startVolume, false);
+
+  /* Phase 2: the universal code (snail) upgrades the music overlay to edit
+     mode from the tilde keypad. Exposed so the keypad can reach it. */
+  window.dexMusic = window.dexMusic || {};
+  window.dexMusic.unlock = unlock;
 
 })();
 
