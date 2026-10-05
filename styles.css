@@ -6060,7 +6060,7 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 /* The close-the-player X, alone in the last column and pushed to the far edge.
    It is the least important control in the bar and is the only one that is not
    in the centred group, which is what says so. */
-.music-tail{display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.music-tail{display:flex;align-items:center;justify-content:flex-end;gap:16px}
 .music-volume{display:flex;align-items:center;gap:8px}
 .music-vol{width:88px}
 /* The mute button is a control, not a transport button: same target, smaller
