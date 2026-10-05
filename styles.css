@@ -6571,7 +6571,7 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
    the pill's edges based on current corner, pointing in the move direction. */
 .music-remote-move{
   position:absolute;display:grid;place-items:center;padding:0;cursor:pointer;
-  width:26px;height:22px;border:0;background:none;color:var(--accent);
+  width:32px;height:28px;border:0;background:none;color:var(--accent);
   transition:color var(--accent-ease),transform .16s cubic-bezier(.22,.61,.36,1),opacity .16s ease;
   opacity:.85;
 }
