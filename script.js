@@ -3884,9 +3884,12 @@ const codeModal = document.getElementById('codeModal');
            of opening the vault, when there is one. Main page + snail still
            opens the markdown vault as before. */
         if (normalized === 'snail') {
-          const overlay = document.querySelector(OVERLAY_OPEN);
-          console.log('snail: overlay found:', overlay ? overlay.id : 'none');
-          if (overlay && overlay.id === 'musicModal') {
+          // Use the stored overlay ID (the keypad itself is now topmost)
+          var overlayId = window._padlockOverlay;
+          var overlay = overlayId ? document.getElementById(overlayId) : document.querySelector(OVERLAY_OPEN);
+          var oid = overlay ? overlay.id : 'none';
+          console.log('snail: overlay found:', oid, '(stored:', overlayId + ')');
+          if (oid === 'musicModal') {
             // Get JWT via DexAuth first, then unlock music with it
             if (!window.DexAuth) {
               console.error('music unlock: DexAuth not available');
@@ -3917,11 +3920,13 @@ const codeModal = document.getElementById('codeModal');
            Just close the keypad. */
         if (payload === 'upgraded:music') {
           closeModal(codeModal);
+          window._padlockOverlay = null;
           return;
         }
         /* Other overlays (work, etc.): unlock via DexAuth and apply. */
         if (payload === 'noop:overlay') {
           closeModal(codeModal);
+          window._padlockOverlay = null;
           (async function() {
             var overlay = document.querySelector(OVERLAY_OPEN);
             var overlayId = overlay ? overlay.id : '';
@@ -3969,8 +3974,14 @@ const codeModal = document.getElementById('codeModal');
        over the open overlay, exactly as if the user had pressed `. The
        editor-upgrade step (the universal code unlocking the overlay beneath)
        is phase 2. */
+    /* Track which overlay's padlock opened the keypad, so verify() knows
+       which overlay to upgrade even though the keypad itself is now the
+       topmost dialog. */
+    window._padlockOverlay = null;
     document.querySelectorAll('[data-ovlock]').forEach((btn)=>{
       btn.addEventListener('click',()=>{
+        var ov = document.querySelector(OVERLAY_OPEN);
+        window._padlockOverlay = ov ? ov.id : null;
         window.dispatchEvent(new KeyboardEvent('keydown',{key:'`'}));
       });
     });
