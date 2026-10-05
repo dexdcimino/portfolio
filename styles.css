@@ -7175,6 +7175,8 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 .mode-tag .icon{width:14px;height:14px}
 .mode-tag.is-viewer{color:var(--muted)}
 .mode-tag.is-editor{color:var(--accent) !important;border-color:var(--accent) !important;background:color-mix(in srgb,var(--accent) 12%,#161923) !important}
+/* Notes mode tag: outside the modal, top-left of screen */
+#notesModeTag{position:fixed;top:14px;left:14px;z-index:100;}
 
 /* Hidden bar: dialog stays open non-modally so the YouTube iframe keeps
    playing, but it's invisible. The pill is the controller. */
