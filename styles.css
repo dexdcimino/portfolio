@@ -6886,3 +6886,17 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .dash-close:hover{color:var(--accent);border-color:var(--accent)}
 .dash-close svg{width:20px;height:20px}
 .dash-iframe{flex:1;border:0;width:100%;min-height:0;background:#0e1110}
+
+/* ============ NORMALIZED OVERLAY CHROME (2026-10-05) ============
+   Every overlay keeps its X and a lock button INSIDE the panel,
+   top-right: [lock][x]. The lock opens the tilde keypad stacked over
+   the open overlay (same as pressing `). The docked music bar loses
+   its accent-colored outline and matches the other shells. */
+.notes-close,.music-close,.sfx-close{left:auto;right:14px;top:14px;margin-left:0;}
+.ov-lock{position:absolute;top:14px;right:60px;z-index:4;width:38px;height:38px;display:grid;place-items:center;padding:0;cursor:pointer;border:1px solid var(--line);border-radius:10px;background:#161923;color:var(--muted);transition:color var(--accent-ease),border-color var(--accent-ease);}
+.ov-lock:hover{color:var(--accent);border-color:var(--accent);}
+.ov-lock svg{width:18px;height:18px;display:block;}
+/* Keep header content clear of the [lock][x] cluster. */
+.music-head,.sfx-head{padding-right:112px;}
+/* Docked music bar: subtle border like every other shell. */
+.music-modal.is-docked .music-shell{border:1px solid var(--line);}
