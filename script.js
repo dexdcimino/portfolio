@@ -9397,13 +9397,15 @@ let openReader = () => {};
     function open(opener) {
       const url = card.dataset.appModal;
       const title = card.dataset.appTitle || 'App';
-      /* Cross-origin apps (Inko) get blocked by the strict sandbox.
-         Same-origin apps (MindSplit) keep the full sandbox. */
+      /* Inko is cross-origin but it's Dex's own trusted app. It needs
+         allow-same-origin for localStorage (sketchpad saves drawings).
+         Without it, the opaque origin blocks storage and the app crashes
+         to a blank page. */
       const isCrossOrigin = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
       if (isCrossOrigin) {
-        // Minimal sandbox for trusted cross-origin apps: scripts only.
-        // No allow-same-origin (opaque origin is safer cross-origin).
-        frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups');
+        // Trusted cross-origin (Inko): full sandbox including same-origin
+        // so localStorage works. It's Dex's app, not untrusted third-party.
+        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
       } else {
         frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
       }
