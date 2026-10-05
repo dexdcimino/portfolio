@@ -6894,6 +6894,9 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .dash-head-min{justify-content:flex-end;padding:10px;border-bottom:0}
 .dash-head .eyebrow{margin:0}
 .dash-chrome{display:flex;flex-direction:row;gap:8px;align-items:center}
+.dash-chrome .ov-lock{position:static;top:auto;right:auto}
+.dash-chrome .dash-close{position:static;top:auto;right:auto}
+.dash-date{color:var(--muted);font-size:14px;margin-right:4px;white-space:nowrap}
 .ov-lock-static{position:static;right:auto;top:auto}
 .dash-close{width:38px;height:38px;display:grid;place-items:center;padding:0;cursor:pointer;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--muted)}
 .dash-close:hover{color:var(--accent);border-color:var(--accent)}
