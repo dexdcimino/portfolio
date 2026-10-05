@@ -5326,7 +5326,7 @@ const MediaBus = (() => {
   const markEl = $('musicMark'), thumbEl = $('musicThumb');
   const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
   const btnPrev = $('musicPrev'), btnToggle = $('musicToggle'), btnNext = $('musicNext');
-  const btnShuffle = $('musicShuffle'), btnLoop = $('musicLoop'), btnStop = $('musicStop');
+  const btnShuffle = $('musicShuffle'), btnLoop = $('musicLoop');
   const btnMute = $('musicMute'), volEl = $('musicVol'), expandBtn = $('musicExpand');
   const scrubEl = $('musicScrub'), elapsedEl = $('musicElapsed'), durationEl = $('musicDuration');
   /* FULL SCREEN. The chrome is inside .music-screen because that is the
@@ -6362,11 +6362,6 @@ const MediaBus = (() => {
      way out of a full-screen overlay is worth having. */
   // The bar's X is the only control that ENDS it: everything else that closes
   // the overlay hands the music to the corner instead.
-  btnStop.addEventListener('click', () => {
-    stopping = true;
-    closeModal(modal);
-  });
-
   function paintShuffle() {
     btnShuffle.setAttribute('aria-pressed', String(shuffle));
     btnShuffle.setAttribute('aria-label', shuffle ? 'Shuffle on' : 'Shuffle off');
