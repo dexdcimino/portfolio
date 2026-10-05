@@ -150,6 +150,19 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(view(await store.write(doc, next)));
     }
 
+    if (action === 'rename') {
+      const newTitle = String(body.t || '').trim().slice(0, 200);
+      if (!newTitle) return res.status(400).json({ error: 'title is required' });
+      let hit = false;
+      const next = doc.tracks.map((t) => {
+        if (t.v !== body.v) return t;
+        hit = true;
+        return { ...t, t: newTitle };
+      });
+      if (!hit) return res.status(404).json({ error: 'that track is not in the playlist' });
+      return res.status(200).json(view(await store.write(doc, next)));
+    }
+
     if (action === 'restore') {
       const tracks = await store.readBackup(body.name);
       if (!tracks || !tracks.length) return res.status(404).json({ error: 'no such backup' });
