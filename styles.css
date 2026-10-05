@@ -6470,7 +6470,8 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
    expanded pill is 1px heavier at the top to sit the cover off the edge. */
 .music-remote.is-folded > :not(.music-remote-head):not(.music-remote-move){display:none}
 
-.music-remote-head{position:relative;flex:0 0 auto}
+.music-remote-head{position:relative;flex:0 0 auto;z-index:2}
+.music-remote-art{position:relative;z-index:3;cursor:pointer}
 /* A CROPPED CIRCLE. YouTube's thumbnail is 16:9 and this is 1:1, so the sides
    go -- which is the right crop for cover art that is usually centred, and the
    only shape that does not read as a second button in a column of buttons. */
