@@ -6456,12 +6456,14 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
   left:calc(var(--sidebar-open) + 14px);
 }
 /* When reversed, next/prev swap. Swap them back so next stays above play.
-   With column-reverse, higher order = top. */
+   With column-reverse, higher order = top. Volume slider stays above mute icon. */
 .music-remote.at-bl #musicRemoteLoop,.music-remote.at-br #musicRemoteLoop{order:5}
 .music-remote.at-bl #musicRemoteNext,.music-remote.at-br #musicRemoteNext{order:4}
 .music-remote.at-bl #musicRemoteToggle,.music-remote.at-br #musicRemoteToggle{order:3}
 .music-remote.at-bl #musicRemotePrev,.music-remote.at-br #musicRemotePrev{order:2}
 .music-remote.at-bl #musicRemoteShuffle,.music-remote.at-br #musicRemoteShuffle{order:1}
+.music-remote.at-bl .music-remote-vol,.music-remote.at-br .music-remote-vol{order:7}
+.music-remote.at-bl #musicRemoteMute,.music-remote.at-br #musicRemoteMute{order:6}
 
 /* FOLDED: the cover, the edge, and the tab that moves it. Everything else is
    display:none rather than hidden by width, because a 0px flex column still
