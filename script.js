@@ -7238,11 +7238,10 @@ const MediaBus = (() => {
     /* Coming back from the corner. The close() is what lets showModal() run —
        a dialog cannot be promoted from non-modal to modal in place — and
        'expand' is what stops the close handler reading it as an ending. */
-    if (modal.open) {
-      modal.close();
-      modal.classList.remove('is-docked');
-      modal.classList.remove('is-hidden-bar');
-    }
+    if (modal.open) modal.close();
+    // Always clean up: the X button can leave is-hidden-bar on a closed modal.
+    modal.classList.remove('is-docked');
+    modal.classList.remove('is-hidden-bar');
     if (expandBtn) expandBtn.hidden = true;
     openModal(modal, modal.querySelector('.music-shell'), null, trigger);
     if (!loaded && !(await fetchTracks())) return;
@@ -7325,8 +7324,10 @@ const MediaBus = (() => {
     /* MUSIC is the read-only door, whatever was open before it: typing MUSIC
        after TUNES in the same tab is asking for the listener's view. */
     if (admin) { setAdmin(false); if (loaded) render(); }
-    // Docked counts as closed for this: the code should put the list back.
-    if (!modal.open || isDockedBar(modal)) open((event.detail || {}).opener);
+    // Docked or hidden-bar counts as closed: the code should put the list back.
+    // Hidden-bar means the pill is showing; opening the modal takes over from it.
+    const hiddenBar = modal.classList.contains('is-hidden-bar');
+    if (!modal.open || isDockedBar(modal) || hiddenBar) open((event.detail || {}).opener);
   });
 
   /* TUNES: the same overlay, then the code is traded for an edit token. It
