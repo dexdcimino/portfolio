@@ -6452,11 +6452,12 @@ const MediaBus = (() => {
      <audio> element would have kept the value across a source change; a player
      in another origin has no idea what the last one was set to. */
   /* Perceptual volume: human hearing is logarithmic, so a linear slider
-     leaves the bottom half too loud. Squaring the value makes 50% feel like
-     half as loud and 10% whisper-quiet. */
+     leaves the bottom half too loud. Cubing the value makes the low end
+     actually quiet: 50% feels like a quarter, 20% is a whisper, 10% is
+     nearly silent. */
   function perceptualVolume(v) {
     const c = Math.max(0, Math.min(1, v));
-    return c * c;
+    return c * c * c;
   }
   function pushVolume() {
     if (!armed) return;
