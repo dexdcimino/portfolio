@@ -5778,7 +5778,7 @@ body.modal-open{overflow:hidden}
 /* The two 40px cells are the square blocks the brief asks for; the link column
    is capped rather than free so a long URL cannot squeeze the title. */
 .music-row{
-  display:grid;grid-template-columns:40px 40px minmax(0,1fr) minmax(0,.85fr) 30px;
+  display:grid;grid-template-columns:40px minmax(0,1fr) minmax(0,.85fr) 30px 34px;
   align-items:center;gap:12px;
   padding:9px 10px;border-radius:11px;
   border-bottom:1px solid rgba(255,255,255,.045);
@@ -5800,7 +5800,7 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
    label association and the tab order, none of which a div reimplements
    correctly on the first try. */
 .music-check{
-  width:27px;height:27px;margin:0 auto;cursor:pointer;
+  width:23px;height:23px;margin:0 auto;cursor:pointer;
   appearance:none;-webkit-appearance:none;
   border:1.5px solid var(--line);border-radius:7px;background:#12141c;
   display:grid;place-items:center;
@@ -5897,7 +5897,7 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 /* --- TUNES: the edit controls ---------------------------------------------
    Only on screen when the server has handed out an edit token (.is-admin on
    the dialog). Through MUSIC the tick is disabled and none of this exists. */
-.music-modal.is-admin .music-row{grid-template-columns:40px 40px minmax(0,1fr) minmax(0,.85fr) 30px 34px}
+.music-modal.is-admin .music-row{grid-template-columns:40px minmax(0,1fr) minmax(0,.85fr) 30px 34px 34px}
 .music-check:disabled{cursor:default}
 .music-check:disabled:not(:checked){opacity:.4}
 .music-delcell{position:relative;display:grid;place-items:center;min-width:0;height:30px}
@@ -6119,8 +6119,8 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
   /* The link column goes: on a phone it can only ever show the first few
      characters of a URL, and the copy button is what it was there for. The
      button moves into the row as its own square cell. */
-  .music-row{grid-template-columns:34px 34px minmax(0,1fr) 34px 24px;gap:8px}
-  .music-modal.is-admin .music-row{grid-template-columns:34px 34px minmax(0,1fr) 34px 24px 30px}
+  .music-row{grid-template-columns:34px minmax(0,1fr) 24px 30px;gap:8px}
+  .music-modal.is-admin .music-row{grid-template-columns:34px minmax(0,1fr) 24px 30px 30px}
   .music-add-found{grid-template-columns:minmax(0,1fr)}
   .music-add-thumb{display:none}
   .music-link{display:none}
