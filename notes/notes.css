@@ -520,7 +520,7 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 /* ---- canvas --------------------------------------------------------------- */
 /* position:relative for the slide layer alone -- see .nt-slide-layer below. */
 .nt-main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; position: relative; }
-.nt-canvas { flex: 1 1 auto; min-width: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--here) 55%, transparent) transparent; outline: none; }
+.nt-canvas { flex: 1 1 auto; min-width: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--here) 55%, transparent) transparent; outline: none; }
 .nt-canvas::-webkit-scrollbar { width: 8px; }
 .nt-canvas::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--here) 55%, transparent); border-radius: 4px; }
 @media (prefers-reduced-motion: reduce) { .nt-canvas { scroll-behavior: auto; } }
