@@ -5721,10 +5721,19 @@ const MediaBus = (() => {
     const none = queue.length === 0;
     emptyEl.hidden = !none;
     if (none) {
-      emptyEl.textContent = query.trim()
-        ? `Nothing matches "${query.trim()}".`
-        : admin ? 'Nothing on repeat yet — tick a track in ALL to add it.'
-        : 'Nothing on the REPEAT playlist.';
+      if (query.trim()) {
+        emptyEl.textContent = `Nothing matches "${query.trim()}".`;
+      } else if (view === 'repeat') {
+        emptyEl.textContent = admin
+          ? 'Nothing on repeat yet — tick a track in ALL to add it.'
+          : 'Nothing on the REPEAT playlist.';
+      } else if (view.startsWith('pl:')) {
+        const pl = customPlaylists.find(p => 'pl:' + p.id === view);
+        const name = pl ? pl.name : 'this';
+        emptyEl.textContent = `Nothing on the ${name} playlist yet.`;
+      } else {
+        emptyEl.textContent = 'No tracks yet.';
+      }
     }
 
     countEl.textContent = `${queue.length} OF ${tracks.length}`;
