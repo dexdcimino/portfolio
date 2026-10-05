@@ -3885,6 +3885,9 @@ const codeModal = document.getElementById('codeModal');
         if (normalized === 'snail') {
           const overlay = document.querySelector(OVERLAY_OPEN);
           if (overlay && overlay.id === 'musicModal') {
+            // Get JWT via DexAuth first, then unlock music with it
+            const authOk = await window.DexAuth?.unlock('snail');
+            if (!authOk) return { ok: false };
             const ok = await window.dexMusic?.unlock('snail');
             if (ok) return { ok: true, payload: 'upgraded:music' };
             return { ok: false };
@@ -6678,7 +6681,7 @@ const MediaBus = (() => {
     admin = !!on && !!token;
     if (!admin) token = null;
     modal.classList.toggle('is-admin', admin);
-    if (titleEl) titleEl.textContent = admin ? 'TUNES' : 'MUSIC';
+    if (titleEl) titleEl.textContent = 'MUSIC';
     if (addBtn) addBtn.hidden = !admin;
     if (backupsBtn) backupsBtn.hidden = !admin;
     if (!admin) { closeAdd(); closeBackups(); disarm(); }
@@ -6705,7 +6708,7 @@ const MediaBus = (() => {
       setAdmin(true);
       if (window.setModeTag) window.setModeTag('musicModeTag', true);
       if (loaded) render();
-      toast('TUNES — editing is on.');
+      toast('Editing is on.');
       return true;
     }
     toast(response.status === 503
@@ -6734,7 +6737,7 @@ const MediaBus = (() => {
     if (response.status === 401) {
       setAdmin(false);
       render();
-      toast('Editing session expired — enter TUNES again.');
+      toast('Editing session expired — enter the code again.');
       return null;
     }
     if (!response.ok) {
