@@ -6408,7 +6408,7 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
    because it is the same transport and learning it twice is a cost with
    nothing on the other side of it. */
 .music-remote{
-  position:fixed;z-index:6;top:var(--remote-top,14px);right:14px;
+  position:fixed;z-index:6;top:14px;right:14px;
   display:flex;flex-direction:column;align-items:center;gap:3px;
   padding:10px 9px 9px;
   /* 3px, up from 1px (Dex, 2026-09-09). It is the only edge this thing has
@@ -6445,8 +6445,8 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
    Two chevrons always show, positioned on the edges that allow movement. */
 .music-remote.at-tl{top:var(--remote-top,14px);left:14px;right:auto}
 .music-remote.at-tr{top:var(--remote-top,14px);right:14px;left:auto}
-.music-remote.at-bl{top:auto;bottom:14px;left:14px;right:auto;flex-direction:column-reverse}
-.music-remote.at-br{top:auto;bottom:14px;right:14px;left:auto;flex-direction:column-reverse}
+.music-remote.at-bl{top:auto;bottom:14px;left:14px;right:auto}
+.music-remote.at-br{top:auto;bottom:14px;right:14px;left:auto}
 
 /* FOLDED: the cover, the edge, and the tab that moves it. Everything else is
    display:none rather than hidden by width, because a 0px flex column still
