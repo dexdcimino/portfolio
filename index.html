@@ -5054,7 +5054,24 @@
     </div>
   </dialog>
 
-  <dialog class="sfx-modal" id="sfxModal" aria-labelledby="sfx-dialog-title">
+    <!-- Mission Control dashboard overlay. Opened by typing `work` in the tilde
+       keypad. View-first; the dashboard's own header lock upgrades to edit. -->
+  <dialog class="dash-modal" id="dashModal" aria-labelledby="dash-dialog-title">
+    <div class="dash-frame">
+      <div class="dash-shell vault-modal-shell">
+        <h2 class="sr-only" id="dash-dialog-title">Mission Control</h2>
+        <div class="dash-head">
+          <p class="eyebrow"><span>MISSION CONTROL</span></p>
+          <button class="dash-close" type="button" id="dashClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <iframe class="dash-iframe" src="https://work.dexcimino.com" title="Mission Control dashboard" loading="lazy"></iframe>
+      </div>
+    </div>
+  </dialog>
+
+<dialog class="sfx-modal" id="sfxModal" aria-labelledby="sfx-dialog-title">
     <div class="sfx-frame">
       <div class="sfx-shell">
         <h2 class="sr-only" id="sfx-dialog-title">Sound library</h2>
