@@ -5803,7 +5803,8 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 .music-check{
   width:23px;height:23px;margin:0 auto;cursor:pointer;
   appearance:none;-webkit-appearance:none;
-  border:1.5px solid rgba(255,255,255,.25);border-radius:7px;background:#08090d;
+  border:1.5px solid rgba(255,255,255,.25);border-radius:7px;
+  background:rgba(0,0,0,.5);
   display:grid;place-items:center;
   transition:border-color var(--accent-ease),background var(--accent-ease);
 }
