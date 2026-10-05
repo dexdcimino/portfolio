@@ -3399,8 +3399,6 @@
         </p>
         <h2 id="vault-title">IDEA VAULT</h2>
       </div>
-      <p class="code-hints vault-hints" aria-hidden="true">music &nbsp;&bull;&nbsp; work &nbsp;&bull;&nbsp; notes</p>
-
       <!-- Five boxes rather than one field: a code is read back one character
            at a time and typed the same way. They are real inputs, one per
            character, so the caret, the keyboard and the tab order are the
@@ -3411,6 +3409,7 @@
            different length is this many <input>s: nothing here or in script.js
            counts them for you. -->
       <div class="vault-lockbox">
+        <p class="code-hints vault-hints" aria-hidden="true">music &nbsp;&bull;&nbsp; work &nbsp;&bull;&nbsp; notes</p>
         <!-- The lockout countdown, over the boxes. Out of flow on a wide screen
              so its arrival does not shove the row down, in flow once the strip
              stacks and there is no room above it to borrow. -->
@@ -5071,8 +5070,7 @@
     <div class="dash-frame">
       <div class="dash-shell vault-modal-shell">
         <h2 class="sr-only" id="dash-dialog-title">Mission Control</h2>
-        <div class="dash-head">
-          <p class="eyebrow"><span>MISSION CONTROL</span></p>
+        <div class="dash-head dash-head-min">
           <div class="dash-chrome">
             <button class="ov-lock ov-lock-static" type="button" data-ovlock aria-label="Open the code keypad">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
