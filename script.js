@@ -7504,7 +7504,7 @@ const MediaBus = (() => {
   const getCorner = () => CORNERS.find(c => pill.classList.contains(c)) || 'at-tr';
   let storedCorner = null;
   try { storedCorner = localStorage.getItem(CORNER_KEY); } catch { /* private mode */ }
-  setCorner(CORNERS.includes(storedCorner) ? storedCorner : 'at-tr', false);
+  setCorner(CORNERS.includes(storedCorner) ? storedCorner : 'at-br', false);
   moveBtnV.addEventListener('click', () => {
     const cur = getCorner();
     // Toggle top<->bottom, keep left/right: tl<->bl, tr<->br
