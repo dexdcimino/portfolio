@@ -7660,20 +7660,6 @@ const MediaBus = (() => {
   watch.observe(nowTitle, text);
   watch.observe(nowArtist, text);
 
-  const expandBtn = $('musicRemoteExpand');
-  if (expandBtn) {
-    expandBtn.addEventListener('click', () => {
-      document.dispatchEvent(new CustomEvent('music:open', { detail: { opener: expandBtn } }));
-    });
-  }
-  const fullBtn = $('musicRemoteFull');
-  if (fullBtn) {
-    fullBtn.addEventListener('click', () => {
-      // Trigger the square bar's fullscreen button (hidden but in DOM).
-      const realFull = document.getElementById('musicFull');
-      if (realFull) realFull.click();
-    });
-  }
   const closeBtn = $('musicRemoteClose');
   if (closeBtn) {
     closeBtn.addEventListener('click', () => {
