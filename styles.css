@@ -6895,7 +6895,7 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .dash-modal[open]{display:grid;place-items:center;overflow:visible}
 .dash-modal::backdrop{background:rgba(3,5,7,.9);backdrop-filter:blur(6px)}
 .dash-frame{position:relative;display:grid;justify-items:stretch}
-.dash-shell{position:relative;width:min(1480px,94vw);height:min(1000px,92vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:linear-gradient(160deg,#161923,#0d0e15);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.dash-shell{position:relative;width:min(1480px,94vw);height:min(1000px,92vh);display:flex;flex-direction:column;overflow:hidden;border:0;border-radius:24px;background:linear-gradient(160deg,#161923,#0d0e15);box-shadow:0 30px 80px rgba(0,0,0,.6)}
 .dash-head{display:flex;align-items:center;justify-content:space-between;padding:8px 20px;border-bottom:1px solid var(--line)}
 .dash-title-group{display:flex;align-items:center;gap:14px}
 .dash-head .eyebrow{margin:0;font-size:22px}
