@@ -3108,6 +3108,9 @@ let flashTip = () => {};
   window.addEventListener('resize', hide);
 })();
 
+/* Short keywords that auto-submit when typed, regardless of box count */
+const SHORT_KEYWORDS = new Set(['work', 'music', 'notes']);
+
 /* --- keypad ---------------------------------------------------------------
    A row of one-character boxes with a lockout, shared by the Idea Vault and the
    notes overlay. It owns everything about TYPING a code and nothing about what
@@ -3838,7 +3841,6 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
      Escape puts you back where you were and a code replaces the overlay the
      way it always did. */
   /* Short keywords submit the moment they're typed, without Enter. */
-const SHORT_KEYWORDS = new Set(['work']);
 const codeModal = document.getElementById('codeModal');
   const codePins = codeModal ? [...codeModal.querySelectorAll('.vault-pin')] : [];
   if (codeModal && codePins.length) {
