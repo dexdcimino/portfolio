@@ -2487,6 +2487,33 @@ if (workModal) {
     const data = await unlock({ password });
     return !!data;
   };
+
+  /* Move the portfolio's padlock into the Notes app's header (nt-header-right)
+     once the app mounts. Absolute positioning breaks when the app's layout
+     loads; in the flex header it's auto-aligned with info and X. */
+  const moveLockIntoHeader = () => {
+    const lock = document.querySelector('.notes-shell .ov-lock');
+    const headerRight = document.querySelector('#notesEditor .nt-header-right');
+    if (!lock || !headerRight) return;
+    // Insert before the close button (last in header-right)
+    const closeBtn = headerRight.querySelector('.nt-close, [aria-label*="Close" i]');
+    if (closeBtn) headerRight.insertBefore(lock, closeBtn);
+    else headerRight.appendChild(lock);
+    // Reset absolute positioning; let flex handle it
+    lock.style.position = 'static';
+    lock.style.top = 'auto';
+    lock.style.right = 'auto';
+  };
+  // Try after app mounts (MutationObserver on the editor)
+  const editorEl = document.getElementById('notesEditor');
+  if (editorEl) {
+    new MutationObserver((mutations, obs) => {
+      if (editorEl.querySelector('.nt-header-right')) {
+        moveLockIntoHeader();
+        obs.disconnect();
+      }
+    }).observe(editorEl, { childList: true, subtree: true });
+  }
 }
 
 /* The AI Lab's DexNote card opens the notes app as a SANDBOX. It is the one
