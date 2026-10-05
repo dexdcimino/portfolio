@@ -3237,9 +3237,9 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     fadeTimer = setTimeout(fadeAnswer, ANSWER_HOLD);
   }
 
-  async function attempt() {
+  async function attempt(force = false) {
     const secret = code();
-    if (busy || lockedUntil || secret.length !== pins.length) return;
+    if (busy || lockedUntil || !secret.length || (!force && secret.length !== pins.length)) return;
 
     /* Checking is deliberately slow — a key derivation here, a network round
        trip in the notes overlay — so it has to be visible, or a phone taking
@@ -3320,6 +3320,12 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
         pins[i - 1].value = '';
         pins[i - 1].classList.remove('is-set');
         pins[i - 1].focus({ preventScroll: true });
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        /* Explicit submit: filling the last box is still the only AUTO-submit, but
+           Enter submits whatever is typed, so short keywords like `work` can open
+           their door. A short code that matches nothing fails like any wrong one. */
+        if (code().length > 0) requestAnimationFrame(() => attempt(true));
       } else if (event.key === 'ArrowLeft' && i > 0) {
         event.preventDefault(); pins[i - 1].focus({ preventScroll: true });
       } else if (event.key === 'ArrowRight' && i < pins.length - 1) {
