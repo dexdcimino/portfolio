@@ -6588,18 +6588,31 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
 .music-remote.at-bl .music-remote-move-v:hover,.music-remote.at-br .music-remote-move-v:hover{
   transform:translateX(-50%) rotate(180deg) scale(1.2);
 }
-/* Horizontal chevron: left edge when at right (points left), right edge when at left (points right) */
-.music-remote.at-tr .music-remote-move-h,.music-remote.at-br .music-remote-move-h{
-  top:50%;transform:translateY(-50%) rotate(90deg);right:calc(100% + 1px);
+/* Horizontal chevron: centered on the cover circle (38px), not the pill.
+   Cover center is 29px from the pill edge. Stays put when pill expands. */
+.music-remote.at-tr .music-remote-move-h{
+  top:29px;transform:translateY(-50%) rotate(90deg);right:calc(100% + 1px);
 }
-.music-remote.at-tr .music-remote-move-h:hover,.music-remote.at-br .music-remote-move-h:hover{
+.music-remote.at-tr .music-remote-move-h:hover{
   transform:translateY(-50%) rotate(90deg) scale(1.2);
 }
-.music-remote.at-tl .music-remote-move-h,.music-remote.at-bl .music-remote-move-h{
-  top:50%;transform:translateY(-50%) rotate(-90deg);left:calc(100% + 1px);
+.music-remote.at-br .music-remote-move-h{
+  bottom:28px;transform:translateY(50%) rotate(90deg);right:calc(100% + 1px);
 }
-.music-remote.at-tl .music-remote-move-h:hover,.music-remote.at-bl .music-remote-move-h:hover{
+.music-remote.at-br .music-remote-move-h:hover{
+  transform:translateY(50%) rotate(90deg) scale(1.2);
+}
+.music-remote.at-tl .music-remote-move-h{
+  top:29px;transform:translateY(-50%) rotate(-90deg);left:calc(100% + 1px);
+}
+.music-remote.at-tl .music-remote-move-h:hover{
   transform:translateY(-50%) rotate(-90deg) scale(1.2);
+}
+.music-remote.at-bl .music-remote-move-h{
+  bottom:28px;transform:translateY(50%) rotate(-90deg);left:calc(100% + 1px);
+}
+.music-remote.at-bl .music-remote-move-h:hover{
+  transform:translateY(50%) rotate(-90deg) scale(1.2);
 }
 /* The chevron is drawn pointing DOWN, so the top corner needs no rotation and
    the bottom one is a half turn. The mark always points at the corner the
