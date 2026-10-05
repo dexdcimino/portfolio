@@ -2488,29 +2488,13 @@ if (workModal) {
     return !!data;
   };
 
-  /* Position the portfolio's padlock to align with the Notes app's header
-     buttons. The app renders its own header (52px tall); we measure the info
-     button's position and place the lock to match. This runs after the app
-     mounts and on every modal open. */
-  const alignNotesLock = () => {
-    const lock = document.querySelector('.notes-frame > .ov-lock');
-    const infoBtn = document.querySelector('#notesEditor .nt-info');
-    if (!lock || !infoBtn) return;
-    const infoRect = infoBtn.getBoundingClientRect();
-    const frameRect = document.querySelector('.notes-frame').getBoundingClientRect();
-    // Position lock at same vertical center as info button, 60px from right
-    const top = infoRect.top - frameRect.top + (infoRect.height - 38) / 2;
-    lock.style.top = `${top}px`;
-    lock.style.right = '60px';
-  };
-  // Align after app mounts and on modal open
-  const editorEl2 = document.getElementById('notesEditor');
-  if (editorEl2) {
-    new MutationObserver(() => {
-      if (editorEl2.querySelector('.nt-header-right')) alignNotesLock();
-    }).observe(editorEl2, { childList: true, subtree: true });
-  }
-  document.getElementById('notesModal')?.addEventListener('transitionend', alignNotesLock);
+  /* Move portfolio buttons INTO the shell so they're positioned relative
+     to it (stable), not the frame (shifts when app loads). */
+  const shell = document.querySelector('.notes-shell');
+  const frameLock = document.querySelector('.notes-frame > .ov-lock');
+  const frameClose = document.querySelector('.notes-frame > .notes-close');
+  if (shell && frameLock) shell.appendChild(frameLock);
+  if (shell && frameClose) shell.appendChild(frameClose);
 }
 
 /* The AI Lab's DexNote card opens the notes app as a SANDBOX. It is the one
