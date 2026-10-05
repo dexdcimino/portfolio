@@ -5663,12 +5663,12 @@ body.modal-open{overflow:hidden}
 }
 .music-rail-pl .music-rail-n{margin-left:auto}
 .music-rail .music-rail-del{
-  position:absolute;right:-22px;top:50%;transform:translateY(-50%) translateX(6px);
-  width:22px;height:22px;min-width:22px;display:grid;place-items:center;padding:0;
+  position:absolute;right:-32px;top:50%;transform:translateY(-50%) translateX(6px);
+  width:28px;height:28px;min-width:28px;display:grid;place-items:center;padding:0;
   border:1px solid var(--line);border-radius:50%;background:#1a1d26;
   color:var(--muted);cursor:pointer;
   opacity:0;transition:opacity .15s ease,transform .15s ease,color .15s ease;
-  font-size:13px;font-weight:700;line-height:1;z-index:5;
+  font-size:16px;font-weight:700;line-height:1;z-index:5;
 }
 .music-rail-pl:hover .music-rail-del{opacity:1;transform:translateY(-50%) translateX(0)}
 .music-rail .music-rail-del:hover{color:#ff8a8a;border-color:#ff8a8a;background:rgba(255,92,92,.14)}
