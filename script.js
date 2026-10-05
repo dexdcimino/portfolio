@@ -2201,6 +2201,10 @@ if (workModal) {
     });
 
     async function unlock(body) {
+      /* Include universal JWT if available (DexAuth) */
+      if (window.DexAuth && window.DexAuth.isUnlocked()) {
+        body = { ...body, jwt: window.DexAuth.getToken() };
+      }
       const response = await fetch('/api/notes/unlock', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
