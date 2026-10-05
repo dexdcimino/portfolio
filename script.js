@@ -6831,9 +6831,12 @@ const MediaBus = (() => {
      positioned by ordinary CSS — and close()+show() never takes the iframe out
      of the document, so the audio does not even blink. */
   function redock() {
-    // The pill is the only controller now (Dex, 2026-10-05). No docked bar —
-    // just close the modal and let the pill take over.
+    // The pill is the controller outside the modal (Dex, 2026-10-05). The
+    // dialog stays open non-modally (hidden) so the YouTube iframe keeps
+    // playing — a closed dialog hides its content and YouTube pauses.
     modal.classList.remove('is-docked');
+    modal.classList.add('is-hidden-bar');
+    modal.show();
     if (expandBtn) expandBtn.hidden = true;
     document.body.classList.remove('modal-open');
     if (modal.contains(document.activeElement)) document.activeElement.blur();
@@ -7235,9 +7238,10 @@ const MediaBus = (() => {
     /* Coming back from the corner. The close() is what lets showModal() run —
        a dialog cannot be promoted from non-modal to modal in place — and
        'expand' is what stops the close handler reading it as an ending. */
-    if (modal.open && isDockedBar(modal)) {
+    if (modal.open) {
       modal.close();
       modal.classList.remove('is-docked');
+      modal.classList.remove('is-hidden-bar');
     }
     if (expandBtn) expandBtn.hidden = true;
     openModal(modal, modal.querySelector('.music-shell'), null, trigger);
