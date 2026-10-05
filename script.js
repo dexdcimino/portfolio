@@ -3570,8 +3570,17 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   const viewOf = (payload) =>
     payload.startsWith('show:') ? VIEWS[payload.slice(5).trim()] : null;
 
-  const show = (dialog, opener) =>
+  const show = (dialog, opener) => {
+    /* Populate the work overlay date */
+    if (dialog && dialog.id === 'dashModal') {
+      var dd = dialog.querySelector('#dashDate');
+      if (dd) {
+        var now = new Date();
+        dd.textContent = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'});
+      }
+    }
     openModal(dialog, dialog.querySelector('.vault-modal-shell'), null, opener);
+  };
 
   /* How long YEP! stays before the section puts itself back. Long enough to
      have been read, short enough that nobody comes back to a stale answer. */
@@ -3748,6 +3757,13 @@ const codeModal = document.getElementById('codeModal');
            and other overlays have no editor to upgrade to. */
         if (payload === 'upgraded:music' || payload === 'noop:overlay') {
           closeModal(codeModal);
+          /* If the work overlay is open, unlock its edit mode via postMessage */
+          var dashFrame = document.getElementById('dashFrame');
+          if (dashFrame && dashFrame.contentWindow) {
+            try {
+              dashFrame.contentWindow.postMessage({type:'dex-unlock',code:'snail'}, 'https://work-kohl-kappa.vercel.app');
+            } catch(e){}
+          }
           return;
         }
         if (codeLabel) codeLabel.textContent = 'OPEN';
