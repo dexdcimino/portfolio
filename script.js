@@ -2488,32 +2488,29 @@ if (workModal) {
     return !!data;
   };
 
-  /* Move the portfolio's padlock into the Notes app's header (nt-header-right)
-     once the app mounts. Absolute positioning breaks when the app's layout
-     loads; in the flex header it's auto-aligned with info and X. */
-  const moveLockIntoHeader = () => {
-    const lock = document.querySelector('.notes-shell .ov-lock');
-    const headerRight = document.querySelector('#notesEditor .nt-header-right');
-    if (!lock || !headerRight) return;
-    // Insert before the close button (last in header-right)
-    const closeBtn = headerRight.querySelector('.nt-close, [aria-label*="Close" i]');
-    if (closeBtn) headerRight.insertBefore(lock, closeBtn);
-    else headerRight.appendChild(lock);
-    // Reset absolute positioning; let flex handle it
-    lock.style.position = 'static';
-    lock.style.top = 'auto';
-    lock.style.right = 'auto';
+  /* Position the portfolio's padlock to align with the Notes app's header
+     buttons. The app renders its own header (52px tall); we measure the info
+     button's position and place the lock to match. This runs after the app
+     mounts and on every modal open. */
+  const alignNotesLock = () => {
+    const lock = document.querySelector('.notes-frame > .ov-lock');
+    const infoBtn = document.querySelector('#notesEditor .nt-info');
+    if (!lock || !infoBtn) return;
+    const infoRect = infoBtn.getBoundingClientRect();
+    const frameRect = document.querySelector('.notes-frame').getBoundingClientRect();
+    // Position lock at same vertical center as info button, 60px from right
+    const top = infoRect.top - frameRect.top + (infoRect.height - 38) / 2;
+    lock.style.top = `${top}px`;
+    lock.style.right = '60px';
   };
-  // Try after app mounts (MutationObserver on the editor)
-  const editorEl = document.getElementById('notesEditor');
-  if (editorEl) {
-    new MutationObserver((mutations, obs) => {
-      if (editorEl.querySelector('.nt-header-right')) {
-        moveLockIntoHeader();
-        obs.disconnect();
-      }
-    }).observe(editorEl, { childList: true, subtree: true });
+  // Align after app mounts and on modal open
+  const editorEl2 = document.getElementById('notesEditor');
+  if (editorEl2) {
+    new MutationObserver(() => {
+      if (editorEl2.querySelector('.nt-header-right')) alignNotesLock();
+    }).observe(editorEl2, { childList: true, subtree: true });
   }
+  document.getElementById('notesModal')?.addEventListener('transitionend', alignNotesLock);
 }
 
 /* The AI Lab's DexNote card opens the notes app as a SANDBOX. It is the one
