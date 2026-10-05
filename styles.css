@@ -7333,8 +7333,12 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
   }
 }
 
-/* Fallback: if the lock is still in .notes-frame (app wiped the shell),
-   show it at the top-right. (Dex, 2026-10-05) */
+/* Notes lock/X: permanently in .notes-frame, positioned to look like they're
+   in the app header. JS moves are disabled (app deletes moved elements).
+   Order (right to left): X at 14px, lock at 58px (38px wide + 6px gap). */
+.notes-frame {
+  position: relative;
+}
 .notes-frame > .ov-lock {
   position: absolute !important;
   top: 7px !important;
@@ -7346,7 +7350,24 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
   place-items: center !important;
   visibility: visible !important;
   opacity: 1 !important;
+  /* Match the header button styling */
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  background: #161923 !important;
+  color: var(--muted) !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
-.notes-frame {
-  position: relative;
+.notes-frame > .notes-close {
+  position: absolute !important;
+  top: 7px !important;
+  right: 14px !important;
+  z-index: 10 !important;
+  width: 38px !important;
+  height: 38px !important;
+  display: grid !important;
+  place-items: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
