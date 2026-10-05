@@ -7393,6 +7393,12 @@ const MediaBus = (() => {
      mode from the tilde keypad. Exposed so the keypad can reach it. */
   window.dexMusic = window.dexMusic || {};
   window.dexMusic.unlock = unlock;
+  // Exposed for the pill's X button (stops music and hides pill).
+  window.dexMusic.stopAll = () => {
+    stopping = true;
+    if (modal.open) closeModal(modal);
+    else { stop(); stopSync(); }
+  };
 
 })();
 
@@ -7461,7 +7467,7 @@ const MediaBus = (() => {
   /* Every piece or none. A pill missing one button is a pill that lies about
      what it can do, and there is a working bar one tab press away. */
   const parts = [...Object.values(src), ...Object.values(mine),
-                 vol, thumb, nowTitle, nowArtist, myVol, art, artImg, tipTitle, tipArtist, moveBtnV, moveBtnH];
+                 vol, thumb, nowTitle, nowArtist, myVol, art, artImg, tipTitle, tipArtist, moveBtnV, moveBtnH, expandBtn, fullBtn, closeBtn];
   if (parts.some(el => !el)) return;
 
   /* ---- the fold and the corner ---------------------------------------- */
@@ -7658,6 +7664,20 @@ const MediaBus = (() => {
   if (expandBtn) {
     expandBtn.addEventListener('click', () => {
       document.dispatchEvent(new CustomEvent('music:open', { detail: { opener: expandBtn } }));
+    });
+  }
+  const fullBtn = $('musicRemoteFull');
+  if (fullBtn) {
+    fullBtn.addEventListener('click', () => {
+      // Trigger the square bar's fullscreen button (hidden but in DOM).
+      const realFull = document.getElementById('musicFull');
+      if (realFull) realFull.click();
+    });
+  }
+  const closeBtn = $('musicRemoteClose');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      if (window.dexMusic && window.dexMusic.stopAll) window.dexMusic.stopAll();
     });
   }
 
