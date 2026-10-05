@@ -78,21 +78,21 @@ module.exports = async function handler(req, res) {
    */
   /* THREE WAYS IN: password (legacy), session token (legacy), or universal
      JWT from DexAuth. The JWT is preferred for new clients. */
-  let ok = false;
+  let storeId = null;
   if (body && typeof body.jwt === 'string' && body.jwt) {
-    ok = verifyUniversalJWT(body.jwt);
+    if (verifyUniversalJWT(body.jwt)) storeId = 'private';
   } else if (body && typeof body.password === 'string') {
-    ok = await store.passwordOk(body.password);
-  } else {
-    ok = !!(body && store.tokenOk(body.token));
+    storeId = await store.whichStore(body.password);
+  } else if (body && body.token) {
+    storeId = store.tokenOk(body.token);
   }
 
-  if (!ok) {
+  if (!storeId) {
     return res.status(401).json({ error: 'wrong' });
   }
 
   try {
-    const { content, format, rev, savedAt, seeded } = await store.readNotes();
+    const { content, format, rev, savedAt, seeded } = await store.readNotes(storeId);
     return res.status(200).json({
       content,
       format,
@@ -102,7 +102,7 @@ module.exports = async function handler(req, res) {
       // produced.
       savedAt: savedAt || null,
       seeded: !!seeded,
-      token: store.mintToken(),
+      token: store.mintToken(storeId),
     });
   } catch (err) {
     /* Names the failure, because by here the password has ALREADY been checked
