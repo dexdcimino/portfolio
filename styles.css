@@ -5480,14 +5480,16 @@ body.modal-open{overflow:hidden}
    own background so it reads as part of the same object rather than as a
    control floating on the backdrop. */
 .notes-close{
-  position:absolute;top:7px;right:14px;z-index:4;
+  position:absolute;top:7px;right:14px;z-index:4;opacity:0;transition:opacity .25s;
   width:38px;height:38px;display:grid;place-items:center;padding:0;cursor:pointer;
   border:1px solid var(--line);border-radius:10px;background:#161923;color:var(--muted);
   transition:color var(--accent-ease),border-color var(--accent-ease);
 }
 .notes-close svg{width:19px;height:19px}
+.notes-modal[open] .notes-close{opacity:1;}
 /* Bulletproof notes lock positioning - matches music exactly */
-.notes-shell .ov-lock{position:absolute;top:7px;right:58px;z-index:4;width:38px;height:38px;}
+.notes-shell .ov-lock{position:absolute;top:7px;right:58px;z-index:4;width:38px;height:38px;opacity:0;transition:opacity .25s;}
+.notes-modal[open] .notes-shell .ov-lock{opacity:1;}
 /* When moved into the Notes app's header via JS, let flexbox position it. */
 .nt-header-right .ov-lock{position:static;top:auto;right:auto;}
 /* Match info button to lock/X dimensions for even spacing */
