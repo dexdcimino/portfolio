@@ -7162,3 +7162,11 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
   position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;
   opacity:0;pointer-events:none;overflow:hidden;
 }
+
+/* Pill close button: stops music and hides pill. Accent on hover. */
+.music-remote-close{color:var(--muted)}
+.music-remote-close:hover{color:var(--accent);background:rgba(255,255,255,.07)}
+.music-remote-close svg{width:20px;height:20px}
+/* Fullscreen and close at the end (bottom for top positions, top for bottom). */
+.music-remote.at-bl #musicRemoteFull,.music-remote.at-br #musicRemoteFull{order:8}
+.music-remote.at-bl #musicRemoteClose,.music-remote.at-br #musicRemoteClose{order:7}
