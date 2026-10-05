@@ -3327,9 +3327,12 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       // so the character is painted before the boxes lock.
       const cur = code().toLowerCase();
       if (SHORT_KEYWORDS.has(cur) || cur.length === pins.length) {
-        // Keyword or full-length code: submit immediately, no Enter needed.
-        // Immediate, not via rAF, so there's no perceptible delay.
-        attempt(true);
+        // Keyword or full-length code: submit after a brief pause so the
+        // user sees the code was accepted. 250ms per Dex request.
+        const snapshot = cur;
+        setTimeout(() => {
+          if (code().toLowerCase() === snapshot && !busy) attempt(true);
+        }, 250);
       }
     });
     pin.addEventListener('keydown', (event) => {
@@ -3370,9 +3373,12 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       pins[next].focus({ preventScroll: true });
       const cur = code().toLowerCase();
       if (SHORT_KEYWORDS.has(cur) || cur.length === pins.length) {
-        // Keyword or full-length code: submit immediately, no Enter needed.
-        // Immediate, not via rAF, so there's no perceptible delay.
-        attempt(true);
+        // Keyword or full-length code: submit after a brief pause so the
+        // user sees the code was accepted. 250ms per Dex request.
+        const snapshot = cur;
+        setTimeout(() => {
+          if (code().toLowerCase() === snapshot && !busy) attempt(true);
+        }, 250);
       }
     });
     /* A click anywhere in the row lands on the first empty box, so you cannot
@@ -3694,6 +3700,14 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     if (!tag) return;
     tag.classList.toggle('is-viewer', !isEditor);
     tag.classList.toggle('is-editor', isEditor);
+    // Direct style override to ensure accent colors apply
+    if (isEditor) {
+      tag.style.color = 'var(--acc)';
+      tag.style.borderColor = 'var(--acc)';
+    } else {
+      tag.style.color = '';
+      tag.style.borderColor = '';
+    }
     var icon = tag.querySelector('.icon');
     if (icon) icon.setAttribute('data-icon', isEditor ? 'pencil' : 'eye');
     var label = tag.querySelector('span:last-child');
