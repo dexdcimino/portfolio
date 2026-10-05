@@ -1,3 +1,25 @@
+/* Universal JWT verification (DexAuth).
+   Accepts JWTs from /api/auth/unlock as an alternative to TUNES password.
+   Uses shared AUTH_SECRET env var. */
+import { createHmac, timingSafeEqual } from 'crypto';
+function verifyUniversalJWT(token) {
+  const secret = process.env.AUTH_SECRET;
+  if (!token || !secret) return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const [h, b, s] = parts;
+    const exp = createHmac('sha256', secret).update(h + '.' + b).digest('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    if (s.length !== exp.length) return false;
+    if (!timingSafeEqual(Buffer.from(s), Buffer.from(exp))) return false;
+    const payload = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+    const now = Math.floor(Date.now() / 1000);
+    if (!payload.exp || payload.exp < now) return false;
+    return payload.tier === 'admin' || payload.tier === 'editor';
+  } catch (e) { return false; }
+}
+
 /* The live playlist.
  *
  *   GET  /api/music/playlist                         ->  { rev, savedAt, tracks }
@@ -57,7 +79,8 @@ module.exports = async function handler(req, res) {
         console.error('music/playlist: ' + unset);
         return res.status(503).json({ error: 'editing is not set up on this deploy' });
       }
-      if (!(await store.passwordOk(body.code))) return res.status(401).json({ error: 'wrong' });
+      const jwtOk = body.jwt && verifyUniversalJWT(body.jwt);
+      if (!jwtOk && !(await store.passwordOk(body.code))) return res.status(401).json({ error: 'wrong' });
       return res.status(200).json({ token: store.mintToken() });
     }
 
