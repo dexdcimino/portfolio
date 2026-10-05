@@ -780,11 +780,20 @@ button.button{cursor:pointer;font-family:inherit}
 html.dex-cursor{cursor:var(--dex-cursor-arrow,auto)}
 /* Scrollbars must not revert to the OS cursor. The browser renders scrollbar
    parts outside the element's cursor inheritance, so set it explicitly on
-   every scrollbar pseudo-element. Covers work, music, notes, and the page. */
+   every scrollbar pseudo-element AND the scrollable elements themselves.
+   Covers work, music, notes, and the page. */
 html.dex-cursor ::-webkit-scrollbar,
 html.dex-cursor ::-webkit-scrollbar-thumb,
 html.dex-cursor ::-webkit-scrollbar-track,
-html.dex-cursor ::-webkit-scrollbar-button{
+html.dex-cursor ::-webkit-scrollbar-button,
+html.dex-cursor ::-webkit-scrollbar-track-piece,
+html.dex-cursor ::-webkit-scrollbar-corner{
+  cursor:var(--dex-cursor-arrow,auto)!important;
+}
+/* Firefox: the scrollbar inherits from the scrollable element */
+html.dex-cursor .music-list,
+html.dex-cursor .notes-list,
+html.dex-cursor .dash-board{
   cursor:var(--dex-cursor-arrow,auto);
 }
 /* Everything clickable takes the pointing hand. The :is list carries every
@@ -5775,7 +5784,8 @@ body.modal-open{overflow:hidden}
   border-bottom:1px solid rgba(255,255,255,.045);
 }
 .music-row:hover{background:rgba(255,255,255,.045)}
-/* The title/artist area is clickable to play — show the pointer. */
+/* The title/artist area is clickable to play — show the custom pointer. */
+html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 .music-meta{cursor:pointer}
 /* Loud on purpose. With shuffle on, the track that starts is one of 311 rows
    and the reader has to be able to find it at a glance — a hover-weight tint
