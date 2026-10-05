@@ -5902,7 +5902,7 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 /* --- TUNES: the edit controls ---------------------------------------------
    Only on screen when the server has handed out an edit token (.is-admin on
    the dialog). Through MUSIC the tick is disabled and none of this exists. */
-.music-modal.is-admin .music-row{grid-template-columns:40px minmax(0,1fr) auto 30px 34px 30px 34px}
+.music-modal.is-admin .music-row{grid-template-columns:40px minmax(0,1fr) auto 30px 30px 34px 34px}
 .music-check:disabled{cursor:default}
 .music-check:disabled:not(:checked){opacity:.4}
 /* Rename button (editor only). */
@@ -6140,7 +6140,7 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
      characters of a URL, and the copy button is what it was there for. The
      button moves into the row as its own square cell. */
   .music-row{grid-template-columns:34px minmax(0,1fr) 24px 30px;gap:8px}
-  .music-modal.is-admin .music-row{grid-template-columns:34px minmax(0,1fr) 24px 30px 28px 30px}
+  .music-modal.is-admin .music-row{grid-template-columns:34px minmax(0,1fr) 24px 28px 30px 30px}
   .music-add-found{grid-template-columns:minmax(0,1fr)}
   .music-add-thumb{display:none}
   .music-link{display:none}
