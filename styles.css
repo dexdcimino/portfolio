@@ -6578,6 +6578,12 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
 .music-remote-move:hover{opacity:1;transform:scale(1.2)}
 .music-remote-move:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 .music-remote-move .icon{width:18px;height:18px}
+/* Dark drop shadow so chevrons read over accent-colored backgrounds. */
+.music-remote-move-v .icon{filter:drop-shadow(0 2px 2px rgba(0,0,0,.7))}
+.music-remote.at-tr .music-remote-move-h .icon,
+.music-remote.at-br .music-remote-move-h .icon{filter:drop-shadow(2px 0 2px rgba(0,0,0,.7))}
+.music-remote.at-tl .music-remote-move-h .icon,
+.music-remote.at-bl .music-remote-move-h .icon{filter:drop-shadow(-2px 0 2px rgba(0,0,0,.7))}
 @media(prefers-reduced-motion:reduce){.music-remote-move{transition:color var(--accent-ease)}}
 /* Vertical chevron: top edge when at bottom, bottom edge when at top */
 .music-remote.at-tl .music-remote-move-v,.music-remote.at-tr .music-remote-move-v{
