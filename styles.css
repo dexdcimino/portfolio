@@ -5778,8 +5778,8 @@ body.modal-open{overflow:hidden}
 /* The two 40px cells are the square blocks the brief asks for; the link column
    is capped rather than free so a long URL cannot squeeze the title. */
 .music-row{
-  display:grid;grid-template-columns:40px minmax(0,1fr) minmax(0,.85fr) 30px 34px;
-  align-items:center;gap:12px;
+  display:grid;grid-template-columns:40px minmax(0,1fr) auto 30px 34px;
+  align-items:center;gap:8px;
   padding:9px 10px;border-radius:11px;
   border-bottom:1px solid rgba(255,255,255,.045);
 }
@@ -5846,11 +5846,10 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
   border:1px solid var(--line);border-radius:10px;background:#12141c;
   transition:border-color var(--accent-ease);
   justify-content:flex-end;
-  width:fit-content;justify-self:end;
 }
 .music-linkcell:hover{border-color:rgba(255,255,255,.22)}
 .music-link{
-  flex:0 0 auto;width:160px;min-width:0;padding:9px 2px 9px 13px;
+  flex:0 0 auto;width:200px;min-width:0;padding:9px 2px 9px 13px;
   font-size:15px;color:var(--muted);text-decoration:none;text-align:right;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   opacity:.7;
@@ -5897,7 +5896,7 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 /* --- TUNES: the edit controls ---------------------------------------------
    Only on screen when the server has handed out an edit token (.is-admin on
    the dialog). Through MUSIC the tick is disabled and none of this exists. */
-.music-modal.is-admin .music-row{grid-template-columns:40px minmax(0,1fr) minmax(0,.85fr) 30px 34px 34px}
+.music-modal.is-admin .music-row{grid-template-columns:40px minmax(0,1fr) auto 30px 34px 34px}
 .music-check:disabled{cursor:default}
 .music-check:disabled:not(:checked){opacity:.4}
 .music-delcell{position:relative;display:grid;place-items:center;min-width:0;height:30px}
