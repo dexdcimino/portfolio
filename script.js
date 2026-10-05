@@ -7594,7 +7594,11 @@ const MediaBus = (() => {
 
   function place() {
     const live = document.documentElement.classList.contains('music-live');
-    if (!live) {
+    const musicModal = document.getElementById('musicModal');
+    const musicOpen = musicModal && musicModal.open && !musicModal.classList.contains('is-docked');
+    // Hide pill when music modal is open (square bar is the controller there).
+    // Show pill when music is live and music modal is closed.
+    if (!live || musicOpen) {
       pill.hidden = true;
       /* Put away expanded, so the next appearance opens showing the transport
          rather than as a circle someone folded twenty minutes ago and has
@@ -7602,11 +7606,11 @@ const MediaBus = (() => {
          in, because place() runs on every state change while the pill is up --
          clearing it there would unfold the pill under the reader's hand the
          next time a track changed. */
-      setFolded(false);
+      if (!live) setFolded(false);
       if (pill.parentNode !== document.body) document.body.appendChild(pill);
       return;
     }
-    // Pill is the only controller: always visible when music is live.
+    // Pill is the controller outside the music modal.
     // In an overlay, attach to the host; otherwise, float on the body.
     const host = hosts.find(d => d.open && !d.classList.contains('is-docked'));
     if (host) {
@@ -7620,6 +7624,9 @@ const MediaBus = (() => {
 
   for (const d of hosts) new MutationObserver(place).observe(d, { attributeFilter: ['open'] });
   new MutationObserver(place).observe(document.documentElement, { attributeFilter: ['class'] });
+  // Also watch the music modal: pill hides when it's open, shows when it closes.
+  const musicModalEl = document.getElementById('musicModal');
+  if (musicModalEl) new MutationObserver(place).observe(musicModalEl, { attributeFilter: ['open', 'class'] });
 
   /* WATCHED PIECE BY PIECE, not the whole bar. The embed volunteers a time
      several times a second, so the scrub's --fill and the elapsed text change
