@@ -5574,7 +5574,7 @@ body.modal-open{overflow:hidden}
 /* --- the head ------------------------------------------------------------ */
 .music-head{
   flex:0 0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
-  padding:5px 20px 8px;border-bottom:1px solid var(--line);
+  padding:14px 24px 12px;border-bottom:1px solid var(--line);
 }
 /* Overrides the site's .eyebrow, which is sized for a section label read once
    on the way past rather than for a header on a surface being worked in. */
@@ -5621,6 +5621,9 @@ body.modal-open{overflow:hidden}
 .music-rail{
   display:flex;flex-direction:column;gap:5px;
   width:200px;padding:16px 11px;
+  border-right:1px solid var(--line);
+  box-shadow:6px 0 16px rgba(0,0,0,.28);
+  z-index:1;
 }
 .music-rail button{
   display:flex;align-items:center;gap:11px;width:100%;padding:12px 12px;cursor:pointer;
