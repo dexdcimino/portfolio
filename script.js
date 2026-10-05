@@ -7096,23 +7096,20 @@ const MediaBus = (() => {
         { className: 'music-bk-empty', textContent: data ? `${capital(data.error)}.` : '' }));
       return;
     }
+    const kindLabels = { latest: 'Last edit', daily: 'Last 24 hours', weekly: 'Last week' };
     const rows = (data.backups || []).map((b) => {
       const li = document.createElement('li');
       const when = document.createElement('span');
       when.className = 'music-bk-when';
-      const iso = b.kind === 'daily' ? `${b.label}T00:00:00Z`
-        : b.label.replace(/T(\d\d)-(\d\d)-(\d\d)-(\d{3})Z$/, 'T$1:$2:$3.$4Z');
-      const d = new Date(iso);
+      // label is now an ISO timestamp (backedUpAt)
+      const d = new Date(b.label);
       when.textContent = Number.isFinite(d.getTime())
-        /* UTC for the day label: it IS a UTC date, and printed in local time a
-           backup made on the 15th reads as the 14th anywhere west of Greenwich. */
-        ? d.toLocaleString(undefined, b.kind === 'daily'
-          ? { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }
-          : { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+        ? d.toLocaleString(undefined,
+          { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
         : b.label;
       const kind = document.createElement('span');
       kind.className = 'music-bk-kind';
-      kind.textContent = b.kind === 'daily' ? 'Start of day' : 'Before an edit';
+      kind.textContent = kindLabels[b.kind] || b.kind;
       const count = document.createElement('span');
       count.className = 'music-bk-count';
       count.textContent = `${b.count} tracks`;
