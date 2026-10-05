@@ -6900,3 +6900,7 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .music-head,.sfx-head{padding-right:112px;}
 /* Docked music bar: subtle border like every other shell. */
 .music-modal.is-docked .music-shell{border:1px solid var(--line);}
+/* The lime focus ring around the music panel (from the global
+   :focus-visible rule): Dex wants it gone. Inner controls keep their
+   own focus styles. */
+.music-modal:focus-visible,.music-shell:focus-visible{outline:none;}
