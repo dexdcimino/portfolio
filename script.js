@@ -3865,9 +3865,11 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
          from here too, not just from the overlay. */
       if (secret.trim().toLowerCase() === 'work') return { ok: true, payload: 'show:dash' };
       /* If it's a valid notes password, open notes directly with it.
-         This lets Dex type his password here to go straight to his notes. */
+         This lets Dex type his password here to go straight to his notes.
+         ('snail' is 5 chars but it's the vault code, not a notes password --
+         exclude it or the server will hijack it into Notes.) */
       const trimmed = secret.trim();
-      if (trimmed.length === 5) {
+      if (trimmed.length === 5 && trimmed.toLowerCase() !== 'snail') {
         try {
           const resp = await fetch('/api/notes/unlock', {
             method: 'POST',
@@ -3963,9 +3965,12 @@ const codeModal = document.getElementById('codeModal');
         const normalized = secret.trim().toLowerCase();
         console.log('codepad verify:', normalized);
         if (normalized === 'work') return { ok: true, payload: 'show:dash' };
+        /* 'snail' is 5 chars but it's the universal code, not a notes password.
+           Exclude it here or the server's passwordOk (which accepts snail)
+           will hijack it into Notes instead of upgrading the current overlay. */
         /* Notes password: if it's a valid notes password, open notes directly. */
         const trimmed = secret.trim();
-        if (trimmed.length === 5) {
+        if (trimmed.length === 5 && normalized !== 'snail') {
           try {
             const resp = await fetch('/api/notes/unlock', {
               method: 'POST',
