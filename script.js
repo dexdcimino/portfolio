@@ -6461,9 +6461,16 @@ const MediaBus = (() => {
      every load and on every state change rather than set once and trusted. An
      <audio> element would have kept the value across a source change; a player
      in another origin has no idea what the last one was set to. */
+  /* Perceptual volume: human hearing is logarithmic, so a linear slider
+     leaves the bottom half too loud. Squaring the value makes 50% feel like
+     half as loud and 10% whisper-quiet. */
+  function perceptualVolume(v) {
+    const c = Math.max(0, Math.min(1, v));
+    return c * c;
+  }
   function pushVolume() {
     if (!armed) return;
-    cmd('setVolume', [Math.round(volume * 100)]);
+    cmd('setVolume', [Math.round(perceptualVolume(volume) * 100)]);
     if (volume === 0) cmd('mute'); else cmd('unMute');
     /* Advisory, and re-sent with the volume because a new video resets it.
        IT FOLLOWS THE SIZE OF THE PICTURE: `small` is deliberate while the box
