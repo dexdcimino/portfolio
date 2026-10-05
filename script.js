@@ -6148,10 +6148,11 @@ const MediaBus = (() => {
     const del = event.target.closest('.music-del');
     if (del) { onDelete(row, del); return; }
 
-    if (event.target.closest('.music-play')) {
+    if (event.target.closest('.music-play') || event.target.closest('.music-meta')) {
       /* Any press is a deliberate start, so the skip's clock and its counter
          both go: whatever was refused before this is not this track's fault,
-         and a stall armed for the old one must not fire over the new. */
+         and a stall armed for the old one must not fire over the new.
+         The title/artist area is also clickable to play (Dex request). */
       calm();
       deadRun = 0;
       // The row already playing toggles; any other row starts from the top.
