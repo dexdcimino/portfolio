@@ -3878,12 +3878,14 @@ const codeModal = document.getElementById('codeModal');
         /* Plain keyword: `work` opens the Mission Control dashboard overlay.
            Everything else goes through the vault as before. */
         const normalized = secret.trim().toLowerCase();
+        console.log('codepad verify:', normalized);
         if (normalized === 'work') return { ok: true, payload: 'show:dash' };
         /* Phase 2: the universal code upgrades the overlay underneath instead
            of opening the vault, when there is one. Main page + snail still
            opens the markdown vault as before. */
         if (normalized === 'snail') {
           const overlay = document.querySelector(OVERLAY_OPEN);
+          console.log('snail: overlay found:', overlay ? overlay.id : 'none');
           if (overlay && overlay.id === 'musicModal') {
             // Get JWT via DexAuth first, then unlock music with it
             if (!window.DexAuth) {
