@@ -11279,3 +11279,65 @@ const PORTRAIT_LABEL = {
     });
   });
 })();
+
+/* ============================================================
+   MOBILE SWIPE-TO-CLOSE (Dex, 2026-10-05)
+   Swipe from the right edge to the left closes the topmost modal.
+   Only triggers from the screen edge (first 32px) so it doesn't
+   interfere with horizontal scrollers inside modals.
+   ============================================================ */
+(function() {
+  // Only on touch devices
+  if (!('ontouchstart' in window)) return;
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  const EDGE = 32; // px from right edge to start the gesture
+  const MIN_SWIPE = 80; // px leftward to trigger close
+  const MAX_VERTICAL = 60; // px vertical tolerance
+
+  document.addEventListener('touchstart', (e) => {
+    // Only if a modal is open
+    const openModal = document.querySelector('dialog[open]');
+    if (!openModal) return;
+
+    const touch = e.touches[0];
+    const fromRightEdge = window.innerWidth - touch.clientX < EDGE;
+
+    if (fromRightEdge) {
+      tracking = true;
+      startX = touch.clientX;
+      startY = touch.clientY;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    // If they move too far vertically, cancel (it's a scroll)
+    const touch = e.touches[0];
+    if (Math.abs(touch.clientY - startY) > MAX_VERTICAL) {
+      tracking = false;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+
+    const touch = e.changedTouches[0];
+    const dx = startX - touch.clientX; // positive = swiped left
+    const dy = Math.abs(touch.clientY - startY);
+
+    if (dx > MIN_SWIPE && dy < MAX_VERTICAL) {
+      // Find the topmost open modal and close it
+      const modals = [...document.querySelectorAll('dialog[open]')];
+      if (modals.length) {
+        const top = modals[modals.length - 1];
+        // Don't close the tilde keypad with a swipe (it's small, has its own X)
+        if (top.id === 'codeModal') return;
+        if (typeof top.close === 'function') top.close();
+      }
+    }
+  }, { passive: true });
+})();
