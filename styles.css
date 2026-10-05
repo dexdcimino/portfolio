@@ -3276,6 +3276,9 @@ html.ink-on.ink-gray .about-photo:after{background:var(--portrait-gray)}
 .vault-lockbox:has(.vault-tilde) .vault-status{
   padding-left:calc(var(--tilde-w) + var(--tilde-gap) + var(--pin-gap));
 }
+.vault-lockbox:has(.vault-tilde) .vault-hints{
+  padding-left:calc(var(--tilde-w) + var(--tilde-gap) + var(--pin-gap));
+}
 /* The ANSWER is bigger than the prompt. "ENTER CODE" is a label and should sit
    quietly under the boxes; NOPE and YEP! are replies to something you just did
    and get three points on the label to say so. */
