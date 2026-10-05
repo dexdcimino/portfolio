@@ -5700,78 +5700,9 @@ const MediaBus = (() => {
     flagCell.append(flag);
 
     row.append(check, play, meta, cell, flagCell);
-    if (admin) {
-      row.append(addToPlaylistCell(track));
-      row.append(deleteCell(track));
-    }
+    if (admin) row.append(deleteCell(track));
     return row;
   }
-
-  /* Add-to-playlist: a small list button on each row (editor only). Clicking
-     opens a dropdown with REPEAT + custom playlists; picking one adds the
-     song. A first pass — Dex will refine the UX. */
-  let plDropdown = null;
-  function closePlDropdown() {
-    if (plDropdown) { plDropdown.remove(); plDropdown = null; }
-  }
-  function addToPlaylistCell(track) {
-    const cell = document.createElement('span');
-    cell.className = 'music-plcell';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'music-pladd';
-    btn.setAttribute('aria-label', `Add ${track.t} to a playlist`);
-    btn.innerHTML = '<span class="icon" data-icon="list" aria-hidden="true"></span>';
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (plDropdown && plDropdown.dataset.v === track.v) { closePlDropdown(); return; }
-      closePlDropdown();
-      plDropdown = document.createElement('div');
-      plDropdown.className = 'music-pl-dropdown';
-      plDropdown.dataset.v = track.v;
-      const addOption = (label, fn) => {
-        const opt = document.createElement('button');
-        opt.type = 'button';
-        opt.textContent = label;
-        opt.addEventListener('click', () => { fn(); closePlDropdown(); });
-        plDropdown.append(opt);
-      };
-      addOption('REPEAT', () => {
-        if (!ticked.has(track.v)) {
-          ticked.add(track.v);
-          edit('tick', { v: track.v, on: true });
-          render();
-        }
-      });
-      for (const pl of customPlaylists) {
-        addOption(pl.name.toUpperCase(), () => {
-          if (!pl.tracks.includes(track.v)) {
-            pl.tracks.push(track.v);
-            savePlaylists();
-            renderCustomPlaylists();
-            toast(`Added to “${pl.name}”.`);
-          } else {
-            toast(`Already in “${pl.name}”.`);
-          }
-        });
-      }
-      if (customPlaylists.length === 0) {
-        const hint = document.createElement('span');
-        hint.className = 'music-pl-hint';
-        hint.textContent = 'No custom playlists yet';
-        plDropdown.append(hint);
-      }
-      document.body.append(plDropdown);
-      const r = btn.getBoundingClientRect();
-      plDropdown.style.top = (r.bottom + 4 + window.scrollY) + 'px';
-      plDropdown.style.left = Math.max(8, r.left + window.scrollX - 40) + 'px';
-    });
-    cell.append(btn);
-    return cell;
-  }
-  document.addEventListener('click', (e) => {
-    if (plDropdown && !plDropdown.contains(e.target)) closePlDropdown();
-  });
 
   function render() {
     const wasPlaying = index >= 0 ? queue[index] : null;
@@ -6334,15 +6265,44 @@ const MediaBus = (() => {
     if (nRepeat) nRepeat.textContent = [...ticked].length;
   }
 
-  /* Delete playlist confirmation. */
+  /* Delete playlist confirmation: custom modal matching site style. */
   function confirmDeletePlaylist(pl) {
-    const ok = confirm(`Are you sure you want to delete "${pl.name}" playlist?`);
-    if (!ok) return;
-    customPlaylists = customPlaylists.filter(p => p.id !== pl.id);
-    savePlaylists();
-    if (view === 'pl:' + pl.id) setView('all');
-    else renderCustomPlaylists();
-    toast(`Deleted playlist “${pl.name}”.`);
+    // Build modal
+    const overlay = document.createElement('div');
+    overlay.className = 'music-confirm-overlay';
+    const dialog = document.createElement('div');
+    dialog.className = 'music-confirm-dialog';
+    dialog.setAttribute('role', 'alertdialog');
+    dialog.setAttribute('aria-label', `Delete playlist ${pl.name}`);
+    const songCount = pl.tracks.length;
+    dialog.innerHTML = `
+      <p class="music-confirm-title">Delete playlist?</p>
+      <p class="music-confirm-text">Are you sure you want to delete
+        <strong>"${pl.name.replace(/"/g, '&quot;')}"</strong>
+        ${songCount === 1 ? 'with 1 song' : `with ${songCount} songs`}?</p>
+      <div class="music-confirm-btns">
+        <button type="button" class="music-confirm-cancel">Cancel</button>
+        <button type="button" class="music-confirm-ok">Delete</button>
+      </div>`;
+    overlay.append(dialog);
+    document.body.append(overlay);
+    const close = () => overlay.remove();
+    dialog.querySelector('.music-confirm-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    dialog.querySelector('.music-confirm-ok').addEventListener('click', () => {
+      customPlaylists = customPlaylists.filter(p => p.id !== pl.id);
+      savePlaylists();
+      if (view === 'pl:' + pl.id) setView('all');
+      else renderCustomPlaylists();
+      close();
+      toast(`Deleted playlist "${pl.name}".`);
+    });
+    // Escape closes
+    const onKey = (e) => {
+      if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); }
+    };
+    document.addEventListener('keydown', onKey);
+    dialog.querySelector('.music-confirm-cancel').focus();
   }
 
   /* New playlist form. */
