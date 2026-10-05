@@ -1,3 +1,25 @@
+/* Universal JWT verification (DexAuth).
+   Verifies JWTs signed by /api/auth/unlock using AUTH_SECRET.
+   Returns true if valid and tier is admin (or editor, for future). */
+import { createHmac, timingSafeEqual } from 'crypto';
+function verifyUniversalJWT(token) {
+  const secret = process.env.AUTH_SECRET;
+  if (!token || !secret) return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const [h, b, s] = parts;
+    const exp = createHmac('sha256', secret).update(h + '.' + b).digest('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    if (s.length !== exp.length) return false;
+    if (!timingSafeEqual(Buffer.from(s), Buffer.from(exp))) return false;
+    const payload = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+    const now = Math.floor(Date.now() / 1000);
+    if (!payload.exp || payload.exp < now) return false;
+    return payload.tier === 'admin' || payload.tier === 'editor';
+  } catch (e) { return false; }
+}
+
 /* POST /api/notes/unlock  { password | token }
  *                      ->  { content, format, rev, savedAt, token, seeded }
  *
@@ -54,9 +76,16 @@ module.exports = async function handler(req, res) {
    * Checked in this order deliberately: a request carrying both is treated as
    * a password attempt, so a stale token can never mask a wrong password.
    */
-  const ok = (body && typeof body.password === 'string')
-    ? await store.passwordOk(body.password)
-    : !!(body && store.tokenOk(body.token));
+  /* THREE WAYS IN: password (legacy), session token (legacy), or universal
+     JWT from DexAuth. The JWT is preferred for new clients. */
+  let ok = false;
+  if (body && typeof body.jwt === 'string' && body.jwt) {
+    ok = verifyUniversalJWT(body.jwt);
+  } else if (body && typeof body.password === 'string') {
+    ok = await store.passwordOk(body.password);
+  } else {
+    ok = !!(body && store.tokenOk(body.token));
+  }
 
   if (!ok) {
     return res.status(401).json({ error: 'wrong' });
