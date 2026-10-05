@@ -6443,16 +6443,19 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
    tab order to keep right. */
 /* Four corners: top-left, top-right, bottom-left, bottom-right.
    Two chevrons always show, positioned on the edges that allow movement. */
-.music-remote.at-tl{top:14px;left:calc(var(--sidebar) + 14px);right:auto}
+.music-remote.at-tl{top:14px;left:14px;right:auto}
 .music-remote.at-tr{top:14px;right:14px;left:auto}
-.music-remote.at-bl{top:auto;bottom:14px;left:calc(var(--sidebar) + 14px);right:auto;flex-direction:column-reverse}
+.music-remote.at-bl{top:auto;bottom:14px;left:14px;right:auto;flex-direction:column-reverse}
 .music-remote.at-br{top:auto;bottom:14px;right:14px;left:auto;flex-direction:column-reverse}
+/* Main page only (pill is direct child of body): offset for the sidebar. */
+body > .music-remote.at-tl{left:calc(var(--sidebar) + 14px)}
+body > .music-remote.at-bl{left:calc(var(--sidebar) + 14px)}
 /* Pill stays outside the sidebar and shifts when it expands on hover. */
 .music-remote.at-tl,.music-remote.at-bl{
   transition:left var(--sidebar-transition-duration) var(--sidebar-transition-ease);
 }
-body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-tl,
-body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
+body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-tl,
+body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
   left:calc(var(--sidebar-open) + 14px);
 }
 /* When reversed, next/prev swap. Swap them back so next stays above play.
@@ -7183,7 +7186,8 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
 .music-remote.at-tr .music-remote-expand svg{transform:rotate(180deg)}
 .music-remote.at-bl .music-remote-expand svg{transform:rotate(0deg)}
 .music-remote.at-tl .music-remote-expand svg{transform:rotate(90deg)}
-/* Pill at top-right: shift down to clear the accent picker. */
-.music-remote.at-tr{top:74px}
+/* Pill at top-right: hide the accent picker instead of offsetting.
+   The picker would overlap the pill; it returns when the pill moves. */
+body:has(> .music-remote.at-tr:not([hidden])) .accent-picker{display:none}
 /* X button 20% smaller (20px → 16px icon). */
 .music-remote-close svg{width:16px;height:16px}
