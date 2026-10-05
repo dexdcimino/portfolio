@@ -4622,6 +4622,7 @@
           </p>
           <span class="mode-tag is-viewer" id="musicModeTag"><span class="icon" data-icon="eye" aria-hidden="true"></span><span>Viewer</span></span>
           <p class="music-count" id="musicCount" role="status" aria-live="polite">LOADING</p>
+          <span class="music-head-gap music-head-gap-admin" aria-hidden="true"></span>
           <!-- TUNES ONLY. Hidden through MUSIC, and hidden is not the lock: the
                server refuses every edit without a token the TUNES code earned.
                See api/music/playlist.js. -->
@@ -4693,6 +4694,19 @@
               <span class="music-rail-label">REPEAT</span>
               <span class="music-rail-n" id="musicNRepeat" aria-hidden="true"></span>
             </button>
+            <div id="musicCustomPlaylists"></div>
+            <button type="button" id="musicAddPlaylist" class="music-rail-add" hidden>
+              <span class="icon" data-icon="plus" aria-hidden="true"></span>
+              <span class="music-rail-label">NEW PLAYLIST</span>
+            </button>
+            <form class="music-playlist-form" id="musicPlaylistForm" hidden autocomplete="off">
+              <input type="text" id="musicPlaylistName" placeholder="Playlist name"
+                     aria-label="New playlist name" maxlength="40" autocomplete="off">
+              <div class="music-playlist-form-btns">
+                <button type="submit" class="music-playlist-ok">OK</button>
+                <button type="button" class="music-playlist-cancel" id="musicPlaylistCancel">Cancel</button>
+              </div>
+            </form>
           </nav>
 
           <!-- The tick on the scroll track: where in the list the playing
