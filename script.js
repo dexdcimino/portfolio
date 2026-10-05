@@ -5701,8 +5701,8 @@ const MediaBus = (() => {
 
     row.append(play, meta, cell, flagCell, check);
     if (admin) {
-      row.append(renameCell(track, title));
       row.append(deleteCell(track));
+      row.append(renameCell(track, title));
     }
     return row;
   }
