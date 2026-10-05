@@ -7142,7 +7142,7 @@ const MediaBus = (() => {
         { className: 'music-bk-empty', textContent: data ? `${capital(data.error)}.` : '' }));
       return;
     }
-    const kindLabels = { latest: 'Last edit', daily: 'Last 24 hours', weekly: 'Last week' };
+    const kindLabels = { hourly: '1 hour backup', daily: '1 day backup', weekly: '1 week backup' };
     const rows = (data.backups || []).map((b) => {
       const li = document.createElement('li');
       const when = document.createElement('span');
