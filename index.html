@@ -4590,6 +4590,7 @@
       <button class="notes-close" type="button" id="notesClose" aria-label="Close notes">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       </button>
+      <span class="mode-tag is-viewer" id="notesModeTag"><span class="icon" data-icon="eye" aria-hidden="true"></span><span>Viewer</span></span>
       <p class="notes-save" id="notesSave" role="status" aria-live="polite"></p>
     </div>
   </dialog>
@@ -4620,6 +4621,7 @@
             <span id="musicTitle">MUSIC</span>
             <span class="icon vault-lock" data-icon="lock-open" aria-hidden="true"></span>
           </p>
+          <span class="mode-tag is-viewer" id="musicModeTag"><span class="icon" data-icon="eye" aria-hidden="true"></span><span>Viewer</span></span>
           <p class="music-count" id="musicCount" role="status" aria-live="polite">LOADING</p>
           <!-- TUNES ONLY. Hidden through MUSIC, and hidden is not the lock: the
                server refuses every edit without a token the TUNES code earned.
@@ -5080,6 +5082,7 @@
         <div class="dash-head">
           <p class="eyebrow"><span>MISSION CONTROL</span></p>
           <div class="dash-chrome">
+            <span class="mode-tag is-viewer" id="dashModeTag"><span class="icon" data-icon="eye" aria-hidden="true"></span><span>Viewer</span></span>
             <span class="dash-date" id="dashDate"></span>
             <button class="ov-lock ov-lock-static" type="button" data-ovlock aria-label="Open the code keypad"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
             <button class="dash-close" type="button" id="dashClose" aria-label="Close">
