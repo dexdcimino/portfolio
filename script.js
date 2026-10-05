@@ -7326,8 +7326,10 @@ const MediaBus = (() => {
     if (admin) { setAdmin(false); if (loaded) render(); }
     // If another modal is open, don't close it. The pill is the music interface
     // there (Dex, 2026-10-05) — typing music in Notes/Work/etc keeps you there.
+    // The keypad itself doesn't count (it's the thing you typed into).
     const otherOpen = [...document.querySelectorAll('dialog[open]')].some(d =>
-      d !== modal && !d.classList.contains('is-docked') && !d.classList.contains('is-hidden-bar'));
+      d !== modal && d.id !== 'codeModal' &&
+      !d.classList.contains('is-docked') && !d.classList.contains('is-hidden-bar'));
     if (otherOpen) {
       // Ensure the pill is showing (it's the controller in the other modal).
       if (window.dexMusicPill) window.dexMusicPill.refresh();
