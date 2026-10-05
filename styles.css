@@ -7120,9 +7120,3 @@ html.music-fullscreen dialog[open]:not(.music-modal)::backdrop{pointer-events:no
 .mode-tag .icon{width:14px;height:14px}
 .mode-tag.is-viewer{color:var(--muted)}
 .mode-tag.is-editor{color:var(--accent) !important;border-color:var(--accent) !important;background:color-mix(in srgb,var(--accent) 12%,#161923) !important}
-
-/* The pill is the only audio controller (Dex, 2026-10-05). The square bar's
-   controls are hidden; the iframe stays in the DOM for audio. */
-.music-seek,.music-transport,.music-tail{display:none!important}
-.music-bar{padding:0!important;gap:0!important}
-.music-nowwrap{display:none!important}
