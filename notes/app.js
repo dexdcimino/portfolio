@@ -54,8 +54,8 @@ import { restoreSelection } from './dom.js';
  * flush() on pagehide and on the tab going to the background (sendBeacon,
  * which the browser promises to finish), and the retry after a failure.
  */
-const SAVE_DEBOUNCE = 5000;
-const SAVE_MIN_GAP = 15000;
+const SAVE_DEBOUNCE = 1000;
+const SAVE_MIN_GAP = 5000;
 
 /* And a failed save backs OFF rather than hammering. A store that is refusing
  * writes -- out of quota, out of network -- was being retried every four
