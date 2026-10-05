@@ -2460,7 +2460,9 @@ if (workModal) {
       }
       settle();
       gate.hidden = false;
-      keypad.focus();
+      /* Don't autofocus the keypad (Dex, 2026-10-05): on mobile it pops the
+         keyboard up uninvited. User taps when ready. */
+      // keypad.focus();
     }
 
     // Two ways in and no button on the page: the address, and the Idea Vault,
@@ -2468,7 +2470,15 @@ if (workModal) {
     // password -- both land on the keypad.
     document.addEventListener('notes:open', (event) => {
       const from = event.detail || {};
-      if (!modal.open) open(from.opener, from.code);
+      if (!modal.open) {
+        open(from.opener, from.code);
+      } else if (from.code) {
+        /* Already open with a different code (e.g., typed private password
+           while in public notes): close and reopen to switch stores. */
+        closeModal(modal);
+        // Small delay to let close finish before reopening
+        setTimeout(() => open(from.opener, from.code), 50);
+      }
     });
 
     window.addEventListener('popstate', () => {
