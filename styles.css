@@ -6506,6 +6506,10 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) .music-remote.at-bl{
   opacity:0;visibility:hidden;transition:opacity .14s ease,visibility .14s;
   pointer-events:none;
 }
+/* Tooltip goes right when pill is on the left (avoids nav bar). */
+.music-remote.at-tl .music-remote-tip,.music-remote.at-bl .music-remote-tip{
+  right:auto;left:calc(100% + 11px);
+}
 .music-remote-head:hover .music-remote-tip,
 .music-remote-art:focus-visible + .music-remote-tip{opacity:1;visibility:visible}
 /* One line each, ellipsised. Two lines is the shape; a title that wrapped to
