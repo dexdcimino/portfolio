@@ -3886,9 +3886,23 @@ const codeModal = document.getElementById('codeModal');
           const overlay = document.querySelector(OVERLAY_OPEN);
           if (overlay && overlay.id === 'musicModal') {
             // Get JWT via DexAuth first, then unlock music with it
-            const authOk = await window.DexAuth?.unlock('snail');
-            if (!authOk) return { ok: false };
-            const ok = await window.dexMusic?.unlock('snail');
+            if (!window.DexAuth) {
+              console.error('music unlock: DexAuth not available');
+              return { ok: false };
+            }
+            const authOk = await window.DexAuth.unlock('snail');
+            if (!authOk) {
+              console.error('music unlock: DexAuth.unlock failed');
+              return { ok: false };
+            }
+            if (!window.dexMusic) {
+              console.error('music unlock: dexMusic not available');
+              return { ok: false };
+            }
+            const ok = await window.dexMusic.unlock('snail');
+            if (!ok) {
+              console.error('music unlock: dexMusic.unlock failed');
+            }
             if (ok) return { ok: true, payload: 'upgraded:music' };
             return { ok: false };
           }
