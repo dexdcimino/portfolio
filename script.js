@@ -2518,16 +2518,15 @@ if (workModal) {
   }
 
   /* When the Notes app loads, move the lock INTO its header (nt-header-right)
-     so it's in the flex layout, evenly spaced with info and X.
-     Insert AFTER info, BEFORE theme: order should be info, lock, theme, close. */
+     so it's in the flex layout. Order: info, theme, lock, close.
+     (Lock to the RIGHT of the sun/moon theme button.) */
   const moveLockToAppHeader = () => {
     const lock = document.querySelector('.notes-shell > .ov-lock');
     const headerRight = document.querySelector('#notesEditor .nt-header-right');
     if (!lock || !headerRight || lock.parentElement === headerRight) return;
-    const infoBtn = headerRight.querySelector('.nt-info');
-    if (infoBtn && infoBtn.nextSibling) headerRight.insertBefore(lock, infoBtn.nextSibling);
-    else if (infoBtn) headerRight.appendChild(lock);
-    else headerRight.prepend(lock);
+    const appClose = headerRight.querySelector('.nt-close');
+    if (appClose) headerRight.insertBefore(lock, appClose);
+    else headerRight.appendChild(lock);
   };
   const editorEl = document.getElementById('notesEditor');
   if (editorEl) {
