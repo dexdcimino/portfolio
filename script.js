@@ -7599,7 +7599,9 @@ const MediaBus = (() => {
   function place() {
     const live = document.documentElement.classList.contains('music-live');
     const musicModal = document.getElementById('musicModal');
-    const musicOpen = musicModal && musicModal.open && !musicModal.classList.contains('is-docked');
+    const musicOpen = musicModal && musicModal.open &&
+      !musicModal.classList.contains('is-docked') &&
+      !musicModal.classList.contains('is-hidden-bar');
     // Hide pill when music modal is open (square bar is the controller there).
     // Show pill when music is live and music modal is closed.
     if (!live || musicOpen) {
