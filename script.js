@@ -3585,6 +3585,94 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       window.setModeTag('dashModeTag', true);
     }
   });
+  /* ============================================================
+     DexAuth: universal overlay unlock system.
+     
+     One password (snail) unlocks editing across ALL overlays.
+     To add a new overlay:
+       1. Add a padlock button with data-ovlock in the overlay HTML
+       2. Register it: DexAuth.register('myoverlay', {
+            onUnlock: (token) => { /* enable editing, store token */ },
+            onLock: () => { /* disable editing, clear token */ },
+            iframe: document.getElementById('myFrame'), // optional, for iframe overlays
+          });
+       3. Backend verifies the JWT using AUTH_SECRET (shared env var).
+     
+     That's it. No per-overlay auth code needed.
+     ============================================================ */
+  window.DexAuth = (function() {
+    var token = null;
+    var tier = null;
+    var overlays = {};
+    
+    async function unlock(password) {
+      try {
+        var r = await fetch('/api/auth/unlock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password })
+        });
+        if (!r.ok) return false;
+        var j = await r.json();
+        token = j.token;
+        tier = j.tier;
+        return true;
+      } catch (e) { return false; }
+    }
+    
+    function register(id, handlers) {
+      overlays[id] = handlers;
+    }
+    
+    function applyTo(id) {
+      var h = overlays[id];
+      if (!h || !token) return false;
+      if (h.iframe && h.iframe.contentWindow) {
+        // Iframe overlay: send token via postMessage
+        try {
+          h.iframe.contentWindow.postMessage(
+            { type: 'dex-auth', token: token, tier: tier },
+            '*'
+          );
+        } catch (e) {}
+      }
+      if (h.onUnlock) h.onUnlock(token, tier);
+      return true;
+    }
+    
+    function lock(id) {
+      var h = overlays[id];
+      if (!h) return;
+      if (h.onLock) h.onLock();
+      // Note: we keep the token (it's valid for 24h), just lock this overlay
+    }
+    
+    function getToken() { return token; }
+    function getTier() { return tier; }
+    function isUnlocked() { return !!token; }
+    
+    return { unlock: unlock, register: register, applyTo: applyTo,
+             lock: lock, getToken: getToken, getTier: getTier,
+             isUnlocked: isUnlocked };
+  })();
+  
+  /* Register the work overlay with DexAuth.
+     New overlays: copy this pattern, change the ID and handlers. */
+  (function() {
+    var frame = document.getElementById('dashFrame');
+    if (frame) {
+      window.DexAuth.register('work', {
+        iframe: frame,
+        onUnlock: function(token, tier) {
+          // The iframe handles its own UI via postMessage
+        },
+        onLock: function() {
+          window.setModeTag('dashModeTag', false);
+        }
+      });
+    }
+  })();
+  
   window.setModeTag = function(tagId, isEditor) {
     var tag = document.getElementById(tagId);
     if (!tag) return;
@@ -3782,13 +3870,14 @@ const codeModal = document.getElementById('codeModal');
            and other overlays have no editor to upgrade to. */
         if (payload === 'upgraded:music' || payload === 'noop:overlay') {
           closeModal(codeModal);
-          /* If the work overlay is open, unlock its edit mode via postMessage */
-          var dashFrame = document.getElementById('dashFrame');
-          if (dashFrame && dashFrame.contentWindow) {
-            try {
-              dashFrame.contentWindow.postMessage({type:'dex-unlock',code:'snail'}, 'https://work-kohl-kappa.vercel.app');
-            } catch(e){}
-          }
+          /* Universal auth: unlock the work overlay via DexAuth */
+          (async function() {
+            var ok = await window.DexAuth.unlock('snail');
+            if (ok) {
+              window.DexAuth.applyTo('work');
+              window.setModeTag('dashModeTag', true);
+            }
+          })();
           return;
         }
         if (codeLabel) codeLabel.textContent = 'OPEN';
