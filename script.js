@@ -2495,6 +2495,23 @@ if (workModal) {
   const frameClose = document.querySelector('.notes-frame > .notes-close');
   if (shell && frameLock) shell.appendChild(frameLock);
   if (shell && frameClose) shell.appendChild(frameClose);
+
+  /* When the Notes app loads, move the lock INTO its header (nt-header-right)
+     so it's in the flex layout, evenly spaced with info and X. */
+  const moveLockToAppHeader = () => {
+    const lock = document.querySelector('.notes-shell > .ov-lock');
+    const headerRight = document.querySelector('#notesEditor .nt-header-right');
+    if (!lock || !headerRight || lock.parentElement === headerRight) return;
+    // Insert before the app's close button
+    const appClose = headerRight.querySelector('.nt-close');
+    if (appClose) headerRight.insertBefore(lock, appClose);
+    else headerRight.appendChild(lock);
+  };
+  const editorEl = document.getElementById('notesEditor');
+  if (editorEl) {
+    new MutationObserver(() => moveLockToAppHeader())
+      .observe(editorEl, { childList: true, subtree: true });
+  }
 }
 
 /* The AI Lab's DexNote card opens the notes app as a SANDBOX. It is the one
