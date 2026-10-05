@@ -2480,7 +2480,11 @@ if (workModal) {
         open(from.opener, from.code);
       } else if (from.code) {
         /* Already open with a different code (e.g., typed private password
-           while in public notes): close and reopen to switch stores. */
+           while in public notes): close and reopen to switch stores.
+           Drop the token SYNCHRONOUSLY -- the modal's 'close' event fires
+           async and open() would otherwise reuse the old token (race). */
+        try { store.drop(TOKEN_KEY); } catch (e) {}
+        token = null;
         closeModal(modal);
         // Small delay to let close finish before reopening
         setTimeout(() => open(from.opener, from.code), 50);
