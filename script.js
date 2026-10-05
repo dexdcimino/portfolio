@@ -3702,8 +3702,8 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     tag.classList.toggle('is-editor', isEditor);
     // Direct style override to ensure accent colors apply
     if (isEditor) {
-      tag.style.color = 'var(--acc)';
-      tag.style.borderColor = 'var(--acc)';
+      tag.style.color = 'var(--accent)';
+      tag.style.borderColor = 'var(--accent)';
     } else {
       tag.style.color = '';
       tag.style.borderColor = '';
