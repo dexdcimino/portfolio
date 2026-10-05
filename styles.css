@@ -5724,8 +5724,8 @@ body.modal-open{overflow:hidden}
   border-radius:16px!important;
   color:var(--muted);
   justify-content:center;
-  /* Same height as ALL/REPEAT: match their padding exactly. */
-  padding:12px 12px!important;
+  /* 30% less tall than ALL/REPEAT (Dex, 2026-10-05): 12px -> 8px vertical. */
+  padding:8px 12px!important;
 }
 .music-rail-add .music-rail-label{
   font-size:13px;
