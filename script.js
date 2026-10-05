@@ -3654,7 +3654,12 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
 
   const keypad = createKeypad({
     root: section, pins, status, timer, resting: RESTING,
-    verify: tryCode,
+    verify: async (secret) => {
+      /* Same plain keyword as the tilde keypad: `work` opens Mission Control
+         from here too, not just from the overlay. */
+      if (secret.trim().toLowerCase() === 'work') return { ok: true, payload: 'show:dash' };
+      return tryCode(secret);
+    },
     onPass: reveal,
   });
 
