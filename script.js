@@ -3570,6 +3570,23 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   const viewOf = (payload) =>
     payload.startsWith('show:') ? VIEWS[payload.slice(5).trim()] : null;
 
+  /* Update the viewer/editor tag on an overlay */
+  /* Listen for edit mode updates from the work dashboard iframe */
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'dex-mode' && e.data.mode === 'edit') {
+      window.setModeTag('dashModeTag', true);
+    }
+  });
+  window.setModeTag = function(tagId, isEditor) {
+    var tag = document.getElementById(tagId);
+    if (!tag) return;
+    tag.classList.toggle('is-viewer', !isEditor);
+    tag.classList.toggle('is-editor', isEditor);
+    var icon = tag.querySelector('.icon');
+    if (icon) icon.setAttribute('data-icon', isEditor ? 'pencil' : 'eye');
+    var label = tag.querySelector('span:last-child');
+    if (label) label.textContent = isEditor ? 'Editor' : 'Viewer';
+  };
   const show = (dialog, opener) => {
     /* Populate the work overlay date */
     if (dialog && dialog.id === 'dashModal') {
