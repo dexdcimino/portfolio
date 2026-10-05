@@ -6357,13 +6357,9 @@ const MediaBus = (() => {
     playlistForm.hidden = true;
   }
   addPlaylistBtn?.addEventListener('click', () => {
-    addPlaylistBtn.hidden = true;
-    openPlaylistForm();
+    playlistForm.hidden ? openPlaylistForm() : closePlaylistForm();
   });
-  playlistCancel?.addEventListener('click', () => {
-    closePlaylistForm();
-    if (admin) addPlaylistBtn.hidden = false;
-  });
+  playlistCancel?.addEventListener('click', closePlaylistForm);
   playlistForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const name = playlistName.value.trim();
@@ -6372,7 +6368,6 @@ const MediaBus = (() => {
     customPlaylists.push({ id, name, tracks: [] });
     savePlaylists();
     closePlaylistForm();
-    if (admin) addPlaylistBtn.hidden = false;
     renderCustomPlaylists();
     setView('pl:' + id);
     toast(`Playlist “${name}” created.`);
