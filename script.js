@@ -602,7 +602,7 @@ reveals.forEach(el => revealObserver.observe(el));
 // 'collab' is absent WHILE THE SECTION IS DORMANT: it has no nav link, and a
 // spy that activates an id no link carries turns every link off as you scroll
 // through it. Restore the entry together with the link (see index.html's nav).
-const sections = ['home', 'work', 'games', 'ai', 'codes', 'about']
+const sections = ['home', 'work', 'games', 'ai', 'about', 'codes']
   .map(id => document.getElementById(id))
   .filter(Boolean);
 
@@ -3510,7 +3510,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
 
    Reseal with:  node tools/seal_vault.mjs --pin 12345 --text "…" */
 (function initVault() {
-  const section = document.getElementById('vault');
+  const section = document.getElementById('codes');
   if (!section) return;
   const pins = [...section.querySelectorAll('.vault-pin')];
   const lockbox = section.querySelector('.vault-lockbox');
