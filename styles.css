@@ -254,8 +254,7 @@ img{max-width:100%}
   .sidebar.nav-open .brand-logo :is(.logo-side-horns,.logo-top-horns){transform:scale(1)}
   .sidebar.nav-open .brand-logo .logo-side-horns{transition-delay:.04s}
   .sidebar.nav-open .brand-logo .logo-top-horns{transition-delay:.10s}
-  /* Align profile pic with nav icons: icon center is 34px from left (22+12),
-     profile frame center is 39px (22+17), so shift left by 5px. */
+  
   .profile-compact{padding-left:17px;padding-right:17px}
   /* Push hidden nav text further right so no letter crests peek out when collapsed. */
   .nav-text{transform:translateX(16px)}
@@ -270,8 +269,8 @@ img{max-width:100%}
   /* When the nav is closed, force the profile to its collapsed (avatar-only)
      state so the expanded name/title/socials don't glitch the layout. */
   .sidebar:not(.nav-open) .profile-wrap{display:none !important}
-  .sidebar:not(.nav-open) .profile-compact{height:54px !important;opacity:1 !important;display:block !important;padding:0 !important;text-align:center !important;line-height:54px !important}
-  .sidebar:not(.nav-open) .profile-compact-frame{display:inline-block !important;vertical-align:middle !important;width:34px !important;height:34px !important;margin:0 auto !important}
+  
+  
   .sidebar:not(.nav-open) .profile-compact-name{display:none !important}
 
 }
