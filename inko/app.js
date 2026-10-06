@@ -4,34 +4,66 @@
 const EMBED = new URLSearchParams(location.search).has('embed');
 if (EMBED) document.body.classList.add('embed');
 
-/* ---------- SW update checker ---------- */
+/* ---------- Robust SW update system ---------- */
+const APP_VERSION = '5.0.0';
 if ('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/inko/sw.js').then(reg => {
-    // Check for updates on every load
+  // Register with updateViaCache: 'none' to always check for new SW
+  navigator.serviceWorker.register('/inko/sw.js', { updateViaCache: 'none' }).then(reg => {
+    // Check immediately
     reg.update();
-    // Listen for new SW waiting
+    
+    // Handle new SW found
     reg.addEventListener('updatefound', () => {
       const newSW = reg.installing;
+      if (!newSW) return;
       newSW.addEventListener('statechange', () => {
-        if (newSW.state === 'installed' && navigator.serviceWorker.controller){
-          // New version available - show update prompt
-          showUpdatePrompt();
+        if (newSW.state === 'installed'){
+          if (navigator.serviceWorker.controller){
+            showUpdateBanner('New version available');
+          }
         }
       });
     });
+    
+    // Listen for messages from SW (e.g., after activate)
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data && e.data.type === 'SW_UPDATED'){
+        showUpdateBanner('Updated to v' + e.data.version);
+      }
+    });
+    
+    // Periodic check every 60 seconds
+    setInterval(() => reg.update(), 60000);
   }).catch(()=>{});
-  // Also check when page becomes visible
+  
+  // Check when tab becomes visible
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && navigator.serviceWorker.controller){
-      navigator.serviceWorker.getRegistration('/inko/').then(r => r && r.update());
+    if (!document.hidden){
+      navigator.serviceWorker.getRegistration('/inko/').then(r => { if (r) r.update(); });
     }
   });
+  
+  // Force update check on online
+  window.addEventListener('online', () => {
+    navigator.serviceWorker.getRegistration('/inko/').then(r => { if (r) r.update(); });
+  });
 }
-function showUpdatePrompt(){
+
+let updateBannerShown = false;
+function showUpdateBanner(msg){
+  if (updateBannerShown) return;
+  updateBannerShown = true;
   const t = document.createElement('div');
-  t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1a1f2e;color:#fff;padding:12px 20px;border-radius:12px;z-index:9999;display:flex;gap:12px;align-items:center;box-shadow:0 4px 20px rgba(0,0,0,.5);font-size:14px;';
-  t.innerHTML = '<span>Update available</span><button style="background:#22d3ee;border:none;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer;">Reload</button>';
-  t.querySelector('button').onclick = () => window.location.reload();
+  t.id = 'update-banner';
+  t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a1f2e,#2a2f3e);color:#fff;padding:14px 20px;border-radius:14px;z-index:9999;display:flex;gap:14px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.6);font-size:14px;font-weight:600;border:1px solid rgba(255,255,255,.1);';
+  t.innerHTML = '<span>' + msg + '</span><button style="background:linear-gradient(135deg,#22d3ee,#a78bfa);border:none;border-radius:10px;padding:10px 20px;font-weight:700;cursor:pointer;color:#0b0d12;font-size:14px;">Update Now</button>';
+  t.querySelector('button').onclick = () => {
+    // Tell SW to skip waiting, then reload
+    if (navigator.serviceWorker.controller){
+      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+    }
+    setTimeout(() => window.location.reload(), 300);
+  };
   document.body.appendChild(t);
 }
 
