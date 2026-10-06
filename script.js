@@ -4219,6 +4219,22 @@ const codeModal = document.getElementById('codeModal');
                 !!document.querySelector(OVERLAY_OPEN));
       codepad.focus();
     });
+
+    /* Tab opens the keypad when a functional preview (app modal) is open.
+       Same as tilde, but only in the app overlay — so typing "music" there
+       drops the music pill without leaving the preview. */
+    window.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const appModal = document.getElementById('appModal');
+      if (!appModal || !appModal.open) return;
+      if (codeModal.open) return;
+      if (typing()) return;
+      event.preventDefault();
+      codeOpener = document.activeElement;
+      openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener, true);
+      codepad.focus();
+    });
   }
 
   /* Every view is a <dialog> on the site's shared plumbing, so Escape, the
