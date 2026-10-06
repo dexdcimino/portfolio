@@ -259,6 +259,14 @@ img{max-width:100%}
   .profile-compact{padding-left:17px;padding-right:17px}
   /* Push hidden nav text further right so no letter crests peek out when collapsed. */
   .nav-text{transform:translateX(16px)}
+  /* Touch hover sticks on mobile — force the collapsed state when nav-open
+     is absent, overriding any lingering :hover. */
+  .sidebar:not(.nav-open) .brand-logo :is(.logo-side-horns,.logo-top-horns){
+    transform:scale(0) !important;
+  }
+  .sidebar:not(.nav-open) .brand-logo{--brand-scale:1 !important}
+  .sidebar:not(.nav-open) .nav-text{opacity:0 !important;transform:translateX(16px) !important}
+  .sidebar:not(.nav-open) .side-bottom{margin-bottom:0 !important}
 }
 
 .brand{height:86px;display:grid;place-items:center;border-bottom:1px solid var(--line);color:var(--accent);transition:color var(--accent-ease)}
