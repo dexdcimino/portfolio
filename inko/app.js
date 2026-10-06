@@ -425,11 +425,11 @@ function makeItem(it, isLive){
 function renderGallery(){
   const rows = $('g-rows'); rows.innerHTML = '';
   $('g-count').textContent = gallery.length + (gallery.length===1 ? ' canvas' : ' canvases');
-  // Oldest first, live tile last → newest ends up bottom-right
-  const items = [...gallery].reverse().concat([{id:'__live', live:true}]);
+  // Oldest first → newest ends up bottom-right
+  const items = [...gallery].reverse();
   for (let i=0; i<items.length; i+=3){
     const row = document.createElement('div'); row.className = 'g-row';
-    items.slice(i, i+3).forEach(it => row.appendChild(makeItem(it, it.live)));
+    items.slice(i, i+3).forEach(it => row.appendChild(makeItem(it, false)));
     rows.appendChild(row);
   }
   $('g-grid').scrollTop = $('g-grid').scrollHeight;
