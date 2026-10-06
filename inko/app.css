@@ -125,7 +125,7 @@ input[type=range]::-moz-range-thumb{
 #g-count{font-size:14px; color:var(--muted); font-weight:400;}
 #g-grid{flex:1; overflow-y:auto; padding:0 16px;}
 #g-rows{display:flex; flex-direction:column; gap:14px; padding-bottom:16px;}
-.g-row{display:flex; flex-direction:row-reverse; gap:14px;}
+.g-row{display:flex; flex-direction:row; gap:14px;}
 .g-item{width:calc((100% - 28px)/3); cursor:pointer;}
 .g-thumb{
   aspect-ratio:3/4; border-radius:12px; overflow:hidden; position:relative;
