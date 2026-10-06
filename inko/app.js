@@ -57,12 +57,19 @@ function showUpdateBanner(msg){
   t.id = 'update-banner';
   t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a1f2e,#2a2f3e);color:#fff;padding:14px 20px;border-radius:14px;z-index:9999;display:flex;gap:14px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.6);font-size:14px;font-weight:600;border:1px solid rgba(255,255,255,.1);';
   t.innerHTML = '<span>' + msg + '</span><button style="background:linear-gradient(135deg,#22d3ee,#a78bfa);border:none;border-radius:10px;padding:10px 20px;font-weight:700;cursor:pointer;color:#0b0d12;font-size:14px;">Update Now</button>';
-  t.querySelector('button').onclick = () => {
-    // Tell SW to skip waiting, then reload
-    if (navigator.serviceWorker.controller){
-      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
-    }
-    setTimeout(() => window.location.reload(), 300);
+  t.querySelector('button').onclick = async () => {
+    // Nuclear update: clear all caches, unregister SW, hard reload
+    try {
+      if ('caches' in window){
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator){
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    } catch(e){}
+    window.location.reload(true);
   };
   document.body.appendChild(t);
 }
