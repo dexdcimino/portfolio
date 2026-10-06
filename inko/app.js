@@ -4,6 +4,37 @@
 const EMBED = new URLSearchParams(location.search).has('embed');
 if (EMBED) document.body.classList.add('embed');
 
+/* ---------- SW update checker ---------- */
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/inko/sw.js').then(reg => {
+    // Check for updates on every load
+    reg.update();
+    // Listen for new SW waiting
+    reg.addEventListener('updatefound', () => {
+      const newSW = reg.installing;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller){
+          // New version available - show update prompt
+          showUpdatePrompt();
+        }
+      });
+    });
+  }).catch(()=>{});
+  // Also check when page becomes visible
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && navigator.serviceWorker.controller){
+      navigator.serviceWorker.getRegistration('/inko/').then(r => r && r.update());
+    }
+  });
+}
+function showUpdatePrompt(){
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1a1f2e;color:#fff;padding:12px 20px;border-radius:12px;z-index:9999;display:flex;gap:12px;align-items:center;box-shadow:0 4px 20px rgba(0,0,0,.5);font-size:14px;';
+  t.innerHTML = '<span>Update available</span><button style="background:#22d3ee;border:none;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer;">Reload</button>';
+  t.querySelector('button').onclick = () => window.location.reload();
+  document.body.appendChild(t);
+}
+
 /* ---------- constants & state ---------- */
 const W = 880, H = 1170, DPR = Math.min(window.devicePixelRatio || 1, 2);
 let hue = 4, sat = 100, bri = 100;
