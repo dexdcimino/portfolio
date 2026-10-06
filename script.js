@@ -511,6 +511,37 @@ function buildAccentPicker() {
       try { localStorage.setItem(CURSOR_KEY, on ? 'on' : 'off'); } catch { /* private mode */ }
     }
   };
+
+  /* HARD FIX: Chrome ignores cursor:url() on ::-webkit-scrollbar pseudo-elements,
+     reverting to the OS cursor over the scrollbar. Track the mouse; when it's
+     over the scrollbar gutter (right edge), force the custom cursor via inline
+     style with !important priority, which outranks the UA scrollbar cursor. */
+  (function fixScrollbarCursor(){
+    let lastX = -1;
+    const SCROLL_GUTTER = 18; // px from right edge (covers 14px bar + padding)
+    function update(e){
+      const root = document.documentElement;
+      if (!root.classList.contains('dex-cursor')) {
+        if (lastX >= 0) { root.style.removeProperty('cursor'); lastX = -1; }
+        return;
+      }
+      const overBar = e.clientX >= window.innerWidth - SCROLL_GUTTER;
+      // Also cover horizontal scrollbar at bottom
+      const overBottomBar = e.clientY >= window.innerHeight - SCROLL_GUTTER &&
+                            e.clientX >= window.innerWidth - 100;
+      if (overBar || overBottomBar) {
+        if (lastX < 0) {
+          const cv = getComputedStyle(root).getPropertyValue('--dex-cursor-arrow').trim();
+          if (cv) root.style.setProperty('cursor', cv, 'important');
+          lastX = e.clientX;
+        }
+      } else if (lastX >= 0) {
+        root.style.removeProperty('cursor');
+        lastX = -1;
+      }
+    }
+    window.addEventListener('mousemove', update, { passive: true });
+  })();
   let cursorStored = null;
   try { cursorStored = localStorage.getItem(CURSOR_KEY); } catch { /* private mode */ }
   applyCursorPref(cursorStored !== 'off', false);
@@ -795,7 +826,7 @@ const openDialogs = new Set();
    asks "is an overlay up?" has to mean the modal kind, or the docked bar locks
    the page scroll, swallows the ` shortcut and gets closed by the next overlay
    that opens. One selector, so those four answers cannot drift apart. */
-const OVERLAY_OPEN = 'dialog[open]:not(.is-docked):not(.is-hidden-bar)';
+const OVERLAY_OPEN = 'dialog[open]:not(.is-docked)';
 const isDockedBar = (el) => el.classList.contains('is-docked');
 const openerFor = new WeakMap();
 // Which of them were opened OVER another rather than in place of it — see
@@ -3997,8 +4028,7 @@ const codeModal = document.getElementById('codeModal');
           var oid = window._padlockOverlay;
           if (oid) {
             var ov = document.getElementById(oid);
-            // Don't upgrade if it's in pill mode (is-hidden-bar) or docked
-            if (ov && !ov.classList.contains('is-hidden-bar') && !ov.classList.contains('is-docked')) return ov;
+            if (ov) return ov;
           }
           var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
           return allOpen.find(d => d.id !== 'codeModal') || null;
@@ -4161,22 +4191,6 @@ const codeModal = document.getElementById('codeModal');
         var ov = document.querySelector(OVERLAY_OPEN);
         window._padlockOverlay = ov ? ov.id : null;
         window.dispatchEvent(new KeyboardEvent('keydown',{key:'`'}));
-      });
-    });
-
-    /* CODES nav split-button: padlock icon opens the tilde keypad,
-       clicking the text/elsewhere scrolls to the Idea Vault section. */
-    document.querySelectorAll('[data-codes-keypad]').forEach((btn)=>{
-      const openKeypad = (e)=>{
-        if (e) { e.preventDefault(); e.stopPropagation(); }
-        // No overlay open (we're on the main nav), so _padlockOverlay stays null.
-        // Typing DEXDC with no overlay opens Notes, as expected.
-        window._padlockOverlay = null;
-        window.dispatchEvent(new KeyboardEvent('keydown',{key:'`'}));
-      };
-      btn.addEventListener('click', openKeypad);
-      btn.addEventListener('keydown', (e)=>{
-        if (e.key === 'Enter' || e.key === ' ') { openKeypad(e); }
       });
     });
 
