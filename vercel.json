@@ -20,6 +20,10 @@
     {
       "source": "/arena1/:room([A-Za-z0-9_-]+)",
       "destination": "/arena1/index.html"
+    },
+    {
+      "source": "/inko/:path*",
+      "destination": "https://inko.dexcimino.com/:path*"
     }
   ],
   "headers": [
