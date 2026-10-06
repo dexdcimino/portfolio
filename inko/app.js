@@ -380,7 +380,7 @@ function showSizePreview(){
   spHideT = setTimeout(() => $('size-preview').classList.remove('show'), 1400);
 }
 $('size').addEventListener('input', () => {
-  const v = Math.max(30, Math.min(300, +$('size').value));
+  const v = Math.max(10, Math.min(500, +$('size').value));
   if (tool==='eraser'){ eraserSize = v; }
   else brushSize = v;
   refreshSizeUI(); showSizePreview();
