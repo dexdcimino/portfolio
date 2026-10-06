@@ -4096,7 +4096,7 @@ const codeModal = document.getElementById('codeModal');
             var overlayId = overlay ? overlay.id : '';
             var ok = await window.DexAuth.unlock('snail');
             if (ok) {
-              if (overlayId === 'dashModal') {
+              if (overlayId === 'dashModal' || overlayId === 'workModal') {
                 window.DexAuth.applyTo('work');
                 window.setModeTag('dashModeTag', true);
                 /* The dashboard is an iframe with its own passcode gate.
