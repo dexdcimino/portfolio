@@ -4271,7 +4271,6 @@ const codeModal = document.getElementById('codeModal');
 
     /* Padlock icon (nav): same as tilde — opens the passcode keypad instead
        of following the parent link to #codes. */
-    /* Capture phase: runs before the navLinks scroll handler on the link itself. */
     document.addEventListener('click', (event) => {
       // Catch the padlock icon OR the entire CODES nav link
       const lock = event.target.closest('[data-codes-keypad], a[href="#codes"]');
@@ -4283,7 +4282,7 @@ const codeModal = document.getElementById('codeModal');
       openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener,
                 !!document.querySelector(OVERLAY_OPEN));
       codepad.focus();
-    }, true);
+    });
   }
 
   /* Every view is a <dialog> on the site's shared plumbing, so Escape, the
@@ -10504,6 +10503,14 @@ const LOOP_MODES = ['off', 'all', 'one'];
   for (const row of rows) {
     row.addEventListener('pointerenter', () => select(row));
     row.addEventListener('focus', () => select(row));
+    /* Mobile: tap selects/previews the game instead of opening it.
+       These are WASD desktop games, not mobile games. */
+    row.addEventListener('click', (e) => {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        e.preventDefault();
+        select(row);
+      }
+    });
   }
 
   /* The section RESTS on the first game that has artwork. It is not a hover
