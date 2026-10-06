@@ -220,16 +220,16 @@ img{max-width:100%}
 /* Darker variant for gradients: 35% darker, follows accent changes */
 .accent-stop-dark{stop-color:color-mix(in srgb, var(--accent), black 35%);transition:stop-color var(--accent-ease)}
 /* Rich color grade: darker but MORE saturated (not dull). Uses OKLCH to boost chroma 40% while dropping lightness 45%. */
-.accent-stop-rich{stop-color:color-mix(in srgb, var(--accent), black 12%);transition:stop-color var(--accent-ease)}
+.accent-stop-rich{stop-color:color-mix(in srgb, var(--accent), black 25%);transition:stop-color var(--accent-ease)}
 /* Per-accent fine-tuning for the top-right gradient (Dex 2026-10-06) */
 /* Red: too saturated, bring down */
-:root[data-accent='red'] .accent-stop-rich{stop-color:color-mix(in srgb, var(--accent) 85%, orange 15%)}
+:root[data-accent='red'] .accent-stop-rich{stop-color:color-mix(in srgb, var(--accent) 70%, orange 30%)}
 /* Yellow: too much red shift, move hue toward yellow-green */
-:root[data-accent='yellow'] .accent-stop-rich{stop-color:color-mix(in srgb, var(--accent) 90%, white 10%)}
+:root[data-accent='yellow'] .accent-stop-rich{stop-color:color-mix(in srgb, var(--accent) 80%, white 20%)}
 /* Lime: hue closer to original, slightly less intense */
-:root[data-accent='lime'] .accent-stop-rich{stop-color:color-mix(in srgb, var(--accent) 85%, yellow 15%)}
+:root[data-accent='lime'] .accent-stop-rich{stop-color:color-mix(in srgb, var(--accent) 70%, yellow 30%)}
 /* Blue: saturation too intense, dial back */
-:root[data-accent='blue'] .accent-stop-rich{stop-color:color-mix(in srgb, var(--accent) 80%, gray 20%)}
+:root[data-accent='blue'] .accent-stop-rich{stop-color:color-mix(in srgb, var(--accent) 60%, gray 40%)}
 /* White: too dark/aggressive, lighten with barely-blue tint */
 :root[data-accent='white'] .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.82) calc(c * 2.0) 245)}
 /* Cyan and Purple: leave as base (Dex approved) */
