@@ -4271,6 +4271,7 @@ const codeModal = document.getElementById('codeModal');
 
     /* Padlock icon (nav): same as tilde — opens the passcode keypad instead
        of following the parent link to #codes. */
+    /* Capture phase: runs before the navLinks scroll handler on the link itself. */
     document.addEventListener('click', (event) => {
       // Catch the padlock icon OR the entire CODES nav link
       const lock = event.target.closest('[data-codes-keypad], a[href="#codes"]');
@@ -4282,7 +4283,7 @@ const codeModal = document.getElementById('codeModal');
       openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener,
                 !!document.querySelector(OVERLAY_OPEN));
       codepad.focus();
-    });
+    }, true);
   }
 
   /* Every view is a <dialog> on the site's shared plumbing, so Escape, the
