@@ -9579,10 +9579,7 @@ let openReader = () => {};
          Without it, the opaque origin blocks storage and the app crashes
          to a blank page. */
       const isCrossOrigin = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
-      const isInko = url.includes('/inko');
-      if (isCrossOrigin || isInko) {
-        /* Inko: no sandbox. It's Dex's trusted app, and the sandbox was
-           causing "refused to connect" errors in the iframe. */
+      if (isCrossOrigin) {
         frame.removeAttribute('sandbox');
       } else {
         frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
@@ -9601,7 +9598,7 @@ let openReader = () => {};
          this one. The link out and the mobile path stay clean URLs; only the
          iframe carries the flag. */
       const isCrossOriginUrl = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
-      const embedUrl = (isCrossOriginUrl || isInko) ? url : url + (url.includes('?') ? '&' : '?') + 'embed=1';
+      const embedUrl = isCrossOriginUrl ? url : url + (url.includes('?') ? '&' : '?') + 'embed=1';
       // Set src on open, not in the markup: otherwise every visitor downloads
       // the whole bundle whether or not they ever click the card.
       if (frame.getAttribute('src') !== embedUrl) frame.setAttribute('src', embedUrl);
