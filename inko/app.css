@@ -53,6 +53,8 @@ body{
 #size-bar .ctl{margin:0; flex:1; min-width:0;}
 #size-bar .tbtn{flex:0 0 auto;}
 #size-bar .mrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+#size-bar .mrow.centered{justify-content:center;}
+#size-bar .mrow.centered #size-v{font-size:14px; font-weight:700; color:var(--text);}
 #size-bar .mrow span:first-child{font-size:13px; font-weight:600; color:var(--text);}
 #size-bar .mrow span:last-child{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums;}
 #size-bar input[type="range"]{width:100%; accent-color:var(--accent);}
