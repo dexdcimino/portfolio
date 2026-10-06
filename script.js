@@ -846,13 +846,41 @@ if (sidebar) {
     const t = e.target;
     const link = t.closest('a[href^="#"]');
     if (link) {
-      // Link tap: navigate, then close the nav
-      setTimeout(() => sidebar.classList.remove('nav-open'), 50);
+      // Link tap: navigate, then close the nav and collapse profile
+      setTimeout(() => {
+        sidebar.classList.remove('nav-open');
+        const footer = document.querySelector('.side-bottom');
+        const toggle = document.querySelector('.profile-toggle');
+        if (footer && !footer.classList.contains('is-profile-collapsed')) {
+          footer.classList.add('is-profile-collapsed');
+          const mini = document.querySelector('.profile-compact');
+          if (mini && toggle && toggle.parentElement !== mini) mini.appendChild(toggle);
+          if (toggle) {
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.setAttribute('aria-label', 'Show profile');
+          }
+        }
+      }, 50);
       return;
     }
     if (t.closest('a, button, input, select, textarea')) return;
     // Rail or dead-space tap: toggle
+    const wasOpen = sidebar.classList.contains('nav-open');
     sidebar.classList.toggle('nav-open');
+    // If we just closed the nav, collapse the profile too
+    if (wasOpen) {
+      const footer = document.querySelector('.side-bottom');
+      const toggle = document.querySelector('.profile-toggle');
+      if (footer && !footer.classList.contains('is-profile-collapsed')) {
+        footer.classList.add('is-profile-collapsed');
+        const mini = document.querySelector('.profile-compact');
+        if (mini && toggle && toggle.parentElement !== mini) mini.appendChild(toggle);
+        if (toggle) {
+          toggle.setAttribute('aria-expanded', 'false');
+          toggle.setAttribute('aria-label', 'Show profile');
+        }
+      }
+    }
   });
 
   // Mobile: tap anywhere outside the sidebar while nav is open closes it
@@ -862,6 +890,19 @@ if (sidebar) {
     if (e.target.closest('.sidebar')) return;
     // Tap was outside sidebar: close the nav
     sidebar.classList.remove('nav-open');
+    // Also collapse the profile so the mini avatar shows (not a blank gap)
+    const footer = document.querySelector('.side-bottom');
+    const toggle = document.querySelector('.profile-toggle');
+    if (footer && !footer.classList.contains('is-profile-collapsed')) {
+      footer.classList.add('is-profile-collapsed');
+      // Move toggle back to the mini row
+      const mini = document.querySelector('.profile-compact');
+      if (mini && toggle && toggle.parentElement !== mini) mini.appendChild(toggle);
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-label', 'Show profile');
+      }
+    }
   });
 }
 
