@@ -274,7 +274,7 @@ function refreshPanelUI(){
   $('swatch').style.background = css;
   $('sat').style.setProperty('--sat-track', `linear-gradient(90deg, ${hsbToCss(h,0,b,1)}, ${hsbToCss(h,100,b,1)})`);
   $('bri').style.setProperty('--bri-track', `linear-gradient(90deg, ${hsbToCss(h,s,0,1)}, ${hsbToCss(h,s,100,1)})`);
-  const sz = popMode==='eraser' ? eraserEff() : brushSize;
+  const sz = tool==='eraser' ? eraserEff() : brushSize;
   $('size').value = popMode==='eraser' && eraserSize!==null ? eraserSize : brushSize;
   $('size-v').textContent = sz+'px';
   const tip = document.getElementById('brush-tip');
@@ -306,7 +306,7 @@ function bindHSB(){
 }
 let spHideT = null;
 function showSizePreview(){
-  const sz = popMode==='eraser' ? eraserEff() : brushSize;
+  const sz = tool==='eraser' ? eraserEff() : brushSize;
   const c = $('sp-circle'), d = Math.min(sz * fitK, 150);
   c.style.width = c.style.height = d+'px';
   if (tool==='eraser'){ c.style.background = '#fff'; }
