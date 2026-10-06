@@ -45,6 +45,7 @@
   </defs>
 
   <!-- Transparent background -->
+  <circle cx="128" cy="128" r="168" fill="#232a3d"/>
   <g clip-path="url(#sClip)">
     <rect width="256" height="256" fill="url(#sGradient)"/>
     <rect width="256" height="256" fill="url(#warmGlow)"/>
