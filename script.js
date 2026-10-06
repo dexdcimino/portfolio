@@ -4254,6 +4254,34 @@ const codeModal = document.getElementById('codeModal');
       openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener, true);
       codepad.focus();
     });
+
+    /* Tab opens the keypad when a functional preview (app modal) is open. */
+    window.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const appModal = document.getElementById('appModal');
+      if (!appModal || !appModal.open) return;
+      if (codeModal.open) return;
+      if (typing()) return;
+      event.preventDefault();
+      codeOpener = document.activeElement;
+      openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener, true);
+      codepad.focus();
+    });
+
+    /* Padlock icon (nav): same as tilde — opens the passcode keypad instead
+       of following the parent link to #codes. */
+    document.addEventListener('click', (event) => {
+      const lock = event.target.closest('[data-codes-keypad]');
+      if (!lock) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (codeModal.open) { closeModal(codeModal); return; }
+      codeOpener = lock;
+      openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener,
+                !!document.querySelector(OVERLAY_OPEN));
+      codepad.focus();
+    });
   }
 
   /* Every view is a <dialog> on the site's shared plumbing, so Escape, the
