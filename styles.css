@@ -267,6 +267,10 @@ img{max-width:100%}
   .sidebar:not(.nav-open) .brand-logo{--brand-scale:1 !important}
   .sidebar:not(.nav-open) .nav-text{opacity:0 !important;transform:translateX(16px) !important}
   .sidebar:not(.nav-open) .side-bottom{margin-bottom:0 !important}
+  /* When the nav is closed, force the profile to its collapsed (avatar-only)
+     state so the expanded name/title/socials don't glitch the layout. */
+  .sidebar:not(.nav-open) .profile-wrap{display:none !important}
+  .sidebar:not(.nav-open) .profile-compact{height:52px !important;opacity:1 !important}
 }
 
 .brand{height:86px;display:grid;place-items:center;border-bottom:1px solid var(--line);color:var(--accent);transition:color var(--accent-ease)}
