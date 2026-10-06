@@ -106,10 +106,10 @@ function setupCanvas(){
 }
 let fitK = 1;
 function fit(){
-  const topbar = $('topbar').offsetHeight, toolbar = $('toolbar').offsetHeight;
-  const sizebar = $('size-bar') ? $('size-bar').offsetHeight : 0;
+  const topbar = $('topbar').offsetHeight;
+  const bottomBars = $('bottom-bars') ? $('bottom-bars').offsetHeight : 140;
   const availW = Math.min(window.innerWidth*0.94, 460);
-  const availH = window.innerHeight - topbar - toolbar - sizebar - 36;
+  const availH = window.innerHeight - topbar - bottomBars - 24;
   const k = Math.max(0.2, Math.min(availW/W, availH/H));
   fitK = k;
   canvas.style.width = (W*k)+'px'; canvas.style.height = (H*k)+'px';
@@ -381,7 +381,7 @@ function bindHSB(){
 let spHideT = null;
 function showSizePreview(){
   const sz = tool==='eraser' ? eraserEff() : brushSize;
-  const c = $('sp-circle'), d = Math.min(sz * fitK, 150);
+  const c = $('sp-circle'), d = Math.max(20, Math.min(sz * 0.6, 180));
   c.style.width = c.style.height = d+'px';
   if (tool==='eraser'){ c.style.background = '#fff'; }
   else { c.style.background = brushCss(); }
