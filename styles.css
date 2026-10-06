@@ -223,13 +223,13 @@ img{max-width:100%}
 .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.55) calc(c * 1.4) h);transition:stop-color var(--accent-ease)}
 /* Per-accent fine-tuning for the top-right gradient (Dex 2026-10-06) */
 /* Red: too saturated, bring down */
-:root[data-accent='red'] .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.65) calc(c * 1.2) calc(h + 15))}
+:root[data-accent='red'] .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.65) calc(c * 1.1) calc(h + 15))}
 /* Yellow: too much red shift, move hue toward yellow-green */
 :root[data-accent='yellow'] .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.68) calc(c * 1.35) calc(h + 12))}
 /* Lime: hue closer to original, slightly less intense */
-:root[data-accent='lime'] .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.62) calc(c * 1.3) calc(h + 8))}
+:root[data-accent='lime'] .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.62) calc(c * 1.3) calc(h + 14))}
 /* Blue: saturation too intense, dial back */
-:root[data-accent='blue'] .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.65) calc(c * 1.05) h)}
+:root[data-accent='blue'] .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.68) calc(c * 0.95) h)}
 /* White: too dark/aggressive, lighten with barely-blue tint */
 :root[data-accent='white'] .accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.82) calc(c * 2.0) 245)}
 /* Cyan and Purple: leave as base (Dex approved) */
