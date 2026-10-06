@@ -499,5 +499,30 @@ function init(){
   window.addEventListener('resize', fit);
   window.addEventListener('orientationchange', () => setTimeout(fit, 120));
 }
+
+/* ---------- PWA install prompt ---------- */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = $('install-btn');
+  if (btn) btn.style.display = '';
+});
+const installBtn = $('install-btn');
+if (installBtn){
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') $('install-btn').style.display = 'none';
+    deferredPrompt = null;
+  });
+}
+window.addEventListener('appinstalled', () => {
+  const btn = $('install-btn');
+  if (btn) btn.style.display = 'none';
+  deferredPrompt = null;
+});
+
 init();
 })();
