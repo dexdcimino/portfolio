@@ -9579,6 +9579,7 @@ let openReader = () => {};
          Without it, the opaque origin blocks storage and the app crashes
          to a blank page. */
       const isCrossOrigin = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
+      const isInkoPath = url.includes('/inko/');
       if (isCrossOrigin || isInkoPath) {
         frame.removeAttribute('sandbox');
       } else {
@@ -9598,7 +9599,6 @@ let openReader = () => {};
          this one. The link out and the mobile path stay clean URLs; only the
          iframe carries the flag. */
       const isCrossOriginUrl = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
-      const isInkoPath = url.includes('/inko/');
       const embedUrl = (isCrossOriginUrl || isInkoPath) ? url : url + (url.includes('?') ? '&' : '?') + 'embed=1';
       // Set src on open, not in the markup: otherwise every visitor downloads
       // the whole bundle whether or not they ever click the card.
