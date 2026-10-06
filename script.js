@@ -62,13 +62,13 @@ const parallaxEls = [...document.querySelectorAll('[data-parallax]')];
 // not clear AA there; --cv-accent in styles.css lifts those three for that
 // subtree only. Retune a colour here and check that override still holds.
 const ACCENTS = [
-  { name:'red',    color:'#D94727', p3:'color(display-p3 0.5819 0.0839 0.0348)', mascot:'red' },
-  { name:'yellow', color:'#FAAA1E', p3:'color(display-p3 0.8577 0.4203 0.0572)', mascot:'yellow' },
-  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.4136 0.7320 0.0818)', mascot:'limegreen' },
-  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.1222 0.5530 0.8810)', mascot:'cyan' },
-  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.0467 0.1069 0.8246)', mascot:'blue' },
-  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.3411 0.1164 0.8459)', mascot:'purple' },
-  { name:'white',  color:'#E9EBEC', p3:'color(display-p3 0.8178 0.8302 0.8378)', mascot:'white' }
+  { name:'red',    color:'#D94727', p3:'color(display-p3 0.938 0.223 0.066)', mascot:'red' },
+  { name:'yellow', color:'#FAAA1E', p3:'color(display-p3 1.000 0.672 0.098)', mascot:'yellow' },
+  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.644 0.967 0.080)', mascot:'limegreen' },
+  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.137 0.799 1.000)', mascot:'cyan' },
+  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.153 0.338 1.000)', mascot:'blue' },
+  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.659 0.322 1.000)', mascot:'purple' },
+  { name:'white',  color:'#E9EBEC', p3:'color(display-p3 0.914 0.922 0.925)', mascot:'white' }
 ];
 /* Wide-gamut displays get the P3 version for vibrant accents;
    sRGB displays fall back to the hex. */
