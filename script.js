@@ -62,12 +62,12 @@ const parallaxEls = [...document.querySelectorAll('[data-parallax]')];
 // not clear AA there; --cv-accent in styles.css lifts those three for that
 // subtree only. Retune a colour here and check that override still holds.
 const ACCENTS = [
-  { name:'red',    color:'#D94727', p3:'color(display-p3 0.886 0.256 0.118)', mascot:'red' },
+  { name:'red',    color:'#D94727', p3:'color(display-p3 0.868 0.267 0.135)', mascot:'red' },
   { name:'yellow', color:'#FAAA1E', p3:'color(display-p3 1.000 0.672 0.098)', mascot:'yellow' },
-  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.629 0.914 0.133)', mascot:'limegreen' },
-  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.137 0.799 1.000)', mascot:'cyan' },
-  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.162 0.344 0.991)', mascot:'blue' },
-  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.659 0.331 0.991)', mascot:'purple' },
+  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.624 0.896 0.151)', mascot:'limegreen' },
+  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.153 0.791 0.985)', mascot:'cyan' },
+  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.181 0.354 0.972)', mascot:'blue' },
+  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.659 0.346 0.976)', mascot:'purple' },
   { name:'white',  color:'#E9EBEC', p3:'color(display-p3 0.913 0.922 0.926)', mascot:'white' }
 ];
 const useP3 = window.matchMedia('(color-gamut: p3)').matches;
