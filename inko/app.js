@@ -8,7 +8,7 @@ if (EMBED) document.body.classList.add('embed');
 const W = 880, H = 1170, DPR = Math.min(window.devicePixelRatio || 1, 2);
 let hue = 4, sat = 100, bri = 100;
 let brushSize = 45, eraserSize = null;
-let bgH = 0, bgS = 0, bgB = 100;
+let bgH = 210, bgS = 35, bgB = 50;
 let tool = 'brush', mirrorOn = false, panelMode = 'brush', popMode = null;
 let history = [], step = -1, dirty = false, editingId = null;
 let gallery = [];
@@ -215,7 +215,7 @@ $('plus-btn').addEventListener('click', () => {
   closePop();
   saveCurrent(); toast('Canvas saved');
   editingId = null; titleInput.value = '';
-  bgH = 0; bgS = 0; bgB = 100;
+  bgH = 210; bgS = 35; bgB = 50;
   sctx.clearRect(0,0,W,H);
   render(); pushHistory(); dirty = false;
   try{ localStorage.removeItem('sketchDraftV1'); }catch(e){}
