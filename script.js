@@ -834,38 +834,23 @@ const openerFor = new WeakMap();
 const stackedOn = new WeakSet();
 const sidebar = document.getElementById('sidebar');
 
-/* Mobile: tap dead space to collapse, tap a link to navigate + collapse.
-   The sidebar expands via CSS :hover; on touch that state sticks.
-   force-collapse overrides it until the next explicit expand tap. */
+/* Mobile: tap rail to toggle the nav open/closed.
+   Tap a link: navigate (and close if open). Tap dead space while open: close. */
 if (sidebar) {
   const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
-  const collapseSidebar = () => sidebar.classList.add('force-collapse');
-  // Tapping the narrow rail re-enables expansion
   sidebar.addEventListener('click', (e) => {
     if (!isMobile()) return;
     const t = e.target;
-    // If tapping an interactive element, let it work first
-    if (t.closest('a, button, input, select, textarea')) {
-      // Nav links: collapse after navigation starts
-      if (t.closest('a[href^="#"]')) {
-        setTimeout(collapseSidebar, 50);
-      }
+    const link = t.closest('a[href^="#"]');
+    if (link) {
+      // Link tap: navigate, then close the nav
+      setTimeout(() => sidebar.classList.remove('nav-open'), 50);
       return;
     }
-    // Dead space tap: collapse immediately
-    collapseSidebar();
+    if (t.closest('a, button, input, select, textarea')) return;
+    // Rail or dead-space tap: toggle
+    sidebar.classList.toggle('nav-open');
   });
-  // Any touch on the collapsed rail clears the override so it can expand
-  sidebar.addEventListener('touchstart', (e) => {
-    if (!isMobile()) return;
-    if (sidebar.classList.contains('force-collapse')) {
-      // Only clear if tapping the rail itself (not content)
-      const rect = sidebar.getBoundingClientRect();
-      if (e.touches[0].clientX < rect.left + 60) {
-        sidebar.classList.remove('force-collapse');
-      }
-    }
-  }, {passive: true});
 }
 
 // A modal's trigger lives in the sidebar, and <dialog> restores focus to it on
