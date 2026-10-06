@@ -7437,7 +7437,7 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
   :root[data-accent='white'] { --accent: color(display-p3 0.913 0.922 0.926); }
 }
 
-/* === COLLAPSED PROFILE: centered avatar with chevron below ===
+@media (max-width:767px){/* === COLLAPSED PROFILE: centered avatar with chevron below ===
    Works with the original flex layout. Container is taller to fit both
    elements vertically stacked and centered. No absolute positioning hacks. */
 .sidebar:not(.nav-open) .profile-compact{
@@ -7467,4 +7467,4 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
 /* Smooth transition for height changes */
 .sidebar .profile-compact{
     transition:height 0.25s ease, opacity 0.25s ease, padding 0.25s ease !important;
-}
+}}
