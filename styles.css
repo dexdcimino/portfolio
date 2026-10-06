@@ -256,7 +256,7 @@ img{max-width:100%}
   .sidebar.nav-open .brand-logo .logo-top-horns{transition-delay:.10s}
   /* Align profile pic with nav icons: icon center is 34px from left (22+12),
      profile frame center is 39px (22+17), so shift left by 5px. */
-  .profile-compact{padding-left:17px;padding-right:17px}
+  .profile-compact{padding-left:12px;padding-right:17px}
   /* Push hidden nav text further right so no letter crests peek out when collapsed. */
   .nav-text{transform:translateX(16px)}
   /* Touch hover sticks on mobile — force the collapsed state when nav-open
@@ -270,8 +270,7 @@ img{max-width:100%}
   /* When the nav is closed, force the profile to its collapsed (avatar-only)
      state so the expanded name/title/socials don't glitch the layout. */
   .sidebar:not(.nav-open) .profile-wrap{display:none !important}
-  .sidebar:not(.nav-open) .profile-compact{height:52px !important;opacity:1 !important;justify-content:center;padding-left:0;padding-right:0}
-  .sidebar:not(.nav-open) .profile-compact-name{display:none !important}
+  .sidebar:not(.nav-open) .profile-compact{height:52px !important;opacity:1 !important}
 }
 
 .brand{height:86px;display:grid;place-items:center;border-bottom:1px solid var(--line);color:var(--accent);transition:color var(--accent-ease)}
