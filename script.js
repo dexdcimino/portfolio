@@ -9501,7 +9501,42 @@ let openReader = () => {};
      Re-armed on every load because each open navigates the frame (it is
      blanked to about:blank on close), so the document this binds to is a new
      one each time and the old listener dies with the old document. */
+  /* Inko fallback: if the iframe fails to load (Chrome error page),
+     show a direct link instead of a broken frame. */
   frame.addEventListener('load', () => {
+    try {
+      const src = frame.getAttribute('src') || '';
+      // Check if it's the Inko URL and the content is a Chrome error page
+      if (src.includes('inko')) {
+        let doc = null;
+        try { doc = frame.contentDocument; } catch (e) { /* cross-origin */ }
+        if (doc) {
+          const title = (doc.title || '').toLowerCase();
+          const bodyText = (doc.body ? doc.body.innerText : '').toLowerCase();
+          if (title.includes('blocked') || bodyText.includes('blocked') ||
+              title.includes('refused') || bodyText.includes('refused to connect')) {
+            // Show fallback: replace iframe with a link
+            const fallback = document.createElement('div');
+            fallback.className = 'app-fallback';
+            fallback.innerHTML = '<p>The preview couldn\'t load in the overlay.</p>' +
+              '<a href="https://inko.dexcimino.com" target="_blank" rel="noopener" class="app-fallback-link">Open Inko in a new tab &rarr;</a>';
+            frame.style.display = 'none';
+            frame.parentNode.insertBefore(fallback, frame.nextSibling);
+            // Remove fallback when dialog closes
+            const dlg = frame.closest('dialog');
+            if (dlg) {
+              const cleanup = () => {
+                fallback.remove();
+                frame.style.display = '';
+                dlg.removeEventListener('close', cleanup);
+              };
+              dlg.addEventListener('close', cleanup);
+            }
+            return;
+          }
+        }
+      }
+    } catch (e) {}
     let doc = null;
     try { doc = frame.contentDocument; } catch { return; }   // never same-origin? nothing to do
     if (!doc) return;
