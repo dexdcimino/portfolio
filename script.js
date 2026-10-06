@@ -9620,6 +9620,11 @@ let openReader = () => {};
       // the whole bundle whether or not they ever click the card.
       if (frame.getAttribute('src') !== embedUrl) frame.setAttribute('src', embedUrl);
       openModal(dialog, dialog.querySelector('.app-shell'), null, opener);
+      // Show the app's URL while the preview is open
+      try {
+        if (!dialog.dataset.prevUrl) dialog.dataset.prevUrl = location.pathname + location.search + location.hash;
+        history.replaceState(null, '', url);
+      } catch {}
     }
   });
 
@@ -9627,7 +9632,16 @@ let openReader = () => {};
   // Blank the frame on close so the app stops running — its scene animations
   // and the fake vote-drift interval would otherwise keep ticking behind the
   // page for as long as the tab is open.
-  bindModal(dialog, () => frame.setAttribute('src', 'about:blank'));
+  bindModal(dialog, () => {
+    frame.setAttribute('src', 'about:blank');
+    // Restore the URL from before the preview opened
+    try {
+      if (dialog.dataset.prevUrl) {
+        history.replaceState(null, '', dialog.dataset.prevUrl);
+        delete dialog.dataset.prevUrl;
+      }
+    } catch {}
+  });
 })();
 
 /* --- sidebar profile collapse -------------------------------------------- */
