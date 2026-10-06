@@ -237,7 +237,8 @@ function paintSwatches() {
   let row = 1;
   swatches.forEach(button => {
     const active = button.dataset.name === currentTheme;
-    const color = button.dataset.accent;
+    const theme = ACCENTS.find(t => t.name === button.dataset.name);
+    const color = theme ? accentColor(theme) : button.dataset.accent;
     const path = button.querySelector('.hex');
 
     button.classList.toggle('active', active);
@@ -245,8 +246,9 @@ function paintSwatches() {
     // Row 0 is the docked toggle; everything else cascades below it.
     button.style.setProperty('--row', active ? 0 : row++);
 
-    path.setAttribute('fill', active ? 'none' : color);
-    path.setAttribute('stroke', active ? color : 'none');
+    /* Use CSS fill/stroke (not attributes) so Display-P3 color() works. */
+    path.style.fill = active ? 'none' : color;
+    path.style.stroke = active ? color : 'none';
     path.setAttribute('stroke-width', active ? '18' : '0');
   });
 }
