@@ -338,7 +338,7 @@ function applyAccent(name, persist = true) {
   const theme = ACCENTS.find(item => item.name === name) || ACCENTS[2];
   currentTheme = theme.name;
 
-  root.style.setProperty('--accent', theme.color);
+  /* --accent via CSS [data-accent] + @media (color-gamut: p3); inline would override it. */
   root.style.setProperty('--accent-ink', accentInk(theme.color));
   root.dataset.accent = theme.name;
 
