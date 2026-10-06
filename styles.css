@@ -7437,15 +7437,13 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
   :root[data-accent='white'] { --accent: color(display-p3 0.913 0.922 0.926); }
 }
 
-@media (max-width:767px){/* === COLLAPSED PROFILE: centered avatar with chevron below ===
-   Works with the original flex layout. Container is taller to fit both
-   elements vertically stacked and centered. No absolute positioning hacks. */
+@media (max-width:767px){/* === MOBILE NAV COLLAPSED: avatar centered, chevron HIDDEN ===
+   When the nav itself is collapsed, just show the centered avatar.
+   No chevron — there's nothing to toggle until the nav opens. */
 .sidebar:not(.nav-open) .profile-compact{
-    flex-direction:column !important;
     justify-content:center !important;
     align-items:center !important;
-    gap:4px !important;
-    height:68px !important;
+    height:52px !important;
     padding:0 !important;
 }
 .sidebar:not(.nav-open) .profile-compact-frame{
@@ -7458,11 +7456,12 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
     display:none !important;
 }
 .sidebar:not(.nav-open) .profile-toggle{
+    display:none !important;
+}
+/* === MOBILE NAV OPEN + PROFILE COLLAPSED: show chevron to expand ===
+   Only when nav is open can the user expand the profile. */
+.sidebar.nav-open .side-bottom.is-profile-collapsed .profile-toggle{
     display:inline-flex !important;
-    position:static !important;
-    transform:none !important;
-    margin:0 !important;
-    padding:2px !important;
 }
 /* Smooth transition for height changes */
 .sidebar .profile-compact{
