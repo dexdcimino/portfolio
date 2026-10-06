@@ -219,6 +219,8 @@ img{max-width:100%}
 .accent-stop{stop-color:var(--accent);transition:stop-color var(--accent-ease)}
 /* Darker variant for gradients: 35% darker, follows accent changes */
 .accent-stop-dark{stop-color:color-mix(in srgb, var(--accent), black 35%);transition:stop-color var(--accent-ease)}
+/* Rich color grade: darker but MORE saturated (not dull). Uses OKLCH to boost chroma 40% while dropping lightness 45%. */
+.accent-stop-rich{stop-color:oklch(from var(--accent) calc(l * 0.55) calc(c * 1.4) h);transition:stop-color var(--accent-ease)}
 /* Was a style="mix-blend-mode:screen" attribute on both sheen polygons. Inline
    style attributes are blocked under style-src 'self', so the declaration lives
    here instead — the alternative was weakening the policy for two polygons. */
