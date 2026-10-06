@@ -251,6 +251,9 @@ img{max-width:100%}
   .sidebar.nav-open .nav-text{opacity:1;transform:none}
   .sidebar.nav-open .brand-logo{--brand-scale:var(--brand-open)}
   .sidebar.nav-open .side-bottom{margin-bottom:var(--rail-footer-lift)}
+  .sidebar.nav-open .brand-logo :is(.logo-side-horns,.logo-top-horns){transform:scale(1)}
+  .sidebar.nav-open .brand-logo .logo-side-horns{transition-delay:.04s}
+  .sidebar.nav-open .brand-logo .logo-top-horns{transition-delay:.10s}
 }
 
 .brand{height:86px;display:grid;place-items:center;border-bottom:1px solid var(--line);color:var(--accent);transition:color var(--accent-ease)}
