@@ -9579,7 +9579,7 @@ let openReader = () => {};
          Without it, the opaque origin blocks storage and the app crashes
          to a blank page. */
       const isCrossOrigin = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
-      if (isCrossOrigin) {
+      if (isCrossOrigin || isInkoPath) {
         frame.removeAttribute('sandbox');
       } else {
         frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
