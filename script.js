@@ -9578,13 +9578,6 @@ let openReader = () => {};
          allow-same-origin for localStorage (sketchpad saves drawings).
          Without it, the opaque origin blocks storage and the app crashes
          to a blank page. */
-      /* Inko: open in new tab instead of overlay.
-         The iframe refuses to load Inko (Vercel/Chrome issue), but the
-         direct URL works. Open in new tab as a working fallback. */
-      if (card.id === 'inkoCard') {
-        window.open(url, '_blank', 'noopener,noreferrer');
-        return;
-      }
       const isCrossOrigin = /^https?:\/\//i.test(url) && !url.startsWith(window.location.origin);
       const isInko = url.includes('/inko');
       if (isCrossOrigin || isInko) {
