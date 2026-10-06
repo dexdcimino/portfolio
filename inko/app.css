@@ -67,6 +67,14 @@ body{
   display:flex; align-items:center; justify-content:center;
 }
 #plus-btn svg{width:24px; height:24px;}
+
+#color-dot{
+  width:24px; height:24px; border-radius:50%;
+  background:#ff2d2d; border:2px solid rgba(255,255,255,.3);
+  box-shadow:0 0 0 1px rgba(0,0,0,.2);
+  display:block;
+}
+
 /* Brush settings popover */
 #brush-pop{
   position:fixed; left:50%; transform:translateX(-50%);
