@@ -8,294 +8,92 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Inko</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%230d1220'/><stop offset='1' stop-color='%231b2440'/></linearGradient><linearGradient id='ac' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2322d3ee'/><stop offset='1' stop-color='%23a78bfa'/></linearGradient></defs><rect width='512' height='512' fill='url(%23bg)'/><circle cx='256' cy='256' r='168' fill='url(%23ac)'/><path d='M176 322 C 216 236, 296 348, 338 214' stroke='%230b0d12' stroke-width='46' fill='none' stroke-linecap='round'/><circle cx='344' cy='196' r='25' fill='%230b0d12'/></svg>">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%230d1220'/><stop offset='1' stop-color='%231b2440'/></linearGradient><linearGradient id='ac' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2322d3ee'/><stop offset='1' stop-color='%23a78bfa'/></linearGradient></defs><rect width='512' height='512' fill='url(%23bg)'/><circle cx='256' cy='256' r='168' fill='url(%23ac)'/><path d='M176 322 C 216 236, 296 348, 338 214' stroke='%230b0d12' stroke-width='46' fill='none' stroke-linecap='round'/><circle cx='344' cy='196' r='25' fill='%230b0d12'/></svg>">
-<style>
-:root{
-  --bg:#0a0c11;
-  --panel:rgba(20,24,33,.94);
-  --border:rgba(255,255,255,.09);
-  --text:#f2f4f8;
-  --muted:#8b93a7;
-  --a1:#22d3ee;
-  --a2:#a78bfa;
-  --danger:#ff453a;
-}
-html,body{height:100%;}
-body{
-  margin:0;
-  background:radial-gradient(130% 90% at 50% -10%, #151b2b 0%, var(--bg) 55%) fixed, var(--bg);
-  color:var(--text);
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
-  height:100vh;height:100dvh;
-  overflow:hidden;overscroll-behavior:none;
-  display:flex;flex-direction:column;align-items:center;
-  -webkit-user-select:none;user-select:none;
-  -webkit-tap-highlight-color:transparent;
-}
-button{touch-action:manipulation;}
-#topbar{
-  width:100%;max-width:520px;flex:none;
-  padding:calc(env(safe-area-inset-top,0px) + 14px) 24px 6px;
-  display:flex;align-items:center;justify-content:center;
-}
-#title-input{
-  width:100%;text-align:center;background:transparent;border:none;outline:none;
-  color:var(--text);font-size:21px;font-weight:700;letter-spacing:.2px;
-}
-#title-input::placeholder{color:var(--muted);font-weight:600;}
-#stage{
-  flex:1;width:100%;min-height:0;
-  display:flex;align-items:center;justify-content:center;
-  padding:4px 0;
-}
-#canvas-frame{
-  border-radius:20px;overflow:hidden;background:#fff;line-height:0;
-  border:1px solid #3d434f;
-  box-shadow:0 0 0 1px rgba(0,0,0,.6),0 18px 50px rgba(0,0,0,.65),0 0 70px rgba(139,92,246,.14);
-}
-#pad{display:block;touch-action:none;background:#fff;}
-#toolbar{
-  flex:none;
-  width:calc(100vw - 20px);max-width:600px;
-  margin:6px 0 calc(env(safe-area-inset-bottom,0px) + 4px);
-  display:flex;align-items:center;
-  background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--border);border-radius:26px;padding:8px 10px;
-  box-shadow:0 12px 30px rgba(0,0,0,.5);
-}
-.tb-side{flex:1;display:flex;gap:4px;align-items:center;}
-.tb-side.right{justify-content:flex-end;}
-.tb-mid{display:flex;gap:4px;align-items:center;}
-.tbtn{
-  width:42px;height:42px;border-radius:50%;border:none;background:transparent;color:#e8ebf2;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;
-  transition:transform .12s,background .15s,opacity .15s,color .15s;
-}
-.tbtn:active{transform:scale(.92);background:rgba(255,255,255,.1);}
-.tbtn:disabled{opacity:.28;}
-.tbtn:disabled:active{transform:none;background:transparent;}
-.tbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-.tbtn.sel{background:linear-gradient(135deg,var(--a1),var(--a2));color:#0b0d12;}
-.tbtn.sel svg{stroke:#0b0d12;}
-#brush-tip{fill:#ff453a;stroke:none;}
-#sym-btn.on{background:linear-gradient(135deg,var(--a1),var(--a2));color:#0b0d12;}
-#sym-btn.on svg{stroke:#0b0d12;}
-#plus-btn{
-  width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;flex:none;
-  background:linear-gradient(135deg,var(--a1),var(--a2));
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 6px 18px rgba(56,189,248,.35);
-  transition:transform .12s;
-}
-#plus-btn:active{transform:scale(.9);}
-#plus-btn svg{width:24px;height:24px;fill:none;stroke:#0b0d12;stroke-width:2.4;stroke-linecap:round;}
-#brush-pop{
-  position:fixed;left:50%;transform:translateX(-50%) translateY(8px);
-  bottom:calc(env(safe-area-inset-bottom,0px) + 100px);
-  width:min(92vw,340px);background:var(--panel);
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  border:1px solid var(--border);border-radius:22px;padding:14px 18px 18px;z-index:60;
-  box-shadow:0 18px 45px rgba(0,0,0,.55);
-  display:none;opacity:0;transition:opacity .18s,transform .18s;
-}
-#brush-pop.open{display:block;opacity:1;transform:translateX(-50%) translateY(0);}
-.bp-tabs{display:flex;background:rgba(255,255,255,.07);border-radius:14px;padding:3px;margin-bottom:14px;}
-.bp-tab{
-  flex:1;border:none;background:transparent;color:var(--muted);
-  font-size:13px;font-weight:700;padding:8px;border-radius:11px;cursor:pointer;
-  transition:background .15s,color .15s;
-}
-.bp-tab.on{background:rgba(255,255,255,.14);color:var(--text);}
-.bp-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-#swatch{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:#ff453a;flex:none;}
-.bp-head .t{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
-#pop-x{
-  margin-left:auto;width:32px;height:32px;border-radius:50%;border:none;flex:none;
-  background:rgba(255,255,255,.08);color:var(--text);font-size:17px;line-height:1;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;
-}
-#pop-x:active{transform:scale(.9);background:rgba(255,255,255,.16);}
-.ctl{margin-bottom:12px;}
-.ctl:last-child{margin-bottom:0;}
-.ctl label{display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
-.ctl label span{color:var(--text);}
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;cursor:pointer;--sat-track:#888;--bri-track:#888;}
-input[type=range]::-webkit-slider-runnable-track{height:10px;border-radius:6px;}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;margin-top:-6px;box-shadow:0 2px 6px rgba(0,0,0,.45);border:none;}
-input[type=range]::-moz-range-track{height:10px;border-radius:6px;}
-input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:none;box-shadow:0 2px 6px rgba(0,0,0,.45);}
-#hue::-webkit-slider-runnable-track{background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}
-#hue::-moz-range-track{background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}
-#sat::-webkit-slider-runnable-track{background:var(--sat-track);}
-#sat::-moz-range-track{background:var(--sat-track);}
-#bri::-webkit-slider-runnable-track{background:var(--bri-track);}
-#bri::-moz-range-track{background:var(--bri-track);}
-#size::-webkit-slider-runnable-track{background:#3a4152;}
-#size::-moz-range-track{background:#3a4152;}
-#size-sync{display:none;font-size:11px;color:var(--muted);margin-top:4px;}
-#size-sync.show{display:block;}
-#size-preview{
-  position:fixed;left:50%;transform:translateX(-50%);z-index:70;
-  display:none;flex-direction:column;align-items:center;gap:6px;pointer-events:none;
-}
-#size-preview.show{display:flex;}
-#sp-circle{border-radius:50%;background:#ff453a;box-shadow:0 4px 14px rgba(0,0,0,.5);}
-#sp-label{font-size:11px;font-weight:700;color:var(--muted);background:rgba(20,24,33,.9);padding:3px 10px;border-radius:999px;border:1px solid var(--border);}
-#gallery{position:fixed;inset:0;background:#0a0c11;z-index:80;display:none;flex-direction:column;}
-#gallery.open{display:flex;}
-#g-head{flex:none;padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);}
-#g-head h2{margin:0;font-size:20px;font-weight:700;}
-#g-head p{margin:3px 0 0;font-size:12px;color:var(--muted);}
-#g-grid{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
-#g-rows{min-height:100%;display:flex;flex-direction:column;padding:16px;box-sizing:border-box;}
-#g-rows::before{content:'';flex:1 1 auto;}
-.g-row{display:flex;flex-direction:row-reverse;gap:14px;margin-bottom:14px;}
-.g-row:last-child{margin-bottom:0;}
-.g-item{flex:0 0 calc((100% - 28px)/3);min-width:0;display:flex;flex-direction:column;gap:6px;}
-.g-thumb{position:relative;aspect-ratio:3/4;border-radius:14px;background:#fff center/cover;border:1px solid rgba(255,255,255,.12);overflow:hidden;cursor:pointer;transition:transform .12s;}
-.g-thumb:active{transform:scale(.97);}
-.g-del{
-  position:absolute;left:8px;bottom:8px;width:32px;height:32px;border-radius:10px;border:none;
-  background:rgba(255,69,58,.95);color:#fff;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 12px rgba(0,0,0,.45);
-}
-.g-del:active{transform:scale(.9);}
-.g-del svg{width:15px;height:15px;stroke:#fff;stroke-width:3.2;stroke-linecap:round;}
-.g-dl{
-  position:absolute;left:8px;top:8px;width:32px;height:32px;border-radius:10px;border:none;
-  background:rgba(16,19,26,.88);color:#fff;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 12px rgba(0,0,0,.45);
-}
-.g-dl:active{transform:scale(.9);}
-.g-dl svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
-.g-title{font-size:11px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px;}
-#g-bar{
-  flex:none;width:calc(100vw - 20px);max-width:600px;
-  margin:6px auto calc(env(safe-area-inset-bottom,0px) + 4px);
-  display:flex;justify-content:center;
-  background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--border);border-radius:26px;padding:10px;
-  box-shadow:0 12px 30px rgba(0,0,0,.5);
-}
-#g-back{
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  min-width:min(70vw,280px);padding:13px 26px;border:none;border-radius:18px;cursor:pointer;
-  background:linear-gradient(135deg,var(--a1),var(--a2));color:#0b0d12;
-  font-size:15px;font-weight:700;
-  transition:transform .12s;
-}
-#g-back:active{transform:scale(.96);}
-#g-back svg{width:18px;height:18px;fill:none;stroke:#0b0d12;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
-#modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(4,6,10,.7);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:24px;}
-#modal.open{display:flex;}
-#modal-card{width:100%;max-width:320px;background:#171c26;border:1px solid var(--border);border-radius:22px;padding:22px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.6);}
-#modal-card h3{margin:0 0 8px;font-size:17px;}
-#modal-card p{margin:0 0 18px;font-size:13.5px;color:var(--muted);line-height:1.55;}
-.mrow{display:flex;gap:10px;}
-.mbtn{flex:1;padding:12px;border-radius:14px;border:none;font-size:15px;font-weight:700;cursor:pointer;}
-.mbtn:active{transform:scale(.97);}
-#m-cancel{background:rgba(255,255,255,.09);color:var(--text);}
-#m-del{background:var(--danger);color:#fff;}
-#toast{
-  position:fixed;left:50%;transform:translateX(-50%) translateY(10px);
-  bottom:calc(env(safe-area-inset-bottom,0px) + 100px);
-  background:#222836;border:1px solid var(--border);color:var(--text);
-  font-size:13px;font-weight:600;padding:10px 18px;border-radius:999px;
-  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:120;
-  max-width:90vw;text-align:center;white-space:nowrap;
-}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-</style>
-
+<link rel="manifest" href="/inko/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/inko/apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><circle cx='256' cy='256' r='168' fill='%2322d3ee'/><path d='M176 322 C 216 236, 296 348, 338 214' stroke='%230b0d12' stroke-width='46' fill='none' stroke-linecap='round'/></svg>">
+<link rel="stylesheet" href="/inko/app.css">
 </head>
 <body>
-
 <div id="topbar">
-  <input id="title-input" maxlength="24" placeholder="Untitled" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <input id="title-input" maxlength="24" placeholder="Untitled" autocomplete="off" spellcheck="false">
 </div>
 
 <div id="stage">
-  <div id="canvas-frame"><canvas id="pad"></canvas></div>
+  <div id="canvas-frame">
+    <canvas id="pad"></canvas>
+  </div>
 </div>
 
 <div id="toolbar">
   <div class="tb-side">
-    <button class="tbtn" id="grid-btn" title="Gallery" aria-label="Open gallery">
-      <svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
+    <button id="grid-btn" class="tbtn" aria-label="Gallery">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
     </button>
-    <button class="tbtn" id="sym-btn" title="Mirror symmetry" aria-label="Toggle mirror symmetry" aria-pressed="false">
-      <svg viewBox="0 0 24 24"><path d="M12 4v16" stroke-dasharray="3 2.4"/><path d="M8.5 8L5 12l3.5 4"/><path d="M15.5 8l3.5 4-3.5 4"/></svg>
+    <button id="sym-btn" class="tbtn" aria-label="Mirror" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="3 3"/><path d="M8 8 L5 12 L8 16"/><path d="M16 8 L19 12 L16 16"/></svg>
     </button>
   </div>
   <div class="tb-mid">
-    <button class="tbtn" id="undo-btn" title="Undo" aria-label="Undo">
-      <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 016 6v2"/></svg>
+    <button id="undo-btn" class="tbtn" aria-label="Undo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14 L4 9 L9 4"/><path d="M4 9 H14 A6 6 0 0 1 14 21 H9"/></svg>
     </button>
-    <button id="plus-btn" title="New canvas" aria-label="New canvas">
-      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    <button id="plus-btn" aria-label="New canvas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
-    <button class="tbtn" id="redo-btn" title="Redo" aria-label="Redo">
-      <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 00-6 6v2"/></svg>
+    <button id="redo-btn" class="tbtn" aria-label="Redo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 14 L20 9 L15 4"/><path d="M20 9 H10 A6 6 0 0 0 10 21 H15"/></svg>
     </button>
   </div>
   <div class="tb-side right">
-    <button class="tbtn" id="eraser-btn" title="Eraser" aria-label="Eraser">
-      <svg viewBox="0 0 24 24"><path d="M10 20l-6-6L15 3l6 6-9 9h-2z"/><path d="M14.5 6.5l3 3"/></svg>
+    <button id="eraser-btn" class="tbtn" aria-label="Eraser">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21 L4 18 L14 8 L18 8 L20 10 L10 20 Z"/><path d="M14 8 L17 5 L21 9 L18 12"/></svg>
     </button>
-    <button class="tbtn sel" id="brush-btn" title="Brush" aria-label="Brush settings">
-      <svg viewBox="0 0 24 24"><path d="M15.2 4.2l4.6 4.6-8.4 8.4-4.6-4.6 8.4-8.4z"/><path id="brush-tip" d="M3 15.8l6.4 6.4c.6.6 1.7.1 1.4-.8l-1.9-5.2c-.2-.5-.6-.9-1.1-1.1l-5.2-1.9c-.9-.3-1.4.8-.6 1.6z"/></svg>
+    <button id="brush-btn" class="tbtn sel" aria-label="Brush">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15 L4 20 L4 20"/><path id="brush-tip" d="M14 4 L20 10 L11 19 L5 13 Z" fill="#ff2d2d"/><path d="M14 4 L17 2 L22 7 L20 10"/></svg>
     </button>
   </div>
 </div>
 
-<div id="brush-pop" role="dialog" aria-label="Tool settings">
-  <div class="bp-tabs" id="bp-tabs">
-    <button class="bp-tab on" id="tab-brush">Brush</button>
-    <button class="bp-tab" id="tab-canvas">Canvas</button>
+<div id="brush-pop">
+  <div id="bp-tabs">
+    <button id="tab-brush" class="bp-tab on">Brush</button>
+    <button id="tab-canvas" class="bp-tab">Canvas</button>
   </div>
-  <div class="bp-head">
+  <div id="bp-head">
     <div id="swatch"></div>
-    <div class="t" id="swatch-label">Brush color</div>
+    <span id="swatch-label">Brush color</span>
     <button id="pop-x" aria-label="Close">✕</button>
   </div>
   <div id="hsb-wrap">
-    <div class="ctl"><label>Hue <span id="hue-v">4°</span></label><input type="range" id="hue" min="0" max="360" value="4"></div>
-    <div class="ctl"><label>Saturation <span id="sat-v">100%</span></label><input type="range" id="sat" min="0" max="100" value="100"></div>
-    <div class="ctl"><label>Brightness <span id="bri-v">100%</span></label><input type="range" id="bri" min="0" max="100" value="100"></div>
+    <div class="ctl"><div class="mrow"><span>Hue</span><span id="hue-v">4°</span></div>
+      <input type="range" id="hue" min="0" max="360" value="4"></div>
+    <div class="ctl"><div class="mrow"><span>Saturation</span><span id="sat-v">100</span></div>
+      <input type="range" id="sat" min="0" max="100" value="100"></div>
+    <div class="ctl"><div class="mrow"><span>Brightness</span><span id="bri-v">100</span></div>
+      <input type="range" id="bri" min="0" max="100" value="100"></div>
   </div>
-  <div class="ctl" id="ctl-size"><label><span id="size-title">Brush size</span> <span id="size-v">45px</span></label><input type="range" id="size" min="1" max="90" value="45"><div id="size-sync">Synced with brush size</div></div>
+  <div class="ctl" id="ctl-size">
+    <div class="mrow"><span id="size-title">Brush size</span><span id="size-v">45px</span></div>
+    <input type="range" id="size" min="1" max="90" value="45">
+    <div id="size-sync">Synced with brush size</div>
+  </div>
 </div>
 
 <div id="size-preview"><div id="sp-circle"></div><div id="sp-label">45px</div></div>
 
-<div id="gallery" role="dialog" aria-label="Saved canvases">
-  <div id="g-head">
-    <div><h2>Gallery</h2><p id="g-count"></p></div>
-  </div>
+<div id="gallery">
+  <div id="g-head"><span>Gallery</span><span id="g-count"></span></div>
   <div id="g-grid"><div id="g-rows"></div></div>
-  <div id="g-bar">
-    <button id="g-back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>Back to canvas</button>
-  </div>
+  <div id="g-bar"><button id="g-back">‹ Back to canvas</button></div>
 </div>
 
-<div id="modal" role="alertdialog" aria-label="Confirm delete">
-  <div id="modal-card">
-    <h3 id="m-title">Delete this canvas?</h3>
-    <p id="m-text">Are you sure you want to delete this canvas? This can't be undone.</p>
-    <div class="mrow">
-      <button class="mbtn" id="m-cancel">Cancel</button>
-      <button class="mbtn" id="m-del">Delete</button>
-    </div>
-  </div>
-</div>
+<div id="modal"><div id="modal-card">
+  <div id="m-title"></div><div id="m-text"></div>
+  <div class="mrow"><button id="m-cancel" class="mbtn">Cancel</button><button id="m-del" class="mbtn danger">Delete</button></div>
+</div></div>
 
 <div id="toast"></div>
 
-
+<script src="/inko/app.js"></script>
 </body>
 </html>
