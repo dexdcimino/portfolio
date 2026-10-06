@@ -312,8 +312,8 @@ function showSizePreview(){
   const sz = popMode==='eraser' ? eraserEff() : brushSize;
   const c = $('sp-circle'), d = Math.min(sz * fitK, 150);
   c.style.width = c.style.height = d+'px';
-  if (popMode==='eraser'){ c.style.background = '#fff'; c.style.border = '2px dashed var(--muted)'; }
-  else { c.style.background = brushCss(); c.style.border = 'none'; }
+  if (tool==='eraser'){ c.style.background = '#fff'; }
+  else { c.style.background = brushCss(); }
   $('sp-label').textContent = sz+'px';
   $('size-preview').classList.add('show');
   clearTimeout(spHideT);
