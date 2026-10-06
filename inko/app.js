@@ -192,19 +192,24 @@ titleInput.addEventListener('input', () => { dirty = true; scheduleDraft(); });
 
 /* ---------- toolbar ---------- */
 function syncToolSel(){
-  $('brush-btn').classList.toggle('sel', tool==='brush');
-  $('eraser-btn').classList.toggle('sel', tool==='eraser');
+  const isBrush = tool==='brush';
+  $('toggle-brush-icon').style.display = isBrush ? '' : 'none';
+  $('toggle-eraser-icon').style.display = isBrush ? 'none' : '';
+  $('tool-toggle').setAttribute('aria-label', isBrush ? 'Switch to eraser' : 'Switch to brush');
 }
-$('brush-btn').addEventListener('click', e => {
-  e.stopPropagation();
-  if (popMode==='brush'){ closePop(); return; }
-  tool = 'brush'; syncToolSel(); refreshSizeUI(); openBrushPop();
-});
-$('eraser-btn').addEventListener('click', e => {
+$('tool-toggle').addEventListener('click', e => {
   e.stopPropagation();
   closePop();
-  tool = 'eraser'; syncToolSel(); refreshSizeUI();
+  tool = tool==='brush' ? 'eraser' : 'brush';
+  syncToolSel(); refreshSizeUI();
 });
+$('color-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  if (popMode==='brush'){ closePop(); return; }
+  // Color picker doesn't change tool, just opens popup
+  openBrushPop();
+});
+
 $('sym-btn').addEventListener('click', () => {
   mirrorOn = !mirrorOn;
   $('sym-btn').classList.toggle('on', mirrorOn);
@@ -242,7 +247,7 @@ $('pop-x').addEventListener('click', e => { e.stopPropagation(); closePop(); });
 document.addEventListener('pointerdown', e => {
   if (!popMode) return;
   if (brushPop.contains(e.target)) return;
-  if (e.target.closest('#brush-btn') || e.target.closest('#eraser-btn')) return;
+  if (e.target.closest('#color-btn') || e.target.closest('#tool-toggle')) return;
   closePop();
 });
 document.addEventListener('touchstart', e => {
@@ -269,6 +274,7 @@ function syncSizeNote(){
   $('size-sync').style.display = show ? 'block' : 'none';
 }
 function refreshPanelUI(){
+  const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
   const isCanvas = panelMode==='canvas' && popMode!=='eraser';
   const h = isCanvas ? bgH : hue, s = isCanvas ? bgS : sat, b = isCanvas ? bgB : bri;
   $('hue').value = h; $('sat').value = s; $('bri').value = b;
