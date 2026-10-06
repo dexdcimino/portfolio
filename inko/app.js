@@ -44,8 +44,9 @@ function setupCanvas(){
 let fitK = 1;
 function fit(){
   const topbar = $('topbar').offsetHeight, toolbar = $('toolbar').offsetHeight;
+  const sizebar = $('size-bar') ? $('size-bar').offsetHeight : 0;
   const availW = Math.min(window.innerWidth*0.94, 460);
-  const availH = window.innerHeight - topbar - toolbar - 36;
+  const availH = window.innerHeight - topbar - toolbar - sizebar - 36;
   const k = Math.max(0.2, Math.min(availW/W, availH/H));
   fitK = k;
   canvas.style.width = (W*k)+'px'; canvas.style.height = (H*k)+'px';
