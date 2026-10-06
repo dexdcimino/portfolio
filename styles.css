@@ -270,7 +270,7 @@ img{max-width:100%}
   /* When the nav is closed, force the profile to its collapsed (avatar-only)
      state so the expanded name/title/socials don't glitch the layout. */
   .sidebar:not(.nav-open) .profile-wrap{display:none !important}
-  .sidebar:not(.nav-open) .profile-compact{height:54px !important;opacity:1 !important;display:flex !important;align-items:center !important;gap:18px !important;padding:0 22px !important}
+  .sidebar:not(.nav-open) .profile-compact{height:54px !important;opacity:1 !important;display:flex !important;align-items:center !important;justify-content:center !important;padding:0 !important;gap:0 !important}
   .sidebar:not(.nav-open) .profile-compact-frame{width:34px !important;height:34px !important}
   .sidebar:not(.nav-open) .profile-compact-name{display:none !important}
 
