@@ -20,6 +20,16 @@ body{
   font-size:21px; font-weight:700; text-align:center; width:70%;
 }
 #title-input::placeholder{color:var(--muted);}
+#install-btn{
+  position:absolute; right:16px; top:50%; transform:translateY(-50%);
+  display:flex; align-items:center; gap:6px;
+  background:linear-gradient(135deg,var(--a1),var(--a2)); color:#0b0d12;
+  border:none; border-radius:12px; padding:8px 14px;
+  font-size:14px; font-weight:700; cursor:pointer;
+}
+#install-btn svg{width:18px; height:18px;}
+#topbar{position:relative;}
+
 /* Canvas stage */
 #stage{flex:1; display:flex; align-items:center; justify-content:center; width:100%; min-height:0; padding:6px 0; touch-action:none; overscroll-behavior:none;}
 #canvas-frame{
@@ -34,11 +44,9 @@ body{
   width:calc(100vw - 20px); max-width:600px;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border); border-radius:18px;
-  padding:10px 12px; margin-bottom:8px;
-  display:flex; align-items:center; gap:8px;
+  padding:10px 16px; margin-bottom:8px;
 }
-#size-bar .ctl{margin:0; flex:1; min-width:0;}
-#size-bar .tbtn{flex:0 0 auto;}
+#size-bar .ctl{margin:0;}
 #size-bar .mrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
 #size-bar .mrow span:first-child{font-size:13px; font-weight:600; color:var(--text);}
 #size-bar .mrow span:last-child{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums;}
