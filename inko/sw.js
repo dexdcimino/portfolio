@@ -1,5 +1,5 @@
-const CACHE = 'inko-v5';
-const APP_VERSION = '5.0.0';
+const CACHE = 'inko-v6';
+const APP_VERSION = '6.0.0';
 
 // Files that should always be fresh (network-first)
 const NETWORK_FIRST = [
