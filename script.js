@@ -834,6 +834,40 @@ const openerFor = new WeakMap();
 const stackedOn = new WeakSet();
 const sidebar = document.getElementById('sidebar');
 
+/* Mobile: tap dead space to collapse, tap a link to navigate + collapse.
+   The sidebar expands via CSS :hover; on touch that state sticks.
+   force-collapse overrides it until the next explicit expand tap. */
+if (sidebar) {
+  const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+  const collapseSidebar = () => sidebar.classList.add('force-collapse');
+  // Tapping the narrow rail re-enables expansion
+  sidebar.addEventListener('click', (e) => {
+    if (!isMobile()) return;
+    const t = e.target;
+    // If tapping an interactive element, let it work first
+    if (t.closest('a, button, input, select, textarea')) {
+      // Nav links: collapse after navigation starts
+      if (t.closest('a[href^="#"]')) {
+        setTimeout(collapseSidebar, 50);
+      }
+      return;
+    }
+    // Dead space tap: collapse immediately
+    collapseSidebar();
+  });
+  // Any touch on the collapsed rail clears the override so it can expand
+  sidebar.addEventListener('touchstart', (e) => {
+    if (!isMobile()) return;
+    if (sidebar.classList.contains('force-collapse')) {
+      // Only clear if tapping the rail itself (not content)
+      const rect = sidebar.getBoundingClientRect();
+      if (e.touches[0].clientX < rect.left + 60) {
+        sidebar.classList.remove('force-collapse');
+      }
+    }
+  }, {passive: true});
+}
+
 // A modal's trigger lives in the sidebar, and <dialog> restores focus to it on
 // close — natively, even with no code of ours. That restored focus counts as
 // :focus-visible, which would pop the rail open under the pointer's nose.
