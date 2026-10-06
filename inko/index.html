@@ -48,8 +48,15 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14 L4 9 L9 4"/><path d="M4 9 H14 A6 6 0 0 1 14 21 H9"/></svg>
     </button>
     <button id="tool-toggle" class="tbtn sel" aria-label="Toggle brush/eraser">
-      <svg id="toggle-brush-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15 L4 20 L4 20"/><path id="brush-tip" d="M14 4 L20 10 L11 19 L5 13 Z" fill="#ff2d2d"/><path d="M14 4 L17 2 L22 7 L20 10"/></svg>
-      <svg id="toggle-eraser-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M7 21 L4 18 L14 8 L18 8 L20 10 L10 20 Z"/><path d="M14 8 L17 5 L21 9 L18 12"/></svg>
+      <svg id="toggle-brush-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 3 L21 6"/><!-- handle end -->
+        <path d="M17 4 L20 7 L12 15 L9 12 Z"/><!-- ferrule -->
+        <path id="brush-tip" d="M9 12 L12 15 L7 21 C6 22 4 22 3 21 C2 20 2 18 3 17 Z" fill="#ff2d2d" stroke="none"/><!-- bristles -->
+      </svg>
+      <svg id="toggle-eraser-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+        <path d="M5 15 L15 5 L20 10 L10 20 L5 20 Z"/><!-- eraser body -->
+        <path d="M12 8 L17 13"/><!-- band -->
+      </svg>
     </button>
     <button id="redo-btn" class="tbtn" aria-label="Redo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 14 L20 9 L15 4"/><path d="M20 9 H10 A6 6 0 0 0 10 21 H15"/></svg>
