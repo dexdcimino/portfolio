@@ -573,13 +573,35 @@ window.addEventListener('beforeinstallprompt', e => {
 });
 const installBtn = $('install-btn');
 if (installBtn){
+  // Always show the button - don't wait for beforeinstallprompt
+  installBtn.style.display = '';
   installBtn.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') $('install-btn').style.display = 'none';
-    deferredPrompt = null;
+    if (deferredPrompt){
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') installBtn.style.display = 'none';
+      deferredPrompt = null;
+    } else {
+      // Fallback: show manual instructions
+      showInstallInstructions();
+    }
   });
+}
+function showInstallInstructions(){
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  t.innerHTML = '<div style="background:#1a1f2e;border-radius:16px;padding:24px;max-width:340px;color:#fff;">' +
+    '<h3 style="margin:0 0 12px;font-size:18px;">Install Inko</h3>' +
+    '<p style="margin:0 0 8px;font-size:14px;color:#aaa;">To install this app on your home screen:</p>' +
+    '<ol style="margin:0 0 16px;padding-left:20px;font-size:14px;color:#ddd;">' +
+    '<li>Open <b>dexcimino.com/inko/</b> in Chrome</li>' +
+    '<li>Tap the <b>⋮ menu</b> (top-right)</li>' +
+    '<li>Tap <b>"Add to Home screen"</b> or <b>"Install app"</b></li>' +
+    '</ol>' +
+    '<button style="width:100%;background:linear-gradient(135deg,#22d3ee,#a78bfa);border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;color:#0b0d12;font-size:15px;">Got it</button></div>';
+  t.querySelector('button').onclick = () => t.remove();
+  t.onclick = e => { if (e.target === t) t.remove(); };
+  document.body.appendChild(t);
 }
 window.addEventListener('appinstalled', () => {
   const btn = $('install-btn');
