@@ -409,7 +409,10 @@ img{max-width:100%}
 /* Dex 2026-10-05: the sidebar toggle covers the face — remove it from the nav.
    The About section keeps its own toggle. */
 /* Chevron restored: positioned at the end of the name line, not over the face. */
-.sidebar .profile-toggle{display:inline-flex !important;position:static;margin-left:8px;vertical-align:middle}
+/* Chevron positioned absolutely so it never pushes the frame off-center.
+   It floats to the right of the centered avatar without taking up flow space. */
+.sidebar .profile-toggle{display:inline-flex !important;position:absolute !important;right:6px;top:50%;transform:translateY(-50%);margin:0 !important;z-index:2}
+.sidebar:not(.nav-open) .profile-compact{position:relative !important}
 /* The expanded name and its chevron share one line. */
 /* min-height is the chevron's own height, and it is here because script.js
    MOVES that one button between this row and the compact row on every toggle —
