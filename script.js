@@ -707,7 +707,6 @@ homeLinks.forEach(link => link.addEventListener('click', event => {
 navLinks.forEach(link => link.addEventListener('click', event => {
   const id = link.getAttribute('href')?.slice(1);
   if (!id || id === 'home') return;            // homeLinks owns #home
-  if (id === 'codes') return;                  // padlock opens keypad, never scrolls
   const target = document.getElementById(id);
   if (!target) return;                         // unknown target: let it navigate
   event.preventDefault();
@@ -4281,13 +4280,12 @@ const codeModal = document.getElementById('codeModal');
       if (!lock) return;
       event.preventDefault();
       event.stopPropagation();
-      event.stopImmediatePropagation();
       if (codeModal.open) { closeModal(codeModal); return; }
       codeOpener = lock;
       openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener,
                 !!document.querySelector(OVERLAY_OPEN));
       codepad.focus();
-    }, true);
+    });
   }
 
   /* Every view is a <dialog> on the site's shared plumbing, so Escape, the
@@ -9537,7 +9535,7 @@ let openReader = () => {};
   const cards = document.querySelectorAll('.ai-card[data-app-modal]');
   if (!dialog || !frame || !cards.length) return;
 
-  const wantsModal = () => window.matchMedia('(min-width: 768px)').matches;
+  const wantsModal = () => true;  // Dex 2026-10-05: allow overlay on mobile
 
   /* ESCAPE, ONCE FOCUS IS INSIDE THE FRAME.
 
