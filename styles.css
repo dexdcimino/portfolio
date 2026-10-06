@@ -217,6 +217,8 @@ img{max-width:100%}
 /* Every lime stop in both layers. One declaration = one crossfade, same as the
    mask-and-background-color trick used everywhere else. */
 .accent-stop{stop-color:var(--accent);transition:stop-color var(--accent-ease)}
+/* Darker variant for gradients: 35% darker, follows accent changes */
+.accent-stop-dark{stop-color:color-mix(in srgb, var(--accent), black 35%);transition:stop-color var(--accent-ease)}
 /* Was a style="mix-blend-mode:screen" attribute on both sheen polygons. Inline
    style attributes are blocked under style-src 'self', so the declaration lives
    here instead — the alternative was weakening the policy for two polygons. */
@@ -7427,15 +7429,7 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
 .codes-keypad-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Wide-gamut accents (10% saturation boost) via CSS — no JS flash. */
-@media (color-gamut: p3) {
-  :root[data-accent='red'] { --accent: color(display-p3 0.868 0.267 0.135); }
-  :root[data-accent='yellow'] { --accent: color(display-p3 1.000 0.672 0.098); }
-  :root[data-accent='lime'] { --accent: color(display-p3 0.624 0.896 0.151); }
-  :root[data-accent='cyan'] { --accent: color(display-p3 0.153 0.791 0.985); }
-  :root[data-accent='blue'] { --accent: color(display-p3 0.181 0.354 0.972); }
-  :root[data-accent='purple'] { --accent: color(display-p3 0.659 0.346 0.976); }
-  :root[data-accent='white'] { --accent: color(display-p3 0.913 0.922 0.926); }
-}
+/* P3 boost removed per Dex request - using base values */
 
 @media (max-width:767px){/* === MOBILE NAV COLLAPSED: avatar centered, chevron HIDDEN ===
    When the nav itself is collapsed, just show the centered avatar.
