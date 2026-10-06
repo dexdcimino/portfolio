@@ -338,7 +338,7 @@ function refreshPanelUI(){
   $('sat').style.setProperty('--sat-track', `linear-gradient(90deg, ${hsbToCss(h,0,b,1)}, ${hsbToCss(h,100,b,1)})`);
   $('bri').style.setProperty('--bri-track', `linear-gradient(90deg, ${hsbToCss(h,s,0,1)}, ${hsbToCss(h,s,100,1)})`);
   const sz = tool==='eraser' ? eraserEff() : brushSize;
-  $('size').value = popMode==='eraser' && eraserSize!==null ? eraserSize : brushSize;
+  $('size').value = tool==='eraser' ? eraserEff() : brushSize;
   $('size-v').textContent = sz+'px';
   const tip = document.getElementById('brush-tip');
   if (tip) tip.setAttribute('fill', brushCss());
