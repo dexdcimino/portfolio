@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="-40 -40 336 336">
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="-74 -74 404 404">
   <defs>
     <!-- Multi-stop gradient approximates the generated mesh-like color flow -->
     <linearGradient id="sGradient" x1="38" y1="38" x2="218" y2="218" gradientUnits="userSpaceOnUse">
@@ -45,7 +45,7 @@
   </defs>
 
   <!-- Transparent background -->
-  <circle cx="128" cy="128" r="168" fill="#232a3d"/>
+  <circle cx="128" cy="128" r="202" fill="#232a3d"/>
   <g clip-path="url(#sClip)">
     <rect width="256" height="256" fill="url(#sGradient)"/>
     <rect width="256" height="256" fill="url(#warmGlow)"/>
