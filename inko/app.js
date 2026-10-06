@@ -213,10 +213,11 @@ $('sym-btn').addEventListener('click', () => {
 });
 $('plus-btn').addEventListener('click', () => {
   closePop();
-  if (dirty){ saveCurrent(); toast('Canvas saved'); }
+  saveCurrent(); toast('Canvas saved');
   editingId = null; titleInput.value = '';
   bgH = 0; bgS = 0; bgB = 100;
-  clearCanvas(); dirty = false;
+  sctx.clearRect(0,0,W,H);
+  render(); pushHistory(); dirty = false;
   try{ localStorage.removeItem('sketchDraftV1'); }catch(e){}
   refreshPanelUI();
 });
@@ -411,7 +412,8 @@ function makeItem(it, isLive){
 function renderGallery(){
   const rows = $('g-rows'); rows.innerHTML = '';
   $('g-count').textContent = gallery.length + (gallery.length===1 ? ' canvas' : ' canvases');
-  const items = [{id:'__live', live:true}, ...gallery];
+  // Oldest first, live tile last → newest ends up bottom-right
+  const items = [...gallery].reverse().concat([{id:'__live', live:true}]);
   for (let i=0; i<items.length; i+=3){
     const row = document.createElement('div'); row.className = 'g-row';
     items.slice(i, i+3).forEach(it => row.appendChild(makeItem(it, it.live)));
