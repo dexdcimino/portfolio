@@ -270,7 +270,8 @@ img{max-width:100%}
   /* When the nav is closed, force the profile to its collapsed (avatar-only)
      state so the expanded name/title/socials don't glitch the layout. */
   .sidebar:not(.nav-open) .profile-wrap{display:none !important}
-  .sidebar:not(.nav-open) .profile-compact{height:52px !important;opacity:1 !important}
+  .sidebar:not(.nav-open) .profile-compact{height:52px !important;opacity:1 !important;justify-content:center;padding-left:0;padding-right:0}
+  .sidebar:not(.nav-open) .profile-compact-name{display:none !important}
 }
 
 .brand{height:86px;display:grid;place-items:center;border-bottom:1px solid var(--line);color:var(--accent);transition:color var(--accent-ease)}
