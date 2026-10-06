@@ -795,7 +795,7 @@ const openDialogs = new Set();
    asks "is an overlay up?" has to mean the modal kind, or the docked bar locks
    the page scroll, swallows the ` shortcut and gets closed by the next overlay
    that opens. One selector, so those four answers cannot drift apart. */
-const OVERLAY_OPEN = 'dialog[open]:not(.is-docked)';
+const OVERLAY_OPEN = 'dialog[open]:not(.is-docked):not(.is-hidden-bar)';
 const isDockedBar = (el) => el.classList.contains('is-docked');
 const openerFor = new WeakMap();
 // Which of them were opened OVER another rather than in place of it — see
@@ -3997,7 +3997,8 @@ const codeModal = document.getElementById('codeModal');
           var oid = window._padlockOverlay;
           if (oid) {
             var ov = document.getElementById(oid);
-            if (ov) return ov;
+            // Don't upgrade if it's in pill mode (is-hidden-bar) or docked
+            if (ov && !ov.classList.contains('is-hidden-bar') && !ov.classList.contains('is-docked')) return ov;
           }
           var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
           return allOpen.find(d => d.id !== 'codeModal') || null;
