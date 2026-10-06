@@ -62,14 +62,18 @@ const parallaxEls = [...document.querySelectorAll('[data-parallax]')];
 // not clear AA there; --cv-accent in styles.css lifts those three for that
 // subtree only. Retune a colour here and check that override still holds.
 const ACCENTS = [
-  { name:'red',    color:'#D94727', mascot:'red' },      // hand-picked; glow hue 6°
-  { name:'yellow', color:'#FAAA1E', mascot:'yellow' },   // glow hue 39°
-  { name:'lime',   color:'#9EE02B', mascot:'limegreen' },// glow hue 90°, brand mark 80°
-  { name:'cyan',   color:'#2CC7F6', mascot:'cyan' },     // glow hue 194°
-  { name:'blue',   color:'#335DF3', mascot:'blue' },     // hand-picked; glow hue 208°
-  { name:'purple', color:'#A85CF5', mascot:'purple' },   // glow hue 272°
-  { name:'white',  color:'#E9EBEC', mascot:'white' }     // mascot's cool neutral
+  { name:'red',    color:'#D94727', p3:'color(display-p3 0.938 0.223 0.066)', mascot:'red' },
+  { name:'yellow', color:'#FAAA1E', p3:'color(display-p3 1.000 0.672 0.098)', mascot:'yellow' },
+  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.644 0.967 0.080)', mascot:'limegreen' },
+  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.137 0.799 1.000)', mascot:'cyan' },
+  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.153 0.338 1.000)', mascot:'blue' },
+  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.659 0.322 1.000)', mascot:'purple' },
+  { name:'white',  color:'#E9EBEC', p3:'color(display-p3 0.914 0.922 0.925)', mascot:'white' }
 ];
+/* Wide-gamut displays get the P3 version for vibrant accents;
+   sRGB displays fall back to the hex. */
+const useP3 = window.matchMedia('(color-gamut: p3)').matches;
+const accentColor = (theme) => (useP3 && theme.p3) ? theme.p3 : theme.color;
 
 const STORAGE_KEY = 'dex-accent-name';
 const DEFAULT_ACCENT = 'lime';
@@ -335,7 +339,7 @@ function applyAccent(name, persist = true) {
   const theme = ACCENTS.find(item => item.name === name) || ACCENTS[2];
   currentTheme = theme.name;
 
-  root.style.setProperty('--accent', theme.color);
+  root.style.setProperty('--accent', accentColor(theme));
   root.style.setProperty('--accent-ink', accentInk(theme.color));
   root.dataset.accent = theme.name;
 
@@ -10503,14 +10507,6 @@ const LOOP_MODES = ['off', 'all', 'one'];
   for (const row of rows) {
     row.addEventListener('pointerenter', () => select(row));
     row.addEventListener('focus', () => select(row));
-    /* Mobile: tap selects/previews the game instead of opening it.
-       These are WASD desktop games, not mobile games. */
-    row.addEventListener('click', (e) => {
-      if (window.matchMedia('(max-width: 767px)').matches) {
-        e.preventDefault();
-        select(row);
-      }
-    });
   }
 
   /* The section RESTS on the first game that has artwork. It is not a hover
