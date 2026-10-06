@@ -4164,6 +4164,22 @@ const codeModal = document.getElementById('codeModal');
       });
     });
 
+    /* CODES nav split-button: padlock icon opens the tilde keypad,
+       clicking the text/elsewhere scrolls to the Idea Vault section. */
+    document.querySelectorAll('[data-codes-keypad]').forEach((btn)=>{
+      const openKeypad = (e)=>{
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        // No overlay open (we're on the main nav), so _padlockOverlay stays null.
+        // Typing DEXDC with no overlay opens Notes, as expected.
+        window._padlockOverlay = null;
+        window.dispatchEvent(new KeyboardEvent('keydown',{key:'`'}));
+      };
+      btn.addEventListener('click', openKeypad);
+      btn.addEventListener('keydown', (e)=>{
+        if (e.key === 'Enter' || e.key === ' ') { openKeypad(e); }
+      });
+    });
+
 
     window.addEventListener('keydown', (event) => {
       if (event.key !== '`' && event.key !== '~') return;
