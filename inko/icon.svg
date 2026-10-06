@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <!-- Multi-stop gradient approximates the generated mesh-like color flow -->
+    <linearGradient id="sGradient" x1="38" y1="38" x2="218" y2="218" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFC247"/>
+      <stop offset=".23" stop-color="#FF6A72"/>
+      <stop offset=".43" stop-color="#F12FC6"/>
+      <stop offset=".61" stop-color="#8A32F4"/>
+      <stop offset=".79" stop-color="#3458F5"/>
+      <stop offset="1" stop-color="#20C7F4"/>
+    </linearGradient>
+    <radialGradient id="warmGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+                    gradientTransform="translate(70 71) rotate(35) scale(92 67)">
+      <stop stop-color="#FFD05A" stop-opacity=".95"/>
+      <stop offset=".52" stop-color="#FF775F" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#FF3ABF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="coolGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+                    gradientTransform="translate(177 183) rotate(-35) scale(91 72)">
+      <stop stop-color="#23D8F3" stop-opacity=".92"/>
+      <stop offset=".52" stop-color="#3263FF" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#7438F4" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="sClip">
+      <path d="M221 35
+        C179 43 131 49 91 59
+        C58 67 37 80 31 96
+        C24 114 39 128 64 134
+        C88 140 123 137 151 140
+        C179 143 190 151 187 160
+        C184 170 162 174 139 169
+        C112 163 87 157 66 163
+        C46 168 32 181 27 200
+        C23 216 28 227 36 234
+        C35 221 42 210 55 204
+        C72 196 91 199 112 205
+        C145 215 177 216 198 202
+        C220 187 230 162 223 142
+        C216 121 194 112 167 110
+        C142 108 111 112 89 107
+        C75 104 69 99 73 93
+        C80 82 109 72 139 63
+        C169 54 198 45 221 35 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Transparent background -->
+  <g clip-path="url(#sClip)">
+    <rect width="256" height="256" fill="url(#sGradient)"/>
+    <rect width="256" height="256" fill="url(#warmGlow)"/>
+    <rect width="256" height="256" fill="url(#coolGlow)"/>
+  </g>
+</svg>
