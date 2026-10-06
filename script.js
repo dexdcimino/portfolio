@@ -4272,20 +4272,22 @@ const codeModal = document.getElementById('codeModal');
       codepad.focus();
     });
 
-    /* Padlock icon (nav): same as tilde — opens the passcode keypad instead
-       of following the parent link to #codes. */
+    /* Padlock icon (nav): opens the passcode keypad overlay at the current
+       scroll position — does NOT scroll to #codes. Only the padlock icon
+       itself is intercepted; clicking the CODES text or elsewhere in the
+       link follows normal nav behavior and scrolls to the Idea Vault. */
     document.addEventListener('click', (event) => {
-      // Catch the padlock icon OR the entire CODES nav link
-      const lock = event.target.closest('[data-codes-keypad], a[href="#codes"]');
+      const lock = event.target.closest('[data-codes-keypad]');
       if (!lock) return;
       event.preventDefault();
       event.stopPropagation();
+      event.stopImmediatePropagation();
       if (codeModal.open) { closeModal(codeModal); return; }
       codeOpener = lock;
       openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener,
                 !!document.querySelector(OVERLAY_OPEN));
       codepad.focus();
-    });
+    }, true);
   }
 
   /* Every view is a <dialog> on the site's shared plumbing, so Escape, the
