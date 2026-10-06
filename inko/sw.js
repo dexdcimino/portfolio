@@ -1,4 +1,4 @@
-const CACHE = 'inko-v2';
+const CACHE = 'inko-v3';
 const ASSETS = [
   '/inko/',
   '/inko/index.html',
