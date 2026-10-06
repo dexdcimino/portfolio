@@ -243,7 +243,9 @@ img{max-width:100%}
    dialog, and true when the user actually tabbed there.
    :is() is forgiving — where :has() is unsupported the argument is dropped and
    hover still works, rather than the whole rule being thrown away. */
-.sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)){width:var(--sidebar-open)}
+@media (min-width:768px){
+  .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)){width:var(--sidebar-open)}
+}
 @media (max-width:767px){
   .sidebar.nav-open{width:var(--sidebar-open) !important}
   .sidebar.nav-open .nav-text{opacity:1;transform:none}
