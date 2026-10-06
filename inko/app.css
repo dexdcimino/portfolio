@@ -8,6 +8,7 @@ html{position:fixed;width:100%;overflow:hidden;}
 body{
   margin:0; height:100%; height:100svh; height:100dvh; overflow:hidden; display:flex; flex-direction:column; align-items:center;
   position:fixed; width:100%; top:0; left:0;
+  padding-bottom:0;
   background:radial-gradient(130% 90% at 50% -10%, #151b2b 0%, var(--bg) 55%) fixed, var(--bg);
   color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;
   user-select:none; -webkit-user-select:none; overscroll-behavior:none;
@@ -42,6 +43,13 @@ body{
 /* Bottom toolbar pill */
 
 /* Permanent size bar above toolbar */
+#bottom-bars{
+  position:fixed; bottom:0; left:0; right:0; z-index:50;
+  display:flex; flex-direction:column; align-items:center;
+  padding-bottom:calc(env(safe-area-inset-bottom,0px) + 8px);
+  pointer-events:none;
+}
+#bottom-bars > *{pointer-events:auto;}
 #size-bar{
   flex-shrink:0;
   display:flex; align-items:center; gap:8px;
@@ -66,7 +74,7 @@ body{
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border); border-radius:26px;
   padding:10px 14px;
-  margin-bottom:calc(env(safe-area-inset-bottom,0px) + 10px);
+  margin-bottom:0;
 }
 .tb-side{display:flex; gap:6px; flex:1;}
 .tb-side.right{justify-content:flex-end;}
