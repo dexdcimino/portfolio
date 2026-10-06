@@ -399,6 +399,9 @@ img{max-width:100%}
 /* The rail has no room for it, and hidden keeps it out of the tab order. */
 .profile-toggle{visibility:hidden;opacity:0}
 .sidebar:is(:hover,:not(.no-focus-expand):has(:focus-visible)) .profile-toggle{visibility:visible;opacity:1}
+/* Dex 2026-10-05: the sidebar toggle covers the face — remove it from the nav.
+   The About section keeps its own toggle. */
+.sidebar .profile-toggle{display:none !important}
 /* The expanded name and its chevron share one line. */
 /* min-height is the chevron's own height, and it is here because script.js
    MOVES that one button between this row and the compact row on every toggle —
