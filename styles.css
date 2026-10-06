@@ -411,7 +411,10 @@ img{max-width:100%}
 /* Chevron restored: positioned at the end of the name line, not over the face. */
 /* Chevron positioned absolutely so it never pushes the frame off-center.
    It floats to the right of the centered avatar without taking up flow space. */
-.sidebar .profile-toggle{display:inline-flex !important;position:absolute !important;right:8px;top:50%;transform:translateY(-50%);margin:0 !important;z-index:5;pointer-events:auto !important;opacity:1 !important;visibility:visible !important}
+/* Chevron absolute ONLY when collapsed (avatar-only) to avoid pushing frame.
+   When expanded, chevron returns to normal flow next to the name. */
+.sidebar:not(.nav-open) .profile-toggle{display:inline-flex !important;position:absolute !important;right:8px;top:50%;transform:translateY(-50%);margin:0 !important;z-index:5;pointer-events:auto !important;opacity:1 !important;visibility:visible !important}
+.sidebar.nav-open .profile-toggle{position:static !important;transform:none !important;margin-left:8px !important}
 /* Positioning context for chevron - applies in ALL states so it never escapes */
 .sidebar .profile-compact{position:relative !important}
 /* The expanded name and its chevron share one line. */
