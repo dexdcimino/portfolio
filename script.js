@@ -62,14 +62,16 @@ const parallaxEls = [...document.querySelectorAll('[data-parallax]')];
 // not clear AA there; --cv-accent in styles.css lifts those three for that
 // subtree only. Retune a colour here and check that override still holds.
 const ACCENTS = [
-  { name:'red',    color:'#D94727', mascot:'red' },
-  { name:'yellow', color:'#FAAA1E', mascot:'yellow' },
-  { name:'lime',   color:'#9EE02B', mascot:'limegreen' },
-  { name:'cyan',   color:'#2CC7F6', mascot:'cyan' },
-  { name:'blue',   color:'#335DF3', mascot:'blue' },
-  { name:'purple', color:'#A85CF5', mascot:'purple' },
-  { name:'white',  color:'#E9EBEC', mascot:'white' }
+  { name:'red',    color:'#D94727', p3:'color(display-p3 0.886 0.256 0.118)', mascot:'red' },
+  { name:'yellow', color:'#FAAA1E', p3:'color(display-p3 1.000 0.672 0.098)', mascot:'yellow' },
+  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.629 0.914 0.133)', mascot:'limegreen' },
+  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.137 0.799 1.000)', mascot:'cyan' },
+  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.162 0.344 0.991)', mascot:'blue' },
+  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.659 0.331 0.991)', mascot:'purple' },
+  { name:'white',  color:'#E9EBEC', p3:'color(display-p3 0.913 0.922 0.926)', mascot:'white' }
 ];
+const useP3 = window.matchMedia('(color-gamut: p3)').matches;
+const accentColor = (theme) => (useP3 && theme.p3) ? theme.p3 : theme.color;
 
 const STORAGE_KEY = 'dex-accent-name';
 const DEFAULT_ACCENT = 'lime';
@@ -233,7 +235,8 @@ function paintSwatches() {
   let row = 1;
   swatches.forEach(button => {
     const active = button.dataset.name === currentTheme;
-    const color = button.dataset.accent;
+    const theme = ACCENTS.find(t => t.name === button.dataset.name);
+    const color = theme ? accentColor(theme) : button.dataset.accent;
     const path = button.querySelector('.hex');
 
     button.classList.toggle('active', active);
@@ -241,8 +244,8 @@ function paintSwatches() {
     // Row 0 is the docked toggle; everything else cascades below it.
     button.style.setProperty('--row', active ? 0 : row++);
 
-    path.setAttribute('fill', active ? 'none' : color);
-    path.setAttribute('stroke', active ? color : 'none');
+    path.style.fill = active ? 'none' : color;
+    path.style.stroke = active ? color : 'none';
     path.setAttribute('stroke-width', active ? '18' : '0');
   });
 }
