@@ -123,7 +123,7 @@ input[type=range]::-moz-range-thumb{
   pointer-events:none;
 }
 #size-preview.show{display:flex;}
-#sp-circle{border-radius:50%; background:#ff2d2d;}
+#sp-circle{border-radius:50%; background:#ff2d2d; box-shadow:0 0 0 2px #000, 0 0 0 4px #fff;}
 #sp-label{font-size:13px; color:var(--text); background:var(--panel); padding:4px 12px; border-radius:12px; border:1px solid var(--border);}
 /* Gallery */
 #gallery{
