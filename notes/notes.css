@@ -1394,3 +1394,8 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 .nt-canvas * {
   scroll-behavior: auto !important;
 }
+
+/* Mobile: category color circles 50% smaller (Dex, 2026-10-05) */
+@media (max-width:767px){
+  .nt-cat-color{width:8px !important;height:8px !important;margin:0 2px}
+}
