@@ -327,6 +327,17 @@ function syncTabs(){
   $('swatch-label').textContent = panelMode==='canvas' ? 'Canvas color' : 'Brush color';
 }
 function syncSizeNote(){ /* size is now permanent, no-op */ }
+/* log-ish slider: 10-100px on first half, 100-500px on second half */
+function sliderToSize(p){
+  p = Math.max(0, Math.min(100, +p));
+  if (p <= 50) return Math.round(10 + (p/50)*90);
+  return Math.round(100 + ((p-50)/50)*400);
+}
+function sizeToSlider(s){
+  s = Math.max(10, Math.min(500, +s));
+  if (s <= 100) return ((s-10)/90)*50;
+  return 50 + ((s-100)/400)*50;
+}
 function refreshPanelUI(){
   const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
   const isCanvas = panelMode==='canvas' && popMode!=='eraser';
@@ -338,14 +349,14 @@ function refreshPanelUI(){
   $('sat').style.setProperty('--sat-track', `linear-gradient(90deg, ${hsbToCss(h,0,b,1)}, ${hsbToCss(h,100,b,1)})`);
   $('bri').style.setProperty('--bri-track', `linear-gradient(90deg, ${hsbToCss(h,s,0,1)}, ${hsbToCss(h,s,100,1)})`);
   const sz = tool==='eraser' ? eraserEff() : brushSize;
-  $('size').value = tool==='eraser' ? eraserEff() : brushSize;
+  $('size').value = sizeToSlider(sz);
   $('size-v').textContent = sz+'px';
   const tip = document.getElementById('brush-tip');
   if (tip) tip.setAttribute('fill', brushCss());
 }
 function refreshSizeUI(){
   const sz = tool==='eraser' ? eraserEff() : brushSize;
-  $('size').value = sz;
+  $('size').value = sizeToSlider(sz);
   $('size-v').textContent = sz + 'px';
   $('size-title').textContent = tool==='eraser' ? 'Eraser size' : 'Brush size';
   const sp = $('sp-circle');
@@ -380,7 +391,7 @@ function showSizePreview(){
   spHideT = setTimeout(() => $('size-preview').classList.remove('show'), 1400);
 }
 $('size').addEventListener('input', () => {
-  const v = Math.max(10, Math.min(500, +$('size').value));
+  const v = sliderToSize($('size').value);
   if (tool==='eraser'){ eraserSize = v; }
   else brushSize = v;
   refreshSizeUI(); showSizePreview();
