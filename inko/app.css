@@ -8,7 +8,7 @@ body{
   margin:0; height:100dvh; overflow:hidden; display:flex; flex-direction:column; align-items:center;
   background:radial-gradient(130% 90% at 50% -10%, #151b2b 0%, var(--bg) 55%) fixed, var(--bg);
   color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;
-  user-select:none; -webkit-user-select:none;
+  user-select:none; -webkit-user-select:none; overscroll-behavior:none;
 }
 /* Top: title only — no buttons above the 50% line */
 #topbar{
@@ -21,7 +21,7 @@ body{
 }
 #title-input::placeholder{color:var(--muted);}
 /* Canvas stage */
-#stage{flex:1; display:flex; align-items:center; justify-content:center; width:100%; min-height:0; padding:6px 0;}
+#stage{flex:1; display:flex; align-items:center; justify-content:center; width:100%; min-height:0; padding:6px 0; touch-action:none; overscroll-behavior:none;}
 #canvas-frame{
   border-radius:20px; overflow:hidden; border:none;
   box-shadow:0 18px 50px rgba(0,0,0,.5); background:#536980; line-height:0;
