@@ -41,11 +41,13 @@ function setupCanvas(){
   sctx.lineCap = sctx.lineJoin = 'round';
   fit();
 }
+let fitK = 1;
 function fit(){
   const topbar = $('topbar').offsetHeight, toolbar = $('toolbar').offsetHeight;
   const availW = Math.min(window.innerWidth*0.94, 460);
   const availH = window.innerHeight - topbar - toolbar - 36;
   const k = Math.max(0.2, Math.min(availW/W, availH/H));
+  fitK = k;
   canvas.style.width = (W*k)+'px'; canvas.style.height = (H*k)+'px';
 }
 function render(){
@@ -294,7 +296,7 @@ function bindHSB(){
 let spHideT = null;
 function showSizePreview(){
   const sz = popMode==='eraser' ? eraserEff() : brushSize;
-  const c = $('sp-circle'), d = Math.min(sz, 150);
+  const c = $('sp-circle'), d = Math.min(sz * fitK, 150);
   c.style.width = c.style.height = d+'px';
   if (popMode==='eraser'){ c.style.background = '#fff'; c.style.border = '2px dashed var(--muted)'; }
   else { c.style.background = brushCss(); c.style.border = 'none'; }
