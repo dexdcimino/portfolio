@@ -1,14 +1,9 @@
-// Portfolio service worker - minimal, for PWA installability
-const CACHE = 'dexdc-v1';
+// Portfolio service worker - passive, for PWA installability only.
+// Does not intercept requests; just satisfies Chrome's installability check.
 self.addEventListener('install', e => {
   e.waitUntil(self.skipWaiting());
 });
 self.addEventListener('activate', e => {
   e.waitUntil(self.clients.claim());
 });
-self.addEventListener('fetch', e => {
-  // Network-first for navigations, cache-first for assets
-  if (e.request.mode === 'navigate') {
-    e.respondWith(fetch(e.request).catch(() => caches.match('/')));
-  }
-});
+// No fetch handler - let all requests go to network normally.
