@@ -7437,16 +7437,15 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
 }
 .codes-keypad-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Wide-gamut accents (10% saturation boost) via CSS — no JS flash. */
-/* Accent definitions restored */
+/* Accent colors - clean sRGB for all devices */
 :root{--accent:#9EE02B}
-:root[data-accent='red']{--accent:color-mix(in display-p3, color(display-p3 0.868 0.267 0.135), gray 3%)}
-:root[data-accent='yellow']{--accent:color-mix(in display-p3, color(display-p3 1.000 0.672 0.098), gray 3%)}
-:root[data-accent='lime']{--accent:color-mix(in display-p3, color(display-p3 0.624 0.896 0.151), gray 3%)}
-:root[data-accent='cyan']{--accent:color-mix(in display-p3, color(display-p3 0.153 0.791 0.985), gray 3%)}
-:root[data-accent='blue']{--accent:color-mix(in display-p3, color(display-p3 0.181 0.354 0.972), gray 3%)}
-:root[data-accent='purple']{--accent:color-mix(in display-p3, color(display-p3 0.659 0.346 0.976), gray 3%)}
-:root[data-accent='white']{--accent:color(display-p3 0.913 0.922 0.926)}
+:root[data-accent='red']{--accent:#FF3B30}
+:root[data-accent='yellow']{--accent:#FFCC00}
+:root[data-accent='lime']{--accent:#9EE02B}
+:root[data-accent='cyan']{--accent:#22D3EE}
+:root[data-accent='blue']{--accent:#0A84FF}
+:root[data-accent='purple']{--accent:#A78BFA}
+:root[data-accent='white']{--accent:#FFFFFF}
 
 
 @media (max-width:767px){/* === MOBILE NAV COLLAPSED: avatar centered, chevron HIDDEN ===
