@@ -1,4 +1,4 @@
-const CACHE = 'inko-v3';
+const CACHE = 'inko-v4';
 const ASSETS = [
   '/inko/',
   '/inko/index.html',
@@ -24,6 +24,15 @@ self.addEventListener('fetch', e => {
   if (url.pathname.startsWith('/inko/')) {
     if (e.request.mode === 'navigate') {
       e.respondWith(fetch(e.request).catch(() => caches.match('/inko/index.html')));
+    } else if (url.pathname.endsWith('/app.js') || url.pathname.endsWith('/app.css')) {
+      // Network-first for JS/CSS so updates apply immediately
+      e.respondWith(
+        fetch(e.request).then(r => {
+          const copy = r.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy));
+          return r;
+        }).catch(() => caches.match(e.request))
+      );
     } else {
       e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
     }
