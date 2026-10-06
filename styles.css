@@ -7418,16 +7418,3 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
   outline: none;
 }
 .codes-keypad-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* Wide-gamut accents: P3 versions with 10% saturation boost.
-   Applied via data-accent attribute (set by JS) so there's no flash —
-   CSS resolves before first paint, unlike JS setProperty. */
-@media (color-gamut: p3) {
-  :root[data-accent='red'] { --accent: color(display-p3 0.886 0.256 0.118); }
-  :root[data-accent='yellow'] { --accent: color(display-p3 1.000 0.672 0.098); }
-  :root[data-accent='lime'] { --accent: color(display-p3 0.629 0.914 0.133); }
-  :root[data-accent='cyan'] { --accent: color(display-p3 0.137 0.799 1.000); }
-  :root[data-accent='blue'] { --accent: color(display-p3 0.162 0.344 0.991); }
-  :root[data-accent='purple'] { --accent: color(display-p3 0.659 0.331 0.991); }
-  :root[data-accent='white'] { --accent: color(display-p3 0.913 0.922 0.926); }
-}
