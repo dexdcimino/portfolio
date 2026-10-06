@@ -4272,7 +4272,8 @@ const codeModal = document.getElementById('codeModal');
     /* Padlock icon (nav): same as tilde — opens the passcode keypad instead
        of following the parent link to #codes. */
     document.addEventListener('click', (event) => {
-      const lock = event.target.closest('[data-codes-keypad]');
+      // Catch the padlock icon OR the entire CODES nav link
+      const lock = event.target.closest('[data-codes-keypad], a[href="#codes"]');
       if (!lock) return;
       event.preventDefault();
       event.stopPropagation();
