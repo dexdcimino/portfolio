@@ -7375,41 +7375,8 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
 
 /* CODES nav padlock: clickable to open keypad (split-button) */
 .codes-keypad-btn { cursor: pointer; border-radius: 6px; }
-.codes-keypad-btn:hover { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codes-keypad-btn:hover {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='11' width='14' height='10' rx='2' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Cpath d='M8 11V8.5a4 4 0 0 1 8 0V11' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  outline: none;
+}
 .codes-keypad-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* Main page scrollbar: accent colored, no track fill, with arrows (Dex 2026-10-05).
-   Must work with custom cursor on/off. */
-html::-webkit-scrollbar { width: 14px; }
-html::-webkit-scrollbar-track { background: transparent; }
-html::-webkit-scrollbar-thumb {
-  background: var(--accent);
-  border-radius: 7px;
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-html::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: content-box; }
-html::-webkit-scrollbar-button:single-button {
-  background-color: transparent;
-  display: block;
-  height: 14px;
-  width: 14px;
-}
-/* Up arrow */
-html::-webkit-scrollbar-button:single-button:vertical:decrement {
-  color: var(--accent);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 3l4 5H3z' fill='currentColor'/%3E%3C/svg%3E");
-  background-size: 10px 10px;
-  background-repeat: no-repeat;
-  background-position: center;
-}
-/* Down arrow */
-html::-webkit-scrollbar-button:single-button:vertical:increment {
-  color: var(--accent);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 11l-4-5h8z' fill='currentColor'/%3E%3C/svg%3E");
-  background-size: 10px 10px;
-  background-repeat: no-repeat;
-  background-position: center;
-}
-/* Firefox: thin accent scrollbar (no arrows in FF) */
-html { scrollbar-width: thin; scrollbar-color: var(--accent) transparent; }
