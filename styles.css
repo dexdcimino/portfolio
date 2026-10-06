@@ -255,7 +255,7 @@ img{max-width:100%}
   .sidebar.nav-open .brand-logo .logo-side-horns{transition-delay:.04s}
   .sidebar.nav-open .brand-logo .logo-top-horns{transition-delay:.10s}
   
-  .profile-compact{padding-left:17px;padding-right:17px}
+  
   /* Push hidden nav text further right so no letter crests peek out when collapsed. */
   .nav-text{transform:translateX(16px)}
   /* Touch hover sticks on mobile — force the collapsed state when nav-open
