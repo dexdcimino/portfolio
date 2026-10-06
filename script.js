@@ -854,6 +854,15 @@ if (sidebar) {
     // Rail or dead-space tap: toggle
     sidebar.classList.toggle('nav-open');
   });
+
+  // Mobile: tap anywhere outside the sidebar while nav is open closes it
+  document.addEventListener('click', (e) => {
+    if (!isMobile()) return;
+    if (!sidebar.classList.contains('nav-open')) return;
+    if (e.target.closest('.sidebar')) return;
+    // Tap was outside sidebar: close the nav
+    sidebar.classList.remove('nav-open');
+  });
 }
 
 // A modal's trigger lives in the sidebar, and <dialog> restores focus to it on
