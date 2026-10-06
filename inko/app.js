@@ -261,19 +261,9 @@ $('tab-canvas').addEventListener('click', () => { panelMode='canvas'; syncTabs()
 function syncTabs(){
   $('tab-brush').classList.toggle('on', panelMode==='brush');
   $('tab-canvas').classList.toggle('on', panelMode==='canvas');
-  const isEraser = popMode==='eraser';
-  $('bp-tabs').style.display = isEraser ? 'none' : 'flex';
-  $('hsb-wrap').style.display = isEraser ? 'none' : 'block';
-  $('ctl-size').style.display = '';
-  $('size-title').textContent = isEraser ? 'Eraser size' : (panelMode==='canvas' ? '—' : 'Brush size');
-  if (panelMode==='canvas' && !isEraser) $('ctl-size').style.display = 'none';
-  $('swatch-label').textContent = isEraser ? 'Eraser' : (panelMode==='canvas' ? 'Canvas color' : 'Brush color');
-  syncSizeNote();
+  $('swatch-label').textContent = panelMode==='canvas' ? 'Canvas color' : 'Brush color';
 }
-function syncSizeNote(){
-  const show = popMode==='eraser' && eraserSize===null;
-  $('size-sync').style.display = show ? 'block' : 'none';
-}
+function syncSizeNote(){ /* size is now permanent, no-op */ }
 function refreshPanelUI(){
   const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
   const isCanvas = panelMode==='canvas' && popMode!=='eraser';
