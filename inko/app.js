@@ -198,12 +198,12 @@ function syncToolSel(){
 $('brush-btn').addEventListener('click', e => {
   e.stopPropagation();
   if (popMode==='brush'){ closePop(); return; }
-  tool = 'brush'; syncToolSel(); openBrushPop();
+  tool = 'brush'; syncToolSel(); refreshSizeUI(); openBrushPop();
 });
 $('eraser-btn').addEventListener('click', e => {
   e.stopPropagation();
-  if (popMode==='eraser'){ closePop(); return; }
-  tool = 'eraser'; syncToolSel(); openEraserPop();
+  closePop();
+  tool = 'eraser'; syncToolSel(); refreshSizeUI();
 });
 $('sym-btn').addEventListener('click', () => {
   mirrorOn = !mirrorOn;
@@ -283,6 +283,19 @@ function refreshPanelUI(){
   const tip = document.getElementById('brush-tip');
   if (tip) tip.setAttribute('fill', brushCss());
 }
+function refreshSizeUI(){
+  const sz = tool==='eraser' ? eraserEff() : brushSize;
+  $('size').value = sz;
+  $('size-v').textContent = sz + 'px';
+  $('size-title').textContent = tool==='eraser' ? 'Eraser size' : 'Brush size';
+  const sp = $('sp-circle');
+  if (sp){
+    const d = Math.max(4, Math.min(60, sz * 0.2));
+    sp.style.width = sp.style.height = d + 'px';
+  }
+  const lbl = $('sp-label');
+  if (lbl) lbl.textContent = sz + 'px';
+}
 function bindHSB(){
   const on = () => {
     const h = +$('hue').value, s = +$('sat').value, b = +$('bri').value;
@@ -307,10 +320,10 @@ function showSizePreview(){
   spHideT = setTimeout(() => $('size-preview').classList.remove('show'), 1400);
 }
 $('size').addEventListener('input', () => {
-  const v = +$('size').value;
-  if (popMode==='eraser'){ eraserSize = v; }
+  const v = Math.max(30, Math.min(300, +$('size').value));
+  if (tool==='eraser'){ eraserSize = v; }
   else brushSize = v;
-  refreshPanelUI(); showSizePreview(); syncSizeNote();
+  refreshSizeUI(); showSizePreview();
 });
 
 /* ---------- gallery ---------- */
