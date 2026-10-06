@@ -3987,8 +3987,21 @@ const codeModal = document.getElementById('codeModal');
         /* 'snail' is 5 chars but it's the universal code, not a notes password.
            Exclude it here or the server's passwordOk (which accepts snail)
            will hijack it into Notes instead of upgrading the current overlay. */
-        /* Notes password: if it's a valid notes password, open notes directly. */
+        /* Notes password (DEXDC): if valid, check for an open overlay first.
+           DEXDC is the universal unlock: in Music/Work/etc it upgrades that
+           overlay to editor mode. Only opens Notes if no overlay is open,
+           or if already in Notes. */
         const trimmed = secret.trim();
+        // Helper: find the open overlay (not the keypad itself)
+        const findUpgradeOverlay = () => {
+          var oid = window._padlockOverlay;
+          if (oid) {
+            var ov = document.getElementById(oid);
+            if (ov) return ov;
+          }
+          var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
+          return allOpen.find(d => d.id !== 'codeModal') || null;
+        };
         if (trimmed.length === 5 && normalized !== 'snail') {
           try {
             const resp = await fetch('/api/notes/unlock', {
@@ -3997,17 +4010,28 @@ const codeModal = document.getElementById('codeModal');
               body: JSON.stringify({ password: trimmed }),
             });
             if (resp.ok) {
-              document.dispatchEvent(new CustomEvent('notes:open', {
-                detail: { opener: codeModal, code: trimmed }
-              }));
-              return { ok: true, payload: 'notes:direct' };
+              var upOverlay = findUpgradeOverlay();
+              // If there's an open overlay that's NOT Notes, upgrade it
+              // instead of redirecting to Notes.
+              if (upOverlay && upOverlay.id !== 'notesModal') {
+                // Fall through to the universal upgrade logic below by
+                // treating this as the universal code.
+                secret = 'snail';
+              } else {
+                document.dispatchEvent(new CustomEvent('notes:open', {
+                  detail: { opener: codeModal, code: trimmed }
+                }));
+                return { ok: true, payload: 'notes:direct' };
+              }
             }
           } catch (e) { /* not a notes password */ }
         }
         /* Phase 2: the universal code upgrades the overlay underneath instead
            of opening the vault, when there is one. Main page + snail still
            opens the markdown vault as before. */
-        if (normalized === 'snail') {
+        // Re-normalize in case DEXDC was rewritten to the universal code above
+        var effectiveNormalized = secret.trim().toLowerCase();
+        if (effectiveNormalized === 'snail' || normalized === 'snail') {
           // Use the stored overlay ID (the keypad itself is now topmost).
           // If no stored ID (tilde pressed directly), find the open dialog
           // that is NOT the keypad itself.
