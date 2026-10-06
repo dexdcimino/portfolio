@@ -365,7 +365,7 @@ function refreshSizeUI(){
   const sz = tool==='eraser' ? eraserEff() : brushSize;
   $('size').value = sizeToSlider(sz);
   $('size-v').textContent = sz + 'px';
-  $('size-title').textContent = tool==='eraser' ? 'Eraser size' : 'Brush size';
+
   const sp = $('sp-circle');
   if (sp){
     const d = Math.max(4, Math.min(60, sz * 0.2));
