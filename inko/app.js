@@ -338,12 +338,14 @@ function syncSizeNote(){ /* size is now permanent, no-op */ }
 function sliderToSize(p){
   p = Math.max(0, Math.min(100, +p));
   if (p <= 25) return Math.round(10 + (p/25)*20);
-  return Math.round(30 + ((p-25)/75)*470);
+  if (p <= 50) return Math.round(30 + ((p-25)/25)*70);
+  return Math.round(100 + ((p-50)/50)*400);
 }
 function sizeToSlider(s){
   s = Math.max(10, Math.min(500, +s));
   if (s <= 30) return ((s-10)/20)*25;
-  return 25 + ((s-30)/470)*75;
+  if (s <= 100) return 25 + ((s-30)/70)*25;
+  return 50 + ((s-100)/400)*50;
 }
 function refreshPanelUI(){
   const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
