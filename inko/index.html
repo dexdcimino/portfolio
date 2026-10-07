@@ -15,6 +15,7 @@
 </head>
 <body>
 <div id="topbar">
+  <button id="canvas-swatch" aria-label="Canvas color"><span id="cs-dot"></span></button>
   <input id="title-input" maxlength="24" placeholder="Untitled" autocomplete="off" spellcheck="false">
   <button id="install-btn" style="display:none" aria-label="Install app">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 V15"/><path d="M7 10 L12 15 L17 10"/><path d="M4 19 H20"/></svg>
@@ -28,7 +29,11 @@
   </div>
 </div>
 
-<div id="bottom-bars"><div id="size-bar">
+<div id="bottom-bars"><div id="hsb-bar" style="display:none;">
+  <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="hue" min="0" max="360" value="4"></div>
+  <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="sat" min="0" max="100" value="100"></div>
+  <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="bri" min="0" max="100" value="100"></div>
+</div><div id="size-bar">
   <button id="redo-btn" class="tbtn" aria-label="Redo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 14 L20 9 L15 4"/><path d="M20 9 H10 A6 6 0 0 0 10 21 H15"/></svg>
   </button>
