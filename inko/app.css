@@ -51,6 +51,31 @@ body{
   pointer-events:none;
 }
 #bottom-bars > *{pointer-events:auto;}
+
+/* Compact HSB bar (replaces size-bar when color mode active) */
+#hsb-bar{
+  flex-shrink:0;
+  display:flex; flex-direction:column; gap:4px;
+  width:calc(100vw - 20px); max-width:600px;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:18px;
+  padding:12px 16px; margin-bottom:8px;
+}
+.hsb-row{display:flex; align-items:center; gap:10px;}
+.hsb-lbl{
+  width:18px; font-size:14px; font-weight:700; color:var(--text);
+  text-align:center; flex-shrink:0;
+}
+.hsb-row input[type=range]{flex:1; accent-color:var(--accent);}
+/* Canvas swatch in topbar */
+#canvas-swatch{
+  position:absolute; left:16px; top:50%; transform:translateY(-50%);
+  width:36px; height:36px; border-radius:12px; border:1px solid var(--border);
+  background:var(--panel); cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+#cs-dot{width:22px; height:22px; border-radius:8px; display:block;}
+#topbar{position:relative;}
+
 #size-bar{
   flex-shrink:0;
   display:flex; align-items:center; gap:8px;
