@@ -639,6 +639,36 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
 - `mindsplit/` — Vite build **output** served directly (source at
   `ai/apps/mindsplit/`; the one build-step exception). `ai/apps/` contract is in
   its README
+- `inko/` — **Inko**, the sketch pad: a plain web app (`index.html`, `app.js`,
+  `app.css`, `sw.js`) that installs to a phone's home screen and opens in the
+  AI Lab overlay with `?embed=1`. Three invariants, each the fix for something
+  that cost Dex reinstalls:
+  - **It updates itself, by fingerprint.** An installed app on Android RESUMES
+    rather than reloading, so new code only arrived when the OS happened to
+    kill it. `app.js` HEADs `app.js`, `app.css` and `index.html` (no-store) on
+    launch, on every return to the foreground and every five minutes, and
+    compares their ETags -- Vercel sends one per file, a hash of its bytes --
+    with the set it loaded with. Different: the draft is flushed and the page
+    reloads, with an "Updated — build xxxxxx" toast. There is NO version
+    string anywhere to bump; whoever pushes, the next resume picks it up.
+    The gallery's foot shows `build xxxxxx`, the same six characters on every
+    device running the same files.
+  - **`sw.js` is network-first for the whole shell** and only GETs; the cache
+    is the offline fallback, never the source of truth. It is registered
+    once, from `app.js`, not in the overlay. No inline script remains, so the
+    `/inko/(.*)` policy is `script-src 'self'`; it allows `blob:` images (the
+    gallery thumbnails) and `data:`/`blob:` fetches (the one-time migration).
+  - **Drawings live in IndexedDB** (`inko` -> `canvases`, `meta`) as PNG
+    Blobs with a 360x480 JPEG thumbnail, an id, `created`/`ts` and a
+    `visibility` that is `private` today -- the record a server sync will
+    upload as it is. No cap: the old localStorage gallery kept 20 and silently
+    deleted the oldest on every save past it, inside a ~5 MB quota. The old
+    keys are migrated once and removed only after every record is written.
+    Undo steps are `toBlob` PNGs (encoded off the main thread), the same blob
+    is the draft, and undo is live the instant a stroke ends.
+  `tools/inko_check.mjs` drives all of it under the real `/inko/` policy read
+  out of `vercel.json`. The pre-rebuild app at inko.dexcimino.com (repo
+  dexdcimino/inko) now redirects here.
 - `mobius/` — the **Mobius 3D** viewer, opened by its AI Lab card's eyeball
   into the app overlay (`data-app-shape="window"`) on `?sample=knot`. It is a
   BUILT COPY of `dist/` from its own repository, github.com/dexdcimino/mobius-3d,

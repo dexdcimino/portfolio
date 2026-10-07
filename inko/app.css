@@ -215,6 +215,10 @@ input[type=range]::-moz-range-thumb{
   padding:12px 20px calc(env(safe-area-inset-bottom,0px) + 16px);
   display:flex; justify-content:center; border-top:1px solid var(--border);
 }
+/* Which build is running, so a report can say "on build a1b2c3". Out of the
+   back button's way, in the bar's own muted colour. */
+#g-bar{position:relative}
+#g-build{position:absolute; right:20px; top:12px; font-size:11px; letter-spacing:.04em; color:var(--muted); opacity:.75}
 #g-back{
   background:var(--panel); border:1px solid var(--border); color:var(--text);
   font-size:16px; font-weight:600; padding:12px 28px; border-radius:16px; cursor:pointer;

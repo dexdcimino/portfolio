@@ -1,94 +1,74 @@
-const CACHE = 'inko-v6';
-const APP_VERSION = '6.0.0';
+/* Inko's service worker. ONE job beyond working offline: never be the reason
+   an update does not show.
 
-// Files that should always be fresh (network-first)
-const NETWORK_FIRST = [
-  '/inko/',
-  '/inko/index.html',
-  '/inko/app.js',
-  '/inko/app.css',
-  '/inko/manifest.webmanifest'
-];
+   THE APP SHELL IS NETWORK-FIRST, ALWAYS. index.html, app.js, app.css and the
+   manifest are fetched from the network on every request, revalidated against
+   the server, and the cache is only the offline fallback. So an edit reaches
+   the next load without this file changing at all -- there is no version
+   string here to remember to bump, which is what the previous one depended
+   on (it said 6.0.0 while the app said 5.0.0).
 
-// Files that can be cached aggressively (cache-first)
-const CACHE_FIRST = [
-  '/inko/icon-192.png',
-  '/inko/icon-512.png',
-  '/inko/icon-mono-192.png',
-  '/inko/icon-mono-512.png',
-  '/inko/apple-touch-icon.png'
-];
+   WHEN THE APP ITSELF NOTICES A NEW BUILD, it reloads (see the update section
+   of app.js). This file only has to make sure that reload gets the new files,
+   which network-first does.
 
-self.addEventListener('install', e => {
-  e.waitUntil(
+   Only GET requests are handled. The update check is a HEAD request and must
+   reach the network, not a cache. */
+const CACHE = 'inko-shell';
+const SHELL = ['/inko/', '/inko/index.html', '/inko/app.js', '/inko/app.css', '/inko/manifest.webmanifest'];
+const ICONS = ['/inko/icon-192.png', '/inko/icon-512.png', '/inko/icon-mono-192.png', '/inko/icon-mono-512.png', '/inko/apple-touch-icon.png'];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll([...NETWORK_FIRST, ...CACHE_FIRST]))
+      .then(cache => cache.addAll([...SHELL, ...ICONS].map(u => new Request(u, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
+self.addEventListener('activate', event => {
+  event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
-      ))
+      // Every older cache -- 'inko-v6' and before -- goes.
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
-      // Notify all clients of the new version
-      .then(() => self.clients.matchAll().then(clients => {
-        clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: APP_VERSION }));
-      }))
   );
 });
 
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (!url.pathname.startsWith('/inko/')) return;
-  
-  if (e.request.mode === 'navigate') {
-    // Network-first for navigations
-    e.respondWith(
-      fetch(e.request)
-        .then(r => {
-          const copy = r.clone();
-          caches.open(CACHE).then(c => c.put(e.request, copy));
-          return r;
-        })
-        .catch(() => caches.match('/inko/index.html'))
-    );
-  } else if (NETWORK_FIRST.some(p => url.pathname === p || url.pathname.endsWith(p.split('/').pop()))) {
-    // Network-first for app files
-    e.respondWith(
-      fetch(e.request)
-        .then(r => {
-          if (r.ok) {
-            const copy = r.clone();
-            caches.open(CACHE).then(c => c.put(e.request, copy));
-          }
-          return r;
-        })
-        .catch(() => caches.match(e.request))
-    );
-  } else {
-    // Cache-first for static assets
-    e.respondWith(
-      caches.match(e.request).then(cached => {
-        if (cached) return cached;
-        return fetch(e.request).then(r => {
-          if (r.ok) {
-            const copy = r.clone();
-            caches.open(CACHE).then(c => c.put(e.request, copy));
-          }
-          return r;
-        });
-      })
-    );
-  }
-});
+const isShell = url => url.pathname === '/inko/' || SHELL.includes(url.pathname);
 
-// Allow the page to trigger an immediate update
-self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+self.addEventListener('fetch', event => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== location.origin || !url.pathname.startsWith('/inko/')) return;
+
+  if (request.mode === 'navigate' || isShell(url)) {
+    event.respondWith(
+      fetch(request, { cache: 'no-cache' })
+        .then(response => {
+          if (response.ok) {
+            const copy = response.clone();
+            // Navigations are filed under the shell's own URL, so an offline
+            // launch with ?embed=1 or a stale query still finds the page.
+            const key = request.mode === 'navigate' ? '/inko/' : request;
+            caches.open(CACHE).then(cache => cache.put(key, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request.mode === 'navigate' ? '/inko/' : request, { ignoreSearch: true }))
+    );
+    return;
   }
+
+  // Icons and anything else under /inko/: the cache first, the network to fill it.
+  event.respondWith(
+    caches.match(request).then(cached => cached || fetch(request).then(response => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(request, copy));
+      }
+      return response;
+    }))
+  );
 });

@@ -4,74 +4,130 @@
 const EMBED = new URLSearchParams(location.search).has('embed');
 if (EMBED) document.body.classList.add('embed');
 
-/* ---------- Robust SW update system ---------- */
-const APP_VERSION = '5.0.0';
-if ('serviceWorker' in navigator){
-  // Register with updateViaCache: 'none' to always check for new SW
-  navigator.serviceWorker.register('/inko/sw.js', { updateViaCache: 'none' }).then(reg => {
-    // Check immediately
-    reg.update();
-    
-    // Handle new SW found
-    reg.addEventListener('updatefound', () => {
-      const newSW = reg.installing;
-      if (!newSW) return;
-      newSW.addEventListener('statechange', () => {
-        if (newSW.state === 'installed'){
-          if (navigator.serviceWorker.controller){
-            showUpdateBanner('New version available');
-          }
-        }
-      });
-    });
-    
-    // Listen for messages from SW (e.g., after activate)
-    navigator.serviceWorker.addEventListener('message', e => {
-      if (e.data && e.data.type === 'SW_UPDATED'){
-        showUpdateBanner('Updated to v' + e.data.version);
-      }
-    });
-    
-    // Periodic check every 60 seconds
-    setInterval(() => reg.update(), 60000);
-  }).catch(()=>{});
-  
-  // Check when tab becomes visible
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden){
-      navigator.serviceWorker.getRegistration('/inko/').then(r => { if (r) r.update(); });
-    }
+/* ---------- updates: the deployed build, noticed on its own ----------
+   WHY THIS REPLACED THE OLD SYSTEM. An installed web app on Android is not
+   reloaded when you reopen it: it RESUMES, with yesterday's code still in
+   memory. The old check only asked whether sw.js had changed -- which it did
+   only when someone remembered to bump a version string in it -- so most
+   edits never reached the phone until the OS happened to kill the app. That
+   is the "works sometimes, reinstall to fix" the old Update Now button
+   (clear every cache, unregister, hard reload) was a patch over.
+
+   NOW THE BUILD IS READ OFF THE SERVER. Vercel sends an ETag with every file
+   -- a fingerprint of its bytes -- so a HEAD request for the three files that
+   make the app says exactly whether what is deployed is what is running.
+   Nothing to bump, nothing to remember, and it works whoever pushed the edit.
+   Checked on launch, every time the app comes back to the foreground, and
+   every five minutes while it is open. A new build: the drawing is saved,
+   and the app reloads itself. */
+const BUILD_FILES = ['/inko/app.js', '/inko/app.css', '/inko/index.html'];
+let runningBuild = null;            // the signature this page loaded with
+async function deployedBuild(){
+  const tags = await Promise.all(BUILD_FILES.map(async url => {
+    const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    if (!r.ok) throw new Error(url + ' ' + r.status);
+    return r.headers.get('etag') || r.headers.get('last-modified') || '';
+  }));
+  return tags.join('|');
+}
+function buildLabel(sig){
+  // Short, stable, and the same on every device running the same build.
+  let h = 0;
+  for (let i = 0; i < sig.length; i++) h = (h * 31 + sig.charCodeAt(i)) >>> 0;
+  return h.toString(36).padStart(6, '0').slice(-6);
+}
+let reloading = false;
+async function checkForUpdate(){
+  if (reloading || !navigator.onLine) return;
+  let now;
+  try { now = await deployedBuild(); } catch (e) { return; }   // offline, or a deploy mid-flight
+  if (!runningBuild){
+    runningBuild = now;
+    const el = $('g-build'); if (el) el.textContent = 'build ' + buildLabel(now);
+    return;
+  }
+  if (now === runningBuild) return;
+  // Never under a finger: a stroke in progress finishes first.
+  if (drawing){ setTimeout(checkForUpdate, 1500); return; }
+  reloading = true;
+  try { await flushDraft(); } catch (e) {}
+  try { sessionStorage.setItem('inkoUpdated', buildLabel(now)); } catch (e) {}
+  location.reload();
+}
+if ('serviceWorker' in navigator && !EMBED){
+  // One registration, here. updateViaCache 'none': the browser always asks the
+  // server for sw.js rather than trusting its own HTTP cache of it.
+  navigator.serviceWorker.register('/inko/sw.js', { scope: '/inko/', updateViaCache: 'none' }).catch(() => {});
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+window.addEventListener('focus', checkForUpdate);
+window.addEventListener('online', checkForUpdate);
+setInterval(() => { if (!document.hidden) checkForUpdate(); }, 5 * 60 * 1000);
+
+/* ---------- storage: IndexedDB ----------
+   The gallery used to be every drawing as PNG text in localStorage: about
+   5 MB on a phone, so a handful of real drawings filled it, and a hard cap
+   of 20 that silently DELETED the oldest one on every save past it. Both are
+   gone. Drawings are Blobs in IndexedDB, with no cap, and the browser is
+   asked not to evict them. Each record carries an id, timestamps and a
+   visibility, so syncing to a server later is a matter of uploading records,
+   not of reshaping them. */
+const DB_NAME = 'inko', DB_VERSION = 1;
+let dbp = null;
+function db(){
+  if (dbp) return dbp;
+  dbp = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const d = req.result;
+      if (!d.objectStoreNames.contains('canvases')) d.createObjectStore('canvases', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
   });
-  
-  // Force update check on online
-  window.addEventListener('online', () => {
-    navigator.serviceWorker.getRegistration('/inko/').then(r => { if (r) r.update(); });
+  return dbp;
+}
+async function tx(store, mode, fn){
+  const d = await db();
+  return new Promise((resolve, reject) => {
+    const t = d.transaction(store, mode);
+    const result = fn(t.objectStore(store));
+    t.oncomplete = () => resolve(result && 'result' in result ? result.result : result);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error || new Error('aborted'));
   });
 }
+const idbAll = store => tx(store, 'readonly', s => s.getAll());
+const idbGet = (store, key) => tx(store, 'readonly', s => s.get(key));
+const idbPut = (store, value) => tx(store, 'readwrite', s => s.put(value));
+const idbDel = (store, key) => tx(store, 'readwrite', s => s.delete(key));
+const canvasBlob = (c, type = 'image/png', q) => new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('toBlob failed')), type, q));
+const dataUrlBlob = url => fetch(url).then(r => r.blob());
 
-let updateBannerShown = false;
-function showUpdateBanner(msg){
-  if (updateBannerShown) return;
-  updateBannerShown = true;
-  const t = document.createElement('div');
-  t.id = 'update-banner';
-  t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a1f2e,#2a2f3e);color:#fff;padding:14px 20px;border-radius:14px;z-index:9999;display:flex;gap:14px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.6);font-size:14px;font-weight:600;border:1px solid rgba(255,255,255,.1);';
-  t.innerHTML = '<span>' + msg + '</span><button style="background:linear-gradient(135deg,#22d3ee,#a78bfa);border:none;border-radius:10px;padding:10px 20px;font-weight:700;cursor:pointer;color:#0b0d12;font-size:14px;">Update Now</button>';
-  t.querySelector('button').onclick = async () => {
-    // Nuclear update: clear all caches, unregister SW, hard reload
-    try {
-      if ('caches' in window){
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-      }
-      if ('serviceWorker' in navigator){
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.unregister()));
-      }
-    } catch(e){}
-    window.location.reload(true);
-  };
-  document.body.appendChild(t);
+/* The old localStorage gallery and draft, moved across ONCE and only deleted
+   after every record is safely written. */
+async function migrateLocalStorage(){
+  const done = await idbGet('meta', 'migratedLS').catch(() => null);
+  if (done) return;
+  let old = [], draft = null;
+  try { old = JSON.parse(localStorage.getItem('sketchGalleryV1') || '[]') || []; } catch (e) {}
+  try { draft = JSON.parse(localStorage.getItem('sketchDraftV1') || 'null'); } catch (e) {}
+  for (const it of old){
+    const src = it.strokes || it.data;
+    if (!src) continue;
+    await idbPut('canvases', {
+      id: it.id || ('c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+      title: it.title || 'Untitled', bg: it.bg || { h: 0, s: 0, b: 100 },
+      png: await dataUrlBlob(src), created: it.ts || Date.now(), ts: it.ts || Date.now(),
+      visibility: 'private',
+    });
+  }
+  if (draft && draft.strokes){
+    await idbPut('meta', { key: 'draft', title: draft.title || '', bg: draft.bg, png: await dataUrlBlob(draft.strokes), editingId: null, ts: Date.now() });
+  }
+  await idbPut('meta', { key: 'migratedLS', at: Date.now(), count: old.length });
+  try { localStorage.removeItem('sketchGalleryV1'); localStorage.removeItem('sketchDraftV1'); } catch (e) {}
 }
 
 /* ---------- constants & state ---------- */
@@ -222,70 +278,116 @@ canvas.addEventListener('pointerup', endStroke);
 canvas.addEventListener('pointercancel', endStroke);
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-/* ---------- history ---------- */
+/* ---------- history ----------
+   Each step is a PNG BLOB from toBlob, which encodes off the main thread,
+   instead of toDataURL, which encoded ON it and then grew the result by a
+   third as base64 -- a visible hitch at the end of every stroke on a phone.
+   The same blob is the draft, so a stroke is encoded once, not twice.
+   Pushes are chained so a fast run of strokes lands in order. */
+let historyChain = Promise.resolve();
+let pendingPushes = 0;              // strokes whose snapshot is still encoding
+const HISTORY_MAX = 30;
 function pushHistory(){
-  history = history.slice(0, step+1);
-  history.push(sLayer.toDataURL('image/png'));
-  if (history.length > 25) history.shift();
-  step = history.length - 1;
+  /* Undo is live the moment a stroke ends, not when its snapshot has
+     finished encoding: the handler waits for the chain itself. Without this
+     a quick tap right after drawing landed on a disabled button. */
+  pendingPushes++;
   syncUndoRedo();
+  historyChain = historyChain.then(async () => {
+    const blob = await canvasBlob(sLayer);
+    history = history.slice(0, step + 1);
+    history.push(blob);
+    if (history.length > HISTORY_MAX) history.shift();
+    step = history.length - 1;
+    latestBlob = blob;
+  }).catch(() => {}).then(() => { pendingPushes--; syncUndoRedo(); });
+  return historyChain;
 }
-function restoreStrokes(dataURL){
-  const img = new Image();
-  img.onload = () => {
-    sctx.clearRect(0,0,W,H);
-    sctx.drawImage(img, 0,0,W,H);
-    render(); dirty = true; scheduleDraft();
-  };
-  img.src = dataURL;
+async function drawBlob(blob){
+  const bmp = await createImageBitmap(blob);
+  sctx.save();
+  sctx.setTransform(1, 0, 0, 1, 0, 0);
+  sctx.globalCompositeOperation = 'source-over';
+  sctx.clearRect(0, 0, sLayer.width, sLayer.height);
+  sctx.drawImage(bmp, 0, 0, sLayer.width, sLayer.height);
+  sctx.restore();
+  bmp.close && bmp.close();
+}
+async function restoreStep(i){
+  await historyChain;
+  const blob = history[i];
+  if (!blob) return;
+  await drawBlob(blob);
+  latestBlob = blob;
+  render(); dirty = true; scheduleDraft();
 }
 function syncUndoRedo(){
-  $('undo-btn').disabled = step <= 0;
-  $('redo-btn').disabled = step >= history.length-1;
+  $('undo-btn').disabled = step <= 0 && !(pendingPushes > 0 && history.length > 0);
+  $('redo-btn').disabled = pendingPushes > 0 || step >= history.length-1;
 }
-$('undo-btn').addEventListener('click', () => {
-  if (step > 0){ step--; restoreStrokes(history[step]); syncUndoRedo(); }
+$('undo-btn').addEventListener('click', async () => {
+  await historyChain;
+  if (step > 0){ step--; syncUndoRedo(); restoreStep(step); }
 });
-$('redo-btn').addEventListener('click', () => {
-  if (step < history.length-1){ step++; restoreStrokes(history[step]); syncUndoRedo(); }
+$('redo-btn').addEventListener('click', async () => {
+  await historyChain;
+  if (step < history.length-1){ step++; syncUndoRedo(); restoreStep(step); }
 });
 
-/* ---------- storage ---------- */
-function persist(){
-  try{ localStorage.setItem('sketchGalleryV1', JSON.stringify(gallery)); }
-  catch(e){ toast('Storage is full — delete some canvases.'); }
+/* ---------- saving ---------- */
+let latestBlob = null;              // the strokes as of the last history step
+async function strokesBlob(){
+  await historyChain;
+  return latestBlob || canvasBlob(sLayer);
 }
-function snapshotStrokes(){ return sLayer.toDataURL('image/png'); }
+async function thumbBlob(png, bg){
+  const t = document.createElement('canvas'); t.width = 360; t.height = 480;
+  const c = t.getContext('2d');
+  c.fillStyle = hsbToCss(bg.h, bg.s, bg.b, 1); c.fillRect(0, 0, 360, 480);
+  const bmp = await createImageBitmap(png);
+  c.drawImage(bmp, 0, 0, 360, 480);
+  bmp.close && bmp.close();
+  return canvasBlob(t, 'image/jpeg', 0.82);
+}
+let saveChain = Promise.resolve();
 function saveCurrent(){
-  const title = titleInput.value.trim() || 'Untitled';
-  const item = {
-    id: editingId || ('c'+Date.now().toString(36)+Math.floor(Math.random()*1296).toString(36)),
-    title, bg:{h:bgH,s:bgS,b:bgB}, strokes:snapshotStrokes(), ts:Date.now()
-  };
-  if (editingId){
-    const idx = gallery.findIndex(g => g.id === editingId);
-    if (idx >= 0) gallery[idx] = item; else gallery.unshift(item);
-  } else gallery.unshift(item);
-  editingId = item.id;
-  if (gallery.length > 20) gallery.length = 20;
-  persist(); dirty = false;
+  saveChain = saveChain.then(async () => {
+    const title = titleInput.value.trim() || 'Untitled';
+    const bg = { h: bgH, s: bgS, b: bgB };
+    const png = await strokesBlob();
+    const now = Date.now();
+    const existing = editingId ? gallery.find(g => g.id === editingId) : null;
+    const item = {
+      id: editingId || ('c' + now.toString(36) + Math.floor(Math.random() * 1296).toString(36)),
+      title, bg, png, thumb: await thumbBlob(png, bg),
+      created: existing ? existing.created : now, ts: now,
+      visibility: existing ? existing.visibility : 'private',
+    };
+    try { await idbPut('canvases', item); }
+    catch (e) { toast('Could not save — storage refused it.'); throw e; }
+    gallery = [item, ...gallery.filter(g => g.id !== item.id)];
+    editingId = item.id;
+    dirty = false;
+    return item;
+  });
+  return saveChain;
 }
 let draftT = null;
 function scheduleDraft(){
   clearTimeout(draftT);
-  draftT = setTimeout(writeDraft, 600);
+  draftT = setTimeout(flushDraft, 700);
 }
-function writeDraft(){
+async function flushDraft(){
+  clearTimeout(draftT);
   if (!dirty) return;
-  try{
-    localStorage.setItem('sketchDraftV1', JSON.stringify({
-      title:titleInput.value, bg:{h:bgH,s:bgS,b:bgB}, strokes:snapshotStrokes()
-    }));
-  }catch(e){}
+  const png = await strokesBlob();
+  await idbPut('meta', { key: 'draft', title: titleInput.value, bg: { h: bgH, s: bgS, b: bgB }, png, editingId, ts: Date.now() });
 }
+const clearDraft = () => idbDel('meta', 'draft').catch(() => {});
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && dirty) writeDraft();
+  if (document.hidden && dirty) flushDraft();
 });
+window.addEventListener('pagehide', () => { if (dirty) flushDraft(); });
 titleInput.addEventListener('input', () => { dirty = true; scheduleDraft(); });
 
 /* ---------- toolbar ---------- */
@@ -312,14 +414,21 @@ $('sym-btn').addEventListener('click', () => {
   $('sym-btn').setAttribute('aria-pressed', mirrorOn);
   render();
 });
-$('plus-btn').addEventListener('click', () => {
+$('plus-btn').addEventListener('click', async () => {
   closePop();
-  saveCurrent(); toast('Canvas saved');
+  /* A blank, untitled canvas nobody touched is not saved -- it used to be,
+     and every second press of + left an empty card in the gallery. */
+  const untouched = !editingId && step <= 0 && !titleInput.value.trim();
+  if (!untouched){
+    try { await saveCurrent(); toast('Canvas saved'); } catch (e) { return; }
+  }
   editingId = null; titleInput.value = '';
   bgH = 210; bgS = 35; bgB = 50;
+  await historyChain;
   sctx.clearRect(0,0,W,H);
-  render(); pushHistory(); dirty = false;
-  try{ localStorage.removeItem('sketchDraftV1'); }catch(e){}
+  // A fresh history too: undo on a new canvas must not bring the old one back.
+  render(); history = []; step = -1; pushHistory(); dirty = false;
+  clearDraft();
   refreshPanelUI();
 });
 
@@ -521,21 +630,12 @@ function showColorPreview(){
   }, 1200);
 }
 
-/* ---------- gallery ---------- */
-function thumbFor(it, cb){
-  const t = document.createElement('canvas'); t.width = 360; t.height = 480;
-  const c = t.getContext('2d');
-  const done = () => cb(t.toDataURL('image/jpeg', 0.82));
-  if (it.strokes){
-    const bg = it.bg || {h:0,s:0,b:100};
-    c.fillStyle = hsbToCss(bg.h,bg.s,bg.b,1); c.fillRect(0,0,360,480);
-    const img = new Image();
-    img.onload = () => { c.drawImage(img,0,0,360,480); done(); };
-    img.src = it.strokes;
-  } else {
-    c.fillStyle = '#fff'; c.fillRect(0,0,360,480); done();
-  }
-}
+/* ---------- gallery ----------
+   Thumbnails are stored with each drawing (a 360x480 JPEG made at save), so
+   opening the gallery decodes small images instead of re-rendering every full
+   drawing. Object URLs are revoked whenever the grid is rebuilt. */
+let thumbUrls = [];
+function blobUrl(blob){ const u = URL.createObjectURL(blob); thumbUrls.push(u); return u; }
 function liveThumb(cb){
   const t = document.createElement('canvas'); t.width = 360; t.height = 480;
   const c = t.getContext('2d');
@@ -547,26 +647,20 @@ function fileName(title){
   let s = (title||'untitled').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   return 'inko-'+(s||'canvas')+'.png';
 }
-function downloadItem(it, isLive){
+async function downloadItem(it, isLive){
   const t = document.createElement('canvas'); t.width = W; t.height = H;
   const c = t.getContext('2d');
-  const done = () => {
-    const a = document.createElement('a');
-    a.href = t.toDataURL('image/png');
-    a.download = fileName(isLive ? titleInput.value : it.title);
-    document.body.appendChild(a); a.click(); a.remove();
-    toast('Downloaded');
-  };
-  if (isLive){
-    c.fillStyle = bgCss(); c.fillRect(0,0,W,H);
-    c.drawImage(sLayer,0,0,W,H); done();
-  } else if (it.strokes){
-    const bg = it.bg || {h:0,s:0,b:100};
-    c.fillStyle = hsbToCss(bg.h,bg.s,bg.b,1); c.fillRect(0,0,W,H);
-    const img = new Image();
-    img.onload = () => { c.drawImage(img,0,0,W,H); done(); };
-    img.src = it.strokes;
-  }
+  const bg = isLive ? { h: bgH, s: bgS, b: bgB } : (it.bg || { h: 0, s: 0, b: 100 });
+  c.fillStyle = hsbToCss(bg.h, bg.s, bg.b, 1); c.fillRect(0,0,W,H);
+  if (isLive) c.drawImage(sLayer, 0,0,W,H);
+  else if (it.png){ const bmp = await createImageBitmap(it.png); c.drawImage(bmp, 0,0,W,H); bmp.close && bmp.close(); }
+  const url = URL.createObjectURL(await canvasBlob(t));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName(isLive ? titleInput.value : it.title);
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('Downloaded');
 }
 let modalCb = null;
 function openModal(title, text, confirmLabel, cb){
@@ -582,7 +676,7 @@ $('m-del').addEventListener('click', () => {
 function makeItem(it, isLive){
   const div = document.createElement('div'); div.className = 'g-item';
   const th = document.createElement('div'); th.className = 'g-thumb';
-  const img = document.createElement('img'); th.appendChild(img);
+  const img = document.createElement('img'); img.alt = ''; th.appendChild(img);
   const dl = document.createElement('button'); dl.className = 'g-dl'; dl.setAttribute('aria-label','Download');
   dl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3 V15"/><path d="M7 10 L12 15 L17 10"/><path d="M4 19 H20"/></svg>';
   const del = document.createElement('button'); del.className = 'g-del'; del.setAttribute('aria-label','Delete');
@@ -592,8 +686,7 @@ function makeItem(it, isLive){
     del.addEventListener('click', e => {
       e.stopPropagation();
       openModal('Clear canvas?','This erases the current drawing.','Clear', () => {
-        clearCanvas(); dirty = false;
-        try{ localStorage.removeItem('sketchDraftV1'); }catch(e){}
+        clearCanvas(); dirty = false; clearDraft();
         toast('Canvas cleared'); renderGallery();
       });
     });
@@ -602,13 +695,16 @@ function makeItem(it, isLive){
   } else {
     del.addEventListener('click', e => {
       e.stopPropagation();
-      openModal('Delete canvas?', `"${it.title}" will be permanently deleted.`, 'Delete', () => {
+      openModal('Delete canvas?', `"${it.title}" will be permanently deleted.`, 'Delete', async () => {
+        try { await idbDel('canvases', it.id); }
+        catch (err) { toast('Could not delete it.'); return; }
         gallery = gallery.filter(g => g.id !== it.id);
         if (editingId === it.id) editingId = null;
-        persist(); toast('Canvas deleted'); renderGallery();
+        toast('Canvas deleted'); renderGallery();
       });
     });
-    thumbFor(it, url => img.src = url);
+    if (it.thumb) img.src = blobUrl(it.thumb);
+    else if (it.png) thumbBlob(it.png, it.bg).then(b => { it.thumb = b; img.src = blobUrl(b); idbPut('canvases', it).catch(() => {}); });
     div.addEventListener('click', () => openCanvas(it.id));
   }
   th.appendChild(dl); th.appendChild(del);
@@ -618,10 +714,11 @@ function makeItem(it, isLive){
   return div;
 }
 function renderGallery(){
+  thumbUrls.forEach(u => URL.revokeObjectURL(u)); thumbUrls = [];
   const rows = $('g-rows'); rows.innerHTML = '';
   $('g-count').textContent = gallery.length + (gallery.length===1 ? ' canvas' : ' canvases');
   // Oldest first → newest ends up bottom-right
-  const items = [...gallery].reverse();
+  const items = [...gallery].sort((a, b) => (a.created || a.ts) - (b.created || b.ts));
   for (let i=0; i<items.length; i+=3){
     const row = document.createElement('div'); row.className = 'g-row';
     items.slice(i, i+3).forEach(it => row.appendChild(makeItem(it, false)));
@@ -629,23 +726,19 @@ function renderGallery(){
   }
   $('g-grid').scrollTop = $('g-grid').scrollHeight;
 }
-function openCanvas(id){
-  if (dirty) saveCurrent();
+async function openCanvas(id){
+  if (dirty) await saveCurrent().catch(() => {});
   const it = gallery.find(g => g.id === id);
-  if (!it) return;
+  if (!it || !it.png) return;
   editingId = id; titleInput.value = it.title;
   bgH = it.bg.h; bgS = it.bg.s; bgB = it.bg.b;
-  const img = new Image();
-  img.onload = () => {
-    sctx.clearRect(0,0,W,H);
-    sctx.drawImage(img, 0,0,W,H);
-    render(); history = []; step = -1; pushHistory();
-    dirty = false;
-    try{ localStorage.removeItem('sketchDraftV1'); }catch(e){}
-    $('gallery').classList.remove('open');
-    refreshPanelUI();
-  };
-  img.src = it.strokes;
+  await historyChain;
+  await drawBlob(it.png);
+  render(); history = []; step = -1; pushHistory();
+  dirty = false;
+  clearDraft();
+  $('gallery').classList.remove('open');
+  refreshPanelUI();
 }
 $('grid-btn').addEventListener('click', () => {
   closePop(); renderGallery();
@@ -663,39 +756,34 @@ function toast(msg){
 }
 
 /* ---------- init ---------- */
-function init(){
+async function init(){
   setupCanvas();
   bindHSB(); refreshPanelUI(); syncToolSel(); syncUndoRedo();
-  try{
-    const raw = localStorage.getItem('sketchGalleryV1');
-    if (raw){
-      gallery = JSON.parse(raw) || [];
-      gallery.forEach(it => {
-        if (it.data && !it.strokes){ it.strokes = it.data; delete it.data; }
-        if (!it.bg) it.bg = {h:0,s:0,b:100};
-      });
-    }
-  }catch(e){ gallery = []; }
-  try{
-    const d = localStorage.getItem('sketchDraftV1');
-    if (d){
-      const draft = JSON.parse(d);
-      titleInput.value = draft.title || '';
-      bgH = draft.bg.h; bgS = draft.bg.s; bgB = draft.bg.b;
-      const img = new Image();
-      img.onload = () => {
-        sctx.clearRect(0,0,W,H);
-        sctx.drawImage(img, 0,0,W,H);
-        render(); pushHistory(); dirty = true; refreshPanelUI();
-      };
-      img.src = draft.strokes;
-    } else {
-      render(); pushHistory();
-    }
-  }catch(e){ render(); pushHistory(); }
-  if (!history.length){ render(); pushHistory(); }
   window.addEventListener('resize', fit);
   window.addEventListener('orientationchange', () => setTimeout(fit, 120));
+  render();
+  try { await migrateLocalStorage(); } catch (e) { console.warn('inko: migration', e); }
+  try { gallery = await idbAll('canvases'); }
+  catch (e) { gallery = []; toast('Storage is unavailable — drawings will not be kept.'); }
+  let draft = null;
+  try { draft = await idbGet('meta', 'draft'); } catch (e) {}
+  if (draft && draft.png){
+    titleInput.value = draft.title || '';
+    if (draft.bg){ bgH = draft.bg.h; bgS = draft.bg.s; bgB = draft.bg.b; }
+    // Carrying on with a gallery drawing after a reload saves back to IT,
+    // not to a new card.
+    editingId = draft.editingId && gallery.some(g => g.id === draft.editingId) ? draft.editingId : null;
+    await drawBlob(draft.png);
+    render(); dirty = true; refreshPanelUI();
+  }
+  pushHistory();
+  // Ask the browser not to evict the drawings under storage pressure.
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  try {
+    const updated = sessionStorage.getItem('inkoUpdated');
+    if (updated){ sessionStorage.removeItem('inkoUpdated'); toast('Updated — build ' + updated); }
+  } catch (e) {}
+  checkForUpdate();
 }
 
 /* ---------- PWA install prompt ---------- */
@@ -704,11 +792,15 @@ window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
   const btn = $('install-btn');
-  if (btn) btn.style.display = '';
+  // Never inside the site's overlay or the installed app itself.
+  if (btn && !EMBED && !matchMedia('(display-mode: standalone)').matches) btn.style.display = '';
 });
 const installBtn = $('install-btn');
-if (installBtn){
-  // Always show the button - don't wait for beforeinstallprompt
+/* Not inside the installed app, and not inside the site's overlay: in both
+   places "Install" is either done already or impossible. */
+const STANDALONE = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if (installBtn && (STANDALONE || EMBED)) installBtn.style.display = 'none';
+else if (installBtn){
   installBtn.style.display = '';
   installBtn.addEventListener('click', async () => {
     if (deferredPrompt){

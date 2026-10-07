@@ -107,7 +107,7 @@
 <div id="gallery">
   <div id="g-head"><span>Gallery</span><span id="g-count"></span></div>
   <div id="g-grid"><div id="g-rows"></div></div>
-  <div id="g-bar"><button id="g-back">‹ Back to canvas</button></div>
+  <div id="g-bar"><button id="g-back">‹ Back to canvas</button><span id="g-build" aria-label="Build"></span></div>
 </div>
 
 <div id="modal"><div id="modal-card">
@@ -118,12 +118,5 @@
 <div id="toast"></div>
 
 <script src="/inko/app.js"></script>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/inko/sw.js').catch(()=>{});
-  });
-}
-</script>
 </body>
 </html>

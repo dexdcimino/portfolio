@@ -25,6 +25,32 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-07 — Inko updates itself by the files' fingerprints, not a version number
+
+**Decided.** The installed Inko app checks the ETags of its three shell files
+on launch and on every return to the foreground, and reloads itself (draft
+saved first) when they differ from what it loaded. The service worker is
+network-first for the shell and never needs a version bump.
+
+**What it replaced.** A hand-typed version in `sw.js` and another in `app.js`
+(6.0.0 and 5.0.0 when this was written), an update banner that appeared only
+when `sw.js` changed, and an "Update Now" button that cleared every cache,
+unregistered the worker and hard-reloaded. Also considered: a build stamp
+written by the pre-commit hook (fails for any agent pushing without the hooks
+installed), and a serverless endpoint returning the deploy's commit (changes
+on every commit to the whole site, so the app would reload for unrelated
+edits).
+
+**Why.** An installed web app on Android resumes instead of reloading, so code
+already in memory survives any number of deploys. ETags are content hashes
+Vercel already sends, they change exactly when the app's files change, and
+they need nothing remembered by whoever -- person or agent -- made the edit.
+
+**Reverse it if** Inko gets a build step that emits hashed filenames, at which
+point a generated manifest of them is the more direct signal.
+
+---
+
 ## 2026-10-07 — Mobius 3D is its own repository; this site serves a built copy
 
 **Decided.** The 3D viewer lives in github.com/dexdcimino/mobius-3d, where one
