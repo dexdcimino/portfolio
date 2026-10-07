@@ -337,13 +337,13 @@ function syncSizeNote(){ /* size is now permanent, no-op */ }
 /* log-ish slider: 10-100px on first half, 100-500px on second half */
 function sliderToSize(p){
   p = Math.max(0, Math.min(100, +p));
-  if (p <= 50) return Math.round(10 + (p/50)*90);
-  return Math.round(100 + ((p-50)/50)*400);
+  if (p <= 25) return Math.round(10 + (p/25)*20);
+  return Math.round(30 + ((p-25)/75)*470);
 }
 function sizeToSlider(s){
   s = Math.max(10, Math.min(500, +s));
-  if (s <= 100) return ((s-10)/90)*50;
-  return 50 + ((s-100)/400)*50;
+  if (s <= 30) return ((s-10)/20)*25;
+  return 25 + ((s-30)/470)*75;
 }
 function refreshPanelUI(){
   const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
