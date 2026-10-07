@@ -182,6 +182,7 @@ canvas.addEventListener('pointerdown', e => {
         const h2 = sampleColorAt(ev.clientX, ev.clientY);
         if (h2) applyEyedropperColor(h2);
         hideEdPreview(); setEyedropper(false);
+        if (tool !== 'brush'){ tool='brush'; syncToolSel(); refreshSizeUI(); }
         canvas.removeEventListener('pointerup', up);
         canvas.removeEventListener('pointercancel', up);
       };
