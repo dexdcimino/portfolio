@@ -302,9 +302,7 @@ $('tool-toggle').addEventListener('click', e => {
 });
 $('color-btn').addEventListener('click', e => {
   e.stopPropagation();
-  if (popMode==='brush'){ closePop(); return; }
-  // Color picker doesn't change tool, just opens popup
-  openBrushPop();
+  setColorMode(!colorMode);
 });
 
 $('sym-btn').addEventListener('click', () => {
@@ -405,6 +403,7 @@ function refreshSizeUI(){
 function bindHSB(){
   const on = () => {
     const h = +$('hue').value, s = +$('sat').value, b = +$('bri').value;
+    showColorPreview();
     if (panelMode==='canvas' && popMode!=='eraser'){ bgH=h; bgS=s; bgB=b; render(); }
     else { hue=h; sat=s; bri=b; }
     refreshPanelUI(); dirty = true; scheduleDraft();
@@ -481,6 +480,45 @@ function setEyedropper(on){
 }
 
 $('ed-btn').addEventListener('click', () => setEyedropper(!eyedropperOn));
+$('canvas-swatch').addEventListener('click', () => {
+  // Open canvas color popup (repurposed brush-pop for canvas only)
+  panelMode='canvas'; syncTabs(); refreshPanelUI(); placePop(); popMode='canvas';
+  $('brush-pop').classList.add('show');
+});
+
+/* ---------- color/size mode toggle ---------- */
+let colorMode = false;
+function setColorMode(on){
+  colorMode = on;
+  $('size-bar').style.display = on ? 'none' : 'flex';
+  $('hsb-bar').style.display = on ? 'flex' : 'none';
+  $('color-btn').classList.toggle('on', on);
+  if(on) syncHSBInputs();
+}
+function syncHSBInputs(){
+  $('hue').value=hue; $('sat').value=sat; $('bri').value=bri;
+  updateHSBTracks();
+}
+function updateHSBTracks(){
+  const h=hue, s=sat, b=bri;
+  $('hue').style.setProperty('--hue-track', `linear-gradient(90deg, ${hsbToCss(0,s,b,1)}, ${hsbToCss(60,s,b,1)}, ${hsbToCss(120,s,b,1)}, ${hsbToCss(180,s,b,1)}, ${hsbToCss(240,s,b,1)}, ${hsbToCss(300,s,b,1)}, ${hsbToCss(360,s,b,1)})`);
+  $('sat').style.setProperty('--sat-track', `linear-gradient(90deg, ${hsbToCss(h,0,b,1)}, ${hsbToCss(h,100,b,1)})`);
+  $('bri').style.setProperty('--bri-track', `linear-gradient(90deg, ${hsbToCss(h,s,0,1)}, ${hsbToCss(h,s,100,1)})`);
+}
+function showColorPreview(){
+  const c = $('sp-circle');
+  const sz = Math.max(40, Math.min(120, 60));
+  c.style.width = c.style.height = sz+'px';
+  c.style.background = brushCss();
+  $('sp-label').textContent = '';
+  $('sp-label').style.display = 'none';
+  $('size-preview').classList.add('show');
+  clearTimeout(spHideT);
+  spHideT = setTimeout(() => {
+    $('size-preview').classList.remove('show');
+    $('sp-label').style.display = '';
+  }, 1200);
+}
 
 /* ---------- gallery ---------- */
 function thumbFor(it, cb){
