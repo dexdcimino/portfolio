@@ -373,7 +373,6 @@ function sizeToSlider(s){
 }
 function refreshPanelUI(){
   const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
-  const csd=$('cs-dot'); if(csd) csd.style.background = bgCss();
   const isCanvas = panelMode==='canvas' && popMode!=='eraser';
   const h = isCanvas ? bgH : hue, s = isCanvas ? bgS : sat, b = isCanvas ? bgB : bri;
   $('hue').value = h; $('sat').value = s; $('bri').value = b;
@@ -482,9 +481,9 @@ function setEyedropper(on){
 
 $('ed-btn').addEventListener('click', () => setEyedropper(!eyedropperOn));
 $('canvas-swatch').addEventListener('click', () => {
-  // Open canvas color popup (repurposed brush-pop for canvas only)
-  panelMode='canvas'; syncTabs(); refreshPanelUI(); placePop(); popMode='canvas';
-  $('brush-pop').classList.add('show');
+  panelMode='canvas'; popMode='canvas';
+  syncTabs(); refreshPanelUI(); placePop();
+  $('brush-pop').classList.add('open');
 });
 
 /* ---------- color/size mode toggle ---------- */
