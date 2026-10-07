@@ -368,6 +368,7 @@ function saveCurrent(){
     gallery = [item, ...gallery.filter(g => g.id !== item.id)];
     editingId = item.id;
     dirty = false;
+    republishIfPublic(item);
     return item;
   });
   return saveChain;
@@ -695,7 +696,12 @@ function makeItem(it, isLive){
   } else {
     del.addEventListener('click', e => {
       e.stopPropagation();
-      openModal('Delete canvas?', `"${it.title}" will be permanently deleted.`, 'Delete', async () => {
+      const shared = it.visibility === 'public';
+      openModal('Delete canvas?', `"${it.title}" will be permanently deleted${shared ? ', and taken out of the shared gallery' : ''}.`, 'Delete', async () => {
+        if (shared){
+          try { await api('unpublish', { id: it.id }); }
+          catch (err) { toast('Could not take it out of the shared gallery: ' + err.message); return; }
+        }
         try { await idbDel('canvases', it.id); }
         catch (err) { toast('Could not delete it.'); return; }
         gallery = gallery.filter(g => g.id !== it.id);
@@ -706,6 +712,12 @@ function makeItem(it, isLive){
     if (it.thumb) img.src = blobUrl(it.thumb);
     else if (it.png) thumbBlob(it.png, it.bg).then(b => { it.thumb = b; img.src = blobUrl(b); idbPut('canvases', it).catch(() => {}); });
     div.addEventListener('click', () => openCanvas(it.id));
+    // Public or private, on the card: the lock is this device only, the globe
+    // is the shared gallery.
+    const pub = document.createElement('button'); pub.className = 'g-pub';
+    paintPubButton(pub, it);
+    pub.addEventListener('click', e => { e.stopPropagation(); toggleVisibility(it, pub); });
+    th.appendChild(pub);
   }
   th.appendChild(dl); th.appendChild(del);
   const cap = document.createElement('div'); cap.className = 'g-title';
@@ -741,7 +753,8 @@ async function openCanvas(id){
   refreshPanelUI();
 }
 $('grid-btn').addEventListener('click', () => {
-  closePop(); renderGallery();
+  closePop();
+  if (galleryTab === 'public') loadFeed(); else renderGallery();
   $('gallery').classList.add('open');
 });
 $('g-back').addEventListener('click', () => $('gallery').classList.remove('open'));
@@ -754,6 +767,255 @@ function toast(msg){
   clearTimeout(toastT);
   toastT = setTimeout(() => toastEl.classList.remove('show'), 2200);
 }
+
+/* ---------- the shared gallery ----------
+   PRIVATE MEANS ON THIS DEVICE ONLY. A drawing is private until its owner
+   flips it public; then a flattened snapshot is uploaded and listed in the
+   Public tab, and flipping it back deletes it from the server. Nothing private
+   is ever sent anywhere. The server side is /api/sketch (lib/sketch-store.js),
+   named "sketch" so renaming the app touches none of it. */
+const API = '/api/sketch';
+const SESSION_KEY = 'sketchSession', BLOCK_KEY = 'sketchBlocked';
+let session = null;                 // { handle, token }
+try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) {}
+let blocked = [];
+try { blocked = JSON.parse(localStorage.getItem(BLOCK_KEY) || '[]') || []; } catch (e) {}
+let galleryTab = 'mine', feed = [], myVoteFor = {};
+
+async function api(action, data = {}){
+  const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action, token: session && session.token, ...data }) });
+  let body = {};
+  try { body = await r.json(); } catch (e) {}
+  if (r.status === 401 && session && action !== 'login' && action !== 'signup'){ setSession(null); }
+  if (!r.ok) throw Object.assign(new Error(body.error || 'Something went wrong'), { status: r.status });
+  return body;
+}
+function setSession(s){
+  session = s;
+  try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  syncAccountButton();
+}
+function syncAccountButton(){
+  const b = $('g-account'); if (!b) return;
+  b.textContent = session ? '@' + session.handle : 'Sign in';
+  b.classList.toggle('signed', !!session);
+}
+const blobToDataUrl = blob => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
+
+/* The public copy: the drawing on its own background, at the canvas's logical
+   size, as WebP. The thumbnail already exists. */
+async function publishImage(it){
+  const t = document.createElement('canvas'); t.width = W; t.height = H;
+  const c = t.getContext('2d');
+  c.fillStyle = hsbToCss(it.bg.h, it.bg.s, it.bg.b, 1); c.fillRect(0, 0, W, H);
+  const bmp = await createImageBitmap(it.png); c.drawImage(bmp, 0, 0, W, H); bmp.close && bmp.close();
+  return canvasBlob(t, 'image/webp', 0.9);
+}
+async function publishItem(it){
+  if (!it.thumb) it.thumb = await thumbBlob(it.png, it.bg);
+  const image = await blobToDataUrl(await publishImage(it));
+  const thumb = await blobToDataUrl(it.thumb);
+  await api('publish', { id: it.id, title: it.title, image, thumb });
+  it.visibility = 'public';
+  await idbPut('canvases', it);
+}
+async function unpublishItem(it){
+  await api('unpublish', { id: it.id });
+  it.visibility = 'private';
+  await idbPut('canvases', it);
+}
+async function toggleVisibility(it, btn){
+  if (!session){ openAccount(() => toggleVisibility(it, btn)); return; }
+  btn.disabled = true;
+  try {
+    if (it.visibility === 'public'){ await unpublishItem(it); toast('Private — only on this device'); }
+    else { await publishItem(it); toast('Public — in the shared gallery'); }
+  } catch (e) { toast(e.message); }
+  btn.disabled = false;
+  paintPubButton(btn, it);
+}
+function paintPubButton(btn, it){
+  const pub = it.visibility === 'public';
+  btn.classList.toggle('on', pub);
+  btn.setAttribute('aria-label', pub ? 'Public — make private' : 'Private — make public');
+  btn.innerHTML = pub
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+}
+/* An edited public drawing re-publishes itself on save, so the shared copy
+   is never older than the one on the device. */
+function republishIfPublic(item){
+  if (item && item.visibility === 'public' && session) publishItem(item).catch(() => toast('Saved here — the public copy will update next time'));
+}
+
+/* ---- the Public tab ---- */
+async function loadFeed(){
+  $('g-count').textContent = 'Loading…';
+  try {
+    const r = await fetch(API + '?feed=1', { cache: 'no-store' });
+    if (!r.ok) throw new Error();
+    feed = (await r.json()).posts || [];
+  } catch (e) { feed = []; $('g-count').textContent = 'Offline'; renderFeed(); return; }
+  if (session && feed.length){
+    try { myVoteFor = (await api('votes', { ids: feed.map(p => p.id) })).votes || {}; } catch (e) {}
+  }
+  renderFeed();
+}
+const imgUrl = (p, thumb) => `${API}?img=${encodeURIComponent(`sketch/img/${p.id}-${p.v}${thumb ? '-t.jpg' : '.webp'}`)}`;
+function visibleFeed(){ return feed.filter(p => !blocked.includes(p.handle)); }
+function renderFeed(){
+  const rows = $('g-rows'); rows.innerHTML = '';
+  const items = visibleFeed();
+  $('g-count').textContent = items.length + (items.length === 1 ? ' drawing' : ' drawings');
+  if (!items.length){
+    const e = document.createElement('div'); e.className = 'g-empty';
+    e.textContent = 'Nothing shared yet. Make one of your drawings public to start it off.';
+    rows.appendChild(e); return;
+  }
+  for (let i = 0; i < items.length; i += 3){
+    const row = document.createElement('div'); row.className = 'g-row';
+    items.slice(i, i + 3).forEach(p => row.appendChild(feedItem(p)));
+    rows.appendChild(row);
+  }
+  $('g-grid').scrollTop = 0;
+}
+function reactionRow(p){
+  const wrap = document.createElement('div'); wrap.className = 'g-react';
+  for (const kind of ['fire', 'poop']){
+    const b = document.createElement('button');
+    b.className = 'g-rx' + (myVoteFor[p.id] === kind ? ' on' : '');
+    b.dataset.kind = kind;
+    b.setAttribute('aria-label', kind === 'fire' ? 'Fire' : 'Poop');
+    b.innerHTML = `<span>${kind === 'fire' ? '🔥' : '💩'}</span><b>${p[kind] || 0}</b>`;
+    b.addEventListener('click', e => { e.stopPropagation(); react(p, kind); });
+    wrap.appendChild(b);
+  }
+  return wrap;
+}
+function feedItem(p){
+  const div = document.createElement('div'); div.className = 'g-item'; div.dataset.post = p.id;
+  const th = document.createElement('div'); th.className = 'g-thumb';
+  const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy'; img.src = imgUrl(p, true);
+  th.appendChild(img);
+  const cap = document.createElement('div'); cap.className = 'g-title';
+  cap.textContent = p.title;
+  const by = document.createElement('div'); by.className = 'g-by';
+  by.textContent = '@' + p.handle;
+  div.append(th, cap, by, reactionRow(p));
+  div.addEventListener('click', () => openViewer(p));
+  return div;
+}
+/* ONE object per post. A sign-in reloads the feed with fresh objects while a
+   reaction may still hold the old one, and the viewer showed one count while
+   the card showed another. Every handler looks its post up by id, now. */
+const canonical = p => feed.find(x => x.id === p.id) || p;
+async function react(p, kind){
+  if (!session){ openAccount(() => react(p, kind)); return; }
+  p = canonical(p);
+  const before = { fire: p.fire, poop: p.poop, mine: myVoteFor[p.id] || null };
+  // Optimistic: the count moves under the finger, and is corrected by the reply.
+  const mine = before.mine === kind ? null : kind;
+  if (before.mine) p[before.mine]--;
+  if (mine) p[mine]++;
+  myVoteFor[p.id] = mine;
+  repaintPost(p);
+  try {
+    const r = await api('vote', { id: p.id, kind: mine });
+    p.fire = r.fire; p.poop = r.poop; myVoteFor[p.id] = r.mine;
+  } catch (e) {
+    p.fire = before.fire; p.poop = before.poop; myVoteFor[p.id] = before.mine;
+    toast(e.message);
+  }
+  repaintPost(p);
+}
+function repaintPost(p){
+  document.querySelectorAll(`[data-post="${p.id}"] .g-react, #viewer[data-post="${p.id}"] .g-react`).forEach(el => el.replaceWith(reactionRow(p)));
+}
+
+/* ---- the viewer ---- */
+function openViewer(p){
+  p = canonical(p);
+  const v = $('viewer');
+  v.dataset.post = p.id;
+  $('v-img').src = imgUrl(p, false);
+  $('v-title').textContent = p.title;
+  $('v-by').textContent = '@' + p.handle;
+  const old = v.querySelector('.g-react'); if (old) old.replaceWith(reactionRow(p));
+  const mine = session && session.handle === p.handle;
+  $('v-report').hidden = mine; $('v-block').hidden = mine;
+  $('v-report').onclick = () => openModal('Report this drawing?', 'Three reports take it down until it is reviewed.', 'Report', async () => {
+    if (!session){ openAccount(); return; }
+    try { const r = await api('report', { id: p.id }); toast(r.hidden ? 'Reported — it has been taken down' : 'Reported — thank you'); }
+    catch (e) { toast(e.message); }
+  });
+  $('v-block').onclick = () => openModal('Hide @' + p.handle + '?', 'You will not see their drawings on this device.', 'Hide', () => {
+    blocked = [...new Set([...blocked, p.handle])];
+    try { localStorage.setItem(BLOCK_KEY, JSON.stringify(blocked)); } catch (e) {}
+    closeViewer(); renderFeed(); toast('Hidden');
+  });
+  v.classList.add('open');
+}
+function closeViewer(){ $('viewer').classList.remove('open'); $('v-img').removeAttribute('src'); }
+$('v-close').addEventListener('click', closeViewer);
+
+/* ---- the account sheet ---- */
+let afterSignIn = null;
+function openAccount(then){
+  afterSignIn = then || null;
+  const signed = !!session;
+  $('a-in').hidden = signed; $('a-out').hidden = !signed;
+  if (signed) $('a-who').textContent = '@' + session.handle;
+  $('a-msg').textContent = '';
+  $('a-pass').value = '';
+  $('account').classList.add('open');
+  if (!signed) setTimeout(() => $('a-handle').focus(), 50);
+}
+function closeAccount(){ $('account').classList.remove('open'); afterSignIn = null; }
+async function signIn(action){
+  $('a-msg').textContent = '';
+  const handle = $('a-handle').value, password = $('a-pass').value;
+  try {
+    const r = await api(action, { handle, password });
+    setSession({ handle: r.handle, token: r.token });
+    const then = afterSignIn;
+    closeAccount();
+    toast(action === 'signup' ? 'Welcome, @' + r.handle : 'Signed in as @' + r.handle);
+    // The feed (and this person's own reactions) first, THEN whatever the
+    // sign-in was for, so it acts on the objects now on screen.
+    if (galleryTab === 'public') await loadFeed();
+    if (then) then();
+  } catch (e) { $('a-msg').textContent = e.message; }
+}
+$('a-login').addEventListener('click', () => signIn('login'));
+$('a-signup').addEventListener('click', () => signIn('signup'));
+$('a-pass').addEventListener('keydown', e => { if (e.key === 'Enter') signIn('login'); });
+$('a-close').addEventListener('click', closeAccount);
+$('a-signout').addEventListener('click', () => { setSession(null); closeAccount(); toast('Signed out'); if (galleryTab === 'public') renderFeed(); });
+$('a-delete').addEventListener('click', () => {
+  const pw = $('a-pass2').value;
+  if (!pw){ $('a-msg2').textContent = 'Enter your password to delete the account.'; return; }
+  openModal('Delete your account?', 'Every drawing you made public is removed from the shared gallery. Drawings on this device stay.', 'Delete', async () => {
+    try {
+      await api('delete-account', { password: pw });
+      for (const it of gallery) if (it.visibility === 'public'){ it.visibility = 'private'; idbPut('canvases', it).catch(() => {}); }
+      setSession(null); closeAccount(); toast('Account deleted');
+      renderGallery();
+    } catch (e) { $('a-msg2').textContent = e.message; }
+  });
+});
+$('g-account').addEventListener('click', () => openAccount());
+
+/* ---- the tabs ---- */
+function setGalleryTab(tab){
+  galleryTab = tab;
+  $('g-tab-mine').classList.toggle('on', tab === 'mine');
+  $('g-tab-public').classList.toggle('on', tab === 'public');
+  if (tab === 'public') loadFeed(); else renderGallery();
+}
+$('g-tab-mine').addEventListener('click', () => setGalleryTab('mine'));
+$('g-tab-public').addEventListener('click', () => setGalleryTab('public'));
+syncAccountButton();
 
 /* ---------- init ---------- */
 async function init(){

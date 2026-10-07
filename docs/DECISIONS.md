@@ -25,6 +25,34 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-07 — the shared sketch gallery: private stays on the device, and the server is named for the job
+
+**Decided.** Public drawings, accounts and reactions live behind one endpoint,
+`/api/sketch`, in the site's existing Blob store under `sketch/`. A private
+drawing is never uploaded; making one public uploads a flattened copy, making
+it private deletes that copy. Accounts are name + password. Moderation
+(report, hide-artist, admin moderate) ships with the first version.
+
+**What it replaced.** Nothing shared at all. Considered and not taken:
+syncing every drawing to the server with a private flag (the server would hold
+private work, so "private" would be a promise about access rules rather than a
+fact); email magic links or Google sign-in (an email provider or an OAuth app
+to register first -- a setup step the build would stall on); a new SKETCH_SECRET
+env var (derived from the Blob token instead, overridable if one is ever set).
+
+**Why.** Private-on-device is the strongest privacy story there is and costs
+the server nothing. Name + password works today with no third party, and app
+stores accept it as long as accounts can be deleted, which they can. Report
+and block are store requirements for user-generated content, so they are in
+the foundation rather than retrofitted. Naming the server "sketch" keeps the
+coming rename of the app away from every path and key that holds data.
+
+**Reverse it if** drawings need to follow a person between devices (then
+private drawings sync too, encrypted, and this entry is replaced), or the feed
+gets busy enough that read-modify-write races (then a per-post ledger).
+
+---
+
 ## 2026-10-07 — Inko updates itself by the files' fingerprints, not a version number
 
 **Decided.** The installed Inko app checks the ETags of its three shell files

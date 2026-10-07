@@ -105,10 +105,47 @@
 <div id="size-preview"><div id="sp-circle"></div><div id="sp-label">45px</div></div>
 
 <div id="gallery">
-  <div id="g-head"><span>Gallery</span><span id="g-count"></span></div>
+  <div id="g-head">
+    <span id="g-tabs" role="tablist"><button id="g-tab-mine" class="g-tab on" role="tab">Mine</button><button id="g-tab-public" class="g-tab" role="tab">Public</button></span>
+    <span class="g-head-r"><span id="g-count"></span><button id="g-account" class="g-account">Sign in</button></span>
+  </div>
   <div id="g-grid"><div id="g-rows"></div></div>
   <div id="g-bar"><button id="g-back">‹ Back to canvas</button><span id="g-build" aria-label="Build"></span></div>
 </div>
+
+<div id="viewer">
+  <button id="v-close" class="v-x" aria-label="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <div id="v-stage"><img id="v-img" alt=""></div>
+  <div id="v-bar">
+    <div id="v-meta"><div id="v-title"></div><div id="v-by"></div></div>
+    <div class="g-react"></div>
+    <div id="v-acts"><button id="v-report" class="v-link">Report</button><button id="v-block" class="v-link">Hide this artist</button></div>
+  </div>
+</div>
+
+<div id="account"><div id="account-card">
+  <button id="a-close" class="v-x" aria-label="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <div id="a-in">
+    <div class="a-title">Share your drawings</div>
+    <div class="a-text">Drawings stay on this device unless you make one public. An account is only needed to share and react.</div>
+    <input id="a-handle" class="a-field" placeholder="Name" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20">
+    <input id="a-pass" class="a-field" type="password" placeholder="Password (8+ characters)" autocomplete="current-password">
+    <div id="a-msg" class="a-msg" role="alert"></div>
+    <div class="mrow"><button id="a-signup" class="mbtn">Create account</button><button id="a-login" class="mbtn primary">Sign in</button></div>
+  </div>
+  <div id="a-out" hidden>
+    <div class="a-title" id="a-who"></div>
+    <div class="mrow"><button id="a-signout" class="mbtn">Sign out</button></div>
+    <div class="a-text a-danger-zone">Delete the account and take every drawing you shared out of the gallery:</div>
+    <input id="a-pass2" class="a-field" type="password" placeholder="Password" autocomplete="current-password">
+    <div id="a-msg2" class="a-msg" role="alert"></div>
+    <div class="mrow"><button id="a-delete" class="mbtn danger">Delete account</button></div>
+  </div>
+</div></div>
 
 <div id="modal"><div id="modal-card">
   <div id="m-title"></div><div id="m-text"></div>

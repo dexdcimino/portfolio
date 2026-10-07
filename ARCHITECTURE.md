@@ -669,6 +669,36 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `tools/inko_check.mjs` drives all of it under the real `/inko/` policy read
   out of `vercel.json`. The pre-rebuild app at inko.dexcimino.com (repo
   dexdcimino/inko) now redirects here.
+
+  **The shared gallery** -- the Public tab, accounts, reactions -- is
+  `api/sketch.js` over `lib/sketch-store.js`, in the site's existing private
+  Blob store under `sketch/`. NAMED "sketch", NOT "inko": the app is being
+  renamed, and an API path or a storage prefix is the one name that cannot
+  change once real data sits under it. The invariants:
+  - **Private means on the device.** A drawing is never uploaded until its
+    owner taps the lock on its card; then a flattened WebP (880x1170) and the
+    JPEG thumbnail go up and it joins `sketch/feed.json`. Tapping the globe
+    deletes both. The server never holds a private drawing, so it cannot leak
+    one.
+  - **Accounts are a name and a password** (scrypt, per-user salt, 10 wrong
+    tries lock it for 15 minutes). The session is an HMAC token whose key is
+    DERIVED from `BLOB_READ_WRITE_TOKEN` (or `SKETCH_SECRET` if set), so there
+    is no new secret to configure. Deleting an account deletes every post it
+    published, the hidden ones too -- each user record keeps its post ids.
+  - **Moderation is in from the start**, because the app stores require it for
+    anything users share: report (three different people hide a post), hide
+    an artist (this device only), and `moderate` (hide / restore / delete),
+    which accepts Dex's universal admin JWT from `api/auth/unlock`.
+  - **One reaction per person per post**, 🔥 or 💩, switchable; counts are
+    recomputed from the vote file on every change, never incremented.
+  - The feed is ONE JSON read, edge-cached for 10 s; images are served
+    through the function (the store is private) under versioned keys, so
+    their URLs are `immutable`. Writes are read-modify-write with no lock --
+    fine at this scale, and the first thing to change (a ledger per post, as
+    the notes store has) when the feed is busy enough to race.
+  `tools/sketch_check.mjs` runs the real handler on a scratch store: the
+  refusals, the report threshold, account deletion, and two browser contexts
+  as two people publishing, reacting, viewing, hiding and unpublishing.
 - `mobius/` — the **Mobius 3D** viewer, opened by its AI Lab card's eyeball
   into the app overlay (`data-app-shape="window"`) on `?sample=knot`. It is a
   BUILT COPY of `dist/` from its own repository, github.com/dexdcimino/mobius-3d,
