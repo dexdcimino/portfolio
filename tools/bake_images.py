@@ -96,8 +96,16 @@ RASTER_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 # two harnesses screenshot into. It is gitignored, but this walk reads the
 # filesystem rather than git, so without this a harness screenshot is a raster
 # outside assets/ and --check refuses the whole run.
+# icon-test: PWA icon trials served as-is at /icon-test/ (committed by the
+# hexagon-icon work, 2026-10). Web-served test icons, not masters, and the
+# reason every image commit failed until this line existed.
 SKIP_DIRS = {"derived", "_resources", "_archive", "games", ".git", "node_modules",
-             ".vercel", ".notes-dev"}
+             ".vercel", ".notes-dev", "icon-test", "inko", "mobius"}
+# inko/ and mobius/ are APP BUILDS served as-is at their own paths, the same
+# reason games/ is here: they ship their own icons and textures, and baking
+# them would write derivatives nothing references. mobius/ is a built copy
+# of the mobius-3d repo's dist/ (its `npm run site`); it has no rasters
+# today and is listed so it never has to be the reason the gate goes down.
 
 # Discovery is by extension and repo-wide, so the favicon rasters at the web root
 # would otherwise be treated as masters and blown up into six widths of AVIF/WebP
@@ -107,6 +115,29 @@ SKIP_DIRS = {"derived", "_resources", "_archive", "games", ".git", "node_modules
 # whole point is that they sit at the root. Keep in step with PNG_OUTPUTS there.
 FAVICON_OUTPUTS = {"favicon-96.png", "favicon-192.png", "favicon-512.png",
                    "apple-touch-icon.png"}
+
+
+def is_master(rel: Path) -> bool:
+    """Whether the raster at this repo-relative path is a master to bake.
+
+    The one decision collect() makes per file, pulled out so --cases drives
+    the real thing rather than a copy of it.
+
+    A FILE AT THE WEB ROOT IS AN ICON, NEVER A MASTER -- decided by position,
+    not by name, since 2026-10-07. FAVICON_OUTPUTS above was a hand-kept list,
+    and a session working on the PWA icon added ten more root PNGs
+    (appmono-*, icon-mono-*, ...) without adding them to it; every image commit
+    after that failed for everyone, on files it had nothing to do with. A root
+    raster cannot be a master anyway: derived output mirrors assets/, so no
+    directive can name one. A FOLDER of art dropped at the root -- the
+    2026-09-01 incident -- is a subfolder, not a root file, and is still
+    collected and still refused by expected().
+    """
+    if SKIP_DIRS & set(rel.parts):
+        return False
+    if len(rel.parts) == 1:
+        return False
+    return True
 
 
 def collect() -> list[tuple[Path, tuple[int, ...]]]:
@@ -127,9 +158,7 @@ def collect() -> list[tuple[Path, tuple[int, ...]]]:
         if not path.is_file() or path.suffix.lower() not in RASTER_EXTS:
             continue
         rel = path.relative_to(ROOT)
-        if SKIP_DIRS & set(rel.parts):
-            continue
-        if len(rel.parts) == 1 and rel.name in FAVICON_OUTPUTS:
+        if not is_master(rel):
             continue
         found[path] = widths_for(rel.as_posix(), used, DEFAULT_WIDTHS)
 
@@ -145,8 +174,6 @@ def expected(src: Path, widths: tuple[int, ...]):
     Single source of truth for the naming scheme so --check can never disagree
     with what a bake would actually write.
     """
-    with Image.open(src) as im:
-        source_width = im.width
     # Mirror the master's folder. A flat namespace collides the moment two
     # masters share a stem — assets/a/cover.png and assets/b/cover.png would
     # both bake to cover-800.avif and one would silently win.
@@ -165,6 +192,8 @@ def expected(src: Path, widths: tuple[int, ...]):
             f"outside assets/, and derived output mirrors assets/. Move it under "
             f"assets/, or put it somewhere the walk skips "
             f"({', '.join(sorted(SKIP_DIRS))}).") from None
+    with Image.open(src) as im:
+        source_width = im.width
     for width in widths:
         if width > source_width:      # never upscale — the master is the ceiling
             continue
@@ -339,7 +368,28 @@ def cases() -> int:
             "EQUAL mtimes count as stale, not fresh",
             "a rebuild in the same second must not be trusted")
 
-    # ---- 3. the live walk -------------------------------------------------------------
+    # ---- 3. what counts as a master ---------------------------------------------------
+    # The incident: ten PWA icon variants at the root, none in the hand-kept
+    # list, and the whole gate down. And the one before it, which must still
+    # be caught: a folder of art dropped at the root.
+    for name in sorted(FAVICON_OUTPUTS) + ["appmono-192.png", "icon-mono-512.png"]:
+        say(not is_master(Path(name)), f"root {name} is an icon, not a master")
+    say(is_master(Path("assets/work/piece.png")), "a raster under assets/ is a master")
+    say(is_master(Path("gallery-originals/piece.png")),
+        "a FOLDER of art at the root is still collected",
+        "and refused by expected() -- 2026-09-01")
+    try:
+        list(expected(ROOT / "gallery-originals" / "piece.png", (400,)))
+        refused = False
+    except SystemExit:
+        refused = True
+    except FileNotFoundError:
+        refused = False
+    say(refused, "...and expected() refuses it before opening it", "names the rule, not a bare path error")
+    say(not is_master(Path("games/arena1/tex.png")), "games/ is skipped")
+    say(not is_master(Path("assets/derived/work/x-400.png")), "derived/ is skipped")
+
+    # ---- 4. the live walk -------------------------------------------------------------
     masters = real_collect()
     say(len(masters) >= 50, "the live walk finds this repo's masters", f"{len(masters)} found")
     rungs = sum(1 for src, widths in masters for _ in expected(src, widths))
@@ -349,7 +399,8 @@ def cases() -> int:
     if bad:
         print(f"bake_images --cases: {bad} case(s) WRONG", file=sys.stderr)
         return 1
-    print(f"bake_images --cases: 9 of 9 as expected (5 of them proving it still refuses; "
+    total = 9 + len(FAVICON_OUTPUTS) + 2 + 5
+    print(f"bake_images --cases: {total} of {total} as expected (6 of them proving it still refuses; "
           f"live walk {len(masters)} masters, {rungs} rungs)")
     return 0
 
