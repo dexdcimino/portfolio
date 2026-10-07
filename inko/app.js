@@ -373,6 +373,7 @@ function sizeToSlider(s){
 }
 function refreshPanelUI(){
   const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
+  const csd=$('cs-dot'); if(csd) csd.style.background = bgCss();
   const isCanvas = panelMode==='canvas' && popMode!=='eraser';
   const h = isCanvas ? bgH : hue, s = isCanvas ? bgS : sat, b = isCanvas ? bgB : bri;
   $('hue').value = h; $('sat').value = s; $('bri').value = b;
