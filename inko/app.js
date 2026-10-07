@@ -171,6 +171,32 @@ function seg(ax,ay,bx,by,cx,cy){
 let drawing = false, last = null, midPrev = null;
 canvas.addEventListener('pointerdown', e => {
   if (popMode){ closePop(); e.preventDefault(); return; }
+  if (eyedropperOn){
+    e.preventDefault();
+    const hsb = sampleColorAt(e.clientX, e.clientY);
+    if (hsb){
+      showEdPreview(e.clientX, e.clientY, hsb);
+      // Long-press: keep updating preview; tap: apply immediately on up
+      edLongPressT = setTimeout(() => { edLongPressT = 'held'; }, 400);
+      const up = (ev) => {
+        const h2 = sampleColorAt(ev.clientX, ev.clientY);
+        if (h2) applyEyedropperColor(h2);
+        hideEdPreview(); setEyedropper(false);
+        canvas.removeEventListener('pointerup', up);
+        canvas.removeEventListener('pointercancel', up);
+      };
+      canvas.addEventListener('pointerup', up);
+      canvas.addEventListener('pointercancel', up);
+      const mv = (ev) => {
+        const h3 = sampleColorAt(ev.clientX, ev.clientY);
+        if (h3) showEdPreview(ev.clientX, ev.clientY, h3);
+        if (edLongPressT === 'held') return;
+      };
+      canvas.addEventListener('pointermove', mv, {once:false});
+      setTimeout(() => canvas.removeEventListener('pointermove', mv), 5000);
+    }
+    return;
+  }
   e.preventDefault();
   try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
   drawing = true;
@@ -405,6 +431,56 @@ $('size').addEventListener('input', () => {
   else brushSize = v;
   refreshSizeUI(); showSizePreview();
 });
+
+/* ---------- eyedropper ---------- */
+let eyedropperOn = false;
+function rgbToHsb(r, g, b){
+  r/=255; g/=255; b/=255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
+  let h=0;
+  if(d!==0){
+    if(mx===r) h=((g-b)/d)%6;
+    else if(mx===g) h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h*=60; if(h<0) h+=360;
+  }
+  return {h:Math.round(h), s:mx===0?0:Math.round(d/mx*100), b:Math.round(mx*100)};
+}
+function sampleColorAt(clientX, clientY){
+  const r = canvas.getBoundingClientRect();
+  const x = (clientX - r.left) / r.width * W;
+  const y = (clientY - r.top) / r.height * H;
+  if(x<0||y<0||x>=W||y>=H) return null;
+  const d = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+  return rgbToHsb(d[0], d[1], d[2]);
+}
+function applyEyedropperColor(hsb){
+  hue=hsb.h; sat=hsb.s; bri=hsb.b;
+  refreshPanelUI(); dirty=true; scheduleDraft();
+}
+let edLongPressT=null, edPreviewEl=null;
+function showEdPreview(x, y, hsb){
+  if(!edPreviewEl){
+    edPreviewEl=document.createElement('div');
+    edPreviewEl.style.cssText='position:fixed;z-index:9999;width:56px;height:56px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 20px rgba(0,0,0,.5);pointer-events:none;transform:translate(-50%,-130%);';
+    document.body.appendChild(edPreviewEl);
+  }
+  edPreviewEl.style.left=x+'px'; edPreviewEl.style.top=y+'px';
+  edPreviewEl.style.background=hsbToCss(hsb.h,hsb.s,hsb.b,1);
+  edPreviewEl.style.display='block';
+}
+function hideEdPreview(){
+  if(edPreviewEl) edPreviewEl.style.display='none';
+  clearTimeout(edLongPressT); edLongPressT=null;
+}
+function setEyedropper(on){
+  eyedropperOn=on;
+  $('ed-btn').classList.toggle('on', on);
+  if(!on) hideEdPreview();
+  canvas.style.cursor = on ? 'crosshair' : '';
+}
+
+$('ed-btn').addEventListener('click', () => setEyedropper(!eyedropperOn));
 
 /* ---------- gallery ---------- */
 function thumbFor(it, cb){
