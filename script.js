@@ -9702,7 +9702,12 @@ let openReader = () => {};
       if (isCrossOrigin || isInkoPath) {
         frame.removeAttribute('sandbox');
       } else {
-        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+        /* data-app-downloads: the app saves files of its own -- Mobius 3D's
+           Save screenshot -- and the sandbox drops a download silently unless
+           it is allowed, which reads as a dead button. Per card, set on every
+           open like the rest, so it never leaks to the next app. */
+        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox'
+          + (card.hasAttribute('data-app-downloads') ? ' allow-downloads' : ''));
       }
       /* Phone unless the card says otherwise. Set on every open, not once: the
          overlay is shared, so a window-shaped app must not leave the next

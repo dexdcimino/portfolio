@@ -639,6 +639,20 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
 - `mindsplit/` — Vite build **output** served directly (source at
   `ai/apps/mindsplit/`; the one build-step exception). `ai/apps/` contract is in
   its README
+- `mobius/` — the **Mobius 3D** viewer, opened by its AI Lab card's eyeball
+  into the app overlay (`data-app-shape="window"`) on `?sample=knot`. It is a
+  BUILT COPY of `dist/` from its own repository, github.com/dexdcimino/mobius-3d,
+  written here by that repo's `npm run site` and **never edited here**: an edit
+  belongs in that repo's `src/`, and the same build is what its desktop app
+  packages. It needs its own `/mobius/(.*)` header block in `vercel.json` --
+  `'wasm-unsafe-eval'` for the Draco / Meshopt / KTX2 decoders, `worker-src
+  'self' blob:` for the parse worker and the decoder workers -- and its card
+  carries `data-app-downloads`, which `initAppModal` turns into
+  `allow-downloads` on the overlay's sandbox for that card only, or its Save
+  screenshot button is silently dropped. `work_check` section 17 checks the
+  half that lives here (order, overlay, sandbox, the viewer actually starting);
+  the viewer itself is checked in depth by that repo's `verification/check.mjs`
+  under this same CSP. `bake_images.py` skips the folder, as it does `games/`.
 - `themedock/` — the ThemeDock preview, opened by the AI Lab card's eyeball into
   the app overlay (`data-app-shape="window"`). `panel.css` is the extension's
   own stylesheet vendored in unmodified, `window.css` is the mock VS Code around

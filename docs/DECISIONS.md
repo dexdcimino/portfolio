@@ -25,6 +25,35 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-07 — Mobius 3D is its own repository; this site serves a built copy
+
+**Decided.** The 3D viewer lives in github.com/dexdcimino/mobius-3d, where one
+`src/` builds one `dist/`. The desktop app (Windows, Linux, macOS) packages that
+`dist/`; this site holds a BUILT COPY of it at `/mobius/`, refreshed by
+`npm run site` in that repo and committed here like any other asset.
+
+**What it replaced.** A single self-contained HTML file in a Downloads folder,
+copied by hand into whatever wanted it -- and the two alternatives considered
+on the way: putting the viewer's SOURCE inside this repo, and having the
+desktop app load the live site instead of carrying its own copy.
+
+**Why.** The desktop app needs releases, installers and an update feed, and
+GitHub Releases on its own repository is the free way to have all three; a
+portfolio repository is the wrong home for 100 MB installers and the update
+channel of an app. Source inside this repo would also have put a second
+`package.json`, Electron and a test suite under the image baker and the scope
+hook. A built copy here keeps this repo a static site, and the copy is exactly
+what the desktop app runs, so the preview cannot drift from the product. The
+live-site option was refused outright: it hands a web page a bridge to the
+user's local files, and it stops working offline.
+
+**Reverse it if** the viewer stops having a desktop half, or the copy step is
+forgotten often enough to matter -- in which case a CI job in the mobius-3d
+repo that opens a pull request here on every release is the next step, not
+moving the source in.
+
+---
+
 ## 2026-10-03 — full screen belongs to the bar, and the remote pill cannot have it
 
 **Decided.** The music player gets a full-screen button in the bar's tail,

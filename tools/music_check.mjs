@@ -188,7 +188,7 @@ let parkedAt = 0;
      which shares the same createKeypad and the same bug. */
   const boxes = await page.evaluate(() => {
     const read = (sel) => [...document.querySelectorAll(sel)].map(p => p.value).join('');
-    return { tilde: read('#codeModal .vault-pin'), vault: read('#vault .vault-pin') };
+    return { tilde: read('#codeModal .vault-pin'), vault: read('#vaultPins .vault-pin') };
   });
   note(boxes.tilde === '',
        `the tilde keypad still shows "${boxes.tilde}" after the code was accepted`);
@@ -1411,7 +1411,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   const after = await page.evaluate(() => ({
     src: document.getElementById('musicVideo').getAttribute('src'),
     scrollY: Math.round(window.scrollY),
-    vaultBoxes: [...document.querySelectorAll('#vault .vault-pin')].map(p => p.value).join(''),
+    vaultBoxes: [...document.querySelectorAll('#vaultPins .vault-pin')].map(p => p.value).join(''),
     label: document.getElementById('vaultLabel')?.textContent,
     padlock: document.getElementById('vaultLock')?.dataset.icon,
   }));
@@ -1446,7 +1446,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   await page.keyboard.press('Backquote');
   const again = await page.evaluate(() => ({
     open: document.getElementById('codeModal').open === true,
-    vault: [...document.querySelectorAll('#vault .vault-pin')].map(p => p.value).join(''),
+    vault: [...document.querySelectorAll('#vaultPins .vault-pin')].map(p => p.value).join(''),
     tilde: [...document.querySelectorAll('#codeModal .vault-pin')].map(p => p.value).join(''),
     scrollY: Math.round(window.scrollY),
   }));

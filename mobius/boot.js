@@ -1,0 +1,1 @@
+(()=>{window.addEventListener("error",function(r){if(!window.viewerReady){var e=document.getElementById("crash");e&&(e.hidden=!1,e.textContent="The viewer could not start. Try Chrome or Edge with graphics acceleration turned on. \u2014 "+(r.message||""))}});})();

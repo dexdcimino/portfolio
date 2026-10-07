@@ -428,7 +428,7 @@ const marker = `harness-${Date.now().toString(36)}`;
     if (/\/api\/notes\/unlock/.test(res.url())) unlocks.push(res.status());
   });
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle2', timeout: 60000 });
-  await page.$eval('#vault', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.$eval('#codes', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await page.waitForSelector('#vaultPins .vault-pin', { visible: true, timeout: 10000 });
   await page.focus('#vaultPins .vault-pin');
   for (const c of 'notes') { await page.keyboard.type(c); await sleep(60); }

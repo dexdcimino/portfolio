@@ -876,6 +876,41 @@
               <span class="icon" data-icon="eye-outline"></span>
             </span>
           </article>
+          <!-- MOBIUS 3D: a desktop app and this page's preview from ONE source,
+               github.com/dexdcimino/mobius-3d. The eye opens /mobius/ -- a
+               BUILT copy of that repo's dist/, put here by its `npm run site`
+               and never edited here -- in the app overlay, window-shaped, on
+               the trefoil sample, so a visitor with no model file of their own
+               still sees it work. data-app-downloads lets its Save screenshot
+               button through the overlay's sandbox (see initAppModal). The
+               title link is the repo, which is where the desktop builds are.
+               Second in the list (Dex, 2026-10-07), which makes it the app the
+               panel RESTS on: the first card that is not the placeholder. -->
+          <article class="ai-card" id="mobiusCard"
+             data-app-modal="/mobius/?sample=knot" data-app-title="Mobius 3D" data-app-shape="window" data-app-downloads
+             data-gallery="mobius" data-kind="DESKTOP + WEB" data-stack="THREE.JS"
+             data-desc-lead="A 3D model viewer for the desktop and the web, built from one codebase."
+             data-desc-body="Drop in a GLB, FBX, OBJ, STL, USDZ and more, compressed glTF included, and inspect its materials, normals and vertex colours. Big files load off the main thread, and nothing leaves your machine. On the desktop it is an Open with app too."
+             data-desc-link="https://github.com/dexdcimino/mobius-3d"
+             data-desc-link-label="GITHUB"><a class="ai-card-link" href="https://github.com/dexdcimino/mobius-3d" target="_blank" rel="noopener noreferrer"><strong>Mobius 3D</strong><span>3D model viewer<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <!-- img src="assets/icons/apps/mobius.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+            <picture class="ai-card-iconwrap">
+              <source type="image/avif" srcset="assets/derived/icons/apps/mobius-420.avif?v=17c0738d 420w,
+                                                assets/derived/icons/apps/mobius-200.avif?v=17c0738d 200w,
+                                                assets/derived/icons/apps/mobius-84.avif?v=17c0738d 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <source type="image/webp" srcset="assets/derived/icons/apps/mobius-420.webp?v=17c0738d 420w,
+                                                assets/derived/icons/apps/mobius-200.webp?v=17c0738d 200w,
+                                                assets/derived/icons/apps/mobius-84.webp?v=17c0738d 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <img class="ai-card-icon" src="assets/icons/apps/mobius.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+            <button class="ai-card-eye" type="button" data-tip="Functional preview"
+                    aria-label="Open a functional preview of Mobius 3D">
+              <span class="icon" data-icon="eye" aria-hidden="true"></span>
+            </button>
+          </article>
           <article class="ai-card" id="inkoCard" data-app-modal="/inko/" data-link-preview data-app-title="Inko" data-gallery="inko" data-kind="WEB APP" data-stack="PWA"
              data-desc-lead="A quick mobile sketchpad. Draw with your finger, no account, no fuss."
              data-desc-body="Inko is a pocket sketchbook: a full-screen canvas with a brush, an eraser, and a gallery. Built as a PWA so it installs like a native app and works offline."><a class="ai-card-link" href="/inko/" target="_blank" rel="noopener noreferrer"><strong>Inko</strong><span>Mobile sketch pad<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
@@ -4045,6 +4080,61 @@
                                               assets/derived/gallery/surveyor-drone-ember-600.webp?v=b27f24f2 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
             <img src="assets/gallery/surveyor-drone-ember.png" alt="The Surveyor drone descending onto a site on Ember, its scanner beam extended straight down as a pale column against the planet&#39;s deep orange dust" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <!-- Mobius 3D. Taken from the REAL build by the mobius-3d repo's
+             tools/screenshots.mjs, so they cannot drift from what the eye
+             opens; re-run it when the viewer's look changes. The first figure
+             is also the app-info thumbnail. -->
+        <figure class="gal-item" data-game="mobius" data-title="The sample: 768,000 triangles">
+          <!-- img src="assets/gallery/mobius-knot.png" slot="game-shot" alt="Mobius 3D showing a red and orange trefoil knot of 768,000 triangles, with its surface, lighting and view controls" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/mobius-knot-1600.avif?v=6f844347 1600w,
+                                              assets/derived/gallery/mobius-knot-1200.avif?v=6f844347 1200w,
+                                              assets/derived/gallery/mobius-knot-900.avif?v=6f844347 900w,
+                                              assets/derived/gallery/mobius-knot-600.avif?v=6f844347 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/mobius-knot-1600.webp?v=6f844347 1600w,
+                                              assets/derived/gallery/mobius-knot-1200.webp?v=6f844347 1200w,
+                                              assets/derived/gallery/mobius-knot-900.webp?v=6f844347 900w,
+                                              assets/derived/gallery/mobius-knot-600.webp?v=6f844347 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/mobius-knot.png" alt="Mobius 3D showing a red and orange trefoil knot of 768,000 triangles, with its surface, lighting and view controls" width="1800" height="1125" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="mobius" data-title="Surface normals">
+          <!-- img src="assets/gallery/mobius-inspect.png" slot="game-shot" alt="The same knot drawn with its surface normals as colour, viewed from the front" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/mobius-inspect-1600.avif?v=db1c69af 1600w,
+                                              assets/derived/gallery/mobius-inspect-1200.avif?v=db1c69af 1200w,
+                                              assets/derived/gallery/mobius-inspect-900.avif?v=db1c69af 900w,
+                                              assets/derived/gallery/mobius-inspect-600.avif?v=db1c69af 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/mobius-inspect-1600.webp?v=db1c69af 1600w,
+                                              assets/derived/gallery/mobius-inspect-1200.webp?v=db1c69af 1200w,
+                                              assets/derived/gallery/mobius-inspect-900.webp?v=db1c69af 900w,
+                                              assets/derived/gallery/mobius-inspect-600.webp?v=db1c69af 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/mobius-inspect.png" alt="The same knot drawn with its surface normals as colour, viewed from the front" width="1800" height="1125" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="mobius" data-title="A file it cannot read, and what to do">
+          <!-- img src="assets/gallery/mobius-error.png" slot="game-shot" alt="An error card reading: Blender files can't be opened directly. In Blender: File, Export, glTF 2.0 or FBX" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/mobius-error-1600.avif?v=aa892b74 1600w,
+                                              assets/derived/gallery/mobius-error-1200.avif?v=aa892b74 1200w,
+                                              assets/derived/gallery/mobius-error-900.avif?v=aa892b74 900w,
+                                              assets/derived/gallery/mobius-error-600.avif?v=aa892b74 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/mobius-error-1600.webp?v=aa892b74 1600w,
+                                              assets/derived/gallery/mobius-error-1200.webp?v=aa892b74 1200w,
+                                              assets/derived/gallery/mobius-error-900.webp?v=aa892b74 900w,
+                                              assets/derived/gallery/mobius-error-600.webp?v=aa892b74 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/mobius-error.png" alt="An error card reading: Blender files can't be opened directly. In Blender: File, Export, glTF 2.0 or FBX" width="1800" height="1125" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>

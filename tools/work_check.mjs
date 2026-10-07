@@ -49,11 +49,27 @@ const MIME = {
   '.webp': 'image/webp', '.avif': 'image/avif', '.png': 'image/png',
   '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
   '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.webm': 'video/webm',
+  // Mobius 3D's Draco and KTX2 decoders.
+  '.wasm': 'application/wasm',
 };
 const missing = [];
 const server = createServer(async (req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
-  const file = resolve(join(ROOT, normalize(url === '/' ? '/index.html' : url)));
+  /* THE NOTES PASSWORD, ANSWERED AS PRODUCTION ANSWERS A WRONG ONE. Both
+     keypads now try any five-character code as a notes password too (see
+     verify in initVault and the tilde keypad, efca229 and before it), so
+     every wrong code this harness types is a POST here. With no API behind
+     this server those were five 404s a run, failing the check on a
+     behaviour that is working as built. 401 is what /api/notes/unlock says
+     to a password it refuses. */
+  if (url === '/api/notes/unlock') {
+    res.writeHead(401, { 'content-type': 'application/json' }).end('{"error":"wrong"}');
+    return;
+  }
+  /* A FOLDER URL SERVES ITS index.html, as Vercel does. Without it /mobius/
+     -- the Mobius 3D preview -- was a 404 inside an overlay that opened
+     perfectly, which reads as a broken app rather than a harness gap. */
+  const file = resolve(join(ROOT, normalize(url.endsWith('/') ? `${url}index.html` : url)));
   if (!file.startsWith(ROOT)) { res.writeHead(403).end(); return; }
   try {
     const body = await readFile(file);
@@ -77,7 +93,14 @@ await page.createCDPSession().then(s =>
   s.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {}));
 await page.setViewport({ width: 1600, height: 1000 });
 page.on('pageerror', e => fail.push(`pageerror: ${e.message}`));
-page.on('console', m => { if (m.type() === 'error') fail.push(`console: ${m.text()}`); });
+/* The browser logs every refused fetch as a console error with no way for the
+   page to silence it; the notes-password 401 above is the one this harness
+   answers ON PURPOSE, and is matched by its URL, so nothing else can hide. */
+page.on('console', m => {
+  if (m.type() !== 'error') return;
+  if (/status of 401/.test(m.text()) && /\/api\/notes\/unlock$/.test(m.location()?.url || '')) return;
+  fail.push(`console: ${m.text()}`);
+});
 
 await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle2', timeout: 60000 });
 await page.$eval('#work', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
@@ -556,7 +579,7 @@ await page.waitForFunction(
      which the shortcut correctly refuses. It cost a run to find, in the two
      checks above that were here first. */
   await page.evaluate(() => document.activeElement && document.activeElement.blur());
-  await page.evaluate(() => document.getElementById('vault').scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.evaluate(() => document.getElementById('codes').scrollIntoView({ block: 'center', behavior: 'instant' }));
   await new Promise(r => setTimeout(r, 600));
   const vt = await page.evaluate(() => {
     const t = document.querySelector('.vault-tilde');
@@ -1199,6 +1222,85 @@ await page.waitForFunction(
   console.log(`thumbnails: ${shapes.map(s => `${s.width}->${s.min}px`).join('  ')}`);
   await page.setViewport({ width: 1600, height: 1000 });
   await new Promise(r => setTimeout(r, 300));
+}
+
+/* ---- 17. Mobius 3D: the card, the eye, and the viewer inside -------------
+   THE ASK (Dex, 2026-10-07): Mobius 3D second in the AI Lab list, above Inko,
+   with an eye that opens a functional preview in the rounded app overlay.
+   What is under /mobius/ is a BUILT copy of the mobius-3d repo's dist/, and
+   that repo drives the viewer itself in depth (verification/check.mjs, 41
+   checks, under this site's CSP). This section checks the half that lives
+   HERE: the order, the overlay it opens, the sandbox it opens with, and that
+   the copy on disk actually starts.
+
+   FALSELY PASSES IF: only the overlay's open state were read. An overlay
+   around a viewer that never started is the failure that matters, so the
+   triangle count the viewer itself printed is the assertion. */
+{
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+  await page.evaluate(() => document.getElementById('aiApps').scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await new Promise(r => setTimeout(r, 500));
+  const order = await page.evaluate(() =>
+    [...document.querySelectorAll('#aiApps .ai-card strong')].map(s => s.textContent.trim()));
+  note(order[1] === 'Mobius 3D' && order[2] === 'Inko',
+       `the AI Lab order is ${order.slice(0, 4).join(' / ')} — Mobius 3D belongs second, above Inko`);
+  /* A REAL click on the eye: the overlay is opened by the button's own
+     handler, and the sandbox is decided there. Measured and hit-tested first,
+     because a click on stale coordinates lands on whatever is there instead. */
+  const eye = await page.evaluate(() => {
+    const b = document.querySelector('#mobiusCard .ai-card-eye');
+    b.scrollIntoView({ block: 'center', behavior: 'instant' });
+    const r = b.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    return { x, y, hit: !!document.elementFromPoint(x, y)?.closest('#mobiusCard .ai-card-eye') };
+  });
+  note(eye.hit, 'the Mobius eye is covered at its own centre');
+  await page.mouse.click(eye.x, eye.y);
+  await page.waitForFunction(() => document.getElementById('appModal')?.open === true, { timeout: 5000 }).catch(() => {});
+  const opened = await page.evaluate(() => {
+    const d = document.getElementById('appModal'), f = document.getElementById('appFrame');
+    return { open: d.open, shape: d.dataset.shape, src: f.getAttribute('src') || '', sandbox: f.getAttribute('sandbox') || '',
+             radius: getComputedStyle(d).borderRadius, title: document.getElementById('app-dialog-title').textContent };
+  });
+  note(opened.open, 'the Mobius eye did not open the app overlay');
+  note(opened.shape === 'window', `the Mobius overlay is "${opened.shape}"-shaped — a desktop app wants the window shape`);
+  note(opened.src === '/mobius/?sample=knot&embed=1', `the frame was pointed at "${opened.src}"`);
+  note(/\ballow-downloads\b/.test(opened.sandbox), 'the Mobius frame cannot download — its Save screenshot would do nothing');
+  note(opened.title === 'Mobius 3D', `the overlay is titled "${opened.title}"`);
+  const viewer = await page.waitForFunction(() => {
+    const doc = document.getElementById('appFrame').contentDocument;
+    const s = doc && doc.getElementById('stats');
+    return s && /triangles/.test(s.textContent) ? s.textContent : false;
+  }, { timeout: 30000 }).then(h => h.jsonValue()).catch(() => '');
+  note(/768,000 triangles/.test(viewer), `the viewer in the overlay reports "${viewer}" — it did not start on the sample`);
+  console.log(`mobius: order ${order.slice(0, 3).join(' / ')}, ${opened.shape} overlay, "${viewer.split('·')[0].trim()}", sandbox ${opened.sandbox.includes('allow-downloads') ? '+downloads' : 'no downloads'}`);
+
+  // Escape from INSIDE the frame closes the overlay, through the site's own
+  // deferred rule: the viewer has nothing open, so it claims nothing.
+  // A REAL click into the frame first: a scripted focus() across an iframe
+  // boundary does not move the browser's focus (CLAUDE.md, the ones that lie),
+  // and the Escape would then go to this document instead of the viewer's.
+  const inside = await page.evaluate(() => {
+    const r = document.getElementById('appFrame').getBoundingClientRect();
+    return { x: r.left + r.width * 0.25, y: r.top + r.height * 0.8 };
+  });
+  await page.mouse.click(inside.x, inside.y);
+  const focusInFrame = await page.evaluate(() => document.activeElement === document.getElementById('appFrame'));
+  note(focusInFrame, 'a click on the viewer did not put focus in its frame');
+  await page.keyboard.press('Escape');
+  const closed = await page.waitForFunction(() => !document.getElementById('appModal').open, { timeout: 3000 })
+    .then(() => true).catch(() => false);
+  note(closed, 'Escape inside the viewer did not close the overlay');
+
+  // The download allowance belongs to this card only, and must not leak to
+  // the next app the shared overlay opens.
+  const other = await page.evaluate(() => {
+    const card = [...document.querySelectorAll('#aiApps .ai-card[data-app-modal]')].find(c => !c.hasAttribute('data-app-downloads'));
+    card.querySelector('.ai-card-eye').click();
+    return document.getElementById('appFrame').getAttribute('sandbox') || '(none)';
+  });
+  note(!/\ballow-downloads\b/.test(other), `the next app opened with "${other}" — the Mobius allowance leaked`);
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
 }
 
 note(missing.length === 0, `404s: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
