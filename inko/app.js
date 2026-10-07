@@ -388,7 +388,7 @@ function bindHSB(){
 let spHideT = null;
 function showSizePreview(){
   const sz = tool==='eraser' ? eraserEff() : brushSize;
-  const c = $('sp-circle'), d = Math.round(8 + sz * 0.384);
+  const c = $('sp-circle'), d = Math.max(6, Math.min(240, Math.round(sz * fitK)));
   c.style.width = c.style.height = d+'px';
   if (tool==='eraser'){ c.style.background = '#fff'; }
   else { c.style.background = brushCss(); }
