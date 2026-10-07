@@ -88,11 +88,7 @@ body{
 .tbtn.sel{background:rgba(255,255,255,.12);}
 .tbtn:disabled{opacity:.28;}
 .tbtn.on{background:linear-gradient(135deg,var(--a1),var(--a2)); color:#0b0d12;}
-#plus-btn{
-  width:52px; height:52px; border-radius:50%; border:none; cursor:pointer;
-  background:linear-gradient(135deg,var(--a1),var(--a2)); color:#0b0d12;
-  display:flex; align-items:center; justify-content:center;
-}
+
 #plus-btn svg{width:24px; height:24px;}
 
 #color-dot{
