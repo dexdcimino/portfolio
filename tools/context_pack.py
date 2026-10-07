@@ -63,7 +63,7 @@ EXCLUDE_EXT = {
     ".mp3", ".ogg", ".wav", ".mp4", ".webm",
     ".ttf", ".otf", ".woff", ".woff2",
     ".zip", ".7z", ".tar", ".gz", ".rar", ".pdf", ".psd", ".ai",
-    ".bundle", ".pyc",
+    ".bundle", ".pyc", ".wasm",
 }
 
 # Vendored or generated TEXT. Each is code a reader gains nothing from and which drowns
@@ -74,6 +74,9 @@ EXCLUDE_PATH = [
     (re.compile(r"(^|/)dist/"), "build output"),
     (re.compile(r"(^|/)node_modules/"), "node_modules"),
     (re.compile(r"^games/[^/]+/v\d+/"), "shipped game build"),
+    # A BUILT copy of the mobius-3d repo's dist/ (minified bundles, WebAssembly
+    # decoders): its source lives in that repo and nothing here is read.
+    (re.compile(r"^mobius/"), "built copy of the mobius-3d repo"),
 ]
 
 MAX_FILE_BYTES = 512 * 1024
