@@ -6,6 +6,7 @@
  *
  * ACTIONS
  *   signup / login   { handle, password }            -> { handle, token }
+ *   claim            { ticket, handle }              -> { handle, token }   (first Google/Discord sign-in)
  *   publish          { token, id, title, image, thumb } -> { post }
  *   unpublish        { token, id }
  *   vote             { token, id, kind: fire|poop|null } -> { fire, poop, mine }
@@ -50,6 +51,8 @@ module.exports = async function handler(req, res) {
 
     if (action === 'signup') return res.status(200).json(await store.signup(body.handle, body.password));
     if (action === 'login') return res.status(200).json(await store.login(body.handle, body.password));
+    // After a first Google or Discord sign-in: the ticket says who, this picks the name.
+    if (action === 'claim') return res.status(200).json(await store.claim(body.ticket, body.handle));
     if (action === 'moderate') {
       if (!store.isAdmin(body.admin)) return res.status(401).json({ error: 'not allowed' });
       return res.status(200).json(await store.moderate(String(body.id || ''), body.op));

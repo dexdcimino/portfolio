@@ -680,7 +680,18 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     JPEG thumbnail go up and it joins `sketch/feed.json`. Tapping the globe
     deletes both. The server never holds a private drawing, so it cannot leak
     one.
-  - **Accounts are a name and a password** (scrypt, per-user salt, 10 wrong
+  - **Accounts are a name with Google, Discord, or a password behind it.**
+    Google and Discord go through `api/sketch-auth/<provider>`
+    (`lib/sketch-oauth.js`): a signed state bound to a short-lived cookie, the
+    code exchanged server-side, and the result handed back to `/inko/` in the
+    URL FRAGMENT, which no server receives and the app wipes on read. A
+    provider account is an IDENTITY (`sketch/identities/<provider>-<id>.json`)
+    linked to a handle; a first sign-in returns a signed ticket and the app
+    asks for a name. `@dex`, `@dexdc` and `@dexcimino` are reserved and
+    claimable only by Dex's verified Google address. Credentials are the
+    Vercel env vars GOOGLE_CLIENT_ID/SECRET and DISCORD_CLIENT_ID/SECRET;
+    until they exist the buttons say the provider is not switched on yet. Name
+    + password stays as the fallback (scrypt, per-user salt, 10 wrong
     tries lock it for 15 minutes). The session is an HMAC token whose key is
     DERIVED from `BLOB_READ_WRITE_TOKEN` (or `SKETCH_SECRET` if set), so there
     is no new secret to configure. Deleting an account deletes every post it

@@ -961,16 +961,99 @@ $('v-close').addEventListener('click', closeViewer);
 
 /* ---- the account sheet ---- */
 let afterSignIn = null;
-function openAccount(then){
+function openAccount(then, message){
   afterSignIn = then || null;
   const signed = !!session;
-  $('a-in').hidden = signed; $('a-out').hidden = !signed;
-  if (signed) $('a-who').textContent = '@' + session.handle;
-  $('a-msg').textContent = '';
+  $('a-in').hidden = signed; $('a-out').hidden = !signed; $('a-claim').hidden = true;
+  if (signed){
+    $('a-who').textContent = '@' + session.handle;
+    // A Google or Discord account has no password to type to delete it.
+    $('a-pass2').hidden = !!session.sso;
+  }
+  $('a-msg').textContent = message || '';
   $('a-pass').value = '';
+  setPasswordFields(false);
   $('account').classList.add('open');
-  if (!signed) setTimeout(() => $('a-handle').focus(), 50);
 }
+function setPasswordFields(open){
+  $('a-pw').hidden = !open;
+  $('a-more').setAttribute('aria-expanded', String(open));
+  $('a-more').textContent = open ? 'Hide name and password' : 'Use a name and password instead';
+  if (open) setTimeout(() => $('a-handle').focus(), 50);
+}
+$('a-more').addEventListener('click', () => setPasswordFields($('a-pw').hidden));
+
+/* Google and Discord: a real navigation to /api/sketch-auth/<provider>, which
+   comes back to /inko/ with the result in the URL fragment. The drawing in
+   progress is saved first, because the page is about to be left. Inside the
+   site's overlay the providers refuse to be framed, so there it opens in a new
+   tab -- and the session it ends with reaches this overlay through
+   localStorage, which the two share (see the storage listener below). */
+for (const id of ['a-google', 'a-discord']){
+  $(id).addEventListener('click', async e => {
+    e.preventDefault();
+    const href = $(id).getAttribute('href');
+    if (EMBED){ window.open(href, '_blank', 'noopener'); return; }
+    try { await flushDraft(); } catch (err) {}
+    location.href = href;
+  });
+}
+const AUTH_ERRORS = {
+  'google-not-ready': 'Google sign-in is not switched on yet.',
+  'discord-not-ready': 'Discord sign-in is not switched on yet.',
+  cancelled: 'Sign-in was cancelled.',
+  expired: 'That took too long. Try again.',
+  failed: 'Sign-in did not work. Try again.',
+};
+/* What the sign-in came back with, read once and wiped from the address bar
+   so a session never sits in history or a shared link. */
+function handleAuthReturn(){
+  const hash = location.hash.slice(1);
+  if (!hash) return;
+  const params = new URLSearchParams(hash);
+  // window.history: `history` in this file is the undo stack.
+  window.history.replaceState(null, '', location.pathname + location.search);
+  if (params.has('auth')){
+    try {
+      const got = JSON.parse(params.get('auth'));
+      if (got && got.handle && got.token){
+        setSession({ handle: got.handle, token: got.token, sso: true });
+        toast('Signed in as @' + got.handle);
+      }
+    } catch (e) {}
+  } else if (params.has('claim')){
+    openClaim(params.get('claim'), params.get('suggest') || '');
+  } else if (params.has('auth-error')){
+    $('gallery').classList.add('open');
+    openAccount(null, AUTH_ERRORS[params.get('auth-error')] || 'Sign-in did not work. Try again.');
+  }
+}
+function openClaim(ticket, suggest){
+  $('gallery').classList.add('open');
+  $('a-in').hidden = true; $('a-out').hidden = true; $('a-claim').hidden = false;
+  $('a-claim-handle').value = suggest;
+  $('a-msg3').textContent = '';
+  $('account').classList.add('open');
+  $('a-claim-go').onclick = async () => {
+    $('a-msg3').textContent = '';
+    try {
+      const r = await api('claim', { ticket, handle: $('a-claim-handle').value });
+      setSession({ handle: r.handle, token: r.token, sso: true });
+      closeAccount();
+      toast('Welcome, @' + r.handle);
+    } catch (e) { $('a-msg3').textContent = e.message; }
+  };
+  setTimeout(() => $('a-claim-handle').focus(), 50);
+}
+$('a-claim-handle').addEventListener('keydown', e => { if (e.key === 'Enter') $('a-claim-go').click(); });
+// A sign-in finished in another tab (the overlay's case) lands here too.
+window.addEventListener('storage', e => {
+  if (e.key !== SESSION_KEY) return;
+  try { session = JSON.parse(e.newValue || 'null'); } catch (err) { session = null; }
+  syncAccountButton();
+  if (session && $('account').classList.contains('open')) closeAccount();
+  if (galleryTab === 'public') loadFeed();
+});
 function closeAccount(){ $('account').classList.remove('open'); afterSignIn = null; }
 async function signIn(action){
   $('a-msg').textContent = '';
@@ -994,7 +1077,7 @@ $('a-close').addEventListener('click', closeAccount);
 $('a-signout').addEventListener('click', () => { setSession(null); closeAccount(); toast('Signed out'); if (galleryTab === 'public') renderFeed(); });
 $('a-delete').addEventListener('click', () => {
   const pw = $('a-pass2').value;
-  if (!pw){ $('a-msg2').textContent = 'Enter your password to delete the account.'; return; }
+  if (!pw && !(session && session.sso)){ $('a-msg2').textContent = 'Enter your password to delete the account.'; return; }
   openModal('Delete your account?', 'Every drawing you made public is removed from the shared gallery. Drawings on this device stay.', 'Delete', async () => {
     try {
       await api('delete-account', { password: pw });
@@ -1045,6 +1128,7 @@ async function init(){
     const updated = sessionStorage.getItem('inkoUpdated');
     if (updated){ sessionStorage.removeItem('inkoUpdated'); toast('Updated — build ' + updated); }
   } catch (e) {}
+  handleAuthReturn();
   checkForUpdate();
 }
 

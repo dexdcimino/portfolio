@@ -34,6 +34,8 @@ const SCRATCH = await mkdtemp(join(tmpdir(), 'sketch-check-'));
 process.env.NOTES_DEV_DIR = SCRATCH;
 delete process.env.VERCEL_ENV;
 const handler = require(join(ROOT, 'api', 'sketch.js'));
+const authFor = { google: require(join(ROOT, 'api', 'sketch-auth', 'google.js')),
+                  discord: require(join(ROOT, 'api', 'sketch-auth', 'discord.js')) };
 const store = require(join(ROOT, 'lib', 'sketch-store.js'));
 
 const CHROME = [process.env.CHROME, 'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -54,6 +56,26 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
   '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const server = createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
+  /* A FAKE GOOGLE AND DISCORD: authorize sends straight back with a code,
+     the token endpoint answers as each provider does. Who signs in is set by
+     the check in fakeUser before each round trip. */
+  if (u.pathname === '/fake/authorize') {
+    const back = new URL(u.searchParams.get('redirect_uri'));
+    back.searchParams.set('code', 'code-' + Math.random().toString(36).slice(2));
+    back.searchParams.set('state', u.searchParams.get('state'));
+    res.writeHead(302, { location: back.toString() }).end(); return;
+  }
+  if (u.pathname === '/fake/google/token') {
+    const payload = Buffer.from(JSON.stringify({ sub: fakeUser.google.sub, email: fakeUser.google.email, email_verified: true, given_name: fakeUser.google.name })).toString('base64url');
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ id_token: `x.${payload}.y`, access_token: 'g' })); return;
+  }
+  if (u.pathname === '/fake/discord/token') { res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ access_token: 'd' })); return; }
+  if (u.pathname === '/fake/discord/user') { res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(fakeUser.discord)); return; }
+  if (u.pathname.startsWith('/api/sketch-auth/')) {
+    req.query = Object.fromEntries(u.searchParams);
+    await authFor[u.pathname.split('/').pop()](req, res);
+    return;
+  }
   if (u.pathname === '/api/sketch') {
     let raw = '';
     for await (const chunk of req) raw += chunk;
@@ -76,6 +98,14 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const BASE = `http://127.0.0.1:${server.address().port}`;
+const fakeUser = { google: { sub: 'g-1001', email: 'dexdcimino@gmail.com', name: 'Dex' }, discord: { id: '555001', username: 'Discord.Fan' } };
+Object.assign(process.env, {
+  SKETCH_OAUTH_BASE: BASE,
+  GOOGLE_CLIENT_ID: 'gid', GOOGLE_CLIENT_SECRET: 'gsecret', DISCORD_CLIENT_ID: 'did', DISCORD_CLIENT_SECRET: 'dsecret',
+  SKETCH_OAUTH_GOOGLE_AUTHORIZE: `${BASE}/fake/authorize`, SKETCH_OAUTH_GOOGLE_TOKEN: `${BASE}/fake/google/token`,
+  SKETCH_OAUTH_DISCORD_AUTHORIZE: `${BASE}/fake/authorize`, SKETCH_OAUTH_DISCORD_TOKEN: `${BASE}/fake/discord/token`,
+  SKETCH_OAUTH_DISCORD_USER: `${BASE}/fake/discord/user`,
+});
 // Screenshots of the screens this adds, for a person to look at.
 const SHOTS = join(ROOT, '.notes-dev', 'shots');
 await import('node:fs/promises').then(f => f.mkdir(SHOTS, { recursive: true }));
@@ -169,6 +199,7 @@ try {
   await A.click('.g-item .g-pub'); await sleep(300);
   note(await A.evaluate(() => document.getElementById('account').classList.contains('open')), 'making a drawing public signed out did not ask to sign in');
   await shot(A, '1-account');
+  await A.click('#a-more');
   await A.type('#a-handle', 'artist_a');
   await A.type('#a-pass', 'correct horse');
   await A.click('#a-signup');
@@ -190,7 +221,7 @@ try {
   note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0, `B's Public tab shows ${JSON.stringify(seen)}`);
   // Reacting signed out asks to sign in first, then lands the reaction.
   await B.click('.g-item[data-post] .g-rx[data-kind="fire"]'); await sleep(300);
-  await B.type('#a-handle', 'fan_b'); await B.type('#a-pass', 'correct horse'); await B.click('#a-signup');
+  await B.click('#a-more'); await B.type('#a-handle', 'fan_b'); await B.type('#a-pass', 'correct horse'); await B.click('#a-signup');
   await B.waitForFunction(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="fire"] b')?.textContent === '1', { timeout: 10000 }).catch(() => {});
   const fire = await B.evaluate(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="fire"]').outerHTML);
   note(/on/.test(fire) && />1</.test(fire), `after B's fire: ${fire}`);
@@ -227,6 +258,85 @@ try {
   console.log(`people: A published "Dragon", B saw it at ${seen && seen.w}px, reacted 🔥 then 💩, viewed it at ${big.w}px, hid the artist; A took it back`);
   note(errors.length === 0, `console/page errors: ${errors.join(' | ')}`);
   await ctxA.close(); await ctxB.close();
+
+  // ---- 3. Google and Discord, through the real sign-in sheet --------------
+  {
+    const ctxC = await browser.createBrowserContext();
+    const C = await ctxC.newPage();
+    await C.setViewport({ width: 420, height: 860, isMobile: true });
+    const cErrors = [];
+    C.on('pageerror', e => cErrors.push(e.message));
+    await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
+    await C.click('#grid-btn'); await sleep(300);
+    await C.click('#g-account'); await sleep(300);
+    const sheet = await C.evaluate(() => {
+      const css = id => getComputedStyle(document.getElementById(id));
+      return { google: css('a-google').backgroundColor, discord: css('a-discord').backgroundColor,
+               gh: document.getElementById('a-google').offsetHeight, dh: document.getElementById('a-discord').offsetHeight,
+               order: [...document.querySelectorAll('#a-in > *')].filter(e => !e.hidden && e.offsetHeight).map(e => e.id || e.className).join(','),
+               pwHidden: document.getElementById('a-pw').hidden };
+    });
+    note(sheet.google === 'rgb(255, 255, 255)' && sheet.discord === 'rgb(88, 101, 242)' && sheet.gh === sheet.dh,
+         `the buttons: Google ${sheet.google}, Discord ${sheet.discord}, heights ${sheet.gh}/${sheet.dh}`);
+    note(/a-google.*a-discord.*a-more/.test(sheet.order) && sheet.pwHidden, `the sheet reads ${sheet.order}, password fields hidden=${sheet.pwHidden}`);
+    await shot(C, '5-sign-in');
+
+    // Google, first time: the provider vouches, the app asks for a name.
+    await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-google')]);
+    await C.waitForFunction(() => !document.getElementById('a-claim').hidden, { timeout: 10000 }).catch(() => {});
+    const claim = await C.evaluate(() => ({ open: !document.getElementById('a-claim').hidden, suggest: document.getElementById('a-claim-handle').value, hash: location.hash }));
+    note(claim.open && claim.suggest === 'dex' && claim.hash === '', `after Google: ${JSON.stringify(claim)}`);
+    await shot(C, '6-pick-name');
+    // The owner's verified address may take a reserved name; nobody else can.
+    await C.evaluate(() => { document.getElementById('a-claim-handle').value = 'dexcimino'; });
+    await C.click('#a-claim-go'); await sleep(800);
+    note(await C.evaluate(() => document.getElementById('g-account').textContent) === '@dexcimino', 'the owner could not claim @dexcimino');
+    const sess = await C.evaluate(() => JSON.parse(localStorage.getItem('sketchSession')));
+    note(sess && sess.sso === true, `the session is ${JSON.stringify(sess)}`);
+    // Signed out and back in with Google: straight in, no name to pick.
+    await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
+    await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
+    await C.click('#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
+    await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-google')]);
+    await sleep(600);
+    const again = await C.evaluate(() => ({ who: document.getElementById('g-account').textContent, claim: !document.getElementById('a-claim').hidden, hash: location.hash }));
+    note(again.who === '@dexcimino' && !again.claim && again.hash === '', `a second Google sign-in: ${JSON.stringify(again)}`);
+
+    // Discord, a different person: a reserved name refused, their own taken.
+    await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
+    await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
+    await C.click('#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
+    await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-discord')]);
+    await C.waitForFunction(() => !document.getElementById('a-claim').hidden, { timeout: 10000 }).catch(() => {});
+    note(await C.evaluate(() => document.getElementById('a-claim-handle').value) === 'discord_fan', 'Discord did not suggest discord_fan');
+    await C.evaluate(() => { document.getElementById('a-claim-handle').value = 'dex'; });
+    await C.click('#a-claim-go'); await sleep(500);
+    note(/taken/i.test(await C.evaluate(() => document.getElementById('a-msg3').textContent)), 'a Discord account claimed the reserved @dex');
+    await C.evaluate(() => { document.getElementById('a-claim-handle').value = 'discord_fan'; });
+    await C.click('#a-claim-go'); await sleep(800);
+    note(await C.evaluate(() => document.getElementById('g-account').textContent) === '@discord_fan', 'the Discord account did not get @discord_fan');
+    // Deleting a Discord account: no password field, no password needed.
+    await C.click('#g-account'); await sleep(200);
+    note(await C.evaluate(() => document.getElementById('a-pass2').hidden), 'a Discord account was asked for a password to delete itself');
+    await C.click('#a-delete'); await sleep(200); await C.click('#m-del'); await sleep(800);
+    note(await C.evaluate(() => document.getElementById('g-account').textContent) === 'Sign in', 'the Discord account was not deleted');
+    note(!(await store.identify({ provider: 'discord', pid: '555001' })).token, 'the deleted account\'s Discord link still signs in');
+
+    // A provider that is not configured says so in the sheet.
+    const saved = process.env.DISCORD_CLIENT_SECRET; delete process.env.DISCORD_CLIENT_SECRET;
+    await C.click('#g-account'); await sleep(200);
+    await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-discord')]);
+    await sleep(500);
+    note(/not switched on/.test(await C.evaluate(() => document.getElementById('a-msg').textContent)), 'an unconfigured Discord did not say so');
+    process.env.DISCORD_CLIENT_SECRET = saved;
+    // A callback this server did not start is refused.
+    const forged = await fetch(`${BASE}/api/sketch-auth/google?code=x&state=forged`, { redirect: 'manual' });
+    note(/auth-error=expired/.test(forged.headers.get('location') || ''), `a forged callback went to ${forged.headers.get('location')}`);
+    note(cErrors.length === 0, `sign-in page errors: ${cErrors.join(' | ')}`);
+    console.log('sign-in: Google claimed @dexcimino and came back without asking, Discord refused @dex and took @discord_fan, then deleted itself');
+    await ctxC.close();
+  }
+
 } finally {
   await browser.close();
   server.close();
