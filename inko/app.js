@@ -1367,7 +1367,8 @@ for (const id of ['a-google', 'a-discord']){
   $(id).addEventListener('click', async e => {
     e.preventDefault();
     const href = $(id).getAttribute('href');
-    if (EMBED){ window.open(href, '_blank', 'noopener'); return; }
+    // The site's overlay loads /inko/ without ?embed, so check for a frame too.
+    if (EMBED || window.top !== window.self){ window.open(href, '_blank', 'noopener'); return; }
     try { await flushDraft(); } catch (err) {}
     location.href = href;
   });
@@ -1400,7 +1401,8 @@ function handleAuthReturn(){
   } else if (params.has('auth-error')){
     forgetPublish();
     $('gallery').classList.add('open');
-    openAccount(null, AUTH_ERRORS[params.get('auth-error')] || 'Sign-in did not work. Try again.');
+    const why = params.get('why');
+    openAccount(null, (AUTH_ERRORS[params.get('auth-error')] || 'Sign-in did not work. Try again.') + (why ? ` (${why})` : ''));
   }
 }
 function openClaim(ticket, suggest){
