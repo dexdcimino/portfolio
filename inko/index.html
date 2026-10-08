@@ -18,6 +18,8 @@
 <div id="topbar">
   <button id="canvas-swatch" aria-label="Canvas color"><span id="cs-dot"></span></button>
   <input id="title-input" maxlength="24" placeholder="Untitled" autocomplete="off" spellcheck="false">
+  <!-- The tool in hand, one name at a time (Dex, 2026-10-08): paintToolName(). -->
+  <div id="tool-name" aria-live="polite">Brush</div>
   <button id="top-lock" aria-label="Private — make public"></button>
 </div>
 
@@ -30,16 +32,16 @@
 
 <div id="bottom-bars"><div id="hsb-bar" style="display:none;"><div class="hsb-tip" hidden></div>
   <div class="hsb-rows">
-  <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="hue" min="0" max="360" value="4"></div>
+  <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="hue" min="0" max="360" value="200"></div>
   <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="sat" min="0" max="100" value="100"></div>
-  <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="bri" min="0" max="100" value="100"></div>
+  <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="bri" min="0" max="100" value="25"></div>
   </div>
 </div><div id="size-bar">
   <button id="redo-btn" class="tbtn" aria-label="Redo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 14 L20 9 L15 4"/><path d="M20 9 H10 A6 6 0 0 0 10 21 H15"/></svg>
   </button>
   <div class="ctl" id="ctl-size-perm">
-    <input type="range" id="size" min="0" max="100" step="0.5" value="35">
+    <input type="range" id="size" min="0" max="100" step="0.5" value="25">
   </div>
   <button id="undo-btn" class="tbtn" aria-label="Undo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14 L4 9 L9 4"/><path d="M4 9 H14 A6 6 0 0 1 14 21 H9"/></svg>
@@ -96,7 +98,7 @@
       <svg id="toggle-brush-icon" class="tool-ico big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 3 L13.4 10.6" stroke-width="2.6"/><!-- handle -->
         <path d="M12.2 9.4 L14.6 11.8 L12.6 13.8 L10.2 11.4 Z" fill="currentColor"/><!-- ferrule -->
-        <path id="brush-tip" d="M10.2 11.4 L12.6 13.8 C12.2 17.6 9.4 20.6 3 20.6 C4.6 19.4 5 18.2 5.3 16.4 C5.6 13.9 7.4 11.6 10.2 11.4 Z" fill="#ff2d2d" stroke="none"/><!-- bristles, in the brush colour -->
+        <path id="brush-tip" d="M10.2 11.4 L12.6 13.8 C12.2 17.6 9.4 20.6 3 20.6 C4.6 19.4 5 18.2 5.3 16.4 C5.6 13.9 7.4 11.6 10.2 11.4 Z" fill="#002a40" stroke="none"/><!-- bristles, in the brush colour -->
       </svg>
       <svg id="toggle-eraser-icon" class="tool-ico small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M13.6 3.6 L20.4 10.4 L11.6 19.2 H7 L3.6 15.8 Z"/><!-- body -->
@@ -120,7 +122,7 @@
      sliders have their own ids: they used to share hue/sat/bri with the brush
      bar, so getElementById found the brush bar's, the window's own sliders
      did nothing, and the brush sliders went on painting the canvas. -->
-<div id="size-preview"><div id="sp-circle"></div><div id="sp-label">45px</div></div>
+<div id="size-preview"><div id="sp-circle"></div><div id="sp-label">30px</div></div>
 
 <!-- The gallery (Dex, 2026-10-08): a profile header over YOUR canvases
      (picture, @tag with its edit button, or Sign in) or over someone else's
@@ -259,6 +261,8 @@
 </div></div>
 
 <div id="toast"></div>
+<!-- A control held down names itself, centred above the bar that is up. -->
+<div id="hold-tip" role="tooltip" hidden><b></b><small></small></div>
 
 <script src="/inko/app.js"></script>
 <script src="/inko/social.js"></script>

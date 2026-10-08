@@ -734,9 +734,26 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     (`#sym-tick`, placed by fit), not a line drawn into the picture. H, S
     and B name themselves in a tip above their panel while touched.
   - **A canvas change is seen.** + and opening a canvas lay a copy of the
-    pad over it (`snapPad`), make the change underneath, then wipe the copy
-    away on a diagonal mask (top left to bottom right, 0.36s) while the new
-    canvas fades in. Off under reduced motion.
+    pad over it (`snapPad`) and make the change underneath, with the pad
+    itself hidden (`#canvas-frame.swap`). The copy is then ERASED on a
+    diagonal from the top left and the new pad written in behind it on the
+    same diagonal, `--wipe-lag` (220ms) later, both over `--wipe-ms`
+    (520ms) -- two 300% masks run 81% -> 19%, so the whole run is the edge
+    crossing, and the frame goes near-black between the two edges. That gap
+    is the point: two blank canvases of one colour used to swap with nothing
+    to see. Off under reduced motion.
+  - **The tool in hand is named under the title** (`#tool-name`,
+    `paintToolName()`), one name at a time: the panel that is up (Canvas
+    color, Canvas options, Color), else the eyedropper while it is armed,
+    symmetry just after it is switched on, then Brush or Eraser; a dialog
+    names what it asks about (Trash, Download). Toasts sit under it.
+  - **A held control names itself.** Holding any toolbar or second-bar
+    button for `HOLD_TIP_MS` (450ms) shows `#hold-tip` -- name, then a few
+    words (`HOLD_TIPS`) -- centred 8px above whichever bar is up, gone 1.8s
+    after release. The click that ends a hold is eaten in the capture phase,
+    so a hold is never a tap.
+  - **Download asks first**, like clear: Cancel left, a green Download
+    (`openModal(..., 'go')`).
   - **The gallery is your profile.** The page's name at the top left
     (`#g-page`: Your gallery, Public, @handle or Search), a profile header
     over the cards, and one bar at the foot built as the canvas toolbar's

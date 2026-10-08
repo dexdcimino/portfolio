@@ -223,6 +223,8 @@ try {
     await p.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
   }
   const strokeOn = async (p) => {
+    // In full red, which the reads below look for: the default brush is a dark blue now.
+    await p.evaluate(() => { for (const [id, v] of [['hue', 0], ['sat', 100], ['bri', 100]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } });
     const r = await p.evaluate(() => { const b = document.getElementById('pad').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
     await p.mouse.move(r.x + r.w * 0.2, r.y + r.h * 0.4); await p.mouse.down();
     await p.mouse.move(r.x + r.w * 0.8, r.y + r.h * 0.6, { steps: 10 }); await p.mouse.up(); await sleep(500);

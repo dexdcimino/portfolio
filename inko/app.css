@@ -24,6 +24,10 @@ body{
   width:100%; display:flex; justify-content:center; flex-shrink:0;
   padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 8px;
 }
+#topbar{flex-direction:column; align-items:center;}
+/* The tool in hand, under the title: one name at a time. */
+#tool-name{font-size:12.5px; line-height:1.25; font-weight:600; color:var(--muted); letter-spacing:.02em;
+  margin-top:1px; min-height:1.25em; white-space:nowrap;}
 #title-input{
   background:transparent; border:none; outline:none; color:var(--text);
   font-size:21px; font-weight:700; text-align:center; width:70%;
@@ -56,18 +60,32 @@ body{
   box-shadow:0 18px 50px rgba(0,0,0,.5); background:#536980; line-height:0;
 }
 #pad{touch-action:none; background:#536980; display:block;}
-/* A new or opened canvas (Dex, 2026-10-08): the one you were on is wiped
-   away on a diagonal, top left to bottom right, over the new one fading in.
-   The snapshot is a copy of #pad laid over it; see canvasSwap(). */
+/* A new or opened canvas (Dex, 2026-10-08): the one you were on is ERASED
+   on a diagonal, top left to bottom right, and the new one is written in
+   behind it along the same diagonal -- with a dark gap between the two
+   edges, so the swap shows even when both canvases are the same colour (the
+   first version faded the new one in under the old, and two blank canvases
+   of one colour swapped with nothing to see). The old one is a copy of #pad
+   laid over it (.pad-snap); #pad itself is masked while .swap is on, and the
+   frame's own fill goes dark so the gap is the page, not a third canvas. See
+   snapPad() in app.js; the timings are --wipe-ms and --wipe-lag. */
 #canvas-frame{position:relative;}
+#canvas-frame.swap{background:#06070b;}
+.pad-snap, #canvas-frame.swap #pad{
+  -webkit-mask-size:300% 300%; mask-size:300% 300%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;}
 .pad-snap{position:absolute; left:0; top:0; pointer-events:none;
-  -webkit-mask-image:linear-gradient(135deg,transparent 35%,#000 50%); mask-image:linear-gradient(135deg,transparent 35%,#000 50%);
-  -webkit-mask-size:200% 200%; mask-size:200% 200%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
-  -webkit-mask-position:100% 100%; mask-position:100% 100%;}
-.pad-snap.go{animation:padWipe .36s cubic-bezier(.55,0,.35,1) forwards;}
+  -webkit-mask-image:linear-gradient(135deg,transparent 46%,#000 54%); mask-image:linear-gradient(135deg,transparent 46%,#000 54%);
+  -webkit-mask-position:81% 81%; mask-position:81% 81%;}
+#canvas-frame.swap #pad{
+  -webkit-mask-image:linear-gradient(135deg,#000 46%,transparent 54%); mask-image:linear-gradient(135deg,#000 46%,transparent 54%);
+  -webkit-mask-position:81% 81%; mask-position:81% 81%;}
+.pad-snap.go{animation:padWipe var(--wipe-ms,520ms) linear forwards;}
+#canvas-frame.swap.go #pad{animation:padWipe var(--wipe-ms,520ms) linear var(--wipe-lag,220ms) both;}
 @keyframes padWipe{
-  80%{opacity:.85}
-  to{-webkit-mask-position:0 0; mask-position:0 0; opacity:0}
+  /* A 300% mask: at 81% the edge sits just past the bottom-right corner,
+     at 19% just past the top-left, so the whole run is the edge crossing. */
+  from{-webkit-mask-position:81% 81%; mask-position:81% 81%}
+  to{-webkit-mask-position:19% 19%; mask-position:19% 19%}
 }
 #copt-dot{width:26px; height:26px; border-radius:9px; display:block; border:1px solid rgba(255,255,255,.25);}
 #copt-btn.on{box-shadow:inset 0 0 0 2px #f12fc6;}
@@ -454,6 +472,17 @@ input[type=range]::-moz-range-thumb{
   white-space:nowrap;
 }
 #toast.show{opacity:1;}
+/* A control held down: its name and a few words, centred above the bar that
+   is up (placed by showHoldTip()). Holding is not tapping. */
+#hold-tip{position:fixed; left:50%; transform:translateX(-50%); z-index:110; text-align:center; line-height:1.3;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:14px; padding:8px 16px; pointer-events:none; white-space:nowrap;
+  color:var(--text);}
+#hold-tip[hidden]{display:none;}
+#hold-tip b{display:block; font-size:15px; font-weight:700;}
+#hold-tip small{display:block; font-size:12.5px; font-weight:500; color:var(--muted);}
+.tbtn, #canvas-swatch, #top-lock{-webkit-touch-callout:none;}
+.mbtn.go{background:#22b45a; border-color:#22b45a; color:#fff;}
 /* Embed mode: full-bleed for the portfolio overlay */
 body.embed #topbar{padding-top:8px;}
 body.embed #toolbar{margin-bottom:8px;}

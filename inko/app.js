@@ -138,10 +138,13 @@ async function migrateLocalStorage(){
 
 /* ---------- constants & state ---------- */
 const W = 880, H = 1170, DPR = Math.min(window.devicePixelRatio || 1, 2);
-let hue = 4, sat = 100, bri = 100;
-let brushSize = 45, eraserSize = null;
+// The brush on first open (Dex, 2026-10-08): a deep blue, hue 200, full
+// saturation, brightness 25, at 30px. It carries over to a new canvas.
+let hue = 200, sat = 100, bri = 25;
+let brushSize = 30, eraserSize = null;
 let bgH = 210, bgS = 35, bgB = 50;
 let tool = 'brush', mirrorOn = false, popMode = null;
+let lastPick = 'brush', modalTool = '';   // what the name under the title says: paintToolName()
 let history = [], step = -1, dirty = false, editingId = null;
 let gallery = [];                   // the canvases of the scope on screen
 
@@ -513,6 +516,8 @@ function syncToolSel(){
   $('toggle-brush-icon').classList.toggle('big', isBrush); $('toggle-brush-icon').classList.toggle('small', !isBrush);
   $('toggle-eraser-icon').classList.toggle('big', !isBrush); $('toggle-eraser-icon').classList.toggle('small', isBrush);
   $('tool-toggle').setAttribute('aria-label', isBrush ? 'Switch to eraser' : 'Switch to brush');
+  lastPick = tool;
+  paintToolName();
 }
 /* The swap, as two arcs rather than a straight trade (Dex, 2026-10-08): the
    small icon swings out right and down as it grows into the middle; the big
@@ -554,7 +559,8 @@ $('sym-btn').addEventListener('click', () => {
   mirrorOn = !mirrorOn;
   $('sym-btn').classList.toggle('on', mirrorOn);
   $('sym-btn').setAttribute('aria-pressed', mirrorOn);
-  placeSymTick();
+  lastPick = mirrorOn ? 'symmetry' : tool;
+  placeSymTick(); paintToolName();
 });
 /* THE CANVAS ON SCREEN IS ALWAYS A CARD in the gallery (Dex, 2026-10-08):
    a new one is saved the moment it is made, blank or not, named Untitled 1,
@@ -566,25 +572,36 @@ function nextUntitled(){
   for (const g of gallery){ const m = /^Untitled (\d+)$/.exec(g.title || ''); if (m) n = Math.max(n, +m[1]); }
   return 'Untitled ' + (n + 1);
 }
-/* The canvas changing, made visible: a copy of what is on screen is laid
-   over the pad, the change happens under it, and the copy wipes away on a
-   diagonal while the new canvas fades in. Returns the function that starts
-   the wipe, so a caller can finish its work (or close the gallery) first. */
+/* The canvas changing, made visible (Dex, 2026-10-08): a copy of what is on
+   screen is laid over the pad and the change happens under it. Then the copy
+   is ERASED on a diagonal from the top left, and the new canvas is written
+   in behind it along the same diagonal a beat later, with a dark gap between
+   the two edges -- so a blank canvas replacing a blank one of the same
+   colour still visibly changes. The masks and timings are in app.css
+   (.pad-snap, #canvas-frame.swap). Returns the function that starts the
+   wipe, so a caller can finish its work (or close the gallery) first. */
 function snapPad(){
-  const pad = $('pad');
+  const pad = $('pad'), frame = $('canvas-frame');
   if (!pad.width || matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {};
   const snap = document.createElement('canvas');
   snap.className = 'pad-snap'; snap.width = pad.width; snap.height = pad.height;
   snap.style.width = pad.clientWidth + 'px'; snap.style.height = pad.clientHeight + 'px';
   snap.getContext('2d').drawImage(pad, 0, 0);
   document.querySelectorAll('.pad-snap').forEach(el => el.remove());
-  pad.parentNode.appendChild(snap);
+  frame.classList.remove('go');
+  frame.appendChild(snap);
+  frame.classList.add('swap');      // the pad hides under the copy until it is written in
+  let ended = false;
+  const done = () => {
+    if (ended) return; ended = true;
+    snap.remove();
+    if (!frame.querySelector('.pad-snap')) frame.classList.remove('swap', 'go');
+  };
+  setTimeout(done, 5000);           // a caller that never starts it must not leave the pad hidden
   return () => requestAnimationFrame(() => {
-    snap.classList.add('go');
-    if (pad.animate) pad.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 360, easing: 'ease-out' });
-    const done = () => snap.remove();
-    snap.addEventListener('animationend', done, { once: true });
-    setTimeout(done, 700);
+    snap.classList.add('go'); frame.classList.add('go');
+    pad.addEventListener('animationend', done, { once: true });
+    setTimeout(done, 1000);
   });
 }
 async function startBlank(){
@@ -797,6 +814,8 @@ function setEyedropper(on){
   $('ed-btn').classList.toggle('on', on);
   if(!on) hideEdPreview();
   canvas.style.cursor = on ? 'crosshair' : '';
+  if (on) lastPick = 'eyedropper';
+  paintToolName();
 }
 
 $('ed-btn').addEventListener('click', () => { closePop(); setEyedropper(!eyedropperOn); });
@@ -848,6 +867,7 @@ function showBars(){
   $('size-bar').style.display = colorMode || optionsOn || popMode ? 'none' : 'flex';
   $('hsb-bar').style.display = colorMode ? 'flex' : 'none';
   $('opt-bar').hidden = !optionsOn;
+  paintToolName();
 }
 function setOptions(on, quiet){
   optionsOn = on;
@@ -944,9 +964,11 @@ function saveBlob(blob, title){
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 let modalCb = null;
-function openModal(title, text, confirmLabel, cb){
+// kind 'go' makes the confirm button green (a download), not red.
+function openModal(title, text, confirmLabel, cb, kind){
   $('m-title').textContent = title; $('m-text').textContent = text;
   $('m-del').textContent = confirmLabel; modalCb = cb;
+  $('m-del').classList.toggle('danger', kind !== 'go'); $('m-del').classList.toggle('go', kind === 'go');
   $('modal').classList.add('open');
 }
 $('m-cancel').addEventListener('click', () => $('modal').classList.remove('open'));
@@ -1084,7 +1106,10 @@ $('grid-btn').addEventListener('click', async () => {
   setOptions(false);
   openGallery();
 });
-$('dl-btn').addEventListener('click', () => downloadItem(null, true));
+// Download asks first, like clear, with a green yes (Dex, 2026-10-08).
+$('dl-btn').addEventListener('click', () => {
+  openModal('Download this canvas?', 'Saves it to your device as a picture.', 'Download', () => downloadItem(null, true), 'go');
+});
 // The canvas window from down here: colour, title and public/private.
 $('copt-btn').addEventListener('click', e => {
   e.stopPropagation();
@@ -1122,7 +1147,7 @@ function toast(msg, sub){
   toastEl.classList.toggle('low', low);
   // Low clears the top it was given under the title: an inline top beat the
   // class's top:auto, and with its bottom set too the box ran from one to the other.
-  toastEl.style.top = low ? '' : ($('title-input').getBoundingClientRect().bottom + 10) + 'px';
+  toastEl.style.top = low ? '' : ($('tool-name').getBoundingClientRect().bottom + 8) + 'px';   // under the title and the tool name
   toastEl.classList.add('show');
   clearTimeout(toastT);
   toastT = setTimeout(() => toastEl.classList.remove('show'), 2200);
@@ -2536,10 +2561,97 @@ $('a-rename-go').addEventListener('click', async () => {
 });
 $('a-rename').addEventListener('keydown', e => { if (e.key === 'Enter') $('a-rename-go').click(); });
 
+/* ---------- the tool in hand, and held controls ----------
+   Under the title, ONE name at a time (Dex, 2026-10-08): the panel that is
+   up if there is one, otherwise whatever was picked last -- symmetry just
+   switched on, the eyedropper until it has picked, then the brush or the
+   eraser. A dialog names what it is asking about. */
+function paintToolName(){
+  const el = document.getElementById('tool-name'); if (!el) return;
+  let name;
+  if (modalTool && $('modal').classList.contains('open')) name = modalTool;
+  else if (popMode) name = 'Canvas color';
+  else if (optionsOn) name = 'Canvas options';
+  else if (colorMode) name = 'Color';
+  else if (eyedropperOn) name = 'Eyedropper';
+  else if (lastPick === 'symmetry' && mirrorOn) name = 'Symmetry';
+  else name = tool === 'eraser' ? 'Eraser' : 'Brush';
+  if (el.textContent !== name) el.textContent = name;
+}
+new MutationObserver(() => { if (!$('modal').classList.contains('open')) modalTool = ''; paintToolName(); })
+  .observe($('modal'), { attributes: true, attributeFilter: ['class'] });
+$('clear-btn').addEventListener('click', () => { modalTool = 'Trash'; paintToolName(); });
+$('dl-btn').addEventListener('click', () => { modalTool = 'Download'; paintToolName(); });
+
+/* Hold any control in the toolbar or the bar above it and it names itself in
+   two lines, centred above that bar, for a little while (Dex, 2026-10-08).
+   A hold is NOT a tap: the click that ends it is eaten. */
+const HOLD_TIPS = {
+  'opt-btn': () => ['Canvas options', 'Gallery, new, save, trash'],
+  'ed-btn': () => ['Eyedropper', 'Pick a color'],
+  'tool-toggle': () => tool === 'eraser' ? ['Eraser', 'Tap for the brush'] : ['Brush', 'Tap for the eraser'],
+  'color-btn': () => ['Color', 'Your brush color'],
+  'sym-btn': () => ['Symmetry', mirrorOn ? 'On: strokes mirror' : 'Mirror your strokes'],
+  'undo-btn': () => ['Undo', 'Take back a step'],
+  'redo-btn': () => ['Redo', 'Bring it back'],
+  'grid-btn': () => ['Gallery', 'All your canvases'],
+  'copt-btn': () => ['Canvas color', 'Color, title, public'],
+  'plus-btn': () => ['New canvas', 'Start a fresh one'],
+  'dl-btn': () => ['Download', 'Save as a picture'],
+  'clear-btn': () => ['Trash', 'Clear the canvas'],
+};
+const HOLD_TIP_MS = 450;
+let holdTipT = null, holdTipHideT = null, heldBtn = null, holdTipAt = null;
+function showHoldTip(id){
+  const [name, what] = HOLD_TIPS[id]();
+  const tip = $('hold-tip');
+  tip.querySelector('b').textContent = name; tip.querySelector('small').textContent = what;
+  // Above whichever bar is up over the toolbar: sliders, options, the size bar or the canvas window.
+  const bars = ['hsb-bar', 'brush-pop', 'opt-bar', 'size-bar'].map(i => $(i))
+    .filter(el => el && el.getClientRects().length && el.getBoundingClientRect().height > 0);
+  const bar = bars.length ? bars.reduce((a, b) => a.getBoundingClientRect().top < b.getBoundingClientRect().top ? a : b) : $('toolbar');
+  const r = bar.getBoundingClientRect();
+  tip.style.left = (r.left + r.width / 2) + 'px';
+  tip.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+  tip.hidden = false;
+  clearTimeout(holdTipHideT);
+}
+function hideHoldTipSoon(){
+  clearTimeout(holdTipHideT);
+  holdTipHideT = setTimeout(() => { $('hold-tip').hidden = true; }, 1800);
+}
+for (const id of Object.keys(HOLD_TIPS)){
+  const btn = $(id);
+  btn.addEventListener('pointerdown', e => {
+    if (e.button) return;
+    clearTimeout(holdTipT); heldBtn = null; holdTipAt = { x: e.clientX, y: e.clientY, pid: e.pointerId };
+    holdTipT = setTimeout(() => { heldBtn = btn; showHoldTip(id); }, HOLD_TIP_MS);
+  });
+  btn.addEventListener('pointermove', e => {
+    if (holdTipAt && e.pointerId === holdTipAt.pid && Math.hypot(e.clientX - holdTipAt.x, e.clientY - holdTipAt.y) > 12) clearTimeout(holdTipT);
+  });
+  // The long-press menu a phone would open over it.
+  btn.addEventListener('contextmenu', e => e.preventDefault());
+}
+const endHold = () => {
+  clearTimeout(holdTipT); holdTipAt = null;
+  if (!heldBtn) return;
+  hideHoldTipSoon();
+  // Its click comes right after this; a hold that ended off the button has none.
+  const b = heldBtn; setTimeout(() => { if (heldBtn === b) heldBtn = null; }, 300);
+};
+addEventListener('pointerup', endHold, true); addEventListener('pointercancel', endHold, true);
+// The click that ends a hold is not a tap.
+addEventListener('click', e => {
+  if (!heldBtn) return;
+  const b = heldBtn; heldBtn = null;
+  if (b.contains(e.target)){ e.preventDefault(); e.stopImmediatePropagation(); }
+}, true);
+
 /* ---------- init ---------- */
 async function init(){
   setupCanvas();
-  bindHSB(); refreshPanelUI(); syncToolSel(); syncUndoRedo();
+  bindHSB(); refreshPanelUI(); syncToolSel(); syncUndoRedo(); paintToolName();
   window.addEventListener('resize', fit);
   // The bars change height on their own (sliders, the options bar, a font
   // or a picture arriving late): the canvas follows whatever they do.
