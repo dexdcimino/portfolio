@@ -7462,20 +7462,23 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
    color(display-p3 ...) rather than oklch() so no browser has to gamut-map it.
    Phones are P3 too and get the same treatment; there is no pointer gate.
    --accent-deep is the far end of the hero's diagonal grade, top right: darker,
-   and turned toward the hue its shadow would take (lime to emerald, yellow to
-   amber, blue to indigo...) rather than the accent with black mixed in, which
-   is what made the old grade nearly invisible on some accents. In sRGB gamut
-   on purpose, so one value serves every screen.
+   with a SMALL turn of hue (lime a little greener, red a little cooler, blue
+   and purple a few degrees, white a cool steel with some saturation so it is
+   not plain grey). Yellow is the exception and turns all the way to amber,
+   which Dex picked. The first pass turned every hue as far as yellow's and
+   barely darkened them (lime went teal, blue violet, purple magenta); Dex
+   wanted darker with a nudge, not a different colour. In sRGB gamut on
+   purpose, so one value serves every screen.
    Retune an accent: change the hex in script.js AND here, then re-derive its P3
    value (oklch of the hex, chroma + half the gap to P3's edge).
    ========================================================================== */
-:root,:root[data-accent='lime']{--accent:#9EE02B;--accent-deep:#0B8B47}
-:root[data-accent='red']{--accent:#D94727;--accent-deep:#991425}
+:root,:root[data-accent='lime']{--accent:#9EE02B;--accent-deep:#377C07}
+:root[data-accent='red']{--accent:#D94727;--accent-deep:#961114}
 :root[data-accent='yellow']{--accent:#FAAA1E;--accent-deep:#CF630B}
 :root[data-accent='cyan']{--accent:#2CC7F6;--accent-deep:#1774B5}
-:root[data-accent='blue']{--accent:#335DF3;--accent-deep:#3C26A5}
-:root[data-accent='purple']{--accent:#A85CF5;--accent-deep:#771F89}
-:root[data-accent='white']{--accent:#E9EBEC;--accent-deep:#8A9AAE}
+:root[data-accent='blue']{--accent:#335DF3;--accent-deep:#2223A6}
+:root[data-accent='purple']{--accent:#A85CF5;--accent-deep:#5F1D9E}
+:root[data-accent='white']{--accent:#E9EBEC;--accent-deep:#6484A3}
 @media (color-gamut:p3){
   :root,:root[data-accent='lime']{--accent:color(display-p3 0.662 0.879 0.219)}  /* oklch(.832 .232 128.7) */
   :root[data-accent='red']{--accent:color(display-p3 0.823 0.273 0.136)}         /* oklch(.600 .216 33.8) */
