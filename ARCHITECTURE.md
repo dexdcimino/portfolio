@@ -863,7 +863,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   profiles: a picture cut from a canvas and following it, @-search into an
   artist and back, and a rename that carries the canvases, picture and posts.
 - `mobius/` — the **Mobius 3D** viewer, opened by its AI Lab card's eyeball
-  into the app overlay (`data-app-shape="window"`) on `?sample=knot`. It is a
+  into the app overlay (`data-app-shape="wide"`, the window shape at 1240x875
+  rather than ThemeDock's 960x875) on `?sample=knot`. Left of the eye,
+  `#mobiusDownload` links the desktop app: `initMobiusDownload` in `script.js`
+  points it at this system's installer under `releases/latest/download/`
+  (the release names carry no version), and a phone keeps the Releases page. It is a
   BUILT COPY of `dist/` from its own repository, github.com/dexdcimino/mobius-3d,
   written here by that repo's `npm run site` and **never edited here**: an edit
   belongs in that repo's `src/`, and the same build is what its desktop app

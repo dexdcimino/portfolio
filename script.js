@@ -9566,6 +9566,22 @@ let openReader = () => {};
   show(cards[0]);
 })();
 
+/* --- Mobius 3D download ----------------------------------------------------- */
+/* The card's download goes straight to THIS system's installer. Release file
+   names carry no version (the mobius-3d repo's desktop/builder.cjs), so
+   releases/latest/download/<name> is always the newest build. Anything else --
+   a phone, a system with no build -- keeps the Releases page in the markup. */
+(function initMobiusDownload() {
+  const link = document.getElementById('mobiusDownload');
+  if (!link) return;
+  const ua = navigator.userAgent, phone = /Android|iPhone|iPad|iPod/i.test(ua);
+  const file = phone ? null : /Windows/i.test(ua) ? 'Mobius-3D-Setup-x64.exe'
+    : /Mac OS X|Macintosh/i.test(ua) ? 'Mobius-3D-mac.dmg' : /Linux/i.test(ua) ? 'Mobius-3D-x86_64.AppImage' : null;
+  if (!file) return;
+  link.href = `https://github.com/dexdcimino/mobius-3d/releases/latest/download/${file}`;
+  link.removeAttribute('target');
+})();
+
 /* --- AI Lab app overlay --------------------------------------------------- */
 /* Phone-shaped iframe on desktop; a plain navigation on phones.
 

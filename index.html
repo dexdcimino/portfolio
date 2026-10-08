@@ -887,7 +887,7 @@
                Second in the list (Dex, 2026-10-07), which makes it the app the
                panel RESTS on: the first card that is not the placeholder. -->
           <article class="ai-card" id="mobiusCard"
-             data-app-modal="/mobius/?sample=knot" data-app-title="Mobius 3D" data-app-shape="window" data-app-downloads
+             data-app-modal="/mobius/?sample=knot" data-app-title="Mobius 3D" data-app-shape="wide" data-app-downloads
              data-gallery="mobius" data-kind="DESKTOP + WEB" data-stack="THREE.JS"
              data-desc-lead="A 3D model viewer for the desktop and the web, built from one codebase."
              data-desc-body="Drop in a GLB, FBX, OBJ, STL, USDZ and more, compressed glTF included, and inspect its materials, normals and vertex colours. Big files load off the main thread, and nothing leaves your machine. On the desktop it is an Open with app too."
@@ -906,6 +906,15 @@
               <img class="ai-card-icon" src="assets/icons/apps/mobius.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
+            <!-- Download the desktop app (Dex, 2026-10-08), left of the eye as
+                 Inko's install is. The href is the Releases page, which is what
+                 a phone or an unknown system gets; initMobiusDownload points it
+                 straight at this system's installer, whose name carries no
+                 version, so releases/latest/download never goes stale. -->
+            <a class="ai-card-dl" id="mobiusDownload" href="https://github.com/dexdcimino/mobius-3d/releases/latest"
+               target="_blank" rel="noopener" data-tip="Download Mobius 3D" aria-label="Download the Mobius 3D desktop app">
+              <span class="icon" data-icon="download" aria-hidden="true"></span>
+            </a>
             <button class="ai-card-eye" type="button" data-tip="Functional preview"
                     aria-label="Open a functional preview of Mobius 3D">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
