@@ -1180,7 +1180,8 @@ async function api(action, data = {}){
     body: JSON.stringify({ action, token: session && session.token, ...data }) });
   let body = {};
   try { body = await r.json(); } catch (e) {}
-  if (r.status === 401 && session && action !== 'login' && action !== 'signup'){ setSession(null); }
+  // A 401 to 'site' is about the Firebase token, not this session's.
+  if (r.status === 401 && session && action !== 'login' && action !== 'signup' && action !== 'site'){ setSession(null); }
   if (!r.ok) throw Object.assign(new Error(body.error || 'Something went wrong'), { status: r.status });
   return body;
 }
@@ -1188,18 +1189,22 @@ function setSession(s){
   session = s;
   try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch (e) {}
   syncAccountButton();
-  switchScope(scopeOf(s));
+  // Only a brand-new account takes in the signed-out canvases (see adoptLocal).
+  switchScope(scopeOf(s), !!(s && s.created));
   if (s) resumePublish();
 }
 
 /* ---- signing in and out swaps the canvases (see "whose canvases") ---- */
 let scopeChain = Promise.resolve();
-function switchScope(next){
-  scopeChain = scopeChain.then(() => enterScope(next)).catch(e => console.warn('inko: scope', e));
+function switchScope(next, adopt){
+  scopeChain = scopeChain.then(() => enterScope(next, adopt)).catch(e => console.warn('inko: scope', e));
   return scopeChain;
 }
-/* An account's first sign-in on this device: the signed-out canvases and
-   draft move into it. Returns how many canvases moved. */
+/* An account CREATED just now, on this device: the signed-out canvases and
+   draft move into it. Never on signing back in to an account that already
+   exists (Dex, 2026-10-08: guest canvases carry over when the account is
+   made, and only then). It only ever moves records owned by nobody, and
+   never replaces an account's draft or picture. Returns how many moved. */
 async function adoptLocal(next){
   if (next === 'local' || await idbGet('meta', 'seen:' + next).catch(() => null)) return 0;
   let moved = 0;
@@ -1221,13 +1226,13 @@ async function adoptLocal(next){
   await idbPut('meta', { key: 'seen:' + next, at: Date.now() });
   return moved;
 }
-async function enterScope(next){
+async function enterScope(next, adopt){
   if (next === scope) return;
   // The drawing on screen stays with the account it was drawn in, as that
   // account's draft, undo stack and all.
   await flushDraft().catch(() => {});
   await keepCanvasHistory();
-  const moved = await adoptLocal(next);
+  const moved = adopt ? await adoptLocal(next) : 0;
   scope = next;
   await showScope(false);
   if (moved) toast(moved + (moved === 1 ? ' canvas' : ' canvases') + ' moved into @' + next.slice(2));
@@ -1805,11 +1810,62 @@ function openAccount(then, message){
     $('a-rename').value = session.handle; $('a-msg4').textContent = '';
     // A Google or Discord account has no password to type to delete it.
     $('a-pass2').hidden = !!session.sso;
+    paintOtherAccounts();
   }
   $('a-msg').textContent = message || '';
   $('a-pass').value = '';
   setPasswordFields(false);
   $('account').classList.add('open');
+}
+/* ---- your other accounts, and canvases this device holds for them ----
+   The site account can reach more than one Inko account (an old Google one,
+   an old Discord one): each is a button that switches to it, canvases and
+   all. And a canvas is never lost to a sign-in that opened the wrong account:
+   one this device holds for an account no sign-in reaches any more is
+   offered here, to bring into this one. Bringing them only relabels this
+   device's copies (they then sync to this account); whatever the old account
+   keeps on the server stays where it is. */
+async function paintOtherAccounts(){
+  const box = $('a-others');
+  box.textContent = ''; box.hidden = true;
+  if (!session) return;
+  const others = Array.isArray(session.others) ? session.others : [];
+  const here = {};
+  try {
+    for (const it of await idbAll('canvases')){
+      const o = ownerOf(it);
+      if (o.startsWith('u:') && o !== scope) here[o.slice(2)] = (here[o.slice(2)] || 0) + 1;
+    }
+  } catch (e) {}
+  if (!session) return;
+  const row = (text, label, go) => {
+    const p = document.createElement('div'); p.className = 'a-text'; p.textContent = text;
+    const b = document.createElement('button'); b.className = 'mbtn a-full'; b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', go);
+    box.append(p, b);
+  };
+  for (const o of others){
+    const n = here[o.handle] || 0;
+    row('You also have @' + o.handle + (n ? ' (' + n + (n === 1 ? ' canvas' : ' canvases') + ' here)' : '') + '.', 'Switch to @' + o.handle, () => {
+      const rest = others.filter(x => x.handle !== o.handle);
+      setSession({ ...session, handle: o.handle, token: o.token, created: false,
+                   others: [{ handle: session.handle, token: session.token }, ...rest] });
+      closeAccount(); toast('Signed in as @' + o.handle);
+    });
+  }
+  for (const [h, n] of Object.entries(here)){
+    if (others.some(o => o.handle === h)) continue;
+    row('This device also has ' + n + (n === 1 ? ' canvas' : ' canvases') + ' from @' + h + '.', 'Bring them into @' + session.handle, async () => {
+      await scopeChain;
+      const from = 'u:' + h;
+      for (const it of await idbAll('canvases')) if (ownerOf(it) === from){ it.owner = scope; await idbPut('canvases', it); }
+      gallery = (await idbAll('canvases')).filter(it => ownerOf(it) === scope);
+      closeAccount(); toast(n + (n === 1 ? ' canvas' : ' canvases') + ' brought into @' + session.handle);
+      if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
+      syncSoon();
+    });
+  }
+  box.hidden = !box.childNodes.length;
 }
 function setPasswordFields(open){
   $('a-pw').hidden = !open;
@@ -1844,7 +1900,9 @@ async function linkSite(quiet){
   if (!idToken) return false;
   const r = await api('site', { idToken });
   if (r.token){
-    setSession({ handle: r.handle, token: r.token, sso: true, site: true });
+    // The person's other Inko accounts, if the site account reaches several
+    // (see identifySite): the account sheet offers to switch to them.
+    setSession({ handle: r.handle, token: r.token, sso: true, site: true, others: r.others || [] });
     if ($('account').classList.contains('open')) closeAccount();
     if (!quiet) toast('Signed in as @' + r.handle);
     return true;
@@ -1915,7 +1973,7 @@ function openClaim(ticket, suggest){
     $('a-msg3').textContent = '';
     try {
       const r = await api('claim', { ticket, handle: $('a-claim-handle').value });
-      setSession({ handle: r.handle, token: r.token, sso: true });
+      setSession({ handle: r.handle, token: r.token, sso: true, created: true });
       closeAccount();
       toast('Welcome, @' + r.handle);
     } catch (e) { $('a-msg3').textContent = e.message; }
@@ -1928,7 +1986,7 @@ window.addEventListener('storage', e => {
   if (e.key !== SESSION_KEY) return;
   try { session = JSON.parse(e.newValue || 'null'); } catch (err) { session = null; }
   syncAccountButton();
-  switchScope(scopeOf(session));
+  switchScope(scopeOf(session), !!(session && session.created));
   if (session) resumePublish();
   if (session && $('account').classList.contains('open')) closeAccount();
   if (galleryTab === 'public') loadFeed();
@@ -1939,7 +1997,7 @@ async function signIn(action){
   const handle = $('a-handle').value, password = $('a-pass').value;
   try {
     const r = await api(action, { handle, password });
-    setSession({ handle: r.handle, token: r.token });
+    setSession({ handle: r.handle, token: r.token, created: action === 'signup' });
     const then = afterSignIn;
     closeAccount();
     toast(action === 'signup' ? 'Welcome, @' + r.handle : 'Signed in as @' + r.handle);
@@ -2664,9 +2722,6 @@ async function init(){
   // a reload and a background kill, not the app being closed.
   let cold = true;
   try { cold = !sessionStorage.getItem('inkoOpen'); sessionStorage.setItem('inkoOpen', '1'); } catch (e) {}
-  // Already signed in from before canvases had owners: the first launch of
-  // this build is that account's first sign-in here.
-  try { await adoptLocal(scopeOf(session)); } catch (e) {}
   scope = scopeOf(session);
   await showScope(cold);
   gcSteps().catch(() => {});
@@ -2690,6 +2745,30 @@ function siteOnBoot(){
   try { flag = localStorage.getItem('site:signedIn'); } catch (e) {}
   if (session && session.site && !flag){ setSession(null); return; }
   if (!session && flag) linkSite(true).catch(e => console.warn('inko: site link', e));
+  if (session && session.site) refreshSite().catch(e => console.warn('inko: site refresh', e));
+}
+/* A launch signed in through the site: which of the person's Inko accounts
+   the site account reaches now (the switch buttons in the account sheet), and
+   if this one is empty while another holds their drawings, that one. It is
+   how a phone left in an empty account by the 2026-10-08 sign-in bug finds
+   its way back without signing out. */
+async function refreshSite(){
+  const idToken = await (await loadSite()).idToken();
+  if (!idToken || !session || !session.site) return;
+  const was = session;
+  const r = await api('site', { idToken });
+  if (!r.token || session !== was) return;
+  const all = [{ handle: r.handle, token: r.token }, ...(r.others || [])];
+  await scopeChain; await syncAccount();
+  if (session !== was) return;
+  if (r.handle !== was.handle && !gallery.length){
+    setSession({ ...was, handle: r.handle, token: r.token, created: false,
+                 others: [...all.filter(o => o.handle !== r.handle && o.handle !== was.handle), { handle: was.handle, token: was.token }] });
+    toast('Signed in as @' + r.handle);
+    return;
+  }
+  session = { ...was, others: all.filter(o => o.handle !== was.handle) };
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch (e) {}
 }
 
 /* ---------- installing ----------

@@ -146,6 +146,35 @@ try {
   const after = await store.identifySite({ uid: 'site-new', linked: [] });
   ok(!!after.ticket, 'a deletion removes it (the uid is offered a new name)');
 
+  // THE 2026-10-08 LOSS: the uid's own link had landed on an EMPTY account
+  // (a name picked on a sign-in that found nothing), and it was looked at
+  // first, so Google and Discord both opened it while the drawings sat under
+  // the old name. Now the account with drawings wins, the other is offered,
+  // and nothing is moved or rewritten.
+  const tDraw = (await store.identify({ provider: 'google', pid: 'g-draw', email: 'd@x.y', verified: true })).ticket;
+  await store.claim(tDraw, 'drawer');
+  const PNG = 'data:image/png;base64,' + Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]).toString('base64');
+  const JPG = 'data:image/jpeg;base64,' + Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]).toString('base64');
+  await store.putCanvas('drawer', { id: 'cdraw1', title: 'Mine', bg: {}, created: 1, ts: 1, png: PNG, thumb: JPG });
+  const tEmpty = (await store.identifySite({ uid: 'site-loss', linked: [] })).ticket;
+  await store.claim(tEmpty, 'blankslate');
+  ok((await store.identifySite({ uid: 'site-loss', linked: [] })).handle === 'blankslate', 'set-up: the uid is linked to an empty account');
+  const tDisc = (await store.identify({ provider: 'discord', pid: 'd-loss', email: '', verified: false })).ticket;
+  await store.claim(tDisc, 'discblank');
+  const viaG = await store.identifySite({ uid: 'site-loss', linked: ['google-g-draw', 'discord-d-loss'], provider: 'google.com' });
+  ok(viaG.handle === 'drawer', `Google opens the account with the drawings (${viaG.handle})`);
+  ok((viaG.others || []).map((o) => o.handle).sort().join() === 'blankslate,discblank' && viaG.others.every((o) => !!o.token),
+    `and offers the others, each with a token (${(viaG.others || []).map((o) => o.handle).join(', ')})`);
+  const viaD = await store.identifySite({ uid: 'site-loss', linked: ['google-g-draw', 'discord-d-loss'], provider: 'oidc.discord' });
+  ok(viaD.handle === 'drawer', `Discord, whose own account is empty, opens the drawings too (${viaD.handle})`);
+  ok((await store.listCanvases('drawer')).length === 1 && (await store.listCanvases('blankslate')).length === 0, 'nothing was moved between accounts');
+  // Two accounts that both have drawings: each provider keeps its own.
+  await store.putCanvas('discblank', { id: 'cdisc1', title: 'Disc', bg: {}, created: 1, ts: 1, png: PNG, thumb: JPG });
+  const viaD2 = await store.identifySite({ uid: 'site-loss', linked: ['google-g-draw', 'discord-d-loss'], provider: 'oidc.discord' });
+  ok(viaD2.handle === 'discblank', `with drawings in both, Discord opens the Discord account (${viaD2.handle})`);
+  const viaG2 = await store.identifySite({ uid: 'site-loss', linked: ['google-g-draw', 'discord-d-loss'], provider: 'google.com' });
+  ok(viaG2.handle === 'drawer', `and Google the Google one (${viaG2.handle})`);
+
   console.log('3. the API');
   const call = (body) => new Promise((done) => {
     const res = { headers: {}, setHeader(k, v) { this.headers[k.toLowerCase()] = v; }, getHeader(k) { return this.headers[k.toLowerCase()]; },
@@ -166,7 +195,7 @@ try {
   await rm(SCRATCH, { recursive: true, force: true });
 }
 
-const EXPECT = 35;
+const EXPECT = 42;
 ok(passed + failed === EXPECT, `ran ${passed + failed} checks, expected ${EXPECT}`);
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
