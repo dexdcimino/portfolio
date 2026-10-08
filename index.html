@@ -71,6 +71,19 @@
           <stop class="accent-stop-mid" offset=".66"/>
           <stop class="accent-stop-deep" offset=".96"/>
         </linearGradient>
+        <!-- The mascot PNG fades to transparent over its lower half, so whatever
+             is behind him shows THROUGH his legs. This mask ends the back wedge
+             along the same steep line as the front one (#bgFrontAlongFade), so
+             under his arm he fades into the dark slate rather than into a
+             bright accent triangle. Short ramp: solid again a step to the right. -->
+        <linearGradient id="bgWedgeCutFade" x1="1300" y1="470" x2="1457" y2="346" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+          <stop offset=".5" stop-color="#fff" stop-opacity=".45"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="1"/>
+        </linearGradient>
+        <mask id="bgWedgeCut" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
+          <rect width="1920" height="1080" fill="url(#bgWedgeCutFade)"/>
+        </mask>
         <linearGradient id="bgCorner" x1="-9.7" y1="171.2" x2="491.2" y2="-158.4" gradientUnits="userSpaceOnUse">
           <stop offset="0" stop-color="#0e1217"/><stop offset=".8112" stop-color="#25303d"/>
         </linearGradient>
@@ -84,7 +97,7 @@
       <rect width="1920" height="1080" fill="url(#bgBase)"/>
       <polygon points="982.4,1080 -362.1,1080 1182,0 2526.4,0" fill="url(#bgSlab)"/>
       <polygon class="bg-sheen" points="1017.8,1080 -326.7,1080 1695,0 3039.5,0" fill="url(#bgSheen)" opacity=".3"/>
-      <polygon class="bg-wedge" points="1933.9,0 1034.4,540 262.4,1080 695,1080 1127.5,1080 1899.5,540 2671.5,0 2239,0" fill="url(#bgWedge)"/>
+      <polygon class="bg-wedge" points="1933.9,0 1034.4,540 262.4,1080 695,1080 1127.5,1080 1899.5,540 2671.5,0 2239,0" fill="url(#bgWedge)" mask="url(#bgWedgeCut)"/>
       <polygon points="0,0 0,304 500.9,0" fill="url(#bgCorner)" opacity=".75"/>
       <polygon class="bg-sheen" points="485.8,0 0,304 500.9,0" fill="url(#bgCornerSheen)" opacity=".25"/>
       <polygon points="1920,1080 1920,813.4 1415.6,1080" fill="url(#bgFoot)"/>
@@ -94,28 +107,42 @@
 
   <!-- Front wedge: the only layer that sits OVER the mascot, exactly as in the
        source art. It is painted with the back wedge's own grade (#bgWedge) and
-       FADED by a mask that runs ALONG the band, bottom left to top right:
-       clear over the mascot's lower left, half-there across his chest, solid
-       by the top right corner. The fade used to run nearly straight up the
-       page and reach full strength at the hero's bottom edge, so almost all of
-       it happened below the fold and the band sat solid over his legs. -->
+       faded by two masks that multiply:
+       - #bgFrontAlong runs ACROSS the mascot, perpendicular to a steep line
+         from the inside of his left shoulder (as you look at him) down
+         through the middle of his belt. Left of that line the band is GONE,
+         so nothing of it shows under his arm; right of it the band fades up
+         to solid by the top right corner. Dex drew that line on a screenshot
+         (2026-10-08) after the first pass faded too late.
+       - #bgFrontEdge feathers the band's own left edge, so where that edge
+         crosses him it is a soft fade rather than a hard diagonal line.
+       The first version faded nearly straight up the page and reached full
+       strength at the hero's bottom edge, so the band sat solid over his legs. -->
   <div class="bg-front" aria-hidden="true">
     <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="bgFrontFade" x1="1010" y1="680" x2="1900" y2="150" gradientUnits="userSpaceOnUse">
+        <linearGradient id="bgFrontAlongFade" x1="1300" y1="470" x2="1720" y2="138" gradientUnits="userSpaceOnUse">
           <stop offset="0" stop-color="#fff" stop-opacity="0"/>
-          <stop offset=".18" stop-color="#fff" stop-opacity=".04"/>
-          <stop offset=".36" stop-color="#fff" stop-opacity=".16"/>
-          <stop offset=".52" stop-color="#fff" stop-opacity=".36"/>
-          <stop offset=".68" stop-color="#fff" stop-opacity=".62"/>
-          <stop offset=".84" stop-color="#fff" stop-opacity=".86"/>
+          <stop offset=".2" stop-color="#fff" stop-opacity=".07"/>
+          <stop offset=".4" stop-color="#fff" stop-opacity=".24"/>
+          <stop offset=".6" stop-color="#fff" stop-opacity=".5"/>
+          <stop offset=".8" stop-color="#fff" stop-opacity=".8"/>
           <stop offset="1" stop-color="#fff" stop-opacity="1"/>
         </linearGradient>
-        <mask id="bgFrontMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
-          <rect width="1920" height="1080" fill="url(#bgFrontFade)"/>
+        <linearGradient id="bgFrontEdgeFade" x1="211.9" y1="1080" x2="305.7" y2="1256.6" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="1"/>
+        </linearGradient>
+        <mask id="bgFrontAlong" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
+          <rect width="1920" height="1080" fill="url(#bgFrontAlongFade)"/>
+        </mask>
+        <mask id="bgFrontEdge" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
+          <rect width="1920" height="1080" fill="url(#bgFrontEdgeFade)"/>
         </mask>
       </defs>
-      <polygon points="2244,0 211.9,1080 1288.1,1080 2972.1,0" fill="url(#bgWedge)" mask="url(#bgFrontMask)"/>
+      <g mask="url(#bgFrontEdge)">
+        <polygon points="2244,0 211.9,1080 1288.1,1080 2972.1,0" fill="url(#bgWedge)" mask="url(#bgFrontAlong)"/>
+      </g>
     </svg>
   </div>
 
@@ -3637,14 +3664,31 @@
        one image large, the x/x counter centred under it between two arrows
        (greyed out when there is nothing to step to). Fed by initAppInfo from
        the same .gal-item pictures the inline frame shows, cloned at overlay
-       sizes at open so nobody downloads the big rungs early. -->
+       sizes at open so nobody downloads the big rungs early.
+       The one overlay EVERY AI Lab app's gallery opens in, so all of them
+       behave the same. The frame hugs the picture and carries what hangs off
+       it: a rail either side (shown when the pointer comes near it, always on
+       touch) and the X centred in the space right of the right rail. Clicking
+       anything that is not the picture or a button closes it. -->
   <dialog class="app-shot-modal" id="appShotModal" aria-labelledby="appshot-dialog-title">
     <div class="app-shot-shell">
-      <button class="contact-close app-shot-close" type="button" id="appShotClose" aria-label="Close screenshot">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      </button>
       <h2 class="sr-only" id="appshot-dialog-title">App screenshots</h2>
-      <div class="app-shot-stage" id="appShotStage"></div>
+      <div class="app-shot-stage">
+        <div class="app-shot-frame" id="appShotFrame">
+          <span class="app-shot-pic" id="appShotStage"></span>
+          <!-- First in the frame, so the dialog's first focus is the X and not
+               a rail lighting up on open. -->
+          <button class="contact-close app-shot-close" type="button" id="appShotClose" aria-label="Close screenshot">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <button class="app-shot-rail app-shot-rail-prev" id="appShotRailPrev" type="button" aria-label="Previous screenshot">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+          <button class="app-shot-rail app-shot-rail-next" id="appShotRailNext" type="button" aria-label="Next screenshot">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
       <div class="app-shot-bar">
         <button class="wp-arrow app-shot-prev" id="appShotPrev" type="button" aria-label="Previous screenshot">
           <span class="icon" data-icon="chevron" aria-hidden="true"></span>

@@ -71,6 +71,31 @@ swap is reported as invisible on a real phone.
 
 ---
 
+## 2026-10-08 — The hero's wedges end at a line through the mascot, and the grade darkens more than it turns
+
+**Decided.** Both accent wedges are masked off along one steep line that runs from the
+inside of the mascot's shoulder down through the middle of his belt (`#bgWedgeCut` on the
+back wedge, `#bgFrontAlong` on the front one, plus `#bgFrontEdge` feathering the front
+band's own edge). Left of the line neither wedge exists. `--accent-deep` is now mostly
+darker with a few degrees of hue (lime `#377C07`, red `#961114`, blue `#2223A6`, purple
+`#5F1D9E`, white a saturated steel `#6484A3`). Yellow (`#CF630B`) and cyan (`#1774B5`) keep
+their first-pass values.
+
+**Replaced.** The first pass (same day) only faded the front band, and turned every hue as
+far as yellow's (lime to teal, blue to violet, purple to magenta) while barely darkening it.
+
+**Why.** The mascot PNG fades to transparent over its lower half, so the BACK wedge showed
+through his legs as a bright accent triangle under his arm. No front-band fade could fix
+that, which is why the first pass looked unchanged there. Dex drew the line the wedges
+should stop at on a screenshot. On the grade, Dex judged that yellow's amber worked because
+amber is a neighbour of yellow, and the others had moved to a different colour.
+
+**Reverse it if.** The mascot art is re-exported without its bottom fade (then the back
+wedge can run to its corner again), or the mascot moves in the hero. The line is in
+viewBox units, so it was checked at 1280, 1440, 1728 and 1920 wide.
+
+---
+
 ## 2026-10-08 — Accents: the art's hex on sRGB, halfway to P3's edge on a wide-gamut screen
 
 **Decided.** `--accent` is the ACCENTS hex from `script.js` on an sRGB screen and, under

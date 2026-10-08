@@ -194,7 +194,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   description and tags; clicking the shot enlarges it in `#appShotModal` —
   a wallpaper-style lightbox with a centred x/x between arrows that grey
   out on single shots — NOT the games' gallery modal, which apps no longer
-  touch; the panel's min-height is measured across all cards (and on
+  touch. It is the ONE gallery every AI Lab app opens: `.app-shot-frame`
+  hugs the picture (sized from the baked `width`/`height` as `--ar` before
+  the big rung loads) and carries a rail either side (revealed within 20px
+  of the pointer, always shown on `(hover:none) and (pointer:coarse)`,
+  inside the picture's edges at ≤700px) and the X centred in the space
+  right of the right rail; any click that is not on the picture or a
+  button closes it; the panel's min-height is measured across all cards (and on
   resize) so hover never changes the section's height; the eyeball hides
   below 768px where the overlay declines),
   `initCollabInfo()` (fills the Collab panel and builds

@@ -9606,6 +9606,8 @@ let openReader = () => {};
     const lbCount = document.getElementById('appShotCount');
     const lbPrev = document.getElementById('appShotPrev');
     const lbNext = document.getElementById('appShotNext');
+    const lbFrame = document.getElementById('appShotFrame');
+    const lbRails = [document.getElementById('appShotRailPrev'), document.getElementById('appShotRailNext')];
     let lbIdx = 0;
     const lbPaint = () => {
       const set = setFor();
@@ -9618,12 +9620,18 @@ let openReader = () => {};
         img.sizes = '92vw';
         img.loading = 'eager';
         if (img.decode) img.decode().catch(() => {});
+        /* The frame is sized from the baked width/height BEFORE a byte of
+           the big rung arrives, so the rails and the X are where they will
+           stay from the first frame rather than jumping when it loads. */
+        const w = +img.getAttribute('width'), h = +img.getAttribute('height');
+        if (w && h) lbFrame.style.setProperty('--ar', (w / h).toFixed(4));
       }
       lbStage.replaceChildren(clone);
       lbCount.textContent = `${lbIdx + 1}/${set.length}`;
       const single = set.length < 2;
       lbPrev.disabled = single;
       lbNext.disabled = single;
+      for (const rail of lbRails) rail.hidden = single;
       // the inline frame keeps step, so closing lands where you left off
       idx = lbIdx;
       paintShots();
@@ -9636,6 +9644,15 @@ let openReader = () => {};
     });
     lbPrev.addEventListener('click', () => { lbIdx -= 1; lbPaint(); });
     lbNext.addEventListener('click', () => { lbIdx += 1; lbPaint(); });
+    lbRails[0].addEventListener('click', () => { lbIdx -= 1; lbPaint(); });
+    lbRails[1].addEventListener('click', () => { lbIdx += 1; lbPaint(); });
+    /* Anything that is not the picture or a control closes it (Dex,
+       2026-10-08). bindModal's backdrop test only sees a click on the
+       <dialog> itself, and the stage and shell cover most of the screen, so
+       a click in the dark round the picture closed it only sometimes. */
+    lb.addEventListener('click', (event) => {
+      if (!event.target.closest('img, button')) closeModal(lb);
+    });
     lb.addEventListener('keydown', (event) => {
       if (event.key === 'ArrowLeft') { event.preventDefault(); lbIdx -= 1; lbPaint(); }
       if (event.key === 'ArrowRight') { event.preventDefault(); lbIdx += 1; lbPaint(); }
