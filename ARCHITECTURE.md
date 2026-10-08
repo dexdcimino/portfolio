@@ -857,6 +857,19 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     "hide this artist". Writes are read-modify-write with no lock --
     fine at this scale, and the first thing to change (a ledger per post, as
     the notes store has) when the feed is busy enough to race.
+  **The social layer** -- follows now; comments and shared canvases next --
+  is `lib/sketch-social.js` behind the same endpoint and `inko/social.js` in
+  the app, kept out of the core files on purpose. The app side sees app.js
+  only through `window.inkoBridge` and the `inko:tab`, `inko:user`,
+  `inko:post` and `inko:feed` events at the end of app.js; it draws ONE pill
+  above the gallery bar (`#s-bar`): All | Following | fire on Public (a
+  `feedFilter` the grid applies, so the viewer swipes the filtered list), and
+  the follower count with Follow on an artist's profile. A follow is written
+  on both sides (`sketch/social/<handle>.json`: `following`, `followers`), a
+  rename rewrites every list naming the old handle and a deletion leaves them
+  all. The fire filter needs nothing new on the server: it is the feed
+  narrowed by the votes the app already fetches, so it is public-only by
+  construction. `tools/social_check.mjs` checks both halves.
   `tools/sketch_check.mjs` runs the real handler on a scratch store: the
   refusals, the report threshold, account deletion, and two browser contexts
   as two people publishing, reacting, viewing, hiding and unpublishing, then

@@ -20,7 +20,7 @@ if (EMBED) document.body.classList.add('embed');
    Checked on launch, every time the app comes back to the foreground, and
    every five minutes while it is open. A new build: the drawing is saved,
    and the app reloads itself. */
-const BUILD_FILES = ['/inko/app.js', '/inko/app.css', '/inko/index.html'];
+const BUILD_FILES = ['/inko/app.js', '/inko/app.css', '/inko/index.html', '/inko/social.js', '/inko/social.css'];
 let runningBuild = null;            // the signature this page loaded with
 async function deployedBuild(){
   const tags = await Promise.all(BUILD_FILES.map(async url => {
@@ -1470,6 +1470,7 @@ async function loadFeed(){
     try { myVoteFor = (await api('votes', { ids: feed.map(p => p.id) })).votes || {}; } catch (e) {}
   }
   renderFeed();
+  inkoEvent('feed');
 }
 const imgUrl = (p, thumb) => `${API}?img=${encodeURIComponent(`sketch/img/${p.id}-${p.v}${thumb ? '-t.jpg' : '.webp'}`)}`;
 /* Never hide your OWN drawings: "Hide @you" was offered on them while
@@ -1490,12 +1491,13 @@ let gridPosts = [];                 // the public drawings on screen, in order: 
 function renderFeed(){
   if (searching() || galleryTab !== 'public') return;
   const rows = $('g-rows'); rows.innerHTML = '';
-  const items = visibleFeed();
+  const filter = inkoBridge.feedFilter;     // inko/social.js: Following, or the ones you gave fire
+  const items = filter ? visibleFeed().filter(filter.keep) : visibleFeed();
   gridPosts = items;
   $('g-count').textContent = items.length + (items.length === 1 ? ' drawing' : ' drawings');
   if (!items.length){
     const e = document.createElement('div'); e.className = 'g-empty';
-    e.textContent = 'Nothing shared yet. Make one of your drawings public to start it off.';
+    e.textContent = filter ? filter.empty : 'Nothing shared yet. Make one of your drawings public to start it off.';
     rows.appendChild(e); return;
   }
   fillRows(items, 2, feedItem);
@@ -1594,6 +1596,7 @@ function showPost(p){
     try { const r = await api('report', { id: p.id }); toast(r.hidden ? 'Reported — it has been taken down' : 'Reported — thank you'); }
     catch (e) { toast(e.message); }
   }); };
+  inkoEvent('post', { post: p });
   $('v-block').onclick = () => { $('v-acts').hidden = true; openModal('Hide @' + p.handle + '?', 'You will not see their drawings on this device.', 'Hide', () => {
     blocked = [...new Set([...blocked, p.handle])];
     try { localStorage.setItem(BLOCK_KEY, JSON.stringify(blocked)); } catch (e) {}
@@ -1958,6 +1961,7 @@ function setGalleryTab(tab){
   if (tab === 'public') loadFeed();
   else if (tab === 'mine') renderGallery();
   if (tab !== 'user' && $('gallery').classList.contains('open')) visit(tab);
+  inkoEvent('tab', { tab });
 }
 $('g-tab-mine').addEventListener('click', () => setGalleryTab('mine'));
 $('g-tab-public').addEventListener('click', () => setGalleryTab(galleryTab === 'public' ? 'mine' : 'public'));
@@ -2186,6 +2190,7 @@ async function openUser(handle){
   $('g-avatar').style.backgroundImage = `url("${avatarSrc(handle, r.avatar)}")`;
   // The same objects as the Public tab, so a reaction here is one there.
   const posts = (r.posts || []).map(p => { const f = feed.find(x => x.id === p.id); if (f) return f; feed.push(p); return p; });
+  inkoEvent('user', { handle, profile: r });
   $('g-count').textContent = posts.length + (posts.length === 1 ? ' drawing' : ' drawings');
   const rows = $('g-rows'); rows.innerHTML = '';
   gridPosts = posts; fillRows(posts, 2, feedItem);
@@ -2572,6 +2577,21 @@ if (!EMBED && !STANDALONE && new URLSearchParams(location.search).has('install')
   // Chrome fires beforeinstallprompt shortly after load; give it a moment.
   setTimeout(showInstallSheet, 1200);
 }
+
+/* ---- hooks for inko/social.js (follows, the fire filter, comments) ----
+   The social features live in their own file; this is all they see of the
+   app. Events: inko:tab { tab }, inko:user { handle, profile }, inko:post
+   { post }, inko:feed -- each fired after the app has drawn that screen. */
+function inkoEvent(name, detail){ document.dispatchEvent(new CustomEvent('inko:' + name, { detail })); }
+var inkoBridge = window.inkoBridge = {
+  feedFilter: null,                 // { keep(post), empty } narrows the Public grid
+  get session(){ return session; },
+  get tab(){ return galleryTab; },
+  get viewingUser(){ return viewingUser; },
+  get myVotes(){ return myVoteFor; },
+  api, toast, openModal, openAccount, openUser, avatarEl,
+  renderFeed(){ renderFeed(); },
+};
 
 init();
 })();
