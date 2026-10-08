@@ -25,6 +25,35 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — The homepage DexNote overlay signs in, and the AI Lab's DexNote keeps what you type
+
+**Decided.** Every way into the DexNote overlay on the homepage -- the keypad,
+the tilde prompt, the Idea Vault and the AI Lab eyeball -- mounts the same app
+with the same account button, through `dexnote/account.js`, the module
+`/dexnote/` uses. The AI Lab opens this browser's guest notes (or the
+account's when signed in) instead of a throwaway sandbox. The site-wide CSP
+and COOP carry the Firebase hosts and `same-origin-allow-popups`.
+
+**Replaced.** The overlay had no accounts (the password notes only, and an
+in-memory sandbox from the AI Lab that threw everything away on close), and
+sign-in lived only on `/dexnote/`.
+
+**Why.** Dex, 2026-10-08: whichever way the overlay is opened it should be the
+same working app with the same sign-in, all under one account. One module
+for both places keeps a sign-in, the guest move and the password-notes copy
+identical, and is the seam a site-wide account would replace. The sandbox's
+safety never came from its being throwaway but from having no token; the guest
+store keeps that property, since it is this browser's own storage. The
+button sits first in the header's right group because the overlay's own
+padlock and X are drawn over the right end of that row.
+
+**Reverse it if** the site gets one account for everything (notes, Inko,
+music): `account.js` then becomes a client of that, rather than of Firebase
+directly. Or if the AI Lab should go back to showing a demo nobody can keep,
+which is `format: 'demo'`, still in `notes/app.js`.
+
+---
+
 ## 2026-10-08 — Inko: a profile picture is a live crop of one of your canvases
 
 **Decided.** Your profile picture is a square cut from a canvas you pick, re-rendered and

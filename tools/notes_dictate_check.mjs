@@ -913,21 +913,26 @@ await sleep(200);
 await page.evaluate(() => document.getElementById('notesModal').close());
 await sleep(300);
 
-/* ---- 14. THE SANDBOX: the AI Lab preview --------------------------------
-   FALSELY PASSES IF: it only looked at what was on screen. The point of the
-   sandbox is what it CANNOT do, so this counts every request to /api/notes/
-   it makes (must be none) and checks the real document on disk is untouched
-   afterwards. */
+/* ---- 14. THE AI LAB's DexNote ---------------------------------------------
+   It was a sandbox that kept nothing; since 2026-10-08 it is the real app on
+   this browser's GUEST notes (dexnote/local.js), the tour document on a first
+   open. What it still CANNOT do is the point: reach the password notes. So
+   this counts every request to /api/notes/ it makes (must be none) and checks
+   the real document on disk is untouched afterwards, and now also that what
+   a visitor types is kept in this browser and comes back on the next open.
+   FALSELY PASSES IF: it only looked at what was on screen. */
 {
   const storeBefore = await readFile(join(STORE, 'notes/current.json'), 'utf8');
   tokenBeforeSandbox = await page.evaluate(() => { try { return sessionStorage.getItem('notes-token'); } catch { return null; } });
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle2', timeout: 60000 });
+  // A first visit: no guest notes yet, so the tour is what opens.
+  await page.evaluate(() => { localStorage.removeItem('dexnote:guest:v1'); localStorage.removeItem('dexnote:mode'); indexedDB.deleteDatabase('dexnote-guest'); });
   apiCalls.length = 0;
   await page.$eval('[data-notes-demo]', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await sleep(400);
   await page.click('[data-notes-demo]');
   const opened = await page.waitForFunction(() => document.querySelectorAll('.nt-cat').length > 0, { timeout: 20000 }).then(() => true).catch(() => false);
-  note(opened, 'the AI Lab eyeball did not open the notes sandbox');
+  note(opened, 'the AI Lab eyeball did not open DexNote');
 
   const shape = await page.evaluate(() => ({
     demo: document.querySelector('.nt-app').classList.contains('is-demo'),
@@ -963,7 +968,7 @@ await sleep(300);
     archived: document.querySelectorAll('.nt-arch-row').length,
   }));
   console.log('sandbox:', JSON.stringify(shape));
-  note(shape.demo, 'the sandbox is not marked as a demo');
+  note(!shape.demo, 'the AI Lab DexNote is still the throwaway sandbox');
   note(shape.session === 'Brainstorm', `the sandbox session is "${shape.session}", expected Brainstorm`);
   note(shape.sessionEmoji === '\u{1F47D}', `the sandbox session icon is "${shape.sessionEmoji}", expected the alien`);
   note(shape.cats.length === 3, `${shape.cats.length} categories in the sandbox, expected 3`);
@@ -972,8 +977,8 @@ await sleep(300);
   note(shape.cats.every(c => c.emoji && c.emoji.trim()), 'a sandbox category has no emoji');
   note(shape.todos >= 2 && shape.checked >= 1, `the sandbox does not show a to-do list with something ticked (${shape.checked}/${shape.todos})`);
   note(shape.nested >= 2, `the sandbox does not show nested bullets (${shape.nested})`);
-  note(shape.note, 'the sandbox does not say it is a sandbox');
-  note(/SANDBOX/.test(shape.status), `the save status reads "${shape.status}"`);
+  note(!shape.note, 'the AI Lab DexNote still says nothing is saved');
+  note(/NOT SAVED YET/.test(shape.status), `the save status reads "${shape.status}", expected NOT SAVED YET on an untouched tour`);
   note(shape.mics === shape.cats.length, `${shape.mics} microphones for ${shape.cats.length} boxes, expected one each`);
   /* COUNTED, not spot-checked. A preview that quietly stopped rendering its
      chips or its picture would still pass every assertion above it. */
@@ -1000,34 +1005,35 @@ await sleep(300);
   await sleep(200);
   note(await page.evaluate(() => /a visitor typed this/.test(document.querySelector('.nt-body').textContent)), 'typing in the sandbox did nothing');
   await sleep(2000);           // longer than the save debounce
-  note(apiCalls.length === 0, `the sandbox called the notes API: ${apiCalls.join(', ')}`);
-  console.log(`sandbox made ${apiCalls.length} calls to /api/notes/ while being typed into`);
+  note(apiCalls.length === 0, `the AI Lab DexNote called the notes API: ${apiCalls.join(', ')}`);
+  note(await page.evaluate(() => (localStorage.getItem('dexnote:guest:v1') || '').includes('a visitor typed this')), 'what the visitor typed was not kept in this browser');
+  console.log(`AI Lab DexNote made ${apiCalls.length} calls to /api/notes/ while being typed into`);
 
-  // Escape throws it away.
+  // Escape closes it, and takes the document out of the page.
   await page.keyboard.press('Escape');
   await sleep(400);
   note(await page.evaluate(() => document.querySelectorAll('.nt-app').length === 0), 'the sandbox is still in the page after Escape');
   note(await page.evaluate(() => !document.documentElement.outerHTML.includes('a visitor typed this')), 'what the visitor typed is still in the page after closing');
 
-  // Reopening is blank again.
+  // Reopening brings it back: these are this browser's notes now.
   await page.click('[data-notes-demo]');
   await page.waitForFunction(() => document.querySelectorAll('.nt-cat').length > 0, { timeout: 20000 });
-  note(await page.evaluate(() => !document.querySelector('.nt-canvas').textContent.includes('a visitor typed this')), 'the sandbox remembered what the last visitor typed');
+  note(await page.evaluate(() => document.querySelector('.nt-canvas').textContent.includes('a visitor typed this')), 'the AI Lab DexNote forgot what was typed in it');
   await page.keyboard.press('Escape');
   await sleep(300);
 
-  note(apiCalls.length === 0, `the sandbox called the notes API across its whole life: ${apiCalls.join(', ')}`);
+  note(apiCalls.length === 0, `the AI Lab DexNote called the notes API across its whole life: ${apiCalls.join(', ')}`);
   const storeAfter = await readFile(join(STORE, 'notes/current.json'), 'utf8');
-  note(storeAfter === storeBefore, 'the real notes changed while the sandbox was being used');
-  console.log('sandbox: closed clean, reopened blank, real notes byte-identical');
+  note(storeAfter === storeBefore, 'the real notes changed while the AI Lab DexNote was being used');
+  console.log('AI Lab DexNote: closed clean, reopened with its text, real notes byte-identical');
 }
 
-/* ---- 15. the sandbox cannot see the real notes --------------------------- */
+/* ---- 15. the AI Lab DexNote cannot see the real notes --------------------- */
 {
   const leak = await page.evaluate(() => document.documentElement.outerHTML.includes('Pick a new game name'));
-  note(!leak, 'the real notes are in the page after opening the sandbox');
+  note(!leak, 'the real notes are in the page after opening the AI Lab DexNote');
   const token = await page.evaluate(() => { try { return sessionStorage.getItem('notes-token'); } catch { return null; } });
-  note(token === tokenBeforeSandbox, 'the sandbox changed the session token');
+  note(token === tokenBeforeSandbox, 'the AI Lab DexNote changed the session token');
 }
 
 await browser.close();

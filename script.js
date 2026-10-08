@@ -2220,7 +2220,7 @@ if (workModal) {
     let token = null;
     let app = null;               // the mounted notes app, while the overlay is open
     let opening = 0;              // which open() is current; a stale one must not mount
-    let demoMode = false;         // this mount is the AI Lab sandbox, not the notes
+    let demoMode = false;         // opened from the AI Lab, not the keypad
     /* Set while the overlay is CLOSED and the app is deliberately still
        mounted because dictation is running. Holds the unsubscribe for the
        session-ended callback, so it doubles as the flag. See park(). */
@@ -2247,6 +2247,7 @@ if (workModal) {
 
     async function opened(data) {
       demoMode = false;
+      source = 'vault';
       if (label) label.textContent = 'OPEN';
       if (padlock) padlock.dataset.icon = 'lock-open';
       gate.hidden = true;
@@ -2257,10 +2258,26 @@ if (workModal) {
       await mountApp(data, token);
     }
 
-    /* Shared by the real notes and the sandbox. Everything below this line is
-       the same app either way; the only difference is whether a token came
-       with it, and a mount with no token can reach nothing. */
-    async function mountApp(payload, sessionToken) {
+    /* ---- accounts --------------------------------------------------------
+       ONE OVERLAY, THREE STORES, ONE SIGN-IN BUTTON (Dex, 2026-10-08). The
+       keypad, the tilde prompt and the Idea Vault open the password notes;
+       the AI Lab opens this browser's guest notes, or the account's once
+       someone is signed in. Whichever it is, the header carries the same
+       account button, left of the information button, and signing in from it swaps the
+       overlay over to the account's notes -- the same Firebase account and
+       the same moves as /dexnote/, because both go through
+       dexnote/account.js. That module is fetched with the app, after the
+       password or the AI Lab press, never on page load; Firebase itself is
+       fetched only by someone who has signed in on this browser before or
+       presses Sign in. */
+    let source = null;            // 'vault' | 'guest' | 'account', what is mounted
+    let acctBtn = null;
+    const acctMod = () => import('/dexnote/account.js');
+
+    /* Shared by every store. With no backend the app talks to the password
+       store with the token; with one, it talks to that and the token is not
+       used. */
+    async function mountApp(payload, sessionToken, backend) {
       const mine = ++opening;
       editor.hidden = false;
       setSave('LOADING…', 'saving');
@@ -2268,11 +2285,15 @@ if (workModal) {
         /* The app is an ES module and this is a classic script, and that is
            fine: import() works from either. The path is absolute because the
            module resolves its own workers and stylesheet the same way. */
-        const mod = await import('/notes/app.js');
+        const [mod, acct] = await Promise.all([import('/notes/app.js'), acctMod()]);
+        const who = await acct.whoIsHere().catch(() => null);
         if (mine !== opening || !modal.open) return;     // closed while loading
+        acctBtn = acct.accountButton(who, accountMenu);
         app = await mod.mount(editor, {
           payload,
           token: sessionToken,
+          backend,
+          headerExtra: acctBtn,
           onToken: (fresh) => { token = fresh; store.set(TOKEN_KEY, fresh); },
           onLocked: () => { token = null; store.drop(TOKEN_KEY); },
           onStatus: setSave,
@@ -2283,18 +2304,130 @@ if (workModal) {
       }
     }
 
-    /* THE SANDBOX, opened by the eyeball on the DexNote card in the AI Lab.
+    // What a store answered, as the app's payload. Nothing stored yet is an
+    // empty document, or the tour for the AI Lab's first open.
+    const asPayload = (stored, blank) => stored
+      ? { format: 'json', content: stored.doc, rev: stored.rev, savedAt: stored.savedAt }
+      : { format: 'json', content: blank, rev: 0 };
 
-       It is the same app, mounted with `format: 'demo'` and NO TOKEN, and
-       that is what makes it safe rather than any check inside it: with no
-       token there is no request it could make to /api/notes/* that would be
-       answered, so a visitor cannot read, write or flood the real notes, and
-       cannot reach the keypad from here either. The document it opens is
-       built in memory, and closing the overlay unmounts the app and empties
-       the container, so nothing a visitor typed outlives the window.
+    // Take the mounted app down and put another store's notes in its place.
+    async function swap(fn) {
+      if (app) {
+        app.flush();
+        try { await app.save(); } catch { /* the unmount below beacons it */ }
+        try { app.unmount(); } catch (error) { console.warn('notes: unmount threw', error); }
+        app = null;
+      }
+      editor.replaceChildren();
+      await fn();
+    }
 
-       No `#notes` in the address: this is not the notes, and a link someone
-       shares must land on the portfolio rather than on a password box. */
+    async function mountGuest() {
+      const [acct, state] = await Promise.all([acctMod(), import('/notes/state.js')]);
+      const { backend, stored } = await acct.openGuest();
+      source = 'guest';
+      await mountApp(asPayload(stored, state.demoDoc()), null, backend);
+    }
+
+    async function mountAccount(u) {
+      const [acct, state, ui] = await Promise.all([acctMod(), import('/notes/state.js'), import('/notes/ui.js')]);
+      editor.hidden = false;
+      setSave('OPENING YOUR NOTES…', 'saving');
+      try {
+        const { backend, stored, moved } = await acct.openAccount(u, (text) => setSave(text.toUpperCase(), 'saving'));
+        source = 'account';
+        await mountApp(asPayload(stored, state.emptyDoc()), null, backend);
+        if (moved) ui.toast('The notes from this device are now in your account.');
+      } catch (error) {
+        console.error('notes: the account could not be opened', error);
+        setSave(`NOT OPENED — ${String(error.message || error).toUpperCase()}`, 'error');
+      }
+    }
+
+    async function mountVault() {
+      const data = token ? await unlock({ token }).catch(() => null) : null;
+      if (!data) return false;
+      token = data.token;
+      store.set(TOKEN_KEY, token);
+      source = 'vault';
+      await mountApp(data, token);
+      return true;
+    }
+
+    async function accountMenu(anchor) {
+      const [acct, ui] = await Promise.all([acctMod(), import('/notes/ui.js')]);
+      const u = acct.currentUser();
+      const items = u ? [
+        { label: u.email || u.displayName || 'Signed in', disabled: true, run() {} },
+        null,
+        source !== 'account' ? { label: 'Open my account notes', run: () => swap(() => mountAccount(u)) } : null,
+        source === 'account' && token ? { label: 'Open the password notes', run: () => swap(mountVault) } : null,
+        { label: 'Bring in the password notes…', run: bringInVault },
+        { label: 'Sign out', danger: true, run: signOutHere },
+      ].filter((item, i) => item || i === 1) : [
+        { label: source === 'vault' ? 'Password notes' : 'Guest · saved on this device', disabled: true, run() {} },
+        null,
+        { label: 'Sign in…', run: signInHere },
+      ];
+      ui.menu(anchor, items, { align: 'right' });
+    }
+
+    async function signInHere() {
+      const acct = await acctMod();
+      if (app) app.flush();
+      const u = await acct.signInSheet(editor.querySelector('.nt-app'), source === 'vault'
+        ? 'Sign in to keep notes in your account, on every device. These password notes stay as they are; the account menu can bring them in.'
+        : 'Sign in and the notes on this device move into your account.');
+      if (u && modal.open) await swap(() => mountAccount(u));
+    }
+
+    async function signOutHere() {
+      const acct = await acctMod();
+      if (app) { app.flush(); try { await app.save(); } catch { /* beaconed on unmount */ } }
+      await acct.signOut();
+      if (source === 'account') await swap(async () => { if (!(await mountVault())) await mountGuest(); });
+      else if (acctBtn) acctBtn.replaceWith(acctBtn = acct.accountButton(null, accountMenu));
+    }
+
+    /* READ ONLY on the password store. With a token from the keypad the
+       current copy is fetched with it; without one, the password is asked
+       for. Either way the account keeps a backup of what it had. */
+    async function bringInVault() {
+      const [acct, ui] = await Promise.all([acctMod(), import('/notes/ui.js')]);
+      const u = acct.currentUser();
+      if (!u) return;
+      if (app) { app.flush(); try { await app.save(); } catch { /* retried below */ } }
+      let vault = token ? await unlock({ token }).catch(() => null) : null;
+      if (!vault) {
+        const password = await acct.askPassword(editor.querySelector('.nt-app'));
+        if (!password) return;
+        vault = await unlock({ password: password.toLowerCase() }).catch(() => null);
+        if (!vault) { ui.toast('That is not the password.', 'error'); return; }
+      }
+      token = vault.token;
+      store.set(TOKEN_KEY, token);
+      try {
+        const out = await acct.copyVaultInto(u, vault, (text) => setSave(text.toUpperCase(), 'saving'));
+        if (!out) return;
+        await swap(async () => { source = 'account'; await mountApp(asPayload(out.stored), null, out.backend); });
+        ui.toast('The password notes are now in this account.');
+      } catch (error) {
+        console.error('notes: bringing in the password notes failed', error);
+        ui.toast(`Not copied: ${error.message || error}`, 'error');
+      }
+    }
+
+    /* THE AI LAB's DexNote. It used to be a sandbox that kept nothing; it is
+       now the real app on this browser's guest notes (Dex, 2026-10-08) --
+       the same notes /dexnote/ keeps for a guest -- or on the account's once
+       someone is signed in here. A first open shows the tour document, and
+       nothing is written until it is edited. It can never reach the password
+       notes: no token goes with it, and that store answers nothing without
+       one.
+
+       No `#notes` in the address: this is not the password notes, and a link
+       someone shares must land on the portfolio rather than on a password
+       box. */
     async function openDemo(trigger) {
       demoMode = true;
       gate.hidden = true;
@@ -2302,7 +2435,11 @@ if (workModal) {
       editor.hidden = true;
       openModal(modal, modal.querySelector('.notes-shell'), null, trigger);
       if (frame) frame.classList.add('is-app');
-      await mountApp({ format: 'demo' }, null);
+      const acct = await acctMod();
+      const u = await acct.whoIsHere().catch(() => null);
+      if (!modal.open) return;
+      if (u) await mountAccount(u);
+      else await mountGuest();
     }
 
     document.addEventListener('notes:demo', (event) => {
@@ -2483,6 +2620,8 @@ if (workModal) {
         try { app.unmount(); } catch (error) { console.warn('notes: unmount threw', error); }
         app = null;
       }
+      source = null;
+      acctBtn = null;
       if (label) label.textContent = 'PRIVATE';
       if (padlock) padlock.dataset.icon = 'lock';
       editor.hidden = true;
