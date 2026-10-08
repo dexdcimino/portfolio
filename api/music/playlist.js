@@ -1,7 +1,7 @@
 /* Universal JWT verification (DexAuth).
    Accepts JWTs from /api/auth/unlock as an alternative to TUNES password.
    Uses shared AUTH_SECRET env var. */
-import { createHmac, timingSafeEqual } from 'crypto';
+const { createHmac, timingSafeEqual } = require('crypto');
 function verifyUniversalJWT(token) {
   const secret = process.env.AUTH_SECRET;
   if (!token || !secret) return false;

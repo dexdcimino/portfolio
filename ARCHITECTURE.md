@@ -2866,6 +2866,79 @@ answers `auth/unauthorized-domain` (the gate says so in words).
 `cloud.js` answered by a fake: real page, overlay, app, guest store and
 password store; not real Firebase.
 
+### Dex's account IS the DEXDC notes
+
+Signed in with Dex's own Google (verified `dexdcimino@gmail.com`, provider
+`google.com` -- `isOwner()` in `lib/site-identity.js`), every DexNote surface
+opens the keypad's document itself rather than a Firebase copy:
+`openAccount()` first hands the account's Firebase ID token to
+`/api/notes/unlock` (`idToken`), which verifies it with no Admin SDK and
+answers with the `private` store and a session token, exactly as the keypad's
+password does. `ownerBackend()` in `account.js` is the overlay's vault backend
+with one difference: a session that runs out is reopened with a fresh ID token
+instead of the password. Every other account gets a 403 there and keeps its
+own notes in Firebase; a token that does not verify is a 401; a failure to ask
+at all THROWS rather than falling back, so a network error cannot open the
+Firebase notes in the DEXDC notes' place.
+
+So the phone, `/dexnote/`, the AI Lab and the keypad all save to one
+document, and the rev/409 merge that already reconciles two devices covers
+them all. Nothing is ever moved INTO it automatically: for Dex the first
+sign-in does not merge the guest notes (they stay in that browser), and
+"Bring in the password notes" is not offered (it would copy the document onto
+itself). His Firebase document, if one was made earlier, is left as it was and
+is simply no longer opened.
+
+**Live.** `notes/app.js` asks the store whether another device saved
+(`refresh()`) on coming back to the tab, on focus, on coming back online, and
+every `LIVE_POLL` (60s) while the app is visible AND was touched in the last
+`LIVE_IDLE` (2 min). The idle rule is a cost rule: every read of the password
+store is a Vercel Blob operation on a monthly allowance, and a phone left open
+on a desk must not spend it.
+
+### The phone app (`/dexnote/` installed)
+
+The same page, installed the way Inko is (Dex, 2026-10-08). The AI Lab's
+DexNote card has a download button left of the eye that opens
+`/dexnote/?install=1`: the browser's own install prompt, or the Add to Home
+Screen steps.
+
+```
+dexnote/manifest.webmanifest  standalone, scope /dexnote/, the AI Lab card's
+                              icon (assets/icons/apps/dexnote.png) as any,
+                              maskable and monochrome
+dexnote/sw.js        network-first for code, cache-first for fonts, the emoji
+                     table, the vendored SDK and icons; never /api/
+dexnote/mobile.js    the phone shell: the header's controls re-homed
+dexnote/mobile.css   everything scoped to .nt-app.is-mobile
+```
+
+**One app, re-homed, not a second one.** Below 820px `main.js` mounts the app
+with `shell` (`phoneShell()` in `mobile.js`), and `mount()` hands it the app's
+OWN controls -- the formatting buttons, the node button, the search field, the
+sessions list, the save status -- so syncToolbar, search, the sessions sheet
+and the save loop are the desktop's, wherever they sit. What the app itself
+learns is `ctx.mobile` (render.js puts a category's chevron and emoji INSIDE
+its title strip, so the box is the full width) and `ctx.sessionMenu` (a ⋯ on
+each session row: rename, colour, move, delete). The header is hidden; the bar
+along the bottom is outliner, search, sessions, formatting, profile. Search and
+formatting open a second bar above it (Inko's options bar); the outliner is a
+drawer with no foot; sessions and the profile are sheets. One open at a time.
+The bars ride above the keyboard (`--kb` from `visualViewport`;
+`interactive-widget=resizes-content` makes it 0 on Android).
+
+**Updates are Inko's.** `main.js` HEADs the files the app is made of and joins
+their ETags; when that changes under a running app it saves, reloads, and
+toasts "Updated — build …". The worker is network-first, so the reload gets the
+new files. A first visit posts the list of what it loaded to the worker, so the
+very next launch works offline. The spelling worker's own files are precached
+by name (a worker's loads are not in the page's list), and `spell-worker.js`
+tolerates its dictionary being unreachable.
+
+**Checked by** `tools/dexnote_phone_check.mjs`, which brings its own dev server
+and its own certificate server, so the ID tokens it signs go through the real
+`site-identity.js` and the real `/api/notes/unlock`.
+
 ## The site account (`/account/`)
 
 One account for everything on dexcimino.com (Dex, 2026-10-08). It is the

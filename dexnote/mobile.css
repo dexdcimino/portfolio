@@ -1,0 +1,203 @@
+/* DexNote on a phone (dexnote/mobile.js). Everything here is scoped to
+   .nt-app.is-mobile, which only the /dexnote/ page sets and only on a narrow
+   screen: the homepage overlay and the desktop page are untouched.
+
+   The shape is Inko's: a floating bar along the bottom, a second bar that
+   opens above it, and the notes using everything else. The old dexnote.dev
+   phone layout is where the spacing comes from (20px 12px canvas, 20px
+   between categories, 16px text so iOS does not zoom into a field). */
+
+.nt-app.is-mobile {
+  --bar-h: 60px;
+  --bars-gap: 8px;
+  --kb: 0px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --dock: calc(var(--bar-h) + var(--bars-gap) * 2 + var(--safe-b));
+  --panel: color-mix(in srgb, var(--bg2) 92%, transparent);
+}
+.nt-app.is-mobile[data-theme="light"] { --panel: color-mix(in srgb, #dfe3e8 92%, transparent); }
+
+/* ---- no header ---------------------------------------------------------- */
+.nt-app.is-mobile .nt-header { display: none; }
+.nt-app.is-mobile .nt-sb-tab { display: none; }
+.nt-app.is-mobile .nt-pill { top: calc(env(safe-area-inset-top, 0px) + 10px); left: 12px; }
+
+/* ---- the notes get the screen ------------------------------------------- */
+.nt-app.is-mobile .nt-canvas-inner {
+  --gutter: 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) 12px calc(var(--dock) + var(--kb) + 40vh) 12px;
+}
+.nt-app.is-mobile .nt-slide-ghost { padding: calc(env(safe-area-inset-top, 0px) + 18px) 12px 0; }
+.nt-app.is-mobile .nt-session-head { gap: 8px; margin-bottom: 20px; padding-bottom: 10px; }
+.nt-app.is-mobile[data-theme="light"] .nt-session-head { margin: 0 -4px 20px; padding: 8px 12px; }
+.nt-app.is-mobile .nt-session-emoji { width: 38px; height: 38px; font-size: 17px; border-radius: 10px; }
+.nt-app.is-mobile .nt-session-emoji.is-emoji { font-size: 23px; }
+.nt-app.is-mobile .nt-session-title { font-size: 24px; padding: 2px 4px; }
+.nt-app.is-mobile .nt-session-addtop { opacity: 1; }
+.nt-app.is-mobile .nt-session-color { width: 28px; height: 28px; }
+.nt-app.is-mobile .nt-cat { margin-bottom: 18px; }
+
+/* THE EMOJI IN THE TITLE STRIP (render.js puts the aside inside the head when
+   ctx.mobile): the box is the full width of the screen, and the chevron and
+   the badge are the first two things on the strip. */
+.nt-app.is-mobile .nt-cat-shell { display: block; }
+.nt-app.is-mobile .nt-cat-head { padding: 0 4px 0 4px; gap: 4px; height: 40px; }
+.nt-app.is-mobile .nt-cat-head .nt-cat-aside { position: static; margin: 0; height: auto; gap: 0; flex: 0 0 auto; }
+.nt-app.is-mobile .nt-cat-toggle { width: 24px; height: 30px; }
+.nt-app.is-mobile .nt-cat-emoji { width: 30px; height: 30px; border-radius: 8px; font-size: 14px; border-width: 1.5px; }
+.nt-app.is-mobile .nt-cat-emoji.is-emoji { font-size: 18px; }
+.nt-app.is-mobile .nt-cat-title { padding: 3px 4px; font-size: calc(var(--fs) + 4px); }
+/* No hover on a phone, so the strip's controls are simply there. */
+.nt-app.is-mobile .nt-cat-more, .nt-app.is-mobile .nt-cat-x { opacity: .7; width: 32px; height: 32px; }
+.nt-app.is-mobile .nt-body { padding: 10px 12px; font-size: max(16px, var(--fs)); }
+
+/* ---- the bars ------------------------------------------------------------ */
+.dm-bars {
+  position: fixed; left: 0; right: 0; bottom: var(--kb); z-index: 50;
+  display: flex; flex-direction: column; align-items: center; gap: var(--bars-gap);
+  padding: 0 10px calc(var(--safe-b) + var(--bars-gap));
+  pointer-events: none;
+  transition: bottom .18s ease;
+}
+/* With the keyboard up the home indicator is under the keyboard, not under
+   the bar, so its inset is room nobody needs. */
+.nt-app.has-kb .dm-bars { padding-bottom: 6px; }
+.dm-bar, .dm-subbar {
+  pointer-events: auto; box-sizing: border-box;
+  width: 100%; max-width: 560px; height: var(--bar-h);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 12px;
+  background: var(--panel); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  border: 1px solid var(--bdr); border-radius: 24px; box-shadow: 0 8px 28px rgba(0,0,0,.35);
+}
+.nt-app[data-theme="light"] .dm-bar, .nt-app[data-theme="light"] .dm-subbar { box-shadow: 0 8px 24px rgba(0,0,0,.14); border-color: rgba(0,0,0,.08); }
+.dm-subbar { display: none; height: 54px; border-radius: 20px; padding: 0 8px; animation: dm-rise .16s ease-out; }
+.nt-app.show-fmt .dm-fmtbar, .nt-app.show-find .dm-findbar { display: flex; }
+@keyframes dm-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .dm-subbar, .dm-sheet { animation: none !important; } }
+
+.dm-btn {
+  position: relative; width: 48px; height: 46px; flex: 0 0 auto; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 15px; background: none; color: var(--tx2);
+  -webkit-tap-highlight-color: transparent; transition: background var(--ease), color var(--ease);
+}
+.dm-btn svg { width: 24px; height: 24px; }
+.dm-btn.is-on { color: var(--c-title); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.dm-btn:active { background: var(--bg4); }
+.dm-avatar { width: 30px; height: 30px; border-radius: 50%; display: block; object-fit: cover; }
+.dm-btn.has-avatar svg { display: none; }
+.dm-btn.has-avatar.is-on .dm-avatar { box-shadow: 0 0 0 2px var(--c-title); }
+/* The save state, as a dot on the profile: amber while saving, red when a
+   save failed. Nothing while all is well. */
+.dm-sync { position: absolute; top: 7px; right: 8px; width: 8px; height: 8px; border-radius: 50%; display: none; }
+.dm-sync.is-saving { display: block; background: #e0b020; }
+.dm-sync.is-error { display: block; background: var(--danger); }
+
+/* The formatting bar: the app's own buttons, bigger for a thumb. */
+.dm-fmtbar { justify-content: space-between; }
+.dm-fmtbar .nt-fmt, .dm-fmtbar .nt-icon-btn { width: 38px; height: 40px; border-radius: 11px; }
+.dm-fmtbar .nt-fmt svg { width: 20px; height: 20px; }
+.dm-fmtbar .nt-node-btn { height: 40px; }
+.dm-gap { width: 1px; height: 24px; background: var(--bdr); flex: 0 0 auto; }
+
+/* The search bar: the app's own search, open, filling the bar. */
+.dm-findbar { gap: 4px; padding: 0 6px 0 10px; }
+.dm-findbar .nt-header-search { flex: 1 1 auto; min-width: 0; display: flex; }
+.dm-findbar .nt-search { width: 100% !important; flex: 1 1 auto; }
+.dm-findbar .nt-search-input { font-size: 16px; }
+.dm-find-x { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: 12px; background: none; color: var(--tx2); }
+.dm-find-x svg { width: 20px; height: 20px; }
+
+/* ---- the outliner, as a drawer ------------------------------------------ */
+.nt-app.is-mobile .nt-sidebar,
+.nt-app.is-mobile.is-rail .nt-sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
+  width: min(86vw, 360px); flex-basis: auto;
+  padding: env(safe-area-inset-top, 0px) 0 var(--dock);
+  box-sizing: border-box; transform: translateX(-105%);
+  transition: transform .28s cubic-bezier(.2,.7,.2,1); box-shadow: none;
+  border-right: 1px solid var(--bdr);
+}
+.nt-app.is-mobile[data-theme="light"] .nt-sidebar { background: #c6ccd3; }
+.nt-app.is-mobile.show-outliner .nt-sidebar { transform: none; box-shadow: 10px 0 40px rgba(0,0,0,.45); }
+/* Always the full panel on the phone: the rail is a desktop fold, and the
+   desktop's fold is saved in the document, so it would otherwise reach here. */
+.nt-app.is-mobile .nt-rail { display: none !important; }
+.nt-app.is-mobile.is-rail .nt-sidebar-panel { opacity: 1; pointer-events: auto; transform: none; position: static; }
+.nt-app.is-mobile .nt-sidebar-panel { min-width: 0; }
+/* Just the outliner and the archive: New Category is on the canvas and New
+   Session is in the sessions sheet. */
+.nt-app.is-mobile .nt-sidebar-foot { display: none; }
+.nt-app.is-mobile .nt-row { min-height: 42px; font-size: 15px; }
+
+.dm-scrim {
+  position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.45);
+  opacity: 0; pointer-events: none; transition: opacity .22s ease;
+}
+.nt-app.show-outliner .dm-scrim, .nt-app.show-profile .dm-scrim, .nt-app.is-mobile.show-sessions .dm-scrim { opacity: 1; pointer-events: auto; }
+
+/* ---- sheets from the bottom: sessions and profile ---------------------- */
+.dm-sheet {
+  position: fixed; left: 10px; right: 10px; bottom: calc(var(--dock) + var(--kb)); z-index: 45;
+  max-width: 560px; margin: 0 auto;
+}
+.dm-sess-sheet .nt-sesslist {
+  position: static; max-height: 62vh; display: none; flex-direction: column;
+  border-radius: 20px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+}
+.nt-app.is-mobile.show-sessions .dm-sess-sheet .nt-sesslist { display: flex; animation: dm-rise .16s ease-out; }
+.dm-sess-sheet .nt-sesslist-head { padding: 12px 10px 12px 18px; font-size: 17px; }
+.dm-sess-sheet .nt-sesslist-x { width: 36px; height: 36px; }
+.dm-sess-sheet .nt-sesslist-rows { max-height: none; flex: 1 1 auto; padding: 6px; }
+.dm-sess-sheet .nt-sess-row { min-height: 52px; padding: 6px 6px 6px 10px; font-size: 16px; border-radius: 12px; }
+.dm-sess-sheet .nt-sess-row-x { width: 36px; height: 36px; }
+.dm-sess-sheet .nt-sesslist-foot { padding: 8px 10px 10px; }
+.dm-sess-sheet .nt-sesslist-new { padding: 12px; font-size: 15px; }
+.dm-sess-sheet .nt-sesslist-io { width: 46px; }
+.nt-sess-row-more {
+  width: 36px; height: 36px; flex: 0 0 auto; display: grid; place-items: center; padding: 0; border: 0;
+  border-radius: 8px; background: none; color: var(--c-title); opacity: .8;
+}
+.nt-sess-row-more svg { width: 18px; height: 18px; }
+
+.dm-psheet {
+  display: none; max-height: 72vh; overflow-y: auto; box-sizing: border-box;
+  background: var(--bg2); border: 1px solid var(--bdr); border-radius: 20px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  padding: 0 0 12px; color: var(--tx);
+}
+.nt-app[data-theme="light"] .dm-psheet { background: #d3d8de; }
+.nt-app.show-profile .dm-psheet { display: block; animation: dm-rise .16s ease-out; }
+.dm-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px 6px 18px; }
+.dm-sheet-title { font-size: 17px; font-weight: 700; }
+.dm-sheet-x { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 10px; background: none; color: var(--tx3); }
+.dm-sheet-x svg { width: 18px; height: 18px; }
+.dm-who { display: flex; align-items: center; gap: 12px; padding: 6px 18px 4px; }
+.dm-who-pic { width: 48px; height: 48px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center; background: var(--bg4); color: var(--tx2); object-fit: cover; }
+.dm-who-pic svg { width: 26px; height: 26px; }
+.dm-who-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dm-who-name { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-who-sub { font-size: 13px; color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-status { margin: 4px 18px 10px; font-size: 12px; letter-spacing: .04em; color: var(--tx3); }
+.dm-group { margin: 0 12px 10px; padding: 4px 0; border-radius: 14px; background: var(--bg3); }
+.nt-app[data-theme="light"] .dm-group { background: rgba(255,255,255,.5); }
+.dm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 0 12px 0 14px; }
+.dm-row + .dm-row { border-top: 1px solid color-mix(in srgb, var(--bdr) 70%, transparent); }
+.dm-row-label { font-size: 15px; }
+.dm-seg { display: flex; gap: 2px; padding: 3px; border-radius: 11px; background: var(--bg); }
+.nt-app[data-theme="light"] .dm-seg { background: rgba(0,0,0,.08); }
+.dm-seg-btn { min-width: 44px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--tx2); font: inherit; font-size: 14px; font-weight: 600; }
+.dm-seg-btn.is-on { background: var(--bg4); color: var(--c-title); }
+.nt-app[data-theme="light"] .dm-seg-btn.is-on { background: #fff; }
+.dm-pick { height: 36px; padding: 0 12px; border: 1px solid var(--bdr); border-radius: 10px; background: none; color: var(--tx); font: inherit; font-size: 14px; }
+.dm-action {
+  display: flex; align-items: center; width: 100%; min-height: 48px; padding: 0 14px; border: 0; background: none;
+  color: var(--tx); font: inherit; font-size: 15px; text-align: left;
+}
+.dm-action + .dm-action { border-top: 1px solid color-mix(in srgb, var(--bdr) 70%, transparent); }
+.dm-action.is-primary { color: var(--c-title); font-weight: 700; }
+.dm-action.is-danger { color: var(--danger); }
+.dm-build { margin: 6px 18px 0; font-size: 11px; color: var(--tx3); text-align: center; }
+
+/* Above the bars, not behind them. */
+.nt-app.is-mobile .nt-toast { left: 16px; right: 16px; bottom: calc(var(--dock) + var(--kb) + 64px); max-width: none; text-align: center; }
+.nt-app.is-mobile .nt-panel { max-width: calc(100vw - 20px); }
+.nt-app.is-mobile .nt-menu-item { min-height: 44px; }

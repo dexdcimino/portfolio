@@ -165,11 +165,102 @@ export function hasContent(doc) {
     c.title !== 'New Category' || /<img/.test(c.body) || c.body.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()));
 }
 
+/* ---- Dex's account IS the DEXDC notes ------------------------------------ */
+
+/* The server decides, never this file: /api/notes/unlock is handed the
+   account's ID token and answers with the keypad's document only for Dex's
+   verified Google (lib/site-identity.js isOwner). Any other account is a 403
+   and keeps its own notes in Firebase. So there is one document, not a copy
+   that drifts: the phone, /dexnote/ and the keypad all save to it, and the
+   rev check that already merges two devices covers all three.
+   Returns { token, payload } for Dex, null for anyone else, and THROWS when
+   the question could not be asked -- a network failure must not quietly open
+   the Firebase notes in the DEXDC notes' place. */
+async function ownerVault(u) {
+  if (!u || typeof u.getIdToken !== 'function') return null;
+  const idToken = await u.getIdToken();
+  const res = await fetch('/api/notes/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }) });
+  if (res.status === 401 || res.status === 403) return null;
+  if (!res.ok) throw new Error(`your notes could not be opened (HTTP ${res.status})`);
+  return res.json();
+}
+
+/* The keypad's store, for a signed-in Dex. The same calls the overlay's
+   vault backend makes (notes/app.js), with one difference: a session that
+   runs out (eight idle hours) is reopened with a fresh ID token instead of
+   asking for the password. */
+function ownerBackend(u, first) {
+  let token = first;
+  const post = (path, body) => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  async function reopen() {
+    const v = await ownerVault(u).catch(() => null);
+    token = v ? v.token : null;
+    return !!token;
+  }
+  async function withToken(call) {
+    let res = await call(token);
+    if (res.status === 401 && await reopen()) res = await call(token);
+    return res;
+  }
+  return {
+    kind: 'vault',
+    owner: true,
+    lockedText: 'SIGNED OUT — SIGN IN TO SAVE',
+    ready: () => !!token,
+    async save(doc, baseRev) {
+      const res = await withToken((t) => post('/api/notes/save', { token: t, doc, baseRev }));
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) { token = null; return { locked: true }; }
+      if (res.status === 409) return { conflict: true, doc: data.doc, rev: data.rev };
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      if (data.token) token = data.token;
+      return { rev: data.rev, savedAt: data.savedAt };
+    },
+    async load() {
+      const res = await withToken((t) => post('/api/notes/unlock', { token: t }));
+      if (res.status === 401) return { locked: true };
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.token) token = data.token;
+      if (data.format !== 'json') return null;
+      return { doc: data.content, rev: Number(data.rev), savedAt: data.savedAt };
+    },
+    beacon(doc, baseRev) {
+      const blob = new Blob([JSON.stringify({ token, doc, baseRev })], { type: 'application/json' });
+      return !!(navigator.sendBeacon && navigator.sendBeacon('/api/notes/save', blob));
+    },
+    async uploadAsset(blob, type) {
+      const data = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result).split(',')[1]);
+        fr.onerror = () => reject(new Error('could not read the image'));
+        fr.readAsDataURL(blob);
+      });
+      const res = await withToken((t) => post('/api/notes/asset', { token: t, type, data }));
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`);
+      return out.key;
+    },
+    assetSrc: (key) => `/api/notes/asset?key=${encodeURIComponent(key)}&t=${encodeURIComponent(token)}`,
+  };
+}
+
 /* An account's notes, with this browser's guest notes moved in first if
    there are any: pictures uploaded, the two merged (the account's settings
    win, every session from both sides is kept), the browser's copy cleared.
    `busy(text)` is told what is happening. Returns { backend, stored, moved }. */
 export async function openAccount(u, busy = () => {}) {
+  /* Dex first. NOTHING is moved into the DEXDC notes automatically: a guest
+     document on this device stays where it is, untouched, for him to look at
+     signed out. `owner` tells the caller not to offer the password-notes copy,
+     which would be copying the document onto itself. */
+  const vault = await ownerVault(u);
+  if (vault) {
+    const backend = ownerBackend(u, vault.token);
+    const doc = vault.format === 'json' ? vault.content : null;
+    if (!doc) throw new Error('the DEXDC notes need opening once from the homepage keypad first');
+    return { backend, stored: { doc, rev: Number(vault.rev), savedAt: vault.savedAt }, moved: false, owner: true };
+  }
   const { cloudBackend } = await loadCloud();
   const backend = cloudBackend(u);
   let stored = await backend.load();
