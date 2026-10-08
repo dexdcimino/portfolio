@@ -309,11 +309,11 @@ try {
   await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
   await B.click('#v-close'); await sleep(300);
   const afterButton = await state();
-  // And one more back from the grid lands on the canvas, still inside the app.
+  // Back from Public follows the way B came: to B's own gallery, still in the app.
   await B.goBack().catch(() => {}); await sleep(400);
-  const afterBack2 = await B.evaluate(() => ({ gallery: document.getElementById('gallery').classList.contains('open'), inko: location.pathname }));
+  const afterBack2 = await B.evaluate(() => ({ gallery: document.getElementById('gallery').classList.contains('open'), mode: document.getElementById('gallery').className, inko: location.pathname }));
   note(!afterBack.viewer && afterBack.gallery && !afterSwipe.viewer && afterSwipe.gallery && !afterButton.viewer && afterButton.gallery
-    && !afterBack2.gallery && afterBack2.inko === '/inko/',
+    && afterBack2.gallery && /mode-mine/.test(afterBack2.mode) && afterBack2.inko === '/inko/',
     `leaving the viewer: back gesture ${JSON.stringify(afterBack)}, swipe ${JSON.stringify(afterSwipe)}, button ${JSON.stringify(afterButton)}; back again ${JSON.stringify(afterBack2)}`);
   await B.click('#grid-btn'); await sleep(300);
   if (await B.evaluate(() => document.getElementById('g-tab-public').textContent.trim() === 'Public')) { await B.click('#g-tab-public'); await sleep(400); }
@@ -665,10 +665,14 @@ try {
     note(/mode-user/.test(prof2.mode) && prof2.name === '@face_b' && /sketch%2Favatars%2Fface_b-1\.jpg/.test(prof2.pic) && prof2.cards.includes('From B') && prof2.search === '',
       `face_b's profile: ${JSON.stringify(prof2)}`);
     await shot(D, '6-user');
-    await D.click('#g-back'); await sleep(900);
+    // Back goes where the search started (your gallery); Public then shows her face on the card.
+    await D.click('#g-back'); await sleep(600);
+    const backTo = await D.evaluate(() => document.getElementById('gallery').className);
+    note(/mode-mine/.test(backTo), `back from a profile searched from your gallery: ${backTo}`);
+    await D.click('#g-tab-public'); await sleep(900);
     const pub = await D.evaluate(() => ({ mode: document.getElementById('gallery').className,
       by: [...document.querySelectorAll('.g-item')].filter(e => e.querySelector('img')?.alt === 'From B').map(e => e.querySelector('.p-by .avatar').style.backgroundImage) }));
-    note(/mode-public/.test(pub.mode) && pub.by.length === 1 && /face_b-1\.jpg/.test(pub.by[0]), `back from a profile, Public with B's face on the card: ${JSON.stringify(pub)}`);
+    note(/mode-public/.test(pub.mode) && pub.by.length === 1 && /face_b-1\.jpg/.test(pub.by[0]), `Public with B's face on the card: ${JSON.stringify(pub)}`);
 
     // Rename from the edit button: the canvases on this phone follow the name.
     await D.click('#g-tab-mine'); await sleep(300);
