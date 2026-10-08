@@ -872,7 +872,7 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     "hide this artist". Writes are read-modify-write with no lock --
     fine at this scale, and the first thing to change (a ledger per post, as
     the notes store has) when the feed is busy enough to race.
-  **The social layer** -- follows and comments; shared canvases next --
+  **The social layer** -- follows, comments and shared canvases --
   is `lib/sketch-social.js` behind the same endpoint and `inko/social.js` in
   the app, kept out of the core files on purpose. The app side sees app.js
   only through `window.inkoBridge` and the `inko:tab`, `inko:user`,
@@ -889,7 +889,25 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   can delete one (hold it); three reports hide it. Each account keeps the
   list of its own comments, so a rename re-signs them and a deletion takes
   them down; unpublishing a drawing takes its comments with it
-  (`removePost`). The fire filter needs nothing new on the server: it is the feed
+  (`removePost`). SHARED CANVASES are `inko/room.js`, loaded only when a
+  room opens: the canvas screen again (the picture, undo | size, then back,
+  invite | brush/eraser | colour, chat; the swatch swaps in H/S/B) over
+  everything, with a chat sheet. The live part is FIRESTORE in the site's
+  Firebase project (dexnote-d7047), because Vercel holds no sockets and the
+  Blob store bills every write: `inko/room-firestore.js` is the only file
+  that knows it, signs in ANONYMOUSLY (no auth iframe, so the CSP keeps
+  `frame-src` out), and streams each stroke as chunks every 140 ms into
+  `inkoRooms/<id>/strokes`, chat into `/chat`. The 24-letter room id is the
+  key; `docs/inko-rooms.rules` is the rules block (get by exact id, never
+  list, delete only your own strokes), pasted into the project's rules by
+  hand. Undo takes back your own last stroke; a clear bumps `gen`. The
+  invitation is the only part on this server: `room-invite` drops the id in
+  `sketch/inbox/<handle>.json` (a week), read on launch, foreground and your
+  gallery, and shown as a card above the bars. Ways in: the brushes beside
+  Follow (a room, and they are invited), Draw together on your own gallery
+  (invitations, rooms you were in, a new one), the card, and `?room=`.
+  Leaving keeps the picture as a card in your gallery (`inkoBridge.addCanvas`,
+  one per room). The fire filter needs nothing new on the server: it is the feed
   narrowed by the votes the app already fetches, so it is public-only by
   construction. `tools/social_check.mjs` checks both halves.
   `tools/sketch_check.mjs` runs the real handler on a scratch store: the

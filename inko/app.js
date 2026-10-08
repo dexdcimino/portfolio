@@ -20,7 +20,7 @@ if (EMBED) document.body.classList.add('embed');
    Checked on launch, every time the app comes back to the foreground, and
    every five minutes while it is open. A new build: the drawing is saved,
    and the app reloads itself. */
-const BUILD_FILES = ['/inko/app.js', '/inko/app.css', '/inko/index.html', '/inko/social.js', '/inko/social.css'];
+const BUILD_FILES = ['/inko/app.js', '/inko/app.css', '/inko/index.html', '/inko/social.js', '/inko/social.css', '/inko/room.js', '/inko/room-firestore.js'];
 let runningBuild = null;            // the signature this page loaded with
 async function deployedBuild(){
   const tags = await Promise.all(BUILD_FILES.map(async url => {
@@ -2627,6 +2627,18 @@ var inkoBridge = window.inkoBridge = {
   get myVotes(){ return myVoteFor; },
   api, toast, openModal, openAccount, openUser, avatarEl,
   renderFeed(){ renderFeed(); },
+  /* A shared canvas (inko/room.js) kept as a card in your gallery: one card
+     per room, replaced each time you leave it. */
+  async addCanvas({ id, title, bg, png }){
+    const existing = gallery.find(g => g.id === id), now = Date.now();
+    const item = { id, title, bg, png, thumb: await thumbBlob(png, bg), created: existing ? existing.created : now, ts: now,
+                   visibility: existing ? existing.visibility : 'private', owner: scope };
+    await idbPut('canvases', item);
+    gallery = [item, ...gallery.filter(g => g.id !== id)];
+    if (scope !== 'local') syncSoon();
+    if (galleryTab === 'mine' && $('gallery').classList.contains('open')) renderGallery();
+    return item;
+  },
 };
 
 init();

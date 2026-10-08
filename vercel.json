@@ -140,7 +140,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' data: blob: https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; frame-src https://dexnote-d7047.firebaseapp.com https://apis.google.com; worker-src 'self'; manifest-src 'self'; frame-ancestors 'self'; base-uri 'none'; object-src 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' data: blob: https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; frame-src https://dexnote-d7047.firebaseapp.com https://apis.google.com; worker-src 'self'; manifest-src 'self'; frame-ancestors 'self'; base-uri 'none'; object-src 'none'; upgrade-insecure-requests"
         },
         {
           "key": "X-Frame-Options",

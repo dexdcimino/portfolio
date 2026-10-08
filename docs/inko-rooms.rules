@@ -1,0 +1,32 @@
+    // ── inkoRooms — Inko's shared canvases (dexcimino.com/inko) ─────────────
+    //   Source of truth: github.com/dexdcimino/portfolio inko/room-firestore.js.
+    //   Paste this block into the dexnote-d7047 Firestore rules, ABOVE the
+    //   final "Deny everything else" match. Phones sign in anonymously; the
+    //   24-letter room id is the key, so a room is read only by its exact id
+    //   (never listed), and a phone deletes only its own strokes.
+    match /inkoRooms/{room} {
+      function roomId() { return room.size() >= 20 && room.size() <= 32; }
+      allow get: if isAuth() && roomId();
+      allow list: if false;
+      allow create: if isAuth() && roomId()
+        && request.resource.data.keys().hasOnly(['title', 'host', 'bg', 'gen', 'members', 'created'])
+        && request.resource.data.title is string && request.resource.data.title.size() <= 40;
+      allow update: if isAuth() && roomId()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'gen', 'bg', 'title']);
+
+      match /strokes/{s} {
+        allow read: if isAuth() && roomId();
+        allow create: if isAuth() && roomId()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.pts is list && request.resource.data.pts.size() <= 4000
+          && request.resource.data.color is string && request.resource.data.color.size() <= 32;
+        allow delete: if isAuth() && resource.data.uid == request.auth.uid;
+      }
+      match /chat/{m} {
+        allow read: if isAuth() && roomId();
+        allow create: if isAuth() && roomId()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.t is string
+          && request.resource.data.t.size() > 0 && request.resource.data.t.size() <= 280;
+      }
+    }
