@@ -3928,6 +3928,25 @@ appears only once both silent tries come back empty. Asserted synchronously in
 `music_check.mjs` (the state exists for one frame), in both directions: with no
 code and no token the keypad is still what shows immediately.
 
+## Mission Control (code `WORK`)
+
+The work overlay (`#dashModal`) is an iframe of a SEPARATE deployment,
+`work-kohl-kappa.vercel.app`, built from the `dexdcimino/work` repo. Nothing
+of its content lives here. Its public half (the target board and watchlist)
+is in that repo's `index.html`; its private half (cash, the quick-cash
+ladder, rules, guides, contracts, funding) is served by its `/api/private`
+only to a DexAuth token, and that repo must stay private on GitHub because
+the private text sits in the function source.
+
+The padlock over the overlay takes Dex's password, mints the universal JWT
+(`api/auth/unlock`) and posts it into the frame as `dex-auth`; closing the
+overlay posts `dex-lock`. The work deployment checks the token with its own
+`AUTH_SECRET` when that is set, and otherwise asks **`api/auth/verify`**,
+which is why that file has a default handler: GET with `Authorization:
+Bearer <jwt>` answers `{ ok, tier, exp }` or 401. It holds no data and grants
+nothing a token did not already grant. It was a function slot before (a file
+in `api/` with no handler), so it costs no extra slot.
+
 ## Known-outstanding
 
 The Work overlay is real art now, but its SELECTION is not settled: 350
