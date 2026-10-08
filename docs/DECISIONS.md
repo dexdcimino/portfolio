@@ -25,6 +25,33 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — One site account: Firebase is the parent, the apps are children
+
+**Decided.** dexcimino.com has one account. It is the Firebase project DexNote
+already used (`dexnote-d7047`); `account/site-auth.js` is the only place a page
+signs in from, and `lib/site-identity.js` checks its ID token on the server.
+Each app keeps its data under the uid. Inko keeps its own store and handles,
+and links its handle to the uid.
+
+**Replaced.** Two account systems: DexNote on Firebase, Inko on its own OAuth
+(`lib/sketch-oauth.js`) with handles in Vercel Blob. Signing in to one did not
+sign in to the other.
+
+**Why Firebase and not Inko's OAuth.** Firebase already holds the DexNote
+accounts (and dexnote.dev's), already does Google, GitHub and Discord, keeps the
+sign-in across every page and frame of the origin by itself, and gives an app a
+per-user database with owner-only rules for nothing. Inko's OAuth would have
+needed a session layer, GitHub, and a store for every future app built from
+scratch, and moving DexNote's users off Firebase would have meant moving their
+data. Inko's accounts need no move: its existing Google and Discord ids are in
+the Firebase token, so they link on first sign-in.
+
+**Reverse it if** Firebase Auth stops being free at this size, or a sign-in the
+site needs cannot be had through it; then the uid becomes ours and
+`site-identity.js` is the one file that changes on the server.
+
+---
+
 ## 2026-10-08 — Inko: a profile picture is a live crop of one of your canvases
 
 **Decided.** Your profile picture is a square cut from a canvas you pick, re-rendered and

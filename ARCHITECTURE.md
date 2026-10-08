@@ -2639,6 +2639,65 @@ answers `auth/unauthorized-domain` (the gate says so in words).
 `cloud.js` answered by a fake: real page, app, guest store and password
 store; not real Firebase.
 
+## The site account (`/account/`)
+
+One account for everything on dexcimino.com (Dex, 2026-10-08). It is the
+Firebase project DexNote already used (`dexnote-d7047`), so every DexNote
+account already is one, with the same Google, GitHub and Discord sign-ins.
+Each app keeps its own data under it; the account is the parent, not any app.
+
+```
+account/site-auth.js   the client: onUser, currentUser, signIn(provider),
+                       signOut, idToken, errorText. The ONE place a page
+                       signs in from. Imports the SDK by the same URLs as
+                       dexnote/cloud.js, so a page loading both shares one app.
+account/index.html     the account page: sign in, who you are, sign out.
+account/main.js        Its card is DexNote's (notes.css + dexnote.css).
+lib/site-identity.js   the server: verify(idToken) -> claims, person(claims)
+```
+
+**Where each app's data lives, under the one uid:**
+
+```
+DexNote   Firestore users/{uid}/data/dexnote*            (dexnote/cloud.js)
+Inko      Vercel Blob, keyed by handle; the handle linked to the uid as
+          sketch/identities/firebase-<uid>.json           (sketch-store identifySite)
+later     users/{uid}/data/<app>* -- prefs, games, music
+```
+
+**Server check, no Admin SDK.** `verify()` checks an ID token the way Firebase
+documents for a third-party JWT library: RS256, a `kid` among Google's
+published certificates (cached for their own `max-age`), the signature, `aud`
+and `iss` naming the project, `exp`, `iat` and `auth_time`, a `sub`.
+
+**Inko links, it does not move.** `POST /api/sketch { action: 'site', idToken }`
+looks for the uid's link, then for the Google (`google.com`) or Discord
+(`oidc.discord`) identity in the token -- the same ids Inko's own sign-in filed
+accounts under -- so an Inko account made before the site account is FOUND and
+linked, not duplicated. No link means a ticket and the existing claim sheet;
+the claim links every id at once. An id already on another live account is
+left there. The Inko session it returns carries `site: true`: signing out of
+Inko signs out of the site, and an Inko that boots to find the site signed out
+(the `site:signedIn` flag that site-auth mirrors into localStorage) drops it.
+A boot that finds the site signed in and Inko not links quietly, without
+loading Firebase for anyone who never signs in.
+
+**Inside the homepage overlay** a popup is cut off by the homepage's
+`Cross-Origin-Opener-Policy: same-origin`, so Inko opens `/account/?then=close`
+in a new tab and watches Firebase, which shares the sign-in across the origin's
+tabs and frames. Inko's own redirect sign-in (`/api/sketch-auth/*`) stays as
+the fallback: a site sign-in that fails sends Inko there, and the account page
+opened from Inko offers it under the error.
+
+**Headers.** `/account/(.*)` has the Firebase CSP and
+`same-origin-allow-popups`; `/inko/(.*)` gained the same Firebase hosts and
+opener policy.
+
+**Checked by** `tools/site_account_check.mjs` (35 checks, no browser): the
+verify refusals, Inko finding old Google and Discord accounts, a new claim, an
+id not taken from another account, the reserved names, rename and delete, and
+the API's 401.
+
 ## Sound library (code `FOLEY`)
 
 Every sound the game needs, as cards in categories: a name, a dropdown of the
