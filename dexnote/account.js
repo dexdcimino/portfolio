@@ -110,14 +110,19 @@ export function signInCard({ note, signedIn, extra }) {
 }
 
 /* The same card as a sheet over a mounted app. Resolves with the user once
-   they are signed in, or null if they backed out. */
-export function signInSheet(root, note) {
+   they are signed in, or null if they backed out. With `signOut` (someone is
+   already signed in -- ~DEXDC, Dex 2026-10-08) it also offers Sign out, and
+   resolves 'signout' when that is pressed. */
+export function signInSheet(root, note, { signOut = false } = {}) {
   return new Promise((resolve) => {
     const close = (value) => { wrap.remove(); resolve(value); };
+    const btns = el('div', { class: 'nt-modal-btns' });
+    if (signOut) btns.append(el('button', { type: 'button', class: 'nt-btn is-danger is-left', text: 'Sign out', onclick: () => close('signout') }));
+    btns.append(el('button', { type: 'button', class: 'nt-btn', text: 'Not now', onclick: () => close(null) }));
     const card = signInCard({
       note,
       signedIn: (u) => close(u),
-      extra: [el('div', { class: 'nt-modal-btns' }, el('button', { type: 'button', class: 'nt-btn', text: 'Not now', onclick: () => close(null) }))],
+      extra: [btns],
     });
     const wrap = el('div', { class: 'nt-modal', onmousedown: (e) => { if (e.target === wrap) close(null); } }, card);
     wrap.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(null); } });

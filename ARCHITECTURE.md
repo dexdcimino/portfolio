@@ -4088,8 +4088,9 @@ reads the site-auth mirror flag first, so a visitor never downloads Firebase.
 **DEXDC is a way to his notes, not a key.** Typed in the tilde keypad, the
 Idea Vault or the notes keypad it fires `notes:mine`: the notes overlay opens
 on the account's notes (for Dex's Google, the DEXDC notes -- the server
-decides) and, signed out, the sign-in sheet comes up over it. Nothing is sent
-to a server for the code itself.
+decides) with the sign-in sheet over it -- signed out to sign in; signed in,
+saying who, with Sign out as well (`signInSheet(..., { signOut: true })`).
+Nothing is sent to a server for the code itself.
 
 The client-side Idea Vault codes are NOT behind this: their payloads ship in
 the page and are public by construction (the backlog and the doors), so a

@@ -30,7 +30,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(p => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 48;
+const EXPECTED = 51;
 
 const FAKE_CLOUD = `// Stand-in for dexnote/cloud.js: same exports, the "server" is a localStorage key.
 import { keyFor } from '/dexnote/local.js';
@@ -264,6 +264,18 @@ ok(await p.evaluate(() => /Sign in to open your notes/.test(document.querySelect
 ok(await clickText('Continue with Google'), 'Google pressed on that sheet');
 await p.waitForFunction(() => /acct marker/.test(document.querySelector('#notesEditor .nt-app')?.textContent || ''), { timeout: 15000 }).catch(() => {});
 ok(/acct marker/.test(await overlayText()) && !(await inOverlay('.dn-card')), 'and the sign-in lands on the account\'s notes');
+// Typed again while signed in: the same panel, saying who, with Sign out.
+await p.evaluate(() => document.body.focus());
+await p.keyboard.press('`');
+await p.waitForSelector('#codeModal[open] .vault-pin', { timeout: 5000 }).catch(() => {});
+await p.focus('#codeModal .vault-pin').catch(() => {});
+for (const ch of 'dexdc') { await p.keyboard.type(ch); await sleep(40); }
+await p.waitForSelector('#notesEditor .dn-card', { timeout: 20000 }).catch(() => {});
+const sheet = await p.evaluate(() => document.querySelector('#notesEditor .dn-card')?.textContent || '');
+ok(/Signed in as dex-google@example\.com/.test(sheet) && /Continue with Google/.test(sheet) && /Sign out/.test(sheet), `~dexdc signed in shows the sign-in panel with who and a Sign out: "${sheet.slice(0, 80)}"`);
+ok(await clickText('Sign out'), 'Sign out pressed on that panel');
+await p.waitForFunction(() => !JSON.parse(localStorage.getItem('fakecloud')).signedIn, { timeout: 10000 }).catch(() => {});
+ok(await p.evaluate(() => !JSON.parse(localStorage.getItem('fakecloud')).signedIn) && !/acct marker/.test(await overlayText()), 'and it signs out, taking the account\'s notes off the screen');
 ok(codeCalls === 0, `the code itself was sent to the notes server ${codeCalls} times`);
 
 const real = errors.filter((e) => !/favicon|Failed to load resource/.test(e));

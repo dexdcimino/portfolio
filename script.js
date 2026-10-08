@@ -2522,16 +2522,28 @@ if (workModal) {
     /* ~DEXDC (Dex, 2026-10-08): "have dexdc open the sign in for me from
        anywhere". The code opens nothing by itself any more -- it is the way
        to YOUR notes: the account's, which for Dex's own Google are the DEXDC
-       notes (the server decides, api/notes/unlock.js). Signed out, the
-       sign-in sheet comes up over them; signed in, they simply open. */
+       notes (the server decides, api/notes/unlock.js). The sign-in sheet
+       comes up over them either way; signed in, it says who and offers Sign
+       out as well ("it will still show the sign in options but have a sign
+       out option", Dex). */
     document.addEventListener('notes:mine', async (event) => {
       if (!modal.open) await openDemo((event.detail || {}).opener);
       if (!modal.open) return;
       const acct = await acctMod();
-      const u = await acct.whoIsHere().catch(() => null);
+      /* whoIsHere() settles once, on the first answer; currentUser() is who
+         is signed in NOW, after a sign-in or out since. */
+      await acct.whoIsHere().catch(() => null);
+      const u = acct.currentUser();
       if (!modal.open) return;
-      if (!u) await signInHere('Sign in to open your notes.');
-      else if (source !== 'account') await swap(() => mountAccount(u));
+      if (!u) { await signInHere('Sign in to open your notes.'); return; }
+      if (source !== 'account') await swap(() => mountAccount(u));
+      if (!modal.open || !editor.querySelector('.nt-app')) return;
+      if (app) app.flush();
+      const next = await acct.signInSheet(editor.querySelector('.nt-app'),
+        `Signed in as ${u.email || u.displayName || 'you'}.`, { signOut: true });
+      if (!modal.open) return;
+      if (next === 'signout') await signOutHere();
+      else if (next && next.uid !== u.uid) await swap(() => mountAccount(next));
     });
 
     async function unlock(body) {
