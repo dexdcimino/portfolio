@@ -1801,7 +1801,7 @@ if (workModal) {
          nobody can see. inert would be tidier; it is not old enough to rely on
          here, and this is two lines. */
       items.forEach((item, i) => {
-        item.querySelectorAll('button,a,[tabindex]').forEach(el => {
+        item.querySelectorAll('button,a,input,[tabindex]').forEach(el => {
           if (i === at) el.removeAttribute('tabindex');
           else el.setAttribute('tabindex', '-1');
         });
@@ -1814,6 +1814,103 @@ if (workModal) {
 
     show(0);
     return { show, get at() { return at; } };
+  }
+
+  /* A FEATURED SLOT WITH A REAL VIDEO (Mobius 3D). Muted autoplay while its
+     slot is the one showing and the section is on screen, paused otherwise --
+     a minute of 3D a visitor has scrolled past is battery spent on nobody.
+     The source is attached on first play, not in the markup, so a visitor who
+     never reaches the section never downloads a byte of it.
+
+     data-audio says the upload has a soundtrack; only then is there a mute
+     button, and the first unmute is the visitor's own press. */
+  function initFeaturedVideo(item) {
+    const src = item.dataset.src;
+    const video = item.querySelector('.fv-video');
+    const toggle = item.querySelector('.fv-toggle');
+    const scrub = item.querySelector('.fv-scrub');
+    const time = item.querySelector('.fv-time');
+    const mute = item.querySelector('.fv-mute');
+    const play = item.querySelector('.fv-play');
+    const eye = item.querySelector('[data-open-app]');
+    if (eye) eye.addEventListener('click', () => {
+      /* The AI Lab card's own eye does the opening, so the two can never
+         disagree about what the preview is. Down to the Apps tab first, so
+         the visitor lands where the card lives when they close it. */
+      const card = document.getElementById(eye.dataset.openApp);
+      if (!card) return;
+      document.getElementById('ai-tab-apps')?.click();
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      card.scrollIntoView({ behavior: still ? 'instant' : 'smooth', block: 'center' });
+      /* Open only once the page has arrived: a modal opened mid-scroll stops
+         the scroll where it is, and the preview opens over the video it came
+         from with the card nowhere in sight. scrollend where there is one; a
+         timer where there is not, or where nothing needed to move. */
+      let done = false;
+      const open = () => { if (done) return; done = true; card.querySelector('.ai-card-eye')?.click(); };
+      if (still) { open(); return; }
+      window.addEventListener('scrollend', open, { once: true });
+      setTimeout(open, 1100);
+    });
+    if (!src || !/^https:/.test(src) || !video) return;
+
+    const mmss = t => Number.isFinite(t) && t >= 0
+      ? Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') : '0:00';
+    const icon = (btn, name) => btn?.querySelector('.icon')?.setAttribute('data-icon', name);
+    let wanted = true;          // false once the visitor pauses it; a scroll never overrides that
+    let seen = false, scrubbing = false;
+
+    function paint() {
+      const playing = !video.paused && !video.ended;
+      // The bar hides under a playing video until it is hovered; paused, or
+      // still muted with a soundtrack to offer, the bar and the unmute stay up.
+      item.classList.toggle('is-playing', playing);
+      item.classList.toggle('is-muted', video.muted);
+      icon(toggle, playing ? 'pause' : 'play');
+      toggle?.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+      play?.setAttribute('aria-label', playing ? 'Pause Mobius 3D' : 'Play Mobius 3D');
+      if (mute) {
+        icon(mute, video.muted ? 'volume-off' : 'volume');
+        mute.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
+      }
+    }
+    function start() {
+      if (!video.src) { video.src = src; video.preload = 'auto'; }
+      video.play().catch(() => {});   // a refused autoplay leaves the poster and the disc up
+    }
+    function sync() {
+      if (wanted && seen && item.classList.contains('is-on') && !document.hidden) start();
+      else video.pause();
+    }
+
+    video.addEventListener('playing', () => { item.classList.add('is-live'); paint(); });
+    video.addEventListener('pause', paint);
+    video.addEventListener('loadedmetadata', () => {
+      if (mute && item.hasAttribute('data-audio')) mute.hidden = false;
+    });
+    video.addEventListener('timeupdate', () => {
+      if (scrubbing || !video.duration) return;
+      const pct = video.currentTime / video.duration * 100;
+      scrub.value = Math.round(pct * 10);
+      scrub.style.setProperty('--fill', pct + '%');
+      time.textContent = `${mmss(video.currentTime)} / ${mmss(video.duration)}`;
+    });
+    scrub.addEventListener('input', () => {
+      scrubbing = true;
+      scrub.style.setProperty('--fill', scrub.value / 10 + '%');
+      if (video.duration) video.currentTime = scrub.value / 1000 * video.duration;
+    });
+    scrub.addEventListener('change', () => { scrubbing = false; });
+    const flip = () => { wanted = video.paused || video.ended; if (wanted) start(); else video.pause(); };
+    toggle?.addEventListener('click', flip);
+    play?.addEventListener('click', flip);
+    mute?.addEventListener('click', () => { video.muted = !video.muted; paint(); });
+
+    new IntersectionObserver(entries => { seen = entries[entries.length - 1].isIntersecting; sync(); }, { threshold: .2 })
+      .observe(item);
+    new MutationObserver(sync).observe(item, { attributes: true, attributeFilter: ['class'] });
+    document.addEventListener('visibilitychange', sync);
+    paint();
   }
 
   const stage = document.querySelector('.fw-stage');
@@ -1838,7 +1935,14 @@ if (workModal) {
        same length drift apart, and the whole point is that these five move as
        one gesture. */
     if (videos) {
-      document.addEventListener('fw:advance-video', () => videos.show(videos.at + 1));
+      /* Except over a video that is playing: a minute-long recording cut off
+         by a timer is a carousel fighting its own content. It moves on when
+         the visitor pauses it or presses an arrow. */
+      document.addEventListener('fw:advance-video', () => {
+        const on = stage.querySelector('.fv-item.is-on');
+        if (on && on.classList.contains('is-live') && !on.querySelector('.fv-video').paused) return;
+        videos.show(videos.at + 1);
+      });
     }
 
     /* The description. Click rather than hover alone: hover is not available on
@@ -1870,9 +1974,12 @@ if (workModal) {
        CLAUDE.md keeps video off this host; these take streaming URLs when they
        exist, and at that point the AI Lab's player gets shared rather than
        copied. */
+    stage.querySelectorAll('.fv-has-video').forEach(initFeaturedVideo);
+
     stage.querySelectorAll('.fv-play').forEach(play => {
       play.addEventListener('click', () => {
         const item = play.closest('.fv-item');
+        if (item.matches('.fv-has-video[data-src^="https"]')) return;   // initFeaturedVideo owns it
         const meta = item && item.querySelector('.card-meta small');
         if (!meta) return;
         if (meta.dataset.said) return;
@@ -3389,6 +3496,23 @@ let flashTip = () => {};
     } else {
       tip.textContent = text;
     }
+    /* data-tip-thumb: a picture of what the control opens, above its label.
+       Cloned from a <picture> already on the page, never built as a URL --
+       a hand-built derivative URL is a second cache entry and goes stale
+       against `sizes` (CLAUDE.md, image pipeline). */
+    const thumbOf = el.dataset.tipThumb && document.querySelector(el.dataset.tipThumb);
+    tip.classList.toggle('has-thumb', !!thumbOf);
+    if (thumbOf) {
+      const pic = thumbOf.cloneNode(true);
+      pic.removeAttribute('class');
+      pic.querySelectorAll('source').forEach(source => source.setAttribute('sizes', '240px'));
+      const img = pic.querySelector('img');
+      if (img) { img.removeAttribute('class'); img.loading = 'eager'; img.alt = ''; }
+      const box = document.createElement('span');
+      box.className = 'tip-thumb';
+      box.append(pic);
+      tip.prepend(box);
+    }
     tip.classList.add('is-on');
     // Measure after the text lands, or the first show is positioned off the
     // previous label's width.
@@ -3408,7 +3532,7 @@ let flashTip = () => {};
   flashTip = (el, word, bang = '!') => {
     clearTimeout(flashing);
     rehome(el);
-    tip.classList.remove('is-loud');
+    tip.classList.remove('is-loud', 'has-thumb');
     tip.textContent = word;
     if (bang) {
       const mark = document.createElement('span');

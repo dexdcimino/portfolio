@@ -1183,6 +1183,80 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   letter-spacing:.01em;margin-top:8px}
 .fv-dl{right:18px;bottom:18px}
 
+/* --- a slot with a real video in it (Mobius 3D) ---
+   CONTAINED, never cropped: this is a recording of an app, and its controls
+   -- the accent swatches the video is about -- live at the right edge, which
+   a cover crop of a near-square wide-layout frame cut straight off. The
+   letterbox is the viewer's own background (#0a1821, src/background.js in
+   mobius-3d), so the bars read as more of the app. The recording is 4:3, the
+   middle of the 1.15-1.4 the desktop frame runs at; the one-column 16:10 frame
+   pillarboxes. The bar is pinned to the bottom edge, hidden under a playing
+   video until the frame is hovered (rules below), and the caption and the two
+   buttons sit above it rather than over it, which is the whole of "the
+   overlay must not cover the controls". */
+.fv-poster,.fv-poster img,.fv-video{
+  position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:contain;
+}
+.fv-has-video{background:#0a1821}
+/* Up against the top, so the spare height falls at the bottom where the
+   caption, the buttons and the bar already are, and less of the app sits
+   under them. */
+.fv-has-video .fv-poster img,.fv-video{object-position:50% 0}
+.fv-has-video .fv-matte{display:none}
+.fv-video{z-index:0;background:transparent;opacity:0;transition:opacity .4s ease}
+.fv-item.is-live .fv-video{opacity:1}
+.fv-has-video .card-shade{inset:44% 0 0;z-index:1}
+.fv-has-video .card-meta{bottom:76px;right:150px}
+/* No construction tape and no disc once it plays: the picture is the content. */
+.fv-item.is-live .fv-play{opacity:0}
+.fv-item.is-live .fv-play:focus-visible{opacity:1}
+.fv-actions{
+  position:absolute;right:18px;bottom:76px;z-index:4;display:flex;gap:10px;
+}
+.fv-act{
+  width:52px;height:52px;border-radius:14px;display:grid;place-items:center;padding:0;
+  cursor:pointer;border:0;color:#d4dae0;text-decoration:none;
+  background:rgba(6,8,11,.82);backdrop-filter:blur(5px);
+  box-shadow:0 6px 20px rgba(0,0,0,.35);
+  transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease;
+}
+.fv-act .icon{width:28px;height:28px}
+.fv-act:hover,.fv-act:focus-visible{background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.fv-act:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.fv-bar{
+  position:absolute;left:0;right:0;bottom:0;z-index:4;
+  display:flex;align-items:center;gap:12px;padding:20px 14px 12px;
+  background:linear-gradient(180deg,transparent,rgba(4,6,9,.6) 40%,rgba(4,6,9,.88));
+}
+.fv-bar .cl-scrub{flex:1 1 auto;min-width:60px}
+.fv-bar .cl-time{margin:0;flex:none}
+.fv-bar .cl-btn[hidden]{display:none}
+/* Playing, the bar keeps out of the picture until the pointer is over the
+   frame (or focus is in it): a click anywhere pauses, and paused it is up for
+   good. The unmute stays out while the sound is off, so the one thing a
+   visitor may want from a muted autoplay is never hidden. */
+.fv-bar{transition:opacity .25s ease,background .25s ease}
+.fv-bar>*{transition:opacity .25s ease}
+.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar{background:transparent}
+.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar>*:not(.fv-mute){opacity:0}
+.fv-item.is-playing:not(.is-muted):not(:hover):not(:has(:focus-visible)) .fv-mute{opacity:0}
+/* Before a source exists there is nothing to scrub. */
+.fv-has-video:not([data-src^="https"]) .fv-bar{display:none}
+.fv-has-video:not([data-src^="https"]) .card-meta{bottom:18px}
+.fv-has-video:not([data-src^="https"]) .fv-actions{bottom:18px}
+/* The eye's tip carries a picture of what it opens. */
+#tip .tip-thumb{display:block;width:240px;aspect-ratio:16/10;margin:-2px -4px 8px;border-radius:8px;overflow:hidden}
+#tip .tip-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+#tip.has-thumb{text-align:center}
+@media (max-width:767px){
+  /* initAppModal declines a phone, exactly as the AI Lab card's eye does. */
+  .fv-eye{display:none}
+  .fv-act{width:44px;height:44px;border-radius:12px}
+  .fv-act .icon{width:24px;height:24px}
+  .fv-has-video .card-meta{right:70px}
+  .fv-bar .cl-time{display:none}
+}
+
 /* The description is behind an icon rather than always on: it is a paragraph,
    and a paragraph laid over artwork is a caption nobody asked for. Top left,
    opposite the download. */
@@ -1206,7 +1280,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    left: 14 (the icon's own inset) + 38 (its width) + 12. */
 .fv-desc{
   position:absolute;top:14px;left:64px;z-index:3;margin:0;
-  width:max-content;max-width:calc(100% - 86px);min-height:38px;
+  width:max-content;max-width:min(calc(100% - 86px),24em);min-height:38px;
   display:flex;align-items:center;
   padding:9px 15px;border-radius:12px;
   font-size:14px;line-height:1.45;color:#d7dee8;
