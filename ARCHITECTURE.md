@@ -2626,7 +2626,10 @@ document, then saves the password notes over it. It only reads the password
 store.
 
 **Headers.** `/dexnote/(.*)` has its own CSP in `vercel.json` (Firebase hosts
-for connect/img, the auth domain as the one frame) and
+for connect/img, the auth domain and `apis.google.com` as frames, and
+`apis.google.com` as the one outside script -- Firebase Auth loads `gapi` from
+there for the sign-in popup, and without it every sign-in fails with
+`auth/internal-error`) and
 `Cross-Origin-Opener-Policy: same-origin-allow-popups`, because the site-wide
 `same-origin` cuts the sign-in popup off from the page that opened it.
 `notes_dev_server.mjs` reads that CSP out of `vercel.json` for `/dexnote/`.

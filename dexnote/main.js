@@ -70,7 +70,8 @@ function signInError(err) {
   if (code === 'auth/unauthorized-domain') return 'This address is not allowed to sign in yet. It has to be added to the Firebase project’s authorized domains.';
   if (code === 'auth/popup-blocked') return 'The sign-in window was blocked. Allow pop-ups for this site and try again.';
   if (code === 'auth/account-exists-with-different-credential') return 'That email already signs in with a different provider. Use the one you used before.';
-  return 'Sign-in did not work. Try again.';
+  // Anything else carries Firebase's own code, so a screenshot says what broke.
+  return `Sign-in did not work (${code || (err && err.message) || 'unknown error'}). Try again.`;
 }
 
 function busy(text) {
