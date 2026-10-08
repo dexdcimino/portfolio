@@ -685,9 +685,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     sign-in on the device (no `meta` `seen:u:<handle>`) adopts every signed-out
     canvas and the signed-out draft.
   - **The canvas on screen is always a gallery card.** A new canvas is saved
-    the moment it is made, blank or not, named `Untitled N` (the lowest N
-    above every `Untitled N` already there); the gallery saves the live one
-    before it opens and rings it. Deleting it starts a fresh blank.
+    the moment it is made, blank or not, named by `nextUntitled()`: plain
+    `Untitled` when no untitled canvas is left, otherwise `Untitled N` one
+    above the highest there (the count only runs while one exists); the
+    gallery saves the live one before it opens and rings it. Deleting it
+    starts a fresh blank. The canvas window's title field is the width of
+    the H/S/B sliders under it (`placeCanvasTitle()` reads `#cv-hue`'s
+    rect), centred, 18px, with the lock over the undo column.
   - **Two colour controls that never cross.** The toolbar swatch opens the
     brush bar (`hue`/`sat`/`bri`), the top-left swatch the canvas window
     (`cv-hue`/`cv-sat`/`cv-bri`). They shared ids until 2026-10-08, so the
@@ -706,9 +710,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     the device. Signed out, nothing leaves it.
   - **The bottom bars are one box size** (`--bar-h`): the size bar is
     only redo, the scrub bar and undo on one centre line (the pixel size
-    shows while dragging, in `#size-preview`). The toolbar is options,
-    eyedropper | brush/eraser | swatch, symmetry. Options swaps the size bar
-    for the options bar (gallery, canvas, +, download, clear) and closes the
+    shows while dragging, in `#size-preview`). The toolbar is gallery,
+    eyedropper | brush/eraser | swatch, options -- the gallery at the far
+    left because it is the app's main way around (Dex, batch 13). Options
+    swaps the size bar for the options bar (symmetry, canvas, +, download,
+    clear) and closes the
     sliders, the eyedropper and the canvas colour window. Its canvas swatch
     opens the canvas window with the title and public/private as well as
     the colour (`popMode` 'canvas-opts'); the top-left swatch opens it with
@@ -772,8 +778,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     (`setTileOpts`).
   - **Search is a pill on the keyboard.** The bar's search button opens
     `#g-find` -- All / Artists / Canvases chips over the pill -- placed by
-    `placeFind()` from `visualViewport`, so it rides the keyboard and rests
-    above the bar when the keyboard goes. Artists come from `?users=`;
+    `placeFind()`. Where the VirtualKeyboard API exists the page sets
+    `overlaysContent` while searching and follows `geometrychange`, so the
+    pill's `bottom` transition (.26s) runs alongside the keyboard's own;
+    elsewhere it reads `visualViewport`. The keyboard going down closes the
+    search (unless Enter sent it down: the results stay), and back while
+    searching closes it and leaves you on the page you searched from.
+    Public, profiles and search results are three tiles wide. Artists come from `?users=`;
     canvas titles are matched on the device, over your own gallery and the
     feed already fetched (contains, prefix first) -- no server search. The
     chips keep the keyboard up (pointerdown is cancelled).
@@ -822,7 +833,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     `meta` `avatar:<scope>` with which canvas and which square, and every
     stroke, undo or colour change on THAT canvas redraws it (`picFollow`) and,
     signed in, sends it to the account a moment later. Until one is chosen it
-    is the default smiley. It moves with the canvases on a first sign-in.
+    is the default smiley, a light grey-blue (`#536980`) rather than yellow.
+    It moves with the canvases on a first sign-in. Deleting the account asks
+    twice: `openModal(..., 'twice')` arms the red button to "You sure?" and
+    only the second tap acts.
   - **Renaming moves the scope.** The edit button renames the account on the
     server (below), then re-owns every `u:<old>` canvas and `seen:`, `draft:`,
     `deletes:` and `avatar:` record on the device to `u:<new>`, without a
@@ -879,6 +893,30 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     went. Every authenticated request checks the token's handle is still a
     live account (`liveHandle`), so a rename or deletion ends the old tokens.
     Known limit: reactions the account gave stay filed under the old name.
+  - **Everything is rate-limited** (`lib/sketch-limits.js`, Dex batch 13),
+    with token buckets: `cap` at once, then one per `every` ms, answered over
+    the limit with 429, `Retry-After` and a sentence saying how long. KEPT
+    buckets (`sketch/limits/<name>-<key>.json`, one small read and write)
+    hold across instances and guard the rare, costly things: making an
+    account per address (5, then one per 12 minutes, for signup and claim
+    alike), a NEW canvas per account (120 at once -- a first sign-in brings
+    every signed-out canvas -- then one per 30 s; re-saving one the account
+    has is free), publishing (20, then one per 2 minutes) and renaming (3,
+    then one an hour). MEMORY buckets cost nothing and live in the warm
+    instance: every POST per address (240, then 4 a second), @-search,
+    password tries per address (20, then one per 20 s, before any one
+    account's own lockout), the site sign-in, comments, reactions and the
+    picture. Addresses are HMAC-hashed with the store's secret before use.
+    The escalating NEW-CANVAS cooldown Dex asked for -- 8 in a minute or 30
+    in ten go straight through, then 15 s, then one a minute until ten quiet
+    minutes -- is `cooldown()`, and it runs on the DEVICE (app.js
+    `rateCooldown`, kept in localStorage), because a canvas is made there,
+    often signed out; `sketch_check` drives both copies through the same
+    taps. Also: passwords are capped at 256 characters (scrypt on a megabyte
+    is a denial of service), a save stamped more than a day ahead is refused
+    (it would make every real save "older"), `votes` reads at most 100 posts
+    and `?users=` at most 20 characters, and deleting an account removes its
+    kept counts.
   - The feed is ONE JSON read, edge-cached for 10 s; images are served
     through the function (the store is private) under versioned keys, so
     their URLs are `immutable`. Because of that edge cache, for three minutes
