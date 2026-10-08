@@ -60,39 +60,28 @@ body{
   box-shadow:0 18px 50px rgba(0,0,0,.5); background:#536980; line-height:0;
 }
 #pad{touch-action:none; background:#536980; display:block;}
-/* A new or opened canvas (Dex, 2026-10-08): the one you were on is ERASED
-   on a diagonal, top left to bottom right, and the new one is written in
-   behind it along the same diagonal -- with a dark gap between the two
-   edges, so the swap shows even when both canvases are the same colour (the
-   first version faded the new one in under the old, and two blank canvases
-   of one colour swapped with nothing to see). The old one is a copy of #pad
-   laid over it (.pad-snap); #pad itself is masked while .swap is on, and the
-   frame's own fill goes dark so the gap is the page, not a third canvas. See
-   snapPad() in app.js; the timings are --wipe-ms and --wipe-lag. */
+/* A new or opened canvas (Dex, 2026-10-08, second take): a gentle
+   crossfade. The one you were on (.pad-snap, a copy of #pad laid over it)
+   fades out while the new one fades in a beat behind it, both eased, over
+   the frame's own darker fill -- so even two blank canvases of one colour
+   dip slightly and come back, and nothing sweeps across. The first take was
+   a diagonal wipe, and read as far too abrupt. See snapPad() in app.js; the
+   timings are --fade-ms and --fade-lag. */
 #canvas-frame{position:relative;}
-#canvas-frame.swap{background:#06070b;}
-.pad-snap, #canvas-frame.swap #pad{
-  -webkit-mask-size:300% 300%; mask-size:300% 300%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;}
-.pad-snap{position:absolute; left:0; top:0; pointer-events:none;
-  -webkit-mask-image:linear-gradient(135deg,transparent 46%,#000 54%); mask-image:linear-gradient(135deg,transparent 46%,#000 54%);
-  -webkit-mask-position:81% 81%; mask-position:81% 81%;}
-#canvas-frame.swap #pad{
-  -webkit-mask-image:linear-gradient(135deg,#000 46%,transparent 54%); mask-image:linear-gradient(135deg,#000 46%,transparent 54%);
-  -webkit-mask-position:81% 81%; mask-position:81% 81%;}
-.pad-snap.go{animation:padWipe var(--wipe-ms,520ms) linear forwards;}
-#canvas-frame.swap.go #pad{animation:padWipe var(--wipe-ms,520ms) linear var(--wipe-lag,220ms) both;}
-@keyframes padWipe{
-  /* A 300% mask: at 81% the edge sits just past the bottom-right corner,
-     at 19% just past the top-left, so the whole run is the edge crossing. */
-  from{-webkit-mask-position:81% 81%; mask-position:81% 81%}
-  to{-webkit-mask-position:19% 19%; mask-position:19% 19%}
-}
+#canvas-frame.swap{background:#11131a;}
+.pad-snap{position:absolute; left:0; top:0; pointer-events:none;}
+#canvas-frame.swap #pad{opacity:0;}
+.pad-snap.go{animation:padOut var(--fade-ms,700ms) ease-in-out forwards;}
+#canvas-frame.swap.go #pad{animation:padIn var(--fade-ms,700ms) ease-in-out var(--fade-lag,140ms) both;}
+@keyframes padOut{from{opacity:1} to{opacity:0}}
+@keyframes padIn{from{opacity:0} to{opacity:1}}
 #copt-dot{width:26px; height:26px; border-radius:9px; display:block; border:1px solid rgba(255,255,255,.25);}
 #copt-btn.on{box-shadow:inset 0 0 0 2px #f12fc6;}
 /* The canvas window opened from the options bar: title and public too. */
-/* The title spans exactly what the H/S/B sliders span, its text centred, 2pt
-   up from 16 (Dex, 2026-10-08); the lock stands over the undo column.
-   placeCanvasTitle() sets both from the sliders' own boxes. */
+/* The title spans the whole H/S/B block, its left edge at the letters and its
+   text centred, 18px (Dex, 2026-10-08); the lock stands over the redo column
+   at the left and an X over the undo column at the right. placeCanvasTitle()
+   sets all three from the block's and the buttons' own boxes. */
 #cp-more{position:relative; height:44px; margin:6px 0 2px;}
 #cp-more[hidden]{display:none;}
 #cp-title{position:absolute; top:0; height:44px; left:0; width:60%; box-sizing:border-box; min-width:0;
@@ -100,11 +89,13 @@ body{
   color:var(--text); font-family:inherit; font-weight:700; font-size:18px; line-height:1.2; padding:0 12px; outline:none; text-align:center;}
 /* (Longhands: "font:700 16px/1.2 inherit" is not a valid shorthand -- inherit cannot be a family there -- so the
    whole line was dropped and the field had been at the browser's 13.3px all along.) */
-#cp-more .cp-lock{position:absolute; top:0; right:0;}
+#cp-more .cp-lock{position:absolute; top:0; left:0;}
+#cp-more #cp-close{left:auto; right:0;}
 #cp-title:focus{border-color:#8a32f4;}
 .cp-lock{flex:none; width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:rgba(255,255,255,.06);
   color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .cp-lock svg{width:22px; height:22px;}
+#cp-close svg{width:18px; height:18px;}
 .cp-lock.on{background:var(--grad); border-color:transparent; color:#fff;}
 /* Bottom toolbar pill */
 
@@ -175,8 +166,10 @@ body{
   font-variant-numeric:tabular-nums;}
 .hsb-tip[hidden]{display:none;}
 /* Symmetry on: a short tick across the top centre of the canvas, not a line through it. */
-#sym-tick{position:absolute; width:3px; height:16px; margin-left:-1.5px; border-radius:2px; z-index:2;
-  background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.35), 0 0 8px rgba(241,47,198,.6); pointer-events:none;}
+/* In the app's gradient, magenta down to blue (Dex, 2026-10-08). */
+#sym-tick{position:absolute; width:4px; height:18px; margin-left:-2px; border-radius:2px; z-index:2;
+  background:linear-gradient(180deg,#f12fc6 0%,#8a32f4 55%,#3458f5 100%);
+  box-shadow:0 0 0 1px rgba(0,0,0,.3), 0 0 10px rgba(241,47,198,.55); pointer-events:none;}
 #sym-tick[hidden]{display:none;}
 #size-bar .ctl{margin:0; flex:1; min-width:0; display:flex; align-items:center;}
 #size-bar .tbtn{flex:0 0 auto;}
@@ -365,8 +358,8 @@ input[type=range]::-moz-range-thumb{
   margin:6px 0 calc(env(safe-area-inset-bottom,0px) + 8px);
 }
 /* Which build is running, so a report can say "on build a1b2c3". */
-#g-head{display:flex; align-items:center; gap:12px; padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 4px; min-height:22px;}
-#g-build{font-size:12px; letter-spacing:.04em; color:var(--muted); opacity:.6; flex:none;}
+#g-head{position:relative; display:flex; align-items:center; gap:12px; padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 4px; min-height:22px;}
+#g-build{font-size:12px; letter-spacing:.04em; color:var(--muted); opacity:.6; flex:none; position:absolute; right:16px;}
 .g-sq{width:52px; height:52px; border-radius:16px; flex:none; cursor:pointer;}
 #g-back svg{width:24px; height:24px;}
 #g-search-btn.on{background:rgba(255,255,255,.12);}
@@ -378,8 +371,10 @@ input[type=range]::-moz-range-thumb{
 #g-new{width:64px; height:46px; border-radius:15px; border:none; background:var(--grad); color:#fff; box-shadow:var(--glow);
   display:flex; align-items:center; justify-content:center; cursor:pointer;}
 #g-new svg{width:24px; height:24px;}
-#g-page{flex:1; font-size:15px; font-weight:800; letter-spacing:.01em; color:var(--text);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+/* The page's name, centred and 4pt up from 15px (Dex, 2026-10-08):
+   "Public gallery" or "My gallery". */
+#g-page{flex:1; font-size:20px; font-weight:800; letter-spacing:.01em; color:var(--text); text-align:center;
+  padding:0 56px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 #g-tab-mine.on{outline:2px solid var(--a1); outline-offset:2px;}
 /* Search: the chips and the pill, on the keyboard while it is up and above
    the bar when it is not (placeFind sets bottom). */
@@ -461,7 +456,10 @@ input[type=range]::-moz-range-thumb{
   display:none; align-items:center; justify-content:center; padding:24px;
 }
 #modal.open{display:flex;}
+/* A fifth of the screen below centre, nearer the thumb (Dex, 2026-10-08),
+   but never closer than 24px to the bottom on a short screen. */
 #modal-card{
+  transform:translateY(min(20vh, calc(50vh - 50% - 24px)));
   background:var(--panel); border:1px solid var(--border); border-radius:18px;
   padding:22px; width:100%; max-width:320px; backdrop-filter:blur(18px);
 }
@@ -484,6 +482,9 @@ input[type=range]::-moz-range-thumb{
   white-space:nowrap;
 }
 #toast.show{opacity:1;}
+/* Something that did not happen: red, at the top like the rest. */
+#toast.err{background:#3a0f14; border-color:var(--danger); color:#ffd9dc;}
+#toast.err small{color:#ffb3b9;}
 /* A control held down: its name and a few words, centred above the bar that
    is up (placed by showHoldTip()). Holding is not tapping. */
 #hold-tip{position:fixed; left:50%; transform:translateX(-50%); z-index:110; text-align:center; line-height:1.3;
@@ -494,7 +495,8 @@ input[type=range]::-moz-range-thumb{
 #hold-tip b{display:block; font-size:15px; font-weight:700;}
 #hold-tip small{display:block; font-size:12.5px; font-weight:500; color:var(--muted);}
 .tbtn, #canvas-swatch, #top-lock{-webkit-touch-callout:none;}
-.mbtn.go{background:#22b45a; border-color:#22b45a; color:#fff;}
+/* Dark text on the green: white on #22b45a read poorly (Dex, 2026-10-08). */
+.mbtn.go{background:#2fd06a; border-color:#2fd06a; color:#06240f;}
 /* Asking a second time on the button itself: "You sure?" */
 .mbtn.danger.armed{box-shadow:0 0 0 3px rgba(255,69,58,.35); animation:armPulse .9s ease-in-out infinite alternate;}
 @keyframes armPulse{to{box-shadow:0 0 0 6px rgba(255,69,58,.12)}}

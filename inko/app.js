@@ -560,6 +560,7 @@ $('sym-btn').addEventListener('click', () => {
   $('sym-btn').classList.toggle('on', mirrorOn);
   $('sym-btn').setAttribute('aria-pressed', mirrorOn);
   lastPick = mirrorOn ? 'symmetry' : tool;
+  setOptions(false);
   placeSymTick(); paintToolName();
 });
 /* THE CANVAS ON SCREEN IS ALWAYS A CARD in the gallery (Dex, 2026-10-08):
@@ -577,12 +578,11 @@ function nextUntitled(){
 }
 /* The canvas changing, made visible (Dex, 2026-10-08): a copy of what is on
    screen is laid over the pad and the change happens under it. Then the copy
-   is ERASED on a diagonal from the top left, and the new canvas is written
-   in behind it along the same diagonal a beat later, with a dark gap between
-   the two edges -- so a blank canvas replacing a blank one of the same
-   colour still visibly changes. The masks and timings are in app.css
-   (.pad-snap, #canvas-frame.swap). Returns the function that starts the
-   wipe, so a caller can finish its work (or close the gallery) first. */
+   fades out while the new canvas fades in a beat behind it -- a gentle
+   crossfade over the frame's darker fill (Dex asked for far subtler than the
+   diagonal wipe this replaced). The timings are in app.css (.pad-snap,
+   #canvas-frame.swap). Returns the function that starts the fade, so a
+   caller can finish its work (or close the gallery) first. */
 function snapPad(){
   const pad = $('pad'), frame = $('canvas-frame');
   if (!pad.width || matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {};
@@ -604,7 +604,7 @@ function snapPad(){
   return () => requestAnimationFrame(() => {
     snap.classList.add('go'); frame.classList.add('go');
     pad.addEventListener('animationend', done, { once: true });
-    setTimeout(done, 1000);
+    setTimeout(done, 1600);
   });
 }
 async function startBlank(){
@@ -682,7 +682,7 @@ async function newCanvas(){
   setOptions(false);
   return true;
 }
-$('plus-btn').addEventListener('click', async () => { if (await newCanvas()) toast('New canvas created'); });
+$('plus-btn').addEventListener('click', async () => { setOptions(false); if (await newCanvas()) toast('New canvas created'); });
 // From the gallery: straight into it, ready to draw.
 $('g-new').addEventListener('click', async () => {
   if (!await newCanvas()) return;
@@ -888,20 +888,25 @@ function openCanvasPop(mode){
   fit();
   placeCanvasTitle();
 }
-/* The title field spans exactly what the sliders span (Dex, 2026-10-08), and
-   the lock stands over the undo column -- measured, so it holds at any width. */
+/* The title field spans the whole H/S/B block -- its left edge at the letters
+   -- with the lock over the redo column and an X over the undo column (Dex,
+   2026-10-08). Measured, so it holds at any width. */
 function placeCanvasTitle(){
   if ($('cp-more').hidden || !brushPop.classList.contains('open')) return;
-  const box = $('cp-more').getBoundingClientRect(), sl = $('cv-hue').getBoundingClientRect(), undo = $('undo-btn').getBoundingClientRect();
-  if (!sl.width) return;
+  const box = $('cp-more').getBoundingClientRect(), rows = $('cp-sliders').querySelector('.hsb-rows').getBoundingClientRect();
+  if (!rows.width) return;
   const t = $('cp-title').style;
-  t.left = (sl.left - box.left) + 'px'; t.width = sl.width + 'px';
-  const lock = $('cp-lock');
-  lock.style.right = Math.max(0, box.right - (undo.left + undo.width / 2) - lock.offsetWidth / 2) + 'px';
+  t.left = (rows.left - box.left) + 'px'; t.width = rows.width + 'px';
+  const over = (btn, under) => {
+    const u = $(under).getBoundingClientRect();
+    btn.style.left = Math.max(0, u.left + u.width / 2 - box.left - btn.offsetWidth / 2) + 'px';
+  };
+  over($('cp-lock'), 'redo-btn'); over($('cp-close'), 'undo-btn');
 }
 addEventListener('resize', placeCanvasTitle);
 $('cp-title').addEventListener('input', () => { titleInput.value = $('cp-title').value; dirty = true; scheduleDraft(); });
 $('cp-lock').addEventListener('click', e => { e.stopPropagation(); flipCurrent($('cp-lock')); });
+$('cp-close').addEventListener('click', e => { e.stopPropagation(); closePop(); });
 
 /* ---------- color/size mode toggle ---------- */
 let colorMode = false;
@@ -931,12 +936,26 @@ function showBars(){
   $('opt-bar').hidden = !optionsOn;
   paintToolName();
 }
+/* Closing it -- a pick from it, the button again, or back -- brings back the
+   bar it replaced: the brush colour's sliders or the size bar (Dex,
+   2026-10-08). Quiet closes are another panel taking its place. It is a step
+   on the back trail while it is up; the trail is synced a microtask later, so
+   a pick that closes this bar and opens a confirm in the same tap swaps one
+   step for the other rather than going back and forward at once. */
+let optWasColor = false;
 function setOptions(on, quiet){
+  if (on === optionsOn && !quiet) return;
+  const was = optionsOn;
   optionsOn = on;
-  if (on){ closePop(); if (eyedropperOn) setEyedropper(false); if (colorMode){ colorMode = false; $('color-btn').classList.remove('on'); } }
+  if (on){
+    optWasColor = colorMode;
+    closePop(); if (eyedropperOn) setEyedropper(false); if (colorMode){ colorMode = false; $('color-btn').classList.remove('on'); }
+  } else if (was && !quiet && optWasColor){ colorMode = true; $('color-btn').classList.add('on'); syncHSBInputs(); }
+  if (!on) optWasColor = false;
   $('opt-btn').classList.toggle('on', on);
   $('opt-btn').setAttribute('aria-pressed', String(on));
   if (!quiet){ showBars(); fit(); }
+  if (on !== was) queueMicrotask(syncHistory);
 }
 $('opt-btn').addEventListener('click', e => { e.stopPropagation(); setOptions(!optionsOn); });
 /* H, S or B named while you touch it, centred above its panel. */
@@ -1174,6 +1193,7 @@ $('grid-btn').addEventListener('click', async () => {
 });
 // Download asks first, like clear, with a green yes (Dex, 2026-10-08).
 $('dl-btn').addEventListener('click', () => {
+  setOptions(false);
   openModal('Download this canvas?', 'Saves it to your device as a picture.', 'Download', () => downloadItem(null, true), 'go');
 });
 // The canvas window from down here: colour, title and public/private.
@@ -1184,11 +1204,12 @@ $('copt-btn').addEventListener('click', e => {
 });
 // Clear asks first; undo brings it back (clearCanvas is one history step).
 $('clear-btn').addEventListener('click', () => {
+  setOptions(false);
   // ...and it becomes the newest canvas, at the bottom right of the gallery,
   // wherever it was (Dex, 2026-10-08). Same canvas underneath, so undo works.
   openModal('Clear this canvas?', 'Undo brings it back.', 'Clear', () => {
     const it = currentItem(); if (it) it.created = Date.now();
-    clearCanvas(); setOptions(false);
+    clearCanvas();
     saveCurrent().catch(() => {});
   });
 });
@@ -1205,12 +1226,13 @@ $('g-back').addEventListener('click', () => {
 
 /* ---------- toast ---------- */
 let toastT = null;
-function toast(msg, sub){
+function toast(msg, sub, err){
   // Two short lines when there is a second; centred under the title, or low over the gallery.
   if (sub){ const b = document.createElement('b'), s = document.createElement('small'); b.textContent = msg; s.textContent = sub; toastEl.replaceChildren(b, s); }
   else toastEl.textContent = msg;
   const low = $('gallery').classList.contains('open');
   toastEl.classList.toggle('low', low);
+  toastEl.classList.toggle('err', !!err);
   // Low clears the top it was given under the title: an inline top beat the
   // class's top:auto, and with its bottom set too the box ran from one to the other.
   toastEl.style.top = low ? '' : ($('tool-name').getBoundingClientRect().bottom + 8) + 'px';   // under the title and the tool name
@@ -1494,23 +1516,51 @@ async function resumePublish(){
   syncTopLock();
   if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
 }
+/* Public/private answers the tap AT ONCE (Dex, 2026-10-08): every switch for
+   the canvas shows the new state straight away and the server catches up
+   behind it. If that fails the switch goes back, with a red line at the top
+   saying so. Taps while one is on its way just change where it should end
+   up; the last one wins. */
+const visWant = new Map(), visBusy = new Set();
+function paintVisibility(it, vis){
+  const shown = { ...it, visibility: vis };
+  for (const id of ['top-lock', 'cp-lock']){ const b = $(id); if (b && currentItem() === it) paintPubButton(b, shown); }
+  for (const tile of document.querySelectorAll('.g-item[data-id]')) if (tile.dataset.id === it.id){
+    const b = tile.querySelector('.g-pub'); if (b) paintPubButton(b, shown);
+  }
+}
 async function toggleVisibility(it, btn){
   if (!session){ rememberPublish(it.id); openAccount(); return; }
-  btn.disabled = true;
+  const want = (visWant.get(it.id) || it.visibility) === 'public' ? 'private' : 'public';
+  visWant.set(it.id, want);
+  paintPubButton(btn, { ...it, visibility: want }); paintVisibility(it, want);
+  if (visBusy.has(it.id)) return;
+  visBusy.add(it.id);
   try {
-    if (it.visibility === 'public'){ await unpublishItem(it); toast('This canvas is now private', 'Only you can see it'); }
-    else { await publishItem(it); toast('This canvas is now public', 'Shared in the online gallery'); }
-  } catch (e) { toast(e.message); }
-  btn.disabled = false;
-  paintPubButton(btn, it);
-  syncTopLock();
-  if (btn.id === 'top-lock' && $('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
+    while (it.visibility !== visWant.get(it.id)){
+      const goPublic = visWant.get(it.id) === 'public';
+      try {
+        if (goPublic){ await publishItem(it); toast('This canvas is now public', 'Shared in the online gallery'); }
+        else { await unpublishItem(it); toast('This canvas is now private', 'Only you can see it'); }
+      } catch (e) {
+        visWant.set(it.id, it.visibility);
+        toast(goPublic ? 'Couldn\u2019t make this canvas public' : 'Couldn\u2019t make this canvas private', 'Try again later', true);
+        break;
+      }
+    }
+  } finally {
+    visBusy.delete(it.id); visWant.delete(it.id);
+    paintPubButton(btn, it); paintVisibility(it, it.visibility);
+    syncTopLock();
+    if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
+  }
 }
 /* The lock at the top right is the canvas on screen's own public/private
    switch, the same one its gallery card carries. */
 const currentItem = () => (editingId ? gallery.find(g => g.id === editingId) : null);
 function syncTopLock(){
-  for (const id of ['top-lock', 'cp-lock']){ const b = $(id); if (b) paintPubButton(b, currentItem() || { visibility: 'private' }); }
+  const it = currentItem() || { visibility: 'private' }, want = it.id && visWant.get(it.id);
+  for (const id of ['top-lock', 'cp-lock']){ const b = $(id); if (b) paintPubButton(b, want ? { ...it, visibility: want } : it); }
 }
 async function flipCurrent(btn){
   if (dirty || !currentItem()){ try { await saveCurrent(); } catch (err) { return; } }
@@ -1791,8 +1841,8 @@ function bounce(dir){
    page added before anyone touched it. */
 const NO_HISTORY = EMBED || window.top !== window;
 // An open sheet is one more step: back closes it (and counts as Cancel).
-const SHEETS = ['crop', 'account', 'modal', 'g-sel', 'g-find'];
-const sheetOpen = id => id === 'g-find' ? searching() : $(id).classList.contains('open');
+const SHEETS = ['crop', 'account', 'modal', 'g-sel', 'g-find', 'opt-bar'];
+const sheetOpen = id => id === 'g-find' ? searching() : id === 'opt-bar' ? optionsOn : $(id).classList.contains('open');
 if (window.MutationObserver) for (const id of [...SHEETS.slice(0, 4), 'gallery']) new MutationObserver(() => syncHistory()).observe($(id), { attributes: true, attributeFilter: ['class'] });
 let trail = ['mine', 'canvas'], navDepth = 0, skipPops = 0, restoring = false, touched = false;
 const placeNow = () => !$('gallery').classList.contains('open') ? 'canvas' : galleryTab === 'user' ? 'user:' + viewingUser : galleryTab;
@@ -1842,6 +1892,7 @@ window.addEventListener('popstate', () => {
   if (sheet){
     if (sheet === 'g-sel') exitSelect();
     else if (sheet === 'g-find') clearSearch();
+    else if (sheet === 'opt-bar') setOptions(false);
     else $(sheet).classList.remove('open');
     if (sheet === 'account') afterSignIn = null;
     syncHistory(); return;
@@ -2102,7 +2153,7 @@ $('g-account').addEventListener('click', () => openAccount());
 /* ---- where the gallery is: yours, Public, or one artist's ---- */
 // Named at the top, so you always know which page this is.
 function paintPage(){
-  $('g-page').textContent = searching() ? 'Search' : galleryTab === 'public' ? 'Public' : galleryTab === 'user' ? '@' + (viewingUser || '') : 'Your gallery';
+  $('g-page').textContent = searching() ? 'Search' : galleryTab === 'public' ? 'Public gallery' : galleryTab === 'user' ? '@' + (viewingUser || '') : 'My gallery';
 }
 function setGalleryTab(tab){
   if (tab !== 'mine') setPicking(false);
@@ -2751,7 +2802,7 @@ $('dl-btn').addEventListener('click', () => { modalTool = 'Download'; paintToolN
    two lines, centred above that bar, for a little while (Dex, 2026-10-08).
    A hold is NOT a tap: the click that ends it is eaten. */
 const HOLD_TIPS = {
-  'opt-btn': () => ['Canvas options', 'Symmetry, color, new, save, trash'],
+  'opt-btn': () => ['Canvas options', 'Trash, save, new, symmetry, color'],
   'ed-btn': () => ['Eyedropper', 'Pick a color'],
   'tool-toggle': () => tool === 'eraser' ? ['Eraser', 'Tap for the brush'] : ['Brush', 'Tap for the eraser'],
   'color-btn': () => ['Color', 'Your brush color'],
