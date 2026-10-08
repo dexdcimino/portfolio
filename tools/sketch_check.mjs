@@ -69,6 +69,10 @@ const server = createServer(async (req, res) => {
     const payload = Buffer.from(JSON.stringify({ sub: fakeUser.google.sub, email: fakeUser.google.email, email_verified: true, given_name: fakeUser.google.name })).toString('base64url');
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ id_token: `x.${payload}.y`, access_token: 'g' })); return;
   }
+  if (u.pathname === '/fake/discord/token' && fakeUser.rejectSecret) {
+    // What Discord answers a wrong or stale client secret.
+    res.writeHead(401, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'invalid_client' })); return;
+  }
   if (u.pathname === '/fake/discord/token') { res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ access_token: 'd' })); return; }
   if (u.pathname === '/fake/discord/user') { res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(fakeUser.discord)); return; }
   if (u.pathname.startsWith('/api/sketch-auth/')) {
@@ -457,6 +461,14 @@ try {
     await sleep(500);
     note(/not switched on/.test(await C.evaluate(() => document.getElementById('a-msg').textContent)), 'an unconfigured Discord did not say so');
     process.env.DISCORD_CLIENT_SECRET = saved;
+    // A secret Discord turns down says WHY on screen, not only in the logs.
+    fakeUser.rejectSecret = true;
+    await C.click('#g-account'); await sleep(200);
+    await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-discord')]);
+    await sleep(500);
+    const rejected = await C.evaluate(() => document.getElementById('a-msg').textContent);
+    note(/did not work/.test(rejected) && /401/.test(rejected) && /invalid_client/.test(rejected), `a rejected Discord secret read "${rejected}"`);
+    fakeUser.rejectSecret = false;
     // A callback this server did not start is refused.
     const forged = await fetch(`${BASE}/api/sketch-auth/google?code=x&state=forged`, { redirect: 'manual' });
     note(/auth-error=expired/.test(forged.headers.get('location') || ''), `a forged callback went to ${forged.headers.get('location')}`);
