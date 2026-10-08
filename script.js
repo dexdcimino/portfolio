@@ -2272,6 +2272,7 @@ if (workModal) {
        presses Sign in. */
     let source = null;            // 'vault' | 'guest' | 'account', what is mounted
     let acctBtn = null;
+    let ownerAcct = false;        // the account mounted is Dex's, i.e. the DEXDC notes
     const acctMod = () => import('/dexnote/account.js');
 
     /* Shared by every store. With no backend the app talks to the password
@@ -2326,6 +2327,7 @@ if (workModal) {
       const [acct, state] = await Promise.all([acctMod(), import('/notes/state.js')]);
       const { backend, stored } = await acct.openGuest();
       source = 'guest';
+      ownerAcct = false;
       await mountApp(asPayload(stored, state.demoDoc()), null, backend);
     }
 
@@ -2334,8 +2336,11 @@ if (workModal) {
       editor.hidden = false;
       setSave('OPENING YOUR NOTES…', 'saving');
       try {
-        const { backend, stored, moved } = await acct.openAccount(u, (text) => setSave(text.toUpperCase(), 'saving'));
+        const { backend, stored, moved, owner } = await acct.openAccount(u, (text) => setSave(text.toUpperCase(), 'saving'));
         source = 'account';
+        // Dex's own Google opens the DEXDC document itself (account.js), so
+        // there is nothing to bring in and no second copy to switch to.
+        ownerAcct = !!owner;
         await mountApp(asPayload(stored, state.emptyDoc()), null, backend);
         if (moved) ui.toast('The notes from this device are now in your account.');
       } catch (error) {
@@ -2350,6 +2355,7 @@ if (workModal) {
       token = data.token;
       store.set(TOKEN_KEY, token);
       source = 'vault';
+      ownerAcct = false;
       await mountApp(data, token);
       return true;
     }
@@ -2361,8 +2367,8 @@ if (workModal) {
         { label: u.email || u.displayName || 'Signed in', disabled: true, run() {} },
         null,
         source !== 'account' ? { label: 'Open my account notes', run: () => swap(() => mountAccount(u)) } : null,
-        source === 'account' && token ? { label: 'Open the password notes', run: () => swap(mountVault) } : null,
-        { label: 'Bring in the password notes…', run: bringInVault },
+        source === 'account' && token && !ownerAcct ? { label: 'Open the password notes', run: () => swap(mountVault) } : null,
+        ownerAcct ? null : { label: 'Bring in the password notes…', run: bringInVault },
         { label: 'Sign out', danger: true, run: signOutHere },
       ].filter((item, i) => item || i === 1) : [
         { label: source === 'vault' ? 'Password notes' : 'Guest · saved on this device', disabled: true, run() {} },
@@ -2421,9 +2427,11 @@ if (workModal) {
        now the real app on this browser's guest notes (Dex, 2026-10-08) --
        the same notes /dexnote/ keeps for a guest -- or on the account's once
        someone is signed in here. A first open shows the tour document, and
-       nothing is written until it is edited. It can never reach the password
-       notes: no token goes with it, and that store answers nothing without
-       one.
+       nothing is written until it is edited. It never reaches the password
+       notes with a token: no token goes with it, and that store answers
+       nothing without one. The one way it opens them is Dex signed in on his
+       own Google, which the SERVER recognises (api/notes/unlock.js, idToken)
+       -- his account and the DEXDC notes are one document.
 
        No `#notes` in the address: this is not the password notes, and a link
        someone shares must land on the portfolio rather than on a password
@@ -2622,6 +2630,7 @@ if (workModal) {
       }
       source = null;
       acctBtn = null;
+      ownerAcct = false;
       if (label) label.textContent = 'PRIVATE';
       if (padlock) padlock.dataset.icon = 'lock';
       editor.hidden = true;

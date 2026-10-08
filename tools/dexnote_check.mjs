@@ -68,6 +68,12 @@ await p.setViewport({ width: 1300, height: 850 });
 const errors = [];
 p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
 p.on('pageerror', (e) => errors.push('pageerror ' + e.message));
+/* /dexnote/ registers a service worker now (the phone app), and a request
+   the worker makes for the page is one interception never sees -- the REAL
+   cloud.js would come back instead of the fake. Bypassing it keeps every
+   request on the network, where the fake answers. dexnote_phone_check.mjs
+   is where the worker itself is checked. */
+await p.setBypassServiceWorker(true);
 await p.setRequestInterception(true);
 p.on('request', (r) => r.url().endsWith('/dexnote/cloud.js') ? r.respond({ status: 200, contentType: 'text/javascript', body: FAKE_CLOUD }) : r.continue());
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

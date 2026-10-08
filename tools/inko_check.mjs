@@ -278,56 +278,153 @@ try {
   console.log(`undo: ${warm} back after a reload, ${full} with the app open, ${cold} after it closed, ${reopened} on reopening a canvas; ${kept.hists.length} canvas histories kept, ${afterDel.hists.length} after a delete`);
 
   // ---- 6. each account its own canvases (Dex, 2026-10-08) ----------------
-  // Signed out has its own; an account CREATED on this device takes the
-  // signed-out ones with it; signing in to one that already existed takes
-  // nothing (the 2026-10-08 loss); another account sees none of them.
+  // Signed out has its own. The signed-out canvases move into an account ONLY
+  // when the server says this very sign-in MADE it (`fresh`, a signup or a
+  // first claim). Every other way in -- a password sign-in, another tab's
+  // sign-in, even a stored session claiming to be new -- takes NOTHING, and
+  // an account's own canvases are never touched (the 2026-10-08 loss).
+  // /api/sketch is answered here, so the sheet's real buttons drive the real
+  // setSession: signup is fresh, login is not, and the rest 404s as before.
+  await page.setRequestInterception(true);
+  // The site account's module, faked: a Google sign-in that succeeds at once,
+  // so the sheet's own Google button runs the real linkSite.
+  const FAKE_SITE = `export const signIn = () => new Promise(r => setTimeout(r, 300));
+    export const signOut = async () => {}; export const idToken = async () => 'fake-id-token';
+    export const cancelled = () => false;`;
+  const siteReply = { fail: 0, wait: 0, handle: 'artist_s' };
+  page.on('request', req => {
+    if (req.url().split('?')[0].endsWith('/account/site-auth.js'))
+      return req.respond({ status: 200, contentType: 'text/javascript', body: FAKE_SITE });
+    if (!req.url().endsWith('/api/sketch') || req.method() !== 'POST') return req.continue();
+    let body = {}; try { body = JSON.parse(req.postData() || '{}'); } catch (e) {}
+    const reply = (o) => req.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(o) });
+    if (body.action === 'signup') return reply({ handle: body.handle, token: 'x.y', fresh: true });
+    if (body.action === 'login') return reply({ handle: body.handle, token: 'x.y' });
+    if (body.action === 'site'){
+      if (siteReply.fail > 0){ siteReply.fail--; return req.respond({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'the gallery could not be reached' }) }); }
+      return setTimeout(() => reply({ handle: siteReply.handle, token: 'x.y', others: [] }), siteReply.wait);
+    }
+    return req.respond({ status: 404, contentType: 'application/json', body: '{}' });
+  });
+  const viaSheet = async (action, handle) => {
+    await page.bringToFront();
+    await optTap(page, '#grid-btn'); await sleep(300);
+    await page.click('#g-account'); await sleep(300);
+    await page.evaluate((h) => {
+      if (document.getElementById('a-pw').hidden) document.getElementById('a-more').click();
+      document.getElementById('a-handle').value = h; document.getElementById('a-pass').value = 'correct horse';
+    }, handle);
+    await page.click(action === 'signup' ? '#a-signup' : '#a-login'); await sleep(1500);
+    await page.click('#g-back').catch(() => {}); await sleep(200);
+  };
+  const signOut = async () => {
+    await page.bringToFront();
+    await optTap(page, '#grid-btn'); await sleep(300);
+    await page.click('#g-account'); await sleep(300);
+    await page.click('#a-signout'); await sleep(1500);
+    await page.click('#g-back'); await sleep(200);
+  };
+  const fromTab = async (sess) => {
+    await other.evaluate((v) => localStorage.setItem('sketchSession', JSON.stringify(v)), sess); await sleep(1500);
+  };
   const signedOut = await galleryCount();
   const owners0 = (await db()).owners;
   note(signedOut > 20 && Object.keys(owners0).length === 1, `signed out shows ${signedOut} canvases, owners ${JSON.stringify(owners0)}`);
-  // A sign-in landing from another tab (the overlay's route) -- the storage event.
   const other = await browser.newPage();
   await other.goto(`${BASE}/inko/manifest.webmanifest`);
-  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_a', token: 'x.y', created: true })));
-  await sleep(1500);
-  const owners1 = (await db()).owners;
-  note(owners1['u:artist_a'] === signedOut && !owners1.local, `first sign-in did not take the canvases along: ${JSON.stringify(owners1)}`);
+  // Which account each canvas belongs to, by id: an empty account gets a
+  // blank Untitled of its own on arrival, so counts alone cannot tell that
+  // from a guest canvas moving in. Ids can.
+  const ownerById = () => page.evaluate(async () => {
+    const d = await new Promise((res) => { const r = indexedDB.open('inko'); r.onsuccess = () => res(r.result); });
+    const all = await new Promise(res => { const q = d.transaction('canvases').objectStore('canvases').getAll(); q.onsuccess = () => res(q.result); });
+    d.close();
+    return Object.fromEntries(all.map(c => [c.id, c.owner || 'local']));
+  });
+  const guestIds = Object.keys(await ownerById());
+  const guestsStayed = async (ids = guestIds) => { const m = await ownerById(); return ids.every(id => m[id] === 'local'); };
+  const accounts = [];   // [what happened, owners after] for the summary line
+  const takes = async (what, want) => {
+    const o = (await db()).owners; accounts.push(`${what}: ${JSON.stringify(o)}`); await want(o, what);
+  };
+  // 1. An EXISTING account signed in from another tab (the overlay's route),
+  //    its stored session even claiming to be new: nothing moves.
+  await fromTab({ handle: 'artist_x', token: 'x.y', fresh: true, created: true });
+  await takes('another tab, existing', async (o, w) => note(o.local === signedOut && await guestsStayed(), `${w} took the signed-out canvases: ${JSON.stringify(o)}`));
+  note(await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('sketchSession') || 'null'); return !!s && s.handle === 'artist_x'; }), 'the other tab\'s sign-in never reached this one');
+  await fromTab(null);
+  // 2. An existing account through the sheet (a password sign-in): nothing moves.
+  await viaSheet('login', 'artist_y');
+  await takes('password sign-in, existing', async (o, w) => note(o.local === signedOut && await guestsStayed(), `${w} took the signed-out canvases: ${JSON.stringify(o)}`));
+  note(await page.evaluate(() => !('fresh' in (JSON.parse(localStorage.getItem('sketchSession') || '{}')))), 'a session was stored with its fresh flag');
+  await signOut();
+  // 3. An account MADE here: every signed-out canvas moves in.
+  await viaSheet('signup', 'artist_a');
+  await takes('signup, new', (o, w) => note(o['u:artist_a'] === signedOut && !o.local, `${w} did not take the canvases along: ${JSON.stringify(o)}`));
+  note(await page.evaluate(() => !('fresh' in (JSON.parse(localStorage.getItem('sketchSession') || '{}')))), 'the new account\'s session was stored with its fresh flag');
   note(await galleryCount() === signedOut, 'signed in, the gallery does not show the canvases it brought');
   // Signing out: none of them, and something new made signed out stays there.
-  await page.bringToFront();
-  await page.bringToFront();
-  await optTap(page, '#grid-btn'); await sleep(300);
-  await page.click('#g-account'); await sleep(300);
-  await page.click('#a-signout'); await sleep(1500);
-  await page.click('#g-back'); await sleep(200);
+  await signOut();
   note(await galleryCount() === 1, 'signed out, the account\'s canvases still show (wanted only the fresh blank one)');
   await stroke();
   await page.type('#title-input', 'Made signed out');
   await optTap(page, '#plus-btn'); await sleep(1200);
   note(await galleryCount() === 2, 'a canvas made signed out is not in the signed-out gallery');
-  // The same account again (not a first sign-in): its own, not the new one.
-  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_a', token: 'x.y' })));
-  await sleep(1500);
+  const outB = (await db()).owners;
+  // 4. That account again, by password: exactly its own, the new one left out.
+  await viaSheet('login', 'artist_a');
+  await takes('same account again', (o, w) => note(o['u:artist_a'] === signedOut && o.local === outB.local && outB.local > 0, `${w} moved canvases: ${JSON.stringify(o)}`));
   note(await galleryCount() === signedOut, 'signing back in did not show exactly that account\'s canvases');
-  // An account that already exists, new to this device: it takes nothing.
-  const ownersA = (await db()).owners;
-  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_c', token: 'x.y' })));
-  await sleep(1500);
-  const ownersC = (await db()).owners;
-  note(ownersC.local === ownersA.local && ownersA.local > 0 && ownersC['u:artist_a'] === signedOut,
-    `signing in to an existing account took the signed-out canvases: ${JSON.stringify(ownersC)}`);
-  // A different account: a first sign-in, so it takes the one signed-out canvas.
-  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_b', token: 'x.y', created: true })));
-  await sleep(1500);
+  // 5. ...and from another tab, and as a different existing account: still nothing.
+  await fromTab({ handle: 'artist_c', token: 'x.y', fresh: true });
+  await takes('another tab, other existing', (o, w) => note(o.local === outB.local && o['u:artist_a'] === signedOut, `${w} moved canvases: ${JSON.stringify(o)}`));
+  await fromTab({ handle: 'artist_a', token: 'x.y' });
+  await takes('another tab, same account', (o, w) => note(o.local === outB.local && o['u:artist_a'] === signedOut, `${w} moved canvases: ${JSON.stringify(o)}`));
+  // 6. A reload, signed in, adopts nothing either.
+  await page.reload({ waitUntil: 'networkidle2' }); await ready(); await sleep(600);
+  await takes('reload', (o, w) => note(o.local === outB.local && o['u:artist_a'] === signedOut, `${w} moved canvases: ${JSON.stringify(o)}`));
+  // 7. A second NEW account takes the signed-out ones, and only those.
+  await signOut();
+  await viaSheet('signup', 'artist_b');
   const owners2 = (await db()).owners;
-  note(await galleryCount() === 2 && owners2['u:artist_b'] === 2 && owners2['u:artist_a'] === signedOut,
-    `a second account sees the wrong canvases: ${JSON.stringify(owners2)}`);
+  note(await galleryCount() === outB.local && owners2['u:artist_b'] === outB.local && owners2['u:artist_a'] === signedOut && !owners2.local,
+    `a second new account took the wrong canvases: ${JSON.stringify(owners2)}`);
   // A reload keeps the scope.
   await page.reload({ waitUntil: 'networkidle2' }); await ready(); await sleep(600);
-  note(await galleryCount() === 2, 'after a reload the signed-in gallery changed');
-  console.log(`accounts: ${signedOut} signed out -> @artist_a; signed out then shows only a fresh blank, a new one there; @artist_b took it: ${JSON.stringify(owners2)}`);
+  note(await galleryCount() === outB.local, 'after a reload the signed-in gallery changed');
+  // 8. SIGNING IN, ON SCREEN (Dex, 2026-10-08): from the tap on Google the
+  //    sheet is a spinner, never the sign-in buttons again, until the account
+  //    is loaded; a failure says so with Try again, and Try again finishes it.
+  await signOut();
+  const sheetNow = () => page.evaluate(() => ({ open: document.getElementById('account').classList.contains('open'),
+    buttons: !document.getElementById('a-in').hidden, busy: !document.getElementById('a-busy').hidden,
+    spin: !document.getElementById('a-spin').hidden, title: document.getElementById('a-busy-t').textContent,
+    retry: !document.getElementById('a-busy-row').hidden && !document.getElementById('a-busy-retry').hidden,
+    who: document.getElementById('g-account').textContent.trim() }));
+  siteReply.fail = 1;
+  await optTap(page, '#grid-btn'); await sleep(300);
+  await page.click('#g-account'); await sleep(300);
+  await page.click('#a-google'); await sleep(100);
+  const s0 = await sheetNow();
+  note(s0.open && s0.busy && s0.spin && !s0.buttons && /Google/.test(s0.title), `tapping Google: ${JSON.stringify(s0)}`);
+  await sleep(900);
+  const s1 = await sheetNow();
+  note(s1.open && s1.busy && !s1.spin && s1.retry && !s1.buttons && /did not finish/.test(s1.title), `a failed sign-in: ${JSON.stringify(s1)}`);
+  siteReply.wait = 1200;
+  await page.click('#a-busy-retry'); await sleep(400);
+  const s2 = await sheetNow();
+  note(s2.open && s2.busy && s2.spin && !s2.buttons, `Try again, while the account loads: ${JSON.stringify(s2)}`);
+  await sleep(2500);
+  const s3 = await sheetNow();
+  note(!s3.open && /artist_s/.test(s3.who), `once loaded, the sheet is gone and @artist_s signed in: ${JSON.stringify(s3)}`);
+  await page.click('#g-back').catch(() => {}); await sleep(200);
+  console.log(`signing in on screen: ${s0.title} -> "${s1.title}" with Try again -> spinner -> signed in as ${s3.who}`);
+  console.log(`accounts: ${signedOut} signed out; ${accounts.join('; ')}; @artist_b new: ${JSON.stringify(owners2)}`);
   await other.evaluate(() => localStorage.removeItem('sketchSession'));
   await other.close();
   await sleep(1500);
+  page.removeAllListeners('request');
+  await page.setRequestInterception(false);
 
   // ---- 6b. the two colour controls, the eyedropper, the bars (Dex, 2026-10-08)
   await page.bringToFront();

@@ -71,6 +71,32 @@ swap is reported as invisible on a real phone.
 
 ---
 
+## 2026-10-08 — Dex's Google account opens the DEXDC notes themselves, decided by the server
+
+**Decided.** `/api/notes/unlock` takes a Firebase ID token (`idToken`) besides the
+password, and for Dex's verified Google address only (`isOwner()` in
+`lib/site-identity.js`) answers with the keypad's own `private` store. Every DexNote
+surface signed in as Dex -- the phone app, `/dexnote/`, the homepage overlay -- opens and
+saves that one document, under the same rev/409 merge the keypad already uses. Any other
+account is a 403 and keeps its own Firebase notes. Nothing is merged into the DEXDC notes
+automatically: no guest move for Dex, no "bring in" copy.
+
+**Replaced.** Dex's account being a separate Firebase document that the DEXDC notes could
+be COPIED into ("Bring in the password notes", backing up first). A copy drifts the moment
+either side is edited, and Dex asked for the phone to show the sessions the site shows,
+kept in step, with "no overriding".
+
+**Why.** One document cannot disagree with itself; two can, and every way of keeping two in
+step is an automatic merge or an automatic overwrite, which is the thing Dex ruled out. The
+server deciding who is Dex (a verified ID token, Google only, since Google is the provider
+that proves the address) means no client can claim the vault, and the 409 merge already
+covers two devices editing at once. A failed check throws instead of falling back, so an
+outage cannot quietly open the Firebase copy in the DEXDC notes' place.
+
+**Reverse it if** DexNote grows real per-account sharing or more than one person needs
+their own server-side notes -- then accounts should own their documents and the keypad
+becomes one way into Dex's, rather than Dex's account being a way into the keypad's.
+
 ## 2026-10-08 — Inko's spam limits: token buckets on the server, the escalating cooldown on the device
 
 **Decided.** `/api/sketch` limits every request with token buckets (`lib/sketch-limits.js`).

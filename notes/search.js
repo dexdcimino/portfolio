@@ -60,12 +60,15 @@ function open() {
 
 /* Closing clears: a collapsed field still filtering the sidebar is a filter
  * with nothing on screen to explain it. */
-function close() {
+function close(keepFocus) {
   clear();
   wrap.classList.remove('is-open');
   wrap.querySelector('.nt-search-btn').setAttribute('aria-expanded', 'false');
   input.tabIndex = -1;
   input.blur();
+  // The phone app shuts it from its own bar, where focusing a body would
+  // throw the keyboard straight back up.
+  if (keepFocus === true) return;
   // Back to the text, not to <body>: focus is what decides where the next
   // keystroke goes, and nowhere is the wrong answer.
   const body = ctx.canvas.querySelector('.nt-body');
@@ -73,6 +76,7 @@ function close() {
 }
 
 export function focus() { open(); }
+export function shut() { if (isOpen()) close(true); }
 export const isOpen = () => !!wrap && wrap.classList.contains('is-open');
 
 export function clear() {

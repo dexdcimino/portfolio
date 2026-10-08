@@ -1274,11 +1274,16 @@ async function api(action, data = {}){
   return body;
 }
 function setSession(s){
+  // `fresh` is the server saying this very call MADE the account (signup, or
+  // a first claim). It is the one thing that moves the signed-out canvases
+  // in (adoptLocal), it is used once, here, and it is never stored: no other
+  // tab, reload or later sign-in can carry it to an account that exists.
+  const fresh = !!(s && s.fresh === true);
+  if (s){ s = { ...s }; delete s.fresh; delete s.created; }
   session = s;
   try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch (e) {}
   syncAccountButton();
-  // Only a brand-new account takes in the signed-out canvases (see adoptLocal).
-  switchScope(scopeOf(s), !!(s && s.created));
+  switchScope(scopeOf(s), fresh);
   if (s) resumePublish();
 }
 
@@ -1288,11 +1293,14 @@ function switchScope(next, adopt){
   scopeChain = scopeChain.then(() => enterScope(next, adopt)).catch(e => console.warn('inko: scope', e));
   return scopeChain;
 }
-/* An account CREATED just now, on this device: the signed-out canvases and
-   draft move into it. Never on signing back in to an account that already
-   exists (Dex, 2026-10-08: guest canvases carry over when the account is
-   made, and only then). It only ever moves records owned by nobody, and
-   never replaces an account's draft or picture. Returns how many moved. */
+/* An account the server CREATED just now, on this device (its `fresh`, see
+   setSession): the signed-out canvases and draft move into it. Never on
+   signing back in to an account that already exists, with Google, Discord,
+   the site account or a password, in this tab or another (Dex, 2026-10-08:
+   guest canvases carry over when the account is made, and only then). It
+   only ever ADDS: it moves records owned by nobody, never touches a record
+   an account owns, and never replaces an account's draft or picture.
+   Returns how many moved. */
 async function adoptLocal(next){
   if (next === 'local' || await idbGet('meta', 'seen:' + next).catch(() => null)) return 0;
   let moved = 0;
@@ -1922,7 +1930,7 @@ let afterSignIn = null;
 function openAccount(then, message){
   afterSignIn = then || null;
   const signed = !!session;
-  $('a-in').hidden = signed; $('a-out').hidden = !signed; $('a-claim').hidden = true;
+  $('a-in').hidden = signed; $('a-out').hidden = !signed; $('a-claim').hidden = true; $('a-busy').hidden = true;
   if (signed){
     $('a-who').textContent = '@' + session.handle;
     $('a-rename').value = session.handle; $('a-msg4').textContent = '';
@@ -1966,7 +1974,7 @@ async function paintOtherAccounts(){
     const n = here[o.handle] || 0;
     row('You also have @' + o.handle + (n ? ' (' + n + (n === 1 ? ' canvas' : ' canvases') + ' here)' : '') + '.', 'Switch to @' + o.handle, () => {
       const rest = others.filter(x => x.handle !== o.handle);
-      setSession({ ...session, handle: o.handle, token: o.token, created: false,
+      setSession({ ...session, handle: o.handle, token: o.token,
                    others: [{ handle: session.handle, token: session.token }, ...rest] });
       closeAccount(); toast('Signed in as @' + o.handle);
     });
@@ -2012,6 +2020,36 @@ let siteAuth = null;
 const loadSite = () => (siteAuth ||= import('/account/site-auth.js'));
 const FRAMED = EMBED || window.top !== window.self;   // the overlay loads /inko/ without ?embed
 
+/* ---- signing in, on screen (Dex, 2026-10-08) ----
+   The moment a Google or Discord sign-in starts, the sheet stops offering
+   them and says what is happening, with a spinner, until the account AND its
+   canvases are on screen -- coming back from the provider to the same
+   sign-in buttons read as "it did not work". A failure says so, with Try
+   again and Back. */
+const SETTLE_MS = 10000;          // the longest the spinner waits on a first sync
+function showBusy(title, sub){
+  $('a-in').hidden = true; $('a-out').hidden = true; $('a-claim').hidden = true; $('a-busy').hidden = false;
+  $('a-spin').hidden = false; $('a-busy-row').hidden = true;
+  $('a-busy-t').textContent = title; $('a-busy-sub').textContent = sub || ''; $('a-busy-msg').textContent = '';
+  $('account').classList.add('open');
+}
+let busyRetry = null;
+function busyFailed(message, retry){
+  $('a-spin').hidden = true; $('a-busy-t').textContent = 'Sign-in did not finish';
+  $('a-busy-sub').textContent = ''; $('a-busy-msg').textContent = message;
+  $('a-busy-row').hidden = false; $('a-busy-retry').hidden = !retry;
+  busyRetry = retry || null;
+}
+const busyOpen = () => $('account').classList.contains('open') && !$('a-busy').hidden;
+$('a-busy-retry').addEventListener('click', () => { const go = busyRetry; busyRetry = null; if (go) go(); });
+$('a-busy-back').addEventListener('click', () => { busyRetry = null; openAccount(afterSignIn); });
+/* The account is signed in: wait until its canvases are here (this device's
+   at once, the server's first sync capped at SETTLE_MS), then the sheet goes. */
+async function settleSignIn(){
+  await scopeChain;
+  await Promise.race([syncAccount(), new Promise(r => setTimeout(r, SETTLE_MS))]).catch(() => {});
+  if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
+}
 async function linkSite(quiet){
   const site = await loadSite();
   const idToken = await site.idToken();
@@ -2021,6 +2059,10 @@ async function linkSite(quiet){
     // The person's other Inko accounts, if the site account reaches several
     // (see identifySite): the account sheet offers to switch to them.
     setSession({ handle: r.handle, token: r.token, sso: true, site: true, others: r.others || [] });
+    if (!quiet && busyOpen()){
+      $('a-busy-t').textContent = 'Loading @' + r.handle + '…'; $('a-busy-sub').textContent = 'Bringing in your canvases';
+      await settleSignIn();
+    }
     if ($('account').classList.contains('open')) closeAccount();
     if (!quiet) toast('Signed in as @' + r.handle);
     return true;
@@ -2036,15 +2078,33 @@ for (const id of ['a-google', 'a-discord']){
     e.preventDefault();
     const href = $(id).getAttribute('href');
     const which = id === 'a-google' ? 'google' : 'discord';
+    const name = which === 'google' ? 'Google' : 'Discord';
+    showBusy('Signing in with ' + name + '…', 'Finish in the window that opened');
+    let signedIn = false;
     try {
       await (await loadSite()).signIn(which);
-      await linkSite(false);
-      return;
+      signedIn = true;
     } catch (err) {
-      if (siteAuth && (await siteAuth).cancelled(err)) return;
+      if (siteAuth && (await siteAuth).cancelled(err)){ openAccount(afterSignIn); return; }
       console.warn('inko: site sign-in failed, using the Inko sign-in', err);
     }
-    if (FRAMED){ window.open(href, '_blank', 'noopener'); return; }
+    if (signedIn){
+      // Signed in to the site; the Inko account is a server call away.
+      const finish = async () => {
+        showBusy('Signing in…');
+        try { await linkSite(false); }
+        catch (err){ busyFailed(err.message || 'The account could not be reached.', finish); }
+      };
+      return finish();
+    }
+    if (FRAMED){
+      // The fallback finishes in a new tab; its session reaches this frame
+      // through localStorage (the storage listener below).
+      showBusy('Signing in with ' + name + '…', 'Finish in the new tab, then come back here');
+      $('a-busy-row').hidden = false; $('a-busy-retry').hidden = true;
+      window.open(href, '_blank', 'noopener');
+      return;
+    }
     try { await flushDraft(); } catch (err) {}
     location.href = href;
   });
@@ -2068,8 +2128,12 @@ function handleAuthReturn(){
     try {
       const got = JSON.parse(params.get('auth'));
       if (got && got.handle && got.token){
+        // Back from the provider: the spinner, not the sign-in sheet, until
+        // the account's canvases are here.
+        openGallery();
+        showBusy('Loading @' + got.handle + '…', 'Bringing in your canvases');
         setSession({ handle: got.handle, token: got.token, sso: true });
-        toast('Signed in as @' + got.handle);
+        settleSignIn().finally(() => { if (busyOpen()) closeAccount(); toast('Signed in as @' + got.handle); });
       }
     } catch (e) {}
   } else if (params.has('claim')){
@@ -2083,7 +2147,7 @@ function handleAuthReturn(){
 }
 function openClaim(ticket, suggest){
   openGallery();
-  $('a-in').hidden = true; $('a-out').hidden = true; $('a-claim').hidden = false;
+  $('a-in').hidden = true; $('a-out').hidden = true; $('a-claim').hidden = false; $('a-busy').hidden = true;
   $('a-claim-handle').value = suggest;
   $('a-msg3').textContent = '';
   $('account').classList.add('open');
@@ -2091,7 +2155,9 @@ function openClaim(ticket, suggest){
     $('a-msg3').textContent = '';
     try {
       const r = await api('claim', { ticket, handle: $('a-claim-handle').value });
-      setSession({ handle: r.handle, token: r.token, sso: true, created: true });
+      showBusy('Setting up @' + r.handle + '…');
+      setSession({ handle: r.handle, token: r.token, sso: true, fresh: r.fresh === true });
+      await settleSignIn();
       closeAccount();
       toast('Welcome, @' + r.handle);
     } catch (e) { $('a-msg3').textContent = e.message; }
@@ -2104,9 +2170,14 @@ window.addEventListener('storage', e => {
   if (e.key !== SESSION_KEY) return;
   try { session = JSON.parse(e.newValue || 'null'); } catch (err) { session = null; }
   syncAccountButton();
-  switchScope(scopeOf(session), !!(session && session.created));
+  // Another tab signed in. Never an adoption: a new account takes the
+  // signed-out canvases in the tab that made it (they share this IndexedDB).
+  switchScope(scopeOf(session), false);
   if (session) resumePublish();
-  if (session && $('account').classList.contains('open')) closeAccount();
+  if (session && $('account').classList.contains('open')){
+    showBusy('Loading @' + session.handle + '…', 'Bringing in your canvases');
+    settleSignIn().finally(() => { if (busyOpen()) closeAccount(); });
+  }
   if (galleryTab === 'public') loadFeed();
 });
 function closeAccount(){ $('account').classList.remove('open'); afterSignIn = null; }
@@ -2115,7 +2186,7 @@ async function signIn(action){
   const handle = $('a-handle').value, password = $('a-pass').value;
   try {
     const r = await api(action, { handle, password });
-    setSession({ handle: r.handle, token: r.token, created: action === 'signup' });
+    setSession({ handle: r.handle, token: r.token, fresh: r.fresh === true });
     const then = afterSignIn;
     closeAccount();
     toast(action === 'signup' ? 'Welcome, @' + r.handle : 'Signed in as @' + r.handle);
@@ -2919,7 +2990,7 @@ async function refreshSite(){
   await scopeChain; await syncAccount();
   if (session !== was) return;
   if (r.handle !== was.handle && !gallery.length){
-    setSession({ ...was, handle: r.handle, token: r.token, created: false,
+    setSession({ ...was, handle: r.handle, token: r.token,
                  others: [...all.filter(o => o.handle !== r.handle && o.handle !== was.handle), { handle: was.handle, token: was.token }] });
     toast('Signed in as @' + r.handle);
     return;

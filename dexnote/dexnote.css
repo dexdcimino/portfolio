@@ -11,3 +11,16 @@ html, body { margin: 0; height: 100%; background: #0B0D11; }
 
 /* The sign-in card, the account button and the password field are in
    notes/notes.css: the homepage overlay draws them too. */
+
+/* The loader: the mark breathing while the account opens. */
+.dn-loading .dn-logo { animation: dn-breathe 1.6s ease-in-out infinite; }
+@keyframes dn-breathe { 0%, 100% { opacity: .55; transform: scale(.94); } 50% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .dn-loading .dn-logo { animation: none; } }
+
+/* Installing, from the AI Lab's download button (?install=1). */
+.dn-install { position: fixed; inset: 0; z-index: 100; background: transparent; }
+.dn-install .nt-modal { position: absolute; inset: 0; }
+.dn-steps { margin: 0; padding-left: 22px; text-align: left; font-size: 15px; line-height: 1.7; color: var(--tx2); }
+
+/* On a phone the page itself never scrolls: the app's canvas does. */
+.dn-phone, .dn-phone body { overflow: hidden; overscroll-behavior: none; }

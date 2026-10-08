@@ -65,6 +65,11 @@ const SAVE_MIN_GAP = 5000;
  * seconds for as long as the tab stayed open, which is the one situation
  * where a fixed retry makes the problem it is reacting to worse. */
 const RETRY_FIRST = 4000;
+
+/* How often an app in use asks the store whether another device saved, and
+ * how long after the last touch it keeps asking (see refresh()). */
+const LIVE_POLL = 60000;
+const LIVE_IDLE = 2 * 60000;
 const RETRY_MAX = 60000;
 
 /* WHERE THE DOCUMENT LIVES. Everything below talks to a backend and never to
@@ -128,7 +133,7 @@ function vaultBackend({ token, onToken, onLocked }) {
   };
 }
 
-export async function mount(container, { payload, token, onToken, onLocked, onStatus, backend, headerTail, headerExtra }) {
+export async function mount(container, { payload, token, onToken, onLocked, onStatus, backend, headerTail, headerExtra, shell }) {
   await ensureCss();
 
   /* ---- the document ---- */
@@ -185,6 +190,11 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     assetSrc: (key) => ctx.demoAssets.get(key) || (store ? store.assetSrc(key) : `/api/notes/asset?key=${encodeURIComponent(key)}&t=undefined`),
     api: { uploadAsset },
     demo,
+    /* THE PHONE APP (dexnote/mobile.js) re-homes the header's controls into a
+       footer bar. The only thing the rest of the app has to know is where a
+       category's emoji goes -- in its title strip rather than a column of its
+       own (render.js buildSection). */
+    mobile: !!shell,
     // In the demo an image has nowhere to be uploaded to, so it is kept in
     // memory under the same kind of key and resolved by hydrate(). It works
     // exactly like the real thing until the overlay closes, and then it is
@@ -471,7 +481,8 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
      rail button's own rect, so the two stay together through a resize. */
   const railDock = el('div', { class: 'nt-sess-dock is-rail' });
   const railed = () => root.classList.contains('is-rail');
-  const liveDock = () => (railed() ? railDock : sessDock);
+  let shellDock = null;          // the phone app's sheet, when there is one
+  const liveDock = () => shellDock || (railed() ? railDock : sessDock);
   function placeRailDock() {
     const b = railSessBtn.getBoundingClientRect();
     const r = root.getBoundingClientRect();
@@ -500,7 +511,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     window.removeEventListener('resize', placeRailDock);
   }
   const onSessListDown = (e) => {
-    if (liveDock().contains(e.target) || railSessBtn.contains(e.target) || sessBtn.contains(e.target)) return;
+    if (liveDock().contains(e.target) || railSessBtn.contains(e.target) || sessBtn.contains(e.target) || (e.target.closest && e.target.closest('[data-sessions-toggle]'))) return;
     closeSessionList();
   };
   ctx.closeSessionList = closeSessionList;
@@ -890,6 +901,23 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   }
   const onVisible = () => { if (document.visibilityState === 'visible') refresh(); else flush(); };
   document.addEventListener('visibilitychange', onVisible);
+  /* LIVE, WHILE SOMEONE IS HERE. The phone app and the site are open on the
+     same document at once, so coming back is not the only moment it can have
+     moved: every LIVE_POLL a visible app that was touched in the last
+     LIVE_IDLE asks again. Nothing is asked of a tab nobody is using -- a
+     phone left open on a desk would otherwise read the store all night, and
+     on Vercel Blob every read is an operation on a monthly allowance. Focus
+     and coming back online ask at once. */
+  let touchedAt = Date.now();
+  const onTouch = () => { touchedAt = Date.now(); };
+  const livePoll = setInterval(() => {
+    if (document.visibilityState === 'visible' && Date.now() - touchedAt < LIVE_IDLE) refresh();
+  }, LIVE_POLL);
+  const onFocusBack = () => { onTouch(); refresh(); };
+  root.addEventListener('pointerdown', onTouch, true);
+  root.addEventListener('keydown', onTouch, true);
+  window.addEventListener('focus', onFocusBack);
+  window.addEventListener('online', onFocusBack);
 
   /* A close or a tab-away should not sit on an unsaved second. sendBeacon is
    * the only request the browser promises to finish after the page goes. */
@@ -1002,6 +1030,22 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   } else {
     setStatus(payload.savedAt ? `SAVED ${clock(payload.savedAt)}` : 'NOT SAVED YET', null);
   }
+  /* THE PHONE APP'S SHELL gets the controls themselves, not copies: the
+     buttons carry their own handlers and syncToolbar keeps lighting them
+     wherever they are put. */
+  if (shell) {
+    shell({
+      root, header, sidebar, canvas, ctx, fmt, nodeBtn, searchMount, search, spell, status, undoBtn, redoBtn, FONTS, SIZES,
+      get doc() { return doc; },
+      setDock(dock) { shellDock = dock; },
+      openSessions: openSessionList, closeSessions: closeSessionList,
+      sessionsOpen: () => root.classList.contains('show-sessions'),
+      setTheme, setFont, setSize,
+      setSpell(on) { spell.setEnabled(on); syncSettings(); },
+      openSessionColor,
+    });
+  }
+
   /* Don't autofocus the first body (Dex, 2026-10-05): it steals the tilde
      key and pops the keyboard on mobile. User taps when ready. */
   // const first = canvas.querySelector('.nt-body');
@@ -1034,6 +1078,9 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       document.removeEventListener('keydown', onDocKey);
       document.removeEventListener('selectionchange', onSelection);
       document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(livePoll);
+      window.removeEventListener('focus', onFocusBack);
+      window.removeEventListener('online', onFocusBack);
       window.removeEventListener('pagehide', flush);
       closePanel();
       // Only the blob: ones were ever created here; the preview's own picture
