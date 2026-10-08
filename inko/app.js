@@ -302,23 +302,28 @@ let historyChain = Promise.resolve();
 let pendingPushes = 0;              // strokes whose snapshot is still encoding
 const HISTORY_MAX = 50, KEEP_STEPS = 20, KEEP_CANVASES = 10, KEEP_MS = 24 * 60 * 60 * 1000;
 const stepId = () => 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-function pushHistory(){
+function pushHistory(sameStrokes){
   /* Undo is live the moment a stroke ends, not when its snapshot has
      finished encoding: the handler waits for the chain itself. Without this
      a quick tap right after drawing landed on a disabled button. */
   pendingPushes++;
   syncUndoRedo();
+  // The canvas colour is part of a step (Dex, 2026-10-08): undo after a
+  // colour change brings the previous colour back. Read now, not when the
+  // chain gets here, so a fast change after a stroke is not folded into it.
+  const bg = { h: bgH, s: bgS, b: bgB };
   historyChain = historyChain.then(async () => {
-    const blob = await canvasBlob(sLayer);
+    // A colour step leaves the strokes alone: reuse their blob, encode nothing.
+    const blob = (sameStrokes && latestBlob) || await canvasBlob(sLayer);
     const id = stepId();
     // On disk before anything can name it.
-    await idbPut('steps', { id, blob, ts: Date.now() }).catch(() => {});
+    await idbPut('steps', { id, blob, bg, ts: Date.now() }).catch(() => {});
     history = history.slice(0, step + 1);
-    history.push({ id, blob });
+    history.push({ id, blob, bg });
     if (history.length > HISTORY_MAX) history.shift();
     step = history.length - 1;
     latestBlob = blob;
-  }).catch(() => {}).then(() => { pendingPushes--; syncUndoRedo(); });
+  }).catch(() => {}).then(() => { pendingPushes--; syncUndoRedo(); try { picFollow(); } catch (e) {} });
   return historyChain;
 }
 async function drawBlob(blob){
@@ -337,6 +342,9 @@ async function restoreStep(i){
   if (!blob) return;
   await drawBlob(blob);
   latestBlob = blob;
+  const bg = history[i].bg;           // steps written before colour was kept have none
+  if (bg){ bgH = bg.h; bgS = bg.s; bgB = bg.b; refreshPanelUI(); }
+  picFollow();
   render(); dirty = true; scheduleDraft();
 }
 function syncUndoRedo(){
@@ -367,7 +375,7 @@ async function loadStack(rec, keep){
   for (const id of ids){
     const s = await idbGet('steps', id).catch(() => null);
     if (!s || !s.blob) return null;
-    out.push({ id, blob: s.blob });
+    out.push({ id, blob: s.blob, bg: s.bg });
   }
   return { history: out, step: at };
 }
@@ -619,7 +627,11 @@ function bindHSB(){
     render(); refreshPanelUI(); dirty = true; scheduleDraft();
   };
   for (const id of ['hue', 'sat', 'bri']) $(id).addEventListener('input', brush);
-  for (const id of ['cv-hue', 'cv-sat', 'cv-bri']) $(id).addEventListener('input', bg);
+  for (const id of ['cv-hue', 'cv-sat', 'cv-bri']){
+    $(id).addEventListener('input', bg);
+    // One undo step per slider let go, not one per pixel of the drag.
+    $(id).addEventListener('change', () => pushHistory(true));
+  }
 }
 let spHideT = null;
 function showSizePreview(){
@@ -851,7 +863,7 @@ function makeItem(it, isLive){
     });
     if (it.thumb) img.src = blobUrl(it.thumb);
     else if (it.png) thumbBlob(it.png, it.bg).then(b => { it.thumb = b; img.src = blobUrl(b); idbPut('canvases', it).catch(() => {}); });
-    div.addEventListener('click', () => openCanvas(it.id));
+    div.addEventListener('click', () => (picking ? openCrop(it) : openCanvas(it.id)));
     // Public or private, on the card: the lock is this device only, the globe
     // is the shared gallery.
     const pub = document.createElement('button'); pub.className = 'g-pub';
@@ -866,6 +878,8 @@ function makeItem(it, isLive){
   return div;
 }
 function renderGallery(){
+  if (searching() || galleryTab !== 'mine') return;
+  paintProfile();
   thumbUrls.forEach(u => URL.revokeObjectURL(u)); thumbUrls = [];
   const rows = $('g-rows'); rows.innerHTML = '';
   $('g-count').textContent = gallery.length + (gallery.length===1 ? ' canvas' : ' canvases');
@@ -876,7 +890,7 @@ function renderGallery(){
     items.slice(i, i+3).forEach(it => row.appendChild(makeItem(it, false)));
     rows.appendChild(row);
   }
-  $('g-grid').scrollTop = $('g-grid').scrollHeight;
+  $('g-grid').scrollTop = 0;   // the profile first
 }
 async function openCanvas(id){
   if (dirty) await saveCurrent().catch(() => {});
@@ -900,10 +914,18 @@ $('grid-btn').addEventListener('click', async () => {
   closePop();
   // The card for the canvas on screen shows what is on it now.
   if (dirty) await saveCurrent().catch(() => {});
-  if (galleryTab === 'public') loadFeed(); else renderGallery();
+  // Someone else's profile is a stop on the way, not a place to come back to.
+  setGalleryTab(galleryTab === 'user' ? 'public' : galleryTab);
   $('gallery').classList.add('open');
 });
-$('g-back').addEventListener('click', () => $('gallery').classList.remove('open'));
+/* Back: out of a search, out of picking a picture, from an artist back to
+   Public -- and otherwise to the canvas. */
+$('g-back').addEventListener('click', () => {
+  if (searching()){ clearSearch(); return; }
+  if (picking){ setPicking(false); return; }
+  if (galleryTab === 'user'){ setGalleryTab('public'); return; }
+  $('gallery').classList.remove('open');
+});
 
 /* ---------- toast ---------- */
 let toastT = null;
@@ -967,6 +989,12 @@ async function adoptLocal(next){
   for (const it of await idbAll('canvases')){
     if (ownerOf(it) !== 'local') continue;
     it.owner = next; await idbPut('canvases', it); moved++;
+  }
+  // The picture comes along too: it is cut from one of those canvases.
+  const pic = await idbGet('meta', 'avatar:local').catch(() => null);
+  if (pic && !(await idbGet('meta', 'avatar:' + next).catch(() => null))){
+    await idbPut('meta', { ...pic, key: 'avatar:' + next, sent: false });
+    await idbDel('meta', 'avatar:local');
   }
   const d = await idbGet('meta', 'draft').catch(() => null);
   if (d && !(await idbGet('meta', draftKey(next)).catch(() => null))){
@@ -1110,11 +1138,13 @@ async function showScope(cold){
   draftSavedRev = draftRev;
   await ensureCurrent();
   if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
+  loadMyPic().catch(e => console.warn('inko: picture', e));
 }
 function syncAccountButton(){
   const b = $('g-account'); if (!b) return;
   b.textContent = session ? '@' + session.handle : 'Sign in';
   b.classList.toggle('signed', !!session);
+  b.setAttribute('aria-label', session ? 'Edit @' + session.handle : 'Sign in');
 }
 const blobToDataUrl = blob => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
 
@@ -1220,7 +1250,9 @@ async function loadFeed(){
     for (const [id, m] of mineLately) if (now - m.at > LATELY_MS) mineLately.delete(id);
     const r = await fetch(API + '?feed=1' + (mineLately.size ? '&fresh=' + now : ''), { cache: 'no-store' });
     if (!r.ok) throw new Error();
-    feed = (await r.json()).posts || [];
+    const got = await r.json();
+    feed = got.posts || [];
+    feedAvatars = got.avatars || {};
     for (const [id, m] of mineLately){
       const at = feed.findIndex(p => p.id === id);
       if (m.gone){ if (at >= 0) feed.splice(at, 1); }
@@ -1239,6 +1271,7 @@ const imgUrl = (p, thumb) => `${API}?img=${encodeURIComponent(`sketch/img/${p.id
    Public tab for good. */
 function visibleFeed(){ return feed.filter(p => !blocked.includes(p.handle) || (session && session.handle === p.handle)); }
 function renderFeed(){
+  if (searching() || galleryTab !== 'public') return;
   const rows = $('g-rows'); rows.innerHTML = '';
   const items = visibleFeed();
   $('g-count').textContent = items.length + (items.length === 1 ? ' drawing' : ' drawings');
@@ -1275,7 +1308,9 @@ function feedItem(p){
   const cap = document.createElement('div'); cap.className = 'g-title';
   cap.textContent = p.title;
   const by = document.createElement('div'); by.className = 'g-by';
-  by.textContent = '@' + p.handle;
+  by.append(avatarEl(p.handle, 'small'), '@' + p.handle);
+  // The name is a way to the artist; the rest of the card is the drawing.
+  by.addEventListener('click', e => { e.stopPropagation(); openUser(p.handle); });
   div.append(th, cap, by, reactionRow(p));
   div.addEventListener('click', () => openViewer(p));
   return div;
@@ -1314,7 +1349,8 @@ function openViewer(p){
   v.dataset.post = p.id;
   $('v-img').src = imgUrl(p, false);
   $('v-title').textContent = p.title;
-  $('v-by').textContent = '@' + p.handle;
+  $('v-by').replaceChildren(avatarEl(p.handle, 'small'), '@' + p.handle);
+  $('v-by').onclick = () => { closeViewer(); openUser(p.handle); };
   const old = v.querySelector('.g-react'); if (old) old.replaceWith(reactionRow(p));
   const mine = session && session.handle === p.handle;
   $('v-report').hidden = mine; $('v-block').hidden = mine;
@@ -1341,6 +1377,7 @@ function openAccount(then, message){
   $('a-in').hidden = signed; $('a-out').hidden = !signed; $('a-claim').hidden = true;
   if (signed){
     $('a-who').textContent = '@' + session.handle;
+    $('a-rename').value = session.handle; $('a-msg4').textContent = '';
     // A Google or Discord account has no password to type to delete it.
     $('a-pass2').hidden = !!session.sso;
   }
@@ -1468,16 +1505,325 @@ $('a-delete').addEventListener('click', () => {
 });
 $('g-account').addEventListener('click', () => openAccount());
 
-/* ---- the tabs ---- */
+/* ---- where the gallery is: yours, Public, or one artist's ---- */
 function setGalleryTab(tab){
+  if (tab !== 'mine') setPicking(false);
+  if (searching()) clearSearch(true);
   galleryTab = tab;
+  const g = $('gallery');
+  for (const m of ['mine', 'public', 'user']) g.classList.toggle('mode-' + m, tab === m);
   $('g-tab-mine').classList.toggle('on', tab === 'mine');
   $('g-tab-public').classList.toggle('on', tab === 'public');
-  if (tab === 'public') loadFeed(); else renderGallery();
+  $('g-account').hidden = tab !== 'mine';
+  $('g-user-name').hidden = tab !== 'user';
+  $('g-rows').innerHTML = '';
+  if (tab === 'public') loadFeed();
+  else if (tab === 'mine') renderGallery();
 }
 $('g-tab-mine').addEventListener('click', () => setGalleryTab('mine'));
 $('g-tab-public').addEventListener('click', () => setGalleryTab('public'));
 syncAccountButton();
+// Yours until told otherwise; the classes are what show the profile header.
+$('gallery').classList.add('mode-mine'); $('g-tab-mine').classList.add('on');
+
+/* ---------- profiles ----------
+   Your profile IS your gallery: the picture square at the bottom right
+   opens it, with your picture over your canvases and your @tag under it.
+   Anyone else's is their picture over the drawings they made public.
+
+   THE PICTURE IS ONE OF YOUR CANVASES (Dex, 2026-10-08). Tap your picture,
+   tap a canvas, place a square on it: that square is your picture, and it
+   KEEPS UP -- every stroke, undo or colour change on that canvas redraws it
+   (picFollow), and signed in, sends it to the account a moment after you
+   stop. Until you choose one, you are the smiley. The choice (which canvas,
+   which square) is kept per account in meta `avatar:<scope>` with the
+   rendered picture, and on the server for an account, so another phone
+   follows the same canvas. */
+const SMILEY = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#1a1f2b"/><circle cx="32" cy="32" r="22" fill="#ffd23f"/><circle cx="24.5" cy="27" r="3.2" fill="#1a1f2b"/><circle cx="39.5" cy="27" r="3.2" fill="#1a1f2b"/><path d="M22 37 Q32 47 42 37" stroke="#1a1f2b" stroke-width="3.6" fill="none" stroke-linecap="round"/></svg>');
+const PIC = 256;
+let feedAvatars = {};               // handle -> picture version, from the feed
+let myPic = null;                   // { canvas, crop, blob } for the scope on screen
+let myPicUrl = null;
+const avatarSrc = (h, v) => (v ? `${API}?img=${encodeURIComponent(`sketch/avatars/${h}-${v}.jpg`)}` : SMILEY);
+function picFor(handle){
+  if (session && handle === session.handle && myPicUrl) return myPicUrl;
+  return avatarSrc(handle, feedAvatars[handle]);
+}
+function avatarEl(handle, size){
+  const a = document.createElement('span'); a.className = 'avatar ' + size;
+  a.style.backgroundImage = `url("${picFor(handle)}")`;
+  return a;
+}
+function paintMyPic(){
+  if (myPicUrl) URL.revokeObjectURL(myPicUrl);
+  myPicUrl = myPic && myPic.blob ? URL.createObjectURL(myPic.blob) : null;
+  $('g-tab-mine').style.backgroundImage = `url("${myPicUrl || SMILEY}")`;
+  if (galleryTab === 'mine') $('g-avatar').style.backgroundImage = `url("${myPicUrl || SMILEY}")`;
+  $('g-pick-smiley').hidden = !myPic;
+}
+function paintProfile(){
+  if (galleryTab === 'mine'){
+    $('g-avatar').style.backgroundImage = `url("${myPicUrl || SMILEY}")`;
+    $('g-avatar').setAttribute('aria-label', 'Change your profile picture');
+  }
+}
+/* A 256px square from a canvas's strokes and colour. */
+async function renderPic(png, bg, crop){
+  const t = document.createElement('canvas'); t.width = PIC; t.height = PIC;
+  const c = t.getContext('2d');
+  c.fillStyle = hsbToCss(bg.h, bg.s, bg.b, 1); c.fillRect(0, 0, PIC, PIC);
+  const bmp = await createImageBitmap(png);
+  const kx = bmp.width / W, ky = bmp.height / H;   // strokes are kept at the device's pixel ratio
+  c.drawImage(bmp, crop.x * kx, crop.y * ky, crop.size * kx, crop.size * ky, 0, 0, PIC, PIC);
+  bmp.close && bmp.close();
+  return canvasBlob(t, 'image/jpeg', 0.86);
+}
+const picKey = () => 'avatar:' + scope;
+let picUploadT = null;
+async function savePic(rec, upload){
+  myPic = rec;
+  if (rec) await idbPut('meta', { key: picKey(), ...rec, ts: Date.now() }).catch(() => {});
+  else await idbDel('meta', picKey()).catch(() => {});
+  paintMyPic();
+  if (!upload || !session) return;
+  const sc = scope;
+  clearTimeout(picUploadT);
+  picUploadT = setTimeout(async () => {
+    if (scope !== sc || !session) return;
+    try {
+      if (!myPic){ await api('avatar-clear'); return; }
+      const sent = myPic;
+      const r = await api('avatar-set', { image: await blobToDataUrl(sent.blob), canvas: sent.canvas, crop: sent.crop });
+      // Remembered as the account's version, so the next launch knows it has it.
+      if (myPic === sent && scope === sc){
+        myPic = { ...sent, v: r.avatar.v, sent: true };
+        await idbPut('meta', { key: picKey(), ...myPic, ts: Date.now() }).catch(() => {});
+      }
+    } catch (e) { console.warn('inko: picture upload', e); }
+  }, rec ? 1200 : 0);
+}
+/* The picture's canvas changed on screen: redraw it from what is there now. */
+let picFollowT = null;
+function picFollow(){
+  if (!myPic || !myPic.canvas || myPic.canvas !== editingId) return;
+  clearTimeout(picFollowT);
+  picFollowT = setTimeout(async () => {
+    if (!myPic || myPic.canvas !== editingId) return;
+    const png = await strokesBlob();
+    const blob = await renderPic(png, { h: bgH, s: bgS, b: bgB }, myPic.crop);
+    await savePic({ ...myPic, blob }, true);
+  }, 600);
+}
+/* The scope's picture: this device's copy at once, then the account's word. */
+async function loadMyPic(){
+  const sc = scope;
+  const local = await idbGet('meta', picKey()).catch(() => null);
+  myPic = local && local.blob ? { canvas: local.canvas, crop: local.crop, blob: local.blob } : null;
+  paintMyPic();
+  if (!session || sc === 'local') return;
+  const r = await api('me').catch(() => null);
+  if (!r || scope !== sc) return;
+  const a = r.avatar;
+  if (!a){
+    // Set on this device while the account had none: send it; else the account cleared it.
+    if (myPic && local && !local.sent) savePic({ ...myPic, sent: true }, true);
+    else if (myPic) savePic(null, false);
+    return;
+  }
+  const same = local && local.v === a.v;
+  if (same) return;
+  try {
+    const blob = await (await fetch(avatarSrc(session.handle, a.v))).blob();
+    if (scope !== sc) return;
+    await savePic({ canvas: a.canvas, crop: a.crop, blob, v: a.v, sent: true }, false);
+  } catch (e) {}
+  // And if that canvas is here, bring the picture up to what it holds now.
+  picFollow();
+}
+
+/* ---- choosing the picture: a canvas, then a square of it ---- */
+let picking = false;
+function setPicking(on){
+  picking = on;
+  $('g-pick').hidden = !on;
+  $('gallery').classList.toggle('picking', on);
+}
+$('g-avatar').addEventListener('click', () => {
+  if (galleryTab !== 'mine') return;
+  setPicking(!picking);
+});
+$('g-pick-cancel').addEventListener('click', () => setPicking(false));
+$('g-pick-smiley').addEventListener('click', async () => {
+  setPicking(false);
+  await savePic(null, true);
+  renderGallery(); toast('Back to the smiley');
+});
+let cropIt = null, crop = null, cropK = 1;
+async function openCrop(it){
+  // The canvas on screen may be ahead of its card.
+  if (it.id === editingId && dirty){ await saveCurrent().catch(() => {}); it = gallery.find(g => g.id === it.id) || it; }
+  if (!it.png) return;
+  cropIt = it;
+  const cv = $('crop-cv');
+  const maxW = Math.min(300, window.innerWidth - 80), maxH = Math.max(220, window.innerHeight - 330);
+  cropK = Math.min(maxW / W, maxH / H);
+  cv.width = Math.round(W * cropK); cv.height = Math.round(H * cropK);
+  const c = cv.getContext('2d');
+  c.fillStyle = hsbToCss(it.bg.h, it.bg.s, it.bg.b, 1); c.fillRect(0, 0, cv.width, cv.height);
+  const bmp = await createImageBitmap(it.png);
+  c.drawImage(bmp, 0, 0, cv.width, cv.height);
+  bmp.close && bmp.close();
+  // Back on the square it had, if this is the picture's canvas already.
+  crop = myPic && myPic.canvas === it.id && myPic.crop ? { ...myPic.crop } : { x: 0, y: (H - W) / 2, size: W };
+  $('crop-size').value = Math.round(crop.size / W * 100);
+  placeCrop();
+  $('crop').classList.add('open');
+}
+function clampCrop(){
+  crop.size = Math.max(W * 0.2, Math.min(W, crop.size));
+  crop.x = Math.max(0, Math.min(W - crop.size, crop.x));
+  crop.y = Math.max(0, Math.min(H - crop.size, crop.y));
+}
+function placeCrop(){
+  clampCrop();
+  const b = $('crop-box').style;
+  b.left = crop.x * cropK + 'px'; b.top = crop.y * cropK + 'px';
+  b.width = b.height = crop.size * cropK + 'px';
+}
+$('crop-size').addEventListener('input', () => {
+  const cx = crop.x + crop.size / 2, cy = crop.y + crop.size / 2;
+  crop.size = W * (+$('crop-size').value) / 100;
+  crop.x = cx - crop.size / 2; crop.y = cy - crop.size / 2;
+  placeCrop();
+});
+{
+  let drag = null;
+  const box = $('crop-box');
+  box.addEventListener('pointerdown', e => {
+    e.preventDefault(); box.setPointerCapture(e.pointerId);
+    drag = { x: e.clientX, y: e.clientY, cx: crop.x, cy: crop.y };
+  });
+  box.addEventListener('pointermove', e => {
+    if (!drag) return;
+    crop.x = drag.cx + (e.clientX - drag.x) / cropK;
+    crop.y = drag.cy + (e.clientY - drag.y) / cropK;
+    placeCrop();
+  });
+  const end = () => { drag = null; };
+  box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end);
+}
+$('crop-cancel').addEventListener('click', () => $('crop').classList.remove('open'));
+$('crop-save').addEventListener('click', async () => {
+  const it = cropIt; if (!it) return;
+  const blob = await renderPic(it.png, it.bg, crop);
+  await savePic({ canvas: it.id, crop: { ...crop }, blob }, true);
+  $('crop').classList.remove('open');
+  setPicking(false);
+  renderGallery();
+  toast('Profile picture set');
+});
+
+/* ---- someone else's profile ---- */
+let viewingUser = null;
+async function openUser(handle){
+  if (session && handle === session.handle){ setGalleryTab('mine'); return; }
+  setGalleryTab('user');
+  viewingUser = handle;
+  $('g-user-name').textContent = '@' + handle;
+  $('g-avatar').style.backgroundImage = `url("${avatarSrc(handle, feedAvatars[handle])}")`;
+  $('g-avatar').setAttribute('aria-label', '@' + handle);
+  $('g-count').textContent = 'Loading…';
+  let r;
+  try {
+    const res = await fetch(API + '?profile=' + encodeURIComponent(handle));
+    r = await res.json();
+    if (!res.ok) throw new Error(r.error || 'gone');
+  } catch (e) { if (viewingUser === handle) $('g-count').textContent = 'No such artist'; return; }
+  if (viewingUser !== handle || galleryTab !== 'user') return;
+  if (r.movedTo){ openUser(r.movedTo); return; }
+  feedAvatars[handle] = r.avatar || 0;
+  $('g-avatar').style.backgroundImage = `url("${avatarSrc(handle, r.avatar)}")`;
+  // The same objects as the Public tab, so a reaction here is one there.
+  const posts = (r.posts || []).map(p => { const f = feed.find(x => x.id === p.id); if (f) return f; feed.push(p); return p; });
+  $('g-count').textContent = posts.length + (posts.length === 1 ? ' drawing' : ' drawings');
+  const rows = $('g-rows'); rows.innerHTML = '';
+  for (let i = 0; i < posts.length; i += 3){
+    const row = document.createElement('div'); row.className = 'g-row';
+    posts.slice(i, i + 3).forEach(p => row.appendChild(feedItem(p)));
+    rows.appendChild(row);
+  }
+}
+
+/* ---- @-search, at the top, from anywhere in the gallery ---- */
+let searchT = null, searchSeq = 0;
+const searching = () => $('gallery').classList.contains('searching');
+function clearSearch(quiet){
+  $('g-search').value = '';
+  $('gallery').classList.remove('searching');
+  if (!quiet) setGalleryTab(galleryTab === 'user' ? 'public' : galleryTab);
+}
+$('g-search').addEventListener('input', () => {
+  clearTimeout(searchT);
+  const q = $('g-search').value.trim().replace(/^@/, '');
+  if (!q){ clearSearch(); return; }
+  $('gallery').classList.add('searching');
+  searchT = setTimeout(() => runSearch(q), 220);
+});
+$('g-search').addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); $('g-search').blur(); }
+  if (e.key === 'Escape'){ e.stopPropagation(); clearSearch(); }
+});
+async function runSearch(q){
+  const seq = ++searchSeq;
+  let users = [];
+  try { users = (await (await fetch(API + '?users=' + encodeURIComponent(q))).json()).users || []; } catch (e) {}
+  if (seq !== searchSeq || !searching()) return;
+  const rows = $('g-rows'); rows.innerHTML = '';
+  if (!users.length){
+    const e = document.createElement('div'); e.className = 'g-empty'; e.textContent = 'No artist called @' + q;
+    rows.appendChild(e); return;
+  }
+  for (const u of users){
+    feedAvatars[u.handle] = u.avatar || 0;
+    const b = document.createElement('button'); b.className = 'g-user'; b.dataset.handle = u.handle;
+    b.append(avatarEl(u.handle, 'mid'), '@' + u.handle);
+    b.addEventListener('click', () => { clearSearch(true); openUser(u.handle); });
+    rows.appendChild(b);
+  }
+}
+
+/* ---- renaming your @tag ---- */
+async function renameLocal(from, to){
+  const a = 'u:' + from, b = 'u:' + to;
+  for (const it of await idbAll('canvases')) if (ownerOf(it) === a){ it.owner = b; await idbPut('canvases', it); }
+  for (const k of ['seen:', 'draft:', 'deletes:', 'avatar:']){
+    const r = await idbGet('meta', k + a).catch(() => null);
+    if (r){ await idbPut('meta', { ...r, key: k + b }); await idbDel('meta', k + a); }
+  }
+}
+$('a-rename-go').addEventListener('click', async () => {
+  if (!session) return;
+  $('a-msg4').textContent = '';
+  const from = session.handle;
+  try {
+    const r = await api('rename', { handle: $('a-rename').value });
+    if (r.handle === from){ closeAccount(); return; }
+    // Everything this device holds for the old name moves with it, and the
+    // scope follows without a sign-out and sign-in in between.
+    await scopeChain;
+    await flushDraft().catch(() => {});
+    await renameLocal(from, r.handle);
+    session = { ...session, handle: r.handle, token: r.token };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch (e) {}
+    scope = scopeOf(session);
+    gallery.forEach(g => { g.owner = scope; });
+    if (myPic) myPic = { ...myPic, v: r.avatar ? r.avatar.v : undefined };
+    syncAccountButton(); closeAccount();
+    if (galleryTab === 'mine') renderGallery();
+    toast('You are @' + r.handle + ' now');
+  } catch (e) { $('a-msg4').textContent = e.message; }
+});
+$('a-rename').addEventListener('keydown', e => { if (e.key === 'Enter') $('a-rename-go').click(); });
 
 /* ---------- init ---------- */
 async function init(){
