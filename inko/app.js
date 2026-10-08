@@ -272,7 +272,6 @@ function seg(ax,ay,bx,by,cx,cy){
 }
 let drawing = false, last = null, midPrev = null;
 canvas.addEventListener('pointerdown', e => {
-  if (popMode){ closePop(); e.preventDefault(); return; }
   if (eyedropperOn){ startEyedrop(e); return; }
   e.preventDefault();
   try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
@@ -541,13 +540,14 @@ function swapTools(){
 }
 $('tool-toggle').addEventListener('click', e => {
   e.stopPropagation();
-  closePop();
+  closePop();   // the canvas window gives the size bar back
   tool = tool==='brush' ? 'eraser' : 'brush';
   swapTools(); refreshSizeUI();
 });
 $('color-btn').addEventListener('click', e => {
   e.stopPropagation();
-  setColorMode(!colorMode);
+  // Over the canvas window, the swatch brings its own sliders back.
+  setColorMode(popMode ? true : !colorMode);
 });
 
 $('sym-btn').addEventListener('click', () => {
@@ -624,33 +624,16 @@ $('g-new').addEventListener('click', async () => {
   toast('New canvas created');
 });
 
-/* ---------- brush popover ---------- */
-function placePop(){
-  // Above the topmost bar, never over one: the options bar stays reachable.
-  const bb = $('bottom-bars').getBoundingClientRect();
-  brushPop.style.bottom = Math.max(8, bb.bottom - bb.top + 8) + 'px';
-}
+/* ---------- the canvas window ----------
+   One of the panels in the bars, never on top of one (Dex, 2026-10-08): open,
+   it is the only panel up -- the options bar, the size bar and the brush
+   colour go -- and the eyedropper, the brush/eraser toggle or the brush
+   swatch close it and bring theirs back. What it set stays set. */
 function closePop(){
   const was = brushPop.classList.contains('open'); popMode = null; brushPop.classList.remove('open');
   $('copt-btn').classList.remove('on'); $('copt-btn').setAttribute('aria-pressed', 'false');
-  if (was) fit();
+  if (was){ showBars(); fit(); }
 }
-$('pop-x').addEventListener('click', e => { e.stopPropagation(); closePop(); });
-document.addEventListener('pointerdown', e => {
-  if (!popMode) return;
-  if (brushPop.contains(e.target)) return;
-  if (e.target.closest('#color-btn') || e.target.closest('#tool-toggle') || e.target.closest('#canvas-swatch') || e.target.closest('#copt-btn')) return;
-  closePop();
-});
-document.addEventListener('touchstart', e => {
-  if (!popMode) return;
-  // Not on the swatch or the window: the swatch sits inside the 28px edge, so
-  // a tap on it closed the window here and the click then opened it again --
-  // the canvas jumping down and up on every tap (Dex, 2026-10-08).
-  if (brushPop.contains(e.target) || e.target.closest('#canvas-swatch, #copt-btn')) return;
-  const x = e.touches[0].clientX;
-  if (x < 28 || x > window.innerWidth-28) closePop();
-}, {passive:true});
 function syncSizeNote(){ /* size is now permanent, no-op */ }
 /* log-ish slider: 10-100px on first half, 100-500px on second half */
 function sliderToSize(p){
@@ -816,7 +799,7 @@ function setEyedropper(on){
   canvas.style.cursor = on ? 'crosshair' : '';
 }
 
-$('ed-btn').addEventListener('click', () => setEyedropper(!eyedropperOn));
+$('ed-btn').addEventListener('click', () => { closePop(); setEyedropper(!eyedropperOn); });
 $('canvas-swatch').addEventListener('click', e => {
   e.stopPropagation();
   if (popMode === 'canvas'){ closePop(); return; }
@@ -824,14 +807,16 @@ $('canvas-swatch').addEventListener('click', e => {
 });
 function openCanvasPop(mode){
   const opts = mode === 'canvas-opts';
+  if (optionsOn) setOptions(false, true);
+  if (colorMode){ colorMode = false; $('color-btn').classList.remove('on'); }
+  if (eyedropperOn) setEyedropper(false);
   popMode = mode;
   $('cp-more').hidden = !opts;
-  $('bp-title').textContent = opts ? 'Canvas' : 'Canvas color';
   if (opts){ $('cp-title').value = titleInput.value; syncTopLock(); }
   $('copt-btn').classList.toggle('on', opts); $('copt-btn').setAttribute('aria-pressed', String(opts));
   refreshPanelUI();
   brushPop.classList.add('open');
-  placePop();
+  showBars();
   fit();
 }
 $('cp-title').addEventListener('input', () => { titleInput.value = $('cp-title').value; dirty = true; scheduleDraft(); });
@@ -842,6 +827,7 @@ let colorMode = false;
 function setColorMode(on){
   colorMode = on;
   if (on && optionsOn) setOptions(false, true);
+  if (on && popMode){ popMode = null; brushPop.classList.remove('open'); }
   showBars();
   $('color-btn').classList.toggle('on', on);
   if(on) syncHSBInputs();
@@ -853,12 +839,13 @@ let optionsOn = false;
 function showBars(){
   // Undo and redo go with whichever bar is up: either side of the sliders,
   // level with S, in colour mode (Dex, 2026-10-08) -- the same two buttons.
-  const host = colorMode ? $('hsb-bar') : $('size-bar');
+  // The canvas window carries them the same way.
+  const host = colorMode ? $('hsb-bar') : popMode ? $('cp-sliders') : $('size-bar');
   if ($('redo-btn').parentNode !== host){
-    host.insertBefore($('redo-btn'), host.querySelector(colorMode ? '.hsb-rows' : '.ctl'));
+    host.insertBefore($('redo-btn'), host.querySelector(host.id === 'size-bar' ? '.ctl' : '.hsb-rows'));
     host.appendChild($('undo-btn'));
   }
-  $('size-bar').style.display = colorMode || optionsOn ? 'none' : 'flex';
+  $('size-bar').style.display = colorMode || optionsOn || popMode ? 'none' : 'flex';
   $('hsb-bar').style.display = colorMode ? 'flex' : 'none';
   $('opt-bar').hidden = !optionsOn;
 }
@@ -1536,14 +1523,39 @@ function feedItem(p){
   const div = document.createElement('div'); div.className = 'g-item p-item'; div.dataset.post = p.id;
   const th = document.createElement('div'); th.className = 'g-thumb';
   const img = document.createElement('img'); img.alt = p.title || ''; img.loading = 'lazy'; img.src = imgUrl(p, true);
+  // The @tag folds into the picture (Dex, 2026-10-08): the picture shows
+  // it, the tag opens the artist's profile.
   const by = document.createElement('div'); by.className = 'p-by';
   const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = '@' + p.handle;
-  by.append(avatarEl(p.handle, 'mid'), tag);
-  by.addEventListener('click', e => { e.stopPropagation(); openUser(p.handle); });
-  th.append(img, fireBadge(p), by);
+  const face = avatarEl(p.handle, 'mid');
+  by.append(face, tag);
+  face.addEventListener('click', e => { e.stopPropagation(); by.classList.toggle('open'); });
+  tag.addEventListener('click', e => { e.stopPropagation(); openUser(p.handle); });
+  const slot = document.createElement('div'); slot.className = 'p-slot';
+  th.append(img, fireBadge(p), by, slot);
+  // Yours: the globe, to take it back out of Public from here.
+  if (session && p.handle === session.handle){
+    const pub = document.createElement('button'); pub.className = 'g-pub';
+    paintPubButton(pub, { visibility: 'public' });
+    pub.addEventListener('click', e => { e.stopPropagation(); unpublishFromFeed(p, pub); });
+    th.append(pub);
+  }
   div.append(th);
+  document.dispatchEvent(new CustomEvent('inko:tile', { detail: { el: div, post: p } }));
   div.addEventListener('click', () => openViewer(p, gridPosts));
   return div;
+}
+async function unpublishFromFeed(p, btn){
+  btn.disabled = true;
+  try {
+    const it = gallery.find(g => g.id === p.id);
+    if (it) await unpublishItem(it);
+    else { await api('unpublish', { id: p.id }); mineLately.set(p.id, { gone: true, at: Date.now() }); }
+    feed = feed.filter(x => x.id !== p.id);
+    toast('This canvas is now private', 'Only you can see it');
+    if (galleryTab === 'public') renderFeed();
+    else if (galleryTab === 'user' && viewingUser) openUser(viewingUser);
+  } catch (e) { btn.disabled = false; toast(e.message); }
 }
 /* ONE object per post. A sign-in reloads the feed with fresh objects while a
    reaction may still hold the old one, and the viewer showed one count while
@@ -1752,6 +1764,7 @@ function closeGallery(){
   closeViewer();
   exitSelect();
   if (searching()) clearSearch(true);
+  setProfBar(false);
   $('gallery').classList.remove('open');
   visit('canvas');
 }
@@ -1902,6 +1915,7 @@ function paintPage(){
 function setGalleryTab(tab){
   if (tab !== 'mine') setPicking(false);
   exitSelect();
+  setProfBar(false);
   if (searching()) clearSearch(true);
   galleryTab = tab;
   const g = $('gallery');
@@ -1921,7 +1935,29 @@ function setGalleryTab(tab){
   if (tab !== 'user' && $('gallery').classList.contains('open')) visit(tab);
   inkoEvent('tab', { tab });
 }
-$('g-tab-mine').addEventListener('click', () => setGalleryTab('mine'));
+// Your picture: to your gallery, and once there, your profile's options.
+$('g-tab-mine').addEventListener('click', () => {
+  if (galleryTab === 'mine' && !searching()){ setProfBar($('g-prof').hidden); return; }
+  setGalleryTab('mine');
+});
+function setProfBar(on){
+  if (on){ if (selecting) exitSelect(); if (picking) setPicking(false); }
+  const signed = !!session;
+  $('pf-name').hidden = $('pf-out').hidden = $('pf-del').hidden = !signed;
+  $('pf-in').hidden = signed;
+  $('g-prof').hidden = !on;
+  $('g-tab-mine').setAttribute('aria-expanded', String(on));
+}
+$('pf-pic').addEventListener('click', () => { setProfBar(false); setPicking(true); });
+$('pf-name').addEventListener('click', () => { setProfBar(false); openAccount(); setTimeout(() => { $('a-rename').focus(); $('a-rename').select(); }, 60); });
+$('pf-out').addEventListener('click', () => { setProfBar(false); $('a-signout').click(); });
+$('pf-in').addEventListener('click', () => { setProfBar(false); openAccount(); });
+// A Google or Discord account deletes straight from its confirm; a password one types it first.
+$('pf-del').addEventListener('click', () => {
+  setProfBar(false);
+  if (session && session.sso){ $('a-delete').click(); return; }
+  openAccount(); setTimeout(() => $('a-pass2').focus(), 60);
+});
 $('g-tab-public').addEventListener('click', () => setGalleryTab(galleryTab === 'public' ? 'mine' : 'public'));
 syncAccountButton();
 // Yours until told otherwise; the classes are what show the profile header.
