@@ -1026,7 +1026,8 @@ function handleAuthReturn(){
     openClaim(params.get('claim'), params.get('suggest') || '');
   } else if (params.has('auth-error')){
     $('gallery').classList.add('open');
-    openAccount(null, AUTH_ERRORS[params.get('auth-error')] || 'Sign-in did not work. Try again.');
+    const why = params.get('why');
+    openAccount(null, (AUTH_ERRORS[params.get('auth-error')] || 'Sign-in did not work. Try again.') + (why ? ` (${why})` : ''));
   }
 }
 function openClaim(ticket, suggest){
