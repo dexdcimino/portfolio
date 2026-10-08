@@ -681,6 +681,18 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     on screen, and a sign-in or sign-out swaps all three. An account's FIRST
     sign-in on the device (no `meta` `seen:u:<handle>`) adopts every signed-out
     canvas and the signed-out draft.
+  - **The canvas on screen is always a gallery card.** A new canvas is saved
+    the moment it is made, blank or not, named `Untitled N` (the lowest N
+    above every `Untitled N` already there); the gallery saves the live one
+    before it opens and rings it. Deleting it starts a fresh blank.
+  - **Two colour controls that never cross.** The toolbar swatch opens the
+    brush bar (`hue`/`sat`/`bri`), the top-left swatch the canvas window
+    (`cv-hue`/`cv-sat`/`cv-bri`). They shared ids until 2026-10-08, so the
+    window's sliders were dead and the brush bar painted the canvas. The
+    eyedropper reads backing pixels (scaled by DPR) and takes the colour on
+    release. No install button in the app: the site's Inko card links to
+    `/inko/?install=1`, which offers the browser's prompt or the Add to Home
+    Screen steps.
   - **A signed-in account's canvases are on every device.** The server keeps
     each account's gallery (`sketch/canvases/<handle>/`: one `index.json`,
     then `<id>-<v>.png` strokes and `-t.jpg` thumbnails), and `syncAccount`

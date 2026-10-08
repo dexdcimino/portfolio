@@ -223,6 +223,7 @@ try {
   };
   // A draws, names it, saves it with +.
   await strokeOn(A);
+  await A.evaluate(() => { document.getElementById('title-input').value = ''; });   // a new canvas is pre-named Untitled N
   await A.type('#title-input', 'Dragon');
   await A.click('#plus-btn'); await sleep(900);
   await A.click('#grid-btn'); await sleep(500);
@@ -316,6 +317,7 @@ try {
     };
     await one.bringToFront();
     await strokeOn(one);
+    await one.evaluate(() => { document.getElementById('title-input').value = ''; });   // a new canvas is pre-named Untitled N
     await one.type('#title-input', 'Both phones');
     await one.click('#plus-btn'); await sleep(2500);
     await openGallery(two);
@@ -341,7 +343,7 @@ try {
     note(!(await titles(one)).includes('Both phones'), 'a canvas deleted on one device is still on the other');
     // Signed out on the first device: the account's canvases are not there.
     await one.click('#g-account'); await sleep(300); await one.click('#a-signout'); await sleep(1500);
-    note((await titles(one)).length === 0, `signed out, the gallery shows ${JSON.stringify(await titles(one))}`);
+    { const t = await titles(one); note(t.length === 1 && /^Untitled \d+$/.test(t[0]), `signed out, the gallery shows ${JSON.stringify(t)} — wanted only its own fresh blank`); }
     console.log(`two devices: "Both phones" saved on one appeared on the other (${inkTwo} stroke pixels), deleted there left both, signed out shows none`);
     for (const d of devices) await d.ctx.close();
   }
@@ -401,6 +403,7 @@ try {
       await C.mouse.move(r.x + r.w * 0.3, r.y + r.h * 0.3); await C.mouse.down();
       await C.mouse.move(r.x + r.w * 0.7, r.y + r.h * 0.7, { steps: 10 }); await C.mouse.up(); await sleep(500);
     }
+    await C.evaluate(() => { document.getElementById('title-input').value = ''; });   // a new canvas is pre-named Untitled N
     await C.type('#title-input', 'Sunset');
     await C.click('#plus-btn'); await sleep(900);
     await C.click('#grid-btn'); await sleep(400);

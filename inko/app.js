@@ -141,7 +141,7 @@ const W = 880, H = 1170, DPR = Math.min(window.devicePixelRatio || 1, 2);
 let hue = 4, sat = 100, bri = 100;
 let brushSize = 45, eraserSize = null;
 let bgH = 210, bgS = 35, bgB = 50;
-let tool = 'brush', mirrorOn = false, panelMode = 'brush', popMode = null;
+let tool = 'brush', mirrorOn = false, popMode = null;
 let history = [], step = -1, dirty = false, editingId = null;
 let gallery = [];                   // the canvases of the scope on screen
 
@@ -253,33 +253,7 @@ function seg(ax,ay,bx,by,cx,cy){
 let drawing = false, last = null, midPrev = null;
 canvas.addEventListener('pointerdown', e => {
   if (popMode){ closePop(); e.preventDefault(); return; }
-  if (eyedropperOn){
-    e.preventDefault();
-    const hsb = sampleColorAt(e.clientX, e.clientY);
-    if (hsb){
-      showEdPreview(e.clientX, e.clientY, hsb);
-      // Long-press: keep updating preview; tap: apply immediately on up
-      edLongPressT = setTimeout(() => { edLongPressT = 'held'; }, 400);
-      const up = (ev) => {
-        const h2 = sampleColorAt(ev.clientX, ev.clientY);
-        if (h2) applyEyedropperColor(h2);
-        hideEdPreview(); setEyedropper(false);
-        if (tool !== 'brush'){ tool='brush'; syncToolSel(); refreshSizeUI(); }
-        canvas.removeEventListener('pointerup', up);
-        canvas.removeEventListener('pointercancel', up);
-      };
-      canvas.addEventListener('pointerup', up);
-      canvas.addEventListener('pointercancel', up);
-      const mv = (ev) => {
-        const h3 = sampleColorAt(ev.clientX, ev.clientY);
-        if (h3) showEdPreview(ev.clientX, ev.clientY, h3);
-        if (edLongPressT === 'held') return;
-      };
-      canvas.addEventListener('pointermove', mv, {once:false});
-      setTimeout(() => canvas.removeEventListener('pointermove', mv), 5000);
-    }
-    return;
-  }
+  if (eyedropperOn){ startEyedrop(e); return; }
   e.preventDefault();
   try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
   drawing = true;
@@ -530,23 +504,42 @@ $('sym-btn').addEventListener('click', () => {
   $('sym-btn').setAttribute('aria-pressed', mirrorOn);
   render();
 });
-$('plus-btn').addEventListener('click', async () => {
-  closePop();
-  /* A blank, untitled canvas nobody touched is not saved -- it used to be,
-     and every second press of + left an empty card in the gallery. */
-  const untouched = !editingId && step <= 0 && !titleInput.value.trim();
-  if (!untouched){
-    try { await saveCurrent(); toast('Canvas saved'); } catch (e) { return; }
-  }
-  await keepCanvasHistory();
-  editingId = null; titleInput.value = '';
+/* THE CANVAS ON SCREEN IS ALWAYS A CARD in the gallery (Dex, 2026-10-08):
+   a new one is saved the moment it is made, blank or not, named Untitled 1,
+   2, 3... so + always visibly makes a canvas, and the gallery never lacks the
+   one being drawn on. (It used to skip saving a blank, untitled canvas, so a
+   fresh canvas was missing from the gallery until something was drawn.) */
+function nextUntitled(){
+  let n = 0;
+  for (const g of gallery){ const m = /^Untitled (\d+)$/.exec(g.title || ''); if (m) n = Math.max(n, +m[1]); }
+  return 'Untitled ' + (n + 1);
+}
+async function startBlank(){
+  editingId = null; titleInput.value = nextUntitled();
   bgH = 210; bgS = 35; bgB = 50;
   await historyChain;
   sctx.clearRect(0,0,W,H);
   // A fresh history too: undo on a new canvas must not bring the old one back.
-  render(); history = []; step = -1; pushHistory(); dirty = false;
-  clearDraft();
+  render(); history = []; step = -1; pushHistory();
+  dirty = true;
+  await saveCurrent().catch(() => {});
+  scheduleDraft();
   refreshPanelUI();
+}
+/* Whatever is on screen, as a card: called once the scope is on screen. */
+async function ensureCurrent(){
+  if (editingId && gallery.some(g => g.id === editingId)) return;
+  if (!titleInput.value.trim()) titleInput.value = nextUntitled();
+  await saveCurrent().catch(() => {});
+  scheduleDraft();
+  refreshPanelUI();
+}
+$('plus-btn').addEventListener('click', async () => {
+  closePop();
+  if (dirty){ try { await saveCurrent(); } catch (e) { return; } }
+  await keepCanvasHistory();
+  await startBlank();
+  toast(titleInput.value);
 });
 
 /* ---------- brush popover ---------- */
@@ -554,22 +547,12 @@ function placePop(){
   const tb = $('toolbar').getBoundingClientRect();
   brushPop.style.bottom = Math.max(8, window.innerHeight - tb.top + 12) + 'px';
 }
-function openBrushPop(){
-  panelMode = 'brush'; popMode = 'brush';
-  syncTabs(); refreshPanelUI(); placePop();
-  brushPop.classList.add('open');
-}
-function openEraserPop(){
-  panelMode = 'brush'; popMode = 'eraser';
-  syncTabs(); refreshPanelUI(); placePop();
-  brushPop.classList.add('open');
-}
 function closePop(){ popMode = null; brushPop.classList.remove('open'); }
 $('pop-x').addEventListener('click', e => { e.stopPropagation(); closePop(); });
 document.addEventListener('pointerdown', e => {
   if (!popMode) return;
   if (brushPop.contains(e.target)) return;
-  if (e.target.closest('#color-btn') || e.target.closest('#tool-toggle')) return;
+  if (e.target.closest('#color-btn') || e.target.closest('#tool-toggle') || e.target.closest('#canvas-swatch')) return;
   closePop();
 });
 document.addEventListener('touchstart', e => {
@@ -577,13 +560,6 @@ document.addEventListener('touchstart', e => {
   const x = e.touches[0].clientX;
   if (x < 28 || x > window.innerWidth-28) closePop();
 }, {passive:true});
-$('tab-brush').addEventListener('click', () => { panelMode='brush'; syncTabs(); refreshPanelUI(); });
-$('tab-canvas').addEventListener('click', () => { panelMode='canvas'; syncTabs(); refreshPanelUI(); });
-function syncTabs(){
-  $('tab-brush').classList.toggle('on', panelMode==='brush');
-  $('tab-canvas').classList.toggle('on', panelMode==='canvas');
-  $('swatch-label').textContent = panelMode==='canvas' ? 'Canvas color' : 'Brush color';
-}
 function syncSizeNote(){ /* size is now permanent, no-op */ }
 /* log-ish slider: 10-100px on first half, 100-500px on second half */
 function sliderToSize(p){
@@ -598,16 +574,22 @@ function sizeToSlider(s){
   if (s <= 100) return 25 + ((s-30)/70)*25;
   return 50 + ((s-100)/400)*50;
 }
+/* Two colour controls, never crossed: the brush bar (hue/sat/bri, opened by
+   the brush swatch in the toolbar) only ever sets the BRUSH, and the canvas
+   window (cv-hue/cv-sat/cv-bri, opened by the top-left swatch) only ever
+   sets the CANVAS. Both read back from state here, and so do both swatches. */
+function paintTracks(prefix, h, s, b){
+  $(prefix + 'sat').style.setProperty('--sat-track', `linear-gradient(90deg, ${hsbToCss(h,0,b,1)}, ${hsbToCss(h,100,b,1)})`);
+  $(prefix + 'bri').style.setProperty('--bri-track', `linear-gradient(90deg, ${hsbToCss(h,s,0,1)}, ${hsbToCss(h,s,100,1)})`);
+}
 function refreshPanelUI(){
   const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
-  const isCanvas = panelMode==='canvas' && popMode!=='eraser';
-  const h = isCanvas ? bgH : hue, s = isCanvas ? bgS : sat, b = isCanvas ? bgB : bri;
-  $('hue').value = h; $('sat').value = s; $('bri').value = b;
-  $('hue-v').textContent = h+'°'; $('sat-v').textContent = s; $('bri-v').textContent = b;
-  const css = hsbToCss(h,s,b,1);
-  $('swatch').style.background = css;
-  $('sat').style.setProperty('--sat-track', `linear-gradient(90deg, ${hsbToCss(h,0,b,1)}, ${hsbToCss(h,100,b,1)})`);
-  $('bri').style.setProperty('--bri-track', `linear-gradient(90deg, ${hsbToCss(h,s,0,1)}, ${hsbToCss(h,s,100,1)})`);
+  $('cs-dot').style.background = bgCss();
+  $('hue').value = hue; $('sat').value = sat; $('bri').value = bri;
+  paintTracks('', hue, sat, bri);
+  $('cv-hue').value = bgH; $('cv-sat').value = bgS; $('cv-bri').value = bgB;
+  paintTracks('cv-', bgH, bgS, bgB);
+  syncTopLock();
   const sz = tool==='eraser' ? eraserEff() : brushSize;
   $('size').value = sizeToSlider(sz);
   $('size-v').textContent = sz+'px';
@@ -628,16 +610,16 @@ function refreshSizeUI(){
   if (lbl) lbl.textContent = sz + 'px';
 }
 function bindHSB(){
-  const on = () => {
-    const h = +$('hue').value, s = +$('sat').value, b = +$('bri').value;
-    showColorPreview();
-    if (panelMode==='canvas' && popMode!=='eraser'){ bgH=h; bgS=s; bgB=b; render(); }
-    else { hue=h; sat=s; bri=b; }
-    refreshPanelUI(); dirty = true; scheduleDraft();
+  const brush = () => {
+    hue = +$('hue').value; sat = +$('sat').value; bri = +$('bri').value;
+    showColorPreview(); refreshPanelUI();
   };
-  $('hue').addEventListener('input', on);
-  $('sat').addEventListener('input', on);
-  $('bri').addEventListener('input', on);
+  const bg = () => {
+    bgH = +$('cv-hue').value; bgS = +$('cv-sat').value; bgB = +$('cv-bri').value;
+    render(); refreshPanelUI(); dirty = true; scheduleDraft();
+  };
+  for (const id of ['hue', 'sat', 'bri']) $(id).addEventListener('input', brush);
+  for (const id of ['cv-hue', 'cv-sat', 'cv-bri']) $(id).addEventListener('input', bg);
 }
 let spHideT = null;
 function showSizePreview(){
@@ -672,17 +654,49 @@ function rgbToHsb(r, g, b){
   }
   return {h:Math.round(h), s:mx===0?0:Math.round(d/mx*100), b:Math.round(mx*100)};
 }
+/* The canvas's BACKING pixels are W*DPR by H*DPR, so a point in drawing
+   units has to be scaled by DPR to read the pixel under it. Without that,
+   on any phone (DPR 2+) it read a pixel up and to the left of the finger --
+   the "eyedropper picks the wrong colour". */
 function sampleColorAt(clientX, clientY){
   const r = canvas.getBoundingClientRect();
-  const x = (clientX - r.left) / r.width * W;
-  const y = (clientY - r.top) / r.height * H;
-  if(x<0||y<0||x>=W||y>=H) return null;
-  const d = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+  const fx = (clientX - r.left) / r.width, fy = (clientY - r.top) / r.height;
+  if (fx < 0 || fy < 0 || fx >= 1 || fy >= 1) return null;
+  const d = ctx.getImageData(Math.floor(fx * canvas.width), Math.floor(fy * canvas.height), 1, 1).data;
   return rgbToHsb(d[0], d[1], d[2]);
+}
+/* Touch and drag: the loupe follows the finger showing the colour under it,
+   and the colour is taken when the finger lifts. Captured, so a drag that
+   strays off the canvas keeps the last colour it was over. */
+function startEyedrop(e){
+  e.preventDefault();
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  let picked = sampleColorAt(e.clientX, e.clientY);
+  if (picked) showEdPreview(e.clientX, e.clientY, picked);
+  const move = ev => {
+    if (ev.pointerId !== e.pointerId) return;
+    const h = sampleColorAt(ev.clientX, ev.clientY);
+    if (h) picked = h;
+    if (picked) showEdPreview(ev.clientX, ev.clientY, picked);
+  };
+  const up = ev => {
+    if (ev.pointerId !== e.pointerId) return;
+    canvas.removeEventListener('pointermove', move);
+    canvas.removeEventListener('pointerup', up);
+    canvas.removeEventListener('pointercancel', up);
+    hideEdPreview(); setEyedropper(false);
+    if (picked && ev.type === 'pointerup'){
+      applyEyedropperColor(picked);
+      if (tool !== 'brush'){ tool = 'brush'; syncToolSel(); refreshSizeUI(); }
+    }
+  };
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
 }
 function applyEyedropperColor(hsb){
   hue=hsb.h; sat=hsb.s; bri=hsb.b;
-  refreshPanelUI(); dirty=true; scheduleDraft();
+  refreshPanelUI();
 }
 let edLongPressT=null, edPreviewEl=null;
 function showEdPreview(x, y, hsb){
@@ -707,10 +721,12 @@ function setEyedropper(on){
 }
 
 $('ed-btn').addEventListener('click', () => setEyedropper(!eyedropperOn));
-$('canvas-swatch').addEventListener('click', () => {
-  panelMode='canvas'; popMode='canvas';
-  syncTabs(); refreshPanelUI(); placePop();
-  $('brush-pop').classList.add('open');
+$('canvas-swatch').addEventListener('click', e => {
+  e.stopPropagation();
+  if (popMode){ closePop(); return; }
+  popMode = 'canvas';
+  refreshPanelUI(); placePop();
+  brushPop.classList.add('open');
 });
 
 /* ---------- color/size mode toggle ---------- */
@@ -723,7 +739,7 @@ function setColorMode(on){
   if(on) syncHSBInputs();
 }
 function syncHSBInputs(){
-  $('hue').value=hue; $('sat').value=sat; $('bri').value=bri;
+  refreshPanelUI();
   updateHSBTracks();
 }
 function updateHSBTracks(){
@@ -791,7 +807,7 @@ $('m-del').addEventListener('click', () => {
   if (modalCb) modalCb();
 });
 function makeItem(it, isLive){
-  const div = document.createElement('div'); div.className = 'g-item';
+  const div = document.createElement('div'); div.className = 'g-item' + (!isLive && it.id === editingId ? ' current' : '');
   const th = document.createElement('div'); th.className = 'g-thumb';
   const img = document.createElement('img'); img.alt = ''; th.appendChild(img);
   const dl = document.createElement('button'); dl.className = 'g-dl'; dl.setAttribute('aria-label','Download');
@@ -828,7 +844,8 @@ function makeItem(it, isLive){
           api('canvas-delete', { id: it.id, ts }).catch(() => queueDelete(sc, it.id, ts));
         }
         gallery = gallery.filter(g => g.id !== it.id);
-        if (editingId === it.id) editingId = null;
+        // Deleting the canvas on screen leaves a fresh one, not a ghost of it.
+        if (editingId === it.id) await startBlank();
         toast('Canvas deleted'); renderGallery();
       });
     });
@@ -879,8 +896,10 @@ async function openCanvas(id){
   $('gallery').classList.remove('open');
   refreshPanelUI();
 }
-$('grid-btn').addEventListener('click', () => {
+$('grid-btn').addEventListener('click', async () => {
   closePop();
+  // The card for the canvas on screen shows what is on it now.
+  if (dirty) await saveCurrent().catch(() => {});
   if (galleryTab === 'public') loadFeed(); else renderGallery();
   $('gallery').classList.add('open');
 });
@@ -1089,6 +1108,7 @@ async function showScope(cold){
   if (!history.length) pushHistory();
   syncUndoRedo();
   draftSavedRev = draftRev;
+  await ensureCurrent();
   if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
 }
 function syncAccountButton(){
@@ -1152,6 +1172,7 @@ async function resumePublish(){
   if (it.visibility !== 'public'){
     try { await publishItem(it); toast('Public — in the shared gallery'); } catch (e) { toast(e.message); }
   }
+  syncTopLock();
   if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
 }
 async function toggleVisibility(it, btn){
@@ -1163,7 +1184,20 @@ async function toggleVisibility(it, btn){
   } catch (e) { toast(e.message); }
   btn.disabled = false;
   paintPubButton(btn, it);
+  syncTopLock();
+  if (btn.id === 'top-lock' && $('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
 }
+/* The lock at the top right is the canvas on screen's own public/private
+   switch, the same one its gallery card carries. */
+const currentItem = () => (editingId ? gallery.find(g => g.id === editingId) : null);
+function syncTopLock(){ const b = $('top-lock'); if (b) paintPubButton(b, currentItem() || { visibility: 'private' }); }
+$('top-lock').addEventListener('click', async e => {
+  e.stopPropagation();
+  closePop();
+  if (dirty || !currentItem()){ try { await saveCurrent(); } catch (err) { return; } }
+  const it = currentItem();
+  if (it) toggleVisibility(it, $('top-lock'));
+});
 function paintPubButton(btn, it){
   const pub = it.visibility === 'public';
   btn.classList.toggle('on', pub);
@@ -1474,55 +1508,39 @@ async function init(){
   checkForUpdate();
 }
 
-/* ---------- PWA install prompt ---------- */
+/* ---------- installing ----------
+   No install button in the app any more (it was a testing leftover). The
+   site's Inko card has a download button that opens /inko/?install=1, and
+   that is the one place installing is offered: the browser's own prompt
+   where it has one (Chrome, Edge, Android), and the Add to Home Screen steps
+   where it does not (Safari, iPhone). */
 let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const btn = $('install-btn');
-  // Never inside the site's overlay or the installed app itself.
-  if (btn && !EMBED && !matchMedia('(display-mode: standalone)').matches) btn.style.display = '';
-});
-const installBtn = $('install-btn');
-/* Not inside the installed app, and not inside the site's overlay: in both
-   places "Install" is either done already or impossible. */
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
+window.addEventListener('appinstalled', () => { deferredPrompt = null; });
 const STANDALONE = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-if (installBtn && (STANDALONE || EMBED)) installBtn.style.display = 'none';
-else if (installBtn){
-  installBtn.style.display = '';
-  installBtn.addEventListener('click', async () => {
-    if (deferredPrompt){
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') installBtn.style.display = 'none';
-      deferredPrompt = null;
-    } else {
-      // Fallback: show manual instructions
-      showInstallInstructions();
-    }
-  });
-}
-function showInstallInstructions(){
+function showInstallSheet(){
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const t = document.createElement('div');
+  t.id = 'install-sheet';
   t.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
-  t.innerHTML = '<div style="background:#1a1f2e;border-radius:16px;padding:24px;max-width:340px;color:#fff;">' +
-    '<h3 style="margin:0 0 12px;font-size:18px;">Install Inko</h3>' +
-    '<p style="margin:0 0 8px;font-size:14px;color:#aaa;">To install this app on your home screen:</p>' +
-    '<ol style="margin:0 0 16px;padding-left:20px;font-size:14px;color:#ddd;">' +
-    '<li>Open <b>dexcimino.com/inko/</b> in Chrome</li>' +
-    '<li>Tap the <b>⋮ menu</b> (top-right)</li>' +
-    '<li>Tap <b>"Add to Home screen"</b> or <b>"Install app"</b></li>' +
-    '</ol>' +
-    '<button style="width:100%;background:linear-gradient(135deg,#22d3ee,#a78bfa);border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;color:#0b0d12;font-size:15px;">Got it</button></div>';
-  t.querySelector('button').onclick = () => t.remove();
+  const steps = deferredPrompt ? '<p style="margin:0 0 16px;font-size:14px;color:#ddd;">Inko goes on your home screen and opens like any other app, offline too.</p>'
+    : ios ? '<ol style="margin:0 0 16px;padding-left:20px;font-size:14px;color:#ddd;"><li>Tap the <b>Share</b> button in Safari</li><li>Tap <b>Add to Home Screen</b></li></ol>'
+    : '<ol style="margin:0 0 16px;padding-left:20px;font-size:14px;color:#ddd;"><li>Open the browser <b>menu</b> (⋮)</li><li>Tap <b>Install app</b> or <b>Add to Home screen</b></li></ol>';
+  t.innerHTML = '<div style="background:#1a1f2e;border-radius:16px;padding:24px;max-width:340px;width:100%;color:#fff;">' +
+    '<h3 style="margin:0 0 12px;font-size:18px;">Install Inko</h3>' + steps +
+    '<button data-go style="width:100%;background:linear-gradient(135deg,#22d3ee,#a78bfa);border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;color:#0b0d12;font-size:15px;">' + (deferredPrompt ? 'Install' : 'Got it') + '</button></div>';
+  t.querySelector('[data-go]').onclick = async () => {
+    if (deferredPrompt){ deferredPrompt.prompt(); try { await deferredPrompt.userChoice; } catch (e) {} deferredPrompt = null; }
+    t.remove();
+  };
   t.onclick = e => { if (e.target === t) t.remove(); };
   document.body.appendChild(t);
 }
-window.addEventListener('appinstalled', () => {
-  const btn = $('install-btn');
-  if (btn) btn.style.display = 'none';
-  deferredPrompt = null;
-});
+if (!EMBED && !STANDALONE && new URLSearchParams(location.search).has('install')){
+  window.history.replaceState(null, '', location.pathname + location.hash);
+  // Chrome fires beforeinstallprompt shortly after load; give it a moment.
+  setTimeout(showInstallSheet, 1200);
+}
 
 init();
 })();

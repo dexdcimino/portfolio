@@ -79,7 +79,7 @@ const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new'
 try {
   const page = await browser.newPage();
   await page.createCDPSession().then(s => s.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {}));
-  await page.setViewport({ width: 420, height: 860, isMobile: true, hasTouch: false });
+  await page.setViewport({ width: 420, height: 860, isMobile: true, hasTouch: false, deviceScaleFactor: 2 });   // a phone's pixel ratio: the eyedropper misread at 2
   const errors = [];
   page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
@@ -134,7 +134,8 @@ try {
   await page.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
   await page.waitForFunction(() => (document.getElementById('g-build') || {textContent: ''}).textContent.startsWith('build '), { timeout: 15000 }).catch(() => {});
   const migrated = await state();
-  note(migrated.count === 22 && migrated.blobs, `migration kept ${migrated.count} of 22 drawings (as Blobs: ${migrated.blobs})`);
+  // 22 drawings plus the old draft, which is on screen and so is a card too.
+  note(migrated.count === 23 && migrated.blobs, `migration kept ${migrated.count} of 22 drawings + the draft's card (as Blobs: ${migrated.blobs})`);
   note(migrated.ls === 0, 'the old localStorage keys are still there after the migration');
   note(migrated.title === 'Draft from before', `the old draft did not come back (title "${migrated.title}")`);
   note(/^build [0-9a-z]{6}$/.test(migrated.label), `the build label reads "${migrated.label}"`);
@@ -144,7 +145,7 @@ try {
   // A clean canvas first: + saves the migrated draft (23 now) and starts over.
   await page.click('#plus-btn'); await sleep(800);
   const afterPlus = await state();
-  note(afterPlus.count === 23, `+ on the draft left ${afterPlus.count} drawings, wanted 23 — and more than 20 is the point`);
+  note(afterPlus.count === 24 && afterPlus.title === 'Untitled 1', `+ left ${afterPlus.count} drawings, wanted 24 — and more than 20 is the point; the new one is "${afterPlus.title}"`);
   await page.evaluate(() => { const h = document.getElementById('hue'); h.value = 0; h.dispatchEvent(new Event('input')); });
   await stroke();
   const inked = await ink();
@@ -156,6 +157,7 @@ try {
   note(await ink() > 200, 'redo did not bring the stroke back');
 
   // ---- 3. the draft survives a reload, and + on a blank adds nothing -----
+  await page.evaluate(() => { document.getElementById('title-input').value = ''; });
   await page.type('#title-input', 'Harness sketch');
   await sleep(1000);
   await page.reload({ waitUntil: 'networkidle2' });
@@ -165,9 +167,11 @@ try {
   note(reloaded.title === 'Harness sketch' && await ink() > 200, `after a reload: title "${reloaded.title}", the stroke ${await ink() > 200 ? 'kept' : 'LOST'}`);
   await page.click('#plus-btn'); await sleep(800);
   const saved = await state();
-  note(saved.count === 24, `saving the sketch left ${saved.count} drawings, wanted 24`);
+  note(saved.count === 25, `+ after the sketch left ${saved.count} drawings, wanted 25`);
   await page.click('#plus-btn'); await sleep(800);
-  note((await state()).count === 24, 'a + on an untouched blank canvas saved an empty card');
+  // A blank canvas is a canvas (Dex, 2026-10-08): + always makes one, named in turn.
+  const blank = await state();
+  note(blank.count === 26 && blank.title === 'Untitled 2', `a + on a blank canvas left ${blank.count} drawings titled "${blank.title}", wanted 26 and Untitled 2 (1 was renamed, so it is reused)`);
 
   // ---- 4. a served file changes under the running app --------------------
   const before = (await state()).label;
@@ -281,11 +285,11 @@ try {
   await page.click('#g-account'); await sleep(300);
   await page.click('#a-signout'); await sleep(1500);
   await page.click('#g-back'); await sleep(200);
-  note(await galleryCount() === 0, 'signed out, the account\'s canvases still show');
+  note(await galleryCount() === 1, 'signed out, the account\'s canvases still show (wanted only the fresh blank one)');
   await stroke();
   await page.type('#title-input', 'Made signed out');
   await page.click('#plus-btn'); await sleep(1200);
-  note(await galleryCount() === 1, 'a canvas made signed out is not in the signed-out gallery');
+  note(await galleryCount() === 2, 'a canvas made signed out is not in the signed-out gallery');
   // The same account again (not a first sign-in): its own, not the new one.
   await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_a', token: 'x.y' })));
   await sleep(1500);
@@ -294,15 +298,70 @@ try {
   await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_b', token: 'x.y' })));
   await sleep(1500);
   const owners2 = (await db()).owners;
-  note(await galleryCount() === 1 && owners2['u:artist_b'] === 1 && owners2['u:artist_a'] === signedOut,
+  note(await galleryCount() === 2 && owners2['u:artist_b'] === 2 && owners2['u:artist_a'] === signedOut,
     `a second account sees the wrong canvases: ${JSON.stringify(owners2)}`);
   // A reload keeps the scope.
   await page.reload({ waitUntil: 'networkidle2' }); await ready(); await sleep(600);
-  note(await galleryCount() === 1, 'after a reload the signed-in gallery changed');
-  console.log(`accounts: ${signedOut} signed out -> @artist_a; signed out then shows 0, a new one there; @artist_b took it: ${JSON.stringify(owners2)}`);
+  note(await galleryCount() === 2, 'after a reload the signed-in gallery changed');
+  console.log(`accounts: ${signedOut} signed out -> @artist_a; signed out then shows only a fresh blank, a new one there; @artist_b took it: ${JSON.stringify(owners2)}`);
   await other.evaluate(() => localStorage.removeItem('sketchSession'));
   await other.close();
   await sleep(1500);
+
+  // ---- 6b. the two colour controls, the eyedropper, the bars (Dex, 2026-10-08)
+  await page.bringToFront();
+  await page.click('#plus-btn'); await sleep(900);
+  const px = () => page.evaluate(() => {           // the canvas's top-left pixel: the background
+    const c = document.getElementById('pad'), d = c.getContext('2d').getImageData(4, 4, 1, 1).data;
+    return `rgb(${d[0]}, ${d[1]}, ${d[2]})`;
+  });
+  const dots = () => page.evaluate(() => ({ cs: getComputedStyle(document.getElementById('cs-dot')).backgroundColor,
+    brush: getComputedStyle(document.getElementById('color-dot')).backgroundColor }));
+  const slide = (id, v) => page.evaluate((id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); }, id, v);
+  const bg0 = await px();
+  note((await dots()).cs === bg0, `the canvas swatch ${(await dots()).cs} does not match the canvas ${bg0}`);
+  await page.click('#canvas-swatch'); await sleep(300);
+  const win = await page.evaluate(() => ({ open: document.getElementById('brush-pop').classList.contains('open'),
+    title: document.getElementById('bp-title').textContent, tabs: !!document.getElementById('tab-brush'),
+    rows: document.querySelectorAll('#brush-pop .hsb-row').length }));
+  note(win.open && win.title === 'Canvas color' && !win.tabs && win.rows === 3, `the canvas window: ${JSON.stringify(win)}`);
+  await slide('cv-hue', 120); await slide('cv-sat', 80); await slide('cv-bri', 70);
+  const bg1 = await px();
+  note(bg1 !== bg0 && (await dots()).cs === bg1, `the canvas sliders: canvas ${bg0} -> ${bg1}, swatch ${(await dots()).cs}`);
+  await page.click('#pop-x'); await sleep(200);
+  // THE BUG: after the canvas window, the brush sliders painted the canvas.
+  await page.click('#color-btn'); await sleep(200);
+  const brush0 = (await dots()).brush;
+  await slide('hue', 270); await slide('sat', 90); await slide('bri', 90);
+  const after = await dots();
+  note(await px() === bg1 && after.cs === bg1 && after.brush !== brush0, `the brush sliders: canvas ${bg1} -> ${await px()}, brush ${brush0} -> ${after.brush}`);
+  await page.click('#color-btn'); await sleep(200);
+  // The eyedropper reads the pixel UNDER the finger, at any pixel ratio.
+  await page.evaluate(() => { for (const [id, v] of [['hue', 0], ['sat', 100], ['bri', 100]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } });
+  await stroke();
+  await page.evaluate(() => { for (const [id, v] of [['hue', 200], ['sat', 50], ['bri', 50]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } });
+  await page.click('#ed-btn'); await sleep(150);
+  {
+    const r = await page.evaluate(() => { const b = document.getElementById('pad').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
+    await page.mouse.move(r.x + r.w * 0.1, r.y + r.h * 0.1); await page.mouse.down();
+    await page.mouse.move(r.x + r.w * 0.5, r.y + r.h * 0.5, { steps: 6 }); await page.mouse.up();
+    await sleep(300);
+  }
+  const picked = (await dots()).brush;
+  note(picked === 'rgb(255, 0, 0)', `the eyedropper dragged onto a red stroke picked ${picked}`);
+  // The toggle dead centre; the swatch right of it; the mirror far right; the lock top right.
+  const bars = await page.evaluate(() => {
+    const r = id => document.getElementById(id).getBoundingClientRect();
+    const tb = r('toolbar'), t = r('tool-toggle'), title = r('title-input'), lock = r('top-lock');
+    return { off: Math.abs((t.left + t.right) / 2 - (tb.left + tb.right) / 2),
+             order: ['plus-btn', 'grid-btn', 'ed-btn', 'tool-toggle', 'color-btn', 'sym-btn'].map(id => [id, r(id).left]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join(','),
+             lockRight: lock.left > title.left && Math.abs(lock.top + lock.height / 2 - (title.top + title.height / 2)) < 8,
+             install: !!document.getElementById('install-btn') };
+  });
+  note(bars.off < 2, `the draw/erase toggle is ${bars.off.toFixed(1)}px off the toolbar's centre`);
+  note(bars.order === 'plus-btn,grid-btn,ed-btn,tool-toggle,color-btn,sym-btn', `the toolbar reads ${bars.order}`);
+  note(bars.lockRight && !bars.install, `the top row: lock at the right ${bars.lockRight}, install button ${bars.install}`);
+  console.log(`colours: canvas ${bg0} -> ${bg1} from its own window, brush sliders left it alone, eyedropper picked ${picked}; toggle ${bars.off.toFixed(1)}px off centre`);
 
   // ---- 7. one service worker, and an offline launch -----------------------
   const sw = await page.evaluate(async () => {
@@ -323,9 +382,11 @@ try {
   // ---- 8. the overlay: no install button, no service worker of its own ----
   const embed = await browser.newPage();
   await embed.goto(`${BASE}/inko/?embed=1`, { waitUntil: 'networkidle2' });
-  const e = await embed.evaluate(() => ({ install: getComputedStyle(document.getElementById('install-btn')).display,
+  // The in-app Install button is GONE everywhere (Dex, 2026-10-08): installing
+  // is offered from the site's card, through /inko/?install=1.
+  const e = await embed.evaluate(() => ({ install: !!document.getElementById('install-btn'),
     embed: document.body.classList.contains('embed') }));
-  note(e.embed && e.install === 'none', `in the overlay: embed class ${e.embed}, install button "${e.install}"`);
+  note(e.embed && !e.install, `in the overlay: embed class ${e.embed}, install button present ${e.install}`);
   await embed.close();
 
   const relevant = errors.filter(m => !/ERR_INTERNET_DISCONNECTED|net::ERR|Failed to load resource/.test(m));
