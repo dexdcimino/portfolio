@@ -324,13 +324,13 @@ try {
   note((await dots()).cs === bg0, `the canvas swatch ${(await dots()).cs} does not match the canvas ${bg0}`);
   await page.click('#canvas-swatch'); await sleep(300);
   const win = await page.evaluate(() => ({ open: document.getElementById('brush-pop').classList.contains('open'),
-    title: document.getElementById('bp-title').textContent, tabs: !!document.getElementById('tab-brush'),
+    inBars: document.getElementById('brush-pop').parentNode.id, tabs: !!document.getElementById('tab-brush'),
     rows: document.querySelectorAll('#brush-pop .hsb-row').length }));
-  note(win.open && win.title === 'Canvas color' && !win.tabs && win.rows === 3, `the canvas window: ${JSON.stringify(win)}`);
+  note(win.open && win.inBars === 'bottom-bars' && !win.tabs && win.rows === 3, `the canvas window: ${JSON.stringify(win)}`);
   await slide('cv-hue', 120); await slide('cv-sat', 80); await slide('cv-bri', 70);
   const bg1 = await px();
   note(bg1 !== bg0 && (await dots()).cs === bg1, `the canvas sliders: canvas ${bg0} -> ${bg1}, swatch ${(await dots()).cs}`);
-  await page.click('#pop-x'); await sleep(200);
+  await page.click('#canvas-swatch'); await sleep(200);
   // THE BUG: after the canvas window, the brush sliders painted the canvas.
   await page.click('#color-btn'); await sleep(200);
   const brush0 = (await dots()).brush;
@@ -409,7 +409,7 @@ try {
       order: [...document.querySelectorAll('#opt-bar button')].map(b => b.id).join(','), h: document.getElementById('opt-bar').offsetHeight, tb: document.getElementById('toolbar').offsetHeight }));
     await page.click('#opt-btn'); await sleep(200);
     await page.click('#canvas-swatch'); await sleep(300); gaps.pop = await gapTo('#brush-pop');
-    await page.click('#pop-x'); await sleep(200);
+    await page.click('#canvas-swatch'); await sleep(200);
     // A phone whose page is taller than what shows (the browser's own bar): main put the canvas 62px under the bars here.
     await page.evaluate(() => { const st = document.createElement('style'); st.id = 'tall'; st.textContent = 'html,body{height:calc(100dvh + 70px) !important}'; document.head.appendChild(st); dispatchEvent(new Event('resize')); });
     await sleep(300); gaps.tallPage = await gapTo('#size-bar');
@@ -472,20 +472,22 @@ try {
     const sw = await page.evaluate(() => { const b = document.getElementById('canvas-swatch').getBoundingClientRect(); return { x: b.left + 6, y: b.top + b.height / 2 }; });
     const taps = [];
     for (let i = 0; i < 3; i++){ await page.touchscreen.tap(sw.x, sw.y); await sleep(250); taps.push(await page.evaluate(() => document.getElementById('brush-pop').classList.contains('open'))); }
-    if (taps[2]) { await page.click('#pop-x'); await sleep(200); }
+    if (taps[2]) { await page.click('#canvas-swatch'); await sleep(200); }
     note(taps.join() === 'true,false,true', `three taps on the top-left swatch: ${taps.join()}`);
     // The canvas window from the options bar: colour, title and public, above the bar.
     await page.click('#opt-btn'); await sleep(200);
     await page.click('#copt-btn'); await sleep(300);
     const cw = await page.evaluate(() => { const p = document.getElementById('brush-pop').getBoundingClientRect(), o = document.getElementById('opt-bar').getBoundingClientRect(), c = document.getElementById('pad').getBoundingClientRect();
       return { open: document.getElementById('brush-pop').classList.contains('open'), more: !document.getElementById('cp-more').hidden, title: document.getElementById('cp-title').value === document.getElementById('title-input').value,
-               lock: !!document.querySelector('#cp-lock svg'), aboveBar: p.bottom <= o.top, gap: Math.round(p.top - c.bottom) }; });
+               lock: !!document.querySelector('#cp-lock svg'), aboveBar: document.getElementById('opt-bar').hidden && getComputedStyle(document.getElementById('size-bar')).display === 'none', gap: Math.round(p.top - c.bottom) }; });
     await page.click('#cp-title'); await page.evaluate(() => document.getElementById('cp-title').select()); await page.keyboard.type('Thumb title'); await sleep(150);
     const typed = await page.evaluate(() => document.getElementById('title-input').value);
-    await page.click('#copt-btn'); await sleep(250);
-    const shut = await page.evaluate(() => !document.getElementById('brush-pop').classList.contains('open'));
+    // The eyedropper closes it (batch 11), and brings the size bar back.
+    await page.click('#ed-btn'); await sleep(250);
+    const shut = await page.evaluate(() => !document.getElementById('brush-pop').classList.contains('open') && getComputedStyle(document.getElementById('size-bar')).display === 'flex');
+    await page.click('#ed-btn'); await sleep(150);
     note(cw.open && cw.more && cw.title && cw.lock && cw.aboveBar && Math.abs(cw.gap - 8) < 1.1 && typed === 'Thumb title' && shut,
-      `the canvas window from the options bar: ${JSON.stringify(cw)}, title typed there reads "${typed}" up top, shut again ${shut}`);
+      `the canvas window from the options bar, closing that bar and the size bar (aboveBar): ${JSON.stringify(cw)}, title typed there reads "${typed}" up top, shut again ${shut}`);
     // Download: one PNG named after the canvas.
     await page.evaluate(() => { window.__dl = null; const orig = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function(){ if (this.download){ window.__dl = this.download; return; } return orig.call(this); }; });
     await optTap(page, '#dl-btn'); await sleep(400);
@@ -629,7 +631,39 @@ try {
     const nAfter = await page.evaluate(() => { const items = [...document.querySelectorAll('#g-rows .g-item')]; return { n: items.length, lastCurrent: items[items.length - 1].classList.contains('current') }; });
     note(!nw.gallery && nw.toast === 'New canvas created' && /^Untitled \d+$/.test(nw.title) && nAfter.n === nBefore + 1 && nAfter.lastCurrent,
       `+ from the gallery: ${JSON.stringify(nw)}, ${nBefore} -> ${JSON.stringify(nAfter)}`);
+    // Batch 11: your picture, tapped in your own gallery, opens the profile bar (signed out: picture and sign in).
+    await page.click('#g-tab-mine'); await sleep(250);
+    const pf = await page.evaluate(() => { const g = document.getElementById('g-prof'), r = g.getBoundingClientRect(), bar = document.getElementById('g-bar').getBoundingClientRect();
+      return { shown: !g.hidden, above: r.bottom <= bar.top, w: Math.round(r.width), bw: Math.round(bar.width),
+               buttons: [...g.querySelectorAll('.pf-btn')].filter(b => !b.hidden).map(b => b.textContent.trim()).join(','), mode: /mode-mine/.test(document.getElementById('gallery').className) }; });
+    await page.click('#pf-pic'); await sleep(250);
+    const picking = await page.evaluate(() => ({ picking: !document.getElementById('g-pick').hidden, bar: document.getElementById('g-prof').hidden }));
+    await page.click('#g-pick-cancel'); await sleep(150);
+    note(pf.shown && pf.above && pf.w === pf.bw && pf.mode && pf.buttons === 'Picture,Sign in' && picking.picking && picking.bar,
+      `the profile bar: ${JSON.stringify(pf)}, Picture then picking a canvas ${JSON.stringify(picking)}`);
     await page.click('#g-back'); await sleep(300);
+    // The canvas window is THE panel: the toolbar's width, the sliders where the brush colour's are, nothing else up.
+    await page.click('#color-btn'); await sleep(250);
+    const brushSl = await page.evaluate(() => { const r = document.getElementById('sat').getBoundingClientRect(), b = document.getElementById('hsb-bar').getBoundingClientRect(); return { x: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height), barH: Math.round(b.height) }; });
+    await page.click('#canvas-swatch'); await sleep(300);
+    const cp = await page.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(), s = r('cv-sat'), p = r('brush-pop'), t = r('toolbar'), u = r('undo-btn'), mid = q => q.top + q.height / 2;
+      return { w: Math.round(p.width), tw: Math.round(t.width), x: Math.round(s.left), sw: Math.round(s.width), h: Math.round(s.height), barH: Math.round(p.height),
+               hsb: getComputedStyle(document.getElementById('hsb-bar')).display, size: getComputedStyle(document.getElementById('size-bar')).display,
+               colorOn: document.getElementById('color-btn').classList.contains('on'), undoHost: document.getElementById('undo-btn').parentNode.id, undoLevel: Math.abs(mid(u) - mid(s)) }; });
+    note(cp.w === cp.tw && cp.x === brushSl.x && cp.sw === brushSl.w && cp.h === brushSl.h && cp.barH === brushSl.barH && cp.hsb === 'none' && cp.size === 'none' && !cp.colorOn && cp.undoHost === 'cp-sliders' && cp.undoLevel < 1.5,
+      `the canvas window as the one panel, its sliders on the brush colour's: ${JSON.stringify(cp)} vs ${JSON.stringify(brushSl)}`);
+    // The brush swatch takes it back; the brush/eraser toggle too, to the size bar.
+    await page.click('#color-btn'); await sleep(250);
+    const sw1 = await page.evaluate(() => ({ pop: document.getElementById('brush-pop').classList.contains('open'), hsb: getComputedStyle(document.getElementById('hsb-bar')).display }));
+    await page.click('#color-btn'); await sleep(200);
+    await page.click('#canvas-swatch'); await sleep(250);
+    await page.click('#tool-toggle'); await sleep(450);
+    const sw2 = await page.evaluate(() => ({ pop: document.getElementById('brush-pop').classList.contains('open'), size: getComputedStyle(document.getElementById('size-bar')).display }));
+    await page.click('#tool-toggle'); await sleep(450);
+    note(!sw1.pop && sw1.hsb === "flex" && !sw2.pop && sw2.size === "flex", `the swatch then the toggle close it: ${JSON.stringify(sw1)} ${JSON.stringify(sw2)}`);
+    // Clear is a trash can.
+    const trash = await page.evaluate(() => document.querySelectorAll('#clear-btn svg path').length >= 3 && !document.querySelector('#clear-btn svg line'));
+    note(trash, `clear is drawn as a trash can: ${trash}`);
   }
   note(bars.lockRight && !bars.install, `the top row: lock at the right ${bars.lockRight}, install button ${bars.install}`);
   console.log(`colours: canvas ${bg0} -> ${bg1} from its own window, brush sliders left it alone, eyedropper picked ${picked}; toggle ${bars.off.toFixed(1)}px off centre`);

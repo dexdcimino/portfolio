@@ -1,6 +1,6 @@
 /* DexNote as its own page. The app brings every rule it needs (notes.css);
-   this file only makes the page a full-screen frame for it and lays out the
-   sign-in card, which is built from the app's own modal and button classes. */
+   this file only makes the page a full-screen frame for it and puts the
+   sign-in card in the middle of it. */
 html, body { margin: 0; height: 100%; background: #0B0D11; }
 #dn-app { position: fixed; inset: 0; }
 
@@ -8,14 +8,6 @@ html, body { margin: 0; height: 100%; background: #0B0D11; }
 #dn-app .nt-header-right .nt-info { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; padding: 0; }
 
 .dn-gate .nt-modal { position: absolute; inset: 0; }
-.dn-card { display: flex; flex-direction: column; align-items: stretch; gap: 10px; text-align: center; max-width: 360px; width: calc(100% - 32px); box-sizing: border-box; }
-.dn-logo { width: 56px; height: 56px; align-self: center; }
-.dn-providers { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-.dn-providers .nt-btn { width: 100%; justify-content: center; }
-.dn-card .nt-modal-btns { justify-content: center; }
-.dn-error { color: var(--danger); }
 
-.dn-account { overflow: hidden; }
-.dn-avatar { width: 24px; height: 24px; border-radius: 50%; display: block; }
-.dn-input { width: 100%; box-sizing: border-box; margin: 6px 0 4px; padding: 10px 12px; border-radius: var(--r); border: 1px solid var(--bdr); background: var(--bg2); color: var(--tx); font: inherit; font-size: 15px; }
-.dn-input:focus { outline: none; border-color: var(--c); }
+/* The sign-in card, the account button and the password field are in
+   notes/notes.css: the homepage overlay draws them too. */

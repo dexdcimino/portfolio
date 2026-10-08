@@ -712,7 +712,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     sliders, the eyedropper and the canvas colour window. Its canvas swatch
     opens the canvas window with the title and public/private as well as
     the colour (`popMode` 'canvas-opts'); the top-left swatch opens it with
-    the colour only. Each swatch toggles its own window. Clear asks first,
+    the colour only. Each swatch toggles its own window. The canvas window
+    (`#brush-pop`) is a PANEL in `#bottom-bars`, not a floating box: the
+    toolbar's width, built like `#hsb-bar` so its sliders land on the brush
+    colour's, with undo/redo either side (`#cp-sliders`), and the only panel
+    up while open -- it closes the options bar, the size bar and the brush
+    colour, and the eyedropper, the brush/eraser toggle or the brush swatch
+    close it and bring their own back. Clear is a trash can. Clear asks first,
     is one undo step, and re-stamps the canvas's `created`, so it moves to
     the newest place in the gallery.
   - **Your gallery runs oldest top left to newest bottom right.** Rows are
@@ -768,8 +774,17 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     two buttons into the brush colour bar in colour mode (redo | H/S/B |
     undo, level with S) and back into the size bar after. Picking a brush
     colour with the eraser on switches to the brush.
-  - **A public tile is only the drawing**, two across: the artist's face and
-    @tag along its foot (ellipsis when long) and the fire count in a corner.
+  - **A public tile is only the drawing**, two across: the artist's face
+    along its foot with the @tag folded into it (the face shows the tag, the
+    tag opens their profile, which lists their public drawings only) and the
+    fire count in a corner. Your own carry the globe top left; a tap makes
+    the drawing private and it leaves Public (`unpublishFromFeed`).
+  - **Your picture on the gallery bar**, tapped in your own gallery, opens
+    `#g-prof` above the bar: Picture (pick a canvas), @name, Sign out,
+    Delete -- or Picture and Sign in, signed out.
+  - **Slots for the social features**: `#g-prof-slot` in the profile header,
+    `#v-slot` in the viewer, `.p-slot` on each public tile, all empty; and
+    `inko:tile` {el, post} dispatched on document by `feedItem`.
     No title and no poop on the grid; rating happens in the viewer.
   - **The viewer is an overlay over the grid it came from** and holds that
     grid's list: the title at the top, nothing to press in the top half, and
@@ -857,6 +872,19 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     "hide this artist". Writes are read-modify-write with no lock --
     fine at this scale, and the first thing to change (a ledger per post, as
     the notes store has) when the feed is busy enough to race.
+  **The social layer** -- follows now; comments and shared canvases next --
+  is `lib/sketch-social.js` behind the same endpoint and `inko/social.js` in
+  the app, kept out of the core files on purpose. The app side sees app.js
+  only through `window.inkoBridge` and the `inko:tab`, `inko:user`,
+  `inko:post` and `inko:feed` events at the end of app.js; it draws ONE pill
+  above the gallery bar (`#s-bar`): All | Following | fire on Public (a
+  `feedFilter` the grid applies, so the viewer swipes the filtered list), and
+  the follower count with Follow on an artist's profile. A follow is written
+  on both sides (`sketch/social/<handle>.json`: `following`, `followers`), a
+  rename rewrites every list naming the old handle and a deletion leaves them
+  all. The fire filter needs nothing new on the server: it is the feed
+  narrowed by the votes the app already fetches, so it is public-only by
+  construction. `tools/social_check.mjs` checks both halves.
   `tools/sketch_check.mjs` runs the real handler on a scratch store: the
   refusals, the report threshold, account deletion, and two browser contexts
   as two people publishing, reacting, viewing, hiding and unpublishing, then
@@ -2536,9 +2564,9 @@ subscribes before doing anything else so no exit path can skip it.
 
 The exception is therefore open for exactly as long as a microphone is running,
 which is a window the reader opened deliberately, can see the whole time, and
-can close with one press. The AI Lab sandbox does not park (`demoMode`): a
-"recording" chip over the portfolio for a demo someone clicked an eyeball on is
-a chip nobody asked for. See docs/DECISIONS.md.
+can close with one press. The AI Lab's DexNote does not park (`demoMode`): a
+"recording" chip over the portfolio for something opened from an eyeball is a
+chip nobody asked for. See docs/DECISIONS.md.
 
 **The session ends by itself after ten minutes with nothing heard**
 (`SILENCE_MS`), checked once a second by the same interval that paints the
@@ -2547,29 +2575,33 @@ discards — so the clock measures silence, not sentences. Separately, six empty
 restarts inside eight seconds (`DEAD_RESTARTS` / `DEAD_WINDOW_MS`) is a wedged
 engine rather than a quiet room, and ends it with a different message.
 
-### The AI Lab sandbox
+### The AI Lab's DexNote
 
-The eyeball on the DexNote card opens this same app with `format: 'demo'` and
-**no token** (`openDemo()` in script.js, `demoDoc()` in `notes/state.js`). It
-is the one preview in the AI Lab that points at no iframe: the app is already
-on the page, so the preview IS the editor rather than a screenshot or a second
-copy.
+The eyeball on the DexNote card opens this same app (`openDemo()` in
+script.js) on **this browser's guest notes** -- the store `/dexnote/` keeps for
+a guest (`dexnote/local.js`) -- or on the account's notes when someone is
+signed in here. Until 2026-10-08 it was a sandbox that kept nothing (Dex wanted
+every way into DexNote to be the same working app with the same sign-in; see
+docs/DECISIONS.md). A first open, with nothing stored yet, shows the tour
+document (`demoDoc()` in `notes/state.js`), and nothing is written until it is
+edited. It is the one preview in the AI Lab that points at no iframe: the app
+is already on the page.
 
-Nothing is switched off in it -- typing, dictation, undo, images, sessions all
-work -- and the save loop is the only thing absent. **The absence of a token
-is what makes it safe, not a flag it checks:** with no token there is no
-request to `/api/notes/*` that would be answered, so a visitor cannot read,
-write or flood the real notes, and cannot reach the keypad from here. The
-document is built in memory, closing the overlay unmounts the app and empties
-the container, and images live in `ctx.demoAssets` -- object URLs for anything
-dropped in, revoked on unmount, and the preview's own picture as a data URI,
-which `revokeObjectURL` is not called on because that would be a no-op with a
-misleading name. `notes_dictate_check.mjs` counts every request the page makes
-while the sandbox is open and asserts the real document on disk is
-byte-identical afterwards.
+**It still cannot reach the password notes, and the absence of a token is what
+makes that so, not a flag it checks:** no token goes with it, so no request to
+`/api/notes/*` it could make would be answered. Closing the overlay unmounts
+the app and empties the container as for the password notes. The tour's
+picture is a data URI in `ctx.demoAssets`, which every mount now carries, so
+that picture resolves in a guest store or an account it was carried into.
+`notes_dictate_check.mjs` counts every request to `/api/notes/` while it is
+open (must be none), asserts the real document on disk is byte-identical
+afterwards, and that what was typed comes back on the next open.
 
-**IT HAS ONE JOB BEYOND BEING HARMLESS: show what a note can hold.** Between
-its three categories the preview carries every shape the schema allows --
+`format: 'demo'` -- the in-memory, never-saved mount -- is still in
+`notes/app.js`, and nothing on the site opens it any more.
+
+**THE TOUR HAS ONE JOB: show what a note can hold.** Between its three
+categories it carries every shape the schema allows --
 headings, bullets, nesting, a numbered list, to-dos ticked and not, a quote,
 inline code, a link chip, a markdown chip, an image and a table -- plus one
 archived category, so the archive it opens with has something in it rather than
@@ -2647,17 +2679,22 @@ checked is printed and asserted against the number of bodies there are.
 ## DexNote with accounts (`/dexnote/`)
 
 The same notes app as the overlay above, as its own page, with a sign-in
-instead of a password. Added 2026-10-08. Nothing about the overlay changes:
-`/#notes` still opens the password notes exactly as before.
+instead of a password. Added 2026-10-08. The homepage overlay has the same
+accounts (below, "In the homepage overlay"); `/#notes` still opens the password
+notes exactly as before.
 
 ```
 dexnote/index.html   the page: notes.css, dexnote.css, main.js. Nothing else.
-dexnote/main.js      the gate, guest/account switching, the move on first
-                     sign-in, the account menu, bringing in the password notes
+dexnote/account.js   who is signed in, the sign-in card, the account button,
+                     the move on first sign-in, bringing in the password
+                     notes -- shared by this page and the homepage overlay
+dexnote/main.js      this page: the gate, guest/account switching, its menu
 dexnote/local.js     the guest store: localStorage + IndexedDB pictures
 dexnote/cloud.js     the account store: Firebase Auth, Firestore, Storage
 dexnote/vendor/firebase/   the SDK, self-hosted (see its README)
-dexnote/dexnote.css  the full-screen frame and the sign-in card's layout only
+dexnote/dexnote.css  the full-screen frame only (the sign-in card, the account
+                     button and the password field are in notes/notes.css,
+                     because the overlay draws them too)
 ```
 
 **The app took a backend, not a second copy.** `mount()` in `notes/app.js`
@@ -2668,7 +2705,10 @@ still does. The rev/conflict contract is unchanged, so a guest's second tab and
 an account's second device merge exactly as the password store's 409 does.
 `assetSrc` may answer with a promise (Storage URLs are fetched), which is the
 only change in `chips.js`. `headerTail` replaces the close button, because a
-page has nothing to close.
+page has nothing to close; `headerExtra` is the overlay's account button, put
+FIRST in the header's right group because the overlay's own padlock and X
+(`.ov-lock`, `.notes-close` in styles.css) are drawn over the right end of that
+row and would cover it there.
 
 **Guest** (`local.js`): `{ rev, savedAt, doc }` in `localStorage` under
 `dexnote:guest:v1`; pictures as blobs in IndexedDB `dexnote-guest`, keyed by
@@ -2704,19 +2744,97 @@ calls `/api/notes/unlock` with it, copies each picture through
 document, then saves the password notes over it. It only reads the password
 store.
 
+**In the homepage overlay** (script.js, LIVE NOTES). One overlay, three
+stores, one account button: the keypad, the tilde prompt and the Idea Vault
+mount the password notes; the AI Lab mounts the guest notes, or the account's
+if someone is signed in on this browser. The button's menu signs in (a sheet
+over the app, the same card as the gate), and a sign-in swaps the overlay to
+the account's notes, moving the guest notes in first exactly as the page does.
+Signed in, the menu can switch between the account's notes and the password
+notes (when a keypad token is held) and bring the password notes in -- with the
+held token rather than asking for the code again. Signing out of the account's
+notes puts back the password notes if there is a token, the guest notes if
+not. `account.js` is imported with the app, after the password or the AI Lab
+press, never on page load, and Firebase only for someone who has signed in on
+this browser before (`dexnote:mode`) or presses Sign in.
+
 **Headers.** `/dexnote/(.*)` has its own CSP in `vercel.json` (Firebase hosts
-for connect/img, the auth domain as the one frame) and
+for connect/img, the auth domain and `apis.google.com` as frames, and
+`apis.google.com` as the one outside script -- Firebase Auth loads `gapi` from
+there for the sign-in popup, and without it every sign-in fails with
+`auth/internal-error`) and
 `Cross-Origin-Opener-Policy: same-origin-allow-popups`, because the site-wide
-`same-origin` cuts the sign-in popup off from the page that opened it.
-`notes_dev_server.mjs` reads that CSP out of `vercel.json` for `/dexnote/`.
+`same-origin` cuts the sign-in popup off from the page that opened it. The site-wide
+`/(.*)` policy now carries the same Firebase hosts and the same
+`same-origin-allow-popups`, because the overlay signs in from the homepage.
+`notes_dev_server.mjs` reads both policies out of `vercel.json`.
 
 **Setup that lives outside the repo:** dexcimino.com must be in the Firebase
 project's Authentication -> Settings -> Authorized domains, or every sign-in
 answers `auth/unauthorized-domain` (the gate says so in words).
 
 **Checked by** `tools/dexnote_check.mjs`, against the dev server with
-`cloud.js` answered by a fake: real page, app, guest store and password
-store; not real Firebase.
+`cloud.js` answered by a fake: real page, overlay, app, guest store and
+password store; not real Firebase.
+
+## The site account (`/account/`)
+
+One account for everything on dexcimino.com (Dex, 2026-10-08). It is the
+Firebase project DexNote already used (`dexnote-d7047`), so every DexNote
+account already is one, with the same Google, GitHub and Discord sign-ins.
+Each app keeps its own data under it; the account is the parent, not any app.
+
+```
+account/site-auth.js   the client: onUser, currentUser, signIn(provider),
+                       signOut, idToken, errorText. The ONE place a page
+                       signs in from. Imports the SDK by the same URLs as
+                       dexnote/cloud.js, so a page loading both shares one app.
+account/index.html     the account page: sign in, who you are, sign out.
+account/main.js        Its card is DexNote's (notes.css + dexnote.css).
+lib/site-identity.js   the server: verify(idToken) -> claims, person(claims)
+```
+
+**Where each app's data lives, under the one uid:**
+
+```
+DexNote   Firestore users/{uid}/data/dexnote*            (dexnote/cloud.js)
+Inko      Vercel Blob, keyed by handle; the handle linked to the uid as
+          sketch/identities/firebase-<uid>.json           (sketch-store identifySite)
+later     users/{uid}/data/<app>* -- prefs, games, music
+```
+
+**Server check, no Admin SDK.** `verify()` checks an ID token the way Firebase
+documents for a third-party JWT library: RS256, a `kid` among Google's
+published certificates (cached for their own `max-age`), the signature, `aud`
+and `iss` naming the project, `exp`, `iat` and `auth_time`, a `sub`.
+
+**Inko links, it does not move.** `POST /api/sketch { action: 'site', idToken }`
+looks for the uid's link, then for the Google (`google.com`) or Discord
+(`oidc.discord`) identity in the token -- the same ids Inko's own sign-in filed
+accounts under -- so an Inko account made before the site account is FOUND and
+linked, not duplicated. No link means a ticket and the existing claim sheet;
+the claim links every id at once. An id already on another live account is
+left there. The Inko session it returns carries `site: true`: signing out of
+Inko signs out of the site, and an Inko that boots to find the site signed out
+(the `site:signedIn` flag that site-auth mirrors into localStorage) drops it.
+A boot that finds the site signed in and Inko not links quietly, without
+loading Firebase for anyone who never signs in.
+
+**Inside the homepage overlay** the popup works too, because the homepage
+sends `same-origin-allow-popups` (the DexNote overlay's sign-in needed the
+same). Inko's own redirect sign-in (`/api/sketch-auth/*`) stays as the
+fallback: a site sign-in that fails sends Inko there (a new tab when framed).
+`/account/?then=close` is a plain account page that closes itself after a
+sign-in, for any future frame that cannot open a popup.
+
+**Headers.** `/account/(.*)` has the Firebase CSP and
+`same-origin-allow-popups`; `/inko/(.*)` gained the same Firebase hosts and
+opener policy.
+
+**Checked by** `tools/site_account_check.mjs` (35 checks, no browser): the
+verify refusals, Inko finding old Google and Discord accounts, a new claim, an
+id not taken from another account, the reserved names, rename and delete, and
+the API's 401.
 
 ## Sound library (code `FOLEY`)
 

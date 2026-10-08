@@ -72,7 +72,7 @@ body{
 #copt-dot{width:26px; height:26px; border-radius:9px; display:block; border:1px solid rgba(255,255,255,.25);}
 #copt-btn.on{box-shadow:inset 0 0 0 2px #f12fc6;}
 /* The canvas window opened from the options bar: title and public too. */
-#cp-more{display:flex; gap:10px; align-items:center; margin:2px 0 10px;}
+#cp-more{display:flex; gap:10px; align-items:center; margin:6px 0 2px;}
 #cp-more[hidden]{display:none;}
 #cp-title{flex:1; min-width:0; background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:12px;
   color:var(--text); font:700 16px/1.2 inherit; padding:10px 12px; outline:none;}
@@ -210,19 +210,18 @@ body{
 }
 
 /* Brush settings popover */
+/* The canvas window: a panel in the bars, built exactly like #hsb-bar so its
+   sliders land where the brush colour's do (Dex, 2026-10-08). */
 #brush-pop{
-  position:fixed; left:50%; transform:translateX(-50%);
-  width:min(340px, calc(100vw - 32px)); background:var(--panel);
-  backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
-  border:1px solid var(--border); border-radius:18px; padding:14px 16px;
-  z-index:60; display:none; opacity:0; transition:opacity .18s;
-  padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  flex-shrink:0; position:relative; display:none; flex-direction:column;
+  width:calc(100vw - 20px); max-width:600px; box-sizing:border-box;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:18px;
+  padding:6px 14px; margin-bottom:8px;
 }
-#brush-pop.open{display:block; opacity:1;}
-#brush-pop .hsb-row + .hsb-row{margin-top:4px;}
-#bp-head{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
-#bp-title{flex:1; font-size:15px; font-weight:700; color:var(--text);}
-#pop-x{background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:6px;}
+#brush-pop.open{display:flex;}
+#cp-sliders{display:flex; flex-direction:row; align-items:center; gap:8px;}
+#cp-sliders .tbtn{flex:0 0 auto;}
 .ctl{margin-bottom:12px;}
 .ctl:last-child{margin-bottom:0;}
 .mrow{display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); margin-bottom:6px;}
@@ -563,3 +562,26 @@ body.embed #toolbar{margin-bottom:8px;}
 #toast.low{top:auto; bottom:calc(env(safe-area-inset-bottom,0px) + 96px);}
 #toast small{display:block; font-size:12.5px; color:var(--muted); font-weight:500;}
 #toast b{font-weight:700;}
+
+/* Your own drawing in Public: the globe to take it back (Dex, 2026-10-08). */
+.p-item .g-pub{opacity:1; transform:none; pointer-events:auto; left:8px; top:8px; z-index:2;}
+#g-prof{order:1;} #g-bar{order:2;}
+/* Someone's tag folds into their picture; a tap on the picture shows it. */
+.p-by{pointer-events:none;}
+.p-by > *{pointer-events:auto;}
+.p-by .tag{max-width:0; opacity:0; transition:max-width .22s ease, opacity .18s; flex:0 1 auto; cursor:pointer;}
+.p-by.open .tag{max-width:100%; opacity:1;}
+.p-by .avatar{cursor:pointer;}
+.p-slot:empty{display:none;}
+/* The profile bar: a second pill over the gallery's own. */
+#g-prof{flex:none; align-self:center; display:flex; align-items:center; justify-content:space-evenly; gap:6px;
+  width:calc(100vw - 20px); max-width:600px; box-sizing:border-box; height:var(--bar-h); padding:0 10px; margin-top:6px;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:26px;}
+#g-prof[hidden]{display:none;}
+.pf-btn{flex:1; min-width:0; height:54px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  border:none; border-radius:14px; background:none; color:var(--text); font-size:11px; font-weight:700; cursor:pointer;}
+.pf-btn svg{width:22px; height:22px;}
+.pf-btn.danger{color:#ff6b6b;}
+.pf-btn[hidden]{display:none;}
+#g-prof-slot:empty, #v-slot:empty{display:none;}

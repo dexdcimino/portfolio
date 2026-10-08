@@ -20,7 +20,7 @@ if (EMBED) document.body.classList.add('embed');
    Checked on launch, every time the app comes back to the foreground, and
    every five minutes while it is open. A new build: the drawing is saved,
    and the app reloads itself. */
-const BUILD_FILES = ['/inko/app.js', '/inko/app.css', '/inko/index.html'];
+const BUILD_FILES = ['/inko/app.js', '/inko/app.css', '/inko/index.html', '/inko/social.js', '/inko/social.css'];
 let runningBuild = null;            // the signature this page loaded with
 async function deployedBuild(){
   const tags = await Promise.all(BUILD_FILES.map(async url => {
@@ -272,7 +272,6 @@ function seg(ax,ay,bx,by,cx,cy){
 }
 let drawing = false, last = null, midPrev = null;
 canvas.addEventListener('pointerdown', e => {
-  if (popMode){ closePop(); e.preventDefault(); return; }
   if (eyedropperOn){ startEyedrop(e); return; }
   e.preventDefault();
   try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
@@ -541,13 +540,14 @@ function swapTools(){
 }
 $('tool-toggle').addEventListener('click', e => {
   e.stopPropagation();
-  closePop();
+  closePop();   // the canvas window gives the size bar back
   tool = tool==='brush' ? 'eraser' : 'brush';
   swapTools(); refreshSizeUI();
 });
 $('color-btn').addEventListener('click', e => {
   e.stopPropagation();
-  setColorMode(!colorMode);
+  // Over the canvas window, the swatch brings its own sliders back.
+  setColorMode(popMode ? true : !colorMode);
 });
 
 $('sym-btn').addEventListener('click', () => {
@@ -624,33 +624,16 @@ $('g-new').addEventListener('click', async () => {
   toast('New canvas created');
 });
 
-/* ---------- brush popover ---------- */
-function placePop(){
-  // Above the topmost bar, never over one: the options bar stays reachable.
-  const bb = $('bottom-bars').getBoundingClientRect();
-  brushPop.style.bottom = Math.max(8, bb.bottom - bb.top + 8) + 'px';
-}
+/* ---------- the canvas window ----------
+   One of the panels in the bars, never on top of one (Dex, 2026-10-08): open,
+   it is the only panel up -- the options bar, the size bar and the brush
+   colour go -- and the eyedropper, the brush/eraser toggle or the brush
+   swatch close it and bring theirs back. What it set stays set. */
 function closePop(){
   const was = brushPop.classList.contains('open'); popMode = null; brushPop.classList.remove('open');
   $('copt-btn').classList.remove('on'); $('copt-btn').setAttribute('aria-pressed', 'false');
-  if (was) fit();
+  if (was){ showBars(); fit(); }
 }
-$('pop-x').addEventListener('click', e => { e.stopPropagation(); closePop(); });
-document.addEventListener('pointerdown', e => {
-  if (!popMode) return;
-  if (brushPop.contains(e.target)) return;
-  if (e.target.closest('#color-btn') || e.target.closest('#tool-toggle') || e.target.closest('#canvas-swatch') || e.target.closest('#copt-btn')) return;
-  closePop();
-});
-document.addEventListener('touchstart', e => {
-  if (!popMode) return;
-  // Not on the swatch or the window: the swatch sits inside the 28px edge, so
-  // a tap on it closed the window here and the click then opened it again --
-  // the canvas jumping down and up on every tap (Dex, 2026-10-08).
-  if (brushPop.contains(e.target) || e.target.closest('#canvas-swatch, #copt-btn')) return;
-  const x = e.touches[0].clientX;
-  if (x < 28 || x > window.innerWidth-28) closePop();
-}, {passive:true});
 function syncSizeNote(){ /* size is now permanent, no-op */ }
 /* log-ish slider: 10-100px on first half, 100-500px on second half */
 function sliderToSize(p){
@@ -816,7 +799,7 @@ function setEyedropper(on){
   canvas.style.cursor = on ? 'crosshair' : '';
 }
 
-$('ed-btn').addEventListener('click', () => setEyedropper(!eyedropperOn));
+$('ed-btn').addEventListener('click', () => { closePop(); setEyedropper(!eyedropperOn); });
 $('canvas-swatch').addEventListener('click', e => {
   e.stopPropagation();
   if (popMode === 'canvas'){ closePop(); return; }
@@ -824,14 +807,16 @@ $('canvas-swatch').addEventListener('click', e => {
 });
 function openCanvasPop(mode){
   const opts = mode === 'canvas-opts';
+  if (optionsOn) setOptions(false, true);
+  if (colorMode){ colorMode = false; $('color-btn').classList.remove('on'); }
+  if (eyedropperOn) setEyedropper(false);
   popMode = mode;
   $('cp-more').hidden = !opts;
-  $('bp-title').textContent = opts ? 'Canvas' : 'Canvas color';
   if (opts){ $('cp-title').value = titleInput.value; syncTopLock(); }
   $('copt-btn').classList.toggle('on', opts); $('copt-btn').setAttribute('aria-pressed', String(opts));
   refreshPanelUI();
   brushPop.classList.add('open');
-  placePop();
+  showBars();
   fit();
 }
 $('cp-title').addEventListener('input', () => { titleInput.value = $('cp-title').value; dirty = true; scheduleDraft(); });
@@ -842,6 +827,7 @@ let colorMode = false;
 function setColorMode(on){
   colorMode = on;
   if (on && optionsOn) setOptions(false, true);
+  if (on && popMode){ popMode = null; brushPop.classList.remove('open'); }
   showBars();
   $('color-btn').classList.toggle('on', on);
   if(on) syncHSBInputs();
@@ -853,12 +839,13 @@ let optionsOn = false;
 function showBars(){
   // Undo and redo go with whichever bar is up: either side of the sliders,
   // level with S, in colour mode (Dex, 2026-10-08) -- the same two buttons.
-  const host = colorMode ? $('hsb-bar') : $('size-bar');
+  // The canvas window carries them the same way.
+  const host = colorMode ? $('hsb-bar') : popMode ? $('cp-sliders') : $('size-bar');
   if ($('redo-btn').parentNode !== host){
-    host.insertBefore($('redo-btn'), host.querySelector(colorMode ? '.hsb-rows' : '.ctl'));
+    host.insertBefore($('redo-btn'), host.querySelector(host.id === 'size-bar' ? '.ctl' : '.hsb-rows'));
     host.appendChild($('undo-btn'));
   }
-  $('size-bar').style.display = colorMode || optionsOn ? 'none' : 'flex';
+  $('size-bar').style.display = colorMode || optionsOn || popMode ? 'none' : 'flex';
   $('hsb-bar').style.display = colorMode ? 'flex' : 'none';
   $('opt-bar').hidden = !optionsOn;
 }
@@ -1470,6 +1457,7 @@ async function loadFeed(){
     try { myVoteFor = (await api('votes', { ids: feed.map(p => p.id) })).votes || {}; } catch (e) {}
   }
   renderFeed();
+  inkoEvent('feed');
 }
 const imgUrl = (p, thumb) => `${API}?img=${encodeURIComponent(`sketch/img/${p.id}-${p.v}${thumb ? '-t.jpg' : '.webp'}`)}`;
 /* Never hide your OWN drawings: "Hide @you" was offered on them while
@@ -1490,12 +1478,13 @@ let gridPosts = [];                 // the public drawings on screen, in order: 
 function renderFeed(){
   if (searching() || galleryTab !== 'public') return;
   const rows = $('g-rows'); rows.innerHTML = '';
-  const items = visibleFeed();
+  const filter = inkoBridge.feedFilter;     // inko/social.js: Following, or the ones you gave fire
+  const items = filter ? visibleFeed().filter(filter.keep) : visibleFeed();
   gridPosts = items;
   $('g-count').textContent = items.length + (items.length === 1 ? ' drawing' : ' drawings');
   if (!items.length){
     const e = document.createElement('div'); e.className = 'g-empty';
-    e.textContent = 'Nothing shared yet. Make one of your drawings public to start it off.';
+    e.textContent = filter ? filter.empty : 'Nothing shared yet. Make one of your drawings public to start it off.';
     rows.appendChild(e); return;
   }
   fillRows(items, 2, feedItem);
@@ -1534,14 +1523,39 @@ function feedItem(p){
   const div = document.createElement('div'); div.className = 'g-item p-item'; div.dataset.post = p.id;
   const th = document.createElement('div'); th.className = 'g-thumb';
   const img = document.createElement('img'); img.alt = p.title || ''; img.loading = 'lazy'; img.src = imgUrl(p, true);
+  // The @tag folds into the picture (Dex, 2026-10-08): the picture shows
+  // it, the tag opens the artist's profile.
   const by = document.createElement('div'); by.className = 'p-by';
   const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = '@' + p.handle;
-  by.append(avatarEl(p.handle, 'mid'), tag);
-  by.addEventListener('click', e => { e.stopPropagation(); openUser(p.handle); });
-  th.append(img, fireBadge(p), by);
+  const face = avatarEl(p.handle, 'mid');
+  by.append(face, tag);
+  face.addEventListener('click', e => { e.stopPropagation(); by.classList.toggle('open'); });
+  tag.addEventListener('click', e => { e.stopPropagation(); openUser(p.handle); });
+  const slot = document.createElement('div'); slot.className = 'p-slot';
+  th.append(img, fireBadge(p), by, slot);
+  // Yours: the globe, to take it back out of Public from here.
+  if (session && p.handle === session.handle){
+    const pub = document.createElement('button'); pub.className = 'g-pub';
+    paintPubButton(pub, { visibility: 'public' });
+    pub.addEventListener('click', e => { e.stopPropagation(); unpublishFromFeed(p, pub); });
+    th.append(pub);
+  }
   div.append(th);
+  document.dispatchEvent(new CustomEvent('inko:tile', { detail: { el: div, post: p } }));
   div.addEventListener('click', () => openViewer(p, gridPosts));
   return div;
+}
+async function unpublishFromFeed(p, btn){
+  btn.disabled = true;
+  try {
+    const it = gallery.find(g => g.id === p.id);
+    if (it) await unpublishItem(it);
+    else { await api('unpublish', { id: p.id }); mineLately.set(p.id, { gone: true, at: Date.now() }); }
+    feed = feed.filter(x => x.id !== p.id);
+    toast('This canvas is now private', 'Only you can see it');
+    if (galleryTab === 'public') renderFeed();
+    else if (galleryTab === 'user' && viewingUser) openUser(viewingUser);
+  } catch (e) { btn.disabled = false; toast(e.message); }
 }
 /* ONE object per post. A sign-in reloads the feed with fresh objects while a
    reaction may still hold the old one, and the viewer showed one count while
@@ -1594,6 +1608,7 @@ function showPost(p){
     try { const r = await api('report', { id: p.id }); toast(r.hidden ? 'Reported — it has been taken down' : 'Reported — thank you'); }
     catch (e) { toast(e.message); }
   }); };
+  inkoEvent('post', { post: p });
   $('v-block').onclick = () => { $('v-acts').hidden = true; openModal('Hide @' + p.handle + '?', 'You will not see their drawings on this device.', 'Hide', () => {
     blocked = [...new Set([...blocked, p.handle])];
     try { localStorage.setItem(BLOCK_KEY, JSON.stringify(blocked)); } catch (e) {}
@@ -1749,6 +1764,7 @@ function closeGallery(){
   closeViewer();
   exitSelect();
   if (searching()) clearSearch(true);
+  setProfBar(false);
   $('gallery').classList.remove('open');
   visit('canvas');
 }
@@ -1778,18 +1794,56 @@ function setPasswordFields(open){
 }
 $('a-more').addEventListener('click', () => setPasswordFields($('a-pw').hidden));
 
-/* Google and Discord: a real navigation to /api/sketch-auth/<provider>, which
-   comes back to /inko/ with the result in the URL fragment. The drawing in
-   progress is saved first, because the page is about to be left. Inside the
-   site's overlay the providers refuse to be framed, so there it opens in a new
-   tab -- and the session it ends with reaches this overlay through
-   localStorage, which the two share (see the storage listener below). */
+/* Google and Discord sign in to the SITE account (/account/site-auth.js), the
+   one dexcimino.com shares between DexNote, Inko and whatever comes next. Its
+   ID token is shown to /api/sketch, which finds the Inko account linked to it
+   -- or to the same Google or Discord, for an account made here before the
+   site account existed -- or asks for a name (the claim sheet).
+
+   A popup works inside the site's overlay too: the homepage sends
+   Cross-Origin-Opener-Policy: same-origin-allow-popups, as /inko/ does.
+
+   The old way stays as the fallback: a real navigation to
+   /api/sketch-auth/<provider>, back to /inko/ with the result in the URL
+   fragment (in a new tab inside the overlay, whose session then reaches the
+   frame through localStorage -- see the storage listener below). It is what a
+   failed site sign-in falls back to, so a site account that cannot sign in
+   here yet never leaves Inko unable to. */
+let siteAuth = null;
+const loadSite = () => (siteAuth ||= import('/account/site-auth.js'));
+const FRAMED = EMBED || window.top !== window.self;   // the overlay loads /inko/ without ?embed
+
+async function linkSite(quiet){
+  const site = await loadSite();
+  const idToken = await site.idToken();
+  if (!idToken) return false;
+  const r = await api('site', { idToken });
+  if (r.token){
+    setSession({ handle: r.handle, token: r.token, sso: true, site: true });
+    if ($('account').classList.contains('open')) closeAccount();
+    if (!quiet) toast('Signed in as @' + r.handle);
+    return true;
+  }
+  // Signed in to the site but no Inko name yet. On a quiet boot nobody asked,
+  // so the sheet waits until they do.
+  if (!quiet && r.ticket) openClaim(r.ticket, r.suggest || '');
+  return false;
+}
+
 for (const id of ['a-google', 'a-discord']){
   $(id).addEventListener('click', async e => {
     e.preventDefault();
     const href = $(id).getAttribute('href');
-    // The site's overlay loads /inko/ without ?embed, so check for a frame too.
-    if (EMBED || window.top !== window.self){ window.open(href, '_blank', 'noopener'); return; }
+    const which = id === 'a-google' ? 'google' : 'discord';
+    try {
+      await (await loadSite()).signIn(which);
+      await linkSite(false);
+      return;
+    } catch (err) {
+      if (siteAuth && (await siteAuth).cancelled(err)) return;
+      console.warn('inko: site sign-in failed, using the Inko sign-in', err);
+    }
+    if (FRAMED){ window.open(href, '_blank', 'noopener'); return; }
     try { await flushDraft(); } catch (err) {}
     location.href = href;
   });
@@ -1875,7 +1929,11 @@ $('a-login').addEventListener('click', () => signIn('login'));
 $('a-signup').addEventListener('click', () => signIn('signup'));
 $('a-pass').addEventListener('keydown', e => { if (e.key === 'Enter') signIn('login'); });
 $('a-close').addEventListener('click', () => { forgetPublish(); closeAccount(); });
-$('a-signout').addEventListener('click', () => { setSession(null); closeAccount(); toast('Signed out'); if (galleryTab === 'public') renderFeed(); });
+$('a-signout').addEventListener('click', () => {
+  // A site sign-in is signed out of the whole site, as it was signed in to it.
+  if (session && session.site) loadSite().then(m => m.signOut()).catch(e => console.warn('inko: site sign-out', e));
+  setSession(null); closeAccount(); toast('Signed out'); if (galleryTab === 'public') renderFeed();
+});
 $('a-delete').addEventListener('click', () => {
   const pw = $('a-pass2').value;
   if (!pw && !(session && session.sso)){ $('a-msg2').textContent = 'Enter your password to delete the account.'; return; }
@@ -1899,6 +1957,7 @@ function paintPage(){
 function setGalleryTab(tab){
   if (tab !== 'mine') setPicking(false);
   exitSelect();
+  setProfBar(false);
   if (searching()) clearSearch(true);
   galleryTab = tab;
   const g = $('gallery');
@@ -1916,8 +1975,31 @@ function setGalleryTab(tab){
   if (tab === 'public') loadFeed();
   else if (tab === 'mine') renderGallery();
   if (tab !== 'user' && $('gallery').classList.contains('open')) visit(tab);
+  inkoEvent('tab', { tab });
 }
-$('g-tab-mine').addEventListener('click', () => setGalleryTab('mine'));
+// Your picture: to your gallery, and once there, your profile's options.
+$('g-tab-mine').addEventListener('click', () => {
+  if (galleryTab === 'mine' && !searching()){ setProfBar($('g-prof').hidden); return; }
+  setGalleryTab('mine');
+});
+function setProfBar(on){
+  if (on){ if (selecting) exitSelect(); if (picking) setPicking(false); }
+  const signed = !!session;
+  $('pf-name').hidden = $('pf-out').hidden = $('pf-del').hidden = !signed;
+  $('pf-in').hidden = signed;
+  $('g-prof').hidden = !on;
+  $('g-tab-mine').setAttribute('aria-expanded', String(on));
+}
+$('pf-pic').addEventListener('click', () => { setProfBar(false); setPicking(true); });
+$('pf-name').addEventListener('click', () => { setProfBar(false); openAccount(); setTimeout(() => { $('a-rename').focus(); $('a-rename').select(); }, 60); });
+$('pf-out').addEventListener('click', () => { setProfBar(false); $('a-signout').click(); });
+$('pf-in').addEventListener('click', () => { setProfBar(false); openAccount(); });
+// A Google or Discord account deletes straight from its confirm; a password one types it first.
+$('pf-del').addEventListener('click', () => {
+  setProfBar(false);
+  if (session && session.sso){ $('a-delete').click(); return; }
+  openAccount(); setTimeout(() => $('a-pass2').focus(), 60);
+});
 $('g-tab-public').addEventListener('click', () => setGalleryTab(galleryTab === 'public' ? 'mine' : 'public'));
 syncAccountButton();
 // Yours until told otherwise; the classes are what show the profile header.
@@ -2144,6 +2226,7 @@ async function openUser(handle){
   $('g-avatar').style.backgroundImage = `url("${avatarSrc(handle, r.avatar)}")`;
   // The same objects as the Public tab, so a reaction here is one there.
   const posts = (r.posts || []).map(p => { const f = feed.find(x => x.id === p.id); if (f) return f; feed.push(p); return p; });
+  inkoEvent('user', { handle, profile: r });
   $('g-count').textContent = posts.length + (posts.length === 1 ? ' drawing' : ' drawings');
   const rows = $('g-rows'); rows.innerHTML = '';
   gridPosts = posts; fillRows(posts, 2, feedItem);
@@ -2483,7 +2566,18 @@ async function init(){
     if (updated){ sessionStorage.removeItem('inkoUpdated'); toast('Updated — build ' + updated); }
   } catch (e) {}
   handleAuthReturn();
+  siteOnBoot();
   checkForUpdate();
+}
+
+/* Signed in or out somewhere else on the site since Inko last ran. The flag
+   is site-auth's mirror of Firebase's sign-in, readable without loading
+   Firebase, so a person who never signs in never downloads it. */
+function siteOnBoot(){
+  let flag = null;
+  try { flag = localStorage.getItem('site:signedIn'); } catch (e) {}
+  if (session && session.site && !flag){ setSession(null); return; }
+  if (!session && flag) linkSite(true).catch(e => console.warn('inko: site link', e));
 }
 
 /* ---------- installing ----------
@@ -2519,6 +2613,21 @@ if (!EMBED && !STANDALONE && new URLSearchParams(location.search).has('install')
   // Chrome fires beforeinstallprompt shortly after load; give it a moment.
   setTimeout(showInstallSheet, 1200);
 }
+
+/* ---- hooks for inko/social.js (follows, the fire filter, comments) ----
+   The social features live in their own file; this is all they see of the
+   app. Events: inko:tab { tab }, inko:user { handle, profile }, inko:post
+   { post }, inko:feed -- each fired after the app has drawn that screen. */
+function inkoEvent(name, detail){ document.dispatchEvent(new CustomEvent('inko:' + name, { detail })); }
+var inkoBridge = window.inkoBridge = {
+  feedFilter: null,                 // { keep(post), empty } narrows the Public grid
+  get session(){ return session; },
+  get tab(){ return galleryTab; },
+  get viewingUser(){ return viewingUser; },
+  get myVotes(){ return myVoteFor; },
+  api, toast, openModal, openAccount, openUser, avatarEl,
+  renderFeed(){ renderFeed(); },
+};
 
 init();
 })();
