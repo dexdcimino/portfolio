@@ -275,12 +275,24 @@ try {
   // /api/sketch is answered here, so the sheet's real buttons drive the real
   // setSession: signup is fresh, login is not, and the rest 404s as before.
   await page.setRequestInterception(true);
+  // The site account's module, faked: a Google sign-in that succeeds at once,
+  // so the sheet's own Google button runs the real linkSite.
+  const FAKE_SITE = `export const signIn = () => new Promise(r => setTimeout(r, 300));
+    export const signOut = async () => {}; export const idToken = async () => 'fake-id-token';
+    export const cancelled = () => false;`;
+  const siteReply = { fail: 0, wait: 0, handle: 'artist_s' };
   page.on('request', req => {
+    if (req.url().split('?')[0].endsWith('/account/site-auth.js'))
+      return req.respond({ status: 200, contentType: 'text/javascript', body: FAKE_SITE });
     if (!req.url().endsWith('/api/sketch') || req.method() !== 'POST') return req.continue();
     let body = {}; try { body = JSON.parse(req.postData() || '{}'); } catch (e) {}
     const reply = (o) => req.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(o) });
     if (body.action === 'signup') return reply({ handle: body.handle, token: 'x.y', fresh: true });
     if (body.action === 'login') return reply({ handle: body.handle, token: 'x.y' });
+    if (body.action === 'site'){
+      if (siteReply.fail > 0){ siteReply.fail--; return req.respond({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'the gallery could not be reached' }) }); }
+      return setTimeout(() => reply({ handle: siteReply.handle, token: 'x.y', others: [] }), siteReply.wait);
+    }
     return req.respond({ status: 404, contentType: 'application/json', body: '{}' });
   });
   const viaSheet = async (action, handle) => {
@@ -369,6 +381,33 @@ try {
   // A reload keeps the scope.
   await page.reload({ waitUntil: 'networkidle2' }); await ready(); await sleep(600);
   note(await galleryCount() === outB.local, 'after a reload the signed-in gallery changed');
+  // 8. SIGNING IN, ON SCREEN (Dex, 2026-10-08): from the tap on Google the
+  //    sheet is a spinner, never the sign-in buttons again, until the account
+  //    is loaded; a failure says so with Try again, and Try again finishes it.
+  await signOut();
+  const sheetNow = () => page.evaluate(() => ({ open: document.getElementById('account').classList.contains('open'),
+    buttons: !document.getElementById('a-in').hidden, busy: !document.getElementById('a-busy').hidden,
+    spin: !document.getElementById('a-spin').hidden, title: document.getElementById('a-busy-t').textContent,
+    retry: !document.getElementById('a-busy-row').hidden && !document.getElementById('a-busy-retry').hidden,
+    who: document.getElementById('g-account').textContent.trim() }));
+  siteReply.fail = 1;
+  await optTap(page, '#grid-btn'); await sleep(300);
+  await page.click('#g-account'); await sleep(300);
+  await page.click('#a-google'); await sleep(100);
+  const s0 = await sheetNow();
+  note(s0.open && s0.busy && s0.spin && !s0.buttons && /Google/.test(s0.title), `tapping Google: ${JSON.stringify(s0)}`);
+  await sleep(900);
+  const s1 = await sheetNow();
+  note(s1.open && s1.busy && !s1.spin && s1.retry && !s1.buttons && /did not finish/.test(s1.title), `a failed sign-in: ${JSON.stringify(s1)}`);
+  siteReply.wait = 1200;
+  await page.click('#a-busy-retry'); await sleep(400);
+  const s2 = await sheetNow();
+  note(s2.open && s2.busy && s2.spin && !s2.buttons, `Try again, while the account loads: ${JSON.stringify(s2)}`);
+  await sleep(2500);
+  const s3 = await sheetNow();
+  note(!s3.open && /artist_s/.test(s3.who), `once loaded, the sheet is gone and @artist_s signed in: ${JSON.stringify(s3)}`);
+  await page.click('#g-back').catch(() => {}); await sleep(200);
+  console.log(`signing in on screen: ${s0.title} -> "${s1.title}" with Try again -> spinner -> signed in as ${s3.who}`);
   console.log(`accounts: ${signedOut} signed out; ${accounts.join('; ')}; @artist_b new: ${JSON.stringify(owners2)}`);
   await other.evaluate(() => localStorage.removeItem('sketchSession'));
   await other.close();

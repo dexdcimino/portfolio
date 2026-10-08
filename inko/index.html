@@ -233,6 +233,13 @@
       <div class="mrow"><button id="a-signup" class="mbtn">Create account</button><button id="a-login" class="mbtn primary">Sign in</button></div>
     </div>
   </div>
+  <div id="a-busy" hidden aria-live="polite">
+    <div class="a-spin" id="a-spin" aria-hidden="true"></div>
+    <div class="a-title a-center" id="a-busy-t">Signing in…</div>
+    <div class="a-text a-center" id="a-busy-sub"></div>
+    <div id="a-busy-msg" class="a-msg a-center" role="alert"></div>
+    <div class="mrow" id="a-busy-row" hidden><button id="a-busy-back" class="mbtn" type="button">Back</button><button id="a-busy-retry" class="mbtn primary" type="button">Try again</button></div>
+  </div>
   <div id="a-claim" hidden>
     <div class="a-title a-center">Pick your name</div>
     <div class="a-text a-center">It is how everyone sees you in the gallery: <b>@name</b>.</div>
