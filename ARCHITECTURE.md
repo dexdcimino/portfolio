@@ -804,11 +804,20 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     chips keep the keyboard up (pointerdown is cancelled).
   - **Select mode** (your gallery): hold a card `HOLD_MS` (450) to start it.
     A tap picks or drops a card; a drag that sets off SIDEWAYS from a card
-    sweeps the run of cards between it and the finger and scrolls at the
-    grid's edges -- the grid is `touch-action:pan-y`, so up and down is
-    still a scroll. The phone's own image menu is off (`touch-callout`, and
-    the card images take no pointer events). `#g-sel` floats top left, moves
-    by its head, is titled with the canvas's title or "N selected", and has
+    sweeps the run of cards between it and the finger -- the grid is
+    `touch-action:pan-y`, so a quick up or down is still a scroll. A HOLD is
+    a sweep in any direction: the finger that held a card (the first, or
+    any card once selecting) drags on without lifting, a non-passive
+    `touchmove` on `#g-rows` stops the page panning under it, and a finger
+    past the grid's top or bottom counts as the edge row. At the grid's
+    edges (`EDGE_ZONE` 72px) it scrolls by `edgeSpeed()`: `EDGE_MIN` 90px/s,
+    rising with depth and over `EDGE_RAMP` 1.5s to at most `EDGE_MAX`
+    900px/s. The phone's own image menu and image drag are off
+    (`touch-callout`, `user-drag`, `dragstart`, and the card images take no
+    pointer events). `#g-sel` opens centred halfway up the screen
+    (`selSpot()`), or the nearest place off the held card -- above it,
+    below it, then beside it -- takes no pointer events during a sweep,
+    moves by its head, is titled with the canvas's title or "N selected", and has
     download, copy (one only), share (Web Share files) and delete, which
     asks "Delete N canvases?". `deleteCanvas(it)` is the one delete path.
     Search and select mode are sheets for back, like the account sheet.

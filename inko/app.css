@@ -404,7 +404,9 @@ input[type=range]::-moz-range-thumb{
 #gallery.searching #g-rows{padding-bottom:var(--find-h,120px);}
 .g-sec{font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:6px 2px -4px;}
 /* Select mode: no per-card buttons, a tick instead; the window floats. */
-.g-item, .g-thumb img{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+.g-item, .g-thumb img{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none; -webkit-user-drag:none;}
+/* A sweep reads the card under the finger, so the window must not be in the way. */
+#gallery.sweeping #g-sel{pointer-events:none;}
 .g-thumb img{pointer-events:none;}
 #g-grid{touch-action:pan-y;}
 .g-check{position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:2px solid #fff;

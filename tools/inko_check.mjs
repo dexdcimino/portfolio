@@ -671,7 +671,7 @@ try {
     const closed = await page.evaluate(() => ({ searching: document.getElementById('gallery').classList.contains('searching'), mine: document.querySelectorAll('#g-rows .g-item').length }));
     note(!closed.searching && closed.mine > 3, `the search closed back to your gallery: ${JSON.stringify(closed)}`);
 
-    // Hold a canvas: select mode, named by its title, the window top left.
+    // Hold a canvas: select mode, named by its title, the window halfway up and off the held card.
     const centre = async i => page.evaluate(i => { const b = document.querySelectorAll('#g-rows .g-item')[i].querySelector('.g-thumb').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, i);
     const n0 = await page.evaluate(() => document.querySelectorAll('#g-rows .g-item').length);
     const last = n0 - 1, c1 = await centre(last - 2), c2 = await centre(last - 1), c3 = await centre(last);
@@ -679,8 +679,9 @@ try {
     const s1 = await page.evaluate(() => { const items = [...document.querySelectorAll('#g-rows .g-item')], p = document.getElementById('g-sel').getBoundingClientRect();
       return { on: document.getElementById('gallery').classList.contains('selecting'), sel: items.filter(e => e.classList.contains('sel')).length,
                title: document.getElementById('g-sel-title').textContent, cardTitle: items[items.length - 3].querySelector('.g-title').textContent,
-               left: Math.round(p.left), top: Math.round(p.top), cardButtons: getComputedStyle(items[0].querySelector('.g-opt')).display }; });
-    note(s1.on && s1.sel === 1 && s1.title === s1.cardTitle && s1.left < 30 && s1.top < 200 && s1.cardButtons === 'none', `a hold enters select mode: ${JSON.stringify(s1)}`);
+               left: Math.round(p.left), top: Math.round(p.top), mid: Math.round((p.top + p.bottom) / 2 - innerHeight / 2), cardButtons: getComputedStyle(items[0].querySelector('.g-opt')).display,
+               clear: (c => p.right <= c.left || p.left >= c.right || p.bottom <= c.top || p.top >= c.bottom)(items[items.length - 3].getBoundingClientRect()) }; });
+    note(s1.on && s1.sel === 1 && s1.title === s1.cardTitle && s1.clear && s1.top > 120 && s1.cardButtons === 'none', `a hold enters select mode, the window off the held card and not at the top: ${JSON.stringify(s1)}`);
     await page.touchscreen.tap(c2.x, c2.y); await sleep(200);
     const t2 = await page.evaluate(() => document.getElementById('g-sel-title').textContent);
     await page.touchscreen.tap(c2.x, c2.y); await sleep(200);
@@ -722,6 +723,56 @@ try {
     await page.click('#g-sel-x'); await sleep(200);
     const xd = await page.evaluate(() => ({ selecting: document.getElementById('gallery').classList.contains('selecting'), panel: getComputedStyle(document.getElementById('g-sel')).display }));
     note(!xd.selecting && xd.panel === 'none', `the X ends select mode: ${JSON.stringify(xd)}`);
+
+    // Batch 15: the finger that HELD the first card drags on, any direction, and selects.
+    const g15 = await page.evaluate(() => { const g = document.getElementById('g-grid'); g.scrollTop = 0;
+      // Twenty-four more cards whatever the run left behind: copies of the first, by id only (the
+      // handlers are on the grid, so they behave as cards); taken away again below.
+      const rows = document.getElementById('g-rows'), first = rows.querySelector('.g-item[data-id]');
+      const top = rows.firstChild;
+      for (let k = 0; k < 24;){
+        const row = document.createElement('div'); row.className = 'g-row g-fake';
+        for (let j = 0; j < 3; j++){ const c = first.cloneNode(true); c.dataset.id = 'fake-' + (k++); c.classList.remove('current', 'sel'); row.appendChild(c); }
+        rows.insertBefore(row, top);   // at the top, so the first of them is on screen
+      }
+      if (g.scrollHeight <= g.clientHeight + 200) g.style.maxHeight = '300px';   // make it scroll, whatever the count
+      const all = [...document.querySelectorAll('#g-rows .g-item')];
+      return { n: all.length, base: all.findIndex(e => e.dataset.id === 'fake-0') }; });
+    await sleep(150);
+    const B = g15.base, a0 = await centre(B), a3 = await centre(B + 3);   // one row straight down, clear of the edge
+    await page.touchscreen.touchStart(a0.x, a0.y); await sleep(650);
+    const held = await page.evaluate(() => { const p = document.getElementById('g-sel').getBoundingClientRect(), c = document.querySelector('#g-rows .g-item[data-id="fake-0"]').getBoundingClientRect();
+      return { clear: p.right <= c.left || p.left >= c.right || p.bottom <= c.top || p.top >= c.bottom, sel: document.querySelectorAll('#g-rows .g-item.sel').length }; });
+    const st0 = await page.evaluate(() => document.getElementById('g-grid').scrollTop);
+    for (let k = 1; k <= 10; k++) { await page.touchscreen.touchMove(a0.x + (a3.x - a0.x) * k / 10, a0.y + (a3.y - a0.y) * k / 10); await sleep(30); }
+    await page.touchscreen.touchEnd(); await sleep(250);
+    const down = await page.evaluate(() => ({ sel: document.querySelectorAll('#g-rows .g-item.sel').length, st: document.getElementById('g-grid').scrollTop,
+      title: document.getElementById('g-sel-title').textContent, selecting: document.getElementById('gallery').classList.contains('selecting') }));
+    note(g15.base >= 0 && g15.n >= 24 && held.sel === 1 && held.clear && down.selecting && down.sel === 4 && down.title === '4 selected' && Math.abs(down.st - st0) < 2,
+      `the FIRST hold dragged straight down a row selects all four, the page not scrolling under it: held ${JSON.stringify(held)}, then ${JSON.stringify(down)} of ${g15.n}`);
+    // Holding another card while selecting starts a fresh sweep the same way.
+    const h5 = await centre(B + 5), h4 = await centre(B + 4);
+    await page.touchscreen.touchStart(h5.x, h5.y); await sleep(650);
+    for (let k = 1; k <= 6; k++) { await page.touchscreen.touchMove(h5.x + (h4.x - h5.x) * k / 6, h5.y + (h4.y - h5.y) * k / 6 - k * 3); await sleep(30); }
+    await page.touchscreen.touchEnd(); await sleep(250);
+    const again = await page.evaluate(() => ({ sel: document.querySelectorAll('#g-rows .g-item.sel').length, picked: [...document.querySelectorAll('#g-rows .g-item')].map(e => e.classList.contains('sel') ? e.dataset.id.replace('fake-', '') : null).filter(i => i !== null).join(',') }));
+    note(again.sel === 6 && again.picked === '0,1,2,3,4,5', `a hold on another card while selecting, dragged, adds to it: ${JSON.stringify(again)}`);
+    // At the grid's bottom edge it scrolls: slowly first, then faster, never a jump.
+    const gr = await page.evaluate(() => { const r = document.getElementById('g-grid').getBoundingClientRect(); return { b: r.bottom, l: r.left, w: r.width }; });
+    const b0 = await centre(B);
+    await page.touchscreen.touchStart(b0.x, b0.y); await sleep(650);
+    for (let k = 1; k <= 6; k++) { await page.touchscreen.touchMove(b0.x, b0.y + (gr.b - 30 - b0.y) * k / 6); await sleep(20); }
+    const sA = await page.evaluate(() => document.getElementById('g-grid').scrollTop); await sleep(300);
+    const sB = await page.evaluate(() => document.getElementById('g-grid').scrollTop); await sleep(900);
+    const sC = await page.evaluate(() => document.getElementById('g-grid').scrollTop); await sleep(300);
+    const sD = await page.evaluate(() => document.getElementById('g-grid').scrollTop);
+    const edgeMax = await page.evaluate(() => { const g = document.getElementById('g-grid'); return g.scrollHeight - g.clientHeight; });
+    await page.touchscreen.touchEnd(); await sleep(200);
+    const early = (sB - sA) / 0.3, late = (sD - sC) / 0.3;
+    note(early > 20 && early < 400 && (late > early * 1.3 || sD >= edgeMax - 1) && late <= 960,
+      `held at the bottom edge the grid scrolls slowly then faster: ${Math.round(early)}px/s first, ${Math.round(late)}px/s a second on (room ${edgeMax}, at ${sD})`);
+    await page.evaluate(() => { document.getElementById('g-grid').style.maxHeight = ''; document.getElementById('g-grid').scrollTop = 0; document.querySelectorAll('#g-rows .g-fake').forEach(e => e.remove()); });
+    await page.click('#g-sel-x'); await sleep(200);
 
     // Batch 10: one options button per card; its buttons fly out to their corners and fold back.
     const tile = i => page.evaluate(i => { const it = document.querySelectorAll('#g-rows .g-item')[i], t = it.querySelector('.g-thumb').getBoundingClientRect();

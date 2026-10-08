@@ -2660,25 +2660,53 @@ async function runSearch(raw){
    Hold one of your canvases to start it. Then a tap picks or un-picks a
    card, and a finger that sets off SIDEWAYS from a card sweeps every card
    between it and wherever it goes, scrolling the grid at its edges (the
-   grid pans only up and down, so an up-or-down drag is still a scroll).
-   The window floats top left, named after the canvas or how many, and
-   moves by its top; its X, back, or anywhere else in the app ends it. */
+   grid pans only up and down, so a quick up-or-down drag is still a scroll).
+   The hold itself is a sweep too (Dex, batch 15): the finger that held a
+   card can drag on in ANY direction without lifting, and holding any card
+   again once selecting starts a fresh one the same way. The window opens
+   halfway up the screen, beside the held card and never over it,
+   named after the canvas or how many, and moves by its top; its X, back,
+   or anywhere else in the app ends it. */
 const HOLD_MS = 450;
 let hold = null, sweep = null, selPos = null;
-function enterSelect(){
+function enterSelect(card){
   if (selecting) return;
   selecting = true;
   $('gallery').classList.add('selecting');
   const p = $('g-sel');
   p.classList.add('open');
-  if (!selPos) selPos = { left: 12, top: $('g-grid').getBoundingClientRect().top + 8 };
-  placeSel(selPos.left, selPos.top);
+  const at = selSpot(card && card.getBoundingClientRect());
+  placeSel(at.left, at.top);
   paintSel();
+}
+// Halfway up the screen by default; if that covers the held card, the
+// nearest place that does not: above it, below it, then beside it.
+function selSpot(c){
+  const p = $('g-sel'), w = p.offsetWidth, h = p.offsetHeight, m = 8;
+  const fit = (left, top) => ({ left: Math.max(6, Math.min(innerWidth - w - 6, left)), top: Math.max(6, Math.min(innerHeight - h - 6, top)) });
+  const home = fit(12, innerHeight / 2 - h / 2);
+  if (!c) return home;
+  const clear = s => s.left + w <= c.left - 2 || s.left >= c.right + 2 || s.top + h <= c.top - 2 || s.top >= c.bottom + 2;
+  const tries = [home, fit(home.left, c.top - h - m), fit(home.left, c.bottom + m),
+    fit(c.right + m, home.top), fit(c.left - w - m, home.top), fit(innerWidth - w - 12, home.top)];
+  let best = null, bd = Infinity;
+  for (const s of tries){
+    if (!clear(s)) continue;
+    const d = Math.hypot(s.left - home.left, s.top - home.top);
+    if (d < bd){ bd = d; best = s; }
+  }
+  return best || home;
+}
+function startSweep(el, e, on){
+  sweep = { id: el.dataset.id, x: e.clientX, y: e.clientY, pid: e.pointerId, on, base: new Set(selected), mouse: e.pointerType === 'mouse', cx: e.clientX, cy: e.clientY, edgeT: 0, last: 0 };
+  $('gallery').classList.add('sweeping');
+  if (on !== null) requestAnimationFrame(sweepEdge);
 }
 function exitSelect(){
   if (!selecting) return;
   selecting = false; sweep = null;
   selected.clear();
+  $('gallery').classList.remove('sweeping');
   $('gallery').classList.remove('selecting');
   $('g-sel').classList.remove('open');
   for (const el of $('g-rows').querySelectorAll('.g-item.sel')) el.classList.remove('sel');
@@ -2708,18 +2736,23 @@ function placeSel(left, top){
 $('g-rows').addEventListener('pointerdown', e => {
   const el = e.target.closest('.g-item[data-id]');
   if (!el || e.target.closest('button')) return;
-  if (selecting){
-    sweep = { id: el.dataset.id, x: e.clientX, y: e.clientY, pid: e.pointerId, on: null, base: null, mouse: e.pointerType === 'mouse' };
-    return;
-  }
-  if (galleryTab !== 'mine' || picking || searching()) return;
+  if (!selecting && (galleryTab !== 'mine' || picking || searching())) return;
+  if (selecting) startSweep(el, e, null);   // undecided: sideways sweeps, up or down scrolls
   clearTimeout(hold && hold.t);
-  hold = { x: e.clientX, y: e.clientY, id: el.dataset.id, t: setTimeout(() => {
+  const x = e.clientX, y = e.clientY, pid = e.pointerId, mouse = e.pointerType === 'mouse';
+  hold = { x, y, id: el.dataset.id, t: setTimeout(() => {
     hold = null; holdFired = true;
-    enterSelect(); toggleSel(el.dataset.id, true);
+    if (!selecting){ enterSelect(el); toggleSel(el.dataset.id, true); }
+    else toggleSel(el.dataset.id, true);
+    // The finger that held it is already sweeping, whichever way it goes next.
+    startSweep(el, { clientX: x, clientY: y, pointerId: pid, pointerType: mouse ? 'mouse' : 'touch' }, true);
     if (navigator.vibrate) try { navigator.vibrate(12); } catch (err) {}
   }, HOLD_MS) };
 });
+// A long press on a picture is also the browser's own drag: never let it start one.
+$('g-rows').addEventListener('dragstart', e => e.preventDefault());
+// Once a sweep has begun the page must not scroll under it as well.
+$('g-rows').addEventListener('touchmove', e => { if (sweep && sweep.on !== null && e.cancelable) e.preventDefault(); }, { passive: false });
 $('g-rows').addEventListener('contextmenu', e => { if (e.target.closest('.g-item')) e.preventDefault(); });
 $('g-grid').addEventListener('scroll', () => { if (hold){ clearTimeout(hold.t); hold = null; } }, { passive: true });
 addEventListener('pointermove', e => {
@@ -2728,17 +2761,19 @@ addEventListener('pointermove', e => {
   const dx = e.clientX - sweep.x, dy = e.clientY - sweep.y;
   if (sweep.on === null){
     if (Math.hypot(dx, dy) < 10) return;
-    if (!sweep.mouse && Math.abs(dx) < Math.abs(dy)){ sweep = null; return; }   // that is a scroll
+    if (!sweep.mouse && Math.abs(dx) < Math.abs(dy)){ sweep = null; $('gallery').classList.remove('sweeping'); return; }   // that is a scroll
     sweep.on = !selected.has(sweep.id); sweep.base = new Set(selected);
     sweep.cx = e.clientX; sweep.cy = e.clientY;
-    sweepEdge();
+    requestAnimationFrame(sweepEdge);
   }
   sweep.cx = e.clientX; sweep.cy = e.clientY;
   sweepTo();
 });
 function sweepTo(){
   if (!sweep || sweep.on === null) return;
-  const hit = document.elementFromPoint(sweep.cx, sweep.cy);
+  // A finger past the grid's top or bottom still means the row at that edge.
+  const r = $('g-grid').getBoundingClientRect();
+  const hit = document.elementFromPoint(sweep.cx, Math.max(r.top + 6, Math.min(r.bottom - 6, sweep.cy)));
   const el = hit && hit.closest('.g-item[data-id]');
   if (!el) return;
   const cards = [...$('g-rows').querySelectorAll('.g-item[data-id]')].map(c => c.dataset.id);
@@ -2747,12 +2782,28 @@ function sweepTo(){
   const lo = Math.min(a, b), hi = Math.max(a, b);
   cards.forEach((id, i) => toggleSel(id, i >= lo && i <= hi ? sweep.on : sweep.base.has(id)));
 }
-// Near the top or bottom of the grid, it scrolls under the finger.
-function sweepEdge(){
+// Near the top or bottom of the grid it scrolls under the finger: slowly at
+// first, faster the deeper the finger goes and the longer it stays, and never
+// faster than EDGE_MAX so a long gallery can still be stopped on the card.
+const EDGE_ZONE = 72, EDGE_MIN = 90, EDGE_MAX = 900, EDGE_RAMP = 1500;   // px/s, px/s, ms to full speed
+function edgeSpeed(depth, dwell){
+  const d = Math.max(0, Math.min(1, depth / EDGE_ZONE));
+  const ramp = Math.min(1, dwell / EDGE_RAMP);
+  return EDGE_MIN + (EDGE_MAX - EDGE_MIN) * Math.min(1, d * (0.35 + 0.65 * ramp));
+}
+function sweepEdge(now){
   if (!sweep || sweep.on === null) return;
-  const g = $('g-grid'), r = g.getBoundingClientRect(), zone = 70;
-  const v = sweep.cy < r.top + zone ? -(r.top + zone - sweep.cy) / 4 : sweep.cy > r.bottom - zone ? (sweep.cy - (r.bottom - zone)) / 4 : 0;
-  if (v){ g.scrollTop += v; sweepTo(); }
+  const g = $('g-grid'), r = g.getBoundingClientRect();
+  const depth = sweep.cy < r.top + EDGE_ZONE ? -(r.top + EDGE_ZONE - sweep.cy) : sweep.cy > r.bottom - EDGE_ZONE ? sweep.cy - (r.bottom - EDGE_ZONE) : 0;
+  const dt = sweep.last ? Math.min(50, now - sweep.last) : 16;
+  sweep.last = now;
+  if (depth){
+    sweep.edgeT += dt;
+    const v = edgeSpeed(Math.abs(depth), sweep.edgeT) * dt / 1000;
+    sweep.edgeAcc = (sweep.edgeAcc || 0) + Math.sign(depth) * v;
+    const px = Math.trunc(sweep.edgeAcc);
+    if (px){ g.scrollTop += px; sweep.edgeAcc -= px; sweepTo(); }
+  } else { sweep.edgeT = 0; sweep.edgeAcc = 0; }
   requestAnimationFrame(sweepEdge);
 }
 const endPress = e => {
@@ -2760,6 +2811,7 @@ const endPress = e => {
   if (sweep && e.pointerId === sweep.pid){
     if (sweep.on !== null) holdFired = true;   // a sweep is not also a tap
     sweep = null;
+    $('gallery').classList.remove('sweeping');
   }
 };
 addEventListener('pointerup', endPress); addEventListener('pointercancel', endPress);
