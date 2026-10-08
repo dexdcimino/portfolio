@@ -4,7 +4,7 @@
   /* The new logo's ribbon (inko/icon.svg): amber, coral, magenta, violet,
      blue, cyan. The middle of it is the accent; the whole of it is --grad.
      (The cyan-to-lilac these replaced was the OLD logo's.) */
-  --a1:#f12fc6; --a2:#8a32f4; --a3:#3458f5;
+  --bar-h:66px; --a1:#f12fc6; --a2:#8a32f4; --a3:#3458f5;
   --grad:linear-gradient(120deg,#ff6a72 0%,#f12fc6 34%,#8a32f4 68%,#3458f5 100%);
   --glow:0 6px 20px -6px rgba(241,47,198,.55), 0 2px 10px -4px rgba(52,88,245,.5);
 }
@@ -94,10 +94,13 @@ body{
   display:flex; align-items:center; gap:8px;
   width:calc(100vw - 20px); max-width:600px;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
-  border:1px solid var(--border); border-radius:18px;
-  padding:10px 12px; margin-bottom:8px;
+  border:1px solid var(--border); border-radius:26px;
+  /* The same box as the toolbar (Dex, 2026-10-08): just the scrub bar
+     between undo and redo, all on one centre line. The pixel size shows
+     only while dragging, in #size-preview. */
+  box-sizing:border-box; height:var(--bar-h); padding:0 14px; margin-bottom:8px;
 }
-#size-bar .ctl{margin:0; flex:1; min-width:0;}
+#size-bar .ctl{margin:0; flex:1; min-width:0; display:flex; align-items:center;}
 #size-bar .tbtn{flex:0 0 auto;}
 #size-bar .mrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
 #size-bar .mrow.centered{justify-content:center;}
@@ -112,7 +115,7 @@ body{
   width:calc(100vw - 20px); max-width:600px;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border); border-radius:26px;
-  padding:10px 14px;
+  box-sizing:border-box; height:var(--bar-h); padding:0 14px;
   margin-bottom:0;
 }
 /* The draw/erase toggle sits dead centre; each half spreads its buttons

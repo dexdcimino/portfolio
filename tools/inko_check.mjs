@@ -354,12 +354,16 @@ try {
     const r = id => document.getElementById(id).getBoundingClientRect();
     const tb = r('toolbar'), t = r('tool-toggle'), title = r('title-input'), lock = r('top-lock');
     return { off: Math.abs((t.left + t.right) / 2 - (tb.left + tb.right) / 2),
-             order: ['plus-btn', 'grid-btn', 'ed-btn', 'tool-toggle', 'color-btn', 'sym-btn'].map(id => [id, r(id).left]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join(','),
+             order: ['grid-btn', 'ed-btn', 'tool-toggle', 'color-btn', 'sym-btn', 'plus-btn'].map(id => [id, r(id).left]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join(','),
              lockRight: lock.left > title.left && Math.abs(lock.top + lock.height / 2 - (title.top + title.height / 2)) < 8,
-             install: !!document.getElementById('install-btn') };
+             install: !!document.getElementById('install-btn'),
+             // The size bar is the toolbar's box, with undo, the scrub bar and redo on one centre line.
+             sizeBar: (() => { const sb = r('size-bar'), u = r('undo-btn'), rd = r('redo-btn'), sl = r('size'), c = x => x.top + x.height / 2;
+               return { h: sb.height, tbH: tb.height, skew: Math.max(Math.abs(c(u) - c(sl)), Math.abs(c(rd) - c(sl))), label: !!document.querySelector('#size-bar #size-v') }; })() };
   });
   note(bars.off < 2, `the draw/erase toggle is ${bars.off.toFixed(1)}px off the toolbar's centre`);
-  note(bars.order === 'plus-btn,grid-btn,ed-btn,tool-toggle,color-btn,sym-btn', `the toolbar reads ${bars.order}`);
+  note(bars.order === 'grid-btn,ed-btn,tool-toggle,color-btn,sym-btn,plus-btn', `the toolbar reads ${bars.order}`);
+  note(Math.abs(bars.sizeBar.h - bars.sizeBar.tbH) < 0.5 && bars.sizeBar.skew < 1 && !bars.sizeBar.label, `the size bar: ${JSON.stringify(bars.sizeBar)}`);
   note(bars.lockRight && !bars.install, `the top row: lock at the right ${bars.lockRight}, install button ${bars.install}`);
   console.log(`colours: canvas ${bg0} -> ${bg1} from its own window, brush sliders left it alone, eyedropper picked ${picked}; toggle ${bars.off.toFixed(1)}px off centre`);
 

@@ -704,6 +704,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     `meta` `deletes:<scope>`. Syncs run on sign-in, launch, foreground,
     `online`, and after a save, delete or visibility change. Drafts stay on
     the device. Signed out, nothing leaves it.
+  - **The two bottom bars are one box size** (`--bar-h`): the size bar is
+    only redo, the scrub bar and undo on one centre line (the pixel size
+    shows while dragging, in `#size-preview`), and the toolbar ends in +.
   - **The gallery is your profile.** Search across the top (@artists, always);
     a profile header over the cards; and a bottom bar of three: a square back
     arrow, a wide Public, and a square of your own picture that opens your

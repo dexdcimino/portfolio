@@ -630,14 +630,12 @@ function refreshPanelUI(){
   syncTopLock();
   const sz = tool==='eraser' ? eraserEff() : brushSize;
   $('size').value = sizeToSlider(sz);
-  $('size-v').textContent = sz+'px';
   const tip = document.getElementById('brush-tip');
   if (tip) tip.setAttribute('fill', brushCss());
 }
 function refreshSizeUI(){
   const sz = tool==='eraser' ? eraserEff() : brushSize;
   $('size').value = sizeToSlider(sz);
-  $('size-v').textContent = sz + 'px';
 
   const sp = $('sp-circle');
   if (sp){
