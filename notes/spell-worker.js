@@ -7,13 +7,17 @@
  */
 
 /* global Typo, importScripts */
-importScripts('/notes/vendor/typo.js');
+/* Guarded: offline, in the installed phone app, the worker's own script can
+   be unreachable, and a throw here is an uncaught error on the page for
+   something spell.js already treats as "no spelling". */
+let loaded = true;
+try { importScripts('/notes/vendor/typo.js'); } catch { loaded = false; }
 
 let typo = null;
-const ready = Promise.all([
+const ready = (loaded ? Promise.resolve() : Promise.reject(new Error('the dictionary could not be loaded'))).then(() => Promise.all([
   fetch('/notes/vendor/en_US.aff').then((r) => r.text()),
   fetch('/notes/vendor/en_US.dic').then((r) => r.text()),
-]).then(([aff, dic]) => {
+])).then(([aff, dic]) => {
   typo = new Typo('en_US', aff, dic);
   postMessage({ ready: true });
 }).catch((err) => {

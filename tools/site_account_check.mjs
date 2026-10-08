@@ -18,6 +18,11 @@
  *      verified address claims @dex; a rename carries the link and a deletion
  *      removes it.
  *   3. api/sketch.js action "site": a forged token is a 401, a real one signs in.
+ *   4. api/notes/unlock.js with an ID token: Dex's verified Google opens the
+ *      DEXDC store itself (the same document, its rev, a token that saves to
+ *      it), and every other account -- the same address through GitHub, an
+ *      unverified one, someone else's Google, a forgery -- opens nothing and
+ *      changes nothing.
  *
  * FALSELY PASSES IF: the certificate server was never asked. It counts its
  * requests and the run asserts it served at least one.
@@ -202,12 +207,48 @@ try {
   ok(fresh.status === 200 && !!fresh.body.ticket && fresh.body.suggest === 'zo_q', `a new one gets a ticket and a suggested name (${fresh.body.suggest})`);
   const me = await call({ action: 'me', token: okr.body.token });
   ok(me.status === 200 && me.body.handle === 'oldtimer', 'the token it hands back works on the rest of the API');
+
+  console.log('4. the DEXDC notes, opened by Dex\u2019s account');
+  process.env.NOTES_PASSWORD = 'check-password';
+  const notesStore = require(join(ROOT, 'lib', 'notes-store.js'));
+  const unlock = require(join(ROOT, 'api', 'notes', 'unlock.js'));
+  const saveH = require(join(ROOT, 'api', 'notes', 'save.js'));
+  const route = (h, body) => new Promise((done) => {
+    const res = { headers: {}, setHeader(k, v) { this.headers[k.toLowerCase()] = v; },
+      status(code) { this.statusCode = code; return this; }, json(o) { done({ status: this.statusCode, body: o }); return this; } };
+    h({ method: 'POST', body, headers: {} }, res);
+  });
+  const FIXTURE = { v: 1, active: 's1', sessions: [{ id: 's1', title: 'DEXDC fixture', cats: [] }] };
+  const first = await notesStore.writeNotes(FIXTURE, undefined, Date.now(), 'private');
+  const owner = (extra = {}, provider = 'google.com') => token({ sub: 'site-dex', email: 'dexdcimino@gmail.com', email_verified: true,
+    firebase: { identities: { 'google.com': ['g-dex'] }, sign_in_provider: provider }, ...extra });
+  const opened = await route(unlock, { idToken: owner() });
+  ok(opened.status === 200 && opened.body.content && opened.body.content.sessions[0].title === 'DEXDC fixture' && opened.body.rev === first.rev,
+    `Dex's Google opens the DEXDC document itself, at its rev (${opened.status}, rev ${opened.body.rev})`);
+  const saved = await route(saveH, { token: opened.body.token, doc: { ...FIXTURE, sessions: [{ id: 's1', title: 'edited on the phone', cats: [] }] }, baseRev: opened.body.rev });
+  ok(saved.status === 200 && saved.body.rev === first.rev + 1, `and the token it hands back saves to it (${saved.status}, rev ${saved.body.rev})`);
+  const stale = await route(saveH, { token: opened.body.token, doc: FIXTURE, baseRev: opened.body.rev });
+  ok(stale.status === 409 && stale.body.doc.sessions[0].title === 'edited on the phone', 'a save from an older rev is a 409 carrying the newer document, never an overwrite');
+  const NOT_DEX = [
+    [owner({}, 'github.com'), 403, 'the same address signed in through GitHub'],
+    [owner({ email_verified: false }), 403, 'an unverified address'],
+    [owner({ email: 'someone@gmail.com' }), 403, 'someone else\u2019s Google'],
+    [owner({}).replace(/\.[^.]+$/, '.' + Buffer.from('forged').toString('base64url')), 401, 'a forged signature'],
+    [token({}, { key: evil.privateKey }), 401, 'a token signed by another key'],
+  ];
+  ok(NOT_DEX.length === 5, `${NOT_DEX.length} accounts that are not Dex`);
+  for (const [t, code, what] of NOT_DEX) {
+    const r = await route(unlock, { idToken: t });
+    ok(r.status === code && !r.body.content && !r.body.token, `refused (${r.status}): ${what}`);
+  }
+  const still = await notesStore.readNotes('private');
+  ok(still.rev === first.rev + 1 && still.content.sessions[0].title === 'edited on the phone', 'and the DEXDC notes are exactly as the one real save left them');
 } finally {
   certs.close();
   await rm(SCRATCH, { recursive: true, force: true });
 }
 
-const EXPECT = 48;
+const EXPECT = 58;
 ok(passed + failed === EXPECT, `ran ${passed + failed} checks, expected ${EXPECT}`);
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

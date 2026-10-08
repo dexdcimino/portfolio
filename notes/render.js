@@ -849,7 +849,10 @@ function buildSection(cat) {
   // The microphone sits in the box's bottom-right corner, in the wrapper
   // rather than inside the contenteditable: a button inside the text is a
   // thing the caret can land on.
-  sec.append(el('div', { class: 'nt-cat-shell' }, aside,
+  // On the phone the chevron and the emoji go INSIDE the title strip, at its
+  // left end, so the box has the whole width of the screen (Dex, 2026-10-08).
+  if (ctx.mobile) head.prepend(aside);
+  sec.append(el('div', { class: 'nt-cat-shell' }, ctx.mobile ? null : aside,
     el('div', { class: 'nt-cat-box' }, head,
       el('div', { class: 'nt-cat-body' }, body, ctx.dictate.micButton(cat.id)))));
   fillHeader(sec, cat);
@@ -1132,10 +1135,15 @@ export function renderSessionList() {
     paintColor(row, s.color);
     const x = el('button', { type: 'button', class: 'nt-sess-row-x', html: ICON.close, tabindex: '-1', 'aria-label': `Delete ${s.title}` });
     x.addEventListener('click', (e) => { e.stopPropagation(); deleteSession(s.id); });
+    // The phone app's sheet gives every row a ⋯ (rename, colour, order),
+    // which the desktop has elsewhere: in place, on the logo, by dragging.
+    const more = ctx.sessionMenu ? el('button', { type: 'button', class: 'nt-sess-row-more', html: ICON.more, 'aria-label': `${s.title} options`,
+      onclick: (e) => { e.stopPropagation(); ctx.sessionMenu(s.id, e.currentTarget); } }) : null;
     row.append(
       el('span', { class: `nt-row-badge ${g.emoji ? 'is-emoji' : ''}`, text: g.text }),
       el('span', { class: 'nt-row-title', text: s.title }),
       el('span', { class: 'nt-sess-count', text: String(s.cats.length) }),
+      more,
       x);
     const go = (e) => { if (e.target.closest('button')) return; switchSession(s.id); renderSessionList(); };
     row.addEventListener('click', go);
