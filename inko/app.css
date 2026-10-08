@@ -1,6 +1,12 @@
 :root{
   --bg:#0a0c11; --panel:rgba(20,24,33,.94); --border:rgba(255,255,255,.09);
-  --text:#f2f4f8; --muted:#8b93a7; --a1:#22d3ee; --a2:#a78bfa; --danger:#ff453a;
+  --text:#f2f4f8; --muted:#8b93a7; --danger:#ff453a;
+  /* The new logo's ribbon (inko/icon.svg): amber, coral, magenta, violet,
+     blue, cyan. The middle of it is the accent; the whole of it is --grad.
+     (The cyan-to-lilac these replaced was the OLD logo's.) */
+  --bar-h:66px; --a1:#f12fc6; --a2:#8a32f4; --a3:#3458f5;
+  --grad:linear-gradient(120deg,#ff6a72 0%,#f12fc6 34%,#8a32f4 68%,#3458f5 100%);
+  --glow:0 6px 20px -6px rgba(241,47,198,.55), 0 2px 10px -4px rgba(52,88,245,.5);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{height:100%;height:100svh;}
@@ -26,18 +32,23 @@ body{
 /* The canvas's public/private lock, at the row's right edge, the mirror of
    the canvas swatch at its left. */
 #top-lock{
-  position:absolute; right:16px; top:50%; transform:translateY(-50%);
-  width:36px; height:36px; border-radius:12px; border:1px solid var(--border);
+  position:absolute; right:14px; top:50%; transform:translateY(-50%);
+  width:46px; height:46px; border-radius:15px; border:1px solid var(--border);
   background:var(--panel); color:var(--text); cursor:pointer;
   display:flex; align-items:center; justify-content:center;
 }
-#top-lock svg{width:18px; height:18px;}
-#top-lock.on{background:var(--a1); color:#0b0d12; border-color:transparent;}
+#top-lock svg{width:25px; height:25px;}
+#top-lock.on{background:var(--grad); color:#fff; border-color:transparent; box-shadow:var(--glow);}
 #topbar{position:relative;}
 
 /* Canvas stage */
+/* The canvas sits ON the bars: one gap (--gap, the same 8px as between the
+   size bar and the toolbar) under it, and fit() sets the margin to whatever
+   the bars are tall right now, so opening the colour sliders lifts it. */
 #stage{
-  margin-bottom:150px;flex:1; display:flex; align-items:center; justify-content:center; width:100%; min-height:0; padding:6px 0; touch-action:none; overscroll-behavior:none;}
+  --gap:8px;
+  margin-bottom:150px; flex:1; display:flex; align-items:flex-end; justify-content:center; width:100%; min-height:0;
+  padding:6px 0 var(--gap); touch-action:none; overscroll-behavior:none;}
 #canvas-frame{
   border-radius:20px; overflow:hidden; border:none;
   box-shadow:0 18px 50px rgba(0,0,0,.5); background:#536980; line-height:0;
@@ -83,10 +94,13 @@ body{
   display:flex; align-items:center; gap:8px;
   width:calc(100vw - 20px); max-width:600px;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
-  border:1px solid var(--border); border-radius:18px;
-  padding:10px 12px; margin-bottom:8px;
+  border:1px solid var(--border); border-radius:26px;
+  /* The same box as the toolbar (Dex, 2026-10-08): just the scrub bar
+     between undo and redo, all on one centre line. The pixel size shows
+     only while dragging, in #size-preview. */
+  box-sizing:border-box; height:var(--bar-h); padding:0 14px; margin-bottom:8px;
 }
-#size-bar .ctl{margin:0; flex:1; min-width:0;}
+#size-bar .ctl{margin:0; flex:1; min-width:0; display:flex; align-items:center;}
 #size-bar .tbtn{flex:0 0 auto;}
 #size-bar .mrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
 #size-bar .mrow.centered{justify-content:center;}
@@ -101,7 +115,7 @@ body{
   width:calc(100vw - 20px); max-width:600px;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border); border-radius:26px;
-  padding:10px 14px;
+  box-sizing:border-box; height:var(--bar-h); padding:0 14px;
   margin-bottom:0;
 }
 /* The draw/erase toggle sits dead centre; each half spreads its buttons
@@ -117,7 +131,19 @@ body{
 .tbtn{line-height:0;}
 .tbtn.sel{background:rgba(255,255,255,.12);}
 .tbtn:disabled{opacity:.28;}
-.tbtn.on{background:linear-gradient(135deg,var(--a1),var(--a2)); color:#0b0d12;}
+/* ON: a ring of the logo's ribbon round a faint wash of it, and a glow --
+   the icon stays white, so it reads as lit rather than as a coloured blob. */
+.tbtn.on{
+  background:linear-gradient(rgba(30,18,44,.92),rgba(30,18,44,.92)) padding-box, var(--grad) border-box;
+  border:2px solid transparent; color:#fff; box-shadow:var(--glow);
+}
+.tbtn{transition:background .18s, box-shadow .18s;}
+/* Brush and eraser, both on the button: the tool in use big, the other
+   small in the top-left corner. swapTools() flies them between the two. */
+#tool-toggle{position:relative; width:52px; height:48px;}
+#tool-toggle .tool-ico{position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px; transform-origin:50% 50%;}
+#tool-toggle .tool-ico.big{transform:translate(2px,2px) scale(1);}
+#tool-toggle .tool-ico.small{transform:translate(-16px,-14px) scale(.46); opacity:.7;}
 
 #plus-btn svg{width:24px; height:24px;}
 
@@ -251,9 +277,9 @@ input[type=range]::-moz-range-thumb{
 .g-sq{width:52px; height:52px; border-radius:16px; flex:none; cursor:pointer;}
 #g-back{background:var(--panel); border:1px solid var(--border); color:var(--text); display:flex; align-items:center; justify-content:center;}
 #g-back svg{width:24px; height:24px;}
-.g-wide{flex:1; height:52px; border-radius:16px; background:var(--panel); border:1px solid var(--border); color:var(--text);
-  font-size:17px; font-weight:700; cursor:pointer;}
-.g-wide.on{background:linear-gradient(135deg,var(--a1),var(--a2)); color:#0b0d12; border-color:transparent;}
+/* Public <-> Mine, one button that says where it takes you. */
+.g-wide{flex:1; height:52px; border-radius:16px; background:var(--grad); border:none; color:#fff;
+  font-size:19px; font-weight:800; letter-spacing:.01em; cursor:pointer; box-shadow:var(--glow); text-shadow:0 1px 2px rgba(0,0,0,.25);}
 #g-tab-mine.on{outline:2px solid var(--a1); outline-offset:2px;}
 /* The crop sheet */
 #crop{position:fixed; inset:0; z-index:89; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; padding:20px;}
@@ -322,7 +348,7 @@ body.embed #toolbar{margin-bottom:8px;}
   background:rgba(0,0,0,.55); color:#fff;
 }
 .g-pub svg{width:15px; height:15px;}
-.g-pub.on{background:var(--a1); color:#0b0d12;}
+.g-pub.on{background:var(--grad); color:#fff;}
 .g-pub:disabled{opacity:.5;}
 .g-by{font-size:11px; color:var(--muted); text-align:center; opacity:.8; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .g-react{display:flex; justify-content:center; gap:6px; margin-top:6px;}
@@ -331,15 +357,42 @@ body.embed #toolbar{margin-bottom:8px;}
 .g-rx b{font-weight:600; font-variant-numeric:tabular-nums;}
 .g-rx.on{border-color:var(--a1); background:rgba(34,211,238,.14);}
 .g-empty{color:var(--muted); font-size:15px; text-align:center; padding:40px 20px; line-height:1.5;}
-#viewer{position:fixed; inset:0; z-index:85; background:rgba(5,6,10,.97); display:none; flex-direction:column;}
+/* The viewer: an overlay over the grid. Title up top, nothing to press in
+   the top half; the drawing sits low, the artist under it, and one control
+   bar at the bottom. */
+#viewer{position:fixed; inset:0; z-index:85; background:rgba(5,6,10,.94); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  display:none; flex-direction:column; touch-action:none; overscroll-behavior:none;}
 #viewer.open{display:flex;}
-#v-stage{flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:calc(env(safe-area-inset-top,0px) + 56px) 16px 8px;}
-#v-img{max-width:100%; max-height:100%; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,.6);}
-#v-bar{padding:12px 20px calc(env(safe-area-inset-bottom,0px) + 18px); display:flex; flex-direction:column; align-items:center; gap:8px;}
-#v-title{font-size:18px; font-weight:700; text-align:center;}
-#v-by{font-size:13px; color:var(--muted); text-align:center;}
-#v-bar .g-rx{font-size:16px; padding:8px 14px; border-radius:14px;}
-#v-acts{display:flex; gap:18px;}
+#v-title{padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 6px; font-size:22px; font-weight:800; text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+#v-stage{flex:1; min-height:0; display:flex; align-items:flex-end; justify-content:center; padding:10px 18px 6px; overflow:hidden;}
+#v-img{max-width:100%; max-height:100%; border-radius:16px; box-shadow:0 14px 44px rgba(0,0,0,.6); will-change:transform; user-select:none; -webkit-user-drag:none;}
+.v-artist{display:flex; align-items:center; justify-content:center; gap:12px; margin:12px auto 4px; max-width:calc(100% - 40px);
+  background:none; border:none; color:var(--text); font-size:21px; font-weight:800; cursor:pointer; padding:4px 8px;}
+.v-artist .avatar{width:48px; height:48px;}
+.v-artist .tag{min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+#v-bar{display:flex; align-items:center; gap:14px; padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 16px);}
+.v-btn{background:var(--panel); border:1px solid var(--border); color:var(--text); display:flex; align-items:center; justify-content:center;}
+.v-btn svg{width:24px; height:24px;}
+#v-bar .g-react{flex:1; display:flex; justify-content:center; margin:0;}
+#v-acts{position:absolute; right:16px; bottom:calc(env(safe-area-inset-bottom,0px) + 84px); display:flex; flex-direction:column; gap:2px;
+  background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:6px;}
+#v-acts[hidden]{display:none;}
+#v-acts .v-link{text-decoration:none; color:var(--text); font-size:15px; padding:10px 14px; text-align:left;}
+/* Poop | fire: one pill split in two. Grey until you choose one; the one
+   you chose takes its colour and shows its count. The icons are the site's
+   own (styles.css, the prefs votes), as masks so they take any colour. */
+.rx-pill{display:flex; height:52px; border-radius:26px; overflow:hidden; border:1px solid var(--border); background:var(--panel);}
+.rx-pill .g-rx{display:flex; align-items:center; justify-content:center; gap:8px; min-width:86px; padding:0 18px; border:none; border-radius:0;
+  background:none; color:var(--text); font-size:18px; font-weight:800; cursor:pointer;}
+.rx-pill .g-rx + .g-rx{border-left:1px solid var(--border);}
+.rx-ico{width:26px; height:26px; display:block; background:#5d6577; -webkit-mask:var(--icon) center/contain no-repeat; mask:var(--icon) center/contain no-repeat; transition:background .2s, transform .2s;}
+.rx-ico[data-icon="fire"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M13.1 1.6c.5 2.7-.5 4.4-1.9 5.9-1.5 1.6-3.3 3-3.3 5.6 0 .9.2 1.7.6 2.4-1-.5-1.8-1.4-2.2-2.5-1 1.3-1.6 2.9-1.6 4.6 0 3.4 3.3 6.1 7.3 6.1s7.3-2.7 7.3-6.1c0-2.9-1.3-4.9-2.7-6.7-.5 1.1-1.3 1.9-2.3 2.2 1.2-3.7-.1-8.2-1.2-11.5Z'/%3E%3C/svg%3E");}
+.rx-ico[data-icon="poop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='%23fff'%3E%3Cellipse cx='12' cy='18.6' rx='10.4' ry='3.1'/%3E%3Cellipse cx='12' cy='14.2' rx='8.1' ry='2.9'/%3E%3Cellipse cx='12' cy='9.4' rx='5.3' ry='2.7'/%3E%3Cpath d='M12.4 7.1c-1.5 0-2.5-.8-2.5-1.9 0-1.6 2-1.9 2-3.2 0-.4-.1-.8-.4-1.1 2.2.4 3.8 1.9 3.8 3.6 0 1.5-1.2 2.6-2.9 2.6Z'/%3E%3C/g%3E%3C/svg%3E");}
+.g-rx.on .rx-ico[data-icon="fire"]{background:linear-gradient(180deg,#ffc247,#ff6a1f 60%,#f12f6c); transform:scale(1.12);}
+.g-rx.on .rx-ico[data-icon="poop"]{background:linear-gradient(180deg,#c8905a,#8a5a2e); transform:scale(1.12);}
+.g-rx b{font-weight:800; font-variant-numeric:tabular-nums;}
+.g-rx b:empty{display:none;}
 .v-link{background:none; border:none; color:var(--muted); font-size:13px; text-decoration:underline; cursor:pointer; padding:6px;}
 .v-x{position:absolute; top:calc(env(safe-area-inset-top,0px) + 12px); right:14px; width:38px; height:38px; border-radius:50%;
   border:1px solid var(--border); background:var(--panel); color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2;}
@@ -356,7 +409,7 @@ body.embed #toolbar{margin-bottom:8px;}
 .a-field:focus{border-color:var(--a1);}
 .a-msg{min-height:18px; font-size:13px; color:var(--danger); margin-bottom:8px;}
 #account-card .mrow{display:flex; gap:10px;}
-.mbtn.primary{background:var(--a1); border-color:var(--a1); color:#0b0d12;}
+.mbtn.primary{background:var(--grad); border-color:transparent; color:#fff;}
 /* Sign in: the providers' own buttons, one size, logo on the left. Google's is
    white with its four-colour G, Discord's is its blurple with the white mark. */
 .a-center{text-align:center; margin-left:0; margin-right:0;}
@@ -373,3 +426,15 @@ body.embed #toolbar{margin-bottom:8px;}
   text-decoration:underline; cursor:pointer; padding:8px;}
 #a-pw{margin-top:12px; padding-top:14px; border-top:1px solid var(--border);}
 .a-full{width:100%; flex:none;}
+
+/* ---- the public grid (Dex, 2026-10-08): two across, and a tile is only the
+   drawing -- the artist and the fire count ride on it, nothing hangs below. */
+.g-row.two .g-item{width:calc((100% - 14px)/2);}
+.p-item .g-thumb{border-radius:16px;}
+.p-by{position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:9px; padding:22px 10px 9px;
+  background:linear-gradient(transparent, rgba(0,0,0,.72)); color:#fff; font-size:17px; font-weight:800; cursor:pointer;}
+.p-by .avatar{width:36px; height:36px; border-color:rgba(255,255,255,.25);}
+.p-by .tag{min-width:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 3px rgba(0,0,0,.6);}
+.p-fire{position:absolute; top:8px; right:8px; display:flex; align-items:center; gap:4px; padding:4px 9px 4px 6px; border-radius:14px;
+  background:rgba(0,0,0,.55); color:#fff; font-size:14px; font-weight:800; font-variant-numeric:tabular-nums;}
+.p-fire .rx-ico{width:17px; height:17px; background:linear-gradient(180deg,#ffc247,#ff6a1f 60%,#f12f6c);}
