@@ -25,6 +25,22 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — Inko: canvas titles are searched on the device, not the server
+
+**Decided.** The gallery search finds artists through the server's `?users=` (as before)
+and canvas titles on the device: your own gallery from IndexedDB, and public drawings
+from the feed the Public tab already fetches whole (`?feed=1`), matched by contains with
+prefix matches first.
+
+**Replaced.** Search found artists only.
+
+**Why.** The feed is one list the app already downloads, so a title index on the server
+would be a second copy of it to keep in step, and your own private canvases must never
+be sent anywhere to be searched.
+
+**Reverse it if** the feed is ever paged or grows too big to fetch whole: then public
+titles need a server-side search beside `?users=`.
+
 ## 2026-10-08 — Inko: back follows the way you came, two steps deep
 
 **Decided.** The phone's back gesture walks a two-place trail of where you have been

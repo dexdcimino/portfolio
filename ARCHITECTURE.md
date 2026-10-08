@@ -731,13 +731,34 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     pad over it (`snapPad`), make the change underneath, then wipe the copy
     away on a diagonal mask (top left to bottom right, 0.36s) while the new
     canvas fades in. Off under reduced motion.
-  - **The gallery is your profile.** Search across the top (@artists, always);
-    a profile header over the cards; and a bottom bar of three: a square back
-    arrow, a wide Public, and a square of your own picture that opens your
-    profile (your canvases under your picture and your @tag, with its edit
-    button, or Sign in). Tapping a name on a card or in the viewer opens that
+  - **The gallery is your profile.** A profile header over the cards, and
+    one bar at the foot built as the canvas toolbar's own pill (`--bar-h`):
+    back and search | a narrower Public in the middle | a square of your own
+    picture that opens your profile (your canvases under your picture and
+    your @tag, with its edit button, or Sign in). Tapping a name on a card or in the viewer opens that
     artist's profile (`?profile=`), and back goes where you came from.
     The wide button is a toggle (it reads Mine while Public is showing).
+  - **Search is a pill on the keyboard.** The bar's search button opens
+    `#g-find` -- All / Artists / Canvases chips over the pill -- placed by
+    `placeFind()` from `visualViewport`, so it rides the keyboard and rests
+    above the bar when the keyboard goes. Artists come from `?users=`;
+    canvas titles are matched on the device, over your own gallery and the
+    feed already fetched (contains, prefix first) -- no server search. The
+    chips keep the keyboard up (pointerdown is cancelled).
+  - **Select mode** (your gallery): hold a card `HOLD_MS` (450) to start it.
+    A tap picks or drops a card; a drag that sets off SIDEWAYS from a card
+    sweeps the run of cards between it and the finger and scrolls at the
+    grid's edges -- the grid is `touch-action:pan-y`, so up and down is
+    still a scroll. The phone's own image menu is off (`touch-callout`, and
+    the card images take no pointer events). `#g-sel` floats top left, moves
+    by its head, is titled with the canvas's title or "N selected", and has
+    download, copy (one only), share (Web Share files) and delete, which
+    asks "Delete N canvases?". `deleteCanvas(it)` is the one delete path.
+    Search and select mode are sheets for back, like the account sheet.
+  - **Undo and redo go with the bar that is up**: `showBars()` moves the same
+    two buttons into the brush colour bar in colour mode (redo | H/S/B |
+    undo, level with S) and back into the size bar after. Picking a brush
+    colour with the eraser on switches to the brush.
   - **A public tile is only the drawing**, two across: the artist's face and
     @tag along its foot (ellipsis when long) and the fire count in a corner.
     No title and no poop on the grid; rating happens in the viewer.
