@@ -917,6 +917,14 @@
             <picture class="ai-card-iconwrap">
               <img class="ai-card-icon" src="/inko/icon.svg" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
+            <!-- Install Inko straight from here, no app store (Dex, 2026-10-08).
+                 Opens the app with ?install=1, which offers the browser's own
+                 install prompt or the Add to Home Screen steps. Shown on
+                 phones too, where the eye is hidden. -->
+            <a class="ai-card-dl" href="/inko/?install=1" target="_blank" rel="noopener"
+               data-tip="Install Inko" aria-label="Install Inko on this device">
+              <span class="icon" data-icon="download" aria-hidden="true"></span>
+            </a>
             <button class="ai-card-eye" type="button" data-tip="Functional preview"
                     aria-label="Open a functional preview of Inko">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>

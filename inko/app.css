@@ -23,14 +23,16 @@ body{
   font-size:21px; font-weight:700; text-align:center; width:70%;
 }
 #title-input::placeholder{color:var(--muted);}
-#install-btn{
+/* The canvas's public/private lock, at the row's right edge, the mirror of
+   the canvas swatch at its left. */
+#top-lock{
   position:absolute; right:16px; top:50%; transform:translateY(-50%);
-  display:flex; align-items:center; gap:6px;
-  background:linear-gradient(135deg,var(--a1),var(--a2)); color:#0b0d12;
-  border:none; border-radius:12px; padding:8px 14px;
-  font-size:14px; font-weight:700; cursor:pointer;
+  width:36px; height:36px; border-radius:12px; border:1px solid var(--border);
+  background:var(--panel); color:var(--text); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
 }
-#install-btn svg{width:18px; height:18px;}
+#top-lock svg{width:18px; height:18px;}
+#top-lock.on{background:var(--a1); color:#0b0d12; border-color:transparent;}
 #topbar{position:relative;}
 
 /* Canvas stage */
@@ -102,9 +104,11 @@ body{
   padding:10px 14px;
   margin-bottom:0;
 }
-.tb-side{display:flex; gap:6px; flex:1;}
-.tb-side.right{justify-content:flex-end;}
-.tb-mid{display:flex; align-items:center; gap:10px;}
+/* The draw/erase toggle sits dead centre; each half spreads its buttons
+   evenly across its own width, so the gaps match and the toggle never
+   drifts with how many buttons a side has. */
+.tb-side{display:flex; flex:1 1 0; justify-content:space-evenly; align-items:center;}
+.tb-mid{display:flex; align-items:center; flex:0 0 auto;}
 .tbtn{
   width:44px; height:44px; border-radius:14px; border:none; background:transparent;
   color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer;
@@ -134,15 +138,9 @@ body{
   padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));
 }
 #brush-pop.open{display:block; opacity:1;}
-#bp-tabs{display:flex; gap:8px; margin-bottom:12px;}
-.bp-tab{
-  flex:1; padding:8px; border-radius:10px; border:1px solid var(--border);
-  background:transparent; color:var(--muted); font-size:14px; font-weight:600; cursor:pointer;
-}
-.bp-tab.on{background:rgba(255,255,255,.1); color:var(--text);}
-#bp-head{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
-#swatch{width:34px; height:34px; border-radius:50%; border:2px solid rgba(255,255,255,.25); background:#ff2d2d;}
-#swatch-label{flex:1; font-size:14px; color:var(--muted);}
+#brush-pop .hsb-row + .hsb-row{margin-top:4px;}
+#bp-head{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+#bp-title{flex:1; font-size:15px; font-weight:700; color:var(--text);}
 #pop-x{background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:6px;}
 .ctl{margin-bottom:12px;}
 .ctl:last-child{margin-bottom:0;}
@@ -164,6 +162,13 @@ input[type=range]::-moz-range-thumb{
   width:20px; height:20px; border-radius:50%;
   background:#fff; border:2px solid rgba(0,0,0,.3);
 }
+#cv-hue::-webkit-slider-runnable-track{background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}
+#cv-sat::-webkit-slider-runnable-track{background:var(--sat-track,linear-gradient(90deg,#555,#f00));}
+#cv-bri::-webkit-slider-runnable-track{background:var(--bri-track,linear-gradient(90deg,#000,#f00));}
+#cv-hue::-moz-range-track{background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}
+#cv-sat::-moz-range-track{background:var(--sat-track,linear-gradient(90deg,#555,#f00));}
+#cv-bri::-moz-range-track{background:var(--bri-track,linear-gradient(90deg,#000,#f00));}
+.g-item.current .g-thumb{outline:2px solid var(--a1); outline-offset:2px;}
 #hue::-webkit-slider-runnable-track{background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}
 #hue::-moz-range-track{background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}
 #sat::-webkit-slider-runnable-track{background:var(--sat-track,linear-gradient(90deg,#555,#f00));}

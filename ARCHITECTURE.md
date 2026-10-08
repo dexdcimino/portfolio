@@ -666,6 +666,41 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     keys are migrated once and removed only after every record is written.
     Undo steps are `toBlob` PNGs (encoded off the main thread), the same blob
     is the draft, and undo is live the instant a stroke ends.
+  - **Undo outlives the page.** Each step is written once, as its stroke
+    ends, to a third store, `steps` (DB version 2), and the draft names the
+    stack by id -- so a reload of any kind (Android reclaiming the app in the
+    background, an update arriving on return) brings back the whole stack, up
+    to 50. A launch after the app was CLOSED (sessionStorage gone) brings back
+    the last 20, for 24 hours. A canvas left for another keeps its last 20 in
+    `meta` `hist:<id>` for the 10 most recently left, for 24 hours, and
+    deleting the canvas deletes them. `gcSteps` sweeps steps nothing names.
+  - **Each account has its own canvases on the device.** A canvas record
+    carries an `owner`: none (or `local`) is signed out, `u:<handle>` an
+    account. The gallery, the draft (`meta` `draft` signed out,
+    `draft:u:<handle>` otherwise) and the undo stack all belong to the scope
+    on screen, and a sign-in or sign-out swaps all three. An account's FIRST
+    sign-in on the device (no `meta` `seen:u:<handle>`) adopts every signed-out
+    canvas and the signed-out draft.
+  - **The canvas on screen is always a gallery card.** A new canvas is saved
+    the moment it is made, blank or not, named `Untitled N` (the lowest N
+    above every `Untitled N` already there); the gallery saves the live one
+    before it opens and rings it. Deleting it starts a fresh blank.
+  - **Two colour controls that never cross.** The toolbar swatch opens the
+    brush bar (`hue`/`sat`/`bri`), the top-left swatch the canvas window
+    (`cv-hue`/`cv-sat`/`cv-bri`). They shared ids until 2026-10-08, so the
+    window's sliders were dead and the brush bar painted the canvas. The
+    eyedropper reads backing pixels (scaled by DPR) and takes the colour on
+    release. No install button in the app: the site's Inko card links to
+    `/inko/?install=1`, which offers the browser's prompt or the Add to Home
+    Screen steps.
+  - **A signed-in account's canvases are on every device.** The server keeps
+    each account's gallery (`sketch/canvases/<handle>/`: one `index.json`,
+    then `<id>-<v>.png` strokes and `-t.jpg` thumbnails), and `syncAccount`
+    compares it with IndexedDB by each canvas's `ts`; the newer wins both
+    ways, a deletion is a tombstone (90 days), and one made offline waits in
+    `meta` `deletes:<scope>`. Syncs run on sign-in, launch, foreground,
+    `online`, and after a save, delete or visibility change. Drafts stay on
+    the device. Signed out, nothing leaves it.
   `tools/inko_check.mjs` drives all of it under the real `/inko/` policy read
   out of `vercel.json`. The pre-rebuild app at inko.dexcimino.com (repo
   dexdcimino/inko) now redirects here.
@@ -675,11 +710,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   Blob store under `sketch/`. NAMED "sketch", NOT "inko": the app is being
   renamed, and an API path or a storage prefix is the one name that cannot
   change once real data sits under it. The invariants:
-  - **Private means on the device.** A drawing is never uploaded until its
-    owner taps the lock on its card; then a flattened WebP (880x1170) and the
-    JPEG thumbnail go up and it joins `sketch/feed.json`. Tapping the globe
-    deletes both. The server never holds a private drawing, so it cannot leak
-    one.
+  - **Private means nobody else sees it.** Signed out, a drawing never
+    leaves the device; signed in, the account's own copy (above) is readable
+    only with its token, through `canvas-img`, never the public image route.
+    Tapping the lock on a card uploads a flattened WebP (880x1170) and the
+    JPEG thumbnail and it joins `sketch/feed.json`; tapping the globe deletes
+    both.
   - **Accounts are a name with Google, Discord, or a password behind it.**
     Google and Discord go through `api/sketch-auth/<provider>`
     (`lib/sketch-oauth.js`): a signed state bound to a short-lived cookie, the
@@ -704,7 +740,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     recomputed from the vote file on every change, never incremented.
   - The feed is ONE JSON read, edge-cached for 10 s; images are served
     through the function (the store is private) under versioned keys, so
-    their URLs are `immutable`. Writes are read-modify-write with no lock --
+    their URLs are `immutable`. Because of that edge cache, for three minutes
+    after this device publishes or unpublishes, the app asks for the feed past
+    the cache (`&fresh=`) and lays its own change over the reply. A publish
+    started signed out is remembered in sessionStorage, so it survives the
+    Google or Discord round trip. Your own handle is never filtered out by
+    "hide this artist". Writes are read-modify-write with no lock --
     fine at this scale, and the first thing to change (a ledger per post, as
     the notes store has) when the feed is busy enough to race.
   `tools/sketch_check.mjs` runs the real handler on a scratch store: the

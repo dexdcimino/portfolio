@@ -25,6 +25,47 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — Inko: a signed-in account's canvases are kept on the server
+
+**Decided.** Each account's saved canvases are stored under `sketch/canvases/<handle>/`
+and synced to every device it signs in on, newest `ts` winning, deletions as tombstones.
+Signed out, drawings still never leave the device. privacy.html says so.
+
+**Replaced.** The entry below, from earlier the same day, which split canvases per
+account on the device only, and the 2026-10-07 promise that the server never holds a
+private drawing.
+
+**Why.** Dex asked for canvases "synced to account", separate per account, with signed
+out as the device-only one. A split that stays on one phone does not follow the account.
+
+**Reverse it if** keeping private drawings off the server matters more than having them
+on every device. Then delete `sketch/canvases/`, drop `syncAccount`, and restore the
+privacy wording.
+
+---
+
+## 2026-10-08 — Inko: canvases split per account ON THE DEVICE, and undo kept on disk
+
+**Decided.** Each Inko account (and signed out) sees only its own canvases, by an
+`owner` on each IndexedDB record; an account's first sign-in on a device adopts the
+signed-out canvases. Undo steps are persisted to IndexedDB (`steps`), whole while the
+app is open and the last 20 for 24 hours after it closes, per canvas for the 10 most
+recently left.
+
+**Replaced.** One gallery for every account on the device, and an undo stack held only
+in memory, which any reload (an Android background kill, an update on resume) emptied.
+
+**Why.** Dex, 2026-10-08: signing out still showed the account's canvases, and
+minimising the phone app lost undo. The split stays on the device because a server
+copy of private drawings would break the 2026-10-07 promise below (private never
+leaves the device, privacy.html says so).
+
+**Reverse it if** canvases are to follow an account across devices: that is a server
+sync of private drawings, a change to the privacy promise, and this owner field is
+what it would upload by.
+
+---
+
 ## 2026-10-08 — DexNote accounts reuse dexnote.dev's Firebase project, at a new path
 
 **Decided.** `/dexnote/` mounts the existing notes app with a guest store

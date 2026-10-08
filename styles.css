@@ -2563,7 +2563,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    filled eye mask. Only authored on rows that have a preview
    (data-app-modal), so there is no disabled state to design. Quiet chip at
    rest, accent-filled on hover. */
-.ai-card-eye{
+.ai-card-eye,.ai-card-dl{
   order:2;flex:0 0 auto;z-index:2;
   width:46px;height:46px;border-radius:11px;display:grid;place-items:center;
   padding:0;cursor:pointer;color:#8b939a;
@@ -2575,13 +2575,17 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   transition:background var(--accent-ease),color var(--accent-ease),
              border-color var(--accent-ease);
 }
-.ai-card-eye .icon{width:26px;height:26px}
-.ai-card-eye:hover{background:var(--accent);color:var(--accent-ink,#0b0d12);border-color:var(--accent)}
-.ai-card-eye:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.ai-card-eye .icon,.ai-card-dl .icon{width:26px;height:26px}
+.ai-card-eye:hover,.ai-card-dl:hover{background:var(--accent);color:var(--accent-ink,#0b0d12);border-color:var(--accent)}
+.ai-card-eye:focus-visible,.ai-card-dl:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 /* Below the overlay's own breakpoint initAppModal declines — a mock desktop
    window is not something to hand a phone — so the control goes away rather
    than turning into a redirect that duplicates the title link. */
 @media (max-width:767px){.ai-card-eye{display:none}}
+/* The install chip beside the eye (Inko): the same chip with a download
+   glyph, and it stays on phones, where installing is the point. */
+.ai-card-dl{text-decoration:none}
+.ai-card-dl + .ai-card-eye{margin-left:-4px}
 /* WIP treatment, matching the games section's .is-wip pill. */
 .ai-card.is-wip small{
   color:var(--accent);
