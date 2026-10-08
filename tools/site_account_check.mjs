@@ -241,6 +241,14 @@ try {
     const r = await route(unlock, { idToken: t });
     ok(r.status === code && !r.body.content && !r.body.token, `refused (${r.status}): ${what}`);
   }
+  /* THE PUBLIC CODE IS NOT A WAY IN. 'notes' opens the public page for
+     anyone, and a save there used to hand back a PRIVATE token (save.js
+     minted the default store), so one save turned it into the DEXDC notes. */
+  const pub = await route(unlock, { password: 'notes' });
+  const pubSaved = await route(saveH, { token: pub.body.token, doc: { v: 1, active: 'p', sessions: [{ id: 'p', title: 'public page', cats: [] }] }, baseRev: pub.body.rev });
+  ok(pubSaved.status === 200 && notesStore.tokenOk(pubSaved.body.token) === 'public', `a save in the public notes hands back a PUBLIC token (${notesStore.tokenOk(pubSaved.body.token)})`);
+  const viaPub = await route(unlock, { token: pubSaved.body.token });
+  ok(viaPub.status === 200 && viaPub.body.content.sessions[0].title === 'public page', 'and that token opens the public page, not the DEXDC notes');
   const still = await notesStore.readNotes('private');
   ok(still.rev === first.rev + 1 && still.content.sessions[0].title === 'edited on the phone', 'and the DEXDC notes are exactly as the one real save left them');
 } finally {
@@ -248,7 +256,7 @@ try {
   await rm(SCRATCH, { recursive: true, force: true });
 }
 
-const EXPECT = 58;
+const EXPECT = 60;
 ok(passed + failed === EXPECT, `ran ${passed + failed} checks, expected ${EXPECT}`);
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
