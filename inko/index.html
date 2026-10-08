@@ -44,8 +44,8 @@
 
 <div id="toolbar">
   <div class="tb-side">
-    <button id="grid-btn" class="tbtn" aria-label="Gallery">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2.5" width="14" height="14" rx="3.2"/><path d="M16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V7.5"/><path d="M7.8 13.6l3.6-3.6 2.8 2.8 1.9-1.9 5 5"/><circle cx="16.6" cy="7.4" r="1.5" fill="currentColor" stroke="none"/></svg>
+    <button id="plus-btn" class="tbtn" aria-label="New canvas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
     <button id="ed-btn" class="tbtn" aria-label="Eyedropper">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.3 3.9a2.7 2.7 0 0 1 3.8 0l1 1a2.7 2.7 0 0 1 0 3.8l-2.4 2.4-4.8-4.8z" fill="currentColor"/><path d="M11.3 6.7l6 6"/><path d="M13.4 8.8l-7.9 7.9-.9 3.3-1.1 1.3 1.3-1.1 3.3-.9 7.9-7.9"/><path d="M6.2 17.8l2.1-2.1" opacity=".55"/></svg>
@@ -75,9 +75,8 @@
     <button id="sym-btn" class="tbtn" aria-label="Mirror" aria-pressed="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19" stroke-dasharray="1.6 2.8"/><path d="M9 5.5 L3 18 H9 Z" fill="currentColor"/><path d="M15 5.5 L21 18 H15 Z"/></svg>
     </button>
-    <button id="plus-btn" class="tbtn" aria-label="New canvas">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
+    <!-- The gallery is your profile (Dex, 2026-10-08): its button is your picture. -->
+    <button id="grid-btn" class="tbtn" aria-label="Gallery"><span id="grid-pic" class="avatar"></span></button>
   </div>
 </div>
 
