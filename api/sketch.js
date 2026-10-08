@@ -5,6 +5,7 @@
  *        (or sketch/avatars/<handle>-<v>.jpg, a profile picture)
  *   GET  /api/sketch?profile=<handle>       -> { handle, avatar, posts, followers, following } public, edge-cached 10 s
  *   GET  /api/sketch?users=<query>          -> { users: [{ handle, avatar }] }   @-search
+ *   GET  /api/sketch?comments=<post id>     -> { comments: [{ c, h, t, at }], count }   oldest first, not cached
  *   POST /api/sketch { action, ... }        -> JSON
  *
  * ACTIONS
@@ -27,6 +28,9 @@
  *   delete-account   { token, password }
  *   follow           { token, handle, on }           -> { handle, following, followers }   (lib/sketch-social.js)
  *   following        { token }                       -> { following: [handle...] }
+ *   comment          { token, id, text }             -> { comment, count }
+ *   comment-delete   { token, id, c }                -> { deleted, count }   the author or the drawing's artist
+ *   comment-report   { token, id, c }                -> { hidden }           three reports hide it
  *   moderate         { admin, id, op: hide|restore|delete }   admin = Dex's universal JWT
  */
 'use strict';
@@ -68,7 +72,11 @@ module.exports = async function handler(req, res) {
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=10, stale-while-revalidate=30');
         return res.status(200).json({ users: await store.searchUsers(q.users) });
       }
-      return res.status(400).json({ error: 'feed, img, profile or users' });
+      if (q.comments !== undefined) {
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json(await social.comments(q.comments));
+      }
+      return res.status(400).json({ error: 'feed, img, profile, users or comments' });
     }
     if (req.method !== 'POST') { res.setHeader('Allow', 'GET, POST'); return res.status(405).json({ error: 'GET or POST' }); }
 
@@ -134,6 +142,9 @@ module.exports = async function handler(req, res) {
     }
     if (action === 'follow') return res.status(200).json(await social.follow(handle, body.handle, body.on));
     if (action === 'following') return res.status(200).json(await social.following(handle));
+    if (action === 'comment') return res.status(200).json(await social.addComment(handle, body.id, body.text));
+    if (action === 'comment-delete') return res.status(200).json(await social.deleteComment(handle, body.id, body.c));
+    if (action === 'comment-report') return res.status(200).json(await social.reportComment(handle, body.id, body.c));
     return res.status(400).json({ error: 'no such action' });
   } catch (err) {
     if (err instanceof store.Refused) return res.status(err.status).json({ error: err.message });
