@@ -234,6 +234,8 @@ try {
   await optTap(A, '#plus-btn'); await sleep(900);
   await optTap(A, '#grid-btn'); await sleep(500);
   // The lock on the card: tapping it signed out opens the account sheet.
+  // (Its buttons come out of the card's one options button, top left.)
+  await A.click('.g-item .g-opt'); await sleep(350);
   await A.click('.g-item .g-pub'); await sleep(300);
   note(await A.evaluate(() => document.getElementById('account').classList.contains('open')), 'making a drawing public signed out did not ask to sign in');
   await shot(A, '1-account');
@@ -318,7 +320,7 @@ try {
     && afterBack2.gallery && /mode-mine/.test(afterBack2.mode) && afterBack2.inko === '/inko/',
     `leaving the viewer: back gesture ${JSON.stringify(afterBack)}, swipe ${JSON.stringify(afterSwipe)}, button ${JSON.stringify(afterButton)}; back again ${JSON.stringify(afterBack2)}`);
   await optTap(B, '#grid-btn'); await sleep(300);
-  if (await B.evaluate(() => document.getElementById('g-tab-public').textContent.trim() === 'Public')) { await B.click('#g-tab-public'); await sleep(400); }
+  if (await B.evaluate(() => document.getElementById('g-tab-public').dataset.go === 'public')) { await B.click('#g-tab-public'); await sleep(400); }
   await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
   await B.click('#v-more'); await sleep(150);
   // Hide this artist: gone from B's feed, on this device only.
@@ -327,6 +329,7 @@ try {
 
   // A makes it private: gone from the server.
   await A.click('#g-tab-mine'); await sleep(300);
+  await A.evaluate(() => document.querySelector('.g-item .g-pub.on').closest('.g-item').querySelector('.g-opt').click()); await sleep(350);
   await A.click('.g-item .g-pub.on');
   await A.waitForFunction(() => document.querySelector('.g-item .g-pub') && !document.querySelector('.g-item .g-pub.on'), { timeout: 10000 }).catch(() => {});
   const afterPrivate = (await (await fetch(`${BASE}/api/sketch?feed=1`)).json()).posts;
@@ -589,15 +592,15 @@ try {
     await optTap(D, '#grid-btn'); await sleep(400);
     const bar = await D.evaluate(() => {
       const r = id => { const q = document.getElementById(id).getBoundingClientRect(); return { left: q.left, right: q.right, width: q.width, height: q.height }; };
-      const b = r('g-back'), p = r('g-tab-public'), m = r('g-tab-mine');
-      return { b, p, m, order: b.right <= p.left && p.right <= m.left, back: document.getElementById('g-back').textContent.trim(),
+      const b = r('g-back'), p = r('g-tab-public'), m = r('g-tab-mine'), n = r('g-new');
+      return { b, p, m, n, order: b.right <= p.left && p.right <= n.left && n.right <= m.left, globe: !!document.querySelector('#g-tab-public svg circle'), back: document.getElementById('g-back').textContent.trim(),
                smiley: /^url\("data:image\/svg/.test(document.getElementById('g-avatar').style.backgroundImage),
                mineSmiley: /^url\("data:image\/svg/.test(document.getElementById('g-tab-mine').style.backgroundImage),
                profile: getComputedStyle(document.getElementById('g-profile')).display !== 'none',
                signIn: document.getElementById('g-account').textContent };
     });
-    note(bar.order && Math.abs(bar.b.width - bar.b.height) < 1 && Math.abs(bar.m.width - bar.m.height) < 1 && Math.abs(bar.b.width - bar.m.width) < 1 && bar.p.width > bar.b.width * 2 && bar.back === '',
-      `the bottom bar is not back, a wide Public, then a square profile: ${JSON.stringify(bar)}`);
+    note(bar.order && Math.abs(bar.b.width - bar.b.height) < 1 && Math.abs(bar.m.width - bar.m.height) < 1 && Math.abs(bar.b.width - bar.m.width) < 1 && Math.abs(bar.p.width - bar.b.width) < 1 && bar.globe && bar.back === '',
+      `the bottom bar is not back, a square globe, +, then a square profile: ${JSON.stringify(bar)}`);
     note(bar.smiley && bar.mineSmiley && bar.profile && bar.signIn === 'Sign in', `signed out, the profile is not a smiley over Sign in: ${JSON.stringify(bar)}`);
     await shot(D, '6-profile-signed-out');
     await D.click('#g-account'); await sleep(300);

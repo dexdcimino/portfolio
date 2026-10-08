@@ -731,13 +731,22 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     pad over it (`snapPad`), make the change underneath, then wipe the copy
     away on a diagonal mask (top left to bottom right, 0.36s) while the new
     canvas fades in. Off under reduced motion.
-  - **The gallery is your profile.** A profile header over the cards, and
-    one bar at the foot built as the canvas toolbar's own pill (`--bar-h`):
-    back and search | a narrower Public in the middle | a square of your own
-    picture that opens your profile (your canvases under your picture and
-    your @tag, with its edit button, or Sign in). Tapping a name on a card or in the viewer opens that
+  - **The gallery is your profile.** The page's name at the top left
+    (`#g-page`: Your gallery, Public, @handle or Search), a profile header
+    over the cards, and one bar at the foot built as the canvas toolbar's
+    own pill (`--bar-h`): back and a square toggle | + (a new canvas, and
+    straight into it) | search and a square of your own picture that opens
+    your profile (your canvases under your picture and your @tag, with its
+    edit button, or Sign in). Tapping a name on a card or in the viewer opens that
     artist's profile (`?profile=`), and back goes where you came from.
-    The wide button is a toggle (it reads Mine while Public is showing).
+    The toggle shows where it goes: a globe out to Public, the gallery
+    icon back to yours (`data-go`).
+  - **A card of yours has one button**, the options square tight in its top
+    left (`.g-opt`). A tap sends public/private, download and delete out of
+    it to the top right, bottom right and bottom left (`left`/`top`
+    transitions, so the corners follow the card's size) and a second tap,
+    or a tap on the card, folds them back; one card is open at a time
+    (`setTileOpts`).
   - **Search is a pill on the keyboard.** The bar's search button opens
     `#g-find` -- All / Artists / Canvases chips over the pill -- placed by
     `placeFind()` from `visualViewport`, so it rides the keyboard and rests

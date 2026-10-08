@@ -309,13 +309,27 @@ input[type=range]::-moz-range-thumb{
 }
 .g-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
 .g-title{font-size:12px; color:var(--muted); margin-top:6px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.g-dl,.g-del{
-  position:absolute; top:6px; width:30px; height:30px; border-radius:50%;
+/* One options button tight in the top-left corner (Dex, 2026-10-08); a tap
+   sends the card's buttons out of it to their own corners -- public top
+   right, download bottom right, delete bottom left -- and a second tap
+   folds them back in. They travel by left/top so the corners follow the
+   card's size. */
+.g-opt,.g-dl,.g-del,.g-pub{
+  position:absolute; left:5px; top:5px; width:30px; height:30px; border-radius:9px;
   border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;
-  background:rgba(0,0,0,.55); color:#fff;
+  background:rgba(0,0,0,.6); color:#fff; padding:0;
 }
-.g-dl{right:6px;} .g-del{left:6px;}
+.g-opt{z-index:2;}
+.g-opt svg{width:17px; height:17px;}
+.g-item.opts .g-opt{background:var(--grad);}
+.g-dl,.g-del,.g-pub{opacity:0; transform:scale(.4); pointer-events:none;
+  transition:left .24s cubic-bezier(.2,.8,.2,1), top .24s cubic-bezier(.2,.8,.2,1), opacity .18s, transform .24s cubic-bezier(.2,.8,.2,1);}
+.g-item.opts .g-dl,.g-item.opts .g-del,.g-item.opts .g-pub{opacity:1; transform:none; pointer-events:auto;}
+.g-item.opts .g-pub{left:calc(100% - 35px);}
+.g-item.opts .g-dl{left:calc(100% - 35px); top:calc(100% - 35px);}
+.g-item.opts .g-del{top:calc(100% - 35px);}
 .g-dl svg,.g-del svg{width:15px; height:15px;}
+@media (prefers-reduced-motion:reduce){ .g-dl,.g-del,.g-pub{transition:none;} }
 /* Back and search, Public, you: the canvas toolbar's own pill (Dex,
    2026-10-08), with Public shrunk to sit in the middle like the tool toggle. */
 #g-bar{
@@ -327,7 +341,7 @@ input[type=range]::-moz-range-thumb{
   margin:6px 0 calc(env(safe-area-inset-bottom,0px) + 8px);
 }
 /* Which build is running, so a report can say "on build a1b2c3". */
-#g-head{display:flex; justify-content:flex-end; padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 0; min-height:18px;}
+#g-head{display:flex; align-items:center; gap:12px; padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 4px; min-height:22px;}
 #g-build{font-size:12px; letter-spacing:.04em; color:var(--muted); opacity:.6; flex:none;}
 .g-sq{width:52px; height:52px; border-radius:16px; flex:none; cursor:pointer;}
 #g-back svg{width:24px; height:24px;}
@@ -336,7 +350,12 @@ input[type=range]::-moz-range-thumb{
 /* Public <-> Mine, one button that says where it takes you. */
 .g-wide{height:52px; border-radius:16px; background:var(--grad); border:none; color:#fff;
   font-size:19px; font-weight:800; letter-spacing:.01em; cursor:pointer; box-shadow:var(--glow); text-shadow:0 1px 2px rgba(0,0,0,.25);}
-#g-tab-public{width:118px; height:46px; border-radius:15px; font-size:17px;}
+/* + in the middle: a new canvas, straight into it (Dex, 2026-10-08). */
+#g-new{width:64px; height:46px; border-radius:15px; border:none; background:var(--grad); color:#fff; box-shadow:var(--glow);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;}
+#g-new svg{width:24px; height:24px;}
+#g-page{flex:1; font-size:15px; font-weight:800; letter-spacing:.01em; color:var(--text);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 #g-tab-mine.on{outline:2px solid var(--a1); outline-offset:2px;}
 /* Search: the chips and the pill, on the keyboard while it is up and above
    the bar when it is not (placeFind sets bottom). */
@@ -367,7 +386,7 @@ input[type=range]::-moz-range-thumb{
 .g-check{position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:2px solid #fff;
   background:rgba(0,0,0,.35); display:none; box-sizing:border-box;}
 #gallery.selecting .g-check{display:block;}
-#gallery.selecting .g-dl, #gallery.selecting .g-del, #gallery.selecting .g-pub{display:none;}
+#gallery.selecting .g-dl, #gallery.selecting .g-del, #gallery.selecting .g-pub, #gallery.selecting .g-opt{display:none;}
 #gallery.selecting .g-item.current .g-thumb{outline:none;}
 .g-item.sel .g-thumb{outline:3px solid var(--a1); outline-offset:-3px;}
 .g-item.sel .g-thumb img{opacity:.72;}
@@ -450,11 +469,6 @@ body.embed #toolbar{margin-bottom:8px;}
   background:var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f4f8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20 H8 L19 9 L15 5 L4 16 Z'/%3E%3Cpath d='M13 7 L17 11'/%3E%3C/svg%3E") center/16px no-repeat;}
 #gallery.mode-user #g-account{display:none;}
 #g-user-name{font-size:17px; font-weight:700;}
-.g-pub{
-  position:absolute; left:6px; bottom:6px; width:30px; height:30px; border-radius:50%;
-  border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;
-  background:rgba(0,0,0,.55); color:#fff;
-}
 .g-pub svg{width:15px; height:15px;}
 .g-pub.on{background:var(--grad); color:#fff;}
 .g-pub:disabled{opacity:.5;}

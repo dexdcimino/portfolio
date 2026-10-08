@@ -124,10 +124,12 @@
 <!-- The gallery (Dex, 2026-10-08): a profile header over YOUR canvases
      (picture, @tag with its edit button, or Sign in) or over someone else's
      public drawings; and one bar along the bottom built like the canvas's
-     toolbar -- back and search, Public in the middle, your own picture (your
-     profile) on the right. Search opens a pill above the keyboard. -->
+     toolbar -- back and Public/yours (a globe, or the gallery icon), a new
+     canvas in the middle, then search and your own picture (your profile).
+     Search opens a pill above the keyboard. -->
 <div id="gallery">
   <div id="g-head">
+    <span id="g-page" aria-live="polite">Your gallery</span>
     <span id="g-build" aria-label="Build"></span>
   </div>
   <div id="g-pick" hidden><span>Tap a canvas to make it your picture</span><button id="g-pick-smiley" class="v-link">Use the smiley</button><button id="g-pick-cancel" class="v-link">Cancel</button></div>
@@ -142,10 +144,11 @@
   <div id="g-bar">
     <div class="tb-side">
       <button id="g-back" class="tbtn" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"/></svg></button>
-      <button id="g-search-btn" class="tbtn" aria-label="Search artists or canvas titles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20 L16.5 16.5"/></svg></button>
+      <button id="g-tab-public" class="tbtn" aria-label="Public drawings" data-go="public"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></button>
     </div>
-    <div class="tb-mid"><button id="g-tab-public" class="g-wide" aria-label="Public drawings">Public</button></div>
+    <div class="tb-mid"><button id="g-new" aria-label="New canvas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div>
     <div class="tb-side">
+      <button id="g-search-btn" class="tbtn" aria-label="Search artists or canvas titles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20 L16.5 16.5"/></svg></button>
       <button id="g-tab-mine" class="avatar" aria-label="Your profile"></button>
     </div>
   </div>
