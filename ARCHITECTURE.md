@@ -685,9 +685,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     sign-in on the device (no `meta` `seen:u:<handle>`) adopts every signed-out
     canvas and the signed-out draft.
   - **The canvas on screen is always a gallery card.** A new canvas is saved
-    the moment it is made, blank or not, named `Untitled N` (the lowest N
-    above every `Untitled N` already there); the gallery saves the live one
-    before it opens and rings it. Deleting it starts a fresh blank.
+    the moment it is made, blank or not, named by `nextUntitled()`: plain
+    `Untitled` when no untitled canvas is left, otherwise `Untitled N` one
+    above the highest there (the count only runs while one exists); the
+    gallery saves the live one before it opens and rings it. Deleting it
+    starts a fresh blank. The canvas window's title field is the width of
+    the H/S/B sliders under it (`placeCanvasTitle()` reads `#cv-hue`'s
+    rect), centred, 18px, with the lock over the undo column.
   - **Two colour controls that never cross.** The toolbar swatch opens the
     brush bar (`hue`/`sat`/`bri`), the top-left swatch the canvas window
     (`cv-hue`/`cv-sat`/`cv-bri`). They shared ids until 2026-10-08, so the
@@ -774,8 +778,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     (`setTileOpts`).
   - **Search is a pill on the keyboard.** The bar's search button opens
     `#g-find` -- All / Artists / Canvases chips over the pill -- placed by
-    `placeFind()` from `visualViewport`, so it rides the keyboard and rests
-    above the bar when the keyboard goes. Artists come from `?users=`;
+    `placeFind()`. Where the VirtualKeyboard API exists the page sets
+    `overlaysContent` while searching and follows `geometrychange`, so the
+    pill's `bottom` transition (.26s) runs alongside the keyboard's own;
+    elsewhere it reads `visualViewport`. The keyboard going down closes the
+    search (unless Enter sent it down: the results stay), and back while
+    searching closes it and leaves you on the page you searched from.
+    Public, profiles and search results are three tiles wide. Artists come from `?users=`;
     canvas titles are matched on the device, over your own gallery and the
     feed already fetched (contains, prefix first) -- no server search. The
     chips keep the keyboard up (pointerdown is cancelled).
@@ -824,7 +833,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     `meta` `avatar:<scope>` with which canvas and which square, and every
     stroke, undo or colour change on THAT canvas redraws it (`picFollow`) and,
     signed in, sends it to the account a moment later. Until one is chosen it
-    is the default smiley. It moves with the canvases on a first sign-in.
+    is the default smiley, a light grey-blue (`#536980`) rather than yellow.
+    It moves with the canvases on a first sign-in. Deleting the account asks
+    twice: `openModal(..., 'twice')` arms the red button to "You sure?" and
+    only the second tap acts.
   - **Renaming moves the scope.** The edit button renames the account on the
     server (below), then re-owns every `u:<old>` canvas and `seen:`, `draft:`,
     `deletes:` and `avatar:` record on the device to `u:<new>`, without a

@@ -567,10 +567,13 @@ $('sym-btn').addEventListener('click', () => {
    2, 3... so + always visibly makes a canvas, and the gallery never lacks the
    one being drawn on. (It used to skip saving a blank, untitled canvas, so a
    fresh canvas was missing from the gallery until something was drawn.) */
+/* The count goes on only while an untitled canvas is still there to count
+   from (Dex, 2026-10-08): with none left -- every one renamed or deleted --
+   the next is plain "Untitled" again, and the one after it "Untitled 1". */
 function nextUntitled(){
-  let n = 0;
-  for (const g of gallery){ const m = /^Untitled (\d+)$/.exec(g.title || ''); if (m) n = Math.max(n, +m[1]); }
-  return 'Untitled ' + (n + 1);
+  let n = -1;
+  for (const g of gallery){ const m = /^Untitled(?: (\d+))?$/.exec((g.title || '').trim()); if (m) n = Math.max(n, m[1] ? +m[1] : 0); }
+  return n < 0 ? 'Untitled' : 'Untitled ' + (n + 1);
 }
 /* The canvas changing, made visible (Dex, 2026-10-08): a copy of what is on
    screen is laid over the pad and the change happens under it. Then the copy
@@ -883,7 +886,20 @@ function openCanvasPop(mode){
   brushPop.classList.add('open');
   showBars();
   fit();
+  placeCanvasTitle();
 }
+/* The title field spans exactly what the sliders span (Dex, 2026-10-08), and
+   the lock stands over the undo column -- measured, so it holds at any width. */
+function placeCanvasTitle(){
+  if ($('cp-more').hidden || !brushPop.classList.contains('open')) return;
+  const box = $('cp-more').getBoundingClientRect(), sl = $('cv-hue').getBoundingClientRect(), undo = $('undo-btn').getBoundingClientRect();
+  if (!sl.width) return;
+  const t = $('cp-title').style;
+  t.left = (sl.left - box.left) + 'px'; t.width = sl.width + 'px';
+  const lock = $('cp-lock');
+  lock.style.right = Math.max(0, box.right - (undo.left + undo.width / 2) - lock.offsetWidth / 2) + 'px';
+}
+addEventListener('resize', placeCanvasTitle);
 $('cp-title').addEventListener('input', () => { titleInput.value = $('cp-title').value; dirty = true; scheduleDraft(); });
 $('cp-lock').addEventListener('click', e => { e.stopPropagation(); flipCurrent($('cp-lock')); });
 
@@ -1010,15 +1026,19 @@ function saveBlob(blob, title){
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 let modalCb = null;
-// kind 'go' makes the confirm button green (a download), not red.
+// kind 'go' makes the confirm button green (a download), not red; 'twice'
+// asks again on the button itself -- "You sure?" -- before it does anything.
+let modalTwice = false;
 function openModal(title, text, confirmLabel, cb, kind){
   $('m-title').textContent = title; $('m-text').textContent = text;
   $('m-del').textContent = confirmLabel; modalCb = cb;
+  modalTwice = kind === 'twice'; $('m-del').classList.remove('armed');
   $('m-del').classList.toggle('danger', kind !== 'go'); $('m-del').classList.toggle('go', kind === 'go');
   $('modal').classList.add('open');
 }
 $('m-cancel').addEventListener('click', () => $('modal').classList.remove('open'));
 $('m-del').addEventListener('click', () => {
+  if (modalTwice && !$('m-del').classList.contains('armed')){ $('m-del').classList.add('armed'); $('m-del').textContent = 'You sure?'; return; }
   $('modal').classList.remove('open');
   if (modalCb) modalCb();
 });
@@ -1559,7 +1579,7 @@ function renderFeed(){
     e.textContent = filter ? filter.empty : 'Nothing shared yet. Make one of your drawings public to start it off.';
     rows.appendChild(e); return;
   }
-  fillRows(items, 2, feedItem);
+  fillRows(items, 3, feedItem);
   $('g-grid').scrollTop = 0;
 }
 const rxIcon = kind => { const i = document.createElement('span'); i.className = 'rx-ico'; i.dataset.icon = kind; return i; };
@@ -2017,7 +2037,7 @@ $('a-delete').addEventListener('click', () => {
       await idbDel('meta', 'seen:' + scope).catch(() => {});
       setSession(null); closeAccount(); toast('Account deleted');
     } catch (e) { $('a-msg2').textContent = e.message; }
-  });
+  }, 'twice');   // it cannot be undone: the button asks "You sure?" first (Dex, 2026-10-08)
 });
 $('g-account').addEventListener('click', () => openAccount());
 
@@ -2090,7 +2110,7 @@ $('gallery').classList.add('mode-mine'); $('g-tab-mine').classList.add('on');
    which square) is kept per account in meta `avatar:<scope>` with the
    rendered picture, and on the server for an account, so another phone
    follows the same canvas. */
-const SMILEY = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#1a1f2b"/><circle cx="32" cy="32" r="22" fill="#ffd23f"/><circle cx="24.5" cy="27" r="3.2" fill="#1a1f2b"/><circle cx="39.5" cy="27" r="3.2" fill="#1a1f2b"/><path d="M22 37 Q32 47 42 37" stroke="#1a1f2b" stroke-width="3.6" fill="none" stroke-linecap="round"/></svg>');
+const SMILEY = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#1a1f2b"/><circle cx="32" cy="32" r="22" fill="#536980"/><circle cx="24.5" cy="27" r="3.2" fill="#1a1f2b"/><circle cx="39.5" cy="27" r="3.2" fill="#1a1f2b"/><path d="M22 37 Q32 47 42 37" stroke="#1a1f2b" stroke-width="3.6" fill="none" stroke-linecap="round"/></svg>');
 const PIC = 256;
 let feedAvatars = {};               // handle -> picture version, from the feed
 let myPic = null;                   // { canvas, crop, blob } for the scope on screen
@@ -2301,7 +2321,7 @@ async function openUser(handle){
   inkoEvent('user', { handle, profile: r });
   $('g-count').textContent = posts.length + (posts.length === 1 ? ' drawing' : ' drawings');
   const rows = $('g-rows'); rows.innerHTML = '';
-  gridPosts = posts; fillRows(posts, 2, feedItem);
+  gridPosts = posts; fillRows(posts, 3, feedItem);
 }
 
 /* ---- search (Dex, 2026-10-08) ----
@@ -2312,19 +2332,51 @@ async function openUser(handle){
    gone the pill rests above the bar, so you can see what you searched. */
 let searchT = null, searchSeq = 0, findKind = 'all';
 const searching = () => $('gallery').classList.contains('searching');
+/* THE PILL RIDES THE KEYBOARD (Dex, 2026-10-08): it used to appear at its
+   resting place the moment the button was tapped and then jump to the
+   keyboard once the keyboard had arrived. Now it starts below the screen and
+   waits for the keyboard's height: where the browser has the VirtualKeyboard
+   API (Chrome on Android), the keyboard OVERLAYS the page while searching
+   and announces its final box as it starts to rise, so the pill and chips
+   glide up beside it (#g-find's transition); elsewhere it follows the
+   visual viewport. With no keyboard at all (a desktop), it rises to its
+   resting place after a beat.
+   AND THE KEYBOARD GOING AWAY WITHOUT ENTER CLOSES THE SEARCH: on Android
+   the back gesture first just drops the keyboard (no history step reaches
+   the page) and left a pill nobody could type in. Enter still keeps the
+   pill up, resting above the bar, so you can see what you searched. */
+const vkb = navigator.virtualKeyboard || null;
+let findVk = false, findKb = 0, findRising = false, findWaitT = null, findEnter = false, findLastKb = 0;
+function keyboardH(){
+  if (findVk) return findKb;
+  const vv = window.visualViewport;
+  return vv ? Math.max(0, innerHeight - (vv.offsetTop + vv.height)) : 0;
+}
+if (vkb) vkb.addEventListener('geometrychange', e => { findKb = (e.target.boundingRect || {}).height || 0; placeFind(); });
 function openSearch(){
   if (selecting) exitSelect();
   if (picking) setPicking(false);
   $('gallery').classList.add('searching');
   $('g-search-btn').classList.add('on');
   paintPage();
+  // Below the screen to start, without gliding there.
+  const f = $('g-find');
+  f.classList.add('still');
+  f.style.bottom = -(f.offsetHeight + 24) + 'px';
+  if (vkb){ try { vkb.overlaysContent = true; findVk = true; findKb = 0; } catch (e) {} }
+  findRising = true; findEnter = false; findLastKb = 0;
   // Focused inside the tap, or a phone will not bring up its keyboard.
   $('g-search').focus();
-  placeFind();
+  void f.offsetHeight;
+  f.classList.remove('still');
+  clearTimeout(findWaitT);
+  findWaitT = setTimeout(() => { findRising = false; placeFind(); }, 450);
   runSearch($('g-search').value.trim());
 }
 function clearSearch(quiet){
   clearTimeout(searchT); searchSeq++;
+  clearTimeout(findWaitT); findRising = false;
+  if (findVk){ try { vkb.overlaysContent = false; } catch (e) {} findVk = false; findKb = 0; }
   $('g-search').value = '';
   $('g-search').blur();
   $('g-search-btn').classList.remove('on');
@@ -2334,8 +2386,14 @@ function clearSearch(quiet){
 }
 function placeFind(){
   if (!searching()) return;
-  const vv = window.visualViewport;
-  const kb = vv ? Math.max(0, innerHeight - (vv.offsetTop + vv.height)) : 0;
+  const kb = keyboardH();
+  if (findRising){
+    if (kb < 120) return;                 // still waiting for the keyboard
+    findRising = false; clearTimeout(findWaitT);
+  }
+  // The keyboard dropped while the field still had the caret, and not by Enter: that was back.
+  if (findLastKb >= 120 && kb < 40 && document.activeElement === $('g-search') && !findEnter){ findLastKb = 0; clearSearch(); return; }
+  findLastKb = kb;
   const bar = innerHeight - $('g-bar').getBoundingClientRect().top;
   const f = $('g-find');
   f.style.bottom = (Math.max(kb, bar) + 8) + 'px';
@@ -2343,6 +2401,7 @@ function placeFind(){
 }
 if (window.visualViewport){ visualViewport.addEventListener('resize', placeFind); visualViewport.addEventListener('scroll', placeFind); }
 addEventListener('resize', placeFind);
+$('g-search').addEventListener('focus', () => { findEnter = false; });
 $('g-search-btn').addEventListener('click', () => (searching() && document.activeElement !== $('g-search') ? $('g-search').focus() : searching() ? clearSearch() : openSearch()));
 $('g-find-x').addEventListener('click', () => clearSearch());
 $('g-find-x').addEventListener('pointerdown', e => e.preventDefault());
@@ -2360,7 +2419,7 @@ $('g-search').addEventListener('input', () => {
   searchT = setTimeout(() => runSearch(q), 220);
 });
 $('g-search').addEventListener('keydown', e => {
-  if (e.key === 'Enter'){ e.preventDefault(); $('g-search').blur(); }
+  if (e.key === 'Enter'){ e.preventDefault(); findEnter = true; $('g-search').blur(); }
   if (e.key === 'Escape'){ e.stopPropagation(); clearSearch(); }
 });
 $('g-search').addEventListener('blur', () => setTimeout(placeFind, 60));
@@ -2412,7 +2471,7 @@ async function runSearch(raw){
   }
   if (pub.length){
     sec('Public');
-    gridPosts = pub; fillRows(pub, 2, feedItem);
+    gridPosts = pub; fillRows(pub, 3, feedItem);
   }
   placeFind();
 }

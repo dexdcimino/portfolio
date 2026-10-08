@@ -154,7 +154,8 @@ try {
   // A clean canvas first: + saves the migrated draft (23 now) and starts over.
   await optTap(page, '#plus-btn'); await sleep(800);
   const afterPlus = await state();
-  note(afterPlus.count === 24 && afterPlus.title === 'Untitled 1', `+ left ${afterPlus.count} drawings, wanted 24 — and more than 20 is the point; the new one is "${afterPlus.title}"`);
+  // None of the migrated drawings is untitled, so the count starts from plain "Untitled" (batch 13).
+  note(afterPlus.count === 24 && afterPlus.title === 'Untitled', `+ left ${afterPlus.count} drawings, wanted 24 — and more than 20 is the point; the new one is "${afterPlus.title}"`);
   await page.evaluate(() => { for (const [id, v] of [['hue', 0], ['sat', 100], ['bri', 100]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } });   // full red: the default brush is a dark blue now
   await stroke();
   const inked = await ink();
@@ -180,7 +181,8 @@ try {
   await optTap(page, '#plus-btn'); await sleep(800);
   // A blank canvas is a canvas (Dex, 2026-10-08): + always makes one, named in turn.
   const blank = await state();
-  note(blank.count === 26 && blank.title === 'Untitled 2', `a + on a blank canvas left ${blank.count} drawings titled "${blank.title}", wanted 26 and Untitled 2 (1 was renamed, so it is reused)`);
+  // "Untitled" was renamed "Harness sketch", so the + after it started again from "Untitled", and this one counts on from it.
+  note(blank.count === 26 && blank.title === 'Untitled 1', `a + on a blank canvas left ${blank.count} drawings titled "${blank.title}", wanted 26 and Untitled 1 (the first was renamed, so the count restarted)`);
 
   // ---- 4. a served file changes under the running app --------------------
   const before = (await state()).label;
@@ -647,7 +649,7 @@ try {
     const nw = await page.evaluate(() => ({ gallery: document.getElementById('gallery').classList.contains('open'), toast: document.getElementById('toast').textContent, title: document.getElementById('title-input').value }));
     await optTap(page, '#grid-btn'); await sleep(400);
     const nAfter = await page.evaluate(() => { const items = [...document.querySelectorAll('#g-rows .g-item')]; return { n: items.length, lastCurrent: items[items.length - 1].classList.contains('current') }; });
-    note(!nw.gallery && nw.toast === 'New canvas created' && /^Untitled \d+$/.test(nw.title) && nAfter.n === nBefore + 1 && nAfter.lastCurrent,
+    note(!nw.gallery && nw.toast === 'New canvas created' && /^Untitled( \d+)?$/.test(nw.title) && nAfter.n === nBefore + 1 && nAfter.lastCurrent,
       `+ from the gallery: ${JSON.stringify(nw)}, ${nBefore} -> ${JSON.stringify(nAfter)}`);
     // Batch 11: your picture, tapped in your own gallery, opens the profile bar (signed out: picture and sign in).
     await page.click('#g-tab-mine'); await sleep(250);
@@ -771,6 +773,45 @@ try {
       note(said.slice(0, 8).every(t => t === 'New canvas created') && /^Slow down a little.*in 15s$/.test(said[8]) && n1 === n0 + 8
         && /in 60s$/.test(tenth) && minuteOn === 'New canvas created' && /^Slow down a little.*in \d+s$/.test(tooSoon) && n2 === n0 + 9 && /^Slow down a little/.test(afterReload),
         `the new-canvas limit: ${said.join(' | ')} (${n0} -> ${n1}), then "${tenth}", a minute on "${minuteOn}", straight after "${tooSoon}" (${n2}), after a reload "${afterReload}"`);
+      // Batch 13, the third notes: the canvas title as wide as the sliders, centred, 18px.
+      await fresh.evaluate(() => { if (document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); }); await sleep(250); await fresh.click('#copt-btn'); await sleep(350);
+      const ct = await fresh.evaluate(() => { const t = document.getElementById('cp-title'), r = t.getBoundingClientRect(), h = document.getElementById('cv-hue').getBoundingClientRect(), b = document.getElementById('cv-bri').getBoundingClientRect(), cs = getComputedStyle(t);
+        const lock = document.getElementById('cp-lock').getBoundingClientRect(), undo = document.getElementById('undo-btn').getBoundingClientRect();
+        return { dl: Math.abs(r.left - h.left), dw: Math.abs(r.width - h.width), bri: Math.abs(r.width - b.width), align: cs.textAlign, size: cs.fontSize,
+                 lockOff: Math.abs((lock.left + lock.right) / 2 - (undo.left + undo.right) / 2), overlap: lock.left < r.right }; });
+      await fresh.click('#opt-btn'); await sleep(250); await fresh.click('#opt-btn'); await sleep(200);   // the canvas window back to options, options away
+      note(ct.dl < 1 && ct.dw < 1 && ct.bri < 1 && ct.align === 'center' && ct.size === '18px' && ct.lockOff < 1.5 && !ct.overlap, `the canvas title field: ${JSON.stringify(ct)}`);
+      // The default face is the canvas grey, not yellow.
+      const face = await fresh.evaluate(() => decodeURIComponent(getComputedStyle(document.getElementById('g-tab-mine')).backgroundImage));
+      note(/536980/i.test(face) && !/ffd23f/i.test(face), `the default smiley: ${face.slice(0, 160)}`);
+      // THE SEARCH PILL rides the keyboard. A fake keyboard: the visual viewport shrunk and grown by hand.
+      await fresh.click('#grid-btn'); await sleep(400);
+      if (await fresh.evaluate(() => !/mode-mine/.test(document.getElementById('gallery').className))) { await fresh.click('#g-tab-public'); await sleep(300); }
+      await fresh.evaluate(() => { const vv = visualViewport; window.__kb = 0;
+        Object.defineProperty(vv, 'height', { configurable: true, get: () => innerHeight - window.__kb });
+        Object.defineProperty(vv, 'offsetTop', { configurable: true, get: () => 0 });
+        // Chrome (and so this harness) has the VirtualKeyboard API, which is the path a phone's Chrome takes: its box, announced.
+        const vk = navigator.virtualKeyboard;
+        if (vk) Object.defineProperty(vk, 'boundingRect', { configurable: true, get: () => new DOMRect(0, innerHeight - window.__kb, innerWidth, window.__kb) });
+        window.__key = h => { window.__kb = h; vv.dispatchEvent(new Event('resize')); if (vk) vk.dispatchEvent(new Event('geometrychange')); }; });
+      const pill = () => fresh.evaluate(() => ({ on: document.getElementById('gallery').classList.contains('searching'), bottom: parseFloat(document.getElementById('g-find').style.bottom),
+        page: document.getElementById('g-page').textContent, focus: document.activeElement === document.getElementById('g-search') }));
+      await fresh.click('#g-search-btn'); await sleep(120);
+      const early = await pill();                       // tapped, no keyboard yet: still below the screen
+      await fresh.evaluate(() => window.__key(320)); await sleep(60);
+      const withKb = await pill();                      // the keyboard announced: up beside it
+      await fresh.evaluate(() => window.__key(0)); await sleep(150);
+      const dropped = await pill();                     // the keyboard dropped with the caret still in the field: that was back
+      // Enter keeps it: the pill rests above the bar.
+      await fresh.click('#g-search-btn'); await sleep(100); await fresh.evaluate(() => window.__key(320)); await sleep(60);
+      await fresh.type('#g-search', 'zz'); await fresh.keyboard.press('Enter'); await fresh.evaluate(() => window.__key(0)); await sleep(150);
+      const entered = await pill();
+      // And the back gesture closes it, leaving you on the page you searched from.
+      await fresh.goBack(); await sleep(400);
+      const backed = await fresh.evaluate(() => ({ on: document.getElementById('gallery').classList.contains('searching'), gallery: document.getElementById('gallery').classList.contains('open'), page: document.getElementById('g-page').textContent }));
+      note(early.on && early.bottom < 0 && withKb.bottom === 328 && withKb.focus && !dropped.on && dropped.page === 'Your gallery' && entered.on && entered.bottom > 0 && entered.bottom < 200
+        && !backed.on && backed.gallery && backed.page === 'Your gallery',
+        `the search pill: tapped ${JSON.stringify(early)}, keyboard up ${JSON.stringify(withKb)}, keyboard dropped ${JSON.stringify(dropped)}, after Enter ${JSON.stringify(entered)}, back ${JSON.stringify(backed)}`);
       await fresh.close();
     }
   }

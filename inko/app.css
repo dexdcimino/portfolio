@@ -90,10 +90,17 @@ body{
 #copt-dot{width:26px; height:26px; border-radius:9px; display:block; border:1px solid rgba(255,255,255,.25);}
 #copt-btn.on{box-shadow:inset 0 0 0 2px #f12fc6;}
 /* The canvas window opened from the options bar: title and public too. */
-#cp-more{display:flex; gap:10px; align-items:center; margin:6px 0 2px;}
+/* The title spans exactly what the H/S/B sliders span, its text centred, 2pt
+   up from 16 (Dex, 2026-10-08); the lock stands over the undo column.
+   placeCanvasTitle() sets both from the sliders' own boxes. */
+#cp-more{position:relative; height:44px; margin:6px 0 2px;}
 #cp-more[hidden]{display:none;}
-#cp-title{flex:1; min-width:0; background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:12px;
-  color:var(--text); font:700 16px/1.2 inherit; padding:10px 12px; outline:none;}
+#cp-title{position:absolute; top:0; height:44px; left:0; width:60%; box-sizing:border-box; min-width:0;
+  background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:12px;
+  color:var(--text); font-family:inherit; font-weight:700; font-size:18px; line-height:1.2; padding:0 12px; outline:none; text-align:center;}
+/* (Longhands: "font:700 16px/1.2 inherit" is not a valid shorthand -- inherit cannot be a family there -- so the
+   whole line was dropped and the field had been at the browser's 13.3px all along.) */
+#cp-more .cp-lock{position:absolute; top:0; right:0;}
 #cp-title:focus{border-color:#8a32f4;}
 .cp-lock{flex:none; width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:rgba(255,255,255,.06);
   color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer;}
@@ -377,7 +384,12 @@ input[type=range]::-moz-range-thumb{
 /* Search: the chips and the pill, on the keyboard while it is up and above
    the bar when it is not (placeFind sets bottom). */
 #g-find{position:fixed; left:0; right:0; bottom:0; z-index:3; display:none; flex-direction:column; align-items:center; gap:8px;
-  padding:0 10px; pointer-events:none;}
+  padding:0 10px; pointer-events:none;
+  /* It rides the keyboard (Dex, 2026-10-08): placeFind() moves it, and this
+     is the glide -- about the keyboard's own speed and curve -- so the chips
+     and the pill come up WITH it, one unit, rather than jumping ahead. */
+  transition:bottom .26s cubic-bezier(.2,.8,.25,1);}
+#g-find.still{transition:none;}
 #gallery.searching #g-find{display:flex;}
 #g-find > *{pointer-events:auto;}
 #g-find-chips{display:flex; gap:6px; padding:4px; border-radius:16px; background:var(--panel); border:1px solid var(--border);
@@ -483,6 +495,10 @@ input[type=range]::-moz-range-thumb{
 #hold-tip small{display:block; font-size:12.5px; font-weight:500; color:var(--muted);}
 .tbtn, #canvas-swatch, #top-lock{-webkit-touch-callout:none;}
 .mbtn.go{background:#22b45a; border-color:#22b45a; color:#fff;}
+/* Asking a second time on the button itself: "You sure?" */
+.mbtn.danger.armed{box-shadow:0 0 0 3px rgba(255,69,58,.35); animation:armPulse .9s ease-in-out infinite alternate;}
+@keyframes armPulse{to{box-shadow:0 0 0 6px rgba(255,69,58,.12)}}
+@media (prefers-reduced-motion: reduce){.mbtn.danger.armed{animation:none;}}
 /* Embed mode: full-bleed for the portfolio overlay */
 body.embed #topbar{padding-top:8px;}
 body.embed #toolbar{margin-bottom:8px;}

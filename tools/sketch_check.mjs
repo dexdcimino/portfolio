@@ -335,9 +335,11 @@ try {
     return card && { title: card.querySelector('img').alt, by: card.querySelector('.p-by .tag')?.textContent,
                      w: card.querySelector('img').naturalWidth, fire: card.querySelector('.p-fire')?.textContent,
                      extras: card.querySelectorAll('.g-title, .g-rx, [data-icon="poop"]').length,
-                     face: card.querySelector('.p-by .avatar')?.getBoundingClientRect().width || 0 };
+                     face: card.querySelector('.p-by .avatar')?.getBoundingClientRect().width || 0,
+                     // Three across (batch 13): a third of the row less its two 14px gaps.
+                     third: Math.abs(card.getBoundingClientRect().width - (card.parentNode.getBoundingClientRect().width - 28) / 3) };
   });
-  note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0 && seen.fire === '0' && seen.extras === 0 && seen.face >= 32,
+  note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0 && seen.fire === '0' && seen.extras === 0 && seen.face >= 24 && seen.third < 1,
     `B's Public tab shows ${JSON.stringify(seen)}`);
   // The viewer: the full drawing, loaded, with the poop|fire pill grey and no counts until you rate.
   await B.click('.g-item[data-post] .g-thumb img'); await sleep(300);
@@ -482,7 +484,7 @@ try {
     note(!(await titles(one)).includes('Both phones'), 'a canvas deleted on one device is still on the other');
     // Signed out on the first device: the account's canvases are not there.
     await one.click('#g-account'); await sleep(300); await one.click('#a-signout'); await sleep(1500);
-    { const t = await titles(one); note(t.length === 1 && /^Untitled \d+$/.test(t[0]), `signed out, the gallery shows ${JSON.stringify(t)} — wanted only its own fresh blank`); }
+    { const t = await titles(one); note(t.length === 1 && /^Untitled( \d+)?$/.test(t[0]), `signed out, the gallery shows ${JSON.stringify(t)} — wanted only its own fresh blank`); }
     console.log(`two devices: "Both phones" saved on one appeared on the other (${inkTwo} stroke pixels), deleted there left both, signed out shows none`);
     for (const d of devices) await d.ctx.close();
   }
@@ -585,7 +587,11 @@ try {
     // Deleting a Discord account: no password field, no password needed.
     await C.click('#g-account'); await sleep(200);
     note(await C.evaluate(() => document.getElementById('a-pass2').hidden), 'a Discord account was asked for a password to delete itself');
-    await C.click('#a-delete'); await sleep(200); await C.click('#m-del'); await sleep(800);
+    // It asks twice (batch 13): the first press only turns the button into "You sure?".
+    await C.click('#a-delete'); await sleep(200); await C.click('#m-del'); await sleep(400);
+    const sure = await C.evaluate(() => ({ label: document.getElementById('m-del').textContent, open: document.getElementById('modal').classList.contains('open'), still: document.getElementById('g-account').textContent }));
+    note(sure.label === 'You sure?' && sure.open && sure.still === '@discord_fan', `deleting the account did not ask twice: ${JSON.stringify(sure)}`);
+    await C.click('#m-del'); await sleep(800);
     note(await C.evaluate(() => document.getElementById('g-account').textContent) === 'Sign in', 'the Discord account was not deleted');
     note(!(await store.identify({ provider: 'discord', pid: '555001' })).token, 'the deleted account\'s Discord link still signs in');
 
