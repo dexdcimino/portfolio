@@ -18,6 +18,8 @@
 <div id="topbar">
   <button id="canvas-swatch" aria-label="Canvas color"><span id="cs-dot"></span></button>
   <input id="title-input" maxlength="24" placeholder="Untitled" autocomplete="off" spellcheck="false">
+  <!-- The tool in hand, one name at a time (Dex, 2026-10-08): paintToolName(). -->
+  <div id="tool-name" aria-live="polite">Brush</div>
   <button id="top-lock" aria-label="Private — make public"></button>
 </div>
 
@@ -30,26 +32,27 @@
 
 <div id="bottom-bars"><div id="hsb-bar" style="display:none;"><div class="hsb-tip" hidden></div>
   <div class="hsb-rows">
-  <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="hue" min="0" max="360" value="4"></div>
+  <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="hue" min="0" max="360" value="200"></div>
   <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="sat" min="0" max="100" value="100"></div>
-  <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="bri" min="0" max="100" value="100"></div>
+  <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="bri" min="0" max="100" value="25"></div>
   </div>
 </div><div id="size-bar">
   <button id="redo-btn" class="tbtn" aria-label="Redo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 14 L20 9 L15 4"/><path d="M20 9 H10 A6 6 0 0 0 10 21 H15"/></svg>
   </button>
   <div class="ctl" id="ctl-size-perm">
-    <input type="range" id="size" min="0" max="100" step="0.5" value="35">
+    <input type="range" id="size" min="0" max="100" step="0.5" value="25">
   </div>
   <button id="undo-btn" class="tbtn" aria-label="Undo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14 L4 9 L9 4"/><path d="M4 9 H14 A6 6 0 0 1 14 21 H9"/></svg>
   </button>
 </div>
 <div id="opt-bar" hidden>
-  <!-- Gallery, the canvas (colour, title, public), new, download, clear
-       (Dex, 2026-10-08). Only clear asks first. -->
-  <button id="grid-btn" class="tbtn" aria-label="Gallery">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2.5" width="14" height="14" rx="3.2"/><path d="M16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V7.5"/><path d="M7.8 13.6l3.6-3.6 2.8 2.8 1.9-1.9 5 5"/><circle cx="16.6" cy="7.4" r="1.5" fill="currentColor" stroke="none"/></svg>
+  <!-- Symmetry, the canvas (colour, title, public), new, download, clear
+       (Dex, 2026-10-08). Clear and download ask first. The gallery moved
+       to the toolbar's left end: it is the app's main way around. -->
+  <button id="sym-btn" class="tbtn" aria-label="Mirror" aria-pressed="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19" stroke-dasharray="1.6 2.8"/><path d="M9 5.5 L3 18 H9 Z" fill="currentColor"/><path d="M15 5.5 L21 18 H15 Z"/></svg>
   </button>
   <button id="copt-btn" class="tbtn" aria-label="Canvas: colour, title, public" aria-pressed="false"><span id="copt-dot"></span></button>
   <button id="plus-btn" class="tbtn" aria-label="New canvas">
@@ -80,9 +83,9 @@
 
 <div id="toolbar">
   <div class="tb-side">
-    <!-- Options (Dex, 2026-10-08): swaps the size bar for the options bar. -->
-    <button id="opt-btn" class="tbtn" aria-label="Options" aria-pressed="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><circle cx="17" cy="17" r="3.6" fill="currentColor" stroke="none"/></svg>
+    <!-- The gallery at the far left, options at the far right (Dex, 2026-10-08). -->
+    <button id="grid-btn" class="tbtn" aria-label="Gallery">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2.5" width="14" height="14" rx="3.2"/><path d="M16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V7.5"/><path d="M7.8 13.6l3.6-3.6 2.8 2.8 1.9-1.9 5 5"/><circle cx="16.6" cy="7.4" r="1.5" fill="currentColor" stroke="none"/></svg>
     </button>
     <button id="ed-btn" class="tbtn" aria-label="Eyedropper">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.3 3.9a2.7 2.7 0 0 1 3.8 0l1 1a2.7 2.7 0 0 1 0 3.8l-2.4 2.4-4.8-4.8z" fill="currentColor"/><path d="M11.3 6.7l6 6"/><path d="M13.4 8.8l-7.9 7.9-.9 3.3-1.1 1.3 1.3-1.1 3.3-.9 7.9-7.9"/><path d="M6.2 17.8l2.1-2.1" opacity=".55"/></svg>
@@ -96,7 +99,7 @@
       <svg id="toggle-brush-icon" class="tool-ico big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 3 L13.4 10.6" stroke-width="2.6"/><!-- handle -->
         <path d="M12.2 9.4 L14.6 11.8 L12.6 13.8 L10.2 11.4 Z" fill="currentColor"/><!-- ferrule -->
-        <path id="brush-tip" d="M10.2 11.4 L12.6 13.8 C12.2 17.6 9.4 20.6 3 20.6 C4.6 19.4 5 18.2 5.3 16.4 C5.6 13.9 7.4 11.6 10.2 11.4 Z" fill="#ff2d2d" stroke="none"/><!-- bristles, in the brush colour -->
+        <path id="brush-tip" d="M10.2 11.4 L12.6 13.8 C12.2 17.6 9.4 20.6 3 20.6 C4.6 19.4 5 18.2 5.3 16.4 C5.6 13.9 7.4 11.6 10.2 11.4 Z" fill="#002a40" stroke="none"/><!-- bristles, in the brush colour -->
       </svg>
       <svg id="toggle-eraser-icon" class="tool-ico small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M13.6 3.6 L20.4 10.4 L11.6 19.2 H7 L3.6 15.8 Z"/><!-- body -->
@@ -109,8 +112,9 @@
     <button id="color-btn" class="tbtn" aria-label="Brush color">
       <span id="color-dot"></span>
     </button>
-    <button id="sym-btn" class="tbtn" aria-label="Mirror" aria-pressed="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19" stroke-dasharray="1.6 2.8"/><path d="M9 5.5 L3 18 H9 Z" fill="currentColor"/><path d="M15 5.5 L21 18 H15 Z"/></svg>
+    <!-- Options: swaps the size bar for the options bar. -->
+    <button id="opt-btn" class="tbtn" aria-label="Options" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><circle cx="17" cy="17" r="3.6" fill="currentColor" stroke="none"/></svg>
     </button>
   </div>
 </div>
@@ -120,7 +124,7 @@
      sliders have their own ids: they used to share hue/sat/bri with the brush
      bar, so getElementById found the brush bar's, the window's own sliders
      did nothing, and the brush sliders went on painting the canvas. -->
-<div id="size-preview"><div id="sp-circle"></div><div id="sp-label">45px</div></div>
+<div id="size-preview"><div id="sp-circle"></div><div id="sp-label">30px</div></div>
 
 <!-- The gallery (Dex, 2026-10-08): a profile header over YOUR canvases
      (picture, @tag with its edit button, or Sign in) or over someone else's
@@ -260,6 +264,8 @@
 </div></div>
 
 <div id="toast"></div>
+<!-- A control held down names itself, centred above the bar that is up. -->
+<div id="hold-tip" role="tooltip" hidden><b></b><small></small></div>
 
 <script src="/inko/app.js"></script>
 <script src="/inko/social.js"></script>

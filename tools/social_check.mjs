@@ -121,6 +121,9 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(out)); return;
   }
   if (u.pathname === '/api/sketch') {
+    // Every caller is 127.0.0.1 here, so the per-address limits would treat the run's many people as one:
+    // each request gets its own address unless the check names one (the limits are driven in their own block).
+    if (!req.headers['x-real-ip']) req.headers['x-real-ip'] = '10.' + Math.floor(Math.random() * 1e6);
     let raw = '';
     for await (const chunk of req) raw += chunk;
     req.query = Object.fromEntries(u.searchParams);

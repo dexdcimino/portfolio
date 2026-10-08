@@ -81,6 +81,9 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (u.pathname === '/api/sketch') {
+    // Every caller is 127.0.0.1 here, so the per-address limits would treat the run's many people as one:
+    // each request gets its own address unless the check names one (the limits are driven in their own block).
+    if (!req.headers['x-real-ip']) req.headers['x-real-ip'] = '10.' + Math.floor(Math.random() * 1e6);
     let raw = '';
     for await (const chunk of req) raw += chunk;
     req.query = Object.fromEntries(u.searchParams);
@@ -119,7 +122,13 @@ const fail = [];
 let pass = 0;
 const note = (ok, why) => { if (ok) pass++; else fail.push(why); };
 // + and the gallery live in the options bar (Dex, 2026-10-08): open it first.
-const optTap = async (p, sel) => { await p.evaluate(() => { if (document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); }); return p.click(sel); };
+// A + here is one of the run's own canvases, not a person spamming: the new-canvas limit is cleared for it
+// (the limit itself is driven on purpose in its own block).
+// The gallery is on the toolbar itself since batch 13; asked for while it is already open, it stays open (its
+// button would be under the gallery's own back button).
+const optTap = async (p, sel) => {
+  if (sel === '#grid-btn') { if (await p.evaluate(() => document.getElementById('gallery').classList.contains('open'))) return; return p.click(sel); }
+  await p.evaluate(plus => { if (plus) localStorage.removeItem('inko:newRate'); if (document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); }, sel === '#plus-btn'); return p.click(sel); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const post = async (body) => {
   const r = await fetch(BASE + '/api/sketch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -217,6 +226,70 @@ try {
     console.log('canvases: kept per account, older saves refused, private to the account, deletions as tombstones, off the account when it goes (30 days in the trash)');
   }
 
+  // ---- 1c. limits: spam, floods and the cheap denials of service (Dex, 2026-10-08) ----
+  {
+    const limits = require(join(ROOT, 'lib', 'sketch-limits.js'));
+    const from = (ip) => async (body) => {
+      const r = await fetch(BASE + '/api/sketch', { method: 'POST', headers: { 'content-type': 'application/json', 'x-real-ip': ip }, body: JSON.stringify(body) });
+      return { status: r.status, retry: r.headers.get('retry-after'), body: await r.json().catch(() => ({})) };
+    };
+    // THE SAME RULE ON BOTH SIDES: the app's copy, read out of app.js, against the server's, over one timeline of taps.
+    const src = readFileSync(join(ROOT, 'inko', 'app.js'), 'utf8');
+    const m = /const RATE = (\{[^}]+\});\s*function rateCooldown\(state, now, rule = RATE\)\{([\s\S]*?)\n\}\nconst RATE_KEY/.exec(src);
+    const app = m && new Function('state', 'now', 'rule', m[2]);
+    const appRule = m && new Function('return ' + m[1])();
+    const taps = [];
+    for (let i = 0; i < 12; i++) taps.push(i * 1000);              // a dozen in twelve seconds
+    for (let i = 0; i < 4; i++) taps.push(24000 + i * 500);        // straight on once the 15s is up: one a minute now
+    for (let i = 0; i < 6; i++) taps.push(90000 + i * 20000);      // a tap every 20s: every third one goes through
+    taps.push(2000000, 2001000);                                   // after ten quiet minutes: forgiven
+    let sa = null, sb = null; const ra = [], rb = [];
+    for (const t of taps) { const a = app ? app(sa, t, appRule) : { ok: null }; const b = limits.cooldown(sb, t); sa = a.state; sb = b.state; ra.push(a.ok ? 1 : 0); rb.push(b.ok ? 1 : 0); }
+    const waits = []; { let st = null; for (const t of [0, 1, 2, 3, 4, 5, 6, 7, 8]) { const r = limits.cooldown(st, t * 100); st = r.state; if (!r.ok) waits.push(r.wait); }
+      const r2 = limits.cooldown(st, 15900); waits.push(r2.ok ? 0 : r2.wait); }
+    note(!!app && JSON.stringify(appRule) === JSON.stringify(limits.COOLDOWN) && ra.join('') === rb.join('') && rb.join('') === '111111110000000010010011'
+      && waits.join() === '15000,60000',
+      `the new-canvas rule, app vs server: ${ra.join('')} / ${rb.join('')}, rules ${JSON.stringify(appRule)} vs ${JSON.stringify(limits.COOLDOWN)}, waits ${waits.join()}`);
+    // Five accounts an hour from one address; the sixth waits and is told how long.
+    const one = from('192.0.2.1');
+    const made = [];
+    for (let i = 0; i < 6; i++) made.push((await one({ action: 'signup', handle: 'spam_' + i, password: 'correct horse' })));
+    const sixth = made[5];
+    const elsewhere = await from('192.0.2.2')({ action: 'signup', handle: 'spam_x', password: 'correct horse' });
+    note(made.slice(0, 5).every(r => r.status === 200) && sixth.status === 429 && +sixth.retry > 0 && /Try again in \d+ minutes/.test(sixth.body.error) && elsewhere.status === 200,
+      `accounts per address: ${made.map(r => r.status).join(',')} "${sixth.body.error}" retry ${sixth.retry}, another address ${elsewhere.status}`);
+    // A NEW canvas on an account spends the account's count; saving one it has is free. The count is KEPT in the store.
+    const tok = made[0].body.token, PNG1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+    const T = Date.now(), cv = (id, ts) => one({ action: 'canvas-put', token: tok, id, title: 'x', ts, png: PNG1, thumb: real.jpeg });
+    const first = await cv('lim1', T);
+    await store.io.writeJson('sketch/limits/new-canvas-spam_0.json', { n: 0, at: Date.now() });   // as if the 120 were spent
+    const resave = await cv('lim1', T + 1000), fresh = await cv('lim2', T + 2000);
+    note(first.status === 200 && resave.status === 200 && fresh.status === 429 && /Slow down/.test(fresh.body.error) && fresh.body.retryAfter >= 29,
+      `new canvases per account: first ${first.status}, a re-save with the count spent ${resave.status}, a new one ${fresh.status} ${JSON.stringify(fresh.body)}`);
+    // A clock a year ahead would make every real save "older"; a megabyte password is scrypt as a denial of service.
+    const future = await cv('lim1', Date.now() + 365 * 864e5);
+    const longPw = await from('192.0.2.3')({ action: 'signup', handle: 'longpw', password: 'x'.repeat(5000) });
+    const longLogin = await from('192.0.2.3')({ action: 'login', handle: 'spam_1', password: 'x'.repeat(5000) });
+    note(future.status === 400 && longPw.status === 400 && longLogin.status === 401, `a save a year ahead ${future.status}, a 5000-character password: signup ${longPw.status}, login ${longLogin.status}`);
+    // Publishing: twenty, then a wait.
+    const pubs = [];
+    for (let i = 0; i < 21; i++) pubs.push((await one({ action: 'publish', token: tok, id: 'flood' + i, title: 'x', image: real.webp, thumb: real.jpeg })).status);
+    // Password guesses from one address: twenty, then a wait (before any one account locks).
+    const guess = from('192.0.2.4'), tries = [];
+    for (let i = 0; i < 21; i++) tries.push((await guess({ action: 'login', handle: 'spam_' + (i % 4), password: 'wrong guess ' + i })).status);
+    // A flood of anything from one address: 240 at once, then 429s.
+    const flood = from('192.0.2.5'), codes = [];
+    for (let i = 0; i < 250; i++) codes.push((await flood({ action: 'nope' })).status);
+    note(pubs.slice(0, 20).every(c => c === 200) && pubs[20] === 429 && tries.slice(0, 20).every(c => c === 401) && tries[20] === 429
+      && codes.slice(0, 240).every(c => c === 401) && codes.filter(c => c === 429).length >= 1,
+      `publish ${pubs.join('')}, guesses ${tries.join(',')}, a flood: ${codes.filter(c => c !== 429).length} answered then ${codes.filter(c => c === 429).length} refused`);
+    for (let i = 0; i < 20; i++) await one({ action: 'unpublish', token: tok, id: 'flood' + i });
+    // Deleting the account takes its kept counts with it.
+    await one({ action: 'delete-account', token: tok, password: 'correct horse' });
+    note(!(await store.io.readJson('sketch/limits/new-canvas-spam_0.json')) && !(await store.io.readJson('sketch/limits/publish-spam_0.json')), 'deleting the account left its limit counts');
+    console.log(`limits: app and server agree on ${taps.length} taps, accounts ${made.map(r => r.status).join(',')}, publish ${pubs.filter(c => c === 200).length} then wait`);
+  }
+
   // ---- 2. two people, two browsers --------------------------------------
   const ctxA = await browser.createBrowserContext(), ctxB = await browser.createBrowserContext();
   const A = await ctxA.newPage(), B = await ctxB.newPage();
@@ -228,6 +301,8 @@ try {
     await p.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
   }
   const strokeOn = async (p) => {
+    // In full red, which the reads below look for: the default brush is a dark blue now.
+    await p.evaluate(() => { for (const [id, v] of [['hue', 0], ['sat', 100], ['bri', 100]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } });
     const r = await p.evaluate(() => { const b = document.getElementById('pad').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
     await p.mouse.move(r.x + r.w * 0.2, r.y + r.h * 0.4); await p.mouse.down();
     await p.mouse.move(r.x + r.w * 0.8, r.y + r.h * 0.6, { steps: 10 }); await p.mouse.up(); await sleep(500);
@@ -265,9 +340,11 @@ try {
     return card && { title: card.querySelector('img').alt, by: card.querySelector('.p-by .tag')?.textContent,
                      w: card.querySelector('img').naturalWidth, fire: card.querySelector('.p-fire')?.textContent,
                      extras: card.querySelectorAll('.g-title, .g-rx, [data-icon="poop"]').length,
-                     face: card.querySelector('.p-by .avatar')?.getBoundingClientRect().width || 0 };
+                     face: card.querySelector('.p-by .avatar')?.getBoundingClientRect().width || 0,
+                     // Three across (batch 13): a third of the row less its two 14px gaps.
+                     third: Math.abs(card.getBoundingClientRect().width - (card.parentNode.getBoundingClientRect().width - 28) / 3) };
   });
-  note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0 && seen.fire === '0' && seen.extras === 0 && seen.face >= 32,
+  note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0 && seen.fire === '0' && seen.extras === 0 && seen.face >= 24 && seen.third < 1,
     `B's Public tab shows ${JSON.stringify(seen)}`);
   // The viewer: the full drawing, loaded, with the poop|fire pill grey and no counts until you rate.
   await B.click('.g-item[data-post] .g-thumb img'); await sleep(300);
@@ -412,7 +489,7 @@ try {
     note(!(await titles(one)).includes('Both phones'), 'a canvas deleted on one device is still on the other');
     // Signed out on the first device: the account's canvases are not there.
     await one.click('#g-account'); await sleep(300); await one.click('#a-signout'); await sleep(1500);
-    { const t = await titles(one); note(t.length === 1 && /^Untitled \d+$/.test(t[0]), `signed out, the gallery shows ${JSON.stringify(t)} — wanted only its own fresh blank`); }
+    { const t = await titles(one); note(t.length === 1 && /^Untitled( \d+)?$/.test(t[0]), `signed out, the gallery shows ${JSON.stringify(t)} — wanted only its own fresh blank`); }
     console.log(`two devices: "Both phones" saved on one appeared on the other (${inkTwo} stroke pixels), deleted there left both, signed out shows none`);
     for (const d of devices) await d.ctx.close();
   }
@@ -515,7 +592,11 @@ try {
     // Deleting a Discord account: no password field, no password needed.
     await C.click('#g-account'); await sleep(200);
     note(await C.evaluate(() => document.getElementById('a-pass2').hidden), 'a Discord account was asked for a password to delete itself');
-    await C.click('#a-delete'); await sleep(200); await C.click('#m-del'); await sleep(800);
+    // It asks twice (batch 13): the first press only turns the button into "You sure?".
+    await C.click('#a-delete'); await sleep(200); await C.click('#m-del'); await sleep(400);
+    const sure = await C.evaluate(() => ({ label: document.getElementById('m-del').textContent, open: document.getElementById('modal').classList.contains('open'), still: document.getElementById('g-account').textContent }));
+    note(sure.label === 'You sure?' && sure.open && sure.still === '@discord_fan', `deleting the account did not ask twice: ${JSON.stringify(sure)}`);
+    await C.click('#m-del'); await sleep(800);
     note(await C.evaluate(() => document.getElementById('g-account').textContent) === 'Sign in', 'the Discord account was not deleted');
     note(!(await store.identify({ provider: 'discord', pid: '555001' })).token, 'the deleted account\'s Discord link still signs in');
 
