@@ -35,6 +35,11 @@
  *   inbox            { token }                       -> { invites: [{ room, from, title, at }] }
  *   inbox-dismiss    { token, room }                 -> { invites }
  *   moderate         { admin, id, op: hide|restore|delete }   admin = Dex's universal JWT
+ *
+ * LIMITS (lib/sketch-limits.js): every POST and @-search per address; making
+ * an account and password tries per address; a new canvas, publishing,
+ * renaming, comments, reactions and the picture per account. Over one, the
+ * answer is 429 with Retry-After and a sentence saying how long.
  */
 'use strict';
 
@@ -42,12 +47,24 @@ const store = require('../lib/sketch-store.js');
 const site = require('../lib/site-identity.js');
 const suggestName = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 20);
 const social = require('../lib/sketch-social.js');
+const limits = require('../lib/sketch-limits.js');
+
+/* A limit that says no ends the request with how long to wait. */
+class Slow extends Error { constructor(wait) { super('slow'); this.wait = wait; } }
+async function limit(name, key) {
+  const r = await limits.take(store.io, name, key);
+  if (!r.ok) throw new Slow(r.wait);
+}
+// Which per-account limit each signed-in action spends, if any.
+const ACCOUNT_LIMIT = { publish: 'publish', rename: 'rename', comment: 'comment', 'avatar-set': 'avatar',
+  vote: 'react', report: 'react', follow: 'react', 'comment-report': 'react', 'comment-delete': 'react', 'room-invite': 'react', 'inbox-dismiss': 'react' };
 
 module.exports = async function handler(req, res) {
   res.setHeader('X-Robots-Tag', 'noindex');
   const missing = store.configError();
   if (missing) { console.error('sketch: ' + missing); return res.status(503).json({ error: 'the gallery is not configured' }); }
 
+  const ip = limits.clientKey(req, store.secret());
   try {
     if (req.method === 'GET') {
       const q = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
@@ -72,6 +89,7 @@ module.exports = async function handler(req, res) {
         return res.status(200).json(p);
       }
       if (q.users !== undefined) {
+        await limit('ip-search', ip);
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=10, stale-while-revalidate=30');
         return res.status(200).json({ users: await store.searchUsers(q.users) });
       }
@@ -84,18 +102,20 @@ module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.setHeader('Allow', 'GET, POST'); return res.status(405).json({ error: 'GET or POST' }); }
 
     res.setHeader('Cache-Control', 'no-store');
+    await limit('ip-post', ip);
     let body = req.body;
     if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = null; } }
     body = body || {};
     const action = String(body.action || '');
 
-    if (action === 'signup') return res.status(200).json(await store.signup(body.handle, body.password));
-    if (action === 'login') return res.status(200).json(await store.login(body.handle, body.password));
+    if (action === 'signup') { await limit('ip-account', ip); return res.status(200).json(await store.signup(body.handle, body.password)); }
+    if (action === 'login') { await limit('ip-login', ip); return res.status(200).json(await store.login(body.handle, body.password)); }
     // After a first Google or Discord sign-in: the ticket says who, this picks the name.
-    if (action === 'claim') return res.status(200).json(await store.claim(body.ticket, body.handle));
+    if (action === 'claim') { await limit('ip-account', ip); return res.status(200).json(await store.claim(body.ticket, body.handle)); }
     // Signed in to the SITE account (/account/site-auth.js): its Firebase ID
     // token, checked here, finds or offers to make the Inko account.
     if (action === 'site') {
+      await limit('ip-site', ip);
       let claims;
       try { claims = await site.verify(body.idToken); }
       catch (err) {
@@ -115,6 +135,7 @@ module.exports = async function handler(req, res) {
     // good as the account it names.
     const handle = await store.liveHandle(store.readToken(body.token));
     if (!handle) return res.status(401).json({ error: 'Sign in again' });
+    if (ACCOUNT_LIMIT[action]) await limit(ACCOUNT_LIMIT[action], handle);
 
     if (action === 'publish') return res.status(200).json({ post: await store.publish(handle, body) });
     if (action === 'unpublish') return res.status(200).json(await store.unpublish(handle, body.id));
@@ -122,7 +143,8 @@ module.exports = async function handler(req, res) {
     if (action === 'votes') return res.status(200).json({ votes: await store.myVotes(handle, body.ids) });
     if (action === 'report') return res.status(200).json(await store.report(handle, body.id));
     if (action === 'canvases') return res.status(200).json({ canvases: await store.listCanvases(handle) });
-    if (action === 'canvas-put') return res.status(200).json(await store.putCanvas(handle, body));
+    // A canvas the account has never had spends 'new-canvas'; saving one it has is free.
+    if (action === 'canvas-put') return res.status(200).json(await store.putCanvas(handle, body, () => limit('new-canvas', handle)));
     if (action === 'canvas-delete') return res.status(200).json(await store.deleteCanvas(handle, body.id, body.ts));
     if (action === 'canvas-img') {
       const found = await store.canvasImage(handle, body.id, body.v, !!body.thumb);
@@ -141,6 +163,7 @@ module.exports = async function handler(req, res) {
     if (action === 'delete-account') {
       const r = await store.deleteAccount(handle, body.password);
       await social.dropHandle(handle);
+      await limits.forget(store.io, ['new-canvas', 'publish', 'rename'], handle);
       return res.status(200).json(r);
     }
     if (action === 'follow') return res.status(200).json(await social.follow(handle, body.handle, body.on));
@@ -153,6 +176,10 @@ module.exports = async function handler(req, res) {
     if (action === 'inbox-dismiss') return res.status(200).json(await social.dismiss(handle, body.room));
     return res.status(400).json({ error: 'no such action' });
   } catch (err) {
+    if (err instanceof Slow) {
+      res.setHeader('Retry-After', String(Math.max(1, Math.ceil(err.wait / 1000))));
+      return res.status(429).json({ error: `Slow down a little. Try again in ${limits.waitWords(err.wait)}.`, retryAfter: Math.ceil(err.wait / 1000) });
+    }
     if (err instanceof store.Refused) return res.status(err.status).json({ error: err.message });
     console.error('sketch: failed', err);
     return res.status(502).json({ error: 'the gallery could not be reached' });

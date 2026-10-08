@@ -624,19 +624,65 @@ async function ensureCurrent(){
   scheduleDraft();
   refreshPanelUI();
 }
+/* NEW CANVASES ARE RATE-LIMITED (Dex, 2026-10-08): a burst goes straight
+   through -- 8 in a minute, 30 in ten -- then there is a 15 second wait, and
+   if it keeps going, one a minute until ten quiet minutes forgive it. A
+   canvas is made HERE, often signed out, so the rule runs here; it is the
+   same rule as cooldown() in lib/sketch-limits.js (tools/sketch_check.mjs
+   drives both with the same taps), and the server keeps its own count of
+   new canvases on an account besides. The state is kept in localStorage so
+   a reload does not reset it. */
+const RATE = { burst: 8, long: 30, first: 15000, then: 60000, forgive: 600000 };
+function rateCooldown(state, now, rule = RATE){
+  const s = state && Array.isArray(state.t)
+    ? { t: state.t.filter(x => Number.isFinite(x) && x <= now), strike: state.strike | 0, until: +state.until || 0, last: +state.last || 0 }
+    : { t: [], strike: 0, until: 0, last: 0 };
+  if (now < s.until) return { ok: false, wait: s.until - now, state: s };
+  if (s.last && now - s.last > rule.forgive){ s.t = []; s.strike = 0; }
+  s.t = s.t.filter(x => now - x < rule.forgive);
+  if (s.strike >= 2 && s.last && now - s.last < rule.then){
+    s.until = s.last + rule.then;
+    return { ok: false, wait: s.until - now, state: s };
+  }
+  if (s.strike < 2){
+    const minute = s.t.filter(x => now - x < 60000).length;
+    if (minute >= rule.burst || s.t.length >= rule.long){
+      s.strike += 1;
+      s.until = now + (s.strike === 1 ? rule.first : rule.then);
+      return { ok: false, wait: s.until - now, state: s };
+    }
+  }
+  s.t.push(now); s.t = s.t.slice(-rule.long); s.last = now;
+  return { ok: true, wait: 0, state: s };
+}
+const RATE_KEY = 'inko:newRate';
+function mayMakeCanvas(){
+  let st = null;
+  try { st = JSON.parse(localStorage.getItem(RATE_KEY) || 'null'); } catch (e) {}
+  const r = rateCooldown(st, Date.now());
+  try { localStorage.setItem(RATE_KEY, JSON.stringify(r.state)); } catch (e) {}
+  if (!r.ok){
+    const sec = Math.ceil(r.wait / 1000);
+    toast('Slow down a little', 'You can make a new canvas in ' + (sec < 90 ? sec + 's' : Math.ceil(sec / 60) + ' min'));
+  }
+  return r.ok;
+}
+/* True if a canvas was made (false: the limit said wait, or the save failed). */
 async function newCanvas(){
   closePop();
-  if (dirty){ try { await saveCurrent(); } catch (e) { return; } }
+  if (!mayMakeCanvas()) return false;
+  if (dirty){ try { await saveCurrent(); } catch (e) { return false; } }
   await keepCanvasHistory();
   const wipe = snapPad();
   await startBlank();
   wipe();
   setOptions(false);
+  return true;
 }
-$('plus-btn').addEventListener('click', async () => { await newCanvas(); toast('New canvas created'); });
+$('plus-btn').addEventListener('click', async () => { if (await newCanvas()) toast('New canvas created'); });
 // From the gallery: straight into it, ready to draw.
 $('g-new').addEventListener('click', async () => {
-  await newCanvas();
+  if (!await newCanvas()) return;
   closeGallery();
   toast('New canvas created');
 });
@@ -1307,6 +1353,7 @@ function syncAccount(){
       catch (e){
         if (e.status === 413 && !syncWarned){ syncWarned = true; toast('"' + it.title + '" is too large to keep on the account — it stays on this device'); }
         else if (e.status === 401) return;
+        else if (e.status === 429) break;   // the server says wait: the rest go on the next sync
       }
     }
     if (changed && scope === sc){
@@ -2587,7 +2634,7 @@ $('dl-btn').addEventListener('click', () => { modalTool = 'Download'; paintToolN
    two lines, centred above that bar, for a little while (Dex, 2026-10-08).
    A hold is NOT a tap: the click that ends it is eaten. */
 const HOLD_TIPS = {
-  'opt-btn': () => ['Canvas options', 'Gallery, new, save, trash'],
+  'opt-btn': () => ['Canvas options', 'Symmetry, color, new, save, trash'],
   'ed-btn': () => ['Eyedropper', 'Pick a color'],
   'tool-toggle': () => tool === 'eraser' ? ['Eraser', 'Tap for the brush'] : ['Brush', 'Tap for the eraser'],
   'color-btn': () => ['Color', 'Your brush color'],

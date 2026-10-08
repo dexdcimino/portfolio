@@ -73,7 +73,13 @@ const fail = [];
 let pass = 0;
 const note = (ok, why) => { if (ok) pass++; else fail.push(why); };
 // + and the gallery live in the options bar (Dex, 2026-10-08): open it first.
-const optTap = async (p, sel) => { await p.evaluate(() => { if (document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); }); return p.click(sel); };
+// A + here is one of the run's own canvases, not a person spamming: the new-canvas limit is cleared for it
+// (the limit itself is driven on purpose in its own block).
+// The gallery is on the toolbar itself since batch 13; asked for while it is already open, it stays open (its
+// button would be under the gallery's own back button).
+const optTap = async (p, sel) => {
+  if (sel === '#grid-btn') { if (await p.evaluate(() => document.getElementById('gallery').classList.contains('open'))) return; return p.click(sel); }
+  await p.evaluate(plus => { if (plus) localStorage.removeItem('inko:newRate'); if (document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); }, sel === '#plus-btn'); return p.click(sel); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
@@ -357,7 +363,7 @@ try {
     const r = id => document.getElementById(id).getBoundingClientRect();
     const tb = r('toolbar'), t = r('tool-toggle'), title = r('title-input'), lock = r('top-lock');
     return { off: Math.abs((t.left + t.right) / 2 - (tb.left + tb.right) / 2),
-             order: ['opt-btn', 'ed-btn', 'tool-toggle', 'color-btn', 'sym-btn'].map(id => [id, r(id).left]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join(','),
+             order: ['grid-btn', 'ed-btn', 'tool-toggle', 'color-btn', 'opt-btn'].map(id => [id, r(id).left]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join(','),
              lockRight: lock.left > title.left && Math.abs(lock.top + lock.height / 2 - (title.top + title.height / 2)) < 8,
              install: !!document.getElementById('install-btn'),
              // The size bar is the toolbar's box, with undo, the scrub bar and redo on one centre line.
@@ -365,7 +371,7 @@ try {
                return { h: sb.height, tbH: tb.height, skew: Math.max(Math.abs(c(u) - c(sl)), Math.abs(c(rd) - c(sl))), label: !!document.querySelector('#size-bar #size-v') }; })() };
   });
   note(bars.off < 2, `the draw/erase toggle is ${bars.off.toFixed(1)}px off the toolbar's centre`);
-  note(bars.order === 'opt-btn,ed-btn,tool-toggle,color-btn,sym-btn', `the toolbar reads ${bars.order}`);
+  note(bars.order === 'grid-btn,ed-btn,tool-toggle,color-btn,opt-btn', `the toolbar reads ${bars.order}`);
   note(Math.abs(bars.sizeBar.h - bars.sizeBar.tbH) < 0.5 && bars.sizeBar.skew < 1 && !bars.sizeBar.label, `the size bar: ${JSON.stringify(bars.sizeBar)}`);
   // A new canvas is SEEN to happen: the old one wiped away on a diagonal over the new one, then gone.
   {
@@ -417,7 +423,7 @@ try {
     await page.evaluate(() => { document.getElementById('tall').remove(); dispatchEvent(new Event('resize')); }); await sleep(200);
     note(Object.values(gaps).every(g => Math.abs(g - 8) < 1.1), `the canvas sits 8px above each panel: ${JSON.stringify(gaps)}`);
     note(/^Saturation \d+%$/.test(tip.text) && tip.off < 1 && tip.above, `the S tip: ${JSON.stringify(tip)}`);
-    note(opt.hsb === 'none' && opt.size === 'none' && opt.order === 'grid-btn,copt-btn,plus-btn,dl-btn,clear-btn' && Math.abs(opt.h - opt.tb) < 0.5, `the options bar: ${JSON.stringify(opt)}`);
+    note(opt.hsb === 'none' && opt.size === 'none' && opt.order === 'sym-btn,copt-btn,plus-btn,dl-btn,clear-btn' && Math.abs(opt.h - opt.tb) < 0.5, `the options bar: ${JSON.stringify(opt)}`);
     // The big tool icon dead centre, either way round.
     const centre = () => page.evaluate(() => { const t = document.getElementById('tool-toggle').getBoundingClientRect(), b = document.querySelector('#tool-toggle .tool-ico.big').getBoundingClientRect();
       return Math.max(Math.abs((b.left + b.right) / 2 - (t.left + t.right) / 2), Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2)); });
@@ -439,12 +445,13 @@ try {
     note(inked > 50 && asked.open && asked.title === 'Clear this canvas?' && asked.ok === 'Clear' && asked.order && !cancelled.open && cancelled.ink === inked && cancelled.inko === '/inko/' && cleared === 0 && back === inked,
       `clear: ink ${inked}, asked ${JSON.stringify(asked)}, back-as-cancel ${JSON.stringify(cancelled)}, cleared ${cleared}, undo ${back}`);
     // Symmetry: a tick at the top centre, poking above the canvas, no line through it.
-    await page.click('#sym-btn'); await sleep(200);
+    // Symmetry lives in the options bar now (batch 13): switched on there, then the bar put away.
+    await optTap(page, '#sym-btn'); await page.click('#opt-btn'); await sleep(300);
     const tick = await page.evaluate(() => { const t = document.getElementById('sym-tick'), tr = t.getBoundingClientRect(), fr = document.getElementById('canvas-frame').getBoundingClientRect();
       const c = document.getElementById('pad'), d = c.getContext('2d').getImageData(Math.floor(c.width / 2) - 1, Math.floor(c.height * 0.3), 3, 1).data;
       return { shown: !t.hidden && tr.height > 0, off: Math.abs((tr.left + tr.right) / 2 - (fr.left + fr.right) / 2), above: fr.top - tr.top, into: tr.bottom - fr.top, w: tr.width,
                line: [0, 4, 8].some(i => Math.abs(d[i] - d[i + 1]) < 30 && d[i] > 100 && d[i] < 160) }; });
-    await page.click('#sym-btn'); await sleep(150);
+    await optTap(page, '#sym-btn'); await page.click('#opt-btn'); await sleep(250);
     const gone = await page.evaluate(() => document.getElementById('sym-tick').hidden);
     note(tick.shown && tick.off < 1 && tick.above > 3 && tick.into > 5 && tick.into < 14 && tick.w <= 3 && !tick.line && gone, `the symmetry tick: ${JSON.stringify(tick)}, hidden again ${gone}`);
   }
@@ -636,7 +643,7 @@ try {
     note(pg.page === 'Public' && pg.go === 'mine' && pg2.page === 'Your gallery' && pg2.go === 'public', `the page named and the toggle: ${JSON.stringify(pg)} then ${JSON.stringify(pg2)}`);
     // + in the gallery: a new canvas, and straight into it.
     const nBefore = await page.evaluate(() => document.querySelectorAll('#g-rows .g-item').length);
-    await page.click('#g-new'); await sleep(700);
+    await page.evaluate(() => localStorage.removeItem('inko:newRate')); await page.click('#g-new'); await sleep(700);
     const nw = await page.evaluate(() => ({ gallery: document.getElementById('gallery').classList.contains('open'), toast: document.getElementById('toast').textContent, title: document.getElementById('title-input').value }));
     await optTap(page, '#grid-btn'); await sleep(400);
     const nAfter = await page.evaluate(() => { const items = [...document.querySelectorAll('#g-rows .g-item')]; return { n: items.length, lastCurrent: items[items.length - 1].classList.contains('current') }; });
@@ -689,11 +696,12 @@ try {
       const walk = [];
       const tap = async sel => { await fresh.click(sel); await sleep(500); walk.push(await named()); };
       await tap('#tool-toggle'); await tap('#ed-btn'); await tap('#ed-btn'); await tap('#tool-toggle');
-      await tap('#sym-btn'); await tap('#color-btn'); await tap('#color-btn'); await tap('#sym-btn');
-      await tap('#opt-btn'); await tap('#copt-btn'); await tap('#opt-btn'); await tap('#clear-btn'); await tap('#m-cancel'); await tap('#opt-btn');
+      // Symmetry is in the options bar (batch 13): on there, then named once the bar is put away.
+      await tap('#opt-btn'); await tap('#sym-btn'); await tap('#opt-btn'); await tap('#color-btn'); await tap('#color-btn');
+      await tap('#opt-btn'); await tap('#sym-btn'); await tap('#copt-btn'); await tap('#opt-btn'); await tap('#clear-btn'); await tap('#m-cancel'); await tap('#opt-btn');
       const under = await fresh.evaluate(() => { const t = document.getElementById('title-input').getBoundingClientRect(), n = document.getElementById('tool-name').getBoundingClientRect();
         return { below: Math.round(n.top - t.bottom), off: Math.abs((n.left + n.right) / 2 - (t.left + t.right) / 2) }; });
-      note(walk.join() === 'Eraser,Eyedropper,Eraser,Brush,Symmetry,Color,Symmetry,Brush,Canvas options,Canvas color,Canvas options,Trash,Canvas options,Brush'
+      note(walk.join() === 'Eraser,Eyedropper,Eraser,Brush,Canvas options,Canvas options,Symmetry,Color,Symmetry,Canvas options,Canvas options,Canvas color,Canvas options,Trash,Canvas options,Brush'
         && under.below >= -1 && under.below < 8 && under.off < 1.5, `the tool named under the title: ${walk.join()} ${JSON.stringify(under)}`);
       // A REAL touch hold names the control above the bar that is up, and is not a tap.
       const hold = async (sel, bar) => {
@@ -735,6 +743,34 @@ try {
       const after = await fresh.evaluate(() => ({ snaps: document.querySelectorAll('.pad-snap').length, swap: document.getElementById('canvas-frame').classList.contains('swap') }));
       note(sample.frozen === 2 && sample.tl > 200 && sample.br > 200 && Math.abs(sample.tl - sample.br) < 12 && sample.mid < 40 && after.snaps === 0 && !after.swap,
         `the + wipe's gap (r+g+b): ${JSON.stringify(sample)}, after ${JSON.stringify(after)}`);
+      // Batch 13: the gallery one tap from the toolbar's left end, options at its right, symmetry first in the options bar.
+      const bar13 = await fresh.evaluate(() => { const ids = [...document.querySelectorAll('#toolbar button.tbtn')].filter(b => !b.closest('#tool-toggle') || b.id === 'tool-toggle').map(b => b.id);
+        return { tb: ids.join(), opt: [...document.querySelectorAll('#opt-bar > button')].map(b => b.id).join(), optHidden: document.getElementById('opt-bar').hidden }; });
+      await fresh.click('#grid-btn'); await sleep(500);
+      const galOpen = await fresh.evaluate(() => document.getElementById('gallery').classList.contains('open'));
+      await fresh.click('#g-back'); await sleep(400);
+      note(bar13.tb === 'grid-btn,ed-btn,tool-toggle,color-btn,opt-btn' && bar13.opt === 'sym-btn,copt-btn,plus-btn,dl-btn,clear-btn' && bar13.optHidden && galOpen,
+        `the bars: ${JSON.stringify(bar13)}, one tap on the gallery opens it ${galOpen}`);
+      // NEW CANVASES, LIMITED: eight straight through, the ninth told to wait 15s, then (the wait run out) one a minute.
+      await fresh.evaluate(() => localStorage.removeItem('inko:newRate'));
+      const count = () => fresh.evaluate(() => new Promise(res => { const r = indexedDB.open('inko'); r.onsuccess = () => { const t = r.result.transaction('canvases').objectStore('canvases').count(); t.onsuccess = () => res(t.result); }; }));
+      const plus = async () => { await fresh.evaluate(() => { if (document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); });
+        await fresh.click('#plus-btn'); await sleep(450); return fresh.evaluate(() => document.getElementById('toast').textContent); };
+      const n0 = await count(), said = [];
+      for (let i = 0; i < 9; i++) said.push(await plus());
+      const n1 = await count();
+      // The 15 seconds, run out on the stored clock rather than waited for: the eight are still inside the minute.
+      await fresh.evaluate(() => { const s = JSON.parse(localStorage.getItem('inko:newRate')); s.until = Date.now() - 1; localStorage.setItem('inko:newRate', JSON.stringify(s)); });
+      const tenth = await plus();
+      await fresh.evaluate(() => { const s = JSON.parse(localStorage.getItem('inko:newRate')); s.until = 0; s.last = Date.now() - 61000; localStorage.setItem('inko:newRate', JSON.stringify(s)); });
+      const minuteOn = await plus(), tooSoon = await plus();
+      const n2 = await count();
+      // A reload does not reset it.
+      await fresh.reload({ waitUntil: 'networkidle2' }); await sleep(600);
+      const afterReload = await plus();
+      note(said.slice(0, 8).every(t => t === 'New canvas created') && /^Slow down a little.*in 15s$/.test(said[8]) && n1 === n0 + 8
+        && /in 60s$/.test(tenth) && minuteOn === 'New canvas created' && /^Slow down a little.*in \d+s$/.test(tooSoon) && n2 === n0 + 9 && /^Slow down a little/.test(afterReload),
+        `the new-canvas limit: ${said.join(' | ')} (${n0} -> ${n1}), then "${tenth}", a minute on "${minuteOn}", straight after "${tooSoon}" (${n2}), after a reload "${afterReload}"`);
       await fresh.close();
     }
   }

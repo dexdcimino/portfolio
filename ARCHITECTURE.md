@@ -706,9 +706,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     the device. Signed out, nothing leaves it.
   - **The bottom bars are one box size** (`--bar-h`): the size bar is
     only redo, the scrub bar and undo on one centre line (the pixel size
-    shows while dragging, in `#size-preview`). The toolbar is options,
-    eyedropper | brush/eraser | swatch, symmetry. Options swaps the size bar
-    for the options bar (gallery, canvas, +, download, clear) and closes the
+    shows while dragging, in `#size-preview`). The toolbar is gallery,
+    eyedropper | brush/eraser | swatch, options -- the gallery at the far
+    left because it is the app's main way around (Dex, batch 13). Options
+    swaps the size bar for the options bar (symmetry, canvas, +, download,
+    clear) and closes the
     sliders, the eyedropper and the canvas colour window. Its canvas swatch
     opens the canvas window with the title and public/private as well as
     the colour (`popMode` 'canvas-opts'); the top-left swatch opens it with
@@ -879,6 +881,30 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     went. Every authenticated request checks the token's handle is still a
     live account (`liveHandle`), so a rename or deletion ends the old tokens.
     Known limit: reactions the account gave stay filed under the old name.
+  - **Everything is rate-limited** (`lib/sketch-limits.js`, Dex batch 13),
+    with token buckets: `cap` at once, then one per `every` ms, answered over
+    the limit with 429, `Retry-After` and a sentence saying how long. KEPT
+    buckets (`sketch/limits/<name>-<key>.json`, one small read and write)
+    hold across instances and guard the rare, costly things: making an
+    account per address (5, then one per 12 minutes, for signup and claim
+    alike), a NEW canvas per account (120 at once -- a first sign-in brings
+    every signed-out canvas -- then one per 30 s; re-saving one the account
+    has is free), publishing (20, then one per 2 minutes) and renaming (3,
+    then one an hour). MEMORY buckets cost nothing and live in the warm
+    instance: every POST per address (240, then 4 a second), @-search,
+    password tries per address (20, then one per 20 s, before any one
+    account's own lockout), the site sign-in, comments, reactions and the
+    picture. Addresses are HMAC-hashed with the store's secret before use.
+    The escalating NEW-CANVAS cooldown Dex asked for -- 8 in a minute or 30
+    in ten go straight through, then 15 s, then one a minute until ten quiet
+    minutes -- is `cooldown()`, and it runs on the DEVICE (app.js
+    `rateCooldown`, kept in localStorage), because a canvas is made there,
+    often signed out; `sketch_check` drives both copies through the same
+    taps. Also: passwords are capped at 256 characters (scrypt on a megabyte
+    is a denial of service), a save stamped more than a day ahead is refused
+    (it would make every real save "older"), `votes` reads at most 100 posts
+    and `?users=` at most 20 characters, and deleting an account removes its
+    kept counts.
   - The feed is ONE JSON read, edge-cached for 10 s; images are served
     through the function (the store is private) under versioned keys, so
     their URLs are `immutable`. Because of that edge cache, for three minutes

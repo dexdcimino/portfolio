@@ -25,6 +25,35 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — Inko's spam limits: token buckets on the server, the escalating cooldown on the device
+
+**Decided.** `/api/sketch` limits every request with token buckets (`lib/sketch-limits.js`).
+The rare, costly actions (making an account per address, a new canvas per account,
+publishing, renaming) use buckets KEPT in the Blob store; the frequent ones (every POST per
+address, password tries, comments, reactions, search) use buckets in the warm function's
+memory. The escalating new-canvas cooldown Dex described (a burst, then 15 seconds, then
+one a minute) runs in the app, with the same rule mirrored on the server module and both
+driven through one timeline by `tools/sketch_check.mjs`.
+
+**Replaced.** Nothing: the API had a per-account password lockout and per-account size
+caps (1000 canvases, 500 comments a post), and no rate limit of any kind.
+
+**Why.** A canvas is made on the device, usually signed out, and never reaches the server
+until it is saved to an account, so the only place the cooldown can be felt is the app.
+The server's job is to stop a script, not to pace a person, so it uses a bucket generous
+enough for a first sign-in to bring 120 signed-out canvases at once. Kept counters cost a
+read and a write each, so they guard only what is rare; memory counters are free but per
+instance, which still blunts a flood from one client and costs nothing on a normal request.
+A third-party limiter (Upstash, Vercel KV, Vercel's WAF rate rules) would be stronger
+against a distributed attacker, but each is a new service or a paid feature with its own
+secrets, which this site has avoided, and the abuse it would stop has not happened yet.
+
+**Reverse it if** the gallery sees real abuse from many addresses at once, or a store with
+atomic counters (KV) is added for another reason: move the memory buckets there, and turn
+on Vercel's firewall rate rule for `/api/sketch` in front of them.
+
+---
+
 ## 2026-10-08 — One site account: Firebase is the parent, the apps are children
 
 **Decided.** dexcimino.com has one account. It is the Firebase project DexNote
