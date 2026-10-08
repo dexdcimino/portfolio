@@ -1,25 +1,3 @@
-/* Universal JWT verification (DexAuth).
-   Accepts JWTs from /api/auth/unlock as an alternative to TUNES password.
-   Uses shared AUTH_SECRET env var. */
-const { createHmac, timingSafeEqual } = require('crypto');
-function verifyUniversalJWT(token) {
-  const secret = process.env.AUTH_SECRET;
-  if (!token || !secret) return false;
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return false;
-    const [h, b, s] = parts;
-    const exp = createHmac('sha256', secret).update(h + '.' + b).digest('base64')
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    if (s.length !== exp.length) return false;
-    if (!timingSafeEqual(Buffer.from(s), Buffer.from(exp))) return false;
-    const payload = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
-    const now = Math.floor(Date.now() / 1000);
-    if (!payload.exp || payload.exp < now) return false;
-    return payload.tier === 'admin' || payload.tier === 'editor';
-  } catch (e) { return false; }
-}
-
 /* The live playlist.
  *
  *   GET  /api/music/playlist                         ->  { rev, savedAt, tracks }
@@ -28,12 +6,15 @@ function verifyUniversalJWT(token) {
  * READING IS PUBLIC. The list was always public -- it shipped in the page as
  * tracks.json -- so MUSIC reads it with no code at all.
  *
- * EDITING NEEDS A TOKEN, and a token needs TUNES_PASSWORD. The vault code only
- * opens the overlay; this is the check that matters, because this route can be
- * called by anyone who reads the page source.
+ * EDITING NEEDS A TOKEN, and a token needs Dex SIGNED IN: an idToken for his
+ * own Google (lib/owner-auth.js), or the DexAuth token, which is itself only
+ * minted for that sign-in. No code is read (Dex, 2026-10-08: signed in is
+ * admin everywhere, and the codes are no more). The overlay asks for this
+ * the moment it opens for Dex; this is the check that matters, because this
+ * route can be called by anyone who reads the page source.
  *
  * ACTIONS
- *   unlock   {code}                  -> { token }
+ *   unlock   {idToken} | {jwt}       -> { token }
  *   lookup   {token, url}            -> { v, t, a }   a guess for the add form
  *   add      {token, url, t, a}
  *   remove   {token, v}
@@ -48,6 +29,7 @@ function verifyUniversalJWT(token) {
 'use strict';
 
 const store = require('../../lib/music-store.js');
+const owner = require('../../lib/owner-auth.js');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -79,8 +61,11 @@ module.exports = async function handler(req, res) {
         console.error('music/playlist: ' + unset);
         return res.status(503).json({ error: 'editing is not set up on this deploy' });
       }
-      const jwtOk = body.jwt && verifyUniversalJWT(body.jwt);
-      if (!jwtOk && !(await store.passwordOk(body.code))) return res.status(401).json({ error: 'wrong' });
+      if (!(body.jwt && owner.adminOk(body.jwt))) {
+        const who = await owner.ownerOf(body.idToken);
+        if (who === 'unverifiable') return res.status(502).json({ error: 'could not verify the sign-in' });
+        if (who !== 'owner') return res.status(401).json({ error: 'sign in' });
+      }
       return res.status(200).json({ token: store.mintToken() });
     }
 

@@ -1,25 +1,3 @@
-/* Universal JWT verification (DexAuth).
-   Verifies JWTs signed by /api/auth/unlock using AUTH_SECRET.
-   Returns true if valid and tier is admin (or editor, for future). */
-const { createHmac, timingSafeEqual } = require('crypto');
-function verifyUniversalJWT(token) {
-  const secret = process.env.AUTH_SECRET;
-  if (!token || !secret) return false;
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return false;
-    const [h, b, s] = parts;
-    const exp = createHmac('sha256', secret).update(h + '.' + b).digest('base64')
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    if (s.length !== exp.length) return false;
-    if (!timingSafeEqual(Buffer.from(s), Buffer.from(exp))) return false;
-    const payload = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
-    const now = Math.floor(Date.now() / 1000);
-    if (!payload.exp || payload.exp < now) return false;
-    return payload.tier === 'admin' || payload.tier === 'editor';
-  } catch (e) { return false; }
-}
-
 /* POST /api/notes/unlock  { password | token }
  *                      ->  { content, format, rev, savedAt, token, seeded }
  *
@@ -41,7 +19,7 @@ function verifyUniversalJWT(token) {
 'use strict';
 
 const store = require('../../lib/notes-store.js');
-const identity = require('../../lib/site-identity.js');
+const owner = require('../../lib/owner-auth.js');
 
 module.exports = async function handler(req, res) {
   // The keypad is on dexcimino.com and this is same-origin. No CORS headers on
@@ -87,23 +65,22 @@ module.exports = async function handler(req, res) {
      with 403, which the client reads as "this account keeps its own notes in
      Firebase"; a token that does not verify is a 401 like every other wrong
      answer here. */
+  /* AND SINCE 2026-10-08 NO CODE OPENS THE DEXDC NOTES AT ALL. Dex: signed
+     in as him is admin everywhere, and DEXDC "will no more". The private
+     store opens for his own Google (the idToken above, lib/owner-auth.js), a
+     DexAuth token minted for that sign-in, or a session token one of those
+     opened; a password only ever reaches the public page ('notes'). The
+     notes themselves are untouched -- the same store, the same bytes. */
   let storeId = null;
-  if (body && typeof body.idToken === 'string' && body.idToken) {
-    let who = null;
-    try { who = identity.person(await identity.verify(body.idToken)); }
-    catch (err) {
-      if (!(err instanceof identity.Invalid)) {
-        console.error('notes/unlock: could not verify the sign-in', err);
-        return res.status(502).json({ error: 'could not verify the sign-in' });
-      }
-    }
-    if (!who) return res.status(401).json({ error: 'wrong' });
-    if (!identity.isOwner(who)) return res.status(403).json({ error: 'not linked' });
-    storeId = 'private';
-  } else if (body && typeof body.jwt === 'string' && body.jwt) {
-    if (verifyUniversalJWT(body.jwt)) storeId = 'private';
-  } else if (body && typeof body.password === 'string') {
+  if (body && typeof body.password === 'string') {
     storeId = await store.whichStore(body.password);
+  } else if (body && typeof body.idToken === 'string' && body.idToken) {
+    const who = await owner.ownerOf(body.idToken);
+    if (who === 'unverifiable') return res.status(502).json({ error: 'could not verify the sign-in' });
+    if (who === 'not-owner') return res.status(403).json({ error: 'not linked' });
+    if (who === 'owner') storeId = 'private';
+  } else if (body && typeof body.jwt === 'string' && body.jwt) {
+    if (owner.adminOk(body.jwt)) storeId = 'private';
   } else if (body && body.token) {
     storeId = store.tokenOk(body.token);
   }

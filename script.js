@@ -5,6 +5,66 @@
    sync and no wrong-color flash between themes.
    ========================================================================== */
 
+/* ---------- Dex signed in is admin, everywhere -------------------------- */
+
+/* DEX SIGNED IN IS ADMIN (Dex, 2026-10-08): "being signed in on my account
+   automatically gives me permissions everywhere, every overlay ... dexdc will
+   no more." No code is involved any more. The page shows the server a
+   Firebase ID token and the SERVER says whether it is Dex (lib/owner-auth.js);
+   this file only carries the answer to the overlays.
+
+   Nobody signed in in this browser means no token and no Firebase download:
+   the site-auth mirror flag is read first, so a visitor never pulls in the
+   SDK. */
+window.siteIdToken = async function() {
+  try { if (localStorage.getItem('site:signedIn') !== '1') return null; } catch (e) { return null; }
+  try { return await (await import('/account/site-auth.js')).idToken(); } catch (e) { return null; }
+};
+
+/* window.dexOwner.is: the server's word, held for the page. Every overlay that
+   has an admin side reads it when it opens and listens for 'dex:owner' (on
+   document, detail { owner }) to change while it is open. */
+window.dexOwner = { is: false };
+let ownerCheck = null, ownerAgain = false;
+window.dexOwnerCheck = function() {
+  /* One question at a time; a change that lands while one is out asks again
+     when it comes back, so the last answer is about the last sign-in. */
+  if (ownerCheck) { ownerAgain = true; return ownerCheck; }
+  return (ownerCheck = (async function() {
+    let owner = false;
+    const idToken = await window.siteIdToken();
+    if (idToken) {
+      try {
+        const r = await fetch('/api/auth/unlock', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: idToken }),
+        });
+        if (r.ok) {
+          const j = await r.json();
+          if (window.DexAuth && j.token) window.DexAuth.setToken(j.token, j.tier);
+          owner = !!j.token;
+        }
+      } catch (e) { /* offline: stays a visitor until the next check */ }
+    }
+    ownerCheck = null;
+    if (ownerAgain) { ownerAgain = false; return window.dexOwnerCheck(); }
+    if (!owner && window.DexAuth) { window.DexAuth.clearToken(); window.DexAuth.lock('work'); }
+    if (owner !== window.dexOwner.is) {
+      window.dexOwner.is = owner;
+      document.dispatchEvent(new CustomEvent('dex:owner', { detail: { owner: owner } }));
+    }
+    return owner;
+  })());
+};
+/* Asked on load, and again whenever who is signed in changes: in another tab
+   (the storage event), or in this one (account/site-auth.js and
+   dexnote/cloud.js both send 'site:user'). */
+window.addEventListener('storage', function(e) {
+  if (e.key === 'site:signedIn') window.dexOwnerCheck();
+});
+window.addEventListener('site:user', function() { window.dexOwnerCheck(); });
+window.addEventListener('load', function() { window.dexOwnerCheck(); }, { once: true });
+
 /* ---------- refresh starts at the top ------------------------------------ */
 
 // A reload restores the old scroll position by default, so refreshing looks
@@ -2490,12 +2550,12 @@ if (workModal) {
       ui.menu(anchor, items, { align: 'right' });
     }
 
-    async function signInHere() {
+    async function signInHere(note) {
       const acct = await acctMod();
       if (app) app.flush();
-      const u = await acct.signInSheet(editor.querySelector('.nt-app'), source === 'vault'
+      const u = await acct.signInSheet(editor.querySelector('.nt-app'), note || (source === 'vault'
         ? 'Sign in to keep notes in your account, on every device. These password notes stay as they are; the account menu can bring them in.'
-        : 'Sign in and the notes on this device move into your account.');
+        : 'Sign in and the notes on this device move into your account.'));
       if (u && modal.open) await swap(() => mountAccount(u));
     }
 
@@ -2566,11 +2626,38 @@ if (workModal) {
       if (!modal.open) openDemo((event.detail || {}).opener);
     });
 
+    /* ~DEXDC (Dex, 2026-10-08): "have dexdc open the sign in for me from
+       anywhere". The code opens nothing by itself any more -- it is the way
+       to YOUR notes: the account's, which for Dex's own Google are the DEXDC
+       notes (the server decides, api/notes/unlock.js). The sign-in sheet
+       comes up over them either way; signed in, it says who and offers Sign
+       out as well ("it will still show the sign in options but have a sign
+       out option", Dex). */
+    document.addEventListener('notes:mine', async (event) => {
+      if (!modal.open) await openDemo((event.detail || {}).opener);
+      if (!modal.open) return;
+      const acct = await acctMod();
+      /* whoIsHere() settles once, on the first answer; currentUser() is who
+         is signed in NOW, after a sign-in or out since. */
+      await acct.whoIsHere().catch(() => null);
+      const u = acct.currentUser();
+      if (!modal.open) return;
+      if (!u) { await signInHere('Sign in to open your notes.'); return; }
+      if (source !== 'account') await swap(() => mountAccount(u));
+      if (!modal.open || !editor.querySelector('.nt-app')) return;
+      if (app) app.flush();
+      const next = await acct.signInSheet(editor.querySelector('.nt-app'),
+        `Signed in as ${u.email || u.displayName || 'you'}.`, { signOut: true });
+      if (!modal.open) return;
+      if (next === 'signout') await signOutHere();
+      else if (next && next.uid !== u.uid) await swap(() => mountAccount(next));
+    });
+
     async function unlock(body) {
-      /* Include universal JWT if available (DexAuth) */
-      if (window.DexAuth && window.DexAuth.isUnlocked()) {
-        body = { ...body, jwt: window.DexAuth.getToken() };
-      }
+      /* A password or a session token, and nothing else. Dex's own notes come
+         through his account (mountAccount), never through this door: a
+         DexAuth token sent along here would turn a restored PUBLIC session
+         into the private one. */
       const response = await fetch('/api/notes/unlock', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -2601,6 +2688,10 @@ if (workModal) {
       timer: document.getElementById('notesTimer'),
       resting: 'ENTER PASSWORD', passed: 'OPEN',
       async verify(secret) {
+        /* DEXDC opens nothing as a password now (Dex, 2026-10-08); typed
+           here it goes where it goes from any keypad: his own notes, through
+           the sign-in. */
+        if (secret.trim().toLowerCase() === 'dexdc') return { ok: true, payload: 'mine' };
         try {
           const data = await unlock({ password: secret.toLowerCase() });
           return data ? { ok: true, payload: data } : { ok: false };
@@ -2616,7 +2707,11 @@ if (workModal) {
           return { ok: false, message: error.detail ? 'SERVER ERROR' : 'OFFLINE' };
         }
       },
-      onPass: opened,
+      onPass(payload) {
+        if (payload !== 'mine') { opened(payload); return; }
+        closeModal(modal);
+        setTimeout(() => document.dispatchEvent(new CustomEvent('notes:mine')), 0);
+      },
     });
 
     /* ---- leaving with the microphone on ---------------------------------
@@ -2863,13 +2958,6 @@ if (workModal) {
     }
   }
 
-  // Exposed for the universal padlock: actually unlock Notes (get edit token),
-  // not just flip the mode tag. Mirrors window.dexMusic.unlock.
-  window.dexNotes = window.dexNotes || {};
-  window.dexNotes.unlock = async (password) => {
-    const data = await unlock({ password });
-    return !!data;
-  };
 
   /* Move portfolio buttons INTO the shell so they're positioned relative
      to it (stable), not the frame (shifts when app loads). */
@@ -4057,7 +4145,8 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   });
   /* ============================================================
      DexAuth: universal overlay unlock system.
-     One password (snail) unlocks editing across ALL overlays.
+     One token, minted for Dex SIGNED IN (dexOwnerCheck at the top of this
+     file; Dex, 2026-10-08), unlocks editing across ALL overlays. No code.
      To add a new overlay:
        1. Add a padlock button with data-ovlock in the overlay HTML
        2. Call DexAuth.register('myoverlay', { onUnlock, onLock, iframe })
@@ -4069,19 +4158,15 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     var tier = null;
     var overlays = {};
     
-    async function unlock(password) {
-      try {
-        var r = await fetch('/api/auth/unlock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: password })
-        });
-        if (!r.ok) return false;
-        var j = await r.json();
-        token = j.token;
-        tier = j.tier;
-        return true;
-      } catch (e) { return false; }
+    /* Asks whether Dex is signed in; the answer sets the token. */
+    async function unlock() {
+      await window.dexOwnerCheck();
+      return !!token;
+    }
+
+    function setToken(t, tr) {
+      token = t;
+      tier = tr || 'admin';
     }
     
     function register(id, handlers) {
@@ -4126,7 +4211,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     function isUnlocked() { return !!token; }
     
     return { unlock: unlock, register: register, applyTo: applyTo,
-             lock: lock, clearToken: clearToken,
+             lock: lock, clearToken: clearToken, setToken: setToken,
              getToken: getToken, getTier: getTier,
              isUnlocked: isUnlocked };
   })();
@@ -4144,6 +4229,17 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
         onLock: function() {
           window.setModeTag('dashModeTag', false);
         }
+      });
+      /* Dex signed in: Mission Control gets the token whenever there is a
+         page in the frame to take it -- when it loads (it is lazy, and a
+         message posted before then is lost), and when he signs in or out
+         with it already up. */
+      var hand = function() {
+        if (window.dexOwner.is && window.DexAuth.isUnlocked()) window.DexAuth.applyTo('work');
+      };
+      frame.addEventListener('load', hand);
+      document.addEventListener('dex:owner', function(e) {
+        if (e.detail && e.detail.owner) hand(); else window.DexAuth.lock('work');
       });
     }
   })();
@@ -4173,6 +4269,10 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       if (dd) {
         var now = new Date();
         dd.textContent = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'});
+      }
+      if (window.dexOwner.is && window.DexAuth && window.DexAuth.isUnlocked()) {
+        window.DexAuth.applyTo('work');
+        window.setModeTag('dashModeTag', true);
       }
     }
     openModal(dialog, dialog.querySelector('.vault-modal-shell'), null, opener);
@@ -4263,10 +4363,11 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       /* Same plain keyword as the tilde keypad: `work` opens Mission Control
          from here too, not just from the overlay. */
       if (secret.trim().toLowerCase() === 'work') return { ok: true, payload: 'show:dash' };
-      /* If it's a valid notes password, open notes directly with it.
-         This lets Dex type his password here to go straight to his notes.
-         ('snail' is 5 chars but it's the vault code, not a notes password --
-         exclude it or the server will hijack it into Notes.) */
+      /* DEXDC: Dex's own notes, and the sign-in if he is not signed in
+         (see the tilde keypad below; Dex, 2026-10-08). */
+      if (secret.trim().toLowerCase() === 'dexdc') return { ok: true, payload: 'notes:mine' };
+      /* A notes code ('notes', the public page) opens the notes directly.
+         ('snail' is 5 chars but it is a vault code, so it is not sent.) */
       const trimmed = secret.trim();
       if (trimmed.length === 5 && trimmed.toLowerCase() !== 'snail') {
         try {
@@ -4277,7 +4378,6 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
           });
           if (resp.ok) {
             const data = await resp.json();
-            // Valid notes password: open notes overlay with the data
             document.dispatchEvent(new CustomEvent('notes:open', {
               detail: { opener: section, code: trimmed, unlockedData: data }
             }));
@@ -4293,6 +4393,11 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       // If it was a notes password, the overlay is already opening; just reset
       if (payload === 'notes:direct') {
         keypad.reset(true);
+        return;
+      }
+      if (payload === 'notes:mine') {
+        keypad.reset(true);
+        document.dispatchEvent(new CustomEvent('notes:mine', { detail: { opener: section } }));
         return;
       }
       reveal(payload, secret);
@@ -4364,24 +4469,13 @@ const codeModal = document.getElementById('codeModal');
         const normalized = secret.trim().toLowerCase();
         console.log('codepad verify:', normalized);
         if (normalized === 'work') return { ok: true, payload: 'show:dash' };
-        /* 'snail' is 5 chars but it's the universal code, not a notes password.
-           Exclude it here or the server's passwordOk (which accepts snail)
-           will hijack it into Notes instead of upgrading the current overlay. */
-        /* Notes password (DEXDC): if valid, check for an open overlay first.
-           DEXDC is the universal unlock: in Music/Work/etc it upgrades that
-           overlay to editor mode. Only opens Notes if no overlay is open,
-           or if already in Notes. */
+        /* DEXDC is not a code any more (Dex, 2026-10-08): it is the way to
+           his own notes, and to signing in if he is not. Nothing is sent to
+           a server for it -- the account is what opens anything. */
+        if (normalized === 'dexdc') return { ok: true, payload: 'notes:mine' };
+        /* A 5-letter code the notes server knows: the public page ('notes').
+           'snail' is 5 letters too but is a vault code, so it is not sent. */
         const trimmed = secret.trim();
-        // Helper: find the open overlay (not the keypad itself)
-        const findUpgradeOverlay = () => {
-          var oid = window._padlockOverlay;
-          if (oid) {
-            var ov = document.getElementById(oid);
-            if (ov) return ov;
-          }
-          var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
-          return allOpen.find(d => d.id !== 'codeModal') || null;
-        };
         if (trimmed.length === 5 && normalized !== 'snail') {
           try {
             const resp = await fetch('/api/notes/unlock', {
@@ -4390,64 +4484,12 @@ const codeModal = document.getElementById('codeModal');
               body: JSON.stringify({ password: trimmed }),
             });
             if (resp.ok) {
-              var upOverlay = findUpgradeOverlay();
-              // If there's an open overlay that's NOT Notes, upgrade it
-              // instead of redirecting to Notes.
-              if (upOverlay && upOverlay.id !== 'notesModal') {
-                // Fall through to the universal upgrade logic below by
-                // treating this as the universal code.
-                secret = 'snail';
-              } else {
-                document.dispatchEvent(new CustomEvent('notes:open', {
-                  detail: { opener: codeModal, code: trimmed }
-                }));
-                return { ok: true, payload: 'notes:direct' };
-              }
+              document.dispatchEvent(new CustomEvent('notes:open', {
+                detail: { opener: codeModal, code: trimmed }
+              }));
+              return { ok: true, payload: 'notes:direct' };
             }
           } catch (e) { /* not a notes password */ }
-        }
-        /* Phase 2: the universal code upgrades the overlay underneath instead
-           of opening the vault, when there is one. Main page + snail still
-           opens the markdown vault as before. */
-        // Re-normalize in case DEXDC was rewritten to the universal code above
-        var effectiveNormalized = secret.trim().toLowerCase();
-        if (effectiveNormalized === 'snail' || normalized === 'snail') {
-          // Use the stored overlay ID (the keypad itself is now topmost).
-          // If no stored ID (tilde pressed directly), find the open dialog
-          // that is NOT the keypad itself.
-          var overlayId = window._padlockOverlay;
-          var overlay;
-          if (overlayId) {
-            overlay = document.getElementById(overlayId);
-          } else {
-            var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
-            overlay = allOpen.find(d => d.id !== 'codeModal') || null;
-          }
-          var oid = overlay ? overlay.id : 'none';
-          console.log('snail: overlay found:', oid, '(stored:', overlayId + ')');
-          if (oid === 'musicModal') {
-            // Get JWT via DexAuth first, then unlock music with it
-            if (!window.DexAuth) {
-              console.error('music unlock: DexAuth not available');
-              return { ok: false };
-            }
-            const authOk = await window.DexAuth.unlock('snail');
-            if (!authOk) {
-              console.error('music unlock: DexAuth.unlock failed');
-              return { ok: false };
-            }
-            if (!window.dexMusic) {
-              console.error('music unlock: dexMusic not available');
-              return { ok: false };
-            }
-            const ok = await window.dexMusic.unlock('snail');
-            if (!ok) {
-              console.error('music unlock: dexMusic.unlock failed');
-            }
-            if (ok) return { ok: true, payload: 'upgraded:music' };
-            return { ok: false };
-          }
-          if (overlay) return { ok: true, payload: 'noop:overlay' };
         }
         return tryCode(secret);
       },
@@ -4458,47 +4500,10 @@ const codeModal = document.getElementById('codeModal');
           window._padlockOverlay = null;
           return;
         }
-        /* Music was already unlocked in verify() via DexAuth + dexMusic.unlock.
-           Just close the keypad. */
-        if (payload === 'upgraded:music') {
+        if (payload === 'notes:mine') {
           closeModal(codeModal);
           window._padlockOverlay = null;
-          return;
-        }
-        /* Other overlays (work, etc.): unlock via DexAuth and apply. */
-        if (payload === 'noop:overlay') {
-          closeModal(codeModal);
-          window._padlockOverlay = null;
-          (async function() {
-            // Exclude the keypad itself (in case close hasn't applied yet)
-            var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
-            var overlay = allOpen.find(d => d.id !== 'codeModal') || null;
-            var overlayId = overlay ? overlay.id : '';
-            var ok = await window.DexAuth.unlock('snail');
-            if (ok) {
-              if (overlayId === 'dashModal' || overlayId === 'workModal') {
-                window.DexAuth.applyTo('work');
-                window.setModeTag('dashModeTag', true);
-                /* The dashboard is an iframe with its own passcode gate.
-                   Tell it to unlock editing via postMessage. */
-                try {
-                  var dashFrame = document.getElementById('dashFrame');
-                  if (dashFrame && dashFrame.contentWindow) {
-                    dashFrame.contentWindow.postMessage({type:'dex-unlock', code:'snail'}, '*');
-                  }
-                } catch(e) {}
-              } else if (overlayId === 'musicModal') {
-                /* Actually unlock music (not just the tag) so editor
-                   buttons appear. */
-                var musicOk = await window.dexMusic?.unlock('snail');
-                if (!musicOk) window.setModeTag('musicModeTag', true);
-              } else if (overlayId === 'notesModal') {
-                /* Actually unlock Notes (not just the tag) so editing works. */
-                var notesOk = await window.dexNotes?.unlock('snail');
-                if (!notesOk) window.setModeTag('notesModeTag', true);
-              }
-            }
-          })();
+          document.dispatchEvent(new CustomEvent('notes:mine', { detail: { opener: codeOpener } }));
           return;
         }
         if (codeLabel) codeLabel.textContent = 'OPEN';
@@ -4640,14 +4645,11 @@ const codeModal = document.getElementById('codeModal');
   // and the padlock are its job now, and these two are here for the focus
   // hand-off reset(moveFocus) does on the way out.
   document.getElementById('musicModal')?.addEventListener('close', relock);
-  /* Work overlay: when it closes, lock it, clear the token, and tell the
-     iframe to revert to viewer. Password must be re-entered next time. */
+  /* Work overlay: opening it hands Mission Control the token when Dex is
+     signed in -- signed in IS the key (Dex, 2026-10-08), so nothing is asked
+     for and nothing is cleared when it closes; signing out is what locks. */
   document.getElementById('dashModal')?.addEventListener('close', function() {
-    if (window.DexAuth) {
-      window.DexAuth.lock('work');
-      window.DexAuth.clearToken();
-    }
-    window.setModeTag('dashModeTag', false);
+    if (!window.dexOwner.is) window.setModeTag('dashModeTag', false);
   });
 })();
 
@@ -7512,10 +7514,12 @@ const MediaBus = (() => {
     if (!admin) { closeAdd(); closeBackups(); disarm(); closePlaylistForm(); }
   }
 
-  async function unlock(code) {
+  /* EDITING IS DEX SIGNED IN (Dex, 2026-10-08), asked for whenever the list
+     opens for him; no code goes with it. The server checks the sign-in. */
+  async function unlock() {
     let response;
     try {
-      var unlockBody = { action: 'unlock', code: String(code || '') };
+      var unlockBody = { action: 'unlock', idToken: await window.siteIdToken() };
       if (window.DexAuth && window.DexAuth.isUnlocked()) {
         unlockBody.jwt = window.DexAuth.getToken();
       }
@@ -7538,7 +7542,7 @@ const MediaBus = (() => {
     toast(response.status === 503
       ? 'Editing is not set up on this deploy.'
       : response.status === 404 ? 'There is no playlist server here — read-only.'
-      : 'That code does not unlock editing.');
+      : 'Editing did not open. Sign in again to edit.');
     return false;
   }
 
@@ -7845,6 +7849,7 @@ const MediaBus = (() => {
     modal.classList.remove('is-hidden-bar');
     if (expandBtn) expandBtn.hidden = true;
     openModal(modal, modal.querySelector('.music-shell'), null, trigger);
+    if (window.dexOwner.is && !admin) unlock();
     if (!loaded && !(await fetchTracks())) return;
     render();
     /* Live while it is open (docked counts): an edit made in TUNES reaches an
@@ -7902,7 +7907,7 @@ const MediaBus = (() => {
     if (expandBtn) expandBtn.hidden = true;
     stop();
     stopSync();
-    // Editing ends with the overlay. The next open is through a code again.
+    // Editing ends with the overlay; the next open asks the server again.
     setAdmin(false);
     searchEl.value = '';
     query = '';
@@ -7922,9 +7927,8 @@ const MediaBus = (() => {
      reason the notes overlay is: it has its own opener, which has to fetch the
      manifest before there is anything to show. */
   document.addEventListener('music:open', async (event) => {
-    /* MUSIC is the read-only door, whatever was open before it: typing MUSIC
-       after TUNES in the same tab is asking for the listener's view. */
-    if (admin) { setAdmin(false); if (loaded) render(); }
+    /* MUSIC and TUNES are one door now: read-only for everyone, editing for
+       Dex signed in (open() asks). */
     // If another modal is open, don't close it. The pill is the music interface
     // there (Dex, 2026-10-05) — typing music in Notes/Work/etc keeps you there.
     // The keypad itself doesn't count (it's the thing you typed into).
@@ -7964,13 +7968,19 @@ const MediaBus = (() => {
     if (!modal.open || isDockedBar(modal) || hiddenBar) open((event.detail || {}).opener);
   });
 
-  /* TUNES: the same overlay, then the code is traded for an edit token. It
-     opens first and unlocks second, so a server that says no still leaves a
-     working music player on screen rather than nothing. */
+  /* TUNES: the same overlay. It used to trade its code for editing; editing
+     is Dex signed in now, which open() asks about on its own, so TUNES is
+     MUSIC by another name -- read-only for anyone else. */
   document.addEventListener('tunes:open', async (event) => {
     const detail = event.detail || {};
     if (!modal.open || isDockedBar(modal)) await open(detail.opener);
-    await unlock(detail.code);
+    else if (window.dexOwner.is && !admin) await unlock();
+  });
+  /* Signing in or out with the list up changes it there and then. */
+  document.addEventListener('dex:owner', (event) => {
+    const owner = !!(event.detail && event.detail.owner);
+    if (owner && modal.open && !isDockedBar(modal) && !admin) unlock();
+    else if (!owner && admin) { setAdmin(false); if (window.setModeTag) window.setModeTag('musicModeTag', false); if (loaded) render(); }
   });
 
   addBtn?.addEventListener('click', () => (addPanel.hidden ? openAdd() : closeAdd()));
@@ -8024,10 +8034,10 @@ const MediaBus = (() => {
   lastVolume = startVolume || 0.4;
   applyVolume(startVolume, false);
 
-  /* Phase 2: the universal code (snail) upgrades the music overlay to edit
-     mode from the tilde keypad. Exposed so the keypad can reach it. */
+  /* Exposed: unlock asks for editing as Dex signed in; lock ends it. */
   window.dexMusic = window.dexMusic || {};
   window.dexMusic.unlock = unlock;
+  window.dexMusic.lock = () => { setAdmin(false); if (window.setModeTag) window.setModeTag('musicModeTag', false); };
   // Exposed for the pill's X button (stops music and hides pill).
   window.dexMusic.stopAll = () => {
     stopping = true;

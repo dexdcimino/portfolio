@@ -97,9 +97,9 @@ const api = async (path, body) => { const r = await fetch(`${BASE}${path}`, { me
 /* The DEXDC notes, seeded with a document nothing else could produce. */
 const VAULT_DOC = { v: 1, active: 'sv', ui: {}, sessions: [{ id: 'sv', title: 'DEXDC phone fixture', color: '#5cc8ff', emoji: '', updated: 1,
   cats: [{ id: 'cv', title: 'Vault cat', body: '<p>vault words</p>', color: '#ff9ccb', emoji: '', updated: 1, collapsed: false }], archived: [] }] };
-const opened = await api('/api/notes/unlock', { password: 'phonecheck' });
+const opened = await api('/api/notes/unlock', { idToken: TOKENS['dex-google'] });
 const seeded = await api('/api/notes/save', { token: opened.body.token, doc: VAULT_DOC, baseRev: opened.body.rev });
-const vaultNow = async () => { const r = await api('/api/notes/unlock', { password: 'phonecheck' }); return r.body; };
+const vaultNow = async () => { const r = await api('/api/notes/unlock', { idToken: TOKENS['dex-google'] }); return r.body; };
 
 /* ---- Firebase, faked ---- */
 const FAKE_CLOUD = `import { keyFor } from '/dexnote/local.js';

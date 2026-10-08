@@ -12,13 +12,20 @@
  *    that would undo every edit ever made.
  *
  * 2. THE API over HTTP, against the real handler. Reading is public; every
- *    edit without a token is refused; add, the duplicate, repeat, remove, the
- *    backup list and a restore that is itself backed up.
+ *    edit without a token is refused; editing opens for Dex signed in with no
+ *    code, and the TUNES code opens nothing signed out or for someone else's
+ *    Google (ID tokens this harness signs, checked by the real
+ *    lib/site-identity.js against its own stand-in for Google's
+ *    certificates); add, the duplicate, repeat, remove, the backup list and a
+ *    restore that is itself backed up.
  *
- * 3. TWO BROWSERS. One through MUSIC -- read-only, ticks disabled, no minus --
- *    and one through TUNES, which adds a song through the form, deletes one
- *    with two presses, ticks one onto REPEAT, and has every one of those turn
- *    up on the MUSIC screen without a reload.
+ * 3. BROWSERS. MUSIC signed out -- read-only, ticks disabled, no minus --
+ *    TUNES signed out and TUNES as someone else, both read-only, and plain
+ *    MUSIC signed in as Dex (/account/site-auth.js answered by a fake that
+ *    hands over the signed token), which is the editor with no code: it adds
+ *    a song through the form, deletes one with two presses, ticks one onto
+ *    REPEAT, and has every one of those turn up on the signed-out screen
+ *    without a reload; then signing out ends editing on the spot.
  *
  * A ROOM OF ITS OWN, like chess_check: the dev server keeps the playlist under
  * its --dir, so a scratch directory is a fresh store seeded from tracks.json.
@@ -26,6 +33,8 @@
  * a fact about this site.
  */
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
+import { generateKeyPairSync, sign } from 'node:crypto';
 import { existsSync, mkdtempSync, rmSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -123,10 +132,31 @@ const scratch = (tag) => { const d = mkdtempSync(join(tmpdir(), `tunes-${tag}-`)
 
 /* ---- 2. the API ------------------------------------------------------------- */
 
+/* ---- Google, as far as the server can tell ---- */
+const PROJECT = 'tunes-check-project';
+const gkey = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const certs = createServer((req, res) => {
+  res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=600' });
+  res.end(JSON.stringify({ k1: gkey.publicKey.export({ type: 'spki', format: 'pem' }) }));
+});
+await new Promise((r) => certs.listen(0, '127.0.0.1', r));
+certs.unref();
+const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+function idToken(email) {
+  const t = Math.floor(Date.now() / 1000);
+  const h = b64({ alg: 'RS256', kid: 'k1', typ: 'JWT' });
+  const p = b64({ iss: `https://securetoken.google.com/${PROJECT}`, aud: PROJECT, iat: t - 5, exp: t + 3600, auth_time: t - 5, sub: email,
+    email, email_verified: true, firebase: { identities: { 'google.com': [email] }, sign_in_provider: 'google.com' } });
+  return `${h}.${p}.${sign('RSA-SHA256', Buffer.from(`${h}.${p}`), gkey.privateKey).toString('base64url')}`;
+}
+const DEX = idToken('dexdcimino@gmail.com');
+const SOMEONE = idToken('someone@gmail.com');
+
 const serverDir = scratch('api');
 const server = spawn(process.execPath,
   [join(ROOT, 'tools/notes_dev_server.mjs'), '--port', String(PORT), '--dir', serverDir],
-  { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, MUSIC_LOOKUP_OFFLINE: '1', TUNES_PASSWORD: 'tunes' } });
+  { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, MUSIC_LOOKUP_OFFLINE: '1', TUNES_PASSWORD: 'tunes',
+    SITE_AUTH_PROJECT: PROJECT, SITE_AUTH_CERTS_URL: `http://127.0.0.1:${certs.address().port}/certs` } });
 server.stderr.on('data', (d) => { if (/EADDRINUSE|Error/.test(String(d))) console.error('dev server: ' + String(d).trim()); });
 const stop = () => {
   if (!server.killed) server.kill();
@@ -155,10 +185,12 @@ let TOKEN = null;
   note(r.data.count === SEEDN && r.data.seeded, `GET is ${r.data.count} tracks, seeded ${r.data.seeded}`);
   r = await api({ action: 'add', url: 'HarnessTst1', t: 'T', a: 'A' });
   note(r.status === 401, `an add with no token came back ${r.status}`);
-  r = await api({ action: 'unlock', code: 'nope' });
-  note(r.status === 401 && !r.data.token, `a wrong code came back ${r.status}`);
   r = await api({ action: 'unlock', code: 'TUNES' });
-  note(r.status === 200 && !!r.data.token, `TUNES came back ${r.status}`);
+  note(r.status === 401 && !r.data.token, `TUNES signed out came back ${r.status}`);
+  r = await api({ action: 'unlock', code: 'TUNES', idToken: SOMEONE });
+  note(r.status === 401 && !r.data.token, `TUNES as someone else came back ${r.status}`);
+  r = await api({ action: 'unlock', idToken: DEX });
+  note(r.status === 200 && !!r.data.token, `Dex signed in, no code, came back ${r.status}`);
   TOKEN = r.data.token;
 
   r = await api({ action: 'lookup', token: TOKEN, url: 'https://vimeo.com/1' });
@@ -204,14 +236,23 @@ let TOKEN = null;
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox', '--mute-audio'], defaultViewport: { width: 1400, height: 950 } });
 
-async function door(event, code, name) {
+/* Signed in: the site-auth mirror flag set, and site-auth.js answered by a
+   fake whose idToken() is a token signed above. Signed out: neither. */
+const FAKE_SITE_AUTH = (token) => `export const LOCAL_FLAG = 'site:signedIn';
+export async function idToken() { return ${JSON.stringify(token)}; }
+export async function currentUser() { return { uid: 'u' }; }
+export function onUser(fn) { setTimeout(() => fn({ uid: 'u' }), 0); return () => {}; }`;
+async function door(event, code, name, signedIn = null) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
+  if (signedIn) await page.evaluateOnNewDocument(() => { try { localStorage.setItem('site:signedIn', '1'); } catch { /* */ } });
   await (await page.createCDPSession()).send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {});
   /* The embed is not what this checks, and it autoplays. Refused at the wire,
      the way music_check does it, so no test waits on YouTube. */
   await page.setRequestInterception(true);
-  page.on('request', (req) => (/youtube|ytimg|googlevideo/.test(req.url()) ? req.abort() : req.continue()));
+  page.on('request', (req) => (/youtube|ytimg|googlevideo/.test(req.url()) ? req.abort()
+    : signedIn && req.url().endsWith('/account/site-auth.js') ? req.respond({ status: 200, contentType: 'text/javascript', body: FAKE_SITE_AUTH(signedIn) })
+    : req.continue()));
   page.on('pageerror', (e) => fail.push(`pageerror (${name}): ${e.message}`));
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
@@ -258,20 +299,26 @@ async function centre(page, selector) {
 
 try {
   const viewer = await door('music:open', '', 'MUSIC');
-  const editor = await door('tunes:open', 'tunes', 'TUNES');
-  const wrong = await door('tunes:open', 'nope', 'wrong code');
+  const editor = await door('music:open', '', 'MUSIC as Dex', DEX);
+  const wrong = await door('tunes:open', 'tunes', 'TUNES as someone else', SOMEONE);
+  const out = await door('tunes:open', 'tunes', 'TUNES signed out');
 
   const v0 = await state(viewer.page);
   note(!v0.admin && v0.title === 'MUSIC', `MUSIC opened as ${v0.title}, admin ${v0.admin}`);
   note(!v0.add && !v0.backups && v0.del === 0 && v0.enabled === 0 && v0.cells === 5,
        `MUSIC shows add ${v0.add}, backups ${v0.backups}, ${v0.del} minus, ${v0.enabled} live ticks, ${v0.cells} cells`);
   const e0 = await state(editor.page);
-  note(e0.admin && e0.title === 'TUNES', `TUNES opened as ${e0.title}, admin ${e0.admin}`);
+  /* DEX SIGNED IN IS THE EDITOR, through plain MUSIC and no code at all. */
+  note(e0.admin && e0.title === 'MUSIC', `MUSIC as Dex opened as ${e0.title}, admin ${e0.admin}`);
   note(e0.add && e0.backups && e0.del === e0.rows && e0.enabled === e0.rows && e0.cells === 6,
-       `TUNES shows add ${e0.add}, backups ${e0.backups}, ${e0.del} minus for ${e0.rows} rows, ${e0.cells} cells`);
+       `MUSIC as Dex shows add ${e0.add}, backups ${e0.backups}, ${e0.del} minus for ${e0.rows} rows, ${e0.cells} cells`);
   const w0 = await state(wrong.page);
-  note(!w0.admin && !w0.add && /does not unlock/i.test(w0.toast), `a wrong TUNES code: admin ${w0.admin}, toast "${w0.toast}"`);
+  note(!w0.admin && !w0.add && w0.del === 0 && w0.enabled === 0, `TUNES as someone else: admin ${w0.admin}, add ${w0.add}, ${w0.del} minus`);
   await wrong.context.close();
+  /* THE OLD CODE, SIGNED OUT: read-only, like any visitor. */
+  const o0 = await state(out.page);
+  note(!o0.admin && !o0.add && o0.del === 0 && o0.enabled === 0, `TUNES signed out: admin ${o0.admin}, add ${o0.add}, ${o0.del} minus`);
+  await out.context.close();
 
   /* ADD, through the form, with real keys. */
   await editor.page.click('#musicAdd');
@@ -376,17 +423,23 @@ try {
   note(await editor.page.evaluate(() => /Replace/.test(document.querySelector('#musicBackupsList .music-bk-restore').textContent)),
        'Restore acted on one press instead of asking for a second');
 
-  /* CLOSING ENDS EDITING, and MUSIC after TUNES in one tab is read-only. */
-  await editor.page.evaluate(() => document.getElementById('musicStop').click());
+  /* CLOSED AND OPENED AGAIN, still Dex, still the editor -- signed in is
+     the key, so nothing is asked for twice. */
+  await editor.page.evaluate(() => window.dexMusic.stopAll());
   await sleep(400);
   await editor.page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
   await editor.page.waitForFunction(() => document.getElementById('musicModal').open, { timeout: 5000 });
-  await sleep(600);
+  await sleep(900);
   const e1 = await state(editor.page);
-  note(!e1.admin && e1.del === 0 && e1.enabled === 0, `MUSIC after TUNES in one tab: admin ${e1.admin}, ${e1.del} minus, ${e1.enabled} live ticks`);
+  note(e1.admin && e1.del === e1.rows, `reopened as Dex: admin ${e1.admin}, ${e1.del} minus for ${e1.rows} rows`);
+  /* SIGNING OUT ENDS EDITING THERE AND THEN, with the list still up. */
+  await editor.page.evaluate(() => { localStorage.removeItem('site:signedIn'); window.dispatchEvent(new CustomEvent('site:user')); });
+  await sleep(900);
+  const e2 = await state(editor.page);
+  note(!e2.admin && e2.del === 0 && e2.enabled === 0, `signed out with the list up: admin ${e2.admin}, ${e2.del} minus, ${e2.enabled} live ticks`);
 
   await editor.page.screenshot({ path: join(ROOT, '.notes-dev/shots/tunes-music.png') });
-  console.log(`browsers: MUSIC read-only, TUNES added, deleted (two presses) and ticked, each seen on the MUSIC screen live`);
+  console.log(`browsers: signed out read-only, Dex signed in added, deleted (two presses) and ticked, each seen on the signed-out screen live, and signing out ended it`);
 
   await viewer.context.close();
   await editor.context.close();
