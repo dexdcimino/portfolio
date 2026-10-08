@@ -25,6 +25,62 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — One site account: Firebase is the parent, the apps are children
+
+**Decided.** dexcimino.com has one account. It is the Firebase project DexNote
+already used (`dexnote-d7047`); `account/site-auth.js` is the only place a page
+signs in from, and `lib/site-identity.js` checks its ID token on the server.
+Each app keeps its data under the uid. Inko keeps its own store and handles,
+and links its handle to the uid.
+
+**Replaced.** Two account systems: DexNote on Firebase, Inko on its own OAuth
+(`lib/sketch-oauth.js`) with handles in Vercel Blob. Signing in to one did not
+sign in to the other.
+
+**Why Firebase and not Inko's OAuth.** Firebase already holds the DexNote
+accounts (and dexnote.dev's), already does Google, GitHub and Discord, keeps the
+sign-in across every page and frame of the origin by itself, and gives an app a
+per-user database with owner-only rules for nothing. Inko's OAuth would have
+needed a session layer, GitHub, and a store for every future app built from
+scratch, and moving DexNote's users off Firebase would have meant moving their
+data. Inko's accounts need no move: its existing Google and Discord ids are in
+the Firebase token, so they link on first sign-in.
+
+**Reverse it if** Firebase Auth stops being free at this size, or a sign-in the
+site needs cannot be had through it; then the uid becomes ours and
+`site-identity.js` is the one file that changes on the server.
+
+---
+
+## 2026-10-08 — The homepage DexNote overlay signs in, and the AI Lab's DexNote keeps what you type
+
+**Decided.** Every way into the DexNote overlay on the homepage -- the keypad,
+the tilde prompt, the Idea Vault and the AI Lab eyeball -- mounts the same app
+with the same account button, through `dexnote/account.js`, the module
+`/dexnote/` uses. The AI Lab opens this browser's guest notes (or the
+account's when signed in) instead of a throwaway sandbox. The site-wide CSP
+and COOP carry the Firebase hosts and `same-origin-allow-popups`.
+
+**Replaced.** The overlay had no accounts (the password notes only, and an
+in-memory sandbox from the AI Lab that threw everything away on close), and
+sign-in lived only on `/dexnote/`.
+
+**Why.** Dex, 2026-10-08: whichever way the overlay is opened it should be the
+same working app with the same sign-in, all under one account. One module
+for both places keeps a sign-in, the guest move and the password-notes copy
+identical, and is the seam a site-wide account would replace. The sandbox's
+safety never came from its being throwaway but from having no token; the guest
+store keeps that property, since it is this browser's own storage. The
+button sits first in the header's right group because the overlay's own
+padlock and X are drawn over the right end of that row.
+
+**Reverse it if** the site gets one account for everything (notes, Inko,
+music): `account.js` then becomes a client of that, rather than of Firebase
+directly. Or if the AI Lab should go back to showing a demo nobody can keep,
+which is `format: 'demo'`, still in `notes/app.js`.
+
+---
+
 ## 2026-10-08 — Inko: canvas titles are searched on the device, not the server
 
 **Decided.** The gallery search finds artists through the server's `?users=` (as before)

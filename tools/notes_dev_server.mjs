@@ -29,10 +29,13 @@ const require = createRequire(import.meta.url);
 // fileURLToPath, not .pathname: this repo's own directory has a space in it,
 // and a raw pathname hands you %20 in a filesystem path.
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const DEXNOTE_CSP = JSON.parse(await readFile(join(ROOT, 'vercel.json'), 'utf8')).headers
-  .find((h) => h.source === '/dexnote/(.*)').headers.find((h) => h.key === 'Content-Security-Policy').value
+const HEADERS = JSON.parse(await readFile(join(ROOT, 'vercel.json'), 'utf8')).headers;
+const cspFor = (source) => HEADERS
+  .find((h) => h.source === source).headers.find((h) => h.key === 'Content-Security-Policy').value
   // upgrade-insecure-requests would send the harness's own http:// requests to https://
   .replace(/;\s*upgrade-insecure-requests/, '');
+const SITE_CSP = cspFor('/(.*)');
+const DEXNOTE_CSP = cspFor('/dexnote/(.*)');
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(name);
@@ -120,9 +123,9 @@ const server = createServer(async (req, res) => {
       'content-type': MIME[extname(file).toLowerCase()] || 'application/octet-stream',
       // The shipped CSP, so a harness run catches an inline style or a
       // cross-origin fetch the way production would refuse it.
-      // /dexnote/ has its own policy in vercel.json (Firebase, blob: pictures),
-      // read from there so the harness and the deploy cannot disagree.
-      'content-security-policy': url.startsWith('/dexnote/') ? DEXNOTE_CSP : "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://i.ytimg.com; media-src 'self' https://vz-f98421b2-da0.b-cdn.net; font-src 'self'; connect-src 'self' https://api.web3forms.com; form-action 'self' https://api.web3forms.com; frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com; base-uri 'none'; object-src 'none'",
+      // Both read from vercel.json, so the harness and the deploy cannot
+      // disagree: /dexnote/ has its own policy, everything else the site's.
+      'content-security-policy': url.startsWith('/dexnote/') ? DEXNOTE_CSP : SITE_CSP,
     });
     res.end(body);
   } catch {

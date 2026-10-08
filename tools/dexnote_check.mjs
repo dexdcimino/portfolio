@@ -30,7 +30,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(p => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 24;
+const EXPECTED = 44;
 
 const FAKE_CLOUD = `// Stand-in for dexnote/cloud.js: same exports, the "server" is a localStorage key.
 import { keyFor } from '/dexnote/local.js';
@@ -42,7 +42,7 @@ const userOf = (uid) => uid ? { uid, email: \`\${uid}@example.com\`, displayName
 let current = userOf(all().signedIn);
 export function onUser(fn) { listeners.push(fn); setTimeout(() => fn(current), 50); return () => {}; }
 const emit = () => listeners.forEach((f) => f(current));
-export async function signIn(which) { const s = all(); s.signedIn = 'dex-' + which; put(s); current = userOf(s.signedIn); emit(); }
+export async function signIn(which) { const s = all(); s.signedIn = 'dex-' + which; put(s); current = userOf(s.signedIn); emit(); return { user: current }; }
 export async function signOut() { const s = all(); s.signedIn = null; put(s); current = null; emit(); }
 export async function backupCurrent(user, cur) { const s = all(); const u = s.users[user.uid] ||= {}; (u.backups ||= []).push(cur); put(s); return 'b'; }
 export function cloudBackend(user) {
@@ -124,7 +124,17 @@ await sleep(1500);
 ok(await waitSaved(), `account save reaches SAVED (${await status()})`);
 ok(JSON.stringify(await p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud')).users['dex-google'].doc)).includes('cloud two'), 'account edit is in the store');
 
-// bring in the password notes
+// bring in the password notes -- seeded first with a document nothing else
+// on the page could produce, so the comparison below has a subject
+const seeded = await p.evaluate(async () => {
+  const { emptyDoc } = await import('/notes/state.js');
+  const doc = emptyDoc();
+  doc.sessions[0].cats[0].title = 'vault fixture';
+  const u = await (await fetch('/api/notes/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: 'notes' }) })).json();
+  const r = await fetch('/api/notes/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: u.token, doc, baseRev: u.rev }) });
+  return r.ok;
+});
+ok(seeded, 'the password notes seeded with a fixture');
 await p.click('.dn-account'); await sleep(300);
 ok(await clickText('Bring in the password notes…'), 'menu offers the password notes');
 await p.waitForSelector('.dn-input', { timeout: 5000 });
@@ -138,7 +148,12 @@ await p.waitForFunction(() => /password notes are now/.test(document.querySelect
 const cloud2 = await p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud')).users['dex-google']);
 const vault = await (await fetch(`${BASE}/api/notes/unlock`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: 'notes' }) })).json();
 ok(cloud2.backups?.length === 1 && JSON.stringify(cloud2.backups[0].doc).includes('cloud two'), 'the account copy was backed up before the replace');
-ok(JSON.stringify(cloud2.doc.sessions) === JSON.stringify(vault.content.sessions), 'account now holds exactly the password notes\' sessions');
+// The store answers its document as TEXT. Compared as text this once read
+// undefined === undefined and passed on nothing, so both sides are parsed and
+// the subject is asserted to exist first.
+const vaultDoc = typeof vault.content === 'string' ? JSON.parse(vault.content) : vault.content;
+ok(JSON.stringify(cloud2.doc).includes('vault fixture')
+  && JSON.stringify(cloud2.doc.sessions) === JSON.stringify(vaultDoc.sessions), 'account now holds exactly the password notes\' sessions');
 ok(!JSON.stringify(cloud2.doc).includes('cloud two'), 'old account text replaced');
 const shown = await p.evaluate(() => document.querySelectorAll('.nt-cat').length);
 ok(shown > 0, `app re-mounted on the vault notes (${shown} categories)`);
@@ -154,6 +169,74 @@ ok(await clickText('Sign out'), 'Sign out pressed');
 await p.waitForSelector('.dn-card', { timeout: 10000 }).catch(() => {});
 ok(await p.evaluate(() => !!document.querySelector('.dn-card') && !document.querySelector('.nt-body')), 'sign out returns to the gate with no notes on screen');
 
+
+// ---- the homepage overlay: the same account from every door ---------------
+// The AI Lab's DexNote is this browser's guest notes; the keypad's is the
+// password notes; both carry the same account button beside the X.
+const inOverlay = (sel) => p.evaluate((sel) => !!document.querySelector(`#notesEditor ${sel}`), sel);
+const overlayText = () => p.evaluate(() => [...document.querySelectorAll('#notesEditor .nt-body')].map((b) => b.textContent).join('|'));
+const pressLab = () => p.evaluate(() => { const e = document.querySelector('[data-notes-demo]'); if (!e) return false; e.click(); return true; });
+const overlayGone = () => p.waitForFunction(() => !document.querySelector('#notesEditor .nt-app'), { timeout: 10000 }).then(() => true, () => false);
+const beforeHome = errors.length;
+await p.goto(`${BASE}/`, { waitUntil: 'networkidle2' });
+// The homepage's own load reports two CSP refusals (an inline style and an
+// inline script near the top of index.html) on main too, before any of this
+// is touched. Reported here, not counted, so a new error still fails.
+const homeLoad = errors.splice(beforeHome);
+if (homeLoad.length) console.log(`     the homepage itself logged ${homeLoad.length} error(s) on load (not this check's subject)`);
+ok(await p.evaluate(() => !document.querySelector('script[src*="firebase"]') && !performance.getEntriesByType('resource').some((r) => /dexnote\/(account|cloud)\.js/.test(r.name))), 'the homepage fetches no account code before anything is opened');
+ok(await pressLab(), 'the AI Lab DexNote eye pressed');
+await p.waitForSelector('#notesEditor .nt-body', { timeout: 15000 });
+ok(await inOverlay('.dn-account') && await inOverlay('.nt-close') && !(await inOverlay('.is-demo')), 'the AI Lab opens the real app with the account button AND the X');
+ok(/Brainstorm/.test(await p.evaluate(() => document.querySelector('#notesEditor .nt-app').textContent)), 'a first open shows the tour document');
+await p.evaluate(() => { const b = document.querySelector('#notesEditor .nt-body'); b.focus(); const r = document.createRange(); r.selectNodeContents(b); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
+await p.keyboard.type(' lab guest marker');
+ok(await waitSaved(), `the AI Lab notes save as a guest (${await status()})`);
+ok(await p.evaluate(() => (localStorage.getItem('dexnote:guest:v1') || '').includes('lab guest marker')), 'into the same guest store /dexnote/ uses');
+await p.click('#notesEditor .nt-close');
+ok(await overlayGone(), 'the X closes it');
+await pressLab();
+await p.waitForSelector('#notesEditor .nt-body', { timeout: 15000 });
+ok((await overlayText()).includes('lab guest marker'), 'reopened from the AI Lab, the guest text is still there');
+
+await p.click('#notesEditor .dn-account'); await sleep(300);
+ok(await clickText('Sign in…'), 'the overlay account menu offers Sign in…');
+await p.waitForSelector('#notesEditor .dn-card', { timeout: 5000 }).catch(() => {});
+ok(await clickText('Continue with Google'), 'Google pressed inside the overlay');
+await p.waitForFunction(() => /vault fixture/.test(document.querySelector('#notesEditor .nt-app')?.textContent || ''), { timeout: 15000 }).catch(() => {});
+const cloud3 = await p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud')).users['dex-google']);
+ok(JSON.stringify(cloud3.doc).includes('lab guest marker') && JSON.stringify(cloud3.doc).includes('vault fixture'), 'signing in from the overlay moved the guest notes into the account');
+// Which store is mounted is proved by where an edit lands, not by what is
+// on screen: the account's active session is its own, not the guest's.
+ok(!(await inOverlay('.dn-card')), 'the sign-in sheet went away');
+await p.evaluate(() => { const b = document.querySelector('#notesEditor .nt-body'); b.focus(); const r = document.createRange(); r.selectNodeContents(b); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
+await p.keyboard.type(' acct marker a');
+await waitSaved();
+ok(JSON.stringify(await p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud')).users['dex-google'].doc)).includes('acct marker a'), 'the overlay now edits the account\'s notes');
+await p.click('#notesEditor .nt-close');
+await overlayGone();
+
+await p.goto(`${BASE}/#notes`, { waitUntil: 'networkidle2' });
+await p.waitForSelector('#notesPins .vault-pin', { visible: true, timeout: 10000 });
+await p.focus('#notesPins .vault-pin');
+for (const ch of 'notes') { await p.keyboard.type(ch); await sleep(40); }
+await p.waitForSelector('#notesEditor .dn-account', { timeout: 20000 }).catch(() => {});
+ok(await inOverlay('.dn-account') && await inOverlay('.nt-close'), 'the keypad opens the password notes with the same account button');
+await p.click('#notesEditor .dn-account'); await sleep(300);
+const items = await p.evaluate(() => [...document.querySelectorAll('.nt-menu button, .nt-menu [role="menuitem"]')].map((b) => b.textContent.trim()));
+ok(items.includes('dex-google@example.com') && items.includes('Open my account notes') && items.includes('Bring in the password notes…'), `signed in, the keypad's menu offers the account: ${JSON.stringify(items)}`);
+ok(await clickText('Open my account notes'), 'Open my account notes pressed');
+await p.waitForFunction(() => /acct marker a/.test(document.querySelector('#notesEditor .nt-app')?.textContent || ''), { timeout: 15000 }).catch(() => {});
+await p.evaluate(() => { const b = document.querySelector('#notesEditor .nt-body'); b.focus(); const r = document.createRange(); r.selectNodeContents(b); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
+await p.keyboard.type(' acct marker b');
+await waitSaved();
+const vaultNow = await (await fetch(`${BASE}/api/notes/unlock`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: 'notes' }) })).json();
+ok(JSON.stringify(await p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud')).users['dex-google'].doc)).includes('acct marker b')
+  && !JSON.stringify(vaultNow.content).includes('acct marker'), 'the keypad overlay swapped to the account notes, and the password notes did not get the edit');
+await p.click('#notesEditor .dn-account'); await sleep(300);
+ok(await clickText('Sign out'), 'Sign out pressed in the overlay');
+await p.waitForFunction(() => document.querySelector('#notesEditor .nt-app') && !/acct marker/.test(document.querySelector('#notesEditor .nt-app').textContent), { timeout: 15000 }).catch(() => {});
+ok(await p.evaluate(() => !JSON.parse(localStorage.getItem('fakecloud')).signedIn) && !/acct marker/.test(await overlayText()) && /vault fixture/.test(await overlayText() + await p.evaluate(() => document.querySelector('#notesEditor .nt-app')?.textContent || '')), 'signing out puts the password notes back, not the account\'s');
 
 const real = errors.filter((e) => !/favicon|Failed to load resource/.test(e));
 ok(real.length === 0, `no console errors (${real.length})${real.length ? ': ' + real.join(' || ') : ''}`);
