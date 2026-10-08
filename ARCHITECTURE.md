@@ -1007,7 +1007,8 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   rather than ThemeDock's 960x875) on `?sample=knot`. Left of the eye,
   `#mobiusDownload` links the desktop app: `initMobiusDownload` in `script.js`
   points it at this system's installer under `releases/latest/download/`
-  (the release names carry no version), and a phone keeps the Releases page. It is a
+  (the release names carry no version), Windows at the Microsoft Store listing
+  (signed, so no SmartScreen warning), and a phone keeps the Releases page. It is a
   BUILT COPY of `dist/` from its own repository, github.com/dexdcimino/mobius-3d,
   written here by that repo's `npm run site` and **never edited here**: an edit
   belongs in that repo's `src/`, and the same build is what its desktop app
