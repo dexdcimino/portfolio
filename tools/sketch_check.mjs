@@ -321,19 +321,36 @@ try {
     `leaving the viewer: back gesture ${JSON.stringify(afterBack)}, swipe ${JSON.stringify(afterSwipe)}, button ${JSON.stringify(afterButton)}; back again ${JSON.stringify(afterBack2)}`);
   await optTap(B, '#grid-btn'); await sleep(300);
   if (await B.evaluate(() => document.getElementById('g-tab-public').dataset.go === 'public')) { await B.click('#g-tab-public'); await sleep(400); }
+  // The @tag is folded into the face (batch 11): the face opens it, the tag opens the artist's profile.
+  const fold = async () => B.evaluate(() => { const t = document.querySelector('.g-item[data-post] .p-by .tag'); return { w: Math.round(t.getBoundingClientRect().width), op: +getComputedStyle(t).opacity }; });
+  const folded = await fold();
+  await B.click('.g-item[data-post] .p-by .avatar'); await sleep(400);
+  const unfolded = await fold();
+  const viewerShut = await B.evaluate(() => !document.getElementById('viewer').classList.contains('open'));
+  await B.click('.g-item[data-post] .p-by .tag'); await sleep(900);
+  const prof = await B.evaluate(() => ({ mode: document.getElementById('gallery').className, page: document.getElementById('g-page').textContent,
+    cards: [...document.querySelectorAll('.g-item img')].map(e => e.alt), globe: !!document.querySelector('.g-item[data-post] .g-pub') }));
+  note(folded.w === 0 && folded.op === 0 && unfolded.w > 40 && unfolded.op === 1 && viewerShut && /mode-user/.test(prof.mode) && prof.page === '@artist_a' && prof.cards.includes('Dragon') && !prof.globe,
+    `the tag folded ${JSON.stringify(folded)}, opened by the face ${JSON.stringify(unfolded)} (viewer shut ${viewerShut}), the tag into the profile ${JSON.stringify(prof)}`);
+  await B.click('#g-back'); await sleep(600);
   await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
   await B.click('#v-more'); await sleep(150);
   // Hide this artist: gone from B's feed, on this device only.
   await B.click('#v-block'); await sleep(200); await B.click('#m-del'); await sleep(400);
   note(await B.evaluate(() => !document.querySelector('.g-item[data-post]')), 'hiding the artist left their drawing in B\'s feed');
 
-  // A makes it private: gone from the server.
-  await A.click('#g-tab-mine'); await sleep(300);
-  await A.evaluate(() => document.querySelector('.g-item .g-pub.on').closest('.g-item').querySelector('.g-opt').click()); await sleep(350);
-  await A.click('.g-item .g-pub.on');
-  await A.waitForFunction(() => document.querySelector('.g-item .g-pub') && !document.querySelector('.g-item .g-pub.on'), { timeout: 10000 }).catch(() => {});
-  const afterPrivate = (await (await fetch(`${BASE}/api/sketch?feed=1`)).json()).posts;
-  note(!afterPrivate.some(p => p.title === 'Dragon'), 'making it private left it in the shared feed');
+  // A makes it private FROM PUBLIC (batch 11): the globe on her own tile, gone from the feed and the server.
+  if (await A.evaluate(() => document.getElementById('g-tab-public').dataset.go === 'public')) { await A.click('#g-tab-public'); await sleep(900); }
+  await A.waitForFunction(() => document.querySelector('.g-item[data-post] .g-pub.on'), { timeout: 10000 }).catch(() => {});
+  const ownTile = await A.evaluate(() => ({ globe: !!document.querySelector('.g-item[data-post] .g-pub.on svg circle'), n: document.querySelectorAll('.g-item[data-post]').length }));
+  await A.click('.g-item[data-post] .g-pub.on');
+  await A.waitForFunction(() => !document.querySelector('.g-item[data-post]'), { timeout: 10000 }).catch(() => {});
+  const leftFeed = await A.evaluate(() => ({ n: document.querySelectorAll('.g-item[data-post]').length, toast: document.getElementById('toast').textContent }));
+  const afterPrivate = (await (await fetch(`${BASE}/api/sketch?feed=1&fresh=1`)).json()).posts;
+  await A.click('#g-tab-public'); await sleep(400);
+  const mineNow = await A.evaluate(() => [...document.querySelectorAll('#g-rows .g-item .g-pub')].map(b => b.classList.contains('on')));
+  note(ownTile.globe && ownTile.n === 1 && leftFeed.n === 0 && /now private/.test(leftFeed.toast) && !afterPrivate.some(p => p.title === 'Dragon') && mineNow.length && !mineNow.includes(true),
+    `taken private from Public: ${JSON.stringify(ownTile)} -> ${JSON.stringify(leftFeed)}, server has it ${afterPrivate.some(p => p.title === 'Dragon')}, her own gallery's locks ${JSON.stringify(mineNow)}`);
   console.log(`people: A published "Dragon", B saw it at ${seen && seen.w}px, reacted 🔥 then 💩, viewed it at ${big.w}px, hid the artist; A took it back`);
   note(errors.length === 0, `console/page errors: ${errors.join(' | ')}`);
   await ctxA.close(); await ctxB.close();
