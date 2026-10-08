@@ -451,14 +451,35 @@ try {
     note(await C.evaluate(() => document.getElementById('g-account').textContent) === '@dexcimino', 'the owner could not claim @dexcimino');
     const sess = await C.evaluate(() => JSON.parse(localStorage.getItem('sketchSession')));
     note(sess && sess.sso === true, `the session is ${JSON.stringify(sess)}`);
-    // Signed out and back in with Google: straight in, no name to pick.
+    // Signed out and back in with Google: straight in, no name to pick --
+    // and a canvas drawn signed out in between STAYS signed out: only an
+    // account made just now takes those (Dex, 2026-10-08).
+    // Who owns the canvas titled T on this device, read out of IndexedDB.
+    const ownerOf = (T) => C.evaluate(async (T) => {
+      const d = await new Promise((res) => { const r = indexedDB.open('inko'); r.onsuccess = () => res(r.result); });
+      const all = await new Promise(res => { const q = d.transaction('canvases').objectStore('canvases').getAll(); q.onsuccess = () => res(q.result); });
+      d.close();
+      const it = all.find(c => c.title === T); return it ? (it.owner || 'local') : null;
+    }, T);
+    const drawGuest = async (T) => {
+      const r = await C.evaluate(() => { const b = document.getElementById('pad').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
+      await C.mouse.move(r.x + r.w * 0.3, r.y + r.h * 0.4); await C.mouse.down();
+      await C.mouse.move(r.x + r.w * 0.6, r.y + r.h * 0.6, { steps: 8 }); await C.mouse.up(); await sleep(400);
+      await C.evaluate(() => { document.getElementById('title-input').value = ''; });
+      await C.type('#title-input', T);
+      await optTap(C, '#plus-btn'); await sleep(900);
+    };
     await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
+    await drawGuest('Guest before Google');
+    note(await ownerOf('Guest before Google') === 'local', 'the guest canvas was not saved signed out');
     await optTap(C, '#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
     await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-google')]);
     await sleep(600);
     const again = await C.evaluate(() => ({ who: document.getElementById('g-account').textContent, claim: !document.getElementById('a-claim').hidden, hash: location.hash }));
     note(again.who === '@dexcimino' && !again.claim && again.hash === '', `a second Google sign-in: ${JSON.stringify(again)}`);
+    const guestAfterGoogle = await ownerOf('Guest before Google');
+    note(guestAfterGoogle === 'local', `signing back in to an EXISTING Google account took the guest canvas (now ${guestAfterGoogle})`);
 
     // Making a drawing public SIGNED OUT, through a Google round trip: the
     // page reloads on the way back, and the drawing must still go public and
@@ -499,9 +520,11 @@ try {
     await C.evaluate(() => localStorage.removeItem('sketchBlocked'));
     console.log(`publish through Google: ${JSON.stringify(pending)}, in the Public tab, and shown despite a self-hide`);
 
-    // Discord, a different person: a reserved name refused, their own taken.
+    // Discord, a different person: a reserved name refused, their own taken
+    // -- and as a NEW account, the guest canvases come with it.
     await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
+    await drawGuest('Guest before Discord');
     await optTap(C, '#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
     await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-discord')]);
     await C.waitForFunction(() => !document.getElementById('a-claim').hidden, { timeout: 10000 }).catch(() => {});
@@ -512,6 +535,11 @@ try {
     await C.evaluate(() => { document.getElementById('a-claim-handle').value = 'discord_fan'; });
     await C.click('#a-claim-go'); await sleep(800);
     note(await C.evaluate(() => document.getElementById('g-account').textContent) === '@discord_fan', 'the Discord account did not get @discord_fan');
+    await sleep(800);
+    const disc = { a: await ownerOf('Guest before Discord'), b: await ownerOf('Guest before Google') };
+    note(disc.a === 'u:discord_fan' && disc.b === 'u:discord_fan', `a NEW Discord account did not take the guest canvases: ${JSON.stringify(disc)}`);
+    // The Google account it was never signed in to on the way kept none of them.
+    note(await ownerOf('Sunset') === 'u:dexcimino', 'the Google account lost its own canvas');
     // Deleting a Discord account: no password field, no password needed.
     await C.click('#g-account'); await sleep(200);
     note(await C.evaluate(() => document.getElementById('a-pass2').hidden), 'a Discord account was asked for a password to delete itself');

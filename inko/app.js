@@ -1161,11 +1161,16 @@ async function api(action, data = {}){
   return body;
 }
 function setSession(s){
+  // `fresh` is the server saying this very call MADE the account (signup, or
+  // a first claim). It is the one thing that moves the signed-out canvases
+  // in (adoptLocal), it is used once, here, and it is never stored: no other
+  // tab, reload or later sign-in can carry it to an account that exists.
+  const fresh = !!(s && s.fresh === true);
+  if (s){ s = { ...s }; delete s.fresh; delete s.created; }
   session = s;
   try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch (e) {}
   syncAccountButton();
-  // Only a brand-new account takes in the signed-out canvases (see adoptLocal).
-  switchScope(scopeOf(s), !!(s && s.created));
+  switchScope(scopeOf(s), fresh);
   if (s) resumePublish();
 }
 
@@ -1175,11 +1180,14 @@ function switchScope(next, adopt){
   scopeChain = scopeChain.then(() => enterScope(next, adopt)).catch(e => console.warn('inko: scope', e));
   return scopeChain;
 }
-/* An account CREATED just now, on this device: the signed-out canvases and
-   draft move into it. Never on signing back in to an account that already
-   exists (Dex, 2026-10-08: guest canvases carry over when the account is
-   made, and only then). It only ever moves records owned by nobody, and
-   never replaces an account's draft or picture. Returns how many moved. */
+/* An account the server CREATED just now, on this device (its `fresh`, see
+   setSession): the signed-out canvases and draft move into it. Never on
+   signing back in to an account that already exists, with Google, Discord,
+   the site account or a password, in this tab or another (Dex, 2026-10-08:
+   guest canvases carry over when the account is made, and only then). It
+   only ever ADDS: it moves records owned by nobody, never touches a record
+   an account owns, and never replaces an account's draft or picture.
+   Returns how many moved. */
 async function adoptLocal(next){
   if (next === 'local' || await idbGet('meta', 'seen:' + next).catch(() => null)) return 0;
   let moved = 0;
@@ -1823,7 +1831,7 @@ async function paintOtherAccounts(){
     const n = here[o.handle] || 0;
     row('You also have @' + o.handle + (n ? ' (' + n + (n === 1 ? ' canvas' : ' canvases') + ' here)' : '') + '.', 'Switch to @' + o.handle, () => {
       const rest = others.filter(x => x.handle !== o.handle);
-      setSession({ ...session, handle: o.handle, token: o.token, created: false,
+      setSession({ ...session, handle: o.handle, token: o.token,
                    others: [{ handle: session.handle, token: session.token }, ...rest] });
       closeAccount(); toast('Signed in as @' + o.handle);
     });
@@ -1948,7 +1956,7 @@ function openClaim(ticket, suggest){
     $('a-msg3').textContent = '';
     try {
       const r = await api('claim', { ticket, handle: $('a-claim-handle').value });
-      setSession({ handle: r.handle, token: r.token, sso: true, created: true });
+      setSession({ handle: r.handle, token: r.token, sso: true, fresh: r.fresh === true });
       closeAccount();
       toast('Welcome, @' + r.handle);
     } catch (e) { $('a-msg3').textContent = e.message; }
@@ -1961,7 +1969,9 @@ window.addEventListener('storage', e => {
   if (e.key !== SESSION_KEY) return;
   try { session = JSON.parse(e.newValue || 'null'); } catch (err) { session = null; }
   syncAccountButton();
-  switchScope(scopeOf(session), !!(session && session.created));
+  // Another tab signed in. Never an adoption: a new account takes the
+  // signed-out canvases in the tab that made it (they share this IndexedDB).
+  switchScope(scopeOf(session), false);
   if (session) resumePublish();
   if (session && $('account').classList.contains('open')) closeAccount();
   if (galleryTab === 'public') loadFeed();
@@ -1972,7 +1982,7 @@ async function signIn(action){
   const handle = $('a-handle').value, password = $('a-pass').value;
   try {
     const r = await api(action, { handle, password });
-    setSession({ handle: r.handle, token: r.token, created: action === 'signup' });
+    setSession({ handle: r.handle, token: r.token, fresh: r.fresh === true });
     const then = afterSignIn;
     closeAccount();
     toast(action === 'signup' ? 'Welcome, @' + r.handle : 'Signed in as @' + r.handle);
@@ -2650,7 +2660,7 @@ async function refreshSite(){
   await scopeChain; await syncAccount();
   if (session !== was) return;
   if (r.handle !== was.handle && !gallery.length){
-    setSession({ ...was, handle: r.handle, token: r.token, created: false,
+    setSession({ ...was, handle: r.handle, token: r.token,
                  others: [...all.filter(o => o.handle !== r.handle && o.handle !== was.handle), { handle: was.handle, token: was.token }] });
     toast('Signed in as @' + r.handle);
     return;
