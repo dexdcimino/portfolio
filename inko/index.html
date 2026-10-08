@@ -49,22 +49,26 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
     <button id="grid-btn" class="tbtn" aria-label="Gallery">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2.5" width="14" height="14" rx="3.2"/><path d="M16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V7.5"/><path d="M7.8 13.6l3.6-3.6 2.8 2.8 1.9-1.9 5 5"/><circle cx="16.6" cy="7.4" r="1.5" fill="currentColor" stroke="none"/></svg>
     </button>
     <button id="ed-btn" class="tbtn" aria-label="Eyedropper">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3 L21 7 L14 14 L10 10 Z"/><path d="M10 10 L4 20 L5 21 L6 20"/><path d="M14 14 L11 17"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.3 3.9a2.7 2.7 0 0 1 3.8 0l1 1a2.7 2.7 0 0 1 0 3.8l-2.4 2.4-4.8-4.8z" fill="currentColor"/><path d="M11.3 6.7l6 6"/><path d="M13.4 8.8l-7.9 7.9-.9 3.3-1.1 1.3 1.3-1.1 3.3-.9 7.9-7.9"/><path d="M6.2 17.8l2.1-2.1" opacity=".55"/></svg>
     </button>
   </div>
   <div class="tb-mid">
-    <button id="tool-toggle" class="tbtn sel" aria-label="Toggle brush/eraser">
-      <svg id="toggle-brush-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 3 L21 6"/><!-- handle end -->
-        <path d="M17 4 L20 7 L12 15 L9 12 Z"/><!-- ferrule -->
-        <path id="brush-tip" d="M9 12 L12 15 L7 21 C6 22 4 22 3 21 C2 20 2 18 3 17 Z" fill="#ff2d2d" stroke="none"/><!-- bristles -->
+    <!-- Brush and eraser, BOTH always shown (Dex, 2026-10-08): the tool in use
+         big in the middle, the other small in the top-left corner; a tap swaps
+         them along two arcs (see swapTools in app.js). -->
+    <button id="tool-toggle" class="tbtn sel" aria-label="Switch to eraser">
+      <svg id="toggle-brush-icon" class="tool-ico big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 3 L13.4 10.6" stroke-width="2.6"/><!-- handle -->
+        <path d="M12.2 9.4 L14.6 11.8 L12.6 13.8 L10.2 11.4 Z" fill="currentColor"/><!-- ferrule -->
+        <path id="brush-tip" d="M10.2 11.4 L12.6 13.8 C12.2 17.6 9.4 20.6 3 20.6 C4.6 19.4 5 18.2 5.3 16.4 C5.6 13.9 7.4 11.6 10.2 11.4 Z" fill="#ff2d2d" stroke="none"/><!-- bristles, in the brush colour -->
       </svg>
-      <svg id="toggle-eraser-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-        <path d="M5 15 L15 5 L20 10 L10 20 L5 20 Z"/><!-- eraser body -->
-        <path d="M12 8 L17 13"/><!-- band -->
+      <svg id="toggle-eraser-icon" class="tool-ico small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13.6 3.6 L20.4 10.4 L11.6 19.2 H7 L3.6 15.8 Z"/><!-- body -->
+        <path d="M13.6 3.6 L20.4 10.4 L14.6 16.2 L7.8 9.4 Z" fill="currentColor" opacity=".9"/><!-- the coloured half -->
+        <path d="M11.6 19.2 H20.5"/><!-- the surface it rubs -->
       </svg>
     </button>
   </div>
@@ -73,7 +77,7 @@
       <span id="color-dot"></span>
     </button>
     <button id="sym-btn" class="tbtn" aria-label="Mirror" aria-pressed="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="3 3"/><path d="M8 8 L5 12 L8 16"/><path d="M16 8 L19 12 L16 16"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19" stroke-dasharray="1.6 2.8"/><path d="M9 5.5 L3 18 H9 Z" fill="currentColor"/><path d="M15 5.5 L21 18 H15 Z"/></svg>
     </button>
   </div>
 </div>
@@ -130,16 +134,20 @@
   </div>
 </div>
 
+<!-- A public drawing, full size (Dex, 2026-10-08): an overlay with the title
+     at the top and nothing to press up there; the artist, then one bar of
+     controls at the bottom -- back, the poop|fire pill, and more. Swipe up
+     and down for the next and previous drawing, right to left to go back. -->
 <div id="viewer">
-  <button id="v-close" class="v-x" aria-label="Close">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-  </button>
-  <div id="v-stage"><img id="v-img" alt=""></div>
+  <div id="v-title"></div>
+  <div id="v-stage"><img id="v-img" alt="" draggable="false"></div>
+  <button id="v-by" class="v-artist"></button>
   <div id="v-bar">
-    <div id="v-meta"><div id="v-title"></div><button id="v-by" class="by-link"></button></div>
+    <button id="v-close" class="g-sq v-btn" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"/></svg></button>
     <div class="g-react"></div>
-    <div id="v-acts"><button id="v-report" class="v-link">Report</button><button id="v-block" class="v-link">Hide this artist</button></div>
+    <button id="v-more" class="g-sq v-btn" aria-label="More" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
   </div>
+  <div id="v-acts" hidden><button id="v-report" class="v-link">Report</button><button id="v-block" class="v-link">Hide this artist</button></div>
 </div>
 
 <div id="account"><div id="account-card">

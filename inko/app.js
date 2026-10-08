@@ -194,11 +194,17 @@ function setupCanvas(){
   fit();
 }
 let fitK = 1;
+/* The canvas stands on the bars with one even gap under it (Dex,
+   2026-10-08): the stage's margin is whatever the bars -- and the canvas
+   colour window, when it is open -- take up right now, so opening the
+   sliders lifts the canvas instead of covering it. */
 function fit(){
   const topbar = $('topbar').offsetHeight;
-  const bottomBars = $('bottom-bars') ? $('bottom-bars').offsetHeight : 140;
+  let bottomBars = $('bottom-bars') ? $('bottom-bars').offsetHeight : 140;
+  if (brushPop.classList.contains('open')) bottomBars = Math.max(bottomBars, window.innerHeight - brushPop.getBoundingClientRect().top);
+  $('stage').style.marginBottom = bottomBars + 'px';
   const availW = Math.min(window.innerWidth*0.94, 460);
-  const availH = window.innerHeight - topbar - bottomBars - 24;
+  const availH = window.innerHeight - topbar - bottomBars - 14 - 6;
   const k = Math.max(0.2, Math.min(availW/W, availH/H));
   fitK = k;
   canvas.style.width = (W*k)+'px'; canvas.style.height = (H*k)+'px';
@@ -491,15 +497,39 @@ titleInput.addEventListener('input', () => { dirty = true; scheduleDraft(); });
 /* ---------- toolbar ---------- */
 function syncToolSel(){
   const isBrush = tool==='brush';
-  $('toggle-brush-icon').style.display = isBrush ? '' : 'none';
-  $('toggle-eraser-icon').style.display = isBrush ? 'none' : '';
+  $('toggle-brush-icon').classList.toggle('big', isBrush); $('toggle-brush-icon').classList.toggle('small', !isBrush);
+  $('toggle-eraser-icon').classList.toggle('big', !isBrush); $('toggle-eraser-icon').classList.toggle('small', isBrush);
   $('tool-toggle').setAttribute('aria-label', isBrush ? 'Switch to eraser' : 'Switch to brush');
+}
+/* The swap, as two arcs rather than a straight trade (Dex, 2026-10-08): the
+   small icon swings out right and down as it grows into the middle; the big
+   one dips down and left before it rises into the corner, shrinking. Each
+   keyframe is a point on its arc. The resting places are the CSS classes. */
+const TOOL_BIG = 'translate(2px,2px) scale(1)', TOOL_SMALL = 'translate(-16px,-14px) scale(.46)';
+function swapTools(){
+  const grow = tool === 'brush' ? $('toggle-brush-icon') : $('toggle-eraser-icon');
+  const shrink = grow === $('toggle-brush-icon') ? $('toggle-eraser-icon') : $('toggle-brush-icon');
+  syncToolSel();
+  if (!grow.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const opts = { duration: 420, easing: 'cubic-bezier(.45,.05,.25,1)' };
+  grow.animate([
+    { transform: TOOL_SMALL, opacity: .7 },
+    { transform: 'translate(10px,-12px) scale(.62)', opacity: .85, offset: .35 },
+    { transform: 'translate(12px,4px) scale(.86)', opacity: 1, offset: .7 },
+    { transform: TOOL_BIG, opacity: 1 },
+  ], opts);
+  shrink.animate([
+    { transform: TOOL_BIG, opacity: 1 },
+    { transform: 'translate(-6px,12px) scale(.8)', opacity: .9, offset: .35 },
+    { transform: 'translate(-20px,0px) scale(.6)', opacity: .8, offset: .7 },
+    { transform: TOOL_SMALL, opacity: .7 },
+  ], opts);
 }
 $('tool-toggle').addEventListener('click', e => {
   e.stopPropagation();
   closePop();
   tool = tool==='brush' ? 'eraser' : 'brush';
-  syncToolSel(); refreshSizeUI();
+  swapTools(); refreshSizeUI();
 });
 $('color-btn').addEventListener('click', e => {
   e.stopPropagation();
@@ -555,7 +585,7 @@ function placePop(){
   const tb = $('toolbar').getBoundingClientRect();
   brushPop.style.bottom = Math.max(8, window.innerHeight - tb.top + 12) + 'px';
 }
-function closePop(){ popMode = null; brushPop.classList.remove('open'); }
+function closePop(){ const was = brushPop.classList.contains('open'); popMode = null; brushPop.classList.remove('open'); if (was) fit(); }
 $('pop-x').addEventListener('click', e => { e.stopPropagation(); closePop(); });
 document.addEventListener('pointerdown', e => {
   if (!popMode) return;
@@ -739,6 +769,7 @@ $('canvas-swatch').addEventListener('click', e => {
   popMode = 'canvas';
   refreshPanelUI(); placePop();
   brushPop.classList.add('open');
+  fit();
 });
 
 /* ---------- color/size mode toggle ---------- */
@@ -749,6 +780,7 @@ function setColorMode(on){
   $('hsb-bar').style.display = on ? 'flex' : 'none';
   $('color-btn').classList.toggle('on', on);
   if(on) syncHSBInputs();
+  fit();
 }
 function syncHSBInputs(){
   refreshPanelUI();
@@ -836,7 +868,7 @@ function makeItem(it, isLive){
       });
     });
     liveThumb(url => img.src = url);
-    div.addEventListener('click', () => $('gallery').classList.remove('open'));
+    div.addEventListener('click', () => closeGallery());
   } else {
     del.addEventListener('click', e => {
       e.stopPropagation();
@@ -907,7 +939,7 @@ async function openCanvas(id){
   if (kept) useStack(kept); else { history = []; step = -1; pushHistory(); }
   dirty = false;
   scheduleDraft();
-  $('gallery').classList.remove('open');
+  closeGallery();
   refreshPanelUI();
 }
 $('grid-btn').addEventListener('click', async () => {
@@ -916,7 +948,7 @@ $('grid-btn').addEventListener('click', async () => {
   if (dirty) await saveCurrent().catch(() => {});
   // Someone else's profile is a stop on the way, not a place to come back to.
   setGalleryTab(galleryTab === 'user' ? 'public' : galleryTab);
-  $('gallery').classList.add('open');
+  openGallery();
 });
 /* Back: out of a search, out of picking a picture, from an artist back to
    Public -- and otherwise to the canvas. */
@@ -924,7 +956,7 @@ $('g-back').addEventListener('click', () => {
   if (searching()){ clearSearch(); return; }
   if (picking){ setPicking(false); return; }
   if (galleryTab === 'user'){ setGalleryTab('public'); return; }
-  $('gallery').classList.remove('open');
+  closeGallery();
 });
 
 /* ---------- toast ---------- */
@@ -1270,49 +1302,71 @@ const imgUrl = (p, thumb) => `${API}?img=${encodeURIComponent(`sketch/img/${p.id
    signed out, and once taken, every drawing you published vanished from your
    Public tab for good. */
 function visibleFeed(){ return feed.filter(p => !blocked.includes(p.handle) || (session && session.handle === p.handle)); }
+/* Cards in rows: three across for your own canvases, TWO for public drawings
+   (Dex, 2026-10-08: the artist's face and @tag have to be readable on them). */
+function fillRows(items, per, make){
+  const rows = $('g-rows');
+  for (let i = 0; i < items.length; i += per){
+    const row = document.createElement('div'); row.className = 'g-row' + (per === 2 ? ' two' : '');
+    items.slice(i, i + per).forEach(x => row.appendChild(make(x)));
+    rows.appendChild(row);
+  }
+}
+let gridPosts = [];                 // the public drawings on screen, in order: what the viewer swipes through
 function renderFeed(){
   if (searching() || galleryTab !== 'public') return;
   const rows = $('g-rows'); rows.innerHTML = '';
   const items = visibleFeed();
+  gridPosts = items;
   $('g-count').textContent = items.length + (items.length === 1 ? ' drawing' : ' drawings');
   if (!items.length){
     const e = document.createElement('div'); e.className = 'g-empty';
     e.textContent = 'Nothing shared yet. Make one of your drawings public to start it off.';
     rows.appendChild(e); return;
   }
-  for (let i = 0; i < items.length; i += 3){
-    const row = document.createElement('div'); row.className = 'g-row';
-    items.slice(i, i + 3).forEach(p => row.appendChild(feedItem(p)));
-    rows.appendChild(row);
-  }
+  fillRows(items, 2, feedItem);
   $('g-grid').scrollTop = 0;
 }
+const rxIcon = kind => { const i = document.createElement('span'); i.className = 'rx-ico'; i.dataset.icon = kind; return i; };
+/* Poop | fire, one pill (the viewer's). Grey until you rate; then the one you
+   chose is in colour with its count, and only that count shows. */
 function reactionRow(p){
   const wrap = document.createElement('div'); wrap.className = 'g-react';
-  for (const kind of ['fire', 'poop']){
+  const pill = document.createElement('div'); pill.className = 'rx-pill';
+  const mine = myVoteFor[p.id] || null;
+  for (const kind of ['poop', 'fire']){
     const b = document.createElement('button');
-    b.className = 'g-rx' + (myVoteFor[p.id] === kind ? ' on' : '');
+    b.className = 'g-rx' + (mine === kind ? ' on' : '');
     b.dataset.kind = kind;
     b.setAttribute('aria-label', kind === 'fire' ? 'Fire' : 'Poop');
-    b.innerHTML = `<span>${kind === 'fire' ? '🔥' : '💩'}</span><b>${p[kind] || 0}</b>`;
+    b.setAttribute('aria-pressed', String(mine === kind));
+    const n = document.createElement('b'); n.textContent = mine === kind ? String(p[kind] || 0) : '';
+    b.append(rxIcon(kind), n);
     b.addEventListener('click', e => { e.stopPropagation(); react(p, kind); });
-    wrap.appendChild(b);
+    pill.appendChild(b);
   }
+  wrap.appendChild(pill);
   return wrap;
 }
+/* A public tile is the drawing and nothing under it: the artist (face and
+   @tag) along its foot, the fire count in its corner. Tapping the artist
+   opens their profile; anywhere else, the drawing. */
+function fireBadge(p){
+  const f = document.createElement('div'); f.className = 'p-fire';
+  f.append(rxIcon('fire'), String(p.fire || 0));
+  return f;
+}
 function feedItem(p){
-  const div = document.createElement('div'); div.className = 'g-item'; div.dataset.post = p.id;
+  const div = document.createElement('div'); div.className = 'g-item p-item'; div.dataset.post = p.id;
   const th = document.createElement('div'); th.className = 'g-thumb';
-  const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy'; img.src = imgUrl(p, true);
-  th.appendChild(img);
-  const cap = document.createElement('div'); cap.className = 'g-title';
-  cap.textContent = p.title;
-  const by = document.createElement('div'); by.className = 'g-by';
-  by.append(avatarEl(p.handle, 'small'), '@' + p.handle);
-  // The name is a way to the artist; the rest of the card is the drawing.
+  const img = document.createElement('img'); img.alt = p.title || ''; img.loading = 'lazy'; img.src = imgUrl(p, true);
+  const by = document.createElement('div'); by.className = 'p-by';
+  const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = '@' + p.handle;
+  by.append(avatarEl(p.handle, 'mid'), tag);
   by.addEventListener('click', e => { e.stopPropagation(); openUser(p.handle); });
-  div.append(th, cap, by, reactionRow(p));
-  div.addEventListener('click', () => openViewer(p));
+  th.append(img, fireBadge(p), by);
+  div.append(th);
+  div.addEventListener('click', () => openViewer(p, gridPosts));
   return div;
 }
 /* ONE object per post. A sign-in reloads the feed with fresh objects while a
@@ -1339,35 +1393,134 @@ async function react(p, kind){
   repaintPost(p);
 }
 function repaintPost(p){
-  document.querySelectorAll(`[data-post="${p.id}"] .g-react, #viewer[data-post="${p.id}"] .g-react`).forEach(el => el.replaceWith(reactionRow(p)));
+  document.querySelectorAll(`#viewer[data-post="${p.id}"] .g-react`).forEach(el => el.replaceWith(reactionRow(p)));
+  document.querySelectorAll(`[data-post="${p.id}"] .p-fire`).forEach(el => el.replaceWith(fireBadge(p)));
 }
 
-/* ---- the viewer ---- */
-function openViewer(p){
+/* ---- the viewer ----
+   An overlay over the grid it came from, holding that grid's list: swipe up
+   for the next drawing, down for the one before, right to left (or the
+   phone's own back gesture, see "back") to go back to the grid. */
+let viewerList = [], viewerAt = 0;
+function showPost(p){
   p = canonical(p);
   const v = $('viewer');
   v.dataset.post = p.id;
   $('v-img').src = imgUrl(p, false);
+  $('v-img').alt = p.title || '';
   $('v-title').textContent = p.title;
-  $('v-by').replaceChildren(avatarEl(p.handle, 'small'), '@' + p.handle);
+  const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = '@' + p.handle;
+  $('v-by').replaceChildren(avatarEl(p.handle, 'mid'), tag);
   $('v-by').onclick = () => { closeViewer(); openUser(p.handle); };
   const old = v.querySelector('.g-react'); if (old) old.replaceWith(reactionRow(p));
   const mine = session && session.handle === p.handle;
-  $('v-report').hidden = mine; $('v-block').hidden = mine;
-  $('v-report').onclick = () => openModal('Report this drawing?', 'Three reports take it down until it is reviewed.', 'Report', async () => {
+  $('v-more').hidden = !!mine; $('v-acts').hidden = true;
+  $('v-report').onclick = () => { $('v-acts').hidden = true; openModal('Report this drawing?', 'Three reports take it down until it is reviewed.', 'Report', async () => {
     if (!session){ openAccount(); return; }
     try { const r = await api('report', { id: p.id }); toast(r.hidden ? 'Reported — it has been taken down' : 'Reported — thank you'); }
     catch (e) { toast(e.message); }
-  });
-  $('v-block').onclick = () => openModal('Hide @' + p.handle + '?', 'You will not see their drawings on this device.', 'Hide', () => {
+  }); };
+  $('v-block').onclick = () => { $('v-acts').hidden = true; openModal('Hide @' + p.handle + '?', 'You will not see their drawings on this device.', 'Hide', () => {
     blocked = [...new Set([...blocked, p.handle])];
     try { localStorage.setItem(BLOCK_KEY, JSON.stringify(blocked)); } catch (e) {}
     closeViewer(); renderFeed(); toast('Hidden');
-  });
-  v.classList.add('open');
+  }); };
 }
-function closeViewer(){ $('viewer').classList.remove('open'); $('v-img').removeAttribute('src'); }
-$('v-close').addEventListener('click', closeViewer);
+function openViewer(p, list){
+  viewerList = (list && list.length ? list : [p]).map(canonical);
+  viewerAt = Math.max(0, viewerList.findIndex(x => x.id === p.id));
+  showPost(viewerList[viewerAt] || p);
+  if (!$('viewer').classList.contains('open')){ $('viewer').classList.add('open'); pushNav('viewer'); }
+}
+function closeViewer(fromBack){
+  if (!$('viewer').classList.contains('open')) return;
+  $('viewer').classList.remove('open'); $('v-img').removeAttribute('src'); $('v-acts').hidden = true;
+  if (!fromBack) popNav();
+}
+$('v-close').addEventListener('click', () => closeViewer());
+$('v-more').addEventListener('click', e => { e.stopPropagation(); $('v-acts').hidden = !$('v-acts').hidden; });
+/* Next / previous: the drawing slides out the way the finger went and the
+   new one follows it in. */
+let stepping = false;
+async function stepViewer(dir){
+  const at = viewerAt + dir;
+  if (stepping || at < 0 || at >= viewerList.length){ bounce(dir); return; }
+  stepping = true;
+  const img = $('v-img'), h = $('v-stage').clientHeight;
+  const out = img.animate ? img.animate([{ transform: img.style.transform || 'none', opacity: 1 }, { transform: `translateY(${-dir * h * 0.6}px)`, opacity: 0 }], { duration: 170, easing: 'ease-in' }) : null;
+  if (out) await out.finished.catch(() => {});
+  viewerAt = at; showPost(viewerList[at]); img.style.transform = '';
+  if (img.animate) await img.animate([{ transform: `translateY(${dir * h * 0.6}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 230, easing: 'cubic-bezier(.2,.8,.2,1)' }).finished.catch(() => {});
+  stepping = false;
+}
+function bounce(dir){
+  const img = $('v-img');
+  img.style.transform = '';
+  if (img.animate) img.animate([{ transform: 'none' }, { transform: `translateY(${-dir * 18}px)` }, { transform: 'none' }], { duration: 260, easing: 'ease-out' });
+}
+{
+  let start = null;
+  const stage = $('viewer');
+  stage.addEventListener('pointerdown', e => {
+    if (e.target.closest('button') || !$('viewer').classList.contains('open')) return;
+    start = { x: e.clientX, y: e.clientY, t: Date.now() };
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!start || stepping) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    // The drawing follows the finger, so the swipe feels held.
+    $('v-img').style.transform = Math.abs(dy) > Math.abs(dx) ? `translateY(${dy * 0.5}px)` : `translateX(${Math.min(0, dx) * 0.5}px)`;
+  });
+  const end = e => {
+    if (!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    start = null;
+    if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx)) { stepViewer(dy < 0 ? 1 : -1); return; }
+    if (dx < -70 && Math.abs(dx) > Math.abs(dy)) { $('v-img').style.transform = ''; closeViewer(); return; }
+    const img = $('v-img'); const from = img.style.transform; img.style.transform = '';
+    if (from && img.animate) img.animate([{ transform: from }, { transform: 'none' }], { duration: 180, easing: 'ease-out' });
+  };
+  stage.addEventListener('pointerup', end);
+  stage.addEventListener('pointercancel', () => { start = null; $('v-img').style.transform = ''; });
+}
+
+/* ---- back ----
+   The phone's back gesture (Android's swipe in from the edge) left the app
+   for the home screen (Dex, 2026-10-08). The gallery and the viewer now each
+   put an entry in the page's history when they open, so back closes the top
+   one -- viewer, then gallery -- before it can leave. Closing one with a
+   button takes its entry back off. Not inside the site's overlay, whose
+   frame shares the site's history. */
+let navDepth = 0, skipPops = 0;
+function pushNav(name){
+  if (EMBED) return;
+  try { window.history.pushState({ inko: name }, ''); navDepth++; } catch (e) {}
+}
+function popNav(){
+  if (EMBED || navDepth <= 0) return;
+  navDepth--; skipPops++;
+  try { window.history.back(); } catch (e) { skipPops--; }
+}
+window.addEventListener('popstate', () => {
+  if (skipPops > 0){ skipPops--; return; }
+  if (navDepth > 0) navDepth--;
+  // A sheet over the gallery is closed first, and the gallery's entry put back.
+  const sheet = ['crop', 'account', 'modal'].find(id => $(id).classList.contains('open'));
+  if (sheet){ $(sheet).classList.remove('open'); if (sheet === 'account') afterSignIn = null; pushNav('sheet'); return; }
+  if ($('viewer').classList.contains('open')){ closeViewer(true); return; }
+  if ($('gallery').classList.contains('open')) closeGallery(true);
+});
+function openGallery(){
+  if ($('gallery').classList.contains('open')) return;
+  $('gallery').classList.add('open');
+  pushNav('gallery');
+}
+function closeGallery(fromBack){
+  if (!$('gallery').classList.contains('open')) return;
+  closeViewer(fromBack);
+  $('gallery').classList.remove('open');
+  if (!fromBack) popNav();
+}
 
 /* ---- the account sheet ---- */
 let afterSignIn = null;
@@ -1437,13 +1590,13 @@ function handleAuthReturn(){
     openClaim(params.get('claim'), params.get('suggest') || '');
   } else if (params.has('auth-error')){
     forgetPublish();
-    $('gallery').classList.add('open');
+    openGallery();
     const why = params.get('why');
     openAccount(null, (AUTH_ERRORS[params.get('auth-error')] || 'Sign-in did not work. Try again.') + (why ? ` (${why})` : ''));
   }
 }
 function openClaim(ticket, suggest){
-  $('gallery').classList.add('open');
+  openGallery();
   $('a-in').hidden = true; $('a-out').hidden = true; $('a-claim').hidden = false;
   $('a-claim-handle').value = suggest;
   $('a-msg3').textContent = '';
@@ -1515,7 +1668,9 @@ function setGalleryTab(tab){
   const g = $('gallery');
   for (const m of ['mine', 'public', 'user']) g.classList.toggle('mode-' + m, tab === m);
   $('g-tab-mine').classList.toggle('on', tab === 'mine');
-  $('g-tab-public').classList.toggle('on', tab === 'public');
+  // One button, Public <-> Mine: it says where it takes you.
+  $('g-tab-public').textContent = tab === 'public' ? 'Mine' : 'Public';
+  $('g-tab-public').setAttribute('aria-label', tab === 'public' ? 'Your drawings' : 'Public drawings');
   $('g-account').hidden = tab !== 'mine';
   $('g-user-name').hidden = tab !== 'user';
   $('g-rows').innerHTML = '';
@@ -1523,7 +1678,7 @@ function setGalleryTab(tab){
   else if (tab === 'mine') renderGallery();
 }
 $('g-tab-mine').addEventListener('click', () => setGalleryTab('mine'));
-$('g-tab-public').addEventListener('click', () => setGalleryTab('public'));
+$('g-tab-public').addEventListener('click', () => setGalleryTab(galleryTab === 'public' ? 'mine' : 'public'));
 syncAccountButton();
 // Yours until told otherwise; the classes are what show the profile header.
 $('gallery').classList.add('mode-mine'); $('g-tab-mine').classList.add('on');
@@ -1749,11 +1904,7 @@ async function openUser(handle){
   const posts = (r.posts || []).map(p => { const f = feed.find(x => x.id === p.id); if (f) return f; feed.push(p); return p; });
   $('g-count').textContent = posts.length + (posts.length === 1 ? ' drawing' : ' drawings');
   const rows = $('g-rows'); rows.innerHTML = '';
-  for (let i = 0; i < posts.length; i += 3){
-    const row = document.createElement('div'); row.className = 'g-row';
-    posts.slice(i, i + 3).forEach(p => row.appendChild(feedItem(p)));
-    rows.appendChild(row);
-  }
+  gridPosts = posts; fillRows(posts, 2, feedItem);
 }
 
 /* ---- @-search, at the top, from anywhere in the gallery ---- */

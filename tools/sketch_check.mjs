@@ -251,36 +251,74 @@ try {
   await B.waitForFunction(() => { const i = document.querySelector('.g-item[data-post] img'); return i && i.complete && i.naturalWidth > 0; }, { timeout: 10000 }).catch(() => {});
   const seen = await B.evaluate(() => {
     const card = document.querySelector('.g-item[data-post]');
-    return card && { title: card.querySelector('.g-title').textContent, by: card.querySelector('.g-by').textContent,
-                     w: card.querySelector('img').naturalWidth };
+    // A public tile is the drawing and nothing else: no title, no poop, no
+    // row under it -- the artist along its foot and the fire count in a corner.
+    return card && { title: card.querySelector('img').alt, by: card.querySelector('.p-by .tag')?.textContent,
+                     w: card.querySelector('img').naturalWidth, fire: card.querySelector('.p-fire')?.textContent,
+                     extras: card.querySelectorAll('.g-title, .g-rx, [data-icon="poop"]').length,
+                     face: card.querySelector('.p-by .avatar')?.getBoundingClientRect().width || 0 };
   });
-  note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0, `B's Public tab shows ${JSON.stringify(seen)}`);
+  note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0 && seen.fire === '0' && seen.extras === 0 && seen.face >= 32,
+    `B's Public tab shows ${JSON.stringify(seen)}`);
+  // The viewer: the full drawing, loaded, with the poop|fire pill grey and no counts until you rate.
+  await B.click('.g-item[data-post] .g-thumb img'); await sleep(300);
+  await B.waitForFunction(() => { const i = document.getElementById('v-img'); return i.complete && i.naturalWidth > 0; }, { timeout: 10000 }).catch(() => {});
+  const big = await B.evaluate(() => {
+    const r = id => document.getElementById(id).getBoundingClientRect();
+    const btns = [...document.querySelectorAll('#viewer button')].filter(b => b.offsetParent && b.id !== 'v-by');
+    return { open: document.getElementById('viewer').classList.contains('open'), w: document.getElementById('v-img').naturalWidth,
+      title: document.getElementById('v-title').textContent,
+      pill: [...document.querySelectorAll('#viewer .rx-pill .g-rx')].map(b => b.dataset.kind + ':' + b.querySelector('b').textContent + (b.classList.contains('on') ? '*' : '')).join(' '),
+      // No button in the top half of the screen.
+      topButtons: btns.filter(b => b.getBoundingClientRect().top < innerHeight / 2).map(b => b.id || b.className),
+      back: r('v-close').left < innerWidth / 4 && r('v-close').top > innerHeight * 0.75 };
+  });
+  note(big.open && big.w >= 800 && big.title === 'Dragon', `the viewer opened ${JSON.stringify(big)} — the full drawing is 880 wide`);
+  note(big.pill === 'poop: fire:' && big.topButtons.length === 0 && big.back,
+    `the viewer before rating: pill ${big.pill}, buttons in the top half ${JSON.stringify(big.topButtons)}, back at the bottom left ${big.back}`);
+  await shot(B, '4-viewer');
   // Reacting signed out asks to sign in first, then lands the reaction.
-  await B.click('.g-item[data-post] .g-rx[data-kind="fire"]'); await sleep(300);
+  await B.click('#viewer .g-rx[data-kind="fire"]'); await sleep(300);
   await B.click('#a-more'); await sleep(150); await B.type('#a-handle', 'fan_b'); await B.type('#a-pass', 'correct horse'); await B.click('#a-signup');
-  await B.waitForFunction(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="fire"] b')?.textContent === '1', { timeout: 10000 }).catch(() => {});
-  const fire = await B.evaluate(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="fire"]').outerHTML);
-  note(/on/.test(fire) && />1</.test(fire), `after B's fire: ${fire}`);
-  // Clicked as found NOW: the app replaces the reaction row when a vote's reply
-  // lands, so a handle taken a moment earlier can be a detached button.
+  await B.waitForFunction(() => document.querySelector('#viewer .g-rx[data-kind="fire"] b')?.textContent === '1', { timeout: 10000 }).catch(() => {});
+  const pillOf = () => B.evaluate(() => [...document.querySelectorAll('#viewer .rx-pill .g-rx')].map(b => b.dataset.kind + ':' + b.querySelector('b').textContent + (b.classList.contains('on') ? '*' : '')).join(' ')
+    + ' | tile ' + document.querySelector('.g-item[data-post] .p-fire')?.textContent);
+  const fire = await pillOf();
+  note(fire === 'poop: fire:1* | tile 1', `after B's fire: ${fire}`);
+  // Clicked as found NOW: the app replaces the pill when a vote's reply lands,
+  // so a handle taken a moment earlier can be a detached button.
   await sleep(500);
-  await B.evaluate(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="poop"]').click()); await sleep(800);
-  const counts = await B.evaluate(() => [...document.querySelectorAll('.g-item[data-post] .g-rx b')].map(b => b.textContent).join('/'));
-  note(counts === '0/1', `switching to poop left fire/poop at ${counts}`);
+  await B.evaluate(() => document.querySelector('#viewer .g-rx[data-kind="poop"]').click()); await sleep(800);
+  const counts = await pillOf();
+  note(counts === 'poop:1* fire: | tile 0', `switching to poop: ${counts}`);
+  await shot(B, '4-viewer-rated');
   // The server agrees, from a fresh feed read.
-  await shot(B, '3-public-feed');
   const serverFeed = (await (await fetch(`${BASE}/api/sketch?feed=1`)).json()).posts.find(p => p.title === 'Dragon');
   note(serverFeed && serverFeed.fire === 0 && serverFeed.poop === 1, `the server holds ${JSON.stringify(serverFeed)}`);
-  // The viewer: the full drawing, loaded.
-  await B.click('.g-item[data-post] .g-thumb'); await sleep(300);
-  await B.waitForFunction(() => { const i = document.getElementById('v-img'); return i.complete && i.naturalWidth > 0; }, { timeout: 10000 }).catch(() => {});
-  const big = await B.evaluate(() => ({ open: document.getElementById('viewer').classList.contains('open'), w: document.getElementById('v-img').naturalWidth,
-    counts: [...document.querySelectorAll('#viewer .g-rx b')].map(b => b.textContent).join('/') }));
-  // The viewer and the card are one post: the screenshot that found this showed
-  // 0/0 in the viewer over a card reading 0/1.
-  note(big.counts === '0/1', `the viewer reads fire/poop ${big.counts}, the card and the server 0/1`);
-  await shot(B, '4-viewer');
-  note(big.open && big.w >= 800, `the viewer opened ${JSON.stringify(big)} — the full drawing is 880 wide`);
+  // Out of the viewer three ways: the phone's back gesture, a right-to-left
+  // swipe, and the back button -- each to the grid, never out of the app.
+  const state = () => B.evaluate(() => ({ viewer: document.getElementById('viewer').classList.contains('open'), gallery: document.getElementById('gallery').classList.contains('open') }));
+  await B.goBack().catch(() => {}); await sleep(400);
+  const afterBack = await state();
+  await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
+  const vb = await B.evaluate(() => { const r = document.getElementById('v-img').getBoundingClientRect(); return { x: r.left + r.width * 0.8, y: r.top + r.height / 2 }; });
+  await B.mouse.move(vb.x, vb.y); await B.mouse.down();
+  for (let i = 1; i <= 8; i++){ await B.mouse.move(vb.x - i * 20, vb.y + i); await sleep(16); }
+  await B.mouse.up(); await sleep(400);
+  const afterSwipe = await state();
+  await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
+  await B.click('#v-close'); await sleep(300);
+  const afterButton = await state();
+  // And one more back from the grid lands on the canvas, still inside the app.
+  await B.goBack().catch(() => {}); await sleep(400);
+  const afterBack2 = await B.evaluate(() => ({ gallery: document.getElementById('gallery').classList.contains('open'), inko: location.pathname }));
+  note(!afterBack.viewer && afterBack.gallery && !afterSwipe.viewer && afterSwipe.gallery && !afterButton.viewer && afterButton.gallery
+    && !afterBack2.gallery && afterBack2.inko === '/inko/',
+    `leaving the viewer: back gesture ${JSON.stringify(afterBack)}, swipe ${JSON.stringify(afterSwipe)}, button ${JSON.stringify(afterButton)}; back again ${JSON.stringify(afterBack2)}`);
+  await B.click('#grid-btn'); await sleep(300);
+  if (await B.evaluate(() => document.getElementById('g-tab-public').textContent.trim() === 'Public')) { await B.click('#g-tab-public'); await sleep(400); }
+  await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
+  await B.click('#v-more'); await sleep(150);
   // Hide this artist: gone from B's feed, on this device only.
   await B.click('#v-block'); await sleep(200); await B.click('#m-del'); await sleep(400);
   note(await B.evaluate(() => !document.querySelector('.g-item[data-post]')), 'hiding the artist left their drawing in B\'s feed');
@@ -421,15 +459,15 @@ try {
       pub: [...document.querySelectorAll('#g-rows .g-item')].filter(el => el.querySelector('.g-pub.on')).map(el => el.querySelector('.g-title').textContent) }));
     note(pending.who === '@dexcimino' && pending.pub.includes('Sunset'), `after a Google sign-in started from the lock: ${JSON.stringify(pending)}`);
     await C.click('#g-tab-public');
-    await C.waitForFunction(() => [...document.querySelectorAll('.g-item[data-post] .g-title')].some(t => t.textContent === 'Sunset'), { timeout: 8000 }).catch(() => {});
-    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] .g-title')].some(t => t.textContent === 'Sunset')),
+    await C.waitForFunction(() => [...document.querySelectorAll('.g-item[data-post] img')].some(t => t.alt === 'Sunset'), { timeout: 8000 }).catch(() => {});
+    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] img')].some(t => t.alt === 'Sunset')),
       'the drawing just made public is not in the Public tab');
     // Hidden as an artist on this device, your OWN drawings still show to you.
     await C.evaluate(() => localStorage.setItem('sketchBlocked', JSON.stringify(['dexcimino'])));
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
     await C.click('#grid-btn'); await sleep(300); await C.click('#g-tab-public');
     await C.waitForFunction(() => document.querySelector('.g-item[data-post]'), { timeout: 8000 }).catch(() => {});
-    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] .g-title')].some(t => t.textContent === 'Sunset')),
+    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] img')].some(t => t.alt === 'Sunset')),
       'having once hidden yourself hides your own drawings from your Public tab');
     await C.evaluate(() => localStorage.removeItem('sketchBlocked'));
     console.log(`publish through Google: ${JSON.stringify(pending)}, in the Public tab, and shown despite a self-hide`);
@@ -622,14 +660,14 @@ try {
     await shot(D, '6-search');
     await D.click('.g-user[data-handle="face_b"]'); await sleep(900);
     const prof2 = await D.evaluate(() => ({ mode: document.getElementById('gallery').className, name: document.getElementById('g-user-name').textContent,
-      pic: document.getElementById('g-avatar').style.backgroundImage, cards: [...document.querySelectorAll('.g-item .g-title')].map(e => e.textContent),
+      pic: document.getElementById('g-avatar').style.backgroundImage, cards: [...document.querySelectorAll('.g-item img')].map(e => e.alt),
       search: document.getElementById('g-search').value }));
     note(/mode-user/.test(prof2.mode) && prof2.name === '@face_b' && /sketch%2Favatars%2Fface_b-1\.jpg/.test(prof2.pic) && prof2.cards.includes('From B') && prof2.search === '',
       `face_b's profile: ${JSON.stringify(prof2)}`);
     await shot(D, '6-user');
     await D.click('#g-back'); await sleep(900);
     const pub = await D.evaluate(() => ({ mode: document.getElementById('gallery').className,
-      by: [...document.querySelectorAll('.g-item')].filter(e => /From B/.test(e.textContent)).map(e => e.querySelector('.g-by .avatar').style.backgroundImage) }));
+      by: [...document.querySelectorAll('.g-item')].filter(e => e.querySelector('img')?.alt === 'From B').map(e => e.querySelector('.p-by .avatar').style.backgroundImage) }));
     note(/mode-public/.test(pub.mode) && pub.by.length === 1 && /face_b-1\.jpg/.test(pub.by[0]), `back from a profile, Public with B's face on the card: ${JSON.stringify(pub)}`);
 
     // Rename from the edit button: the canvases on this phone follow the name.

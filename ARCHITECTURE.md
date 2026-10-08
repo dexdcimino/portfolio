@@ -710,6 +710,21 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     profile (your canvases under your picture and your @tag, with its edit
     button, or Sign in). Tapping a name on a card or in the viewer opens that
     artist's profile (`?profile=`), and back from there goes to Public.
+    The wide button is a toggle (it reads Mine while Public is showing).
+  - **A public tile is only the drawing**, two across: the artist's face and
+    @tag along its foot (ellipsis when long) and the fire count in a corner.
+    No title and no poop on the grid; rating happens in the viewer.
+  - **The viewer is an overlay over the grid it came from** and holds that
+    grid's list: the title at the top, nothing to press in the top half, and
+    a bar at the foot -- back, a split poop|fire pill, and a menu (report,
+    hide). The pill is grey until you rate, then only the one you chose shows
+    in colour with its count. Swipe up/down steps through the list; right to
+    left goes back to the grid.
+  - **Back stays in the app.** The gallery and the viewer each push a history
+    entry when they open, so the phone's back gesture closes the top one
+    (sheet, viewer, gallery) before it can leave; closing one with a button
+    takes its entry back off (`pushNav`/`popNav`). Off inside the site's
+    overlay, whose frame shares the site's history.
   - **Your picture is one of your canvases, kept live.** Tapping it offers a
     pick of your canvases and then a square crop; the 256px JPEG is kept in
     `meta` `avatar:<scope>` with which canvas and which square, and every
