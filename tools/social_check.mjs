@@ -11,10 +11,17 @@
  *   1. FOLLOWS, API: following both ways, the counts on a profile, refusals
  *      (yourself, nobody), a rename carrying the follows, a deletion taking
  *      the account out of every list.
+ *   1b. COMMENTS, API: posting, reading back oldest first, refusals (empty,
+ *      no token, a drawing that is gone), who may delete (the author and the
+ *      artist, nobody else), three reports hiding one, a rename re-signing
+ *      them, a deleted account taking them down, unpublishing taking all.
  *   2. FOLLOWS, APP: the pill above the bar on Public (All | Following |
  *      fire) narrowing the grid to the artists you follow and to the drawings
  *      you gave fire, the Follow button on an artist's profile changing the
  *      count and the server, and Following signed out asking you to sign in.
+ *   3. COMMENTS, APP: the bubble in the viewer's bar (fitting a 360px phone),
+ *      the sheet over the bottom half, a comment typed and sent landing in the
+ *      list, the count and the server, and held to delete it.
  *
  * FALSELY PASSES IF: a grid counted as filtered was never drawn. The card
  * assertions read the cards' data-post off the DOM after the click.
@@ -147,6 +154,48 @@ try {
   await post({ action: 'follow', token: ben.token, handle: 'anna', on: true });
   console.log('follows (api): both sides, counts on the profile, refusals, carried by a rename, dropped with a deleted account');
 
+  // ---- 1b. comments, API ----------------------------------------------------
+  {
+    const eve = await signup('eve'), fay = await signup('fay'), gus = await signup('gus'), hal = await signup('hal');
+    await publish(eve, 'peve1', 'Eve one');
+    const c1 = await post({ action: 'comment', token: fay.token, id: 'peve1', text: '  so   good\n\u0000 ' });
+    note(c1.status === 200 && c1.body.comment.t === 'so good' && c1.body.comment.h === 'fay' && c1.body.count === 1, `a comment answered ${c1.status} ${JSON.stringify(c1.body)}`);
+    await post({ action: 'comment', token: gus.token, id: 'peve1', text: 'second' });
+    const long = await post({ action: 'comment', token: hal.token, id: 'peve1', text: 'x'.repeat(400) });
+    note(long.body.comment && long.body.comment.t.length === 280, `a 400-character comment kept ${long.body.comment && long.body.comment.t.length}`);
+    const empty = await post({ action: 'comment', token: fay.token, id: 'peve1', text: '   ' });
+    const noTok = await post({ action: 'comment', id: 'peve1', text: 'hi' });
+    const nowhere = await post({ action: 'comment', token: fay.token, id: 'nosuchpost', text: 'hi' });
+    note(empty.status === 400 && noTok.status === 401 && nowhere.status === 404, `refusals: empty ${empty.status}, no token ${noTok.status}, no drawing ${nowhere.status}`);
+    let got = await get('comments=peve1');
+    note(got.count === 3 && got.comments.map(c => c.h).join() === 'fay,gus,hal' && !('reporters' in got.comments[0]), `read back: ${JSON.stringify(got).slice(0, 120)}`);
+    const gusC = got.comments[1].c, halC = got.comments[2].c;
+    const notYours = await post({ action: 'comment-delete', token: fay.token, id: 'peve1', c: gusC });
+    note(notYours.status === 403, `fay deleting gus's comment answered ${notYours.status}`);
+    const artist = await post({ action: 'comment-delete', token: eve.token, id: 'peve1', c: gusC });
+    note(artist.body.deleted === true && artist.body.count === 2, `the artist deleting a comment answered ${JSON.stringify(artist.body)}`);
+    // Three reports hide hal's.
+    for (const u of [eve, fay, gus]) await post({ action: 'comment-report', token: u.token, id: 'peve1', c: halC });
+    const ownReport = await post({ action: 'comment-report', token: hal.token, id: 'peve1', c: halC });
+    got = await get('comments=peve1');
+    note(got.count === 1 && got.comments[0].h === 'fay' && ownReport.status === 400, `after three reports: ${JSON.stringify(got.comments.map(c => c.h))}, own report ${ownReport.status}`);
+    // A rename re-signs them.
+    const r = await post({ action: 'rename', token: fay.token, handle: 'faye' });
+    fay.token = r.body.token;
+    got = await get('comments=peve1');
+    note(got.comments[0].h === 'faye', `after the rename the comment says @${got.comments[0].h}`);
+    // A deleted account takes its comments down.
+    await post({ action: 'comment', token: gus.token, id: 'peve1', text: 'back again' });
+    await post({ action: 'delete-account', token: gus.token, password: 'correct horse' });
+    got = await get('comments=peve1');
+    note(got.count === 1 && !got.comments.some(c => c.h === 'gus'), `after gus went: ${JSON.stringify(got.comments.map(c => c.h))}`);
+    // Unpublishing takes them all.
+    await post({ action: 'unpublish', token: eve.token, id: 'peve1' });
+    got = await get('comments=peve1');
+    note(got.count === 0, `after unpublishing, ${got.count} comment(s) left`);
+    console.log('comments (api): posted and read back, refusals, author and artist delete, 3 reports hide, renamed, gone with the account and the drawing');
+  }
+
   // ---- 2. follows, app ----------------------------------------------------
   const errors = [];
   const open = async (session) => {
@@ -208,6 +257,42 @@ try {
   await S.click('#s-filter [data-f="following"]'); await sleep(300);
   note(await S.evaluate(() => document.getElementById('account').classList.contains('open')), 'Following signed out did not ask to sign in');
   console.log(`follows (app): Public ${all} -> Following ${fol} -> fire ${fire}; cat ${before.n} -> ${after.n} -> ${server2.followers}`);
+
+  // ---- 3. comments, app ----------------------------------------------------
+  {
+    await B.setViewport({ width: 360, height: 760, isMobile: true });
+    await B.click('#g-tab-public'); await sleep(200);
+    await B.waitForFunction(() => document.querySelector('#g-rows .g-item[data-post="pcat1"]'), { timeout: 8000 }).catch(() => {});
+    await B.click('#g-rows .g-item[data-post="pcat1"] .g-thumb'); await sleep(600);
+    const bar = await B.evaluate(() => { const v = document.getElementById('v-bar'), b = document.getElementById('s-cbtn').getBoundingClientRect();
+      return { open: document.getElementById('viewer').classList.contains('open'), fits: v.scrollWidth <= v.clientWidth + 1, inside: b.right <= innerWidth && b.width > 40 }; });
+    note(bar.open && bar.fits && bar.inside, `the viewer's bar with the comment button at 360px: ${JSON.stringify(bar)}`);
+    await B.click('#s-cbtn'); await sleep(450);
+    const sh = await B.evaluate(() => { const r = document.getElementById('s-csheet').getBoundingClientRect();
+      return { open: document.getElementById('s-csheet').classList.contains('open'), top: Math.round(r.top), h: innerHeight, empty: document.querySelector('.s-cempty')?.textContent }; });
+    note(sh.open && sh.top >= sh.h * 0.4 && /No comments/.test(sh.empty || ''), `the comment sheet: ${JSON.stringify(sh)}`);
+    await B.type('#s-cinput', 'Love the orange');
+    await B.keyboard.press('Enter');
+    await B.waitForFunction(() => document.querySelectorAll('#s-clist .s-c').length === 1, { timeout: 8000 }).catch(() => {});
+    const sent = await B.evaluate(() => ({ text: document.querySelector('#s-clist .s-ctext')?.textContent, tag: document.querySelector('#s-clist .s-ctag')?.textContent,
+      count: document.getElementById('s-ccount').textContent, input: document.getElementById('s-cinput').value }));
+    const onServer = await get('comments=pcat1');
+    note(sent.text === 'Love the orange' && sent.tag === '@ben' && sent.count === '1' && sent.input === '' && onServer.count === 1,
+      `after sending: ${JSON.stringify(sent)}, server ${onServer.count}`);
+    await shot(B, '4-comments');
+    // Hold it to delete it.
+    const box = await (await B.$('#s-clist .s-c .s-ctext')).boundingBox();
+    await B.mouse.move(box.x + 10, box.y + 5); await B.mouse.down(); await sleep(650); await B.mouse.up();
+    await sleep(200);
+    note(await B.evaluate(() => document.getElementById('modal').classList.contains('open') && document.getElementById('m-title').textContent === 'Delete comment?'), 'holding your comment did not offer to delete it');
+    await B.click('#m-del'); await sleep(600);
+    const left = await get('comments=pcat1');
+    note(left.count === 0 && await B.evaluate(() => !document.querySelector('#s-clist .s-c') && document.getElementById('s-ccount').textContent === ''), `after deleting, server ${left.count}`);
+    // The down arrow puts it away; closing the viewer takes it too.
+    await B.click('#s-cclose'); await sleep(350);
+    note(await B.evaluate(() => !document.getElementById('s-csheet').classList.contains('open')), 'the down arrow did not hide the sheet');
+    console.log(`comments (app): ${JSON.stringify(sent)} -> deleted`);
+  }
 
   note(!errors.length, 'page errors: ' + errors.join(' | '));
 } finally {

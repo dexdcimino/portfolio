@@ -15,3 +15,44 @@
 .s-follow{height:32px; min-width:96px; padding:0 16px; border-radius:12px; border:none; background:var(--grad); color:#fff;
   font-size:14px; font-weight:800; cursor:pointer; box-shadow:var(--glow);}
 .s-follow.on{background:rgba(255,255,255,.1); box-shadow:none; color:var(--text);}
+
+/* Comments: a square in the viewer's bar with the count on it, and a sheet
+   over the bottom of the viewer -- the list, then the box you type in with
+   a down arrow (put it away) and send either side. */
+#s-cbtn{position:relative;}
+#s-ccount{position:absolute; top:-6px; right:-6px; min-width:20px; height:20px; padding:0 5px; border-radius:10px;
+  background:var(--grad); color:#fff; font-size:11.5px; font-weight:800; line-height:20px; text-align:center; font-variant-numeric:tabular-nums;}
+#s-ccount:empty{display:none;}
+#s-csheet{position:absolute; left:0; right:0; bottom:0; z-index:3; height:56%; max-height:calc(100% - 120px);
+  display:flex; flex-direction:column; background:var(--panel); border-top:1px solid var(--border); border-radius:24px 24px 0 0;
+  backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  transform:translateY(105%); transition:transform .26s cubic-bezier(.2,.8,.2,1); touch-action:pan-y;}
+#s-csheet.open{transform:none;}
+@media (prefers-reduced-motion:reduce){ #s-csheet{transition:none;} }
+#s-chead{flex:none; text-align:center; font-size:14px; font-weight:800; color:var(--muted); padding:14px 16px 6px;}
+#s-clist{flex:1; min-height:0; overflow-y:auto; padding:4px 16px 8px; overscroll-behavior:contain; user-select:text; -webkit-user-select:text;}
+.s-c{display:flex; gap:10px; padding:8px 0; -webkit-touch-callout:none;}
+.s-cwho{background:none; border:none; padding:0; cursor:pointer; flex:none;}
+.s-cwho .avatar{width:34px; height:34px; display:block;}
+.s-cbody{min-width:0; flex:1;}
+.s-ctop{display:flex; align-items:baseline; gap:8px;}
+.s-ctag{background:none; border:none; padding:0; color:var(--text); font-size:14px; font-weight:800; cursor:pointer;
+  min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.s-cwhen{font-size:12px; color:var(--muted); flex:none;}
+.s-ctext{font-size:15px; line-height:1.38; color:var(--text); overflow-wrap:anywhere; margin-top:1px;}
+.s-cempty{color:var(--muted); font-size:14px; text-align:center; padding:30px 10px;}
+#s-cform{flex:none; display:flex; align-items:center; gap:8px; padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 12px);}
+#s-cinput{flex:1; min-width:0; height:46px; border-radius:16px; border:1px solid var(--border); background:rgba(255,255,255,.05);
+  color:var(--text); font-size:16px; padding:0 14px; outline:none; user-select:text; -webkit-user-select:text;}
+#s-cinput:focus{border-color:var(--a1);}
+.s-csq{width:46px; height:46px; flex:none; border-radius:15px; border:1px solid var(--border); background:var(--panel); color:var(--text);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;}
+.s-csq svg{width:22px; height:22px;}
+#s-csend{background:var(--grad); border-color:transparent; color:#fff; box-shadow:var(--glow);}
+#s-csend:disabled{opacity:.5;}
+/* Four things in the viewer's bar now: tighter, so a 360px phone still fits. */
+#v-bar{gap:10px; padding-left:12px; padding-right:12px;}
+@media (max-width:400px){ .rx-pill .g-rx{min-width:0; padding:0 14px;} }
+/* With the comments up, the drawing moves up above them rather than under. */
+#viewer.s-comments #v-stage{align-items:flex-start;}
+#viewer.s-comments #v-img{max-height:calc(44dvh - 90px); transition:max-height .26s;}
