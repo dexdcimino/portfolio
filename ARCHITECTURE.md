@@ -2529,6 +2529,80 @@ trip comes back byte-identical, because a body that survives one and not the
 other still drifts on the first edit. No dev server, no `--write`; the count
 checked is printed and asserted against the number of bodies there are.
 
+## DexNote with accounts (`/dexnote/`)
+
+The same notes app as the overlay above, as its own page, with a sign-in
+instead of a password. Added 2026-10-08. Nothing about the overlay changes:
+`/#notes` still opens the password notes exactly as before.
+
+```
+dexnote/index.html   the page: notes.css, dexnote.css, main.js. Nothing else.
+dexnote/main.js      the gate, guest/account switching, the move on first
+                     sign-in, the account menu, bringing in the password notes
+dexnote/local.js     the guest store: localStorage + IndexedDB pictures
+dexnote/cloud.js     the account store: Firebase Auth, Firestore, Storage
+dexnote/vendor/firebase/   the SDK, self-hosted (see its README)
+dexnote/dexnote.css  the full-screen frame and the sign-in card's layout only
+```
+
+**The app took a backend, not a second copy.** `mount()` in `notes/app.js`
+talks to a backend object -- `save`, `load`, `beacon`, `uploadAsset`,
+`assetSrc`, `ready` -- and the password store is now `vaultBackend()` there,
+built from the token when no backend is passed, which is what the homepage
+still does. The rev/conflict contract is unchanged, so a guest's second tab and
+an account's second device merge exactly as the password store's 409 does.
+`assetSrc` may answer with a promise (Storage URLs are fetched), which is the
+only change in `chips.js`. `headerTail` replaces the close button, because a
+page has nothing to close.
+
+**Guest** (`local.js`): `{ rev, savedAt, doc }` in `localStorage` under
+`dexnote:guest:v1`; pictures as blobs in IndexedDB `dexnote-guest`, keyed by
+the same `<sha256>.<ext>` names the server stores use. Choosing guest is
+remembered (`dexnote:mode`), and Firebase is not even fetched for a guest.
+
+**Account** (`cloud.js`): the SAME Firebase project as dexnote.dev
+(`dexnote-d7047`), so its Google, GitHub and Discord (OIDC, `oidc.discord`)
+sign-ins work here. Its own paths, so nothing the old app wrote is read or
+touched:
+
+```
+users/{uid}/data/dexnote               { v, rev, savedAt, parts }
+users/{uid}/data/dexnote-<i>           { rev, s }   the JSON in 250k-char pieces
+users/{uid}/data/dexnote-backup-<iso>  same shape, written before a replace
+users/{uid}/images/dexnote-<key>       pictures, Firebase Storage
+```
+
+Pieces because a Firestore document stops at 1 MiB; every piece carries the
+rev so a read cannot stitch two saves together. Save and load are Firestore
+transactions: a save on a stale rev writes nothing and returns the other
+document as `conflict`. There is no `sendBeacon` for Firestore, so `beacon()`
+says no and a close falls back to an ordinary save.
+
+**The first sign-in moves the guest notes in** if there is anything in them
+(text, a picture, a renamed or extra category or session): pictures uploaded
+under the same keys, `merge(account, guest)` so the account's settings win and
+every session from both is kept, then the browser's copy is cleared.
+
+**"Bring in the password notes"** (account menu) asks for the keypad code,
+calls `/api/notes/unlock` with it, copies each picture through
+`/api/notes/asset` with the token that returns, backs up the account's current
+document, then saves the password notes over it. It only reads the password
+store.
+
+**Headers.** `/dexnote/(.*)` has its own CSP in `vercel.json` (Firebase hosts
+for connect/img, the auth domain as the one frame) and
+`Cross-Origin-Opener-Policy: same-origin-allow-popups`, because the site-wide
+`same-origin` cuts the sign-in popup off from the page that opened it.
+`notes_dev_server.mjs` reads that CSP out of `vercel.json` for `/dexnote/`.
+
+**Setup that lives outside the repo:** dexcimino.com must be in the Firebase
+project's Authentication -> Settings -> Authorized domains, or every sign-in
+answers `auth/unauthorized-domain` (the gate says so in words).
+
+**Checked by** `tools/dexnote_check.mjs`, against the dev server with
+`cloud.js` answered by a fake: real page, app, guest store and password
+store; not real Firebase.
+
 ## Sound library (code `FOLEY`)
 
 Every sound the game needs, as cards in categories: a name, a dropdown of the

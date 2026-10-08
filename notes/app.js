@@ -1,7 +1,10 @@
 /* The notes app. Mounted into the overlay by script.js once the password has
- * been checked; unmounted when the overlay closes.
+ * been checked; unmounted when the overlay closes. /dexnote/ mounts the same
+ * app with a `backend` of its own (the browser for a guest, Firebase for an
+ * account) instead of a token.
  *
  *   const app = await mount(container, { payload, token, onToken, onLocked });
+ *   const app = await mount(container, { payload, backend });
  *   app.unmount();
  *
  * This file owns the layout, the shared context every module reads, the
@@ -64,7 +67,68 @@ const SAVE_MIN_GAP = 5000;
 const RETRY_FIRST = 4000;
 const RETRY_MAX = 60000;
 
-export async function mount(container, { payload, token, onToken, onLocked, onStatus }) {
+/* WHERE THE DOCUMENT LIVES. Everything below talks to a backend and never to
+ * a URL, so the same save loop, merge and asset path serve three stores:
+ *
+ *   save(doc, baseRev) -> { rev, savedAt } | { conflict, doc, rev } | { locked }
+ *                         (throws when the store could not be reached)
+ *   load()             -> { doc, rev, savedAt } | { locked } | null
+ *   beacon(doc, rev)   -> true if the write was handed off before the page goes
+ *   uploadAsset(blob, type) -> key
+ *   assetSrc(key)      -> a URL, or a promise of one
+ *   ready()            -> false once the store has locked this tab out
+ *
+ * This one is the password store on Vercel Blob, and it is the default: the
+ * overlay on the homepage passes a token and nothing else, exactly as before. */
+function vaultBackend({ token, onToken, onLocked }) {
+  let current = token;
+  const lock = () => { current = null; if (onLocked) onLocked(); };
+  return {
+    kind: 'vault',
+    lockedText: 'SESSION EXPIRED — REOPEN TO SAVE',
+    ready: () => !!current,
+    async save(doc, baseRev) {
+      const res = await fetch('/api/notes/save', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: current, doc, baseRev }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) { lock(); return { locked: true }; }
+      if (res.status === 409) return { conflict: true, doc: data.doc, rev: data.rev };
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      if (data.token) { current = data.token; if (onToken) onToken(data.token); }
+      return { rev: data.rev, savedAt: data.savedAt };
+    },
+    async load() {
+      const res = await fetch('/api/notes/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: current }) });
+      if (res.status === 401) { lock(); return { locked: true }; }
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.format !== 'json') return null;
+      return { doc: data.content, rev: Number(data.rev), savedAt: data.savedAt };
+    },
+    beacon(doc, baseRev) {
+      const blob = new Blob([JSON.stringify({ token: current, doc, baseRev })], { type: 'application/json' });
+      return !!(navigator.sendBeacon && navigator.sendBeacon('/api/notes/save', blob));
+    },
+    async uploadAsset(blob, type) {
+      const data = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result).split(',')[1]);
+        fr.onerror = () => reject(new Error('could not read the image'));
+        fr.readAsDataURL(blob);
+      });
+      const res = await fetch('/api/notes/asset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: current, type, data }) });
+      const out = await res.json().catch(() => ({}));
+      if (res.status === 401) { lock(); throw new Error('session expired'); }
+      if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`);
+      return out.key;
+    },
+    assetSrc: (key) => `/api/notes/asset?key=${encodeURIComponent(key)}&t=${encodeURIComponent(current)}`,
+  };
+}
+
+export async function mount(container, { payload, token, onToken, onLocked, onStatus, backend, headerTail }) {
   await ensureCss();
 
   /* ---- the document ---- */
@@ -82,7 +146,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   else if (payload.format === 'json') doc = normalize(payload.content);
   else { doc = migrateHtml(payload.content); migrated = true; }
   let rev = Number(payload.rev) || 0;
-  let currentToken = token;
+  const store = demo ? null : (backend || vaultBackend({ token, onToken, onLocked }));
   const loadedStamps = new Map(doc.sessions.map((s) => [s.id, s.updated]));
 
   /* ---- the layout ---- */
@@ -116,7 +180,9 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     doc, root, header, sidebar, canvas,
     get session() { return activeSession(doc); },
     history: null,
-    token: () => currentToken,
+    /* An image's URL. The sandbox's live in demoAssets; everything else asks
+       the store, which may answer with a promise (Firebase Storage does). */
+    assetSrc: (key) => ctx.demoAssets.get(key) || (store ? store.assetSrc(key) : `/api/notes/asset?key=${encodeURIComponent(key)}&t=undefined`),
     api: { uploadAsset },
     demo,
     // In the demo an image has nowhere to be uploaded to, so it is kept in
@@ -282,7 +348,9 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   header.append(
     el('div', { class: 'nt-header-left' }, searchMount),
     el('div', { class: 'nt-header-mid' }, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, sep(), fmt.left, fmt.center, fmt.right, sep(), spellBtn, fmt.ul, nodeBtn, fmt.table),
-    el('div', { class: 'nt-header-right' }, status, infoBtn, themeBtn, closeBtn));
+    // /dexnote/ is a page, not an overlay: it has nothing to close and puts
+    // its account button where the X would be.
+    el('div', { class: 'nt-header-right' }, status, infoBtn, themeBtn, headerTail || closeBtn));
   search.initSearch(ctx, searchMount);
   wireHelp(infoBtn);
 
@@ -748,7 +816,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   async function save() {
     clearTimeout(saveTimer);
     if (demo) { dirty = false; setStatus('SANDBOX — NOT SAVED', null); return; }
-    if (!currentToken) return;
+    if (!store.ready()) return;
     if (inFlight) { pendingSave = true; return; }
     flushBodies();
     const body = JSON.stringify(doc);
@@ -757,13 +825,9 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     lastSaveAt = Date.now();
     setStatus('SAVING…', 'saving');
     try {
-      const res = await fetch('/api/notes/save', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token: currentToken, doc, baseRev: rev }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) { currentToken = null; setStatus('SESSION EXPIRED — REOPEN TO SAVE', 'error'); onLocked && onLocked(); return; }
-      if (res.status === 409) {
+      const data = await store.save(doc, rev);
+      if (data.locked) { setStatus(store.lockedText, 'error'); return; }
+      if (data.conflict) {
         // Someone else saved first. Merge, re-render, and go again on
         // their rev.
         const { merge } = await import('./state.js');
@@ -773,12 +837,10 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
         toast('Merged changes from another device');
         return;
       }
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       lastSaved = body;
       dirty = false;
       rev = data.rev;
       for (const s of doc.sessions) loadedStamps.set(s.id, s.updated);
-      if (data.token) { currentToken = data.token; onToken && onToken(data.token); }
       retryIn = RETRY_FIRST;
       setStatus(`SAVED ${clock(data.savedAt)}`.trim(), null);
     } catch (err) {
@@ -811,14 +873,11 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
 
   /* When the tab comes back, ask whether the store moved on. */
   async function refresh() {
-    if (demo || !currentToken || dirty || inFlight) return;
+    if (demo || !store.ready() || dirty || inFlight) return;
     try {
-      const res = await fetch('/api/notes/unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: currentToken }) });
-      if (res.status === 401) { currentToken = null; onLocked && onLocked(); return; }
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.format !== 'json' || Number(data.rev) <= rev) return;
-      adopt(normalize(data.content), data.rev);
+      const data = await store.load();
+      if (!data || data.locked || Number(data.rev) <= rev) return;
+      adopt(normalize(data.doc), data.rev);
       lastSaved = JSON.stringify(doc);
       setStatus(`SAVED ${clock(data.savedAt)} · UPDATED`.trim(), null);
     } catch { /* offline; the next save will say so */ }
@@ -829,14 +888,13 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   /* A close or a tab-away should not sit on an unsaved second. sendBeacon is
    * the only request the browser promises to finish after the page goes. */
   function flush() {
-    if (demo || !currentToken) return;
+    if (demo || !store.ready()) return;
     flushBodies();
     const body = JSON.stringify(doc);
     if (body === lastSaved) return;
     clearTimeout(saveTimer);
     if (inFlight) return;
-    const blob = new Blob([JSON.stringify({ token: currentToken, doc, baseRev: rev })], { type: 'application/json' });
-    if (navigator.sendBeacon && navigator.sendBeacon('/api/notes/save', blob)) { lastSaved = body; dirty = false; lastSaveAt = Date.now(); }
+    if (store.beacon(doc, rev)) { lastSaved = body; dirty = false; lastSaveAt = Date.now(); }
     else save();
   }
   window.addEventListener('pagehide', flush);
@@ -847,17 +905,7 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       ctx.demoAssets.set(key, URL.createObjectURL(blob));
       return key;
     }
-    const data = await new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(String(fr.result).split(',')[1]);
-      fr.onerror = () => reject(new Error('could not read the image'));
-      fr.readAsDataURL(blob);
-    });
-    const res = await fetch('/api/notes/asset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: currentToken, type, data }) });
-    const out = await res.json().catch(() => ({}));
-    if (res.status === 401) { currentToken = null; onLocked && onLocked(); throw new Error('session expired'); }
-    if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`);
-    return out.key;
+    return store.uploadAsset(blob, type);
   }
 
   function flashCorrection(node, start, length) {
