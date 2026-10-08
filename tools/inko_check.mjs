@@ -276,15 +276,16 @@ try {
   console.log(`undo: ${warm} back after a reload, ${full} with the app open, ${cold} after it closed, ${reopened} on reopening a canvas; ${kept.hists.length} canvas histories kept, ${afterDel.hists.length} after a delete`);
 
   // ---- 6. each account its own canvases (Dex, 2026-10-08) ----------------
-  // Signed out has its own; an account's FIRST sign-in on this device takes
-  // the signed-out ones with it; another account sees none of them.
+  // Signed out has its own; an account CREATED on this device takes the
+  // signed-out ones with it; signing in to one that already existed takes
+  // nothing (the 2026-10-08 loss); another account sees none of them.
   const signedOut = await galleryCount();
   const owners0 = (await db()).owners;
   note(signedOut > 20 && Object.keys(owners0).length === 1, `signed out shows ${signedOut} canvases, owners ${JSON.stringify(owners0)}`);
   // A sign-in landing from another tab (the overlay's route) -- the storage event.
   const other = await browser.newPage();
   await other.goto(`${BASE}/inko/manifest.webmanifest`);
-  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_a', token: 'x.y' })));
+  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_a', token: 'x.y', created: true })));
   await sleep(1500);
   const owners1 = (await db()).owners;
   note(owners1['u:artist_a'] === signedOut && !owners1.local, `first sign-in did not take the canvases along: ${JSON.stringify(owners1)}`);
@@ -305,8 +306,15 @@ try {
   await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_a', token: 'x.y' })));
   await sleep(1500);
   note(await galleryCount() === signedOut, 'signing back in did not show exactly that account\'s canvases');
+  // An account that already exists, new to this device: it takes nothing.
+  const ownersA = (await db()).owners;
+  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_c', token: 'x.y' })));
+  await sleep(1500);
+  const ownersC = (await db()).owners;
+  note(ownersC.local === ownersA.local && ownersA.local > 0 && ownersC['u:artist_a'] === signedOut,
+    `signing in to an existing account took the signed-out canvases: ${JSON.stringify(ownersC)}`);
   // A different account: a first sign-in, so it takes the one signed-out canvas.
-  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_b', token: 'x.y' })));
+  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_b', token: 'x.y', created: true })));
   await sleep(1500);
   const owners2 = (await db()).owners;
   note(await galleryCount() === 2 && owners2['u:artist_b'] === 2 && owners2['u:artist_a'] === signedOut,

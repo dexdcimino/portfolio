@@ -217,8 +217,13 @@ try {
     note(revive.body.stale === true, 'a save older than the deletion brought the canvas back');
     await post({ action: 'canvas-put', token: me.token, id: 'cv3', title: 'Last', ts: T + 5000, png: PNG, thumb: real.jpeg });
     await post({ action: 'delete-account', token: me.token, password: 'correct horse' });
-    note(!(await store.canvasImage('keeper', 'cv3', 1, false)), 'deleting the account left its saved canvases');
-    console.log('canvases: kept per account, older saves refused, private to the account, deletions as tombstones, gone with the account');
+    // Off the account at once; the bytes wait 30 days in the backup trash
+    // (lib/sketch-backup.js, tools/backup_check.mjs proves the purge).
+    const after = await post({ action: 'canvases', token: me.token });
+    const trash = (await store.io.readJson('sketch/trash.json')) || [];
+    note(after.status === 401 && (await store.listCanvases('keeper')).length === 0 && trash.some((t) => t.handle === 'keeper' && t.kind === 'deleted'),
+      `deleting the account left its saved canvases on it, or out of the trash: ${after.status} ${JSON.stringify(trash)}`);
+    console.log('canvases: kept per account, older saves refused, private to the account, deletions as tombstones, off the account when it goes (30 days in the trash)');
   }
 
   // ---- 1c. limits: spam, floods and the cheap denials of service (Dex, 2026-10-08) ----
