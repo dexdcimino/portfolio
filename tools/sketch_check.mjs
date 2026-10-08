@@ -656,6 +656,7 @@ try {
 
     // Search from the top, into someone's profile, and back out to Public.
     await optTap(D, '#grid-btn'); await sleep(400);
+    await D.click('#g-search-btn'); await sleep(150);
     await D.type('#g-search', 'face'); await sleep(900);
     const results = await D.evaluate(() => [...document.querySelectorAll('.g-user')].map(b => b.dataset.handle));
     note(results.includes('face_b') && results.includes('face_a'), `searching "face" found ${JSON.stringify(results)}`);

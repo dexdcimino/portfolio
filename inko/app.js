@@ -696,6 +696,8 @@ function refreshSizeUI(){
 function bindHSB(){
   const brush = () => {
     hue = +$('hue').value; sat = +$('sat').value; bri = +$('bri').value;
+    // Picking a colour means painting again (Dex, 2026-10-08).
+    if (tool !== 'brush'){ tool = 'brush'; swapTools(); refreshSizeUI(); }
     showColorPreview(); refreshPanelUI();
   };
   const bg = () => {
@@ -843,6 +845,13 @@ function setColorMode(on){
    profile, gallery, new canvas, clear -- and anything else open closes. */
 let optionsOn = false;
 function showBars(){
+  // Undo and redo go with whichever bar is up: either side of the sliders,
+  // level with S, in colour mode (Dex, 2026-10-08) -- the same two buttons.
+  const host = colorMode ? $('hsb-bar') : $('size-bar');
+  if ($('redo-btn').parentNode !== host){
+    host.insertBefore($('redo-btn'), host.querySelector(colorMode ? '.hsb-rows' : '.ctl'));
+    host.appendChild($('undo-btn'));
+  }
   $('size-bar').style.display = colorMode || optionsOn ? 'none' : 'flex';
   $('hsb-bar').style.display = colorMode ? 'flex' : 'none';
   $('opt-bar').hidden = !optionsOn;
@@ -865,7 +874,7 @@ $('opt-btn').addEventListener('click', e => { e.stopPropagation(); setOptions(!o
     tip.textContent = `${name} ${Math.round(+input.value)}${unit}`;
     tip.hidden = false;
     clearTimeout(timers.get(tip));
-    timers.set(tip, setTimeout(() => { tip.hidden = true; }, 1200));
+    timers.set(tip, setTimeout(() => { tip.hidden = true; }, 3200));
   };
   for (const id of ['hue', 'sat', 'bri', 'cv-hue', 'cv-sat', 'cv-bri']){
     const input = $(id);
@@ -905,6 +914,9 @@ function showColorPreview(){
    opening the gallery decodes small images instead of re-rendering every full
    drawing. Object URLs are revoked whenever the grid is rebuilt. */
 let thumbUrls = [];
+// Select mode (see "select mode" below): on, the ids picked, and a hold that just fired.
+let selecting = false, holdFired = false;
+const selected = new Set();
 function blobUrl(blob){ const u = URL.createObjectURL(blob); thumbUrls.push(u); return u; }
 function liveThumb(cb){
   const t = document.createElement('canvas'); t.width = 360; t.height = 480;
@@ -917,20 +929,26 @@ function fileName(title){
   let s = (title||'untitled').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   return 'inko-'+(s||'canvas')+'.png';
 }
-async function downloadItem(it, isLive){
+async function fullBlob(it, isLive){
   const t = document.createElement('canvas'); t.width = W; t.height = H;
   const c = t.getContext('2d');
   const bg = isLive ? { h: bgH, s: bgS, b: bgB } : (it.bg || { h: 0, s: 0, b: 100 });
   c.fillStyle = hsbToCss(bg.h, bg.s, bg.b, 1); c.fillRect(0,0,W,H);
   if (isLive) c.drawImage(sLayer, 0,0,W,H);
   else if (it.png){ const bmp = await createImageBitmap(it.png); c.drawImage(bmp, 0,0,W,H); bmp.close && bmp.close(); }
-  const url = URL.createObjectURL(await canvasBlob(t));
+  return canvasBlob(t);
+}
+async function downloadItem(it, isLive, quiet){
+  saveBlob(await fullBlob(it, isLive), isLive ? titleInput.value : it.title);
+  if (!quiet) toast('Downloaded');
+}
+function saveBlob(blob, title){
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = fileName(isLive ? titleInput.value : it.title);
+  a.download = fileName(title);
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
-  toast('Downloaded');
 }
 let modalCb = null;
 function openModal(title, text, confirmLabel, cb){
@@ -943,8 +961,29 @@ $('m-del').addEventListener('click', () => {
   $('modal').classList.remove('open');
   if (modalCb) modalCb();
 });
+/* Delete one of your canvases everywhere it is: the shared gallery, this
+   device, its kept undo history, and the account's copy. False if it stayed. */
+async function deleteCanvas(it){
+  if (it.visibility === 'public'){
+    try { await api('unpublish', { id: it.id }); }
+    catch (err) { toast('Could not take it out of the shared gallery: ' + err.message); return false; }
+  }
+  try { await idbDel('canvases', it.id); }
+  catch (err) { toast('Could not delete it.'); return false; }
+  idbDel('meta', 'hist:' + it.id).then(gcSteps).catch(() => {});
+  // On every device (later, if offline).
+  if (scope !== 'local'){
+    const sc = scope, ts = Date.now();
+    api('canvas-delete', { id: it.id, ts }).catch(() => queueDelete(sc, it.id, ts));
+  }
+  gallery = gallery.filter(g => g.id !== it.id);
+  // Deleting the canvas on screen leaves a fresh one, not a ghost of it.
+  if (editingId === it.id) await startBlank();
+  return true;
+}
 function makeItem(it, isLive){
-  const div = document.createElement('div'); div.className = 'g-item' + (!isLive && it.id === editingId ? ' current' : '');
+  const div = document.createElement('div'); div.className = 'g-item' + (!isLive && it.id === editingId ? ' current' : '') + (selected.has(it.id) ? ' sel' : '');
+  if (!isLive) div.dataset.id = it.id;
   const th = document.createElement('div'); th.className = 'g-thumb';
   const img = document.createElement('img'); img.alt = ''; th.appendChild(img);
   const dl = document.createElement('button'); dl.className = 'g-dl'; dl.setAttribute('aria-label','Download');
@@ -967,28 +1006,17 @@ function makeItem(it, isLive){
       e.stopPropagation();
       const shared = it.visibility === 'public';
       openModal('Delete canvas?', `"${it.title}" will be permanently deleted${shared ? ', and taken out of the shared gallery' : ''}.`, 'Delete', async () => {
-        if (shared){
-          try { await api('unpublish', { id: it.id }); }
-          catch (err) { toast('Could not take it out of the shared gallery: ' + err.message); return; }
-        }
-        try { await idbDel('canvases', it.id); }
-        catch (err) { toast('Could not delete it.'); return; }
-        // Its kept undo history goes with it.
-        idbDel('meta', 'hist:' + it.id).then(gcSteps).catch(() => {});
-        // And the account's copy, on every device (later, if offline).
-        if (scope !== 'local'){
-          const sc = scope, ts = Date.now();
-          api('canvas-delete', { id: it.id, ts }).catch(() => queueDelete(sc, it.id, ts));
-        }
-        gallery = gallery.filter(g => g.id !== it.id);
-        // Deleting the canvas on screen leaves a fresh one, not a ghost of it.
-        if (editingId === it.id) await startBlank();
-        toast('Canvas deleted'); renderGallery();
+        if (await deleteCanvas(it)){ toast('Canvas deleted'); renderGallery(); }
       });
     });
     if (it.thumb) img.src = blobUrl(it.thumb);
     else if (it.png) thumbBlob(it.png, it.bg).then(b => { it.thumb = b; img.src = blobUrl(b); idbPut('canvases', it).catch(() => {}); });
-    div.addEventListener('click', () => (picking ? openCrop(it) : openCanvas(it.id)));
+    div.addEventListener('click', () => {
+      if (holdFired){ holdFired = false; return; }
+      if (selecting){ toggleSel(it.id); return; }
+      picking ? openCrop(it) : openCanvas(it.id);
+    });
+    const tick = document.createElement('span'); tick.className = 'g-check'; th.appendChild(tick);
     // Public or private, on the card: the lock is this device only, the globe
     // is the shared gallery.
     const pub = document.createElement('button'); pub.className = 'g-pub';
@@ -1070,6 +1098,7 @@ $('clear-btn').addEventListener('click', () => {
 /* Back: out of a search, out of picking a picture, from an artist back to
    Public -- and otherwise to the canvas. */
 $('g-back').addEventListener('click', () => {
+  if (selecting){ exitSelect(); return; }
   if (searching()){ clearSearch(); return; }
   if (picking){ setPicking(false); return; }
   if (canStepBack()){ window.history.back(); return; }
@@ -1085,7 +1114,9 @@ function toast(msg, sub){
   else toastEl.textContent = msg;
   const low = $('gallery').classList.contains('open');
   toastEl.classList.toggle('low', low);
-  if (!low) toastEl.style.top = ($('title-input').getBoundingClientRect().bottom + 10) + 'px';
+  // Low clears the top it was given under the title: an inline top beat the
+  // class's top:auto, and with its bottom set too the box ran from one to the other.
+  toastEl.style.top = low ? '' : ($('title-input').getBoundingClientRect().bottom + 10) + 'px';
   toastEl.classList.add('show');
   clearTimeout(toastT);
   toastT = setTimeout(() => toastEl.classList.remove('show'), 2200);
@@ -1103,7 +1134,7 @@ let session = null;                 // { handle, token }
 try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) {}
 let blocked = [];
 try { blocked = JSON.parse(localStorage.getItem(BLOCK_KEY) || '[]') || []; } catch (e) {}
-let galleryTab = 'mine', feed = [], myVoteFor = {};
+let galleryTab = 'mine', feed = [], myVoteFor = {}, feedLoaded = false;
 /* What THIS device just published or took back: id -> { post } | { gone }.
    The feed is cached at the edge for up to ~40 s (s-maxage 10 plus
    stale-while-revalidate 30), so a drawing made public a moment ago was
@@ -1407,7 +1438,7 @@ async function loadFeed(){
     const r = await fetch(API + '?feed=1' + (mineLately.size ? '&fresh=' + now : ''), { cache: 'no-store' });
     if (!r.ok) throw new Error();
     const got = await r.json();
-    feed = got.posts || [];
+    feed = got.posts || []; feedLoaded = true;
     feedAvatars = got.avatars || {};
     for (const [id, m] of mineLately){
       const at = feed.findIndex(p => p.id === id);
@@ -1629,8 +1660,9 @@ function bounce(dir){
    page added before anyone touched it. */
 const NO_HISTORY = EMBED || window.top !== window;
 // An open sheet is one more step: back closes it (and counts as Cancel).
-const SHEETS = ['crop', 'account', 'modal'];
-if (window.MutationObserver) for (const id of SHEETS) new MutationObserver(() => syncHistory()).observe($(id), { attributes: true, attributeFilter: ['class'] });
+const SHEETS = ['crop', 'account', 'modal', 'g-sel', 'g-find'];
+const sheetOpen = id => id === 'g-find' ? searching() : $(id).classList.contains('open');
+if (window.MutationObserver) for (const id of [...SHEETS.slice(0, 4), 'gallery']) new MutationObserver(() => syncHistory()).observe($(id), { attributes: true, attributeFilter: ['class'] });
 let trail = ['mine', 'canvas'], navDepth = 0, skipPops = 0, restoring = false, touched = false;
 const placeNow = () => !$('gallery').classList.contains('open') ? 'canvas' : galleryTab === 'user' ? 'user:' + viewingUser : galleryTab;
 function visit(place){
@@ -1644,7 +1676,7 @@ function visit(place){
 function syncHistory(){
   if (NO_HISTORY || !touched) return;
   const want = trail.length - 1 + ($('viewer').classList.contains('open') ? 1 : 0)
-    + (SHEETS.some(id => $(id).classList.contains('open')) ? 1 : 0);
+    + SHEETS.filter(sheetOpen).length;
   try {
     while (navDepth < want){ window.history.pushState({ inko: navDepth + 1 }, ''); navDepth++; }
     if (navDepth > want){ const n = navDepth - want; navDepth = want; skipPops++; window.history.go(-n); }
@@ -1675,8 +1707,14 @@ window.addEventListener('popstate', () => {
   if (skipPops > 0){ skipPops--; return; }
   navDepth = Math.max(0, navDepth - 1);
   // A sheet is closed first: that was its step.
-  const sheet = SHEETS.find(id => $(id).classList.contains('open'));
-  if (sheet){ $(sheet).classList.remove('open'); if (sheet === 'account') afterSignIn = null; syncHistory(); return; }
+  const sheet = SHEETS.find(sheetOpen);
+  if (sheet){
+    if (sheet === 'g-sel') exitSelect();
+    else if (sheet === 'g-find') clearSearch();
+    else $(sheet).classList.remove('open');
+    if (sheet === 'account') afterSignIn = null;
+    syncHistory(); return;
+  }
   if ($('viewer').classList.contains('open')){ closeViewer(); return; }
   if (trail.length > 1){ trail.pop(); showPlace(trail[trail.length - 1]); }
   syncHistory();
@@ -1690,6 +1728,8 @@ function openGallery(){
 function closeGallery(){
   if (!$('gallery').classList.contains('open')) return;
   closeViewer();
+  exitSelect();
+  if (searching()) clearSearch(true);
   $('gallery').classList.remove('open');
   visit('canvas');
 }
@@ -1835,6 +1875,7 @@ $('g-account').addEventListener('click', () => openAccount());
 /* ---- where the gallery is: yours, Public, or one artist's ---- */
 function setGalleryTab(tab){
   if (tab !== 'mine') setPicking(false);
+  exitSelect();
   if (searching()) clearSearch(true);
   galleryTab = tab;
   const g = $('gallery');
@@ -2081,43 +2122,274 @@ async function openUser(handle){
   gridPosts = posts; fillRows(posts, 2, feedItem);
 }
 
-/* ---- @-search, at the top, from anywhere in the gallery ---- */
-let searchT = null, searchSeq = 0;
+/* ---- search (Dex, 2026-10-08) ----
+   The square button on the bar opens a pill on the keyboard: artists by
+   @tag (the server) and canvases by title (your own, and the public ones
+   from the feed), with All / Artists / Canvases chips that can be flipped
+   while typing -- they never take the keyboard down. With the keyboard
+   gone the pill rests above the bar, so you can see what you searched. */
+let searchT = null, searchSeq = 0, findKind = 'all';
 const searching = () => $('gallery').classList.contains('searching');
+function openSearch(){
+  if (selecting) exitSelect();
+  if (picking) setPicking(false);
+  $('gallery').classList.add('searching');
+  $('g-search-btn').classList.add('on');
+  // Focused inside the tap, or a phone will not bring up its keyboard.
+  $('g-search').focus();
+  placeFind();
+  runSearch($('g-search').value.trim());
+}
 function clearSearch(quiet){
+  clearTimeout(searchT); searchSeq++;
   $('g-search').value = '';
+  $('g-search').blur();
+  $('g-search-btn').classList.remove('on');
   $('gallery').classList.remove('searching');
   if (!quiet) setGalleryTab(galleryTab === 'user' ? 'public' : galleryTab);
 }
+function placeFind(){
+  if (!searching()) return;
+  const vv = window.visualViewport;
+  const kb = vv ? Math.max(0, innerHeight - (vv.offsetTop + vv.height)) : 0;
+  const bar = innerHeight - $('g-bar').getBoundingClientRect().top;
+  const f = $('g-find');
+  f.style.bottom = (Math.max(kb, bar) + 8) + 'px';
+  $('gallery').style.setProperty('--find-h', (f.offsetHeight + 16 + Math.max(0, kb - bar)) + 'px');
+}
+if (window.visualViewport){ visualViewport.addEventListener('resize', placeFind); visualViewport.addEventListener('scroll', placeFind); }
+addEventListener('resize', placeFind);
+$('g-search-btn').addEventListener('click', () => (searching() && document.activeElement !== $('g-search') ? $('g-search').focus() : searching() ? clearSearch() : openSearch()));
+$('g-find-x').addEventListener('click', () => clearSearch());
+$('g-find-x').addEventListener('pointerdown', e => e.preventDefault());
+for (const chip of document.querySelectorAll('.g-chip')){
+  chip.addEventListener('pointerdown', e => e.preventDefault());   // keep the keyboard up
+  chip.addEventListener('click', () => {
+    findKind = chip.dataset.kind;
+    for (const c of document.querySelectorAll('.g-chip')){ c.classList.toggle('on', c === chip); c.setAttribute('aria-checked', String(c === chip)); }
+    runSearch($('g-search').value.trim());
+  });
+}
 $('g-search').addEventListener('input', () => {
   clearTimeout(searchT);
-  const q = $('g-search').value.trim().replace(/^@/, '');
-  if (!q){ clearSearch(); return; }
-  $('gallery').classList.add('searching');
+  const q = $('g-search').value.trim();
   searchT = setTimeout(() => runSearch(q), 220);
 });
 $('g-search').addEventListener('keydown', e => {
   if (e.key === 'Enter'){ e.preventDefault(); $('g-search').blur(); }
   if (e.key === 'Escape'){ e.stopPropagation(); clearSearch(); }
 });
-async function runSearch(q){
-  const seq = ++searchSeq;
-  let users = [];
-  try { users = (await (await fetch(API + '?users=' + encodeURIComponent(q))).json()).users || []; } catch (e) {}
-  if (seq !== searchSeq || !searching()) return;
-  const rows = $('g-rows'); rows.innerHTML = '';
-  if (!users.length){
-    const e = document.createElement('div'); e.className = 'g-empty'; e.textContent = 'No artist called @' + q;
-    rows.appendChild(e); return;
-  }
-  for (const u of users){
-    feedAvatars[u.handle] = u.avatar || 0;
-    const b = document.createElement('button'); b.className = 'g-user'; b.dataset.handle = u.handle;
-    b.append(avatarEl(u.handle, 'mid'), '@' + u.handle);
-    b.addEventListener('click', () => { clearSearch(true); openUser(u.handle); });
-    rows.appendChild(b);
-  }
+$('g-search').addEventListener('blur', () => setTimeout(placeFind, 60));
+// Contains, with the ones that START with it first.
+function titleMatches(list, q){
+  const n = q.toLowerCase();
+  return list.filter(x => (x.title || 'Untitled').toLowerCase().includes(n))
+    .sort((a, b) => ((a.title || '').toLowerCase().startsWith(n) ? 0 : 1) - ((b.title || '').toLowerCase().startsWith(n) ? 0 : 1));
 }
+async function runSearch(raw){
+  const seq = ++searchSeq;
+  const rows = $('g-rows');
+  const handleQ = raw.replace(/^@/, '');
+  const say = text => { const e = document.createElement('div'); e.className = 'g-empty'; e.textContent = text; rows.appendChild(e); };
+  if (!raw){ rows.innerHTML = ''; say('Search an @artist or a canvas title'); placeFind(); return; }
+  const wantUsers = findKind !== 'canvases', wantCanvases = findKind !== 'artists' && !raw.startsWith('@');
+  let users = [];
+  const jobs = [];
+  if (wantUsers) jobs.push(fetch(API + '?users=' + encodeURIComponent(handleQ)).then(r => r.json()).then(j => { users = j.users || []; }).catch(() => {}));
+  if (wantCanvases && !feedLoaded) jobs.push(loadFeed().catch(() => {}));
+  await Promise.all(jobs);
+  if (seq !== searchSeq || !searching()) return;
+  rows.innerHTML = '';
+  const mine = wantCanvases ? titleMatches(gallery, raw) : [];
+  const own = new Set(gallery.map(g => g.id));
+  const pub = wantCanvases ? titleMatches(visibleFeed().filter(p => !own.has(p.id)), raw) : [];
+  const sec = text => { const h = document.createElement('div'); h.className = 'g-sec'; h.textContent = text; rows.appendChild(h); };
+  if (!users.length && !mine.length && !pub.length){
+    say(findKind === 'artists' ? 'No artist called @' + handleQ : findKind === 'canvases' ? 'No canvas called "' + raw + '"' : 'Nothing called "' + raw + '"');
+    placeFind(); return;
+  }
+  if (users.length){
+    if (wantCanvases) sec('Artists');
+    for (const u of users){
+      feedAvatars[u.handle] = u.avatar || 0;
+      const b = document.createElement('button'); b.className = 'g-user'; b.dataset.handle = u.handle;
+      b.append(avatarEl(u.handle, 'mid'), '@' + u.handle);
+      b.addEventListener('click', () => { clearSearch(true); openUser(u.handle); });
+      rows.appendChild(b);
+    }
+  }
+  if (mine.length){
+    sec('Your canvases');
+    for (let i = 0; i < mine.length; i += 3){
+      const row = document.createElement('div'); row.className = 'g-row';
+      mine.slice(i, i + 3).forEach(it => row.appendChild(makeItem(it, false)));
+      rows.appendChild(row);
+    }
+  }
+  if (pub.length){
+    sec('Public');
+    gridPosts = pub; fillRows(pub, 2, feedItem);
+  }
+  placeFind();
+}
+
+/* ---- select mode (Dex, 2026-10-08) ----
+   Hold one of your canvases to start it. Then a tap picks or un-picks a
+   card, and a finger that sets off SIDEWAYS from a card sweeps every card
+   between it and wherever it goes, scrolling the grid at its edges (the
+   grid pans only up and down, so an up-or-down drag is still a scroll).
+   The window floats top left, named after the canvas or how many, and
+   moves by its top; its X, back, or anywhere else in the app ends it. */
+const HOLD_MS = 450;
+let hold = null, sweep = null, selPos = null;
+function enterSelect(){
+  if (selecting) return;
+  selecting = true;
+  $('gallery').classList.add('selecting');
+  const p = $('g-sel');
+  p.classList.add('open');
+  if (!selPos) selPos = { left: 12, top: $('g-grid').getBoundingClientRect().top + 8 };
+  placeSel(selPos.left, selPos.top);
+  paintSel();
+}
+function exitSelect(){
+  if (!selecting) return;
+  selecting = false; sweep = null;
+  selected.clear();
+  $('gallery').classList.remove('selecting');
+  $('g-sel').classList.remove('open');
+  for (const el of $('g-rows').querySelectorAll('.g-item.sel')) el.classList.remove('sel');
+}
+function toggleSel(id, on = !selected.has(id)){
+  on ? selected.add(id) : selected.delete(id);
+  const el = $('g-rows').querySelector(`.g-item[data-id="${CSS.escape(id)}"]`);
+  if (el) el.classList.toggle('sel', on);
+  paintSel();
+}
+const selItems = () => gallery.filter(g => selected.has(g.id));
+function paintSel(){
+  const n = selected.size, one = n === 1 ? selItems()[0] : null;
+  $('g-sel-title').textContent = n === 0 ? 'Select canvases' : one ? (one.title || 'Untitled') : n + ' selected';
+  $('sel-dl').disabled = $('sel-del').disabled = n === 0;
+  $('sel-share').disabled = n === 0 || !navigator.share;
+  $('sel-copy').disabled = n !== 1 || !(navigator.clipboard && window.ClipboardItem);
+}
+function placeSel(left, top){
+  const p = $('g-sel'), w = p.offsetWidth, h = p.offsetHeight;
+  left = Math.max(6, Math.min(innerWidth - w - 6, left));
+  top = Math.max(6, Math.min(innerHeight - h - 6, top));
+  p.style.left = left + 'px'; p.style.top = top + 'px';
+  selPos = { left, top };
+}
+// Hold to start: cancelled by moving, lifting, or the grid scrolling.
+$('g-rows').addEventListener('pointerdown', e => {
+  const el = e.target.closest('.g-item[data-id]');
+  if (!el || e.target.closest('button')) return;
+  if (selecting){
+    sweep = { id: el.dataset.id, x: e.clientX, y: e.clientY, pid: e.pointerId, on: null, base: null, mouse: e.pointerType === 'mouse' };
+    return;
+  }
+  if (galleryTab !== 'mine' || picking || searching()) return;
+  clearTimeout(hold && hold.t);
+  hold = { x: e.clientX, y: e.clientY, id: el.dataset.id, t: setTimeout(() => {
+    hold = null; holdFired = true;
+    enterSelect(); toggleSel(el.dataset.id, true);
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch (err) {}
+  }, HOLD_MS) };
+});
+$('g-rows').addEventListener('contextmenu', e => { if (e.target.closest('.g-item')) e.preventDefault(); });
+$('g-grid').addEventListener('scroll', () => { if (hold){ clearTimeout(hold.t); hold = null; } }, { passive: true });
+addEventListener('pointermove', e => {
+  if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 10){ clearTimeout(hold.t); hold = null; }
+  if (!sweep || e.pointerId !== sweep.pid) return;
+  const dx = e.clientX - sweep.x, dy = e.clientY - sweep.y;
+  if (sweep.on === null){
+    if (Math.hypot(dx, dy) < 10) return;
+    if (!sweep.mouse && Math.abs(dx) < Math.abs(dy)){ sweep = null; return; }   // that is a scroll
+    sweep.on = !selected.has(sweep.id); sweep.base = new Set(selected);
+    sweep.cx = e.clientX; sweep.cy = e.clientY;
+    sweepEdge();
+  }
+  sweep.cx = e.clientX; sweep.cy = e.clientY;
+  sweepTo();
+});
+function sweepTo(){
+  if (!sweep || sweep.on === null) return;
+  const hit = document.elementFromPoint(sweep.cx, sweep.cy);
+  const el = hit && hit.closest('.g-item[data-id]');
+  if (!el) return;
+  const cards = [...$('g-rows').querySelectorAll('.g-item[data-id]')].map(c => c.dataset.id);
+  const a = cards.indexOf(sweep.id), b = cards.indexOf(el.dataset.id);
+  if (a < 0 || b < 0) return;
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  cards.forEach((id, i) => toggleSel(id, i >= lo && i <= hi ? sweep.on : sweep.base.has(id)));
+}
+// Near the top or bottom of the grid, it scrolls under the finger.
+function sweepEdge(){
+  if (!sweep || sweep.on === null) return;
+  const g = $('g-grid'), r = g.getBoundingClientRect(), zone = 70;
+  const v = sweep.cy < r.top + zone ? -(r.top + zone - sweep.cy) / 4 : sweep.cy > r.bottom - zone ? (sweep.cy - (r.bottom - zone)) / 4 : 0;
+  if (v){ g.scrollTop += v; sweepTo(); }
+  requestAnimationFrame(sweepEdge);
+}
+const endPress = e => {
+  if (hold){ clearTimeout(hold.t); hold = null; }
+  if (sweep && e.pointerId === sweep.pid){
+    if (sweep.on !== null) holdFired = true;   // a sweep is not also a tap
+    sweep = null;
+  }
+};
+addEventListener('pointerup', endPress); addEventListener('pointercancel', endPress);
+// A tap on a card does what it says only after a real tap; the click that
+// ends a hold or a sweep is eaten, and a stale flag never outlives its tap.
+addEventListener('pointerdown', () => { if (!hold) holdFired = false; }, true);
+// The window moves by its top.
+(() => {
+  let drag = null;
+  const head = $('g-sel-head');
+  head.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    drag = { id: e.pointerId, dx: e.clientX - selPos.left, dy: e.clientY - selPos.top };
+    head.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  head.addEventListener('pointermove', e => { if (drag && e.pointerId === drag.id) placeSel(e.clientX - drag.dx, e.clientY - drag.dy); });
+  const end = () => { drag = null; };
+  head.addEventListener('pointerup', end); head.addEventListener('pointercancel', end);
+})();
+$('g-sel-x').addEventListener('click', () => exitSelect());
+const selFile = async it => new File([await fullBlob(it, false)], fileName(it.title), { type: 'image/png' });
+$('sel-dl').addEventListener('click', async () => {
+  const items = selItems();
+  for (const it of items){ saveBlob(await fullBlob(it, false), it.title); await new Promise(r => setTimeout(r, 250)); }
+  toast(items.length === 1 ? 'Downloaded' : 'Downloaded ' + items.length + ' canvases');
+});
+$('sel-copy').addEventListener('click', async () => {
+  const it = selItems()[0]; if (!it) return;
+  // The promise goes straight in, so Safari still counts it as this tap.
+  try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': fullBlob(it, false) })]); toast('Copied'); }
+  catch (e) { toast('Could not copy it'); }
+});
+$('sel-share').addEventListener('click', async () => {
+  const items = selItems(); if (!items.length) return;
+  try {
+    const files = await Promise.all(items.map(selFile));
+    if (navigator.canShare && !navigator.canShare({ files })) throw new Error('no');
+    await navigator.share({ files, title: items.length === 1 ? items[0].title : 'Inko' });
+  } catch (e) { if (e && e.name !== 'AbortError') toast('Sharing is not available here'); }
+});
+$('sel-del').addEventListener('click', () => {
+  const items = selItems(), n = items.length; if (!n) return;
+  const shared = items.some(it => it.visibility === 'public');
+  const title = n === 1 ? 'Delete canvas?' : `Delete ${n} canvases?`;
+  const text = n === 1 ? `"${items[0].title}" will be permanently deleted${shared ? ', and taken out of the shared gallery' : ''}.`
+    : `They will be permanently deleted${shared ? ', and the public ones taken out of the shared gallery' : ''}.`;
+  openModal(title, text, 'Delete', async () => {
+    let gone = 0;
+    for (const it of items) if (await deleteCanvas(it)) gone++;
+    exitSelect();
+    toast(gone === 1 ? 'Canvas deleted' : gone + ' canvases deleted'); renderGallery();
+  });
+});
 
 /* ---- renaming your @tag ---- */
 async function renameLocal(from, to){

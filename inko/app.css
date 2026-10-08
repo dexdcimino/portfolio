@@ -95,13 +95,18 @@ body{
 /* Compact HSB bar (replaces size-bar when color mode active) */
 #hsb-bar{
   flex-shrink:0;
-  display:flex; flex-direction:column; gap:4px;
-  width:calc(100vw - 20px); max-width:600px;
+  display:flex; flex-direction:row; align-items:center; gap:8px;
+  width:calc(100vw - 20px); max-width:600px; box-sizing:border-box;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border); border-radius:18px;
-  padding:12px 16px; margin-bottom:8px;
+  padding:6px 14px; margin-bottom:8px;
 }
+/* Redo | the three sliders | undo, the buttons level with S (Dex, 2026-10-08). */
+.hsb-rows{flex:1; min-width:0; display:flex; flex-direction:column; gap:0;}
+#hsb-bar .tbtn{flex:0 0 auto;}
 .hsb-row{display:flex; align-items:center; gap:10px;}
+/* A taller strip to land a finger on; the track and thumb look the same. */
+.hsb-row input[type=range]{height:38px;}
 .hsb-lbl{
   width:18px; font-size:14px; font-weight:700; color:var(--text);
   text-align:center; flex-shrink:0;
@@ -275,13 +280,6 @@ input[type=range]::-moz-range-thumb{
   display:flex; align-items:center; gap:12px;
   padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px;
 }
-#g-search-box{flex:1; display:flex; align-items:center; gap:8px; height:40px; padding:0 12px;
-  background:var(--panel); border:1px solid var(--border); border-radius:14px; color:var(--muted);}
-#g-search-box:focus-within{border-color:var(--a1);}
-#g-search-box svg{width:18px; height:18px; flex:none;}
-#g-search{flex:1; min-width:0; background:none; border:none; outline:none; color:var(--text); font-size:16px;
-  user-select:text; -webkit-user-select:text;}
-#g-search::-webkit-search-cancel-button{filter:invert(.6);}
 #g-count{display:block; font-size:13px; color:var(--muted); font-weight:400; text-align:center; margin-top:6px;}
 #g-profile{display:flex; flex-direction:column; align-items:center; padding:10px 0 18px;}
 #gallery:not(.mode-mine):not(.mode-user) #g-profile{display:none;}
@@ -318,20 +316,78 @@ input[type=range]::-moz-range-thumb{
 }
 .g-dl{right:6px;} .g-del{left:6px;}
 .g-dl svg,.g-del svg{width:15px; height:15px;}
-/* Back, Public, you: two squares either side of one wide button. */
+/* Back and search, Public, you: the canvas toolbar's own pill (Dex,
+   2026-10-08), with Public shrunk to sit in the middle like the tool toggle. */
 #g-bar{
-  padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 16px);
-  display:flex; align-items:center; gap:14px; border-top:1px solid var(--border);
+  flex:none; align-self:center; position:relative; z-index:2;
+  display:flex; align-items:center; justify-content:space-between;
+  width:calc(100vw - 20px); max-width:600px; box-sizing:border-box; height:var(--bar-h); padding:0 14px;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:26px;
+  margin:6px 0 calc(env(safe-area-inset-bottom,0px) + 8px);
 }
 /* Which build is running, so a report can say "on build a1b2c3". */
-#g-build{font-size:13px; letter-spacing:.04em; color:var(--muted); opacity:.75; flex:none;}
+#g-head{display:flex; justify-content:flex-end; padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 0; min-height:18px;}
+#g-build{font-size:12px; letter-spacing:.04em; color:var(--muted); opacity:.6; flex:none;}
 .g-sq{width:52px; height:52px; border-radius:16px; flex:none; cursor:pointer;}
-#g-back{background:var(--panel); border:1px solid var(--border); color:var(--text); display:flex; align-items:center; justify-content:center;}
 #g-back svg{width:24px; height:24px;}
+#g-search-btn.on{background:rgba(255,255,255,.12);}
+#g-tab-mine{width:44px; height:44px; border-radius:14px; cursor:pointer;}
 /* Public <-> Mine, one button that says where it takes you. */
-.g-wide{flex:1; height:52px; border-radius:16px; background:var(--grad); border:none; color:#fff;
+.g-wide{height:52px; border-radius:16px; background:var(--grad); border:none; color:#fff;
   font-size:19px; font-weight:800; letter-spacing:.01em; cursor:pointer; box-shadow:var(--glow); text-shadow:0 1px 2px rgba(0,0,0,.25);}
+#g-tab-public{width:118px; height:46px; border-radius:15px; font-size:17px;}
 #g-tab-mine.on{outline:2px solid var(--a1); outline-offset:2px;}
+/* Search: the chips and the pill, on the keyboard while it is up and above
+   the bar when it is not (placeFind sets bottom). */
+#g-find{position:fixed; left:0; right:0; bottom:0; z-index:3; display:none; flex-direction:column; align-items:center; gap:8px;
+  padding:0 10px; pointer-events:none;}
+#gallery.searching #g-find{display:flex;}
+#g-find > *{pointer-events:auto;}
+#g-find-chips{display:flex; gap:6px; padding:4px; border-radius:16px; background:var(--panel); border:1px solid var(--border);
+  backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);}
+.g-chip{height:32px; padding:0 14px; border-radius:12px; border:none; background:none; color:var(--muted); font-size:14px; font-weight:700; cursor:pointer;}
+.g-chip.on{background:var(--grad); color:#fff;}
+#g-search-box{width:100%; max-width:600px; box-sizing:border-box; display:flex; align-items:center; gap:8px; height:48px; padding:0 6px 0 16px;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--a1); border-radius:24px; color:var(--muted);}
+#g-search-box > svg{width:18px; height:18px; flex:none;}
+#g-search{flex:1; min-width:0; background:none; border:none; outline:none; color:var(--text); font-size:16px;
+  user-select:text; -webkit-user-select:text;}
+#g-search::-webkit-search-cancel-button{display:none;}
+#g-find-x{width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,.08); color:var(--text);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none;}
+#g-find-x svg{width:16px; height:16px;}
+#gallery.searching #g-rows{padding-bottom:var(--find-h,120px);}
+.g-sec{font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:6px 2px -4px;}
+/* Select mode: no per-card buttons, a tick instead; the window floats. */
+.g-item, .g-thumb img{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+.g-thumb img{pointer-events:none;}
+#g-grid{touch-action:pan-y;}
+.g-check{position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:2px solid #fff;
+  background:rgba(0,0,0,.35); display:none; box-sizing:border-box;}
+#gallery.selecting .g-check{display:block;}
+#gallery.selecting .g-dl, #gallery.selecting .g-del, #gallery.selecting .g-pub{display:none;}
+#gallery.selecting .g-item.current .g-thumb{outline:none;}
+.g-item.sel .g-thumb{outline:3px solid var(--a1); outline-offset:-3px;}
+.g-item.sel .g-thumb img{opacity:.72;}
+.g-item.sel .g-check{background:var(--a1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/16px no-repeat; border-color:var(--a1);}
+#g-sel{position:fixed; z-index:4; width:208px; display:none; padding:6px 10px 10px; box-sizing:border-box;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.45);}
+#g-sel.open{display:block;}
+#g-sel-head{display:flex; align-items:center; gap:6px; height:38px; cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none;}
+#g-sel-head::before{content:''; position:absolute; left:50%; top:5px; width:28px; height:4px; margin-left:-14px; border-radius:2px; background:var(--border);}
+#g-sel-title{flex:1; min-width:0; font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-left:4px;}
+#g-sel-x{width:32px; height:32px; border-radius:50%; border:none; background:rgba(255,255,255,.08); color:var(--text);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none;}
+#g-sel-x svg{width:15px; height:15px;}
+#g-sel-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px;}
+.sel-btn{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; height:64px; border-radius:14px;
+  border:1px solid var(--border); background:rgba(255,255,255,.05); color:var(--text); font-size:12px; font-weight:600; cursor:pointer;}
+.sel-btn svg{width:22px; height:22px;}
+.sel-btn.danger{color:#ff6b6b;}
+.sel-btn:disabled{opacity:.3; cursor:default;}
 /* The crop sheet */
 #crop{position:fixed; inset:0; z-index:89; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; padding:20px;}
 #crop.open{display:flex;}
