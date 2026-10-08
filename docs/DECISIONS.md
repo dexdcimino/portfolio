@@ -25,6 +25,36 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — Accents: the art's hex on sRGB, halfway to P3's edge on a wide-gamut screen
+
+**Decided.** `--accent` is the ACCENTS hex from `script.js` on an sRGB screen and, under
+`@media (color-gamut:p3)` on every device, the same OKLCH lightness and hue with chroma moved
+halfway from the hex to the edge of P3 (+9-15%), written as explicit `color(display-p3 ...)`.
+Each accent also carries `--accent-deep`, a hand-picked shadow hue (lime to emerald, yellow
+to amber, blue to indigo, white to steel) that the hero's diagonal grade runs toward, and the
+front wedge is painted with the back wedge's own gradient and faded by a mask that runs
+along the band.
+
+**Replaced.** Three disagreeing palettes: an sRGB block of Apple system colours
+(`#FF3B30`, `#0A84FF`...) that matched neither the mascot renders nor the cursor and swatches;
+P3 values that were the sRGB numbers reinterpreted as P3 coordinates (every accent pinned to
+the gamut edge, hue drifted, then 3% grey mixed in to calm it), gated to fine-pointer desktops
+so phones got the Apple set; a grade that was the accent mixed 25% with black; and a front
+wedge whose fade ran nearly straight up and finished at the hero's bottom edge, so it sat
+solid over the mascot's legs.
+
+**Why.** The mascots are sRGB art painted in the ACCENTS hexes, and the accent sits next to
+them, so the hex is the colour and P3 may only make it richer, not different. Full P3 chroma
+was the "too strong" Dex saw; plain sRGB on a P3 screen was the "lame". Halfway keeps it
+clearly the same colour as the art. Black-mixing changes only lightness, which is why the
+grade was nearly invisible on some accents; a hue turn reads as a grade.
+
+**Reverse it if.** The mascot renders are re-exported in a wide-gamut profile (then P3 can go
+further), or Dex judges the halfway point on his own screens and wants it moved, which is one
+constant per accent.
+
+---
+
 ## 2026-10-08 — Dex's Google account opens the DEXDC notes themselves, decided by the server
 
 **Decided.** `/api/notes/unlock` takes a Firebase ID token (`idToken`) besides the

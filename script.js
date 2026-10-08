@@ -61,13 +61,18 @@ const parallaxEls = [...document.querySelectorAll('[data-parallax]')];
 // resume document is lighter (#1b1f24 / #23282f) and red, blue and purple do
 // not clear AA there; --cv-accent in styles.css lifts those three for that
 // subtree only. Retune a colour here and check that override still holds.
+//
+// `p3` is the same colour for a wide-gamut screen: the hex's OKLCH lightness
+// and hue, chroma moved halfway to the edge of P3. It has to match the
+// @media (color-gamut:p3) block under ACCENTS in styles.css, which is what
+// actually paints --accent; this copy only colours the picker's swatches.
 const ACCENTS = [
-  { name:'red',    color:'#D94727', p3:'color(display-p3 0.868 0.267 0.135)', mascot:'red' },
-  { name:'yellow', color:'#FAAA1E', p3:'color(display-p3 1.000 0.672 0.098)', mascot:'yellow' },
-  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.624 0.896 0.151)', mascot:'limegreen' },
-  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.153 0.791 0.985)', mascot:'cyan' },
-  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.181 0.354 0.972)', mascot:'blue' },
-  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.659 0.346 0.976)', mascot:'purple' },
+  { name:'red',    color:'#D94727', p3:'color(display-p3 0.823 0.273 0.136)', mascot:'red' },
+  { name:'yellow', color:'#FAAA1E', p3:'color(display-p3 0.952 0.672 0.181)', mascot:'yellow' },
+  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.662 0.879 0.219)', mascot:'limegreen' },
+  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.324 0.774 0.973)', mascot:'cyan' },
+  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.222 0.342 0.959)', mascot:'blue' },
+  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.627 0.348 0.965)', mascot:'purple' },
   { name:'white',  color:'#E9EBEC', p3:'color(display-p3 0.913 0.922 0.926)', mascot:'white' }
 ];
 const useP3 = window.matchMedia('(color-gamut: p3)').matches;
