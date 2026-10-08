@@ -25,6 +25,31 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — Inko: a profile picture is a live crop of one of your canvases
+
+**Decided.** Your profile picture is a square cut from a canvas you pick, re-rendered and
+re-sent whenever that canvas changes (strokes, undo, canvas colour). The account keeps which
+canvas and which square, so every device follows the same one. Everyone starts as a default
+smiley; nobody is prompted to draw one. A rename MOVES everything the handle names (record,
+sign-in links, posts, canvases, picture) and leaves a stub holding the old name.
+
+**Replaced.** No profiles at all, and handles that could not change. Dex was unsure between
+a dedicated square "draw your picture" canvas, the first drawing as the picture, and a
+canvas chosen as the picture; the coordinator picked the last for him.
+
+**Why.** Choosing an existing canvas reuses the whole drawing UI and needs no second
+editor; keeping it live is what Dex described ("whatever changes they make to that, it
+would immediately update"). A rename has to move the data because the handle is the key
+everywhere -- tokens, canvas folders, post ownership -- and a display name over a fixed
+handle would have shown two names for one person. The stub stops a newcomer inheriting the
+old name's reactions.
+
+**Reverse it if** people want a picture that is not one of their canvases (an upload, or a
+separate square editor), or renames become frequent enough that reactions filed under old
+names matter -- then handles should become an immutable id with the @tag as a property.
+
+---
+
 ## 2026-10-08 — Inko: a signed-in account's canvases are kept on the server
 
 **Decided.** Each account's saved canvases are stored under `sketch/canvases/<handle>/`

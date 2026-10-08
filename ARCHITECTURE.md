@@ -665,7 +665,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     deleted the oldest on every save past it, inside a ~5 MB quota. The old
     keys are migrated once and removed only after every record is written.
     Undo steps are `toBlob` PNGs (encoded off the main thread), the same blob
-    is the draft, and undo is live the instant a stroke ends.
+    is the draft, and undo is live the instant a stroke ends. A step also
+    carries the canvas colour (`bg`), and letting go of a canvas-colour
+    slider pushes a step that reuses the strokes' blob, so undo walks a
+    colour change back like a stroke.
   - **Undo outlives the page.** Each step is written once, as its stroke
     ends, to a third store, `steps` (DB version 2), and the draft names the
     stack by id -- so a reload of any kind (Android reclaiming the app in the
@@ -701,6 +704,22 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     `meta` `deletes:<scope>`. Syncs run on sign-in, launch, foreground,
     `online`, and after a save, delete or visibility change. Drafts stay on
     the device. Signed out, nothing leaves it.
+  - **The gallery is your profile.** Search across the top (@artists, always);
+    a profile header over the cards; and a bottom bar of three: a square back
+    arrow, a wide Public, and a square of your own picture that opens your
+    profile (your canvases under your picture and your @tag, with its edit
+    button, or Sign in). Tapping a name on a card or in the viewer opens that
+    artist's profile (`?profile=`), and back from there goes to Public.
+  - **Your picture is one of your canvases, kept live.** Tapping it offers a
+    pick of your canvases and then a square crop; the 256px JPEG is kept in
+    `meta` `avatar:<scope>` with which canvas and which square, and every
+    stroke, undo or colour change on THAT canvas redraws it (`picFollow`) and,
+    signed in, sends it to the account a moment later. Until one is chosen it
+    is the default smiley. It moves with the canvases on a first sign-in.
+  - **Renaming moves the scope.** The edit button renames the account on the
+    server (below), then re-owns every `u:<old>` canvas and `seen:`, `draft:`,
+    `deletes:` and `avatar:` record on the device to `u:<new>`, without a
+    sign-out in between.
   `tools/inko_check.mjs` drives all of it under the real `/inko/` policy read
   out of `vercel.json`. The pre-rebuild app at inko.dexcimino.com (repo
   dexdcimino/inko) now redirects here.
@@ -738,6 +757,21 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     which accepts Dex's universal admin JWT from `api/auth/unlock`.
   - **One reaction per person per post**, 🔥 or 💩, switchable; counts are
     recomputed from the vote file on every change, never incremented.
+  - **Profiles.** A picture is `sketch/avatars/<handle>-<v>.jpg`, public
+    through the image route like a post (the route's key pattern is strict, so
+    it still serves nothing else), with `sketch/avatars.json` (`{handle: v}`)
+    returned beside the feed so every card can show its artist. The user
+    record keeps `avatar: { v, canvas, crop }` so every device follows the same
+    canvas. `?users=` searches `sketch/handles.json`, a sorted name list
+    maintained on signup, claim, rename, delete and each signed-in launch
+    (`me`), which is how accounts older than search join it.
+  - **A rename moves everything a handle names**: the user record, the
+    identity links, each post's `handle` and the feed, the canvas folder, the
+    picture, the search list -- and leaves a stub (`movedTo`) at the old name,
+    so nobody else can take it and a password sign-in with it says where it
+    went. Every authenticated request checks the token's handle is still a
+    live account (`liveHandle`), so a rename or deletion ends the old tokens.
+    Known limit: reactions the account gave stay filed under the old name.
   - The feed is ONE JSON read, edge-cached for 10 s; images are served
     through the function (the store is private) under versioned keys, so
     their URLs are `immutable`. Because of that edge cache, for three minutes
@@ -750,7 +784,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     the notes store has) when the feed is busy enough to race.
   `tools/sketch_check.mjs` runs the real handler on a scratch store: the
   refusals, the report threshold, account deletion, and two browser contexts
-  as two people publishing, reacting, viewing, hiding and unpublishing.
+  as two people publishing, reacting, viewing, hiding and unpublishing, then
+  profiles: a picture cut from a canvas and following it, @-search into an
+  artist and back, and a rename that carries the canvases, picture and posts.
 - `mobius/` — the **Mobius 3D** viewer, opened by its AI Lab card's eyeball
   into the app overlay (`data-app-shape="window"`) on `?sample=knot`. It is a
   BUILT COPY of `dist/` from its own repository, github.com/dexdcimino/mobius-3d,

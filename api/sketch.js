@@ -2,6 +2,9 @@
  *
  *   GET  /api/sketch?feed=1                 -> { posts: [summary...] }   public, edge-cached 10 s
  *   GET  /api/sketch?img=sketch/img/<key>   -> the image                 public, immutable
+ *        (or sketch/avatars/<handle>-<v>.jpg, a profile picture)
+ *   GET  /api/sketch?profile=<handle>       -> { handle, avatar, posts } public, edge-cached 10 s
+ *   GET  /api/sketch?users=<query>          -> { users: [{ handle, avatar }] }   @-search
  *   POST /api/sketch { action, ... }        -> JSON
  *
  * ACTIONS
@@ -16,6 +19,10 @@
  *   canvas-put       { token, id, title, bg, created, ts, visibility, png, thumb } -> { canvas, stale? }
  *   canvas-delete    { token, id, ts }               -> { deleted }
  *   canvas-img       { token, id, v, thumb }         -> the PNG (or JPEG thumbnail) bytes
+ *   me               { token }                       -> { handle, avatar: { v, canvas, crop } | null }
+ *   avatar-set       { token, image, canvas, crop }  -> { avatar }   a 256px JPEG cut from a canvas
+ *   avatar-clear     { token }                       -> back to the default smiley
+ *   rename           { token, handle }               -> { handle, token, avatar }   moves everything; old tokens stop
  *   delete-account   { token, password }
  *   moderate         { admin, id, op: hide|restore|delete }   admin = Dex's universal JWT
  */
@@ -41,9 +48,19 @@ module.exports = async function handler(req, res) {
       }
       if (q.feed) {
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=10, stale-while-revalidate=30');
-        return res.status(200).json({ posts: await store.readFeed() });
+        // The pictures ride along: one more read, and every card can show its artist's face.
+        const [posts, avatars] = await Promise.all([store.readFeed(), store.readAvatars()]);
+        return res.status(200).json({ posts, avatars });
       }
-      return res.status(400).json({ error: 'feed or img' });
+      if (q.profile) {
+        res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=10, stale-while-revalidate=30');
+        return res.status(200).json(await store.profile(q.profile));
+      }
+      if (q.users !== undefined) {
+        res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=10, stale-while-revalidate=30');
+        return res.status(200).json({ users: await store.searchUsers(q.users) });
+      }
+      return res.status(400).json({ error: 'feed, img, profile or users' });
     }
     if (req.method !== 'POST') { res.setHeader('Allow', 'GET, POST'); return res.status(405).json({ error: 'GET or POST' }); }
 
@@ -62,7 +79,9 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(await store.moderate(String(body.id || ''), body.op));
     }
 
-    const handle = store.readToken(body.token);
+    // A token outlives a rename or a deletion of its account; it is only as
+    // good as the account it names.
+    const handle = await store.liveHandle(store.readToken(body.token));
     if (!handle) return res.status(401).json({ error: 'Sign in again' });
 
     if (action === 'publish') return res.status(200).json({ post: await store.publish(handle, body) });
@@ -79,6 +98,10 @@ module.exports = async function handler(req, res) {
       res.setHeader('Content-Type', found.type);
       return res.status(200).send(found.buf);
     }
+    if (action === 'me') return res.status(200).json(await store.me(handle));
+    if (action === 'avatar-set') return res.status(200).json(await store.setAvatar(handle, body));
+    if (action === 'avatar-clear') return res.status(200).json(await store.clearAvatar(handle));
+    if (action === 'rename') return res.status(200).json(await store.rename(handle, body.handle));
     if (action === 'delete-account') return res.status(200).json(await store.deleteAccount(handle, body.password));
     return res.status(400).json({ error: 'no such action' });
   } catch (err) {

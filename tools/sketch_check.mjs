@@ -477,6 +477,185 @@ try {
     await ctxC.close();
   }
 
+  // ---- 6. profiles: pictures, @-search, renaming (Dex, 2026-10-08) ------
+  {
+    // The API: a picture is a JPEG, public by its versioned key; search finds names; a rename moves everything.
+    const T = Date.now();
+    const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+    const fa = (await post({ action: 'signup', handle: 'face_a', password: 'correct horse' })).body;
+    const fb = (await post({ action: 'signup', handle: 'face_b', password: 'correct horse' })).body;
+    const me0 = await post({ action: 'me', token: fa.token });
+    note(me0.status === 200 && me0.body.avatar === null, `a new account has a picture: ${JSON.stringify(me0.body)}`);
+    const webpPic = await post({ action: 'avatar-set', token: fa.token, image: real.webp, canvas: 'cvpic', crop: { x: 0, y: 0, size: 100 } });
+    note(webpPic.status === 400, `a WebP picture answered ${webpPic.status}`);
+    const set = await post({ action: 'avatar-set', token: fa.token, image: real.jpeg, canvas: 'cvpic', crop: { x: 10, y: 20, size: 300 } });
+    note(set.status === 200 && set.body.avatar.v === 1 && set.body.avatar.canvas === 'cvpic', `avatar-set answered ${set.status} ${JSON.stringify(set.body)}`);
+    const picUrl = (h, v) => `${BASE}/api/sketch?img=${encodeURIComponent(`sketch/avatars/${h}-${v}.jpg`)}`;
+    const pic = await fetch(picUrl('face_a', 1));
+    note(pic.status === 200 && pic.headers.get('content-type') === 'image/jpeg', `the picture route answered ${pic.status} ${pic.headers.get('content-type')}`);
+    await post({ action: 'publish', token: fa.token, id: 'facepost', title: 'Faces', image: real.webp, thumb: real.jpeg });
+    await post({ action: 'canvas-put', token: fa.token, id: 'facecv', title: 'Moves', ts: T, png: PNG, thumb: real.jpeg });
+    const feedNow = await (await fetch(`${BASE}/api/sketch?feed=1&x=${T}`)).json();
+    note(feedNow.avatars && feedNow.avatars.face_a === 1, `the feed does not name the pictures: ${JSON.stringify(feedNow.avatars)}`);
+    const prof = await (await fetch(`${BASE}/api/sketch?profile=face_a`)).json();
+    note(prof.avatar === 1 && prof.posts.length === 1 && prof.posts[0].id === 'facepost', `the profile: ${JSON.stringify(prof).slice(0, 120)}`);
+    const found = (await (await fetch(`${BASE}/api/sketch?users=${encodeURIComponent('@FACE')}`)).json()).users.map(u => u.handle);
+    note(found.length === 2 && found.includes('face_a') && found.includes('face_b'), `search for @FACE found ${JSON.stringify(found)}`);
+    const firstB = (await (await fetch(`${BASE}/api/sketch?users=e_b`)).json()).users.map(u => u.handle);
+    note(firstB[0] === 'face_b' && !firstB.includes('face_a'), `search for e_b found ${JSON.stringify(firstB)}`);
+
+    const taken = await post({ action: 'rename', token: fa.token, handle: 'face_b' });
+    const reservedName = await post({ action: 'rename', token: fa.token, handle: 'admin' });
+    note(taken.status === 409 && reservedName.status === 409, `renaming onto a taken name ${taken.status}, a reserved one ${reservedName.status}`);
+    const moved = await post({ action: 'rename', token: fa.token, handle: 'Face_C' });
+    note(moved.status === 200 && moved.body.handle === 'face_c' && moved.body.token, `rename answered ${moved.status} ${JSON.stringify(moved.body).slice(0, 80)}`);
+    const oldTok = await post({ action: 'me', token: fa.token });
+    const newMe = await post({ action: 'me', token: moved.body.token });
+    note(oldTok.status === 401 && newMe.status === 200 && newMe.body.avatar && newMe.body.avatar.v === 1 && newMe.body.avatar.canvas === 'cvpic',
+      `after a rename: the old token ${oldTok.status}, the new one ${newMe.status} ${JSON.stringify(newMe.body)}`);
+    const [picNew, picOld] = await Promise.all([fetch(picUrl('face_c', 1)), fetch(picUrl('face_a', 1))]);
+    const feedAfter = (await (await fetch(`${BASE}/api/sketch?feed=1&y=${T}`)).json()).posts.find(p => p.id === 'facepost');
+    const cvs = (await post({ action: 'canvases', token: moved.body.token })).body.canvases;
+    const cvImg = await fetch(BASE + '/api/sketch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'canvas-img', token: moved.body.token, id: 'facecv', v: 1 }) });
+    note(picNew.status === 200 && picOld.status === 404 && feedAfter && feedAfter.handle === 'face_c' && cvs.length === 1 && cvImg.status === 200,
+      `a rename moved: picture ${picNew.status}/${picOld.status}, post ${feedAfter && feedAfter.handle}, canvases ${cvs.length}, canvas image ${cvImg.status}`);
+    const stubProfile = await (await fetch(`${BASE}/api/sketch?profile=face_a`)).json();
+    const reclaim = await post({ action: 'signup', handle: 'face_a', password: 'correct horse' });
+    const oldLogin = await post({ action: 'login', handle: 'face_a', password: 'correct horse' });
+    note(stubProfile.movedTo === 'face_c' && reclaim.status === 409 && oldLogin.status === 401 && /face_c/.test(oldLogin.body.error),
+      `the old name: profile ${JSON.stringify(stubProfile)}, signup ${reclaim.status}, login ${oldLogin.status} "${oldLogin.body.error}"`);
+    const newLogin = await post({ action: 'login', handle: 'face_c', password: 'correct horse' });
+    note(newLogin.status === 200, `signing in with the new name answered ${newLogin.status}`);
+    await post({ action: 'delete-account', token: moved.body.token, password: 'correct horse' });
+    const pics = (await (await fetch(`${BASE}/api/sketch?feed=1&z=${T}`)).json()).avatars;
+    const freed = await post({ action: 'signup', handle: 'face_a', password: 'correct horse' });
+    const gone = (await (await fetch(`${BASE}/api/sketch?users=face_c`)).json()).users;
+    note(!('face_c' in pics) && freed.status === 200 && gone.length === 0, `deleting the renamed account: pictures ${JSON.stringify(pics)}, old name signup ${freed.status}, search ${JSON.stringify(gone)}`);
+    // face_b gets a picture and a public drawing, for the browser to find.
+    await post({ action: 'avatar-set', token: fb.token, image: real.jpeg, canvas: null, crop: {} });
+    await post({ action: 'publish', token: fb.token, id: 'bpost', title: 'From B', image: real.webp, thumb: real.jpeg });
+    console.log('profiles (api): a JPEG picture by versioned key, in the feed and the profile, @-search by contains and prefix, a rename that moved the picture, the post, the canvases and the sign-in, and held the old name until the account went');
+
+    // The app.
+    const ctxD = await browser.createBrowserContext();
+    const D = await ctxD.newPage();
+    const dErrors = [];
+    await D.setViewport({ width: 420, height: 860, isMobile: true, deviceScaleFactor: 2 });
+    D.on('pageerror', e => dErrors.push(`pageerror: ${e.message}`));
+    D.on('console', m => { if (m.type() === 'error' && !/status of 40[134]/.test(m.text())) dErrors.push(`console: ${m.text()}`); });
+    await D.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
+    await strokeOn(D);
+    // Sign up from the profile's own Sign in.
+    await D.click('#grid-btn'); await sleep(400);
+    const bar = await D.evaluate(() => {
+      const r = id => { const q = document.getElementById(id).getBoundingClientRect(); return { left: q.left, right: q.right, width: q.width, height: q.height }; };
+      const b = r('g-back'), p = r('g-tab-public'), m = r('g-tab-mine');
+      return { b, p, m, order: b.right <= p.left && p.right <= m.left, back: document.getElementById('g-back').textContent.trim(),
+               smiley: /^url\("data:image\/svg/.test(document.getElementById('g-avatar').style.backgroundImage),
+               mineSmiley: /^url\("data:image\/svg/.test(document.getElementById('g-tab-mine').style.backgroundImage),
+               profile: getComputedStyle(document.getElementById('g-profile')).display !== 'none',
+               signIn: document.getElementById('g-account').textContent };
+    });
+    note(bar.order && Math.abs(bar.b.width - bar.b.height) < 1 && Math.abs(bar.m.width - bar.m.height) < 1 && Math.abs(bar.b.width - bar.m.width) < 1 && bar.p.width > bar.b.width * 2 && bar.back === '',
+      `the bottom bar is not back, a wide Public, then a square profile: ${JSON.stringify(bar)}`);
+    note(bar.smiley && bar.mineSmiley && bar.profile && bar.signIn === 'Sign in', `signed out, the profile is not a smiley over Sign in: ${JSON.stringify(bar)}`);
+    await shot(D, '6-profile-signed-out');
+    await D.click('#g-account'); await sleep(300);
+    await D.click('#a-more'); await sleep(150);
+    await D.type('#a-handle', 'pic_artist'); await D.type('#a-pass', 'correct horse');
+    await D.click('#a-signup'); await sleep(1500);
+    note(await D.evaluate(() => document.getElementById('g-account').textContent) === '@pic_artist', 'the profile does not show @pic_artist after signing up');
+
+    // Choose the canvas on screen as the picture, keep the default square.
+    await D.click('#g-avatar'); await sleep(200);
+    note(await D.evaluate(() => !document.getElementById('g-pick').hidden), 'tapping your picture did not offer to choose a canvas');
+    await D.click('.g-item.current'); await sleep(600);
+    note(await D.evaluate(() => document.getElementById('crop').classList.contains('open')), 'tapping a canvas did not open the crop');
+    await shot(D, '6-crop');
+    await D.click('#crop-save'); await sleep(2500);
+    // What the picture holds: read the blob the profile square shows.
+    const picPixels = () => D.evaluate(async () => {
+      const m = /url\("(blob:[^"]+)"\)/.exec(document.getElementById('g-tab-mine').style.backgroundImage);
+      if (!m) return null;
+      const bmp = await createImageBitmap(await (await fetch(m[1])).blob());
+      const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+      const x = c.getContext('2d'); x.drawImage(bmp, 0, 0);
+      const d = x.getImageData(0, 0, c.width, c.height).data;
+      let red = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 80 && d[i + 2] < 80) red++;
+      return { w: c.width, red, corner: [d[0], d[1], d[2]] };
+    });
+    const first = await picPixels();
+    note(first && first.w === 256 && first.red > 500, `the picture is not the canvas: ${JSON.stringify(first)}`);
+    const acct1 = await store.me('pic_artist');
+    const canvasId = await D.evaluate(() => document.querySelector('.g-item.current') && 1);
+    note(acct1.avatar && acct1.avatar.v >= 1 && acct1.avatar.canvas && canvasId, `the account did not get the picture: ${JSON.stringify(acct1)}`);
+
+    // Back to the canvas: a colour change is an undo step, and the picture follows it.
+    await D.click('#g-back'); await sleep(300);
+    const dot = () => D.evaluate(() => getComputedStyle(document.getElementById('cs-dot')).backgroundColor);
+    const before = await dot();
+    await D.evaluate(() => {
+      const s = document.getElementById('cv-hue'); s.value = 120; s.dispatchEvent(new Event('input')); s.dispatchEvent(new Event('change'));
+      const b = document.getElementById('cv-bri'); b.value = 90; b.dispatchEvent(new Event('input')); b.dispatchEvent(new Event('change'));
+    });
+    await sleep(2500);
+    const after = await dot();
+    const followed = await picPixels();
+    const want = after.match(/\d+/g).map(Number);
+    note(followed && followed.corner.every((v, i) => Math.abs(v - want[i]) < 12) && followed.red > 500,
+      `the picture did not follow its canvas to ${after}: ${JSON.stringify(followed)}`);
+    const acct2 = await store.me('pic_artist');
+    note(acct2.avatar.v > acct1.avatar.v, `the account's picture did not follow the canvas: v${acct1.avatar.v} -> v${acct2.avatar.v}`);
+    await D.click('#undo-btn'); await sleep(500);
+    const undone1 = await dot();
+    await D.click('#undo-btn'); await sleep(500);
+    const undone2 = await dot();
+    await D.click('#redo-btn'); await sleep(300); await D.click('#redo-btn'); await sleep(500);
+    const redone = await dot();
+    note(undone1 !== after && undone2 === before && redone === after, `undo did not walk the canvas colour back: ${before} -> ${after}; undo ${undone1}, ${undone2}; redo ${redone}`);
+
+    // Search from the top, into someone's profile, and back out to Public.
+    await D.click('#grid-btn'); await sleep(400);
+    await D.type('#g-search', 'face'); await sleep(900);
+    const results = await D.evaluate(() => [...document.querySelectorAll('.g-user')].map(b => b.dataset.handle));
+    note(results.includes('face_b') && results.includes('face_a'), `searching "face" found ${JSON.stringify(results)}`);
+    await shot(D, '6-search');
+    await D.click('.g-user[data-handle="face_b"]'); await sleep(900);
+    const prof2 = await D.evaluate(() => ({ mode: document.getElementById('gallery').className, name: document.getElementById('g-user-name').textContent,
+      pic: document.getElementById('g-avatar').style.backgroundImage, cards: [...document.querySelectorAll('.g-item .g-title')].map(e => e.textContent),
+      search: document.getElementById('g-search').value }));
+    note(/mode-user/.test(prof2.mode) && prof2.name === '@face_b' && /sketch%2Favatars%2Fface_b-1\.jpg/.test(prof2.pic) && prof2.cards.includes('From B') && prof2.search === '',
+      `face_b's profile: ${JSON.stringify(prof2)}`);
+    await shot(D, '6-user');
+    await D.click('#g-back'); await sleep(900);
+    const pub = await D.evaluate(() => ({ mode: document.getElementById('gallery').className,
+      by: [...document.querySelectorAll('.g-item')].filter(e => /From B/.test(e.textContent)).map(e => e.querySelector('.g-by .avatar').style.backgroundImage) }));
+    note(/mode-public/.test(pub.mode) && pub.by.length === 1 && /face_b-1\.jpg/.test(pub.by[0]), `back from a profile, Public with B's face on the card: ${JSON.stringify(pub)}`);
+
+    // Rename from the edit button: the canvases on this phone follow the name.
+    await D.click('#g-tab-mine'); await sleep(300);
+    await D.click('#g-account'); await sleep(300);
+    note(await D.evaluate(() => document.getElementById('a-rename').value) === 'pic_artist', 'the edit sheet does not offer the current @tag');
+    await D.evaluate(() => { document.getElementById('a-rename').value = ''; });
+    await D.type('#a-rename', 'pic_renamed');
+    await D.click('#a-rename-go'); await sleep(1500);
+    const renamed = await D.evaluate(async () => {
+      const db = await new Promise(r => { const q = indexedDB.open('inko'); q.onsuccess = () => r(q.result); });
+      const all = await new Promise(r => { const q = db.transaction('canvases').objectStore('canvases').getAll(); q.onsuccess = () => r(q.result); });
+      const owners = {}; for (const c of all) owners[c.owner] = (owners[c.owner] || 0) + 1;
+      return { label: document.getElementById('g-account').textContent, owners, session: JSON.parse(localStorage.getItem('sketchSession')).handle,
+               pic: /blob:/.test(document.getElementById('g-tab-mine').style.backgroundImage) };
+    });
+    note(renamed.label === '@pic_renamed' && renamed.session === 'pic_renamed' && renamed.owners['u:pic_renamed'] > 0 && !renamed.owners['u:pic_artist'] && renamed.pic,
+      `after renaming in the app: ${JSON.stringify(renamed)}`);
+    const acct3 = await store.me('pic_renamed');
+    note(acct3.avatar && acct3.avatar.v >= acct2.avatar.v, `the renamed account lost its picture: ${JSON.stringify(acct3)}`);
+    await shot(D, '6-profile-renamed');
+    note(dErrors.length === 0, `profile page errors: ${dErrors.join(' | ')}`);
+    console.log(`profiles (app): smiley then a picture cut from the canvas (${first.red} red px), following a colour change that undo walked back (${before} -> ${after}), search into @face_b and back to Public, renamed to @pic_renamed with ${renamed.owners['u:pic_renamed']} canvas(es)`);
+    await ctxD.close();
+  }
+
 } finally {
   await browser.close();
   server.close();

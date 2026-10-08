@@ -94,13 +94,40 @@
 
 <div id="size-preview"><div id="sp-circle"></div><div id="sp-label">45px</div></div>
 
+<!-- The gallery (Dex, 2026-10-08): search across the top, always; a profile
+     header over YOUR canvases (picture, @tag with its edit button, or Sign
+     in) or over someone else's public drawings; and three buttons along the
+     bottom -- back, Public, and your own picture, which is your profile. -->
 <div id="gallery">
   <div id="g-head">
-    <span id="g-tabs" role="tablist"><button id="g-tab-mine" class="g-tab on" role="tab">Mine</button><button id="g-tab-public" class="g-tab" role="tab">Public</button></span>
-    <span class="g-head-r"><span id="g-count"></span><button id="g-account" class="g-account">Sign in</button></span>
+    <label id="g-search-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20 L16.5 16.5"/></svg><input id="g-search" type="search" placeholder="Search @artists" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search"></label>
+    <span id="g-build" aria-label="Build"></span>
   </div>
-  <div id="g-grid"><div id="g-rows"></div></div>
-  <div id="g-bar"><button id="g-back">‹ Back to canvas</button><span id="g-build" aria-label="Build"></span></div>
+  <div id="g-pick" hidden><span>Tap a canvas to make it your picture</span><button id="g-pick-smiley" class="v-link">Use the smiley</button><button id="g-pick-cancel" class="v-link">Cancel</button></div>
+  <div id="g-grid">
+    <div id="g-profile">
+      <button id="g-avatar" class="avatar big" aria-label="Change your profile picture"></button>
+      <div id="g-namerow"><span id="g-user-name" hidden></span><button id="g-account" class="g-account">Sign in</button></div>
+      <span id="g-count"></span>
+    </div>
+    <div id="g-rows"></div>
+  </div>
+  <div id="g-bar">
+    <button id="g-back" class="g-sq" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"/></svg></button>
+    <button id="g-tab-public" class="g-wide" aria-label="Public drawings">Public</button>
+    <button id="g-tab-mine" class="g-sq avatar" aria-label="Your profile"></button>
+  </div>
+</div>
+
+<!-- Cutting a profile picture out of a canvas: drag the square, size it. -->
+<div id="crop">
+  <div id="crop-card">
+    <div class="a-title a-center">Profile picture</div>
+    <div id="crop-stage"><canvas id="crop-cv"></canvas><div id="crop-box"></div></div>
+    <div class="hsb-row"><span class="hsb-lbl">−</span><input type="range" id="crop-size" min="20" max="100" value="100"><span class="hsb-lbl">+</span></div>
+    <div class="a-text a-center">It keeps up with this canvas: draw on it and your picture changes too.</div>
+    <div class="mrow"><button id="crop-cancel" class="mbtn">Cancel</button><button id="crop-save" class="mbtn primary">Use it</button></div>
+  </div>
 </div>
 
 <div id="viewer">
@@ -109,7 +136,7 @@
   </button>
   <div id="v-stage"><img id="v-img" alt=""></div>
   <div id="v-bar">
-    <div id="v-meta"><div id="v-title"></div><div id="v-by"></div></div>
+    <div id="v-meta"><div id="v-title"></div><button id="v-by" class="by-link"></button></div>
     <div class="g-react"></div>
     <div id="v-acts"><button id="v-report" class="v-link">Report</button><button id="v-block" class="v-link">Hide this artist</button></div>
   </div>
@@ -141,6 +168,9 @@
   </div>
   <div id="a-out" hidden>
     <div class="a-title" id="a-who"></div>
+    <div class="a-text">Your @tag, as everyone sees it:</div>
+    <div id="a-rename-row"><span class="a-at">@</span><input id="a-rename" class="a-field" placeholder="name" autocapitalize="none" spellcheck="false" maxlength="20"><button id="a-rename-go" class="mbtn primary">Save</button></div>
+    <div id="a-msg4" class="a-msg" role="alert"></div>
     <div class="mrow"><button id="a-signout" class="mbtn">Sign out</button></div>
     <div class="a-text a-danger-zone">Delete the account and take every drawing you shared out of the gallery:</div>
     <input id="a-pass2" class="a-field" type="password" placeholder="Password" autocomplete="current-password">
