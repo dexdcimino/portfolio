@@ -65,14 +65,20 @@ export function initChips(context) {
 
 /* ---- rendering ------------------------------------------------------------ */
 
+/* An image's URL may come back as a promise (an account's pictures are in
+ * Firebase Storage and need a signed URL). A preview data: URI stays until the
+ * real one is known, unless `force` says the preview is done with. */
+function setAssetSrc(img, want, force) {
+  const apply = (url) => { if (url && img.getAttribute('src') !== url && (force || !img.src.startsWith('data:'))) img.src = url; };
+  if (want && typeof want.then === 'function') want.then(apply, (err) => console.warn('notes: image not found', err));
+  else apply(want);
+}
+
 /* Give every image in a body its URL, and every chip its label. Runs after any
  * innerHTML assignment: render, undo, paste. */
 export function hydrate(body) {
-  const token = ctx.token();
   for (const img of body.querySelectorAll('img.nt-img[data-key]')) {
-    const local = ctx.demoAssets.get(img.dataset.key);
-    const want = local || `/api/notes/asset?key=${encodeURIComponent(img.dataset.key)}&t=${encodeURIComponent(token)}`;
-    if (img.getAttribute('src') !== want && !img.src.startsWith('data:')) img.src = want;
+    setAssetSrc(img, ctx.assetSrc(img.dataset.key));
     img.setAttribute('draggable', 'false');
     img.style.width = `${img.dataset.w || 50}%`;
   }
@@ -473,7 +479,7 @@ export async function insertImageFile(body, file) {
     if (!target) return;
     target.dataset.key = key;
     target.classList.remove('is-pending');
-    target.src = ctx.demoAssets.get(key) || `/api/notes/asset?key=${encodeURIComponent(key)}&t=${encodeURIComponent(ctx.token())}`;
+    setAssetSrc(target, ctx.assetSrc(key), true);
     ctx.changed(live);
     ctx.history.seal();
   } catch (err) {
