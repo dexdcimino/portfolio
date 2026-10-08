@@ -1,10 +1,9 @@
 /* dexcimino.com/account/ -- the site account's own page.
  *
- * Sign in, see who you are, sign out. Its main job is the case a popup cannot
- * serve: an app running inside the homepage's overlay frame (Inko) opens this
- * page in a new tab with ?then=close, the person signs in here, and the
- * sign-in reaches the frame through Firebase's shared storage. The tab then
- * closes itself if the browser lets it, or says it can be closed.
+ * Sign in, see who you are, sign out. With ?then=close it closes itself after
+ * a sign-in, for an app in a frame that cannot open a popup: open this page in
+ * a new tab, and the sign-in reaches the frame through Firebase's shared
+ * storage. With ?app=inko&p=<provider>, a failure offers Inko's own sign-in.
  *
  * The card is DexNote's sign-in card (the same classes from notes.css and
  * dexnote.css), so the site has one sign-in look rather than a second one.

@@ -1400,14 +1400,15 @@ $('a-more').addEventListener('click', () => setPasswordFields($('a-pw').hidden))
    -- or to the same Google or Discord, for an account made here before the
    site account existed -- or asks for a name (the claim sheet).
 
-   Inside the site's overlay a sign-in popup is cut off by the homepage's
-   opener policy, so there the site's own sign-in page opens in a new tab, and
-   the sign-in reaches this frame through Firebase's shared storage.
+   A popup works inside the site's overlay too: the homepage sends
+   Cross-Origin-Opener-Policy: same-origin-allow-popups, as /inko/ does.
 
    The old way stays as the fallback: a real navigation to
    /api/sketch-auth/<provider>, back to /inko/ with the result in the URL
-   fragment. It is what a failed site sign-in falls back to, so a site account
-   that cannot sign in here yet never leaves Inko unable to. */
+   fragment (in a new tab inside the overlay, whose session then reaches the
+   frame through localStorage -- see the storage listener below). It is what a
+   failed site sign-in falls back to, so a site account that cannot sign in
+   here yet never leaves Inko unable to. */
 let siteAuth = null;
 const loadSite = () => (siteAuth ||= import('/account/site-auth.js'));
 const FRAMED = EMBED || window.top !== window.self;   // the overlay loads /inko/ without ?embed
@@ -1429,24 +1430,11 @@ async function linkSite(quiet){
   return false;
 }
 
-/* In the overlay: watch for the sign-in the new tab will make. */
-let watchingSite = false;
-async function watchSite(){
-  if (watchingSite) return;
-  watchingSite = true;
-  (await loadSite()).onUser(u => { if (u && !session) linkSite(false).catch(e => console.warn('inko: site link', e)); });
-}
-
 for (const id of ['a-google', 'a-discord']){
   $(id).addEventListener('click', async e => {
     e.preventDefault();
     const href = $(id).getAttribute('href');
     const which = id === 'a-google' ? 'google' : 'discord';
-    if (FRAMED){
-      watchSite().catch(err => console.warn('inko: site auth', err));
-      window.open('/account/?then=close&app=inko&p=' + which, '_blank', 'noopener');
-      return;
-    }
     try {
       await (await loadSite()).signIn(which);
       await linkSite(false);
@@ -1455,6 +1443,7 @@ for (const id of ['a-google', 'a-discord']){
       if (siteAuth && (await siteAuth).cancelled(err)) return;
       console.warn('inko: site sign-in failed, using the Inko sign-in', err);
     }
+    if (FRAMED){ window.open(href, '_blank', 'noopener'); return; }
     try { await flushDraft(); } catch (err) {}
     location.href = href;
   });

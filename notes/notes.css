@@ -1399,3 +1399,19 @@ button.nt-row-badge:hover { background: color-mix(in srgb, var(--c) 30%, transpa
 @media (max-width:767px){
   .nt-cat-color{width:8px !important;height:8px !important;margin:0 2px}
 }
+
+/* ---- accounts (dexnote/account.js) ----------------------------------------
+   The sign-in card, the account button in the header and the password field,
+   drawn by /dexnote/ and by the homepage overlay alike. Built from the app's
+   own modal and button classes, so these only lay them out. */
+.dn-card { display: flex; flex-direction: column; align-items: stretch; gap: 10px; text-align: center; max-width: 360px; width: calc(100% - 32px); box-sizing: border-box; }
+.dn-logo { width: 56px; height: 56px; align-self: center; }
+.dn-providers { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.dn-providers .nt-btn { width: 100%; justify-content: center; }
+.dn-card .nt-modal-btns { justify-content: center; }
+.dn-error { color: var(--danger); }
+
+.dn-account { overflow: hidden; }
+.dn-avatar { width: 24px; height: 24px; border-radius: 50%; display: block; }
+.dn-input { width: 100%; box-sizing: border-box; margin: 6px 0 4px; padding: 10px 12px; border-radius: var(--r); border: 1px solid var(--bdr); background: var(--bg2); color: var(--tx); font: inherit; font-size: 15px; }
+.dn-input:focus { outline: none; border-color: var(--c); }
