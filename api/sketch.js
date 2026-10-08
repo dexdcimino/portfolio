@@ -11,6 +11,7 @@
  * ACTIONS
  *   signup / login   { handle, password }            -> { handle, token }
  *   claim            { ticket, handle }              -> { handle, token }   (first Google/Discord sign-in)
+ *   site             { idToken }                     -> { handle, token } | { ticket, suggest }   the site account
  *   publish          { token, id, title, image, thumb } -> { post }
  *   unpublish        { token, id }
  *   vote             { token, id, kind: fire|poop|null } -> { fire, poop, mine }
@@ -38,6 +39,8 @@
 'use strict';
 
 const store = require('../lib/sketch-store.js');
+const site = require('../lib/site-identity.js');
+const suggestName = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 20);
 const social = require('../lib/sketch-social.js');
 
 module.exports = async function handler(req, res) {
@@ -90,6 +93,19 @@ module.exports = async function handler(req, res) {
     if (action === 'login') return res.status(200).json(await store.login(body.handle, body.password));
     // After a first Google or Discord sign-in: the ticket says who, this picks the name.
     if (action === 'claim') return res.status(200).json(await store.claim(body.ticket, body.handle));
+    // Signed in to the SITE account (/account/site-auth.js): its Firebase ID
+    // token, checked here, finds or offers to make the Inko account.
+    if (action === 'site') {
+      let claims;
+      try { claims = await site.verify(body.idToken); }
+      catch (err) {
+        if (err instanceof site.Invalid) return res.status(401).json({ error: 'Sign in again' });
+        throw err;
+      }
+      const who = site.person(claims);
+      const r = await store.identifySite(who);
+      return res.status(200).json(r.ticket ? { ...r, suggest: suggestName(who.name || who.email.split('@')[0]) } : r);
+    }
     if (action === 'moderate') {
       if (!store.isAdmin(body.admin)) return res.status(401).json({ error: 'not allowed' });
       return res.status(200).json(await store.moderate(String(body.id || ''), body.op));

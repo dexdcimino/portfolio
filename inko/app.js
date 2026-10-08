@@ -1794,18 +1794,56 @@ function setPasswordFields(open){
 }
 $('a-more').addEventListener('click', () => setPasswordFields($('a-pw').hidden));
 
-/* Google and Discord: a real navigation to /api/sketch-auth/<provider>, which
-   comes back to /inko/ with the result in the URL fragment. The drawing in
-   progress is saved first, because the page is about to be left. Inside the
-   site's overlay the providers refuse to be framed, so there it opens in a new
-   tab -- and the session it ends with reaches this overlay through
-   localStorage, which the two share (see the storage listener below). */
+/* Google and Discord sign in to the SITE account (/account/site-auth.js), the
+   one dexcimino.com shares between DexNote, Inko and whatever comes next. Its
+   ID token is shown to /api/sketch, which finds the Inko account linked to it
+   -- or to the same Google or Discord, for an account made here before the
+   site account existed -- or asks for a name (the claim sheet).
+
+   A popup works inside the site's overlay too: the homepage sends
+   Cross-Origin-Opener-Policy: same-origin-allow-popups, as /inko/ does.
+
+   The old way stays as the fallback: a real navigation to
+   /api/sketch-auth/<provider>, back to /inko/ with the result in the URL
+   fragment (in a new tab inside the overlay, whose session then reaches the
+   frame through localStorage -- see the storage listener below). It is what a
+   failed site sign-in falls back to, so a site account that cannot sign in
+   here yet never leaves Inko unable to. */
+let siteAuth = null;
+const loadSite = () => (siteAuth ||= import('/account/site-auth.js'));
+const FRAMED = EMBED || window.top !== window.self;   // the overlay loads /inko/ without ?embed
+
+async function linkSite(quiet){
+  const site = await loadSite();
+  const idToken = await site.idToken();
+  if (!idToken) return false;
+  const r = await api('site', { idToken });
+  if (r.token){
+    setSession({ handle: r.handle, token: r.token, sso: true, site: true });
+    if ($('account').classList.contains('open')) closeAccount();
+    if (!quiet) toast('Signed in as @' + r.handle);
+    return true;
+  }
+  // Signed in to the site but no Inko name yet. On a quiet boot nobody asked,
+  // so the sheet waits until they do.
+  if (!quiet && r.ticket) openClaim(r.ticket, r.suggest || '');
+  return false;
+}
+
 for (const id of ['a-google', 'a-discord']){
   $(id).addEventListener('click', async e => {
     e.preventDefault();
     const href = $(id).getAttribute('href');
-    // The site's overlay loads /inko/ without ?embed, so check for a frame too.
-    if (EMBED || window.top !== window.self){ window.open(href, '_blank', 'noopener'); return; }
+    const which = id === 'a-google' ? 'google' : 'discord';
+    try {
+      await (await loadSite()).signIn(which);
+      await linkSite(false);
+      return;
+    } catch (err) {
+      if (siteAuth && (await siteAuth).cancelled(err)) return;
+      console.warn('inko: site sign-in failed, using the Inko sign-in', err);
+    }
+    if (FRAMED){ window.open(href, '_blank', 'noopener'); return; }
     try { await flushDraft(); } catch (err) {}
     location.href = href;
   });
@@ -1891,7 +1929,11 @@ $('a-login').addEventListener('click', () => signIn('login'));
 $('a-signup').addEventListener('click', () => signIn('signup'));
 $('a-pass').addEventListener('keydown', e => { if (e.key === 'Enter') signIn('login'); });
 $('a-close').addEventListener('click', () => { forgetPublish(); closeAccount(); });
-$('a-signout').addEventListener('click', () => { setSession(null); closeAccount(); toast('Signed out'); if (galleryTab === 'public') renderFeed(); });
+$('a-signout').addEventListener('click', () => {
+  // A site sign-in is signed out of the whole site, as it was signed in to it.
+  if (session && session.site) loadSite().then(m => m.signOut()).catch(e => console.warn('inko: site sign-out', e));
+  setSession(null); closeAccount(); toast('Signed out'); if (galleryTab === 'public') renderFeed();
+});
 $('a-delete').addEventListener('click', () => {
   const pw = $('a-pass2').value;
   if (!pw && !(session && session.sso)){ $('a-msg2').textContent = 'Enter your password to delete the account.'; return; }
@@ -2524,7 +2566,18 @@ async function init(){
     if (updated){ sessionStorage.removeItem('inkoUpdated'); toast('Updated — build ' + updated); }
   } catch (e) {}
   handleAuthReturn();
+  siteOnBoot();
   checkForUpdate();
+}
+
+/* Signed in or out somewhere else on the site since Inko last ran. The flag
+   is site-auth's mirror of Firebase's sign-in, readable without loading
+   Firebase, so a person who never signs in never downloads it. */
+function siteOnBoot(){
+  let flag = null;
+  try { flag = localStorage.getItem('site:signedIn'); } catch (e) {}
+  if (session && session.site && !flag){ setSession(null); return; }
+  if (!session && flag) linkSite(true).catch(e => console.warn('inko: site link', e));
 }
 
 /* ---------- installing ----------
