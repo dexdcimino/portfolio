@@ -18,10 +18,21 @@
  *   2. FOLLOWS, APP: the pill above the bar on Public (All | Following |
  *      fire) narrowing the grid to the artists you follow and to the drawings
  *      you gave fire, the Follow button on an artist's profile changing the
- *      count and the server, and Following signed out asking you to sign in.
+ *      count and the server, Draw together alone on your own gallery, and
+ *      Following signed out asking you to sign in.
  *   3. COMMENTS, APP: the bubble in the viewer's bar (fitting a 360px phone),
  *      the sheet over the bottom half, a comment typed and sent landing in the
  *      list, the count and the server, and held to delete it.
+ *   4. DRAWING TOGETHER, with inko/room-firestore.js SWAPPED for a fake that
+ *      keeps the room in this process (no harness can reach Firestore): the
+ *      brushes on an artist's profile opening a room and inviting them, the
+ *      invitee's card popping up and joining, strokes crossing both ways as
+ *      pixels, chat with an unread count, undo taking back only your own
+ *      stroke on both phones, leaving keeping a card in the gallery, and the
+ *      room listed under Draw together.
+ *
+ * NOT CHECKED HERE: room-firestore.js itself and the Firestore rules -- the
+ * fake stands in for both. Try a room on two real phones after a change.
  *
  * FALSELY PASSES IF: a grid counted as filtered was never drawn. The card
  * assertions read the cards' data-post off the DOM after the click.
@@ -58,8 +69,57 @@ function vercelRes(res) {
 }
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+/* A FAKE ROOM SERVICE: the same five calls as room-firestore.js, over HTTP
+   to this process, which keeps every room in memory and feeds each phone the
+   events after the last one it saw. */
+const rooms = new Map();
+const roomOf = (id) => { if (!rooms.has(id)) rooms.set(id, { data: null, events: [], n: 0 }); return rooms.get(id); };
+const FAKE_TRANSPORT = `
+let uid = 'u' + Math.random().toString(36).slice(2, 8);
+const call = (op, body) => fetch('/fake-room/' + op, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+export async function create(id, fields){ await call('create', { id, fields }); }
+export async function connect(id, on){
+  let since = 0, stop = false, roomJson = '';
+  const tick = async () => {
+    if (stop) return;
+    try {
+      const r = await call('poll', { id, since });
+      if (JSON.stringify(r.room) !== roomJson){ roomJson = JSON.stringify(r.room); on.room(r.room); }
+      const added = [], removed = [], chat = [];
+      for (const e of r.events){ since = e.seq; if (e.type === 'add') added.push(e.doc); else if (e.type === 'remove') removed.push(...e.ids); else chat.push(e.msg); }
+      if (added.length || removed.length) on.strokes(added, removed);
+      if (chat.length) on.chat(chat);
+    } catch (e) {}
+    setTimeout(tick, 90);
+  };
+  tick();
+  return {
+    uid,
+    add: c => call('add', { id, doc: { ...c, uid } }).then(r => r.id),
+    remove: ids => call('remove', { id, ids }),
+    chat: m => call('chat', { id, msg: { ...m, uid, at: Date.now() } }),
+    update: fields => call('update', { id, fields }),
+    close: () => { stop = true; },
+  };
+}`;
 const server = createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
+  if (u.pathname === '/inko/room-firestore.js') { res.writeHead(200, { 'content-type': 'text/javascript', 'content-security-policy': CSP }).end(FAKE_TRANSPORT); return; }
+  if (u.pathname.startsWith('/fake-room/')) {
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    const b = JSON.parse(raw || '{}'), r = roomOf(b.id), op = u.pathname.split('/').pop();
+    const push = (e) => r.events.push({ ...e, seq: r.events.length + 1 });
+    let out = {};
+    if (op === 'create') r.data = b.fields;
+    if (op === 'poll') out = { room: r.data, events: r.events.filter(e => e.seq > (b.since || 0)) };
+    if (op === 'add') { const id = 'd' + (++r.n); push({ type: 'add', doc: { ...b.doc, id } }); out = { id }; }
+    if (op === 'remove') push({ type: 'remove', ids: b.ids });
+    if (op === 'chat') push({ type: 'chat', msg: b.msg });
+    if (op === 'update' && r.data) for (const [k, v] of Object.entries(b.fields)) {
+      const [a, c] = k.split('.'); if (c) r.data = { ...r.data, [a]: { ...(r.data[a] || {}), [c]: v } }; else r.data = { ...r.data, [k]: v };
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(out)); return;
+  }
   if (u.pathname === '/api/sketch') {
     let raw = '';
     for await (const chunk of req) raw += chunk;
@@ -246,9 +306,10 @@ try {
   await B.click('#s-follow'); await sleep(600);
   const server2 = await get('profile=cat');
   note(server2.followers === 0 && await B.evaluate(() => document.getElementById('s-follow').textContent) === 'Follow', `unfollow left ${server2.followers}`);
-  // Your own gallery: no pill.
+  // Your own gallery: only Draw together.
   await B.click('#g-tab-mine'); await sleep(300);
-  note(await B.evaluate(() => document.getElementById('s-bar').hidden), 'the pill showed on your own gallery');
+  const minePill = await B.evaluate(() => { const v = id => getComputedStyle(document.getElementById(id)).display !== 'none'; return { together: v('s-mine'), filter: v('s-filter'), artist: v('s-artist') }; });
+  note(minePill.together && !minePill.filter && !minePill.artist, `the pill on your own gallery: ${JSON.stringify(minePill)}`);
 
   // Signed out, Following asks you to sign in.
   const S = await open(null);
@@ -292,6 +353,85 @@ try {
     await B.click('#s-cclose'); await sleep(350);
     note(await B.evaluate(() => !document.getElementById('s-csheet').classList.contains('open')), 'the down arrow did not hide the sheet');
     console.log(`comments (app): ${JSON.stringify(sent)} -> deleted`);
+  }
+
+  // ---- 4. drawing together ---------------------------------------------------
+  {
+    const ivy = await signup('ivy');
+    await B.click('#v-close'); await sleep(300);
+    await B.setViewport({ width: 400, height: 820, isMobile: true });
+    await B.evaluate(() => window.inkoBridge.openUser('ivy'));
+    await B.waitForFunction(() => document.getElementById('s-bar').dataset.mode === 'user' && !document.getElementById('s-bar').hidden, { timeout: 8000 }).catch(() => {});
+    await sleep(300);
+    await B.click('#s-draw');
+    await B.waitForFunction(() => window.inkoRoomState && window.inkoRoomState().open && document.getElementById('r-wait').hidden, { timeout: 10000 }).catch(() => {});
+    const opened = await B.evaluate(() => ({ s: window.inkoRoomState && window.inkoRoomState(), title: document.getElementById('r-title').textContent }));
+    note(opened.s && opened.s.open && opened.title === '@ben + @ivy', `the brushes on @ivy's profile: ${JSON.stringify(opened)}`);
+    const box = (await post({ action: 'inbox', token: ivy.token })).body.invites || [];
+    note(box.length === 1 && box[0].from === 'ben' && box[0].room === opened.s.id, `ivy's inbox: ${JSON.stringify(box)}`);
+    const roomId = opened.s.id;
+    // Nothing to press in the top half of the room.
+    const topHalf = await B.evaluate(() => [...document.querySelectorAll('#room button')].filter(b => { const r = b.getBoundingClientRect(); return r.height && r.top < innerHeight / 2 && getComputedStyle(b).visibility !== 'hidden'; }).length);
+    note(topHalf === 0, `${topHalf} button(s) in the room's top half`);
+    const strokeOn = async (p, fx) => {
+      const r = await p.evaluate(() => { const b = document.getElementById('r-pad').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
+      await p.mouse.move(r.x + r.w * fx, r.y + r.h * 0.2); await p.mouse.down();
+      await p.mouse.move(r.x + r.w * fx, r.y + r.h * 0.8, { steps: 14 }); await sleep(60); await p.mouse.up(); await sleep(500);
+    };
+    // Ink in one column of the pad, read off the pixels.
+    const inkAt = (p, fx) => p.evaluate((fx) => { const c = document.getElementById('r-pad'), x = c.getContext('2d');
+      const d = x.getImageData(Math.round(c.width * fx) - 3, Math.round(c.height * 0.5) - 3, 6, 6).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return n; }, fx);
+    await strokeOn(B, 0.3);
+    note(await inkAt(B, 0.3) > 0, 'ben\'s stroke did not show on his own pad');
+
+    // Ivy: the card pops up, and Join takes her in.
+    const I = await open({ handle: 'ivy', token: ivy.token });
+    await I.waitForFunction(() => !document.getElementById('s-invite').hidden, { timeout: 8000 }).catch(() => {});
+    const cardText = await I.evaluate(() => document.querySelector('#s-invite .s-inv-text')?.textContent);
+    note(cardText === '@ben wants to draw with you', `the invitation card read ${JSON.stringify(cardText)}`);
+    await shot(I, '5-invite-card');
+    await I.click('#s-invite [data-join]');
+    await I.waitForFunction(() => window.inkoRoomState && window.inkoRoomState().open && window.inkoRoomState().chunks > 0, { timeout: 10000 }).catch(() => {});
+    await sleep(300);
+    note(await inkAt(I, 0.3) > 0, 'ben\'s stroke did not reach ivy\'s pad');
+    await strokeOn(I, 0.7);
+    await B.waitForFunction(() => window.inkoRoomState().members.includes('ivy'), { timeout: 5000 }).catch(() => {});
+    await sleep(500);
+    note(await inkAt(B, 0.7) > 0, 'ivy\'s stroke did not reach ben\'s pad');
+    const who = await B.evaluate(() => window.inkoRoomState().members.sort().join());
+    note(who === 'ben,ivy', `the room says ${who} are in it`);
+
+    // Chat, with an unread count on the other phone.
+    await I.click('#r-chat'); await sleep(250);
+    await I.type('#r-chatinput', 'hi ben'); await I.keyboard.press('Enter');
+    await B.waitForFunction(() => document.getElementById('r-unread').textContent === '1', { timeout: 5000 }).catch(() => {});
+    note(await B.evaluate(() => document.getElementById('r-unread').textContent) === '1', 'ben had no unread badge for ivy\'s message');
+    await B.click('#r-chat'); await sleep(300);
+    const said = await B.evaluate(() => ({ msgs: window.inkoRoomState().msgs, badge: document.getElementById('r-unread').textContent }));
+    note(said.msgs.join('|') === 'ivy: hi ben' && said.badge === '', `ben's chat: ${JSON.stringify(said)}`);
+    await shot(B, '6-room-chat');
+    await B.click('#r-chatclose'); await sleep(400);
+    await shot(B, '6b-room');
+
+    // Undo takes back ben's stroke only, on both pads.
+    await B.click('#r-undo');
+    await sleep(900);
+    const afterUndo = { b3: await inkAt(B, 0.3), b7: await inkAt(B, 0.7), i3: await inkAt(I, 0.3), i7: await inkAt(I, 0.7) };
+    note(afterUndo.b3 === 0 && afterUndo.i3 === 0 && afterUndo.b7 > 0 && afterUndo.i7 > 0, `after ben's undo: ${JSON.stringify(afterUndo)}`);
+    await shot(I, '7-room');
+
+    // Leaving keeps a card in the gallery, and the room is listed to go back to.
+    await B.click('#r-back'); await sleep(900);
+    note(await B.evaluate(() => !window.inkoRoomState().open), 'back did not leave the room');
+    await B.click('#g-tab-mine'); await sleep(500);
+    const kept = await B.evaluate(() => [...document.querySelectorAll('#g-rows .g-title')].map(e => e.textContent));
+    note(kept.includes('@ben + @ivy'), `the gallery after leaving: ${JSON.stringify(kept)}`);
+    await B.click('#s-together-btn'); await sleep(600);
+    const listed = await B.evaluate(() => [...document.querySelectorAll('#s-tlist .s-ctag')].map(e => e.textContent));
+    note(listed.includes('@ben + @ivy'), `Draw together lists ${JSON.stringify(listed)}`);
+    await shot(B, '8-together');
+    console.log(`together: room ${roomId.slice(0, 6)}…, strokes both ways, chat ${JSON.stringify(said.msgs)}, undo ${JSON.stringify(afterUndo)}, kept and listed`);
+    void rooms;
   }
 
   note(!errors.length, 'page errors: ' + errors.join(' | '));

@@ -7,8 +7,8 @@
    draws sits in ONE small pill above the gallery's bottom bar (#s-bar), so
    nothing is added to the top half of the screen:
      Public          All | Following | fire       (a filter on the grid)
-     an artist       N followers  [Follow]
-     your gallery    nothing (the profile options live there) */
+     an artist       N followers  [Follow] [draw together]
+     your gallery    [Draw together]  (shared canvases: invites, yours, a new one) */
 const B = window.inkoBridge;
 if (!B) return;
 const $ = id => document.getElementById(id);
@@ -19,6 +19,8 @@ let followingFor = null;            // ...loaded for this handle
 let viewing = null;                 // the artist's profile on screen: { handle, followers }
 
 const FIRE = '<span class="rx-ico" data-icon="fire"></span>';
+// Two brushes crossing: drawing with someone.
+const TOGETHER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 L13 11"/><path d="M13 11 l2.5-2.5 2 2 -2.5 2.5z" fill="currentColor"/><path d="M20 20 L11 11"/><path d="M11 11 l-2.5-2.5 -2 2 2.5 2.5z" fill="currentColor" opacity=".55"/><path d="M8.5 3.5h7"/></svg>';
 const bar = document.createElement('div');
 bar.id = 's-bar';
 bar.hidden = true;
@@ -28,7 +30,9 @@ bar.innerHTML =
     '<button class="g-chip" data-f="following" role="radio" aria-checked="false">Following</button>' +
     '<button class="g-chip s-fire" data-f="fire" role="radio" aria-checked="false" aria-label="Drawings you gave fire">' + FIRE + '</button>' +
   '</div>' +
-  '<div id="s-artist"><span id="s-followers"></span><button id="s-follow" class="s-follow">Follow</button></div>';
+  '<div id="s-artist"><span id="s-followers"></span><button id="s-follow" class="s-follow">Follow</button>' +
+    '<button id="s-draw" class="s-sq" aria-label="Draw together">' + TOGETHER + '</button></div>' +
+  '<div id="s-mine"><button id="s-together-btn" class="s-pill">' + TOGETHER + '<span>Draw together</span><b id="s-inv-n"></b></button></div>';
 $('gallery').insertBefore(bar, $('g-bar'));
 
 /* ---- who you follow ---- */
@@ -97,7 +101,7 @@ $('s-follow').addEventListener('click', async () => {
 /* ---- which pill shows ---- */
 function show(){
   const tab = B.tab;
-  bar.hidden = !(tab === 'public' || (tab === 'user' && viewing));
+  bar.hidden = !(tab === 'public' || tab === 'mine' || (tab === 'user' && viewing));
   bar.dataset.mode = tab;
   B.feedFilter = tab === 'public' ? FILTERS[filter] || null : null;
 }
@@ -115,6 +119,110 @@ document.addEventListener('inko:user', async e => {
 // A sign-in or out changes who "you" follow.
 document.addEventListener('inko:feed', () => { if (B.session && followingFor !== B.session.handle) loadFollowing().then(() => { if (filter === 'following') B.renderFeed(); }); });
 show();
+
+/* ---------- drawing together (Dex, 2026-10-08) ----------
+   The room itself is inko/room.js, loaded the first time one opens. Here are
+   the ways in: the square beside Follow on an artist's profile (a new shared
+   canvas, and they are invited), Draw together on your own gallery (your
+   invitations, the canvases you shared before, a new one), a card that pops
+   up when someone invites you, and a /inko/?room= link. */
+const roomMod = () => import('/inko/room.js');
+let invites = [];
+const SEEN = 'inkoInvSeen';
+const seen = () => { try { return new Set(JSON.parse(localStorage.getItem(SEEN) || '[]')); } catch (e) { return new Set(); } };
+const markSeen = id => { const s = seen(); s.add(id); try { localStorage.setItem(SEEN, JSON.stringify([...s].slice(-60))); } catch (e) {} };
+
+async function joinRoom(id){ if (!B.session){ B.openAccount(() => joinRoom(id)); return; } closeTogether(); hideInviteCard(); (await roomMod()).open(id); }
+async function newRoom(withHandle){
+  if (!B.session){ B.openAccount(() => newRoom(withHandle)); return; }
+  closeTogether();
+  const m = await roomMod();
+  const id = m.newRoomId();
+  const title = withHandle ? `@${B.session.handle} + @${withHandle}` : `@${B.session.handle}'s canvas`;
+  await m.open(id, { title });
+  if (withHandle){
+    try { await B.api('room-invite', { to: withHandle, room: id, title }); B.toast('Invited @' + withHandle); }
+    catch (e) { B.toast(e.message); }
+  }
+}
+$('s-draw').addEventListener('click', () => viewing && newRoom(viewing.handle));
+
+async function checkInbox(){
+  if (!B.session){ invites = []; paintInvN(); return; }
+  try { invites = (await B.api('inbox')).invites || []; } catch (e) { return; }
+  paintInvN();
+  const fresh = invites.find(i => !seen().has(i.room));
+  if (fresh) showInviteCard(fresh);
+}
+function paintInvN(){ const n = invites.length; $('s-inv-n').textContent = n ? n : ''; }
+
+const card = document.createElement('div');
+card.id = 's-invite'; card.hidden = true;
+card.innerHTML = '<span class="s-inv-face"></span><span class="s-inv-text"></span><button class="s-follow" data-join>Join</button><button class="s-csq s-inv-x" aria-label="Not now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg></button>';
+document.body.appendChild(card);
+let cardInv = null;
+function showInviteCard(inv){
+  cardInv = inv; markSeen(inv.room);
+  card.querySelector('.s-inv-face').replaceChildren(B.avatarEl(inv.from, 'mid'));
+  card.querySelector('.s-inv-text').textContent = '@' + inv.from + ' wants to draw with you';
+  card.hidden = false;
+}
+function hideInviteCard(){ card.hidden = true; cardInv = null; }
+card.querySelector('[data-join]').addEventListener('click', () => cardInv && joinRoom(cardInv.room));
+card.querySelector('.s-inv-x').addEventListener('click', hideInviteCard);
+
+const together = document.createElement('div');
+together.id = 's-together'; together.className = 's-sheet';
+together.innerHTML = '<div class="s-sheet-head">Draw together</div><div id="s-tlist" class="s-sheet-list"></div>' +
+  '<div class="s-sheet-form"><button type="button" id="s-tclose" class="s-csq" aria-label="Hide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>' +
+  '<button type="button" id="s-tnew" class="s-wide">' + TOGETHER + '<span>New shared canvas</span></button></div>';
+document.body.appendChild(together);
+const shade = document.createElement('div'); shade.id = 's-shade'; document.body.appendChild(shade);
+function closeTogether(){ together.classList.remove('open'); shade.classList.remove('open'); }
+shade.addEventListener('click', closeTogether);
+$('s-tclose').addEventListener('click', closeTogether);
+$('s-tnew').addEventListener('click', () => newRoom(null));
+function tRow(face, text, sub, label, go, x){
+  const r = document.createElement('div'); r.className = 's-c s-person';
+  const f = document.createElement('div'); f.className = 's-cwho'; f.appendChild(face);
+  const b = document.createElement('div'); b.className = 's-cbody s-grow';
+  const t = document.createElement('div'); t.className = 's-ctag'; t.textContent = text;
+  const u = document.createElement('div'); u.className = 's-cwhen'; u.textContent = sub;
+  b.append(t, u);
+  const btn = document.createElement('button'); btn.className = 's-follow'; btn.textContent = label; btn.onclick = go;
+  r.append(f, b, btn);
+  if (x){ const xb = document.createElement('button'); xb.className = 's-csq s-small'; xb.setAttribute('aria-label', 'Remove'); xb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>'; xb.onclick = x; r.appendChild(xb); }
+  return r;
+}
+async function paintTogether(){
+  const box = $('s-tlist'); box.replaceChildren();
+  const m = await roomMod();
+  const mine = m.recent().filter(r => !invites.some(i => i.room === r.id));
+  for (const inv of invites) box.appendChild(tRow(B.avatarEl(inv.from, 'mid'), '@' + inv.from, inv.title, 'Join', () => joinRoom(inv.room),
+    async () => { try { invites = (await B.api('inbox-dismiss', { room: inv.room })).invites || []; } catch (e) {} paintInvN(); paintTogether(); }));
+  for (const r of mine){
+    const dot = document.createElement('span'); dot.className = 'avatar mid s-roomdot'; dot.innerHTML = TOGETHER;
+    box.appendChild(tRow(dot, r.title, 'Shared canvas', 'Open', () => joinRoom(r.id), () => { m.forget(r.id); paintTogether(); }));
+  }
+  if (!box.children.length){ const e = document.createElement('div'); e.className = 's-cempty'; e.textContent = 'Start a canvas and invite someone, or open an artist\'s profile and tap the brushes.'; box.appendChild(e); }
+}
+$('s-together-btn').addEventListener('click', async () => {
+  if (!B.session){ B.openAccount(); return; }
+  together.classList.add('open'); shade.classList.add('open');
+  paintTogether(); checkInbox().then(() => together.classList.contains('open') && paintTogether());
+});
+
+// When to look for invitations: on launch, on coming back, on your gallery.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkInbox(); });
+document.addEventListener('inko:tab', e => { if (e.detail.tab === 'mine') checkInbox(); });
+setTimeout(checkInbox, 1200);
+{
+  const q = new URLSearchParams(location.search), id = q.get('room');
+  if (id && /^[A-Za-z0-9]{20,32}$/.test(id)){
+    history.replaceState(null, '', location.pathname + location.hash);
+    setTimeout(() => joinRoom(id), 600);
+  }
+}
 
 /* ---------- comments (Dex, 2026-10-08) ----------
    A speech-bubble square in the viewer's bar, with the count on it, opens

@@ -30,6 +30,9 @@
  *   comment          { token, id, text }             -> { comment, count }
  *   comment-delete   { token, id, c }                -> { deleted, count }   the author or the drawing's artist
  *   comment-report   { token, id, c }                -> { hidden }           three reports hide it
+ *   room-invite      { token, to, room, title }      -> { invited }          a shared canvas (Firestore) for @to
+ *   inbox            { token }                       -> { invites: [{ room, from, title, at }] }
+ *   inbox-dismiss    { token, room }                 -> { invites }
  *   moderate         { admin, id, op: hide|restore|delete }   admin = Dex's universal JWT
  */
 'use strict';
@@ -129,6 +132,9 @@ module.exports = async function handler(req, res) {
     if (action === 'comment') return res.status(200).json(await social.addComment(handle, body.id, body.text));
     if (action === 'comment-delete') return res.status(200).json(await social.deleteComment(handle, body.id, body.c));
     if (action === 'comment-report') return res.status(200).json(await social.reportComment(handle, body.id, body.c));
+    if (action === 'room-invite') return res.status(200).json(await social.invite(handle, body.to, body.room, body.title));
+    if (action === 'inbox') return res.status(200).json(await social.inbox(handle));
+    if (action === 'inbox-dismiss') return res.status(200).json(await social.dismiss(handle, body.room));
     return res.status(400).json({ error: 'no such action' });
   } catch (err) {
     if (err instanceof store.Refused) return res.status(err.status).json({ error: err.message });
