@@ -264,13 +264,16 @@ await page.waitForFunction(
   /* Relative to wherever it IS, not to zero: the video now rides the automatic
      sweep, so by the time this runs it has usually moved on. Asserting an
      absolute 0,1,2,0 tests the clock, not the arrows. */
+  // Two pages since 2026-10-08: Mobius 3D, then the one placeholder.
+  const pages = await page.evaluate(() => document.querySelectorAll('.fv-item').length);
+  note(pages === 2, `the featured column has ${pages} pages, expected 2`);
   const seen = [(await at()).video];
   for (let i = 0; i < 3; i++) {
     await page.click('[data-fv="1"]');
     await new Promise(r => setTimeout(r, 620));
     seen.push((await at()).video);
   }
-  const want = seen.map((_, i) => (seen[0] + i) % 3);
+  const want = seen.map((_, i) => (seen[0] + i) % pages);
   console.log(`video carousel: ${seen.join(' -> ')} (expected ${want.join(' -> ')})`);
   note(seen.join(',') === want.join(','),
        `video went ${seen.join(',')}, expected ${want.join(',')} from where it started`);
@@ -1038,11 +1041,11 @@ await page.waitForFunction(
                   : `the description is ${desc.offCentre}px off the icon's centre line`);
   note(!desc.onTape, 'the description is printed over the UNDER CONSTRUCTION strip');
   note(desc.widthShare < 70, `the description spans ${desc.widthShare}% of the frame`);
-  // Mobius 3D (the first) says why it exists; the two placeholders still agree.
-  note(desc.texts.length === 3 && /Windows 3D Viewer/.test(desc.texts[0]),
+  // Mobius 3D (the first) says why it exists; the one placeholder still agrees.
+  note(desc.texts.length === 2 && /Windows 3D Viewer/.test(desc.texts[0]),
        `the Mobius slot's description reads "${desc.texts[0]}"`);
   note(new Set(desc.texts.slice(1)).size === 1,
-       `the two placeholder slots say ${new Set(desc.texts.slice(1)).size} different things, expected one`);
+       `the placeholder slots say ${new Set(desc.texts.slice(1)).size} different things, expected one`);
 }
 
 /* ---- 13. the eye's thumbnail tooltip -------------------------------------

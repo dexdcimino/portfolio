@@ -1862,6 +1862,10 @@ if (workModal) {
 
     function paint() {
       const playing = !video.paused && !video.ended;
+      // The bar hides under a playing video until it is hovered; paused, or
+      // still muted with a soundtrack to offer, the bar and the unmute stay up.
+      item.classList.toggle('is-playing', playing);
+      item.classList.toggle('is-muted', video.muted);
       icon(toggle, playing ? 'pause' : 'play');
       toggle?.setAttribute('aria-label', playing ? 'Pause' : 'Play');
       play?.setAttribute('aria-label', playing ? 'Pause Mobius 3D' : 'Play Mobius 3D');
@@ -1902,7 +1906,7 @@ if (workModal) {
     play?.addEventListener('click', flip);
     mute?.addEventListener('click', () => { video.muted = !video.muted; paint(); });
 
-    new IntersectionObserver(entries => { seen = entries[entries.length - 1].isIntersecting; sync(); }, { threshold: .35 })
+    new IntersectionObserver(entries => { seen = entries[entries.length - 1].isIntersecting; sync(); }, { threshold: .2 })
       .observe(item);
     new MutationObserver(sync).observe(item, { attributes: true, attributeFilter: ['class'] });
     document.addEventListener('visibilitychange', sync);
