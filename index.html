@@ -3619,14 +3619,31 @@
        one image large, the x/x counter centred under it between two arrows
        (greyed out when there is nothing to step to). Fed by initAppInfo from
        the same .gal-item pictures the inline frame shows, cloned at overlay
-       sizes at open so nobody downloads the big rungs early. -->
+       sizes at open so nobody downloads the big rungs early.
+       The one overlay EVERY AI Lab app's gallery opens in, so all of them
+       behave the same. The frame hugs the picture and carries what hangs off
+       it: a rail either side (shown when the pointer comes near it, always on
+       touch) and the X centred in the space right of the right rail. Clicking
+       anything that is not the picture or a button closes it. -->
   <dialog class="app-shot-modal" id="appShotModal" aria-labelledby="appshot-dialog-title">
     <div class="app-shot-shell">
-      <button class="contact-close app-shot-close" type="button" id="appShotClose" aria-label="Close screenshot">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      </button>
       <h2 class="sr-only" id="appshot-dialog-title">App screenshots</h2>
-      <div class="app-shot-stage" id="appShotStage"></div>
+      <div class="app-shot-stage">
+        <div class="app-shot-frame" id="appShotFrame">
+          <span class="app-shot-pic" id="appShotStage"></span>
+          <!-- First in the frame, so the dialog's first focus is the X and not
+               a rail lighting up on open. -->
+          <button class="contact-close app-shot-close" type="button" id="appShotClose" aria-label="Close screenshot">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <button class="app-shot-rail app-shot-rail-prev" id="appShotRailPrev" type="button" aria-label="Previous screenshot">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+          <button class="app-shot-rail app-shot-rail-next" id="appShotRailNext" type="button" aria-label="Next screenshot">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
       <div class="app-shot-bar">
         <button class="wp-arrow app-shot-prev" id="appShotPrev" type="button" aria-label="Previous screenshot">
           <span class="icon" data-icon="chevron" aria-hidden="true"></span>

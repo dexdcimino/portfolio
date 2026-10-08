@@ -1317,6 +1317,152 @@ await page.waitForFunction(
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
 }
 
+/* ---- 18. the AI Lab app gallery: rails, the X, and the dark round it -------
+   THE ASK (Dex, 2026-10-08): every AI Lab app's gallery (they all open
+   #appShotModal) gets a thin rail outside each side of the picture with an
+   accent chevron, shown when the pointer comes within ~20px and always on
+   touch; the X centred in the space right of the right rail; and ANY click
+   in the dark round the picture closes it -- it used to only when the click
+   happened to land on the <dialog> itself rather than its stage.
+
+   FALSELY PASSES IF: the rails were tested by their markup or by .click().
+   Their reveal is :hover, so the pointer is MOVED for real; the press is a
+   real mouse press hit-tested first; and the shot changing is read off the
+   counter, not off the handler having run. Every app with shots is opened,
+   so a gallery that opened elsewhere would be missed by the count. */
+{
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+  /* HEADLESS CHROME MATCHES (hover:none) -- with (pointer:none), and CDP
+     cannot emulate hover away in it. The always-shown rule is therefore keyed
+     on (pointer:coarse) as well, which is what a touch viewport turns on, so
+     the desktop half here really is the hover-to-reveal one. */
+  const keys = await page.evaluate(() => [...new Set([...document.querySelectorAll('#aiApps .ai-card[data-gallery]')]
+    .map(c => c.dataset.gallery)
+    .filter(k => document.querySelector(`#galleryModal .gal-item[data-game="${k}"]`)))]);
+  note(keys.length >= 4, `only ${keys.length} AI Lab app(s) have a gallery — this check lost its subject`);
+  const centre = (sel) => page.evaluate((sel) => {
+    const el = document.querySelector(sel); const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    return { x, y, w: r.width, h: r.height, left: r.left, right: r.right, top: r.top,
+             hit: !!document.elementFromPoint(x, y)?.closest(sel) };
+  }, sel);
+  const openFor = async (key) => {
+    await page.evaluate((key) => {
+      const card = document.querySelector(`#aiApps .ai-card[data-gallery="${key}"]`);
+      card.scrollIntoView({ block: 'center', behavior: 'instant' });
+      card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }, key);
+    await new Promise(r => setTimeout(r, 200));
+    await page.$eval('#appArtView', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    const v = await centre('#appArtView');
+    await page.mouse.click(v.x, v.y);
+    return page.waitForFunction(() => document.getElementById('appShotModal').open, { timeout: 3000 })
+      .then(() => true).catch(() => false);
+  };
+  const opacity = (sel) => page.$eval(sel, el => +getComputedStyle(el).opacity);
+  let galleries = 0;
+  for (const key of keys) {
+    if (!await openFor(key)) { note(false, `the ${key} gallery did not open from its frame`); continue; }
+    galleries++;
+    await new Promise(r => setTimeout(r, 300));
+    const n = await page.$eval('#appShotCount', el => +el.textContent.split('/')[1]);
+    const pic = await centre('#appShotStage img');
+    const close = await centre('#appShotClose');
+    const vw = await page.evaluate(() => document.documentElement.clientWidth);
+    note(pic.w > 300 && pic.h > 150, `${key}: the picture is ${Math.round(pic.w)}x${Math.round(pic.h)}`);
+    if (n > 1) {
+      const next = await centre('#appShotRailNext');
+      const prev = await centre('#appShotRailPrev');
+      note(next.left > pic.right && prev.right < pic.left, `${key}: a rail is over the picture, not beside it`);
+      note(Math.abs(next.h - pic.h / 3) < 4 || next.h === 72, `${key}: the rail is ${Math.round(next.h)}px against a ${Math.round(pic.h)}px picture`);
+      note(Math.abs(next.y - pic.y) < 2, `${key}: the rail is not centred on the picture`);
+      // the X: centred between the right rail and the screen's edge, level with the picture
+      const mid = (next.right + vw) / 2;
+      note(Math.abs(close.x - mid) < 3 && Math.abs(close.y - pic.y) < 3,
+           `${key}: the X is at ${Math.round(close.x)},${Math.round(close.y)} — expected ${Math.round(mid)},${Math.round(pic.y)}`);
+      // hidden far off, shown within 20px, by a REAL pointer
+      await page.mouse.move(pic.x, pic.y);
+      await new Promise(r => setTimeout(r, 300));
+      const far = await opacity('#appShotRailNext');
+      await page.mouse.move(next.right + 15, next.y);
+      await new Promise(r => setTimeout(r, 300));
+      const near = await opacity('#appShotRailNext');
+      note(far === 0 && near === 1, `${key}: the right rail reads ${far} far off and ${near} within 15px`);
+      const before = await page.$eval('#appShotCount', el => el.textContent);
+      note(next.hit, `${key}: the right rail is covered at its centre`);
+      await page.mouse.click(next.x, next.y);
+      const after = await page.$eval('#appShotCount', el => el.textContent);
+      note(+after.split('/')[0] === (+before.split('/')[0] % n) + 1, `${key}: the right rail took ${before} to ${after}`);
+      await page.mouse.click(prev.x, prev.y);
+      const back = await page.$eval('#appShotCount', el => el.textContent);
+      note(back === before, `${key}: the left rail took ${after} to ${back}, expected ${before}`);
+    } else {
+      note(await page.$eval('#appShotRailNext', el => el.hidden), `${key}: one shot but the rails show`);
+    }
+    // a press on the picture keeps it open; one in the dark under it closes it
+    await page.mouse.click(pic.x, pic.y);
+    note(await page.$eval('#appShotModal', d => d.open), `${key}: a click on the picture closed the gallery`);
+    const below = { x: pic.x, y: Math.min(pic.top + pic.h + 8, pic.top + pic.h + 8) };
+    const target = await page.evaluate((x, y) => document.elementFromPoint(x, y)?.className || '', below.x, below.y);
+    await page.mouse.click(below.x, below.y);
+    const shut = await page.waitForFunction(() => !document.getElementById('appShotModal').open, { timeout: 2000 })
+      .then(() => true).catch(() => false);
+    note(shut, `${key}: a click in the dark under the picture (on "${target}") left the gallery open`);
+  }
+  note(galleries === keys.length, `${galleries} of ${keys.length} AI Lab galleries opened`);
+
+  // The far left and the X itself close it too, measured on the first gallery.
+  if (await openFor(keys[0])) {
+    await new Promise(r => setTimeout(r, 300));
+    await page.mouse.click(12, 500);
+    note(!await page.$eval('#appShotModal', d => d.open), 'a click at the far left of the screen left the gallery open');
+  }
+  if (await openFor(keys[0])) {
+    await new Promise(r => setTimeout(r, 300));
+    const close = await centre('#appShotClose');
+    note(close.hit, 'the X is covered at its centre');
+    await page.mouse.click(close.x, close.y);
+    note(!await page.$eval('#appShotModal', d => d.open), 'the X did not close the gallery');
+  }
+
+  // Touch: no hover, so the rails are always shown.
+  await page.setViewport({ width: 1600, height: 1000, hasTouch: true });
+  await new Promise(r => setTimeout(r, 300));
+  note(await page.evaluate(() => matchMedia('(hover:none) and (pointer:coarse)').matches),
+       'the touch viewport does not read as touch -- the next check would test nothing');
+  const multi = keys.find(k => k === 'inko') || keys[0];
+  if (await openFor(multi)) {
+    await new Promise(r => setTimeout(r, 300));
+    await page.mouse.move(5, 5);
+    await new Promise(r => setTimeout(r, 300));
+    const rail = await page.$eval('#appShotRailNext', el => ({ hidden: el.hidden, op: +getComputedStyle(el).opacity }));
+    note(!rail.hidden && rail.op === 1, `on touch the rail is ${rail.hidden ? 'hidden' : `at opacity ${rail.op}`}`);
+  }
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+
+  // A phone: the rails inside the picture's edges, the X above its corner, all on screen.
+  await page.setViewport({ width: 390, height: 844, hasTouch: true, isMobile: true });
+  await new Promise(r => setTimeout(r, 400));
+  const phone = await page.evaluate((key) => {
+    const card = document.querySelector(`#aiApps .ai-card[data-gallery="${key}"]`);
+    card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    document.getElementById('appArtView').click();
+    const r = (id) => document.getElementById(id).getBoundingClientRect();
+    const d = document.getElementById('appShotModal');
+    return { open: d.open, vw: document.documentElement.clientWidth, pic: r('appShotStage').toJSON(),
+             next: r('appShotRailNext').toJSON(), x: r('appShotClose').toJSON(),
+             op: +getComputedStyle(document.getElementById('appShotRailNext')).opacity };
+  }, multi);
+  note(phone.open, 'the gallery did not open on a phone');
+  note(phone.next.right <= phone.pic.right && phone.next.right <= phone.vw && phone.op === 1,
+       `on a phone the right rail is at ${Math.round(phone.next.right)} of ${phone.vw} (opacity ${phone.op})`);
+  note(phone.x.bottom <= phone.pic.top && phone.x.right <= phone.vw && phone.x.top >= 0,
+       `on a phone the X is not above the picture's corner (${JSON.stringify(phone.x)})`);
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+  await page.setViewport({ width: 1600, height: 1000 });
+  console.log(`app gallery: ${galleries}/${keys.length} opened, rails, X and the dark round the picture driven`);
+}
+
 note(missing.length === 0, `404s: ${[...new Set(missing)].slice(0, 5).join(', ')}`);
 
 await browser.close();

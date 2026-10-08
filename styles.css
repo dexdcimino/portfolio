@@ -2424,26 +2424,71 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    The cost is honest and small: a short wide screenshot floats centred with air
    under it instead of sitting tight above the bar. That is the trade for a
    control that is in the same place every time, which is what was asked for. */
-.app-shot-modal{border:0;padding:0;background:transparent;max-width:none;max-height:none}
+.app-shot-modal{border:0;padding:0;background:transparent;width:100%;height:100%;max-width:none;max-height:none}
 .app-shot-modal::backdrop{background:rgba(3,5,7,.9);backdrop-filter:blur(6px)}
-.app-shot-shell{position:relative;display:grid;justify-items:center;gap:14px}
-.app-shot-close{position:absolute;top:-6px;right:-52px;z-index:4}
-@media (max-width:1200px){.app-shot-close{top:-46px;right:0}}
+/* The dialog fills the screen, so every dark pixel round the picture is part
+   of it and a click there closes (initAppInfo). */
+.app-shot-shell{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .app-shot-stage{
-  width:min(92vw,1400px);height:76vh;
+  width:100%;height:76vh;container-type:inline-size;
   display:grid;place-items:center;
 }
-/* The caps stay in VIEWPORT UNITS, matching the stage's own two dimensions,
-   rather than becoming max-width/max-height:100% of it. The percentage form
-   looks equivalent and is not: measured, a 900x900 image came out 904x904
-   inside a 687px-tall stage and a 1835x1167 came out 1363x869 — the percentage
-   never constrained the height at all, so tall shots overflowed the fixed box
-   and would have run under the arrow bar. Same two numbers as before this
-   change; only the stage around them is new. */
+/* The frame HUGS the picture (Dex, 2026-10-08): the rails sit just outside
+   its edges and the X centred in what is left to the right of the right rail.
+   Its size comes from the baked aspect ratio (--ar, set per shot) and the
+   same two caps as before, so the box is the same every time a shot is shown
+   and the controls on it do not move while the big rung loads. The width cap
+   leaves room for a rail and the X either side; 100cqw is the stage, which is
+   the screen's width. */
+.app-shot-frame{
+  --rail-w:30px;--rail-gap:14px;--x-zone:84px;
+  --max-w:min(100cqw - 2 * (var(--rail-gap) + var(--rail-w) + var(--x-zone)), 1400px);
+  position:relative;
+}
+.app-shot-pic,.app-shot-pic picture{display:block}
+/* The caps stay in VIEWPORT UNITS rather than max-width/max-height:100% of
+   the stage: measured, the percentage form never constrained the height at
+   all, so tall shots overflowed the box and ran under the arrow bar. */
 .app-shot-stage img{
-  display:block;width:auto;height:auto;
-  max-width:min(92vw,1400px);max-height:76vh;
+  display:block;aspect-ratio:var(--ar,1.6);height:auto;
+  width:min(var(--max-w), 76vh * var(--ar,1.6));
   border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);
+}
+/* The side rails: a third of the picture's height, thin, accent chevron.
+   Invisible until the pointer is within 20px (the ::before is that reach),
+   always shown where there is no hover. Hidden outright with one shot. */
+.app-shot-rail{
+  position:absolute;top:50%;height:33.333%;width:var(--rail-w);min-height:72px;
+  transform:translateY(-50%);padding:0;cursor:pointer;
+  display:grid;place-items:center;
+  border:var(--stroke) solid var(--line);border-radius:12px;background:rgba(12,15,18,.72);
+  color:var(--accent);opacity:0;
+  transition:opacity .18s ease,border-color var(--accent-ease),background .2s ease;
+}
+.app-shot-rail::before{content:"";position:absolute;inset:-20px}
+.app-shot-rail[hidden]{display:none}
+.app-shot-rail:hover,.app-shot-rail:focus-visible{opacity:1;border-color:var(--accent);background:rgba(18,22,26,.86)}
+/* Touch, by its pointer as well as its hover: headless Chrome reports
+   (hover:none) with NO pointer at all, and would otherwise test as a phone. */
+@media (hover:none) and (pointer:coarse){.app-shot-rail{opacity:1}}
+.app-shot-rail .icon{width:20px;height:20px}
+.app-shot-rail-prev{right:calc(100% + var(--rail-gap))}
+.app-shot-rail-next{left:calc(100% + var(--rail-gap))}
+/* Centred, both ways, in the space between the right rail and the screen's
+   right edge: the rail's outer edge is 100% + gap + rail, the edge of the
+   screen is 100% + (100cqw - 100%) / 2, and this is halfway between. */
+/* Two classes: .contact-close is later in this file and sets its own corner. */
+.app-shot-frame .app-shot-close{
+  top:50%;right:auto;z-index:4;transform:translate(-50%,-50%);
+  left:calc(100% + (100cqw - 100%) / 4 + (var(--rail-gap) + var(--rail-w)) / 2);
+}
+/* A phone has no room outside the picture: it fills the width, the rails
+   sit just inside its edges, and the X goes back above its top-right corner. */
+@media (max-width:700px){
+  .app-shot-frame{--max-w:calc(100cqw - 24px)}
+  .app-shot-rail-prev{right:auto;left:8px}
+  .app-shot-rail-next{left:auto;right:8px}
+  .app-shot-frame .app-shot-close{top:auto;bottom:calc(100% + 10px);left:auto;right:0;transform:none}
 }
 .app-shot-bar{display:flex;align-items:center;gap:16px}
 .app-shot-count{min-width:52px;text-align:center;font-size:16px;font-weight:700;color:#c3cad0;font-variant-numeric:tabular-nums}
@@ -4676,8 +4721,8 @@ body.modal-open{overflow:hidden}
    Listed together rather than per-carousel: scoping the rotation to .wp-prev
    left the overlay and the clips arrows pointing at the floor the moment they
    were added. Any new arrow gets its class added here, not its own rule. */
-.wp-prev .icon,.wp-fullprev .icon,.cl-prev .icon,.app-art-prev .icon,.app-shot-prev .icon{transform:rotate(90deg)}
-.wp-next .icon,.wp-fullnext .icon,.cl-next .icon,.app-art-next .icon,.app-shot-next .icon{transform:rotate(-90deg)}
+.wp-prev .icon,.wp-fullprev .icon,.cl-prev .icon,.app-art-prev .icon,.app-shot-prev .icon,.app-shot-rail-prev .icon{transform:rotate(90deg)}
+.wp-next .icon,.wp-fullnext .icon,.cl-next .icon,.app-art-next .icon,.app-shot-next .icon,.app-shot-rail-next .icon{transform:rotate(-90deg)}
 
 /* The overlay's strip, centred under the piece. The panel's is the grid below
    and shares everything here except the container. */
