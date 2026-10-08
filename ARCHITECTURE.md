@@ -717,7 +717,7 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     arrow, a wide Public, and a square of your own picture that opens your
     profile (your canvases under your picture and your @tag, with its edit
     button, or Sign in). Tapping a name on a card or in the viewer opens that
-    artist's profile (`?profile=`), and back from there goes to Public.
+    artist's profile (`?profile=`), and back goes where you came from.
     The wide button is a toggle (it reads Mine while Public is showing).
   - **A public tile is only the drawing**, two across: the artist's face and
     @tag along its foot (ellipsis when long) and the fire count in a corner.
@@ -728,11 +728,14 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     hide). The pill is grey until you rate, then only the one you chose shows
     in colour with its count. Swipe up/down steps through the list; right to
     left goes back to the grid.
-  - **Back stays in the app.** The gallery and the viewer each push a history
-    entry when they open, so the phone's back gesture closes the top one
-    (sheet, viewer, gallery) before it can leave; closing one with a button
-    takes its entry back off (`pushNav`/`popNav`). Off inside the site's
-    overlay, whose frame shares the site's history.
+  - **Back follows the way you came, two places deep.** `trail` holds the
+    last two of canvas / mine / public / user:<h>; back goes to the one
+    before, and with one left it leaves the app. The app opens as if from
+    your gallery. Revisiting the canvas moves it last; revisiting the
+    previous gallery page is a step back. The viewer and sheets are extra
+    steps on top. `syncHistory` keeps one history entry per step (pushed
+    only after the first touch, which Chrome requires); the gallery's back
+    arrow walks the same trail. Off inside any frame. See DECISIONS.md.
   - **Your picture is one of your canvases, kept live.** Tapping it offers a
     pick of your canvases and then a square crop; the 256px JPEG is kept in
     `meta` `avatar:<scope>` with which canvas and which square, and every

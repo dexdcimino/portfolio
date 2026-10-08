@@ -970,7 +970,8 @@ $('grid-btn').addEventListener('click', async () => {
   // The card for the canvas on screen shows what is on it now.
   if (dirty) await saveCurrent().catch(() => {});
   // Someone else's profile is a stop on the way, not a place to come back to.
-  setGalleryTab(galleryTab === 'user' ? 'public' : galleryTab);
+  // The button is your picture: it opens your own gallery.
+  setGalleryTab('mine');
   openGallery();
 });
 /* Back: out of a search, out of picking a picture, from an artist back to
@@ -978,6 +979,7 @@ $('grid-btn').addEventListener('click', async () => {
 $('g-back').addEventListener('click', () => {
   if (searching()){ clearSearch(); return; }
   if (picking){ setPicking(false); return; }
+  if (canStepBack()){ window.history.back(); return; }
   if (galleryTab === 'user'){ setGalleryTab('public'); return; }
   closeGallery();
 });
@@ -1453,12 +1455,12 @@ function openViewer(p, list){
   viewerList = (list && list.length ? list : [p]).map(canonical);
   viewerAt = Math.max(0, viewerList.findIndex(x => x.id === p.id));
   showPost(viewerList[viewerAt] || p);
-  if (!$('viewer').classList.contains('open')){ $('viewer').classList.add('open'); pushNav('viewer'); }
+  if (!$('viewer').classList.contains('open')){ $('viewer').classList.add('open'); syncHistory(); }
 }
-function closeViewer(fromBack){
+function closeViewer(){
   if (!$('viewer').classList.contains('open')) return;
   $('viewer').classList.remove('open'); $('v-img').removeAttribute('src'); $('v-acts').hidden = true;
-  if (!fromBack) popNav();
+  syncHistory();
 }
 $('v-close').addEventListener('click', () => closeViewer());
 $('v-more').addEventListener('click', e => { e.stopPropagation(); $('v-acts').hidden = !$('v-acts').hidden; });
@@ -1508,41 +1510,84 @@ function bounce(dir){
 }
 
 /* ---- back ----
-   The phone's back gesture (Android's swipe in from the edge) left the app
-   for the home screen (Dex, 2026-10-08). The gallery and the viewer now each
-   put an entry in the page's history when they open, so back closes the top
-   one -- viewer, then gallery -- before it can leave. Closing one with a
-   button takes its entry back off. Not inside the site's overlay, whose
-   frame shares the site's history. */
-let navDepth = 0, skipPops = 0;
-function pushNav(name){
-  if (EMBED) return;
-  try { window.history.pushState({ inko: name }, ''); navDepth++; } catch (e) {}
+   The phone's back gesture (Android's swipe in from the edge) follows the
+   way you came, like a browser, but short (Dex, 2026-10-08):
+   - `trail` holds the last two places, newest last: 'canvas', 'mine',
+     'public' or 'user:<handle>'. Back goes to the one before; with only one
+     left, back leaves the app. So from anywhere, two backs at most get you
+     out, and an open drawing (the viewer) or a sheet is one more on top.
+   - Opening the app counts as having come from your gallery: the first back
+     from the canvas opens the gallery, the second leaves.
+   - Going to a place moves it to the end. The canvas goes to the end even
+     when it was the one before, because a canvas opened from the gallery
+     must go back to the gallery (and the gallery opened from a canvas, to
+     the canvas). Between gallery pages, going to the one before is a step
+     back instead (Public -> Mine, then back leaves, never to Public), so
+     they never ping-pong.
+   The page's history carries one entry per step back (`syncHistory`). Off
+   inside the site's overlay, whose frame shares the site's history; and
+   nothing is pushed until the first touch, because Chrome skips entries a
+   page added before anyone touched it. */
+const NO_HISTORY = EMBED || window.top !== window;
+let trail = ['mine', 'canvas'], navDepth = 0, skipPops = 0, restoring = false, touched = false;
+const placeNow = () => !$('gallery').classList.contains('open') ? 'canvas' : galleryTab === 'user' ? 'user:' + viewingUser : galleryTab;
+function visit(place){
+  if (restoring) return;
+  const n = trail.length;
+  if (place === trail[n - 1]) return;
+  if (place !== 'canvas' && trail[n - 1] !== 'canvas' && place === trail[n - 2]) trail.pop();
+  else { trail = trail.filter(p => p !== place); trail.push(place); if (trail.length > 2) trail = trail.slice(-2); }
+  syncHistory();
 }
-function popNav(){
-  if (EMBED || navDepth <= 0) return;
-  navDepth--; skipPops++;
-  try { window.history.back(); } catch (e) { skipPops--; }
+function syncHistory(){
+  if (NO_HISTORY || !touched) return;
+  const want = trail.length - 1 + ($('viewer').classList.contains('open') ? 1 : 0);
+  try {
+    while (navDepth < want){ window.history.pushState({ inko: navDepth + 1 }, ''); navDepth++; }
+    if (navDepth > want){ const n = navDepth - want; navDepth = want; skipPops++; window.history.go(-n); }
+  } catch (e) {}
 }
+for (const ev of ['pointerdown', 'keydown']){
+  window.addEventListener(ev, () => {
+    if (touched) return;
+    touched = true;
+    // The entry the app opened on is step 0 (a reload keeps the state a pushed entry had).
+    if (!NO_HISTORY) try { window.history.replaceState({ inko: 0 }, ''); } catch (e) {}
+    syncHistory();
+  }, { capture: true });
+}
+/* Show a place on the trail without walking it again. */
+function showPlace(place){
+  restoring = true;
+  try {
+    if (place === 'canvas'){ closeGallery(); return; }
+    $('gallery').classList.add('open');
+    if (place.startsWith('user:')) openUser(place.slice(5));
+    else setGalleryTab(place);
+  } finally { restoring = false; }
+}
+/* The gallery's own back arrow walks the same trail. */
+const canStepBack = () => !NO_HISTORY && touched && trail.length > 1 && navDepth > 0;
 window.addEventListener('popstate', () => {
   if (skipPops > 0){ skipPops--; return; }
-  if (navDepth > 0) navDepth--;
-  // A sheet over the gallery is closed first, and the gallery's entry put back.
+  navDepth = Math.max(0, navDepth - 1);
+  // A sheet is closed first, and its step put back.
   const sheet = ['crop', 'account', 'modal'].find(id => $(id).classList.contains('open'));
-  if (sheet){ $(sheet).classList.remove('open'); if (sheet === 'account') afterSignIn = null; pushNav('sheet'); return; }
-  if ($('viewer').classList.contains('open')){ closeViewer(true); return; }
-  if ($('gallery').classList.contains('open')) closeGallery(true);
+  if (sheet){ $(sheet).classList.remove('open'); if (sheet === 'account') afterSignIn = null; syncHistory(); return; }
+  if ($('viewer').classList.contains('open')){ closeViewer(); return; }
+  if (trail.length > 1){ trail.pop(); showPlace(trail[trail.length - 1]); }
+  syncHistory();
 });
 function openGallery(){
   if ($('gallery').classList.contains('open')) return;
   $('gallery').classList.add('open');
-  pushNav('gallery');
+  visit(placeNow());
 }
-function closeGallery(fromBack){
+function closeGallery(){
   if (!$('gallery').classList.contains('open')) return;
-  closeViewer(fromBack);
+  closeViewer();
   $('gallery').classList.remove('open');
-  if (!fromBack) popNav();
+  visit('canvas');
 }
 
 /* ---- the account sheet ---- */
@@ -1699,6 +1744,7 @@ function setGalleryTab(tab){
   $('g-rows').innerHTML = '';
   if (tab === 'public') loadFeed();
   else if (tab === 'mine') renderGallery();
+  if (tab !== 'user' && $('gallery').classList.contains('open')) visit(tab);
 }
 $('g-tab-mine').addEventListener('click', () => setGalleryTab('mine'));
 $('g-tab-public').addEventListener('click', () => setGalleryTab(galleryTab === 'public' ? 'mine' : 'public'));
@@ -1910,6 +1956,7 @@ async function openUser(handle){
   if (session && handle === session.handle){ setGalleryTab('mine'); return; }
   setGalleryTab('user');
   viewingUser = handle;
+  if ($('gallery').classList.contains('open')) visit('user:' + handle);
   $('g-user-name').textContent = '@' + handle;
   $('g-avatar').style.backgroundImage = `url("${avatarSrc(handle, feedAvatars[handle])}")`;
   $('g-avatar').setAttribute('aria-label', '@' + handle);

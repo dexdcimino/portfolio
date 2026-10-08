@@ -375,6 +375,23 @@ try {
     note(wipe.seen && /135deg/.test(wipe.seen.mask) && wipe.seen.inFrame === 'canvas-frame' && wipe.left === 0 && wipe.pic,
       `the + wipe and the gallery picture: ${JSON.stringify(wipe)}`);
   }
+  // Back follows the way you came, two backs at most to leave (cold launch, so the trail is fresh).
+  {
+    await page.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' }); await sleep(600);
+    const pad = await page.evaluate(() => { const b = document.getElementById('pad').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + 20 }; });
+    await page.mouse.click(pad.x, pad.y); await sleep(200);   // a first touch: Chrome skips entries pushed before one
+    const where = () => page.evaluate(() => { const g = document.getElementById('gallery');
+      return (g.classList.contains('open') ? (/mode-(\w+)/.exec(g.className) || [])[1] : 'canvas') + (history.state && history.state.inko ? '' : '|last'); });
+    const steps = [];
+    await page.goBack(); await sleep(300); steps.push(await where());                    // canvas -> your gallery, the last stop
+    await page.evaluate(() => document.querySelector('#g-rows .g-item:not(.current) img, #g-rows .g-item:not(.current) .g-thumb').click()); await sleep(500);
+    steps.push(await where());                                                           // a canvas opened from it
+    await page.goBack(); await sleep(300); steps.push(await where());                    // back to the gallery, the last stop
+    await page.click('#g-back'); await sleep(300); steps.push(await where());            // the arrow from there: the canvas
+    await page.click('#grid-btn'); await sleep(300); steps.push(await where());          // gallery from the canvas
+    await page.goBack(); await sleep(300); steps.push(await where());                    // back to that canvas, the last stop
+    note(steps.join(' ') === 'mine|last canvas mine|last canvas mine canvas|last', `back steps: ${steps.join(' ')}`);
+  }
   note(bars.lockRight && !bars.install, `the top row: lock at the right ${bars.lockRight}, install button ${bars.install}`);
   console.log(`colours: canvas ${bg0} -> ${bg1} from its own window, brush sliders left it alone, eyedropper picked ${picked}; toggle ${bars.off.toFixed(1)}px off centre`);
 
