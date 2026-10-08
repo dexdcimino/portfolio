@@ -117,7 +117,7 @@ function fillProfile(sheet, { close, who, actions }) {
   actions.replaceChildren(...[
     user ? null : act('Sign in', signInNow, 'is-primary'),
     user && !owner ? act('Bring in the password notes…', bringInVault) : null,
-    !STANDALONE ? act('Install DexNote on this device', showInstall) : null,
+    !STANDALONE ? act('Install DexNote on this device', () => showInstall()) : null,
     user ? act('Sign out', signOutNow, 'is-danger') : null,
   ].filter(Boolean));
   sheet.append(el('p', { class: 'dm-build', text: running ? `build ${label(running)}` : '' }));
@@ -195,19 +195,31 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 window.addEventListener('appinstalled', () => { deferredPrompt = null; });
 
-function showInstall() {
+function showInstall(inOtherApp = false) {
   if (document.querySelector('.dn-install')) return;
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const steps = deferredPrompt
-    ? el('p', { class: 'nt-modal-msg', text: 'DexNote goes on your home screen and opens full screen, like any other app.' })
-    : el('ol', { class: 'dn-steps' }, ...(ios
-      ? [el('li', { html: 'Tap the <b>Share</b> button in Safari' }), el('li', { html: 'Tap <b>Add to Home Screen</b>' })]
-      : [el('li', { html: 'Open the browser <b>menu</b> (⋮)' }), el('li', { html: 'Tap <b>Install app</b> or <b>Add to Home screen</b>' })]));
+  /* Standalone with ?install=1 means ANOTHER app opened the link: DexNote's
+     own start_url carries no query. On Android that is the dexcimino.com
+     app (site.webmanifest, scope "/"): its scope holds /dexnote/, so Chrome
+     hands every DexNote link to it and will not install DexNote beside it. */
+  const steps = inOtherApp
+    ? el('div', {},
+      el('p', { class: 'nt-modal-msg', text: 'This opened inside the dexcimino.com app. While that app is on your home screen, it takes over DexNote, so DexNote cannot install on its own.' }),
+      el('ol', { class: 'dn-steps' },
+        el('li', { html: 'Hold the <b>dexcimino.com</b> icon on your home screen and tap <b>Uninstall</b>' }),
+        el('li', { html: 'Open <b>dexcimino.com/dexnote</b> in Chrome and tap <b>Install</b>' }),
+        el('li', { html: 'Add the site back afterwards if you want it' })))
+    : deferredPrompt
+      ? el('p', { class: 'nt-modal-msg', text: 'DexNote goes on your home screen and opens full screen, like any other app.' })
+      : el('ol', { class: 'dn-steps' }, ...(ios
+        ? [el('li', { html: 'Tap the <b>Share</b> button in Safari' }), el('li', { html: 'Tap <b>Add to Home Screen</b>' })]
+        : [el('li', { html: 'Open the browser <b>menu</b> (⋮)' }), el('li', { html: 'Tap <b>Install app</b> or <b>Add to Home screen</b>' }),
+          el('li', { html: 'Nothing happens? If the <b>dexcimino.com</b> app is on your home screen, uninstall it first: it takes over DexNote' })]));
   const close = () => wrap.remove();
   const go = el('button', {
-    type: 'button', class: 'nt-btn is-primary', text: deferredPrompt ? 'Install' : 'Got it',
+    type: 'button', class: 'nt-btn is-primary', text: deferredPrompt && !inOtherApp ? 'Install' : 'Got it',
     onclick: async () => {
-      if (deferredPrompt) { deferredPrompt.prompt(); try { await deferredPrompt.userChoice; } catch { /* dismissed */ } deferredPrompt = null; }
+      if (deferredPrompt && !inOtherApp) { deferredPrompt.prompt(); try { await deferredPrompt.userChoice; } catch { /* dismissed */ } deferredPrompt = null; }
       close();
     },
   });
@@ -219,10 +231,10 @@ function showInstall() {
       el('div', { class: 'nt-modal-btns' }, go))));
   document.body.append(wrap);
 }
-if (!STANDALONE && new URLSearchParams(location.search).has('install')) {
+if (new URLSearchParams(location.search).has('install')) {
   history.replaceState(null, '', location.pathname + location.hash);
   // Chrome fires beforeinstallprompt shortly after load; give it a moment.
-  setTimeout(showInstall, 1200);
+  setTimeout(() => showInstall(STANDALONE), 1200);
 }
 
 /* ---- updates -------------------------------------------------------------- */

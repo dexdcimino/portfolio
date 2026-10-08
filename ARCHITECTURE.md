@@ -2926,6 +2926,16 @@ DexNote card has a download button left of the eye that opens
 `/dexnote/?install=1`: the browser's own install prompt, or the Add to Home
 Screen steps.
 
+**The homepage's own app swallows it.** `site.webmanifest` has scope `/`, so
+on an Android phone with the dexcimino.com app installed, Chrome hands every
+`/dexnote/` link to that app and will not install DexNote beside it: the page
+opens standalone inside the site app, looking installed. `?install=1` is the
+tell -- DexNote's own `start_url` has no query, so a standalone page that
+arrived with it was opened by another app -- and the sheet then says to
+uninstall the site app first (then install DexNote, then add the site back,
+whose start_url `/` is outside `/dexnote/`). Inko only escaped this by being
+installed first. Inferred from Chrome's scope rule, not reproduced on a phone.
+
 ```
 dexnote/manifest.webmanifest  standalone, scope /dexnote/, the AI Lab card's
                               icon (assets/icons/apps/dexnote.png) as any,
