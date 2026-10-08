@@ -51,7 +51,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find((p) => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 56;
+const EXPECTED = 57;
 const PORT = 8131;
 const BASE = `http://127.0.0.1:${PORT}`;
 const PROJECT = 'phone-check-project';
@@ -204,6 +204,22 @@ try {
   ok(/Install DexNote/.test(inst.sheet) && /Add to Home screen|Install app|goes on your home screen/.test(inst.sheet) && inst.url === '', `?install=1 offers to install and leaves the address clean (“${inst.sheet.slice(0, 48)}…”)`);
   await p.evaluate(() => document.querySelector('.dn-install .nt-modal')?.click());
   ok(!(await p.$('.dn-install')), 'a tap beside it puts it away');
+  // Inside the dexcimino.com app (site.webmanifest, scope "/") the page is
+  // standalone too, and Chrome will not install DexNote beside it: the sheet
+  // must still come up and say what to do, not assume DexNote is installed.
+  // CDP's setEmulatedMedia silently ignores display-mode, so the page's own
+  // matchMedia is answered instead, on a page of its own.
+  const sp = await browser.newPage();
+  await sp.setViewport(await p.viewport());
+  await sp.evaluateOnNewDocument(() => {
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = (q) => (/display-mode:\s*standalone/.test(q) ? { matches: true, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} } : real(q));
+  });
+  await sp.goto(`${BASE}/dexnote/?install=1`, { waitUntil: 'networkidle2' });
+  await sp.waitForSelector('.dn-install', { timeout: 5000 }).catch(() => {});
+  const inApp = await sp.evaluate(() => ({ standalone: matchMedia('(display-mode: standalone)').matches, sheet: document.querySelector('.dn-install')?.textContent || '' }));
+  ok(inApp.standalone && /inside the dexcimino\.com app/.test(inApp.sheet) && /Uninstall/.test(inApp.sheet), `opened inside the site's own app, ?install=1 says to uninstall that first (standalone ${inApp.standalone}: “${inApp.sheet.slice(15, 70)}…”)`);
+  await sp.close();
 
   console.log('2. the phone layout');
   const gate = await p.evaluate(() => ({ btns: [...document.querySelectorAll('.dn-card button')].map((b) => b.textContent), logo: document.querySelector('.dn-card .dn-logo')?.getAttribute('src') }));
