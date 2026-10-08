@@ -81,6 +81,45 @@ which is `format: 'demo'`, still in `notes/app.js`.
 
 ---
 
+## 2026-10-08 — Inko: canvas titles are searched on the device, not the server
+
+**Decided.** The gallery search finds artists through the server's `?users=` (as before)
+and canvas titles on the device: your own gallery from IndexedDB, and public drawings
+from the feed the Public tab already fetches whole (`?feed=1`), matched by contains with
+prefix matches first.
+
+**Replaced.** Search found artists only.
+
+**Why.** The feed is one list the app already downloads, so a title index on the server
+would be a second copy of it to keep in step, and your own private canvases must never
+be sent anywhere to be searched.
+
+**Reverse it if** the feed is ever paged or grows too big to fetch whole: then public
+titles need a server-side search beside `?users=`.
+
+## 2026-10-08 — Inko: back follows the way you came, two steps deep
+
+**Decided.** The phone's back gesture walks a two-place trail of where you have been
+(canvas, your gallery, Public, someone's profile); the open drawing and sheets sit on top
+and do not count. Back goes to the place before; with one left, back leaves the app. The
+app opens as if you came from your gallery, so the canvas backs into the gallery once and
+then out. Revisiting the canvas puts it last (a canvas opened from the gallery backs into
+the gallery); revisiting the previous gallery page is a step back, so Mine and Public never
+ping-pong. The gallery's back arrow walks the same trail.
+
+**Replaced.** A fixed hierarchy from the batch before: back closed the viewer, then the
+gallery, then left. Dex kept swiping back expecting the previous screen, sometimes the
+gallery, sometimes out, and asked for something smarter, possibly time-based.
+
+**Why.** "Where I just was" is what a browser does and what his thumb expected each time
+he described it; a time rule would make the same swipe do different things for reasons
+nobody can see. Capping at two keeps his other rule: one back changes page, two leave.
+
+**Reverse it if** Dex finds he wants a third step (say viewer -> Public -> Mine -> canvas)
+often enough; raise the cap in `visit()` before inventing anything else.
+
+---
+
 ## 2026-10-08 — Inko: a profile picture is a live crop of one of your canvases
 
 **Decided.** Your profile picture is a square cut from a canvas you pick, re-rendered and

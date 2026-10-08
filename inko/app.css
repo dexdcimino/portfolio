@@ -1,6 +1,12 @@
 :root{
   --bg:#0a0c11; --panel:rgba(20,24,33,.94); --border:rgba(255,255,255,.09);
-  --text:#f2f4f8; --muted:#8b93a7; --a1:#22d3ee; --a2:#a78bfa; --danger:#ff453a;
+  --text:#f2f4f8; --muted:#8b93a7; --danger:#ff453a;
+  /* The new logo's ribbon (inko/icon.svg): amber, coral, magenta, violet,
+     blue, cyan. The middle of it is the accent; the whole of it is --grad.
+     (The cyan-to-lilac these replaced was the OLD logo's.) */
+  --bar-h:66px; --a1:#f12fc6; --a2:#8a32f4; --a3:#3458f5;
+  --grad:linear-gradient(120deg,#ff6a72 0%,#f12fc6 34%,#8a32f4 68%,#3458f5 100%);
+  --glow:0 6px 20px -6px rgba(241,47,198,.55), 0 2px 10px -4px rgba(52,88,245,.5);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{height:100%;height:100svh;}
@@ -26,23 +32,55 @@ body{
 /* The canvas's public/private lock, at the row's right edge, the mirror of
    the canvas swatch at its left. */
 #top-lock{
-  position:absolute; right:16px; top:50%; transform:translateY(-50%);
-  width:36px; height:36px; border-radius:12px; border:1px solid var(--border);
+  position:absolute; right:14px; top:50%; transform:translateY(-50%);
+  width:46px; height:46px; border-radius:15px; border:1px solid var(--border);
   background:var(--panel); color:var(--text); cursor:pointer;
   display:flex; align-items:center; justify-content:center;
 }
-#top-lock svg{width:18px; height:18px;}
-#top-lock.on{background:var(--a1); color:#0b0d12; border-color:transparent;}
+#top-lock svg{width:25px; height:25px;}
+#top-lock.on{background:var(--grad); color:#fff; border-color:transparent; box-shadow:var(--glow);}
 #topbar{position:relative;}
 
 /* Canvas stage */
+/* The canvas sits ON the bars: one gap (--gap, the same 8px as between the
+   size bar and the toolbar) under it. The stage is fixed and fit() sets its
+   top and bottom from the topbar's and the panels' own boxes, so opening the
+   sliders, the options or the canvas colour window lifts it. */
 #stage{
-  margin-bottom:150px;flex:1; display:flex; align-items:center; justify-content:center; width:100%; min-height:0; padding:6px 0; touch-action:none; overscroll-behavior:none;}
+  --gap:8px;   /* GAP in app.js */
+  position:fixed; left:0; right:0; top:60px; bottom:150px; box-sizing:border-box;
+  display:flex; align-items:flex-end; justify-content:center; width:100%; min-height:0;
+  padding:6px 0 var(--gap); touch-action:none; overscroll-behavior:none;}
 #canvas-frame{
   border-radius:20px; overflow:hidden; border:none;
   box-shadow:0 18px 50px rgba(0,0,0,.5); background:#536980; line-height:0;
 }
 #pad{touch-action:none; background:#536980; display:block;}
+/* A new or opened canvas (Dex, 2026-10-08): the one you were on is wiped
+   away on a diagonal, top left to bottom right, over the new one fading in.
+   The snapshot is a copy of #pad laid over it; see canvasSwap(). */
+#canvas-frame{position:relative;}
+.pad-snap{position:absolute; left:0; top:0; pointer-events:none;
+  -webkit-mask-image:linear-gradient(135deg,transparent 35%,#000 50%); mask-image:linear-gradient(135deg,transparent 35%,#000 50%);
+  -webkit-mask-size:200% 200%; mask-size:200% 200%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
+  -webkit-mask-position:100% 100%; mask-position:100% 100%;}
+.pad-snap.go{animation:padWipe .36s cubic-bezier(.55,0,.35,1) forwards;}
+@keyframes padWipe{
+  80%{opacity:.85}
+  to{-webkit-mask-position:0 0; mask-position:0 0; opacity:0}
+}
+#copt-dot{width:26px; height:26px; border-radius:9px; display:block; border:1px solid rgba(255,255,255,.25);}
+#copt-btn.on{box-shadow:inset 0 0 0 2px #f12fc6;}
+/* The canvas window opened from the options bar: title and public too. */
+#cp-more{display:flex; gap:10px; align-items:center; margin:2px 0 10px;}
+#cp-more[hidden]{display:none;}
+#cp-title{flex:1; min-width:0; background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:12px;
+  color:var(--text); font:700 16px/1.2 inherit; padding:10px 12px; outline:none;}
+#cp-title:focus{border-color:#8a32f4;}
+.cp-lock{flex:none; width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:rgba(255,255,255,.06);
+  color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.cp-lock svg{width:22px; height:22px;}
+.cp-lock.on{background:var(--grad); border-color:transparent; color:#fff;}
 /* Bottom toolbar pill */
 
 /* Permanent size bar above toolbar */
@@ -57,13 +95,18 @@ body{
 /* Compact HSB bar (replaces size-bar when color mode active) */
 #hsb-bar{
   flex-shrink:0;
-  display:flex; flex-direction:column; gap:4px;
-  width:calc(100vw - 20px); max-width:600px;
+  display:flex; flex-direction:row; align-items:center; gap:8px;
+  width:calc(100vw - 20px); max-width:600px; box-sizing:border-box;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border); border-radius:18px;
-  padding:12px 16px; margin-bottom:8px;
+  padding:6px 14px; margin-bottom:8px;
 }
+/* Redo | the three sliders | undo, the buttons level with S (Dex, 2026-10-08). */
+.hsb-rows{flex:1; min-width:0; display:flex; flex-direction:column; gap:0;}
+#hsb-bar .tbtn{flex:0 0 auto;}
 .hsb-row{display:flex; align-items:center; gap:10px;}
+/* A taller strip to land a finger on; the track and thumb look the same. */
+.hsb-row input[type=range]{height:38px;}
 .hsb-lbl{
   width:18px; font-size:14px; font-weight:700; color:var(--text);
   text-align:center; flex-shrink:0;
@@ -83,10 +126,34 @@ body{
   display:flex; align-items:center; gap:8px;
   width:calc(100vw - 20px); max-width:600px;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
-  border:1px solid var(--border); border-radius:18px;
-  padding:10px 12px; margin-bottom:8px;
+  border:1px solid var(--border); border-radius:26px;
+  /* The same box as the toolbar (Dex, 2026-10-08): just the scrub bar
+     between undo and redo, all on one centre line. The pixel size shows
+     only while dragging, in #size-preview. */
+  box-sizing:border-box; height:var(--bar-h); padding:0 14px; margin-bottom:8px;
 }
-#size-bar .ctl{margin:0; flex:1; min-width:0;}
+/* The options bar takes the size bar's place, in the same box. */
+#opt-bar{
+  flex-shrink:0; display:flex; align-items:center; justify-content:space-evenly;
+  width:calc(100vw - 20px); max-width:600px;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:26px;
+  box-sizing:border-box; height:var(--bar-h); padding:0 14px; margin-bottom:8px;
+}
+#opt-bar[hidden]{display:none;}
+/* H/S/B named while you touch them: centred above the panel, in its fill. */
+#hsb-bar{position:relative;}
+.hsb-tip{position:absolute; left:50%; bottom:calc(100% + 8px); transform:translateX(-50%);
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:12px; padding:7px 14px;
+  font-size:15px; font-weight:700; color:var(--text); white-space:nowrap; pointer-events:none;
+  font-variant-numeric:tabular-nums;}
+.hsb-tip[hidden]{display:none;}
+/* Symmetry on: a short tick across the top centre of the canvas, not a line through it. */
+#sym-tick{position:absolute; width:3px; height:16px; margin-left:-1.5px; border-radius:2px; z-index:2;
+  background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.35), 0 0 8px rgba(241,47,198,.6); pointer-events:none;}
+#sym-tick[hidden]{display:none;}
+#size-bar .ctl{margin:0; flex:1; min-width:0; display:flex; align-items:center;}
 #size-bar .tbtn{flex:0 0 auto;}
 #size-bar .mrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
 #size-bar .mrow.centered{justify-content:center;}
@@ -101,7 +168,7 @@ body{
   width:calc(100vw - 20px); max-width:600px;
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border); border-radius:26px;
-  padding:10px 14px;
+  box-sizing:border-box; height:var(--bar-h); padding:0 14px;
   margin-bottom:0;
 }
 /* The draw/erase toggle sits dead centre; each half spreads its buttons
@@ -117,7 +184,21 @@ body{
 .tbtn{line-height:0;}
 .tbtn.sel{background:rgba(255,255,255,.12);}
 .tbtn:disabled{opacity:.28;}
-.tbtn.on{background:linear-gradient(135deg,var(--a1),var(--a2)); color:#0b0d12;}
+/* ON: a ring of the logo's ribbon round a faint wash of it, and a glow --
+   the icon stays white, so it reads as lit rather than as a coloured blob. */
+.tbtn.on{
+  background:linear-gradient(rgba(30,18,44,.92),rgba(30,18,44,.92)) padding-box, var(--grad) border-box;
+  border:2px solid transparent; color:#fff; box-shadow:var(--glow);
+}
+.tbtn{transition:background .18s, box-shadow .18s;}
+/* Brush and eraser, both on the button: the tool in use big, the other
+   small in the top-left corner. swapTools() flies them between the two. */
+#tool-toggle{position:relative; width:52px; height:48px;}
+#tool-toggle .tool-ico{position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px; transform-origin:50% 50%;}
+/* The big one dead centre (Dex, 2026-10-08). To revert to the old nudge
+   down-right, use translate(2px,2px) here and in TOOL_BIG in app.js. */
+#tool-toggle .tool-ico.big{transform:translate(0px,0px) scale(1);}
+#tool-toggle .tool-ico.small{transform:translate(-16px,-14px) scale(.46); opacity:.7;}
 
 #plus-btn svg{width:24px; height:24px;}
 
@@ -199,13 +280,6 @@ input[type=range]::-moz-range-thumb{
   display:flex; align-items:center; gap:12px;
   padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 10px;
 }
-#g-search-box{flex:1; display:flex; align-items:center; gap:8px; height:40px; padding:0 12px;
-  background:var(--panel); border:1px solid var(--border); border-radius:14px; color:var(--muted);}
-#g-search-box:focus-within{border-color:var(--a1);}
-#g-search-box svg{width:18px; height:18px; flex:none;}
-#g-search{flex:1; min-width:0; background:none; border:none; outline:none; color:var(--text); font-size:16px;
-  user-select:text; -webkit-user-select:text;}
-#g-search::-webkit-search-cancel-button{filter:invert(.6);}
 #g-count{display:block; font-size:13px; color:var(--muted); font-weight:400; text-align:center; margin-top:6px;}
 #g-profile{display:flex; flex-direction:column; align-items:center; padding:10px 0 18px;}
 #gallery:not(.mode-mine):not(.mode-user) #g-profile{display:none;}
@@ -227,6 +301,7 @@ input[type=range]::-moz-range-thumb{
 #g-grid{flex:1; overflow-y:auto; padding:0 16px; display:flex; flex-direction:column;}
 #g-rows{display:flex; flex-direction:column; gap:14px; padding-bottom:16px; margin-top:auto;}
 .g-row{display:flex; flex-direction:row; gap:14px;}
+.g-row.short{justify-content:flex-end;}   /* the top row, when the count is not a multiple of 3 */
 .g-item{width:calc((100% - 28px)/3); cursor:pointer;}
 .g-thumb{
   aspect-ratio:3/4; border-radius:12px; overflow:hidden; position:relative;
@@ -234,27 +309,104 @@ input[type=range]::-moz-range-thumb{
 }
 .g-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
 .g-title{font-size:12px; color:var(--muted); margin-top:6px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.g-dl,.g-del{
-  position:absolute; top:6px; width:30px; height:30px; border-radius:50%;
+/* One options button tight in the top-left corner (Dex, 2026-10-08); a tap
+   sends the card's buttons out of it to their own corners -- public top
+   right, download bottom right, delete bottom left -- and a second tap
+   folds them back in. They travel by left/top so the corners follow the
+   card's size. */
+.g-opt,.g-dl,.g-del,.g-pub{
+  position:absolute; left:5px; top:5px; width:30px; height:30px; border-radius:9px;
   border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;
-  background:rgba(0,0,0,.55); color:#fff;
+  background:rgba(0,0,0,.6); color:#fff; padding:0;
 }
-.g-dl{right:6px;} .g-del{left:6px;}
+.g-opt{z-index:2;}
+.g-opt svg{width:17px; height:17px;}
+.g-item.opts .g-opt{background:var(--grad);}
+.g-dl,.g-del,.g-pub{opacity:0; transform:scale(.4); pointer-events:none;
+  transition:left .24s cubic-bezier(.2,.8,.2,1), top .24s cubic-bezier(.2,.8,.2,1), opacity .18s, transform .24s cubic-bezier(.2,.8,.2,1);}
+.g-item.opts .g-dl,.g-item.opts .g-del,.g-item.opts .g-pub{opacity:1; transform:none; pointer-events:auto;}
+.g-item.opts .g-pub{left:calc(100% - 35px);}
+.g-item.opts .g-dl{left:calc(100% - 35px); top:calc(100% - 35px);}
+.g-item.opts .g-del{top:calc(100% - 35px);}
 .g-dl svg,.g-del svg{width:15px; height:15px;}
-/* Back, Public, you: two squares either side of one wide button. */
+@media (prefers-reduced-motion:reduce){ .g-dl,.g-del,.g-pub{transition:none;} }
+/* Back and search, Public, you: the canvas toolbar's own pill (Dex,
+   2026-10-08), with Public shrunk to sit in the middle like the tool toggle. */
 #g-bar{
-  padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 16px);
-  display:flex; align-items:center; gap:14px; border-top:1px solid var(--border);
+  flex:none; align-self:center; position:relative; z-index:2;
+  display:flex; align-items:center; justify-content:space-between;
+  width:calc(100vw - 20px); max-width:600px; box-sizing:border-box; height:var(--bar-h); padding:0 14px;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:26px;
+  margin:6px 0 calc(env(safe-area-inset-bottom,0px) + 8px);
 }
 /* Which build is running, so a report can say "on build a1b2c3". */
-#g-build{font-size:13px; letter-spacing:.04em; color:var(--muted); opacity:.75; flex:none;}
+#g-head{display:flex; align-items:center; gap:12px; padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 4px; min-height:22px;}
+#g-build{font-size:12px; letter-spacing:.04em; color:var(--muted); opacity:.6; flex:none;}
 .g-sq{width:52px; height:52px; border-radius:16px; flex:none; cursor:pointer;}
-#g-back{background:var(--panel); border:1px solid var(--border); color:var(--text); display:flex; align-items:center; justify-content:center;}
 #g-back svg{width:24px; height:24px;}
-.g-wide{flex:1; height:52px; border-radius:16px; background:var(--panel); border:1px solid var(--border); color:var(--text);
-  font-size:17px; font-weight:700; cursor:pointer;}
-.g-wide.on{background:linear-gradient(135deg,var(--a1),var(--a2)); color:#0b0d12; border-color:transparent;}
+#g-search-btn.on{background:rgba(255,255,255,.12);}
+#g-tab-mine{width:44px; height:44px; border-radius:14px; cursor:pointer;}
+/* Public <-> Mine, one button that says where it takes you. */
+.g-wide{height:52px; border-radius:16px; background:var(--grad); border:none; color:#fff;
+  font-size:19px; font-weight:800; letter-spacing:.01em; cursor:pointer; box-shadow:var(--glow); text-shadow:0 1px 2px rgba(0,0,0,.25);}
+/* + in the middle: a new canvas, straight into it (Dex, 2026-10-08). */
+#g-new{width:64px; height:46px; border-radius:15px; border:none; background:var(--grad); color:#fff; box-shadow:var(--glow);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;}
+#g-new svg{width:24px; height:24px;}
+#g-page{flex:1; font-size:15px; font-weight:800; letter-spacing:.01em; color:var(--text);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 #g-tab-mine.on{outline:2px solid var(--a1); outline-offset:2px;}
+/* Search: the chips and the pill, on the keyboard while it is up and above
+   the bar when it is not (placeFind sets bottom). */
+#g-find{position:fixed; left:0; right:0; bottom:0; z-index:3; display:none; flex-direction:column; align-items:center; gap:8px;
+  padding:0 10px; pointer-events:none;}
+#gallery.searching #g-find{display:flex;}
+#g-find > *{pointer-events:auto;}
+#g-find-chips{display:flex; gap:6px; padding:4px; border-radius:16px; background:var(--panel); border:1px solid var(--border);
+  backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);}
+.g-chip{height:32px; padding:0 14px; border-radius:12px; border:none; background:none; color:var(--muted); font-size:14px; font-weight:700; cursor:pointer;}
+.g-chip.on{background:var(--grad); color:#fff;}
+#g-search-box{width:100%; max-width:600px; box-sizing:border-box; display:flex; align-items:center; gap:8px; height:48px; padding:0 6px 0 16px;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--a1); border-radius:24px; color:var(--muted);}
+#g-search-box > svg{width:18px; height:18px; flex:none;}
+#g-search{flex:1; min-width:0; background:none; border:none; outline:none; color:var(--text); font-size:16px;
+  user-select:text; -webkit-user-select:text;}
+#g-search::-webkit-search-cancel-button{display:none;}
+#g-find-x{width:36px; height:36px; border-radius:50%; border:none; background:rgba(255,255,255,.08); color:var(--text);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none;}
+#g-find-x svg{width:16px; height:16px;}
+#gallery.searching #g-rows{padding-bottom:var(--find-h,120px);}
+.g-sec{font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:6px 2px -4px;}
+/* Select mode: no per-card buttons, a tick instead; the window floats. */
+.g-item, .g-thumb img{-webkit-touch-callout:none; -webkit-user-select:none; user-select:none;}
+.g-thumb img{pointer-events:none;}
+#g-grid{touch-action:pan-y;}
+.g-check{position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:2px solid #fff;
+  background:rgba(0,0,0,.35); display:none; box-sizing:border-box;}
+#gallery.selecting .g-check{display:block;}
+#gallery.selecting .g-dl, #gallery.selecting .g-del, #gallery.selecting .g-pub, #gallery.selecting .g-opt{display:none;}
+#gallery.selecting .g-item.current .g-thumb{outline:none;}
+.g-item.sel .g-thumb{outline:3px solid var(--a1); outline-offset:-3px;}
+.g-item.sel .g-thumb img{opacity:.72;}
+.g-item.sel .g-check{background:var(--a1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/16px no-repeat; border-color:var(--a1);}
+#g-sel{position:fixed; z-index:4; width:208px; display:none; padding:6px 10px 10px; box-sizing:border-box;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.45);}
+#g-sel.open{display:block;}
+#g-sel-head{display:flex; align-items:center; gap:6px; height:38px; cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none;}
+#g-sel-head::before{content:''; position:absolute; left:50%; top:5px; width:28px; height:4px; margin-left:-14px; border-radius:2px; background:var(--border);}
+#g-sel-title{flex:1; min-width:0; font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-left:4px;}
+#g-sel-x{width:32px; height:32px; border-radius:50%; border:none; background:rgba(255,255,255,.08); color:var(--text);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none;}
+#g-sel-x svg{width:15px; height:15px;}
+#g-sel-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px;}
+.sel-btn{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; height:64px; border-radius:14px;
+  border:1px solid var(--border); background:rgba(255,255,255,.05); color:var(--text); font-size:12px; font-weight:600; cursor:pointer;}
+.sel-btn svg{width:22px; height:22px;}
+.sel-btn.danger{color:#ff6b6b;}
+.sel-btn:disabled{opacity:.3; cursor:default;}
 /* The crop sheet */
 #crop{position:fixed; inset:0; z-index:89; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; padding:20px;}
 #crop.open{display:flex;}
@@ -293,12 +445,13 @@ input[type=range]::-moz-range-thumb{
 }
 .mbtn.danger{background:var(--danger); border-color:var(--danger); color:#fff;}
 /* Toast */
+/* Under the title, centred (Dex, 2026-10-08): toast() sets top from the
+   title's box. Over the gallery it sits low again, above its bar. */
 #toast{
-  position:fixed; left:50%; bottom:110px; transform:translateX(-50%);
+  position:fixed; left:50%; top:70px; transform:translateX(-50%); text-align:center; line-height:1.35;
   background:var(--panel); border:1px solid var(--border); color:var(--text);
   padding:10px 20px; border-radius:20px; font-size:14px; z-index:100;
   opacity:0; pointer-events:none; transition:opacity .25s;
-  padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));
   white-space:nowrap;
 }
 #toast.show{opacity:1;}
@@ -316,13 +469,8 @@ body.embed #toolbar{margin-bottom:8px;}
   background:var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f4f8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20 H8 L19 9 L15 5 L4 16 Z'/%3E%3Cpath d='M13 7 L17 11'/%3E%3C/svg%3E") center/16px no-repeat;}
 #gallery.mode-user #g-account{display:none;}
 #g-user-name{font-size:17px; font-weight:700;}
-.g-pub{
-  position:absolute; left:6px; bottom:6px; width:30px; height:30px; border-radius:50%;
-  border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;
-  background:rgba(0,0,0,.55); color:#fff;
-}
 .g-pub svg{width:15px; height:15px;}
-.g-pub.on{background:var(--a1); color:#0b0d12;}
+.g-pub.on{background:var(--grad); color:#fff;}
 .g-pub:disabled{opacity:.5;}
 .g-by{font-size:11px; color:var(--muted); text-align:center; opacity:.8; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .g-react{display:flex; justify-content:center; gap:6px; margin-top:6px;}
@@ -331,15 +479,42 @@ body.embed #toolbar{margin-bottom:8px;}
 .g-rx b{font-weight:600; font-variant-numeric:tabular-nums;}
 .g-rx.on{border-color:var(--a1); background:rgba(34,211,238,.14);}
 .g-empty{color:var(--muted); font-size:15px; text-align:center; padding:40px 20px; line-height:1.5;}
-#viewer{position:fixed; inset:0; z-index:85; background:rgba(5,6,10,.97); display:none; flex-direction:column;}
+/* The viewer: an overlay over the grid. Title up top, nothing to press in
+   the top half; the drawing sits low, the artist under it, and one control
+   bar at the bottom. */
+#viewer{position:fixed; inset:0; z-index:85; background:rgba(5,6,10,.94); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  display:none; flex-direction:column; touch-action:none; overscroll-behavior:none;}
 #viewer.open{display:flex;}
-#v-stage{flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:calc(env(safe-area-inset-top,0px) + 56px) 16px 8px;}
-#v-img{max-width:100%; max-height:100%; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,.6);}
-#v-bar{padding:12px 20px calc(env(safe-area-inset-bottom,0px) + 18px); display:flex; flex-direction:column; align-items:center; gap:8px;}
-#v-title{font-size:18px; font-weight:700; text-align:center;}
-#v-by{font-size:13px; color:var(--muted); text-align:center;}
-#v-bar .g-rx{font-size:16px; padding:8px 14px; border-radius:14px;}
-#v-acts{display:flex; gap:18px;}
+#v-title{padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 6px; font-size:22px; font-weight:800; text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+#v-stage{flex:1; min-height:0; display:flex; align-items:flex-end; justify-content:center; padding:10px 18px 6px; overflow:hidden;}
+#v-img{max-width:100%; max-height:100%; border-radius:16px; box-shadow:0 14px 44px rgba(0,0,0,.6); will-change:transform; user-select:none; -webkit-user-drag:none;}
+.v-artist{display:flex; align-items:center; justify-content:center; gap:12px; margin:12px auto 4px; max-width:calc(100% - 40px);
+  background:none; border:none; color:var(--text); font-size:21px; font-weight:800; cursor:pointer; padding:4px 8px;}
+.v-artist .avatar{width:48px; height:48px;}
+.v-artist .tag{min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+#v-bar{display:flex; align-items:center; gap:14px; padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 16px);}
+.v-btn{background:var(--panel); border:1px solid var(--border); color:var(--text); display:flex; align-items:center; justify-content:center;}
+.v-btn svg{width:24px; height:24px;}
+#v-bar .g-react{flex:1; display:flex; justify-content:center; margin:0;}
+#v-acts{position:absolute; right:16px; bottom:calc(env(safe-area-inset-bottom,0px) + 84px); display:flex; flex-direction:column; gap:2px;
+  background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:6px;}
+#v-acts[hidden]{display:none;}
+#v-acts .v-link{text-decoration:none; color:var(--text); font-size:15px; padding:10px 14px; text-align:left;}
+/* Poop | fire: one pill split in two. Grey until you choose one; the one
+   you chose takes its colour and shows its count. The icons are the site's
+   own (styles.css, the prefs votes), as masks so they take any colour. */
+.rx-pill{display:flex; height:52px; border-radius:26px; overflow:hidden; border:1px solid var(--border); background:var(--panel);}
+.rx-pill .g-rx{display:flex; align-items:center; justify-content:center; gap:8px; min-width:86px; padding:0 18px; border:none; border-radius:0;
+  background:none; color:var(--text); font-size:18px; font-weight:800; cursor:pointer;}
+.rx-pill .g-rx + .g-rx{border-left:1px solid var(--border);}
+.rx-ico{width:26px; height:26px; display:block; background:#5d6577; -webkit-mask:var(--icon) center/contain no-repeat; mask:var(--icon) center/contain no-repeat; transition:background .2s, transform .2s;}
+.rx-ico[data-icon="fire"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M13.1 1.6c.5 2.7-.5 4.4-1.9 5.9-1.5 1.6-3.3 3-3.3 5.6 0 .9.2 1.7.6 2.4-1-.5-1.8-1.4-2.2-2.5-1 1.3-1.6 2.9-1.6 4.6 0 3.4 3.3 6.1 7.3 6.1s7.3-2.7 7.3-6.1c0-2.9-1.3-4.9-2.7-6.7-.5 1.1-1.3 1.9-2.3 2.2 1.2-3.7-.1-8.2-1.2-11.5Z'/%3E%3C/svg%3E");}
+.rx-ico[data-icon="poop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='%23fff'%3E%3Cellipse cx='12' cy='18.6' rx='10.4' ry='3.1'/%3E%3Cellipse cx='12' cy='14.2' rx='8.1' ry='2.9'/%3E%3Cellipse cx='12' cy='9.4' rx='5.3' ry='2.7'/%3E%3Cpath d='M12.4 7.1c-1.5 0-2.5-.8-2.5-1.9 0-1.6 2-1.9 2-3.2 0-.4-.1-.8-.4-1.1 2.2.4 3.8 1.9 3.8 3.6 0 1.5-1.2 2.6-2.9 2.6Z'/%3E%3C/g%3E%3C/svg%3E");}
+.g-rx.on .rx-ico[data-icon="fire"]{background:linear-gradient(180deg,#ffc247,#ff6a1f 60%,#f12f6c); transform:scale(1.12);}
+.g-rx.on .rx-ico[data-icon="poop"]{background:linear-gradient(180deg,#c8905a,#8a5a2e); transform:scale(1.12);}
+.g-rx b{font-weight:800; font-variant-numeric:tabular-nums;}
+.g-rx b:empty{display:none;}
 .v-link{background:none; border:none; color:var(--muted); font-size:13px; text-decoration:underline; cursor:pointer; padding:6px;}
 .v-x{position:absolute; top:calc(env(safe-area-inset-top,0px) + 12px); right:14px; width:38px; height:38px; border-radius:50%;
   border:1px solid var(--border); background:var(--panel); color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2;}
@@ -356,7 +531,7 @@ body.embed #toolbar{margin-bottom:8px;}
 .a-field:focus{border-color:var(--a1);}
 .a-msg{min-height:18px; font-size:13px; color:var(--danger); margin-bottom:8px;}
 #account-card .mrow{display:flex; gap:10px;}
-.mbtn.primary{background:var(--a1); border-color:var(--a1); color:#0b0d12;}
+.mbtn.primary{background:var(--grad); border-color:transparent; color:#fff;}
 /* Sign in: the providers' own buttons, one size, logo on the left. Google's is
    white with its four-colour G, Discord's is its blurple with the white mark. */
 .a-center{text-align:center; margin-left:0; margin-right:0;}
@@ -373,3 +548,18 @@ body.embed #toolbar{margin-bottom:8px;}
   text-decoration:underline; cursor:pointer; padding:8px;}
 #a-pw{margin-top:12px; padding-top:14px; border-top:1px solid var(--border);}
 .a-full{width:100%; flex:none;}
+
+/* ---- the public grid (Dex, 2026-10-08): two across, and a tile is only the
+   drawing -- the artist and the fire count ride on it, nothing hangs below. */
+.g-row.two .g-item{width:calc((100% - 14px)/2);}
+.p-item .g-thumb{border-radius:16px;}
+.p-by{position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:9px; padding:22px 10px 9px;
+  background:linear-gradient(transparent, rgba(0,0,0,.72)); color:#fff; font-size:17px; font-weight:800; cursor:pointer;}
+.p-by .avatar{width:36px; height:36px; border-color:rgba(255,255,255,.25);}
+.p-by .tag{min-width:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 3px rgba(0,0,0,.6);}
+.p-fire{position:absolute; top:8px; right:8px; display:flex; align-items:center; gap:4px; padding:4px 9px 4px 6px; border-radius:14px;
+  background:rgba(0,0,0,.55); color:#fff; font-size:14px; font-weight:800; font-variant-numeric:tabular-nums;}
+.p-fire .rx-ico{width:17px; height:17px; background:linear-gradient(180deg,#ffc247,#ff6a1f 60%,#f12f6c);}
+#toast.low{top:auto; bottom:calc(env(safe-area-inset-bottom,0px) + 96px);}
+#toast small{display:block; font-size:12.5px; color:var(--muted); font-weight:500;}
+#toast b{font-weight:700;}

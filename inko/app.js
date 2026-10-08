@@ -194,26 +194,46 @@ function setupCanvas(){
   fit();
 }
 let fitK = 1;
+/* The canvas stands on the bars with one even gap under it (Dex,
+   2026-10-08): the stage's margin is whatever the bars -- and the canvas
+   colour window, when it is open -- take up right now, so opening the
+   sliders lifts the canvas instead of covering it. */
+/* Measured from the panels' own boxes, not from innerHeight: on a phone the
+   fixed bars sit on the VISIBLE bottom while 100dvh, innerHeight and the
+   flow can each disagree with it by the browser's own bar, and the canvas
+   ended up under the size bar and the sliders (Dex, 2026-10-08). The stage
+   is fixed too, so it shares the bars' coordinates exactly. */
+const GAP = 8;
 function fit(){
-  const topbar = $('topbar').offsetHeight;
-  const bottomBars = $('bottom-bars') ? $('bottom-bars').offsetHeight : 140;
+  const bb = $('bottom-bars').getBoundingClientRect();
+  let panelsTop = bb.top;
+  if (brushPop.classList.contains('open')) panelsTop = Math.min(panelsTop, brushPop.getBoundingClientRect().top);
+  const top = $('topbar').getBoundingClientRect().bottom;
+  const st = $('stage').style;
+  st.top = top + 'px';
+  st.bottom = Math.max(0, bb.bottom - panelsTop) + 'px';
   const availW = Math.min(window.innerWidth*0.94, 460);
-  const availH = window.innerHeight - topbar - bottomBars - 24;
+  const availH = panelsTop - GAP - top - 6;
   const k = Math.max(0.2, Math.min(availW/W, availH/H));
   fitK = k;
   canvas.style.width = (W*k)+'px'; canvas.style.height = (H*k)+'px';
+  placeSymTick();
+}
+/* Symmetry on (Dex, 2026-10-08): a short tick across the top centre of the
+   canvas -- 6px above it, 10px into it -- instead of a dashed line through
+   the whole drawing. Placed from the frame's box, so it follows fit(). */
+function placeSymTick(){
+  const t = $('sym-tick');
+  t.hidden = !mirrorOn;
+  if (!mirrorOn) return;
+  const st = $('stage').getBoundingClientRect(), fr = $('canvas-frame').getBoundingClientRect();
+  t.style.left = (fr.left + fr.width / 2 - st.left) + 'px';
+  t.style.top = (fr.top - st.top - 6) + 'px';
 }
 function render(){
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle = bgCss(); ctx.fillRect(0,0,W,H);
   ctx.drawImage(sLayer, 0,0,W,H);
-  if (mirrorOn){
-    ctx.save();
-    ctx.strokeStyle = 'rgba(120,130,150,.4)'; ctx.lineWidth = 2;
-    ctx.setLineDash([9,9]); ctx.beginPath();
-    ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
-    ctx.restore();
-  }
 }
 function clearCanvas(){
   sctx.clearRect(0,0,W,H);
@@ -486,20 +506,44 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) flushDraft();
 });
 window.addEventListener('pagehide', () => { flushDraft(); });
-titleInput.addEventListener('input', () => { dirty = true; scheduleDraft(); });
+titleInput.addEventListener('input', () => { dirty = true; scheduleDraft(); const t = document.getElementById('cp-title'); if (t) t.value = titleInput.value; });
 
 /* ---------- toolbar ---------- */
 function syncToolSel(){
   const isBrush = tool==='brush';
-  $('toggle-brush-icon').style.display = isBrush ? '' : 'none';
-  $('toggle-eraser-icon').style.display = isBrush ? 'none' : '';
+  $('toggle-brush-icon').classList.toggle('big', isBrush); $('toggle-brush-icon').classList.toggle('small', !isBrush);
+  $('toggle-eraser-icon').classList.toggle('big', !isBrush); $('toggle-eraser-icon').classList.toggle('small', isBrush);
   $('tool-toggle').setAttribute('aria-label', isBrush ? 'Switch to eraser' : 'Switch to brush');
+}
+/* The swap, as two arcs rather than a straight trade (Dex, 2026-10-08): the
+   small icon swings out right and down as it grows into the middle; the big
+   one dips down and left before it rises into the corner, shrinking. Each
+   keyframe is a point on its arc. The resting places are the CSS classes. */
+const TOOL_BIG = 'translate(0px,0px) scale(1)', TOOL_SMALL = 'translate(-16px,-14px) scale(.46)';
+function swapTools(){
+  const grow = tool === 'brush' ? $('toggle-brush-icon') : $('toggle-eraser-icon');
+  const shrink = grow === $('toggle-brush-icon') ? $('toggle-eraser-icon') : $('toggle-brush-icon');
+  syncToolSel();
+  if (!grow.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const opts = { duration: 420, easing: 'cubic-bezier(.45,.05,.25,1)' };
+  grow.animate([
+    { transform: TOOL_SMALL, opacity: .7 },
+    { transform: 'translate(10px,-12px) scale(.62)', opacity: .85, offset: .35 },
+    { transform: 'translate(12px,4px) scale(.86)', opacity: 1, offset: .7 },
+    { transform: TOOL_BIG, opacity: 1 },
+  ], opts);
+  shrink.animate([
+    { transform: TOOL_BIG, opacity: 1 },
+    { transform: 'translate(-6px,12px) scale(.8)', opacity: .9, offset: .35 },
+    { transform: 'translate(-20px,0px) scale(.6)', opacity: .8, offset: .7 },
+    { transform: TOOL_SMALL, opacity: .7 },
+  ], opts);
 }
 $('tool-toggle').addEventListener('click', e => {
   e.stopPropagation();
   closePop();
   tool = tool==='brush' ? 'eraser' : 'brush';
-  syncToolSel(); refreshSizeUI();
+  swapTools(); refreshSizeUI();
 });
 $('color-btn').addEventListener('click', e => {
   e.stopPropagation();
@@ -510,7 +554,7 @@ $('sym-btn').addEventListener('click', () => {
   mirrorOn = !mirrorOn;
   $('sym-btn').classList.toggle('on', mirrorOn);
   $('sym-btn').setAttribute('aria-pressed', mirrorOn);
-  render();
+  placeSymTick();
 });
 /* THE CANVAS ON SCREEN IS ALWAYS A CARD in the gallery (Dex, 2026-10-08):
    a new one is saved the moment it is made, blank or not, named Untitled 1,
@@ -521,6 +565,27 @@ function nextUntitled(){
   let n = 0;
   for (const g of gallery){ const m = /^Untitled (\d+)$/.exec(g.title || ''); if (m) n = Math.max(n, +m[1]); }
   return 'Untitled ' + (n + 1);
+}
+/* The canvas changing, made visible: a copy of what is on screen is laid
+   over the pad, the change happens under it, and the copy wipes away on a
+   diagonal while the new canvas fades in. Returns the function that starts
+   the wipe, so a caller can finish its work (or close the gallery) first. */
+function snapPad(){
+  const pad = $('pad');
+  if (!pad.width || matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {};
+  const snap = document.createElement('canvas');
+  snap.className = 'pad-snap'; snap.width = pad.width; snap.height = pad.height;
+  snap.style.width = pad.clientWidth + 'px'; snap.style.height = pad.clientHeight + 'px';
+  snap.getContext('2d').drawImage(pad, 0, 0);
+  document.querySelectorAll('.pad-snap').forEach(el => el.remove());
+  pad.parentNode.appendChild(snap);
+  return () => requestAnimationFrame(() => {
+    snap.classList.add('go');
+    if (pad.animate) pad.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 360, easing: 'ease-out' });
+    const done = () => snap.remove();
+    snap.addEventListener('animationend', done, { once: true });
+    setTimeout(done, 700);
+  });
 }
 async function startBlank(){
   editingId = null; titleInput.value = nextUntitled();
@@ -542,29 +607,47 @@ async function ensureCurrent(){
   scheduleDraft();
   refreshPanelUI();
 }
-$('plus-btn').addEventListener('click', async () => {
+async function newCanvas(){
   closePop();
   if (dirty){ try { await saveCurrent(); } catch (e) { return; } }
   await keepCanvasHistory();
+  const wipe = snapPad();
   await startBlank();
-  toast(titleInput.value);
+  wipe();
+  setOptions(false);
+}
+$('plus-btn').addEventListener('click', async () => { await newCanvas(); toast('New canvas created'); });
+// From the gallery: straight into it, ready to draw.
+$('g-new').addEventListener('click', async () => {
+  await newCanvas();
+  closeGallery();
+  toast('New canvas created');
 });
 
 /* ---------- brush popover ---------- */
 function placePop(){
-  const tb = $('toolbar').getBoundingClientRect();
-  brushPop.style.bottom = Math.max(8, window.innerHeight - tb.top + 12) + 'px';
+  // Above the topmost bar, never over one: the options bar stays reachable.
+  const bb = $('bottom-bars').getBoundingClientRect();
+  brushPop.style.bottom = Math.max(8, bb.bottom - bb.top + 8) + 'px';
 }
-function closePop(){ popMode = null; brushPop.classList.remove('open'); }
+function closePop(){
+  const was = brushPop.classList.contains('open'); popMode = null; brushPop.classList.remove('open');
+  $('copt-btn').classList.remove('on'); $('copt-btn').setAttribute('aria-pressed', 'false');
+  if (was) fit();
+}
 $('pop-x').addEventListener('click', e => { e.stopPropagation(); closePop(); });
 document.addEventListener('pointerdown', e => {
   if (!popMode) return;
   if (brushPop.contains(e.target)) return;
-  if (e.target.closest('#color-btn') || e.target.closest('#tool-toggle') || e.target.closest('#canvas-swatch')) return;
+  if (e.target.closest('#color-btn') || e.target.closest('#tool-toggle') || e.target.closest('#canvas-swatch') || e.target.closest('#copt-btn')) return;
   closePop();
 });
 document.addEventListener('touchstart', e => {
   if (!popMode) return;
+  // Not on the swatch or the window: the swatch sits inside the 28px edge, so
+  // a tap on it closed the window here and the click then opened it again --
+  // the canvas jumping down and up on every tap (Dex, 2026-10-08).
+  if (brushPop.contains(e.target) || e.target.closest('#canvas-swatch, #copt-btn')) return;
   const x = e.touches[0].clientX;
   if (x < 28 || x > window.innerWidth-28) closePop();
 }, {passive:true});
@@ -593,6 +676,7 @@ function paintTracks(prefix, h, s, b){
 function refreshPanelUI(){
   const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
   $('cs-dot').style.background = bgCss();
+  $('copt-dot').style.background = bgCss();
   $('hue').value = hue; $('sat').value = sat; $('bri').value = bri;
   paintTracks('', hue, sat, bri);
   $('cv-hue').value = bgH; $('cv-sat').value = bgS; $('cv-bri').value = bgB;
@@ -600,14 +684,12 @@ function refreshPanelUI(){
   syncTopLock();
   const sz = tool==='eraser' ? eraserEff() : brushSize;
   $('size').value = sizeToSlider(sz);
-  $('size-v').textContent = sz+'px';
   const tip = document.getElementById('brush-tip');
   if (tip) tip.setAttribute('fill', brushCss());
 }
 function refreshSizeUI(){
   const sz = tool==='eraser' ? eraserEff() : brushSize;
   $('size').value = sizeToSlider(sz);
-  $('size-v').textContent = sz + 'px';
 
   const sp = $('sp-circle');
   if (sp){
@@ -620,6 +702,8 @@ function refreshSizeUI(){
 function bindHSB(){
   const brush = () => {
     hue = +$('hue').value; sat = +$('sat').value; bri = +$('bri').value;
+    // Picking a colour means painting again (Dex, 2026-10-08).
+    if (tool !== 'brush'){ tool = 'brush'; swapTools(); refreshSizeUI(); }
     showColorPreview(); refreshPanelUI();
   };
   const bg = () => {
@@ -735,20 +819,76 @@ function setEyedropper(on){
 $('ed-btn').addEventListener('click', () => setEyedropper(!eyedropperOn));
 $('canvas-swatch').addEventListener('click', e => {
   e.stopPropagation();
-  if (popMode){ closePop(); return; }
-  popMode = 'canvas';
-  refreshPanelUI(); placePop();
-  brushPop.classList.add('open');
+  if (popMode === 'canvas'){ closePop(); return; }
+  openCanvasPop('canvas');
 });
+function openCanvasPop(mode){
+  const opts = mode === 'canvas-opts';
+  popMode = mode;
+  $('cp-more').hidden = !opts;
+  $('bp-title').textContent = opts ? 'Canvas' : 'Canvas color';
+  if (opts){ $('cp-title').value = titleInput.value; syncTopLock(); }
+  $('copt-btn').classList.toggle('on', opts); $('copt-btn').setAttribute('aria-pressed', String(opts));
+  refreshPanelUI();
+  brushPop.classList.add('open');
+  placePop();
+  fit();
+}
+$('cp-title').addEventListener('input', () => { titleInput.value = $('cp-title').value; dirty = true; scheduleDraft(); });
+$('cp-lock').addEventListener('click', e => { e.stopPropagation(); flipCurrent($('cp-lock')); });
 
 /* ---------- color/size mode toggle ---------- */
 let colorMode = false;
 function setColorMode(on){
   colorMode = on;
-  $('size-bar').style.display = on ? 'none' : 'flex';
-  $('hsb-bar').style.display = on ? 'flex' : 'none';
+  if (on && optionsOn) setOptions(false, true);
+  showBars();
   $('color-btn').classList.toggle('on', on);
   if(on) syncHSBInputs();
+  fit();
+}
+/* Options (Dex, 2026-10-08): the size bar's place becomes the options bar --
+   profile, gallery, new canvas, clear -- and anything else open closes. */
+let optionsOn = false;
+function showBars(){
+  // Undo and redo go with whichever bar is up: either side of the sliders,
+  // level with S, in colour mode (Dex, 2026-10-08) -- the same two buttons.
+  const host = colorMode ? $('hsb-bar') : $('size-bar');
+  if ($('redo-btn').parentNode !== host){
+    host.insertBefore($('redo-btn'), host.querySelector(colorMode ? '.hsb-rows' : '.ctl'));
+    host.appendChild($('undo-btn'));
+  }
+  $('size-bar').style.display = colorMode || optionsOn ? 'none' : 'flex';
+  $('hsb-bar').style.display = colorMode ? 'flex' : 'none';
+  $('opt-bar').hidden = !optionsOn;
+}
+function setOptions(on, quiet){
+  optionsOn = on;
+  if (on){ closePop(); if (eyedropperOn) setEyedropper(false); if (colorMode){ colorMode = false; $('color-btn').classList.remove('on'); } }
+  $('opt-btn').classList.toggle('on', on);
+  $('opt-btn').setAttribute('aria-pressed', String(on));
+  if (!quiet){ showBars(); fit(); }
+}
+$('opt-btn').addEventListener('click', e => { e.stopPropagation(); setOptions(!optionsOn); });
+/* H, S or B named while you touch it, centred above its panel. */
+{
+  const NAMES = { hue: ['Hue', '°'], sat: ['Saturation', '%'], bri: ['Brightness', '%'] };
+  const timers = new WeakMap();
+  const showTip = input => {
+    const kind = input.id.replace('cv-', ''), [name, unit] = NAMES[kind];
+    const tip = input.closest('#hsb-bar, #brush-pop').querySelector('.hsb-tip');
+    tip.textContent = `${name} ${Math.round(+input.value)}${unit}`;
+    tip.hidden = false;
+    clearTimeout(timers.get(tip));
+    timers.set(tip, setTimeout(() => { tip.hidden = true; }, 3200));
+  };
+  for (const id of ['hue', 'sat', 'bri', 'cv-hue', 'cv-sat', 'cv-bri']){
+    const input = $(id);
+    for (const ev of ['pointerdown', 'input']) input.addEventListener(ev, () => showTip(input));
+    // The letter too.
+    const lbl = input.parentNode.querySelector('.hsb-lbl');
+    if (lbl) lbl.addEventListener('pointerdown', () => showTip(input));
+  }
 }
 function syncHSBInputs(){
   refreshPanelUI();
@@ -780,6 +920,9 @@ function showColorPreview(){
    opening the gallery decodes small images instead of re-rendering every full
    drawing. Object URLs are revoked whenever the grid is rebuilt. */
 let thumbUrls = [];
+// Select mode (see "select mode" below): on, the ids picked, and a hold that just fired.
+let selecting = false, holdFired = false;
+const selected = new Set();
 function blobUrl(blob){ const u = URL.createObjectURL(blob); thumbUrls.push(u); return u; }
 function liveThumb(cb){
   const t = document.createElement('canvas'); t.width = 360; t.height = 480;
@@ -792,20 +935,26 @@ function fileName(title){
   let s = (title||'untitled').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   return 'inko-'+(s||'canvas')+'.png';
 }
-async function downloadItem(it, isLive){
+async function fullBlob(it, isLive){
   const t = document.createElement('canvas'); t.width = W; t.height = H;
   const c = t.getContext('2d');
   const bg = isLive ? { h: bgH, s: bgS, b: bgB } : (it.bg || { h: 0, s: 0, b: 100 });
   c.fillStyle = hsbToCss(bg.h, bg.s, bg.b, 1); c.fillRect(0,0,W,H);
   if (isLive) c.drawImage(sLayer, 0,0,W,H);
   else if (it.png){ const bmp = await createImageBitmap(it.png); c.drawImage(bmp, 0,0,W,H); bmp.close && bmp.close(); }
-  const url = URL.createObjectURL(await canvasBlob(t));
+  return canvasBlob(t);
+}
+async function downloadItem(it, isLive, quiet){
+  saveBlob(await fullBlob(it, isLive), isLive ? titleInput.value : it.title);
+  if (!quiet) toast('Downloaded');
+}
+function saveBlob(blob, title){
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = fileName(isLive ? titleInput.value : it.title);
+  a.download = fileName(title);
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
-  toast('Downloaded');
 }
 let modalCb = null;
 function openModal(title, text, confirmLabel, cb){
@@ -818,8 +967,35 @@ $('m-del').addEventListener('click', () => {
   $('modal').classList.remove('open');
   if (modalCb) modalCb();
 });
+/* Delete one of your canvases everywhere it is: the shared gallery, this
+   device, its kept undo history, and the account's copy. False if it stayed. */
+async function deleteCanvas(it){
+  if (it.visibility === 'public'){
+    try { await api('unpublish', { id: it.id }); }
+    catch (err) { toast('Could not take it out of the shared gallery: ' + err.message); return false; }
+  }
+  try { await idbDel('canvases', it.id); }
+  catch (err) { toast('Could not delete it.'); return false; }
+  idbDel('meta', 'hist:' + it.id).then(gcSteps).catch(() => {});
+  // On every device (later, if offline).
+  if (scope !== 'local'){
+    const sc = scope, ts = Date.now();
+    api('canvas-delete', { id: it.id, ts }).catch(() => queueDelete(sc, it.id, ts));
+  }
+  gallery = gallery.filter(g => g.id !== it.id);
+  // Deleting the canvas on screen leaves a fresh one, not a ghost of it.
+  if (editingId === it.id) await startBlank();
+  return true;
+}
+/* One card's buttons out at a time. */
+function setTileOpts(div, on){
+  if (on) for (const o of $('g-rows').querySelectorAll('.g-item.opts')) if (o !== div) setTileOpts(o, false);
+  div.classList.toggle('opts', on);
+  const b = div.querySelector('.g-opt'); if (b) b.setAttribute('aria-expanded', String(on));
+}
 function makeItem(it, isLive){
-  const div = document.createElement('div'); div.className = 'g-item' + (!isLive && it.id === editingId ? ' current' : '');
+  const div = document.createElement('div'); div.className = 'g-item' + (!isLive && it.id === editingId ? ' current' : '') + (selected.has(it.id) ? ' sel' : '');
+  if (!isLive) div.dataset.id = it.id;
   const th = document.createElement('div'); th.className = 'g-thumb';
   const img = document.createElement('img'); img.alt = ''; th.appendChild(img);
   const dl = document.createElement('button'); dl.className = 'g-dl'; dl.setAttribute('aria-label','Download');
@@ -836,40 +1012,36 @@ function makeItem(it, isLive){
       });
     });
     liveThumb(url => img.src = url);
-    div.addEventListener('click', () => $('gallery').classList.remove('open'));
+    div.addEventListener('click', () => closeGallery());
   } else {
     del.addEventListener('click', e => {
       e.stopPropagation();
       const shared = it.visibility === 'public';
       openModal('Delete canvas?', `"${it.title}" will be permanently deleted${shared ? ', and taken out of the shared gallery' : ''}.`, 'Delete', async () => {
-        if (shared){
-          try { await api('unpublish', { id: it.id }); }
-          catch (err) { toast('Could not take it out of the shared gallery: ' + err.message); return; }
-        }
-        try { await idbDel('canvases', it.id); }
-        catch (err) { toast('Could not delete it.'); return; }
-        // Its kept undo history goes with it.
-        idbDel('meta', 'hist:' + it.id).then(gcSteps).catch(() => {});
-        // And the account's copy, on every device (later, if offline).
-        if (scope !== 'local'){
-          const sc = scope, ts = Date.now();
-          api('canvas-delete', { id: it.id, ts }).catch(() => queueDelete(sc, it.id, ts));
-        }
-        gallery = gallery.filter(g => g.id !== it.id);
-        // Deleting the canvas on screen leaves a fresh one, not a ghost of it.
-        if (editingId === it.id) await startBlank();
-        toast('Canvas deleted'); renderGallery();
+        if (await deleteCanvas(it)){ toast('Canvas deleted'); renderGallery(); }
       });
     });
     if (it.thumb) img.src = blobUrl(it.thumb);
     else if (it.png) thumbBlob(it.png, it.bg).then(b => { it.thumb = b; img.src = blobUrl(b); idbPut('canvases', it).catch(() => {}); });
-    div.addEventListener('click', () => (picking ? openCrop(it) : openCanvas(it.id)));
+    div.addEventListener('click', () => {
+      if (holdFired){ holdFired = false; return; }
+      if (div.classList.contains('opts')){ setTileOpts(div, false); return; }   // a tap off its buttons folds them
+      if (selecting){ toggleSel(it.id); return; }
+      picking ? openCrop(it) : openCanvas(it.id);
+    });
+    const tick = document.createElement('span'); tick.className = 'g-check'; th.appendChild(tick);
     // Public or private, on the card: the lock is this device only, the globe
     // is the shared gallery.
     const pub = document.createElement('button'); pub.className = 'g-pub';
     paintPubButton(pub, it);
     pub.addEventListener('click', e => { e.stopPropagation(); toggleVisibility(it, pub); });
     th.appendChild(pub);
+    // The one button on the card; the others come out of it (see .g-opt).
+    const opt = document.createElement('button'); opt.className = 'g-opt';
+    opt.setAttribute('aria-label', 'Canvas options'); opt.setAttribute('aria-expanded', 'false');
+    opt.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><circle cx="17" cy="17" r="3.6" fill="currentColor" stroke="none"/></svg>';
+    opt.addEventListener('click', e => { e.stopPropagation(); setTileOpts(div, !div.classList.contains('opts')); });
+    th.appendChild(opt);
   }
   th.appendChild(dl); th.appendChild(del);
   const cap = document.createElement('div'); cap.className = 'g-title';
@@ -883,11 +1055,15 @@ function renderGallery(){
   thumbUrls.forEach(u => URL.revokeObjectURL(u)); thumbUrls = [];
   const rows = $('g-rows'); rows.innerHTML = '';
   $('g-count').textContent = gallery.length + (gallery.length===1 ? ' canvas' : ' canvases');
-  // Oldest first → newest ends up bottom-right
+  // Oldest at the top left, NEWEST AT THE BOTTOM RIGHT (Dex, 2026-10-08):
+  // rows are cut from the newest end, so the last row is always full and a
+  // new canvas pushes the rest left and up; a short row is the top one,
+  // sitting to the right.
   const items = [...gallery].sort((a, b) => (a.created || a.ts) - (b.created || b.ts));
-  for (let i=0; i<items.length; i+=3){
-    const row = document.createElement('div'); row.className = 'g-row';
-    items.slice(i, i+3).forEach(it => row.appendChild(makeItem(it, false)));
+  const short = items.length % 3;
+  for (let i = short ? short - 3 : 0; i < items.length; i += 3){
+    const row = document.createElement('div'); row.className = 'g-row' + (i < 0 ? ' short' : '');
+    items.slice(Math.max(0, i), i + 3).forEach(it => row.appendChild(makeItem(it, false)));
     rows.appendChild(row);
   }
   $('g-grid').scrollTop = 0;   // the profile first
@@ -897,6 +1073,7 @@ async function openCanvas(id){
   await keepCanvasHistory();
   const it = gallery.find(g => g.id === id);
   if (!it || !it.png) return;
+  const wipe = snapPad();
   editingId = id; titleInput.value = it.title;
   bgH = it.bg.h; bgS = it.bg.s; bgB = it.bg.b;
   await historyChain;
@@ -907,8 +1084,9 @@ async function openCanvas(id){
   if (kept) useStack(kept); else { history = []; step = -1; pushHistory(); }
   dirty = false;
   scheduleDraft();
-  $('gallery').classList.remove('open');
+  closeGallery();
   refreshPanelUI();
+  wipe();
 }
 $('grid-btn').addEventListener('click', async () => {
   closePop();
@@ -916,21 +1094,48 @@ $('grid-btn').addEventListener('click', async () => {
   if (dirty) await saveCurrent().catch(() => {});
   // Someone else's profile is a stop on the way, not a place to come back to.
   setGalleryTab(galleryTab === 'user' ? 'public' : galleryTab);
-  $('gallery').classList.add('open');
+  setOptions(false);
+  openGallery();
+});
+$('dl-btn').addEventListener('click', () => downloadItem(null, true));
+// The canvas window from down here: colour, title and public/private.
+$('copt-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  if (popMode === 'canvas-opts'){ closePop(); return; }
+  openCanvasPop('canvas-opts');
+});
+// Clear asks first; undo brings it back (clearCanvas is one history step).
+$('clear-btn').addEventListener('click', () => {
+  // ...and it becomes the newest canvas, at the bottom right of the gallery,
+  // wherever it was (Dex, 2026-10-08). Same canvas underneath, so undo works.
+  openModal('Clear this canvas?', 'Undo brings it back.', 'Clear', () => {
+    const it = currentItem(); if (it) it.created = Date.now();
+    clearCanvas(); setOptions(false);
+    saveCurrent().catch(() => {});
+  });
 });
 /* Back: out of a search, out of picking a picture, from an artist back to
    Public -- and otherwise to the canvas. */
 $('g-back').addEventListener('click', () => {
+  if (selecting){ exitSelect(); return; }
   if (searching()){ clearSearch(); return; }
   if (picking){ setPicking(false); return; }
+  if (canStepBack()){ window.history.back(); return; }
   if (galleryTab === 'user'){ setGalleryTab('public'); return; }
-  $('gallery').classList.remove('open');
+  closeGallery();
 });
 
 /* ---------- toast ---------- */
 let toastT = null;
-function toast(msg){
-  toastEl.textContent = msg;
+function toast(msg, sub){
+  // Two short lines when there is a second; centred under the title, or low over the gallery.
+  if (sub){ const b = document.createElement('b'), s = document.createElement('small'); b.textContent = msg; s.textContent = sub; toastEl.replaceChildren(b, s); }
+  else toastEl.textContent = msg;
+  const low = $('gallery').classList.contains('open');
+  toastEl.classList.toggle('low', low);
+  // Low clears the top it was given under the title: an inline top beat the
+  // class's top:auto, and with its bottom set too the box ran from one to the other.
+  toastEl.style.top = low ? '' : ($('title-input').getBoundingClientRect().bottom + 10) + 'px';
   toastEl.classList.add('show');
   clearTimeout(toastT);
   toastT = setTimeout(() => toastEl.classList.remove('show'), 2200);
@@ -948,7 +1153,7 @@ let session = null;                 // { handle, token }
 try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) {}
 let blocked = [];
 try { blocked = JSON.parse(localStorage.getItem(BLOCK_KEY) || '[]') || []; } catch (e) {}
-let galleryTab = 'mine', feed = [], myVoteFor = {};
+let galleryTab = 'mine', feed = [], myVoteFor = {}, feedLoaded = false;
 /* What THIS device just published or took back: id -> { post } | { gone }.
    The feed is cached at the edge for up to ~40 s (s-maxage 10 plus
    stale-while-revalidate 30), so a drawing made public a moment ago was
@@ -1200,7 +1405,7 @@ async function resumePublish(){
     gallery = [rec, ...gallery]; it = rec;
   }
   if (it.visibility !== 'public'){
-    try { await publishItem(it); toast('Public — in the shared gallery'); } catch (e) { toast(e.message); }
+    try { await publishItem(it); toast('This canvas is now public', 'Shared in the online gallery'); } catch (e) { toast(e.message); }
   }
   syncTopLock();
   if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
@@ -1209,8 +1414,8 @@ async function toggleVisibility(it, btn){
   if (!session){ rememberPublish(it.id); openAccount(); return; }
   btn.disabled = true;
   try {
-    if (it.visibility === 'public'){ await unpublishItem(it); toast('Private — only on this device'); }
-    else { await publishItem(it); toast('Public — in the shared gallery'); }
+    if (it.visibility === 'public'){ await unpublishItem(it); toast('This canvas is now private', 'Only you can see it'); }
+    else { await publishItem(it); toast('This canvas is now public', 'Shared in the online gallery'); }
   } catch (e) { toast(e.message); }
   btn.disabled = false;
   paintPubButton(btn, it);
@@ -1220,14 +1425,15 @@ async function toggleVisibility(it, btn){
 /* The lock at the top right is the canvas on screen's own public/private
    switch, the same one its gallery card carries. */
 const currentItem = () => (editingId ? gallery.find(g => g.id === editingId) : null);
-function syncTopLock(){ const b = $('top-lock'); if (b) paintPubButton(b, currentItem() || { visibility: 'private' }); }
-$('top-lock').addEventListener('click', async e => {
-  e.stopPropagation();
-  closePop();
+function syncTopLock(){
+  for (const id of ['top-lock', 'cp-lock']){ const b = $(id); if (b) paintPubButton(b, currentItem() || { visibility: 'private' }); }
+}
+async function flipCurrent(btn){
   if (dirty || !currentItem()){ try { await saveCurrent(); } catch (err) { return; } }
   const it = currentItem();
-  if (it) toggleVisibility(it, $('top-lock'));
-});
+  if (it) toggleVisibility(it, btn);
+}
+$('top-lock').addEventListener('click', e => { e.stopPropagation(); closePop(); flipCurrent($('top-lock')); });
 function paintPubButton(btn, it){
   const pub = it.visibility === 'public';
   btn.classList.toggle('on', pub);
@@ -1251,7 +1457,7 @@ async function loadFeed(){
     const r = await fetch(API + '?feed=1' + (mineLately.size ? '&fresh=' + now : ''), { cache: 'no-store' });
     if (!r.ok) throw new Error();
     const got = await r.json();
-    feed = got.posts || [];
+    feed = got.posts || []; feedLoaded = true;
     feedAvatars = got.avatars || {};
     for (const [id, m] of mineLately){
       const at = feed.findIndex(p => p.id === id);
@@ -1270,49 +1476,71 @@ const imgUrl = (p, thumb) => `${API}?img=${encodeURIComponent(`sketch/img/${p.id
    signed out, and once taken, every drawing you published vanished from your
    Public tab for good. */
 function visibleFeed(){ return feed.filter(p => !blocked.includes(p.handle) || (session && session.handle === p.handle)); }
+/* Cards in rows: three across for your own canvases, TWO for public drawings
+   (Dex, 2026-10-08: the artist's face and @tag have to be readable on them). */
+function fillRows(items, per, make){
+  const rows = $('g-rows');
+  for (let i = 0; i < items.length; i += per){
+    const row = document.createElement('div'); row.className = 'g-row' + (per === 2 ? ' two' : '');
+    items.slice(i, i + per).forEach(x => row.appendChild(make(x)));
+    rows.appendChild(row);
+  }
+}
+let gridPosts = [];                 // the public drawings on screen, in order: what the viewer swipes through
 function renderFeed(){
   if (searching() || galleryTab !== 'public') return;
   const rows = $('g-rows'); rows.innerHTML = '';
   const items = visibleFeed();
+  gridPosts = items;
   $('g-count').textContent = items.length + (items.length === 1 ? ' drawing' : ' drawings');
   if (!items.length){
     const e = document.createElement('div'); e.className = 'g-empty';
     e.textContent = 'Nothing shared yet. Make one of your drawings public to start it off.';
     rows.appendChild(e); return;
   }
-  for (let i = 0; i < items.length; i += 3){
-    const row = document.createElement('div'); row.className = 'g-row';
-    items.slice(i, i + 3).forEach(p => row.appendChild(feedItem(p)));
-    rows.appendChild(row);
-  }
+  fillRows(items, 2, feedItem);
   $('g-grid').scrollTop = 0;
 }
+const rxIcon = kind => { const i = document.createElement('span'); i.className = 'rx-ico'; i.dataset.icon = kind; return i; };
+/* Poop | fire, one pill (the viewer's). Grey until you rate; then the one you
+   chose is in colour with its count, and only that count shows. */
 function reactionRow(p){
   const wrap = document.createElement('div'); wrap.className = 'g-react';
-  for (const kind of ['fire', 'poop']){
+  const pill = document.createElement('div'); pill.className = 'rx-pill';
+  const mine = myVoteFor[p.id] || null;
+  for (const kind of ['poop', 'fire']){
     const b = document.createElement('button');
-    b.className = 'g-rx' + (myVoteFor[p.id] === kind ? ' on' : '');
+    b.className = 'g-rx' + (mine === kind ? ' on' : '');
     b.dataset.kind = kind;
     b.setAttribute('aria-label', kind === 'fire' ? 'Fire' : 'Poop');
-    b.innerHTML = `<span>${kind === 'fire' ? '🔥' : '💩'}</span><b>${p[kind] || 0}</b>`;
+    b.setAttribute('aria-pressed', String(mine === kind));
+    const n = document.createElement('b'); n.textContent = mine === kind ? String(p[kind] || 0) : '';
+    b.append(rxIcon(kind), n);
     b.addEventListener('click', e => { e.stopPropagation(); react(p, kind); });
-    wrap.appendChild(b);
+    pill.appendChild(b);
   }
+  wrap.appendChild(pill);
   return wrap;
 }
+/* A public tile is the drawing and nothing under it: the artist (face and
+   @tag) along its foot, the fire count in its corner. Tapping the artist
+   opens their profile; anywhere else, the drawing. */
+function fireBadge(p){
+  const f = document.createElement('div'); f.className = 'p-fire';
+  f.append(rxIcon('fire'), String(p.fire || 0));
+  return f;
+}
 function feedItem(p){
-  const div = document.createElement('div'); div.className = 'g-item'; div.dataset.post = p.id;
+  const div = document.createElement('div'); div.className = 'g-item p-item'; div.dataset.post = p.id;
   const th = document.createElement('div'); th.className = 'g-thumb';
-  const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy'; img.src = imgUrl(p, true);
-  th.appendChild(img);
-  const cap = document.createElement('div'); cap.className = 'g-title';
-  cap.textContent = p.title;
-  const by = document.createElement('div'); by.className = 'g-by';
-  by.append(avatarEl(p.handle, 'small'), '@' + p.handle);
-  // The name is a way to the artist; the rest of the card is the drawing.
+  const img = document.createElement('img'); img.alt = p.title || ''; img.loading = 'lazy'; img.src = imgUrl(p, true);
+  const by = document.createElement('div'); by.className = 'p-by';
+  const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = '@' + p.handle;
+  by.append(avatarEl(p.handle, 'mid'), tag);
   by.addEventListener('click', e => { e.stopPropagation(); openUser(p.handle); });
-  div.append(th, cap, by, reactionRow(p));
-  div.addEventListener('click', () => openViewer(p));
+  th.append(img, fireBadge(p), by);
+  div.append(th);
+  div.addEventListener('click', () => openViewer(p, gridPosts));
   return div;
 }
 /* ONE object per post. A sign-in reloads the feed with fresh objects while a
@@ -1339,35 +1567,191 @@ async function react(p, kind){
   repaintPost(p);
 }
 function repaintPost(p){
-  document.querySelectorAll(`[data-post="${p.id}"] .g-react, #viewer[data-post="${p.id}"] .g-react`).forEach(el => el.replaceWith(reactionRow(p)));
+  document.querySelectorAll(`#viewer[data-post="${p.id}"] .g-react`).forEach(el => el.replaceWith(reactionRow(p)));
+  document.querySelectorAll(`[data-post="${p.id}"] .p-fire`).forEach(el => el.replaceWith(fireBadge(p)));
 }
 
-/* ---- the viewer ---- */
-function openViewer(p){
+/* ---- the viewer ----
+   An overlay over the grid it came from, holding that grid's list: swipe up
+   for the next drawing, down for the one before, right to left (or the
+   phone's own back gesture, see "back") to go back to the grid. */
+let viewerList = [], viewerAt = 0;
+function showPost(p){
   p = canonical(p);
   const v = $('viewer');
   v.dataset.post = p.id;
   $('v-img').src = imgUrl(p, false);
+  $('v-img').alt = p.title || '';
   $('v-title').textContent = p.title;
-  $('v-by').replaceChildren(avatarEl(p.handle, 'small'), '@' + p.handle);
+  const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = '@' + p.handle;
+  $('v-by').replaceChildren(avatarEl(p.handle, 'mid'), tag);
   $('v-by').onclick = () => { closeViewer(); openUser(p.handle); };
   const old = v.querySelector('.g-react'); if (old) old.replaceWith(reactionRow(p));
   const mine = session && session.handle === p.handle;
-  $('v-report').hidden = mine; $('v-block').hidden = mine;
-  $('v-report').onclick = () => openModal('Report this drawing?', 'Three reports take it down until it is reviewed.', 'Report', async () => {
+  $('v-more').hidden = !!mine; $('v-acts').hidden = true;
+  $('v-report').onclick = () => { $('v-acts').hidden = true; openModal('Report this drawing?', 'Three reports take it down until it is reviewed.', 'Report', async () => {
     if (!session){ openAccount(); return; }
     try { const r = await api('report', { id: p.id }); toast(r.hidden ? 'Reported — it has been taken down' : 'Reported — thank you'); }
     catch (e) { toast(e.message); }
-  });
-  $('v-block').onclick = () => openModal('Hide @' + p.handle + '?', 'You will not see their drawings on this device.', 'Hide', () => {
+  }); };
+  $('v-block').onclick = () => { $('v-acts').hidden = true; openModal('Hide @' + p.handle + '?', 'You will not see their drawings on this device.', 'Hide', () => {
     blocked = [...new Set([...blocked, p.handle])];
     try { localStorage.setItem(BLOCK_KEY, JSON.stringify(blocked)); } catch (e) {}
     closeViewer(); renderFeed(); toast('Hidden');
-  });
-  v.classList.add('open');
+  }); };
 }
-function closeViewer(){ $('viewer').classList.remove('open'); $('v-img').removeAttribute('src'); }
-$('v-close').addEventListener('click', closeViewer);
+function openViewer(p, list){
+  viewerList = (list && list.length ? list : [p]).map(canonical);
+  viewerAt = Math.max(0, viewerList.findIndex(x => x.id === p.id));
+  showPost(viewerList[viewerAt] || p);
+  if (!$('viewer').classList.contains('open')){ $('viewer').classList.add('open'); syncHistory(); }
+}
+function closeViewer(){
+  if (!$('viewer').classList.contains('open')) return;
+  $('viewer').classList.remove('open'); $('v-img').removeAttribute('src'); $('v-acts').hidden = true;
+  syncHistory();
+}
+$('v-close').addEventListener('click', () => closeViewer());
+$('v-more').addEventListener('click', e => { e.stopPropagation(); $('v-acts').hidden = !$('v-acts').hidden; });
+/* Next / previous: the drawing slides out the way the finger went and the
+   new one follows it in. */
+let stepping = false;
+async function stepViewer(dir){
+  const at = viewerAt + dir;
+  if (stepping || at < 0 || at >= viewerList.length){ bounce(dir); return; }
+  stepping = true;
+  const img = $('v-img'), h = $('v-stage').clientHeight;
+  const out = img.animate ? img.animate([{ transform: img.style.transform || 'none', opacity: 1 }, { transform: `translateY(${-dir * h * 0.6}px)`, opacity: 0 }], { duration: 170, easing: 'ease-in' }) : null;
+  if (out) await out.finished.catch(() => {});
+  viewerAt = at; showPost(viewerList[at]); img.style.transform = '';
+  if (img.animate) await img.animate([{ transform: `translateY(${dir * h * 0.6}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 230, easing: 'cubic-bezier(.2,.8,.2,1)' }).finished.catch(() => {});
+  stepping = false;
+}
+function bounce(dir){
+  const img = $('v-img');
+  img.style.transform = '';
+  if (img.animate) img.animate([{ transform: 'none' }, { transform: `translateY(${-dir * 18}px)` }, { transform: 'none' }], { duration: 260, easing: 'ease-out' });
+}
+{
+  let start = null;
+  const stage = $('viewer');
+  stage.addEventListener('pointerdown', e => {
+    if (e.target.closest('button') || !$('viewer').classList.contains('open')) return;
+    start = { x: e.clientX, y: e.clientY, t: Date.now() };
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!start || stepping) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    // The drawing follows the finger, so the swipe feels held.
+    $('v-img').style.transform = Math.abs(dy) > Math.abs(dx) ? `translateY(${dy * 0.5}px)` : `translateX(${Math.min(0, dx) * 0.5}px)`;
+  });
+  const end = e => {
+    if (!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    start = null;
+    if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx)) { stepViewer(dy < 0 ? 1 : -1); return; }
+    if (dx < -70 && Math.abs(dx) > Math.abs(dy)) { $('v-img').style.transform = ''; closeViewer(); return; }
+    const img = $('v-img'); const from = img.style.transform; img.style.transform = '';
+    if (from && img.animate) img.animate([{ transform: from }, { transform: 'none' }], { duration: 180, easing: 'ease-out' });
+  };
+  stage.addEventListener('pointerup', end);
+  stage.addEventListener('pointercancel', () => { start = null; $('v-img').style.transform = ''; });
+}
+
+/* ---- back ----
+   The phone's back gesture (Android's swipe in from the edge) follows the
+   way you came, like a browser, but short (Dex, 2026-10-08):
+   - `trail` holds the last two places, newest last: 'canvas', 'mine',
+     'public' or 'user:<handle>'. Back goes to the one before; with only one
+     left, back leaves the app. So from anywhere, two backs at most get you
+     out, and an open drawing (the viewer) or a sheet is one more on top.
+   - Opening the app counts as having come from your gallery: the first back
+     from the canvas opens the gallery, the second leaves.
+   - Going to a place moves it to the end. The canvas goes to the end even
+     when it was the one before, because a canvas opened from the gallery
+     must go back to the gallery (and the gallery opened from a canvas, to
+     the canvas). Between gallery pages, going to the one before is a step
+     back instead (Public -> Mine, then back leaves, never to Public), so
+     they never ping-pong.
+   The page's history carries one entry per step back (`syncHistory`). Off
+   inside the site's overlay, whose frame shares the site's history; and
+   nothing is pushed until the first touch, because Chrome skips entries a
+   page added before anyone touched it. */
+const NO_HISTORY = EMBED || window.top !== window;
+// An open sheet is one more step: back closes it (and counts as Cancel).
+const SHEETS = ['crop', 'account', 'modal', 'g-sel', 'g-find'];
+const sheetOpen = id => id === 'g-find' ? searching() : $(id).classList.contains('open');
+if (window.MutationObserver) for (const id of [...SHEETS.slice(0, 4), 'gallery']) new MutationObserver(() => syncHistory()).observe($(id), { attributes: true, attributeFilter: ['class'] });
+let trail = ['mine', 'canvas'], navDepth = 0, skipPops = 0, restoring = false, touched = false;
+const placeNow = () => !$('gallery').classList.contains('open') ? 'canvas' : galleryTab === 'user' ? 'user:' + viewingUser : galleryTab;
+function visit(place){
+  if (restoring) return;
+  const n = trail.length;
+  if (place === trail[n - 1]) return;
+  if (place !== 'canvas' && trail[n - 1] !== 'canvas' && place === trail[n - 2]) trail.pop();
+  else { trail = trail.filter(p => p !== place); trail.push(place); if (trail.length > 2) trail = trail.slice(-2); }
+  syncHistory();
+}
+function syncHistory(){
+  if (NO_HISTORY || !touched) return;
+  const want = trail.length - 1 + ($('viewer').classList.contains('open') ? 1 : 0)
+    + SHEETS.filter(sheetOpen).length;
+  try {
+    while (navDepth < want){ window.history.pushState({ inko: navDepth + 1 }, ''); navDepth++; }
+    if (navDepth > want){ const n = navDepth - want; navDepth = want; skipPops++; window.history.go(-n); }
+  } catch (e) {}
+}
+for (const ev of ['pointerdown', 'keydown']){
+  window.addEventListener(ev, () => {
+    if (touched) return;
+    touched = true;
+    // The entry the app opened on is step 0 (a reload keeps the state a pushed entry had).
+    if (!NO_HISTORY) try { window.history.replaceState({ inko: 0 }, ''); } catch (e) {}
+    syncHistory();
+  }, { capture: true });
+}
+/* Show a place on the trail without walking it again. */
+function showPlace(place){
+  restoring = true;
+  try {
+    if (place === 'canvas'){ closeGallery(); return; }
+    $('gallery').classList.add('open');
+    if (place.startsWith('user:')) openUser(place.slice(5));
+    else setGalleryTab(place);
+  } finally { restoring = false; }
+}
+/* The gallery's own back arrow walks the same trail. */
+const canStepBack = () => !NO_HISTORY && touched && trail.length > 1 && navDepth > 0;
+window.addEventListener('popstate', () => {
+  if (skipPops > 0){ skipPops--; return; }
+  navDepth = Math.max(0, navDepth - 1);
+  // A sheet is closed first: that was its step.
+  const sheet = SHEETS.find(sheetOpen);
+  if (sheet){
+    if (sheet === 'g-sel') exitSelect();
+    else if (sheet === 'g-find') clearSearch();
+    else $(sheet).classList.remove('open');
+    if (sheet === 'account') afterSignIn = null;
+    syncHistory(); return;
+  }
+  if ($('viewer').classList.contains('open')){ closeViewer(); return; }
+  if (trail.length > 1){ trail.pop(); showPlace(trail[trail.length - 1]); }
+  syncHistory();
+});
+function openGallery(){
+  if ($('gallery').classList.contains('open')) return;
+  $('gallery').classList.add('open');
+  toastEl.classList.remove('show');   // a canvas toast belongs under the canvas's title, not over the gallery
+  visit(placeNow());
+}
+function closeGallery(){
+  if (!$('gallery').classList.contains('open')) return;
+  closeViewer();
+  exitSelect();
+  if (searching()) clearSearch(true);
+  $('gallery').classList.remove('open');
+  visit('canvas');
+}
 
 /* ---- the account sheet ---- */
 let afterSignIn = null;
@@ -1475,13 +1859,13 @@ function handleAuthReturn(){
     openClaim(params.get('claim'), params.get('suggest') || '');
   } else if (params.has('auth-error')){
     forgetPublish();
-    $('gallery').classList.add('open');
+    openGallery();
     const why = params.get('why');
     openAccount(null, (AUTH_ERRORS[params.get('auth-error')] || 'Sign-in did not work. Try again.') + (why ? ` (${why})` : ''));
   }
 }
 function openClaim(ticket, suggest){
-  $('gallery').classList.add('open');
+  openGallery();
   $('a-in').hidden = true; $('a-out').hidden = true; $('a-claim').hidden = false;
   $('a-claim-handle').value = suggest;
   $('a-msg3').textContent = '';
@@ -1550,22 +1934,33 @@ $('a-delete').addEventListener('click', () => {
 $('g-account').addEventListener('click', () => openAccount());
 
 /* ---- where the gallery is: yours, Public, or one artist's ---- */
+// Named at the top, so you always know which page this is.
+function paintPage(){
+  $('g-page').textContent = searching() ? 'Search' : galleryTab === 'public' ? 'Public' : galleryTab === 'user' ? '@' + (viewingUser || '') : 'Your gallery';
+}
 function setGalleryTab(tab){
   if (tab !== 'mine') setPicking(false);
+  exitSelect();
   if (searching()) clearSearch(true);
   galleryTab = tab;
   const g = $('gallery');
   for (const m of ['mine', 'public', 'user']) g.classList.toggle('mode-' + m, tab === m);
   $('g-tab-mine').classList.toggle('on', tab === 'mine');
-  $('g-tab-public').classList.toggle('on', tab === 'public');
+  // One square, Public <-> yours: it shows where it takes you -- the globe
+  // out to Public, the gallery icon back to your own (Dex, 2026-10-08).
+  $('g-tab-public').innerHTML = tab === 'public' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2.5" width="14" height="14" rx="3.2"/><path d="M16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V7.5"/><path d="M7.8 13.6l3.6-3.6 2.8 2.8 1.9-1.9 5 5"/><circle cx="16.6" cy="7.4" r="1.5" fill="currentColor" stroke="none"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>';
+  $('g-tab-public').dataset.go = tab === 'public' ? 'mine' : 'public';
+  $('g-tab-public').setAttribute('aria-label', tab === 'public' ? 'Your drawings' : 'Public drawings');
+  paintPage();
   $('g-account').hidden = tab !== 'mine';
   $('g-user-name').hidden = tab !== 'user';
   $('g-rows').innerHTML = '';
   if (tab === 'public') loadFeed();
   else if (tab === 'mine') renderGallery();
+  if (tab !== 'user' && $('gallery').classList.contains('open')) visit(tab);
 }
 $('g-tab-mine').addEventListener('click', () => setGalleryTab('mine'));
-$('g-tab-public').addEventListener('click', () => setGalleryTab('public'));
+$('g-tab-public').addEventListener('click', () => setGalleryTab(galleryTab === 'public' ? 'mine' : 'public'));
 syncAccountButton();
 // Yours until told otherwise; the classes are what show the profile header.
 $('gallery').classList.add('mode-mine'); $('g-tab-mine').classList.add('on');
@@ -1773,7 +2168,9 @@ async function openUser(handle){
   if (session && handle === session.handle){ setGalleryTab('mine'); return; }
   setGalleryTab('user');
   viewingUser = handle;
+  if ($('gallery').classList.contains('open')) visit('user:' + handle);
   $('g-user-name').textContent = '@' + handle;
+  paintPage();
   $('g-avatar').style.backgroundImage = `url("${avatarSrc(handle, feedAvatars[handle])}")`;
   $('g-avatar').setAttribute('aria-label', '@' + handle);
   $('g-count').textContent = 'Loading…';
@@ -1791,50 +2188,279 @@ async function openUser(handle){
   const posts = (r.posts || []).map(p => { const f = feed.find(x => x.id === p.id); if (f) return f; feed.push(p); return p; });
   $('g-count').textContent = posts.length + (posts.length === 1 ? ' drawing' : ' drawings');
   const rows = $('g-rows'); rows.innerHTML = '';
-  for (let i = 0; i < posts.length; i += 3){
-    const row = document.createElement('div'); row.className = 'g-row';
-    posts.slice(i, i + 3).forEach(p => row.appendChild(feedItem(p)));
-    rows.appendChild(row);
-  }
+  gridPosts = posts; fillRows(posts, 2, feedItem);
 }
 
-/* ---- @-search, at the top, from anywhere in the gallery ---- */
-let searchT = null, searchSeq = 0;
+/* ---- search (Dex, 2026-10-08) ----
+   The square button on the bar opens a pill on the keyboard: artists by
+   @tag (the server) and canvases by title (your own, and the public ones
+   from the feed), with All / Artists / Canvases chips that can be flipped
+   while typing -- they never take the keyboard down. With the keyboard
+   gone the pill rests above the bar, so you can see what you searched. */
+let searchT = null, searchSeq = 0, findKind = 'all';
 const searching = () => $('gallery').classList.contains('searching');
+function openSearch(){
+  if (selecting) exitSelect();
+  if (picking) setPicking(false);
+  $('gallery').classList.add('searching');
+  $('g-search-btn').classList.add('on');
+  paintPage();
+  // Focused inside the tap, or a phone will not bring up its keyboard.
+  $('g-search').focus();
+  placeFind();
+  runSearch($('g-search').value.trim());
+}
 function clearSearch(quiet){
+  clearTimeout(searchT); searchSeq++;
   $('g-search').value = '';
+  $('g-search').blur();
+  $('g-search-btn').classList.remove('on');
   $('gallery').classList.remove('searching');
+  paintPage();
   if (!quiet) setGalleryTab(galleryTab === 'user' ? 'public' : galleryTab);
+}
+function placeFind(){
+  if (!searching()) return;
+  const vv = window.visualViewport;
+  const kb = vv ? Math.max(0, innerHeight - (vv.offsetTop + vv.height)) : 0;
+  const bar = innerHeight - $('g-bar').getBoundingClientRect().top;
+  const f = $('g-find');
+  f.style.bottom = (Math.max(kb, bar) + 8) + 'px';
+  $('gallery').style.setProperty('--find-h', (f.offsetHeight + 16 + Math.max(0, kb - bar)) + 'px');
+}
+if (window.visualViewport){ visualViewport.addEventListener('resize', placeFind); visualViewport.addEventListener('scroll', placeFind); }
+addEventListener('resize', placeFind);
+$('g-search-btn').addEventListener('click', () => (searching() && document.activeElement !== $('g-search') ? $('g-search').focus() : searching() ? clearSearch() : openSearch()));
+$('g-find-x').addEventListener('click', () => clearSearch());
+$('g-find-x').addEventListener('pointerdown', e => e.preventDefault());
+for (const chip of document.querySelectorAll('.g-chip')){
+  chip.addEventListener('pointerdown', e => e.preventDefault());   // keep the keyboard up
+  chip.addEventListener('click', () => {
+    findKind = chip.dataset.kind;
+    for (const c of document.querySelectorAll('.g-chip')){ c.classList.toggle('on', c === chip); c.setAttribute('aria-checked', String(c === chip)); }
+    runSearch($('g-search').value.trim());
+  });
 }
 $('g-search').addEventListener('input', () => {
   clearTimeout(searchT);
-  const q = $('g-search').value.trim().replace(/^@/, '');
-  if (!q){ clearSearch(); return; }
-  $('gallery').classList.add('searching');
+  const q = $('g-search').value.trim();
   searchT = setTimeout(() => runSearch(q), 220);
 });
 $('g-search').addEventListener('keydown', e => {
   if (e.key === 'Enter'){ e.preventDefault(); $('g-search').blur(); }
   if (e.key === 'Escape'){ e.stopPropagation(); clearSearch(); }
 });
-async function runSearch(q){
-  const seq = ++searchSeq;
-  let users = [];
-  try { users = (await (await fetch(API + '?users=' + encodeURIComponent(q))).json()).users || []; } catch (e) {}
-  if (seq !== searchSeq || !searching()) return;
-  const rows = $('g-rows'); rows.innerHTML = '';
-  if (!users.length){
-    const e = document.createElement('div'); e.className = 'g-empty'; e.textContent = 'No artist called @' + q;
-    rows.appendChild(e); return;
-  }
-  for (const u of users){
-    feedAvatars[u.handle] = u.avatar || 0;
-    const b = document.createElement('button'); b.className = 'g-user'; b.dataset.handle = u.handle;
-    b.append(avatarEl(u.handle, 'mid'), '@' + u.handle);
-    b.addEventListener('click', () => { clearSearch(true); openUser(u.handle); });
-    rows.appendChild(b);
-  }
+$('g-search').addEventListener('blur', () => setTimeout(placeFind, 60));
+// Contains, with the ones that START with it first.
+function titleMatches(list, q){
+  const n = q.toLowerCase();
+  return list.filter(x => (x.title || 'Untitled').toLowerCase().includes(n))
+    .sort((a, b) => ((a.title || '').toLowerCase().startsWith(n) ? 0 : 1) - ((b.title || '').toLowerCase().startsWith(n) ? 0 : 1));
 }
+async function runSearch(raw){
+  const seq = ++searchSeq;
+  const rows = $('g-rows');
+  const handleQ = raw.replace(/^@/, '');
+  const say = text => { const e = document.createElement('div'); e.className = 'g-empty'; e.textContent = text; rows.appendChild(e); };
+  if (!raw){ rows.innerHTML = ''; say('Search an @artist or a canvas title'); placeFind(); return; }
+  const wantUsers = findKind !== 'canvases', wantCanvases = findKind !== 'artists' && !raw.startsWith('@');
+  let users = [];
+  const jobs = [];
+  if (wantUsers) jobs.push(fetch(API + '?users=' + encodeURIComponent(handleQ)).then(r => r.json()).then(j => { users = j.users || []; }).catch(() => {}));
+  if (wantCanvases && !feedLoaded) jobs.push(loadFeed().catch(() => {}));
+  await Promise.all(jobs);
+  if (seq !== searchSeq || !searching()) return;
+  rows.innerHTML = '';
+  const mine = wantCanvases ? titleMatches(gallery, raw) : [];
+  const own = new Set(gallery.map(g => g.id));
+  const pub = wantCanvases ? titleMatches(visibleFeed().filter(p => !own.has(p.id)), raw) : [];
+  const sec = text => { const h = document.createElement('div'); h.className = 'g-sec'; h.textContent = text; rows.appendChild(h); };
+  if (!users.length && !mine.length && !pub.length){
+    say(findKind === 'artists' ? 'No artist called @' + handleQ : findKind === 'canvases' ? 'No canvas called "' + raw + '"' : 'Nothing called "' + raw + '"');
+    placeFind(); return;
+  }
+  if (users.length){
+    if (wantCanvases) sec('Artists');
+    for (const u of users){
+      feedAvatars[u.handle] = u.avatar || 0;
+      const b = document.createElement('button'); b.className = 'g-user'; b.dataset.handle = u.handle;
+      b.append(avatarEl(u.handle, 'mid'), '@' + u.handle);
+      b.addEventListener('click', () => { clearSearch(true); openUser(u.handle); });
+      rows.appendChild(b);
+    }
+  }
+  if (mine.length){
+    sec('Your canvases');
+    for (let i = 0; i < mine.length; i += 3){
+      const row = document.createElement('div'); row.className = 'g-row';
+      mine.slice(i, i + 3).forEach(it => row.appendChild(makeItem(it, false)));
+      rows.appendChild(row);
+    }
+  }
+  if (pub.length){
+    sec('Public');
+    gridPosts = pub; fillRows(pub, 2, feedItem);
+  }
+  placeFind();
+}
+
+/* ---- select mode (Dex, 2026-10-08) ----
+   Hold one of your canvases to start it. Then a tap picks or un-picks a
+   card, and a finger that sets off SIDEWAYS from a card sweeps every card
+   between it and wherever it goes, scrolling the grid at its edges (the
+   grid pans only up and down, so an up-or-down drag is still a scroll).
+   The window floats top left, named after the canvas or how many, and
+   moves by its top; its X, back, or anywhere else in the app ends it. */
+const HOLD_MS = 450;
+let hold = null, sweep = null, selPos = null;
+function enterSelect(){
+  if (selecting) return;
+  selecting = true;
+  $('gallery').classList.add('selecting');
+  const p = $('g-sel');
+  p.classList.add('open');
+  if (!selPos) selPos = { left: 12, top: $('g-grid').getBoundingClientRect().top + 8 };
+  placeSel(selPos.left, selPos.top);
+  paintSel();
+}
+function exitSelect(){
+  if (!selecting) return;
+  selecting = false; sweep = null;
+  selected.clear();
+  $('gallery').classList.remove('selecting');
+  $('g-sel').classList.remove('open');
+  for (const el of $('g-rows').querySelectorAll('.g-item.sel')) el.classList.remove('sel');
+}
+function toggleSel(id, on = !selected.has(id)){
+  on ? selected.add(id) : selected.delete(id);
+  const el = $('g-rows').querySelector(`.g-item[data-id="${CSS.escape(id)}"]`);
+  if (el) el.classList.toggle('sel', on);
+  paintSel();
+}
+const selItems = () => gallery.filter(g => selected.has(g.id));
+function paintSel(){
+  const n = selected.size, one = n === 1 ? selItems()[0] : null;
+  $('g-sel-title').textContent = n === 0 ? 'Select canvases' : one ? (one.title || 'Untitled') : n + ' selected';
+  $('sel-dl').disabled = $('sel-del').disabled = n === 0;
+  $('sel-share').disabled = n === 0 || !navigator.share;
+  $('sel-copy').disabled = n !== 1 || !(navigator.clipboard && window.ClipboardItem);
+}
+function placeSel(left, top){
+  const p = $('g-sel'), w = p.offsetWidth, h = p.offsetHeight;
+  left = Math.max(6, Math.min(innerWidth - w - 6, left));
+  top = Math.max(6, Math.min(innerHeight - h - 6, top));
+  p.style.left = left + 'px'; p.style.top = top + 'px';
+  selPos = { left, top };
+}
+// Hold to start: cancelled by moving, lifting, or the grid scrolling.
+$('g-rows').addEventListener('pointerdown', e => {
+  const el = e.target.closest('.g-item[data-id]');
+  if (!el || e.target.closest('button')) return;
+  if (selecting){
+    sweep = { id: el.dataset.id, x: e.clientX, y: e.clientY, pid: e.pointerId, on: null, base: null, mouse: e.pointerType === 'mouse' };
+    return;
+  }
+  if (galleryTab !== 'mine' || picking || searching()) return;
+  clearTimeout(hold && hold.t);
+  hold = { x: e.clientX, y: e.clientY, id: el.dataset.id, t: setTimeout(() => {
+    hold = null; holdFired = true;
+    enterSelect(); toggleSel(el.dataset.id, true);
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch (err) {}
+  }, HOLD_MS) };
+});
+$('g-rows').addEventListener('contextmenu', e => { if (e.target.closest('.g-item')) e.preventDefault(); });
+$('g-grid').addEventListener('scroll', () => { if (hold){ clearTimeout(hold.t); hold = null; } }, { passive: true });
+addEventListener('pointermove', e => {
+  if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 10){ clearTimeout(hold.t); hold = null; }
+  if (!sweep || e.pointerId !== sweep.pid) return;
+  const dx = e.clientX - sweep.x, dy = e.clientY - sweep.y;
+  if (sweep.on === null){
+    if (Math.hypot(dx, dy) < 10) return;
+    if (!sweep.mouse && Math.abs(dx) < Math.abs(dy)){ sweep = null; return; }   // that is a scroll
+    sweep.on = !selected.has(sweep.id); sweep.base = new Set(selected);
+    sweep.cx = e.clientX; sweep.cy = e.clientY;
+    sweepEdge();
+  }
+  sweep.cx = e.clientX; sweep.cy = e.clientY;
+  sweepTo();
+});
+function sweepTo(){
+  if (!sweep || sweep.on === null) return;
+  const hit = document.elementFromPoint(sweep.cx, sweep.cy);
+  const el = hit && hit.closest('.g-item[data-id]');
+  if (!el) return;
+  const cards = [...$('g-rows').querySelectorAll('.g-item[data-id]')].map(c => c.dataset.id);
+  const a = cards.indexOf(sweep.id), b = cards.indexOf(el.dataset.id);
+  if (a < 0 || b < 0) return;
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  cards.forEach((id, i) => toggleSel(id, i >= lo && i <= hi ? sweep.on : sweep.base.has(id)));
+}
+// Near the top or bottom of the grid, it scrolls under the finger.
+function sweepEdge(){
+  if (!sweep || sweep.on === null) return;
+  const g = $('g-grid'), r = g.getBoundingClientRect(), zone = 70;
+  const v = sweep.cy < r.top + zone ? -(r.top + zone - sweep.cy) / 4 : sweep.cy > r.bottom - zone ? (sweep.cy - (r.bottom - zone)) / 4 : 0;
+  if (v){ g.scrollTop += v; sweepTo(); }
+  requestAnimationFrame(sweepEdge);
+}
+const endPress = e => {
+  if (hold){ clearTimeout(hold.t); hold = null; }
+  if (sweep && e.pointerId === sweep.pid){
+    if (sweep.on !== null) holdFired = true;   // a sweep is not also a tap
+    sweep = null;
+  }
+};
+addEventListener('pointerup', endPress); addEventListener('pointercancel', endPress);
+// A tap on a card does what it says only after a real tap; the click that
+// ends a hold or a sweep is eaten, and a stale flag never outlives its tap.
+addEventListener('pointerdown', () => { if (!hold) holdFired = false; }, true);
+// The window moves by its top.
+(() => {
+  let drag = null;
+  const head = $('g-sel-head');
+  head.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    drag = { id: e.pointerId, dx: e.clientX - selPos.left, dy: e.clientY - selPos.top };
+    head.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  head.addEventListener('pointermove', e => { if (drag && e.pointerId === drag.id) placeSel(e.clientX - drag.dx, e.clientY - drag.dy); });
+  const end = () => { drag = null; };
+  head.addEventListener('pointerup', end); head.addEventListener('pointercancel', end);
+})();
+$('g-sel-x').addEventListener('click', () => exitSelect());
+const selFile = async it => new File([await fullBlob(it, false)], fileName(it.title), { type: 'image/png' });
+$('sel-dl').addEventListener('click', async () => {
+  const items = selItems();
+  for (const it of items){ saveBlob(await fullBlob(it, false), it.title); await new Promise(r => setTimeout(r, 250)); }
+  toast(items.length === 1 ? 'Downloaded' : 'Downloaded ' + items.length + ' canvases');
+});
+$('sel-copy').addEventListener('click', async () => {
+  const it = selItems()[0]; if (!it) return;
+  // The promise goes straight in, so Safari still counts it as this tap.
+  try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': fullBlob(it, false) })]); toast('Copied'); }
+  catch (e) { toast('Could not copy it'); }
+});
+$('sel-share').addEventListener('click', async () => {
+  const items = selItems(); if (!items.length) return;
+  try {
+    const files = await Promise.all(items.map(selFile));
+    if (navigator.canShare && !navigator.canShare({ files })) throw new Error('no');
+    await navigator.share({ files, title: items.length === 1 ? items[0].title : 'Inko' });
+  } catch (e) { if (e && e.name !== 'AbortError') toast('Sharing is not available here'); }
+});
+$('sel-del').addEventListener('click', () => {
+  const items = selItems(), n = items.length; if (!n) return;
+  const shared = items.some(it => it.visibility === 'public');
+  const title = n === 1 ? 'Delete canvas?' : `Delete ${n} canvases?`;
+  const text = n === 1 ? `"${items[0].title}" will be permanently deleted${shared ? ', and taken out of the shared gallery' : ''}.`
+    : `They will be permanently deleted${shared ? ', and the public ones taken out of the shared gallery' : ''}.`;
+  openModal(title, text, 'Delete', async () => {
+    let gone = 0;
+    for (const it of items) if (await deleteCanvas(it)) gone++;
+    exitSelect();
+    toast(gone === 1 ? 'Canvas deleted' : gone + ' canvases deleted'); renderGallery();
+  });
+});
 
 /* ---- renaming your @tag ---- */
 async function renameLocal(from, to){
@@ -1874,6 +2500,10 @@ async function init(){
   setupCanvas();
   bindHSB(); refreshPanelUI(); syncToolSel(); syncUndoRedo();
   window.addEventListener('resize', fit);
+  // The bars change height on their own (sliders, the options bar, a font
+  // or a picture arriving late): the canvas follows whatever they do.
+  if (window.ResizeObserver) new ResizeObserver(() => fit()).observe($('bottom-bars'));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
   window.addEventListener('orientationchange', () => setTimeout(fit, 120));
   render();
   try { await migrateLocalStorage(); } catch (e) { console.warn('inko: migration', e); }

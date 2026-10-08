@@ -118,6 +118,8 @@ const shot = (p, name) => p.screenshot({ path: join(SHOTS, `sketch-${name}.png`)
 const fail = [];
 let pass = 0;
 const note = (ok, why) => { if (ok) pass++; else fail.push(why); };
+// + and the gallery live in the options bar (Dex, 2026-10-08): open it first.
+const optTap = async (p, sel) => { await p.evaluate(() => { if (document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); }); return p.click(sel); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const post = async (body) => {
   const r = await fetch(BASE + '/api/sketch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -229,9 +231,11 @@ try {
   await strokeOn(A);
   await A.evaluate(() => { document.getElementById('title-input').value = ''; });   // a new canvas is pre-named Untitled N
   await A.type('#title-input', 'Dragon');
-  await A.click('#plus-btn'); await sleep(900);
-  await A.click('#grid-btn'); await sleep(500);
+  await optTap(A, '#plus-btn'); await sleep(900);
+  await optTap(A, '#grid-btn'); await sleep(500);
   // The lock on the card: tapping it signed out opens the account sheet.
+  // (Its buttons come out of the card's one options button, top left.)
+  await A.click('.g-item .g-opt'); await sleep(350);
   await A.click('.g-item .g-pub'); await sleep(300);
   note(await A.evaluate(() => document.getElementById('account').classList.contains('open')), 'making a drawing public signed out did not ask to sign in');
   await shot(A, '1-account');
@@ -245,48 +249,87 @@ try {
   await sleep(600); await shot(A, '2-mine-public');
 
   // B signs up from the Public tab and sees A's drawing, with its picture.
-  await B.click('#grid-btn'); await sleep(300);
+  await optTap(B, '#grid-btn'); await sleep(300);
   await B.click('#g-tab-public');
   await B.waitForFunction(() => document.querySelector('.g-item[data-post] img'), { timeout: 10000 }).catch(() => {});
   await B.waitForFunction(() => { const i = document.querySelector('.g-item[data-post] img'); return i && i.complete && i.naturalWidth > 0; }, { timeout: 10000 }).catch(() => {});
   const seen = await B.evaluate(() => {
     const card = document.querySelector('.g-item[data-post]');
-    return card && { title: card.querySelector('.g-title').textContent, by: card.querySelector('.g-by').textContent,
-                     w: card.querySelector('img').naturalWidth };
+    // A public tile is the drawing and nothing else: no title, no poop, no
+    // row under it -- the artist along its foot and the fire count in a corner.
+    return card && { title: card.querySelector('img').alt, by: card.querySelector('.p-by .tag')?.textContent,
+                     w: card.querySelector('img').naturalWidth, fire: card.querySelector('.p-fire')?.textContent,
+                     extras: card.querySelectorAll('.g-title, .g-rx, [data-icon="poop"]').length,
+                     face: card.querySelector('.p-by .avatar')?.getBoundingClientRect().width || 0 };
   });
-  note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0, `B's Public tab shows ${JSON.stringify(seen)}`);
+  note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0 && seen.fire === '0' && seen.extras === 0 && seen.face >= 32,
+    `B's Public tab shows ${JSON.stringify(seen)}`);
+  // The viewer: the full drawing, loaded, with the poop|fire pill grey and no counts until you rate.
+  await B.click('.g-item[data-post] .g-thumb img'); await sleep(300);
+  await B.waitForFunction(() => { const i = document.getElementById('v-img'); return i.complete && i.naturalWidth > 0; }, { timeout: 10000 }).catch(() => {});
+  const big = await B.evaluate(() => {
+    const r = id => document.getElementById(id).getBoundingClientRect();
+    const btns = [...document.querySelectorAll('#viewer button')].filter(b => b.offsetParent && b.id !== 'v-by');
+    return { open: document.getElementById('viewer').classList.contains('open'), w: document.getElementById('v-img').naturalWidth,
+      title: document.getElementById('v-title').textContent,
+      pill: [...document.querySelectorAll('#viewer .rx-pill .g-rx')].map(b => b.dataset.kind + ':' + b.querySelector('b').textContent + (b.classList.contains('on') ? '*' : '')).join(' '),
+      // No button in the top half of the screen.
+      topButtons: btns.filter(b => b.getBoundingClientRect().top < innerHeight / 2).map(b => b.id || b.className),
+      back: r('v-close').left < innerWidth / 4 && r('v-close').top > innerHeight * 0.75 };
+  });
+  note(big.open && big.w >= 800 && big.title === 'Dragon', `the viewer opened ${JSON.stringify(big)} — the full drawing is 880 wide`);
+  note(big.pill === 'poop: fire:' && big.topButtons.length === 0 && big.back,
+    `the viewer before rating: pill ${big.pill}, buttons in the top half ${JSON.stringify(big.topButtons)}, back at the bottom left ${big.back}`);
+  await shot(B, '4-viewer');
   // Reacting signed out asks to sign in first, then lands the reaction.
-  await B.click('.g-item[data-post] .g-rx[data-kind="fire"]'); await sleep(300);
+  await B.click('#viewer .g-rx[data-kind="fire"]'); await sleep(300);
   await B.click('#a-more'); await sleep(150); await B.type('#a-handle', 'fan_b'); await B.type('#a-pass', 'correct horse'); await B.click('#a-signup');
-  await B.waitForFunction(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="fire"] b')?.textContent === '1', { timeout: 10000 }).catch(() => {});
-  const fire = await B.evaluate(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="fire"]').outerHTML);
-  note(/on/.test(fire) && />1</.test(fire), `after B's fire: ${fire}`);
-  // Clicked as found NOW: the app replaces the reaction row when a vote's reply
-  // lands, so a handle taken a moment earlier can be a detached button.
+  await B.waitForFunction(() => document.querySelector('#viewer .g-rx[data-kind="fire"] b')?.textContent === '1', { timeout: 10000 }).catch(() => {});
+  const pillOf = () => B.evaluate(() => [...document.querySelectorAll('#viewer .rx-pill .g-rx')].map(b => b.dataset.kind + ':' + b.querySelector('b').textContent + (b.classList.contains('on') ? '*' : '')).join(' ')
+    + ' | tile ' + document.querySelector('.g-item[data-post] .p-fire')?.textContent);
+  const fire = await pillOf();
+  note(fire === 'poop: fire:1* | tile 1', `after B's fire: ${fire}`);
+  // Clicked as found NOW: the app replaces the pill when a vote's reply lands,
+  // so a handle taken a moment earlier can be a detached button.
   await sleep(500);
-  await B.evaluate(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="poop"]').click()); await sleep(800);
-  const counts = await B.evaluate(() => [...document.querySelectorAll('.g-item[data-post] .g-rx b')].map(b => b.textContent).join('/'));
-  note(counts === '0/1', `switching to poop left fire/poop at ${counts}`);
+  await B.evaluate(() => document.querySelector('#viewer .g-rx[data-kind="poop"]').click()); await sleep(800);
+  const counts = await pillOf();
+  note(counts === 'poop:1* fire: | tile 0', `switching to poop: ${counts}`);
+  await shot(B, '4-viewer-rated');
   // The server agrees, from a fresh feed read.
-  await shot(B, '3-public-feed');
   const serverFeed = (await (await fetch(`${BASE}/api/sketch?feed=1`)).json()).posts.find(p => p.title === 'Dragon');
   note(serverFeed && serverFeed.fire === 0 && serverFeed.poop === 1, `the server holds ${JSON.stringify(serverFeed)}`);
-  // The viewer: the full drawing, loaded.
-  await B.click('.g-item[data-post] .g-thumb'); await sleep(300);
-  await B.waitForFunction(() => { const i = document.getElementById('v-img'); return i.complete && i.naturalWidth > 0; }, { timeout: 10000 }).catch(() => {});
-  const big = await B.evaluate(() => ({ open: document.getElementById('viewer').classList.contains('open'), w: document.getElementById('v-img').naturalWidth,
-    counts: [...document.querySelectorAll('#viewer .g-rx b')].map(b => b.textContent).join('/') }));
-  // The viewer and the card are one post: the screenshot that found this showed
-  // 0/0 in the viewer over a card reading 0/1.
-  note(big.counts === '0/1', `the viewer reads fire/poop ${big.counts}, the card and the server 0/1`);
-  await shot(B, '4-viewer');
-  note(big.open && big.w >= 800, `the viewer opened ${JSON.stringify(big)} — the full drawing is 880 wide`);
+  // Out of the viewer three ways: the phone's back gesture, a right-to-left
+  // swipe, and the back button -- each to the grid, never out of the app.
+  const state = () => B.evaluate(() => ({ viewer: document.getElementById('viewer').classList.contains('open'), gallery: document.getElementById('gallery').classList.contains('open') }));
+  await B.goBack().catch(() => {}); await sleep(400);
+  const afterBack = await state();
+  await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
+  const vb = await B.evaluate(() => { const r = document.getElementById('v-img').getBoundingClientRect(); return { x: r.left + r.width * 0.8, y: r.top + r.height / 2 }; });
+  await B.mouse.move(vb.x, vb.y); await B.mouse.down();
+  for (let i = 1; i <= 8; i++){ await B.mouse.move(vb.x - i * 20, vb.y + i); await sleep(16); }
+  await B.mouse.up(); await sleep(400);
+  const afterSwipe = await state();
+  await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
+  await B.click('#v-close'); await sleep(300);
+  const afterButton = await state();
+  // Back from Public follows the way B came: to B's own gallery, still in the app.
+  await B.goBack().catch(() => {}); await sleep(400);
+  const afterBack2 = await B.evaluate(() => ({ gallery: document.getElementById('gallery').classList.contains('open'), mode: document.getElementById('gallery').className, inko: location.pathname }));
+  note(!afterBack.viewer && afterBack.gallery && !afterSwipe.viewer && afterSwipe.gallery && !afterButton.viewer && afterButton.gallery
+    && afterBack2.gallery && /mode-mine/.test(afterBack2.mode) && afterBack2.inko === '/inko/',
+    `leaving the viewer: back gesture ${JSON.stringify(afterBack)}, swipe ${JSON.stringify(afterSwipe)}, button ${JSON.stringify(afterButton)}; back again ${JSON.stringify(afterBack2)}`);
+  await optTap(B, '#grid-btn'); await sleep(300);
+  if (await B.evaluate(() => document.getElementById('g-tab-public').dataset.go === 'public')) { await B.click('#g-tab-public'); await sleep(400); }
+  await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
+  await B.click('#v-more'); await sleep(150);
   // Hide this artist: gone from B's feed, on this device only.
   await B.click('#v-block'); await sleep(200); await B.click('#m-del'); await sleep(400);
   note(await B.evaluate(() => !document.querySelector('.g-item[data-post]')), 'hiding the artist left their drawing in B\'s feed');
 
   // A makes it private: gone from the server.
   await A.click('#g-tab-mine'); await sleep(300);
+  await A.evaluate(() => document.querySelector('.g-item .g-pub.on').closest('.g-item').querySelector('.g-opt').click()); await sleep(350);
   await A.click('.g-item .g-pub.on');
   await A.waitForFunction(() => document.querySelector('.g-item .g-pub') && !document.querySelector('.g-item .g-pub.on'), { timeout: 10000 }).catch(() => {});
   const afterPrivate = (await (await fetch(`${BASE}/api/sketch?feed=1`)).json()).posts;
@@ -317,13 +360,13 @@ try {
       await p.bringToFront();
       await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));   // back to the foreground: a sync
       await sleep(2500);
-      await p.click('#grid-btn'); await sleep(500);
+      await optTap(p, '#grid-btn'); await sleep(500);
     };
     await one.bringToFront();
     await strokeOn(one);
     await one.evaluate(() => { document.getElementById('title-input').value = ''; });   // a new canvas is pre-named Untitled N
     await one.type('#title-input', 'Both phones');
-    await one.click('#plus-btn'); await sleep(2500);
+    await optTap(one, '#plus-btn'); await sleep(2500);
     await openGallery(two);
     const onTwo = await titles(two);
     const thumbOk = await two.evaluate(() => { const i = [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Both phones'))?.querySelector('img'); return !!i && i.complete && i.naturalWidth > 0; });
@@ -339,7 +382,7 @@ try {
     });
     note(inkTwo > 100, `the canvas opened on the second device has ${inkTwo} sampled stroke pixels`);
     // Deleted on the second device: gone from the first.
-    await two.click('#grid-btn'); await sleep(400);
+    await optTap(two, '#grid-btn'); await sleep(400);
     await two.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Both phones')).querySelector('.g-del').click());
     await sleep(300); await two.click('#m-del'); await sleep(1500);
     await one.click('#g-back').catch(() => {});
@@ -360,7 +403,7 @@ try {
     const cErrors = [];
     C.on('pageerror', e => cErrors.push(e.message));
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
-    await C.click('#grid-btn'); await sleep(300);
+    await optTap(C, '#grid-btn'); await sleep(300);
     await C.click('#g-account'); await sleep(300);
     const sheet = await C.evaluate(() => {
       const css = id => getComputedStyle(document.getElementById(id));
@@ -389,7 +432,7 @@ try {
     // Signed out and back in with Google: straight in, no name to pick.
     await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
-    await C.click('#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
+    await optTap(C, '#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
     await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-google')]);
     await sleep(600);
     const again = await C.evaluate(() => ({ who: document.getElementById('g-account').textContent, claim: !document.getElementById('a-claim').hidden, hash: location.hash }));
@@ -409,27 +452,27 @@ try {
     }
     await C.evaluate(() => { document.getElementById('title-input').value = ''; });   // a new canvas is pre-named Untitled N
     await C.type('#title-input', 'Sunset');
-    await C.click('#plus-btn'); await sleep(900);
-    await C.click('#grid-btn'); await sleep(400);
+    await optTap(C, '#plus-btn'); await sleep(900);
+    await optTap(C, '#grid-btn'); await sleep(400);
     await C.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Sunset')).querySelector('.g-pub').click());
     await sleep(300);
     await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-google')]);
     await sleep(1500);
-    await C.click('#grid-btn');
+    await optTap(C, '#grid-btn');
     await C.waitForFunction(() => document.querySelector('.g-item .g-pub.on'), { timeout: 15000 }).catch(() => {});
     const pending = await C.evaluate(() => ({ who: document.getElementById('g-account').textContent,
       pub: [...document.querySelectorAll('#g-rows .g-item')].filter(el => el.querySelector('.g-pub.on')).map(el => el.querySelector('.g-title').textContent) }));
     note(pending.who === '@dexcimino' && pending.pub.includes('Sunset'), `after a Google sign-in started from the lock: ${JSON.stringify(pending)}`);
     await C.click('#g-tab-public');
-    await C.waitForFunction(() => [...document.querySelectorAll('.g-item[data-post] .g-title')].some(t => t.textContent === 'Sunset'), { timeout: 8000 }).catch(() => {});
-    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] .g-title')].some(t => t.textContent === 'Sunset')),
+    await C.waitForFunction(() => [...document.querySelectorAll('.g-item[data-post] img')].some(t => t.alt === 'Sunset'), { timeout: 8000 }).catch(() => {});
+    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] img')].some(t => t.alt === 'Sunset')),
       'the drawing just made public is not in the Public tab');
     // Hidden as an artist on this device, your OWN drawings still show to you.
     await C.evaluate(() => localStorage.setItem('sketchBlocked', JSON.stringify(['dexcimino'])));
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
-    await C.click('#grid-btn'); await sleep(300); await C.click('#g-tab-public');
+    await optTap(C, '#grid-btn'); await sleep(300); await C.click('#g-tab-public');
     await C.waitForFunction(() => document.querySelector('.g-item[data-post]'), { timeout: 8000 }).catch(() => {});
-    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] .g-title')].some(t => t.textContent === 'Sunset')),
+    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] img')].some(t => t.alt === 'Sunset')),
       'having once hidden yourself hides your own drawings from your Public tab');
     await C.evaluate(() => localStorage.removeItem('sketchBlocked'));
     console.log(`publish through Google: ${JSON.stringify(pending)}, in the Public tab, and shown despite a self-hide`);
@@ -437,7 +480,7 @@ try {
     // Discord, a different person: a reserved name refused, their own taken.
     await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
-    await C.click('#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
+    await optTap(C, '#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
     await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-discord')]);
     await C.waitForFunction(() => !document.getElementById('a-claim').hidden, { timeout: 10000 }).catch(() => {});
     note(await C.evaluate(() => document.getElementById('a-claim-handle').value) === 'discord_fan', 'Discord did not suggest discord_fan');
@@ -546,18 +589,18 @@ try {
     await D.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
     await strokeOn(D);
     // Sign up from the profile's own Sign in.
-    await D.click('#grid-btn'); await sleep(400);
+    await optTap(D, '#grid-btn'); await sleep(400);
     const bar = await D.evaluate(() => {
       const r = id => { const q = document.getElementById(id).getBoundingClientRect(); return { left: q.left, right: q.right, width: q.width, height: q.height }; };
-      const b = r('g-back'), p = r('g-tab-public'), m = r('g-tab-mine');
-      return { b, p, m, order: b.right <= p.left && p.right <= m.left, back: document.getElementById('g-back').textContent.trim(),
+      const b = r('g-back'), p = r('g-tab-public'), m = r('g-tab-mine'), n = r('g-new');
+      return { b, p, m, n, order: b.right <= p.left && p.right <= n.left && n.right <= m.left, globe: !!document.querySelector('#g-tab-public svg circle'), back: document.getElementById('g-back').textContent.trim(),
                smiley: /^url\("data:image\/svg/.test(document.getElementById('g-avatar').style.backgroundImage),
                mineSmiley: /^url\("data:image\/svg/.test(document.getElementById('g-tab-mine').style.backgroundImage),
                profile: getComputedStyle(document.getElementById('g-profile')).display !== 'none',
                signIn: document.getElementById('g-account').textContent };
     });
-    note(bar.order && Math.abs(bar.b.width - bar.b.height) < 1 && Math.abs(bar.m.width - bar.m.height) < 1 && Math.abs(bar.b.width - bar.m.width) < 1 && bar.p.width > bar.b.width * 2 && bar.back === '',
-      `the bottom bar is not back, a wide Public, then a square profile: ${JSON.stringify(bar)}`);
+    note(bar.order && Math.abs(bar.b.width - bar.b.height) < 1 && Math.abs(bar.m.width - bar.m.height) < 1 && Math.abs(bar.b.width - bar.m.width) < 1 && Math.abs(bar.p.width - bar.b.width) < 1 && bar.globe && bar.back === '',
+      `the bottom bar is not back, a square globe, +, then a square profile: ${JSON.stringify(bar)}`);
     note(bar.smiley && bar.mineSmiley && bar.profile && bar.signIn === 'Sign in', `signed out, the profile is not a smiley over Sign in: ${JSON.stringify(bar)}`);
     await shot(D, '6-profile-signed-out');
     await D.click('#g-account'); await sleep(300);
@@ -615,22 +658,27 @@ try {
     note(undone1 !== after && undone2 === before && redone === after, `undo did not walk the canvas colour back: ${before} -> ${after}; undo ${undone1}, ${undone2}; redo ${redone}`);
 
     // Search from the top, into someone's profile, and back out to Public.
-    await D.click('#grid-btn'); await sleep(400);
+    await optTap(D, '#grid-btn'); await sleep(400);
+    await D.click('#g-search-btn'); await sleep(150);
     await D.type('#g-search', 'face'); await sleep(900);
     const results = await D.evaluate(() => [...document.querySelectorAll('.g-user')].map(b => b.dataset.handle));
     note(results.includes('face_b') && results.includes('face_a'), `searching "face" found ${JSON.stringify(results)}`);
     await shot(D, '6-search');
     await D.click('.g-user[data-handle="face_b"]'); await sleep(900);
     const prof2 = await D.evaluate(() => ({ mode: document.getElementById('gallery').className, name: document.getElementById('g-user-name').textContent,
-      pic: document.getElementById('g-avatar').style.backgroundImage, cards: [...document.querySelectorAll('.g-item .g-title')].map(e => e.textContent),
+      pic: document.getElementById('g-avatar').style.backgroundImage, cards: [...document.querySelectorAll('.g-item img')].map(e => e.alt),
       search: document.getElementById('g-search').value }));
     note(/mode-user/.test(prof2.mode) && prof2.name === '@face_b' && /sketch%2Favatars%2Fface_b-1\.jpg/.test(prof2.pic) && prof2.cards.includes('From B') && prof2.search === '',
       `face_b's profile: ${JSON.stringify(prof2)}`);
     await shot(D, '6-user');
-    await D.click('#g-back'); await sleep(900);
+    // Back goes where the search started (your gallery); Public then shows her face on the card.
+    await D.click('#g-back'); await sleep(600);
+    const backTo = await D.evaluate(() => document.getElementById('gallery').className);
+    note(/mode-mine/.test(backTo), `back from a profile searched from your gallery: ${backTo}`);
+    await D.click('#g-tab-public'); await sleep(900);
     const pub = await D.evaluate(() => ({ mode: document.getElementById('gallery').className,
-      by: [...document.querySelectorAll('.g-item')].filter(e => /From B/.test(e.textContent)).map(e => e.querySelector('.g-by .avatar').style.backgroundImage) }));
-    note(/mode-public/.test(pub.mode) && pub.by.length === 1 && /face_b-1\.jpg/.test(pub.by[0]), `back from a profile, Public with B's face on the card: ${JSON.stringify(pub)}`);
+      by: [...document.querySelectorAll('.g-item')].filter(e => e.querySelector('img')?.alt === 'From B').map(e => e.querySelector('.p-by .avatar').style.backgroundImage) }));
+    note(/mode-public/.test(pub.mode) && pub.by.length === 1 && /face_b-1\.jpg/.test(pub.by[0]), `Public with B's face on the card: ${JSON.stringify(pub)}`);
 
     // Rename from the edit button: the canvases on this phone follow the name.
     await D.click('#g-tab-mine'); await sleep(300);

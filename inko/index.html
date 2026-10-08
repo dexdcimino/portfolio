@@ -21,50 +21,71 @@
 </div>
 
 <div id="stage">
+  <div id="sym-tick" hidden></div>
   <div id="canvas-frame">
     <canvas id="pad"></canvas>
   </div>
 </div>
 
-<div id="bottom-bars"><div id="hsb-bar" style="display:none;">
+<div id="bottom-bars"><div id="hsb-bar" style="display:none;"><div class="hsb-tip" hidden></div>
+  <div class="hsb-rows">
   <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="hue" min="0" max="360" value="4"></div>
   <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="sat" min="0" max="100" value="100"></div>
   <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="bri" min="0" max="100" value="100"></div>
+  </div>
 </div><div id="size-bar">
   <button id="redo-btn" class="tbtn" aria-label="Redo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 14 L20 9 L15 4"/><path d="M20 9 H10 A6 6 0 0 0 10 21 H15"/></svg>
   </button>
   <div class="ctl" id="ctl-size-perm">
-    <div class="mrow centered"><span id="size-v">45px</span></div>
     <input type="range" id="size" min="0" max="100" step="0.5" value="35">
   </div>
   <button id="undo-btn" class="tbtn" aria-label="Undo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14 L4 9 L9 4"/><path d="M4 9 H14 A6 6 0 0 1 14 21 H9"/></svg>
   </button>
 </div>
+<div id="opt-bar" hidden>
+  <!-- Gallery, the canvas (colour, title, public), new, download, clear
+       (Dex, 2026-10-08). Only clear asks first. -->
+  <button id="grid-btn" class="tbtn" aria-label="Gallery">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2.5" width="14" height="14" rx="3.2"/><path d="M16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V7.5"/><path d="M7.8 13.6l3.6-3.6 2.8 2.8 1.9-1.9 5 5"/><circle cx="16.6" cy="7.4" r="1.5" fill="currentColor" stroke="none"/></svg>
+  </button>
+  <button id="copt-btn" class="tbtn" aria-label="Canvas: colour, title, public" aria-pressed="false"><span id="copt-dot"></span></button>
+  <button id="plus-btn" class="tbtn" aria-label="New canvas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+  <button id="dl-btn" class="tbtn" aria-label="Download this canvas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 19.5h14"/></svg>
+  </button>
+  <button id="clear-btn" class="tbtn" aria-label="Clear canvas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+  </button>
+</div>
 
 <div id="toolbar">
   <div class="tb-side">
-    <button id="plus-btn" class="tbtn" aria-label="New canvas">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
-    <button id="grid-btn" class="tbtn" aria-label="Gallery">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <!-- Options (Dex, 2026-10-08): swaps the size bar for the options bar. -->
+    <button id="opt-btn" class="tbtn" aria-label="Options" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><circle cx="17" cy="17" r="3.6" fill="currentColor" stroke="none"/></svg>
     </button>
     <button id="ed-btn" class="tbtn" aria-label="Eyedropper">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3 L21 7 L14 14 L10 10 Z"/><path d="M10 10 L4 20 L5 21 L6 20"/><path d="M14 14 L11 17"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.3 3.9a2.7 2.7 0 0 1 3.8 0l1 1a2.7 2.7 0 0 1 0 3.8l-2.4 2.4-4.8-4.8z" fill="currentColor"/><path d="M11.3 6.7l6 6"/><path d="M13.4 8.8l-7.9 7.9-.9 3.3-1.1 1.3 1.3-1.1 3.3-.9 7.9-7.9"/><path d="M6.2 17.8l2.1-2.1" opacity=".55"/></svg>
     </button>
   </div>
   <div class="tb-mid">
-    <button id="tool-toggle" class="tbtn sel" aria-label="Toggle brush/eraser">
-      <svg id="toggle-brush-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 3 L21 6"/><!-- handle end -->
-        <path d="M17 4 L20 7 L12 15 L9 12 Z"/><!-- ferrule -->
-        <path id="brush-tip" d="M9 12 L12 15 L7 21 C6 22 4 22 3 21 C2 20 2 18 3 17 Z" fill="#ff2d2d" stroke="none"/><!-- bristles -->
+    <!-- Brush and eraser, BOTH always shown (Dex, 2026-10-08): the tool in use
+         big in the middle, the other small in the top-left corner; a tap swaps
+         them along two arcs (see swapTools in app.js). -->
+    <button id="tool-toggle" class="tbtn sel" aria-label="Switch to eraser">
+      <svg id="toggle-brush-icon" class="tool-ico big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 3 L13.4 10.6" stroke-width="2.6"/><!-- handle -->
+        <path d="M12.2 9.4 L14.6 11.8 L12.6 13.8 L10.2 11.4 Z" fill="currentColor"/><!-- ferrule -->
+        <path id="brush-tip" d="M10.2 11.4 L12.6 13.8 C12.2 17.6 9.4 20.6 3 20.6 C4.6 19.4 5 18.2 5.3 16.4 C5.6 13.9 7.4 11.6 10.2 11.4 Z" fill="#ff2d2d" stroke="none"/><!-- bristles, in the brush colour -->
       </svg>
-      <svg id="toggle-eraser-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-        <path d="M5 15 L15 5 L20 10 L10 20 L5 20 Z"/><!-- eraser body -->
-        <path d="M12 8 L17 13"/><!-- band -->
+      <svg id="toggle-eraser-icon" class="tool-ico small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13.6 3.6 L20.4 10.4 L11.6 19.2 H7 L3.6 15.8 Z"/><!-- body -->
+        <path d="M13.6 3.6 L20.4 10.4 L14.6 16.2 L7.8 9.4 Z" fill="currentColor" opacity=".9"/><!-- the coloured half -->
+        <path d="M11.6 19.2 H20.5"/><!-- the surface it rubs -->
       </svg>
     </button>
   </div>
@@ -73,19 +94,25 @@
       <span id="color-dot"></span>
     </button>
     <button id="sym-btn" class="tbtn" aria-label="Mirror" aria-pressed="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="3 3"/><path d="M8 8 L5 12 L8 16"/><path d="M16 8 L19 12 L16 16"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19" stroke-dasharray="1.6 2.8"/><path d="M9 5.5 L3 18 H9 Z" fill="currentColor"/><path d="M15 5.5 L21 18 H15 Z"/></svg>
     </button>
   </div>
 </div>
 
-<!-- The CANVAS color window, opened from the top-left swatch only. Its
+<!-- The CANVAS window: its colour from the top-left swatch, and colour,
+     title and public/private from the options bar's swatch. Its
      sliders have their own ids: they used to share hue/sat/bri with the brush
      bar, so getElementById found the brush bar's, the window's own sliders
      did nothing, and the brush sliders went on painting the canvas. -->
 <div id="brush-pop">
+  <div class="hsb-tip" hidden></div>
   <div id="bp-head">
     <span id="bp-title">Canvas color</span>
     <button id="pop-x" aria-label="Close">✕</button>
+  </div>
+  <div id="cp-more" hidden>
+    <input id="cp-title" type="text" maxlength="60" aria-label="Title" placeholder="Untitled" autocomplete="off" spellcheck="false">
+    <button id="cp-lock" class="cp-lock" aria-label="Private — make public"></button>
   </div>
   <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="cv-hue" min="0" max="360" value="210"></div>
   <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="cv-sat" min="0" max="100" value="35"></div>
@@ -94,13 +121,15 @@
 
 <div id="size-preview"><div id="sp-circle"></div><div id="sp-label">45px</div></div>
 
-<!-- The gallery (Dex, 2026-10-08): search across the top, always; a profile
-     header over YOUR canvases (picture, @tag with its edit button, or Sign
-     in) or over someone else's public drawings; and three buttons along the
-     bottom -- back, Public, and your own picture, which is your profile. -->
+<!-- The gallery (Dex, 2026-10-08): a profile header over YOUR canvases
+     (picture, @tag with its edit button, or Sign in) or over someone else's
+     public drawings; and one bar along the bottom built like the canvas's
+     toolbar -- back and Public/yours (a globe, or the gallery icon), a new
+     canvas in the middle, then search and your own picture (your profile).
+     Search opens a pill above the keyboard. -->
 <div id="gallery">
   <div id="g-head">
-    <label id="g-search-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20 L16.5 16.5"/></svg><input id="g-search" type="search" placeholder="Search @artists" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search"></label>
+    <span id="g-page" aria-live="polite">Your gallery</span>
     <span id="g-build" aria-label="Build"></span>
   </div>
   <div id="g-pick" hidden><span>Tap a canvas to make it your picture</span><button id="g-pick-smiley" class="v-link">Use the smiley</button><button id="g-pick-cancel" class="v-link">Cancel</button></div>
@@ -113,9 +142,36 @@
     <div id="g-rows"></div>
   </div>
   <div id="g-bar">
-    <button id="g-back" class="g-sq" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"/></svg></button>
-    <button id="g-tab-public" class="g-wide" aria-label="Public drawings">Public</button>
-    <button id="g-tab-mine" class="g-sq avatar" aria-label="Your profile"></button>
+    <div class="tb-side">
+      <button id="g-back" class="tbtn" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"/></svg></button>
+      <button id="g-tab-public" class="tbtn" aria-label="Public drawings" data-go="public"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></button>
+    </div>
+    <div class="tb-mid"><button id="g-new" aria-label="New canvas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div>
+    <div class="tb-side">
+      <button id="g-search-btn" class="tbtn" aria-label="Search artists or canvas titles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20 L16.5 16.5"/></svg></button>
+      <button id="g-tab-mine" class="avatar" aria-label="Your profile"></button>
+    </div>
+  </div>
+  <!-- Search (Dex, 2026-10-08): a pill that sits on the keyboard, artists and
+       canvas titles together, with a filter you can flip while typing. -->
+  <div id="g-find">
+    <div id="g-find-chips" role="radiogroup" aria-label="Search for">
+      <button class="g-chip on" data-kind="all" role="radio" aria-checked="true">All</button>
+      <button class="g-chip" data-kind="artists" role="radio" aria-checked="false">Artists</button>
+      <button class="g-chip" data-kind="canvases" role="radio" aria-checked="false">Canvases</button>
+    </div>
+    <label id="g-search-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20 L16.5 16.5"/></svg><input id="g-search" type="search" placeholder="Search @artist or canvas title" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search"><button id="g-find-x" type="button" aria-label="Close search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="7" y1="7" x2="17" y2="17"/><line x1="17" y1="7" x2="7" y2="17"/></svg></button></label>
+  </div>
+  <!-- Select mode (Dex, 2026-10-08): hold a canvas to start it. A small
+       window you can drag by its top, named after what is picked. -->
+  <div id="g-sel" role="dialog" aria-label="Selected canvases">
+    <div id="g-sel-head"><span id="g-sel-title"></span><button id="g-sel-x" aria-label="Done selecting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="7" y1="7" x2="17" y2="17"/><line x1="17" y1="7" x2="7" y2="17"/></svg></button></div>
+    <div id="g-sel-grid">
+      <button id="sel-dl" class="sel-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 19.5h14"/></svg><span>Download</span></button>
+      <button id="sel-copy" class="sel-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="12" height="12" rx="2.5"/><path d="M15.5 5.5V5A1.5 1.5 0 0 0 14 3.5H5A1.5 1.5 0 0 0 3.5 5v9A1.5 1.5 0 0 0 5 15.5h.5"/></svg><span>Copy</span></button>
+      <button id="sel-share" class="sel-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 5 21h14a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 19 11h-1"/></svg><span>Share</span></button>
+      <button id="sel-del" class="sel-btn danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6 7l1 13h10l1-13"/></svg><span>Delete</span></button>
+    </div>
   </div>
 </div>
 
@@ -130,16 +186,20 @@
   </div>
 </div>
 
+<!-- A public drawing, full size (Dex, 2026-10-08): an overlay with the title
+     at the top and nothing to press up there; the artist, then one bar of
+     controls at the bottom -- back, the poop|fire pill, and more. Swipe up
+     and down for the next and previous drawing, right to left to go back. -->
 <div id="viewer">
-  <button id="v-close" class="v-x" aria-label="Close">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-  </button>
-  <div id="v-stage"><img id="v-img" alt=""></div>
+  <div id="v-title"></div>
+  <div id="v-stage"><img id="v-img" alt="" draggable="false"></div>
+  <button id="v-by" class="v-artist"></button>
   <div id="v-bar">
-    <div id="v-meta"><div id="v-title"></div><button id="v-by" class="by-link"></button></div>
+    <button id="v-close" class="g-sq v-btn" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"/></svg></button>
     <div class="g-react"></div>
-    <div id="v-acts"><button id="v-report" class="v-link">Report</button><button id="v-block" class="v-link">Hide this artist</button></div>
+    <button id="v-more" class="g-sq v-btn" aria-label="More" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
   </div>
+  <div id="v-acts" hidden><button id="v-report" class="v-link">Report</button><button id="v-block" class="v-link">Hide this artist</button></div>
 </div>
 
 <div id="account"><div id="account-card">
