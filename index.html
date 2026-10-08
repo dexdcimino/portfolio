@@ -62,12 +62,14 @@
         <linearGradient id="bgSheen" x1="1460" y1="748.7" x2="1929.1" y2="24.6" gradientUnits="userSpaceOnUse">
           <stop offset="0" stop-color="#0e1217" stop-opacity="0"/><stop offset=".6315" stop-color="#25303d"/><stop offset=".8611" stop-color="#232d39"/><stop offset="1" stop-color="#1f2833"/>
         </linearGradient>
-        <!-- back wedge: transparent below the cut line, solid accent above it -->
+        <!-- the accent grade, shared by both wedges: --accent bottom left to
+             --accent-deep top right. The front wedge fills with this same
+             gradient, so where the two overlap the colour cannot disagree. -->
         <linearGradient id="bgWedge" x1="1231.5" y1="1374.1" x2="1631.3" y2="-42.1" gradientUnits="userSpaceOnUse">
-          <stop class="accent-stop" offset="0" stop-opacity="1"/>
-          <stop class="accent-stop" offset=".5" stop-opacity="1"/>
-          <stop class="accent-stop-rich" offset=".8" stop-opacity="1"/>
-          <stop class="accent-stop-rich" offset="1" stop-opacity="1"/>
+          <stop class="accent-stop" offset="0"/>
+          <stop class="accent-stop" offset=".38"/>
+          <stop class="accent-stop-mid" offset=".66"/>
+          <stop class="accent-stop-deep" offset=".96"/>
         </linearGradient>
         <linearGradient id="bgCorner" x1="-9.7" y1="171.2" x2="491.2" y2="-158.4" gradientUnits="userSpaceOnUse">
           <stop offset="0" stop-color="#0e1217"/><stop offset=".8112" stop-color="#25303d"/>
@@ -91,25 +93,29 @@
   </div>
 
   <!-- Front wedge: the only layer that sits OVER the mascot, exactly as in the
-       source art. Its alpha ramps 0 -> 1 up the page, so the mascot's legs read
-       through the translucent lower half and the top-right stays solid. -->
+       source art. It is painted with the back wedge's own grade (#bgWedge) and
+       FADED by a mask that runs ALONG the band, bottom left to top right:
+       clear over the mascot's lower left, half-there across his chest, solid
+       by the top right corner. The fade used to run nearly straight up the
+       page and reach full strength at the hero's bottom edge, so almost all of
+       it happened below the fold and the band sat solid over his legs. -->
   <div class="bg-front" aria-hidden="true">
     <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="bgFront" x1="1361.7" y1="1355.8" x2="1752.8" y2="-29.3" gradientUnits="userSpaceOnUse">
-          <stop class="accent-stop" offset=".0942" stop-opacity="0"/>
-          <stop class="accent-stop" offset=".1736" stop-opacity=".05"/>
-          <stop class="accent-stop" offset=".2365" stop-opacity=".15"/>
-          <stop class="accent-stop" offset=".2937" stop-opacity=".3"/>
-          <stop class="accent-stop" offset=".3476" stop-opacity=".5"/>
-          <stop class="accent-stop" offset=".3992" stop-opacity=".7"/>
-          <stop class="accent-stop" offset=".449" stop-opacity=".85"/>
-          <stop class="accent-stop" offset=".55" stop-opacity="1"/>
-          <stop class="accent-stop-rich" offset=".8" stop-opacity="1"/>
-          <stop class="accent-stop-rich" offset="1" stop-opacity="1"/>
+        <linearGradient id="bgFrontFade" x1="1010" y1="680" x2="1900" y2="150" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+          <stop offset=".18" stop-color="#fff" stop-opacity=".04"/>
+          <stop offset=".36" stop-color="#fff" stop-opacity=".16"/>
+          <stop offset=".52" stop-color="#fff" stop-opacity=".36"/>
+          <stop offset=".68" stop-color="#fff" stop-opacity=".62"/>
+          <stop offset=".84" stop-color="#fff" stop-opacity=".86"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="1"/>
         </linearGradient>
+        <mask id="bgFrontMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
+          <rect width="1920" height="1080" fill="url(#bgFrontFade)"/>
+        </mask>
       </defs>
-      <polygon points="2244,0 211.9,1080 1288.1,1080 2972.1,0" fill="url(#bgFront)"/>
+      <polygon points="2244,0 211.9,1080 1288.1,1080 2972.1,0" fill="url(#bgWedge)" mask="url(#bgFrontMask)"/>
     </svg>
   </div>
 
