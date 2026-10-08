@@ -25,6 +25,32 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — DexNote accounts reuse dexnote.dev's Firebase project, at a new path
+
+**Decided.** `/dexnote/` mounts the existing notes app with a guest store
+(browser) or an account store (Firebase project `dexnote-d7047`, the one
+dexnote.dev already signs in with). Account documents live at
+`users/{uid}/data/dexnote*`, a path the old app never used. The Firebase SDK is
+self-hosted under `dexnote/vendor/`.
+
+**What it replaced.** The notes were only reachable with the keypad password.
+Considered and not taken: Inko's own OAuth + Vercel Blob (no GitHub sign-in,
+and a second account system beside the Firebase one dexnote.dev users already
+have); a new Firebase project ("DexNote 2", every provider re-registered);
+writing into the old app's `users/{uid}/sessions` (a different document shape,
+so each app would corrupt the other's notes); loading the SDK from gstatic
+(three more hosts in the CSP for no gain).
+
+**Why.** The providers, their OAuth apps and the rules that make
+`users/{uid}/data/*` owner-only already exist, so nothing has to be registered
+or deployed. A separate path means neither app can damage the other's data.
+
+**Reverse it if** dexnote.dev is retired and its Firebase project with it, or
+the notes outgrow a single document per account (then per-session documents,
+still in this project).
+
+---
+
 ## 2026-10-07 — the shared sketch gallery: private stays on the device, and the server is named for the job
 
 **Decided.** Public drawings, accounts and reactions live behind one endpoint,
