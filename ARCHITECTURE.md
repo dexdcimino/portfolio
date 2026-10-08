@@ -706,7 +706,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     the device. Signed out, nothing leaves it.
   - **The two bottom bars are one box size** (`--bar-h`): the size bar is
     only redo, the scrub bar and undo on one centre line (the pixel size
-    shows while dragging, in `#size-preview`), and the toolbar ends in +.
+    shows while dragging, in `#size-preview`). The toolbar starts with +
+    and ends with the gallery, drawn as your profile picture.
+  - **A canvas change is seen.** + and opening a canvas lay a copy of the
+    pad over it (`snapPad`), make the change underneath, then wipe the copy
+    away on a diagonal mask (top left to bottom right, 0.36s) while the new
+    canvas fades in. Off under reduced motion.
   - **The gallery is your profile.** Search across the top (@artists, always);
     a profile header over the cards; and a bottom bar of three: a square back
     arrow, a wide Public, and a square of your own picture that opens your

@@ -552,6 +552,27 @@ function nextUntitled(){
   for (const g of gallery){ const m = /^Untitled (\d+)$/.exec(g.title || ''); if (m) n = Math.max(n, +m[1]); }
   return 'Untitled ' + (n + 1);
 }
+/* The canvas changing, made visible: a copy of what is on screen is laid
+   over the pad, the change happens under it, and the copy wipes away on a
+   diagonal while the new canvas fades in. Returns the function that starts
+   the wipe, so a caller can finish its work (or close the gallery) first. */
+function snapPad(){
+  const pad = $('pad');
+  if (!pad.width || matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {};
+  const snap = document.createElement('canvas');
+  snap.className = 'pad-snap'; snap.width = pad.width; snap.height = pad.height;
+  snap.style.width = pad.clientWidth + 'px'; snap.style.height = pad.clientHeight + 'px';
+  snap.getContext('2d').drawImage(pad, 0, 0);
+  document.querySelectorAll('.pad-snap').forEach(el => el.remove());
+  pad.parentNode.appendChild(snap);
+  return () => requestAnimationFrame(() => {
+    snap.classList.add('go');
+    if (pad.animate) pad.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 360, easing: 'ease-out' });
+    const done = () => snap.remove();
+    snap.addEventListener('animationend', done, { once: true });
+    setTimeout(done, 700);
+  });
+}
 async function startBlank(){
   editingId = null; titleInput.value = nextUntitled();
   bgH = 210; bgS = 35; bgB = 50;
@@ -576,7 +597,9 @@ $('plus-btn').addEventListener('click', async () => {
   closePop();
   if (dirty){ try { await saveCurrent(); } catch (e) { return; } }
   await keepCanvasHistory();
+  const wipe = snapPad();
   await startBlank();
+  wipe();
   toast(titleInput.value);
 });
 
@@ -927,6 +950,7 @@ async function openCanvas(id){
   await keepCanvasHistory();
   const it = gallery.find(g => g.id === id);
   if (!it || !it.png) return;
+  const wipe = snapPad();
   editingId = id; titleInput.value = it.title;
   bgH = it.bg.h; bgS = it.bg.s; bgB = it.bg.b;
   await historyChain;
@@ -939,6 +963,7 @@ async function openCanvas(id){
   scheduleDraft();
   closeGallery();
   refreshPanelUI();
+  wipe();
 }
 $('grid-btn').addEventListener('click', async () => {
   closePop();
@@ -1713,6 +1738,7 @@ function paintMyPic(){
   if (myPicUrl) URL.revokeObjectURL(myPicUrl);
   myPicUrl = myPic && myPic.blob ? URL.createObjectURL(myPic.blob) : null;
   $('g-tab-mine').style.backgroundImage = `url("${myPicUrl || SMILEY}")`;
+  $('grid-pic').style.backgroundImage = `url("${myPicUrl || SMILEY}")`;
   if (galleryTab === 'mine') $('g-avatar').style.backgroundImage = `url("${myPicUrl || SMILEY}")`;
   $('g-pick-smiley').hidden = !myPic;
 }

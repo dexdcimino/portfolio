@@ -354,7 +354,7 @@ try {
     const r = id => document.getElementById(id).getBoundingClientRect();
     const tb = r('toolbar'), t = r('tool-toggle'), title = r('title-input'), lock = r('top-lock');
     return { off: Math.abs((t.left + t.right) / 2 - (tb.left + tb.right) / 2),
-             order: ['grid-btn', 'ed-btn', 'tool-toggle', 'color-btn', 'sym-btn', 'plus-btn'].map(id => [id, r(id).left]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join(','),
+             order: ['plus-btn', 'ed-btn', 'tool-toggle', 'color-btn', 'sym-btn', 'grid-btn'].map(id => [id, r(id).left]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join(','),
              lockRight: lock.left > title.left && Math.abs(lock.top + lock.height / 2 - (title.top + title.height / 2)) < 8,
              install: !!document.getElementById('install-btn'),
              // The size bar is the toolbar's box, with undo, the scrub bar and redo on one centre line.
@@ -362,8 +362,19 @@ try {
                return { h: sb.height, tbH: tb.height, skew: Math.max(Math.abs(c(u) - c(sl)), Math.abs(c(rd) - c(sl))), label: !!document.querySelector('#size-bar #size-v') }; })() };
   });
   note(bars.off < 2, `the draw/erase toggle is ${bars.off.toFixed(1)}px off the toolbar's centre`);
-  note(bars.order === 'grid-btn,ed-btn,tool-toggle,color-btn,sym-btn,plus-btn', `the toolbar reads ${bars.order}`);
+  note(bars.order === 'plus-btn,ed-btn,tool-toggle,color-btn,sym-btn,grid-btn', `the toolbar reads ${bars.order}`);
   note(Math.abs(bars.sizeBar.h - bars.sizeBar.tbH) < 0.5 && bars.sizeBar.skew < 1 && !bars.sizeBar.label, `the size bar: ${JSON.stringify(bars.sizeBar)}`);
+  // A new canvas is SEEN to happen: the old one wiped away on a diagonal over the new one, then gone.
+  {
+    await page.evaluate(() => { window.__wipe = null; new MutationObserver((ms, o) => { const sn = document.querySelector('.pad-snap.go');
+      if (sn){ window.__wipe = { mask: getComputedStyle(sn).maskImage || getComputedStyle(sn).webkitMaskImage, inFrame: sn.parentNode.id }; o.disconnect(); } })
+      .observe(document.getElementById('canvas-frame'), { subtree: true, childList: true, attributes: true }); });
+    await page.click('#plus-btn'); await sleep(900);
+    const wipe = await page.evaluate(() => ({ seen: window.__wipe, left: document.querySelectorAll('.pad-snap').length,
+      pic: /^url\(/.test(document.getElementById('grid-pic').style.backgroundImage) }));
+    note(wipe.seen && /135deg/.test(wipe.seen.mask) && wipe.seen.inFrame === 'canvas-frame' && wipe.left === 0 && wipe.pic,
+      `the + wipe and the gallery picture: ${JSON.stringify(wipe)}`);
+  }
   note(bars.lockRight && !bars.install, `the top row: lock at the right ${bars.lockRight}, install button ${bars.install}`);
   console.log(`colours: canvas ${bg0} -> ${bg1} from its own window, brush sliders left it alone, eyedropper picked ${picked}; toggle ${bars.off.toFixed(1)}px off centre`);
 
