@@ -64,7 +64,7 @@ module.exports = async function handler(req, res) {
         conflict: true, rev: result.rev, savedAt: result.savedAt, doc: result.doc,
       });
     }
-    return res.status(200).json({ ...result, token: store.mintToken() });
+    return res.status(200).json({ ...result, token: store.mintToken(storeId) });
   } catch (err) {
     if (err && err.tooLarge) {
       return res.status(413).json({ error: err.message });
