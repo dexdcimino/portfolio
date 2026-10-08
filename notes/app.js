@@ -128,7 +128,7 @@ function vaultBackend({ token, onToken, onLocked }) {
   };
 }
 
-export async function mount(container, { payload, token, onToken, onLocked, onStatus, backend, headerTail }) {
+export async function mount(container, { payload, token, onToken, onLocked, onStatus, backend, headerTail, headerExtra }) {
   await ensureCss();
 
   /* ---- the document ---- */
@@ -192,9 +192,11 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     /* SEEDED FOR THE PREVIEW. The demo document ships a picture, and an image
        in a body is a data-key that hydrate() resolves against this map before
        it tries the asset endpoint -- the same path a picture dropped into the
-       sandbox takes. Empty for the real notes, where every key is on the
-       server. */
-    demoAssets: demo ? demoAssets() : new Map(),
+       sandbox takes. Present for every store, not only the demo: the AI Lab
+       opens a guest's notes on that same document, and a guest who signs in
+       carries it into an account, so its one built-in picture has to resolve
+       wherever that document ends up. */
+    demoAssets: demoAssets(),
     clean, toText,
     bodyFor: (id) => canvas.querySelector(`.nt-body[data-cat="${CSS.escape(id)}"]`),
     changed,           // a body changed
@@ -349,8 +351,12 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     el('div', { class: 'nt-header-left' }, searchMount),
     el('div', { class: 'nt-header-mid' }, fontBtn, sizeBtn, sep(), fmt.bold, fmt.italic, fmt.underline, fmt.strike, sep(), fmt.left, fmt.center, fmt.right, sep(), spellBtn, fmt.ul, nodeBtn, fmt.table),
     // /dexnote/ is a page, not an overlay: it has nothing to close and puts
-    // its account button where the X would be.
-    el('div', { class: 'nt-header-right' }, status, infoBtn, themeBtn, headerTail || closeBtn));
+    // its account button where the X would be. The homepage overlay keeps its
+    // X and puts the account button first in the group (headerExtra): the
+    // overlay's own padlock and X are drawn over the right end of this row
+    // (styles.css, .ov-lock / .notes-close), so anything placed there is
+    // covered.
+    el('div', { class: 'nt-header-right' }, status, headerExtra || null, infoBtn, themeBtn, headerTail || closeBtn));
   search.initSearch(ctx, searchMount);
   wireHelp(infoBtn);
 
