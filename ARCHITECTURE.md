@@ -713,12 +713,19 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     shows while dragging, in `#size-preview`). The toolbar is gallery,
     eyedropper | brush/eraser | swatch, options -- the gallery at the far
     left because it is the app's main way around (Dex, batch 13). Options
-    swaps the size bar for the options bar (symmetry, canvas, +, download,
-    clear) and closes the
-    sliders, the eyedropper and the canvas colour window. Its canvas swatch
-    opens the canvas window with the title and public/private as well as
-    the colour (`popMode` 'canvas-opts'); the top-left swatch opens it with
-    the colour only. Each swatch toggles its own window. The canvas window
+    swaps the size bar for the options bar (trash, download, +, symmetry,
+    canvas -- Dex, batch 14) and closes the
+    sliders, the eyedropper and the canvas colour window. Picking anything in
+    it puts it away and brings back the bar it replaced -- the brush colour's
+    sliders or the size bar (`optWasColor`) -- and while it is up it is a
+    step on the back trail (`'opt-bar'` in `SHEETS`), so back does the same.
+    `setOptions` syncs the trail a microtask later, so a pick that closes the
+    bar and opens a confirm in one tap swaps one step for the other. Its
+    canvas swatch opens the canvas window with the title and public/private
+    as well as the colour (`popMode` 'canvas-opts'): the lock over the redo
+    column, the title across the whole H/S/B block from the letters, and an
+    X over the undo column that closes it (`placeCanvasTitle()` measures all
+    three). The top-left swatch opens it with the colour only. Each swatch toggles its own window. The canvas window
     (`#brush-pop`) is a PANEL in `#bottom-bars`, not a floating box: the
     toolbar's width, built like `#hsb-bar` so its sliders land on the brush
     colour's, with undo/redo either side (`#cp-sliders`), and the only panel
@@ -737,17 +744,17 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     phone disagree with the fixed bars by the browser's own bar (that put
     the canvas under them). A ResizeObserver on the bars re-fits.
   - **Symmetry shows as a tick** across the top centre of the canvas
-    (`#sym-tick`, placed by fit), not a line drawn into the picture. H, S
+    (`#sym-tick`, placed by fit, in the app's magenta-to-blue gradient), not
+    a line drawn into the picture. H, S
     and B name themselves in a tip above their panel while touched.
   - **A canvas change is seen.** + and opening a canvas lay a copy of the
     pad over it (`snapPad`) and make the change underneath, with the pad
-    itself hidden (`#canvas-frame.swap`). The copy is then ERASED on a
-    diagonal from the top left and the new pad written in behind it on the
-    same diagonal, `--wipe-lag` (220ms) later, both over `--wipe-ms`
-    (520ms) -- two 300% masks run 81% -> 19%, so the whole run is the edge
-    crossing, and the frame goes near-black between the two edges. That gap
-    is the point: two blank canvases of one colour used to swap with nothing
-    to see. Off under reduced motion.
+    itself hidden (`#canvas-frame.swap`). The copy then fades out and the
+    new pad fades in `--fade-lag` (140ms) behind it, both eased over
+    `--fade-ms` (700ms), over the frame's darker fill -- so two blank
+    canvases of one colour still dip a little and come back (the point the
+    batch 12 diagonal wipe made, which Dex found far too abrupt; see
+    docs/DECISIONS.md). Off under reduced motion.
   - **The tool in hand is named under the title** (`#tool-name`,
     `paintToolName()`), one name at a time: the panel that is up (Canvas
     color, Canvas options, Color), else the eyedropper while it is armed,
@@ -759,9 +766,16 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     after release. The click that ends a hold is eaten in the capture phase,
     so a hold is never a tap.
   - **Download asks first**, like clear: Cancel left, a green Download
-    (`openModal(..., 'go')`).
+    with dark letters (`openModal(..., 'go')`). Every confirm sits a fifth
+    of the screen below centre, for the thumb, but never within 24px of the
+    bottom.
+  - **Public/private answers the tap at once.** `toggleVisibility` paints
+    every switch for the canvas (`paintVisibility`: the top lock, the canvas
+    window's, its card) to the new state before the server is asked; taps
+    while one is on its way only move where it should end (`visWant`), and
+    a failure puts it back with a red toast at the top (`toast(..., true)`).
   - **The gallery is your profile.** The page's name at the top left
-    (`#g-page`: Your gallery, Public, @handle or Search), a profile header
+    (`#g-page`, centred at 20px: My gallery, Public gallery, @handle or Search), a profile header
     over the cards, and one bar at the foot built as the canvas toolbar's
     own pill (`--bar-h`): back and a square toggle | + (a new canvas, and
     straight into it) | search and a square of your own picture that opens
@@ -790,11 +804,20 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     chips keep the keyboard up (pointerdown is cancelled).
   - **Select mode** (your gallery): hold a card `HOLD_MS` (450) to start it.
     A tap picks or drops a card; a drag that sets off SIDEWAYS from a card
-    sweeps the run of cards between it and the finger and scrolls at the
-    grid's edges -- the grid is `touch-action:pan-y`, so up and down is
-    still a scroll. The phone's own image menu is off (`touch-callout`, and
-    the card images take no pointer events). `#g-sel` floats top left, moves
-    by its head, is titled with the canvas's title or "N selected", and has
+    sweeps the run of cards between it and the finger -- the grid is
+    `touch-action:pan-y`, so a quick up or down is still a scroll. A HOLD is
+    a sweep in any direction: the finger that held a card (the first, or
+    any card once selecting) drags on without lifting, a non-passive
+    `touchmove` on `#g-rows` stops the page panning under it, and a finger
+    past the grid's top or bottom counts as the edge row. At the grid's
+    edges (`EDGE_ZONE` 72px) it scrolls by `edgeSpeed()`: `EDGE_MIN` 90px/s,
+    rising with depth and over `EDGE_RAMP` 1.5s to at most `EDGE_MAX`
+    900px/s. The phone's own image menu and image drag are off
+    (`touch-callout`, `user-drag`, `dragstart`, and the card images take no
+    pointer events). `#g-sel` opens centred halfway up the screen
+    (`selSpot()`), or the nearest place off the held card -- above it,
+    below it, then beside it -- takes no pointer events during a sweep,
+    moves by its head, is titled with the canvas's title or "N selected", and has
     download, copy (one only), share (Web Share files) and delete, which
     asks "Delete N canvases?". `deleteCanvas(it)` is the one delete path.
     Search and select mode are sheets for back, like the account sheet.
