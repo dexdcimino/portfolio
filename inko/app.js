@@ -506,7 +506,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) flushDraft();
 });
 window.addEventListener('pagehide', () => { flushDraft(); });
-titleInput.addEventListener('input', () => { dirty = true; scheduleDraft(); });
+titleInput.addEventListener('input', () => { dirty = true; scheduleDraft(); const t = document.getElementById('cp-title'); if (t) t.value = titleInput.value; });
 
 /* ---------- toolbar ---------- */
 function syncToolSel(){
@@ -615,24 +615,33 @@ $('plus-btn').addEventListener('click', async () => {
   await startBlank();
   wipe();
   setOptions(false);
-  toast(titleInput.value);
+  toast('New canvas created');
 });
 
 /* ---------- brush popover ---------- */
 function placePop(){
-  const tb = $('toolbar').getBoundingClientRect();
-  brushPop.style.bottom = Math.max(8, $('bottom-bars').getBoundingClientRect().bottom - tb.top + 12) + 'px';
+  // Above the topmost bar, never over one: the options bar stays reachable.
+  const bb = $('bottom-bars').getBoundingClientRect();
+  brushPop.style.bottom = Math.max(8, bb.bottom - bb.top + 8) + 'px';
 }
-function closePop(){ const was = brushPop.classList.contains('open'); popMode = null; brushPop.classList.remove('open'); if (was) fit(); }
+function closePop(){
+  const was = brushPop.classList.contains('open'); popMode = null; brushPop.classList.remove('open');
+  $('copt-btn').classList.remove('on'); $('copt-btn').setAttribute('aria-pressed', 'false');
+  if (was) fit();
+}
 $('pop-x').addEventListener('click', e => { e.stopPropagation(); closePop(); });
 document.addEventListener('pointerdown', e => {
   if (!popMode) return;
   if (brushPop.contains(e.target)) return;
-  if (e.target.closest('#color-btn') || e.target.closest('#tool-toggle') || e.target.closest('#canvas-swatch')) return;
+  if (e.target.closest('#color-btn') || e.target.closest('#tool-toggle') || e.target.closest('#canvas-swatch') || e.target.closest('#copt-btn')) return;
   closePop();
 });
 document.addEventListener('touchstart', e => {
   if (!popMode) return;
+  // Not on the swatch or the window: the swatch sits inside the 28px edge, so
+  // a tap on it closed the window here and the click then opened it again --
+  // the canvas jumping down and up on every tap (Dex, 2026-10-08).
+  if (brushPop.contains(e.target) || e.target.closest('#canvas-swatch, #copt-btn')) return;
   const x = e.touches[0].clientX;
   if (x < 28 || x > window.innerWidth-28) closePop();
 }, {passive:true});
@@ -661,6 +670,7 @@ function paintTracks(prefix, h, s, b){
 function refreshPanelUI(){
   const cd=$('color-dot'); if(cd) cd.style.background = brushCss();
   $('cs-dot').style.background = bgCss();
+  $('copt-dot').style.background = bgCss();
   $('hue').value = hue; $('sat').value = sat; $('bri').value = bri;
   paintTracks('', hue, sat, bri);
   $('cv-hue').value = bgH; $('cv-sat').value = bgS; $('cv-bri').value = bgB;
@@ -801,12 +811,23 @@ function setEyedropper(on){
 $('ed-btn').addEventListener('click', () => setEyedropper(!eyedropperOn));
 $('canvas-swatch').addEventListener('click', e => {
   e.stopPropagation();
-  if (popMode){ closePop(); return; }
-  popMode = 'canvas';
-  refreshPanelUI(); placePop();
-  brushPop.classList.add('open');
-  fit();
+  if (popMode === 'canvas'){ closePop(); return; }
+  openCanvasPop('canvas');
 });
+function openCanvasPop(mode){
+  const opts = mode === 'canvas-opts';
+  popMode = mode;
+  $('cp-more').hidden = !opts;
+  $('bp-title').textContent = opts ? 'Canvas' : 'Canvas color';
+  if (opts){ $('cp-title').value = titleInput.value; syncTopLock(); }
+  $('copt-btn').classList.toggle('on', opts); $('copt-btn').setAttribute('aria-pressed', String(opts));
+  refreshPanelUI();
+  brushPop.classList.add('open');
+  placePop();
+  fit();
+}
+$('cp-title').addEventListener('input', () => { titleInput.value = $('cp-title').value; dirty = true; scheduleDraft(); });
+$('cp-lock').addEventListener('click', e => { e.stopPropagation(); flipCurrent($('cp-lock')); });
 
 /* ---------- color/size mode toggle ---------- */
 let colorMode = false;
@@ -987,11 +1008,15 @@ function renderGallery(){
   thumbUrls.forEach(u => URL.revokeObjectURL(u)); thumbUrls = [];
   const rows = $('g-rows'); rows.innerHTML = '';
   $('g-count').textContent = gallery.length + (gallery.length===1 ? ' canvas' : ' canvases');
-  // Oldest first → newest ends up bottom-right
+  // Oldest at the top left, NEWEST AT THE BOTTOM RIGHT (Dex, 2026-10-08):
+  // rows are cut from the newest end, so the last row is always full and a
+  // new canvas pushes the rest left and up; a short row is the top one,
+  // sitting to the right.
   const items = [...gallery].sort((a, b) => (a.created || a.ts) - (b.created || b.ts));
-  for (let i=0; i<items.length; i+=3){
-    const row = document.createElement('div'); row.className = 'g-row';
-    items.slice(i, i+3).forEach(it => row.appendChild(makeItem(it, false)));
+  const short = items.length % 3;
+  for (let i = short ? short - 3 : 0; i < items.length; i += 3){
+    const row = document.createElement('div'); row.className = 'g-row' + (i < 0 ? ' short' : '');
+    items.slice(Math.max(0, i), i + 3).forEach(it => row.appendChild(makeItem(it, false)));
     rows.appendChild(row);
   }
   $('g-grid').scrollTop = 0;   // the profile first
@@ -1025,17 +1050,22 @@ $('grid-btn').addEventListener('click', async () => {
   setOptions(false);
   openGallery();
 });
-// Your picture opens your profile.
-$('prof-btn').addEventListener('click', async () => {
-  closePop();
-  if (dirty) await saveCurrent().catch(() => {});
-  setGalleryTab('mine');
-  setOptions(false);
-  openGallery();
+$('dl-btn').addEventListener('click', () => downloadItem(null, true));
+// The canvas window from down here: colour, title and public/private.
+$('copt-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  if (popMode === 'canvas-opts'){ closePop(); return; }
+  openCanvasPop('canvas-opts');
 });
 // Clear asks first; undo brings it back (clearCanvas is one history step).
 $('clear-btn').addEventListener('click', () => {
-  openModal('Clear this canvas?', 'Undo brings it back.', 'Clear', () => { clearCanvas(); setOptions(false); });
+  // ...and it becomes the newest canvas, at the bottom right of the gallery,
+  // wherever it was (Dex, 2026-10-08). Same canvas underneath, so undo works.
+  openModal('Clear this canvas?', 'Undo brings it back.', 'Clear', () => {
+    const it = currentItem(); if (it) it.created = Date.now();
+    clearCanvas(); setOptions(false);
+    saveCurrent().catch(() => {});
+  });
 });
 /* Back: out of a search, out of picking a picture, from an artist back to
    Public -- and otherwise to the canvas. */
@@ -1049,8 +1079,13 @@ $('g-back').addEventListener('click', () => {
 
 /* ---------- toast ---------- */
 let toastT = null;
-function toast(msg){
-  toastEl.textContent = msg;
+function toast(msg, sub){
+  // Two short lines when there is a second; centred under the title, or low over the gallery.
+  if (sub){ const b = document.createElement('b'), s = document.createElement('small'); b.textContent = msg; s.textContent = sub; toastEl.replaceChildren(b, s); }
+  else toastEl.textContent = msg;
+  const low = $('gallery').classList.contains('open');
+  toastEl.classList.toggle('low', low);
+  if (!low) toastEl.style.top = ($('title-input').getBoundingClientRect().bottom + 10) + 'px';
   toastEl.classList.add('show');
   clearTimeout(toastT);
   toastT = setTimeout(() => toastEl.classList.remove('show'), 2200);
@@ -1320,7 +1355,7 @@ async function resumePublish(){
     gallery = [rec, ...gallery]; it = rec;
   }
   if (it.visibility !== 'public'){
-    try { await publishItem(it); toast('Public — in the shared gallery'); } catch (e) { toast(e.message); }
+    try { await publishItem(it); toast('This canvas is now public', 'Shared in the online gallery'); } catch (e) { toast(e.message); }
   }
   syncTopLock();
   if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
@@ -1329,8 +1364,8 @@ async function toggleVisibility(it, btn){
   if (!session){ rememberPublish(it.id); openAccount(); return; }
   btn.disabled = true;
   try {
-    if (it.visibility === 'public'){ await unpublishItem(it); toast('Private — only on this device'); }
-    else { await publishItem(it); toast('Public — in the shared gallery'); }
+    if (it.visibility === 'public'){ await unpublishItem(it); toast('This canvas is now private', 'Only you can see it'); }
+    else { await publishItem(it); toast('This canvas is now public', 'Shared in the online gallery'); }
   } catch (e) { toast(e.message); }
   btn.disabled = false;
   paintPubButton(btn, it);
@@ -1340,14 +1375,15 @@ async function toggleVisibility(it, btn){
 /* The lock at the top right is the canvas on screen's own public/private
    switch, the same one its gallery card carries. */
 const currentItem = () => (editingId ? gallery.find(g => g.id === editingId) : null);
-function syncTopLock(){ const b = $('top-lock'); if (b) paintPubButton(b, currentItem() || { visibility: 'private' }); }
-$('top-lock').addEventListener('click', async e => {
-  e.stopPropagation();
-  closePop();
+function syncTopLock(){
+  for (const id of ['top-lock', 'cp-lock']){ const b = $(id); if (b) paintPubButton(b, currentItem() || { visibility: 'private' }); }
+}
+async function flipCurrent(btn){
   if (dirty || !currentItem()){ try { await saveCurrent(); } catch (err) { return; } }
   const it = currentItem();
-  if (it) toggleVisibility(it, $('top-lock'));
-});
+  if (it) toggleVisibility(it, btn);
+}
+$('top-lock').addEventListener('click', e => { e.stopPropagation(); closePop(); flipCurrent($('top-lock')); });
 function paintPubButton(btn, it){
   const pub = it.visibility === 'public';
   btn.classList.toggle('on', pub);
@@ -1648,6 +1684,7 @@ window.addEventListener('popstate', () => {
 function openGallery(){
   if ($('gallery').classList.contains('open')) return;
   $('gallery').classList.add('open');
+  toastEl.classList.remove('show');   // a canvas toast belongs under the canvas's title, not over the gallery
   visit(placeNow());
 }
 function closeGallery(){
@@ -1851,7 +1888,6 @@ function paintMyPic(){
   if (myPicUrl) URL.revokeObjectURL(myPicUrl);
   myPicUrl = myPic && myPic.blob ? URL.createObjectURL(myPic.blob) : null;
   $('g-tab-mine').style.backgroundImage = `url("${myPicUrl || SMILEY}")`;
-  $('grid-pic').style.backgroundImage = `url("${myPicUrl || SMILEY}")`;
   if (galleryTab === 'mine') $('g-avatar').style.backgroundImage = `url("${myPicUrl || SMILEY}")`;
   $('g-pick-smiley').hidden = !myPic;
 }

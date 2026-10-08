@@ -372,10 +372,9 @@ try {
       if (sn){ window.__wipe = { mask: getComputedStyle(sn).maskImage || getComputedStyle(sn).webkitMaskImage, inFrame: sn.parentNode.id }; o.disconnect(); } })
       .observe(document.getElementById('canvas-frame'), { subtree: true, childList: true, attributes: true }); });
     await optTap(page, '#plus-btn'); await sleep(900);
-    const wipe = await page.evaluate(() => ({ seen: window.__wipe, left: document.querySelectorAll('.pad-snap').length,
-      pic: /^url\(/.test(document.getElementById('grid-pic').style.backgroundImage) }));
-    note(wipe.seen && /135deg/.test(wipe.seen.mask) && wipe.seen.inFrame === 'canvas-frame' && wipe.left === 0 && wipe.pic,
-      `the + wipe and the gallery picture: ${JSON.stringify(wipe)}`);
+    const wipe = await page.evaluate(() => ({ seen: window.__wipe, left: document.querySelectorAll('.pad-snap').length }));
+    note(wipe.seen && /135deg/.test(wipe.seen.mask) && wipe.seen.inFrame === 'canvas-frame' && wipe.left === 0,
+      `the + wipe: ${JSON.stringify(wipe)}`);
   }
   // Back follows the way you came, two backs at most to leave (cold launch, so the trail is fresh).
   {
@@ -417,7 +416,7 @@ try {
     await page.evaluate(() => { document.getElementById('tall').remove(); dispatchEvent(new Event('resize')); }); await sleep(200);
     note(Object.values(gaps).every(g => Math.abs(g - 8) < 1.1), `the canvas sits 8px above each panel: ${JSON.stringify(gaps)}`);
     note(/^Saturation \d+%$/.test(tip.text) && tip.off < 1 && tip.above, `the S tip: ${JSON.stringify(tip)}`);
-    note(opt.hsb === 'none' && opt.size === 'none' && opt.order === 'prof-btn,grid-btn,plus-btn,clear-btn' && Math.abs(opt.h - opt.tb) < 0.5, `the options bar: ${JSON.stringify(opt)}`);
+    note(opt.hsb === 'none' && opt.size === 'none' && opt.order === 'grid-btn,copt-btn,plus-btn,dl-btn,clear-btn' && Math.abs(opt.h - opt.tb) < 0.5, `the options bar: ${JSON.stringify(opt)}`);
     // The big tool icon dead centre, either way round.
     const centre = () => page.evaluate(() => { const t = document.getElementById('tool-toggle').getBoundingClientRect(), b = document.querySelector('#tool-toggle .tool-ico.big').getBoundingClientRect();
       return Math.max(Math.abs((b.left + b.right) / 2 - (t.left + t.right) / 2), Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2)); });
@@ -447,6 +446,52 @@ try {
     await page.click('#sym-btn'); await sleep(150);
     const gone = await page.evaluate(() => document.getElementById('sym-tick').hidden);
     note(tick.shown && tick.off < 1 && tick.above > 3 && tick.into > 5 && tick.into < 14 && tick.w <= 3 && !tick.line && gone, `the symmetry tick: ${JSON.stringify(tick)}, hidden again ${gone}`);
+  }
+  // Batch 8: the toast under the title, newest canvas bottom right, clear moving a canvas there, the swatch toggling, the canvas window from the options bar, download.
+  {
+    await optTap(page, '#plus-btn'); await sleep(250);
+    const t = await page.evaluate(() => { const e = document.getElementById('toast'), r = e.getBoundingClientRect(), ti = document.getElementById('title-input').getBoundingClientRect();
+      return { text: e.textContent, below: Math.round(r.top - ti.bottom), off: Math.abs((r.left + r.right) / 2 - innerWidth / 2), shown: e.classList.contains('show') }; });
+    note(t.text === 'New canvas created' && t.shown && t.below >= 0 && t.below < 30 && t.off < 1, `the + toast: ${JSON.stringify(t)}`);
+    const grid = async () => { await optTap(page, '#grid-btn'); await sleep(400);
+      if (await page.evaluate(() => !/mode-mine/.test(document.getElementById('gallery').className))) { await page.click('#g-tab-public'); await sleep(400); }
+      const g = await page.evaluate(() => { const rows = [...document.querySelectorAll('#g-rows .g-row')], last = rows[rows.length - 1], items = [...document.querySelectorAll('#g-rows .g-item')];
+        return { n: items.length, lastRow: last ? last.children.length : 0, lastIsCurrent: !!items.length && items[items.length - 1].classList.contains('current'),
+                 shortTop: rows.length && rows[0].children.length < 3 ? getComputedStyle(rows[0]).justifyContent : 'full' }; });
+      return g; };
+    const g1 = await grid();
+    note(g1.n > 3 && g1.lastRow === 3 && g1.lastIsCurrent && (g1.shortTop === 'full' || g1.shortTop === 'flex-end'), `the gallery after +: newest bottom right ${JSON.stringify(g1)}`);
+    // An OLD canvas, cleared, becomes the newest.
+    await page.evaluate(() => document.querySelector('#g-rows .g-item:not(.current) img, #g-rows .g-item:not(.current) .g-thumb').click()); await sleep(600);
+    await stroke();
+    await optTap(page, '#clear-btn'); await sleep(200); await page.click('#m-del'); await sleep(700);
+    const g2 = await grid();
+    note(g2.n === g1.n && g2.lastRow === 3 && g2.lastIsCurrent, `a cleared old canvas moves to the bottom right: ${JSON.stringify(g2)}`);
+    await page.click('#g-back'); await sleep(300);
+    // The top-left swatch, tapped by a FINGER inside the edge guard, toggles.
+    const sw = await page.evaluate(() => { const b = document.getElementById('canvas-swatch').getBoundingClientRect(); return { x: b.left + 6, y: b.top + b.height / 2 }; });
+    const taps = [];
+    for (let i = 0; i < 3; i++){ await page.touchscreen.tap(sw.x, sw.y); await sleep(250); taps.push(await page.evaluate(() => document.getElementById('brush-pop').classList.contains('open'))); }
+    if (taps[2]) { await page.click('#pop-x'); await sleep(200); }
+    note(taps.join() === 'true,false,true', `three taps on the top-left swatch: ${taps.join()}`);
+    // The canvas window from the options bar: colour, title and public, above the bar.
+    await page.click('#opt-btn'); await sleep(200);
+    await page.click('#copt-btn'); await sleep(300);
+    const cw = await page.evaluate(() => { const p = document.getElementById('brush-pop').getBoundingClientRect(), o = document.getElementById('opt-bar').getBoundingClientRect(), c = document.getElementById('pad').getBoundingClientRect();
+      return { open: document.getElementById('brush-pop').classList.contains('open'), more: !document.getElementById('cp-more').hidden, title: document.getElementById('cp-title').value === document.getElementById('title-input').value,
+               lock: !!document.querySelector('#cp-lock svg'), aboveBar: p.bottom <= o.top, gap: Math.round(p.top - c.bottom) }; });
+    await page.click('#cp-title'); await page.evaluate(() => document.getElementById('cp-title').select()); await page.keyboard.type('Thumb title'); await sleep(150);
+    const typed = await page.evaluate(() => document.getElementById('title-input').value);
+    await page.click('#copt-btn'); await sleep(250);
+    const shut = await page.evaluate(() => !document.getElementById('brush-pop').classList.contains('open'));
+    note(cw.open && cw.more && cw.title && cw.lock && cw.aboveBar && Math.abs(cw.gap - 8) < 1.1 && typed === 'Thumb title' && shut,
+      `the canvas window from the options bar: ${JSON.stringify(cw)}, title typed there reads "${typed}" up top, shut again ${shut}`);
+    // Download: one PNG named after the canvas.
+    await page.evaluate(() => { window.__dl = null; const orig = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function(){ if (this.download){ window.__dl = this.download; return; } return orig.call(this); }; });
+    await optTap(page, '#dl-btn'); await sleep(400);
+    const dl = await page.evaluate(() => window.__dl);
+    note(dl === 'inko-thumb-title.png', `download named ${dl}`);
+    await page.evaluate(() => { if (!document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); });
   }
   note(bars.lockRight && !bars.install, `the top row: lock at the right ${bars.lockRight}, install button ${bars.install}`);
   console.log(`colours: canvas ${bg0} -> ${bg1} from its own window, brush sliders left it alone, eyedropper picked ${picked}; toggle ${bars.off.toFixed(1)}px off centre`);

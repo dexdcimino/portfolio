@@ -708,9 +708,17 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     only redo, the scrub bar and undo on one centre line (the pixel size
     shows while dragging, in `#size-preview`). The toolbar is options,
     eyedropper | brush/eraser | swatch, symmetry. Options swaps the size bar
-    for the options bar (your profile, gallery, +, clear) and closes the
-    sliders, the eyedropper and the canvas colour window; clear asks first
-    and is one undo step.
+    for the options bar (gallery, canvas, +, download, clear) and closes the
+    sliders, the eyedropper and the canvas colour window. Its canvas swatch
+    opens the canvas window with the title and public/private as well as
+    the colour (`popMode` 'canvas-opts'); the top-left swatch opens it with
+    the colour only. Each swatch toggles its own window. Clear asks first,
+    is one undo step, and re-stamps the canvas's `created`, so it moves to
+    the newest place in the gallery.
+  - **Your gallery runs oldest top left to newest bottom right.** Rows are
+    cut from the newest end, so the last row is full and a short row sits
+    on top, right-aligned. Toasts sit centred under the title (low again
+    over the gallery), with an optional second line.
   - **The canvas stands on whichever panel is up**, 8px above it. `fit()`
     reads the panels' and the topbar's own boxes and sets the FIXED stage's
     top and bottom from them -- never innerHeight or the flow, which on a

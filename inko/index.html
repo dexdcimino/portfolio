@@ -43,14 +43,17 @@
   </button>
 </div>
 <div id="opt-bar" hidden>
-  <!-- Profile, gallery, new canvas, clear canvas: each happens at once, and
-       then the size bar comes back. Only clear asks first. -->
-  <button id="prof-btn" class="tbtn" aria-label="Your profile"><span id="grid-pic" class="avatar"></span></button>
+  <!-- Gallery, the canvas (colour, title, public), new, download, clear
+       (Dex, 2026-10-08). Only clear asks first. -->
   <button id="grid-btn" class="tbtn" aria-label="Gallery">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2.5" width="14" height="14" rx="3.2"/><path d="M16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V7.5"/><path d="M7.8 13.6l3.6-3.6 2.8 2.8 1.9-1.9 5 5"/><circle cx="16.6" cy="7.4" r="1.5" fill="currentColor" stroke="none"/></svg>
   </button>
+  <button id="copt-btn" class="tbtn" aria-label="Canvas: colour, title, public" aria-pressed="false"><span id="copt-dot"></span></button>
   <button id="plus-btn" class="tbtn" aria-label="New canvas">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+  <button id="dl-btn" class="tbtn" aria-label="Download this canvas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 19.5h14"/></svg>
   </button>
   <button id="clear-btn" class="tbtn" aria-label="Clear canvas">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
@@ -94,7 +97,8 @@
   </div>
 </div>
 
-<!-- The CANVAS color window, opened from the top-left swatch only. Its
+<!-- The CANVAS window: its colour from the top-left swatch, and colour,
+     title and public/private from the options bar's swatch. Its
      sliders have their own ids: they used to share hue/sat/bri with the brush
      bar, so getElementById found the brush bar's, the window's own sliders
      did nothing, and the brush sliders went on painting the canvas. -->
@@ -103,6 +107,10 @@
   <div id="bp-head">
     <span id="bp-title">Canvas color</span>
     <button id="pop-x" aria-label="Close">✕</button>
+  </div>
+  <div id="cp-more" hidden>
+    <input id="cp-title" type="text" maxlength="60" aria-label="Title" placeholder="Untitled" autocomplete="off" spellcheck="false">
+    <button id="cp-lock" class="cp-lock" aria-label="Private — make public"></button>
   </div>
   <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="cv-hue" min="0" max="360" value="210"></div>
   <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="cv-sat" min="0" max="100" value="35"></div>
