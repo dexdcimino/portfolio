@@ -712,7 +712,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     sliders, the eyedropper and the canvas colour window. Its canvas swatch
     opens the canvas window with the title and public/private as well as
     the colour (`popMode` 'canvas-opts'); the top-left swatch opens it with
-    the colour only. Each swatch toggles its own window. Clear asks first,
+    the colour only. Each swatch toggles its own window. The canvas window
+    (`#brush-pop`) is a PANEL in `#bottom-bars`, not a floating box: the
+    toolbar's width, built like `#hsb-bar` so its sliders land on the brush
+    colour's, with undo/redo either side (`#cp-sliders`), and the only panel
+    up while open -- it closes the options bar, the size bar and the brush
+    colour, and the eyedropper, the brush/eraser toggle or the brush swatch
+    close it and bring their own back. Clear is a trash can. Clear asks first,
     is one undo step, and re-stamps the canvas's `created`, so it moves to
     the newest place in the gallery.
   - **Your gallery runs oldest top left to newest bottom right.** Rows are
@@ -768,8 +774,17 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     two buttons into the brush colour bar in colour mode (redo | H/S/B |
     undo, level with S) and back into the size bar after. Picking a brush
     colour with the eraser on switches to the brush.
-  - **A public tile is only the drawing**, two across: the artist's face and
-    @tag along its foot (ellipsis when long) and the fire count in a corner.
+  - **A public tile is only the drawing**, two across: the artist's face
+    along its foot with the @tag folded into it (the face shows the tag, the
+    tag opens their profile, which lists their public drawings only) and the
+    fire count in a corner. Your own carry the globe top left; a tap makes
+    the drawing private and it leaves Public (`unpublishFromFeed`).
+  - **Your picture on the gallery bar**, tapped in your own gallery, opens
+    `#g-prof` above the bar: Picture (pick a canvas), @name, Sign out,
+    Delete -- or Picture and Sign in, signed out.
+  - **Slots for the social features**: `#g-prof-slot` in the profile header,
+    `#v-slot` in the viewer, `.p-slot` on each public tile, all empty; and
+    `inko:tile` {el, post} dispatched on document by `feedItem`.
     No title and no poop on the grid; rating happens in the viewer.
   - **The viewer is an overlay over the grid it came from** and holds that
     grid's list: the title at the top, nothing to press in the top half, and

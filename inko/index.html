@@ -59,8 +59,23 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 19.5h14"/></svg>
   </button>
   <button id="clear-btn" class="tbtn" aria-label="Clear canvas">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v5.5M14 11v5.5"/></svg>
   </button>
+</div>
+<!-- The canvas window (Dex, 2026-10-08): a panel in the bars, the width of
+     the toolbar, and the only one up while it is open. Its sliders sit
+     exactly where the brush colour's do, undo and redo either side. -->
+<div id="brush-pop" role="group" aria-label="Canvas">
+  <div class="hsb-tip" hidden></div>
+  <div id="cp-more" hidden>
+    <input id="cp-title" type="text" maxlength="60" aria-label="Title" placeholder="Untitled" autocomplete="off" spellcheck="false">
+    <button id="cp-lock" class="cp-lock" aria-label="Private — make public"></button>
+  </div>
+  <div id="cp-sliders"><div class="hsb-rows">
+    <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="cv-hue" min="0" max="360" value="210"></div>
+    <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="cv-sat" min="0" max="100" value="35"></div>
+    <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="cv-bri" min="0" max="100" value="50"></div>
+  </div></div>
 </div>
 
 <div id="toolbar">
@@ -105,21 +120,6 @@
      sliders have their own ids: they used to share hue/sat/bri with the brush
      bar, so getElementById found the brush bar's, the window's own sliders
      did nothing, and the brush sliders went on painting the canvas. -->
-<div id="brush-pop">
-  <div class="hsb-tip" hidden></div>
-  <div id="bp-head">
-    <span id="bp-title">Canvas color</span>
-    <button id="pop-x" aria-label="Close">✕</button>
-  </div>
-  <div id="cp-more" hidden>
-    <input id="cp-title" type="text" maxlength="60" aria-label="Title" placeholder="Untitled" autocomplete="off" spellcheck="false">
-    <button id="cp-lock" class="cp-lock" aria-label="Private — make public"></button>
-  </div>
-  <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="cv-hue" min="0" max="360" value="210"></div>
-  <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="cv-sat" min="0" max="100" value="35"></div>
-  <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="cv-bri" min="0" max="100" value="50"></div>
-</div>
-
 <div id="size-preview"><div id="sp-circle"></div><div id="sp-label">45px</div></div>
 
 <!-- The gallery (Dex, 2026-10-08): a profile header over YOUR canvases
@@ -139,6 +139,8 @@
       <button id="g-avatar" class="avatar big" aria-label="Change your profile picture"></button>
       <div id="g-namerow"><span id="g-user-name" hidden></span><button id="g-account" class="g-account">Sign in</button></div>
       <span id="g-count"></span>
+      <!-- For the social features (follow, likes): an empty slot. -->
+      <div id="g-prof-slot"></div>
     </div>
     <div id="g-rows"></div>
   </div>
@@ -152,6 +154,15 @@
       <button id="g-search-btn" class="tbtn" aria-label="Search artists or canvas titles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20 L16.5 16.5"/></svg></button>
       <button id="g-tab-mine" class="avatar" aria-label="Your profile"></button>
     </div>
+  </div>
+  <!-- Your profile's options (Dex, 2026-10-08): your picture on the bar,
+       tapped in your own gallery, opens this bar above it. -->
+  <div id="g-prof" hidden>
+    <button id="pf-pic" class="pf-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="9.5" cy="10" r="1.2" fill="currentColor"/><circle cx="14.5" cy="10" r="1.2" fill="currentColor"/><path d="M8.5 14.5c1.9 1.8 5.1 1.8 7 0"/></svg><span>Picture</span></button>
+    <button id="pf-name" class="pf-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3.8l4.2 4.2L8.5 19.7 3.8 20.2l.5-4.7z"/></svg><span>@name</span></button>
+    <button id="pf-out" class="pf-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/></svg><span>Sign out</span></button>
+    <button id="pf-del" class="pf-btn danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6 7l1 13h10l1-13"/></svg><span>Delete</span></button>
+    <button id="pf-in" class="pf-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5.5A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20H10"/><path d="M14 8l4 4-4 4"/><path d="M18 12H8"/></svg><span>Sign in</span></button>
   </div>
   <!-- Search (Dex, 2026-10-08): a pill that sits on the keyboard, artists and
        canvas titles together, with a filter you can flip while typing. -->
@@ -195,6 +206,8 @@
   <div id="v-title"></div>
   <div id="v-stage"><img id="v-img" alt="" draggable="false"></div>
   <button id="v-by" class="v-artist"></button>
+  <!-- For the social features (comments, likes): an empty slot. -->
+  <div id="v-slot"></div>
   <div id="v-bar">
     <button id="v-close" class="g-sq v-btn" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"/></svg></button>
     <div class="g-react"></div>
