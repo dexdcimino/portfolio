@@ -898,7 +898,8 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   - **Moderation is in from the start**, because the app stores require it for
     anything users share: report (three different people hide a post), hide
     an artist (this device only), and `moderate` (hide / restore / delete),
-    which accepts Dex's universal admin JWT from `api/auth/unlock`.
+    which accepts Dex's universal admin JWT from `api/auth/unlock` (only one
+    minted for him signed in: `lib/owner-auth.js` `adminOk`).
   - **One reaction per person per post**, 🔥 or 💩, switchable; counts are
     recomputed from the vote file on every change, never incremented.
   - **Profiles.** A picture is `sketch/avatars/<handle>-<v>.jpg`, public
@@ -3298,9 +3299,11 @@ tools/music_probe.mjs    asks YouTube whether every link still plays. --cases
 **THE LIST IS LIVE, AND ONLY `TUNES` EDITS IT** (Dex, 2026-09-15). The playlist
 is one JSON document in the same Blob store the notes use, `music/playlist.json`,
 seeded from the baked `tracks.json` the first time it is read. Both codes open
-the SAME overlay: `MUSIC` reads it, `TUNES` also sends the typed code to
-`/api/music/playlist`, which checks it against `TUNES_PASSWORD` with scrypt and
-hands back a twelve-hour token. Admin is that token and nothing else -- the
+the SAME overlay, read-only for anyone. With Dex signed in, opening it sends
+his Firebase ID token to `/api/music/playlist`, which checks it with
+`lib/owner-auth.js` and hands back a twelve-hour token; no code is read (see
+"Admin is Dex signed in"). `TUNES_PASSWORD` lives on only as the key that
+token is signed with. Admin is that token and nothing else -- the
 vault code only chooses the door, and the page's source is public, so the
 server is the only place a "may this edit" answer can live. Without the token
 every tick is `disabled`, the Add and Backups buttons are hidden and the rows
@@ -4044,14 +4047,58 @@ ladder, rules, guides, contracts, funding) is served by its `/api/private`
 only to a DexAuth token, and that repo must stay private on GitHub because
 the private text sits in the function source.
 
-The padlock over the overlay takes Dex's password, mints the universal JWT
-(`api/auth/unlock`) and posts it into the frame as `dex-auth`; closing the
-overlay posts `dex-lock`. The work deployment checks the token with its own
+With Dex signed in the page holds the universal JWT (`api/auth/unlock`, minted
+for his sign-in) and posts it into the frame as `dex-auth` when the frame
+loads, when the overlay opens, and when he signs in with it up; signing out
+posts `dex-lock`. The work deployment checks the token with its own
 `AUTH_SECRET` when that is set, and otherwise asks **`api/auth/verify`**,
 which is why that file has a default handler: GET with `Authorization:
-Bearer <jwt>` answers `{ ok, tier, exp }` or 401. It holds no data and grants
+Bearer <jwt>` answers `{ ok, tier, owner, exp }` or 401, and the work repo
+refuses a token without `owner: true` either way. It holds no data and grants
 nothing a token did not already grant. It was a function slot before (a file
 in `api/` with no handler), so it costs no extra slot.
+
+### Admin is Dex signed in
+
+Since 2026-10-08 (Dex: "being signed in on my account automatically gives me
+permissions everywhere ... dexdc will no more") admin is ONE thing: a Firebase
+ID token that `lib/owner-auth.js` `ownerOf()` says is Dex's (`isOwner()`:
+verified `dexdcimino@gmail.com`, through Google). No code opens anything of
+his. `api/auth/unlock` mints the DexAuth JWT for that token alone,
+`api/music/playlist` unlock takes it (or the JWT), and `api/notes/unlock`
+opens the private store -- the DEXDC notes, same store, same bytes -- for it,
+the JWT, or a session token one of those opened. A password there reaches
+only the public page (`notes`). An outage at Google's certificate server is a
+502, never a way in.
+
+Everything minted for Dex says so, and every check refuses what does not: the
+DexAuth JWT carries `owner: true` (`mintAdmin` / `adminOk`), a private notes
+session token carries `owner: true`, a TUNES token is `owner:<expiry>`. That
+retired, on deploy, every token a code minted before.
+
+On the page (top of `script.js`): `window.dexOwnerCheck()` asks
+`/api/auth/unlock` with `window.siteIdToken()` on load and whenever the
+sign-in changes (the `storage` event from another tab, `site:user` from
+`account/site-auth.js` and `dexnote/cloud.js` in this one), keeps the JWT in
+`DexAuth`, and sets `window.dexOwner.is`, firing `dex:owner` on `document`
+when it flips. Music asks for editing whenever it opens for Dex and drops it
+when he signs out; Mission Control gets the JWT as above. `siteIdToken()`
+reads the site-auth mirror flag first, so a visitor never downloads Firebase.
+
+**DEXDC is a way to his notes, not a key.** Typed in the tilde keypad, the
+Idea Vault or the notes keypad it fires `notes:mine`: the notes overlay opens
+on the account's notes (for Dex's Google, the DEXDC notes -- the server
+decides) and, signed out, the sign-in sheet comes up over it. Nothing is sent
+to a server for the code itself.
+
+The client-side Idea Vault codes are NOT behind this: their payloads ship in
+the page and are public by construction (the backlog and the doors), so a
+check in the browser would be decoration. Every door that leads to data checks
+on the server.
+
+**Checked by** `tools/owner_gate_check.mjs` (every door, in-process, no
+server) and `tools/music_admin_check.mjs` (the music overlay editing for Dex
+signed in and for nobody else, and a sign-out ending it with the list up).
 
 ## Known-outstanding
 

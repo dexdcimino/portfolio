@@ -54,6 +54,15 @@ function init() {
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
+    /* The same mirror /account/site-auth.js keeps: "someone is signed in",
+       readable without the SDK. The homepage only fetches an ID token to
+       ask whether this is Dex when it is set (script.js siteIdToken), so a
+       sign-in made here has to set it too. */
+    onAuthStateChanged(auth, (u) => {
+      try { u ? localStorage.setItem('site:signedIn', '1') : localStorage.removeItem('site:signedIn'); } catch { /* private mode */ }
+      // The homepage asks the server whether this is Dex (script.js dexOwnerCheck).
+      window.dispatchEvent(new CustomEvent('site:user', { detail: { signedIn: !!u } }));
+    });
   }
 }
 

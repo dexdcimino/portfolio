@@ -73,7 +73,7 @@ const post = (body) => call('POST', { body });
 const b64u = (x) => Buffer.from(x).toString('base64url');
 function adminJwt() {
   const h = b64u(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const b = b64u(JSON.stringify({ tier: 'admin', exp: Math.floor(Date.UTC(2030, 0, 1) / 1000) }));
+  const b = b64u(JSON.stringify({ tier: 'admin', owner: true, exp: Math.floor(Date.UTC(2030, 0, 1) / 1000) }));
   return `${h}.${b}.${b64u(createHmac('sha256', process.env.AUTH_SECRET).update(h + '.' + b).digest())}`;
 }
 const ADMIN = adminJwt();

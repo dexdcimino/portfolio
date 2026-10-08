@@ -1,7 +1,7 @@
 /* A local stand-in for Vercel, so the notes overlay can be driven end to end
  * on this machine.
  *
- * It serves the repo as static files and routes /api/notes/* and
+ * It serves the repo as static files and routes /api/notes/*, /api/auth/* and
  * /api/chess/table to THE REAL HANDLERS in api/. Nothing about the password check, the token, the
  * seeding, the revision check, the backup tiers or the asset store is
  * re-implemented here — those are the shipped modules, required directly.
@@ -48,6 +48,10 @@ process.env.NOTES_PASSWORD = process.env.NOTES_PASSWORD || 'notes';
 // The playlist's edit password, for the TUNES code. The vault folds codes to
 // upper case and so does the check, so this matches whatever case is typed.
 process.env.TUNES_PASSWORD = process.env.TUNES_PASSWORD || 'tunes';
+// The DexAuth signing key. /api/auth/unlock mints for Dex signed in only, so
+// a harness that wants admin brings its own certificate server too
+// (SITE_AUTH_CERTS_URL / SITE_AUTH_PROJECT; music_admin_check does).
+process.env.AUTH_SECRET = process.env.AUTH_SECRET || 'dev-auth-secret';
 delete process.env.VERCEL_ENV;
 
 if (process.argv.includes('--legacy')) {
@@ -62,6 +66,8 @@ const save = require(join(ROOT, 'api/notes/save.js'));
 const asset = require(join(ROOT, 'api/notes/asset.js'));
 const chessTable = require(join(ROOT, 'api/chess/table.js'));
 const musicPlaylist = require(join(ROOT, 'api/music/playlist.js'));
+const authUnlock = require(join(ROOT, 'api/auth/unlock.js'));
+const authVerify = require(join(ROOT, 'api/auth/verify.js'));
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -95,8 +101,10 @@ const server = createServer(async (req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
   shim(res);
 
-  if (url.startsWith('/api/notes/') || url.startsWith('/api/chess/') || url.startsWith('/api/music/')) {
+  if (url.startsWith('/api/notes/') || url.startsWith('/api/chess/') || url.startsWith('/api/music/') || url.startsWith('/api/auth/')) {
     const route = url === '/api/notes/unlock' ? unlock
+                : url === '/api/auth/unlock' ? authUnlock
+                : url === '/api/auth/verify' ? authVerify
                 : url === '/api/notes/save' ? save
                 : url === '/api/notes/asset' ? asset
                 : url === '/api/chess/table' ? chessTable

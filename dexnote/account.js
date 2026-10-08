@@ -257,8 +257,11 @@ export async function openAccount(u, busy = () => {}) {
   const vault = await ownerVault(u);
   if (vault) {
     const backend = ownerBackend(u, vault.token);
-    const doc = vault.format === 'json' ? vault.content : null;
-    if (!doc) throw new Error('the DEXDC notes need opening once from the homepage keypad first');
+    /* A store still in the pre-rebuild HTML is migrated here, the way the
+       keypad used to migrate it on its first open; with DEXDC retired
+       (2026-10-08) this is the only door left. Nothing is written until the
+       first edit saves, over the rev the server gave. */
+    const doc = vault.format === 'json' ? vault.content : migrateHtml(vault.content);
     return { backend, stored: { doc, rev: Number(vault.rev), savedAt: vault.savedAt }, moved: false, owner: true };
   }
   const { cloudBackend } = await loadCloud();

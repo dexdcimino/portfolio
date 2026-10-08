@@ -44,6 +44,8 @@ function init() {
     auth = getAuth(app);
     onAuthStateChanged(auth, (u) => {
       try { u ? localStorage.setItem(LOCAL_FLAG, '1') : localStorage.removeItem(LOCAL_FLAG); } catch { /* private mode */ }
+      // The homepage asks the server whether this is Dex (script.js dexOwnerCheck).
+      window.dispatchEvent(new CustomEvent('site:user', { detail: { signedIn: !!u } }));
     });
   }
   return auth;

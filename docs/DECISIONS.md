@@ -101,6 +101,33 @@ constant per accent.
 
 ---
 
+## 2026-10-08 — Admin is Dex signed in; DEXDC is no longer a key
+
+**Decided.** Signed in as Dex's own Google is admin everywhere, automatically: music editing,
+Mission Control's private half, Inko moderation, and the DEXDC notes. No code opens any of it.
+`lib/owner-auth.js` decides on the server from a Firebase ID token; `/api/auth/unlock`,
+`/api/notes/unlock` and `/api/music/playlist` unlock all read the sign-in and never a code.
+Tokens minted for him carry `owner`, and every verifier (notes, music, Inko moderation,
+`/api/auth/verify`, the work repo's `api/_auth.js`) refuses one without it. Typing DEXDC now
+opens his notes, with the sign-in sheet first when he is signed out.
+
+**Replaced.** A five-letter code alone being admin everywhere (the universal code is spelled
+out in `script.js`, so anyone reading the page source was admin). A first build that kept the
+codes but required the sign-in as well was never shipped: Dex chose this instead.
+
+**Why.** Dex: "being signed in on my account automatically gives me permissions everywhere,
+every overlay, max admin / editor on all automatically. dexdc will no more. maybe have dexdc
+open the sign in for me from anywhere." A code on top of the sign-in added nothing the sign-in
+did not already prove. Stamping `owner` on minted tokens ends every session a code opened
+before the deploy, instead of waiting out up to 24 hours of them. The notes data did not move:
+the private store is the same, only its door changed. The public code `notes` still opens the
+public page for anyone, and other people may get codes of their own later, opening stores of
+their own. The client-side Idea Vault codes are left alone: what they decrypt ships in the
+page and is public by construction.
+
+**Reverse it if** someone other than Dex needs admin -- then owners should be a list on the
+server, not one address.
+
 ## 2026-10-08 — Dex's Google account opens the DEXDC notes themselves, decided by the server
 
 **Decided.** `/api/notes/unlock` takes a Firebase ID token (`idToken`) besides the

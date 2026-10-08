@@ -30,7 +30,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(p => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 44;
+const EXPECTED = 48;
 
 const FAKE_CLOUD = `// Stand-in for dexnote/cloud.js: same exports, the "server" is a localStorage key.
 import { keyFor } from '/dexnote/local.js';
@@ -243,6 +243,28 @@ await p.click('#notesEditor .dn-account'); await sleep(300);
 ok(await clickText('Sign out'), 'Sign out pressed in the overlay');
 await p.waitForFunction(() => document.querySelector('#notesEditor .nt-app') && !/acct marker/.test(document.querySelector('#notesEditor .nt-app').textContent), { timeout: 15000 }).catch(() => {});
 ok(await p.evaluate(() => !JSON.parse(localStorage.getItem('fakecloud')).signedIn) && !/acct marker/.test(await overlayText()) && /vault fixture/.test(await overlayText() + await p.evaluate(() => document.querySelector('#notesEditor .nt-app')?.textContent || '')), 'signing out puts the password notes back, not the account\'s');
+
+// ~DEXDC is the way to your own notes now, not a password (Dex, 2026-10-08):
+// signed out it opens the notes overlay with the sign-in sheet over it, and
+// the sign-in lands on the account's notes. Nothing goes to the notes server
+// for the code itself.
+await p.click('#notesEditor .nt-close').catch(() => {});
+await overlayGone();
+await p.goto(`${BASE}/`, { waitUntil: 'networkidle2' });
+errors.splice(beforeHome);
+let codeCalls = 0;
+p.on('request', (r) => { if (r.url().includes('/api/notes/unlock') && /dexdc/i.test(r.postData() || '')) codeCalls++; });
+await p.evaluate(() => document.body.focus());
+await p.keyboard.press('`');
+await p.waitForSelector('#codeModal[open] .vault-pin', { timeout: 5000 }).catch(() => {});
+await p.focus('#codeModal .vault-pin').catch(() => {});
+for (const ch of 'dexdc') { await p.keyboard.type(ch); await sleep(40); }
+await p.waitForSelector('#notesEditor .dn-card', { timeout: 20000 }).catch(() => {});
+ok(await p.evaluate(() => /Sign in to open your notes/.test(document.querySelector('#notesEditor .dn-card')?.textContent || '')), '~dexdc signed out opens the notes with the sign-in sheet over them');
+ok(await clickText('Continue with Google'), 'Google pressed on that sheet');
+await p.waitForFunction(() => /acct marker/.test(document.querySelector('#notesEditor .nt-app')?.textContent || ''), { timeout: 15000 }).catch(() => {});
+ok(/acct marker/.test(await overlayText()) && !(await inOverlay('.dn-card')), 'and the sign-in lands on the account\'s notes');
+ok(codeCalls === 0, `the code itself was sent to the notes server ${codeCalls} times`);
 
 const real = errors.filter((e) => !/favicon|Failed to load resource/.test(e));
 ok(real.length === 0, `no console errors (${real.length})${real.length ? ': ' + real.join(' || ') : ''}`);
