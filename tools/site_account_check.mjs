@@ -175,6 +175,18 @@ try {
   const viaG2 = await store.identifySite({ uid: 'site-loss', linked: ['google-g-draw', 'discord-d-loss'], provider: 'google.com' });
   ok(viaG2.handle === 'drawer', `and Google the Google one (${viaG2.handle})`);
 
+  // FRESH: only the call that MADE an account says so; that alone lets the
+  // app move a device's signed-out canvases in (Dex, 2026-10-08).
+  const fT = (await store.identify({ provider: 'google', pid: 'g-fresh', email: 'f@x.y', verified: true })).ticket;
+  const f1 = await store.claim(fT, 'freshling');
+  ok(f1.fresh === true, 'a claim that makes the account is fresh');
+  const f2 = await store.claim(fT, 'freshling2');
+  ok(f2.handle === 'freshling' && !f2.fresh, `the same ticket again is the same account and NOT fresh (${JSON.stringify({ h: f2.handle, fresh: f2.fresh })})`);
+  ok(!(await store.identify({ provider: 'google', pid: 'g-fresh' })).fresh, 'a Google sign-in to it is not fresh');
+  ok(!(await store.identifySite({ uid: 'site-fresh', linked: ['google-g-fresh'], provider: 'google.com' })).fresh, 'nor a site sign-in to it');
+  ok((await store.signup('pw_fresh', 'correct horse')).fresh === true, 'a signup is fresh');
+  ok(!(await store.login('pw_fresh', 'correct horse')).fresh, 'a password sign-in is not');
+
   console.log('3. the API');
   const call = (body) => new Promise((done) => {
     const res = { headers: {}, setHeader(k, v) { this.headers[k.toLowerCase()] = v; }, getHeader(k) { return this.headers[k.toLowerCase()]; },
@@ -195,7 +207,7 @@ try {
   await rm(SCRATCH, { recursive: true, force: true });
 }
 
-const EXPECT = 42;
+const EXPECT = 48;
 ok(passed + failed === EXPECT, `ran ${passed + failed} checks, expected ${EXPECT}`);
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -580,6 +580,19 @@ body.embed #toolbar{margin-bottom:8px;}
    white with its four-colour G, Discord's is its blurple with the white mark. */
 .a-center{text-align:center; margin-left:0; margin-right:0;}
 #account-card .a-title.a-center{margin:2px 34px 8px;}
+/* Signing in: the sheet becomes a spinner until the account and its canvases
+   are on screen, and an error with Try again if that fails. */
+.a-spin{width:40px; height:40px; margin:10px auto 14px; border-radius:50%;
+  background:conic-gradient(from 0deg, transparent 0 25%, var(--a3), var(--a2), var(--a1));
+  -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+          mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  animation:aSpin .8s linear infinite;}
+.a-spin[hidden]{display:none;}
+@keyframes aSpin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion: reduce){ .a-spin{animation-duration:2.4s;} }
+#a-busy .a-text:empty{display:none;}
+#a-busy-row{margin-top:6px;}
+#a-busy-row .mbtn{flex:1;}
 .sso{display:flex; align-items:center; justify-content:center; gap:12px; width:100%; height:48px; border-radius:12px;
   font-size:15px; font-weight:600; text-decoration:none; margin-bottom:10px; cursor:pointer; position:relative;}
 .sso svg{width:20px; height:20px; position:absolute; left:16px;}
