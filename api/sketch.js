@@ -35,6 +35,12 @@
  *   inbox            { token }                       -> { invites: [{ room, from, title, at }] }
  *   inbox-dismiss    { token, room }                 -> { invites }
  *   moderate         { admin, id, op: hide|restore|delete }   admin = Dex's universal JWT
+ *
+ * BACKUPS (lib/sketch-backup.js, docs/BACKUPS.md), admin only:
+ *   backup-status    { admin, handle? }              -> an account's versions, snapshots and trash; no handle: every name + the trash
+ *   backup-restore   { admin, handle, at, from?, ids?, mode?: exact|missing, dry? } -> what was restored
+ *   backup-undelete  { admin, handle }               -> a deleted account back, as it was
+ *   GET /api/sketch?cron=backup                      -> the daily purge of the 30-day trash (vercel.json crons)
  */
 'use strict';
 
@@ -42,6 +48,7 @@ const store = require('../lib/sketch-store.js');
 const site = require('../lib/site-identity.js');
 const suggestName = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 20);
 const social = require('../lib/sketch-social.js');
+const backup = require('../lib/sketch-backup.js');
 
 module.exports = async function handler(req, res) {
   res.setHeader('X-Robots-Tag', 'noindex');
@@ -51,6 +58,15 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const q = req.query || Object.fromEntries(new URL(req.url, 'http://x').searchParams);
+      // Vercel's cron. Purging only ever removes what is past its 30 days, so
+      // a stranger calling it early changes nothing; CRON_SECRET, if set, is
+      // checked anyway.
+      if (q.cron === 'backup') {
+        const want = process.env.CRON_SECRET;
+        if (want && req.headers.authorization !== `Bearer ${want}`) return res.status(401).json({ error: 'not allowed' });
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json(await backup.purge());
+      }
       if (q.img) {
         const found = await store.image(q.img);
         if (!found) return res.status(404).end();
@@ -109,6 +125,17 @@ module.exports = async function handler(req, res) {
     if (action === 'moderate') {
       if (!store.isAdmin(body.admin)) return res.status(401).json({ error: 'not allowed' });
       return res.status(200).json(await store.moderate(String(body.id || ''), body.op));
+    }
+    if (action.startsWith('backup-')) {
+      if (!store.isAdmin(body.admin)) return res.status(401).json({ error: 'not allowed' });
+      const h = String(body.handle || '').toLowerCase();
+      if (action === 'backup-status') return res.status(200).json(await backup.status(h || null));
+      if (action === 'backup-restore') {
+        return res.status(200).json(await backup.restore(h, { at: body.at, from: body.from ? String(body.from).toLowerCase() : undefined,
+                                                              ids: body.ids, mode: body.mode || 'exact', dry: !!body.dry }));
+      }
+      if (action === 'backup-undelete') return res.status(200).json(await backup.undelete(h));
+      return res.status(400).json({ error: 'no such action' });
     }
 
     // A token outlives a rename or a deletion of its account; it is only as
