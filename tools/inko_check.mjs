@@ -110,7 +110,8 @@ try {
   const ink = () => page.evaluate(() => {
     const c = document.getElementById('pad'), x = c.getContext('2d');
     const d = x.getImageData(0, Math.floor(c.height * 0.45), c.width, Math.floor(c.height * 0.1)).data;
-    let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] < 80 && d[i + 2] < 80) n++;
+    // Red (the old default brush) or the deep blue that is the default now (hue 200, 100%, 25%).
+    let n = 0; for (let i = 0; i < d.length; i += 4) if ((d[i] > 200 && d[i + 1] < 80 && d[i + 2] < 80) || (d[i] < 25 && d[i + 1] > 25 && d[i + 1] < 60 && d[i + 2] > 45 && d[i + 2] < 85)) n++;
     return n;
   });
   const stroke = async () => {
@@ -148,7 +149,7 @@ try {
   await optTap(page, '#plus-btn'); await sleep(800);
   const afterPlus = await state();
   note(afterPlus.count === 24 && afterPlus.title === 'Untitled 1', `+ left ${afterPlus.count} drawings, wanted 24 — and more than 20 is the point; the new one is "${afterPlus.title}"`);
-  await page.evaluate(() => { const h = document.getElementById('hue'); h.value = 0; h.dispatchEvent(new Event('input')); });
+  await page.evaluate(() => { for (const [id, v] of [['hue', 0], ['sat', 100], ['bri', 100]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } });   // full red: the default brush is a dark blue now
   await stroke();
   const inked = await ink();
   note(inked > 200, `a stroke drew ${inked} red pixels`);
@@ -379,7 +380,7 @@ try {
     await page.evaluate(() => { window.__wipe = null; new MutationObserver((ms, o) => { const sn = document.querySelector('.pad-snap.go');
       if (sn){ window.__wipe = { mask: getComputedStyle(sn).maskImage || getComputedStyle(sn).webkitMaskImage, inFrame: sn.parentNode.id }; o.disconnect(); } })
       .observe(document.getElementById('canvas-frame'), { subtree: true, childList: true, attributes: true }); });
-    await optTap(page, '#plus-btn'); await sleep(900);
+    await optTap(page, '#plus-btn'); await sleep(1400);
     const wipe = await page.evaluate(() => ({ seen: window.__wipe, left: document.querySelectorAll('.pad-snap').length }));
     note(wipe.seen && /135deg/.test(wipe.seen.mask) && wipe.seen.inFrame === 'canvas-frame' && wipe.left === 0,
       `the + wipe: ${JSON.stringify(wipe)}`);
@@ -457,10 +458,12 @@ try {
   }
   // Batch 8: the toast under the title, newest canvas bottom right, clear moving a canvas there, the swatch toggling, the canvas window from the options bar, download.
   {
-    await optTap(page, '#plus-btn'); await sleep(250);
+    await optTap(page, '#plus-btn');
+    // The toast follows the save of the canvas left behind, which can take a moment: wait for it, then measure.
+    await page.waitForFunction(() => document.getElementById('toast').classList.contains('show'), { timeout: 3000 }).catch(() => {}); await sleep(150);
     const t = await page.evaluate(() => { const e = document.getElementById('toast'), r = e.getBoundingClientRect(), ti = document.getElementById('title-input').getBoundingClientRect();
       return { text: e.textContent, below: Math.round(r.top - ti.bottom), off: Math.abs((r.left + r.right) / 2 - innerWidth / 2), shown: e.classList.contains('show') }; });
-    note(t.text === 'New canvas created' && t.shown && t.below >= 0 && t.below < 30 && t.off < 1, `the + toast: ${JSON.stringify(t)}`);
+    note(t.text === 'New canvas created' && t.shown && t.below >= 0 && t.below < 40 && t.off < 1, `the + toast: ${JSON.stringify(t)}`);
     const grid = async () => { await optTap(page, '#grid-btn'); await sleep(400);
       if (await page.evaluate(() => !/mode-mine/.test(document.getElementById('gallery').className))) { await page.click('#g-tab-public'); await sleep(400); }
       const g = await page.evaluate(() => { const rows = [...document.querySelectorAll('#g-rows .g-row')], last = rows[rows.length - 1], items = [...document.querySelectorAll('#g-rows .g-item')];
@@ -498,8 +501,16 @@ try {
       `the canvas window from the options bar, closing that bar and the size bar (aboveBar): ${JSON.stringify(cw)}, title typed there reads "${typed}" up top, shut again ${shut}`);
     // Download: one PNG named after the canvas.
     await page.evaluate(() => { window.__dl = null; const orig = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function(){ if (this.download){ window.__dl = this.download; return; } return orig.call(this); }; });
-    await optTap(page, '#dl-btn'); await sleep(400);
+    await optTap(page, '#dl-btn'); await sleep(250);
+    // It asks first now (batch 12): Cancel on the left, a GREEN Download, and nothing saved until that.
+    const dlAsk = await page.evaluate(() => { const m = document.getElementById('m-del'), c = document.getElementById('m-cancel');
+      return { open: document.getElementById('modal').classList.contains('open'), title: document.getElementById('m-title').textContent, ok: m.textContent,
+               bg: getComputedStyle(m).backgroundColor, left: c.getBoundingClientRect().left < m.getBoundingClientRect().left, early: window.__dl,
+               named: document.getElementById('tool-name').textContent }; });
+    await page.click('#m-del'); await sleep(400);
     const dl = await page.evaluate(() => window.__dl);
+    note(dlAsk.open && dlAsk.title === 'Download this canvas?' && dlAsk.ok === 'Download' && dlAsk.bg === 'rgb(34, 180, 90)' && dlAsk.left && !dlAsk.early && dlAsk.named === 'Download',
+      `download asks first, green: ${JSON.stringify(dlAsk)}`);
     note(dl === 'inko-thumb-title.png', `download named ${dl}`);
     await page.evaluate(() => { if (!document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); });
   }
@@ -672,6 +683,68 @@ try {
     // Clear is a trash can.
     const trash = await page.evaluate(() => document.querySelectorAll('#clear-btn svg path').length >= 3 && !document.querySelector('#clear-btn svg line'));
     note(trash, `clear is drawn as a trash can: ${trash}`);
+    // Batch 12: the default brush, the tool named under the title, a held control naming itself, and the + wipe's gap.
+    {
+      const fresh = await browser.newPage();
+      await fresh.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+      await fresh.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' }); await sleep(600);
+      const def = await fresh.evaluate(() => ({ h: +document.getElementById('hue').value, s: +document.getElementById('sat').value, b: +document.getElementById('bri').value,
+        size: +document.getElementById('size').value, dot: getComputedStyle(document.getElementById('color-dot')).backgroundColor, name: document.getElementById('tool-name').textContent }));
+      // 25 on the size slider is 30px (sliderToSize); hsb(200,100%,25%) is rgb(0, 43, 64).
+      note(def.h === 200 && def.s === 100 && def.b === 25 && def.size === 25 && /rgb\(0, 4[23], 6[34]\)/.test(def.dot) && def.name === 'Brush',
+        `the default brush on opening: ${JSON.stringify(def)}`);
+      const named = () => fresh.evaluate(() => document.getElementById('tool-name').textContent);
+      const walk = [];
+      const tap = async sel => { await fresh.click(sel); await sleep(500); walk.push(await named()); };
+      await tap('#tool-toggle'); await tap('#ed-btn'); await tap('#ed-btn'); await tap('#tool-toggle');
+      await tap('#sym-btn'); await tap('#color-btn'); await tap('#color-btn'); await tap('#sym-btn');
+      await tap('#opt-btn'); await tap('#copt-btn'); await tap('#opt-btn'); await tap('#clear-btn'); await tap('#m-cancel'); await tap('#opt-btn');
+      const under = await fresh.evaluate(() => { const t = document.getElementById('title-input').getBoundingClientRect(), n = document.getElementById('tool-name').getBoundingClientRect();
+        return { below: Math.round(n.top - t.bottom), off: Math.abs((n.left + n.right) / 2 - (t.left + t.right) / 2) }; });
+      note(walk.join() === 'Eraser,Eyedropper,Eraser,Brush,Symmetry,Color,Symmetry,Brush,Canvas options,Canvas color,Canvas options,Trash,Canvas options,Brush'
+        && under.below >= -1 && under.below < 8 && under.off < 1.5, `the tool named under the title: ${walk.join()} ${JSON.stringify(under)}`);
+      // A REAL touch hold names the control above the bar that is up, and is not a tap.
+      const hold = async (sel, bar) => {
+        const c = await fresh.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
+        await fresh.touchscreen.touchStart(c.x, c.y); await sleep(700);
+        const up = await fresh.evaluate(bar => { const t = document.getElementById('hold-tip'), r = t.getBoundingClientRect(), b = document.getElementById(bar).getBoundingClientRect();
+          return { shown: !t.hidden, name: t.querySelector('b').textContent, what: t.querySelector('small').textContent, lines: t.children.length,
+                   off: Math.abs((r.left + r.right) / 2 - (b.left + b.right) / 2), gap: Math.round(b.top - r.bottom) }; }, bar);
+        await fresh.touchscreen.touchEnd(); await sleep(250);
+        return up; };
+      const h1 = await hold('#ed-btn', 'size-bar');
+      const notTapped = await fresh.evaluate(() => !document.getElementById('ed-btn').classList.contains('on'));
+      await sleep(2000);
+      const gone = await fresh.evaluate(() => document.getElementById('hold-tip').hidden);
+      await fresh.click('#opt-btn'); await sleep(300);
+      const h2 = await hold('#dl-btn', 'opt-bar');
+      const noAsk = await fresh.evaluate(() => !document.getElementById('modal').classList.contains('open'));
+      // ...and a plain tap after a hold still works.
+      await fresh.touchscreen.tap(...await fresh.evaluate(() => { const r = document.getElementById('dl-btn').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })); await sleep(300);
+      const asked = await fresh.evaluate(() => document.getElementById('modal').classList.contains('open'));
+      await fresh.click('#m-cancel'); await sleep(200);
+      note(h1.shown && h1.name === 'Eyedropper' && h1.what === 'Pick a color' && h1.lines === 2 && h1.off < 1 && h1.gap === 8 && notTapped && gone
+        && h2.shown && h2.name === 'Download' && h2.off < 1 && h2.gap === 8 && noAsk && asked,
+        `held controls: ${JSON.stringify(h1)} not a tap ${notTapped}, gone later ${gone}; ${JSON.stringify(h2)} no dialog ${noAsk}, a tap after asks ${asked}`);
+      // The + wipe, FROZEN mid-run: the new canvas written in at the top left, the old one still at the bottom
+      // right, and a dark gap between -- both canvases the same colour, which is when it used to show nothing.
+      await fresh.evaluate(() => { window.__freeze = null; new MutationObserver((ms, o) => { if (!document.getElementById('canvas-frame').classList.contains('go')) return; o.disconnect();
+        for (const a of document.getAnimations()) if (a.animationName === 'padWipe'){ a.pause(); a.currentTime = 400; }
+        window.__freeze = document.getAnimations().filter(a => a.animationName === 'padWipe').length; })
+        .observe(document.getElementById('canvas-frame'), { attributes: true, attributeFilter: ['class'] }); });
+      await fresh.click('#plus-btn'); await sleep(400);
+      const shot = await fresh.evaluate(() => { const r = document.getElementById('canvas-frame').getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height }; });
+      const png = await fresh.screenshot({ clip: shot, encoding: 'base64' });
+      const sample = await fresh.evaluate(async (b64) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        const at = f => { const d = x.getImageData(Math.round(img.width * f), Math.round(img.height * f), 1, 1).data; return d[0] + d[1] + d[2]; };
+        return { tl: at(.08), mid: at(.5), br: at(.97), frozen: window.__freeze }; }, png);
+      await fresh.evaluate(() => { for (const a of document.getAnimations()) a.finish(); }); await sleep(300);
+      const after = await fresh.evaluate(() => ({ snaps: document.querySelectorAll('.pad-snap').length, swap: document.getElementById('canvas-frame').classList.contains('swap') }));
+      note(sample.frozen === 2 && sample.tl > 200 && sample.br > 200 && Math.abs(sample.tl - sample.br) < 12 && sample.mid < 40 && after.snaps === 0 && !after.swap,
+        `the + wipe's gap (r+g+b): ${JSON.stringify(sample)}, after ${JSON.stringify(after)}`);
+      await fresh.close();
+    }
   }
   note(bars.lockRight && !bars.install, `the top row: lock at the right ${bars.lockRight}, install button ${bars.install}`);
   console.log(`colours: canvas ${bg0} -> ${bg1} from its own window, brush sliders left it alone, eyedropper picked ${picked}; toggle ${bars.off.toFixed(1)}px off centre`);
