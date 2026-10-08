@@ -99,8 +99,10 @@ RASTER_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 # icon-test: PWA icon trials served as-is at /icon-test/ (committed by the
 # hexagon-icon work, 2026-10). Web-served test icons, not masters, and the
 # reason every image commit failed until this line existed.
+# dexnote: the accounts page's PWA icons, served as-is at /dexnote/icons/.
 SKIP_DIRS = {"derived", "_resources", "_archive", "games", ".git", "node_modules",
-             ".vercel", ".notes-dev", "icon-test", "inko", "mobius"}
+             ".vercel", ".notes-dev", "icon-test", "inko", "mobius",
+             "dexnote"}
 # inko/ and mobius/ are APP BUILDS served as-is at their own paths, the same
 # reason games/ is here: they ship their own icons and textures, and baking
 # them would write derivatives nothing references. mobius/ is a built copy

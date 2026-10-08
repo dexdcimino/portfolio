@@ -666,6 +666,41 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     keys are migrated once and removed only after every record is written.
     Undo steps are `toBlob` PNGs (encoded off the main thread), the same blob
     is the draft, and undo is live the instant a stroke ends.
+  - **Undo outlives the page.** Each step is written once, as its stroke
+    ends, to a third store, `steps` (DB version 2), and the draft names the
+    stack by id -- so a reload of any kind (Android reclaiming the app in the
+    background, an update arriving on return) brings back the whole stack, up
+    to 50. A launch after the app was CLOSED (sessionStorage gone) brings back
+    the last 20, for 24 hours. A canvas left for another keeps its last 20 in
+    `meta` `hist:<id>` for the 10 most recently left, for 24 hours, and
+    deleting the canvas deletes them. `gcSteps` sweeps steps nothing names.
+  - **Each account has its own canvases on the device.** A canvas record
+    carries an `owner`: none (or `local`) is signed out, `u:<handle>` an
+    account. The gallery, the draft (`meta` `draft` signed out,
+    `draft:u:<handle>` otherwise) and the undo stack all belong to the scope
+    on screen, and a sign-in or sign-out swaps all three. An account's FIRST
+    sign-in on the device (no `meta` `seen:u:<handle>`) adopts every signed-out
+    canvas and the signed-out draft.
+  - **The canvas on screen is always a gallery card.** A new canvas is saved
+    the moment it is made, blank or not, named `Untitled N` (the lowest N
+    above every `Untitled N` already there); the gallery saves the live one
+    before it opens and rings it. Deleting it starts a fresh blank.
+  - **Two colour controls that never cross.** The toolbar swatch opens the
+    brush bar (`hue`/`sat`/`bri`), the top-left swatch the canvas window
+    (`cv-hue`/`cv-sat`/`cv-bri`). They shared ids until 2026-10-08, so the
+    window's sliders were dead and the brush bar painted the canvas. The
+    eyedropper reads backing pixels (scaled by DPR) and takes the colour on
+    release. No install button in the app: the site's Inko card links to
+    `/inko/?install=1`, which offers the browser's prompt or the Add to Home
+    Screen steps.
+  - **A signed-in account's canvases are on every device.** The server keeps
+    each account's gallery (`sketch/canvases/<handle>/`: one `index.json`,
+    then `<id>-<v>.png` strokes and `-t.jpg` thumbnails), and `syncAccount`
+    compares it with IndexedDB by each canvas's `ts`; the newer wins both
+    ways, a deletion is a tombstone (90 days), and one made offline waits in
+    `meta` `deletes:<scope>`. Syncs run on sign-in, launch, foreground,
+    `online`, and after a save, delete or visibility change. Drafts stay on
+    the device. Signed out, nothing leaves it.
   `tools/inko_check.mjs` drives all of it under the real `/inko/` policy read
   out of `vercel.json`. The pre-rebuild app at inko.dexcimino.com (repo
   dexdcimino/inko) now redirects here.
@@ -675,11 +710,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   Blob store under `sketch/`. NAMED "sketch", NOT "inko": the app is being
   renamed, and an API path or a storage prefix is the one name that cannot
   change once real data sits under it. The invariants:
-  - **Private means on the device.** A drawing is never uploaded until its
-    owner taps the lock on its card; then a flattened WebP (880x1170) and the
-    JPEG thumbnail go up and it joins `sketch/feed.json`. Tapping the globe
-    deletes both. The server never holds a private drawing, so it cannot leak
-    one.
+  - **Private means nobody else sees it.** Signed out, a drawing never
+    leaves the device; signed in, the account's own copy (above) is readable
+    only with its token, through `canvas-img`, never the public image route.
+    Tapping the lock on a card uploads a flattened WebP (880x1170) and the
+    JPEG thumbnail and it joins `sketch/feed.json`; tapping the globe deletes
+    both.
   - **Accounts are a name with Google, Discord, or a password behind it.**
     Google and Discord go through `api/sketch-auth/<provider>`
     (`lib/sketch-oauth.js`): a signed state bound to a short-lived cookie, the
@@ -704,7 +740,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     recomputed from the vote file on every change, never incremented.
   - The feed is ONE JSON read, edge-cached for 10 s; images are served
     through the function (the store is private) under versioned keys, so
-    their URLs are `immutable`. Writes are read-modify-write with no lock --
+    their URLs are `immutable`. Because of that edge cache, for three minutes
+    after this device publishes or unpublishes, the app asks for the feed past
+    the cache (`&fresh=`) and lays its own change over the reply. A publish
+    started signed out is remembered in sessionStorage, so it survives the
+    Google or Discord round trip. Your own handle is never filtered out by
+    "hide this artist". Writes are read-modify-write with no lock --
     fine at this scale, and the first thing to change (a ledger per post, as
     the notes store has) when the feed is busy enough to race.
   `tools/sketch_check.mjs` runs the real handler on a scratch store: the
@@ -2487,6 +2528,80 @@ asserts `clean(body) === body` **and** that a `clean()` → `serialize()` round
 trip comes back byte-identical, because a body that survives one and not the
 other still drifts on the first edit. No dev server, no `--write`; the count
 checked is printed and asserted against the number of bodies there are.
+
+## DexNote with accounts (`/dexnote/`)
+
+The same notes app as the overlay above, as its own page, with a sign-in
+instead of a password. Added 2026-10-08. Nothing about the overlay changes:
+`/#notes` still opens the password notes exactly as before.
+
+```
+dexnote/index.html   the page: notes.css, dexnote.css, main.js. Nothing else.
+dexnote/main.js      the gate, guest/account switching, the move on first
+                     sign-in, the account menu, bringing in the password notes
+dexnote/local.js     the guest store: localStorage + IndexedDB pictures
+dexnote/cloud.js     the account store: Firebase Auth, Firestore, Storage
+dexnote/vendor/firebase/   the SDK, self-hosted (see its README)
+dexnote/dexnote.css  the full-screen frame and the sign-in card's layout only
+```
+
+**The app took a backend, not a second copy.** `mount()` in `notes/app.js`
+talks to a backend object -- `save`, `load`, `beacon`, `uploadAsset`,
+`assetSrc`, `ready` -- and the password store is now `vaultBackend()` there,
+built from the token when no backend is passed, which is what the homepage
+still does. The rev/conflict contract is unchanged, so a guest's second tab and
+an account's second device merge exactly as the password store's 409 does.
+`assetSrc` may answer with a promise (Storage URLs are fetched), which is the
+only change in `chips.js`. `headerTail` replaces the close button, because a
+page has nothing to close.
+
+**Guest** (`local.js`): `{ rev, savedAt, doc }` in `localStorage` under
+`dexnote:guest:v1`; pictures as blobs in IndexedDB `dexnote-guest`, keyed by
+the same `<sha256>.<ext>` names the server stores use. Choosing guest is
+remembered (`dexnote:mode`), and Firebase is not even fetched for a guest.
+
+**Account** (`cloud.js`): the SAME Firebase project as dexnote.dev
+(`dexnote-d7047`), so its Google, GitHub and Discord (OIDC, `oidc.discord`)
+sign-ins work here. Its own paths, so nothing the old app wrote is read or
+touched:
+
+```
+users/{uid}/data/dexnote               { v, rev, savedAt, parts }
+users/{uid}/data/dexnote-<i>           { rev, s }   the JSON in 250k-char pieces
+users/{uid}/data/dexnote-backup-<iso>  same shape, written before a replace
+users/{uid}/images/dexnote-<key>       pictures, Firebase Storage
+```
+
+Pieces because a Firestore document stops at 1 MiB; every piece carries the
+rev so a read cannot stitch two saves together. Save and load are Firestore
+transactions: a save on a stale rev writes nothing and returns the other
+document as `conflict`. There is no `sendBeacon` for Firestore, so `beacon()`
+says no and a close falls back to an ordinary save.
+
+**The first sign-in moves the guest notes in** if there is anything in them
+(text, a picture, a renamed or extra category or session): pictures uploaded
+under the same keys, `merge(account, guest)` so the account's settings win and
+every session from both is kept, then the browser's copy is cleared.
+
+**"Bring in the password notes"** (account menu) asks for the keypad code,
+calls `/api/notes/unlock` with it, copies each picture through
+`/api/notes/asset` with the token that returns, backs up the account's current
+document, then saves the password notes over it. It only reads the password
+store.
+
+**Headers.** `/dexnote/(.*)` has its own CSP in `vercel.json` (Firebase hosts
+for connect/img, the auth domain as the one frame) and
+`Cross-Origin-Opener-Policy: same-origin-allow-popups`, because the site-wide
+`same-origin` cuts the sign-in popup off from the page that opened it.
+`notes_dev_server.mjs` reads that CSP out of `vercel.json` for `/dexnote/`.
+
+**Setup that lives outside the repo:** dexcimino.com must be in the Firebase
+project's Authentication -> Settings -> Authorized domains, or every sign-in
+answers `auth/unauthorized-domain` (the gate says so in words).
+
+**Checked by** `tools/dexnote_check.mjs`, against the dev server with
+`cloud.js` answered by a fake: real page, app, guest store and password
+store; not real Firebase.
 
 ## Sound library (code `FOLEY`)
 
