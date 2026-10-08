@@ -193,7 +193,118 @@ try {
   await sleep(1500);
   note(await page.evaluate(() => window.__stillHere === true), 'the app reloaded with nothing deployed');
 
-  // ---- 5. one service worker, and an offline launch -----------------------
+  // ---- 5. undo that outlives the page (Dex, 2026-10-08) ------------------
+  // Backgrounding a phone app can reload it -- the OS reclaiming it, or an
+  // update arriving -- and undo used to come back empty.
+  const ready = () => page.waitForFunction(() => (document.getElementById('g-build') || {textContent: ''}).textContent.startsWith('build '), { timeout: 15000 }).catch(() => {});
+  const undoDepth = () => page.evaluate(async () => {
+    const b = document.getElementById('undo-btn'); let n = 0;
+    while (!b.disabled && n < 200) { b.click(); n++; await new Promise(r => setTimeout(r, 150)); }
+    return n;
+  });
+  const db = () => page.evaluate(async () => {
+    const d = await new Promise((res, rej) => { const r = indexedDB.open('inko'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    const all = (store) => new Promise(res => { const q = d.transaction(store).objectStore(store).getAll(); q.onsuccess = () => res(q.result); });
+    const canvases = await all('canvases'), meta = await all('meta'), steps = await all('steps');
+    d.close();
+    const owners = {};
+    for (const c of canvases) { const o = c.owner || 'local'; owners[o] = (owners[o] || 0) + 1; }
+    return { owners, hists: meta.filter(m => m.key.startsWith('hist:')).map(m => m.key.slice(5)), steps: steps.length,
+             gallery: document.getElementById('g-count').textContent };
+  });
+  const galleryCount = async () => {
+    await page.bringToFront();               // a background tab renders no frames, and a click waits for one
+    await page.click('#grid-btn'); await sleep(400);
+    const n = await page.evaluate(() => document.querySelectorAll('#g-rows .g-item').length);
+    await page.click('#g-back'); await sleep(200);
+    return n;
+  };
+  await page.click('#plus-btn'); await sleep(800);
+  for (let i = 0; i < 3; i++) await stroke();
+  await sleep(1000);
+  await page.reload({ waitUntil: 'networkidle2' }); await ready(); await sleep(600);
+  const warm = await undoDepth();
+  note(warm === 3, `after a reload with the app still open, ${warm} of 3 strokes could be undone`);
+  // Back to all three drawn, then past KEEP_STEPS, then the app CLOSED:
+  // sessionStorage is what a closed app loses.
+  await page.evaluate(async () => { const b = document.getElementById('redo-btn'); while (!b.disabled) { b.click(); await new Promise(r => setTimeout(r, 150)); } });
+  for (let i = 0; i < 24; i++) await stroke();
+  await sleep(1000);
+  await page.reload({ waitUntil: 'networkidle2' }); await ready(); await sleep(600);
+  const full = await undoDepth();
+  note(full === 27, `the whole stack did not come back while open: ${full} undos of 27`);
+  await page.evaluate(async () => { const b = document.getElementById('redo-btn'); while (!b.disabled) { b.click(); await new Promise(r => setTimeout(r, 150)); } });
+  await sleep(1000);
+  await page.evaluate(() => sessionStorage.clear());
+  await page.reload({ waitUntil: 'networkidle2' }); await ready(); await sleep(600);
+  const cold = await undoDepth();
+  note(cold === 19, `after the app was closed, ${cold} undos came back — wanted 19 (the last 20 steps)`);
+  // Leaving a canvas keeps its last strokes; opening it again brings them.
+  await page.evaluate(async () => { const b = document.getElementById('redo-btn'); while (!b.disabled) { b.click(); await new Promise(r => setTimeout(r, 150)); } });
+  await page.type('#title-input', 'Kept history');
+  await page.click('#plus-btn'); await sleep(1200);
+  await stroke();                                          // a different canvas
+  await page.click('#grid-btn'); await sleep(400);
+  await page.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Kept history')).click());
+  await sleep(1200);
+  const reopened = await undoDepth();
+  note(reopened === 19, `reopening a canvas brought back ${reopened} undos, wanted 19`);
+  const kept = await db();
+  note(kept.hists.length >= 1, `no canvas kept its undo history (kept: ${kept.hists.length})`);
+  // Deleting it takes its history with it.
+  await page.click('#grid-btn'); await sleep(400);
+  await page.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Kept history')).querySelector('.g-del').click());
+  await sleep(300); await page.click('#m-del'); await sleep(1500);
+  await page.click('#g-back'); await sleep(200);
+  const afterDel = await db();
+  note(afterDel.hists.length === kept.hists.length - 1, `deleting the canvas left its history: ${kept.hists.length} kept before, ${afterDel.hists.length} after`);
+  console.log(`undo: ${warm} back after a reload, ${full} with the app open, ${cold} after it closed, ${reopened} on reopening a canvas; ${kept.hists.length} canvas histories kept, ${afterDel.hists.length} after a delete`);
+
+  // ---- 6. each account its own canvases (Dex, 2026-10-08) ----------------
+  // Signed out has its own; an account's FIRST sign-in on this device takes
+  // the signed-out ones with it; another account sees none of them.
+  const signedOut = await galleryCount();
+  const owners0 = (await db()).owners;
+  note(signedOut > 20 && Object.keys(owners0).length === 1, `signed out shows ${signedOut} canvases, owners ${JSON.stringify(owners0)}`);
+  // A sign-in landing from another tab (the overlay's route) -- the storage event.
+  const other = await browser.newPage();
+  await other.goto(`${BASE}/inko/manifest.webmanifest`);
+  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_a', token: 'x.y' })));
+  await sleep(1500);
+  const owners1 = (await db()).owners;
+  note(owners1['u:artist_a'] === signedOut && !owners1.local, `first sign-in did not take the canvases along: ${JSON.stringify(owners1)}`);
+  note(await galleryCount() === signedOut, 'signed in, the gallery does not show the canvases it brought');
+  // Signing out: none of them, and something new made signed out stays there.
+  await page.bringToFront();
+  await page.bringToFront();
+  await page.click('#grid-btn'); await sleep(300);
+  await page.click('#g-account'); await sleep(300);
+  await page.click('#a-signout'); await sleep(1500);
+  await page.click('#g-back'); await sleep(200);
+  note(await galleryCount() === 0, 'signed out, the account\'s canvases still show');
+  await stroke();
+  await page.type('#title-input', 'Made signed out');
+  await page.click('#plus-btn'); await sleep(1200);
+  note(await galleryCount() === 1, 'a canvas made signed out is not in the signed-out gallery');
+  // The same account again (not a first sign-in): its own, not the new one.
+  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_a', token: 'x.y' })));
+  await sleep(1500);
+  note(await galleryCount() === signedOut, 'signing back in did not show exactly that account\'s canvases');
+  // A different account: a first sign-in, so it takes the one signed-out canvas.
+  await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_b', token: 'x.y' })));
+  await sleep(1500);
+  const owners2 = (await db()).owners;
+  note(await galleryCount() === 1 && owners2['u:artist_b'] === 1 && owners2['u:artist_a'] === signedOut,
+    `a second account sees the wrong canvases: ${JSON.stringify(owners2)}`);
+  // A reload keeps the scope.
+  await page.reload({ waitUntil: 'networkidle2' }); await ready(); await sleep(600);
+  note(await galleryCount() === 1, 'after a reload the signed-in gallery changed');
+  console.log(`accounts: ${signedOut} signed out -> @artist_a; signed out then shows 0, a new one there; @artist_b took it: ${JSON.stringify(owners2)}`);
+  await other.evaluate(() => localStorage.removeItem('sketchSession'));
+  await other.close();
+  await sleep(1500);
+
+  // ---- 7. one service worker, and an offline launch -----------------------
   const sw = await page.evaluate(async () => {
     const regs = await navigator.serviceWorker.getRegistrations();
     await navigator.serviceWorker.ready;
@@ -209,7 +320,7 @@ try {
   await page.setOfflineMode(false);
   offline = false;
 
-  // ---- 6. the overlay: no install button, no service worker of its own ----
+  // ---- 8. the overlay: no install button, no service worker of its own ----
   const embed = await browser.newPage();
   await embed.goto(`${BASE}/inko/?embed=1`, { waitUntil: 'networkidle2' });
   const e = await embed.evaluate(() => ({ install: getComputedStyle(document.getElementById('install-btn')).display,

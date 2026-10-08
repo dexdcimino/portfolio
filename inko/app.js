@@ -71,8 +71,13 @@ setInterval(() => { if (!document.hidden) checkForUpdate(); }, 5 * 60 * 1000);
    gone. Drawings are Blobs in IndexedDB, with no cap, and the browser is
    asked not to evict them. Each record carries an id, timestamps and a
    visibility, so syncing to a server later is a matter of uploading records,
-   not of reshaping them. */
-const DB_NAME = 'inko', DB_VERSION = 1;
+   not of reshaping them.
+
+   Version 2 adds 'steps': one undo snapshot per record, written ONCE when
+   its stroke ends. The draft and each canvas's kept history name their
+   steps by id, so saving the undo stack costs nothing per save -- the blobs
+   are already on disk. Steps nothing names any more are swept by gcSteps. */
+const DB_NAME = 'inko', DB_VERSION = 2;
 let dbp = null;
 function db(){
   if (dbp) return dbp;
@@ -82,6 +87,7 @@ function db(){
       const d = req.result;
       if (!d.objectStoreNames.contains('canvases')) d.createObjectStore('canvases', { keyPath: 'id' });
       if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
+      if (!d.objectStoreNames.contains('steps')) d.createObjectStore('steps', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -137,7 +143,26 @@ let brushSize = 45, eraserSize = null;
 let bgH = 210, bgS = 35, bgB = 50;
 let tool = 'brush', mirrorOn = false, panelMode = 'brush', popMode = null;
 let history = [], step = -1, dirty = false, editingId = null;
-let gallery = [];
+let gallery = [];                   // the canvases of the scope on screen
+
+/* ---------- whose canvases ----------
+   Each account has its OWN canvases on this device (Dex, 2026-10-08):
+   signed out is 'local', and every account -- Google, Discord, or a name and
+   password, each its own handle -- is 'u:<handle>'. A canvas record carries
+   its owner, and a record with none is local (every record from before
+   this). The gallery, the draft and the undo stack all belong to the scope
+   on screen, and signing in or out swaps all three.
+
+   THE FIRST TIME an account signs in on this device, the signed-out canvases
+   and the drawing on screen move INTO it and stop showing signed out. After
+   that, signing out shows only what was made signed out since.
+
+   This is a split on the device, not a sync: a private drawing still never
+   leaves it (privacy.html). */
+let scope = 'local';
+const scopeOf = s => (s && s.handle ? 'u:' + s.handle : 'local');
+const ownerOf = it => it.owner || 'local';
+const draftKey = sc => (sc === 'local' ? 'draft' : 'draft:' + sc);
 
 /* ---------- dom ---------- */
 const $ = id => document.getElementById(id);
@@ -283,10 +308,25 @@ canvas.addEventListener('contextmenu', e => e.preventDefault());
    instead of toDataURL, which encoded ON it and then grew the result by a
    third as base64 -- a visible hitch at the end of every stroke on a phone.
    The same blob is the draft, so a stroke is encoded once, not twice.
-   Pushes are chained so a fast run of strokes lands in order. */
+   Pushes are chained so a fast run of strokes lands in order.
+
+   KEPT, NOT ONLY HELD (Dex, 2026-10-08). The stack used to live in memory
+   alone, so anything that reloaded the page -- Android reclaiming the app in
+   the background, or a new build arriving when it came back -- returned with
+   no undo at all. Each step is now written to the 'steps' store as its
+   stroke ends, and the draft names the stack by id, so:
+     - while the app is OPEN (a reload, an update, the OS killing it in the
+       background) the whole stack comes back, up to HISTORY_MAX;
+     - after the app was CLOSED, the last KEEP_STEPS come back, for KEEP_MS;
+     - a canvas left for another keeps its last KEEP_STEPS, for the
+       KEEP_CANVASES most recently left, for KEEP_MS; deleting the canvas
+       deletes them.
+   Open is told from closed by sessionStorage, which survives a reload and a
+   background kill of the same window but not the window being closed. */
 let historyChain = Promise.resolve();
 let pendingPushes = 0;              // strokes whose snapshot is still encoding
-const HISTORY_MAX = 30;
+const HISTORY_MAX = 50, KEEP_STEPS = 20, KEEP_CANVASES = 10, KEEP_MS = 24 * 60 * 60 * 1000;
+const stepId = () => 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 function pushHistory(){
   /* Undo is live the moment a stroke ends, not when its snapshot has
      finished encoding: the handler waits for the chain itself. Without this
@@ -295,8 +335,11 @@ function pushHistory(){
   syncUndoRedo();
   historyChain = historyChain.then(async () => {
     const blob = await canvasBlob(sLayer);
+    const id = stepId();
+    // On disk before anything can name it.
+    await idbPut('steps', { id, blob, ts: Date.now() }).catch(() => {});
     history = history.slice(0, step + 1);
-    history.push(blob);
+    history.push({ id, blob });
     if (history.length > HISTORY_MAX) history.shift();
     step = history.length - 1;
     latestBlob = blob;
@@ -315,7 +358,7 @@ async function drawBlob(blob){
 }
 async function restoreStep(i){
   await historyChain;
-  const blob = history[i];
+  const blob = history[i] && history[i].blob;
   if (!blob) return;
   await drawBlob(blob);
   latestBlob = blob;
@@ -333,6 +376,65 @@ $('redo-btn').addEventListener('click', async () => {
   await historyChain;
   if (step < history.length-1){ step++; syncUndoRedo(); restoreStep(step); }
 });
+/* The stack as ids, for a record to name; and a named stack read back, cut
+   to `keep` steps around the current one. Null if any step is missing. */
+const stackRecord = () => ({ steps: history.map(h => h.id), step });
+function cutStack(ids, at, keep){
+  if (!keep || ids.length <= keep) return { ids, at };
+  const start = Math.max(0, Math.min(at, ids.length - keep));
+  return { ids: ids.slice(start, start + keep), at: at - start };
+}
+async function loadStack(rec, keep){
+  if (!rec || !Array.isArray(rec.steps) || !rec.steps.length) return null;
+  const at0 = Math.max(0, Math.min(typeof rec.step === 'number' ? rec.step : rec.steps.length - 1, rec.steps.length - 1));
+  const { ids, at } = cutStack(rec.steps, at0, keep);
+  const out = [];
+  for (const id of ids){
+    const s = await idbGet('steps', id).catch(() => null);
+    if (!s || !s.blob) return null;
+    out.push({ id, blob: s.blob });
+  }
+  return { history: out, step: at };
+}
+function useStack(kept){
+  history = kept.history; step = kept.step;
+  latestBlob = history[step].blob;
+  syncUndoRedo();
+}
+/* Leaving a saved canvas: its last KEEP_STEPS stay with it. */
+async function keepCanvasHistory(){
+  await historyChain;
+  if (!editingId || history.length < 2) return;
+  const it = gallery.find(g => g.id === editingId);
+  if (!it) return;
+  const r = stackRecord();
+  const { ids, at } = cutStack(r.steps, r.step, KEEP_STEPS);
+  await idbPut('meta', { key: 'hist:' + it.id, canvasTs: it.ts, steps: ids, step: at, ts: Date.now() }).catch(() => {});
+}
+/* Opening one: its kept steps, if they still describe it. */
+async function keptCanvasHistory(it){
+  const rec = await idbGet('meta', 'hist:' + it.id).catch(() => null);
+  if (!rec || rec.canvasTs !== it.ts || Date.now() - rec.ts > KEEP_MS) return null;
+  return loadStack(rec);
+}
+/* Kept histories past their day, past the most recent KEEP_CANVASES, or for
+   a canvas that is gone, are dropped; then every step nothing names. Steps
+   younger than a minute are left alone: one may be mid-push. */
+async function gcSteps(){
+  await historyChain;
+  const now = Date.now();
+  const metas = await idbAll('meta');
+  const canvasIds = new Set(await tx('canvases', 'readonly', s => s.getAllKeys()));
+  const hists = metas.filter(m => m.key.startsWith('hist:'));
+  const keep = hists.filter(h => now - h.ts <= KEEP_MS && canvasIds.has(h.key.slice(5)))
+    .sort((a, b) => b.ts - a.ts).slice(0, KEEP_CANVASES);
+  for (const h of hists) if (!keep.includes(h)) await idbDel('meta', h.key);
+  const named = new Set(history.map(h => h.id));
+  const drafts = metas.filter(m => (m.key === 'draft' || m.key.startsWith('draft:')) && now - m.ts <= KEEP_MS);
+  for (const m of [...keep, ...drafts]) (m.steps || []).forEach(id => named.add(id));
+  const steps = await tx('steps', 'readonly', s => s.getAll());
+  for (const st of steps) if (!named.has(st.id) && now - st.ts > 60 * 1000) await idbDel('steps', st.id);
+}
 
 /* ---------- saving ---------- */
 let latestBlob = null;              // the strokes as of the last history step
@@ -351,6 +453,7 @@ async function thumbBlob(png, bg){
 }
 let saveChain = Promise.resolve();
 function saveCurrent(){
+  const owner = scope;
   saveChain = saveChain.then(async () => {
     const title = titleInput.value.trim() || 'Untitled';
     const bg = { h: bgH, s: bgS, b: bgB };
@@ -361,11 +464,11 @@ function saveCurrent(){
       id: editingId || ('c' + now.toString(36) + Math.floor(Math.random() * 1296).toString(36)),
       title, bg, png, thumb: await thumbBlob(png, bg),
       created: existing ? existing.created : now, ts: now,
-      visibility: existing ? existing.visibility : 'private',
+      visibility: existing ? existing.visibility : 'private', owner,
     };
     try { await idbPut('canvases', item); }
     catch (e) { toast('Could not save — storage refused it.'); throw e; }
-    gallery = [item, ...gallery.filter(g => g.id !== item.id)];
+    if (owner === scope) gallery = [item, ...gallery.filter(g => g.id !== item.id)];
     editingId = item.id;
     dirty = false;
     republishIfPublic(item);
@@ -373,22 +476,32 @@ function saveCurrent(){
   });
   return saveChain;
 }
-let draftT = null;
+/* The draft is what is ON SCREEN -- the drawing, which canvas it is, and its
+   undo stack by id -- so a reload of any kind comes back to exactly this.
+   It is written whenever anything changed since the last write (draftRev),
+   not only while there are unsaved strokes: an opened canvas, or an undo
+   stack, is worth coming back to too. One draft per account (see scope). */
+let draftT = null, draftRev = 0, draftSavedRev = 0;
 function scheduleDraft(){
+  draftRev++;
   clearTimeout(draftT);
   draftT = setTimeout(flushDraft, 700);
 }
 async function flushDraft(){
   clearTimeout(draftT);
-  if (!dirty) return;
+  const key = draftKey(scope), rev = draftRev;
   const png = await strokesBlob();
-  await idbPut('meta', { key: 'draft', title: titleInput.value, bg: { h: bgH, s: bgS, b: bgB }, png, editingId, ts: Date.now() });
+  if (rev === draftSavedRev) return;
+  if (!dirty && !editingId && history.length < 2) return;
+  await idbPut('meta', { key, title: titleInput.value, bg: { h: bgH, s: bgS, b: bgB }, png, editingId, dirty,
+                         ...stackRecord(), ts: Date.now() });
+  draftSavedRev = rev;
 }
-const clearDraft = () => idbDel('meta', 'draft').catch(() => {});
+const clearDraft = () => { draftSavedRev = draftRev; return idbDel('meta', draftKey(scope)).catch(() => {}); };
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && dirty) flushDraft();
+  if (document.hidden) flushDraft();
 });
-window.addEventListener('pagehide', () => { if (dirty) flushDraft(); });
+window.addEventListener('pagehide', () => { flushDraft(); });
 titleInput.addEventListener('input', () => { dirty = true; scheduleDraft(); });
 
 /* ---------- toolbar ---------- */
@@ -423,6 +536,7 @@ $('plus-btn').addEventListener('click', async () => {
   if (!untouched){
     try { await saveCurrent(); toast('Canvas saved'); } catch (e) { return; }
   }
+  await keepCanvasHistory();
   editingId = null; titleInput.value = '';
   bgH = 210; bgS = 35; bgB = 50;
   await historyChain;
@@ -704,6 +818,8 @@ function makeItem(it, isLive){
         }
         try { await idbDel('canvases', it.id); }
         catch (err) { toast('Could not delete it.'); return; }
+        // Its kept undo history goes with it.
+        idbDel('meta', 'hist:' + it.id).then(gcSteps).catch(() => {});
         gallery = gallery.filter(g => g.id !== it.id);
         if (editingId === it.id) editingId = null;
         toast('Canvas deleted'); renderGallery();
@@ -740,15 +856,19 @@ function renderGallery(){
 }
 async function openCanvas(id){
   if (dirty) await saveCurrent().catch(() => {});
+  await keepCanvasHistory();
   const it = gallery.find(g => g.id === id);
   if (!it || !it.png) return;
   editingId = id; titleInput.value = it.title;
   bgH = it.bg.h; bgS = it.bg.s; bgB = it.bg.b;
   await historyChain;
   await drawBlob(it.png);
-  render(); history = []; step = -1; pushHistory();
+  render();
+  // Back to a canvas left earlier today: its last strokes can still be undone.
+  const kept = await keptCanvasHistory(it).catch(() => null);
+  if (kept) useStack(kept); else { history = []; step = -1; pushHistory(); }
   dirty = false;
-  clearDraft();
+  scheduleDraft();
   $('gallery').classList.remove('open');
   refreshPanelUI();
 }
@@ -781,6 +901,14 @@ try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch
 let blocked = [];
 try { blocked = JSON.parse(localStorage.getItem(BLOCK_KEY) || '[]') || []; } catch (e) {}
 let galleryTab = 'mine', feed = [], myVoteFor = {};
+/* What THIS device just published or took back: id -> { post } | { gone }.
+   The feed is cached at the edge for up to ~40 s (s-maxage 10 plus
+   stale-while-revalidate 30), so a drawing made public a moment ago was
+   missing from the Public tab and one made private was still in it. For a
+   few minutes after a change of our own, the feed is asked for past the
+   cache, and the change is laid over whatever comes back. */
+const mineLately = new Map();
+const LATELY_MS = 3 * 60 * 1000;
 
 async function api(action, data = {}){
   const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' },
@@ -795,6 +923,77 @@ function setSession(s){
   session = s;
   try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch (e) {}
   syncAccountButton();
+  switchScope(scopeOf(s));
+  if (s) resumePublish();
+}
+
+/* ---- signing in and out swaps the canvases (see "whose canvases") ---- */
+let scopeChain = Promise.resolve();
+function switchScope(next){
+  scopeChain = scopeChain.then(() => enterScope(next)).catch(e => console.warn('inko: scope', e));
+  return scopeChain;
+}
+/* An account's first sign-in on this device: the signed-out canvases and
+   draft move into it. Returns how many canvases moved. */
+async function adoptLocal(next){
+  if (next === 'local' || await idbGet('meta', 'seen:' + next).catch(() => null)) return 0;
+  let moved = 0;
+  for (const it of await idbAll('canvases')){
+    if (ownerOf(it) !== 'local') continue;
+    it.owner = next; await idbPut('canvases', it); moved++;
+  }
+  const d = await idbGet('meta', 'draft').catch(() => null);
+  if (d && !(await idbGet('meta', draftKey(next)).catch(() => null))){
+    await idbPut('meta', { ...d, key: draftKey(next) });
+    await idbDel('meta', 'draft');
+  }
+  await idbPut('meta', { key: 'seen:' + next, at: Date.now() });
+  return moved;
+}
+async function enterScope(next){
+  if (next === scope) return;
+  // The drawing on screen stays with the account it was drawn in, as that
+  // account's draft, undo stack and all.
+  await flushDraft().catch(() => {});
+  await keepCanvasHistory();
+  const moved = await adoptLocal(next);
+  scope = next;
+  await showScope(false);
+  if (moved) toast(moved + (moved === 1 ? ' canvas' : ' canvases') + ' moved into @' + next.slice(2));
+}
+/* Put the scope's gallery and its draft on screen (a blank canvas if it has
+   none). COLD is a launch after the app was closed: the undo stack comes
+   back cut to KEEP_STEPS rather than whole. */
+async function showScope(cold){
+  try { gallery = (await idbAll('canvases')).filter(it => ownerOf(it) === scope); }
+  catch (e) { gallery = []; toast('Storage is unavailable — drawings will not be kept.'); }
+  let draft = null;
+  try { draft = await idbGet('meta', draftKey(scope)); } catch (e) {}
+  await historyChain;
+  history = []; step = -1; latestBlob = null;
+  if (draft && draft.png){
+    titleInput.value = draft.title || '';
+    if (draft.bg){ bgH = draft.bg.h; bgS = draft.bg.s; bgB = draft.bg.b; }
+    // Carrying on with a gallery drawing after a reload saves back to IT,
+    // not to a new card.
+    editingId = draft.editingId && gallery.some(g => g.id === draft.editingId) ? draft.editingId : null;
+    await drawBlob(draft.png);
+    // A draft from before 'dirty' was recorded was always unsaved work.
+    dirty = draft.dirty !== false;
+    const fresh = Date.now() - (draft.ts || 0) <= KEEP_MS;
+    const kept = fresh ? await loadStack(draft, cold ? KEEP_STEPS : 0).catch(() => null) : null;
+    if (kept) useStack(kept);
+  } else {
+    editingId = null; titleInput.value = '';
+    bgH = 210; bgS = 35; bgB = 50;
+    sctx.clearRect(0, 0, W, H);
+    dirty = false;
+  }
+  render(); refreshPanelUI();
+  if (!history.length) pushHistory();
+  syncUndoRedo();
+  draftSavedRev = draftRev;
+  if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
 }
 function syncAccountButton(){
   const b = $('g-account'); if (!b) return;
@@ -816,17 +1015,49 @@ async function publishItem(it){
   if (!it.thumb) it.thumb = await thumbBlob(it.png, it.bg);
   const image = await blobToDataUrl(await publishImage(it));
   const thumb = await blobToDataUrl(it.thumb);
-  await api('publish', { id: it.id, title: it.title, image, thumb });
+  const r = await api('publish', { id: it.id, title: it.title, image, thumb });
   it.visibility = 'public';
   await idbPut('canvases', it);
+  if (r && r.post) mineLately.set(it.id, { post: r.post, at: Date.now() });
 }
 async function unpublishItem(it){
   await api('unpublish', { id: it.id });
   it.visibility = 'private';
   await idbPut('canvases', it);
+  mineLately.set(it.id, { gone: true, at: Date.now() });
+}
+/* A drawing someone tried to make public while signed out goes public once
+   they ARE signed in, however that happened -- the name-and-password sheet,
+   or a Google or Discord round trip that reloaded the page and lost any
+   callback held in memory (which is how "I made it public and it is not on
+   the Public page" happened). Remembered for the tab, for 15 minutes, and
+   forgotten if the sheet is closed instead. */
+const PENDING_KEY = 'inkoPendingPublish';
+function rememberPublish(id){ try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ id, at: Date.now() })); } catch (e) {} }
+function forgetPublish(){ try { sessionStorage.removeItem(PENDING_KEY); } catch (e) {} }
+async function resumePublish(){
+  let p = null;
+  try { p = JSON.parse(sessionStorage.getItem(PENDING_KEY) || 'null'); } catch (e) {}
+  forgetPublish();
+  if (!p || Date.now() - p.at > 15 * 60 * 1000) return;
+  await scopeChain;
+  if (!session) return;
+  let it = gallery.find(g => g.id === p.id);
+  if (!it){
+    // Drawn signed out, on an account this device already knew: going public
+    // under the account brings that one drawing into it.
+    const rec = await idbGet('canvases', p.id).catch(() => null);
+    if (!rec || ownerOf(rec) !== 'local') return;
+    rec.owner = scope; await idbPut('canvases', rec);
+    gallery = [rec, ...gallery]; it = rec;
+  }
+  if (it.visibility !== 'public'){
+    try { await publishItem(it); toast('Public — in the shared gallery'); } catch (e) { toast(e.message); }
+  }
+  if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
 }
 async function toggleVisibility(it, btn){
-  if (!session){ openAccount(() => toggleVisibility(it, btn)); return; }
+  if (!session){ rememberPublish(it.id); openAccount(); return; }
   btn.disabled = true;
   try {
     if (it.visibility === 'public'){ await unpublishItem(it); toast('Private — only on this device'); }
@@ -853,9 +1084,17 @@ function republishIfPublic(item){
 async function loadFeed(){
   $('g-count').textContent = 'Loading…';
   try {
-    const r = await fetch(API + '?feed=1', { cache: 'no-store' });
+    const now = Date.now();
+    for (const [id, m] of mineLately) if (now - m.at > LATELY_MS) mineLately.delete(id);
+    const r = await fetch(API + '?feed=1' + (mineLately.size ? '&fresh=' + now : ''), { cache: 'no-store' });
     if (!r.ok) throw new Error();
     feed = (await r.json()).posts || [];
+    for (const [id, m] of mineLately){
+      const at = feed.findIndex(p => p.id === id);
+      if (m.gone){ if (at >= 0) feed.splice(at, 1); }
+      else if (at < 0) feed.unshift(m.post);
+      else if ((feed[at].v || 0) < (m.post.v || 0)) feed[at] = m.post;
+    }
   } catch (e) { feed = []; $('g-count').textContent = 'Offline'; renderFeed(); return; }
   if (session && feed.length){
     try { myVoteFor = (await api('votes', { ids: feed.map(p => p.id) })).votes || {}; } catch (e) {}
@@ -863,7 +1102,10 @@ async function loadFeed(){
   renderFeed();
 }
 const imgUrl = (p, thumb) => `${API}?img=${encodeURIComponent(`sketch/img/${p.id}-${p.v}${thumb ? '-t.jpg' : '.webp'}`)}`;
-function visibleFeed(){ return feed.filter(p => !blocked.includes(p.handle)); }
+/* Never hide your OWN drawings: "Hide @you" was offered on them while
+   signed out, and once taken, every drawing you published vanished from your
+   Public tab for good. */
+function visibleFeed(){ return feed.filter(p => !blocked.includes(p.handle) || (session && session.handle === p.handle)); }
 function renderFeed(){
   const rows = $('g-rows'); rows.innerHTML = '';
   const items = visibleFeed();
@@ -1024,6 +1266,7 @@ function handleAuthReturn(){
   } else if (params.has('claim')){
     openClaim(params.get('claim'), params.get('suggest') || '');
   } else if (params.has('auth-error')){
+    forgetPublish();
     $('gallery').classList.add('open');
     openAccount(null, AUTH_ERRORS[params.get('auth-error')] || 'Sign-in did not work. Try again.');
   }
@@ -1051,6 +1294,8 @@ window.addEventListener('storage', e => {
   if (e.key !== SESSION_KEY) return;
   try { session = JSON.parse(e.newValue || 'null'); } catch (err) { session = null; }
   syncAccountButton();
+  switchScope(scopeOf(session));
+  if (session) resumePublish();
   if (session && $('account').classList.contains('open')) closeAccount();
   if (galleryTab === 'public') loadFeed();
 });
@@ -1066,6 +1311,7 @@ async function signIn(action){
     toast(action === 'signup' ? 'Welcome, @' + r.handle : 'Signed in as @' + r.handle);
     // The feed (and this person's own reactions) first, THEN whatever the
     // sign-in was for, so it acts on the objects now on screen.
+    await scopeChain;
     if (galleryTab === 'public') await loadFeed();
     if (then) then();
   } catch (e) { $('a-msg').textContent = e.message; }
@@ -1073,7 +1319,7 @@ async function signIn(action){
 $('a-login').addEventListener('click', () => signIn('login'));
 $('a-signup').addEventListener('click', () => signIn('signup'));
 $('a-pass').addEventListener('keydown', e => { if (e.key === 'Enter') signIn('login'); });
-$('a-close').addEventListener('click', closeAccount);
+$('a-close').addEventListener('click', () => { forgetPublish(); closeAccount(); });
 $('a-signout').addEventListener('click', () => { setSession(null); closeAccount(); toast('Signed out'); if (galleryTab === 'public') renderFeed(); });
 $('a-delete').addEventListener('click', () => {
   const pw = $('a-pass2').value;
@@ -1081,9 +1327,10 @@ $('a-delete').addEventListener('click', () => {
   openModal('Delete your account?', 'Every drawing you made public is removed from the shared gallery. Drawings on this device stay.', 'Delete', async () => {
     try {
       await api('delete-account', { password: pw });
-      for (const it of gallery) if (it.visibility === 'public'){ it.visibility = 'private'; idbPut('canvases', it).catch(() => {}); }
+      // Its canvases stay on this device, private, back with the signed-out ones.
+      for (const it of gallery){ it.visibility = 'private'; it.owner = 'local'; await idbPut('canvases', it).catch(() => {}); }
+      await idbDel('meta', 'seen:' + scope).catch(() => {});
       setSession(null); closeAccount(); toast('Account deleted');
-      renderGallery();
     } catch (e) { $('a-msg2').textContent = e.message; }
   });
 });
@@ -1108,20 +1355,16 @@ async function init(){
   window.addEventListener('orientationchange', () => setTimeout(fit, 120));
   render();
   try { await migrateLocalStorage(); } catch (e) { console.warn('inko: migration', e); }
-  try { gallery = await idbAll('canvases'); }
-  catch (e) { gallery = []; toast('Storage is unavailable — drawings will not be kept.'); }
-  let draft = null;
-  try { draft = await idbGet('meta', 'draft'); } catch (e) {}
-  if (draft && draft.png){
-    titleInput.value = draft.title || '';
-    if (draft.bg){ bgH = draft.bg.h; bgS = draft.bg.s; bgB = draft.bg.b; }
-    // Carrying on with a gallery drawing after a reload saves back to IT,
-    // not to a new card.
-    editingId = draft.editingId && gallery.some(g => g.id === draft.editingId) ? draft.editingId : null;
-    await drawBlob(draft.png);
-    render(); dirty = true; refreshPanelUI();
-  }
-  pushHistory();
+  // Open or closed since the last run (see history): sessionStorage outlives
+  // a reload and a background kill, not the app being closed.
+  let cold = true;
+  try { cold = !sessionStorage.getItem('inkoOpen'); sessionStorage.setItem('inkoOpen', '1'); } catch (e) {}
+  // Already signed in from before canvases had owners: the first launch of
+  // this build is that account's first sign-in here.
+  try { await adoptLocal(scopeOf(session)); } catch (e) {}
+  scope = scopeOf(session);
+  await showScope(cold);
+  gcSteps().catch(() => {});
   // Ask the browser not to evict the drawings under storage pressure.
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   try {

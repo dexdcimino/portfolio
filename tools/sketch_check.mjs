@@ -302,6 +302,44 @@ try {
     const again = await C.evaluate(() => ({ who: document.getElementById('g-account').textContent, claim: !document.getElementById('a-claim').hidden, hash: location.hash }));
     note(again.who === '@dexcimino' && !again.claim && again.hash === '', `a second Google sign-in: ${JSON.stringify(again)}`);
 
+    // Making a drawing public SIGNED OUT, through a Google round trip: the
+    // page reloads on the way back, and the drawing must still go public and
+    // be in the Public tab at once (Dex, 2026-10-08: "if I make a canvas
+    // public, it's not showing up in the public page").
+    await C.click('#g-back').catch(() => {}); await sleep(200);
+    await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
+    await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
+    {
+      const r = await C.evaluate(() => { const b = document.getElementById('pad').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
+      await C.mouse.move(r.x + r.w * 0.3, r.y + r.h * 0.3); await C.mouse.down();
+      await C.mouse.move(r.x + r.w * 0.7, r.y + r.h * 0.7, { steps: 10 }); await C.mouse.up(); await sleep(500);
+    }
+    await C.type('#title-input', 'Sunset');
+    await C.click('#plus-btn'); await sleep(900);
+    await C.click('#grid-btn'); await sleep(400);
+    await C.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Sunset')).querySelector('.g-pub').click());
+    await sleep(300);
+    await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-google')]);
+    await sleep(1500);
+    await C.click('#grid-btn');
+    await C.waitForFunction(() => document.querySelector('.g-item .g-pub.on'), { timeout: 15000 }).catch(() => {});
+    const pending = await C.evaluate(() => ({ who: document.getElementById('g-account').textContent,
+      pub: [...document.querySelectorAll('#g-rows .g-item')].filter(el => el.querySelector('.g-pub.on')).map(el => el.querySelector('.g-title').textContent) }));
+    note(pending.who === '@dexcimino' && pending.pub.includes('Sunset'), `after a Google sign-in started from the lock: ${JSON.stringify(pending)}`);
+    await C.click('#g-tab-public');
+    await C.waitForFunction(() => [...document.querySelectorAll('.g-item[data-post] .g-title')].some(t => t.textContent === 'Sunset'), { timeout: 8000 }).catch(() => {});
+    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] .g-title')].some(t => t.textContent === 'Sunset')),
+      'the drawing just made public is not in the Public tab');
+    // Hidden as an artist on this device, your OWN drawings still show to you.
+    await C.evaluate(() => localStorage.setItem('sketchBlocked', JSON.stringify(['dexcimino'])));
+    await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
+    await C.click('#grid-btn'); await sleep(300); await C.click('#g-tab-public');
+    await C.waitForFunction(() => document.querySelector('.g-item[data-post]'), { timeout: 8000 }).catch(() => {});
+    note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] .g-title')].some(t => t.textContent === 'Sunset')),
+      'having once hidden yourself hides your own drawings from your Public tab');
+    await C.evaluate(() => localStorage.removeItem('sketchBlocked'));
+    console.log(`publish through Google: ${JSON.stringify(pending)}, in the Public tab, and shown despite a self-hide`);
+
     // Discord, a different person: a reserved name refused, their own taken.
     await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });

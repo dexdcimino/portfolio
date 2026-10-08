@@ -25,6 +25,28 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-08 — Inko: canvases split per account ON THE DEVICE, and undo kept on disk
+
+**Decided.** Each Inko account (and signed out) sees only its own canvases, by an
+`owner` on each IndexedDB record; an account's first sign-in on a device adopts the
+signed-out canvases. Undo steps are persisted to IndexedDB (`steps`), whole while the
+app is open and the last 20 for 24 hours after it closes, per canvas for the 10 most
+recently left.
+
+**Replaced.** One gallery for every account on the device, and an undo stack held only
+in memory, which any reload (an Android background kill, an update on resume) emptied.
+
+**Why.** Dex, 2026-10-08: signing out still showed the account's canvases, and
+minimising the phone app lost undo. The split stays on the device because a server
+copy of private drawings would break the 2026-10-07 promise below (private never
+leaves the device, privacy.html says so).
+
+**Reverse it if** canvases are to follow an account across devices: that is a server
+sync of private drawings, a change to the privacy promise, and this owner field is
+what it would upload by.
+
+---
+
 ## 2026-10-07 — the shared sketch gallery: private stays on the device, and the server is named for the job
 
 **Decided.** Public drawings, accounts and reactions live behind one endpoint,

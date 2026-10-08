@@ -666,6 +666,21 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     keys are migrated once and removed only after every record is written.
     Undo steps are `toBlob` PNGs (encoded off the main thread), the same blob
     is the draft, and undo is live the instant a stroke ends.
+  - **Undo outlives the page.** Each step is written once, as its stroke
+    ends, to a third store, `steps` (DB version 2), and the draft names the
+    stack by id -- so a reload of any kind (Android reclaiming the app in the
+    background, an update arriving on return) brings back the whole stack, up
+    to 50. A launch after the app was CLOSED (sessionStorage gone) brings back
+    the last 20, for 24 hours. A canvas left for another keeps its last 20 in
+    `meta` `hist:<id>` for the 10 most recently left, for 24 hours, and
+    deleting the canvas deletes them. `gcSteps` sweeps steps nothing names.
+  - **Each account has its own canvases on the device.** A canvas record
+    carries an `owner`: none (or `local`) is signed out, `u:<handle>` an
+    account. The gallery, the draft (`meta` `draft` signed out,
+    `draft:u:<handle>` otherwise) and the undo stack all belong to the scope
+    on screen, and a sign-in or sign-out swaps all three. An account's FIRST
+    sign-in on the device (no `meta` `seen:u:<handle>`) adopts every signed-out
+    canvas and the signed-out draft. A split on the device, not a sync.
   `tools/inko_check.mjs` drives all of it under the real `/inko/` policy read
   out of `vercel.json`. The pre-rebuild app at inko.dexcimino.com (repo
   dexdcimino/inko) now redirects here.
@@ -704,7 +719,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     recomputed from the vote file on every change, never incremented.
   - The feed is ONE JSON read, edge-cached for 10 s; images are served
     through the function (the store is private) under versioned keys, so
-    their URLs are `immutable`. Writes are read-modify-write with no lock --
+    their URLs are `immutable`. Because of that edge cache, for three minutes
+    after this device publishes or unpublishes, the app asks for the feed past
+    the cache (`&fresh=`) and lays its own change over the reply. A publish
+    started signed out is remembered in sessionStorage, so it survives the
+    Google or Discord round trip. Your own handle is never filtered out by
+    "hide this artist". Writes are read-modify-write with no lock --
     fine at this scale, and the first thing to change (a ledger per post, as
     the notes store has) when the feed is busy enough to race.
   `tools/sketch_check.mjs` runs the real handler on a scratch store: the
